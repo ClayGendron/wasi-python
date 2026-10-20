@@ -1,4 +1,4 @@
-"""The engine seam (spec 102): the one module of wasi_python that touches wasmtime-py's private
+"""The engine seam (spec 103): the one module of wasi_python that touches wasmtime-py's private
 API.
 
 wasmtime-py's private API is every name of its that begins with an underscore or is not in its
@@ -60,7 +60,7 @@ A wasmtime-py major bump (Decision 6) is done here, in one place:
 2. `uv run python -c "import wasi_python._wasmtime_ffi"`: the import check names every name that
    moved. Nothing else in the package fails to import, because nothing else names the private
    API.
-3. Fix each named operation here. The table in spec 102, Decision 1, says what each must do;
+3. Fix each named operation here. The table in spec 103, Decision 1, says what each must do;
    `tests/unit/test_wasmtime_ffi.py` says what each must do observably.
 4. `uv run pytest tests/unit/test_wasmtime_ffi.py tests/checks/test_rules.py`, then the fast tier
    on the frozen set with `tests/harness/sameness.py` against the last accepted record: the same

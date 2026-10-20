@@ -2755,7 +2755,7 @@ def npy_fenv_records_file_errors(root: Path) -> tuple[list[str], dict[str, int]]
 
 
 # ---------------------------------------------------------------------------------------------
-# Spec 102: one module, the engine seam, touches wasmtime-py's private API. The rule reads raw
+# Spec 103: one module, the engine seam, touches wasmtime-py's private API. The rule reads raw
 # text, comments and docstrings included. Its last three alternations (the raw function handle,
 # the from-pointer constructors, the pointer method) are assembled from two literals each, so
 # that this file is not a hit of its own rule (U17 holds that it is not).

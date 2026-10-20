@@ -1387,7 +1387,7 @@ def test_a_mutable_at_module_or_class_level_is_found_and_the_exceptions_are_not(
     assert hits[0] == "src/wasi_python/_mod.py:7: a (Dict)"
 
 
-# Spec 102: only the engine seam touches wasmtime-py's private API, and the debt is documented.
+# Spec 103: only the engine seam touches wasmtime-py's private API, and the debt is documented.
 # Every fixture line below is built by concatenation, so this file is not a hit of the rule.
 
 FFI = "wasmtime." + "_ffi"  # the private module's dotted name, never spelled whole here
@@ -1414,7 +1414,7 @@ def test_private_engine_hits_each_alternation_once_and_the_exempt_files_not(work
     assert hits == [f"src/wasi_python/runner.py:{n}: {lines[n - 1]}" for n in range(1, 7)]
     own = ["tests/harness/scan.py", "tests/unit/test_scan.py"]
     real = scan.private_engine_hits(paths.REPO, own, ())
-    assert real == [], real  # the rule's own files avoid the rule (spec 102, Decision 3)
+    assert real == [], real  # the rule's own files avoid the rule (spec 103, Decision 3)
 
 
 ADAPTER = f'''"""The seam.

@@ -1,17 +1,17 @@
-# 105 — Typed call state, explicit lifecycles, and a type checker in the judge
+# 106 — Typed call state, explicit lifecycles, and a type checker in the judge
 
-- **Status:** **built on `0944ead` (the code; the commit after it carries these notes) on `spec/105-typed-call-state-and-explicit-lifecycles`, stacked
-  on 104's `3133f18`, 2026-10-20; reviewed the same day
-  (`../reviews/105-typed-call-state-and-explicit-lifecycles-2026-10-20.md`, verdict "lands once"
+- **Status:** **built on `0944ead` (the code; the commit after it carries these notes) on `spec/106-typed-call-state-and-explicit-lifecycles`, stacked
+  on 105's `3133f18`, 2026-10-20; reviewed the same day
+  (`../reviews/106-typed-call-state-and-explicit-lifecycles-2026-10-20.md`, verdict "lands once"
   one Medium is fixed), its one Medium fixed in `aa2239e` (the join's backstop in `DONE`; the
   Disposition at the end of the landing notes), awaiting the reviewer's confirmation.** Drafted 2026-10-20 on
   `claude/gallant-ride-9nxxmn` from main `5feb7e9` (the memo's commit `a9064a2` is on this
   branch; committed as `46fa9fc`); reviewed before build the same day
-  (`../reviews/105-typed-call-state-and-explicit-lifecycles-spec-2026-10-20.md`, verdict "does
+  (`../reviews/106-typed-call-state-and-explicit-lifecycles-spec-2026-10-20.md`, verdict "does
   not land yet": one High, two Mediums, four Lows); revised against all seven findings (see
-  *Disposition of the pre-build review*). It is **stacked on 104's built tip `3133f18`**
-  (constitution §4.14), the fourth entry of the chain 102 → 103 → 104 → 105 → 106 → 107, and
-  rebases onto main, or the wave's tip, when 104 lands. A different agent reviews the build.
+  *Disposition of the pre-build review*). It is **stacked on 105's built tip `3133f18`**
+  (constitution §4.14), the fourth entry of the chain 103 → 104 → 105 → 106 → 107 → 108, and
+  rebases onto main, or the wave's tip, when 105 lands. A different agent reviews the build.
 - **Date:** 2026-10-20
 - **Owner:** Clay Gendron
 - **Kind:** **parallel-safe** (§5.7): `src/wasi_python/` only, the unit checks and their stand-ins,
@@ -21,10 +21,10 @@
   the type check the judge runs over `src/wasi_python` (Decision 5; constitution §4.13)**. And a
   judge change: a new rules check, new unit rows, stand-ins rewritten; the lane accepts with
   `--accept-judge`.
-- **Depends on:** 104 (one owner for the process's state, on 103's split and 102's engine seam).
-  The module names below are 103's (its Design table): `_limits`, `_places`, `_call`, `_home`,
+- **Depends on:** 105 (one owner for the process's state, on 104's split and 103's engine seam).
+  The module names below are 104's (its Design table): `_limits`, `_places`, `_call`, `_home`,
   `_sessions`, `_engines`, `_wasmtime_ffi`, and the thin `runner.py` that keeps `_checked` and
-  `_check_tools`; a function or a mutable of another module is reached as `_module.name` (103's
+  `_check_tools`; a function or a mutable of another module is reached as `_module.name` (104's
   rule). Landed: 055 (bounded sessions: the lifecycle
   `_State`'s flags encode, Decisions 7, 8, 9 and 13) and 078 (the runner runs each guest on a
   stack of its own: `_Home`, Decisions 2, 4 and 14), whose lifecycles this specification names
@@ -33,7 +33,7 @@
   H3 (the call's state is an untyped dict; the session's lifecycle is ten flags) and M1 (no
   static type checking), and section 8 (the chain, the owner's four decisions). **The drafting
   run** (EXECUTED 2026-10-20 on this branch at `a9064a2`, Linux): one `mypy --strict` over
-  `src/wasi_python` under mypy 1.19.1, its output in `build/105/mypy-strict.txt` (git-ignored); the
+  `src/wasi_python` under mypy 1.19.1, its output in `build/106/mypy-strict.txt` (git-ignored); the
   counts below come from it and from `grep` over the same tree.
 
 ## The problem
@@ -263,7 +263,7 @@ is one documented flag set, so "what the judge checks" is one word in the spec a
 pin of this repository's: the repository names no mypy today.)
 
 **The dependency** (constitution §4.13): `mypy==1.19.1` in the dev group of `pyproject.toml`,
-with the comment: *mypy type-checks `src/wasi_python` in the judge (spec 105, Decision 5);
+with the comment: *mypy type-checks `src/wasi_python` in the judge (spec 106, Decision 5);
 pinned exactly, as pytest-xdist is, since a mypy release changes which lines are errors and the
 check must give the same verdict on every machine and on CI.* `uv lock` records its wheels by
 hash. The reason sentence of this Decision is the one §4.13 asks for.
@@ -293,7 +293,7 @@ host checks Linux's branches, as every host checks Python 3.11's. What is lost: 
 and darwin-only lines are parsed and their functions annotated, but their bodies are typed
 against the linux stubs, so a wrong attribute inside a `sys.platform == "win32"` branch is not
 an error here. The runner already keeps every such line behind a `sys.platform` guard (the
-memo's M3; 106 gathers them into `_platform.py`), so the loss is bounded to those branches. The
+memo's M3; 107 gathers them into `_platform.py`), so the loss is bounded to those branches. The
 recourse, if the owner wants them checked too: a later specification runs mypy once per
 platform with `--platform` and keys the allowance by (module, platform), at three times the
 wall time. wasmtime-py ships its types (READ:
@@ -309,15 +309,15 @@ shrink (the rule `tests/known_gaps.toml` follows). The allowlist is a dict in th
 to closer:
 
 ```python
-UNTYPED = {"mounts.py": "spec 106"}  # module -> the specification that empties it
+UNTYPED = {"mounts.py": "spec 107"}  # module -> the specification that empties it
 ```
 
 This specification **empties the allowlist for every module it touches**: the runner's package
-as 103 and 104 left it (every module of it), `tools.py` (its 36 errors are 34 `type-arg`, one
+as 104 and 105 left it (every module of it), `tools.py` (its 36 errors are 34 `type-arg`, one
 `no-any-return`, one `no-untyped-call` and one `arg-type`, each a missing `[str, Any]` or a
 narrowing the code does and the type does not say) and `cli.py` (3). **`mounts.py` is the one
-entry, its closer 106**, which puts it behind a call-context protocol and moves the platform code
-out of it; most of its 10 errors lie in the memory and trap seams 102 and 106 rewrite, so typing
+entry, its closer 107**, which puts it behind a call-context protocol and moves the platform code
+out of it; most of its 10 errors lie in the memory and trap seams 103 and 107 rewrite, so typing
 them twice would be waste. A new `# type: ignore[code]` carries its code and a reason on the line;
 the landing notes count them (12 lines today, EXECUTED by `grep -c 'type: ignore'`: runner.py 9,
 mounts.py 2, cli.py 1; the memo's 9 is READ), as a fact.
@@ -334,17 +334,17 @@ the insurance M1 asked for, and it is why the check passes with 78 fixes rather 
 
 ### 6. What this changes for the memo's chain
 
-- **102 and 103** are below this specification: the module names in the Design are 103's
+- **103 and 104** are below this specification: the module names in the Design are 104's
   (`_limits`, `_places`, `_call`, `_home`, `_sessions`, `_engines`, `_wasmtime_ffi`, and the thin
   `runner.py` that keeps `_checked` and `_check_tools`), and a name of another module is reached
-  as `_module.name`, 103's rule. 103 owns the module size ceiling (its Decision 6). The type
-  check runs over the package as 103 left it; errors 103's moves exposed are fixed here.
-- **104** is the base: `_Process` is typed as 104 built it (no change to its shape), and the
-  observers 104 moved off module globals are typed callables on it.
-- **106** inherits the one allowance and the `.get`-free `mounts.py` seam: `_Files` will take a
+  as `_module.name`, 104's rule. 104 owns the module size ceiling (its Decision 6). The type
+  check runs over the package as 104 left it; errors 104's moves exposed are fixed here.
+- **105** is the base: `_Process` is typed as 105 built it (no change to its shape), and the
+  observers 105 moved off module globals are typed callables on it.
+- **107** inherits the one allowance and the `.get`-free `mounts.py` seam: `_Files` will take a
   `_CallContext` whose methods are typed here already where the runner implements them.
-- **107** owns the function-length ceiling and the test-seam allowance check, **104** the checks
-  on where a module-level lock or mutable may live, **103** the module size ceiling; this
+- **108** owns the function-length ceiling and the test-seam allowance check, **105** the checks
+  on where a module-level lock or mutable may live, **104** the module size ceiling; this
   specification adds none of those, only the type check, so its lines in `test_rules.py` are its
   own.
 
@@ -370,7 +370,7 @@ name, no message, no verdict moves.
 
 `_Limits` lives in `_limits.py` beside `_check_limits`, `_Inputs` beside `_check_inputs` there,
 `_Places` in `_places.py` beside `_check_places`, and `_ToolArgs` beside `_check_tools` in the
-thin `runner.py` (103's table); `_CheckedCall` is defined in `_call.py`, which `runner.py`
+thin `runner.py` (104's table); `_CheckedCall` is defined in `_call.py`, which `runner.py`
 imports, and every reader names it as `_call._CheckedCall`.
 
 | field | type | from | checked by |
@@ -591,7 +591,7 @@ it runs the step at once and returns `True`, as today's `done` test did.
 
 As Decision 5 says: `[tool.mypy]` in `pyproject.toml`; `mypy==1.19.1` in the dev group;
 `test_src_type_checks_under_mypy_strict` in `tests/checks/test_rules.py` with `UNTYPED =
-{"mounts.py": "spec 106"}`; a mypy exit of 2 is a failure; an allowance with no error left is a
+{"mounts.py": "spec 107"}`; a mypy exit of 2 is a failure; an allowance with no error left is a
 failure. The check runs in the fast tier (it is not `slow`), once per judge, in whichever worker
 takes it under `-n`. Its wall time is a benchmark fact the landing notes record, never asserted
 (constitution §4.9); INFERRED from mypy's usual speed on 11,423 lines, ten to twenty seconds cold
@@ -599,7 +599,7 @@ and a few warm with the cache under `build/`.
 
 ## Scope
 
-In: Decisions 1 to 7. The files: the runner's package (every module 103 made, as 104 left them),
+In: Decisions 1 to 7. The files: the runner's package (every module 104 made, as 105 left them),
 `tools.py`, `cli.py`, `tests/harness/calls.py` (new), `tests/unit/test_lifecycles.py` (new),
 `tests/unit/test_async_tools.py`, `test_runner_inputs.py`, `test_runner_limits.py`,
 `test_runner_sessions.py`, `test_runner_threads.py`, `test_runner_tools.py`,
@@ -610,21 +610,21 @@ In: Decisions 1 to 7. The files: the runner's package (every module 103 made, as
 
 Out:
 
-- **`mounts.py`'s 10 errors and its `Any`s** (spec 106, the one allowance).
+- **`mounts.py`'s 10 errors and its `Any`s** (spec 107, the one allowance).
 - **The friend-class coupling in `tools.py`** (the memo's L2) and `tools.py`'s `Any`s beyond what
   its 36 errors need: only the 36 lines change.
 - **Any change of behaviour.** The two readings Decision 2 names (a `MARKED` dropped session; a
   cancelled queued turn after a `close()`) are kept exactly and recorded here for a later
   specification with its own research; neither is a gap of this one (no check expects
   otherwise, and the fast tier's verdicts do not move: criterion 5).
-- **A ratchet on the `Any` count.** The module size ceiling is 103's, the function-length ceiling
-  and the test-seam allowance check are 107's, the lock and mutable placement checks are 104's.
+- **A ratchet on the `Any` count.** The module size ceiling is 104's, the function-length ceiling
+  and the test-seam allowance check are 108's, the lock and mutable placement checks are 105's.
 - **A per-platform type check.** The check runs against the linux platform's narrowing on every
   host (Decision 5); checking the Windows-only branches is a later specification's.
 - **Typing the tests.** `mypy` runs over `src/wasi_python` only; the harness and the checks are
   the judge's and stay as they are.
 - **`ruff`'s rule set.** Adding `ANN` or `TCH` rules is a judge change of its own.
-- **The engine seam's types** (spec 102 names them; this specification uses them).
+- **The engine seam's types** (spec 103 names them; this specification uses them).
 
 ## Acceptance criteria
 
@@ -636,7 +636,7 @@ Out:
    and Windows judge shards of the chain's dispatch (criterion 8). The
    two table checks and the exhaustiveness and liveness rows red on the base (no enum to import)
    and green on the build. The exhaustiveness row seen red once more with one member added to a
-   copy of each enum and no row for it, the output in `build/105/`.
+   copy of each enum and no row for it, the output in `build/106/`.
 2. **The call is typed.** `_checked` returns a `_CheckedCall` with the 19 fields of the Design,
    frozen, every field required (a construction missing one is a `TypeError`: one unit row).
    `home` and `loop` are parameters on `run`'s path as on the session's; `_home_of` is gone;
@@ -673,23 +673,23 @@ Out:
 
 ## For the lane
 
-- **Kind:** parallel-safe; **stacked**, fourth in the chain 102 → 103 → 104 → 105 → 106 → 107,
+- **Kind:** parallel-safe; **stacked**, fourth in the chain 103 → 104 → 105 → 106 → 107 → 108,
   which lands as one wave of six (the owner's decision, memo section 8). It shares
-  `pyproject.toml` and `uv.lock` with no other entry of the chain (102 to 104, 106 and 107 add no
-  dependency), `tests/checks/test_rules.py` with 107 (different checks; a textual merge),
+  `pyproject.toml` and `uv.lock` with no other entry of the chain (103 to 105, 107 and 108 add no
+  dependency), `tests/checks/test_rules.py` with 108 (different checks; a textual merge),
   `CHANGELOG.md` and the roadmap with every entry.
-- **The order:** it is built on 104's reviewed tip and rebases onto 104's landed form; 106
+- **The order:** it is built on 105's reviewed tip and rebases onto 105's landed form; 107
   builds on its reviewed tip (the allowance and the typed seams).
-- **The claim list** (the builder's fast tier on the frozen a7 set; each line starts "105:"):
-  - 105: **new checks:** `tests/checks/test_rules.py::test_src_type_checks_under_mypy_strict`
+- **The claim list** (the builder's fast tier on the frozen a7 set; each line starts "106:"):
+  - 106: **new checks:** `tests/checks/test_rules.py::test_src_type_checks_under_mypy_strict`
     (no fuel); `tests/unit/test_lifecycles.py` (its rows counted in the landing notes: three
     tables, three exhaustiveness rows, three liveness rows, one `_CheckedCall` row).
-  - 105: **rows that change text and not verdict:** the stand-ins in `test_async_tools.py`,
+  - 106: **rows that change text and not verdict:** the stand-ins in `test_async_tools.py`,
     `test_runner_inputs.py`, `test_runner_limits.py`, `test_runner_sessions.py`,
     `test_runner_threads.py`, `test_runner_tools.py`, and in `tests/checks/test_v1_4_embedding.py`
     (two `_tool_host` stand-ins) and `test_v1_4_public_api.py` (one key read); the probe line of
     spec 093's child program in `test_v1_2_hostile_guest.py`.
-  - 105: **retired checks:** none. **Lost passes:** none. **Grown rows:** none (no artifact byte,
+  - 106: **retired checks:** none. **Lost passes:** none. **Grown rows:** none (no artifact byte,
     no guest fuel: the machines run on the host).
   - **The judge hash changes** in `tests/checks/test_rules.py`, `tests/harness/calls.py`,
     `tests/unit/test_lifecycles.py`, the six unit files above, `test_v1_4_embedding.py`,
@@ -697,8 +697,8 @@ Out:
 - **The flags** (paste-safe):
 
   ```
-  --accept "105: a call's checked arguments are a frozen _CheckedCall with 19 required typed fields, home and loop are parameters, the session's lifecycle is a seven-phase table (_Phase) with a four-state guest (_Guest) and the home's a six-phase table (_HomePhase), each driven whole by the judge, and mypy --strict runs over src/wasi_python as a rules check with one allowance (mounts.py, spec 106); no public name, verdict or artifact byte moves"
-  --accept-judge "105: a rules check runs mypy --strict (1.19.1, pinned exactly; platform pinned to linux so three systems give one verdict) over src/wasi_python with a per-module allowlist that must shrink; unit rows drive the session's, the guest's and the home's transition tables whole with exhaustiveness and liveness; every stand-in in the unit files, test_v1_4_embedding.py and test_v1_4_public_api.py builds a _CheckedCall through tests/harness/calls.py instead of a dict or a key read; spec 093's child program reads the phase (TURN or STOPPING) where it read busy, its golden lines unchanged"
+  --accept "106: a call's checked arguments are a frozen _CheckedCall with 19 required typed fields, home and loop are parameters, the session's lifecycle is a seven-phase table (_Phase) with a four-state guest (_Guest) and the home's a six-phase table (_HomePhase), each driven whole by the judge, and mypy --strict runs over src/wasi_python as a rules check with one allowance (mounts.py, spec 107); no public name, verdict or artifact byte moves"
+  --accept-judge "106: a rules check runs mypy --strict (1.19.1, pinned exactly; platform pinned to linux so three systems give one verdict) over src/wasi_python with a per-module allowlist that must shrink; unit rows drive the session's, the guest's and the home's transition tables whole with exhaustiveness and liveness; every stand-in in the unit files, test_v1_4_embedding.py and test_v1_4_public_api.py builds a _CheckedCall through tests/harness/calls.py instead of a dict or a key read; spec 093's child program reads the phase (TURN or STOPPING) where it read busy, its golden lines unchanged"
   ```
 
 - **Dry-run needs:** none of its own; the chain's one dispatch on its final tip. The Windows judge
@@ -707,7 +707,7 @@ Out:
 
 ## Disposition of the pre-build review
 
-The review (`../reviews/105-typed-call-state-and-explicit-lifecycles-spec-2026-10-20.md`) re-ran
+The review (`../reviews/106-typed-call-state-and-explicit-lifecycles-spec-2026-10-20.md`) re-ran
 the shape checks and the mypy run on three platforms, traced every setter of the lifecycle onto
 the tables (its finding: complete), and ranked seven findings. Every one is written in; no
 decision changed, one was extended (the platform).
@@ -729,9 +729,9 @@ decision changed, one was extended (the platform).
 - **F5 (Low), written in.** The home's invariants 2 and 4 as the review's fix texts.
 - **F6 (Low), written in.** The probe reads `phase in (TURN, STOPPING)`.
 - **F7 (Low), written in.** `_State.checked`, with the reason.
-- **Cross-specification alignment** (the lane, 2026-10-20): the module names are 103's, with its
-  `_module.name` rule; the module size ceiling is 103's, the function-length ceiling and the
-  test-seam allowance check 107's, the lock and mutable placement checks 104's (Decision 6, Scope).
+- **Cross-specification alignment** (the lane, 2026-10-20): the module names are 104's, with its
+  `_module.name` rule; the module size ceiling is 104's, the function-length ceiling and the
+  test-seam allowance check 108's, the lock and mutable placement checks 105's (Decision 6, Scope).
 
 ## One line
 
@@ -741,17 +741,25 @@ path is a red check and not a bug under a guest.
 
 ## Landing notes
 
-Built 2026-10-20 in the worktree `/home/user/wt/105`, branch
-`spec/105-typed-call-state-and-explicit-lifecycles`, from the base `3133f18` (104's built tip on
-`spec/104-one-owner-for-the-process-state`, under build review: 103's reviewed tip `538e831`,
-102's, the memo and the chain's specifications and reviews). Every number here is EXECUTED on
-that base or on the built commit, with its command; the outputs are kept under `build/105/` in
+Built 2026-10-20 in the worktree `/home/user/wt/106`, branch
+`spec/106-typed-call-state-and-explicit-lifecycles`, from the base `3133f18` (105's built tip on
+`spec/105-one-owner-for-the-process-state`, under build review: 104's reviewed tip `538e831`,
+103's, the memo and the chain's specifications and reviews). Every number here is EXECUTED on
+that base or on the built commit, with its command; the outputs are kept under `build/106/` in
 the worktree (git-ignored): `mypy-base-linux.txt`, `mypy-base-win32.txt`,
 `mypy-base-config-linux.txt`, `seen-failing-mypy.txt`, `seen-failing-mypy-full.txt`,
 `seen-failing-units.txt`, `exhaustiveness-red.txt`, `measurements-after.txt`,
 `affected-after.log`, `fast.log`, `built.json`, `claims.toml`, `claims-chain.toml`,
-`sameness-104.txt`, `sameness-baseline-chain.txt`, `sameness-baseline.txt`.
+`sameness-105.txt`, `sameness-baseline-chain.txt`, `sameness-baseline.txt`.
 
+- **Rebase and renumbering** (the coordinator, 2026-10-20): after the build review the branch
+  was rebased onto `550d79f` (105's review commit, which touches only `context/`; no conflict, no
+  code change, no re-run), and the chain was renumbered in one commit on the PR branch, 102 to
+  108 becoming 103 to 109, because main reserved 102 for the release tier while the chain was
+  drafted: this specification was built as 105 and is 106. The hashes below are the ones the
+  builder and the reviewer wrote; rebased they are `7de0416` → `d97c1be`, `0944ead` → `d62dc33`,
+  `7618b48` → `f678505`, `51eba18` → `7e86c67`, `e5eb363` → `0a5c09e`, `aa2239e` → `c475c59`,
+  `5c8f82e` → `092f3f9`, `257c87b` → `9112bb0`.
 - **Commits, in the order built:** `7de0416` (the checks first: `mypy==1.19.1` in the dev group
   with `[tool.mypy]` and the lock file's wheels; `test_src_type_checks_under_mypy_strict` with
   `UNTYPED` in `tests/checks/test_rules.py`; `tests/harness/calls.py`;
@@ -767,25 +775,25 @@ the worktree (git-ignored): `mypy-base-linux.txt`, `mypy-base-win32.txt`,
   rule for the chain). The fast tier below is the build's judge.
 - **The type check on the base, re-measured (criterion 1; EXECUTED on `3133f18`):** `uv run
   --with mypy==1.19.1 mypy --strict --no-error-summary src/wasi_python` → **83 errors in 13
-  files** (`build/105/mypy-base-linux.txt`; the spec's 78 in 4 files was `a9064a2`'s, before
-  102 to 104 split the runner and typed the engine seam): `tools.py` 36, `_call.py` 13,
+  files** (`build/106/mypy-base-linux.txt`; the spec's 78 in 4 files was `a9064a2`'s, before
+  103 to 105 split the runner and typed the engine seam): `tools.py` 36, `_call.py` 13,
   `mounts.py` 8, `runner.py` 6, `_wasmtime_ffi.py` 5, `cli.py` 4, `__init__.py` 3, `_places.py`
   2, `_platform.py` 2, `_zip.py` 2, `_engines.py` 1, `_private_dirs.py` 1, `_sessions.py` 1; by
   code `type-arg` 37, `no-any-return` 14, `arg-type` 6, `attr-defined` 5, `assignment` 5,
   `union-attr` 4, `no-untyped-def` 4, `untyped-decorator` 2, `return-value` 2,
   `no-untyped-call` 2, `unused-ignore` 1, `misc` 1. The three lines The problem names, where
-  103 moved them: `_private_dirs.py:170` ("Return value expected"), `runner.py:894` (the
+  104 moved them: `_private_dirs.py:170` ("Return value expected"), `runner.py:894` (the
   `weakref.finalize` slot) and `tools.py:2002` (the `_Post | None` argument). A bare `uv run
   mypy` with the `[tool.mypy]` of Decision 5 gives the same 83 lines
-  (`build/105/mypy-base-config-linux.txt`, `diff` against the bare run: identical). Under
-  `--platform win32` the base gives **97** (`build/105/mypy-base-win32.txt`; the review's 92
+  (`build/106/mypy-base-config-linux.txt`, `diff` against the bare run: identical). Under
+  `--platform win32` the base gives **97** (`build/106/mypy-base-win32.txt`; the review's 92
   was `a9064a2`'s): the 83, plus 6 `attr-defined` (`resource` in `cli.py`, `os.uname` in
   `_platform.py`, `os.getuid` in `_engines.py`) and 8 `unused-ignore` (`_platform.py` 3,
   `_places.py` 5).
 - **The checks were seen failing first (criterion 1):** the mypy check on the base
-  (`build/105/seen-failing-mypy-full.txt`): 75 findings, the 83 less `mounts.py`'s 8, the
+  (`build/106/seen-failing-mypy-full.txt`): 75 findings, the 83 less `mounts.py`'s 8, the
   first five named in the message. The new and rewritten unit and check rows on the base
-  (`build/105/seen-failing-units.txt`): `tests/unit/test_lifecycles.py`,
+  (`build/106/seen-failing-units.txt`): `tests/unit/test_lifecycles.py`,
   `test_runner_sessions.py`, `test_runner_tools.py` and `test_async_tools.py` fail at
   collection (`module 'wasi_python._call' has no attribute '_CheckedCall'`);
   `test_runner_inputs.py` 18 rows and `test_runner_limits.py` 8 rows fail on
@@ -795,7 +803,7 @@ the worktree (git-ignored): `mypy-base-linux.txt`, `mypy-base-win32.txt`,
   `::test_fuel_is_exact_across_async_tool_calls` on the dict, and
   `test_v1_2_hostile_guest.py::test_an_abandoned_turn_keeps_its_session_busy` on
   `'_State' object has no attribute 'phase'` in the child. **The exhaustiveness rows seen red
-  once more** (`build/105/exhaustiveness-red.txt`): one member (`LIMBO`) added to a copy of
+  once more** (`build/106/exhaustiveness-red.txt`): one member (`LIMBO`) added to a copy of
   `_Phase`, `_Guest` and `_HomePhase` with no row for it, and the three exhaustiveness and
   three liveness rows fail, each naming `LIMBO` as the extra member; the sources restored.
 - **The type check after (criteria 1 and 6):** `uv run mypy` → **8 errors in 1 file**,
@@ -836,7 +844,7 @@ the worktree (git-ignored): `mypy-base-linux.txt`, `mypy-base-win32.txt`,
   and `ABANDONED`), a body after its cancel, and the `_CheckedCall` row. The existing session
   and home rows pass with the phase where they read a flag (`test_runner_sessions.py`'s
   `_state()` takes `phase`; `test_runner_threads.py` reads `home.phase`).
-- **The numbers (criterion 7; EXECUTED, `build/105/measurements-after.txt`; the `Any` token
+- **The numbers (criterion 7; EXECUTED, `build/106/measurements-after.txt`; the `Any` token
   counts re-measured by the build review on `7618b48`, whose code is `0944ead`'s):** `Any` tokens
   **432 → 400** (`grep -oE '\bAny\b' -r src/wasi_python --include='*.py' | wc -l`; the base's
   count on `3133f18`, the spec's 424 being `a9064a2`'s; the builder's 424 was measured before
@@ -869,55 +877,55 @@ the worktree (git-ignored): `mypy-base-linux.txt`, `mypy-base-win32.txt`,
   instance's exports as a mapping to `AsExtern`, a union the runner calls as functions). Unit
   rows added: 49. Sizes: `mounts.py` 2,213 and `tools.py` 2,450, both as `ALLOWED` records
   them; the package 12,509 lines (12,140 on the base). The mypy check's own wall time, a
-  benchmark fact: `test_src_type_checks_under_mypy_strict` alone by node id, `build/.mypy_cache` removed first, 3.74 s (4.0 s of wall for the pytest process); warm, with the cache, 0.28 s (0.6 s), `build/105/mypy-check-time.txt`; the fast tier's own wall time is below, with the check in it.
+  benchmark fact: `test_src_type_checks_under_mypy_strict` alone by node id, `build/.mypy_cache` removed first, 3.74 s (4.0 s of wall for the pytest process); warm, with the cache, 0.28 s (0.6 s), `build/106/mypy-check-time.txt`; the fast tier's own wall time is below, with the check in it.
 - **The fast tier on the frozen `v0.1.0a7` set** (`WASI_PYTHON_ARTIFACTS=/home/user/wasi_python/build/baseline-a7/set/wasi-python-0.1.0a7`,
   `uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider`, on `aa2239e`, the code of the
   reviewed tip plus the review's one fix, under the machine's `build/fast-tier.lock`, `SIGINT`
   at its default): **83 failed, 2427 passed, 52 skipped in 286.52s (0:04:46)**. The failures are the chain's baseline's `failing-nodes.txt`
   exactly (82 checks of an artifact set older than the tree, and
   `test_runner_grants.py::test_the_walk_judges_links`, which needs a non-root user). The
-  record is `build/105/built-fix.json` (`fast-fix.log`), copied from
+  record is `build/106/built-fix.json` (`fast-fix.log`), copied from
   `build/progress/latest.json` as the run ended. The build reviewer's own tier on `7618b48`
-  (`build/105/review-fast.log`, `review.json`) gave 83 failed, 2427 passed, 52 skipped in
+  (`build/106/review-fast.log`, `review.json`) gave 83 failed, 2427 passed, 52 skipped in
   287.30 s, the same 83.
 - **The two Ctrl-C rows red in this builder's early records: the launch, not the tree.** The
-  builder's first runs of the tier on `0944ead` (`build/105/fast-run1.log`, its record
+  builder's first runs of the tier on `0944ead` (`build/106/fast-run1.log`, its record
   `built-run1.json`: **85 failed, 2425 passed, 52 skipped in 371.87s**; a second run the same,
   85 failed in 356.29 s, its files since overwritten) had the baseline's 83 failures and two
   more, `tests/checks/test_v1_2_hostile_guest.py::test_ctrl_c_stops_a_computing_guest[default]`
   and `[default-turn]`, each "the child did not end within its limit" (120 s); so did every run
   of the hostile-guest file on three cores launched the same way, on this tree
-  (`build/105/stress-1.log`, `stress-2.log`, `fix-hostile.log`) and on 104's tip in
-  `/home/user/wt/104` (`stress-base.log`), and a full tier on 104's tip launched the same way
+  (`build/106/stress-1.log`, `stress-2.log`, `fix-hostile.log`) and on 105's tip in
+  `/home/user/wt/105` (`stress-base.log`), and a full tier on 105's tip launched the same way
   (`fast-base.log`: 85 failed, the same two). The rows passed alone every time (six runs,
   1.3 to 1.5 s), and passed in every one of the build reviewer's runs. **The cause, found
   after the review (EXECUTED):** those runs were started as background jobs of a
   non-interactive shell (`(nohup script &)`), which inherit `SIGINT` ignored; Python keeps an
   ignored `SIGINT` ignored at startup (`signal.getsignal(SIGINT)` is `1`, `SIG_IGN`, in such a
-  job; the default handler in the foreground, `build/105/sigint-probe.txt`), the judge's
+  job; the default handler in the foreground, `build/106/sigint-probe.txt`), the judge's
   workers and their children inherit it, and in that child `_deferred_ctrl_c` sees a handler
   that is not the default and defers nothing, so the simulated `SIGINT` of
   `_thread.interrupt_main()` is dropped, the computing guest never stops and the child runs to
   the 120 s limit. The builder's earlier reading of this as the machine's load was wrong; the
   rows need the default `SIGINT` handler, which the judge normally has. The record below was
-  taken with `SIGINT` reset to its default before the tier (`build/105/with-sigint.py`, which
+  taken with `SIGINT` reset to its default before the tier (`build/106/with-sigint.py`, which
   resets the handler and execs the script): the rows pass, and the record has exactly the
   baseline's 83.
-- **Sameness (criterion 5), on the record above.** Against 104's built record
-  (`/home/user/wt/104/build/104/built.json`), with `--claims build/105/claims.toml`
-  (`build/105/sameness-fix-104.txt`):
+- **Sameness (criterion 5), on the record above.** Against 105's built record
+  (`/home/user/wt/105/build/105/built.json`), with `--claims build/106/claims.toml`
+  (`build/106/sameness-fix-105.txt`):
 
 ```
-note: explained by claims: 105 3
+note: explained by claims: 106 3
 sameness exit 0
 ```
 
   Against the chain's baseline (`/home/user/wasi_python/build/baseline-a7/baseline.json`) with
-  the chain's claims (`build/105/claims-chain.toml`: 102's, 103's, 104's and this one's
-  concatenated; `build/105/sameness-fix-baseline-chain.txt`):
+  the chain's claims (`build/106/claims-chain.toml`: 103's, 104's, 105's and this one's
+  concatenated; `build/106/sameness-fix-baseline-chain.txt`):
 
 ```
-note: explained by claims: 102 4 · 103 3 · 104 4 · 105 3
+note: explained by claims: 103 4 · 104 3 · 105 4 · 106 3
 sameness exit 0
 ```
 
@@ -925,8 +933,8 @@ sameness exit 0
   `fuel` differs. The claim: `new` the rules check and `tests/unit/test_lifecycles.py`;
   `units = 49` (the unit suite 1,875 → 1,924 rows). No row grows, no pass moves; the
   hostile-guest probe's golden lines are unchanged. Without a claim list, against the chain's
-  baseline, what prints is the chain's own work (102's, 103's, 104's and this one's rules
-  checks and unit files, and the unit tally; `build/105/sameness-baseline.txt` is the earlier
+  baseline, what prints is the chain's own work (103's, 104's, 105's and this one's rules
+  checks and unit files, and the unit tally; `build/106/sameness-baseline.txt` is the earlier
   record's, with the two rows of the bullet above beside them).
 - **Lint (criterion 6):** `uv run ruff check src tests recipes/guest` and `uv run ruff format
   --check src tests recipes/guest` clean on every commit; `uv lock` adds `mypy==1.19.1` with
@@ -944,24 +952,24 @@ sameness exit 0
 ### For the lane, as built
 
 - **Kind:** parallel-safe; stacked, fourth in the chain; lands in the chain's wave.
-- **The claim list** (each line starts "105:"):
-  - 105: **new checks:** `tests/checks/test_rules.py::test_src_type_checks_under_mypy_strict`
+- **The claim list** (each line starts "106:"):
+  - 106: **new checks:** `tests/checks/test_rules.py::test_src_type_checks_under_mypy_strict`
     (no fuel); `tests/unit/test_lifecycles.py` (49 rows).
-  - 105: **rows that change text and not verdict:** the stand-ins in `test_async_tools.py`,
+  - 106: **rows that change text and not verdict:** the stand-ins in `test_async_tools.py`,
     `test_runner_calls.py` (the three stand-in calls of `_fuel_used` carry `table=None`),
     `test_runner_inputs.py`, `test_runner_limits.py`, `test_runner_sessions.py`,
     `test_runner_threads.py`, `test_runner_tools.py`, and in
     `tests/checks/test_v1_4_embedding.py` (two `_tool_host` stand-ins) and
     `test_v1_4_public_api.py` (one key read); the probe of spec 093's child program in
     `test_v1_2_hostile_guest.py`.
-  - 105: **retired checks:** none. **Lost passes:** none (the two Ctrl-C rows red in the
+  - 106: **retired checks:** none. **Lost passes:** none (the two Ctrl-C rows red in the
     builder's early records were the launch's ignored `SIGINT`, the bullet above; the record
     for the lane has the baseline's 83 exactly). **Grown rows:** none.
 - **The flags** (paste-safe; the spec's, unchanged):
 
   ```
-  --accept "105: a call's checked arguments are a frozen _CheckedCall with 19 required typed fields, home and loop are parameters, the session's lifecycle is a seven-phase table (_Phase) with a four-state guest (_Guest) and the home's a six-phase table (_HomePhase), each driven whole by the judge, and mypy --strict runs over src/wasi_python as a rules check with one allowance (mounts.py, spec 106); no public name, verdict or artifact byte moves"
-  --accept-judge "105: a rules check runs mypy --strict (1.19.1, pinned exactly; platform pinned to linux so three systems give one verdict) over src/wasi_python with a per-module allowlist that must shrink; unit rows drive the session's, the guest's and the home's transition tables whole with exhaustiveness and liveness; every stand-in in the unit files, test_v1_4_embedding.py and test_v1_4_public_api.py builds a _CheckedCall through tests/harness/calls.py instead of a dict or a key read; spec 093's child program reads the phase (TURN or STOPPING) where it read busy, its golden lines unchanged"
+  --accept "106: a call's checked arguments are a frozen _CheckedCall with 19 required typed fields, home and loop are parameters, the session's lifecycle is a seven-phase table (_Phase) with a four-state guest (_Guest) and the home's a six-phase table (_HomePhase), each driven whole by the judge, and mypy --strict runs over src/wasi_python as a rules check with one allowance (mounts.py, spec 107); no public name, verdict or artifact byte moves"
+  --accept-judge "106: a rules check runs mypy --strict (1.19.1, pinned exactly; platform pinned to linux so three systems give one verdict) over src/wasi_python with a per-module allowlist that must shrink; unit rows drive the session's, the guest's and the home's transition tables whole with exhaustiveness and liveness; every stand-in in the unit files, test_v1_4_embedding.py and test_v1_4_public_api.py builds a _CheckedCall through tests/harness/calls.py instead of a dict or a key read; spec 093's child program reads the phase (TURN or STOPPING) where it read busy, its golden lines unchanged"
   ```
 
 - **Dry-run needs:** none of its own; the chain's one dispatch on its final tip. The Windows
@@ -969,12 +977,12 @@ sameness exit 0
   "linux"`), so their count is the Linux shard's: 8, all in `mounts.py`.
 - **CHANGELOG line proposed** (not written: the file is the lane's): *The runner's checked
   call is a frozen typed record, a session's and a home's life are transition tables the judge
-  drives whole, and `mypy --strict` runs over `src/wasi_python` in the judge (spec 105).*
+  drives whole, and `mypy --strict` runs over `src/wasi_python` in the judge (spec 106).*
 
 ### The builder's self-check
 
-- rebased onto the named stacked base today: built on 104's `3133f18`, the base commit in the
-  Status line; no rebase since (104's tip has not moved).
+- rebased onto the named stacked base today: built on 105's `3133f18`, the base commit in the
+  Status line; no rebase since (105's tip has not moved).
 - CI run: none of its own, by the chain's rule (the owner, 2026-10-20); the Windows criterion
   is named: the mypy check's count is the linux one on every host.
 - every number from a measured run on this base, labelled EXECUTED; no growth list (no
@@ -983,17 +991,17 @@ sameness exit 0
   the wave kind (parallel-safe, stacked), dry-run needs.
 - every new check seen failing first; the Windows branch named (the type check's platform
   pin; the Windows count recorded, 97 before and 22 after, for the record).
-- gaps: none; no reserved follow-up beyond what the spec's Scope hands to 106 and 107.
+- gaps: none; no reserved follow-up beyond what the spec's Scope hands to 107 and 108.
 - `packages.toml`: untouched (no package); README rows: none change.
 - CHANGELOG: proposed above, not written (the lane's); questions: none.
 - `ruff check`, `ruff format --check`, the fast tier: green but for the baseline's failures,
-  output in `build/105/`.
+  output in `build/106/`.
 
 ### Differences from the specification's text, each with its reason
 
-1. **`UNTYPED`'s value is the reason in words**, not `"spec 106"`: a code file names no
+1. **`UNTYPED`'s value is the reason in words**, not `"spec 107"`: a code file names no
    specification (AGENTS.md, "Code speaks for itself", the owner, 2026-10-20, after the spec
-   was written); the key is `mounts.py`, as 106 expects, and its value says what empties it
+   was written); the key is `mounts.py`, as 107 expects, and its value says what empties it
    ("typed once it sits behind the call-context protocol").
 2. **The base counts are this base's.** 83 errors in 13 files, not 78 in 4; 97 under win32,
    not 92; the three named lines at `_private_dirs.py:170`, `runner.py:894` and
@@ -1015,7 +1023,7 @@ sameness exit 0
    returning `contextvars.copy_context`, and `test_runner_threads.py`'s row for it stays. The
    session's `_arm`, `_session_tool_host` and `_turn_inside` take `home: _Home`, as the spec
    says.
-5. **`tools.py` held at 2,450 lines, which 103's `ALLOWED` fixes exactly**, so "only the 36
+5. **`tools.py` held at 2,450 lines, which 104's `ALLOWED` fixes exactly**, so "only the 36
    lines change" could not hold to the letter: a `_Json = dict[str, Any]` alias (one line)
    keeps `_Work.__init__` on one line; `number`'s four bounds are written out as `length`
    above it writes its two (the lambdas' join is an untyped `function` to mypy, EXECUTED on
@@ -1042,7 +1050,7 @@ sameness exit 0
 10. **The exhaustiveness rows also assert that every member has a row.** A member added with
     no rows is refused by every pair, which a product-and-refusal row alone accepts; the
     spec's "turns the check red" holds with the added assertion, and the liveness rows go red
-    too (`build/105/exhaustiveness-red.txt`).
+    too (`build/106/exhaustiveness-red.txt`).
 11. **`_output_write` and `_output_free` are plain functions wrapped once** by
     `ctypes.CFUNCTYPE` at module level (the decorator form is untyped to mypy); their names
     and types are unchanged (`test_wasmtime_ffi.py` checks the types).
@@ -1064,7 +1072,7 @@ sameness exit 0
 
 ### Disposition of the build review
 
-The review (`../reviews/105-typed-call-state-and-explicit-lifecycles-2026-10-20.md`) re-ran
+The review (`../reviews/106-typed-call-state-and-explicit-lifecycles-2026-10-20.md`) re-ran
 the fast tier, the sameness lines, the type check and the node ids, traced every setter onto
 the tables, and ranked one Medium, one Low and three notes; verdict "lands once finding 1 is
 fixed or answered".
@@ -1079,10 +1087,10 @@ fixed or answered".
    are the same" holds in every phase. Written as the check first: the unit row
    `test_the_join_backstop_cancels_a_start_and_loses_a_run` gained the `(DONE, DONE)` case and
    was seen red on the reviewed code (`e5eb363`'s source: the join looped until a 20 s guard,
-   `build/105/seen-failing-backstop.txt`, exit 124), then green on the fix (49 rows pass). The
+   `build/106/seen-failing-backstop.txt`, exit 124), then green on the fix (49 rows pass). The
    `_Home` docstring's invariant 2 now says the join sets `ended` itself if the body never
    does. No table row changes: the backstop was the one writer outside the tables, and it
-   stays outside them in `DONE`. Re-run on the fix (EXECUTED): `tests/unit/test_lifecycles.py` and `tests/unit/test_runner_calls.py` alone, 67 passed; the hostile-guest file on three cores (`build/105/fix-hostile.log`, launched before the `SIGINT` cause was found: the baseline's four rows and the two Ctrl-C rows, as every such launch); `uv run mypy --strict src/wasi_python` still 8 errors, all `mounts.py`; `ruff check` and `ruff format --check` clean; the fast tier with `SIGINT` at its default and the sameness lines, the bullets above: the baseline's 83 exactly, each sameness line its claim note and nothing else.
+   stays outside them in `DONE`. Re-run on the fix (EXECUTED): `tests/unit/test_lifecycles.py` and `tests/unit/test_runner_calls.py` alone, 67 passed; the hostile-guest file on three cores (`build/106/fix-hostile.log`, launched before the `SIGINT` cause was found: the baseline's four rows and the two Ctrl-C rows, as every such launch); `uv run mypy --strict src/wasi_python` still 8 errors, all `mounts.py`; `ruff check` and `ruff format --check` clean; the fast tier with `SIGINT` at its default and the sameness lines, the bullets above: the baseline's 83 exactly, each sameness line its claim note and nothing else.
 2. **The notes' `Any` token counts were stale** (Low, context only) — written in by the
    reviewer as `51eba18` (400 tokens, `tools.py` 115: the `_Json` alias names
    `dict[str, Any]` once for its 23 spellings); confirmed, the measurement file under `build/`

@@ -1,7 +1,7 @@
 # A design review of the runner: `src/wasi_python` against a rubric for sandbox SDKs
 
 - **Status:** executed 2026-10-20 on main `30e9b41` (the counts) and `5feb7e9` (the plan);
-  the research specifications 102 to 107 stand on. Every claim is labelled EXECUTED, READ or
+  the research specifications 103 to 108 stand on. Every claim is labelled EXECUTED, READ or
   INFERRED.
 - **Method:** the whole of `src/` read (11,423 lines), then measured with `grep`, `git` and
   the fast tier's collection (`uv run pytest --collect-only -q -m "not slow"`: 2,616 tests);
@@ -321,7 +321,7 @@ a structural pass that touches no public name.
 
 Six parallel-safe specifications, stacked, each built on the one before (constitution §4.14),
 changing no line of `tests/public_api.txt` and no artifact byte. The owner approved the plan
-on 2026-10-20 with four decisions: the numbers 102 to 107; **all six land as one wave, past
+on 2026-10-20 with four decisions: the numbers 103 to 108; **all six land as one wave, past
 §5.7's five** (the owner, 2026-10-20: "land all 6 specs at once, we can go past the 5
 limit"); one dispatch of the release workflow on the chain's final tip in place of one per
 specification (the owner's rule for rebase-only entries, extended to the chain); and the
@@ -329,20 +329,29 @@ baseline set is the `v0.1.0a7` release's, verified against its `SHA256SUMS`, wit
 `tests/harness/sameness.py` as the judge of "no verdict moved" after each build.
 
 Two later decisions of the same day. **Public first, and the debt written down** (the owner,
-2026-10-20): every adapter operation of spec 102 calls wasmtime-py's public API where the
+2026-10-20): every adapter operation of spec 103 calls wasmtime-py's public API where the
 installed release has it, and the private bindings the runner still needs are listed in
 `context/upstream/30-wasmtime-py-public-api-for-the-runner/facts.md`, held in step with the
 adapter by a rules check. **Code speaks for itself** (the owner, 2026-10-20): no code file names
 a specification, a memo, a review, a finding ID or a `context/` path; the reason stays in words,
-and a `context/` document may cite and link the code. Spec 106 clears `src/` (331 `spec NNN`
-uses on e319829, EXECUTED) and holds it with a check; spec 108, reserved, clears `tests/`
+and a `context/` document may cite and link the code. Spec 107 clears `src/` (331 `spec NNN`
+uses on e319829, EXECUTED) and holds it with a check; spec 109, reserved, clears `tests/`
 (1,143), `scripts/` (213) and `release/` (4) the same way, as the chain's last entry.
+
+**Renumbered** (the coordinator, 2026-10-20): the chain was drafted as 102 to 108 on main
+`5feb7e9`; the lane reserved 102 for the release tier the same afternoon (main `e56b387`), so the
+chain moved up by one, 103 to 109, in one commit on the PR branch once the fourth entry had landed
+(built as 102 to 105; the two still to build and the reserved last entry took their new numbers
+before building). The commit renames the files and rewrites every citation, read line by line
+from a script's plan; no behaviour or verdict changes, though the comments in `src/` and `tests/`
+that still cite the old numbers (cleared by 107 and 109) move with it, so the judge's hash moves;
+each specification's landing notes keep the hashes the builders wrote.
 
 | spec | title | findings |
 |---|---|---|
-| 102 | The engine seam: one module touches wasmtime-py's private API | H2 |
-| 103 | The runner becomes a package: one module per concern | H1, M5, L1 |
-| 104 | One owner for the process's state, and the test seams move off module globals | H1, H5 |
-| 105 | Typed call state, explicit lifecycles, and a type checker in the judge | H3, M1 |
-| 106 | `mounts.py` behind a call-context protocol, one platform module, one stamp | H4, M3, M4, M2 |
-| 107 | A structural review is a stage | section 5 |
+| 103 | The engine seam: one module touches wasmtime-py's private API | H2 |
+| 104 | The runner becomes a package: one module per concern | H1, M5, L1 |
+| 105 | One owner for the process's state, and the test seams move off module globals | H1, H5 |
+| 106 | Typed call state, explicit lifecycles, and a type checker in the judge | H3, M1 |
+| 107 | `mounts.py` behind a call-context protocol, one platform module, one stamp | H4, M3, M4, M2 |
+| 108 | A structural review is a stage | section 5 |

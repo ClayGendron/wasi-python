@@ -1,10 +1,10 @@
-"""The residue of spec 103's move (Decision 8, item 2): what is on one side only, by category.
+"""The residue of spec 104's move (Decision 8, item 2): what is on one side only, by category.
 
-Reads 102's `runner.py` and `__init__.py` from git (the base commit, the one argument) and, after
+Reads 103's `runner.py` and `__init__.py` from git (the base commit, the one argument) and, after
 the move, the eleven modules plus `__init__.py`, strips blank lines, and compares the multisets
 of lines, in two steps:
 
-1. The base against the split as the splitter wrote it (`build/103/preformat/`, before ruff
+1. The base against the split as the splitter wrote it (`build/104/preformat/`, before ruff
    sorted the imports and formatted the files; `__init__.py` has no pre-format copy and is read
    from the tree). A line only on the new side is tried again with its `_module.` prefixes
    stripped (one prefix per name: `_sessions._sessions.add` is `_sessions.add`); what remains
@@ -19,7 +19,7 @@ of lines, in two steps:
 Prints the residue by category and its counts; the uncategorised residue must be empty on every
 side, else the exit code is 1.
 
-    uv run python build/103/verbatim.py <base commit>
+    uv run python build/104/verbatim.py <base commit>
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ from collections import Counter
 from pathlib import Path
 
 SRC = Path("src/wasi_python")
-PRE = Path("build/103/preformat")
+PRE = Path("build/104/preformat")
 MODULES = [
     "_limits",
     "_platform",
@@ -166,7 +166,7 @@ FINAL_KINDS = ("import", "wrapped fragment", "uncategorised")
 PRE_KINDS = ("import", "wrapped", "uncategorised")
 final_by: dict[str, Counter] = {k: Counter() for k in FINAL_KINDS}
 pre_by: dict[str, Counter] = {k: Counter() for k in PRE_KINDS}
-COMMENT_MOVED = (  # the one trailing comment moved above its line (build/103/wrap_comment.py)
+COMMENT_MOVED = (  # the one trailing comment moved above its line (build/104/wrap_comment.py)
     "    _private_dirs._flush_warnings()  # what the release's removals queued, outside every lock (spec 084)",
 )
 

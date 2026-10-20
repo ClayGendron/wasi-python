@@ -1,13 +1,13 @@
-# 106 — `mounts.py` behind a call-context protocol, one platform module, one stamp, and the source explains itself
+# 107 — `mounts.py` behind a call-context protocol, one platform module, one stamp, and the source explains itself
 
 - **Status:** **drafted 2026-10-20** on `claude/gallant-ride-9nxxmn` from main `5feb7e9` (the
   memo's plan; the tree read is `a9064a2`, the memo's commit), awaiting its pre-build review. It is
-  the fifth link of the stacked chain 102 → 103 → 104 → 105 → 106 → 107 (constitution §4.14): it
-  is built on 105's reviewed tip, which stands on 104's, on 103's, on 102's, and its header names
+  the fifth link of the stacked chain 103 → 104 → 105 → 106 → 107 → 108 (constitution §4.14): it
+  is built on 106's reviewed tip, which stands on 105's, on 104's, on 103's, and its header names
   that base commit when the build starts. The chain lands as one wave of six past §5.7's five, with
   one dispatch of the release workflow on the chain's final tip (the owner, 2026-10-20, the memo's
   section 8). **Reviewed before build** the same day
-  (`../reviews/106-mounts-behind-a-protocol-and-one-platform-module-spec-2026-10-20.md`, "fit to
+  (`../reviews/107-mounts-behind-a-protocol-and-one-platform-module-spec-2026-10-20.md`, "fit to
   build once the two Mediums are written in"), and every finding written in (its *Disposition*).
   **Amended 2026-10-20** after the owner's rule "Code speaks for itself" (AGENTS.md, commit
   `b7a1250`): Decision 4 now clears every citation of a `context/` document from `src/`, not only
@@ -19,20 +19,20 @@
   **changes no line of `tests/public_api.txt`**, no artifact byte, no errno a guest sees, no
   golden output, no gap, no allowance and no progress file. Build-class it is not: it touches
   nothing under `scripts/`, `recipes/`, `downloads/SHA256SUMS` or the release workflow.
-- **Depends on:** **105** (typed call state, explicit lifecycles, the type checker in the judge),
-  and through it 104 (the process object, the test seams off the module globals), 103 (the runner
+- **Depends on:** **106** (typed call state, explicit lifecycles, the type checker in the judge),
+  and through it 105 (the process object, the test seams off the module globals), 104 (the runner
   as a package: `_limits`, `_places`, `_private_dirs`, `_zip`, `_engine`, `_call`, `_home`,
-  `_platform`, `_sessions`, `_artifacts`) and 102 (the engine seam). Landed: 032, 034, 048 and
+  `_platform`, `_sessions`, `_artifacts`) and 103 (the engine seam). Landed: 032, 034, 048 and
   068 (the mount table, its write half, the guard table and the open-file cap, which `_Files`
   serves); 017, 076 and 077 (the Windows walk and the grant checks that agree on Windows); 087
-  (the `SHA256SUMS` check that `_digest` backs). The names of 103's modules are the memo's table
-  (H1); when 103's specification names them otherwise, its names hold and this one reads through.
+  (the `SHA256SUMS` check that `_digest` backs). The names of 104's modules are the memo's table
+  (H1); when 104's specification names them otherwise, its names hold and this one reads through.
 - **Research it stands on:** `../research/2026-10-20-a-design-review-of-the-runner.md` (findings
   H4, M3, M4 and M2; section 8 for the chain and its baseline).
 
 ## The problem
 
-Four small structural faults stay after 102 to 105, each in the memo's list, each a reader's cost
+Four small structural faults stay after 103 to 106, each in the memo's list, each a reader's cost
 rather than a user's.
 
 1. **`mounts.py` and the runner depend on each other** (H4). `_Files.__init__` does
@@ -52,7 +52,7 @@ rather than a user's.
    `_long_path`, `_Walked.fd`, `_close_held`, `_walk`, `_make_missing`, `_identity_of`,
    `_write_member`, `_copy_zip`, `_cache_dir` (2), `_guest_stack`, `_tell_interpreter`,
    `_trap_handlers_ready` and `_private`. Each pair is clean. But "what does Windows do
-   differently" has seventeen answers, and 103 moves the text without changing that: its
+   differently" has seventeen answers, and 104 moves the text without changing that: its
    `_platform.py` holds the stack probes, the locks and the kernel identity, while the walks stay
    in `_places`, the tree remover in `_private_dirs`, the cache folder in `_engine`.
 3. **Three caches, three ideas of "the file changed"** (M4). `_stamp` is
@@ -72,9 +72,9 @@ rather than a user's.
    itself", commit `b7a1250`) settles it: a code file names no specification, memo, review,
    finding ID or `context/` path; its comments and docstrings give the reason in words, and the
    number lives in the specification that cites the file. `src/` is this specification's to
-   clear and hold; `tests/`, `scripts/` and `release/` are spec 108's. Counted the way Decision
+   clear and hold; `tests/`, `scripts/` and `release/` are spec 109's. Counted the way Decision
    4's check counts, through `tokenize` over the comments and docstrings of every `.py` under
-   `src/` (EXECUTED on `b7a1250`, `build/106/cites.py`): 446 lines carry a citation; by kind,
+   `src/` (EXECUTED on `b7a1250`, `build/107/cites.py`): 446 lines carry a citation; by kind,
    328 specification numbers (`__init__` 4, `__main__` 1, `_wasmtime_ffi` 6, `cli` 4, mounts 56,
    runner 214, tools 43), 186 decision numbers ("Decision 8", with or without a specification
    beside them: `__init__` 3, `_wasmtime_ffi` 4, `cli` 2, mounts 40, runner 109, tools 28), 62
@@ -82,8 +82,8 @@ rather than a user's.
    bare finding IDs (14, 49, 17), 3 "memo", 1 "constitution" and 1 `context/` path (both in
    `_wasmtime_ffi.py`), 0 "question NN". As a plain grep, `spec NNN` is 324 tokens for 40
    distinct numbers (`grep -oh 'spec [0-9]\{3\}' src/wasi_python/*.py | wc -l`, `… | sort -u |
-   wc -l`; the memo's 331 on `e319829` counts the wider forms). 103 to 105 build before this one
-   and may add or move text, so the builder re-counts on 105's tip and the landing notes carry
+   wc -l`; the memo's 331 on `e319829` counts the wider forms). 104 to 106 build before this one
+   and may add or move text, so the builder re-counts on 106's tip and the landing notes carry
    those numbers.
 
 ## Decisions
@@ -111,7 +111,7 @@ nine, so the table holds one thing. Between a session's turns the call's five an
 call": `cancelled()` and `deadline_passed()` False, `name_end` a no-op, `on_home` runs `fn`
 directly; that is what `self.call is None` means in the table today.
 
-**Who implements it.** `_call.py` (103's call module) defines `class _Context`, one per table,
+**Who implements it.** `_call.py` (104's call module) defines `class _Context`, one per table,
 constructed where the table is and holding `call: _Call | None`. Where `_Call.__init__` does
 `table.call = self` today (READ, `runner.py:3258`) it does `table.context.enter(self)`; where the
 table's `release()` sets `self.call = None` (the one such site today, `mounts.py:750`, READ) it
@@ -127,7 +127,7 @@ names the end), and `walk` asks `exiting()` and `ctrl_c_pending()`.
 
 **Why a protocol and not a smaller runner import.** The memo's R3: the dependency graph between
 modules must be acyclic, and `mounts.py` is the self-contained layer. A protocol names the nine
-needs in one place, lets the type checker (105) hold the runner to them, and gives the unit checks
+needs in one place, lets the type checker (106) hold the runner to them, and gives the unit checks
 a fake instead of monkeypatching four private names of another module. The fake is also what H5
 asks for: a seam that is a constructor argument.
 
@@ -146,13 +146,13 @@ build a real `_Call`.
 
 **The rule.** A rules check, `test_mounts_imports_only_the_engine_seam`, reads `mounts.py`'s
 AST and refuses any import of a sibling module, at module level, inside a function or under
-`TYPE_CHECKING`, except 102's FFI seam module (the memo names it `_wasmtime_ffi.py`; 102's name
+`TYPE_CHECKING`, except 103's FFI seam module (the memo names it `_wasmtime_ffi.py`; 103's name
 holds), which `forward` uses for the fuel-neutral call. The check names each offending line.
-Seen failing on 105's tip: `from . import runner` and `from .runner import _Call`.
+Seen failing on 106's tip: `from . import runner` and `from .runner import _Call`.
 
 **What stays.** The runner keeps importing `_Files`, `SIGNATURES`, `GUARDED`, `COUNTED` and the
 WAT builders from `mounts`: one direction is the point. `mounts.py`'s use of the FFI seam for
-`forward` is 102's, unchanged here.
+`forward` is 103's, unchanged here.
 
 ### 2. One platform interface in `_platform.py`, chosen once at import
 
@@ -176,13 +176,13 @@ def _select() -> _Platform:
 `4599`), so an Android host (`sys.platform == "android"`, CPython 3.13 and later) stays what it is
 today: a `_Posix` with no boot-id read, no `pthread_getattr_np` probe and no trap-handler check.
 One function differs today: `_guest_stack` alone accepts `android` (`runner.py:4398` at
-`a9064a2`, `4382` at `806280f` after 102 moved the text; READ) and
+`a9064a2`, `4382` at `806280f` after 103 moved the text; READ) and
 tries the POSIX probe there. After this specification an Android host gets `None` from
 `_Posix.stack_bounds`, and the runner then refuses to start a guest as it does on any host whose
 stack it cannot read. That is the one behaviour change this specification names, decided here:
 one class answers one host, and no release runs or judges on Android (INFERRED: the release
 workflow's three systems are Linux, macOS and Windows). A later specification that wants Android
-adds `_Android(_Posix)` with the probe, under 107's review.
+adds `_Android(_Posix)` with the probe, under 108's review.
 
 | member | today (READ, `runner.py`) | `_Posix` | `_Linux` | `_Darwin` | `_Windows` |
 |---|---|---|---|---|---|
@@ -211,11 +211,11 @@ classes' methods, the chooser deleted. `_Walked`, `Identity`, `_win`, `_win_open
 remover's budget) and the walk constants (`_DIR`, `_WALK_ACCESS`, `_STAT_ACCESS` and the Windows
 flags) move with them, so `_platform.py` imports nothing from `_places` or `_private_dirs` and
 the graph stays acyclic. The three lazy dicts `_identity`, `_win_api` and `_stack_api` become
-attributes of the platform object, filled on first use; whatever 104 did with them in the process
+attributes of the platform object, filled on first use; whatever 105 did with them in the process
 object, they leave it, since a kernel identity and a bound C function are the same after a fork.
 
 **Size** (INFERRED from EXECUTED spans): the thirty functions named above are 704 lines of
-`runner.py` today (`build/106/spans.py`); with `_Removal`, the constants and the class scaffolding,
+`runner.py` today (`build/107/spans.py`); with `_Removal`, the constants and the class scaffolding,
 `_platform.py` ends near 850 lines, one file, and `_places` and `_private_dirs` lose the same.
 
 **Why four classes and not two.** The shape is "posix and windows, darwin as posix with its own
@@ -233,29 +233,29 @@ second caller. Every caller writes `from . import _platform` and reads `_platfor
 call, never `from ._platform import PLATFORM`, so a rebinding of the name reaches every caller; a
 rules check (`test_the_platform_is_chosen_once`, below) refuses the second form.
 
-**How a check binds a platform.** `PLATFORM` carries no underscore, so 104's rule (the judge
+**How a check binds a platform.** `PLATFORM` carries no underscore, so 105's rule (the judge
 patches an underscore name only through `process()`) does not cover it, and it is the one
-platform seam, which 107's seam check knows by name. A check that needs the other platform's rule
+platform seam, which 108's seam check knows by name. A check that needs the other platform's rule
 does `monkeypatch.setattr(_platform, "PLATFORM", _Windows())` for its duration, or calls a class's
 method directly (`_Windows().walk`, `_Posix().stack_bounds()`). A check that needs the real
 platform without `dir_fd` sets the attribute on the real object,
 `monkeypatch.setattr(_platform.PLATFORM, "has_dir_fd", False)`, and `_Posix` takes its by-path
 branches: that is the sweep check at `tests/unit/test_runner_sweep.py:539`, which forces
 `_dir_fd_ok` False on Linux today to drive the by-path remover against a symlink canary; it is
-never bound to `_Windows()` on Linux, whose `long_path` and `try_lock` are Windows's. When 104
+never bound to `_Windows()` on Linux, whose `long_path` and `try_lock` are Windows's. When 105
 lands with a process-object field for the platform instead, the binding is
 `monkeypatch.setattr(process(), "platform", …)` and the attribute form stays; the fallback when
-104 gives it no such field is the module name above.
+105 gives it no such field is the module name above.
 
-**The allowance list.** 104's Decision 4 leaves twenty private names the judge still patches by
-name as the allowance list that 107's seam check starts from, and says 106 shrinks it. This
+**The allowance list.** 105's Decision 4 leaves twenty private names the judge still patches by
+name as the allowance list that 108's seam check starts from, and says 107 shrinks it. This
 specification removes from that list the nine platform names its object absorbs
 (`_guest_stack`, `_tell_interpreter`, `_trap_handlers_ready`, `_dir_fd_ok`, `_win_open`,
 `_close_held`, `_try_lock`, `_unlock_close`, `_remove_tree`) and, of the call-path names, only
 the mount table's own site (`_ctrl_c_watched` in `tests/unit/test_runner_mounts.py:171`, which
 the fake context replaces); the other `_ctrl_c_watched`, `_stop_error` and `_epoch_now` sites
 belong to checks of the call pipeline, not the table, and stay on the list for their own closers.
-The builder hands 107's builder the shrunk list in the landing notes.
+The builder hands 108's builder the shrunk list in the landing notes.
 
 **The rule.** A rules check, `test_the_platform_is_chosen_once`, greps `src/wasi_python/*.py`
 for `os\.name|sys\.platform` and refuses every match outside `_platform.py`, and inside it every
@@ -263,12 +263,12 @@ match outside `_select`; it also refuses `from ._platform import PLATFORM` (or a
 binds `PLATFORM` to a local name) anywhere in `src/`, so the object is always read through its
 module. No line may stay: each of the 22 is in a function the table absorbs, and
 none is a message text (READ, every line listed in *The problem*). A later message that must name
-the host's platform prints `PLATFORM.name`. Seen failing on 105's tip: 22 lines.
+the host's platform prints `PLATFORM.name`. Seen failing on 106's tip: 22 lines.
 
 ### 3. One stamp for the three caches
 
 `_stamp(st)` stays `(st_dev, st_ino, st_size, st_mtime_ns, st_ctime_ns)` and is defined once, in
-`_artifacts.py` (103's home of the artifact-set check, which `_digest` serves), imported by
+`_artifacts.py` (104's home of the artifact-set check, which `_digest` serves), imported by
 `_zip.py` for the zip copy. Then:
 
 - **`_digest(path)`** opens the file, takes `os.fstat` of the descriptor it hashes, and keys
@@ -286,12 +286,12 @@ the host's platform prints `PLATFORM.name`. Seen failing on 105's tip: 22 lines.
 **Why not drop the caches.** `_digest` hashes a 41 MB binary and a 39 MB zip; the artifact check
 runs on every call (spec 087). The stamp costs one `stat`.
 
-**The check.** `tests/unit/test_runner_artifacts.py` (or the unit file 103 names for
+**The check.** `tests/unit/test_runner_artifacts.py` (or the unit file 104 names for
 `_artifacts`) gains `test_a_same_size_same_mtime_replacement_is_hashed_again`: write file A,
 digest it; write file B of the same length beside it, `os.utime` it to A's exact `mtime_ns`,
 `os.replace` it over A; digest again and see B's hash; then a third call sees the cached B with no
 new read (the check counts opens through a seam on `open`, never time). And
-`test_a_rewritten_manifest_gives_its_new_version_tag` for `_versions`. Both seen failing on 105's
+`test_a_rewritten_manifest_gives_its_new_version_tag` for `_versions`. Both seen failing on 106's
 tip.
 
 ### 4. The source explains itself: no citation of a `context/` document in `src/`
@@ -299,7 +299,7 @@ tip.
 **The rule it serves.** AGENTS.md, "Code speaks for itself" (the owner, 2026-10-20): a code file
 names no specification, memo, review, finding ID or `context/` path; comments and docstrings give
 the reason in words; a `context/` document may cite and link code files. This decision clears
-`src/` and holds it with one check. `tests/`, `scripts/` and `release/` are spec 108's, with a
+`src/` and holds it with one check. `tests/`, `scripts/` and `release/` are spec 109's, with a
 check of its own.
 
 **What goes.** Every citation in the comments and docstrings of every `.py` under `src/`:
@@ -330,12 +330,12 @@ removes a reason:
    the document it stood on, so the trace moves into this specification, not out of the repo.
 3. No sentence is deleted, shortened or reworded beyond rules 1 and 2. No code token changes.
    `_wasmtime_ffi.py`'s docstring keeps every "private binding -> public name wanted" line, less
-   the specification number, since 102's check `test_the_private_api_debt_is_documented` holds
+   the specification number, since 103's check `test_the_private_api_debt_is_documented` holds
    that list, the tuples and the sheet equal; the builder reads that check and keeps it green
    (it compares the lines, not the heading that named the sheet).
 
 **Its own commit.** This is the only edit in the chain that changes text rather than moving it,
-so it is one commit on its own, `106: no citation of a context/ document in src/ (Decision 4)`,
+so it is one commit on its own, `107: no citation of a context/ document in src/ (Decision 4)`,
 with no other change in it. The reviewer reads it apart with `git diff --word-diff` and checks
 that every removed word matches the regexes below or is a connector, and that every added word is
 in a sentence the landing notes list under rule 2.
@@ -361,10 +361,10 @@ about a review. `FINDING_ID` refuses a one- or two-digit ID of a finding (`F3`, 
 one keeps a word like `MD5` out. `DECISION` is case-sensitive: "Decision 8" is how every citation
 writes it, and "a decision" in prose stays free. The check names each file, line and kind. Seen
 failing on the commit before the text commit: 446 lines on `b7a1250` (EXECUTED,
-`build/106/cites.py`: 328 specification numbers, 186 decision numbers, 62 review lines, 80 IDs,
+`build/107/cites.py`: 328 specification numbers, 186 decision numbers, 62 review lines, 80 IDs,
 3 memo, 1 constitution, 1 path; the confirmation's own scan, with another docstring heuristic,
 read 173 decision tokens on 70 lines that carry no specification number), less whatever
-103 to 105 moved or reworded, plus whatever they added; the builder's count on 105's tip is the
+104 to 106 moved or reworded, plus whatever they added; the builder's count on 106's tip is the
 one the landing notes carry.
 
 **What the regexes also refuse, and the recourse.** `[CDFLNS]\d{1,2}` matches more than review
@@ -386,9 +386,9 @@ The judge of "nothing a guest sees changed" is the same as the chain's (the memo
 - **The baseline set** is the `v0.1.0a7` release's, verified against its `SHA256SUMS`, frozen in
   the worktree for every link of the chain. No link builds an artifact.
 - **The fast tier** (`uv run pytest -m "not slow" -n 3`) runs on the built commit in the
-  worktree; its `build/progress/latest.json` is compared with 105's reviewed-tip record and with
+  worktree; its `build/progress/latest.json` is compared with 106's reviewed-tip record and with
   the chain's baseline record by `uv run python tests/harness/sameness.py --claims
-  build/106/claims.toml A.json B.json`. The only differences allowed are 106's claim list: the
+  build/107/claims.toml A.json B.json`. The only differences allowed are 107's claim list: the
   three new rules checks, the new unit rows, and the unit rows retired or renamed (the four
   sites that patched the runner for the mount table). Any other line is a finding.
 - **The errno and parity tables** stay the judge of the guest's errnos:
@@ -398,8 +398,8 @@ The judge of "nothing a guest sees changed" is the same as the chain's (the memo
   `ERRNO_GUEST`, `MOUNT_CANCEL`). None is edited. The slow ones among them run by node id in the
   worktree once, and in the chain's one dispatch.
 - **The new rules checks are seen failing first**, each on the commit before the code it guards,
-  by node id, the output kept under `build/106/` and quoted in the landing notes.
-- **`ruff check`, `ruff format --check` and 105's `mypy` run** are clean on `src/` and `tests/`;
+  by node id, the output kept under `build/107/` and quoted in the landing notes.
+- **`ruff check`, `ruff format --check` and 106's `mypy` run** are clean on `src/` and `tests/`;
   the `Any` count in `mounts.py` and `_platform.py` does not grow (`grep -c '\bAny\b'`, recorded).
 
 ## Intent
@@ -417,22 +417,22 @@ code speaks for itself, and the documents under `context/` cite the code, never 
 ### The commits, in order
 
 Each commit is green on its own (AGENTS.md rule 9); each check is seen failing on the commit
-before its code, by node id, and the output kept under `build/106/`.
+before its code, by node id, and the output kept under `build/107/`.
 
-1. **`106: _Files takes a _CallContext (Decision 1)`**: the protocol in `mounts.py`; `_Context`
+1. **`107: _Files takes a _CallContext (Decision 1)`**: the protocol in `mounts.py`; `_Context`
    in `_call.py` with `enter`/`leave`; `FakeContext` in `tests/harness/files.py`; the three unit
    checks moved off `monkeypatch`; `test_mounts_imports_only_the_engine_seam` in
    `tests/checks/test_rules.py`.
-2. **`106: one platform interface (Decision 2)`**: `_Platform`, the three classes, `_select` and
+2. **`107: one platform interface (Decision 2)`**: `_Platform`, the three classes, `_select` and
    `PLATFORM` in `_platform.py`; the moved functions; every caller through `_platform.PLATFORM`;
    every site of the table under *The unit checks that bind a platform* rebound, bound or
    redirected as that paragraph says; `test_the_platform_is_chosen_once`.
-3. **`106: one stamp (Decision 3)`**: `_digest` and `_version_tag` keyed on the stamp; the two
+3. **`107: one stamp (Decision 3)`**: `_digest` and `_version_tag` keyed on the stamp; the two
    unit checks.
-4. **`106: no citation of a context/ document in src/ (Decision 4)`**: the text commit alone,
+4. **`107: no citation of a context/ document in src/ (Decision 4)`**: the text commit alone,
    under the three rules, every `.py` under `src/` included (`_wasmtime_ffi.py`'s debt list keeps
    its lines, less the specification number).
-5. **`106: the citation rule (Decision 4)`**: `test_src_names_no_context_document`, green on
+5. **`107: the citation rule (Decision 4)`**: `test_src_names_no_context_document`, green on
    commit 4, seen failing on commit 3 with its per-kind counts.
 
 ### `mounts.py` after commit 1
@@ -476,13 +476,13 @@ signature and takes `module, stat_module = self.context.trampolines(wt, self.eng
 ```
 class _Context:
     """The runner's answers to the mount table's nine questions (mounts._CallContext)."""
-    def __init__(self, process: _Process) -> None: ...   # 104's object: the ticker, the hooks
+    def __init__(self, process: _Process) -> None: ...   # 105's object: the ticker, the hooks
     def enter(self, call: _Call) -> None: ...             # where table.call = self was
     def leave(self) -> None: ...                          # where table.call = None was
 ```
 
 `ino_of` is `_siphash13`; `trampolines` is `_engine`'s two module builders; `exiting` and
-`ctrl_c_pending` read 104's process object; the five call methods read `self.call` and answer
+`ctrl_c_pending` read 105's process object; the five call methods read `self.call` and answer
 "no call" when it is None.
 
 ### `_platform.py` after commit 2
@@ -502,8 +502,8 @@ named in the landing notes.
 
 Every site in `tests/` that names a platform function, in both forms, the attribute read
 `runner._name` and the patch string `monkeypatch.setattr(runner, "_name", …)` (EXECUTED at
-`a9064a2`, `build/106/platform-sites.txt`, one grep with both alternations over the 26 names the
-table absorbs; the builder re-runs it on 105's tip, where 103 and 104 have moved some):
+`a9064a2`, `build/107/platform-sites.txt`, one grep with both alternations over the 26 names the
+table absorbs; the builder re-runs it on 106's tip, where 104 and 105 have moved some):
 
 | file | attribute reads | patch strings |
 |---|---|---|
@@ -532,42 +532,42 @@ and what replaced it, and criterion 8 counts them.
 Under the one unreleased section:
 
 > **The runner's mount table, platform choice, file stamps and comments explain themselves**
-> (spec 106; the design review's H4, M3, M4 and M2). `mounts.py` asks nine questions of a
+> (spec 107; the design review's H4, M3, M4 and M2). `mounts.py` asks nine questions of a
 > call-context protocol and imports nothing from the runner; one `_platform.py` holds every
 > POSIX, macOS and Windows difference behind one interface chosen once at import; the digest and
 > version caches in front of the artifact check key on the full file stamp, so a same-size,
 > same-time replacement is hashed again; and `src/` names no specification, memo, review,
 > finding ID or `context/` path, every reason kept in words, held by one rules check (the owner's
-> rule, "code speaks for itself"; `tests/`, `scripts/` and `release/` follow in spec 108). No
+> rule, "code speaks for itself"; `tests/`, `scripts/` and `release/` follow in spec 109). No
 > public name, artifact byte or guest-visible errno changes.
 
 ### The roadmap line
 
-> Reserved: 106, "`mounts.py` behind a call-context protocol, one platform module, one stamp,
+> Reserved: 107, "`mounts.py` behind a call-context protocol, one platform module, one stamp,
 > and the source explains itself" (the design review's H4, M3, M4, M2): the fifth link of the
-> chain 102 to 107, stacked on 105; parallel-safe; lands in the chain's wave.
+> chain 103 to 108, stacked on 106; parallel-safe; lands in the chain's wave.
 
 ## Scope
 
 In: Decisions 1 to 5. Out:
 
-- **102's FFI seam, 103's module boundaries, 104's process object, 105's types and state
-  machines**: this specification stands on them and changes none of their decisions. Where 103
-  names a module otherwise than the memo's table, 103's name holds.
-- **The private-folder protocol's own module and property checks** (M5): 103's.
-- **A structural review as a stage** (section 5): 107's.
+- **103's FFI seam, 104's module boundaries, 105's process object, 106's types and state
+  machines**: this specification stands on them and changes none of their decisions. Where 104
+  names a module otherwise than the memo's table, 104's name holds.
+- **The private-folder protocol's own module and property checks** (M5): 104's.
+- **A structural review as a stage** (section 5): 108's.
 - **Any change to what the guest sees**: no errno, no record field, no limit, no default.
 - **`tools.py`'s friend-class coupling** (L2): not in the chain.
-- **Citations in `tests/`, `scripts/` and `release/`**: spec 108's, with its own check; this
+- **Citations in `tests/`, `scripts/` and `release/`**: spec 109's, with its own check; this
   specification's check reads `src/` only. `context/` documents keep citing and linking code.
 
 ## Acceptance criteria
 
 1. **The three rules checks and the two unit checks exist and were seen failing first**, each by
-   node id on the commit before its code, the output under `build/106/` and quoted in the landing
+   node id on the commit before its code, the output under `build/107/` and quoted in the landing
    notes (Decisions 1 to 4).
 2. **`mounts.py` imports nothing from the runner**: `test_mounts_imports_only_the_engine_seam`
-   green; `grep -nE 'from \.|import wasi_python' src/wasi_python/mounts.py` lists only 102's seam.
+   green; `grep -nE 'from \.|import wasi_python' src/wasi_python/mounts.py` lists only 103's seam.
 3. **The platform is chosen once**: `test_the_platform_is_chosen_once` green;
    `grep -nE "os\.name|sys\.platform" src/wasi_python/*.py` lists only lines inside
    `_platform._select`.
@@ -577,16 +577,16 @@ In: Decisions 1 to 5. Out:
    tokens (specification numbers and their decision numbers, IDs, "memo", "constitution" and its
    section, `context/` paths), parentheses, possessives and connectors, and adds words only in
    the sentences the landing notes list under Decision 4's rule 2, each with the document it
-   stood on named; `_wasmtime_ffi.py`'s debt list keeps every binding line and 102's
+   stood on named; `_wasmtime_ffi.py`'s debt list keeps every binding line and 103's
    `test_the_private_api_debt_is_documented` stays green.
-6. **The counts recorded**: the check's per-kind counts on 105's tip before the text commit
+6. **The counts recorded**: the check's per-kind counts on 106's tip before the text commit
    (all eight kinds, the decision numbers among them), and `grep -rohE 'spec [0-9]{3}' src/ | wc
    -l` and `grep -rohE '\bDecisions?\s+[0-9]+\b' src/ | wc -l` both equal to 0 after.
 7. **No verdict moved**: `sameness.py --claims` between the built commit's fast-tier record and
-   105's reviewed-tip record, and between it and the chain's baseline record, prints nothing
+   106's reviewed-tip record, and between it and the chain's baseline record, prints nothing
    outside the claim list (Decision 5).
 8. **The parity checks are untouched, and every platform site is accounted for**: `git diff
-   105-tip..HEAD` touches, in `tests/checks/test_v1_4_embedding.py`, only the two lines that call
+   106-tip..HEAD` touches, in `tests/checks/test_v1_4_embedding.py`, only the two lines that call
    `_try_lock` and `_unlock_close` (1516 and 1518 today) and no line of its parity tables or
    their checks; in `tests/unit/test_runner_mounts.py` only the four sites moved off
    `monkeypatch` (lines 128, 130, 132 and 171 today); and in the eight files of the table under
@@ -607,8 +607,8 @@ Eleven criteria.
 ## For the lane
 
 - **Kind:** parallel-safe; one of the six links that land as one wave past the five (the owner,
-  2026-10-20). It is built on 105's reviewed tip and rebased onto the wave's tip in the chain's
-  order, after 105 and before 107.
+  2026-10-20). It is built on 106's reviewed tip and rebased onto the wave's tip in the chain's
+  order, after 106 and before 108.
 - **Files it shares with others:** every module under `src/wasi_python/` (the citation commit
   touches comments in all of them), so it rebases last among the chain's code links and names
   every conflict; `tests/checks/test_rules.py` (three new checks, appended at the end of the file
@@ -619,23 +619,23 @@ Eleven criteria.
   platform*); `tests/checks/test_v1_2_hostile_guest.py` (one call site and two patch sites) and
   `tests/checks/test_v1_4_embedding.py` (two call sites, no parity line); `CHANGELOG.md`;
   `context/roadmap.md`.
-- **The claim list** (`build/106/claims.toml`, each line "106:"; the counts filled by the
+- **The claim list** (`build/107/claims.toml`, each line "107:"; the counts filled by the
   builder):
-  - 106: **new checks**: `test_rules.py::test_mounts_imports_only_the_engine_seam`,
+  - 107: **new checks**: `test_rules.py::test_mounts_imports_only_the_engine_seam`,
     `::test_the_platform_is_chosen_once`, `::test_src_names_no_context_document`; the two stamp
     unit checks.
-  - 106: **unit rows moved**: the four mount sites off `monkeypatch` (two checks), and the 76
+  - 107: **unit rows moved**: the four mount sites off `monkeypatch` (two checks), and the 76
     platform sites of the eight files in the table under *The unit checks that bind a platform*
     (the landing notes list them by name).
-  - 106: **retired checks:** none. **Lost passes:** none. **Fuel rows:** none grow (no guest byte
+  - 107: **retired checks:** none. **Lost passes:** none. **Fuel rows:** none grow (no guest byte
     changes). **Bytes:** none.
   - **The judge hash changes** in `tests/checks/test_rules.py`, `tests/harness/files.py` and the
     unit files named.
 - **The flags** (paste-safe; the lane folds them into the wave's one acceptance):
 
   ```
-  --accept "106: mounts.py asks a _CallContext protocol its nine questions and imports nothing from the runner; one _platform.py chooses the platform once at import behind one interface; the digest and version caches key on the full file stamp; src/ names no specification, memo, review, finding ID or context/ path, every reason kept in words (the owner's rule, code speaks for itself)"
-  --accept-judge "106: three rules checks (mounts imports only the engine seam; the platform is chosen once; no citation of a context/ document in src/, eight regexes over comments and docstrings with an empty allowance tuple) and two unit checks (a same-size, same-mtime replacement is hashed again; a rewritten MANIFEST gives its new tag); two mount unit checks drive a fake context instead of patching the runner at four sites; no existing expectation edited"
+  --accept "107: mounts.py asks a _CallContext protocol its nine questions and imports nothing from the runner; one _platform.py chooses the platform once at import behind one interface; the digest and version caches key on the full file stamp; src/ names no specification, memo, review, finding ID or context/ path, every reason kept in words (the owner's rule, code speaks for itself)"
+  --accept-judge "107: three rules checks (mounts imports only the engine seam; the platform is chosen once; no citation of a context/ document in src/, eight regexes over comments and docstrings with an empty allowance tuple) and two unit checks (a same-size, same-mtime replacement is hashed again; a rewritten MANIFEST gives its new tag); two mount unit checks drive a fake context instead of patching the runner at four sites; no existing expectation edited"
   ```
 
 - **Dry-run needs:** none of its own: the chain's one dispatch on its final tip (the owner's rule

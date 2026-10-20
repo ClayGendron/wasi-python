@@ -35,7 +35,7 @@ Repository = "https://github.com/claygendron/wasi_python"
 # project's own dependency, so the bound is written once (spec 028, Decision 1).
 # pytest-xdist runs the judge on several cores (spec 052, Decision 1); pinned exactly, since the
 # harness subclasses its scheduler and allows its plugins only at the version uv.lock names.
-# mypy type-checks `src/wasi_python` in the judge (spec 105, Decision 5); pinned exactly, as
+# mypy type-checks `src/wasi_python` in the judge (spec 106, Decision 5); pinned exactly, as
 # pytest-xdist is, since a mypy release changes which lines are errors and the check must give the
 # same verdict on every machine and on CI.
 dev = [
@@ -87,7 +87,7 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.mypy]
 python_version = "3.11"           # the floor requires-python names; one target on every host
-platform = "linux"                # one platform's narrowing on every host (spec 105, Decision 5)
+platform = "linux"                # one platform's narrowing on every host (spec 106, Decision 5)
 strict = true
 files = ["src/wasi_python"]
 cache_dir = "build/.mypy_cache"   # build/ is git-ignored (AGENTS.md: artifacts never live in git)

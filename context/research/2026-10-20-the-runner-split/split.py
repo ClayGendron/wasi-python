@@ -1,9 +1,9 @@
-"""The move of spec 103, done mechanically: runner.py's top-level statements are cut into the
+"""The move of spec 104, done mechanically: runner.py's top-level statements are cut into the
 eleven modules by the move table (map.py), each chunk keeping the comment and blank lines above
 it; a reference from one module to a function or a mutable of another gains its `_module.`
 prefix (Decision 2's second form, resolved by scope so a local that shadows a global is left
 alone); classes, aliases, constants and sentinels are imported by `from`; the two hooks' bodies
-are Decision 4's. Run from the worktree root on 102's tip; writes src/wasi_python/*.py."""
+are Decision 4's. Run from the worktree root on 103's tip; writes src/wasi_python/*.py."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from collections import defaultdict
 from pathlib import Path
 
 SRC = Path("src/wasi_python")
-HERE = Path("build/103")
+HERE = Path("build/104")
 
 ns: dict = {}
 exec(Path(HERE / "map.py").read_text().split("ORDER =")[0].split("tree = ast.parse")[0], ns)
@@ -45,7 +45,7 @@ RANK = {m: i for i, m in enumerate(ORDER)}
 MAY_IMPORT_MOUNTS = {"_places", "_call", "_sessions", "runner"}
 
 runner_src = (SRC / "runner.py").read_text()
-init_src = (HERE / "init-base.py").read_text()  # 102's __init__.py; the tree's is rewritten
+init_src = (HERE / "init-base.py").read_text()  # 103's __init__.py; the tree's is rewritten
 runner_lines = runner_src.splitlines(keepends=True)
 init_lines = init_src.splitlines(keepends=True)
 tree = ast.parse(runner_src)

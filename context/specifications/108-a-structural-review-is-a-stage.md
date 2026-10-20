@@ -1,13 +1,13 @@
-# 107 — A structural review is a stage
+# 108 — A structural review is a stage
 
 - **Status:** **drafted 2026-10-20** on `claude/gallant-ride-9nxxmn` from main `5feb7e9` (the
   memo's commit `a9064a2` on top; `src/` is unchanged from `30e9b41`, the memo's tree: EXECUTED,
   `git diff --stat 30e9b41 a9064a2 -- src` is empty); **reviewed before build** the same day
-  (`../reviews/107-a-structural-review-is-a-stage-spec-2026-10-20.md`, verdict "builds once the
+  (`../reviews/108-a-structural-review-is-a-stage-spec-2026-10-20.md`, verdict "builds once the
   three Mediums are written into the text"); **revised against all of its findings** the same
   day, with the owner's decision on M1 (*Disposition of the pre-build review* says where each
-  went). It is the last of the stacked chain 102 → 103 → 104 → 105 → 106 → 107 (the memo,
-  section 8; the owner, 2026-10-20): it is built stacked on 106's reviewed tip, whose commit the
+  went). It is the last of the stacked chain 103 → 104 → 105 → 106 → 107 → 108 (the memo,
+  section 8; the owner, 2026-10-20): it is built stacked on 107's reviewed tip, whose commit the
   builder writes here, and lands last in the chain's one wave. A pre-build review is optional
   for a context-and-judge specification (AGENTS.md rule 8); this one asked for it anyway, because
   it changes the review stage itself. A different agent reviews the build.
@@ -19,12 +19,12 @@
   `tests/harness/scan.py`, `tests/unit/test_scan.py`. No file under `src/` changes, no artifact
   byte changes, and it changes no line of `tests/public_api.txt`. It adds no module, no global,
   no seam and no private-API use, so this line carries none of Decision 1's bold token.
-- **Depends on:** 102 to 106, by their rules checks and their rules (Decision 5): 102 (one
-  module imports wasmtime-py's private API), 103 (the runner becomes a package; the module size
-  ceiling is 103's check), 104 (one owner for the process's state; the lock and mutable checks;
-  the seam rule, whose check this specification adds, with 104's "stays" list as its first
-  allowance), 105 (a type checker in the judge), 106 (one platform module; the citation rule;
-  106 shrinks the seam allowance). The rule this specification writes names those checks as its
+- **Depends on:** 103 to 107, by their rules checks and their rules (Decision 5): 103 (one
+  module imports wasmtime-py's private API), 104 (the runner becomes a package; the module size
+  ceiling is 104's check), 105 (one owner for the process's state; the lock and mutable checks;
+  the seam rule, whose check this specification adds, with 105's "stays" list as its first
+  allowance), 106 (a type checker in the judge), 107 (one platform module; the citation rule;
+  107 shrinks the seam allowance). The rule this specification writes names those checks as its
   mechanical half, so it lands after them. Also 092 (`sameness.py`, the judge of "no verdict
   moved", the memo's section 8) and 004 (`release/version.py`'s version form and `read_version`).
 - **Research it stands on:** `../research/2026-10-20-a-design-review-of-the-runner.md`,
@@ -41,12 +41,12 @@ No review asked whether `runner.py` should take a twenty-second concern. So it d
 about 250 top-level definitions, 60 mutable module globals, 27 locks, 24 uses of wasmtime-py's
 private API across two modules, eight test hooks in production code (the memo, section 2, READ).
 
-Specs 102 to 106 fix the structure once. Each adds a rules check that holds its fix: one module
+Specs 103 to 107 fix the structure once. Each adds a rules check that holds its fix: one module
 may import `wasmtime._ffi`; no module passes the ceiling; no lock or mutable at module level
 outside the process object's module; no platform branch outside the platform module; the type
-checker passes. Two rules of the chain have no check in it: 104's seam rule (the judge patches
+checker passes. Two rules of the chain have no check in it: 105's seam rule (the judge patches
 nothing private in the runner except through the process object) and the memo's "no function
-over 80 lines" (section 5); 104 and 105 hand both to this specification, which adds them
+over 80 lines" (section 5); 105 and 106 hand both to this specification, which adds them
 (Decision 5). Those checks are regular expressions and AST walks. They see a `threading.Lock()`
 at module level and a 90-line function. They do not see a lifecycle encoded in one more boolean
 flag, a concern added to a module that is still under its ceiling, a dict used as a lock, or a
@@ -78,23 +78,23 @@ without a builder, and it makes the judge refuse a release that skipped the revi
 
 A specification is **structural** when its change to `src/` does any of five things:
 
-1. adds a module-level mutable or a lock outside `src/wasi_python/_process.py` (spec 104's
-   owner object; 104's two checks);
+1. adds a module-level mutable or a lock outside `src/wasi_python/_process.py` (spec 105's
+   owner object; 105's two checks);
 2. adds a use of wasmtime-py's private API (`wasmtime._ffi`, `wasmtime._bindings`,
    `Func._func`, `_from_ptr`, `caller._context()`, `store.ptr()`) outside
-   `src/wasi_python/_wasmtime_ffi.py` (spec 102's seam; 102's check);
+   `src/wasi_python/_wasmtime_ffi.py` (spec 103's seam; 103's check);
 3. adds a platform branch (`sys.platform`, `os.name`, `platform.system()`) outside
-   `src/wasi_python/_platform.py` (spec 106's module; 106's check);
+   `src/wasi_python/_platform.py` (spec 107's module; 107's check);
 4. adds a test seam (a hook, a flag, a name the judge patches) that is not on the process object
-   (spec 104's rule; the check is this specification's, Decision 5);
-5. takes a module past the size ceiling (spec 103's number and check) or a function past 80
+   (spec 105's rule; the check is this specification's, Decision 5);
+5. takes a module past the size ceiling (spec 104's number and check) or a function past 80
    lines (the memo's section 5; the check is this specification's, Decision 5).
 
-The module names are those specs 102, 104 and 106 give; if one lands under another name, the
+The module names are those specs 103, 105 and 107 give; if one lands under another name, the
 rule names the landed one (a one-word context edit, by the lane). A structural specification says
 so in its Kind line with the bold token **structural**, and is reviewed before it is built, as a
 change to the build recipe is, against the rubric of Decision 3. Why these five: they are exactly
-what specs 102 to 106 make true and what a rules check holds (Decision 5). A sixth trigger with
+what specs 103 to 107 make true and what a rules check holds (Decision 5). A sixth trigger with
 no check behind it would be a rule the judge cannot see; a trigger the checks cover but the
 review does not would be the memo's gap again.
 
@@ -160,7 +160,7 @@ as question 108, in that file's format (Design, C; the next free number is 108: 
 - **The measurements**, each a command that runs on any tree, before and after the chain, with
   today's numbers (EXECUTED on `a9064a2`, Design B's table): module sizes; functions over 80
   lines; module-level mutables and locks; private-API uses; platform branches; private names the
-  judge patches; `Any` and `type: ignore` counts; the type checker's result (spec 105's check);
+  judge patches; `Any` and `type: ignore` counts; the type checker's result (spec 106's check);
   citations of the archive. Where a rules check reports the same number, the review quotes the
   check's pass line too. Commands, not harness code: the review is a reviewer's record, and a
   command beside a number is what constitution §4.10 asks; a measurement script would be judge
@@ -226,19 +226,19 @@ cite `reviews/NNN-<slug>-spec-YYYY-MM-DD.md` with its own number `NNN`, and the 
   structural review"), this specification's own title among it; a substring test fired on this
   file once its Status said built (the pre-build review's M3, EXECUTED by the review). The token
   is what Decision 1 asks a Kind line to carry. What the tree holds (EXECUTED on this tree,
-  with 102, 104, 105, 106 and this file present): `grep -rhn '^- \*\*Kind:\*\*'
+  with 103, 105, 106, 107 and this file present): `grep -rhn '^- \*\*Kind:\*\*'
   context/specifications | grep -c '\*\*structural\*\*'` gives `0`, and the same grep for the
   plain word gives `0` too, since this Kind line no longer uses it. Without `-h` the plain word
   gives `2`: this file's two Kind lines (its header and "For the lane"), matched on the file's
-  path, `107-a-structural-review…`, which `grep -rn` prefixes to each line, not on their text.
-  So no existing specification trips the check, and 102 to 106 stay outside it until a builder
+  path, `108-a-structural-review…`, which `grep -rn` prefixes to each line, not on their text.
+  So no existing specification trips the check, and 103 to 107 stay outside it until a builder
   adds the token (below).
 - **Why `built` or `landed` at the line's start and not anywhere in it:** the newest state is
   written first in every Status line (`status_line()`, and `landed_review_errors`'s
-  `startswith("landed")`); "drafted 2026-10-21, to be built on 106's tip" says built and is not
+  `startswith("landed")`); "drafted 2026-10-21, to be built on 107's tip" says built and is not
   (the pre-build review's L4). The `*` are stripped because status lines are bold
   (`**landed 2026-10-20 …**`); `status_line()` keeps them.
-- **102 to 106** were reviewed before build under rule 8's "the runner's code"; their Kind
+- **103 to 107** were reviewed before build under rule 8's "the runner's code"; their Kind
   lines need no token, and the check does not fire on them. Their builders may add the token at
   their rebase onto the wave, and then the check reads their `-spec-` reviews, which exist. The
   check binds every structural specification drafted after it lands.
@@ -249,19 +249,19 @@ Both are rules checks (fast tier, no artifact), both seen failing first (Accepta
 
 | rule | the letter (a rules check, mechanical) | the spirit (a review, judgement) |
 |---|---|---|
-| one module touches wasmtime-py's private API | spec 102's check: only `_wasmtime_ffi.py` imports `wasmtime._ffi` or `wasmtime._bindings` | R3: is the policy still apart from the mechanism; does a new operation belong in the seam |
-| modules a person can hold in their head | spec 103's module size ceiling | R7: is a module under the ceiling taking a concern that is not its own |
+| one module touches wasmtime-py's private API | spec 103's check: only `_wasmtime_ffi.py` imports `wasmtime._ffi` or `wasmtime._bindings` | R3: is the policy still apart from the mechanism; does a new operation belong in the seam |
+| modules a person can hold in their head | spec 104's module size ceiling | R7: is a module under the ceiling taking a concern that is not its own |
 | functions a person can read whole | **this specification's** function ceiling: no function over 80 lines outside its allowance list (5a) | R7: is a long function one concern or three |
-| process state has one owner | spec 104's lock and mutable checks | R4: is a lifecycle still an enum and a table, or did a flag come back |
+| process state has one owner | spec 105's lock and mutable checks | R4: is a lifecycle still an enum and a table, or did a flag come back |
 | seams are injected, not patched | **this specification's** seam check: the judge patches nothing private in the runner except through `process()`, outside its allowance list (5a) | R6: does production code carry a branch only the judge takes |
-| the platform is behind one seam | spec 106's platform-branch rule | R5: does the Windows story still read in one file |
-| the code explains itself | spec 106's citation rule (M2) | R7: does a new comment say why, or cite an archive |
-| types are checked | spec 105's type checker in `test_rules.py` | R7, R1: did `Any` come back; is a contract still a sentence a test checks |
+| the platform is behind one seam | spec 107's platform-branch rule | R5: does the Windows story still read in one file |
+| the code explains itself | spec 107's citation rule (M2) | R7: does a new comment say why, or cite an archive |
+| types are checked | spec 106's type checker in `test_rules.py` | R7, R1: did `Any` come back; is a contract still a sentence a test checks |
 
 The owner decided who owns the three checks the chain's texts handed back and forth (2026-10-20,
 the pre-build review's M1): this specification owns the seam check and the function ceiling;
-the module size ceiling is 103's, since the package split sets its number (105's line that
-hands it here is corrected in 105's own disposition round). Why both halves: a regex cannot score
+the module size ceiling is 104's, since the package split sets its number (106's line that
+hands it here is corrected in 106's own disposition round). Why both halves: a regex cannot score
 R4; a reviewer cannot read 11,000 lines for a stray lock every wave. Each half holds what the
 other cannot.
 
@@ -279,38 +279,38 @@ edit to `test_rules.py` is. A name or a function outside the list is red, and th
 code or the test, never in the list.
 
 **The seam check, `test_the_judge_patches_the_runner_only_through_the_process_object`.** An
-AST walk of every `.py` file under `tests/` for the two forms 104's Decision 4 names:
+AST walk of every `.py` file under `tests/` for the two forms 105's Decision 4 names:
 `monkeypatch.setattr(<module>, "_name", …)` and `<module>._name = …`, where `<module>` is a
 local name the file's imports bind to a runner module (`wasi_python.runner`,
-`wasi_python.mounts`, or any `wasi_python._<name>` module, which after 103 is the package), or
+`wasi_python.mounts`, or any `wasi_python._<name>` module, which after 104 is the package), or
 the dotted module path itself; and the same two forms inside every string constant of the file,
 by regular expression, because the judge's child programs are strings
 (`tests/checks/test_v1_2_hostile_guest.py:3135` assigns `runner._abandon_turn` in a program:
 EXECUTED). A hit whose `_name` is not in `SEAM_ALLOWED` is a finding, `file:line: <module>._name`;
 an allowed name with no hit is a finding, `stale allowance: _name`. Outside the rule: `tools`,
-`cli` and the package `__init__` (the memo's H5 and 104's rule are about the runner; `tools.py`
+`cli` and the package `__init__` (the memo's H5 and 105's rule are about the runner; `tools.py`
 is the model the memo points at, and its patched names are bounds the judge lowers to reach a
 limit, `_TOOL_RESPONSE_BYTES` six times, counted by measurement M6, not seams: EXECUTED); a
-first argument that is a call or an attribute of one (`process().observers`, 104's one way);
+first argument that is a call or an attribute of one (`process().observers`, 105's one way);
 and a class attribute (`_Files.__call__`, `_ToolHost._list_answer`: objects the tests build).
 
-**Its initial allowance** is 104's "stays" list (104, Decision 4, READ): the twelve platform
-answers 106's `_platform.py` closes (`_guest_stack`, `_tell_interpreter`, `_trap_handlers_ready`,
+**Its initial allowance** is 105's "stays" list (105, Decision 4, READ): the twelve platform
+answers 107's `_platform.py` closes (`_guest_stack`, `_tell_interpreter`, `_trap_handlers_ready`,
 `_dir_fd_ok`, `_win_open`, `_close_held`, `_try_lock`, `_unlock_close`, `_remove_tree`, `_drop`,
-`_drive`, `_stack`), the eight engine and call paths 106's call-context protocol or 105's typed
+`_drive`, `_stack`), the eight engine and call paths 107's call-context protocol or 106's typed
 call closes (`_ctrl_c_watched`, `_stop_error`, `_epoch_now`, `_context_address`, `_module_miss`,
 `_found_and_checked`, `_join_guest`, `_walk_grants`), the two the checks alone patch
-(`_check_preopens`, `_current_defaults`), and two plain assignments 104's monkeypatch count did
+(`_check_preopens`, `_current_defaults`), and two plain assignments 105's monkeypatch count did
 not see (EXECUTED, `grep -rnE '\brunner\._\w+\s*=[^=]' tests`): `_Box`, a by-hand save and
-restore in `tests/unit/test_runner_threads.py:216` and `:221` (its closer 106's home seam:
+restore in `tests/unit/test_runner_threads.py:216` and `:221` (its closer 107's home seam:
 INFERRED), and `_abandon_turn` in the program at `test_v1_2_hostile_guest.py:3135` (its closer
-105's session lifecycle: INFERRED). Twenty-four names. Every other private runner name patched
+106's session lifecycle: INFERRED). Twenty-four names. Every other private runner name patched
 today (the pre-build review counted 59 distinct `module.name` pairs across all modules) is state
-or a hook that 104 moves to `process()`; on 106's tip the builder re-runs the walk, removes any
+or a hook that 105 moves to `process()`; on 107's tip the builder re-runs the walk, removes any
 of the twenty-four that no test patches any more, and finds nothing else, or the remainder is
-red and is fixed in the test through `process()` where 104's object has the field, else named
-to the chain's integration review as 104's or 106's to close. 106 shrinks the list as its
-protocol fakes land (104, Decision 4).
+red and is fixed in the test through `process()` where 105's object has the field, else named
+to the chain's integration review as 105's or 107's to close. 107 shrinks the list as its
+protocol fakes land (105, Decision 4).
 
 **The function ceiling, `test_no_function_is_over_eighty_lines`.** An AST walk of every `.py`
 file under `src/wasi_python/`: every `FunctionDef` and `AsyncFunctionDef`, nested ones included,
@@ -321,10 +321,10 @@ what a reader scrolls; a complexity measure would need a tool and a pin. **Its i
 allowance** is the tree's offenders, measured by the same walk (EXECUTED on `a9064a2`, eight):
 `runner.py:run` 152, `runner.py:run_async` 177, `runner.py:_instance` 150,
 `runner.py:_open_session` 137, `runner.py:Session.__init__` 169, `runner.py:Session.run_async` 81,
-`tools.py:_make` 82, `tools.py:_ToolHost._answer` 83. 103 moves the first six into the package's
-modules and 105 retypes some of them, so the builder re-measures on 106's tip and writes the
+`tools.py:_make` 82, `tools.py:_ToolHost._answer` 83. 104 moves the first six into the package's
+modules and 106 retypes some of them, so the builder re-measures on 107's tip and writes the
 keys and lengths it finds there, labelled EXECUTED, in the landing notes: the same functions
-under their new files, fewer if 105 shortened one, never one more.
+under their new files, fewer if 106 shortened one, never one more.
 
 ### 6. The reviewer's checklist gains one line
 
@@ -346,10 +346,10 @@ rows and the unit suite's count, and nothing else (Acceptance 7). The claim list
 
 ### 8. Where it meets other specifications and the release
 
-- **102 to 106:** stacked below this one; their checks are Decision 5's left column; their Kind
-  lines are their own. The rule's module names are theirs (Decision 1). 104 hands the seam check
-  here and 106 shrinks its allowance (104, Decision 4); 105's hand-off of a module size ceiling
-  is corrected in 105's own disposition round to name 103; the function ceiling is this
+- **103 to 107:** stacked below this one; their checks are Decision 5's left column; their Kind
+  lines are their own. The rule's module names are theirs (Decision 1). 105 hands the seam check
+  here and 107 shrinks its allowance (105, Decision 4); 106's hand-off of a module size ceiling
+  is corrected in 106's own disposition round to name 104; the function ceiling is this
   specification's.
 - **092:** `sameness.py` is the judge of Decision 7 and of the whole chain (the memo, section 8).
 - **The 0.1.0 release:** gains one file, the structural review, in the order Decision 4 gives;
@@ -387,7 +387,7 @@ tree against this section.
 "**Nothing lands unreviewed.**" and before "**Commit or push only when asked.**":
 
 ```
-- **Structure is reviewed, not only behaviour** (spec 107; the design
+- **Structure is reviewed, not only behaviour** (spec 108; the design
   review `context/research/2026-10-20-a-design-review-of-the-runner.md`).
   A specification is **structural** when its change to `src/` adds a
   module-level mutable or lock outside `_process.py`, a use of
@@ -398,7 +398,7 @@ tree against this section.
   line carries the bold word **structural**, and it is reviewed before it
   is built, as a change to the build recipe is (constitution §5.6),
   against the eight-row rubric in `context/reviews/README.md`. The rules
-  checks of specs 102 to 107 hold the letter of this; the review holds
+  checks of specs 103 to 108 hold the letter of this; the review holds
   its spirit. Before every release, a fresh agent writes a structural
   review of `src/` against the same rubric,
   `context/reviews/<version>-structural-review-YYYY-MM-DD.md`, beside
@@ -444,7 +444,7 @@ A review of `src/` against the eight-row rubric of
 `../research/2026-10-20-a-design-review-of-the-runner.md` (section 1), which is structural
 review zero: its scorecard (section 2, at `30e9b41`) is what the first release review compares
 with, and each later review compares with the last. It is written twice (AGENTS.md, "Structure
-is reviewed"; spec 107):
+is reviewed"; spec 108):
 
 - **Before every release**, by a fresh agent that wrote none of the code since the last
   structural review, on the commit before the version bump, whose `src/` is the one tagged; the
@@ -490,21 +490,21 @@ Score each Strong, Adequate or Weak, with a one-line reason, as the memo did.
 ### The measurements
 
 One command each, run from the repository's root on the reviewed commit; the review records the
-output beside the score it informs, labelled EXECUTED. Where a rules check of specs 102 to 107
+output beside the score it informs, labelled EXECUTED. Where a rules check of specs 103 to 108
 reports the same number, quote its pass line too (`uv run pytest tests/checks/test_rules.py -q`).
-The numbers are those of `a9064a2` (EXECUTED 2026-10-20, spec 107), before the chain; the memo's
+The numbers are those of `a9064a2` (EXECUTED 2026-10-20, spec 108), before the chain; the memo's
 differ where its method was reading, not a command.
 
 | what (row) | command | at `a9064a2` |
 |---|---|---|
 | module sizes (R7) | `wc -l src/wasi_python/*.py \| sort -n` | `runner.py` 6,241; `tools.py` 2,450; `mounts.py` 2,235; 11,423 in all |
-| functions over 80 lines (R7; spec 107's check and its allowance list) | `uv run python -I -c "import ast,pathlib;[print(p.name,sum(1 for n in ast.walk(ast.parse(p.read_text())) if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.end_lineno-n.lineno+1>80)) for p in sorted(pathlib.Path('src/wasi_python').rglob('*.py'))]"` | `runner.py` 6, `tools.py` 2 |
+| functions over 80 lines (R7; spec 108's check and its allowance list) | `uv run python -I -c "import ast,pathlib;[print(p.name,sum(1 for n in ast.walk(ast.parse(p.read_text())) if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.end_lineno-n.lineno+1>80)) for p in sorted(pathlib.Path('src/wasi_python').rglob('*.py'))]"` | `runner.py` 6, `tools.py` 2 |
 | module-level mutables and locks (R4) | `grep -rnE '^_?[a-z]\w*\s*(:[^=]+)?=\s*(threading\.(R?Lock\|Condition\|Event\|Semaphore)\(\|\{\|\[\|dict\(\|list\(\|set\(\|collections\.)' src/wasi_python --include=*.py` | 47 lines: `runner.py` 46, `__init__.py` 1 |
 | private-API uses (R3) | `grep -rnE 'wasmtime\._\|\b_ffi\.\|\b_bindings\.\|\._func\b\|_from_ptr\|\._context\(\)\|\.ptr\(\)' src/wasi_python --include=*.py` | 27 lines: `mounts.py` 15, `runner.py` 11, `tools.py` 1 |
 | platform branches (R5) | `grep -rnE 'sys\.platform\|os\.name\b\|platform\.system' src/wasi_python --include=*.py` | 22 lines, all in `runner.py` |
-| private names the judge patches (R6; spec 107's seam check holds the runner's) | `grep -rhoE 'monkeypatch\.setattr\(\s*\w+(\.\w+)*,\s*"_\w+"' tests --include=*.py \| sort \| uniq -c \| sort -rn` | 59 distinct; `runner._ctrl_c_watched` 8 times, `_remove_tree` 5 |
+| private names the judge patches (R6; spec 108's seam check holds the runner's) | `grep -rhoE 'monkeypatch\.setattr\(\s*\w+(\.\w+)*,\s*"_\w+"' tests --include=*.py \| sort \| uniq -c \| sort -rn` | 59 distinct; `runner._ctrl_c_watched` 8 times, `_remove_tree` 5 |
 | `Any` and `type: ignore` (R7) | `grep -rc '\bAny\b' src/wasi_python --include=*.py; grep -rc 'type: ignore' src/wasi_python --include=*.py` | 349 `Any`; 12 ignores |
-| the type checker (R7) | spec 105's check by its node id in `tests/checks/test_rules.py`, and the length of its allowlist | none before 105 |
+| the type checker (R7) | spec 106's check by its node id in `tests/checks/test_rules.py`, and the length of its allowlist | none before 106 |
 | citations of the archive (R7) | `grep -roE 'spec [0-9]{3}' src/wasi_python --include=*.py \| wc -l; grep -roE "review'?s? [A-Z][0-9]+" src/wasi_python --include=*.py \| wc -l` | 315 specification references; 37 finding IDs |
 
 ### Ranking
@@ -564,18 +564,18 @@ Under "## Open", the line "None." becomes:
 ```
 ### 108. Amend §5.6: a structural change is reviewed before build, and a structural review of `src/` precedes each release
 
-- **Asked:** 2026-10-20. **Source:** `specifications/107-a-structural-review-is-a-stage.md`,
+- **Asked:** 2026-10-20. **Source:** `specifications/108-a-structural-review-is-a-stage.md`,
   Decisions 1 and 2; `research/2026-10-20-a-design-review-of-the-runner.md`, section 5. Your ask
   of 2026-10-20: "this PR should include changes so that this refactor/review process is more a
   part of the normal workflow".
 - **The fact:** §5.6 names three kinds of change that are reviewed before they are built, and
   one review before each release, the security review. The review stage has checked behaviour,
   not structure: 89 landed specifications and 187 reviews left `runner.py` at 6,241 lines with 60
-  mutable module globals and 27 locks (the memo, section 2, READ). Specs 102 to 107 fix that
+  mutable module globals and 27 locks (the memo, section 2, READ). Specs 103 to 108 fix that
   once, and their rules checks hold the letter of the fix. Nothing in the constitution asks a
   reviewer to look at the structure again.
 - **The question:** may §5.6 be amended with the two sentences below, and its Status line with
-  the entry below? AGENTS.md's rule "Structure is reviewed, not only behaviour" (spec 107) binds
+  the entry below? AGENTS.md's rule "Structure is reviewed, not only behaviour" (spec 108) binds
   agents from the wave that lands it, as rule 8's "the runner's code" did on 2026-10-19; the
   constitution is yours to change.
 - **The amendment, §5.6.** After "so a wrong design is caught before it is code.": "A
@@ -622,7 +622,7 @@ RELEASE_VERSION = re.compile(r"^\d+\.\d+\.\d+$")  # X.Y.Z with no aN, bN or rcN 
 def structural_review_errors(version: str, reviews: Path) -> list[str]:
     """A released version has its structural review of src/ under reviews/, named
     `<version>-structural-review-YYYY-MM-DD.md`, and the review scores every row of the rubric
-    (spec 107, Decision 4). A prerelease needs none from the judge: its string is what the tree
+    (spec 108, Decision 4). A prerelease needs none from the judge: its string is what the tree
     carries all cycle."""
     if not RELEASE_VERSION.match(version):
         return []
@@ -646,7 +646,7 @@ STRUCTURAL_TOKEN = "**structural**"
 def structural_spec_review_errors(path: Path, reviews: Path) -> list[str]:
     """A specification whose Kind line carries the bold token **structural** cites, once its
     Status begins with built or landed, its own review before build,
-    `reviews/NNN-<slug>-spec-YYYY-MM-DD.md`, and the file exists (spec 107, Decision 4: the mirror
+    `reviews/NNN-<slug>-spec-YYYY-MM-DD.md`, and the file exists (spec 108, Decision 4: the mirror
     of landed_review_errors for the pre-build review)."""
     text = path.read_text()
     kind = KIND_LINE.search(text)
@@ -678,7 +678,7 @@ behaviour does not change.
 
 ```python
 def test_a_release_has_its_structural_review() -> None:
-    """AGENTS.md, "Structure is reviewed" (spec 107, Decision 4; constitution §5.6 as question 108
+    """AGENTS.md, "Structure is reviewed" (spec 108, Decision 4; constitution §5.6 as question 108
     amends it): a released version has its structural review of src/ under context/reviews/,
     scoring the rubric's eight rows. A prerelease needs none from the judge."""
     version = _release_version_module()
@@ -689,7 +689,7 @@ def test_a_release_has_its_structural_review() -> None:
 
 def test_built_structural_specifications_cite_their_pre_build_review() -> None:
     """A specification whose Kind line carries **structural** was reviewed before it was built:
-    once built or landed, it cites its own `-spec-` review, and the file exists (spec 107,
+    once built or landed, it cites its own `-spec-` review, and the file exists (spec 108,
     Decision 4)."""
     reviews = paths.CONTEXT / "reviews"
     errors = [
@@ -736,7 +736,7 @@ def test_a_built_structural_spec_cites_its_pre_build_review(work) -> None:
     word = write(work, "109-z.md", NOT_STRUCTURAL.format(status="**built 2026-10-21**", notes=""))
     drafted = write(work, "111-b.md", STRUCTURAL.format(status="drafted 2026-10-21", notes=""))
     says = write(
-        work, "115-g.md", STRUCTURAL.format(status="drafted 2026-10-21, to be built on 106's tip", notes="")
+        work, "115-g.md", STRUCTURAL.format(status="drafted 2026-10-21, to be built on 107's tip", notes="")
     )
     none = write(work, "112-c.md", STRUCTURAL.format(status="**built 2026-10-21**", notes=""))
     ok = write(
@@ -774,7 +774,7 @@ decides the line breaks.
 **D4. The seam check** (Decision 5a). In `tests/harness/scan.py`, beside `duplicate_name_hits`:
 
 ```python
-RUNNER_MODULE = re.compile(r"^wasi_python\.(runner|mounts|_\w+)$")  # the runner's modules (spec 107, 5a)
+RUNNER_MODULE = re.compile(r"^wasi_python\.(runner|mounts|_\w+)$")  # the runner's modules (spec 108, 5a)
 SEAM_IN_TEXT = re.compile(r"""monkeypatch\.setattr\(\s*([\w.]+)\s*,\s*["'](_\w+)["']|\b([\w.]+)\.(_\w+)\s*=[^=]""")
 
 
@@ -798,7 +798,7 @@ def seam_hits(files: Iterable[Path], root: Path, allowed: Iterable[str]) -> list
     """Every `monkeypatch.setattr(<runner module>, "_name", …)` and `<runner module>._name = …` in
     the judge, in code (by ast) and in the programs it runs as subprocesses (string constants, by
     regex), whose _name is not allowed; and every allowed name no file patches (a stale
-    allowance). The one way to set a seam is through process() (spec 104, Decision 4; spec 107,
+    allowance). The one way to set a seam is through process() (spec 105, Decision 4; spec 108,
     Decision 5a)."""
 ```
 
@@ -814,22 +814,22 @@ gives `f"stale allowance: {_name}"`. A first argument that is a `Call` or an att
 (`process().observers`) is never a hit. In `tests/checks/test_rules.py`:
 
 ```python
-# Spec 107, Decision 5a: the private runner names the judge still patches by name, each with its
-# closer (spec 104, Decision 4: 106's platform seam, 106's call-context protocol, 105's typed
+# Spec 108, Decision 5a: the private runner names the judge still patches by name, each with its
+# closer (spec 105, Decision 4: 107's platform seam, 107's call-context protocol, 106's typed
 # call). An entry leaves when its seam is fixed; none is ever added; a stale entry is red.
 SEAM_ALLOWED = (
     "_guest_stack", "_tell_interpreter", "_trap_handlers_ready", "_dir_fd_ok", "_win_open",
-    "_close_held", "_try_lock", "_unlock_close", "_remove_tree", "_drop", "_drive", "_stack",  # 106's _platform.py
+    "_close_held", "_try_lock", "_unlock_close", "_remove_tree", "_drop", "_drive", "_stack",  # 107's _platform.py
     "_ctrl_c_watched", "_stop_error", "_epoch_now", "_context_address", "_module_miss",
-    "_found_and_checked", "_join_guest", "_walk_grants",  # 106's protocol or 105's typed call
+    "_found_and_checked", "_join_guest", "_walk_grants",  # 107's protocol or 106's typed call
     "_check_preopens", "_current_defaults",  # the checks' two, the same closers
-    "_Box",  # test_runner_threads.py's by-hand swap of the home's box; 106's home seam
-    "_abandon_turn",  # spec 093's child program; 105's session lifecycle
+    "_Box",  # test_runner_threads.py's by-hand swap of the home's box; 107's home seam
+    "_abandon_turn",  # spec 093's child program; 106's session lifecycle
 )
 
 
 def test_the_judge_patches_the_runner_only_through_the_process_object() -> None:
-    """Spec 104, Decision 4; spec 107, Decision 5a: a check or a unit test patches nothing private
+    """Spec 105, Decision 4; spec 108, Decision 5a: a check or a unit test patches nothing private
     in the runner except through process(), but for the allowance above, which only shrinks."""
     files = [p for p in scan.files_under(paths.REPO, "tests") if p.suffix == ".py"]
     hits = scan.seam_hits(files, paths.REPO, SEAM_ALLOWED)
@@ -849,7 +849,7 @@ file patches, `stale allowance: _x`.
 **D5. The function ceiling** (Decision 5a). In `tests/harness/scan.py`:
 
 ```python
-FUNCTION_CEILING = 80  # lines, def to last line (the memo, section 5; spec 107, Decision 5a)
+FUNCTION_CEILING = 80  # lines, def to last line (the memo, section 5; spec 108, Decision 5a)
 
 
 def long_function_hits(files: Iterable[Path], root: Path, allowed: dict[str, int]) -> list[str]:
@@ -863,8 +863,8 @@ nested function's is `outer.inner`; `n = node.end_lineno - node.lineno + 1`; a k
 `f"{file.name}:{qualname}"`. In `tests/checks/test_rules.py`:
 
 ```python
-# Spec 107, Decision 5a: the functions over 80 lines on the tree the check was built on, measured
-# by scan.long_function_hits (EXECUTED; the builder writes the keys and lengths found on 106's
+# Spec 108, Decision 5a: the functions over 80 lines on the tree the check was built on, measured
+# by scan.long_function_hits (EXECUTED; the builder writes the keys and lengths found on 107's
 # tip). An entry leaves when its function is at or under 80 lines; none is ever added.
 LONG_FUNCTIONS = {
     "runner.py:run": 152,
@@ -879,15 +879,15 @@ LONG_FUNCTIONS = {
 
 
 def test_no_function_is_over_eighty_lines() -> None:
-    """The memo's section 5; spec 107, Decision 5a: no function in src/wasi_python is over 80
+    """The memo's section 5; spec 108, Decision 5a: no function in src/wasi_python is over 80
     lines but for the allowance above, which only shrinks; a stale entry is red."""
     files = [p for p in scan.files_under(paths.REPO, "src") if p.suffix == ".py"]
     hits = scan.long_function_hits(files, paths.REPO, LONG_FUNCTIONS)
     assert not hits, scan.report(hits)
 ```
 
-The keys above are `a9064a2`'s (EXECUTED); 103's move changes the file part of the first six and
-105 may shorten some, so the builder writes the keys and lengths measured on 106's tip, in the
+The keys above are `a9064a2`'s (EXECUTED); 104's move changes the file part of the first six and
+106 may shorten some, so the builder writes the keys and lengths measured on 107's tip, in the
 landing notes with the command. The lengths in the dict are the record, not the test: the check
 reads the ceiling, not the recorded length. Unit rows: a module with an 81-line function is a hit
 `…:line: f (81 lines)`; at 80 lines, silent; a method of a class is keyed `C.m`; a function
@@ -900,13 +900,13 @@ nested in `f` is keyed `f.g`; an allowed key whose function is 80 lines is `stal
 paragraph "Reserved: 101 (a faster release run …)":
 
 ```
-Reserved: 107 (a structural review is a stage; the last of the chain 102 to 107 that
+Reserved: 108 (a structural review is a stage; the last of the chain 103 to 108 that
 `research/2026-10-20-a-design-review-of-the-runner.md`, section 8, sets out; the owner,
 2026-10-20): the rule "Structure is reviewed, not only behaviour" in AGENTS.md, the eight-row
 rubric, its measurements and a template in `reviews/README.md`, one line in the reviewer's
 checklist, four rules checks (a released version has its structural review; a built structural
 specification cites its pre-build review; the judge patches the runner only through the process
-object, with 104's allowance that 106 shrinks; no function over 80 lines, with the tree's
+object, with 105's allowance that 107 shrinks; no function over 80 lines, with the tree's
 offenders as an allowance that only shrinks), and question 108 for the owner's amendment of
 §5.6. Parallel-safe, context and judge only; before 0.1.0, since 0.1.0 is the first release the
 rule gates.
@@ -915,15 +915,15 @@ rule gates.
 **E2. `context/roadmap.md`**, the "Release rule" paragraph: the text "Before 0.1.0: a security
 review of the whole surface (milestone 6)," becomes "Before 0.1.0: a security review of the
 whole surface (milestone 6), a structural review of `src/` against the design review's rubric
-(spec 107; `reviews/0.1.0-structural-review-<date>.md`, written by a fresh agent on the commit
+(spec 108; `reviews/0.1.0-structural-review-<date>.md`, written by a fresh agent on the commit
 before the bump and committed with it, the dry run on that commit),".
 
 **E3. `CHANGELOG.md`**, under `## 0.1.0a8 — unreleased`, a bullet:
 
 ```
-- **A structural review is a stage** (spec 107; the design review of 2026-10-20). A change that
+- **A structural review is a stage** (spec 108; the design review of 2026-10-20). A change that
   adds a module-level mutable or lock, a use of wasmtime-py's private API, a platform branch or a
-  test seam outside the one place specs 102 to 106 give each, or takes a module past the size
+  test seam outside the one place specs 103 to 107 give each, or takes a module past the size
   ceiling or a function past 80 lines, is reviewed before it is built; every release gets a
   structural review of `src/` against the design review's eight-row rubric, beside its security
   review, which the judge requires of a released version; and two rules checks hold that the
@@ -945,12 +945,12 @@ Out:
 - **A rules check that the security review was written.** None exists; adding one changes what
   the judge requires of a stage the constitution already names, which is the owner's reason to
   give, not this specification's (Decision 8).
-- **The other structural checks and their numbers** (specs 102 to 106): the private-API seam
-  (102), the module size ceiling (103), the lock and mutable checks (104), the type checker
-  (105), the platform-branch and citation rules (106), and the module names, which are theirs
+- **The other structural checks and their numbers** (specs 103 to 107): the private-API seam
+  (103), the module size ceiling (104), the lock and mutable checks (105), the type checker
+  (106), the platform-branch and citation rules (107), and the module names, which are theirs
   (Decision 1). The seam check and the function ceiling are in (Decision 5a).
 - **Moving a seam or shortening a function.** The two allowance lists record what the tree
-  holds; fixing an entry is 105's or 106's, or a later specification's (Decision 5a).
+  holds; fixing an entry is 106's or 107's, or a later specification's (Decision 5a).
 - **A measurement script in the harness.** Commands suffice (Decision 3).
 - **Any file under `src/`**, any artifact byte, any line of `tests/public_api.txt`.
 
@@ -972,21 +972,21 @@ Out:
 3. **Check (b) exists and was seen failing first**, on a fixture specification (the unit row's
    `112-c.md` case) and on the tree: `uv run pytest
    tests/checks/test_rules.py::test_built_structural_specifications_cite_their_pre_build_review
-   -q` passes, since no Kind line carries the token (or, if 102 to 106 added it at the wave,
+   -q` passes, since no Kind line carries the token (or, if 103 to 107 added it at the wave,
    since each cites its `-spec-` review). With this specification's own Status set to
    `**built …**` in the worktree and no `-spec-` citation, the check names this file; with the
    citation of its pre-build review, it passes (both recorded).
-4. **The seam check exists and was seen failing first.** On 106's tip with `SEAM_ALLOWED` empty
+4. **The seam check exists and was seen failing first.** On 107's tip with `SEAM_ALLOWED` empty
    the check lists every patched runner name (recorded); with the twenty-four, minus those no
    test patches on that tip (each removal named), it passes and lists nothing else; with one
    allowed name no file patches, it reports `stale allowance` (recorded). The unit rows of D4
    pass, each seen failing first on the base (`AttributeError`, no `seam_hits`).
-5. **The function ceiling exists and was seen failing first.** On 106's tip with
+5. **The function ceiling exists and was seen failing first.** On 107's tip with
    `LONG_FUNCTIONS` empty the check lists every function over 80 lines (recorded, EXECUTED, the
    keys and lengths that become the allowance); with them, it passes; with one key whose
    function is under 80 lines, `stale allowance` (recorded). The unit rows of D5 pass, each seen
    failing first on the base.
-6. **The unit rows of D3 pass, each seen failing first:** on the base (106's tip) both rows fail
+6. **The unit rows of D3 pass, each seen failing first:** on the base (107's tip) both rows fail
    with `AttributeError` (no `structural_review_errors`), recorded in the landing notes; on the
    build every case of D3 passes. `ruff check` and `ruff format --check` are clean on `src/` and
    `tests/`.
@@ -994,7 +994,7 @@ Out:
    section 8), `-n 3` when another judge runs: green; `uv run python tests/harness/sameness.py
    <the baseline record> build/progress/latest.json` lists exactly the four new rows of D2, D4
    and D5 and the unit suite's count, and nothing else; the output is in
-   `build/107/sameness.txt`.
+   `build/108/sameness.txt`.
 8. **The open-question scan is green with the new texts:** `uv run pytest
    tests/checks/test_rules.py::test_specifications_have_no_open_question
    tests/checks/test_rules.py::test_specifications_have_their_header_and_sections -q` passes
@@ -1003,7 +1003,7 @@ Out:
    is empty; no artifact is rebuilt; `uv run python tests/harness/api.py` reports no change.
 10. **The release workflow:** no dispatch of its own. The chain's one dispatch on its final tip
     (the owner, 2026-10-20) is this specification's run, since this is the tip; its id goes in
-    the landing notes, every red line a growth line claimed by 102 to 106 or none.
+    the landing notes, every red line a growth line claimed by 103 to 107 or none.
 
 Ten criteria. Criteria 2 to 6 are the "check before the code" of AGENTS.md rule 3; criterion 7
 is the chain's rule.
@@ -1011,27 +1011,27 @@ is the chain's rule.
 ## For the lane
 
 - **Kind:** parallel-safe, context and judge only; the last entry of the chain's wave (the owner,
-  2026-10-20: all six land as one wave, past §5.7's five). It rebases onto 106's tip in the
+  2026-10-20: all six land as one wave, past §5.7's five). It rebases onto 107's tip in the
   lane's order; no other entry in the wave should touch `AGENTS.md` rule 8, `reviews/README.md`
   or the questions file, so no conflict is expected; `roadmap.md`, `CHANGELOG.md` and
-  `tests/checks/test_rules.py` merge textually with 102 to 106's lines, each named if it
+  `tests/checks/test_rules.py` merge textually with 103 to 107's lines, each named if it
   conflicts.
-- **The claim list** (each line starts "107:"):
-  - 107: **new checks (4 nodes), each passing, no fuel, no bytes:**
+- **The claim list** (each line starts "108:"):
+  - 108: **new checks (4 nodes), each passing, no fuel, no bytes:**
     `tests/checks/test_rules.py::test_a_release_has_its_structural_review`,
     `…::test_built_structural_specifications_cite_their_pre_build_review`,
     `…::test_the_judge_patches_the_runner_only_through_the_process_object` and
     `…::test_no_function_is_over_eighty_lines`.
-  - 107: **unit rows:** `tests/unit/test_scan.py` gains four rows (D3's two, D4's one, D5's one;
+  - 108: **unit rows:** `tests/unit/test_scan.py` gains four rows (D3's two, D4's one, D5's one;
     the suite's count rises by four; the builder restates the count if it splits a row).
-  - 107: **retired checks:** none. **Lost passes:** none. **Grown rows:** none.
-  - 107: **the judge hash changes** in `tests/harness/scan.py`, `tests/checks/test_rules.py` and
+  - 108: **retired checks:** none. **Lost passes:** none. **Grown rows:** none.
+  - 108: **the judge hash changes** in `tests/harness/scan.py`, `tests/checks/test_rules.py` and
     `tests/unit/test_scan.py`.
 - **The flags** (paste-safe):
 
   ```
-  --accept "107: a structural review is a stage: the rule in AGENTS.md, the rubric and template in reviews/README.md, the reviewer's checklist line 4a, question 108 for the owner's amendment of §5.6, and the two checks of the letter the chain handed here (the seam check with 104's allowance, the function ceiling with the tree's offenders)"
-  --accept-judge "107: four rules checks: a released version (X.Y.Z, no suffix) has context/reviews/<version>-structural-review-<date>.md scoring R1 to R8; a built or landed specification whose Kind line carries **structural** cites its own existing -spec- review; the judge patches the runner's private names only through process() but for SEAM_ALLOWED (104's twenty-four names, only ever removed, a stale entry red); no function in src/wasi_python over 80 lines but for LONG_FUNCTIONS (the tree's offenders on 106's tip, only ever removed); four unit rows in test_scan.py; no existing expectation edited"
+  --accept "108: a structural review is a stage: the rule in AGENTS.md, the rubric and template in reviews/README.md, the reviewer's checklist line 4a, question 108 for the owner's amendment of §5.6, and the two checks of the letter the chain handed here (the seam check with 105's allowance, the function ceiling with the tree's offenders)"
+  --accept-judge "108: four rules checks: a released version (X.Y.Z, no suffix) has context/reviews/<version>-structural-review-<date>.md scoring R1 to R8; a built or landed specification whose Kind line carries **structural** cites its own existing -spec- review; the judge patches the runner's private names only through process() but for SEAM_ALLOWED (105's twenty-four names, only ever removed, a stale entry red); no function in src/wasi_python over 80 lines but for LONG_FUNCTIONS (the tree's offenders on 107's tip, only ever removed); four unit rows in test_scan.py; no existing expectation edited"
   ```
 
 - **Dry-run needs:** none beyond the chain's one dispatch on this tip (criterion 10). The four
@@ -1043,15 +1043,15 @@ is the chain's rule.
 
 ## Disposition of the pre-build review
 
-The review (`../reviews/107-a-structural-review-is-a-stage-spec-2026-10-20.md`) re-ran the
+The review (`../reviews/108-a-structural-review-is-a-stage-spec-2026-10-20.md`) re-ran the
 shape checks, every measurement command and the pasted scanner code against the unit cases and
 the real tree. Every finding is written in; the owner decided M1 (2026-10-20).
 
-- **M1, written in (the owner's decision).** This specification owns the seam check (104's AST
-  walk against an allowance list, 104's twenty "stays" names plus the two the checks alone patch
-  and the two plain assignments found here, 106 shrinks it) and the function ceiling (the memo's
+- **M1, written in (the owner's decision).** This specification owns the seam check (105's AST
+  walk against an allowance list, 105's twenty "stays" names plus the two the checks alone patch
+  and the two plain assignments found here, 107 shrinks it) and the function ceiling (the memo's
   "no function over 80 lines", an allowance list of the tree's offenders, measured EXECUTED);
-  the module size ceiling is 103's, and 105's hand-off is corrected in 105's own round. The
+  the module size ceiling is 104's, and 106's hand-off is corrected in 106's own round. The
   allowance rule is stated: an entry is removed when its seam or function is fixed, never added,
   and a stale entry fails the check. Decisions 1 (triggers 4 and 5), 5, 5a (new), 8; Design D4
   and D5; Scope; Acceptance 4 and 5; the claim list and flags; A1, B1, C, E1, E3 name the two
@@ -1063,10 +1063,10 @@ the real tree. Every finding is written in; the owner decided M1 (2026-10-20).
 - **M3, written in.** The check matches the bold token `**structural**` (D1, `STRUCTURAL_TOKEN`),
   with the unit case `109-z.md` for the word without the token (D3); the Kind line is reworded
   without the word; the grep claim is replaced by the tree's real output, restricted to Kind
-  lines, EXECUTED with 102 to 107 present (Decision 4b). Criterion 3 records the check on this
+  lines, EXECUTED with 103 to 108 present (Decision 4b). Criterion 3 records the check on this
   file's own Status.
 - **L4, written in.** `re.match(r"(built|landed)\b", status)` (D1), with the unit case `115-g.md`
-  ("drafted …, to be built on 106's tip") (D3); Decision 4b says why the line's start.
+  ("drafted …, to be built on 107's tip") (D3); Decision 4b says why the line's start.
 - **L5, written in.** "The four checks run in the `own-rest` shard on macOS and Linux, where
   `test_rules.py` runs (spec 063, Decision 18: not on Windows); they read files only" (For the
   lane).

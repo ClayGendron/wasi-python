@@ -1,9 +1,9 @@
-# Review of 102 — The engine seam: one module touches wasmtime-py's private API (pre-build)
+# Review of 103 — The engine seam: one module touches wasmtime-py's private API (pre-build)
 
 - **Date:** 2026-10-20
-- **Reviewer:** a fresh agent (pre-build reviewer for the chain 102–107); not the author
+- **Reviewer:** a fresh agent (pre-build reviewer for the chain 103–108); not the author
 - **Reviewed:** the specification as drafted
-  (`context/specifications/102-the-engine-seam.md` on `claude/gallant-ride-9nxxmn`, read
+  (`context/specifications/103-the-engine-seam.md` on `claude/gallant-ride-9nxxmn`, read
   untracked over `5c35061` and committed unchanged as `c9515ef` while this review was written:
   612 lines, every cited line at the same number; `src/` and `tests/` read at that commit, which
   carries no code change from `a9064a2`: `git diff --stat main...HEAD` names only files under
@@ -42,7 +42,7 @@
    commit is not evidenced as drafted: the regex matches its own source in `tests/harness/scan.py`
    and U17's fixture lines in `tests/unit/test_scan.py`, neither exempt (M2). EXECUTED.
 4. No line outside the two exempt files matches — follows from 3; the same gap (M2). INFERRED.
-5. Sameness on the frozen set, `--claims build/102/claims.toml`, prints nothing — checkable;
+5. Sameness on the frozen set, `--claims build/103/claims.toml`, prints nothing — checkable;
    `sameness.py --claims` exists (spec 092 landed in wave 03, `tests/harness/sameness.py:24`).
    Not yet met. READ.
 6. 0 fuel rows, 0 bytes rows — checkable from the record; consistent with the design: no host
@@ -86,7 +86,7 @@
    "wasmtime_config_async_stack_size_set", None)` at line 310 also becomes a patch of
    `ASYNC_STACK_SETTER`, as U7 says for its two neighbours.)
 2. **The rule's regex matches its own source and its unit row's fixtures** (M)
-   (`102-the-engine-seam.md`, Decision 3: "except exactly two"; criterion 3) — the alternation
+   (`103-the-engine-seam.md`, Decision 3: "except exactly two"; criterion 3) — the alternation
    `\._func\b` matches the raw line `r"|\._func\b"` that `tests/harness/scan.py` must carry
    (EXECUTED above: the `\b` after `func` is satisfied by the backslash that follows), and U17's
    stand-in tree needs lines such as `x._func`, `other._context()`, `_from_ptr` and `.ptr()`
@@ -120,7 +120,7 @@
    the names `src/` reaches today".
 5. **Criterion 1's `__all__` row is not one of the seventeen, and the table lacks four names
    the draft defines** (L) (criterion 1; Decision 5; the Design's adapter sketch) — `Storelike`,
-   `NEEDED`, `missing` and `check` are module names the draft defines and U1, U2 and spec 106
+   `NEEDED`, `missing` and `check` are module names the draft defines and U1, U2 and spec 107
    read, but Decision 1's table does not list them, so "exposes exactly the names of Decision 1's
    table" cannot hold; and no U-row lists `__all__` against the table, while `claims.toml` says
    `units = 17`.
@@ -163,7 +163,7 @@
   under the draft's regex).
 - §4.13 (uv, ruff, pytest): named; the `noqa: F401` on `_wasmtime()`'s import is the one lint
   exception and is justified. Holds.
-- §4.14 (git): the branch `spec/102-the-engine-seam` from main's tip, 103 stacked on its reviewed
+- §4.14 (git): the branch `spec/103-the-engine-seam` from main's tip, 104 stacked on its reviewed
   tip; no other branch or worktree. Holds.
 - §4.15 (safe by default): no default, limit or channel changes; Decision 4 says so and the
   acceptance is `sameness.py` on the frozen `v0.1.0a7` set. Holds, subject to M1 (lost passes
@@ -247,7 +247,7 @@
 New findings on the additions, most severe first:
 
 9. **The three fuel and deadline operations take a `storelike` in Decision 1 and a `Context`
-   everywhere the builder builds from** (M) (`102-the-engine-seam.md:93-95` against `:537-539`,
+   everywhere the builder builds from** (M) (`103-the-engine-seam.md:93-95` against `:537-539`,
    `:583`, `:610-611`, `:373`) — Decision 1's table now reads `set_epoch_deadline(storelike,
    ticks)`, `get_fuel(storelike)`, `set_fuel(storelike, fuel)`, "public `Store.*` when the object
    has it, else the binding on `context_of`" (Decision 8), but the Design's adapter sketch still
@@ -260,7 +260,7 @@ New findings on the additions, most severe first:
    `get_fuel`, so the public path of Decision 8 can never be taken from the runner, and
    criterion 14's "take the public path when the object has it" is contradicted by the sketch;
    built from Decision 1, U14 passes a pointer where a store-like is declared and the type
-   checker of spec 105 flags it. What closes it: one direction, written in the five places: the
+   checker of spec 106 flags it. What closes it: one direction, written in the five places: the
    sketch declares `storelike: Storelike` for the three; `_Call.stop` and `_epoch_now` call
    `ffi.set_epoch_deadline(caller, 0)`; `forward` calls `ffi.get_fuel(caller)` and
    `ffi.set_fuel(caller, …)` and keeps `context = ffi.context_of(caller)` for `slot.call` only;
@@ -274,7 +274,7 @@ New findings on the additions, most severe first:
     Failure: `test_the_private_api_debt_is_documented` reports that row as "no dotted name of
     the two tuples" on the built commit. Fix text for (b): "the first cell's backticked text
     (the `(optional)` tag sits outside the backticks)", and a U17 fixture row with the tag.
-11. **Two READ citations miss what they cite** (L) (`102-the-engine-seam.md:481`,
+11. **Two READ citations miss what they cite** (L) (`103-the-engine-seam.md:481`,
     "`_store.py:69-92`"; `facts.md`, fact 3, "`_store.py:61-92`", and fact 5,
     "`_func.py:80-120`") — `Store.set_epoch_deadline` is at `_store.py:109`, outside both
     ranges (`set_fuel` is `:61-75`, `get_fuel` `:77-90`, EXECUTED by `grep -n "def "`), and

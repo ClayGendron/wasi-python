@@ -213,7 +213,7 @@ class RecordingConfig:
 
 
 def _record_async_stack(monkeypatch) -> None:
-    """The seam's binding for the async stack size, recording into the stand-in (spec 102)."""
+    """The seam's binding for the async stack size, recording into the stand-in (spec 103)."""
     monkeypatch.setattr(
         _wasmtime_ffi,
         "ASYNC_STACK_SETTER",

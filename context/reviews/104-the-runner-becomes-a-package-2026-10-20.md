@@ -1,9 +1,9 @@
-# Review of 103 — The runner becomes a package: one module per concern
+# Review of 104 — The runner becomes a package: one module per concern
 
 - **Date:** 2026-10-20
-- **Reviewer:** a fresh agent (build reviewer for the chain 102–107)
-- **Reviewed:** `c15adf4..2a9546c` on `spec/103-the-runner-becomes-a-package` in `/home/user/wt/103`
-  (stacked on 102's built tip `c15adf4`; the five commits `bbdafa3`, `b92aa5b`, `859dad1`,
+- **Reviewer:** a fresh agent (build reviewer for the chain 103–108)
+- **Reviewed:** `c15adf4..2a9546c` on `spec/104-the-runner-becomes-a-package` in `/home/user/wt/104`
+  (stacked on 103's built tip `c15adf4`; the five commits `bbdafa3`, `b92aa5b`, `859dad1`,
   `ea08708`, `2a9546c`). Time box: 45 minutes (the diff is 48 files, 7,758 insertions).
 - **Run:** none; the chain's one dispatch on its final tip
 - **Re-ran:** `WASI_PYTHON_ARTIFACTS=/home/user/wasi_python/build/baseline-a7/set/wasi-python-0.1.0a7
@@ -13,16 +13,16 @@
   two sorted lists: 0 lines). That run's record was then overwritten by my own node-id probes
   (the harness keeps one `build/progress/latest.json`), so the tier ran a second time with the
   copy and the sameness runs chained behind it: **83 failed, 2368 passed, 52 skipped in 405.88s**, exit 1, the same 83 node ids,
-  record `build/103/review.json`, whose `suite` line is `{'passed': 1854, 'skipped': 13, 'total': 1868}`, the builder's. `uv run python tests/harness/sameness.py
-  /home/user/wt/102/build/102/built.json build/103/review.json --claims build/103/claims.toml`
-  → `note: explained by claims: 103 3`, exit 0 (`build/103/review-sameness-102.txt`); against
-  the chain's baseline with `build/103/claims-chain.toml` → `note: explained by claims: 102 4 ·
-  103 3`, exit 0 (`build/103/review-sameness-chain.txt`). `uv run pytest
+  record `build/104/review.json`, whose `suite` line is `{'passed': 1854, 'skipped': 13, 'total': 1868}`, the builder's. `uv run python tests/harness/sameness.py
+  /home/user/wt/103/build/103/built.json build/104/review.json --claims build/104/claims.toml`
+  → `note: explained by claims: 104 3`, exit 0 (`build/104/review-sameness-103.txt`); against
+  the chain's baseline with `build/104/claims-chain.toml` → `note: explained by claims: 103 4 ·
+  104 3`, exit 0 (`build/104/review-sameness-chain.txt`). `uv run pytest
   tests/checks/test_rules.py -q -p no:cacheprovider` → 43 passed, 4 skipped, exit 0. Three
   probes by node id, `tests/unit/test_runner_package.py::test_every_module_level_lock_is_remade_after_fork`,
   `tests/checks/test_v1_4_embedding.py::test_package_imports_without_wasmtime`,
   `tests/checks/test_v1_4_public_api.py::test_set_defaults_changes_what_run_reads` → 3 passed in
-  0.72s. `uv run python build/103/verbatim.py c15adf4` → the same counts as the builder's
+  0.72s. `uv run python build/104/verbatim.py c15adf4` → the same counts as the builder's
   `verbatim.txt` (diff: none but uv's TLS warning line), uncategorised residue none, exit 0. My
   own two-way multiset comparison, base `runner.py` + `__init__.py` against the eleven modules
   + `__init__.py` at `2a9546c`, blank lines dropped, indentation kept (scratch
@@ -47,7 +47,7 @@
 
 ## Acceptance criteria against evidence
 
-1. **The checks exist and were seen failing first** — met: `build/103/seen-failing.txt` records
+1. **The checks exist and were seen failing first** — met: `build/104/seen-failing.txt` records
    check 2's 15 findings and check 4's ten on the base, check 5's `runner.py: 6,220 lines, over
    1,500`, and the three named drafts (`_spare_lock`, `from ._home import _ctrl_c_watched`,
    `_stamp` twice), each one line (READ; the notes quote them). `bbdafa3` is the checks alone
@@ -156,14 +156,14 @@ is the one I find; `runner.py:108`'s "this module's `DEFAULTS`" is still true.
   §4.9 holds: the one new `timeout=120` is a fail-safe on a subprocess, never a verdict, as its
   comment says; `test_no_test_reads_a_clock` passes. §4.10 holds: every number in the landing
   notes carries its command and label, and the ones I re-measured agree. §4.13 holds: ruff clean,
-  no dependency added. §4.14 holds: one worktree, the `spec/103-…` branch from 102's reviewed tip
+  no dependency added. §4.14 holds: one worktree, the `spec/104-…` branch from 103's reviewed tip
   as a stacked build, not pushed. §4.15 holds: the fork hook re-makes the same locks and clears
   the same state as before, by module attribute; no default loosened.
 - §7 never-do list: nothing tripped. No upstream patch, no fetch, no copy from prior art; the
   builder committed on its own branch as the brief asked and pushed nothing; every number
   reported was run (the ones I checked reproduce); no question left unanswered in the specification
   (the rules check on specifications' questions passes); scope stays Decisions 1 to 8 (the
-  `_process` module, the typed call and the protocol are left to 104 to 106 as *Scope* says).
+  `_process` module, the typed call and the protocol are left to 105 to 107 as *Scope* says).
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
@@ -181,7 +181,7 @@ is the one I find; `runner.py:108`'s "this module's `DEFAULTS`" is still true.
    unchanging only when `all(_is_unchanging(name, element) for element in obj)`; `int`,
    `float`, `str`, `bytes` and `re.Pattern` stay as they were.
 4. The two unchecked self-check items — **answered in writing**, not fixed in code: the CI run is
-   the chain's one dispatch on its final tip (the owner's rule for the chain; 103 dispatches
+   the chain's one dispatch on its final tip (the owner's rule for the chain; 104 dispatches
    none), and the CHANGELOG entry (its text in Design) is left for the integrator at the chain's
    rebase, since the builder's brief said not to touch `CHANGELOG.md`. The landing notes say
    both.

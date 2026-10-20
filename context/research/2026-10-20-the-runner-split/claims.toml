@@ -1,7 +1,7 @@
-# Spec 103's claim list for sameness (spec 092, Decision 5): what the record after the move has
-# that 102's reviewed tip's record lacks. No row grows, none is retired, no pass moves.
+# Spec 104's claim list for sameness (spec 092, Decision 5): what the record after the move has
+# that 103's reviewed tip's record lacks. No row grows, none is retired, no pass moves.
 [[claim]]
-spec = "103"
+spec = "104"
 new = [
   "tests/checks/test_rules.py::test_no_module_under_src_is_over_the_line_ceiling",
   "tests/unit/test_runner_package.py",

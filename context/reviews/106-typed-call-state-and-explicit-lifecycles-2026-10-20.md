@@ -1,34 +1,34 @@
-# Review of 105 — Typed call state, explicit lifecycles, and a type checker in the judge
+# Review of 106 — Typed call state, explicit lifecycles, and a type checker in the judge
 
 - **Date:** 2026-10-20
 - **Reviewer:** a fresh agent (Claude), not the builder; the build review (the pre-build review is
-  `105-typed-call-state-and-explicit-lifecycles-spec-2026-10-20.md`).
-- **Reviewed:** `3133f18..7618b48` on `spec/105-typed-call-state-and-explicit-lifecycles` in the
-  worktree `/home/user/wt/105`: `7de0416` (the checks first), `0944ead` (the source change),
+  `106-typed-call-state-and-explicit-lifecycles-spec-2026-10-20.md`).
+- **Reviewed:** `3133f18..7618b48` on `spec/106-typed-call-state-and-explicit-lifecycles` in the
+  worktree `/home/user/wt/106`: `7de0416` (the checks first), `0944ead` (the source change),
   `7618b48` (the Status line and the landing notes); 29 files, +1,431 −447 by `git diff --stat`
-  (+1,747 with the spec's notes). Stacked on 104's reviewed tip `3133f18` (`/home/user/wt/104` is on
-  `550d79f`, that tip plus 104's review commit, which touches only `context/`; its code is
+  (+1,747 with the spec's notes). Stacked on 105's reviewed tip `3133f18` (`/home/user/wt/105` is on
+  `550d79f`, that tip plus 105's review commit, which touches only `context/`; its code is
   `3133f18`'s). Time box: about 60 minutes, as the brief asked (a parallel-safe entry whose diff
   rewrites the runner's two lifecycles earns more than the 25).
-- **Run:** none of its own, by the chain's rule: 102 to 107 land as one wave with one dispatch of
+- **Run:** none of its own, by the chain's rule: 103 to 108 land as one wave with one dispatch of
   the release workflow on the final tip (criterion 8; the owner, 2026-10-20). The counted tests
   were re-run locally: the fast tier on three cores against the frozen `v0.1.0a7` set, and the
   node ids below.
-- **Re-ran** (every command in `/home/user/wt/105` on `7618b48` with
+- **Re-ran** (every command in `/home/user/wt/106` on `7618b48` with
   `WASI_PYTHON_ARTIFACTS=/home/user/wasi_python/build/baseline-a7/set/wasi-python-0.1.0a7`, the
-  machine's `build/fast-tier.lock` held for the tier and removed after; outputs in `build/105/`,
+  machine's `build/fast-tier.lock` held for the tier and removed after; outputs in `build/106/`,
   git-ignored):
   - `uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider` → **83 failed, 2427 passed, 52
-    skipped in 287.30s**, exit 1 (`build/105/review-fast.log`; the record copied to
-    `build/105/review.json`). The 83 are exactly the chain baseline's
+    skipped in 287.30s**, exit 1 (`build/106/review-fast.log`; the record copied to
+    `build/106/review.json`). The 83 are exactly the chain baseline's
     `build/baseline-a7/failing-nodes.txt` (`diff` of the sorted node ids: equal). **The two Ctrl-C
     rows passed.**
-  - `uv run python tests/harness/sameness.py /home/user/wt/104/build/104/built.json
-    build/105/review.json --claims build/105/claims.toml` → `note: explained by claims: 105 3`,
+  - `uv run python tests/harness/sameness.py /home/user/wt/105/build/105/built.json
+    build/106/review.json --claims build/106/claims.toml` → `note: explained by claims: 106 3`,
     exit 0, nothing else.
   - `uv run python tests/harness/sameness.py /home/user/wasi_python/build/baseline-a7/baseline.json
-    build/105/review.json --claims build/105/claims-chain.toml` → `note: explained by claims:
-    102 4 · 103 3 · 104 4 · 105 3`, exit 0, nothing else.
+    build/106/review.json --claims build/106/claims-chain.toml` → `note: explained by claims:
+    103 4 · 104 3 · 105 4 · 106 3`, exit 0, nothing else.
   - `uv run pytest tests/checks/test_rules.py -k mypy -q -p no:cacheprovider` → 1 passed in 4.45 s.
   - `uv run pytest tests/unit/test_lifecycles.py -q -p no:cacheprovider` → 49 passed in 0.37 s.
   - `uv run mypy --strict src/wasi_python` → **Found 8 errors in 1 file**, all `mounts.py`
@@ -38,21 +38,21 @@
   - `uv run ruff check src tests recipes/guest` → All checks passed; `uv run ruff format --check
     src tests recipes/guest` → 146 + 2 files already formatted.
   - `uv run pytest "tests/checks/test_v1_2_hostile_guest.py::test_ctrl_c_stops_a_computing_guest"
-    -q -p no:cacheprovider` → 2 passed in 1.32 s; again → 2 passed in 1.36 s; the same on 104's
-    tip in `/home/user/wt/104` → 2 passed in 1.42 s.
+    -q -p no:cacheprovider` → 2 passed in 1.32 s; again → 2 passed in 1.36 s; the same on 105's
+    tip in `/home/user/wt/105` → 2 passed in 1.42 s.
   - `uv run pytest tests/checks/test_v1_2_hostile_guest.py -m "not slow" -n 3 -q
     -p no:cacheprovider` → **4 failed, 148 passed, 1 skipped in 130.90s**
-    (`build/105/review-stress-105.log`): the four are the baseline's (`test_dup_is_refused…` and
+    (`build/106/review-stress-106.log`): the four are the baseline's (`test_dup_is_refused…` and
     `test_the_string_hash_is_siphash13`, both modes); the two Ctrl-C rows passed. Load average
     2.4 before, 7.0 after.
   - A probe of the join backstop (finding 1), a script in the reviewer's scratchpad, on both
-    trees: 105 "still looping after 3 s | raised: RuntimeError | ended: False"; the base
+    trees: 106 "still looping after 3 s | raised: RuntimeError | ended: False"; the base
     "returned | raised: None | ended: True".
   - The greps of criteria 2, 3 and 7 (below).
 
 ## Acceptance criteria against evidence
 
-1. **The checks exist and were seen failing first** — met. EXECUTED: `build/105/mypy-base-linux.txt`
+1. **The checks exist and were seen failing first** — met. EXECUTED: `build/106/mypy-base-linux.txt`
    has 83 `error:` lines and `mypy-base-win32.txt` 97 (the base's own counts, restated, as the
    criterion allows); `seen-failing-mypy.txt` shows the rules check red on the base;
    `seen-failing-units.txt` shows the lifecycle file and the rewritten stand-ins red on the base
@@ -123,7 +123,7 @@
   `test_runner_calls.py` there, difference 7). `claims.toml`: `new` the rules check and the
   unit file, `units = 49`; sameness explains exactly three differences by it. No row changed
   and unclaimed. `tests/public_api.txt`, `CHANGELOG.md`, `README.md` and the roadmap are
-  untouched (the CHANGELOG line is proposed in the notes for the lane to write, as 104 did by
+  untouched (the CHANGELOG line is proposed in the notes for the lane to write, as 105 did by
   its brief; no reserved follow-up needs a roadmap line: the per-platform type check is a
   recourse conditional on the owner, Decision 5).
 - **The differences from the spec's text** (16 in the notes, READ against the spec): each has a
@@ -141,7 +141,7 @@
   the base; the new code (the three enums and their tables, `_move`, `_move_guest`,
   `_Home._move`, `_CheckedCall`, `_ToolArgs`, `_Limits`, `_Inputs`, `_Places`, `calls.py`,
   `test_lifecycles.py`, the rules check) adds none. `UNTYPED`'s value is a reason in words.
-  `pyproject.toml` names spec 105 in two comments beside neighbours that name 028 and 052; it
+  `pyproject.toml` names spec 106 in two comments beside neighbours that name 028 and 052; it
   is not a file the rule lists.
 - **The self-check list.** Every item is checked or excluded with a reason (CI: the chain's
   rule; CHANGELOG: the lane's; growth: none). Nothing unchecked to rank.
@@ -159,8 +159,8 @@
    Failure: a guest thread that dies inside its own `finally` after `self._move(_HomeEvent.END)`
    and before `self.ended.set()` (a trace hook raising there, an asynchronous exception an
    embedder injects; nothing the runner itself raises, since the steps are guarded) → phase
-   `DONE`, `ended` clear, `is_alive()` false → on 105 the call never returns; on the base it
-   returned. EXECUTED with the probe above: 105 "still looping after 3 s | raised: RuntimeError
+   `DONE`, `ended` clear, `is_alive()` false → on 106 the call never returns; on the base it
+   returned. EXECUTED with the probe above: 106 "still looping after 3 s | raised: RuntimeError
    | ended: False"; the base "returned". The window is narrow and the death pathological, but
    the backstop exists for pathological deaths (its own comment: "a body ended without saying
    so"), and this is the one phase it no longer covers.
@@ -185,7 +185,7 @@
    317 → 287 match). The alias names `dict[str, Any]` once for 23 spellings, 24 tokens fewer
    than the builder's `measurements-after.txt`, so the spec's INFERRED 30 to 60 fewer tokens
    did come true (32). Grade **Low**, context only: **written in by the reviewer as `51eba18`**
-   (the exact text; the builder's `build/105/measurements-after.txt` stays as it was, a
+   (the exact text; the builder's `build/106/measurements-after.txt` stays as it was, a
    git-ignored file).
 3. **Note: two dead writes in the hostile-guest child programs.** `tests/checks/test_v1_2_hostile_guest.py:2944`
    and `:3144` still write `self.serving = True` in stand-in `serve`s; a `_Home` has no slots,
@@ -194,19 +194,19 @@
    specification's round.
 4. **Note: the two Ctrl-C rows are not this build's.** `test_ctrl_c_stops_a_computing_guest[default]`
    and `[default-turn]` failed in the builder's three records (two runs on this tree, one on
-   104's tip, all "the child did not end within its limit", a 120 s `subprocess.run` timeout)
+   105's tip, all "the child did not end within its limit", a 120 s `subprocess.run` timeout)
    when the machine's load passed 7. For this review they **passed in every run**: the full fast
-   tier at `-n 3`, twice alone on 105's tip, once alone on 104's tip, and the hostile-guest file
-   at `-n 3` on 105's tip (load 2.4 to 7.0). READ, the path they take: `default` is `run()` with
+   tier at `-n 3`, twice alone on 106's tip, once alone on 105's tip, and the hostile-guest file
+   at `-n 3` on 106's tip (load 2.4 to 7.0). READ, the path they take: `default` is `run()` with
    `host=` and `while True: pass`, `default-turn` the same as a session's turn; a simulated
    SIGINT lands in the home thread's `serve()`, `stop(e)` records it, the epoch callback reads
    `call.home.raised` (`_epoch_answer`, unchanged) and stops the guest at the next `CANCEL_TICKS`
    poll; the body's `finally` puts `_DONE`, moves `END`, sets `ended`; `_join_guest` returns.
-   What 105 adds on that path is three dictionary lookups under the home's lock (`START`,
+   What 106 adds on that path is three dictionary lookups under the home's lock (`START`,
    `TAKE`, `END`) and, for the turn, the session's `FAILED`, `MARK`, `TURN_RETURNED` and
    `CLAIM_ENDING` in the one lock hold that held the flag writes; no wait, no poll, no thread
    is added, and `STOPPING` is left by the turn's own thread as `busy=False` was. The child's
-   end waits on nothing 105 changed. The verdict moved with the machine, not the branch; the
+   end waits on nothing 106 changed. The verdict moved with the machine, not the branch; the
    lane's run on the wave's tip and the chain's dispatch decide it.
 5. **Note: the spec's refused pairs are refused.** EXECUTED through the unit rows and READ:
    `_claim_ending` in `OPEN`, `TURN` or `STOPPING` and `_move` from `OPENING` by anything but
@@ -220,10 +220,10 @@
   nothing else changed in it; the check runs the venv's own binary, as ruff's does. §4.9
   (operations, not wall-clock): the mypy check's seconds are recorded as a fact and asserted
   nowhere. §4.13 (a dependency with its reason): the reason sentence is in `pyproject.toml`
-  and Decision 5. §4.14 (a stacked build): on 104's reviewed tip, the base in the Status line;
+  and Decision 5. §4.14 (a stacked build): on 105's reviewed tip, the base in the Status line;
   no other branch. "Artifacts never live in git": `build/.mypy_cache` under the ignored
   `build/`; no artifact byte moves. "Code speaks for itself": held for the new code (above).
-  Spec 063 (packages): no package added. The module size ceiling (103): `tools.py` held at
+  Spec 063 (packages): no package added. The module size ceiling (104): `tools.py` held at
   2,450 exactly, `mounts.py` 2,213.
 - §7 never-do list: nothing tripped. The judge is not weakened: the allowlist can only shrink
   (an entry with no error left is a finding, which also makes the allowance a canary for an
@@ -238,7 +238,7 @@
    body died before its last line is left in `DONE` and the join returns, as the base returned;
    the unit row `test_the_join_backstop_cancels_a_start_and_loses_a_run` drives the `(DONE, DONE)`
    case, seen red on the reviewed code (the join looped until a 20 s guard,
-   `build/105/seen-failing-backstop.txt`) and green on the fix; the `_Home` docstring's invariant
+   `build/106/seen-failing-backstop.txt`) and green on the fix; the `_Home` docstring's invariant
    2 says the join sets `ended` itself if the body never does.
 2. The `Any` counts — written in by the reviewer as `51eba18`; confirmed.
 3. to 5. Notes; no action in this round.

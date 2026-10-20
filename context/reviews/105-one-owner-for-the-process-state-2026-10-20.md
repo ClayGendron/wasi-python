@@ -1,27 +1,27 @@
-# Review of 104 — One owner for the process's state, and the test seams move off module globals
+# Review of 105 — One owner for the process's state, and the test seams move off module globals
 
 - **Date:** 2026-10-20
-- **Reviewer:** a fresh agent (build reviewer for the chain 102–107)
-- **Reviewed:** `538e831..3133f18` on `spec/104-one-owner-for-the-process-state` in the worktree
-  `/home/user/wt/104` (four commits: `a73b0fe` the checks first, `1f959c2` the code, `e96f1b9` the
-  Status line and the landing notes, `3133f18` the rebase record), stacked on 103's reviewed tip
+- **Reviewer:** a fresh agent (build reviewer for the chain 103–108)
+- **Reviewed:** `538e831..3133f18` on `spec/105-one-owner-for-the-process-state` in the worktree
+  `/home/user/wt/105` (four commits: `a73b0fe` the checks first, `1f959c2` the code, `e96f1b9` the
+  Status line and the landing notes, `3133f18` the rebase record), stacked on 104's reviewed tip
   `538e831`. The specification read at the same tip. Time box: 45 minutes (a judge change in a
   stacked chain; the fast tier re-run in full), used in full.
 - **Run:** none; the chain's one dispatch on its final tip stands for criterion 9 (the owner's rule
-  for the chain, the specification's "For the lane"). The builder's fast tier is `build/104/fast.log`.
+  for the chain, the specification's "For the lane"). The builder's fast tier is `build/105/fast.log`.
 - **Re-ran:** `WASI_PYTHON_ARTIFACTS=/home/user/wasi_python/build/baseline-a7/set/wasi-python-0.1.0a7
   uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider` (under `build/fast-tier.lock`, output
-  `build/104/review-fast.log`, record `build/104/review.json`) → **83 failed, 2377 passed, 52
+  `build/105/review-fast.log`, record `build/105/review.json`) → **83 failed, 2377 passed, 52
   skipped in 287.35s**, exit 1; the 83 node ids are the chain baseline's `failing-nodes.txt`
   byte-for-byte (`diff`, EXECUTED). `uv run python tests/harness/sameness.py
-  /home/user/wt/103/build/103/built.json build/104/review.json --claims build/104/claims.toml` →
-  `note: explained by claims: 104 4`, exit 0; the same against
+  /home/user/wt/104/build/104/built.json build/105/review.json --claims build/105/claims.toml` →
+  `note: explained by claims: 105 4`, exit 0; the same against
   `/home/user/wasi_python/build/baseline-a7/baseline.json` with `--claims
-  build/104/claims-chain.toml` → `note: explained by claims: 102 4 · 103 3 · 104 4`, exit 0; against
-  the builder's `build/104/built.json` with no claims → nothing printed, exit 0 (the two records
-  agree). `uv run python -I build/104/lock_order_pkg.py src/wasi_python
+  build/105/claims-chain.toml` → `note: explained by claims: 103 4 · 104 3 · 105 4`, exit 0; against
+  the builder's `build/105/built.json` with no claims → nothing printed, exit 0 (the two records
+  agree). `uv run python -I build/105/lock_order_pkg.py src/wasi_python
   _process,_limits,_platform,_artifacts,_engines,_private_dirs,_zip,_places,_home,_call,_sessions,runner`
-  → identical to `build/104/lock_order-on-tip.txt` (`diff`): the four pairs and `stop`. Probes by
+  → identical to `build/105/lock_order-on-tip.txt` (`diff`): the four pairs and `stop`. Probes by
   node id: `uv run pytest tests/unit/test_runner_package.py tests/unit/test_process.py
   tests/unit/test_scan.py tests/checks/test_rules.py -q -p no:cacheprovider` → 1 failed
   (`test_version_states_the_platform_semantics`, the baseline's), 265 passed, 3 skipped; the four
@@ -36,7 +36,7 @@
   object, and every `RENEW` factory's result is its key's type, on all three. `uv run ruff check
   src tests` → All checks passed; `uv run ruff format --check src tests` → 144 files already
   formatted. `grep -nE '^\s*global ' src/wasi_python/*.py` → none. The specification's criterion-5
-  grep, widened to 103's module names, over `tests/` → nothing but `_try_lock` (a function seam)
+  grep, widened to 104's module names, over `tests/` → nothing but `_try_lock` (a function seam)
   and `api.py`'s two module-name strings. `git diff 538e831..3133f18 -- tests/public_api.txt` →
   empty. `wc -l src/wasi_python/mounts.py` → 2213.
 
@@ -48,14 +48,14 @@
    (upper-case constants, `_UNSET`, `_DONE`, `_WAKE`, `_CLOSER`, regexes, the ffi's three, mounts'
    five, `_Listing`, dunders), no lock, no container.
 2. Both rules checks seen failing first, with counts, and passing now; their unit rows pass — met:
-   the base counts (14 locks, 38 mutables) are READ in `build/104/seen-failing-full.txt` with the
+   the base counts (14 locks, 38 mutables) are READ in `build/105/seen-failing-full.txt` with the
    per-module split; on the tip both checks and both scanner rows pass (EXECUTED, probe 1).
 3. The fork check of Decision 3 passes with at least four names and the `RENEW` row; the three
-   real-fork checks pass with their reads moved; 103's check 1 retired and named in the
+   real-fork checks pass with their reads moved; 104's check 1 retired and named in the
    `--accept-judge` reason; a 3.11 run recorded — met, EXECUTED: `test_process.py` 6 passed on
    3.13, 3.11.17 and 3.12.3; the four real-fork node ids 4 passed; `FORK_HOOK` reads
    `process().tool_threads_lock` and `NO_FORK` prints `process().fork_used, process().forked`
-   (READ); 103's check 1 and its tables are gone from `tests/unit/test_runner_package.py` and the
+   (READ); 104's check 1 and its tables are gone from `tests/unit/test_runner_package.py` and the
    flag text names the retirement (READ).
 4. No `global` statement remains — met, EXECUTED (none).
 5. Every test line of Decision 4's table changed; the grep finds nothing — met, EXECUTED: the
@@ -67,7 +67,7 @@
    three sameness runs above, exit 0; the 83 failures are the baseline's).
 7. Thread-safety unchanged; the corrected scanner finds the four pairs and no other on both trees —
    met: EXECUTED on the tip (identical to the builder's output); the base output is READ
-   (`build/104/lock_order-on-base.txt`, the same four pairs under 103's names). Independently
+   (`build/105/lock_order-on-base.txt`, the same four pairs under 104's names). Independently
    (EXECUTED): every `with` over a lock in the twelve runner modules, normalised to the new names,
    is the same multiset on `538e831` and on the tip (20 over the engines lock, among them the one
    the base spells across three lines in `_Private.remove`; 4 over the ticker's condition; the
@@ -115,7 +115,7 @@ On the brief's particular points:
   upper-case name over a dict, set or list display, and `_fields_` in a class body: the
   specification's three and no more. Neither carries a name allowance, so none can go stale;
   `ALLOWED["mounts.py"]` is 2213 and the file is 2213 lines (EXECUTED).
-- (f) 103's check 1 retired with its seven tables and helpers; checks 2 to 4 pass with `_process`
+- (f) 104's check 1 retired with its seven tables and helpers; checks 2 to 4 pass with `_process`
   first in `ORDER` and `process` in `SENTINELS` (EXECUTED, probe 1); `RUNNER_MODULES` is `ORDER`
   less `_wasmtime_ffi`; `LATE` gains `mounts.py`'s binding of the owner (READ).
 - (g) `tests/public_api.txt` unchanged (EXECUTED); `api.py`'s `RUNNER_FILES` gains `_process.py`
@@ -127,7 +127,7 @@ On the brief's particular points:
   rows name no specification, memo, review, finding or `context/` path (EXECUTED grep over the
   diff's added lines). Five modified lines carry a citation that stood on the line they replace
   (`spec 076, Decision 1`; `Decision 9`; `spec 055`, `spec 078`; `the build review, N1`;
-  `spec 084`), each with its removed counterpart in the diff: carried, not new; 106 and 108 clear
+  `spec 084`), each with its removed counterpart in the diff: carried, not new; 107 and 109 clear
   them.
 - (j) Sameness prints nothing outside the claims (above). The claim: `new` the two rules checks and
   `tests/unit/test_process.py`, `units = 7` (six rows in `test_process.py` plus two in
@@ -143,9 +143,9 @@ On the brief's particular points:
   model; the trailers are the attribution lines every commit on main carries.
 
 ## Findings, most severe first
-1. **The allowance list for 106 and 107 misses the seams replaced by spellings the builder's grep
-   did not read** (`context/specifications/104-one-owner-for-the-process-state.md`, "The allowance
-   list for 106 and 107"; `tests/unit/test_runner_sweep.py:340, 740, 759`;
+1. **The allowance list for 107 and 108 misses the seams replaced by spellings the builder's grep
+   did not read** (`context/specifications/105-one-owner-for-the-process-state.md`, "The allowance
+   list for 107 and 108"; `tests/unit/test_runner_sweep.py:340, 740, 759`;
    `tests/checks/test_v1_2_hostile_guest.py:3133, 3138`; `tests/unit/test_runner_threads.py:215,
    220`) — Low. The list counts `monkeypatch.setattr(<module>, "_name", …)` lines; three lines use
    the fixture under the name `m` (`m.setattr(_private_dirs, "_remove_tree", …)`, so `_remove_tree`
@@ -156,19 +156,19 @@ On the brief's particular points:
    and the class `_Box`) the list lacks (`_call._drive` and `_home._join_guest`, assigned the same
    way, are listed). All seven lines are on the base unchanged; this specification moves none of
    them, and Decision 4 defines the list by the `monkeypatch.setattr` form, so the code is right
-   and the list is short. 107's check reads `<module>._name = …` too (READ, Decision 4), so a list
-   handed over short would make 107's first run red for names no one decided.
-   Failure: 107 seeds its allowance from this list → `test_runner_sweep.py:740`,
+   and the list is short. 108's check reads `<module>._name = …` too (READ, Decision 4), so a list
+   handed over short would make 108's first run red for names no one decided.
+   Failure: 108 seeds its allowance from this list → `test_runner_sweep.py:740`,
    `test_v1_2_hostile_guest.py:3133, 3138` and `test_runner_threads.py:215` fail its check with no
    closer named.
-   Fix text (touches only `context/`): under "The allowance list for 106 and 107", "`_remove_tree`
+   Fix text (touches only `context/`): under "The allowance list for 107 and 108", "`_remove_tree`
    (6 lines: five as `monkeypatch.setattr`, one as `m.setattr`)"; a bullet "Constants and classes
    the unit files replace: `_REMOVE_BUDGET` (2 lines, `m.setattr`, `test_runner_sweep.py`), `_Box`
-   (`test_runner_threads.py`, assigned by name) — 106's platform seam or 107's list"; a bullet
-   "Assigned by name in the hostile-guest programs, for 105's typed call or 106's protocol:
+   (`test_runner_threads.py`, assigned by name) — 107's platform seam or 108's list"; a bullet
+   "Assigned by name in the hostile-guest programs, for 106's typed call or 107's protocol:
    `_drive_turn`, `_abandon_turn` (`test_v1_2_hostile_guest.py:3133, 3138`), beside `_drive` and
    `_join_guest` already listed"; and the sentence "The tally reads both spellings of the fixture
-   (`monkeypatch.` and `m.`) and the `<module>._name = …` form, as 107's check will."
+   (`monkeypatch.` and `m.`) and the `<module>._name = …` form, as 108's check will."
 2. **Two self-check items are unchecked** (the specification, "The builder's self-check": the CI
    run on this commit, and the CHANGELOG line) — Low. Each carries its reason in writing: the
    chain's one dispatch on its final tip stands for criterion 9 (the owner's rule), and the brief
@@ -195,7 +195,7 @@ mutates passes the scanner, as the pre-build review noted; a naming convention, 
   where it could be (the fast tier, sameness, the lock order, the counts, the 3.11 and 3.12 runs);
   finding 1 is a count made by a narrower grep than the sentence it supports.
 - §4.13 (uv, ruff, pytest): clean; no dependency added.
-- §4.14 (git): a worktree on `spec/104-…` stacked on 103's reviewed tip, the base named in the
+- §4.14 (git): a worktree on `spec/105-…` stacked on 104's reviewed tip, the base named in the
   Status line and the rebase recorded with its one conflict; no push, no tag.
 - §4.15 (safe by default): no default, limit or channel changes; the fork refusal keeps `fork_used`
   and sets `forked` as before.
@@ -209,12 +209,12 @@ mutates passes the scanner, as the pre-build review noted; a naming convention, 
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 1. The allowance list misses the seams replaced by other spellings — fixed in the specification's
-   landing notes ("The allowance list for 106 and 107"), in the review's own fix text: `_remove_tree`
+   landing notes ("The allowance list for 107 and 108"), in the review's own fix text: `_remove_tree`
    is 6 lines (five `monkeypatch.setattr`, one `m.setattr`); a bullet for the constant and the class
    the unit files replace (`_REMOVE_BUDGET`, 2 lines by `m.setattr`; `_Box`, assigned by name and
    restored); a bullet for the two functions the hostile-guest programs assign by name
    (`_drive_turn`, `_abandon_turn`), beside `_drive` and `_join_guest`; and the sentence that the
-   tally reads both spellings of the fixture and the `<module>._name = …` form, as 107's check
+   tally reads both spellings of the fixture and the `<module>._name = …` form, as 108's check
    will. No line of code changes: each is on the base as it is.
 2. Two self-check items unchecked — answered in writing in the landing notes: the CHANGELOG line is
    the integrator's (its text stands under "For the lane"; the lane adds it under the unreleased

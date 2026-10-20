@@ -1,13 +1,13 @@
 - **Project:** wasmtime-py (https://github.com/bytecodealliance/wasmtime-py)
 - **Against:** 49.0.0 (the release `uv.lock` pins; EXECUTED, `importlib.metadata.version`)
-- **Status:** drafted (spec 102, Design, "The debt is documented"; held in step with
+- **Status:** drafted (spec 103, Design, "The debt is documented"; held in step with
   `src/wasi_python/_wasmtime_ffi.py` by the rules check `test_the_private_api_debt_is_documented`)
 - **Title:** the public API the runner would use in place of the private bindings it calls
 - **Files:** wasmtime/_store.py and _func.py (`Caller` methods, a store identity), _config.py
   (`async_stack_size`), _wasi.py (a locked custom-output table), _func.py (a reusable call, an
   epoch callback), the package's own `__init__` (what is public)
 - **Why we need it:** the runner drives wasmtime through one module, the engine seam
-  (`src/wasi_python/_wasmtime_ffi.py`, spec 102), which prefers a public form wherever the
+  (`src/wasi_python/_wasmtime_ffi.py`, spec 103), which prefers a public form wherever the
   installed release has one and falls back to a private binding otherwise. Every private binding
   it still needs is a row of the table below. When a release makes one public, the adapter takes
   the public path, the name leaves its `NEEDED` or `OPTIONAL` tuple, and the row moves to
@@ -21,7 +21,7 @@ the words, are the owner's. Nothing has been posted.
 ## The facts
 
 1. **The runner reaches wasmtime-py's private surface in 25 lines of `src/` today** (EXECUTED,
-   spec 102's regex over `src/wasi_python/*.py` at `a9064a2`: `runner.py` 14, `mounts.py` 11),
+   spec 103's regex over `src/wasi_python/*.py` at `a9064a2`: `runner.py` 14, `mounts.py` 11),
    for six things the public API cannot do: stop a guest from inside a host function without
    raising through the process-wide exception slot (spec 011), answer the epoch callback (spec
    015), own the output table without wasmtime-py's unlocked one (spec 011), forward a file call
@@ -98,7 +98,7 @@ name as the adapter's holder table spells it. The last column names the sheet th
 ## Landed
 
 None yet. A row moves here, with the release that made it public, when the adapter drops the
-name (spec 102, Decision 6, step 6).
+name (spec 103, Decision 6, step 6).
 
 ## The change, for the owner to write from
 
@@ -106,7 +106,7 @@ Three things, each small, in the order of their worth to the runner:
 
 1. **`Caller.get_fuel`, `Caller.set_fuel`, `Caller.set_epoch_deadline`**, each the `Store`
    method's body on `self._context()` (fact 3). Then the runner's six host-function sites take
-   the public path with no change of their own (spec 102, Decision 8).
+   the public path with no change of their own (spec 103, Decision 8).
 2. **`Config.async_stack_size`**, as sheet 21 says.
 3. **A locked `CUSTOM_OUTPUTS`** (fact 4), or a documented statement that the table is safe
    under wasmtime's output threads; then the two properties serve.
@@ -119,4 +119,4 @@ not a shape.
 For each row a release makes public: the adapter already prefers the public form, so the
 operation changes little or nothing; the name leaves `NEEDED` or `OPTIONAL`; the row moves to
 "Landed" above in the same change, or `test_the_private_api_debt_is_documented` is red; a new
-major widens the pin by spec 102's Decision 6.
+major widens the pin by spec 103's Decision 6.

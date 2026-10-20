@@ -38,7 +38,7 @@ def _wasmtime() -> Any:
             "wasi_python.run needs wasmtime-py (wasmtime>=49,<50), which installs with "
             "wasi-python; reinstall it or install wasmtime directly"
         ) from e
-    from . import _wasmtime_ffi  # noqa: F401  (spec 102: its own ImportError names what moved)
+    from . import _wasmtime_ffi  # noqa: F401  (spec 103: its own ImportError names what moved)
 
     return wt
 
@@ -86,7 +86,7 @@ def _cache_dir(given: str | os.PathLike[str] | None | bool) -> Path | None:
 
 def _engine(metered: bool) -> wasmtime.Engine:
     """Two engines per process: fuel metering changes the compiled code. The async stack size
-    is set first, through the seam (spec 078, Decision 1; spec 102)."""
+    is set first, through the seam (spec 078, Decision 1; spec 103)."""
     import wasmtime as wt
 
     from . import _wasmtime_ffi as ffi

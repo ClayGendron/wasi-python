@@ -1,4 +1,4 @@
-"""The engine seam (spec 102): the one test file that may import wasmtime-py's private modules.
+"""The engine seam (spec 103): the one test file that may import wasmtime-py's private modules.
 Rows U1 to U10 and U18 need no wasm module; U11 to U16 drive wasmtime-py with a WAT module and
 need no python.wasm. Nothing here measures time."""
 

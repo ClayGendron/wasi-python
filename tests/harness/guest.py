@@ -70,7 +70,7 @@ def engine() -> wt.Engine:
         cfg = wt.Config()
         cfg.consume_fuel = True
         cfg.epoch_interruption = True
-        _wasmtime_ffi.set_async_stack(cfg, WASM_STACK)  # the seam's three branches (spec 102)
+        _wasmtime_ffi.set_async_stack(cfg, WASM_STACK)  # the seam's three branches (spec 103)
         cfg.max_wasm_stack = WASM_STACK
         _engine = wt.Engine(cfg)
     return _engine

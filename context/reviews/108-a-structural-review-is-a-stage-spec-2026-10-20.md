@@ -1,9 +1,9 @@
-# Review of 107 — A structural review is a stage (pre-build)
+# Review of 108 — A structural review is a stage (pre-build)
 
 - **Date:** 2026-10-20
-- **Reviewer:** a fresh agent (pre-build reviewer for the chain 102–107); not the author
+- **Reviewer:** a fresh agent (pre-build reviewer for the chain 103–108); not the author
 - **Reviewed:** the specification as drafted
-  (`context/specifications/107-a-structural-review-is-a-stage.md` on `claude/gallant-ride-9nxxmn`,
+  (`context/specifications/108-a-structural-review-is-a-stage.md` on `claude/gallant-ride-9nxxmn`,
   read untracked over `a9064a2` and committed unchanged as `e364b99` while this review was written)
 - **Run:** none (pre-build review of the draft)
 - **Re-ran:** `uv run pytest tests/checks/test_rules.py -k "specifications or open_question" -q
@@ -36,8 +36,8 @@ whether its anchors exist in the tree.
    `("0.1.0a8", …)` returns `[]` (EXECUTED). `__version__ = "0.1.0a8"` at
    `src/wasi_python/__init__.py:34` (READ).
 3. **Check (b) seen failing first** — countable; the fixture case `112-c.md` fails as the
-   specification says (EXECUTED). On the real tree today it returns `[]`, but only because 107
-   is drafted: marked built, 107 itself trips it (M3).
+   specification says (EXECUTED). On the real tree today it returns `[]`, but only because 108
+   is drafted: marked built, 108 itself trips it (M3).
 4. **The unit rows, each seen failing first** — countable; every assertion of D3's two rows
    passes against the pasted code (EXECUTED: "D3 row 1: every case passes", "D3 row 2: every
    case passes"). `SPEC`, `write` and `work` exist as the specification describes
@@ -66,40 +66,40 @@ context/*.md | sort … | tail -1` gives `question 107` (`decisions.md:78`), so 
 free number. `grep -rn 'security review' tests/checks tests/harness` finds docstrings only. All
 agree with the draft. One EXECUTED claim does not (M3).
 
-The module names `_process.py` (104, Decision 1), `_wasmtime_ffi.py` (102, Decision 1) and
-`_platform.py` (106, Depends on; 102:131) are those the drafted specifications give (READ), and
-107 states them as dependent: "if one lands under another name, the rule names the landed one"
-(107:84–85). 103 is not in the tree, so its check (the size ceiling) is READ from the memo's
-section 8 table only; 105 appeared, untracked, while this review was written and is read below
-where it names 107.
+The module names `_process.py` (105, Decision 1), `_wasmtime_ffi.py` (103, Decision 1) and
+`_platform.py` (107, Depends on; 103:131) are those the drafted specifications give (READ), and
+108 states them as dependent: "if one lands under another name, the rule names the landed one"
+(108:84–85). 104 is not in the tree, so its check (the size ceiling) is READ from the memo's
+section 8 table only; 106 appeared, untracked, while this review was written and is read below
+where it names 108.
 
 ## Findings, most severe first
 
-1. **Three checks are handed to 107 by its siblings and handed back by 107**
-   (`context/specifications/107-…:224–226`, `:80–82`, `:706–708`;
-   `context/specifications/104-…:258–266`; `context/specifications/105-…:305`, `:564–565`) —
-   Medium. 107's Decision 5 names "spec 104's seam rule" as the letter behind trigger 4 and
-   "spec 103's size ceiling" behind trigger 5, and its Scope puts "the structural fixes and their
-   checks (specs 102 to 106), including the size ceiling's number, the function-length ceiling
-   the memo suggests" out as theirs. The siblings say the opposite (READ): 104's Decision 4,
+1. **Three checks are handed to 108 by its siblings and handed back by 108**
+   (`context/specifications/108-…:224–226`, `:80–82`, `:706–708`;
+   `context/specifications/105-…:258–266`; `context/specifications/106-…:305`, `:564–565`) —
+   Medium. 108's Decision 5 names "spec 105's seam rule" as the letter behind trigger 4 and
+   "spec 104's size ceiling" behind trigger 5, and its Scope puts "the structural fixes and their
+   checks (specs 103 to 107), including the size ceiling's number, the function-length ceiling
+   the memo suggests" out as theirs. The siblings say the opposite (READ): 105's Decision 4,
    "the check that enforces the rule (an AST walk of `tests/` for `monkeypatch.setattr(<module>,
-   "_name", …)` … against an allowance list) is **spec 107's**", with 104's Decision 5 adding
-   only the lock and mutable checks (104:314); 105's "Where it meets" and Scope, "**107** gets a
+   "_name", …)` … against an allowance list) is **spec 108's**", with 105's Decision 5 adding
+   only the lock and mutable checks (105:314); 106's "Where it meets" and Scope, "**108** gets a
    rules check to extend (the memo's section 5: a module size ceiling)" and "a module size
-   ceiling, a function length ceiling (the memo's section 5: spec 107)". 103 is not in the tree.
+   ceiling, a function length ceiling (the memo's section 5: spec 108)". 104 is not in the tree.
    As the chain stands, the seam check, the size ceiling and the function ceiling each have no
    builder, so triggers 4 and 5 would land with no check behind them, which Decision 1 itself
    calls "a rule the judge cannot see"; and no specification in the tree carries the memo's "no
    function over 80" (`grep -n "over 80\|80 lines\|function-length" context/specifications/
-   10[2-6]-*.md` finds only 105's hand-off: EXECUTED).
+   10[3-7]-*.md` finds only 106's hand-off: EXECUTED).
    Failure: a change adds `monkeypatch.setattr(runner, "_new_hook", …)` or a 90-line function
    after the wave → no rules check fails; only the one-line item 4a can catch it.
    Evidence that closes it: each of the three checks has exactly one builder in the chain's
-   texts (107's Design D gains the ones 107 takes, each with its unit row and its failing-first
-   criterion; the siblings' hand-off lines are amended for the ones they keep), or 107's Scope
-   says in so many words that the function ceiling is a measurement (R7) only, and 105's line
+   texts (108's Design D gains the ones 108 takes, each with its unit row and its failing-first
+   criterion; the siblings' hand-off lines are amended for the ones they keep), or 108's Scope
+   says in so many words that the function ceiling is a measurement (R7) only, and 106's line
    agrees.
-2. **The lane's order at 0.1.0 contradicts AGENTS.md rule 6b** (`…107-…:186–196`; `AGENTS.md`
+2. **The lane's order at 0.1.0 contradicts AGENTS.md rule 6b** (`…108-…:186–196`; `AGENTS.md`
    rule 6b; `release/version.py:240–248`) — Medium. Decision 4 orders: dry run on main's X
    (version `0.1.0a8`), then one commit with the review, `bump --to 0.1.0` and the CHANGELOG
    date, then the fast tier, then the tag. `_bump` writes `src/wasi_python/__init__.py`
@@ -118,15 +118,15 @@ where it names 107.
    with the bump and the CHANGELOG date; the dry run runs on that commit; the tag follows
    `release/version.py release`'s own CHANGELOG-only commit, which 6b allows. The check's
    design needs no change for this.
-3. **Check (b) fires on 107 itself, and the EXECUTED grep it rests on is not empty**
-   (`…107-…:17`, `:205–207`, `:547`) — Medium. The Kind line reads "By Decision 1's own
+3. **Check (b) fires on 108 itself, and the EXECUTED grep it rests on is not empty**
+   (`…108-…:17`, `:205–207`, `:547`) — Medium. The Kind line reads "By Decision 1's own
    definition it is not structural", and `"structural" not in kind[1].lower()` is a substring
    test: with the Status changed to `**built 2026-10-20**` the pasted code returns
-   `['107-a-structural-review-is-a-stage.md: structural and built, but cites no
-   reviews/107-<slug>-spec-<date>.md']` (EXECUTED, the probe). The claim "`grep -rn structural
+   `['108-a-structural-review-is-a-stage.md: structural and built, but cites no
+   reviews/108-<slug>-spec-<date>.md']` (EXECUTED, the probe). The claim "`grep -rn structural
    context/specifications AGENTS.md context/reviews/README.md` is empty" cannot have been run on
-   a tree holding 107 (the file's title contains the word; also 104:264, 106:29, 106:441), so it
-   is reported as run where it was not (constitution §4.10). The practical effect is small (107
+   a tree holding 108 (the file's title contains the word; also 105:264, 107:29, 107:441), so it
+   is reported as run where it was not (constitution §4.10). The practical effect is small (108
    will cite this review once built, which clears it), but the check's stated property, "no
    existing specification trips the check", is false for the specification that adds it.
    Fix text: match the token Decision 1 asks for, `re.search(r"\*\*structural\*\*",
@@ -135,22 +135,22 @@ where it names 107.
    without the word; and replace :205–207 with the grep's real output on this tree, restricted
    to Kind lines (`grep -rn '^- \*\*Kind:\*\*' context/specifications | grep -ci structural`
    gives 1, this file).
-4. **The Status test matches `built` anywhere in the line** (`…107-…:550`) — Low. A drafted
-   specification whose Status reads "drafted 2026-10-21, to be built on 106's tip" trips the
+4. **The Status test matches `built` anywhere in the line** (`…108-…:550`) — Low. A drafted
+   specification whose Status reads "drafted 2026-10-21, to be built on 107's tip" trips the
    check (EXECUTED, the probe's `115-g.md` case). `landed_review_errors` uses
    `startswith("landed")` (`tests/harness/scan.py:394`). Fix text: `if not re.match(r"(built|
    landed)\b", status): return []`, and one more unit assertion for the drafted-but-says-built
    case.
-5. **"Windows included" is wrong for `test_rules.py`** (`…107-…:776–778`) — Low.
+5. **"Windows included" is wrong for `test_rules.py`** (`…108-…:776–778`) — Low.
    `test_rules.py` runs in the `own-rest` shard (`rest = true`, `systems = ["macos", "linux"]`;
    `tests/release_shards.toml:71–78`, spec 063 Decision 18: READ). Fix text: "The two checks run
    in the `own-rest` shard on macOS and Linux, where `test_rules.py` runs (spec 063, Decision
    18: not on Windows); they read files only."
-6. **A1 drops `platform.system()` from the platform-branch trigger** (`…107-…:296–297`
+6. **A1 drops `platform.system()` from the platform-branch trigger** (`…108-…:296–297`
    against `:78`) — Low. Decision 1 lists `sys.platform`, `os.name`, `platform.system()`; the
    AGENTS.md bullet lists two of the three; the measurement command (:400) greps all three. Fix
    text: in A1, "(`sys.platform`, `os.name`, `platform.system()`)".
-7. **The 45-minute box reads "the whole of `src/` is read"** (`…107-…:137`, `:361–363`) —
+7. **The 45-minute box reads "the whole of `src/` is read"** (`…108-…:137`, `:361–363`) —
    Low. The memo read 11,423 lines and states no box (its header, READ); the build-class box is
    45 minutes. As written the box cannot hold the reading it promises. Fix text: "45 minutes: the
    measurements first (one command each), then the diff of `src/` since the last structural
@@ -173,8 +173,8 @@ Judgements the task asked for, in one line each:
   written (`VERSION_LINE`, the same regex); it holds for the bump path. The ordering around rule
   6b is M2.
 - **Red on the current tree?** No: `0.1.0a8` is a prerelease, so check (a) is `[]`; no Kind
-  line carries the bold token, and 107 is drafted, so check (b) is `[]` (EXECUTED). Nothing the
-  chain cannot fix: at "built", 107 must cite this review's file name, which it would anyway.
+  line carries the bold token, and 108 is drafted, so check (b) is `[]` (EXECUTED). Nothing the
+  chain cannot fix: at "built", 108 must cite this review's file name, which it would anyway.
 - **The rubric in 45 minutes:** the nine measurements ran in well under a minute here; eight
   rows at one line each are a 45-minute judgement if the reading is bounded (finding 7).
 - **Weakens a check or moves a pass?** No: two checks and two unit rows added, no expectation,
@@ -192,7 +192,7 @@ Judgements the task asked for, in one line each:
 - §4 constraints: §4.10 (claims carry their evidence) is tripped once by the empty-grep claim
   (M3); every other number in the draft reproduced here. §4.13 (`uv` only): every command in
   the draft is `uv run …`. §4.14 (git): one specification on the chain's branch, a stacked build
-  on 106's tip, no new branch or worktree; nothing committed by this review. §4.9: the 45
+  on 107's tip, no new branch or worktree; nothing committed by this review. §4.9: the 45
   minutes is a reviewer's box, not a test's measurement; no check reads a clock. §4.5: no
   embedder name in any text. §4.3, §4.4, §4.6: untouched (no `src/`, no artifact byte, no
   import). §5.2: no undecided choice in the draft; the owner's decision is asked as a numbered
@@ -204,13 +204,13 @@ Judgements the task asked for, in one line each:
   to correct).
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
-1. Three checks are handed to 107 by its siblings and handed back by 107 — fixed: by the owner's
-   decision (2026-10-20), 107 owns the seam check (104's AST walk of `tests/`, in code and in
-   program strings, against `SEAM_ALLOWED`: 104's twenty "stays" names, the checks' two, and the
-   two plain assignments `_Box` and `_abandon_turn` 104's count did not see; 106 shrinks it) and
+1. Three checks are handed to 108 by its siblings and handed back by 108 — fixed: by the owner's
+   decision (2026-10-20), 108 owns the seam check (105's AST walk of `tests/`, in code and in
+   program strings, against `SEAM_ALLOWED`: 105's twenty "stays" names, the checks' two, and the
+   two plain assignments `_Box` and `_abandon_turn` 105's count did not see; 107 shrinks it) and
    the function ceiling (no function over 80 lines outside `LONG_FUNCTIONS`, the tree's eight
-   offenders at `a9064a2`, re-measured on 106's tip); the module size ceiling is 103's, and 105's
-   hand-off line is corrected in 105's own round. The allowance rule is stated: an entry is removed
+   offenders at `a9064a2`, re-measured on 107's tip); the module size ceiling is 104's, and 106's
+   hand-off line is corrected in 106's own round. The allowance rule is stated: an entry is removed
    when its seam or function is fixed, never added, and a stale entry fails the check. Decisions 1
    (triggers 4 and 5), 5, the new 5a and 8; Design D4 and D5; Scope; Acceptance 4 and 5; the claim
    list and flags; A1, B1, C, E1 and E3.
@@ -219,16 +219,16 @@ Judgements the task asked for, in one line each:
    bump, the dry run runs on that commit, and the tag follows the CHANGELOG-only release commit,
    as rule 6b allows; the wrong clause is gone. Decision 3 (when), Decision 4 (the order), B2's
    first bullet and template "Reviewed" line, E2.
-3. Check (b) fires on 107 itself, and the EXECUTED grep it rests on is not empty — fixed: the
+3. Check (b) fires on 108 itself, and the EXECUTED grep it rests on is not empty — fixed: the
    check matches the bold token `**structural**` (D1, `STRUCTURAL_TOKEN`), with the unit case
    `109-z.md` for the word without the token (D3); the Kind line is reworded without the word;
    the claim is replaced by the tree's real output, restricted to Kind lines and EXECUTED with
-   102, 104, 105, 106 and 107 present (`grep -rhn '^- \*\*Kind:\*\*' context/specifications |
+   103, 105, 106, 107 and 108 present (`grep -rhn '^- \*\*Kind:\*\*' context/specifications |
    grep -c '\*\*structural\*\*'` gives 0, and the plain word gives 0; without `-h` the plain word
-   gives 2, both 107's own Kind lines matched on the file's path, which the spec says); criterion
-   3 records the check on 107's own Status set to built. Decision 4b, D1, D3.
+   gives 2, both 108's own Kind lines matched on the file's path, which the spec says); criterion
+   3 records the check on 108's own Status set to built. Decision 4b, D1, D3.
 4. The Status test matches `built` anywhere in the line — fixed: `re.match(r"(built|landed)\b",
-   status)`, with the unit case `115-g.md` ("drafted 2026-10-21, to be built on 106's tip" → no
+   status)`, with the unit case `115-g.md` ("drafted 2026-10-21, to be built on 107's tip" → no
    error). D1, D3, Decision 4b.
 5. "Windows included" is wrong for `test_rules.py` — fixed with the reviewer's text: the checks
    run in the `own-rest` shard on macOS and Linux, where `test_rules.py` runs (spec 063, Decision
@@ -245,7 +245,7 @@ Judgements the task asked for, in one line each:
 
 ## Verdict
 Builds once the three Mediums are written into the text: M1 (the seam check, the size ceiling
-and the function ceiling each have one builder between 104, 105 and 107), M2 (Decision 4's
+and the function ceiling each have one builder between 105, 106 and 108), M2 (Decision 4's
 order at 0.1.0 agrees with rule 6b: the review of the pre-bump commit lands with the bump, and
 the dry run runs on that commit) and M3 (check (b) matches the bold token and the empty-grep
 claim is replaced by the tree's output); no High, and the Lows carry their fix text.

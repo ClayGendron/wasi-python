@@ -1,22 +1,22 @@
-# Review of 105 — Typed call state, explicit lifecycles, and a type checker in the judge
+# Review of 106 — Typed call state, explicit lifecycles, and a type checker in the judge
 
 - **Date:** 2026-10-20
-- **Reviewer:** a fresh agent (pre-build reviewer for the chain 102–107)
+- **Reviewer:** a fresh agent (pre-build reviewer for the chain 103–108)
 - **Reviewed:** the specification as drafted
-  (`context/specifications/105-typed-call-state-and-explicit-lifecycles.md`, untracked on
+  (`context/specifications/106-typed-call-state-and-explicit-lifecycles.md`, untracked on
   `claude/gallant-ride-9nxxmn` at `c9515ef`), read against `src/wasi_python/` at the same commit
 - **Run:** none (pre-build review of the draft)
 - **Re-ran:** `uv run pytest tests/checks/test_rules.py -k "specifications or open_question" -q
   -p no:cacheprovider` → 3 passed, exit 0; `uv run --with mypy==1.19.1 mypy --strict
   --no-error-summary src/wasi_python` → 78 errors, exit 1 (the writer's
-  `build/105/mypy-strict.txt` says the same: 78 in 4 files, tools.py 36, runner.py 30, mounts.py
+  `build/106/mypy-strict.txt` says the same: 78 in 4 files, tools.py 36, runner.py 30, mounts.py
   10, cli.py 3); the same with `--python-version 3.11` → 78; with `--platform darwin` → 78; with
   `--platform win32` → **92**; `grep -oE '\bAny\b' -r src/wasi_python --include='*.py' | wc -l`
   → 424; `grep -oE '(: |-> )Any\b' …` → 314; `grep -c 'type: ignore'` → runner.py 9, mounts.py 2,
   cli.py 1; `grep -cE 'c: dict\[str, Any\]' src/wasi_python/runner.py` → 8;
   a case-insensitive grep for the scanner's three banned words on the draft → nothing. Scratch outputs under
   `/tmp/claude-0/-home-user-wasi-python/a7a0f302-7717-538b-8fac-46c5fd7843f5/scratchpad/`
-  (`mypy-105.txt`, `mypy-105-win32.txt`, `mypy-105-darwin.txt`).
+  (`mypy-106.txt`, `mypy-106-win32.txt`, `mypy-106-darwin.txt`).
 - **Time box:** 25 minutes (parallel-safe).
 
 ## Acceptance criteria against evidence
@@ -24,7 +24,7 @@
 1. **The checks exist and were seen failing first** — not met yet (pre-build), and the base count
    the criterion restates is Linux's only. EXECUTED: 78 errors in 4 files on Linux and darwin, the
    three lines The problem names present (`runner.py:1020` return-value, `runner.py:5974` misc,
-   `tools.py:2002` arg-type: `build/105/mypy-strict.txt` lines 50, 77, 35); **92 on win32**
+   `tools.py:2002` arg-type: `build/106/mypy-strict.txt` lines 50, 77, 35); **92 on win32**
    (finding H1). The table checks' red-on-base is INFERRED (no enum to import) and sound.
 2. **The call is typed** — the field list is right as far as it goes. READ: `_check_limits`
    (`runner.py:147-158`) 4 keys, `_check_inputs` (`177-`) 3, `cancel` (`1522`), `_check_tools`
@@ -99,7 +99,7 @@ described: `serve()`'s `finally` runs before `_on_guest_thread`'s handler stores
    Failure: the builder empties the allowlist on Linux; the chain's one dispatch runs the Windows
    judge shards; `test_src_type_checks_under_mypy_strict` is red there with 14 errors in modules
    not in `UNTYPED`, a red line that is neither growth nor G7 (criterion 8), found only on the
-   chain's final tip with 106 and 107 stacked above. Fix: a sentence in Decision 5 that pins
+   chain's final tip with 107 and 108 stacked above. Fix: a sentence in Decision 5 that pins
    `platform = "linux"` in `[tool.mypy]` beside `python_version`, with its reason (one platform's
    branches on every host, as one Python version; the Windows-only lines are still parsed and
    their functions annotated, but their `sys.platform` narrowing is Linux's), and criterion 1
@@ -175,7 +175,7 @@ described: `serve()`'s `finally` runs before `_on_guest_thread`'s handler stores
   the three READ slips in finding 4 and the Linux-only base count of finding 1. §4.13 (no
   dependency without a reason): holds; Decision 5 gives it, `pytest-xdist`'s pin as the pattern.
   §4.14 (stacked build, base commit in the header): holds for a draft; the base commit is to be
-  written in when 104 is reviewed. §4.15 (safe by default): nothing loosened; `run`'s `loop` is
+  written in when 105 is reviewed. §4.15 (safe by default): nothing loosened; `run`'s `loop` is
   `None` and `home` a fresh `_Home`, as today.
 - §5.2 (every choice decided) and §5.6 (a pre-build review where the runner's code changes): held;
   the shape and scanner checks pass (EXECUTED).
@@ -184,8 +184,8 @@ described: `serve()`'s `finally` runs before `_on_guest_thread`'s handler stores
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
 Answered by the author on 2026-10-20; the specification is revised in place (its *Disposition of
-the pre-build review* says where each finding went) and names 103's module names and the
-ceilings' owners (103, 104, 107) as the lane asked.
+the pre-build review* says where each finding went) and names 104's module names and the
+ceilings' owners (104, 105, 108) as the lane asked.
 
 1. The type check's verdict differs on Windows — fixed: Decision 5 pins `platform = "linux"` in `[tool.mypy]` with the reason (one verdict on three systems; the chain's one dispatch must not be red on Windows for a reason that is neither growth nor G7), what is lost (Windows-only and darwin-only branches are typed against the linux stubs, every one behind a `sys.platform` guard today) and the recourse (a per-platform run with an allowance keyed by (module, platform), a later specification); criterion 1 states the 92 as the review's EXECUTED fact and asks for one count on the three judge shards; Scope out, the dry-run line and the `--accept-judge` reason name it.
 2. A third late write to the checked dict is missing from the inventory — fixed: The problem names the third write (`checked["cancel"] = event`, `runner.py:673`); Decision 1 ("The third late write goes away") makes `run_async` make its `threading.Event` before `_checked` and pass it as `cancel`, the `_live` registration unchanged; criterion 2 adds "no `dataclasses.replace` on a call" with its grep; criterion 3's first grep gains `|checked\[`.

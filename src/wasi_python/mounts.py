@@ -780,7 +780,7 @@ class _Files:
         exception slot is process-wide). Fuel-neutral on a metered call: read, raised by the
         allowance, and set back in a `finally` before any trap or error is raised. `stat`
         forwards one of `PRIVATE` through the guard's own trampoline, on its page (spec 048).
-        The engine is reached through the seam (spec 102): a prepared call per name, made once."""
+        The engine is reached through the seam (spec 103): a prepared call per name, made once."""
         from wasmtime import Trap, WasmtimeError
 
         from . import _wasmtime_ffi as ffi

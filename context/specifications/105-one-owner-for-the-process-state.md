@@ -1,19 +1,19 @@
-# 104 — One owner for the process's state, and the test seams move off module globals
+# 105 — One owner for the process's state, and the test seams move off module globals
 
-- **Status:** **built on `1f959c2` (the code; the commits after it carry these notes) on `spec/104-one-owner-for-the-process-state`, stacked on 103's
-  reviewed tip `538e831` (rebased from its built tip `2a9546c` after 103's build review), 2026-10-20, awaiting the build review.** Drafted 2026-10-20 on
+- **Status:** **built on `1f959c2` (the code; the commits after it carry these notes) on `spec/105-one-owner-for-the-process-state`, stacked on 104's
+  reviewed tip `538e831` (rebased from its built tip `2a9546c` after 104's build review), 2026-10-20, awaiting the build review.** Drafted 2026-10-20 on
   `claude/gallant-ride-9nxxmn` from main `5feb7e9` (the memo's plan; the tree read is `a9064a2`,
-  which adds only the memo). **Stacked on 103's reviewed tip** (constitution §4.14): the third
-  entry of the chain 102 → 103 → 104 → 105 → 106 → 107 (the memo, section 8), built in its own
-  worktree on `spec/104-one-owner-for-the-process-state` from 103's built tip `2a9546c`, then
+  which adds only the memo). **Stacked on 104's reviewed tip** (constitution §4.14): the third
+  entry of the chain 103 → 104 → 105 → 106 → 107 → 108 (the memo, section 8), built in its own
+  worktree on `spec/105-one-owner-for-the-process-state` from 104's built tip `2a9546c`, then
   rebased onto its reviewed tip `538e831` (the *Rebase* bullet of the landing notes).
   **Reviewed before build** the same day
-  (`../reviews/104-one-owner-for-the-process-state-spec-2026-10-20.md`, verdict "may be built
+  (`../reviews/105-one-owner-for-the-process-state-spec-2026-10-20.md`, verdict "may be built
   once Decision 6's lock order is restated from a corrected scan and Decision 2 names the
   type-to-factory table"); **revised against all seven findings** (its *Disposition*): the lock
   order of Decision 6 comes from the corrected scanner, Decision 2 renews locks by a
-  type-to-factory table, and the five Lows are written in. 103 is in the tree
-  (`103-the-runner-becomes-a-package.md`); this revision reads its module names and its import
+  type-to-factory table, and the five Lows are written in. 104 is in the tree
+  (`104-the-runner-becomes-a-package.md`); this revision reads its module names and its import
   rule. A different agent reviews the build.
 - **Date:** 2026-10-20
 - **Owner:** Clay Gendron
@@ -22,7 +22,7 @@
   It **changes no line of `tests/public_api.txt`**: every name it moves starts with an
   underscore, and `stats()`, `set_defaults` and `defaults` answer as before. **A judge change**
   (two rules checks and one unit check): the lane accepts with `--accept-judge`.
-- **Depends on:** **103** (the runner becomes a package; its reviewed tip is this branch's base).
+- **Depends on:** **104** (the runner becomes a package; its reviewed tip is this branch's base).
   Landed: **015** (the pool, the live set and the fork refusal; the decisions this one keeps),
   **055** (the reaper, the session clock and the session hooks), **084** (the sweep's state),
   **078** (the stack-size window and `_on_entry`), **036** (the tool-thread count), **049** (the
@@ -35,7 +35,7 @@
 ## The problem
 
 `runner.py` keeps the process's state in module globals. At `a9064a2` an AST walk of `src/`
-(EXECUTED, `build/104/rules_proto.py`) finds **14 locks** bound at module or class level (13 in
+(EXECUTED, `build/105/rules_proto.py`) finds **14 locks** bound at module or class level (13 in
 `runner.py`, among them `_epoch_ticker._cond`, and `__init__.py`'s `_defaults_lock`) and **38
 mutable containers or stateful objects** bound at module level (dicts, lists, sets, a `WeakSet`, a
 `deque`, a `SimpleQueue`, an `itertools.count`, a `threading.local`), all in `runner.py`. Beside
@@ -59,13 +59,13 @@ Three costs follow (the memo, H1 and H5; each READ in the source at `a9064a2`):
   is READ, and INFERRED to be a narrower count: the function seams alone), and the checks read
   `runner._held`, `_sweep_state`,
   `_ctrl_c`, `_fork`, `_calls`, `_engines`, `_zips`, `_outputs`, `_pool`, the locks and the
-  ticker's class attributes directly. Spec 103 moves these names into ten modules; every such
+  ticker's class attributes directly. Spec 104 moves these names into ten modules; every such
   reference then names a module that was chosen for where its function went, not for what the
   state is.
 
-Spec 103 leaves the globals where their functions moved and makes the fork hook reassign them by
+Spec 104 leaves the globals where their functions moved and makes the fork hook reassign them by
 module attribute (READ, its Decision 4: "Every lock, cache, hook and counter stays a module
-global, in the module its functions moved to"). That keeps 103 a pure move. This specification is
+global, in the module its functions moved to"). That keeps 104 a pure move. This specification is
 the second half: one object owns the state, resets it in one place, and carries the seams.
 
 ## Decisions
@@ -83,16 +83,16 @@ first, and it needs nothing loaded before it.
 
 Production code reaches the state as `process().<attribute>`. A module may bind `p = process()`
 inside a function; no module binds the instance at module level, so there is one spelling for the
-judge's rule in Decision 4 to see. This fits 103's import rule (READ, its Decision 2: a function
+judge's rule in Decision 4 to see. This fits 104's import rule (READ, its Decision 2: a function
 or a mutable is reached as `_module.name` at every use, so a rebinding is seen by every caller):
 `process` is never rebound and the judge never patches it, so it may be imported by name, and
-this specification adds `process` to 103's check 3 list of names a module may import by `from`
+this specification adds `process` to 104's check 3 list of names a module may import by `from`
 (`SENTINELS`, today `_UNSET` and `_DONE`), with that reason beside it. `_process` stands first in
-103's import order, before `_wasmtime_ffi`, since it imports nothing of the package.
+104's import order, before `_wasmtime_ffi`, since it imports nothing of the package.
 
 `_Process.__init__` is the one place the state is made. Every attribute is declared there with a
 type, in groups by concern, in this order. The table lists every one of the 51 module-level
-mutables and locks of `runner.py` (EXECUTED, `build/104/rules_proto.out`), the ticker's four class
+mutables and locks of `runner.py` (EXECUTED, `build/105/rules_proto.out`), the ticker's four class
 attributes, `__init__.py`'s lock and the scalar cache, and the attribute each becomes. A dict that
 only carried named flags becomes one attribute per flag; a dict that is a table stays a dict.
 
@@ -132,7 +132,7 @@ only carried named flags becomes one attribute per flag; a dict that is a table 
 | **J. Observers and overrides** (Decision 4) | the eight hooks, `_drive_folder`, the two reaper flags | `observers: _Observers` |
 
 Not moved, with the reason: `DEFAULTS` (a frozen `Defaults` value, replaced whole under
-`defaults_lock`; it is a binding, not a container; `set_defaults` keeps swapping it where 103
+`defaults_lock`; it is a binding, not a container; `set_defaults` keeps swapping it where 104
 left it), the upper-case tables (`_BUSY`, `_WIN_DEVICES`, `SIGNATURES`, `_TYPE_TEXT`, `VALUED`,
 `_ERRNO_ALIASES`, `_EMPTY`: read, never written), `_UNSET` and `_DONE` (sentinels), `_WAKE` (the
 reaper's sentinel), the compiled regexes, the `CFUNCTYPE` callbacks (`_output_write`,
@@ -144,8 +144,8 @@ and `_tick` read and write `process().ticker_*` under `process().ticker_cond`, a
 returns `process().ticker_count`. Its behaviour is unchanged: one thread per process, started by
 the first entry, advancing every engine's epoch once per `TICK_S`.
 
-103's module list governs which module each group's functions sit in; this table names only the
-state. Where each global sits on 103's tip (READ, 103's Decisions 4 and 5): group A in
+104's module list governs which module each group's functions sit in; this table names only the
+state. Where each global sits on 104's tip (READ, 104's Decisions 4 and 5): group A in
 `runner.py` (`_pool_lock`, `_live_lock`, `_pool`, `_pools`, `_live`, `_hook`); B in
 `_private_dirs.py`; C in `_platform.py` (`_fork`); D in `_platform.py` and `_places.py`; E in
 `_zip.py` (`_zip_lock`, `_zips`) and `_engines.py` (`_check_modules`, `_CHECK_WAT`) and
@@ -155,8 +155,8 @@ callback and its lock, the five linker and trampoline tables); G in `_home.py` (
 `_ctrl_c`, `_stack_size_lock`, `_stack_size_found`, `_on_entry`) and `_call.py` (`_outputs`, its
 lock and keys, `_tool_threads_lock`, `_tool_threads`); H in `_sessions.py`; I in `__init__.py`;
 `_after_walk` and `_drive_folder` in `_places.py`, the session hooks and `_session_clock` in
-`_sessions.py`. Whatever module 103's build left a name in, the state leaves that module for
-`_process.py` and the code reads it through `process()`; the builder re-finds each by 103's move
+`_sessions.py`. Whatever module 104's build left a name in, the state leaves that module for
+`_process.py` and the code reads it through `process()`; the builder re-finds each by 104's move
 table, not by this paragraph.
 
 ### 2. `reset_after_fork()` and `release_at_exit()` are methods
@@ -166,7 +166,7 @@ after_in_child=...)` keeps its registration (in `_process.py`, where the method 
 is `lambda: process().reset_after_fork()`. The method makes the changes the hook makes today
 (READ, `runner.py:1424-1458`) and two more: `warnings_lock` and `defaults_lock` are made anew as
 well, by the same rule (F8), where today's list leaves them (the pre-build review's finding 3;
-103's Decision 4 leaves the omission visible and hands the decision here). So a child behaves as
+104's Decision 4 leaves the omission visible and hands the decision here). So a child behaves as
 it does on main, with two locks fewer to inherit held:
 
 - **Every lock is made anew**, by introspection over one table, `RENEW`, written once in
@@ -260,13 +260,13 @@ keep every inherited lock; the table has no call that differs between the versio
 Decision 2 chose it over `isinstance` and `type(value)()`. A builder who can run 3.11 locally
 runs this file on it once and records the line in the landing notes.
 
-**103's check 1 is replaced.** 103's `test_every_module_level_lock_is_remade_after_fork`
+**104's check 1 is replaced.** 104's `test_every_module_level_lock_is_remade_after_fork`
 (`tests/unit/test_runner_package.py`) walks module-level locks and requires at least 13, with a
-`RESET_BY_FORK` list and an `ast` read of `_after_fork_in_child` (READ, 103's Decision 4). After
+`RESET_BY_FORK` list and an `ast` read of `_after_fork_in_child` (READ, 104's Decision 4). After
 this specification there are no module-level locks and no `_after_fork_in_child`, so that check
 would fail by construction. It is retired here, named in the `--accept-judge` reason, and
 Decision 3's check is its successor: the same question (is every lock remade?) asked of the one
-owner instead of the modules. 103's checks 2 to 4 stay; check 3 gains `process` in its by-name
+owner instead of the modules. 104's checks 2 to 4 stay; check 3 gains `process` in its by-name
 list (Decision 1) and `_process` joins check 2's `ORDER` first.
 
 Two more rows in the same file pin Decision 2's "reset" and "kept" lists on a fresh instance with
@@ -325,12 +325,12 @@ with an underscore except through `process()`: a field of `process().observers`,
 of `process()` itself.* A function seam that the judge still replaces by name is an allowance,
 listed below, each with its closer. The check that enforces the rule (an AST walk of `tests/` for
 `monkeypatch.setattr(<module>, "_name", …)` and `<module>._name = …` against an allowance list) is
-**spec 107's**, which adds the structural rules checks the memo's section 5 asks for; 107's list
-starts as the "stays" list below, and 106 removes the names its protocol fakes make unnecessary.
+**spec 108's**, which adds the structural rules checks the memo's section 5 asks for; 108's list
+starts as the "stays" list below, and 107 removes the names its protocol fakes make unnecessary.
 This specification adds the two rules checks of Decision 5 and no third.
 
 **What moves in this specification** (every reference to state or to a seam; line numbers at
-`a9064a2`, before 103's move; the builder re-finds each on 103's tip with the two greps of the
+`a9064a2`, before 104's move; the builder re-finds each on 104's tip with the two greps of the
 problem statement and `grep -rnE '\brunner\._(held|sweep_state|ctrl_c|fork|calls|engines|zips|
 outputs|pool|sessions|closers|reaper|…)\b' tests/`):
 
@@ -351,7 +351,7 @@ outputs|pool|sessions|closers|reaper|…)\b' tests/`):
 | `tests/checks/test_v1_4_sessions.py` | 163–164, 174, 418, 875, 989, 1214, 1221; 728, 746, 1180, 1187 (programs); 233, 239, 582–588, 721, 734, 737, 860, 866, 1015, 1020, 1185 | the fixtures and the hooks → `observers.*`; `_reaper["enabled"] = False` → `process().observers.reaper_enabled = False`; `_held`, `_sessions_lock`, `_closers`, `_ctrl_c` → the attributes |
 | `tests/checks/test_v1_4_embedding.py` | 950, 953; 1258–1259, 1293, 2284–2285, 2297, 3090, 3971; 1856–1857, 2298; 1435; 1478 | `_outputs` → `outputs`; `_epoch_ticker.count()` reads → `ticker_count`; the three `count = classmethod(...)` overrides → `process().ticker_count = <value>` (the ticker adds to it, so a value past the deadline stays past it); `_count += 1000` → `ticker_count += 1000`; `_engines` → `engines`; `print(runner._fork)` → `print(process().fork_used, process().forked)` with its expected line restated; `_sweep_state["swept"]` → `sweep_swept` |
 | `tests/checks/test_v1_4_public_api.py` | 444–445, 450 | `_pool_lock` → `process().pool_lock` (the racing wrapper is set with `monkeypatch.setattr(process(), "pool_lock", racing)`); `_pool["size"]` → `pool_size` |
-| `src/wasi_python/mounts.py` | 723–724, 852 (on 103's tip: `r._hook["exiting"]`, `self._home._ctrl_c["pending"]`, `self._engines._epoch_ticker.count()`; READ, 103's Design) | the three state reads → `process().exiting`, `process().ctrl_c_pending`, `process().ticker_count`; `self._home._ctrl_c_watched()` and `self._call._epoch_now` stay as calls until 106's protocol |
+| `src/wasi_python/mounts.py` | 723–724, 852 (on 104's tip: `r._hook["exiting"]`, `self._home._ctrl_c["pending"]`, `self._engines._epoch_ticker.count()`; READ, 104's Design) | the three state reads → `process().exiting`, `process().ctrl_c_pending`, `process().ticker_count`; `self._home._ctrl_c_watched()` and `self._call._epoch_now` stay as calls until 107's protocol |
 
 Of the 31 private names the unit files monkeypatch, **eleven move** here, because they are state
 or seams: `_engines`, `_zips`, `_modules`, `_warned`, `_pending_warnings`, `_held`, `_sessions`,
@@ -359,13 +359,13 @@ or seams: `_engines`, `_zips`, `_modules`, `_warned`, `_pending_warnings`, `_hel
 `_engines` twice, the rest once). **Twenty stay** (39 lines), each a
 function the test replaces to fake a platform answer or to force an error path, and each named
 here with its closer; moving them is out of this specification's scope, because each needs a
-protocol or a platform seam, which is 106's design, not a field on the process object:
+protocol or a platform seam, which is 107's design, not a field on the process object:
 
-- **Platform answers, 106's `_platform.py` seam:** `_guest_stack` (2 lines, and 3 in
+- **Platform answers, 107's `_platform.py` seam:** `_guest_stack` (2 lines, and 3 in
   `test_v1_2_hostile_guest.py`), `_tell_interpreter`, `_trap_handlers_ready` (2), `_dir_fd_ok`
   (2), `_win_open`, `_close_held`, `_try_lock` (2), `_unlock_close`, `_remove_tree` (5),
   `_drop` (2), `_drive`, `_stack`.
-- **Engine and call paths, 106's call-context protocol or 105's typed call:** `_ctrl_c_watched`
+- **Engine and call paths, 107's call-context protocol or 106's typed call:** `_ctrl_c_watched`
   (8), `_stop_error` (2), `_epoch_now` (2), `_context_address`, `_module_miss` (2),
   `_found_and_checked`, `_join_guest`, `_walk_grants`.
 - In the checks, the same kinds stay for the same closers: `_guest_stack`, `_check_preopens`,
@@ -386,8 +386,8 @@ every class defined at module level (so `_epoch_ticker._cond` is seen), and read
 1. **`test_no_lock_is_made_at_module_level_outside_the_process`**
    (`scan.module_lock_hits`): a hit is a binding whose value is a call to `Lock`, `RLock` or
    `Condition`, written as `threading.X(...)` or a bare `X(...)`. No exceptions. At `a9064a2` it
-   finds the 14 of the problem statement (EXECUTED, the prototype); on 103's tip the same 14 in
-   their new modules (INFERRED: 103 moves them unchanged); after this specification, none.
+   finds the 14 of the problem statement (EXECUTED, the prototype); on 104's tip the same 14 in
+   their new modules (INFERRED: 104 moves them unchanged); after this specification, none.
 2. **`test_no_mutable_is_bound_at_module_level_outside_the_process`**
    (`scan.module_mutable_hits`): a hit is a binding whose value is a dict, list or set display or
    comprehension, or a call to `dict`, `list`, `set`, `bytearray`, `collections.deque`,
@@ -400,12 +400,12 @@ every class defined at module level (so `_epoch_ticker._cond` is seen), and read
    inside a class body (a ctypes declaration). Tuples, frozensets, compiled regexes, `CFUNCTYPE`
    callbacks, sentinels and frozen dataclass values are not in the list, so they need no
    exception. At `a9064a2` it finds the 38 of the problem statement (EXECUTED: the prototype's 40
-   less the two `_fields_`); after this specification, none. 106's `_platform.PLATFORM`, a
+   less the two `_fields_`); after this specification, none. 107's `_platform.PLATFORM`, a
    module-level binding to one chosen platform object, is a call to a class, outside this list;
-   106 names it as its one platform seam and 107's seam check knows it by name (READ, 106's
+   107 names it as its one platform seam and 108's seam check knows it by name (READ, 107's
    "How a check binds a platform"), so neither check here flags it.
 
-Each is seen failing first: the builder runs both on 103's tip before writing `_process.py` and
+Each is seen failing first: the builder runs both on 104's tip before writing `_process.py` and
 records the counts in the landing notes. A unit row for each scanner in `tests/unit/test_scan.py`
 (where `duplicate_name_hits`'s rows live) gives it a small module with one hit of every kind and
 one of every exception.
@@ -418,7 +418,7 @@ runs inside a locked block re-enters it on the same thread); `_lock` keeps guard
 today under the name `cache_lock` (the engines, the modules, the counts, and the sweep's claim
 flag at `runner.py:958`). A builder who finds a lock taken in a new place has made a mistake.
 
-The lock order comes from the corrected scanner, `build/104/lock_order.py` (EXECUTED on
+The lock order comes from the corrected scanner, `build/105/lock_order.py` (EXECUTED on
 `a9064a2`; the pre-build review's finding 1 found the first version blind to attribute locks and
 to calls more than one level down). It reads `runner.py` by `ast` and reports two things. First,
 every `with` over a lock nested in another `with` over a lock inside one function, where a lock is
@@ -427,7 +427,7 @@ a name ending in `_lock` or `_cond`, the name `_lock`, or an attribute `.lock`, 
 takes when it is called, transitively, under a held lock, with the shortest call path: a bare
 call resolves to the module-level function of that name, a class call to its `__init__`, a method
 call to every class's method of that name (a call on an imported module, `os.close()`, resolves to
-nothing). Its output (`build/104/lock_order.out`):
+nothing). Its output (`build/105/lock_order.out`):
 
 ```
 _stack_size_lock > home.lock   (_start_guest:4306)
@@ -458,7 +458,7 @@ and none is introduced. `_process.py`'s docstring says the order in this form:
 5. `outputs_lock` is re-entrant; no other lock is.
 
 The docstring also says the rule for a change: a new lock is a leaf unless this list is amended,
-and the amendment names the pair. The builder re-runs the scanner on 103's tip (where the
+and the amendment names the pair. The builder re-runs the scanner on 104's tip (where the
 functions carry module prefixes, so the bare-name rule reads `_x.name()` as a call on a package
 module: the scanner's module set is the file's imports, and the builder adds the package's
 modules to what it follows) and on the built commit, and pastes both outputs into the landing
@@ -476,46 +476,46 @@ attribute read per state access. No golden output, gap, allowance or progress fi
 
 ### 8. Where this meets the rest of the chain
 
-- **102** (`102-the-engine-seam.md`, drafted on this branch the same day) makes
+- **103** (`103-the-engine-seam.md`, drafted on this branch the same day) makes
   `src/wasi_python/_wasmtime_ffi.py`, which "holds no mutable state: constants, functions and
   one class" and is reset at no fork and released at no exit (READ, its Decisions 1 and 7). So
   `_Process` takes nothing from it; the two rules checks of Decision 5 scan it like any sibling
   and expect no hit (its `NEEDED` table is an upper-case display). The `_epoch_callback` object
-  and the output table, which 102 keeps in the runner's modules, are group F's `epoch_callback`
+  and the output table, which 103 keeps in the runner's modules, are group F's `epoch_callback`
   and group G's `outputs` here.
-- **103** (`103-the-runner-becomes-a-package.md`, in the tree) leaves "every lock, cache, hook
+- **104** (`104-the-runner-becomes-a-package.md`, in the tree) leaves "every lock, cache, hook
   and counter" a module global in the module its functions moved to, keeps `_after_fork_in_child`
-  and `_release` in `runner.py` reaching them as `_module.name`, and says "Spec 104 gathers
+  and `_release` in `runner.py` reaching them as `_module.name`, and says "Spec 105 gathers
   process state into one object. This specification does not" (READ, its Decision 4). This
   specification deletes those module globals, both hooks' bodies (their registrations move to
-  `_process.py`), and the `global` statements that remain after 103 (`runner.py`'s two-name
+  `_process.py`), and the `global` statements that remain after 104 (`runner.py`'s two-name
   statement in the fork hook and `_watch`'s; today four lines, EXECUTED); `grep -nE
-  '^\s*global ' src/wasi_python/*.py` finds none afterwards. 103's check 1 is retired for
+  '^\s*global ' src/wasi_python/*.py` finds none afterwards. 104's check 1 is retired for
   Decision 3's (Decision 3); its checks 2 and 3 learn `_process` and `process` (Decision 1).
-- **106** keeps its fallback for the platform: this specification gives `_Process` no `platform`
-  field, so a check binds a platform as 106's module name says
-  (`monkeypatch.setattr(_platform, "PLATFORM", …)`; READ, 106's "How a check binds a platform",
+- **107** keeps its fallback for the platform: this specification gives `_Process` no `platform`
+  field, so a check binds a platform as 107's module name says
+  (`monkeypatch.setattr(_platform, "PLATFORM", …)`; READ, 107's "How a check binds a platform",
   which names that fallback). Group D's three tables (`kernel_identity`, `win_api`, `stack_api`)
-  leave `_Process` for 106's platform object when 106 lands, as 106 says; group D exists here so
+  leave `_Process` for 107's platform object when 107 lands, as 107 says; group D exists here so
   that nothing is a module global in between.
-- **105** (typed call state, explicit lifecycles, a type checker) reads group G: `calls` is the
+- **106** (typed call state, explicit lifecycles, a type checker) reads group G: `calls` is the
   thread-local whose `stack` holds `_Call`s, and `_State` is what `sessions`, `dropped` and
-  `start_ending` carry. The type checker 105 adds sees every attribute typed in
+  `start_ending` carry. The type checker 106 adds sees every attribute typed in
   `_Process.__init__`.
-- **106** (`mounts.py` behind a call-context protocol, one platform module, one stamp) reads
+- **107** (`mounts.py` behind a call-context protocol, one platform module, one stamp) reads
   groups D, F and G: `exiting`, `ctrl_c_pending` and `ticker_count`, which `mounts.py` reads
   through `process()` after this specification, become the protocol's `exiting()`,
   `ctrl_c_pending()` and `deadline_passed()`; the platform tables of group D move behind
   `_platform.py`'s interface; the twenty names that stay in Decision 4 are its allowance list to
   shrink.
-- **107** adds the check that enforces Decision 4's rule, with the allowance list.
+- **108** adds the check that enforces Decision 4's rule, with the allowance list.
 
 ## Intent
 
 The process's state has one owner, made in one place, reset for a fork in one method that finds
 every lock by looking rather than by a list, and released at exit by one method. The judge
 reaches the runner's seams through that one object and nothing else, so the refactors that follow
-(105, 106) move code without breaking tests that test nothing about behaviour. Two rules checks
+(106, 107) move code without breaking tests that test nothing about behaviour. Two rules checks
 keep it so: no lock and no mutable at module level outside `_process.py`.
 
 ## Design
@@ -523,12 +523,12 @@ keep it so: no lock and no mutable at module level outside `_process.py`.
 | file | change |
 |---|---|
 | `src/wasi_python/_process.py` | new: `_Observers`, `_Process` (Decision 1's groups, `reset_after_fork`, `release_at_exit`, the `remove_zips` and `flush_warnings` callables the zip and warnings modules register), `process()`, the `register_at_fork` and `atexit` registrations, the lock order in the docstring (Decision 6) and the judge's rule (Decision 4) |
-| the ten modules of 103 and `runner.py` | every module-level mutable and lock deleted; every read and write becomes `process().<attr>`; `_after_fork_in_child` and `_release` deleted with their `global` statements; the eight hooks, `_drive_folder`'s default and the reaper flags read from `process().observers`; `_epoch_ticker` reads `process().ticker_*` |
+| the ten modules of 104 and `runner.py` | every module-level mutable and lock deleted; every read and write becomes `process().<attr>`; `_after_fork_in_child` and `_release` deleted with their `global` statements; the eight hooks, `_drive_folder`'s default and the reaper flags read from `process().observers`; `_epoch_ticker` reads `process().ticker_*` |
 | `src/wasi_python/__init__.py` | `_defaults_lock` deleted; `set_defaults` takes `process().defaults_lock` |
 | `src/wasi_python/mounts.py` | lines 723–724 and 852 read `process()` (Decision 4's table) |
 | `tests/unit/test_process.py` | new: Decision 3's four rows (the introspective fork check, the `RENEW` row, the reset and kept fields) |
-| `tests/unit/test_runner_package.py` (103's) | check 1 retired (Decision 3); check 2's `ORDER` gains `_process` first; check 3's by-name list gains `process` (Decision 1) |
-| `tests/release_shards.toml` | `tests/unit/test_process.py` in `own-runner` (spec 063's rule (g), as 103 did for its file) |
+| `tests/unit/test_runner_package.py` (104's) | check 1 retired (Decision 3); check 2's `ORDER` gains `_process` first; check 3's by-name list gains `process` (Decision 1) |
+| `tests/release_shards.toml` | `tests/unit/test_process.py` in `own-runner` (spec 063's rule (g), as 104 did for its file) |
 | `tests/harness/scan.py` | `module_lock_hits`, `module_mutable_hits` (Decision 5) |
 | `tests/checks/test_rules.py` | the two rules checks |
 | `tests/unit/test_scan.py` | two unit rows for the scanners |
@@ -539,26 +539,26 @@ Nothing under `scripts/`, `recipes/`, `downloads/` or the release workflow chang
 artifact byte, no line of `tests/public_api.txt`, no dependency.
 
 **The CHANGELOG line**, under the unreleased section: "**The runner's process state has one
-owner** (spec 104): every lock, cache, counter and registry of the runner is an attribute of one
+owner** (spec 105): every lock, cache, counter and registry of the runner is an attribute of one
 `_Process` object, reset for a fork by introspection over its locks and released at exit by one
 method; the judge's seams are fields of that object, not module globals; two rules checks keep
 locks and mutables out of module level. No public name changes."
 
-**The roadmap line** (`context/roadmap.md`, the reserved list): "Reserved: 104 (one owner for
+**The roadmap line** (`context/roadmap.md`, the reserved list): "Reserved: 105 (one owner for
 the process's state: `_process.py`, one object with every lock, cache and registry, a fork reset
 by introspection and one exit release; the test seams move onto it; two rules checks keep locks
-and mutables off module level; parallel-safe, stacked on 103, the third of the chain 102–107 from
+and mutables off module level; parallel-safe, stacked on 104, the third of the chain 103–108 from
 the design review memo of 2026-10-20)."
 
 ## Scope
 
 In: Decisions 1 to 7. Out:
 
-- **The twenty function seams the unit files still patch by name** (Decision 4): 106's
-  platform module and call-context protocol, and 107's enforcing check.
-- **Typed call state, the session and home phase enums** (H3): 105.
-- **`mounts.py`'s imports of the runner** beyond the three state reads (H4): 106.
-- **The engine adapter** (H2): 102, below this in the chain.
+- **The twenty function seams the unit files still patch by name** (Decision 4): 107's
+  platform module and call-context protocol, and 108's enforcing check.
+- **Typed call state, the session and home phase enums** (H3): 106.
+- **`mounts.py`'s imports of the runner** beyond the three state reads (H4): 107.
+- **The engine adapter** (H2): 103, below this in the chain.
 - **A change to what is locked or when** (Decision 6): none here; a finding that one is needed
   is its own specification.
 - **A change to any default, limit or public name**: none.
@@ -569,12 +569,12 @@ In: Decisions 1 to 7. Out:
    and `grep -nE '^_[a-zA-Z_]+( *:[^=]+)? *= ' src/wasi_python/*.py` outside `_process.py`
    matches only constants (upper-case names, sentinels, regexes, callbacks): the builder pastes
    the remaining matches into the landing notes.
-2. **Both rules checks were seen failing first**, on 103's tip, with their counts recorded (14
-   locks and 38 mutables at `a9064a2`, EXECUTED; the builder's numbers on 103's tip), and pass
+2. **Both rules checks were seen failing first**, on 104's tip, with their counts recorded (14
+   locks and 38 mutables at `a9064a2`, EXECUTED; the builder's numbers on 104's tip), and pass
    on the built commit. Their two unit rows pass.
 3. **The fork check of Decision 3 passes**, its record of at least four names, and the `RENEW`
    row with it; the three real-fork checks it names pass with their reads moved to `process()`
-   (on POSIX; they skip on Windows as today); 103's check 1 is retired and named in the
+   (on POSIX; they skip on Windows as today); 104's check 1 is retired and named in the
    `--accept-judge` reason; a run of `tests/unit/test_process.py` on 3.11, if the builder has
    one, is recorded.
 4. **No `global` statement** remains in `src/wasi_python/` (criterion of Decision 8; today four
@@ -585,12 +585,12 @@ In: Decisions 1 to 7. Out:
    dropped|modules|digests|identity|warned|pending_warnings|counts|tool_threads|compiling|
    linkers|epoch_ticker|[a-z_]*_lock|after_walk|on_entry|on_arm|on_export|after_export|on_call|
    session_clock|start_ending|drive_folder)\b' tests/` finds nothing (today 96 lines, EXECUTED,
-   `--include='*.py'`); the same for the module names 103 introduced in place of `runner`.
+   `--include='*.py'`); the same for the module names 104 introduced in place of `runner`.
 6. **Sameness.** The builder's fast tier on the frozen baseline set and the baseline record
    differ only in the rows the claim list names (Decision 7), by `tests/harness/sameness.py`.
    No fuel row moves; no pass is lost.
-7. **Thread-safety unchanged**: the corrected scanner of Decision 6 (`build/104/lock_order.py`,
-   its two reports, attribute locks matched, calls followed transitively), run on 103's tip and
+7. **Thread-safety unchanged**: the corrected scanner of Decision 6 (`build/105/lock_order.py`,
+   its two reports, attribute locks matched, calls followed transitively), run on 104's tip and
    on the built commit, finds the four pairs Decision 6 lists (`stack_size_lock` over a home's
    `lock`; `zip_lock` over `cache_lock`, `held_lock` and `warnings_lock`) and no other; the
    builder pastes both outputs into the landing notes.
@@ -604,22 +604,22 @@ In: Decisions 1 to 7. Out:
 ## For the lane
 
 - **Kind:** parallel-safe; a judge change. In the chain's wave it is the third entry, rebased
-  onto 103's landed or wave tip in order; its conflicts, if any, are in the ten modules 103
+  onto 104's landed or wave tip in order; its conflicts, if any, are in the ten modules 104
   made (every one a deleted global or a `process().` read) and in the fifteen test files of
   Decision 4, each named at the rebase.
-- **Shares files with:** 103 (every module of the package; this one deletes what 103 placed),
-  105 (the typed `_Call` and `_State` that groups G and H name), 106 (`mounts.py`'s three reads
+- **Shares files with:** 104 (every module of the package; this one deletes what 104 placed),
+  106 (the typed `_Call` and `_State` that groups G and H name), 107 (`mounts.py`'s three reads
   and `_platform.py`'s tables), and any open specification that adds a module-level lock or
   mutable under `src/` (the rules checks of Decision 5 would fail it; its builder moves the name
   onto `_Process` at the rebase).
-- **The claim list** (each line starts "104:"; the numbers are the builder's):
-  - 104: **new checks, each passing:**
+- **The claim list** (each line starts "105:"; the numbers are the builder's):
+  - 105: **new checks, each passing:**
     `tests/checks/test_rules.py::test_no_lock_is_made_at_module_level_outside_the_process`,
     `tests/checks/test_rules.py::test_no_mutable_is_bound_at_module_level_outside_the_process`
     (both rules; no fuel).
-  - 104: **unit rows:** `tests/unit/test_process.py` gains four; `tests/unit/test_scan.py` gains
-    two; `tests/unit/test_runner_package.py` loses one (103's check 1, retired for Decision 3's).
-  - 104: **retired checks:** 103's `test_every_module_level_lock_is_remade_after_fork`, replaced
+  - 105: **unit rows:** `tests/unit/test_process.py` gains four; `tests/unit/test_scan.py` gains
+    two; `tests/unit/test_runner_package.py` loses one (104's check 1, retired for Decision 3's).
+  - 105: **retired checks:** 104's `test_every_module_level_lock_is_remade_after_fork`, replaced
     by `test_reset_after_fork_renews_every_lock_it_can_see` (Decision 3). **Lost passes:** none
     beyond that named retirement. **Rows that grow:** none (no artifact byte, no guest work).
   - **The judge hash changes** in `tests/checks/test_rules.py`, `tests/harness/scan.py`,
@@ -628,8 +628,8 @@ In: Decisions 1 to 7. Out:
 - **The flags** (paste-safe; the lane folds them into the wave's):
 
   ```
-  --accept "104: the runner's process state has one owner: every lock, cache, counter, pool, live set, reaper handle, sweep field, Ctrl-C flag, output table and thread-local is an attribute of one _Process object in _process.py, reset for a fork by introspection over its locks and released at exit by one method; the judge's seams (the eight hooks, the session clock, the closer starter, the drive folder, the reaper's enabled and paused flags) are fields of process().observers; no public name changes"
-  --accept-judge "104: two rules checks, no threading.Lock, RLock or Condition and no mutable container or stateful object bound at module or class level under src/wasi_python outside _process.py (exceptions: __all__, upper-case display tables, ctypes _fields_); a unit check that reset_after_fork renews every lock, condition and queue it can see by the RENEW type-to-factory table, a row that RENEW knows the four kinds, and two rows for the reset and kept fields; unit rows for the two scanners; 103's module-level fork check retired for it (no module-level lock remains to walk); 103's import-order and by-name checks learn _process and process; the tests that set the runner's seams or read its state do so through process(); no existing expectation edited"
+  --accept "105: the runner's process state has one owner: every lock, cache, counter, pool, live set, reaper handle, sweep field, Ctrl-C flag, output table and thread-local is an attribute of one _Process object in _process.py, reset for a fork by introspection over its locks and released at exit by one method; the judge's seams (the eight hooks, the session clock, the closer starter, the drive folder, the reaper's enabled and paused flags) are fields of process().observers; no public name changes"
+  --accept-judge "105: two rules checks, no threading.Lock, RLock or Condition and no mutable container or stateful object bound at module or class level under src/wasi_python outside _process.py (exceptions: __all__, upper-case display tables, ctypes _fields_); a unit check that reset_after_fork renews every lock, condition and queue it can see by the RENEW type-to-factory table, a row that RENEW knows the four kinds, and two rows for the reset and kept fields; unit rows for the two scanners; 104's module-level fork check retired for it (no module-level lock remains to walk); 104's import-order and by-name checks learn _process and process; the tests that set the runner's seams or read its state do so through process(); no existing expectation edited"
   ```
 
 - **Dry-run needs:** none of its own; the chain's one dispatch on its final tip (criterion 9).
@@ -642,40 +642,40 @@ moves.
 
 ## Landing notes
 
-Built 2026-10-20 in the worktree `/home/user/wt/104`, branch `spec/104-one-owner-for-the-process-state`,
-from the base `2a9546c` (103's built tip on `spec/103-the-runner-becomes-a-package`, under build
-review: main `5feb7e9`, the memo `a9064a2`, the chain's specifications and reviews, 102's and
-103's commits). Every number here is EXECUTED on that base or on the built commit, with its
-command; the outputs are kept under `build/104/` in the worktree (git-ignored):
+Built 2026-10-20 in the worktree `/home/user/wt/105`, branch `spec/105-one-owner-for-the-process-state`,
+from the base `2a9546c` (104's built tip on `spec/104-the-runner-becomes-a-package`, under build
+review: main `5feb7e9`, the memo `a9064a2`, the chain's specifications and reviews, 103's and
+104's commits). Every number here is EXECUTED on that base or on the built commit, with its
+command; the outputs are kept under `build/105/` in the worktree (git-ignored):
 `rules_proto-on-base.txt`, `seen-failing.txt`, `seen-failing-full.txt`, `test-sites-on-base.txt`,
 `lock_order_pkg.py`, `lock_order-on-base.txt`, `lock_order-on-tip.txt`, `lock_order-whole-package.txt`, `fast.log`, `built.json`,
-`claims.toml`, `claims-chain.toml`, `sameness-103.txt`, `sameness-baseline.txt`,
+`claims.toml`, `claims-chain.toml`, `sameness-104.txt`, `sameness-baseline.txt`,
 `sameness-baseline-chain.txt`. The writer's scratch `lock_order.py` and `rules_proto.py` are
-copied there from the main tree's `build/104/`.
+copied there from the main tree's `build/105/`.
 
-- **Commits, in the order built** (the hashes after the rebase onto 103's `538e831`; before it
+- **Commits, in the order built** (the hashes after the rebase onto 104's `538e831`; before it
   `e11c70a`, `591841b` and `27682ab` on `2a9546c`): `a73b0fe` (the checks first: `scan.module_lock_hits` and
   `scan.module_mutable_hits`, the two rules checks, two scanner rows in
   `tests/unit/test_scan.py`, `tests/unit/test_process.py` with its six rows, the shard line;
   all seen failing on the base), `1f959c2` (`_process.py`; every module-level lock, mutable,
   hook and seam of the twelve modules moved onto `_Process`; the fork hook and the exit release
   deleted from `runner.py` with their `global` statements; `mounts.py`'s three reads; the
-  twenty-one test and harness files re-pointed at `process()`; 103's check 1 retired and its
+  twenty-one test and harness files re-pointed at `process()`; 104's check 1 retired and its
   checks 2 and 3 taught `_process`, `process` and `mounts.py`'s late import of the owner;
   `api.py`'s module table; `mounts.py`'s held count), `e96f1b9` (this Status line and these
   notes, as first written on `2a9546c`), and the commit after it (the rebase's record below).
-- **Rebase** (the coordinator, 2026-10-20): 103 gained two commits after this build's base (its
+- **Rebase** (the coordinator, 2026-10-20): 104 gained two commits after this build's base (its
   build review's three Lows in `tests/unit/test_runner_package.py`: `_patched` builds its module
   map per file from `import wasi_python [as Z]` and `from wasi_python import X [as Y]`;
   `FORK_WALK` imports `_wasmtime_ffi`, `cli` and `tools`; `_is_unchanging` recurses into a
   tuple's and a frozenset's elements) and was rebased onto the PR branch, its tip `538e831`.
   `git rebase --onto 538e831 2a9546c` replayed the three commits with **one conflict, in
-  `tests/unit/test_runner_package.py`**, on the code commit: 103's side (HEAD) carried the fork
+  `tests/unit/test_runner_package.py`**, on the code commit: 104's side (HEAD) carried the fork
   tables (`LOCKS_RESET_BY_FORK`, `REBOUND_BY_FORK`, `NOT_RESET`, `TICKER_COND`), `FORK_WALK` with
   its new import line, `_fork_walk`, `_hook_targets` and check 1 with its widened docstring; this
   side replaced that whole region with the `SENTINELS` line that names `process`. **Kept: this
   side's retirement** (check 1 and its tables gone, as Decision 3 says, `FORK_WALK`'s new import
-  line with them, since the walk no longer exists) **and both of 103's fixes outside the region**,
+  line with them, since the walk no longer exists) **and both of 104's fixes outside the region**,
   which merged without conflict and stay (`_patched`'s per-file alias map, which `_seam_errors`
   reads, and `_is_unchanging`'s recursion into tuple and frozenset elements, which check 3
   reads). `ORDER` (`_process` first), `LATE` (`mounts.py`'s binding of the owner) and
@@ -690,21 +690,21 @@ copied there from the main tree's `build/104/`.
 - **CI: none of its own; the chain's one dispatch on the final tip** (criterion 9, the owner's
   rule for the chain); its run id is the integrator's to write here when that dispatch is read.
   The fast tier below is the build's judge.
-- **The base re-measured (EXECUTED on `2a9546c`):** `uv run python -I build/104/rules_proto.py
-  src/wasi_python` (`build/104/rules_proto-on-base.txt`): **14 LOCK lines and 40 MUTABLE lines,
-  38 without the two `_fields_`**, byte-for-byte the spec's `a9064a2` list with 103's module
+- **The base re-measured (EXECUTED on `2a9546c`):** `uv run python -I build/105/rules_proto.py
+  src/wasi_python` (`build/105/rules_proto-on-base.txt`): **14 LOCK lines and 40 MUTABLE lines,
+  38 without the two `_fields_`**, byte-for-byte the spec's `a9064a2` list with 104's module
   names in place of `runner.py`; the two rules checks on the base (criterion 2,
-  `build/104/seen-failing-full.txt`): **14 locks** (`__init__` 1, `_call` 3, `_engines` 2 with
+  `build/105/seen-failing-full.txt`): **14 locks** (`__init__` 1, `_call` 3, `_engines` 2 with
   `_epoch_ticker._cond`, `_home` 1, `_private_dirs` 2, `_sessions` 2, `_zip` 1, `runner` 2) and
   **38 mutables** (`_artifacts` 3, `_call` 8, `_engines` 5, `_home` 3, `_places` 1, `_platform`
   4, `_private_dirs` 4, `_sessions` 5, `_zip` 1, `runner` 4). `grep -nE '^\s*global '
   src/wasi_python/*.py`: **2 lines** on the base (`_call.py:759` `_epoch_callback`,
-  `runner.py:536` `_pool_lock, _live_lock`; the spec's four at `a9064a2` were 103's two
+  `runner.py:536` `_pool_lock, _live_lock`; the spec's four at `a9064a2` were 104's two
   three-name statements folded into one each) and **none** on the built commit (criterion 4).
   The unit files' `monkeypatch.setattr(<module>, "_name", …)` lines (the problem statement's
-  grep, with 103's module names, `tests/unit/*.py` less `test_runner_package.py`): **50 lines, 30
+  grep, with 104's module names, `tests/unit/*.py` less `test_runner_package.py`): **50 lines, 30
   distinct names** on the base (the spec's 51 and 31 at `a9064a2` less `_context_address`, which
-  102 deleted); **38 lines, 19 names** on the built commit: the eleven names Decision 4 moves
+  103 deleted); **38 lines, 19 names** on the built commit: the eleven names Decision 4 moves
   (`_engines` twice, `_zips`, `_modules`, `_warned`, `_pending_warnings`, `_held`, `_sessions`,
   `_reaper_queue`, `_dropped`, `_on_entry`, `_start_ending`: 12 lines) are gone, and the ones
   that stay are the twenty of Decision 4 less `_context_address`: `_ctrl_c_watched` (8),
@@ -712,9 +712,9 @@ copied there from the main tree's `build/104/`.
   `_module_miss` (2), `_guest_stack` (2), `_epoch_now` (2), `_drop` (2), `_dir_fd_ok` (2),
   `_win_open`, `_walk_grants`, `_unlock_close`, `_tell_interpreter`, `_stack`, `_join_guest`,
   `_found_and_checked`, `_drive`, `_close_held` (1 each); in the checks `_guest_stack` (2),
-  `_check_preopens` and `_current_defaults` (1 each). **Criterion 5's grep**, widened to 103's
+  `_check_preopens` and `_current_defaults` (1 each). **Criterion 5's grep**, widened to 104's
   module names (`\b(runner|_home|…|wasi_python)\._(held|…|after_fork_in_child)\b`,
-  `build/104/test-sites-on-base.txt`): **111 lines** on the base; on the built commit it finds
+  `build/105/test-sites-on-base.txt`): **111 lines** on the base; on the built commit it finds
   only `_try_lock` (9 lines: a function seam, matched by the `[a-z_]*_lock` alternative) and
   `api.py`'s two `"wasi_python._engines"` module names, no state global and no hook.
 - **Criterion 1's grep** (`grep -nE '^_[a-zA-Z_]+( *:[^=]+)? *= ' src/wasi_python/*.py` outside
@@ -734,14 +734,14 @@ copied there from the main tree's `build/104/`.
 - **Sizes after the move (`wc -l`):** `_process` 238, `__init__` 117, `_artifacts` 222, `_call`
   1,171, `_engines` 265, `_home` 344, `_limits` 171, `_places` 915, `_platform` 390,
   `_private_dirs` 560, `_sessions` 952, `_zip` 285, `runner` 1,164, `mounts.py` 2,213 (one more
-  than 103's 2,212: the late import of the owner and its binding, less the unused `r =
-  self._runner`; `ALLOWED` in `tests/checks/test_rules.py` reads the measured 2,213, as 103 set
+  than 104's 2,212: the late import of the owner and its binding, less the unused `r =
+  self._runner`; `ALLOWED` in `tests/checks/test_rules.py` reads the measured 2,213, as 104 set
   2,212), `tools.py` 2,450. `git diff --stat 2a9546c`: 35 files, +1,277 −761 (`src/` 13 files
   +624 −476; `tests/` 22 files +653 −285).
-- **The checks were seen failing first (criterion 2; `build/104/seen-failing.txt`):**
+- **The checks were seen failing first (criterion 2; `build/105/seen-failing.txt`):**
 
 ```
-== 2a9546c (103's tip, the base), 2026-10-20: the two rules checks before _process.py ==
+== 2a9546c (104's tip, the base), 2026-10-20: the two rules checks before _process.py ==
 E       AssertionError: findings: 14 finding(s), digest 66c511bb8226: src/wasi_python/__init__.py:57: _defaults_lock (Lock); src/wasi_python/_call.py:753: _epoch_callback_lock (Lock); src/wasi_python/_call.py:867: _outputs_lock (RLock); src/wasi_python/_call.py:1128: _tool_threads_lock (Lock); src/wasi_python/_engines.py:86: _lock (Lock); +9 more
 E       AssertionError: findings: 38 finding(s), digest e96cbee45bfe: src/wasi_python/_artifacts.py:120: _versions (Dict); src/wasi_python/_artifacts.py:137: _guest_packages (Dict); src/wasi_python/_artifacts.py:158: _digests (Dict); src/wasi_python/_call.py:769: _linkers (Dict); src/wasi_python/_call.py:770: _mount_linkers (Dict); +33 more
 FAILED tests/checks/test_rules.py::test_no_lock_is_made_at_module_level_outside_the_process
@@ -749,7 +749,7 @@ FAILED tests/checks/test_rules.py::test_no_mutable_is_bound_at_module_level_outs
 2 failed, 47 deselected in 0.35s
 
 -- tests/unit/test_process.py (the six rows) on the base --
-E   ImportError: cannot import name '_process' from 'wasi_python' (/home/user/wt/104/src/wasi_python/__init__.py). Did you mean: '_places'?
+E   ImportError: cannot import name '_process' from 'wasi_python' (/home/user/wt/105/src/wasi_python/__init__.py). Did you mean: '_places'?
 ERROR tests/unit/test_process.py
 1 error in 0.21s
 ```
@@ -758,7 +758,7 @@ ERROR tests/unit/test_process.py
   fixture modules, not the tree); the mutable row's first draft expected `c (Set)` for `c =
   set()`, a call, and found `c (set)`, and showed that the prototype paired no tuple target with
   a tuple value (`t, u = [], {}` escaped it), which the scanner now does. On the built commit
-  the two rules checks, the two scanner rows, the six rows of `test_process.py` and 103's three
+  the two rules checks, the two scanner rows, the six rows of `test_process.py` and 104's three
   remaining checks pass (`uv run pytest tests/unit/test_process.py
   tests/unit/test_runner_package.py tests/checks/test_rules.py::… tests/unit/test_scan.py::… -q`:
   15 passed, 2.24 s).
@@ -773,7 +773,7 @@ ERROR tests/unit/test_process.py
   `::test_a_forked_child_leaves_the_parents_zip_folder`, with
   `tests/unit/test_runner_async.py::test_a_forked_child_of_a_used_runner_is_refused`: 7 passed
   by node id in 28.38 s on the built tree.
-- **The lock order (criterion 7; `build/104/lock_order_pkg.py`, the corrected scanner extended
+- **The lock order (criterion 7; `build/105/lock_order_pkg.py`, the corrected scanner extended
   to the package: one module set, `_x.f()` resolved into module `_x`, a bare name resolved in
   its own module and then in the one module that defines it, so a class imported by `from`
   such as `_Private` is followed into its `__init__`, a method call into every class that
@@ -814,7 +814,7 @@ stop
   `lock` (two sites), `zip_lock` over `cache_lock`, `held_lock` (two paths) and `warnings_lock`.
   `stop` is the one method name two runner classes share (`_Home.stop` and the sessions'); it
   is followed into both and takes no lock. The same scanner over every module of the package
-  (`build/104/lock_order-whole-package.txt`) adds only paths through `tools._ToolLoop._lock` and
+  (`build/105/lock_order-whole-package.txt`) adds only paths through `tools._ToolLoop._lock` and
   `tools._Bounded._lock`, those objects' own instance locks, reached by shared method names
   (`close`, `stop`, `call`, `read`, `write`, `fail`, `remove`) that the scanner follows into
   every class: false paths, not nestings.
@@ -824,42 +824,42 @@ stop
   skipped in 281.64s (0:04:41)**; the failures are the chain's
   baseline's `failing-nodes.txt` exactly (82 checks of an artifact set older than the tree, and
   `test_runner_grants.py::test_the_walk_judges_links`, which needs a non-root user). The record
-  is `build/104/built.json`. **Before the rebase**, on `591841b` (the same code on `2a9546c`;
-  `build/104/fast-591841b.log`, its record `build/104/built-591841b.json`): **83 failed, 2377
+  is `build/105/built.json`. **Before the rebase**, on `591841b` (the same code on `2a9546c`;
+  `build/105/fast-591841b.log`, its record `build/105/built-591841b.json`): **83 failed, 2377
   passed, 52 skipped in 281.96s (0:04:41)**, the same 83. A first run, on the move's earlier form (`1d68dc5`; its failure
-  list `build/104/failed-1d68dc5.txt`), gave **85 failed, 2375 passed, 52 skipped in 1626.84 s
+  list `build/105/failed-1d68dc5.txt`), gave **85 failed, 2375 passed, 52 skipped in 1626.84 s
   (0:27:06)**, two beyond the baseline:
   `test_v1_4_public_api.py::test_private_names_carry_an_underscore` found
   `wasi_python.process (import)`, the accessor bound by name in the public module without an
   underscore and not exported, so `__init__.py` now binds the module (`from . import _process`)
   and reads `_process.process().defaults_lock` (the fix, folded into `591841b`); and
   `test_build_progress.py::test_term_waits_for_the_step_then_stops_before_the_next[0]`, a pty
-  that was "still open after 5000 reads" in a run five times slower than 103's 5:24 under another
+  that was "still open after 5000 reads" in a run five times slower than 104's 5:24 under another
   job's load (the load average fell from 1.83 to 0.27 as it ended), which passes alone by node
   id (2 passed, 2.75 s) and touches nothing this specification changes. The run above is the
   re-run on the final commit.
-- **Sameness (criterion 6), on the rebased tip's record.** Against 103's built record
-  (`/home/user/wt/103/build/103/built.json`), with `--claims build/104/claims.toml`:
+- **Sameness (criterion 6), on the rebased tip's record.** Against 104's built record
+  (`/home/user/wt/104/build/104/built.json`), with `--claims build/105/claims.toml`:
 
 ```
-note: explained by claims: 104 4
+note: explained by claims: 105 4
 sameness exit 0
 ```
 
   Against the chain's baseline (`/home/user/wasi_python/build/baseline-a7/baseline.json`) with
-  the chain's claims (`build/104/claims-chain.toml`: 102's, 103's and this one's concatenated):
+  the chain's claims (`build/105/claims-chain.toml`: 103's, 104's and this one's concatenated):
 
 ```
-note: explained by claims: 102 4 · 103 3 · 104 4
+note: explained by claims: 103 4 · 104 3 · 105 4
 sameness exit 0
 ```
 
   Before the rebase (the record of `591841b`), both printed the same lines: `note: explained by
-  claims: 104 4` / `sameness exit 0`, and `note: explained by claims: 102 4 · 103 3 · 104 4` /
+  claims: 105 4` / `sameness exit 0`, and `note: explained by claims: 103 4 · 104 3 · 105 4` /
   `sameness exit 0`.
 
   Without a claim list, against the chain's baseline, what prints is the chain's own work and
-  nothing else (`build/104/sameness-baseline.txt`): 102's two rules checks and unit file, 103's
+  nothing else (`build/105/sameness-baseline.txt`): 103's two rules checks and unit file, 104's
   ceiling check and unit file, this one's two rules checks and unit file, and the unit tally:
 
 ```
@@ -876,7 +876,7 @@ sameness exit 1
 ```
 
   The three records' `suite` lines: the baseline `{'passed': 1833, 'skipped': 13, 'total':
-  1847}` (`a9064a2`), 103's `{'passed': 1854, 'skipped': 13, 'total': 1868}` (`ea08708`), this
+  1847}` (`a9064a2`), 104's `{'passed': 1854, 'skipped': 13, 'total': 1868}` (`ea08708`), this
   one's `{'passed': 1861, 'skipped': 13, 'total': 1875}` (`e96f1b9`, and `591841b` before the rebase): seven more rows, the one
   failing row (`test_the_walk_judges_links`) the same.
 
@@ -896,38 +896,38 @@ sameness exit 1
   `test_runner_threads.py`, `test_runner_tools.py` (Decision 4's fifteen) and `test_rules.py`'s
   `ALLOWED`. `tests/public_api.txt` is untouched (`git diff --stat 2a9546c` does not list it).
 
-### The allowance list for 106 and 107: the test seams that stay, as built
+### The allowance list for 107 and 108: the test seams that stay, as built
 
 Every name a unit or goal check still replaces by `monkeypatch.setattr(<module>, "_name", …)`
 or by `m.setattr(…)` (the same fixture under a shorter name), or assigns by name as `<module>._name
 = …`, each a function that fakes a platform answer or forces an error path, a constant, or a
 class (Decision 4; EXECUTED on the built commit; the build review's finding 1 added the six lines
 the first grep did not read): **nineteen functions in the unit files on 39 lines**
-(`_context_address`, the twentieth of the draft, was deleted by 102), one constant and one class
+(`_context_address`, the twentieth of the draft, was deleted by 103), one constant and one class
 in the unit files, two functions assigned by name in the hostile-guest programs, and three
 functions in the checks. The tally reads both spellings of the fixture (`monkeypatch.` and `m.`)
-and the `<module>._name = …` form, as 107's check will.
+and the `<module>._name = …` form, as 108's check will.
 
-- Platform answers (106's `_platform.py` seam): `_guest_stack` (2 lines in the unit files, 2 in
+- Platform answers (107's `_platform.py` seam): `_guest_stack` (2 lines in the unit files, 2 in
   `test_v1_2_hostile_guest.py`), `_tell_interpreter`, `_trap_handlers_ready` (2), `_dir_fd_ok`
   (2), `_win_open`, `_close_held`, `_try_lock` (2), `_unlock_close`, `_remove_tree` (6 lines:
   five as `monkeypatch.setattr`, one as `m.setattr`, `test_runner_sweep.py:340`), `_drop` (2),
   `_drive` (assigned by name), `_stack`.
-- Engine and call paths (106's call-context protocol or 105's typed call): `_ctrl_c_watched`
+- Engine and call paths (107's call-context protocol or 106's typed call): `_ctrl_c_watched`
   (8), `_stop_error` (2), `_epoch_now` (2), `_module_miss` (2), `_found_and_checked`,
   `_join_guest` (assigned by name), `_walk_grants`.
-- Constants and classes the unit files replace, for 106's platform seam or 107's list:
+- Constants and classes the unit files replace, for 107's platform seam or 108's list:
   `_REMOVE_BUDGET` (2 lines, `m.setattr(_private_dirs, "_REMOVE_BUDGET", 10_000,
   raising=False)`, `test_runner_sweep.py:740, 759`), `_Box` (`_home._Box = LateBox` and its
   restore, `test_runner_threads.py:215, 220`).
-- Assigned by name in the hostile-guest programs, for 105's typed call or 106's protocol:
+- Assigned by name in the hostile-guest programs, for 106's typed call or 107's protocol:
   `_drive_turn` (`_sessions._drive_turn, wasmtime.Store.close = drive_turn, close`,
   `test_v1_2_hostile_guest.py:3133`), `_abandon_turn` (`_sessions._abandon_turn = abandon`,
   `:3138`), beside `_drive` and `_join_guest` above.
 - In the checks, for the same closers: `_guest_stack`, `_check_preopens`, `_current_defaults`.
 
 None of these lines changes here: each is on the base as it is, and Decision 4 moves state and
-seams, not function stand-ins. 107 seeds its allowance from this list.
+seams, not function stand-ins. 108 seeds its allowance from this list.
 
 Every seam the judge sets through the object, as built: `process().observers` fields
 `on_entry`, `after_walk`, `on_arm`, `on_export`, `after_export`, `on_call`, `clock`,
@@ -945,23 +945,23 @@ attributes of `process()`: `ticker_count`, `ctrl_c_pending`, `sweep_claimed`, `s
    asked for, the exit release's order (`remove_zips` then `flush_warnings` run before the
    eight tables are cleared, and a fresh instance's defaults are no-ops) and the observers'
    refusal of a misspelt field (the slots, Decision 4). The claim's `units` is 7.
-2. **`mounts.py` binds the owner in `_Files.__init__`**, through a late import named in 103's
+2. **`mounts.py` binds the owner in `_Files.__init__`**, through a late import named in 104's
    `LATE` list (`("mounts.py", "_Files.__init__", "_process")`), as `self._process = process()`,
-   and reads `self._process.exiting`, `.ctrl_c_pending` and `.ticker_count`: 103's check 2
+   and reads `self._process.exiting`, `.ctrl_c_pending` and `.ticker_count`: 104's check 2
    forbids `mounts.py` a package import at module level, and the instance is never rebound
    (a fork resets it in place), so binding it on the object reads the same attributes
    `process()` would. The unused `r = self._runner` line of the flush method went with its one
    use; `mounts.py` is 2,213 lines and `ALLOWED` says so.
 3. **`_drive_folder` is `_default_drive_folder`**, the name Decision 4's call form gives it:
    `(process().observers.drive_folder or _default_drive_folder)(drive)`.
-4. **103's retired check took its tables with it**: `LOCKS_RESET_BY_FORK`, `REBOUND_BY_FORK`,
+4. **104's retired check took its tables with it**: `LOCKS_RESET_BY_FORK`, `REBOUND_BY_FORK`,
    `NOT_RESET`, `TICKER_COND`, `FORK_WALK`, `_fork_walk` and `_hook_targets` are deleted, and
    `_by_name_errors` loses its "the fork hook rebinds it" branch, since no module-level name is
    rebound by a fork any more (the by-name rule's `_is_unchanging` is what remains).
    `RUNNER_MODULES` is `ORDER` less `_wasmtime_ffi` (twelve modules: `_process` is a runner
    module for checks 3 and 4), not `ORDER[1:]`.
-5. **The lock-order scanner is a package scanner**, `build/104/lock_order_pkg.py`, since the
-   functions sit in twelve modules on 103's tip; Decision 6's "the builder adds the package's
+5. **The lock-order scanner is a package scanner**, `build/105/lock_order_pkg.py`, since the
+   functions sit in twelve modules on 104's tip; Decision 6's "the builder adds the package's
    modules to what it follows" is its module-set argument and the `_x.f()` rule above; two
    defects of the first package run were fixed before the output above was taken (a class
    imported by `from` was not followed into its `__init__`, so `_Private.__init__`'s
@@ -974,34 +974,34 @@ attributes of `process()`: `ticker_count`, `ctrl_c_pending`, `sweep_claimed`, `s
    `_process.process().defaults_lock`, where Decision 1 has every module do `from ._process
    import process`. The public module may bind only exported names and underscored ones
    (`test_v1_4_public_api.py::test_private_names_carry_an_underscore` found
-   `wasi_python.process` on the first form); `__init__.py` is above 103's order, so the by-name
+   `wasi_python.process` on the first form); `__init__.py` is above 104's order, so the by-name
    rule does not read it either way.
 9. **The counts of Decision 4 on this base**: 30 names on 50 lines, 11 moved on 12 lines, 19
    stay on 38 lines (above), against the draft's 31, 51, 12 and 20, 39 at `a9064a2`.
-10. **Criterion 4's "today four lines"** is two on 103's tip (103 folded the hook's three
+10. **Criterion 4's "today four lines"** is two on 104's tip (104 folded the hook's three
    `global` statements into one); none remain.
 11. **The ticker's `count()` stays** as the production read in `_call.py` and `_sessions.py`,
     returning `process().ticker_count` (Decision 1); the judge and `mounts.py` read the attribute.
 
 ### For the lane
 
-- Kind: parallel-safe; a judge change; third entry of the chain's wave, stacked on 103's
+- Kind: parallel-safe; a judge change; third entry of the chain's wave, stacked on 104's
   `2a9546c`; conflicts by construction with every chain entry in `src/wasi_python/` (the chain
   rebases in order).
-- The claim list (`build/104/claims.toml`): one claim, `spec = "104"`, `new = [the two rules
+- The claim list (`build/105/claims.toml`): one claim, `spec = "105"`, `new = [the two rules
   checks, "tests/unit/test_process.py"]`, `units = 7`. No row grows, no pass moves; the one
-  retired row is a unit row (103's `test_every_module_level_lock_is_remade_after_fork`), carried
+  retired row is a unit row (104's `test_every_module_level_lock_is_remade_after_fork`), carried
   by `units`.
 - The flags (paste-safe):
 
   ```
-  --accept "104: the runner's process state has one owner: every lock, cache, counter, pool, live set, reaper handle, sweep field, Ctrl-C flag, output table and thread-local is an attribute of one _Process object in _process.py, reset for a fork by introspection over its locks and released at exit by one method; the judge's seams (the eight hooks, the session clock, the closer starter, the drive folder, the reaper's enabled and paused flags) are fields of process().observers; no public name changes"
-  --accept-judge "104: two rules checks, no threading.Lock, RLock or Condition and no mutable container or stateful object bound at module or class level under src/wasi_python outside _process.py (exceptions: __all__, upper-case display tables, ctypes _fields_); a unit check that reset_after_fork renews every lock, condition and queue it can see by the RENEW type-to-factory table, a row that RENEW knows the four kinds, two rows for the reset and kept fields, a row for the exit release's order and one for the observers' slots; unit rows for the two scanners; 103's module-level fork check retired for it (no module-level lock remains to walk); 103's import-order and by-name checks learn _process and process, and its late-import list mounts' binding of the owner; api.py's module table gains _process.py; mounts.py's held line count is its measured 2,213; the tests that set the runner's seams or read its state do so through process(); no existing expectation edited"
+  --accept "105: the runner's process state has one owner: every lock, cache, counter, pool, live set, reaper handle, sweep field, Ctrl-C flag, output table and thread-local is an attribute of one _Process object in _process.py, reset for a fork by introspection over its locks and released at exit by one method; the judge's seams (the eight hooks, the session clock, the closer starter, the drive folder, the reaper's enabled and paused flags) are fields of process().observers; no public name changes"
+  --accept-judge "105: two rules checks, no threading.Lock, RLock or Condition and no mutable container or stateful object bound at module or class level under src/wasi_python outside _process.py (exceptions: __all__, upper-case display tables, ctypes _fields_); a unit check that reset_after_fork renews every lock, condition and queue it can see by the RENEW type-to-factory table, a row that RENEW knows the four kinds, two rows for the reset and kept fields, a row for the exit release's order and one for the observers' slots; unit rows for the two scanners; 104's module-level fork check retired for it (no module-level lock remains to walk); 104's import-order and by-name checks learn _process and process, and its late-import list mounts' binding of the owner; api.py's module table gains _process.py; mounts.py's held line count is its measured 2,213; the tests that set the runner's seams or read its state do so through process(); no existing expectation edited"
   ```
 
 - Dry-run needs: none of its own; the chain's one dispatch on its final tip (criterion 9).
 - **The CHANGELOG line** (the integrator's, not the builder's: the brief kept `CHANGELOG.md`
-  for the lane, which adds this text under the unreleased section at the landing): "**The runner's process state has one owner** (spec 104):
+  for the lane, which adds this text under the unreleased section at the landing): "**The runner's process state has one owner** (spec 105):
   every lock, cache, counter and registry of the runner is an attribute of one `_Process`
   object, reset for a fork by introspection over its locks and released at exit by one method;
   the judge's seams are fields of that object, not module globals; two rules checks keep locks
@@ -1009,10 +1009,10 @@ attributes of `process()`: `ticker_count`, `ctrl_c_pending`, `sweep_claimed`, `s
 
 ### The builder's self-check
 
-- rebased onto the named stacked base today (103's `2a9546c`); the base commit in the Status
+- rebased onto the named stacked base today (104's `2a9546c`); the base commit in the Status
   line: checked.
 - CI run dispatched on this exact commit and read: **unchecked by the chain's rule** (one
-  dispatch on the chain's final tip; 104 dispatches none). The chain's run id is written into
+  dispatch on the chain's final tip; 105 dispatches none). The chain's run id is written into
   these notes, under "CI", by the integrator when the final tip's dispatch is read (the build
   review's finding 2).
 - every number from a measured run on this base, labelled EXECUTED; the growth list is this
@@ -1031,4 +1031,4 @@ attributes of `process()`: `ticker_count`, `ctrl_c_pending`, `sweep_claimed`, `s
   `CHANGELOG.md`). The line is the integrator's: its text stands under "For the lane" above, and
   the lane adds it under the unreleased section at the landing (the build review's finding 2).
 - ruff check, ruff format --check, the fast tier: green (the baseline's 83), output in
-  `build/104/`: checked.
+  `build/105/`: checked.

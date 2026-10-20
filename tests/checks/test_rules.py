@@ -210,7 +210,7 @@ def test_no_mutable_is_bound_at_module_level_outside_the_process() -> None:
 
 
 def test_only_the_engine_seam_touches_wasmtimes_private_api() -> None:
-    """Spec 102, Decision 3: one module, `src/wasi_python/_wasmtime_ffi.py`, and its unit file
+    """Spec 103, Decision 3: one module, `src/wasi_python/_wasmtime_ffi.py`, and its unit file
     reach wasmtime-py's private API (its underscore modules, the store context, the raw function
     handle, the from-pointer constructors and the pointer method); every other `.py` under `src/`
     and `tests/`, comments and docstrings included, drives the engine through the seam."""
@@ -220,7 +220,7 @@ def test_only_the_engine_seam_touches_wasmtimes_private_api() -> None:
 
 
 def test_the_private_api_debt_is_documented() -> None:
-    """Spec 102, Design, "The debt is documented": every entry of the seam's `NEEDED` and
+    """Spec 103, Design, "The debt is documented": every entry of the seam's `NEEDED` and
     `OPTIONAL` tuples is a row of the debt sheet's table, every row is an entry, and the seam's
     docstring names every entry; read statically, so the check needs no wasmtime-py."""
     sheet = paths.CONTEXT / "upstream" / "34-wasmtime-py-public-api-for-the-runner" / "facts.md"

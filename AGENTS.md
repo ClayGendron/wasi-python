@@ -50,8 +50,8 @@ the hard constraints, and it governs this file. Then `README.md` and
   memo, review, finding ID or `context/` path: its comments and
   docstrings give the reason in words, and the number lives in the
   specification that cites the file. A `context/` document may cite and
-  link code files. `src/` is cleared by spec 106 and held by its check;
-  `tests/`, `scripts/` and `release/` by spec 108.
+  link code files. `src/` is cleared by spec 107 and held by its check;
+  `tests/`, `scripts/` and `release/` by spec 109.
 - **Commit or push only when asked.** A specification may be built in
   its own worktree outside the repository, on a local `spec/NNN-<slug>`
   branch (constitution §4.14); no other branch or worktree unless

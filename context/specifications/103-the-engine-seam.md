@@ -1,16 +1,16 @@
-# 102 — The engine seam: one module touches wasmtime-py's private API
+# 103 — The engine seam: one module touches wasmtime-py's private API
 
-- **Status:** **built on `d77425d` in worktree `spec/102-the-engine-seam`, 2026-10-20, awaiting
+- **Status:** **built on `d77425d` in worktree `spec/103-the-engine-seam`, 2026-10-20, awaiting
   the build review** (the landing notes below; the base `3626bb6` on branch
   `claude/gallant-ride-9nxxmn`, main `5feb7e9` plus the chain's specifications and reviews).
   Drafted 2026-10-20 on that branch; its pre-build review and confirmation are
-  `../reviews/102-the-engine-seam-spec-2026-10-20.md`. A different agent reviews the build.
+  `../reviews/103-the-engine-seam-spec-2026-10-20.md`. A different agent reviews the build.
 - **Date:** 2026-10-20
 - **Owner:** Clay Gendron
 - **Kind:** **parallel-safe**, not build-class (§5.7): it touches no file under `scripts/`,
   `recipes/`, `downloads/` or the release workflow, and no artifact byte. **It changes no line of
-  `tests/public_api.txt`.** It is **the first of the stacked chain 102 → 103 → 104 → 105 → 106 →
-  107** (the memo, section 8): 103 is built on this specification's reviewed tip, and the chain
+  `tests/public_api.txt`.** It is **the first of the stacked chain 103 → 104 → 105 → 106 → 107 →
+  108** (the memo, section 8): 104 is built on this specification's reviewed tip, and the chain
   lands as one wave. It is **also a judge change** (two new rules checks, a new unit file, two unit
   rows moved and one re-pointed, the harness driver's engine made through the seam): the lane accepts it with
   `--accept-judge`. Files: `src/wasi_python/_wasmtime_ffi.py` (new), `src/wasi_python/runner.py`,
@@ -27,7 +27,7 @@
   wasmtime-py, importing the package does not), 032 (the forwarder), 048 (the guard trampoline
   and fuel-neutral forwards), 071 (Decision 9: the trap-handler check reads wasmtime's load base),
   078 (Decision 1: the async stack size, set before any engine), 092 (`sameness.py` and claim
-  lists). **103 depends on this specification**: it splits `runner.py` into a package and keeps
+  lists). **104 depends on this specification**: it splits `runner.py` into a package and keeps
   this module where it is (Decision 7).
 - **Research it stands on:** `../research/2026-10-20-a-design-review-of-the-runner.md`, finding
   H2 ("the engine adapter is not isolated") and section 8 (the chain, the owner's four decisions,
@@ -48,7 +48,7 @@ async stack size wasmtime-py 49 has no property for (spec 078), and read wasmtim
 the trap-handler check (spec 071).
 
 Today those uses are spread over two modules. Measured on `a9064a2` (EXECUTED,
-`uv run python -I build/102/hits.py`, the regex of Decision 3 over every `.py` under `src/` and
+`uv run python -I build/103/hits.py`, the regex of Decision 3 over every `.py` under `src/` and
 `tests/`): **25 lines in `src/`** (`runner.py` 14, `mounts.py` 11) and **6 in `tests/`**
 (`tests/harness/guest.py` 2, `tests/unit/test_runner_calls.py` 1,
 `tests/unit/test_runner_async.py` 1, `tests/unit/test_runner_mounts.py` 1,
@@ -65,7 +65,7 @@ exception slot `_func.LAST_EXCEPTION` (one unit row), and the six attribute form
 
 The pin `wasmtime>=49,<50` (`pyproject.toml`) is the only guard. When wasmtime-py 50 moves a
 name, the first sign is an `AttributeError` inside a call, after a store and an instance exist,
-and the fix touches two modules in 25 places with no one place to look. Spec 103 will cut
+and the fix touches two modules in 25 places with no one place to look. Spec 104 will cut
 `runner.py` into nine modules; without this specification first, the 25 places would become 25
 places in five modules.
 
@@ -82,7 +82,7 @@ this project, written down, checked at import and held by a rule.
 derived from a use that exists today (The problem); none is speculative. Every parameter and
 return is annotated; `Storelike` is a `typing.Protocol` with one method, `_context()`, so a
 `Store` and a `Caller` both satisfy it. **The adapter holds no mutable state**: constants,
-functions and one class. Nothing in it is reset at fork or released at exit (spec 104 relies on
+functions and one class. Nothing in it is reset at fork or released at exit (spec 105 relies on
 this).
 
 | name | signature | replaces today |
@@ -143,7 +143,7 @@ The reasons for the shape:
   `RuntimeError` before any engine is made. The binding is read into `ASYNC_STACK_SETTER` at
   import and looked up there at call time, so a test patches the adapter's name, not `_ffi`.
 - **`engine_symbol_address`, not `load_base`.** `dladdr` and `_load_base` are the runner's
-  platform code (spec 071) and move to `_platform.py` in spec 106. The adapter gives only the
+  platform code (spec 071) and move to `_platform.py` in spec 107. The adapter gives only the
   address of one symbol of wasmtime's library; what library holds it is the platform's work.
 - **`last_exception()`, `host_function_count()` and `custom_output_table()` exist for the
   judge** (`test_runner_calls.py:116`, spec 011: the slot is `None` after a call;
@@ -306,14 +306,14 @@ on the same thread, under the same lock, with the same fallback:
 fast-tier records on the **frozen baseline set**, the `v0.1.0a7` release's artifact set verified
 against its `SHA256SUMS`, pointed at by `WASI_PYTHON_ARTIFACTS`. **A record** is the
 `build/progress/latest.json` the judge writes. The builder runs `uv run pytest -m "not slow" -n 3`
-(a slot the lane grants) on the base commit and copies the record to `build/102/baseline.json`,
-then on the built commit to `build/102/built.json`, and runs
+(a slot the lane grants) on the base commit and copies the record to `build/103/baseline.json`,
+then on the built commit to `build/103/built.json`, and runs
 
 ```
-uv run python tests/harness/sameness.py --claims build/102/claims.toml build/102/baseline.json build/102/built.json
+uv run python tests/harness/sameness.py --claims build/103/claims.toml build/103/baseline.json build/103/built.json
 ```
 
-which must print nothing and exit 0. `build/102/claims.toml` is the claim list of *For the
+which must print nothing and exit 0. `build/103/claims.toml` is the claim list of *For the
 lane*: the one new check and the unit count. No fuel row moves (host code spends no guest
 fuel), no bytes row moves (no artifact changes), no pass is lost. Host-side counts the checks
 record as facts (file calls, tool frames) are compared by `sameness.py` too and must not move.
@@ -424,11 +424,11 @@ do:
 ### 7. What the chain honours
 
 - **The path is fixed.** The adapter is `src/wasi_python/_wasmtime_ffi.py`, a sibling of
-  `runner.py`. Spec 103 turns `runner.py` into a package of modules and leaves the adapter where
+  `runner.py`. Spec 104 turns `runner.py` into a package of modules and leaves the adapter where
   it is; the rule's exemption names the exact path.
-- **The adapter holds no state.** Spec 104's one owner of process state has nothing to take from
+- **The adapter holds no state.** Spec 105's one owner of process state has nothing to take from
   it; the one `_epoch_callback` object and the output table stay in the runner's modules
-  (`_engine.py` and `_call.py` after 103).
+  (`_engine.py` and `_call.py` after 104).
 - **Tests patch the adapter's names**, never `wasmtime._ffi` outside the adapter's unit file
   (U18 patches `_ffi`'s three bindings there): `new_error`, `ASYNC_STACK_SETTER`,
   `watch_epochs`, `context_address` (the `shared` fixture of `tests/unit/test_runner_cancel.py`,
@@ -437,11 +437,11 @@ do:
   rule holds it.
 - **Prose in `src/` outside the adapter does not spell the private names** (Decision 3). A
   docstring says "through the seam".
-- **`_wasmtime()` keeps the adapter import inside it** wherever 103 moves the function; it is the
+- **`_wasmtime()` keeps the adapter import inside it** wherever 104 moves the function; it is the
   one place a moved symbol is first seen.
-- **Spec 105's type checker** finds the adapter fully annotated; `Storelike` is defined here and
-  spec 106's call-context protocol may name it.
-- **Spec 106's `_platform.py`** takes `engine_symbol_address()` from the adapter and keeps
+- **Spec 106's type checker** finds the adapter fully annotated; `Storelike` is defined here and
+  spec 107's call-context protocol may name it.
+- **Spec 107's `_platform.py`** takes `engine_symbol_address()` from the adapter and keeps
   `dladdr` to itself.
 
 ### 8. Public first, in the seam (the owner, 2026-10-20; added after the pre-build review's draft)
@@ -484,7 +484,7 @@ handle wasmtime gives a host function (`runner.py:3274` and `:3358`, the deadlin
 `mounts.py:799`, `:803` and `:809`, the bracket; `:829`, the ABI branch; EXECUTED by the
 confirmation's `grep`), and none holds the `Store` object (`_Call` keeps the store's context
 address, not the store); every other fuel or deadline call in `src/` is on a `Store` and public
-already. 102 does **not** thread the call's `Store` object into those six sites, for three
+already. 103 does **not** thread the call's `Store` object into those six sites, for three
 reasons: the public `Store` methods make the identical C call on the identical context (READ,
 `_store.py:61-90` and `:109-115`: `ffi.wasmtime_context_get_fuel(self._context(), …)`), so
 nothing would change
@@ -511,7 +511,7 @@ which names, and the fix is one file.
 ### The adapter
 
 ```python
-"""The engine seam (spec 102): the one module of wasi_python that touches wasmtime-py's private
+"""The engine seam (spec 103): the one module of wasi_python that touches wasmtime-py's private
 API. ... [the table of Decision 1, the bump procedure of Decision 6]"""
 
 from __future__ import annotations
@@ -605,7 +605,7 @@ becomes `from . import _wasmtime_ffi as ffi`, in the same function. Then:
   the adapter, and so wasmtime-py, at package import, which Decision 2 forbids. **U5 holds the
   two declarations equal by identity** to `OUTPUT_WRITE` and `OUTPUT_FREE` (ctypes caches a
   `CFUNCTYPE` by its signature), as the row does today. The adapter's two names exist for that
-  row, and for spec 103, which may move the output table into a module that makes the two
+  row, and for spec 104, which may move the output table into a module that makes the two
   callbacks on first use and then takes the types from the adapter. `_send_outputs` calls
   `ffi.set_custom_outputs(wasi, _output_write, _output_free, keys[0], keys[1])`.
 - `_set_async_stack` and `_wasmtime_version` are deleted; `_engine` calls
@@ -639,7 +639,7 @@ review's M1): the `shared` fixture of `tests/unit/test_runner_cancel.py` (`:49`)
 `_wasmtime_ffi.context_address` in place of `runner._context_address`, and
 `test_the_async_stack_size_property_is_preferred` (`tests/unit/test_runner_calls.py:312`) calls
 `_wasmtime_ffi.set_async_stack` and patches `_wasmtime_ffi.ASYNC_STACK_SETTER` in place of
-`runner._set_async_stack` and `_ffi`'s binding (U7). The claim list is `build/102/claims.toml`,
+`runner._set_async_stack` and `_ffi`'s binding (U7). The claim list is `build/103/claims.toml`,
 copied into *For the lane*.
 
 ### The debt is documented (the owner, 2026-10-20; added after the pre-build review's draft)
@@ -698,8 +698,8 @@ check and its README row. Out:
 - **Asking wasmtime-py for anything**: the sheet is a facts sheet, not an issue (question 80;
   the Bytecode Alliance's policy on agents); whether to ask, and the words, are the owner's.
 
-- **Splitting `runner.py`** (spec 103), **the process-state owner** (104), **typed call state and
-  the type checker** (105), **`mounts.py` behind a protocol and the platform module** (106).
+- **Splitting `runner.py`** (spec 104), **the process-state owner** (105), **typed call state and
+  the type checker** (106), **`mounts.py` behind a protocol and the platform module** (107).
 - **Any change to a public name**, a default, a limit, an errno, a fuel count or an artifact
   byte: none; Decision 4 holds it.
 - **Replacing wasmtime-py's exception slot** or any other mechanism with a public one: the
@@ -719,14 +719,14 @@ Fourteen, each checkable:
    prints nothing on wasmtime-py 49.0.0.
 3. **The rules check** `tests/checks/test_rules.py::test_only_the_engine_seam_touches_wasmtimes_
    private_api` is **seen failing first** on `a9064a2` with 31 hits (25 in `src/`, 6 in
-   `tests/`; the output kept as `build/102/rule-before.txt`) and passes on the built commit,
+   `tests/`; the output kept as `build/103/rule-before.txt`) and passes on the built commit,
    `tests/harness/scan.py` and `tests/unit/test_scan.py` included (Decision 3, the split
    literals; U17 holds it).
 4. **No line of `src/` or `tests/`** outside the two exempt files matches the regex of
    Decision 3 (criterion 3's pass is the evidence).
-5. **Sameness on the frozen set**: `sameness.py --claims build/102/claims.toml` between the base
+5. **Sameness on the frozen set**: `sameness.py --claims build/103/claims.toml` between the base
    record and the built record prints nothing and exits 0 (Decision 4); both records are kept
-   under `build/102/` and their check counts named in the landing notes.
+   under `build/103/` and their check counts named in the landing notes.
 6. **No fuel row moves** and **no bytes row moves**: a consequence of 5, stated so the lane reads
    it; the landing notes say "0 fuel rows, 0 bytes rows".
 7. **No pass is lost**: the built record's `suite` passes are the base's plus the new check and
@@ -756,21 +756,21 @@ Fourteen, each checkable:
 
 ## For the lane
 
-- **Kind:** parallel-safe, a judge change; the first entry of the stacked chain 102 → 107, which
+- **Kind:** parallel-safe, a judge change; the first entry of the stacked chain 103 → 108, which
   lands as one wave of six (the owner, 2026-10-20, the memo's section 8). Its branch is
-  `spec/102-the-engine-seam`, from main's tip; 103 is built on its reviewed tip. It shares
+  `spec/103-the-engine-seam`, from main's tip; 104 is built on its reviewed tip. It shares
   `CHANGELOG.md` with every entry (textual merges), `src/wasi_python/runner.py` and `mounts.py`
-  with 103 to 106 (stacked, so no conflict: each is built on the one before), and
+  with 104 to 107 (stacked, so no conflict: each is built on the one before), and
   `tests/checks/test_rules.py` with any judge change that adds a rule.
 - **The dispatch:** one release-workflow run on the chain's final tip stands for the six
   (the owner, the memo's section 8); this entry's own evidence is the fast tier on the frozen set
   and the sameness line of Decision 4.
-- **The claim list** (`build/102/claims.toml`, as the build ran it: the two new rules-check
+- **The claim list** (`build/103/claims.toml`, as the build ran it: the two new rules-check
   nodes, the new unit file, and the unit suite's net growth of 17):
 
   ```toml
   [[claim]]
-  spec = "102"
+  spec = "103"
   new = [
     "tests/checks/test_rules.py::test_only_the_engine_seam_touches_wasmtimes_private_api",
     "tests/checks/test_rules.py::test_the_private_api_debt_is_documented",
@@ -779,7 +779,7 @@ Fourteen, each checkable:
   units = 17
   ```
 
-  102: **retired checks:** none. **Lost passes:** none. **Rows that grow:** none.
+  103: **retired checks:** none. **Lost passes:** none. **Rows that grow:** none.
   **The judge hash changes** in `tests/harness/scan.py`, `tests/harness/guest.py`,
   `tests/checks/test_rules.py`, `tests/checks/test_v1_4_embedding.py`,
   `tests/unit/test_wasmtime_ffi.py`, `tests/unit/test_scan.py`, `tests/unit/test_runner_calls.py`,
@@ -788,8 +788,8 @@ Fourteen, each checkable:
 - **The flags** (paste-safe; no `--accept-growth` is expected, and one would be a finding):
 
   ```
-  --accept "102: one module, src/wasi_python/_wasmtime_ffi.py, touches wasmtime-py's private API, public first where a release has the public form; the runner and the mounts drive the engine through its named operations; a moved symbol is one ImportError at the first run(), naming the wasmtime-py version and the names; the private bindings still needed are listed in context/upstream/34-wasmtime-py-public-api-for-the-runner/facts.md; no behaviour change, the frozen set's verdicts the same"
-  --accept-judge "102: a rules check that no .py under src/ or tests/ but the seam and its unit file imports wasmtime._ffi, _bindings, _func or _wasi or touches ._context(), ._func, _from_ptr or .ptr(); a rules check that every entry of the adapter's NEEDED and OPTIONAL tuples is a row of the debt sheet's table, every row an entry, and every entry named in the adapter's docstring; the adapter's unit file (seventeen rows) and the scan's two rows; two rows moved to it; two files re-pointed to the adapter's names; one embedding check counts wasmtime-py's tables through the seam; the harness driver sets the async stack size through the seam; no existing expectation edited"
+  --accept "103: one module, src/wasi_python/_wasmtime_ffi.py, touches wasmtime-py's private API, public first where a release has the public form; the runner and the mounts drive the engine through its named operations; a moved symbol is one ImportError at the first run(), naming the wasmtime-py version and the names; the private bindings still needed are listed in context/upstream/34-wasmtime-py-public-api-for-the-runner/facts.md; no behaviour change, the frozen set's verdicts the same"
+  --accept-judge "103: a rules check that no .py under src/ or tests/ but the seam and its unit file imports wasmtime._ffi, _bindings, _func or _wasi or touches ._context(), ._func, _from_ptr or .ptr(); a rules check that every entry of the adapter's NEEDED and OPTIONAL tuples is a row of the debt sheet's table, every row an entry, and every entry named in the adapter's docstring; the adapter's unit file (seventeen rows) and the scan's two rows; two rows moved to it; two files re-pointed to the adapter's names; one embedding check counts wasmtime-py's tables through the seam; the harness driver sets the async stack size through the seam; no existing expectation edited"
   ```
 
 - **Dry-run needs:** none of its own; the chain's one dispatch covers it on three systems.
@@ -802,10 +802,10 @@ the first `run()` instead of an `AttributeError` inside a call.
 
 ## Landing notes
 
-Built 2026-10-20 in the worktree `/home/user/wt/102`, branch `spec/102-the-engine-seam`, from
+Built 2026-10-20 in the worktree `/home/user/wt/103`, branch `spec/103-the-engine-seam`, from
 the base `3626bb6` (branch `claude/gallant-ride-9nxxmn`: main `5feb7e9`, the memo `a9064a2`, the
 chain's specifications and their pre-build reviews). Every number here is EXECUTED on that base
-or on the built commit, with its command; the outputs are kept under `build/102/` in the
+or on the built commit, with its command; the outputs are kept under `build/103/` in the
 worktree (git-ignored): `seen-failing.txt`, `rule-before.txt`, `fast.log`, `built.json`,
 `claims.toml`, `sameness.txt`.
 
@@ -813,11 +813,11 @@ worktree (git-ignored): `seen-failing.txt`, `rule-before.txt`, `fast.log`, `buil
   and the mounts behind it, the harness driver and the five test files), `d77425d` (the debt
   sheet's row for `wasmtime_error_t` and the README row's count), and the commit that carries
   this Status line and these notes.
-- **The checks were written first and seen failing on `3626bb6`** (`build/102/seen-failing.txt`,
+- **The checks were written first and seen failing on `3626bb6`** (`build/103/seen-failing.txt`,
   EXECUTED): `tests/unit/test_wasmtime_ffi.py` fails at collection (`ImportError: cannot import
   name '_wasmtime_ffi' from 'wasi_python'`);
   `test_only_the_engine_seam_touches_wasmtimes_private_api` reports 31 findings, digest
-  `3f64ef046fdb` (`build/102/rule-before.txt`: `runner.py` 14, `mounts.py` 11, `tests/` 6, the
+  `3f64ef046fdb` (`build/103/rule-before.txt`: `runner.py` 14, `mounts.py` 11, `tests/` 6, the
   lines of The problem); `test_the_private_api_debt_is_documented` reports one finding,
   `_wasmtime_ffi.py does not exist`. On the built commit all three pass (criteria 3, 4 and 13).
 - **EXECUTED numbers re-measured on `3626bb6`**, each agreeing with the draft: 31 hits of
@@ -850,7 +850,7 @@ worktree (git-ignored): `seen-failing.txt`, `rule-before.txt`, `fast.log`, `buil
   run again; `monkeypatch.undo()` restores both before the second half. `__all__` has the 28
   names of Decision 1's table (23 operations and constants, `Storelike`, `NEEDED`, `OPTIONAL`,
   `missing`, `check`); U1 lists it. `forward` asserts the caught exception is set before it
-  raises it, for spec 105's type checker.
+  raises it, for spec 106's type checker.
 - **U9 and wasmtime-py's slab:** `host_function_count()` is the length of `FUNCTIONS.list`, the
   table's high-water mark; wasmtime-py's `Slab` reuses a freed slot before growing (READ,
   `_slab.py`: `allocate` pops the free chain first). The first parallel run showed it (the row
@@ -872,32 +872,32 @@ worktree (git-ignored): `seen-failing.txt`, `rule-before.txt`, `fast.log`, `buil
   seventeen rows (U1 to U16, U18), `test_scan.py` two (U17's two halves), two rows left their
   files: the unit suite grows by 17.
 - **The fast tier** (EXECUTED, `uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider` on
-  `d77425d` with `WASI_PYTHON_ARTIFACTS` the verified `v0.1.0a7` set; `build/102/fast.log`):
+  `d77425d` with `WASI_PYTHON_ARTIFACTS` the verified `v0.1.0a7` set; `build/103/fast.log`):
   **83 failed, 2363 passed, 52 skipped** in 308 s; the 83 are exactly the baseline's
   (`build/baseline-a7/failing-nodes.txt`, a `diff` of the sorted node ids is empty: 82 checks
   against an artifact set older than the tree and `test_the_walk_judges_links`, which needs a
   non-root user). The baseline record (`build/baseline-a7/baseline.json`, `a9064a2`, the same
   set): 83 failed, 2344 passed, 52 skipped; unit suite 1847 (1833 passed, 13 skipped). The built
-  record (`build/102/built.json`): unit suite 1864 (1850 passed, 13 skipped): 17 more, the same
+  record (`build/103/built.json`): unit suite 1864 (1850 passed, 13 skipped): 17 more, the same
   one failing. No pass lost (criterion 7); `tests/unit/test_runner_mounts.py::
   test_the_rename_rule_forward_is_fuel_neutral` passes unchanged (criterion 8).
 - **Sameness** (criterion 5; EXECUTED, `uv run python tests/harness/sameness.py
-  /home/user/wasi_python/build/baseline-a7/baseline.json build/102/built.json --claims
-  build/102/claims.toml`), the output verbatim, exit 0:
+  /home/user/wasi_python/build/baseline-a7/baseline.json build/103/built.json --claims
+  build/103/claims.toml`), the output verbatim, exit 0:
 
   ```
-  note: explained by claims: 102 4
+  note: explained by claims: 103 4
   ```
 
   **0 fuel rows, 0 bytes rows** (criterion 6); no verdict moved. The first run's one unexplained
   line, `collected_files: tests/unit/test_wasmtime_ffi.py only in the second record`, is the new
   unit file itself: the claim list names it under `new` (the draft's list had the two
   rules-check nodes and the count only).
-- **The claim list** (`build/102/claims.toml`, as run):
+- **The claim list** (`build/103/claims.toml`, as run):
 
   ```toml
   [[claim]]
-  spec = "102"
+  spec = "103"
   new = [
     "tests/checks/test_rules.py::test_only_the_engine_seam_touches_wasmtimes_private_api",
     "tests/checks/test_rules.py::test_the_private_api_debt_is_documented",
@@ -909,8 +909,8 @@ worktree (git-ignored): `seen-failing.txt`, `rule-before.txt`, `fast.log`, `buil
 - **The flags for the lane** (paste-safe; no `--accept-growth`):
 
   ```
-  --accept "102: one module, src/wasi_python/_wasmtime_ffi.py, touches wasmtime-py's private API, public first where a release has the public form; the runner and the mounts drive the engine through its named operations; a moved symbol is one ImportError at the first run(), naming the wasmtime-py version and the names; the private bindings still needed are listed in context/upstream/34-wasmtime-py-public-api-for-the-runner/facts.md; no behaviour change, the frozen set's verdicts the same"
-  --accept-judge "102: a rules check that no .py under src/ or tests/ but the seam and its unit file imports wasmtime._ffi, _bindings, _func or _wasi or touches ._context(), ._func, _from_ptr or .ptr(); a rules check that every entry of the adapter's NEEDED and OPTIONAL tuples is a row of the debt sheet's table, every row an entry, and every entry named in the adapter's docstring; the adapter's unit file (seventeen rows) and the scan's two rows; two rows moved to it; two files re-pointed to the adapter's names; one embedding check counts wasmtime-py's tables through the seam; the harness driver sets the async stack size through the seam; no existing expectation edited"
+  --accept "103: one module, src/wasi_python/_wasmtime_ffi.py, touches wasmtime-py's private API, public first where a release has the public form; the runner and the mounts drive the engine through its named operations; a moved symbol is one ImportError at the first run(), naming the wasmtime-py version and the names; the private bindings still needed are listed in context/upstream/34-wasmtime-py-public-api-for-the-runner/facts.md; no behaviour change, the frozen set's verdicts the same"
+  --accept-judge "103: a rules check that no .py under src/ or tests/ but the seam and its unit file imports wasmtime._ffi, _bindings, _func or _wasi or touches ._context(), ._func, _from_ptr or .ptr(); a rules check that every entry of the adapter's NEEDED and OPTIONAL tuples is a row of the debt sheet's table, every row an entry, and every entry named in the adapter's docstring; the adapter's unit file (seventeen rows) and the scan's two rows; two rows moved to it; two files re-pointed to the adapter's names; one embedding check counts wasmtime-py's tables through the seam; the harness driver sets the async stack size through the seam; no existing expectation edited"
   ```
 
 - **Other criteria:** `uv run python -c "import wasi_python._wasmtime_ffi"` prints nothing,
@@ -924,7 +924,7 @@ worktree (git-ignored): `seen-failing.txt`, `rule-before.txt`, `fast.log`, `buil
   unreleased section (the build review's finding 1, answered in writing: the branch edits no
   line of it). The line is written here for the integrator to paste.
 - **CHANGELOG line (for the integrator)**, one bullet under "0.1.0a8 — unreleased":
-  "**One module touches wasmtime-py's private API** (spec 102).
+  "**One module touches wasmtime-py's private API** (spec 103).
   `src/wasi_python/_wasmtime_ffi.py` is the engine seam: the runner and the mounts drive the
   engine through its named operations, it prefers wasmtime-py's public API wherever the installed
   release has it, and at the first `run()` it raises one `ImportError` naming the wasmtime-py
@@ -932,12 +932,12 @@ worktree (git-ignored): `seen-failing.txt`, `rule-before.txt`, `fast.log`, `buil
   `src/` or `tests/` reaches the private API; a second holds the debt sheet
   `context/upstream/34-wasmtime-py-public-api-for-the-runner/facts.md` equal to the names the
   seam needs. No behaviour, fuel or errno changes."
-- **The build review:** `../reviews/102-the-engine-seam-2026-10-20.md` (lands; two Lows, both
+- **The build review:** `../reviews/103-the-engine-seam-2026-10-20.md` (lands; two Lows, both
   answered in its Disposition: the CHANGELOG line above, and the body's counts brought to the
   built ones in the Kind line, Decision 2, the Design, criterion 13 and "For the lane").
 - **The builder's self-check** (`../reviews/README.md`):
   - rebased onto the named base today, the base commit in the Status line: checked (`3626bb6`,
-    the chain's base; 102 is its first link, so nothing to rebase onto).
+    the chain's base; 103 is its first link, so nothing to rebase onto).
   - CI run dispatched on this exact commit and read: not checked, by the chain's rule: one
     dispatch on the final tip stands for the six.
   - every number from a measured run on this base, labelled EXECUTED; the growth list this
@@ -957,4 +957,4 @@ worktree (git-ignored): `seen-failing.txt`, `rule-before.txt`, `fast.log`, `buil
     whose exact text is above under "CHANGELOG line (for the integrator)"; questions numbered:
     none asked.
   - `ruff check`, `ruff format --check`, the fast tier: green but the baseline's 83, output in
-    `build/102/`: checked.
+    `build/103/`: checked.
