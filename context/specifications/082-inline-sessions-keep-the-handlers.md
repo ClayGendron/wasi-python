@@ -1,6 +1,6 @@
 # 082 — Inline pytest sessions keep wasmtime's signal handlers
 
-- **Status:** **built 2026-10-19** on `spec/082-inline-sessions-keep-the-handlers` from main
+- **Status:** **landed 2026-10-20 in wave 05** (090, 082) on main `c74d0f0`: accepted on `f70c666`, history line 86, 638/708 pass, 0 fail; the integration review `../reviews/wave-05-integration-2026-10-20.md` ("lands as merged at f70c666"); the dry run 39371419248 dispatched as main moved. Before: **built 2026-10-19** on `spec/082-inline-sessions-keep-the-handlers` from main
   `e00d394`, rebased onto main `f7511b7` after its build review
   (`../reviews/082-inline-sessions-keep-the-handlers-build-2026-10-20.md`), which says it lands;
   its L1 and N2 are answered and L2 is the rebase (see "Landing notes"). It enters wave 05. A
@@ -263,3 +263,8 @@ If the lane's run has a growth line, it is the base's, not this change's: name i
   `test_checks_wiring.py` and `tests/checks/test_rules.py`, `-n 3`, against a private copy of a
   set (not the main tree's, which the lane is rebuilding): 252 passed, 1 skipped; ratchet vs
   `a75e5d4` lost 0, grew 0, gained 0. `ruff check` and `ruff format --check` green.
+
+### Landed in wave 05
+
+- The third check (L1, the parseconfig half) was read by the wave's integration review, which mutated each wrapper in turn: each half fails its own check alone. It has run on darwin only so far; the dry run on main runs it on Linux (the integration review's N1). The unit suite +3.
+- Reviews: `../reviews/082-*` and the wave's integration review.

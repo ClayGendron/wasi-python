@@ -1,6 +1,6 @@
 # 090 — the build and its artifact checks agree on one litter list
 
-- **Status:** **built 2026-10-20**, on `spec/090-the-build-ignores-host-litter` from main
+- **Status:** **landed 2026-10-20 in wave 05** (090, 082) on main `c74d0f0`: accepted on `f70c666`, history line 86, 638/708 pass, 0 fail; the integration review `../reviews/wave-05-integration-2026-10-20.md` ("lands as merged at f70c666"); the dry run 39371419248 dispatched as main moved. Before: **built 2026-10-20**, on `spec/090-the-build-ignores-host-litter` from main
   `e00d394` (drafted with 089 on `3866f56`; revised against its pre-build review and confirmed
   ready, 2026-10-19). Its release run is read below. Build-class and a judge change, so a fresh
   agent reviews the build before it lands (§5.6).
@@ -368,3 +368,8 @@ there yet).
 One line: the build skips one shared litter list, the release packs its list, the artifact checks
 forgive litter names only, and `left_out` records neither litter nor bytecode, so a desktop's
 files never change an artifact or a fact and a real stray file still fails.
+
+### Landed in wave 05
+
+- The lane rebuilt the set in the main tree at `70a8e07` (on 086's main): python.wasm, the snapshot, the zip and every LICENSES file equal 086's set (SHA256SUMS 4e0dc0cf); MANIFEST differs in exactly the four recipe lines and SHA256SUMS only in MANIFEST's line (criterion 2 against 086's base; new SHA256SUMS 4eaf1c3d). Step 20 left no `__pycache__` under Lib (criterion 5). No metric moved; the unit suite +6.
+- Reviews: `../reviews/090-*` and the wave's integration review.
