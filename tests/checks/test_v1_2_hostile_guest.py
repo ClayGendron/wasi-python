@@ -407,7 +407,6 @@ scratch = sys.argv[1]
 tempfile.tempdir = scratch
 resource.setrlimit(resource.RLIMIT_NOFILE, (256, resource.getrlimit(resource.RLIMIT_NOFILE)[1]))
 import wasi_python
-from wasi_python import _call, _engines, _home, _limits, _sessions
 guest = (
     "import os\nopen('/f', 'w').close()\nfs = []\n"
     "try:\n    while True: fs.append(os.open('/f', os.O_RDONLY))\n"
@@ -2701,7 +2700,7 @@ def test_a_faulthandler_change_cannot_kill_the_host(order: str) -> None:
 # counted, never after a delay.
 TICKS_THEN = """
 import threading, _thread
-from wasi_python import runner
+from wasi_python import _engines, _limits, runner
 def after_ticks(action):
     def wait():
         start = _engines._epoch_ticker.count()
@@ -2918,7 +2917,7 @@ def test_an_embedders_raising_sigint_handler_stops_the_call(row: str) -> None:
 HOME_CHILD = """
 import sys, threading, wasmtime
 import wasi_python
-from wasi_python import runner
+from wasi_python import _call, _home, runner
 row = sys.argv[1]
 state = {"wasm returned": True, "bad": []}
 real_drive, real_close, real_join = _call._drive, wasmtime.Store.close, _home._join_guest
@@ -3105,7 +3104,7 @@ def test_host_functions_run_on_the_callers_thread() -> None:
 ABANDONED_TURN_CHILD = """
 import threading, wasmtime
 import wasi_python
-from wasi_python import runner
+from wasi_python import _home, runner, _sessions
 state = {"in wasm": 0, "bad": []}
 real_turn, real_close = _sessions._drive_turn, wasmtime.Store.close
 hold, held, torn = [], [], []
@@ -3199,7 +3198,7 @@ def test_an_abandoned_turn_keeps_its_session_busy() -> None:
 HANDOFF_CHILD = """
 import queue, sys, threading
 import wasi_python
-from wasi_python import Mount, runner
+from wasi_python import Mount, _home, runner
 from wasi_python.mounts import Stat
 row = sys.argv[1]
 class P:

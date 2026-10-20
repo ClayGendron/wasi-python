@@ -861,7 +861,6 @@ def test_an_ordinary_sleep_still_works(guest_workdir) -> None:
 CONCURRENT = r"""
 import sys, threading
 import wasi_python
-from wasi_python import _engines, _home, _limits, _platform, _private_dirs
 
 THREADS, CALLS = 8, 100  # 8 x 40 failed today's runner in 2 of 3 runs; 8 x 100 in 6 of 6
 wasi_python.run(["-c", "pass"])
@@ -1266,7 +1265,7 @@ def test_cancelling_an_async_call_stops_its_guest(work) -> None:
 CANCEL_RUN = r"""
 import asyncio, signal, sys, threading
 import wasi_python
-from wasi_python import runner
+from wasi_python import _engines, _home, _limits, runner
 
 case = sys.argv[1]
 event = threading.Event()
@@ -1459,7 +1458,7 @@ print("status", os.waitstatus_to_exitcode(status))
 NO_FORK = r"""
 import os
 import wasi_python
-from wasi_python import runner
+from wasi_python import _platform, runner
 
 print(hasattr(os, "register_at_fork"), wasi_python.run(["-c", "print('ran')"]).stdout)
 print(_platform._fork)
@@ -1502,7 +1501,7 @@ ONE_CALL = r"""
 import sys, tempfile
 tempfile.tempdir = sys.argv[1]
 import wasi_python
-from wasi_python import runner
+from wasi_python import _private_dirs, runner
 
 done = wasi_python.run(["-c", "print(1)"])
 print(done.exit_code, _private_dirs._sweep_state["swept"])
@@ -2300,7 +2299,7 @@ def test_the_file_call_limit_stops_the_run() -> None:
 MOUNT_CANCEL = r"""
 import sys, threading
 import wasi_python
-from wasi_python import Errno, Mount, Stat, runner
+from wasi_python import Errno, Mount, Stat, _engines, _home, _limits, runner
 
 case = sys.argv[1]
 event = threading.Event()
@@ -3105,7 +3104,7 @@ def test_a_tool_timeout_ends_the_call_not_the_run(guest_workdir, release) -> Non
 PAST_THE_DEADLINE = r"""
 import threading
 import wasi_python
-from wasi_python import runner
+from wasi_python import _engines, runner
 from wasi_python.tools import tool
 
 release = threading.Event()

@@ -671,7 +671,6 @@ CTRL_C = r"""
 import signal, threading
 signal.signal(signal.SIGINT, signal.default_int_handler)
 import wasi_python
-from wasi_python import _home, _private_dirs, _sessions
 
 def go() -> str:
     "Send this process Ctrl-C."
@@ -714,7 +713,7 @@ s.close()
 EXIT_HOOK = r"""
 import sys
 import wasi_python
-from wasi_python import runner
+from wasi_python import _private_dirs, runner
 grant = sys.argv[1]
 g = [wasi_python.Grant(grant, "/g", writable=True)]
 s = wasi_python.Session(root=True, shutdown_s=60, grants=g)
@@ -725,7 +724,7 @@ print(" ".join(sorted(_private_dirs._held)))
 DROPPED = r"""
 import gc, sys
 import wasi_python
-from wasi_python import runner
+from wasi_python import runner, _sessions
 _sessions._reaper["enabled"] = False  # the check drives the reaper's step
 grant = sys.argv[1]
 s = wasi_python.Session(shutdown_s=60, grants=[wasi_python.Grant(grant, "/g", writable=True)])
@@ -743,7 +742,7 @@ print(before, wasi_python.stats()["sessions_open"])
 QUEUED_AT_EXIT = r"""
 import gc, sys
 import wasi_python
-from wasi_python import runner
+from wasi_python import runner, _sessions
 _sessions._reaper["enabled"] = False  # no reaper: the state is on the queue at exit
 grant = sys.argv[1]
 s = wasi_python.Session(shutdown_s=60, grants=[wasi_python.Grant(grant, "/g", writable=True)])
@@ -1176,7 +1175,7 @@ ERROR_ROW = r"""
 import signal, threading
 signal.signal(signal.SIGINT, signal.default_int_handler)
 import wasi_python
-from wasi_python import runner
+from wasi_python import _home, runner, _sessions
 seen = []
 _sessions._on_export = lambda name, ident: seen.append(name)
 s = wasi_python.Session(shutdown_s=60)
