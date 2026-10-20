@@ -107,13 +107,17 @@ never loads the plugin. The inner sessions' roots are pytester's temporary folde
 repository, so the judge's "steered from outside the judge" rule does not apply to them; and
 blocking a plugin adds none.
 
-`tests/unit/test_inline_sessions.py`, two checks, each running one trivial inner session:
+`tests/unit/test_inline_sessions.py`, three checks, each running one trivial inner session:
 
 - `test_an_inline_session_keeps_a_handler_installed_after_faulthandler` (skipped on Windows,
   which has no `sigaction`): enables faulthandler if the outer session has not (and disables it
   after only then), saves SIGABRT's `struct sigaction`, installs `SIG_IGN` through `sigaction`,
-  runs the inner session, reads the installed handler, puts the saved struct back, and asserts the
-  handler read was `SIG_IGN`.
+  runs the inner session (`runpytest`, so `inline_run`), reads the installed handler, puts the
+  saved struct back, and asserts the handler read was `SIG_IGN`.
+- `test_a_parseconfigure_keeps_a_handler_installed_after_faulthandler` (skipped on Windows): the
+  same stand-in around `pytester.parseconfigure()` and the config's `_ensure_unconfigure()`, so
+  the `parseconfig` half of the fixture is held too (the build review, L1). The stand-in's
+  install, read and restore are one helper both checks share.
 - `test_an_inline_session_after_an_engine_leaves_the_guard_ready`: makes a `wasmtime.Engine()`,
   asserts `runner._trap_handlers_ready()` is `None`, runs the inner session, and asserts it is
   still `None`. The first assertion names the case where something before this check broke the
@@ -132,6 +136,10 @@ Linux), where the judge's own tooling runs.
   does, 071's criterion 11, does it in a child process); a shard assignment that would run an
   inline-session file and a runner file together in the release (none today; with this fix any
   order is safe).
+- **Out, and noted:** `tests/harness/gather.py`'s `collect()` calls `pytest.main` in process
+  (line 540), outside pytester, so the fixture does not reach it. Today it runs only in the
+  `gather.py` command's own process, and no test calls `collect()` in process; a test that ever
+  does needs `-p no:faulthandler` there as well (the build review, N2).
 
 ## Acceptance criteria
 
@@ -140,6 +148,10 @@ Linux), where the judge's own tooling runs.
    `test_an_inline_session_keeps_a_handler_installed_after_faulthandler`: "the inline session
    replaced the handler: 0x1024827d8", faulthandler's handler where `SIG_IGN` was. The end-to-end
    check passes there, as it must off Linux. With the fix, both pass (the landing notes).
+   - **1a. The `parseconfig` half.** With the flag dropped from the fixture's `parseconfig`
+     wrapper alone (`PYTHONDONTWRITEBYTECODE=1` and no `__pycache__`, so no stale bytecode masks
+     the mutant), `test_a_parseconfigure_keeps_a_handler_installed_after_faulthandler` fails and
+     the other two pass; with the fix, all three pass.
 2. **Linux, end to end.** The release run on this branch: the job
    `judge (ubuntu-24.04, own-rest)` (x86_64, so SIGFPE is guarded too) passes both checks, so
    after an engine and an inline session the guard still finds wasmtime's handlers in a real
@@ -165,14 +177,15 @@ Linux), where the judge's own tooling runs.
 - 082: every in-process pytester session (inline_run, and parseconfig for parseconfigure) runs with -p no:faulthandler; subprocess sessions are untouched.
 - 082: the outer judge keeps faulthandler on, so a crash inside an inner session still dumps its tracebacks.
 - 082: the stand-in check fails on darwin-arm64 without the fixture and passes with it; it puts back the whole struct sigaction and never switches faulthandler off and on.
+- 082: the parseconfigure check fails with the flag dropped from the parseconfig wrapper alone and passes with it, so both halves of the fixture are held (the build review, L1).
 - 082: the end-to-end check passes on Linux x86_64 in the release run's own-rest shard (an engine, then the check's own inline session, and the guard still ready); no shard runs the review's cross-file order.
-- 082: the record is lost 0, grew 0, gained 0 (the two new checks are unit tests, outside the goal counts), judge changed; no fuel or bytes move.
+- 082: the record is lost 0, grew 0, gained 0 (the three new checks are unit tests, outside the goal counts), judge changed; no fuel or bytes move.
 
 **The flags**, each pasted as is:
 
 ```
 --accept "082: the judge's inline pytest sessions run with -p no:faulthandler, so they keep wasmtime's signal handlers and the runner's guard; no runner change"
---accept-judge "082: tests/conftest.py wraps pytester's inline_run and parseconfig with -p no:faulthandler; new tests/unit/test_inline_sessions.py holds it with a stand-in handler on every POSIX host and end to end on Linux; spec 080's review F1; no src change"
+--accept-judge "082: tests/conftest.py wraps pytester's inline_run and parseconfig with -p no:faulthandler; new tests/unit/test_inline_sessions.py holds both wrapped paths with a stand-in handler on every POSIX host and end to end on Linux; spec 080's review F1; no src change"
 ```
 
 If the lane's run has a growth line, it is the base's, not this change's: name it with

@@ -40,11 +40,10 @@ def _handler(sigaction, signum: int) -> int:
     return ctypes.c_void_p.from_buffer(_read(sigaction, signum)).value or 0
 
 
-@posix
-def test_an_inline_session_keeps_a_handler_installed_after_faulthandler(pytester) -> None:
-    """A handler installed after faulthandler (as wasmtime's is, at the first engine) is still the
-    installed one after an inline session. A stand-in on SIGABRT, set to SIG_IGN through
-    sigaction, plays wasmtime's part on every POSIX host; the whole struct is put back after."""
+def _handler_after(session) -> int:
+    """SIGABRT's installed handler after `session()` runs with a stand-in, `SIG_IGN` set through
+    sigaction after faulthandler (as wasmtime's is, at the first engine). The whole struct is put
+    back after, and faulthandler is switched on (then off) only if the outer session has not."""
     sigaction = _sigaction()
     enabled_here = not faulthandler.is_enabled()  # the judge's own session has it on already
     if enabled_here:
@@ -55,15 +54,41 @@ def test_an_inline_session_keeps_a_handler_installed_after_faulthandler(pytester
         ctypes.c_void_p.from_buffer(stand_in).value = SIG_IGN
         assert sigaction(STAND_IN, stand_in, None) == 0, ctypes.get_errno()
         assert _handler(sigaction, STAND_IN) == SIG_IGN
-        pytester.makepyfile(test_inner="def test_ok():\n    pass\n")
-        result = pytester.runpytest()
-        assert result.ret == 0, result.stdout.str()[-2000:]
-        after = _handler(sigaction, STAND_IN)
+        session()
+        return _handler(sigaction, STAND_IN)
     finally:
         assert sigaction(STAND_IN, saved, None) == 0, ctypes.get_errno()
         if enabled_here:
             faulthandler.disable()
+
+
+@posix
+def test_an_inline_session_keeps_a_handler_installed_after_faulthandler(pytester) -> None:
+    """A handler installed after faulthandler is still the installed one after an inline session
+    (`runpytest`, through pytester's `inline_run`). The stand-in plays wasmtime's part on every
+    POSIX host."""
+
+    def session():
+        pytester.makepyfile(test_inner="def test_ok():\n    pass\n")
+        result = pytester.runpytest()
+        assert result.ret == 0, result.stdout.str()[-2000:]
+
+    after = _handler_after(session)
     assert after == SIG_IGN, f"the inline session replaced the handler: {after:#x}"
+
+
+@posix
+def test_a_parseconfigure_keeps_a_handler_installed_after_faulthandler(pytester) -> None:
+    """The same through pytester's `parseconfig`: a config `parseconfigure` configures runs the
+    plugins' `pytest_configure`, and its unconfigure their `pytest_unconfigure` (the build
+    review, L1)."""
+
+    def session():
+        config = pytester.parseconfigure()
+        config._ensure_unconfigure()
+
+    after = _handler_after(session)
+    assert after == SIG_IGN, f"the configured session replaced the handler: {after:#x}"
 
 
 def test_an_inline_session_after_an_engine_leaves_the_guard_ready(pytester) -> None:
