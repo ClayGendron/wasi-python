@@ -222,7 +222,7 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   writable root holding a `dev` folder, would have made a file there; its facts sheet is for the
   owner to send (matplotlib refuses AI-written pull requests). contourpy runs one thread
   (`max_threads()` is 1). The binary imports one more WASI preview1 call, `fd_renumber` (qhull's
-  `freopen`), which the runner already shadows and counts. `python.wasm` grows by 1.05 MB and the
+  `freopen`), which the runner already shadows and counts. `python.wasm` grows by 1.08 MB and the
   zip by 19 members; `import matplotlib.pyplot` costs what it did. The notices gain contourpy's
   licence with matplotlib's `LICENSE_YORICK` (GIST's notice, for contourpy's `mpl2005` code;
   question 81) and qhull's `COPYING.txt`.
