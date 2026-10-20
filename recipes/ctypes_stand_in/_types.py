@@ -107,6 +107,21 @@ class _SimpleCData(_CData):
     def __repr__(self):
         return f"{type(self).__name__}({self._value_!r})"
 
+    def __bool__(self):
+        """False when the stored C bytes are all zero, as CPython's: a NULL pointer, 0 and 0.0
+        are false; -0.0 and NaN are true."""
+        value = self._value_
+        if isinstance(value, float):
+            return struct.pack("<d", value) != bytes(8)
+        return bool(value)
+
+    def __buffer__(self, flags):
+        """An instance has no memory to read (spec 033: touching memory raises), so `bytes()`,
+        `memoryview()` and `bytearray()` of it raise the OSError (038's build review, High 1)."""
+        raise OSError(_MSG)
+
+    __hash__ = None  # CPython's simple instances are unhashable
+
 
 class _NoLayout(_CData):
     """Structure, Union, array, pointer and function types. numpy reads `__numpy_dtype__` first;
@@ -219,9 +234,14 @@ def _storer(code, bits):
 
 
 def _double(value):
-    if isinstance(value, (str, bytes, bytearray)):  # float() would parse them; ctypes refuses
-        raise TypeError(f"must be real number, not {type(value).__name__}")
-    return float(value)
+    """A floating type's value from what CPython's PyFloat_AsDouble takes: `__float__`, then
+    `__index__`; a str or a buffer, which float() would parse, raises TypeError."""
+    kind = type(value)
+    if hasattr(kind, "__float__"):
+        return float(value)
+    if hasattr(kind, "__index__"):
+        return float(_index(value))
+    raise TypeError(f"must be real number, not {kind.__name__}")
 
 
 def _single(value):
@@ -237,7 +257,7 @@ def _address(value):
     reads a zero pointer as None)."""
     if value is None:
         return None
-    if isinstance(value, _CData) or not hasattr(type(value), "__index__"):
+    if not isinstance(value, int):  # CPython's PyLong_Check: an int (a bool is one), nothing else
         raise TypeError(f"cannot be converted to pointer: {type(value).__name__}")
     return _index(value) % (1 << 8 * _POINTER_SIZE) or None
 
