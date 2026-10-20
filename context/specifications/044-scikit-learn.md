@@ -695,7 +695,11 @@ question 83 approved everything as decided here.
   here, so `LICENSES/scikit-learn.txt` gains their parts (`_tree.pxd` lines 1-28; `_split.py`
   lines 1001-1015 and the plain Apache-2.0 text, wasi-libc's pinned `LICENSE-APACHE`, no new pin)
   and the judge's notice check holds them. The owner is asked to confirm both are inside question
-  83's approval; the rest of the sweep pairs as Decision 11 says (scipy-, joblib-, pandas- and
+  83's approval. **Answered 2026-10-20: approved.** The lane asked the owner through
+  AskUserQuestion, and the owner chose "Approve both" (`../decisions.md`, "Three answers for 0.1.0
+  (2026-10-20)"): HDBSCAN's code and the Kaggle-derived function ship, with pytest's MIT text
+  (L1), their notices in `LICENSES/scikit-learn.txt`. Nothing in the build changed by it. The rest
+  of the sweep pairs as Decision 11 says (scipy-, joblib-, pandas- and
   networkx-derived lines under their shipped notices; CPython 2.7.5's lines in `_testing.py`
   under CPython's; ideas and algorithms cited, not code; the landing notes carry the full list).
 - **B2 (Low): `--drop`, not `--leave-out`.** 042 is not on main. 042's own Decision 5 says that if
@@ -775,7 +779,8 @@ question 83 approved everything as decided here.
 
 **The confirmation's items** (`../reviews/044-scikit-learn-and-045-statsmodels-spec-2026-10-18.md`,
 "Confirmation (2026-10-20)": confirmed for build; B1 needs the owner's word before landing, and
-the lane asks it):
+the lane asks it; the owner approved both on 2026-10-20, `../decisions.md`, "Three answers for
+0.1.0 (2026-10-20)"):
 
 - **L1, done: pytest's licence is pinned and shipped.** `_testing.py:575-577` attributes MIT
   code to pytest but carries no permission text, so pytest's `LICENSE` is pinned as django's is:

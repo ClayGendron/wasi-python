@@ -53,8 +53,8 @@ promises.
 | numpy's and pandas' own tests in the guest (spec 050; upstream's fast selection, 11 groups) | 63,717 passing; 12 gaps, each a class of known failures listed by node id with its closer (the README 10, question 89 2); no test traps the guest |
 | CPython's own tests in the guest (spec 065; regrtest, 542 of 557 modules in five groups) | 28,109 passing on the frozen set `s-c50ca51fae5eb55b-c9dcb5b8`, the same 3,710 of the file-system group on macOS, Linux and Windows (measured on the set before); 61 gaps: 24 classes of known failures by test id, one deselection, two environment entries and 26 results recorded per host (the README 40, wasmtime's answers 6, spec 088 3, spec 002 1, spec 074 3), and eight tests where freeing or parsing deep structures still traps the guest at the runner's 512 KiB stack (spec 078 8) |
 
-The platform's facts, documented rather than patched (with twenty-one carried patches,
-below and under *scipy in the guest*, *matplotlib in the guest*, *lxml in the guest* and *regex in the guest*), are what `python.wasm -V` prints after its version:
+The platform's facts, documented rather than patched (with twenty-two carried patches,
+below and under *scipy in the guest*, *scikit-learn in the guest*, *matplotlib in the guest*, *lxml in the guest* and *regex in the guest*), are what `python.wasm -V` prints after its version:
 
 > (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl, zstd or scipy.odr; compute about 1.3 to 2.3 times slower than native)
 
