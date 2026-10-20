@@ -328,6 +328,16 @@ specification (the owner's rule for rebase-only entries, extended to the chain);
 baseline set is the `v0.1.0a7` release's, verified against its `SHA256SUMS`, with
 `tests/harness/sameness.py` as the judge of "no verdict moved" after each build.
 
+Two later decisions of the same day. **Public first, and the debt written down** (the owner,
+2026-10-20): every adapter operation of spec 102 calls wasmtime-py's public API where the
+installed release has it, and the private bindings the runner still needs are listed in
+`context/upstream/30-wasmtime-py-public-api-for-the-runner/facts.md`, held in step with the
+adapter by a rules check. **Code speaks for itself** (the owner, 2026-10-20): no code file names
+a specification, a memo, a review, a finding ID or a `context/` path; the reason stays in words,
+and a `context/` document may cite and link the code. Spec 106 clears `src/` (331 `spec NNN`
+uses on e319829, EXECUTED) and holds it with a check; spec 108, reserved, clears `tests/`
+(1,143), `scripts/` (213) and `release/` (4) the same way, as the chain's last entry.
+
 | spec | title | findings |
 |---|---|---|
 | 102 | The engine seam: one module touches wasmtime-py's private API | H2 |

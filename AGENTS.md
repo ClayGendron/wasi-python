@@ -45,6 +45,13 @@ the hard constraints, and it governs this file. Then `README.md` and
   the diff, before it lands; the review is recorded under
   `context/reviews/` and cited in the landing notes. Findings are fixed
   or answered in writing first.
+- **Code speaks for itself** (the owner, 2026-10-20). A code file
+  (`src/`, `tests/`, `scripts/`, `release/`) names no specification,
+  memo, review, finding ID or `context/` path: its comments and
+  docstrings give the reason in words, and the number lives in the
+  specification that cites the file. A `context/` document may cite and
+  link code files. `src/` is cleared by spec 106 and held by its check;
+  `tests/`, `scripts/` and `release/` by spec 108.
 - **Commit or push only when asked.** A specification may be built in
   its own worktree outside the repository, on a local `spec/NNN-<slug>`
   branch (constitution §4.14); no other branch or worktree unless
