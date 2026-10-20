@@ -870,3 +870,49 @@ entries kept). main changed no build input since `91eb2c7` (`scripts/`, `recipes
 
 These touch only `tests/`, `src/`, `README.md` and this file; no fuel row a check records moves
 by them, and the judge's full run waits for the coordinator's go (the machine is saturated).
+
+### For the lane (wave 1, its first entry; 2026-10-19)
+
+- **The full judge is CI run 39351900172** on `ace3bdc` (the branch rebased onto main `8c07ad4`,
+  pushed with lease), under the owner's wave pipeline; the local full judge on `ace3bdc` was started
+  and stopped unfinished at the coordinator's word, so no local record stands for this commit.
+- **Its result:** 24 jobs passed (both Linux rebuilds, the macOS build and judge, the three
+  `verify` jobs, "the same bytes from every host", every judge shard on Windows and Linux, and every
+  macOS shard but one). **One red job, `judge (macos-15, own-guest)`**:
+  `wasi_python v1: 289/636 pass · 2 gap · 2 blocked · 0 fail`, `ratchet vs 69004e2129: lost 0 ·
+  absent 0 · unrun 0 · unrun locally 1 · gained 8 · grew 2`. **Its only red lines are GREW lines:**
+
+  ```
+  GREW tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[plain]: bytes 41099661 -> 41099863
+  GREW tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[snapshot]: bytes 44633983 -> 44634185
+  ```
+
+  No G7 line. `gather` was skipped, since it needs every judge green, so the run has **no
+  `release-record-1`**; the nineteen shard records (`record-*`, the macOS own-guest one as
+  `record-macos-own-guest-failed-1`) are downloaded to the worktree's `build/087/ci/`.
+- **The claim list: the rows 087 changes.**
+  - **New checks (7)**, each passing in the run:
+    - `tests/checks/test_v1_3_regex.py::test_a_timeout_past_2_147_seconds_fires[plain]`, `[snapshot]`
+      (fuel recorded);
+    - `tests/checks/test_v1_3_lxml.py::test_deny_all_leaves_a_stylesheets_imports_to_its_parser[plain]`,
+      `[snapshot]` (fuel recorded);
+    - `tests/checks/test_v1_3_lxml.py::test_a_refusing_resolver_stops_a_stylesheets_imports[plain]`,
+      `[snapshot]` (fuel recorded);
+    - `tests/checks/test_v1_2_hostile_guest.py::test_what_traps_on_wasmtimes_default_engine` (no fuel).
+  - **New unit rows** (the unit suite, not ratcheted checks): `tests/unit/test_guest.py` (the clock
+    step, its resolution, a file's times at the step: 4 rows), `tests/unit/test_runner_sets.py` (10),
+    `tests/test_api.py` (4).
+  - **Retired checks:** none. **Moved or lost passes:** none.
+  - **Rows that grow:** the two `test_binary_is_a_core_wasm_module` byte rows above, +202 each:
+    regex's `_regex.c` with its clock ticks in 64 bits (carried patch 0002). No fuel row grows past
+    the tolerance; the seventeen layout moves of ±17 to ±51 instructions on the old base are inside
+    it.
+  - **Not 087's:** the run's eighth gained row, `test_v1_1_artifact_set.py::test_wheel_carries_the_artifact_set`,
+    passes in CI because CI has a wheel; it is blocked ("wheel") in any local worktree.
+- **The exact accept flags:**
+
+  ```
+  --accept "087: regex's timeout= fires past 2.147 s (carried patch 0002), checks for the README's lxml DENY_ALL sentences and 512 KiB recursion rows, and S3: an installed copy never takes a neighbouring artifact set, and a found set is checked against its SHA256SUMS and binds the bytes it checked"
+  --accept-judge "087: checks that hold the README's lxml DENY_ALL sentences on a grant of their own (an imported stylesheet's entity reads a granted file under DENY_ALL; a refusing resolver stops both loads), a check that regex's timeout=3 fires (the driver's clock steps 2 ms per read: a new clock_step_ns keyword, its stated resolution following it when not the default, two WAT probes), the README's 512 KiB recursion rows on an engine at wasmtime's defaults, and S3's checks (tests/test_api.py's installed-copy layouts, tests/unit/test_runner_sets.py with the build review's swap cases, added to the own-runner shard in tests/release_shards.toml); after the rebase onto 083, the driver's file times follow clock_step_ns, with a WAT probe and a unit row; no existing expectation edited"
+  --accept-growth "087: regex's second carried patch keeps clock ticks in 64 bits: python.wasm +202 bytes (41,099,661 -> 41,099,863) and the snapshot +202 bytes (44,633,983 -> 44,634,185); LICENSES/regex.txt one line; MANIFEST one recipe line"
+  ```
