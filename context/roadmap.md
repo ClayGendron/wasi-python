@@ -88,7 +88,7 @@ three systems, `cpython-fs` included): the judge seals its stages against host l
 driver answers file times and inode numbers itself, so the CPython groups' fuel is the same on
 the lane's machine and the release runners. 090 (the build ignores host litter, build-class)
 follows later; 089's delta review leaves one follow-up (L1: one `try`/`finally` from the seal to
-`run()`'s return). 078 landed on 2026-10-20 (main `97be88a`); its dry run's one red row, a Windows-only session check, is fixed forward by 093, which enters wave 1 first. From that night, landings go by waves (`decisions.md`, "Waves, judging on CI"): wave 1 is 093, 087, 085, 084 and 091; wave 2 is 039 and 041 (a stacked chain), with 073 and 092, the judge reading a release record. The order after 083 (the owner told, 2026-10-19, `decisions.md`):
+`run()`'s return). 078 landed on 2026-10-20 (main `97be88a`); its dry run's one red row, a Windows-only session check, is fixed forward by 093, which enters wave 1 first. From that night, landings go by waves (`decisions.md`, "Waves, judging on CI"): wave 01 (087, 085, 084 and 091) landed on 2026-10-20 at main `6006fde` (history line 82); wave 02 is 039 and 041 (a stacked chain), with 073, 092 (the judge reads a release record) and 093; then 086 alone. The order after 083 (the owner told, 2026-10-19, `decisions.md`):
 086 (wasi-sdk 34; rebase, rebuild, A/B), then 039 (tier A; re-accepted on the new base), then 043, then 041 (built stacked on 039)
 (matplotlib M2; rebase, rebuild, delta review), then 037's rework, built on 043's and 086's
 reviewed tips once they are (a stacked build). The parallel-safe specifications land in the gaps,

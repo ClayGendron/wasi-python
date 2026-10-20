@@ -1,6 +1,6 @@
 # 084 — A private root never outlives its call
 
-- **Status:** **built 2026-10-19** on `spec/084-a-private-root-never-outlives-its-call`, rebased
+- **Status:** **landed 2026-10-20 in wave 01** (087, 085, 084, 091) on main `6006fde`: accepted on `47b3695`, history line 82, 598/669 pass, 0 fail; the integration review `../reviews/wave-01-integration-2026-10-20.md` ("lands as merged at daceacf"); the dry run 39358820218 dispatched on the acceptance as main moved (see "Landed in wave 01" below). Before: **built 2026-10-19** on `spec/084-a-private-root-never-outlives-its-call`, rebased
   onto main `9d89535` (the Landing notes): the full judge has 0 fail, lost 0, grew 0, gained 6;
   awaiting its build review and the lane's Windows dry run (criterion 17). Before that: drafted 2026-10-19 on `spec/084-a-private-root-never-outlives-its-call` from main
   `a6dfc17` (`d203d78`); **revised 2026-10-19 against its pre-build review** (written in the
@@ -1042,3 +1042,8 @@ pass are 087's rows, the same as on 085's tip and red only because no set with 0
 these worktrees: `test_manifest_recipes_match_the_tree` (the lost pass) and
 `test_a_timeout_past_2_147_seconds_fires[plain]` and `[snapshot]`. Every 084 row and every runner
 unit test passes. The claim list above is unchanged.
+
+### Landed in wave 01
+
+- No row grew. Six new v1.4 checks pass. The merge with 078's guest thread put the removal inside 078's release() step and the warning flush after finish(); the integration review's N2 (a warning can be lost when a process exits while an abandoned guest thread still tears down) is within Decision 7.
+- Reviews: `../reviews/084-*` and the wave's integration review. The lane's accept flags are in the history line's reasons, each prefixed by its number.

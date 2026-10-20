@@ -1,6 +1,6 @@
 # 087 — the 0.1.0a7 review's guest follow-ups
 
-- **Status:** **built** 2026-10-19 on `2abcba0`; rebased onto main `8c07ad4` and the build review's F1 to F3 and F8 answered (*After the build review*, at the end); the full judge on the rebased commit waits for the coordinator. Built (rebased onto main `91eb2c7`; full judge 0 fail, lost 0, grew 2 bytes; dry run 39346784823, its only red lines the two growth lines; see *Landing notes*). Drafted 2026-10-19 on `spec/087-the-a7-reviews-guest-follow-ups` from main `a6dfc17`,
+- **Status:** **landed 2026-10-20 in wave 01** (087, 085, 084, 091) on main `6006fde`: accepted on `47b3695`, history line 82, 598/669 pass, 0 fail; the integration review `../reviews/wave-01-integration-2026-10-20.md` ("lands as merged at daceacf"); the dry run 39358820218 dispatched on the acceptance as main moved (see "Landed in wave 01" below). Before: **built** 2026-10-19 on `2abcba0`; rebased onto main `8c07ad4` and the build review's F1 to F3 and F8 answered (*After the build review*, at the end); the full judge on the rebased commit waits for the coordinator. Built (rebased onto main `91eb2c7`; full judge 0 fail, lost 0, grew 2 bytes; dry run 39346784823, its only red lines the two growth lines; see *Landing notes*). Drafted 2026-10-19 on `spec/087-the-a7-reviews-guest-follow-ups` from main `a6dfc17`,
   with its research; reviewed before build the same day
   (`scratchpad/087-review/087-the-a7-reviews-guest-follow-ups-spec-2026-10-19.md`, for the lane to
   copy to `../reviews/`; verdict: "ready once F1 to F5 are written in, and the spec is rebased on
@@ -956,3 +956,8 @@ merged cleanly.
 - **The claim list and the accept flags** above are unchanged. CI run 39351900172 grew only the two
   byte rows, so the growth claim (python.wasm +202 bytes, the snapshot +202 bytes) covers
   everything it grew.
+
+### Landed in wave 01
+
+- python.wasm and the snapshot grew 202 bytes each, as claimed; seven new checks pass. The set the lane rebuilt is byte-identical in binary, snapshot and zip to CI's build of 087 (run 39351900172). The integration review's N1 (a caller-passed set still compiles without holding its bytes) is a follow-up candidate.
+- Reviews: `../reviews/087-*` and the wave's integration review. The lane's accept flags are in the history line's reasons, each prefixed by its number.

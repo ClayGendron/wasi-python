@@ -1,6 +1,6 @@
 # 091 — numpy-core's layout-dependent fuel as a fact
 
-- **Status:** **rebased 2026-10-19 onto `wave/01` at `4d49f61`** (main `7d0649d`, then 087, 085
+- **Status:** **landed 2026-10-20 in wave 01** (087, 085, 084, 091) on main `6006fde`: accepted on `47b3695`, history line 82, 598/669 pass, 0 fail; the integration review `../reviews/wave-01-integration-2026-10-20.md` ("lands as merged at daceacf"); the dry run 39358820218 dispatched on the acceptance as main moved (see "Landed in wave 01" below). Before: **rebased 2026-10-19 onto `wave/01` at `4d49f61`** (main `7d0649d`, then 087, 085
   and 084), with no conflict hunk ("For the lane", "Rebased onto wave/01"). **Built 2026-10-19**
   on `spec/091-numpy-core-layout-fuel-as-a-fact`, on main `b4d7c8e` (the Landing notes). **Build
   review: "lands once F1"** (`../reviews/091-numpy-core-layout-fuel-as-a-fact-build-2026-10-19.md`);
@@ -616,3 +616,8 @@ the entry's file.
   accepted fuel falls to about 155.84 G, passes 9,519.
 - The owner should hear the residual figures above: 091 turns numpy-core's swings from G into
   tens of M, and the row will still be red, by those tens of M, at the next build-class landings.
+
+### Landed in wave 01
+
+- numpy-core's accepted fuel fell from 203,331,725,349 to 155,796,744,081, passes 9,519, as the claim list said; the fact sits in fuel_facts, never ratcheted.
+- Reviews: `../reviews/091-*` and the wave's integration review. The lane's accept flags are in the history line's reasons, each prefixed by its number.

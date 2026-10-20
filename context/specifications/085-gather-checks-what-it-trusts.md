@@ -1,6 +1,6 @@
 # 085 — `gather` checks what it trusts
 
-- **Status:** **built 2026-10-19** on `spec/085-gather-checks-what-it-trusts` over main `9d89535`
+- **Status:** **landed 2026-10-20 in wave 01** (087, 085, 084, 091) on main `6006fde`: accepted on `47b3695`, history line 82, 598/669 pass, 0 fail; the integration review `../reviews/wave-01-integration-2026-10-20.md` ("lands as merged at daceacf"); the dry run 39358820218 dispatched on the acceptance as main moved (see "Landed in wave 01" below). Before: **built 2026-10-19** on `spec/085-gather-checks-what-it-trusts` over main `9d89535`
   (the Landing notes), and **revised against its build review** the same day (in the lane's
   scratchpad, `085-review/085-gather-checks-what-it-trusts-build-2026-10-19.md`: "lands once B1
   is fixed"; B1 fixed, B2 and B3 taken, each seen failing first; *Revised against the build
@@ -820,3 +820,8 @@ tally must be its share; a passing check must carry the metrics the lane accepte
 wasmtime), and ties the
 lane's acceptance to the whole set by its own `SHA256SUMS`, not only `python.wasm`; it checks
 consistency, not authenticity.
+
+### Landed in wave 01
+
+- No goal row moved. This acceptance is the first to carry set_sums (89b14f67, the SHA256SUMS hash of the set the lane rebuilt at 650834a), so the dry run's G7 compares the whole set with CI's build.
+- Reviews: `../reviews/085-*` and the wave's integration review. The lane's accept flags are in the history line's reasons, each prefixed by its number.
