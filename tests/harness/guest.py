@@ -536,9 +536,11 @@ def host_paths_in(
 
 def host_roots_always() -> tuple[Path, ...]:
     """The roots every measured run is checked against: the checkout, and the system's temp folder
-    unless it is literally `/tmp`, a path guests are given as their own."""
+    unless it is literally `/tmp`, a path guests are given as their own; and the judge's guest
+    folders, wherever they are."""
     temp = tempfile.gettempdir()
-    return (paths.REPO,) if temp == "/tmp" else (paths.REPO, Path(temp))
+    roots = (paths.REPO,) if temp == "/tmp" else (paths.REPO, Path(temp))
+    return roots if paths.GUEST_TMP == paths.HARNESS_TMP else (*roots, paths.GUEST_TMP)
 
 
 def run(

@@ -77,24 +77,38 @@ with open(sys.argv[2], "w", encoding="utf-8", errors="surrogateescape") as f:
 litter_in() { # the litter paths among the NUL-separated paths on stdin, one per line, into $1
   py -c "$LITTER_IN" "$HERE/scripts" "$1"
 }
+# A desktop writer rewrites or removes litter at any moment (spec 097). So each add leaves litter
+# out by pathspec (scripts/litter.py's git_excludes), and git never opens a litter file; and the
+# unstage, by has_litter, removes a staged one with update-index --force-remove, which compares
+# nothing with the work tree, so a rewrite after the add cannot make it refuse.
+EXCLUDES='
+import sys
+sys.path.insert(0, sys.argv[1])
+from litter import git_excludes
+sys.stdout.buffer.write(b"\0".join(s.encode() for s in [".", *git_excludes()]))
+'
+add_all() { # stage the tree, litter left out
+  g add -A --force --pathspec-from-file="$WORK/add.pathspec" --pathspec-file-nul
+}
 unstage_litter() { # every staged litter path leaves the index; the files stay where they are
   g ls-files --cached -z | litter_in "$WORK/litter.txt"
   while IFS= read -r p; do
-    g rm -q --cached -- "$p"
+    g update-index --force-remove -- "$p"
   done < "$WORK/litter.txt"
 }
 tar -tzf "$TARBALL" | tr '\n' '\0' | litter_in "$WORK/tarball-litter.txt"
 [ ! -s "$WORK/tarball-litter.txt" ] || die "the tarball itself holds a litter name: $(head -n 1 "$WORK/tarball-litter.txt")"
 
+py -c "$EXCLUDES" "$HERE/scripts" > "$WORK/add.pathspec"
 g init -q
-g add -A --force
+add_all
 unstage_litter
 g -c user.name=wasi-python -c user.email=build@wasi-python.invalid commit -q -m pristine
 
 py "$HERE/scripts/openblas_make_void.py" "$TREE" > "$OUT/make_void.txt"
 cat "$OUT/make_void.txt"
 said=$(sed -n 's/^files changed: //p' "$OUT/make_void.txt")
-g add -A --force
+add_all
 unstage_litter
 counted=$(g diff --cached --name-only | wc -l | tr -d ' ')
 g reset -q

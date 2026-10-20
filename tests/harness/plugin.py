@@ -211,13 +211,14 @@ def pytest_configure(config: pytest.Config) -> None:
         if refusal:
             pytest.exit(refusal, returncode=4)  # before collection
     config.stash[WORKERS] = len(config.option.tx) if distributing(config) else 0
-    if not is_worker(config) and (left := litter.sealed_leftovers(paths.HARNESS_TMP)):
-        sys.stderr.write(  # what a killed judge left sealed, and the recovery
-            f"host litter: {len(left)} sealed folder(s) under {paths.HARNESS_TMP} (first:"
-            f" {left[0]}): a judge running in this checkout now, or one killed earlier; this run"
-            " never reads them; once no judge runs here, `chmod -R u+w build/harness` then"
-            " `rm -rf` clears them\n"
-        )
+    for scratch in litter.scratch_roots() if not is_worker(config) else []:
+        if left := litter.sealed_leftovers(scratch):
+            sys.stderr.write(  # what a killed judge left sealed, and the recovery
+                f"host litter: {len(left)} sealed folder(s) under {scratch} (first:"
+                f" {left[0]}): a judge running in this checkout now, or one killed earlier; this"
+                f" run never reads them; once no judge runs here, `chmod -R u+w {scratch}` then"
+                " `rm -rf` clears them\n"
+            )
     if distributing(config):
         config.pluginmanager.register(Controller(config), "wasi_python.controller")
 

@@ -12,8 +12,11 @@ import hashlib
 import io
 import os
 import re
+import stat
 import subprocess
+import sys
 import tarfile
+import tempfile
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -30,6 +33,57 @@ ACCEPTED = PROGRESS / "accepted.json"
 HISTORY = PROGRESS / "history.jsonl"
 LATEST = BUILD / "progress" / "latest.json"
 HARNESS_TMP = BUILD / "harness"
+
+
+def _guest_tmp_for(repo: Path, temp: str, platform: str) -> Path:
+    """Where the judge's guest folders go (spec 097, Decision 1). On darwin, outside the home
+    folder, where macOS's folder-size cache writes `.DS_Store` into every folder it sizes: the
+    per-user temporary folder by its real path (no link anywhere: the runner refuses a link in a
+    folder the user can write), in a folder keyed by the checkout, so two worktrees never share
+    one, and never named `wasi-python-…` (the runner's own folders there). Elsewhere, the
+    checkout's `build/harness`, as before."""
+    if platform != "darwin":
+        return repo / "build" / "harness"
+    key = hashlib.sha256(str(repo).encode()).hexdigest()[:12]
+    return Path(os.path.realpath(temp)) / f"judge-wasi_python-{key}"
+
+
+# Every folder the judge's driver grants a guest unsealed lives under GUEST_TMP: the
+# `guest_workdir` fixture's folder, and so each run's root, io, stdlib folder and matplotlib's
+# data. The sealed stages, the zips and every unpacked tarball stay under HARNESS_TMP (§4.8).
+GUEST_TMP = (
+    HARNESS_TMP
+    if sys.platform != "darwin"
+    else _guest_tmp_for(REPO, tempfile.gettempdir(), sys.platform)
+)
+
+
+def _make_guest_tmp(path: Path) -> Path:
+    """Make `path` (mode 0700) if it is not there, then use it only if it is a real folder of
+    this user's that no one else can enter; anything else is refused by name (spec 097)."""
+    try:
+        path.mkdir(mode=0o700)
+    except FileExistsError:
+        pass
+    st = os.lstat(path)
+    if not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid() or st.st_mode & 0o077:
+        raise AssertionError(
+            f"{path}: the judge's guest folder must be a real folder of this user's with no"
+            f" group or other bits (mode {stat.filemode(st.st_mode)}, owner {st.st_uid}); remove"
+            " it, or set TMPDIR to another folder outside the home folder (spec 097)"
+        )
+    return path
+
+
+def guest_tmp() -> Path:
+    """`GUEST_TMP`, made if needed: checked on darwin; elsewhere it is HARNESS_TMP, made as
+    before."""
+    if GUEST_TMP == HARNESS_TMP:
+        HARNESS_TMP.mkdir(parents=True, exist_ok=True)
+        return HARNESS_TMP
+    return _make_guest_tmp(GUEST_TMP)
+
+
 REFERENCE_BUILD = BUILD / "brett-3.14.7"
 EMBEDDERS = CONTEXT / "embedders.txt"
 KNOWN_GAPS = REPO / "tests" / "known_gaps.toml"

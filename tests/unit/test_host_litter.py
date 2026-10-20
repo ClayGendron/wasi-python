@@ -173,9 +173,16 @@ def test_the_guest_folders_leave_the_home_folder_on_darwin(tmp_path: Path) -> No
     one = paths._guest_tmp_for(Path("/x/one"), str(tmp_path), "darwin")
     two = paths._guest_tmp_for(Path("/x/two"), str(tmp_path), "darwin")
     assert one != two and one.parent == two.parent == Path(os.path.realpath(tmp_path))
-    assert one.name.startswith("judge-wasi_python-") and len(one.name) == len("judge-wasi_python-") + 12
-    assert paths._guest_tmp_for(Path("/x/one"), str(tmp_path), "linux") == Path("/x/one/build/harness")
-    assert paths._guest_tmp_for(Path("/x/one"), str(tmp_path), "win32") == Path("/x/one/build/harness")
+    assert (
+        one.name.startswith("judge-wasi_python-")
+        and len(one.name) == len("judge-wasi_python-") + 12
+    )
+    assert paths._guest_tmp_for(Path("/x/one"), str(tmp_path), "linux") == Path(
+        "/x/one/build/harness"
+    )
+    assert paths._guest_tmp_for(Path("/x/one"), str(tmp_path), "win32") == Path(
+        "/x/one/build/harness"
+    )
     if sys.platform == "darwin":
         assert paths.GUEST_TMP != paths.HARNESS_TMP
     else:

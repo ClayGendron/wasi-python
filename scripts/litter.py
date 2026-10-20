@@ -28,3 +28,12 @@ def is_litter(name: str) -> bool:
 def has_litter(rel: str) -> bool:
     """True when any part of a `/`-separated path is litter (a file inside a litter folder too)."""
     return any(is_litter(part) for part in rel.replace("\\", "/").split("/"))
+
+
+def git_excludes() -> list[str]:
+    """The pathspecs that keep every path `has_litter` names out of a `git add` (spec 097): each
+    name, and anything inside it, at any depth, and the same for AppleDouble `._*`. git then never
+    opens a litter file, which a desktop writer may rewrite or remove mid-add. No name in
+    OS_LITTER holds a glob character, so each matches only itself."""
+    globs = [*sorted(OS_LITTER), "._*"]
+    return [f":(exclude,glob)**/{g}{tail}" for g in globs for tail in ("", "/**")]

@@ -89,6 +89,13 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   classes by node id, each a gap with its closer. `tests/upstream/
   package_drive.py` drives them; numpy's and pandas' driver and verdict are unchanged.
   `tests/upstream/packages.toml`: the six are `suite`s; scipy's suite now closes with spec 095.
+- **The OpenBLAS patch script no longer fails when macOS rewrites a `.DS_Store` in the unpacked
+  tree** (spec 097). `scripts/make_openblas_void_patch.sh` leaves host litter out of its `git add`
+  by pathspec, so git never opens a litter file, and removes a staged one with `git update-index
+  --force-remove`, which a rewrite cannot refuse; the carried patches are unchanged. **The judge's
+  guest folders live outside the home folder on macOS**, in the per-user temporary folder, where
+  macOS's folder-size cache does not write, so a long run's writable root is no longer voided by
+  host litter; the sealed stages stay under `build/harness`, and Linux and Windows are unchanged.
 
 - **A garbage cycle holding a kiwisolver object is collected, not a trap** (spec 096; spec 066's
   survey). kiwisolver's `Variable`, `Term`, `Expression` and `Constraint` declared `tp_clear` as

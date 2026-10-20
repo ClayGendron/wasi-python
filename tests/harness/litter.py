@@ -15,7 +15,8 @@ hides a file from the guest:
 A stage's writer refuses a member with a litter name (`refuse`), so the cleanup in `seal` can
 never delete a real input. A judge killed before its teardown leaves sealed stages, which
 `rm -rf` cannot empty; they are never read again (every stage has a fresh name), and
-`chmod -R u+w build/harness` makes them removable.
+`chmod -R u+w` on the scratch roots (`scratch_roots`: build/harness, and on macOS the guest
+folders outside the home folder) makes them removable.
 """
 
 from __future__ import annotations
@@ -160,10 +161,16 @@ def remove(root: Path) -> bool:
     sys.stderr.write(
         f"host litter: could not remove {root} after {REMOVE_TRIES} tries"
         + (f"; folders still sealed: {stuck[:3]}" if stuck else " (left unsealed)")
-        + "; it is never read again; `chmod -R u+w build/harness` then `rm -rf` clears it"
+        + f"; it is never read again; `chmod -R u+w {root}` then `rm -rf` clears it"
         " (spec 089)\n"
     )
     return False
+
+
+def scratch_roots() -> list[Path]:
+    """The folders the judge stages and runs guests in: build/harness, and on macOS the guest
+    folders outside the home folder."""
+    return list(dict.fromkeys((paths.HARNESS_TMP, paths.GUEST_TMP)))
 
 
 def sealed_leftovers(root: Path) -> list[str]:
@@ -212,5 +219,5 @@ def _message(problems: list[str]) -> str:
         " nothing: " + "; ".join(shown) + " (litter such as .DS_Store comes from macOS's"
         " folder-size cache: System Settings' storage scan, Finder; spec 089. A run it voids is"
         " run again once the writer is stopped; a stage a killed judge left sealed is cleared by"
-        " `chmod -R u+w build/harness`)"
+        f" `chmod -R u+w {' '.join(map(str, scratch_roots()))}`)"
     )
