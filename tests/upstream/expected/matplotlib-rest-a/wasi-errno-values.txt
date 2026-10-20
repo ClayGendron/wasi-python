@@ -1,0 +1,1 @@
+lib/matplotlib/tests/test_animation.py::test_movie_writer_invalid_path

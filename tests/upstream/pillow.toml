@@ -1,0 +1,69 @@
+# Pillow's own tests in the guest (spec 066). A judge file: every edit is a judge change.
+# The keys are matplotlib.toml's. Tests/oss-fuzz/test_fuzzers.py runs (the review, H2): it imports
+# its sibling fuzzers, so Tests/oss-fuzz is on extra_sys_path.
+
+package = "pillow"
+driver = "package"
+grant = "/upstream-pillow"
+budget = 650_000_000_000
+stage_folders = ["Tests"]
+extra_sys_path = [".", "Tests/oss-fuzz"]
+cwd = "tree"  # Pillow opens Tests/images/... by relative paths; none of its failures is the folder's
+markers = []
+
+[groups.pillow]
+paths = ["Tests"]
+fuel = 650_000_000_000  # 1.5 times 430.9 G measured
+
+[[not_selected]]
+files = ["Tests/test_main.py"]
+reason = "every case runs python -m PIL in a subprocess (no processes on WASI)"
+closes_with = "README.md"
+
+[[expected]]
+id = "pillow-zlib-only"
+group = "pillow"
+outcome = "failed"
+match = '(en|de)coder jpeg not available'
+reason = "Pillow is built with zlib only (spec 023): a test that opens JPEG without its own feature guard"
+closes_with = "context/specifications/023-matplotlib-first-milestone.md"
+
+[[expected]]
+id = "no-mmap"
+group = "pillow"
+outcome = "failed"
+match = 'mmap is unavailable'
+reason = "no mmap: the stand-in raises OSError (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap-silent"
+group = "pillow"
+outcome = "failed"
+match = '^assert None is not None$|^assert 0$'
+reason = "Pillow falls back from mmap silently, so a test that checks for a mapped buffer or readonly == 1 fails on the fallback (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "builtin-no-file"
+group = "pillow"
+outcome = "failed"
+match = "has no attribute '__file__'"
+reason = "PIL._imaging is a builtin module, without __file__ (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "wasm32-memory"
+group = "pillow"
+outcome = "failed"
+match = 'Out of memory|MemoryError'
+reason = "python.wasm declares no maximum memory, so wasm32's 4 GiB bounds it; these decompression samples ask for more (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "open-empty-path"
+group = "pillow"
+outcome = "failed"
+match = "Is a directory: ''"
+reason = "in the guest open('') answers IsADirectoryError (EISDIR), where the test expects FileNotFoundError (README)"
+closes_with = "README.md"

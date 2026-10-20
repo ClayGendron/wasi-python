@@ -1,0 +1,95 @@
+# lxml's own tests in the guest (spec 066). A judge file: every edit is a judge change.
+# The keys are matplotlib.toml's, and:
+# keep_from_test_suite  run only the TestCase classes each module's test_suite() adds; the driver
+#                       deselects the others with D lines, and the verdict checks both ways
+# doctest_files         the doctest files test_suite() names, each run by the stdlib's runner with
+#                       lxml's own flags (8 is doctest.ELLIPSIS, make_doctest's; 0 for DocFileSuite)
+# doctest_preimport     imported first: it registers lxml's doctest option flags
+# docstring_modules     the modules whose docstrings test_suite() runs through DocTestSuite
+# cwd_files             tarball members copied into /tmp/work, which lxml's tests read by relative
+#                       paths (two tests write test.xml in the working folder: the re-survey)
+
+package = "lxml"
+driver = "package"
+grant = "/upstream-lxml"
+budget = 160_000_000_000
+stage_folders = ["src/lxml/tests", "src/lxml/html/tests"]
+cwd = "/tmp/work"
+cwd_files = ["doc/test.xml", "samples/simple.xml", "samples/simple-ns.xml"]
+markers = []
+keep_from_test_suite = true
+doctest_preimport = ["lxml.doctestcompare"]
+docstring_modules = [
+    "lxml.etree",
+    "lxml.objectify",
+    "lxml.html",
+    "lxml.html.diff",
+    "lxml.tests.selftest",
+    "lxml.tests.selftest2",
+    "lxml.tests.test_xpathevaluator",
+]
+# lxml.cssselect's docstrings (test_css.py's test_suite()): cssselect is not shipped (README)
+docstring_not_selected = ["lxml.cssselect"]
+doctest_files = [
+    ["doc/FAQ.txt", 8],
+    ["doc/api.txt", 8],
+    ["doc/element_classes.txt", 8],
+    ["doc/extensions.txt", 8],
+    ["doc/objectify.txt", 8],
+    ["doc/parsing.txt", 8],
+    ["doc/resolvers.txt", 8],
+    ["doc/sax.txt", 8],
+    ["doc/tutorial.txt", 8],
+    ["doc/validation.txt", 8],
+    ["doc/xpathxslt.txt", 8],
+    ["src/lxml/html/tests/test_basic.txt", 0],
+    ["src/lxml/html/tests/test_diff.txt", 0],
+    ["src/lxml/html/tests/test_formfill.txt", 0],
+    ["src/lxml/html/tests/test_forms.txt", 0],
+    ["src/lxml/html/tests/test_rewritelinks.txt", 0],
+    ["src/lxml/html/tests/test_xhtml.txt", 0],
+]
+
+[package_paths]
+"lxml" = "src/lxml"
+"lxml.html" = "src/lxml/html"
+
+[groups.lxml]
+paths = ["src/lxml/tests", "src/lxml/html/tests"]
+fuel = 160_000_000_000  # 1.5 times 104.5 G measured
+
+[[not_selected]]
+files = ["src/lxml/tests/test_threading.py"]
+reason = "every test starts threads (no threads on WASI)"
+closes_with = "README.md"
+
+[[not_selected]]
+files = ["src/lxml/tests/test_isoschematron.py"]
+reason = "lxml.isoschematron is the product's stand-in (spec 046, Decision 8); its docstring doctests are left out with it"
+closes_with = "context/specifications/046-lxml.md"
+
+[[not_selected]]
+files = ["src/lxml/html/tests/test_feedparser_data.py"]
+reason = "its test_suite() builds cases only when lxml.html.clean imports; lxml_html_clean is not shipped, so lxml's own runner runs none"
+closes_with = "README.md"
+
+[[not_selected]]
+files = ["src/lxml/html/tests/test_elementsoup.py"]
+reason = "it imports from ...tests.common_imports, three levels up, beyond the tests package pytest's importlib mode makes of an unstaged lxml.html (the survey)"
+closes_with = "context/roadmap.md"
+
+[[expected]]
+id = "include-dir-in-zip"
+group = "lxml"
+outcome = "failed"
+match = "Not a directory: '/usr/local/lib/python315.zip/lxml/include"
+reason = "lxml.get_include() names folders inside the zip, which are not folders (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "isoschematron-stand-in"
+group = "lxml"
+outcome = "failed"
+match = 'doctest failed'
+reason = "validation.txt's ISO-Schematron part meets the product's stand-in (spec 046, Decision 8)"
+closes_with = "context/specifications/046-lxml.md"

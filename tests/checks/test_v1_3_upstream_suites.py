@@ -1,4 +1,5 @@
-"""v1.3: numpy's, pandas' and CPython's own tests pass inside the guest (specs 050 and 065).
+"""v1.3: numpy's, pandas', CPython's and the compiled packages' own tests pass inside the guest
+(specs 050, 065 and 066).
 
 One check per group runs upstream's own selection in the snapshot binary, from the artifact's own
 pinned sources, and passes only when every failure falls in a known class. Each class, each test
@@ -13,7 +14,7 @@ from __future__ import annotations
 
 import pytest
 
-from harness import needs, plugin, regrtest, scan, upstream
+from harness import needs, packages, plugin, regrtest, scan, upstream
 
 pytestmark = pytest.mark.goal("v1.3")
 
@@ -29,6 +30,14 @@ HOSTS = [(c.package, h) for c in CONFIGS.values() for h in c.host_dependent]
 @pytest.fixture(scope="session")
 def upstream_session(guest_workdir):
     s = upstream.Session(guest_workdir, CONFIGS)
+    yield s
+    s.close()
+
+
+@pytest.fixture(scope="session")
+def package_session(guest_workdir):
+    """Spec 066's families: a stage and a grant each, staged on first use."""
+    s = packages.Session(guest_workdir, CONFIGS)
     yield s
     s.close()
 
@@ -63,20 +72,26 @@ def _need(package: str) -> None:
     )
 
 
-def _session(package, upstream_session, regrtest_session):
+def _session(package, upstream_session, regrtest_session, package_session=None):
+    if CONFIGS[package].driver == "package":
+        return package_session
     return regrtest_session if CONFIGS[package].runner == "regrtest" else upstream_session
 
 
 @pytest.mark.slow
 @pytest.mark.parametrize(("package", "group"), GROUPS, ids=[g for _, g in GROUPS])
-def test_upstream_suite(upstream_session, regrtest_session, metric, fact, package, group) -> None:
+def test_upstream_suite(
+    upstream_session, regrtest_session, package_session, metric, fact, package, group
+) -> None:
     """Every failure or error falls in a class of the group; nothing traps, runs out of fuel,
     fails to collect or load, or ends abnormally; no product module comes from the grant. numpy's
     and pandas' hypothesis profile is derandomized; CPython's modules are exactly the plan's, and
     each environment change is one an entry names. A fuel fact's cases ran exactly once, in their
     own session, within its cap."""
     _need(package)
-    run = _session(package, upstream_session, regrtest_session).group(package, group)
+    run = _session(package, upstream_session, regrtest_session, package_session).group(
+        package, group
+    )
     fact("counts", run.outcome.counts)
     fact("passed_digest", run.outcome.passed_digest)
     fact("left_out", run.left_out)
@@ -85,6 +100,9 @@ def test_upstream_suite(upstream_session, regrtest_session, metric, fact, packag
         fact("env_altered", run.outcome.env_altered)
         if run.outcome.findings:  # every finding in the record, not only the message's first five
             fact("findings", run.outcome.findings)
+    elif CONFIGS[package].driver == "package":
+        if run.collected is not None:  # a split group: its file's collected count (spec 066)
+            fact("collected", run.collected)
     elif run.fuel_facts:  # recorded, never ratcheted (spec 091)
         fact("fuel_facts", run.fuel_facts)
     metric("fuel", run.fuel)
@@ -96,11 +114,14 @@ def test_upstream_suite(upstream_session, regrtest_session, metric, fact, packag
 @pytest.mark.parametrize(
     ("package", "klass"), CLASSES, ids=[f"{k.group}-{k.id}" for _, k in CLASSES]
 )
-def test_upstream_class(upstream_session, regrtest_session, package, klass) -> None:
+def test_upstream_class(
+    upstream_session, regrtest_session, package_session, package, klass
+) -> None:
     """The class's members are exactly its list, by node id: one finding each while the class has
     members, and `+id`/`-id` for each test admitted or released without an edit to the list."""
     _need(package)
-    run = _session(package, upstream_session, regrtest_session).group(package, klass.group)
+    session = _session(package, upstream_session, regrtest_session, package_session)
+    run = session.group(package, klass.group)
     findings = upstream.class_findings(
         run.outcome.members[klass.id], upstream.read_list(upstream.list_path(klass))
     )
@@ -113,7 +134,9 @@ if TRAPS:  # an empty parametrization would be a skip that names no need, so a f
 
     @pytest.mark.slow
     @pytest.mark.parametrize(("package", "trap"), TRAPS, ids=[t for _, t in TRAPS])
-    def test_upstream_trap(upstream_session, regrtest_session, metric, fact, package, trap) -> None:
+    def test_upstream_trap(
+        upstream_session, regrtest_session, package_session, metric, fact, package, trap
+    ) -> None:
         """The entry, run alone in its own session, completes without a trap. A CPython entry,
         while open: the named trap, or no trap, on every host (spec 065, Decision 1)."""
         _need(package)
@@ -124,7 +147,8 @@ if TRAPS:  # an empty parametrization would be a skip that names no need, so a f
             fact("counts", verdict.counts)
             assert not verdict.findings, scan.report(verdict.findings, f"trap {trap}")
             return
-        run = upstream_session.trap(package, trap)
+        session = package_session if CONFIGS[package].driver == "package" else upstream_session
+        run = session.trap(package, trap)
         metric("fuel", run.fuel)
         assert not run.findings, scan.report(run.findings, f"trap {trap}")
 
@@ -211,4 +235,6 @@ def test_upstream_files_are_well_formed() -> None:
     errors = upstream.rule_errors(
         CONFIGS, set(gaps), members=members, sources=sources, systems_of=shards.group_systems()
     )
+    errors += packages.total_errors(CONFIGS)
+    errors += packages.lxml_errors(CONFIGS, members.get("lxml"))
     assert not errors, scan.report(errors, "upstream files")

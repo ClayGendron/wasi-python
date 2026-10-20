@@ -1,0 +1,5 @@
+lib/matplotlib/tests/test_agg.py::test_jpeg_dpi
+lib/matplotlib/tests/test_animation.py::test_grabframe[html-jpeg-movie.html]
+lib/matplotlib/tests/test_animation.py::test_grabframe[html-jpeg-output13]
+lib/matplotlib/tests/test_animation.py::test_save_animation_smoketest[anim0-html-jpeg-movie.html]
+lib/matplotlib/tests/test_animation.py::test_save_animation_smoketest[anim0-html-jpeg-output13]

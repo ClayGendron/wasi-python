@@ -1,0 +1,22 @@
+# regex's own tests in the guest (spec 066). A judge file: every edit is a judge change.
+# The keys are matplotlib.toml's.
+
+package = "regex"
+driver = "package"
+grant = "/upstream-regex"
+budget = 24_000_000_000
+stage_folders = ["regex/tests"]
+cwd = "/tmp/work"
+markers = []
+
+[package_paths]
+"regex" = "regex"
+
+[groups.regex]
+paths = ["regex/tests"]
+fuel = 24_000_000_000  # 1.5 times 16.0 G measured
+
+[[not_selected]]
+files = ["regex/tests/test_regex.py::test_main"]
+reason = "regex's own unittest.main() entry point, which pytest collects by its name; inside pytest it parses the driver's argv and exits 1; its tests run as collected"
+closes_with = "README.md"

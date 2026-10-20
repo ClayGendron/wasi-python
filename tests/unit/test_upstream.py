@@ -585,8 +585,9 @@ def test_paths_that_are_not_tarball_members_fail_the_rules(work) -> None:
 
 
 def test_the_judges_own_upstream_files_load() -> None:
-    assert set(CONFIGS) == {"numpy", "pandas", "python"}  # python: spec 065
-    assert sum(len(c.groups) for n, c in CONFIGS.items() if n != "python") == 11
+    # python: spec 065; the six compiled packages: spec 066
+    assert set(CONFIGS) == {"numpy", "pandas", "python", *upstream.PACKAGE_SUITES}
+    assert sum(len(CONFIGS[n].groups) for n in ("numpy", "pandas")) == 11
 
 
 def test_digests_of_passing_ids_are_twelve_hex() -> None:

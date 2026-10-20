@@ -391,3 +391,113 @@ check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-f
 match = "1 finding(s), digest d884ec604262"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp30k2i62_')"
 closes_with = "README.md"
+
+# Spec 066: the compiled packages' own tests, one gap per class with members.
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-mathtext-no-processes]"
+match = "2 finding(s), digest d47b2d12794f"
+reason = "no processes: subprocess is unavailable on WASI"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-render-2a-no-threads]"
+match = "2 finding(s), digest 209674db2cbe"
+reason = "no threads: starting one raises RuntimeError (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-render-2b-pillow-zlib-only]"
+match = "3 finding(s), digest 9fc14039adcb"
+reason = "Pillow is built with zlib only (spec 023): a test that writes or reads JPEG without its own feature guard"
+closes_with = "context/specifications/023-matplotlib-first-milestone.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-rest-a-pillow-zlib-only]"
+match = "5 finding(s), digest 0504956f6a79"
+reason = "Pillow is built with zlib only (spec 023): a test that writes or reads JPEG without its own feature guard"
+closes_with = "context/specifications/023-matplotlib-first-milestone.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-rest-a-no-processes]"
+match = "2 finding(s), digest f61cc4b5052a"
+reason = "no processes: subprocess is unavailable on WASI; test_movie_writer_registry needs an executable on PATH"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-rest-a-wasi-errno-values]"
+match = "1 finding(s), digest 7929d44d7a3d"
+reason = "a WASI errno is WASI's number: a missing path is [Errno 44], where test_movie_writer_invalid_path expects Linux's [Errno 2] off emscripten"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-rest-a-stage-layout]"
+match = "1 finding(s), digest 6d8e3468068c"
+reason = "the judge stages matplotlib's tests outside the product's package folder, so a warning is attributed to the test file under the stage's lib/matplotlib (spec 097, reserved)"
+closes_with = "context/roadmap.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-rest-b1-no-processes]"
+match = "12 finding(s), digest f80d3722a2b8"
+reason = "no processes: subprocess is unavailable on WASI"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-rest-b1-no-fp-exceptions]"
+match = "2 finding(s), digest a027cd089aff"
+reason = "wasm32 has no floating-point exception flags: numpy.linalg raises no LinAlgError for a singular matrix (README; spec 099, reserved, fixes it)"
+closes_with = "context/roadmap.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-rest-b2-no-processes]"
+match = "1 finding(s), digest 4b96703f619d"
+reason = "no processes: subprocess is unavailable on WASI"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-pillow-zlib-only]"
+match = "51 finding(s), digest eafbc5871932"
+reason = "Pillow is built with zlib only (spec 023): a test that opens JPEG without its own feature guard"
+closes_with = "context/specifications/023-matplotlib-first-milestone.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-no-mmap]"
+match = "17 finding(s), digest c44f18415018"
+reason = "no mmap: the stand-in raises OSError (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-no-mmap-silent]"
+match = "5 finding(s), digest 6f800b80fead"
+reason = "Pillow falls back from mmap silently, so a test that checks for a mapped buffer or readonly == 1 fails on the fallback (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-builtin-no-file]"
+match = "2 finding(s), digest adc98700065d"
+reason = "PIL._imaging is a builtin module, without __file__ (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-wasm32-memory]"
+match = "2 finding(s), digest b54b35d63994"
+reason = "python.wasm declares no maximum memory, so wasm32's 4 GiB bounds it; these decompression samples ask for more (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-open-empty-path]"
+match = "1 finding(s), digest eab8b2f6adb5"
+reason = "in the guest open('') answers IsADirectoryError (EISDIR), where the test expects FileNotFoundError (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[lxml-include-dir-in-zip]"
+match = "1 finding(s), digest a036d83a51b5"
+reason = "lxml.get_include() names folders inside the zip, which are not folders (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[lxml-isoschematron-stand-in]"
+match = "1 finding(s), digest 2118cbfdc9ba"
+reason = "validation.txt's ISO-Schematron part meets the product's stand-in (spec 046, Decision 8)"
+closes_with = "context/specifications/046-lxml.md"

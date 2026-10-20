@@ -1,0 +1,1 @@
+Tests/test_image.py::TestImage::test_empty_path

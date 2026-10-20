@@ -413,7 +413,7 @@ numpy and pandas and spec 065 for CPython:
     | group | paths (under the tree) | fuel (re-survey, 043's set with 096) | cap (the rule) |
     |---|---|---|---|
     | `matplotlib-axes` | `lib/matplotlib/tests/test_axes.py` (one file, past the bound: named) | 699.3 G | 1.1×10¹² |
-    | `matplotlib-mathtext` | `test_mathtext`, `test_text`, `test_textpath`, `test_font_manager`, `test_ft2font`, `test_afm`, `test_type1font`, `test_dviread`, `test_usetex`, `test_texmanager` | voided twice by host litter; 296.2 G on wave 05's set | 4.5×10¹¹, provisional: the build measures it |
+    | `matplotlib-mathtext` | `test_mathtext`, `test_text`, `test_textpath`, `test_font_manager`, `test_ft2font`, `test_afm`, `test_type1font`, `test_dviread`, `test_usetex`, `test_texmanager` | 296.7 G (the build; the re-survey's two runs were voided by host litter) | 4.5×10¹¹ |
     | `matplotlib-render-1` | `test_arrow_patches` … `test_colorbar` (8 files) | 231.1 G | 3.5×10¹¹ |
     | `matplotlib-render-2a` | `test_constrainedlayout`, `test_contour`, `test_figure` | 304.5 G | 4.6×10¹¹ |
     | `matplotlib-render-2b` | `test_image`, `test_legend`, `test_lines`, `test_patches` | 337.1 G | 5.1×10¹¹ |
@@ -423,17 +423,36 @@ numpy and pandas and spec 065 for CPython:
     | `matplotlib-rest-b2` | `test_rcparams` … `test_widgets` (15) | 384.5 G | 5.8×10¹¹ |
     | `mpl-axes_grid1`, `mpl-axisartist`, `mpl-mplot3d` | one toolkit's `tests` each | 72.0, 35.7, 336.8 G | 1.1×10¹¹, 5.4×10¹⁰, 5.1×10¹¹ |
     | `contourpy-1` | `tests/test_{array,build_config,chunk,config,constructor,convert,dechunk,enum}.py` | 217.4 G | 3.3×10¹¹ |
-    | `contourpy-filled-1` … `-9` | `tests/test_filled.py`, split by keyword (below) | 2,387.6 G in all, measured; each about 197 to 290 G (INFERRED) | 1.5 times each group's fuel, measured by the build |
-    | `contourpy-lines-1` … `-8` | `tests/test_lines.py`, split by keyword (below) | 1,459.5 G in all, measured; each about 129 to 158 G, the last 470 G (INFERRED) | the same |
+    | `contourpy-filled-1` | `-k` group 1 of the file | 242.2 G | 370 G |
+    | `contourpy-filled-2` | `-k` group 2 of the file | 262.9 G | 400 G |
+    | `contourpy-filled-3` | `-k` group 3 of the file | 244.7 G | 370 G |
+    | `contourpy-filled-4` | `-k` group 4 of the file | 242.3 G | 370 G |
+    | `contourpy-filled-5` | `-k` group 5 of the file | 263.0 G | 400 G |
+    | `contourpy-filled-6` | `-k` group 6 of the file | 244.7 G | 370 G |
+    | `contourpy-filled-7` | `-k` group 7 of the file | 439.8 G | 660 G |
+    | `contourpy-filled-8` | `-k` group 8 of the file | 242.6 G | 370 G |
+    | `contourpy-filled-9` | `-k` group 9 of the file | 322.1 G | 490 G |
+    | `contourpy-lines-1` | `-k` group 1 of the file | 131.9 G | 200 G |
+    | `contourpy-lines-2` | `-k` group 2 of the file | 145.3 G | 220 G |
+    | `contourpy-lines-3` | `-k` group 3 of the file | 136.8 G | 210 G |
+    | `contourpy-lines-4` | `-k` group 4 of the file | 132.0 G | 200 G |
+    | `contourpy-lines-5` | `-k` group 5 of the file | 145.3 G | 220 G |
+    | `contourpy-lines-6` | `-k` group 6 of the file | 136.8 G | 210 G |
+    | `contourpy-lines-7` | `-k` group 7 of the file | 255.6 G | 390 G |
+    | `contourpy-lines-8` | `-k` group 8 of the file | 470.3 G | 710 G |
     | `contourpy-rest` | `tests/test_{internal,minimal,misc,renderer,static,typecheck,z_interp}.py` | 90.4 G | 1.4×10¹¹ |
     | `pillow` | `Tests` | 431.0 G | 6.5×10¹¹ |
     | `lxml` | `src/lxml/tests`, `src/lxml/html/tests`, the doctest items | 104.5 G | 1.6×10¹¹ |
     | `regex` | `regex/tests` | 16.0 G | 2.5×10¹⁰ |
     | `kiwisolver` | `py/tests` | 13.0 G | 2.0×10¹⁰ |
 
-    Families' budgets by the rule: matplotlib about 5.5×10¹², contourpy about 6.3×10¹², Pillow
-    6.5×10¹¹, lxml 1.6×10¹¹, regex 2.5×10¹⁰, kiwisolver 2.0×10¹⁰: about **1.26×10¹³** in all, on
-    about 8.3 T of measured fuel; the owner accepted it (`decisions.md`, "Every test of every package we build (2026-10-20)", main `b0ee274`).
+    The contourpy rows are the build's measurements (2026-10-20, darwin-arm64, main's set
+    `f12cd25c`); the other rows are the re-survey's, which the build repeated to within its rounding
+    (the landing notes). Families' budgets by the rule, written in each TOML: matplotlib
+    5.494×10¹², contourpy 6.63×10¹², Pillow 6.5×10¹¹, lxml 1.6×10¹¹, regex 2.4×10¹⁰, kiwisolver
+    2.0×10¹⁰: **1.298×10¹³** in all, on 8.534 T of measured fuel (the split groups each pay their
+    own pytest start, about 10 to 13 G, so contourpy measured 4.36 T in nineteen groups against
+    4.16 T in four); the owner accepted it (`decisions.md`, "Every test of every package we build (2026-10-20)", main `b0ee274`).
 
     - **A file too big for one group is split by construction, never left out** (the owner's
       option (b); the delta review, M2). In its package's TOML, a `[[split]]` names one file, its
@@ -446,17 +465,20 @@ numpy and pandas and spec 065 for CPython:
       selects no test fails (pytest's exit 5 is not an empty pass), and each split group records its
       file's collected count as a fact, so the lane sees that every group collected the same file.
     - **contourpy's two big files, split by algorithm and corner mask** (the delta review, L1), so
-      every group is under the 480 G bound. The random_big cases are about 46 G each in
-      `test_filled.py` (1,843.6 G over 40 run cases) and about 29 G each in `test_lines.py` (989.3 G
-      over 34), so one algorithm's cases for one corner mask are about 277 G and 145 G (INFERRED):
+      every group is under the 480 G bound. Measured by the build: one algorithm's random_big cases
+      for one corner mask are 242 to 263 G in `test_filled.py` and 132 to 145 G in
+      `test_lines.py`; mpl2005's and mpl2014's random_big cases, slower per case than the serial
+      algorithms, are 439.8 G and 255.6 G:
       - `test_filled.py`, nine groups: e₁ `random_big and serial and None`, e₂ `random_big and
         serial and False`, e₃ `random_big and serial and True`, e₄ … e₆ the same for `threaded`, e₇
-        `random_big` (mpl2005's and mpl2014's cases, about 184 G), e₈ `serial` (about half of the
-        544 G of the rest); group 9 takes the rest;
-      - `test_lines.py`, eight groups: e₁ … e₆ as above, e₇ `random_big`; group 8 takes the rest
-        (470.2 G measured, under the bound).
-      The build measures every group; a group past 480 G gets one more expression before it, by a
-      reviewed judge change, never a test left out.
+        `random_big` (mpl2005's and mpl2014's cases, 439.8 G), e₈ `serial` (242.6 G of the rest);
+        group 9 takes the rest (322.1 G);
+      - `test_lines.py`, eight groups: e₁ … e₆ as above, e₇ `random_big` (255.6 G); group 8 takes the
+        rest (470.3 G, under the bound).
+      Every split group of a file recorded the same collected count (518 for `test_filled.py`, 419
+      for `test_lines.py`), and no group is past 480 G but `matplotlib-axes`. A group that grows
+      past 480 G gets one more expression before it, by a reviewed judge change, never a test left
+      out.
 
     - **The budget, as a rule: the owner's answer, "Larger budget by rule"** (`decisions.md`,
       2026-10-20; the confirmation, C9). Each group's cap is **1.5 times its fuel in the re-survey on 043's set with
@@ -474,23 +496,24 @@ numpy and pandas and spec 065 for CPython:
       225 s of job time each. The judge stage's longest leg was `own-guest` on macOS, 457 s. 22 jobs
       ran at once; the binding limit was macOS's five concurrent jobs (`own-rest` on macOS waited
       58 s for a macOS slot). Rate: 0.16 to 0.31 s per G of fuel past about 60 s of setup.
-    - **The layout** (the re-survey's fuel; contourpy's split groups INFERRED by their cases' share;
-      at most about 740 G a shard, so at most about 290 s of job time):
+    - **The layout**, packed from the build's measured fuel (at most 730 G a shard, so at most about
+      290 s of job time at the dry run's slowest rate; the delta review's confirmation asked that the
+      rows be laid out from measured numbers, and Decision 11 agree with them):
 
       | shard | groups | fuel |
       |---|---|---|
-      | `upstream-plot-a` | `matplotlib-axes`, `kiwisolver` | 712 G |
-      | `upstream-plot-b` | `contourpy-lines-8`, `matplotlib-render-1`, `mpl-axisartist` | 737 G |
-      | `upstream-plot-c` | `pillow`, `matplotlib-render-2a` | 736 G |
-      | `upstream-plot-d` | `matplotlib-rest-b2`, `matplotlib-render-2b`, `regex` | 738 G |
-      | `upstream-plot-e` | `mpl-mplot3d`, `matplotlib-rest-b1`, `mpl-axes_grid1` | 732 G |
-      | `upstream-plot-f` | `matplotlib-rest-a`, `matplotlib-mathtext`, `contourpy-lines-7` | 735 G |
-      | `upstream-plot-g` | `contourpy-filled-1`, `contourpy-filled-2`, `contourpy-lines-1` | 738 G |
-      | `upstream-plot-h` | `contourpy-filled-3`, `contourpy-filled-4`, `contourpy-lines-2` | 738 G |
-      | `upstream-plot-i` | `contourpy-filled-5`, `contourpy-filled-6`, `contourpy-lines-3` | 738 G |
-      | `upstream-plot-j` | `contourpy-filled-8`, `contourpy-filled-9`, `contourpy-lines-4` | 728 G |
-      | `upstream-plot-k` | `matplotlib-render-3`, `contourpy-1`, `contourpy-filled-7` | 687 G |
-      | `upstream-plot-l` | `contourpy-lines-5`, `contourpy-lines-6`, `lxml`, `contourpy-rest` | 511 G |
+      | `upstream-plot-a` | `contourpy-filled-4`, `contourpy-filled-6`, `contourpy-filled-8` | 729.6 G |
+      | `upstream-plot-b` | `matplotlib-render-2a`, `contourpy-filled-5`, `contourpy-lines-2`, `regex` | 728.9 G |
+      | `upstream-plot-c` | `pillow`, `matplotlib-mathtext` | 727.6 G |
+      | `upstream-plot-d` | `contourpy-lines-8`, `contourpy-lines-7` | 725.9 G |
+      | `upstream-plot-e` | `contourpy-filled-7`, `matplotlib-render-3`, `kiwisolver` | 725.6 G |
+      | `upstream-plot-f` | `contourpy-filled-2`, `contourpy-filled-3`, `contourpy-1` | 725.0 G |
+      | `upstream-plot-g` | `contourpy-filled-1`, `matplotlib-render-1`, `contourpy-lines-5`, `lxml` | 723.5 G |
+      | `upstream-plot-h` | `contourpy-filled-9`, `matplotlib-rest-a`, `contourpy-rest` | 721.8 G |
+      | `upstream-plot-i` | `matplotlib-rest-b2`, `matplotlib-render-2b` | 721.6 G |
+      | `upstream-plot-j` | `matplotlib-axes` | 699.0 G |
+      | `upstream-plot-k` | `mpl-mplot3d`, `matplotlib-rest-b1`, `mpl-axisartist` | 695.8 G |
+      | `upstream-plot-l` | `contourpy-lines-1`, `contourpy-lines-3`, `contourpy-lines-4`, `contourpy-lines-6`, `mpl-axes_grid1` | 609.4 G |
 
       Each within 360 s of job time in the branch dry run (criterion 12). The build re-packs the
       table from its own measured fuel; past the bound, a group moves to the shard with room, or a

@@ -84,25 +84,20 @@ kind = "build-only"
 reason = "headers that compile kiwisolver; nothing of its own runs in the guest"
 
 [package.matplotlib]
-kind = "later"
-reason = "its own suite is not run yet (its sdist is pinned)"
-closes_with = "spec 066"
+# spec 066: its own suite, groups in tests/upstream/matplotlib.toml, in the upstream-plot shards.
+kind = "suite"
 
 [package.pillow]
-kind = "later"
-reason = "its own suite is not run yet (its sdist is pinned)"
-closes_with = "spec 066"
+# spec 066: its own suite, groups in tests/upstream/pillow.toml, in the upstream-plot shards.
+kind = "suite"
 
 [package.kiwisolver]
-kind = "later"
-reason = "its own suite is not run yet (its sdist is pinned)"
-closes_with = "spec 066"
+# spec 066: its own suite, groups in tests/upstream/kiwisolver.toml, in the upstream-plot shards.
+kind = "suite"
 
 [package.contourpy]
-# spec 043: matplotlib's contours; its sdist carries its tests/ folder.
-kind = "later"
-reason = "its own suite is not run yet (its sdist is pinned)"
-closes_with = "spec 066"
+# spec 066: its own suite, groups in tests/upstream/contourpy.toml, in the upstream-plot shards.
+kind = "suite"
 
 [package.fonttools]
 kind = "later"
@@ -140,19 +135,17 @@ reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned a
 closes_with = "spec 067"
 
 [package.lxml]
-kind = "later"
-reason = "its own suite is not run yet (its sdist is pinned)"
-closes_with = "spec 066"
+# spec 066: its own suite, groups in tests/upstream/lxml.toml, in the upstream-plot shards.
+kind = "suite"
 
 [package.regex]
-kind = "later"
-reason = "its own suite is not run yet (its sdist is pinned)"
-closes_with = "spec 066"
+# spec 066: its own suite, groups in tests/upstream/regex.toml, in the upstream-plot shards.
+kind = "suite"
 
 [package.scipy]
 kind = "later"
 reason = "its own suite (larger than numpy's) is not run yet; spec 037's Scope leaves it out and its first gaps close in spec 038 (its sdist is pinned)"
-closes_with = "spec 066"
+closes_with = "spec 095"
 
 [package.openblas]
 # OpenBLAS's C LAPACK is linked into scipy alone (spec 037).

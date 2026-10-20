@@ -18,6 +18,8 @@
   Amended 2026-10-18 by spec 065: `python` is a `suite`; its five groups sit in four Linux upstream
   shards, and `cpython-fs` also in `upstream-macos` and `upstream-windows`; `fetch.py --shard`
   fetches the trees of each family a shard runs.
+  2026-10-20: matplotlib, contourpy, Pillow, kiwisolver, lxml and regex are `suite`s since spec
+  066, in twelve new Linux shards (`upstream-plot-a` to `-l`).
 - **Owner:** Clay Gendron
 - **Kind:** build-class: the release workflow; a judge change. It builds after spec 057 lands.
   - It changes `.github/workflows/release.yml`: the build job judges only its own `build` shard;

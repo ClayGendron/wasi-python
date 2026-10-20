@@ -1,0 +1,274 @@
+# matplotlib's own tests in the guest (spec 066). A judge file: every edit is a judge change.
+#
+# driver = "package"  a family of its own: grant /upstream-matplotlib, stage, kit copy, budget
+# stage_folders       tarball folders staged under the grant's tree/ (members only)
+# support_files       tarball members staged as data, never imported (cm.pyi, read by test_typing)
+# package_paths       product package -> staged folder appended to its __path__
+# support_packages    product subpackages the zip leaves out, found through package_paths
+# cwd                 /tmp/work (matplotlib writes ./result_images/) or "tree" (the tree root)
+# [groups.*]          one guest session and one check each; fuel cap 1.5 times the fuel the
+#                     re-survey measured (decisions.md, "Every test of every package we build")
+# budget              the sum of the family's caps
+
+package = "matplotlib"
+driver = "package"
+grant = "/upstream-matplotlib"
+budget = 5_494_000_000_000
+stage_folders = [
+    "lib/matplotlib/tests",
+    "lib/matplotlib/testing",
+    "lib/mpl_toolkits/axes_grid1/tests",
+    "lib/mpl_toolkits/axisartist/tests",
+    "lib/mpl_toolkits/mplot3d/tests",
+]
+support_files = ["lib/matplotlib/cm.pyi"]
+support_packages = ["lib/matplotlib/testing"]
+cwd = "/tmp/work"
+markers = []
+
+[package_paths]
+"matplotlib" = "lib/matplotlib"
+"mpl_toolkits.axes_grid1" = "lib/mpl_toolkits/axes_grid1"
+"mpl_toolkits.axisartist" = "lib/mpl_toolkits/axisartist"
+"mpl_toolkits.mplot3d" = "lib/mpl_toolkits/mplot3d"
+
+[groups.matplotlib-axes]
+# One file past the 480 G bound (699.3 G): named, kept one group (Decision 11).
+paths = ["lib/matplotlib/tests/test_axes.py"]
+fuel = 1_100_000_000_000  # 1.5 times 699.0 G measured
+
+[groups.matplotlib-mathtext]
+paths = [
+    "lib/matplotlib/tests/test_afm.py",
+    "lib/matplotlib/tests/test_dviread.py",
+    "lib/matplotlib/tests/test_font_manager.py",
+    "lib/matplotlib/tests/test_ft2font.py",
+    "lib/matplotlib/tests/test_mathtext.py",
+    "lib/matplotlib/tests/test_texmanager.py",
+    "lib/matplotlib/tests/test_text.py",
+    "lib/matplotlib/tests/test_textpath.py",
+    "lib/matplotlib/tests/test_type1font.py",
+    "lib/matplotlib/tests/test_usetex.py",
+]
+fuel = 450_000_000_000  # 1.5 times 296.7 G measured
+
+[groups.matplotlib-render-1]
+paths = [
+    "lib/matplotlib/tests/test_arrow_patches.py",
+    "lib/matplotlib/tests/test_backend_pdf.py",
+    "lib/matplotlib/tests/test_backend_pgf.py",
+    "lib/matplotlib/tests/test_backend_ps.py",
+    "lib/matplotlib/tests/test_backend_svg.py",
+    "lib/matplotlib/tests/test_bbox_tight.py",
+    "lib/matplotlib/tests/test_collections.py",
+    "lib/matplotlib/tests/test_colorbar.py",
+]
+fuel = 350_000_000_000  # 1.5 times 231.5 G measured
+
+[groups.matplotlib-render-2a]
+paths = [
+    "lib/matplotlib/tests/test_constrainedlayout.py",
+    "lib/matplotlib/tests/test_contour.py",
+    "lib/matplotlib/tests/test_figure.py",
+]
+fuel = 460_000_000_000  # 1.5 times 304.6 G measured
+
+[groups.matplotlib-render-2b]
+paths = [
+    "lib/matplotlib/tests/test_image.py",
+    "lib/matplotlib/tests/test_legend.py",
+    "lib/matplotlib/tests/test_lines.py",
+    "lib/matplotlib/tests/test_patches.py",
+]
+fuel = 510_000_000_000  # 1.5 times 337.3 G measured
+
+[groups.matplotlib-render-3]
+paths = [
+    "lib/matplotlib/tests/test_patheffects.py",
+    "lib/matplotlib/tests/test_polar.py",
+    "lib/matplotlib/tests/test_quiver.py",
+    "lib/matplotlib/tests/test_simplification.py",
+    "lib/matplotlib/tests/test_streamplot.py",
+    "lib/matplotlib/tests/test_tightlayout.py",
+    "lib/matplotlib/tests/test_triangulation.py",
+]
+fuel = 410_000_000_000  # 1.5 times 272.8 G measured
+
+[groups.matplotlib-rest-a]
+paths = [
+    "lib/matplotlib/tests/test__style_helpers.py",
+    "lib/matplotlib/tests/test_agg.py",
+    "lib/matplotlib/tests/test_agg_filter.py",
+    "lib/matplotlib/tests/test_animation.py",
+    "lib/matplotlib/tests/test_api.py",
+    "lib/matplotlib/tests/test_artist.py",
+    "lib/matplotlib/tests/test_axis.py",
+    "lib/matplotlib/tests/test_backend_bases.py",
+    "lib/matplotlib/tests/test_backend_cairo.py",
+    "lib/matplotlib/tests/test_backend_gtk3.py",
+    "lib/matplotlib/tests/test_backend_inline.py",
+    "lib/matplotlib/tests/test_backend_macosx.py",
+    "lib/matplotlib/tests/test_backend_nbagg.py",
+    "lib/matplotlib/tests/test_backend_qt.py",
+    "lib/matplotlib/tests/test_backend_registry.py",
+    "lib/matplotlib/tests/test_backend_template.py",
+    "lib/matplotlib/tests/test_backend_tk.py",
+    "lib/matplotlib/tests/test_backend_tools.py",
+    "lib/matplotlib/tests/test_basic.py",
+    "lib/matplotlib/tests/test_bezier.py",
+    "lib/matplotlib/tests/test_category.py",
+    "lib/matplotlib/tests/test_cbook.py",
+    "lib/matplotlib/tests/test_colors.py",
+    "lib/matplotlib/tests/test_compare_images.py",
+    "lib/matplotlib/tests/test_container.py",
+    "lib/matplotlib/tests/test_cycles.py",
+    "lib/matplotlib/tests/test_dates.py",
+    "lib/matplotlib/tests/test_datetime.py",
+    "lib/matplotlib/tests/test_doc.py",
+]
+fuel = 470_000_000_000  # 1.5 times 309.4 G measured
+
+[groups.matplotlib-rest-b1]
+paths = [
+    "lib/matplotlib/tests/test_fontconfig_pattern.py",
+    "lib/matplotlib/tests/test_getattr.py",
+    "lib/matplotlib/tests/test_gridspec.py",
+    "lib/matplotlib/tests/test_inset.py",
+    "lib/matplotlib/tests/test_marker.py",
+    "lib/matplotlib/tests/test_matplotlib.py",
+    "lib/matplotlib/tests/test_mlab.py",
+    "lib/matplotlib/tests/test_multivariate_colormaps.py",
+    "lib/matplotlib/tests/test_offsetbox.py",
+    "lib/matplotlib/tests/test_path.py",
+    "lib/matplotlib/tests/test_pickle.py",
+    "lib/matplotlib/tests/test_png.py",
+    "lib/matplotlib/tests/test_preprocess_data.py",
+    "lib/matplotlib/tests/test_pyplot.py",
+]
+fuel = 490_000_000_000  # 1.5 times 323.5 G measured
+
+[groups.matplotlib-rest-b2]
+paths = [
+    "lib/matplotlib/tests/test_rcparams.py",
+    "lib/matplotlib/tests/test_sankey.py",
+    "lib/matplotlib/tests/test_scale.py",
+    "lib/matplotlib/tests/test_skew.py",
+    "lib/matplotlib/tests/test_sphinxext.py",
+    "lib/matplotlib/tests/test_spines.py",
+    "lib/matplotlib/tests/test_style.py",
+    "lib/matplotlib/tests/test_subplots.py",
+    "lib/matplotlib/tests/test_table.py",
+    "lib/matplotlib/tests/test_testing.py",
+    "lib/matplotlib/tests/test_ticker.py",
+    "lib/matplotlib/tests/test_transforms.py",
+    "lib/matplotlib/tests/test_typing.py",
+    "lib/matplotlib/tests/test_units.py",
+    "lib/matplotlib/tests/test_widgets.py",
+]
+fuel = 580_000_000_000  # 1.5 times 384.3 G measured
+
+[groups.mpl-axes_grid1]
+# One group per toolkit: one session over the three loads two `tests.conftest` (the survey).
+paths = ["lib/mpl_toolkits/axes_grid1/tests"]
+fuel = 110_000_000_000  # 1.5 times 71.9 G measured
+
+[groups.mpl-axisartist]
+paths = ["lib/mpl_toolkits/axisartist/tests"]
+fuel = 54_000_000_000  # 1.5 times 35.7 G measured
+
+[groups.mpl-mplot3d]
+paths = ["lib/mpl_toolkits/mplot3d/tests"]
+fuel = 510_000_000_000  # 1.5 times 336.6 G measured
+
+[[not_selected]]
+files = ["lib/matplotlib/tests/test_backend_webagg.py"]
+reason = "it imports backend_webagg_core, which step 70 leaves out of the zip: it cannot load"
+closes_with = "README.md"
+
+[[not_selected]]
+files = [
+    "lib/matplotlib/tests/test_backends_interactive.py",
+    "lib/matplotlib/tests/test_determinism.py",
+]
+reason = "every test starts a subprocess (no processes on WASI)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-processes"
+group = "matplotlib-mathtext"
+outcome = "failed"
+match = 'does not support processes'
+reason = "no processes: subprocess is unavailable on WASI"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-threads"
+group = "matplotlib-render-2a"
+outcome = "failed"
+match = "can't start new thread"
+reason = "no threads: starting one raises RuntimeError (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "pillow-zlib-only"
+group = "matplotlib-render-2b"
+outcome = "failed"
+match = '(en|de)coder jpeg not available'
+reason = "Pillow is built with zlib only (spec 023): a test that writes or reads JPEG without its own feature guard"
+closes_with = "context/specifications/023-matplotlib-first-milestone.md"
+
+[[expected]]
+id = "pillow-zlib-only"
+group = "matplotlib-rest-a"
+outcome = "failed"
+match = '(en|de)coder jpeg not available'
+reason = "Pillow is built with zlib only (spec 023): a test that writes or reads JPEG without its own feature guard"
+closes_with = "context/specifications/023-matplotlib-first-milestone.md"
+
+[[expected]]
+id = "no-processes"
+group = "matplotlib-rest-a"
+outcome = "failed"
+match = 'does not support processes|^AssertionError: assert False$'
+reason = "no processes: subprocess is unavailable on WASI; test_movie_writer_registry needs an executable on PATH"
+closes_with = "README.md"
+
+[[expected]]
+id = "wasi-errno-values"
+group = "matplotlib-rest-a"
+outcome = "failed"
+match = 'Regex pattern did not match'
+reason = "a WASI errno is WASI's number: a missing path is [Errno 44], where test_movie_writer_invalid_path expects Linux's [Errno 2] off emscripten"
+closes_with = "README.md"
+
+[[expected]]
+id = "stage-layout"
+group = "matplotlib-rest-a"
+outcome = "failed"
+match = '^AssertionError: assert not True$'
+reason = "the judge stages matplotlib's tests outside the product's package folder, so a warning is attributed to the test file under the stage's lib/matplotlib (spec 097, reserved)"
+closes_with = "context/roadmap.md"
+
+[[expected]]
+id = "no-processes"
+group = "matplotlib-rest-b1"
+outcome = "failed"
+match = 'does not support processes'
+reason = "no processes: subprocess is unavailable on WASI"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-fp-exceptions"
+group = "matplotlib-rest-b1"
+outcome = "failed"
+match = "DID NOT RAISE <class 'numpy.linalg.LinAlgError'>"
+reason = "wasm32 has no floating-point exception flags: numpy.linalg raises no LinAlgError for a singular matrix (README; spec 099, reserved, fixes it)"
+closes_with = "context/roadmap.md"
+
+[[expected]]
+id = "no-processes"
+group = "matplotlib-rest-b2"
+outcome = "failed"
+match = 'does not support processes'
+reason = "no processes: subprocess is unavailable on WASI"
+closes_with = "README.md"

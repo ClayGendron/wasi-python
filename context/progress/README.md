@@ -92,7 +92,11 @@ node ids). An edit to any of them is a judge change, and `git diff` names each t
 released. CPython's own tests (spec 065) are upstream checks like numpy's, with the same
 `passes` metric, flag and refusal; their plan, `tests/upstream/python/<group>.txt`, is judged too,
 and `tests/upstream/python.toml` adds three kinds of entry, each a gap: tests deselected by id,
-modules allowed one named kind of environment change, and results recorded per host.
+modules allowed one named kind of environment change, and results recorded per host. The
+compiled packages' own tests (spec 066) are upstream checks too, each package a family with its
+own grant (`/upstream-<package>`), stage and budget; a file too big for one group is split by a
+`[[split]]` of ordered `-k` expressions, each split group recording its file's collected count as
+the fact `collected`.
 
 A class or trap that is fixed: its check passes and its gap says "remove the gap". A fixed class
 stays, with an empty list file, as a passing check. A fixed trap's `[[trap]]` entry is removed in

@@ -248,3 +248,84 @@ Passes for build with conditions: before the lane asks the owner, the question i
 fuel of about 11.2 T, or 8.4 T under (c), against the 7 T the owner was told). If the owner picks
 (b), its groups partition `test_filled.py` and `test_lines.py` by construction, as M2 sets out.
 The build then starts on the owner's answer.
+
+## Confirmation (2026-10-20)
+
+- **Reviewer:** the same fresh agent as above. It wrote none of the disposition.
+- **Reviewed:** `spec/066-the-compiled-packages-own-tests` at `23270ff`, the section "Disposition
+  of the delta review", Decisions 11, 12 and 14, criterion 1, "The owner's choices", and the fixed
+  `caps.py` and `results-resurvey.md`.
+  - The tip is not `bc3b98a`: the branch was rebased again, onto `21dff9d` (origin/main, which
+    widens 097).
+  - `git range-diff` shows every 066 commit unchanged (`=`). The one change is that spec 067's
+    draft commit was dropped. That is right: a worktree's branch carries exactly one specification
+    (AGENTS.md rule 9).
+- **Run:** none. Nothing is built.
+- **Re-ran:** `build/lane.lock` absent.
+  - `uv run pytest tests/checks/test_rules.py -k "specifications or executed_memos"` at `23270ff`
+    → 4 passed, exit 0.
+  - The fixed `caps.py` over the 19 groups → contourpy one family at 6.270×10¹², total caps
+    1.217×10¹³, fuel 8.026 T (EXECUTED).
+  - A probe of the constructed `-k` form with the host's pytest 9.1.1 (below; EXECUTED).
+
+### M1 to M3
+
+- **M1 — closed.** The owner chose (b). "The owner's choices" gives (a)'s reason in one line: each
+  file would need a shard to itself, past criterion 12 and the macOS leg.
+- **M2 — closed.** The form partitions by construction, and the check needs no collection.
+  - **The logic.** pytest compiles a `-k` expression into a boolean formula. Each identifier is
+    asked of the item's keywords separately, by substring and without regard to case. So the
+    constructed string for group i is true exactly when eᵢ matches and no earlier e matches. The
+    last group's string is true exactly when none matches. Each item therefore falls into one group
+    only: the first i whose eᵢ matches, or else the last group. Substring overlaps change which group
+    an item falls into. They cannot put it in two groups or in none.
+  - **The probe.** I used pytest's own `Expression.compile` on 45 contourpy-shaped ids (the 42
+    `test_filled_random_big[...]` cases and three others). The expressions were the spec's eight for
+    `test_filled.py`, plus a deliberately overlapping ninth, `ChunkCombinedCode`. Result: 0 items
+    outside exactly one group, across 10 groups (EXECUTED). `None`, `True` and `False` parse as
+    identifiers (pytest prefixes identifiers internally), so the corner-mask expressions are legal.
+  - **No collection needed.** The TOML holds only e₁ … eₙ₋₁, and the harness builds the strings.
+    So the rules check needs only Decision 14's points:
+    - n groups and n − 1 expressions;
+    - each expression non-empty and parsed by pytest's parser on the host;
+    - each group's only path is the file;
+    - no group in two splits.
+    None of these needs contourpy. Criterion 1's unit check of the strings built for a three-group
+    split covers the harness side.
+  - **The judge-time checks** are what is left: an empty group fails (exit 5), and each group's
+    collected count is recorded. They hold because every group of a file runs with the same family,
+    `.ini` and options, so each item's keywords are the same in every session.
+- **M3 — closed.** "The owner's choices" and the delta state about 11.2 T per full judge. That is
+  2.89 T today plus 8.32 T, against the about 7 T in the first question, and it matches my sums.
+
+### The Lows
+
+- **L1** (the split into 9 and 8 groups): answered. Every group is INFERRED under 480 G and the build
+  measures each. One numeric note follows below the list.
+- **L2 to L6:** answered as written. `caps.py` runs and gives one contourpy family. The four runs are
+  recorded in `results-resurvey.md`. The concurrency line now says 33 jobs fit Pro's 40. 097 is
+  the litter closer (on `21dff9d`), and "For the lane" says what to do on `HostLitter`. The
+  leftover text is fixed.
+
+**The shard table's sums.** No finding; a write-in. The rows built only from measured groups are
+right: a 712.3, b 737.0, c 735.5, d 737.6 and e 732.3 G (EXECUTED arithmetic). The contourpy
+estimates are a little high:
+- The rows imply split groups of about 290 G (filled, by algorithm and mask), 197 G (filled's
+  `random_big` rest), about 158 G (lines, by algorithm and mask) and 129 G (lines' `random_big`
+  rest).
+- Decision 11's own per-case shares give less: 46.1 G per filled case and 29.1 G per lines case. That
+  is 276.5, 184.4, 145.5 and 116.4 G.
+- So the twelve rows sum to 8,530 G against 8,322 G measured (with mathtext's 296.2 G): about 207 G
+  too much, all of it in contourpy's split groups.
+- Decision 11's text also names e₇ at "about 184 G" while the table carries 197 G.
+- The error is on the safe side: every shard stays at or under about 740 G. Decision 12 already has
+  the build re-pack from its own measured fuel.
+- Write-in, for the build: lay out the contourpy rows from the per-case shares, or say that they
+  are rounded up.
+
+### Verdict of the confirmation
+
+**Confirmed for build.** M1 to M3 are closed. The split-by-construction form partitions
+`test_filled.py` and `test_lines.py` whatever `-k`'s substring matches overlap, and its rules check
+needs no collection. The shard table's only error is about 207 G of slack on the safe side, which
+the build's re-pack from measured fuel removes.
