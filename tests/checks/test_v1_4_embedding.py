@@ -3376,6 +3376,7 @@ def test_fuel_is_exact_across_tool_calls(guest, guest_workdir) -> None:
     tool calls still reports its fuel."""
     import time
 
+    from harness.calls import checked_call
     from wasi_python import _call
     from wasi_python.tools import tool
 
@@ -3389,8 +3390,8 @@ def test_fuel_is_exact_across_tool_calls(guest, guest_workdir) -> None:
 
     used = []
     for pause["s"] in (0.05, 0.0):
-        c = {"tools": (nap,), "gate": None, "tool_calls": 1000}
-        host = _call._tool_host(c, None, None)
+        checked = checked_call(tools=(nap,), tool_calls=1000)
+        host = _call._tool_host(checked, None, None, None, None)
         r = guest("snapshot", ["-c", TWO_CALLS], host=host)
         assert (r.exit_code, r.stdout) == (0, b"1 2\n"), r.describe()
         assert [o.outcome for o in host.record.outcomes] == ["ok"] * 3
@@ -4975,6 +4976,7 @@ def test_fuel_is_exact_across_async_tool_calls(guest, guest_workdir) -> None:
     same whatever its async tools await."""
     import asyncio
 
+    from harness.calls import checked_call
     from wasi_python import _call
     from wasi_python.tools import tool
 
@@ -4994,7 +4996,7 @@ def test_fuel_is_exact_across_async_tool_calls(guest, guest_workdir) -> None:
 
     used = []
     for nap, turns["n"] in ((nap_async, 0), (nap_async, 50), (nap_sync, 0)):
-        host = _call._tool_host({"tools": (nap,), "gate": None, "tool_calls": 1000}, None, None)
+        host = _call._tool_host(checked_call(tools=(nap,), tool_calls=1000), None, None, None, None)
         try:
             r = guest("snapshot", ["-c", TWO_CALLS], host=host)
         finally:

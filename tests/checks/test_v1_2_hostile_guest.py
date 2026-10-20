@@ -3159,7 +3159,9 @@ try:
 except BaseException as e:
     print("turn raised", type(e).__name__, flush=True)
 entered.wait(60)
-print("busy while its guest runs", s._state.busy, held[0].is_alive(), flush=True)
+def busy():  # a turn claimed, marked or not
+    return s._state.phase in (_sessions._Phase.TURN, _sessions._Phase.STOPPING)
+print("busy while its guest runs", busy(), held[0].is_alive(), flush=True)
 try:
     s.run("print(2)")
     print("second turn ran", flush=True)
@@ -3167,7 +3169,7 @@ except RuntimeError as e:
     print("second turn refused", str(e), flush=True)
 gate.set()
 held[0].join(60)
-print("then busy", s._state.busy, "ended", s.ended, "torn down on", torn, flush=True)
+print("then busy", busy(), "ended", s.ended, "torn down on", torn, flush=True)
 s.close()
 print("closes while wasm ran", state["bad"], flush=True)
 with wasi_python.Session() as t:

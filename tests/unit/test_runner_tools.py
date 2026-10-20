@@ -20,6 +20,7 @@ from typing import Any
 
 import pytest
 
+from harness.calls import checked_call
 from wasi_python import (
     Artifacts,
     ArtifactsMissing,
@@ -172,12 +173,12 @@ def test_the_tool_call_limit_has_a_default() -> None:
 
 def test_the_tools_are_checked_into_plain_tools() -> None:
     c = runner._check_tools(None, iter([lookup, plain]), None, _limits._UNSET)
-    assert [type(t) for t in c["tools"]] == [T.Tool, T.Tool]
-    assert [t.name for t in c["tools"]] == ["lookup", "plain"]
-    assert (c["gate"], c["tool_calls"]) == (None, 1000)
-    assert runner._check_tools(None, [], None, None)["tool_calls"] is None  # None: no limit
+    assert [type(t) for t in c.tools] == [T.Tool, T.Tool]
+    assert [t.name for t in c.tools] == ["lookup", "plain"]
+    assert (c.gate, c.tool_calls) == (None, 1000)
+    assert runner._check_tools(None, [], None, None).tool_calls is None  # None: no limit
     none = runner._check_tools(lambda f: f, None, None, _limits._UNSET)
-    assert none == {"tools": None, "gate": None, "tool_calls": None}
+    assert none == runner._ToolArgs(None, None, None, None)
 
 
 def _artifacts(folder: Path, manifest: str) -> Artifacts:
@@ -365,8 +366,7 @@ def test_the_bound_answers_in_order(release, monkeypatch) -> None:
     monkeypatch.setattr(_home, "_ctrl_c_watched", lambda: True)
     monkeypatch.setattr(process(), "ctrl_c_pending", False)
     slow = _blocking(release, started, then=lambda: setattr(process(), "ctrl_c_pending", True))
-    c = {"tools": (slow,), "gate": None, "tool_calls": 1000}
-    host = _call._tool_host(c, None, None)
+    host = _call._tool_host(checked_call(tools=(slow,), tool_calls=1000), None, None, None, None)
     assert kind(host(call_frame("slow"))) == "cancelled"
     assert _last(host).abandoned is True
     assert process().ctrl_c_pending is True  # the bound reads the flag; _shared clears it
@@ -725,14 +725,14 @@ def test_the_request_byte_budget_is_a_limit_with_a_default(monkeypatch) -> None:
 
     unset = _limits._UNSET
 
-    def checked(**kw: Any) -> dict:
+    def checked(**kw: Any) -> _call._CheckedCall:
         return runner._checked(
             ["-c", "pass"], None, None, None, unset, unset, unset, None, tools=[lookup], **kw
         )
 
-    assert checked()["tool_request_bytes"] == 16 << 20
-    assert checked(max_tool_request_bytes=5)["tool_request_bytes"] == 5
-    assert checked(max_tool_request_bytes=None)["tool_request_bytes"] is None
+    assert checked().tool_request_bytes == 16 << 20
+    assert checked(max_tool_request_bytes=5).tool_request_bytes == 5
+    assert checked(max_tool_request_bytes=None).tool_request_bytes is None
     for bad, error in ((True, TypeError), (-1, ValueError), ("1", TypeError)):
         with pytest.raises(error, match="max_tool_request_bytes"):
             checked(max_tool_request_bytes=bad)
@@ -755,17 +755,19 @@ def test_the_request_byte_budget_is_a_limit_with_a_default(monkeypatch) -> None:
     before = wasi_python.defaults()
     wasi_python.set_defaults(dataclasses.replace(before, tool_request_bytes=7))
     try:
-        assert checked()["tool_request_bytes"] == 7
+        assert checked().tool_request_bytes == 7
     finally:
         wasi_python.set_defaults(before)
 
-    host = _call._tool_host(checked(max_tool_request_bytes=12345), None, None)
+    host = _call._tool_host(checked(max_tool_request_bytes=12345), None, None, None, None)
     try:
         assert host._max_bytes == 12345
     finally:
         host.close()
-    by_hand = _call._tool_host({"tools": (lookup,), "gate": None, "tool_calls": 1000}, None, None)
+    by_hand = _call._tool_host(
+        checked_call(tools=(lookup,), tool_calls=1000), None, None, None, None
+    )
     try:
-        assert by_hand._max_bytes is None  # a hand-built call without the key: no byte limit
+        assert by_hand._max_bytes is None  # the stand-in says tool_request_bytes=None: no limit
     finally:
         by_hand.close()

@@ -24,6 +24,7 @@ from typing import Any
 
 import pytest
 
+from harness.calls import checked_call
 from wasi_python import _artifacts, _call, _home, runner
 from wasi_python import tools as T
 from wasi_python._process import process
@@ -348,7 +349,7 @@ def test_every_end_cancels_a_started_task(caller, monkeypatch) -> None:
     monkeypatch.setattr(process(), "ctrl_c_pending", False)
     before = runner.stats()["tool_threads_running"]
     waiter = _waiter(started, cancels, then=lambda: setattr(process(), "ctrl_c_pending", True))
-    host = _call._tool_host({"tools": (waiter,), "gate": None, "tool_calls": 1000}, None, None)
+    host = _call._tool_host(checked_call(tools=(waiter,), tool_calls=1000), None, None, None, None)
     assert kind(host(call_frame("wait"))) == "cancelled"
     assert _last(host).abandoned is True
     host.close()

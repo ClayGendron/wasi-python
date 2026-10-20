@@ -9,7 +9,8 @@ import struct
 import pytest
 
 import wasi_python
-from wasi_python import Defaults, Session, _artifacts, _call, _sessions
+from harness import calls
+from wasi_python import Defaults, Session, _artifacts, _call, _engines, _sessions
 from wasi_python._process import process
 
 NAN, INF = float("nan"), float("inf")
@@ -96,9 +97,15 @@ def test_session_refuses_mistakes_before_anything_runs(lookups) -> None:
     assert wasi_python.defaults().session_shutdown_s == 5.0
 
 
-def _state(idle: float | None, lifetime: float | None, last_end: float = 0.0, busy=False):
-    s = _sessions._State()
-    s.idle_s, s.lifetime_s, s.opened, s.last_end, s.busy = idle, lifetime, 0.0, last_end, busy
+def _state(
+    idle: float | None,
+    lifetime: float | None,
+    last_end: float = 0.0,
+    phase: _sessions._Phase = _sessions._Phase.OPEN,
+):
+    """A session's state at rest, or in the phase given, with its bounds."""
+    s = _sessions._State(calls.BASE_CALL, _engines._wasmtime())
+    s.idle_s, s.lifetime_s, s.opened, s.last_end, s.phase = idle, lifetime, 0.0, last_end, phase
     return s
 
 
@@ -122,7 +129,7 @@ def test_the_reaper_ends_what_is_due(registry) -> None:
         _state(10, 100),
         _state(50, 30),
         _state(None, None),
-        _state(5, 5, busy=True),
+        _state(5, 5, phase=_sessions._Phase.TURN),
     )
     keep = [a, b, c, busy]
     for s in keep:

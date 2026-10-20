@@ -228,7 +228,6 @@ def test_the_home_waits_for_its_guest_thread(monkeypatch, roomy) -> None:
     ended = threading.Event()
 
     def serve(self) -> None:
-        self.serving = True
         raise KeyboardInterrupt  # just after the guest thread started
 
     monkeypatch.setattr(_home._Home, "serve", serve)
@@ -252,7 +251,6 @@ def test_an_abandoned_home_leaves_its_teardown_to_the_guest(monkeypatch, roomy) 
     order: list[str] = []
 
     def serve(self) -> None:
-        self.serving = True
         raise KeyboardInterrupt  # raised into the home while the guest runs
 
     def forced_out(home_) -> None:
@@ -333,9 +331,10 @@ def test_a_failed_thread_start_is_cancelled(monkeypatch, roomy) -> None:
     monkeypatch.setattr(threading.Thread, "start", start)
     with pytest.raises(RuntimeError, match="can't start"):
         _home._on_guest_thread("run", home, None, lambda: ran.append(1))
-    assert (ran, home.state, home.done, home.ended.is_set()) == ([], "cancelled", True, True)
+    cancelled = _home._HomePhase.CANCELLED
+    assert (ran, home.phase, home.done, home.ended.is_set()) == ([], cancelled, True, True)
     home.body("run", lambda: ran.append(2), ())  # a body that starts after its cancel
-    assert ran == [] and home.state == "cancelled"
+    assert ran == [] and home.phase is cancelled
 
 
 def test_a_stopped_home_answers_new_hand_offs_with_a_stop(roomy) -> None:
@@ -361,9 +360,10 @@ def test_the_join_does_not_wait_for_a_thread_that_never_ran() -> None:
     ran: list[int] = []
     never = threading.Thread(target=lambda: None)  # made, never started: no body will run
     with home.lock:
-        home.state, home.done, home.thread = "starting", False, never
+        home.phase, home.thread = _home._HomePhase.STARTING, never
         home.ended.clear()
     _home._join_guest(home)
-    assert (home.state, home.done, home.ended.is_set()) == ("cancelled", True, True)
+    cancelled = _home._HomePhase.CANCELLED
+    assert (home.phase, home.done, home.ended.is_set()) == (cancelled, True, True)
     home.body("run", lambda: ran.append(1), ())
     assert ran == []

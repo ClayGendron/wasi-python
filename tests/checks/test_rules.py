@@ -103,6 +103,41 @@ def test_ruff_format_is_clean() -> None:
     assert r.returncode == 0, (r.stdout + r.stderr).strip().splitlines()[:3]
 
 
+# The runner's package is type-checked whole under mypy's --strict (pinned exactly in the dev
+# group; the platform pinned to linux in pyproject.toml, so three systems give one verdict): every
+# function annotated, every generic given its parameters, no `Any` leaking from a declared return.
+# A module still carrying errors is listed here with why, in words; an entry whose module is
+# clean is a finding, so the list can only shrink, and an error anywhere else is one too.
+UNTYPED = {"mounts.py": "typed once it sits behind the call-context protocol"}
+
+MYPY_ERROR = re.compile(r"^src[\\/]wasi_python[\\/]([^:]+):\d+: error: .*\[([a-z-]+)\]\s*$", re.M)
+
+
+def test_src_type_checks_under_mypy_strict() -> None:
+    """`mypy` as pyproject.toml configures it (--strict, python 3.11, the linux platform, the files
+    `src/wasi_python`): an exit of 2 (a crash or a configuration error) fails; an error in a
+    module UNTYPED does not name fails; a module UNTYPED names with no error left fails."""
+    mypy = Path(sys.executable).parent / "mypy"
+    r = subprocess.run(
+        [str(mypy), "--no-error-summary"],
+        cwd=paths.REPO,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert r.returncode != 2, (r.stdout + r.stderr).strip().splitlines()[:5]
+    errors = [(module, code) for module, code in MYPY_ERROR.findall(r.stdout)]
+    findings = [
+        line
+        for line in r.stdout.splitlines()
+        if (m := MYPY_ERROR.match(line)) is not None and m.group(1) not in UNTYPED
+    ]
+    for module in UNTYPED:
+        if not any(found == module for found, _ in errors):
+            findings.append(f"UNTYPED names {module}, which has no error left: delete its entry")
+    assert not findings, scan.report(findings)
+
+
 def test_build_scripts_call_python_only_through_uv_or_a_path() -> None:
     scripts = scan.every_file(paths.REPO / "scripts")
     hits = scan.bare_python_hits(scripts, paths.REPO)

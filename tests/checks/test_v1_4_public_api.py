@@ -377,7 +377,7 @@ def test_set_defaults_changes_what_run_reads(monkeypatch) -> None:
         assert wasi_python.defaults() is new
         unset = _limits._UNSET
         checked = runner._checked(["-c", "pass"], None, None, None, unset, unset, unset, None)
-        assert checked["memory_bytes"] == new.memory_bytes
+        assert checked.memory_bytes == new.memory_bytes
         for wrong in (None, {}):
             with pytest.raises(TypeError):
                 wasi_python.set_defaults(wrong)  # type: ignore[arg-type]

@@ -35,16 +35,16 @@ class Sneaky(str):
     ids=["tuple", "list", "generator", "dict_keys"],
 )
 def test_argv_is_any_iterable_of_str(argv) -> None:
-    assert check(argv=argv)["argv"] == ["-c", "pass"]
+    assert check(argv=argv).argv == ("-c", "pass")
 
 
 def test_argv_items_are_passed_on_as_plain_str() -> None:
-    (item,) = check(argv=[Sneaky("ok")])["argv"]
+    (item,) = check(argv=[Sneaky("ok")]).argv
     assert (type(item), item) == (str, "ok")
 
 
 def test_an_empty_argv_is_allowed() -> None:
-    assert check(argv=[])["argv"] == []
+    assert check(argv=[]).argv == ()
 
 
 @pytest.mark.parametrize(
@@ -69,11 +69,11 @@ def test_an_argv_item_the_guest_would_see_differently_is_refused(item) -> None:
     ids=["dict", "mapping proxy", "non-ascii key", "leading digit", "space"],
 )
 def test_env_takes_a_mapping_of_odd_but_valid_keys(env) -> None:
-    assert check(env=env)["env"] == dict(env)
+    assert check(env=env).env == dict(env)
 
 
 def test_env_is_passed_on_as_a_dict_of_plain_str() -> None:
-    env = check(env={Sneaky("K"): Sneaky("v")})["env"]
+    env = check(env={Sneaky("K"): Sneaky("v")}).env
     assert [(type(k), k, type(v), v) for k, v in env.items()] == [(str, "K", str, "v")]
 
 
@@ -129,13 +129,13 @@ def test_a_refused_key_is_never_quoted_and_a_long_key_is_cut() -> None:
     ids=["bytes", "bytearray", "memoryview", "non-contiguous", "array"],
 )
 def test_stdin_is_any_bytes_like_object(stdin) -> None:
-    passed = check(stdin=stdin)["stdin"]
+    passed = check(stdin=stdin).stdin
     assert (type(passed), passed) == (bytes, b"hi")
 
 
 def test_exact_bytes_stdin_is_not_copied() -> None:
     data = b"x" * 1000
-    assert check(stdin=data)["stdin"] is data
+    assert check(stdin=data).stdin is data
 
 
 @pytest.mark.parametrize("stdin", ["", "hi", 0, False, [], 5], ids=repr)
@@ -145,4 +145,4 @@ def test_stdin_that_is_not_bytes_like_is_refused(stdin) -> None:
 
 
 def test_none_is_no_env_and_no_stdin() -> None:
-    assert check() == {"argv": ["-c", "pass"], "env": None, "stdin": None}
+    assert check() == _limits._Inputs(("-c", "pass"), None, None)

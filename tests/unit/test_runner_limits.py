@@ -11,7 +11,7 @@ from fractions import Fraction
 
 import pytest
 
-from wasi_python import _artifacts, _limits, runner
+from wasi_python import _artifacts, _call, _limits, runner
 
 TOP = 2**63 - 1
 
@@ -33,8 +33,8 @@ def check(**given):
 
 @pytest.mark.parametrize("name", ["fuel", "memory_bytes", "output_bytes"])
 def test_an_integer_limit_takes_0_to_2_63_minus_1(name) -> None:
-    assert check(**{name: 0})[name] == 0
-    assert check(**{name: TOP})[name] == TOP
+    assert getattr(check(**{name: 0}), name) == 0
+    assert getattr(check(**{name: TOP}), name) == TOP
     for wrong in (-1, TOP + 1, 2**64, 2**64 - 1):
         with pytest.raises(ValueError, match=name):
             check(**{name: wrong})
@@ -49,19 +49,19 @@ def test_an_integer_limit_refuses_other_types(name) -> None:
 
 @pytest.mark.parametrize("name", ["fuel", "memory_bytes", "output_bytes"])
 def test_an_integer_limit_passes_on_a_plain_int(name) -> None:
-    value = check(**{name: Index(7)})[name]
+    value = getattr(check(**{name: Index(7)}), name)
     assert (type(value), value) == (int, 7)
 
 
 def test_a_deadline_is_a_positive_finite_real() -> None:
-    assert check(deadline_s=60)["deadline_s"] == 60.0
-    assert type(check(deadline_s=Fraction(1, 2))["deadline_s"]) is float
-    assert check(deadline_s=1e-300)["deadline_s"] == 1e-300  # rounds up to one tick, as before
+    assert check(deadline_s=60).deadline_s == 60.0
+    assert type(check(deadline_s=Fraction(1, 2)).deadline_s) is float
+    assert check(deadline_s=1e-300).deadline_s == 1e-300  # rounds up to one tick, as before
     for wrong in (0, 0.0, -1, -1e-9, math.nan, math.inf, -math.inf, 1.7e308, 10**400):
         with pytest.raises(ValueError, match="deadline_s"):
             check(deadline_s=wrong)
     top = 4.611686018427387e16  # the largest float whose ticks stay below NO_DEADLINE
-    assert check(deadline_s=top)["deadline_s"] == top
+    assert check(deadline_s=top).deadline_s == top
     with pytest.raises(ValueError, match="deadline_s"):
         check(deadline_s=math.nextafter(top, math.inf))
 
@@ -80,7 +80,7 @@ def test_a_deadline_refuses_other_types() -> None:
 
 
 def test_none_means_no_limit() -> None:
-    assert check() == {"fuel": None, "deadline_s": None, "memory_bytes": None, "output_bytes": None}
+    assert check() == _limits._Limits(None, None, None, None)
 
 
 def test_the_defaults_pass_and_a_bad_default_is_refused() -> None:
@@ -118,13 +118,13 @@ def test_the_open_file_cap_is_a_limit_with_a_default(monkeypatch) -> None:
 
     unset = _limits._UNSET
 
-    def checked(**kw) -> dict:
+    def checked(**kw) -> _call._CheckedCall:
         return runner._checked(["-c", "pass"], None, None, None, unset, unset, unset, None, **kw)
 
-    assert checked()["open_files"] == 1024
-    assert checked(max_open_files=5)["open_files"] == 5
-    assert checked(max_open_files=None)["open_files"] is None
-    assert checked(max_open_files=Index(7))["open_files"] == 7
+    assert checked().open_files == 1024
+    assert checked(max_open_files=5).open_files == 5
+    assert checked(max_open_files=None).open_files is None
+    assert checked(max_open_files=Index(7)).open_files == 7
     for bad, error in ((True, TypeError), (-1, ValueError), ("1", TypeError)):
         with pytest.raises(error, match="max_open_files"):
             checked(max_open_files=bad)
@@ -146,6 +146,6 @@ def test_the_open_file_cap_is_a_limit_with_a_default(monkeypatch) -> None:
     before = wasi_python.defaults()
     wasi_python.set_defaults(dataclasses.replace(before, open_files=7))
     try:
-        assert checked()["open_files"] == 7
+        assert checked().open_files == 7
     finally:
         wasi_python.set_defaults(before)
