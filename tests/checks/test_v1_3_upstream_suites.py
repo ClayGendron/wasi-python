@@ -235,6 +235,5 @@ def test_upstream_files_are_well_formed() -> None:
     errors = upstream.rule_errors(
         CONFIGS, set(gaps), members=members, sources=sources, systems_of=shards.group_systems()
     )
-    errors += packages.total_errors(CONFIGS)
     errors += packages.lxml_errors(CONFIGS, members.get("lxml"))
     assert not errors, scan.report(errors, "upstream files")

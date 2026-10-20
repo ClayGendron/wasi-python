@@ -56,7 +56,8 @@ doctest_files = [
 
 [groups.lxml]
 paths = ["src/lxml/tests", "src/lxml/html/tests"]
-fuel = 160_000_000_000  # 1.5 times 104.5 G measured
+fuel = 160_000_000_000
+measured = 103_449_823_065
 
 [[not_selected]]
 files = ["src/lxml/tests/test_threading.py"]

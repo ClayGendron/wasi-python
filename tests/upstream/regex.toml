@@ -4,7 +4,7 @@
 package = "regex"
 driver = "package"
 grant = "/upstream-regex"
-budget = 24_000_000_000
+budget = 25_000_000_000
 stage_folders = ["regex/tests"]
 cwd = "/tmp/work"
 markers = []
@@ -14,7 +14,8 @@ markers = []
 
 [groups.regex]
 paths = ["regex/tests"]
-fuel = 24_000_000_000  # 1.5 times 16.0 G measured
+fuel = 25_000_000_000
+measured = 16_001_941_028
 
 [[not_selected]]
 files = ["regex/tests/test_regex.py::test_main"]

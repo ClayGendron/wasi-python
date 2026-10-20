@@ -371,6 +371,12 @@ sandbox:
   `lxml.get_include()` names folders inside the stdlib zip, which are not folders.
 - **Pillow without `mmap`**: Pillow falls back from `mmap` to reading the file, silently, so an
   image it opens is never `readonly` and exposes no mapped buffer (spec 066's `no-mmap-silent`).
+- **No `resource` module**: WASI has no `getrusage` or `setrlimit`, so `import resource` raises
+  `ModuleNotFoundError` (spec 066's `no-resource-module`, Pillow's leak checks).
+- **At most 4 GiB of memory**: `python.wasm` declares no maximum memory, so wasm32's 65,536
+  pages (4 GiB) bound every allocation, the runner's own `memory_bytes` limit aside; a request
+  past it raises `MemoryError` or `OSError` `[Errno 48] Out of memory` (Pillow's DDS
+  decompression samples, spec 066's `wasm32-memory`).
 - **Deep recursion**: recursion that runs through Python code (a `__repr__` that calls
   `repr(self)`, `lru_cache`, a `sort` key, a numpy, pandas or lxml callback) raises
   `RecursionError` ("Stack overflow (used 112 kB)") after 40 to 250 levels, where native Python
@@ -743,10 +749,13 @@ Pushing the tag starts `.github/workflows/release.yml`. It builds from the pins 
 checks that the source trees are their tarballs plus the recorded patches, and judges the build
 host's own checks; then the rest of the judge runs in shards on macOS, Linux and Windows at once,
 with numpy's, pandas', CPython's and the six compiled packages' own test suites on Linux (spec
-066: matplotlib's, contourpy's, Pillow's, kiwisolver's, lxml's and regex's own tests in 35 groups
-and twelve `upstream-plot-*` shards, contourpy's two largest files split into groups by `-k`
-expressions so every test runs; regex's `unittest.main()` entry point and a few files that cannot
-load or need processes or threads are not selected, each named in its TOML), and one group of numpy's and
+066: matplotlib's, contourpy's, Pillow's, kiwisolver's, lxml's and regex's own tests in 40 groups
+and fourteen `upstream-plot-*` shards, contourpy's three largest files split into groups by `-k`
+expressions so every test runs, its `--runslow` and `--runtext` cases included, and Pillow's
+`checks/` and `selftest.py` with its `Tests`; regex's `unittest.main()` entry point, Pillow's
+release-notes check and five of its `checks/` scripts that run a reproduction at import rather
+than as tests, and a few files that cannot load or need processes or threads are not selected,
+each named in its TOML), and one group of numpy's and
 pandas', and CPython's file-system group, on macOS and on Windows
 (`tests/release_shards.toml`; `uv run pytest --shard=<name>` runs one). A job named `gather` reads
 every shard's record by its id and hash, and nothing is signed or published unless every shard ran

@@ -35,7 +35,8 @@ markers = []
 [groups.matplotlib-axes]
 # One file past the 480 G bound (699.3 G): named, kept one group (Decision 11).
 paths = ["lib/matplotlib/tests/test_axes.py"]
-fuel = 1_100_000_000_000  # 1.5 times 699.0 G measured
+fuel = 1_100_000_000_000
+measured = 698_984_626_840
 
 [groups.matplotlib-mathtext]
 paths = [
@@ -50,7 +51,8 @@ paths = [
     "lib/matplotlib/tests/test_type1font.py",
     "lib/matplotlib/tests/test_usetex.py",
 ]
-fuel = 450_000_000_000  # 1.5 times 296.7 G measured
+fuel = 450_000_000_000
+measured = 296_720_104_560  # wave 06's set (voided by host litter on wave 07's)
 
 [groups.matplotlib-render-1]
 paths = [
@@ -63,7 +65,8 @@ paths = [
     "lib/matplotlib/tests/test_collections.py",
     "lib/matplotlib/tests/test_colorbar.py",
 ]
-fuel = 350_000_000_000  # 1.5 times 231.5 G measured
+fuel = 350_000_000_000
+measured = 231_111_927_177
 
 [groups.matplotlib-render-2a]
 paths = [
@@ -71,7 +74,8 @@ paths = [
     "lib/matplotlib/tests/test_contour.py",
     "lib/matplotlib/tests/test_figure.py",
 ]
-fuel = 460_000_000_000  # 1.5 times 304.6 G measured
+fuel = 460_000_000_000
+measured = 304_479_745_901
 
 [groups.matplotlib-render-2b]
 paths = [
@@ -80,7 +84,8 @@ paths = [
     "lib/matplotlib/tests/test_lines.py",
     "lib/matplotlib/tests/test_patches.py",
 ]
-fuel = 510_000_000_000  # 1.5 times 337.3 G measured
+fuel = 510_000_000_000
+measured = 336_918_406_268
 
 [groups.matplotlib-render-3]
 paths = [
@@ -92,7 +97,8 @@ paths = [
     "lib/matplotlib/tests/test_tightlayout.py",
     "lib/matplotlib/tests/test_triangulation.py",
 ]
-fuel = 410_000_000_000  # 1.5 times 272.8 G measured
+fuel = 410_000_000_000
+measured = 272_774_079_280
 
 [groups.matplotlib-rest-a]
 paths = [
@@ -126,7 +132,8 @@ paths = [
     "lib/matplotlib/tests/test_datetime.py",
     "lib/matplotlib/tests/test_doc.py",
 ]
-fuel = 470_000_000_000  # 1.5 times 309.4 G measured
+fuel = 470_000_000_000
+measured = 309_630_153_675
 
 [groups.matplotlib-rest-b1]
 paths = [
@@ -145,7 +152,8 @@ paths = [
     "lib/matplotlib/tests/test_preprocess_data.py",
     "lib/matplotlib/tests/test_pyplot.py",
 ]
-fuel = 490_000_000_000  # 1.5 times 323.5 G measured
+fuel = 490_000_000_000
+measured = 323_461_751_876
 
 [groups.matplotlib-rest-b2]
 paths = [
@@ -165,20 +173,24 @@ paths = [
     "lib/matplotlib/tests/test_units.py",
     "lib/matplotlib/tests/test_widgets.py",
 ]
-fuel = 580_000_000_000  # 1.5 times 384.3 G measured
+fuel = 580_000_000_000
+measured = 384_326_703_369
 
 [groups.mpl-axes_grid1]
 # One group per toolkit: one session over the three loads two `tests.conftest` (the survey).
 paths = ["lib/mpl_toolkits/axes_grid1/tests"]
-fuel = 110_000_000_000  # 1.5 times 71.9 G measured
+fuel = 110_000_000_000
+measured = 71_909_759_047
 
 [groups.mpl-axisartist]
 paths = ["lib/mpl_toolkits/axisartist/tests"]
-fuel = 54_000_000_000  # 1.5 times 35.7 G measured
+fuel = 54_000_000_000
+measured = 35_687_311_582
 
 [groups.mpl-mplot3d]
 paths = ["lib/mpl_toolkits/mplot3d/tests"]
-fuel = 510_000_000_000  # 1.5 times 336.6 G measured
+fuel = 510_000_000_000
+measured = 336_355_437_127
 
 [[not_selected]]
 files = ["lib/matplotlib/tests/test_backend_webagg.py"]

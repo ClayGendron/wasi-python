@@ -111,65 +111,75 @@ systems = ["macos"]
 groups = ["pandas-io-parser", "cpython-fs"]
 systems = ["windows"]
 
-# Spec 066: the compiled packages' own tests, twelve Linux shards packed from the build's measured
-# darwin fuel (at most 730 G each; Decision 12). A system is never dropped from a shard to get a
-# pass; a move between shards is a reviewed judge change.
+# Spec 066: the compiled packages' own tests, fourteen Linux shards packed from the build's measured
+# darwin fuel on main's set dc6ba3a5 (at most 725 G each; Decision 12). A system is never dropped
+# from a shard to get a pass; a move between shards is a reviewed judge change.
 [shard.upstream-plot-a]
-# 729.6 G measured
-groups = ["contourpy-filled-4", "contourpy-filled-6", "contourpy-filled-8"]
+# 724.9 G measured
+groups = ["contourpy-filled-7", "contourpy-filled-11"]
 systems = ["linux"]
 
 [shard.upstream-plot-b]
-# 728.9 G measured
-groups = ["matplotlib-render-2a", "contourpy-filled-5", "contourpy-lines-2", "regex"]
+# 724.3 G measured
+groups = ["contourpy-filled-2", "contourpy-lines-7", "contourpy-rest"]
 systems = ["linux"]
 
 [shard.upstream-plot-c]
-# 727.6 G measured
-groups = ["pillow", "matplotlib-mathtext"]
+# 723.9 G measured
+groups = ["contourpy-filled-9", "matplotlib-rest-b1", "contourpy-1"]
 systems = ["linux"]
 
 [shard.upstream-plot-d]
-# 725.9 G measured
-groups = ["contourpy-lines-8", "contourpy-lines-7"]
-systems = ["linux"]
-
-[shard.upstream-plot-e]
-# 725.6 G measured
-groups = ["contourpy-filled-7", "matplotlib-render-3", "kiwisolver"]
-systems = ["linux"]
-
-[shard.upstream-plot-f]
-# 725.0 G measured
-groups = ["contourpy-filled-2", "contourpy-filled-3", "contourpy-1"]
-systems = ["linux"]
-
-[shard.upstream-plot-g]
-# 723.5 G measured
-groups = ["contourpy-filled-1", "matplotlib-render-1", "contourpy-lines-5", "lxml"]
-systems = ["linux"]
-
-[shard.upstream-plot-h]
-# 721.8 G measured
-groups = ["contourpy-filled-9", "matplotlib-rest-a", "contourpy-rest"]
-systems = ["linux"]
-
-[shard.upstream-plot-i]
-# 721.6 G measured
+# 721.2 G measured
 groups = ["matplotlib-rest-b2", "matplotlib-render-2b"]
 systems = ["linux"]
 
+[shard.upstream-plot-e]
+# 720.7 G measured
+groups = ["matplotlib-render-2a", "matplotlib-mathtext", "lxml", "regex"]
+systems = ["linux"]
+
+[shard.upstream-plot-f]
+# 718.5 G measured
+groups = ["contourpy-lines-1", "contourpy-lines-2", "contourpy-lines-3", "contourpy-lines-4", "contourpy-lines-6", "mpl-axisartist"]
+systems = ["linux"]
+
+[shard.upstream-plot-g]
+# 718.4 G measured
+groups = ["pillow", "contourpy-filled-10"]
+systems = ["linux"]
+
+[shard.upstream-plot-h]
+# 718.3 G measured
+groups = ["contourpy-filled-3", "contourpy-filled-8", "matplotlib-render-1"]
+systems = ["linux"]
+
+[shard.upstream-plot-i]
+# 716.6 G measured
+groups = ["contourpy-filled-12", "matplotlib-rest-a", "mpl-axes_grid1", "kiwisolver"]
+systems = ["linux"]
+
 [shard.upstream-plot-j]
+# 715.0 G measured
+groups = ["contourpy-lines-8", "contourpy-filled-6"]
+systems = ["linux"]
+
+[shard.upstream-plot-k]
+# 713.5 G measured
+groups = ["contourpy-config-1", "mpl-mplot3d"]
+systems = ["linux"]
+
+[shard.upstream-plot-l]
 # 699.0 G measured
 groups = ["matplotlib-axes"]
 systems = ["linux"]
 
-[shard.upstream-plot-k]
-# 695.8 G measured
-groups = ["mpl-mplot3d", "matplotlib-rest-b1", "mpl-axisartist"]
+[shard.upstream-plot-m]
+# 689.5 G measured
+groups = ["contourpy-filled-1", "contourpy-filled-4", "contourpy-config-2"]
 systems = ["linux"]
 
-[shard.upstream-plot-l]
-# 609.4 G measured
-groups = ["contourpy-lines-1", "contourpy-lines-3", "contourpy-lines-4", "contourpy-lines-6", "mpl-axes_grid1"]
+[shard.upstream-plot-n]
+# 681.0 G measured
+groups = ["matplotlib-render-3", "contourpy-filled-5", "contourpy-lines-5"]
 systems = ["linux"]

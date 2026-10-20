@@ -12,4 +12,5 @@ markers = []
 
 [groups.kiwisolver]
 paths = ["py/tests"]
-fuel = 20_000_000_000  # 1.5 times 13.0 G measured
+fuel = 20_000_000_000
+measured = 12_972_521_061
