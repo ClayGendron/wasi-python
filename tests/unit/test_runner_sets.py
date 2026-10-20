@@ -136,3 +136,49 @@ def test_a_zip_swapped_after_the_check_never_reaches_the_guest(found, fresh, mon
     _swap_after_check(monkeypatch, swap)
     with pytest.raises(RuntimeError, match="is not the artifact set's"):
         runner.run([], cache_dir=False)
+
+
+# The caches in front of the check key on the file's whole stamp (device, inode, size, both
+# times), the one `_stamp` gives: a replacement of the same size and modification time is
+# hashed again, and a MANIFEST rewritten in place is read again. Opens are counted, never time.
+
+
+def _opens(monkeypatch) -> list[str]:
+    import os
+
+    opened: list[str] = []
+    real = os.open
+
+    def counting(path, *args, **kwargs):
+        opened.append(os.fspath(path))
+        return real(path, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", counting)
+    return opened
+
+
+def test_a_same_size_same_mtime_replacement_is_hashed_again(tmp_path, monkeypatch) -> None:
+    import os
+
+    first, second = b"a" * 100, b"b" * 100
+    target, other = tmp_path / "python.wasm", tmp_path / "replacement"
+    target.write_bytes(first)
+    opened = _opens(monkeypatch)
+    assert _artifacts._digest(target) == hashlib.sha256(first).hexdigest()
+    other.write_bytes(second)
+    st = target.stat()
+    os.utime(other, ns=(st.st_atime_ns, st.st_mtime_ns))  # the same size, the same mtime
+    os.replace(other, target)
+    assert target.stat().st_mtime_ns == st.st_mtime_ns and target.stat().st_size == len(first)
+    assert _artifacts._digest(target) == hashlib.sha256(second).hexdigest()
+    assert opened.count(str(target)) == 2  # one read each: the first file, its replacement
+    assert _artifacts._digest(target) == hashlib.sha256(second).hexdigest()
+    assert opened.count(str(target)) == 2  # the cached digest of the file in place: no read
+
+
+def test_a_rewritten_manifest_gives_its_new_version_tag(tmp_path) -> None:
+    manifest = tmp_path / "MANIFEST"
+    manifest.write_text("python 3.15.0\n")
+    assert _artifacts._version_tag(manifest) == "315"
+    manifest.write_text("python 3.16.0\nrecipe one two\n")  # a reinstall rewrites it in place
+    assert _artifacts._version_tag(manifest) == "316"

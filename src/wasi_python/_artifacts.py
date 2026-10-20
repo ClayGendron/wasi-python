@@ -8,7 +8,7 @@ import hashlib
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import NamedTuple
+from typing import BinaryIO, NamedTuple
 
 from ._process import process
 
@@ -106,32 +106,43 @@ def artifacts() -> Artifacts:
 find_artifacts = artifacts
 
 
-def _stamp(st: os.stat_result) -> tuple[int, ...]:
+def _stamp(st: os.stat_result) -> tuple[int, int, int, int, int]:
+    """What "the file changed" means to every cache in front of the artifact check: its device,
+    inode, size, modification time and change time, so a replacement of the same size and
+    modification time (a `cp -p`, a tar extract, a checkout of an older build) is seen."""
     return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns)
 
 
+_OPEN_FLAGS = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
+
+
 def _hash_file(path: Path) -> str:
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
+    with os.fdopen(os.open(path, _OPEN_FLAGS), "rb") as f:
+        return _hash_stream(f)
+
+
+def _hash_stream(f: BinaryIO) -> str:
     h = hashlib.sha256()
-    with os.fdopen(os.open(path, flags), "rb") as f:
-        for block in iter(lambda: f.read(1 << 20), b""):
-            h.update(block)
+    for block in iter(lambda: f.read(1 << 20), b""):
+        h.update(block)
     return h.hexdigest()
 
 
 def _version_tag(manifest: Path) -> str:
     """'315' from MANIFEST's `python 3.15.0` line: the stdlib zip's guest name is python315.zip.
-    Cached per path in `process().versions`."""
+    Cached per path and full stamp in `process().versions`, so a MANIFEST rewritten in place by a
+    reinstall is read again."""
     versions = process().versions
-    if manifest not in versions:
+    key = (str(manifest), *_stamp(os.stat(manifest)))
+    if key not in versions:
         for line in manifest.read_text().splitlines():
             if line.startswith("python "):
                 major, minor = line.split()[1].split(".")[:2]
-                versions[manifest] = f"{major}{minor}"
+                versions[key] = f"{major}{minor}"
                 break
         else:
             raise ValueError(f"{manifest} has no python line")
-    return versions[manifest]
+    return versions[key]
 
 
 GUEST_PACKAGE = "recipes/guest/host/tools.py"  # MANIFEST's recipe line for the guest package
@@ -210,13 +221,19 @@ def _found_and_checked(snapshot: bool) -> tuple[Artifacts, _Checked]:
 
 
 def _digest(path: Path) -> str:
-    st = path.stat()
-    key = (str(path.resolve()), st.st_size, st.st_mtime_ns)
-    digests = process().digests  # per path, size and mtime
-    if key not in digests:
-        h = hashlib.sha256()
-        with path.open("rb") as f:
-            for block in iter(lambda: f.read(1 << 20), b""):
-                h.update(block)
-        digests[key] = h.hexdigest()
-    return digests[key]
+    """The SHA-256 of the file at `path`, kept in `process().digests` per resolved path and the
+    full stamp (device, inode, size, both times) of the descriptor that was hashed, so what was
+    hashed and what is keyed are one file: a later call stats the path first, and a replacement
+    of the same size and modification time has another inode or change time, so it is hashed
+    again. The dictionary is unlocked: a race only hashes twice."""
+    resolved = str(path.resolve())
+    digests = process().digests
+    found = digests.get((resolved, *_stamp(os.stat(path))))
+    if found is not None:
+        return found
+    fd = os.open(path, _OPEN_FLAGS)
+    with os.fdopen(fd, "rb") as f:
+        key = (resolved, *_stamp(os.fstat(fd)))
+        digest = _hash_stream(f)
+    digests[key] = digest
+    return digest

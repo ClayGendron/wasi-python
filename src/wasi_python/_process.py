@@ -49,7 +49,6 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from concurrent.futures import ThreadPoolExecutor
-    from pathlib import Path
 
     import wasmtime
 
@@ -124,9 +123,10 @@ class _Process:
         self.zip_lock = threading.Lock()
         self.zips: dict[str, list[Any]] = {}
         self.check_modules: dict[bool, Any] = {}
-        self.versions: dict[Path, str] = {}
+        # Both keyed on (the path, *its stamp): device, inode, size, mtime_ns and ctime_ns.
+        self.versions: dict[tuple[str, int, int, int, int, int], str] = {}
         self.guest_packages: dict[str, tuple[tuple[int, ...], bool]] = {}  # path: (stamp, answer)
-        self.digests: dict[tuple[str, int, int], str] = {}
+        self.digests: dict[tuple[str, int, int, int, int, int], str] = {}
         # F. Engines, modules, linkers and the epoch.
         # Guards the engines, the modules, the counts and the sweep's claim.
         self.cache_lock = threading.Lock()
