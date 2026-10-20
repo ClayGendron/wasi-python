@@ -241,6 +241,10 @@ spec's section *Disposition of the pre-build review* holds the same, with pointe
    growth flag.
 8. Note 8 — carried into the build: Decision 5 names the non-strict `xfail(IS_WASM)` tests, and
    the builder names any change in the per-outcome counts (criterion 5, the claim list).
+9. A correction, added by the builder (2026-10-20, main `3ff1871`, `context/decisions.md`,
+   "Correction and question 107"): the "native" numpy this review and the drafting runs called
+   OpenBLAS was the oracle's `macosx_14_0_arm64` wheel, which uses Apple's Accelerate; the review's
+   counts (150, 130, 12, 8) are against native Accelerate.
 
 ## Verdict
 
