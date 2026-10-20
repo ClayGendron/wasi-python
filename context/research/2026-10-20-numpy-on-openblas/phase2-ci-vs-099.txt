@@ -1,0 +1,167 @@
+== macos: rows base 655, new 661
+NEW pass tests/checks/test_v1_3_data_stack.py::test_a_rank_deficient_matrix_meets_the_sets_openblas[plain]
+NEW pass tests/checks/test_v1_3_data_stack.py::test_a_rank_deficient_matrix_meets_the_sets_openblas[snapshot]
+NEW pass tests/checks/test_v1_3_data_stack.py::test_numpy_is_built_on_the_sets_openblas[plain]
+NEW pass tests/checks/test_v1_3_data_stack.py::test_numpy_is_built_on_the_sets_openblas[snapshot]
+NEW pass tests/checks/test_v1_3_data_stack.py::test_numpy_linalg_errors_are_native_numpy_on_openblas[plain]
+NEW pass tests/checks/test_v1_3_data_stack.py::test_numpy_linalg_errors_are_native_numpy_on_openblas[snapshot]
+metrics moved: 224; median +0.022%
+   +2.047%  fuel 827401831 -> 844336299  tests/checks/test_v1_3_data_stack.py::test_a_singular_matrix_raises_linalgerror[snapshot]
+   +1.434%  fuel 1147409887 -> 1163866217  tests/checks/test_v1_3_data_stack.py::test_a_singular_matrix_raises_linalgerror[plain]
+   +0.471%  fuel 1265275 -> 1271229  tests/checks/test_v1_4_embedding.py::test_unbuffered_output_survives_a_hard_exit[snapshot]
+   +0.351%  fuel 5057045913 -> 5074798463  tests/checks/test_v1_3_data_stack.py::test_numpy_csv_job_matches_native
+   +0.277%  fuel 7462982845 -> 7483659164  tests/checks/test_v1_3_default_profile.py::test_modelling_job_matches_native
+   +0.201%  fuel 8878030283 -> 8895830941  tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[snapshot]
+   +0.196%  fuel 9219277261 -> 9237341770  tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[plain]
+   +0.163%  fuel 303348180 -> 303843025  tests/checks/test_v1_2_hostile_guest.py::test_extra_preopens_work_on_the_snapshot[root first]
+   +0.163%  fuel 303348410 -> 303843255  tests/checks/test_v1_2_hostile_guest.py::test_extra_preopens_work_on_the_snapshot[data first]
+   +0.139%  fuel 11011431273 -> 11026691068  tests/checks/test_v1_3_matplotlib.py::test_plot_contour_job_matches_native[snapshot]
+   +0.124%  fuel 11354025640 -> 11368114976  tests/checks/test_v1_3_matplotlib.py::test_plot_contour_job_matches_native[plain]
+   +0.122%  fuel 132509030060 -> 132671075280  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-lib]
+   +0.112%  fuel 826093482 -> 827016124  tests/checks/test_v1_3_data_stack.py::test_numpys_own_floating_point_signals_reach_errstate[snapshot]
+   +0.075%  fuel 10353423892 -> 10361148529  tests/checks/test_v1_3_default_profile.py::test_symbolic_job_matches_native
+   +0.040%  fuel 5086482194 -> 5088498263  tests/checks/test_v1_3_the_zips_directory.py::test_the_pandas_tz_job_matches_native[plain]
+   +0.038%  fuel 7032036855 -> 7034689278  tests/checks/test_v1_3_default_profile.py::test_excel_job_matches_native
+   +0.036%  fuel 4691683206 -> 4693356520  tests/checks/test_v1_3_data_stack.py::test_callbacks_job_matches_native[snapshot]
+   +0.036%  fuel 2492790468 -> 2493678298  tests/checks/test_v1_3_default_profile.py::test_pdf_job_matches_native
+   +0.032%  fuel 5041275709 -> 5042900783  tests/checks/test_v1_3_data_stack.py::test_callbacks_job_matches_native[plain]
+   +0.031%  fuel 4737260094 -> 4738733345  tests/checks/test_v1_3_the_zips_directory.py::test_the_pandas_tz_job_matches_native[snapshot]
+   +0.026%  fuel 6550583916 -> 6552312790  tests/checks/test_v1_3_default_profile.py::test_markup_job_matches_native
+   +0.026%  fuel 678210534 -> 678389040  tests/checks/test_v1_3_regex.py::test_regex_features_job_matches_native[plain]
+   +0.024%  fuel 6490274360 -> 6491830178  tests/checks/test_v1_3_default_profile.py::test_text_formats_job_matches_native
+   +0.020%  fuel 5167397685 -> 5168406689  tests/checks/test_v1_3_data_stack.py::test_pandas_csv_job_matches_native
+   +0.018%  fuel 9054701495 -> 9056312372  tests/checks/test_v1_3_default_profile.py::test_files_from_the_zip_job_matches_native
+   +0.014%  fuel 6870923355 -> 6871863897  tests/checks/test_v1_3_default_profile.py::test_utilities_job_matches_native
+   +0.013%  fuel 62994223124 -> 63002652982  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-fs]
+   +0.013%  fuel 2856966415 -> 2857342009  tests/checks/test_v1_3_scipy.py::test_scipy_lapack_job_matches_native[snapshot]
+   +0.012%  fuel 413445251 -> 413493519  tests/checks/test_v1_3_regex.py::test_regex_features_job_matches_native[snapshot]
+   +0.011%  fuel 3196518934 -> 3196874411  tests/checks/test_v1_3_scipy.py::test_scipy_lapack_job_matches_native[plain]
+   +0.009%  fuel 5269183824 -> 5269672318  tests/checks/test_v1_3_data_stack.py::test_sqlite_job_matches_native
+   +0.004%  fuel 4050943843 -> 4051094597  tests/checks/test_v1_3_data_stack.py::test_compress_job_matches_native
+   -0.001%  fuel 10560082341 -> 10559946903  tests/checks/test_v1_3_scipy.py::test_scipy_numeric_job_matches_native[plain]
+   -0.007%  fuel 10217942794 -> 10217181121  tests/checks/test_v1_3_scipy.py::test_scipy_numeric_job_matches_native[snapshot]
+   -0.024%  fuel 24140752732 -> 24134894425  tests/checks/test_v1_3_lxml.py::test_lxml_xml_job_matches_native
+   -0.034%  fuel 6330575985 -> 6328395088  tests/checks/test_v1_3_scipy.py::test_scipy_solvers_job_matches_native[plain]
+   -0.130%  fuel 70935054 -> 70842916  tests/checks/test_v1_2_hostile_guest.py::test_dup_is_refused_as_not_supported[snapshot]
+   -0.153%  fuel 75134964 -> 75019943  tests/checks/test_v1_3_data_stack.py::test_sqlite_holds_a_lock_while_it_writes
+   -0.158%  fuel 30949978226 -> 30901124009  tests/checks/test_v1_3_lxml.py::test_encodings_are_wasi_libcs_as_documented
+   -0.194%  fuel 5987453957 -> 5975849977  tests/checks/test_v1_3_scipy.py::test_scipy_solvers_job_matches_native[snapshot]
+   -0.270%  fuel 49927377 -> 49792504  tests/checks/test_v1_3_matplotlib.py::test_a_cycle_through_kiwisolver_objects_is_collected[snapshot]
+   -1.400%  bytes 89467888 -> 88215177  tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[snapshot]
+   -1.463%  bytes 84794013 -> 83553745  tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[plain]
+== linux: rows base 709, new 715
+NEW pass tests/checks/test_v1_3_data_stack.py::test_a_rank_deficient_matrix_meets_the_sets_openblas[plain]
+NEW pass tests/checks/test_v1_3_data_stack.py::test_a_rank_deficient_matrix_meets_the_sets_openblas[snapshot]
+NEW pass tests/checks/test_v1_3_data_stack.py::test_numpy_is_built_on_the_sets_openblas[plain]
+NEW pass tests/checks/test_v1_3_data_stack.py::test_numpy_is_built_on_the_sets_openblas[snapshot]
+NEW pass tests/checks/test_v1_3_data_stack.py::test_numpy_linalg_errors_are_native_numpy_on_openblas[plain]
+NEW pass tests/checks/test_v1_3_data_stack.py::test_numpy_linalg_errors_are_native_numpy_on_openblas[snapshot]
+metrics moved: 238; median +0.023%
+   +2.047%  fuel 827401831 -> 844336299  tests/checks/test_v1_3_data_stack.py::test_a_singular_matrix_raises_linalgerror[snapshot]
+   +1.664%  fuel 165578268687 -> 168333299620  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-archives]
+   +1.434%  fuel 1147409887 -> 1163866217  tests/checks/test_v1_3_data_stack.py::test_a_singular_matrix_raises_linalgerror[plain]
+   +0.471%  fuel 1265275 -> 1271229  tests/checks/test_v1_4_embedding.py::test_unbuffered_output_survives_a_hard_exit[snapshot]
+   +0.351%  fuel 5056728242 -> 5074496819  tests/checks/test_v1_3_data_stack.py::test_numpy_csv_job_matches_native
+   +0.281%  fuel 7463210882 -> 7484174217  tests/checks/test_v1_3_default_profile.py::test_modelling_job_matches_native
+   +0.244%  fuel 177626942936 -> 178060170288  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-others]
+   +0.198%  fuel 156757825238 -> 157067445978  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-core]
+   +0.197%  fuel 9220325704 -> 9238459695  tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[plain]
+   +0.163%  fuel 303348180 -> 303843025  tests/checks/test_v1_2_hostile_guest.py::test_extra_preopens_work_on_the_snapshot[root first]
+   +0.163%  fuel 303348410 -> 303843255  tests/checks/test_v1_2_hostile_guest.py::test_extra_preopens_work_on_the_snapshot[data first]
+   +0.159%  fuel 11352329299 -> 11370430960  tests/checks/test_v1_3_matplotlib.py::test_plot_contour_job_matches_native[plain]
+   +0.158%  fuel 8880281454 -> 8894320401  tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[snapshot]
+   +0.158%  fuel 11008958256 -> 11026355205  tests/checks/test_v1_3_matplotlib.py::test_plot_contour_job_matches_native[snapshot]
+   +0.150%  fuel 103230857305 -> 103385799921  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-reshape]
+   +0.148%  fuel 487705633633 -> 488425176168  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-groupby]
+   +0.112%  fuel 826093482 -> 827016124  tests/checks/test_v1_3_data_stack.py::test_numpys_own_floating_point_signals_reach_errstate[snapshot]
+   +0.109%  fuel 94282008304 -> 94384365228  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-io-parser]
+   +0.105%  fuel 354883614776 -> 355254554832  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-frame]
+   +0.075%  fuel 10353424757 -> 10361149394  tests/checks/test_v1_3_default_profile.py::test_symbolic_job_matches_native
+   +0.069%  fuel 21677968828 -> 21692885096  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-internals]
+   +0.066%  fuel 5269046477 -> 5272543387  tests/checks/test_v1_3_data_stack.py::test_sqlite_job_matches_native
+   +0.063%  fuel 27320104288 -> 27337435906  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-libs]
+   +0.058%  fuel 89624057589 -> 89675597241  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-io-formats]
+   +0.043%  fuel 38829272116 -> 38845917847  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-tslibs]
+   +0.036%  fuel 7031860285 -> 7034398107  tests/checks/test_v1_3_default_profile.py::test_excel_job_matches_native
+   +0.036%  fuel 2492790468 -> 2493678298  tests/checks/test_v1_3_default_profile.py::test_pdf_job_matches_native
+   +0.033%  fuel 6550632472 -> 6552825644  tests/checks/test_v1_3_default_profile.py::test_markup_job_matches_native
+   +0.028%  fuel 4691982248 -> 4693292644  tests/checks/test_v1_3_data_stack.py::test_callbacks_job_matches_native[snapshot]
+   +0.027%  fuel 62967854718 -> 62984646266  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-fs]
+   +0.027%  fuel 4737575874 -> 4738835825  tests/checks/test_v1_3_the_zips_directory.py::test_the_pandas_tz_job_matches_native[snapshot]
+   +0.026%  fuel 678210534 -> 678389040  tests/checks/test_v1_3_regex.py::test_regex_features_job_matches_native[plain]
+   +0.020%  fuel 6490458048 -> 6491765643  tests/checks/test_v1_3_default_profile.py::test_text_formats_job_matches_native
+   +0.020%  fuel 5041284047 -> 5042279425  tests/checks/test_v1_3_data_stack.py::test_callbacks_job_matches_native[plain]
+   +0.018%  fuel 5086821428 -> 5087757363  tests/checks/test_v1_3_the_zips_directory.py::test_the_pandas_tz_job_matches_native[plain]
+   +0.017%  fuel 9055009591 -> 9056571703  tests/checks/test_v1_3_default_profile.py::test_files_from_the_zip_job_matches_native
+   +0.017%  fuel 5167302548 -> 5168160747  tests/checks/test_v1_3_data_stack.py::test_pandas_csv_job_matches_native
+   +0.015%  fuel 10216647501 -> 10218133184  tests/checks/test_v1_3_scipy.py::test_scipy_numeric_job_matches_native[snapshot]
+   +0.014%  fuel 276696894163 -> 276736959994  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-a]
+   +0.014%  fuel 6870925085 -> 6871865627  tests/checks/test_v1_3_default_profile.py::test_utilities_job_matches_native
+   +0.012%  fuel 413445251 -> 413493519  tests/checks/test_v1_3_regex.py::test_regex_features_job_matches_native[snapshot]
+   +0.011%  fuel 3196500802 -> 3196864328  tests/checks/test_v1_3_scipy.py::test_scipy_lapack_job_matches_native[plain]
+   +0.005%  fuel 399559107530 -> 399578077247  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-c]
+   +0.005%  fuel 4050940370 -> 4051123636  tests/checks/test_v1_3_data_stack.py::test_compress_job_matches_native
+   -0.013%  fuel 10562216810 -> 10560804838  tests/checks/test_v1_3_scipy.py::test_scipy_numeric_job_matches_native[plain]
+   -0.015%  fuel 2857268734 -> 2856840221  tests/checks/test_v1_3_scipy.py::test_scipy_lapack_job_matches_native[snapshot]
+   -0.063%  fuel 132697223589 -> 132613392826  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-lib]
+   -0.076%  fuel 24144568112 -> 24126320440  tests/checks/test_v1_3_lxml.py::test_lxml_xml_job_matches_native
+   -0.093%  fuel 6335008706 -> 6329098549  tests/checks/test_v1_3_scipy.py::test_scipy_solvers_job_matches_native[plain]
+   -0.130%  fuel 70935054 -> 70842916  tests/checks/test_v1_2_hostile_guest.py::test_dup_is_refused_as_not_supported[snapshot]
+   -0.153%  fuel 75135483 -> 75020462  tests/checks/test_v1_3_data_stack.py::test_sqlite_holds_a_lock_while_it_writes
+   -0.154%  fuel 5985046966 -> 5975848821  tests/checks/test_v1_3_scipy.py::test_scipy_solvers_job_matches_native[snapshot]
+   -0.158%  fuel 30949978226 -> 30901124009  tests/checks/test_v1_3_lxml.py::test_encodings_are_wasi_libcs_as_documented
+   -0.270%  fuel 49927377 -> 49792504  tests/checks/test_v1_3_matplotlib.py::test_a_cycle_through_kiwisolver_objects_is_collected[snapshot]
+   -1.400%  bytes 89467888 -> 88215177  tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[snapshot]
+   -1.463%  bytes 84794013 -> 83553745  tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[plain]
+   -3.130%  fuel 303182098688 -> 293692608270  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-b]
+== windows: rows base 609, new 615
+NEW pass tests/checks/test_v1_3_data_stack.py::test_a_rank_deficient_matrix_meets_the_sets_openblas[plain]
+NEW pass tests/checks/test_v1_3_data_stack.py::test_a_rank_deficient_matrix_meets_the_sets_openblas[snapshot]
+NEW pass tests/checks/test_v1_3_data_stack.py::test_numpy_is_built_on_the_sets_openblas[plain]
+NEW pass tests/checks/test_v1_3_data_stack.py::test_numpy_is_built_on_the_sets_openblas[snapshot]
+NEW pass tests/checks/test_v1_3_data_stack.py::test_numpy_linalg_errors_are_native_numpy_on_openblas[plain]
+NEW pass tests/checks/test_v1_3_data_stack.py::test_numpy_linalg_errors_are_native_numpy_on_openblas[snapshot]
+metrics moved: 224; median +0.023%
+   +2.047%  fuel 827401831 -> 844336299  tests/checks/test_v1_3_data_stack.py::test_a_singular_matrix_raises_linalgerror[snapshot]
+   +1.434%  fuel 1147409887 -> 1163866217  tests/checks/test_v1_3_data_stack.py::test_a_singular_matrix_raises_linalgerror[plain]
+   +0.471%  fuel 1265275 -> 1271229  tests/checks/test_v1_4_embedding.py::test_unbuffered_output_survives_a_hard_exit[snapshot]
+   +0.351%  fuel 5057045913 -> 5074798463  tests/checks/test_v1_3_data_stack.py::test_numpy_csv_job_matches_native
+   +0.280%  fuel 94241810561 -> 94505583692  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-io-parser]
+   +0.277%  fuel 7462982845 -> 7483659164  tests/checks/test_v1_3_default_profile.py::test_modelling_job_matches_native
+   +0.212%  fuel 9218882630 -> 9238396614  tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[plain]
+   +0.163%  fuel 8880295943 -> 8894808562  tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[snapshot]
+   +0.163%  fuel 303348180 -> 303843025  tests/checks/test_v1_2_hostile_guest.py::test_extra_preopens_work_on_the_snapshot[root first]
+   +0.163%  fuel 303348410 -> 303843255  tests/checks/test_v1_2_hostile_guest.py::test_extra_preopens_work_on_the_snapshot[data first]
+   +0.157%  fuel 11351836707 -> 11369689302  tests/checks/test_v1_3_matplotlib.py::test_plot_contour_job_matches_native[plain]
+   +0.153%  fuel 11011075066 -> 11027924699  tests/checks/test_v1_3_matplotlib.py::test_plot_contour_job_matches_native[snapshot]
+   +0.112%  fuel 826093482 -> 827016124  tests/checks/test_v1_3_data_stack.py::test_numpys_own_floating_point_signals_reach_errstate[snapshot]
+   +0.075%  fuel 10353423892 -> 10361148529  tests/checks/test_v1_3_default_profile.py::test_symbolic_job_matches_native
+   +0.040%  fuel 5086482194 -> 5088498263  tests/checks/test_v1_3_the_zips_directory.py::test_the_pandas_tz_job_matches_native[plain]
+   +0.038%  fuel 7032036855 -> 7034689278  tests/checks/test_v1_3_default_profile.py::test_excel_job_matches_native
+   +0.036%  fuel 4691683206 -> 4693356520  tests/checks/test_v1_3_data_stack.py::test_callbacks_job_matches_native[snapshot]
+   +0.036%  fuel 2492790468 -> 2493678298  tests/checks/test_v1_3_default_profile.py::test_pdf_job_matches_native
+   +0.032%  fuel 5041275709 -> 5042900783  tests/checks/test_v1_3_data_stack.py::test_callbacks_job_matches_native[plain]
+   +0.031%  fuel 4737260094 -> 4738733345  tests/checks/test_v1_3_the_zips_directory.py::test_the_pandas_tz_job_matches_native[snapshot]
+   +0.026%  fuel 6550583916 -> 6552312790  tests/checks/test_v1_3_default_profile.py::test_markup_job_matches_native
+   +0.026%  fuel 678210534 -> 678389040  tests/checks/test_v1_3_regex.py::test_regex_features_job_matches_native[plain]
+   +0.024%  fuel 63193593333 -> 63209009050  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-fs]
+   +0.024%  fuel 6490274360 -> 6491830178  tests/checks/test_v1_3_default_profile.py::test_text_formats_job_matches_native
+   +0.020%  fuel 5167397685 -> 5168406689  tests/checks/test_v1_3_data_stack.py::test_pandas_csv_job_matches_native
+   +0.018%  fuel 9054701495 -> 9056312372  tests/checks/test_v1_3_default_profile.py::test_files_from_the_zip_job_matches_native
+   +0.014%  fuel 6870923355 -> 6871863897  tests/checks/test_v1_3_default_profile.py::test_utilities_job_matches_native
+   +0.013%  fuel 2856966415 -> 2857342009  tests/checks/test_v1_3_scipy.py::test_scipy_lapack_job_matches_native[snapshot]
+   +0.012%  fuel 413445251 -> 413493519  tests/checks/test_v1_3_regex.py::test_regex_features_job_matches_native[snapshot]
+   +0.011%  fuel 3196518934 -> 3196874411  tests/checks/test_v1_3_scipy.py::test_scipy_lapack_job_matches_native[plain]
+   +0.009%  fuel 5269183830 -> 5269672324  tests/checks/test_v1_3_data_stack.py::test_sqlite_job_matches_native
+   +0.002%  fuel 4050978894 -> 4051076610  tests/checks/test_v1_3_data_stack.py::test_compress_job_matches_native
+   -0.001%  fuel 10560082341 -> 10559946903  tests/checks/test_v1_3_scipy.py::test_scipy_numeric_job_matches_native[plain]
+   -0.007%  fuel 10217942794 -> 10217181121  tests/checks/test_v1_3_scipy.py::test_scipy_numeric_job_matches_native[snapshot]
+   -0.024%  fuel 24140752732 -> 24134894425  tests/checks/test_v1_3_lxml.py::test_lxml_xml_job_matches_native
+   -0.034%  fuel 6330575985 -> 6328395088  tests/checks/test_v1_3_scipy.py::test_scipy_solvers_job_matches_native[plain]
+   -0.130%  fuel 70935054 -> 70842916  tests/checks/test_v1_2_hostile_guest.py::test_dup_is_refused_as_not_supported[snapshot]
+   -0.153%  fuel 75134964 -> 75019943  tests/checks/test_v1_3_data_stack.py::test_sqlite_holds_a_lock_while_it_writes
+   -0.158%  fuel 30949978226 -> 30901124009  tests/checks/test_v1_3_lxml.py::test_encodings_are_wasi_libcs_as_documented
+   -0.194%  fuel 5987453957 -> 5975849977  tests/checks/test_v1_3_scipy.py::test_scipy_solvers_job_matches_native[snapshot]
+   -0.270%  fuel 49927377 -> 49792504  tests/checks/test_v1_3_matplotlib.py::test_a_cycle_through_kiwisolver_objects_is_collected[snapshot]
+   -1.400%  bytes 89467888 -> 88215177  tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[snapshot]
+   -1.463%  bytes 84794013 -> 83553745  tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[plain]
