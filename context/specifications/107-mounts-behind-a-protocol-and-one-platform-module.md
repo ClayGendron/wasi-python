@@ -985,3 +985,31 @@ sameness exit 0
 13. **The spec's "Seen failing" counts** (446 lines, 328 specification numbers, 186 decision
     numbers, 80 IDs, 62 review lines) were `b7a1250`'s; on commit 3 the check finds 430 lines
     and 636 tokens, as recorded above, after 104 to 106 moved and reworded text.
+
+### Disposition of the build review
+
+The build review (`../reviews/107-mounts-behind-a-protocol-and-one-platform-module-2026-10-20.md`,
+commit `bbfa9b8`; verdict "lands", one Low in code, one Low written in by the reviewer, three
+Notes):
+
+1. **The two citation-only comments that became an empty `#`** (`_sessions.py:527`, `:894`) —
+   fixed in `01471a6`: at 527 the `#` is deleted (the reason is on the line above); at 894 it
+   reads `# run by the guest thread at its end`, which is what `home.finish` does with
+   `_abandon_turn` (its docstring: "run by its guest thread at its end"). `git grep -nE '#\s*$'`
+   over `src/wasi_python/*.py` → none. Re-run alone: `ruff check`, `ruff format --check`, `mypy
+   --strict` clean; `tests/checks/test_rules.py`, `tests/unit/test_runner_sessions.py` and
+   `test_lifecycles.py` → 104 passed, the baseline's one failure. No fast tier: a comment
+   change; the reviewer's record (`build/107/review.json`) stands.
+2. **The text commit's two code tokens** (the redundant paren pair the formatter dropped in
+   `_open_wasm`) — acknowledged: the one intended non-text change, `ALLOWED`, plus a formatter
+   rewrap with no effect.
+3. **The citation rule does not read string literals** — noted for spec 109: one more regex,
+   `spec NNN` only, over every string token, so a message to a user is held too; carried as a
+   line in the list for 108 and 109 below.
+4. **The by-file tally's one digit** (`_wasmtime_ffi` 11 → 12) — written in by the reviewer,
+   `21e04e8`; confirmed (the scanner's count on `git archive 0b80b99`).
+5. **The four `test_runner_mounts.py` sites** — agreed: Difference 1 above.
+
+**For 108 and 109, carried from this review:** a `spec NNN` regex over string tokens (every
+`.py` under `src/`, and 109's `tests/`, `scripts/` and `release/`), the form with the fewest
+false matches in message text; `_platform.py` stands at 1,407 lines, 93 under the ceiling.

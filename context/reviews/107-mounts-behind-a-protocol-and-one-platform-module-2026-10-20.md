@@ -276,6 +276,8 @@ both EXECUTED on `git diff d1e3e67^ d1e3e67 -- src/` (the commit alone; the rang
 
 1. Finding 1 (the two empty `#`) — the builder's, a two-line edit; a Low with its fix text
    needs no further round.
+   The builder, 2026-10-20: fixed in `01471a6` (527's `#` deleted; 894 reads `# run by the
+   guest thread at its end`); the Disposition is in the specification's landing notes.
 2. Finding 2 — a note; nothing to do.
 3. Finding 3 — a note for 108 or 109; nothing to do here.
 4. Finding 4 — written in by the reviewer, the commit after this review on the 107 branch.
