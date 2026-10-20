@@ -105,10 +105,12 @@ TICKER_COND = ("wasi_python._engines", "_epoch_ticker._cond")
 # immutable constant. A plain tuple, so the process accessor can be added.
 SENTINELS = ("_UNSET", "_DONE")
 
-# The child interpreter of check 1: it walks the package for locks, calls the hook, walks again.
+# The child interpreter of check 1: it loads every module of the package, walks them for locks,
+# calls the hook, walks again.
 FORK_WALK = r"""
 import json, sys, threading
 import wasi_python
+import wasi_python._wasmtime_ffi, wasi_python.cli, wasi_python.tools
 from wasi_python import _engines, runner
 
 LOCKS = (type(threading.Lock()), type(threading.RLock()), threading.Condition)
@@ -168,8 +170,9 @@ def _hook_targets(hook: typing.Any) -> set[tuple[str, str]]:
 
 
 def test_every_module_level_lock_is_remade_after_fork() -> None:
-    """A child interpreter finds every lock the package holds at module level, and the
-    hook re-makes each one it names; the hook, the lists and the modules agree three ways."""
+    """A child interpreter loads every module of the package (the three `import wasi_python`
+    leaves out too), finds every lock they hold at module level, and the hook re-makes each one
+    it names; the hook, the lists and the modules agree three ways."""
     from wasi_python import runner
 
     before, after = _fork_walk()
@@ -266,7 +269,9 @@ def _is_unchanging(name: str, obj: typing.Any) -> bool:
     """The by-name form: a class, a generic alias, an immutable constant or a sentinel."""
     if isinstance(obj, type) or typing.get_origin(obj) is not None:
         return True
-    if isinstance(obj, (int, float, str, bytes, tuple, frozenset, re.Pattern)):
+    if isinstance(obj, (tuple, frozenset)):
+        return all(_is_unchanging(name, element) for element in obj)
+    if isinstance(obj, (int, float, str, bytes, re.Pattern)):
         return True
     return name in SENTINELS
 
@@ -301,14 +306,23 @@ def _by_name_errors(package: Path) -> list[str]:
 
 def _patched(tests: Path) -> set[tuple[str, str]]:
     """Every `monkeypatch.setattr(<module>, "NAME", …)` under tests/ whose first argument names
-    a runner module or the package: (module, NAME)."""
-    known = {name: f"wasi_python.{name}" for name in RUNNER_MODULES}
-    known["wasi_python"] = "wasi_python"
+    a runner module or the package, under the name the file imports it by: (module, NAME)."""
     out = set()
     for path in scan.files_under(tests, "."):
         if path.suffix != ".py":
             continue
-        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        known = {}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for a in node.names:
+                    if a.name == "wasi_python":
+                        known[a.asname or a.name] = "wasi_python"
+            elif isinstance(node, ast.ImportFrom) and node.module == "wasi_python":
+                for a in node.names:
+                    if a.name in RUNNER_MODULES:
+                        known[a.asname or a.name] = f"wasi_python.{a.name}"
+        for node in ast.walk(tree):
             if (
                 isinstance(node, ast.Call)
                 and isinstance(node.func, ast.Attribute)
