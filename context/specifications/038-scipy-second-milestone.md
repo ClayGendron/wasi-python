@@ -264,6 +264,29 @@ decision's purpose; the reviewer checks each.
    start 5.9 M and 1.0 M fuel (0.9 M on the snapshot), so the first lookup grew 8.0 M plain and
    2.1 M snapshot over 037's. `_types.py` now has its own `__index__` helper and
    `float("inf")`, and a unit check holds its imports to `struct` and `sys`.
+9. **An instance has no memory** (the build review's High 1): `_SimpleCData.__buffer__` raises the
+   stand-in's `OSError` (PEP 688), so `bytes()`, `memoryview()` and `bytearray()` of a held value
+   meet "ctypes is unavailable", as spec 033's rule says touching memory does. Without it,
+   CPython's `test_memoryview.OtherTest.test_ctypes_cast` (`bytes(c_double(0.6))`) raised
+   `TypeError` and `cpython-b` lost a pass in run 39393706506; with it the test stays in
+   `cpython-b`'s `no-ctypes` class, whose gap is unchanged.
+10. **CPython's truth and argument types** (the build review's Medium 2 and Low 3): an instance is
+    false when its stored C bytes are all zero (0, 0.0, a NULL `c_void_p`; -0.0 and NaN are
+    true); `c_void_p` takes only an `int` (a `bool` is one); a floating type takes what has
+    `__float__` or `__index__`, never a `str` or a buffer; instances are unhashable.
+11. **The Sobol options have a check** (the build review's Low 7):
+    `test_v1_3_scipy.py::test_the_sobol_options_need_nothing_writable` runs
+    `differential_evolution(init='sobol')` and `shgo(sampling_method='sobol')` on a
+    two-dimensional sphere with nothing writable. On 037's set shgo raised QH6421 (seen failing;
+    differential_evolution converged even from the zero population).
+12. **Three upstream classes empty** (the build review's High 1): no test in `cpython-a`,
+    `cpython-c` or `numpy-others` meets "ctypes is unavailable" any more (EXECUTED, by node id,
+    on the set built at `442493b`). Their `[[gap]]` entries are removed, their expected lists
+    emptied, and their `[[expected]]` classes kept with a "closed by spec 038" reason, as spec
+    086 kept `no-missing-stdlib-info`, so a test that meets the stand-in again is classed. The
+    groups gain the passes: `cpython-a` +1 (`test_pickletools ... test_buffers_numpy`),
+    `cpython-c` +5 (the five `test_pickle ... test_buffers_numpy`), `numpy-others` +8 (three
+    `numpy.ma` tests and five bit generators' `test_ctypes`). `cpython-b` keeps its one.
 
 ## Landing notes
 
@@ -351,46 +374,82 @@ has run. Evidence under the worktree's git-ignored `build/038/`.
   now errors with `TypeError: cannot convert 'c_double' object to bytes` (digest
   `553fd33fb0dc`), since an instance is made but has no buffer. The review's High 1.
 
+**Phase 3 (2026-10-20): the build review's fixes, restacked on main.**
+
+- **Restacked** onto `origin/main` `958a22b` (wave 06 landed 043, 037 and 096) with
+  `git rebase --onto origin/main 28bd08a`, keeping the reviewer's `8dc0182` (now `1073d68`). One
+  conflict, in `README.md`'s carried-patch row and prose list: main's nineteen (with kiwisolver's
+  `tp_clear` and lxml's `fake_cython` lines) plus 038's two, twenty-one, in the row, the prose and
+  the list. (Resolved with a script, not the Edit tool; the hunks are named here.) The review is
+  copied to `../reviews/038-scipy-second-milestone-build-2026-10-20.md` unchanged.
+- **The fixes**, each check seen failing first: Revised at build items 9 to 12
+  (`build/038/logs/review-rows-seen-failing.log`: `bytes(c_double(0.6))` raised `TypeError`,
+  `bool(c_int(0))` was `True`; `build/038/logs/sobol-options-on-037-set-2.log`: shgo's QH6421 on
+  037's set).
+- **Built from an empty `build/`** at `442493b` (downloads verified, the pins equal main's):
+  every step ok, scipy's `0001` to `0004` applied with no offset, the direct-call gate 0
+  mismatches. `SHA256SUMS` `c3a849c0`; `python.wasm` 84,791,487 bytes, the snapshot 89,462,506,
+  the zip 44,449,137.
+- **By node id** on that set: the four upstream groups the stand-in touches
+  (`build/038/logs/upstream-ctypes-groups.log`): `cpython-a`, `cpython-b`, `cpython-c` and
+  `numpy-others` pass, no pass lost; `cpython-b-no-ctypes` holds as a gap; the other three
+  classes "pass, but tests/known_gaps.toml still lists it", and after item 12 they pass
+  (`upstream-classes-after.log`). The Sobol options check passes on both binaries.
+- **The fast tier** `-n 3` (`build/038/logs/fast-tier-3.log`): 617/757, 0 gap, 3 blocked (prior-art
+  clones, three systems, the wheel), and 2 fail, both the Sobol options check before its fix (a
+  numpy bool in its JSON, then differential_evolution stopping at `maxiter=50`); the check alone
+  passes since. Unit suite 1830/1837. Lost 0; gained 8.
+- **The local full judge** (AGENTS.md rule 3a, the build review's Low 6) is the release workflow's
+  run, as the rule now says; locally only the fast tier and single node ids ran.
+- **Fuel against main's accepted state** (`d066695`, `build/038/growth-vs-main-3.txt`): 180 rows
+  move, 122 up and 58 down, median +0.011%. 033's guest check +1.39% / +1.32%: `help(ctypes)`
+  renders the value methods of every simple type (+63 M on the snapshot, measured,
+  `build/038/fuel/ctypes-check-parts.txt`) and the program does more; threadpoolctl's check
+  +0.90% / +0.35% (the first type lookup); checks that import scipy +0.05% to +0.19%;
+  `test_unbuffered_output_survives_a_hard_exit[snapshot]` +0.39% (+4,967 fuel, cause not
+  identified); the upstream groups `cpython-a` +0.044%, `cpython-b` +0.067%, `cpython-c` +0.038%,
+  `numpy-others` -0.038% with eight more passes; the rest within ±0.25%.
+- **The release workflow on the branch:** (the run below, under For the lane).
+
 ### For the lane
 
-**Where it stands.** Built on `bcc1ac3`, stacked on 037's built tip `28bd08a`. Not yet reviewed:
-the build review is next (a fresh reviewer, this specification and `git diff 28bd08a`). The
-native build slot is released.
+**Where it stands.** Built on the tip below, on main `958a22b`. The build review's High 1,
+Medium 2, Low 3, Low 6 and Low 7 are answered (items 9 to 12, the lines above); Lows 4 and 5 were
+written in by the reviewer. A delta review reads `git diff 1073d68..` and the new run.
 
-#### The claim list (rows 038 changes, against 037's)
+#### The claim list (rows 038 changes, against main `d066695`)
 
-- **New checks (4 guest rows, 3 unit):**
+- **New checks (6 guest rows, 5 unit):**
   `tests/checks/test_v1_3_scipy.py::test_scipy_edges_job_matches_native[plain]`, `[snapshot]`
-  (slow, fuel recorded); `::test_ndarray_ctypes_gives_the_arrays_address[plain]`, `[snapshot]`
-  (fuel recorded); in the unit suite,
+  (slow); `::test_ndarray_ctypes_gives_the_arrays_address[plain]`, `[snapshot]`;
+  `::test_the_sobol_options_need_nothing_writable[plain]`, `[snapshot]`; in the unit suite,
   `test_the_ctypes_stand_in_holds_numeric_values_as_wasm32_stores_them`,
+  `test_the_ctypes_stand_in_values_have_no_memory`,
+  `test_the_ctypes_stand_in_values_are_true_and_typed_as_cpythons`,
   `test_the_ctypes_stand_in_types_import_only_what_a_start_has_loaded`,
   `test_the_ctypes_stand_in_holds_void_pointers_and_casts_them`.
-- **Gaps that now pass (6):** `tests/checks/test_v1_3_scipy.py::test_matrix_market_round_trips_in_memory`,
+- **Gaps that now pass (9):** `tests/checks/test_v1_3_scipy.py::test_matrix_market_round_trips_in_memory`,
   `::test_sobol_needs_nothing_writable`, `::test_ctypes_values_scipy_makes`, each `[plain]` and
-  `[snapshot]`; their six `[[gap]]` entries removed.
+  `[snapshot]`; `tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-no-ctypes]`,
+  `[cpython-c-no-ctypes]`, `[numpy-others-no-ctypes]` (empty classes). Their nine `[[gap]]`
+  entries removed.
+- **More passes:** `test_upstream_suite[cpython-a]` +1, `[cpython-c]` +5, `[numpy-others]` +8.
 - **Changed checks:** `tests/checks/test_v1_3_data_stack.py::test_ctypes_stand_in_names_what_packages_import`
-  `[plain]`, `[snapshot]` (fuel +0.70%, +0.73%: more steps), and the unit check
-  `test_the_ctypes_stand_in_names_and_refuses` (Decision 3's rule); and
-  `tests/checks/test_v1_3_data_stack.py::test_goldens_reproduce_under_the_pinned_oracle`, which
-  now reproduces `scipy_edges` too, on darwin-arm64 (`JOBS`, `PLATFORM_BOUND`; written in by the
-  build review, which ran it: pass).
+  `[plain]`, `[snapshot]` and the unit check `test_the_ctypes_stand_in_names_and_refuses`
+  (Decision 3's rule); `test_v1_3_data_stack.py::test_goldens_reproduce_under_the_pinned_oracle`,
+  which reproduces `scipy_edges` too, on darwin-arm64 (written in by the build review, which ran
+  it: pass).
 - **Retired:** none. No group's passes fall.
-- **Rows that grow:** the zip's bytes (+2,762); fuel rows that import scipy (+0.05% to +0.18%)
-  or look up a `ctypes` type (threadpoolctl's check +0.87% snapshot, +0.34% plain); every other
-  fuel row within ±0.16% of 037's but one,
-  `tests/checks/test_v1_4_embedding.py::test_unbuffered_output_survives_a_hard_exit[snapshot]`,
-  +0.39% (1,265,275 → 1,270,242, +4,967 fuel; cause not identified; written in by the build
-  review from `build/038/growth-vs-037-2.txt`). `python.wasm` and the snapshot shrink.
-- **Not 038's:** every row 037 and 043 carry against main.
+- **Rows that grow:** as in the fuel line above, and the zip's bytes, +3,221 against 037's set
+  `40281c40` (two members). `python.wasm` (-2,778) and the snapshot (-5,611) shrink.
+- **Not 038's:** none known.
 
 #### The flags
 
 ```
---accept "038: scipy's sandbox edges (spec 037's three gaps closed): carried scipy patches 0003 (Matrix Market's default parallelism 1 on WASI) and 0004 (Sobol's direction numbers read without a temporary file); the ctypes stand-in holds numeric and c_void_p values and casts to c_void_p, nothing with an address; on a set whose zip differs from 037's in exactly two members and whose MANIFEST differs in the stand-in's hash, the two patch lines and the zip's hash"
---accept-judge "038: the edges golden (tests/jobs/scipy_edges.py, .expected, .platform, JOBS and PLATFORM_BOUND) run with nothing writable; the guest address check; three host unit checks of the stand-in (its value rules at wasm32's sizes, and its imports held to struct and sys); 033's guest and unit stand-in checks changed to Decision 3's rule; spec 037's six scipy [[gap]] entries removed because their checks now pass"
---accept-growth "038: the stand-in's types carry the value rules, so the first type lookup costs 1.35 M more fuel on the plain reactor and 1.30 M on the snapshot (operator and math are not imported: item 8), and import scipy, which builds them in _lib._ccallback_c, 1.65 M more (scipy.optimize 3.8 M): every check that imports scipy +0.05% to +0.18%, threadpoolctl's check +0.87% / +0.34%; 033's guest check +0.70% / +0.73% runs more steps; the zip +2,762 bytes in two members; python.wasm -2,786 and the snapshot -5,596 bytes; 176 rows move against 037's own record, median +0.011%"
+--accept "038: scipy's sandbox edges (spec 037's three gaps closed): carried scipy patches 0003 (Matrix Market's default parallelism 1 on WASI) and 0004 (Sobol's direction numbers read without a temporary file); the ctypes stand-in holds numeric and c_void_p values and casts to c_void_p, with CPython's truth and argument rules, no memory (its buffer refuses with the stand-in's OSError) and nothing with an address; the zip differs from 037's in exactly two members"
+--accept-judge "038: the edges golden (tests/jobs/scipy_edges.py, .expected, .platform, JOBS and PLATFORM_BOUND) run with nothing writable; the guest address check; the Sobol options check (the build review's Low 7); five host unit checks of the stand-in (its value rules at wasm32's sizes, no buffer, CPython's truth and argument types, its imports held to struct and sys); 033's guest and unit stand-in checks changed to Decision 3's rule; spec 037's six scipy [[gap]] entries removed because their checks pass; the no-ctypes classes of cpython-a, cpython-c and numpy-others emptied (their expected lists empty, their classes kept with a closed-by-038 reason) and their three [[gap]] entries removed, because no test in those groups meets the stand-in's OSError: cpython-a +1, cpython-c +5 and numpy-others +8 passes"
+--accept-growth "038: the stand-in's types carry the value rules: the first type lookup +1.35 M fuel on the plain reactor and +1.30 M on the snapshot, import scipy (which builds them) +1.65 M and scipy.optimize +3.8 M, so every check that imports scipy grows 0.05% to 0.19% and threadpoolctl's check +0.90% / +0.35%; 033's guest check +1.39% / +1.32%, help(ctypes) rendering every simple type's value methods (+63 M on the snapshot) and more steps; test_unbuffered_output_survives_a_hard_exit[snapshot] +0.39% (+4,967 fuel, cause not identified); the upstream groups cpython-a +0.044%, cpython-b +0.067%, cpython-c +0.038% (more tests run); the zip +3,221 bytes in two members; 180 rows move against main, median +0.011%"
 ```
 
-No `--retire`, no `--accept-fewer-passes`, no `--partial`. Accept with 037's and 043's flags in
-the same wave, after both.
+No `--retire`, no `--accept-fewer-passes`, no `--partial`.

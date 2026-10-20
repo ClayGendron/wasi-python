@@ -113,9 +113,12 @@ nothing; each such use raises `OSError`, as a missing library does, which is why
 "no ctypes". A numeric type and `c_void_p` hold values (spec 038): `c_ulong(-1).value` is
 4294967295 as on any wasm32, `c_void_p` holds a 32-bit integer, and `cast` of an integer or a
 `c_void_p` to `c_void_p` works, so numpy's `ndarray.ctypes.data` and
-`data_as(ctypes.c_void_p)` give the array's address; nothing has an address of its own
-(`byref`, `pointer`, `addressof` raise), and a pointer to typed data (`data_as(POINTER(...))`),
-a string or a structure instance raises. So does asking numpy or pandas for the dtype of a `Structure`, `Union`, pointer,
+`data_as(ctypes.c_void_p)` give the array's address. An instance is false when its value is
+zero, as in CPython, but it has no memory: nothing has an address of its own (`byref`, `pointer`,
+`addressof` raise), its bytes cannot be read (`bytes()` and `memoryview()` of it raise), and a
+pointer to typed data (`data_as(POINTER(...))`), a string or a structure instance raises.
+numpy's `BitGenerator.ctypes` gives its named tuple, but its function pointers raise when
+called. So does asking numpy or pandas for the dtype of a `Structure`, `Union`, pointer,
 array or function type (the stand-in computes no layouts), and with it `inspect.getmembers` and
 `hasattr(t, "__numpy_dtype__")` on such a type; `help()` and `dir()` work. The snapshot runs only beside the exact stdlib zip it was built
 against (its `MANIFEST` names the zip's hash), because zipimport's file
