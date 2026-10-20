@@ -861,7 +861,19 @@ under the worktree's `build/042/`.
    the review asked for holds: it fails before any fetch, naming `'~'`, and writes nothing.
 9. **The roadmap's "question 73 adds the barcode folder, written in before its build" is
    superseded by C3** and decision 73 (the lane, 2026-10-20): the folder stays out, and the
-   acknowledgement sentence is not added now; the later change ships both.
+   acknowledgement sentence is not added now; the later change ships both. For that change (the
+   build review's finding 4): `code128.py`, `code93.py` and `fourstate.py` date Sarna's copyright
+   2000, the other four 1996-2000; its Sarna heading adds "(code128.py, code93.py and
+   fourstate.py date their copyright 2000)".
+10. **Decision 8's third `load_dataset` case is an embedder's, not the runner's** (the build
+    review's finding 2). Through `wasi_python.run` with a writable root, `/tmp` is writable, so the
+    runner gives a fresh `HOME` under `/tmp`; seaborn's cache folder goes there, removed after the
+    call, and `load_dataset` raises `URLError`; no `~` folder is made in the root (the review,
+    EXECUTED). Only an embedder that gives a writable root and no `HOME` gets `/~/.cache/seaborn`
+    in it, as the pre-build review's driver did. The README and CHANGELOG say so. The check's
+    no-`~` assertion now comes before its output assertion, and is seen failing on a mutant
+    whose program drops `HOME` and works in the writable grant (`build/042/mutant_home_plugin.py`,
+    `build/042/mutant-home.txt`: the grant holds `fontlist-v3.11.0.json` and `~`).
 
 ### Acceptance criterion 1: seen failing first (EXECUTED)
 
@@ -942,6 +954,50 @@ none is a regression of the guest):
   +0.70 M and +1.89 M (INFERRED: each reads metadata or resources across the zip; the plain rows of
   the same programs are within their caps).
 
+**The rest, from CI** (the build review's finding 1). The local fast tier has no slow rows, and
+the list above held every row to the looser metadata cap. The complete account compares the
+macOS shard records of 042's run 39421194888 with 038's run 39415728849 on `ecc2423`, every row in
+both, slow rows included (`build/042/ci_growth042.py`, `build/042/ci-growth-vs-038.txt`; EXECUTED:
+227 fuel rows; where a row is also in the local records, its numbers are the local ones exactly).
+Every row above its binary's base cap (snapshot +0.70 M, plain +5.97 M + 0.2%) is named here or
+above:
+- **Metadata readers, inside their own cap**: `test_packages_carry_their_metadata[plain, snapshot]`
+  +20.2 M and +13.5 M (two more distributions read, inside the table's ≤ 50 M);
+  `test_metadata_answers_from_the_zips_directory[snapshot]` +1.51 M,
+  `test_numpy_and_pandas_are_builtin_at_manifest_versions[snapshot]` +0.83 M and
+  `test_regex_is_builtin_at_manifest_version[snapshot]` +0.75 M (each calls
+  `importlib.metadata.version`, inside +1.89 M).
+- **scipy's importers, metadata readers too.** EXECUTED (`build/042/probe_rows042.py`,
+  `build/042/probe-rows042.txt`, the snapshot of each set): `import scipy.linalg` imports
+  `importlib.metadata` and grows +1.67 M, `import scipy.spatial` +1.01 M, while `import numpy`
+  (+0.48 M), `import lxml.html` (+0.52 M) and `import regex` (+0.60 M) import no metadata and grow
+  by about the snapshot's own start cost (+0.52 M). So these, all importing scipy, are under the
+  +1.89 M metadata cap: `test_scipys_dotted_builtins_keep_their_import_names[snapshot]` +1.81 M,
+  `test_a_flat_convex_hull_raises_qhullerror` +1.73 M, `test_a_singular_solve_raises_linalgerror`
+  +1.61 M, `test_ctypes_values_scipy_makes` +1.54 M, `test_ctypes_stand_in_names_what_packages_import`
+  +1.39 M, `test_scipy_lapack_job_matches_native` +1.36 M, `test_highs_reports_an_infeasible_problem`
+  +1.15 M, `test_matrix_market_round_trips_in_memory` +1.12 M,
+  `test_workers_run_serially_or_raise_as_documented` +0.91 M,
+  `test_a_python_callbacks_exception_comes_back_through_c` +0.89 M, `test_scipy_edges_job_matches_native`
+  +0.85 M and `test_scipy_solvers_job_matches_native` +0.82 M, each `[snapshot]`.
+- **Past the metadata cap too, by layout**: `test_plot_contour_job_matches_native[snapshot]`
+  +2,204,755 (+0.020%) and `test_scipy_numeric_job_matches_native[snapshot]` +2,147,965 (+0.021%),
+  0.31 M and 0.26 M over +1.89 M. INFERRED: a snapshot row moves by up to about 2 M with the heap's
+  layout; in the same family `test_plot_line_job_matches_native[snapshot]` **falls** -2,062,838, and
+  `import pandas` alone falls -118,032 (EXECUTED, the probe).
+- **Layout, near the start cost**: `test_read_html_uses_lxml_by_default[snapshot]` +1.30 M (it
+  imports pandas, lxml and bs4; INFERRED) and `test_the_guest_package_round_trips_through_the_door[snapshot]`
+  +0.74 M.
+- **Plain, the member cost paid twice**: `test_a_reread_after_invalidate_caches_is_the_fast_read`
+  +8,684,729 (+0.97%), over the plain cap of about 7.77 M: it reads the zip's directory, invalidates
+  the caches and reads it again, so it pays the 199 members' start-up cost twice (2 × 4.83 M is
+  9.7 M; INFERRED from its name and docstring).
+- **Fell** (four rows): `test_plot_line_job_matches_native[snapshot]` -2,062,838 (-0.023%),
+  `test_dotted_builtins_keep_their_import_names[snapshot]` -531,079, `test_pickling_a_deep_list_raises`
+  -7,345, `test_unbuffered_output_survives_a_hard_exit[snapshot]` -133: layout.
+- **Upstream** (`upstream-macos`, against 038): `cpython-fs` +75.7 M (+0.12%) and `numpy-lib`
+  +112.1 M (+0.08%), inside the plain cap's 0.2% (the review's numbers).
+
 The new checks' and jobs' fuel are new metrics. On the snapshot, through the judge's driver
 (`build/042/probe042.txt`): `import reportlab.pdfgen.canvas, reportlab.platypus` 1,883,877,927;
 `import matplotlib.pyplot` in a fresh `MPLCONFIGDIR` (its font cache built) 7,952,872,789, and with
@@ -1001,13 +1057,21 @@ bytes. **The wheel:** `wasi_python-0.1.0a8-py3-none-any.whl`, 84,660,765 bytes (
     about +0.5 M); the zip-walking rows of `test_v1_3_the_zips_directory.py`,
     `test_the_default_profile_runs_its_pure_python_paths` and `test_networkx_atlas_reads_from_the_zip`
     in proportion to the member count or two more distributions (listed above); the Sobol and
-    pandas-tz snapshot rows by under 0.05%; on `upstream-macos`, `cpython-fs` and `numpy-lib`
-    (the member count, shared with 038's growth against main);
-  - fell: three rows by at most 531,079 (`test_dotted_builtins_keep_their_import_names[snapshot]`,
-    `test_pickling_a_deep_list_raises`, `test_unbuffered_output_survives_a_hard_exit[snapshot]`;
-    layout); retired: none; passes lost: none.
+    pandas-tz snapshot rows by under 0.05%; the metadata readers (033's check +20.2 M and
+    +13.5 M, and the snapshot rows that read a version); scipy's importers on the snapshot (scipy
+    imports `importlib.metadata`), +0.82 M to +1.81 M; `test_plot_contour_job_matches_native[snapshot]`
+    +2.20 M and `test_scipy_numeric_job_matches_native[snapshot]` +2.15 M (layout, past the
+    metadata cap by 0.31 M and 0.26 M); `test_read_html_uses_lxml_by_default[snapshot]` +1.30 M and
+    `test_the_guest_package_round_trips_through_the_door[snapshot]` +0.74 M (layout);
+    `test_a_reread_after_invalidate_caches_is_the_fast_read` +8.68 M (the member cost twice); on
+    `upstream-macos`, `cpython-fs` +75.7 M and `numpy-lib` +112.1 M against 038 (inside 0.2%); every
+    row by name in *The rest, from CI* above;
+  - fell: four rows, `test_plot_line_job_matches_native[snapshot]` -2,062,838,
+    `test_dotted_builtins_keep_their_import_names[snapshot]` -531,079,
+    `test_pickling_a_deep_list_raises` -7,345 and `test_unbuffered_output_survives_a_hard_exit[snapshot]`
+    -133 (layout); retired: none; passes lost: none.
 - **Flags** (paste-safe):
   - `--accept "042 seaborn 0.13.2 and reportlab 5.0.1 pure in the zip, reportlab without its fonts and barcode folder, both notices with their third-party parts"`
   - `--accept-judge "042 two golden jobs and goldens, the oracle pins and lock, eight new checks and four unit checks, the package licence metadata and source-tree lists, the zero-patch count 26"`
-  - `--accept-growth "042 199 zip members: zip plus 2041073 bytes, snapshot plus 74056, plain start plus 4.83 M and snapshot start plus 0.53 M, zip-walking rows in proportion to the member count"`
+  - `--accept-growth "042 199 zip members: zip plus 2041073 bytes, snapshot plus 74056, plain start plus 4.83 M and snapshot start plus 0.53 M; zip-walking rows and the pure-paths scan in proportion to the member count; the reread pays the member cost twice, plus 8.68 M; metadata and entry-point readers, networkx, 033s metadata check and scipy importers on the snapshot, read two more distributions; plot_contour and scipy_numeric snapshot plus 2.20 M and 2.15 M, read_html and the guest package snapshot, by layout, as plot_line snapshot falls 2.06 M; Sobol and pandas-tz snapshot under 0.05 percent; upstream cpython-fs and numpy-lib inside 0.2 percent"`
 - **Native slot:** released at the end of the build (no native build since).

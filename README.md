@@ -2261,12 +2261,14 @@ Both are pure Python. seaborn draws through matplotlib; reportlab writes PDFs (s
   call a writable grant and point `MPLCONFIGDIR` at it, as for matplotlib. With nothing
   writable, `import seaborn` raises matplotlib's `OSError`.
 - `sns.load_dataset` cannot fetch (there is no network), and how it fails depends on what is
-  writable, because seaborn first makes its cache folder under a `~` the guest cannot expand:
-  with nothing writable, `import seaborn` itself fails (above); with only the `MPLCONFIGDIR`
-  grant and no root, `load_dataset` raises `FileNotFoundError` naming `'~'` (with a read-only
-  root, `PermissionError`); with a writable root, it makes a
-  folder `/~/.cache/seaborn` in that root and then raises `URLError` (`unknown url type:
-  https`). Put the CSV in a granted folder and read it with `pd.read_csv`.
+  writable, because seaborn first makes its cache folder under `~`, which the guest expands only
+  when it has a `HOME`: with nothing writable, `import seaborn` itself fails (above); with only
+  the `MPLCONFIGDIR` grant and no root, `load_dataset` raises `FileNotFoundError` naming `'~'`
+  (with a read-only root, `PermissionError`); with a writable root (where the runner also gives a
+  fresh `HOME` under `/tmp`), it makes its cache folder under that `HOME`, removed after the call,
+  and then raises `URLError` (`unknown url type: https`); an embedder that gives a writable root
+  and no `HOME` gets a folder `/~/.cache/seaborn` in that root. Put the CSV in a granted folder
+  and read it with `pd.read_csv`.
 - seaborn uses scipy, which is compiled in: its kernel densities are `scipy.stats.gaussian_kde`
   and `clustermap` clusters with `scipy.cluster.hierarchy`, so `import seaborn` also pays
   scipy's import.
