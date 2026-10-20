@@ -7,10 +7,11 @@
   answer to question 106 (spec 100, stacked on this one), and rebased onto main `3ff1871` (context
   only). *Disposition of the pre-build review* says where each went.
   **Confirmed for build** by the same reviewer (the review's *Confirmation*), no finding open.
-  **Building: phase 1 done** (everything that needs no fresh artifact set; *Landing notes*); phase
-  2, the native rebuild and the dry run, waits for the native slot. It changes the build recipe and
-  the artifact set, so it was reviewed before it is built (constitution §5.6). A different agent
-  reviews the build.
+  **Built 2026-10-20** from an empty `build/` on base `21dff9d` (rebased since onto `3ff1871`,
+  context only); the dry run 39432450036 on `b0e1593`'s only red lines are its 15 claimed growth
+  lines (*Landing notes*), with one build finding (B1) written in for the build review. It changes
+  the build recipe and the artifact set, so it was reviewed before it is built (constitution
+  §5.6). A different agent reviews the build.
 - **Date:** 2026-10-20
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** (§5.7): a new recipe file, `recipes/npy_fenv_flags.h`, force-included
@@ -616,37 +617,61 @@ None blocks the build.
   (textual merges), and `tests/checks/test_v1_3_data_stack.py` with spec 096's successors.
 - **Pre-build review: required** (§5.6, the build recipe and the artifact set).
 - **The rebuild:** step 40 (numpy), 60 (link), the snapshot, 70 (zip: `numpy/__config__.py`) and 90
-  change their outputs. Step 50 (pandas) and 57 (scipy) compile against numpy's installed headers,
-  which do not change (INFERRED: their archives' bytes stay the same; the builder confirms by
-  hash). Steps 10 to 38 do not run differently.
-- **The claim list** (the builder's measured numbers replace each INFERRED one; each line starts
-  "099:"):
-  - 099: **new checks (7 nodes), each passing:** checks 1 to 3 on `[plain]` and `[snapshot]`, and
-    check 4. **Unit rows:** check 5's six.
-  - 099: **retired checks:** none. **Lost passes:** none expected. Where one would show (Decision
-    5: `numpy-others`, pandas' groups, the `numpy.linalg` goldens) the lane's run is the evidence;
-    a lost pass stops the entry and is reported against Decision 6, never allowed.
-  - 099: **rows that grow, bytes:** `test_binary_is_a_core_wasm_module[plain]` and `[snapshot]`,
-    and `test_stdlib_zip_is_bytecode_only_and_deflated`.
-  - 099: **fuel rows that move, up or down:** each named, with its percentage and the reason
-    (numpy's status read becomes an inlined load and four bit tests where it was an out-of-line
-    libc call returning a folded 0; the pre-build review's note 7).
-  - 099: **upstream outcomes outside the pass digest:** any change in numpy's xfailed or xpassed
-    counts (its non-strict `xfail(IS_WASM)` tests; note 8), named.
-  - 099: **facts:** `singular_probe.py`'s four counts and examples, and `fp_probe.py`'s `nan`-matrix
-    lines, on both binaries (criterion 5), for spec 100.
+  change their outputs. Steps 50 (pandas) and 57 (scipy) do not: their archives equal main's by
+  hash (EXECUTED, phase 2). Steps 10 to 38 do not run differently.
+- **The claim list** (measured: the builder's build and fast tier on `21dff9d`, and dry run
+  39432450036 on `b0e1593`; each line starts "099:"):
+  - 099: **new checks (7 nodes), each passing:** `test_v1_3_data_stack.py::test_a_singular_matrix_raises_linalgerror[plain]`
+    (fuel 1,147,409,887) and `[snapshot]` (827,401,831);
+    `::test_numpys_own_floating_point_signals_reach_errstate[plain]` (1,146,003,003) and
+    `[snapshot]` (826,093,482); `::test_hardware_floating_point_signals_stay_silent_as_documented[plain]`
+    (1,143,432,283) and `[snapshot]` (823,466,914);
+    `test_v1_5_rebuild_from_pins.py::test_every_numpy_compile_keeps_its_floating_point_flags_in_software`
+    (no fuel; its reason the counts). **Unit rows:** six in `tests/unit/test_scan.py` (the unit
+    suite 1,831/1,838).
+  - 099: **retired checks:** none. **Lost passes:** none (the fast tier and every dry-run shard:
+    `lost 0`). The upstream groups' outcome counts (xfailed and xpassed included) and pass digests
+    equal wave 06's dry run 39398491514 in every group (numpy-core, numpy-lib, numpy-others, the
+    eight pandas groups, cpython-a to c, -fs, -archives; EXECUTED, the shards' records): note 8
+    moved nothing.
+  - 099: **rows that grow, 15** (the dry run's `judge (macos-15, own-guest)`, its only red job,
+    `grew 15`): bytes `test_v1_1_artifact_set.py::test_stdlib_zip_is_bytecode_only_and_deflated`
+    44,445,945 → 44,445,960; fuel, +0.0103% to +0.0330%: `test_packages_carry_their_metadata[snapshot]`
+    (+0.0330%), `test_scipy_solvers_job_matches_native[snapshot]` (+0.0256%),
+    `test_a_pandas_warning_names_the_callers_line[plain]` (+0.0223%),
+    `test_dotted_builtins_keep_their_import_names[snapshot]` (+0.0206%),
+    `test_delaunay_triangulation_runs` (+0.0204%), `test_npy_files_round_trip[snapshot]` (+0.0182%)
+    and `[plain]` (+0.0172%), `test_recursion_through_python_raises[np-apply-along-axis-snapshot]`
+    (+0.0146%), `test_contourpy_runs_one_thread` (+0.0133%),
+    `test_a_python_callbacks_exception_comes_back_through_c[plain]` (+0.0128%),
+    `test_pandas_styler_renders_from_the_zip[snapshot]` (+0.0114%),
+    `test_numpy_and_pandas_are_builtin_at_manifest_versions[snapshot]` (+0.0114%),
+    `test_scipy_odr_is_left_out_by_name[snapshot]` (+0.0112%),
+    `test_recursion_through_python_raises[np-frompyfunc-snapshot]` (+0.0103%). The shard's other
+    168 moved rows are within ±0.01%, down to −0.125% (`test_lxml_xml_job_matches_native`).
+  - 099: **bytes that shrink:** `test_binary_is_a_core_wasm_module[plain]` 84,794,273 → 84,794,013
+    (−260) and `[snapshot]` 89,468,144 → 89,467,888 (−256).
+  - 099: **facts for spec 100:** `singular_probe.py` against native Accelerate on both binaries:
+    130 raise as native, 141 finite as native, 20 finite where native raises, 12 raise where native
+    returns; `fp_probe.py`'s `nan` lines; build finding B1 (`lstsq` of `nan` raises
+    `SystemError`). The `MANIFEST` lines: one added (`recipes/npy_fenv_flags.h`), one changed
+    (`recipes/wasi-numpy.cross`), the snapshot's `x-snapshot-zip`.
   - **The judge hash changes** in `tests/harness/scan.py`, `tests/checks/test_v1_3_data_stack.py`,
     `tests/checks/test_v1_5_rebuild_from_pins.py` and `tests/unit/test_scan.py`.
-- **The flags** (the builder fills the measured numbers):
+- **The flags** (paste-safe, with the measured numbers):
 
   ```
-  --accept "099: numpy's own floating-point signals are kept in software (recipe recipes/npy_fenv_flags.h, force-included into every numpy compile): numpy.linalg raises LinAlgError when numpy's bundled lapack_lite finds a matrix singular or not positive definite (for a matrix singular only in exact arithmetic not always where native does; spec 100 narrows it), and integer division by zero, integer overflow in division and float16 overflow warn or raise under np.errstate, as natively; signals only the hardware gives stay silent, as documented"
-  --accept-judge "099: checks that inv, solve, tensorinv, tensorsolve, matrix_power(-1) of an exactly singular matrix and cholesky of one not positive definite raise LinAlgError as natively, that numpy's own integer and float16 signals reach errstate as natively, that hardware-only signals stay silent as the README says, and that every numpy compile (by compiler, from numpy's own compile records, missing records a failure) carries the header; numpy_fenv_errors and its unit rows; no existing expectation edited"
-  --accept-growth "099: numpy compiled with real flag bits and a software flag word: python.wasm +N bytes, the snapshot +N, the zip +N (numpy/__config__.py records the -include in both argument lines); fuel rows that run numpy ufuncs move, up or down, by the status read becoming an inlined load and bit tests: <rows and percentages>; MANIFEST one recipe line added, one changed"
+  --accept "099: numpy's own floating-point signals are kept in software (recipe recipes/npy_fenv_flags.h, force-included into every numpy compile): numpy.linalg raises LinAlgError when numpy's bundled lapack_lite finds a matrix singular or not positive definite (for a matrix singular only in exact arithmetic not always where native does; spec 100 narrows it), and integer division by zero, integer overflow in division and float16 overflow warn or raise under np.errstate, as natively; signals only the hardware gives stay silent, as documented; lstsq of a nan matrix now raises SystemError (build finding B1, closed by spec 100)"
+  --accept-judge "099: checks that inv, solve, tensorinv, tensorsolve, matrix_power(-1) of an exactly singular matrix and cholesky of one not positive definite raise LinAlgError as natively, that numpy's own integer and float16 signals reach errstate as natively, that hardware-only signals stay silent as the README says, and that every numpy compile (by compiler, from numpy's own compile records, missing records a failure) carries the header; the npy_fenv scanners and six unit rows; no existing expectation edited"
+  --accept-growth "099: numpy compiled with real flag bits and a software flag word (recipes/npy_fenv_flags.h): the zip +15 bytes (44,445,945 -> 44,445,960; numpy/__config__.py records the -include in both argument lines), while python.wasm shrinks 260 bytes and the snapshot 256; fuel moves either way on rows that run numpy ufuncs, the status read now an inlined load and bit tests where it was an out-of-line libc call: fourteen rows up +0.0103% to +0.0330% (test_packages_carry_their_metadata[snapshot] the most), the rest within 0.01% or down; MANIFEST one recipe line added, one changed"
   ```
 
-- **Dry-run needs:** the release workflow on the branch (criterion 7); the Windows judge shards
-  run checks 1 to 4 as any other.
+- **Dry-run needs:** the release workflow on the branch (criterion 7), done: run 39432450036 on
+  `b0e1593`. Checks 1 to 3 passed in the Windows, Linux and macOS `own-guest` shards' records
+  (macOS's red only for growth); check 4 runs in the build job, where the compile records are
+  (`compiles 189, c 166, c++ 23, not compiles 9`).
+- **The native slot** was used from 08:10 to 08:25 (the build) on 2026-10-20 and released then; no
+  native build is pending.
 
 ## Disposition of the pre-build review
 
@@ -834,3 +859,50 @@ what only the hardware signals stays silent and says so.
   The binaries' byte rows went down (−260 and −256), which is not growth.
 - The upstream groups (slow) and the goldens did not run here; the dry run judges them on three
   systems.
+
+### Phase 2: the release dry run (criteria 3 and 7; READ, run 39432450036 on `b0e1593`)
+
+- **24 jobs passed, 4 skipped, 1 red:** `judge (macos-15, own-guest)`, `384/758 pass · 6 gap · 2
+  blocked · 0 fail`, ratchet `lost 0 · gained 7 · grew 15`. **Its only red lines are the 15 growth
+  lines** in *For the lane* (the zip's 15 bytes and fourteen fuel rows within +0.0330%, three of
+  them slow rows the local fast tier does not run: the scipy solvers golden, the Delaunay
+  triangulation and contourpy's one thread). No G7 line. `gather` and the release-only jobs were
+  skipped, as a red judge makes them.
+- **The same bytes everywhere** (criterion 3): both Linux rebuilds (x86_64 and arm64) and "the same
+  bytes from every host" passed; the three `verify` jobs passed; every Windows shard passed.
+- **Checks 1 to 3 passed** in the macOS, Linux and Windows `own-guest` records; check 4 in the build
+  job's record.
+- **The upstream groups** (macOS and Linux shards): every group's outcome counts and pass digest
+  equal wave 06's dry run 39398491514 (READ, the shards' `latest.json` against wave 06's): numpy-core,
+  numpy-lib, numpy-others, pandas-frame, -groupby, -internals, -io-formats, -io-parser, -libs,
+  -reshape, -tslibs, cpython-a, -b, -c, -fs and -archives. numpy-lib's macOS fuel moved −0.022%.
+- So 099 is **built**: every red line in its dry run is a growth line it claims.
+
+### The builder's self-check
+
+```
+- rebased onto main's tip today: main 3ff1871 (the build ran on 21dff9d; 3ff1871 adds context only);
+- CI run dispatched on this exact commit and read: 39432450036 on b0e1593; red lines GREW only
+  (15); the Windows legs green;
+- every number from a measured run on this base, labelled EXECUTED; the growth list is this
+  build's (the fast tier's 12 and the dry run's 15), not the draft's;
+- "For the lane": the claim list, the three flags each beginning "099", the wave kind
+  (build-class, not a package), dry-run needs met;
+- every new check seen failing first (checks 1, 2 and 4 on main's set; check 3 passes there by
+  design); the Windows, Linux and macOS guest shards each ran checks 1 to 3;
+- no gap added; reserved follow-up spec 100 has its roadmap line (main 3ff1871);
+- packages.toml: no line changes (Decision 7); README rows: the platform-facts bullet and the
+  recipe-files clause; context/upstream/README.md: folder 30's row;
+- CHANGELOG under the one unreleased section (0.1.0a8 — unreleased); no new question (106 and
+  107 answered);
+- ruff check, ruff format --check, the fast tier: green but for the claimed growth, output in
+  build/099/.
+```
+
+### For the build review: what to weigh
+
+- **Build finding B1** (Phase 2, the facts): `lstsq` of a `nan` matrix now raises `SystemError`
+  where main raised `ValueError`. Written into the README and CHANGELOG, closed by spec 100, not
+  fixed here.
+- **The correction of question 107**: the probes' "native" was Accelerate; the text says so
+  throughout.
