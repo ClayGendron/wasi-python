@@ -5,12 +5,15 @@
   (`../reviews/066-the-compiled-packages-own-tests-spec-2026-10-20.md`: "ready once H1, H2 and M1
   to M3 are written in"; every finding is written in, and the Disposition section says where).
   **Surveyed 2026-10-20** (`../research/2026-10-20-the-compiled-packages-own-tests-under-the-runtime.md`,
-  EXECUTED); its dated delta is the section "Delta from the survey", for the confirmation round.
-  Not built: building starts on that round's verdict. It builds after spec 043 (matplotlib M2, which pins contourpy)
+  EXECUTED); its dated delta is the section "Delta from the survey". **Confirmed for build
+  2026-10-20 once C1 to C3 are written in and the owner rules on the budget** (the confirmation,
+  appended to the review); C1 to C9 are written in (the Disposition of the confirmation). Waiting
+  on: the owner's word on the budget rule (Decision 11), and 043 and 096 landed or on reviewed
+  tips. Not built. It builds after spec 043 (matplotlib M2, which pins contourpy)
   lands, on 043's set. It touches the release workflow (new Linux shards, Decision 12), so it is
   build-class by AGENTS.md's definition, though no artifact byte changes. The lane asks for a
-  pre-build review, as it did for 063 and 065: it changes what the release judges, and its numbers
-  are INFERRED until its survey (Decision 1) runs.
+  pre-build review, as it did for 063 and 065: it changes what the release judges. Its numbers are
+  the survey's (EXECUTED on main's set) until the re-survey on 043's set with 096 replaces them.
 - **Owner:** Clay Gendron
 - **Kind:** the judge and the release workflow. No line of `src/`, `scripts/`, `recipes/` or
   `downloads/SHA256SUMS` changes: every tarball it reads is already pinned and recorded in
@@ -33,14 +36,19 @@
     - `tests/checks/test_v1_3_upstream_suites.py`: the needs per family;
     - `tests/upstream/fetch.py`: `--shard` fetches the trees of the families the shard runs;
     - `tests/upstream/packages.toml`: the six packages become `suite` (Decision 13);
-    - `tests/release_shards.toml`: three new Linux shards (Decision 12);
+    - `tests/release_shards.toml`: six new Linux shards (Decision 12);
     - `.github/workflows/release.yml`: the Linux judge matrix gains the three shards, with their
       record outputs, and `gather` reads them (Decision 12);
     - `tests/unit/test_upstream.py`, `tests/unit/test_shards.py`, `tests/unit/test_fetch_trees.py`;
     - `README.md`, `CHANGELOG.md`, `context/progress/README.md`, one dated line in spec 063,
       `context/roadmap.md`.
 - **Depends on:**
-  - **043** (matplotlib M2): contourpy's pin, its tree, its `packages.toml` entry (`later`,
+  - **096** (kiwisolver's `void` `tp_clear` functions and lxml's `fake_cython` without `final`;
+    being drafted): 066 is built after 096 lands, or stacked on 096's reviewed tip (§4.14). The
+    re-survey runs on a set with 096. **If 096 slips**, 066 builds without the kiwisolver group
+    (kiwisolver stays `later`, `closes_with = "spec 096"`), and lxml carries the class
+    `lxml-html-diff` closed by spec 096 (the confirmation, C3).
+  - **043** (matplotlib M2, wave 06): contourpy's pin, its tree, its `packages.toml` entry (`later`,
     closer 066) and its README facts (one thread). 066 builds on 043's set. 043 enters wave 06
     stacked with 037.
   - **063** (shards, `packages.toml`, `fetch.py --shard`, gather's G4 and G5), **065** (a stage
@@ -72,7 +80,9 @@
     imports, configurations and conftests read as text. The counts are in
     `../research/2026-10-20-the-packages-own-tests-drafting/` (`inventory.txt`,
     `collection-risks.txt`, and the readers in `scripts/`). Every number of outcome or fuel below
-    is INFERRED until the survey measures it.
+    was INFERRED at drafting; the survey's memo (below) holds the measured ones.
+  - `../research/2026-10-20-the-compiled-packages-own-tests-under-the-runtime.md`: the survey,
+    EXECUTED on main's set (Decision 1).
 
 ## The problem
 
@@ -136,8 +146,8 @@ numpy and pandas and spec 065 for CPython:
    - **The cost.** One stage per family per judge run (host copies; the kit unpacked once per
      family) and one pytest start per group (the kit is source, and the driver keeps
      `sys.dont_write_bytecode`; the survey measures it). Ten groups pay it ten times.
-   - **The budget.** Each family's fuel caps sum to at most its budget, as 065's did. The six
-     budgets together are at most 3×10¹² (Decision 11).
+   - **The budget.** Each family's fuel caps sum to at most its budget, as 065's did; the budgets
+     follow Decision 11's rule.
 
 3. **A second pytest driver, so numpy's and pandas' sessions run the same bytes.** The guest
    executes `tests/upstream/drive.py`; editing it would change numpy's and pandas' fuel, however
@@ -227,12 +237,16 @@ numpy and pandas and spec 065 for CPython:
 6. **The working folder and the environment, per package.**
    - **`cwd`**: the folder the driver changes into. matplotlib and contourpy write their
      comparison results to `./result_images/` (`decorators._image_directories`, READ), so theirs
-     is `/tmp/work`, in the guest's writable root. Pillow's tests open `Tests/images/…` by a path
-     relative to the working folder (READ, `helper.py`), and some write beside what they read.
-     So Pillow's `cwd` is also `/tmp/work`, and before the session the judge copies the stage's
-     `Tests/` folder there, into the guest's writable root (host I/O only; the review, M3). The
-     test modules still import from the read-only grant; only their relative data paths meet the
-     copy. No failure is then the judge's own making, and there is no `read-only-tree` class.
+     is `/tmp/work`, in the guest's writable root. Pillow and lxml read data by paths relative to
+     the source tree's root (Pillow's `Tests/images/…`, `helper.py`; lxml's `samples/*.xml` from
+     `selftest2`, and `doc/test.xml` from `api.txt` and `parsing.txt`), so their `cwd` is the
+     stage's tree root, read-only, with no copy (the confirmation, C1 and C8). lxml's stage holds
+     `samples/simple.xml`, `samples/simple-ns.xml` and `doc/test.xml` as support files.
+     **Measured:** the survey's Pillow run with the read-only tree had no failure caused by it: its
+     one suspect, `test_save_without_changing_readonly`, fails because the `mmap` stand-in raises
+     and Pillow's `readonly` flag then ends 0 (`ImageFile.py:133, 311`, READ by the confirmation).
+     A writable copy in the guest's root was voided twice by spec 089's guard (`/.DS_Store`), so
+     none is made. A test that writes beside its data would be a finding for the build review.
    - **The environment** is the judge's (`TMPDIR=/tmp`, `HOME=/tmp`). matplotlib's cache goes to
      `$HOME/.config/matplotlib`, writable; its data is granted as the runner grants it
      (`mpl_data=True`, as 023 grants it to numpy's and pandas' groups).
@@ -256,8 +270,10 @@ numpy and pandas and spec 065 for CPython:
    - **contourpy**: its `conftest.py` registers `slow`, `text`, `image` and `threads` and skips
      `slow` and `text` unless asked (`--runslow`, `--runtext`): upstream's own default selection,
      kept. The `.ini` registers `flaky` (pytest-rerunfailures' marker, which one test carries).
-   - **Pillow**: `[tool.pytest]` holds `addopts = -ra --color=auto` and `testpaths`; nothing to
-     transcribe but the testpath. Its `conftest.py` used as is.
+   - **Pillow**: `[tool.pytest]` holds `addopts = -ra --color=auto` and `testpaths`. The `.ini`
+     registers the `timeout` marker (pytest-timeout's), which nine of Pillow's modules carry;
+     without it they fail to collect under `--strict-markers` (the survey). Its `conftest.py` used
+     as is.
    - **lxml**: no pytest configuration. lxml's own runner (`test.py`) runs, per module, exactly
      what that module's `test_suite()` builds. pytest by itself would collect more and less (the
      review, H1): it collects every `unittest.TestCase` subclass in a module's namespace, including
@@ -275,11 +291,17 @@ numpy and pandas and spec 065 for CPython:
        builds from data (`FeedTestCase`) is not run: lxml's own runner builds none while
        `lxml.html.clean` is absent, and it is (`lxml_html_clean` is not shipped, README), so its
        module is not selected (Decision 8).
-     - **Doctest files.** The driver's doctest collector adds the 17 doctest files `test_suite()`
-       names, each with lxml's own flags: `ELLIPSIS` for the 11 `doc/*.txt` files lxml runs through
-       `make_doctest`, none for the 6 `html/tests/*.txt` files it runs through `DocFileSuite`
-       plainly. lxml runs `validation.txt` from five modules; the group runs it once, from one.
-     - **Docstring doctests.** The same collector adds, as doctest items, the docstrings of the nine
+     - **Doctest files, run by the stdlib's runner.** The driver adds one item per doctest file
+       `test_suite()` names (17), each run by the stdlib's `doctest.DocTestRunner` with lxml's own
+       flags: `ELLIPSIS` for the 11 `doc/*.txt` files lxml runs through `make_doctest`, none for the
+       6 `html/tests/*.txt` files it runs through `DocFileSuite` plainly. Not pytest's doctest
+       plugin: under it, 9 files failed on `check_output() requires a code object with 1 free
+       vars` (`lxml.usedoctest` swaps the checker's code object, and pytest's checker is a
+       closure; the survey). The driver imports `lxml.doctestcompare` first, which registers the
+       option flags (`PARSE_HTML`, `NOPARSE_MARKUP`) the files use, as lxml's test modules do.
+       lxml runs `validation.txt` from five modules; the group runs it once.
+     - **Docstring doctests.** The driver adds, as items run the same way (flags 0, as
+       `DocTestSuite`), the docstrings of the nine
        modules `test_suite()` passes to `DocTestSuite`: three staged as source (`selftest`,
        `selftest2`, `test_xpathevaluator`) and six product modules found by import (`lxml.etree`,
        `lxml.objectify`, `lxml.html`, `lxml.html.diff`, `lxml.cssselect`, `lxml.isoschematron`).
@@ -309,6 +331,8 @@ numpy and pandas and spec 065 for CPython:
    | lxml | `src/lxml/tests/test_threading.py` | every test starts threads | `README.md` |
    | lxml | `src/lxml/tests/test_isoschematron.py`, and `lxml.isoschematron`'s docstring doctests | `lxml.isoschematron` is the product's stand-in (spec 046, Decision 8) | `context/specifications/046-lxml.md` |
    | lxml | `src/lxml/html/tests/test_feedparser_data.py` | its `test_suite()` builds cases only when `lxml.html.clean` imports; `lxml_html_clean` is not shipped, so lxml's own runner runs none | `README.md` |
+   | lxml | `src/lxml/html/tests/test_elementsoup.py`, and `lxml.cssselect`'s docstring doctests | the first imports `from ...tests.common_imports`, three levels up, beyond the `tests` package pytest's importlib mode makes of an unstaged `lxml.html` (the survey); the second needs `cssselect`, not shipped | the first: spec NNN, the next free number the lane reserves for the judge's staging follow-ups; the second: `README.md` |
+   | regex | `regex/tests/test_regex.py::test_main` (one test, by node id) | regex's own `unittest.main()` entry point, which pytest collects by its name; inside pytest it parses the driver's argv and exits 1; its tests run as collected | `README.md` (its testing paragraph names it as not run) |
 
    Selected although they may skip whole (each confirmed by the survey): matplotlib's
    `test_backend_{nbagg,inline,gtk3,qt,macosx,tk,cairo}.py`, `test_sphinxext.py`, `test_doc.py`;
@@ -323,110 +347,102 @@ numpy and pandas and spec 065 for CPython:
 9. **Known failures are classes, by test id, each one gap.** As 050's Decision 10: a failed or
    errored test goes to the first class of its group whose outcome and `match` fit; each class is
    listed by id under `tests/upstream/expected/<group>/` and is one gap with its closer. A failure
-   no class admits is a finding: the group is red. The classes below are the platform's documented
-   facts, INFERRED to appear from the files' imports and the README; the survey lists each one's
-   members, drops a class with none, and adds a class only with a documented reason (Decision 1).
+   no class admits is a finding: the group is red. **Measured** on main's set (the survey's
+   `failures.txt`); the re-survey on 043's set with 096 confirms each list, and the build review
+   sees any change. A class closed by `README.md` needs its fact in the README; the build adds each
+   one that is missing (Decision 15).
 
-   | class | match (searched in the one-line reason) | reason | closes with | likely in |
-   |---|---|---|---|---|
-   | `no-processes` | `wasi does not support processes` | no processes (README); as numpy's and pandas' class | `README.md` | matplotlib (`subprocess_run_helper` in 15 files), Pillow (EPS through Ghostscript, `test_file_palm`, `test_image_access`'s embedding test) |
-   | `no-threads` | `can't start new thread` | no threads (README) | `README.md` | matplotlib (`test_figure`, `test_font_manager`), contourpy (`threads`) |
-   | `no-dup` | `\[Errno 58\] Not supported` | no `dup` (README) | `README.md` | Pillow (`fileno`-based paths) |
-   | `no-mmap` | `mmap is unavailable` | the `mmap` stand-in raises (README) | `README.md` | Pillow |
-   | `shallow-recursion` | `Stack overflow \(used` | recursion through Python stops at 40 to 250 levels (README, "Deep recursion") | `README.md` | lxml (deep trees), matplotlib (`test_pickle`'s deep figures) |
-   | `zip-no-source` | `could not get source code` | the product's modules are bytecode in a zip (README) | `README.md` | matplotlib (`test_api`'s source introspection) |
-   | `zip-code-names` | as pandas' | code objects carry relative file names, so a warning's reported file differs | `README.md` | matplotlib (`_api.warn_external` tests) |
-   | `wasm32-memory` | `MemoryError` | the declared maximum of `python.wasm`'s linear memory, which the survey records (the review, N2); a test that allocates more | `README.md` | Pillow (decompression-bomb and huge-image tests) |
-   | `pillow-zlib-only` | `decoder \w+ not available\|encoder \w+ not available` | Pillow is built with zlib only (spec 023); a test that opens a codec without its own `skip_unless_feature` guard | `context/specifications/023-matplotlib-first-milestone.md` | Pillow |
-   | `wasi-iconv` | `unknown encoding\|Unsupported encoding` | libxml2 decodes only what wasi-libc's `iconv` does (spec 046's README facts) | `README.md` | lxml |
-   | `no-en-us-locale` | as the survey finds | `setlocale(LC_ALL, "en_US.UTF-8")` fails in the guest; matplotlib warns that date tests may fail | `README.md` | matplotlib (`test_dates`) |
+   | group | class | match | members (survey) | reason | closes with |
+   |---|---|---|---|---|---|
+   | `matplotlib-mathtext` | `no-processes` | `does not support processes` | 2 | no processes | `README.md` |
+   | matplotlib's `rest` groups | `no-processes` | `does not support processes\|^AssertionError: assert False$` | 14 (13, and `test_movie_writer_registry`, which needs an executable on `PATH`) | no processes | `README.md` |
+   | matplotlib's `rest` and `render` groups | `pillow-zlib-only` | `(en\|de)coder jpeg not available` | 5 + 3 | Pillow is built with zlib only (spec 023) | `context/specifications/023-matplotlib-first-milestone.md` |
+   | matplotlib's `render` groups | `no-threads` | `can't start new thread` | 2 | no threads | `README.md` |
+   | matplotlib's `rest` groups | `no-fp-exceptions` | `DID NOT RAISE <class 'numpy.linalg.LinAlgError'>` | 2 (`test_mlab`'s multidimensional KDE cases) | wasm32 has no floating-point exception flags: `numpy.linalg` cannot raise `LinAlgError` for a singular matrix; numpy's own suite skips these on wasm, matplotlib only on emscripten. EXECUTED: in the guest, `numpy.linalg.inv` and `matrix_power(a, -1)` of `[[1, 2], [2, 4]]` return all-`nan` arrays, no exception. Whether a carried numpy patch checks LAPACK's `info` is the lane's to decide; not 066's | `README.md` (written in: "No floating-point exception flags") |
+   | matplotlib's `rest` groups | `wasi-errno-values` | `Regex pattern did not match` | 1 (`test_movie_writer_invalid_path`) | a WASI errno is WASI's number: a missing path is `[Errno 44]`, where the test expects Linux's `[Errno 2]` off emscripten | `README.md` |
+   | matplotlib's `rest` groups | `stage-layout` | `^AssertionError: assert not True$` | 1 (`test_warn_external`) | the judge stages matplotlib's tests outside the product's package folder, so a warning is attributed to the test file, which lies under the stage's `lib/matplotlib`; natively the tests are inside the package and skipped by `skip_file_prefixes` | spec NNN, the next free number the lane reserves for the judge's staging follow-ups |
+   | `pillow` | `pillow-zlib-only` | `(en\|de)coder jpeg not available` | 51 | as above | spec 023 |
+   | `pillow` | `no-mmap` | `mmap is unavailable` | 17 | the `mmap` stand-in raises | `README.md` |
+   | `pillow` | `no-mmap-silent` | `^assert None is not None$\|^assert 0$` | 5 (four `test_arrow` mapped-file cases; `test_save_without_changing_readonly`) | Pillow falls back from `mmap` silently, so a test that checks for a mapped buffer or `readonly == 1` fails on the fallback (the confirmation, C1) | `README.md` |
+   | `pillow` | `builtin-no-file` | `has no attribute '__file__'` | 2 (`test_pilinfo`) | `PIL._imaging` is a builtin module, without `__file__` | `README.md` |
+   | `pillow` | `wasm32-memory` | `Out of memory\|MemoryError` | 2 (`test_file_dds` timeout samples, `Errno 48`) | `python.wasm` declares no maximum memory, so wasm32's 4 GiB bounds it | `README.md` |
+   | `pillow` | `open-empty-path` | `Is a directory: ''` | 1 (`test_empty_path`) | in the guest `open('')` answers `IsADirectoryError` (`EISDIR`), where the test expects `FileNotFoundError` | `README.md` |
+   | `lxml` | `include-dir-in-zip` | `Not a directory: '/usr/local/lib/python315.zip/lxml/includes'` | 1 (`test_include_paths`) | `lxml.get_include()` names folders inside the zip, which are not folders | `README.md` |
+   | `lxml` | `isoschematron-stand-in` | `doctest failed` (by id: `doc/validation.txt`) | 1 | `validation.txt`'s ISO-Schematron part meets the product's stand-in | `context/specifications/046-lxml.md` |
+   | `lxml` | `lxml-html-diff` (only if 096 slips) | `'str' object is not callable` | 3 (`test_diff.txt`, `test_diff.py`, `lxml.html.diff`'s docstrings) | `fake_cython` lacks `final` | `spec 096` |
 
-   A class never spans packages: each is defined per group, as numpy's `no-mmap` and pandas'
-   `no-mmap` are two classes.
+   - **Not classes:** `api.txt` and `parsing.txt` failed only because the survey's working folder
+     lacked `doc/test.xml` (read in the build's place, C6); with Decision 6's tree root and the
+     support file they are expected to pass. The 93 matplotlib failures on `contourpy` or `_qhull`,
+     and `test_tripcolor_warnings` (a Delaunay triangulation, which needs `_qhull`), are spec 043's
+     and are re-read on 043's set. `test_cm_stub_matches_runtime_colormaps` reads `cm.pyi` from the
+     stage's tree: the stage holds `lib/matplotlib/cm.pyi` as a support file (data, never imported;
+     C5), so it is not a class.
+   - **Dropped:** `no-dup`, `shallow-recursion`, `zip-no-source`, `wasi-iconv`, `no-en-us-locale`
+     had no member.
+   - A class never spans packages: each is defined per group.
 
 10. **Traps.** As 050's Decision 9: a test that ends the guest in a trap is deselected from its
-    group, run alone by `test_upstream_trap[<id>]`, and is a gap until fixed. The survey finds them
-    by bisection. matplotlib's deep `Path` recursion and lxml's C14N or RelaxNG of very deep trees
-    are the README's known traps (INFERRED: the suites' own trees are shallow, so none is
-    expected). A trap found is a product defect: it gets its own specification or a gap whose
-    closer names one, never a class.
+    group, run alone by `test_upstream_trap[<id>]`, and is a gap until fixed. A trap found is a
+    product defect: it gets its own specification, never a class. **Measured:** the survey's one
+    trap is kiwisolver's, and it moves with the garbage collector (three tests in turn), so no
+    node id can select around it; spec 096 fixes it, and 066 depends on 096 (Depends on; the
+    confirmation, C3). The re-survey on a set with 096 hunts traps again in every group.
 
 11. **The groups, their caps, and the budget.** Each group is one guest session and one check,
-    `test_upstream_suite[<group>]`. A group's cap is 1.5 times its survey fuel, rounded up to two
-    significant figures (050's rule), so a runaway ends out of fuel, which is red. **The bound:** no
-    group's survey fuel passes 480 G (pandas-groupby's, the largest group the release runs); a
-    group past it is split by file, in the sdist's order, before the caps are set. A single file
-    past it (likely only `test_axes.py`) stays one group and is named in the memo.
-    **mpl-toolkits** is surveyed first: its three test folders each hold an `__init__.py` and a
-    `conftest.py`, and with the toolkits' own `__init__.py` unstaged, `importlib` mode may load all
-    three as `tests.conftest` (the review, L4, INFERRED). If it does, the fallback is decided now:
-    one group per toolkit folder.
+    `test_upstream_suite[<group>]`. **The bound:** no group's measured fuel passes 480 G
+    (pandas-groupby's 480.03 G); a group past it is split by file, in the sdist's order, before
+    the caps are set; a single file past it stays one group and is named.
 
-    | group | paths (under the tree) | `def test` (READ) | image comparisons (READ) | fuel (INFERRED) | provisional cap |
-    |---|---|---|---|---|---|
-    | `matplotlib-axes` | `lib/matplotlib/tests/test_axes.py` | 641 | 259 decorators, 204 PNGs | 350 to 500 G | 7.5×10¹¹ |
-    | `matplotlib-mathtext` | `test_mathtext.py`, `test_text.py`, `test_textpath.py`, `test_font_manager.py`, `test_ft2font.py`, `test_afm.py`, `test_type1font.py`, `test_dviread.py`, `test_usetex.py`, `test_texmanager.py` | 200 | 681 + 22 PNGs | 250 to 450 G | 6.8×10¹¹ |
-    | `matplotlib-render` | the image-heavy files: `test_image`, `test_collections`, `test_constrainedlayout`, `test_figure`, `test_patches`, `test_polar`, `test_legend`, `test_colorbar`, `test_contour`, `test_lines`, `test_backend_{pdf,ps,svg,pgf}`, `test_simplification`, `test_quiver`, `test_tightlayout`, `test_streamplot`, `test_bbox_tight`, `test_patheffects`, `test_arrow_patches`, `test_triangulation` | 965 | about 330 | 300 to 450 G | 6.8×10¹¹ |
-    | `matplotlib-rest` | every other selected file of `lib/matplotlib/tests/` | 1,112 | about 60 | 150 to 300 G | 4.5×10¹¹ |
-    | `mpl-toolkits` | `lib/mpl_toolkits/{axes_grid1,axisartist,mplot3d}/tests` | 238 | 104 PNGs | 100 to 200 G | 3.0×10¹¹ |
-    | `contourpy` | `tests` | 196, 230 `parametrize` | 56 `image` | 50 to 150 G | 2.3×10¹¹ |
-    | `pillow` | `Tests` | 2,408 | (reads 700 images) | 80 to 200 G | 3.0×10¹¹ |
-    | `lxml` | `src/lxml/tests`, `src/lxml/html/tests`, the 17 doctest files | 1,506 and 17 doctest files | none | 30 to 80 G | 1.2×10¹¹ |
-    | `regex` | `regex/tests` | 102 (`unittest`) | none | 5 to 30 G | 5.0×10¹⁰ |
-    | `kiwisolver` | `py/tests` | 36 | none | under 2 G | 5.0×10⁹ |
+    | group | paths (under the tree) | fuel (survey, main's set) |
+    |---|---|---|
+    | `matplotlib-axes` | `lib/matplotlib/tests/test_axes.py` (one file, past the bound: named) | 691.5 G |
+    | `matplotlib-mathtext` | `test_mathtext`, `test_text`, `test_textpath`, `test_font_manager`, `test_ft2font`, `test_afm`, `test_type1font`, `test_dviread`, `test_usetex`, `test_texmanager` | 296.2 G |
+    | `matplotlib-render-a`, `-b` | Decision 11's former `matplotlib-render` files, split by file in the sdist's order at the point that leaves each under 480 G, `test_contour.py` included on 043's set | 998.1 G without `test_contour.py` |
+    | `matplotlib-rest-a`, `-b` | every other selected file of `lib/matplotlib/tests/`, split the same way | 956.9 G |
+    | `mpl-axes_grid1`, `mpl-axisartist`, `mpl-mplot3d` | one toolkit's `tests` each (one session over the three fails on two `tests.conftest`) | 72.1, 34.7, 303.3 G |
+    | `contourpy` | `tests` | on 043's set |
+    | `pillow` | `Tests` | 430.7 G |
+    | `lxml` | `src/lxml/tests`, `src/lxml/html/tests`, the doctest items | 110.8 G |
+    | `regex` | `regex/tests` | 16.0 G |
+    | `kiwisolver` | `py/tests` | after 096 |
 
-    - **How the INFERRED fuel was made.** The accepted metrics on main: the plot golden job is
-      8.87 G on the snapshot for a whole process (matplotlib's import, its font cache, one figure,
-      its saves), `test_savefig_rejects_a_negative_dpi` 8.01 G; so a figure rendered and saved
-      inside a running session is INFERRED at 0.3 to 1.5 G, and a test with no figure at 10 to
-      100 M (numpy's groups average 16 to 27 M per pass, CPython's 17 to 48 M). mathtext's 681
-      reference images are small, but each parses its expression with pyparsing in pure Python.
-    - **The budget.** The six families' caps sum to at most 3×10¹², and each family's budget is
-      written in `upstream.py` beside 065's; the confirmation delta states each family's budget,
-      so "caps within budget" is not empty (the review, L6). The provisional caps above sum to 3.6×10¹²; that is
-      why they are provisional. If the survey's caps still pass 3×10¹², Decision 1's delta goes
-      to the lane before anything else is built.
+    - **The budget, as a rule, pending the owner's word** (the confirmation, C9 and its
+      recommendation). Each group's cap is **1.5 times its fuel in the re-survey on 043's set with
+      096**, rounded up to two significant figures; each family's budget is the sum of its caps,
+      written in `upstream.py` beside 065's; no total is fixed in advance. INFERRED total: 6.5 to
+      7×10¹² of caps (the survey's 3.9 T, plus `test_contour.py`, the 93 tests that failed at import
+      on main's set, contourpy and kiwisolver). The lane asks the owner (The owner's choices);
+      building waits on the answer.
+    - **The re-survey** on 043's set with 096, before any group's TOML is final, comes to the lane
+      as a second small delta: its groups and splits, every change in a not-selected row or a
+      class, any group over 480 G, and each family's budget.
     - **The plain binary is not run** (050, Decision 1).
 
-12. **The release: three new Linux shards; the lane runs everything at every landing.**
+12. **The release: six new Linux shards; the lane runs everything at every landing.**
     - **What the last dry run shows** (`39371419248`, READ). The Linux upstream shards took 161 to
-      225 s of job time each (`upstream-numpy-a` 161 s, `upstream-pandas-small` 175 s,
-      `upstream-numpy-b` 190 s, `upstream-groupby` 209 s, `upstream-frame` 225 s, setup and
-      fetching included). The judge stage's longest leg was `own-guest` on macOS, 457 s. 16 Linux
-      and Windows judge and verify jobs started at 05:00:39 while the x86_64 rebuild still ran, and
-      five macOS jobs from 05:00:43: 22 jobs at once. The binding limit was macOS's five concurrent
-      jobs: `own-rest` on macOS waited until 05:01:41 for a macOS slot (the review, L5). Rate: 0.16
-      to 0.31 s per G of fuel past about 60 s of setup.
-    - **Why new shards.** The existing Linux shards already hold 450 to 650 G each. Adding about
-      2 T to them would put each past the macOS leg. New shards add matrix legs to
-      `release.yml`, which makes this build-class; that is accepted (Kind).
-    - **The plan** (assigned by the survey's fuel; the shard names are fixed):
-
-      | shard | groups | fuel (INFERRED) | job time (INFERRED) |
-      |---|---|---|---|
-      | `upstream-plot-a` | `matplotlib-axes`, `matplotlib-mathtext` | 600 to 950 G | 160 to 355 s |
-      | `upstream-plot-b` | `matplotlib-render`, `matplotlib-rest` | 450 to 750 G | 135 to 295 s |
-      | `upstream-plot-c` | `mpl-toolkits`, `contourpy`, `pillow`, `lxml`, `regex`, `kiwisolver` | 270 to 660 G | 105 to 265 s |
-
-      **The bound:** each new shard within 360 s of job time in the branch dry run (criterion 12).
-      Past it, the builder moves a group to the shard with room, by a reviewed judge change; if no
-      shard has room, a fourth (`upstream-plot-d`) is added the same way. A system is never
+      225 s of job time each. The judge stage's longest leg was `own-guest` on macOS, 457 s. 22 jobs
+      ran at once; the binding limit was macOS's five concurrent jobs (`own-rest` on macOS waited
+      58 s for a macOS slot). Rate: 0.16 to 0.31 s per G of fuel past about 60 s of setup.
+    - **The plan:** six Linux shards, `upstream-plot-a` to `upstream-plot-f`, each holding at most
+      about 700 G of measured fuel, assigned by the re-survey's numbers (about 4.5 T on 043's set,
+      INFERRED); each within 360 s of job time in the branch dry run. Past it, a group moves to the
+      shard with room, or a seventh shard is added, by a reviewed judge change. A system is never
       dropped from a shard to get a pass.
-    - **The job count.** The three Linux shards add Linux jobs only; macOS's five slots stay the
-      binding limit, so they are INFERRED to start at once with the others and to end before the
-      macOS leg (355 s < 457 s). The dry run's length is INFERRED unchanged; the landing notes
-      record the branch run's gather start against `39371419248`'s 05:08:22, as a benchmark.
-    - **Linux only in the release.** No group of 066 probes the host's file system the way
-      `cpython-fs` does: their files go to `/tmp` in the guest's root, and their data is read from
-      a read-only grant. macOS runs every group at every landing on the lane, where fuel is
-      ratcheted (063, Decision 8), and G5 compares each group's `passes` and `passed_digest`
-      between the Linux record and the lane's. A host difference is a host entry (065, Decision
-      21), never a class on one system.
-    - **The branch's dry run, before landing**, as 065's: the builder pushes the branch and
-      dispatches `release.yml` on it, and deletes the branch from GitHub after landing.
+    - **The job count.** 27 jobs at once; the new ones are Linux jobs, macOS's five slots still
+      bind, and the shards are INFERRED to end inside the 457 s macOS leg. The landing notes record
+      the branch run's gather start against `39371419248`'s 05:08:22, as a benchmark.
+    - **Linux only in the release.** macOS runs every group at every landing on the lane, where
+      fuel is ratcheted (063, Decision 8), and G5 compares each group's `passes` and
+      `passed_digest` between the Linux record and the lane's. A host difference is a host entry
+      (065, Decision 21), never a class on one system. Directory order differs between hosts
+      (`os.listdir`, `rglob`; the review's N1); outcomes and the sorted digest do not depend on it.
+    - **The branch's dry run, before landing**, as 065's: the builder pushes the branch, dispatches
+      `release.yml` on it, and deletes the branch from GitHub after landing.
 
 13. **`packages.toml`: six suites, and no package left closing with 066.**
-    - matplotlib, contourpy, Pillow, kiwisolver, lxml and regex become `kind = "suite"`.
+    - matplotlib, contourpy, Pillow, kiwisolver, lxml and regex become `kind = "suite"`; if 096
+      slips, kiwisolver stays `later` with `closes_with = "spec 096"` (Depends on).
     - FreeType, HarfBuzz, SheenBidi, libraqm and qhull stay `via matplotlib`; libxml2 and libxslt
       `via lxml`. Each now names a suite that runs. pybind11 and cppy stay `build-only`.
     - **scipy, scikit-learn and statsmodels are not 066's** (scipy's suite is larger than numpy's,
@@ -447,10 +463,12 @@ numpy and pandas and spec 065 for CPython:
     - a `driver = "package"` family uses `package_paths`, `extra_sys_path` and
       `support_packages`, never `path_packages` or `support`; `package_paths` maps product
       packages (each in the zip or builtin) to tarball folders; `extra_sys_path` and
-      `support_packages` name tarball folders; `cwd` is `/tmp/work`; numpy's and pandas' TOMLs
-      pass today's rules unchanged;
+      `support_packages` name tarball folders, and `support_files` tarball members (data, never
+      imported); `cwd` is `/tmp/work` or the tree root (the confirmation, C1); numpy's and pandas'
+      TOMLs pass today's rules unchanged;
     - every group path, `not_selected` file and support file is a tarball member or folder;
-    - each family's caps sum to at most its budget, and the six budgets to at most 3×10¹²;
+    - each family's caps sum to at most its budget, and each cap is at most 1.5 times the fuel the
+      re-survey recorded for it, rounded up to two figures (Decision 11's rule);
     - every lxml `test_suite()` adds only what Decision 7 accounts for: `keep_classes`, the doctest
       files, the docstring suites, and the not-selected module of Decision 8;
     - no group is in two shards on one system, and each is in exactly one Linux shard (063's rule,
@@ -460,8 +478,12 @@ numpy and pandas and spec 065 for CPython:
     - **Needs**: a group needs the artifact set, the kit and its family's tree; without the tree it
       is blocked, named (`upstream tree matplotlib`), as numpy's is. A tie mismatch fails.
     - **The scoreboard** counts the new groups under v1.3, as numpy's are.
-    - **README**: the testing section names the six suites, their groups and what is not run, in
-      one paragraph, and the platform facts the classes cite stay as they are.
+    - **README**: the testing section names the six suites, their groups and what is not run
+      (regex's `test_main` among them), in one paragraph. Every class closed by `README.md` has its
+      fact there: "No floating-point exception flags" is written in (this revision); the build
+      adds those still missing: WASI errno numbers (`ENOENT` is 44), a builtin module has no
+      `__file__`, `open('')` answers `IsADirectoryError`, `lxml.get_include()` names folders inside
+      the zip, Pillow's silent fallback from `mmap` (`readonly` ends 0).
     - **CHANGELOG**: one entry: "The release runs matplotlib's, contourpy's, Pillow's,
       kiwisolver's, lxml's and regex's own tests (spec 066)."
 
@@ -469,7 +491,7 @@ numpy and pandas and spec 065 for CPython:
 
 The judge runs the own test suites of the six compiled packages inside the guest. It counts every
 pass, and shows every known failure and every test it does not run as a gap or a named line, with
-what will close it. The release runs them too, on Linux, in three new shards; the lane runs them on
+what will close it. The release runs them too, on Linux, in six new shards; the lane runs them on
 darwin at every landing. The judge turns red when a pass is lost, a test traps the guest, an
 unknown failure appears, a test runs against a copy of the product's code, or the tests are not the
 artifact's own.
@@ -480,13 +502,16 @@ artifact's own.
 tests/upstream/matplotlib.toml       package, driver "package", grant /upstream-matplotlib,
                                        package_paths (map), support_packages
                                        ["lib/matplotlib/testing"], cwd /tmp/work,
-                                       [groups.matplotlib-{axes,mathtext,render,rest}],
-                                       [groups.mpl-toolkits], [[not_selected]], [[expected]]
+                                       support_files ["lib/matplotlib/cm.pyi"],
+                                       [groups.matplotlib-{axes,mathtext,render-a,render-b,
+                                       rest-a,rest-b}], [groups.mpl-{axes_grid1,axisartist,
+                                       mplot3d}], [[not_selected]], [[expected]]
 tests/upstream/contourpy.toml        grant /upstream-contourpy, extra_sys_path ["."], cwd /tmp/work
 tests/upstream/pillow.toml           grant /upstream-pillow, extra_sys_path [".", "Tests/oss-fuzz"],
-                                       cwd /tmp/work with a copy of Tests/, one group
+                                       cwd the tree root (read-only), one group
 tests/upstream/kiwisolver.toml       grant /upstream-kiwisolver, one group
-tests/upstream/lxml.toml             grant /upstream-lxml, package_paths {lxml, lxml.html}, one group;
+tests/upstream/lxml.toml             grant /upstream-lxml, package_paths {lxml, lxml.html}, cwd the
+                                       tree root, support_files samples/*.xml and doc/test.xml, one group;
                                        its JSON gains keep_classes, the 17 doctest files with their
                                        flags, and the nine docstring modules
 tests/upstream/regex.toml            grant /upstream-regex, package_paths {regex}, one group
@@ -515,7 +540,7 @@ README.md, CHANGELOG.md, context/progress/README.md, spec 063 (one dated line), 
 1. Stage `/upstream-<package>` once per judge run, after the tie, from the patched tree: the
    staged folders, the support folders, the kit (unpacked), the driver, the `.ini`, each group's
    JSON (with the zip's and the builtins' top-level names, and lxml's `keep_classes`). Seal it
-   read-only (089). For Pillow, copy `Tests/` into the guest's root at `/tmp/work/Tests`.
+   read-only (089). No copy into the guest's root for any package (Decision 6).
 2. `guest.run(snapshot, ["-u", "/upstream-<package>/judge/package_drive.py", "<package>",
    "<group>"], workdir, stdlib, env=ENV, fuel=<cap>, preopens=[("/upstream-<package>", <stage>,
    False)], mpl_data=True)`.
@@ -527,7 +552,7 @@ README.md, CHANGELOG.md, context/progress/README.md, spec 063 (one dated line), 
 5. Cache the result for the group's class checks; assert no finding.
 
 **Spec 063, one dated line** in its Status: "2026-10-…: matplotlib, contourpy, Pillow,
-kiwisolver, lxml and regex are `suite`s since spec 066, in three new Linux shards."
+kiwisolver, lxml and regex are `suite`s since spec 066, in six new Linux shards."
 
 ## Scope
 
@@ -557,8 +582,8 @@ applied in a scratch copy, never committed.
    files. `tests/unit/test_upstream.py` variants each fail with their own line: a family whose
    grant is `/upstream`; two families with one grant; a `package_paths` folder not in the tarball;
    a `support_packages` folder not in the tarball; a `driver = "package"` family with
-   `path_packages` or `support`; a `cwd` other than `/tmp/work`; a family over its budget; the six
-   budgets over 3×10¹²; an lxml `test_suite()` that adds a suite Decision 7 does not account for; a
+   `path_packages` or `support`; a `cwd` other than `/tmp/work` or the tree root; a family over
+   its budget; a cap above 1.5 times its recorded fuel; an lxml `test_suite()` that adds a suite Decision 7 does not account for; a
    staged lxml module with a `TestCase` that `test_suite()` does not add and the JSON does not
    deselect.
 2. **The stream and the verdict, on fixed streams** (no guest). `package_drive.py`'s stream parses
@@ -585,7 +610,7 @@ applied in a scratch copy, never committed.
    numpy, pandas and CPython row lost 0, grew 0; their stages' file lists are byte-for-byte the
    base's (a unit check hashes the `/upstream` and `/cpython` stage manifests).
 7. **The shards.** 063's `test_release_shards_cover_the_judge` and the workflow scan pass with the
-   three new shards; each new group is in exactly one Linux shard; the scan fails, in
+   new shards; each new group is in exactly one Linux shard; the scan fails, in
    `tests/unit/test_scan.py`, when a new shard is in the plan but not in `release.yml`'s matrix,
    or the reverse.
 8. **The fetch.** `tests/unit/test_fetch_trees.py`, a fake `urlopen` and synthetic tarballs: a
@@ -602,30 +627,32 @@ applied in a scratch copy, never committed.
     green on the builder's worktree against 043's set, apart from the gaps this specification
     adds, each named.
 12. **The branch's dry run, before landing** (Decision 12; not a check). Every job passes on all
-    three systems, every red line a growth line or G7. The three new shards' job times are
+    three systems, every red line a growth line or G7. The six new shards' job times are
     recorded in the landing notes, each within 360 s, or the move Decision 12 prescribes is made
     and recorded.
 13. **The lane's dry run after landing**, on main's exact commit, as 063's criterion 13.
 
 ## The owner's choices
 
-None is needed to build. Three defaults are the owner's to move, each decided above with its reason:
-- **The release's job count** (Decision 12): three more Linux jobs, INFERRED not to lengthen the
-  dry run, since macOS's five slots bind. The owner may prefer fewer, longer shards.
-- **The lane's cost** (the review, L6; a benchmark estimate, INFERRED): today's accepted darwin
-  upstream fuel is 2.84 T over 16 groups; 066 adds 1.3 to 2.6 T, 45 to 90% more upstream guest
-  work at every landing, and more again on the serial judge every fifth landing. The survey's
-  measured total replaces the range in the confirmation delta.
-- **What runs per release when the survey's fuel passes the budget** (Decisions 1 and 11): the
-  builder brings the numbers to the lane before building on; the choice between a fourth shard, a
-  larger budget, and running a part on the lane only is then the owner's.
+**One is needed before building: the budget** (Decision 11; the lane asks). The recommended rule:
+each cap 1.5 times the re-survey's fuel on 043's set with 096, each family's budget the sum of its
+caps, six Linux shards. What the owner accepts with it is the lane's cost (a benchmark estimate,
+INFERRED): the upstream groups' darwin fuel goes from today's 2.84 T over 16 groups to about 7 T at
+every full judge (the lane's, every builder's and every reviewer's), more again on the serial
+judge every fifth landing. The alternatives the confirmation weighed and did not recommend:
+leaving files out for their cost (a convenience under AGENTS rule 4, which would need the owner to
+amend that rule), and running part of matplotlib on the lane only (it saves release time, which
+does not bind, and removes Linux's G5 comparison for those groups).
 
-Everything else is decided above.
+A default the owner may move: the release's six extra Linux jobs (Decision 12).
 
 ## For the lane
 
-- **Next, before building:** the survey and its memo (Decision 1), then the confirmation round on
-  their delta. The lane adds 095 to the roadmap's `Reserved:` paragraph at that round.
+- **Next, before building:** the owner's word on the budget rule; 043 and 096 landed or on
+  reviewed tips; the lane adds 095 (scipy's and scikit-learn's own tests) and the judge
+  staging follow-up (the number Decisions 8 and 9 call spec NNN) to the roadmap's `Reserved:`
+  paragraph, and the builder writes that number in. Then the re-survey on 043's set with 096 and
+  its small delta (Decision 11), then the build.
 - **Wave kind: build-class** (the release workflow; no artifact byte changes, no `scripts/`,
   `recipes/` or `downloads/` line). It may ride in a wave as one of the two other build-class
   changes, after 043 has landed. **Dry-run needs:** the branch dry run (criterion 12), then the
@@ -634,8 +661,8 @@ Everything else is decided above.
   whose suite stages into a family 066 creates.
 - **The claim list skeleton** (the builder fills each value from its final run; the progress
   README's step 3a):
-  - **Gained rows:** `test_upstream_suite[<group>]` for the ten groups of Decision 11 (or the
-    groups the survey's split gives), each with new metrics `fuel` and `passes`, and facts
+  - **Gained rows:** `test_upstream_suite[<group>]` for the groups of Decision 11 after the
+    re-survey's splits, each with new metrics `fuel` and `passes`, and facts
     `counts`, `passed_digest`, `left_out`; `test_upstream_class[<group>-<class>]` for each class
     with members, each a gap; `test_upstream_trap[<id>]` for each trap, each a gap.
   - **Gaps added:** one per class with members and per trap, each naming its closer; the count
@@ -647,7 +674,7 @@ Everything else is decided above.
 
   ```
   --accept "066: the compiled packages' own tests in the release: matplotlib, contourpy, Pillow, kiwisolver, lxml and regex, <n> groups, <p> passes, <c> classes, <t> traps"
-  --accept-judge "066: tests/upstream/{matplotlib,contourpy,pillow,kiwisolver,lxml,regex}.toml and .ini; package_drive.py; a family per package in upstream.py (grant, stage, kit copy, budget), driver "package" with package_paths, extra_sys_path, support_packages and cwd, the path-based guard, lxml's selection equal to test_suite()'s, numpy's and pandas' reading unchanged; fetch.py --shard per family; packages.toml (six suites); three Linux shards in release_shards.toml and release.yml; the unit checks"
+  --accept-judge "066: tests/upstream/{matplotlib,contourpy,pillow,kiwisolver,lxml,regex}.toml and .ini; package_drive.py; a family per package in upstream.py (grant, stage, kit copy, budget), driver "package" with package_paths, extra_sys_path, support_packages and cwd, the path-based guard, lxml's selection equal to test_suite()'s, numpy's and pandas' reading unchanged; fetch.py --shard per family; packages.toml (six suites); six Linux shards in release_shards.toml and release.yml; the README's facts; the unit checks"
   ```
 
   No `--accept-growth` and no `--accept-fewer-passes`: new rows are not growth, and no accepted
@@ -769,6 +796,35 @@ H1, H2 and M1 to M3 are written in"; the Lows came with fix text. Each is writte
 - **N1: written in.** Criterion 5 restages between its two runs.
 - **N2: written in.** `wasm32-memory` cites the binary's declared maximum memory, which the survey
   records.
+
+## Disposition of the confirmation (2026-10-20)
+
+The confirmation (appended to `../reviews/066-the-compiled-packages-own-tests-spec-2026-10-20.md`)
+said "confirmed for build once C1 to C3 are written in and the owner rules on the budget". Each
+finding is written in; the delta section above stays as the dated record:
+
+- **C1: fixed.** Decision 6: Pillow's `cwd` is the tree root, read-only, no copy;
+  `test_save_without_changing_readonly` is in `no-mmap-silent`, closed by `README.md`
+  (Decision 9); Decision 14 and criterion 1 allow `/tmp/work` or the tree root.
+- **C2: fixed.** `no-fp-exceptions` (Decision 9), confirmed EXECUTED with one guest probe on the
+  private copy of main's set (`numpy.linalg.inv` and `matrix_power(a, -1)` of a singular matrix
+  return all-`nan`, no `LinAlgError`); the README fact is written in on this branch. A numpy patch
+  is the lane's to decide.
+- **C3: fixed.** Depends on: 096 and 043, with the fallback if 096 slips (kiwisolver `later`
+  closed by 096; `lxml-html-diff` closed by 096). Decision 10 says why no deselection can work.
+- **C4: fixed.** Decisions 2, 6, 7, 9, 10, 11, 12 and the Status hold the measured or ruled values.
+- **C5: fixed.** `test_movie_writer_registry` is `no-processes`; `test_movie_writer_invalid_path`
+  read (`[Errno 44]` against `[Errno 2]`: `wasi-errno-values`); `cm.pyi` staged as a support file;
+  the README gains each new class's fact (Decision 15); `test_tripcolor_warnings` is 043's.
+- **C6: fixed.** `api.txt` and `parsing.txt` read: both fail only on `doc/test.xml`, absent from the
+  survey's working folder; no product defect; staged as a support file (Decision 6).
+- **C7: written in, with a placeholder.** `test_elementsoup.py` and the `stage-layout` class close
+  with spec NNN, the next free number the lane reserves for the judge's staging follow-ups; the
+  builder writes the number when the lane reserves it. regex's `test_main` closes with
+  `README.md`'s testing paragraph.
+- **C8: fixed.** lxml's `cwd` is the tree root, read-only, with `samples/` and `doc/test.xml`
+  staged.
+- **C9: fixed.** Decision 11 states the budget as a rule over the re-survey, not a number.
 
 ## Landing notes
 

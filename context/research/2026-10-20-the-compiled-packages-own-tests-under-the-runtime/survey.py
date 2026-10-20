@@ -118,6 +118,7 @@ def group_spec(group: str, tree: Path) -> tuple[str, dict]:
             cwd="/tmp/work",
             package_paths={"lxml": "src/lxml", "lxml.html": "src/lxml/html"},
             keep_classes=lxml_keep(tree),
+            doctest_preimport=["lxml.doctestcompare"],
             doctest_files=[[f, 8] for f in LXML_DOC] + [[f, 0] for f in LXML_HTML_DOC],
             docstring_modules=["lxml.etree", "lxml.objectify", "lxml.html", "lxml.html.diff",
                                "lxml.cssselect", "lxml.tests.selftest", "lxml.tests.selftest2",

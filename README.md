@@ -361,6 +361,11 @@ sandbox:
 - **No threads**: starting one (a `threading.Timer`, say) raises `RuntimeError`; matplotlib's
   drawing and saving never start one. contourpy's `threaded` algorithm runs one thread:
   `contourpy.max_threads()` is 1, and any `thread_count` gives `serial`'s lines.
+- **No floating-point exception flags**: wasm32 has none, so numpy cannot detect a singular
+  matrix the way it does natively. Until spec 099 lands, `numpy.linalg.inv` and
+  `numpy.linalg.matrix_power(a, -1)` of a singular matrix return an array of `nan` instead of
+  raising `LinAlgError`; check the result (for example with `numpy.isfinite`) or the matrix's
+  rank first. numpy's own tests skip this case on wasm (spec 066's survey).
 - **Deep recursion**: recursion that runs through Python code (a `__repr__` that calls
   `repr(self)`, `lru_cache`, a `sort` key, a numpy, pandas or lxml callback) raises
   `RecursionError` ("Stack overflow (used 112 kB)") after 40 to 250 levels, where native Python
