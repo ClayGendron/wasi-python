@@ -6,9 +6,9 @@ from __future__ import annotations
 
 import struct
 
-from wasi_python import runner
+from wasi_python import _call, _limits
 
-TICK = runner.TICK_S
+TICK = _limits.TICK_S
 
 
 class FakeTime:
@@ -28,19 +28,19 @@ class FakeTime:
 
 def test_a_long_wait_stops_at_the_deadline() -> None:
     fake = FakeTime(deadline_after=50)
-    runner._Waits(fake.now, fake.sleep, fake.deadline_passed).wait(3600.0)
+    _call._Waits(fake.now, fake.sleep, fake.deadline_passed).wait(3600.0)
     assert len(fake.sleeps) == 50 and max(fake.sleeps) <= TICK
 
 
 def test_a_wait_without_a_deadline_is_one_sleep() -> None:
     fake = FakeTime()
-    runner._Waits(fake.now, fake.sleep, None).wait(0.2)
+    _call._Waits(fake.now, fake.sleep, None).wait(0.2)
     assert fake.sleeps == [0.2]
 
 
 def test_a_wait_in_the_past_sleeps_not_at_all() -> None:
     fake = FakeTime(deadline_after=50)
-    runner._Waits(fake.now, fake.sleep, fake.deadline_passed).wait(0.0)
+    _call._Waits(fake.now, fake.sleep, fake.deadline_passed).wait(0.0)
     assert fake.sleeps == []
 
 
@@ -53,24 +53,24 @@ def fd(userdata: int, tag: int, number: int) -> bytes:
 
 
 def plan(subs: list[bytes], realtime: int = 10**18, monotonic: int = 5 * 10**9):
-    return runner._poll_plan(b"".join(subs), len(subs), realtime, monotonic)
+    return _call._poll_plan(b"".join(subs), len(subs), realtime, monotonic)
 
 
 def test_subscriptions_and_events_have_wasi_sizes() -> None:
     assert len(clock(1, 1, 0)) == 48 and len(fd(1, 1, 4)) == 48
-    assert struct.calcsize(runner.EVENT) == 32
+    assert struct.calcsize(_call.EVENT) == 32
 
 
 def test_zero_or_too_many_subscriptions_are_refused() -> None:
-    assert runner._poll_plan(b"", 0, 0, 0).errno == runner.EINVAL
-    many = runner.MAX_SUBSCRIPTIONS + 1
-    assert runner._poll_plan(clock(1, 1, 0) * many, many, 0, 0).errno == runner.ENOMEM
+    assert _call._poll_plan(b"", 0, 0, 0).errno == _call.EINVAL
+    many = _call.MAX_SUBSCRIPTIONS + 1
+    assert _call._poll_plan(clock(1, 1, 0) * many, many, 0, 0).errno == _call.ENOMEM
 
 
 def test_an_unknown_tag_or_a_cpu_clock_is_refused() -> None:
     bad_tag = struct.pack("<QB39x", 1, 9)
-    assert plan([bad_tag]).errno == runner.EINVAL
-    assert plan([clock(1, 2, 10)]).errno == runner.EINVAL  # the process CPU-time clock
+    assert plan([bad_tag]).errno == _call.EINVAL
+    assert plan([clock(1, 2, 10)]).errno == _call.EINVAL  # the process CPU-time clock
 
 
 def test_the_shortest_clock_wins_and_absolute_waits_count_from_now() -> None:
@@ -83,9 +83,9 @@ def test_the_shortest_clock_wins_and_absolute_waits_count_from_now() -> None:
 
 
 def test_descriptors_follow_wasmtime() -> None:
-    assert plan([fd(1, 1, 1)]).errno == runner.EBADF  # stdout for reading
-    assert plan([fd(1, 2, 0)]).errno == runner.EBADF  # stdin for writing
-    assert plan([fd(1, 1, 3)]).errno == runner.EBADF  # the preopened root
+    assert plan([fd(1, 1, 1)]).errno == _call.EBADF  # stdout for reading
+    assert plan([fd(1, 2, 0)]).errno == _call.EBADF  # stdin for writing
+    assert plan([fd(1, 1, 3)]).errno == _call.EBADF  # the preopened root
     p = plan([fd(5, 1, 0), fd(6, 2, 1), fd(7, 1, 9), clock(8, 1, 10**9)])
     assert (p.errno, p.wait_ns) == (None, 0)
     assert [(e[0], e[2], e[3]) for e in p.events] == [(5, 1, 1), (6, 2, 1), (7, 1, 1)]
@@ -97,7 +97,7 @@ def test_every_clock_due_is_reported_with_no_bytes() -> None:
 
 
 def test_a_wait_ends_one_round_after_the_deadline_count() -> None:
-    assert runner._stop_at(count=40, ticks=10) == 51
+    assert _call._stop_at(count=40, ticks=10) == 51
 
 
 POLLER = """
@@ -132,9 +132,9 @@ def poll(
     store = wt.Store(engine)
     linker = wt.Linker(engine)
     i32 = wt.ValType.i32()
-    shadow = runner._poll_oneoff(
+    shadow = _call._poll_oneoff(
         1000,
-        waits or runner._Waits(FakeTime().now, FakeTime().sleep, None),
+        waits or _call._Waits(FakeTime().now, FakeTime().sleep, None),
         lambda: 10**18,
         lambda: 1000 + monotonic,
     )
@@ -159,23 +159,23 @@ def test_out_of_bounds_pointers_answer_efault() -> None:
         {"in_ptr": 2**32 - 1},
         {"nevents": 2**31},
     ):
-        assert poll(one, **where)[0] == runner.EFAULT, where
+        assert poll(one, **where)[0] == _call.EFAULT, where
 
 
 def test_counts_are_unsigned_and_capped_at_4096() -> None:
-    assert runner.MAX_SUBSCRIPTIONS == 4096
-    assert poll(clock(1, 1, 0), n=0)[0] == runner.EINVAL
-    assert poll(clock(1, 1, 0), n=4097)[0] == runner.ENOMEM
-    assert poll(clock(1, 1, 0), n=2**32 - 1)[0] == runner.ENOMEM
+    assert _call.MAX_SUBSCRIPTIONS == 4096
+    assert poll(clock(1, 1, 0), n=0)[0] == _call.EINVAL
+    assert poll(clock(1, 1, 0), n=4097)[0] == _call.ENOMEM
+    assert poll(clock(1, 1, 0), n=2**32 - 1)[0] == _call.ENOMEM
 
 
 def test_a_fault_in_the_wait_answers_einval() -> None:
-    assert poll(clock(1, 1, 10**9), waits=Raises())[0] == runner.EINVAL
+    assert poll(clock(1, 1, 10**9), waits=Raises())[0] == _call.EINVAL
 
 
 def test_an_absolute_wait_counts_from_the_guests_origin() -> None:
     fake = FakeTime()
-    waits = runner._Waits(fake.now, fake.sleep, None)
+    waits = _call._Waits(fake.now, fake.sleep, None)
     errno, event = poll(clock(9, 1, 5_250_000_000, absolute=True), waits=waits, monotonic=5 * 10**9)
     assert (errno, fake.sleeps) == (0, [0.25])
-    assert struct.unpack(runner.EVENT, event) == (9, 0, 0, 0, 0)
+    assert struct.unpack(_call.EVENT, event) == (9, 0, 0, 0, 0)

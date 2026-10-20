@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 import wasmtime
 
-from wasi_python import _wasmtime_ffi, runner
+from wasi_python import _call, _home, _wasmtime_ffi
 
 REFUSED, STOPPED, ANSWER = 11, 22, 0
 CONTEXT = 4242  # the fake caller's store context address
@@ -47,13 +47,13 @@ def shared(monkeypatch):
     deadline faked; yields a function that pushes a call, runs one door call and pops it."""
     deadlines: list[object] = []
     monkeypatch.setattr(_wasmtime_ffi, "context_address", lambda caller: CONTEXT)
-    monkeypatch.setattr(runner, "_epoch_now", lambda caller: deadlines.append(caller))
-    monkeypatch.setattr(runner, "_ctrl_c_watched", lambda: False)
-    function = runner._shared("door", REFUSED, STOPPED)
+    monkeypatch.setattr(_call, "_epoch_now", lambda caller: deadlines.append(caller))
+    monkeypatch.setattr(_home, "_ctrl_c_watched", lambda: False)
+    function = _call._shared("door", REFUSED, STOPPED)
     caller = object()
 
     def serve(call: FakeCall) -> int:
-        stack = runner._stack()
+        stack = _home._stack()
         stack.append(call)
         try:
             return function(caller, 1, 2, 3, 4)
@@ -108,14 +108,14 @@ def test_a_ctrl_c_pending_at_an_ended_call_is_recorded(shared, monkeypatch) -> N
     """The entry guard sits after the Ctrl-C check (spec 015's order; the pre-build review's
     third builder note): a call with `ended` set and a Ctrl-C pending records KeyboardInterrupt
     and is not served (spec 030's build review, finding 3)."""
-    monkeypatch.setattr(runner, "_ctrl_c_watched", lambda: True)
-    monkeypatch.setitem(runner._ctrl_c, "pending", True)
+    monkeypatch.setattr(_home, "_ctrl_c_watched", lambda: True)
+    monkeypatch.setitem(_home._ctrl_c, "pending", True)
     call = FakeCall()
     call.ended = "cancelled"
     assert shared(call) == STOPPED
     assert isinstance(call.stopped, KeyboardInterrupt)
     assert call.served == 0
-    assert runner._ctrl_c["pending"] is False
+    assert _home._ctrl_c["pending"] is False
 
 
 def test_a_live_call_is_served(shared) -> None:

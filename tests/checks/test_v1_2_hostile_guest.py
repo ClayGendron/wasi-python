@@ -250,9 +250,9 @@ def _probe_artifacts(workdir: Path, ptr: int, length: int):
 def test_the_door_bounds_every_frame(guest_workdir, monkeypatch, case) -> None:
     """Guards a change: every frame is bounded, and nothing a frame or a host does escapes run()."""
     run = _run()
-    from wasi_python import runner
+    from wasi_python import _call
 
-    monkeypatch.setattr(runner, "MAX_RESPONSE", 1000)
+    monkeypatch.setattr(_call, "MAX_RESPONSE", 1000)
     seen: list[bytes] = []
 
     def host(request: bytes) -> bytes:
@@ -407,6 +407,7 @@ scratch = sys.argv[1]
 tempfile.tempdir = scratch
 resource.setrlimit(resource.RLIMIT_NOFILE, (256, resource.getrlimit(resource.RLIMIT_NOFILE)[1]))
 import wasi_python
+from wasi_python import _call, _engines, _home, _limits, _sessions
 guest = (
     "import os\nopen('/f', 'w').close()\nfs = []\n"
     "try:\n    while True: fs.append(os.open('/f', os.O_RDONLY))\n"
@@ -761,7 +762,7 @@ def test_a_swapped_grant_is_refused(guest_workdir, monkeypatch) -> None:
     the runner's walk and wasmtime's own open is caught by the identity check before the guest
     runs, and the door is never called. On Windows the walk holds every folder on the way, so the
     swap itself is refused and the call reads the folder that was granted."""
-    from wasi_python import Grant, runner
+    from wasi_python import Grant, _places
 
     run = _run()
     base = Path(tempfile.mkdtemp(prefix="swap-", dir=guest_workdir))
@@ -784,7 +785,7 @@ def test_a_swapped_grant_is_refused(guest_workdir, monkeypatch) -> None:
         os.rename(base / "evil", base / "a")
         swapped.append(True)
 
-    monkeypatch.setattr(runner, "_after_walk", swap)
+    monkeypatch.setattr(_places, "_after_walk", swap)
     code = "import _host; _host.call(b'x'); print(open('/d/f').read())"
     grants = [Grant(base / "a" / "data", "/d")]
     if os.name == "posix":
@@ -852,7 +853,7 @@ def test_a_swapped_root_is_never_prepared_by_path(guest_workdir, monkeypatch, ho
     the walked descriptor, so a link put in its place is never followed and a root moved away is
     never made again by path; the identity check then refuses the call. On Windows the walk
     holds every folder on the way, so the swap itself is refused."""
-    from wasi_python import runner
+    from wasi_python import _places
 
     run = _run()
     base = Path(tempfile.mkdtemp(prefix="rootswap-", dir=guest_workdir))
@@ -873,7 +874,7 @@ def test_a_swapped_root_is_never_prepared_by_path(guest_workdir, monkeypatch, ho
             os.symlink(outside, arena / "sub")
         swapped.append(True)
 
-    monkeypatch.setattr(runner, "_after_walk", swap)
+    monkeypatch.setattr(_places, "_after_walk", swap)
     if os.name == "posix":
         import wasmtime
 
@@ -2703,8 +2704,8 @@ import threading, _thread
 from wasi_python import runner
 def after_ticks(action):
     def wait():
-        start = runner._epoch_ticker.count()
-        while runner._epoch_ticker.count() < start + runner.CANCEL_TICKS + 2:
+        start = _engines._epoch_ticker.count()
+        while _engines._epoch_ticker.count() < start + _limits.CANCEL_TICKS + 2:
             threading.Event().wait(0.001)
         action()
     threading.Thread(target=wait, daemon=True).start()
@@ -2737,18 +2738,18 @@ def test_every_entry_runs_on_a_guest_thread_with_room() -> None:
 
     run = _run()
     import wasi_python
-    from wasi_python import runner
+    from wasi_python import _home, _platform, _sessions
 
     seen: list[tuple[str, int, int]] = []
 
     def entry(kind: str) -> None:
-        bounds = runner._guest_stack()
+        bounds = _platform._guest_stack()
         seen.append((kind, threading.get_ident(), 0 if bounds is None else bounds[1]))
 
     me = threading.get_ident()
-    line = runner._WASM_STACK + runner._HOST_ROOM // 2
-    old = runner._on_entry
-    runner._on_entry = entry
+    line = _platform._WASM_STACK + _platform._HOST_ROOM // 2
+    old = _home._on_entry
+    _home._on_entry = entry
     try:
         assert run(["-c", "print(1)"]).exit_code == 0
         assert [k for k, _, _ in seen] == ["run"]
@@ -2761,10 +2762,10 @@ def test_every_entry_runs_on_a_guest_thread_with_room() -> None:
             assert s.run("print(x)").stdout == b"1\n"
         idle = wasi_python.Session(idle_s=1)
         assert idle.run("y = 2").exit_code == 0
-        runner._reap(runner._session_clock() + 10)  # its idle bound passed: a closer ends it
+        _sessions._reap(_sessions._session_clock() + 10)  # its idle bound passed: a closer ends it
         assert idle._state.done.wait(120)
     finally:
-        runner._on_entry = old
+        _home._on_entry = old
     kinds = [k for k, _, _ in seen]
     assert kinds == ["run", "run", "run", "open", "turn", "turn", "shutdown"] + [
         "open",
@@ -2782,21 +2783,21 @@ def test_a_small_guest_thread_is_refused_before_any_wasm(monkeypatch) -> None:
     door host and the hook are never called; with the real check, the next call works."""
     run = _run()
     import wasi_python
-    from wasi_python import runner
+    from wasi_python import _home, _platform
 
     calls: list[bytes] = []
     entries: list[str] = []
-    monkeypatch.setattr(runner, "_on_entry", entries.append)
+    monkeypatch.setattr(_home, "_on_entry", entries.append)
     with wasi_python.Session() as session:
         for answer in ((4096, 8 << 20), None):
-            monkeypatch.setattr(runner, "_guest_stack", lambda platform=None, a=answer: a)
+            monkeypatch.setattr(_platform, "_guest_stack", lambda platform=None, a=answer: a)
             with pytest.raises(RuntimeError, match="less than the 9 MiB"):
                 run(["-c", "import _host; _host.call(b'x')"], host=calls.append)
             with pytest.raises(RuntimeError, match="less than the 9 MiB"):
                 wasi_python.Session()
             monkeypatch.undo()
-            monkeypatch.setattr(runner, "_on_entry", entries.append)
-        monkeypatch.setattr(runner, "_guest_stack", lambda platform=None: (4096, 8 << 20))
+            monkeypatch.setattr(_home, "_on_entry", entries.append)
+        monkeypatch.setattr(_platform, "_guest_stack", lambda platform=None: (4096, 8 << 20))
         with pytest.raises(RuntimeError, match="less than the 9 MiB"):
             session.run("print(1)")
         monkeypatch.undo()
@@ -2920,7 +2921,7 @@ import wasi_python
 from wasi_python import runner
 row = sys.argv[1]
 state = {"wasm returned": True, "bad": []}
-real_drive, real_close, real_join = runner._drive, wasmtime.Store.close, runner._join_guest
+real_drive, real_close, real_join = _call._drive, wasmtime.Store.close, _home._join_guest
 def drive(*a, **k):
     state["wasm returned"] = False
     try:
@@ -2932,8 +2933,8 @@ def close(self):
         state["bad"].append(threading.current_thread().name)
         return None  # recorded, not done: a real close under running wasm ends the process
     return real_close(self)
-runner._drive, wasmtime.Store.close = drive, close
-real_serve, real_start = runner._Home.serve, threading.Thread.start
+_call._drive, wasmtime.Store.close = drive, close
+real_serve, real_start = _home._Home.serve, threading.Thread.start
 once = []
 def serve(self):
     if not once:
@@ -2949,13 +2950,13 @@ def start(self):
 if row == "start-interrupted":
     threading.Thread.start = start
 else:
-    runner._Home.serve = serve
+    _home._Home.serve = serve
 def join(home):
     if row == "abandoned" and len(once) == 1:
         once.append(2)
         raise KeyboardInterrupt  # and again, inside its join: the home is forced out
     return real_join(home)
-runner._join_guest = join
+_home._join_guest = join
 try:
     wasi_python.run(["-c", "while True: pass"], deadline_s=None)
     print("returned", flush=True)
@@ -3106,7 +3107,7 @@ import threading, wasmtime
 import wasi_python
 from wasi_python import runner
 state = {"in wasm": 0, "bad": []}
-real_turn, real_close = runner._drive_turn, wasmtime.Store.close
+real_turn, real_close = _sessions._drive_turn, wasmtime.Store.close
 hold, held, torn = [], [], []
 entered, gate = threading.Event(), threading.Event()
 def drive_turn(*a, **k):
@@ -3127,13 +3128,13 @@ def close(self):
         state["bad"].append(threading.current_thread().name)
         return None
     return real_close(self)
-runner._drive_turn, wasmtime.Store.close = drive_turn, close
-real_abandon = runner._abandon_turn
+_sessions._drive_turn, wasmtime.Store.close = drive_turn, close
+real_abandon = _sessions._abandon_turn
 def abandon(session_state):
     torn.append(threading.current_thread().name)
     return real_abandon(session_state)
-runner._abandon_turn = abandon
-real_serve, real_join = runner._Home.serve, runner._join_guest
+_sessions._abandon_turn = abandon
+real_serve, real_join = _home._Home.serve, _home._join_guest
 armed = []
 def serve(self):
     if armed == [1]:
@@ -3146,7 +3147,7 @@ def join(home):
         armed.append(3)
         raise SystemExit("forced out")
     return real_join(home)
-runner._Home.serve, runner._join_guest = serve, join
+_home._Home.serve, _home._join_guest = serve, join
 s = wasi_python.Session(deadline_s=None)
 print("first", s.run("x = 1").exit_code, flush=True)
 armed.append(1)
@@ -3217,24 +3218,24 @@ if row == "after-get":
             self.inner.put(item)
         def get(self, timeout=None):
             item = self.inner.get(timeout=timeout)
-            if isinstance(item, runner._Box) and not once:
+            if isinstance(item, _home._Box) and not once:
                 once.append(1)
                 raise KeyboardInterrupt  # the hand-off is taken, not yet held by serve
             return item
-    real_init = runner._Home.__init__
+    real_init = _home._Home.__init__
     def init(self):
         real_init(self)
         self.inbox = Inbox()
-    runner._Home.__init__ = init
+    _home._Home.__init__ = init
 else:
-    real_run = runner._Box.run
+    real_run = _home._Box.run
     def run_box(self):
         self.fn(*self.args)
         if not once:
             once.append(1)
             raise KeyboardInterrupt  # after the provider answered, before the box is released
         real_run(self)
-    runner._Box.run = run_box
+    _home._Box.run = run_box
 try:
     wasi_python.run(["-c", "print(open('/m/a').read())"], mounts=[Mount(P(), "/m")])
     print("returned", flush=True)

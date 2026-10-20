@@ -11,7 +11,7 @@ import struct
 import pytest
 import wasmtime as wt
 
-from wasi_python import _wasmtime_ffi, runner
+from wasi_python import _call, _engines, _home, _platform, _wasmtime_ffi
 
 
 def guest(mode: int) -> str:
@@ -67,16 +67,16 @@ def drive(mode: int, host, *, other_store: bool = False, raises=None):
     store.set_epoch_deadline(2**40)
     store.set_wasi(wt.WasiConfig())
     owner = wt.Store(engine) if other_store else store
-    call = runner._Call(owner, host, NoWaits(), 0)
-    linker = Keeping(runner._linker(wt, engine))
+    call = _call._Call(owner, host, NoWaits(), 0)
+    linker = Keeping(_call._linker(wt, engine))
     try:
-        done = runner._drive(wt, linker, store, wt.Module(engine, guest(mode)), call, None)
+        done = _call._drive(wt, linker, store, wt.Module(engine, guest(mode)), call, None)
         result = (done.exit_code, done.trapped)
     except BaseException as e:
         if raises is None or not isinstance(e, raises):
             raise
         result = ("raised", type(e))
-    assert runner._stack() == [], "the call was left on the thread's stack"
+    assert _home._stack() == [], "the call was left on the thread's stack"
     memory = linker.instance.exports(store)["memory"]
     answer, ran_on = struct.unpack("<ii", bytes(memory.read(store, 64, 72)))
     return (*result, answer, ran_on)
@@ -89,7 +89,7 @@ def test_a_buffer_from_host_alloc_reaches_the_guest() -> None:
 def test_an_exit_in_host_alloc_is_the_calls_exit() -> None:
     """The door answers -2 and the guest stops at its next function entry; the call reports the
     exit, not what followed."""
-    assert drive(1, lambda frame: b"ok") == (7, None, runner.HOST_FAULT, 0)
+    assert drive(1, lambda frame: b"ok") == (7, None, _call.HOST_FAULT, 0)
 
 
 @pytest.mark.parametrize("mode", [2, 3], ids=["unreachable", "stack overflow"])
@@ -97,7 +97,7 @@ def test_a_trap_in_host_alloc_is_the_calls_trap(mode) -> None:
     """The call reports the trap host_alloc hit (as the runner names any trap, by the first line
     of its message), not the interrupt that stopped the guest afterwards."""
     exit_code, trapped, answer, ran_on = drive(mode, lambda frame: b"ok")
-    assert (exit_code, answer, ran_on) == (None, runner.HOST_FAULT, 0)
+    assert (exit_code, answer, ran_on) == (None, _call.HOST_FAULT, 0)
     assert trapped and trapped != "deadline", trapped
 
 
@@ -110,14 +110,14 @@ def test_a_hosts_base_exception_comes_back_to_its_own_call(raised) -> None:
     def host(frame: bytes) -> bytes:
         raise raised()
 
-    assert drive(0, host, raises=raised) == ("raised", raised, runner.HOST_FAULT, 0)
+    assert drive(0, host, raises=raised) == ("raised", raised, _call.HOST_FAULT, 0)
     assert _wasmtime_ffi.last_exception() is None
 
 
 def test_a_caller_from_another_store_gets_no_host() -> None:
     """A stack entry belongs to one store: a guest in another store is answered as if no host
     were bound, never with this call's host."""
-    assert drive(0, lambda frame: b"ok", other_store=True)[2] == runner.NO_HOST
+    assert drive(0, lambda frame: b"ok", other_store=True)[2] == _call.NO_HOST
 
 
 def test_a_stopped_call_reports_no_fuel() -> None:
@@ -125,13 +125,13 @@ def test_a_stopped_call_reports_no_fuel() -> None:
     even when its recorded cause is an exit (spec 011)."""
     from types import SimpleNamespace
 
-    done = runner._Driven(7, None, True, None)
+    done = _call._Driven(7, None, True, None)
     plain = SimpleNamespace(stopped=None, ended=None)
-    assert runner._fuel_used(1000, done, plain, lambda: 400) == 600
+    assert _call._fuel_used(1000, done, plain, lambda: 400) == 600
     stopped = SimpleNamespace(stopped=SystemExit(), ended=None)
-    assert runner._fuel_used(1000, done, stopped, lambda: 400) is None
+    assert _call._fuel_used(1000, done, stopped, lambda: 400) is None
     ended = SimpleNamespace(stopped=None, ended="cancelled")  # spec 015's epoch callback
-    assert runner._fuel_used(1000, done, ended, lambda: 400) is None
+    assert _call._fuel_used(1000, done, ended, lambda: 400) is None
 
 
 @pytest.fixture
@@ -152,11 +152,11 @@ def test_ctrl_c_during_a_call_stops_it_and_is_raised_by_it(default_ctrl_c) -> No
 
     seen = []
     with pytest.raises(KeyboardInterrupt):
-        with runner._deferred_ctrl_c():
-            assert signal.getsignal(signal.SIGINT) is runner._note_ctrl_c
-            runner._note_ctrl_c(signal.SIGINT, None)  # what the handler does on Ctrl-C
+        with _home._deferred_ctrl_c():
+            assert signal.getsignal(signal.SIGINT) is _home._note_ctrl_c
+            _home._note_ctrl_c(signal.SIGINT, None)  # what the handler does on Ctrl-C
             drive(0, lambda frame: seen.append(frame) or b"ok")
-    assert seen == [] and runner._ctrl_c["pending"] is False
+    assert seen == [] and _home._ctrl_c["pending"] is False
     assert signal.getsignal(signal.SIGINT) is signal.default_int_handler
 
 
@@ -164,8 +164,8 @@ def test_ctrl_c_no_host_function_saw_is_raised_when_the_call_ends(default_ctrl_c
     import signal
 
     with pytest.raises(KeyboardInterrupt):
-        with runner._deferred_ctrl_c():
-            runner._note_ctrl_c(signal.SIGINT, None)
+        with _home._deferred_ctrl_c():
+            _home._note_ctrl_c(signal.SIGINT, None)
     assert signal.getsignal(signal.SIGINT) is signal.default_int_handler
 
 
@@ -177,7 +177,7 @@ def test_ctrl_c_is_left_alone_under_an_embedders_handler() -> None:
 
     before = signal.signal(signal.SIGINT, mine)
     try:
-        with runner._deferred_ctrl_c():
+        with _home._deferred_ctrl_c():
             assert signal.getsignal(signal.SIGINT) is mine
     finally:
         signal.signal(signal.SIGINT, before)
@@ -190,7 +190,7 @@ def test_a_handler_a_host_sets_during_a_call_is_kept(default_ctrl_c) -> None:
     def hosts(signum, frame) -> None:
         pass
 
-    with runner._deferred_ctrl_c():
+    with _home._deferred_ctrl_c():
         signal.signal(signal.SIGINT, hosts)
     assert signal.getsignal(signal.SIGINT) is hosts
 
@@ -230,13 +230,13 @@ def test_the_runner_states_its_wasm_stack(monkeypatch) -> None:
     made: list[RecordingConfig] = []
     monkeypatch.setattr(wt, "Config", RecordingConfig)
     monkeypatch.setattr(wt, "Engine", lambda cfg: made.append(cfg) or object())
-    monkeypatch.setattr(runner, "_engines", {})
-    monkeypatch.setitem(runner._fork, "used", runner._fork["used"])
+    monkeypatch.setattr(_engines, "_engines", {})
+    monkeypatch.setitem(_platform._fork, "used", _platform._fork["used"])
     _record_async_stack(monkeypatch)
-    runner._engine(True)
-    runner._engine(False)
-    assert runner._WASM_STACK == STATED
-    assert runner._THREAD_STACK == STATED + 2 * 1024 * 1024
+    _engines._engine(True)
+    _engines._engine(False)
+    assert _platform._WASM_STACK == STATED
+    assert _platform._THREAD_STACK == STATED + 2 * 1024 * 1024
     assert [list(c.set.items()) for c in made] == [
         [
             ("consume_fuel", True),
@@ -285,11 +285,11 @@ def test_no_engine_is_made_without_the_async_stack_size(monkeypatch) -> None:
     made: list[RecordingConfig] = []
     monkeypatch.setattr(wt, "Config", RecordingConfig)
     monkeypatch.setattr(wt, "Engine", lambda cfg: made.append(cfg) or object())
-    monkeypatch.setattr(runner, "_engines", {})
-    monkeypatch.setitem(runner._fork, "used", runner._fork["used"])
+    monkeypatch.setattr(_engines, "_engines", {})
+    monkeypatch.setitem(_platform._fork, "used", _platform._fork["used"])
     monkeypatch.setattr(_wasmtime_ffi, "ASYNC_STACK_SETTER", None)
     with pytest.raises(RuntimeError, match=r"wasmtime-py .* cannot set async_stack_size"):
-        runner._engine(True)
+        _engines._engine(True)
     assert made == []
 
 
@@ -311,7 +311,7 @@ def test_the_guest_driver_makes_the_runners_engine(monkeypatch) -> None:
         ("async_stack_size (binding)", STATED),
         ("max_wasm_stack", STATED),
     ]
-    assert guest.THREAD_STACK == runner._THREAD_STACK
+    assert guest.THREAD_STACK == _platform._THREAD_STACK
 
 
 def test_trap_handlers_ready_reads_each_signal_by_load_base() -> None:
@@ -327,7 +327,7 @@ def test_trap_handlers_ready_reads_each_signal_by_load_base() -> None:
         return lambda signum: table.get(signum, ours)
 
     def ready(machine="x86_64", platform="linux", handler_base=None, wasmtime_base=lambda: ours):
-        return runner._trap_handlers_ready(platform, machine, handler_base, wasmtime_base)
+        return _platform._trap_handlers_ready(platform, machine, handler_base, wasmtime_base)
 
     assert ready(handler_base=bases()) is None
     assert ready(handler_base=bases(SIGILL=0x9000)) == "SIGILL"

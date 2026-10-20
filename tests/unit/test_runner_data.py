@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from wasi_python import runner
+from wasi_python import _zip
 
 POSIX = os.name == "posix"
 FILES = {
@@ -41,36 +41,36 @@ def _stdlib(tmp_path: Path, inner: bytes | None) -> Path:
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("os.pyc", b"\0" * 16)
         if inner is not None:
-            z.writestr(runner.MPL_DATA_MEMBER, inner)
+            z.writestr(_zip.MPL_DATA_MEMBER, inner)
     return path
 
 
 def test_the_data_is_extracted_and_recorded(tmp_path) -> None:
     data = tmp_path / "mpl-data"
-    record = runner._extract_data(data, _stdlib(tmp_path, _inner(FILES)))
+    record = _zip._extract_data(data, _stdlib(tmp_path, _inner(FILES)))
     assert record is not None
     assert {k for k, v in record.items() if v is not None} == set(FILES)
     assert {k for k, v in record.items() if v is None} == {"fonts", "fonts/ttf", "stylelib"}
     for name, body in FILES.items():
         assert (data / name).read_bytes() == body
-    assert runner._data_intact(data, record)
+    assert _zip._data_intact(data, record)
 
 
 def test_a_zip_without_data_gives_no_folder(tmp_path) -> None:
     data = tmp_path / "mpl-data"
-    assert runner._extract_data(data, _stdlib(tmp_path, None)) is None
+    assert _zip._extract_data(data, _stdlib(tmp_path, None)) is None
     assert not os.path.lexists(data)
 
 
 @pytest.mark.parametrize("name", ["/abs.txt", "../up.txt", "a/../../up.txt", "a//b", "c:\\x"])
 def test_a_member_that_could_leave_the_folder_is_refused(tmp_path, name) -> None:
     with pytest.raises(RuntimeError, match="holds the member"):
-        runner._extract_data(tmp_path / "mpl-data", _stdlib(tmp_path, _inner({name: b"x"})))
+        _zip._extract_data(tmp_path / "mpl-data", _stdlib(tmp_path, _inner({name: b"x"})))
 
 
 def test_a_link_member_is_refused(tmp_path) -> None:
     with pytest.raises(RuntimeError, match="not a regular file"):
-        runner._extract_data(tmp_path / "mpl-data", _stdlib(tmp_path, _inner(FILES, "evil")))
+        _zip._extract_data(tmp_path / "mpl-data", _stdlib(tmp_path, _inner(FILES, "evil")))
 
 
 @pytest.mark.skipif(not POSIX, reason="links need privileges on Windows")
@@ -85,20 +85,20 @@ def test_every_change_on_the_host_is_seen_and_undone(tmp_path) -> None:
     changes = [
         lambda: (data / "stylelib" / "extra.mplstyle").write_text("added"),
         lambda: (data / "matplotlibrc").write_bytes(b"backend: changed\n"),
-        lambda: runner._remove_entry(data / "fonts"),
+        lambda: _zip._remove_entry(data / "fonts"),
         lambda: (
-            runner._remove_entry(data / "fonts" / "ttf"),
+            _zip._remove_entry(data / "fonts" / "ttf"),
             (data / "fonts" / "ttf").symlink_to(outside),
         ),
-        lambda: (runner._remove_entry(data), data.symlink_to(outside)),
+        lambda: (_zip._remove_entry(data), data.symlink_to(outside)),
     ]
     for change in changes:
-        record = runner._extract_data(data, zip_copy)
-        assert record is not None and runner._data_intact(data, record)
+        record = _zip._extract_data(data, zip_copy)
+        assert record is not None and _zip._data_intact(data, record)
         change()
-        assert not runner._data_intact(data, record)
-        again = runner._extract_data(data, zip_copy)
-        assert again is not None and runner._data_intact(data, again)
+        assert not _zip._data_intact(data, record)
+        again = _zip._extract_data(data, zip_copy)
+        assert again is not None and _zip._data_intact(data, again)
         assert {k for k, v in again.items() if v is not None} == set(FILES)
         assert not data.is_symlink() and not (data / "fonts" / "ttf").is_symlink()
         for name, body in FILES.items():

@@ -20,7 +20,18 @@ from typing import Any
 
 import pytest
 
-from wasi_python import Artifacts, ArtifactsMissing, runner
+from wasi_python import (
+    Artifacts,
+    ArtifactsMissing,
+    _call,
+    _home,
+    _limits,
+    _places,
+    runner,
+)
+from wasi_python import (
+    _artifacts as artifacts_module,
+)
 from wasi_python import tools as T
 from wasi_python.tools import tool
 
@@ -139,7 +150,7 @@ def test_run_refuses_mistakes_before_anything_runs(monkeypatch, kw, error, match
         lookups.append(1)
         raise AssertionError("the artifacts must not be looked up")
 
-    monkeypatch.setattr(runner, "find_artifacts", found)
+    monkeypatch.setattr(artifacts_module, "find_artifacts", found)
     ex = Recording()
     with pytest.raises(error, match=match):
         runner.run(["-c", "pass"], **kw)
@@ -159,12 +170,12 @@ def test_the_tool_call_limit_has_a_default() -> None:
 
 
 def test_the_tools_are_checked_into_plain_tools() -> None:
-    c = runner._check_tools(None, iter([lookup, plain]), None, runner._UNSET)
+    c = runner._check_tools(None, iter([lookup, plain]), None, _limits._UNSET)
     assert [type(t) for t in c["tools"]] == [T.Tool, T.Tool]
     assert [t.name for t in c["tools"]] == ["lookup", "plain"]
     assert (c["gate"], c["tool_calls"]) == (None, 1000)
     assert runner._check_tools(None, [], None, None)["tool_calls"] is None  # None: no limit
-    none = runner._check_tools(lambda f: f, None, None, runner._UNSET)
+    none = runner._check_tools(lambda f: f, None, None, _limits._UNSET)
     assert none == {"tools": None, "gate": None, "tool_calls": None}
 
 
@@ -184,15 +195,15 @@ GUEST_LINE = "recipe bf59 recipes/guest/host/tools.py\n"
 
 def test_an_artifact_set_without_the_guest_package_is_refused(tmp_path, monkeypatch) -> None:
     walks = []
-    monkeypatch.setattr(runner, "_walk_grants", lambda *a: walks.append(a))
+    monkeypatch.setattr(_places, "_walk_grants", lambda *a: walks.append(a))
     old = _artifacts(tmp_path, OLD_MANIFEST)
     with pytest.raises(ArtifactsMissing, match="recipe … recipes/guest/host/tools.py"):
         runner.run(["-c", "pass"], tools=[lookup], artifacts=old)
     assert walks == []  # refused before the grants are walked, so before the guest starts
-    assert runner._has_guest_package(old.manifest) is False
+    assert artifacts_module._has_guest_package(old.manifest) is False
     (tmp_path / "MANIFEST").write_text(OLD_MANIFEST + GUEST_LINE)  # its stamp changes
-    assert runner._has_guest_package(old.manifest) is True
-    assert runner._has_guest_package(old.manifest) is True  # from the cache
+    assert artifacts_module._has_guest_package(old.manifest) is True
+    assert artifacts_module._has_guest_package(old.manifest) is True  # from the cache
 
 
 # -------------------------------------------------------------------------------------------------
@@ -249,27 +260,27 @@ def test_the_door_refuses_by_length_before_reading() -> None:
 
     memory = Memory()
     memory.buf[100:103] = b"abc"
-    assert runner._door(host, refuses)(Caller(memory), 100, 3, 16, 20) == 0
+    assert _call._door(host, refuses)(Caller(memory), 100, 3, 16, 20) == 0
     assert (memory.reads, admitted, hosted, _answer(memory)) == (0, [3], [], b"refused")
 
     memory, admitted[:] = Memory(), []
     memory.buf[100:103] = b"abc"
-    assert runner._door(host, passes)(Caller(memory), 100, 3, 16, 20) == 0
+    assert _call._door(host, passes)(Caller(memory), 100, 3, 16, 20) == 0
     assert (memory.reads, admitted, hosted, _answer(memory)) == (1, [3], [b"abc"], b"hosted")
 
     memory, hosted[:] = Memory(), []
     memory.buf[100:103] = b"abc"
-    assert runner._door(host)(Caller(memory), 100, 3, 16, 20) == 0  # the raw door: unchanged
+    assert _call._door(host)(Caller(memory), 100, 3, 16, 20) == 0  # the raw door: unchanged
     assert (memory.reads, hosted, _answer(memory)) == (1, [b"abc"], b"hosted")
 
     memory, admitted[:] = Memory(), []  # addresses past memory: a fault, before admit
-    assert runner._door(host, refuses)(Caller(memory), 4000, 200, 16, 20) == runner.HOST_FAULT
+    assert _call._door(host, refuses)(Caller(memory), 4000, 200, 16, 20) == _call.HOST_FAULT
     assert (memory.reads, admitted) == (0, [])
 
 
 def test_a_frame_host_behind_the_door_counts_a_refused_frame_unread() -> None:
     host = T._ToolHost([lookup], max_calls=1)
-    door = runner._door(host, host.admit)
+    door = _call._door(host, host.admit)
     memory = Memory(1 << 21)
     big = T._TOOL_REQUEST_BYTES + 1
     assert door(Caller(memory), 4096, big, 16, 20) == 0
@@ -350,14 +361,14 @@ def test_the_bound_answers_in_order(release, monkeypatch) -> None:
     assert (_last(host).abandoned, _last(host).message) == (True, "slow was cancelled")
 
     # A pending Ctrl-C, read through the runner's own wiring, and never cleared.
-    monkeypatch.setattr(runner, "_ctrl_c_watched", lambda: True)
-    monkeypatch.setitem(runner._ctrl_c, "pending", False)
-    slow = _blocking(release, started, then=lambda: runner._ctrl_c.__setitem__("pending", True))
+    monkeypatch.setattr(_home, "_ctrl_c_watched", lambda: True)
+    monkeypatch.setitem(_home._ctrl_c, "pending", False)
+    slow = _blocking(release, started, then=lambda: _home._ctrl_c.__setitem__("pending", True))
     c = {"tools": (slow,), "gate": None, "tool_calls": 1000}
-    host = runner._tool_host(c, None, None)
+    host = _call._tool_host(c, None, None)
     assert kind(host(call_frame("slow"))) == "cancelled"
     assert _last(host).abandoned is True
-    assert runner._ctrl_c["pending"] is True  # the bound reads the flag; _shared clears it
+    assert _home._ctrl_c["pending"] is True  # the bound reads the flag; _shared clears it
     assert len(started) == 4
 
 
@@ -479,21 +490,21 @@ def test_the_tool_runs_in_a_copy_of_the_callers_context(release) -> None:
 
 def test_stats_counts_tool_threads() -> None:
     before = runner.stats()["tool_threads_running"]
-    runner._count_tool_threads(1)
+    _call._count_tool_threads(1)
     assert runner.stats()["tool_threads_running"] == before + 1
-    runner._count_tool_threads(-1)
+    _call._count_tool_threads(-1)
     assert runner.stats()["tool_threads_running"] == before
 
 
 FORK_HOOK = r"""
 import os, sys
-from wasi_python import runner
+from wasi_python import _call, runner
 
-runner._count_tool_threads(7)  # as if seven tool threads ran in the parent
-lock = runner._tool_threads_lock
+_call._count_tool_threads(7)  # as if seven tool threads ran in the parent
+lock = _call._tool_threads_lock
 pid = os.fork()
 if pid == 0:
-    fresh = runner._tool_threads_lock is not lock
+    fresh = _call._tool_threads_lock is not lock
     os.write(1, f"child {runner.stats()['tool_threads_running']} {fresh}\n".encode())
     os._exit(0)
 os.waitpid(pid, 0)
@@ -688,10 +699,10 @@ def test_the_tool_starts_only_if_its_call_was_not_answered() -> None:
 
 
 def test_completed_has_no_tool_record_by_default() -> None:
-    done = runner.Completed(0, b"", b"", None, None)
+    done = _call.Completed(0, b"", b"", None, None)
     assert done.tools is None and done.files is None
-    assert runner.Completed.__dataclass_fields__.keys() >= {"tools"}
-    assert list(runner.Completed.__dataclass_fields__)[-1] == "tools"
+    assert _call.Completed.__dataclass_fields__.keys() >= {"tools"}
+    assert list(_call.Completed.__dataclass_fields__)[-1] == "tools"
 
 
 def test_the_request_byte_budget_is_a_limit_with_a_default(monkeypatch) -> None:
@@ -710,7 +721,7 @@ def test_the_request_byte_budget_is_a_limit_with_a_default(monkeypatch) -> None:
         with pytest.raises(error, match="tool_request_bytes"):
             runner.Defaults(1 << 30, 60.0, 16 << 20, tool_request_bytes=bad)
 
-    unset = runner._UNSET
+    unset = _limits._UNSET
 
     def checked(**kw: Any) -> dict:
         return runner._checked(
@@ -730,7 +741,7 @@ def test_the_request_byte_budget_is_a_limit_with_a_default(monkeypatch) -> None:
         lookups.append(1)
         raise AssertionError("the artifacts must not be looked up")
 
-    monkeypatch.setattr(runner, "find_artifacts", found)
+    monkeypatch.setattr(artifacts_module, "find_artifacts", found)
     ex = Recording()
     match = "max_tool_request_bytes= without tools="
     with pytest.raises(TypeError, match=match):
@@ -746,12 +757,12 @@ def test_the_request_byte_budget_is_a_limit_with_a_default(monkeypatch) -> None:
     finally:
         wasi_python.set_defaults(before)
 
-    host = runner._tool_host(checked(max_tool_request_bytes=12345), None, None)
+    host = _call._tool_host(checked(max_tool_request_bytes=12345), None, None)
     try:
         assert host._max_bytes == 12345
     finally:
         host.close()
-    by_hand = runner._tool_host({"tools": (lookup,), "gate": None, "tool_calls": 1000}, None, None)
+    by_hand = _call._tool_host({"tools": (lookup,), "gate": None, "tool_calls": 1000}, None, None)
     try:
         assert by_hand._max_bytes is None  # a hand-built call without the key: no byte limit
     finally:

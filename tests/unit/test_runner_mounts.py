@@ -16,7 +16,7 @@ import wasmtime as wt
 
 from harness import files, needs, paths
 from harness.files import MemoryProvider, Mounted
-from wasi_python import Errno, Mount, Stat, runner
+from wasi_python import Errno, Mount, Stat, _call, _engines, _home, _places, runner
 from wasi_python import mounts as mounts_module
 
 EFAULT, EINVAL, ENAMETOOLONG, ENOTSUP, EBADF = 21, 28, 37, 58, 8
@@ -125,11 +125,11 @@ def test_a_cancel_or_a_passed_deadline_stops_the_provider_call(placeholder, monk
     provider = MemoryProvider()
     cancel = threading.Event()
     m = Mounted(provider, placeholder, cancel=cancel, stop_at=100)
-    monkeypatch.setattr(runner._epoch_ticker, "count", classmethod(lambda cls: 99))
+    monkeypatch.setattr(_engines._epoch_ticker, "count", classmethod(lambda cls: 99))
     assert m.raw.path_filestat(3, "a.txt")[0] == 0
-    monkeypatch.setattr(runner._epoch_ticker, "count", classmethod(lambda cls: 100))
+    monkeypatch.setattr(_engines._epoch_ticker, "count", classmethod(lambda cls: 100))
     assert m.raw.path_filestat(3, "a.txt")[0] == 73  # ETIMEDOUT
-    monkeypatch.setattr(runner._epoch_ticker, "count", classmethod(lambda cls: 0))
+    monkeypatch.setattr(_engines._epoch_ticker, "count", classmethod(lambda cls: 0))
     m.store.set_epoch_deadline(2**40)
     cancel.set()
     assert m.raw.path_filestat(3, "a.txt")[0] == 11  # ECANCELED
@@ -167,8 +167,8 @@ def test_a_named_end_holds_under_the_epoch_callback(monkeypatch) -> None:
     import ctypes
     from types import SimpleNamespace
 
-    monkeypatch.setattr(runner, "_stop_error", lambda delta=None: 77)
-    monkeypatch.setattr(runner, "_ctrl_c_watched", lambda: False)
+    monkeypatch.setattr(_call, "_stop_error", lambda delta=None: 77)
+    monkeypatch.setattr(_home, "_ctrl_c_watched", lambda: False)
     holder = ctypes.c_int(0)
     call = SimpleNamespace(
         context=ctypes.addressof(holder),
@@ -178,10 +178,10 @@ def test_a_named_end_holds_under_the_epoch_callback(monkeypatch) -> None:
         ended="out of file calls",
     )
     call.cancel.set()
-    stack = runner._stack()
+    stack = _home._stack()
     stack.append(call)
     try:
-        assert runner._epoch_answer(ctypes.pointer(holder), (ctypes.c_uint64 * 1)()) == 77
+        assert _call._epoch_answer(ctypes.pointer(holder), (ctypes.c_uint64 * 1)()) == 77
     finally:
         stack.remove(call)
     assert call.ended == "out of file calls"
@@ -250,11 +250,11 @@ def test_forwards_cost_no_fuel_and_keep_traps(placeholder, tmp_path) -> None:
         if mounted:
             call, linker = m.call, m.linker
         else:
-            call = runner._Call(m.store, None, None, 0)
+            call = _call._Call(m.store, None, None, 0)
             linker = m.plain
         call.stopped = None
-        driven = runner._drive(wt, linker, m.store, module, call, 10**6, plain=m.plain)
-        used = runner._fuel_used(10**6, driven, call, m.store.get_fuel)
+        driven = _call._drive(wt, linker, m.store, module, call, 10**6, plain=m.plain)
+        used = _call._fuel_used(10**6, driven, call, m.store.get_fuel)
         ends.append((driven.exit_code, driven.trapped, used))
         if mounted:
             assert isinstance(call.stopped, wt.WasmtimeError) and str(call.stopped)
@@ -332,8 +332,8 @@ def test_a_bad_mount_is_refused_before_any_work(tmp_path, kw, error, match) -> N
 
 def test_nesting_is_allowed_and_the_mounts_are_plain() -> None:
     provider = MemoryProvider()
-    grants = runner._check_grants([runner.Grant("/h", "/w/g")])
-    mounts = runner._check_mounts(
+    grants = _places._check_grants([_places.Grant("/h", "/w/g")])
+    mounts = _places._check_mounts(
         iter([Mount(provider, "/w"), Mount(provider, "/w/inner"), Mount(provider, "/")]),
         grants,
         False,
@@ -469,7 +469,7 @@ def test_a_folder_stat_comes_from_the_mount(placeholder) -> None:
     calls = dict(provider.calls)
     assert r.filestat(f)[0] == 0 and provider.calls == calls
     dev, ino = struct.unpack("<QQ", r.get(files.RESULT, 16))
-    assert dev == runner._siphash13(b"/m") and ino == runner._siphash13(b"/a.txt")
+    assert dev == _places._siphash13(b"/m") and ino == _places._siphash13(b"/a.txt")
     assert r.get(files.RESULT + 40, 24) == bytes(24)  # no times from fstat
 
 
@@ -486,7 +486,7 @@ def test_a_call_without_mounts_is_unchanged(monkeypatch) -> None:
     from wasi_python import run
 
     used, served = [], []
-    real_drive, real_call = runner._drive, mounts_module._Files.__call__
+    real_drive, real_call = _call._drive, mounts_module._Files.__call__
 
     def drive(wt_, linker, *args, **kw):
         used.append(linker)
@@ -496,12 +496,12 @@ def test_a_call_without_mounts_is_unchanged(monkeypatch) -> None:
         served.append(name)
         return real_call(self, caller, name, *args)
 
-    monkeypatch.setattr(runner, "_drive", drive)
+    monkeypatch.setattr(_call, "_drive", drive)
     monkeypatch.setattr(mounts_module._Files, "__call__", counted)
     done = run(["-c", "import json; print(json.dumps([1]))"])
     assert (done.exit_code, done.stdout, done.files) == (0, b"[1]\n", None)
-    engine = runner._engine(False)
-    assert used == [runner._guard_linker(wt, engine)]
+    engine = _engines._engine(False)
+    assert used == [_call._guard_linker(wt, engine)]
     assert set(served) <= set(mounts_module.GUARDED + mounts_module.COUNTED), served
     served.clear()
     a, b = MemoryProvider({"/x": b"from a\n"}), MemoryProvider({"/x": b"from b\n"})
@@ -526,7 +526,7 @@ def test_a_call_without_mounts_is_unchanged(monkeypatch) -> None:
         "c": [b"none\n"] * 3,
     }
     assert {p for _, p in a.paths} == {"/x"} and {p for _, p in b.paths} == {"/x"}
-    mount_linker = runner._mount_linker(wt, engine)
+    mount_linker = _call._mount_linker(wt, engine)
     assert sum(linker is mount_linker for linker in used) == 6 and mount_linker is not used[0]
     assert sum(linker is used[0] for linker in used) == 4
     assert served  # the control: the mounted calls reached the shadows
@@ -602,7 +602,7 @@ def test_a_finished_call_holds_nothing(monkeypatch) -> None:
     }
 
     def alive() -> int:
-        kinds = (runner._Call, mounts_module._Files, mounts_module._Open)
+        kinds = (_call._Call, mounts_module._Files, mounts_module._Open)
         return sum(type(o) in kinds for o in gc.get_objects())
 
     for name, (code, fuel, calls) in endings.items():
@@ -639,9 +639,9 @@ def test_an_abi_error_keeps_the_grants_fuel(placeholder, tmp_path) -> None:
         if mounted:
             call, linker = m.call, m.linker
         else:
-            call, linker = runner._Call(m.store, None, None, 0), m.plain
-        driven = runner._drive(wt, linker, m.store, module, call, 10**6, plain=m.plain)
-        used = runner._fuel_used(10**6, driven, call, m.store.get_fuel)
+            call, linker = _call._Call(m.store, None, None, 0), m.plain
+        driven = _call._drive(wt, linker, m.store, module, call, 10**6, plain=m.plain)
+        used = _call._fuel_used(10**6, driven, call, m.store.get_fuel)
         ends.append((driven.exit_code, used))
     assert ends[0] == ends[1] and ends[0][1] is not None and ends[0][1] > 0, ends
 

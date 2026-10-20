@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 import wasi_python
+from wasi_python import _artifacts
 
 
 def test_version_is_a_string() -> None:
@@ -26,22 +27,22 @@ def test_artifacts_resolve_in_the_harness_order(tmp_path, monkeypatch) -> None:
     """$WASI_PYTHON_ARTIFACTS when set and not empty, then a checkout's build/artifacts/, then
     the wheel's own copy: the order the harness uses (spec 001, Decision 3)."""
     env, wheel, checkout = (_set(tmp_path / n) for n in ("env", "wheel", "checkout"))
-    monkeypatch.setattr(wasi_python, "_ARTIFACT_DIR", wheel)
-    monkeypatch.setattr(wasi_python, "_CHECKOUT_ARTIFACT_DIR", checkout)
-    monkeypatch.setenv(wasi_python._ARTIFACTS_ENV, str(env))
+    monkeypatch.setattr(_artifacts, "_ARTIFACT_DIR", wheel)
+    monkeypatch.setattr(_artifacts, "_CHECKOUT_ARTIFACT_DIR", checkout)
+    monkeypatch.setenv(_artifacts._ARTIFACTS_ENV, str(env))
     assert wasi_python.artifacts().manifest == env / "MANIFEST"
-    monkeypatch.setenv(wasi_python._ARTIFACTS_ENV, "")
+    monkeypatch.setenv(_artifacts._ARTIFACTS_ENV, "")
     assert wasi_python.artifacts().plain == checkout / "python.wasm"
-    monkeypatch.delenv(wasi_python._ARTIFACTS_ENV)
+    monkeypatch.delenv(_artifacts._ARTIFACTS_ENV)
     assert wasi_python.artifacts().plain == checkout / "python.wasm"
     (checkout / "MANIFEST").unlink()
     assert wasi_python.artifacts().snapshot == wheel / "python-snapshot.wasm"
 
 
 def test_missing_artifacts_are_explained(tmp_path, monkeypatch) -> None:
-    monkeypatch.delenv(wasi_python._ARTIFACTS_ENV, raising=False)
-    monkeypatch.setattr(wasi_python, "_ARTIFACT_DIR", tmp_path / "wheel")
-    monkeypatch.setattr(wasi_python, "_CHECKOUT_ARTIFACT_DIR", tmp_path / "checkout")
+    monkeypatch.delenv(_artifacts._ARTIFACTS_ENV, raising=False)
+    monkeypatch.setattr(_artifacts, "_ARTIFACT_DIR", tmp_path / "wheel")
+    monkeypatch.setattr(_artifacts, "_CHECKOUT_ARTIFACT_DIR", tmp_path / "checkout")
     with pytest.raises(wasi_python.ArtifactsMissing, match="scripts/build.sh"):
         wasi_python.artifacts()
 
@@ -63,7 +64,7 @@ def _installed(tmp_path: Path, where: str, project: str) -> tuple[Path, Path, Pa
 
 
 def _found(path_entry: Path) -> str:
-    env = {k: v for k, v in os.environ.items() if k != wasi_python._ARTIFACTS_ENV}
+    env = {k: v for k, v in os.environ.items() if k != _artifacts._ARTIFACTS_ENV}
     code = "import sys; sys.path.insert(0, sys.argv[1]); import wasi_python; "
     code += "print(wasi_python.artifact_dir())"
     out = subprocess.run(

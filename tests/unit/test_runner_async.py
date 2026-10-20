@@ -11,7 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from wasi_python import runner
+from wasi_python import _call, _engines, _home, _limits, _platform, runner
 
 STOP = 77  # what the fake error maker returns
 
@@ -19,9 +19,9 @@ STOP = 77  # what the fake error maker returns
 @pytest.fixture
 def epoch(monkeypatch):
     """A fake call on this thread's stack, the context it is checked against, and a delta."""
-    monkeypatch.setattr(runner, "_stop_error", lambda delta=None: STOP)
-    monkeypatch.setattr(runner, "_ctrl_c_watched", lambda: False)
-    monkeypatch.setattr(runner._epoch_ticker, "count", classmethod(lambda cls: 100))
+    monkeypatch.setattr(_call, "_stop_error", lambda delta=None: STOP)
+    monkeypatch.setattr(_home, "_ctrl_c_watched", lambda: False)
+    monkeypatch.setattr(_engines._epoch_ticker, "count", classmethod(lambda cls: 100))
     holder = ctypes.c_int(0)
     context = ctypes.pointer(holder)
     call = SimpleNamespace(
@@ -31,21 +31,21 @@ def epoch(monkeypatch):
         stop_at=None,
         ended=None,
     )
-    stack = runner._stack()
+    stack = _home._stack()
     stack.append(call)
-    runner._calls.lost = False
+    _home._calls.lost = False
     delta = (ctypes.c_uint64 * 1)()
     yield SimpleNamespace(call=call, context=context, delta=delta, holder=holder)
     stack.remove(call)
-    runner._calls.lost = False
+    _home._calls.lost = False
 
 
 def answer(e) -> int:
-    return runner._epoch_answer(e.context, e.delta)
+    return _call._epoch_answer(e.context, e.delta)
 
 
 def test_the_epoch_callback_continues_by_up_to_five_ticks(epoch) -> None:
-    assert answer(epoch) == 0 and epoch.delta[0] == runner.CANCEL_TICKS == 5
+    assert answer(epoch) == 0 and epoch.delta[0] == _limits.CANCEL_TICKS == 5
     epoch.call.stop_at = 102  # two ticks left
     assert answer(epoch) == 0 and epoch.delta[0] == 2
     epoch.call.stop_at = 101  # one tick left: never 0
@@ -71,12 +71,12 @@ def test_a_recorded_stop_holds_under_the_epoch_callback(epoch) -> None:
 
 
 def test_a_deferred_ctrl_c_becomes_a_stop(epoch, monkeypatch) -> None:
-    monkeypatch.setattr(runner, "_ctrl_c_watched", lambda: True)
-    monkeypatch.setitem(runner._ctrl_c, "pending", True)
+    monkeypatch.setattr(_home, "_ctrl_c_watched", lambda: True)
+    monkeypatch.setitem(_home._ctrl_c, "pending", True)
     epoch.call.cancel.set()
     assert answer(epoch) == STOP
     assert isinstance(epoch.call.stopped, KeyboardInterrupt) and epoch.call.ended is None
-    assert runner._ctrl_c["pending"] is False
+    assert _home._ctrl_c["pending"] is False
 
 
 def test_a_fault_in_the_epoch_callback_stops_the_guest(epoch) -> None:
@@ -93,8 +93,8 @@ def test_a_fault_in_the_epoch_callback_stops_the_guest(epoch) -> None:
 
 def test_another_stores_context_is_not_this_call(epoch) -> None:
     other = ctypes.c_int(0)
-    assert runner._epoch_answer(ctypes.pointer(other), epoch.delta) == STOP
-    assert runner._calls.lost is True and epoch.call.ended is None
+    assert _call._epoch_answer(ctypes.pointer(other), epoch.delta) == STOP
+    assert _home._calls.lost is True and epoch.call.ended is None
 
 
 def test_a_lost_call_stops_the_guest_and_drive_says_so(epoch, monkeypatch) -> None:
@@ -104,8 +104,8 @@ def test_a_lost_call_stops_the_guest_and_drive_says_so(epoch, monkeypatch) -> No
     def broken():
         raise RuntimeError("stack")
 
-    monkeypatch.setattr(runner, "_stack", broken)
-    assert answer(epoch) == STOP and runner._calls.lost is True
+    monkeypatch.setattr(_home, "_stack", broken)
+    assert answer(epoch) == STOP and _home._calls.lost is True
     monkeypatch.undo()
 
     class WasmtimeError(Exception):
@@ -119,17 +119,17 @@ def test_a_lost_call_stops_the_guest_and_drive_says_so(epoch, monkeypatch) -> No
 
     class Linker:
         def instantiate(self, store, module):
-            runner._calls.lost = True  # as the callback does
+            _home._calls.lost = True  # as the callback does
             raise WasmtimeError("stopped by wasi_python")
 
     # This `_drive` gets stand-ins, not wasmtime, so on Linux a process that has made no engine yet
     # has no wasmtime trap handlers for spec 071's guard to find; the guard is not what this tests
     # (spec 080, Decision 2).
-    monkeypatch.setattr(runner, "_trap_handlers_ready", lambda: None)
+    monkeypatch.setattr(_platform, "_trap_handlers_ready", lambda: None)
     call = SimpleNamespace(cancel=None, stopped=None, ended=None)
     with pytest.raises(RuntimeError, match="lost track of a call"):
-        runner._drive(wt, Linker(), None, None, call, None)
-    assert runner._calls.lost is False
+        _call._drive(wt, Linker(), None, None, call, None)
+    assert _home._calls.lost is False
 
 
 class Recording(concurrent.futures.Executor):
@@ -167,8 +167,8 @@ def test_run_async_refuses_a_process_or_interpreter_pool() -> None:
 
 
 def test_async_workers_is_checked_like_the_other_limits() -> None:
-    assert runner.Defaults(1 << 30, 60.0, 16 << 20).async_workers == runner._default_workers()
-    assert 1 <= runner._default_workers() <= 8
+    assert runner.Defaults(1 << 30, 60.0, 16 << 20).async_workers == _limits._default_workers()
+    assert 1 <= _limits._default_workers() <= 8
     assert runner.Defaults(1 << 30, 60.0, 16 << 20, 3).async_workers == 3
     for bad, error in ((True, TypeError), (2.0, TypeError), (0, ValueError), (1025, ValueError)):
         with pytest.raises(error):
@@ -181,7 +181,7 @@ def test_run_refuses_a_cancel_that_is_not_an_event() -> None:
 
 
 def test_a_forked_child_of_a_used_runner_is_refused(monkeypatch) -> None:
-    monkeypatch.setitem(runner._fork, "forked", True)
+    monkeypatch.setitem(_platform._fork, "forked", True)
     with pytest.raises(RuntimeError, match="forked"):
         runner.run(["-c", "pass"])
     with pytest.raises(RuntimeError, match="forked"):
@@ -195,8 +195,8 @@ def test_a_host_function_returning_under_a_set_event_stops_the_guest(monkeypatch
     holder = ctypes.c_int(0)
     caller = SimpleNamespace(_context=lambda: ctypes.pointer(holder))
     now = []
-    monkeypatch.setattr(runner, "_epoch_now", lambda c: now.append(c))
-    monkeypatch.setattr(runner, "_ctrl_c_watched", lambda: False)
+    monkeypatch.setattr(_call, "_epoch_now", lambda c: now.append(c))
+    monkeypatch.setattr(_home, "_ctrl_c_watched", lambda: False)
     event = threading.Event()
     call = SimpleNamespace(  # `ended` as every `_Call` has it; the entry guard reads it (spec 030)
         context=ctypes.addressof(holder),
@@ -205,8 +205,8 @@ def test_a_host_function_returning_under_a_set_event_stops_the_guest(monkeypatch
         cancel=event,
         poll=lambda c, *a: 0,
     )
-    function = runner._shared("poll", -1, -2)
-    stack = runner._stack()
+    function = _call._shared("poll", -1, -2)
+    stack = _home._stack()
     stack.append(call)
     try:
         assert function(caller, 1, 2, 3, 4) == 0 and now == []
@@ -221,7 +221,7 @@ def test_a_host_function_returning_under_a_set_event_stops_the_guest(monkeypatch
 def test_a_call_cancelled_before_it_runs_never_starts_its_guest(monkeypatch) -> None:
     """Spec 015, Decision 1: `run` checks the event once more just before it instantiates."""
     # Stand-ins, not wasmtime: no engine need exist, so spec 071's guard is set aside (spec 080).
-    monkeypatch.setattr(runner, "_trap_handlers_ready", lambda: None)
+    monkeypatch.setattr(_platform, "_trap_handlers_ready", lambda: None)
 
     class Linker:
         def instantiate(self, store, module):
@@ -231,6 +231,6 @@ def test_a_call_cancelled_before_it_runs_never_starts_its_guest(monkeypatch) -> 
     event = threading.Event()
     event.set()
     call = SimpleNamespace(cancel=event, stopped=None, ended=None)
-    done = runner._drive(wt, Linker(), None, None, call, 10)
+    done = _call._drive(wt, Linker(), None, None, call, 10)
     assert (done.exit_code, done.trapped, done.metered) == (None, "cancelled", False)
     assert call.ended == "cancelled"

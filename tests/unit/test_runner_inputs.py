@@ -10,13 +10,13 @@ from types import MappingProxyType
 
 import pytest
 
-from wasi_python import runner
+from wasi_python import _limits
 
 SECRET = "s3cr3t-value"
 
 
 def check(argv=("-c", "pass"), env=None, stdin=None):
-    return runner._check_inputs(argv, env, stdin)
+    return _limits._check_inputs(argv, env, stdin)
 
 
 class Sneaky(str):

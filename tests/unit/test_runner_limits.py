@@ -11,7 +11,7 @@ from fractions import Fraction
 
 import pytest
 
-from wasi_python import runner
+from wasi_python import _artifacts, _limits, runner
 
 TOP = 2**63 - 1
 
@@ -28,7 +28,7 @@ class Index:
 
 def check(**given):
     limits = {"fuel": None, "deadline_s": None, "memory_bytes": None, "output_bytes": None}
-    return runner._check_limits(**{**limits, **given})
+    return _limits._check_limits(**{**limits, **given})
 
 
 @pytest.mark.parametrize("name", ["fuel", "memory_bytes", "output_bytes"])
@@ -116,7 +116,7 @@ def test_the_open_file_cap_is_a_limit_with_a_default(monkeypatch) -> None:
         with pytest.raises(error, match="open_files"):
             runner.Defaults(1 << 30, 60.0, 16 << 20, open_files=bad)
 
-    unset = runner._UNSET
+    unset = _limits._UNSET
 
     def checked(**kw) -> dict:
         return runner._checked(["-c", "pass"], None, None, None, unset, unset, unset, None, **kw)
@@ -135,7 +135,7 @@ def test_the_open_file_cap_is_a_limit_with_a_default(monkeypatch) -> None:
         lookups.append(1)
         raise AssertionError("the artifacts must not be looked up")
 
-    monkeypatch.setattr(runner, "find_artifacts", found)
+    monkeypatch.setattr(_artifacts, "find_artifacts", found)
     ex = _Refusing()
     with pytest.raises(ValueError, match="max_open_files"):
         runner.run(["-c", "pass"], max_open_files=-1)

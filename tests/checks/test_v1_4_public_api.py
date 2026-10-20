@@ -345,7 +345,7 @@ def _defaults_loads(path: Path) -> list[str]:
 
 def test_set_defaults_changes_what_run_reads(monkeypatch) -> None:
     import wasi_python
-    from wasi_python import runner
+    from wasi_python import _artifacts, _limits, runner
 
     # The runner reads its defaults only through `_current_defaults`, so the count of its calls
     # below is every read (the build review's F2); every module of the package is read, so a
@@ -363,7 +363,7 @@ def test_set_defaults_changes_what_run_reads(monkeypatch) -> None:
         lookups.append(1)
         raise _Stop
 
-    monkeypatch.setattr(runner, "find_artifacts", found)
+    monkeypatch.setattr(_artifacts, "find_artifacts", found)
     before = wasi_python.defaults()
     new = dataclasses.replace(before, memory_bytes=before.memory_bytes + 4096)
     raced = dataclasses.replace(before, memory_bytes=before.memory_bytes + 8192)
@@ -374,7 +374,7 @@ def test_set_defaults_changes_what_run_reads(monkeypatch) -> None:
         assert lock.seen == [("enter", before), ("exit", new)]
         lock.swap = None
         assert wasi_python.defaults() is new
-        unset = runner._UNSET
+        unset = _limits._UNSET
         checked = runner._checked(["-c", "pass"], None, None, None, unset, unset, unset, None)
         assert checked["memory_bytes"] == new.memory_bytes
         for wrong in (None, {}):
@@ -439,12 +439,12 @@ def test_the_pool_takes_the_newest_size(monkeypatch) -> None:
     under the pool's lock, so a call that read its limits before a `set_defaults` never sizes
     the pool back (the build review's F3, and its confirmation's N1)."""
     import wasi_python
-    from wasi_python import runner
+    from wasi_python import _artifacts, runner
 
     def found() -> Any:
         raise _Stop
 
-    monkeypatch.setattr(runner, "find_artifacts", found)
+    monkeypatch.setattr(_artifacts, "find_artifacts", found)
     before = wasi_python.defaults()
     racing = _Racing(runner._pool_lock, before)
     monkeypatch.setattr(runner, "_pool_lock", racing)

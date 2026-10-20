@@ -24,7 +24,7 @@ from typing import Any
 
 import pytest
 
-from wasi_python import runner
+from wasi_python import _artifacts, _call, _home, runner
 from wasi_python import tools as T
 from wasi_python.tools import ToolDenied, ToolError, tool
 
@@ -209,7 +209,7 @@ def test_async_callables_are_accepted_and_async_generators_refused(monkeypatch) 
         lookups.append(1)
         raise Reached("lookup")
 
-    monkeypatch.setattr(runner, "find_artifacts", found)
+    monkeypatch.setattr(_artifacts, "find_artifacts", found)
     lookup = tool(fetch_twin, name="lookup")
 
     # A coroutine gate passes the checks: the first lookup, or the executor's submit, is reached.
@@ -343,18 +343,18 @@ def test_every_end_cancels_a_started_task(caller, monkeypatch) -> None:
           "cancelled")  # fmt: skip
 
     # A pending Ctrl-C, through the runner's own wiring, on a private loop.
-    monkeypatch.setattr(runner, "_ctrl_c_watched", lambda: True)
-    monkeypatch.setitem(runner._ctrl_c, "pending", False)
+    monkeypatch.setattr(_home, "_ctrl_c_watched", lambda: True)
+    monkeypatch.setitem(_home._ctrl_c, "pending", False)
     before = runner.stats()["tool_threads_running"]
-    waiter = _waiter(started, cancels, then=lambda: runner._ctrl_c.__setitem__("pending", True))
-    host = runner._tool_host({"tools": (waiter,), "gate": None, "tool_calls": 1000}, None, None)
+    waiter = _waiter(started, cancels, then=lambda: _home._ctrl_c.__setitem__("pending", True))
+    host = _call._tool_host({"tools": (waiter,), "gate": None, "tool_calls": 1000}, None, None)
     assert kind(host(call_frame("wait"))) == "cancelled"
     assert _last(host).abandoned is True
     host.close()
     _join_tool_threads()
     assert cancels == [1]
     assert runner.stats()["tool_threads_running"] == before
-    assert runner._ctrl_c["pending"] is True
+    assert _home._ctrl_c["pending"] is True
 
 
 # -------------------------------------------------------------------------------------------------

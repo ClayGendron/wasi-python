@@ -18,8 +18,8 @@ import wasmtime as wt
 from wasmtime import _bindings, _ffi, _func, _wasi
 
 from harness import paths
+from wasi_python import _call, _engines
 from wasi_python import _wasmtime_ffi as ffi
-from wasi_python import runner
 
 # Decision 1's table: every name the adapter exposes, in the table's order.
 TABLE = (
@@ -137,14 +137,14 @@ def test_the_runner_lets_the_adapters_import_error_through(monkeypatch) -> None:
     monkeypatch.delattr(wasi_python, "_wasmtime_ffi")  # else `from . import` finds the old one
     version = re.escape(importlib.metadata.version("wasmtime"))
     with pytest.raises(ImportError, match=rf"wasmtime-py {version} .*wasmtime_error_new"):
-        runner._wasmtime()
+        _engines._wasmtime()
     assert "wasi_python._wasmtime_ffi" not in sys.modules
     monkeypatch.undo()
     assert sys.modules["wasi_python._wasmtime_ffi"] is ffi
-    assert runner._wasmtime() is wt
+    assert _engines._wasmtime() is wt
     monkeypatch.setitem(sys.modules, "wasmtime", None)
     with pytest.raises(ImportError, match=r"needs wasmtime-py") as info:
-        runner._wasmtime()
+        _engines._wasmtime()
     assert isinstance(info.value.__cause__, ImportError)
 
 
@@ -156,7 +156,7 @@ def test_the_pin_is_written_the_same_in_three_places(monkeypatch) -> None:
     assert project["project"]["dependencies"] == [ffi.PIN]
     monkeypatch.setitem(sys.modules, "wasmtime", None)
     with pytest.raises(ImportError) as info:
-        runner._wasmtime()
+        _engines._wasmtime()
     assert f"({ffi.PIN})" in str(info.value)
 
 
@@ -167,8 +167,8 @@ def test_the_bindings_the_runner_calls_exist() -> None:
     """The shapes of the bindings the seam reads its C types from, pinned since a release could
     move them; the runner's two output callbacks are declared with the seam's types (ctypes
     caches a CFUNCTYPE by its signature, so the identity holds)."""
-    assert type(runner._output_write) is ffi.OUTPUT_WRITE
-    assert type(runner._output_free) is ffi.OUTPUT_FREE
+    assert type(_call._output_write) is ffi.OUTPUT_WRITE
+    assert type(_call._output_free) is ffi.OUTPUT_FREE
     for name in ("wasi_config_set_stdout_custom", "wasi_config_set_stderr_custom"):
         assert callable(getattr(_ffi, name)), name
         argtypes = getattr(_bindings, "_" + name).argtypes
@@ -218,7 +218,7 @@ def test_the_stop_error_is_real_and_never_leaves_a_zero_delta(monkeypatch) -> No
     assert isinstance(address, int) and address
     ffi.delete_error(address)
     delta = (ctypes.c_uint64 * 1)()
-    address = runner._stop_error(delta)
+    address = _call._stop_error(delta)
     assert address and delta[0] == 0
     ffi.delete_error(address)
 
@@ -226,10 +226,10 @@ def test_the_stop_error_is_real_and_never_leaves_a_zero_delta(monkeypatch) -> No
         raise MemoryError
 
     monkeypatch.setattr(ffi, "new_error", broken)
-    assert runner._stop_error(delta) == 0 and delta[0] == 1
+    assert _call._stop_error(delta) == 0 and delta[0] == 1
     delta[0] = 0
     monkeypatch.setattr(ffi, "new_error", lambda message: 0)
-    assert runner._stop_error(delta) == 0 and delta[0] == 1
+    assert _call._stop_error(delta) == 0 and delta[0] == 1
 
 
 # U7

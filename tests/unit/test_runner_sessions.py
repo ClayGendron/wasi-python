@@ -9,7 +9,7 @@ import struct
 import pytest
 
 import wasi_python
-from wasi_python import Defaults, Session, runner
+from wasi_python import Defaults, Session, _artifacts, _call, _sessions
 
 NAN, INF = float("nan"), float("inf")
 
@@ -67,7 +67,7 @@ def lookups(monkeypatch) -> list[int]:
         seen.append(1)
         raise Looked
 
-    monkeypatch.setattr(runner, "find_artifacts", find)
+    monkeypatch.setattr(_artifacts, "find_artifacts", find)
     return seen
 
 
@@ -96,7 +96,7 @@ def test_session_refuses_mistakes_before_anything_runs(lookups) -> None:
 
 
 def _state(idle: float | None, lifetime: float | None, last_end: float = 0.0, busy=False):
-    s = runner._State()
+    s = _sessions._State()
     s.idle_s, s.lifetime_s, s.opened, s.last_end, s.busy = idle, lifetime, 0.0, last_end, busy
     return s
 
@@ -106,11 +106,11 @@ def registry(monkeypatch):
     """A private registry of fake sessions, and a closer starter that records."""
     import weakref
 
-    monkeypatch.setattr(runner, "_sessions", weakref.WeakSet())
-    monkeypatch.setattr(runner, "_reaper_queue", queue.SimpleQueue())
-    monkeypatch.setattr(runner, "_dropped", __import__("collections").deque())
-    started: list[runner._State] = []
-    monkeypatch.setattr(runner, "_start_ending", started.append)
+    monkeypatch.setattr(_sessions, "_sessions", weakref.WeakSet())
+    monkeypatch.setattr(_sessions, "_reaper_queue", queue.SimpleQueue())
+    monkeypatch.setattr(_sessions, "_dropped", __import__("collections").deque())
+    started: list[_sessions._State] = []
+    monkeypatch.setattr(_sessions, "_start_ending", started.append)
     return started
 
 
@@ -125,15 +125,15 @@ def test_the_reaper_ends_what_is_due(registry) -> None:
     )
     keep = [a, b, c, busy]
     for s in keep:
-        runner._sessions.add(s)
-    assert runner._reap(20.0) == 10.0  # a is idle at 10; b's lifetime at 30 is next
+        _sessions._sessions.add(s)
+    assert _sessions._reap(20.0) == 10.0  # a is idle at 10; b's lifetime at 30 is next
     assert registry == [a] and a.ended == "idle" and a.closing.is_set()
-    assert runner._reap(30.0) is None
+    assert _sessions._reap(30.0) is None
     assert registry == [a, b] and b.ended == "lifetime"
     assert (c.ended, busy.ended) == (None, None)
     for s in keep:
-        runner._sessions.discard(s)
-    assert runner._reap(1e9) is None  # none open: no wait
+        _sessions._sessions.discard(s)
+    assert _sessions._reap(1e9) is None  # none open: no wait
 
 
 def test_the_reaper_loop_ends_sessions_in_due_order(registry) -> None:
@@ -141,7 +141,7 @@ def test_the_reaper_loop_ends_sessions_in_due_order(registry) -> None:
     ends sessions in due order. Stand-in: a reaper that ends a busy session."""
     states = [_state(30, None), _state(10, None), _state(20, None)]
     for s in states:
-        runner._sessions.add(s)
+        _sessions._sessions.add(s)
     now = [0.0]
     waits: list[float | None] = []
 
@@ -151,7 +151,7 @@ def test_the_reaper_loop_ends_sessions_in_due_order(registry) -> None:
             now[0] += wait  # the wait passes in fake time
         raise queue.Empty
 
-    runner._reaper_loop(get=get, clock=lambda: now[0], rounds=4)
+    _sessions._reaper_loop(get=get, clock=lambda: now[0], rounds=4)
     assert registry == [states[1], states[2], states[0]]
     assert waits == [None, 10.0, 10.0, 10.0]
 
@@ -160,9 +160,9 @@ def test_a_dropped_session_is_ended_by_the_next_step(registry) -> None:
     """Criterion 24(c), its unit part: the finalizer only queues; the reaper's next step ends the
     session "closed" and starts its ending."""
     s = _state(None, None)
-    runner._collected(s)
+    _sessions._collected(s)
     assert s.ended is None and registry == []
-    runner._reap(0.0)
+    _sessions._reap(0.0)
     assert s.ended == "closed" and registry == [s]
 
 
@@ -178,10 +178,10 @@ def test_a_turn_waits_on_the_sessions_clock_base() -> None:
             waited.append(seconds)
 
     hour = 3600 * 10**9
-    poll = runner._poll_oneoff(
+    poll = _call._poll_oneoff(
         base, Waits(), realtime_ns=lambda: 0, monotonic_ns=lambda: base + hour
     )
-    sub = struct.pack(runner.SUBSCRIPTION, 7, runner.CLOCK, runner.MONOTONIC, hour + 10**9, 0, 1)
+    sub = struct.pack(_call.SUBSCRIPTION, 7, _call.CLOCK, _call.MONOTONIC, hour + 10**9, 0, 1)
 
     class Memory:
         def __init__(self) -> None:
@@ -212,8 +212,8 @@ def test_a_shutdown_budget_is_capped_by_the_lifetime() -> None:
     budget, whatever the start."""
     s = _state(None, 3600.0)
     s.shutdown_s = 5.0
-    assert runner._ending_seconds(s, 100.0) == 5.0
-    assert runner._ending_seconds(s, 3602.0) == 3.0
-    assert runner._ending_seconds(s, 3605.0) == 0.0
+    assert _sessions._ending_seconds(s, 100.0) == 5.0
+    assert _sessions._ending_seconds(s, 3602.0) == 3.0
+    assert _sessions._ending_seconds(s, 3605.0) == 0.0
     s.lifetime_s = None
-    assert runner._ending_seconds(s, 10**6) == 5.0
+    assert _sessions._ending_seconds(s, 10**6) == 5.0

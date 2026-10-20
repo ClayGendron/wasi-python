@@ -47,7 +47,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    from .runner import _Call
+    from ._call import _Call
 
 
 class Errno(enum.IntEnum):
@@ -627,9 +627,13 @@ class _Files:
         *,
         open_files: int | None = None,
     ) -> None:
-        from . import runner
+        from . import _call, _engines, _home, _places, runner
 
         self._runner = runner
+        self._call = _call
+        self._engines = _engines
+        self._home_module = _home  # `_Files._home` is the home-thread dispatcher
+        self._places = _places
         self.mounts: list[_Mounted] = []
         self.table: dict[int, _Open] = {}
         for mount, number in mounts:
@@ -642,7 +646,7 @@ class _Files:
             mounted = _Mounted(
                 mount.provider,
                 mount.guest,
-                runner._siphash13(mount.guest.encode()),
+                _places._siphash13(mount.guest.encode()),
                 nested,
                 mount.writable is True,
             )
@@ -720,7 +724,7 @@ class _Files:
             if entry.kind != "file" or not entry.dirty or entry.unlinked:
                 continue
             if (r._hook["exiting"] and not ending) or (
-                r._ctrl_c_watched() and r._ctrl_c["pending"]
+                self._home_module._ctrl_c_watched() and self._home_module._ctrl_c["pending"]
             ):
                 return
             paths = (entry.path,)
@@ -755,11 +759,11 @@ class _Files:
         """Instantiate the trampoline on the guest's memory with wasmtime's own calls from
         `plain` (today's linker), and the stat trampoline on its own page (spec 048). After
         the guest, before the fuel cap and `_initialize`."""
-        module = self._runner._trampoline_module(wt, self.engine)
+        module = self._call._trampoline_module(wt, self.engine)
         imports = [plain.get(store, "wasi_snapshot_preview1", name) for name in SIGNATURES]
         imports.append(instance.exports(store)["memory"])
         exports = wt.Instance(store, module, imports).exports(store)
-        stat_module = self._runner._stat_trampoline_module(wt, self.engine)
+        stat_module = self._call._stat_trampoline_module(wt, self.engine)
         stat_imports = [plain.get(store, "wasi_snapshot_preview1", name) for name in PRIVATE]
         stat = wt.Instance(store, stat_module, stat_imports).exports(store)
         from . import _wasmtime_ffi as ffi
@@ -835,12 +839,12 @@ class _Files:
     def _gate(self, caller: Any) -> int:
         """0, or the errno that stops a provider call while the guest runs (Decision 10 of spec
         032): the call's cancel, its deadline, then the file-call limit, which names the end."""
-        r, call = self._runner, self.call
+        r, call = self._call, self.call
         if call is not None and call.cancel is not None and call.cancel.is_set():
             r._epoch_now(caller)  # named "cancelled" by the epoch callback at the next entry
             return ECANCELED
         if call is not None and call.stop_at is not None:
-            if r._epoch_ticker.count() >= call.stop_at:
+            if self._engines._epoch_ticker.count() >= call.stop_at:
                 r._epoch_now(caller)  # an interrupt at the next entry: "deadline"
                 return ETIMEDOUT
         if self.limit is not None and self.total >= self.limit:
@@ -1036,7 +1040,7 @@ class _Files:
                 text, encoded, kind = listed
                 seen.add(encoded)
                 names += sys.getsizeof(encoded)
-                child = self._runner._siphash13((prefix + text).encode())
+                child = self._places._siphash13((prefix + text).encode())
                 d_type = DIRECTORY if kind == "dir" else REGULAR_FILE
                 offsets.append(len(data))
                 data += struct.pack(DIRENT, len(offsets), child, len(encoded), d_type) + encoded
@@ -1155,7 +1159,7 @@ class _Files:
         self, entry: _Open, kind: str, size: int, mtime: int, path: str, links: int = 1
     ) -> bytes:
         filetype = DIRECTORY if kind == "dir" else REGULAR_FILE
-        ino = self._runner._siphash13(path.encode())
+        ino = self._places._siphash13(path.encode())
         return struct.pack(
             FILESTAT,
             entry.mount.dev,
@@ -1492,7 +1496,7 @@ class _Files:
         elif entry.listing is None or (cookie == 0 and not entry.fresh):
             # The listing made at open serves the first pass; from cookie 0 after that, the
             # folder is listed again, as rewinddir expects.
-            ino = self._runner._siphash13(entry.path.encode())
+            ino = self._places._siphash13(entry.path.encode())
             errno, listing, held = self._list(caller, entry.mount, entry.path, ino, entry.held)
             if errno:
                 return errno
@@ -1639,7 +1643,7 @@ class _Files:
                 return opened
             opened.append, opened.nonblock = bool(fdflags & APPEND), bool(fdflags & NONBLOCK)
         elif oflags & O_DIRECTORY:
-            ino = self._runner._siphash13(path.encode())
+            ino = self._places._siphash13(path.encode())
             errno, listing, held = self._list(caller, mount, path, ino)
             if errno:
                 return errno
@@ -1890,7 +1894,7 @@ class _Files:
         kept listing replaced by the dots."""
         entry.unlinked = True
         if entry.kind == "dir":
-            listing = _dots(self._runner._siphash13(entry.path.encode()))
+            listing = _dots(self._places._siphash13(entry.path.encode()))
             held = sys.getsizeof(listing[0]) + sys.getsizeof(listing[1])
             self.staged += held - entry.held
             entry.listing, entry.held, entry.fresh = listing, held, True

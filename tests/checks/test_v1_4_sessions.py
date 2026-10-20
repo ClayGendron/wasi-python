@@ -157,21 +157,21 @@ def _open_count() -> int:
 def fake_clock(monkeypatch):
     """The sessions' clock, a value the check sets; the reaper thread paused, so only the check
     drives `_reap` (Decision 9: the judge never sleeps)."""
-    from wasi_python import runner
+    from wasi_python import _sessions
 
     now = [0.0]
-    monkeypatch.setattr(runner, "_session_clock", lambda: now[0])
-    monkeypatch.setitem(runner._reaper, "paused", True)
+    monkeypatch.setattr(_sessions, "_session_clock", lambda: now[0])
+    monkeypatch.setitem(_sessions._reaper, "paused", True)
     return now
 
 
 @pytest.fixture
 def exports_called(monkeypatch):
     """Each export called on a session's instance: (name, thread ident)."""
-    from wasi_python import runner
+    from wasi_python import _sessions
 
     seen: list[tuple[str, int]] = []
-    monkeypatch.setattr(runner, "_on_export", lambda name, ident: seen.append((name, ident)))
+    monkeypatch.setattr(_sessions, "_on_export", lambda name, ident: seen.append((name, ident)))
     return seen
 
 
@@ -219,7 +219,7 @@ def test_an_old_artifact_set_is_named(guest_workdir) -> None:
     made; `run` with the same set runs its `run` as before."""
     wp = _wp()
     from harness import wat
-    from wasi_python import runner
+    from wasi_python import _private_dirs
 
     real = wp.artifacts()
     for module, named, unnamed in (
@@ -230,13 +230,13 @@ def test_an_old_artifact_set_is_named(guest_workdir) -> None:
         old = wp.Artifacts(
             wat.build(d, "old.wasm", module), real.plain, real.stdlib_zip, real.manifest
         )
-        held, before = set(runner._held), _open_count()
+        held, before = set(_private_dirs._held), _open_count()
         with pytest.raises(wp.ArtifactsMissing) as e:
             wp.Session(artifacts=old, cache_dir=False)
         assert named in str(e.value)
         if unnamed is not None:
             assert f"export {unnamed}" not in str(e.value)
-        assert set(runner._held) == held and _open_count() == before
+        assert set(_private_dirs._held) == held and _open_count() == before
         done = wp.run([], artifacts=old, cache_dir=False)
         assert done.exit_code == 101, done  # the stand-in's run: the door says no host
 
@@ -369,7 +369,7 @@ def test_os_exit_and_a_trap_end_the_session() -> None:
 def test_the_idle_bound_by_an_injected_clock(fake_clock) -> None:
     """Criterion 13."""
     wp = _wp()
-    from wasi_python import runner
+    from wasi_python import _sessions
 
     before = _open_count()
     s = wp.Session()
@@ -385,7 +385,7 @@ def test_the_idle_bound_by_an_injected_clock(fake_clock) -> None:
         fake_clock[0] = 10**6
         assert forever.run("pass").exit_code == 0
     untouched = wp.Session()
-    runner._reap(fake_clock[0] + 900.0)
+    _sessions._reap(fake_clock[0] + 900.0)
     untouched.close()  # waits for the closer the reaper started
     assert untouched.ended == "idle"
 
@@ -393,7 +393,7 @@ def test_the_idle_bound_by_an_injected_clock(fake_clock) -> None:
 def test_the_lifetime_by_an_injected_clock(fake_clock, monkeypatch) -> None:
     """Criterion 14."""
     wp = _wp()
-    from wasi_python import runner
+    from wasi_python import _limits, _sessions
 
     s = wp.Session()
     for t in range(0, 3600, 600):
@@ -415,13 +415,13 @@ def test_the_lifetime_by_an_injected_clock(fake_clock, monkeypatch) -> None:
     r = s.run("from host import tools\nprint(tools.late())")
     assert (r.exit_code, r.stdout, s.ended) == (0, b"late\n", "lifetime"), r
     armed: list[tuple[str, int]] = []
-    monkeypatch.setattr(runner, "_on_arm", lambda kind, ticks: armed.append((kind, ticks)))
+    monkeypatch.setattr(_sessions, "_on_arm", lambda kind, ticks: armed.append((kind, ticks)))
     fake_clock[0] = 0.0
     s = wp.Session(idle_s=None)
     fake_clock[0] = 3599.5
     r = s.run(LOOP)
     assert (r.trapped, s.ended) == ("deadline", "lifetime"), r
-    assert armed[0] == ("turn", math.ceil(0.5 / runner.TICK_S)), armed
+    assert armed[0] == ("turn", math.ceil(0.5 / _limits.TICK_S)), armed
     fake_clock[0] = 0.0
     s = wp.Session()
     r = s.run(LOOP, deadline_s=0.5)
@@ -577,15 +577,15 @@ def test_sessions_share_nothing() -> None:
 def test_close_ends_and_cleans_up() -> None:
     """Criterion 21."""
     wp = _wp()
-    from wasi_python import runner
+    from wasi_python import _private_dirs
 
-    held = set(runner._held)
+    held = set(_private_dirs._held)
     s = wp.Session(root=True, shutdown_s=60)
-    assert len(set(runner._held) - held) == 2  # the private root and the scratch folder
+    assert len(set(_private_dirs._held) - held) == 2  # the private root and the scratch folder
     assert s.run("pass").exit_code == 0
     s.close()
     assert (s.ended, s.shutdown_outcome) == ("closed", "finished")
-    assert set(runner._held) == held
+    assert set(_private_dirs._held) == held
     s.close()
     with pytest.raises(wp.SessionEnded) as e:
         s.run("pass")
@@ -671,6 +671,7 @@ CTRL_C = r"""
 import signal, threading
 signal.signal(signal.SIGINT, signal.default_int_handler)
 import wasi_python
+from wasi_python import _home, _private_dirs, _sessions
 
 def go() -> str:
     "Send this process Ctrl-C."
@@ -718,23 +719,23 @@ grant = sys.argv[1]
 g = [wasi_python.Grant(grant, "/g", writable=True)]
 s = wasi_python.Session(root=True, shutdown_s=60, grants=g)
 s.run(HANDLER)
-print(" ".join(sorted(runner._held)))
+print(" ".join(sorted(_private_dirs._held)))
 """
 
 DROPPED = r"""
 import gc, sys
 import wasi_python
 from wasi_python import runner
-runner._reaper["enabled"] = False  # the check drives the reaper's step
+_sessions._reaper["enabled"] = False  # the check drives the reaper's step
 grant = sys.argv[1]
 s = wasi_python.Session(shutdown_s=60, grants=[wasi_python.Grant(grant, "/g", writable=True)])
 s.run(HANDLER)
 before = wasi_python.stats()["sessions_open"]
 del s
-with runner._sessions_lock:  # the finalizer takes no lock: it returns while this is held
+with _sessions._sessions_lock:  # the finalizer takes no lock: it returns while this is held
     gc.collect()
-runner._reap(runner._session_clock())
-for closer in list(runner._closers):
+_sessions._reap(_sessions._session_clock())
+for closer in list(_sessions._closers):
     closer.join()
 print(before, wasi_python.stats()["sessions_open"])
 """
@@ -743,7 +744,7 @@ QUEUED_AT_EXIT = r"""
 import gc, sys
 import wasi_python
 from wasi_python import runner
-runner._reaper["enabled"] = False  # no reaper: the state is on the queue at exit
+_sessions._reaper["enabled"] = False  # no reaper: the state is on the queue at exit
 grant = sys.argv[1]
 s = wasi_python.Session(shutdown_s=60, grants=[wasi_python.Grant(grant, "/g", writable=True)])
 s.run(HANDLER)
@@ -847,7 +848,7 @@ def test_a_session_on_the_plain_reactor() -> None:
 def test_the_import_path_in_a_session(guest_workdir) -> None:
     """Criterion 30."""
     wp = _wp()
-    from wasi_python import runner
+    from wasi_python import _private_dirs
 
     lib = Path(tempfile.mkdtemp(prefix="lib-", dir=guest_workdir))
     (lib / "mylib.py").write_text("def boom():\n    raise ValueError('boom')\n")
@@ -857,22 +858,22 @@ def test_the_import_path_in_a_session(guest_workdir) -> None:
         assert r.stdout == b""
         assert s.run("print(sys.path[-1])").stdout == b"/lib\n"
     w = Path(tempfile.mkdtemp(prefix="w-", dir=lib))
-    held = set(runner._held)
+    held = set(_private_dirs._held)
     with pytest.raises(ValueError, match="writable"):
         wp.Session(
             grants=[wp.Grant(lib, "/lib"), wp.Grant(w, "/lib/w", writable=True)],
             import_path=["/lib"],
         )
-    assert set(runner._held) == held
+    assert set(_private_dirs._held) == held
 
 
 def test_a_turn_waits_on_the_sessions_clock_base_end_to_end(monkeypatch) -> None:
     """Criterion 31, its end-to-end part: each turn's call counts from the session's base."""
     wp = _wp()
-    from wasi_python import runner
+    from wasi_python import _sessions
 
     bases: list[int] = []
-    monkeypatch.setattr(runner, "_on_call", lambda kind, call: bases.append(call.origin_ns))
+    monkeypatch.setattr(_sessions, "_on_call", lambda kind, call: bases.append(call.origin_ns))
     with wp.Session() as s:
         for _ in range(3):
             s.run("import time; time.sleep(0.01)")
@@ -948,7 +949,7 @@ def test_expiry_runs_python_shutdown(
 ) -> None:
     """Criterion 36, the re-review's F2 included."""
     wp = _wp()
-    from wasi_python import runner
+    from wasi_python import _limits, _sessions
 
     def session(name: str, **kw):
         fake_clock[0] = 0.0
@@ -959,12 +960,12 @@ def test_expiry_runs_python_shutdown(
 
     s, written = session("idle", shutdown_s=60)
     fake_clock[0] = 900.0
-    runner._reap(900.0)
+    _sessions._reap(900.0)
     s.close()
     assert (s.ended, s.shutdown_outcome, written.read_text()) == ("idle", "finished", "ran")
     s, written = session("lifetime", shutdown_s=60, idle_s=None)
     fake_clock[0] = 3600.0
-    runner._reap(3600.0)
+    _sessions._reap(3600.0)
     s.close()
     assert (s.ended, s.shutdown_outcome, written.read_text()) == ("lifetime", "finished", "ran")
 
@@ -986,19 +987,19 @@ def test_expiry_runs_python_shutdown(
     assert (r.trapped, s.shutdown_outcome) == ("deadline", "skipped"), r
     assert not written.exists()
     armed: list[tuple[str, int]] = []
-    monkeypatch.setattr(runner, "_on_arm", lambda kind, ticks: armed.append((kind, ticks)))
+    monkeypatch.setattr(_sessions, "_on_arm", lambda kind, ticks: armed.append((kind, ticks)))
     s, written = session("late", shutdown_s=5, idle_s=None)
     fake_clock[0] = 3602.0
-    runner._reap(3602.0)
+    _sessions._reap(3602.0)
     s.close()
-    assert ("ending", math.ceil(3 / runner.TICK_S)) in armed, armed
+    assert ("ending", math.ceil(3 / _limits.TICK_S)) in armed, armed
     assert written.read_text() == "ran"
     for when, how in ((3605.0, "reaper"), (3610.0, "close")):
         s, written = session(how, shutdown_s=5, idle_s=None)
         exports_called.clear()
         fake_clock[0] = when
         if how == "reaper":
-            runner._reap(when)
+            _sessions._reap(when)
         s.close()
         assert (s.shutdown_outcome, written.exists()) == ("skipped", False), how
         assert [n for n, _ in exports_called if n == "shutdown"] == [], how
@@ -1010,14 +1011,14 @@ HOG = "import atexit\natexit.register(lambda: [0 for _ in iter(int, 1)])\n"
 def test_a_hostile_atexit_is_stopped(guest_workdir) -> None:
     """Criterion 37, the re-review's F5 included."""
     wp = _wp()
-    from wasi_python import runner
+    from wasi_python import _private_dirs
 
-    before, held = _open_count(), set(runner._held)
+    before, held = _open_count(), set(_private_dirs._held)
 
     def ends(s, want: str) -> None:
         s.close()
         assert (s.ended, s.shutdown_outcome) == ("closed", want)
-        assert _open_count() == before and set(runner._held) == held
+        assert _open_count() == before and set(_private_dirs._held) == held
 
     s = wp.Session(fuel=10**9, shutdown_s=600)  # the fail-safe comes first if fuel did not bound it
     s.run(HOG)
@@ -1177,14 +1178,14 @@ signal.signal(signal.SIGINT, signal.default_int_handler)
 import wasi_python
 from wasi_python import runner
 seen = []
-runner._on_export = lambda name, ident: seen.append(name)
+_sessions._on_export = lambda name, ident: seen.append(name)
 s = wasi_python.Session(shutdown_s=60)
 s.run("import atexit\natexit.register(print, 'handler')")
 
 def noted():
-    runner._ctrl_c["pending"] = True  # as a Ctrl-C no host function saw
+    _home._ctrl_c["pending"] = True  # as a Ctrl-C no host function saw
 
-runner._after_export = noted
+_sessions._after_export = noted
 try:
     s.run("sum(range(10**6))")
     print("returned")
@@ -1198,7 +1199,7 @@ def test_a_turn_that_returns_after_close_runs_the_shutdown(
 ) -> None:
     """Criterion 42, F3's error row included."""
     wp = _wp()
-    from wasi_python import runner
+    from wasi_python import _sessions
 
     host = Path(tempfile.mkdtemp(prefix="race-", dir=guest_workdir))
     order: list[str] = []  # one list: the shutdown's handler, and close()'s return (F3)
@@ -1211,14 +1212,14 @@ def test_a_turn_that_returns_after_close_runs_the_shutdown(
     s.run(_handler_writing("/w/h.txt") + "import _host\natexit.register(_host.call, b'x')\n")
 
     def closing() -> None:
-        monkeypatch.setattr(runner, "_after_export", None)
+        monkeypatch.setattr(_sessions, "_after_export", None)
         t = threading.Thread(target=lambda: (s.close(), order.append("close returned")))
         t.start()
         while s.ended is None:
             t.join(0.001)
         closing.thread = t  # type: ignore[attr-defined]
 
-    monkeypatch.setattr(runner, "_after_export", closing)
+    monkeypatch.setattr(_sessions, "_after_export", closing)
     exports_called.clear()
     r = s.run("print(1)")
     order.append("turn returned")
@@ -1271,7 +1272,7 @@ def test_a_closer_sees_the_openings_context(fake_clock) -> None:
     import contextvars
 
     wp = _wp()
-    from wasi_python import runner
+    from wasi_python import _sessions
 
     request = contextvars.ContextVar("request", default="none")
     seen: list[str] = []
@@ -1285,7 +1286,7 @@ def test_a_closer_sees_the_openings_context(fake_clock) -> None:
     request.reset(token)
     s.run("import atexit, _host\natexit.register(_host.call, b'x')")
     fake_clock[0] = 900.0
-    runner._reap(900.0)
+    _sessions._reap(900.0)
     s.close()
     assert (s.ended, s.shutdown_outcome, seen) == ("idle", "finished", ["opening"])
 

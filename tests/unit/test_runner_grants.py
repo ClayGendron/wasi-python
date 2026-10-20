@@ -15,7 +15,7 @@ import pytest
 import wasmtime as wt
 
 from harness import files
-from wasi_python import Grant, runner
+from wasi_python import Grant, _engines, _places
 
 POSIX = os.name == "posix"
 
@@ -46,19 +46,19 @@ def test_the_grant_identity_matches_wasmtimes(tmp_path) -> None:
     """Decision 5's formula, pinned: a wasmtime that hashes a folder's identity otherwise, or a
     platform the formula misses, fails here first (and at run time refuses every grant)."""
     folders = _folders(tmp_path)
-    walked = [runner._walk("t", str(f), judge=True) for f in folders]
+    walked = [_places._walk("t", str(f), judge=True) for f in folders]
     stores: list[wt.Store] = []
     try:
         store, linker, engine = _store([(w.path, f"/g{i}") for i, w in enumerate(walked)])
         stores.append(store)
-        exports = linker.instantiate(store, wt.Module(engine, runner._CHECK_WAT)).exports(store)
+        exports = linker.instantiate(store, wt.Module(engine, _engines._CHECK_WAT)).exports(store)
         memory = exports["memory"]
         for i, w in enumerate(walked):
             assert exports["stat"](store, 3 + i) == 0
             reported = struct.unpack("<Q", bytes(memory.read(store, 72, 80)))[0]
-            assert w.identity is not None and reported == runner._wasi_ino(w.identity)
-        preopens = [runner._Preopen(f"g{i}", w, f"/g{i}", False) for i, w in enumerate(walked)]
-        runner._check_preopens(wt, linker, store, wt.Module(engine, runner._CHECK_WAT), preopens)
+            assert w.identity is not None and reported == _places._wasi_ino(w.identity)
+        preopens = [_places._Preopen(f"g{i}", w, f"/g{i}", False) for i, w in enumerate(walked)]
+        _places._check_preopens(wt, linker, store, wt.Module(engine, _engines._CHECK_WAT), preopens)
         assert all(w.held == [] for w in walked)  # released after the check
     finally:
         for w in walked:
@@ -73,27 +73,27 @@ def test_a_preopen_that_is_not_the_walked_folder_is_refused(tmp_path) -> None:
     a, b = tmp_path / "a", tmp_path / "b"
     a.mkdir()
     b.mkdir()
-    walked = runner._walk("t", str(a), judge=True)
+    walked = _places._walk("t", str(a), judge=True)
     store, linker, engine = _store([(str(b), "/g")])  # wasmtime opened another folder
-    check = wt.Module(engine, runner._CHECK_WAT)
+    check = wt.Module(engine, _engines._CHECK_WAT)
     with pytest.raises(RuntimeError, match="changed between its check and the call"):
-        runner._check_preopens(
-            wt, linker, store, check, [runner._Preopen("grant 0", walked, "/g", False)]
+        _places._check_preopens(
+            wt, linker, store, check, [_places._Preopen("grant 0", walked, "/g", False)]
         )
     for name in ("/other", "/h"):  # another name, of another length and of the same length
-        other = runner._walk("t", str(b), judge=True)
+        other = _places._walk("t", str(b), judge=True)
         store, linker, engine = _store([(str(b), name)])
-        check = wt.Module(engine, runner._CHECK_WAT)
+        check = wt.Module(engine, _engines._CHECK_WAT)
         with pytest.raises(RuntimeError):
-            runner._check_preopens(
-                wt, linker, store, check, [runner._Preopen("grant 0", other, "/g", False)]
+            _places._check_preopens(
+                wt, linker, store, check, [_places._Preopen("grant 0", other, "/g", False)]
             )
-    other = runner._walk("t", str(b), judge=True)
+    other = _places._walk("t", str(b), judge=True)
     store, linker, engine = _store([(str(b), "/other")])  # the right folder at another name
-    check = wt.Module(engine, runner._CHECK_WAT)
+    check = wt.Module(engine, _engines._CHECK_WAT)
     with pytest.raises(RuntimeError):
-        runner._check_preopens(
-            wt, linker, store, check, [runner._Preopen("grant 0", other, "/g", False)]
+        _places._check_preopens(
+            wt, linker, store, check, [_places._Preopen("grant 0", other, "/g", False)]
         )
 
 
@@ -113,32 +113,32 @@ def test_a_preopen_that_is_not_the_walked_folder_is_refused(tmp_path) -> None:
 )
 def test_a_bad_guest_path_is_refused(tmp_path, guest, error) -> None:
     with pytest.raises(ValueError, match=error):
-        runner._check_grants([Grant(tmp_path, guest)])
+        _places._check_grants([Grant(tmp_path, guest)])
 
 
 def test_the_argument_types(tmp_path) -> None:
     with pytest.raises(TypeError, match="writable must be True or False"):
-        runner._check_grants([Grant(tmp_path, "/d", writable="no")])  # type: ignore[arg-type]
+        _places._check_grants([Grant(tmp_path, "/d", writable="no")])  # type: ignore[arg-type]
     with pytest.raises(TypeError, match="not bytes"):
-        runner._check_grants([Grant(bytes(tmp_path), "/d")])  # type: ignore[arg-type]
+        _places._check_grants([Grant(bytes(tmp_path), "/d")])  # type: ignore[arg-type]
     with pytest.raises(TypeError, match="must be a Grant"):
-        runner._check_grants([(str(tmp_path), "/d")])
+        _places._check_grants([(str(tmp_path), "/d")])
     for not_iterable in ("/d", b"/d", Grant(tmp_path, "/d"), 3):
         with pytest.raises(TypeError, match="iterable of Grant"):
-            runner._check_grants(not_iterable)
+            _places._check_grants(not_iterable)
     # spec 025: True asks for a private root (kept as None), None and False mean none
-    assert (runner._check_root(True), runner._check_root(None)) == (None, False)
+    assert (_places._check_root(True), _places._check_root(None)) == (None, False)
     with pytest.raises(TypeError, match="not bytes"):
-        runner._check_root(bytes(tmp_path))
+        _places._check_root(bytes(tmp_path))
     with pytest.raises(ValueError, match="same guest path"):
-        runner._check_grants([Grant(tmp_path, "/d"), Grant(tmp_path, "/d", writable=True)])
-    once = runner._check_grants(iter([Grant(tmp_path, "/d"), Grant(tmp_path, "/d/out")]))
+        _places._check_grants([Grant(tmp_path, "/d"), Grant(tmp_path, "/d", writable=True)])
+    once = _places._check_grants(iter([Grant(tmp_path, "/d"), Grant(tmp_path, "/d/out")]))
     assert once == (Grant(str(tmp_path), "/d"), Grant(str(tmp_path), "/d/out"))  # a tuple of str
-    assert runner._check_root(False) is False
+    assert _places._check_root(False) is False
 
 
-def _w(*chain: tuple[int, int], missing: bool = False) -> runner._Walked:
-    w = runner._Walked("/x", tuple(chain), [])
+def _w(*chain: tuple[int, int], missing: bool = False) -> _places._Walked:
+    w = _places._Walked("/x", tuple(chain), [])
     if missing:
         w.missing = ("new",)
     return w
@@ -155,24 +155,24 @@ def test_the_rules_compare_identities() -> None:
     cache = ("the module cache", CACHE, (CACHE, HOME, TOP))
     ro, rw = Grant("h", "/g"), Grant("h", "/g", writable=True)
     with pytest.raises(ValueError, match="holds the module cache"):
-        runner._judge(home, [], [cache])  # root above the cache
+        _places._judge(home, [], [cache])  # root above the cache
     with pytest.raises(ValueError, match="is inside the module cache"):
-        runner._judge(None, [("g", rw, _w((9, 9), CACHE, HOME, TOP))], [cache])
+        _places._judge(None, [("g", rw, _w((9, 9), CACHE, HOME, TOP))], [cache])
     with pytest.raises(ValueError, match="read-only but inside root"):
-        runner._judge(proj, [("g", ro, data)], [cache])
+        _places._judge(proj, [("g", ro, data)], [cache])
     with pytest.raises(ValueError, match="read-only but inside g2"):
-        runner._judge(None, [("g", ro, proj), ("g2", rw, proj)], [cache])  # the same folder
-    runner._judge(None, [("g", ro, proj), ("g2", rw, out)], [cache])  # writable inside read-only
-    runner._judge(proj, [], [cache])
+        _places._judge(None, [("g", ro, proj), ("g2", rw, proj)], [cache])  # the same folder
+    _places._judge(None, [("g", ro, proj), ("g2", rw, out)], [cache])  # writable inside read-only
+    _places._judge(proj, [], [cache])
     # A cache not made yet: only a grant above its deepest existing ancestor is refused.
     not_yet = ("the module cache", None, (HOME, TOP))
-    runner._judge(proj, [], [not_yet])
+    _places._judge(proj, [], [not_yet])
     with pytest.raises(ValueError, match="holds the module cache"):
-        runner._judge(home, [], [not_yet])
+        _places._judge(home, [], [not_yet])
     # A root still to be made is above nothing, but inside whatever its ancestor is inside.
-    runner._judge(_w(HOME, TOP, missing=True), [], [cache])
+    _places._judge(_w(HOME, TOP, missing=True), [], [cache])
     with pytest.raises(ValueError, match="is inside the module cache"):
-        runner._judge(_w(CACHE, HOME, TOP, missing=True), [], [cache])
+        _places._judge(_w(CACHE, HOME, TOP, missing=True), [], [cache])
 
 
 @pytest.mark.skipif(not POSIX, reason="making a link needs privileges on Windows")
@@ -183,10 +183,10 @@ def test_the_walk_judges_links(tmp_path) -> None:
     target.mkdir()
     (tmp_path / "link").symlink_to(target)
     with pytest.raises(ValueError, match="passes through the link 'link'"):
-        runner._walk("g", str(tmp_path / "link" / "."), judge=True)
-    followed = runner._walk("g", str(tmp_path / "link"), judge=False)
+        _places._walk("g", str(tmp_path / "link" / "."), judge=True)
+    followed = _places._walk("g", str(tmp_path / "link"), judge=False)
     try:
-        assert followed.identity == runner._identity_of(target)
+        assert followed.identity == _places._identity_of(target)
     finally:
         followed.close()
     sealed = tmp_path / "sealed"
@@ -194,22 +194,22 @@ def test_the_walk_judges_links(tmp_path) -> None:
     (sealed / "link").symlink_to(target)
     sealed.chmod(0o555)
     try:
-        walked = runner._walk("g", str(sealed / "link"), judge=True)
-        assert walked.identity == runner._identity_of(target)
+        walked = _places._walk("g", str(sealed / "link"), judge=True)
+        assert walked.identity == _places._identity_of(target)
         walked.close()
     finally:
         sealed.chmod(0o755)
-    missing = runner._walk("root", str(tmp_path / "new" / "deeper"), judge=True, may_make=True)
+    missing = _places._walk("root", str(tmp_path / "new" / "deeper"), judge=True, may_make=True)
     try:
         assert missing.missing == ("new", "deeper") and missing.identity is None
-        assert missing.chain[0] == runner._identity_of(tmp_path)
+        assert missing.chain[0] == _places._identity_of(tmp_path)
     finally:
         missing.close()
     with pytest.raises(ValueError, match="does not exist"):
-        runner._walk("g", str(tmp_path / "nothing"), judge=True)
+        _places._walk("g", str(tmp_path / "nothing"), judge=True)
     (tmp_path / "file").write_text("x")
     with pytest.raises(ValueError, match="is not a folder"):
-        runner._walk("g", str(tmp_path / "file"), judge=True)
+        _places._walk("g", str(tmp_path / "file"), judge=True)
 
 
 def test_the_walk_takes_dot_dot_on_the_real_file_system(tmp_path) -> None:
@@ -222,14 +222,14 @@ def test_the_walk_takes_dot_dot_on_the_real_file_system(tmp_path) -> None:
     (tmp_path / "a-file").write_text("x")
     for may_make in (True, False):
         with pytest.raises(ValueError, match="does not exist"):
-            runner._walk("root", str(tmp_path / "new" / ".." / "y"), judge=True, may_make=may_make)
+            _places._walk("root", str(tmp_path / "new" / ".." / "y"), judge=True, may_make=may_make)
     assert sorted(p.name for p in tmp_path.iterdir()) == ["a-file", "sub", "x"]
     with pytest.raises(ValueError, match="is not a folder"):
-        runner._walk("g", str(tmp_path / "a-file" / ".." / "x"), judge=True)
-    walked = runner._walk("g", str(tmp_path / "sub" / ".." / "x"), judge=True)
+        _places._walk("g", str(tmp_path / "a-file" / ".." / "x"), judge=True)
+    walked = _places._walk("g", str(tmp_path / "sub" / ".." / "x"), judge=True)
     try:
-        assert walked.identity == runner._identity_of(tmp_path / "x")
-        assert walked.chain[1] == runner._identity_of(tmp_path)
+        assert walked.identity == _places._identity_of(tmp_path / "x")
+        assert walked.chain[1] == _places._identity_of(tmp_path)
     finally:
         walked.close()
 
@@ -327,10 +327,10 @@ class _WinFake:
         del self.held[h]
 
     def install(self, monkeypatch) -> None:
-        monkeypatch.setattr(runner, "_win_open", self.open)
-        monkeypatch.setattr(runner, "_close_held", self.close)
+        monkeypatch.setattr(_places, "_win_open", self.open)
+        monkeypatch.setattr(_places, "_close_held", self.close)
         monkeypatch.setattr(
-            runner, "_drive_folder", lambda drive: _WIN_CWD[(drive or "C:").upper()]
+            _places, "_drive_folder", lambda drive: _WIN_CWD[(drive or "C:").upper()]
         )
 
 
@@ -360,8 +360,8 @@ def test_the_windows_walk_takes_dot_dot_on_walked_folders(monkeypatch) -> None:
     fake = _WinFake()
     fake.install(monkeypatch)
 
-    def walk(path: str, may_make: bool = False) -> runner._Walked:
-        return runner._walk_windows("g", path, True, may_make)
+    def walk(path: str, may_make: bool = False) -> _places._Walked:
+        return _places._walk_windows("g", path, True, may_make)
 
     def refused(path: str, match: str, may_make: bool = False) -> None:
         with pytest.raises(ValueError, match=match):
@@ -455,7 +455,7 @@ def test_the_windows_walk_records_the_true_chain(monkeypatch) -> None:
             for combo in itertools.product(alphabet, repeat=k):
                 path = head + "\\".join(combo)
                 try:
-                    w = runner._walk_windows("g", path, True, False)
+                    w = _places._walk_windows("g", path, True, False)
                 except ValueError:
                     refused += 1
                 else:
@@ -482,9 +482,9 @@ def test_a_rewritten_name_is_one_ntpath_refuses() -> None:
     pieces += [" .x", "con\u0131n$", "\u0131", "K", "s"]
     names = ["".join(c) for k in (1, 2, 3) for c in itertools.product(pieces, repeat=k)]
     names = [n for n in names if n]  # 18,275 spellings (16,175 distinct)
-    differ = [n for n in names if runner._rewritten(n) != ntpath.isreserved("x\\" + n)]
+    differ = [n for n in names if _places._rewritten(n) != ntpath.isreserved("x\\" + n)]
     assert not differ, sorted(map(ascii, set(differ)))[:8]
-    refused = sum(map(runner._rewritten, names))
+    refused = sum(map(_places._rewritten, names))
     assert len(names) == 18_275 and 0 < refused < len(names), (len(names), refused)
 
 
@@ -576,13 +576,13 @@ def test_a_folder_one_may_search_but_not_list_is_walked(tmp_path) -> None:
     (tmp_path / "noread" / "child").mkdir(parents=True)
     (tmp_path / "noread").chmod(0o311)
     try:
-        walked = runner._walk("g", str(tmp_path / "noread" / "child"), judge=True)
+        walked = _places._walk("g", str(tmp_path / "noread" / "child"), judge=True)
         walked.close()
         (tmp_path / "noread").chmod(0o000)
         if os.access(tmp_path / "noread", os.X_OK):  # run as root: no permission refuses it
             return
         with pytest.raises(ValueError, match="cannot be walked"):
-            runner._walk("g", str(tmp_path / "noread" / "child"), judge=True)
+            _places._walk("g", str(tmp_path / "noread" / "child"), judge=True)
     finally:
         (tmp_path / "noread").chmod(0o755)
 
@@ -597,9 +597,9 @@ def test_a_junction_is_refused_on_windows(tmp_path) -> None:
     target.mkdir()
     _winapi.CreateJunction(str(target), str(tmp_path / "junction"))
     with pytest.raises(ValueError, match="link or junction"):
-        runner._walk("g", str(tmp_path / "junction"), judge=True)
+        _places._walk("g", str(tmp_path / "junction"), judge=True)
     with pytest.raises(ValueError, match="link or junction"):
-        runner._walk("g", str(tmp_path / "junction" / "."), judge=True)
+        _places._walk("g", str(tmp_path / "junction" / "."), judge=True)
 
 
 @pytest.mark.skipif(POSIX, reason="Windows holds every walked folder")
@@ -607,7 +607,7 @@ def test_a_walked_folder_cannot_be_moved_on_windows(tmp_path) -> None:
     """Decision 5: while the walk holds its handles, no folder on the way can be renamed, so no
     swap can happen before the identity check."""
     (tmp_path / "a" / "b").mkdir(parents=True)
-    walked = runner._walk("g", str(tmp_path / "a" / "b"), judge=True)
+    walked = _places._walk("g", str(tmp_path / "a" / "b"), judge=True)
     try:
         for old, new in ((tmp_path / "a", tmp_path / "c"), (tmp_path / "a" / "b", tmp_path / "d")):
             with pytest.raises(PermissionError):

@@ -11,7 +11,7 @@ import pytest
 
 import wasi_python
 from harness import wat
-from wasi_python import ArtifactsMissing, runner
+from wasi_python import ArtifactsMissing, _artifacts, _engines, _zip, runner
 
 
 def _sums(folder: Path) -> None:
@@ -30,7 +30,7 @@ def found(work, monkeypatch) -> Path:
     with zipfile.ZipFile(folder / "python-stdlib.zip", "w"):
         pass
     _sums(folder)
-    monkeypatch.setenv(wasi_python._ARTIFACTS_ENV, str(folder))
+    monkeypatch.setenv(_artifacts._ARTIFACTS_ENV, str(folder))
     return folder
 
 
@@ -84,19 +84,19 @@ PLANTED = wat.SNAPSHOT.replace(wat.DOOR_RUN, '(func (export "run") (result i32) 
 @pytest.fixture
 def fresh(monkeypatch) -> None:
     """No module or zip this process already holds, so each case compiles and copies anew."""
-    monkeypatch.setattr(runner, "_modules", {})
-    monkeypatch.setattr(runner, "_zips", {})
+    monkeypatch.setattr(_engines, "_modules", {})
+    monkeypatch.setattr(_zip, "_zips", {})
 
 
 def _swap_after_check(monkeypatch, swap) -> None:
-    real = runner._found_and_checked
+    real = _artifacts._found_and_checked
 
     def checked_then_swapped(snapshot):
         out = real(snapshot)
         swap()
         return out
 
-    monkeypatch.setattr(runner, "_found_and_checked", checked_then_swapped)
+    monkeypatch.setattr(_artifacts, "_found_and_checked", checked_then_swapped)
 
 
 def test_a_binary_swapped_after_the_check_is_not_compiled(found, fresh, monkeypatch) -> None:
@@ -111,17 +111,17 @@ def test_a_binary_swapped_before_its_compile_leaves_no_cwasm(found, fresh, work,
     cache = work / "cache"
     cache.mkdir(mode=0o700)
     good = (found / "python-snapshot.wasm").read_bytes()
-    real = runner._module_miss
+    real = _engines._module_miss
 
     def swapped_first(*args):
         wat.build(found, "python-snapshot.wasm", PLANTED)
         return real(*args)
 
-    monkeypatch.setattr(runner, "_module_miss", swapped_first)
+    monkeypatch.setattr(_engines, "_module_miss", swapped_first)
     with pytest.raises(ArtifactsMissing, match="changed after it was checked"):
         runner.run([], cache_dir=cache)
     assert list(cache.glob("*.cwasm")) == []
-    monkeypatch.setattr(runner, "_module_miss", real)
+    monkeypatch.setattr(_engines, "_module_miss", real)
     (found / "python-snapshot.wasm").write_bytes(good)  # the set put right
     assert runner.run([], cache_dir=cache).exit_code == 101  # the checked module, cached anew
     assert len(list(cache.glob("*.cwasm"))) == 1

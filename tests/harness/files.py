@@ -611,9 +611,9 @@ class _OnStack:
     def entered(self) -> Iterator[None]:
         """The call on this thread's stack for one export; a stop it recorded is raised as
         `Ends`, and the call is made live again for the next row."""
-        from wasi_python import runner
+        from wasi_python import _home
 
-        stack = runner._stack()
+        stack = _home._stack()
         stack.append(self.call)
         try:
             yield
@@ -649,7 +649,7 @@ class Mounted(_OnStack):
     ) -> None:
         import wasmtime
 
-        from wasi_python import Mount, runner
+        from wasi_python import Mount, _call, _home
         from wasi_python.mounts import _Files
 
         config = wasmtime.Config()
@@ -659,7 +659,7 @@ class Mounted(_OnStack):
         self.store = store = wasmtime.Store(engine)
         store.set_epoch_deadline(2**40)
         if fuel is not None:
-            store.set_fuel(runner.UNMETERED)
+            store.set_fuel(_call.UNMETERED)
         wasi = wasmtime.WasiConfig()
         wasi.preopen_dir(str(placeholder), guest, False)
         for host, path, rw in folders:
@@ -674,11 +674,11 @@ class Mounted(_OnStack):
             fuel is not None,
             engine,
         )
-        self.call = runner._Call(store, None, _NoWaits(), 0, cancel, stop_at, self.table)
-        self.linker = runner._mount_linker(wasmtime, engine)
-        self.plain = runner._linker(wasmtime, engine)
+        self.call = _call._Call(store, None, _NoWaits(), 0, cancel, stop_at, self.table)
+        self.linker = _call._mount_linker(wasmtime, engine)
+        self.plain = _call._linker(wasmtime, engine)
         self.instance = self.linker.instantiate(store, wasmtime.Module(engine, wat or raw_wat()))
-        stack = runner._stack()
+        stack = _home._stack()
         stack.append(self.call)
         try:
             self.table.bind(wasmtime, store, self.plain, self.instance)
@@ -707,7 +707,7 @@ class Guarded(_OnStack):
     ) -> None:
         import wasmtime
 
-        from wasi_python import runner
+        from wasi_python import _call, _home
         from wasi_python.mounts import _Files
 
         config = wasmtime.Config()
@@ -717,18 +717,18 @@ class Guarded(_OnStack):
         self.store = store = wasmtime.Store(engine)
         store.set_epoch_deadline(2**40)
         if fuel is not None:
-            store.set_fuel(runner.UNMETERED)
+            store.set_fuel(_call.UNMETERED)
         wasi = wasmtime.WasiConfig()
         for host, path, writable in folders:
             wasi.preopen_dir(str(host), path, writable)
         store.set_wasi(wasi)
         others = [path for _, path, _ in folders]
         self.table = _Files([], others, None, 1 << 30, fuel is not None, engine)
-        self.call = runner._Call(store, None, _NoWaits(), 0, None, None, self.table)
-        self.linker = runner._guard_linker(wasmtime, engine)
-        self.plain = runner._linker(wasmtime, engine)
+        self.call = _call._Call(store, None, _NoWaits(), 0, None, None, self.table)
+        self.linker = _call._guard_linker(wasmtime, engine)
+        self.plain = _call._linker(wasmtime, engine)
         self.instance = self.linker.instantiate(store, wasmtime.Module(engine, wat or raw_wat()))
-        stack = runner._stack()
+        stack = _home._stack()
         stack.append(self.call)
         try:
             self.table.bind(wasmtime, store, self.plain, self.instance)
