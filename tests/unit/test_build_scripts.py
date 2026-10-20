@@ -604,6 +604,22 @@ def test_the_ctypes_stand_in_holds_numeric_values_as_wasm32_stores_them(monkeypa
             _refuses(kind.__ctype_be__)
 
 
+def test_the_ctypes_stand_in_types_import_only_what_a_start_has_loaded() -> None:
+    """Spec 038, Decision 6: the first type lookup imports nothing new. `ctypes._types` imports
+    only `struct` and `sys`, which every start has loaded; `operator` and `math` cost a plain
+    start 5.9 M and 1.0 M fuel (measured on 038's build), so the value rules do without them."""
+    import ast
+
+    tree = ast.parse((STAND_IN / "_types.py").read_text())
+    imported = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported |= {a.name for a in node.names}
+        elif isinstance(node, ast.ImportFrom) and node.level == 0:
+            imported.add(node.module)
+    assert imported == {"struct", "sys"}, sorted(imported)
+
+
 def test_the_ctypes_stand_in_holds_void_pointers_and_casts_them(monkeypatch) -> None:
     """Spec 038, Decision 3: `c_void_p` holds an int wrapped to wasm32's 32 bits, or None (NULL,
     as CPython's ctypes reads a zero pointer); `cast` of an int, None or a `c_void_p` to `c_void_p`
