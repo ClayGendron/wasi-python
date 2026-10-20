@@ -9,9 +9,12 @@
   2026-10-20 once C1 to C3 are written in and the owner rules on the budget** (the confirmation,
   appended to the review); C1 to C9 are written in (the Disposition of the confirmation). The
   owner chose "Larger budget by rule" (`decisions.md`, 2026-10-20); 043 and 096 landed in wave 06.
-  **Re-surveyed 2026-10-20** on that set (the memo's last section): its delta, "Delta from the
-  re-survey", goes to the confirming reviewer, and to the owner once more because the rule's
-  measured total (about 1.26×10¹³) is far past the about 7 T the owner was told. Not built. It builds after spec 043 (matplotlib M2, which pins contourpy)
+  **Re-surveyed 2026-10-20** on that set (the memo's last section); its delta was reviewed
+  (`../reviews/066-the-compiled-packages-own-tests-spec-delta-2026-10-20.md`: "passes for build
+  with conditions"; the Disposition of the delta review answers each finding). **The owner chose
+  option (b)** (`decisions.md`, "Every test of every package we build (2026-10-20)", main `b0ee274`): every test runs, contourpy's random_big
+  cases included; caps by the 1.5 times rule, about 1.26×10¹³; big files split into groups by
+  construction. **Ready for build.** Not built. It builds after spec 043 (matplotlib M2, which pins contourpy)
   lands, on 043's set. It touches the release workflow (new Linux shards, Decision 12), so it is
   build-class by AGENTS.md's definition, though no artifact byte changes. The lane asks for a
   pre-build review, as it did for 063 and 065: it changes what the release judges. Its numbers are
@@ -38,7 +41,7 @@
     - `tests/checks/test_v1_3_upstream_suites.py`: the needs per family;
     - `tests/upstream/fetch.py`: `--shard` fetches the trees of the families the shard runs;
     - `tests/upstream/packages.toml`: the six packages become `suite` (Decision 13);
-    - `tests/release_shards.toml`: six new Linux shards (Decision 12);
+    - `tests/release_shards.toml`: twelve new Linux shards (Decision 12);
     - `.github/workflows/release.yml`: the Linux judge matrix gains the three shards, with their
       record outputs, and `gather` reads them (Decision 12);
     - `tests/unit/test_upstream.py`, `tests/unit/test_shards.py`, `tests/unit/test_fetch_trees.py`;
@@ -252,6 +255,14 @@ numpy and pandas and spec 065 for CPython:
        tests write `test.xml` in the working folder, and with the read-only tree root they failed
        on `PermissionError` (the re-survey; the confirmation's C8 asked the build to check exactly
        this). Three small files; with them all of lxml's tests but the two classes pass.
+   - **Host litter in the writable guest roots: a residual, named** (the delta review, L5). The
+     judge's writable roots (`build/harness/guest-*`) are detection-only under spec 089 (its
+     Decision 2). The surveys saw the host write `.DS_Store` into them four times (Pillow's copy
+     twice, mathtext twice), and 066 makes such folders busier (matplotlib's `result_images/`,
+     lxml's copies). Every such run ends in spec 089's named `HostLitter` line and records no
+     outcome and no fuel, so no verdict is ever wrong; the cost is a re-run. Closer: spec 097 (the
+     judge's staging follow-ups), whose roadmap line the lane widens to "host litter in writable
+     guest roots"; until then, "For the lane" says how a stopped group is treated.
    - **The environment** is the judge's (`TMPDIR=/tmp`, `HOME=/tmp`). matplotlib's cache goes to
      `$HOME/.config/matplotlib`, writable; its data is granted as the runner grants it
      (`mpl_data=True`, as 023 grants it to numpy's and pandas' groups).
@@ -412,8 +423,8 @@ numpy and pandas and spec 065 for CPython:
     | `matplotlib-rest-b2` | `test_rcparams` … `test_widgets` (15) | 384.5 G | 5.8×10¹¹ |
     | `mpl-axes_grid1`, `mpl-axisartist`, `mpl-mplot3d` | one toolkit's `tests` each | 72.0, 35.7, 336.8 G | 1.1×10¹¹, 5.4×10¹⁰, 5.1×10¹¹ |
     | `contourpy-1` | `tests/test_{array,build_config,chunk,config,constructor,convert,dechunk,enum}.py` | 217.4 G | 3.3×10¹¹ |
-    | `contourpy-filled` | `tests/test_filled.py` (one file, past the bound) | 2,387.6 G | 3.6×10¹² |
-    | `contourpy-lines` | `tests/test_lines.py` (one file, past the bound) | 1,459.5 G | 2.2×10¹² |
+    | `contourpy-filled-1` … `-9` | `tests/test_filled.py`, split by keyword (below) | 2,387.6 G in all, measured; each about 197 to 290 G (INFERRED) | 1.5 times each group's fuel, measured by the build |
+    | `contourpy-lines-1` … `-8` | `tests/test_lines.py`, split by keyword (below) | 1,459.5 G in all, measured; each about 129 to 158 G, the last 470 G (INFERRED) | the same |
     | `contourpy-rest` | `tests/test_{internal,minimal,misc,renderer,static,typecheck,z_interp}.py` | 90.4 G | 1.4×10¹¹ |
     | `pillow` | `Tests` | 431.0 G | 6.5×10¹¹ |
     | `lxml` | `src/lxml/tests`, `src/lxml/html/tests`, the doctest items | 104.5 G | 1.6×10¹¹ |
@@ -422,7 +433,30 @@ numpy and pandas and spec 065 for CPython:
 
     Families' budgets by the rule: matplotlib about 5.5×10¹², contourpy about 6.3×10¹², Pillow
     6.5×10¹¹, lxml 1.6×10¹¹, regex 2.5×10¹⁰, kiwisolver 2.0×10¹⁰: about **1.26×10¹³** in all, on
-    about 8.3 T of measured fuel. See "Delta from the re-survey" for what that asks of the owner.
+    about 8.3 T of measured fuel; the owner accepted it (`decisions.md`, "Every test of every package we build (2026-10-20)", main `b0ee274`).
+
+    - **A file too big for one group is split by construction, never left out** (the owner's
+      option (b); the delta review, M2). In its package's TOML, a `[[split]]` names one file, its
+      groups in order, and an ordered list of pytest `-k` expressions e₁ … eₙ₋₁, one fewer than the
+      groups. The harness runs group i with `-k "(eᵢ) and not (e₁ or … or eᵢ₋₁)"` and the last group
+      with `-k "not (e₁ or … or eₙ₋₁)"`. So every collected test of the file is in exactly one group,
+      whatever upstream adds and however the expressions overlap (pytest's `-k` matches substrings,
+      and contourpy's ids overlap: `ChunkCombinedCode` also matches `ChunkCombinedCodeOffset`). The
+      rules check verifies only that form, statically (Decision 14). At judge time a split group that
+      selects no test fails (pytest's exit 5 is not an empty pass), and each split group records its
+      file's collected count as a fact, so the lane sees that every group collected the same file.
+    - **contourpy's two big files, split by algorithm and corner mask** (the delta review, L1), so
+      every group is under the 480 G bound. The random_big cases are about 46 G each in
+      `test_filled.py` (1,843.6 G over 40 run cases) and about 29 G each in `test_lines.py` (989.3 G
+      over 34), so one algorithm's cases for one corner mask are about 277 G and 145 G (INFERRED):
+      - `test_filled.py`, nine groups: e₁ `random_big and serial and None`, e₂ `random_big and
+        serial and False`, e₃ `random_big and serial and True`, e₄ … e₆ the same for `threaded`, e₇
+        `random_big` (mpl2005's and mpl2014's cases, about 184 G), e₈ `serial` (about half of the
+        544 G of the rest); group 9 takes the rest;
+      - `test_lines.py`, eight groups: e₁ … e₆ as above, e₇ `random_big`; group 8 takes the rest
+        (470.2 G measured, under the bound).
+      The build measures every group; a group past 480 G gets one more expression before it, by a
+      reviewed judge change, never a test left out.
 
     - **The budget, as a rule: the owner's answer, "Larger budget by rule"** (`decisions.md`,
       2026-10-20; the confirmation, C9). Each group's cap is **1.5 times its fuel in the re-survey on 043's set with
@@ -435,19 +469,37 @@ numpy and pandas and spec 065 for CPython:
       class, any group over 480 G, and each family's budget.
     - **The plain binary is not run** (050, Decision 1).
 
-12. **The release: six new Linux shards; the lane runs everything at every landing.**
+12. **The release: twelve new Linux shards; the lane runs everything at every landing.**
     - **What the last dry run shows** (`39371419248`, READ). The Linux upstream shards took 161 to
       225 s of job time each. The judge stage's longest leg was `own-guest` on macOS, 457 s. 22 jobs
       ran at once; the binding limit was macOS's five concurrent jobs (`own-rest` on macOS waited
       58 s for a macOS slot). Rate: 0.16 to 0.31 s per G of fuel past about 60 s of setup.
-    - **The plan:** six Linux shards, `upstream-plot-a` to `upstream-plot-f`, each holding at most
-      about 700 G of measured fuel, assigned by the re-survey's numbers (about 4.5 T on 043's set,
-      INFERRED); each within 360 s of job time in the branch dry run. Past it, a group moves to the
-      shard with room, or a seventh shard is added, by a reviewed judge change. A system is never
-      dropped from a shard to get a pass.
-    - **The job count.** 27 jobs at once; the new ones are Linux jobs, macOS's five slots still
-      bind, and the shards are INFERRED to end inside the 457 s macOS leg. The landing notes record
-      the branch run's gather start against `39371419248`'s 05:08:22, as a benchmark.
+    - **The layout** (the re-survey's fuel; contourpy's split groups INFERRED by their cases' share;
+      at most about 740 G a shard, so at most about 290 s of job time):
+
+      | shard | groups | fuel |
+      |---|---|---|
+      | `upstream-plot-a` | `matplotlib-axes`, `kiwisolver` | 712 G |
+      | `upstream-plot-b` | `contourpy-lines-8`, `matplotlib-render-1`, `mpl-axisartist` | 737 G |
+      | `upstream-plot-c` | `pillow`, `matplotlib-render-2a` | 736 G |
+      | `upstream-plot-d` | `matplotlib-rest-b2`, `matplotlib-render-2b`, `regex` | 738 G |
+      | `upstream-plot-e` | `mpl-mplot3d`, `matplotlib-rest-b1`, `mpl-axes_grid1` | 732 G |
+      | `upstream-plot-f` | `matplotlib-rest-a`, `matplotlib-mathtext`, `contourpy-lines-7` | 735 G |
+      | `upstream-plot-g` | `contourpy-filled-1`, `contourpy-filled-2`, `contourpy-lines-1` | 738 G |
+      | `upstream-plot-h` | `contourpy-filled-3`, `contourpy-filled-4`, `contourpy-lines-2` | 738 G |
+      | `upstream-plot-i` | `contourpy-filled-5`, `contourpy-filled-6`, `contourpy-lines-3` | 738 G |
+      | `upstream-plot-j` | `contourpy-filled-8`, `contourpy-filled-9`, `contourpy-lines-4` | 728 G |
+      | `upstream-plot-k` | `matplotlib-render-3`, `contourpy-1`, `contourpy-filled-7` | 687 G |
+      | `upstream-plot-l` | `contourpy-lines-5`, `contourpy-lines-6`, `lxml`, `contourpy-rest` | 511 G |
+
+      Each within 360 s of job time in the branch dry run (criterion 12). The build re-packs the
+      table from its own measured fuel; past the bound, a group moves to the shard with room, or a
+      thirteenth shard is added, by a reviewed judge change. A system is never dropped from a shard
+      to get a pass.
+    - **The job count** (the delta review, L4). One release run starts 21 + 12 = 33 jobs, inside
+      Pro's 40 (the shards memo, 2026-10-18). What binds is macOS's five slots, unchanged, and a
+      second release run live at the same time (AGENTS.md allows three): then jobs queue. The landing
+      notes record the branch run's gather start against `39371419248`'s 05:08:22, as a benchmark.
     - **Linux only in the release.** macOS runs every group at every landing on the lane, where
       fuel is ratcheted (063, Decision 8), and G5 compares each group's `passes` and
       `passed_digest` between the Linux record and the lane's. A host difference is a host entry
@@ -487,6 +539,9 @@ numpy and pandas and spec 065 for CPython:
     - every group path, `not_selected` file and support file is a tarball member or folder;
     - each family's caps sum to at most its budget, and each cap is at most 1.5 times the fuel the
       re-survey recorded for it, rounded up to two figures (Decision 11's rule);
+    - every `[[split]]` has the constructed form of Decision 11: one file, which is the only path of
+      each of its groups; n groups and n − 1 expressions, each non-empty and compiling as a pytest
+      keyword expression (pytest's own parser, on the host); no group in two splits;
     - every lxml `test_suite()` adds only what Decision 7 accounts for: `keep_classes`, the doctest
       files, the docstring suites, and the not-selected module of Decision 8;
     - no group is in two shards on one system, and each is in exactly one Linux shard (063's rule,
@@ -496,7 +551,8 @@ numpy and pandas and spec 065 for CPython:
     - **Needs**: a group needs the artifact set, the kit and its family's tree; without the tree it
       is blocked, named (`upstream tree matplotlib`), as numpy's is. A tie mismatch fails.
     - **The scoreboard** counts the new groups under v1.3, as numpy's are.
-    - **README**: the testing section names the six suites, their groups and what is not run
+    - **README**: the testing section names the six suites, their groups, the twelve release
+      shards, contourpy's split files, and what is not run
       (regex's `test_main` among them), in one paragraph. Every class closed by `README.md` has its
       fact there: "No floating-point exception flags" is written in (this revision); the build
       adds those still missing: WASI errno numbers (`ENOENT` is 44), a builtin module has no
@@ -509,7 +565,7 @@ numpy and pandas and spec 065 for CPython:
 
 The judge runs the own test suites of the six compiled packages inside the guest. It counts every
 pass, and shows every known failure and every test it does not run as a gap or a named line, with
-what will close it. The release runs them too, on Linux, in six new shards; the lane runs them on
+what will close it. The release runs them too, on Linux, in twelve new shards; the lane runs them on
 darwin at every landing. The judge turns red when a pass is lost, a test traps the guest, an
 unknown failure appears, a test runs against a copy of the product's code, or the tests are not the
 artifact's own.
@@ -570,7 +626,7 @@ README.md, CHANGELOG.md, context/progress/README.md, spec 063 (one dated line), 
 5. Cache the result for the group's class checks; assert no finding.
 
 **Spec 063, one dated line** in its Status: "2026-10-…: matplotlib, contourpy, Pillow,
-kiwisolver, lxml and regex are `suite`s since spec 066, in six new Linux shards."
+kiwisolver, lxml and regex are `suite`s since spec 066, in twelve new Linux shards."
 
 ## Scope
 
@@ -603,7 +659,10 @@ applied in a scratch copy, never committed.
    `path_packages` or `support`; a `cwd` other than `/tmp/work` or the tree root; a family over
    its budget; a cap above 1.5 times its recorded fuel; an lxml `test_suite()` that adds a suite Decision 7 does not account for; a
    staged lxml module with a `TestCase` that `test_suite()` does not add and the JSON does not
-   deselect.
+   deselect; a `[[split]]` with as many expressions as groups, with an empty expression, with an
+   expression pytest cannot parse, or naming a group whose paths are not exactly its file. A unit
+   check shows the constructed `-k` strings for a three-group split, and that a split group whose
+   stream selects nothing (exit 5) is a finding.
 2. **The stream and the verdict, on fixed streams** (no guest). `package_drive.py`'s stream parses
    with `parse_stream` to the same outcomes as `drive.py`'s for the same lines. A recorded numpy
    stream and a recorded pandas stream are judged exactly as today (same findings, same counts).
@@ -628,7 +687,7 @@ applied in a scratch copy, never committed.
    numpy, pandas and CPython row lost 0, grew 0; their stages' file lists are byte-for-byte the
    base's (a unit check hashes the `/upstream` and `/cpython` stage manifests).
 7. **The shards.** 063's `test_release_shards_cover_the_judge` and the workflow scan pass with the
-   new shards; each new group is in exactly one Linux shard; the scan fails, in
+   twelve new shards; each new group is in exactly one Linux shard; the scan fails, in
    `tests/unit/test_scan.py`, when a new shard is in the plan but not in `release.yml`'s matrix,
    or the reverse.
 8. **The fetch.** `tests/unit/test_fetch_trees.py`, a fake `urlopen` and synthetic tarballs: a
@@ -645,37 +704,47 @@ applied in a scratch copy, never committed.
     green on the builder's worktree against 043's set, apart from the gaps this specification
     adds, each named.
 12. **The branch's dry run, before landing** (Decision 12; not a check). Every job passes on all
-    three systems, every red line a growth line or G7. The six new shards' job times are
+    three systems, every red line a growth line or G7. The twelve new shards' job times are
     recorded in the landing notes, each within 360 s, or the move Decision 12 prescribes is made
     and recorded.
 13. **The lane's dry run after landing**, on main's exact commit, as 063's criterion 13.
 
 ## The owner's choices
 
-**One is needed before building: the budget** (Decision 11; the lane asks). The recommended rule:
-each cap 1.5 times the re-survey's fuel on 043's set with 096, each family's budget the sum of its
-caps, six Linux shards. What the owner accepts with it is the lane's cost (a benchmark estimate,
-INFERRED): the upstream groups' darwin fuel goes from today's 2.84 T over 16 groups to about 7 T at
-every full judge (the lane's, every builder's and every reviewer's), more again on the serial
-judge every fifth landing. The alternatives the confirmation weighed and did not recommend:
-leaving files out for their cost (a convenience under AGENTS rule 4, which would need the owner to
-amend that rule), and running part of matplotlib on the lane only (it saves release time, which
-does not bind, and removes Linux's G5 comparison for those groups).
+**Answered: option (b)** (`decisions.md`, "Every test of every package we build (2026-10-20)", main `b0ee274`). In the owner's words: "I think
+I want to include all tests from the packages that we are building into wasi_python, so if we can
+achieve that, I'd love to keep that in and adjust our caps so we can handle them." So every
+upstream test of the six packages runs, contourpy's random_big cases included; caps follow the
+1.5 times rule (about 1.26×10¹³ for 066); a file too big for one group is split by construction
+(Decision 11). **The price, accepted** (the delta review, M1 and M3; benchmark estimates):
 
-A default the owner may move: the release's six extra Linux jobs (Decision 12).
+- a full judge's upstream fuel goes from 2.89 T today (the 16 accepted groups, `d066695`) to about
+  **11.2 T** with 066's 8.3 T, 3.9 times today, against the about 7 T the first question named;
+- twelve Linux release shards of at most about 740 G each (Decision 12), each inside 360 s, and no
+  shard past the 457 s macOS leg;
+- longer lane accepts; spec 092 (the judge reads CI's record) is the lever that shortens them.
+
+Not chosen, each in one line:
+- **(a) the rule with each big file one group**: each of contourpy's two files would need a shard to
+  itself, past criterion 12's 360 s and the macOS leg (the delta review, M1).
+- **(c) amend the rule to leave the random_big cases out**: about 8.4 T a full judge; the owner kept
+  the rule against leaving tests out.
+- **(d) upstream's own slow-host selection, `-k "not big"`** (Fable's recommendation, from
+  contourpy's own CI for emulated legs): the owner chose to run every test.
 
 ## For the lane
 
-- **Next, before building:** the owner's word on the budget rule; 043 and 096 landed or on
-  reviewed tips; the lane adds 095 (scipy's and scikit-learn's own tests) and the judge
-  staging follow-up (097) to the roadmap's `Reserved:` paragraph (done on main, `958a22b`'s
-  base). Then the re-survey on 043's set with 096 and
-  its small delta (Decision 11), then the build.
+- **Ready for build.** The owner chose (b); 043 and 096 landed (wave 06); 095, 097 and 099 are
+  reserved on main; the re-survey's delta was reviewed and its findings answered.
+- **A group stopped by a `HostLitter` line** (spec 089's named guard; Decision 6's residual) at
+  the lane's acceptance, a builder's run or a reviewer's is a host failure, not a measured
+  difference: it records no outcome and no fuel, and is re-run once the litter is gone. The
+  sameness rule's "never a re-run" applies to measured differences only (the delta review, L5).
 - **Wave kind: build-class** (the release workflow; no artifact byte changes, no `scripts/`,
   `recipes/` or `downloads/` line). It may ride in a wave as one of the two other build-class
   changes, after 043 has landed. **Dry-run needs:** the branch dry run (criterion 12), then the
   wave's.
-- **Order.** After 043 (and 037 if it rides with 043). Before any later package specification
+- **Order.** After wave 06 (043, 037, 096, landed). Before any later package specification
   whose suite stages into a family 066 creates.
 - **The claim list skeleton** (the builder fills each value from its final run; the progress
   README's step 3a):
@@ -687,12 +756,13 @@ A default the owner may move: the release's six extra Linux jobs (Decision 12).
     and ids from the landing notes.
   - **Moved rows:** none. numpy's, pandas' and CPython's rows: lost 0, grew 0 (criterion 6).
   - **The judge hash changes**: `judge changed` names the files of the accept-judge text.
-  - **packages.toml:** six `later` become `suite`; scipy's closer re-pointed if 037 landed.
+  - **packages.toml:** six `later` become `suite`; scipy's `closes_with` re-pointed from spec 066
+    to spec 095 (037 landed with it naming 066).
 - **The flags** (skeleton; each reason begins with "066:"):
 
   ```
   --accept "066: the compiled packages' own tests in the release: matplotlib, contourpy, Pillow, kiwisolver, lxml and regex, <n> groups, <p> passes, <c> classes, <t> traps"
-  --accept-judge "066: tests/upstream/{matplotlib,contourpy,pillow,kiwisolver,lxml,regex}.toml and .ini; package_drive.py; a family per package in upstream.py (grant, stage, kit copy, budget), driver "package" with package_paths, extra_sys_path, support_packages and cwd, the path-based guard, lxml's selection equal to test_suite()'s, numpy's and pandas' reading unchanged; fetch.py --shard per family; packages.toml (six suites); six Linux shards in release_shards.toml and release.yml; the README's facts; the unit checks"
+  --accept-judge "066: tests/upstream/{matplotlib,contourpy,pillow,kiwisolver,lxml,regex}.toml and .ini; package_drive.py; a family per package in upstream.py (grant, stage, kit copy, budget), driver "package" with package_paths, extra_sys_path, support_packages and cwd, the path-based guard, lxml's selection equal to test_suite()'s, numpy's and pandas' reading unchanged; fetch.py --shard per family; packages.toml (six suites); twelve Linux shards in release_shards.toml and release.yml; [[split]] by constructed -k expressions; the README's facts; the unit checks"
   ```
 
   No `--accept-growth` and no `--accept-fewer-passes`: new rows are not growth, and no accepted
@@ -720,30 +790,16 @@ reviewer and the lane rule on before the build:
 - **Groups** (Decision 11): matplotlib's render files in four groups and the rest in three, every one
   measured under 480 G; contourpy in four. Past the bound, each one file: `matplotlib-axes`
   (699.3 G), `contourpy-filled` (2,387.6 G) and `contourpy-lines` (1,459.5 G).
-- **The budget the rule gives is about 1.26×10¹³, not "about 7 T".** The owner chose the rule
-  ("Larger budget by rule") on a question that priced it at about 7 T before contourpy was
-  measured. contourpy alone measured 4,155 G (caps about 6.3×10¹²), more than all of matplotlib
-  (about 3.6 T with mathtext); its `test_*_random_big` cases, which upstream does not mark slow,
-  cost about 2.83 T of it (`test_filled.py` 544.0 G and `test_lines.py` 470.2 G without them). The
-  rule is applied as written in Decision 11. Because the price differs from what the owner was told
-  by about 80%, the lane asks the owner once more before the build, with these choices:
-  - **(a) the rule as written**: caps about 1.26×10¹³; the lane's full judge runs about 8.3 T of
-    upstream fuel instead of 2.84 T; on Linux about 22 to 43 minutes of guest time, so about twelve
-    shards of at most 700 G, not six (Decision 12 then names twelve);
-  - **(b) the rule, with contourpy's two big files split by keyword**: the same cost, but no group
-    past 480 G but `matplotlib-axes`: a group may carry a `keyword` (a pytest `-k` expression), and
-    the rules check that a file's groups' expressions partition its collected tests exactly; for
-    example `contourpy-filled` (`not random_big`, 544 G, itself over the bound) and its
-    `random_big` cases split by algorithm. Recommended over (a) if the owner keeps the rule: it
-    keeps every group a reviewable size;
-  - **(c) amend the rule against leaving tests out, for contourpy's `random_big` cases only**:
-    about 2.8 T less fuel (about 4.2×10¹² less in caps), total caps about 8.4×10¹². The cases test
-    large random grids of the same algorithms the other cases test; upstream runs them because
-    natively they cost seconds. This needs the owner to amend the rule, as the confirmation said.
-- **Shards** (Decision 12): six shards of 700 G hold about 4.2 T; the measured 8.3 T needs about
-  twelve under (a) or (b), about eight under (c). The macOS leg (457 s) still bounds the release
-  only if every Linux shard starts at once: 21 + 12 jobs is past the account's concurrency, so the
-  release's judge stage would grow (INFERRED, several minutes). The branch dry run measures it.
+- **The budget the rule gives is about 1.26×10¹³, not "about 7 T".** contourpy alone measured
+  4,155 G (caps about 6.3×10¹²), more than all of matplotlib (about 3.6 T with mathtext); its
+  `test_*_random_big` cases cost about 2.83 T of it. Counting the 2.89 T the judge already runs, a
+  full judge runs about 11.2 T of upstream fuel (the delta review, M3). The lane put the choice to
+  the owner; **the owner chose (b)** (`decisions.md`, "Every test of every package we build (2026-10-20)", main `b0ee274`): every test, caps by the rule,
+  big files split by construction (Decision 11). Not chosen: (a) the big files as single groups,
+  (c) leaving the random_big cases out, (d) upstream's slow-host `-k "not big"` (each in one line
+  under "The owner's choices").
+- **Shards** (Decision 12): twelve Linux shards of at most about 740 G, laid out there; 33 jobs fit
+  Pro's 40 for one run; with two runs live they queue; macOS's five slots still bind.
 - **mathtext's fuel** was voided twice by spec 089's guard (host `.DS_Store` in `/`, `/tmp` and
   `/tmp/work`); two strikes: its cap stays provisional at 1.5 times wave 05's 296.2 G, and the build
   measures it on the build's set.
@@ -783,7 +839,8 @@ What it changes, by decision; the confirmation round rules on each before anythi
     round to confirm or choose.
 - **Decision 12 (shards).** About 3.9 T on Linux at 0.16 to 0.31 s per G is 10 to 20 minutes of
   guest time: six Linux shards of at most about 700 G each, not three, to keep each under the
-  360 s bound (INFERRED). The job count becomes 27 at once; macOS's five slots still bind.
+  360 s bound (INFERRED; superseded by the re-survey: twelve shards, Decision 12). The job count
+  becomes 27 at once (superseded: 33, inside Pro's 40; macOS's five slots still bind).
 - **Decision 6 (Pillow's working folder).** The writable copy of `Tests/` in the guest's root was
   voided twice by spec 089's guard (`/.DS_Store` written by the host after the copy). The run with
   the read-only tree as the working folder completed, and at most one failure in it can come from
@@ -892,6 +949,45 @@ finding is written in; the delta section above stays as the dated record:
 - **C8: fixed.** lxml's `cwd` is the tree root, read-only, with `samples/` and `doc/test.xml`
   staged.
 - **C9: fixed.** Decision 11 states the budget as a rule over the re-survey, not a number.
+
+## Disposition of the delta review (2026-10-20)
+
+The delta review (`../reviews/066-the-compiled-packages-own-tests-spec-delta-2026-10-20.md`) said
+"passes for build with conditions". The owner then chose option (b) (`decisions.md`, "Every test
+of every package we build (2026-10-20)", main `b0ee274`). Each finding, answered:
+
+- **M1 (option (a) cannot be laid out): answered by the owner's choice.** (a) is not chosen, with
+  the review's reason in one line ("The owner's choices"). Under (b) the price is restated: about
+  11.2 T of upstream fuel per full judge, twelve Linux shards of at most about 740 G, each inside
+  360 s, none past the macOS leg; longer lane accepts.
+- **M2 (the partition check): fixed.** Decision 11: a `[[split]]` is an ordered list of `-k`
+  expressions; group i runs `(eᵢ) and not (e₁ or … or eᵢ₋₁)`, the last runs
+  `not (e₁ or … or eₙ₋₁)`, so the partition holds by construction. Decision 14's rules check
+  verifies only that form, statically, with pytest's own expression parser. A split group that
+  selects nothing fails at judge time; each records its file's collected count. Criterion 1 gains
+  the variants.
+- **M3 (the price left out today's upstream fuel): fixed.** About 11.2 T per full judge, counting
+  the 2.89 T that runs today (EXECUTED by the reviewer over `accepted.json`), against the about
+  7 T the first question named ("The owner's choices", the delta).
+- **L1 (contourpy still past 480 G): fixed.** Decision 11 splits `test_filled.py` into nine groups
+  and `test_lines.py` into eight, by algorithm and corner mask, the non-random_big rest of
+  `test_filled.py` in two; every group INFERRED under the bound; the build measures each.
+- **L2 (`caps.py`): fixed.** It reads `summary-resurvey.json` and gives every `contourpy-*` group
+  the contourpy family; `results-resurvey.md` is re-rendered from it (contourpy's budget
+  6.270×10¹²).
+- **L3 (four figures without a record): fixed.** `results-resurvey.md` records each run's argv,
+  fuel and outcome counts: contourpy's whole suite with `/tmp/work` (201 failures, out of fuel),
+  `test_filled.py` and `test_lines.py` without random_big (543,983,988,154 and 470,231,479,818),
+  and lxml with the read-only tree root (two `PermissionError`).
+- **L4 (concurrency): fixed.** Decision 12: 33 jobs fit Pro's 40 for one run; with two runs live
+  they queue; macOS's five slots still bind.
+- **L5 (host litter in writable guest roots): fixed.** Decision 6 names the residual and its
+  closer (spec 097, whose roadmap line the lane widens); "For the lane" says a group stopped by a
+  `HostLitter` line is a host failure, re-run once the litter is gone, not a measured difference.
+- **L6 (leftover text): fixed.** "The owner's choices" holds the answer; Decision 12, the Intent,
+  the Kind, the Design's dated line, criteria 7 and 12 and the README sentence say twelve shards;
+  the first survey's delta marks its six shards as superseded; the claim list says scipy's
+  `closes_with` is re-pointed from spec 066 to spec 095 (037 landed with it).
 
 ## Landing notes
 
