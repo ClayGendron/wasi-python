@@ -1,0 +1,8 @@
+float divide by 0 returned warns RuntimeWarning divide by zero encountered in divide
+float floor_divide by 0 returned warns RuntimeWarning divide by zero encountered in floor_divide
+log 0 returned warns RuntimeWarning divide by zero encountered in log
+sqrt -1 returned warns RuntimeWarning invalid value encountered in sqrt
+exp 1000 returned warns RuntimeWarning overflow encountered in exp
+nan to int64 returned warns RuntimeWarning invalid value encountered in cast
+float scalar divide by 0 returned warns RuntimeWarning divide by zero encountered in scalar divide
+float divide by 0 under raise FloatingPointError divide by zero encountered in divide silent

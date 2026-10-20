@@ -1,0 +1,16 @@
+inv LinAlgError Singular matrix
+inv float32 LinAlgError Singular matrix
+inv complex128 LinAlgError Singular matrix
+inv stacked LinAlgError Singular matrix
+solve LinAlgError Singular matrix
+solve matrix LinAlgError Singular matrix
+tensorinv LinAlgError Singular matrix
+tensorsolve LinAlgError Singular matrix
+matrix_power -1 LinAlgError Singular matrix
+cholesky LinAlgError Matrix is not positive definite
+cholesky upper LinAlgError Matrix is not positive definite
+inv under errstate ignore LinAlgError Singular matrix
+det 0.0
+slogdet 0.0 -inf
+inv regular [[1.0, -1.0], [-1.0, 2.0]]
+errstate after {'divide': 'warn', 'over': 'warn', 'under': 'ignore', 'invalid': 'warn'}

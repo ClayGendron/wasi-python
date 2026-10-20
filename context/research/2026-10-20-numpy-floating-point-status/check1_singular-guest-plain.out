@@ -1,0 +1,17 @@
+# main set SHA256SUMS f12cd25c, plain binary: exit 0, trapped None, stderr ''
+inv returned
+inv float32 returned
+inv complex128 returned
+inv stacked returned
+solve returned
+solve matrix returned
+tensorinv returned
+tensorsolve returned
+matrix_power -1 returned
+cholesky returned
+cholesky upper returned
+inv under errstate ignore returned
+det 0.0
+slogdet 0.0 -inf
+inv regular [[1.0, -1.0], [-1.0, 2.0]]
+errstate after {'divide': 'warn', 'over': 'warn', 'under': 'ignore', 'invalid': 'warn'}
