@@ -27,12 +27,21 @@
   L1; the module table in H1; section 8, the owner's four decisions). Every number in this file
   is EXECUTED on `a9064a2` by the scripts under `build/103/` (`map.py`, `sites.py`, `table.py`,
   `count_globals.py`, `dups.py`; scratch, not committed) unless marked READ or INFERRED.
+  **The tables are measured on `a9064a2` and reconciled with 102's text** (the pre-build
+  review's finding 1): 102 deletes three of `runner.py`'s names, `_set_async_stack` and
+  `_wasmtime_version` (`_engines.py`'s rows) and `_context_address` (`_call.py`'s row), each
+  replaced by an adapter operation (`102-the-engine-seam.md`, "The runner's side", READ), so on
+  102's reviewed tip the runner binds **352** names, not 355, and the three are struck below
+  where they would appear. 102 also rewrites `_wasmtime()`'s import and `mounts.py`'s `bind`,
+  `forward` and `__call__`, so `mounts.py`'s line numbers below are `a9064a2`'s; the builder
+  re-finds each site by its text. The builder re-runs `map.py` on 102's tip (`git show <102
+  tip>:src/wasi_python/runner.py`) before the move and records its counts in the landing notes.
 
 ## The problem
 
-`src/wasi_python/runner.py` is 6,241 lines and binds 355 top-level names (EXECUTED, `ast`; the
-`grep` in the memo's method gives 341, missing the names bound by tuple assignment and the three
-definitions under a decorator). It holds 22 concerns in sequence (the memo's H1). Process state
+`src/wasi_python/runner.py` is 6,241 lines and binds 355 top-level names on `a9064a2`
+(EXECUTED, `ast`; the `grep` in the memo's method gives 341, missing the names bound by tuple
+assignment and the three definitions under a decorator; 352 on 102's tip, which deletes three). It holds 22 concerns in sequence (the memo's H1). Process state
 is the glue: 12 module-level locks, one class-level `Condition` (`_epoch_ticker._cond`), 40
 mutable module globals (dicts, lists, sets, a `deque`, a `SimpleQueue`, a `WeakSet`, a
 thread-local, a counter) and 8 test hooks (EXECUTED, `count_globals.py`). `_after_fork_in_child`
@@ -64,13 +73,13 @@ about 20 to 40 more, INFERRED):
 | `_wasmtime_ffi.py` | 102's | the one module that touches wasmtime-py's private API (spec 102) |
 | `_limits.py` | 159 | the tick constants (`TICK_S`, `NO_DEADLINE`, `CANCEL_TICKS`), the limit checks (`_integer_limit`, `_seconds_limit`, `_shutdown_limit`, `_check_limits`), `_text`, `_check_inputs`, the worker count, and the sentinel `_UNSET` |
 | `_platform.py` | 375 | what the operating system decides: `_flags`, the kernel identity, the two lock implementations (`_try_lock`, `_unlock_close`, `_same_file`), fork (`_fork`, `_refuse_forked`), `_dir_fd_ok`, `_open_dir`, `_close`, the stack sizes (`_WASM_STACK`, `_HOST_ROOM`, `_THREAD_STACK`) and the three stack probes, `_tell_interpreter`, and the trap-handler guard (spec 071) |
-| `_artifacts.py` | 117 + 101 | the artifact set: `Artifacts`, `ArtifactsMissing`, `artifact_dir`, `artifacts` and their constants from `__init__.py` (101 lines, EXECUTED); `_found_and_checked` and `_Checked` (spec 087), `_digest` and `_digests`, `_hash_file`, `_stamp`, `_version_tag`, `_has_guest_package` |
-| `_engines.py` | 273 | wasmtime-py's import (`_wasmtime`), the two engines, compiled modules and the `.cwasm` cache (`_module`, `_module_miss`, `_private`, `_cache_dir`), `_lock` and `_counts`, the epoch ticker, and the preopen check's WAT module (`_CHECK_WAT`, `_check_module`) |
+| `_artifacts.py` | 117 + 90 | the artifact set: `Artifacts`, `ArtifactsMissing`, `artifact_dir`, `artifacts` and their constants from `__init__.py` (lines 36–125, 90 lines, EXECUTED); `_found_and_checked` and `_Checked` (spec 087), `_digest` and `_digests`, `_hash_file`, `_stamp`, `_version_tag`, `_has_guest_package` |
+| `_engines.py` | 273 | wasmtime-py's import (`_wasmtime`, which keeps 102's adapter import inside it), the two engines (`_engine` calls `ffi.set_async_stack`; 102 deleted `_set_async_stack` and `_wasmtime_version`), compiled modules and the `.cwasm` cache (`_module`, `_module_miss`, `_private`, `_cache_dir`), `_lock` and `_counts`, the epoch ticker, and the preopen check's WAT module (`_CHECK_WAT`, `_check_module`) |
 | `_private_dirs.py` | 536 | `_Private` and its lock protocol (spec 016), the sweep (`_sweep_once`, `_sweep_entry`), the budgeted tree remover and its two walks (spec 084), the queued warnings (`_warn_later`, `_flush_warnings`), `_remove_fresh_home` |
 | `_zip.py` | 263 | the private copy of the stdlib zip and matplotlib's data (`_zip_folder`, `_copy_zip`, `_extract_data`, `_data_intact`, `_remove_zips`; specs 017 and 023) |
 | `_places.py` | 892 | `Grant`; the argument checks for root, grants, mounts and the import path; the POSIX and Windows walks, `_Walked`, `_judge`; SipHash-1-3 and `_check_preopens` (spec 017, Decision 5); `_walk_grants`, `_runtime_folders`, `_shared_folders`; `_real_dir_at`, `_real_dir` (spec 024) |
 | `_home.py` | 326 | the threads of a call: the per-thread stack of calls (`_calls`, `_stack`), Ctrl-C on the main thread (`_ctrl_c`, `_ctrl_c_watched`, `_deferred_ctrl_c`), and the home and guest threads (`_Home`, `_Box`, `_start_guest`, `_join_guest`, `_on_guest_thread`; spec 078) |
-| `_call.py` | 1,202 | one call: `Completed`; `_run_checked` to `_instance`; `_drive`, `_Call`, `_shared` and the epoch callback; the linkers and trampolines; the output streams; `poll_oneoff`; the door; the tool host (`_tool_host`, `_count_tool_threads`) |
+| `_call.py` | 1,202 | one call: `Completed`; `_run_checked` to `_instance`; `_drive`, `_Call`, `_shared` and the epoch callback (`_context_address` is 102's `ffi.context_address`; the one `_epoch_callback` object lives here, where 102's Decision 7 writes "`_engine.py` and `_call.py`"); the linkers and trampolines; the output streams; `poll_oneoff`; the door; the tool host (`_tool_host`, `_count_tool_threads`) |
 | `_sessions.py` | 924 | `SessionEnded`, `_State`, the reaper, the endings and the shutdown, the turns, `_open_session` (spec 055) |
 | `runner.py` | 1,174 | the thin entry: `Defaults`, `DEFAULTS`, `_current_defaults`; `run`, `run_async`, their argument checking (`_checked`, `_check_tools`, `_is_async_callable`), `run_async`'s pool and exit hook; `stats`; `Session`; the two process hooks `_after_fork_in_child` and `_release`; and the re-exports `__init__.py` needs (`Completed`, `Grant`, `SessionEnded`) |
 
@@ -116,8 +125,15 @@ edge list):
   Completed` (`tests/unit/test_cli.py`) and `__init__.py`'s import block still work, and
   `tests/harness/api.py`'s `reexport_errors` passes: it refuses a public name bound from a name
   starting with `_`, and the module's name is not the name.
+- **`Session` stays in `runner.py`**, against the memo's `_sessions.py` row, its largest
+  departure (457 lines, `runner.py:5785–6241`). Its constructor reads `_checked`,
+  `_current_defaults`, `_refuse_forked` and `_open_session` (EXECUTED, `map.py`'s edges); in
+  `_sessions.py` the first two would import upward, since `_checked` must stay beside
+  `DEFAULTS`. `_sessions.py` holds the machinery, `runner.py` the class the embedder sees.
 - **The memo's `_process.py` is 104's**, not made here. The two process hooks stay in
-  `runner.py`, the top of the order, where they can reach every module (Decision 4).
+  `runner.py`, the top of the order, where they can reach every module (Decision 4). 104 puts
+  `_process` first in Decision 2's order and `process` in check 3's by-name list; both lists are
+  written in the checks as plain tuples so 104 extends them by one entry each.
 
 ### 2. The import order, and how a module reaches another
 
@@ -198,9 +214,22 @@ where it stays today or where it breaks a cycle it already breaks:
 "Last:" comment and the three `# noqa: E402` go. `__version__`, `_defaults_lock`, `defaults`,
 `set_defaults` and `__all__` stay as they are. `set_defaults` keeps assigning
 `_runner.DEFAULTS`. `import wasi_python` still loads no wasmtime-py: no module in the order
-imports `wasmtime` at module level (`if TYPE_CHECKING:` only), and `_wasmtime_ffi` is imported
-where 102 says to import it, inside the functions that call it if its own import loads
-wasmtime-py.
+imports `wasmtime` at module level (`if TYPE_CHECKING:` only), and `_wasmtime_ffi`, whose own
+import loads wasmtime-py, is imported only inside the functions that call it, as `from . import
+_wasmtime_ffi as ffi`, exactly where 102 put each of those lines (102's Decision 2 and "The
+runner's side"; `_wasmtime()` keeps its adapter import inside it, 102's Decision 7). A late
+import of `_wasmtime_ffi` is therefore allowed in any function of any module; check 2 lists
+it as the one module that may be late-imported anywhere.
+
+**The condition the second form rests on** (the pre-build review's finding 6): a class or a
+constant the judge replaces with `monkeypatch.setattr(<module>, "NAME", …)` must be read only in
+its defining module, because a from-imported copy elsewhere never sees the patch. It holds today:
+of the 45 names tests patch through `runner` (EXECUTED, grep over `tests/`), the classes and
+constants among them are `MAX_RESPONSE`, `_REMOVE_BUDGET` and `DEFAULTS`, and each is read in
+its own module only (EXECUTED, `map.py`'s edges; `_after_walk` is a hook, reached by attribute).
+Check 3 holds the condition: for every such `setattr` in `tests/` whose object is a class or a
+constant, no package module from-imports the name. Spec 104 moves the seams off module
+globals; until it lands, the assertion is 103's.
 
 ### 3. Text moves verbatim
 
@@ -298,11 +327,13 @@ with its module after the move: `runner` (`_pool_lock`, `_live_lock`); `_private
 `_epoch_callback_lock`, `_outputs_lock`); `_zip` (`_zip_lock`, `_zips`); `_engines` (`_lock`,
 `_compiling`); `_sessions` (`_sessions_lock`, `_sessions`, `_reaper_queue`, `_closers_lock`).
 Plus the three class attributes of `_engines._epoch_ticker` it resets (`_thread`, `_active`,
-`_cond`), and the five it mutates in place (`_tool_threads`, `_pool`, `_pools`, `_live`,
-`_closers`, `_dropped`, `_reaper`, `_counts`, `_fork`). The one lock it does not touch today,
-`_pending_warnings_lock` (`_private_dirs`), it does not touch after: the move adds nothing and
-removes nothing from what the hook does. Spec 104 decides whether that lock joins the reset
-(the memo's H1 names the omission class; this file only makes it visible).
+`_cond`), and the ten it mutates in place (`_tool_threads`, `_pool`, `_pools`, `_live`,
+`_stack_size_found`, `_closers`, `_dropped`, `_reaper`, `_counts`, `_fork`). The two locks it
+does not touch today, `_pending_warnings_lock` (`_private_dirs`) and `__init__.py`'s
+`_defaults_lock` (line 151, the package's thirteenth module-level lock), it does not touch
+after: the move adds nothing and removes nothing from what the hook does. Spec 104 takes both
+(`_defaults_lock` into `_Process`, its group I; the memo's H1 names the omission class; this
+file only makes each visible).
 
 **`_release`** stays in `runner.py`, registered with `@atexit.register` at import, before any
 session can register `_sessions_at_exit` (so the order `_ensure_reaper` relies on holds:
@@ -314,21 +345,39 @@ session can register `_sessions_at_exit` (so the order `_ensure_reaper` relies o
 
 **Check 1, the fork list by introspection** (`tests/unit/test_runner_package.py`,
 `test_every_module_level_lock_is_remade_after_fork`). A child interpreter (`sys.executable
--c`, as `tests/unit/test_runner_sweep.py` runs one) imports `wasi_python`, walks every
-`wasi_python.*` module in `sys.modules` and every module-level attribute that is a lock
-(`type(threading.Lock())`, `type(threading.RLock())`, `threading.Condition`), plus
-`_engines._epoch_ticker._cond`, records `(module, name, id(lock))`, calls
-`runner._after_fork_in_child()`, records again, and prints both as JSON. The check asserts:
-every lock found is in `RESET_BY_FORK`, a list written in the check (the 15 names above plus
-`_engines._epoch_ticker._cond`, minus `_private_dirs._pending_warnings_lock`, which the check
-names in `NOT_RESET` with the sentence above, so the list stays complete and the omission stays
-visible); every lock in `RESET_BY_FORK` was found and its `id` changed; at least 13 locks were
-found, so an empty walk cannot pass. A second assertion reads `_after_fork_in_child` by `ast`
-and requires the set of `global` names plus `_module.name` attribute targets it assigns to equal
-`RESET_BY_FORK` minus the three class attributes, so the hook, the list and the modules agree
-three ways. Seen failing first: the builder adds a `_spare_lock = threading.Lock()` to
-`_zip.py` without touching the hook, runs the check, and records the one-line failure (the lock
-is found and not reset); then removes it.
+-c`, as `tests/unit/test_runner_sweep.py` runs one) imports `wasi_python`, walks the package
+root `wasi_python` and every `wasi_python.*` module in `sys.modules`, and every module-level
+attribute that is a lock (`type(threading.Lock())`, `type(threading.RLock())`,
+`threading.Condition`), plus `_engines._epoch_ticker._cond`, records `(module, name, id(lock))`,
+calls `runner._after_fork_in_child()`, records again, and prints both as JSON. Two lists are
+written in the check:
+
+- `LOCKS_RESET_BY_FORK`, 12 entries: the eleven module-level locks the hook re-makes
+  (`runner._pool_lock`, `runner._live_lock`, `_private_dirs._held_lock`,
+  `_home._stack_size_lock`, `_call._tool_threads_lock`, `_call._epoch_callback_lock`,
+  `_call._outputs_lock`, `_zip._zip_lock`, `_engines._lock`, `_sessions._sessions_lock`,
+  `_sessions._closers_lock`) and `_engines._epoch_ticker._cond`.
+- `REBOUND_BY_FORK`, 4 entries, the names the hook rebinds that are not locks:
+  `_engines._compiling`, `_zip._zips`, `_sessions._sessions`, `_sessions._reaper_queue`.
+- `NOT_RESET`, 2 entries, each with its sentence: `("wasi_python._private_dirs",
+  "_pending_warnings_lock")`, "never reset today; spec 104 decides", and `("wasi_python",
+  "_defaults_lock")`, "never reset today; spec 104 takes it into `_Process` (group I)".
+
+The check asserts: every lock the walk found is in `LOCKS_RESET_BY_FORK` or `NOT_RESET`; every
+entry of `LOCKS_RESET_BY_FORK` was found and its `id` changed; every entry of `NOT_RESET` was
+found and its `id` did not change; at least 14 locks were found (the twelve, plus the two), so
+an empty or narrowed walk cannot pass. A second assertion reads `_after_fork_in_child` by
+`ast`: it collects the hook's `global` names and its depth-one `_module.name` `Attribute`
+targets (an `Attribute` whose value is a bare `Name`), skips `Subscript` targets
+(`_call._tool_threads["running"]`, `_engines._counts[...]`, `_platform._fork[...]`) and
+attributes of attributes (`_engines._epoch_ticker._thread`, `._active`, `._cond`), and requires
+the set to equal the union of the two lists minus `_engines._epoch_ticker._cond`: 15 names, the
+`global` statement's list today. So the hook, the lists and the modules agree three ways. This
+check is 103's until 104 lands: 104's Decision 3 check (`RENEW`, one table in `_process.py`)
+replaces it, and 104 names the retirement in its `--accept-judge` reason. Seen failing first:
+the builder adds a `_spare_lock = threading.Lock()` to `_zip.py` without touching the hook, runs
+the check, and records the one-line failure (the lock is found and in neither list); then
+removes it.
 
 ### 5. The judge's 24 files are updated mechanically, to the defining module
 
@@ -346,8 +395,8 @@ loosened. The files, and what each takes from where (EXECUTED, from both forms o
 | `tests/unit/test_async_tools.py` | `_call`: `_tool_host`; `_home`: `_ctrl_c`, `_ctrl_c_watched`; `_artifacts`: `find_artifacts` |
 | `tests/unit/test_inline_sessions.py` | `_platform`: `_trap_handlers_ready` |
 | `tests/unit/test_runner_async.py` | `_call`: `_drive`, `_epoch_answer`, `_epoch_now`, `_shared`, `_stop_error`; `_engines`: `_epoch_ticker`; `_home`: `_calls`, `_ctrl_c`, `_ctrl_c_watched`, `_stack`; `_limits`: `CANCEL_TICKS`, `_default_workers`; `_platform`: `_fork`, `_trap_handlers_ready` |
-| `tests/unit/test_runner_calls.py` | `_call`: `HOST_FAULT`, `NO_HOST`, `_Call`, `_Driven`, `_drive`, `_fuel_used`, `_linker`, `_output_free`, `_output_write`; `_engines`: `_engine`, `_engines`, `_set_async_stack`; `_home`: `_ctrl_c`, `_deferred_ctrl_c`, `_note_ctrl_c`, `_stack`; `_platform`: `_THREAD_STACK`, `_WASM_STACK`, `_fork`, `_trap_handlers_ready` |
-| `tests/unit/test_runner_cancel.py` | `_call`: `_context_address`, `_epoch_now`, `_shared`; `_home`: `_ctrl_c`, `_ctrl_c_watched`, `_stack` |
+| `tests/unit/test_runner_calls.py` | `_call`: `HOST_FAULT`, `NO_HOST`, `_Call`, `_Driven`, `_drive`, `_fuel_used`, `_linker`, `_output_free`, `_output_write`; `_engines`: `_engine`, `_engines` (`_set_async_stack` is gone: 102 re-pointed `test_the_async_stack_size_property_is_preferred` to `_wasmtime_ffi.set_async_stack`); `_home`: `_ctrl_c`, `_deferred_ctrl_c`, `_note_ctrl_c`, `_stack`; `_platform`: `_THREAD_STACK`, `_WASM_STACK`, `_fork`, `_trap_handlers_ready` |
+| `tests/unit/test_runner_cancel.py` | `_call`: `_epoch_now`, `_shared` (`_context_address` is gone: 102 re-pointed the `shared` fixture to `_wasmtime_ffi.context_address`); `_home`: `_ctrl_c`, `_ctrl_c_watched`, `_stack` |
 | `tests/unit/test_runner_data.py` | `_zip`: `MPL_DATA_MEMBER`, `_data_intact`, `_extract_data`, `_remove_entry` |
 | `tests/unit/test_runner_grants.py` | `_engines`: `_CHECK_WAT`; `_places`: `_Preopen`, `_Walked`, `_check_grants`, `_check_preopens`, `_check_root`, `_close_held`, `_identity_of`, `_judge`, `_rewritten`, `_walk`, `_walk_windows`, `_wasi_ino`, `_win_open` |
 | `tests/unit/test_runner_inputs.py` | `_limits`: `_check_inputs` |
@@ -364,7 +413,7 @@ loosened. The files, and what each takes from where (EXECUTED, from both forms o
 | `tests/checks/test_v1_4_public_api.py` | `_limits`: `_UNSET`; `_artifacts`: `find_artifacts`; and `_defaults_loads` reads every `.py` under `src/wasi_python/`, not `runner.__file__` alone, so a `DEFAULTS` read outside `_current_defaults` is refused wherever it is written (the check is widened, not weakened) |
 | `tests/checks/test_v1_4_sessions.py` | `_home`: `_ctrl_c`; `_limits`: `TICK_S`; `_private_dirs`: `_held`; `_sessions`: `_after_export`, `_closers`, `_on_arm`, `_on_call`, `_on_export`, `_reap`, `_reaper`, `_session_clock`, `_sessions_lock` |
 | `tests/harness/files.py` | `_call`: `UNMETERED`, `_Call`, `_guard_linker`, `_linker`, `_mount_linker`; `_home`: `_stack` |
-| `tests/harness/api.py` | `_engines`: `CACHE_ENV`; `_artifacts`: `_ARTIFACTS_ENV` (line 1049's `top._ARTIFACTS_ENV`); and its tables: `INTERNAL_FILES` and `INTERNAL_MODULES` gain the ten new modules, `DEFINING` gains `_artifacts.py`, `_call.py`, `_places.py` and `_sessions.py` (the files that now define public names), so criterion 6's internal-name rule and the `from __future__ import annotations` rule keep covering every module |
+| `tests/harness/api.py` | `_engines`: `CACHE_ENV`; `_artifacts`: `_ARTIFACTS_ENV` (line 1049's `top._ARTIFACTS_ENV`); and its tables: `INTERNAL_FILES` and `INTERNAL_MODULES` gain the ten new modules **and 102's `_wasmtime_ffi.py` (`wasi_python._wasmtime_ffi`)**, which 102 names in neither table (EXECUTED, grep), unless 102's build adds them, in which case 103 adds nothing for it and says so in the landing notes; `DEFINING` gains `_artifacts.py`, `_call.py`, `_places.py` and `_sessions.py` (the files that now define public names), so criterion 6's internal-name rule and the `from __future__ import annotations` rule keep covering every module |
 | `tests/harness/paths.py` | `_artifacts`: `_ARTIFACT_DIR` (two reads) |
 | `tests/test_api.py` | `_artifacts`: `_ARTIFACT_DIR`, `_CHECKOUT_ARTIFACT_DIR` (four patches), `_ARTIFACTS_ENV` |
 
@@ -471,7 +520,7 @@ interface.
 |---|---|
 | `src/wasi_python/_limits.py`, `_platform.py`, `_artifacts.py`, `_engines.py`, `_private_dirs.py`, `_zip.py`, `_places.py`, `_home.py`, `_call.py`, `_sessions.py` | new: the moved text (the table below), a docstring, imports |
 | `src/wasi_python/runner.py` | 6,241 → about 1,230 lines: what Decision 1's last row keeps, imports, the two hooks as Decision 4 writes them, the re-exports `from ._call import Completed`, `from ._places import Grant`, `from ._sessions import SessionEnded` |
-| `src/wasi_python/__init__.py` | `Artifacts`, `ArtifactsMissing`, `artifact_dir`, `artifacts`, `_ARTIFACT_DIR`, `_ARTIFACTS_ENV`, `_checkout_artifact_dir`, `_CHECKOUT_ARTIFACT_DIR` move to `_artifacts.py` (lines 29–112 today, 101 lines with their blank lines, EXECUTED); the import block moves to the top; the "Last:" comment and the `# noqa: E402` go |
+| `src/wasi_python/__init__.py` | `Artifacts`, `ArtifactsMissing`, `artifact_dir`, `artifacts`, `_ARTIFACT_DIR`, `_ARTIFACTS_ENV`, `_checkout_artifact_dir`, `_CHECKOUT_ARTIFACT_DIR` move to `_artifacts.py` (lines 36–125 today, 90 lines with their blank lines, EXECUTED; lines 29–34, the imports and `__version__`, stay); the import block moves to the top; the "Last:" comment and the `# noqa: E402` go |
 | `src/wasi_python/mounts.py` | the `TYPE_CHECKING` import `from .runner import _Call` becomes `from ._call import _Call`; `_Files.__init__`'s `from . import runner` becomes `from . import _call, _engines, _home, _places, runner`, storing each on the instance beside `self._runner`; twelve sites qualified: line 646 `runner._siphash13` → `_places._siphash13`; 724 `r._ctrl_c_watched() and r._ctrl_c["pending"]` → `self._home._ctrl_c_watched() and self._home._ctrl_c["pending"]` (723's `r._hook["exiting"]` stays: `_hook` stays in `runner`); 759 and 763 `self._runner._trampoline_module` and `._stat_trampoline_module` → `self._call.…`; 847 `r, call = self._runner, self.call` → `r, call = self._call, self.call` (so 849, 853 and 858's `r._epoch_now` hold); 852 `r._epoch_ticker.count()` → `self._engines._epoch_ticker.count()`; 1048, 1167, 1504, 1651, 1902 `self._runner._siphash13` → `self._places._siphash13`. Nothing else in `mounts.py` changes |
 | `tests/unit/test_runner_package.py` | new: checks 1 to 4 below |
 | `tests/checks/test_rules.py` | check 5 (Decision 6) |
@@ -482,8 +531,9 @@ interface.
 
 ### The move table: every top-level name of today's `runner.py`
 
-355 names (EXECUTED, `table.py`), each in exactly one row; today's line numbers are the
-reviewer's index into `a9064a2`'s `runner.py`. Within a module the rows are in today's order,
+355 names on `a9064a2` (EXECUTED, `table.py`), each in exactly one row, three of them marked
+as gone on 102's tip (352 there); today's line numbers are the reviewer's index into
+`a9064a2`'s `runner.py`. Within a module the rows are in today's order,
 and that is the order the module keeps.
 
 **`_limits.py`** (18 names)
@@ -509,13 +559,13 @@ and that is the order the module keeps.
 
 | today's lines | names, in today's order |
 |---|---|
-| `__init__.py` 29–112 | `_ARTIFACT_DIR`, `_ARTIFACTS_ENV`, `_checkout_artifact_dir`, `_CHECKOUT_ARTIFACT_DIR`, `ArtifactsMissing`, `Artifacts`, `artifact_dir`, `artifacts`; then the alias `find_artifacts = artifacts` (Decision 3, item 5) |
+| `__init__.py` 36–125 | `_ARTIFACT_DIR`, `_ARTIFACTS_ENV`, `_checkout_artifact_dir`, `_CHECKOUT_ARTIFACT_DIR`, `ArtifactsMissing`, `Artifacts`, `artifact_dir`, `artifacts`; then the alias `find_artifacts = artifacts` (Decision 3, item 5) |
 | 3854–3855 | `_stamp` |
 | 3910–3954 | `_hash_file`, `_versions`, `_version_tag`, `GUEST_PACKAGE`, `_guest_packages`, `_has_guest_package` |
 | 3977 | `_digests` |
 | 4625–4687 | `SET_SUMS`, `_Checked`, `_found_and_checked`, `_digest` |
 
-**`_engines.py`** (18 names)
+**`_engines.py`** (18 names on `a9064a2`; 16 on 102's tip)
 
 | today's lines | names, in today's order |
 |---|---|
@@ -525,8 +575,8 @@ and that is the order the module keeps.
 | 2594–2598 | `_check_module` |
 | 3957–3976 | `_cache_dir`, `_lock`, `_engines`, `_modules` |
 | 3978 | `_counts` |
-| 4085–4117 | `_set_async_stack`, `_engine` |
-| 4690–4858 | `_module`, `_compiling`, `_module_miss`, `_private`, `_wasmtime_version`, `_epoch_ticker` |
+| 4085–4117 | `_set_async_stack` (gone on 102's tip: `ffi.set_async_stack`), `_engine` |
+| 4690–4858 | `_module`, `_compiling`, `_module_miss`, `_private`, `_wasmtime_version` (gone on 102's tip: `ffi.version()`), `_epoch_ticker` |
 
 **`_private_dirs.py`** (32 names)
 
@@ -564,7 +614,7 @@ and that is the order the module keeps.
 | 4077–4082 | `_GUEST_SLICE`, `_stack_size_lock`, `_stack_size_found`, `_on_entry` |
 | 4120–4383 | `_Stopped`, `_ThreadTooSmall`, `_DONE`, `_Box`, `_Home`, `_start_guest`, `_join_guest`, `_on_guest_thread` |
 
-**`_call.py`** (78 names)
+**`_call.py`** (78 names on `a9064a2`; 77 on 102's tip)
 
 | today's lines | names, in today's order |
 |---|---|
@@ -573,7 +623,7 @@ and that is the order the module keeps.
 | 307–336 | `Completed` |
 | 2744–2931 | `_run_checked`, `_preopens`, `_home_of`, `_call`, `_call_deferred`, `_home_folder` |
 | 2952–3274 | `_import_prelude`, `_instance`, `_fuel_used`, `_Driven`, `_drive`, `_Call` |
-| 3287–3456 | `_context_address`, `_shared`, `_epoch_now`, `_epoch_answer`, `_stop_error`, `_on_epoch`, `_epoch_callback`, `_epoch_callback_lock`, `_watch`, `_linkers`, `_mount_linkers`, `_guard_linkers`, `_trampolines`, `_stat_trampolines` |
+| 3287–3456 | `_context_address` (gone on 102's tip: `ffi.context_address`), `_shared`, `_epoch_now`, `_epoch_answer`, `_stop_error`, `_on_epoch`, `_epoch_callback`, `_epoch_callback_lock`, `_watch`, `_linkers`, `_mount_linkers`, `_guard_linkers`, `_trampolines`, `_stat_trampolines` |
 | 3459–3580 | `_linker`, `_runner_linker`, `_mount_linker`, `_guard_linker`, `_stat_trampoline_module`, `_trampoline_module`, `_outputs`, `_outputs_lock`, `_output_keys`, `_output_write`, `_output_free`, `_send_outputs` |
 | 3627–3635 | `EINVAL`, `ENOMEM`, `EBADF`, `EFAULT`, `EIO`, `MAX_SUBSCRIPTIONS`, `SUBSCRIPTION`, `EVENT`, `CLOCK`, `FD_READ`, `FD_WRITE`, `REALTIME`, `MONOTONIC`, `ABSTIME` |
 | 3638–3851 | `_Plan`, `_stop_at`, `_poll_plan`, `_Waits`, `_poll_oneoff`, `_Stream`, `_first_line`, `_trap_name`, `_trap_code_name`, `_door_answer`, `_door` |
@@ -627,18 +677,25 @@ Each is written before the move and seen failing first, as recorded.
    Decision 2's order (`ORDER`, written in the check), or `mounts` from `_places`, `_call`,
    `_sessions` or `runner`, or anything from `__init__.py` and `cli.py`; an import under
    `if TYPE_CHECKING:` may name any module (annotation only); no module imports `tools` at
-   module level. Late imports of package modules (inside a `def`) are allowed only at the
-   sites Decision 2 lists (`LATE`, a list of `(file, function, module)` written in the check);
-   any other is a finding. Seen failing first: today `runner.py` has `from . import
+   module level, and none imports `_wasmtime_ffi` at module level (its import loads wasmtime-py).
+   Late imports of package modules (inside a `def`) are allowed only at the sites Decision 2
+   lists (`LATE`, a list of `(file, function, module)` written in the check), except
+   `_wasmtime_ffi`, which any function may import late (102's form, `from . import
+   _wasmtime_ffi as ffi`); any other is a finding. `ORDER` is a plain tuple; 104 prepends
+   `_process`. Seen failing first: today `runner.py` has `from . import
    Artifacts` at module level, `__init__` is `runner`'s importer and importee, and the check
    reports it.
 3. **`test_a_module_imports_by_name_only_what_never_changes`** (same file; Decision 2's two
    forms). For every `from ._x import name` in the package (module-level and late), the object
    `wasi_python._x.name` is a class, a generic alias (`typing.get_origin(obj) is not None`), an
    instance of `int`, `float`, `str`, `bytes`, `tuple`, `frozenset` or `re.Pattern`, or one of
-   `SENTINELS = ("_UNSET", "_DONE")`; anything else (a function, a dict, a lock, a hook) is a
-   finding naming the importer, the name and its type. And no module anywhere imports by
-   `from` a name in Decision 4's `RESET_BY_FORK`. Seen failing first: the builder writes the
+   `SENTINELS = ("_UNSET", "_DONE")`, a plain tuple 104 extends with `process`; anything else (a
+   function, a dict, a lock, a hook) is a finding naming the importer, the name and its type. No
+   module anywhere imports by `from` a name in Decision 4's `LOCKS_RESET_BY_FORK` or
+   `REBOUND_BY_FORK`. And, Decision 2's condition: for every `monkeypatch.setattr(<module>,
+   "NAME", …)` in `tests/` whose `NAME` on that module is a class or a constant by the rule
+   above, no package module from-imports `NAME` (today `MAX_RESPONSE`, `_REMOVE_BUDGET`,
+   `DEFAULTS`; 104 moves the seams and may retire this assertion by name). Seen failing first: the builder writes the
    check before the move and runs it on a one-module draft that does `from ._home import
    _ctrl_c_watched`; it names the import.
 4. **`test_every_runner_name_is_defined_in_one_module`** (same file). Over the eleven runner
@@ -677,6 +734,7 @@ In: Decisions 1 to 8. Out:
 
 - **The `_Process` object, the fork reset as one method, and the test hooks off module globals**
   (H5): spec 104. This file leaves every hook where its functions moved and names the modules.
+  Check 1 is 103's until 104 lands; 104 retires it for its own, by name.
 - **A typed `_CheckedCall`, the phase enums, mypy** (H3, M1): spec 105.
 - **`mounts.py` behind a protocol, `_platform.py`'s one interface, one stamp, the finding IDs
   out of comments** (H4, M3, M4, M2): spec 106. `mounts.py` changes here only in the lines
@@ -692,16 +750,18 @@ In: Decisions 1 to 8. Out:
 1. **The checks exist and were seen failing first**, as *The checks* says, each failure's one
    line recorded in the landing notes (five checks; check 2's failure on today's tree, check 5's
    on today's `runner.py`, checks 1, 3 and 4 on the named drafts).
-2. **Every name once.** A script over `a9064a2`'s `runner.py` (355 names) and `__init__.py`'s
-   eight finds each defined exactly once across `src/wasi_python/`'s eleven runner modules and
-   `_artifacts.py`; the count is in the landing notes (363 found, 0 missing, 0 twice).
+2. **Every name once.** A script over 102's tip's `runner.py` (352 names: `a9064a2`'s 355 less
+   the three 102 deletes) and `__init__.py`'s eight finds each defined exactly once across
+   `src/wasi_python/`'s eleven runner modules; the count is in the landing notes (360 found, 0
+   missing, 0 twice).
 3. **The order holds.** Check 2 passes; the two `TYPE_CHECKING` imports are the only upward
    references; `python -c "import wasi_python, sys; assert 'wasmtime' not in sys.modules"`
    exits 0 (EXECUTED by the builder).
 4. **Verbatim.** `build/103/verbatim.py`'s uncategorised residue is empty; its counts (import
    lines, docstring lines, qualified lines, hook lines, the alias) are in the landing notes,
    with the qualified-line count against Decision 2's 226 (a difference is explained there).
-5. **The fork hook.** Check 1 passes; `RESET_BY_FORK` names 16 entries and `NOT_RESET` one.
+5. **The fork hook.** Check 1 passes; `LOCKS_RESET_BY_FORK` names 12 entries, `REBOUND_BY_FORK`
+   4 and `NOT_RESET` 2; the walk found at least 14 locks.
 6. **The judge's files.** The 24 files of Decision 5 import from the defining module; no file
    reads a private name through `runner` but the three re-exports; `rg 'runner\._' tests/`
    finds only `_checked`, `_check_tools`, `_current_defaults`, `_pool`, `_pool_lock` and
