@@ -1,6 +1,6 @@
 # 066 — the compiled packages' own tests in the release
 
-- **Status:** drafted 2026-10-20 on `spec/066-the-compiled-packages-own-tests` from main `1ce7381`
+- **Status:** **landed 2026-10-20 in wave 08** (042, 066, 099) on main `faa9c93`: accepted on `72bc5ed`, history line 89, 763/850 pass, 0 fail, on a set rebuilt from the same pins in a clone of wave 08 outside the home folder (`SHA256SUMS` `b5a66245`, equal byte for byte to the set rebuilt in the main tree; attempt 1 in the main tree void by macOS host litter, spec 089); the integration review `../reviews/wave-08-integration-2026-10-20.md` (lands once the progress files are copied back unchanged; done, every grown row inside its prediction or its M2 clause); the dry run 39488145764 dispatched as main moved. Before: drafted 2026-10-20 on `spec/066-the-compiled-packages-own-tests` from main `1ce7381`
   (wave 05 landed); **revised 2026-10-20 against its pre-build review**
   (`../reviews/066-the-compiled-packages-own-tests-spec-2026-10-20.md`: "ready once H1, H2 and M1
   to M3 are written in"; every finding is written in, and the Disposition section says where).
@@ -1309,3 +1309,9 @@ own checks by node id, at most three guests, `build/lane.lock` absent at each st
   ratchet against `e9a76ce`: lost 6 (six of those, passing on main's set with main's checks),
   grew 0. No 066 row and no numpy, pandas or CPython row is among them. Only the wave's set, which
   the lane builds, holds 042's members; 066 adds no check that reads them.
+
+### Landed in wave 08
+
+- With 099 in the wave, `matplotlib-rest-b1` runs 3,369 passes (066 alone 3,367: two `test_mlab` cases now raise `LinAlgError`), and its class `no-fp-exceptions` is emptied by 099 (Decision 7). All 40 groups pass on the wave's set, 17,974 passes in all; `matplotlib-mathtext` ran clean for the first time on this set (985 passes, 296.61 G).
+- Attempt 1 voided `matplotlib-mathtext` and its class by host litter in the writable root `/tmp/work`; spec 097 moves such roots outside the home folder on macOS.
+- Reviews: `../reviews/066-*` and the wave's integration review.

@@ -1,6 +1,6 @@
 # 099 — numpy's own floating-point signals are kept in software, so a singular matrix raises `LinAlgError`
 
-- **Status:** **drafted 2026-10-20** on `spec/099-numpy-singular-inverse` from main `958a22b`,
+- **Status:** **landed 2026-10-20 in wave 08** (042, 066, 099) on main `faa9c93`: accepted on `72bc5ed`, history line 89, 763/850 pass, 0 fail, on a set rebuilt from the same pins in a clone of wave 08 outside the home folder (`SHA256SUMS` `b5a66245`, equal byte for byte to the set rebuilt in the main tree; attempt 1 in the main tree void by macOS host litter, spec 089); the integration review `../reviews/wave-08-integration-2026-10-20.md` (lands once the progress files are copied back unchanged; done, every grown row inside its prediction or its M2 clause); the dry run 39488145764 dispatched as main moved. Before: **drafted 2026-10-20** on `spec/099-numpy-singular-inverse` from main `958a22b`,
   with its drafting runs; **reviewed before build** the same day
   (`../reviews/099-numpy-singular-inverse-spec-2026-10-20.md`, verdict "passes for build once
   finding 1 (Medium) is answered in the text"); **revised against every finding**, with the owner's
@@ -1050,3 +1050,9 @@ before 042, so 042's members are not in it; no rebuild):
 - **No run dispatched.** The hunks are text, and the class change is the judge change Decision 7
   names; the wave's dry run judges both (the owner's rule). The lane decides if the class change
   needs its own run.
+
+### Landed in wave 08
+
+- Its confirming review's L1 (the allow-list reason's archive count, 17 not 13, and a long header line) is carried by spec 100 at its restack, as the Disposition says.
+- The judge edit beyond the rebase hunks (066's class `no-fp-exceptions` emptied, its closer this spec) was checked by the integration review against 066's spec and Decision 7.
+- Reviews: `../reviews/099-*` and the wave's integration review.

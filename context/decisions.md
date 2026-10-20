@@ -89,6 +89,32 @@ of 3.2.2, 30 to 56% less fuel on larger linear algebra and about 1.8 MB less `py
 owner's choice: "Yes, before 0.1.0". Exact singular-matrix parity is not a goal in wasm; the README
 says so.
 
+### statsmodels' suite, its six components, sympy's slow test, and two tiers of tests (2026-10-20, evening)
+
+Four answers, asked as 045 and 067 were prepared (045's builder; 067's pre-build review):
+
+- **statsmodels' own suite goes to spec 095** (before 0.1.0, beside scipy's and scikit-learn's), on
+  066's machinery; formulaic, interface-meta and wrapt, pure-Python, go to 067. 045 builds the
+  package. Natively the suite collects 21,412 tests (20,911 pass, 1 fail, 356 skip, 146 xfail);
+  about 3 T of guest fuel, inferred.
+- **Six statsmodels components whose terms question 83 did not name are approved**, each with a
+  notice in `LICENSES/statsmodels.txt`: `tools/parallel.py` (from mne-python, Simplified BSD; MNE's
+  licence pinned), `tools/docstring.py` (numpydoc, already pinned), libqsturng's `_phi` (Acklam's
+  algorithm; its own file says its licence is not stated), `tsa/stl/_stl.pyx` (NCSA/BSD-3, from
+  netlib's STL), `graphics/boxplots.py` (after Coelho and Ikonen), `regression/quantile_regression.py`
+  (translated from Mohammadi's Matlab with permission). 045's confirming review corrected one fact
+  after the question went out: libqsturng is a fallback for scipy before 1.7, dead code in this build.
+- **sympy's one slow test (about 2.6 T alone) runs on CI in a shard of its own**, allowed past the
+  360 s shard bound.
+- **Two tiers of tests.** The owner, in their words: "I think we should have two concepts of tests.
+  We do not need to run the slow tests unless we're are creating a new release that we publish to
+  pypi. Otherwise, for normal checks, we don't run the slow tests." The lane's reading: upstream's
+  opt-in slow tests (sympy's slow and tooslow, networkx's and narwhals' `--runslow`, numpy's and
+  pandas' `slow`, contourpy's `--runslow` cases that 066 runs today) form a release tier, run on the
+  publishing (tag) run and on the dry run on main before a tag (rule 6b: a tag follows a dry run that
+  passed every job), and skipped on branch runs, wave dry runs and the lane's accepts. Spec 102
+  builds the tier; until it lands, 066's contourpy slow cases stay in its normal groups.
+
 ### statsmodels and the pure-Python packages' own tests in 0.1.0 (2026-10-20)
 
 The lane asked, as wave 08 neared, whether 045 (statsmodels, with formulaic, interface-meta and

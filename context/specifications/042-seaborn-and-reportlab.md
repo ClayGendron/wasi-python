@@ -1,6 +1,6 @@
 # 042 — seaborn and reportlab
 
-- **Status:** **Built, a stacked build on spec 038's tip `ecc2423` (main `958a22b`); release run
+- **Status:** **landed 2026-10-20 in wave 08** (042, 066, 099) on main `faa9c93`: accepted on `72bc5ed`, history line 89, 763/850 pass, 0 fail, on a set rebuilt from the same pins in a clone of wave 08 outside the home folder (`SHA256SUMS` `b5a66245`, equal byte for byte to the set rebuilt in the main tree; attempt 1 in the main tree void by macOS host litter, spec 089); the integration review `../reviews/wave-08-integration-2026-10-20.md` (lands once the progress files are copied back unchanged; done, every grown row inside its prediction or its M2 clause); the dry run 39488145764 dispatched as main moved. Before: **Built, a stacked build on spec 038's tip `ecc2423` (main `958a22b`); release run
   39421194888, red by growth only; awaiting its build review** (Landing notes). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised 2026-10-18 against its pre-build review
   (`../reviews/042-seaborn-and-reportlab-spec-2026-10-17.md`): all nine findings are written in
   here and in question 73, and the review's Disposition says where; the reviewer's confirmation
@@ -1111,3 +1111,10 @@ the pins give 86 passed (`build/042/*-w08.txt`); of the pin and fetch checks of 
   - `--accept-judge "042 two golden jobs and goldens, the oracle pins and lock, eight new checks and four unit checks, the package licence metadata and source-tree lists, the zero-patch count 26"`
   - `--accept-growth "042 199 zip members: zip plus 2041073 bytes, snapshot plus 74056, plain start plus 4.83 M and snapshot start plus 0.53 M; zip-walking rows and the pure-paths scan in proportion to the member count; the reread pays the member cost twice, plus 8.68 M; metadata and entry-point readers, networkx, 033s metadata check and scipy importers on the snapshot, read two more distributions; plot_contour and scipy_numeric snapshot plus 2.20 M and 2.15 M, read_html and the guest package snapshot, by layout, as plot_line snapshot falls 2.06 M; Sobol and pandas-tz snapshot under 0.05 percent; upstream cpython-fs and numpy-lib inside 0.2 percent"`
 - **Native slot:** released at the end of the build (no native build since).
+
+### Landed in wave 08
+
+- Accepted with the integration review's M2 clause and L2 number in `--accept-growth` (the snapshot +62,943 on the wave, against 74,056 on 042's own base) and the lane's correction of the zero-patch count in `--accept-judge` to 27 (26 before the rebase onto wave 07).
+- The integration review's M1: the oracle venv was synced online with seaborn 0.13.2 and reportlab 5.0.1 before the accept, and `test_goldens_reproduce_under_the_pinned_oracle` passed.
+- L3: this spec's build review has no recorded confirmation; its one later code change swaps two assertions, read by the integration reviewer and found harmless.
+- Reviews: `../reviews/042-*` and the wave's integration review.
