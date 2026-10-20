@@ -1,0 +1,10 @@
+uname: Linux 7.0.12-linuxkit aarch64
+commit: 45efcc369fef683fb3fe07959edf2552e22c109d
+done: 16 steps in 8m05s; the artifact set is in build/artifacts/
+exit: 0, wall: 485s
+criterion5-hostile: 51 passed in 112.48s (0:01:52)
+criterion5-cpython-suites: 3 passed in 177.94s (0:02:57)
+criterion5-cpython-classes-and-traps: 25 xfailed in 153.91s (0:02:33)
+checks-a-c-zip: 1 failed, 2 passed in 13.27s
+FAIL tests/checks/test_v1_5_rebuild_from_pins.py::test_the_guests_configure_results_are_recorded — AssertionError: +Py_HASH_ALGORITHM 3 (built, not recorded)
+FAILED tests/checks/test_v1_5_rebuild_from_pins.py::test_the_guests_configure_results_are_recorded

@@ -1,0 +1,7 @@
+{"case": "free_list", "max_ok": 37433, "at_max": "ok 37433", "above": "trap", "stack": 8388608, "arch": "arm64"}
+{"case": "free_tuple", "max_ok": 37434, "at_max": "ok 37434", "above": "trap", "stack": 8388608, "arch": "arm64"}
+{"case": "free_dict", "max_ok": 22785, "at_max": "ok 22785", "above": "trap", "stack": 8388608, "arch": "arm64"}
+{"case": "hash_tuple", "max_ok": 40313, "at_max": "ok 40313", "above": "trap", "stack": 8388608, "arch": "arm64"}
+{"case": "compile_terms", "max_ok": 58227, "at_max": "RecursionError Stack overflow (used 112 kB) during compilation 58227", "above": "trap", "stack": 8388608, "arch": "arm64"}
+{"case": "c14n_deep_tree", "max_ok": 23818, "at_max": "ok 23818", "above": "trap", "stack": 8388608, "arch": "arm64"}
+{"case": "py_recursion_limit_raised", "max_ok": 400000, "unbounded_to": 400000, "at_max": "ok 400000", "stack": 8388608, "arch": "arm64"}

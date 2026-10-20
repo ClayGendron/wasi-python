@@ -1,0 +1,9 @@
+c-stack-doctest | trap at or after test.test_doctest.test_doctest.TestDocTestFinder.test_issue35753
+c-stack-exceptions | trap at or after test.test_exceptions.ExceptionTests.test_recursion_in_except_handler
+c-stack-itertools-tee | trap at or after test.test_itertools.TestPurePythonRoughEquivalents.test_tee_recipe
+c-stack-ordered-dict-py-subclass | trap at or after test.test_ordered_dict.PurePythonOrderedDictSubclassTests.test_highly_nested
+c-stack-ordered-dict-py | trap at or after test.test_ordered_dict.PurePythonOrderedDictTests.test_highly_nested
+c-stack-ordered-dict-subclass | trap at or after test.test_ordered_dict.CPythonOrderedDictSubclassTests.test_highly_nested
+c-stack-syntax-lazy-import | trap at or after test.test_syntax.LazyImportRestrictionTestCase.test_error_on_parser_stack_overflow
+c-stack-syntax | trap at or after test.test_syntax.SyntaxErrorTestCase.test_error_on_parser_stack_overflow
+c-stack-traceback | trap at or after test.test_traceback.CExcReportingTests.test_exception_group_depth_limit
