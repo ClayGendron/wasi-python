@@ -77,7 +77,7 @@ class DocstringItem(pytest.Item):
         msgs = []
         runner.run(self.dtest, out=msgs.append)
         if runner.failures:
-            raise AssertionError("doctest failed: " + first_line("".join(msgs)[-400:]))
+            raise AssertionError("doctest failed:\n" + "".join(msgs))
 
     def reportinfo(self):
         return self.path, None, self.name
@@ -116,6 +116,8 @@ class Stream:
             if dropped:
                 config.hook.pytest_deselected(items=dropped)
             items[:] = kept
+        for mod_name in spec.get("doctest_preimport", []):  # registers lxml's option flags
+            importlib.import_module(mod_name)
         for rel, flags in spec.get("doctest_files", []):
             path = TREE + rel
             with open(path, encoding="utf-8") as fh:

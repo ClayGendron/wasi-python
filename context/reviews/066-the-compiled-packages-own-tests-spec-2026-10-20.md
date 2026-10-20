@@ -293,3 +293,158 @@ review".)
 Ready once H1, H2 and M1 to M3 are written in (the Lows with their fix text need no further
 round): the structure is sound, but lxml's selection and Pillow's fuzz row are wrong as
 drafted, and the survey's numbers must come back through a confirmation round before the build.
+
+## Confirmation (2026-10-20)
+
+- **Reviewer:** the same fresh agent as above. It wrote none of the revision, the survey or the
+  delta.
+- **Reviewed:** `spec/066-the-compiled-packages-own-tests` at `055a38a`. `d1864fb` is the
+  revision with its Disposition. `055a38a` adds the survey memo
+  `context/research/2026-10-20-the-compiled-packages-own-tests-under-the-runtime.md`, its
+  evidence (`failures.txt`, `summary.json`, `results.tsv`, `kiwisolver-trap.txt`, the stand-in
+  driver) and the spec's "Delta from the survey". The diff touches only `context/` (READ).
+- **Ran:** nothing. No guest, no pytest. Time box: 30 minutes. I read the trees again where a
+  delta item turns on a single line (`build/pillow-13.0.0`, `build/matplotlib-3.11.2`,
+  `build/numpy-2.5.2`, `build/lxml-6.1.3`, `downloads/lxml-6.1.3.tar.gz`). The survey's numbers
+  are the builder's, EXECUTED in its memo. I take them as recorded and did not re-run them.
+
+### The pre-build findings, as written in
+
+- **H1 — closed.** Decision 7 makes the selection equal to `test_suite()`'s in both directions
+  (`keep_classes`, `D` lines, a check both ways), and criteria 1 and 2 test it. The survey
+  bears it out: 360 collected items were deselected and every listed class ran (EXECUTED, memo
+  finding 7). The delta changes one thing, rightly. The 17 doctest files and the docstring
+  suites run as stdlib `DocTestRunner` items with lxml's own flags, because under pytest's
+  doctest plugin 9 files failed: `lxml.usedoctest` swaps the checker's code object. That is how
+  lxml's own runner runs them. Decision 7's body must say so (C4).
+- **H2 — closed.** `Tests/oss-fuzz/test_fuzzers.py` ran: 1,060 passes and 37 skips (EXECUTED).
+  The survey found one more fact, and the `.ini` must carry it: Pillow's tests use the `timeout`
+  mark, so `pillow.ini` registers it, or nine modules fail to collect under `--strict-markers`.
+  Decision 7's Pillow line still says "nothing to transcribe but the testpath" (C4).
+- **M1 — closed.** The memo is EXECUTED, was written before any check, TOML or harness line, and
+  is in this round. contourpy's numbers come later, on 043's set, as Decision 1 says.
+- **M2 — closed.** `driver = "package"`, the renamed keys, the `M` scope, the path-based guard,
+  and numpy and pandas judged byte for byte (criterion 2) are all written in. In the survey no
+  `M` line named a product module loaded from outside the zip; pytest used the product's
+  `packaging`. One knock-on: Decision 14 now says `cwd` is `/tmp/work`, which the delta's
+  Pillow choice contradicts (C1).
+- **M3 — closed, by a better route than either option I offered.** See C1. The read-only
+  working folder causes no failure, so neither a writable copy nor a judge follow-up is needed.
+
+### Findings of this round, most severe first
+
+1. **C1 — Pillow's one suspect test fails because of `mmap`, not the read-only folder** (Medium;
+   delta "Decision 6"). `test_save_without_changing_readonly` (`Tests/test_image.py:246–253`)
+   asserts `im.readonly` before and after `im.save`. `ImageFile` sets `readonly = 1` at open
+   "until we know better" (`ImageFile.py:133`). After load it is 1 only when `mmap.mmap`
+   succeeded (`ImageFile.py:311, 362, 434`). In the guest the `mmap` stand-in raises, Pillow
+   falls back to reading, `readonly` becomes 0, and the second assert reports `assert 0`. READ.
+   So no measured failure is caused by the read-only tree.
+   Fix text: Pillow's `cwd` is the stage's tree root, read-only, with no copy. Decision 14's
+   `cwd` rule allows `/tmp/work` or the tree root again, and the criterion-1 variant follows.
+   The test is a member of Pillow's mmap facts, as its own class matched by id (its reason line
+   is `assert 0`, not `mmap is unavailable`), closed by `README.md`. No judge follow-up is
+   reserved for it. This also removes the litter risk that voided the copy.
+2. **C2 — `no-lapack-errors` hides a user-visible fact the README does not state** (Medium;
+   delta "Decision 9"). The two `test_mlab` cases carry matplotlib's own
+   `skipif(sys.platform == 'emscripten', reason="WASM doesn't support floating-point exceptions")`
+   (`test_mlab.py:883–889`). The guest's platform is `wasi`, so the skip does not apply. numpy
+   signals a singular matrix through floating-point status flags, which wasm32 does not have.
+   numpy's own suite skips its two not-invertible tests on any wasm
+   (`linalg/tests/test_linalg.py:1169, 1998`, `IS_WASM = platform.machine() in ["wasm32",
+   "wasm64"]`). That is why 050's groups never showed this. So in the product,
+   `numpy.linalg.inv` and `matrix_power(…, -1)` of a singular matrix return without raising
+   `LinAlgError` (INFERRED from upstream's own skips plus these two failures). `README.md` has
+   no sentence on it (grep for `LinAlgError` and "singular": none).
+   Fix text: name the class `no-fp-exceptions`, with the reason "wasm32 has no floating-point
+   exception flags: numpy.linalg cannot raise LinAlgError for a singular matrix; numpy's own
+   suite skips these on wasm, matplotlib only on emscripten". 066 adds that sentence to the
+   README, since the class's closer is `README.md`. The lane decides whether a product follow-up
+   (a carried numpy patch that checks LAPACK's `info`) gets a roadmap line. This is not 066's to
+   build.
+3. **C3 — 066 should depend on 096, not select around it** (Medium; the coordinator's question).
+   - kiwisolver's trap fires at whichever collection first meets a cycle holding a kiwisolver
+     object. The bisection moved it through three tests, one of which calls no `gc.collect()`
+     (memo finding 1, EXECUTED). A deselection by node id cannot select around a trap whose
+     place depends on when the collector runs. The only selection left is the whole group as
+     one trap entry, which is no coverage at all.
+   - matplotlib's constrained layout builds the same objects. The survey's matplotlib groups did
+     not trap. But a change that moves allocation timing (a new pin, a new test file, 043's set)
+     could move the trap into a matplotlib group on an unrelated landing (INFERRED). 096 first
+     removes that risk from ten groups, not only from kiwisolver's.
+   - lxml's `lxml-html-diff` class would be written, then removed by 096. 096 first means no
+     class and no churn.
+   - 066 must re-survey matplotlib and contourpy on 043's set anyway. That re-survey should run
+     on a set that includes 096.
+   Fix text: 066 depends on 096 (096 lands first, or 066 is built stacked on 096's reviewed tip,
+   §4.14). The fallback is decided now in case 096 slips: 066 builds without the kiwisolver group
+   (kiwisolver stays `later`, `closes_with = "spec 096"`), and `lxml-html-diff` is a class closed
+   by 096. 096's own scope should say why spec 051's callback scan missed these casts (they pass
+   through `void_cast`) and close that scan gap. That is a note for 096's drafter.
+4. **C4 — The delta must be folded into the Decisions before building** (Low). Decisions 9, 11
+   and 12 still hold the INFERRED tables (three shards, a 3×10¹² budget, `mpl-toolkits` as one
+   group). Decision 7 still names a pytest doctest collector, and its Pillow line lacks `timeout`.
+   Decision 2 says the six budgets are at most 3×10¹². The Status still says the numbers are
+   "INFERRED until its survey runs".
+   Fix text: replace each with the measured or ruled value, and keep the delta section as the
+   dated record.
+5. **C5 — Some new classes' names or reasons do not match what failed** (Low).
+   - `no-ffmpeg-messages`: `test_movie_writer_registry` sets the ffmpeg path to `true` and asserts
+     it is available (`test_animation.py:297–304`). It needs an executable on `PATH`, which the
+     guest cannot run, so its reason is "no processes". Read `test_movie_writer_invalid_path`'s
+     reason before naming it.
+   - `stubs-not-in-zip`: the test reads `cm.pyi` from the stage's own tree, not from the zip. The
+     honest fix is to stage that one tarball member as a support file (data, never imported).
+     Otherwise its closer is a judge follow-up, not `README.md`.
+   - `open-empty-path` (`open('')` answers `IsADirectoryError`), `builtin-no-file` and
+     `include-dir-in-zip` close with `README.md`, so the README gains each fact if it does not
+     state it already.
+   - `test_tripcolor_warnings` (`DID NOT WARN`) is in the memo but not in the delta's classes.
+     Name it with the 93 failures spec 043 owns, to be re-read on 043's set: it builds a
+     Delaunay triangulation, which needs `_qhull`.
+6. **C6 — Two lxml doctest files are still unread** (Low): `api.txt` and `parsing.txt` ("read in
+   the build"). Each class needs its reason before it is written.
+   Fix text: read both before the TOML. If either is a product defect, it goes to 096, not to a
+   class. The build review sees the reasons.
+7. **C7 — Closers for the two new not-selected items** (Low). `test_elementsoup.py`'s judge
+   follow-up needs a reserved number in the roadmap's `Reserved:` paragraph, not just "a judge
+   follow-up". regex's `test_main` is regex's own `unittest.main()` entry point. Its row says so,
+   and closes with `README.md`'s testing paragraph, which names it as not run.
+8. **C8 — lxml's copy of `samples/` meets the same litter hazard as Pillow's copy** (Low). The two
+   files are tarball members at the sdist's top level (`samples/simple.xml`,
+   `samples/simple-ns.xml`, READ).
+   Fix text: stage them under the tree and give lxml the tree root as its `cwd`, read-only, as
+   C1 does for Pillow. The build confirms that no lxml test writes to its working folder. Or
+   keep the copy, with the reason it is safe.
+9. **C9 — The proposed 6×10¹² is itself an underestimate** (Low). The survey ran without
+   `test_contour.py`, without the 93 tests that failed at import on main's set, and without
+   contourpy. On 043's set all of them run in full.
+   Fix text: the owner rules on the rule, not on a number (below). The budget per family is
+   stated after the re-survey on 043's set.
+
+### The budget: my recommendation
+
+**The larger budget,** set by rule: each cap is 1.5 times the re-survey's fuel on 043's set, and
+each family's budget is written in `upstream.py`. The INFERRED total is 6.5 to 7×10¹² of caps,
+not 6×10¹² (C9). Six Linux shards of at most about 700 G each.
+
+- **Not "fewer files".** Leaving out a test because it costs fuel is a convenience. Decision 8 and
+  AGENTS rule 4 allow only "cannot load" or "every test needs what the product lacks". Choosing
+  this would need the owner to amend that rule.
+- **Not "part of matplotlib on the lane only".** It saves release time, which is not what binds:
+  macOS's five slots do, and six Linux shards end inside the 457 s macOS leg (INFERRED from
+  0.16 to 0.31 s per G). It does not reduce the cost that bites, which is the lane's. And it
+  removes Linux's G5 comparison for those groups.
+- **The cost the owner accepts** is the lane's. The upstream groups' darwin fuel goes from 2.84 T
+  to about 7 T at every full judge: the lane's, every builder's, and every reviewer's. That is
+  more again on the serial judge every fifth landing. It is the price of matplotlib's 1,300
+  image comparisons and Pillow's 1,060 fuzz files actually running, and the owner should choose
+  it knowingly.
+
+### Verdict of the confirmation
+
+**Confirmed for build once C1 to C3 are written in and the owner rules on the budget.** The Lows
+come with fix text and need no further round. The build starts after 043 and 096 have landed (or
+stacked on their reviewed tips). The re-survey of matplotlib and contourpy on that set comes to
+the lane as a second, small delta. The bar for that delta is a context-only look: any change in
+the not-selected rows or the classes, any group over 480 G, and the budget per family.

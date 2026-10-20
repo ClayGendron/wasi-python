@@ -146,3 +146,20 @@ The delta this memo feeds is written into spec 066 (its section "Delta from the 
 the two product defects and what they block; matplotlib's real cost and the budget it breaks; the
 groups split; the Pillow working folder; the classes with members; lxml's runner and staging;
 regex's `test_main`; contourpy measured later on 043's set.
+
+## Addendum, for the confirmation's C2 and C6 (2026-10-20, EXECUTED)
+
+On the same private copy of main's set, `build/lane.lock` absent:
+
+- **C2.** A plain guest program (`probe.py`): `numpy.linalg.inv` and
+  `numpy.linalg.matrix_power(a, -1)` of `a = [[1.0, 2.0], [2.0, 4.0]]` both return
+  `[[nan, nan], [nan, nan]]`; neither raises `LinAlgError`. So `test_mlab`'s two failures are the
+  product's missing floating-point exception flags, as numpy's own suite records by skipping them
+  on wasm.
+- **C6.** lxml's doctest files rerun with full reports (the driver now imports
+  `lxml.doctestcompare` first, which registers `PARSE_HTML` and `NOPARSE_MARKUP`): `api.txt`
+  (line 654, `XIncludeError: could not load doc/test.xml`) and `parsing.txt` (line 107,
+  `failed to load "doc/test.xml"`) fail only because the survey's working folder lacked the
+  tarball member `doc/test.xml`; `validation.txt` fails from line 460 on
+  `ImportError: lxml.isoschematron is not in this build` (the stand-in); `test_diff.txt` on
+  finding 2. No product defect beyond findings 1 and 2.
