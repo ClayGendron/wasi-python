@@ -61,6 +61,33 @@ ready: Wed 2026-10-21, about 18:00 UTC (INFERRED), range Wed 10:00 UTC to Thu 20
   slots, not wall clock, and is build-class). A cache of the artifact set keyed by the pins (after
   0.1.0, unless CI minutes become the bottleneck).
 
+### Every test of every package we build (2026-10-20)
+
+Spec 066's re-survey on wave 06's set (branch tip `ad3c065`) found the budget rule's price was
+misstated in the answer below. contourpy measured 4,155 G, of which its `test_*_random_big` cases
+are about 2,833 G. By the rule, 066's caps are about 12.6 T, not about 7 T. Counting the 2.89 T of
+upstream groups the judge already runs, a full judge runs about 11.2 T of upstream fuel with every
+test, or about 8.4 T without the random_big cases. The confirming reviewer's delta review found
+that contourpy's two big files cannot stay single groups: each would need a shard to itself, past
+criterion 12. The lane explained this to the owner without a recommendation and asked Fable to
+weigh in. Fable recommended leaving the big cases out as upstream's own slow-host selection
+(contourpy's `test.yml` runs `-k "not big"` on its emulated legs, which the lane confirmed in the
+pinned 1.4.0 source).
+
+The owner chose otherwise, in their words: "I think I want to include all tests from the packages
+that we are building into wasi_python, so if we can achieve that, I'd love to keep that in and
+adjust our caps so we can handle them." So:
+
+- Every upstream test of a package we build runs in the release, random_big included. The rule
+  against leaving tests out for convenience stands, unamended.
+- Caps follow the same rule (1.5 times measured fuel, each family's budget the sum of its caps),
+  now about 12.6 T for 066. A group too big for one shard is split into groups by construction
+  (spec 066's option (b): an ordered list of `-k` expressions, each group excluding the earlier
+  ones and the last taking the rest), never left out.
+- The price, accepted: about 11.2 T of upstream fuel per full judge (3.9 times today), about twelve
+  Linux shards for 066, and longer lane accepts. Fable's note stands as the speed lever: spec 092
+  (the judge reads CI's record) shortens the lane's own judge.
+
 ### Three answers for 0.1.0 (2026-10-20)
 
 The owner answered three questions the lane asked on 2026-10-20 (AskUserQuestion):
