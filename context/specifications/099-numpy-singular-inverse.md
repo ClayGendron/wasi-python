@@ -322,7 +322,10 @@ force-included header; this adds the first.
   >   LAPACK is numpy's own bundled `lapack_lite`, not native numpy's OpenBLAS, until spec 100: for
   >   a matrix singular only in exact arithmetic the two can disagree either way (the guest may
   >   return finite numbers where native raises, or raise where native returns), and a matrix of
-  >   `nan` can raise `ValueError` ("On entry to DLASCL …") where native raises `LinAlgError`.
+  >   `nan` can raise `ValueError` ("On entry to DLASCL …") where native raises `LinAlgError`;
+  >   `numpy.linalg.lstsq` of one raises `SystemError`, with that `ValueError` as its context.
+
+  (The last clause was added at build, build finding B1 in *Landing notes*.)
 
   **If spec 066 lands first**, its bullet "**No floating-point exception flags**" (on its branch,
   `README.md:318-322`, "Until spec 099 lands, …") is replaced by this one, word for word.
@@ -342,7 +345,9 @@ force-included header; this adds the first.
   division by zero, integer overflow in division and float16 overflow warn, or raise under
   `np.errstate`, as natively: a widening of the owner's question, named here. Signals only the
   hardware gives (float division by zero, `log(0)`, invalid casts) stay silent; the README says
-  so."
+  so." At build it gained one sentence, for build finding B1: "One case gets worse until spec 100:
+  `numpy.linalg.lstsq` of a matrix of `nan` raised `ValueError` from `lapack_lite` and now raises
+  `SystemError` with that `ValueError` as its context (native: `LinAlgError`)."
 - **`tests/upstream/packages.toml`: no line changes.** numpy's suite already runs (spec 050); this
   adds no package. **If spec 066 lands first**, its `no-fp-exceptions` class (matplotlib's `rest`
   group, two `test_mlab` members, `closes_with = "spec 099"`) is emptied by this specification's
@@ -699,13 +704,68 @@ signals stays silent and says so.
   (`pgrep -fl pytest`: 066's upstream groups with `-n 3`, 042's checks), so only single node ids
   and the rules check ran. ruff check and ruff format --check are green.
 
-### Phase 2 (the native slot)
+### Phase 2: the build (criteria 2, 4 and 5; EXECUTED 2026-10-20, macOS arm64, the native slot)
 
-From an empty `build/` in this worktree: `scripts/build.sh` (steps 40 to 90 change their
-outputs). Then: the seven new nodes and the fast tier `-n 3` on the new set (no lane lock, no
-other fast tier); the bytes and every moved fuel row, up or down; `python.map` for one
-`wasi_python_fe_flags`; steps 50 and 57's archives against main's by hash; `singular_probe.py` and
-`fp_probe.py` on both binaries, with the four counts and an example of each row (`to_out.py
---crosstab`), as facts for spec 100; then `release.yml` dispatched on the exact commit, read back
-(every red line a growth line or G7); the self-check and *For the lane* with flags beginning
-"099".
+- **`scripts/build.sh` from an empty `build/`** in this worktree (the downloads `cp -c` cloned from
+  the main tree's; step 00 verified every pin): 18 steps in 14 m 50 s, exit 0
+  (`build/099/build.log`). Step 40's log has 419 `warning:` lines, as main's has: the header adds
+  none.
+- **Check 4's rule on the new records:** 189 compiles (166 C, 23 C++), each force-including the
+  header once; 9 `cython` runs not read.
+- **One word** (criterion 4): `build/link/python.map` names `wasi_python_fe_flags` once, 4 bytes
+  of `.bss`, the copy of one object (`dragon4.c.o`); every other object's weak copy was dropped.
+- **The archives:** pandas' 45, scipy's 95, the plot modules' 13, lxml's 2 and regex's 1 equal
+  main's byte for byte; numpy's 19 differ, as they must. So steps 50 and 57 are unchanged.
+- **The set**, `SHA256SUMS` `7519b047…`, against main's `f12cd25c…`:
+  - `python.wasm` 84,794,273 → 84,794,013 bytes (**−260**); the snapshot 89,468,144 → 89,467,888
+    (**−256**); the zip 44,445,945 → 44,445,960 (**+15**: `numpy/__config__.py` records the
+    `-include` in both argument lines). The binaries shrink: each status read was an out-of-line
+    call into wasi-libc's `fetestexcept`, now an inlined load (the pre-build review's note 7).
+  - `MANIFEST` differs in exactly three lines: the new `recipe` line for `recipes/npy_fenv_flags.h`,
+    the changed `recipes/wasi-numpy.cross` line, and the snapshot's `x-snapshot-zip` line.
+  - `LICENSES/` is identical.
+- **The seven new nodes pass** on the new set (`build/099/new-nodes.log`). Fuel: check 1
+  1,147,409,887 (plain) and 827,401,831 (snapshot); check 2 1,146,003,003 and 826,093,482; check 3
+  1,143,432,283 and 823,466,914; check 4 records none (its reason: compiles 189, c 166, c++ 23, not
+  compiles 9).
+
+### Phase 2: the facts for spec 100 (criterion 5; EXECUTED, both binaries, identical)
+
+- **`singular_probe.py`**, native (OpenBLAS) against the built set (`lapack_lite`), the four rows
+  (`../research/2026-10-20-numpy-floating-point-status/singular_probe-built-crosstab-*.out`):
+
+  | native | built set | count | example |
+  |---|---|---|---|
+  | raises | raises | 130 | case 4 (n 6, rank at most 2) |
+  | finite | finite | 141 | case 0 (n 7, rank at most 4) |
+  | raises | finite | 20 | case 2 (n 5, rank at most 3); `inv(arange(1, 17).reshape(4, 4))` |
+  | finite | raises | 12 | case 26 (n 4, rank at most 2) |
+
+  Exactly as Decision 6 predicted from main's all-`nan` results: every all-`nan` case now raises.
+- **`fp_probe.py` on the built set** (`fp_probe-built-*.out`): every linalg case of a singular or
+  not positive definite matrix now raises as natively; `svd(nan)` with vectors, `pinv(nan)`,
+  `eigh(nan)` and `eigvalsh(nan)`, all-`nan` returns on main, now raise native's `LinAlgError`;
+  integer, timedelta and float16 signals warn as natively; hardware signals stay silent (check 3).
+  `svd(nan, compute_uv=False)`, `svdvals`, `matrix_rank`, `norm(…, 2)` and `cond` of `nan` still
+  raise `ValueError` (DLASCL) from `lapack_lite`, as on main.
+- **Build finding B1: `lstsq` of a `nan` matrix now raises `SystemError`** (`xerbla_probe.py`, run
+  natively, on main's set and on the built set, plain; `xerbla_probe-*.out`). numpy's
+  `lapack_lite` error routine (`python_xerbla`) sets a Python `ValueError` and returns; `dgelsd`
+  then reports a failure, so `umath_linalg` raises the invalid flag, and numpy's errstate calls
+  the `LinAlgError` callback while the `ValueError` is still set. The result is `SystemError:
+  <class 'numpy.linalg.LinAlgError'> returned a result with an exception set`, its context the
+  `ValueError`. On main the same call raised that `ValueError`; natively OpenBLAS's routine prints
+  and returns, and numpy raises `LinAlgError: SVD did not converge in Linear Least Squares`. Both
+  `lstsq` shapes probed (3×3 and 2×3) show it; `svd(nan, compute_uv=False)` does not (its call
+  reports no failure after the error routine). INFERRED: a native numpy built with `lapack_lite`
+  on hardware with flags does the same; it is upstream's, reached here because the flag now works.
+  **Answer, for the build review to weigh:** it is still an exception (no call returns silently),
+  it is narrower than what this specification fixes (the singular family, and four `nan` cases
+  that now match native), and spec 100 removes it (OpenBLAS's error routine sets no Python
+  exception). So it is written into Decision 7's README bullet and CHANGELOG line, not fixed here;
+  no recipe can stop `python_xerbla` from setting an exception without a source change. Spec 100's
+  builder adds the check that turns it into native's `LinAlgError` (a new failure mode becomes a
+  check). If the lane or the review prefers it fixed before 099 lands, the smallest fix is a
+  carried numpy patch to `python_xerbla`, which is spec 100's territory.
+- `lstsq` of `[[inf, 1], [1, 1]]` returns in the guest, before and after; natively it raises. A
+  LAPACK difference or a hardware flag (Decision 6), not this specification's.
