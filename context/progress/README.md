@@ -171,24 +171,30 @@ The steps, in order:
 1. **Wait for a quiet tree.** Nothing else may be uncommitted in the main tree. Other agents'
    tracked edits block every acceptance, and they are never stashed (constitution §4.14). The
    lane waits for them to be committed, or for the work to move to a worktree.
-2. **Detach.** Run `git switch --detach <the rebased, reviewed commit>`. It changes no working
-   file that step 1 left. For a change built in the main tree, commit the change, its
-   specification and its review here first, on the detached HEAD.
-3. **Accept.** Create `build/lane.lock` (no other agent runs a full judge while it exists, AGENTS.md
-   rule 3a), run `uv run pytest -n 3 --accept "<reason>"`, with `--accept-judge` when the judge
-   changed, then remove the lock. Every fifth counted landing, and any landing whose reviewer's
-   record was serial, runs serially instead (`uv run pytest --accept …`); its sameness line (3a) is
-   the periodic serial confirmation spec 052's Decision 11 asks for (the owner, 2026-10-19).
-3a. **Compare** (spec 052). When the rebase changed no judged file and no code, the
-   landing notes record `uv run python tests/harness/sameness.py <the reviewer's
-   latest.json> build/progress/latest.json` (the lane's record from step 3) and its output.
-   For a batch (constitution §5.7), the lane compares its record with each reviewer's; a
-   difference is explained only by a row another specification in the batch changed, and any
-   other difference splits the batch.
-   A difference stops the landing here: it is a defect of a check (order, speed, a shared
-   path) or of the harness, written in the landing notes and fixed by its own judge change. Nobody
-   re-runs to make it go away. When the rebase did change a judged file or code, the notes say so,
-   and the landing is not counted.
+2. **Detach.** Run `git switch --detach <the wave's tip>` (constitution §5.7; a single
+   specification is a wave of one). It changes no working file that step 1 left. Commit the
+   reviews here first, on the detached HEAD, and for a change built in the main tree, the change
+   and its specification too.
+3. **Accept.** Create `build/lane.lock` (no other tier of the judge runs while it exists, the fast
+   tier included, AGENTS.md rule 3a), run `uv run pytest -n 3 --accept "Wave NN: <specs>"`, with
+   `--accept-judge`, `--accept-growth`, `--accept-fewer-passes` and `--retire` as each entry's
+   "For the lane" names them, every reason beginning with its specification's number; then remove
+   the lock. The serial confirmation spec 052's Decision 11 asks for is the wave's dry run (step
+   7): its shards run serially and gather's G5 compares every row with this acceptance at 1e-4 on
+   three systems (the owner, 2026-10-19; it replaces the local serial acceptance every fifth
+   landing). The lane returns to serial local acceptance only after a dry run shows a G5 fuel line
+   the `-n 3` acceptance did not, until ten waves are clean again.
+3a. **Compare** (spec 052). The landing notes record `uv run python tests/harness/sameness.py
+   <record> build/progress/latest.json` (the lane's record from step 3) and its output, for each
+   entry's reviewer record. Until spec 092 (the judge reads a release record) lands, at least one
+   reviewer per wave keeps a local `-n 3` record for this; once it lands, the wave's dry-run record
+   is compared too, once downloaded. A difference is clean when it is a check blocked in that
+   worktree, or a row in another entry's claim list (the rows its "For the lane" says it changes).
+   Any other difference ejects that entry: it is a defect of a check (order, speed, a shared path)
+   or of the harness, written in the landing notes and fixed by its own judge change. Nobody re-runs
+   to make it go away. A wave is **counted** when every difference is clean and its dry run's G5
+   is green; **not counted** when an entry has no comparison record or the dry run is red on a line
+   that is not growth. "Not counted" never blocks a landing.
 4. **Commit the acceptance alone, at once** (spec 062). Run, in this order:
 
    ```
@@ -207,14 +213,23 @@ The steps, in order:
    can exit 1 only because other checks did not run; read the check's own line). HEAD is still
    detached and nothing has been pushed, so main has not moved. Then redo step 4.
 6. **Move main.** Run `git switch main && git merge --ff-only <the acceptance commit>`.
+7. **Dry run, at the fast-forward.** Push the acceptance commit to `wave/NN` and dispatch the
+   release workflow on it as main moves in step 6; do not wait for the run. Then delete `wave/NN`,
+   local and remote (constitution §4.14); the run keeps its commit, and its record is fetched by
+   run id. Download `release-record-1` into `build/wave-NN/` and keep it; it is the comparison
+   record of record once spec 092 lands. A red line that is not growth is fixed forward: nothing
+   on main is reverted, and the next wave carries the fix before anything else. A tag still needs
+   a green run on main's exact commit (AGENTS.md rule 6b). At most three release workflow runs are
+   live at once (AGENTS.md rule 3a).
 
-**Ten clean landings** (spec 052, Decision 11, restated by the owner on 2026-10-19). Step 3 runs
+**Ten clean waves** (spec 052, Decision 11, restated by the owner on 2026-10-19). Step 3 runs
 on three cores from 2026-10-19, ahead of the count Decision 11 asked for: as first written, its bar
 could not be met, since every recorded comparison (063, 065, 081) differed only by checks blocked
 in the reviewer's worktree and run in the main tree. A comparison is now clean when every
-difference is such a check, or a defect since fixed by a landed judge change. A difference of any
-other kind stops the landing and is fixed, and the lane returns to serial acceptance until ten
-clean landings follow.
+difference is such a check, a row in another entry's claim list, or a defect since fixed by a
+landed judge change. A difference of any other kind ejects its entry and is fixed. The lane
+returns to serial local acceptance only after a dry run shows a G5 fuel line the `-n 3`
+acceptance did not, until ten waves are clean again.
 
 **The upstream suites on the lane (spec 050).** The lane fetches the kit once
 (`uv run python tests/upstream/fetch.py`) and keeps the source trees under `build/`. The landing

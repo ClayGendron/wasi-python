@@ -73,19 +73,22 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    specification that provides it. One specification per builder; at
    most three parallel-safe and three build-class specifications in
    flight (six build-class from 2026-10-19, the owner; four earlier that
-   day); one landing at a time (constitution §5.7; a build-class
-   specification lands after a rebase, a full rebuild in the main tree
-   and a delta review if its recipe hunks or numbers moved; build-class means
-   it touches `scripts/`, `recipes/`, `downloads/SHA256SUMS` or the
-   release workflow). Two exceptions (the owner, 2026-10-19): up to three
-   reviewed parallel-safe specifications may land as one batch, judged
-   and accepted once (constitution §5.7); and a specification whose
-   dependency is built and reviewed may be built on that dependency's
-   reviewed tip (§4.14, a stacked build), rebasing onto main when the base
-   lands, with a delta review. A build-class, growth or Windows-touching
+   day); landings go by waves of up to five reviewed specifications
+   (constitution §5.7, the owner, 2026-10-19: one package or stacked
+   chain, two other build-class, the rest parallel-safe; the toolchain
+   alone with judge-only changes). A builder enters a wave by rebasing
+   onto its tip in the lane's order and naming every conflict it
+   resolved; the lane rebuilds once, accepts once, and a fresh agent
+   reviews the integration. Build-class means it touches `scripts/`,
+   `recipes/`, `downloads/SHA256SUMS` or the release workflow. A
+   specification whose dependency is built and reviewed may be built on
+   that dependency's reviewed tip (§4.14, a stacked build), rebasing
+   onto main, or the wave's tip, when the base lands. Every
    specification is "built" only once its builder has dispatched the
-   release workflow on its branch and every red line there is a growth
-   line or G7; the build review reads that run.
+   release workflow on its branch and read the run: every red line a
+   growth line or G7, the run id in the landing notes; the build review
+   names its own run. Its CHANGELOG lines go under the one unreleased
+   section, which becomes "0.1.0" (no more alphas, the owner, 2026-10-19).
 3. **Write the check before the code.** A new behaviour gets a check
    (or a gap entry naming its closer) first. A new failure mode, once
    seen, becomes a check, so it cannot come back.
@@ -96,14 +99,27 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    a slow check you are changing alone by its node id. Both tiers may
    run on several cores with `-n 6` (spec 052): the same verdicts, about
    a third of the time; use `-n 3` when another agent's judge is running
-   on the machine. While `build/lane.lock` exists in the main tree (the
-   lane's accepting judge is running), run no full judge: the fast tier
-   or a single node id only. The full judge runs once per stage, at its
-   end: the builder's `uv run pytest -n 6` before it writes "built", the
-   reviewer's before its verdict (the reviewer re-runs the counted
-   tests, constitution §5.6), each keeping its `build/progress/latest.json`
-   for the lane; and the lane's `uv run pytest -n 3` on the exact commit
-   it accepts (serial every fifth counted landing, the owner, 2026-10-19).
+   on the machine. The full judge runs once per stage, at its end, and
+   on GitHub Actions (the owner, 2026-10-19): the builder's dispatch of
+   the release workflow before it writes "built", the reviewer's own
+   dispatch on the reviewed commit before its verdict (constitution
+   §5.6), each reading the run back (`gh run view <id> --json jobs`,
+   `gh run download <id> -n release-record-1`). Locally, builders and
+   reviewers run the fast tier and single node ids only. The one local
+   full judge is the lane's `uv run pytest -n 3` on the wave's tip.
+   Until spec 092 (the judge reads a release record) lands, one
+   reviewer per wave also keeps a local `-n 3` record for the lane's
+   sameness line, at a time the lane grants. At most three release
+   workflow runs are live at once (the plan is Pro); a fourth waits.
+   The local budget, which the lane grants slots from: while
+   `build/lane.lock` exists in the main tree (the lane's acceptance or
+   the integration fast tier is running), no other tier of the judge
+   runs, the fast tier included, only single node ids; no container
+   build starts; at most one native build runs. Otherwise, at most one
+   native build, one container build and one fast tier at once (the one
+   reviewer's `-n 3` record takes the fast tier's place), and never two
+   full judges. Ask the lane for a build or judge slot before starting
+   one.
 4. **Never weaken the judge to get a pass.** Do not edit a check, a
    golden output, `tests/known_gaps.toml`, the upstream suites'
    allowances (`tests/upstream/*.toml`, `tests/upstream/expected/`, CPython's plan
@@ -119,16 +135,22 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    is append-only. A changed judge needs `--accept-judge "<reason>"`;
    a machine without artifacts runs with `--partial "<reason>"`. See
    `context/progress/README.md`.
-6a. **Only the lane accepts.** A builder runs the judge in its worktree
-   without `--accept`, against the frozen artifact set its class
-   allows. The lane rebases, compares with the reviewed diff, judges
-   the exact commit in the main tree on three cores (**serially** every
-   fifth counted landing; the owner, 2026-10-19), accepts, and
-   fast-forwards main. It records `uv run python tests/harness/sameness.py`
-   between the reviewer's record and its own; a
-   difference stops the landing until the check is fixed, never a
-   re-run (spec 052, Decision 11). Progress files are never merged:
-   take main's and accept again.
+6a. **Only the lane accepts.** A builder judges without `--accept`: on
+   GitHub Actions, and in its worktree the fast tier against the frozen
+   artifact set its class allows. The lane compares each entry's
+   rebase with its reviewed diff, judges the wave's tip in the main
+   tree on three cores, accepts once with every specification's
+   reasons, and fast-forwards main. It records `uv run python
+   tests/harness/sameness.py` between each reviewer's record (or the
+   wave's dry-run record, once spec 092 lands) and its own; a
+   difference is clean only when it is a check blocked in that worktree
+   or a row in another entry's claim list; any other difference ejects
+   the entry until the check is fixed, never a re-run (spec 052,
+   Decision 11). The wave's dry run, serial on three systems at 1e-4
+   (gather G5), is the serial confirmation Decision 11 asks for; it
+   replaces the local serial acceptance every fifth landing (the owner,
+   2026-10-19). Progress files are never merged: take main's and accept
+   again.
 6b. **Tag only what a dry run passed.** Before a release tag, dispatch
    the release workflow on main's exact commit and wait for every job
    to pass on all three systems. Only Windows runs there; a landing
@@ -148,6 +170,15 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    build recipe) and for the runner's code, optional for a judge-only or
    context-only specification; a Low finding or a note needs no further
    review round when its answer is in writing or touches only `context/`.
+   A Low finding that touches only `context/` may be written in by the
+   reviewer itself, as a commit of the exact text once the builder hands
+   the branch over; a code fix stays the builder's, and the lane reads
+   it against the finding (the owner, 2026-10-19). Before asking for a
+   review, the builder writes the self-check list
+   (`context/reviews/README.md`); the reviewer dispatches its own CI run
+   first, then works its checklist in its time box. A wave's
+   integration gets its own fresh reviewer, one who reviewed none of
+   its entries.
 9. **Commit only what you mean.** Before every commit, read `git diff --cached --stat`: a
    `git mv` or an earlier `git add` stays staged and rides along. A commit on `main` is green on
    its own; when two pieces of work share the tree, check the commit in a clean clone. A

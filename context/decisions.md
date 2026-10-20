@@ -8,6 +8,69 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### Waves, judging on CI, and the dry run as the serial check (2026-10-19)
+
+The owner asked for "5 spec implementors, 5 spec reviewers, merge them all together and build, fix
+any build issues, run CI, merge to main", and answered in the session that night (about 01:20 UTC
+on 2026-10-20), choosing among the options set out. The evidence is a design memo written in the
+lane's scratchpad, `pace/2026-10-19-the-wave-pipeline.md`, not committed. Its numbers that matter
+(READ from the lane log, `git log` and `gh run view`, or INFERRED as marked there): the first
+batch of two landed in 47 minutes end to end, 22 of them the lane's; one release workflow run
+judges a branch in shards on three systems in about 26 minutes, and three ran at once; the
+machine was saturated at 01:03 UTC, and the lane's `-n 3` acceptance took 17 minutes loaded
+against about 10 quiet. A landing costs the lane 50 to 120 minutes alone, and a wave of five about
+75 minutes in all; local full judges fall from three per landing to one per wave. Likely 0.1.0
+ready: Wed 2026-10-21, about 18:00 UTC (INFERRED), range Wed 10:00 UTC to Thu 2026-10-22
+16:00 UTC, against Thu 2026-10-22 04:00 UTC estimated earlier that day.
+
+- **Waves, adopted ("Adopt waves (Recommended)").** Up to five reviewed specifications land as one
+  wave: at most one package or one stacked chain of packages, at most two other build-class
+  specifications, the rest parallel-safe. The toolchain (086) lands alone, with judge-only
+  specifications at most. One integration branch, `wave/NN`, made from main's tip by the lane,
+  pushed for the wave's dry run and deleted at the fast-forward. Each builder rebases onto the
+  wave's tip in the lane's order and names its conflicts; the fast tier runs after each entry;
+  one rebuild in the main tree, compared with the release workflow's build of the same tip; one
+  `-n 3` acceptance with each specification's reasons; one fresh reviewer of the integration. A
+  red entry or an unexplained difference ejects the entry, never the wave; after two failed
+  assemblies the wave is split by kind. Constitution §4.14, §5.4 and §5.7; AGENTS.md rule 2;
+  `progress/README.md` steps 2 to 3a.
+- **Judging on CI, adopted ("Yes, judge on CI (Recommended)").** Every full judge but the lane's
+  moves to GitHub Actions: builders and reviewers dispatch `release.yml` on their branch and read
+  the record back; locally they run the fast tier and single node ids only. §5.6's "re-runs the
+  counted tests" is met by the reviewer's own run, whose id the review cites (its **Run** line).
+  Constitution §5.6; AGENTS.md rules 3a and 8; `reviews/README.md`.
+- **The dry run as the serial check, adopted ("Dry run = serial check").** The wave's dry run
+  (serial shards, gather's G5 at 1e-4, three systems) replaces the local serial acceptance every
+  fifth landing as spec 052's Decision 11 confirmation. Until spec 092 (the judge reads a release
+  record) lands, one reviewer per wave keeps a local `-n 3` record, at a time the lane grants, for
+  the sameness line. AGENTS.md rule 6a; `progress/README.md` steps 3, 3a and 7.
+- **Reviewers write Low fixes in `context/`, adopted ("Reviewer writes Low fixes").** A reviewer
+  may commit the exact text of a Low finding that touches only `context/`, once the builder hands
+  the branch over. Code fixes stay with the builder. Constitution §5.6; AGENTS.md rule 8.
+- **The local budget, lane procedure.** While `build/lane.lock` exists, no other tier of the judge
+  runs (the fast tier included) and no container build starts; otherwise at most one native
+  build, one container build and one fast tier at once, and never two full judges. AGENTS.md
+  rule 3a.
+- **CI's ceiling.** The plan is GitHub Pro: at most three release workflow runs live at once; a
+  fourth waits.
+- **A red dry run on main is fixed forward.** Nothing is reverted after a fast-forward; the next
+  wave carries the fix first. A tag still needs a green run on main's exact commit (AGENTS.md rule
+  6b, unchanged).
+- **Not adopted.** Spec B, the lane accepting from a CI record: "Not yet", revisit after three
+  waves whose dry runs are G5-clean. A `judge_only` input to the release workflow (it saves runner
+  slots, not wall clock, and is build-class). A cache of the artifact set keyed by the pins (after
+  0.1.0, unless CI minutes become the bottleneck).
+
+### No more alphas (2026-10-19)
+
+The owner said in the session that night (about 01:03 UTC on 2026-10-20): "No more alphas". The
+next release is 0.1.0, not 0.1.0a8 (the last tag is v0.1.0a7). Every specification's CHANGELOG
+lines go under the one unreleased section. It reads "0.1.0a8 — unreleased" until a small change
+runs `release/version.py` to make the version 0.1.0 in `__init__.py` and the CHANGELOG together
+(the rules check holds the two equal; AGENTS.md rule 2; the builder's self-check). The tag stays the
+owner's alone: the lane prepares the release and asks, after a green dry run on main's exact
+commit (AGENTS.md rule 6b) and the whole-surface security review's points closed.
+
 ### The 0.1.0 security review's owner points (2026-10-19)
 
 The whole-surface review (`reviews/0.1.0-whole-surface-security-review-2026-10-19.md`, on main

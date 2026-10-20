@@ -43,6 +43,12 @@
   tip (§4.14, a stacked build); up to three reviewed parallel-safe
   specifications may land in one batch (§5.4, §5.7); and a finding
   ranked Low or a note needs no further review round (§5.6).
+  Amended 2026-10-19 by the owner, that night, adopting the wave
+  pipeline: up to five reviewed specifications land as one wave, judged
+  and accepted once, on one integration branch (§4.14, §5.4, §5.7); the
+  reviewer's re-run may be its own dispatch of the release workflow, and
+  a reviewer may write in a Low finding that touches only `context/`
+  (§5.6).
 - **Owner:** Clay Gendron
 - **Scope:** every document, script, recipe and line of code in this
   repository, and every agent or person working on it. The other
@@ -219,7 +225,10 @@ works.
     its base, rebased onto main, with a delta review of what the rebase
     changed (§5.7). The branch is never pushed except for a dry run
     (question 98), and is deleted with its worktree when the
-    specification lands or is abandoned. No other
+    specification lands or is abandoned. The lane may make one
+    integration branch, `wave/NN`, from main's tip for one landing
+    (§5.7, a wave); it is pushed only for that wave's dry run and is
+    deleted at the fast-forward (owner, 2026-10-19). No other
     branch or worktree unless asked. Main moves only by fast-forward,
     through the landing lane (§5.7). One exception (question 70): an
     acceptance commit that is unpushed and breaks rule 1 may be undone
@@ -251,9 +260,12 @@ works.
    green, with its landing notes written and its numbers reproduced.
    Half-built work is not landed; it is reported as half-built.
    Specifications may be built in parallel; they land one at a time,
-   except that up to three reviewed parallel-safe specifications may
-   land as one batch (§5.7; owner, 2026-10-19). Each keeps its own
-   commits, review and landing notes.
+   or as one wave of up to five reviewed specifications judged and
+   accepted once (§5.7; owner, 2026-10-19: the batch of three
+   parallel-safe that day, the wave that night). Each keeps its own
+   commits, review, claim list and landing notes, so the acceptance
+   line and the notes together say which specification changed which
+   row.
 5. **A release is a re-run, not a project.** A new pinned set means:
    re-pin, re-run, re-verify, publish, and write the memo that says
    what changed. That must cost days, not weeks, which is why
@@ -265,14 +277,20 @@ works.
    reviewed before it lands, by a reviewer who did not write it (a
    fresh agent or a person), who is given the specification and the
    change, not the author's summary. The reviewer re-runs the counted
-   tests, checks each acceptance criterion against its evidence,
+   tests (locally, or as its own dispatch of the release workflow on
+   the reviewed commit, whose run it names; owner, 2026-10-19), checks
+   each acceptance criterion against its evidence,
    checks the change against §4 and §7, and reports ranked findings.
    Each finding is fixed or answered in writing before the landing;
    the landing notes cite the review. A finding ranked Low, or a note,
    is answered by the builder without another review round when its
    answer is in writing or touches only `context/`; a fix to code for
    it is read by the lane against the finding at the landing (owner,
-   2026-10-19). A specification that changes
+   2026-10-19). A Low finding that touches only `context/` may be
+   written in by the reviewer itself, as a commit of the exact text on
+   the specification's branch once the builder has handed the branch
+   over; a fix to code stays the builder's (owner, 2026-10-19, the
+   wave). A specification that changes
    the guest's imports or exports, the artifact set or the build
    recipe is reviewed once more before it is built, so a wrong design
    is caught before it is code. Reviews live in `context/reviews/`.
@@ -286,19 +304,29 @@ works.
    reviewed, runs the full judge on that exact commit in the main
    tree, accepts there, and fast-forwards main. Only the lane accepts.
    Up to three changes to the build recipe (six from 2026-10-19, the owner;
-   four earlier that day while the packages come first) may be built and reviewed at once, each in its own worktree, and each still lands alone. At its
-   landing the lane rebases it onto main, rebuilds the artifact set from
+   four earlier that day while the packages come first) may be built and reviewed at once, each in its own worktree, and each lands alone or in a wave (below). At its
+   landing alone the lane rebases it onto main, rebuilds the artifact set from
    the pins in the main tree, compares that set with the builder's
    rebuilt on the same base, judges and re-measures it there; a change
    whose recipe hunks the rebase altered, or whose measured numbers moved
    beyond what its review saw, gets a delta review before it lands
    (owner, 2026-10-18, question 91; before that, one at a time,
-   2026-10-17). Up to three reviewed parallel-safe specifications (none
-   build-class) may land as one batch: the lane rebases each in turn
-   onto main, compares each with what was reviewed, judges the batch's
-   tip once, accepts once, and fast-forwards; a red batch or an
-   unexplained difference splits it, and its specifications land alone
-   (owner, 2026-10-19).
+   2026-10-17). Up to five reviewed specifications may land as one wave
+   (owner, 2026-10-19, that night; three parallel-safe as a batch
+   earlier that day): at most one package or one stacked chain of
+   packages, at most two other build-class changes, the rest
+   parallel-safe; a change to the toolchain lands with judge-only
+   changes at most. Each builder rebases its branch onto the wave's tip
+   in the order the lane set and resolves its own conflicts, naming
+   each; the fast tier runs after each entry; the lane rebuilds the
+   artifact set from the pins in the main tree once, compares it with
+   the release workflow's build of the same tip, judges the tip once,
+   accepts once with each specification's reasons, and fast-forwards.
+   A fresh reviewer reads the integration (each rebase against its
+   reviewed tip, the named conflicts, and the claim lists against the
+   run's growth) before the fast-forward. A red entry, an unexplained
+   difference or an unclaimed growth ejects the entry, never the wave;
+   after two failed assemblies the wave is split by kind.
 
 ## 6. Deciding when the rules do not say
 
