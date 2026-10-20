@@ -404,6 +404,71 @@ def landed_review_errors(path: Path, reviews: Path) -> list[str]:
     ]
 
 
+STRUCTURAL_ROWS = (
+    ("R1", "Contract"),
+    ("R2", "Safety"),
+    ("R3", "Layering"),
+    ("R4", "Process state"),
+    ("R5", "Portability"),
+    ("R6", "Testability"),
+    ("R7", "Evolvability"),
+    ("R8", "Operability"),
+)
+RELEASE_VERSION = re.compile(r"^\d+\.\d+\.\d+$")  # X.Y.Z with no aN, bN or rcN (release/version.py)
+
+
+def structural_review_errors(version: str, reviews: Path) -> list[str]:
+    """A released version has its structural review of src/ under reviews/, named
+    `<version>-structural-review-YYYY-MM-DD.md`, and the review scores every row of the rubric
+    (AGENTS.md, "Structure is reviewed"). A prerelease needs none from the judge: its string is
+    what the tree carries all cycle."""
+    if not RELEASE_VERSION.match(version):
+        return []
+    name = re.compile(rf"^{re.escape(version)}-structural-review-\d{{4}}-\d{{2}}-\d{{2}}\.md$")
+    found = sorted(p for p in reviews.glob("*.md") if name.match(p.name))
+    if not found:
+        return [f"{version} is a release; reviews/ has no {version}-structural-review-<date>.md"]
+    errors = []
+    for p in found:
+        text = p.read_text()
+        for tag, row in STRUCTURAL_ROWS:
+            if not re.search(rf"\b{tag}\b", text) or row.lower() not in text.lower():
+                errors.append(f"{p.name}: does not score {tag} ({row})")
+    return errors
+
+
+KIND_LINE = re.compile(r"^- \*\*Kind:\*\*(.*?)(?=^- \*\*|^## )", re.M | re.S)
+STRUCTURAL_TOKEN = "**structural**"
+
+
+def structural_spec_review_errors(path: Path, reviews: Path) -> list[str]:
+    """A specification whose Kind line carries the bold token **structural** cites, once its
+    Status begins with built or landed, its own review before build,
+    `reviews/NNN-<slug>-spec-YYYY-MM-DD.md`, and the file exists: the mirror of
+    landed_review_errors for the review before build."""
+    text = path.read_text()
+    kind = KIND_LINE.search(text)
+    if kind is None or STRUCTURAL_TOKEN not in kind[1]:
+        return []
+    status = status_line(text).replace("*", "")
+    if not re.match(r"(built|landed)\b", status):
+        return []
+    number = path.name.split("-", 1)[0]
+    cited = [
+        c
+        for c in re.findall(r"reviews/([\w.-]+\.md)", text)
+        if c.startswith(f"{number}-") and "-spec-" in c
+    ]
+    if not cited:
+        missing = f"reviews/{number}-<slug>-spec-<date>.md"
+        return [f"{path.name}: structural and built, but cites no {missing}"]
+    return [
+        f"{path.name}: cites reviews/{c}, which does not exist"
+        for c in cited
+        if not (reviews / c).is_file()
+    ]
+
+
 def memo_label_errors(path: Path) -> list[str]:
     text = path.read_text()
     if "placeholder" in status_line(text):

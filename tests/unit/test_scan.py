@@ -258,6 +258,74 @@ def test_a_landed_spec_cites_an_existing_review(work) -> None:
     ]
 
 
+ROWS = "".join(f"| {tag} {row} | Strong | Strong | holds |\n" for tag, row in scan.STRUCTURAL_ROWS)
+
+
+def test_a_release_has_its_structural_review(work) -> None:
+    reviews = work / "reviews"
+    reviews.mkdir()
+    assert scan.structural_review_errors("0.1.0a8", reviews) == []  # a prerelease: never
+    assert scan.structural_review_errors("0.1.0", reviews) == [
+        "0.1.0 is a release; reviews/ has no 0.1.0-structural-review-<date>.md"
+    ]
+    write(reviews, "0.1.0-security-review-2026-10-21.md", ROWS)  # the twin does not count
+    write(reviews, "structural-0.1.0-2026-10-21.md", ROWS)  # nor the other order of words
+    assert len(scan.structural_review_errors("0.1.0", reviews)) == 1
+    write(reviews, "0.1.0-structural-review-2026-10-21.md", ROWS)
+    assert scan.structural_review_errors("0.1.0", reviews) == []
+    assert len(scan.structural_review_errors("0.2.0", reviews)) == 1  # another version's file
+    write(reviews, "0.1.0-structural-review-2026-10-22.md", ROWS.replace("R4 Process state", "R4"))
+    assert scan.structural_review_errors("0.1.0", reviews) == [
+        "0.1.0-structural-review-2026-10-22.md: does not score R4 (Process state)"
+    ]
+
+
+STRUCTURAL = SPEC.replace(
+    "- **Kind:** feature", "- **Kind:** parallel-safe;\n  **structural**: it adds a lock"
+)
+NOT_STRUCTURAL = SPEC.replace("- **Kind:** feature", "- **Kind:** parallel-safe; not structural")
+
+
+def test_a_built_structural_spec_cites_its_pre_build_review(work) -> None:
+    reviews = work / "reviews"
+    write(reviews, "110-a-spec-2026-10-21.md", "review")
+    plain = write(work, "110-a.md", SPEC.format(status="**built 2026-10-21**", notes=""))
+    word = write(work, "109-z.md", NOT_STRUCTURAL.format(status="**built 2026-10-21**", notes=""))
+    drafted = write(work, "111-b.md", STRUCTURAL.format(status="drafted 2026-10-21", notes=""))
+    says = write(
+        work,
+        "115-g.md",
+        STRUCTURAL.format(status="drafted 2026-10-21, to be built on 107's tip", notes=""),
+    )
+    none = write(work, "112-c.md", STRUCTURAL.format(status="**built 2026-10-21**", notes=""))
+    ok = write(
+        work,
+        "110-d.md",
+        STRUCTURAL.format(status="landed", notes="Reviewed: reviews/110-a-spec-2026-10-21.md."),
+    )
+    other = write(
+        work,
+        "113-e.md",
+        STRUCTURAL.format(status="built", notes="Reviewed: reviews/110-a-spec-2026-10-21.md."),
+    )
+    cites_missing = "reviews/114-f-spec-2026-10-21.md"
+    missing = write(work, "114-f.md", STRUCTURAL.format(status="built", notes=cites_missing))
+    assert scan.structural_spec_review_errors(plain, reviews) == []  # no token
+    assert scan.structural_spec_review_errors(word, reviews) == []  # the word, not the token
+    assert scan.structural_spec_review_errors(drafted, reviews) == []  # not yet built
+    assert scan.structural_spec_review_errors(says, reviews) == []  # says built, is drafted
+    assert scan.structural_spec_review_errors(ok, reviews) == []
+    assert scan.structural_spec_review_errors(none, reviews) == [
+        "112-c.md: structural and built, but cites no reviews/112-<slug>-spec-<date>.md"
+    ]
+    assert scan.structural_spec_review_errors(other, reviews) == [  # another spec's review
+        "113-e.md: structural and built, but cites no reviews/113-<slug>-spec-<date>.md"
+    ]
+    assert scan.structural_spec_review_errors(missing, reviews) == [
+        "114-f.md: cites reviews/114-f-spec-2026-10-21.md, which does not exist"
+    ]
+
+
 def test_memo_labels(work) -> None:
     labelled = write(work, "a.md", "- **Status:** executed\n\nIt ran (EXECUTED).\n")
     placeholder = write(work, "b.md", "- **Status:** placeholder (research to do)\n")

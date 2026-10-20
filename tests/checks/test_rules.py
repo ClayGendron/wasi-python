@@ -248,6 +248,29 @@ def test_landed_specifications_cite_an_existing_review() -> None:
     assert not errors, scan.report(errors)
 
 
+def test_a_release_has_its_structural_review() -> None:
+    """AGENTS.md, "Structure is reviewed": a released version (`X.Y.Z`, no `aN`, `bN` or `rcN`)
+    has its structural review of `src/` under `context/reviews/`, scoring the rubric's eight
+    rows. A prerelease needs none from the judge: its string is what the tree carries all
+    cycle."""
+    version = _release_version_module()
+    current = version.read_version(version.INIT.read_text())
+    errors = scan.structural_review_errors(current, paths.CONTEXT / "reviews")
+    assert not errors, scan.report(errors)
+
+
+def test_built_structural_specifications_cite_their_pre_build_review() -> None:
+    """A specification whose Kind line carries **structural** was reviewed before it was built:
+    once built or landed, it cites its own `-spec-` review, and the file exists."""
+    reviews = paths.CONTEXT / "reviews"
+    errors = [
+        e
+        for s in sorted(SPECS.glob("*.md"))
+        for e in scan.structural_spec_review_errors(s, reviews)
+    ]
+    assert not errors, scan.report(errors)
+
+
 def test_executed_memos_label_their_claims() -> None:
     errors = [e for m in sorted(RESEARCH.glob("*.md")) for e in scan.memo_label_errors(m)]
     assert not errors, scan.report(errors)
@@ -335,16 +358,21 @@ def test_main_is_linear() -> None:
     assert not errors, scan.report(errors)
 
 
-def test_the_version_is_released_by_the_book() -> None:
-    """One version in __init__.py, read dynamically, with its changelog section (spec 004)."""
+def _release_version_module():  # noqa: ANN202
+    """`release/version.py`, loaded by path: the one reader of the version string."""
     import importlib.util
-    import sys
 
     path = paths.REPO / "release" / "version.py"
     spec = importlib.util.spec_from_file_location("release_version", path)
     version = importlib.util.module_from_spec(spec)
     sys.modules["release_version"] = version  # dataclasses look their module up here
     spec.loader.exec_module(version)
+    return version
+
+
+def test_the_version_is_released_by_the_book() -> None:
+    """One version in __init__.py, read dynamically, with its changelog section (spec 004)."""
+    version = _release_version_module()
     errors = version.check_errors(
         version.INIT.read_text(), version.PYPROJECT.read_text(), version.CHANGELOG.read_text()
     )
