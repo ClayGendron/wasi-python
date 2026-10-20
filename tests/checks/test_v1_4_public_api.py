@@ -348,8 +348,13 @@ def test_set_defaults_changes_what_run_reads(monkeypatch) -> None:
     from wasi_python import runner
 
     # The runner reads its defaults only through `_current_defaults`, so the count of its calls
-    # below is every read (the build review's F2).
-    direct = _defaults_loads(Path(runner.__file__))
+    # below is every read (the build review's F2); every module of the package is read, so a
+    # `DEFAULTS` load outside `_current_defaults` is refused wherever it is written (spec 103).
+    direct = [
+        hit
+        for path in sorted(Path(runner.__file__).parent.glob("*.py"))
+        for hit in _defaults_loads(path)
+    ]
     assert not direct, f"DEFAULTS read outside _current_defaults: {direct}"
 
     lookups: list[int] = []

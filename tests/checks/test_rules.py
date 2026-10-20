@@ -120,6 +120,32 @@ def test_specifications_have_no_open_question() -> None:
     assert not hits, scan.report(hits)
 
 
+# Spec 103, Decision 6: no module under src/ over 1,500 lines. The two over it today are not
+# 103's to split; their entries equal their counts and can only shrink (a stale entry is a
+# finding too), and an entry is deleted the day its file is at or under the ceiling.
+LINE_CEILING = 1500
+ALLOWED = {"mounts.py": 2208, "tools.py": 2450}
+
+
+def test_no_module_under_src_is_over_the_line_ceiling() -> None:
+    """A module a person can hold in their head: every `.py` under src/ is at most 1,500
+    physical lines (code, comments, docstrings and blanks alike, as `wc -l` counts a file that
+    ends in a newline), but the two files ALLOWED holds at exactly today's count."""
+    files = [p for p in scan.files_under(paths.REPO, "src") if p.suffix == ".py"]
+    counts = {p: len(p.read_text(encoding="utf-8").splitlines()) for p in files}
+    findings = []
+    for p, count in sorted(counts.items()):
+        allowed = ALLOWED.get(p.name)
+        if allowed is not None and count != allowed:
+            findings.append(f"{scan.rel(p, paths.REPO)}: {count:,} lines, ALLOWED says {allowed:,}")
+        elif allowed is None and count > LINE_CEILING:
+            findings.append(f"{scan.rel(p, paths.REPO)}: {count:,} lines, over {LINE_CEILING:,}")
+    for name in ALLOWED:
+        if sum(1 for p in files if p.name == name) != 1:
+            findings.append(f"ALLOWED names {name}, which is not one file under src/")
+    assert not findings, scan.report(findings)
+
+
 def test_only_the_engine_seam_touches_wasmtimes_private_api() -> None:
     """Spec 102, Decision 3: one module, `src/wasi_python/_wasmtime_ffi.py`, and its unit file
     reach wasmtime-py's private API (its underscore modules, the store context, the raw function
