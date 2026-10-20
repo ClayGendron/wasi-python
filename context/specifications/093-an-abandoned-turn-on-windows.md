@@ -168,4 +168,23 @@ If the lane's run has a growth line, it is the base's, not this change's: name i
 
 ## Landing notes
 
-(Filled by the builder after the release run.)
+- **Built** on `spec/093-an-abandoned-turn-on-windows` from main `97be88a`: `bac6899` (the
+  check, the CHANGELOG line, this specification, the evidence) and `e58c07c` (this
+  specification's header and sections, which the first release run's rule check caught).
+- **The release run on `e58c07c`:** 39357013719, every job green on all three systems; no red
+  line, so no GREW line and no G7. `judge (windows-2025, own-guest)`: 413 passed, 0 failed
+  (078's dry run: 1 failed, 412 passed); ratchet lost 0, gained 1 (this check), grew 0,
+  `judge changed: tests/checks/test_v1_2_hostile_guest.py`.
+- **The first release run, on `bac6899`:** 39354545205. `judge (windows-2025, own-guest)` passed
+  there too. Two shards (`own-rest` on ubuntu and macos) failed one check,
+  `test_specifications_have_their_header_and_sections`, on this specification's shape, fixed in
+  `e58c07c`. `rebuild from the pins (ubuntu-24.04-arm)` failed downloading a pinned input
+  (`curl: (56) Recv failure: Connection reset by peer`), a network failure, and passed in the
+  second run.
+- **The fast tier**, `uv run pytest -m "not slow" -n 3` on `bac6899` against the main tree's set
+  as it stood at `97be88a`: 519/656 pass, 0 fail; lost 0, grew 0, gained 0,
+  `judge changed: tests/checks/test_v1_2_hostile_guest.py`. On `e58c07c` the rule checks alone
+  (`tests/checks/test_rules.py`, 42 passed); a fast tier there was spoiled twice by the main tree's
+  artifact set being rebuilt mid-run, the second time from recipes not on this branch (a
+  `regex-2026.9.29` patch), so its one failure (`test_manifest_recipes_match_the_tree`) and two
+  byte growths are that set's, not this change's. The release run is the judge of record.
