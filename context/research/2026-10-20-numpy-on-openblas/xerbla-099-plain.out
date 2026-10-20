@@ -1,0 +1,3 @@
+# 099's built tip b0e1593, SHA256SUMS 7519b047, plain binary, wasi-python run --stdin xerbla_probe.py: exit 0, trapped None, stderr ''
+xerbla ValueError On entry to test parameter number -1 had an illegal value
+dorgqr ValueError On entry to DORGQR parameter number 5 had an illegal value

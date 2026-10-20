@@ -1,0 +1,5 @@
+# main set SHA256SUMS f12cd25c, wasi-python run --memory-bytes 268435456 --env FIRST=<0|1> --stdin cap_keep.py
+FIRST=1 plain exit 0 trapped None | first dgemm 4.0 / filled 188 MiB, 4 MiB handed back / dgemm 64.0 | stderr: []
+FIRST=1 snapshot exit 0 trapped None | first dgemm 4.0 / filled 187 MiB, 4 MiB handed back / dgemm 64.0 | stderr: []
+FIRST=0 plain exit 1 trapped None | filled 204 MiB, 4 MiB handed back | stderr: ['OpenBLAS error: Memory allocation still failed after 10 retries, giving up.']
+FIRST=0 snapshot exit 1 trapped None | filled 203 MiB, 4 MiB handed back | stderr: ['OpenBLAS error: Memory allocation still failed after 10 retries, giving up.']

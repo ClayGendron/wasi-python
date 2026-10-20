@@ -1,0 +1,6 @@
+numpy BLAS: accelerate
+plot_line: equal to .expected (0 files in out)
+plot_contour: equal to .expected (0 files in out)
+numpy BLAS: scipy-openblas
+plot_line: equal to .expected (0 files in out)
+plot_contour: equal to .expected (0 files in out)

@@ -1,0 +1,7 @@
+nat_openblas_inv         E:107 F:193
+guest099_lite_inv        E:158 F:142
+guest_openblas_gesv      E:153 F:147
+nat_openblas_inv vs guest099_lite_inv: raise agrees on 249/300; EE:107, FE:51, FF:142
+nat_openblas_inv vs guest_openblas_gesv: raise agrees on 254/300; EE:107, FE:46, FF:147
+guest099_lite_inv vs guest_openblas_gesv: raise agrees on 291/300; EE:151, EF:7, FE:2, FF:140
+   differ at 61 82 91 100 110 248 249 261 266
