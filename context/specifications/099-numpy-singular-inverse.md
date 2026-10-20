@@ -423,7 +423,8 @@ left as it is.
 |---|---|
 | `recipes/npy_fenv_flags.h` | new (Decision 3): includes `<fenv.h>` and, in C++, `<cfenv>`; `#error` if the C library defines a flag; the five bits and `FE_ALL_EXCEPT`; the weak word `wasi_python_fe_flags`; the three `static inline` functions; their names in `std` for C++; the three `#define`s. A comment names spec 099 and says when to remove it (a toolchain whose `<fenv.h>` defines the flags, or a numpy release that keeps its own status without them) |
 | `recipes/wasi-numpy.cross` | `c_args`: `'-include', '@ROOT@/recipes/npy_fenv_flags.h'` after the two rename headers. `cpp_args`: the same pair, after `-DBLAS_SYMBOL_PREFIX=…`. The comment above the two lines says why (one line, spec 099) |
-| `tests/harness/scan.py` | `numpy_fenv_errors(records)`: check 4's rule over numpy's compile records |
+| `tests/harness/scan.py` | `npy_fenv_recipe_errors`, `npy_fenv_record_errors` and `npy_fenv_records_file_errors`: check 4's rules over the recipe and numpy's compile records |
+| `recipes/weak-duplicates-allowed.txt` | one entry, `wasi_python_fe_flags`, with its reason (added at the rebase onto wave 07; the build review's M1) |
 | `tests/checks/test_v1_3_data_stack.py` | checks 1, 2 and 3 |
 | `tests/checks/test_v1_5_rebuild_from_pins.py` | check 4 |
 | `tests/unit/test_scan.py` | check 5's rows |
@@ -530,7 +531,7 @@ writable; each asserts exit 0, no trap, and stdout exactly as below. Each record
 
    Seen failing first: on main both parts fail (no header; 0 of 189 compiles carry it).
 5. **Unit rows, `tests/unit/test_scan.py`** (no artifact needed). Each fails on main, where
-   `numpy_fenv_errors` does not exist:
+   `npy_fenv_record_errors` does not exist:
    - records where every compiler entry carries the include give no finding;
    - a `wasi-cxx … -c` entry without it is named; a `wasi-cc … -c` entry with it twice is named;
    - an entry whose file has an unusual extension (`x.S`, compiled by `wasi-cc -c`) without the
@@ -583,7 +584,8 @@ In: Decisions 1 to 8. Out:
 
 ## The judge's changes
 
-- `tests/harness/scan.py`: `numpy_fenv_errors`.
+- `tests/harness/scan.py`: `npy_fenv_recipe_errors`, `npy_fenv_record_errors` and
+  `npy_fenv_records_file_errors`.
 - `tests/checks/test_v1_3_data_stack.py`: checks 1 to 3. `tests/checks/test_v1_5_rebuild_from_pins.py`:
   check 4. `tests/unit/test_scan.py`: check 5.
 - No golden output, gap, allowance or progress file is edited, and no check is weakened. Only if

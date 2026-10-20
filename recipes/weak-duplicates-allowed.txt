@@ -55,3 +55,6 @@ scope:PathSnapper  # a class template of matplotlib 3.11.2's src/path_converters
 scope:Sketch  # a class template of matplotlib 3.11.2's src/path_converters.h, instantiated alike in _backend_agg and _path
 scope:check_trailing_shape  # a function template of matplotlib 3.11.2's src/mplutils.h, instantiated for pybind11::array_t<double> in _backend_agg and _path
 _ZTSA19_c  # "typeinfo name for char [19]", in _backend_agg and ft2font: the compiler's name string for a built-in type, whose bytes are that type's mangled name, so every copy is equal
+
+# numpy 2.5.2's floating-point flag word, from this project's own recipe (spec 099).
+wasi_python_fe_flags  # C linkage, data, weak on purpose: recipes/npy_fenv_flags.h, force-included into every numpy C and C++ compile by recipes/wasi-numpy.cross, defines `__attribute__((weak)) int wasi_python_fe_flags;` in every numpy object (13 archives), so the link keeps one 4-byte word that every numpy file raises into and reads; every copy is the same zero-filled int, and sharing one object across files is the point, not state of one file (build/link/python.map shows one definition)
