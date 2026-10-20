@@ -383,7 +383,7 @@ def test_ducc0s_fft_compiles_to_one_object(tmp_path) -> None:
 # One qhull (spec 037, Decision 8, conditions e and f; criterion 8): scipy's spatial._qhull and
 # matplotlib's _qhull (spec 043) both link step 37's libqhull_r, never scipy's vendored copy.
 QHULL_ARCHIVE = Path("plot-libs") / "lib" / "libqhull_r.a"
-QHULL_MODULE_DEPS = ("plot-modules/matplotlib", "scipy-modules/scipy/spatial")
+QHULL_MODULE_DEPS = ("plot-modules/matplotlib/matplotlib", "scipy-modules/scipy/spatial")
 LINK_MAP_FUNCTION = re.compile(r"^\s+-\s+[0-9a-f]+\s+[0-9a-f]+\s+(\S+?)\((.+)\):\(([^)]+)\)$")
 
 
