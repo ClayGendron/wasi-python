@@ -1,6 +1,6 @@
 # 045 — statsmodels, with formulaic, interface-meta and wrapt
 
-- **Status:** **Being built** (2026-10-20) on `spec/045-statsmodels` from main `5805af0`, revised against main in *The builder's revision against main* (R1 to R12, written before any code; Decisions 3, 9, 12 and 13 move there, and where a Decision's text below says otherwise, the revision governs); its confirmation round is R12. Questions 80 and 83 are answered (`../decisions.md`). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-18; revised the same day against its pre-build review
+- **Status:** **Being built** (2026-10-20) on `spec/045-statsmodels` from main `5805af0`, revised against main in *The builder's revision against main* (R1 to R12, written before any code; Decisions 3, 9, 12 and 13 move there, and where a Decision's text below says otherwise, the revision governs); its confirmation round is R12. Questions 80 and 83 are answered (`../decisions.md`). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. **Spec 096's slot scan binds this build too** (the confirming review's L2): spec 096's slot scan is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-18; revised the same day against its pre-build review
   (`../reviews/044-scikit-learn-and-045-statsmodels-spec-2026-10-18.md`): every finding that
   concerns it is fixed here, and the review's Disposition says where. It changes the build
   recipe and the artifact set, so it is reviewed before it is built (constitution §5.6). It is build-class: it touches
@@ -9,7 +9,7 @@
   statsmodels bundles, its datasets above all); everything else is decided here.
 - **Owner:** Clay Gendron
 - **Kind:** the build recipe (four pins; a new step 59; `scripts/make_stdlib_zip.py`'s
-  new `--leave-out-file` option; `scripts/gen_inittab.py`'s rename table;
+  `--drop` widened to one exact member (revised: R3); `scripts/gen_inittab.py`'s rename table;
   `scripts/steps/60_link.sh`; `scripts/steps/70_zip.sh`; `scripts/assemble_artifacts.py`),
   recipe files (a cross file, a build-time stand-in for `setuptools_scm`, four one-line rename
   headers, a per-file include map), one carried patch to statsmodels with its facts sheet, judge
@@ -20,7 +20,7 @@
   repeats, `install_from_plan.py --modules-only`), and through it 037 and 038 (scipy whole,
   `scipy.linalg.cython_blas` and `cython_lapack` as builtins, the per-file include rule, the
   rename table, the pinned oracle's scipy), 039 (patsy 1.0.3, narwhals, typing-extensions,
-  joblib), 042 (`--leave-out`), 023 (`packaging` 26.3, which statsmodels requires at run time
+  joblib), 042 (no longer: R1, R3), 023 (`packaging` 26.3, which statsmodels requires at run time
   and its version script at build time) and 033 and 035. Landed: 020, 012. Where one of them
   lands in another shape than its text, this specification uses what landed and says so in its
   landing notes.
@@ -118,7 +118,7 @@ only, BLAS and LAPACK through scipy's `cython_blas` and `cython_lapack`. Four th
    pinned host Python (its `#!/usr/bin/env python3` is replaced by meson's interpreter, READ:
    `mesonbuild/programs.py`, `_shebang_to_cmd`). The script imports `packaging.version` and
    `setuptools_scm`, which the build's tools do not have: `meson setup` fails there (EXECUTED).
-   - **`recipes/statsmodels_build/setuptools_scm.py`**, ours: `get_version(root)` returns the
+   - (revised: R2, spec 023's `recipes/setuptools_scm_stand_in/` gains this function; no new folder) **`recipes/statsmodels_build/setuptools_scm.py`**, ours: `get_version(root)` returns the
      `Version:` header of `root/PKG-INFO`, the sdist's own metadata, and stops naming the file if
      there is none. That is what `setuptools_scm` itself does in an sdist with no repository; the
      stand-in has no other function.
@@ -279,7 +279,7 @@ only, BLAS and LAPACK through scipy's `cython_blas` and `cython_lapack`. Four th
      name, Decision 6 there, and promises nothing about the message). So the check asserts the
      type only, and the landing notes record the message the built guest gives (the review's
      finding 8). The README lists the thirteen.
-   - **A separate option, `--leave-out-file NAME`, so 042's rule and its check stay** (the
+   - (revised: R3, 13 `--keep` and 9 `--drop` lines with `--drop` widened to one exact member; no new option) **A separate option, `--leave-out-file NAME`, so 042's rule and its check stay** (the
      review's finding 5, its option (a)). 042's `--leave-out PREFIX` takes folder prefixes ending
      in `/`, stops on one without it, and `test_a_left_out_folder_is_not_packed` pins that
      stop; neither changes. The new option is repeatable; its argument must equal one member's
@@ -387,7 +387,7 @@ only, BLAS and LAPACK through scipy's `cython_blas` and `cython_lapack`. Four th
     - **Build-time gates:** the version gate (Decision 3), the include log (Decision 5), the
       module count, step 60's detector, and 044's weak-duplicate gate and link-map check
       (044, Decision 6), which run over every package's archives and so cover statsmodels'.
-    - **Unit checks:** `test_a_left_out_file_must_match_one_member` (`--leave-out-file`: the
+    - (revised: R2 to R4, five unit checks in `tests/unit/test_statsmodels_build.py`: the stand-in twice, `test_a_drop_takes_one_file_by_its_exact_name`, `test_a_kept_dataset_folder_keeps_only_its_code`, the four renames) **Unit checks:** `test_a_left_out_file_must_match_one_member` (`--leave-out-file`: the
       named member goes and nothing else, not even a member that merely starts with the name;
       a name matching nothing is named; `x.pyc` does not match the member that comes from
       `x.py`); 042's `test_a_left_out_folder_is_not_packed` unchanged; the stand-in's `get_version` on a
@@ -463,9 +463,9 @@ the datasets load from the zip; no data with unapproved terms ships.
 | `scripts/steps/70_zip.sh` | the tree, its metadata, three wheels, 13 `--keep` and 9 `--drop` lines (Decisions 6, 9, 10; R3) |
 | `scripts/build.sh`, `scripts/assemble_artifacts.py`, `LICENSES/` | step 59 in `ALL`; `PACKAGES`, `WHEELS`; `LICENSES/statsmodels.txt` (Decision 13) |
 | `tests/jobs/statistical_models.py`, `.expected`; `tests/jobs/oracle/pyproject.toml`, `uv.lock`; `tests/harness/jobs.py` | the golden, the oracle's pins, `JOBS`, the recording platform (Decision 12) |
-| `tests/checks/test_v1_3_default_profile.py` | the five behaviour checks |
+| `tests/checks/test_v1_3_default_profile.py` | the golden and six behaviour checks (revised: R4, `hdrboxplot` apart) |
 | `tests/checks/test_v1_1_artifact_set.py`, `tests/harness/paths.py`, `pins.py`, `needs.py`, `tests/checks/test_v1_3_data_stack.py` | the judge changes (Decision 12) |
-| `tests/unit/test_build_scripts.py` | the three unit checks |
+| `tests/unit/test_statsmodels_build.py` | five unit checks (revised: R2 to R4) |
 | `.github/workflows/release.yml` | the tree count, one more |
 | `README.md`, `CHANGELOG.md` | statsmodels and its formula engines in "What the default profile carries"; the datasets shipped and left out; the absences; seaborn's statsmodels fits; the patch by path |
 
@@ -575,6 +575,14 @@ guards the existing `--keep` in the form step 70 now uses. 042's
 `test_a_left_out_folder_is_not_packed` does not exist on main, so the review's finding 5 has no
 check left to protect. Its intent holds: no existing check changes.
 
+After wave 08 (042) lands, its `test_a_left_out_folder_is_not_packed` pins `--drop`'s folder form,
+and it passes under the widened rule. The confirming review EXECUTED it on the branch's
+`make_stdlib_zip.py`, and its three "matches nothing" cases, `pkg/gone`, `pkg/su` and
+`pkg/sub/mod.pyc`, still stop. Old and new rules take the same members over the matplotlib,
+scikit-learn, reportlab and statsmodels inputs for every drop main and wave 08 carry. The builder
+re-runs that check by node id after the rebase, and reads the make_stdlib_zip docstring and 042's
+check docstring together. (The confirming review's L1.)
+
 **R4. Decision 12: the checks as written, with four changes.**
 - **`hdrboxplot` gets a check of its own, `test_hdrboxplot_needs_processes`.** It creates a
   matplotlib figure before it reaches `Pool()` (`graphics/functional.py`, READ:
@@ -642,7 +650,10 @@ module is left out or replaced, by a revision before landing.
 
 **R6. The packages' own tests (spec 063; the owner's rule, "every test of every package we
 build").** statsmodels' suite natively, on the oracle's pinned wheels, one thread, darwin-arm64:
-21,412 collected; 20,911 passed, 1 failed, 356 skipped, 146 xfailed, in 468 s. In the guest that
+21,412 collected by `--co`; the full run's outcomes add up to 21,414: 20,911 passed, 1 failed, 356
+skipped, 146 xfailed, in 468 s (the two counts differ by two; the confirming review's N1). The one
+failure is `statsmodels/graphics/tests/test_tsaplots.py::test_plot_month`. Spec 095 states its
+own run's total. In the guest that
 is about 3 T of fuel (INFERRED: matplotlib's suite, of about the same native size, measured 3.35 T
 in spec 066), caps of about 4.5 T, and about five more Linux shards. Running it uses spec 066's
 harness (`package_drive.py`, `harness/packages.py`), which lands in wave 08. It also follows 066's
@@ -651,6 +662,10 @@ statsmodels' suite closes with spec 095. 066's Decision 13 reserves 095 for "sci
 scikit-learn's own tests in the release (statsmodels' too if 045 adds an entry)". formulaic,
 interface-meta and wrapt close with spec 067, as every other pure wheel does. `packages.toml`
 says so, pending the lane's answer. No test is left out by this: the whole suite runs under 095.
+**The owner's answer (2026-10-20, through the lane):** statsmodels' suite goes to spec 095, before
+0.1.0; formulaic, interface-meta and wrapt go to 067. The committed `packages.toml` text stands,
+and the roadmap's reserved line for 095 now names statsmodels (045) too (the confirming review's
+N4).
 
 **R7. Gates added since drafting, which bind this build.** 044's weak-duplicate gate and link-map
 check run over every package's archives, statsmodels' included. 044's `gen_inittab.py --against`
@@ -662,7 +677,8 @@ upstream release, never an exclusion.
 **R8. Counts that moved.** wasi-sdk 34 (086), not 33: the build's own logs are read, so nothing
 here depends on the version. Step 59 is free on main and on every open branch (READ). The release
 tree count is 27 (main's 26 plus `statsmodels`). There are 23 carried patches (main's 22 plus this
-one, in its own folder), and `build.sh` runs twenty steps.
+one, in its own folder), and `build.sh` runs twenty steps. On wave 08's base, which adds seaborn's
+tree, the count is 28 (the confirming review's L1).
 
 **R9. The cost table's base** (Decision 14) is main's set at `5805af0`, `SHA256SUMS` `dc6ba3a5`
 (044's). 044 measured 27,240 fuel per member at a plain start, inside the table's 30,000.
@@ -696,9 +712,17 @@ can each go alone:
 - `tools/parallel.py` is imported only by `base/distributed_estimation.py`, at call time. Leaving
   it out (`--drop statsmodels/tools/parallel.py`) makes `DistributedModel.fit` raise
   `ModuleNotFoundError`, and the mne-python pin goes.
-- `stats/libqsturng/` is imported only by `sandbox/stats/multicomp.py`, which `pairwise_tukeyhsd`
-  uses. Leaving the folder out (`--drop statsmodels/stats/libqsturng`) makes Tukey's HSD raise
-  `ModuleNotFoundError`. `_phi` lives inside `qsturng_.py`, so it cannot leave alone.
+- `stats/libqsturng/` is imported in one place: `sandbox/stats/multicomp.py:78-89`, as a
+  fallback when `scipy.stats.studentized_range` is missing (scipy older than 1.7). This build
+  carries scipy 1.18.1, so statsmodels' own code never imports it. EXECUTED by the confirming
+  review: with it blocked, `import statsmodels.api` and `pairwise_tukeyhsd` work. Leaving the
+  folder out (`--drop statsmodels/stats/libqsturng`) costs only a user's direct `import
+  statsmodels.stats.libqsturng` (`ModuleNotFoundError`). `_phi` lives inside `qsturng_.py`, so it
+  cannot leave alone; its own comment names `scipy.stats.norm.isf` as an acceptable alternative.
+  (Corrected by the confirming review's M1; the first text said Tukey's HSD would break.)
+
+**The owner's answer (2026-10-20, through the lane): all six approved**, each with its notice in
+`LICENSES/statsmodels.txt` as phase 1 writes it. Nothing ships differently from phase 1.
 
 Each such leave-out would be one line in `70_zip.sh`, one part fewer in both lists, a v1.1 check
 line and a README line. The builder writes them after the answer.
