@@ -1,6 +1,6 @@
 # 041 — Files read by path from the zip
 
-- **Status:** **being built** 2026-10-19 on `spec/041-files-read-by-path-from-the-zip`, a **stacked build** (constitution §4.14, the owner, 2026-10-19) on base commit `dcd94ff`, spec 039's reviewed tip, which is built and reviewed but not yet landed; when 039 lands, this branch is rebased onto main and gets a delta review of what the rebase changed (Landing notes). Not reviewed, not accepted. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised the same day against its pre-build review
+- **Status:** **built** 2026-10-19 on `spec/041-files-read-by-path-from-the-zip`, a **stacked build** (constitution §4.14, the owner, 2026-10-19) on base commit `dcd94ff`, spec 039's reviewed tip, which is built and reviewed but not yet landed; when 039 lands, this branch is rebased onto main and gets a delta review of what the rebase changed (Landing notes). Its branch dry run 39345809724 is red only for growth lines. Not reviewed, not accepted; awaiting its build review. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised the same day against its pre-build review
   (`../reviews/041-files-read-by-path-from-the-zip-spec-2026-10-17.md`). All nine findings are
   written in here and in the two upstream folders, and the review's Disposition says where. The
   review's confirmation passed it for build with two conditions, written in: C1, the landing
@@ -522,4 +522,241 @@ Filing anything upstream is the owner's (§7).
 
 ## Landing notes
 
-Not built. At landing, record here the answer question 80 had (condition C1).
+**Built** 2026-10-19 by the builder in `../wasi_python-041` on `spec/041-files-read-by-path-from-the-zip`,
+a **stacked build** (constitution §4.14 and AGENTS.md rule 2, the owner, 2026-10-19) on base
+commit **`dcd94ff`**, spec 039's reviewed tip (built, build-reviewed and accepted on its own branch,
+not yet landed; it lands after 083). The branch carries 039's commits and this specification's
+only. Not reviewed, not accepted. Evidence is under the worktree's `build/041/` (named below), the
+logs under `build/`.
+
+**When 039 lands:** this branch is rebased onto main (by the builder or the lane), and gets a
+delta review of what the rebase changed. The ratchet here is against 039's base record
+(`b91e0eaa4e`, main's accepted state when 039 was built), so the notes below separate 039's own
+moves (already accounted in 039's landing notes and its three accept flags) from this
+specification's, which are measured against 039's set (`ada941bc…`, copied with `cp -c -Rp` to
+`build/old-artifacts/`, nlink 1) and 039's own records (`../wasi_python-039/build/evidence/latest-fast-065.json`,
+`latest-full.json`).
+
+**Question 80 at landing (condition C1):** answered, as recommended (`../decisions.md`: "for
+projects that restrict AI-written contributions, the upstream draft is a facts sheet (spec 020's
+six header lines) from which the owner writes and files in their own words"). The two drafts are
+such facts sheets, unchanged.
+
+### What changed
+
+- **Patches.** `recipes/patches/pandas-3.0.6/0001-styler-templates-from-a-zip.patch` (879
+  bytes, `0b6b418b…ce7d`) and `recipes/patches/networkx-3.7/0001-graph-atlas-from-a-zip.patch`
+  (2,061 bytes, `3b8b6d2d…5384`), each `cmp`-equal to its `fix.patch` before that copy was removed
+  (criterion 3); git records them as renames of the two `fix.patch` files. The two facts sheets
+  moved unchanged (`git mv`) to `../upstream/patches/pandas-3.0.6/0001-styler-templates-from-a-zip.md`
+  and `../upstream/patches/networkx-3.7/0001-graph-atlas-from-a-zip.md`; both `notes.md` and
+  `../upstream/README.md`'s two rows name the carried paths.
+- **Recipe.** networkx's sdist pinned in place of its wheel in `downloads/SHA256SUMS` and
+  `scripts/00_download.sh`, in the same place (`fd77a511…e96a`, equal to the oracle lock's sdist
+  hash). Step 70 unpacks, patches and stages `networkx/` beside pyyaml and markupsafe, passes its
+  `PKG-INFO` to `--metadata` and `--entry-points`, and drops the `--wheel` line.
+  `make_stdlib_zip.py` gains `--entry-points <PKG-INFO> <file>`, `sdist_entry_points` and the guard
+  `check_entry_points` (by the computed `.dist-info` folder). `assemble_artifacts.py`: `WHEELS`
+  without networkx; its notice from `build/networkx-3.7/LICENSE.txt`. The release's zero-patch
+  count is 22 trees (21 on 039's tip, +1).
+- **Judge.** The `files_from_the_zip` job and golden, and its check; the two gap checks widened and
+  on both binaries; the unit check; `networkx` in `pins.SOURCE_PATTERNS` and
+  `needs.SOURCE_COMPONENTS`; the four gaps removed from `tests/known_gaps.toml`;
+  `tests/upstream/pandas.toml`: the eleven Styler files selected again, the two `styler-templates`
+  classes emptied, the eight templates staged as `support`, and `pandas-io-formats`' cap 82 G →
+  120 G; the synthetic set of the artifact rules' unit tests names networkx's sdist.
+- `README.md` (the carried-patch count 7 → 9, the sdist rule, the default profile's edges, the
+  "Out" list), `CHANGELOG.md` (under 0.1.0a8, naming both patch paths).
+
+### Revisions and departures, each with its reason
+
+The pre-build review (2026-10-17) was checked against the code at `dcd94ff`; the design still fits.
+Where the text and the code differ:
+
+1. **Built before 039 landed (condition C2).** The owner's stacked-build rule of 2026-10-19
+   supersedes C2's order: built on 039's reviewed tip, rebased and delta-reviewed when 039 lands.
+   033's landed `sdist_metadata` is used, as C2 asks.
+2. **The two `styler-templates` classes are emptied, not removed** (spec 039's amendment F2 said
+   "removes the two classes, their lists"). `tests/upstream/pandas.toml`'s own rule (spec 050,
+   condition C1) keeps a class a fix emptied, "its id, an empty list and the closer that emptied
+   it, as a record, and has no gap", as `zip-code-names` was kept when 051 emptied it; the judge's
+   `rule_errors` and `class_findings` are written for that. The four gaps are removed.
+3. **pandas' templates are staged beside its tests** (a judge change not in the text). With the
+   eleven files selected again, `style/test_html.py`'s `env` fixture reads
+   `pandas/io/formats/templates/` by path beside the tests, as in pandas' source tree, which the
+   stage did not hold: `test_block_names` errored with `TemplateNotFound: 'html_style.tpl' not
+   found in search path: '/upstream/tests/pandas/io/formats/templates'`
+   (`build/041/pandas-groups.txt`). The eight templates are `support` files now, staged read-only;
+   the product still reads its own copies from the zip.
+4. **`pandas-io-formats`' cap rises 82 G → 120 G.** With the eleven files, the group ran out of
+   fuel at 82 G after 1,739 passes; with the cap raised it finishes at 89.2 G with 1,972 passes,
+   nothing failed (`build/041/pandas-io-formats-2.txt`). 120 G is 1.34× that, as 82 G was 1.40×
+   main's 58.6 G. The `/upstream` family's caps sum to 2,557 G, under the 3,000 G budget.
+5. **The unit check's two spellings.** `./x/PKG-INFO` and `x/PKG-INFO` are the same `Path`
+   (pathlib drops `./`, and argparse's `type=Path` does too), so a path-string guard cannot tell
+   them apart. The check also gives `x/../x/PKG-INFO` and the absolute path; the path-string mutant
+   fails on `x/../x/PKG-INFO` (below). The guard takes the members' origins as `main` records them,
+   so the mutant is the natural mistake (comparing a METADATA member's origin with the
+   entry-points' `PKG-INFO` string).
+6. **Decision 8's sizes are 29 bytes larger per member** than the table: since spec 051 every code
+   object carries the zip's guest path. The changes are the table's: `style_render.pyc` +168 bytes
+   (112,234 → 112,402; deflated 42,947 → 43,034), `atlas.pyc` +171 (6,517 → 6,688; 3,159 → 3,231),
+   `conftest.pyc` removed (10,127; 4,736).
+7. **`LICENSES/networkx.txt` changes in its header line only**: `==== networkx-3.7-py3-none-any.whl:
+   networkx-3.7.dist-info/licenses/LICENSE.txt ====` becomes `==== NetworkX LICENSE.txt ====`, as
+   pyyaml's and markupsafe's name their tree files; the licence text is byte for byte the same
+   (`LICENSE.txt` equals the wheel's, the pre-build review's `cmp`).
+8. **The README count rises 7 → 9** and the release's tree count 21 → 22, each "relative to main"
+   as written, counted on 039's tip.
+
+### Acceptance criteria and their evidence
+
+1. **Seen failing first. EXECUTED**, each on 039's set (`build/old-artifacts/`, `SHA256SUMS`
+   `ada941bc…`) unless named otherwise:
+   - `test_files_from_the_zip_job_matches_native`: `exit 1; stderr: jinja2.exceptions.TemplateNotFound:
+     'html.tpl' not found in search path: '/usr/local/lib/python315.zip/pandas/io/formats/templates'`
+     (`build/041/seen-failing-guest.txt`).
+   - The Styler check, on both binaries: `6 finding(s), digest 297bd29c88bf`, every call and the
+     loader assertion `TemplateNotFound: html.tpl`: `df.style.to_html()`, `df.to_latex()`,
+     `df.style.to_string()`, `df.style.to_typst()`, `from_custom_template`, and
+     `StylerRenderer: TemplateNotFound: html.tpl`, a finding, not an uncaught error
+     (`build/041/seen-failing-findings.txt`, printed in full by `styler_findings.py`). The atlas
+     check, on both binaries: `2 finding(s), digest 91e190939c85`, `nx.graph_atlas(100)` and
+     `nx.graph_atlas_g()`, each `TypeError: filename must be a str or bytes object, or a file`.
+   - With the networkx sdist staged but its patch file moved away (step 70 and 80 rebuilt, the set
+     `build/041/no-patch-set/`): the atlas check fails as before, the same digest `91e190939c85`
+     on both binaries. With the patch file back but `build/networkx-3.7` left unpatched:
+     `test_source_tree_matches_its_tarball[networkx]` fails with `2 finding(s), digest 254b875a3ce1:
+     networkx/generators/atlas.py: modified; networkx/generators/tests/test_atlas.py: modified`
+     (`build/041/seen-failing-nopatch.txt`). Steps 70 to 90 rebuilt after it give `SHA256SUMS`
+     `95b2f93a…` again, the set below (`build/041/build-restore.log`).
+   - With either draft removed, `test_carried_patches_follow_the_rules` fails naming it:
+     `recipes/patches/pandas-3.0.6/0001-styler-templates-from-a-zip.patch: no pull request draft at
+     context/upstream/patches/pandas-3.0.6/0001-styler-templates-from-a-zip.md`, and the same for
+     networkx's (`build/041/seen-failing-rules.txt`).
+   - `test_an_sdists_entry_points_go_beside_its_metadata`: against 039's `make_stdlib_zip.py`,
+     `AttributeError: module 'make_stdlib_zip' has no attribute 'sdist_entry_points'`; against the
+     path-string mutant, `SystemExit: --entry-points x/../x/PKG-INFO …: no
+     some_pkg-1.0.dist-info/METADATA member` (departure 5); passes on this one
+     (`build/041/seen-failing-unit.txt`, `run_mutant.py`, `mutants/`).
+2. **The zip's names and bytes. EXECUTED** (`build/041/zip_names.py` → `criterion-2.txt`). Built
+   from empty in the worktree (`scripts/build.sh`, 16 steps in 8 min 38 s, `build/build-041.log`):
+   `python.wasm` is byte for byte 039's (`cmp`, `ab78e893…`). Sorted names (`unzip -Z1 … | LC_ALL=C
+   sort`) differ only in `networkx/conftest.pyc`, removed (4,435 → 4,434 members); the shared
+   members are the same bytes but `pandas/io/formats/style_render.pyc` and
+   `networkx/generators/atlas.pyc` (sizes in departure 6); `networkx-3.7.dist-info/METADATA` and
+   `entry_points.txt` are byte-equal to 039's. Decision 4's rule, step 2, on the built tree:
+   `walk` of `build/pure-install/networkx` gives 289 members, the pinned wheel's `wheel_members`
+   290 outside `.dist-info`; the one only in the wheel is `networkx/conftest.py`, and the one that
+   differs is the patched `atlas.py`. `MANIFEST` changes in exactly Decision 8's lines: networkx's
+   `pin` (sdist for wheel), two new `recipe` lines for the patches, the `recipe` lines of
+   `00_download.sh`, `assemble_artifacts.py`, `make_stdlib_zip.py` and `70_zip.sh`, and
+   `x-snapshot-zip`.
+3. **The patches are what the drafts say. EXECUTED.** Each `recipes/patches/…` file was `cmp`-equal
+   to its `fix.patch` before that copy was removed; `test_carried_patches_follow_the_rules` passes
+   (each `Files:` line equals the paths `git apply --numstat` reads).
+4. **The same bytes everywhere. EXECUTED**, by the branch's dry run (below): `rebuild from the pins`
+   on ubuntu-24.04 and ubuntu-24.04-arm, `the same bytes from every host` and `verify` on the three
+   systems pass, and `build and judge (arm64 macOS)` passes its zero-patch step with 22 trees.
+5. **The judge. EXECUTED, without `--accept`.** `uv run pytest -n 3` once, at `39cf425`, clean,
+   with this set, the wheel built from it (`dist/wasi_python-0.1.0a8-py3-none-any.whl`, 60,329,423
+   bytes, SHA-256 `ece4329c…`) and the upstream kit fetched by hash (`build/041/full-judge.txt`;
+   the record `build/041/latest-full.json`, SHA-256 `a0a19f88…`; judge hash `c2cf61e7…`):
+
+   ```
+   wasi_python v1: 568/647 pass · 77 gap · 2 blocked · 0 fail   (unit suite 1583/1590, 7 skipped)
+     v1.1  artifact set        38/38
+     v1.2  portable, sealed    120/121 blocked 1
+     v1.3  data stack          120/196 gap 76
+     v1.4  embedding           207/208 gap 1
+     v1.5  rebuild from pins   39/39
+     rules constitution rules  44/45  blocked 1
+   blocked by: prior-art clones 1 · three systems 1
+   trap entries with no trap here: c-stack-itertools-tee
+   ratchet vs b91e0eaa4e: lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 25 · grew 165 · more 2 · judge changed: … and 33 more
+   RED: 165 metric(s) grew
+   2151 passed, 9 skipped, 77 xfailed in 914.28s (0:15:14)
+   ```
+
+   The two blocked checks are the worktree's (no prior-art clones; the three systems are the
+   release's). The ratchet is against main's accepted state `b91e0eaa4e`, which 039 has not yet
+   moved, so it holds 039's moves too. **039's own** (its landing notes and its three flags):
+   grew 163 of the 165 (the tier A members and distributions, 035's member walks, the GB18030
+   check, CPython's five groups), and its `fewer 1` (`pandas-frame` 10,852 → 10,851), which this
+   specification turns into `more`. **This specification's own**, measured against 039's records
+   on the same base (`build/041/moves.py` and `grew.py` against `../wasi_python-039/build/evidence/`
+   `latest-full.json`, `latest-fast-065.json` and `latest-cpython-groups.json`; `moves-full.txt`,
+   `grew-vs-039.txt`):
+   - **Gained:** the job check; the Styler and atlas checks on both binaries (gap → pass on plain,
+     new on snapshot); `test_source_tree_matches_its_tarball[networkx]`; the two emptied
+     `styler-templates` classes (gap → pass). 039's four gaps are removed; the 77 gaps here are
+     main's (065's CPython classes and traps among them).
+   - **More passes (2):** `pandas-frame` 10,851 → 10,853 (accepted 10,852): `test_inspect_getmembers`
+     passes again and `test_latex_repr` passes, both rendering through the Styler.
+     `pandas-io-formats` 997 → 1,972 (accepted 977): the eleven Styler files run again.
+   - **Grew, with causes:** `pandas-io-formats` +22.84 G (66.38 G → 89.22 G, +34.4%), the eleven
+     Styler files' 975 more tests; `pandas-frame` +0.69 G (+0.20%), its two tests that now render;
+     the other upstream groups move −0.09% to +0.11% (`numpy-others` +0.19 G the most, `numpy-lib`
+     −0.09 G), INFERRED from the stage, which holds eight more files (spec 063, Decision 5: the
+     guest's fuel depends on the whole stage). Beyond those, 48 metrics grew past the ratchet's
+     0.01% against 039's records and 66 shrank by as much: plain checks by at most +0.05%
+     (`test_plot_line_job_matches_native[plain]` +4.0 M) and snapshot checks by −0.45% to +0.42%,
+     both directions, from a set whose plain binary is unchanged. INFERRED: layout, the zip's
+     directory (one member fewer, two changed) and the snapshot heap made from it, as spec 091
+     records for numpy-core. Two of them are past the accepted value where 039's were not, so
+     they are this specification's own growth lines against main: `test_unbuffered_output_survives_a_hard_exit[snapshot]`
+     1,212,377 → 1,214,000 (+1,623; accepted 1,213,059) and
+     `test_the_readmes_encoding_workaround_reads_what_iconv_cannot` 6,040,442,423 →
+     6,042,516,382 (+2,073,959, +0.034%; accepted 6,040,380,177); each is the same on two runs per
+     set, and moves with the set (`build/041/probe-two-growths.txt`). Decision 8 said no accepted
+     metric should grow beyond the judge's noise; these are for the build review to judge.
+   - **Shrank:** the zip −4,695 bytes (38,726,339 → 38,721,644), the snapshot −3,308 (45,363,590
+     → 45,360,282); plain `-c pass` −25,325 (218,073,038 → 218,047,713, one member's fuel; 039's
+     slope 25,120), snapshot `-c pass` −19,241 (20,351,493 → 20,332,252) (`build/041/measure.json`,
+     the judge's driver).
+   - **New metrics** (`measure.json`): the job 8,931,427,067 on plain; the Styler check
+     5,939,204,115 plain and 5,540,450,869 snapshot; the atlas check 3,412,046,711 plain and
+     3,063,861,294 snapshot. `import networkx` is +35,822 plain and +4,880 snapshot against 039's.
+
+   The goldens reproduce under the pinned oracle (`test_goldens_reproduce_under_the_pinned_oracle`
+   passed; the new golden was written by both seeds, `build/041/regen_one.py`). The new job passes
+   `ruff check` and `ruff format --check`. Spec 051's callback scan,
+   `test_callbacks_have_the_types_cpython_calls`, passes (the patches change Python only).
+   `uv run python tests/harness/sameness.py` is the lane's, between this record and its own.
+   The lane accepts, after 039, with:
+   - `--accept-judge "spec 041: the files_from_the_zip job and golden; the Styler and atlas checks widened, on both binaries, and their two gaps removed; the unit check for --entry-points; networkx in the source-tree patterns; pandas' eleven Styler files selected again, the two styler-templates classes emptied and their gaps removed, the eight templates staged where pandas' tests read them, pandas-io-formats' cap 82 G -> 120 G; the artifact rules' synthetic set names networkx's sdist"`;
+   - `--accept-growth "spec 041: pandas-io-formats +22.8 G and pandas-frame +0.69 G run the Styler tests that now pass (+975 and +2 passes); the other upstream groups move -0.09% to +0.11% with a stage of eight more files; the rest, within +0.05% plain and +-0.45% snapshot both ways, moves with the rebuilt zip directory and snapshot heap (one member fewer, two changed; python.wasm unchanged), among them test_unbuffered_output_survives_a_hard_exit[snapshot] +1,623 and the encoding workaround +2.07 M"`.
+   No `--accept-fewer-passes`: 039's falls back.
+6. **The release. EXECUTED**: the dry run below.
+
+### The branch dry run
+
+`gh workflow run release.yml --ref spec/041-files-read-by-path-from-the-zip` on `39cf425`, run
+**39345809724**: every job passes but three, and each of the three is red only for growth (0 fail,
+lost 0), the darwin-arm64 shards that ratchet against main's accepted metrics:
+- `judge (macos-15, own-guest)`: 299/647 pass, 0 fail; `grew 125` (the first lines
+  `test_binary_is_a_core_wasm_module[snapshot]` bytes 44,633,983 → 45,360,282 and
+  `test_dotted_builtins_keep_their_import_names` on both binaries: tier A's, 039's);
+- `judge (macos-15, own-embedding)`: 157 pass, 0 fail; `grew 24` (tier A's start growth, +50 M plain
+  and +4.7 M snapshot per check, 039's; the log prints the first three lines only);
+- `judge (macos-15, upstream-macos)`: 4 pass, 36 gap, 0 fail; `grew 2`: `cpython-fs` 59.84 G →
+  62.37 G (039's measured +2.55 G) and `numpy-lib` 132.02 G → 132.22 G (039's own record has
+  132.31 G).
+All are growth lines; none is G7 or a failure. The rebuild jobs, the same-bytes job, the three
+`verify` jobs, the zero-patch step (22 trees) and every Linux and Windows shard pass.
+
+**The artifact set** (`build/artifacts/`): `SHA256SUMS` `95b2f93a12463b705bbb4bebc9b3553ffd8ca7f45f399b2132e0ffa2d30cf5ff`.
+
+| file | bytes | SHA-256 |
+|---|---|---|
+| `python.wasm` | 41,099,661 | `ab78e8931e76aaf996d74d3b7766fcdf0249119faab4d0dfa153a6b14d6887db` (039's) |
+| `python-snapshot.wasm` | 45,360,282 | `aa14e8e09a3ceeccd191bb4a7e04373b36b95a9a0cdc3fc4b58861282ab4e1de` |
+| `python-stdlib.zip` | 38,721,644 | `f7d96aab1a8f8fe2ded11e8f34cf4c2d762da2c9f8c67420f1da0330e1ea9aa0` |
+| `MANIFEST` | 19,126 | `703b2ee18a36ae35d89187451ba7ee2ab5bfcfa01dae48956575a94b40185e42` |
+
+**For the lane.** After 039 lands, rebase onto main: the conflicts to expect are none in this
+specification's own files unless 037, 043 or 042 land first, in which case step 70's `--wheel`,
+`--metadata` and `remove` lines, `00_download.sh`, `SHA256SUMS`, `assemble_artifacts.py`'s
+`WHEELS` and licences, `pins.SOURCE_PATTERNS`, `needs.SOURCE_COMPONENTS`, the release's tree count
+(22 plus theirs), the README's patch count (9 plus theirs) and `tests/upstream/pandas.toml` take
+both sides; then the delta review.
