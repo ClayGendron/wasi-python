@@ -1,6 +1,6 @@
 # 037 — scipy, the first milestone
 
-- **Status:** **Rebuilt 2026-10-20 on wasi-sdk 34, stacked on spec 043's tip `54022dd` (main `41bcc0f`); Decision 17's same-bytes exception removed** (question 105 (b)), criterion 3 as first written: `SHA256SUMS` `95d6b217…` from macOS and linux/arm64, twice each. The build review's F2 is done (one qhull, the `fd_renumber` tripwire); F4 ruled by the lane. Next: a delta review, then the lane, in the wave after 043's. Before that: built 2026-10-19 on wasi-sdk 33, judged green on macOS (0 fail, lost 0); build review "lands once F1 is fixed and F2 is done". **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build with conditions, written in. Drafted 2026-10-17; revised the
+- **Status:** **Rebuilt 2026-10-20 on wasi-sdk 34, stacked on spec 043's tip `54022dd` (main `41bcc0f`); Decision 17's same-bytes exception removed** (question 105 (b)), criterion 3 as first written: `SHA256SUMS` `40281c40…` from macOS and linux/arm64, twice each, and from CI's two rebuilds (run 39382879444, red only on growth lines). After the first branch run, carried scipy patch 0002 and an environment entry for `test_pydoc` (the landing notes). The build review's F2 is done (one qhull, the `fd_renumber` tripwire); F4 ruled by the lane. Next: a delta review, then the lane, in the wave after 043's. Before that: built 2026-10-19 on wasi-sdk 33, judged green on macOS (0 fail, lost 0); build review "lands once F1 is fixed and F2 is done". **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build with conditions, written in. Drafted 2026-10-17; revised the
   same day against its pre-build review (`../reviews/037-scipy-spec-2026-10-17.md`): findings 1
   to 4 fixed in the text and the checks, 5 to 13 fixed or answered (the review's Disposition),
   and spec 040's asks written in, each conditional on 040 landing first. The review's
@@ -1295,16 +1295,42 @@ Every claim is EXECUTED unless labelled.
 - **The commits on 043.** "Spec 037 on 043 (047508c): one qhull" (conditions a, b, d, e, f
   and the tripwire) and the check's path fix after it; the hunks of the stacked replay are in
   For the lane.
-- **The set.** macOS from empty at `642537c` (12 min 10 s, 18 steps; step 38 1 min 32 s, step 57
-  1 min 39 s): `SHA256SUMS` `95d6b217…`. linux/arm64 from empty, a clean clone of `642537c` in
-  the `wp040-arm64` container (Debian 13.7, 10 cores; 32 min): the same `SHA256SUMS`, every line.
-  Each host then rebuilt steps 38 and 57 and steps 60 to 90 again: the same `SHA256SUMS` again
-  on both. So four builds, one `SHA256SUMS`, with no exception (criterion 3 as first written).
-  `4696d0f`, the tip pushed, changes only a check after `642537c`.
+- **The first set.** macOS from empty at `642537c` (12 min 10 s, 18 steps; step 38 1 min 32 s,
+  step 57 1 min 39 s): `SHA256SUMS` `95d6b217…`. linux/arm64 from empty, a clean clone of
+  `642537c` in the `wp040-arm64` container (Debian 13.7, 10 cores; 32 min): the same
+  `SHA256SUMS`, every line. Each host then rebuilt steps 38 and 57 and steps 60 to 90 again: the
+  same `SHA256SUMS` again on both. Its branch run (39376805947, on `4696d0f`, which changes only a
+  check) was red beyond growth in one place, CPython's `cpython-c` group (below), so the set
+  changed once more.
+- **The first branch run and carried scipy patch 0002.** Run 39376805947: build, both rebuilds
+  and "the same bytes from every host" green (x86_64 Linux gave the set's bytes too); every
+  judge shard green but four, three of them red only on growth lines (macOS `own-guest` 154,
+  `own-embedding` 33, `upstream-macos` 2: `cpython-fs` +0.39%, `numpy-lib` +0.05%), and Linux
+  `upstream-pandas-small` red on `cpython-c`, lost 1: pydoc's `apropos` imports every builtin by
+  name, and `scipy.linalg._matfuncs_sqrtm_triu` imported first is a circular import (natively
+  too: EXECUTED with scipy 1.18.1's macOS wheel and CPython 3.14), so three apropos tests errored,
+  `test_url_search_package_error` joined the `stdlib-zip` class (7 against its 5), and
+  `test_pydoc` altered `os.environ` and `logging._handlerList`. Reproduced locally (the same
+  findings and digest). The fix is
+  `recipes/patches/scipy-1.18.1/0002-sqrtm-triu-imports-its-error-where-it-raises.patch`, the
+  `.pyx`'s import of `SqrtmError` moved into the branch that raises it, with its facts sheet
+  under `context/upstream/patches/scipy-1.18.1/` (scipy's AI policy); spec 038's two patches
+  become `0003` and `0004` (a dated line there). With it a probe importing every name in
+  `sys.builtin_module_names` first finds no scipy failure, the apropos tests pass and the
+  classes are back to their lists. What stays is scipy's own reach, as natively: those imports
+  bring in threadpoolctl, which sets `KMP_DUPLICATE_LIB_OK`, and charset_normalizer, whose api
+  module makes a `StreamHandler` and a `NullHandler`, so `test_pydoc` alters the environment;
+  environment entry `cpython-c-pydoc-imports-scipy` and its gap record it (a judge change), and
+  `SCIPY_NATIVE` loses its `_matfuncs_sqrtm_triu` row (the guest now names it as itself).
+- **The final set.** macOS from empty at `88e3f65` (10 min 59 s): `SHA256SUMS` `40281c40…`;
+  linux/arm64 from empty, a clean clone of `88e3f65` in the same container (31 min): the same
+  `SHA256SUMS`, every line. Each host again rebuilt steps 38 and 57 and 60 to 90: the same
+  `SHA256SUMS` again on both. Four builds, one `SHA256SUMS`, no exception (criterion 3 as first
+  written).
 - **The compile-twice comparison** (spec 086, Decision 10): the 4,492 objects of steps 38 and 57
   (OpenBLAS's and scipy's, `pyduccfft.cxx` among them), hashed after each of the two builds on
-  each host: equal twice on macOS, equal twice on linux/arm64, and equal between the hosts by
-  content (one object's file name differs, meson's hash of its absolute source path in
+  each host, for both sets: equal twice on macOS, equal twice on linux/arm64, and equal between
+  the hosts by content (one object's file name differs, meson's hash of its absolute source path in
   `lib_fortranobject.a.p/`; its bytes are the same). `test_ducc0s_fft_compiles_to_one_object`:
   one object in three compiles (58 s).
 - **One qhull** (criterion 8). `test_one_qhull_is_linked` passes: 381 of the 442 functions step
@@ -1321,24 +1347,27 @@ Every claim is EXECUTED unless labelled.
   removes the import again.
 - **Constructors and features.** Step 60's reviewed-constructor and `target_features` gates
   passed unchanged: clang 23 renumbered nothing in the reviewed list.
-- **The fast tier**, `uv run pytest -n 3 -m "not slow"` on `642537c`'s set with its wheel in
-  `dist/` (8 min 12 s): 605/745 pass, 6 gap, 2 blocked, **0 fail**; ratchet against main's
+- **The fast tier**, `uv run pytest -n 3 -m "not slow"` on `88e3f65`'s set with its wheel in
+  `dist/` (8 min 53 s): 605/746 pass, 6 gap, 2 blocked, **0 fail**; ratchet against main's
   accepted `f70c666`: lost 0, gained 21, grew 162 (main's state has no 043, so its growth is
   043's and 037's together; the A/B below is 037's alone). The scipy file and the qhull-related
   matplotlib checks with the slow tier (`build/037/p2/slow-scipy.log`): 26 passed, 6 xfailed
-  (the six gaps as recorded), the three scipy goldens on both binaries among them.
+  (the six gaps as recorded), the three scipy goldens on both binaries among them (on the first
+  set; patch 0002 touches one module's import, and the dotted-builtin check and the `cpython-c`
+  group were re-run on the patched set: green, the new environment gap as recorded).
 - **The A/B against 043's set** (the same judge, `WASI_PYTHON_ARTIFACTS` set to a private copy
-  of 043's set `4c7099a4…`; `build/037/p2/ab-043-vs-037.txt`): 160 metrics on checks passing
-  on both; all 157 fuel rows grew, median +3.09%, +0.05% to +12.98%; the three byte rows below.
-  Plain start (`test_guest_runs_here[plain]`) 222,096,155 to 240,674,231 (+18.58 M, +8.4%):
+  of 043's set `4c7099a4…`; `build/037/p3/ab-043-vs-037.txt`, the final set): 160 metrics on
+  checks passing on both; all 157 fuel rows grew, median +3.11%, +0.04% to +13.00%; the three
+  byte rows below. Plain start (`test_guest_runs_here[plain]`) 222,096,155 to 240,643,610
+  (+18.55 M, +8.4%):
   608 more zip members and the constructors before `main`, the C++ static destructors at
-  exit; snapshot start 48,942,227 to 50,510,480 (+1.57 M, +3.2%): the destructors and the zip.
+  exit; snapshot start 48,942,227 to 50,511,946 (+1.57 M, +3.2%): the destructors and the zip.
   The largest relative rows walk the zip's directory or its resources (+10% to +13%), as at
   the first build. No pass was lost; 26 checks pass on this set that fail on 043's (scipy's).
-- **Sizes against 043's set** (`4c7099a4…`): `python.wasm` 42,251,129 to 84,794,188
-  (+42,543,059, +100.7%); the snapshot 46,533,054 to 89,465,229 (+42,932,175); the zip
+- **Sizes against 043's set** (`4c7099a4…`): `python.wasm` 42,251,129 to 84,794,265
+  (+42,543,136, +100.7%); the snapshot 46,533,054 to 89,468,117 (+42,935,063); the zip
   38,788,145 to 44,445,916 (+5,657,771) and 4,454 to 5,062 members (+608); 95 scipy modules
-  linked; the wheel 82,629,999 bytes, 17.4 MB under PyPI's 100 MB.
+  linked; the wheel 82,628,685 bytes, 17.4 MB under PyPI's 100 MB.
 
 ### For the lane
 
@@ -1461,31 +1490,46 @@ Changed: step 37 (copies the `.pc`), step 57 (fourth `pkgconf` folder,
 
 #### The release run on the branch
 
-(written below once run 39376805947 finishes)
+- **Run 39376805947** on `4696d0f` (the first set, `95d6b217…`): red beyond growth in Linux
+  `upstream-pandas-small`'s `cpython-c` (lost 1); fixed by carried scipy patch 0002 and an
+  environment entry (the landing notes' "The first branch run and carried scipy patch 0002").
+- **Run 39382879444** on `88e3f65` (the final set, `40281c40…`): the build job, both rebuilds
+  and "the same bytes from every host" green; the build job's reactor `e4f5773e…`, the same as
+  the local build. 21 of the 24 judge jobs green, Windows' four and Linux's ten among them
+  (Linux `upstream-pandas-small`, the `cpython-c` group, green now). Red: macOS `own-guest`
+  (154 GREW lines, lost 0), `own-embedding` (33 GREW, lost 0) and `upstream-macos` (2 GREW:
+  `cpython-fs` +0.37%, `numpy-lib` +0.14%; lost 0): every red line a growth line, measured
+  against main's accepted `f70c666`, which has no 043. The gather, attest and publish jobs were
+  skipped behind them, so G7 did not run. Step times (criterion 7, benchmark facts): the build
+  job 26 min 41 s with its build shard, the arm64 Linux rebuild 17 min 26 s, the x86_64 Linux
+  rebuild 30 min 56 s, inside the 120 minutes.
 
 #### Claim list and flags (paste-safe; each line starts "037:")
 
-- 037: rebuilt from empty on 043's tip; SHA256SUMS 95d6b217 from macOS and linux/arm64, twice each (four builds, one set), no same-bytes exception (Decision 17 withdrawn, question 105 (b)).
+- 037: rebuilt from empty on 043's tip 54022dd; SHA256SUMS 40281c40 from macOS and linux/arm64, twice each (four builds, one set), and from CI's x86_64 and arm64 rebuilds (run 39382879444, same bytes green); no same-bytes exception (Decision 17 withdrawn, question 105 (b)).
 - 037: 4,492 OpenBLAS and scipy objects equal twice on each host and across the two hosts by content (spec 086, Decision 10); ducc0 one object in three compiles.
 - 037: one qhull, step 37's 8.0.2 with qhull's merged format-string fix as carried patch qhull-8.0.2/0001 (Decision 8, conditions a, b, d, e, f; criterion 8; build review F2).
-- 037: seventeen new checks over 043 (the thirteen scipy behaviour, gap and golden checks, scipy's dotted builtins, the patches-from-their-script check, test_one_qhull_is_linked, test_ducc0s_fft_compiles_to_one_object) and seven new unit functions; six gaps (three checks on two binaries) closed by spec 038.
-- 037: the judge changed in 29 files under tests/, among them test_runner_mounts' descriptor count 29 back to 28 (the freopen refusal removes 043's fd_renumber import; seen failing on 043's set) and test_scipy_build's inittab row (matplotlib._qhull registered beside scipy's renamed one).
-- 037: fast tier 605/745, 0 fail, lost 0; growth against 043's set (same judge): python.wasm +42.5 MB, snapshot +42.9 MB, zip +5.66 MB and +608 members, 157 fuel rows up, median +3.09%, max +12.98% (zip-walking checks), plain start +8.4%, snapshot start +3.2%.
+- 037: carried patches seventeen: OpenBLAS 0001 to 0003, scipy 0001 (uarray) and 0002 (new: _matfuncs_sqrtm_triu imports first, found by CPython's test_pydoc in run 39376805947), qhull 0001 (new); spec 038's two scipy patches become 0003 and 0004.
+- 037: seventeen new checks over 043 (the thirteen scipy behaviour, gap and golden checks, scipy's dotted builtins, the patches-from-their-script check, test_one_qhull_is_linked, test_ducc0s_fft_compiles_to_one_object) and seven new unit functions; seven gaps: the six of three scipy checks on two binaries (closed by spec 038) and environment entry cpython-c-pydoc-imports-scipy.
+- 037: the judge changed in 30 files under tests/, among them test_runner_mounts' descriptor count 29 back to 28 (the freopen refusal removes 043's fd_renumber import; seen failing on 043's set), test_scipy_build's inittab row (matplotlib._qhull registered beside scipy's renamed one), SCIPY_NATIVE without its _matfuncs_sqrtm_triu row, and tests/upstream/python.toml's and known_gaps.toml's environment entry for test_pydoc.
+- 037: fast tier 605/746, 0 fail, lost 0; growth against 043's set (same judge): python.wasm +42.5 MB, snapshot +42.9 MB, zip +5.66 MB and +608 members, 157 fuel rows up, median +3.11%, max +13.00% (zip-walking checks), plain start +8.4%, snapshot start +3.2%.
+- 037: branch run 39382879444 red only on growth lines (macOS own-guest 154, own-embedding 33, upstream-macos 2), lost 0 everywhere; gather skipped behind them.
 - 037: flag, the wheel is 82.6 MB, 17.4 MB under PyPI's 100 MB (question 64).
 - 037: flag, F4 ruled by the lane: no release tag carries 037 without 038's Sobol fix; 038 follows in the next wave; the tag is the owner's.
 - 037: flag, src/wasi_python/mounts.py changes by a comment only (fd_renumber no longer imported); no runner behaviour moves.
 - 037: flag, two upstream draft folders renumbered 26 and 27 at the trial rebase (main had 21 and 22); the LLVM draft 23 removed (fixed upstream, recorded in main's research folder).
-- 037: flag, the slow tier's upstream groups were not run against 043's set locally; their growth is read from the branch run's darwin judge against main's accepted state, which has no 043.
+- 037: flag, the slow tier's upstream groups were not run against 043's set locally; their growth (cpython-fs +0.37%, numpy-lib +0.14% on macOS) is read from the branch run's darwin judge against main's accepted state, which has no 043.
+- 037: flag, the patch 0002 and the environment entry came after the first branch run; the delta review reads both runs.
 
 **Accept texts for the lane** (restated on wasi-sdk 34; no quotes or backticks inside):
 
-- --accept-judge: spec 037, scipy 1.18.1 with OpenBLAS 0.3.34 on 043: the scipy checks, goldens and oracle pin (macosx_12_0 wheel on macOS arm64, one BLAS thread), the six gaps closed by spec 038, the reviewed constructors and simd128, scipy and OpenBLAS in the judge lists, scipy dotted builtins with native scipy two names, the licence source tarball-first rule, the step count in the progress unit checks, the patches-from-their-script check, guest.run root_writable for the behaviour checks (build review F1), test_one_qhull_is_linked and test_ducc0s_fft_compiles_to_one_object, the descriptor count 29 back to 28 and the inittab unit row with matplotlib _qhull registered
+- --accept-judge: spec 037, scipy 1.18.1 with OpenBLAS 0.3.34 on 043: the scipy checks, goldens and oracle pin (macosx_12_0 wheel on macOS arm64, one BLAS thread), the six gaps closed by spec 038, the reviewed constructors and simd128, scipy and OpenBLAS in the judge lists, scipy dotted builtins with native scipy one name (uarray), the licence source tarball-first rule, the step count in the progress unit checks, the patches-from-their-script check, guest.run root_writable for the behaviour checks (build review F1), test_one_qhull_is_linked and test_ducc0s_fft_compiles_to_one_object, the descriptor count 29 back to 28, the inittab unit row with matplotlib _qhull registered, and environment entry cpython-c-pydoc-imports-scipy with its gap (pydoc apropos imports every builtin; scipy brings in threadpoolctl and charset_normalizer, as natively)
 - --accept-growth: spec 037, scipy and OpenBLAS are linked (python.wasm +42.5 MB and the snapshot +42.9 MB against 043; build review F5: measured, accepted, nothing cut) and their package is in the zip (+608 members, +5.66 MB): every plain start pays about 18.6 M more for the members, the constructors and the C++ static destructors, every snapshot start about 1.6 M; zip-walking checks scale with the members (up to +13%); every import that misses the builtin table scans 95 more entries (build review F3), which the upstream groups and the long golden jobs show
 
 - Build-class: it changes `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release workflow.
 - The main tree needs five new pins in `downloads/` (`scripts/00_download.sh` fetches them).
 - The same bytes in the lane are compared byte for byte (`SHA256SUMS`), as for every other
-  specification: no exception holds. The lane's main-tree rebuild should give `95d6b217…`.
+  specification: no exception holds. The lane's main-tree rebuild should give `40281c40…`.
 - **The build review's F4, ruled by the lane (2026-10-20):** no release tag carries 037 without
   038's Sobol fix. The patch is not brought forward: 038 follows 037 in the next wave, the tag
   stays the owner's, and the lane records the rule in the roadmap.
