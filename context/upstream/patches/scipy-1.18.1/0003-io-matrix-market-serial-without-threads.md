@@ -37,5 +37,7 @@ run). In this project's statically linked CPython for `wasm32-wasip1`, a sparse 
 matrix written with `mmwrite` to an `io.BytesIO` and read back with `mmread` must give the same
 matrix, with nothing writable, on both of its binaries, and the bytes written must equal native
 scipy's, which writes with threads (fast_matrix_market writes its chunks in order).
+**Result** (2026-10-20, the build of spec 038): both hold on both binaries; the SHA-256 of
+the bytes written equals native scipy 1.18.1's for a sparse and a dense matrix.
 
 It is deleted, and the pin moved, when a scipy release carries the fix.
