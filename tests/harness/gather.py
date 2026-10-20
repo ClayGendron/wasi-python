@@ -34,15 +34,17 @@ from harness import history, paths, scoreboard, shards  # noqa: E402
 HEX64 = re.compile(r"[0-9a-f]{64}")
 # The needs that may block a check in CI, each with the systems (as `expected_keys` names them)
 # that lack it: local tooling (the oracle, the prior-art clones) and the claim G6 proves instead,
-# everywhere; a host capability one system lacks by nature (Windows has no RLIMIT_NOFILE), there
-# alone. Not "wasmtime cli": its check runs in the build shard, on the host that has it. A check
-# may be blocked only by a need its own body names (spec 085, Decision 1).
+# everywhere; a host capability one system lacks by nature (Windows has no RLIMIT_NOFILE, and a
+# Windows guest deletes a read-only file itself, spec 094), there alone. Not "wasmtime cli": its
+# check runs in the build shard, on the host that has it. A check may be blocked only by a need its
+# own body names (spec 085, Decision 1).
 EVERYWHERE = frozenset({"build", "macos", "linux", "windows"})
 CI_NEEDS: dict[str, frozenset[str]] = {
     "oracle": EVERYWHERE,
     "prior-art clones": EVERYWHERE,
     "three systems": EVERYWHERE,
     "descriptor limit": frozenset({"windows"}),
+    "read-only files": frozenset({"windows"}),
 }
 
 # The worst status first; `deselected` last, so a check run anywhere is never shown deselected.

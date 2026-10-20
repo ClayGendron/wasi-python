@@ -1691,9 +1691,11 @@ def test_the_removal_never_deletes_what_the_guest_may_not(tmp_path, case) -> Non
     """Guards a change: a removal that made folders writable deleted a file the host had made
     read-only, once the guest moved its writable parent into its HOME or its private root (spec
     084's pre-build review, F1). The removal changes no mode: the file is kept, and one warning
-    names the folder left."""
+    names the folder left. A Windows guest deletes a read-only file itself, so there is nothing
+    for the removal to keep (spec 084's C2, settled by wave 01's dry run; spec 094)."""
     import shutil
 
+    needs.need("read-only files")
     if os.name == "posix" and os.geteuid() == 0:
         pytest.skip("modes refuse nothing to root")
     host, temp = tmp_path / "host", tmp_path / "temp"
@@ -1703,8 +1705,6 @@ def test_the_removal_never_deletes_what_the_guest_may_not(tmp_path, case) -> Non
     _read_only(host / "data" / "ro", True)
     try:
         exit_code, out, err, seen = json.loads(_child(MOVED, str(temp), case, str(host))[-1])
-        if os.name == "nt" and out.startswith("unlinked"):
-            pytest.skip("a Windows guest deletes a read-only file itself (spec 084, C2)")
         assert exit_code == 0 and out.startswith("refused PermissionError"), (exit_code, out, err)
         if case == "home":
             found = list((host / "tmp").glob(".home-*/data/ro/secret"))

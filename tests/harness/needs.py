@@ -118,6 +118,15 @@ def _descriptor_limit() -> bool:
     return importlib.util.find_spec("resource") is not None
 
 
+def _read_only_files() -> bool:
+    """A file's read-only mode refuses a guest's unlink: POSIX (a folder without write permission),
+    not Windows, where the guest deletes a read-only file itself (spec 084's C2, settled by wave
+    01's dry run 39358820218; spec 094)."""
+    import os
+
+    return os.name != "nt"
+
+
 def _source_tree(component: str) -> Callable[[], bool]:
     def met() -> bool:
         from harness import pins
@@ -136,6 +145,7 @@ SPEC_050 = "context/specifications/050-numpy-and-pandas-own-tests-under-the-runt
 SPEC_059 = "context/specifications/059-the-x86-64-rebuild-runs-natively.md"
 SPEC_071 = "context/specifications/071-deep-recursion-raises-recursionerror.md"
 SPEC_032 = "context/specifications/032-a-filesystem-provider.md"
+SPEC_094 = "context/specifications/094-the-removal-rows-name-their-windows-need.md"
 
 SOURCE_COMPONENTS = (
     "cpython",
@@ -183,6 +193,7 @@ VOCABULARY: dict[str, Need] = {
         Need("compile records", _compile_records, SPEC_059),
         Need("wasmtime cli", lambda: paths.wasmtime_cli() is not None, SPEC_071),
         Need("descriptor limit", _descriptor_limit, SPEC_032),  # RLIMIT_NOFILE (spec 063)
+        Need("read-only files", _read_only_files, SPEC_094),  # not on Windows (spec 084, C2)
         *[Need(f"source tree {c}", _source_tree(c), REPRO_MEMO) for c in SOURCE_COMPONENTS],
     ]
 }

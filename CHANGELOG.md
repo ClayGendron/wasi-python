@@ -6,6 +6,11 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a8 — unreleased
 
+- **The judge: spec 084's read-only removal rows are blocked on Windows by a named need** (spec
+  094). A Windows guest deletes a read-only file itself (084's C2, settled by wave 01's dry run),
+  so the rows that check a removal keeps such a file now name the need `read-only files`, unmet on
+  Windows alone, instead of skipping without a need; the release's gather allows that block on
+  Windows only. Nothing changes for the product.
 - **Each guest runs on a stack of its own** (spec 078; question 102). The runner runs every guest
   on a thread it makes for the call, with 10 MiB of stack, 8 MiB of it for wasm (it was 512 KiB
   on the caller's thread), and checks that thread's stack before any wasm runs. Recursion in C

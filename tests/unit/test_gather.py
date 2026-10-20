@@ -534,6 +534,35 @@ def test_needs_called_on_a_source_it_cannot_read() -> None:
     assert gather.needs_called(None) == set()
 
 
+def test_the_removal_rows_may_be_blocked_on_windows_alone() -> None:
+    """Spec 094: the two rows of spec 084's read-only check name "read-only files" in their own
+    body, a need met everywhere but Windows, where a guest deletes a read-only file itself (084's
+    C2); the gather allows that block on Windows and refuses it on every other system."""
+    import importlib.util
+    import os
+
+    from harness import needs
+
+    path = paths.REPO / "tests" / "checks" / "test_v1_4_embedding.py"
+    spec = importlib.util.spec_from_file_location("embedding_094", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    called = gather.needs_called(module.test_the_removal_never_deletes_what_the_guest_may_not)
+    assert called == {"read-only files"}
+    node = (
+        "tests/checks/test_v1_4_embedding.py::test_the_removal_never_deletes_what_the_guest_may_not"
+    )
+    may_block = {f"{node}[{case}]": frozenset(called) for case in ("home", "private")}
+    for case in ("home", "private"):
+        ok = {
+            s
+            for s in gather.EVERYWHERE
+            if gather.allowed(f"{node}[{case}]", "read-only files", s, may_block)
+        }
+        assert ok == {"windows"}
+    assert needs.VOCABULARY["read-only files"].met() == (os.name != "nt")
+
+
 def test_no_ci_need_is_hidden_in_the_repository() -> None:
     """Spec 085, Decision 1: every CI need the gather allows is found in a check's own body."""
     assert gather.hidden_ci_needs(paths.REPO) == []
