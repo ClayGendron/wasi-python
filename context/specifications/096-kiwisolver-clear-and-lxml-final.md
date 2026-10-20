@@ -528,24 +528,29 @@ None blocks the build. Decided until answered:
   entry that adds a patch (textual merges).
 - **The rebuild:** steps 54 (lxml), 55 (kiwisolver, inside matplotlib's step), 60 (link), the
   snapshot, 70 (zip) and 90 change their outputs; 10 to 53 do not.
-- **The claim list** (the builder restates it with measured numbers):
-  - **New checks (5 nodes):** `test_v1_3_matplotlib.py::test_a_cycle_through_kiwisolver_objects_is_collected[plain]`,
-    `[snapshot]` (fuel recorded); `test_v1_3_lxml.py::test_lxml_html_diff_imports[plain]`,
-    `[snapshot]` (fuel recorded); `test_v1_3_data_stack.py::test_type_slots_have_the_types_cpython_calls`
-    (no fuel).
-  - **Unit rows:** `tests/unit/test_callbacks.py`, about twenty.
-  - **Retired checks:** none. **Lost passes:** none.
-  - **Rows that grow:** the two `test_binary_is_a_core_wasm_module` byte rows (kiwisolver's four
-    `return 0`), any zip byte row (`lxml/html/diff.pyc`), and any fuel row the relink moves past
-    tolerance, each named.
+- **The claim list** (measured, the builder's fast tier on the built set; each line starts "096:"):
+  - 096: **new checks (5 nodes), each passing:**
+    `test_v1_3_matplotlib.py::test_a_cycle_through_kiwisolver_objects_is_collected[plain]`
+    (fuel 228,133,887), `[snapshot]` (48,249,988);
+    `test_v1_3_lxml.py::test_lxml_html_diff_imports[plain]` (701,579,788), `[snapshot]`
+    (398,909,529); `test_v1_3_data_stack.py::test_type_slots_have_the_types_cpython_calls` (no
+    fuel; its reason the coverage line).
+  - 096: **unit rows:** `tests/unit/test_callbacks.py` gains fifteen (the suite 1,802/1,809 in the
+    fast tier).
+  - 096: **retired checks:** none. **Lost passes:** none. No fuel row grew.
+  - 096: **rows that grow, three, all bytes:**
+    `test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[plain]` 41,169,347 → 41,169,355;
+    `[snapshot]` 45,444,036 → 45,444,037;
+    `test_v1_1_artifact_set.py::test_stdlib_zip_is_bytecode_only_and_deflated` 38,723,140 →
+    38,723,169.
   - **The judge hash changes** in `tests/harness/callbacks.py`, `tests/checks/test_v1_3_data_stack.py`,
     `test_v1_3_matplotlib.py`, `test_v1_3_lxml.py` and `tests/unit/test_callbacks.py`.
-- **The flags** (the builder fills in the measured numbers):
+- **The flags** (paste-safe, with the measured numbers):
 
   ```
   --accept "096: kiwisolver's tp_clear returns int (carried patch 0002, upstream's #245), so a garbage cycle holding a kiwisolver object is collected instead of trapping; import lxml.html.diff works (carried patch 0001, upstream's line from #477); the callback scan reads static type objects, PyType_Slot arrays and module definitions"
   --accept-judge "096: the callback scan reads static PyTypeObjects (their tp_* functions and number, sequence, mapping, async and buffer suites), PyType_Spec slot arrays and PyModuleDefs, with minimum coverage (400 types, 380 specs, 120 module definitions, 4,500 functions, 0 unreferenced type candidates, at most 1 type named at run time), every dropped record counted by reason, and named records it must read (kiwisolver's four specs with their tp_clear, a pandas spec, type, numpy.ndarray, ImagingCore, lxml.etree._Element, _regex, ft2font); checks that a cycle through Variable, Term, Expression and Constraint is collected and that lxml.html.diff imports and diffs as natively; unit rows on WAT modules; no existing expectation edited"
-  --accept-growth "096: kiwisolver's four tp_clear return int: python.wasm +<bytes> and the snapshot +<bytes>; lxml/html/diff.py gains one line: the zip +<bytes>; MANIFEST two recipe lines"
+  --accept-growth "096: kiwisolver's four tp_clear return int (carried patch 0002): python.wasm +8 bytes (41,169,347 -> 41,169,355) and the snapshot +1 byte (45,444,036 -> 45,444,037); lxml/html/diff.py gains one line (carried patch 0001): the zip +29 bytes (38,723,140 -> 38,723,169); MANIFEST two recipe lines"
   ```
 
 - **Dry-run needs:** the release workflow on the branch (criterion 8); the Windows judge shards
