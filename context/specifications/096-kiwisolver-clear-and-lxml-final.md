@@ -591,4 +591,55 @@ patches, and the callback scan now reads the type slots that hid the first.
 
 ## Landing notes
 
-(None yet: the specification waits for its pre-build review.)
+### What was built (on `spec/096-kiwisolver-clear-and-lxml-final`, base main `c091f3d`)
+
+- **The patches**, byte for byte the drafts' `fix.patch` (criterion 4: SHA-256 `138e3cbe…643e`
+  and `0291f7c0…9334`, unchanged by the review), and their drafts moved with `git mv` to
+  `context/upstream/patches/kiwisolver-1.5.1/0002-tp-clear-returns-int.md` and
+  `…/lxml-6.1.3/0001-fake-cython-final.md`; `context/upstream/README.md`'s rows 28 and 29 say
+  carried.
+- **The judge:** `tests/harness/callbacks.py` gains `scan_slots`, `SlotReport`, `unread_named`
+  and `slot_verdict` (Decision 3 as revised); written fresh from the rules, it gives the drafting
+  scanner's numbers exactly on main's set (481 types, 454 specs, 149 module definitions, 5,360
+  functions, the same four findings). Checks 1 to 3 and fifteen unit rows.
+- **The confirmation's Low: option 1.** Check 3 holds the types named at run time at most 1
+  (`SLOT_MAXIMUMS`), and a static record whose `ob_type` is a type named at run time is a
+  finding; unit rows `test_slots_names_unreadable_null_and_typed_by_a_nameless_type` and
+  `test_slots_check_3s_verdict_bounds_and_named_records`.
+- `README.md` (the count 12, the list of twelve, the lxml sentence) and `CHANGELOG.md` under
+  `## 0.1.0a8 — unreleased`, as Decision 7 says.
+
+### The build (criteria 2 and 5; EXECUTED, macOS arm64, the native slot)
+
+- `scripts/build.sh` from an empty `build/` (the downloads cloned from the main tree's, every pin
+  verified by step 00): 16 steps in 9 m 40 s, exit 0. Steps 54 and 55 applied the patches through
+  `patch_tree` with no offset.
+- **The set against main's** (wave 05's, `SHA256SUMS` `4eaf1c3d…`): `python.wasm` 41,169,347 →
+  41,169,355 (+8, `02baa6cb…`), the snapshot 45,444,036 → 45,444,037 (+1, `627eb450…`), the zip
+  38,723,140 → 38,723,169 (+29, `5f1b5918…`). `MANIFEST` differs in exactly two new `recipe`
+  lines and the snapshot's `x-snapshot-zip` line; `LICENSES/` is identical.
+- **The scan on the new set:** no finding; kiwisolver's four `X_clear` at table indices 16969,
+  16979, 17034 and 17048 are now `(i32) -> (i32)`; coverage unchanged (481, 454, 149, 5,360).
+  Spec 051's scan: 3,607 method-array entries, 2,313 singles, 1,325 getsets, 451 members, the same
+  on both sets.
+- Not yet run: steps 54 to 90 twice, and the Linux rebuilds (criterion 3): the release dry run
+  below builds on Linux and compares.
+
+### The checks, seen failing first (criterion 1; EXECUTED)
+
+- On main's set (`WASI_PYTHON_ARTIFACTS` at a private copy, `build_seen_failing_first.out`):
+  check 1 traps on both binaries (`trap_cause` `wasm trap: indirect call type mismatch`, stdout
+  `Term Expression Constraint`); check 2 exits 1 with `TypeError: 'str' object is not callable` on
+  both; check 3 reports exactly the four kiwisolver findings. On the new set all five pass.
+- The unit rows' daggers (`build_unit_mutants.py`, `build_unit_mutants.out`): each of thirteen
+  rule mutants of `callbacks.py` fails its row, and only that rule's rows.
+- The tree check: with the lxml patch file moved aside, `test_source_tree_matches_its_tarball[lxml]`
+  fails (`src/lxml/html/diff.py: modified`); with it back, all trees pass.
+
+### The numbers (criterion 6)
+
+- Fuel: check 1 228,133,887 (plain) and 48,249,988 (snapshot); check 2 701,579,788 and
+  398,909,529. Check 3 records none.
+- The fast tier, `-n 3`, no lock (`build/096/fast.log`): `589/713 pass · 0 gap · 3 blocked · 0
+  fail`, unit suite 1,802/1,809; ratchet `lost 0 · gained 5 · grew 3`, its only red the three
+  byte rows above. No fuel row grew.
