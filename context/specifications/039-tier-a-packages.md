@@ -1077,3 +1077,66 @@ and `--metadata` lines, `00_download.sh`, `SHA256SUMS`, `assemble_artifacts.py`'
 `pyproject.toml` and `uv.lock` (re-lock), `packages.toml`, `needs.SOURCE_COMPONENTS` and the
 release's tree count (21 plus theirs) each take both sides; the caps are re-derived from the
 members really added.
+
+#### Rebased onto wave/02 (`e8ba20a`, wave 01 landed: 078, then 087, 085, 084, 091; 2026-10-20)
+
+By 041's builder, as the chain's builder for this wave entry (039 first, 041 stacked on it).
+039 entered at `428de1e`, which the lane had already rebased onto `97be88a` (078 landed),
+resolving `tests/checks/test_v1_4_embedding.py` (both sides kept) and `tests/known_gaps.toml`
+(078's removal of the nine `c-stack-*` trap gaps kept, this specification's four Tier A gaps
+added).
+
+- **`git rebase wave/02` replayed the seven commits with no conflict.** Git merged seven files
+  that both sides touch, each read after the merge:
+  - `CHANGELOG.md`: this specification's three entries stay under `## 0.1.0a8 — unreleased`, after
+    087's two; the heading is unchanged (the rules check ties it to `__version__`).
+  - `README.md`: no shared hunk. The results row's `upstream patches carried: 8` is 087's (regex's
+    0002); this specification carries no patch, so it stays 8 here.
+  - `.github/workflows/release.yml`: 085's set-sums output and `python3 --version` lines, beside
+    this specification's zero-patch count of 21 trees. 087 added a patch to an existing tree, not
+    a tree, so 21 stands.
+  - `scripts/assemble_artifacts.py`: 087's `MODIFIED` line for regex's 0002 patch, beside this
+    specification's `PACKAGES`, `WHEELS` and notice changes.
+  - `tests/checks/test_v1_3_lxml.py` (087's two DENY_ALL checks), `tests/checks/test_v1_4_embedding.py`
+    (084's private-root checks, beside the Excel check), `tests/release_shards.toml` (087's
+    `tests/unit/test_runner_sets.py` line, beside the default-profile check file in `own-guest`).
+- **No semantic change** to this specification's code or text. `ruff check` is clean and
+  `tests/checks/test_rules.py` passes (43 passed, 1 skipped) on the rebased tip.
+- **The set must be rebuilt.** 087 changed `recipes/patches/regex-2026.9.29/` and
+  `assemble_artifacts.py`, so `ada941bc` is stale; the lane's one rebuild of the wave settles it.
+  On the old set the fast tier (run on 041's tip, which holds this) fails exactly the rows that
+  need 087's build: `test_manifest_recipes_match_the_tree`, the two
+  `test_a_timeout_past_2_147_seconds_fires` rows and `test_source_tree_matches_its_tarball[regex]`.
+
+**The claim list: the rows 039 changes**, against main's accepted state `47b3695`:
+- **New checks:** the seven job checks, the pure-paths and threadpoolctl checks on both binaries,
+  the Excel check's cases, the tqdm and sympy notice check, `test_source_tree_matches_its_tarball`
+  for pyyaml and markupsafe, the unit rows (What changed). Its two Tier A gap checks and the two
+  `styler-templates` classes enter as gaps, and 041, in the same chain, makes all four pass.
+- **Retired checks:** none.
+- **Rows that grow, and why:** every guest check's start, by tier A's 2,014 members (about +50.6 M
+  plain and +4.7 M snapshot a check; Decision 13's account), wave 01's new checks included (087's
+  two DENY_ALL checks on both binaries, 083's and 089's three file-facts and stage checks on both,
+  and, once rebuilt, 087's two regex timeout rows); checks that read metadata (one entry-point scan
+  +205 M on the snapshot); 035's member walks; the GB18030 check (bs4's and html5lib's imports);
+  the upstream groups (+0.10% to +0.33%) and CPython's five groups (+0.13% to +4.27%); the zip's
+  bytes (+16.5 MB) and the snapshot's (+0.73 MB). `python.wasm` does not change.
+- **Passes that move:** `pandas-frame` 10,852 → 10,851 with 039 alone (`test_inspect_getmembers`
+  meets the Styler gap); with 041 in the same acceptance it is 10,853, so no
+  `--accept-fewer-passes` is needed for the chain. `pandas-io-formats` passes more.
+- **Judge files:** `tests/checks/test_v1_3_default_profile.py` (new), `test_v1_1_artifact_set.py`,
+  `test_v1_3_data_stack.py`, `test_v1_3_lxml.py`, `test_v1_3_the_zips_directory.py`,
+  `test_v1_4_embedding.py`; `tests/harness/artifacts.py`, `jobs.py`, `needs.py`, `paths.py`,
+  `pins.py`; seven jobs and goldens; the oracle's `pyproject.toml` and `uv.lock`;
+  `tests/known_gaps.toml`; `tests/release_shards.toml`; `tests/unit/test_artifact_rules.py`,
+  `test_build_scripts.py`; `tests/upstream/packages.toml`, `pandas.toml` and the two
+  `styler-templates` lists.
+
+**The exact flags** (039's parts; the lane joins them with 041's):
+
+```
+--accept-judge "039: the new checks, jobs and goldens (test_v1_3_default_profile.py, the Excel, tqdm-notice, litter and dllist checks; the tqdm-notice rule reads the artifact set alone and the utilities job caches a named function, after dry run 39264473516); the thirty in the package, licence, metadata and suite lists and pyyaml's and markupsafe's source trees; jobs.run_in_guest moved and oracle_pure; 035's check 6 snapshot bound re-based on the zip's members (Decision 13); 046's GB18030 check restated now that read_html falls back to bs4 (amendment 3); pandas' Styler tests set aside or classed with their gaps until 041 (amendment 4); four gaps closed by 041"
+--accept-growth "039: tier A adds 2,014 members and 30 distributions: every row of Decision 13's account is inside its cap, wave 01's new checks growing by the same start cost (+50.6 M plain, +4.7 M snapshot); the upstream groups' growth is one to three entry-point scans per session at +205 M each (the build review's F4); 035's member-walking checks grow with the zip by design; pandas-io-formats runs the Styler tests; the GB18030 check imports bs4; CPython's five groups (065) grow 0.13% to 4.27% with every outcome unchanged, a distribution scan costing +199 M"
+```
+
+Only if 041 is ejected from the wave: `--accept-fewer-passes "039: pandas-frame 10,852 -> 10,851: test_inspect_getmembers meets the Styler gap (.style raises TemplateNotFound, a LookupError, where it raised AttributeError without jinja2); spec 041 restores it"`.
