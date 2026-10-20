@@ -596,7 +596,9 @@ zip, the licences and the set's list skip one shared list of such names
 list, and the judge's artifact checks forgive those names and no others
 (specs 018 and 090). The repository's `.gitignore` ignores them too. To stop
 the writers, close System Settings' Storage pane and any Finder window on the
-checkout.
+checkout. Before building a wheel by hand from `build/artifacts`, delete any such file
+there (`find build/artifacts -name .DS_Store -delete`): the wheel check names a member the set's
+list does not.
 
 ## Releasing
 
