@@ -559,6 +559,9 @@ def reportlab_notice_errors(d: Path, wheel: Path | None) -> list[str]:
     text = [data for label, data in parts.items() if label.endswith(f"({mit[0]})")]
     if not text or paths.sha256_bytes(text[0]) != m.pins[mit[0]]:
         errors.append(f"LICENSES/reportlab.txt does not hold the MIT text of {mit[0]}")
+    return errors
+
+
 # statsmodels' notice (spec 045, Decision 13): its licence, COPYRIGHTS.txt (the numpy, scipy,
 # pandas, matplotlib, scikit-learn and qsturng-py code it carries), the two folders with licences of
 # their own, and each bundled component the build's notice sweep found, matched against the pinned

@@ -2357,9 +2357,8 @@ Both are pure Python. seaborn draws through matplotlib; reportlab writes PDFs (s
   scipy's import.
 - Bivariate kernel densities (`kdeplot(x=…, y=…)`, `jointplot(kind="kde")`) draw contours
   through contourpy (spec 043).
-- `regplot(lowess=True)`, `logistic=True` and `robust=True` need statsmodels, which is not
-  carried yet (spec 045): each raises seaborn's own `RuntimeError` naming it, as natively
-  without it.
+- `regplot(lowess=True)`, `logistic=True` and `robust=True` fit with statsmodels, which is
+  carried since spec 045 (see *statsmodels in the guest*), as natively with it.
 - reportlab builds PDFs in memory with nothing writable: a canvas, a platypus document,
   `renderPDF` and `renderSVG` charts. It stamps the time and a random document id into each PDF;
   pass `invariant=1` for the same bytes on every run.
