@@ -188,11 +188,36 @@ when a judge job is red, so the record was read from the jobs' logs instead.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. M1 —
-2. L1 —
-3. L2 —
-4. L3 —
-5. L4 —
+1. M1 — fixed in the specification (*For the lane*, the claim list's new bullet and
+   `--accept-growth`; context only): `test_upstream_suite[cpython-fs]` is claimed with its numbers,
+   63,023,374,266 in 038's run 39415728849 to 63,099,389,920 in 39416371904 and 39418201520
+   (+76,015,654, +0.12%; main 62,994,222,641), and "no other row moves" is gone. The cause, by
+   reasoning from the records without a rebuild: the same 411 members, but paid where the suite
+   rebuilds the stdlib zip's directory, not at starts. The group runs in one snapshot session
+   (`tests/harness/upstream.py`), whose start costs +1.05 M; `zipimporter.invalidate_caches()`
+   drops the zip's `_zip_directory_cache` entry (`Lib/zipimport.py:228-230`), so after each
+   `importlib.invalidate_caches()` the next import rebuilds the directory over every member, and
+   one rebuild costs +36.2 M more with the 411 members
+   (`test_the_fast_reader_builds_zipimports_dict[snapshot]`, 481,672,302 to 517,853,643). So
+   +76.0 M is about two rebuilds plus the start (INFERRED; the rebuilds were not counted). This
+   corrects "about seven plain starts": the group starts once, on the snapshot.
+2. L1 — fixed: the self-check's CI line names 39416371904 on `026ba56` and this review's
+   39418201520, both red only on growth (own-guest 180, own-embedding 33, upstream-macos 1; 0 lost;
+   no G7).
+3. L2 — answered in writing in the landing notes ("The weak-duplicate gate's seen-failing item"),
+   with the review's fix text: criterion 1's gate item is met by the compiled-objects unit case
+   and the first link's findings; `bounded_rand_int` is inlined everywhere; a missed rename is
+   wasm-ld's duplicate `mt_rand` or `set_seed` (two copies) or the link map's forbid list (one
+   copy).
+4. L3 — fixed: `tests/upstream/packages.toml` names `closes_with = "spec 095"` for scikit-learn,
+   with a comment; the self-check's item and the B6 note match; `--accept-judge` names it.
+5. L4 — fixed: `tests/jobs/oracle/sklearn_native_tests.sh` records each group's exit status and
+   fails a group unless pytest exits 0 and its last line counts passed tests. The script has no
+   unit check of its own; the group logic was exercised with stubs (passed, failed, a fatal abort
+   at exit 134, no tests at exit 5: only the passed group counts as passed), and `sh -n` passes.
+   Not in the release, so no CI rerun.
+6. N3's wording points — recorded in the landing notes for the next touch of
+   `recipes/weak-duplicates-allowed.txt`; no change now.
 
 ## Verdict
 
