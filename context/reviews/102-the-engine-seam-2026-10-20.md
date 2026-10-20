@@ -1,0 +1,204 @@
+# Review of 102 — The engine seam: one module touches wasmtime-py's private API
+
+- **Date:** 2026-10-20
+- **Reviewer:** a fresh agent (build reviewer for the chain 102–107); not the author
+- **Reviewed:** `3626bb6..c15adf4` on `spec/102-the-engine-seam` in the worktree `/home/user/wt/102`
+  (three commits: `e517a1a` the seam, its checks and the runner behind it; `d77425d` the debt
+  sheet's row for `wasmtime_error_t`; `c15adf4` the Status line and the landing notes); the
+  specification `context/specifications/102-the-engine-seam.md` at `c15adf4` read in full; the
+  pre-build review and its confirmation `102-the-engine-seam-spec-2026-10-20.md` read. Time box:
+  25 minutes, parallel-safe.
+- **Run:** none; the chain's one dispatch on its final tip (the memo
+  `context/research/2026-10-20-a-design-review-of-the-runner.md`, section 8: one release-workflow
+  run on the chain's final tip stands for the six).
+- **Re-ran:** (every command in `/home/user/wt/102`, EXECUTED)
+  `WASI_PYTHON_ARTIFACTS=/home/user/wasi_python/build/baseline-a7/set/wasi-python-0.1.0a7 uv run
+  pytest -m "not slow" -n 3 -q -p no:cacheprovider` on `c15adf4`, under
+  `build/fast-tier.lock` (taken and released) → **83 failed, 2363 passed, 52 skipped** in 309 s,
+  exit 1 (`build/102/review-fast.log`); the 83 node ids are the baseline's 83
+  (`diff` of the sorted `FAILED` lines against `build/baseline-a7/failing-nodes.txt`: empty); the
+  record's unit suite 1864 (1850 passed, 13 skipped) against the baseline's 1847 (1833, 13): +17,
+  no pass lost (my record kept as `build/102/review-built.json`).
+  `uv run python tests/harness/sameness.py /home/user/wasi_python/build/baseline-a7/baseline.json
+  build/progress/latest.json --claims build/102/claims.toml` → one line, `note: explained by
+  claims: 102 4`, exit 0.
+  Probes by node id: `tests/checks/test_rules.py::test_only_the_engine_seam_touches_wasmtimes_
+  private_api`, `::test_the_private_api_debt_is_documented`, `::test_no_module_level_name_is_
+  bound_twice`, `tests/checks/test_v1_4_embedding.py::test_package_imports_without_wasmtime` → 4
+  passed; `tests/unit/test_wasmtime_ffi.py` with `tests/unit/test_scan.py`'s two spec-102 rows →
+  19 passed; `tests/unit/test_runner_mounts.py::test_the_rename_rule_forward_is_fuel_neutral`,
+  `::test_forwards_cost_no_fuel_and_keep_traps`, `tests/unit/test_runner_cancel.py` (six rows),
+  `tests/unit/test_runner_calls.py::test_the_async_stack_size_property_is_preferred`,
+  `::test_no_engine_is_made_without_the_async_stack_size`,
+  `::test_a_hosts_base_exception_comes_back_to_its_own_call` → 14 passed.
+  `uv run pytest --collect-only -q tests/unit | grep` for the two moved rows → each collected
+  once, in `tests/unit/test_wasmtime_ffi.py` only. `uv run ruff check src/ tests/` → "All checks
+  passed!", exit 0; `uv run ruff format --check src/ tests/` → "131 files already formatted",
+  exit 0. `uv run python -c "import wasi_python._wasmtime_ffi"` → nothing printed, exit 0.
+  Decision 3's regex, as a scratch script run with `-I` over every `.py` under `src/`, `tests/`,
+  `scripts/` and `release/` → 0 hits outside the two exempt files (84 inside them). A scratch
+  `ast` read of the adapter → `NEEDED` 30 entries and `OPTIONAL` 1, every dotted name in the
+  module docstring; `awk` over the sheet's "The bindings" table → 31 rows. `git diff --stat
+  3626bb6..c15adf4 -- tests/public_api.txt CHANGELOG.md` → empty.
+
+## Acceptance criteria against evidence
+1. The adapter exists and exposes exactly the table's names, each annotated — met: U1 passed with
+   `__all__` of 28 names against `TABLE` (EXECUTED); every parameter and return in
+   `src/wasi_python/_wasmtime_ffi.py` is annotated (READ, lines 167–399).
+2. The import check: U1 to U3 pass; the bare import prints nothing on 49.0.0 — met: 19 passed
+   includes U1–U3; the import command printed nothing, exit 0 (EXECUTED).
+3. The rules check seen failing first with 31 hits, passing on the built commit, `scan.py` and
+   `test_scan.py` included — met: `build/102/seen-failing.txt` and `rule-before.txt` show the 31
+   findings, digest `3f64ef046fdb`, the same lines the pre-build review re-ran (READ); the check
+   and U17's first row (which asserts both own files are not hits) pass now (EXECUTED).
+4. No line outside the two exempt files matches — met: my own run of the regex, 0 hits over
+   `src/`, `tests/`, `scripts/` and `release/` (EXECUTED).
+5. Sameness on the frozen set prints nothing and exits 0 — met: my record against the baseline's,
+   the one `note:` line of the claims, exit 0 (EXECUTED); both records' counts are in the landing
+   notes and above.
+6. 0 fuel rows, 0 bytes rows — met: sameness names no row outside the claims (EXECUTED).
+7. No pass lost: the built record's passes are the base's plus the new rows — met: the same 83
+   failing node ids; 2344 → 2363 passed; unit suite 1847 → 1864 (EXECUTED).
+8. Fuel neutrality held, the rename rule's row unchanged — met: the row passes (EXECUTED); its
+   file's one change is line 260's `str(call.stopped)` in another row (READ, the diff).
+9. The eighteen unit rows pass; the moved rows gone from their old files; the re-pointed files
+   keep every row — met: 17 rows in the new file and U17's two halves in `test_scan.py`, 19
+   passed; collect-only finds the two moved rows once each, in the new file; the six cancel rows
+   and the three re-pointed calls rows pass (EXECUTED).
+10. The package imports without wasmtime-py and without the adapter — met:
+    `test_package_imports_without_wasmtime` and U10 pass (EXECUTED); the adapter is imported only
+    inside functions in `runner.py` and `mounts.py` (READ: twelve `from . import _wasmtime_ffi as
+    ffi` lines, each inside a function).
+11. `ruff check`, `ruff format --check` and `test_no_module_level_name_is_bound_twice` green — met
+    (EXECUTED).
+12. `tests/public_api.txt` unchanged — met: the diff stat is empty (EXECUTED); the API snapshot
+    check is not among the 83 failures (EXECUTED).
+13. The debt is documented: the sheet with its rows and its README row; the rules check seen
+    failing first and passing; the docstring names every entry — met: the check passes; 31 rows
+    equal `NEEDED` + `OPTIONAL`'s 31 entries, every one in the docstring (EXECUTED);
+    `seen-failing.txt` shows the one finding on the base (READ); `context/upstream/README.md` row
+    30 says thirty-one (READ). The count is thirty-one, not the criterion's thirty: the landing
+    notes name it (finding 2 is the write-in for the specification's body).
+14. Public first: U18 passes; the three fuel and deadline operations and `set_async_stack` take
+    the public path when the object has it; the six `Caller` sites keep the private path — met:
+    U18 passed (EXECUTED); the adapter looks the public method up per call and the property on
+    `type(cfg)` per call (READ, lines 241–276 and 319–332); the six sites pass `caller`
+    (`runner.py` `_Call.stop` and `_epoch_now`; `mounts.py` `forward` three times and the ABI
+    branch; READ, the diff), and U18 asserts `Caller` has none of the three methods on 49.0.0
+    (EXECUTED).
+
+## Findings, most severe first
+1. **The self-check's CHANGELOG item is unchecked** (L) (`102-the-engine-seam.md`, the landing
+   notes' self-check: "CHANGELOG under the one unreleased section: not checked, the integrator's";
+   `CHANGELOG.md`, "0.1.0a8 — unreleased") — the Kind line names `CHANGELOG.md` among the
+   specification's files and AGENTS rule 2 puts a specification's lines under the one unreleased
+   section; the branch carries none (`git diff --stat` of `CHANGELOG.md` is empty).
+   Failure: the wave's integrator writes the entry from the landing notes, which is a second
+   author's summary of the change, not the builder's. Fix text, one bullet under "0.1.0a8 —
+   unreleased": "**One module touches wasmtime-py's private API** (spec 102).
+   `src/wasi_python/_wasmtime_ffi.py` is the engine seam: the runner and the mounts drive the
+   engine through its named operations, it prefers wasmtime-py's public API wherever the installed
+   release has it, and at the first `run()` it raises one `ImportError` naming the wasmtime-py
+   version and every private name that moved. A rules check holds that no other `.py` under
+   `src/` or `tests/` reaches the private API; a second holds the debt sheet
+   `context/upstream/30-wasmtime-py-public-api-for-the-runner/facts.md` equal to the names the
+   seam needs. No behaviour, fuel or errno changes." A Low that needs no round: the builder writes
+   it, or names in writing that the lane's integration commit carries it.
+2. **The specification's body keeps the draft's counts where the landing notes carry the built
+   ones** (L) (`102-the-engine-seam.md:14-15`, "three unit rows moved"; `:165`, "the fifteen
+   `_ffi` names"; `:657`, "thirty rows: fifteen `_ffi` names"; `:748`, "its thirty rows";
+   `:771-779`, the claim list with `units = 18` and no unit-file entry, and `:789-792`, flags
+   whose `--accept-judge` text differs from the landing notes' at `:911`) — the build has sixteen
+   `_ffi` names and thirty-one rows (`wasmtime_error_t`, sound: `ctypes` refuses `c_void_p` for a
+   typed pointer argument, as the notes show EXECUTED), two rows moved and one re-pointed in
+   place, and a claim list of `units = 17` with the unit file under `new`, each stated in the
+   landing notes and each right; but "For the lane" is the section the lane pastes from, and it
+   now holds two flag texts and two claim lists.
+   Failure: a lane that pastes "For the lane" runs `sameness.py` with `units = 18` and no
+   unit-file entry, and gets the first run's unexplained line (`collected_files:
+   tests/unit/test_wasmtime_ffi.py only in the second record`) and a count off by one. Fix text:
+   in "For the lane", replace the claim list and the two flags with the landing notes' (the list
+   at `:896-905`, the flags at `:910-911`), and drop "(the node count filled in by the builder
+   from the built record)"; in the Kind line, "two unit rows moved and one re-pointed"; in
+   Decision 2, "the sixteen `_ffi` names (the thirteen of The problem, `wasmtime_error_delete`
+   and `wasmtime_error_t` for `delete_error`, and `wasmtime_context_t` for `Context`)"; in the
+   Design and criterion 13, "thirty-one rows: sixteen `_ffi` names". Touches only `context/`;
+   this reviewer may write it in once the branch is handed over.
+
+Notes, no finding:
+
+- A metered forward now reads the caller's context four times per call where it read it once:
+  `ffi.context_of(caller)` for the prepared call, then `get_fuel`, `set_fuel` and `set_fuel`
+  each call `storelike._context()` on the private path (`_wasmtime_ffi.py:248`, `:257`, `:273`;
+  `mounts.py:786-797`), each a `wasmtime_caller_context` call through ctypes. This is the shape
+  the confirmation's M9 chose (one store-like signature for the three, the adapter taking the
+  context itself), it spends no guest fuel and moves no verdict (criteria 5, 6 and 8), and
+  constitution §4.9 keeps host time out of the judge. Spec 106's call-context protocol is the
+  place to hand the forward one context if it wants the three calls back.
+- The commit messages' subjects and bodies name no model; each ends with the harness's
+  `Co-Authored-By` and `Claude-Session` trailers, the same two lines every commit on `main`
+  carries (READ, `git log main -6`), so the trailers are the repository's convention.
+- The five differences from the specification the landing notes state are each sound and each
+  written there: the sixteenth `_ffi` name (above); `units = 17` (the net growth: 17 new rows in
+  the unit file plus U17's two halves, less the two rows that left their files; my record agrees,
+  1847 → 1864); the property read on `type(cfg)` at call time (a module constant read from
+  `wasmtime.Config` could not see U7's and U18's stand-in classes, and the real `Config` is covered
+  by the same read); U3's `delattr` of the package attribute (`from . import name` returns an
+  existing package attribute without importing, so the import check would not run again without
+  it); U9's high-water mark (wasmtime-py's `Slab.allocate` pops its free chain before growing the
+  list, so the count grows by one only once no slot is free; the row's loop is bounded by
+  `before + 1` definitions, and the embedding check's equal-counts assertion is unchanged).
+
+## Constitution checks
+- §4.2 (every input pinned): no input changes; U4 holds `pyproject.toml`, `PIN` and
+  `_wasmtime()`'s message equal (EXECUTED, in the 19). Holds.
+- §4.5 (embedder-neutral): no embedder name in the adapter, the sheet or the tests. Holds.
+- §4.9 (tests count, never time): the new rows count names, addresses, calls, keys and rounds
+  of `gc.collect()`; no clock. Holds.
+- §4.10 (claims carry their evidence): every EXECUTED number of the landing notes that I re-ran
+  agrees (the 31 hits, the 83, 2363, 1847 → 1864, the sameness line, the 31 rows, the empty
+  diffs). Holds.
+- §4.13 (uv, ruff, pytest): green (EXECUTED); the one `noqa: F401` is on `_wasmtime()`'s adapter
+  import, as the Design says. Holds.
+- §4.14 (git): one branch `spec/102-the-engine-seam` from the chain's base, one worktree; no
+  push. Holds.
+- §4.15 (safe by default): no default, limit or channel changes; the semantics asked for were
+  read against the base: `PreparedCall.call` keeps the trap-over-error precedence (an error is
+  wrapped so it is freed, then a trap replaces and is raised; `_wasmtime_ffi.py:393-398` against
+  the base's `mounts.py:810-813`); the fuel bracket stays in `forward` and is the base's call for
+  call (`get_fuel` before, the allowance, the call, `set_fuel(before)` in the `finally`,
+  `stop_fuel` on a trap or error, the raise; the only new line is the `except` that holds the
+  exception across the `finally`), and `PreparedCall.call` reads no fuel; `_stop_error` keeps its
+  `try`/`except` with the adapter import inside the `try` and continues by one on a failure (U6
+  patches `new_error` both ways, passed); `set_async_stack` keeps spec 078's three branches in
+  order; `set_fuel` never raises on either path and `get_fuel` raises `WasmtimeError` on both
+  (U12, U18); the import check runs before `Context`, `EPOCH_CALLBACK` and the other constants
+  are built, with `getattr(_ffi, "dll", None)` as the `dll` holder (L6); `_wasmtime()` imports the
+  adapter outside its `try`, so the adapter's own `ImportError` reaches the caller (U3). Holds.
+- §5.6 (review as a stage): the pre-build review and its confirmation were answered in writing,
+  each disposition confirmed; this is the build review; the judge-hash line and the
+  `--accept-judge` text name every judge file the diff touches (ten, matching `git diff --stat`).
+  Holds.
+- Kind: parallel-safe and a judge change is right: the diff touches nothing under `scripts/`,
+  `recipes/`, `downloads/` or `.github/`, and no artifact byte. Holds.
+- AGENTS rule 4 (never weaken the judge): no golden, `tests/known_gaps.toml`, allowance or
+  `context/progress/` file changes (`git diff --stat`); `test_runner_mounts.py:260`'s
+  `str(call.stopped)` keeps the row's meaning (the pre-build review's reading);
+  `test_calls_add_nothing_to_wasmtime_pys_tables` keeps every assertion. Clean.
+- The claim list against the diff: the rows that changed are the two new rules-check nodes, the
+  new unit file and the unit count, each claimed; the two moved rows and the re-pointed rows keep
+  their verdicts and `sameness.py` names nothing for them. No row changed unclaimed.
+- The self-check: every item checked or excluded with a reason except the CHANGELOG item
+  (finding 1).
+- §7 never-do list: nothing tripped. No patch, no fetch, no copying, no commit or push by this
+  review, no branch beyond §4.14's; the specification leaves no question list.
+
+## Disposition (filled in by the author, then confirmed by the reviewer)
+1. The self-check's CHANGELOG item is unchecked — answered in writing, not by an edit: `CHANGELOG.md` is shared by every entry of the wave, so the branch edits no line of it and the lane's integration commit carries the specification's line under the one unreleased section; the landing notes carry the review's exact bullet under "CHANGELOG line (for the integrator)" and the self-check's CHANGELOG item says so (the landing notes, "CHANGELOG and roadmap" and the self-check).
+2. The specification's body keeps the draft's counts where the landing notes carry the built ones — fixed in the body: the Kind line says "two unit rows moved and one re-pointed"; Decision 2 counts sixteen `_ffi` names (`wasmtime_error_delete` and `wasmtime_error_t` for `delete_error`, `wasmtime_context_t` for `Context`); the Design and criterion 13 say thirty-one rows; "For the lane" carries the claim list as run (`units = 17`, the unit file under `new`, the "filled in by the builder" clause dropped) and the landing notes' `--accept-judge` text (Kind; Decision 2; Design, "The debt is documented"; criterion 13; For the lane).
+
+## Verdict
+Lands: every acceptance criterion is met on evidence I re-ran, the fast tier on the frozen
+`v0.1.0a7` set gives the baseline's exact 83 failures with 17 more unit passes and `sameness.py`
+prints nothing outside the claims, and the two findings are Lows with their fix text that need no
+further round.

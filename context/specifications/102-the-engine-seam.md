@@ -11,8 +11,8 @@
   `recipes/`, `downloads/` or the release workflow, and no artifact byte. **It changes no line of
   `tests/public_api.txt`.** It is **the first of the stacked chain 102 → 103 → 104 → 105 → 106 →
   107** (the memo, section 8): 103 is built on this specification's reviewed tip, and the chain
-  lands as one wave. It is **also a judge change** (a new rules check, a new unit file, three unit
-  rows moved, the harness driver's engine made through the seam): the lane accepts it with
+  lands as one wave. It is **also a judge change** (two new rules checks, a new unit file, two unit
+  rows moved and one re-pointed, the harness driver's engine made through the seam): the lane accepts it with
   `--accept-judge`. Files: `src/wasi_python/_wasmtime_ffi.py` (new), `src/wasi_python/runner.py`,
   `src/wasi_python/mounts.py`, `tests/harness/scan.py`, `tests/harness/guest.py`,
   `tests/checks/test_rules.py`, `tests/checks/test_v1_4_embedding.py` (one check's two private
@@ -162,8 +162,8 @@ At import, after its own imports, the adapter calls `check(holders)` with a tabl
 `NEEDED` is a tuple of `(holder, name)` pairs, one per private name of Decision 1's table except
 the optional `wasmtime_config_async_stack_size_set`, which is the one entry of a second tuple,
 `OPTIONAL`, that `check` does not read (the sheet of Design, "The debt is documented", lists
-both): the fifteen `_ffi` names (the thirteen of The problem, `wasmtime_error_delete` for
-`delete_error` and `wasmtime_context_t` for `Context`); `_bindings`'
+both): the sixteen `_ffi` names (the thirteen of The problem, `wasmtime_error_delete` and
+`wasmtime_error_t` for `delete_error`, and `wasmtime_context_t` for `Context`); `_bindings`'
 `_wasmtime_store_epoch_deadline_callback` and `_wasi_config_set_stdout_custom` (each with an
 `argtypes` of length 4, since `EPOCH_CALLBACK`, `OUTPUT_WRITE` and `OUTPUT_FREE` are read from
 them); `_func.LAST_EXCEPTION`; `_func.FUNCTIONS`; `_wasi.CUSTOM_OUTPUTS`; `Trap._from_ptr`;
@@ -654,8 +654,8 @@ Decision 6, step 6.
   `21-wasmtime-py-async-stack-size/facts.md`: Project, Against, Status, Title, Files, Why we need
   it, the "facts sheet, not an issue" paragraph, then numbered facts labelled EXECUTED or READ).
   Its heart is one table, "The bindings", with **one row per entry of `NEEDED` and `OPTIONAL`**
-  (thirty rows: fifteen `_ffi` names, two `_bindings` records, two `_func` names, one `_wasi`
-  name, nine class attributes, and the optional async-stack setter): the binding as a dotted name
+  (thirty-one rows: sixteen `_ffi` names, two `_bindings` records, two `_func` names, one
+  `_wasi` name, nine class attributes, and the optional async-stack setter): the binding as a dotted name
   in backticks, the C API function it is, what the runner does with it, the public wasmtime-py
   API that would replace it, whether 49.0.0 has it, and the existing sheet it overlaps (21 for
   the async stack size, 1 for the exception slot). Below the table, a "Landed" list holds the
@@ -745,8 +745,8 @@ Fourteen, each checkable:
 12. **`tests/public_api.txt` is unchanged**: `git diff --stat` of the branch against its base
     names no line of it, and the API snapshot check stays green.
 13. **The debt is documented** (Design): the sheet
-    `context/upstream/34-wasmtime-py-public-api-for-the-runner/facts.md` exists with its thirty
-    rows and its README row; `tests/checks/test_rules.py::test_the_private_api_debt_is_
+    `context/upstream/34-wasmtime-py-public-api-for-the-runner/facts.md` exists with its
+    thirty-one rows and its README row; `tests/checks/test_rules.py::test_the_private_api_debt_is_
     documented` is **seen failing first** on `a9064a2` (no adapter file: one error naming it) and
     passes on the built commit; the adapter's docstring names every entry of `NEEDED` and
     `OPTIONAL` (the same check).
@@ -765,8 +765,8 @@ Fourteen, each checkable:
 - **The dispatch:** one release-workflow run on the chain's final tip stands for the six
   (the owner, the memo's section 8); this entry's own evidence is the fast tier on the frozen set
   and the sameness line of Decision 4.
-- **The claim list** (`build/102/claims.toml`; the node count filled in by the builder from the
-  built record):
+- **The claim list** (`build/102/claims.toml`, as the build ran it: the two new rules-check
+  nodes, the new unit file, and the unit suite's net growth of 17):
 
   ```toml
   [[claim]]
@@ -774,8 +774,9 @@ Fourteen, each checkable:
   new = [
     "tests/checks/test_rules.py::test_only_the_engine_seam_touches_wasmtimes_private_api",
     "tests/checks/test_rules.py::test_the_private_api_debt_is_documented",
+    "tests/unit/test_wasmtime_ffi.py",
   ]
-  units = 18
+  units = 17
   ```
 
   102: **retired checks:** none. **Lost passes:** none. **Rows that grow:** none.
@@ -788,7 +789,7 @@ Fourteen, each checkable:
 
   ```
   --accept "102: one module, src/wasi_python/_wasmtime_ffi.py, touches wasmtime-py's private API, public first where a release has the public form; the runner and the mounts drive the engine through its named operations; a moved symbol is one ImportError at the first run(), naming the wasmtime-py version and the names; the private bindings still needed are listed in context/upstream/34-wasmtime-py-public-api-for-the-runner/facts.md; no behaviour change, the frozen set's verdicts the same"
-  --accept-judge "102: a rules check that no .py under src/ or tests/ but the seam and its unit file imports wasmtime._ffi, _bindings, _func or _wasi or touches ._context(), ._func, _from_ptr or .ptr(); a rules check that every entry of the adapter's NEEDED and OPTIONAL tuples is a row of the debt sheet's table, every row an entry, and every entry named in the adapter's docstring; the adapter's unit file (seventeen rows) and the scan's row; three rows moved to it; two rows re-pointed to the adapter's names; one embedding check counts wasmtime-py's tables through the seam; the harness driver sets the async stack size through the seam; no existing expectation edited"
+  --accept-judge "102: a rules check that no .py under src/ or tests/ but the seam and its unit file imports wasmtime._ffi, _bindings, _func or _wasi or touches ._context(), ._func, _from_ptr or .ptr(); a rules check that every entry of the adapter's NEEDED and OPTIONAL tuples is a row of the debt sheet's table, every row an entry, and every entry named in the adapter's docstring; the adapter's unit file (seventeen rows) and the scan's two rows; two rows moved to it; two files re-pointed to the adapter's names; one embedding check counts wasmtime-py's tables through the seam; the harness driver sets the async stack size through the seam; no existing expectation edited"
   ```
 
 - **Dry-run needs:** none of its own; the chain's one dispatch covers it on three systems.
@@ -829,8 +830,9 @@ worktree (git-ignored): `seen-failing.txt`, `rule-before.txt`, `fast.log`, `buil
   (wasmtime-py 49.0.0).
 - **One difference from the specification, the sheet fixed and not the check:** `NEEDED` holds a
   sixteenth `_ffi` name, `wasmtime_error_t`, so `NEEDED` has 30 entries, `OPTIONAL` 1, and the
-  sheet's table 31 rows (`context/upstream/README.md`'s row 34 says thirty-one; criterion 13's
-  "thirty" reads thirty-one). `delete_error(address)` must cast the address to
+  sheet's table 31 rows (`context/upstream/README.md`'s row 34 says thirty-one; the draft's
+  Decision 2, Design and criterion 13 said fifteen and thirty, and now say sixteen and
+  thirty-one, the build review's finding 2). `delete_error(address)` must cast the address to
   `ctypes.POINTER(_ffi.wasmtime_error_t)`: EXECUTED,
   `_ffi.wasmtime_error_delete(ctypes.c_void_p(address))` raises `ctypes.ArgumentError: argument
   1: TypeError: expected LP_wasmtime_error instance instead of c_void_p`, and no entry of
@@ -917,8 +919,22 @@ worktree (git-ignored): `seen-failing.txt`, `rule-before.txt`, `fast.log`, `buil
   3626bb6 -- tests/public_api.txt` is empty (criterion 12); `test_package_imports_without_
   wasmtime` and U10 pass (criterion 10); U18 passes (criterion 14).
 - **CI:** none of its own; the chain's one dispatch on the final tip (the memo's section 8).
-- **CHANGELOG and roadmap:** not touched by the build; the integrator adds the specification's
-  lines under the one unreleased section.
+- **CHANGELOG and roadmap:** not touched by the build. `CHANGELOG.md` is shared by every entry
+  of the wave, so the lane's integration commit carries this specification's line under the one
+  unreleased section (the build review's finding 1, answered in writing: the branch edits no
+  line of it). The line is written here for the integrator to paste.
+- **CHANGELOG line (for the integrator)**, one bullet under "0.1.0a8 — unreleased":
+  "**One module touches wasmtime-py's private API** (spec 102).
+  `src/wasi_python/_wasmtime_ffi.py` is the engine seam: the runner and the mounts drive the
+  engine through its named operations, it prefers wasmtime-py's public API wherever the installed
+  release has it, and at the first `run()` it raises one `ImportError` naming the wasmtime-py
+  version and every private name that moved. A rules check holds that no other `.py` under
+  `src/` or `tests/` reaches the private API; a second holds the debt sheet
+  `context/upstream/34-wasmtime-py-public-api-for-the-runner/facts.md` equal to the names the
+  seam needs. No behaviour, fuel or errno changes."
+- **The build review:** `../reviews/102-the-engine-seam-2026-10-20.md` (lands; two Lows, both
+  answered in its Disposition: the CHANGELOG line above, and the body's counts brought to the
+  built ones in the Kind line, Decision 2, the Design, criterion 13 and "For the lane").
 - **The builder's self-check** (`../reviews/README.md`):
   - rebased onto the named base today, the base commit in the Status line: checked (`3626bb6`,
     the chain's base; 102 is its first link, so nothing to rebase onto).
@@ -936,7 +952,9 @@ worktree (git-ignored): `seen-failing.txt`, `rule-before.txt`, `fast.log`, `buil
     added, no follow-up reserved).
   - `packages.toml` has its reason line: not applicable (no package). README rows the spec
     changes listed: checked (`context/upstream/README.md`, row 34's count).
-  - CHANGELOG under the one unreleased section: not checked, the integrator's (above);
-    questions numbered: none asked.
+  - CHANGELOG under the one unreleased section: not written on this branch, in writing: the
+    file is shared by the wave's six entries, so the lane's integration commit carries the line,
+    whose exact text is above under "CHANGELOG line (for the integrator)"; questions numbered:
+    none asked.
   - `ruff check`, `ruff format --check`, the fast tier: green but the baseline's 83, output in
     `build/102/`: checked.
