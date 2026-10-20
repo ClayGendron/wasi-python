@@ -208,7 +208,111 @@
 9. *Semantics note* (the adapter import inside `_stop_error`'s `try`) — fixed: the Design's runner side says the import sits inside the `try`, so an import failure in the callback still continues by one tick (Design, "The runner's side").
 10. *Additions made after the draft this review read* (the owner, 2026-10-20), for the reviewer to read: **Decision 8, "Public first, in the seam"**: every adapter operation calls wasmtime-py's public API when the installed release has it and falls back to the binding otherwise; a table per operation (the binding, the public form in 49.0.0 as EXECUTED, the public name preferred once a release has it, and the reason where the private one is kept); the decision that fuel and the deadline inside a host function stay on the `Caller` (the seven sites hold a `Caller`, not the `Store`; the public `Store` methods make the identical C call; the judge's stand-ins have no store) with the adapter taking the public path the day `Caller` has the methods; U18 holds the preference. **Design, "The debt is documented"**: the facts sheet `context/upstream/30-wasmtime-py-public-api-for-the-runner/facts.md` (thirty rows, one per entry of `NEEDED` and `OPTIONAL`), its row in `context/upstream/README.md`, the adapter's docstring list "private binding → public name wanted", the rules check `test_the_private_api_debt_is_documented` (static, by `ast`; both directions plus the docstring), and Decision 6's step 6 for the day a release makes an operation public. Criteria 13 and 14, the Scope, the claim list (two new rules-check nodes, eighteen unit rows) and the flags carry them.
 
+## Confirmation
+
+- **Reviewed again:** `755e102` (the spec at 789 lines; `git diff c9515ef 755e102` on it, read
+  hunk by hunk against each Disposition line); the facts sheet
+  `context/upstream/30-wasmtime-py-public-api-for-the-runner/facts.md` and row 30 of
+  `context/upstream/README.md` (READ). Decision 8's EXECUTED paragraph re-run in the venv
+  (EXECUTED, wasmtime-py 49.0.0): `Store` has `get_fuel`, `set_fuel`, `set_epoch_deadline` and
+  `set_limits`; `Caller`'s own names are `get`, `_context` and `_invalidate`; `Config` has no
+  `async_stack_size`; `WasiConfig.stdout_custom` and `stderr_custom` are properties with `fget`
+  `None` and an `fset`; `Func.__call__` is annotated `store: Store | Caller | StoreContext`;
+  `Engine` has `increment_epoch` and no `*epoch*callback*` name exists on `Store`, `Engine` or
+  `Config`; `Trap.__init__(self, message: str)` and `WasmtimeError.__init__(self, message: str)`;
+  no `.py` of the installed package imports `threading`; `_slab.py` is a list and a free index
+  with no lock. The sheet's "The bindings" table has 30 rows, one per entry of the fifteen
+  `_ffi`, two `_bindings`, two `_func`, one `_wasi`, nine class-attribute and one optional name
+  (EXECUTED, an `awk` count of `` | ` `` lines under that heading). `Store.get_fuel` and
+  `set_fuel` do call `ffi.wasmtime_context_get_fuel` and `set_fuel` on `self._context()`
+  (READ, `_store.py:73` and `:87`); `Caller._context` is at `_func.py:171` (READ);
+  `stdout_custom` allocates in `CUSTOM_OUTPUTS` at `_wasi.py:124-126` (READ).
+- **Dispositions 1 to 9: confirmed**, each against the spec's text. 1: the Kind line, Decision 5
+  (U7 names `test_the_async_stack_size_property_is_preferred`), Decision 7 (`context_address`
+  added, with why a patch takes effect), the Design's judge side (both re-points, with line
+  numbers), criterion 9 and the judge-hash and `--accept-judge` lines. 2: Decision 3's "The
+  rule's own files avoid the rule" (split literals in `scan.py`, concatenation in
+  `test_scan.py`, both commented; U17 asserts both files are not hits; two exempt files kept),
+  criterion 3. 3: the Design's runner side and Decision 4's bullet name `_module_miss`
+  (`runner.py:4739`) and `ffi.version()`. 4: Decision 2 counts fifteen `_ffi` names, naming
+  `wasmtime_error_delete` and `wasmtime_context_t`; the sheet has a row for each. 5: the group
+  "the check and the protocol" (`Storelike`, `NEEDED`, `OPTIONAL`, `missing`, `check`) in
+  Decision 1's table, `__all__` as U1's second assertion, criterion 1, eighteen rows with U18 the
+  eighteenth. 6: `getattr(_ffi, "dll", None)` and a `None` holder's names reported, in Decision 2.
+  7: U3 matches `re.escape(importlib.metadata.version("wasmtime"))`. 8: the `PreparedCall` row
+  says the trap out-pointer is made per call and only the two arrays are kept. 9: the adapter
+  import inside `_stop_error`'s `try`, in the Design's runner side.
+- **Disposition 10, the additions: read**; two findings below, one Medium and three Lows.
+
+New findings on the additions, most severe first:
+
+9. **The three fuel and deadline operations take a `storelike` in Decision 1 and a `Context`
+   everywhere the builder builds from** (M) (`102-the-engine-seam.md:93-95` against `:537-539`,
+   `:583`, `:610-611`, `:373`) — Decision 1's table now reads `set_epoch_deadline(storelike,
+   ticks)`, `get_fuel(storelike)`, `set_fuel(storelike, fuel)`, "public `Store.*` when the object
+   has it, else the binding on `context_of`" (Decision 8), but the Design's adapter sketch still
+   declares `set_epoch_deadline(context: Context, ticks)`, `get_fuel(context: Context)`,
+   `set_fuel(context: Context, fuel)`; the runner's side still calls
+   `ffi.set_epoch_deadline(ffi.context_of(caller), 0)`; the mounts' side still calls
+   `ffi.get_fuel(ffi.context_of(caller))` and brackets `slot.call(context, args)` with the same
+   `context`; and U14 calls `set_epoch_deadline(context_of(store), 0)`.
+   Failure: built from the Design, every call site hands the adapter a raw pointer, which has no
+   `get_fuel`, so the public path of Decision 8 can never be taken from the runner, and
+   criterion 14's "take the public path when the object has it" is contradicted by the sketch;
+   built from Decision 1, U14 passes a pointer where a store-like is declared and the type
+   checker of spec 105 flags it. What closes it: one direction, written in the five places: the
+   sketch declares `storelike: Storelike` for the three; `_Call.stop` and `_epoch_now` call
+   `ffi.set_epoch_deadline(caller, 0)`; `forward` calls `ffi.get_fuel(caller)` and
+   `ffi.set_fuel(caller, …)` and keeps `context = ffi.context_of(caller)` for `slot.call` only;
+   the ABI branch calls `ffi.get_fuel(caller)`; U14 calls `set_epoch_deadline(store, 0)`; and
+   the adapter calls `context_of(storelike)` itself on the private path. Decision 4's bracket
+   wording ("`get_fuel` before, …") needs no change.
+10. **The optional row's first cell is not a dotted name** (L) (`facts.md`, the last row of "The
+    bindings": `` `wasmtime._ffi.wasmtime_config_async_stack_size_set` (optional) ``; the
+    Design, "The debt is documented", (b): "its first cell") — the check compares the first cell
+    with `holder + "." + name`, and that cell carries "(optional)" after the backticks.
+    Failure: `test_the_private_api_debt_is_documented` reports that row as "no dotted name of
+    the two tuples" on the built commit. Fix text for (b): "the first cell's backticked text
+    (the `(optional)` tag sits outside the backticks)", and a U17 fixture row with the tag.
+11. **Two READ citations miss what they cite** (L) (`102-the-engine-seam.md:481`,
+    "`_store.py:69-92`"; `facts.md`, fact 3, "`_store.py:61-92`", and fact 5,
+    "`_func.py:80-120`") — `Store.set_epoch_deadline` is at `_store.py:109`, outside both
+    ranges (`set_fuel` is `:61-75`, `get_fuel` `:77-90`, EXECUTED by `grep -n "def "`), and
+    `Func.__call__` spans `_func.py:59-116` (EXECUTED, `inspect.getsourcelines`).
+    Failure: a reader checking the claim finds `set_wasi` at line 92 and no `set_epoch_deadline`.
+    Fix text: "`_store.py:61-90` and `:109-115`" in both places and "`_func.py:59-116`" in
+    fact 5.
+12. **"Seven sites" are six** (L) (Decision 8, "Every one of the seven sites that reads fuel or
+    sets the deadline today holds a `Caller`") — the calls on a `Caller` today are
+    `runner.py:3274` and `:3358` (the deadline), `mounts.py:799`, `:803`, `:809` (the bracket) and
+    `:829` (the ABI branch): six (EXECUTED, `grep -n` for `_get_fuel|_set_fuel|
+    set_epoch_deadline`); every other fuel or deadline call in `src/` is on a `Store` and public
+    already (`runner.py:2989`, `:2997`, `:3082`, `:3188`, `:5344-5345`, `:5521`, `:5684`,
+    `:5731`). Fix text: "six" in the two places the paragraph says seven, or the seventh named.
+    A note beside it, no finding: Decision 7's "tests patch the adapter's names, never
+    `wasmtime._ffi`" now has one exception, U18 patching `_ffi`'s three bindings inside the
+    exempt unit file; one clause, "outside the adapter's unit file", keeps the sentence true.
+
+Disposition of the new findings (filled in by the author, then confirmed by the reviewer):
+9. The three fuel and deadline operations take a `storelike` in Decision 1 and a `Context` everywhere the builder builds from — (author to answer)
+10. The optional row's first cell is not a dotted name — (author to answer)
+11. Two READ citations miss what they cite — (author to answer)
+12. "Seven sites" are six — (author to answer)
+
+## Disposition of the confirmation's findings
+
+9. The three fuel and deadline operations take a `storelike` in Decision 1 and a `Context` everywhere the builder builds from — fixed, one direction in the five places: the Design's adapter sketch declares `set_epoch_deadline(storelike: Storelike, ticks)`, `get_fuel(storelike: Storelike)` and `set_fuel(storelike: Storelike, fuel)`, with the comment that the adapter takes the public method when the object has one and calls `context_of(storelike)` itself on the private path; the runner's side has `_Call.stop` and `_epoch_now` call `ffi.set_epoch_deadline(caller, 0)`; the mounts' side has `forward` bracket with `ffi.get_fuel(caller)` and `ffi.set_fuel(caller, …)` and keep `context = ffi.context_of(caller)` for `slot.call` only, and the ABI branch call `ffi.get_fuel(caller)`; U14 calls `set_epoch_deadline(store, 0)`. Decision 1's three rows and Decision 4's bracket wording stand (Design, "The adapter", "The runner's side", "The mounts' side"; Decision 5, U14).
+10. The optional row's first cell is not a dotted name — fixed: Design (b) says the check compares the first cell's backticked text and that the `(optional)` tag sits outside the backticks and is not compared; U17's second half gains a fixture row of the agreeing stand-in sheet that carries the tag (Design, "The debt is documented"; Decision 5, U17). The sheet's row is unchanged, so the tag stays visible to a reader.
+11. Two READ citations miss what they cite — fixed: Decision 8's paragraph and the sheet's fact 3 cite `_store.py:61-90` and `:109-115`; the sheet's fact 5 cites `_func.py:59-116` (Decision 8; `facts.md`, facts 3 and 5).
+12. "Seven sites" are six — fixed: Decision 8's paragraph says six, names them (`runner.py:3274`, `:3358`; `mounts.py:799`, `:803`, `:809`, `:829`; EXECUTED by the confirmation's `grep`) and says every other fuel or deadline call in `src/` is on a `Store` and public already; criterion 14 says six. The note: Decision 7's sentence now reads "never `wasmtime._ffi` outside the adapter's unit file (U18 patches `_ffi`'s three bindings there)" (Decision 8; criterion 14; Decision 7).
+
 ## Verdict
+After the Confirmation: Dispositions 1 to 9 confirmed; the additions are sound in substance
+(every EXECUTED claim about 49.0.0 re-run and found true, the sheet complete at thirty rows) and
+ready to build once M9 (one signature for the three fuel and deadline operations, written in the
+five places) is answered; L10 to L12 are write-ins.
+
+The verdict as first written, on the draft at `c9515ef`:
 Ready to build once M1 (the two tests outside the draft that reach deleted names) and M2 (how
 `scan.py` and `test_scan.py` avoid the rule they carry) are written into the draft; the six Lows
 are write-ins with their fix text above.

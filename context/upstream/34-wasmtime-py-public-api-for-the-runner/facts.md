@@ -34,7 +34,8 @@ the words, are the owner's. Nothing has been posted.
    `increment_epoch` and no epoch callback; `Store` has no epoch callback; nothing public gives
    the library's path or a symbol's address; `Trap(message)` and `WasmtimeError(message)` build
    Python exceptions, not an owned C error.
-3. **The public fuel and deadline methods make the same C calls** (READ, `_store.py:61-92`):
+3. **The public fuel and deadline methods make the same C calls** (READ, `_store.py:61-90` and
+   `:109-115`):
    `Store.get_fuel` is `ffi.wasmtime_context_get_fuel(self._context(), byref(remaining))` and
    raises `WasmtimeError._from_ptr(err)`; `Store.set_fuel` is `ffi.wasmtime_context_set_fuel`
    the same way; `Store.set_epoch_deadline` is `ffi.wasmtime_context_set_epoch_deadline`. A
@@ -45,7 +46,7 @@ the words, are the owner's. Nothing has been posted.
    no lock; EXECUTED: no module of wasmtime-py imports `threading`). wasmtime calls the write and
    free callbacks on its own threads, so the runner keeps a locked table of its own (spec 011)
    and registers the two C callbacks itself.
-5. **`Func.__call__` allocates per call and hides the trap** (READ, `_func.py:80-120`): it
+5. **`Func.__call__` allocates per call and hides the trap** (READ, `_func.py:59-116`): it
    builds the `wasmtime_val_t` arrays on every call and turns the trap and error pointers into
    exceptions before the caller sees them. The forwarder (spec 032) calls one of 29 functions
    once per forwarded file call, the hottest path the runner has, and reads fuel before it
@@ -103,7 +104,7 @@ name (spec 102, Decision 6, step 6).
 Three things, each small, in the order of their worth to the runner:
 
 1. **`Caller.get_fuel`, `Caller.set_fuel`, `Caller.set_epoch_deadline`**, each the `Store`
-   method's body on `self._context()` (fact 3). Then the runner's seven host-function sites take
+   method's body on `self._context()` (fact 3). Then the runner's six host-function sites take
    the public path with no change of their own (spec 102, Decision 8).
 2. **`Config.async_stack_size`**, as sheet 21 says.
 3. **A locked `CUSTOM_OUTPUTS`** (fact 4), or a documented statement that the table is safe

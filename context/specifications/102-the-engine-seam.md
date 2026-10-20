@@ -370,7 +370,7 @@ the end-to-end forward with its errno and fuel, is already held by the checks un
 - **U13** `watch_epochs` with an `EPOCH_CALLBACK` that returns `new_error(b"stopped by a unit
   row")`: after the engine's epoch is incremented, a call into a looping guest ends with an
   exception whose text contains that message.
-- **U14** `set_epoch_deadline(context_of(store), 0)` on a store with no callback: the next call
+- **U14** `set_epoch_deadline(store, 0)` on a store with no callback: the next call
   into the guest raises `Trap`.
 - **U15** inside a host function, `context_address(caller)` equals `context_address(store)`.
 - **U16** `set_custom_outputs` on a `WasiConfig`, with `OUTPUT_WRITE` and `OUTPUT_FREE`
@@ -380,7 +380,9 @@ the end-to-end forward with its errno and fuel, is already held by the checks un
   and then the real tree: `tests/harness/scan.py` and `tests/unit/test_scan.py` are not hits
   (the pre-build review's M2); and `private_api_debt_errors` (Design, "The debt is
   documented"): a stand-in adapter and sheet that agree give no error, a name missing from the
-  sheet, a row naming no entry and a name absent from the docstring each give one.
+  sheet, a row naming no entry and a name absent from the docstring each give one; one row of the
+  agreeing stand-in sheet carries an `(optional)` tag after its backticks and is read as its
+  backticked text (the confirmation's L10).
 - **U18** public first (Decision 8): for every operation whose public form the row's wasmtime-py
   has, the adapter calls it and not the binding. A stand-in store-like object with `get_fuel`,
   `set_fuel` and `set_epoch_deadline` recording their arguments, and `_ffi`'s three bindings
@@ -425,7 +427,8 @@ do:
 - **The adapter holds no state.** Spec 104's one owner of process state has nothing to take from
   it; the one `_epoch_callback` object and the output table stay in the runner's modules
   (`_engine.py` and `_call.py` after 103).
-- **Tests patch the adapter's names**, never `wasmtime._ffi`: `new_error`, `ASYNC_STACK_SETTER`,
+- **Tests patch the adapter's names**, never `wasmtime._ffi` outside the adapter's unit file
+  (U18 patches `_ffi`'s three bindings there): `new_error`, `ASYNC_STACK_SETTER`,
   `watch_epochs`, `context_address` (the `shared` fixture of `tests/unit/test_runner_cancel.py`,
   which patches `runner._context_address` today; the pre-build review's M1). A patch takes
   effect because the runner resolves `ffi.<name>` through the module attribute at call time. The
@@ -473,17 +476,21 @@ owned C error.
 | `last_exception`, `host_function_count`, `custom_output_table` | `_func.LAST_EXCEPTION`, `_func.FUNCTIONS`, `_wasi.CUSTOM_OUTPUTS` | none | none: the judge reads them to assert the runner adds nothing (sheet 1 for the slot) | private, judge only |
 | `version` | none (`importlib.metadata`) | public already | — | public |
 
-**Fuel and the deadline inside a host function stay on the `Caller`.** Every one of the seven
-sites that reads fuel or sets the deadline today holds a `Caller`, the handle wasmtime gives a
-host function, and none holds the `Store` object (`_Call` keeps the store's context address, not
-the store). 102 does **not** thread the call's `Store` object into those sites, for three
+**Fuel and the deadline inside a host function stay on the `Caller`.** Every one of the six
+sites that reads fuel or sets the deadline inside a host function today holds a `Caller`, the
+handle wasmtime gives a host function (`runner.py:3274` and `:3358`, the deadline;
+`mounts.py:799`, `:803` and `:809`, the bracket; `:829`, the ABI branch; EXECUTED by the
+confirmation's `grep`), and none holds the `Store` object (`_Call` keeps the store's context
+address, not the store); every other fuel or deadline call in `src/` is on a `Store` and public
+already. 102 does **not** thread the call's `Store` object into those six sites, for three
 reasons: the public `Store` methods make the identical C call on the identical context (READ,
-`_store.py:69-92`: `ffi.wasmtime_context_get_fuel(self._context(), …)`), so nothing would change
+`_store.py:61-90` and `:109-115`: `ffi.wasmtime_context_get_fuel(self._context(), …)`), so
+nothing would change
 but an attribute lookup and a reference on the hottest path; spec 011's guard already compares
 the caller's context with the call's, and passing a different object into the forward would
 give that guard a second thing to be wrong about; and the judge's stand-in calls (`FakeCall` in
 `tests/unit/test_runner_cancel.py`) have no store, so six rows would change for no behaviour.
-So on 49.0.0 those seven sites take the private path, and the adapter takes the public one the
+So on 49.0.0 those six sites take the private path, and the adapter takes the public one the
 day a release gives `Caller` the three methods, with no change to the runner. The public
 preference is real today wherever a `Store` is given (U18), and `set_async_stack`'s is real the
 day `Config.async_stack_size` lands.
@@ -534,9 +541,9 @@ class Storelike(Protocol):
 
 def context_of(storelike: Storelike) -> Context: ...
 def context_address(storelike: Storelike) -> int: ...
-def set_epoch_deadline(context: Context, ticks: int) -> None: ...
-def get_fuel(context: Context) -> int: ...
-def set_fuel(context: Context, fuel: int) -> None: ...
+def set_epoch_deadline(storelike: Storelike, ticks: int) -> None: ...  # public when it has it
+def get_fuel(storelike: Storelike) -> int: ...  # else the binding on context_of(storelike)
+def set_fuel(storelike: Storelike, fuel: int) -> None: ...  # (Decision 8; the confirmation's M9)
 def new_error(text: bytes) -> int: ...
 def delete_error(address: int) -> None: ...
 
@@ -580,7 +587,9 @@ becomes `from . import _wasmtime_ffi as ffi`, in the same function. Then:
 
 - `_Call.__init__`: `self.context = ffi.context_address(store)`. `_shared`'s guard:
   `ffi.context_address(caller) != call.context`. `_context_address` is deleted.
-- `_Call.stop` and `_epoch_now`: `ffi.set_epoch_deadline(ffi.context_of(caller), 0)`.
+- `_Call.stop` and `_epoch_now`: `ffi.set_epoch_deadline(caller, 0)`; the adapter takes the
+  public method when the object has one and calls `context_of(caller)` itself on the private path
+  (Decision 8; the confirmation's M9).
 - `_stop_error`: `address = ffi.new_error(b"stopped by wasi_python")`; `if address: return
   address`; the rest as today. The adapter import sits inside the `try`, where today's `from
   wasmtime import _ffi` sits, so an import failure in the callback still continues by one tick
@@ -607,8 +616,10 @@ becomes `from . import _wasmtime_ffi as ffi`, in the same function. Then:
 - `bind`: `_Forwards({name: ffi.raw_func(exports[name]) ...}, {name: ffi.raw_func(stat[name])
   ...}, stat["memory"])`; `_Forwards.slots` holds `PreparedCall` objects.
 - `forward`: builds `ffi.PreparedCall(func, SIGNATURES[name])` on a miss; then the bracket of
-  Decision 4 around `slot.call(context, args)`, with `context = ffi.context_of(caller)`.
-- `__call__`'s ABI branch: `self.stop_fuel = (e, ffi.get_fuel(ffi.context_of(caller)))`.
+  Decision 4 with `ffi.get_fuel(caller)` and `ffi.set_fuel(caller, …)` around
+  `slot.call(context, args)`, where `context = ffi.context_of(caller)` is kept for `slot.call`
+  only (the confirmation's M9).
+- `__call__`'s ABI branch: `self.stop_fuel = (e, ffi.get_fuel(caller))`.
 - `_get_fuel` and `_set_fuel` are deleted.
 
 ### The harness's side
@@ -656,7 +667,9 @@ Decision 6, step 6.
   source with `ast` (no wasmtime-py import, as every other rules check is static), takes
   `NEEDED` and `OPTIONAL` as tuple literals (`ast.literal_eval`), forms each dotted name as
   `holder + "." + name`, reads every row of the sheet's "The bindings" table (a line starting
-  with `` | ` `` under that heading, its first cell), and reports: every dotted name with no row;
+  with `` | ` `` under that heading, its first cell's backticked text; the `(optional)` tag of the
+  optional row sits outside the backticks and is not compared; the confirmation's L10), and
+  reports: every dotted name with no row;
   every row whose first cell is no dotted name of the two tuples; and every dotted name the
   module docstring (`ast.get_docstring`) does not contain. So the sheet cannot drift from the
   code in either direction, and a binding removed from `NEEDED` because a public name landed is
@@ -736,7 +749,7 @@ Fourteen, each checkable:
     passes on the built commit; the adapter's docstring names every entry of `NEEDED` and
     `OPTIONAL` (the same check).
 14. **Public first** (Decision 8): U18 passes; `set_async_stack` and the three fuel and deadline
-    operations take the public path when the object has it, and the seven `Caller` sites keep
+    operations take the public path when the object has it, and the six `Caller` sites keep
     their private path on 49.0.0 (criterion 5's sameness is the evidence that nothing moved).
 
 ## For the lane
