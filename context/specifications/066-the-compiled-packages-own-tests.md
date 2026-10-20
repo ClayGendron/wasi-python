@@ -14,7 +14,9 @@
   with conditions"; the Disposition of the delta review answers each finding). **The owner chose
   option (b)** (`decisions.md`, "Every test of every package we build (2026-10-20)", main `b0ee274`): every test runs, contourpy's random_big
   cases included; caps by the 1.5 times rule, about 1.26×10¹³; big files split into groups by
-  construction. **Ready for build.** Not built. It builds after spec 043 (matplotlib M2, which pins contourpy)
+  construction. **Built 2026-10-20** on main `21dff9d` (wave 06's set, `SHA256SUMS` `f12cd25c`):
+  tip `f0144ca`, its branch release run `39424879820` passed every job on all three systems,
+  `gather` included, each new shard within 360 s (the Landing notes). Awaiting its build review. It builds after spec 043 (matplotlib M2, which pins contourpy)
   lands, on 043's set. It touches the release workflow (new Linux shards, Decision 12), so it is
   build-class by AGENTS.md's definition, though no artifact byte changes. The lane asks for a
   pre-build review, as it did for 063 and 065: it changes what the release judges. Its numbers are
@@ -757,35 +759,40 @@ Not chosen, each in one line:
 
 ## For the lane
 
-- **Ready for build.** The owner chose (b); 043 and 096 landed (wave 06); 095, 097 and 099 are
-  reserved on main; the re-survey's delta was reviewed and its findings answered.
-- **A group stopped by a `HostLitter` line** (spec 089's named guard; Decision 6's residual) at
-  the lane's acceptance, a builder's run or a reviewer's is a host failure, not a measured
-  difference: it records no outcome and no fuel, and is re-run once the litter is gone. The
-  sameness rule's "never a re-run" applies to measured differences only (the delta review, L5).
+- **Built.** The owner chose (b); 043 and 096 landed (wave 06); 095, 097 and 099 are reserved on
+  main; the re-survey's delta was confirmed. Built on main `21dff9d`; branch tip after the
+  landing notes is the one the build review reads.
 - **Wave kind: build-class** (the release workflow; no artifact byte changes, no `scripts/`,
   `recipes/` or `downloads/` line). It may ride in a wave as one of the two other build-class
-  changes, after 043 has landed. **Dry-run needs:** the branch dry run (criterion 12), then the
-  wave's.
-- **Order.** After wave 06 (043, 037, 096, landed). Before any later package specification
-  whose suite stages into a family 066 creates.
-- **The claim list skeleton** (the builder fills each value from its final run; the progress
-  README's step 3a):
-  - **Gained rows:** `test_upstream_suite[<group>]` for the groups of Decision 11 after the
-    re-survey's splits, each with new metrics `fuel` and `passes`, and facts
-    `counts`, `passed_digest`, `left_out`; `test_upstream_class[<group>-<class>]` for each class
-    with members, each a gap; `test_upstream_trap[<id>]` for each trap, each a gap.
-  - **Gaps added:** one per class with members and per trap, each naming its closer; the count
-    and ids from the landing notes.
-  - **Moved rows:** none. numpy's, pandas' and CPython's rows: lost 0, grew 0 (criterion 6).
+  changes. **Dry-run needs:** the branch run `39424879820` passed; the wave's dry run carries it
+  again. Wave 07 (038, 044) lands first and changes the set: the builder rebases onto it, and
+  re-measures the matplotlib groups if they move past their 1.5 times headroom.
+- **A group stopped by a `HostLitter` line** (spec 089's named guard; Decision 6's residual, spec
+  097) at the lane's acceptance, a builder's run or a reviewer's is a host failure, not a measured
+  difference: it records no outcome and no fuel, and is re-run once the litter is gone. The
+  sameness rule's "never a re-run" applies to measured differences only (the delta review, L5).
+- **Order.** After wave 06 and wave 07. Before any later package specification whose suite stages
+  into a family 066 creates.
+- **The claim list** (EXECUTED, darwin-arm64, on wave 06's set; the lane re-reads it on its own
+  set):
+  - **Gained rows, 53:** `test_upstream_suite[<group>]` for the 35 groups of Decision 11, each with
+    new metrics `fuel` and `passes` (17,911 passes, 8.534 T of fuel in all; per group in the
+    Landing notes) and facts `counts`, `passed_digest`, `left_out`, and `collected` for the 17
+    contourpy split groups (518 for `test_filled.py`, 419 for `test_lines.py`);
+    `test_upstream_class[<group>-<class>]` for the 18 classes with members, each a gap.
+  - **Gaps added, 18:** matplotlib 10 (closers `README.md` 6, spec 023 2, `context/roadmap.md` 2
+    for 097 and 099), Pillow 6 (`README.md` 5, spec 023 1), lxml 2 (`README.md`, spec 046).
+  - **Moved rows: none.** numpy's, pandas' and CPython's rows: lost 0, grew 0 (the fast tier's
+    ratchet, and `numpy-lib` and `pandas-libs` measured equal to `accepted.json`, fuel and passes).
+  - **Retired: none. Passes moved: none** (every new row is new).
   - **The judge hash changes**: `judge changed` names the files of the accept-judge text.
   - **packages.toml:** six `later` become `suite`; scipy's `closes_with` re-pointed from spec 066
     to spec 095 (037 landed with it naming 066).
-- **The flags** (skeleton; each reason begins with "066:"):
+- **The flags** (paste as is; each reason begins with "066"; no double quote inside):
 
   ```
-  --accept "066: the compiled packages' own tests in the release: matplotlib, contourpy, Pillow, kiwisolver, lxml and regex, <n> groups, <p> passes, <c> classes, <t> traps"
-  --accept-judge "066: tests/upstream/{matplotlib,contourpy,pillow,kiwisolver,lxml,regex}.toml and .ini; package_drive.py; a family per package in upstream.py (grant, stage, kit copy, budget), driver "package" with package_paths, extra_sys_path, support_packages and cwd, the path-based guard, lxml's selection equal to test_suite()'s, numpy's and pandas' reading unchanged; fetch.py --shard per family; packages.toml (six suites); twelve Linux shards in release_shards.toml and release.yml; [[split]] by constructed -k expressions; the README's facts; the unit checks"
+  --accept "066: the compiled packages' own tests in the release: matplotlib, contourpy, Pillow, kiwisolver, lxml and regex, 35 groups, 17911 passes, 8.534 T of fuel, 18 classes, 0 traps"
+  --accept-judge "066: tests/upstream/{matplotlib,contourpy,pillow,kiwisolver,lxml,regex}.toml and .ini and expected/ lists; tests/upstream/package_drive.py; tests/harness/packages.py (a family per package: grant, stage, kit copy, budget; package_paths, extra_sys_path, support_packages, support_files, cwd, cwd_files; the path-based guard; lxml's selection equal to test_suite()'s both ways; [[split]] by constructed -k expressions); tests/harness/upstream.py (the package families wired in, numpy's and pandas' reading and stage unchanged); the upstream check file; 18 gaps in known_gaps.toml; packages.toml (six suites, scipy closes with 095); twelve Linux shards in release_shards.toml and release.yml; tests/unit/test_packages.py and one line of test_upstream.py"
   ```
 
   No `--accept-growth` and no `--accept-fewer-passes`: new rows are not growth, and no accepted
@@ -1014,4 +1021,96 @@ of every package we build (2026-10-20)", main `b0ee274`). Each finding, answered
 
 ## Landing notes
 
-Not built yet.
+### Built (2026-10-20)
+
+**The builder's self-check** (`context/reviews/README.md`):
+- rebased onto main `21dff9d` today (067's draft commit moved to its own branch,
+  `spec/067-the-pure-python-packages-own-tests`, as `6ffda49` on `21dff9d`, from `813cff3`);
+- CI run dispatched on this exact commit and read: `39424879820` on `f0144ca`, every job green on
+  all three systems, `gather` included, no red line (no GREW, no G7); the Windows legs green
+  (066 adds no Windows leg: its groups are Linux-only in the release, Decision 12);
+- every number from a measured run on this base, EXECUTED (below); no growth;
+- "For the lane": the claim list, the flags, the wave kind, the dry-run needs (above);
+- every new check seen failing first: the 35 group checks ran before their classes existed and 8
+  failed with their findings (`build/066/run1.txt`); two contourpy groups ran out of their
+  provisional caps and were re-measured; the unit checks were written with the code, and each of
+  their bad cases fails with its own line; a Linux branch: the twelve shards; Windows excluded
+  (Decision 12);
+- every gap names its closer; 097 and 099 have roadmap lines;
+- packages.toml: six `suite` entries, scipy's closer 095; README rows: the release sentence and
+  the platform facts the classes cite;
+- CHANGELOG under the one unreleased section; no question asked;
+- `ruff check`, `ruff format --check` (on `src` and `tests`) and the fast tier green:
+  `build/066/fast.txt`, 585/804 pass, 0 fail, ratchet lost 0, grew 0, judge changed (the run waited
+  for another agent's fast tier to end).
+
+**What was built.** `tests/harness/packages.py` (the families, the split, the guard, lxml's
+selection, the rules), `tests/upstream/package_drive.py` (the guest driver), six TOMLs and `.ini`
+files, 18 class lists, 18 gaps, `upstream.py` wired (`driver = "package"`; `/upstream`'s stage
+never takes a package family), the check file's third session, `packages.toml`,
+`release_shards.toml` and `release.yml` (twelve Linux shards), `tests/unit/test_packages.py`, one
+line of `tests/unit/test_upstream.py`, README, CHANGELOG, the progress README, a dated line in
+spec 063. The delta reviewer's confirmation is appended to its review.
+
+**Measured** (EXECUTED, darwin-arm64, a private `cp -c` copy of main's set `f12cd25c`, the judge's
+own check by node id, three guests at once, `build/lane.lock` absent at each start):
+
+  | group | fuel | passes |
+  |---|---|---|
+  | `contourpy-1` | 217,360,316,776 | 1,213 |
+  | `contourpy-filled-1` | 242,223,041,673 | 6 |
+  | `contourpy-filled-2` | 262,883,203,937 | 6 |
+  | `contourpy-filled-3` | 244,650,745,412 | 6 |
+  | `contourpy-filled-4` | 242,311,751,389 | 6 |
+  | `contourpy-filled-5` | 262,982,873,860 | 6 |
+  | `contourpy-filled-6` | 244,735,932,041 | 6 |
+  | `contourpy-filled-7` | 439,781,534,980 | 4 |
+  | `contourpy-filled-8` | 242,557,512,207 | 154 |
+  | `contourpy-filled-9` | 322,113,894,394 | 268 |
+  | `contourpy-lines-1` | 131,949,821,907 | 5 |
+  | `contourpy-lines-2` | 145,263,256,890 | 5 |
+  | `contourpy-lines-3` | 136,770,534,240 | 5 |
+  | `contourpy-lines-4` | 132,024,367,550 | 5 |
+  | `contourpy-lines-5` | 145,324,904,137 | 5 |
+  | `contourpy-lines-6` | 136,840,913,299 | 5 |
+  | `contourpy-lines-7` | 255,576,070,604 | 4 |
+  | `contourpy-lines-8` | 470,253,553,000 | 345 |
+  | `contourpy-rest` | 90,334,354,827 | 198 |
+  | `kiwisolver` | 12,975,521,084 | 50 |
+  | `lxml` | 104,528,464,828 | 2,058 |
+  | `matplotlib-axes` | 698,970,313,175 | 880 |
+  | `matplotlib-mathtext` | 296,720,104,560 | 985 |
+  | `matplotlib-render-1` | 231,488,565,587 | 248 |
+  | `matplotlib-render-2a` | 304,588,709,962 | 290 |
+  | `matplotlib-render-2b` | 337,268,570,619 | 392 |
+  | `matplotlib-render-3` | 272,831,197,821 | 197 |
+  | `matplotlib-rest-a` | 309,378,316,766 | 966 |
+  | `matplotlib-rest-b1` | 323,475,630,138 | 3,367 |
+  | `matplotlib-rest-b2` | 384,293,536,479 | 1,146 |
+  | `mpl-axes_grid1` | 71,930,411,458 | 52 |
+  | `mpl-axisartist` | 35,676,920,789 | 50 |
+  | `mpl-mplot3d` | 336,627,456,087 | 244 |
+  | `pillow` | 430,904,446,064 | 4,587 |
+  | `regex` | 16,005,981,263 | 147 |
+
+  - Total 8,533.6 G, 17,911 passes; budgets 1.298×10¹³ (Decision 11). The split groups each
+    collected their whole file (518 and 419).
+  - **Fuel repeats** (criterion 5): ten groups run twice, the second time on a fresh stage, gave
+    the same fuel to the unit and the same passes; the other 25 matched the first run within the
+    first run's 0.1 G rounding.
+  - **numpy and pandas do not move** (criterion 6): with all six trees in `build/`, `numpy-lib`
+    132,538,457,029 and `pandas-libs` 27,312,838,317 fuel, 4,825 and 1,063 passes, equal to
+    `accepted.json`.
+  - **Classes**: all 18 class checks matched their gaps (18 xfailed with the 35 suites passing,
+    `build/066/run3.txt`).
+  - **Host litter**: none voided a run in the build (mathtext measured 296.7 G).
+  - **Another agent's run** (042's single node id) overlapped two of the build's guests once, for a
+    few minutes: four guests on the machine briefly.
+
+**The branch run** `39424879820` (READ, `gh run view`): the twelve `upstream-plot-*` shards took
+100 to 243 s of job time each (a 130, b 167, c 239, d 100, e 201, f 132, g 164, h 128, i 243,
+j 192, k 229, l 182), all within 360 s. The build ended 13:21:31 and `gather` started 13:40:00:
+the judge stage was 18.5 minutes, held by `own-guest` on macOS (13:21:38 to 13:39:58, 1,100 s
+against 457 s in `39371419248`) while three release runs were live (042's, 044's and 038's); no
+plot shard was on that path. As a benchmark: `gather` at 18.5 minutes after the build, against
+7.75 minutes in `39371419248`.
