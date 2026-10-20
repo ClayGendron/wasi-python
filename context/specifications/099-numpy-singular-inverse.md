@@ -9,9 +9,13 @@
   **Confirmed for build** by the same reviewer (the review's *Confirmation*), no finding open.
   **Built 2026-10-20** from an empty `build/` on base `21dff9d` (rebased since onto `3ff1871`,
   context only); the dry run 39432450036 on `b0e1593`'s only red lines are its 15 claimed growth
-  lines (*Landing notes*), with one build finding (B1) written in for the build review. It changes
-  the build recipe and the artifact set, so it was reviewed before it is built (constitution
-  §5.6). A different agent reviews the build.
+  lines (*Landing notes*), with one build finding (B1) written in for the build review. **Build
+  review** (`../reviews/099-numpy-singular-inverse-build-2026-10-20.md`): "lands once M1 is
+  closed". **M1 closed**: rebased onto main `2516875` (wave 07; no conflict hunk), the flag word
+  allowed by name in step 60's weak-duplicate gate, **rebuilt from empty** (set `5f203242`), and
+  the dry run 39454475153 on `6866dd1`'s only red lines are its 22 claimed growth lines. Its
+  Disposition is filled in. It changes the build recipe and the artifact set, so it was reviewed
+  before it is built (constitution §5.6).
 - **Date:** 2026-10-20
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** (§5.7): a new recipe file, `recipes/npy_fenv_flags.h`, force-included
@@ -619,61 +623,73 @@ None blocks the build.
   (textual merges), and `tests/checks/test_v1_3_data_stack.py` with spec 096's successors.
 - **Pre-build review: required** (§5.6, the build recipe and the artifact set).
 - **The rebuild:** step 40 (numpy), 60 (link), the snapshot, 70 (zip: `numpy/__config__.py`) and 90
-  change their outputs. Steps 50 (pandas) and 57 (scipy) do not: their archives equal main's by
-  hash (EXECUTED, phase 2). Steps 10 to 38 do not run differently.
-- **The claim list** (measured: the builder's build and fast tier on `21dff9d`, and dry run
-  39432450036 on `b0e1593`; each line starts "099:"):
+  change their outputs. Steps 50 (pandas), 57 (scipy) and 58 (scikit-learn) do not: their archives
+  equal wave 07's by hash (EXECUTED). Steps 10 to 38 do not run differently. Step 60's
+  weak-duplicate gate passes with the allow-list entry (`0 unreviewed, 0 stale patterns`).
+- **The claim list** (measured on wave 07's base: the builder's rebuild from empty and fast tier on
+  `4fac7e2`, and dry run 39454475153 on `6866dd1`; each line starts "099:"):
   - 099: **new checks (7 nodes), each passing:** `test_v1_3_data_stack.py::test_a_singular_matrix_raises_linalgerror[plain]`
-    (fuel 1,147,409,887) and `[snapshot]` (827,401,831);
-    `::test_numpys_own_floating_point_signals_reach_errstate[plain]` (1,146,003,003) and
-    `[snapshot]` (826,093,482); `::test_hardware_floating_point_signals_stay_silent_as_documented[plain]`
-    (1,143,432,283) and `[snapshot]` (823,466,914);
+    (fuel 1,160,431,549) and `[snapshot]` (830,157,273);
+    `::test_numpys_own_floating_point_signals_reach_errstate[plain]` (1,159,335,453) and
+    `[snapshot]` (829,059,005); `::test_hardware_floating_point_signals_stay_silent_as_documented[plain]`
+    (1,156,599,764) and `[snapshot]` (826,321,490);
     `test_v1_5_rebuild_from_pins.py::test_every_numpy_compile_keeps_its_floating_point_flags_in_software`
-    (no fuel; its reason the counts). **Unit rows:** six in `tests/unit/test_scan.py` (the unit
-    suite 1,831/1,838).
+    (no fuel; its reason `compiles 189, c 166, c++ 23, not compiles 9`). **Unit rows:** six in
+    `tests/unit/test_scan.py` (the unit suite 1,846/1,853).
   - 099: **retired checks:** none. **Lost passes:** none (the fast tier and every dry-run shard:
-    `lost 0`). The upstream groups' outcome counts (xfailed and xpassed included) and pass digests
-    equal wave 06's dry run 39398491514 in every group (numpy-core, numpy-lib, numpy-others, the
-    eight pandas groups, cpython-a to c, -fs, -archives; EXECUTED, the shards' records): note 8
-    moved nothing.
-  - 099: **rows that grow, 15** (the dry run's `judge (macos-15, own-guest)`, its only red job,
-    `grew 15`): bytes `test_v1_1_artifact_set.py::test_stdlib_zip_is_bytecode_only_and_deflated`
-    44,445,945 → 44,445,960; fuel, +0.0103% to +0.0330%: `test_packages_carry_their_metadata[snapshot]`
-    (+0.0330%), `test_scipy_solvers_job_matches_native[snapshot]` (+0.0256%),
-    `test_a_pandas_warning_names_the_callers_line[plain]` (+0.0223%),
-    `test_dotted_builtins_keep_their_import_names[snapshot]` (+0.0206%),
-    `test_delaunay_triangulation_runs` (+0.0204%), `test_npy_files_round_trip[snapshot]` (+0.0182%)
-    and `[plain]` (+0.0172%), `test_recursion_through_python_raises[np-apply-along-axis-snapshot]`
-    (+0.0146%), `test_contourpy_runs_one_thread` (+0.0133%),
-    `test_a_python_callbacks_exception_comes_back_through_c[plain]` (+0.0128%),
-    `test_pandas_styler_renders_from_the_zip[snapshot]` (+0.0114%),
-    `test_numpy_and_pandas_are_builtin_at_manifest_versions[snapshot]` (+0.0114%),
-    `test_scipy_odr_is_left_out_by_name[snapshot]` (+0.0112%),
-    `test_recursion_through_python_raises[np-frompyfunc-snapshot]` (+0.0103%). The shard's other
-    168 moved rows are within ±0.01%, down to −0.125% (`test_lxml_xml_job_matches_native`).
-  - 099: **bytes that shrink:** `test_binary_is_a_core_wasm_module[plain]` 84,794,273 → 84,794,013
-    (−260) and `[snapshot]` 89,468,144 → 89,467,888 (−256).
+    `lost 0`). Every upstream group's outcome counts (xfailed and xpassed included) and pass digest
+    equal wave 07's dry run 39442080658 (numpy-core, numpy-lib, numpy-others, the eight pandas
+    groups, cpython-a to c, -fs, -archives, on Linux, macOS and Windows; EXECUTED, the shards'
+    records, `build/099/compare-upstream.sh`): note 8 moved nothing.
+  - 099: **rows that grow, 22** (the dry run's only red job, `judge (macos-15, own-guest)`, `grew
+    22`, no G7 line): bytes `test_v1_1_artifact_set.py::test_stdlib_zip_is_bytecode_only_and_deflated`
+    47,730,899 → 47,730,914; fuel, +0.0109% to +0.0846%: `test_lxml_xml_job_matches_native`
+    (+0.0846%), `test_recursion_through_python_raises[np-frompyfunc-snapshot]` (+0.0518%),
+    `test_savefig_rejects_a_negative_dpi` (+0.0473%), `test_packages_carry_their_metadata[snapshot]`
+    (+0.0365%), `test_scikit_learn_reads_its_files_from_the_zip[snapshot]` (+0.0237%),
+    `test_the_sobol_options_need_nothing_writable[plain]` (+0.0182%),
+    `test_scipy_edges_job_matches_native[snapshot]` (+0.0169%),
+    `test_scipys_dotted_builtins_keep_their_import_names[snapshot]` (+0.0168%),
+    `test_machine_learning_job_matches_native[snapshot]` (+0.0151%), `test_sqlite_job_matches_native`
+    (+0.0148%), `test_contourpy_runs_one_thread` (+0.0145%), `test_delaunay_triangulation_runs`
+    (+0.0133%), `test_npy_files_round_trip[plain]` (+0.0133%),
+    `test_scipy_lapack_job_matches_native[snapshot]` (+0.0133%),
+    `test_pandas_styler_renders_from_the_zip[snapshot]` (+0.0130%),
+    `test_numpy_and_pandas_are_builtin_at_manifest_versions[plain]` (+0.0129%),
+    `test_modelling_job_matches_native` (+0.0117%),
+    `test_recursion_through_python_raises[np-vectorize-snapshot]` (+0.0114%) and
+    `[pd-map-snapshot]` (+0.0112%), `test_a_python_callbacks_exception_comes_back_through_c[snapshot]`
+    (+0.0109%), `test_plot_contour_job_matches_native[snapshot]` (+0.0109%). The shard's other moved
+    fuel rows are within ±0.01% (down to −0.0305%). The local fast tier's 12 red lines are among these 22.
+  - 099: **bytes that shrink:** `test_binary_is_a_core_wasm_module[plain]` 93,793,855 → 93,793,595
+    (−260) and `[snapshot]` 98,620,293 → 98,620,033 (−260).
   - 099: **facts for spec 100:** `singular_probe.py` against native Accelerate on both binaries:
     130 raise as native, 141 finite as native, 20 finite where native raises, 12 raise where native
-    returns; `fp_probe.py`'s `nan` lines; build finding B1 (`lstsq` of `nan` raises
-    `SystemError`). The `MANIFEST` lines: one added (`recipes/npy_fenv_flags.h`), one changed
-    (`recipes/wasi-numpy.cross`), the snapshot's `x-snapshot-zip`.
+    returns (the same as on `21dff9d`); `fp_probe.py`'s `nan` lines; build finding B1 (`lstsq` of
+    `nan` raises `SystemError`).
+  - 099: **`MANIFEST`**, four lines: one added (`recipes/npy_fenv_flags.h`), two changed
+    (`recipes/wasi-numpy.cross`, `recipes/weak-duplicates-allowed.txt`), and the snapshot's
+    `x-snapshot-zip`.
   - **The judge hash changes** in `tests/harness/scan.py`, `tests/checks/test_v1_3_data_stack.py`,
     `tests/checks/test_v1_5_rebuild_from_pins.py` and `tests/unit/test_scan.py`.
-- **The flags** (paste-safe, with the measured numbers):
+- **The flags** (paste-safe, with the measured numbers on wave 07's set):
 
   ```
-  --accept "099: numpy's own floating-point signals are kept in software (recipe recipes/npy_fenv_flags.h, force-included into every numpy compile): numpy.linalg raises LinAlgError when numpy's bundled lapack_lite finds a matrix singular or not positive definite (for a matrix singular only in exact arithmetic not always where native does; spec 100 narrows it), and integer division by zero, integer overflow in division and float16 overflow warn or raise under np.errstate, as natively; signals only the hardware gives stay silent, as documented; lstsq of a nan matrix now raises SystemError (build finding B1, closed by spec 100)"
+  --accept "099: numpy's own floating-point signals are kept in software (recipe recipes/npy_fenv_flags.h, force-included into every numpy compile, its weak flag word allowed by name in recipes/weak-duplicates-allowed.txt): numpy.linalg raises LinAlgError when numpy's bundled lapack_lite finds a matrix singular or not positive definite (for a matrix singular only in exact arithmetic not always where native does; spec 100 narrows it), and integer division by zero, integer overflow in division and float16 overflow warn or raise under np.errstate, as natively; signals only the hardware gives stay silent, as documented; lstsq of a nan matrix now raises SystemError (build finding B1, closed by spec 100)"
   --accept-judge "099: checks that inv, solve, tensorinv, tensorsolve, matrix_power(-1) of an exactly singular matrix and cholesky of one not positive definite raise LinAlgError as natively, that numpy's own integer and float16 signals reach errstate as natively, that hardware-only signals stay silent as the README says, and that every numpy compile (by compiler, from numpy's own compile records, missing records a failure) carries the header; the npy_fenv scanners and six unit rows; no existing expectation edited"
-  --accept-growth "099: numpy compiled with real flag bits and a software flag word (recipes/npy_fenv_flags.h): the zip +15 bytes (44,445,945 -> 44,445,960; numpy/__config__.py records the -include in both argument lines), while python.wasm shrinks 260 bytes and the snapshot 256; fuel moves either way on rows that run numpy ufuncs, the status read now an inlined load and bit tests where it was an out-of-line libc call: fourteen rows up +0.0103% to +0.0330% (test_packages_carry_their_metadata[snapshot] the most), the rest within 0.01% or down; MANIFEST one recipe line added, one changed"
+  --accept-growth "099: numpy compiled with real flag bits and a software flag word (recipes/npy_fenv_flags.h): the zip +15 bytes (47,730,899 -> 47,730,914; numpy/__config__.py records the -include in both argument lines), while python.wasm and the snapshot each shrink 260 bytes; fuel moves either way on rows that run numpy ufuncs, the status read now an inlined load and bit tests where it was an out-of-line libc call: twenty-one rows up +0.0109% to +0.0846% (test_lxml_xml_job_matches_native the most), the rest within 0.01% or down; MANIFEST one recipe line added, two changed (recipes/wasi-numpy.cross, recipes/weak-duplicates-allowed.txt), and the snapshot's x-snapshot-zip line"
   ```
 
-- **Dry-run needs:** the release workflow on the branch (criterion 7), done: run 39432450036 on
-  `b0e1593`. Checks 1 to 3 passed in the Windows, Linux and macOS `own-guest` shards' records
-  (macOS's red only for growth); check 4 runs in the build job, where the compile records are
-  (`compiles 189, c 166, c++ 23, not compiles 9`).
-- **The native slot** was used from 08:10 to 08:25 (the build) on 2026-10-20 and released then; no
-  native build is pending.
+- **Dry-run needs:** the release workflow on the branch (criterion 7), done on wave 07's base: run
+  39454475153 on `6866dd1` (24 jobs passed, 4 skipped, 1 red for growth only). Checks 1 to 3
+  passed in the macOS, Linux and Windows `own-guest` records; check 4 in the build job. The first
+  dry run, 39432450036 on `b0e1593` (wave 06's base), stays in *Landing notes* as history.
+- **044's goldens with 099** (the build review's N1; Decision 9): wave 08's integration run is the
+  evidence that they re-run with 099, and a lost scikit-learn golden is a finding, never an
+  allowance. Run 39454475153 already ran them: `test_machine_learning_job_matches_native` passed on
+  all three systems (+0.0151% fuel on macOS's snapshot row).
+- **The native slot:** used 08:10 to 08:25 (the first build) and 11:42 to 11:53 (the rebuild on
+  wave 07) on 2026-10-20, and released at 11:53; no native build is pending.
 
 ## Disposition of the pre-build review
 
@@ -949,3 +965,16 @@ and 099's weak flag word, defined in 13 numpy archives, would stop it.
   grew 12`. 33 fuel rows up and 161 down, from +0.0518% to −0.0303%. The 12 red lines: the zip
   (+15 bytes) and eleven fuel rows from +0.0109% to +0.0518%
   (`test_recursion_through_python_raises[np-frompyfunc-snapshot]` the most).
+- **The release dry run on wave 07's base** (READ, run 39454475153 on `6866dd1`, dispatched when
+  fewer than three runs were live): 24 jobs passed, 4 skipped, 1 red, `judge (macos-15,
+  own-guest)`: `406/776 pass · 0 gap · 2 blocked · 0 fail`, ratchet `lost 0 · gained 7 · grew 22`,
+  no G7 line. **Its only red lines are the 22 growth lines** in *For the lane* (the zip's 15 bytes
+  and 21 fuel rows from +0.0109% to +0.0846%, slow goldens among them). Both Linux rebuilds, the
+  same-bytes job, the three `verify` jobs and every Windows shard passed. Checks 1 to 3 passed in
+  all three systems' `own-guest` records, check 4 in the build job; scikit-learn's goldens passed
+  on all three. Every upstream group equals wave 07's dry run 39442080658 in outcome counts and pass
+  digest. So 099 is built on wave 07's base: every red line is a growth line it claims.
+- **The owner's new CI rule** (main `30e9b41`, AGENTS.md rules 2, 3a and 8): this run stands,
+  because the rebase added a code change (the allow-list entry). A later rebase onto wave 08's tip
+  that only resolves named conflict hunks, with the fast tier green, dispatches no new run; the
+  wave's dry run is the check.
