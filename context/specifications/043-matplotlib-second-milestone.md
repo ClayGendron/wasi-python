@@ -1,6 +1,6 @@
 # 043 — matplotlib, the second milestone: triangles, contours, SVG and PDF
 
-- **Status:** built 2026-10-19 (Landing notes); build reviewed 2026-10-19 (`../reviews/043-matplotlib-second-milestone-build-2026-10-19.md`: lands once F1; F1, F4, F5 and F6 answered at `737cef6`, F2 at the rebase); rebased onto main `f7511b7`, to be stacked on spec 086 and rebuilt under wasi-sdk 34 (For the lane). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17; revised 2026-10-18 against its pre-build review
+- **Status:** built 2026-10-19 (Landing notes); build reviewed 2026-10-19 (`../reviews/043-matplotlib-second-milestone-build-2026-10-19.md`: lands once F1; F1, F4, F5 and F6 answered at `737cef6`, F2 at the rebase); rebased onto main `f7511b7`, then stacked on spec 086's tip `c4af3c4`, to be rebuilt under wasi-sdk 34 (For the lane). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17; revised 2026-10-18 against its pre-build review
   (`../reviews/043-matplotlib-second-milestone-spec-2026-10-17.md`): all eight findings written in, and its Disposition says where. Finding 1 also
   amended spec 037 (its status line says so). Confirmed for build 2026-10-18 with no new conditions; it builds only after the owner answers question 81. It changes the build recipe and the artifact
   set, so it is reviewed once more before it is built (constitution §5.6). It is build-class: it
@@ -788,3 +788,33 @@ green; `uv run pytest tests/unit -n 3`, 1779 passed, 7 skipped; `tests/checks/te
 Still to do, at 086's tip: the README's size row on the rebuilt set (F3), the CHANGELOG's byte
 figures, criterion 5's numbers against 086's set, the fast tier, the branch's release dry run, and
 the claim list and flags.
+
+#### Rebased onto spec 086 (`c4af3c4`, on main `f7511b7`)
+
+`git rebase --onto c4af3c4 f7511b7`, the stacked build (§4.14). 086's tip is the lane's
+wave 04 candidate: wasi-sdk 34, the fcntl dup refusal, SipHash-1-3 and `_missing_stdlib_info.py`
+in the zip. Two conflict hunks, each resolved by keeping both sides:
+
+1. `tests/checks/test_v1_2_hostile_guest.py`, the file's end (commit "the judge"): 086's
+   `DUP_PROBE`, `test_dup_is_refused_as_not_supported`, `HASH_PROBE` and
+   `test_the_string_hash_is_siphash13` first, then 043's triangulation check. Nothing removed.
+2. `scripts/steps/70_zip.sh`, the inputs' guard (commit "the recipe"): 086's `MISSING_INFO` lines,
+   then the plot packages' loop with 043's `contourpy`.
+
+Auto-merged and read: `scripts/steps/60_link.sh` (086's guard loop and `--wrap=fcntl` in the
+reactor's link; 043's contourpy archives and `_qhull` in the module loop; separate hunks), the
+README (086's sizes row restated on its set; 043's rows as rebased onto main, the patch count still
+11: 086 adds a recipe file, `recipes/fcntl_dup_refusal.c`, not a patch), the CHANGELOG (043's
+entry still ends 0.1.0a8), `tests/known_gaps.toml` (086's removed gap and 043's two removed gaps),
+the release workflow (086 does not touch it; trees still 23). The cross file 043's contourpy uses,
+`recipes/wasi-matplotlib.cross`, is not one 086 changes.
+
+One interaction to measure at the rebuild, not a conflict. 086's SipHash-1-3 changes how `str`
+and `bytes` hash. 043's PDF pin (`PDF_SHA256`) holds the guest's subset tags, which matplotlib
+derives from `hash()`. INFERRED: matplotlib's backend_pdf hashes a frozenset of the subset's
+character codes, which are ints, and an int's hash takes no key, so the pin should stand. The
+rebuilt set's plot_contour check confirms it or names the change.
+
+On the rebased tree, before any rebuild: `ruff check` and `ruff format --check` on `src/` and
+`tests/` green; `uv run pytest tests/unit tests/checks/test_rules.py -m "not slow" -n 3`, 1822
+passed, 8 skipped.
