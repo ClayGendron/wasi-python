@@ -1,5 +1,7 @@
 findings unmutated: 4
-ndarray tp_clear := tp_dealloc: ['FINDING type numpy.ndarray.tp_clear: table index 7272 has (i32) -> (), called as (i32) -> (i32) (array_dealloc)']
-ImagingCore tp_clear := a destructor: ['FINDING type ImagingCore.tp_clear: table index 7272 has (i32) -> (), called as (i32) -> (i32) (array_dealloc)']
-int nb_bool := tp_dealloc: ['FINDING type int.nb_bool: table index 785 has (i32) -> (), called as (i32) -> (i32) (long_dealloc)']
-_regex m_clear := a destructor: ['FINDING module _regex.m_clear: table index 7272 has (i32) -> (), called as (i32) -> (i32) (array_dealloc)']
+ndarray tp_clear := tp_dealloc: total 5; ['FINDING type numpy.ndarray.tp_clear: table index 7272 has (i32) -> (), called as (i32) -> (i32) (array_dealloc)']
+ImagingCore tp_clear := a destructor: total 5; ['FINDING type ImagingCore.tp_clear: table index 7272 has (i32) -> (), called as (i32) -> (i32) (array_dealloc)']
+int nb_bool := tp_dealloc: total 5; ['FINDING type int.nb_bool: table index 785 has (i32) -> (), called as (i32) -> (i32) (long_dealloc)']
+_regex m_clear := a destructor: total 5; ['FINDING module _regex.m_clear: table index 7272 has (i32) -> (), called as (i32) -> (i32) (array_dealloc)']
+kiwisolver.Term spec slots := 0: total 5; ['FINDING named record not read: spec kiwisolver.Term', 'FINDING named record not read: spec slot kiwisolver.Term.tp_clear']
+ndarray tp_name := a non-string: total 6; ['FINDING type at 0x162272c: does not read as a type (tp_name)']

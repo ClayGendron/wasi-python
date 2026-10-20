@@ -55,30 +55,57 @@ def find_module(mod, name):
     raise SystemExit(f"no module definition {name}")
 
 
+def find_spec(mod, name):
+    image = callbacks._Image(mod.data)
+    for addr in range(image.base, image.base + len(image.mem) - 20, 4):
+        w = image.words(addr, 5)
+        if s.cstring(image, w[0]) == name and w[4] and image.has(w[4], 8):
+            return addr, w
+    raise SystemExit(f"no spec {name}")
+
+
+def report(label, found, key):
+    """The mutated record's findings, and the total, so nothing else new can hide (L6)."""
+    print(f"{label}: total {len(found)}; {[f for f in found if key in f]}")
+
+
 path = sys.argv[1]
-base = len(run(wasm.parse_file(path)))
-print("findings unmutated:", base)
+base = run(wasm.parse_file(path))
+print("findings unmutated:", len(base))
 
 mod = wasm.parse_file(path)
 addr, w = find_type(mod, "numpy.ndarray")
 poke(mod, addr + 96, w[6])  # tp_clear := its own tp_dealloc (a destructor)
-print("ndarray tp_clear := tp_dealloc:", [f for f in run(mod) if "type numpy.ndarray" in f])
+report("ndarray tp_clear := tp_dealloc", run(mod), "type numpy.ndarray")
 
 mod = wasm.parse_file(path)
 addr, w = find_type(mod, "ImagingCore")
 _, ndw = find_type(mod, "numpy.ndarray")
 poke(mod, addr + 96, ndw[6])
-print("ImagingCore tp_clear := a destructor:", [f for f in run(mod) if "type ImagingCore" in f])
+report("ImagingCore tp_clear := a destructor", run(mod), "type ImagingCore")
 
 mod = wasm.parse_file(path)
 addr, w = find_type(mod, "int")
-image = callbacks._Image(mod.data)
-nb = w[48 // 4]
-poke(mod, nb + 9 * 4, w[6])  # nb_bool := int's tp_dealloc
-print("int nb_bool := tp_dealloc:", [f for f in run(mod) if "type int." in f])
+poke(mod, w[48 // 4] + 9 * 4, w[6])  # nb_bool := int's tp_dealloc
+report("int nb_bool := tp_dealloc", run(mod), "type int.")
 
 mod = wasm.parse_file(path)
 addr, w = find_module(mod, "_regex")
 _, ndw = find_type(mod, "numpy.ndarray")
 poke(mod, addr + 44, ndw[6])  # m_clear := a destructor
-print("_regex m_clear := a destructor:", [f for f in run(mod) if "module _regex" in f])
+report("_regex m_clear := a destructor", run(mod), "module _regex")
+
+# F2: kiwisolver.Term's spec loses its slot array (its slots word zeroed). The minimums stay
+# green (453 specs >= 380); only the named record turns the check red.
+mod = wasm.parse_file(path)
+addr, w = find_spec(mod, "kiwisolver.Term")
+poke(mod, addr + 16, 0)
+report("kiwisolver.Term spec slots := 0", run(mod), "kiwisolver.Term")
+
+# F1: a referenced type whose tp_name points into the image but at no C string: numpy.ndarray's
+# tp_name pointed at its own ob_type word, which holds 0, an empty string. The named record goes
+# unread too.
+mod = wasm.parse_file(path)
+addr, w = find_type(mod, "numpy.ndarray")
+poke(mod, addr + 12, addr + 4)  # its ob_type word: not a C string
+report("ndarray tp_name := a non-string", run(mod), "does not read as a type (tp_name)")

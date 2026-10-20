@@ -1,10 +1,14 @@
 # 096 — kiwisolver's `tp_clear` returns `int`, `lxml.html.diff` imports, and the scan reads type slots
 
 - **Status:** **drafted 2026-10-20** on `spec/096-kiwisolver-clear-and-lxml-final` from main
-  `1ce7381` (wave 05's acceptance, `c74d0f0`, plus its notes), with its research. It carries two
-  upstream patches (§4.1) and changes the build recipe and the artifact set, so it is reviewed
-  before it is built (constitution §5.6); the review reads both patches and their drafts (spec
-  020, Decision 8). A different agent reviews the build. **Waiting for the pre-build review.**
+  `1ce7381`, with its research; **reviewed before build** the same day
+  (`../reviews/096-kiwisolver-clear-and-lxml-final-spec-2026-10-20.md`, verdict "ready once
+  findings 1 and 2 are written into Decision 3 and check 3, with their unit rows"); **revised
+  against all of its findings** and rebased onto main `c091f3d` (roadmap only; the set is
+  unchanged). *Disposition of the pre-build review* says where each went. **Waiting for the same
+  reviewer to confirm F1 and F2.** It carries two upstream patches (§4.1) and changes the build
+  recipe and the artifact set, so it was reviewed before it is built (constitution §5.6). A
+  different agent reviews the build.
 - **Date:** 2026-10-20
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** (§5.7): it adds two carried patches under `recipes/patches/`, which
@@ -97,20 +101,35 @@ own check (check 3). It reads the plain binary's image as spec 051's scan does (
 the same `_Image`, `data_words` and `code_constants`), and keeps only what something points at:
 an address that appears as an aligned word in the image or as an `i32.const` operand.
 
-**Three kinds of record** (the layouts READ from CPython 3.15.0's headers, wasm32, 4-byte
-pointers; the offsets EXECUTED: `type`'s own record and the 478 types below read with them):
+**A C string**, wherever this Decision says so, is 1 to 256 bytes in 0x20–0x7E, ending in NUL
+(a space is allowed: CPython names two static types `<dummy key> type` and `symtable entry`).
 
-- **Static `PyTypeObject`s** (212 bytes). A candidate is an aligned word equal to
+**Three kinds of record** (the layouts READ from CPython 3.15.0's headers, wasm32, 4-byte
+pointers; the offsets EXECUTED: `type`'s own record and the 481 types below read with them):
+
+- **Static `PyTypeObject`s** (212 bytes). A **static record** is an aligned word equal to
   `_Py_STATIC_IMMORTAL_INITIAL_REFCNT` (`7 << 28` on 32-bit, `Include/refcount.h:67`, which
-  `PyObject_HEAD_INIT` writes into every static object) whose `tp_name` (offset 12) points at a C
-  string.
-  - `type` itself is the one candidate whose `ob_type` is its own address. Exactly one is
+  `PyObject_HEAD_INIT` writes into every static object). **Every static record is classified,
+  and every one the scan drops is counted by its reason** (the pre-build review's F1):
+  - `type` itself is the one static record whose `ob_type` is its own address. Exactly one is
     required; none, or two, is a finding.
-  - A **metatype** is `type`, or a type whose `tp_basicsize` is at least 212 (its instances are
-    type objects, as numpy's `_DTypeMeta`'s are) or whose `tp_base` is a metatype; found to a
-    fixed point.
-  - A **type** is a candidate whose `ob_type` is 0 (filled by `PyType_Ready`, as Cython and numpy
-    write it) or a metatype.
+  - A **metatype** is `type`, or a static record with a C-string `tp_name`, `ob_type` 0 or a
+    metatype, and a `tp_basicsize` of at least 212 (its instances are type objects, as numpy's
+    `_DTypeMeta`'s are) or a `tp_base` that is a metatype; found to a fixed point. This
+    over-includes (ten today, some only large iterators), which can only add records to read.
+  - A static record shaped as a module definition (Part 3's rule) goes to Part 3.
+  - Dropped, and counted: a record whose `ob_type` is neither 0 nor a metatype (a static
+    instance: a string, an int, `None`; 5,188 today); a record whose `tp_name` is neither 0 nor a
+    pointer into the image (1 today: bytes of a string table that read as the refcount).
+  - What is left is a **type candidate**: `ob_type` 0 (filled by `PyType_Ready`, as Cython and
+    numpy write it) or a metatype, and `tp_name` 0 or a pointer into the image. A candidate
+    must be referenced: unreferenced candidates are counted, and check 3 holds the count at 0
+    (0 today).
+  - **A referenced candidate whose `tp_name` points into the image but at no C string is a
+    finding**, `type at <address>: does not read as a type (tp_name)`. One whose `tp_name` is 0
+    is a type named at run time and is read as `<tp_name NULL at <address>>` (one today: a
+    numpy DType whose name numpy fills in).
+  - Every other referenced candidate is a **type**.
   - Its function fields are checked: `tp_dealloc`, `tp_getattr`, `tp_setattr`, `tp_repr`,
     `tp_hash`, `tp_call`, `tp_str`, `tp_getattro`, `tp_setattro`, `tp_traverse`, `tp_clear`,
     `tp_richcompare`, `tp_iter`, `tp_iternext`, `tp_descr_get`, `tp_descr_set`, `tp_init`,
@@ -127,10 +146,14 @@ pointers; the offsets EXECUTED: `type`'s own record and the 478 types below read
     64 KiB or more).
 - **`PyType_Slot` arrays, through their `PyType_Spec`.** A spec is a referenced 20-byte record
   `{name, basicsize, itemsize, flags, slots}` whose `name` is a C string, whose sizes are under
-  1 MiB and 64 KiB, and whose `slots` points at a readable first entry: a known slot id
-  (`Include/slots_generated.h`) with a table index for a function slot. From there **the whole run
-  must read to its zero end, or it is a finding.** Data slots (`tp_doc`, `tp_base`, `tp_bases`,
-  `tp_methods`, `tp_members`, `tp_getset`, `tp_token`) are skipped. The four ids 3.15 renumbered
+  1 MiB and 64 KiB, and whose `slots` points at a readable first entry. An entry is readable when
+  its id is a known slot id (`Include/slots_generated.h`) and, for a function slot, its value is
+  a table index or 0. **A function slot holding 0 is readable, skipped and counted, never
+  checked** (CPython's legacy iterator only logs "unwanted NULL", `Python/slots.c`; the review's
+  L3). From the first entry **the whole run must read to its zero end, or it is a finding.** A
+  spec-shaped record whose `slots` points past the image is dropped and counted (24 today, every
+  one a method table or keyword list that reads as a record). Data slots (`tp_doc`, `tp_base`,
+  `tp_bases`, `tp_methods`, `tp_members`, `tp_getset`, `tp_token`) are skipped. The four ids 3.15 renumbered
   are read in both forms: `bf_getbuffer`, `bf_releasebuffer`, `mp_ass_subscript` and
   `mp_length` are 1 to 4 under a limited API before 3.15 and 88 to 91 otherwise.
 - **Static `PyModuleDef`s** (52 bytes). A candidate is the static refcount, then `ob_type`,
@@ -163,31 +186,45 @@ upstream release, never by an exclusion.
 
 **What it found on main's plain binary** (EXECUTED, the drafting scanner
 `../research/2026-10-20-the-slot-scan/slotscan.py`, which embodies these rules,
-`slotscan-main-4eaf1c3d.txt`, 3.7 s):
+`slotscan-main-4eaf1c3d.txt`, 3.7 s; re-run after the pre-build review):
 
 - **Exactly four findings**: `spec kiwisolver.Constraint.tp_clear`, `….Expression.tp_clear`,
   `….Term.tp_clear` and `….Variable.tp_clear`, each `(i32) -> ()`, called as `(i32) -> (i32)`.
-  No other, and no "does not read as" finding.
-- **Coverage**: 478 static types (10 metatypes; 2,669 function fields and suite entries checked;
-  40 number, 42 sequence, 46 mapping, 14 buffer and 6 async suites), 454 `PyType_Spec`s (3,101
-  slot entries, 2,374 functions checked: pandas' Cython types 265, the stdlib's, kiwisolver's 6,
-  pybind11's one), 149 module definitions (311 functions checked; 7 slot arrays past the
+  No other, no "does not read as" finding, and every named record of check 3 read.
+- **Coverage**: 481 static types (10 metatypes; `<dummy key> type` and `symtable entry` among
+  them, and one named at run time; 2,675 function fields and suite entries checked; 40 number,
+  42 sequence, 46 mapping, 14 buffer and 6 async suites), 454 `PyType_Spec`s (3,101 slot
+  entries, 2,374 functions checked, no NULL function slot; specs: pandas' Cython types 265, the
+  stdlib's, kiwisolver's 6, pybind11's one), 149 module definitions (311 functions checked; 7 slot arrays past the
   image: matplotlib's six pybind11 modules, `_c_internal_utils`, `_image`, `_path`, `_tri`,
   `_backend_agg` and `ft2font`, and Pillow's `_imagingmorph`, whose array is empty, `{0, NULL}`).
-  5,354 functions in all. Every static type and spec found is referenced.
+  5,360 functions in all. Dropped and counted: 5,188 static instances, 1 record whose
+  `tp_name` is not a pointer, 24 spec-shaped records with slots past the image; 0 unreferenced
+  type candidates.
 - **It catches what it claims** (EXECUTED, `slotscan_mutants.py`, `slotscan_mutants.out`: one word
-  of the parsed image rewritten each time, the binary untouched): `numpy.ndarray`'s and
-  `ImagingCore`'s `tp_clear`, `int`'s `nb_bool` and `_regex`'s `m_clear`, each pointed at a
-  destructor, are each found, by name, with nothing else new.
+  of the parsed image rewritten each time, the binary untouched; each line prints the total, so
+  nothing else new can hide, the review's L6): `numpy.ndarray`'s and `ImagingCore`'s
+  `tp_clear`, `int`'s `nb_bool` and `_regex`'s `m_clear`, each pointed at a destructor, are each
+  found by name, total 5 (the four plus one). `kiwisolver.Term`'s spec with its `slots` word
+  zeroed: its `tp_clear` finding goes, and the two named records (`spec kiwisolver.Term`, `spec
+  slot kiwisolver.Term.tp_clear`) come, total 5, while every minimum stays met (453 specs). And
+  `numpy.ndarray`'s `tp_name` pointed at a zero word: `does not read as a type (tp_name)` and its
+  named record unread, total 6.
 - **The open branches' sets** (EXECUTED, read-only): 039's, 043's and 086's `python.wasm` give the
   same four and nothing else. 037, 038 and 044 have no built set to scan.
 
 **Out of the scan, and said so in its docstring:** slots that code fills at run time
 (pybind11's heap types, `PyType_Ready`'s inherited slots, a type object made by
-`PyType_FromMetaclass` from a spec built in code); the new `PySlot` arrays of 3.15 (`PySlot`,
-`PyModExport`), which no linked module uses (READ: only CPython's test modules
-`_testmultiphase`, `xxlimited`, `_testlimitedcapi`, `_testcapi`, none of which is in the set);
-and C callbacks passed to C APIs (`qsort`, LAPACK), as before.
+`PyType_FromMetaclass` from a spec built in code); type objects, specs, slot arrays and module
+definitions that C++ dynamic initialization fills (they lie in `.bss`, past the image); a spec
+whose first entry is neither a known id nor a NULL function slot (irreducible by shape: even
+filtered by flags and size, more than 300 `PyMethodDef`s read as specs, the review measured);
+the new `PySlot` arrays of 3.15 (`PySlot`, `PyModExport`), which no linked module uses (READ:
+only CPython's test modules `_testmultiphase`, `xxlimited`, `_testlimitedcapi`, `_testcapi`,
+none of which is in the set); and C callbacks passed to C APIs (`qsort`, LAPACK), as before.
+The docstring also names the ids 92 to 110 (`Py_slot_subslots`, `Py_tp_slots`, `Py_tp_name`,
+`Py_mod_state_clear` and the rest), which belong to `PySlot` arrays: one in the middle of a
+`PyType_Slot` run is a finding, as it should be, and the name tells a reader why.
 
 ### 4. The lxml patch: upstream's own line, not a recipe (EXECUTED and READ)
 
@@ -291,17 +328,22 @@ from Decision 3's rules, with its own unit rows.
   lacked `cython.final` without Cython; carried patch
   `recipes/patches/lxml-6.1.3/0001-fake-cython-final.patch` is upstream's line (#477), until lxml
   7.0. **The judge's callback scan reads type slots**: static type objects and their method
-  suites, `PyType_Slot` arrays and module definitions, 5,354 functions on today's set, where spec
+  suites, `PyType_Slot` arrays and module definitions, 5,360 functions on today's set, where spec
   051's read method and getset tables."
 
 ### 8. Where this meets other specifications
 
-- **066** (the compiled packages' own tests; in its confirmation round). Its survey found both
-  defects; its delta makes kiwisolver's group a trap entry and lists lxml's `test_diff.py`,
-  `test_diff.txt` and `docstrings:lxml.html.diff` as failures from finding 2. **Expected order:
-  096 first**; 066's builder then runs kiwisolver's suite and drops those entries. If 066 lands
-  first, 096's builder edits those entries out as part of this judge change, names each in the
-  `--accept-judge` reason, and runs the kiwisolver group to show it no longer traps.
+- **066** (the compiled packages' own tests). Its survey found both defects, and **066 depends
+  on 096** (066 at `82f2d6c`, *Depends on*; its confirmation's C3): it is built after 096 lands,
+  or stacked on 096's reviewed tip, and its re-survey runs on a set with 096. If 096 slipped, 066
+  would keep kiwisolver `later` with `closes_with = "spec 096"` and give lxml the class
+  `lxml-html-diff`, closed by spec 096 (three members: `test_diff.txt`, `test_diff.py`,
+  `lxml.html.diff`'s docstrings). **If 066 nonetheless lands first**, 096's builder closes that
+  `later` entry and that class: kiwisolver becomes a suite under 066's rules, with its caps from
+  a measured run on 096's set, and the `lxml-html-diff` class and its members go. The builder
+  names each change in `--accept-judge` and drops that flag's words "no existing expectation
+  edited". If the kiwisolver group then shows any failure but the trap, the builder stops and
+  hands it to 066; it adds no allowance (the pre-build review's L5).
 - **037, 038, 044** (scipy, scikit-learn) and **043** (contourpy): their builds meet the widened
   scan as spec 051's Decision 4a made them meet the first. When 096 lands, the lane adds to each
   unlanded build-class specification's status: "spec 096's slot scan is green, and a mismatch it
@@ -356,12 +398,24 @@ Each is written before the change it judges, and each was, or will be, seen fail
    fast, needs `plain binary`, beside spec 051's check). `callbacks.scan_slots` over the plain
    binary; `callbacks.findings` of it must be empty, and its coverage at least the minimums, set
    from main's set with room, so a toolchain change cannot make it pass by finding nothing:
-   - at least 400 static types (478);
+   - at least 400 static types (481);
    - at least 380 `PyType_Spec`s (454);
    - at least 120 module definitions (149);
-   - at least 4,500 slot functions checked (5,354).
+   - at least 4,500 slot functions checked (5,360);
+   - **exactly 0 unreferenced type candidates** (0; the pre-build review's F1).
 
-   Its coverage is the pass's reason in `latest.json`, as spec 051's is. Seen failing first: on
+   **And the named records** (the pre-build review's F2), each of which the report must have read,
+   one or more per compiled package with a static record, so one package's tables cannot vanish
+   under the minimums:
+   - the specs `kiwisolver.Constraint`, `kiwisolver.Expression`, `kiwisolver.Term` and
+     `kiwisolver.Variable`, each with its `tp_clear` checked;
+   - the spec `pandas._libs.tslibs.timestamps._Timestamp` (pandas' Cython types);
+   - the types `type`, `numpy.ndarray`, `ImagingCore` (Pillow) and `lxml.etree._Element`;
+   - the module definitions `_regex` and `ft2font` (matplotlib).
+
+   A named record not read is a finding, `named record not read: <kind> <name>`. The report keeps
+   the names it read, by kind, for this. Its coverage, with the drops counted by reason, is the
+   pass's reason in `latest.json`, as spec 051's is. Seen failing first: on
    main's set it reports exactly Decision 3's four kiwisolver findings (EXECUTED by the drafting
    scanner; the builder re-sees it with the judge's own code and records the message).
 4. **Unit rows, `tests/unit/test_callbacks.py`** (small modules built with wat2wasm, as spec 051's
@@ -369,6 +423,13 @@ Each is written before the change it judges, and each was, or will be, seen fail
    rules marked † each get a mutant that fails without them (the builder records each):
    - a static type (`ob_type` 0) whose `tp_clear` is `(i32) -> ()` is found as
      `type <name>.tp_clear`, and its `tp_dealloc` `(i32) -> ()` is not;
+   - a static type named with a space (`a b`) is read and its fields checked † (F1);
+   - a referenced static record, `ob_type` 0, whose `tp_name` points into the image at bytes
+     that are no C string (one below 0x20): `does not read as a type (tp_name)` † (F1); the same
+     with `tp_name` 0: read as a type named at run time;
+   - an unreferenced type candidate: counted, and check 3's bound turns red on it † (F1); a static
+     instance (`ob_type` a non-metatype) and a record whose `tp_name` is not a pointer: each
+     counted under its reason, no finding;
    - `type` (its `ob_type` itself), a metatype (`tp_basicsize` 212 or more), and an instance of
      the metatype whose `tp_repr` has one parameter too few: found †;
    - a static type whose `tp_as_number` points at a suite with a two-parameter `nb_bool`: found;
@@ -378,6 +439,11 @@ Each is written before the change it judges, and each was, or will be, seen fail
    - a referenced `PyType_Spec` whose slots hold a void `tp_clear`: found; the same record
      unreferenced: not †;
    - a slot run that breaks before its zero end (an unknown id after a good entry): a finding †;
+   - a NULL function slot as a spec's first entry and as a later one: the spec is read, the
+     entry counted, no finding † (L3);
+   - a module whose named records are all present passes the named-record rule; with one named
+     spec's `slots` word zeroed, the minimums still met, `named record not read` is the finding †
+     (F2);
    - old and new ids (`mp_length` as 4 and as 91) each checked as `(i32) -> (i32)` †;
    - a `PyModuleDef` whose `m_clear` is `(i32) -> ()`: found; its `Py_mod_exec` slot with two
      parameters: found; a slot array past the image: counted, not read;
@@ -428,13 +494,14 @@ In: Decisions 1 to 5. Out:
 - `tests/harness/callbacks.py`: `scan_slots(mod) -> SlotReport` (Decision 3); `findings()` and
   `EXCLUDED` shared; the docstring's out-of-scope list rewritten. `scan()` does not change, so
   spec 051's check keeps its findings, coverage and fuel-free verdict.
-- `tests/checks/test_v1_3_data_stack.py`: check 3 and `SLOT_MINIMUMS`.
+- `tests/checks/test_v1_3_data_stack.py`: check 3, `SLOT_MINIMUMS` and `SLOT_NAMED` (the named
+  records).
 - `tests/checks/test_v1_3_matplotlib.py`: check 1. `tests/checks/test_v1_3_lxml.py`: check 2.
 - `tests/unit/test_callbacks.py`: check 4.
-- No golden output, gap, allowance or progress file is edited, and no check is weakened. If spec
-  066 lands first, its kiwisolver trap entry and lxml's `lxml.html.diff` entries (in
-  `tests/upstream/`) are edited by this specification's builder, as a named judge change in the
-  `--accept-judge` reason (Decision 8).
+- No golden output, gap, allowance or progress file is edited, and no check is weakened. Only if
+  spec 066 lands first, its kiwisolver `later` entry and its `lxml-html-diff` class are closed by
+  this specification's builder, as a named judge change in the `--accept-judge` reason
+  (Decision 8).
 
 ## The owner's choices
 
@@ -459,7 +526,7 @@ None blocks the build. Decided until answered:
     `[snapshot]` (fuel recorded); `test_v1_3_lxml.py::test_lxml_html_diff_imports[plain]`,
     `[snapshot]` (fuel recorded); `test_v1_3_data_stack.py::test_type_slots_have_the_types_cpython_calls`
     (no fuel).
-  - **Unit rows:** `tests/unit/test_callbacks.py`, about twelve.
+  - **Unit rows:** `tests/unit/test_callbacks.py`, about twenty.
   - **Retired checks:** none. **Lost passes:** none.
   - **Rows that grow:** the two `test_binary_is_a_core_wasm_module` byte rows (kiwisolver's four
     `return 0`), any zip byte row (`lxml/html/diff.pyc`), and any fuel row the relink moves past
@@ -470,12 +537,41 @@ None blocks the build. Decided until answered:
 
   ```
   --accept "096: kiwisolver's tp_clear returns int (carried patch 0002, upstream's #245), so a garbage cycle holding a kiwisolver object is collected instead of trapping; import lxml.html.diff works (carried patch 0001, upstream's line from #477); the callback scan reads static type objects, PyType_Slot arrays and module definitions"
-  --accept-judge "096: the callback scan reads static PyTypeObjects (their tp_* functions and number, sequence, mapping, async and buffer suites), PyType_Spec slot arrays and PyModuleDefs, with minimum coverage (400 types, 380 specs, 120 module definitions, 4,500 functions); checks that a cycle through Variable, Term, Expression and Constraint is collected and that lxml.html.diff imports and diffs as natively; unit rows on WAT modules; no existing expectation edited"
+  --accept-judge "096: the callback scan reads static PyTypeObjects (their tp_* functions and number, sequence, mapping, async and buffer suites), PyType_Spec slot arrays and PyModuleDefs, with minimum coverage (400 types, 380 specs, 120 module definitions, 4,500 functions, 0 unreferenced type candidates), every dropped record counted by reason, and named records it must read (kiwisolver's four specs with their tp_clear, a pandas spec, type, numpy.ndarray, ImagingCore, lxml.etree._Element, _regex, ft2font); checks that a cycle through Variable, Term, Expression and Constraint is collected and that lxml.html.diff imports and diffs as natively; unit rows on WAT modules; no existing expectation edited"
   --accept-growth "096: kiwisolver's four tp_clear return int: python.wasm +<bytes> and the snapshot +<bytes>; lxml/html/diff.py gains one line: the zip +<bytes>; MANIFEST two recipe lines"
   ```
 
 - **Dry-run needs:** the release workflow on the branch (criterion 8); the Windows judge shards
   run checks 1 to 3 as any other.
+
+## Disposition of the pre-build review
+
+The review (`../reviews/096-kiwisolver-clear-and-lxml-final-spec-2026-10-20.md`) re-ran the patch
+rules and the drafting scanner, applied both patches with the real applier on fresh tarballs (no
+offset), and matched both against upstream's commits (kiwisolver's hunks identical but for the
+`index` lines; lxml's the same blob pair). Every finding is written in; no decision changed. The
+drafting scanner and its mutants were re-run after the changes (`slotscan-main-4eaf1c3d.txt`,
+`slotscan_mutants.out`).
+
+- **F1 (Medium), written in.** Decision 3 defines a C string (1 to 256 bytes in 0x20–0x7E, NUL),
+  classifies every static record and counts each drop by reason, makes a referenced type
+  candidate with an unreadable `tp_name` a finding, and reads one with `tp_name` 0 as a type named
+  at run time. Check 3 holds unreferenced type candidates at 0. Re-run: 481 types, with
+  `<dummy key> type` and `symtable entry` now read, and a numpy DType named at run time; no new
+  finding. Unit rows and a mutant (`numpy.ndarray`'s `tp_name` at a zero word: total 6).
+- **F2 (Medium), written in.** Check 3 names records it must read, one or more per compiled
+  package. The mutant that zeroes `kiwisolver.Term`'s `slots` word turns it red by the named
+  records alone, with every minimum met (total 5, 453 specs). A unit row holds the rule.
+- **L3, written in.** A NULL function slot is readable, skipped and counted, never checked
+  (Decision 3); unit rows for the first and a later entry. None today.
+- **L4, written in.** The out-of-scope list names C++ dynamic initialization in `.bss` and a spec
+  whose first entry is unreadable; the docstring names ids 92 to 110.
+- **L5, written in.** Decision 8 follows 066's confirmed text: kiwisolver `later` with
+  `closes_with = "spec 096"`, the class `lxml-html-diff`, no allowance added.
+- **L6, written in.** The mutants print each total.
+- **L7, written in.** The coverage line counts kiwisolver's 6 among the specs, not the functions.
+- **N8, N9.** No change asked for the metatype rule (Decision 3 says it over-includes safely).
+  Rebased onto `c091f3d`.
 
 ## One line
 
