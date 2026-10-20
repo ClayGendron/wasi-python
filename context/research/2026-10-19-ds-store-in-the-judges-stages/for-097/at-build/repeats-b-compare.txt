@@ -1,0 +1,4 @@
+same test_upstream_suite[cpython-archives]: base-1 pass 165638282607, base-2 pass 165638282607, build-1 pass 165638282607, build-2 pass 165638282607
+same test_upstream_suite[cpython-fs]: base-1 pass 62324809402, base-2 pass 62324809402, build-1 pass 62324809402, build-2 pass 62324809402
+DIFFER test_upstream_suite[numpy-lib]: base-1 blocked None, base-2 blocked None, build-1 blocked None, build-2 blocked None
+2 rows one value and pass on all four legs; 1 not

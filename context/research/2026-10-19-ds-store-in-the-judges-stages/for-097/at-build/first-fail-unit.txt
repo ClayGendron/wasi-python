@@ -1,0 +1,102 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.2, pytest-9.1.1, pluggy-1.7.0
+rootdir: /Users/claygendron/Git/Repos/wasi_python/.claude/worktrees/agent-aee0e93a4a535efef
+configfile: pyproject.toml
+plugins: xdist-3.8.0
+collected 65 items / 61 deselected / 4 selected
+
+tests/unit/test_host_litter.py FFF                                       [ 75%]
+tests/unit/test_build_scripts.py F                                       [100%]
+
+=================================== FAILURES ===================================
+____________ test_the_guest_folders_leave_the_home_folder_on_darwin ____________
+
+tmp_path = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-6900/test_the_guest_folders_leave_t0')
+
+    def test_the_guest_folders_leave_the_home_folder_on_darwin(tmp_path: Path) -> None:
+        """Spec 097, Decision 1: on darwin the judge's guest folders go under the per-user temporary
+        folder, by its real path, in a folder keyed by the checkout (two worktrees never share one,
+        and the runner's `wasi-python-` names are never used); elsewhere they stay in build/harness."""
+        from harness import paths
+    
+>       one = paths._guest_tmp_for(Path("/x/one"), str(tmp_path), "darwin")
+              ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'harness.paths' has no attribute '_guest_tmp_for'
+
+tests/unit/test_host_litter.py:173: AttributeError
+_______________ test_the_guest_folders_root_is_real_and_private ________________
+
+tmp_path = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-6900/test_the_guest_folders_root_is0')
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX links and modes")
+    def test_the_guest_folders_root_is_real_and_private(tmp_path: Path) -> None:
+        """Spec 097, Decision 1: the temporary folder is taken by its real path (no link), and the
+        keyed folder is used only when it is a real folder of this user's with no group or other
+        bits; anything else is refused by name."""
+        from harness import paths
+    
+        real = tmp_path / "real"
+        real.mkdir()
+        (tmp_path / "link").symlink_to(real)
+>       got = paths._guest_tmp_for(Path("/x/one"), str(tmp_path / "link"), "darwin")
+              ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'harness.paths' has no attribute '_guest_tmp_for'
+
+tests/unit/test_host_litter.py:195: AttributeError
+______________ test_a_measured_run_may_not_name_the_guest_folders ______________
+
+tmp_path = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-6900/test_a_measured_run_may_not_na0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x107d3cc30>
+
+    def test_a_measured_run_may_not_name_the_guest_folders(tmp_path: Path, monkeypatch) -> None:
+        """Spec 097, Decision 5 (spec 081 kept): `host_roots_always` holds `GUEST_TMP`, so a measured
+        run whose input names a host path there is refused, wherever the temporary folder is."""
+        from harness import guest, paths
+    
+        g = tmp_path / "judge-wasi_python-0123456789ab"
+>       monkeypatch.setattr(paths, "GUEST_TMP", g)
+E       AttributeError: <module 'harness.paths' from '/Users/claygendron/Git/Repos/wasi_python/.claude/worktrees/agent-aee0e93a4a535efef/tests/harness/paths.py'> has no attribute 'GUEST_TMP'
+
+tests/unit/test_host_litter.py:215: AttributeError
+______________ test_the_git_excludes_keep_out_exactly_the_litter _______________
+
+tmp_path = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-6900/test_the_git_excludes_keep_out0')
+
+    def test_the_git_excludes_keep_out_exactly_the_litter(tmp_path) -> None:
+        """Spec 097, Decision 7: the pathspecs make_openblas_void_patch.sh adds with leave out of the
+        index exactly the paths `has_litter` names, through real git, so git never opens a litter
+        file and the unstage (by `has_litter`) has nothing left to do."""
+        assert not any(set(n) & set("*?[]\\") for n in litter.OS_LITTER), "a glob character"
+        keep = ["keep.c", "sub/keep.c", "DS_Store", "x._y", "Icon", ".DS_Store.bak", ".gitignore"]
+        drop = [".DS_Store", "sub/deep/.DS_Store", "sub/._x.c", "._top", ".Trashes/inside", "._d/f"]
+        drop += ["Thumbs.db", "sub/desktop.ini", ".Spotlight-V100/a", "sub/ehthumbs.db"]
+        if sys.platform != "win32":  # a name with a carriage return
+            drop += ["Icon\r", "sub/Icon\r"]
+        tree = tmp_path / "tree"
+        for rel in keep + drop:
+            (tree / rel).parent.mkdir(parents=True, exist_ok=True)
+            (tree / rel).write_text("")
+        assert [litter.has_litter(r) for r in keep + drop] == [False] * len(keep) + [True] * len(drop)
+        specs = tmp_path / "add.pathspec"
+>       specs.write_bytes(b"\0".join(s.encode() for s in [".", *litter.git_excludes()]))
+                                                                ^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'litter' has no attribute 'git_excludes'
+
+tests/unit/test_build_scripts.py:204: AttributeError
+=================================== progress ===================================
+wasi_python v1: 0/0 pass · 0 gap · 0 blocked · 0 fail   (unit suite 0/4)
+  v1.1  artifact set         0/0   
+  v1.2  portable, sealed     0/0   
+  v1.3  data stack           0/0   
+  v1.4  embedding            0/0   
+  v1.5  rebuild from pins    0/0   
+  rules constitution rules   0/0   
+ratchet vs e9a76ce1aa: lost 0 · absent 0 · unrun 0 · gained 0 · grew 0 · upstream unrun 95 · not selected 704 · judge changed: tests/checks/test_v1_4_embedding.py, tests/unit/test_build_scripts.py, tests/unit/test_host_litter.py and 1 more
+not machine-checked: publication · copying from prior art · numpy's 25 files that need its C test modules (number 89) · pandas beyond eight groups · CPython's tests that need its C test modules (number 101) · CPython under -bb · a fuel fact's fuel below its cap (spec 091)
+  licence content of wasi-libc, llvm-runtimes and unpinned components (presence only) · bundled sub-licences · files a build adds inside a source tree · source pragmas and compiler options outside the scanned records (same-bytes is the backstop)
+=========================== short test summary info ============================
+FAILED tests/unit/test_host_litter.py::test_the_guest_folders_leave_the_home_folder_on_darwin
+FAILED tests/unit/test_host_litter.py::test_the_guest_folders_root_is_real_and_private
+FAILED tests/unit/test_host_litter.py::test_a_measured_run_may_not_name_the_guest_folders
+FAILED tests/unit/test_build_scripts.py::test_the_git_excludes_keep_out_exactly_the_litter
+======================= 4 failed, 61 deselected in 0.41s =======================

@@ -1,0 +1,11 @@
+DIFFER test_matplotlib_data_is_granted_read_only[plain]: base-1 pass None, base-2 pass None, build-1 pass None, build-2 pass None
+DIFFER test_matplotlib_data_is_granted_read_only[snapshot]: base-1 pass None, base-2 pass None, build-1 pass None, build-2 pass None
+same test_numpy_csv_job_matches_native: base-1 pass 4996759427, base-2 pass 4996759427, build-1 pass 4996759427, build-2 pass 4996759427
+same test_pandas_csv_job_matches_native: base-1 pass 5105780200, base-2 pass 5105780200, build-1 pass 5105780200, build-2 pass 5105780200
+same test_a_file_dropped_into_a_stage_changes_nothing[plain]: base-1 pass 218765145, base-2 pass 218765145, build-1 pass 218765145, build-2 pass 218765145
+same test_a_file_dropped_into_a_stage_changes_nothing[snapshot]: base-1 pass 20981332, base-2 pass 20981332, build-1 pass 20981332, build-2 pass 20981332
+same test_file_facts_cost_the_same_on_every_run[plain]: base-1 pass 223703451, base-2 pass 223703451, build-1 pass 223703451, build-2 pass 223703451
+same test_file_facts_cost_the_same_on_every_run[snapshot]: base-1 pass 25878984, base-2 pass 25878984, build-1 pass 25878984, build-2 pass 25878984
+same test_fuel_does_not_follow_the_stdlib_zips_link_count[plain]: base-1 pass 334546494, base-2 pass 334546494, build-1 pass 334546494, build-2 pass 334546494
+same test_fuel_does_not_follow_the_stdlib_zips_link_count[snapshot]: base-1 pass 21225960, base-2 pass 21225960, build-1 pass 21225960, build-2 pass 21225960
+8 rows one value and pass on all four legs; 2 not

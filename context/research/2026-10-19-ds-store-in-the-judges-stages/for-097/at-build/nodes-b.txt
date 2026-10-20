@@ -1,0 +1,3 @@
+tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-fs]
+tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-archives]
+tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-lib]

@@ -1,0 +1,244 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.2, pytest-9.1.1, pluggy-1.7.0
+rootdir: /Users/claygendron/Git/Repos/wasi_python/.claude/worktrees/agent-aee0e93a4a535efef
+configfile: pyproject.toml
+plugins: xdist-3.8.0
+collected 13 items / 9 deselected / 4 selected
+
+tests/unit/test_scipy_build.py .FFF                                      [100%]
+
+=================================== FAILURES ===================================
+____ test_the_openblas_patch_script_survives_litter_rewritten_after_its_add ____
+
+tmp_path = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-6899/test_the_openblas_patch_script1')
+
+    def test_the_openblas_patch_script_survives_litter_rewritten_after_its_add(tmp_path) -> None:
+        """Guards a change (spec 097): macOS rewrote a `.DS_Store` between the script's `git add` and
+        its `git rm --cached`, which then refused ("staged content different from both the file and
+        the HEAD") and failed the OpenBLAS check. Litter is now excluded from the add."""
+>       _openblas_script_with_a_writer(tmp_path, "rewrite")
+
+tests/unit/test_scipy_build.py:468: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-6899/test_the_openblas_patch_script1')
+mode = 'rewrite'
+
+    def _openblas_script_with_a_writer(tmp_path, mode: str) -> None:
+        """Spec 090's stand-in layout (a made tarball, a stand-in convention script, the real
+        make_openblas_void_patch.sh and its helpers), run with GIT_WRAPPER in `mode` first on PATH;
+        the script must succeed and its patches name the three changed files and no litter."""
+        import hashlib
+        import tarfile
+    
+        real = shutil.which("git")
+        assert real, "no git on PATH"
+        repo = tmp_path / "repo"
+        for rel in ("make_openblas_void_patch.sh", "steps/remove.sh", "litter.py"):
+            (repo / "scripts" / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(paths.REPO / "scripts" / rel, repo / "scripts" / rel)
+        (repo / "scripts" / "openblas_make_void.py").write_text(FAKE_MAKE_VOID)
+        src = tmp_path / "src" / "OpenBLAS-0.3.34"
+        for rel in (
+            "lapack-netlib/SRC/cgesv.c",
+            "lapack-netlib/SRC/sgesv.c",
+            "lapack-netlib/INSTALL/ilaver.c",
+            "Makefile",
+        ):
+            (src / rel).parent.mkdir(parents=True, exist_ok=True)
+            (src / rel).write_text("int f(void) { return 0; }\n")
+        (repo / "downloads").mkdir()
+        tarball = repo / "downloads" / "OpenBLAS-0.3.34.tar.gz"
+        with tarfile.open(tarball, "w:gz") as t:
+            t.add(src, arcname="OpenBLAS-0.3.34")
+        sha = hashlib.sha256(tarball.read_bytes()).hexdigest()
+        (repo / "downloads" / "SHA256SUMS").write_text(f"{sha}  OpenBLAS-0.3.34.tar.gz\n")
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        wrapper = bin_dir / "git"
+        wrapper.write_text(GIT_WRAPPER.format(real=real, mode=mode))
+        wrapper.chmod(0o755)
+        env = {
+            **os.environ,
+            "PATH": str(bin_dir) + os.pathsep + os.environ["PATH"],
+            "PYTHON": sys.executable,
+        }
+        out = tmp_path / "out"
+        done = subprocess.run(
+            [SH, str(repo / "scripts" / "make_openblas_void_patch.sh"), str(out)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+>       assert done.returncode == 0, done.stderr[-800:]
+E       AssertionError: error: the following file has staged content different from both the
+E         file and the HEAD:
+E             .DS_Store
+E         (use -f to force removal)
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/bin/sh', '/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pyte...owing file has staged content different from both the\nfile and the HEAD:\n    .DS_Store\n(use -f to force removal)\n').returncode
+
+tests/unit/test_scipy_build.py:452: AssertionError
+____________ test_the_openblas_patch_script_never_reads_host_litter ____________
+
+tmp_path = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-6899/test_the_openblas_patch_script2')
+
+    @pytest.mark.skipif(
+        sys.platform == "win32" or os.geteuid() == 0, reason="a mode does not stop a read here"
+    )
+    def test_the_openblas_patch_script_never_reads_host_litter(tmp_path) -> None:
+        """Guards a change (spec 097): `git add` opens every file it stages, so a litter file the
+        writer truncates, removes or holds unreadable mid-add failed it ("Permission denied"). The
+        add excludes litter by pathspec, so git never opens one."""
+>       _openblas_script_with_a_writer(tmp_path, "unreadable")
+
+tests/unit/test_scipy_build.py:478: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-6899/test_the_openblas_patch_script2')
+mode = 'unreadable'
+
+    def _openblas_script_with_a_writer(tmp_path, mode: str) -> None:
+        """Spec 090's stand-in layout (a made tarball, a stand-in convention script, the real
+        make_openblas_void_patch.sh and its helpers), run with GIT_WRAPPER in `mode` first on PATH;
+        the script must succeed and its patches name the three changed files and no litter."""
+        import hashlib
+        import tarfile
+    
+        real = shutil.which("git")
+        assert real, "no git on PATH"
+        repo = tmp_path / "repo"
+        for rel in ("make_openblas_void_patch.sh", "steps/remove.sh", "litter.py"):
+            (repo / "scripts" / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(paths.REPO / "scripts" / rel, repo / "scripts" / rel)
+        (repo / "scripts" / "openblas_make_void.py").write_text(FAKE_MAKE_VOID)
+        src = tmp_path / "src" / "OpenBLAS-0.3.34"
+        for rel in (
+            "lapack-netlib/SRC/cgesv.c",
+            "lapack-netlib/SRC/sgesv.c",
+            "lapack-netlib/INSTALL/ilaver.c",
+            "Makefile",
+        ):
+            (src / rel).parent.mkdir(parents=True, exist_ok=True)
+            (src / rel).write_text("int f(void) { return 0; }\n")
+        (repo / "downloads").mkdir()
+        tarball = repo / "downloads" / "OpenBLAS-0.3.34.tar.gz"
+        with tarfile.open(tarball, "w:gz") as t:
+            t.add(src, arcname="OpenBLAS-0.3.34")
+        sha = hashlib.sha256(tarball.read_bytes()).hexdigest()
+        (repo / "downloads" / "SHA256SUMS").write_text(f"{sha}  OpenBLAS-0.3.34.tar.gz\n")
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        wrapper = bin_dir / "git"
+        wrapper.write_text(GIT_WRAPPER.format(real=real, mode=mode))
+        wrapper.chmod(0o755)
+        env = {
+            **os.environ,
+            "PATH": str(bin_dir) + os.pathsep + os.environ["PATH"],
+            "PYTHON": sys.executable,
+        }
+        out = tmp_path / "out"
+        done = subprocess.run(
+            [SH, str(repo / "scripts" / "make_openblas_void_patch.sh"), str(out)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+>       assert done.returncode == 0, done.stderr[-800:]
+E       AssertionError: error: open(".DS_Store"): Permission denied
+E         error: unable to index file '.DS_Store'
+E         fatal: adding files failed
+E         
+E       assert 128 == 0
+E        +  where 128 = CompletedProcess(args=['/bin/sh', '/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pyte...'error: open(".DS_Store"): Permission denied\nerror: unable to index file \'.DS_Store\'\nfatal: adding files failed\n').returncode
+
+tests/unit/test_scipy_build.py:452: AssertionError
+________ test_the_openblas_patch_script_unstages_litter_its_add_staged _________
+
+tmp_path = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-6899/test_the_openblas_patch_script3')
+
+    def test_the_openblas_patch_script_unstages_litter_its_add_staged(tmp_path) -> None:
+        """Guards a change (spec 097, its pre-build review F2): if the excludes ever miss a litter
+        path, the add stages it; the unstage removes it with `git update-index --force-remove`, which
+        asks nothing of the work tree, so a rewrite after the add cannot make it refuse."""
+>       _openblas_script_with_a_writer(tmp_path, "no-excludes")
+
+tests/unit/test_scipy_build.py:485: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-6899/test_the_openblas_patch_script3')
+mode = 'no-excludes'
+
+    def _openblas_script_with_a_writer(tmp_path, mode: str) -> None:
+        """Spec 090's stand-in layout (a made tarball, a stand-in convention script, the real
+        make_openblas_void_patch.sh and its helpers), run with GIT_WRAPPER in `mode` first on PATH;
+        the script must succeed and its patches name the three changed files and no litter."""
+        import hashlib
+        import tarfile
+    
+        real = shutil.which("git")
+        assert real, "no git on PATH"
+        repo = tmp_path / "repo"
+        for rel in ("make_openblas_void_patch.sh", "steps/remove.sh", "litter.py"):
+            (repo / "scripts" / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(paths.REPO / "scripts" / rel, repo / "scripts" / rel)
+        (repo / "scripts" / "openblas_make_void.py").write_text(FAKE_MAKE_VOID)
+        src = tmp_path / "src" / "OpenBLAS-0.3.34"
+        for rel in (
+            "lapack-netlib/SRC/cgesv.c",
+            "lapack-netlib/SRC/sgesv.c",
+            "lapack-netlib/INSTALL/ilaver.c",
+            "Makefile",
+        ):
+            (src / rel).parent.mkdir(parents=True, exist_ok=True)
+            (src / rel).write_text("int f(void) { return 0; }\n")
+        (repo / "downloads").mkdir()
+        tarball = repo / "downloads" / "OpenBLAS-0.3.34.tar.gz"
+        with tarfile.open(tarball, "w:gz") as t:
+            t.add(src, arcname="OpenBLAS-0.3.34")
+        sha = hashlib.sha256(tarball.read_bytes()).hexdigest()
+        (repo / "downloads" / "SHA256SUMS").write_text(f"{sha}  OpenBLAS-0.3.34.tar.gz\n")
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        wrapper = bin_dir / "git"
+        wrapper.write_text(GIT_WRAPPER.format(real=real, mode=mode))
+        wrapper.chmod(0o755)
+        env = {
+            **os.environ,
+            "PATH": str(bin_dir) + os.pathsep + os.environ["PATH"],
+            "PYTHON": sys.executable,
+        }
+        out = tmp_path / "out"
+        done = subprocess.run(
+            [SH, str(repo / "scripts" / "make_openblas_void_patch.sh"), str(out)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+>       assert done.returncode == 0, done.stderr[-800:]
+E       AssertionError: error: the following file has staged content different from both the
+E         file and the HEAD:
+E             .DS_Store
+E         (use -f to force removal)
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/bin/sh', '/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pyte...owing file has staged content different from both the\nfile and the HEAD:\n    .DS_Store\n(use -f to force removal)\n').returncode
+
+tests/unit/test_scipy_build.py:452: AssertionError
+=================================== progress ===================================
+wasi_python v1: 0/0 pass · 0 gap · 0 blocked · 0 fail   (unit suite 1/4)
+  v1.1  artifact set         0/0   
+  v1.2  portable, sealed     0/0   
+  v1.3  data stack           0/0   
+  v1.4  embedding            0/0   
+  v1.5  rebuild from pins    0/0   
+  rules constitution rules   0/0   
+ratchet vs e9a76ce1aa: lost 0 · absent 0 · unrun 0 · gained 0 · grew 0 · upstream unrun 95 · not selected 704 · judge changed: tests/checks/test_v1_4_embedding.py, tests/unit/test_scipy_build.py
+not machine-checked: publication · copying from prior art · numpy's 25 files that need its C test modules (number 89) · pandas beyond eight groups · CPython's tests that need its C test modules (number 101) · CPython under -bb · a fuel fact's fuel below its cap (spec 091)
+  licence content of wasi-libc, llvm-runtimes and unpinned components (presence only) · bundled sub-licences · files a build adds inside a source tree · source pragmas and compiler options outside the scanned records (same-bytes is the backstop)
+=========================== short test summary info ============================
+FAILED tests/unit/test_scipy_build.py::test_the_openblas_patch_script_survives_litter_rewritten_after_its_add
+FAILED tests/unit/test_scipy_build.py::test_the_openblas_patch_script_never_reads_host_litter
+FAILED tests/unit/test_scipy_build.py::test_the_openblas_patch_script_unstages_litter_its_add_staged
+================== 3 failed, 1 passed, 9 deselected in 8.32s ===================

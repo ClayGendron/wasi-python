@@ -427,7 +427,64 @@ The review (`../reviews/097-host-litter-outside-home-prebuild-2026-10-20.md`, on
 
 ## Landing notes
 
-Not built yet.
+**Half-built, stopped 2026-10-20 at the owner's end of day** (the lane's instruction: finish the
+step in progress, commit, push, stop). Built on main `5805af0`, **not yet rebased** onto main
+`faa9c93` (wave 08 landed meanwhile). Evidence: `../research/2026-10-19-ds-store-in-the-judges-stages/for-097/at-build/`.
+
+### What was built
+
+- `paths.GUEST_TMP`, `_guest_tmp_for`, `_make_guest_tmp`, `guest_tmp()`; the `guest_workdir`
+  fixture there; `host_roots_always` holds `GUEST_TMP`; `litter.scratch_roots()`, the recovery
+  texts and the plugin's leftovers line name both roots (Decisions 1, 2, 5, 6).
+- `scripts/litter.py` `git_excludes()`; `make_openblas_void_patch.sh` adds through the excludes
+  file and unstages with `update-index --force-remove` (Decision 7). The CHANGELOG line.
+- The checks of Decision 8: the root check; three script rows; the parity row; three
+  guest-folder rows.
+
+### Done (EXECUTED)
+
+- **Criterion 1, checks failed first** on main's code (`first-fail-*.txt`). The root check:
+  "a writable guest root under the home folder: …/build/harness/guest-tk1wxo35/run-0/root".
+  Rewrite row: "staged content different from both the file and the HEAD". Unreadable row:
+  "error: open(".DS_Store"): Permission denied". The forced-unstage row, on the branch's script
+  with only the unstage reverted, failed alone with "staged content different"
+  (`first-fail-unstage-reverted.txt`). The unit rows failed on `_guest_tmp_for`, `GUEST_TMP` and
+  `git_excludes`.
+- **Criterion 2:** the new rows and their neighbours (`test_scipy_build.py`,
+  `test_host_litter.py`, `test_build_scripts.py`, `test_guest.py`, the root check): 112 passed,
+  4 skipped (`after-unit.txt`). `ruff check` and `ruff format --check` on `src` and `tests`: green.
+- **Criterion 3, fuel is location-free.** All runs used a private `cp -c` clone of the frozen set
+  `s-a8333e46710221fa-ada941bc` (`shasum -c` OK; no file above link count 1). Main's code came
+  from `git archive 5805af0`, unpacked outside the home folder in the scratchpad (its guest
+  folders under `/private/tmp/…/base-097/build/harness`). The build's guest folders were under
+  `T`. Two legs of each, serially (`repeats.sh`). **Every fuel row gave one value across the four
+  legs:**
+  - drop check plain 218,765,145, snapshot 20,981,332;
+  - file facts plain 223,703,451, snapshot 25,878,984;
+  - zip link count plain 334,546,494, snapshot 21,225,960;
+  - numpy CSV job 4,996,759,427; pandas CSV job 5,105,780,200;
+  - `cpython-fs` 62,324,809,402; `cpython-archives` 165,638,282,607.
+
+  The two `test_matplotlib_data_is_granted_read_only` rows passed on every leg. They record no
+  fuel: they run the product runner, whose clock is real. `numpy-lib` was blocked on every leg
+  ("upstream kit": the kit wheels were not cloned in). No leg was voided by `HostLitter`.
+- **Criterion 5:** `test_the_openblas_patches_are_what_their_script_makes` passed against the
+  real pinned tarball, by node id (`openblas-check.txt`).
+
+### Not done yet, for the builder's next session
+
+- **Rebase onto main `faa9c93`** and name any conflict.
+- **The CI run 39487633271** (dispatched on `27253fe`, before the rebase) was still in progress
+  when this stopped; it is not read back. After the rebase, a new run on the rebased tip is the
+  one the landing notes cite.
+- **Criterion 4:** compare `python.wasm`, the snapshot and the zip from that run's
+  `release-assets` with the base's. Expected: the same three hashes, with `MANIFEST` (and so
+  `SHA256SUMS`) differing in exactly the two recipe lines. The lane's ruling: no native rebuild.
+- **Criterion 6, the fast tier** (`-n 3`), once, against a private clone of main's accepted set.
+  It is already cloned at `build/097/set-main` (SHA256SUMS `b5a66245`). Expected difference:
+  the set's `MANIFEST` recipe-line check, since the branch changes two recipe lines.
+- **Criterion 7** (cleanup after a full judge): from the CI run, and the lane's.
+- The self-check list, then the build review.
 
 One line: on macOS the judge's unsealed guest folders leave the home folder, where the desktop
 never writes, and the OpenBLAS script stops racing it.

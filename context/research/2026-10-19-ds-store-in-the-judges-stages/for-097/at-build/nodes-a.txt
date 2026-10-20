@@ -1,0 +1,10 @@
+tests/checks/test_v1_4_embedding.py::test_a_file_dropped_into_a_stage_changes_nothing[plain]
+tests/checks/test_v1_4_embedding.py::test_a_file_dropped_into_a_stage_changes_nothing[snapshot]
+tests/checks/test_v1_4_embedding.py::test_file_facts_cost_the_same_on_every_run[plain]
+tests/checks/test_v1_4_embedding.py::test_file_facts_cost_the_same_on_every_run[snapshot]
+tests/checks/test_v1_4_embedding.py::test_fuel_does_not_follow_the_stdlib_zips_link_count[plain]
+tests/checks/test_v1_4_embedding.py::test_fuel_does_not_follow_the_stdlib_zips_link_count[snapshot]
+tests/checks/test_v1_2_hostile_guest.py::test_matplotlib_data_is_granted_read_only[plain]
+tests/checks/test_v1_2_hostile_guest.py::test_matplotlib_data_is_granted_read_only[snapshot]
+tests/checks/test_v1_3_data_stack.py::test_numpy_csv_job_matches_native
+tests/checks/test_v1_3_data_stack.py::test_pandas_csv_job_matches_native
