@@ -21,18 +21,18 @@ from __future__ import annotations
 import atexit
 import contextvars
 import os
-import queue
 import threading
 import weakref
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from . import _call, _engines, _home, _limits, _places, _platform, _private_dirs, _sessions, _zip
+from . import _call, _engines, _limits, _places, _platform, _private_dirs, _sessions
 from ._artifacts import Artifacts
 from ._call import Completed
 from ._limits import _UNSET
 from ._places import Grant
+from ._process import process
 from ._sessions import _CLOSER, MAX_TURN_BYTES, SessionEnded, _State
 from .mounts import Mount
 
@@ -425,10 +425,11 @@ async def run_async(
     _register_exit_hook()
     event = threading.Event()
     checked["cancel"] = event
-    with _live_lock:  # the exit hook sets `exiting` before it reads `_live` (the build review, N1)
-        if _hook["exiting"]:
+    p = process()
+    with p.live_lock:  # the exit hook sets `exiting` before it reads `live` (the build review, N1)
+        if p.exiting:
             raise RuntimeError("cannot schedule new futures after interpreter shutdown")
-        _live.add(event)
+        p.live.add(event)
     try:
         work = contextvars.copy_context().run  # a door host sees the request's context
         args = (_run_checked_flushed, wt, checked, host, snapshot, cache_dir, artifacts)
@@ -446,8 +447,8 @@ async def run_async(
                     pass
             raise
     finally:
-        with _live_lock:
-            _live.discard(event)
+        with p.live_lock:
+            p.live.discard(event)
 
 
 def _check_executor(executor: Any) -> None:
@@ -464,15 +465,6 @@ def _check_executor(executor: Any) -> None:
         raise TypeError(f"executor must be a concurrent.futures.Executor; got {executor!r}")
 
 
-# run_async's default pool, its live calls and its exit hook (spec 015, Decisions 4 and 6).
-_pool_lock = threading.Lock()
-_pool: dict[str, Any] = {"pool": None, "size": 0}
-_pools: list[concurrent.futures.ThreadPoolExecutor] = []  # every default pool made, for exit
-_live_lock = threading.Lock()
-_live: set[threading.Event] = set()
-_hook = {"registered": False, "exiting": False}
-
-
 def _submit(executor: Any, fn: Callable[..., Any], *args: Any) -> concurrent.futures.Future[Any]:
     """Submit to the caller's executor, or to the default pool, made anew when
     `async_workers` changed. The pool's size is process state, not a call's limit: it is read
@@ -484,18 +476,19 @@ def _submit(executor: Any, fn: Callable[..., Any], *args: Any) -> concurrent.fut
 
     if executor is not None:
         return executor.submit(fn, *args)
-    with _pool_lock:
-        if _hook["exiting"]:  # the exit hook has run: never start a pool's call again
+    p = process()
+    with p.pool_lock:
+        if p.exiting:  # the exit hook has run: never start a pool's call again
             raise RuntimeError("cannot schedule new futures after interpreter shutdown")
         size = _current_defaults().async_workers
-        if _pool["pool"] is None or _pool["size"] != size:
-            old = _pool["pool"]
+        if p.pool is None or p.pool_size != size:
+            old = p.pool
             new = concurrent.futures.ThreadPoolExecutor(size, thread_name_prefix="wasi-python")
-            _pools.append(new)
-            _pool.update(pool=new, size=size)
+            p.pools.append(new)
+            p.pool, p.pool_size = new, size
             if old is not None:
                 old.shutdown(wait=False)  # its running calls finish
-        return _pool["pool"].submit(fn, *args)
+        return p.pool.submit(fn, *args)
 
 
 def _register_exit_hook() -> None:
@@ -503,8 +496,9 @@ def _register_exit_hook() -> None:
     in reverse order of registration, so this one, registered after concurrent.futures.thread is
     imported, runs before that module joins the pools' workers; registered before, exit would
     wait for every queued call (spec 015's confirmation, EXECUTED both ways)."""
-    with _pool_lock:
-        if _hook["registered"]:
+    p = process()
+    with p.pool_lock:
+        if p.exit_hook_registered:
             return
         import concurrent.futures.thread  # noqa: F401  (its hook first, so ours runs before it)
 
@@ -513,62 +507,22 @@ def _register_exit_hook() -> None:
             register(_stop_async_calls)
         else:
             atexit.register(_stop_async_calls)
-        _hook["registered"] = True
+        p.exit_hook_registered = True
 
 
 def _stop_async_calls() -> None:
     """Pools first, so no call can be submitted after its event was missed; then the events of the
     calls already running (spec 015's build review, F3)."""
-    with _pool_lock:
-        _hook["exiting"] = True
-        pools = list(_pools)
+    p = process()
+    with p.pool_lock:
+        p.exiting = True
+        pools = list(p.pools)
     for pool in pools:
         pool.shutdown(wait=False, cancel_futures=True)
-    with _live_lock:
-        events = list(_live)
+    with p.live_lock:
+        events = list(p.live)
     for event in events:
         event.set()
-
-
-def _after_fork_in_child() -> None:
-    """Only assignments, and no lock: a lock may have been held by a thread the fork left out, so
-    every lock the runner takes is made anew (spec 015's build review, F8)."""
-    global _pool_lock, _live_lock
-    _pool_lock, _live_lock = threading.Lock(), threading.Lock()
-    _private_dirs._held_lock = threading.Lock()
-    # A fork inside the runner's stack-size window leaves the child at the guest thread's size;
-    # put back the value the runner found (spec 078, the review's F6).
-    if _home._stack_size_found:
-        threading.stack_size(_home._stack_size_found[0])
-        _home._stack_size_found.clear()
-    _home._stack_size_lock = threading.Lock()
-    # A child has none of its parent's tool threads (spec 036, Decision 8).
-    _call._tool_threads_lock, _call._tool_threads["running"] = threading.Lock(), 0
-    _zip._zip_lock, _zip._zips = threading.Lock(), {}  # the parent's zip folders stay the parent's
-    _engines._lock, _call._epoch_callback_lock, _call._outputs_lock = (
-        threading.Lock(),
-        threading.Lock(),
-        threading.RLock(),
-    )
-    _engines._compiling = {}
-    _pool.update(pool=None, size=0)
-    _pools.clear()
-    _live.clear()
-    _engines._epoch_ticker._thread, _engines._epoch_ticker._active = None, 0
-    _engines._epoch_ticker._cond = threading.Condition()
-    # A child has no reaper, no sessions and none open (spec 055, Decision 13).
-    _sessions._sessions_lock, _sessions._sessions = threading.Lock(), weakref.WeakSet()
-    _sessions._reaper_queue, _sessions._closers_lock = queue.SimpleQueue(), threading.Lock()
-    _sessions._closers.clear()
-    _sessions._dropped.clear()
-    _sessions._reaper.update(thread=None, stop=False, hooked=_sessions._reaper["hooked"])
-    _engines._counts["sessions_open"] = 0
-    if _platform._fork["used"]:
-        _platform._fork["forked"] = True
-
-
-if hasattr(os, "register_at_fork"):  # not on Windows, which has no fork
-    os.register_at_fork(after_in_child=_after_fork_in_child)
 
 
 def _checked(
@@ -739,27 +693,12 @@ def stats() -> dict[str, int]:
     the cache. A later release may add keys.
     """
     # spec 036, Decision 5; the judge reads it.
-    with _engines._lock:
-        counts = dict(_engines._counts)
-    with _call._tool_threads_lock:
-        counts["tool_threads_running"] = _call._tool_threads["running"]
+    p = process()
+    with p.cache_lock:
+        counts = dict(p.counts)
+    with p.tool_threads_lock:
+        counts["tool_threads_running"] = p.tool_threads_running
     return counts
-
-
-@atexit.register
-def _release() -> None:
-    """Remove this process's zip folders, and free the cached linkers, modules and engines while
-    wasmtime's bindings still exist."""
-    _zip._remove_zips()
-    _private_dirs._flush_warnings()  # spec 084
-    _engines._check_modules.clear()
-    _call._linkers.clear()
-    _call._mount_linkers.clear()
-    _call._guard_linkers.clear()
-    _call._trampolines.clear()
-    _call._stat_trampolines.clear()
-    _engines._modules.clear()
-    _engines._engines.clear()
 
 
 class Session:
@@ -944,12 +883,13 @@ class Session:
             _sessions._open_session(wt, c, host, snapshot, cache_dir, artifacts, state)
         finally:
             _private_dirs._flush_warnings()  # the sweep's, or a failed opening's (spec 084)
-        state.opened = state.last_end = _sessions._session_clock()
-        with _engines._lock:
-            _engines._counts["sessions_open"] += 1
+        p = process()
+        state.opened = state.last_end = p.observers.clock()
+        with p.cache_lock:
+            p.counts["sessions_open"] += 1
             state.counted = True
-        with _sessions._sessions_lock:
-            _sessions._sessions.add(state)
+        with p.sessions_lock:
+            p.sessions.add(state)
         self._finalizer = weakref.finalize(self, _sessions._collected, state)
         self._finalizer.atexit = False  # the exit hook ends sessions (Decision 13)
         _sessions._ensure_reaper()
@@ -1021,7 +961,7 @@ class Session:
         """Claim the session for one turn, or raise SessionEnded (a bound that has passed ends it
         first: its ending runs here, or on a closer thread) or RuntimeError (a turn running)."""
         state = self._state
-        now = _sessions._session_clock()
+        now = process().observers.clock()
         me = threading.get_ident()
         with state.lock:
             expired = False
@@ -1156,17 +1096,18 @@ class Session:
         self._claim(here=False)
         event = threading.Event()
         state = self._state
+        p = process()
         try:
-            with _live_lock:
-                if _hook["exiting"]:
+            with p.live_lock:
+                if p.exiting:
                     raise RuntimeError("cannot schedule new futures after interpreter shutdown")
-                _live.add(event)
+                p.live.add(event)
             work = contextvars.copy_context().run
             args = (_sessions._session_turn, state, data, fuel, deadline, output, event, loop)
             future = _submit(executor, work, *args)
         except BaseException:
-            with _live_lock:
-                _live.discard(event)
+            with p.live_lock:
+                p.live.discard(event)
             self._release_claim()
             raise
         try:
@@ -1184,8 +1125,8 @@ class Session:
                         pass
                 raise
         finally:
-            with _live_lock:
-                _live.discard(event)
+            with p.live_lock:
+                p.live.discard(event)
 
     def close(self) -> None:
         """End the session, run its ending, and return once its store is closed.
@@ -1203,9 +1144,7 @@ class Session:
                 tool or gate during the ending, raised once the session is closed.
         """
         state = self._state
-        if _platform._fork[
-            "forked"
-        ]:  # the store and folders are the parent's: touch nothing (lock-free)
+        if process().forked:  # the store and folders are the parent's: touch nothing (lock-free)
             if state.ended is None:
                 state.ended = "closed"
             if state.outcome is None:

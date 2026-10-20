@@ -11,7 +11,8 @@ import pytest
 
 import wasi_python
 from harness import wat
-from wasi_python import ArtifactsMissing, _artifacts, _engines, _zip, runner
+from wasi_python import ArtifactsMissing, _artifacts, _engines, runner
+from wasi_python._process import process
 
 
 def _sums(folder: Path) -> None:
@@ -84,8 +85,8 @@ PLANTED = wat.SNAPSHOT.replace(wat.DOOR_RUN, '(func (export "run") (result i32) 
 @pytest.fixture
 def fresh(monkeypatch) -> None:
     """No module or zip this process already holds, so each case compiles and copies anew."""
-    monkeypatch.setattr(_engines, "_modules", {})
-    monkeypatch.setattr(_zip, "_zips", {})
+    monkeypatch.setattr(process(), "modules", {})
+    monkeypatch.setattr(process(), "zips", {})
 
 
 def _swap_after_check(monkeypatch, swap) -> None:

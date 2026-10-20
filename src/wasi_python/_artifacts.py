@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
 
+from ._process import process
+
 _ARTIFACT_DIR = Path(__file__).resolve().parent / "artifacts"
 _ARTIFACTS_ENV = "WASI_PYTHON_ARTIFACTS"
 
@@ -117,32 +119,32 @@ def _hash_file(path: Path) -> str:
     return h.hexdigest()
 
 
-_versions: dict[Path, str] = {}
-
-
 def _version_tag(manifest: Path) -> str:
-    """'315' from MANIFEST's `python 3.15.0` line: the stdlib zip's guest name is python315.zip."""
-    if manifest not in _versions:
+    """'315' from MANIFEST's `python 3.15.0` line: the stdlib zip's guest name is python315.zip.
+    Cached per path in `process().versions`."""
+    versions = process().versions
+    if manifest not in versions:
         for line in manifest.read_text().splitlines():
             if line.startswith("python "):
                 major, minor = line.split()[1].split(".")[:2]
-                _versions[manifest] = f"{major}{minor}"
+                versions[manifest] = f"{major}{minor}"
                 break
         else:
             raise ValueError(f"{manifest} has no python line")
-    return _versions[manifest]
+    return versions[manifest]
 
 
 GUEST_PACKAGE = "recipes/guest/host/tools.py"  # MANIFEST's recipe line for the guest package
-_guest_packages: dict[str, tuple[tuple[int, ...], bool]] = {}  # path: (its stamp, the answer)
 
 
 def _has_guest_package(manifest: Path) -> bool:
     """Whether MANIFEST names the tool protocol's guest package among its recipes (spec 036,
-    Decision 1). Cached per path and stat stamp, with no lock: a race only reads it twice."""
+    Decision 1). Cached per path and stat stamp in `process().guest_packages`, with no lock: a
+    race only reads it twice."""
     key = str(manifest)
     stamp = _stamp(os.stat(manifest))
-    hit = _guest_packages.get(key)
+    cache = process().guest_packages
+    hit = cache.get(key)
     if hit is not None and hit[0] == stamp:
         return hit[1]
     found = False
@@ -151,11 +153,8 @@ def _has_guest_package(manifest: Path) -> bool:
         if len(parts) >= 3 and parts[0] == "recipe" and parts[-1] == GUEST_PACKAGE:
             found = True
             break
-    _guest_packages[key] = (stamp, found)
+    cache[key] = (stamp, found)
     return found
-
-
-_digests: dict[tuple[str, int, int], str] = {}
 
 
 SET_SUMS = "SHA256SUMS"  # beside MANIFEST in every set the build writes (spec 003, step 90)
@@ -213,10 +212,11 @@ def _found_and_checked(snapshot: bool) -> tuple[Artifacts, _Checked]:
 def _digest(path: Path) -> str:
     st = path.stat()
     key = (str(path.resolve()), st.st_size, st.st_mtime_ns)
-    if key not in _digests:
+    digests = process().digests  # per path, size and mtime
+    if key not in digests:
         h = hashlib.sha256()
         with path.open("rb") as f:
             for block in iter(lambda: f.read(1 << 20), b""):
                 h.update(block)
-        _digests[key] = h.hexdigest()
-    return _digests[key]
+        digests[key] = h.hexdigest()
+    return digests[key]

@@ -4,7 +4,6 @@ the turns, and `_open_session`."""
 from __future__ import annotations
 
 import atexit
-import collections
 import functools
 import math
 import os
@@ -12,7 +11,6 @@ import queue
 import secrets
 import threading
 import time
-import weakref
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -26,6 +24,7 @@ from ._limits import CANCEL_TICKS, NO_DEADLINE, TICK_S
 from ._places import _Preopen, _Walked
 from ._platform import _TRAP_HANDLERS_REPLACED
 from ._private_dirs import _Private
+from ._process import process
 from .mounts import STAGING_CEILING, Mount
 
 # ---------------------------------------------------------------------------------------------
@@ -35,15 +34,8 @@ from .mounts import STAGING_CEILING, Mount
 MAX_TURN_BYTES = 0x7FFFFFFF  # the `turn` export's length is an i32
 SESSION_EXPORTS = ("turn", "shutdown")
 
-# Injected so the judge never sleeps (Decision 9): the one clock the bounds read.
-_session_clock: Callable[[], float] = time.monotonic
-# Test hooks: told each arming ("turn" or "ending", its epoch ticks); told each export called
-# on a session's instance ("turn" or "shutdown", the thread's ident); called after a turn's
-# export returned, before its ending is decided (criterion 42).
-_on_arm: Callable[[str, int], None] | None = None
-_on_export: Callable[[str, int], None] | None = None
-_after_export: Callable[[], None] | None = None
-_on_call: Callable[[str, Any], None] | None = None  # told each call built: (kind, its _Call)
+# The clock the bounds read, and the hooks told of each arming, export and call, are the
+# observers of the process: `process().observers`.
 
 
 class SessionEnded(RuntimeError):
@@ -119,47 +111,35 @@ class _State:
         self.ending_home: Any = None  # the ending's home thread, while it runs (spec 078)
 
 
-_sessions_lock = threading.Lock()
-_sessions: weakref.WeakSet[_State] = weakref.WeakSet()
-# enabled: the judge may open sessions without the thread; paused: it may drive `_reap` alone.
-_reaper: dict[str, Any] = {
-    "thread": None,
-    "stop": False,
-    "enabled": True,
-    "paused": False,
-    "hooked": False,
-}
-_reaper_queue: queue.SimpleQueue[Any] = queue.SimpleQueue()
 _WAKE = object()
-_dropped: collections.deque[_State] = collections.deque()  # taken from the queue, not yet ended
-_closers_lock = threading.Lock()
-_closers: set[threading.Thread] = set()
 
 
 def _wake_reaper() -> None:
-    _reaper_queue.put(_WAKE)
+    process().reaper_queue.put(_WAKE)
 
 
 def _take_dropped() -> list[_State]:
     """Every dropped session the reaper has been told of and not yet ended, in order."""
+    p = process()
     out = []
     while True:
         try:
-            item = _reaper_queue.get_nowait()
+            item = p.reaper_queue.get_nowait()
         except queue.Empty:
             break
         if isinstance(item, _State):
-            _dropped.append(item)
-    while _dropped:
-        out.append(_dropped.popleft())
+            p.dropped.append(item)
+    while p.dropped:
+        out.append(p.dropped.popleft())
     return out
 
 
 def _collected(state: _State) -> None:
     """The collector's finalizer for a dropped session: no lock, nothing closed; the state goes
     to the reaper, which ends it on its own thread (the review's F9, the Confirmation's N2)."""
-    if not _platform._fork["forked"]:
-        _reaper_queue.put(state)
+    p = process()
+    if not p.forked:
+        p.reaper_queue.put(state)
 
 
 def _due(state: _State) -> tuple[float, str] | None:
@@ -188,8 +168,9 @@ def _start_closer(state: _State) -> None:
     thread = threading.Thread(
         target=target, args=(state,), name="wasi-python-session-closer", daemon=True
     )
-    with _closers_lock:
-        _closers.add(thread)
+    p = process()
+    with p.closers_lock:
+        p.closers.add(thread)
     thread.start()
 
 
@@ -199,21 +180,20 @@ def _end_quietly(state: _State) -> None:
     except BaseException:
         pass  # a closer has no caller: the outcome records the stop
     finally:
-        with _closers_lock:
-            _closers.discard(threading.current_thread())
-
-
-_start_ending: Callable[[_State], None] = _start_closer  # injected by the judge (criterion 7)
+        p = process()
+        with p.closers_lock:
+            p.closers.discard(threading.current_thread())
 
 
 def _reap(now: float) -> float | None:
     """The reaper's one step: end every session whose bound has passed at `now` and that has no
-    turn running, each ending handed to `_start_ending`; the seconds until the next is due, or
-    None when none is (Decision 9)."""
+    turn running, each ending handed to the observers' `start_ending`, or to a closer thread;
+    the seconds until the next is due, or None when none is (Decision 9)."""
     for item in _take_dropped():  # the collector's finalizer queued them (Decision 13)
         _end_dropped(item)
-    with _sessions_lock:
-        states = list(_sessions)
+    p = process()
+    with p.sessions_lock:
+        states = list(p.sessions)
     wait: float | None = None
     for state in states:
         start = False
@@ -227,7 +207,7 @@ def _reap(now: float) -> float | None:
                 left = due[0] - now
                 wait = left if wait is None else min(wait, left)
         if start:
-            _start_ending(state)
+            (p.observers.start_ending or _start_closer)(state)
     return wait
 
 
@@ -239,25 +219,26 @@ def _reaper_loop(
     """The reaper: wait on the queue until the next bound is due or a session is dropped or
     changes, then take one step. `get` and `clock` are injected by the judge, with a number of
     `rounds`, so it never sleeps (Decision 9)."""
+    p = process()
     wait: float | None = None
     done = 0
     while rounds is None or done < rounds:
         done += 1
         try:
-            item = (get or (lambda w: _reaper_queue.get(timeout=w)))(wait)
+            item = (get or (lambda w: p.reaper_queue.get(timeout=w)))(wait)
         except queue.Empty:
             item = _WAKE
-        if _reaper["stop"]:
+        if p.reaper_stop:
             if item is not _WAKE:
-                _reaper_queue.put(item)  # for the exit hook to drain
+                p.reaper_queue.put(item)  # for the exit hook to drain
             return
         if isinstance(item, _State):
-            _dropped.append(item)  # `_reap` takes it, in order
-        if _reaper["paused"]:
+            p.dropped.append(item)  # `_reap` takes it, in order
+        if p.observers.reaper_paused:
             wait = None
             continue
         try:
-            wait = _reap((clock or _session_clock)())
+            wait = _reap((clock or p.observers.clock)())
         except BaseException:
             wait = TICK_S  # never dies: try again soon
 
@@ -266,18 +247,19 @@ def _end_dropped(state: _State) -> None:
     with state.lock:
         start = not state.busy and _mark(state, "closed") and _claim_ending(state, _CLOSER)
     if start:
-        _start_ending(state)
+        (process().observers.start_ending or _start_closer)(state)
 
 
 def _ensure_reaper() -> None:
     """The reaper thread, a daemon started with the first session, and the exit hook."""
-    with _sessions_lock:
-        if not _reaper["hooked"]:
-            atexit.register(_sessions_at_exit)  # after _release's: so it runs first
-            _reaper["hooked"] = True
-        if _reaper["enabled"] and _reaper["thread"] is None and not _reaper["stop"]:
+    p = process()
+    with p.sessions_lock:
+        if not p.reaper_hooked:
+            atexit.register(_sessions_at_exit)  # after the process's release: so it runs first
+            p.reaper_hooked = True
+        if p.observers.reaper_enabled and p.reaper_thread is None and not p.reaper_stop:
             thread = threading.Thread(target=_reaper_loop, name="wasi-python-reaper", daemon=True)
-            _reaper["thread"] = thread
+            p.reaper_thread = thread
             thread.start()
 
 
@@ -285,14 +267,15 @@ def _sessions_at_exit() -> None:
     """Stop the reaper and wait for its step; end the sessions on the collector's queue and
     every session at rest, each on its own closer, side by side; mark those whose turn still
     runs; then wait for every ending in progress (Decision 13; the re-review's F8)."""
-    _reaper["stop"] = True
-    thread = _reaper["thread"]
-    _reaper_queue.put(_WAKE)
+    p = process()
+    p.reaper_stop = True
+    thread = p.reaper_thread
+    p.reaper_queue.put(_WAKE)
     if thread is not None and thread is not threading.current_thread():
         thread.join()
     states: list[_State] = _take_dropped()
-    with _sessions_lock:
-        states += [s for s in _sessions if s not in states]
+    with p.sessions_lock:
+        states += [s for s in p.sessions if s not in states]
     for state in states:
         with state.lock:
             _mark(state, "closed")
@@ -301,8 +284,8 @@ def _sessions_at_exit() -> None:
             _start_closer(state)
     for state in states:
         state.done.wait()
-    with _closers_lock:
-        closers = list(_closers)
+    with p.closers_lock:
+        closers = list(p.closers)
     for closer in closers:
         closer.join()
 
@@ -367,7 +350,7 @@ def _shutdown_applies(state: _State) -> bool:
         and state.sound
         and not state.busy
         and state.shutdown_s > 0
-        and not _platform._fork["forked"]
+        and not process().forked
         and state.store is not None
     )
 
@@ -384,7 +367,7 @@ def _ending_seconds(state: _State, now: float) -> float:
 def _shutdown(state: _State) -> tuple[str, BaseException | None]:
     """Python's shutdown through the `shutdown` export, inside the budget: ("finished" or
     "stopped" or "skipped", what the embedder's code raised)."""
-    left = _ending_seconds(state, _session_clock())
+    left = _ending_seconds(state, process().observers.clock())
     if left <= 0:
         return "skipped", None
     if (
@@ -434,10 +417,11 @@ def _shutdown_export(state: _State, call: _Call) -> tuple[int | None, int | None
     trapped: str | None = None
     stack = _home._stack()
     stack.append(call)
-    _home._calls.lost = False
+    process().calls.lost = False
     try:
-        if _on_export is not None:  # told the home thread, the one spec 055 means
-            _on_export("shutdown", _home_ident(call))
+        on_export = process().observers.on_export
+        if on_export is not None:  # told the home thread, the one spec 055 means
+            on_export("shutdown", _home_ident(call))
         value = state.exports["shutdown"](store)
     except wt.ExitTrap as e:
         exited = e.code
@@ -449,7 +433,8 @@ def _shutdown_export(state: _State, call: _Call) -> tuple[int | None, int | None
         e.__traceback__ = None
     finally:
         stack.pop()
-        lost, _home._calls.lost = getattr(_home._calls, "lost", False), False
+        calls = process().calls
+        lost, calls.lost = getattr(calls, "lost", False), False
     return value, exited, trapped, lost
 
 
@@ -477,18 +462,20 @@ def _release_session(state: _State) -> None:
         except BaseException:
             pass
     state.store = state.exports = state.table = None
-    with _engines._lock:
+    p = process()
+    with p.cache_lock:
         if state.counted:
-            _engines._counts["sessions_open"] -= 1
+            p.counts["sessions_open"] -= 1
             state.counted = False
-    with _sessions_lock:
-        _sessions.discard(state)
+    with p.sessions_lock:
+        p.sessions.discard(state)
 
 
 def _drop_keys(keys: tuple[int, int]) -> None:
-    with _call._outputs_lock:
+    p = process()
+    with p.outputs_lock:
         for key in keys:
-            _call._outputs.pop(key, None)
+            p.outputs.pop(key, None)
 
 
 def _remove_home(home: tuple[str, Path | None, int | None]) -> None:
@@ -516,8 +503,9 @@ def _arm(
     if state.metered:
         store.set_fuel(UNMETERED if fuel is None else fuel)
     store.set_epoch_deadline(min(CANCEL_TICKS, ticks))  # the session's callback checks the rest
-    if _on_arm is not None:
-        _on_arm(kind, ticks)
+    obs = process().observers
+    if obs.on_arm is not None:
+        obs.on_arm(kind, ticks)
     stop_at = None if ticks >= NO_DEADLINE else _call._stop_at(_epoch_ticker.count(), ticks)
     checks: list[Callable[[], bool]] = []
     if stop_at is not None:
@@ -525,7 +513,7 @@ def _arm(
     if stop is not None:
         checks.append(stop.is_set)
     if _home._ctrl_c_watched():
-        checks.append(lambda: _home._ctrl_c["pending"])
+        checks.append(lambda: process().ctrl_c_pending)
     if home is not None:
         checks.append(home.stopped)  # a wait ends at an exception raised into the home (C1)
     waits = _Waits(
@@ -534,16 +522,17 @@ def _arm(
         (lambda: any(check() for check in checks)) if checks else None,
     )
     out, err = _Stream("stdout", output_bytes), _Stream("stderr", output_bytes)
-    with _call._outputs_lock:
-        _call._outputs[state.keys[0]], _call._outputs[state.keys[1]] = out, err
+    p = process()
+    with p.outputs_lock:
+        p.outputs[state.keys[0]], p.outputs[state.keys[1]] = out, err
     host, admit, tool_host = state.host, None, None
     if state.c.get("tools") is not None:
         tool_host = _session_tool_host(state, stop_at, stop, loop, home)
         host, admit = tool_host, tool_host.admit
     state.table.new_turn()
     call = _Call(store, host, waits, state.origin_ns, stop, stop_at, state.table, admit, home=home)
-    if _on_call is not None:
-        _on_call(kind, call)
+    if obs.on_call is not None:
+        obs.on_call(kind, call)
     return call, out, err, tool_host
 
 
@@ -599,7 +588,7 @@ def _drive_turn(
     trapped: str | None = None
     stack = _home._stack()
     stack.append(call)
-    _home._calls.lost = False
+    process().calls.lost = False
     try:
         if call.cancel is not None and call.cancel.is_set():  # before any guest code
             return None, None, "cancelled", False
@@ -615,8 +604,9 @@ def _drive_turn(
                 memory.write(store, data, p)
             else:
                 p = 0  # the guest raises MemoryError for its code
-        if _on_export is not None:  # told the home thread, the one spec 055 means (spec 078)
-            _on_export("turn", _home_ident(call))
+        on_export = process().observers.on_export
+        if on_export is not None:  # told the home thread, the one spec 055 means (spec 078)
+            on_export("turn", _home_ident(call))
         value = exports["turn"](store, p, len(data))
     except wt.ExitTrap as e:
         exit_code = e.code
@@ -628,7 +618,8 @@ def _drive_turn(
         e.__traceback__ = None
     finally:
         stack.pop()
-        lost, _home._calls.lost = getattr(_home._calls, "lost", False), False
+        calls = process().calls
+        lost, calls.lost = getattr(calls, "lost", False), False
     if lost:
         raise RuntimeError("wasi_python lost track of a call")
     cause = call.stopped
@@ -662,7 +653,7 @@ def _turn_inside(
     own = NO_DEADLINE if deadline_s is None else max(1, math.ceil(deadline_s / TICK_S))
     ticks, capped = own, False
     if state.lifetime_s is not None:  # the lifetime caps the turn's deadline (the review's F4)
-        left = state.opened + state.lifetime_s - _session_clock()
+        left = state.opened + state.lifetime_s - process().observers.clock()
         cap = max(1, math.ceil(left / TICK_S))
         if cap < own:
             ticks, capped = cap, True
@@ -673,8 +664,9 @@ def _turn_inside(
             value, exit_code, trapped, ran = _home._on_guest_thread(
                 "turn", home, call, _drive_turn, state, call, data
             )
-        if _after_export is not None:
-            _after_export()
+        after_export = process().observers.after_export
+        if after_export is not None:
+            after_export()
         returned = value is not None
         cause: str | None = None
         if returned:
@@ -753,12 +745,12 @@ def _session_turn(
                     _mark(state, done.cause)
                 elif (
                     state.lifetime_s is not None
-                    and _session_clock() >= state.opened + state.lifetime_s
+                    and process().observers.clock() >= state.opened + state.lifetime_s
                 ):
                     _mark(state, "lifetime")
             state.busy = False
             state.turn_thread = None
-            state.last_end = _session_clock()
+            state.last_end = process().observers.clock()
             me = threading.get_ident()
             ended = state.ended is not None and _claim_ending(state, me)  # the turn's thread (F3)
         if ended:
@@ -781,7 +773,7 @@ def _abandon_turn(state: _State) -> None:
         _mark(state, "error")
         state.busy = False
         state.turn_thread = None
-        state.last_end = _session_clock()
+        state.last_end = process().observers.clock()
     _wake_reaper()
 
 

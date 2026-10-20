@@ -1,21 +1,16 @@
 """The runner is a package of one module per concern.
 
-Four checks hold the package's shape: the fork hook re-makes every module-level lock the
-package holds, the modules import in one written order with no cycle,
+Three checks hold the package's shape: the modules import in one written order with no cycle,
 a module imports by `from` only what never changes, so a patched seam, a re-made lock or a
 cleared cache is seen by every caller, and every runner name is defined in exactly one module.
-Check 1 holds until the process state gets one owner, whose own check then retires it.
+The fork reset is the process state's owner's, and tests/unit/test_process.py holds it.
 """
 
 from __future__ import annotations
 
 import ast
 import importlib
-import inspect
-import json
 import re
-import subprocess
-import sys
 import typing
 from pathlib import Path
 
@@ -23,9 +18,10 @@ from harness import paths, scan
 
 PACKAGE = paths.REPO / "src" / "wasi_python"
 
-# The order: a module imports only modules before it. A plain tuple, so a new first module
-# (the process state's owner) is prepended.
+# The order: a module imports only modules before it. The process state's owner stands first,
+# since it imports nothing of the package.
 ORDER = (
+    "_process",
     "_wasmtime_ffi",
     "_limits",
     "_platform",
@@ -39,7 +35,7 @@ ORDER = (
     "_sessions",
     "runner",
 )
-RUNNER_MODULES = ORDER[1:]  # the eleven: the runner's text, one concern each
+RUNNER_MODULES = tuple(m for m in ORDER if m != "_wasmtime_ffi")  # the runner's text, by concern
 MAY_IMPORT_MOUNTS = ("_places", "_call", "_sessions", "runner")
 ABOVE = ("__init__", "__main__", "cli")  # above `runner`: they import what they like
 BESIDE = ("mounts", "tools")  # beside the list: no package module at module level
@@ -61,136 +57,16 @@ LATE = (
     ("mounts.py", "_Files.__init__", "_engines"),
     ("mounts.py", "_Files.__init__", "_home"),
     ("mounts.py", "_Files.__init__", "_places"),
+    ("mounts.py", "_Files.__init__", "_process"),
     ("mounts.py", "_Files.__init__", "runner"),
     ("cli.py", "_grants", "runner"),
     ("cli.py", "_main", "runner"),
 )
 
-# The module-level locks the fork hook re-makes (eleven) and the ticker's Condition.
-LOCKS_RESET_BY_FORK = (
-    ("wasi_python.runner", "_pool_lock"),
-    ("wasi_python.runner", "_live_lock"),
-    ("wasi_python._private_dirs", "_held_lock"),
-    ("wasi_python._home", "_stack_size_lock"),
-    ("wasi_python._call", "_tool_threads_lock"),
-    ("wasi_python._call", "_epoch_callback_lock"),
-    ("wasi_python._call", "_outputs_lock"),
-    ("wasi_python._zip", "_zip_lock"),
-    ("wasi_python._engines", "_lock"),
-    ("wasi_python._sessions", "_sessions_lock"),
-    ("wasi_python._sessions", "_closers_lock"),
-    ("wasi_python._engines", "_epoch_ticker._cond"),
-)
-# The names the hook rebinds that are not locks (a dict, a dict, a WeakSet, a SimpleQueue).
-REBOUND_BY_FORK = (
-    ("wasi_python._engines", "_compiling"),
-    ("wasi_python._zip", "_zips"),
-    ("wasi_python._sessions", "_sessions"),
-    ("wasi_python._sessions", "_reaper_queue"),
-)
-# Module-level locks the hook does not touch, each with its sentence.
-NOT_RESET = (
-    (
-        ("wasi_python._private_dirs", "_pending_warnings_lock"),
-        "never reset today; the process state's owner decides",
-    ),
-    (
-        ("wasi_python", "_defaults_lock"),
-        "never reset today; the process state's owner takes it",
-    ),
-)
-TICKER_COND = ("wasi_python._engines", "_epoch_ticker._cond")
-
-# Check 3: the names a module may import by `from` that are neither a class, an alias nor an
-# immutable constant. A plain tuple, so the process accessor can be added.
-SENTINELS = ("_UNSET", "_DONE")
-
-# The child interpreter of check 1: it loads every module of the package, walks them for locks,
-# calls the hook, walks again.
-FORK_WALK = r"""
-import json, sys, threading
-import wasi_python
-import wasi_python._wasmtime_ffi, wasi_python.cli, wasi_python.tools
-from wasi_python import _engines, runner
-
-LOCKS = (type(threading.Lock()), type(threading.RLock()), threading.Condition)
-
-
-def found():
-    out = []
-    for name, module in sorted(sys.modules.items()):
-        if name != "wasi_python" and not name.startswith("wasi_python."):
-            continue
-        for attr, value in sorted(vars(module).items()):
-            if isinstance(value, LOCKS):
-                out.append([name, attr, id(value)])
-    out.append(["wasi_python._engines", "_epoch_ticker._cond", id(_engines._epoch_ticker._cond)])
-    return out
-
-
-before = found()
-runner._after_fork_in_child()
-print(json.dumps([before, found()]))
-"""
-
-
-def _fork_walk() -> tuple[dict[tuple[str, str], int], dict[tuple[str, str], int]]:
-    out = subprocess.run(
-        [sys.executable, "-c", FORK_WALK],
-        capture_output=True,
-        text=True,
-        timeout=120,  # a fail-safe, never a verdict
-    )
-    assert out.returncode == 0, out.stderr[-1500:]
-    before, after = json.loads(out.stdout)
-    return (
-        {(module, name): ident for module, name, ident in before},
-        {(module, name): ident for module, name, ident in after},
-    )
-
-
-def _hook_targets(hook: typing.Any) -> set[tuple[str, str]]:
-    """What `_after_fork_in_child` rebinds, by `ast`: its `global` names (the hook's own
-    module's) and its depth-one `_module.name` assignment targets; a `Subscript` target
-    (`_call._tool_threads["running"]`) and an attribute of an attribute
-    (`_engines._epoch_ticker._thread`) are mutations of an object, not rebindings."""
-    tree = ast.parse(inspect.getsource(hook))
-    own = hook.__module__
-    out: set[tuple[str, str]] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Global):
-            out |= {(own, name) for name in node.names}
-        elif isinstance(node, ast.Assign):
-            for target in node.targets:
-                elts = target.elts if isinstance(target, ast.Tuple) else [target]
-                for elt in elts:
-                    if isinstance(elt, ast.Attribute) and isinstance(elt.value, ast.Name):
-                        out.add((f"wasi_python.{elt.value.id}", elt.attr))
-    return out
-
-
-def test_every_module_level_lock_is_remade_after_fork() -> None:
-    """A child interpreter loads every module of the package (the three `import wasi_python`
-    leaves out too), finds every lock they hold at module level, and the hook re-makes each one
-    it names; the hook, the lists and the modules agree three ways."""
-    from wasi_python import runner
-
-    before, after = _fork_walk()
-    reset = set(LOCKS_RESET_BY_FORK)
-    not_reset = {key for key, _ in NOT_RESET}
-    unlisted = sorted(key for key in before if key not in reset and key not in not_reset)
-    assert not unlisted, f"locks in neither list: {unlisted}"
-    assert len(before) >= 14, f"the walk found {len(before)} locks; at least 14 expected"
-    missing = sorted(key for key in reset if key not in before)
-    assert not missing, f"LOCKS_RESET_BY_FORK entries the walk did not find: {missing}"
-    kept = sorted(key for key in reset if after[key] == before[key])
-    assert not kept, f"locks the hook did not re-make: {kept}"
-    for key, sentence in NOT_RESET:
-        assert key in before, f"NOT_RESET entry not found: {key} ({sentence})"
-        assert after[key] == before[key], f"{key} was reset; its sentence says: {sentence}"
-    expected = (reset | set(REBOUND_BY_FORK)) - {TICKER_COND}
-    assert len(expected) == 15
-    assert _hook_targets(runner._after_fork_in_child) == expected
+# Check 2: the names a module may import by `from` that are neither a class, an alias nor an
+# immutable constant: the two sentinels, and `process`, the accessor of the one process object,
+# which is never rebound and never patched (the judge patches the object's attributes).
+SENTINELS = ("_UNSET", "_DONE", "process")
 
 
 def _module_name(path: Path) -> str:
@@ -292,12 +168,9 @@ def _from_imports(package: Path) -> list[tuple[str, int, str, str]]:
 
 def _by_name_errors(package: Path) -> list[str]:
     errors = []
-    rebound = {name for _, name in LOCKS_RESET_BY_FORK + REBOUND_BY_FORK}
     for filename, line, module, name in _from_imports(package):
         obj = getattr(importlib.import_module(f"wasi_python.{module}"), name)
-        if name in rebound:
-            errors.append(f"{filename}:{line} imports {name} by from: the fork hook rebinds it")
-        elif not _is_unchanging(name, obj):
+        if not _is_unchanging(name, obj):
             errors.append(
                 f"{filename}:{line} imports {name} from {module} by from: {type(obj).__name__}"
             )
@@ -394,7 +267,7 @@ def _once_errors(package: Path) -> list[str]:
 
 
 def test_every_runner_name_is_defined_in_one_module() -> None:
-    """Over the eleven runner modules, no top-level name is bound twice, and each
+    """Over the twelve runner modules, no top-level name is bound twice, and each
     module begins with a docstring."""
     errors = _once_errors(PACKAGE)
     assert not errors, scan.report(errors)

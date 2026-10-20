@@ -346,6 +346,7 @@ def _defaults_loads(path: Path) -> list[str]:
 def test_set_defaults_changes_what_run_reads(monkeypatch) -> None:
     import wasi_python
     from wasi_python import _artifacts, _limits, runner
+    from wasi_python._process import process
 
     # The runner reads its defaults only through `_current_defaults`, so the count of its calls
     # below is every read (the build review's F2); every module of the package is read, so a
@@ -368,7 +369,7 @@ def test_set_defaults_changes_what_run_reads(monkeypatch) -> None:
     new = dataclasses.replace(before, memory_bytes=before.memory_bytes + 4096)
     raced = dataclasses.replace(before, memory_bytes=before.memory_bytes + 8192)
     lock = _Counting(runner, swap=raced)
-    monkeypatch.setattr(wasi_python, "_defaults_lock", lock)
+    monkeypatch.setattr(process(), "defaults_lock", lock)
     try:
         assert wasi_python.set_defaults(new) is raced, "the old value is read inside the lock"
         assert lock.seen == [("enter", before), ("exit", new)]
@@ -440,18 +441,19 @@ def test_the_pool_takes_the_newest_size(monkeypatch) -> None:
     the pool back (the build review's F3, and its confirmation's N1)."""
     import wasi_python
     from wasi_python import _artifacts, runner
+    from wasi_python._process import process
 
     def found() -> Any:
         raise _Stop
 
     monkeypatch.setattr(_artifacts, "find_artifacts", found)
     before = wasi_python.defaults()
-    racing = _Racing(runner._pool_lock, before)
-    monkeypatch.setattr(runner, "_pool_lock", racing)
+    racing = _Racing(process().pool_lock, before)
+    monkeypatch.setattr(process(), "pool_lock", racing)
     try:
         with pytest.raises(_Stop):
             asyncio.run(runner.run_async(["-c", "pass"]))
         assert racing.sizes, "the pool's lock was never taken"
-        assert runner._pool["size"] == racing.sizes[-1], (runner._pool["size"], racing.sizes)
+        assert process().pool_size == racing.sizes[-1], (process().pool_size, racing.sizes)
     finally:
         wasi_python.set_defaults(before)

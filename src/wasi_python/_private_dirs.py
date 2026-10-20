@@ -9,12 +9,11 @@ import re
 import secrets
 import stat
 import tempfile
-import threading
 import warnings
 from pathlib import Path
-from typing import Any
 
-from . import _engines, _platform
+from . import _platform
+from ._process import process
 
 # Private folders and the sweep (spec 016, Decision 2). Each private root and stdin folder has a
 # lock file beside it in the temporary folder, locked for the folder's life and naming the kernel
@@ -22,9 +21,6 @@ from . import _engines, _platform
 # on the same kernel can tell its folder is dead. A pid could not: pids repeat across namespaces,
 # are reused, and a killed child is a zombie until reaped.
 _LOCK_NAME = re.compile(r"wasi-python-(root-|zip-)?[0-9a-f]{16}\.lock\Z")  # zip-: spec 017
-_held_lock = threading.Lock()
-_held: set[str] = set()  # the names this process holds: NFS may treat flock as per-process
-_sweep_state: dict[str, Any] = {"claimed": False, "swept": 0, "failed": {}}  # failed: spec 084
 
 
 class _Taken(Exception):
@@ -45,8 +41,8 @@ class _Private:
         for _ in range(100):
             name = prefix + secrets.token_hex(8)
             lock_path, path = os.path.join(temp, name + ".lock"), os.path.join(temp, name)
-            with _held_lock:
-                _held.add(name)
+            with process().held_lock:
+                process().held.add(name)
             try:
                 fd = os.open(lock_path, create, 0o600)
             except FileExistsError:
@@ -105,15 +101,15 @@ class _Private:
                 f"({_first_error(errors)}); it is kept with its lock file and retried at the "
                 "next call",
             )
-            with (
-                _engines._lock
-            ):  # after the drop, so a sweep that runs first cannot spend the retry
-                _sweep_state["claimed"] = False
+            # After the drop, so a sweep that runs first cannot spend the retry.
+            with process().cache_lock:
+                process().sweep_claimed = False
 
 
 def _drop(name: str) -> None:
-    with _held_lock:
-        _held.discard(name)
+    p = process()
+    with p.held_lock:
+        p.held.discard(name)
 
 
 def _abandon(fd: int, lock_path: str | None, name: str) -> None:
@@ -128,11 +124,12 @@ def _abandon(fd: int, lock_path: str | None, name: str) -> None:
 
 def _sweep_once() -> None:
     """At a process's first call: remove the private folders of dead processes on this kernel.
-    Claimed under `_lock`, run without it; it never raises into the call."""
-    with _engines._lock:
-        if _sweep_state["claimed"]:
+    Claimed under the cache lock, run without it; it never raises into the call."""
+    p = process()
+    with p.cache_lock:
+        if p.sweep_claimed:
             return
-        _sweep_state["claimed"] = True
+        p.sweep_claimed = True
     retry = False
     try:
         identity = _platform._kernel_identity()
@@ -148,8 +145,8 @@ def _sweep_once() -> None:
         return
     finally:
         if retry:  # after the loop, so no second sweep starts while this one lists (spec 084)
-            with _engines._lock:
-                _sweep_state["claimed"] = False
+            with p.cache_lock:
+                p.sweep_claimed = False
 
 
 def _owned(st: os.stat_result) -> bool:
@@ -163,8 +160,9 @@ def _sweep_entry(temp: str, entry: str, identity: str) -> bool:
     if not _LOCK_NAME.match(entry):
         return False
     name = entry[: -len(".lock")]
-    with _held_lock:
-        if name in _held or _sweep_state["failed"].get(name, 0) >= _SWEEP_TRIES:
+    p = process()
+    with p.held_lock:
+        if name in p.held or p.sweep_failed.get(name, 0) >= _SWEEP_TRIES:
             return False
     lock_path, path = os.path.join(temp, entry), os.path.join(temp, name)
     named = os.lstat(lock_path)
@@ -196,12 +194,12 @@ def _sweep_entry(temp: str, entry: str, identity: str) -> bool:
         errors: list[BaseException] = []
         _remove_tree(path, errors=errors)
         if not os.path.lexists(path):
-            with _held_lock:
-                _sweep_state["swept"] += 1
+            with p.held_lock:
+                p.sweep_swept += 1
             unlink = True
             return False
-        with _held_lock:
-            tries = _sweep_state["failed"][name] = _sweep_state["failed"].get(name, 0) + 1
+        with p.held_lock:
+            tries = p.sweep_failed[name] = p.sweep_failed.get(name, 0) + 1
         _warn_later(
             name,
             f"wasi_python: the sweep could not remove {path} ({_first_error(errors)}); it is "
@@ -236,9 +234,6 @@ _REMOVE_BUDGET = 2**20  # counted calls (open, listing, unlink, rmdir) for one H
 _REMOVE_BATCH = 1024  # entries a listing reads before it acts
 _SWEEP_TRIES = 3  # failed sweeps of one name in one process, then the next process tries
 _DIR_OPEN = _platform._flags("O_RDONLY", "O_DIRECTORY", "O_NOFOLLOW", "O_CLOEXEC", "O_NONBLOCK")
-_pending_warnings_lock = threading.Lock()
-_pending_warnings: list[str] = []  # given by `_flush_warnings`, outside every runner lock
-_warned: set[str] = set()  # each folder is named once per process
 
 
 class _Spent(Exception):
@@ -518,27 +513,32 @@ def _first_error(errors: list[BaseException]) -> str:
 
 def _warn_later(key: str, message: str) -> None:
     """Queue a warning, once per folder per process; `_flush_warnings` gives it (spec 084)."""
-    with _pending_warnings_lock:
-        if key in _warned:
+    p = process()
+    with p.warnings_lock:
+        if key in p.warned:
             return
-        _warned.add(key)
-        _pending_warnings.append(message)
+        p.warned.add(key)
+        p.pending_warnings.append(message)
 
 
 def _flush_warnings() -> None:
     """Give the queued warnings, as RuntimeWarning, outside every runner lock: an embedder's
     `showwarning` may call `stats()` or `run`. A filter that turns them into errors loses them,
     never the call."""
-    with _pending_warnings_lock:
-        if not _pending_warnings:
+    p = process()
+    with p.warnings_lock:
+        if not p.pending_warnings:
             return
-        pending = list(_pending_warnings)
-        _pending_warnings.clear()
+        pending = list(p.pending_warnings)
+        p.pending_warnings.clear()
     for message in pending:
         try:
             warnings.warn(message, RuntimeWarning, stacklevel=3)
         except Exception:
             pass
+
+
+process().flush_warnings = _flush_warnings  # the exit release gives what the removals queued
 
 
 def _remove_fresh_home(name: str, tmp: Path | None, tmp_fd: int | None) -> None:

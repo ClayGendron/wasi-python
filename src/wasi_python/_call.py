@@ -7,7 +7,6 @@ from __future__ import annotations
 import contextvars
 import ctypes
 import functools
-import itertools
 import math
 import os
 import secrets
@@ -27,6 +26,7 @@ from ._limits import CANCEL_TICKS, NO_DEADLINE, TICK_S
 from ._places import ZIP_GUEST, Grant, _Preopen, _Walked
 from ._platform import _TRAP_HANDLERS_REPLACED
 from ._private_dirs import _Private
+from ._process import process
 from ._zip import MPL_DATA_GUEST
 from .mounts import STAGING_CEILING, FileRecord, Mount
 
@@ -107,8 +107,9 @@ def _run_checked(
     home = c.get("home") or _Home()  # this thread, while the guest runs on its own (spec 078)
     c = {**c, "home": home}
     try:
-        if _places._after_walk is not None:
-            _places._after_walk()
+        after_walk = process().observers.after_walk
+        if after_walk is not None:
+            after_walk()
         binary = found.snapshot if snapshot else found.plain
         engine = _engines._engine(c["fuel"] is not None)
         want = None if checked is None else checked.binary
@@ -329,7 +330,7 @@ def _instance(
     if cancel is not None:
         checks.append(cancel.is_set)  # a wait ends at a cancel, deadline or not
     if _home._ctrl_c_watched():
-        checks.append(lambda: _home._ctrl_c["pending"])  # a wait on the main thread ends at Ctrl-C
+        checks.append(lambda: process().ctrl_c_pending)  # a wait on the main thread ends at Ctrl-C
     checks.append(ht.stopped)  # and at an exception raised into the home (spec 078, C1)
     waits = _Waits(
         lambda: time.perf_counter(),
@@ -422,9 +423,9 @@ def _instance(
             # host refuses. Close it first, so the clean-up below has descriptors to work with,
             # and make that clean-up unable to raise (the 0.1.0a2 security review, F1).
             store.close()
-            with _outputs_lock:  # the guest has ended; wasmtime frees the keys later
+            with process().outputs_lock:  # the guest has ended; wasmtime frees the keys later
                 for key in keys:
-                    _outputs.pop(key, None)
+                    process().outputs.pop(key, None)
             if table is not None:  # the rest dropped now (the build review, F3)
                 table.release()
             for p in mounted:
@@ -501,7 +502,7 @@ def _drive(
     instance = None
     stack = _home._stack()
     stack.append(call)
-    _home._calls.lost = False
+    process().calls.lost = False
     try:
         if call.cancel is not None and call.cancel.is_set():  # cancelled before the guest ran
             call.ended = "cancelled"
@@ -529,7 +530,8 @@ def _drive(
         e.__traceback__ = None
     finally:
         stack.pop()
-        lost, _home._calls.lost = getattr(_home._calls, "lost", False), False
+        calls = process().calls
+        lost, calls.lost = getattr(calls, "lost", False), False
     if lost:
         raise RuntimeError("wasi_python lost track of a call")
     cause = call.stopped
@@ -625,14 +627,14 @@ def _shared(kind: str, refused: int, stopped: int, *bound: Any) -> Callable[...,
                 return refused
             # Ctrl-C comes before the guard below: a pending Ctrl-C is recorded even for a call
             # the epoch callback has ended (spec 015's order).
-            if call.stopped is None and _home._ctrl_c_watched() and _home._ctrl_c["pending"]:
-                _home._ctrl_c["pending"] = False
+            if call.stopped is None and _home._ctrl_c_watched() and process().ctrl_c_pending:
+                process().ctrl_c_pending = False
                 raise KeyboardInterrupt
             if call.stopped is not None or call.ended is not None:
                 return stopped  # no host function runs for a stopped or ended call (spec 030)
             answer = getattr(call, kind)(caller, *bound, *args)
-            if _home._ctrl_c_watched() and _home._ctrl_c["pending"]:  # Ctrl-C during a wait
-                _home._ctrl_c["pending"] = False
+            if _home._ctrl_c_watched() and process().ctrl_c_pending:  # Ctrl-C during a wait
+                process().ctrl_c_pending = False
                 raise KeyboardInterrupt
             if call.cancel is not None and call.cancel.is_set():
                 _epoch_now(caller)  # the epoch callback names it at the guest's next entry
@@ -692,14 +694,14 @@ def _epoch_answer(context: Any, delta: Any) -> int:
         except BaseException:
             call = None
         if call is None:
-            _home._calls.lost = True
+            process().calls.lost = True
             return _stop_error(delta)
         if call.stopped is not None:
             return _stop_error(delta)
         if call.ended is not None:
             return _stop_error(delta)
-        if _home._ctrl_c_watched() and _home._ctrl_c["pending"]:
-            _home._ctrl_c["pending"] = False
+        if _home._ctrl_c_watched() and process().ctrl_c_pending:
+            process().ctrl_c_pending = False
             call.stopped = KeyboardInterrupt()
             return _stop_error(delta)
         home = getattr(call, "home", None)
@@ -719,7 +721,7 @@ def _epoch_answer(context: Any, delta: Any) -> int:
     except BaseException as cause:
         try:
             if call is None:
-                _home._calls.lost = True
+                process().calls.lost = True
             elif call.stopped is None:
                 call.stopped = cause
         except BaseException:
@@ -749,37 +751,27 @@ def _on_epoch(context: Any, data: Any, delta: Any, kind: Any) -> int:
     return _epoch_answer(context, delta)  # never writes `kind`: wasmtime panics on a bad value
 
 
-_epoch_callback: Any = None  # the one C callback, made on first use
-_epoch_callback_lock = threading.Lock()
-
-
 def _watch(store: Any) -> None:
     """Give a store the epoch callback, with a NULL finalizer: no per-call ctypes object exists,
     and the callback finds its call through the thread's stack (spec 015)."""
-    global _epoch_callback
     from . import _wasmtime_ffi as ffi
 
-    with _epoch_callback_lock:  # one object for the process: a store must never outlive its own
-        if _epoch_callback is None:
-            _epoch_callback = ffi.EPOCH_CALLBACK(_on_epoch)
-        callback = _epoch_callback
+    p = process()
+    with p.epoch_callback_lock:  # one object for the process: a store must never outlive its own
+        if p.epoch_callback is None:
+            p.epoch_callback = ffi.EPOCH_CALLBACK(_on_epoch)
+        callback = p.epoch_callback
     ffi.watch_epochs(store, callback)
-
-
-_linkers: dict[Any, Any] = {}
-_mount_linkers: dict[Any, Any] = {}
-_guard_linkers: dict[Any, Any] = {}
-_trampolines: dict[Any, Any] = {}
-_stat_trampolines: dict[Any, Any] = {}
 
 
 def _linker(wt: Any, engine: wasmtime.Engine) -> Any:
     """The engine's one linker: WASI, the shadowed poll_oneoff and the door, defined once, so a
     call adds nothing to wasmtime-py's process-wide table of host functions (spec 011)."""
-    with _engines._lock:
-        linker = _linkers.get(engine)
+    p = process()
+    with p.cache_lock:
+        linker = p.linkers.get(engine)
         if linker is None:
-            linker = _linkers[engine] = _runner_linker(wt, engine)
+            linker = p.linkers[engine] = _runner_linker(wt, engine)
         return linker
 
 
@@ -802,8 +794,9 @@ def _mount_linker(wt: Any, engine: wasmtime.Engine) -> Any:
     stopped. Defined once per engine, like the first."""
     from .mounts import SIGNATURES
 
-    with _engines._lock:
-        linker = _mount_linkers.get(engine)
+    p = process()
+    with p.cache_lock:
+        linker = p.mount_linkers.get(engine)
         if linker is None:
             linker = _runner_linker(wt, engine)
             kinds = {"i32": wt.ValType.i32(), "i64": wt.ValType.i64()}
@@ -811,7 +804,7 @@ def _mount_linker(wt: Any, engine: wasmtime.Engine) -> Any:
                 ty = wt.FuncType([kinds[p] for p in params], [kinds["i32"]])
                 shadow = _shared("files", EBADF, EIO, name)
                 linker.define_func("wasi_snapshot_preview1", name, ty, shadow, True)
-            _mount_linkers[engine] = linker
+            p.mount_linkers[engine] = linker
         return linker
 
 
@@ -824,8 +817,9 @@ def _guard_linker(wt: Any, engine: wasmtime.Engine) -> Any:
     others."""
     from .mounts import COUNTED, GUARDED, SIGNATURES
 
-    with _engines._lock:
-        linker = _guard_linkers.get(engine)
+    p = process()
+    with p.cache_lock:
+        linker = p.guard_linkers.get(engine)
         if linker is None:
             linker = _runner_linker(wt, engine)
             kinds = {"i32": wt.ValType.i32(), "i64": wt.ValType.i64()}
@@ -833,7 +827,7 @@ def _guard_linker(wt: Any, engine: wasmtime.Engine) -> Any:
                 ty = wt.FuncType([kinds[p] for p in SIGNATURES[name]], [kinds["i32"]])
                 shadow = _shared("files", EBADF, EIO, name)
                 linker.define_func("wasi_snapshot_preview1", name, ty, shadow, True)
-            _guard_linkers[engine] = linker
+            p.guard_linkers[engine] = linker
         return linker
 
 
@@ -842,10 +836,11 @@ def _stat_trampoline_module(wt: Any, engine: wasmtime.Engine) -> Any:
     and instantiated per call (spec 048, Decision 2)."""
     from .mounts import stat_trampoline_wat
 
-    with _engines._lock:
-        module = _stat_trampolines.get(engine)
+    p = process()
+    with p.cache_lock:
+        module = p.stat_trampolines.get(engine)
         if module is None:
-            module = _stat_trampolines[engine] = wt.Module(engine, stat_trampoline_wat())
+            module = p.stat_trampolines[engine] = wt.Module(engine, stat_trampoline_wat())
         return module
 
 
@@ -853,19 +848,17 @@ def _trampoline_module(wt: Any, engine: wasmtime.Engine) -> Any:
     """The forwarders, compiled once per engine and instantiated per call (spec 032)."""
     from .mounts import trampoline_wat
 
-    with _engines._lock:
-        module = _trampolines.get(engine)
+    p = process()
+    with p.cache_lock:
+        module = p.trampolines.get(engine)
         if module is None:
-            module = _trampolines[engine] = wt.Module(engine, trampoline_wat())
+            module = p.trampolines[engine] = wt.Module(engine, trampoline_wat())
         return module
 
 
 # The guest's stdout and stderr, by a key that is never reused. wasmtime calls the two functions
 # below on its own threads, and frees a key when it drops the stream; wasmtime-py's own table for
 # custom outputs is not used, since it has no lock (spec 011).
-_outputs: dict[int, _Stream] = {}
-_outputs_lock = threading.RLock()  # a finalizer the collector runs inside a locked block
-_output_keys = itertools.count(1)
 
 
 @ctypes.CFUNCTYPE(
@@ -873,8 +866,8 @@ _output_keys = itertools.count(1)
 )
 def _output_write(key: int | None, data: Any, size: int) -> int:
     try:
-        with _outputs_lock:
-            stream = _outputs.get(key or 0)
+        with process().outputs_lock:
+            stream = process().outputs.get(key or 0)
         return size if stream is None else stream.write(ctypes.string_at(data, size))
     except BaseException:
         return size  # never raises, never prints: the bytes are dropped and the write succeeds
@@ -882,16 +875,17 @@ def _output_write(key: int | None, data: Any, size: int) -> int:
 
 @ctypes.CFUNCTYPE(None, ctypes.c_void_p)
 def _output_free(key: int | None) -> None:
-    with _outputs_lock:
-        _outputs.pop(key or 0, None)
+    with process().outputs_lock:
+        process().outputs.pop(key or 0, None)
 
 
 def _send_outputs(wasi: Any, out: _Stream, err: _Stream) -> tuple[int, int]:
     from . import _wasmtime_ffi as ffi
 
-    with _outputs_lock:
-        keys = next(_output_keys), next(_output_keys)
-        _outputs[keys[0]], _outputs[keys[1]] = out, err
+    p = process()
+    with p.outputs_lock:
+        keys = next(p.output_keys), next(p.output_keys)
+        p.outputs[keys[0]], p.outputs[keys[1]] = out, err
     ffi.set_custom_outputs(wasi, _output_write, _output_free, keys[0], keys[1])
     return keys
 
@@ -1125,13 +1119,12 @@ def _door(
 
 # The tool threads alive in this process (spec 036, Decision 5): one per tool call, counted in
 # as it starts and out as it ends, after its call returned or not.
-_tool_threads_lock = threading.Lock()
-_tool_threads = {"running": 0}
 
 
 def _count_tool_threads(delta: int) -> None:
-    with _tool_threads_lock:
-        _tool_threads["running"] += delta
+    p = process()
+    with p.tool_threads_lock:
+        p.tool_threads_running += delta
 
 
 def _home_context(home: Any) -> Callable[[], contextvars.Context]:
@@ -1144,7 +1137,7 @@ def _home_context(home: Any) -> Callable[[], contextvars.Context]:
 
 def _ctrl_c_now() -> bool:
     """A Ctrl-C is pending for the call on this (the main) thread: read, never cleared."""
-    return _home._ctrl_c_watched() and _home._ctrl_c["pending"]
+    return _home._ctrl_c_watched() and process().ctrl_c_pending
 
 
 def _tool_host(

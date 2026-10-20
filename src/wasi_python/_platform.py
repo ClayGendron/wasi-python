@@ -13,7 +13,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-_identity: dict[str, str | None] = {}
+from ._process import process
 
 
 def _flags(*names: str) -> int:
@@ -26,7 +26,8 @@ def _flags(*names: str) -> int:
 def _kernel_identity() -> str | None:
     """Which kernel this process runs on, or None: a lock taken on one kernel is invisible to
     another that shares the folder (a VM and its host), so a sweep touches only its own."""
-    if "value" not in _identity:
+    identity = process().kernel_identity
+    if "value" not in identity:
         value = None
         try:
             if sys.platform.startswith("linux"):
@@ -57,8 +58,8 @@ def _kernel_identity() -> str | None:
                     value = str(winreg.QueryValueEx(key, "MachineGuid")[0])
         except Exception:
             value = None
-        _identity["value"] = value if value and "\n" not in value else None
-    return _identity["value"]
+        identity["value"] = value if value and "\n" not in value else None
+    return identity["value"]
 
 
 _BUSY = {errno.EACCES, errno.EDEADLK, getattr(errno, "EDEADLOCK", errno.EDEADLK)}
@@ -112,11 +113,10 @@ def _same_file(fd: int, path: str) -> bool:
 # Fork (spec 015, Decision 5). A child of a process that made an engine inherits state from
 # threads that no longer exist, and wasmtime does not support use across a fork (on macOS it
 # aborts), so such a child is refused. A child of a parent that only imported this runs normally.
-_fork = {"used": False, "forked": False}
 
 
 def _refuse_forked() -> None:
-    if _fork["forked"]:
+    if process().forked:
         raise RuntimeError(
             "wasi_python was used before this process was forked; use it in the child only, or "
             "start processes with 'spawn' or 'forkserver'"
@@ -156,7 +156,6 @@ _THREAD_STACK = _WASM_STACK + _HOST_ROOM
 # the C library reports it (glibc's static TLS and thread descriptor lie inside it, and the frames
 # above the entry count too), not the room left at the entry: the 1 MiB between the refusal line
 # and the thread's size, and the host room, absorb both (the review's F14).
-_stack_api: dict[str, Any] = {}
 
 
 def _guest_stack(platform: str | None = None) -> tuple[int, int] | None:
@@ -175,47 +174,47 @@ def _guest_stack(platform: str | None = None) -> tuple[int, int] | None:
 
 
 def _posix_stack() -> tuple[int, int] | None:
-    if "getattr" not in _stack_api:
+    api = process().stack_api
+    if "getattr" not in api:
         libc = ctypes.CDLL(None)
         vp, sz = ctypes.c_void_p, ctypes.c_size_t
-        _stack_api["self"] = ctypes.CFUNCTYPE(ctypes.c_ulong)(("pthread_self", libc))
-        _stack_api["getattr"] = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_ulong, vp)(
+        api["self"] = ctypes.CFUNCTYPE(ctypes.c_ulong)(("pthread_self", libc))
+        api["getattr"] = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_ulong, vp)(
             ("pthread_getattr_np", libc)
         )
-        _stack_api["getstack"] = ctypes.CFUNCTYPE(
+        api["getstack"] = ctypes.CFUNCTYPE(
             ctypes.c_int, vp, ctypes.POINTER(vp), ctypes.POINTER(sz)
         )(("pthread_attr_getstack", libc))
-        _stack_api["guard"] = ctypes.CFUNCTYPE(ctypes.c_int, vp, ctypes.POINTER(sz))(
+        api["guard"] = ctypes.CFUNCTYPE(ctypes.c_int, vp, ctypes.POINTER(sz))(
             ("pthread_attr_getguardsize", libc)
         )
-        _stack_api["destroy"] = ctypes.CFUNCTYPE(ctypes.c_int, vp)(("pthread_attr_destroy", libc))
+        api["destroy"] = ctypes.CFUNCTYPE(ctypes.c_int, vp)(("pthread_attr_destroy", libc))
     attr = (ctypes.c_char * 1024)()  # larger than any pthread_attr_t
-    if _stack_api["getattr"](_stack_api["self"](), attr) != 0:
+    if api["getattr"](api["self"](), attr) != 0:
         return None
     try:
         addr, size, guard = ctypes.c_void_p(), ctypes.c_size_t(), ctypes.c_size_t()
-        if _stack_api["getstack"](attr, ctypes.byref(addr), ctypes.byref(size)) != 0:
+        if api["getstack"](attr, ctypes.byref(addr), ctypes.byref(size)) != 0:
             return None
-        if _stack_api["guard"](attr, ctypes.byref(guard)) != 0:
+        if api["guard"](attr, ctypes.byref(guard)) != 0:
             return None
     finally:
-        _stack_api["destroy"](attr)
+        api["destroy"](attr)
     if not addr.value or size.value <= guard.value:
         return None
     return addr.value + guard.value, size.value - guard.value
 
 
 def _darwin_stack() -> tuple[int, int] | None:
-    if "top" not in _stack_api:
+    api = process().stack_api
+    if "top" not in api:
         libc = ctypes.CDLL(None)
         vp = ctypes.c_void_p
-        _stack_api["self"] = ctypes.CFUNCTYPE(vp)(("pthread_self", libc))
-        _stack_api["top"] = ctypes.CFUNCTYPE(vp, vp)(("pthread_get_stackaddr_np", libc))
-        _stack_api["size"] = ctypes.CFUNCTYPE(ctypes.c_size_t, vp)(
-            ("pthread_get_stacksize_np", libc)
-        )
-    me = _stack_api["self"]()
-    top, size = _stack_api["top"](me), _stack_api["size"](me)
+        api["self"] = ctypes.CFUNCTYPE(vp)(("pthread_self", libc))
+        api["top"] = ctypes.CFUNCTYPE(vp, vp)(("pthread_get_stackaddr_np", libc))
+        api["size"] = ctypes.CFUNCTYPE(ctypes.c_size_t, vp)(("pthread_get_stacksize_np", libc))
+    me = api["self"]()
+    top, size = api["top"](me), api["size"](me)
     if not top or not size or size >= top:
         return None
     return top - size, size
@@ -223,19 +222,20 @@ def _darwin_stack() -> tuple[int, int] | None:
 
 def _windows_stack() -> tuple[int, int] | None:
     """Counted conservatively: high - low - the thread's stack guarantee - one page (F7)."""
-    if "limits" not in _stack_api:
+    api = process().stack_api
+    if "limits" not in api:
         kernel32 = ctypes.WinDLL("kernel32")  # type: ignore[attr-defined]
         up = ctypes.POINTER(ctypes.c_size_t)
-        _stack_api["limits"] = ctypes.WINFUNCTYPE(None, up, up)(  # type: ignore[attr-defined]
+        api["limits"] = ctypes.WINFUNCTYPE(None, up, up)(  # type: ignore[attr-defined]
             ("GetCurrentThreadStackLimits", kernel32)
         )
-        _stack_api["guarantee"] = ctypes.WINFUNCTYPE(  # type: ignore[attr-defined]
+        api["guarantee"] = ctypes.WINFUNCTYPE(  # type: ignore[attr-defined]
             ctypes.c_int, ctypes.POINTER(ctypes.c_ulong)
         )(("SetThreadStackGuarantee", kernel32))
     low, high = ctypes.c_size_t(), ctypes.c_size_t()
-    _stack_api["limits"](ctypes.byref(low), ctypes.byref(high))
+    api["limits"](ctypes.byref(low), ctypes.byref(high))
     guarantee = ctypes.c_ulong(0)
-    if not _stack_api["guarantee"](ctypes.byref(guarantee)):  # 0 asks; it changes nothing
+    if not api["guarantee"](ctypes.byref(guarantee)):  # 0 asks; it changes nothing
         return None
     return _windows_usable(low.value, high.value, guarantee.value)
 
@@ -310,7 +310,6 @@ _TRAP_HANDLERS_REPLACED = (
     "called after the first run, faulthandler.disable() undoes it; otherwise restart the "
     "process, and install faulthandler or any crash reporter before the first run"
 )
-_handlers: dict[str, Any] = {}  # the C library's sigaction and dladdr, and wasmtime's load base
 
 
 class _DlInfo(ctypes.Structure):
@@ -327,7 +326,7 @@ def _load_base(address: int | None) -> int | None:
     if not address or address in (1,):  # SIG_DFL (0) and SIG_IGN (1) are in no object
         return None
     info = _DlInfo()
-    if not _handlers["dladdr"](ctypes.c_void_p(address), ctypes.byref(info)):
+    if not process().handlers["dladdr"](ctypes.c_void_p(address), ctypes.byref(info)):
         return None
     return info.dli_fbase or None
 
@@ -336,18 +335,19 @@ def _handler_base(signum: int) -> int | None:
     """The load base of the object holding `signum`'s installed handler (the first word of
     `struct sigaction` in glibc and musl alike), or None."""
     buf = (ctypes.c_char * 1024)()  # larger than any struct sigaction
-    if _handlers["sigaction"](signum, None, buf) != 0:
+    if process().handlers["sigaction"](signum, None, buf) != 0:
         return None
     return _load_base(ctypes.c_void_p.from_buffer(buf).value)
 
 
 def _wasmtime_base() -> int | None:
     """The load base of wasmtime-py's own library, read once, from one of its symbols."""
-    if "wasmtime" not in _handlers:
+    handlers = process().handlers
+    if "wasmtime" not in handlers:
         from . import _wasmtime_ffi as ffi
 
-        _handlers["wasmtime"] = _load_base(ffi.engine_symbol_address())
-    return _handlers["wasmtime"]
+        handlers["wasmtime"] = _load_base(ffi.engine_symbol_address())
+    return handlers["wasmtime"]
 
 
 def _trap_handlers_ready(
@@ -371,13 +371,14 @@ def _trap_handlers_ready(
     name = names[0]
     try:
         if handler_base is None or wasmtime_base is None:
-            if "sigaction" not in _handlers:
+            handlers = process().handlers
+            if "sigaction" not in handlers:
                 libc = ctypes.CDLL(None, use_errno=True)
                 libc.sigaction.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p]
                 libc.sigaction.restype = ctypes.c_int
                 libc.dladdr.argtypes = [ctypes.c_void_p, ctypes.POINTER(_DlInfo)]
                 libc.dladdr.restype = ctypes.c_int
-                _handlers["dladdr"], _handlers["sigaction"] = libc.dladdr, libc.sigaction
+                handlers["dladdr"], handlers["sigaction"] = libc.dladdr, libc.sigaction
             handler_base = handler_base or _handler_base
             wasmtime_base = wasmtime_base or _wasmtime_base
         ours = wasmtime_base()

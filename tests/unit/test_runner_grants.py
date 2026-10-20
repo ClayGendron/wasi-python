@@ -16,6 +16,7 @@ import wasmtime as wt
 
 from harness import files
 from wasi_python import Grant, _engines, _places
+from wasi_python._process import process
 
 POSIX = os.name == "posix"
 
@@ -330,7 +331,7 @@ class _WinFake:
         monkeypatch.setattr(_places, "_win_open", self.open)
         monkeypatch.setattr(_places, "_close_held", self.close)
         monkeypatch.setattr(
-            _places, "_drive_folder", lambda drive: _WIN_CWD[(drive or "C:").upper()]
+            process().observers, "drive_folder", lambda drive: _WIN_CWD[(drive or "C:").upper()]
         )
 
 

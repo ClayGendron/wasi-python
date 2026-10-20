@@ -14,18 +14,17 @@ from . import _platform
 from ._engines import _epoch_ticker
 from ._limits import CANCEL_TICKS, TICK_S
 from ._platform import _HOST_ROOM, _THREAD_STACK, _WASM_STACK
+from ._process import process
 
 if TYPE_CHECKING:
     from ._call import _Call
 
 
-_calls = threading.local()
-
-
 def _stack() -> list[_Call]:
-    stack = getattr(_calls, "stack", None)
+    calls = process().calls
+    stack = getattr(calls, "stack", None)
     if stack is None:
-        stack = _calls.stack = []
+        stack = calls.stack = []
     return stack
 
 
@@ -34,12 +33,11 @@ def _stack() -> list[_Call]:
 # trampoline the exception cannot be caught and the process aborts (spec 011's review, EXECUTED:
 # exit 134). So while run() holds the main thread under the default handler, Ctrl-C only sets a
 # flag: the shared host functions turn it into a recorded stop, a wait ends at it, and a flag no
-# host function saw is raised once the call has ended.
-_ctrl_c = {"pending": False}
+# host function saw is raised once the call has ended. The flag is `process().ctrl_c_pending`.
 
 
 def _note_ctrl_c(signum: int, frame: Any) -> None:
-    _ctrl_c["pending"] = True
+    process().ctrl_c_pending = True
 
 
 def _ctrl_c_watched() -> bool:
@@ -50,7 +48,7 @@ def _ctrl_c_watched() -> bool:
 
     if threading.current_thread() is threading.main_thread():
         return signal.getsignal(signal.SIGINT) is _note_ctrl_c
-    return bool(getattr(_calls, "watched", False))
+    return bool(getattr(process().calls, "watched", False))
 
 
 @contextmanager
@@ -61,24 +59,20 @@ def _deferred_ctrl_c() -> Iterator[None]:
     if not main or signal.getsignal(signal.SIGINT) is not signal.default_int_handler:
         yield  # another thread, an embedder's own handler, or a nested call: nothing to defer
         return
-    _ctrl_c["pending"] = False
+    p = process()
+    p.ctrl_c_pending = False
     signal.signal(signal.SIGINT, _note_ctrl_c)
     try:
         yield
     finally:
         if signal.getsignal(signal.SIGINT) is _note_ctrl_c:  # a host may have set its own
             signal.signal(signal.SIGINT, signal.default_int_handler)
-        pending, _ctrl_c["pending"] = _ctrl_c["pending"], False
+        pending, p.ctrl_c_pending = p.ctrl_c_pending, False
     if pending:
         raise KeyboardInterrupt
 
 
 _GUEST_SLICE = CANCEL_TICKS * TICK_S  # how often a waiting thread looks up (Decisions 14, 15)
-_stack_size_lock = threading.Lock()
-_stack_size_found: list[int] = []  # the value threading.stack_size had, while the window is open
-# Test hook: told each entry's kind ("run", "open", "turn", "shutdown"), on its guest thread, once
-# its stack is checked and before any wasm (spec 078, criterion 1).
-_on_entry: Callable[[str], None] | None = None
 
 
 class _Stopped(BaseException):
@@ -231,9 +225,11 @@ class _Home:
                         "runner started it?); the call was refused"
                     )
                 _platform._tell_interpreter(*bounds)
-                _calls.watched = self.watched
-                if _on_entry is not None:
-                    _on_entry(kind)
+                p = process()
+                p.calls.watched = self.watched
+                on_entry = p.observers.on_entry
+                if on_entry is not None:
+                    on_entry(kind)
                 # The ticker runs while any guest thread runs, so its epoch checks go on even if
                 # its home has been forced out (spec 078, Decision 14).
                 with _epoch_ticker(None, True):
@@ -262,9 +258,10 @@ def _start_guest(home: _Home, kind: str, fn: Callable[..., Any], args: tuple[Any
     thread = threading.Thread(
         target=context.run, args=(home.body, kind, fn, args), name="wasi-python-guest"
     )
-    with _stack_size_lock:
+    p = process()
+    with p.stack_size_lock:
         old = threading.stack_size(_THREAD_STACK)
-        _stack_size_found[:] = [old]
+        p.stack_size_found[:] = [old]
         try:
             try:
                 with home.lock:  # the start handshake (the build review's F1)
@@ -285,7 +282,7 @@ def _start_guest(home: _Home, kind: str, fn: Callable[..., Any], args: tuple[Any
             current = threading.stack_size(old)
             if current != _THREAD_STACK:
                 threading.stack_size(current)  # another thread's, set inside the window
-            _stack_size_found.clear()
+            p.stack_size_found.clear()
 
 
 def _join_guest(home: _Home) -> None:

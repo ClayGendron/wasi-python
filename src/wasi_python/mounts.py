@@ -628,8 +628,10 @@ class _Files:
         open_files: int | None = None,
     ) -> None:
         from . import _call, _engines, _home, _places, runner
+        from ._process import process
 
         self._runner = runner
+        self._process = process()  # the one instance; its attributes are read live
         self._call = _call
         self._engines = _engines
         self._home_module = _home  # `_Files._home` is the home-thread dispatcher
@@ -718,13 +720,12 @@ class _Files:
         (the review's F7), and an owed buffer is dropped once its write-back is made. A session's
         ending (`ending=True`) runs on purpose at exit, so it ignores the exiting flag that
         run_async's exit hook sets; a pending Ctrl-C still stops it (the build review's F1)."""
-        r = self._runner
         for number in sorted([*self.table, *self.owed]):
             entry = self.table[number] if number in self.table else self.owed[number]
             if entry.kind != "file" or not entry.dirty or entry.unlinked:
                 continue
-            if (r._hook["exiting"] and not ending) or (
-                self._home_module._ctrl_c_watched() and self._home_module._ctrl_c["pending"]
+            if (self._process.exiting and not ending) or (
+                self._home_module._ctrl_c_watched() and self._process.ctrl_c_pending
             ):
                 return
             paths = (entry.path,)
@@ -844,7 +845,7 @@ class _Files:
             r._epoch_now(caller)  # named "cancelled" by the epoch callback at the next entry
             return ECANCELED
         if call is not None and call.stop_at is not None:
-            if self._engines._epoch_ticker.count() >= call.stop_at:
+            if self._process.ticker_count >= call.stop_at:
                 r._epoch_now(caller)  # an interrupt at the next entry: "deadline"
                 return ETIMEDOUT
         if self.limit is not None and self.total >= self.limit:

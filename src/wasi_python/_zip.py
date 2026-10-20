@@ -8,25 +8,23 @@ import os
 import shutil
 import stat
 import tempfile
-import threading
 import zipfile
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from . import _artifacts
 from ._artifacts import Artifacts
 from ._private_dirs import _Private
+from ._process import process
 
 # The zip (spec 017, Decision 2, amended by spec 023, Decision 5): one private folder per zip per
 # process, beside a lock file. It holds `lib/python3XY.zip`, granted read-only at /usr/local/lib
 # on every call (so the guest sees the zip there and nothing else), and `mpl-data/`, matplotlib's
 # data extracted from the zip's inner archive, granted read-only at the path matplotlib computes.
-# Its own lock, since the epoch ticker takes `_lock` every round.
-_zip_lock = threading.Lock()
-# the zip's SHA-256 -> [its _Private folder, the copy's stamp, the data's record or None]
-_zips: dict[str, list[Any]] = {}
+# The table, `process().zips`: the zip's SHA-256 -> [its _Private folder, the copy's stamp, the
+# data's record or None], under `process().zip_lock`, its own lock since the epoch ticker takes
+# the cache lock every round.
 MPL_DATA_MEMBER = "matplotlib/mpl-data.zip"  # the inner archive in the stdlib zip (spec 023)
 MPL_DATA_GUEST = "matplotlib/mpl-data"  # under the zip's guest path: Path(__file__) there
 
@@ -44,15 +42,16 @@ def _zip_folder(found: Artifacts, want: str | None = None) -> _ZipFolder:
     # guest (spec 087's build review, F1).
     want = want if want is not None else _artifacts._digest(found.stdlib_zip)
     name = f"python{_artifacts._version_tag(found.manifest)}.zip"
-    with _zip_lock:
-        entry = _zips.get(want)
+    p = process()
+    with p.zip_lock:
+        entry = p.zips.get(want)
         if entry is None:
             return _zip_folder_locked(found, want, name)
         private, stamp, record = entry
         if not os.path.isdir(private.path) or os.path.islink(private.path):
             # Removed on the host (a temporary-folder cleaner, say): made again, not trusted.
             private.remove()
-            del _zips[want]
+            del p.zips[want]
             return _zip_folder_locked(found, want, name)
         lib = private.path / "lib"
         dest = lib / name
@@ -79,14 +78,14 @@ def _zip_folder_locked(found: Artifacts, want: str, name: str) -> _ZipFolder:
     except BaseException:
         private.remove()
         raise
-    _zips[want] = [private, stamp, record]
+    process().zips[want] = [private, stamp, record]
     return _ZipFolder(lib, None if record is None else private.path / "mpl-data", name)
 
 
 def _zip_known(found: Artifacts) -> Path | None:
     """This process's folder for this zip, if it has made one."""
-    with _zip_lock:
-        entry = _zips.get(_artifacts._digest(found.stdlib_zip))
+    with process().zip_lock:
+        entry = process().zips.get(_artifacts._digest(found.stdlib_zip))
     return None if entry is None else entry[0].path
 
 
@@ -275,8 +274,12 @@ def _copy_zip(found: Artifacts, dest: Path, want: str) -> tuple[int, ...]:
 
 
 def _remove_zips() -> None:
-    with _zip_lock:
-        entries = list(_zips.values())
-        _zips.clear()
+    p = process()
+    with p.zip_lock:
+        entries = list(p.zips.values())
+        p.zips.clear()
     for private, *_ in entries:
         private.remove()
+
+
+process().remove_zips = _remove_zips  # the exit release removes this process's zip folders first

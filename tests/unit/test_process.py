@@ -16,9 +16,9 @@ import threading
 import weakref
 
 import pytest
-from wasi_python._process import _Observers, _Process
 
 from wasi_python import _process
+from wasi_python._process import _Observers, _Process
 
 LOCK, RLOCK = type(threading.Lock()), type(threading.RLock())
 

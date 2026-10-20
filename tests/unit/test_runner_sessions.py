@@ -10,6 +10,7 @@ import pytest
 
 import wasi_python
 from wasi_python import Defaults, Session, _artifacts, _call, _sessions
+from wasi_python._process import process
 
 NAN, INF = float("nan"), float("inf")
 
@@ -106,11 +107,11 @@ def registry(monkeypatch):
     """A private registry of fake sessions, and a closer starter that records."""
     import weakref
 
-    monkeypatch.setattr(_sessions, "_sessions", weakref.WeakSet())
-    monkeypatch.setattr(_sessions, "_reaper_queue", queue.SimpleQueue())
-    monkeypatch.setattr(_sessions, "_dropped", __import__("collections").deque())
+    monkeypatch.setattr(process(), "sessions", weakref.WeakSet())
+    monkeypatch.setattr(process(), "reaper_queue", queue.SimpleQueue())
+    monkeypatch.setattr(process(), "dropped", __import__("collections").deque())
     started: list[_sessions._State] = []
-    monkeypatch.setattr(_sessions, "_start_ending", started.append)
+    monkeypatch.setattr(process().observers, "start_ending", started.append)
     return started
 
 
@@ -125,14 +126,14 @@ def test_the_reaper_ends_what_is_due(registry) -> None:
     )
     keep = [a, b, c, busy]
     for s in keep:
-        _sessions._sessions.add(s)
+        process().sessions.add(s)
     assert _sessions._reap(20.0) == 10.0  # a is idle at 10; b's lifetime at 30 is next
     assert registry == [a] and a.ended == "idle" and a.closing.is_set()
     assert _sessions._reap(30.0) is None
     assert registry == [a, b] and b.ended == "lifetime"
     assert (c.ended, busy.ended) == (None, None)
     for s in keep:
-        _sessions._sessions.discard(s)
+        process().sessions.discard(s)
     assert _sessions._reap(1e9) is None  # none open: no wait
 
 
@@ -141,7 +142,7 @@ def test_the_reaper_loop_ends_sessions_in_due_order(registry) -> None:
     ends sessions in due order. Stand-in: a reaper that ends a busy session."""
     states = [_state(30, None), _state(10, None), _state(20, None)]
     for s in states:
-        _sessions._sessions.add(s)
+        process().sessions.add(s)
     now = [0.0]
     waits: list[float | None] = []
 

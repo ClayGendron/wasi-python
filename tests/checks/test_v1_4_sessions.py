@@ -157,21 +157,23 @@ def _open_count() -> int:
 def fake_clock(monkeypatch):
     """The sessions' clock, a value the check sets; the reaper thread paused, so only the check
     drives `_reap` (Decision 9: the judge never sleeps)."""
-    from wasi_python import _sessions
+    from wasi_python._process import process
 
     now = [0.0]
-    monkeypatch.setattr(_sessions, "_session_clock", lambda: now[0])
-    monkeypatch.setitem(_sessions._reaper, "paused", True)
+    monkeypatch.setattr(process().observers, "clock", lambda: now[0])
+    monkeypatch.setattr(process().observers, "reaper_paused", True)
     return now
 
 
 @pytest.fixture
 def exports_called(monkeypatch):
     """Each export called on a session's instance: (name, thread ident)."""
-    from wasi_python import _sessions
+    from wasi_python._process import process
 
     seen: list[tuple[str, int]] = []
-    monkeypatch.setattr(_sessions, "_on_export", lambda name, ident: seen.append((name, ident)))
+    monkeypatch.setattr(
+        process().observers, "on_export", lambda name, ident: seen.append((name, ident))
+    )
     return seen
 
 
@@ -219,7 +221,7 @@ def test_an_old_artifact_set_is_named(guest_workdir) -> None:
     made; `run` with the same set runs its `run` as before."""
     wp = _wp()
     from harness import wat
-    from wasi_python import _private_dirs
+    from wasi_python._process import process
 
     real = wp.artifacts()
     for module, named, unnamed in (
@@ -230,13 +232,13 @@ def test_an_old_artifact_set_is_named(guest_workdir) -> None:
         old = wp.Artifacts(
             wat.build(d, "old.wasm", module), real.plain, real.stdlib_zip, real.manifest
         )
-        held, before = set(_private_dirs._held), _open_count()
+        held, before = set(process().held), _open_count()
         with pytest.raises(wp.ArtifactsMissing) as e:
             wp.Session(artifacts=old, cache_dir=False)
         assert named in str(e.value)
         if unnamed is not None:
             assert f"export {unnamed}" not in str(e.value)
-        assert set(_private_dirs._held) == held and _open_count() == before
+        assert set(process().held) == held and _open_count() == before
         done = wp.run([], artifacts=old, cache_dir=False)
         assert done.exit_code == 101, done  # the stand-in's run: the door says no host
 
@@ -393,7 +395,8 @@ def test_the_idle_bound_by_an_injected_clock(fake_clock) -> None:
 def test_the_lifetime_by_an_injected_clock(fake_clock, monkeypatch) -> None:
     """Criterion 14."""
     wp = _wp()
-    from wasi_python import _limits, _sessions
+    from wasi_python import _limits
+    from wasi_python._process import process
 
     s = wp.Session()
     for t in range(0, 3600, 600):
@@ -415,7 +418,9 @@ def test_the_lifetime_by_an_injected_clock(fake_clock, monkeypatch) -> None:
     r = s.run("from host import tools\nprint(tools.late())")
     assert (r.exit_code, r.stdout, s.ended) == (0, b"late\n", "lifetime"), r
     armed: list[tuple[str, int]] = []
-    monkeypatch.setattr(_sessions, "_on_arm", lambda kind, ticks: armed.append((kind, ticks)))
+    monkeypatch.setattr(
+        process().observers, "on_arm", lambda kind, ticks: armed.append((kind, ticks))
+    )
     fake_clock[0] = 0.0
     s = wp.Session(idle_s=None)
     fake_clock[0] = 3599.5
@@ -577,15 +582,15 @@ def test_sessions_share_nothing() -> None:
 def test_close_ends_and_cleans_up() -> None:
     """Criterion 21."""
     wp = _wp()
-    from wasi_python import _private_dirs
+    from wasi_python._process import process
 
-    held = set(_private_dirs._held)
+    held = set(process().held)
     s = wp.Session(root=True, shutdown_s=60)
-    assert len(set(_private_dirs._held) - held) == 2  # the private root and the scratch folder
+    assert len(set(process().held) - held) == 2  # the private root and the scratch folder
     assert s.run("pass").exit_code == 0
     s.close()
     assert (s.ended, s.shutdown_outcome) == ("closed", "finished")
-    assert set(_private_dirs._held) == held
+    assert set(process().held) == held
     s.close()
     with pytest.raises(wp.SessionEnded) as e:
         s.run("pass")
@@ -713,28 +718,30 @@ s.close()
 EXIT_HOOK = r"""
 import sys
 import wasi_python
-from wasi_python import _private_dirs, runner
+from wasi_python import runner
+from wasi_python._process import process
 grant = sys.argv[1]
 g = [wasi_python.Grant(grant, "/g", writable=True)]
 s = wasi_python.Session(root=True, shutdown_s=60, grants=g)
 s.run(HANDLER)
-print(" ".join(sorted(_private_dirs._held)))
+print(" ".join(sorted(process().held)))
 """
 
 DROPPED = r"""
 import gc, sys
 import wasi_python
 from wasi_python import runner, _sessions
-_sessions._reaper["enabled"] = False  # the check drives the reaper's step
+from wasi_python._process import process
+process().observers.reaper_enabled = False  # the check drives the reaper's step
 grant = sys.argv[1]
 s = wasi_python.Session(shutdown_s=60, grants=[wasi_python.Grant(grant, "/g", writable=True)])
 s.run(HANDLER)
 before = wasi_python.stats()["sessions_open"]
 del s
-with _sessions._sessions_lock:  # the finalizer takes no lock: it returns while this is held
+with process().sessions_lock:  # the finalizer takes no lock: it returns while this is held
     gc.collect()
-_sessions._reap(_sessions._session_clock())
-for closer in list(_sessions._closers):
+_sessions._reap(process().observers.clock())
+for closer in list(process().closers):
     closer.join()
 print(before, wasi_python.stats()["sessions_open"])
 """
@@ -742,8 +749,9 @@ print(before, wasi_python.stats()["sessions_open"])
 QUEUED_AT_EXIT = r"""
 import gc, sys
 import wasi_python
-from wasi_python import runner, _sessions
-_sessions._reaper["enabled"] = False  # no reaper: the state is on the queue at exit
+from wasi_python import runner
+from wasi_python._process import process
+process().observers.reaper_enabled = False  # no reaper: the state is on the queue at exit
 grant = sys.argv[1]
 s = wasi_python.Session(shutdown_s=60, grants=[wasi_python.Grant(grant, "/g", writable=True)])
 s.run(HANDLER)
@@ -847,7 +855,7 @@ def test_a_session_on_the_plain_reactor() -> None:
 def test_the_import_path_in_a_session(guest_workdir) -> None:
     """Criterion 30."""
     wp = _wp()
-    from wasi_python import _private_dirs
+    from wasi_python._process import process
 
     lib = Path(tempfile.mkdtemp(prefix="lib-", dir=guest_workdir))
     (lib / "mylib.py").write_text("def boom():\n    raise ValueError('boom')\n")
@@ -857,22 +865,24 @@ def test_the_import_path_in_a_session(guest_workdir) -> None:
         assert r.stdout == b""
         assert s.run("print(sys.path[-1])").stdout == b"/lib\n"
     w = Path(tempfile.mkdtemp(prefix="w-", dir=lib))
-    held = set(_private_dirs._held)
+    held = set(process().held)
     with pytest.raises(ValueError, match="writable"):
         wp.Session(
             grants=[wp.Grant(lib, "/lib"), wp.Grant(w, "/lib/w", writable=True)],
             import_path=["/lib"],
         )
-    assert set(_private_dirs._held) == held
+    assert set(process().held) == held
 
 
 def test_a_turn_waits_on_the_sessions_clock_base_end_to_end(monkeypatch) -> None:
     """Criterion 31, its end-to-end part: each turn's call counts from the session's base."""
     wp = _wp()
-    from wasi_python import _sessions
+    from wasi_python._process import process
 
     bases: list[int] = []
-    monkeypatch.setattr(_sessions, "_on_call", lambda kind, call: bases.append(call.origin_ns))
+    monkeypatch.setattr(
+        process().observers, "on_call", lambda kind, call: bases.append(call.origin_ns)
+    )
     with wp.Session() as s:
         for _ in range(3):
             s.run("import time; time.sleep(0.01)")
@@ -949,6 +959,7 @@ def test_expiry_runs_python_shutdown(
     """Criterion 36, the re-review's F2 included."""
     wp = _wp()
     from wasi_python import _limits, _sessions
+    from wasi_python._process import process
 
     def session(name: str, **kw):
         fake_clock[0] = 0.0
@@ -986,7 +997,9 @@ def test_expiry_runs_python_shutdown(
     assert (r.trapped, s.shutdown_outcome) == ("deadline", "skipped"), r
     assert not written.exists()
     armed: list[tuple[str, int]] = []
-    monkeypatch.setattr(_sessions, "_on_arm", lambda kind, ticks: armed.append((kind, ticks)))
+    monkeypatch.setattr(
+        process().observers, "on_arm", lambda kind, ticks: armed.append((kind, ticks))
+    )
     s, written = session("late", shutdown_s=5, idle_s=None)
     fake_clock[0] = 3602.0
     _sessions._reap(3602.0)
@@ -1010,14 +1023,14 @@ HOG = "import atexit\natexit.register(lambda: [0 for _ in iter(int, 1)])\n"
 def test_a_hostile_atexit_is_stopped(guest_workdir) -> None:
     """Criterion 37, the re-review's F5 included."""
     wp = _wp()
-    from wasi_python import _private_dirs
+    from wasi_python._process import process
 
-    before, held = _open_count(), set(_private_dirs._held)
+    before, held = _open_count(), set(process().held)
 
     def ends(s, want: str) -> None:
         s.close()
         assert (s.ended, s.shutdown_outcome) == ("closed", want)
-        assert _open_count() == before and set(_private_dirs._held) == held
+        assert _open_count() == before and set(process().held) == held
 
     s = wp.Session(fuel=10**9, shutdown_s=600)  # the fail-safe comes first if fuel did not bound it
     s.run(HOG)
@@ -1175,16 +1188,17 @@ ERROR_ROW = r"""
 import signal, threading
 signal.signal(signal.SIGINT, signal.default_int_handler)
 import wasi_python
-from wasi_python import _home, runner, _sessions
+from wasi_python import runner
+from wasi_python._process import process
 seen = []
-_sessions._on_export = lambda name, ident: seen.append(name)
+process().observers.on_export = lambda name, ident: seen.append(name)
 s = wasi_python.Session(shutdown_s=60)
 s.run("import atexit\natexit.register(print, 'handler')")
 
 def noted():
-    _home._ctrl_c["pending"] = True  # as a Ctrl-C no host function saw
+    process().ctrl_c_pending = True  # as a Ctrl-C no host function saw
 
-_sessions._after_export = noted
+process().observers.after_export = noted
 try:
     s.run("sum(range(10**6))")
     print("returned")
@@ -1198,7 +1212,7 @@ def test_a_turn_that_returns_after_close_runs_the_shutdown(
 ) -> None:
     """Criterion 42, F3's error row included."""
     wp = _wp()
-    from wasi_python import _sessions
+    from wasi_python._process import process
 
     host = Path(tempfile.mkdtemp(prefix="race-", dir=guest_workdir))
     order: list[str] = []  # one list: the shutdown's handler, and close()'s return (F3)
@@ -1211,14 +1225,14 @@ def test_a_turn_that_returns_after_close_runs_the_shutdown(
     s.run(_handler_writing("/w/h.txt") + "import _host\natexit.register(_host.call, b'x')\n")
 
     def closing() -> None:
-        monkeypatch.setattr(_sessions, "_after_export", None)
+        monkeypatch.setattr(process().observers, "after_export", None)
         t = threading.Thread(target=lambda: (s.close(), order.append("close returned")))
         t.start()
         while s.ended is None:
             t.join(0.001)
         closing.thread = t  # type: ignore[attr-defined]
 
-    monkeypatch.setattr(_sessions, "_after_export", closing)
+    monkeypatch.setattr(process().observers, "after_export", closing)
     exports_called.clear()
     r = s.run("print(1)")
     order.append("turn returned")

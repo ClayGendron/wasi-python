@@ -12,6 +12,7 @@ import threading
 import pytest
 
 from wasi_python import _call, _home, _platform, runner
+from wasi_python._process import process
 
 MIB = 1 << 20
 
@@ -63,7 +64,7 @@ def test_a_small_guest_thread_is_refused_after_one_retry(monkeypatch) -> None:
             ran.append(1)
 
         monkeypatch.setattr(_platform, "_guest_stack", read)
-        monkeypatch.setattr(_home, "_on_entry", entries.append)
+        monkeypatch.setattr(process().observers, "on_entry", entries.append)
         with pytest.raises(RuntimeError, match="less than the 9 MiB"):
             _home._on_guest_thread("run", _home._Home(), None, fn)
         assert (len(reads), ran, entries) == (2, [], []), (answer, reads)

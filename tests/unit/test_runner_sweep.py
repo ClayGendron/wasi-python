@@ -15,7 +15,8 @@ from pathlib import Path
 
 import pytest
 
-from wasi_python import _call, _engines, _platform, _private_dirs, _sessions, _zip
+from wasi_python import _call, _platform, _private_dirs, _sessions
+from wasi_python._process import process
 
 IDENTITY = _platform._kernel_identity()
 POSIX = os.name == "posix"
@@ -29,13 +30,11 @@ def temp(tmp_path, monkeypatch):
     folder = tmp_path / "temp"
     folder.mkdir()
     monkeypatch.setattr(tempfile, "tempdir", str(folder))
-    monkeypatch.setitem(_private_dirs._sweep_state, "claimed", False)
-    monkeypatch.setitem(_private_dirs._sweep_state, "swept", 0)
-    monkeypatch.setitem(
-        _private_dirs._sweep_state, "failed", {}
-    )  # spec 084: failed sweeps per name
-    monkeypatch.setattr(_private_dirs, "_warned", set(), raising=False)
-    monkeypatch.setattr(_private_dirs, "_pending_warnings", [], raising=False)
+    monkeypatch.setattr(process(), "sweep_claimed", False)
+    monkeypatch.setattr(process(), "sweep_swept", 0)
+    monkeypatch.setattr(process(), "sweep_failed", {})  # spec 084: failed sweeps per name
+    monkeypatch.setattr(process(), "warned", set())
+    monkeypatch.setattr(process(), "pending_warnings", [])
     return folder
 
 
@@ -50,7 +49,7 @@ def dead(temp: Path, name: str = "wasi-python-root-0123456789abcdef", first: str
 
 def sweep() -> int:
     _private_dirs._sweep_once()
-    return _private_dirs._sweep_state["swept"]
+    return process().sweep_swept
 
 
 def names(temp: Path) -> list[str]:
@@ -83,7 +82,7 @@ def test_a_held_lock_keeps_its_folder(temp) -> None:
 
 def test_a_name_this_process_holds_is_never_swept(temp, monkeypatch) -> None:
     folder = dead(temp)
-    monkeypatch.setattr(_private_dirs, "_held", {folder.name})
+    monkeypatch.setattr(process(), "held", {folder.name})
     assert sweep() == 0 and (folder / "file").exists()
 
 
@@ -215,7 +214,7 @@ def test_a_private_folder_goes_before_its_lock_file(temp, monkeypatch) -> None:
     monkeypatch.setattr(os, "unlink", unlink)
     private.remove()
     assert seen == [(str(lock), False)]
-    assert names(temp) == [] and private.name not in _private_dirs._held
+    assert names(temp) == [] and private.name not in process().held
 
 
 def test_a_lock_file_swept_before_its_lock_makes_the_creator_draw_again(temp, monkeypatch) -> None:
@@ -269,7 +268,7 @@ def test_a_filesystem_without_locks_still_makes_a_folder_that_is_never_swept(
     try:
         assert private.path.is_dir() and Path(private.lock_path).read_bytes() == b""
         assert len(names(temp)) == 2  # one name drawn, nothing abandoned
-        _private_dirs._held.discard(private.name)  # as another process would see it
+        process().held.discard(private.name)  # as another process would see it
         assert sweep() == 0 and private.path.is_dir()
     finally:
         private.remove()
@@ -342,8 +341,8 @@ def test_a_folder_rmtree_could_not_remove_keeps_its_lock_file(temp, monkeypatch)
         private.remove()
         _private_dirs._flush_warnings()
     assert names(temp) == sorted([private.name, f"{private.name}.lock"])
-    monkeypatch.setitem(_private_dirs._sweep_state, "claimed", False)
-    monkeypatch.setitem(_private_dirs._sweep_state, "swept", 0)
+    monkeypatch.setattr(process(), "sweep_claimed", False)
+    monkeypatch.setattr(process(), "sweep_swept", 0)
     assert sweep() == 1 and names(temp) == []
 
 
@@ -469,6 +468,7 @@ def counting(monkeypatch) -> dict[str, int]:
 THREE_FREE = r"""
 import os, resource, sys, tempfile
 from wasi_python import _private_dirs, runner
+from wasi_python._process import process
 
 action, path = sys.argv[1:3]
 if action == "sweep":
@@ -491,7 +491,7 @@ if action == "remove":
     print(_private_dirs._remove_tree(path))
 else:
     _private_dirs._sweep_once()
-    print(_private_dirs._sweep_state["swept"])
+    print(process().sweep_swept)
 """
 
 
@@ -781,17 +781,15 @@ def test_what_a_removal_leaves_is_retried_by_the_next_calls_sweep(temp, monkeypa
     """Criterion 10: a folder left keeps its lock file, is named once, and re-arms the sweep,
     after its name is dropped; the next sweep removes it."""
     failing_once(monkeypatch)
-    monkeypatch.setitem(
-        _private_dirs._sweep_state, "claimed", True
-    )  # this process's first call is past
+    monkeypatch.setattr(process(), "sweep_claimed", True)  # this process's first call is past
     private = _private_dirs._Private("wasi-python-root-")
     (private.path / "file").write_text("guest data")
     private.remove()
     assert names(temp) == sorted([private.name, f"{private.name}.lock"])
-    assert private.name not in _private_dirs._held
+    assert private.name not in process().held
     seen = flushed(recwarn)
     assert len(seen) == 1 and private.name in seen[0], seen
-    assert _private_dirs._sweep_state["claimed"] is False
+    assert process().sweep_claimed is False
     assert sweep() == 1 and names(temp) == []
 
 
@@ -821,7 +819,7 @@ def test_a_folder_is_retried_by_at_most_three_sweeps(temp, monkeypatch) -> None:
 
     def remove_tree(path, **k):
         calls.append(os.path.basename(os.fspath(path)))
-        claimed.append(_private_dirs._sweep_state["claimed"])
+        claimed.append(process().sweep_claimed)
         return False
 
     monkeypatch.setattr(_private_dirs, "_remove_tree", remove_tree)
@@ -832,7 +830,7 @@ def test_a_folder_is_retried_by_at_most_three_sweeps(temp, monkeypatch) -> None:
     for _ in range(6):
         _private_dirs._sweep_once()
     assert calls.count(private.name) == 4 and calls.count(other.name) == 3, calls
-    assert _private_dirs._sweep_state["claimed"] is True
+    assert process().sweep_claimed is True
     assert all(claimed), claimed  # never re-armed from inside a sweep's loop
 
 
@@ -857,7 +855,7 @@ def test_a_removal_that_raises_still_lets_go(temp, monkeypatch) -> None:
     monkeypatch.setattr(_private_dirs, "_remove_tree", remove_tree)
     private = _private_dirs._Private("wasi-python-root-")
     private.remove()
-    assert private.name not in _private_dirs._held
+    assert private.name not in process().held
     assert names(temp) == sorted([private.name, f"{private.name}.lock"])
     fd = os.open(private.lock_path, os.O_RDWR | getattr(os, "O_BINARY", 0))
     try:
@@ -891,7 +889,7 @@ def test_the_warning_is_given_outside_every_runner_lock(temp, monkeypatch) -> No
 
     def show(message, category, *a, **k):
         free = []
-        for lock in (_engines._lock, _zip._zip_lock, _private_dirs._held_lock):
+        for lock in (process().cache_lock, process().zip_lock, process().held_lock):
             free.append(lock.acquire(blocking=False))
             if free[-1]:
                 lock.release()
@@ -902,7 +900,7 @@ def test_the_warning_is_given_outside_every_runner_lock(temp, monkeypatch) -> No
     with warnings.catch_warnings():
         warnings.simplefilter("always")
         warnings.showwarning = show
-        with _zip._zip_lock:  # as `_zip_folder` holds it when it makes a folder again
+        with process().zip_lock:  # as `_zip_folder` holds it when it makes a folder again
             private.remove()
         assert record == []
         _private_dirs._flush_warnings()

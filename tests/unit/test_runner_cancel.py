@@ -7,6 +7,7 @@ import pytest
 import wasmtime
 
 from wasi_python import _call, _home, _wasmtime_ffi
+from wasi_python._process import process
 
 REFUSED, STOPPED, ANSWER = 11, 22, 0
 CONTEXT = 4242  # the fake caller's store context address
@@ -109,13 +110,13 @@ def test_a_ctrl_c_pending_at_an_ended_call_is_recorded(shared, monkeypatch) -> N
     third builder note): a call with `ended` set and a Ctrl-C pending records KeyboardInterrupt
     and is not served (spec 030's build review, finding 3)."""
     monkeypatch.setattr(_home, "_ctrl_c_watched", lambda: True)
-    monkeypatch.setitem(_home._ctrl_c, "pending", True)
+    monkeypatch.setattr(process(), "ctrl_c_pending", True)
     call = FakeCall()
     call.ended = "cancelled"
     assert shared(call) == STOPPED
     assert isinstance(call.stopped, KeyboardInterrupt)
     assert call.served == 0
-    assert _home._ctrl_c["pending"] is False
+    assert process().ctrl_c_pending is False
 
 
 def test_a_live_call_is_served(shared) -> None:

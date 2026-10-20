@@ -11,7 +11,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from wasi_python import _call, _engines, _home, _limits, _platform, runner
+from wasi_python import _call, _home, _limits, _platform, runner
+from wasi_python._process import process
 
 STOP = 77  # what the fake error maker returns
 
@@ -21,7 +22,7 @@ def epoch(monkeypatch):
     """A fake call on this thread's stack, the context it is checked against, and a delta."""
     monkeypatch.setattr(_call, "_stop_error", lambda delta=None: STOP)
     monkeypatch.setattr(_home, "_ctrl_c_watched", lambda: False)
-    monkeypatch.setattr(_engines._epoch_ticker, "count", classmethod(lambda cls: 100))
+    monkeypatch.setattr(process(), "ticker_count", 100)
     holder = ctypes.c_int(0)
     context = ctypes.pointer(holder)
     call = SimpleNamespace(
@@ -33,11 +34,11 @@ def epoch(monkeypatch):
     )
     stack = _home._stack()
     stack.append(call)
-    _home._calls.lost = False
+    process().calls.lost = False
     delta = (ctypes.c_uint64 * 1)()
     yield SimpleNamespace(call=call, context=context, delta=delta, holder=holder)
     stack.remove(call)
-    _home._calls.lost = False
+    process().calls.lost = False
 
 
 def answer(e) -> int:
@@ -72,11 +73,11 @@ def test_a_recorded_stop_holds_under_the_epoch_callback(epoch) -> None:
 
 def test_a_deferred_ctrl_c_becomes_a_stop(epoch, monkeypatch) -> None:
     monkeypatch.setattr(_home, "_ctrl_c_watched", lambda: True)
-    monkeypatch.setitem(_home._ctrl_c, "pending", True)
+    monkeypatch.setattr(process(), "ctrl_c_pending", True)
     epoch.call.cancel.set()
     assert answer(epoch) == STOP
     assert isinstance(epoch.call.stopped, KeyboardInterrupt) and epoch.call.ended is None
-    assert _home._ctrl_c["pending"] is False
+    assert process().ctrl_c_pending is False
 
 
 def test_a_fault_in_the_epoch_callback_stops_the_guest(epoch) -> None:
@@ -94,7 +95,7 @@ def test_a_fault_in_the_epoch_callback_stops_the_guest(epoch) -> None:
 def test_another_stores_context_is_not_this_call(epoch) -> None:
     other = ctypes.c_int(0)
     assert _call._epoch_answer(ctypes.pointer(other), epoch.delta) == STOP
-    assert _home._calls.lost is True and epoch.call.ended is None
+    assert process().calls.lost is True and epoch.call.ended is None
 
 
 def test_a_lost_call_stops_the_guest_and_drive_says_so(epoch, monkeypatch) -> None:
@@ -105,7 +106,7 @@ def test_a_lost_call_stops_the_guest_and_drive_says_so(epoch, monkeypatch) -> No
         raise RuntimeError("stack")
 
     monkeypatch.setattr(_home, "_stack", broken)
-    assert answer(epoch) == STOP and _home._calls.lost is True
+    assert answer(epoch) == STOP and process().calls.lost is True
     monkeypatch.undo()
 
     class WasmtimeError(Exception):
@@ -119,7 +120,7 @@ def test_a_lost_call_stops_the_guest_and_drive_says_so(epoch, monkeypatch) -> No
 
     class Linker:
         def instantiate(self, store, module):
-            _home._calls.lost = True  # as the callback does
+            process().calls.lost = True  # as the callback does
             raise WasmtimeError("stopped by wasi_python")
 
     # This `_drive` gets stand-ins, not wasmtime, so on Linux a process that has made no engine yet
@@ -129,7 +130,7 @@ def test_a_lost_call_stops_the_guest_and_drive_says_so(epoch, monkeypatch) -> No
     call = SimpleNamespace(cancel=None, stopped=None, ended=None)
     with pytest.raises(RuntimeError, match="lost track of a call"):
         _call._drive(wt, Linker(), None, None, call, None)
-    assert _home._calls.lost is False
+    assert process().calls.lost is False
 
 
 class Recording(concurrent.futures.Executor):
@@ -181,7 +182,7 @@ def test_run_refuses_a_cancel_that_is_not_an_event() -> None:
 
 
 def test_a_forked_child_of_a_used_runner_is_refused(monkeypatch) -> None:
-    monkeypatch.setitem(_platform._fork, "forked", True)
+    monkeypatch.setattr(process(), "forked", True)
     with pytest.raises(RuntimeError, match="forked"):
         runner.run(["-c", "pass"])
     with pytest.raises(RuntimeError, match="forked"):

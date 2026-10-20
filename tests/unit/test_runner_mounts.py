@@ -18,6 +18,7 @@ from harness import files, needs, paths
 from harness.files import MemoryProvider, Mounted
 from wasi_python import Errno, Mount, Stat, _call, _engines, _home, _places, runner
 from wasi_python import mounts as mounts_module
+from wasi_python._process import process
 
 EFAULT, EINVAL, ENAMETOOLONG, ENOTSUP, EBADF = 21, 28, 37, 58, 8
 
@@ -125,11 +126,11 @@ def test_a_cancel_or_a_passed_deadline_stops_the_provider_call(placeholder, monk
     provider = MemoryProvider()
     cancel = threading.Event()
     m = Mounted(provider, placeholder, cancel=cancel, stop_at=100)
-    monkeypatch.setattr(_engines._epoch_ticker, "count", classmethod(lambda cls: 99))
+    monkeypatch.setattr(process(), "ticker_count", 99)
     assert m.raw.path_filestat(3, "a.txt")[0] == 0
-    monkeypatch.setattr(_engines._epoch_ticker, "count", classmethod(lambda cls: 100))
+    monkeypatch.setattr(process(), "ticker_count", 100)
     assert m.raw.path_filestat(3, "a.txt")[0] == 73  # ETIMEDOUT
-    monkeypatch.setattr(_engines._epoch_ticker, "count", classmethod(lambda cls: 0))
+    monkeypatch.setattr(process(), "ticker_count", 0)
     m.store.set_epoch_deadline(2**40)
     cancel.set()
     assert m.raw.path_filestat(3, "a.txt")[0] == 11  # ECANCELED

@@ -26,6 +26,7 @@ import pytest
 
 from wasi_python import _artifacts, _call, _home, runner
 from wasi_python import tools as T
+from wasi_python._process import process
 from wasi_python.tools import ToolDenied, ToolError, tool
 
 LOOP_THREAD = "wasi-python-tool--loop"
@@ -344,9 +345,9 @@ def test_every_end_cancels_a_started_task(caller, monkeypatch) -> None:
 
     # A pending Ctrl-C, through the runner's own wiring, on a private loop.
     monkeypatch.setattr(_home, "_ctrl_c_watched", lambda: True)
-    monkeypatch.setitem(_home._ctrl_c, "pending", False)
+    monkeypatch.setattr(process(), "ctrl_c_pending", False)
     before = runner.stats()["tool_threads_running"]
-    waiter = _waiter(started, cancels, then=lambda: _home._ctrl_c.__setitem__("pending", True))
+    waiter = _waiter(started, cancels, then=lambda: setattr(process(), "ctrl_c_pending", True))
     host = _call._tool_host({"tools": (waiter,), "gate": None, "tool_calls": 1000}, None, None)
     assert kind(host(call_frame("wait"))) == "cancelled"
     assert _last(host).abandoned is True
@@ -354,7 +355,7 @@ def test_every_end_cancels_a_started_task(caller, monkeypatch) -> None:
     _join_tool_threads()
     assert cancels == [1]
     assert runner.stats()["tool_threads_running"] == before
-    assert _home._ctrl_c["pending"] is True
+    assert process().ctrl_c_pending is True
 
 
 # -------------------------------------------------------------------------------------------------

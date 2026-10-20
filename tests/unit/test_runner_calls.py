@@ -12,6 +12,7 @@ import pytest
 import wasmtime as wt
 
 from wasi_python import _call, _engines, _home, _platform, _wasmtime_ffi
+from wasi_python._process import process
 
 
 def guest(mode: int) -> str:
@@ -156,7 +157,7 @@ def test_ctrl_c_during_a_call_stops_it_and_is_raised_by_it(default_ctrl_c) -> No
             assert signal.getsignal(signal.SIGINT) is _home._note_ctrl_c
             _home._note_ctrl_c(signal.SIGINT, None)  # what the handler does on Ctrl-C
             drive(0, lambda frame: seen.append(frame) or b"ok")
-    assert seen == [] and _home._ctrl_c["pending"] is False
+    assert seen == [] and process().ctrl_c_pending is False
     assert signal.getsignal(signal.SIGINT) is signal.default_int_handler
 
 
@@ -230,8 +231,8 @@ def test_the_runner_states_its_wasm_stack(monkeypatch) -> None:
     made: list[RecordingConfig] = []
     monkeypatch.setattr(wt, "Config", RecordingConfig)
     monkeypatch.setattr(wt, "Engine", lambda cfg: made.append(cfg) or object())
-    monkeypatch.setattr(_engines, "_engines", {})
-    monkeypatch.setitem(_platform._fork, "used", _platform._fork["used"])
+    monkeypatch.setattr(process(), "engines", {})
+    monkeypatch.setattr(process(), "fork_used", process().fork_used)
     _record_async_stack(monkeypatch)
     _engines._engine(True)
     _engines._engine(False)
@@ -285,8 +286,8 @@ def test_no_engine_is_made_without_the_async_stack_size(monkeypatch) -> None:
     made: list[RecordingConfig] = []
     monkeypatch.setattr(wt, "Config", RecordingConfig)
     monkeypatch.setattr(wt, "Engine", lambda cfg: made.append(cfg) or object())
-    monkeypatch.setattr(_engines, "_engines", {})
-    monkeypatch.setitem(_platform._fork, "used", _platform._fork["used"])
+    monkeypatch.setattr(process(), "engines", {})
+    monkeypatch.setattr(process(), "fork_used", process().fork_used)
     monkeypatch.setattr(_wasmtime_ffi, "ASYNC_STACK_SETTER", None)
     with pytest.raises(RuntimeError, match=r"wasmtime-py .* cannot set async_stack_size"):
         _engines._engine(True)

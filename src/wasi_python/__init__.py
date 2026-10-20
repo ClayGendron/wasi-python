@@ -26,8 +26,7 @@ the promise each release keeps.
 
 from __future__ import annotations
 
-import threading
-
+from . import _process
 from . import runner as _runner
 from ._artifacts import Artifacts, ArtifactsMissing, artifact_dir, artifacts
 from .mounts import (
@@ -52,9 +51,6 @@ from .runner import (
 )
 
 __version__ = "0.1.0a8"
-
-# set_defaults swaps the binding `run` reads, and reads the old one, under this lock (spec 049).
-_defaults_lock = threading.Lock()
 
 
 def defaults() -> Defaults:
@@ -89,7 +85,7 @@ def set_defaults(new: Defaults) -> Defaults:
     """
     if not isinstance(new, Defaults):
         raise TypeError(f"set_defaults takes a Defaults; got {type(new).__name__}")
-    with _defaults_lock:
+    with _process.process().defaults_lock:  # the swap and the read of the old one, together
         old = _runner.DEFAULTS
         _runner.DEFAULTS = new
     return old

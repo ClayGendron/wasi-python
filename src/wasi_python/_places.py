@@ -11,7 +11,7 @@ import re
 import stat
 import struct
 import tempfile
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 from . import _limits, _platform, _zip
 from ._artifacts import Artifacts
 from ._limits import _UNSET
+from ._process import process
 from .mounts import METHODS, Mount
 
 if TYPE_CHECKING:
@@ -443,11 +444,11 @@ _BACKUP_SEMANTICS = 0x02000000
 _OPEN_REPARSE_POINT = 0x00200000
 _ATTRIBUTE_DIRECTORY = 0x10
 _ATTRIBUTE_REPARSE_POINT = 0x400
-_win_api: dict[str, Any] = {}
 
 
 def _win() -> Any:
-    if "kernel32" not in _win_api:
+    api = process().win_api
+    if "kernel32" not in api:
         from ctypes import wintypes
 
         k = ctypes.WinDLL("kernel32", use_last_error=True)  # type: ignore[attr-defined]
@@ -460,8 +461,8 @@ def _win() -> Any:
         k.GetFileInformationByHandle.restype = wintypes.BOOL
         k.CloseHandle.argtypes = [wintypes.HANDLE]
         k.CloseHandle.restype = wintypes.BOOL
-        _win_api["kernel32"] = k
-    return _win_api["kernel32"]
+        api["kernel32"] = k
+    return api["kernel32"]
 
 
 class _ByHandle(ctypes.Structure):
@@ -521,10 +522,10 @@ def _rewritten(name: str) -> bool:
     return name.split(".", 1)[0].rstrip(" ").upper() in _WIN_DEVICES
 
 
-def _drive_folder(drive: str) -> str:
+def _default_drive_folder(drive: str) -> str:
     """The current folder of `drive` (the process's own drive when empty), holding no `..`: where
-    a relative Windows path starts, and whose drive a rooted one takes (spec 076, Decision 1). A
-    seam the tests replace."""
+    a relative Windows path starts, and whose drive a rooted one takes (spec 076, Decision 1). The
+    observers' `drive_folder` stands in for it when set."""
     return ntpath.abspath(drive or ".")
 
 
@@ -533,12 +534,13 @@ def _walk_windows(where: str, path: str, judge: bool, may_make: bool) -> _Walked
         # Made absolute without dropping `..` (spec 076): only the start is ever normalised, and
         # `..` is taken on the folders walked, as `_walk_posix` takes it.
         drive, tail = ntpath.splitdrive(path)
+        drive_folder = process().observers.drive_folder or _default_drive_folder
         if tail[:1] in ("\\", "/") or drive[1:2] not in ("", ":"):  # rooted, or a share
             if not drive:  # rooted with no drive: the current folder's drive, fully qualified
-                drive = ntpath.splitdrive(_drive_folder(""))[0]
+                drive = ntpath.splitdrive(drive_folder(""))[0]
             names = re.split(r"[\\/]", tail)
         else:
-            drive, start = ntpath.splitdrive(_drive_folder(drive))
+            drive, start = ntpath.splitdrive(drive_folder(drive))
             names = re.split(r"[\\/]", start) + re.split(r"[\\/]", tail)
     else:
         drive, rest = ntpath.splitdrive(ntpath.realpath(path))
@@ -747,10 +749,6 @@ def _check_preopens(wt: Any, linker: Any, store: Any, check: Any, preopens: list
     finally:
         for p in preopens:
             p.walked.close()
-
-
-# A seam for the swap check (tests only): runs after every walk and before wasmtime opens anything.
-_after_walk: Callable[[], None] | None = None
 
 
 def _walk_grants(

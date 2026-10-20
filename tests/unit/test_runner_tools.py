@@ -33,6 +33,7 @@ from wasi_python import (
     _artifacts as artifacts_module,
 )
 from wasi_python import tools as T
+from wasi_python._process import process
 from wasi_python.tools import tool
 
 
@@ -362,13 +363,13 @@ def test_the_bound_answers_in_order(release, monkeypatch) -> None:
 
     # A pending Ctrl-C, read through the runner's own wiring, and never cleared.
     monkeypatch.setattr(_home, "_ctrl_c_watched", lambda: True)
-    monkeypatch.setitem(_home._ctrl_c, "pending", False)
-    slow = _blocking(release, started, then=lambda: _home._ctrl_c.__setitem__("pending", True))
+    monkeypatch.setattr(process(), "ctrl_c_pending", False)
+    slow = _blocking(release, started, then=lambda: setattr(process(), "ctrl_c_pending", True))
     c = {"tools": (slow,), "gate": None, "tool_calls": 1000}
     host = _call._tool_host(c, None, None)
     assert kind(host(call_frame("slow"))) == "cancelled"
     assert _last(host).abandoned is True
-    assert _home._ctrl_c["pending"] is True  # the bound reads the flag; _shared clears it
+    assert process().ctrl_c_pending is True  # the bound reads the flag; _shared clears it
     assert len(started) == 4
 
 
@@ -499,12 +500,13 @@ def test_stats_counts_tool_threads() -> None:
 FORK_HOOK = r"""
 import os, sys
 from wasi_python import _call, runner
+from wasi_python._process import process
 
 _call._count_tool_threads(7)  # as if seven tool threads ran in the parent
-lock = _call._tool_threads_lock
+lock = process().tool_threads_lock
 pid = os.fork()
 if pid == 0:
-    fresh = _call._tool_threads_lock is not lock
+    fresh = process().tool_threads_lock is not lock
     os.write(1, f"child {runner.stats()['tool_threads_running']} {fresh}\n".encode())
     os._exit(0)
 os.waitpid(pid, 0)

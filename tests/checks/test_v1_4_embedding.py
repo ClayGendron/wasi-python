@@ -946,7 +946,8 @@ def test_calls_add_nothing_to_wasmtime_pys_tables(guest_workdir, monkeypatch) ->
 
     import wasmtime
 
-    from wasi_python import _call, _wasmtime_ffi
+    from wasi_python import _wasmtime_ffi
+    from wasi_python._process import process
 
     run = _runner()
     root = _root(guest_workdir)
@@ -976,10 +977,10 @@ def test_calls_add_nothing_to_wasmtime_pys_tables(guest_workdir, monkeypatch) ->
     assert _wasmtime_ffi.host_function_count() == functions
     for _ in range(200):
         gc.collect()
-        if not _call._outputs:
+        if not process().outputs:
             break
         time.sleep(0.01)
-    assert not _call._outputs, f"{len(_call._outputs)} streams never freed"
+    assert not process().outputs, f"{len(process().outputs)} streams never freed"
 
 
 CTRL_C = r"""
@@ -1265,7 +1266,8 @@ def test_cancelling_an_async_call_stops_its_guest(work) -> None:
 CANCEL_RUN = r"""
 import asyncio, signal, sys, threading
 import wasi_python
-from wasi_python import _engines, _home, _limits, runner
+from wasi_python import _home, _limits, runner
+from wasi_python._process import process
 
 case = sys.argv[1]
 event = threading.Event()
@@ -1284,8 +1286,8 @@ def ticks(n):
     # Hold the host in the door until the runner's ticker has advanced n epochs: a count, never a
     # time. Past CANCEL_TICKS + 2 (the engine can run one round ahead of the count, and one to
     # spare) the store's epoch deadline is overdue, whatever its phase (spec 030).
-    start = _engines._epoch_ticker.count()
-    while _engines._epoch_ticker.count() < start + n:
+    start = process().ticker_count
+    while process().ticker_count < start + n:
         threading.Event().wait(0.001)
 
 
@@ -1319,7 +1321,7 @@ elif case == "door-deadline":
         # By count, never by time (spec 032's fourth revision): this call's deadline is moved to
         # the ticker's count now, then the host holds the door until the cancel check, every
         # CANCEL_TICKS, has run past it.
-        _home._stack()[-1].stop_at = _engines._epoch_ticker.count()
+        _home._stack()[-1].stop_at = process().ticker_count
         ticks(_limits.CANCEL_TICKS + 2)
         return b"ok"
 
@@ -1458,10 +1460,10 @@ print("status", os.waitstatus_to_exitcode(status))
 NO_FORK = r"""
 import os
 import wasi_python
-from wasi_python import _platform, runner
+from wasi_python._process import process
 
 print(hasattr(os, "register_at_fork"), wasi_python.run(["-c", "print('ran')"]).stdout)
-print(_platform._fork)
+print(process().fork_used, process().forked)
 """
 
 
@@ -1501,10 +1503,10 @@ ONE_CALL = r"""
 import sys, tempfile
 tempfile.tempdir = sys.argv[1]
 import wasi_python
-from wasi_python import _private_dirs, runner
+from wasi_python._process import process
 
 done = wasi_python.run(["-c", "print(1)"])
-print(done.exit_code, _private_dirs._sweep_state["swept"])
+print(done.exit_code, process().sweep_swept)
 """
 
 
@@ -1875,15 +1877,16 @@ def test_a_deadline_during_the_grant_check_is_a_deadline(monkeypatch) -> None:
     preopens traps the check module, and the call reports "deadline", never a refusal; the guest
     never runs. The epoch is advanced by count, not by waiting."""
     run = _runner()
-    from wasi_python import _engines, _places
+    from wasi_python import _places
+    from wasi_python._process import process
 
     real, calls = _places._check_preopens, []
 
     def late(wt, linker, store, check, preopens):
         # The deadline passes: the ticker's count, which every call's epoch callback reads since
         # spec 078 polls every call, and every engine's epoch, which reaches the callback.
-        _engines._epoch_ticker._count += 1000
-        for engine in list(_engines._engines.values()):
+        process().ticker_count += 1000
+        for engine in list(process().engines.values()):
             for _ in range(1000):
                 engine.increment_epoch()
         return real(wt, linker, store, check, preopens)
@@ -2299,7 +2302,8 @@ def test_the_file_call_limit_stops_the_run() -> None:
 MOUNT_CANCEL = r"""
 import sys, threading
 import wasi_python
-from wasi_python import Errno, Mount, Stat, _engines, _home, _limits, runner
+from wasi_python import Errno, Mount, Stat, _home, _limits, runner
+from wasi_python._process import process
 
 case = sys.argv[1]
 event = threading.Event()
@@ -2310,8 +2314,8 @@ loop = (
 
 
 def ticks(n):
-    start = _engines._epoch_ticker.count()
-    while _engines._epoch_ticker.count() < start + n:
+    start = process().ticker_count
+    while process().ticker_count < start + n:
         threading.Event().wait(0.001)
 
 
@@ -2323,8 +2327,8 @@ def past_deadline():
     # provider call, and every engine's epoch, which stops the guest, both past this call's
     # deadline (the seams of spec 017's deadline check and tests/unit/test_runner_async.py).
     call = _home._stack()[-1]  # on the caller's thread, under its call, kept there (spec 078)
-    _engines._epoch_ticker.count = classmethod(lambda cls: call.stop_at)
-    for engine in list(_engines._engines.values()):
+    process().ticker_count = call.stop_at
+    for engine in list(process().engines.values()):
         for _ in range(int(DEADLINE_S / _limits.TICK_S) + 2):
             engine.increment_epoch()
 
@@ -3104,7 +3108,8 @@ def test_a_tool_timeout_ends_the_call_not_the_run(guest_workdir, release) -> Non
 PAST_THE_DEADLINE = r"""
 import threading
 import wasi_python
-from wasi_python import _engines, runner
+from wasi_python import runner
+from wasi_python._process import process
 from wasi_python.tools import tool
 
 release = threading.Event()
@@ -3116,7 +3121,7 @@ def block() -> int:
     # By count, never by time (spec 052, Decision 9): the ticker's count, which the tool bound
     # reads, is set past any deadline. Not this call's stop_at: the call stack is per thread,
     # and a tool runs on its own (the review's C2).
-    _engines._epoch_ticker.count = classmethod(lambda cls: 2**62)
+    process().ticker_count = 2**62
     release.wait()
     return 1
 
@@ -3989,7 +3994,8 @@ def test_writes_land_at_every_ending(guest_workdir, which) -> None:
     content write is made, and the record names the file once, at "exit", for the limit. The
     deadline is reached by the ticker's count (the door moves the call's deadline to now)."""
     from harness.files import MemoryProvider
-    from wasi_python import Errno, Grant, Mount, RefusedWrite, _engines, _home
+    from wasi_python import Errno, Grant, Mount, RefusedWrite, _home
+    from wasi_python._process import process
 
     run = _runner()
     cap = 400_000_000  # past start-up on both binaries (spec 032)
@@ -3997,7 +4003,7 @@ def test_writes_land_at_every_ending(guest_workdir, which) -> None:
     def host(event: threading.Event):
         def answer(frame: bytes) -> bytes:
             if frame == b"deadline":
-                _home._stack()[-1].stop_at = _engines._epoch_ticker.count()
+                _home._stack()[-1].stop_at = process().ticker_count
             else:
                 event.set()
             return b""

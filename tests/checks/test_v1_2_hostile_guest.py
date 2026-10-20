@@ -761,7 +761,8 @@ def test_a_swapped_grant_is_refused(guest_workdir, monkeypatch) -> None:
     the runner's walk and wasmtime's own open is caught by the identity check before the guest
     runs, and the door is never called. On Windows the walk holds every folder on the way, so the
     swap itself is refused and the call reads the folder that was granted."""
-    from wasi_python import Grant, _places
+    from wasi_python import Grant
+    from wasi_python._process import process
 
     run = _run()
     base = Path(tempfile.mkdtemp(prefix="swap-", dir=guest_workdir))
@@ -784,7 +785,7 @@ def test_a_swapped_grant_is_refused(guest_workdir, monkeypatch) -> None:
         os.rename(base / "evil", base / "a")
         swapped.append(True)
 
-    monkeypatch.setattr(_places, "_after_walk", swap)
+    monkeypatch.setattr(process().observers, "after_walk", swap)
     code = "import _host; _host.call(b'x'); print(open('/d/f').read())"
     grants = [Grant(base / "a" / "data", "/d")]
     if os.name == "posix":
@@ -852,7 +853,7 @@ def test_a_swapped_root_is_never_prepared_by_path(guest_workdir, monkeypatch, ho
     the walked descriptor, so a link put in its place is never followed and a root moved away is
     never made again by path; the identity check then refuses the call. On Windows the walk
     holds every folder on the way, so the swap itself is refused."""
-    from wasi_python import _places
+    from wasi_python._process import process
 
     run = _run()
     base = Path(tempfile.mkdtemp(prefix="rootswap-", dir=guest_workdir))
@@ -873,7 +874,7 @@ def test_a_swapped_root_is_never_prepared_by_path(guest_workdir, monkeypatch, ho
             os.symlink(outside, arena / "sub")
         swapped.append(True)
 
-    monkeypatch.setattr(_places, "_after_walk", swap)
+    monkeypatch.setattr(process().observers, "after_walk", swap)
     if os.name == "posix":
         import wasmtime
 
@@ -2700,11 +2701,12 @@ def test_a_faulthandler_change_cannot_kill_the_host(order: str) -> None:
 # counted, never after a delay.
 TICKS_THEN = """
 import threading, _thread
-from wasi_python import _engines, _limits, runner
+from wasi_python import _limits, runner
+from wasi_python._process import process
 def after_ticks(action):
     def wait():
-        start = _engines._epoch_ticker.count()
-        while _engines._epoch_ticker.count() < start + _limits.CANCEL_TICKS + 2:
+        start = process().ticker_count
+        while process().ticker_count < start + _limits.CANCEL_TICKS + 2:
             threading.Event().wait(0.001)
         action()
     threading.Thread(target=wait, daemon=True).start()
@@ -2727,7 +2729,7 @@ def _child(program: str, *args: str) -> tuple[int, list[str], str]:
     return out.returncode, out.stdout.strip().splitlines(), out.stderr[-1500:]
 
 
-def test_every_entry_runs_on_a_guest_thread_with_room() -> None:
+def test_every_entry_runs_on_a_guest_thread_with_room(monkeypatch) -> None:
     """Spec 078, criterion 1: each run, each session's opening, turn and ending (a closer's
     included) enters wasm exactly once, on a thread that is not the caller's, whose stack is at
     least the refusal line; run_async with its own pool and with an executor the same."""
@@ -2737,7 +2739,8 @@ def test_every_entry_runs_on_a_guest_thread_with_room() -> None:
 
     run = _run()
     import wasi_python
-    from wasi_python import _home, _platform, _sessions
+    from wasi_python import _platform, _sessions
+    from wasi_python._process import process
 
     seen: list[tuple[str, int, int]] = []
 
@@ -2747,8 +2750,7 @@ def test_every_entry_runs_on_a_guest_thread_with_room() -> None:
 
     me = threading.get_ident()
     line = _platform._WASM_STACK + _platform._HOST_ROOM // 2
-    old = _home._on_entry
-    _home._on_entry = entry
+    monkeypatch.setattr(process().observers, "on_entry", entry)
     try:
         assert run(["-c", "print(1)"]).exit_code == 0
         assert [k for k, _, _ in seen] == ["run"]
@@ -2761,10 +2763,10 @@ def test_every_entry_runs_on_a_guest_thread_with_room() -> None:
             assert s.run("print(x)").stdout == b"1\n"
         idle = wasi_python.Session(idle_s=1)
         assert idle.run("y = 2").exit_code == 0
-        _sessions._reap(_sessions._session_clock() + 10)  # its idle bound passed: a closer ends it
+        _sessions._reap(process().observers.clock() + 10)  # its idle bound passed: a closer ends it
         assert idle._state.done.wait(120)
     finally:
-        _home._on_entry = old
+        monkeypatch.undo()
     kinds = [k for k, _, _ in seen]
     assert kinds == ["run", "run", "run", "open", "turn", "turn", "shutdown"] + [
         "open",
@@ -2782,11 +2784,12 @@ def test_a_small_guest_thread_is_refused_before_any_wasm(monkeypatch) -> None:
     door host and the hook are never called; with the real check, the next call works."""
     run = _run()
     import wasi_python
-    from wasi_python import _home, _platform
+    from wasi_python import _platform
+    from wasi_python._process import process
 
     calls: list[bytes] = []
     entries: list[str] = []
-    monkeypatch.setattr(_home, "_on_entry", entries.append)
+    monkeypatch.setattr(process().observers, "on_entry", entries.append)
     with wasi_python.Session() as session:
         for answer in ((4096, 8 << 20), None):
             monkeypatch.setattr(_platform, "_guest_stack", lambda platform=None, a=answer: a)
@@ -2795,7 +2798,7 @@ def test_a_small_guest_thread_is_refused_before_any_wasm(monkeypatch) -> None:
             with pytest.raises(RuntimeError, match="less than the 9 MiB"):
                 wasi_python.Session()
             monkeypatch.undo()
-            monkeypatch.setattr(_home, "_on_entry", entries.append)
+            monkeypatch.setattr(process().observers, "on_entry", entries.append)
         monkeypatch.setattr(_platform, "_guest_stack", lambda platform=None: (4096, 8 << 20))
         with pytest.raises(RuntimeError, match="less than the 9 MiB"):
             session.run("print(1)")

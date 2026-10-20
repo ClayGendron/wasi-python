@@ -15,10 +15,11 @@ import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from . import _artifacts, _platform
+from . import _artifacts
 from ._artifacts import ArtifactsMissing
 from ._limits import TICK_S
 from ._platform import _WASM_STACK
+from ._process import process
 
 if TYPE_CHECKING:
     import wasmtime
@@ -56,14 +57,14 @@ _CHECK_WAT = """(module
   (func (export "name") (param i32 i32) (result i32)
     (call $pn (local.get 0) (i32.const 1024) (local.get 1)))
   (func (export "stat") (param i32) (result i32) (call $st (local.get 0) (i32.const 64))))"""
-_check_modules: dict[bool, Any] = {}
 
 
 def _check_module(wt: Any, engine: Any, metered: bool) -> Any:
-    with _lock:
-        if metered not in _check_modules:
-            _check_modules[metered] = wt.Module(engine, _CHECK_WAT)
-        return _check_modules[metered]
+    p = process()
+    with p.cache_lock:
+        if metered not in p.check_modules:
+            p.check_modules[metered] = wt.Module(engine, _CHECK_WAT)
+        return p.check_modules[metered]
 
 
 def _cache_dir(given: str | os.PathLike[str] | None | bool) -> Path | None:
@@ -83,12 +84,6 @@ def _cache_dir(given: str | os.PathLike[str] | None | bool) -> Path | None:
     return (Path(base) if base else home / ".cache") / "wasi_python"
 
 
-_lock = threading.Lock()
-_engines: dict[bool, wasmtime.Engine] = {}
-_modules: dict[tuple[bool, str], wasmtime.Module] = {}
-_counts = {"compiled": 0, "loaded": 0, "written": 0, "sessions_open": 0}
-
-
 def _engine(metered: bool) -> wasmtime.Engine:
     """Two engines per process: fuel metering changes the compiled code. The async stack size
     is set first, through the seam (spec 078, Decision 1; spec 102)."""
@@ -96,18 +91,17 @@ def _engine(metered: bool) -> wasmtime.Engine:
 
     from . import _wasmtime_ffi as ffi
 
-    with _lock:
-        if metered not in _engines:
-            _platform._fork["used"] = (
-                True  # before the engine exists: a fork from here on is refused
-            )
+    p = process()
+    with p.cache_lock:
+        if metered not in p.engines:
+            p.fork_used = True  # before the engine exists: a fork from here on is refused
             cfg = wt.Config()
             cfg.consume_fuel = metered
             cfg.epoch_interruption = True
             ffi.set_async_stack(cfg, _WASM_STACK)  # first: an 8 MiB stack without it aborts
             cfg.max_wasm_stack = _WASM_STACK
-            _engines[metered] = wt.Engine(cfg)
-        return _engines[metered]
+            p.engines[metered] = wt.Engine(cfg)
+        return p.engines[metered]
 
 
 def _module(
@@ -128,22 +122,20 @@ def _module(
     import wasmtime as wt
 
     digest = want if want is not None else _artifacts._digest(binary)
-    with _lock:
-        mod = _modules.get((metered, digest))
-        guard = _compiling.setdefault((metered, digest), threading.Lock())
+    p = process()
+    with p.cache_lock:
+        mod = p.modules.get((metered, digest))
+        guard = p.compiling.setdefault((metered, digest), threading.Lock())
     if mod is not None:
         return mod
     # One thread compiles or loads; the others wait for it (spec 011). Only this lock is held
-    # while compiling: the epoch ticker takes _lock every round.
+    # while compiling: the epoch ticker takes the cache lock every round.
     with guard:
-        with _lock:
-            mod = _modules.get((metered, digest))
+        with p.cache_lock:
+            mod = p.modules.get((metered, digest))
         if mod is not None:
             return mod
         return _module_miss(wt, engine, metered, binary, cache, digest, want is not None)
-
-
-_compiling: dict[tuple[bool, str], threading.Lock] = {}
 
 
 def _module_miss(
@@ -165,8 +157,8 @@ def _module_miss(
     if cwasm is not None and cwasm.exists() and _private(cwasm, is_dir=False):
         try:
             mod = wt.Module.deserialize_file(engine, str(cwasm))
-            with _lock:
-                _counts["loaded"] += 1
+            with process().cache_lock:
+                process().counts["loaded"] += 1
         except wt.WasmtimeError:
             mod = None  # stale or foreign: compiled again below and replaced
             cwasm.unlink(missing_ok=True)
@@ -182,21 +174,21 @@ def _module_miss(
             del data
         else:
             mod = wt.Module.from_file(engine, str(binary))
-        with _lock:
-            _counts["compiled"] += 1
+        with process().cache_lock:
+            process().counts["compiled"] += 1
         if cwasm is not None and not cwasm.exists():
             fd, tmp = tempfile.mkstemp(prefix=".cwasm-", dir=cache)  # created 0600
             try:
                 with os.fdopen(fd, "wb") as f:
                     f.write(mod.serialize())
                 os.replace(tmp, cwasm)
-                with _lock:
-                    _counts["written"] += 1
+                with process().cache_lock:
+                    process().counts["written"] += 1
             except BaseException:
                 Path(tmp).unlink(missing_ok=True)
                 raise
-    with _lock:
-        _modules[(metered, digest)] = mod
+    with process().cache_lock:
+        process().modules[(metered, digest)] = mod
     return mod
 
 
@@ -222,54 +214,52 @@ def _private(path: Path, *, is_dir: bool) -> bool:
 class _epoch_ticker:
     """While at least one call with a deadline runs, one thread per process advances every
     engine's epoch once per TICK_S of wall time elapsed, catching up when a sleep runs long, so a
-    deadline of n ticks ends close to n * TICK_S."""
-
-    _active = 0
-    _count = 0  # epochs advanced so far, updated after the engines are (spec 010)
-    _thread: threading.Thread | None = None
-    _cond = threading.Condition()
+    deadline of n ticks ends close to n * TICK_S. Its state (the thread, the active count, the
+    epochs advanced and their condition) is the process's, read through `process()`."""
 
     def __init__(self, engine: wasmtime.Engine | None, wanted: bool) -> None:
         self.wanted = wanted
 
     @classmethod
     def count(cls) -> int:
-        return cls._count
+        return process().ticker_count
 
     def __enter__(self) -> None:
         if not self.wanted:
             return
-        cls = type(self)
-        with cls._cond:
-            cls._active += 1
-            if cls._thread is None:
-                cls._thread = threading.Thread(target=cls._tick, daemon=True)
-                cls._thread.start()
-            cls._cond.notify_all()
+        p = process()
+        with p.ticker_cond:
+            p.ticker_active += 1
+            if p.ticker_thread is None:
+                p.ticker_thread = threading.Thread(target=self._tick, daemon=True)
+                p.ticker_thread.start()
+            p.ticker_cond.notify_all()
 
     def __exit__(self, *exc: object) -> None:
         if not self.wanted:
             return
-        with type(self)._cond:
-            type(self)._active -= 1
+        p = process()
+        with p.ticker_cond:
+            p.ticker_active -= 1
 
     @classmethod
     def _tick(cls) -> None:
+        p = process()
         while True:
-            with cls._cond:
-                while cls._active == 0:
-                    cls._cond.wait()
+            with p.ticker_cond:
+                while p.ticker_active == 0:
+                    p.ticker_cond.wait()
             start, done = time.monotonic(), 0
             while True:
-                with cls._cond:
-                    if cls._active == 0:
+                with p.ticker_cond:
+                    if p.ticker_active == 0:
                         break
                 due = int((time.monotonic() - start) / TICK_S)
-                with _lock:
-                    engines = list(_engines.values())
+                with p.cache_lock:
+                    engines = list(p.engines.values())
                 for _ in range(due - done):
                     for engine in engines:
                         engine.increment_epoch()
-                    cls._count += 1
+                    p.ticker_count += 1
                 done = due
                 time.sleep(TICK_S / 4)
