@@ -174,6 +174,7 @@ SOURCE_COMPONENTS = (
     "openblas",
     "scipy",
     "scikit_learn",  # spec 044
+    "seaborn",  # spec 042
 )
 
 VOCABULARY: dict[str, Need] = {

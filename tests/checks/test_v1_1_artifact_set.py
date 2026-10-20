@@ -148,6 +148,45 @@ def test_the_sample_images_are_not_in_the_zip(artifacts) -> None:
     assert images == [], f"the zip holds {images}"
 
 
+def _pinned_source(artifacts, component: str) -> Path | None:
+    """The pinned archive a component's notice is read from, hash-checked, or None without it."""
+    needs.need("manifest")
+    try:
+        return paths.licence_source(component, artifacts.manifest())
+    except ValueError as e:
+        pytest.fail(str(e))
+
+
+def test_reportlab_fonts_are_not_in_the_zip(artifacts) -> None:
+    """reportlab's fonts are not in the zip, nor any font file of their formats (.pfb, .afm,
+    .sfd): their licences are not approved, and reportlab cannot read them from a zip. Its barcode
+    folder is not in it either, until the change that ships it with Tyler C. Sarna's
+    acknowledgement removes this assertion (spec 042, Decisions 4 and 4a)."""
+    needs.need("stdlib zip")
+    with zipfile.ZipFile(artifacts.path("python-stdlib.zip")) as z:
+        names = z.namelist()
+    errors = rules.reportlab_left_out_errors(names)
+    assert not errors, scan.report(errors)
+
+
+def test_seaborn_notice_carries_its_vendored_licences(artifacts) -> None:
+    """LICENSES/seaborn.txt holds seaborn's licence and the five licences of the code it vendors
+    (appdirs, husl, numpydoc, packaging, scipy), each headed by its path in the sdist; with the
+    pinned sdist in downloads/, each part is that file, byte for byte (spec 042, Decision 7)."""
+    errors = rules.seaborn_notice_errors(artifacts.dir, _pinned_source(artifacts, "seaborn"))
+    assert not errors, scan.report(errors)
+
+
+def test_reportlab_notice_carries_its_third_party_parts(artifacts) -> None:
+    """LICENSES/reportlab.txt holds the wheel's LICENSE and the three third-party notices its code
+    carries as comments, which compilation drops: Tyler C. Sarna's four-clause BSD notice with
+    his acknowledgement, Adobe's for the glyph list, the QR encoder's, and the MIT text the last
+    names (its SHA-256 MANIFEST's pin line); with the pinned wheel in downloads/, each part is
+    that file's leading comment block, byte for byte (spec 042, Decisions 4a and 7)."""
+    errors = rules.reportlab_notice_errors(artifacts.dir, _pinned_source(artifacts, "reportlab"))
+    assert not errors, scan.report(errors)
+
+
 def test_cpython_notice_covers_hacl(artifacts) -> None:
     """HACL* is compiled into the binary and CPython's license.rst does not name it (review of
     spec 004, finding 1), so its MIT notice must be in LICENSES/cpython.txt."""

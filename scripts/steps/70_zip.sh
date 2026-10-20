@@ -30,7 +30,12 @@
 # as numpy's is. scikit-learn (spec 044, Decision 10): its package as step 58 staged it from the
 # patched sdist, its METADATA from the sdist, and its two sample photographs left out with their
 # folder (`--drop`, spec 023's rule, which applies to every input and stops when it matches
-# nothing): no JPEG decoder could read them, so their loaders fail by name.
+# nothing): no JPEG decoder could read them, so their loaders fail by name. seaborn and reportlab
+# (spec 042): seaborn's package from its sdist, which holds the licences of the code it vendors,
+# staged beside tier A's, its METADATA its PKG-INFO; reportlab's wheel, without its fonts (their
+# licences are not approved, and reportlab cannot read them from a zip; Decision 4) and, until a
+# later change ships it with Tyler C. Sarna's acknowledgement, without its barcode folder
+# (Decision 4a; question 73), both by the same --drop.
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -61,8 +66,8 @@ for dir in "$CP"/cross-build/*; do
 done
 [ -n "$BUILD_PYTHON" ] || die "no build-Python under $CP/cross-build"
 TRIPLE=$(basename "$(dirname "$BUILD_PYTHON")")
-remove "$B/pyyaml-6.0.3" "$B/markupsafe-3.0.4" "$B/networkx-3.7" "$B/pure-install"
-for sdist in pyyaml-6.0.3 markupsafe-3.0.4 networkx-3.7; do
+remove "$B/pyyaml-6.0.3" "$B/markupsafe-3.0.4" "$B/networkx-3.7" "$B/seaborn-0.13.2" "$B/pure-install"
+for sdist in pyyaml-6.0.3 markupsafe-3.0.4 networkx-3.7 seaborn-0.13.2; do
   tar -xzf "$(pinned "$sdist.tar.gz")" -C "$B"
   [ -d "$B/$sdist" ] || die "the pinned tarball did not unpack to build/$sdist"
   patch_tree "$B/$sdist"
@@ -71,6 +76,7 @@ mkdir -p "$B/pure-install"
 cp -R "$B/pyyaml-6.0.3/lib/yaml" "$B/pure-install/yaml"
 cp -R "$B/markupsafe-3.0.4/src/markupsafe" "$B/pure-install/markupsafe"
 cp -R "$B/networkx-3.7/networkx" "$B/pure-install/networkx"
+cp -R "$B/seaborn-0.13.2/seaborn" "$B/pure-install/seaborn"
 mkdir -p "$OUT"
 host_from_source
 PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
@@ -121,6 +127,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --wheel "$(pinned cloudpickle-3.1.2-py3-none-any.whl)" \
   --wheel "$(pinned threadpoolctl-3.7.0-py3-none-any.whl)" \
   --wheel "$(pinned narwhals-2.27.1-py3-none-any.whl)" \
+  --wheel "$(pinned reportlab-5.0.1-py3-none-any.whl)" \
   --metadata "$B/numpy-2.5.2/PKG-INFO" \
   --metadata "$B/pandas-3.0.6/PKG-INFO" \
   --metadata "$B/pillow-13.0.0/PKG-INFO" \
@@ -135,10 +142,13 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --entry-points "$B/networkx-3.7/PKG-INFO" "$B/networkx-3.7/networkx.egg-info/entry_points.txt" \
   --metadata "$B/scipy-1.18.1/PKG-INFO" \
   --metadata "$B/scikit_learn-1.9.1/PKG-INFO" \
+  --metadata "$B/seaborn-0.13.2/PKG-INFO" \
   --keep "matplotlib/backends=$BACKENDS" \
   --drop matplotlib/testing \
   --drop matplotlib/sphinxext \
   --drop sklearn/datasets/images \
+  --drop reportlab/fonts \
+  --drop reportlab/graphics/barcode \
   --inner matplotlib/mpl-data \
   --file "$SYSCONFIG=_sysconfigdata__wasi_wasm32-wasi.py" \
   --file "$MISSING_INFO=_missing_stdlib_info.py" \

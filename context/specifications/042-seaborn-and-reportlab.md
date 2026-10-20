@@ -1,6 +1,7 @@
 # 042 — seaborn and reportlab
 
-- **Status:** **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised 2026-10-18 against its pre-build review
+- **Status:** **Building, a stacked build on spec 038's tip `442493b` (main `958a22b`); phase 1
+  done, the native build waits for the lane's slot** (Landing notes). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised 2026-10-18 against its pre-build review
   (`../reviews/042-seaborn-and-reportlab-spec-2026-10-17.md`): all nine findings are written in
   here and in question 73, and the review's Disposition says where; the reviewer's confirmation
   (2026-10-18) passed it for build with three conditions: **C1**, Sarna's licence is in seven
@@ -229,9 +230,13 @@ Python byte for byte. Four things needed a decision:
 
    **4a. reportlab's barcode folder is left out too, until the owner approves the four-clause
    BSD** (the review's finding 1). READ from the wheel's files:
-   - eight modules under `reportlab/graphics/barcode/` (`__init__.py`, `code128.py`,
-     `code39.py`, `code93.py`, `common.py`, `fourstate.py`, `usps.py` and `test.py`) carry
-     "Copyright (c) 1996-2000 Tyler C. Sarna" under the **four-clause BSD licence**. Its clause 2
+   - seven modules under `reportlab/graphics/barcode/` (`__init__.py`, `code128.py`,
+     `code39.py`, `code93.py`, `common.py`, `fourstate.py` and `usps.py`) carry
+     "Copyright (c) 1996-2000 Tyler C. Sarna" under the **four-clause BSD licence**
+     (corrected from "eight" at the build, the confirmation's C1: `test.py` names him only in
+     prose, "Ty Sarna contributed a barcode module", with no copyright line and no licence;
+     EXECUTED at the build, a search of the pinned wheel's `.py` files for "Tyler C. Sarna"
+     finds exactly these seven). Its clause 2
      asks a binary redistribution to reproduce the notice. Its clause 3 is the advertising
      clause: "All advertising materials mentioning features or use of this software must
      display the following acknowledgement: This product includes software developed by Tyler
@@ -325,8 +330,9 @@ Python byte for byte. Four things needed a decision:
      file's **leading comment block** (its first lines that begin with `#`, up to the first
      line that does not; 31, 45 and 22 lines, READ), byte for byte, read from the pinned wheel
      after `pinned`'s hash check:
-     - `reportlab/graphics/barcode/__init__.py`: Sarna's four-clause BSD notice, with a line
-       naming the eight files that carry it (Decision 4a);
+     - `reportlab/graphics/barcode/__init__.py`: Sarna's four-clause BSD notice, the part's
+       heading naming the seven files that carry it (Decision 4a; "eight" corrected at the
+       build, C1), so the naming line sits outside the bytes the check compares (C2);
      - `reportlab/pdfbase/_glyphlist.py`: Adobe's BSD-3-Clause notice;
      - `reportlab/graphics/barcode/qrencoder.py`: Open End AB's and Kazuhiko Arase's lines,
        followed by the MIT text it names. The MIT text is the one already pinned and shipped,
@@ -753,4 +759,115 @@ fixed; reporting it is the owner's).
 
 ## Landing notes
 
-Not built.
+**Not built yet: phase 1 done, phase 2 (the native build) waits for the lane's slot.** Building
+since 2026-10-20 in the harness's worktree `.claude/worktrees/agent-af86ca8005c1af7dc` on
+`spec/042-seaborn-and-reportlab`, a stacked build (constitution §4.14) on spec 038's tip
+`442493b` (scipy M2, its build review's fixes in), itself on main `958a22b`; it rebases onto 038's
+final tip or main when 038 lands. Phase 1 ran nothing that builds: no `scripts/build.sh`, no build
+step, no container. Logs and evidence are under the worktree's `build/042/`.
+
+### What changed (phase 1)
+
+- **Recipe.** The two pins of Decision 2 in `downloads/SHA256SUMS` and `scripts/00_download.sh`,
+  as written; both fetched and verified (`build/042/download.log`: 1,457,696 and 1,957,258
+  bytes, `downloads: 86 pins, 2 fetched, 86 verified`). Step 70 unpacks seaborn's sdist beside
+  tier A's, gives it `patch_tree` (no patches), stages `seaborn/` under `build/pure-install/`,
+  passes its `PKG-INFO` with `--metadata`, adds reportlab's wheel, and leaves out
+  `reportlab/fonts` and `reportlab/graphics/barcode` with spec 023's `--drop` (amendment 2).
+  `assemble_artifacts.py`: `PACKAGES` +2, `WHEELS` +1 (reportlab), seaborn's notice from its tree
+  (`SEABORN_NOTICES`, the licence and the five vendored ones), reportlab's three leading comment
+  blocks read from the pinned wheel after its hash check, and the MIT text (`reportlab_parts`).
+  The release's zero-patch count is 26 trees (25 on this base, +1).
+- **Judge.** The two jobs and their goldens (`statistical_plots` recorded on darwin-arm64), the
+  oracle's two pins and its regenerated `uv.lock`; `jobs.JOBS` +2, `PLATFORM_BOUND` +1,
+  `jobs.run_in_guest` passes keyword arguments to the guest (both jobs need matplotlib's cache
+  folder and data grant); in `test_v1_3_default_profile.py` the two job checks,
+  `test_reportlab_runs_its_pure_paths` and `test_seaborn_takes_its_scipy_paths`; in
+  `test_v1_1_artifact_set.py` the font, seaborn-notice and reportlab-notice checks, their rules in
+  `tests/harness/artifacts.py`, each with a self-test of its mutants in
+  `tests/unit/test_artifact_rules.py`; `test_reportlab_writes_a_pdf_with_nothing_writable` in
+  `test_v1_4_embedding.py`; `test_a_left_out_folder_is_not_packed` in
+  `tests/unit/test_build_scripts.py`; both in `paths.PACKAGES`, `LICENCE_COMPONENTS`, 033's
+  metadata set and the artifact rules' synthetic set; seaborn in `pins.SOURCE_PATTERNS` and
+  `needs.SOURCE_COMPONENTS`; both in `tests/upstream/packages.toml` (`later`, closed by spec 067,
+  as spec 063 asks: seaborn's sdist carries `tests/` but the zip takes only its package;
+  reportlab is pinned as a wheel, which carries no tests). The new checks sit in files already
+  in their release shards.
+- `README.md` (the table's plotting and PDF rows, *seaborn and reportlab* under *What the
+  default profile carries*, and the recipe paragraph's leave-out sentence), `CHANGELOG.md` (under
+  the one unreleased section, 0.1.0a8).
+
+### Amendments at build, each with its reason
+
+1. **C1: seven Sarna files, not eight** (Decisions 4a and 7, corrected in place). EXECUTED: a
+   search of the pinned wheel's `.py` files for "Tyler C. Sarna" finds `__init__`, `code128`,
+   `code39`, `code93`, `common`, `fourstate` and `usps`. Question 73 is answered and no longer
+   in `../questions-for-the-owner.md`; its answer in `../decisions.md` names no count, so
+   nothing there changes. **C2:** the seven files are named in the Sarna part's heading
+   (`… its leading comment (Tyler C. Sarna's BSD-4-Clause notice, which heads __init__.py, …
+   and usps.py in reportlab/graphics/barcode/)`), outside the 31 lines compared byte for byte.
+   **C3:** the barcode folder stays out; the owner approved its licence (§4.12, question 73),
+   and decision 73 says a later change ships it, adds the QR and Code 128 lines and puts Sarna's
+   acknowledgement in the README's barcode line and the CHANGELOG.
+2. **Decision 5's one mechanism is spec 023's `--drop`; no `--leave-out` is added.** 023 landed
+   `--drop`, `--keep` and `--inner` in `make_stdlib_zip.py` (`Selection`). They apply to every
+   input (`add` calls `take` for the stdlib, trees, wheels, metadata and files alike), match a
+   member's name as its input gives it, before `.py` becomes `.pyc`, and stop the build in one
+   line when a rule matches nothing. So, by Decision 5's own rule, this specification extends
+   nothing and adds no option or `left_out`. A `--drop` names a folder, with or without a
+   trailing slash, never a string prefix: Decision 11's "a prefix without a trailing `/` stops
+   the build" becomes "a name that is not a folder (`pkg/su`) matches nothing and stops it". The
+   unit check pins the folder boundary (`pkg/sub` keeps `pkg/subway.py`), both spellings, the
+   stop, and matching before compiling, which a folder rule cannot show (a compiled member is
+   under the same folder) and `--keep`'s file names can (`pkg/sub=mod.py`). EXECUTED, seen
+   failing against three mutants of the rule (`build/042/mutant_plugin.py`, run by node id): one
+   that keeps the folder, one that matches a string prefix (drops `pkg/subway.py`), one given
+   compiled names (drops the kept `mod.py`).
+3. **The MIT text's pin is `wasi-libc-2e6fb9d8-LICENSE-MIT`**, not `161b3195`: spec 086 moved
+   the toolchain to wasi-sdk 34. The same bytes (SHA-256 `23f18e03…cca3`, 1,023 bytes); the
+   name follows the line's `WASI_LIBC_COMMIT`.
+4. **The QR encoder's notice and the MIT text are two parts**, so each compares byte for byte:
+   the comment block headed by its path, then the MIT text headed `The MIT licence
+   reportlab/graphics/barcode/qrencoder.py names (wasi-libc-2e6fb9d8-LICENSE-MIT)`. The check
+   compares the MIT part with MANIFEST's pin line for that file, so it holds without
+   `downloads/` too (Decision 11 asked only for its heading there).
+5. **043 landed first**: the README says bivariate kernel densities work through contourpy;
+   phase 2 confirms it with one guest probe.
+6. **The jobs as written** (Decision 10 gives their content; the text is the builder's): every
+   figure at 80 dpi through `rcParams["figure.dpi"]`, grids by their own `height`; the frame's
+   group offsets 0, 1 and 2 and `y = 1.5x + offset + N(0, 0.5)`; `clustermap` of the mean of
+   `y` by day and dose (10 × 3, `figsize=(4, 4)`); the image line reads the PDF's image object
+   through pypdf. Eighteen and eleven lines. EXECUTED under the oracle: both seeds agree, and
+   both jobs give the same bytes with `TZ=Asia/Tokyo LC_ALL=de_DE.UTF-8`
+   (`build/042/regen-write.log`); `tests/jobs/regen.py --check` reproduces all 26 jobs
+   (`build/042/regen-check.txt`).
+7. **Members and bytes, measured from the pins** (EXECUTED: step 70's own `walk`,
+   `wheel_members`, `sdist_metadata`, `Selection`, `pyc` with spec 051's code prefix and
+   `member`, under the oracle's CPython 3.15.0; `build/042/members042.py`, the names in
+   `build/042/names.txt`): **199 members**, seaborn 55 (542,483 bytes as a
+   standalone zip) and reportlab 144 (1,498,634), **2,041,117 bytes**; reportlab whole would be
+   192 members. Decision 12's 541,099 and 1,495,093 were measured before spec 051 compiled each
+   module under its zip path; the sum stays under the 2.2 MB cap.
+
+### Acceptance criterion 1 so far: seen failing first (EXECUTED)
+
+On main's accepted set (wave 06, `SHA256SUMS` `f12cd25c…`, cloned to the worktree's
+`build/old-artifacts/`, `WASI_PYTHON_ARTIFACTS` pointing at it; `build/042/seen-failing-on-main-set.txt`):
+both job checks and `test_reportlab_runs_its_pure_paths`, `test_seaborn_takes_its_scipy_paths`
+and `test_reportlab_writes_a_pdf_with_nothing_writable` fail with `ModuleNotFoundError` for
+seaborn or reportlab; the two notice checks name `LICENSES/seaborn.txt is missing` and `MANIFEST
+names no reportlab`; `test_licence_notices_cover_every_component`, `test_manifest_is_well_formed`
+and `test_packages_carry_their_metadata` name the two missing; `test_reportlab_fonts_are_not_in_the_zip`
+passes, as criterion 1 expects. The three new rules' self-tests name every mutant criterion 1
+lists for them (a font or barcode member, a vendored licence missing or one byte changed, the
+notice 039's builder wrote, one byte changed in a part, the acknowledgement removed, with and
+without the pinned archive), and the left-out unit check its three mutants (amendment 2). Phase 2
+adds the mutants of the built set: its zip without either `--drop`, and without `scipy/`.
+
+### Phase 2, when the lane grants the native slot
+
+Rebuild from empty; criterion 2 against the starting set's zip (`python.wasm` byte for byte,
+the 199 names of `build/042`'s list, none removed, shared members unchanged, both `METADATA`
+files); the built-set mutants above; the guest's results of the kde, violin and clustermap lines
+and of one bivariate `kdeplot`; the fast tier; the release workflow on the exact commit; the
+numbers of criterion 5 and Decision 12's table; the self-check list and "For the lane".

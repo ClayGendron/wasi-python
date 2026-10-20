@@ -56,6 +56,8 @@ SOURCE_PATTERNS = {
     "scipy": re.compile(r"scipy-[\w.]+\.tar\.gz"),
     # scikit-learn (spec 044)
     "scikit_learn": re.compile(r"scikit_learn-[\w.]+\.tar\.gz"),
+    # spec 042, Decision 2: seaborn from its sdist, whose package step 70 takes
+    "seaborn": re.compile(r"seaborn-[\w.]+\.tar\.gz"),
 }
 
 

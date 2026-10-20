@@ -82,6 +82,8 @@ PIN_FILES = {
     "scipy-1.18.1.tar.gz": b"scipy pin",
     "OpenBLAS-0.3.34.tar.gz": b"openblas pin",
     "scikit_learn-1.9.1.tar.gz": b"scikit-learn pin",
+    "seaborn-0.13.2.tar.gz": b"seaborn pin",
+    "reportlab-5.0.1-py3-none-any.whl": b"reportlab pin",
     "wasi-sdk-24.0-arm64-macos.tar.gz": b"sdk",
     "wasmtime-v49.0.3-aarch64-macos.tar.xz": b"wasmtime",
 }
@@ -148,6 +150,8 @@ PACKAGES = {
     "scipy": "1.18.1",
     "openblas": "0.3.34",
     "scikit-learn": "1.9.1",
+    "seaborn": "0.13.2",
+    "reportlab": "5.0.1",
 }
 TREE = {"recipes/a.c": sha(b"a"), "scripts/b.sh": sha(b"b")}
 
@@ -682,3 +686,174 @@ def test_tqdm_notice_carries_the_mpl_and_its_source(work) -> None:
     assert rules.tier_a_notice_errors(d) == [
         f"LICENSES/sympy.txt does not hold {rules.SYMPY_NESTED} as the zip carries it"
     ]
+
+
+# Spec 042: reportlab's leave-outs, and seaborn's and reportlab's notices as step 90 writes them.
+
+
+def _assemble():
+    """scripts/assemble_artifacts.py, imported as the unit checks of the build scripts import it."""
+    import sys
+
+    sys.path.insert(0, str(paths.REPO / "scripts"))
+    import assemble_artifacts
+
+    return assemble_artifacts
+
+
+def test_reportlab_fonts_and_barcodes_are_named_in_the_zip() -> None:
+    """Spec 042, criterion 1: the rule passes names without reportlab's fonts or barcode folder,
+    matplotlib's inner archive included, and names a member under either folder and a font file
+    of Decision 4's formats anywhere."""
+    good = ["reportlab/__init__.pyc", "reportlab/graphics/shapes.pyc", "matplotlib/mpl-data.zip"]
+    assert rules.reportlab_left_out_errors(good) == []
+    fonts = ["reportlab/fonts/Vera.ttf", "reportlab/fonts/_a______.pfb"]
+    barcode = ["reportlab/graphics/barcode/__init__.pyc", "reportlab/graphics/barcode/qr.pyc"]
+    assert rules.reportlab_left_out_errors(good + fonts + barcode) == [
+        "the zip holds 2 members under reportlab/fonts/, the first reportlab/fonts/Vera.ttf",
+        "the zip holds 2 members under reportlab/graphics/barcode/, the first "
+        "reportlab/graphics/barcode/__init__.pyc",
+        "the zip holds 1 font files, the first reportlab/fonts/_a______.pfb",
+    ]
+    assert rules.reportlab_left_out_errors([*good, "x/DarkGardenMK.sfd", "y/Z.AFM"]) == [
+        "the zip holds 2 font files, the first x/DarkGardenMK.sfd"
+    ]
+
+
+SEABORN_FILES = {
+    "LICENSE.md": b"Copyright (c) 2012-2023, Michael L. Waskom\n",
+    "licences/APPDIRS_LICENSE": b"appdirs: MIT\n",
+    "licences/HUSL_LICENSE": b"husl: MIT\n",
+    "licences/NUMPYDOC_LICENSE": b"numpydoc: BSD-2-Clause\n",
+    "licences/PACKAGING_LICENSE": b"packaging: BSD-2-Clause\n",
+    "licences/SCIPY_LICENSE": b"scipy: BSD-3-Clause\n",
+}
+
+
+def _seaborn_set(work: Path) -> tuple[Path, Path]:
+    """A set whose LICENSES/seaborn.txt step 90's own code wrote from a synthetic sdist."""
+    sdist = work / "seaborn-0.13.2.tar.gz"
+    with tarfile.open(sdist, "w:gz") as t:
+        for name, data in SEABORN_FILES.items():
+            info = tarfile.TarInfo(f"seaborn-0.13.2/{name}")
+            info.size = len(data)
+            t.addfile(info, io.BytesIO(data))
+    assemble = _assemble()
+    assert assemble.SEABORN_NOTICES == rules.SEABORN_NOTICES
+    d = work / "seaborn-set"
+    (d / "LICENSES").mkdir(parents=True)
+    parts = [(f"seaborn {n}", SEABORN_FILES[n]) for n in assemble.SEABORN_NOTICES]
+    (d / "LICENSES" / "seaborn.txt").write_bytes(assemble.notice(parts))
+    return d, sdist
+
+
+def test_seaborn_notice_carries_its_vendored_licences(work) -> None:
+    """Spec 042, criterion 1: the notice step 90 writes passes with the sdist and without it; a
+    missing notice, a vendored licence left out, and one byte changed are named (the byte only
+    with the sdist; a heading missing either way)."""
+    d, sdist = _seaborn_set(work)
+    notice = d / "LICENSES" / "seaborn.txt"
+    good = notice.read_bytes()
+    assert rules.seaborn_notice_errors(d, sdist) == []
+    assert rules.seaborn_notice_errors(d, None) == []
+    no_husl = ["LICENSES/seaborn.txt has no part headed 'seaborn licences/HUSL_LICENSE'"]
+    notice.write_bytes(good.replace(b"==== seaborn licences/HUSL_LICENSE ====\nhusl: MIT\n\n", b""))
+    assert rules.seaborn_notice_errors(d, sdist) == no_husl
+    assert rules.seaborn_notice_errors(d, None) == no_husl
+    notice.write_bytes(good.replace(b"scipy: BSD-3", b"scipy: BSD-4"))
+    assert rules.seaborn_notice_errors(d, sdist) == [
+        "LICENSES/seaborn.txt: 'seaborn licences/SCIPY_LICENSE' is not "
+        "seaborn-0.13.2.tar.gz's licences/SCIPY_LICENSE"
+    ]
+    assert rules.seaborn_notice_errors(d, None) == []
+    notice.unlink()
+    assert rules.seaborn_notice_errors(d, sdist) == ["LICENSES/seaborn.txt is missing"]
+
+
+SARNA = (
+    b"#\n# Copyright (c) 1996-2000 Tyler C. Sarna <tsarna@sarna.org>\n"
+    b"# 3. All advertising materials mentioning features or use of this software\n"
+    b"#    must display the following acknowledgement:\n"
+    b"#      This product includes software developed by Tyler C. Sarna.\n#\n"
+)
+ADOBE = b"# Copyright 2002-2019 Adobe (http://www.adobe.com/).\n# Redistribution and use\n"
+QR = (
+    b"# Copyright (c) 2014 Open End AB http://www.openend.se/\n"
+    b"# Copyright (c) 2009 Kazuhiko Arase\n# Licensed under the MIT license:\n"
+)
+RL_LICENCE = b"Copyright ReportLab Europe Ltd. 2000-2026\nBSD\n"
+MIT = b"MIT License\n\nPermission is hereby granted, free of charge\n"
+
+
+def _reportlab_set(work: Path) -> tuple[Path, Path]:
+    """A set whose LICENSES/reportlab.txt step 90's own code wrote from a synthetic wheel and MIT
+    text in a downloads folder that pins them; MANIFEST names reportlab and the MIT pin."""
+    assemble = _assemble()
+    dl = work / "downloads"
+    dl.mkdir()
+    wheel = dl / assemble.REPORTLAB_WHEEL
+    with zipfile.ZipFile(wheel, "w") as z:
+        z.writestr("reportlab-5.0.1.dist-info/licenses/LICENSE", RL_LICENCE)
+        z.writestr("reportlab/graphics/barcode/__init__.py", SARNA + b"__all__ = ()\n")
+        z.writestr("reportlab/pdfbase/_glyphlist.py", ADOBE + b"_names = {}\n")
+        z.writestr("reportlab/graphics/barcode/qrencoder.py", QR + b"\nimport re\n")
+    (dl / assemble.MIT_TEXT).write_bytes(MIT)
+    (dl / "SHA256SUMS").write_text(
+        f"{paths.sha256_file(wheel)}  {wheel.name}\n{sha(MIT)}  {assemble.MIT_TEXT}\n"
+    )
+    d = work / "reportlab-set"
+    (d / "LICENSES").mkdir(parents=True)
+    parts = assemble.wheel_licences(wheel) + assemble.reportlab_parts(dl)
+    (d / "LICENSES" / "reportlab.txt").write_bytes(assemble.notice(parts))
+    (d / "MANIFEST").write_text(
+        f"python 3.15.0\npackage reportlab 5.0.1\npin {sha(MIT)} {assemble.MIT_TEXT}\n"
+    )
+    return d, wheel
+
+
+def test_reportlab_notice_carries_its_third_party_parts(work) -> None:
+    """Spec 042, criterion 1: the notice step 90 writes passes with the wheel and without it; the
+    notice 039's builder wrote (the wheel's LICENSE alone) is named for its three missing parts
+    and the MIT text; one byte changed in a comment part is named with the wheel; Sarna's
+    acknowledgement removed, and one byte changed in the MIT text, are named either way."""
+    d, wheel = _reportlab_set(work)
+    notice = d / "LICENSES" / "reportlab.txt"
+    good = notice.read_bytes()
+    assert rules.reportlab_notice_errors(d, wheel) == []
+    assert rules.reportlab_notice_errors(d, None) == []
+    assert b"heads __init__.py, code128.py, code39.py, code93.py, common.py, fourstate.py" in good
+
+    assemble = _assemble()
+    notice.write_bytes(assemble.notice(assemble.wheel_licences(wheel)))
+    head = "reportlab-5.0.1-py3-none-any.whl: reportlab/"
+    files = (
+        "graphics/barcode/__init__.py",
+        "pdfbase/_glyphlist.py",
+        "graphics/barcode/qrencoder.py",
+    )
+    missing = [
+        f"LICENSES/reportlab.txt has no part headed '{head}{n}, its leading comment'" for n in files
+    ] + [f"LICENSES/reportlab.txt does not hold the MIT text of {assemble.MIT_TEXT}"]
+    assert rules.reportlab_notice_errors(d, wheel) == missing
+    assert rules.reportlab_notice_errors(d, None) == missing
+
+    notice.write_bytes(good.replace(b"(http://www.adobe.com/)", b"(http://www.adobe.org/)"))
+    assert rules.reportlab_notice_errors(d, wheel) == [
+        "LICENSES/reportlab.txt: reportlab/pdfbase/_glyphlist.py's part is not its leading comment"
+    ]
+    assert rules.reportlab_notice_errors(d, None) == []
+
+    notice.write_bytes(good.replace(b"#      This product includes software developed by", b"#"))
+    ack = [
+        "LICENSES/reportlab.txt: reportlab/graphics/barcode/__init__.py's part is not its "
+        "leading comment",
+        "LICENSES/reportlab.txt: reportlab/graphics/barcode/__init__.py's part lacks Sarna's "
+        "acknowledgement",
+    ]
+    assert rules.reportlab_notice_errors(d, wheel) == ack
+    assert rules.reportlab_notice_errors(d, None) == ack[1:]
+
+    notice.write_bytes(good.replace(b"free of charge", b"free of charges"))
+    no_mit = [f"LICENSES/reportlab.txt does not hold the MIT text of {assemble.MIT_TEXT}"]
+    assert rules.reportlab_notice_errors(d, wheel) == no_mit
+    assert rules.reportlab_notice_errors(d, None) == no_mit

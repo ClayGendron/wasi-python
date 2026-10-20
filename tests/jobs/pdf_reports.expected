@@ -1,0 +1,11 @@
+versions reportlab=5.0.1 pypdf=6.21.1 matplotlib=3.11.2 pillow=13.0.0
+letter 2846 8ab709dc7bb5c5d92dea624c0144015bc444f3bb42c9634a1ad8803f4661349f
+letter read pages 2 title 'A letter from the guest' author 'wasi_python' text ['Quarterly sales\nDear reader, the figures are below.\ntotal = 1234.50\nSee example.org\n', 'Page two: yours sincerely.\n']
+letter compressed read pages 2 title 'A letter from the guest' author 'wasi_python' text ['Quarterly sales\nDear reader, the figures are below.\ntotal = 1234.50\nSee example.org\n', 'Page two: yours sincerely.\n']
+stringWidth 130.068
+report 4860 86b94e905bfad221616cd6223ceff418b2334f822db7434cccca9481d1e43e4f pages 2 title 'Sales report' author 'wasi_python' text ['Page 1\n Sales by region\nTotals are summed over every month, in euros.\nregion\nmonths\ntotal\nmean\nnorth\n12\n1734.71\n144.56\nsouth\n12\n1714.62\n142.88\nwest\n12\n1697.32\n141.44\n\x7f\nnorth: best month 169.65\n\x7f\nsouth: best month 166.24\n\x7f\nwest: best month 163.12\n', 'Page 2\nThe second page holds a long paragraph that wraps. The second page holds a long paragraph that\nwraps. The second page holds a long paragraph that wraps. The second page holds a long\nparagraph that wraps. The second page holds a long paragraph that wraps. The second page holds\na long paragraph that wraps. The second page holds a long paragraph that wraps. The second\npage holds a long paragraph that wraps. The second page holds a long paragraph that wraps. The\nsecond page holds a long paragraph that wraps. The second page holds a long paragraph that\nwraps. The second page holds a long paragraph that wraps.\n']
+charts pdf 37acda6e40ac3d26d08c1498a73fe4b7538ac18dff6dba623899bd521b20a393 svg 9baeb00b881746a9a11d8a865f2f50c8c4e4a143b399cd473b92a31858a1b2f5
+pie svg 7555c139c2566b686da22bc004e280a736aea361a55a23d2b779763f6cda3ca7
+renderPM RenderPMError cannot import desired renderPM backend rlPyCairo
+unicode 42178 34e8bd4796d1da5da90fc4365647231e7b294b0f4b29d02590ea18b5c6ba26ec pages 1 title 'Unicode' author 'wasi_python' text ['Grüße, naïve café: Σ x² ≤ 10 €\n']
+image (150, 100) [(150, 100)]

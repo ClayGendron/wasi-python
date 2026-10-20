@@ -322,6 +322,70 @@ def test_main_puts_entry_points_beside_metadata_or_stops(tmp_path, monkeypatch) 
         assert z.read("some_pkg-1.0.dist-info/entry_points.txt") == entry
 
 
+def test_a_left_out_folder_is_not_packed(tmp_path, monkeypatch) -> None:
+    """Spec 042, Decision 5: a wheel's folder is left out by spec 023's `--drop`, which applies to
+    every input, so no option of its own is added. `Selection.take` drops exactly the members
+    under the folder, whether written with a trailing slash or not, keeps a sibling whose name
+    only starts the same (`pkg/subway.py`), and records the folder as matched; it is given each
+    member's name before `.py` becomes `.pyc`. Through main(), the zip holds the rest with their
+    compiled names and nothing under the folder; a folder that matches nothing (a renamed
+    upstream folder, a string prefix that is not a folder, a compiled file's name) stops the build
+    in one line naming it."""
+    wheel = tmp_path / "pkg-1.0-py3-none-any.whl"
+    members = {
+        "pkg/__init__.py": b"x = 1\n",
+        "pkg/subway.py": b"y = 2\n",
+        "pkg/sub/__init__.py": b"",
+        "pkg/sub/mod.py": b"z = 3\n",
+        "pkg/sub/fonts/Vera.ttf": b"font",
+        "pkg-1.0.dist-info/METADATA": b"Metadata-Version: 2.1\nName: pkg\nVersion: 1.0\n\n",
+    }
+    with zipfile.ZipFile(wheel, "w") as z:
+        for name, data in members.items():
+            z.writestr(name, data)
+    for written in ("pkg/sub", "pkg/sub/"):
+        chosen = make_stdlib_zip.Selection([written], [], [])
+        seen = []
+        for data, name in make_stdlib_zip.wheel_members(wheel):
+            if chosen.take(data, name):
+                seen.append(name)
+        assert seen == ["pkg-1.0.dist-info/METADATA", "pkg/__init__.py", "pkg/subway.py"]
+        assert chosen.matched == {"pkg/sub"}
+        chosen.check()
+    # Names are matched as the input gives them, before compiling: a file kept by name is named
+    # with its .py, which a rule given the compiled name would not find.
+    chosen = make_stdlib_zip.Selection([], ["pkg/sub=mod.py"], [])
+    kept = [name for data, name in make_stdlib_zip.wheel_members(wheel) if chosen.take(data, name)]
+    assert kept == [
+        "pkg-1.0.dist-info/METADATA",
+        "pkg/__init__.py",
+        "pkg/sub/mod.py",
+        "pkg/subway.py",
+    ]
+    chosen.check()
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(make_stdlib_zip, "TARGET", sys.version_info[:2])
+    monkeypatch.setattr(make_stdlib_zip, "REWRITE", ())
+    monkeypatch.setenv("PYTHONHASHSEED", "0")
+    (tmp_path / "lib").mkdir()
+    base = ["make_stdlib_zip.py", "--lib", "lib", "--wheel", wheel.name]
+    monkeypatch.setattr(sys, "argv", [*base, "--drop", "pkg/sub", "out.zip"])
+    make_stdlib_zip.main()
+    with zipfile.ZipFile(tmp_path / "out.zip") as z:
+        assert sorted(z.namelist()) == [
+            "pkg-1.0.dist-info/METADATA",
+            "pkg/__init__.pyc",
+            "pkg/subway.pyc",
+        ]
+    for wrong in ("pkg/gone", "pkg/su", "pkg/sub/mod.pyc"):
+        monkeypatch.setattr(sys, "argv", [*base, "--drop", wrong, "out.zip"])
+        with pytest.raises(SystemExit) as stop:
+            make_stdlib_zip.main()
+        line = str(stop.value)
+        assert line == f"--drop, --keep or --inner matched no member: {wrong}", line
+
+
 def test_a_tree_with_package_metadata_stops_the_zip(tmp_path) -> None:
     for folder in ("x-1.0.dist-info", "x.egg-info"):
         tree = tmp_path / folder.replace(".", "_")

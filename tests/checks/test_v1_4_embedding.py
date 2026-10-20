@@ -735,6 +735,35 @@ def test_runner_serves_concurrent_calls_on_one_root(guest_workdir) -> None:
     }, done
 
 
+REPORTLAB_IN_MEMORY = """
+import io
+from reportlab.pdfgen import canvas
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Table
+buf = io.BytesIO()
+c = canvas.Canvas(buf, invariant=1)
+c.drawString(72, 720, "nothing writable")
+c.save()
+doc = io.BytesIO()
+SimpleDocTemplate(doc, invariant=1).build(
+    [Paragraph("A report", getSampleStyleSheet()["Title"]), Table([["a", "b"], ["1", "2"]])]
+)
+for data in (buf.getvalue(), doc.getvalue()):
+    print(data[:5].decode(), len(data))
+"""
+
+
+def test_reportlab_writes_a_pdf_with_nothing_writable() -> None:
+    """With no root and no grant, the runner's defaults, nothing is writable (§4.15), and
+    reportlab still builds a canvas PDF and a platypus PDF in memory: unlike openpyxl it needs
+    no temporary folder (spec 042, Decision 8)."""
+    run = _runner()
+    done = run(["-c", REPORTLAB_IN_MEMORY])
+    assert done.exit_code == 0, done
+    lines = [line.split() for line in done.stdout.decode().splitlines()]
+    assert [(head, int(n) > 500) for head, n in lines] == [("%PDF-", True)] * 2, done
+
+
 def test_package_imports_without_wasmtime() -> None:
     """The package imports where wasmtime-py cannot (an embedder that installed with `--no-deps`
     to keep its own binding, or a platform wasmtime cannot load on); only run() needs wasmtime

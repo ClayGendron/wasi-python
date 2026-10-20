@@ -318,3 +318,15 @@ closes_with = "spec 067"
 kind = "later"
 reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
 closes_with = "spec 067"
+
+[package.seaborn]
+# spec 042: pinned as its sdist, which carries its tests/ folder; step 70 takes only its package.
+kind = "later"
+reason = "its own suite is not run yet (its sdist is pinned and carries tests/; the zip takes only its package)"
+closes_with = "spec 067"
+
+[package.reportlab]
+# spec 042: its sdist carries tests/ but is not pinned (the wheel is the package the zip holds).
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"

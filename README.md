@@ -684,7 +684,12 @@ wheel's `entry_points.txt`): a wheel's own, and numpy's and pandas' from their p
 `PKG-INFO`. A pure-Python package that needs a carried patch comes from its pinned sdist, never
 from a patched wheel: networkx's package folder is staged from its sdist and patched there, and
 its `METADATA` and `entry_points.txt` are the sdist's `PKG-INFO` and `.egg-info/entry_points.txt`,
-byte for byte its wheel's (spec 041).
+byte for byte its wheel's (spec 041). seaborn's package also comes from its sdist, the one pin
+that holds the licences of the code it vendors (its wheel holds one licence; the two packages are
+the same bytes). A wheel may have a folder left out of the zip by the same rule that leaves out
+matplotlib's `testing/` folder: reportlab's `fonts/` (their licences are not approved, and
+reportlab cannot read them from a zip) and, until a later change ships it with Tyler C. Sarna's
+acknowledgement, its `graphics/barcode/` (spec 042).
 
 One host input is not pinned: the native C compiler and `make` that CPython's
 driver uses to build its own build-Python. Nothing it compiles is linked into
@@ -2158,15 +2163,17 @@ guest's file on the host.
 Besides the stdlib, numpy 2.5.2, pandas 3.0.6, scipy 1.18.1, scikit-learn 1.9.1 (see
 *scikit-learn in the guest*), matplotlib 3.11.2 (with Pillow, kiwisolver, fontTools, cycler,
 pyparsing and packaging), lxml 6.1.3 and regex, the zip carries thirty
-pure-Python packages (spec 039), in seven families. Each family has a golden job whose output
-equals native Python's at the same pins.
+pure-Python packages (spec 039), in seven families, and seaborn and reportlab (spec 042). Each
+family has a golden job whose output equals native Python's at the same pins.
 
 | family | distribution and version | what an agent uses it for |
 |---|---|---|
 | Excel | openpyxl 3.1.5, et-xmlfile 2.0.0 | read and write `.xlsx`; pandas' `.xlsx` reader |
 | | xlsxwriter 3.2.9 | write `.xlsx` (pandas' default writer), in memory too |
 | | xlrd 2.0.2 | read old `.xls` files |
+| plotting | seaborn 0.13.2 (beside matplotlib) | statistical plots over pandas frames |
 | PDF | pypdf 6.21.1 | read, extract text, merge, split, encrypt (RC4) |
+| | reportlab 5.0.1 | write PDFs: text, tables, charts, Unicode text, images |
 | HTML and XML | beautifulsoup4 4.15.0, soupsieve 3.0.3 | parse messy HTML, CSS selectors |
 | | html5lib 1.1, webencodings 0.6.1 | a browser's HTML parsing; bs4's `html5lib` parser |
 | | defusedxml 0.7.1 | parse untrusted XML, refusing entity tricks |
@@ -2245,6 +2252,51 @@ writable stays the default (decision 46).
 - pytz is not carried (decision 47): use `zoneinfo`, which reads the zip's tzdata.
 - Not carried, so each raises its `ImportError` as natively without it: antlr4 or lark for
   sympy's `parse_latex`, odfpy for pandas' `engine="odf"`, pyxlsb for `.xlsb`.
+
+### seaborn and reportlab
+
+Both are pure Python. seaborn draws through matplotlib; reportlab writes PDFs (spec 042).
+
+- `import seaborn` imports `matplotlib.pyplot`, which needs a writable cache folder: give the
+  call a writable grant and point `MPLCONFIGDIR` at it, as for matplotlib. With nothing
+  writable, `import seaborn` raises matplotlib's `OSError`.
+- `sns.load_dataset` cannot fetch (there is no network), and how it fails depends on what is
+  writable, because seaborn first makes its cache folder under a `~` the guest cannot expand:
+  with nothing writable, `import seaborn` itself fails (above); with only the `MPLCONFIGDIR`
+  grant, `load_dataset` raises `PermissionError` naming `'~'`; with a writable root, it makes a
+  folder `/~/.cache/seaborn` in that root and then raises `URLError` (`unknown url type:
+  https`). Put the CSV in a granted folder and read it with `pd.read_csv`.
+- seaborn uses scipy, which is compiled in: its kernel densities are `scipy.stats.gaussian_kde`
+  and `clustermap` clusters with `scipy.cluster.hierarchy`, so `import seaborn` also pays
+  scipy's import.
+- Bivariate kernel densities (`kdeplot(x=…, y=…)`, `jointplot(kind="kde")`) draw contours
+  through contourpy (spec 043).
+- `regplot(lowess=True)`, `logistic=True` and `robust=True` need statsmodels, which is not
+  carried yet (spec 045): each raises seaborn's own `RuntimeError` naming it, as natively
+  without it.
+- reportlab builds PDFs in memory with nothing writable: a canvas, a platypus document,
+  `renderPDF` and `renderSVG` charts. It stamps the time and a random document id into each PDF;
+  pass `invariant=1` for the same bytes on every run.
+- reportlab's own fonts are not shipped: their licences are not approved, and reportlab cannot
+  read its files from a zip on any Python from 3.13 (`TTFont("Vera", "Vera.ttf")` raises
+  `TTFError`; the upstream facts sheet is `context/upstream/14-reportlab-zipimporter-files/`).
+  The fourteen standard PDF fonts (Helvetica, Times, Courier, Symbol, ZapfDingbats) need no
+  file. For Unicode text, register DejaVu Sans from matplotlib's data, or any TrueType file in a
+  granted folder:
+
+  ```python
+  path = os.path.join(matplotlib.get_data_path(), "fonts", "ttf", "DejaVuSans.ttf")
+  pdfmetrics.registerFont(TTFont("DejaVuSans", path))
+  ```
+- reportlab has no bitmap renderer: `renderPM` needs rlPyCairo, a Cairo binding that is not
+  carried, and raises `RenderPMError`. Draw a chart to PDF or SVG (`renderPDF`, `renderSVG`), or
+  draw the bitmap with matplotlib or seaborn.
+- reportlab's barcode and QR code modules (`reportlab.graphics.barcode`) are not in the zip yet:
+  `from reportlab.graphics.barcode import qr` raises `ModuleNotFoundError`. A later change ships
+  them; their licence notices already ship in `LICENSES/reportlab.txt`.
+- Pillow has no JPEG decoder here: `drawImage("photo.jpg", …)` by path embeds the JPEG
+  undecoded and works, while a JPEG through `ImageReader` or a PIL image raises
+  `OSError: decoder jpeg not available`. PNG works both ways.
 
 ### What it costs
 
