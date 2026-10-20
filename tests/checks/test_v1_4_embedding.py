@@ -5402,3 +5402,38 @@ def test_excel_output_needs_a_writable_folder_or_xlsxwriter_in_memory(guest_work
     assert kind == "builtins.FileNotFoundError", got
     assert "No usable temporary directory" in message, got
     assert got["to_excel"][0] == "xlsxwriter.exceptions.FileCreateError", got
+
+
+def test_the_judges_writable_roots_are_outside_the_home_folder(guest_workdir) -> None:
+    """Guards a change (spec 097): macOS's folder-size cache writes `.DS_Store` into folders under
+    the home folder, and a writable root cannot be sealed against it (spec 089's residual), so a
+    long run there was voided by `HostLitter`. On darwin every folder the judge's driver grants a
+    guest unsealed lives under `paths.GUEST_TMP`, in the per-user temporary folder: a real path
+    with no link in it (the runner refuses a link in a folder the user can write), outside the
+    home folder, on the checkout's device (the fuel proof covers one device). Elsewhere it stays
+    under `paths.HARNESS_TMP`. No artifact: a WAT command run through the driver, unmeasured."""
+    needs.need("wasmtime-py")
+    from harness import guest as driver
+    from harness import wat
+
+    wasm = wat.build(guest_workdir, "exit7.wasm", wat.COMMAND_EXIT_7)
+    done = driver.run(wasm, [], workdir=guest_workdir, measured=False)
+    assert done.exit_code == 7, done
+    root = Path(done.root)
+    if sys.platform != "darwin":
+        assert root.is_relative_to(paths.HARNESS_TMP), root
+        return
+    assert os.path.realpath(root) == str(root), f"{root} passes through a link"
+    home = Path(os.path.realpath(Path.home()))
+    assert not root.is_relative_to(home), (
+        f"a writable guest root under the home folder: {root}; macOS writes .DS_Store there"
+        " (spec 097; set TMPDIR to a folder outside the home folder)"
+    )
+    assert root.is_relative_to(paths.GUEST_TMP), (root, paths.GUEST_TMP)
+    paths.HARNESS_TMP.mkdir(parents=True, exist_ok=True)
+    devices = os.stat(paths.GUEST_TMP).st_dev, os.stat(paths.HARNESS_TMP).st_dev
+    assert devices[0] == devices[1], (
+        f"{paths.GUEST_TMP} (device {devices[0]}) and {paths.HARNESS_TMP} (device {devices[1]})"
+        " are on two devices; the fuel proof covers one (spec 097): set TMPDIR to a folder on the"
+        " checkout's volume outside the home folder"
+    )

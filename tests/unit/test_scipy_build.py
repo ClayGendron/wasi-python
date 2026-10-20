@@ -364,3 +364,122 @@ def test_the_openblas_patch_script_counts_no_host_litter(tmp_path) -> None:
         "lapack-netlib/SRC/sgesv.c",
     ], named
     assert not any("DS_Store" in p.read_text() for p in out.glob("*.patch"))
+
+
+# A `git` first on PATH that plays macOS's folder-size cache around each `add` (spec 097): the
+# script's `env -i` keeps PATH, so every git call it makes goes through this wrapper, which runs the
+# git the row would otherwise find. The writer always lands between the add and what follows it,
+# so the race is simulated deterministically.
+GIT_WRAPPER = """#!/bin/sh
+real='{real}'
+mode='{mode}'
+tree= prev= sub=
+for a do
+  [ "$prev" = "-C" ] && tree=$a
+  if [ -z "$sub" ]; then
+    case "$a" in add|rm|update-index|init|commit|diff|ls-files|reset) sub=$a ;; esac
+  fi
+  prev=$a
+done
+[ "$sub" = add ] || exec "$real" "$@"
+plant() {{
+  for d in "$tree" "$tree/lapack-netlib"; do
+    printf '%s' "$1" > "$d/.DS_Store"
+  done
+}}
+if [ "$mode" = no-excludes ]; then  # as if the excludes missed the litter
+  for a do
+    shift
+    case "$a" in --pathspec-from-file=*|--pathspec-file-nul) ;; *) set -- "$@" "$a" ;; esac
+  done
+fi
+plant 'Bud1 before the add'
+[ "$mode" = unreadable ] && chmod 000 "$tree/.DS_Store" "$tree/lapack-netlib/.DS_Store"
+"$real" "$@"
+status=$?
+chmod 644 "$tree/.DS_Store" "$tree/lapack-netlib/.DS_Store"
+plant 'Bud1 rewritten after the add, longer'
+exit $status
+"""
+
+
+def _openblas_script_with_a_writer(tmp_path, mode: str) -> None:
+    """Spec 090's stand-in layout (a made tarball, a stand-in convention script, the real
+    make_openblas_void_patch.sh and its helpers), run with GIT_WRAPPER in `mode` first on PATH;
+    the script must succeed and its patches name the three changed files and no litter."""
+    import hashlib
+    import tarfile
+
+    real = shutil.which("git")
+    assert real, "no git on PATH"
+    repo = tmp_path / "repo"
+    for rel in ("make_openblas_void_patch.sh", "steps/remove.sh", "litter.py"):
+        (repo / "scripts" / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(paths.REPO / "scripts" / rel, repo / "scripts" / rel)
+    (repo / "scripts" / "openblas_make_void.py").write_text(FAKE_MAKE_VOID)
+    src = tmp_path / "src" / "OpenBLAS-0.3.34"
+    for rel in (
+        "lapack-netlib/SRC/cgesv.c",
+        "lapack-netlib/SRC/sgesv.c",
+        "lapack-netlib/INSTALL/ilaver.c",
+        "Makefile",
+    ):
+        (src / rel).parent.mkdir(parents=True, exist_ok=True)
+        (src / rel).write_text("int f(void) { return 0; }\n")
+    (repo / "downloads").mkdir()
+    tarball = repo / "downloads" / "OpenBLAS-0.3.34.tar.gz"
+    with tarfile.open(tarball, "w:gz") as t:
+        t.add(src, arcname="OpenBLAS-0.3.34")
+    sha = hashlib.sha256(tarball.read_bytes()).hexdigest()
+    (repo / "downloads" / "SHA256SUMS").write_text(f"{sha}  OpenBLAS-0.3.34.tar.gz\n")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    wrapper = bin_dir / "git"
+    wrapper.write_text(GIT_WRAPPER.format(real=real, mode=mode))
+    wrapper.chmod(0o755)
+    env = {
+        **os.environ,
+        "PATH": str(bin_dir) + os.pathsep + os.environ["PATH"],
+        "PYTHON": sys.executable,
+    }
+    out = tmp_path / "out"
+    done = subprocess.run(
+        [SH, str(repo / "scripts" / "make_openblas_void_patch.sh"), str(out)],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert done.returncode == 0, done.stderr[-800:]
+    named = sorted(
+        line for f in sorted(out.glob("*.files")) for line in f.read_text().splitlines() if line
+    )
+    assert named == [
+        "lapack-netlib/INSTALL/ilaver.c",
+        "lapack-netlib/SRC/cgesv.c",
+        "lapack-netlib/SRC/sgesv.c",
+    ], named
+    assert not any("DS_Store" in p.read_text() for p in out.glob("*.patch"))
+
+
+def test_the_openblas_patch_script_survives_litter_rewritten_after_its_add(tmp_path) -> None:
+    """Guards a change (spec 097): macOS rewrote a `.DS_Store` between the script's `git add` and
+    its `git rm --cached`, which then refused ("staged content different from both the file and
+    the HEAD") and failed the OpenBLAS check. Litter is now excluded from the add."""
+    _openblas_script_with_a_writer(tmp_path, "rewrite")
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32" or os.geteuid() == 0, reason="a mode does not stop a read here"
+)
+def test_the_openblas_patch_script_never_reads_host_litter(tmp_path) -> None:
+    """Guards a change (spec 097): `git add` opens every file it stages, so a litter file the
+    writer truncates, removes or holds unreadable mid-add failed it ("Permission denied"). The
+    add excludes litter by pathspec, so git never opens one."""
+    _openblas_script_with_a_writer(tmp_path, "unreadable")
+
+
+def test_the_openblas_patch_script_unstages_litter_its_add_staged(tmp_path) -> None:
+    """Guards a change (spec 097, its pre-build review F2): if the excludes ever miss a litter
+    path, the add stages it; the unstage removes it with `git update-index --force-remove`, which
+    asks nothing of the work tree, so a rewrite after the add cannot make it refuse."""
+    _openblas_script_with_a_writer(tmp_path, "no-excludes")

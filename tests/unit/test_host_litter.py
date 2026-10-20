@@ -162,3 +162,56 @@ def test_sealed_leftovers_are_named(tmp_path: Path) -> None:
     assert str(root) in litter.sealed_leftovers(tmp_path)
     litter.remove(root)
     assert litter.sealed_leftovers(tmp_path) == []
+
+
+def test_the_guest_folders_leave_the_home_folder_on_darwin(tmp_path: Path) -> None:
+    """Spec 097, Decision 1: on darwin the judge's guest folders go under the per-user temporary
+    folder, by its real path, in a folder keyed by the checkout (two worktrees never share one,
+    and the runner's `wasi-python-` names are never used); elsewhere they stay in build/harness."""
+    from harness import paths
+
+    one = paths._guest_tmp_for(Path("/x/one"), str(tmp_path), "darwin")
+    two = paths._guest_tmp_for(Path("/x/two"), str(tmp_path), "darwin")
+    assert one != two and one.parent == two.parent == Path(os.path.realpath(tmp_path))
+    assert one.name.startswith("judge-wasi_python-") and len(one.name) == len("judge-wasi_python-") + 12
+    assert paths._guest_tmp_for(Path("/x/one"), str(tmp_path), "linux") == Path("/x/one/build/harness")
+    assert paths._guest_tmp_for(Path("/x/one"), str(tmp_path), "win32") == Path("/x/one/build/harness")
+    if sys.platform == "darwin":
+        assert paths.GUEST_TMP != paths.HARNESS_TMP
+    else:
+        assert paths.GUEST_TMP == paths.HARNESS_TMP
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX links and modes")
+def test_the_guest_folders_root_is_real_and_private(tmp_path: Path) -> None:
+    """Spec 097, Decision 1: the temporary folder is taken by its real path (no link), and the
+    keyed folder is used only when it is a real folder of this user's with no group or other
+    bits; anything else is refused by name."""
+    from harness import paths
+
+    real = tmp_path / "real"
+    real.mkdir()
+    (tmp_path / "link").symlink_to(real)
+    got = paths._guest_tmp_for(Path("/x/one"), str(tmp_path / "link"), "darwin")
+    assert got.parent == Path(os.path.realpath(real))
+    made = paths._make_guest_tmp(tmp_path / "g")
+    assert made.is_dir() and (made.stat().st_mode & 0o777) == 0o700
+    assert paths._make_guest_tmp(made) == made  # again: the same folder
+    (tmp_path / "open").mkdir(mode=0o755)
+    os.chmod(tmp_path / "open", 0o755)
+    with pytest.raises(AssertionError, match="open"):
+        paths._make_guest_tmp(tmp_path / "open")
+    (tmp_path / "linked").symlink_to(real)
+    with pytest.raises(AssertionError, match="linked"):
+        paths._make_guest_tmp(tmp_path / "linked")
+
+
+def test_a_measured_run_may_not_name_the_guest_folders(tmp_path: Path, monkeypatch) -> None:
+    """Spec 097, Decision 5 (spec 081 kept): `host_roots_always` holds `GUEST_TMP`, so a measured
+    run whose input names a host path there is refused, wherever the temporary folder is."""
+    from harness import guest, paths
+
+    g = tmp_path / "judge-wasi_python-0123456789ab"
+    monkeypatch.setattr(paths, "GUEST_TMP", g)
+    assert g in guest.host_roots_always()
+    assert guest.host_paths_in(guest.host_roots_always(), [str(g / "guest-x" / "f")]) == ["argv[1]"]

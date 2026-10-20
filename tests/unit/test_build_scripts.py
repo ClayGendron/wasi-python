@@ -185,6 +185,46 @@ def test_the_scripts_litter_is_the_judges() -> None:
     assert [paths.has_litter(r) for r in rels] == [False, True, True, True, False]
 
 
+def test_the_git_excludes_keep_out_exactly_the_litter(tmp_path) -> None:
+    """Spec 097, Decision 7: the pathspecs make_openblas_void_patch.sh adds with leave out of the
+    index exactly the paths `has_litter` names, through real git, so git never opens a litter
+    file and the unstage (by `has_litter`) has nothing left to do."""
+    assert not any(set(n) & set("*?[]\\") for n in litter.OS_LITTER), "a glob character"
+    keep = ["keep.c", "sub/keep.c", "DS_Store", "x._y", "Icon", ".DS_Store.bak", ".gitignore"]
+    drop = [".DS_Store", "sub/deep/.DS_Store", "sub/._x.c", "._top", ".Trashes/inside", "._d/f"]
+    drop += ["Thumbs.db", "sub/desktop.ini", ".Spotlight-V100/a", "sub/ehthumbs.db"]
+    if sys.platform != "win32":  # a name with a carriage return
+        drop += ["Icon\r", "sub/Icon\r"]
+    tree = tmp_path / "tree"
+    for rel in keep + drop:
+        (tree / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tree / rel).write_text("")
+    assert [litter.has_litter(r) for r in keep + drop] == [False] * len(keep) + [True] * len(drop)
+    specs = tmp_path / "add.pathspec"
+    specs.write_bytes(b"\0".join(s.encode() for s in [".", *litter.git_excludes()]))
+    env = {
+        "PATH": os.environ["PATH"],
+        "HOME": str(tmp_path),
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CEILING_DIRECTORIES": str(tmp_path),
+    }
+
+    def git(*args: str) -> str:
+        done = subprocess.run(
+            ["git", "-c", "core.quotePath=false", "-C", str(tree), *args],
+            capture_output=True,
+            env=env,
+        )
+        assert done.returncode == 0, done.stderr.decode(errors="replace")
+        return done.stdout.decode()
+
+    git("init", "-q")
+    git("add", "-A", "--force", f"--pathspec-from-file={specs}", "--pathspec-file-nul")
+    staged = sorted(p for p in git("ls-files", "--cached", "-z").split("\0") if p)
+    assert staged == sorted(keep), staged
+
+
 @pytest.mark.skipif(sys.platform == "win32", reason="a Windows file name cannot hold Icon\\r's CR")
 def test_the_repository_ignores_litter_itself() -> None:
     """Step 90's untracked check and `paths.dirty_path` must not stop on a
