@@ -117,13 +117,12 @@ PLANTABLE = sorted(n for n in litter.OS_LITTER if sys.platform != "win32" or "\r
 
 
 def _plant_litter(folder: Path) -> None:
-    for name in PLANTABLE:
-        if (folder / name).exists():
-            continue
-        (folder / name).write_bytes(b"litter")
-    (folder / "._mod.py").write_bytes(b"\0\5\26\7")  # AppleDouble: not Python
-    (folder / ".TemporaryItems").mkdir(exist_ok=True)
+    (folder / ".TemporaryItems").mkdir(exist_ok=True)  # a volume's folder, with a file in it
     (folder / ".TemporaryItems" / "x.py").write_text("x = 1\n")
+    for name in PLANTABLE:
+        if not (folder / name).exists():
+            (folder / name).write_bytes(b"litter")
+    (folder / "._mod.py").write_bytes(b"\0\5\26\7")  # AppleDouble: not Python
 
 
 def test_the_zip_walk_skips_litter(tmp_path) -> None:
