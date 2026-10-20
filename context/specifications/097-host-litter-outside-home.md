@@ -1,9 +1,11 @@
 # 097 — host litter outside the home folder: the judge's guest folders leave HOME on macOS, and the OpenBLAS script never reads litter
 
-- **Status:** **drafted 2026-10-20** from main `5805af0`, on `spec/097-host-litter-outside-home`.
-  It changes the build recipe (two files under `scripts/`, each a `recipe` line of `MANIFEST`) and
-  the judge's guest driver, so constitution §5.6 and AGENTS.md rule 8 ask a review **before it is
-  built**. It waits for that review. A different agent reviews the build.
+- **Status:** **revised 2026-10-20 against its pre-build review** ("build once finding 1 is
+  answered in writing": `../reviews/097-host-litter-outside-home-prebuild-2026-10-20.md`; the
+  section "Disposition of the pre-build review"). **Drafted 2026-10-20** from main `5805af0`, on
+  `spec/097-host-litter-outside-home`. It changes the build recipe (two files under `scripts/`,
+  each a `recipe` line of `MANIFEST`) and the judge's guest driver, so constitution §5.6 and
+  AGENTS.md rule 8 asked a review before it is built. A different agent reviews the build.
 - **Date:** 2026-10-20
 - **Owner:** Clay Gendron
 - **Kind:** a judge change and a recipe change; **build-class** (§5.7: it touches `scripts/`).
@@ -79,6 +81,16 @@ stays as the backstop: anything that still gets in is named, never filtered and 
      root (READ: `guest.host_roots_always`).
    - **Why not `/private/tmp`.** It is shared by every user of the machine, so a fixed name there
      can be taken by someone else first. `T` is this user's alone.
+   - **Why not `chflags hidden` in place** (the pre-build review, F1). Spec 089's probe saw one
+     fresh hidden folder skipped (memo §1, Variants). That is one observation of one folder. It
+     does not show that the writer skips a hidden folder's descendants when they change, and a
+     guest's root changes deep inside on every run. Leaving the home folder rests on where both
+     writers were seen to work, and on a temporary folder that has never held a writer's
+     `.DS_Store` (the pre-build review's survey: 13 `.DS_Store` files among 7,299 entries in `T`,
+     every one explained, none of a writer's size). So the folders move. The flag is not set,
+     because it would add a second mechanism with no measured benefit outside the home folder.
+     It is not set on the unit suite's `work` folders either (the review's optional offer):
+     Decision 4's residual stands on its own reasons, and an unmeasured flag would only blur them.
    - **Why `realpath`.** `/var` is a link to `private/var`. The product runner refuses a root that
      passes through a link in a folder the user can write (spec 089's first attempt: 87 checks
      failed through a symlinked `build/harness`). `/var` sits in `/`, which only root can write, so
@@ -137,8 +149,7 @@ stays as the backstop: anything that still gets in is named, never filtered and 
 4. **The unit suite's `work` stays under `build/harness`.** A unit guest is a small module built
    from WAT; its run lasts milliseconds in a fresh folder, while the writer acts 4 to 7 s after a
    change it sees (EXECUTED in spec 089's probe). Unit rows record no fuel, and a `HostLitter` there
-   names itself. Moving `work` would also move unit rows that unpack stand-in tarballs out of
-   `build/`, for no measured gain. A named residual, INFERRED from those timings.
+   names itself. A named residual, INFERRED from those timings.
 
 5. **Spec 081 still holds, and fuel does not follow the move.**
    - `host_roots_always()` adds `GUEST_TMP`, so a measured run whose input names a host path there
@@ -172,7 +183,10 @@ stays as the backstop: anything that still gets in is named, never filtered and 
      fail the add. EXECUTED (`race.out`): an unreadable `.DS_Store` fails a plain `git add -A
      --force` with "error: open(".DS_Store"): Permission denied … fatal: adding files failed"
      (case 4), and the excluded add passes and stages neither `.DS_Store` nor `sub/._a.c` (case 5).
-     `--pathspec-from-file` needs git 2.26 or later (this Mac: 2.51.0).
+     `--pathspec-from-file` needs git 2.26 or later. The OpenBLAS check runs `/usr/bin/git` (its
+     `PATH` is `/usr/bin:/bin:/usr/sbin:/sbin`): Apple Git 2.50.1 on this Mac, which the review ran
+     the excludes with (EXECUTED there); `race.out` used Homebrew's 2.51.0 from the shell's
+     `PATH`. The script's `GIT_CONFIG_GLOBAL` already needs 2.32.
    - **Forced at the unstage.** The unstage stays, with `has_litter` as the one authority, but
      each staged litter path leaves the index by `g update-index --force-remove -- "$p"`, which
      compares nothing with the work tree. EXECUTED (`race.out`): after a rewrite, `git rm --cached`
@@ -196,10 +210,15 @@ stays as the backstop: anything that still gets in is named, never filtered and 
    - **`test_the_judges_writable_roots_are_outside_the_home_folder`** (`test_v1_4_embedding.py`,
      goal v1.4, beside spec 089's drop check). No artifact: it runs a WAT command
      (`harness.wat.COMMAND_EXIT_7`) through the judge's driver in `guest_workdir`, unmeasured, and
-     looks at the root the run was given. On darwin: the root's real path is its path (no link
-     anywhere), it is not under the home folder, and it is under `paths.GUEST_TMP`. Elsewhere: it
-     is under `paths.HARNESS_TMP`, as today. On main it fails on darwin, naming a root under
-     `build/harness`; on Linux and Windows it passes on main too, which is the point.
+     looks at the root the run was given. On darwin, in this order: the root's real path is its
+     path (no link anywhere); it is not under the home folder (comparing real paths, since `HOME`
+     may hold a link); and only then, it is under `paths.GUEST_TMP`, and `GUEST_TMP` is on the
+     same device as `HARNESS_TMP` (else it fails naming both folders and their devices, and says
+     to set `TMPDIR` to a folder on the checkout's volume outside the home folder: criterion 3's
+     fuel proof covers one device; the pre-build review, F4). Elsewhere: it is under
+     `paths.HARNESS_TMP`, as today. On main it fails on darwin with "a root under the home
+     folder", naming one under `build/harness`, not with an `AttributeError` (the order: the
+     review's N5); on Linux and Windows it passes on main too, which is the point.
    - **`test_the_openblas_patch_script_survives_litter_rewritten_after_its_add`**
      (`test_scipy_build.py`, beside spec 090's row and on its stand-in layout). A `git` wrapper
      first on `PATH` (the script's `env -i` keeps `PATH`) writes `.DS_Store` into the tree and a
@@ -211,6 +230,16 @@ stays as the backstop: anything that still gets in is named, never filtered and 
      makes those `.DS_Store` files unreadable before each `add` and readable after. On main it fails
      with "Permission denied"; with the fix it passes. Skipped on Windows and as root, where a mode
      does not stop a read.
+   - **`test_the_openblas_patch_script_unstages_litter_its_add_staged`** (the same layout; the
+     pre-build review, F2). The wrapper drops `--pathspec-from-file=…` and `--pathspec-file-nul`
+     from each `add`, so the add stages the planted `.DS_Store` files as if the excludes missed
+     them, and it rewrites them after the add. With `git rm -q --cached` in `unstage_litter` it
+     fails with git's "staged content different from both the file and the HEAD"; with
+     `update-index --force-remove` the patches are made and name no litter. Its seen-failing line
+     is taken on the branch's script with only the unstage reverted. So each of the two script
+     changes has a row that fails without it.
+   - **The wrappers exec the git the script would find** on the row's `PATH` (the review's N7),
+     resolved by `shutil.which("git")` before the wrapper folder is put first.
    - **Unit rows:** `git_excludes()` and `has_litter` agree on a tree of yes and no names through
      real git (`test_build_scripts.py`: `.DS_Store` at the top and deep, `._x.c`, `Icon\r` where the
      platform allows it, a file inside `.Trashes/`, and `DS_Store`, `x._y`, `Icon`,
@@ -229,10 +258,16 @@ writer was not active, or did not scan this worktree, which sits under the dot-f
 The case for `T` therefore rests on spec 089's EXECUTED probe (a tree under the home folder got a
 `.DS_Store` within 7 s; the same tree under `/private/tmp` got none in 40 minutes), and on what
 the writer was seen to scan (the home folder, `~/Git/Repos`). That `T` in particular is never
-scanned is INFERRED: it is outside the home folder, like `/private/tmp`. The build repeats this
-probe while the writer is known to be active (System Settings' Storage pane open on the owner's
-Mac), with the control in the main tree's `build/`, if the lane grants that. Whether it can or
-not, the watch stays as the backstop (Decision 6).
+scanned is INFERRED: it is outside the home folder, like `/private/tmp`.
+
+The pre-build reviewer's probe (`probe3.log`, 17 minutes, three trees: under the home folder, in
+`T`, under `/private/tmp`) also found none in any tree, while the writer was active and sized the
+control from its parent. What does settle something is the reviewer's passive survey: `T` holds
+7,299 entries and 13 `.DS_Store` files, every one explained (unit rows' plants, a hard-linked git
+object, a disk image, a 0-byte copy), none of a writer's size; the main tree holds 176 under
+`build/` alone. **A probe counts only if its control under the home folder gets a `.DS_Store`**;
+two have failed that rule, and none is a criterion of this spec. The watch stays as the backstop
+(Decision 6).
 
 ## Intent
 
@@ -274,9 +309,10 @@ Out, and why:
 ## Acceptance criteria
 
 1. **The checks fail first.** On main's code (the branch's checks over `5805af0`'s harness and
-   script): the root check fails on darwin, naming a root under `build/harness`; the two script
-   rows fail with git's "staged content different from both the file and the HEAD" and
-   "Permission denied"; the unit rows fail to find `GUEST_TMP`, `_guest_tmp_for` and
+   script): the root check fails on darwin, naming a root under `build/harness`; the rewrite and
+   unreadable script rows fail with git's "staged content different from both the file and the
+   HEAD" and "Permission denied"; the forced-unstage row fails, on the branch's script with only
+   the unstage reverted, with "staged content different"; the unit rows fail to find `GUEST_TMP`, `_guest_tmp_for` and
    `git_excludes`. The lines are in the landing notes.
 2. **They pass with the build,** with `ruff check` and `ruff format --check` green.
 3. **Fuel is location-free (EXECUTED at build).** On one private APFS copy of a frozen set (every
@@ -289,6 +325,11 @@ Out, and why:
    `test_upstream_suite[cpython-fs]`, `[cpython-archives]` and `[numpy-lib]`; and the numpy and
    pandas jobs of `test_v1_3_data_stack.py`. Every row gives one fuel value across the four runs.
    A row that differs between two runs of the same code is noise, not location, and is named.
+   A leg that ends in `HostLitter` measured nothing: it is run again, and the landing notes name
+   it. The main's-code legs run from a `git clone --local` of the base outside the home folder
+   (its guest folders then under its own `build/harness`, at a second location), so the writer
+   cannot void them; that is what the comparison needs, the same code at two locations (the
+   pre-build review, F3).
 4. **The set.** After a rebuild (the lane grants the slot), `MANIFEST` differs from the base set's
    in exactly the two recipe lines, and `python.wasm`, `python-snapshot.wasm` and
    `python-stdlib.zip` have the base set's hashes.
@@ -305,7 +346,10 @@ Out, and why:
 
 - **R1, §4.8 (Decision 3).** After 066, a writable root outside `build/` holds copies of a few
   tarball members. Is "copies handed to a guest under wasmtime" within §4.8, or must they come
-  from a sealed grant? This is the one point that may need the owner.
+  from a sealed grant? **Ruled within §4.8 by the pre-build review**, which adds the stronger
+  precedent: the product runner already copies the stdlib zip and extracts matplotlib's data
+  into its private folder under `T` on every call. No owner answer is needed; the owner may put
+  it on record (the review's optional question 1).
 - **R2, a host fact that follows the location.** A filestat's device number reaches the guest. On
   this Mac it is the same for both places; on a host where `T` is another volume it would differ.
   The repeats (criterion 3) measure this Mac; the CI run measures GitHub's macOS runner.
@@ -318,16 +362,17 @@ Out, and why:
   `_shared_folders`, `_runtime_folders`); `GUEST_TMP` is a sibling of those. Its sweep acts only on
   lock files named `wasi-python-*.lock`. The fast tier is the proof, since spec 089's symlink failed there.
 - **R5, the git version.** `--pathspec-from-file` needs git 2.26 or later on every host that runs
-  the script (the macOS and Linux build hosts). INFERRED from GitHub's runner images; the CI run
-  shows it.
+  the script (the macOS and Linux build hosts). Moot in practice (the review): the script's
+  `GIT_CONFIG_GLOBAL` already needs 2.32; this Mac's `/usr/bin/git` is 2.50.1; the runners'
+  versions are INFERRED from their images, and the CI run shows them.
 - **R6, the unit suite's residual** (Decision 4), and the stages staying under the home folder,
   sealed (Scope).
-- **R8, `T` itself is not proven clean.** This spec's probe saw no writer anywhere, so the case
-  for `T` rests on spec 089's `/private/tmp` probe and on where the writer was seen to scan
-  (INFERRED). The watch stays, so if that inference is wrong a run is voided by name, never
-  measured wrong.
-- **R7, `TMPDIR` set by a user** to a folder under the home folder: the check fails, by design,
-  naming it; there is no fallback.
+- **R7, `T` itself is not proven clean.** No probe has met the writer anywhere, so the case for
+  `T` rests on spec 089's `/private/tmp` probe, on where the writer was seen to scan, and on the
+  review's survey of `T` (INFERRED). The watch stays, so if that inference is wrong a run is
+  voided by name, never measured wrong.
+- **R8, `TMPDIR` set by a user** to a folder under the home folder, or on another volume than the
+  checkout: the check fails, by design, naming it; there is no fallback.
 
 ## For the lane
 
@@ -345,6 +390,40 @@ Out, and why:
   gains git_excludes; MANIFEST's two recipe lines"`.
 - **The expected record:** gained, the new check; lost 0; grew 0; `judge changed`.
 - **The roadmap's 097 line** becomes this spec; its two staging items get the next free number.
+
+## Disposition of the pre-build review
+
+The review (`../reviews/097-host-litter-outside-home-prebuild-2026-10-20.md`, on `e12a5b1`):
+"build once finding 1 is answered in writing". Each finding is answered here.
+
+- **F1 (Medium, `chflags hidden` not weighed): answered.** Decision 1 gains the bullet "Why not
+  `chflags hidden` in place", in the review's words, with the survey's numbers. The flag is not
+  set anywhere, the unit suite's `work` included (the optional offer declined, with its reason).
+- **F2 (Low, the forced unstage had no failing row): fixed.** Decision 8 gains
+  `test_the_openblas_patch_script_unstages_litter_its_add_staged`, whose wrapper drops the
+  excludes; criterion 1 names its seen-failing line, taken with only the unstage reverted.
+- **F3 (Low, main's-code legs could be voided): fixed.** Criterion 3: a `HostLitter` leg is run
+  again and named; main's-code legs run from a `git clone --local` of the base outside the home
+  folder.
+- **F4 (Low, R2 not checked): fixed.** The root check asserts, on darwin, that `GUEST_TMP` and
+  `HARNESS_TMP` share a device, and fails naming both and their devices. A checkout on an
+  external disk then needs `TMPDIR` on that disk, outside the home folder; that is the price of
+  a fuel proof that covers one device, and R8 names it.
+- **N5 (the root check's order): applied.** Decision 8 orders the assertions so that main fails
+  on "under the home folder", not on an `AttributeError`.
+- **N6 (Decision 4's §4.8 clause): applied.** The sentence is gone.
+- **N7 (the git version): applied.** Decision 7 names `/usr/bin/git` (Apple Git 2.50.1) as the
+  git the check runs; the wrappers exec the git found on the row's `PATH`.
+- **N8 (leftovers and the disk): noted for the lane.** The lane's disk check names `GUEST_TMP`
+  as well as `build/`; no spec change.
+- **N9 (R numbering): applied.** R7 and R8 are in order.
+- **R1 (§4.8): ruled within it by the review;** R1 says so.
+- **The review's probe:** "The probe" section records it and the rule that a probe counts only if
+  its control gets a `.DS_Store`. The two probe trees the reviewer left
+  (`~/Git/Repos/wasi_python-097-review-probe`, `T/judge-097-review-probe`) are outside this
+  worktree; I leave them for the owner or the lane. This spec's own probe trees
+  (`build/097-probe` here, and `T/wasi-python-097-probe`) are the same; the first goes with the
+  worktree, the second is for the lane.
 
 ## Landing notes
 
