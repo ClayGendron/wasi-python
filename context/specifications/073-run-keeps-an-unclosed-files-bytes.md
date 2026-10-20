@@ -916,6 +916,109 @@ fuel), and a row-by-row comparison of that record with `accepted.json` at the ow
 - **Not yet read:** this branch has no CI run (the wave's entry criterion 2; build-class, so
   rule 2's "built" test asks for one).
 
+The lane moved 073 from wave 1 to wave 2, after the 039 and 041 chain (three build-class entries
+were over wave 1's cap). The section below restates this list's growth claim for that tip; its
+`--accept-growth` text replaces the one above.
+
+#### Rebased onto wave/02 (`1ef8256`: main `e8ba20a`, wave 01 landed, then 039 and 041; 2026-10-19)
+
+`git rebase wave/02` replayed 073's ten commits, from main `a6dfc17`. Five hunks conflicted, in
+three files; I resolved each one as 073's builder. `recipes/reactor_bootstrap.py` and
+`recipes/reactor_main.c` merged cleanly: nothing since `a6dfc17` touched them. So did
+`tests/checks/test_v1_4_embedding.py` (078, 084 and 087 also edit it),
+`tests/checks/test_v1_3_data_stack.py` (039 changed its jobs' runner), `context/roadmap.md` and
+the dated lines in specs 003 and 069. `git range-diff` shows eight commits `=`; the build commit and
+B1's commit show `!`, by these hunks alone.
+
+1. **The build commit, `tests/known_gaps.toml`:** wave/02's file whole, less 073's own entry. The
+   base keeps 078's removal of the nine C-stack trap gaps and 041's removal of 039's Tier A gaps.
+   073 removes only the `test_run_keeps_an_unclosed_files_bytes[snapshot]` entry, with its
+   three-line comment. The resolved file is wave/02's with exactly those ten lines gone (checked
+   by `diff`).
+2. **The build commit, `README.md`, the *Measured* table:** four rows.
+   - **The snapshot's `-c pass`:** 073's row (16 ms; the unfreeze before finalizing), with 039's
+     tier A fact kept: "43.7M guest instructions (15.6M before spec 073); with tier A in the zip,
+     20.4M without spec 073 (spec 039) and about 28M more with it". The merged set's own number
+     is the wave run's.
+   - **`os._exit(0)`:** unchanged on both sides.
+   - **`import pandas` / `import numpy`:** 073's row.
+   - **The plain reactor:** 039's row (218M with tier A's members). 073 did not change that row,
+     and its plain cost, +72,583, is below the row's precision.
+3. **The build commit, `CHANGELOG.md`, `## 0.1.0a8 — unreleased`:** both sides kept. The base's
+   bullets come first (078, 085, 084, 065, 083, 087, 039, 041), then 073's **Fixed** and
+   **Changed** bullets. On 073's base the section held only the placeholder `- (what changed)`,
+   which 073 replaced; wave/02 no longer has it.
+4. **B1's commit, `README.md`, the same table:** B1 changed 43.7M to 43.8M in the snapshot row
+   and rewrote the pandas and numpy row (4.66G / 0.81G). Both are applied to the merged rows;
+   039's tier A clause and the plain row are kept. B1's `fuel` paragraph and CHANGELOG lines
+   ("more after large imports … up to about 90M") applied cleanly.
+
+**Semantic changes:** none in the recipe, the checks or the runner. Things I checked:
+- Check (b)'s `START_FACTOR` 3 still holds with margin on the chain. INFERRED: plain about 218M
+  over a snapshot of about 20.4M + 28M gives about 4.5.
+- No check on the merged tree caps a snapshot run's fuel near 073's cost; the smallest caps are
+  10**8 for a session turn's loop and 10**9 for a run.
+- Check C's start rows assert that `warnings` is absent. Tier A pre-imports nothing (039), so
+  nothing changes there.
+
+**Restated growth claim, on top of the 039 and 041 chain.** 039 claims the tier A start cost
+(+50.6 M a plain run, +4.7 M a snapshot run, a distribution scan per upstream session, CPython's
+groups +0.13% to +4.27%). 041 claims the Styler and atlas rows and the zip-layout moves. 073
+claims, beyond those:
+- every snapshot run's unfreeze before `Py_FinalizeEx`: about +28 M a run (+28.1 M on `-c
+  pass` on 073's own base), more after large imports, up to about +70 M. INFERRED: on the chain
+  the floor may be a few M higher, since the snapshot's frozen heap holds the zip directory,
+  which tier A grew by 2,014 members.
+- the plain runs' and jobs' moves from the fresh `__main__` and the larger bootstrap: −1.4 M to
+  +7.3 M on 073's own base;
+- `python.wasm` about +2.3 K bytes (+2,268 on 073's own base); the snapshot's bytes move by a few
+  K either way (−1,691 on the own base);
+- every upstream group, CPython's five included, by its snapshot runs' unfreeze, and numpy-core's
+  link-layout term, which on a different binary is a different number of either sign (+4.48 G
+  on 073's own base, −73.6 M on its first build).
+
+The lane can split a grown snapshot row on the wave tip like this. 039's and 041's shares are in
+their claims, so the rest, about +28 M or more a snapshot run, is 073's. A plain row that moved
+by more than 039's +50.6 M start, or 041's zip-layout moves, plus a few M is not 073's.
+
+- `--accept-growth "073: beyond the 039 and 041 claims, every snapshot run unfreezes before finalizing (question 103), about +28 M fuel a run and up to about +70 M after large imports, the floor perhaps a few M more with tier A in the frozen zip directory; plain runs and jobs move by the fresh __main__ and the larger bootstrap, -1.4 M to +7.3 M on its own base; python.wasm about +2.3 K bytes, the snapshot a few K either way; every upstream group by its snapshot runs, and numpy-core by a link-layout term in the bool-keyed type lookup of test_string_comparisons, measured by the build review, of either sign on a new binary (+4.48 G on its own base)"`
+- `--accept-judge`: unchanged (above). No `--accept-fewer-passes`, no `--retire`.
+
+**The fast tier on `08ca833`** (`uv run pytest -m "not slow" -n 3`). It ran against a private copy
+of main's set (wave 01's acceptance: `python.wasm` `5f8d1b29…`, `set_sums` `89b14f67…`), copied to
+`build/wave01-set`, because no set has 039's, 041's and 073's recipes yet. Log:
+`build/073/fast-wave02.log`.
+- **Result:** `wasi_python v1: 545/701 pass · 0 gap · 6 blocked · 29 fail · 121 deselected (unit
+  suite 1731/1738, 7 skipped)`; `ratchet vs 47b3695c2d: lost 10 · gained 1 · grew 0`.
+- **ruff:** `ruff check` and `ruff format --check` green.
+- **Every fail needs a rebuilt set or this worktree's stale source trees.** No unit test fails.
+  - **073's eight rows, which need 073's rebuilt binaries.** Each gives the digest it gave on
+    main's set at criterion 1:
+    - `test_run_keeps_an_unclosed_files_bytes[snapshot]` ((h), `7da6e52329c1`; its gap entry is
+      gone, so it is a fail here);
+    - `test_run_keeps_unclosed_files_in_every_mode[plain]` (`e6d5609d06d8`) and `[snapshot]`
+      (`98d69ac9128b`);
+    - `test_every_program_runs_in_an_unfrozen_main[plain]` and `[snapshot]`;
+    - `test_run_keeps_a_file_the_stdlib_reaches[snapshot]` (`cfb1afda1a48`);
+    - `test_module_and_directory_errors_read_as_native[plain]` and `[snapshot]`.
+  - **039's and 041's nineteen rows, which need tier A's set.** Eight of them (the four
+    artifact-set rows, the two metadata rows and the two gb18030 rows) are among the lost passes:
+    - `test_artifact_set_is_complete`, `test_manifest_is_well_formed`,
+      `test_manifest_recipes_match_the_tree` and `test_licence_notices_cover_every_component`;
+    - `test_tqdm_notice_carries_the_mpl_and_its_source`;
+    - `test_packages_carry_their_metadata[plain]` and `[snapshot]`;
+    - `test_v1_3_default_profile.py`'s eight rows (pure-Python paths, threadpoolctl, the Styler,
+      the networkx atlas, each on both binaries);
+    - `test_gb18030_is_never_silently_wrong[plain]` and `[snapshot]` (html5lib);
+    - `test_excel_output_needs_a_writable_folder_or_xlsxwriter_in_memory`, both rows.
+  - **Two rows that read this worktree's source trees,** made by 073's own build from `a6dfc17`'s
+    recipes, before 041's pandas patch and 087's regex patch:
+    `test_source_tree_matches_its_tarball[pandas]` and `[regex]`. Both are among the lost passes,
+    and a rebuild from the wave tip clears them.
+  - **The lost 10:** 039's and 041's eight above and the two source-tree rows. None is a 073 row.
+  - **The 1 gained:** `test_run_keeps_a_file_the_stdlib_reaches[plain]`, which passes on main's
+    set, as at criterion 1. Check (b) passes with `START_FACTOR` 3.
+
 ## Disposition of the pre-build review
 
 The review: `../reviews/073-run-keeps-an-unclosed-files-bytes-spec-2026-10-19.md` (verdict "ready once F1 to F4 are written in";
