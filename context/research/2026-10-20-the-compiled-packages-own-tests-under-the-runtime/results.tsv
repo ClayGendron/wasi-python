@@ -1,0 +1,12 @@
+group	fuel	passed	failed	error	skipped	xfailed	collect_errors	deselected	trap
+matplotlib-axes	691513536570	874	6	0	45	0	0	0	
+matplotlib-mathtext	296150354041	985	2	0	1004	0	0	0	
+matplotlib-render	998125291971	984	61	0	253	0	0	0	
+matplotlib-rest	956881157543	5462	40	0	193	28	0	0	
+mpl-axes_grid1	72111772361	52	0	0	0	0	0	0	
+mpl-axisartist	34729486000	49	1	0	0	0	0	0	
+mpl-mplot3d	303314273133	229	15	0	0	0	0	0	
+pillow-ro	430702427558	4587	78	0	1054	3	0	0	
+lxml	110782131992	2053	5	0	58	0	4	360	
+regex	15993593023	147	1	0	0	0	0	0	
+kiwisolver	12458972804	48	0	0	0	0	0	0	wasm trap: indirect call type mismatch

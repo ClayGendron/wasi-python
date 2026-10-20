@@ -1,0 +1,224 @@
+== matplotlib-axes
+R failed lib/matplotlib/tests/test_axes.py::test_sticky_tolerance_contourf[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_axes.py::test_imshow_clip[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_axes.py::test_contour_hatching[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_axes.py::test_contour_colorbar[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_axes.py::test_shared_axes_autoscale -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_axes.py::test_use_colorizer_keyword[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+== matplotlib-mathtext
+R failed lib/matplotlib/tests/test_font_manager.py::test_fontcache_thread_safe -- OSError: [Errno 58] wasi does not support processes.
+R failed lib/matplotlib/tests/test_font_manager.py::test_lockfilefailure -- OSError: [Errno 58] wasi does not support processes.
+== matplotlib-render
+R failed lib/matplotlib/tests/test_image.py::test_imsave[jpg] -- OSError: encoder jpeg not available
+R failed lib/matplotlib/tests/test_image.py::test_imsave[jpeg] -- OSError: encoder jpeg not available
+R failed lib/matplotlib/tests/test_image.py::test_jpeg_alpha -- OSError: encoder jpeg not available
+R failed lib/matplotlib/tests/test_constrainedlayout.py::test_submerged_with_colorbar[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_figure.py::test_ginput -- RuntimeError: can't start new thread
+R failed lib/matplotlib/tests/test_figure.py::test_waitforbuttonpress -- RuntimeError: can't start new thread
+R failed lib/matplotlib/tests/test_colorbar.py::test_colorbar_positioning[png-True] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_colorbar.py::test_colorbar_positioning[png-False] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_colorbar.py::test_contour_colorbar[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_colorbar.py::test_gridspec_make_colorbar[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_colorbar.py::test_colorbar_ticks -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_colorbar.py::test_colorbar_get_ticks -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_colorbar.py::test_anchored_cbar_position_using_specgrid -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_colorbar.py::test_proportional_colorbars[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_colorbar.py::test_colorbar_contourf_extend_patches[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_lines.py::test_set_line_coll_dash -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_lines.py::test_set_line_coll_dash_image[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_patheffects.py::test_patheffect2[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_patheffects.py::test_collection[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_patheffects.py::test_tickedstroke[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_triangulation.py::test_triangulation_init -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_triangulation_set_mask -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_delaunay -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_delaunay_duplicate_points -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_delaunay_points_in_line -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_delaunay_insufficient_points[x0-y0] -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_delaunay_insufficient_points[x1-y1] -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_delaunay_insufficient_points[x2-y2] -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_delaunay_insufficient_points[x3-y3] -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_delaunay_insufficient_points[x4-y4] -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_delaunay_insufficient_points[x5-y5] -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_delaunay_robust -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_tripcolor[png] -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_tripcolor_color -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_tripcolor_clim -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_tripcolor_warnings -- Failed: DID NOT WARN. No warnings of type (<class 'UserWarning'>,) were emitted.
+R failed lib/matplotlib/tests/test_triangulation.py::test_no_modify -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_trifinder -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_triinterp -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_triinterpcubic_C1_continuity -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_triinterpcubic_geom_weights -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_triinterp_colinear -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_triinterp_transformations -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_tri_smooth_contouring[png] -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_tri_smooth_gradient[png] -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_tritools -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_trirefine -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_trirefine_masked[linear] -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_trirefine_masked[cubic] -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_triplot_return -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_trirefiner_fortran_contiguous_triangles -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_qhull_triangle_orientation -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_trianalyzer_mismatched_indices -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_tricontourf_decreasing_levels -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_qhull_large_offset -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_tricontour_non_finite_z -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_tricontourset_reuse -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_triplot_with_ls[png] -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_triplot_label -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_tricontour_path -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/matplotlib/tests/test_triangulation.py::test_tricontourf_path -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+== matplotlib-rest
+R failed lib/matplotlib/tests/test_agg.py::test_jpeg_dpi -- OSError: encoder jpeg not available
+R failed lib/matplotlib/tests/test_animation.py::test_save_animation_smoketest[anim0-html-jpeg-movie.html] -- OSError: encoder jpeg not available
+R failed lib/matplotlib/tests/test_animation.py::test_save_animation_smoketest[anim0-html-jpeg-output13] -- OSError: encoder jpeg not available
+R failed lib/matplotlib/tests/test_animation.py::test_grabframe[html-jpeg-movie.html] -- OSError: encoder jpeg not available
+R failed lib/matplotlib/tests/test_animation.py::test_grabframe[html-jpeg-output13] -- OSError: encoder jpeg not available
+R failed lib/matplotlib/tests/test_animation.py::test_movie_writer_registry -- AssertionError: assert False
+R failed lib/matplotlib/tests/test_animation.py::test_movie_writer_invalid_path -- AssertionError: Regex pattern did not match.
+R failed lib/matplotlib/tests/test_backend_bases.py::test_interactive_colorbar[zoom-1-expected0-vertical-contourf] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_backend_bases.py::test_interactive_colorbar[zoom-1-expected0-horizontal-contourf] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_backend_bases.py::test_interactive_colorbar[zoom-3-expected1-vertical-contourf] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_backend_bases.py::test_interactive_colorbar[zoom-3-expected1-horizontal-contourf] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_backend_bases.py::test_interactive_colorbar[pan-1-expected2-vertical-contourf] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_backend_bases.py::test_interactive_colorbar[pan-1-expected2-horizontal-contourf] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_backend_bases.py::test_interactive_colorbar[pan-3-expected3-vertical-contourf] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_backend_bases.py::test_interactive_colorbar[pan-3-expected3-horizontal-contourf] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_basic.py::test_lazy_imports -- OSError: [Errno 58] wasi does not support processes.
+R failed lib/matplotlib/tests/test_cbook.py::test_warn_external -- AssertionError: assert not True
+R failed lib/matplotlib/tests/test_colors.py::test_norm_abc[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_datetime.py::TestDatetimePlotting::test_clabel -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_datetime.py::TestDatetimePlotting::test_contour -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_datetime.py::TestDatetimePlotting::test_contourf -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_agg] -- OSError: [Errno 58] wasi does not support processes.
+R failed lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_mixed] -- OSError: [Errno 58] wasi does not support processes.
+R failed lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_pdf] -- OSError: [Errno 58] wasi does not support processes.
+R failed lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_pgf] -- OSError: [Errno 58] wasi does not support processes.
+R failed lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_ps] -- OSError: [Errno 58] wasi does not support processes.
+R failed lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_svg] -- OSError: [Errno 58] wasi does not support processes.
+R failed lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_template] -- OSError: [Errno 58] wasi does not support processes.
+R failed lib/matplotlib/tests/test_matplotlib.py::test_importable_with_no_home -- OSError: [Errno 58] wasi does not support processes.
+R failed lib/matplotlib/tests/test_matplotlib.py::test_importable_with__OO -- OSError: [Errno 58] wasi does not support processes.
+R failed lib/matplotlib/tests/test_mlab.py::TestGaussianKDECustom::test_silverman_multidim_dataset -- Failed: DID NOT RAISE <class 'numpy.linalg.LinAlgError'>
+R failed lib/matplotlib/tests/test_mlab.py::TestGaussianKDECustom::test_scott_multidim_dataset -- Failed: DID NOT RAISE <class 'numpy.linalg.LinAlgError'>
+R failed lib/matplotlib/tests/test_pickle.py::test_complete[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_pickle.py::test_pickle_load_from_subprocess[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_pickle.py::test_axeswidget_interactive -- OSError: [Errno 58] wasi does not support processes.
+R failed lib/matplotlib/tests/test_preprocess_data.py::test_data_parameter_replacement -- OSError: [Errno 58] wasi does not support processes.
+R failed lib/matplotlib/tests/test_ticker.py::test_locale_comma -- OSError: [Errno 58] wasi does not support processes.
+R failed lib/matplotlib/tests/test_transforms.py::test_pre_transform_plotting[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_transforms.py::test_contour_pre_transform_limits -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/matplotlib/tests/test_typing.py::test_cm_stub_matches_runtime_colormaps -- AssertionError: /upstream-matplotlib/tree/lib/matplotlib/cm.pyi does not exist
+== mpl-axes_grid1
+== mpl-axisartist
+R failed lib/mpl_toolkits/axisartist/tests/test_axislines.py::test_ParasiteAxesAuxTrans[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+== mpl-mplot3d
+R failed lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_contour3d[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_contour3d_extend3d[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_contourf3d[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_contourf3d_fill[png] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_contourf3d_extend[png-both-levels0] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_contourf3d_extend[png-min-levels1] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_contourf3d_extend[png-max-levels2] -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_tricontour[png] -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_contour3d_1d_input -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_trisurf3d[png] -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_trisurf3d_shaded[png] -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_colorbar_pos -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_scale3d_artists_log[png] -- ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/matplotlib/__init__.pyc)
+R failed lib/mpl_toolkits/mplot3d/tests/test_legend3d.py::test_contour_legend_elements -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+R failed lib/mpl_toolkits/mplot3d/tests/test_legend3d.py::test_contourf_legend_elements -- ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+== pillow-ro
+R failed Tests/test_arrow.py::test_mapped_file[L-tif] -- assert None is not None
+R failed Tests/test_arrow.py::test_mapped_file[RGBA-tif] -- assert None is not None
+R failed Tests/test_arrow.py::test_mapped_file[L-ppm] -- assert None is not None
+R failed Tests/test_arrow.py::test_mapped_image_pgm -- assert None is not None
+R failed Tests/test_features.py::test_pilinfo[True] -- AttributeError: module 'PIL._imaging' has no attribute '__file__'. Did you mean '.__name__' instead of '.__file__'?
+R failed Tests/test_features.py::test_pilinfo[False] -- AttributeError: module 'PIL._imaging' has no attribute '__file__'. Did you mean '.__name__' instead of '.__file__'?
+R failed Tests/test_file_blp.py::test_load_blp1 -- OSError: decoder jpeg not available
+R failed Tests/test_file_bmp.py::test_save_bmp_with_dpi -- OSError: encoder jpeg not available
+R failed Tests/test_file_dds.py::test_not_enough_image_data[Tests/images/timeout-755a4d204f4208e3597ac3391edebee196462bd0.dds] -- OSError: [Errno 48] Out of memory
+R failed Tests/test_file_dds.py::test_not_enough_image_data[Tests/images/timeout-52d106579505547091ef69b58341351a37c23e31.dds] -- OSError: [Errno 48] Out of memory
+R failed Tests/test_file_gd.py::test_sanity -- OSError: decoder jpeg not available
+R failed Tests/test_file_pdf.py::test_save[L] -- OSError: mmap is unavailable on wasm32-wasi
+R failed Tests/test_file_pdf.py::test_save[P] -- OSError: mmap is unavailable on wasm32-wasi
+R failed Tests/test_file_pdf.py::test_save[RGB] -- OSError: mmap is unavailable on wasm32-wasi
+R failed Tests/test_file_pdf.py::test_save[CMYK] -- OSError: mmap is unavailable on wasm32-wasi
+R failed Tests/test_file_pdf.py::test_p_alpha -- OSError: mmap is unavailable on wasm32-wasi
+R failed Tests/test_file_pdf.py::test_monochrome -- OSError: mmap is unavailable on wasm32-wasi
+R failed Tests/test_file_pdf.py::test_unsupported_mode -- OSError: mmap is unavailable on wasm32-wasi
+R failed Tests/test_file_pdf.py::test_resolution -- OSError: mmap is unavailable on wasm32-wasi
+R failed Tests/test_file_pdf.py::test_dpi[params0] -- OSError: mmap is unavailable on wasm32-wasi
+R failed Tests/test_file_pdf.py::test_dpi[params1] -- OSError: mmap is unavailable on wasm32-wasi
+R failed Tests/test_file_pdf.py::test_save_all -- OSError: mmap is unavailable on wasm32-wasi
+R failed Tests/test_file_pdf.py::test_multiframe_normal_save -- OSError: mmap is unavailable on wasm32-wasi
+R failed Tests/test_file_pdf.py::test_pdf_open -- OSError: mmap is unavailable on wasm32-wasi
+R failed Tests/test_file_pdf.py::test_pdf_append -- OSError: mmap is unavailable on wasm32-wasi
+R failed Tests/test_file_pdf.py::test_pdf_info -- OSError: mmap is unavailable on wasm32-wasi
+R failed Tests/test_file_pdf.py::test_pdf_append_to_bytesio -- OSError: encoder jpeg not available
+R failed Tests/test_file_png.py::TestFilePng::test_exif_from_jpg -- OSError: decoder jpeg not available
+R failed Tests/test_file_tar.py::test_zero_length_member -- OSError: decoder jpeg not available
+R failed Tests/test_file_tiff_metadata.py::test_gps_rational_tag_type[4.5-11] -- OSError: encoder jpeg not available
+R failed Tests/test_file_tiff_metadata.py::test_gps_rational_tag_type[4.5-31] -- OSError: encoder jpeg not available
+R failed Tests/test_file_tiff_metadata.py::test_gps_rational_tag_type[4-11] -- OSError: encoder jpeg not available
+R failed Tests/test_file_tiff_metadata.py::test_gps_rational_tag_type[4-31] -- OSError: encoder jpeg not available
+R failed Tests/test_file_tiff_metadata.py::test_empty_subifd -- OSError: encoder jpeg not available
+R failed Tests/test_image.py::TestImage::test_empty_path -- IsADirectoryError: [Errno 31] Is a directory: ''
+R failed Tests/test_image.py::TestImage::test_pathlib -- OSError: decoder jpeg not available
+R failed Tests/test_image.py::TestImage::test_fp_name -- OSError: encoder jpeg not available
+R failed Tests/test_image.py::TestImage::test_tempfile -- OSError: encoder jpeg not available
+R failed Tests/test_image.py::TestImage::test_save_without_changing_readonly -- assert 0
+R failed Tests/test_image.py::TestImage::test_no_resource_warning_on_save -- OSError: encoder jpeg not available
+R failed Tests/test_image.py::TestImage::test_no_new_file_on_error -- OSError: encoder jpeg not available
+R failed Tests/test_image.py::TestImage::test_load_on_nonexclusive_multiframe -- OSError: decoder jpeg not available
+R failed Tests/test_image.py::TestImage::test_exif_jpeg -- OSError: decoder jpeg not available
+R failed Tests/test_image.py::TestImage::test_close_graceful -- OSError: decoder jpeg not available
+R failed Tests/test_image_convert.py::test_8bit -- OSError: decoder jpeg not available
+R failed Tests/test_image_resample.py::TestCoreResampleBox::test_tiles -- OSError: decoder jpeg not available
+R failed Tests/test_image_resample.py::TestCoreResampleBox::test_subsample -- OSError: decoder jpeg not available
+R failed Tests/test_image_thumbnail.py::test_no_resize -- OSError: decoder jpeg not available
+R failed Tests/test_image_thumbnail.py::test_load_first_unless_jpeg -- OSError: decoder jpeg not available
+R failed Tests/test_image_thumbnail.py::test_DCT_scaling_edges -- OSError: encoder jpeg not available
+R failed Tests/test_image_thumbnail.py::test_reducing_gap_for_DCT_scaling -- OSError: decoder jpeg not available
+R failed Tests/test_imagefile.py::TestImageFile::test_extents_none -- OSError: decoder jpeg not available
+R failed Tests/test_imageops.py::test_pad -- OSError: decoder jpeg not available
+R failed Tests/test_imageops.py::test_exif_transpose -- OSError: decoder jpeg not available
+R failed Tests/test_imageops.py::test_exif_transpose_in_place -- OSError: decoder jpeg not available
+R failed Tests/test_imageops.py::test_autocontrast_mask_real_input -- OSError: decoder jpeg not available
+R failed Tests/test_pdfparser.py::test_duplicate_xref_entry -- OSError: mmap is unavailable on wasm32-wasi
+R failed Tests/test_pdfparser.py::test_trailer_loop -- OSError: mmap is unavailable on wasm32-wasi
+R failed Tests/test_pickle.py::test_pickle_image[0-Tests/images/hopper.jpg-None] -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_image[0-Tests/images/hopper.jpg-L] -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_image[0-Tests/images/hopper.jpg-PA] -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_image[1-Tests/images/hopper.jpg-None] -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_image[1-Tests/images/hopper.jpg-L] -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_image[1-Tests/images/hopper.jpg-PA] -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_image[2-Tests/images/hopper.jpg-None] -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_image[2-Tests/images/hopper.jpg-L] -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_image[2-Tests/images/hopper.jpg-PA] -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_image[3-Tests/images/hopper.jpg-None] -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_image[3-Tests/images/hopper.jpg-L] -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_image[3-Tests/images/hopper.jpg-PA] -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_image[4-Tests/images/hopper.jpg-None] -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_image[4-Tests/images/hopper.jpg-L] -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_image[4-Tests/images/hopper.jpg-PA] -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_image[5-Tests/images/hopper.jpg-None] -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_image[5-Tests/images/hopper.jpg-L] -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_image[5-Tests/images/hopper.jpg-PA] -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_jpeg -- OSError: decoder jpeg not available
+R failed Tests/test_pickle.py::test_pickle_la_mode_with_palette -- OSError: decoder jpeg not available
+== lxml
+X src/lxml/html/tests/test_diff.py -- E   TypeError: 'str' object is not callable
+X src/lxml/html/tests/test_elementsoup.py -- E   ImportError: attempted relative import beyond top-level package
+X docstrings:lxml.html.diff -- TypeError: 'str' object is not callable
+X docstrings:lxml.cssselect -- ImportError: cssselect does not seem to be installed. See https://pypi.org/project/cssselect/
+R failed src/lxml/tests/test_etree.py::ETreeOnlyTestCase::test_include_paths -- NotADirectoryError: [Errno 54] Not a directory: '/usr/local/lib/python315.zip/lxml/includes'
+R failed ::docfile:doc/validation.txt -- AssertionError: doctest failed: ***************************************************************
+R failed ::docfile:doc/api.txt -- AssertionError: doctest failed: ******************************************************************
+R failed ::docfile:doc/parsing.txt -- AssertionError: doctest failed: 31, in lxml.etree._BaseParser._parseDocFromFile
+R failed ::docfile:src/lxml/html/tests/test_diff.txt -- AssertionError: doctest failed: ile "/upstream-lxml/tree/src/lxml/html/tests/test_diff.txt", line 257, in test_diff.txt
+== regex
+R failed regex/tests/test_regex.py::test_main -- SystemExit: 1
+== kiwisolver

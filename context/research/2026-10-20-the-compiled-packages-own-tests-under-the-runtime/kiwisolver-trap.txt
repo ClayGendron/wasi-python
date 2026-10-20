@@ -1,0 +1,24 @@
+error while executing at wasm backtrace:
+    0: 0x243cae - python.wasm!gc_collect_main
+    1: 0x24471b - python.wasm!_PyGC_Collect
+    2: 0x2a5bac - python.wasm!gc_collect
+    3:  0xe4b59 - python.wasm!cfunction_vectorcall_FASTCALL_KEYWORDS
+    4:  0x8172e - python.wasm!PyObject_Vectorcall
+    5: 0x207542 - python.wasm!_Py_VectorCallInstrumentation_StackRefSteal
+    6: 0x1fc04d - python.wasm!_PyEval_EvalFrameDefault
+    7: 0x207179 - python.wasm!_PyEval_Vector
+    8:  0x81a8b - python.wasm!_PyFunction_Vectorcall
+    9: 0x3a8f28 - python.wasm!partial_vectorcall
+   10:  0x815ad - python.wasm!_PyVectorcall_Call
+   11:  0x8183f - python.wasm!_PyObject_Call
+   12:  0x818eb - python.wasm!PyObject_Call
+   13: 0x1f9684 - python.wasm!_PyEval_EvalFrameDefault
+   14: 0x207179 - python.wasm!_PyEval_Vector
+   15:  0x81a8b - python.wasm!_PyFunction_Vectorcall
+   16:  0x80ed5 - python.wasm!_PyObject_VectorcallDictTstate
+   17:  0x81ca3 - python.wasm!_PyObject_Call_Prepend
+   18: 0x120992 - python.wasm!slot_tp_call
+   19:  0x80d89 - python.wasm!_PyObject_MakeTpCall
+
+Caused by:
+    wasm trap: indirect call type mismatch
