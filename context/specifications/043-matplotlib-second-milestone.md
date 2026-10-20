@@ -1,6 +1,6 @@
 # 043 — matplotlib, the second milestone: triangles, contours, SVG and PDF
 
-- **Status:** built 2026-10-19 (Landing notes); build reviewed 2026-10-19 (`../reviews/043-matplotlib-second-milestone-build-2026-10-19.md`: lands once F1; F1, F4, F5 and F6 answered at `737cef6`, F2 at the rebase); rebased onto main `f7511b7`, then stacked on spec 086's tip `c4af3c4`, to be rebuilt under wasi-sdk 34 (For the lane). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17; revised 2026-10-18 against its pre-build review
+- **Status:** built 2026-10-19 (Landing notes); build reviewed 2026-10-19 (`../reviews/043-matplotlib-second-milestone-build-2026-10-19.md`: lands once F1; F1, F4, F5 and F6 answered at `737cef6`, F2 at the rebase); rebased onto main `f7511b7`, then stacked on spec 086 and rebased onto main `ebd0449` (wave 04 landed); rebuilt under wasi-sdk 34, `SHA256SUMS` `4c7099a4…`; fast tier 0 fail; branch dry run `39369636353` red only for growth; enters wave 06 stacked with 037 (For the lane). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17; revised 2026-10-18 against its pre-build review
   (`../reviews/043-matplotlib-second-milestone-spec-2026-10-17.md`): all eight findings written in, and its Disposition says where. Finding 1 also
   amended spec 037 (its status line says so). Confirmed for build 2026-10-18 with no new conditions; it builds only after the owner answers question 81. It changes the build recipe and the artifact
   set, so it is reviewed once more before it is built (constitution §5.6). It is build-class: it
@@ -818,3 +818,91 @@ rebuilt set's plot_contour check confirms it or names the change.
 On the rebased tree, before any rebuild: `ruff check` and `ruff format --check` on `src/` and
 `tests/` green; `uv run pytest tests/unit tests/checks/test_rules.py -m "not slow" -n 3`, 1822
 passed, 8 skipped.
+
+#### Rebuilt on 086's set (2026-10-20), on main `ebd0449` (wave 04 landed)
+
+After wave 04 landed, the branch was rebased with `git rebase --onto origin/main c4af3c4`, with no
+conflict: main past 086's tip is `context/` and progress files only. Built from an empty `build/`
+in the worktree, on darwin-arm64: `scripts/00_download.sh` then `scripts/build.sh --plain`, 16
+steps in 8 min 27 s. The old `build/`'s logs were saved first, to the session scratchpad
+(`043/old-build-evidence/`).
+
+- **The set.** `SHA256SUMS` `4c7099a4ee5d96b454b56ac296969b77662bd247e9b73c84987482307e1f2a57`.
+  The branch dry run's build job, its arm64 Linux and its x86_64 Linux rebuilds give the same file
+  line for line (EXECUTED: the same-bytes job passed; its printed lines `diff` equal to the local
+  file). `python.wasm` 42,251,129 bytes (`1b60cc5e…`), `python-snapshot.wasm` 46,533,054
+  (`d2dc6000…`), `python-stdlib.zip` 38,788,145 (`2fc59a16…`), with 4,454 members.
+- **Against 086's accepted set** (`a75e5d4`, `4e0dc0cf`; its record is main's
+  `context/progress/accepted.json`):
+
+  | number | 086's set | this set | change |
+  |---|---|---|---|
+  | `python.wasm` bytes | 41,169,347 | 42,251,129 | +1,081,782 (+2.63%) |
+  | snapshot bytes | 45,444,036 | 46,533,054 | +1,089,018 (+2.40%) |
+  | zip bytes | 38,723,140 | 38,788,145 | +65,005 (+0.17%) |
+  | zip members | 4,435 | 4,454 | +19 |
+  | plain `-c pass` fuel (`test_guest_runs_here[plain]`) | 221,669,921 | 222,096,155 | +426,234 (+0.19%) |
+  | snapshot `-c pass` fuel (`[snapshot]`) | 48,820,209 | 48,942,227 | +122,018 (+0.25%) |
+  | plain start per member (`test_a_plain_start_grows_at_most_30k_fuel_per_member`) | 221,676,034 | 222,177,596 | +501,562, about 26,400 a member, under the check's 30,000 |
+  | `plot_contour` job, plain / snapshot (the dry run's macOS shard) | — | 11,323,411,159 / 10,996,023,540 | new |
+  | `plot_line` job, plain / snapshot | 9,192,360,472 / 8,866,215,418 | 9,195,549,688 / 8,865,969,924 | +0.035% / −0.003% |
+
+  The binary's growth is the old base's within 3% (+1,050,573 then). The plain start's growth is
+  the zip's 19 members, as the build review measured on the old base. The snapshot start's growth
+  is the binary's by that review's 2 × 2; it is larger here (+122,018 against +64,820), which is
+  INFERRED to be the same static-data move under the new toolchain, not measured apart.
+- **The PDF pin under SipHash-1-3** (EXECUTED, by node id while the lane held its lock):
+  `test_plot_contour_job_matches_native[plain]` and `[snapshot]` pass with `PDF_SHA256`
+  unchanged. matplotlib's subset tags hash a frozenset of ints, which takes no string key. 043's
+  other new checks and its two closed gaps pass on this set too (4 passed by node id).
+- **The fast tier** (`uv run pytest -m "not slow" -n 3`, after the lane's lock cleared): 585/713
+  pass, 0 gap, 3 blocked (this machine's usual three), **0 fail**, 125 deselected; unit suite
+  1786/1793, 7 skipped. Ratchet against `a75e5d4`: lost 0, absent 0, unrun 0, unrun locally 1
+  (the prior-art clone), gained 1 (`test_source_tree_matches_its_tarball[contourpy]`), grew 123.
+  Fuel against 086's record: 159 rows move, 130 up and 29 down, median +0.096%, −0.101% to
+  +0.452%.
+- **The branch dry run** `39369636353` on `c448232` (the tip before these notes; only `context/`
+  changes after it): every job passed but three macOS judge shards, each red **only for growth**,
+  with 0 fail and lost 0. `own-guest`: grew 110, gained 7. `own-embedding`: grew 28.
+  `upstream-macos`: grew 2 (`cpython-fs` 62,759,159,502 → 62,795,480,409, +0.058%; `numpy-lib`
+  132,356,352,156 → 132,421,229,061, +0.049%). The gather was skipped because those shards
+  failed. Windows (own-guest, own-embedding, own-runner, upstream-windows) passed with 0 fail, as
+  did every Linux shard, the same-bytes job and verify on all three systems. The macOS shards'
+  records against 086's: 186 fuel rows move, 151 up and 35 down, median +0.075%, −0.101% to
+  +0.452%. The rows above +0.3% read the zip's directory (`test_resources_read_as_zipfile_reads_them`,
+  `test_the_fast_reader_builds_zipimports_dict`) or look up many builtins
+  (`test_dotted_builtins_keep_their_import_names`; the inittab has two more entries).
+- **Not run here:** the full judge (`uv run pytest -n 6`). The coordinator asked for the fast tier
+  and the dry run. The darwin fuel of the upstream groups that run only on Linux in the release
+  (numpy-core, pandas, cpython-a to c) is therefore not yet compared with 086's; the lane's
+  serial judge on the exact commit gives it.
+
+#### The claim list (wave 06, stacked with 037)
+
+- **New checks (5):** `tests/checks/test_v1_3_matplotlib.py::test_plot_contour_job_matches_native[plain]`
+  and `[snapshot]` (fuel recorded), `::test_contourpy_runs_one_thread` (fuel recorded),
+  `tests/checks/test_v1_2_hostile_guest.py::test_a_triangulation_leaves_every_writable_grant_as_it_was`,
+  `tests/checks/test_v1_5_rebuild_from_pins.py::test_source_tree_matches_its_tarball[contourpy]`.
+- **Gaps that now pass (2):** `tests/checks/test_v1_3_matplotlib.py::test_delaunay_triangulation_runs`
+  and `::test_contour_runs`, their entries removed from `tests/known_gaps.toml`.
+- **The unit suite:** seven new test functions (`tests/unit/test_build_scripts.py`: the
+  meson plan and contourpy's build-config rewrite; `tests/unit/test_artifact_rules.py`: contourpy's
+  notices and the borrowed licence rule); `test_runner_mounts.py` and `test_scan.py` changed for
+  contourpy.
+- **Retired:** none. **Passes moved:** none; no group's passes fall.
+- **Rows that grow:** the three byte rows, and fuel rows across the board as above (the binary's
+  static-data move, the zip's 19 members, the two inittab entries).
+- **The judge changed in:** `tests/checks/test_v1_2_hostile_guest.py`, `test_v1_3_data_stack.py`,
+  `test_v1_3_matplotlib.py`; `tests/harness/artifacts.py`, `jobs.py`, `needs.py`, `paths.py`,
+  `pins.py`, `scan.py`; `tests/jobs/plot_contour.py`, `.expected`, `.platform`;
+  `tests/known_gaps.toml`; `tests/upstream/packages.toml`; the four unit files.
+
+#### The exact flags
+
+```
+--accept "043: matplotlib's second milestone: contourpy 1.4.0 built in as contourpy._contourpy with its package in the zip, matplotlib's _qhull linked with qhull 8.0.2 and carried patch recipes/patches/matplotlib-3.11.2/0002-qhull-without-devnull-on-wasi.patch (eleven carried patches), a meson-python stand-in recipe, contourpy's _build_config.py made host-neutral; the release's zero-patch count 23 trees; built stacked on 086 (wasi-sdk 34), SHA256SUMS 4c7099a4 from macOS, linux/arm64 and linux/x86_64"
+--accept-judge "043: five new checks (the plot_contour golden on both binaries with the guest's PDF pinned, contourpy's one thread, a triangulation leaves every writable grant as it was, contourpy's source tree) and two gaps closed (test_delaunay_triangulation_runs, test_contour_runs, removed from known_gaps); contourpy in the harness's host facts, licence, tree and distribution lists; seven new unit tests (the meson plan, contourpy's build-config rewrite, contourpy's notices and the borrowed licence rule); packages.toml names contourpy's suite as later (spec 066)"
+--accept-growth "043, against 086's accepted set (a75e5d4): python.wasm +1,081,782 bytes (41,169,347 to 42,251,129) and the snapshot +1,089,018 (45,444,036 to 46,533,054), with contourpy, _qhull and qhull linked; the zip +65,005 bytes (38,723,140 to 38,788,145) and 19 members (4,435 to 4,454). Fuel, the branch dry run 39369636353's macOS shards: 186 rows move, 151 up and 35 down, median +0.075%, -0.101% to +0.452%, passes unchanged. The plain start +426,234 (+0.19%) is the zip's 19 members, about 26,400 each; the snapshot start +122,018 (+0.25%) and the snapshot probes are the binary's (its static data ends later, so every heap address moves; the build review's 2 x 2 on the old base); the zip-directory and builtin-lookup checks +0.30% to +0.45% (19 more zip entries, two more inittab entries); cpython-fs +0.058%, numpy-lib +0.049%"
+```
+
+No `--retire`, no `--accept-fewer-passes`, no `--partial`.
