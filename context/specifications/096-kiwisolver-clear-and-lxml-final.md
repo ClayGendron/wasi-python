@@ -5,8 +5,8 @@
   (`../reviews/096-kiwisolver-clear-and-lxml-final-spec-2026-10-20.md`, verdict "ready once
   findings 1 and 2 are written into Decision 3 and check 3, with their unit rows"); **revised
   against all of its findings** and rebased onto main `c091f3d` (roadmap only; the set is
-  unchanged). *Disposition of the pre-build review* says where each went. **Waiting for the same
-  reviewer to confirm F1 and F2.** It carries two upstream patches (§4.1) and changes the build
+  unchanged). *Disposition of the pre-build review* says where each went. **Confirmed for build** by
+  the same reviewer (its *Confirmation*), with one Low written in (option 1). It carries two upstream patches (§4.1) and changes the build
   recipe and the artifact set, so it was reviewed before it is built (constitution §5.6). A
   different agent reviews the build.
 - **Date:** 2026-10-20
@@ -129,6 +129,10 @@ pointers; the offsets EXECUTED: `type`'s own record and the 481 types below read
     finding**, `type at <address>: does not read as a type (tp_name)`. One whose `tp_name` is 0
     is a type named at run time and is read as `<tp_name NULL at <address>>` (one today: a
     numpy DType whose name numpy fills in).
+    Because a metatype needs a C-string `tp_name`, a metatype named at run time would not
+    classify its instances; so **a dropped record whose `ob_type` is a type named at run time is
+    a finding** (none today), and check 3 holds the types named at run time at most 1 (the
+    confirmation's Low, option 1).
   - Every other referenced candidate is a **type**.
   - Its function fields are checked: `tp_dealloc`, `tp_getattr`, `tp_setattr`, `tp_repr`,
     `tp_hash`, `tp_call`, `tp_str`, `tp_getattro`, `tp_setattro`, `tp_traverse`, `tp_clear`,
@@ -402,7 +406,8 @@ Each is written before the change it judges, and each was, or will be, seen fail
    - at least 380 `PyType_Spec`s (454);
    - at least 120 module definitions (149);
    - at least 4,500 slot functions checked (5,360);
-   - **exactly 0 unreferenced type candidates** (0; the pre-build review's F1).
+   - **exactly 0 unreferenced type candidates** (0; the pre-build review's F1);
+   - **at most 1 static type named at run time** (1; the confirmation's Low).
 
    **And the named records** (the pre-build review's F2), each of which the report must have read,
    one or more per compiled package with a static record, so one package's tables cannot vanish
@@ -426,7 +431,9 @@ Each is written before the change it judges, and each was, or will be, seen fail
    - a static type named with a space (`a b`) is read and its fields checked † (F1);
    - a referenced static record, `ob_type` 0, whose `tp_name` points into the image at bytes
      that are no C string (one below 0x20): `does not read as a type (tp_name)` † (F1); the same
-     with `tp_name` 0: read as a type named at run time;
+     with `tp_name` 0: read as a type named at run time; a static record whose `ob_type` is that
+     type: a finding †; a second type named at run time: check 3's bound turns red † (the
+     confirmation's Low);
    - an unreferenced type candidate: counted, and check 3's bound turns red on it † (F1); a static
      instance (`ob_type` a non-metatype) and a record whose `tp_name` is not a pointer: each
      counted under its reason, no finding;
@@ -537,7 +544,7 @@ None blocks the build. Decided until answered:
 
   ```
   --accept "096: kiwisolver's tp_clear returns int (carried patch 0002, upstream's #245), so a garbage cycle holding a kiwisolver object is collected instead of trapping; import lxml.html.diff works (carried patch 0001, upstream's line from #477); the callback scan reads static type objects, PyType_Slot arrays and module definitions"
-  --accept-judge "096: the callback scan reads static PyTypeObjects (their tp_* functions and number, sequence, mapping, async and buffer suites), PyType_Spec slot arrays and PyModuleDefs, with minimum coverage (400 types, 380 specs, 120 module definitions, 4,500 functions, 0 unreferenced type candidates), every dropped record counted by reason, and named records it must read (kiwisolver's four specs with their tp_clear, a pandas spec, type, numpy.ndarray, ImagingCore, lxml.etree._Element, _regex, ft2font); checks that a cycle through Variable, Term, Expression and Constraint is collected and that lxml.html.diff imports and diffs as natively; unit rows on WAT modules; no existing expectation edited"
+  --accept-judge "096: the callback scan reads static PyTypeObjects (their tp_* functions and number, sequence, mapping, async and buffer suites), PyType_Spec slot arrays and PyModuleDefs, with minimum coverage (400 types, 380 specs, 120 module definitions, 4,500 functions, 0 unreferenced type candidates, at most 1 type named at run time), every dropped record counted by reason, and named records it must read (kiwisolver's four specs with their tp_clear, a pandas spec, type, numpy.ndarray, ImagingCore, lxml.etree._Element, _regex, ft2font); checks that a cycle through Variable, Term, Expression and Constraint is collected and that lxml.html.diff imports and diffs as natively; unit rows on WAT modules; no existing expectation edited"
   --accept-growth "096: kiwisolver's four tp_clear return int: python.wasm +<bytes> and the snapshot +<bytes>; lxml/html/diff.py gains one line: the zip +<bytes>; MANIFEST two recipe lines"
   ```
 
@@ -570,6 +577,10 @@ drafting scanner and its mutants were re-run after the changes (`slotscan-main-4
   `closes_with = "spec 096"`, the class `lxml-html-diff`, no allowance added.
 - **L6, written in.** The mutants print each total.
 - **L7, written in.** The coverage line counts kiwisolver's 6 among the specs, not the functions.
+- **The confirmation's Low, written in (option 1).** The reviewer confirmed for build and accepted
+  reading a `tp_name`-0 candidate as a type. To bound its interplay with the metatype rule, check
+  3 holds the types named at run time at most 1, and a dropped record whose `ob_type` is one is a
+  finding, with unit rows; the builder names the choice in the landing notes.
 - **N8, N9.** No change asked for the metatype rule (Decision 3 says it over-includes safely).
   Rebased onto `c091f3d`.
 

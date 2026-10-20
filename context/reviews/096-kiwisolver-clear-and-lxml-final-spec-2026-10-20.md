@@ -275,3 +275,66 @@ scanner and its mutants were re-run on main's set after the changes.
 6. **L6, written in.** Each mutant line prints the total.
 7. **L7, written in.** "specs: … kiwisolver's 6".
 8. **N8, N9.** No change for the metatype rule; rebased onto `c091f3d`.
+
+## Confirmation
+
+- **Date:** 2026-10-20. **Reviewer:** the same agent. **Reviewed:** `db3b1f3` on main `c091f3d`
+  (`git diff c07d87d db3b1f3`: the spec, the drafting scanner, its mutants and outputs, the roadmap,
+  this review copied). Time box 20 minutes. `build/lane.lock` absent at every run.
+- **Re-ran (EXECUTED):** `uv run pytest tests/unit/test_callbacks.py` → 11 passed; the revised
+  `slotscan.py` on main's set (`python.wasm` `b6953170…`) → identical to the new
+  `slotscan-main-4eaf1c3d.txt` (4 findings, 481 types, 5,360 functions, 0 unreferenced
+  candidates); the revised `slotscan_mutants.py` → identical to the new `slotscan_mutants.out`
+  (each total printed; `kiwisolver.Term`'s `slots` zeroed gives two named-record findings with 453
+  specs, every minimum met; `numpy.ndarray`'s `tp_name` at a zero word gives the `tp_name` finding).
+
+### The findings against their answers
+
+- **F1: answered.** Decision 3 defines a C string (0x20–0x7E, 1 to 256 bytes); every static
+  record is classified and each drop counted by reason; a referenced candidate whose `tp_name`
+  points into the image at no C string is a finding; unreferenced candidates held at 0 by check 3;
+  unit rows with †. `<dummy key> type` and `symtable entry` are now read. My own probe of the new
+  drops (scratchpad `096-scripts/drops2.py`): of the 5,188 records dropped for their `ob_type`,
+  every one is a static instance (`str` 2,250, `int` 2,060, `bytes` 515, `tuple` 310, `numpy.dtype`
+  24, …) or one of 7 unreferenced, unnamed coincidences whose `ob_type` is a small integer; **none
+  looks like a type** (named, `tp_dealloc` a table index, `Py_TPFLAGS_DEFAULT`'s bit 18 set: 0). The
+  one "tp_name neither 0 nor in the image" record is unreferenced string-table bytes (`tp_name`
+  `0x7372`).
+- **F2: answered.** Named records per compiled package (kiwisolver's four specs with their
+  `tp_clear` as "spec slot" records, a pandas Cython spec, `type`, `numpy.ndarray`, `ImagingCore`,
+  `lxml.etree._Element`, `_regex`, `ft2font`), a finding for each not read, a unit row with †, and
+  the mutant that turns the check red by the named records alone. A NULL `tp_clear` in kiwisolver
+  would also leave its "spec slot" record unread, so L3's new tolerance cannot hide it there.
+- **L3 to L7: answered** as written (NULL function slots readable and counted; the out-of-scope
+  list and ids 92–110; Decision 8 now follows 066's `82f2d6c`, with no allowance added; mutant
+  totals; the coverage wording).
+
+### The departure: `tp_name` 0 read as a type named at run time
+
+**Accepted. It is not a hole for a slot defect.** A candidate with `tp_name` 0 is not dropped: it is
+read as a type, every function field and suite is checked, and a mismatch is a finding (named
+`<tp_name NULL at <address>>`, with the function's name from the name section). So a real defect in
+such a type is red, not hidden. Reporting the record itself would have been the false positive the
+builder describes: main's one is referenced, its `ob_type` is a metatype (`numpy._DTypeMeta`), and
+it is a numpy DType whose name numpy fills in. What the departure loses is only the name in a
+message, and the risk it adds runs the safe way (a non-type read as a type can only go red).
+
+**One interplay to bound** (Low, fix text): the metatype rule requires a C-string `tp_name`, so a
+*metatype* named at run time would not count as one, and static types whose `ob_type` is it would
+fall into "dropped: `ob_type` neither 0 nor a metatype", counted but not read. None today (EXECUTED:
+no record has the run-time-named type as its `ob_type`; the only nameless metatype-shaped record is
+the unreferenced string-table bytes above). Fix text, either is enough:
+- check 3 holds **"static types named at run time" at most 1** (1 today), so a second one is a
+  reviewed change, not a quiet one; and add to that rule: "a dropped record whose `ob_type` is a
+  type named at run time is a finding";
+- or, simpler: the metatype rule accepts `tp_name` 0 as well as a C string (it still refuses a
+  `tp_name` outside the image), so a run-time-named metatype classifies its instances.
+
+I recommend the bound "at most 1" plus the second rule's unit row; the builder may choose either
+option and say which in its landing notes. No new review round is needed for it (a Low with its
+fix text).
+
+### Verdict
+
+**Confirmed for build**, with the one Low above written in by the builder (the bound on
+run-time-named types and its interplay with the metatype rule).
