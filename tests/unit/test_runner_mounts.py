@@ -257,7 +257,7 @@ def test_forwards_cost_no_fuel_and_keep_traps(placeholder, tmp_path) -> None:
         used = runner._fuel_used(10**6, driven, call, m.store.get_fuel)
         ends.append((driven.exit_code, driven.trapped, used))
         if mounted:
-            assert isinstance(call.stopped, wt.WasmtimeError) and call.stopped.ptr()
+            assert isinstance(call.stopped, wt.WasmtimeError) and str(call.stopped)
     assert ends[0] == ends[1], ends
     assert ends[0][1] and ends[0][2] and ends[0][2] > 0, ends
 

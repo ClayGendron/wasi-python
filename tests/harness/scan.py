@@ -2629,3 +2629,110 @@ def npy_fenv_records_file_errors(root: Path) -> tuple[list[str], dict[str, int]]
     if not p.is_file():
         return [f"{NPY_FENV_RECORDS} is missing (numpy's compile records)"], {}
     return npy_fenv_record_errors(json.loads(p.read_text()))
+
+
+# ---------------------------------------------------------------------------------------------
+# Spec 102: one module, the engine seam, touches wasmtime-py's private API. The rule reads raw
+# text, comments and docstrings included. Its last three alternations (the raw function handle,
+# the from-pointer constructors, the pointer method) are assembled from two literals each, so
+# that this file is not a hit of its own rule (U17 holds that it is not).
+
+PRIVATE_ENGINE = re.compile(
+    r"from wasmtime import [^\n]*\b_(?:ffi|bindings|func|wasi)\b"
+    r"|\bwasmtime\._(?:ffi|bindings|func|wasi)\b"
+    r"|(?<!self)\._context\(\)"
+    r"|\._"
+    r"func\b"
+    r"|\b_from"
+    r"_ptr\b"
+    r"|\.p"
+    r"tr\(\)"
+)
+ENGINE_SEAM = "src/wasi_python/_wasmtime_ffi.py"
+ENGINE_SEAM_UNIT = "tests/unit/test_wasmtime_ffi.py"
+
+
+def private_engine_hits(root: Path, subdirs: Iterable[str], exempt: Iterable[str]) -> list[str]:
+    """Every line of a `.py` file under `subdirs` that reaches wasmtime-py's private API, as
+    `path:line: text`, the files named in `exempt` (paths relative to `root`) left out."""
+    skip = set(exempt)
+    hits = []
+    for p in files_under(root, *subdirs):
+        if p.suffix != ".py" or rel(p, root) in skip:
+            continue
+        text = _text(p)
+        if text is None:
+            continue
+        for n, line in enumerate(text.splitlines(), 1):
+            if PRIVATE_ENGINE.search(line):
+                hits.append(f"{rel(p, root)}:{n}: {line.strip()}")
+    return hits
+
+
+BINDINGS_HEADING = "## The bindings"
+_BINDING_ROW = re.compile(r"^\| `([^`]*)`")
+
+
+def _tuple_literal(tree: ast.Module, name: str) -> tuple | None:
+    for node in tree.body:
+        targets: list[ast.expr] = []
+        if isinstance(node, ast.Assign):
+            targets = list(node.targets)
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            targets = [node.target]
+        if any(isinstance(t, ast.Name) and t.id == name for t in targets):
+            try:
+                value = ast.literal_eval(node.value)  # type: ignore[union-attr]
+            except ValueError:
+                return None
+            return value if isinstance(value, tuple) else None
+    return None
+
+
+def sheet_bindings(text: str) -> list[str]:
+    """The first cell's backticked text of every row of the sheet's "The bindings" table: a
+    line starting with ``| ` `` under that heading, up to the next heading. A tag after the
+    backticks, such as `(optional)`, is not part of the name."""
+    rows = []
+    inside = False
+    for line in text.splitlines():
+        if line.startswith("## "):
+            inside = line.strip() == BINDINGS_HEADING
+            continue
+        m = _BINDING_ROW.match(line) if inside else None
+        if m:
+            rows.append(m[1])
+    return rows
+
+
+def private_api_debt_errors(adapter: Path, sheet: Path) -> list[str]:
+    """The debt sheet holds one row per entry of the adapter's `NEEDED` and `OPTIONAL` tuples,
+    each a `(holder, name)` pair read as `holder.name`, and the adapter's module docstring names
+    every one; read statically, with `ast`, so no wasmtime-py is imported."""
+    if not adapter.is_file():
+        return [f"{adapter.name} does not exist"]
+    if not sheet.is_file():
+        return [f"{sheet} does not exist"]
+    tree = ast.parse(adapter.read_text(encoding="utf-8"), str(adapter))
+    errors = []
+    names: list[str] = []
+    for which in ("NEEDED", "OPTIONAL"):
+        pairs = _tuple_literal(tree, which)
+        if pairs is None:
+            errors.append(f"{adapter.name}: {which} is not a tuple literal")
+            continue
+        for pair in pairs:
+            if not (
+                isinstance(pair, tuple) and len(pair) == 2 and all(isinstance(s, str) for s in pair)
+            ):
+                errors.append(f"{adapter.name}: {which} holds {pair!r}, not a (holder, name) pair")
+                continue
+            names.append(pair[0] + "." + pair[1])
+    rows = sheet_bindings(sheet.read_text(encoding="utf-8"))
+    errors += [f"{name}: no row of the sheet's table" for name in names if name not in rows]
+    errors += [
+        f"{row}: a row naming no entry of NEEDED or OPTIONAL" for row in rows if row not in names
+    ]
+    doc = ast.get_docstring(tree) or ""
+    errors += [f"{name}: not named in the adapter's docstring" for name in names if name not in doc]
+    return errors

@@ -945,9 +945,8 @@ def test_calls_add_nothing_to_wasmtime_pys_tables(guest_workdir, monkeypatch) ->
     import time
 
     import wasmtime
-    from wasmtime import _func, _wasi
 
-    from wasi_python import runner
+    from wasi_python import _wasmtime_ffi, runner
 
     run = _runner()
     root = _root(guest_workdir)
@@ -960,20 +959,21 @@ def test_calls_add_nothing_to_wasmtime_pys_tables(guest_workdir, monkeypatch) ->
         counts["define_func"] += 1
         return define_func(self, *args, **kwargs)
 
-    allocate = _wasi.CUSTOM_OUTPUTS.allocate
+    table = _wasmtime_ffi.custom_output_table()
+    allocate = table.allocate
 
     def counted_output(value):
         counts["custom outputs"] += 1
         return allocate(value)
 
     monkeypatch.setattr(wasmtime.Linker, "define_func", counted)
-    monkeypatch.setattr(_wasi.CUSTOM_OUTPUTS, "allocate", counted_output)
-    functions = len(_func.FUNCTIONS.list)
+    monkeypatch.setattr(table, "allocate", counted_output)
+    functions = _wasmtime_ffi.host_function_count()
     for fuel in (None, 10**10, None):
         done = run(["-c", "print('x')"], root=root, fuel=fuel)
         assert (done.exit_code, done.stdout) == (0, b"x\n"), done
     assert counts == {"define_func": 0, "custom outputs": 0}, counts
-    assert len(_func.FUNCTIONS.list) == functions
+    assert _wasmtime_ffi.host_function_count() == functions
     for _ in range(200):
         gc.collect()
         if not runner._outputs:

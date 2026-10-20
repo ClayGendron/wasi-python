@@ -1474,6 +1474,8 @@ def _wasmtime() -> Any:
             "wasi_python.run needs wasmtime-py (wasmtime>=49,<50), which installs with "
             "wasi-python; reinstall it or install wasmtime directly"
         ) from e
+    from . import _wasmtime_ffi  # noqa: F401  (spec 102: its own ImportError names what moved)
+
     return wt
 
 
@@ -3240,7 +3242,9 @@ class _Call:
         *,
         home: Any = None,
     ) -> None:
-        self.context = _context_address(store)
+        from . import _wasmtime_ffi as ffi
+
+        self.context = ffi.context_address(store)
         self.origin_ns = origin_ns  # its waits count from here (spec 055, the review's F6)
         # The thread that made the call, which runs the embedder's code (spec 078, Decision 4);
         # None calls it directly (the judge's stand-ins).
@@ -3269,9 +3273,9 @@ class _Call:
         context, traps it at its next function entry, with nothing raised through wasmtime-py."""
         if self.stopped is None:
             self.stopped = cause
-        from wasmtime import _ffi
+        from . import _wasmtime_ffi as ffi
 
-        _ffi.wasmtime_context_set_epoch_deadline(caller._context(), 0)
+        ffi.set_epoch_deadline(caller, 0)
 
 
 _calls = threading.local()
@@ -3284,10 +3288,6 @@ def _stack() -> list[_Call]:
     return stack
 
 
-def _context_address(storelike: Any) -> int:
-    return ctypes.addressof(storelike._context().contents)
-
-
 def _shared(kind: str, refused: int, stopped: int, *bound: Any) -> Callable[..., int]:
     """A host function defined once per engine. It serves the call on top of this thread's
     stack, and only when the caller is that call's store; it never raises into wasmtime-py,
@@ -3296,6 +3296,8 @@ def _shared(kind: str, refused: int, stopped: int, *bound: Any) -> Callable[...,
 
     import wasmtime as wt
 
+    from . import _wasmtime_ffi as ffi
+
     wasmtime_errors = (wt.Trap, wt.WasmtimeError)
 
     def function(caller: Any, *args: int) -> int:
@@ -3303,7 +3305,7 @@ def _shared(kind: str, refused: int, stopped: int, *bound: Any) -> Callable[...,
         try:
             stack = _stack()
             call = stack[-1] if stack else None
-            if call is None or _context_address(caller) != call.context:
+            if call is None or ffi.context_address(caller) != call.context:
                 return refused
             # Ctrl-C comes before the guard below: a pending Ctrl-C is recorded even for a call
             # the epoch callback has ended (spec 015's order).
@@ -3353,9 +3355,9 @@ def _shared(kind: str, refused: int, stopped: int, *bound: Any) -> Callable[...,
 def _epoch_now(caller: Any) -> None:
     """An epoch deadline of 0 for the caller's store: its guest stops, or meets its epoch
     callback, at its next function entry."""
-    from wasmtime import _ffi
+    from . import _wasmtime_ffi as ffi
 
-    _ffi.wasmtime_context_set_epoch_deadline(caller._context(), 0)
+    ffi.set_epoch_deadline(caller, 0)
 
 
 def _epoch_answer(context: Any, delta: Any) -> int:
@@ -3413,11 +3415,11 @@ def _stop_error(delta: Any) -> int:
     """A new wasmtime error, which wasmtime owns once returned. If none can be made, continue for
     one tick, never 0, so the next callback tries again (spec 015's build review, F2)."""
     try:
-        from wasmtime import _ffi
+        from . import _wasmtime_ffi as ffi
 
-        error = ctypes.cast(_ffi.wasmtime_error_new(b"stopped by wasi_python"), ctypes.c_void_p)
-        if error.value:
-            return error.value
+        address = ffi.new_error(b"stopped by wasi_python")
+        if address:
+            return address
     except BaseException:
         pass
     try:
@@ -3439,14 +3441,13 @@ def _watch(store: Any) -> None:
     """Give a store the epoch callback, with a NULL finalizer: no per-call ctypes object exists,
     and the callback finds its call through the thread's stack (spec 015)."""
     global _epoch_callback
-    from wasmtime import _bindings, _ffi
+    from . import _wasmtime_ffi as ffi
 
-    argtypes = _bindings._wasmtime_store_epoch_deadline_callback.argtypes
     with _epoch_callback_lock:  # one object for the process: a store must never outlive its own
         if _epoch_callback is None:
-            _epoch_callback = argtypes[1](_on_epoch)
+            _epoch_callback = ffi.EPOCH_CALLBACK(_on_epoch)
         callback = _epoch_callback
-    _ffi.wasmtime_store_epoch_deadline_callback(store.ptr(), callback, None, argtypes[3]())
+    ffi.watch_epochs(store, callback)
 
 
 _linkers: dict[Any, Any] = {}
@@ -3570,13 +3571,12 @@ def _output_free(key: int | None) -> None:
 
 
 def _send_outputs(wasi: Any, out: _Stream, err: _Stream) -> tuple[int, int]:
-    from wasmtime import _ffi
+    from . import _wasmtime_ffi as ffi
 
     with _outputs_lock:
         keys = next(_output_keys), next(_output_keys)
         _outputs[keys[0]], _outputs[keys[1]] = out, err
-    _ffi.wasi_config_set_stdout_custom(wasi.ptr(), _output_write, keys[0], _output_free)
-    _ffi.wasi_config_set_stderr_custom(wasi.ptr(), _output_write, keys[1], _output_free)
+    ffi.set_custom_outputs(wasi, _output_write, _output_free, keys[0], keys[1])
     return keys
 
 
@@ -4082,28 +4082,12 @@ _stack_size_found: list[int] = []  # the value threading.stack_size had, while t
 _on_entry: Callable[[str], None] | None = None
 
 
-def _set_async_stack(cfg: Any, size: int) -> None:
-    """wasmtime's async stack size, which must be at least `max_wasm_stack` above 2 MiB, or
-    wasmtime refuses the config and wasmtime-py's engine aborts the process (spec 078, Decision 1).
-    Through `Config.async_stack_size` when wasmtime-py has it, else its own declared binding; with
-    neither, a RuntimeError before any engine is made."""
-    if isinstance(getattr(type(cfg), "async_stack_size", None), property):
-        cfg.async_stack_size = size
-        return
-    from wasmtime import _ffi
-
-    setter = getattr(_ffi, "wasmtime_config_async_stack_size_set", None)
-    if not callable(setter):
-        raise RuntimeError(
-            f"wasmtime-py {_wasmtime_version()} cannot set async_stack_size, which the runner's "
-            f"{_WASM_STACK >> 20} MiB wasm stack needs"
-        )
-    setter(cfg.ptr(), size)
-
-
 def _engine(metered: bool) -> wasmtime.Engine:
-    """Two engines per process: fuel metering changes the compiled code."""
+    """Two engines per process: fuel metering changes the compiled code. The async stack size
+    is set first, through the seam (spec 078, Decision 1; spec 102)."""
     import wasmtime as wt
+
+    from . import _wasmtime_ffi as ffi
 
     with _lock:
         if metered not in _engines:
@@ -4111,7 +4095,7 @@ def _engine(metered: bool) -> wasmtime.Engine:
             cfg = wt.Config()
             cfg.consume_fuel = metered
             cfg.epoch_interruption = True
-            _set_async_stack(cfg, _WASM_STACK)  # first: an 8 MiB stack without it aborts
+            ffi.set_async_stack(cfg, _WASM_STACK)  # first: an 8 MiB stack without it aborts
             cfg.max_wasm_stack = _WASM_STACK
             _engines[metered] = wt.Engine(cfg)
         return _engines[metered]
@@ -4576,10 +4560,9 @@ def _handler_base(signum: int) -> int | None:
 def _wasmtime_base() -> int | None:
     """The load base of wasmtime-py's own library, read once, from one of its symbols."""
     if "wasmtime" not in _handlers:
-        from wasmtime import _ffi
+        from . import _wasmtime_ffi as ffi
 
-        symbol = ctypes.cast(_ffi.dll.wasm_engine_new, ctypes.c_void_p).value
-        _handlers["wasmtime"] = _load_base(symbol)
+        _handlers["wasmtime"] = _load_base(ffi.engine_symbol_address())
     return _handlers["wasmtime"]
 
 
@@ -4736,7 +4719,9 @@ def _module_miss(
     mod = None
     cwasm = None
     if cache is not None and _private(cache, is_dir=True):
-        cwasm = cache / f"{digest[:32]}-wasmtime{_wasmtime_version()}-{flavor}.cwasm"
+        from . import _wasmtime_ffi as ffi
+
+        cwasm = cache / f"{digest[:32]}-wasmtime{ffi.version()}-{flavor}.cwasm"
     if cwasm is not None and cwasm.exists() and _private(cwasm, is_dir=False):
         try:
             mod = wt.Module.deserialize_file(engine, str(cwasm))
@@ -4794,12 +4779,6 @@ def _private(path: Path, *, is_dir: bool) -> bool:
         stacklevel=5,
     )
     return False
-
-
-def _wasmtime_version() -> str:
-    from importlib.metadata import version
-
-    return version("wasmtime")
 
 
 class _epoch_ticker:

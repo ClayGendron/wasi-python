@@ -6,14 +6,12 @@ reports or re-raises it on its own thread. Nothing here measures time."""
 from __future__ import annotations
 
 import asyncio
-import ctypes
 import struct
 
 import pytest
 import wasmtime as wt
-from wasmtime import _bindings, _ffi, _func
 
-from wasi_python import runner
+from wasi_python import _wasmtime_ffi, runner
 
 
 def guest(mode: int) -> str:
@@ -113,7 +111,7 @@ def test_a_hosts_base_exception_comes_back_to_its_own_call(raised) -> None:
         raise raised()
 
     assert drive(0, host, raises=raised) == ("raised", raised, runner.HOST_FAULT, 0)
-    assert _func.LAST_EXCEPTION is None
+    assert _wasmtime_ffi.last_exception() is None
 
 
 def test_a_caller_from_another_store_gets_no_host() -> None:
@@ -134,39 +132,6 @@ def test_a_stopped_call_reports_no_fuel() -> None:
     assert runner._fuel_used(1000, done, stopped, lambda: 400) is None
     ended = SimpleNamespace(stopped=None, ended="cancelled")  # spec 015's epoch callback
     assert runner._fuel_used(1000, done, ended, lambda: 400) is None
-
-
-def test_the_bindings_the_runner_calls_exist() -> None:
-    """The runner calls three C functions through wasmtime-py's private binding module
-    (`_ffi`, which re-exports `_bindings`); pin their shape, since a release could move them."""
-    for name in ("wasi_config_set_stdout_custom", "wasi_config_set_stderr_custom"):
-        assert callable(getattr(_ffi, name)), name
-        argtypes = getattr(_bindings, "_" + name).argtypes
-        assert len(argtypes) == 4, name
-        assert argtypes[0] is ctypes.POINTER(_ffi.wasi_config_t), name
-        assert argtypes[2] is ctypes.c_void_p, name
-        assert argtypes[1] is type(runner._output_write), name  # ctypes caches by signature
-        assert argtypes[3] is type(runner._output_free), name
-    assert callable(_ffi.wasmtime_context_set_epoch_deadline)
-    assert _bindings._wasmtime_context_set_epoch_deadline.argtypes == [
-        ctypes.POINTER(_ffi.wasmtime_context_t),
-        ctypes.c_uint64,
-    ]
-    # spec 015: the epoch callback, and the error it answers with
-    assert callable(_ffi.wasmtime_store_epoch_deadline_callback)
-    argtypes = _bindings._wasmtime_store_epoch_deadline_callback.argtypes
-    assert len(argtypes) == 4
-    assert argtypes[0] is ctypes.POINTER(_ffi.wasmtime_store_t)
-    assert argtypes[1]._restype_ is ctypes.c_size_t
-    assert argtypes[1]._argtypes_ == (
-        ctypes.POINTER(_ffi.wasmtime_context_t),
-        ctypes.c_void_p,
-        ctypes.POINTER(ctypes.c_uint64),
-        ctypes.POINTER(ctypes.c_uint8),
-    )
-    assert argtypes[2] is ctypes.c_void_p
-    assert argtypes[3]._argtypes_ == (ctypes.c_void_p,)
-    assert callable(_ffi.wasmtime_error_new)
 
 
 @pytest.fixture
@@ -247,10 +212,10 @@ class RecordingConfig:
 
 
 def _record_async_stack(monkeypatch) -> None:
-    """wasmtime-py's own binding for the async stack size, recording into the stand-in."""
+    """The seam's binding for the async stack size, recording into the stand-in (spec 102)."""
     monkeypatch.setattr(
-        _ffi,
-        "wasmtime_config_async_stack_size_set",
+        _wasmtime_ffi,
+        "ASYNC_STACK_SETTER",
         lambda cfg, size: cfg.set.__setitem__("async_stack_size (binding)", size),
     )
 
@@ -307,9 +272,9 @@ def test_the_async_stack_size_property_is_preferred(monkeypatch) -> None:
             else:
                 super().__setattr__(name, value)
 
-    monkeypatch.setattr(_ffi, "wasmtime_config_async_stack_size_set", None)
+    monkeypatch.setattr(_wasmtime_ffi, "ASYNC_STACK_SETTER", None)
     cfg = WithProperty()
-    runner._set_async_stack(cfg, STATED)
+    _wasmtime_ffi.set_async_stack(cfg, STATED)
     assert cfg.set == {"async_stack_size (property)": STATED}
 
 
@@ -322,7 +287,7 @@ def test_no_engine_is_made_without_the_async_stack_size(monkeypatch) -> None:
     monkeypatch.setattr(wt, "Engine", lambda cfg: made.append(cfg) or object())
     monkeypatch.setattr(runner, "_engines", {})
     monkeypatch.setitem(runner._fork, "used", runner._fork["used"])
-    monkeypatch.delattr(_ffi, "wasmtime_config_async_stack_size_set")
+    monkeypatch.setattr(_wasmtime_ffi, "ASYNC_STACK_SETTER", None)
     with pytest.raises(RuntimeError, match=r"wasmtime-py .* cannot set async_stack_size"):
         runner._engine(True)
     assert made == []

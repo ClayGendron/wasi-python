@@ -35,7 +35,6 @@ wasmtime-py is imported only inside functions, so the package imports without th
 
 from __future__ import annotations
 
-import ctypes
 import enum
 import errno as _host_errno
 import heapq
@@ -580,7 +579,7 @@ class _Forwards:
     funcs: dict[str, Any]
     stat: dict[str, Any] = field(default_factory=dict)
     page: Any = None
-    slots: dict[str, tuple[Any, Any, Any]] = field(default_factory=dict)
+    slots: dict[str, Any] = field(default_factory=dict)  # the seam's prepared calls
 
 
 class _Memory:
@@ -763,9 +762,11 @@ class _Files:
         stat_module = self._runner._stat_trampoline_module(wt, self.engine)
         stat_imports = [plain.get(store, "wasi_snapshot_preview1", name) for name in PRIVATE]
         stat = wt.Instance(store, stat_module, stat_imports).exports(store)
+        from . import _wasmtime_ffi as ffi
+
         self.forwards = _Forwards(
-            {name: exports[name]._func for name in SIGNATURES},
-            {name: stat[name]._func for name in PRIVATE},
+            {name: ffi.raw_func(exports[name]) for name in SIGNATURES},
+            {name: ffi.raw_func(stat[name]) for name in PRIVATE},
             stat["memory"],
         )
 
@@ -773,49 +774,37 @@ class _Files:
         """wasmtime's own answer, on the caller's context, never through `Func.__call__` (whose
         exception slot is process-wide). Fuel-neutral on a metered call: read, raised by the
         allowance, and set back in a `finally` before any trap or error is raised. `stat`
-        forwards one of `PRIVATE` through the guard's own trampoline, on its page (spec 048)."""
-        from wasmtime import Trap, WasmtimeError, _ffi
+        forwards one of `PRIVATE` through the guard's own trampoline, on its page (spec 048).
+        The engine is reached through the seam (spec 102): a prepared call per name, made once."""
+        from wasmtime import Trap, WasmtimeError
+
+        from . import _wasmtime_ffi as ffi
 
         if self.forwards is None:
             return EBADF  # no trampoline yet: nothing of wasmtime's can be reached
         key = "stat:" + name if stat else name  # the guard trampoline's own slots (N2)
         slot = self.forwards.slots.get(key)
         if slot is None:
-            types = SIGNATURES[name]
-            params = (_ffi.wasmtime_val_t * len(types))()
-            for i, kind in enumerate(types):
-                kinds = _ffi.WASMTIME_I32 if kind == "i32" else _ffi.WASMTIME_I64
-                params[i].kind = kinds.value
             func = self.forwards.stat[name] if stat else self.forwards.funcs[name]
-            slot = (func, params, (_ffi.wasmtime_val_t * 1)())
+            slot = ffi.PreparedCall(func, SIGNATURES[name])
             self.forwards.slots[key] = slot
-        func, params, results = slot
-        for i, (kind, value) in enumerate(zip(SIGNATURES[name], args, strict=True)):
-            if kind == "i32":
-                params[i].of.i32 = value
-            else:
-                params[i].of.i64 = value
-        context = caller._context()
-        before = _get_fuel(context) if self.metered else None
-        trap = ctypes.POINTER(_ffi.wasm_trap_t)()
+        context = ffi.context_of(caller)  # for the call only; fuel goes by the caller
+        before = ffi.get_fuel(caller) if self.metered else None
+        raised: BaseException | None = None
         try:
             if before is not None:
-                _set_fuel(context, min(before + FUEL_ALLOWANCE, FUEL_MAX))
-            error = _ffi.wasmtime_func_call(
-                context, ctypes.byref(func), params, len(args), results, 1, ctypes.byref(trap)
-            )
+                ffi.set_fuel(caller, min(before + FUEL_ALLOWANCE, FUEL_MAX))
+            try:
+                return slot.call(context, args)
+            except (Trap, WasmtimeError) as e:
+                raised = e
         finally:
             if before is not None:
-                _set_fuel(context, before)
-        if trap or error:
-            raised = WasmtimeError._from_ptr(error) if error else None
-            if trap:
-                raised = Trap._from_ptr(trap)  # owns and frees it; an error beside it is freed
-            assert raised is not None
-            if before is not None:
-                self.stop_fuel = (raised, before)
-            raise raised
-        return results[0].of.i32
+                ffi.set_fuel(caller, before)
+        assert raised is not None
+        if before is not None:
+            self.stop_fuel = (raised, before)
+        raise raised
 
     # Dispatch.
 
@@ -826,7 +815,9 @@ class _Files:
             if self.metered and getattr(e, "abi", False):
                 # An ABI error ends the run where a grant's does, with the fuel then (served
                 # code spends none), as a forward's error keeps it (the build review, F4.2).
-                self.stop_fuel = (e, _get_fuel(caller._context()))
+                from . import _wasmtime_ffi as ffi
+
+                self.stop_fuel = (e, ffi.get_fuel(caller))
             raise
 
     def _entry(self, fd: int) -> _Open | None:
@@ -2203,24 +2194,6 @@ def _close(iterator: Any) -> None:
             close()
     except Exception:
         pass
-
-
-def _get_fuel(context: Any) -> int:
-    from wasmtime import WasmtimeError, _ffi
-
-    fuel = ctypes.c_uint64()
-    error = _ffi.wasmtime_context_get_fuel(context, ctypes.byref(fuel))
-    if error:
-        raise WasmtimeError._from_ptr(error)
-    return fuel.value
-
-
-def _set_fuel(context: Any, fuel: int) -> None:
-    from wasmtime import WasmtimeError, _ffi
-
-    error = _ffi.wasmtime_context_set_fuel(context, fuel)
-    if error:
-        WasmtimeError._from_ptr(error)  # owned, so freed; a metered store never refuses
 
 
 __all__ = [

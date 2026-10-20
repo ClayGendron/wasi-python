@@ -234,25 +234,3 @@ def test_a_call_cancelled_before_it_runs_never_starts_its_guest(monkeypatch) -> 
     done = runner._drive(wt, Linker(), None, None, call, 10)
     assert (done.exit_code, done.trapped, done.metered) == (None, "cancelled", False)
     assert call.ended == "cancelled"
-
-
-def test_the_stop_error_is_real_and_never_leaves_a_zero_delta(monkeypatch) -> None:
-    """Spec 015's build review, F2: an error wasmtime can own, or, when none can be made, a
-    continue by one tick, never by 0."""
-    from wasmtime import _ffi
-
-    delta = (ctypes.c_uint64 * 1)()
-    address = runner._stop_error(delta)
-    assert address and delta[0] == 0
-    _ffi.wasmtime_error_delete(ctypes.cast(address, ctypes.POINTER(_ffi.wasmtime_error_t)))
-
-    def broken(message):
-        raise MemoryError
-
-    monkeypatch.setattr(_ffi, "wasmtime_error_new", broken)
-    assert runner._stop_error(delta) == 0 and delta[0] == 1
-    delta[0] = 0
-    monkeypatch.setattr(
-        _ffi, "wasmtime_error_new", lambda m: ctypes.POINTER(_ffi.wasmtime_error_t)()
-    )
-    assert runner._stop_error(delta) == 0 and delta[0] == 1

@@ -1273,6 +1273,94 @@ def test_what_may_be_bound_twice(work) -> None:
     assert scan.duplicate_name_hits([job], work) == ["tests/jobs/z.py:2: LIMIT (first bound at 1)"]
 
 
+# Spec 102: only the engine seam touches wasmtime-py's private API, and the debt is documented.
+# Every fixture line below is built by concatenation, so this file is not a hit of the rule.
+
+FFI = "wasmtime." + "_ffi"  # the private module's dotted name, never spelled whole here
+
+
+def test_private_engine_hits_each_alternation_once_and_the_exempt_files_not(work) -> None:
+    lines = [
+        "from wasmtime import Store, _" + "ffi",
+        "import wasmtime." + "_bindings",
+        "context = caller." + "_context()",
+        "handle = exports[name]." + "_func",
+        "raised = Trap." + "_from" + "_ptr(trap)",
+        "address = store." + "ptr()",
+        "copy = self." + "_context()",  # tools.py's own method, not wasmtime-py's
+        "sym = '_GLOBAL__sub_I_highs_bindings.cpp'",  # no `wasmtime.` prefix
+        "x = 1",
+    ]
+    write(work, "src/wasi_python/runner.py", "\n".join(lines) + "\n")
+    write(work, "src/wasi_python/_wasmtime_ffi.py", lines[0] + "\n")
+    write(work, "tests/unit/test_wasmtime_ffi.py", lines[1] + "\n")
+    write(work, "tests/harness/other.txt", lines[2] + "\n")  # not a .py file
+    exempt = (scan.ENGINE_SEAM, scan.ENGINE_SEAM_UNIT)
+    hits = scan.private_engine_hits(work, ["src", "tests"], exempt)
+    assert hits == [f"src/wasi_python/runner.py:{n}: {lines[n - 1]}" for n in range(1, 7)]
+    own = ["tests/harness/scan.py", "tests/unit/test_scan.py"]
+    real = scan.private_engine_hits(paths.REPO, own, ())
+    assert real == [], real  # the rule's own files avoid the rule (spec 102, Decision 3)
+
+
+ADAPTER = f'''"""The seam.
+
+- `{FFI}.alpha` -> `Store.alpha`
+- `wasmtime.Store.beta` -> a public identity
+- `{FFI}.gamma` (optional) -> `Config.gamma`
+"""
+
+NEEDED: tuple[tuple[str, str], ...] = (("{FFI}", "alpha"), ("wasmtime.Store", "beta"))
+OPTIONAL: tuple[tuple[str, str], ...] = (("{FFI}", "gamma"),)
+'''
+
+SHEET = f"""# A sheet
+
+## The facts
+
+| not | a binding row under this heading |
+|---|---|
+| `{FFI}.elsewhere` | not under the table's heading |
+
+## The bindings
+
+| binding | C API function |
+|---|---|
+| `{FFI}.alpha` | `alpha` |
+| `wasmtime.Store.beta` | `beta` |
+| `{FFI}.gamma` (optional) | `gamma` |
+
+## Landed
+
+| `{FFI}.old` | landed, so not a row of the table |
+"""
+
+
+def test_private_api_debt_agrees_and_names_each_drift(work) -> None:
+    adapter = write(work, "src/wasi_python/_wasmtime_ffi.py", ADAPTER)
+    sheet = write(work, "facts.md", SHEET)
+    assert scan.private_api_debt_errors(adapter, sheet) == []
+    assert scan.sheet_bindings(SHEET) == [f"{FFI}.alpha", "wasmtime.Store.beta", f"{FFI}.gamma"]
+    short = write(work, "short.md", SHEET.replace("| `wasmtime.Store.beta` | `beta` |\n", ""))
+    assert scan.private_api_debt_errors(adapter, short) == [
+        "wasmtime.Store.beta: no row of the sheet's table"
+    ]
+    extra = write(work, "extra.md", SHEET.replace("## Landed", f"| `{FFI}.delta` | d |\n## Landed"))
+    assert scan.private_api_debt_errors(adapter, extra) == [
+        f"{FFI}.delta: a row naming no entry of NEEDED or OPTIONAL"
+    ]
+    quiet = write(work, "quiet.py", ADAPTER.replace(f"- `{FFI}.alpha` -> `Store.alpha`\n", ""))
+    assert scan.private_api_debt_errors(quiet, sheet) == [
+        f"{FFI}.alpha: not named in the adapter's docstring"
+    ]
+    computed = write(work, "computed.py", ADAPTER.replace(f'(("{FFI}", "gamma"),)', "tuple(x)"))
+    assert scan.private_api_debt_errors(computed, sheet) == [
+        "computed.py: OPTIONAL is not a tuple literal",
+        f"{FFI}.gamma: a row naming no entry of NEEDED or OPTIONAL",
+    ]
+    assert scan.private_api_debt_errors(work / "none.py", sheet) == ["none.py does not exist"]
+
+
 # Spec 059: every compile contracts nothing.
 def test_fp_override_names_the_family_as_whole_tokens() -> None:
     assert scan.fp_override("-ffp-contract=off") is None

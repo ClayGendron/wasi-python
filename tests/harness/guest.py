@@ -65,12 +65,12 @@ def engine() -> wt.Engine:
     users get. Above 2 MiB wasmtime needs the async stack size raised first."""
     global _engine
     if _engine is None:
-        from wasmtime import _ffi
+        from wasi_python import _wasmtime_ffi
 
         cfg = wt.Config()
         cfg.consume_fuel = True
         cfg.epoch_interruption = True
-        _ffi.wasmtime_config_async_stack_size_set(cfg.ptr(), WASM_STACK)
+        _wasmtime_ffi.set_async_stack(cfg, WASM_STACK)  # the seam's three branches (spec 102)
         cfg.max_wasm_stack = WASM_STACK
         _engine = wt.Engine(cfg)
     return _engine

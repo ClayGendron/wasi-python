@@ -120,6 +120,25 @@ def test_specifications_have_no_open_question() -> None:
     assert not hits, scan.report(hits)
 
 
+def test_only_the_engine_seam_touches_wasmtimes_private_api() -> None:
+    """Spec 102, Decision 3: one module, `src/wasi_python/_wasmtime_ffi.py`, and its unit file
+    reach wasmtime-py's private API (its underscore modules, the store context, the raw function
+    handle, the from-pointer constructors and the pointer method); every other `.py` under `src/`
+    and `tests/`, comments and docstrings included, drives the engine through the seam."""
+    exempt = (scan.ENGINE_SEAM, scan.ENGINE_SEAM_UNIT)
+    hits = scan.private_engine_hits(paths.REPO, ["src", "tests"], exempt)
+    assert not hits, scan.report(hits)
+
+
+def test_the_private_api_debt_is_documented() -> None:
+    """Spec 102, Design, "The debt is documented": every entry of the seam's `NEEDED` and
+    `OPTIONAL` tuples is a row of the debt sheet's table, every row is an entry, and the seam's
+    docstring names every entry; read statically, so the check needs no wasmtime-py."""
+    sheet = paths.CONTEXT / "upstream" / "34-wasmtime-py-public-api-for-the-runner" / "facts.md"
+    errors = scan.private_api_debt_errors(paths.REPO / scan.ENGINE_SEAM, sheet)
+    assert not errors, scan.report(errors)
+
+
 def test_version_states_the_platform_semantics(guest) -> None:
     """Constitution §4.11: the guest's -V states the platform's facts, and the README says the
     same (spec 003, Decision 8)."""

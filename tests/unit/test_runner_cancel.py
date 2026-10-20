@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 import wasmtime
 
-from wasi_python import runner
+from wasi_python import _wasmtime_ffi, runner
 
 REFUSED, STOPPED, ANSWER = 11, 22, 0
 CONTEXT = 4242  # the fake caller's store context address
@@ -46,7 +46,7 @@ def shared(monkeypatch):
     """The shared door function, with this thread's stack, the caller's context and the epoch
     deadline faked; yields a function that pushes a call, runs one door call and pops it."""
     deadlines: list[object] = []
-    monkeypatch.setattr(runner, "_context_address", lambda caller: CONTEXT)
+    monkeypatch.setattr(_wasmtime_ffi, "context_address", lambda caller: CONTEXT)
     monkeypatch.setattr(runner, "_epoch_now", lambda caller: deadlines.append(caller))
     monkeypatch.setattr(runner, "_ctrl_c_watched", lambda: False)
     function = runner._shared("door", REFUSED, STOPPED)
