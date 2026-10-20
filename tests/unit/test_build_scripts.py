@@ -222,7 +222,7 @@ def test_an_sdists_entry_points_go_beside_its_metadata(tmp_path, monkeypatch) ->
     """`--entry-points` packs the file, bytes unchanged, in the folder `--metadata` names for the
     same PKG-INFO; one whose folder has no METADATA member stops in one line naming both files,
     matched by the computed folder, however the PKG-INFO path is spelled (spec 041, Decision 5).
-    The origins are built as main builds them: each member's input, as given."""
+    The guard gets the members gathered, as main gives it."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "x").mkdir()
     pkg_info = tmp_path / "x" / "PKG-INFO"
@@ -236,11 +236,43 @@ def test_an_sdists_entry_points_go_beside_its_metadata(tmp_path, monkeypatch) ->
         got = make_stdlib_zip.sdist_entry_points(Path(spelled), entry)
         assert got == (entry.read_bytes(), "some_pkg-1.0.dist-info/entry_points.txt")
         placed = [(Path(spelled), entry, got[1])]
-        make_stdlib_zip.check_entry_points({metadata: str(Path("x/PKG-INFO"))}, placed)
+        make_stdlib_zip.check_entry_points({metadata: b""}, placed)
         with pytest.raises(SystemExit) as stop:
-            make_stdlib_zip.check_entry_points({"other-1.0.dist-info/METADATA": "y"}, placed)
+            make_stdlib_zip.check_entry_points({"other-1.0.dist-info/METADATA": b""}, placed)
         line = str(stop.value)
         assert str(Path(spelled)) in line and str(entry) in line and "\n" not in line, line
+
+
+def test_main_puts_entry_points_beside_metadata_or_stops(tmp_path, monkeypatch) -> None:
+    """main() runs the guard after every input is gathered: `--entry-points` with no `--metadata`
+    for its PKG-INFO stops naming both files; with the same PKG-INFO spelled another way under
+    `--metadata`, the zip holds both members, the entry points' bytes unchanged (spec 041,
+    Decision 5; the build review's F2). The line's version check and the host-neutral rewrite are
+    set aside, as this zip has no stdlib."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(make_stdlib_zip, "TARGET", sys.version_info[:2])
+    monkeypatch.setattr(make_stdlib_zip, "REWRITE", ())
+    monkeypatch.setenv("PYTHONHASHSEED", "0")
+    (tmp_path / "lib").mkdir()
+    (tmp_path / "x").mkdir()
+    (tmp_path / "x" / "PKG-INFO").write_text("Name: Some.Pkg\nVersion: 1.0\n\n")
+    entry = b"[some.group]\nname = some_pkg.mod:thing\n"
+    (tmp_path / "x" / "entry_points.txt").write_bytes(entry)
+    base = ["make_stdlib_zip.py", "--lib", "lib"]
+    tail = ["--entry-points", "x/PKG-INFO", "x/entry_points.txt", "out.zip"]
+    monkeypatch.setattr(sys, "argv", base + tail)
+    with pytest.raises(SystemExit) as stop:
+        make_stdlib_zip.main()
+    line = str(stop.value)
+    assert "x/PKG-INFO" in line and "x/entry_points.txt" in line and "METADATA" in line, line
+    monkeypatch.setattr(sys, "argv", base + ["--metadata", "x/../x/PKG-INFO"] + tail)
+    make_stdlib_zip.main()
+    with zipfile.ZipFile(tmp_path / "out.zip") as z:
+        assert sorted(z.namelist()) == [
+            "some_pkg-1.0.dist-info/METADATA",
+            "some_pkg-1.0.dist-info/entry_points.txt",
+        ]
+        assert z.read("some_pkg-1.0.dist-info/entry_points.txt") == entry
 
 
 def test_a_tree_with_package_metadata_stops_the_zip(tmp_path) -> None:

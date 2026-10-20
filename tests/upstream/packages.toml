@@ -232,7 +232,7 @@ closes_with = "spec 067"
 
 [package.networkx]
 kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+reason = "pinned as its sdist since spec 041, which carries its tests; staging and running them is spec 067's"
 closes_with = "spec 067"
 
 [package.patsy]

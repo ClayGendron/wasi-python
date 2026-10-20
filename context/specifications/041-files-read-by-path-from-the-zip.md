@@ -1,6 +1,6 @@
 # 041 — Files read by path from the zip
 
-- **Status:** **built** 2026-10-19 on `spec/041-files-read-by-path-from-the-zip`, a **stacked build** (constitution §4.14, the owner, 2026-10-19) on base commit `dcd94ff`, spec 039's reviewed tip, which is built and reviewed but not yet landed; when 039 lands, this branch is rebased onto main and gets a delta review of what the rebase changed (Landing notes). Its branch dry run 39345809724 is red only for growth lines. Not reviewed, not accepted; awaiting its build review. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised the same day against its pre-build review
+- **Status:** **built** 2026-10-19 on `spec/041-files-read-by-path-from-the-zip`, a **stacked build** (constitution §4.14, the owner, 2026-10-19) on base commit `dcd94ff`, spec 039's reviewed tip, which is built and reviewed but not yet landed; when 039 lands, this branch is rebased onto main and gets a delta review of what the rebase changed (Landing notes). Its branch dry run 39345809724 is red only for growth lines. Build-reviewed 2026-10-19 (lands once F1; F1 to F4 answered, F5 to F7 noted: "The build review and its answers"). Not accepted. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised the same day against its pre-build review
   (`../reviews/041-files-read-by-path-from-the-zip-spec-2026-10-17.md`). All nine findings are
   written in here and in the two upstream folders, and the review's Disposition says where. The
   review's confirmation passed it for build with two conditions, written in: C1, the landing
@@ -595,9 +595,10 @@ Where the text and the code differ:
 5. **The unit check's two spellings.** `./x/PKG-INFO` and `x/PKG-INFO` are the same `Path`
    (pathlib drops `./`, and argparse's `type=Path` does too), so a path-string guard cannot tell
    them apart. The check also gives `x/../x/PKG-INFO` and the absolute path; the path-string mutant
-   fails on `x/../x/PKG-INFO` (below). The guard takes the members' origins as `main` records them,
-   so the mutant is the natural mistake (comparing a METADATA member's origin with the
-   entry-points' `PKG-INFO` string).
+   fails on `x/../x/PKG-INFO` (below). After the build review's F2 the guard takes the members
+   gathered (`entries`), and a `main()` case holds the wiring; the path-string mutant now compares
+   the entry points' `PKG-INFO` with the `--metadata` strings in `main`, and fails on
+   `x/../x/PKG-INFO` there.
 6. **Decision 8's sizes are 29 bytes larger per member** than the table: since spec 051 every code
    object carries the zip's guest path. The changes are the table's: `style_render.pyc` +168 bytes
    (112,234 → 112,402; deflated 42,947 → 43,034), `atlas.pyc` +171 (6,517 → 6,688; 3,159 → 3,231),
@@ -639,6 +640,13 @@ Where the text and the code differ:
      path-string mutant, `SystemExit: --entry-points x/../x/PKG-INFO …: no
      some_pkg-1.0.dist-info/METADATA member` (departure 5); passes on this one
      (`build/041/seen-failing-unit.txt`, `run_mutant.py`, `mutants/`).
+   - `test_main_puts_entry_points_beside_metadata_or_stops` (the build review's F2, added after it):
+     against a mutant without the guard's call in `main`, `Failed: DID NOT RAISE SystemExit`;
+     against one that runs the guard before the `--metadata` inputs are gathered, `SystemExit:
+     --entry-points x/PKG-INFO x/entry_points.txt: no some_pkg-1.0.dist-info/METADATA member` on
+     the case that should write; against a path-string guard in `main`, the same stop on
+     `--metadata x/../x/PKG-INFO`; passes on this one (`build/041/seen-failing-unit-main.txt`,
+     `mutants/nocall`, `early`, `pathstr2`).
 2. **The zip's names and bytes. EXECUTED** (`build/041/zip_names.py` → `criterion-2.txt`). Built
    from empty in the worktree (`scripts/build.sh`, 16 steps in 8 min 38 s, `build/build-041.log`):
    `python.wasm` is byte for byte 039's (`cmp`, `ab78e893…`). Sorted names (`unzip -Z1 … | LC_ALL=C
@@ -724,10 +732,13 @@ Where the text and the code differ:
    `test_callbacks_have_the_types_cpython_calls`, passes (the patches change Python only).
    `uv run python tests/harness/sameness.py` is the lane's, between this record and its own.
    The lane accepts, after 039, with:
-   - `--accept-judge "spec 041: the files_from_the_zip job and golden; the Styler and atlas checks widened, on both binaries, and their two gaps removed; the unit check for --entry-points; networkx in the source-tree patterns; pandas' eleven Styler files selected again, the two styler-templates classes emptied and their gaps removed, the eight templates staged where pandas' tests read them, pandas-io-formats' cap 82 G -> 120 G; the artifact rules' synthetic set names networkx's sdist"`;
-   - `--accept-growth "spec 041: pandas-io-formats +22.8 G and pandas-frame +0.69 G run the Styler tests that now pass (+975 and +2 passes); the other upstream groups move -0.09% to +0.11% with a stage of eight more files; the rest, within +0.05% plain and +-0.45% snapshot both ways, moves with the rebuilt zip directory and snapshot heap (one member fewer, two changed; python.wasm unchanged), among them test_unbuffered_output_survives_a_hard_exit[snapshot] +1,623 and the encoding workaround +2.07 M"`.
+   - `--accept-judge "spec 041: the files_from_the_zip job and golden; the Styler and atlas checks widened, on both binaries, and their two gaps removed; the unit check for --entry-points; networkx in the source-tree patterns; pandas' eleven Styler files selected again, the two styler-templates classes emptied and their gaps removed, the eight templates staged where pandas' tests read them, pandas-io-formats' cap 82 G -> 120 G; the artifact rules' synthetic set names networkx's sdist; networkx's packages.toml reason (now its sdist, which carries its tests; spec 067's to run them); the unit check's main() case (the build review's F2)"`;
+   - `--accept-growth "spec 041: pandas-io-formats +22.8 G and pandas-frame +0.69 G run the Styler tests that now pass (+975 and +2 passes); the other upstream groups move -0.09% to +0.11% with a stage of eight more files; the rest, within +0.05% plain and +-0.45% snapshot both ways, moves with the rebuilt zip directory and snapshot heap (one member fewer, two changed; python.wasm unchanged), among them test_unbuffered_output_survives_a_hard_exit[snapshot] +1,623 and the encoding workaround +2.07 M: neither program imports pandas or networkx, and the hard-exit program costs 19,554 less on plain"`.
    No `--accept-fewer-passes`: 039's falls back.
-6. **The release. EXECUTED**: the dry run below.
+6. **The release. Met at the lane** (the build review's F7): the branch dry run below cannot be
+   green, since CI ratchets against the accepted progress in the commit, which does not yet hold
+   039's moves. Criterion 6 is met by **the lane's dry run on the accepted commit**; its run
+   number goes here when the lane records it.
 
 ### The branch dry run
 
@@ -753,6 +764,29 @@ All are growth lines; none is G7 or a failure. The rebuild jobs, the same-bytes 
 | `python-snapshot.wasm` | 45,360,282 | `aa14e8e09a3ceeccd191bb4a7e04373b36b95a9a0cdc3fc4b58861282ab4e1de` |
 | `python-stdlib.zip` | 38,721,644 | `f7d96aab1a8f8fe2ded11e8f34cf4c2d762da2c9f8c67420f1da0330e1ea9aa0` |
 | `MANIFEST` | 19,126 | `703b2ee18a36ae35d89187451ba7ee2ab5bfcfa01dae48956575a94b40185e42` |
+
+### The build review and its answers
+
+The build review (2026-10-19, a fresh agent; verdict "lands once F1"; its record matched this
+one exactly) is answered here:
+- **F1, fixed:** `tests/upstream/packages.toml`'s networkx reason now says it is pinned as its
+  sdist since spec 041, which carries its tests, and that staging and running them is spec 067's
+  (`kind = "later"` and the closer kept). Named in `--accept-judge`.
+- **F2 (Low), fixed:** `check_entry_points` takes the members gathered (`entries`); the `origins`
+  dict is gone. A `main()` case in the unit file's existing pattern holds the wiring, seen failing
+  on three mutants (criterion 1). This changes `make_stdlib_zip.py`, so the worktree set's
+  `MANIFEST` `recipe` line for it is stale until the next build; the zip's bytes do not depend on
+  the change (the guard only stops). The rebase onto main rebuilds anyway, and the branch needs a
+  new dry run for this commit.
+- **F3 (Low), fixed:** `build/041/measure-rlgqqr8a/` removed; the set's zip has `nlink` 1 again.
+- **F4 (note), taken:** the layout reason is in `--accept-growth`.
+- **F5 (note):** the emptied `pandas-io-formats` `styler-templates` class keeps its broad `match`,
+  as `zip-code-names` kept its text; it has no gap, so a future match is still red. Narrowing it
+  would be a judge change of its own.
+- **F6 (note):** the facts sheets moved unchanged, as Decision 6 ordered, and still read "When
+  spec 041 is built, this file moves"; a tense sweep across them and 046's and 047's is a
+  `context/`-only follow-up if the owner wants one.
+- **F7 (note), taken:** criterion 6 is met by the lane's dry run on the accepted commit.
 
 **For the lane.** After 039 lands, rebase onto main: the conflicts to expect are none in this
 specification's own files unless 037, 043 or 042 land first, in which case step 70's `--wheel`,

@@ -60,6 +60,7 @@ import re
 import sys
 import zipfile
 from importlib._bootstrap_external import _code_to_hash_pyc
+from collections.abc import Iterable
 from pathlib import Path, PurePosixPath
 
 import line
@@ -170,14 +171,15 @@ def sdist_entry_points(pkg_info: Path, path: Path) -> tuple[bytes, str]:
     return path.read_bytes(), metadata.rpartition("/")[0] + "/entry_points.txt"
 
 
-def check_entry_points(origins: dict[str, str], placed: list[tuple[Path, Path, str]]) -> None:
+def check_entry_points(names: Iterable[str], placed: list[tuple[Path, Path, str]]) -> None:
     """Stop, in one line naming both files, when an entry-points member (pkg_info, file, member)
-    has no METADATA beside it. `origins` maps each member gathered to the input it came from; the
-    folder is matched by its computed name, never by how either PKG-INFO path was spelled, so an
-    entry-points file never goes into a folder without its METADATA."""
+    has no METADATA among the members gathered (`names`). The folder is matched by its computed
+    name, never by how either PKG-INFO path was spelled, so an entry-points file never goes into
+    a folder without its METADATA."""
+    have = set(names)
     for pkg_info, path, name in placed:
         folder = name.rpartition("/")[0]
-        if f"{folder}/METADATA" not in origins:
+        if f"{folder}/METADATA" not in have:
             raise SystemExit(
                 f"--entry-points {pkg_info} {path}: no {folder}/METADATA member "
                 "(give the same PKG-INFO with --metadata)"
@@ -366,7 +368,6 @@ def main() -> None:
     rewritten: set[str] = set()
 
     entries: dict[str, bytes] = {}
-    origins: dict[str, str] = {}
     chosen = Selection(a.drop, a.keep, a.inner)
 
     def add(data: bytes, name: str, origin: str) -> None:
@@ -385,7 +386,6 @@ def main() -> None:
         if name in entries:
             raise SystemExit(f"{name} comes from two inputs (the second: {origin})")
         entries[name] = data
-        origins[name] = origin
 
     for data, name in walk(a.lib, frozenset(a.skip)):
         add(data, name, str(a.lib))
@@ -406,7 +406,7 @@ def main() -> None:
     for spec in a.file:
         src, _, name = spec.partition("=")
         add(Path(src).read_bytes(), name, src)
-    check_entry_points(origins, placed)
+    check_entry_points(entries, placed)
 
     chosen.check()
     for folder, files in chosen.packed.items():
