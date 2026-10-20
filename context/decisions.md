@@ -89,6 +89,14 @@ of 3.2.2, 30 to 56% less fuel on larger linear algebra and about 1.8 MB less `py
 owner's choice: "Yes, before 0.1.0". Exact singular-matrix parity is not a goal in wasm; the README
 says so.
 
+### statsmodels and the pure-Python packages' own tests in 0.1.0 (2026-10-20)
+
+The lane asked, as wave 08 neared, whether 045 (statsmodels, with formulaic, interface-meta and
+wrapt; the last of the scipy and scikit-learn chain) and 067 (the pure-Python packages' own tests
+in the release, 066's companion under "Every test of every package we build") belong in 0.1.0.
+The owner: both. 0.1.0 waits for wave 09 (100, numpy on OpenBLAS; 101, the faster release run),
+045 and 067.
+
 ### Fewer CI runs per specification, and a faster run (2026-10-20)
 
 The owner asked whether the CI strategy was working, since work seemed stalled. The lane's
