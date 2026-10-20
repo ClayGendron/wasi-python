@@ -6,16 +6,13 @@ from __future__ import annotations
 
 import hashlib
 import os
-import stat
-import sys
 import tempfile
 import threading
 import time
-import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from . import _artifacts
+from . import _artifacts, _platform
 from ._artifacts import ArtifactsMissing
 from ._limits import TICK_S
 from ._platform import _WASM_STACK
@@ -74,14 +71,7 @@ def _cache_dir(given: str | os.PathLike[str] | None | bool) -> Path | None:
         return Path(given)
     if os.environ.get(CACHE_ENV):
         return Path(os.environ[CACHE_ENV])
-    home = Path.home()
-    if sys.platform == "darwin":
-        return home / "Library" / "Caches" / "wasi_python"
-    if sys.platform == "win32":
-        base = os.environ.get("LOCALAPPDATA")
-        return (Path(base) if base else home / "AppData" / "Local") / "wasi_python" / "cache"
-    base = os.environ.get("XDG_CACHE_HOME")
-    return (Path(base) if base else home / ".cache") / "wasi_python"
+    return _platform.PLATFORM.default_cache_dir(Path.home())
 
 
 def _engine(metered: bool) -> wasmtime.Engine:
@@ -150,11 +140,11 @@ def _module_miss(
     flavor = "fuel" if metered else "plain"
     mod: wasmtime.Module | None = None
     cwasm = None
-    if cache is not None and _private(cache, is_dir=True):
+    if cache is not None and _platform.PLATFORM.private(cache, is_dir=True):
         from . import _wasmtime_ffi as ffi
 
         cwasm = cache / f"{digest[:32]}-wasmtime{ffi.version()}-{flavor}.cwasm"
-    if cwasm is not None and cwasm.exists() and _private(cwasm, is_dir=False):
+    if cwasm is not None and cwasm.exists() and _platform.PLATFORM.private(cwasm, is_dir=False):
         try:
             mod = wt.Module.deserialize_file(engine, str(cwasm))
             with process().cache_lock:
@@ -190,25 +180,6 @@ def _module_miss(
     with process().cache_lock:
         process().modules[(metered, digest)] = mod
     return mod
-
-
-def _private(path: Path, *, is_dir: bool) -> bool:
-    """Whether a cache path is this user's alone (POSIX); a directory is made if absent."""
-    if is_dir:
-        path.mkdir(mode=0o700, parents=True, exist_ok=True)
-    if os.name != "posix":
-        return True  # the default cache is under the user's own profile
-    st = os.lstat(path)
-    kind_ok = stat.S_ISDIR(st.st_mode) if is_dir else stat.S_ISREG(st.st_mode)
-    if kind_ok and st.st_uid == os.getuid() and not st.st_mode & 0o022:
-        return True
-    warnings.warn(
-        f"wasi_python: not using the module cache at {path}: it must be a "
-        f"{'directory' if is_dir else 'file'} owned by this user and writable by no one else",
-        RuntimeWarning,
-        stacklevel=5,
-    )
-    return False
 
 
 class _epoch_ticker:

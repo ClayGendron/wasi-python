@@ -112,16 +112,13 @@ class _Process:
         self.sweep_claimed: bool = False
         self.sweep_swept: int = 0
         self.sweep_failed: dict[str, int] = {}  # failed sweeps of a name, in this process
-        self.kernel_identity: dict[str, str | None] = {}
         self.warnings_lock = threading.Lock()
         self.pending_warnings: list[str] = []  # given by the flush, outside every runner lock
         self.warned: set[str] = set()  # each folder is named once per process
         # C. Fork.
         self.fork_used: bool = False  # an engine exists: a fork from here on is refused
         self.forked: bool = False  # this is a child of a parent that made an engine
-        # D. Platform tables, resolved once.
-        self.win_api: dict[str, Any] = {}
-        self.stack_api: dict[str, Any] = {}
+        # D. The trap-handler check's C functions, resolved once.
         self.handlers: dict[str, Any] = {}  # the C library's sigaction and dladdr, wasmtime's base
         # E. The zip, the preopen check and the manifest facts.
         self.zip_lock = threading.Lock()

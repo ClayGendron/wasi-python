@@ -713,3 +713,52 @@ def test_mounts_imports_only_the_engine_seam() -> None:
     `_CallContext` it is given."""
     hits = _sibling_imports(paths.REPO / "src" / "wasi_python" / MOUNTS, MOUNTS_MAY_IMPORT)
     assert not hits, scan.report(hits)
+
+
+# The platform is chosen once. `src/wasi_python/_platform.py` holds every POSIX, Linux, macOS and
+# Windows difference behind one interface, bound to `PLATFORM` at import by `_select`, the one
+# function in the package that reads `sys.platform` or `os.name`; every caller reads
+# `_platform.PLATFORM` through its module at the call, so a check that binds another platform
+# for its duration is seen by every caller. A reader who asks what Windows does differently
+# opens one file.
+PLATFORM_MODULE = "_platform.py"
+PLATFORM_CHOOSER = "_select"
+PLATFORM_READ = re.compile(r"\bos\.name\b|\bsys\.platform\b")
+
+
+def _platform_hits(package: Path) -> list[str]:
+    import ast
+
+    hits = []
+    for path in sorted(package.glob("*.py")):
+        text = path.read_text(encoding="utf-8")
+        tree = ast.parse(text)
+        chooser: tuple[int, int] | None = None
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.ImportFrom)
+                and node.module
+                and node.module.endswith(PLATFORM_MODULE.removesuffix(".py"))
+            ):
+                for alias in node.names:
+                    if alias.name == "PLATFORM":
+                        hits.append(f"{path.name}:{node.lineno}: binds PLATFORM by import")
+            if (
+                path.name == PLATFORM_MODULE
+                and isinstance(node, ast.FunctionDef)
+                and node.name == PLATFORM_CHOOSER
+            ):
+                chooser = (node.lineno, node.end_lineno or node.lineno)
+        for n, line in enumerate(text.splitlines(), 1):
+            if PLATFORM_READ.search(line) and not (
+                chooser is not None and chooser[0] <= n <= chooser[1]
+            ):
+                hits.append(f"{path.name}:{n}: reads the platform outside {PLATFORM_CHOOSER}")
+    return hits
+
+
+def test_the_platform_is_chosen_once() -> None:
+    """No `os.name` or `sys.platform` anywhere under `src/wasi_python/` but inside
+    `_platform._select`, and no import that binds `PLATFORM` to a local name."""
+    hits = _platform_hits(paths.REPO / "src" / "wasi_python")
+    assert not hits, scan.report(hits)

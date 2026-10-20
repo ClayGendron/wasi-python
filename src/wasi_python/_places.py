@@ -4,11 +4,7 @@ the runtime and shared folders, and the real directory at a path."""
 
 from __future__ import annotations
 
-import ctypes
-import ntpath
 import os
-import re
-import stat
 import struct
 import tempfile
 from collections.abc import Iterable
@@ -19,7 +15,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 from . import _limits, _platform, _zip
 from ._artifacts import Artifacts
 from ._limits import _UNSET
-from ._process import process
+from ._platform import Identity, _Walked
 from .mounts import METHODS, Mount
 
 if TYPE_CHECKING:
@@ -52,7 +48,6 @@ class Grant:
 # then opens each path itself, so before the guest runs a check module of the runner's own reads
 # back each preopen's identity and compares it with the walk's (Decision 5).
 ZIP_GUEST = "/usr/local/lib"
-MAX_LINKS = 40
 _M64 = (1 << 64) - 1
 
 
@@ -275,343 +270,6 @@ def _check_mounts(mounts: Any, grants: tuple[Grant, ...], root: Any) -> tuple[Mo
     return tuple(checked)
 
 
-Identity = tuple[int, int]
-
-
-class _Walked:
-    """A host folder walked component by component: the path wasmtime is given, the identities of
-    the folder and each ancestor (the folder's first), and what keeps it from changing until the
-    identity check: on POSIX the folder's descriptor, on Windows every component's handle. A root
-    still to be made has `missing` components, and its chain is its deepest existing ancestor's."""
-
-    def __init__(self, path: str, chain: tuple[Identity, ...], held: list[int]) -> None:
-        self.path, self.chain, self.held = path, chain, held
-        self.missing: tuple[str, ...] = ()
-
-    @property
-    def identity(self) -> Identity | None:
-        return None if self.missing else self.chain[0]
-
-    @property
-    def fd(self) -> int | None:
-        return self.held[-1] if self.held and os.name == "posix" else None
-
-    def close(self) -> None:
-        held, self.held = self.held, []
-        for h in held:
-            _close_held(h)
-
-
-def _close_held(h: int) -> None:
-    try:
-        if os.name == "posix":
-            os.close(h)
-        else:
-            _win().CloseHandle(h)
-    except OSError:
-        pass
-
-
-def _walk(where: str, path: str, *, judge: bool, may_make: bool = False) -> _Walked:
-    """Walk `path` from the top. With `judge`, a link in a folder this user can write (POSIX), or
-    any link or junction (Windows), raises ValueError; without it (the runtime's own folders),
-    every link is followed. With `may_make`, a missing tail is returned as `missing`."""
-    try:
-        if os.name == "posix":
-            return _walk_posix(where, path, judge, may_make)
-        return _walk_windows(where, path, judge, may_make)
-    except ValueError:
-        raise
-    except OSError as e:
-        if not judge:
-            raise
-        # A folder that cannot be searched, or vanished mid-walk: the caller's grant is refused.
-        raise ValueError(f"{where}: {path!r} cannot be walked: {e.strerror or e}") from None
-
-
-# Opened for search only where the system allows (Linux O_PATH, macOS O_SEARCH): wasmtime opens a
-# grant below a folder this user may search but not list, so the walk must pass through it too.
-_DIR = (
-    _platform._flags("O_PATH") or _platform._flags("O_SEARCH") or os.O_RDONLY
-) | _platform._flags("O_DIRECTORY", "O_NOFOLLOW", "O_CLOEXEC")
-
-
-def _walk_posix(where: str, path: str, judge: bool, may_make: bool) -> _Walked:
-    # Joined to the working directory without normalising: `..` is taken on the walked folders,
-    # as the kernel takes it, after any link before it is followed.
-    todo = list(reversed(os.path.join(os.getcwd(), path).split("/")))
-    top = os.open("/", _DIR)
-    st = os.fstat(top)
-    stack: list[tuple[int, Identity, str]] = [(top, (st.st_dev, st.st_ino), "")]
-    links = 0
-    try:
-        while todo:
-            name = todo.pop()
-            if name in ("", "."):
-                continue
-            if name == "..":
-                if len(stack) > 1:
-                    os.close(stack.pop()[0])
-                continue
-            parent = stack[-1][0]
-            try:
-                st = os.lstat(name, dir_fd=parent)
-            except FileNotFoundError:
-                rest = [n for n in reversed(todo) if n not in ("", ".")]
-                if not may_make or ".." in rest:
-                    raise ValueError(f"{where}: {path!r} does not exist") from None
-                walked = _walked_posix(stack)
-                walked.missing = (name, *rest)
-                return walked
-            if stat.S_ISLNK(st.st_mode):
-                if judge and _writable(parent, stack):
-                    raise ValueError(
-                        f"{where}: {path!r} passes through the link {name!r} in a folder this "
-                        "user can write, which a guest could have made; name its target instead"
-                    )
-                links += 1
-                if links > MAX_LINKS:
-                    raise ValueError(
-                        f"{where}: {path!r} passes through more than {MAX_LINKS} links"
-                    )
-                target = os.readlink(name, dir_fd=parent)
-                if target.startswith("/"):
-                    while len(stack) > 1:
-                        os.close(stack.pop()[0])
-                todo.extend(reversed(target.split("/")))
-                continue
-            if not stat.S_ISDIR(st.st_mode):
-                raise ValueError(f"{where}: {path!r} is not a folder")
-            fd = os.open(name, _DIR, dir_fd=parent)
-            opened = os.fstat(fd)
-            if (opened.st_dev, opened.st_ino) != (st.st_dev, st.st_ino):
-                os.close(fd)
-                raise ValueError(f"{where}: {path!r} changed while it was checked")
-            stack.append((fd, (opened.st_dev, opened.st_ino), name))
-        return _walked_posix(stack)
-    except BaseException:
-        for fd, _, _ in stack:
-            os.close(fd)
-        raise
-
-
-def _walked_posix(stack: list[tuple[int, Identity, str]]) -> _Walked:
-    """Keep the last folder's descriptor, close the rest."""
-    for fd, _, _ in stack[:-1]:
-        os.close(fd)
-    text = "/" + "/".join(name for _, _, name in stack[1:])
-    chain = tuple(identity for _, identity, _ in reversed(stack))
-    last = stack[-1][0]
-    stack[:] = []
-    return _Walked(text, chain, [last])
-
-
-def _writable(fd: int, stack: list[tuple[int, Identity, str]]) -> bool:
-    """Whether this user can write the folder open at `fd`: only a link in such a folder could be
-    a guest's, since a guest writes as this user (memo §7a)."""
-    effective = os.access in os.supports_effective_ids
-    if os.access in os.supports_dir_fd:
-        return os.access(".", os.W_OK, dir_fd=fd, effective_ids=effective)
-    text = "/" + "/".join(name for _, _, name in stack[1:])
-    return os.access(text, os.W_OK, effective_ids=effective)
-
-
-def _make_missing(where: str, walked: _Walked) -> _Walked:
-    """Make a root's missing components, after the rules were decided on its existing chain, each
-    inside the one before through its descriptor; then walk the made root as any other."""
-    path = walked.path
-    if os.name == "posix":
-        fd = os.dup(walked.held[-1])
-        try:
-            for name in walked.missing:
-                try:
-                    os.mkdir(name, dir_fd=fd)
-                except FileExistsError:  # a concurrent call made it
-                    pass
-                child = os.open(name, _DIR, dir_fd=fd)  # O_NOFOLLOW: a link put there fails
-                os.close(fd)
-                fd = child
-                path = os.path.join(path, name)
-        finally:
-            os.close(fd)
-    else:
-        for name in walked.missing:
-            path = os.path.join(path, name)
-            Path(path).mkdir(exist_ok=True)
-    walked.close()
-    return _walk(where, path, judge=True)
-
-
-# Windows (Decision 5): Python cannot open a folder with os.open, so the walk opens every
-# component through CreateFileW, refuses a reparse point (a link or a junction), and holds each
-# handle without FILE_SHARE_DELETE until the identity check, so no walked folder can be renamed,
-# removed or replaced in between, and no path string is ever compared.
-# Traverse access, not attributes alone: Windows runs share checks only for data, execute or
-# delete access (MS-FSA 2.1.5.1.2.2), so an attribute-only handle held without FILE_SHARE_DELETE
-# stops no rename. FILE_TRAVERSE is FILE_EXECUTE, which is checked, and needs only the permission
-# to pass through a folder, as POSIX's search does, not to list it.
-_WALK_ACCESS = 0x20 | 0x80  # FILE_TRAVERSE | FILE_READ_ATTRIBUTES
-_STAT_ACCESS = 0x80  # FILE_READ_ATTRIBUTES: an identity read that holds nothing
-_SHARE_READ_WRITE = 0x1 | 0x2
-_OPEN_EXISTING = 3
-_BACKUP_SEMANTICS = 0x02000000
-_OPEN_REPARSE_POINT = 0x00200000
-_ATTRIBUTE_DIRECTORY = 0x10
-_ATTRIBUTE_REPARSE_POINT = 0x400
-
-
-def _win() -> Any:
-    api = process().win_api
-    if "kernel32" not in api:
-        from ctypes import wintypes
-
-        k = ctypes.WinDLL("kernel32", use_last_error=True)  # type: ignore[attr-defined]
-        k.CreateFileW.argtypes = [
-            wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
-            wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
-        ]  # fmt: skip
-        k.CreateFileW.restype = wintypes.HANDLE
-        k.GetFileInformationByHandle.argtypes = [wintypes.HANDLE, ctypes.c_void_p]
-        k.GetFileInformationByHandle.restype = wintypes.BOOL
-        k.CloseHandle.argtypes = [wintypes.HANDLE]
-        k.CloseHandle.restype = wintypes.BOOL
-        api["kernel32"] = k
-    return api["kernel32"]
-
-
-class _ByHandle(ctypes.Structure):
-    _fields_ = [
-        ("attributes", ctypes.c_uint32),
-        ("times", ctypes.c_uint32 * 6),
-        ("volume_serial", ctypes.c_uint32),
-        ("size_high", ctypes.c_uint32),
-        ("size_low", ctypes.c_uint32),
-        ("links", ctypes.c_uint32),
-        ("index_high", ctypes.c_uint32),
-        ("index_low", ctypes.c_uint32),
-    ]
-
-
-def _win_open(path: str, follow: bool, access: int = _WALK_ACCESS) -> tuple[int, int, Identity]:
-    """A held handle on `path`, its attributes and its identity, as wasmtime reads it."""
-    k = _win()
-    flags = _BACKUP_SEMANTICS | (0 if follow else _OPEN_REPARSE_POINT)
-    h = k.CreateFileW(path, access, _SHARE_READ_WRITE, None, _OPEN_EXISTING, flags, None)
-    if h is None or h == ctypes.c_void_p(-1).value:
-        code = ctypes.get_last_error()  # type: ignore[attr-defined]
-        raise ctypes.WinError(code)  # type: ignore[attr-defined]
-    info = _ByHandle()
-    if not k.GetFileInformationByHandle(h, ctypes.byref(info)):
-        code = ctypes.get_last_error()  # type: ignore[attr-defined]
-        k.CloseHandle(h)
-        raise ctypes.WinError(code)  # type: ignore[attr-defined]
-    index = (info.index_high << 32) | info.index_low
-    return h, info.attributes, (info.volume_serial, index)
-
-
-# Names a judged Windows walk refuses (spec 076, Decision 1): Win32 rewrites them, so the path
-# opened and the chain of folders walked could disagree, and a rule that reads the chain could
-# miss a true ancestor (the pre-build review's F1). A `:` is a drive letter (`C:\\b\\D:x` is
-# drive D's current folder) or a stream; a trailing space or period is trimmed in some positions
-# and not others; a reserved device name, with or without an extension, is the device, and a
-# root still to be made through one would fail after the folders before it were made. The set is
-# exactly Python's own `ntpath.isreserved` for one component (spec 077), which the runner cannot
-# call on 3.11 and 3.12: Microsoft's reserved names ("Naming Files, Paths, and Namespaces"), with
-# the superscript `COM¹` to `LPT³` it reserves "in every directory"; `CONIN$` and `CONOUT$`,
-# which CPython refuses "on the side of caution"; and the characters Windows rejects in a name.
-_WIN_DEVICES = frozenset(
-    {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
-    | {f"{p}{c}" for p in ("COM", "LPT") for c in "123456789\u00b9\u00b2\u00b3"}
-)
-_WIN_RESERVED_CHARS = frozenset('"*<>?|' + "".join(map(chr, range(32))))
-
-
-def _rewritten(name: str) -> bool:
-    """Whether Windows rewrites or rejects this one path component (never `.` or `..`): the same
-    answer as `ntpath.isreserved` gives for it (spec 077, Decision 3)."""
-    if name in (".", ".."):
-        return False
-    if ":" in name or _WIN_RESERVED_CHARS.intersection(name) or name.endswith((" ", ".")):
-        return True
-    return name.split(".", 1)[0].rstrip(" ").upper() in _WIN_DEVICES
-
-
-def _default_drive_folder(drive: str) -> str:
-    """The current folder of `drive` (the process's own drive when empty), holding no `..`: where
-    a relative Windows path starts, and whose drive a rooted one takes (spec 076, Decision 1). The
-    observers' `drive_folder` stands in for it when set."""
-    return ntpath.abspath(drive or ".")
-
-
-def _walk_windows(where: str, path: str, judge: bool, may_make: bool) -> _Walked:
-    if judge:
-        # Made absolute without dropping `..` (spec 076): only the start is ever normalised, and
-        # `..` is taken on the folders walked, as `_walk_posix` takes it.
-        drive, tail = ntpath.splitdrive(path)
-        drive_folder = process().observers.drive_folder or _default_drive_folder
-        if tail[:1] in ("\\", "/") or drive[1:2] not in ("", ":"):  # rooted, or a share
-            if not drive:  # rooted with no drive: the current folder's drive, fully qualified
-                drive = ntpath.splitdrive(drive_folder(""))[0]
-            names = re.split(r"[\\/]", tail)
-        else:
-            drive, start = ntpath.splitdrive(drive_folder(drive))
-            names = re.split(r"[\\/]", start) + re.split(r"[\\/]", tail)
-    else:
-        drive, rest = ntpath.splitdrive(ntpath.realpath(path))
-        names = re.split(r"[\\/]", rest)
-    names = [n for n in names if n not in ("", ".")]
-    if judge:
-        for name in names:
-            if _rewritten(name):
-                raise ValueError(
-                    f"{where}: {path!r} has a name Windows rewrites ({name!r}); name the folder "
-                    "plainly"
-                )
-    held: list[int] = []
-    chain: list[Identity] = []
-    heres: list[str] = []
-
-    def enter(here: str) -> None:
-        h, attributes, identity = _win_open(here, follow=not judge)
-        held.append(h)
-        if judge and attributes & _ATTRIBUTE_REPARSE_POINT:
-            raise ValueError(
-                f"{where}: {path!r} passes through a link or junction; on Windows every one is "
-                "refused"
-            )
-        if not attributes & _ATTRIBUTE_DIRECTORY:
-            raise ValueError(f"{where}: {path!r} is not a folder")
-        chain.append(identity)
-        heres.append(here)
-
-    try:
-        try:
-            enter(drive + "\\")  # a drive's root keeps its separator: `C:` alone is relative
-        except FileNotFoundError:
-            raise ValueError(f"{where}: {path!r} does not exist") from None
-        for i, name in enumerate(names):
-            if name == "..":
-                if len(heres) > 1:  # at the drive's root `..` stays, as POSIX's does at `/`
-                    _close_held(held.pop())
-                    chain.pop()
-                    heres.pop()
-                continue
-            try:
-                enter(heres[-1].rstrip("\\") + "\\" + name)  # never ntpath.join (a drive resets it)
-            except FileNotFoundError:
-                left = tuple(names[i + 1 :])
-                if not may_make or ".." in left:
-                    raise ValueError(f"{where}: {path!r} does not exist") from None
-                walked = _Walked(heres[-1], tuple(reversed(chain)), held)
-                walked.missing = (name, *left)
-                return walked
-        return _Walked(heres[-1], tuple(reversed(chain)), held)
-    except BaseException:
-        for h in held:
-            _close_held(h)
-        raise
-
-
 def _chain(path: Path) -> tuple[Identity | None, tuple[Identity, ...]]:
     """A runtime folder's identity (None while it does not exist) and the identities of its
     deepest existing ancestor and that one's ancestors, every link followed; never refuses."""
@@ -619,7 +277,7 @@ def _chain(path: Path) -> tuple[Identity | None, tuple[Identity, ...]]:
     exists = True
     while True:
         try:
-            first = _identity_of(here)
+            first = _platform.PLATFORM.identity_of(here)
             break
         except OSError:
             exists = False
@@ -629,23 +287,10 @@ def _chain(path: Path) -> tuple[Identity | None, tuple[Identity, ...]]:
     chain = [first]
     for parent in here.parents:
         try:
-            chain.append(_identity_of(parent))
+            chain.append(_platform.PLATFORM.identity_of(parent))
         except OSError:
             break
     return (first if exists else None), tuple(chain)
-
-
-def _identity_of(path: Path) -> Identity:
-    if os.name == "posix":
-        st = os.stat(path)
-        if not stat.S_ISDIR(st.st_mode):
-            raise NotADirectoryError(str(path))
-        return (st.st_dev, st.st_ino)
-    # Attributes only: a runtime folder's chain must not be cut short by a folder one may not
-    # traverse, or by another handle's share mode (the follow-up review, F1).
-    h, _, identity = _win_open(str(path), follow=True, access=_STAT_ACCESS)
-    _close_held(h)
-    return identity
 
 
 def _judge(
@@ -780,15 +425,17 @@ def _walk_grants(
     runtime = _runtime_folders(found, cache)  # first: it makes the module cache if it can
     try:
         if isinstance(root, str):
-            walked_root = _walk("root", root, judge=True, may_make=True)
+            walked_root = _platform.PLATFORM.walk("root", root, judge=True, may_make=True)
         for i, grant in enumerate(grants):
             where = f"grants[{i}] at {grant.guest}"
-            walked.append((where, grant, _walk(where, os.fspath(grant.host), judge=True)))
+            walked.append(
+                (where, grant, _platform.PLATFORM.walk(where, os.fspath(grant.host), judge=True))
+            )
         _judge(walked_root, walked, runtime, _shared_folders())
         _judge_import_path(walked_root, walked, import_path, serving)
         if walked_root is not None and walked_root.missing:
             try:
-                walked_root = _make_missing("root", walked_root)
+                walked_root = _platform.PLATFORM.make_missing("root", walked_root)
             except OSError as e:
                 raise ValueError(f"root: {root!r} cannot be made: {e.strerror or e}") from None
         return walked_root, walked
@@ -875,55 +522,3 @@ def _shared_folders() -> list[tuple[str, tuple[Identity, ...]]]:
             _chain(temp)[1],
         )
     ]
-
-
-def _real_dir_at(fd: int, parts: tuple[str, ...]) -> int:
-    """A descriptor on fd/parts…, each a real directory, each step taken from the folder before:
-    a link or file a guest left in the way is removed, never followed (spec 024). The caller
-    closes the result; `fd` stays open."""
-    here = os.dup(fd)
-    try:
-        for part in parts:
-            try:
-                st = os.stat(part, dir_fd=here, follow_symlinks=False)
-            except FileNotFoundError:
-                st = None
-            if st is not None and not stat.S_ISDIR(st.st_mode):
-                os.unlink(part, dir_fd=here)  # a symbolic link or a file: removed, never followed
-                st = None
-            if st is None:
-                try:
-                    os.mkdir(part, dir_fd=here)
-                except FileExistsError:  # a concurrent call made it
-                    pass
-            child = os.open(part, _DIR, dir_fd=here)  # O_NOFOLLOW: a link put there fails
-            os.close(here)
-            here = child
-    except BaseException:
-        os.close(here)
-        raise
-    return here
-
-
-def _real_dir(root: Path, parts: tuple[str, ...]) -> Path:
-    """root/parts…, each a real directory: a link or file a guest left in the way is removed.
-    Windows only, where the walk holds every folder of the root's path (spec 017, Decision 5) and
-    guests can make links only where the user holds the symbolic-link privilege (spec 084);
-    elsewhere `_real_dir_at`. The root is never made again here."""
-    here = root
-    for part in parts:
-        here = here / part
-        try:
-            st = os.lstat(here)
-        except FileNotFoundError:
-            st = None
-        if st is not None and not stat.S_ISDIR(st.st_mode):
-            here.unlink()  # a symbolic link or a file: removed, never followed
-            st = None
-        if st is None:
-            try:
-                here.mkdir()
-            except FileExistsError:  # a concurrent call made it
-                if not stat.S_ISDIR(os.lstat(here).st_mode):
-                    raise
-    return here

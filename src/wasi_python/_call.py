@@ -23,8 +23,8 @@ from ._artifacts import GUEST_PACKAGE, Artifacts, ArtifactsMissing
 from ._engines import _epoch_ticker
 from ._home import _Home, _Stopped
 from ._limits import CANCEL_TICKS, NO_DEADLINE, TICK_S
-from ._places import ZIP_GUEST, Grant, _Preopen, _Walked
-from ._platform import _TRAP_HANDLERS_REPLACED
+from ._places import ZIP_GUEST, Grant, _Preopen
+from ._platform import _TRAP_HANDLERS_REPLACED, _Walked
 from ._private_dirs import _Private
 from ._process import process
 from ._zip import MPL_DATA_GUEST
@@ -189,12 +189,15 @@ def _preopens(
     folder = _zip._zip_folder(found, zip_want)
     preopens.append(
         _Preopen(
-            "the stdlib folder", _places._walk("", str(folder.lib), judge=False), ZIP_GUEST, False
+            "the stdlib folder",
+            _platform.PLATFORM.walk("", str(folder.lib), judge=False),
+            ZIP_GUEST,
+            False,
         )
     )
     if folder.data is not None:  # after the zip's grant (spec 023, Decision 5)
         guest = f"{ZIP_GUEST}/{folder.name}/{MPL_DATA_GUEST}"
-        walked_data = _places._walk("", str(folder.data), judge=False)
+        walked_data = _platform.PLATFORM.walk("", str(folder.data), judge=False)
         preopens.append(_Preopen("matplotlib's data", walked_data, guest, False))
     root_path = None
     private = None
@@ -203,7 +206,7 @@ def _preopens(
         try:
             (private.path / "usr" / "local" / "lib").mkdir(parents=True)
             root_path = private.path
-            walked_private = _places._walk("", str(root_path), judge=False)
+            walked_private = _platform.PLATFORM.walk("", str(root_path), judge=False)
         except BaseException:
             private.remove()
             raise
@@ -214,10 +217,8 @@ def _preopens(
         # root's listing, and the zip's path could resolve into a file a guest wrote. Made
         # through the walked folder, never its path, which another guest may have swapped
         # since the walk (spec 024).
-        if walked_root.fd is not None and _platform._dir_fd_ok():
-            os.close(_places._real_dir_at(walked_root.fd, ("usr", "local", "lib")))
-        else:
-            _places._real_dir(root_path, ("usr", "local", "lib"))
+        _, made = _platform.PLATFORM.real_dir(root_path, walked_root.fd, ("usr", "local", "lib"))
+        _platform._close(made)
         preopens.append(_Preopen("root", walked_root, "/", True))
     for where, grant, w in walked:
         preopens.append(_Preopen(where, w, grant.guest, grant.writable))
@@ -303,16 +304,14 @@ def _home_folder(
             return None, None
         fd = p.walked.fd
         return Path(p.walked.path), (
-            os.dup(fd) if fd is not None and _platform._dir_fd_ok() else None
+            os.dup(fd) if fd is not None and _platform.PLATFORM.has_dir_fd else None
         )
     if root is None:
         return None, None
     # TMPDIR, a real folder (a guest's link there is removed), made through the root's walked
     # folder, never its path (spec 024).
     fd = next(p.walked.fd for p in preopens if p.guest == "/")
-    if fd is not None and _platform._dir_fd_ok():
-        return root / "tmp", _places._real_dir_at(fd, ("tmp",))
-    return _places._real_dir(root, ("tmp",)), None
+    return _platform.PLATFORM.real_dir(root, fd, ("tmp",))
 
 
 def _import_prelude(entries: tuple[str, ...]) -> list[str]:
@@ -410,7 +409,7 @@ def _instance(
             placeholder = scratch.path / "mount"
             placeholder.mkdir()
             for i, mount in enumerate(mounts):
-                walked = _places._walk("", str(placeholder), judge=False)
+                walked = _platform.PLATFORM.walk("", str(placeholder), judge=False)
                 mounted.append(
                     _Preopen(f"mounts[{i}] at {mount.guest}", walked, mount.guest, False)
                 )
@@ -539,9 +538,8 @@ def _drive(
     (spec 011). `plain` is today's linker when `linker` is the mount linker: the identity check
     reads wasmtime's own answers through it, and the trampoline takes wasmtime's calls from it
     (spec 032)."""
-    not_ready = (
-        _platform._trap_handlers_ready()
-    )  # spec 071, Decision 9: before every entry into the guest
+    # spec 071, Decision 9: before every entry into the guest
+    not_ready = _platform.PLATFORM.trap_handlers_ready()
     if not_ready is not None:
         raise RuntimeError(_TRAP_HANDLERS_REPLACED.format(signal=not_ready))
     exit_code: int | None = None

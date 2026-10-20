@@ -126,7 +126,7 @@ def test_a_lost_call_stops_the_guest_and_drive_says_so(epoch, monkeypatch) -> No
     # This `_drive` gets stand-ins, not wasmtime, so on Linux a process that has made no engine yet
     # has no wasmtime trap handlers for spec 071's guard to find; the guard is not what this tests
     # (spec 080, Decision 2).
-    monkeypatch.setattr(_platform, "_trap_handlers_ready", lambda: None)
+    monkeypatch.setattr(_platform.PLATFORM, "trap_handlers_ready", lambda: None)
     call = SimpleNamespace(cancel=None, stopped=None, ended=None)
     with pytest.raises(RuntimeError, match="lost track of a call"):
         _call._drive(wt, Linker(), None, None, call, None)
@@ -222,7 +222,7 @@ def test_a_host_function_returning_under_a_set_event_stops_the_guest(monkeypatch
 def test_a_call_cancelled_before_it_runs_never_starts_its_guest(monkeypatch) -> None:
     """Spec 015, Decision 1: `run` checks the event once more just before it instantiates."""
     # Stand-ins, not wasmtime: no engine need exist, so spec 071's guard is set aside (spec 080).
-    monkeypatch.setattr(_platform, "_trap_handlers_ready", lambda: None)
+    monkeypatch.setattr(_platform.PLATFORM, "trap_handlers_ready", lambda: None)
 
     class Linker:
         def instantiate(self, store, module):

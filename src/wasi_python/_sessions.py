@@ -35,8 +35,8 @@ from ._call import (
 from ._engines import _epoch_ticker
 from ._home import _Home
 from ._limits import CANCEL_TICKS, NO_DEADLINE, TICK_S
-from ._places import _Preopen, _Walked
-from ._platform import _TRAP_HANDLERS_REPLACED
+from ._places import _Preopen
+from ._platform import _TRAP_HANDLERS_REPLACED, _Walked
 from ._private_dirs import _Private
 from ._process import process
 from .mounts import STAGING_CEILING
@@ -522,7 +522,7 @@ def _shutdown(state: _State) -> tuple[str, BaseException | None]:
     if left <= 0:
         return "skipped", None
     if (
-        _platform._trap_handlers_ready() is not None
+        _platform.PLATFORM.trap_handlers_ready() is not None
     ):  # a trap in the shutdown could end this process
         return "skipped", None  # (spec 071, Decision 9)
     ticks = max(1, math.ceil(left / TICK_S))
@@ -737,7 +737,7 @@ def _drive_turn(
     thread's stack, by `_drive`'s rules (Decision 7, steps 3 and 4). Before any guest code, as in
     `_drive`, a turn is refused when wasmtime's trap handlers were replaced (spec 071, Decision
     9): the session then ends as on an error, without Python's shutdown."""
-    not_ready = _platform._trap_handlers_ready()
+    not_ready = _platform.PLATFORM.trap_handlers_ready()
     if not_ready is not None:
         raise RuntimeError(_TRAP_HANDLERS_REPLACED.format(signal=not_ready))
     wt, store, exports = state.wt, state.store, state.exports
@@ -1028,7 +1028,7 @@ def _open_session(
             placeholder = scratch.path / "mount"
             placeholder.mkdir()
             for i, mount in enumerate(mounts):
-                w = _places._walk("", str(placeholder), judge=False)
+                w = _platform.PLATFORM.walk("", str(placeholder), judge=False)
                 state.walked.append(w)
                 mounted.append(_Preopen(f"mounts[{i}] at {mount.guest}", w, mount.guest, False))
         every = [*preopens, *mounted]
@@ -1111,7 +1111,9 @@ def _open_wasm(
 ) -> Any:
     """A session's opening wasm, on its guest thread (spec 078): the signal guard, the preopen
     check, the instantiation and the mount table's bind; the instance's exports."""
-    not_ready = _platform._trap_handlers_ready()  # spec 071, Decision 9: before any wasm runs
+    not_ready = (
+        _platform.PLATFORM.trap_handlers_ready()
+    )  # spec 071, Decision 9: before any wasm runs
     if not_ready is not None:
         raise RuntimeError(_TRAP_HANDLERS_REPLACED.format(signal=not_ready))
     _places._check_preopens(wt, linker, store, check, every)  # spec 017, Decision 5; once

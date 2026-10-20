@@ -286,7 +286,7 @@ class _Home:
         error: BaseException | None = None
         try:
             try:
-                bounds = _platform._guest_stack()
+                bounds = _platform.PLATFORM.stack_bounds()
                 if bounds is None or bounds[1] < _WASM_STACK + _HOST_ROOM // 2:
                     have = "unreadable" if bounds is None else f"{bounds[1]:,} bytes"
                     raise _ThreadTooSmall(
@@ -295,7 +295,7 @@ class _Home:
                         "wasm stack needs (did other code change threading.stack_size while the "
                         "runner started it?); the call was refused"
                     )
-                _platform._tell_interpreter(*bounds)
+                _platform.PLATFORM.tell_interpreter(*bounds)
                 p = process()
                 p.calls.watched = self.watched
                 on_entry = p.observers.on_entry

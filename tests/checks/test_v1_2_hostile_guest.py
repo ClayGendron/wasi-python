@@ -2745,7 +2745,7 @@ def test_every_entry_runs_on_a_guest_thread_with_room(monkeypatch) -> None:
     seen: list[tuple[str, int, int]] = []
 
     def entry(kind: str) -> None:
-        bounds = _platform._guest_stack()
+        bounds = _platform.PLATFORM.stack_bounds()
         seen.append((kind, threading.get_ident(), 0 if bounds is None else bounds[1]))
 
     me = threading.get_ident()
@@ -2792,14 +2792,14 @@ def test_a_small_guest_thread_is_refused_before_any_wasm(monkeypatch) -> None:
     monkeypatch.setattr(process().observers, "on_entry", entries.append)
     with wasi_python.Session() as session:
         for answer in ((4096, 8 << 20), None):
-            monkeypatch.setattr(_platform, "_guest_stack", lambda platform=None, a=answer: a)
+            monkeypatch.setattr(_platform.PLATFORM, "stack_bounds", lambda a=answer: a)
             with pytest.raises(RuntimeError, match="less than the 9 MiB"):
                 run(["-c", "import _host; _host.call(b'x')"], host=calls.append)
             with pytest.raises(RuntimeError, match="less than the 9 MiB"):
                 wasi_python.Session()
             monkeypatch.undo()
             monkeypatch.setattr(process().observers, "on_entry", entries.append)
-        monkeypatch.setattr(_platform, "_guest_stack", lambda platform=None: (4096, 8 << 20))
+        monkeypatch.setattr(_platform.PLATFORM, "stack_bounds", lambda: (4096, 8 << 20))
         with pytest.raises(RuntimeError, match="less than the 9 MiB"):
             session.run("print(1)")
         monkeypatch.undo()

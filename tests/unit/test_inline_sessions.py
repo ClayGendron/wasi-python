@@ -100,10 +100,10 @@ def test_an_inline_session_after_an_engine_leaves_the_guard_ready(pytester) -> N
     from wasi_python import _platform
 
     wasmtime.Engine()  # wasmtime installs its handlers once, at the first engine in the process
-    before = _platform._trap_handlers_ready()
+    before = _platform.PLATFORM.trap_handlers_ready()
     assert before is None, f"the guard refused before the inline session, on {before}"
     pytester.makepyfile(test_inner="def test_ok():\n    pass\n")
     result = pytester.runpytest()
     assert result.ret == 0, result.stdout.str()[-2000:]
-    after = _platform._trap_handlers_ready()
+    after = _platform.PLATFORM.trap_handlers_ready()
     assert after is None, f"after an inline session the guard refuses, on {after}"

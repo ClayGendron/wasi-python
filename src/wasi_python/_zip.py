@@ -13,7 +13,7 @@ import zlib
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import _artifacts
+from . import _artifacts, _platform
 from ._artifacts import Artifacts
 from ._private_dirs import _Private
 from ._process import process
@@ -181,7 +181,7 @@ def _write_member(inner: zipfile.ZipFile, info: zipfile.ZipInfo, dest: Path) -> 
         try:
             os.replace(tmp, dest)
         except PermissionError:
-            if os.name != "nt" or not _holds(dest, info):
+            if not _platform.PLATFORM.holds_open_files or not _holds(dest, info):
                 raise
             Path(tmp).unlink(missing_ok=True)
     except BaseException:
@@ -264,7 +264,9 @@ def _copy_zip(found: Artifacts, dest: Path, want: str) -> tuple[int, ...]:
         except PermissionError:
             # Windows cannot replace a file a running guest has open; when the file in place is
             # already the right zip, the copy is not needed.
-            if os.name != "nt" or not (dest.is_file() and _artifacts._hash_file(dest) == want):
+            if not _platform.PLATFORM.holds_open_files or not (
+                dest.is_file() and _artifacts._hash_file(dest) == want
+            ):
                 raise
             Path(tmp).unlink(missing_ok=True)
     except BaseException:

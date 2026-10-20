@@ -18,7 +18,7 @@ import pytest
 from wasi_python import _call, _platform, _private_dirs, _sessions
 from wasi_python._process import process
 
-IDENTITY = _platform._kernel_identity()
+IDENTITY = _platform.PLATFORM.kernel_identity()
 POSIX = os.name == "posix"
 
 
@@ -73,7 +73,7 @@ def test_a_held_lock_keeps_its_folder(temp) -> None:
     folder = dead(temp)
     fd = os.open(f"{folder}.lock", os.O_RDWR | getattr(os, "O_BINARY", 0))
     try:
-        assert _platform._try_lock(fd)  # a live call's lock, through another open file
+        assert _platform.PLATFORM.try_lock(fd)  # a live call's lock, through another open file
         assert sweep() == 0
         assert (folder / "file").exists()
     finally:
@@ -184,14 +184,14 @@ def test_a_failing_listing_leaves_the_call_alone(temp, monkeypatch) -> None:
 def test_a_busy_name_is_drawn_again(temp, monkeypatch) -> None:
     """A sweeper holding a new lock file at the instant its creator tries it: the creator draws
     another name instead of raising (spec 016's confirmation, C4)."""
-    real = _platform._try_lock
+    real = _platform.PLATFORM.try_lock
     calls = []
 
     def once_busy(fd):
         calls.append(fd)
         return False if len(calls) == 1 else real(fd)
 
-    monkeypatch.setattr(_platform, "_try_lock", once_busy)
+    monkeypatch.setattr(_platform.PLATFORM, "try_lock", once_busy)
     private = _private_dirs._Private("wasi-python-")
     try:
         assert private.path.is_dir() and len(calls) == 2
@@ -223,7 +223,7 @@ def test_a_lock_file_swept_before_its_lock_makes_the_creator_draw_again(temp, mo
     Windows the race cannot happen: the creator holds the file open from its creation, and an
     open file cannot be deleted, by a sweeper or by this check; there the check shows that, and
     that the creator keeps its first name."""
-    real = _platform._try_lock
+    real = _platform.PLATFORM.try_lock
     removed, kept = [], []
 
     def swept_first(fd):
@@ -237,7 +237,7 @@ def test_a_lock_file_swept_before_its_lock_makes_the_creator_draw_again(temp, mo
                 kept.append(lock.name)
         return real(fd)
 
-    monkeypatch.setattr(_platform, "_try_lock", swept_first)
+    monkeypatch.setattr(_platform.PLATFORM, "try_lock", swept_first)
     private = _private_dirs._Private("wasi-python-root-")
     try:
         assert private.path.is_dir()
@@ -307,12 +307,12 @@ def test_only_contention_is_busy(monkeypatch) -> None:
 
             target, name = msvcrt, "locking"
         monkeypatch.setattr(target, name, lambda *a: _raise(BlockingIOError(errno.EAGAIN, "busy")))
-        busy = _platform._try_lock(fd)
+        busy = _platform.PLATFORM.try_lock(fd)
         if not POSIX:  # msvcrt.locking reports a held range as EACCES
             monkeypatch.setattr(target, name, lambda *a: _raise(OSError(errno.EACCES, "held")))
-            assert _platform._try_lock(fd) is False
+            assert _platform.PLATFORM.try_lock(fd) is False
         monkeypatch.setattr(target, name, lambda *a: _raise(OSError(errno.ENOLCK, "no locks")))
-        assert busy is False and _platform._try_lock(fd) is None
+        assert busy is False and _platform.PLATFORM.try_lock(fd) is None
     finally:
         os.close(fd)
 
@@ -333,11 +333,11 @@ def test_an_existing_lock_file_is_never_opened_again(temp, monkeypatch) -> None:
 
 def test_a_folder_rmtree_could_not_remove_keeps_its_lock_file(temp, monkeypatch) -> None:
     """Otherwise what is left is never swept (build review, finding 5). Since spec 084 the
-    removal is `_remove_tree`, and a folder it leaves is named in one warning."""
+    removal is the platform's `remove_tree`, and a folder it leaves is named in one warning."""
     private = _private_dirs._Private("wasi-python-root-")
     (private.path / "file").write_text("guest data")
     with monkeypatch.context() as m, pytest.warns(RuntimeWarning, match=private.name):
-        m.setattr(_private_dirs, "_remove_tree", lambda *a, **k: False)
+        m.setattr(_platform.PLATFORM, "remove_tree", lambda *a, **k: False)
         private.remove()
         _private_dirs._flush_warnings()
     assert names(temp) == sorted([private.name, f"{private.name}.lock"])
@@ -351,14 +351,22 @@ def test_the_sweep_unlinks_before_it_lets_the_lock_go(temp, monkeypatch) -> None
     """A creator that locks the file after the sweep fails its same-file check and draws again,
     instead of keeping a folder whose lock file is gone (build review, finding 6)."""
     folder = dead(temp)
-    lock, real = f"{folder}.lock", _platform._unlock_close
+    lock, real = f"{folder}.lock", _platform.PLATFORM.unlock_close
     seen = []
 
-    def release(fd):
-        seen.append(os.path.lexists(lock))
-        real(fd)
+    def release(fd, *, unlink=None):
+        close = os.close
 
-    monkeypatch.setattr(_platform, "_unlock_close", release)
+        def closing(n):  # the lock goes with the close of its file
+            if n == fd:
+                seen.append(os.path.lexists(lock))
+            close(n)
+
+        with monkeypatch.context() as m:
+            m.setattr(os, "close", closing)
+            real(fd, unlink=unlink)
+
+    monkeypatch.setattr(_platform.PLATFORM, "unlock_close", release)
     assert sweep() == 1 and seen == [False]
 
 
@@ -448,10 +456,7 @@ def deep_tree(top: Path, depth: int, *, name: str = "a", link_at: int = -1, link
 
 
 def counting(monkeypatch) -> dict[str, int]:
-    """Counts the calls `_remove_tree` makes, by name; `_dir_fd_ok` is fixed first, since it
-    asks whether os.mkdir is in os.supports_dir_fd."""
-    ok = _platform._dir_fd_ok()
-    monkeypatch.setattr(_platform, "_dir_fd_ok", lambda: ok)
+    """Counts the calls `remove_tree` makes, by name."""
     counts = dict.fromkeys(COUNTED + FORBIDDEN, 0)
     for n in counts:
         real = getattr(os, n, None)
@@ -467,7 +472,7 @@ def counting(monkeypatch) -> dict[str, int]:
 
 THREE_FREE = r"""
 import os, resource, sys, tempfile
-from wasi_python import _private_dirs, runner
+from wasi_python import _platform, _private_dirs, runner
 from wasi_python._process import process
 
 action, path = sys.argv[1:3]
@@ -488,7 +493,7 @@ held = {fd for fd in held if is_open(fd)}
 limit = next(n for n in range(1, 1 << 16) if n - len([fd for fd in held if fd < n]) == 3)
 resource.setrlimit(resource.RLIMIT_NOFILE, (limit, resource.getrlimit(resource.RLIMIT_NOFILE)[1]))
 if action == "remove":
-    print(_private_dirs._remove_tree(path))
+    print(_platform.PLATFORM.remove_tree(path))
 else:
     _private_dirs._sweep_once()
     print(process().sweep_swept)
@@ -525,7 +530,7 @@ def test_a_tree_deeper_than_the_descriptor_limit_is_removed(tmp_path, monkeypatc
         assert not os.path.lexists(tmp_path / "limited")
     entries = deep_tree(tmp_path / "counted", depth)
     counts = counting(monkeypatch)
-    assert _private_dirs._remove_tree(tmp_path / "counted") is True
+    assert _platform.PLATFORM.remove_tree(tmp_path / "counted") is True
     assert not os.path.lexists(long_path(tmp_path / "counted"))
     assert sum(counts[n] for n in COUNTED) <= 5 * entries + 5, counts
     assert all(counts[n] == 0 for n in FORBIDDEN), counts
@@ -538,8 +543,8 @@ def test_the_path_walk_removes_a_deep_tree(tmp_path, monkeypatch) -> None:
     canary.mkdir()
     (canary / "keep").write_text("keep")
     deep_tree(tmp_path / "tree", 300, link_at=150, link_to=str(canary))
-    monkeypatch.setattr(_platform, "_dir_fd_ok", lambda: False)
-    assert _private_dirs._remove_tree(tmp_path / "tree") is True
+    monkeypatch.setattr(_platform.PLATFORM, "has_dir_fd", False)
+    assert _platform.PLATFORM.remove_tree(tmp_path / "tree") is True
     assert not os.path.lexists(tmp_path / "tree")
     assert (canary / "keep").read_text() == "keep"
 
@@ -565,10 +570,10 @@ def test_the_removal_never_follows_a_link(tmp_path) -> None:
     os.symlink(canary, tmp_path / "tree" / "to-folder", target_is_directory=True)
     os.symlink(canary / "keep", tmp_path / "tree" / "to-file")
     os.symlink(os.path.join("..", ".."), tmp_path / "tree" / "up", target_is_directory=True)
-    assert _private_dirs._remove_tree(tmp_path / "tree") is True
+    assert _platform.PLATFORM.remove_tree(tmp_path / "tree") is True
     assert not os.path.lexists(tmp_path / "tree")
     os.symlink(canary, tmp_path / "top", target_is_directory=True)
-    assert _private_dirs._remove_tree(tmp_path / "top") is True
+    assert _platform.PLATFORM.remove_tree(tmp_path / "top") is True
     assert not os.path.lexists(tmp_path / "top")
     assert sorted(os.listdir(canary)) == ["keep"] and (canary / "keep").read_text() == "keep"
 
@@ -644,7 +649,7 @@ def test_a_folder_swapped_for_a_link_mid_walk_is_left(tmp_path, monkeypatch) -> 
             done.append(1)
 
     hooked_open(monkeypatch, before=swap)
-    assert _private_dirs._remove_tree(tree) is False
+    assert _platform.PLATFORM.remove_tree(tree) is False
     monkeypatch.undo()
     assert done and (tree / "a" / "a" / "a").is_symlink()
     assert sorted(os.listdir(outside)) == ["keep"] and chain_intact(tmp_path)
@@ -672,7 +677,7 @@ def test_the_walk_never_climbs_out_of_a_moved_folder(tmp_path, monkeypatch, atta
         done.append(1)
 
     hooked_open(monkeypatch, after=move)
-    assert _private_dirs._remove_tree(tree) is False
+    assert _platform.PLATFORM.remove_tree(tree) is False
     monkeypatch.undo()
     assert done and chain_intact(tmp_path)
     assert (outside / "keep").read_text() == "keep"
@@ -698,7 +703,7 @@ def test_read_only_content_is_left_and_named(temp, recwarn) -> None:
         guarded = [top / "ro", top / "none"]
     modes = [os.lstat(p).st_mode for p in guarded]
     try:
-        assert _private_dirs._remove_tree(top) is False
+        assert _platform.PLATFORM.remove_tree(top) is False
         assert [os.lstat(p).st_mode for p in guarded] == modes
         assert not os.path.lexists(top / "empty")
         private.remove()
@@ -767,13 +772,13 @@ def test_a_writer_cannot_keep_a_home_removal_going(temp, tmp_path, monkeypatch, 
 
 
 def failing_once(monkeypatch) -> list[str]:
-    calls, real = [], _private_dirs._remove_tree
+    calls, real = [], _platform.PLATFORM.remove_tree
 
     def remove_tree(path, **k):
         calls.append(os.path.basename(os.fspath(path)))
         return False if len(calls) == 1 else real(path, **k)
 
-    monkeypatch.setattr(_private_dirs, "_remove_tree", remove_tree)
+    monkeypatch.setattr(_platform.PLATFORM, "remove_tree", remove_tree)
     return calls
 
 
@@ -822,7 +827,7 @@ def test_a_folder_is_retried_by_at_most_three_sweeps(temp, monkeypatch) -> None:
         claimed.append(process().sweep_claimed)
         return False
 
-    monkeypatch.setattr(_private_dirs, "_remove_tree", remove_tree)
+    monkeypatch.setattr(_platform.PLATFORM, "remove_tree", remove_tree)
     private = _private_dirs._Private("wasi-python-root-")
     other = dead(temp, "wasi-python-root-fedcba9876543210")
     private.remove()
@@ -852,16 +857,16 @@ def test_a_removal_that_raises_still_lets_go(temp, monkeypatch) -> None:
     def remove_tree(*a, **k):
         raise RecursionError("maximum recursion depth exceeded")
 
-    monkeypatch.setattr(_private_dirs, "_remove_tree", remove_tree)
+    monkeypatch.setattr(_platform.PLATFORM, "remove_tree", remove_tree)
     private = _private_dirs._Private("wasi-python-root-")
     private.remove()
     assert private.name not in process().held
     assert names(temp) == sorted([private.name, f"{private.name}.lock"])
     fd = os.open(private.lock_path, os.O_RDWR | getattr(os, "O_BINARY", 0))
     try:
-        assert _platform._try_lock(fd) is True
+        assert _platform.PLATFORM.try_lock(fd) is True
     finally:
-        _platform._unlock_close(fd)
+        _platform.PLATFORM.unlock_close(fd)
 
 
 def test_a_warning_filter_never_makes_the_call_raise(temp, monkeypatch) -> None:
@@ -869,7 +874,7 @@ def test_a_warning_filter_never_makes_the_call_raise(temp, monkeypatch) -> None:
     flush raises; the folder is kept for the sweep."""
     import warnings
 
-    monkeypatch.setattr(_private_dirs, "_remove_tree", lambda *a, **k: False)
+    monkeypatch.setattr(_platform.PLATFORM, "remove_tree", lambda *a, **k: False)
     private = _private_dirs._Private("wasi-python-root-")
     with warnings.catch_warnings():
         warnings.simplefilter("error")
@@ -895,7 +900,7 @@ def test_the_warning_is_given_outside_every_runner_lock(temp, monkeypatch) -> No
                 lock.release()
         record.append((str(message), free, sorted(wasi_python.stats())))
 
-    monkeypatch.setattr(_private_dirs, "_remove_tree", lambda *a, **k: False)
+    monkeypatch.setattr(_platform.PLATFORM, "remove_tree", lambda *a, **k: False)
     private = _private_dirs._Private("wasi-python-zip-")
     with warnings.catch_warnings():
         warnings.simplefilter("always")

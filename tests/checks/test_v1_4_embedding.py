@@ -1544,9 +1544,9 @@ def _locks_free(temp: Path) -> bool:
         for lock in temp.glob("*.lock"):
             fd = os.open(lock, os.O_RDWR | getattr(os, "O_BINARY", 0))
             try:
-                free = free and _platform._try_lock(fd) is True
+                free = free and _platform.PLATFORM.try_lock(fd) is True
             finally:
-                _platform._unlock_close(fd)
+                _platform.PLATFORM.unlock_close(fd)
         if free:
             return True
         time.sleep(0.1)

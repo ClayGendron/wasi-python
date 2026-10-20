@@ -20,8 +20,8 @@ MIB = 1 << 20
 @pytest.fixture
 def roomy(monkeypatch):
     """A guest stack check that always passes, so a test of the home can run on any host."""
-    monkeypatch.setattr(_platform, "_guest_stack", lambda platform=None: (4096, 64 * MIB))
-    monkeypatch.setattr(_platform, "_tell_interpreter", lambda bottom, size: False)
+    monkeypatch.setattr(_platform.PLATFORM, "stack_bounds", lambda: (4096, 64 * MIB))
+    monkeypatch.setattr(_platform.PLATFORM, "tell_interpreter", lambda bottom, size: False)
 
 
 def test_the_guest_thread_is_sized_from_the_wasm_stack() -> None:
@@ -38,7 +38,7 @@ def test_a_guest_thread_is_not_the_home_and_has_room() -> None:
     home = _home._Home()
 
     def fn() -> int:
-        seen.append((threading.get_ident(), _platform._guest_stack()))
+        seen.append((threading.get_ident(), _platform.PLATFORM.stack_bounds()))
         return 7
 
     assert _home._on_guest_thread("run", home, None, fn) == 7
@@ -56,14 +56,14 @@ def test_a_small_guest_thread_is_refused_after_one_retry(monkeypatch) -> None:
         ran: list[int] = []
         entries: list[str] = []
 
-        def read(platform=None, a=answer, reads=reads):
+        def read(a=answer, reads=reads):
             reads.append(a)
             return a
 
         def fn(ran=ran) -> None:
             ran.append(1)
 
-        monkeypatch.setattr(_platform, "_guest_stack", read)
+        monkeypatch.setattr(_platform.PLATFORM, "stack_bounds", read)
         monkeypatch.setattr(process().observers, "on_entry", entries.append)
         with pytest.raises(RuntimeError, match="less than the 9 MiB"):
             _home._on_guest_thread("run", _home._Home(), None, fn)
@@ -98,7 +98,7 @@ def test_windows_counts_its_stack_conservatively() -> None:
 def test_an_unknown_platform_cannot_be_read() -> None:
     """Spec 078, criterion 4 (the review's F13): FreeBSD's bounds are not read, so its calls are
     refused by the stack check."""
-    assert _platform._guest_stack(platform="freebsd14") is None
+    assert _platform._Posix().stack_bounds() is None
 
 
 def test_the_interpreter_is_told_its_stack_where_it_guesses() -> None:
@@ -116,19 +116,19 @@ def test_the_interpreter_is_told_its_stack_where_it_guesses() -> None:
             raise AttributeError(name)
         return lambda: 0xABC
 
-    musl = dict(implementation="cpython", platform="linux", libc="musl")
-    assert _platform._tell_interpreter(4096, 9 * MIB, version=(3, 14, 1), resolve=resolve, **musl)
+    linux, musl = _platform._Linux(), dict(implementation="cpython", libc="musl")
+    assert linux.tell_interpreter(4096, 9 * MIB, version=(3, 14, 1), resolve=resolve, **musl)
     assert told == [(0xABC, 4096, 9 * MIB)]
     with pytest.raises(RuntimeError, match="use CPython 3.14.1 or later"):
-        _platform._tell_interpreter(4096, 9 * MIB, version=(3, 14, 0), resolve=missing, **musl)
-    for other in (
-        dict(implementation="cpython", platform="linux", libc="glibc", version=(3, 14, 2)),
-        dict(implementation="cpython", platform="android", libc="", version=(3, 14, 2)),
-        dict(implementation="cpython", platform="darwin", libc="", version=(3, 14, 2)),
-        dict(implementation="cpython", platform="win32", libc="", version=(3, 14, 2)),
-        dict(implementation="cpython", platform="linux", libc="musl", version=(3, 13, 9)),
+        linux.tell_interpreter(4096, 9 * MIB, version=(3, 14, 0), resolve=missing, **musl)
+    for host, other in (
+        (linux, dict(implementation="cpython", libc="glibc", version=(3, 14, 2))),
+        (_platform._Posix(), dict(implementation="cpython", libc="", version=(3, 14, 2))),
+        (_platform._Darwin(), dict(implementation="cpython", libc="", version=(3, 14, 2))),
+        (_platform._Windows(), dict(implementation="cpython", libc="", version=(3, 14, 2))),
+        (linux, dict(implementation="cpython", libc="musl", version=(3, 13, 9))),
     ):
-        assert not _platform._tell_interpreter(4096, 9 * MIB, resolve=resolve, **other), other
+        assert not host.tell_interpreter(4096, 9 * MIB, resolve=resolve, **other), (host, other)
     assert len(told) == 1
 
 

@@ -15,7 +15,7 @@ import pytest
 import wasmtime as wt
 
 from harness import files
-from wasi_python import Grant, _engines, _places
+from wasi_python import Grant, _engines, _places, _platform
 from wasi_python._process import process
 
 POSIX = os.name == "posix"
@@ -47,7 +47,7 @@ def test_the_grant_identity_matches_wasmtimes(tmp_path) -> None:
     """Decision 5's formula, pinned: a wasmtime that hashes a folder's identity otherwise, or a
     platform the formula misses, fails here first (and at run time refuses every grant)."""
     folders = _folders(tmp_path)
-    walked = [_places._walk("t", str(f), judge=True) for f in folders]
+    walked = [_platform.PLATFORM.walk("t", str(f), judge=True) for f in folders]
     stores: list[wt.Store] = []
     try:
         store, linker, engine = _store([(w.path, f"/g{i}") for i, w in enumerate(walked)])
@@ -74,7 +74,7 @@ def test_a_preopen_that_is_not_the_walked_folder_is_refused(tmp_path) -> None:
     a, b = tmp_path / "a", tmp_path / "b"
     a.mkdir()
     b.mkdir()
-    walked = _places._walk("t", str(a), judge=True)
+    walked = _platform.PLATFORM.walk("t", str(a), judge=True)
     store, linker, engine = _store([(str(b), "/g")])  # wasmtime opened another folder
     check = wt.Module(engine, _engines._CHECK_WAT)
     with pytest.raises(RuntimeError, match="changed between its check and the call"):
@@ -82,14 +82,14 @@ def test_a_preopen_that_is_not_the_walked_folder_is_refused(tmp_path) -> None:
             wt, linker, store, check, [_places._Preopen("grant 0", walked, "/g", False)]
         )
     for name in ("/other", "/h"):  # another name, of another length and of the same length
-        other = _places._walk("t", str(b), judge=True)
+        other = _platform.PLATFORM.walk("t", str(b), judge=True)
         store, linker, engine = _store([(str(b), name)])
         check = wt.Module(engine, _engines._CHECK_WAT)
         with pytest.raises(RuntimeError):
             _places._check_preopens(
                 wt, linker, store, check, [_places._Preopen("grant 0", other, "/g", False)]
             )
-    other = _places._walk("t", str(b), judge=True)
+    other = _platform.PLATFORM.walk("t", str(b), judge=True)
     store, linker, engine = _store([(str(b), "/other")])  # the right folder at another name
     check = wt.Module(engine, _engines._CHECK_WAT)
     with pytest.raises(RuntimeError):
@@ -138,8 +138,8 @@ def test_the_argument_types(tmp_path) -> None:
     assert _places._check_root(False) is False
 
 
-def _w(*chain: tuple[int, int], missing: bool = False) -> _places._Walked:
-    w = _places._Walked("/x", tuple(chain), [])
+def _w(*chain: tuple[int, int], missing: bool = False) -> _platform._Walked:
+    w = _platform._Walked("/x", tuple(chain), [])
     if missing:
         w.missing = ("new",)
     return w
@@ -184,10 +184,10 @@ def test_the_walk_judges_links(tmp_path) -> None:
     target.mkdir()
     (tmp_path / "link").symlink_to(target)
     with pytest.raises(ValueError, match="passes through the link 'link'"):
-        _places._walk("g", str(tmp_path / "link" / "."), judge=True)
-    followed = _places._walk("g", str(tmp_path / "link"), judge=False)
+        _platform.PLATFORM.walk("g", str(tmp_path / "link" / "."), judge=True)
+    followed = _platform.PLATFORM.walk("g", str(tmp_path / "link"), judge=False)
     try:
-        assert followed.identity == _places._identity_of(target)
+        assert followed.identity == _platform.PLATFORM.identity_of(target)
     finally:
         followed.close()
     sealed = tmp_path / "sealed"
@@ -195,22 +195,24 @@ def test_the_walk_judges_links(tmp_path) -> None:
     (sealed / "link").symlink_to(target)
     sealed.chmod(0o555)
     try:
-        walked = _places._walk("g", str(sealed / "link"), judge=True)
-        assert walked.identity == _places._identity_of(target)
+        walked = _platform.PLATFORM.walk("g", str(sealed / "link"), judge=True)
+        assert walked.identity == _platform.PLATFORM.identity_of(target)
         walked.close()
     finally:
         sealed.chmod(0o755)
-    missing = _places._walk("root", str(tmp_path / "new" / "deeper"), judge=True, may_make=True)
+    missing = _platform.PLATFORM.walk(
+        "root", str(tmp_path / "new" / "deeper"), judge=True, may_make=True
+    )
     try:
         assert missing.missing == ("new", "deeper") and missing.identity is None
-        assert missing.chain[0] == _places._identity_of(tmp_path)
+        assert missing.chain[0] == _platform.PLATFORM.identity_of(tmp_path)
     finally:
         missing.close()
     with pytest.raises(ValueError, match="does not exist"):
-        _places._walk("g", str(tmp_path / "nothing"), judge=True)
+        _platform.PLATFORM.walk("g", str(tmp_path / "nothing"), judge=True)
     (tmp_path / "file").write_text("x")
     with pytest.raises(ValueError, match="is not a folder"):
-        _places._walk("g", str(tmp_path / "file"), judge=True)
+        _platform.PLATFORM.walk("g", str(tmp_path / "file"), judge=True)
 
 
 def test_the_walk_takes_dot_dot_on_the_real_file_system(tmp_path) -> None:
@@ -223,14 +225,16 @@ def test_the_walk_takes_dot_dot_on_the_real_file_system(tmp_path) -> None:
     (tmp_path / "a-file").write_text("x")
     for may_make in (True, False):
         with pytest.raises(ValueError, match="does not exist"):
-            _places._walk("root", str(tmp_path / "new" / ".." / "y"), judge=True, may_make=may_make)
+            _platform.PLATFORM.walk(
+                "root", str(tmp_path / "new" / ".." / "y"), judge=True, may_make=may_make
+            )
     assert sorted(p.name for p in tmp_path.iterdir()) == ["a-file", "sub", "x"]
     with pytest.raises(ValueError, match="is not a folder"):
-        _places._walk("g", str(tmp_path / "a-file" / ".." / "x"), judge=True)
-    walked = _places._walk("g", str(tmp_path / "sub" / ".." / "x"), judge=True)
+        _platform.PLATFORM.walk("g", str(tmp_path / "a-file" / ".." / "x"), judge=True)
+    walked = _platform.PLATFORM.walk("g", str(tmp_path / "sub" / ".." / "x"), judge=True)
     try:
-        assert walked.identity == _places._identity_of(tmp_path / "x")
-        assert walked.chain[1] == _places._identity_of(tmp_path)
+        assert walked.identity == _platform.PLATFORM.identity_of(tmp_path / "x")
+        assert walked.chain[1] == _platform.PLATFORM.identity_of(tmp_path)
     finally:
         walked.close()
 
@@ -299,8 +303,8 @@ def _win_resolve(s: str) -> str | None:
 
 
 class _WinFake:
-    """A stand-in for `_win_open`, `_close_held` and `_drive_folder` over the model: it records
-    every path opened and every handle still held."""
+    """A stand-in for the Windows platform's `open_handle`, `close_held` and `_drive_folder`
+    over the model: it records every path opened and every handle still held."""
 
     def __init__(self) -> None:
         self.opened: list[str] = []
@@ -327,12 +331,15 @@ class _WinFake:
     def close(self, h: int) -> None:
         del self.held[h]
 
-    def install(self, monkeypatch) -> None:
-        monkeypatch.setattr(_places, "_win_open", self.open)
-        monkeypatch.setattr(_places, "_close_held", self.close)
+    def install(self, monkeypatch) -> _platform._Windows:
+        """A Windows platform object whose handle calls are this model's."""
+        platform = _platform._Windows()
+        monkeypatch.setattr(platform, "open_handle", self.open)
+        monkeypatch.setattr(platform, "close_held", self.close)
         monkeypatch.setattr(
             process().observers, "drive_folder", lambda drive: _WIN_CWD[(drive or "C:").upper()]
         )
+        return platform
 
 
 def _win_chain(walked_path: str) -> tuple:
@@ -359,10 +366,10 @@ def test_the_windows_walk_takes_dot_dot_on_walked_folders(monkeypatch) -> None:
     separator; and no `..` leaks a handle. Spec 077, criterion 1: the superscript device names,
     the console names and the reserved characters are refused the same way, and `COM0` is not."""
     fake = _WinFake()
-    fake.install(monkeypatch)
+    windows = fake.install(monkeypatch)
 
-    def walk(path: str, may_make: bool = False) -> _places._Walked:
-        return _places._walk_windows("g", path, True, may_make)
+    def walk(path: str, may_make: bool = False) -> _platform._Walked:
+        return windows.walk("g", path, judge=True, may_make=may_make)
 
     def refused(path: str, match: str, may_make: bool = False) -> None:
         with pytest.raises(ValueError, match=match):
@@ -447,7 +454,7 @@ def test_the_windows_walk_records_the_true_chain(monkeypatch) -> None:
     import itertools
 
     fake = _WinFake()
-    fake.install(monkeypatch)
+    windows = fake.install(monkeypatch)
     alphabet = ["b", "sub", "x", "a", "a ", "a.", "..", ".", "", "D:sub", "nul", "f.txt", "work"]
     heads = ["C:\\", "D:\\", "\\", "", "\\\\?\\C:\\", "D:", "\\\\srv\\share\\"]
     accepted = refused = 0
@@ -456,7 +463,7 @@ def test_the_windows_walk_records_the_true_chain(monkeypatch) -> None:
             for combo in itertools.product(alphabet, repeat=k):
                 path = head + "\\".join(combo)
                 try:
-                    w = _places._walk_windows("g", path, True, False)
+                    w = windows.walk("g", path, judge=True)
                 except ValueError:
                     refused += 1
                 else:
@@ -483,9 +490,9 @@ def test_a_rewritten_name_is_one_ntpath_refuses() -> None:
     pieces += [" .x", "con\u0131n$", "\u0131", "K", "s"]
     names = ["".join(c) for k in (1, 2, 3) for c in itertools.product(pieces, repeat=k)]
     names = [n for n in names if n]  # 18,275 spellings (16,175 distinct)
-    differ = [n for n in names if _places._rewritten(n) != ntpath.isreserved("x\\" + n)]
+    differ = [n for n in names if _platform._rewritten(n) != ntpath.isreserved("x\\" + n)]
     assert not differ, sorted(map(ascii, set(differ)))[:8]
-    refused = sum(map(_places._rewritten, names))
+    refused = sum(map(_platform._rewritten, names))
     assert len(names) == 18_275 and 0 < refused < len(names), (len(names), refused)
 
 
@@ -577,13 +584,13 @@ def test_a_folder_one_may_search_but_not_list_is_walked(tmp_path) -> None:
     (tmp_path / "noread" / "child").mkdir(parents=True)
     (tmp_path / "noread").chmod(0o311)
     try:
-        walked = _places._walk("g", str(tmp_path / "noread" / "child"), judge=True)
+        walked = _platform.PLATFORM.walk("g", str(tmp_path / "noread" / "child"), judge=True)
         walked.close()
         (tmp_path / "noread").chmod(0o000)
         if os.access(tmp_path / "noread", os.X_OK):  # run as root: no permission refuses it
             return
         with pytest.raises(ValueError, match="cannot be walked"):
-            _places._walk("g", str(tmp_path / "noread" / "child"), judge=True)
+            _platform.PLATFORM.walk("g", str(tmp_path / "noread" / "child"), judge=True)
     finally:
         (tmp_path / "noread").chmod(0o755)
 
@@ -598,9 +605,9 @@ def test_a_junction_is_refused_on_windows(tmp_path) -> None:
     target.mkdir()
     _winapi.CreateJunction(str(target), str(tmp_path / "junction"))
     with pytest.raises(ValueError, match="link or junction"):
-        _places._walk("g", str(tmp_path / "junction"), judge=True)
+        _platform.PLATFORM.walk("g", str(tmp_path / "junction"), judge=True)
     with pytest.raises(ValueError, match="link or junction"):
-        _places._walk("g", str(tmp_path / "junction" / "."), judge=True)
+        _platform.PLATFORM.walk("g", str(tmp_path / "junction" / "."), judge=True)
 
 
 @pytest.mark.skipif(POSIX, reason="Windows holds every walked folder")
@@ -608,7 +615,7 @@ def test_a_walked_folder_cannot_be_moved_on_windows(tmp_path) -> None:
     """Decision 5: while the walk holds its handles, no folder on the way can be renamed, so no
     swap can happen before the identity check."""
     (tmp_path / "a" / "b").mkdir(parents=True)
-    walked = _places._walk("g", str(tmp_path / "a" / "b"), judge=True)
+    walked = _platform.PLATFORM.walk("g", str(tmp_path / "a" / "b"), judge=True)
     try:
         for old, new in ((tmp_path / "a", tmp_path / "c"), (tmp_path / "a" / "b", tmp_path / "d")):
             with pytest.raises(PermissionError):

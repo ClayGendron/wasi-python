@@ -327,8 +327,9 @@ def test_trap_handlers_ready_reads_each_signal_by_load_base() -> None:
         table = {int(getattr(signal, k)): v for k, v in by_name.items()}
         return lambda signum: table.get(signum, ours)
 
-    def ready(machine="x86_64", platform="linux", handler_base=None, wasmtime_base=lambda: ours):
-        return _platform._trap_handlers_ready(platform, machine, handler_base, wasmtime_base)
+    def ready(machine="x86_64", host=None, handler_base=None, wasmtime_base=lambda: ours):
+        host = _platform._Linux() if host is None else host
+        return host.trap_handlers_ready(machine, handler_base, wasmtime_base)
 
     assert ready(handler_base=bases()) is None
     assert ready(handler_base=bases(SIGILL=0x9000)) == "SIGILL"
@@ -341,5 +342,5 @@ def test_trap_handlers_ready_reads_each_signal_by_load_base() -> None:
         raise OSError("dladdr failed")
 
     assert ready(handler_base=broken) == "SIGSEGV"
-    for platform in ("darwin", "win32"):
-        assert ready(platform=platform, handler_base=broken) is None
+    for host in (_platform._Darwin(), _platform._Windows()):
+        assert ready(host=host, handler_base=broken) is None
