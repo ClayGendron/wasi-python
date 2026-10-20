@@ -38,7 +38,7 @@ promises.
 
 | fact | value |
 |---|---|
-| upstream patches | upstream patches carried: 17, each with an upstream pull request drafted for the owner to send, or, for matplotlib's enum fix, qhull's format strings and two of OpenBLAS's, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
+| upstream patches | upstream patches carried: 19, each with an upstream pull request drafted for the owner to send, or, for matplotlib's enum fix, qhull's format strings, two of OpenBLAS's, kiwisolver's `tp_clear` fix and lxml's `fake_cython` line, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 8 min 35 s (macOS arm64, 10 cores, with matplotlib's and lxml's steps; spec 046's landing notes, 2026-10-18) |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 84.8 MB / 89.5 MB / 44.4 MB (3.15 line, with scipy and OpenBLAS (spec 037), matplotlib (contourpy and `_qhull` since spec 043), lxml, regex and tier A's thirty pure-Python packages, no package pre-imported, wasi-sdk 34; spec 037's landing notes; 42.3 MB / 46.5 MB / 38.8 MB before scipy) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
@@ -342,7 +342,10 @@ README is the wheel's description:
 
 lxml 6.1.3 is built in (spec 046): `lxml.etree` and `lxml.objectify` are builtin modules over
 libxml2 2.15.4 and libxslt 1.1.45 with libexslt, and lxml's Python package (`lxml.html`,
-`lxml.builder`, `lxml.sax`, `ElementInclude`) is in the zip. XPath, XSLT, XInclude, C14N, DTD,
+`lxml.builder`, `lxml.sax`, `ElementInclude`) is in the zip. lxml's five modules that upstream
+compiles with Cython for speed (`lxml.builder`, `lxml.sax`, `lxml._elementpath`, `lxml.html.diff`,
+`lxml.html._difflib`) run as plain Python, as on PyPy; `lxml.html.diff` needs one line lxml 7
+carries (`recipes/patches/lxml-6.1.3/0001-fake-cython-final.patch`). XPath, XSLT, XInclude, C14N, DTD,
 XML Schema, RELAX NG and Schematron validation, the HTML parser and `iterparse` give native
 lxml's answers at the same pins (the judge's golden job `lxml_xml`). Files are read and written
 by path inside a grant. pandas' `read_html` with no `flavor` uses lxml, and `read_xml` and
@@ -479,13 +482,14 @@ without it is not built unless an embedder needs one.
 ## How it is built
 
 One command, from pinned inputs; the source trees are their tarballs plus the
-recorded patches (`recipes/patches/`: seventeen today, numpy's `.npy` fix and its callback
+recorded patches (`recipes/patches/`: nineteen today, numpy's `.npy` fix and its callback
 signatures, matplotlib's enum fix from upstream and its qhull error stream without `/dev/null`,
-Pillow's, kiwisolver's and regex's callback signatures and scipy's uarray ones, scipy's
-import of one linalg module moved where it raises, regex's timeout
-ticks, libxml2's file input without `dup()`, pandas' Styler templates and networkx's graph atlas
-read from a zip, qhull's format strings from upstream, and OpenBLAS's three: its C LAPACK's
-subroutines all `void`, as its `develop` branch has them):
+Pillow's, kiwisolver's and regex's callback signatures and scipy's uarray ones, kiwisolver's
+`tp_clear` fix from upstream, scipy's import of one linalg module moved where it raises, regex's
+timeout ticks, libxml2's file input without `dup()`, pandas' Styler templates and networkx's graph
+atlas read from a zip, qhull's format strings from upstream, lxml's `fake_cython` line from
+upstream, and OpenBLAS's three: its C LAPACK's subroutines all `void`, as its `develop` branch has
+them):
 
 ```
 scripts/00_download.sh   # fetch every pin and verify it against downloads/SHA256SUMS

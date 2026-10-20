@@ -1,0 +1,68 @@
+diff --git a/py/src/constraint.cpp b/py/src/constraint.cpp
+index 48da2ae..fec7ea3 100644
+--- a/py/src/constraint.cpp
++++ b/py/src/constraint.cpp
+@@ -53,9 +53,11 @@ Constraint_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
+     return pycn.release();
+ }
+ 
+-void Constraint_clear(Constraint *self)
++int
++Constraint_clear(Constraint *self)
+ {
+     Py_CLEAR(self->expression);
++    return 0;
+ }
+ 
+ int Constraint_traverse(Constraint *self, visitproc visit, void *arg)
+diff --git a/py/src/expression.cpp b/py/src/expression.cpp
+index 2f7e96e..a126a97 100644
+--- a/py/src/expression.cpp
++++ b/py/src/expression.cpp
+@@ -51,10 +51,11 @@ Expression_new( PyTypeObject* type, PyObject* args, PyObject* kwargs )
+ }
+ 
+ 
+-void
++int
+ Expression_clear( Expression* self )
+ {
+     Py_CLEAR( self->terms );
++    return 0;
+ }
+ 
+ 
+diff --git a/py/src/term.cpp b/py/src/term.cpp
+index 8142ffe..701fb4b 100644
+--- a/py/src/term.cpp
++++ b/py/src/term.cpp
+@@ -45,10 +45,11 @@ Term_new( PyTypeObject* type, PyObject* args, PyObject* kwargs )
+ }
+ 
+ 
+-void
++int
+ Term_clear( Term* self )
+ {
+ 	Py_CLEAR( self->variable );
++	return 0;
+ }
+ 
+ 
+diff --git a/py/src/variable.cpp b/py/src/variable.cpp
+index a8e8229..504df7f 100644
+--- a/py/src/variable.cpp
++++ b/py/src/variable.cpp
+@@ -61,10 +61,11 @@ Variable_new( PyTypeObject* type, PyObject* args, PyObject* kwargs )
+ }
+ 
+ 
+-void
++int
+ Variable_clear( Variable* self )
+ {
+ 	Py_CLEAR( self->context );
++	return 0;
+ }
+ 
+ 

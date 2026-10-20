@@ -1,0 +1,13 @@
+C string allows a space: 1 failed: test_slots_a_type_named_with_a_space_is_read
+metatype by tp_basicsize: 1 failed: test_slots_a_metatypes_static_instance_is_read
+a function field must be a table index: 1 failed: test_slots_a_type_that_does_not_read_as_one_is_a_finding
+exactly one `type`: 1 failed: test_slots_no_record_for_type_is_a_finding
+unreadable tp_name is a finding: 1 failed: test_slots_names_unreadable_null_and_typed_by_a_nameless_type
+a record typed by a nameless type is a finding: 1 failed: test_slots_names_unreadable_null_and_typed_by_a_nameless_type
+unreferenced candidates counted: 2 failed: test_slots_check_3s_verdict_bounds_and_named_records, test_slots_drops_are_counted_by_reason
+a spec must be referenced: 1 failed: test_slots_a_specs_void_clear_is_found_and_an_unreferenced_copy_is_not
+a broken run is a finding: 1 failed: test_slots_a_run_that_breaks_before_its_end_is_a_finding
+old ids read: 1 failed: test_slots_old_and_new_ids_are_both_read
+NULL function slot readable: 1 failed: test_slots_a_null_function_slot_is_read_and_counted
+named records: 1 failed: test_slots_check_3s_verdict_bounds_and_named_records
+bounds: 1 failed: test_slots_check_3s_verdict_bounds_and_named_records

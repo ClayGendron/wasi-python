@@ -1,0 +1,20 @@
+E       AssertionError: trapped (error while executing at wasm backtrace:); stderr: 
+E       assert None == 0
+E        +  where None = Result(exit_code=None, stdout=b'Term Expression Constraint\n', stderr=b'', trapped='error while executing at wasm back...t/Repos/wasi_python-096/build/harness/guest-_ea5out5/run-0/root'), trap_cause='wasm trap: indirect call type mismatch').exit_code
+E       AssertionError: trapped (error while executing at wasm backtrace:); stderr: 
+E       assert None == 0
+E        +  where None = Result(exit_code=None, stdout=b'Term Expression Constraint\n', stderr=b'', trapped='error while executing at wasm back...t/Repos/wasi_python-096/build/harness/guest-_ea5out5/run-1/root'), trap_cause='wasm trap: indirect call type mismatch').exit_code
+E       AssertionError: exit 1; stderr: TypeError: 'str' object is not callable
+E       assert 1 == 0
+E        +  where 1 = Result(exit_code=1, stdout=b'', stderr=b'Traceback (most recent call last):\n  File "<string>", line 2, in <module>\n ...oot=PosixPath('/Users/claygendron/Git/Repos/wasi_python-096/build/harness/guest-_ea5out5/run-2/root'), trap_cause=None).exit_code
+E       AssertionError: exit 1; stderr: TypeError: 'str' object is not callable
+E       assert 1 == 0
+E        +  where 1 = Result(exit_code=1, stdout=b'', stderr=b'Traceback (most recent call last):\n  File "<string>", line 2, in <module>\n ...oot=PosixPath('/Users/claygendron/Git/Repos/wasi_python-096/build/harness/guest-_ea5out5/run-3/root'), trap_cause=None).exit_code
+E       AssertionError: 4 slot problems: spec kiwisolver.Constraint.tp_clear: table index 16969 has (i32) -> (), called as (i32) -> (i32) (kiwisolver::(anonymous namespace)::Constraint_clear(kiwisolver::Constraint*)); spec kiwisolver.Expression.tp_clear: table index 16979 has (i32) -> (), called as (i32) -> (i32) (kiwisolver::(anonymous namespace)::Expression_clear(kiwisolver::Expression*)); spec 
+E       assert not ['spec kiwisolver.Constraint.tp_clear: table index 16969 has (i32) -> (), called as (i32) -> (i32) (kiwisolver::(anony... has (i32) -> (), called as (i32) -> (i32) (kiwisolver::(anonymous namespace)::Variable_clear(kiwisolver::Variable*))']
+FAILED tests/checks/test_v1_3_matplotlib.py::test_a_cycle_through_kiwisolver_objects_is_collected[plain]
+FAILED tests/checks/test_v1_3_matplotlib.py::test_a_cycle_through_kiwisolver_objects_is_collected[snapshot]
+FAILED tests/checks/test_v1_3_lxml.py::test_lxml_html_diff_imports[plain] - A...
+FAILED tests/checks/test_v1_3_lxml.py::test_lxml_html_diff_imports[snapshot]
+FAILED tests/checks/test_v1_3_data_stack.py::test_type_slots_have_the_types_cpython_calls
+5 failed in 20.86s

@@ -219,3 +219,279 @@ def test_a_low_index_that_is_no_parser_rule_is_checked(work, at_one) -> None:
     mod.names.clear()
     found = callbacks.findings(callbacks.scan(mod))
     assert low in found and len(found) == 2, found
+
+
+# ---------------------------------------------------------------------------------------------
+# Spec 096: the slot scan (`callbacks.scan_slots`) on small modules. Functions $u (i32) -> (i32),
+# $d (i32) -> (), $b (i32, i32) -> (i32) and $t (i32, i32, i32) -> (i32) sit at table indices 21
+# to 24. Records are laid at fixed addresses; one data segment of pointers references the ones
+# meant to be referenced, as a real type's module or a PyType_FromSpec call would.
+
+U, D, B, T = 21, 22, 23, 24
+REFCNT = callbacks.STATIC_REFCNT
+PAST = 60_000  # inside the memory, past every segment: .bss, zero at load
+
+
+def _type(name_at: int, ob_type: int = 0, basicsize: int = 32, **fields: int) -> bytes:
+    """A static PyTypeObject (212 bytes): fields by byte offset, as `o96=D` for tp_clear."""
+    words = [0] * (callbacks.TYPE_SIZE // 4)
+    words[0], words[1], words[3], words[4] = REFCNT, ob_type, name_at, basicsize
+    for key, value in fields.items():
+        words[int(key[1:]) // 4] = value
+    return struct.pack(f"<{len(words)}I", *words)
+
+
+def _module_def(name_at: int, slots: int = 0, clear: int = 0) -> bytes:
+    return struct.pack("<13I", REFCNT, 0, 0, 0, 0, name_at, 0, 0, 0, slots, 0, clear, 0)
+
+
+def _slots(*entries: tuple[int, int]) -> bytes:
+    return b"".join(struct.pack("<2I", *e) for e in (*entries, (0, 0)))
+
+
+class _Layout:
+    """Strings at 1024, records from 2048 every 256 bytes; `ref` marks a record referenced."""
+
+    def __init__(self) -> None:
+        self.strings, self.segments, self.refs = b"", [], []
+        self.next = 2048
+
+    def string(self, raw: bytes) -> int:
+        at = 1024 + len(self.strings)
+        self.strings += raw + b"\0"
+        return at
+
+    def put(self, body: bytes, ref: bool = True) -> int:
+        at, self.next = self.next, self.next + 256 * (1 + len(body) // 256)
+        self.segments.append((at, body))
+        if ref:
+            self.refs.append(at)
+        return at
+
+    def module(self, work, name: str):
+        segs = [(1024, self.strings), *self.segments]
+        segs.append((self.next, struct.pack(f"<{len(self.refs)}I", *self.refs)))
+        data = "\n".join(f'  (data (i32.const {a}) "{_escape(b)}")' for a, b in segs)
+        text = f"""
+(module
+  (func $u (param i32) (result i32) (local.get 0))
+  (func $d (param i32))
+  (func $b (param i32 i32) (result i32) (local.get 0))
+  (func $t (param i32 i32 i32) (result i32) (local.get 0))
+  (table 25 funcref)
+  (elem (i32.const 21) $u $d $b $t)
+  (memory 1)
+{data}
+)
+"""
+        return wasm.parse_file(wat.build(work, f"{name}.wasm", text))
+
+
+def _with_type(lay: _Layout) -> int:
+    """`type` itself: the one static record whose type is itself."""
+    at = lay.next
+    return lay.put(_type(lay.string(b"type"), ob_type=at, basicsize=900))
+
+
+def test_slots_a_static_types_void_clear_is_found_and_its_destructor_is_not(work) -> None:
+    lay = _Layout()
+    _with_type(lay)
+    lay.put(_type(lay.string(b"m.T"), o96=D, o24=D))
+    report = callbacks.scan_slots(lay.module(work, "t1"))
+    assert callbacks.findings(report) == [
+        "type m.T.tp_clear: table index 22 has (i32) -> (), called as (i32) -> (i32) (d)"
+    ]
+    assert report.coverage["types"] == 2 and "m.T" in report.seen["type"]
+
+
+def test_slots_a_type_named_with_a_space_is_read(work) -> None:
+    """F1: a C string is 1 to 256 bytes in 0x20-0x7E; CPython names `<dummy key> type` so."""
+    lay = _Layout()
+    _with_type(lay)
+    lay.put(_type(lay.string(b"<a b> type"), o44=B))
+    found = callbacks.findings(callbacks.scan_slots(lay.module(work, "t2")))
+    assert found == [
+        "type <a b> type.tp_repr: table index 23 has (i32, i32) -> (i32), "
+        "called as (i32) -> (i32) (b)"
+    ]
+
+
+def test_slots_a_metatypes_static_instance_is_read(work) -> None:
+    lay = _Layout()
+    typ = _with_type(lay)
+    meta = lay.put(_type(lay.string(b"m.Meta"), ob_type=typ, basicsize=300))
+    lay.put(_type(lay.string(b"m.I"), ob_type=meta, o44=D))
+    report = callbacks.scan_slots(lay.module(work, "t3"))
+    assert callbacks.findings(report) == [
+        "type m.I.tp_repr: table index 22 has (i32) -> (), called as (i32) -> (i32) (d)"
+    ]
+    assert report.coverage["metatypes"] == 2
+
+
+def test_slots_a_suite_is_read_and_one_past_the_image_is_counted(work) -> None:
+    lay = _Layout()
+    _with_type(lay)
+    number = lay.put(struct.pack("<36I", *([0] * 9 + [B] + [0] * 26)), ref=False)  # nb_bool
+    lay.put(_type(lay.string(b"m.N"), o48=number, o56=PAST))
+    report = callbacks.scan_slots(lay.module(work, "t4"))
+    assert callbacks.findings(report) == [
+        "type m.N.nb_bool: table index 23 has (i32, i32) -> (i32), called as (i32) -> (i32) (b)"
+    ]
+    assert report.coverage["suites past the image"] == 1
+
+
+def test_slots_a_type_that_does_not_read_as_one_is_a_finding(work) -> None:
+    lay = _Layout()
+    _with_type(lay)
+    lay.put(_type(lay.string(b"m.X"), o92=999))
+    found = callbacks.findings(callbacks.scan_slots(lay.module(work, "t5")))
+    assert found == ["type m.X: does not read as a type (tp_traverse)"]
+
+
+def test_slots_no_record_for_type_is_a_finding(work) -> None:
+    lay = _Layout()
+    lay.put(_type(lay.string(b"m.T")))
+    found = callbacks.findings(callbacks.scan_slots(lay.module(work, "t6")))
+    assert found == ["0 records whose type is itself (one is `type`)"]
+
+
+def test_slots_names_unreadable_null_and_typed_by_a_nameless_type(work) -> None:
+    """F1 and the confirmation's Low: a referenced candidate whose tp_name points at no C string
+    is a finding; tp_name 0 is a type named at run time, read and counted; a static record whose
+    type is such a type is a finding, since no metatype rule classifies it."""
+    lay = _Layout()
+    _with_type(lay)
+    bad = lay.put(_type(lay.string(b"\x01bad")))
+    nameless = lay.put(_type(0, o44=D))
+    inst = lay.put(_type(lay.string(b"m.Inst"), ob_type=nameless))
+    report = callbacks.scan_slots(lay.module(work, "t7"))
+    assert callbacks.findings(report) == sorted(
+        [
+            f"type at {bad:#x}: does not read as a type (tp_name)",
+            f"type <tp_name NULL at {nameless:#x}>.tp_repr: table index 22 has (i32) -> (), "
+            "called as (i32) -> (i32) (d)",
+            f"static record at {inst:#x}: its type, a type named at run time at "
+            f"{nameless:#x}, is no metatype the scan knows, so its slots go unread",
+        ]
+    )
+    assert report.coverage["types named at run time"] == 1
+
+
+def test_slots_drops_are_counted_by_reason(work) -> None:
+    lay = _Layout()
+    _with_type(lay)
+    plain = lay.put(_type(lay.string(b"m.Plain"), basicsize=16))
+    lay.put(_type(lay.string(b"m.Lost")), ref=False)  # an unreferenced candidate
+    lay.put(struct.pack("<4I", REFCNT, plain, 0, 0))  # a static instance of m.Plain
+    lay.put(_type(0x7372))  # its tp_name is no pointer: string-table bytes
+    report = callbacks.scan_slots(lay.module(work, "t8"))
+    assert callbacks.findings(report) == []
+    c = report.coverage
+    assert (c["unreferenced type candidates"], c["static instances"], c["names not pointers"]) == (
+        1,
+        1,
+        1,
+    )
+
+
+def _spec(lay: _Layout, name: bytes, slots: bytes, ref: bool = True) -> int:
+    at = lay.put(slots, ref=False)
+    return lay.put(struct.pack("<5I", lay.string(name), 16, 0, 0, at), ref=ref)
+
+
+def test_slots_a_specs_void_clear_is_found_and_an_unreferenced_copy_is_not(work) -> None:
+    lay = _Layout()
+    _with_type(lay)
+    _spec(lay, b"m.S", _slots((51, D), (52, D)))
+    _spec(lay, b"m.Copy", _slots((51, D)), ref=False)
+    report = callbacks.scan_slots(lay.module(work, "s1"))
+    assert callbacks.findings(report) == [
+        "spec m.S.tp_clear: table index 22 has (i32) -> (), called as (i32) -> (i32) (d)"
+    ]
+    assert report.seen["spec"] == {"m.S"} and "m.S.tp_clear" in report.seen["spec slot"]
+
+
+def test_slots_a_run_that_breaks_before_its_end_is_a_finding(work) -> None:
+    lay = _Layout()
+    _with_type(lay)
+    _spec(lay, b"m.S", _slots((52, D), (200, 0)))
+    found = callbacks.findings(callbacks.scan_slots(lay.module(work, "s2")))
+    assert found == ["spec m.S: slot entry 1 unreadable (200, 0)"]
+
+
+def test_slots_old_and_new_ids_are_both_read(work) -> None:
+    lay = _Layout()
+    _with_type(lay)
+    _spec(lay, b"m.Old", _slots((4, B)))
+    _spec(lay, b"m.New", _slots((91, B)))
+    found = callbacks.findings(callbacks.scan_slots(lay.module(work, "s3")))
+    want = "table index 23 has (i32, i32) -> (i32), called as (i32) -> (i32) (b)"
+    assert found == [f"spec m.New.mp_length: {want}", f"spec m.Old.mp_length: {want}"]
+
+
+def test_slots_a_null_function_slot_is_read_and_counted(work) -> None:
+    """L3: CPython's legacy iterator only logs a NULL function slot, so the spec is read."""
+    lay = _Layout()
+    _with_type(lay)
+    _spec(lay, b"m.First", _slots((51, 0), (52, D)))
+    _spec(lay, b"m.Later", _slots((52, D), (51, 0)))
+    report = callbacks.scan_slots(lay.module(work, "s4"))
+    assert callbacks.findings(report) == []
+    assert report.seen["spec"] == {"m.First", "m.Later"}
+    assert report.coverage["NULL function slots"] == 2
+
+
+def test_slots_a_module_definitions_functions_are_read(work) -> None:
+    lay = _Layout()
+    _with_type(lay)
+    slots = lay.put(_slots((85, B)), ref=False)
+    lay.put(_module_def(lay.string(b"m_one"), slots=slots, clear=D))
+    lay.put(_module_def(lay.string(b"m_two"), slots=PAST))
+    report = callbacks.scan_slots(lay.module(work, "m1"))
+    assert callbacks.findings(report) == [
+        "module m_one.Py_mod_exec: table index 23 has (i32, i32) -> (i32), "
+        "called as (i32) -> (i32) (b)",
+        "module m_one.m_clear: table index 22 has (i32) -> (), called as (i32) -> (i32) (d)",
+    ]
+    assert report.seen["module"] == {"m_one", "m_two"}
+    assert report.coverage["module slots past the image"] == 1
+
+
+def test_slots_check_3s_verdict_bounds_and_named_records(work) -> None:
+    """F2 and the bounds: a named spec whose slots word is zeroed goes unread, and that alone is
+    the problem while every minimum holds; a second type named at run time, or an unreferenced
+    candidate, passes its bound."""
+    named = {"spec": {"m.S"}, "spec slot": {"m.S.tp_clear"}, "type": {"type"}}
+    caps = {"unreferenced type candidates": 0, "types named at run time": 1}
+    floors = {"specs": 1}
+
+    def verdict(zero_slots: bool, extra_nameless: bool = False, lost: bool = False):
+        lay = _Layout()
+        _with_type(lay)
+        slots = lay.put(_slots((51, U)), ref=False)
+        lay.put(struct.pack("<5I", lay.string(b"m.S"), 16, 0, 0, 0 if zero_slots else slots))
+        lay.put(struct.pack("<5I", lay.string(b"m.Other"), 16, 0, 0, slots))
+        lay.put(_type(0))
+        if extra_nameless:
+            lay.put(_type(0))
+        if lost:
+            lay.put(_type(lay.string(b"m.Lost")), ref=False)
+        report = callbacks.scan_slots(lay.module(work, f"v{zero_slots}{extra_nameless}{lost}"))
+        return callbacks.slot_verdict(report, floors, caps, named)
+
+    assert verdict(False) == []
+    assert verdict(True) == [
+        "named record not read: spec m.S",
+        "named record not read: spec slot m.S.tp_clear",
+    ]
+    assert verdict(False, extra_nameless=True) == ["types named at run time 2 > 1"]
+    assert verdict(False, lost=True) == ["unreferenced type candidates 1 > 0"]
+
+
+def test_slots_an_exclusion_is_strict_both_ways(work) -> None:
+    lay = _Layout()
+    _with_type(lay)
+    _spec(lay, b"m.S", _slots((51, D)))
+    report = callbacks.scan_slots(lay.module(work, "x1"))
+    kept = callbacks.findings(report, {"spec m.S.tp_clear": "reviewed", "spec m.Gone.x": "fixed"})
+    assert kept == ["exclusion 'spec m.Gone.x' matches nothing: remove it"]
