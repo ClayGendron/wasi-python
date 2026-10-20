@@ -37,10 +37,10 @@ pytest's faulthandler plugin is not safe to nest in one process.
 
 - **The outer session** enables faulthandler at its start. faulthandler saves the handlers it
   replaces (`SIG_DFL`) and installs its own for SIGSEGV, SIGFPE, SIGABRT, SIGBUS and SIGILL.
-- **The first engine** makes wasmtime install its own handlers for SIGSEGV and SIGILL (and SIGFPE
-  on x86_64), over faulthandler's, once per process. wasmtime chains to the handler it found.
+- **The first engine**, on Linux, makes wasmtime install its own handlers for SIGSEGV and SIGILL
+  (and SIGFPE on x86_64), over faulthandler's, once per process. wasmtime chains to the handler it found.
 - **An inline session** (`pytester.runpytest`, in process) runs the plugin again. Its
-  `pytest_configure` calls `faulthandler.enable()`, which does nothing: it is already on. Its
+  `pytest_configure` calls `faulthandler.enable()`, which installs nothing: it is already on. Its
   `pytest_unconfigure` calls `faulthandler.disable()`, which puts back the handlers faulthandler
   saved at the outer start, `SIG_DFL`, and so drops wasmtime's. Then it calls `enable()` again,
   because faulthandler was on before. Now faulthandler's handlers are installed and wasmtime's
@@ -143,8 +143,11 @@ Linux), where the judge's own tooling runs.
 2. **Linux, end to end.** The release run on this branch: the job
    `judge (ubuntu-24.04, own-rest)` (x86_64, so SIGFPE is guarded too) passes both checks, so
    after an engine and an inline session the guard still finds wasmtime's handlers in a real
-   Linux process. That shard runs serially, in one process, with `test_guest.py` (an engine) and
-   `test_landing_lane.py` and `test_plugin.py` (inline sessions) before the new file.
+   Linux process. That shard runs serially, in one process. `test_guest.py` (an engine) runs
+   before the new file, and `test_landing_lane.py` and `test_plugin.py` (inline sessions) after
+   it, so the check's own inline session is the one it tests: the order inside the check is the
+   review's (engine, then inline session), not the file order. Nothing in that shard checks the
+   guard after the other files' sessions.
 3. **Every inline session still passes.** `test_plugin.py`, `test_landing_lane.py`,
    `test_upstream.py`, `test_several_cores.py` and `test_checks_wiring.py` pass with the fixture
    in place (208 passed with the new file, `-n 3`).
@@ -162,7 +165,7 @@ Linux), where the judge's own tooling runs.
 - 082: every in-process pytester session (inline_run, and parseconfig for parseconfigure) runs with -p no:faulthandler; subprocess sessions are untouched.
 - 082: the outer judge keeps faulthandler on, so a crash inside an inner session still dumps its tracebacks.
 - 082: the stand-in check fails on darwin-arm64 without the fixture and passes with it; it puts back the whole struct sigaction and never switches faulthandler off and on.
-- 082: the end-to-end check passes on Linux in the release run's own-rest shard (engine, inline session, guard still ready).
+- 082: the end-to-end check passes on Linux x86_64 in the release run's own-rest shard (an engine, then the check's own inline session, and the guard still ready); no shard runs the review's cross-file order.
 - 082: the record is lost 0, grew 0, gained 0 (the two new checks are unit tests, outside the goal counts), judge changed; no fuel or bytes move.
 
 **The flags**, each pasted as is:
@@ -189,6 +192,20 @@ If the lane's run has a growth line, it is the base's, not this change's: name i
   trees); unit suite 1732/1740, 8 skipped; ratchet lost 0, grew 0, gained 0,
   `judge changed: tests/conftest.py, tests/unit/test_inline_sessions.py`. `ruff check` and
   `ruff format --check` green.
-- **Not reproduced here:** the review's Linux serial order (`test_guest.py`, then
-  `test_plugin.py`, then `test_runner_calls.py`). darwin has no guard to refuse; the release run's
-  Linux `own-rest` shard is the Linux evidence (criterion 2).
+- **Not reproduced here:** the review's Linux serial order across files (`test_guest.py`, then
+  `test_plugin.py`, then `test_runner_calls.py`). darwin has no guard to refuse. The Linux
+  evidence is the end-to-end check in the release run (below), whose own inline session follows
+  an engine in one process; no release shard runs the review's file order.
+- **The release run on `6881242` (EXECUTED):** 39364504472. Every job green but two:
+  - `judge (windows-2025, own-embedding)`: 2 failed, 176 passed; lost 2, grew 0. The two are
+    `test_the_removal_never_deletes_what_the_guest_may_not[home]` and `[private]`, "skipped
+    without a known need: a Windows guest deletes a read-only file itself (spec 084, C2)": main's
+    known Windows reds, 084's two removal rows, which spec 094 fixes. Not this change's.
+  - `judge (ubuntu-24.04, upstream-groupby)`: its pytest passed (2 passed; lost 0, grew 0); the
+    job failed only uploading its record (`Failed to CreateArtifact: Unable to make request:
+    ETIMEDOUT`, twice), a network failure. That job was re-run (attempt 2, below).
+  - No GREW line and no G7 anywhere.
+  - `judge (ubuntu-24.04, own-rest)` and `judge (macos-15, own-rest)`: 1082 passed, 6 skipped;
+    `tests/unit/test_inline_sessions.py ..` on both, so on Linux x86_64 the guard found
+    wasmtime's handlers before and after the check's inline session. Lost 0, grew 0, gained 0,
+    `judge changed: tests/conftest.py, tests/unit/test_inline_sessions.py`.
