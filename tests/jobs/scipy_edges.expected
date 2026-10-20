@@ -1,0 +1,11 @@
+versions python=3.15 scipy=1.18.1
+mmwrite/mmread sparse -> sha256=ee3194b40fdf82483b59cc50b9a87412ccd8eadce8322640ca20a3aa1d879161 equal=True values=1 0 -2.5 0 3.25 0 text=%%MatrixMarket matrix coordinate real general|%|2 3 3|1 1 1|1 3 -2.5|2 2 3.25|
+mmwrite/mmread dense -> sha256=bc8d20d6212609cbdc5f2758895f70c07263cde29008f349a63cd2367dc9c859 equal=True values=1 2 3 4.5 -6 0.125 text=%%MatrixMarket matrix array real general|%|3 2|1|3|-6|2|4.5|1.25E-1|
+mminfo -> (1, 1, 1, 'array', 'real', 'general')
+Sobol unscrambled -> 0 0 0 0.5 0.5 0.5 0.75 0.25 0.25 0.25 0.75 0.75 0.375 0.375 0.625 0.875 0.875 0.125 0.625 0.125 0.875 0.125 0.625 0.375
+Sobol scrambled -> 0.841912803 0.697698824 0.385225697 0.0288938377 0.423214951 0.840810865 0.373464055 0.954107851 0.0897472249 0.560445427 0.166196511 0.63807557 0.707589611 0.869553674 0.948353049 0.397561616 0.00123039354 0.278900431 0.239140992 0.594835024 0.525890938 0.929112839 0.275583801 0.199242525
+geninvgauss.cdf -> 0.0503333
+genhyperbolic.cdf -> 0.800866
+studentized_range.cdf -> 0.865017
+tukey_hsd pvalue -> 1 0.0144483 0.980311 0.0144483 1 0.0203311 0.980311 0.0203311 1
+loadarff -> 1 2.5 red; 3 -4.25 green names=a,b,c

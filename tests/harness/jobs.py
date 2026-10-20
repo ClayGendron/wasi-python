@@ -57,6 +57,8 @@ JOBS = (
     "scipy_numeric",
     "scipy_solvers",
     "scipy_lapack",
+    # scipy's second milestone: the sandbox's edges (spec 038, Decision 5)
+    "scipy_edges",
 )
 # Jobs whose native output may differ off the platform that recorded them (spec 023, Decision 8):
 # native matplotlib's pixels may move by platform (its own tests allow it in 61 places), while the
@@ -64,8 +66,16 @@ JOBS = (
 # it only there, and the guest must match it everywhere. plot_contour (spec 043, Decision 8) prints
 # a figure's RGBA buffer and its SVG and PDF bytes, so it is bound in the same way.
 # The scipy jobs too (spec 037, Decision 15): the oracle's scipy is pinned to scipy-openblas on
-# macOS arm64, where its goldens are recorded; elsewhere its LAPACK and kernels differ.
-PLATFORM_BOUND = ("plot_line", "plot_contour", "scipy_numeric", "scipy_solvers", "scipy_lapack")
+# macOS arm64, where its goldens are recorded; elsewhere its LAPACK and kernels differ (spec 038's
+# edges job too).
+PLATFORM_BOUND = (
+    "plot_line",
+    "plot_contour",
+    "scipy_numeric",
+    "scipy_solvers",
+    "scipy_lapack",
+    "scipy_edges",
+)
 DATA = {"sales.csv": paths.REPO / "fixtures" / "sales.csv"}
 # pyyaml publishes no cp315 wheel, so the oracle takes its pure tree from the pinned sdist, as the
 # guest does (spec 039, Decision 11): nothing is built on the host.
