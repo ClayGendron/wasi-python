@@ -495,3 +495,45 @@ def test_slots_an_exclusion_is_strict_both_ways(work) -> None:
     report = callbacks.scan_slots(lay.module(work, "x1"))
     kept = callbacks.findings(report, {"spec m.S.tp_clear": "reviewed", "spec m.Gone.x": "fixed"})
     assert kept == ["exclusion 'spec m.Gone.x' matches nothing: remove it"]
+
+
+def test_slots_a_types_pointer_fields_must_be_in_static_memory(work) -> None:
+    """The build review's L1: a pointer field below the image's base is no type's."""
+    lay = _Layout()
+    _with_type(lay)
+    lay.put(_type(lay.string(b"m.P"), o116=16))
+    found = callbacks.findings(callbacks.scan_slots(lay.module(work, "l1a")))
+    assert found == ["type m.P: does not read as a type (tp_methods)"]
+
+
+def test_slots_a_types_sizes_are_bounded(work) -> None:
+    lay = _Layout()
+    _with_type(lay)
+    lay.put(_type(lay.string(b"m.Big"), basicsize=1 << 20))
+    found = callbacks.findings(callbacks.scan_slots(lay.module(work, "l1b")))
+    assert found == ["type m.Big: does not read as a type (tp_basicsize or tp_itemsize)"]
+
+
+def test_slots_a_module_definition_that_does_not_read_as_one_is_a_finding(work) -> None:
+    lay = _Layout()
+    _with_type(lay)
+    lay.put(_module_def(lay.string(b"m_bad"), clear=999))
+    found = callbacks.findings(callbacks.scan_slots(lay.module(work, "l1c")))
+    assert found == ["module m_bad: does not read as a PyModuleDef (m_clear)"]
+
+
+def test_slots_an_unknown_module_slot_id_is_a_finding(work) -> None:
+    lay = _Layout()
+    _with_type(lay)
+    slots = lay.put(_slots((200, 0)), ref=False)
+    lay.put(_module_def(lay.string(b"m_odd"), slots=slots))
+    found = callbacks.findings(callbacks.scan_slots(lay.module(work, "l1d")))
+    assert found == ["module m_odd: slot entry 0 unreadable (200, 0)"]
+
+
+def test_slots_a_c_string_is_at_most_256_bytes(work) -> None:
+    lay = _Layout()
+    _with_type(lay)
+    at = lay.put(_type(lay.string(b"n" * 257)))
+    found = callbacks.findings(callbacks.scan_slots(lay.module(work, "l1e")))
+    assert found == [f"type at {at:#x}: does not read as a type (tp_name)"]

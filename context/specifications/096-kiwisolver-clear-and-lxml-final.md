@@ -666,3 +666,23 @@ patches, and the callback scan now reads the type slots that hid the first.
   checks 1 to 3 among them.
 - So 096 is **built**: every red line in its dry run is a growth line it claims.
 
+
+### After the build review (2026-10-20)
+
+The review, `../reviews/096-kiwisolver-clear-and-lxml-final-build-2026-10-20.md`, says 096 lands.
+Its context-only Lows (3, 4 and 5) are written in above, by the reviewer's commit `5c720ef`.
+
+- **L1, fixed.** Five unit rows, one for each rule the reviewer's mutants C, D, F, G and J left
+  uncovered: `test_slots_a_types_pointer_fields_must_be_in_static_memory` (a `tp_methods` below the
+  image's base), `test_slots_a_types_sizes_are_bounded` (`tp_basicsize` `1 << 20`),
+  `test_slots_a_module_definition_that_does_not_read_as_one_is_a_finding` (an `m_clear` that is no
+  table index), `test_slots_an_unknown_module_slot_id_is_a_finding` (id 200 in `m_slots`) and
+  `test_slots_a_c_string_is_at_most_256_bytes` (a `tp_name` of 257 printable bytes). Each was seen
+  failing under its mutant, and only its own row failed (`build_unit_mutants.py` now runs eighteen
+  mutants, `build_unit_mutants.out`, with `PYTHONDONTWRITEBYTECODE=1`). The unit file has 31 rows,
+  20 of them the slot scan's. Only unit rows changed, so no check, fuel or byte number moves; the
+  judge hash moves in `tests/unit/test_callbacks.py` only, which `--accept-judge` already names.
+- **L2, a follow-up, not fixed here.** The `note` fixture (`tests/harness/plugin.py`) keeps the
+  first 240 characters of a pass's reason, and check 3's coverage line is about 330, so
+  `latest.json` loses its last three counts. Nothing is compared on it, so no verdict changes. The
+  follow-up: a shorter summary, or the counts as a `fact`; it changes the judge only.
