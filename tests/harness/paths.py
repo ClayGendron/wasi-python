@@ -174,6 +174,11 @@ LICENCE_COMPONENTS = (
     # licences, reportlab's its three third-party parts (their own checks hold both)
     "seaborn",
     "reportlab",
+    # statsmodels and its formula engine (spec 045, Decision 13)
+    "statsmodels",
+    "formulaic",
+    "interface-meta",
+    "wrapt",
 )
 # SQLite's package line is named as its pin names it (sqlite-autoconf 3540100 is SQLite 3.54.1).
 PACKAGES = (
@@ -240,6 +245,10 @@ PACKAGES = (
     "scikit-learn",
     "seaborn",
     "reportlab",
+    "statsmodels",
+    "formulaic",
+    "interface-meta",
+    "wrapt",
 )
 
 # What the snapshot pre-imports (recipes/reactor_main.c, PREIMPORT): the stdlib's bootstrap, no

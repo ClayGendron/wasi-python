@@ -849,6 +849,7 @@ MESON_BUILDS = (
     "contourpy-build",  # added for matplotlib's contours
     "scipy-build",  # added for scipy
     "sklearn-build",  # added for scikit-learn
+    "statsmodels-build",  # added for statsmodels
 )
 # The Makefiles autoconf generates for the C libraries (libxml2's and libxslt's), and
 # step 60's two command files.

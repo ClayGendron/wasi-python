@@ -1,6 +1,6 @@
 # 045 — statsmodels, with formulaic, interface-meta and wrapt
 
-- **Status:** **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-18; revised the same day against its pre-build review
+- **Status:** **Being built** (2026-10-20) on `spec/045-statsmodels` from main `5805af0`, revised against main in *The builder's revision against main* (R1 to R12, written before any code; Decisions 3, 9, 12 and 13 move there, and where a Decision's text below says otherwise, the revision governs); its confirmation round is R12. Questions 80 and 83 are answered (`../decisions.md`). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-18; revised the same day against its pre-build review
   (`../reviews/044-scikit-learn-and-045-statsmodels-spec-2026-10-18.md`): every finding that
   concerns it is fixed here, and the review's Disposition says where. It changes the build
   recipe and the artifact set, so it is reviewed before it is built (constitution §5.6). It is build-class: it touches
@@ -452,15 +452,15 @@ the datasets load from the zip; no data with unapproved terms ships.
 |---|---|
 | `downloads/SHA256SUMS`, `scripts/00_download.sh` | the four pins (Decision 2) |
 | `scripts/steps/59_statsmodels.sh` | new: unpack, patch, stage cimports, render the map, configure with the stand-in, the version gate, build, the include log, stage the package, the module list (Decisions 3 to 5) |
-| `recipes/statsmodels_build/setuptools_scm.py` | new: the configure-time stand-in (Decision 3) |
+| `recipes/setuptools_scm_stand_in/setuptools_scm/` | spec 023's stand-in gains `get_version(root)`; `__main__` calls it (Decision 3, revised: R2) |
 | `recipes/wasi-statsmodels.cross` | new (Decision 4) |
 | `recipes/statsmodels_file_includes.txt`, `recipes/statsmodels-renames/*.h` | new: four entries, four one-line headers (Decision 5) |
 | `recipes/patches/statsmodels-0.15.0/0001-datasets-from-a-zip.patch` | new: `../upstream/11-statsmodels-datasets-from-a-zip/fix.patch`, byte for byte (Decision 7) |
 | `context/upstream/patches/statsmodels-0.15.0/0001-datasets-from-a-zip.md` | moved from `../upstream/11-…/pr.md`, unchanged |
 | `context/upstream/README.md`, `context/upstream/11-…/notes.md` | the row says the patch is carried; `fix.patch` removed from the folder |
-| `scripts/make_stdlib_zip.py` | the new `--leave-out-file` option; 042's `--leave-out` unchanged (Decision 9) |
+| `scripts/make_stdlib_zip.py` | `--drop` also matches one member by its exact name (Decision 9, revised: R3; no new option) |
 | `scripts/gen_inittab.py`, `scripts/steps/60_link.sh` | statsmodels' modules, four renames (Decisions 5, 8) |
-| `scripts/steps/70_zip.sh` | the tree, its metadata, three wheels, 15 `--leave-out` and 21 `--leave-out-file` lines (Decisions 6, 9, 10) |
+| `scripts/steps/70_zip.sh` | the tree, its metadata, three wheels, 13 `--keep` and 9 `--drop` lines (Decisions 6, 9, 10; R3) |
 | `scripts/build.sh`, `scripts/assemble_artifacts.py`, `LICENSES/` | step 59 in `ALL`; `PACKAGES`, `WHEELS`; `LICENSES/statsmodels.txt` (Decision 13) |
 | `tests/jobs/statistical_models.py`, `.expected`; `tests/jobs/oracle/pyproject.toml`, `uv.lock`; `tests/harness/jobs.py` | the golden, the oracle's pins, `JOBS`, the recording platform (Decision 12) |
 | `tests/checks/test_v1_3_default_profile.py` | the five behaviour checks |
@@ -516,6 +516,171 @@ None open here. One is recorded in `../questions-for-the-owner.md` as **83**, sh
 their own BSD licences, and its datasets), each part decided here as recommended: the thirteen
 datasets' files and `sandbox/rlsdata.txt` left out until the owner says otherwise. This
 specification is not built until 83 is answered.
+
+## The builder's revision against main (2026-10-20)
+
+The builder is a fresh agent, not the author. It works on `spec/045-statsmodels` in its own
+worktree, made from main `5805af0` (wave 07 landed: 038 and 044). This specification was drafted
+on 2026-10-18. Since then 037, 038, 039, 041, 043, 044 and 086 have landed, and 042 (seaborn) is in
+wave 08, not yet on main. Each change below was read against main, written here, and only then
+coded. Nothing has been built yet; the native slot is the lane's to grant. Every claim is EXECUTED
+unless marked.
+
+**R1. What this builds on.** Main holds what Decision 15 waited for: 044's
+`scripts/stage_scipy_cimports.sh`, `install_from_plan.py --modules-only` and step 58; 037's and
+038's scipy with `cython_blas` and `cython_lapack` as builtins; 039's patsy 1.0.3, narwhals 2.27.1,
+typing-extensions 4.16.0 and joblib 1.6.0; 023's packaging 26.3. 042 is not on main. This
+specification therefore no longer depends on it, except for its README line on seaborn's
+statsmodels fits (Decision 11). The builder writes that line when it rebases onto a wave that
+holds 042. 045 enters wave 09 or 10, as the lane orders (the owner put it in 0.1.0 on 2026-10-20,
+`../decisions.md`).
+
+**R2. Decision 3: the stand-in already exists.** Spec 023 put a configure-time stand-in for
+matplotlib in `recipes/setuptools_scm_stand_in/setuptools_scm/`. Its `__main__` prints PKG-INFO's
+`Version:` for `python3 -m setuptools_scm`. statsmodels' `git_version.py` instead calls
+`setuptools_scm.get_version(root=ROOT)` (READ, the sdist). So the existing package gains
+`get_version(root)` in its `__init__.py`: the `Version:` header of `root/PKG-INFO`, with any other
+case stopping the build in one line that names the file. `__main__` now calls `get_version(".")`
+and prints the same answer as before. There is no `recipes/statsmodels_build/` folder; one
+stand-in serves both packages (§6.4). Unit checks:
+`test_the_stand_in_reads_the_version_from_pkg_info` (seen failing: `AttributeError: module
+'setuptools_scm' has no attribute 'get_version'`) and
+`test_the_stand_in_still_prints_the_version_for_matplotlib`. The second passed before the change
+and after it; it guards matplotlib's use. Step 59 puts the stand-in's folder and the pinned
+packaging wheel on `PYTHONPATH` for `meson setup` alone. The version gate stands as written.
+
+**R3. Decision 9: `--keep` and `--drop`, not a new option.** 042's `--leave-out` never landed:
+042 leaves its files out with 023's `--drop`, as 044 did (044's B2). So the reason for a separate
+`--leave-out-file` (to keep 042's rule and its check intact) is gone, and the smallest form uses
+what main has:
+- **13 `--keep statsmodels/datasets/<name>=__init__.py,data.py` lines**, one per dataset whose
+  terms are not approved. 023's `--keep` drops every member under the folder except the files it
+  names. Each such folder keeps its two modules, which `statsmodels.datasets` imports, and loses
+  its CSVs, R scripts and `src/` folder. A name it does not find stops the build, as before.
+- **8 `--drop statsmodels/datasets/<name>/src` lines** for the public-domain sets that have a
+  `src/` folder (anes96, co2, elnino, grunfeld, macrodata, modechoice, randhie, sunspots).
+- **One `--drop statsmodels/sandbox/rlsdata.txt`.** `--drop` now also matches the one member
+  whose name equals its argument, the name as its input gives it, before `.py` becomes `.pyc`.
+  A folder's drop is unchanged, and so is the stop on an argument that matches nothing. No
+  existing check pins `--drop`'s old reach (READ: no unit or rules check calls `Selection` or
+  passes `--drop`).
+
+The effect is Decision 9's exactly: 554 tree members, 501 kept, 53 left out (EXECUTED with step 70's
+own `tree_members` and `Selection` on the patched sdist, over the lines `70_zip.sh` holds). Unit
+checks: `test_a_drop_takes_one_file_by_its_exact_name` (the exact member goes; `rlsdata.txt.bak`,
+`rlsdata.txt2` and `rls.py` stay; a folder's drop still works; `api.pyc` does not match the member
+from `api.py`, and its unmatched argument stops the build). It was seen failing: `assert not
+True`, since the old `--drop` kept the file. `test_a_kept_dataset_folder_keeps_only_its_code`
+guards the existing `--keep` in the form step 70 now uses. 042's
+`test_a_left_out_folder_is_not_packed` does not exist on main, so the review's finding 5 has no
+check left to protect. Its intent holds: no existing check changes.
+
+**R4. Decision 12: the checks as written, with four changes.**
+- **`hdrboxplot` gets a check of its own, `test_hdrboxplot_needs_processes`.** It creates a
+  matplotlib figure before it reaches `Pool()` (`graphics/functional.py`, READ:
+  `utils.create_mpl_ax` first). So it needs matplotlib's data, granted as the runner grants it,
+  and a writable config folder (`MPL_ENV`, the judge's root), unlike the no-grant check.
+  `test_statsmodels_says_what_it_lacks` keeps `x13_arima_analysis` and `get_rdataset("iris")`
+  through `wasi_python.run` with no root and no grant, as 044's check does. Each check's expected
+  exception is the drafting run's; the build records what the guest gives, and the check states
+  that.
+- **`test_left_out_datasets_say_so`** runs on the plain binary, as written. It loads each of the
+  thirteen and expects `FileNotFoundError`, the type only. Natively, with the files present, all
+  thirteen load (EXECUTED under the oracle). So the check has no native twin; the absence is this
+  build's own.
+- **Judge changes the text did not list** (044's B6, applied here): `scan.MESON_BUILDS` gains
+  `statsmodels-build` (spec 059's rule for a new meson build). The dotted-builtins program in
+  `test_v1_1_artifact_set` gives `statsmodels` a run of its own, as scipy and sklearn have; its 26
+  modules are `test_statsmodels_modules_are_builtin`. The notice check reads the pinned sdist, so
+  it joins the release's build shard by node id. `paths.LICENCE_COMPONENTS` gains the four.
+  `tests/upstream/packages.toml` gains four entries (R6). `test_build_progress`'s step list and
+  `test_artifact_rules`' synthetic set gain step 59 and the four packages.
+  `shards.COMPONENT_NAMES` needs nothing: the tree's component, `statsmodels`, is the package's
+  name.
+- **The C-only cross file** is not in `scan.CPP_CROSS_FILES`. That list is for the cross files
+  that compile C++, and statsmodels compiles none.
+
+**R5. Decision 13: the notice sweep, done before the build, as 044's was (044's B1).** Every
+shipped `.py`, `.pyx`, `.pxd`, `.pxi`, `.in`, `.c` and `.h` outside `tests/` was read for
+"Copyright", "License", "public domain", "all rights reserved", GPL, and "adapted, derived, copied,
+taken, borrowed, ported, translated or based on" (1,098 lines; `build/045/sweep.txt`, the builder's
+scratch). Most lines are statsmodels' own SPDX-style headers ("License: BSD-3", "Simplified-BSD")
+or citations of papers and manuals. Under COPYRIGHTS.txt's notices, which ship: `compat/numpy.py`
+(numpy); `datasets/utils.py:318` and `sandbox/tools/cross_val.py` (scikit-learn);
+`graphics/tsaplots.py` and `tools/docstring_helpers.py` (matplotlib);
+`distributions/edgeworth.py`, `tsa/arima_process.py`, `tsa/filters/filtertools.py`,
+`stats/robust_compare.py`, `miscmodels/nonlinls.py` and `tools/rootfinding.py` (scipy). Under the
+two folder licences: `multivariate/factor_rotation/` ("ported and made available with permission
+of the authors", BSD-3-Clause by Martin van der Schans) and `stats/libqsturng/` (Roger Lew,
+BSD-3-Clause). **Six that question 83 does not name**, each now a part of
+`LICENSES/statsmodels.txt`, and the owner is asked through the lane:
+- `tools/parallel.py`, "copied from https://github.com/mne-tools/mne-python", Alexandre Gramfort,
+  "License: Simplified BSD". MNE-Python's licence (BSD-3-Clause) is pinned as django's was for
+  044: `https://raw.githubusercontent.com/mne-tools/mne-python/2c4a3b03968a29570f87c3d741d2adc53b35f1dc/LICENSE.txt`,
+  the last commit to touch it, saved as `mne-python-2c4a3b03-LICENSE.txt`, SHA-256
+  `adf6b228c93126d67e84c40ed7c1b1dbf1ec44f26d9fe224261e1d8592646b52`, 1,467 bytes.
+- `tools/docstring.py`, "Substantially copied from NumpyDoc 1.0pre". It is covered by 044's
+  pinned `numpydoc-894c8c47-LICENSE.txt`; no new pin.
+- `stats/libqsturng/qsturng_.py`, lines 1926-1961: `_phi`, Peter John Acklam's inverse normal,
+  "Modified from the author's original perl code … by dfield@yahoo-inc.com". The file says "the
+  permissity of the license is not explicitly listed".
+- `tsa/stl/_stl.pyx`, lines 3-13: Kevin Sheppard's port, "License: NCSA/BSD-3 Clause, Based on
+  NETLIB STL code" (Cleveland, Cleveland, McRae and Terpenning). netlib states no terms. This
+  file is compiled in.
+- `graphics/boxplots.py`, lines 3-4: "Based on code by Flavio Coelho and Teemu Ikonen". No terms
+  are named.
+- `regression/quantile_regression.py`, lines 1-16: the IRLS function "written for Matlab by
+  Shapour Mohammadi … with some lines based on code written by James P. Lesage … Translated to
+  python with permission from original author".
+
+The recommendation is to ship all six with their notices. Each is in every statsmodels wheel
+under statsmodels' BSD-3-Clause. The judge's `test_statsmodels_notice_carries_its_bundled_parts`
+holds every part against the pinned sdist's bytes, and the datasets part names the sixteen with
+each module's own statement and the thirteen left out. EXECUTED: the notice step 90 would write
+from the patched sdist passes the judge's rule with no finding. If the owner declines one, its
+module is left out or replaced, by a revision before landing.
+
+**R6. The packages' own tests (spec 063; the owner's rule, "every test of every package we
+build").** statsmodels' suite natively, on the oracle's pinned wheels, one thread, darwin-arm64:
+21,412 collected; 20,911 passed, 1 failed, 356 skipped, 146 xfailed, in 468 s. In the guest that
+is about 3 T of fuel (INFERRED: matplotlib's suite, of about the same native size, measured 3.35 T
+in spec 066), caps of about 4.5 T, and about five more Linux shards. Running it uses spec 066's
+harness (`package_drive.py`, `harness/packages.py`), which lands in wave 08. It also follows 066's
+method: a survey, a confirmation round, classes and splits. The builder proposed to the lane that
+statsmodels' suite closes with spec 095. 066's Decision 13 reserves 095 for "scipy's and
+scikit-learn's own tests in the release (statsmodels' too if 045 adds an entry)". formulaic,
+interface-meta and wrapt close with spec 067, as every other pure wheel does. `packages.toml`
+says so, pending the lane's answer. No test is left out by this: the whole suite runs under 095.
+
+**R7. Gates added since drafting, which bind this build.** 044's weak-duplicate gate and link-map
+check run over every package's archives, statsmodels' included. 044's `gen_inittab.py --against`
+stops on an init name CPython's own `config.c` registers (its B11); none of statsmodels' 26 names
+is a CPython builtin's (INFERRED from the module list; the link shows it). 051's callback scan
+and 096's slot scan read statsmodels' modules; a mismatch is fixed by a carried patch or an
+upstream release, never an exclusion.
+
+**R8. Counts that moved.** wasi-sdk 34 (086), not 33: the build's own logs are read, so nothing
+here depends on the version. Step 59 is free on main and on every open branch (READ). The release
+tree count is 27 (main's 26 plus `statsmodels`). There are 23 carried patches (main's 22 plus this
+one, in its own folder), and `build.sh` runs twenty steps.
+
+**R9. The cost table's base** (Decision 14) is main's set at `5805af0`, `SHA256SUMS` `dc6ba3a5`
+(044's). 044 measured 27,240 fuel per member at a plain start, inside the table's 30,000.
+
+**R10. The golden and the oracle.** `tests/jobs/statistical_models.py` is the drafted job, under
+the line length rules. Under the pinned oracle, its output with hash seeds 0 and 1 is the
+drafting run's byte for byte: 3,007 bytes, SHA-256 `6a855bc1…ad29`. `tests/jobs/oracle/uv.lock`
+records statsmodels' `macosx_11_0_arm64` cp315 wheel (`24b9917a…8606`), formulaic and
+interface-meta by version, and wrapt by URL to the guest's pure wheel (`c6e6c226…ac1d`).
+
+**R11. Question 80** is answered: the facts sheet is one the owner rewrites. The sheet moved
+unchanged to `../upstream/patches/statsmodels-0.15.0/0001-datasets-from-a-zip.md`, in that form,
+and the patch byte for byte (`751e7190…db58`). It applies to the pinned sdist with no offset
+(EXECUTED, `apply_patches.sh`).
+
+**R12. The pre-build review's confirmation.** The 2026-10-20 confirmation covered 044 alone, and
+says that findings 5 and 7 to 10 are not confirmed there. A confirming reviewer reads this
+revision, R2 to R6 above all, before the build. The lane arranges it.
 
 ## Landing notes
 

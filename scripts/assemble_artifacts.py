@@ -7,6 +7,7 @@ renamed to build/artifacts/ only when complete.
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import io
 import os
@@ -96,6 +97,12 @@ PACKAGES = {
     # seaborn and reportlab: pure Python, seaborn from its sdist, reportlab its wheel
     "seaborn": "0.13.2",
     "reportlab": "5.0.1",
+    # statsmodels (spec 045): the package, its bundled code and its public-domain datasets, under
+    # its notice; its formula engine formulaic and formulaic's two requirements, pure wheels.
+    "statsmodels": "0.15.0",
+    "formulaic": "1.2.2",
+    "interface-meta": "2.0.1",
+    "wrapt": "2.5.1",
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
@@ -137,6 +144,10 @@ WHEELS = {
     "threadpoolctl": "threadpoolctl-3.7.0-py3-none-any.whl",
     "narwhals": "narwhals-2.27.1-py3-none-any.whl",
     "reportlab": "reportlab-5.0.1-py3-none-any.whl",  # its other parts are below
+    # statsmodels' formula engine
+    "formulaic": "formulaic-1.2.2-py3-none-any.whl",
+    "interface-meta": "interface_meta-2.0.1-py3-none-any.whl",
+    "wrapt": "wrapt-2.5.1-py3-none-any.whl",
 }
 # The Unicode data terms of HarfBuzz's tables, pinned as a file.
 UNICODE_TERMS = "unicodetools-4fd8eca9-LICENSE"
@@ -319,6 +330,47 @@ Diabetes (load_diabetes; B. Efron, T. Hastie, I. Johnstone and R. Tibshirani, 20
 
 The two sample photographs of sklearn/datasets/images/ (CC BY 2.0) are not in this release.
 """
+# statsmodels' terms (spec 045, Decision 13), as scikit-learn's: its licence, COPYRIGHTS.txt (the
+# numpy, scipy, pandas, matplotlib, scikit-learn and qsturng-py code it carries), the licences of
+# its two folders that have their own, each bundled component the build's notice sweep found, the
+# pinned licence texts of the two projects whose adapted code carries none, and its datasets'
+# terms, read from each dataset module's own COPYRIGHT. (path, first line, last line, words.)
+STATSMODELS_TOP = "statsmodels-0.15.0"
+STATSMODELS_FILES = (
+    "LICENSE.txt",
+    "COPYRIGHTS.txt",
+    "statsmodels/multivariate/factor_rotation/LICENSE.txt",
+    "statsmodels/multivariate/factor_rotation/COPYRIGHTS.txt",
+    "statsmodels/stats/libqsturng/LICENSE.txt",
+)
+STATSMODELS_LINES = (
+    # parallel_func, copied from mne-python (its licence text pinned below)
+    ("statsmodels/tools/parallel.py", 1, 12, ("mne-python", "Simplified BSD")),
+    # the docstring parser, copied from numpydoc (its licence text pinned below)
+    ("statsmodels/tools/docstring.py", 1, 1, ("NumpyDoc",)),
+    # Peter John Acklam's inverse normal, from a Perl port, inside libqsturng
+    ("statsmodels/stats/libqsturng/qsturng_.py", 1926, 1961, ("dfield", "Peter John Acklam")),
+    # the STL port of the NETLIB Fortran (compiled in)
+    ("statsmodels/tsa/stl/_stl.pyx", 3, 13, ("Kevin Sheppard", "NETLIB")),
+    # the boxplot variations' origin
+    ("statsmodels/graphics/boxplots.py", 3, 4, ("Flavio Coelho", "Teemu Ikonen")),
+    # quantile regression's IRLS, translated from Matlab with its author's permission
+    ("statsmodels/regression/quantile_regression.py", 1, 16, ("Mohammadi", "with permission")),
+)
+STATSMODELS_PINNED = (
+    ("mne-python-2c4a3b03-LICENSE.txt", "mne-python, for statsmodels/tools/parallel.py"),
+    ("numpydoc-894c8c47-LICENSE.txt", "numpydoc, for statsmodels/tools/docstring.py"),
+)
+# The datasets that ship (each module's COPYRIGHT says public domain) and those whose files stay
+# out (spec 045, Decision 9), each named with its module's own statement.
+STATSMODELS_DATASETS = (
+    "anes96", "co2", "danish_data", "elec_equip", "elnino", "engel", "grunfeld", "longley",
+    "macrodata", "modechoice", "nile", "randhie", "stackloss", "statecrime", "strikes", "sunspots",
+)  # fmt: skip
+STATSMODELS_LEFT_OUT = (
+    "cancer", "ccard", "china_smoking", "committee", "copper", "cpunish", "fair", "fertility",
+    "heart", "interest_inflation", "scotland", "spector", "star98",
+)  # fmt: skip
 # OpenBLAS's terms: its own licence and Reference-LAPACK's, whose C translation it carries.
 OPENBLAS_NOTICES = ("LICENSE", "lapack-netlib/LICENSE")
 # What each carried patch to an Apache-2.0 file changes, for the notice Apache-2.0 §4(b) asks of
@@ -613,6 +665,51 @@ def sklearn_parts(tree: Path, d: Path) -> list[tuple[str, bytes]]:
     return parts
 
 
+def dataset_copyright(tree: Path, name: str) -> str:
+    """A statsmodels dataset module's COPYRIGHT string, read without running it, on one line."""
+    path = tree / "statsmodels" / "datasets" / name / "data.py"
+    for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        if isinstance(node, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id == "COPYRIGHT" for t in node.targets
+        ):
+            if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+                return " ".join(node.value.value.split())
+    raise SystemExit(f"{path}: no COPYRIGHT string")
+
+
+def statsmodels_parts(tree: Path, d: Path) -> list[tuple[str, bytes]]:
+    """LICENSES/statsmodels.txt's parts, in order (spec 045, Decision 13)."""
+    parts = [(f"statsmodels {n}", (tree / n).read_bytes()) for n in STATSMODELS_FILES]
+    parts += [
+        (f"statsmodels {n}, lines {a}-{b}", lines_notice(tree / n, a, b, words))
+        for n, a, b, words in STATSMODELS_LINES
+    ]
+    parts += [(f"{what} ({name})", pinned_bytes(d, name)) for name, what in STATSMODELS_PINNED]
+    shipped = []
+    for name in STATSMODELS_DATASETS:
+        terms = dataset_copyright(tree, name)
+        if "public domain" not in terms.lower():
+            raise SystemExit(f"statsmodels dataset {name}: its COPYRIGHT is not public domain")
+        shipped.append(f"- {name}: {terms}\n")
+    left = [
+        f"- {name} (its module says: {dataset_copyright(tree, name)})\n"
+        for name in STATSMODELS_LEFT_OUT
+    ]
+    data = (
+        "statsmodels 0.15.0 bundles example datasets (statsmodels/datasets/), each module stating\n"
+        "its own terms in COPYRIGHT; statsmodels' COPYRIGHTS.txt says they are not under its\n"
+        "licence. This release packs the data files of these sixteen, unchanged, each stating\n"
+        "public domain:\n\n" + "".join(shipped) + "\n"
+        "The data files of these thirteen are not in this release, since their stated terms are\n"
+        "not approved (their modules stay, and their loaders raise FileNotFoundError), and\n"
+        "neither is any datasets/*/src/ folder, nor sandbox/rlsdata.txt (a table with no stated\n"
+        "terms):\n\n"
+        + "".join(left)
+    )
+    parts.append(("statsmodels' bundled datasets: their terms", data.encode()))
+    return parts
+
+
 def modified_notice(root: Path, top: str) -> bytes:
     """One line per carried patch of a tree: the files it changes, read from the patch itself,
     the patch's path and what it does; then that the rest is compiled as released."""
@@ -731,6 +828,7 @@ def main() -> None:
             (f"OpenBLAS {n}", (b / "OpenBLAS-0.3.34" / n).read_bytes()) for n in OPENBLAS_NOTICES
         ],
         "scikit-learn": sklearn_parts(b / SKLEARN_TOP, d),
+        "statsmodels": statsmodels_parts(b / STATSMODELS_TOP, d),
         **{pkg: wheel_licences(d / wheel) for pkg, wheel in WHEELS.items()},
         # the sdists' notices from their trees
         "pyyaml": [("PyYAML LICENSE", (b / "pyyaml-6.0.3" / "LICENSE").read_bytes())],

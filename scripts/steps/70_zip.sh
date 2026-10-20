@@ -35,7 +35,14 @@
 # staged beside tier A's, its METADATA its PKG-INFO; reportlab's wheel, without its fonts (their
 # licences are not approved, and reportlab cannot read them from a zip; Decision 4) and, until a
 # later change ships it with Tyler C. Sarna's acknowledgement, without its barcode folder
-# (Decision 4a), both by the same --drop.
+# (Decision 4a), both by the same --drop. statsmodels: its package as step 59 staged it from the
+# patched sdist, its METADATA from the sdist, and three pure wheels, formulaic, interface-meta and
+# wrapt (wrapt's own py3-none-any wheel: its C file is source and stays out); left out, each by a
+# line written here so a reader sees it: the data files of the thirteen datasets whose stated
+# terms the owner has not approved (each folder kept to its two modules, which
+# statsmodels.datasets imports), every datasets/*/src/ folder (original sources no loader reads),
+# and sandbox/rlsdata.txt, a table with no stated terms that nothing reads (`--drop` of one member
+# by its exact name).
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -53,6 +60,7 @@ done
 [ -d "$B/regex-install/regex" ] || die "build/regex-install/regex is missing: run step 53"
 [ -d "$B/scipy-install/scipy" ] || die "build/scipy-install/scipy is missing: run step 57"
 [ -d "$B/sklearn-install/sklearn" ] || die "build/sklearn-install/sklearn is missing: run step 58"
+[ -d "$B/statsmodels-install/statsmodels" ] || die "build/statsmodels-install/statsmodels is missing: run step 59"
 BACKENDS="__init__.py,registry.py,_backend_pdf_ps.py,backend_mixed.py,backend_agg.py,backend_pdf.py"
 BACKENDS="$BACKENDS,backend_ps.py,backend_svg.py,backend_pgf.py,backend_template.py"
 # The build-Python CPython's driver built, found as scripts/python-wasi-cross finds it: its
@@ -93,6 +101,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --tree "$B/pure-install" \
   --tree "$B/scipy-install" \
   --tree "$B/sklearn-install" \
+  --tree "$B/statsmodels-install" \
   --wheel "$(pinned python_dateutil-2.9.0.post0-py2.py3-none-any.whl)" \
   --wheel "$(pinned tzdata-2026.5-py2.py3-none-any.whl)" \
   --wheel "$(pinned six-1.17.0-py2.py3-none-any.whl)" \
@@ -128,6 +137,9 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --wheel "$(pinned threadpoolctl-3.7.0-py3-none-any.whl)" \
   --wheel "$(pinned narwhals-2.27.1-py3-none-any.whl)" \
   --wheel "$(pinned reportlab-5.0.1-py3-none-any.whl)" \
+  --wheel "$(pinned formulaic-1.2.2-py3-none-any.whl)" \
+  --wheel "$(pinned interface_meta-2.0.1-py3-none-any.whl)" \
+  --wheel "$(pinned wrapt-2.5.1-py3-none-any.whl)" \
   --metadata "$B/numpy-2.5.2/PKG-INFO" \
   --metadata "$B/pandas-3.0.6/PKG-INFO" \
   --metadata "$B/pillow-13.0.0/PKG-INFO" \
@@ -143,12 +155,35 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --metadata "$B/scipy-1.18.1/PKG-INFO" \
   --metadata "$B/scikit_learn-1.9.1/PKG-INFO" \
   --metadata "$B/seaborn-0.13.2/PKG-INFO" \
+  --metadata "$B/statsmodels-0.15.0/PKG-INFO" \
   --keep "matplotlib/backends=$BACKENDS" \
   --drop matplotlib/testing \
   --drop matplotlib/sphinxext \
   --drop sklearn/datasets/images \
   --drop reportlab/fonts \
   --drop reportlab/graphics/barcode \
+  --keep statsmodels/datasets/cancer=__init__.py,data.py \
+  --keep statsmodels/datasets/ccard=__init__.py,data.py \
+  --keep statsmodels/datasets/china_smoking=__init__.py,data.py \
+  --keep statsmodels/datasets/committee=__init__.py,data.py \
+  --keep statsmodels/datasets/copper=__init__.py,data.py \
+  --keep statsmodels/datasets/cpunish=__init__.py,data.py \
+  --keep statsmodels/datasets/fair=__init__.py,data.py \
+  --keep statsmodels/datasets/fertility=__init__.py,data.py \
+  --keep statsmodels/datasets/heart=__init__.py,data.py \
+  --keep statsmodels/datasets/interest_inflation=__init__.py,data.py \
+  --keep statsmodels/datasets/scotland=__init__.py,data.py \
+  --keep statsmodels/datasets/spector=__init__.py,data.py \
+  --keep statsmodels/datasets/star98=__init__.py,data.py \
+  --drop statsmodels/datasets/anes96/src \
+  --drop statsmodels/datasets/co2/src \
+  --drop statsmodels/datasets/elnino/src \
+  --drop statsmodels/datasets/grunfeld/src \
+  --drop statsmodels/datasets/macrodata/src \
+  --drop statsmodels/datasets/modechoice/src \
+  --drop statsmodels/datasets/randhie/src \
+  --drop statsmodels/datasets/sunspots/src \
+  --drop statsmodels/sandbox/rlsdata.txt \
   --inner matplotlib/mpl-data \
   --file "$SYSCONFIG=_sysconfigdata__wasi_wasm32-wasi.py" \
   --file "$MISSING_INFO=_missing_stdlib_info.py" \

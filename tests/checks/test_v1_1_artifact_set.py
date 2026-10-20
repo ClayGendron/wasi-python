@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import zipfile
 from pathlib import Path
 
@@ -185,6 +186,60 @@ def test_reportlab_notice_carries_its_third_party_parts(artifacts) -> None:
     that file's leading comment block, byte for byte."""
     errors = rules.reportlab_notice_errors(artifacts.dir, _pinned_source(artifacts, "reportlab"))
     assert not errors, scan.report(errors)
+def test_statsmodels_notice_carries_its_bundled_parts(artifacts) -> None:
+    """LICENSES/statsmodels.txt holds statsmodels' licence, its COPYRIGHTS.txt, the licences of
+    factor_rotation and libqsturng, and each bundled component's notice the build's sweep found, as
+    the pinned sdist holds it (mne-python's parallel_func, numpydoc's docstring parser, Acklam's
+    inverse normal, the NETLIB STL port, the boxplot code, the IRLS translation); then mne-python's
+    and numpydoc's pinned licences; and the datasets part: each of the sixteen shipped with its
+    public-domain statement, the thirteen named as left out (spec 045, Decision 13). It reads the
+    sdist, so it runs in the build shard (tests/release_shards.toml)."""
+    needs.need("source tree statsmodels")
+    tarball, _ = pins.source_pair("statsmodels")
+    errors = rules.statsmodels_notice_errors(artifacts.dir, tarball, paths.DOWNLOADS)
+    assert not errors, scan.report(errors)
+
+
+# What stays out of statsmodels (spec 045, Decision 9): the data files of the thirteen datasets
+# whose stated terms are not approved (each folder keeps __init__.py and data.py), every
+# datasets/*/src/ folder, and sandbox/rlsdata.txt.
+STATSMODELS_LEFT_OUT_FILES = (
+    "statsmodels/datasets/cancer/cancer.csv",
+    "statsmodels/datasets/ccard/ccard.csv",
+    "statsmodels/datasets/ccard/R_wls.s",
+    "statsmodels/datasets/china_smoking/china_smoking.csv",
+    "statsmodels/datasets/committee/committee.csv",
+    "statsmodels/datasets/committee/R_committee.s",
+    "statsmodels/datasets/copper/copper.csv",
+    "statsmodels/datasets/cpunish/cpunish.csv",
+    "statsmodels/datasets/cpunish/R_cpunish.s",
+    "statsmodels/datasets/fair/fair.csv",
+    "statsmodels/datasets/fair/fair_pt.csv",
+    "statsmodels/datasets/fertility/fertility.csv",
+    "statsmodels/datasets/heart/heart.csv",
+    "statsmodels/datasets/interest_inflation/E6.csv",
+    "statsmodels/datasets/interest_inflation/E6_jmulti.csv",
+    "statsmodels/datasets/scotland/scotvote.csv",
+    "statsmodels/datasets/scotland/R_scotvote.s",
+    "statsmodels/datasets/spector/spector.csv",
+    "statsmodels/datasets/star98/star98.csv",
+    "statsmodels/datasets/star98/r_glm.s",
+    "statsmodels/sandbox/rlsdata.txt",
+)
+
+
+def test_left_out_dataset_files_are_not_in_the_zip(artifacts) -> None:
+    """None of Decision 9's 21 file names and no member under a datasets/*/src/ folder is in the
+    zip, while each left-out dataset's two modules and a shipped dataset's CSV are."""
+    needs.need("stdlib zip")
+    with zipfile.ZipFile(artifacts.path("python-stdlib.zip")) as z:
+        names = set(z.namelist())
+    assert "statsmodels/datasets/longley/longley.csv" in names, "the zip has no statsmodels data"
+    kept = {f"statsmodels/datasets/spector/{m}.pyc" for m in ("__init__", "data")}
+    assert kept <= names, f"the zip lacks {sorted(kept - names)}"
+    held = sorted(set(STATSMODELS_LEFT_OUT_FILES) & names)
+    held += sorted(n for n in names if re.match(r"statsmodels/datasets/[^/]+/src/", n))
+    assert held == [], f"the zip holds {held}"
 
 
 def test_cpython_notice_covers_hacl(artifacts) -> None:
@@ -275,7 +330,7 @@ def test_stdlib_c_modules_are_builtin(guest, which) -> None:
 
 DOTTED_NAMES = """
 import importlib, json, sys
-own = ("scipy", "sklearn")  # each package with a run of its own
+own = ("scipy", "sklearn", "statsmodels")  # each package with a run of its own
 pkg = sys.argv[1]
 dotted = sorted(
     n for n in sys.builtin_module_names
@@ -295,7 +350,8 @@ print(json.dumps({"dotted": len(dotted), "wrong": wrong}))
 # 0.1 G on the snapshot before regex. One program per binary, each with a budget; a figure above
 # half its budget is a finding to raise, and a plain run past its budget is split per top-level
 # package, never narrowed to fewer modules. scipy's 95 modules are their own run, and so are
-# scikit-learn's 69 (test_v1_3_default_profile's test_scikit_learn_modules_are_builtin).
+# scikit-learn's 69 (test_v1_3_default_profile's test_scikit_learn_modules_are_builtin), and
+# statsmodels' 26 (test_statsmodels_modules_are_builtin there).
 DOTTED_FUEL = {"plain": 20_000_000_000, "snapshot": 10_000_000_000}
 SCIPY_DOTTED_FUEL = 40_000_000_000
 # What native scipy 1.18.1 itself gives, not this build's (EXECUTED under the pinned oracle):

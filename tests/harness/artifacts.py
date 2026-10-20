@@ -559,4 +559,75 @@ def reportlab_notice_errors(d: Path, wheel: Path | None) -> list[str]:
     text = [data for label, data in parts.items() if label.endswith(f"({mit[0]})")]
     if not text or paths.sha256_bytes(text[0]) != m.pins[mit[0]]:
         errors.append(f"LICENSES/reportlab.txt does not hold the MIT text of {mit[0]}")
+# statsmodels' notice (spec 045, Decision 13): its licence, COPYRIGHTS.txt (the numpy, scipy,
+# pandas, matplotlib, scikit-learn and qsturng-py code it carries), the two folders with licences of
+# their own, and each bundled component the build's notice sweep found, matched against the pinned
+# sdist's bytes as scikit-learn's are; then the pinned licence texts of the two projects whose
+# adapted code carries none; then the datasets part. (path in the sdist, first line, last line), or
+# the whole file when no range is given.
+STATSMODELS_PARTS = (
+    ("LICENSE.txt", None, None),
+    ("COPYRIGHTS.txt", None, None),
+    ("statsmodels/multivariate/factor_rotation/LICENSE.txt", None, None),
+    ("statsmodels/multivariate/factor_rotation/COPYRIGHTS.txt", None, None),
+    ("statsmodels/stats/libqsturng/LICENSE.txt", None, None),
+    ("statsmodels/tools/parallel.py", 1, 12),
+    ("statsmodels/tools/docstring.py", 1, 1),
+    ("statsmodels/stats/libqsturng/qsturng_.py", 1926, 1961),
+    ("statsmodels/tsa/stl/_stl.pyx", 3, 13),
+    ("statsmodels/graphics/boxplots.py", 3, 4),
+    ("statsmodels/regression/quantile_regression.py", 1, 16),
+)
+STATSMODELS_PINNED_TEXTS = ("mne-python-2c4a3b03-LICENSE.txt", "numpydoc-894c8c47-LICENSE.txt")
+# The sixteen datasets that ship, each named in the datasets part with its stated terms, and the
+# thirteen whose files stay out (Decision 9).
+STATSMODELS_DATASETS = (
+    "anes96", "co2", "danish_data", "elec_equip", "elnino", "engel", "grunfeld", "longley",
+    "macrodata", "modechoice", "nile", "randhie", "stackloss", "statecrime", "strikes", "sunspots",
+)  # fmt: skip
+STATSMODELS_LEFT_OUT = (
+    "cancer", "ccard", "china_smoking", "committee", "copper", "cpunish", "fair", "fertility",
+    "heart", "interest_inflation", "scotland", "spector", "star98",
+)  # fmt: skip
+
+
+def statsmodels_notice_errors(d: Path, tarball: Path, downloads: Path) -> list[str]:
+    """Each part STATSMODELS_PARTS names, as the pinned sdist holds it, and each pinned text, as its
+    pin holds it, is in LICENSES/statsmodels.txt; the datasets part names every dataset that ships
+    with the public-domain statement its module gives, and every one left out."""
+    import tarfile
+
+    m = paths.parse_manifest((d / "MANIFEST").read_text())
+    notice = d / "LICENSES" / "statsmodels.txt"
+    if not notice.is_file():
+        return ["LICENSES/statsmodels.txt is missing"]
+    body = notice.read_bytes()
+    errors = []
+    if paths.sha256_file(tarball) != m.pins.get(tarball.name):
+        errors.append(f"{tarball.name} is not the tarball MANIFEST pins")
+    top = tarball.name.removesuffix(".tar.gz")
+    with tarfile.open(tarball) as t:
+        for rel, first, last in STATSMODELS_PARTS:
+            f = t.extractfile(f"{top}/{rel}")
+            data = f.read() if f is not None else b""
+            if first is not None:
+                lines = data.decode("utf-8").splitlines()[first - 1 : last]
+                data = ("\n".join(lines) + "\n").encode()
+            where = rel if first is None else f"{rel}, lines {first}-{last}"
+            if not data.strip() or data not in body:
+                errors.append(f"LICENSES/statsmodels.txt does not hold {where}")
+    for name in STATSMODELS_PINNED_TEXTS:
+        path = downloads / name
+        if not path.is_file() or paths.sha256_file(path) != m.pins.get(name):
+            errors.append(f"downloads/{name} is missing or not the file MANIFEST pins")
+        elif path.read_bytes() not in body:
+            errors.append(f"LICENSES/statsmodels.txt does not hold {name}")
+    data = b"".join(b for label, b in notice_parts(body) if "bundled datasets" in label)
+    text = data.decode("utf-8", errors="replace")
+    for name in STATSMODELS_DATASETS:
+        if not re.search(rf"^- {name}: .*public domain", text, re.M | re.I):
+            errors.append(f"LICENSES/statsmodels.txt's datasets part does not ship {name}")
+    for name in STATSMODELS_LEFT_OUT:
+        if not re.search(rf"^- {name}\b", text, re.M) or f"- {name}: " in text:
+            errors.append(f"LICENSES/statsmodels.txt's datasets part does not leave {name} out")
     return errors

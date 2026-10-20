@@ -4,7 +4,7 @@
         [--wheel <pinned wheel>]... [--metadata <an sdist's PKG-INFO>]...
         [--entry-points <an sdist's PKG-INFO> <its entry_points.txt>]...
         [--file <source>=<name in zip>]... [--skip <top-level name>]...
-        [--drop <folder in zip>]... [--keep <folder in zip>=<file>,<file>...]...
+        [--drop <folder or file in zip>]... [--keep <folder in zip>=<file>,<file>...]...
         [--inner <folder in zip>]...
         [--replace <old>=<new>]... [--code-prefix </guest/path/to/the.zip/>] out.zip
 
@@ -29,11 +29,12 @@ and pandas and numpy find their own frames by that name. The prefix must be abso
 `.zip/`; it is a constant of the line's version, never a host path. Without it, the name is the
 member's alone, as before.
 
-What cannot run, or is not built, stays out: `--drop` leaves out every member
-under a folder (`matplotlib/testing`), and `--keep` leaves out every member under a folder but the
-files it names (matplotlib's backends: the ten that a plot and its PNG, PDF, PS, EPS and SVG saves
-import, and two more that need nothing missing). A drop or keep that matches nothing stops the
-build.
+What cannot run, or is not built, stays out: `--drop` leaves out every member under a folder
+(`matplotlib/testing`), or the one member whose name is the argument exactly
+(`statsmodels/sandbox/rlsdata.txt`), the name as its input gives it, before `.py` becomes `.pyc`;
+and `--keep` leaves out every member under a folder but the files it names (matplotlib's
+backends: the ten that a plot and its PNG, PDF, PS, EPS and SVG saves import, and two more that
+need nothing missing). A drop or keep that matches nothing stops the build.
 
 `--inner` packs a folder of data files into one member, `<folder>.zip`, an inner archive whose
 files are stored at their paths under the folder, sorted, with the same fixed time and mode; the
@@ -344,7 +345,7 @@ class Selection:
     def take(self, data: bytes, name: str) -> bool:
         """Whether the member goes on to the zip as it is; False when a rule took it."""
         for folder in self.drop:
-            if _under(name, folder) is not None:
+            if name == folder or _under(name, folder) is not None:
                 self.matched.add(folder)
                 return False
         for folder, names in self.keep.items():

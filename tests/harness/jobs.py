@@ -64,6 +64,8 @@ JOBS = (
     # seaborn's statistical plots and reportlab's PDF reports
     "statistical_plots",
     "pdf_reports",
+    # statsmodels (spec 045, Decision 12)
+    "statistical_models",
 )
 # Jobs whose native output may differ off the platform that recorded them:
 # native matplotlib's pixels may move by platform (its own tests allow it in 61 places), while the
@@ -75,7 +77,8 @@ JOBS = (
 # edges job too). And scikit-learn's: PCA and the linear models reach
 # LAPACK through scipy. statistical_plots prints seaborn's figures' RGBA
 # buffers and SVGs, and values from scipy's kernel densities and clustering; pdf_reports prints no
-# pixel and reproduces everywhere.
+# pixel and reproduces everywhere. And statsmodels' (spec 045, Decision 12): OLS and ARIMA reach
+# LAPACK through scipy too.
 PLATFORM_BOUND = (
     "plot_line",
     "plot_contour",
@@ -85,6 +88,7 @@ PLATFORM_BOUND = (
     "scipy_edges",
     "machine_learning",
     "statistical_plots",
+    "statistical_models",
 )
 DATA = {"sales.csv": paths.REPO / "fixtures" / "sales.csv"}
 # pyyaml publishes no cp315 wheel, so the oracle takes its pure tree from the pinned sdist, as the

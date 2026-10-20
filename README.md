@@ -20,9 +20,9 @@ directories and host functions you hand it.
 
 | artifact | what it is |
 |---|---|
-| `python.wasm` | a WASI reactor: CPython plus numpy and scipy (sharing one OpenBLAS), pandas, scikit-learn's compiled modules, matplotlib's compiled modules (with FreeType, HarfBuzz, SheenBidi, libraqm and qhull), Pillow's core, kiwisolver, contourpy, lxml's `etree` and `objectify` (with libxml2 and libxslt), regex's `_regex`, zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
+| `python.wasm` | a WASI reactor: CPython plus numpy and scipy (sharing one OpenBLAS), pandas, scikit-learn's and statsmodels' compiled modules, matplotlib's compiled modules (with FreeType, HarfBuzz, SheenBidi, libraqm and qhull), Pillow's core, kiwisolver, contourpy, lxml's `etree` and `objectify` (with libxml2 and libxslt), regex's `_regex`, zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
 | `python-snapshot.wasm` | the same binary after a Wizer snapshot: the interpreter started and the stdlib's bootstrap modules imported, no package (decision 34); one `run` per instance, about 14 ms |
-| `python-stdlib.zip` | the stdlib plus numpy, pandas, scipy, scikit-learn (with its six bundled datasets), matplotlib (its data as one inner archive), Pillow, kiwisolver, contourpy, lxml, regex, fontTools, cycler, pyparsing, packaging, python-dateutil, tzdata, six, the default profile's thirty pure-Python packages (Excel, PDF, HTML and XML, YAML, TOML and templates, graphs and model formulas, sympy, and utilities; see *What the default profile carries*), and `host`, the tool protocol's guest package, as a deflated zip |
+| `python-stdlib.zip` | the stdlib plus numpy, pandas, scipy, scikit-learn (with its six bundled datasets), statsmodels (with its sixteen public-domain datasets) and its formula engine formulaic (with interface-meta and wrapt), matplotlib (its data as one inner archive), Pillow, kiwisolver, contourpy, lxml, regex, fontTools, cycler, pyparsing, packaging, python-dateutil, tzdata, six, the default profile's thirty pure-Python packages (Excel, PDF, HTML and XML, YAML, TOML and templates, graphs and model formulas, sympy, and utilities; see *What the default profile carries*), and `host`, the tool protocol's guest package, as a deflated zip |
 | `MANIFEST`, `SHA256SUMS` | every pinned source, every supported build host's toolchain, and every recipe hash |
 
 Published as GitHub release assets (xz, 6 to 22 MB) and as the `wasi-python`
@@ -38,7 +38,7 @@ promises.
 
 | fact | value |
 |---|---|
-| upstream patches | upstream patches carried: 22, each with an upstream pull request drafted for the owner to send, or, for matplotlib's enum fix, qhull's format strings, two of OpenBLAS's, kiwisolver's `tp_clear` fix and lxml's `fake_cython` line, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
+| upstream patches | upstream patches carried: 23, each with an upstream pull request drafted for the owner to send, or, for matplotlib's enum fix, qhull's format strings, two of OpenBLAS's, kiwisolver's `tp_clear` fix and lxml's `fake_cython` line, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 8 min 35 s (macOS arm64, 10 cores, with matplotlib's and lxml's steps; spec 046's landing notes, 2026-10-18) |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 92.6 MB / 97.4 MB / 49.8 MB (3.15 line, with numpy and scipy on one OpenBLAS (specs 037 and 100), scikit-learn (spec 044), matplotlib (contourpy and `_qhull` since spec 043), lxml, regex and tier A's thirty pure-Python packages, no package pre-imported, wasi-sdk 34; spec 100's landing notes; 93.8 MB / 98.7 MB / 49.8 MB before numpy moved to OpenBLAS, 84.8 MB / 89.5 MB / 44.4 MB before scikit-learn, 42.3 MB / 46.5 MB / 38.8 MB before scipy) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
@@ -53,8 +53,8 @@ promises.
 | numpy's and pandas' own tests in the guest (spec 050; upstream's fast selection, 11 groups) | 63,717 passing; 12 gaps, each a class of known failures listed by node id with its closer (the README 10, question 89 2); no test traps the guest |
 | CPython's own tests in the guest (spec 065; regrtest, 542 of 557 modules in five groups) | 28,109 passing on the frozen set `s-c50ca51fae5eb55b-c9dcb5b8`, the same 3,710 of the file-system group on macOS, Linux and Windows (measured on the set before); 61 gaps: 24 classes of known failures by test id, one deselection, two environment entries and 26 results recorded per host (the README 40, wasmtime's answers 6, spec 088 3, spec 002 1, spec 074 3), and eight tests where freeing or parsing deep structures still traps the guest at the runner's 512 KiB stack (spec 078 8) |
 
-The platform's facts, documented rather than patched (with twenty-two carried patches,
-below and under *scipy in the guest*, *scikit-learn in the guest*, *matplotlib in the guest*, *lxml in the guest* and *regex in the guest*), are what `python.wasm -V` prints after its version:
+The platform's facts, documented rather than patched (with twenty-three carried patches,
+below and under *scipy in the guest*, *scikit-learn in the guest*, *statsmodels in the guest*, *matplotlib in the guest*, *lxml in the guest* and *regex in the guest*), are what `python.wasm -V` prints after its version:
 
 > (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl, zstd or scipy.odr; compute about 1.3 to 2.3 times slower than native)
 
@@ -311,6 +311,42 @@ scikit-learn 1.9.1's copy. `load_iris` is taken from R. A. Fisher's 1936 paper. 
 (Efron, Hastie, Johnstone and Tibshirani, 2004) and `load_linnerud` (Tenenhaus, 1998) state no
 terms. Each loader's `DESCR` carries the full citation.
 
+### statsmodels in the guest
+
+statsmodels 0.15.0 is built in (spec 045): every public submodule, `statsmodels.api` and
+`statsmodels.formula.api` among them. Its 26 compiled modules are builtins; its Python package is
+in the zip, with formulaic 1.2.2 (its second formula engine), interface-meta 2.0.1 and wrapt 2.5.1
+as pure wheels. A golden job (`statistical_models`) prints native statsmodels' answers at the same
+pin: OLS with robust errors, a formula fitted with patsy and with formulaic
+(`statsmodels.formula.options.formula_engine = "formulaic"`), ANOVA, Logit, a Poisson GLM, a
+t-test and multiple-test correction, ARIMA, the Dickey-Fuller test, ACF and PACF, STL, exponential
+smoothing, LOWESS and a KDE. One carried patch reads the datasets as package resources when they
+are not files (`recipes/patches/statsmodels-0.15.0/0001-datasets-from-a-zip.patch`; without it
+every dataset raises `NotADirectoryError`). What differs from native:
+
+- **Serial, with the same answers.** `statsmodels.tools.parallel.parallel_func` runs through
+  joblib in the calling thread, and `multiprocessing.cpu_count()` is 1.
+- **wrapt runs its pure-Python classes**: its wheel carries `_wrappers.c` as source only, so
+  `wrapt.__wrapt__._using_c_extension` is `False`.
+- **Thirteen datasets are left out, their modules kept**: the data files of `cancer`, `ccard`,
+  `china_smoking`, `committee`, `copper`, `cpunish`, `fair`, `fertility`, `heart`,
+  `interest_inflation`, `scotland`, `spector` and `star98`, whose modules state terms the owner
+  has not approved (an author's permission, the World Bank's terms of use, a citation, or none).
+  `import statsmodels.api` works; their `load()` and `load_pandas()` raise `FileNotFoundError`.
+  The other sixteen (`anes96`, `co2`, `danish_data`, `elec_equip`, `elnino`, `engel`, `grunfeld`,
+  `longley`, `macrodata`, `modechoice`, `nile`, `randhie`, `stackloss`, `statecrime`, `strikes`,
+  `sunspots`) state public domain and ship unchanged; their terms are also in
+  `LICENSES/statsmodels.txt`.
+- **The datasets that download are absent with the network.** `sm.datasets.get_rdataset` and
+  `sm.datasets.webuse`, with their default `cache=False`, go straight to the download and raise
+  `URLError: unknown url type: https`. With `cache=True` they first make `~/statsmodels_data`:
+  with no root (the default) there is no `HOME`, so that raises `FileNotFoundError` on `'~'`; with
+  a root the folder is made under the runner's `HOME` and the download fails as before.
+- **X-13ARIMA-SEATS is a separate program** that `statsmodels.tsa.x13.x13_arima_analysis` runs in a
+  subprocess; the guest neither carries it nor starts processes, so it raises `X13NotFoundError`.
+- **`statsmodels.graphics.functional.hdrboxplot`** maps its band search over
+  `multiprocessing.Pool()`, which needs a pipe, so it raises `AttributeError` where native draws.
+
 ### matplotlib in the guest
 
 matplotlib 3.11.2 is built in, on the Agg backend (spec 023):
@@ -563,19 +599,19 @@ without it is not built unless an embedder needs one.
 ## How it is built
 
 One command, from pinned inputs; the source trees are their tarballs plus the
-recorded patches (`recipes/patches/`: twenty-two today, numpy's `.npy` fix and its callback
+recorded patches (`recipes/patches/`: twenty-three today, numpy's `.npy` fix and its callback
 signatures, matplotlib's enum fix from upstream and its qhull error stream without `/dev/null`,
 Pillow's, kiwisolver's and regex's callback signatures and scipy's uarray ones, kiwisolver's
 `tp_clear` fix from upstream, scipy's import of one linalg module moved where it raises, scipy's
 Matrix Market read and written serially and its Sobol direction numbers read without a temporary
 file, regex's timeout ticks, libxml2's file input without `dup()`, pandas' Styler templates,
-networkx's graph atlas and scikit-learn's style sheets read from a zip, qhull's format strings
+networkx's graph atlas, scikit-learn's style sheets and statsmodels' datasets read from a zip, qhull's format strings
 from upstream, lxml's `fake_cython` line from upstream, and OpenBLAS's three: its C LAPACK's
 subroutines all `void`, as its `develop` branch has them):
 
 ```
 scripts/00_download.sh   # fetch every pin and verify it against downloads/SHA256SUMS
-scripts/build.sh         # a preflight, nineteen steps with one line each, a summary; logs in build/logs/
+scripts/build.sh         # a preflight, twenty steps with one line each, a summary; logs in build/logs/
 ```
 
 `scripts/build.sh` first runs a preflight: the build host's key, the host tools
@@ -2207,7 +2243,8 @@ guest's file on the host.
 ## What the default profile carries
 
 Besides the stdlib, numpy 2.5.2, pandas 3.0.6, scipy 1.18.1, scikit-learn 1.9.1 (see
-*scikit-learn in the guest*), matplotlib 3.11.2 (with Pillow, kiwisolver, fontTools, cycler,
+*scikit-learn in the guest*), statsmodels 0.15.0 with formulaic 1.2.2, interface-meta 2.0.1
+and wrapt 2.5.1 (see *statsmodels in the guest*), matplotlib 3.11.2 (with Pillow, kiwisolver, fontTools, cycler,
 pyparsing and packaging), lxml 6.1.3 and regex, the zip carries thirty
 pure-Python packages (spec 039), in seven families, and seaborn and reportlab (spec 042). Each
 family has a golden job whose output equals native Python's at the same pins.

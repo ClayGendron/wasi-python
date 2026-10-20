@@ -2,7 +2,7 @@
 
 Status: **patch drafted; `pr.md` is a facts sheet, and anything filed upstream is the owner's,
 in the owner's words** (statsmodels' AI policy, see `pr.md`). Nothing was posted. Carried by
-spec 045 once built.
+spec 045 (`recipes/patches/statsmodels-0.15.0/`).
 
 ## How it was found
 
@@ -10,6 +10,14 @@ Spec 045's drafting loaded every bundled dataset with statsmodels zipped on `sys
 layout the guest's stdlib zip gives, and none loaded.
 
 ## The fix
+
+Carried since spec 045's build began (2026-10-20, branch `spec/045-statsmodels`): `fix.patch` was
+moved byte for byte (SHA-256 unchanged, `751e7190…db58`) to
+`recipes/patches/statsmodels-0.15.0/0001-datasets-from-a-zip.patch`, and `pr.md` (a facts sheet,
+question 80's answer) moved unchanged to
+`context/upstream/patches/statsmodels-0.15.0/0001-datasets-from-a-zip.md`. It applies to the
+pinned sdist through `scripts/steps/apply_patches.sh`, no offset (EXECUTED by the builder). This
+folder keeps these notes and `evidence/`; the `fix.patch` named below is now that carried file.
 
 When spec 045 is built, `fix.patch` is copied byte for byte to
 `recipes/patches/statsmodels-0.15.0/0001-datasets-from-a-zip.patch` and removed from this folder,

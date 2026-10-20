@@ -1,0 +1,37 @@
+# Meson cross file: statsmodels 0.15.0 -> wasm32-wasip1 as static archives (spec 045, step 59).
+# The build step rewrites @ROOT@ (the repository root) and @SDK@ (scripts/line.conf's WASI_SDK_DIR),
+# as for the pandas, scipy and scikit-learn cross files.
+[binaries]
+c = '@ROOT@/scripts/wasi-cc'
+ar = '@ROOT@/build/tools/@SDK@/bin/llvm-ar'
+ranlib = '@ROOT@/build/tools/@SDK@/bin/llvm-ranlib'
+strip = '@ROOT@/build/tools/@SDK@/bin/llvm-strip'
+nm = '@ROOT@/build/tools/@SDK@/bin/llvm-nm'
+python = '@ROOT@/scripts/python-wasi-cross'
+cython = '@ROOT@/build/tools/pylib/bin/cython'
+# No pkg-config: statsmodels asks for no dependency but libm, which meson looks for with the
+# compiler alone.
+pkg-config = 'false'
+
+[host_machine]
+system = 'wasi'
+cpu_family = 'wasm32'
+cpu = 'wasm32'
+endian = 'little'
+
+[properties]
+# wasm32 `long double` is IEEE binary128, as the numpy, pandas, scipy and scikit-learn cross files
+# say.
+longdouble_format = 'IEEE_QUAD_LE'
+needs_exe_wrapper = true
+skip_sanity_check = true
+
+[built-in options]
+# The pandas set without pandas_rename.h: -ffile-prefix-map, so no builder's path is in a
+# __FILE__ string, and the WASI emulation defines. C only (the project's languages are c and
+# cython), so no C++ flags; no setjmp flags: statsmodels calls no setjmp. numpy's include folder
+# comes from the target Python's numpy (statsmodels/meson.build runs np.get_include()), which step
+# 59 points at step 40's host stand-in. The names that would clash in one static link are renamed
+# per file, through recipes/statsmodels_file_includes.txt (Decision 5), never here.
+c_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-D_WASI_EMULATED_GETPID', '-DNPY_NO_SIGNAL', '-Wno-return-type']
+# No link args: every extension module becomes an archive, and the one real link is python.wasm's.

@@ -42,6 +42,7 @@ STEPS = (
     "55_matplotlib",
     "57_scipy",
     "58_sklearn",
+    "59_statsmodels",
     "60_link",
     "70_zip",
     "80_snapshot",

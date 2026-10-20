@@ -1,7 +1,7 @@
 #!/bin/sh
 # Step 60: link numpy, pandas, the plot packages (Pillow, kiwisolver, matplotlib; contourpy and
 # matplotlib's _qhull with step 37's qhull), regex, lxml with libxml2 and libxslt, scipy and numpy
-# with one OpenBLAS, scikit-learn, zlib, bz2, lzma, sqlite3 and the host door into CPython as
+# with one OpenBLAS, scikit-learn, statsmodels, zlib, bz2, lzma, sqlite3 and the host door into CPython as
 # builtins through the build-directory Modules/Setup.local, then relink the interpreter as a WASI
 # reactor (build/out/python.wasm) with recipes/reactor_main.c in place of Programs/python.o, and
 # with three link-time refusals: recipes/iconv_refusals.c, which refuses GB18030 at iconv_open,
@@ -40,6 +40,8 @@ PM="$B/plot-modules"
 [ -d "$B/sklearn-modules/sklearn" ] || die "build/sklearn-modules/sklearn is missing: run step 58"
 # numpy's side of the same ABI: step 40's shims, numpy's int-declared calls to OpenBLAS.
 [ -s "$B/numpy-shims/libnumpy_lapack_shims.a" ] || die "build/numpy-shims/libnumpy_lapack_shims.a is missing: run step 40"
+# Step 59's modules (spec 045).
+[ -d "$B/statsmodels-modules/statsmodels" ] || die "build/statsmodels-modules/statsmodels is missing: run step 59"
 # The generated inittab declares CPython's internal _PyImport_SwapPackageContext itself, as this
 # header declares it: a CPython that changes it stops here, not at run time.
 grep -q '^extern const char \* _PyImport_SwapPackageContext(const char \*newcontext);$' \
@@ -50,7 +52,7 @@ mkdir -p "$L/archives" "$OUT"
 "$HOSTPY" "$HERE/scripts/gen_inittab.py" --against "$W/Modules/config.c" "$L/inittab.c" numpy="$B/numpy-build" pandas="$B/pandas-build" \
   PIL="$PM/pillow" kiwisolver="$PM/kiwisolver" matplotlib="$PM/matplotlib" \
   contourpy="$PM/contourpy" regex="$B/regex-build" lxml="$B/lxml-build" scipy="$B/scipy-modules" \
-  sklearn="$B/sklearn-modules"
+  sklearn="$B/sklearn-modules" statsmodels="$B/statsmodels-modules"
 
 # makesetup takes *.a tokens as libraries: each module's archive is copied under a unique name, and
 # the static libraries its .deps file names are linked once each, with its -L and -l lines (qhull's
@@ -58,20 +60,22 @@ mkdir -p "$L/archives" "$OUT"
 # Left out, as scripts/gen_inittab.py leaves them out: numpy's test modules, and matplotlib's _tkagg
 # (no Tk). matplotlib's _qhull is linked, with carried patch 0002, which opens no
 # /dev/null on WASI; its .deps names step 37's libqhull_r once. scipy's _qhull is linked too, with
-# the same qhull. scipy has two modules named _zeros, so its archives are
-# named by their import path, and so are scikit-learn's, which has three such pairs.
+# the same qhull. scipy has two modules named _zeros, so its archives are named by their import
+# path, and so are scikit-learn's, which has three such pairs, and statsmodels', whose state-space
+# filters and smoothers share three names.
 archives=""
 deps=""
 for pair in numpy:"$B/numpy-build" pandas:"$B/pandas-build" pillow:"$PM/pillow" \
   kiwisolver:"$PM/kiwisolver" matplotlib:"$PM/matplotlib" contourpy:"$PM/contourpy" \
-  regex:"$B/regex-build" lxml:"$B/lxml-build" scipy:"$B/scipy-modules" sklearn:"$B/sklearn-modules"; do
+  regex:"$B/regex-build" lxml:"$B/lxml-build" scipy:"$B/scipy-modules" sklearn:"$B/sklearn-modules" \
+  statsmodels:"$B/statsmodels-modules"; do
   pkg=${pair%%:*}
   dir=${pair#*:}
   for so in $(find "$dir" -name "*.cpython-$PYTHON_TAG-wasm32-wasi.so" | sort); do
     name=$(basename "$so" .cpython-$PYTHON_TAG-wasm32-wasi.so)
     case "$pkg:$name" in *:*_tests|numpy:_simd|matplotlib:_tkagg) continue;; esac
     case "$pkg" in
-      scipy|sklearn) a="$L/archives/$(printf '%s' "${so#"$dir"/}" | sed "s#\.cpython-$PYTHON_TAG-wasm32-wasi\.so\$##; s#/#_#g").a";;
+      scipy|sklearn|statsmodels) a="$L/archives/$(printf '%s' "${so#"$dir"/}" | sed "s#\.cpython-$PYTHON_TAG-wasm32-wasi\.so\$##; s#/#_#g").a";;
       *) a="$L/archives/${pkg}_$name.a";;
     esac
     [ ! -e "$a" ] || die "two modules would share the archive name $(basename "$a")"
