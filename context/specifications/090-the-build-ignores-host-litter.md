@@ -1,9 +1,9 @@
 # 090 — the build and its artifact checks agree on one litter list
 
-- **Status:** **revised 2026-10-19 against its pre-build review**, on
-  `spec/090-the-build-ignores-host-litter` from main `e00d394` (drafted with 089 on `3866f56`,
-  committed with it for review). Building. Build-class and a judge change, so a fresh agent reviews
-  the build before it lands (§5.6).
+- **Status:** **built 2026-10-20**, on `spec/090-the-build-ignores-host-litter` from main
+  `e00d394` (drafted with 089 on `3866f56`; revised against its pre-build review and confirmed
+  ready, 2026-10-19). Its release run is read below. Build-class and a judge change, so a fresh
+  agent reviews the build before it lands (§5.6).
 - **Date:** 2026-10-19
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** (§5.7): it touches `scripts/` and `release/`. **And a judge change:**
@@ -165,8 +165,9 @@ real extra or changed file still fails it.
 1. **The checks fail first.** On the base `e00d394`, before the code: the widened-litter rows
    (the zip walk, step 90's drop and list, both copies equal), the release tarball's list rows,
    the artifact checks' litter rows (`sums_errors`, `wheel_errors`), the `left_out` rows of both
-   stages, the tree-drift guard row and the `.gitignore` row fail. The judge-hash row and the
-   litter-name rows that 089 already widened pass on the base and keep passing.
+   stages, the tree-drift guard row and the `.gitignore` row fail. So does the judge-hash row,
+   which now plants `._test_a.py` and a litter folder; the litter-name rows 089 already widened
+   pass on the base and keep passing.
 2. **The same bytes, but for the moved recipe lines.** A rebuild from pins with no litter present
    matches main's set at the build's base (`e00d394`, whose recipes are those of the set the lane
    accepted at `b0c7a74`, `SHA256SUMS` `2b0480af…`), checked with `cmp`: `python.wasm`,
@@ -198,7 +199,35 @@ real extra or changed file still fails it.
 
 ## For the lane
 
-Filled in at build (under the landing notes).
+**What this claims**, each for the build review to check (each line starts "090:"):
+
+- 090: the artifact set is unchanged but for MANIFEST's four `recipe` lines and SHA256SUMS's
+  MANIFEST line (criterion 2, EXECUTED below); no `bytes` metric moves.
+- 090: no goal check is new, retired or changed in verdict; the unit suite gains six rows
+  (`test_build_scripts.py` 1, `test_release_version.py` 2, `test_artifact_rules.py` 2,
+  `test_pins.py` 1) and changes eight existing ones.
+- 090: no row grows and no pass moves: no `--accept-growth`, no `--accept-fewer-passes`, no
+  `--retire`.
+- 090: the judge hash changes in fifteen files: `tests/harness/artifacts.py`, `litter.py`,
+  `paths.py`, `pins.py`, `regrtest.py`, `scan.py`, `upstream.py`, and
+  `tests/unit/test_artifact_rules.py`, `test_build_scripts.py`, `test_patches.py`,
+  `test_pins.py`, `test_regrtest.py`, `test_release_version.py`, `test_scoreboard.py`,
+  `test_upstream.py`. Not judged but changed: `scripts/litter.py`, `scripts/make_stdlib_zip.py`,
+  `scripts/assemble_artifacts.py`, `scripts/steps/20_cpython.sh`, `release/version.py` (so
+  build-class), `.gitignore`, `README.md`, `CHANGELOG.md`.
+- 090: the CPython and upstream `left_out` facts no longer hold `__pycache__` or litter paths, so
+  the lane's sameness no longer differs on them (078's stop); a fact that held only those is now
+  `[]`. The lane's main-tree `build/Python-3.15.0` keeps the old bytecode until step 20 runs
+  again; the judge leaves it out either way.
+- 090: the tree check (`test_source_tree_matches_its_tarball`) now names a pinned member with a
+  litter name; none of the twenty-two trees has one (the release run's build job, 22 passed).
+
+**The flags**, each pasted as is:
+
+```
+--accept "090: one litter list for the build and the judge (.DS_Store, AppleDouble ._x, Icon\r, Thumbs.db, desktop.ini, ehthumbs.db, a volume's folders); the release tarball packs the set's list; step 20 removes the bytecode CPython's build writes into Lib; the artifact set unchanged but for four MANIFEST recipe lines"
+--accept-judge "090: sums_errors and wheel_errors forgive litter paths only and the wheel may carry nothing SHA256SUMS does not list; left_out records neither litter nor __pycache__; paths.OS_LITTER widened with is_litter and has_litter, held equal to scripts/litter.py, used by judge_files, tree_drift (which now names a pinned litter member) and the patch rules; harness litter.py takes paths' list"
+```
 
 ## Disposition of the pre-build review (2026-10-20)
 
@@ -251,7 +280,72 @@ taken below.
 
 ## Landing notes
 
-Not built yet.
+### What was built
+
+- `scripts/litter.py`: `OS_LITTER` widened to eleven names, `is_litter`, `has_litter`.
+  `make_stdlib_zip.walk` prunes litter folders and skips litter files; `assemble_artifacts`'s
+  `drop_litter` removes litter files and folders, `listed_files` leaves out any path with a litter
+  part, `licence_files` any litter name. `scripts/steps/20_cpython.sh` removes every
+  `__pycache__` under `$CP/Lib` after the driver's build, with the cause in a comment.
+- `release/version.py`: `set_files` reads the set's `SHA256SUMS` (refusing a missing file or a
+  path outside the set) and `write_assets` packs those files and `SHA256SUMS`, in the old order.
+- The judge: `paths.OS_LITTER`, `is_litter`, `has_litter` (the second copy);
+  `tests/harness/litter.py` takes them and adds `unrecorded`; both stages' `left_out` skip it;
+  `sums_errors` and `wheel_errors` forgive litter paths only, and `wheel_errors` names a wheel
+  member the list does not; `judge_files`, `tree_drift` and the patch rules use the shared rules,
+  and `tree_drift` names a pinned litter member. `.gitignore`, the README's Mac note and the
+  CHANGELOG (under 0.1.0a8).
+
+### Seen failing first (EXECUTED)
+
+The checks commit `eb51d73`, before any code, extracted to a scratch tree and run with this
+worktree's environment (`build/090/first-fail.log`): 16 failed, 334 passed, 1 skipped: the zip
+walk, step 90's drop and list, the two copies equal, the repo's ignores, both assets rows, both
+artifact-rule rows, both stages' `left_out` rows, the pinned-member row, the three patch rows and
+the judge-hash row. Each failed on the behaviour (litter packed, listed or recorded; a missing
+rule), except the wheel row, which failed first on the helper it calls (`paths.has_litter`, not
+there yet).
+
+### The rebuild (EXECUTED, darwin-arm64; `build/090/build.log`, 16 steps in 7 m 43 s)
+
+- **Criterion 2.** Against main's set (the main tree's `build/artifacts`, `SHA256SUMS`
+  `2b0480af…`, whose `recipe` lines equal `e00d394`'s files): `python.wasm` (`cef11d8d…`),
+  `python-snapshot.wasm` (`ab114823…`), `python-stdlib.zip` (`f7d96aab…`) and all 60
+  `LICENSES/*` files are `cmp`-identical. `MANIFEST` differs in exactly four `recipe` lines
+  (`scripts/assemble_artifacts.py`, `scripts/litter.py`, `scripts/make_stdlib_zip.py`,
+  `scripts/steps/20_cpython.sh`), `SHA256SUMS` in exactly `MANIFEST`'s line; the new set's
+  `SHA256SUMS` is `9e291bba…`. The release tarball from `e00d394`'s `version.py` and from this
+  one, on the same set, is the same bytes (`f1c235cf…`).
+- **Criterion 5.** After step 20, `find build/Python-3.15.0/Lib -name __pycache__` finds 0.
+- **Criterion 3.** With `._x.py`, `Icon\r`, `.DS_Store` and `.TemporaryItems/x.py` planted in
+  `build/pandas-install`, `build/pandas-install/pandas` and `build/pandas-3.0.6/LICENSES` (a
+  licence input), steps 70, 80 and 90 gave the same set (`diff -r` empty). The same names planted
+  in `build/artifacts` and `build/artifacts/LICENSES`: the release tarball is the same bytes,
+  its 65 members equal `SHA256SUMS`' list plus itself, and `sums_errors` is `[]`.
+- **Criterion 4.** A planted `build/artifacts/stray.bin`: `sums_errors` is `["stray.bin is not
+  listed in SHA256SUMS"]`. A planted `build/pandas-install/pandas/stray.py`: step 70's zip holds
+  3682 `.pyc` (one more, `pandas/stray.pyc`) and differs from the set's. Steps 70 to 90 again
+  without it restored the clean set; the planted litter was then removed.
+
+### The judge (no `--accept`)
+
+- `uv run ruff check src tests` and `ruff format --check src tests`: green. The unit suite
+  (`-n 3`): 1723 passed, 14 skipped.
+- **The fast tier**, `uv run pytest -m "not slow" -n 3` on `fa34179` plus the row fix `e90105c`,
+  against this worktree's rebuilt set (`build/090/fast.log`): 577/701 pass, 0 gap, 3 blocked, 0
+  fail (unit suite 1737/1744, 7 skipped); ratchet vs `2bb98c8`: lost 0, gained 0, grew 0;
+  `judge changed` the fifteen files named in *For the lane*. The judge hash is `0d56263c…`.
+- **The release run** 39366660896 on `e90105c` (the full judge, under the wave rules): every
+  job green on all three systems but one, `judge (windows-2025, own-embedding)`, whose only red
+  lines are main's two known Windows reds that spec 094 fixes:
+  `test_the_removal_never_deletes_what_the_guest_may_not[home]` and `[private]` ("skipped
+  without a known need", spec 084, C2); lost 2 there, gained 0, grew 0. No GREW line, no G7 line:
+  the gather was skipped because that shard failed. `rebuild from the pins` on both Linux hosts,
+  `the same bytes from every host` and the build job (its tree check: 22 passed, so no pinned
+  member has a litter name) are green.
+- **Criterion 6's facts.** The run's records (`gh run download 39366660896 -D build/090/ci/`, 19
+  records): 20 `left_out` facts on 16 nodes, all five `cpython-*` groups among them; none holds a
+  `__pycache__` or litter path, and every one is `[]`.
 
 One line: the build skips one shared litter list, the release packs its list, the artifact checks
 forgive litter names only, and `left_out` records neither litter nor bytecode, so a desktop's
