@@ -108,6 +108,21 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   suites, `PyType_Slot` arrays and module definitions, 5,893 functions on the set with scipy, where
   spec 051's read method and getset tables.
 
+- **statsmodels 0.15.0 built in, with formulaic 1.2.2, interface-meta 2.0.1 and wrapt 2.5.1**
+  (spec 045). Its 26 compiled modules are builtins and its Python package is in the zip, with
+  native statsmodels' answers on a golden job (`statistical_models`): regressions, discrete and
+  generalised linear models, tests, ARIMA and the state-space models, STL, exponential smoothing,
+  LOWESS and KDE, with formulas in patsy's or formulaic's syntax. formulaic, its second formula
+  engine, comes with interface-meta and wrapt, all pure wheels (wrapt runs its Python classes).
+  One carried patch reads the datasets as package resources when they are not files, so they load
+  from the zip: `recipes/patches/statsmodels-0.15.0/0001-datasets-from-a-zip.patch` (its facts
+  sheet for the owner, `context/upstream/patches/statsmodels-0.15.0/`). Sixteen public-domain
+  datasets ship; the data files of thirteen whose stated terms are not approved stay out, and
+  their loaders raise `FileNotFoundError`. The state-space smoothers' and `_tools`' init names are
+  renamed per file (`recipes/statsmodels-renames/`). What the sandbox lacks raises: X-13ARIMA-SEATS
+  (`X13NotFoundError`), `get_rdataset` and `webuse` (no network), `hdrboxplot` (no processes).
+  `LICENSES/statsmodels.txt` carries its licence, the bundled code's notices and each dataset's
+  terms.
 - **scikit-learn 1.9.1 built in** (spec 044). Its 69 compiled modules are builtins and its
   Python package and six bundled datasets are in the zip, with native scikit-learn's answers on a
   golden job (`machine_learning`). It runs serially with the same results: no OpenMP, and every

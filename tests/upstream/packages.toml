@@ -323,3 +323,28 @@ closes_with = "spec 067"
 kind = "later"
 reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
 closes_with = "spec 067"
+
+[package.statsmodels]
+# Spec 045's Scope leaves its own suite out: about 21,400 tests (EXECUTED natively, 468 s on one
+# thread), about 3 T of guest fuel (INFERRED). Its closer is spec 095, which the roadmap reserves
+# for scipy's and scikit-learn's own tests in the release and spec 066 names for statsmodels'.
+kind = "later"
+reason = "its own suite is not run in the guest yet (its sdist is pinned)"
+closes_with = "spec 095"
+
+# statsmodels' formula engine and its two requirements (spec 045): pure wheels, as tier A's.
+
+[package.formulaic]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.interface-meta]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.wrapt]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"

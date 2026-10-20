@@ -57,6 +57,8 @@ SOURCE_PATTERNS = {
     "scikit_learn": re.compile(r"scikit_learn-[\w.]+\.tar\.gz"),
     # seaborn from its sdist, whose package step 70 takes
     "seaborn": re.compile(r"seaborn-[\w.]+\.tar\.gz"),
+    # statsmodels (spec 045)
+    "statsmodels": re.compile(r"statsmodels-[\w.]+\.tar\.gz"),
 }
 
 

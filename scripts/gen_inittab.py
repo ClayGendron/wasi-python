@@ -13,10 +13,10 @@ ROOT_MODULES, or the run fails. The plot packages' directories (build/plot-modul
 contourpy's `_contourpy`), so their names are those paths.
 
 A module whose init function would share its name with another's is compiled with a renamed one
-(recipes/scipy_rename.h and recipes/scipy_cython_optimize_zeros.h; scikit-learn's four in
-recipes/sklearn-renames/), and RENAMED names it here; the clash check runs on the final
-names. scikit-learn's archives lie at their install paths
-(build/sklearn-modules), as scipy's do.
+(recipes/scipy_rename.h and recipes/scipy_cython_optimize_zeros.h; scikit-learn's five in
+recipes/sklearn-renames/; statsmodels' four in recipes/statsmodels-renames/), and RENAMED names it
+here; the clash check runs on the final names. scikit-learn's and statsmodels' archives lie at
+their install paths (build/sklearn-modules, build/statsmodels-modules), as scipy's do.
 
 `--against` names CPython's own Modules/config.c: an entry whose init function has the name of one
 of CPython's builtins (`PyInit__random`) stops the run. The static link would resolve the inittab's
@@ -63,6 +63,19 @@ RENAMED = {
     # build: the link kept CPython's and dropped scikit-learn's member without a word); --against
     # stops it.
     "sklearn.utils._random": "sklearn_utils__random",
+    # statsmodels (spec 045, Decision 5; recipes/statsmodels-renames/): statespace._tools shares
+    # scipy.sparse.csgraph._tools' name; the three smoothers share their filters' names, and the
+    # filters keep theirs.
+    "statsmodels.tsa.statespace._tools": "statsmodels_tsa_statespace__tools",
+    "statsmodels.tsa.statespace._smoothers._conventional": (
+        "statsmodels_tsa_statespace__smoothers__conventional"
+    ),
+    "statsmodels.tsa.statespace._smoothers._univariate": (
+        "statsmodels_tsa_statespace__smoothers__univariate"
+    ),
+    "statsmodels.tsa.statespace._smoothers._univariate_diffuse": (
+        "statsmodels_tsa_statespace__smoothers__univariate_diffuse"
+    ),
 }
 # CPython's own declaration (Include/internal/pycore_import.h), less the parameter's name.
 SWAP = "const char *_PyImport_SwapPackageContext"

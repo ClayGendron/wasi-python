@@ -174,6 +174,7 @@ SOURCE_COMPONENTS = (
     "scipy",
     "scikit_learn",
     "seaborn",
+    "statsmodels",
 )
 
 VOCABULARY: dict[str, Need] = {

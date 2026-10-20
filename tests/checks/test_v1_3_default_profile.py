@@ -5,7 +5,9 @@ pools, which is the truth on wasm32-wasi. pandas' Styler and networkx's graph at
 files from the zip through two carried patches, with native Python's output.
 scikit-learn gives native scikit-learn's answers serially: no OpenMP, joblib in the
 calling thread, its datasets and style sheets read from the zip (one carried patch), and what the
-sandbox lacks raised by name."""
+sandbox lacks raised by name. statsmodels (spec 045) gives native statsmodels' answers, its
+public-domain datasets read from the zip (one carried patch), the thirteen left out raising
+FileNotFoundError, both formula engines in pure Python, and what the sandbox lacks raised."""
 
 from __future__ import annotations
 
@@ -21,6 +23,7 @@ pytestmark = pytest.mark.goal("v1.3")
 
 BINARY = pytest.mark.parametrize("which", ["plain", "snapshot"])
 FAMILIES = ("excel", "pdf", "markup", "text_formats", "modelling", "symbolic", "utilities")
+MPL_ENV = {"MPLCONFIGDIR": "/mplconfig"}  # a writable cache folder in the judge's root
 
 
 def _job(guest, job: str, **kw) -> None:
@@ -555,4 +558,220 @@ def test_scikit_learn_modules_are_builtin(guest, which) -> None:
     got = _sklearn(guest, which, SKLEARN_BUILTINS)
     assert len(got["names"]) == SKLEARN_MODULES, got["names"]
     assert set(SKLEARN_RENAMED) <= set(got["names"]), got["names"]
+    assert got["wrong"] == [], got["wrong"]
+
+
+# statsmodels (spec 045, Decision 12), as scikit-learn's: each behaviour check runs as an embedder
+# calls it, nothing writable, with a fuel limit a hang ends at; the golden runs through the judge's
+# driver.
+SM_FUEL = 80 * 10**9  # an import of statsmodels.api and a few loads or fits, with room
+SM_MODULES = 26  # step 59's module count
+SM_RENAMED = (  # recipes/statsmodels-renames/, scripts/gen_inittab.py's RENAMED
+    "statsmodels.tsa.statespace._tools",
+    "statsmodels.tsa.statespace._smoothers._conventional",
+    "statsmodels.tsa.statespace._smoothers._univariate",
+    "statsmodels.tsa.statespace._smoothers._univariate_diffuse",
+)
+SM_SHAPES = {  # natively, the pinned oracle (EXECUTED at the build)
+    "anes96": [944, 11],
+    "co2": [2284, 1],
+    "danish_data": [55, 5],
+    "elec_equip": [257, 1],
+    "elnino": [61, 13],
+    "engel": [235, 2],
+    "grunfeld": [220, 5],
+    "longley": [16, 7],
+    "macrodata": [203, 14],
+    "modechoice": [840, 9],
+    "nile": [100, 2],
+    "randhie": [20190, 10],
+    "stackloss": [21, 4],
+    "statecrime": [51, 7],
+    "strikes": [62, 2],
+    "sunspots": [309, 2],
+}
+SM_LEFT_OUT = (
+    "cancer ccard china_smoking committee copper cpunish fair fertility heart interest_inflation "
+    "scotland spector star98"
+).split()
+
+
+@pytest.mark.slow
+@BINARY
+def test_statistical_models_job_matches_native(guest, which) -> None:
+    """OLS on longley with its summary's coefficient table and robust errors, one formula fitted
+    with patsy and with formulaic, a type-2 ANOVA, a Logit by Newton, a Poisson GLM by IRLS, a
+    t-test, Benjamini-Hochberg, ARIMA fitted and filtered, ADF, ACF and PACF, STL, simple
+    exponential smoothing, LOWESS and a KDE print native statsmodels' values (Decision 12)."""
+    _golden(guest, which, "statistical_models")
+
+
+SM_DATASETS = """
+import importlib, json
+names = (
+    "anes96 co2 danish_data elec_equip elnino engel grunfeld longley macrodata modechoice nile "
+    "randhie stackloss statecrime strikes sunspots"
+).split()
+shapes = {}
+for n in names:
+    shapes[n] = list(importlib.import_module(f"statsmodels.datasets.{n}").load_pandas().data.shape)
+print(json.dumps({"shapes": shapes}))
+"""
+
+
+@BINARY
+def test_statsmodels_reads_its_datasets_from_the_zip(guest, which) -> None:
+    """Each of the sixteen public-domain datasets loads from the zip with native's shape, through
+    the carried patch's package-resource fallback (without it, every loader raises
+    NotADirectoryError; Decisions 7 and 9)."""
+    assert _sklearn(guest, which, SM_DATASETS) == {"shapes": SM_SHAPES}
+
+
+SM_LEFT = """
+import importlib, json
+import statsmodels.api as sm
+names = (
+    "cancer ccard china_smoking committee copper cpunish fair fertility heart interest_inflation "
+    "scotland spector star98"
+).split()
+raised = {}
+for n in names:
+    try:
+        importlib.import_module(f"statsmodels.datasets.{n}").load_pandas()
+        raised[n] = None
+    except Exception as e:
+        raised[n] = type(e).__name__
+print(json.dumps({"api": sm.OLS.__name__, "raised": raised}))
+"""
+
+
+def test_left_out_datasets_say_so(guest) -> None:
+    """`import statsmodels.api` works, and each of the thirteen datasets whose files are left out
+    raises FileNotFoundError: the type only, since the message is the zip's resource reader's,
+    which promises none (spec 035, Decision 6; Decision 9 here)."""
+    got = _sklearn(guest, "plain", SM_LEFT)
+    assert got == {"api": "OLS", "raised": dict.fromkeys(SM_LEFT_OUT, "FileNotFoundError")}
+
+
+SM_FORMULAS = """
+import json
+import numpy as np
+import pandas as pd
+import formulaic, patsy, wrapt.__wrapt__
+frame = pd.DataFrame({
+    "y": [1.0, 2.5, 2.0, 4.5, 5.0, 6.5],
+    "x": [0.5, 1.0, 1.5, 2.0, 2.5, 3.0],
+    "g": ["a", "b", "c", "a", "b", "c"],
+})
+mm = formulaic.model_matrix("y ~ x + C(g)", frame)
+_, px = patsy.dmatrices("y ~ x + C(g)", frame, return_type="dataframe")
+fx = mm.rhs
+same = sorted(fx.columns) == sorted(px.columns) and all(
+    np.array_equal(np.asarray(fx[c], dtype=float), np.asarray(px[c], dtype=float))
+    for c in px.columns
+)
+print(json.dumps({
+    "c_extension": wrapt.__wrapt__._using_c_extension,
+    "columns": sorted(px.columns),
+    "same": same,
+}))
+"""
+
+
+@BINARY
+def test_formula_engines_run_pure(guest, which) -> None:
+    """wrapt runs its pure-Python classes (its wheel carries no compiled module), and formulaic's
+    model matrix for `y ~ x + C(g)` has patsy's columns with the same values, column by column
+    (their orders differ; Decisions 1 and 6), as natively."""
+    got = _sklearn(guest, which, SM_FORMULAS)
+    want = {
+        "c_extension": False,
+        "columns": ["C(g)[T.b]", "C(g)[T.c]", "Intercept", "x"],
+        "same": True,
+    }
+    assert got == want
+
+
+SM_LACKS = """
+import json
+import statsmodels.api as sm
+from statsmodels.tsa.x13 import x13_arima_analysis
+out = {}
+try:
+    x13_arima_analysis(sm.datasets.co2.load_pandas().data["co2"].resample("MS").mean().ffill())
+except Exception as e:
+    out["x13"] = type(e).__name__
+try:
+    sm.datasets.get_rdataset("iris")
+except Exception as e:
+    out["rdataset"] = [type(e).__name__, str(getattr(e, "reason", e))]
+print(json.dumps(out))
+"""
+
+
+def test_statsmodels_says_what_it_lacks() -> None:
+    """Through `wasi_python.run` itself, with no root and no grant (the runner's defaults), on the
+    plain binary: X-13ARIMA-SEATS is a program statsmodels runs in a subprocess, which the guest
+    neither carries nor can start, so x13_arima_analysis raises X13NotFoundError; get_rdataset
+    downloads, and with its default cache=False goes straight to urlopen, whose https scheme the
+    guest has no handler for (Decision 11). With cache=True and a root, its cache folder is made
+    first and the download fails the same way, as the README says."""
+    needs.need("runner", "artifact dir")
+    import wasi_python
+
+    done = wasi_python.run(["-c", SM_LACKS], snapshot=False, fuel=SM_FUEL)
+    assert done.exit_code == 0, done
+    got = json.loads(done.stdout.decode().strip().splitlines()[-1])
+    want = {"x13": "X13NotFoundError", "rdataset": ["URLError", "unknown url type: https"]}
+    assert got == want
+
+
+SM_HDR = """
+import json
+import matplotlib
+matplotlib.use("Agg")
+import statsmodels.api as sm
+data = sm.datasets.elnino.load_pandas().data
+try:
+    sm.graphics.hdrboxplot(data.iloc[:, 1:].to_numpy(), rng=0, kernel_rng=0)
+    out = None
+except Exception as e:
+    out = [type(e).__name__, str(e)]
+print(json.dumps({"hdrboxplot": out}))
+"""
+
+
+def test_hdrboxplot_needs_processes(guest) -> None:
+    """hdrboxplot maps its band search over multiprocessing.Pool(), which needs os.pipe, so in the
+    guest it raises where natively it draws (Decision 11); a plot needs matplotlib's data, granted
+    as the runner grants it, and a writable config folder."""
+    r = guest("plain", ["-c", SM_HDR], env=MPL_ENV, mpl_data=True, fuel=SM_FUEL)
+    assert (r.exit_code, r.trapped) == (0, None), r.describe()
+    got = json.loads(r.text.strip().splitlines()[-1])
+    assert got == {"hdrboxplot": ["AttributeError", "module 'os' has no attribute 'pipe'"]}
+
+
+SM_BUILTINS = """
+import importlib, json, sys
+names = sorted(n for n in sys.builtin_module_names if n.split(".")[0] == "statsmodels")
+wrong = []
+for n in names:
+    try:
+        got = importlib.import_module(n).__name__
+    except Exception as e:
+        got = f"import {type(e).__name__}"
+    if got != n:
+        wrong.append([n, got])
+print(json.dumps({"names": names, "wrong": wrong}))
+"""
+
+
+@BINARY
+def test_statsmodels_modules_are_builtin(guest, which) -> None:
+    """Each of statsmodels' 26 extension modules is a builtin that imports under its dotted name;
+    the four whose init functions are renamed are among them (Decisions 5 and 8). They run apart
+    from the other packages' dotted builtins (test_v1_1_artifact_set), as scikit-learn's do."""
+    got = _sklearn(guest, which, SM_BUILTINS)
+    assert len(got["names"]) == SM_MODULES, got["names"]
+    assert set(SM_RENAMED) <= set(got["names"]), got["names"]
     assert got["wrong"] == [], got["wrong"]

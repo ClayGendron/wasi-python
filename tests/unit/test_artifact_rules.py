@@ -84,6 +84,10 @@ PIN_FILES = {
     "scikit_learn-1.9.1.tar.gz": b"scikit-learn pin",
     "seaborn-0.13.2.tar.gz": b"seaborn pin",
     "reportlab-5.0.1-py3-none-any.whl": b"reportlab pin",
+    "statsmodels-0.15.0.tar.gz": b"statsmodels pin",
+    "formulaic-1.2.2-py3-none-any.whl": b"formulaic pin",
+    "interface_meta-2.0.1-py3-none-any.whl": b"interface-meta pin",
+    "wrapt-2.5.1-py3-none-any.whl": b"wrapt pin",
     "wasi-sdk-24.0-arm64-macos.tar.gz": b"sdk",
     "wasmtime-v49.0.3-aarch64-macos.tar.xz": b"wasmtime",
 }
@@ -152,6 +156,10 @@ PACKAGES = {
     "scikit-learn": "1.9.1",
     "seaborn": "0.13.2",
     "reportlab": "5.0.1",
+    "statsmodels": "0.15.0",
+    "formulaic": "1.2.2",
+    "interface-meta": "2.0.1",
+    "wrapt": "2.5.1",
 }
 TREE = {"recipes/a.c": sha(b"a"), "scripts/b.sh": sha(b"b")}
 

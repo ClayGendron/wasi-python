@@ -369,7 +369,9 @@ DISTRIBUTIONS = (
     "defusedxml",
     "et-xmlfile",
     "fonttools",
+    "formulaic",
     "html5lib",
+    "interface-meta",
     "jinja2",
     "joblib",
     "kiwisolver",
@@ -397,6 +399,7 @@ DISTRIBUTIONS = (
     "seaborn",
     "six",
     "soupsieve",
+    "statsmodels",
     "sympy",
     "tabulate",
     "threadpoolctl",
@@ -406,11 +409,13 @@ DISTRIBUTIONS = (
     "typing-extensions",
     "tzdata",
     "webencodings",
+    "wrapt",
     "xlrd",
     "xlsxwriter",
     "xmltodict",
 )  # specs: matplotlib and its distributions 023; lxml 046; tier A 039; contourpy 043; scipy 037;
-# scikit-learn 044; seaborn and reportlab 042
+# scikit-learn 044; seaborn and reportlab 042; statsmodels, formulaic, interface-meta and wrapt
+# 045
 
 METADATA = """
 import json, re

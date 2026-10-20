@@ -14,10 +14,11 @@
 files = ["tests/checks/test_v1_5_rebuild_from_pins.py", "tests/unit/test_pins.py"]
 # Checks by node id: the recursion check on the wasmtime CLI needs the wasmtime CLI only the build
 # host unpacks; its file stays in own-guest (a node id kept, so nothing is retired). scikit-learn's
-# notice check reads the pinned sdist, which only the build host has.
+# and statsmodels' notice checks read the pinned sdists, which only the build host has.
 nodes = [
   "tests/checks/test_v1_2_hostile_guest.py::test_recursion_raises_under_the_wasmtime_cli",
   "tests/checks/test_v1_1_artifact_set.py::test_scikit_learn_notice_carries_its_bundled_parts",
+  "tests/checks/test_v1_1_artifact_set.py::test_statsmodels_notice_carries_its_bundled_parts",
 ]
 systems = ["build"]
 

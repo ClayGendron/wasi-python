@@ -24,7 +24,7 @@ export LC_ALL=C  # one collation on every host: each step's `sort` orders bytes 
 . "$HERE/scripts/steps/remove.sh"
 . "$HERE/scripts/steps/progress.sh"
 
-ALL="00_download 10_tools 20_cpython 30_zlib 35_stdlib_libs 36_xml_libs 37_plot_libs 38_openblas 40_numpy 50_pandas 53_regex 54_lxml 55_matplotlib 57_scipy 58_sklearn 60_link 70_zip 80_snapshot 90_artifacts"
+ALL="00_download 10_tools 20_cpython 30_zlib 35_stdlib_libs 36_xml_libs 37_plot_libs 38_openblas 40_numpy 50_pandas 53_regex 54_lxml 55_matplotlib 57_scipy 58_sklearn 59_statsmodels 60_link 70_zip 80_snapshot 90_artifacts"
 P_TIMINGS=$HERE/build/logs/timings.tsv
 
 usage() {

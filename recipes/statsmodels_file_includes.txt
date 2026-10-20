@@ -1,0 +1,12 @@
+# Per-file force-includes for statsmodels' compile (spec 045, Decision 5), read by scripts/wasi-cc
+# when step 59 points WASI_CC_FILE_INCLUDES at the copy it renders into build/statsmodels-build.
+# Step 59 replaces @ROOT@ (the repository) and @SO@ (the extension modules' suffix,
+# .cpython-<tag>-wasm32-wasi.so). One entry per line: a suffix of the compiled source's path and the
+# header that compile gets as `-include` (spec 037's form). A Cython module's source is the C file
+# meson generates in the module's private folder, <module>@SO@.p/; the smoothers and the filters
+# share three file names, so each entry names its module's folder. Step 59 checks the log: each
+# entry matched exactly one compile.
+/statespace/_tools@SO@.p/_tools.c @ROOT@/recipes/statsmodels-renames/statespace_tools.h
+/_smoothers/_conventional@SO@.p/_conventional.c @ROOT@/recipes/statsmodels-renames/smoothers_conventional.h
+/_smoothers/_univariate@SO@.p/_univariate.c @ROOT@/recipes/statsmodels-renames/smoothers_univariate.h
+/_smoothers/_univariate_diffuse@SO@.p/_univariate_diffuse.c @ROOT@/recipes/statsmodels-renames/smoothers_univariate_diffuse.h
