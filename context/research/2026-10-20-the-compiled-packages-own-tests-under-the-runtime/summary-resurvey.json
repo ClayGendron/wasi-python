@@ -1,0 +1,538 @@
+{
+ "matplotlib-axes": {
+  "fuel": 699256077841,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 880,
+   "skipped": 45
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {},
+  "unclassified_reasons": [],
+  "members": {}
+ },
+ "matplotlib-render-1": {
+  "fuel": 231097744067,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 248,
+   "skipped": 120
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {},
+  "unclassified_reasons": [],
+  "members": {}
+ },
+ "matplotlib-render-2a": {
+  "fuel": 304514049803,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 290,
+   "skipped": 12,
+   "failed": 2
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {
+   "no-threads": 2
+  },
+  "unclassified_reasons": [],
+  "members": {
+   "no-threads": [
+    "lib/matplotlib/tests/test_figure.py::test_ginput",
+    "lib/matplotlib/tests/test_figure.py::test_waitforbuttonpress"
+   ]
+  }
+ },
+ "matplotlib-render-2b": {
+  "fuel": 337098200291,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 392,
+   "skipped": 76,
+   "failed": 3
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {
+   "pillow-zlib-only": 3
+  },
+  "unclassified_reasons": [],
+  "members": {
+   "pillow-zlib-only": [
+    "lib/matplotlib/tests/test_image.py::test_imsave[jpeg]",
+    "lib/matplotlib/tests/test_image.py::test_imsave[jpg]",
+    "lib/matplotlib/tests/test_image.py::test_jpeg_alpha"
+   ]
+  }
+ },
+ "matplotlib-render-3": {
+  "fuel": 272889183988,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 197,
+   "skipped": 49
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {},
+  "unclassified_reasons": [],
+  "members": {}
+ },
+ "matplotlib-rest-a": {
+  "fuel": 309512708711,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "skipped": 94,
+   "passed": 966,
+   "failed": 9,
+   "xfailed": 26
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {
+   "pillow-zlib-only": 5,
+   "unclassified": 3,
+   "no-processes": 1
+  },
+  "unclassified_reasons": [
+   [
+    "AssertionError: assert False",
+    1
+   ],
+   [
+    "AssertionError: Regex pattern did not match.",
+    1
+   ],
+   [
+    "AssertionError: assert not True",
+    1
+   ]
+  ],
+  "members": {
+   "pillow-zlib-only": [
+    "lib/matplotlib/tests/test_agg.py::test_jpeg_dpi",
+    "lib/matplotlib/tests/test_animation.py::test_grabframe[html-jpeg-movie.html]",
+    "lib/matplotlib/tests/test_animation.py::test_grabframe[html-jpeg-output13]",
+    "lib/matplotlib/tests/test_animation.py::test_save_animation_smoketest[anim0-html-jpeg-movie.html]",
+    "lib/matplotlib/tests/test_animation.py::test_save_animation_smoketest[anim0-html-jpeg-output13]"
+   ],
+   "unclassified": [
+    "lib/matplotlib/tests/test_animation.py::test_movie_writer_invalid_path",
+    "lib/matplotlib/tests/test_animation.py::test_movie_writer_registry",
+    "lib/matplotlib/tests/test_cbook.py::test_warn_external"
+   ],
+   "no-processes": [
+    "lib/matplotlib/tests/test_basic.py::test_lazy_imports"
+   ]
+  }
+ },
+ "matplotlib-rest-b1": {
+  "fuel": 323458632004,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 3367,
+   "skipped": 89,
+   "failed": 14
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {
+   "no-processes": 12,
+   "no-fp-exceptions": 2
+  },
+  "unclassified_reasons": [],
+  "members": {
+   "no-processes": [
+    "lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_agg]",
+    "lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_mixed]",
+    "lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_pdf]",
+    "lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_pgf]",
+    "lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_ps]",
+    "lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_svg]",
+    "lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_template]",
+    "lib/matplotlib/tests/test_matplotlib.py::test_importable_with__OO",
+    "lib/matplotlib/tests/test_matplotlib.py::test_importable_with_no_home",
+    "lib/matplotlib/tests/test_pickle.py::test_axeswidget_interactive",
+    "lib/matplotlib/tests/test_pickle.py::test_pickle_load_from_subprocess[png]",
+    "lib/matplotlib/tests/test_preprocess_data.py::test_data_parameter_replacement"
+   ],
+   "no-fp-exceptions": [
+    "lib/matplotlib/tests/test_mlab.py::TestGaussianKDECustom::test_scott_multidim_dataset",
+    "lib/matplotlib/tests/test_mlab.py::TestGaussianKDECustom::test_silverman_multidim_dataset"
+   ]
+  }
+ },
+ "matplotlib-rest-b2": {
+  "fuel": 384460743428,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "skipped": 9,
+   "passed": 1146,
+   "xfailed": 2,
+   "failed": 1
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {
+   "no-processes": 1
+  },
+  "unclassified_reasons": [],
+  "members": {
+   "no-processes": [
+    "lib/matplotlib/tests/test_ticker.py::test_locale_comma"
+   ]
+  }
+ },
+ "mpl-axes_grid1": {
+  "fuel": 72027320473,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 52
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {},
+  "unclassified_reasons": [],
+  "members": {}
+ },
+ "mpl-axisartist": {
+  "fuel": 35682948235,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 50
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {},
+  "unclassified_reasons": [],
+  "members": {}
+ },
+ "mpl-mplot3d": {
+  "fuel": 336843771774,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 244
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {},
+  "unclassified_reasons": [],
+  "members": {}
+ },
+ "contourpy-1": {
+  "fuel": 217412238655,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 1213,
+   "skipped": 19
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {},
+  "unclassified_reasons": [],
+  "members": {}
+ },
+ "contourpy-lines": {
+  "fuel": 1459520505617,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 379,
+   "skipped": 40
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {},
+  "unclassified_reasons": [],
+  "members": {}
+ },
+ "contourpy-filled": {
+  "fuel": 2387629534387,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 462,
+   "skipped": 56
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {},
+  "unclassified_reasons": [],
+  "members": {}
+ },
+ "contourpy-rest": {
+  "fuel": 90396749987,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 198,
+   "skipped": 80
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {},
+  "unclassified_reasons": [],
+  "members": {}
+ },
+ "pillow-ro": {
+  "fuel": 430951432853,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "skipped": 1054,
+   "passed": 4587,
+   "failed": 78,
+   "xfailed": 3
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {
+   "no-mmap-silent": 5,
+   "builtin-no-file": 2,
+   "pillow-zlib-only": 51,
+   "wasm32-memory-48": 2,
+   "no-mmap": 17,
+   "open-empty-path": 1
+  },
+  "unclassified_reasons": [],
+  "members": {
+   "no-mmap-silent": [
+    "Tests/test_arrow.py::test_mapped_file[L-ppm]",
+    "Tests/test_arrow.py::test_mapped_file[L-tif]",
+    "Tests/test_arrow.py::test_mapped_file[RGBA-tif]",
+    "Tests/test_arrow.py::test_mapped_image_pgm",
+    "Tests/test_image.py::TestImage::test_save_without_changing_readonly"
+   ],
+   "builtin-no-file": [
+    "Tests/test_features.py::test_pilinfo[False]",
+    "Tests/test_features.py::test_pilinfo[True]"
+   ],
+   "pillow-zlib-only": [
+    "Tests/test_file_blp.py::test_load_blp1",
+    "Tests/test_file_bmp.py::test_save_bmp_with_dpi",
+    "Tests/test_file_gd.py::test_sanity",
+    "Tests/test_file_pdf.py::test_pdf_append_to_bytesio",
+    "Tests/test_file_png.py::TestFilePng::test_exif_from_jpg",
+    "Tests/test_file_tar.py::test_zero_length_member",
+    "Tests/test_file_tiff_metadata.py::test_empty_subifd",
+    "Tests/test_file_tiff_metadata.py::test_gps_rational_tag_type[4-11]",
+    "Tests/test_file_tiff_metadata.py::test_gps_rational_tag_type[4-31]",
+    "Tests/test_file_tiff_metadata.py::test_gps_rational_tag_type[4.5-11]",
+    "Tests/test_file_tiff_metadata.py::test_gps_rational_tag_type[4.5-31]",
+    "Tests/test_image.py::TestImage::test_close_graceful",
+    "Tests/test_image.py::TestImage::test_exif_jpeg",
+    "Tests/test_image.py::TestImage::test_fp_name",
+    "Tests/test_image.py::TestImage::test_load_on_nonexclusive_multiframe",
+    "Tests/test_image.py::TestImage::test_no_new_file_on_error",
+    "Tests/test_image.py::TestImage::test_no_resource_warning_on_save",
+    "Tests/test_image.py::TestImage::test_pathlib",
+    "Tests/test_image.py::TestImage::test_tempfile",
+    "Tests/test_image_convert.py::test_8bit",
+    "Tests/test_image_resample.py::TestCoreResampleBox::test_subsample",
+    "Tests/test_image_resample.py::TestCoreResampleBox::test_tiles",
+    "Tests/test_image_thumbnail.py::test_DCT_scaling_edges",
+    "Tests/test_image_thumbnail.py::test_load_first_unless_jpeg",
+    "Tests/test_image_thumbnail.py::test_no_resize",
+    "Tests/test_image_thumbnail.py::test_reducing_gap_for_DCT_scaling",
+    "Tests/test_imagefile.py::TestImageFile::test_extents_none",
+    "Tests/test_imageops.py::test_autocontrast_mask_real_input",
+    "Tests/test_imageops.py::test_exif_transpose",
+    "Tests/test_imageops.py::test_exif_transpose_in_place",
+    "Tests/test_imageops.py::test_pad",
+    "Tests/test_pickle.py::test_pickle_image[0-Tests/images/hopper.jpg-L]",
+    "Tests/test_pickle.py::test_pickle_image[0-Tests/images/hopper.jpg-None]",
+    "Tests/test_pickle.py::test_pickle_image[0-Tests/images/hopper.jpg-PA]",
+    "Tests/test_pickle.py::test_pickle_image[1-Tests/images/hopper.jpg-L]",
+    "Tests/test_pickle.py::test_pickle_image[1-Tests/images/hopper.jpg-None]",
+    "Tests/test_pickle.py::test_pickle_image[1-Tests/images/hopper.jpg-PA]",
+    "Tests/test_pickle.py::test_pickle_image[2-Tests/images/hopper.jpg-L]",
+    "Tests/test_pickle.py::test_pickle_image[2-Tests/images/hopper.jpg-None]",
+    "Tests/test_pickle.py::test_pickle_image[2-Tests/images/hopper.jpg-PA]",
+    "Tests/test_pickle.py::test_pickle_image[3-Tests/images/hopper.jpg-L]",
+    "Tests/test_pickle.py::test_pickle_image[3-Tests/images/hopper.jpg-None]",
+    "Tests/test_pickle.py::test_pickle_image[3-Tests/images/hopper.jpg-PA]",
+    "Tests/test_pickle.py::test_pickle_image[4-Tests/images/hopper.jpg-L]",
+    "Tests/test_pickle.py::test_pickle_image[4-Tests/images/hopper.jpg-None]",
+    "Tests/test_pickle.py::test_pickle_image[4-Tests/images/hopper.jpg-PA]",
+    "Tests/test_pickle.py::test_pickle_image[5-Tests/images/hopper.jpg-L]",
+    "Tests/test_pickle.py::test_pickle_image[5-Tests/images/hopper.jpg-None]",
+    "Tests/test_pickle.py::test_pickle_image[5-Tests/images/hopper.jpg-PA]",
+    "Tests/test_pickle.py::test_pickle_jpeg",
+    "Tests/test_pickle.py::test_pickle_la_mode_with_palette"
+   ],
+   "wasm32-memory-48": [
+    "Tests/test_file_dds.py::test_not_enough_image_data[Tests/images/timeout-52d106579505547091ef69b58341351a37c23e31.dds]",
+    "Tests/test_file_dds.py::test_not_enough_image_data[Tests/images/timeout-755a4d204f4208e3597ac3391edebee196462bd0.dds]"
+   ],
+   "no-mmap": [
+    "Tests/test_file_pdf.py::test_dpi[params0]",
+    "Tests/test_file_pdf.py::test_dpi[params1]",
+    "Tests/test_file_pdf.py::test_monochrome",
+    "Tests/test_file_pdf.py::test_multiframe_normal_save",
+    "Tests/test_file_pdf.py::test_p_alpha",
+    "Tests/test_file_pdf.py::test_pdf_append",
+    "Tests/test_file_pdf.py::test_pdf_info",
+    "Tests/test_file_pdf.py::test_pdf_open",
+    "Tests/test_file_pdf.py::test_resolution",
+    "Tests/test_file_pdf.py::test_save[CMYK]",
+    "Tests/test_file_pdf.py::test_save[L]",
+    "Tests/test_file_pdf.py::test_save[P]",
+    "Tests/test_file_pdf.py::test_save[RGB]",
+    "Tests/test_file_pdf.py::test_save_all",
+    "Tests/test_file_pdf.py::test_unsupported_mode",
+    "Tests/test_pdfparser.py::test_duplicate_xref_entry",
+    "Tests/test_pdfparser.py::test_trailer_loop"
+   ],
+   "open-empty-path": [
+    "Tests/test_image.py::TestImage::test_empty_path"
+   ]
+  }
+ },
+ "lxml": {
+  "fuel": 104535654695,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 2058,
+   "skipped": 58,
+   "failed": 2
+  },
+  "collect_errors": [],
+  "deselected": 360,
+  "guard": [],
+  "classes": {
+   "include-dir-in-zip": 1,
+   "unclassified": 1
+  },
+  "unclassified_reasons": [
+   [
+    "AssertionError: doctest failed:",
+    1
+   ]
+  ],
+  "members": {
+   "include-dir-in-zip": [
+    "src/lxml/tests/test_etree.py::ETreeOnlyTestCase::test_include_paths"
+   ],
+   "unclassified": [
+    "::docfile:doc/validation.txt"
+   ]
+  }
+ },
+ "regex": {
+  "fuel": 16003195673,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 147
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {},
+  "unclassified_reasons": [],
+  "members": {}
+ },
+ "kiwisolver": {
+  "fuel": 12973661709,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 50
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {},
+  "unclassified_reasons": [],
+  "members": {}
+ }
+}

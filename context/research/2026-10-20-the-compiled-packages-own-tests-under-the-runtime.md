@@ -163,3 +163,74 @@ On the same private copy of main's set, `build/lane.lock` absent:
   tarball member `doc/test.xml`; `validation.txt` fails from line 460 on
   `ImportError: lxml.isoschematron is not in this build` (the stand-in); `test_diff.txt` on
   finding 2. No product defect beyond findings 1 and 2.
+
+## The re-survey on 043's set with 096 (2026-10-20, EXECUTED)
+
+Main's set after wave 06 (043, 037, 096; `SHA256SUMS` `f12cd25c…`), a private copy in the
+worktree; darwin-arm64; the same stand-in driver and embedder; at most three guests at once;
+`build/lane.lock` absent at every start. The groups follow the spec as confirmed: Pillow, contourpy
+and lxml read their data from the tree root (lxml's two file-writing tests need a writable working
+folder, below); `cm.pyi` staged; regex's `test_main` deselected; `test_elementsoup.py` not
+selected. Evidence: `results-resurvey.md` (the table with each cap by the owner's rule),
+`failures-resurvey.txt`, `summary-resurvey.json`, `caps.py`, and the updated `survey.py` and
+`package_drive.py`.
+
+| group | fuel | cap (1.5×, two figures) | passed | failed | skipped |
+|---|---|---|---|---|---|
+| `matplotlib-axes` | 699.3 G | 1.1×10¹² | 880 | 0 | 45 |
+| `matplotlib-mathtext` | voided twice (host litter); 296.2 G on wave 05's set | 4.5×10¹¹ (provisional) | | | |
+| `matplotlib-render-1` | 231.1 G | 3.5×10¹¹ | 248 | 0 | 120 |
+| `matplotlib-render-2a` | 304.5 G | 4.6×10¹¹ | 290 | 2 | 12 |
+| `matplotlib-render-2b` | 337.1 G | 5.1×10¹¹ | 392 | 3 | 76 |
+| `matplotlib-render-3` | 272.9 G | 4.1×10¹¹ | 197 | 0 | 49 |
+| `matplotlib-rest-a` | 309.5 G | 4.7×10¹¹ | 966 | 9 | 94 |
+| `matplotlib-rest-b1` | 323.5 G | 4.9×10¹¹ | 3,367 | 14 | 89 |
+| `matplotlib-rest-b2` | 384.5 G | 5.8×10¹¹ | 1,146 | 1 | 9 |
+| `mpl-axes_grid1` | 72.0 G | 1.1×10¹¹ | 52 | 0 | 0 |
+| `mpl-axisartist` | 35.7 G | 5.4×10¹⁰ | 50 | 0 | 0 |
+| `mpl-mplot3d` | 336.8 G | 5.1×10¹¹ | 244 | 0 | 0 |
+| `contourpy-1` (array … enum) | 217.4 G | 3.3×10¹¹ | 1,213 | 0 | 19 |
+| `contourpy-filled` (`test_filled.py`) | **2,387.6 G** | 3.6×10¹² | 462 | 0 | 56 |
+| `contourpy-lines` (`test_lines.py`) | **1,459.5 G** | 2.2×10¹² | 379 | 0 | 40 |
+| `contourpy-rest` (internal … z_interp) | 90.4 G | 1.4×10¹¹ | 198 | 0 | 80 |
+| `pillow` | 431.0 G | 6.5×10¹¹ | 4,587 | 78 | 1,054 |
+| `lxml` (writable working folder) | 104.5 G | 1.6×10¹¹ | 2,058 | 2 | 58 (360 deselected) |
+| `regex` | 16.0 G | 2.5×10¹⁰ | 147 | 0 | 0 |
+| `kiwisolver` | 13.0 G | 2.0×10¹⁰ | 50 | 0 | 0 |
+| **all** | **about 8.3 T** (8.03 T measured, plus mathtext) | **about 1.26×10¹³** | | | |
+
+What it found:
+
+1. **096 holds.** kiwisolver ran its whole suite, 50 passes, no trap. `lxml.html.diff` imports:
+   `test_diff.py`, `test_diff.txt` and its docstrings pass. No group trapped.
+2. **043's failures are gone.** No matplotlib test failed on `contourpy` or `_qhull`;
+   `test_tripcolor_warnings` and `test_cm_stub_matches_runtime_colormaps` (with `cm.pyi` staged)
+   pass. The remaining matplotlib failures are the confirmed classes: `no-processes` 15 (one new
+   member, `test_pickle_load_from_subprocess[png]`, which needed contourpy to reach its subprocess)
+   plus mathtext's 2 from wave 05, `pillow-zlib-only` 8, `no-threads` 2, `no-fp-exceptions` 2,
+   `wasi-errno-values` 1, `stage-layout` 1.
+3. **contourpy costs more than all of matplotlib: 4,155 G.** Its whole suite in one session ran
+   out of a 1.5×10¹² cap. Two files dominate: `test_filled.py` 2,387.6 G and `test_lines.py`
+   1,459.5 G, each one file past the 480 G bound. Their `test_*_random_big` cases (not marked
+   slow upstream; parametrized over every algorithm, fill or line type and corner mask) cost about
+   2.83 T: without them (`-k "not random_big"`), `test_filled.py` measured 544.0 G and
+   `test_lines.py` 470.2 G. contourpy had no failure: its image comparisons pass once the working
+   folder is the tree root (its `compare_images` opens `tests/baseline_images/…` by a relative path;
+   with `/tmp/work`, 201 tests failed on that path alone).
+4. **The owner's rule gives about 1.26×10¹³ of caps, not "about 7 T".** By the rule: matplotlib's
+   family about 5.5×10¹², contourpy's about 6.3×10¹², Pillow 6.5×10¹¹, lxml 1.6×10¹¹, regex and
+   kiwisolver 4.5×10¹⁰. The question put to the owner priced the rule at about 7 T before
+   contourpy was measured. On Linux, 8.3 T at 0.16 to 0.31 s per G is 22 to 43 minutes of guest
+   time: about twelve shards of 700 G, not six.
+5. **Groups still past 480 G:** `matplotlib-axes` (699.3 G, one file, named by the rule),
+   `contourpy-filled` and `contourpy-lines` (one file each). Every other group is under the bound
+   after the splits (render in four, rest in three, measured).
+6. **lxml writes to its working folder.** With the read-only tree root, two
+   `ETreeC14NTestCase::test_python3_problem_filebased_*` tests failed on
+   `PermissionError … 'test.xml'`: they write `test.xml` in the working folder. With `/tmp/work`
+   holding copies of `doc/test.xml` and `samples/*.xml`, they pass; lxml's two remaining failures
+   are `include-dir-in-zip` and `isoschematron-stand-in`.
+7. **Pillow** is unchanged: the same 78 failures in the confirmed classes.
+8. **Host litter.** `matplotlib-mathtext` was voided twice by spec 089's guard (`.DS_Store` in
+   `/`, `/tmp` and `/tmp/work`, written by the host after the run); no other group was. Two
+   strikes: its cap stays provisional, from wave 05's 296.2 G, and the build measures it.

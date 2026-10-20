@@ -49,12 +49,15 @@ LXML_HTML_DOC = [LX + f"html/tests/test_{n}.txt" for n in (
 
 FAMILIES = {
     "matplotlib": dict(tarball="matplotlib-3.11.2", folders=[MPL, "lib/matplotlib/testing/", *[
-        t + "/" for t in TOOLKITS]], ini="[pytest]\nminversion = 7.0\n"),
+        t + "/" for t in TOOLKITS]], files=["lib/matplotlib/cm.pyi"],
+        ini="[pytest]\nminversion = 7.0\n"),
+    "contourpy": dict(tarball="contourpy-1.4.0", folders=["tests/"],
+                      ini="[pytest]\nmarkers =\n    flaky: pytest-rerunfailures' marker\n"),
     "pillow": dict(tarball="pillow-13.0.0", folders=["Tests/"],
                    ini="[pytest]\nmarkers =\n    timeout: pytest-timeout's marker, which Pillow's tests carry\n"),
     "kiwisolver": dict(tarball="kiwisolver-1.5.1", folders=["py/tests/"], ini="[pytest]\n"),
     "lxml": dict(tarball="lxml-6.1.3", folders=[LX + "tests/", LX + "html/tests/"],
-                 files=LXML_DOC, ini="[pytest]\ndoctest_optionflags = ELLIPSIS\n"),
+                 files=LXML_DOC + ["doc/test.xml", "samples/simple.xml", "samples/simple-ns.xml"], ini="[pytest]\ndoctest_optionflags = ELLIPSIS\n"),
     "regex": dict(tarball="regex-2026.9.29", folders=["regex/tests/"], ini="[pytest]\n"),
 }
 
@@ -91,10 +94,27 @@ def group_spec(group: str, tree: Path) -> tuple[str, dict]:
             args = AXES
         elif group == "matplotlib-mathtext":
             args = MATHTEXT
-        elif group == "matplotlib-render":  # main's set has no contourpy until 043 lands
-            args = [r for r in RENDER if not r.endswith("test_contour.py")]
-        elif group == "matplotlib-rest":
-            args = [MPL.rstrip("/"), *ignores(AXES + MATHTEXT + RENDER + MPL_OUT)]
+        elif group in ("matplotlib-render-2a", "matplotlib-render-2b"):
+            r = sorted(RENDER)[8:15]
+            args = r[:3] if group.endswith("2a") else r[3:]
+        elif group in ("matplotlib-render-1", "matplotlib-render-2", "matplotlib-render-3"):
+            r = sorted(RENDER)
+            args = {"1": r[:8], "2": r[8:15], "3": r[15:]}[group[-1]]
+        elif group in ("matplotlib-render-a", "matplotlib-render-b"):
+            r = sorted(RENDER)
+            args = r[:11] if group.endswith("-a") else r[11:]
+        elif group in ("matplotlib-rest-b1", "matplotlib-rest-b2"):
+            taken = set(AXES + MATHTEXT + RENDER + MPL_OUT)
+            rest = sorted(p.relative_to(tree).as_posix() for p in (tree / MPL).glob("test_*.py")
+                          if p.relative_to(tree).as_posix() not in taken)
+            rb = rest[len(rest) // 2:]
+            args = rb[:len(rb) // 2] if group.endswith("b1") else rb[len(rb) // 2:]
+        elif group in ("matplotlib-rest-a", "matplotlib-rest-b"):
+            taken = set(AXES + MATHTEXT + RENDER + MPL_OUT)
+            rest = sorted(p.relative_to(tree).as_posix() for p in (tree / MPL).glob("test_*.py")
+                          if p.relative_to(tree).as_posix() not in taken)
+            half = len(rest) // 2
+            args = rest[:half] if group.endswith("-a") else rest[half:]
         else:  # mpl-axes_grid1, mpl-axisartist, mpl-mplot3d: one group per toolkit (L4)
             args = [f"lib/mpl_toolkits/{group[4:]}/tests"]
         return "matplotlib", dict(base, args=args)
@@ -104,15 +124,29 @@ def group_spec(group: str, tree: Path) -> tuple[str, dict]:
     if group == "pillow":
         return "pillow", dict(args=["Tests", *ignores(["Tests/test_main.py"])],
                               extra_sys_path=[".", "Tests/oss-fuzz"], cwd="/tmp/work")
-    if group == "kiwisolver":  # the trap found by the first run, deselected (Decision 10)
-        return "kiwisolver", dict(args=["py/tests",
-                                        "--deselect=py/tests/test_expression.py::test_expression_creation",
-                                        "--deselect=py/tests/test_term.py::test_term_creation"])
+    if group == "kiwisolver":  # spec 096 fixed the trap: no deselection
+        return "kiwisolver", dict(args=["py/tests"])
+    if group.startswith("contourpy-"):  # the survey's split: the whole suite passed 1.5 T
+        part = group.split("-", 1)[1]
+        files = {
+            "1": [f"tests/test_{n}.py" for n in ("array", "build_config", "chunk", "config",
+                                                 "constructor", "convert", "dechunk", "enum")],
+            "filled": ["tests/test_filled.py"],
+            "lines": ["tests/test_lines.py"],
+            "rest": [f"tests/test_{n}.py" for n in ("internal", "minimal", "misc", "renderer",
+                                                    "static", "typecheck", "z_interp")],
+        }[part]
+        return "contourpy", dict(args=files, extra_sys_path=["."], cwd="/upstream-contourpy/tree")
+    if group == "contourpy":
+        return "contourpy", dict(args=["tests", *ignores(["tests/test_codebase.py",
+                                                          "tests/test_bokeh_renderer.py"])],
+                                 extra_sys_path=["."], cwd="/upstream-contourpy/tree")  # baselines by relative path
     if group == "regex":
-        return "regex", dict(args=["regex/tests"], package_paths={"regex": "regex"})
+        return "regex", dict(args=["regex/tests", "--deselect=regex/tests/test_regex.py::test_main"],
+                             package_paths={"regex": "regex"})
     if group == "lxml":
         out = [LX + "tests/test_threading.py", LX + "tests/test_isoschematron.py",
-               LX + "html/tests/test_feedparser_data.py"]
+               LX + "html/tests/test_feedparser_data.py", LX + "html/tests/test_elementsoup.py"]
         return "lxml", dict(
             args=[LX + "tests", LX + "html/tests", "--doctest-glob=NO-MATCH", *ignores(out)],
             cwd="/tmp/work",
@@ -121,7 +155,7 @@ def group_spec(group: str, tree: Path) -> tuple[str, dict]:
             doctest_preimport=["lxml.doctestcompare"],
             doctest_files=[[f, 8] for f in LXML_DOC] + [[f, 0] for f in LXML_HTML_DOC],
             docstring_modules=["lxml.etree", "lxml.objectify", "lxml.html", "lxml.html.diff",
-                               "lxml.cssselect", "lxml.tests.selftest", "lxml.tests.selftest2",
+                               "lxml.tests.selftest", "lxml.tests.selftest2",
                                "lxml.tests.test_xpathevaluator"])
     raise SystemExit(f"no group {group}")
 
@@ -176,9 +210,11 @@ def main(group: str) -> None:
     spec["top_names"] = zip_top_names(d / "python-stdlib.zip")
     root = stage(pkg, fam, group, spec)
     files = None
-    if group == "lxml":  # selftest2 reads samples/*.xml relative to the working folder
-        smp = TREES / fam["tarball"] / "samples"
-        files = {f"/tmp/work/samples/{p.name}": p.read_bytes() for p in sorted(smp.iterdir())}
+    if group == "lxml":  # two tests write test.xml to the working folder: a writable one, with
+        # the three data files lxml's tests read by relative paths copied in
+        tr = TREES / fam["tarball"]
+        files = {f"/tmp/work/{r}": (tr / r).read_bytes()
+                 for r in ("doc/test.xml", "samples/simple.xml", "samples/simple-ns.xml")}
     if group == "pillow":
         tests = TREES / fam["tarball"] / "Tests"
         files = {f"/tmp/work/Tests/{p.relative_to(tests).as_posix()}": p.read_bytes()
@@ -196,7 +232,7 @@ def main(group: str) -> None:
         stdlib=d / "python-stdlib.zip",
         files=files,
         env={"TMPDIR": "/tmp", "HOME": "/tmp"},
-        fuel=CAP,
+        fuel=3 * CAP if pkg == "contourpy" else CAP,
         preopens=[(f"/upstream-{pkg}", root, False)],
         mpl_data=True,
     )
@@ -216,6 +252,8 @@ def main(group: str) -> None:
 def group_family(group: str) -> str:
     if group == "pillow-ro":
         return "pillow"
+    if group.startswith("contourpy"):
+        return "contourpy"
     return "matplotlib" if group.startswith("matplotlib") or group.startswith("mpl-") else group
 
 
