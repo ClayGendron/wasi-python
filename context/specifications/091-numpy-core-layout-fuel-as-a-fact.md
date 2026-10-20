@@ -1,12 +1,14 @@
 # 091 — numpy-core's layout-dependent fuel as a fact
 
 - **Status:** **drafted 2026-10-19** on `spec/091-numpy-core-layout-fuel-as-a-fact`, from main
-  `dc8988c` (the draft was written from `302df18`; the one commit between them adds only
-  `.claude/settings.json`). Not built. A prototype of the whole change was tried in a scratch copy
-  of `302df18` (the section "The prototype"). It changes neither the guest's imports nor its
-  exports, the artifact set nor the build recipe, so §5.6 asks no review before build; the lane
-  asks for a short one anyway, because the change narrows what the ratchet covers. A different
-  agent reviews the build.
+  `dc8988c` (the draft was written from `302df18`; the commits between them touch no file under
+  `tests/`), rebased onto main `b4d7c8e`. **Revised 2026-10-19 against its pre-build review**
+  ("build once F1", `../reviews/091-numpy-core-layout-fuel-as-a-fact-spec-2026-10-19.md`; the
+  section "Disposition of the pre-build review"). A prototype of the whole change was tried in a
+  scratch copy of `302df18` (the section "The prototype"). It changes neither the guest's imports
+  nor its exports, the artifact set nor the build recipe, so §5.6 asks no review before build; the
+  lane asked for a short one anyway, because the change narrows what the ratchet covers. A
+  different agent reviews the build.
 - **Date:** 2026-10-19
 - **Owner:** Clay Gendron
 - **Kind:** a judge change; **parallel-safe**, not build-class (§5.7). It edits
@@ -67,11 +69,36 @@ That number measures where a type object sits in memory. It is not a property of
 and a reviewer cannot act on it. It also hides real growth: a 1 G rise elsewhere in numpy-core
 would read as "the layout again".
 
+### What 091 does not fix (the review's F2)
+
+091 removes one term: the swing of 1 to 5 G that the address-keyed lookup puts into one test. It
+does not keep numpy-core's row inside the tolerance at a build-class landing.
+
+- The tolerance on the group's own fuel, about 142 G, is about 14 M.
+- The residuals seen so far are far past that: +0.19 G at 073 (real: the unfreeze, its review's
+  per-quarter split), and about +1.2 G in 086's first measurement (INFERRED: its +5.37 G less the
+  test's share, about +4.16 G, from 086's per-bool cost). 047's other tests net −277 M, a fall.
+- So the row will often still be red at a build-class landing, and still need a growth reason.
+- What changes is the reason's kind. It is now the product's own change, or a diffuse layout
+  term spread over many tests, never the one test's address. A diffuse term has no single test to
+  blame, so it is read as 073's review read it: the group's files in quarters on both sets, then
+  per file in the quarter that carries it, two attempts, then rule 7's record.
+- **The hours saved shrink.** P3 counted 1 to 2 hours at each of about 12 landings, as if the row
+  stopped being red. The saving is the trace that ends in this test, and a growth reason no longer
+  dominated by a few G that nobody can act on. The owner is told in the landing notes.
+
 ## Principle
 
 A test whose fuel measures an address is still run, and still counted. Its outcomes stay in the
 group's verdict. Only its fuel leaves the ratchet, and it leaves as a recorded fact with a wide
 bound, by a reviewed judge change (AGENTS.md rule 4), never by widening the tolerance.
+
+**The risk this takes (the review's F4).** The fact is about 30% of numpy-core's fuel, and about
+four fifths of it is not the bool lookup: it is the S and U comparison loops over 32,768
+elements, `compare_chararrays`, `astype` and `tolist`, which nothing else in the judge runs at that
+scale. A real slowdown there, up to twice the test's cost, is no longer red. Two things answer it:
+a review band (Decision 4: a move of more than 10% from the last quoted value gets one sentence of
+cause) and the cap (Decision 5: a doubling is red).
 
 ## Decisions
 
@@ -91,6 +118,11 @@ bound, by a reviewed judge change (AGENTS.md rule 4), never by widening the tole
    - **Rejected: deselect the test and run it nowhere.** It loses 84 passing tests of coverage.
    - **Rejected: a wider tolerance for numpy-core.** A band wide enough for +2.6% would hide a
      real regression of that size anywhere in 145 G of the group's work.
+   - **Rejected: making the lookup itself stable** (the review's N3). A link-order recipe that
+     pins `PyBool_Type`'s address would be a build-class change that every later recipe change
+     could undo; a numpy patch adding a `bool` fast path is an upstream source change, which §4.1
+     keeps few and temporary, for a cost that only the judge sees. Neither fixes the judge for the
+     next address-keyed term either.
 2. **The entry.** `tests/upstream/numpy.toml` gains `[[fuel_fact]]` (the singular, as `[[trap]]`
    and `[[expected]]`):
 
@@ -121,9 +153,12 @@ bound, by a reviewed judge change (AGENTS.md rule 4), never by widening the tole
      sum from 2.519 T to 2.659 T, under the 3 T budget (spec 050, Decision 8).
 3. **What the ratchet keeps.**
    - **`passes`**: both sessions' passes, added. On main's set it stays 9,519, the accepted value.
-   - **`fuel`**: the group's own session only, without the 84 cases. About 145 G (INFERRED:
-     203.36 G, less the cases' 61.44 G, plus the second session's start and collection of
-     `test_strings.py`, a few G); the build measures it.
+   - **`fuel`**: the group's own session only, without the 84 cases. 073's 61.44 G was measured
+     as a session of its own, so it includes one interpreter start and one collection of
+     `test_strings.py`. The group's own fuel is therefore 203.36 G − 61.44 G + that start and
+     collection, a few G: about 145 G (INFERRED; the build measures it). The second session's start
+     is part of the fact, never of the group's `fuel` (the review's N1): the fact is "the 84 cases
+     plus one session's start", not the test's cost alone.
    - **The classes**: each class check reads the members of both sessions, so a failure in the
      84 cases is admitted or named exactly as before. No list file changes.
    - **`passed_digest`, `counts`, `left_out`** (facts): computed over both sessions. The digest is
@@ -143,8 +178,14 @@ bound, by a reviewed judge change (AGENTS.md rule 4), never by widening the tole
      gains "a fuel fact's fuel below its cap (spec 091)", so no reader takes the ratchet to cover
      it.
    - **In the landing notes.** A build-class landing's notes quote the fact from the record they
-     accept, in one clause ("fuel fact string-comparisons 61.4 G"). No cause is asked below the
-     cap. This keeps a trail across landings in git at the cost of one number.
+     accept, in one clause ("fuel fact string-comparisons 61.4 G"). This keeps a trail across
+     landings in git at the cost of one number.
+   - **The review band (the review's F4).** When the quoted fact moves more than 10% from the last
+     quoted value (above the largest layout move seen, +7% at 073), the reviewer gives its cause in
+     one sentence. It is still not red. Below 10%, no cause is asked.
+   - **The cap's keeper (the review's F5).** When a landing's quoted fact exceeds half the cap, that
+     landing raises the cap (a judge change, with its reason) or its reviewer says in writing why
+     not. So the "at least twice" rule of Decision 5 holds after 091 lands, not only at its build.
    - `context/progress/README.md` gains one paragraph saying all of this.
 5. **The sanity bound: the cap, at 140 G.** The fact's session runs with fuel 140 G. If the
    test's cost reaches it, the session ends "out of fuel at <node>", a finding, and the group's
@@ -152,6 +193,11 @@ bound, by a reviewed judge change (AGENTS.md rule 4), never by widening the tole
    - 140 G is 2.28 times the 61.44 G measured on main's set and 2.13 times 073's 65.73 G. The
      rule for the entry: **the cap is at least twice the fact's fuel when last measured**; the
      build checks it with its own measurement and raises the cap to the next 10 G that keeps it.
+   - **Why not 100 G, spec 050's 1.5 times** (the review's F4 (b)). It does not fit the measured
+     spread with the keeper above. Today's fact (about 61 G) is already above half of 100 G, so
+     the keeper would fire at once; and 073 and 086 together are expected to bring it near 70 G
+     (+4.29 G and about +4.16 G), where 100 G is 1.43 times, under 050's own floor. The review
+     band (Decision 4) answers the slowdown risk more cheaply than a tighter cap.
    - **Why it does not bring the noise back.** The largest move seen is +7% (073). The bool
      conversions are about a fifth of the test's cost (six of 25.8 M in about 731 M a case); to
      double the test, they would have to cost about six times as much. A layout shift changes a
@@ -169,8 +215,10 @@ bound, by a reviewed judge change (AGENTS.md rule 4), never by widening the tole
      runs them): an entry names a group of its package, a node under that group's paths in the
      `file::function` form, a non-empty `reason`, at least one `evidence` file that exists under
      `context/reviews/`, `context/research/` or `context/specifications/`, and a positive cap;
-     its id is unique among groups and traps; no `not_selected` file or trap entry overlaps it;
-     its file is a tarball member (when the tarballs are present); a regrtest suite has none.
+     its id is unique among groups and traps; no `not_selected` file or trap entry overlaps it
+     (a trap overlaps when its node starts with `node[` or `node[` starts with its node, so a trap
+     on the sibling `test_string_comparisons_empty` does not; the review's N2); its file is a
+     tarball member (when the tarballs are present); a regrtest suite has none.
    - **The list is pinned**: `test_the_judges_one_fuel_fact_is_string_comparisons_in_numpy_core`
      asserts the whole list. A second entry is then a judge change in two files, with its reason
      and its trace, under `--accept-judge` and a review.
@@ -195,14 +243,17 @@ bound, by a reviewed judge change (AGENTS.md rule 4), never by widening the tole
     - **091 lands before them when the lane can** (it is parallel-safe and short; it may ride in
       a batch of parallel-safe specifications, §5.7).
     - **A build-class landing after 091** judges numpy-core without the 84 cases. Its growth
-      reason drops the layout clause and quotes the fact (Decision 4). If the group's own fuel
-      still rises past the tolerance, that is a residual to explain like any other row: the traces
-      so far put it well under the test's moves (047: the other 9,923 tests net −277 M; 071:
-      within ±1.0 M a test; 073: +0.19 G, which its review gives to the unfreeze).
+      reason drops the layout clause and quotes the fact (Decision 4). The group's own fuel will
+      often still rise past the tolerance ("What 091 does not fix"): that residual is explained
+      like any other row, by 073's review's quarters-then-files method (047: the other 9,923 tests
+      net −277 M; 071: within ±1.0 M a test; 073: +0.19 G, which its review gives to the unfreeze;
+      086: about +1.2 G, INFERRED).
     - **086.** Its Decision 9 traces any row whose A/B rise is 1% to 3%, numpy-core's
       `test_strings.py` first. After 091 its A/B table carries numpy-core's own session as the
-      metric row and the fact beside it; the fact needs no trace below its cap. Criterion 5
-      gives 086 that A/B in advance.
+      metric row and the fact beside it; the fact needs no trace below its cap or its review band.
+      Criterion 5 measures main's set against 086's as information only; 086's A/B is measured
+      again on its own landing base, since 086 rebuilds after its rebase (the siphash13 flag rides
+      in it too), so 091's figures for 086 go stale (the review's N4).
     - **073.** Its `--accept-growth` reason says "upstream numpy-core +4.48 G (+2.21%) … its cause
       in the suite not established", and its build review found the cause. After 091 the lane
       rewrites that clause to the residual its rebase measures, and the fact's value.
@@ -240,6 +291,9 @@ red only if it doubles.
 - `sameness._check` compares `facts` less `fuel_facts` exactly, and each `fuel_facts` value with
   `fuel_differs`.
 - `scoreboard.NOT_MACHINE_CHECKED[0]` gains "a fuel fact's fuel below its cap (spec 091)".
+- **Wall time** (the review's N5): the group's check pays a second interpreter start and a second
+  collection of `test_strings.py`, a few G in all, on the same worker and the same release shard
+  (`tests/release_shards.toml`, numpy-core's). Nothing else moves.
 
 ### The prototype (EXECUTED, in a scratch copy of `302df18`)
 
@@ -282,14 +336,25 @@ bound; a scoreboard line with the fact's value; fuel facts for pandas or the reg
    and `counts` equal those of a run of main's judge on the same set; its five class checks pass
    with their lists unchanged; the record carries `fuel_facts.string-comparisons`; the cap is at
    least twice it (Decision 5); `fuel` is the group's own session, and the landing notes give it
-   with the fall from 203,355,507,505.
-5. **The layout control.** On two sets that differ in layout, main's and the newest build-class
-   set at hand (086's today, copied read-only), both judged by this branch:
-   `test_upstream_suite[numpy-core]`'s `fuel` and its fact, on each. The landing notes give the
-   four numbers. The claim this spec stands on is that the group's own fuel moves far less than
-   the fact: **if the group's own fuel still differs by more than 1% between the two sets** (086's
-   trace threshold), the build stops, and the builder records where it stood (AGENTS.md rule 7)
-   before anything lands.
+   with the fall from 203,355,507,505. **If the digest or the counts differ, the build stops and
+   the difference is traced** (the review's F6). The first suspect is numpy's global random
+   state: the test calls `np.random.shuffle`, so moving its cases out of the group's session
+   changes the state every later test sees (the rest of `test_strings.py`,
+   `test_umath_accuracy.py`, `test_umath_complex.py`, `test_unicode.py`). Such a difference is
+   never accepted as "layout".
+5. **The layout control** (the review's F1). Both judged by this branch, each a private
+   `cp -c -Rp` copy at nlink 1:
+   - **The stop pair: main's set (A) against 073's set (B)**, which differ mainly in layout, plus
+     one small known change (073's bootstrap; its review puts the rest of the group at about
+     +0.19 G and the test at +4.29 G, +6.99%). On each, `test_upstream_suite[numpy-core]`'s
+     `fuel` (own_A, own_B) and its fact (fact_A, fact_B). The measures:
+     r_own = (own_B − own_A) / own_A and r_fact = (fact_B − fact_A) / fact_A.
+     **The claim holds when |r_own| ≤ 0.5% and |r_own| ≤ ¼ · |r_fact|.** If either fails, the
+     build stops, and the builder records where it stood (AGENTS.md rule 7) before anything lands.
+   - **For information only: main's set against 086's.** They differ in compiler as well as layout
+     (086's other rows moved −0.444% to +0.444% with the toolchain alone), so the same two numbers
+     are recorded and read against that spread, never as a stop.
+   The landing notes give all eight numbers and both ratios.
 6. **Nothing else moves.** `ruff check` and `ruff format --check` green. The fast tier `-n 3`,
    then the full judge once (`-n 3`) against the private copy of main's set: no failure; lost 0;
    gained 0; grew 0; fewer 0; `judge changed` names the seven files; the one accepted fuel row
@@ -311,15 +376,48 @@ bound; a scoreboard line with the fact's value; fuel facts for pandas or the reg
   classes and digest; their fuel is the fact fuel_facts, never ratcheted, red only at its 140 G
   cap; sameness.py compares it to the tolerance; the scoreboard names it as not machine-checked;
   new rows in tests/unit/test_upstream.py and tests/unit/test_several_cores.py; numpy-core's
-  accepted fuel falls by the test's share; the one allowance edit is the [[fuel_fact]] entry; no
-  check, golden, gap, class list or other allowance edited"`.
+  accepted fuel falls by the test's share; the one check edit is test_upstream_suite recording
+  the fact fuel_facts, plus two docstrings in tests/checks/test_v1_3_upstream_suites.py, and no
+  assertion changed; the one allowance edit is the [[fuel_fact]] entry; no golden, gap, class
+  list or other allowance edited; seven files: tests/upstream/numpy.toml,
+  tests/harness/upstream.py, tests/harness/sameness.py, tests/harness/scoreboard.py,
+  tests/checks/test_v1_3_upstream_suites.py, tests/unit/test_upstream.py,
+  tests/unit/test_several_cores.py"`.
 - **No `--accept-growth`, no `--accept-fewer-passes`, no `--retire`** (Decision 8).
 - **The expected record:** lost 0, gained 0, grew 0, fewer 0; `judge changed`, seven files;
   numpy-core's accepted fuel about 145 G (from 203,355,507,505), passes 9,519.
 - **Sameness.** Both records now carry `fuel_facts`; `sameness.py` compares it to the tolerance.
   A difference there beyond the tolerance is a real difference, and rule 6a applies.
 - **At the next build-class landings,** the notes quote the fact in one clause and drop the
-  numpy-core layout clause from the growth reason (Decision 10).
+  numpy-core layout clause from the growth reason (Decision 10). A move of more than 10% from the
+  last quoted value gets one sentence of cause from the reviewer. When the quoted fact exceeds
+  half the cap (70 G), that landing raises the cap or its reviewer says why not (Decision 4).
+- **numpy-core's own row will often still be red** at those landings, by a residual that needs
+  its growth reason ("What 091 does not fix"). Tell the owner the hours saved are smaller than
+  P3 counted.
+
+## Disposition of the pre-build review
+
+The review (`../reviews/091-numpy-core-layout-fuel-as-a-fact-spec-2026-10-19.md`, on `3e9d68b`):
+"build once F1 is written in; F2 and F3 before landing; F4 to F6 Low". Each is answered here.
+
+- **F1 (the control's pair and line): fixed.** Criterion 5's stop pair is main's set against
+  073's, with r_own and r_fact defined and the line written: |r_own| ≤ 0.5% and
+  |r_own| ≤ ¼ · |r_fact|. The 086 pair stays, as information only.
+- **F2 (the row stays red): fixed.** "What 091 does not fix" says the row will often still be red,
+  how a residual is read, and that the hours saved shrink; Decision 10 and For the lane say it too.
+- **F3 (the accept text): fixed.** It names the one check edit (the `fuel_facts` record and two
+  docstrings), says no assertion changed, and names the seven files.
+- **F4 (a slowdown hidden below 2×): answered.** The Principle states the risk. Option (a) is
+  taken: a move of more than 10% from the last quoted value gets one sentence of cause (Decision 4).
+  Option (b), a 100 G cap, is not: Decision 5 says why it does not fit the measured spread.
+- **F5 (the cap's keeper): fixed.** Decision 4, For the lane and the progress README: a quoted
+  fact above half the cap means that landing raises the cap or its reviewer says why not.
+- **F6 (the random state): fixed.** Criterion 4 stops and traces a digest or counts difference,
+  `np.random`'s state first, never accepted as layout.
+- **N1:** Decision 3 says the start is part of the fact. **N2:** the overlap rule is the exact one,
+  with a unit row for the sibling. **N3:** Decision 1 names the stable-lookup alternative and why
+  not. **N4:** Decision 10's 086 bullet. **N5:** Design, wall time. **N6:** no change asked.
 
 ## Landing notes
 
