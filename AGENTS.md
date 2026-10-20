@@ -64,7 +64,8 @@ the hard constraints, and it governs this file. Then `README.md` and
   judge refuses a released version without one.
 - **Code speaks for itself** (the owner, 2026-10-20). A code file
   (`src/`, `tests/`, `scripts/`, `release/`) names no specification,
-  memo, review, finding ID or `context/` path: its comments and
+  memo, review, finding ID or `context/` path (in comments and
+  docstrings; the judge reads `context/` as data): its comments and
   docstrings give the reason in words, and the number lives in the
   specification that cites the file. A `context/` document may cite and
   link code files. `src/` is cleared by spec 107 and held by its check;
