@@ -248,3 +248,18 @@ If the lane's run has a growth line, it is the base's, not this change's: name i
   main tree's artifact set: 252 passed, 1 skipped; ratchet vs `c0d2e7e` lost 0, grew 0, gained 0,
   `judge changed: tests/conftest.py, tests/unit/test_inline_sessions.py`. `ruff check` and
   `ruff format --check` green.
+
+### Rebased onto wave/05
+
+- **Base:** local `wave/05` at `70a8e07` (main `ebd0449`, spec 086 landed, plus spec 090). The
+  five commits rebased as `a7e4fbb` to `a29d480`.
+- **Hunks:** one conflict, `CHANGELOG.md`, under "0.1.0a8 — unreleased": 086's three bullets
+  (wasi-sdk 34, SipHash-1-3, the missing-module message) and 082's bullet, kept both, 082's after
+  086's and before spec 065's. `tests/conftest.py` and `tests/unit/test_inline_sessions.py` do
+  not change between `f7511b7` and `wave/05` (090 touches neither), so they rebased as they were;
+  the spec and the review are new files.
+- **On the rebased tip (EXECUTED, darwin-arm64, `build/lane.lock` absent):** the new file,
+  `test_plugin.py`, `test_landing_lane.py`, `test_upstream.py`, `test_several_cores.py`,
+  `test_checks_wiring.py` and `tests/checks/test_rules.py`, `-n 3`, against a private copy of a
+  set (not the main tree's, which the lane is rebuilding): 252 passed, 1 skipped; ratchet vs
+  `a75e5d4` lost 0, grew 0, gained 0. `ruff check` and `ruff format --check` green.
