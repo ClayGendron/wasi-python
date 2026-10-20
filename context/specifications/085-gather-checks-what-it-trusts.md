@@ -768,6 +768,50 @@ after the build review's fixes on `c378ba2` (`build/085/fast-2.log`: 0 fail, uni
   2's "built" test asks for one). Criterion 2's branch dry run and criteria 4, 5 and 7 above are
   first seen in a dry run.
 
+#### Rebased onto wave/01 (`70bb1a2`: main `7d0649d` plus 087; 2026-10-19)
+
+`git rebase wave/01` replayed 085's seven commits, from main `9d89535`. One hunk conflicted, and
+I resolved it as 085's builder; the rest merged cleanly (`README.md`,
+`context/progress/README.md`, `tests/harness/plugin.py`). `git range-diff` shows six commits `=`
+and the build commit `!`, by that hunk alone.
+
+1. **The build commit, `CHANGELOG.md`, `## 0.1.0a8 — unreleased`:** both sides kept. 078's
+   bullet first, as wave/01 has it, then 085's, then the bullets wave/01 already had after it
+   (065, 083, 087's two). No wording changed.
+
+**Semantic changes:** none in 085's code. I read what wave/01 changed in 085's areas since
+`9d89535`:
+- `tests/harness/plugin.py`: 089's litter warning in `pytest_configure`, apart from 085's
+  `set_sums` in `run_meta`; both kept.
+- New harness files `litter.py` (089) and `wat.py` (087), and 078's `guest.py`: the hidden-needs
+  scan finds nothing on the merged tree (`test_gather.py`'s scan of the repository passes).
+- `scripts/assemble_artifacts.py` (087's second carried patch) and the release workflow:
+  untouched by 085's hunks.
+
+**The fast tier on `b1c2364`** (`uv run pytest -m "not slow" -n 3`, against this worktree's copy of
+main's set `s-c50ca51fae5eb55b-c9dcb5b8`, `build/085/fast-wave01.log`): `wasi_python v1:
+523/663 pass · 1 gap · 25 blocked · 3 fail · 111 deselected (unit suite 1689/1697, 8 skipped)`;
+`ratchet vs 9c6ba6db2d: lost 1 · gained 5 · grew 0`; `ruff check` and `ruff format --check` green.
+The three fails and the lost pass are 087's rows, red only because no set with 087's patch exists
+in this worktree: `test_manifest_recipes_match_the_tree` (main's MANIFEST does not list
+`0002-timeout-ticks.patch`; the lost pass) and
+`test_a_timeout_past_2_147_seconds_fires[plain]` and `[snapshot]` (main's regex binary). No unit
+test and no 085 row is red.
+
+**For the wave's rebuild and acceptance (set_sums and 087's set):**
+- The acceptance must judge a set rebuilt from the wave tip, which carries 087's patch
+  (`python.wasm` and the snapshot +202 bytes each), with `build/artifacts` that set, not
+  `WASI_PYTHON_ARTIFACTS` pointing at an older one. From 085 on, `--accept` writes the hash of
+  that set's own `SHA256SUMS` into the history line as `set_sums`. Main's frozen set
+  `c9dcb5b8…` cannot be the accepted set: its MANIFEST loses `test_manifest_recipes_match_the_tree`.
+- The wave's dry run's gather then requires the CI build job's `set-sums-sha256` to equal that
+  `set_sums` (G7), and every record's `meta.set_sums` to equal it too (G2). Before 085, G7
+  compared `python.wasm` only; now every file `SHA256SUMS` lists must match between the lane's
+  rebuild and CI's Linux build: the snapshot, the zip, `MANIFEST` and the licences as well. The
+  rebuild-from-pins compare the lane already makes against the CI build job's `SHA256SUMS` is
+  exactly that check, so a difference there means the dry run's gather will be red on G7.
+- Older history lines have no `set_sums`; G7 reads only the newest acceptance, the wave's.
+
 ## One line
 
 The gather stops believing what a record says about itself on three points it can check (a
