@@ -18,6 +18,13 @@ CLASSES = [
     ("wasm32-memory", r"MemoryError"),
     ("pillow-zlib-only", r"(decoder|encoder) \w+ not available"),
     ("wasi-iconv", r"unknown encoding|[Uu]nsupported encoding|LookupError"),
+    ("no-fp-exceptions", r"DID NOT RAISE <class 'numpy.linalg.LinAlgError'>"),
+    ("wasm32-memory-48", r"Out of memory"),
+    ("builtin-no-file", r"has no attribute '__file__'"),
+    ("open-empty-path", r"Is a directory: ''"),
+    ("include-dir-in-zip", r"python315.zip/lxml/include"),
+    ("no-mmap-silent", r"^assert None is not None$|^assert 0$"),
+    ("contourpy-or-qhull", r"No module named 'contourpy'|cannot import name '_qhull'"),
 ]
 
 
