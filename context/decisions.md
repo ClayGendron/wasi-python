@@ -61,6 +61,27 @@ ready: Wed 2026-10-21, about 18:00 UTC (INFERRED), range Wed 10:00 UTC to Thu 20
   slots, not wall clock, and is build-class). A cache of the artifact set keyed by the pins (after
   0.1.0, unless CI minutes become the bottleneck).
 
+### Three answers for 0.1.0 (2026-10-20)
+
+The owner answered three questions the lane asked on 2026-10-20 (AskUserQuestion):
+
+- **scikit-learn's two unnamed components: approved.** Spec 044 bundles HDBSCAN's code (Leland
+  McInnes, BSD-3-Clause, `cluster/_hdbscan/`) and one function in `model_selection/_split.py`
+  based on a Kaggle kernel (Apache-2.0), with pytest's MIT text for a few derived lines; question
+  83's approval did not name them (044's builder note B1, confirmed by its pre-build reviewer). The
+  owner's choice: "Approve both". The notices ship in `LICENSES/scikit-learn.txt`.
+- **Spec 066's fuel budget: the larger budget, set by rule.** matplotlib's own tests alone measured
+  3.35 T against the 3 T budget for every compiled package. The owner's choice: "Larger budget by
+  rule": each group's cap is 1.5 times its fuel in the re-survey on 043's set with 096, each
+  family's budget the sum of its caps (about 7 T), across six Linux shards. The price, stated in
+  the question: every full judge runs about 7 T of upstream fuel instead of 2.84 T, roughly 1.5 to
+  2 times longer accepts. Not chosen: running part of matplotlib on Linux CI only, or leaving test
+  files out (which would need the rule against leaving tests out for convenience amended).
+- **numpy's silent singular inverse: fix before 0.1.0.** With no floating-point exception flags in
+  wasm, `numpy.linalg.inv` of a singular matrix returns `nan`s and raises no `LinAlgError` (spec
+  066's survey, a guest probe). The owner's choice: "Fix before 0.1.0": a specification (099,
+  reserved in the roadmap) that makes singular matrices raise `LinAlgError` as natively.
+
 ### No more alphas (2026-10-19)
 
 The owner said in the session that night (about 01:03 UTC on 2026-10-20): "No more alphas". The
