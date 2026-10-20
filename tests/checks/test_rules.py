@@ -210,6 +210,63 @@ def test_no_mutable_is_bound_at_module_level_outside_the_process() -> None:
     assert not hits, scan.report(hits)
 
 
+# (path, the exact phrase, why it stays). Each entry admits that phrase in that file's comments
+# and docstrings; an entry that admits nothing fails, so the tuple only ever shrinks.
+JUDGE_FILE = (
+    "the known gaps and the upstream suites' allowances change only by a judge change of their "
+    "own, which clears these comments then; a cleanup of comments never edits them"
+)
+CONTEXT_CITATION_ALLOWED: tuple[tuple[str, str, str], ...] = (
+    ("tests/known_gaps.toml", "C1", JUDGE_FILE),
+    ("tests/known_gaps.toml", "spec 002", JUDGE_FILE),
+    ("tests/known_gaps.toml", "spec 050", JUDGE_FILE),
+    ("tests/known_gaps.toml", "spec 065", JUDGE_FILE),
+    ("tests/upstream/numpy.toml", "C1", JUDGE_FILE),
+    ("tests/upstream/numpy.toml", "spec 050", JUDGE_FILE),
+    ("tests/upstream/numpy.toml", "spec 051", JUDGE_FILE),
+    ("tests/upstream/numpy.toml", "spec 091", JUDGE_FILE),
+    ("tests/upstream/packages.toml", "Spec 044", JUDGE_FILE),
+    ("tests/upstream/packages.toml", "context/roadmap", JUDGE_FILE),
+    ("tests/upstream/packages.toml", "spec 037", JUDGE_FILE),
+    ("tests/upstream/packages.toml", "spec 039", JUDGE_FILE),
+    ("tests/upstream/packages.toml", "spec 043", JUDGE_FILE),
+    ("tests/upstream/packages.toml", "spec 063", JUDGE_FILE),
+    ("tests/upstream/packages.toml", "spec 065", JUDGE_FILE),
+    ("tests/upstream/packages.toml", "spec 067", JUDGE_FILE),
+    ("tests/upstream/packages.toml", "spec 095", JUDGE_FILE),
+    ("tests/upstream/pandas.toml", "C1", JUDGE_FILE),
+    ("tests/upstream/pandas.toml", "Spec 041", JUDGE_FILE),
+    ("tests/upstream/pandas.toml", "spec 039", JUDGE_FILE),
+    ("tests/upstream/pandas.toml", "spec 041", JUDGE_FILE),
+    ("tests/upstream/pandas.toml", "spec 050", JUDGE_FILE),
+    ("tests/upstream/python.toml", "Spec 071", JUDGE_FILE),
+    ("tests/upstream/python.toml", "spec 065", JUDGE_FILE),
+    ("tests/upstream/python.toml", "spec 074", JUDGE_FILE),
+    ("tests/upstream/python.toml", "spec 078", JUDGE_FILE),
+)
+
+
+def test_code_outside_src_names_no_context_document() -> None:
+    """Code speaks for itself: no comment or docstring under `tests/`, `scripts/`, `release/` or
+    the workflows names a specification, the constitution's sections, a research write-up, a
+    dated review, an owner's numbered question, a path under the knowledge tree or a review
+    finding's identifier. The reason is written in words, and the documents cite the code, not
+    the other way round. The judge's reads of those documents are code, not prose, so they are
+    not held here."""
+    allowed = {(path, phrase) for path, phrase, _ in CONTEXT_CITATION_ALLOWED}
+    used: set[tuple[str, str]] = set()
+    hits = []
+    for p in scan.context_citation_files(paths.REPO):
+        where = scan.rel(p, paths.REPO)
+        for line, rule, phrase in scan.context_citation_hits(p):
+            if (where, phrase) in allowed:
+                used.add((where, phrase))
+            else:
+                hits.append(f"{where}:{line}: {rule}: {phrase}")
+    hits += [f"{path}: allowed '{phrase}' is no longer there" for path, phrase in allowed - used]
+    assert not hits, scan.report(hits)
+
+
 def test_only_the_engine_seam_touches_wasmtimes_private_api() -> None:
     """Spec 103, Decision 3: one module, `src/wasi_python/_wasmtime_ffi.py`, and its unit file
     reach wasmtime-py's private API (its underscore modules, the store context, the raw function

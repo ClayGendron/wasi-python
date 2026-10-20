@@ -2349,3 +2349,72 @@ def test_npy_fenv_recipe_names_what_the_cross_file_and_header_lack() -> None:
     assert scan.npy_fenv_recipe_errors(cross, weakless) == [
         "recipes/npy_fenv_flags.h lacks the weak flag word"
     ]
+
+
+# The citation rule's fixtures are assembled from parts, so this file's own text is never a
+# citation the rule would read.
+SPEC_WORD, DOC_TREE = "sp" + "ec", "con" + "text/"
+
+
+@pytest.mark.parametrize(
+    ("prose", "rule", "phrase"),
+    [
+        (f"see {SPEC_WORD} 052 here", "specification", f"{SPEC_WORD} 052"),
+        (f"the {SPEC_WORD}ifications 012 and 040", "specification", f"{SPEC_WORD}ifications 012"),
+        ("as the constitution §4.1 says", "constitution", "constitution §"),
+        ("the clock-and-random m" + "emo says so", "memo", "m" + "emo"),
+        ("the review 2026-10-19 found it", "review", "review 2026-10-19"),
+        ("the review reviews/009-a.md", "review", "review reviews/"),
+        ("the owner's question 95", "question", "question 95"),
+        (f"read {DOC_TREE}research first", "context path", f"{DOC_TREE}research"),
+        ("the build review's F4.2 again", "finding", "F4.2"),
+        ("a bare (N2) here", "finding", "N2"),
+        ("the Confirmation's M5 too", "named finding", "Confirmation's M5"),
+    ],
+)
+def test_a_citation_in_a_comment_or_docstring_is_a_hit(work, prose, rule, phrase) -> None:
+    py = write(work, "t/a.py", f'"""Module. {prose}."""\n\nx = 1  # {prose}\n')
+    assert (1, rule, phrase) in scan.context_citation_hits(py)
+    assert (3, rule, phrase) in scan.context_citation_hits(py)
+    sh = write(work, "s/a.sh", f"#!/bin/sh\n# {prose}\necho hi  # {prose}\n")
+    assert [h[0] for h in scan.context_citation_hits(sh) if h[1] == rule] == [2, 3]
+
+
+def test_code_and_literals_are_not_citations(work) -> None:
+    """A path read as data and a string literal are code, not prose: only comments and
+    docstrings are read. In a comment, a ruff code or a word with digits in it is not an
+    identifier; a lone capital and number is, and is written in words instead."""
+    py = write(
+        work,
+        "t/b.py",
+        f'"""Reads the progress history."""\n\nHISTORY = "{DOC_TREE}progress/history"\n'
+        f'MESSAGE = "{SPEC_WORD} 052 refused"\n'
+        "import os  # noqa: F401\n"
+        'DIGEST = "MD5"  # MD5, F401 and D12x are words; C99 is refused\n'
+        f"def f():\n    x = 1\n    return '{SPEC_WORD} 063'\n",
+    )
+    assert scan.context_citation_hits(py) == [(6, "finding", "C99")]
+    sh = write(work, "s/b.sh", f'cat "$ROOT/{DOC_TREE}progress/x"\necho "{SPEC_WORD} 052"\n')
+    assert scan.context_citation_hits(sh) == []
+    assert scan.context_citation_hits(write(work, "t/c.py", "def broken(:\n")) == []
+
+
+def test_the_citation_rule_reads_its_four_trees(work) -> None:
+    for rel_path in (
+        "tests/a.py",
+        "tests/b.toml",
+        "tests/c.txt",
+        "scripts/d",
+        "release/e.in",
+        ".github/workflows/f.yml",
+        "src/g.py",
+    ):
+        write(work, rel_path, "x = 1\n")
+    picked = [scan.rel(p, work) for p in scan.context_citation_files(work)]
+    assert picked == [
+        "tests/a.py",
+        "tests/b.toml",
+        ".github/workflows/f.yml",
+        "scripts/d",
+        "release/e.in",
+    ]

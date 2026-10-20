@@ -5,12 +5,14 @@ from __future__ import annotations
 
 import ast
 import fnmatch
+import io
 import json
 import posixpath
 import re
 import shlex
 import subprocess
 import tempfile
+import tokenize
 import warnings
 from collections.abc import Iterable
 from pathlib import Path
@@ -3098,3 +3100,100 @@ def private_api_debt_errors(adapter: Path, sheet: Path) -> list[str]:
     doc = ast.get_docstring(tree) or ""
     errors += [f"{name}: not named in the adapter's docstring" for name in names if name not in doc]
     return errors
+
+
+# ---------------------------------------------------------------------------------------------
+# Code speaks for itself: a comment or a docstring gives its reason in words and points at no
+# project document. The judge may read those documents as data; only what a reader is told is
+# held here.
+
+CITATION_RULES = (
+    ("specification", re.compile(r"\bspec(?:ification)?s?\s+\d{3}\b", re.I)),
+    ("constitution", re.compile(r"\bconstitution\s*§", re.I)),
+    ("memo", re.compile(r"\bmemo\b", re.I)),
+    (
+        "review",
+        re.compile(r"\breviews?\b[\s,:(`'\"]*(?:\d{4}-\d{2}-\d{2}|[\w.-]*/(?=[\w.-]))", re.I),
+    ),
+    ("question", re.compile(r"\bquestion\s+\d+\b", re.I)),
+    ("context path", re.compile(r"\bcontext/[a-z_]+")),
+    ("finding", re.compile(r"(?<![A-Za-z0-9_])[CDFLNS]\d{1,2}(?:\.\d+)?(?![A-Za-z0-9_])")),
+    # The other letters a finding takes (High, Medium, a mutation), only where a review names it,
+    # since alone they are also a milestone's or a chip's name.
+    (
+        "named finding",
+        re.compile(
+            r"(?i:\b(?:re-review|review|confirmation)(?:'s)?),?\s+(?i:(?:finding|mutation)\s+)?"
+            r"[ABEGHIJKMOPQRTUVWXYZ]\d{1,2}\b"
+        ),
+    ),
+)
+CITATION_SUFFIXES = {".py", ".sh", ".toml", ".yml", ".yaml"}
+TRAILING_COMMENT = re.compile(r"\s#\s.*$")
+
+
+def _python_prose(text: str) -> list[tuple[int, str]]:
+    """(line, text) of every comment and every docstring line of a Python source: comments
+    from `tokenize`, docstrings as the string tokens `ast` places first in a module, a class or
+    a function. Code and every other string literal are left out."""
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))
+        tree = ast.parse(text)
+    except (tokenize.TokenError, SyntaxError, ValueError):
+        return []
+    starts = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+            first = node.body[0] if node.body else None
+            if (
+                isinstance(first, ast.Expr)
+                and isinstance(first.value, ast.Constant)
+                and isinstance(first.value.value, str)
+            ):
+                starts.add((first.lineno, first.col_offset))
+    out = []
+    for tok in tokens:
+        if tok.type == tokenize.COMMENT:
+            out.append((tok.start[0], tok.string))
+        elif tok.type == tokenize.STRING and tok.start in starts:
+            out += [(tok.start[0] + i, line) for i, line in enumerate(tok.string.split("\n"))]
+    return out
+
+
+def _hash_comments(text: str) -> list[tuple[int, str]]:
+    """(line, text) of every `#` comment of a shell, TOML or YAML file, or any other text file:
+    a line that starts with `#`, or the part of a line after a ` # `."""
+    out = []
+    for n, line in enumerate(text.splitlines(), 1):
+        if line.lstrip().startswith("#"):
+            out.append((n, line.strip()))
+        elif m := TRAILING_COMMENT.search(line):
+            out.append((n, m[0].strip()))
+    return out
+
+
+def context_citation_hits(path: Path) -> list[tuple[int, str, str]]:
+    """(line, rule, phrase) for each citation of a project document in the comments and the
+    docstrings of one file: a specification's number, the constitution's section sign, the
+    word for a research write-up, a review followed by a date, a path or a finding, a numbered
+    question of the owner's, a path under the knowledge tree, or a review finding's identifier.
+    A Python file is read through its tokens; any other file through its `#` comments."""
+    text = _text(path)
+    if text is None:
+        return []
+    prose = _python_prose(text) if path.suffix == ".py" else _hash_comments(text)
+    return [
+        (n, rule, m[0])
+        for n, line in prose
+        for rule, pattern in CITATION_RULES
+        for m in pattern.finditer(line)
+    ]
+
+
+def context_citation_files(root: Path) -> list[Path]:
+    """The files the citation rule reads: every Python, shell, TOML and YAML file under `tests/`
+    and `.github/workflows/`, and every text file under `scripts/` and `release/`."""
+    picked = [
+        p for p in files_under(root, "tests", ".github/workflows") if p.suffix in CITATION_SUFFIXES
+    ]
+    return picked + [p for p in files_under(root, "scripts", "release") if _text(p) is not None]
