@@ -177,7 +177,8 @@ class _Home:
        does not hold with a `RuntimeError` naming both.
     2. `ended.is_set()` only in `IDLE`, `CANCELLED` and `DONE`; `START` clears it in the same
        lock hold; `CANCEL` and `LOST` set it after theirs, and `END` sets it after the steps have
-       run, so `DONE` precedes `ended.is_set()` by the steps' run (the join waits on `ended`).
+       run, so `DONE` precedes `ended.is_set()` by the steps' run (the join waits on `ended`,
+       and sets it itself if the body died before its last line).
     3. `thread` is the guest thread from `START` until the next `START`; `None` before the first.
     4. `steps` grows only in `ABANDONED`; `END` from `ABANDONED` empties it into the guest
        thread's hands; `LOST` from `ABANDONED` keeps them in `DONE`: the thread is dead and
@@ -371,9 +372,10 @@ def _join_guest(home: _Home) -> None:
                 # the lock, a body not yet running is cancelled: it returns at once if it starts.
                 with home.lock:
                     if not home.ended.is_set():
-                        cancel = home.phase is _HomePhase.STARTING  # a body never taken
-                        home._move(_HomeEvent.CANCEL if cancel else _HomeEvent.LOST)
-                        home.ended.set()
+                        if home.phase in _GUEST_MAY_RUN:  # a body never taken, or never reported
+                            cancel = home.phase is _HomePhase.STARTING
+                            home._move(_HomeEvent.CANCEL if cancel else _HomeEvent.LOST)
+                        home.ended.set()  # DONE: the body moved the phase and died before this
                 return
         except BaseException as e:
             home.stop(e)

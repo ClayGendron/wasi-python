@@ -307,11 +307,13 @@ def test_a_home_is_left_only_while_a_guest_thread_may_run() -> None:
 
 def test_the_join_backstop_cancels_a_start_and_loses_a_run() -> None:
     """A dead thread whose body never reported: the join cancels a start the body never took, and
-    writes LOST on a running or abandoned home; either way `ended` is set and nothing runs."""
+    writes LOST on a running or abandoned home; a body that moved to DONE and died before its
+    last line is left there; in every case `ended` is set, the join returns and nothing runs."""
     for phase, after in (
         (HP.STARTING, HP.CANCELLED),
         (HP.RUNNING, HP.DONE),
         (HP.ABANDONED, HP.DONE),
+        (HP.DONE, HP.DONE),
     ):
         home = _home._Home()
         never = threading.Thread(target=lambda: None)  # made, never started
