@@ -1000,3 +1000,45 @@ which `sameness.py` finds identical to it (the review's addendum). Own base: mai
   checks, 125 blocked) or a row another entry claims.
 - **Not yet read:** this branch has no CI run (the wave's entry criterion 2); criterion 17's
   Windows legs are first seen in the wave's dry run.
+
+#### Rebased onto wave/01 (on 085's rebased tip `650834a`: main `7d0649d`, 087 and 085; 2026-10-19)
+
+`git rebase 650834a` replayed 084's ten commits, from main `9d89535`. Three hunks conflicted, in two
+files; I resolved each one as 084's builder. Everything else merged cleanly, among it `README.md`,
+`tests/checks/test_v1_4_embedding.py` (078 and 087 also edit it) and the rest of
+`src/wasi_python/runner.py`, where 078's session `HOME` removal took 084's `_remove_fresh_home`
+without a conflict. `git range-diff` shows eight commits `=`, and the build commit and the README
+and CHANGELOG commit `!`, by these hunks alone.
+
+1. **The build commit, `src/wasi_python/runner.py`, `_call_deferred`'s `finally`:** 078 moved the
+   teardown into a `release()` step handed to `_home_of(c).finish(release)`, so it never runs
+   while a guest thread runs (078, Decision 14); 084 replaced the two `shutil.rmtree` calls with
+   `_remove_fresh_home(home[0], tmp, tmp_fd)`. Kept 078's step; inside it, 084's removal.
+2. **The build commit, `src/wasi_python/runner.py`, `_end_session`'s end:** 078 wrapped the release
+   and the `done` signal in a `finish()` step, run now or by the ending's guest thread; 084 added
+   `_flush_warnings()` after the `try`. Kept 078's code whole, and 084's flush after it, at the
+   function's level, as before.
+3. **The README and CHANGELOG commit, `CHANGELOG.md`, `## 0.1.0a8 — unreleased`:** both sides
+   kept: 078's and 085's bullets first, as the base has them, then 084's two, then the base's
+   065, 083 and 087 bullets.
+
+**One semantic change, by the merge and not by me:** when 078 abandons a guest thread (a stopped
+call or ending whose thread is still running), the `HOME` removal and the session's release now run
+later, on that guest thread, after this call's flush. A warning they queue is then given by the next
+flush (`run`, a `Session`'s opening or ending, or the exit hook), which Decision 7 already allows
+("given by the next flush") and the build review's departure 2 foresaw. The guest thread runs those
+steps after it has let go of its `_Home` lock, so the removal and `_warn_later` still run under no
+runner lock and the warning is still given outside every lock (criterion 14). In the usual case,
+with no guest thread running, `finish` runs the step at once, and the order is the one reviewed.
+The `shutil.rmtree` calls left in `runner.py` are the same three as on 084's reviewed tip (the
+zip directory's and the data copies'), none for a private root or a `HOME`.
+
+**The fast tier on `8e69a2b`** (`uv run pytest -m "not slow" -n 3`, against a private copy of main's
+set `s-c50ca51fae5eb55b-c9dcb5b8`, `build/fast-084-wave01.log`): `wasi_python v1: 529/669 pass · 1 gap ·
+25 blocked · 3 fail · 111 deselected (unit suite 1705/1713, 8 skipped)`; `ratchet vs 9c6ba6db2d:
+lost 1 · gained 11 · grew 0`; `ruff check` and `ruff format --check` green. The 11 gained are 087's
+five and 084's six; the unit suite is 085's tip's 1697 plus 084's 16. The three fails and the lost
+pass are 087's rows, the same as on 085's tip and red only because no set with 087's patch exists in
+these worktrees: `test_manifest_recipes_match_the_tree` (the lost pass) and
+`test_a_timeout_past_2_147_seconds_fires[plain]` and `[snapshot]`. Every 084 row and every runner
+unit test passes. The claim list above is unchanged.
