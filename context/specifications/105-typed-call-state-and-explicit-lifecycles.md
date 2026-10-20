@@ -873,19 +873,43 @@ the worktree (git-ignored): `mypy-base-linux.txt`, `mypy-base-win32.txt`,
 - **The fast tier on the frozen `v0.1.0a7` set** (`WASI_PYTHON_ARTIFACTS=/home/user/wasi_python/build/baseline-a7/set/wasi-python-0.1.0a7`,
   `uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider`, on `aa2239e`, the code of the
   reviewed tip plus the review's one fix, under the machine's `build/fast-tier.lock`, `SIGINT`
-  at its default): «FIXFAST». The failures are the chain's baseline's `failing-nodes.txt`
+  at its default): **83 failed, 2427 passed, 52 skipped in 286.52s (0:04:46)**. The failures are the chain's baseline's `failing-nodes.txt`
   exactly (82 checks of an artifact set older than the tree, and
   `test_runner_grants.py::test_the_walk_judges_links`, which needs a non-root user). The
   record is `build/105/built-fix.json` (`fast-fix.log`), copied from
   `build/progress/latest.json` as the run ended. The build reviewer's own tier on `7618b48`
   (`build/105/review-fast.log`, `review.json`) gave 83 failed, 2427 passed, 52 skipped in
   287.30 s, the same 83.
+- **The two Ctrl-C rows red in this builder's early records: the launch, not the tree.** The
+  builder's first runs of the tier on `0944ead` (`build/105/fast-run1.log`, its record
+  `built-run1.json`: **85 failed, 2425 passed, 52 skipped in 371.87s**; a second run the same,
+  85 failed in 356.29 s, its files since overwritten) had the baseline's 83 failures and two
+  more, `tests/checks/test_v1_2_hostile_guest.py::test_ctrl_c_stops_a_computing_guest[default]`
+  and `[default-turn]`, each "the child did not end within its limit" (120 s); so did every run
+  of the hostile-guest file on three cores launched the same way, on this tree
+  (`build/105/stress-1.log`, `stress-2.log`, `fix-hostile.log`) and on 104's tip in
+  `/home/user/wt/104` (`stress-base.log`), and a full tier on 104's tip launched the same way
+  (`fast-base.log`: 85 failed, the same two). The rows passed alone every time (six runs,
+  1.3 to 1.5 s), and passed in every one of the build reviewer's runs. **The cause, found
+  after the review (EXECUTED):** those runs were started as background jobs of a
+  non-interactive shell (`(nohup script &)`), which inherit `SIGINT` ignored; Python keeps an
+  ignored `SIGINT` ignored at startup (`signal.getsignal(SIGINT)` is `1`, `SIG_IGN`, in such a
+  job; the default handler in the foreground, `build/105/sigint-probe.txt`), the judge's
+  workers and their children inherit it, and in that child `_deferred_ctrl_c` sees a handler
+  that is not the default and defers nothing, so the simulated `SIGINT` of
+  `_thread.interrupt_main()` is dropped, the computing guest never stops and the child runs to
+  the 120 s limit. The builder's earlier reading of this as the machine's load was wrong; the
+  rows need the default `SIGINT` handler, which the judge normally has. The record below was
+  taken with `SIGINT` reset to its default before the tier (`build/105/with-sigint.py`, which
+  resets the handler and execs the script): the rows pass, and the record has exactly the
+  baseline's 83.
 - **Sameness (criterion 5), on the record above.** Against 104's built record
   (`/home/user/wt/104/build/104/built.json`), with `--claims build/105/claims.toml`
   (`build/105/sameness-fix-104.txt`):
 
 ```
-«FIXSAME104»
+note: explained by claims: 105 3
+sameness exit 0
 ```
 
   Against the chain's baseline (`/home/user/wasi_python/build/baseline-a7/baseline.json`) with
@@ -893,7 +917,8 @@ the worktree (git-ignored): `mypy-base-linux.txt`, `mypy-base-win32.txt`,
   concatenated; `build/105/sameness-fix-baseline-chain.txt`):
 
 ```
-«FIXSAMECHAIN»
+note: explained by claims: 102 4 · 103 3 · 104 4 · 105 3
+sameness exit 0
 ```
 
   Each prints its claim note and nothing else: no `status`, `need`, `bytes`, `passes` or
@@ -1057,7 +1082,7 @@ fixed or answered".
    `build/105/seen-failing-backstop.txt`, exit 124), then green on the fix (49 rows pass). The
    `_Home` docstring's invariant 2 now says the join sets `ended` itself if the body never
    does. No table row changes: the backstop was the one writer outside the tables, and it
-   stays outside them in `DONE`. «FIXRUNS»
+   stays outside them in `DONE`. Re-run on the fix (EXECUTED): `tests/unit/test_lifecycles.py` and `tests/unit/test_runner_calls.py` alone, 67 passed; the hostile-guest file on three cores (`build/105/fix-hostile.log`, launched before the `SIGINT` cause was found: the baseline's four rows and the two Ctrl-C rows, as every such launch); `uv run mypy --strict src/wasi_python` still 8 errors, all `mounts.py`; `ruff check` and `ruff format --check` clean; the fast tier with `SIGINT` at its default and the sameness lines, the bullets above: the baseline's 83 exactly, each sameness line its claim note and nothing else.
 2. **The notes' `Any` token counts were stale** (Low, context only) — written in by the
    reviewer as `51eba18` (400 tokens, `tools.py` 115: the `_Json` alias names
    `dict[str, Any]` once for its 23 spellings); confirmed, the measurement file under `build/`
