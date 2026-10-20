@@ -1,0 +1,164 @@
+== attrs-26.1.0
+tests/test_pyright.py missing: [] uses: ['proc']
+== beautifulsoup4-4.15.0
+== charset_normalizer-3.5.2
+== cloudpickle-3.1.2
+== contourpy-1.4.0
+tests/test_codebase.py missing: [] uses: ['proc']
+== cycler-0.12.1
+== defusedxml-0.7.1
+== et_xmlfile-2.0.0
+== fonttools-4.67.0
+Tests/cu2qu/cli_test.py missing: ['py'] uses: ['proc']
+Tests/metaTools/check_table_coverage_test.py missing: ['check_table_coverage'] uses: ['proc']
+Tests/qu2cu/qu2cu_cli_test.py missing: ['py'] uses: []
+Tests/ttLib/main_test.py missing: [] uses: ['proc']
+Tests/ttx/ttx_test.py missing: [] uses: ['proc']
+== html5lib-1.1
+html5lib/tests/test_meta.py missing: ['mock'] uses: []
+== jinja2-3.1.6
+tests/test_async.py missing: ['trio'] uses: []
+tests/test_async_filters.py missing: ['trio'] uses: []
+== joblib-1.6.0
+joblib/test/test_backports.py missing: [] uses: ['thr']
+joblib/test/test_config.py missing: [] uses: ['proc', 'thr']
+joblib/test/test_dask.py missing: ['distributed'] uses: ['proc', 'thr']
+joblib/test/test_hashing.py missing: [] uses: ['proc']
+joblib/test/test_memmapping.py missing: [] uses: ['proc', 'thr']
+joblib/test/test_memory.py missing: [] uses: ['proc']
+joblib/test/test_missing_multiprocessing.py missing: [] uses: ['proc']
+joblib/test/test_module.py missing: [] uses: ['proc']
+joblib/test/test_numpy_pickle.py missing: [] uses: ['sock']
+joblib/test/test_parallel.py missing: [] uses: ['proc', 'thr']
+joblib/test/test_store_backends.py missing: [] uses: ['proc', 'thr']
+joblib/test/test_testing.py missing: [] uses: ['proc']
+== kiwisolver-1.5.1
+== lxml-6.1.3
+src/lxml/tests/test_threading.py missing: [] uses: ['thr']
+== markupsafe-3.0.4
+== matplotlib-3.11.2
+lib/matplotlib/tests/test_animation.py missing: [] uses: ['proc']
+lib/matplotlib/tests/test_backend_inline.py missing: [] uses: ['proc']
+lib/matplotlib/tests/test_backend_macosx.py missing: [] uses: ['proc', 'thr']
+lib/matplotlib/tests/test_backend_nbagg.py missing: [] uses: ['proc']
+lib/matplotlib/tests/test_backend_pdf.py missing: [] uses: ['proc']
+lib/matplotlib/tests/test_backend_ps.py missing: [] uses: ['proc']
+lib/matplotlib/tests/test_backend_qt.py missing: [] uses: ['proc']
+lib/matplotlib/tests/test_backend_tk.py missing: [] uses: ['proc', 'thr']
+lib/matplotlib/tests/test_backend_webagg.py missing: [] uses: ['proc']
+lib/matplotlib/tests/test_backends_interactive.py missing: [] uses: ['proc', 'thr']
+lib/matplotlib/tests/test_basic.py missing: [] uses: ['proc']
+lib/matplotlib/tests/test_determinism.py missing: [] uses: ['proc']
+lib/matplotlib/tests/test_dviread.py missing: [] uses: ['proc']
+lib/matplotlib/tests/test_figure.py missing: [] uses: ['thr']
+lib/matplotlib/tests/test_font_manager.py missing: [] uses: ['proc', 'thr']
+lib/matplotlib/tests/test_ft2font.py missing: ['Tavmjong'] uses: []
+lib/matplotlib/tests/test_getattr.py missing: [] uses: ['proc']
+lib/matplotlib/tests/test_matplotlib.py missing: [] uses: ['proc']
+lib/matplotlib/tests/test_pickle.py missing: [] uses: ['proc']
+lib/matplotlib/tests/test_preprocess_data.py missing: [] uses: ['proc']
+lib/matplotlib/tests/test_pyplot.py missing: [] uses: ['proc']
+lib/matplotlib/tests/test_rcparams.py missing: [] uses: ['proc']
+lib/matplotlib/tests/test_sphinxext.py missing: [] uses: ['proc']
+lib/matplotlib/tests/test_texmanager.py missing: [] uses: ['proc']
+lib/matplotlib/tests/test_ticker.py missing: [] uses: ['proc']
+== more_itertools-11.2.1
+tests/test_more.py missing: [] uses: ['thr']
+== mpmath-1.3.0
+== narwhals-2.27.1
+tests/from_pycapsule_test.py missing: ['pyarrow'] uses: []
+tests/read_scan_test.py missing: ['polars'] uses: []
+tests/dtypes/pyarrow_extension_dtypes_test.py missing: ['pyarrow'] uses: []
+tests/expr_and_series/concat_str_test.py missing: ['pyarrow'] uses: []
+tests/expr_and_series/pandas_str_dtypes_test.py missing: ['pyarrow'] uses: []
+tests/frame/arrow_c_stream_test.py missing: ['polars', 'pyarrow'] uses: []
+tests/frame/from_arrow_test.py missing: ['pyarrow'] uses: []
+tests/frame/to_arrow_test.py missing: ['pyarrow'] uses: []
+tests/frame/to_polars_test.py missing: ['polars'] uses: []
+tests/hypothesis/getitem_test.py missing: ['polars'] uses: []
+tests/hypothesis/join_test.py missing: ['polars', 'pyarrow'] uses: []
+tests/series_only/arrow_c_stream_test.py missing: ['polars', 'pyarrow'] uses: []
+tests/series_only/to_arrow_test.py missing: ['pyarrow'] uses: []
+tests/series_only/to_polars_test.py missing: ['polars'] uses: []
+tests/translate/to_py_scalar_test.py missing: ['pyarrow'] uses: []
+== networkx-3.7
+networkx/drawing/tests/test_pydot.py missing: [] uses: ['proc']
+networkx/utils/tests/test_decorators.py missing: [] uses: ['thr']
+== openpyxl-3.1.5
+== packaging-26.3
+tests/test_musllinux.py missing: [] uses: ['proc']
+tests/test_tags.py missing: [] uses: ['proc']
+== patsy-1.0.3
+== pillow-13.0.0
+Tests/test_file_eps.py missing: [] uses: ['proc']
+Tests/test_file_palm.py missing: [] uses: ['proc']
+Tests/test_image_access.py missing: [] uses: ['proc']
+Tests/test_imagegrab.py missing: [] uses: ['proc']
+Tests/test_main.py missing: [] uses: ['proc']
+Tests/oss-fuzz/test_fuzzers.py missing: ['fuzzers'] uses: []
+== pyparsing-3.3.3
+tests/test_diagram.py missing: ['railroad'] uses: []
+tests/test_unit.py missing: [] uses: ['proc']
+== pypdf-6.21.1
+tests/test_doc_common.py missing: [] uses: ['proc']
+tests/test_encryption.py missing: [] uses: ['proc']
+tests/test_filters.py missing: [] uses: ['proc']
+tests/test_page.py missing: [] uses: ['proc']
+tests/test_utils.py missing: [] uses: ['proc']
+tests/test_writer.py missing: [] uses: ['proc']
+tests/generic/test_appearance_stream.py missing: [] uses: ['proc']
+tests/generic/test_data_structures.py missing: [] uses: ['proc']
+tests/generic/test_files.py missing: [] uses: ['proc']
+tests/generic/test_font.py missing: [] uses: ['proc']
+tests/scripts/test_make_release.py missing: [] uses: ['proc']
+== python-dateutil-2.9.0.post0
+== pyyaml-6.0.3
+tests/legacy_tests/test_representer.py missing: ['test_constructor'] uses: []
+tests/legacy_tests/test_yaml.py missing: ['test_canonical', 'test_constructor', 'test_dump_load', 'test_emitter', 'test_errors', 'test_input_output', 'test_mark', 'test_multi_constructor', 'test_reader', 'test_recursive', 'test_representer', 'test_resolver', 'test_schema', 'test_sort_keys', 'test_structure', 'test_tokens'] uses: []
+tests/legacy_tests/test_yaml_ext.py missing: ['test_tokens'] uses: []
+== regex-2026.9.29
+== six-1.17.0
+== soupsieve-3.0.3
+== sympy-1.14.0
+sympy/core/tests/test_symbol.py missing: [] uses: ['thr']
+sympy/external/tests/test_codegen.py missing: [] uses: ['proc']
+sympy/interactive/tests/test_ipython.py missing: [] uses: ['proc']
+sympy/testing/tests/test_module_imports.py missing: [] uses: ['proc']
+sympy/utilities/_compilation/tests/test_compilation.py missing: [] uses: ['proc']
+sympy/utilities/tests/test_autowrap.py missing: ['Cython', 'setuptools'] uses: []
+sympy/utilities/tests/test_misc.py missing: [] uses: ['proc']
+== tabulate-0.10.0
+test/test_api.py missing: ['common'] uses: []
+test/test_cli.py missing: ['common'] uses: ['proc']
+test/test_input.py missing: ['common'] uses: []
+test/test_internal.py missing: ['common'] uses: []
+test/test_output.py missing: ['common'] uses: []
+test/test_regression.py missing: ['common'] uses: []
+test/test_textwrapper.py missing: ['common'] uses: []
+== threadpoolctl-3.7.0
+== tomli_w-1.2.0
+== toolz-1.2.0
+toolz/sandbox/tests/test_parallel.py missing: [] uses: ['proc']
+== tqdm-4.70.1
+tests/tests_main.py missing: [] uses: ['proc']
+tests/tests_rlock.py missing: [] uses: ['proc']
+tests/tests_synchronisation.py missing: [] uses: ['proc', 'thr']
+tests/tests_tqdm.py missing: [] uses: ['thr']
+== typing_extensions-4.16.0
+src/test_typing_extensions.py missing: [] uses: ['proc']
+== tzdata-2026.5
+== webencodings-0.6.1
+== xlrd-2.0.2
+== xlsxwriter-3.2.9
+== xmltodict-1.0.4
+== cloudpickle-3.1.2
+tests/cloudpickle_test.py missing: [] uses: ['proc']
+== cycler-0.12.1
+== et_xmlfile-2.0.0
+== openpyxl-3.1.5
+== threadpoolctl-3.7.0
+tests/test_api_introspection.py missing: [] uses: ['thr']
+tests/test_threadpoolctl.py missing: [] uses: ['proc', 'thr']
+== tomli-w-1.2.0
+== xlrd-2.0.2
+== XlsxWriter-RELEASE_3.2.9

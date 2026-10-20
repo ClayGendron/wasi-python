@@ -1,0 +1,11 @@
+# The eight packages whose PyPI sdists carry no tests: each project's release-tag archive, downloaded
+# 2026-10-20 and its SHA-256 recomputed. Read with tar only; nothing imported or run.
+# sha256  bytes  url
+e83c1956b154ceb252c32e079ac7a95860a76c9ce894858dd082cc881008cae0  23326  https://github.com/matplotlib/cycler/archive/refs/tags/v0.12.1.tar.gz
+7acae4307459d436eee740eea52ec9056f37b8b907d6aef7b0a97a1ccff90ff9  64055  https://github.com/cloudpipe/cloudpickle/archive/refs/tags/v3.1.2.tar.gz
+435415e3dbcaa51d9f30bca91730c8483eabd83779dface976b10bf84a3a4b97  53102  https://github.com/joblib/threadpoolctl/archive/refs/tags/3.7.0.tar.gz
+3b423098831faf35be897c5018c93e7c67eabf95d3359e1d5e97e5a4c0265ace  65320  https://github.com/hukkin/tomli-w/archive/refs/tags/1.2.0.tar.gz
+893cebbe13b9f4521c83262be142cc363a8ec62c48af42ee6f697a22feebd664  381303  https://github.com/python-excel/xlrd/archive/refs/tags/2.0.2.tar.gz
+bab634b7cb46ad0dd184c47ca818b882aa83c1e472609f1dbe2701e99f68a081  24923295  https://github.com/jmcnamara/XlsxWriter/archive/refs/tags/RELEASE_3.2.9.tar.gz
+64a599aeed98b74925dcc09a18c7b3e19dafb3754eb8bad2b6887b63a91f7a37  2923125  https://foss.heptapod.net/openpyxl/openpyxl/-/archive/3.1.5/openpyxl-3.1.5.tar.gz
+b710736febf4b4589805f1cc0ccea41781353fc4550466c472649f8518bed4b5  99140  https://foss.heptapod.net/openpyxl/et_xmlfile/-/archive/2.0.0/et_xmlfile-2.0.0.tar.gz

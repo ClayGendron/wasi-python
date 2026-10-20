@@ -1,0 +1,5 @@
+# Pure wheels 067 would add to the judge's test kit (PyPI JSON, 2026-10-20; not downloaded).
+# sha256  url  (needed by)
+cd557f4a75cf074e84bc374249b9dd491eaeacd61376b9eb3c423282211619d2  https://files.pythonhosted.org/packages/5e/2e/b41d8a1a917d6581fc27a35d05561037b048e47df50f27f8ac9c7e27a710/freezegun-1.5.5-py3-none-any.whl  (python-dateutil: tests/test_rrule.py, tests/test_utils.py import it at module level)
+e389b12b7073604be67845dbe32bf8297360ad9a609b24846fe15d86e0b7dc01  https://files.pythonhosted.org/packages/49/1f/3d4f0579913edd3ad5b23ad52fcc42531cb736ad52af2ba6c057da8785b6/pretend-1.0.9-py2.py3-none-any.whl  (packaging: tests/test_tags.py, test_version.py, test_manylinux.py, test_musllinux.py)
+32a7b79ac57a2e83670ce329ccf675798bc5a2094783a63676866b70503f2e2b  https://files.pythonhosted.org/packages/60/3f/3e3f8fd0919249b0200c80fbc4f9a1e70be19f9883da71dfb7f8b9ab8aca/tomli-2.5.0-py3-none-any.whl  (tomli-w: every test module imports it unguarded)
