@@ -906,3 +906,24 @@ steps in 8 min 27 s. The old `build/`'s logs were saved first, to the session sc
 ```
 
 No `--retire`, no `--accept-fewer-passes`, no `--partial`.
+
+#### Rebased onto 41bcc0f (wave 05: 090 and 082)
+
+`git rebase --onto 41bcc0f ebd0449`, from `6e127e8`. One conflict hunk:
+
+1. `scripts/make_stdlib_zip.py`, `SKIP_NAMES` and `REWRITE` (commit "the recipe"): 090's
+   `SKIP_NAMES` (litter now goes by `is_litter`, so `*OS_LITTER` is gone from the set, and
+   `OS_LITTER` is no longer imported) with 043's `REWRITE`, which adds
+   `contourpy/util/_build_config.py`.
+
+Read with no change: 090's `scripts/assemble_artifacts.py` (`drop_litter` and `listed_files` by
+`is_litter`; 043's notice and `MODIFIED` hunks sit apart), `scripts/litter.py`,
+`scripts/steps/20_cpython.sh`, and the harness and unit files 090 and 082 touch. Nothing in 043
+still uses the old `OS_LITTER` import. 043's `scripts/meson_plan.py` copies only the files meson's
+install plan names, and stops unless they are exactly `contourpy/util/_build_config.py`, so no
+litter can pass through it.
+
+Not rebuilt, as the lane asked: 090 changes no artifact byte but `MANIFEST`'s recipe lines, so the
+set the lane rebuilds differs from `4c7099a4` in `MANIFEST` and `SHA256SUMS` alone. On the rebased
+tree: `ruff check` and `ruff format --check` on `src/` and `tests/` green; `uv run pytest tests/unit
+tests/checks/test_rules.py -m "not slow" -n 3` (the lane's lock absent), 1831 passed, 8 skipped.
