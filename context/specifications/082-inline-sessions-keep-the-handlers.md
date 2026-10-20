@@ -203,7 +203,9 @@ If the lane's run has a growth line, it is the base's, not this change's: name i
     known Windows reds, 084's two removal rows, which spec 094 fixes. Not this change's.
   - `judge (ubuntu-24.04, upstream-groupby)`: its pytest passed (2 passed; lost 0, grew 0); the
     job failed only uploading its record (`Failed to CreateArtifact: Unable to make request:
-    ETIMEDOUT`, twice), a network failure. That job was re-run (attempt 2, below).
+    ETIMEDOUT`, twice), a network failure. Re-run alone as attempt 2 of the same run: success.
+  - So the run's one red job is the known Windows one; `gather` and the publishing jobs are
+    skipped because of it, as on main until 094 lands.
   - No GREW line and no G7 anywhere.
   - `judge (ubuntu-24.04, own-rest)` and `judge (macos-15, own-rest)`: 1082 passed, 6 skipped;
     `tests/unit/test_inline_sessions.py ..` on both, so on Linux x86_64 the guard found
