@@ -16,7 +16,7 @@ review has allowed. Allowed by rule, not listed: the C++ standard library (a man
 `std::`, its vtables, type information and guard variables included), the C++ runtime's
 `__cxa_*` and `__cxxabiv1::`, and clang's `__clang_call_terminate`. Allowed by review:
 recipes/weak-duplicates-allowed.txt, one fnmatch pattern per line, matched against the name and
-its demangled form, each with a comment saying why. A pattern that matches nothing is named too,
+its demangled form, each with `# <reason>` on its line, or the build stops. A pattern that matches nothing is named too,
 so the list never outlives what it allows. One line per finding; exit 1 on any.
 
 **link-map.** After the link, wasm-ld's map (`-Wl,--Map`, build/link/python.map) must name each
@@ -70,12 +70,18 @@ def allowed_by_rule(name: str) -> bool:
 
 
 def read_allowed(path: Path) -> list[str]:
-    """The reviewed patterns: one per line, `#` starts a comment, blank lines ignored."""
+    """The reviewed patterns: one per line, each followed on its line by `# <its reason>`; a line
+    that starts with `#` is a comment, and blank lines are ignored. A pattern with no reason stops
+    the build (the confirmation's N3)."""
     out = []
-    for line in path.read_text().splitlines():
-        pattern = line.split("#", 1)[0].strip()
-        if pattern:
-            out.append(pattern)
+    for n, line in enumerate(path.read_text().splitlines(), 1):
+        pattern, _, reason = line.partition("#")
+        pattern = pattern.strip()
+        if not pattern:
+            continue
+        if not reason.strip():
+            raise SystemExit(f"{path.name}:{n}: {pattern!r} has no `# reason` on its line")
+        out.append(pattern)
     return out
 
 

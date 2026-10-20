@@ -238,6 +238,9 @@ def test_the_gate_reads_its_list_and_refuses_a_line_it_cannot_read(tmp_path) -> 
     allowed = tmp_path / "allowed.txt"
     allowed.write_text("# a comment\n\n*pybind11::*  # why it is safe\n")
     assert weak_duplicates.read_allowed(allowed) == ["*pybind11::*"]
+    allowed.write_text("*pybind11::*\n")
+    with pytest.raises(SystemExit, match=r"allowed.txt:1: '\*pybind11::\*' has no `# reason`"):
+        weak_duplicates.read_allowed(allowed)
     with pytest.raises(SystemExit, match="cannot read llvm-nm's line"):
         weak_duplicates.parse_nm("garbage without a type\n")
 

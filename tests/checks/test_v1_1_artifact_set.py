@@ -127,10 +127,10 @@ def test_scikit_learn_notice_carries_its_bundled_parts(artifacts) -> None:
     as the pinned sdist holds it: libsvm's, liblinear's, array-api-compat's and array-api-extra's,
     liac-arff's, packaging's two, MurmurHash3's, CPython's pprint's (the PSF licence and its
     summary of changes), the pytest-derived lines, HDBSCAN's and the Apache-2.0 kernel's; then
-    numpydoc's and django's pinned licences and the Apache-2.0 text; and the datasets' sources and
-    terms, three of them CC BY 4.0 at UCI (spec 044, Decision 11). A .pyc keeps no comment, so
-    these parts are where the zip's users meet the notices. It reads the sdist, so it runs in the
-    build shard (tests/release_shards.toml)."""
+    numpydoc's, django's and pytest's pinned licences and the Apache-2.0 text; and the datasets'
+    sources and terms, three of them CC BY 4.0 at UCI (spec 044, Decision 11). A .pyc keeps no
+    comment, so these parts are where the zip's users meet the notices. It reads the sdist, so it
+    runs in the build shard (tests/release_shards.toml)."""
     needs.need("source tree scikit_learn")
     tarball, _ = pins.source_pair("scikit_learn")
     errors = rules.sklearn_notice_errors(artifacts.dir, tarball, paths.DOWNLOADS)

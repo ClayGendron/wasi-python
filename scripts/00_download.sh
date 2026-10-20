@@ -192,10 +192,12 @@ get https://raw.githubusercontent.com/unicode-org/unicodetools/4fd8eca90b30aa4c7
 # The full MPL-2.0 text tqdm's notice needs (spec 039, Decision 8): its wheel carries only Exhibit A;
 # SPDX's license-list-data at a commit, so the bytes cannot change
 get https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MPL-2.0.txt spdx-31ba1a50-MPL-2.0.txt
-# The notices of two projects scikit-learn adapts code from with no header of their own (spec 044,
-# Decision 11): numpydoc's docscrape and django's slugify, each at the last commit that touched it
+# The notices of three projects scikit-learn adapts code from with no full notice of their own
+# (spec 044, Decision 11): numpydoc's docscrape, django's slugify and pytest's lines in
+# sklearn/utils/_testing.py, each at the last commit that touched the file
 get https://raw.githubusercontent.com/numpy/numpydoc/894c8c47646fcbb4eae4fca068c229ae761f7a62/LICENSE.txt numpydoc-894c8c47-LICENSE.txt
 get https://raw.githubusercontent.com/django/django/1dae4ac1778f04805c0ed62c8debb13b281ba02b/LICENSE django-1dae4ac1-LICENSE
+get https://raw.githubusercontent.com/pytest-dev/pytest/0d90a31d4a647fa7ba0d53a05b9266c2d4aaa05a/LICENSE pytest-0d90a31d-LICENSE
 
 # Research inputs: the reference build the harness self-tests use
 research https://github.com/brettcannon/cpython-wasi-build/releases/download/v3.14.7/python-3.14.7-wasi_sdk-24.zip python-3.14.7-wasi_sdk-24.zip

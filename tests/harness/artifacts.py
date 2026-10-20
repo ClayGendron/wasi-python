@@ -369,7 +369,11 @@ SKLEARN_PARTS = (
     ("sklearn/cluster/_hdbscan/_tree.pxd", 1, 28),
     ("sklearn/model_selection/_split.py", 1001, 1015),
 )
-SKLEARN_PINNED_TEXTS = ("numpydoc-894c8c47-LICENSE.txt", "django-1dae4ac1-LICENSE")
+SKLEARN_PINNED_TEXTS = (
+    "numpydoc-894c8c47-LICENSE.txt",
+    "django-1dae4ac1-LICENSE",
+    "pytest-0d90a31d-LICENSE",
+)
 # The plain Apache-2.0 text, for _split.py's kernel: wasi-libc's pinned copy, at the line's commit.
 APACHE_TEXT = re.compile(r"wasi-libc-[0-9a-f]{8}-LICENSE-APACHE")
 # The datasets' attribution part: each UCI source, the licence and its link.
