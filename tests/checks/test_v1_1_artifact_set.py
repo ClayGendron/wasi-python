@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from harness import artifacts as rules
-from harness import needs, paths, scan
+from harness import needs, paths, pins, scan
 
 pytestmark = pytest.mark.goal("v1.1")
 
@@ -122,6 +122,32 @@ def test_tqdm_notice_carries_the_mpl_and_its_source(artifacts) -> None:
     assert not errors, scan.report(errors)
 
 
+def test_scikit_learn_notice_carries_its_bundled_parts(artifacts) -> None:
+    """LICENSES/scikit-learn.txt holds scikit-learn's licence and each bundled component's notice
+    as the pinned sdist holds it: libsvm's, liblinear's, array-api-compat's and array-api-extra's,
+    liac-arff's, packaging's two, MurmurHash3's, CPython's pprint's (the PSF licence and its
+    summary of changes), the pytest-derived lines, HDBSCAN's and the Apache-2.0 kernel's; then
+    numpydoc's and django's pinned licences and the Apache-2.0 text; and the datasets' sources and
+    terms, three of them CC BY 4.0 at UCI (spec 044, Decision 11). A .pyc keeps no comment, so
+    these parts are where the zip's users meet the notices. It reads the sdist, so it runs in the
+    build shard (tests/release_shards.toml)."""
+    needs.need("source tree scikit_learn")
+    tarball, _ = pins.source_pair("scikit_learn")
+    errors = rules.sklearn_notice_errors(artifacts.dir, tarball, paths.DOWNLOADS)
+    assert not errors, scan.report(errors)
+
+
+def test_the_sample_images_are_not_in_the_zip(artifacts) -> None:
+    """scikit-learn's two sample photographs stay out with their folder (spec 044, Decision 10):
+    no member under sklearn/datasets/images/, while the six datasets beside them are in."""
+    needs.need("stdlib zip")
+    with zipfile.ZipFile(artifacts.path("python-stdlib.zip")) as z:
+        names = z.namelist()
+    assert "sklearn/datasets/data/iris.csv" in names, "the zip has no scikit-learn datasets"
+    images = [n for n in names if n.startswith("sklearn/datasets/images/")]
+    assert images == [], f"the zip holds {images}"
+
+
 def test_cpython_notice_covers_hacl(artifacts) -> None:
     """HACL* is compiled into the binary and CPython's license.rst does not name it (review of
     spec 004, finding 1), so its MIT notice must be in LICENSES/cpython.txt."""
@@ -210,10 +236,11 @@ def test_stdlib_c_modules_are_builtin(guest, which) -> None:
 
 DOTTED_NAMES = """
 import importlib, json, sys
-scipy_only = sys.argv[1] == "scipy"
+own = ("scipy", "sklearn")  # each package with a run of its own
+pkg = sys.argv[1]
 dotted = sorted(
     n for n in sys.builtin_module_names
-    if "." in n and (n.split(".")[0] == "scipy") == scipy_only
+    if "." in n and ((n.split(".")[0] == pkg) if pkg in own else n.split(".")[0] not in own)
 )
 wrong = []
 for n in dotted:
@@ -229,7 +256,8 @@ print(json.dumps({"dotted": len(dotted), "wrong": wrong}))
 # fuel on the plain reactor and 0.1 G on the snapshot before regex (its pre-build review's
 # finding 10). One program per binary, each with a budget; a figure above half its budget is a
 # finding for the build review, and a plain run past its budget is split per top-level package,
-# never narrowed to fewer modules. scipy's 95 modules are their own run (spec 037).
+# never narrowed to fewer modules. scipy's 95 modules are their own run (spec 037), and so are
+# scikit-learn's 69 (spec 044; test_v1_3_default_profile's test_scikit_learn_modules_are_builtin).
 DOTTED_FUEL = {"plain": 20_000_000_000, "snapshot": 10_000_000_000}
 SCIPY_DOTTED_FUEL = 40_000_000_000
 # What native scipy 1.18.1 itself gives, not this build's (EXECUTED under the pinned oracle, spec

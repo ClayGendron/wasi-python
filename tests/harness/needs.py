@@ -173,6 +173,7 @@ SOURCE_COMPONENTS = (
     "networkx",
     "openblas",
     "scipy",
+    "scikit_learn",  # spec 044
 )
 
 VOCABULARY: dict[str, Need] = {

@@ -1,6 +1,6 @@
 # 044 — scikit-learn
 
-- **Status:** **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-18; revised the same day against its pre-build review
+- **Status:** **Being built** (2026-10-20, stacked on 037 then 038; the builder's notes before the build, below, list what a reviewer confirms first). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-18; revised the same day against its pre-build review
   (`../reviews/044-scikit-learn-and-045-statsmodels-spec-2026-10-18.md`): all fourteen findings
   that concern it are fixed here, and the review's Disposition says where. It changes the build
   recipe and the artifact set, so it is reviewed before it is built (constitution §5.6). It is build-class: it touches
@@ -667,6 +667,75 @@ datasets, three of them CC BY 4.0 at UCI (decided: they ship with attribution; D
 what changes if the owner declines); the photographs left out (Decision 10); and what spec
 045's statsmodels bundles. This specification is not built until 83 is answered, as 043 waits
 on 81.
+
+## The builder's notes before the build (2026-10-20)
+
+The builder (a fresh agent, not the author), on `spec/044-scikit-learn` in its own worktree,
+stacked on 037's trial tip `50a3fe3` (§4.14); it rebases onto 038's built tip when the lane sends
+it, and builds then. Nothing was built here: the pins were fetched and verified, the recipe, the
+step and the checks written, and only the unit files and `tests/checks/test_rules.py` run.
+
+**The pre-build review.** Its Disposition answers all fourteen findings in this text, and each
+answer is where it says (checked against Decisions 2, 6, 7, 9, 10, 11 and 13 and question 83).
+The reviewer's confirmation of that Disposition is not recorded in the review file: findings 1,
+2, 3, 4 and 6 are Medium, so a reviewer confirms them before the build review, with B1 below.
+Questions 80 and 83 are answered (`../decisions.md`): the facts sheet keeps question 80's form;
+question 83 approved everything as decided here.
+
+**What the builder found or changed, each for the reviewer** (EXECUTED unless marked):
+
+- **B1 (Medium, licences): the notice sweep found two components Decision 11 and question 83 do
+  not name.** HDBSCAN's code, from Leland McInnes' `hdbscan` (BSD-3-Clause, "Copyright (c) 2015,
+  Leland McInnes"): its full notice heads `cluster/_hdbscan/_tree.pxd` and its terms the other
+  four files of `cluster/_hdbscan/`. And `StratifiedGroupKFold._iter_test_indices`
+  (`model_selection/_split.py:1001-1015`), "based on this kaggle kernel … and is a subject to
+  Apache 2.0 License", with its list of changes. Both families are approved elsewhere
+  (BSD-3-Clause throughout; Apache-2.0 with regex, decision 43), and both are compiled or packed
+  here, so `LICENSES/scikit-learn.txt` gains their parts (`_tree.pxd` lines 1-28; `_split.py`
+  lines 1001-1015 and the plain Apache-2.0 text, wasi-libc's pinned `LICENSE-APACHE`, no new pin)
+  and the judge's notice check holds them. The owner is asked to confirm both are inside question
+  83's approval; the rest of the sweep pairs as Decision 11 says (scipy-, joblib-, pandas- and
+  networkx-derived lines under their shipped notices; CPython 2.7.5's lines in `_testing.py`
+  under CPython's; ideas and algorithms cited, not code; the landing notes carry the full list).
+- **B2 (Low): `--drop`, not `--leave-out`.** 042 is not on main. 042's own Decision 5 says that if
+  023 landed a member-exclusion option it is extended, not doubled. 023's `--drop` is that
+  option: it applies to every input, matches the name before `.py` becomes `.pyc`, and stops when
+  it matches nothing. So step 70 passes `--drop sklearn/datasets/images` and no option is added;
+  042 can take the same route. Decision 10's effect is unchanged (410 members, EXECUTED with step
+  70's `tree_members` on the patched tree).
+- **B3 (Low): the link-map check requires four names, not every renamed one.** wasm-ld collects
+  unreferenced functions, and a renamed `set_seed` or `bounded_rand_int` whose every call sits in
+  its own file (libsvm's, `_newrand`'s) may be inlined and then dropped, so it can be absent from
+  a correct link. Required: the three renamed `mt_rand` objects and `sklearn_liblinear_set_seed`
+  (called from `_liblinear`'s helper, another file); forbidden: `mt_rand`, `set_seed`,
+  `bounded_rand_int`. The weak-duplicate gate stands behind `bounded_rand_int` before the link.
+- **B4 (Low): libsvm's notice is lines 1-32 of `svm.cpp`;** the comment closes on line 32 (the
+  review's nit put the `*/` on 31).
+- **B5 (Low): the include map's `@SO@`.** Two module pairs share a generated file name
+  (`_gradient_boosting.c`, `_utils.c`), so those entries name the module's private folder,
+  `<module>.cpython-<tag>-wasm32-wasi.so.p/`, written `@SO@` and rendered by step 58 beside
+  `@ROOT@`. Nine entries, eight headers, as Design says.
+- **B6 (Low): judge changes the text did not list.** `scan.MESON_BUILDS` gains `sklearn-build`
+  (spec 059's rule for a new meson build); `shards.COMPONENT_NAMES` maps the source component
+  `scikit_learn` to the package `scikit-learn`; `tests/upstream/packages.toml` names
+  scikit-learn's suite `later` (spec 066; this Scope leaves it out); the notice check reads the
+  pinned sdist, so it joins the release's build shard by node id; `test_v1_1`'s dotted-builtin
+  program gives `sklearn` its own run, as `scipy` has (its 69 modules are
+  `test_scikit_learn_modules_are_builtin`); two unit fixtures gain step 58 and the package.
+- **B7 (Low): the weak-duplicate list.** Each entry is an fnmatch pattern over the name and its
+  demangled form, and a pattern that allows nothing stops the build, so the list never outlives
+  what it allows. It starts with no entry: stage 3's first link lists any weak definition the
+  existing packages already share across archives (none is known; the gate is new for all of
+  them), and each is reviewed into it then. The unit check's compiled-objects case runs where
+  step 10 has unpacked the SDK and is skipped elsewhere; its parsing, rule and list cases always
+  run (EXECUTED against the pinned SDK 34 unpacked for the probe, then removed).
+- **B8 (Low): wasi-sdk 34.** Spec 086 landed; Decision 3's probe was on 33. The gate reads this
+  build's own `meson setup` log and compile records, so it holds on 34; stage 1 records 34's line.
+- **B9 (Low): wine's creator.** `descr/wine_data.rst` says "Creator: R.A. Fisher", an upstream
+  copy of iris's line; the attribution part uses the same file's "Original Owners: Forina, M. et
+  al, PARVUS", whom UCI credits too.
+- **B10 (Note): the constructor list** grows at stage 3, when the build shows the names and their
+  link order (Decision 8).
 
 ## Landing notes
 

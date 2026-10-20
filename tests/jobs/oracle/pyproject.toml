@@ -66,6 +66,10 @@ dependencies = [
     # wheel there, which links Apple's Accelerate); elsewhere the wheels bundle scipy-openblas.
     "scipy @ https://files.pythonhosted.org/packages/8c/c5/ba929d7feb9b2332f96827c12e0e924b61973b59b4dea383b603372c65ce/scipy-1.18.1-cp315-cp315-macosx_12_0_arm64.whl ; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "scipy==1.18.1 ; sys_platform != 'darwin' or platform_machine != 'arm64'",
+    # scikit-learn at the guest's pin (spec 044, Decision 13): on macOS arm64 its one cp315 wheel,
+    # macosx_12_0, calls BLAS only through the scipy above. Its wheels have OpenMP; the oracle runs
+    # one thread (tests/harness/jobs.py, OMP_NUM_THREADS).
+    "scikit-learn==1.9.1",
 ]
 
 [tool.uv.sources]

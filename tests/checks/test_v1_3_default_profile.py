@@ -2,7 +2,10 @@
 prints native Python's output in the guest; pyyaml, markupsafe and charset-normalizer run their
 pure-Python paths, as nothing native of theirs is in the zip; threadpoolctl finds no native thread
 pools, which is the truth on wasm32-wasi. pandas' Styler and networkx's graph atlas read their own
-files from the zip through spec 041's two carried patches, with native Python's output."""
+files from the zip through spec 041's two carried patches, with native Python's output.
+scikit-learn (spec 044) gives native scikit-learn's answers serially: no OpenMP, joblib in the
+calling thread, its datasets and style sheets read from the zip (one carried patch), and what the
+sandbox lacks raised by name."""
 
 from __future__ import annotations
 
@@ -10,7 +13,7 @@ import json
 
 import pytest
 
-from harness import jobs, scan
+from harness import jobs, needs, scan
 
 pytestmark = pytest.mark.goal("v1.3")
 
@@ -228,3 +231,178 @@ def test_networkx_atlas_reads_from_the_zip(guest, which) -> None:
     the patch, `gzip.open` refuses the zip's Traversable with TypeError (spec 039, Decision 9)."""
     findings = _findings(guest, which, ATLAS)
     assert not findings, scan.report(findings)
+
+
+# scikit-learn (spec 044, Decision 13). Each behaviour check runs as an embedder calls it, nothing
+# writable, on both binaries, with a fuel limit a hang ends at; the golden runs through the judge's
+# driver, as scipy's do.
+SKLEARN_FUEL = 80 * 10**9  # an import of scikit-learn and a small fit, with room
+SKLEARN_MODULES = 69  # step 58's module count
+SKLEARN_RENAMED = (  # recipes/sklearn-renames/, scripts/gen_inittab.py's RENAMED
+    "sklearn._cyutility",
+    "sklearn.ensemble._hist_gradient_boosting._gradient_boosting",
+    "sklearn.cluster._hdbscan._tree",
+    "sklearn.manifold._utils",
+)
+
+
+def _sklearn(guest, which: str, code: str) -> dict:
+    r = guest(which, ["-c", code], fuel=SKLEARN_FUEL, root_writable=False)
+    assert (r.exit_code, r.trapped) == (0, None), r.describe()
+    return json.loads(r.text.strip().splitlines()[-1])
+
+
+def _golden(guest, which: str, job: str) -> None:
+    files = {f"/jobs/{job}.py": jobs.script(job).read_bytes(), "/out/.keep": b""}
+    files.update({f"/data/{n}": src.read_bytes() for n, src in jobs.DATA.items()})
+    r = guest(which, [f"/jobs/{job}.py", "/data", "/out"], files=files)
+    assert r.exit_code == 0, f"{job}: {r.describe()}"
+    (r.root / "out" / ".keep").unlink()
+    why = jobs.compare(jobs.expected_path(job).read_bytes(), jobs.render(r.stdout, r.root / "out"))
+    assert why is None, why
+
+
+@pytest.mark.slow
+@BINARY
+def test_machine_learning_job_matches_native(guest, which) -> None:
+    """scikit-learn's bundled datasets, a tree, a scaled logistic regression, a forest with
+    n_jobs=1 and 2, KMeans, PCA, linear and ridge regression, an RBF SVC and a LinearSVC, a k-d
+    tree k-NN's cross-validation, histogram gradient boosting, a ColumnTransformer over a pandas
+    frame, TF-IDF and a joblib round trip print native scikit-learn's values (Decision 13)."""
+    _golden(guest, which, "machine_learning")
+
+
+SKLEARN_THREADS = """
+import json, warnings
+warnings.simplefilter("error")
+import joblib
+import numpy as np
+from threadpoolctl import threadpool_info
+from sklearn.cluster import KMeans
+from sklearn.datasets import load_iris
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.utils._openmp_helpers import _openmp_effective_n_threads, _openmp_parallelism_enabled
+X, y = load_iris(return_X_y=True)
+every = RandomForestClassifier(n_estimators=10, random_state=0, n_jobs=-1).fit(X, y)
+one = RandomForestClassifier(n_estimators=10, random_state=0, n_jobs=1).fit(X, y)
+km = KMeans(n_clusters=3, n_init=1, random_state=0).fit(X)
+print(json.dumps({
+    "openmp": _openmp_parallelism_enabled(),
+    "n_threads": _openmp_effective_n_threads(-1),
+    "n_jobs": joblib.effective_n_jobs(-1),
+    "same": np.array_equal(every.predict_proba(X), one.predict_proba(X)),
+    "pools": threadpool_info(),
+    "clusters": len(set(km.labels_.tolist())),
+}))
+"""
+
+
+@BINARY
+def test_scikit_learn_runs_without_threads(guest, which) -> None:
+    """With every warning an error, scikit-learn says OpenMP is off and resolves every n_threads to
+    1; joblib's n_jobs=-1 is 1, so a forest fitted with it predicts what n_jobs=1 predicts;
+    threadpoolctl finds no pool; a KMeans fit returns (Decisions 3 and 9)."""
+    got = _sklearn(guest, which, SKLEARN_THREADS)
+    want = {"openmp": False, "n_threads": 1, "n_jobs": 1, "same": True, "pools": [], "clusters": 3}
+    assert got == want
+
+
+SKLEARN_FILES = """
+import json
+from sklearn import datasets
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.utils import all_estimators, estimator_html_repr
+names = ("iris", "digits", "diabetes", "breast_cancer", "wine", "linnerud")
+loaded = {n: getattr(datasets, f"load_{n}")() for n in names}
+html = estimator_html_repr(make_pipeline(StandardScaler(), LogisticRegression()))
+print(json.dumps({
+    "shapes": {n: list(b.data.shape) for n, b in loaded.items()},
+    "descr": sorted(n for n, b in loaded.items() if b.DESCR.startswith(".. _")),
+    "css": "--sklearn-color-unfitted-level-0: #fff5e6;" in html,
+    "estimators": len(all_estimators()),
+}))
+"""
+
+
+@BINARY
+def test_scikit_learn_reads_its_files_from_the_zip(guest, which) -> None:
+    """The six bundled loaders give native's shapes and descriptions through importlib.resources;
+    the HTML representation holds a line of estimator.css, which the carried patch reads as a
+    package resource (without it, `import sklearn` raises NotADirectoryError); all_estimators()
+    finds native's 208 (Decisions 7 and 9)."""
+    got = _sklearn(guest, which, SKLEARN_FILES)
+    shapes = {
+        "iris": [150, 4],
+        "digits": [1797, 64],
+        "diabetes": [442, 10],
+        "breast_cancer": [569, 30],
+        "wine": [178, 13],
+        "linnerud": [20, 3],
+    }
+    want = {"shapes": shapes, "descr": sorted(shapes), "css": True, "estimators": 208}
+    assert got == want
+
+
+SKLEARN_LACKS = """
+import json
+from sklearn.datasets import fetch_california_housing, load_sample_images
+out = {}
+try:
+    load_sample_images()
+except Exception as e:
+    out["images"] = [type(e).__name__, getattr(e, "name", None)]
+try:
+    fetch_california_housing()
+except Exception as e:
+    out["fetch"] = [type(e).__name__, getattr(e, "filename", None)]
+print(json.dumps(out))
+"""
+
+
+def test_scikit_learn_says_what_it_lacks() -> None:
+    """Through `wasi_python.run` itself, with no root and no grant (the runner's defaults), on the
+    plain binary: the sample photographs are left out, so load_sample_images() raises
+    ModuleNotFoundError naming sklearn.datasets.images; a fetcher's cache folder is under `~`,
+    which no HOME expands, so fetch_california_housing() raises FileNotFoundError on `~` before
+    any network call (Decision 9). With a root the folder is made and the download fails instead,
+    as the README says."""
+    needs.need("runner", "artifact dir")
+    import wasi_python
+
+    done = wasi_python.run(["-c", SKLEARN_LACKS], snapshot=False, fuel=SKLEARN_FUEL)
+    assert done.exit_code == 0, done
+    got = json.loads(done.stdout.decode().strip().splitlines()[-1])
+    want = {
+        "images": ["ModuleNotFoundError", "sklearn.datasets.images"],
+        "fetch": ["FileNotFoundError", "~"],
+    }
+    assert got == want
+
+
+SKLEARN_BUILTINS = """
+import importlib, json, sys
+names = sorted(n for n in sys.builtin_module_names if n.split(".")[0] == "sklearn")
+wrong = []
+for n in names:
+    try:
+        got = importlib.import_module(n).__name__
+    except Exception as e:
+        got = f"import {type(e).__name__}"
+    if got != n:
+        wrong.append([n, got])
+print(json.dumps({"names": names, "wrong": wrong}))
+"""
+
+
+@BINARY
+def test_scikit_learn_modules_are_builtin(guest, which) -> None:
+    """Each of scikit-learn's 69 extension modules is a builtin that imports under its dotted
+    name, the form 023's and 037's checks use; the four whose init functions are renamed are
+    among them (Decisions 6 and 8). They run apart from the other packages' dotted builtins
+    (test_v1_1_artifact_set), as scipy's do."""
+    got = _sklearn(guest, which, SKLEARN_BUILTINS)
+    assert len(got["names"]) == SKLEARN_MODULES, got["names"]
+    assert set(SKLEARN_RENAMED) <= set(got["names"]), got["names"]
+    assert got["wrong"] == [], got["wrong"]

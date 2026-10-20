@@ -242,8 +242,9 @@ def plan_errors(plan: dict[str, Shard], files: list[str], groups: list[str]) -> 
 KINDS = ("suite", "via", "build-only", "later")
 # The runtimes linked into every binary, which neither list names (the pre-build review, F5).
 LINKED_RUNTIMES = ("wasi-libc", "llvm-runtimes")
-# needs.SOURCE_COMPONENTS names two components otherwise than paths.PACKAGES and the file do.
-COMPONENT_NAMES = {"cpython": "python", "sqlite": "sqlite-autoconf"}
+# needs.SOURCE_COMPONENTS names three components otherwise than paths.PACKAGES and the file do
+# (scikit-learn's tree is named as its tarball names it; spec 044).
+COMPONENT_NAMES = {"cpython": "python", "sqlite": "sqlite-autoconf", "scikit_learn": "scikit-learn"}
 SPEC_NUMBER = re.compile(r"spec (\d{3})\b")
 
 

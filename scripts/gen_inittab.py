@@ -13,8 +13,10 @@ ROOT_MODULES, or the run fails. The plot packages' directories (build/plot-modul
 contourpy's `_contourpy`, spec 043), so their names are those paths.
 
 A module whose init function would share its name with another's is compiled with a renamed one
-(recipes/scipy_rename.h and recipes/scipy_cython_optimize_zeros.h), and RENAMED names it here; the
-clash check runs on the final names (spec 037, Decision 8).
+(recipes/scipy_rename.h and recipes/scipy_cython_optimize_zeros.h; scikit-learn's four in
+recipes/sklearn-renames/, spec 044), and RENAMED names it here; the clash check runs on the final
+names (spec 037, Decision 8). scikit-learn's archives lie at their install paths
+(build/sklearn-modules), as scipy's do.
 
 Each entry is registered through a wrapper that calls its init function inside CPython's package
 context, set to the entry's dotted name, as `_PyImport_RunModInitFunction` does for a module loaded
@@ -43,6 +45,14 @@ RENAMED = {
     "scipy._cyutility": "scipy__cyutility",
     "scipy.optimize.cython_optimize._zeros": "scipy_optimize_cython_optimize__zeros",
     "scipy.spatial._qhull": "scipy_spatial__qhull",
+    # scikit-learn (spec 044, Decision 6; recipes/sklearn-renames/): its _cyutility shares pandas'
+    # and scipy's name; three modules share a name with another of its own, whose partner keeps it.
+    "sklearn._cyutility": "sklearn__cyutility",
+    "sklearn.ensemble._hist_gradient_boosting._gradient_boosting": (
+        "sklearn_ensemble__hist_gradient_boosting__gradient_boosting"
+    ),
+    "sklearn.cluster._hdbscan._tree": "sklearn_cluster__hdbscan__tree",
+    "sklearn.manifold._utils": "sklearn_manifold__utils",
 }
 # CPython's own declaration (Include/internal/pycore_import.h), less the parameter's name.
 SWAP = "const char *_PyImport_SwapPackageContext"

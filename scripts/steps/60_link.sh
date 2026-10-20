@@ -1,7 +1,8 @@
 #!/bin/sh
 # Step 60: link numpy, pandas, the plot packages (Pillow, kiwisolver, matplotlib; spec 023; contourpy
 # and matplotlib's _qhull with step 37's qhull, spec 043), regex (spec 047), lxml with libxml2 and
-# libxslt (spec 046), scipy with OpenBLAS (spec 037), zlib, bz2, lzma, sqlite3 and the host door into CPython as
+# libxslt (spec 046), scipy with OpenBLAS (spec 037), scikit-learn (spec 044), zlib, bz2, lzma,
+# sqlite3 and the host door into CPython as
 # builtins through the build-directory Modules/Setup.local, then relink the interpreter as a WASI
 # reactor (build/out/python.wasm) with recipes/reactor_main.c in place of Programs/python.o (spec
 # 003), and with three link-time refusals: recipes/iconv_refusals.c, which refuses GB18030 at
@@ -9,7 +10,10 @@
 # commands ENOTSUP as wasi-libc's dup does (spec 086, Decision 5), and recipes/freopen_refusal.c,
 # which refuses freopen (spec 037). Last, the static constructors and target features are checked against the judge's
 # reviewed lists (spec 023, Decision 4), so a build with a constructor no review has read stops
-# here, before step 80 would hang on it.
+# here, before step 80 would hang on it. Around the link, two checks of scripts/weak_duplicates.py
+# (spec 044, Decision 6): before it, no weak definition that two archives share unless a review
+# allowed it (recipes/weak-duplicates-allowed.txt), which wasm-ld would resolve without a word;
+# after it, the link map names scikit-learn's renamed random generators and none of the originals.
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -34,6 +38,8 @@ PM="$B/plot-modules"
 [ -s "$B/openblas-wasi/lib/libopenblas.a" ] || die "build/openblas-wasi/lib/libopenblas.a is missing: run step 38"
 [ -d "$B/scipy-modules/scipy" ] || die "build/scipy-modules/scipy is missing: run step 57"
 [ -s "$B/scipy-shims/libscipy_lapack_shims.a" ] || die "build/scipy-shims/libscipy_lapack_shims.a is missing: run step 57"
+# Step 58's modules (spec 044).
+[ -d "$B/sklearn-modules/sklearn" ] || die "build/sklearn-modules/sklearn is missing: run step 58"
 # The generated inittab declares CPython's internal _PyImport_SwapPackageContext itself, as this
 # header declares it (spec 047, Decision 4): a CPython that changes it stops here, not at run time.
 grep -q '^extern const char \* _PyImport_SwapPackageContext(const char \*newcontext);$' \
@@ -43,7 +49,8 @@ remove "$L" "$OUT/python.wasm"
 mkdir -p "$L/archives" "$OUT"
 "$HOSTPY" "$HERE/scripts/gen_inittab.py" "$L/inittab.c" numpy="$B/numpy-build" pandas="$B/pandas-build" \
   PIL="$PM/pillow" kiwisolver="$PM/kiwisolver" matplotlib="$PM/matplotlib" \
-  contourpy="$PM/contourpy" regex="$B/regex-build" lxml="$B/lxml-build" scipy="$B/scipy-modules"
+  contourpy="$PM/contourpy" regex="$B/regex-build" lxml="$B/lxml-build" scipy="$B/scipy-modules" \
+  sklearn="$B/sklearn-modules"
 
 # makesetup takes *.a tokens as libraries: each module's archive is copied under a unique name, and
 # the static libraries its .deps file names are linked once each, with its -L and -l lines (qhull's
@@ -52,19 +59,20 @@ mkdir -p "$L/archives" "$OUT"
 # (no Tk). matplotlib's _qhull is linked since spec 043, with carried patch 0002, which opens no
 # /dev/null on WASI; its .deps names step 37's libqhull_r once. scipy's _qhull is linked too, with
 # the same qhull (spec 037, Decision 8). scipy has two modules named _zeros, so its archives are
-# named by their import path (spec 037).
+# named by their import path (spec 037), and so are scikit-learn's, which has three such pairs
+# (spec 044).
 archives=""
 deps=""
 for pair in numpy:"$B/numpy-build" pandas:"$B/pandas-build" pillow:"$PM/pillow" \
   kiwisolver:"$PM/kiwisolver" matplotlib:"$PM/matplotlib" contourpy:"$PM/contourpy" \
-  regex:"$B/regex-build" lxml:"$B/lxml-build" scipy:"$B/scipy-modules"; do
+  regex:"$B/regex-build" lxml:"$B/lxml-build" scipy:"$B/scipy-modules" sklearn:"$B/sklearn-modules"; do
   pkg=${pair%%:*}
   dir=${pair#*:}
   for so in $(find "$dir" -name "*.cpython-$PYTHON_TAG-wasm32-wasi.so" | sort); do
     name=$(basename "$so" .cpython-$PYTHON_TAG-wasm32-wasi.so)
     case "$pkg:$name" in *:*_tests|numpy:_simd|matplotlib:_tkagg) continue;; esac
     case "$pkg" in
-      scipy) a="$L/archives/$(printf '%s' "${so#"$dir"/}" | sed "s#\.cpython-$PYTHON_TAG-wasm32-wasi\.so\$##; s#/#_#g").a";;
+      scipy|sklearn) a="$L/archives/$(printf '%s' "${so#"$dir"/}" | sed "s#\.cpython-$PYTHON_TAG-wasm32-wasi\.so\$##; s#/#_#g").a";;
       *) a="$L/archives/${pkg}_$name.a";;
     esac
     [ ! -e "$a" ] || die "two modules would share the archive name $(basename "$a")"
@@ -79,6 +87,17 @@ libs="$libs$(printf '%s\n' $deps | grep '^-l' | sort -u | tr '\n' ' ')"
 # scipy's side of the LAPACK ABI (no module's .deps names it), and the emulated mmap OpenBLAS's
 # buffer uses (wasi-libc's, malloc underneath; no new import).
 libs="$libs$B/scipy-shims/libscipy_lapack_shims.a -lwasi-emulated-mman "
+
+# The weak-duplicate gate (spec 044, Decision 6): every archive this link takes but the SDK's
+# runtime libraries and CPython's own (the modules', the static libraries their .deps name,
+# scipy's shims, and the four C libraries the Setup lines below link), read with the SDK's llvm-nm.
+weak_archives="$archives $(printf '%s\n' $deps | grep '\.a$' | sort -u | tr '\n' ' ')"
+weak_archives="$weak_archives $B/scipy-shims/libscipy_lapack_shims.a $B/zlib-wasi/lib/libz.a"
+for lib in libbz2.a liblzma.a libsqlite3.a; do weak_archives="$weak_archives $B/stdlib-libs/lib/$lib"; done
+"$HOSTPY" "$HERE/scripts/weak_duplicates.py" archives "$SDK/bin/llvm-nm" "$SDK/bin/llvm-cxxfilt" \
+  "$HERE/recipes/weak-duplicates-allowed.txt" $weak_archives > "$L/weak-duplicates.log" 2>&1 \
+  || { grep '^ERROR' "$L/weak-duplicates.log" | head -n 20; die "the link's archives share a weak definition no review allowed (build/link/weak-duplicates.log)"; }
+tail -n 1 "$L/weak-duplicates.log"
 
 # _sqlite3 from CPython's own sources (Modules/Setup.stdlib.in), with the one define CPython's
 # configure adds when it finds sqlite3_serialize. No `=` may appear in a Setup.local module line:
@@ -164,6 +183,16 @@ for g in $GUARDS; do
 done
 eval "$link" > "$L/reactor-link.log" 2>&1 || { tail -n 20 "$L/reactor-link.log"; die "the reactor's link failed"; }
 clashes "$L/reactor-link.log"
+# scikit-learn's three random generators kept their own names (spec 044, Decision 6): the map names
+# each renamed mt_rand and liblinear's set_seed, which _liblinear's helper calls from another file,
+# and none of the original names. The other renamed set_seed and bounded_rand_int calls sit in the
+# file that defines them, where the compiler may inline every call and the linker then drop the
+# definition, so they are not required; the weak-duplicate gate stood behind bounded_rand_int.
+"$HOSTPY" "$HERE/scripts/weak_duplicates.py" link-map "$L/python.map" \
+  --require sklearn_libsvm_mt_rand sklearn_liblinear_mt_rand sklearn_newrand_mt_rand sklearn_liblinear_set_seed \
+  --forbid mt_rand set_seed bounded_rand_int > "$L/link-map-check.log" 2>&1 \
+  || { cat "$L/link-map-check.log"; die "the link map shows a random generator of scikit-learn's under its original name, or none (build/link/link-map-check.log)"; }
+tail -n 1 "$L/link-map-check.log"
 
 # The link used the host-neutral wasm runtime that step 10 put in place (spec 012, Decision 2), not
 # the host tarball's: each runtime archive the link map names, its path resolved (the map writes

@@ -112,6 +112,8 @@ LICENCE_COMPONENTS = (
     # scipy (spec 037, Decision 13)
     "scipy",
     "openblas",
+    # scikit-learn (spec 044, Decision 11)
+    "scikit-learn",
 )
 # SQLite's package line is named as its pin names it (sqlite-autoconf 3540100 is SQLite 3.54.1).
 PACKAGES = (
@@ -175,6 +177,7 @@ PACKAGES = (
     "narwhals",
     "scipy",
     "openblas",
+    "scikit-learn",
 )
 
 # What the snapshot pre-imports (recipes/reactor_main.c, PREIMPORT): the stdlib's bootstrap, no
