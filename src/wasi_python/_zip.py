@@ -18,14 +18,14 @@ from ._artifacts import Artifacts
 from ._private_dirs import _Private
 from ._process import process
 
-# The zip (spec 017, Decision 2, amended by spec 023, Decision 5): one private folder per zip per
+# The zip: one private folder per zip per
 # process, beside a lock file. It holds `lib/python3XY.zip`, granted read-only at /usr/local/lib
 # on every call (so the guest sees the zip there and nothing else), and `mpl-data/`, matplotlib's
 # data extracted from the zip's inner archive, granted read-only at the path matplotlib computes.
 # The table, `process().zips`: the zip's SHA-256 -> [its _Private folder, the copy's stamp, the
 # data's record or None], under `process().zip_lock`, its own lock since the epoch ticker takes
 # the cache lock every round.
-MPL_DATA_MEMBER = "matplotlib/mpl-data.zip"  # the inner archive in the stdlib zip (spec 023)
+MPL_DATA_MEMBER = "matplotlib/mpl-data.zip"  # the inner archive in the stdlib zip
 MPL_DATA_GUEST = "matplotlib/mpl-data"  # under the zip's guest path: Path(__file__) there
 
 
@@ -39,7 +39,7 @@ class _ZipFolder:
 def _zip_folder(found: Artifacts, want: str | None = None) -> _ZipFolder:
     # A found set's zip comes with the digest its SHA256SUMS check took: the private copy, the
     # only zip the guest reads, is held to it, so a zip changed after the check never reaches the
-    # guest (spec 087's build review, F1).
+    # guest.
     want = want if want is not None else _artifacts._digest(found.stdlib_zip)
     name = f"python{_artifacts._version_tag(found.manifest)}.zip"
     p = process()
@@ -106,7 +106,7 @@ def _real_folder(path: Path) -> None:
 
 
 def _member_parts(name: str) -> tuple[str, ...]:
-    """A member's path, refused when it could leave the data folder (spec 023, Decision 5)."""
+    """A member's path, refused when it could leave the data folder."""
     parts = tuple(name.rstrip("/").split("/"))
     if (
         not name

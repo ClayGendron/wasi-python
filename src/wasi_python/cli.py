@@ -1,5 +1,5 @@
 """`wasi-python run`: run one program through `wasi_python.run` and print its result as one line
-of JSON (spec 019). It adds no power `run` does not have: each option is one of `run`'s
+of JSON. It adds no power `run` does not have: each option is one of `run`'s
 arguments, and without an option the argument is `run`'s default.
 
     wasi-python run -- -c "print(1)"
@@ -11,7 +11,7 @@ JSON says how the program ended); 1, `run` raised (one JSON object with `error` 
 2, a usage error (argparse's message on standard error); 130, interrupted by Ctrl-C.
 
 Run as its own process, the command raises its soft descriptor limit to its hard one first, so
-the cap on open files guards it (spec 068, Decision 7); the library never changes a process's
+the cap on open files guards it; the library never changes a process's
 limits.
 """
 
@@ -92,7 +92,7 @@ def _parser() -> argparse.ArgumentParser:
     )  # fmt: skip
     p.add_argument("--no-snapshot", action="store_true")
     # Both grant options write to one list, each value tagged with its mode, so the order typed
-    # is the order `run` numbers them in (spec 022).
+    # is the order `run` numbers them in.
     p.add_argument(
         "--grant", dest="grants", action="append", default=[], type=lambda v: ("ro", v),
         metavar="GUEST=HOST", help="a host folder the guest sees at GUEST, read-only",
@@ -187,7 +187,7 @@ def _raise_descriptor_limit() -> None:
     """The soft RLIMIT_NOFILE raised to the hard one, where the `resource` module exists (not on
     Windows); if that is refused, once more to min(hard, OPEN_MAX); a refusal leaves the limit as
     it was. The command owns its process, so its default cap on open files then guards it under
-    macOS's 256 and Linux's usual 1,024 (spec 068, Decision 7)."""
+    macOS's 256 and Linux's usual 1,024."""
     try:
         import resource
     except ImportError:

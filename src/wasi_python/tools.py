@@ -24,7 +24,7 @@ subset and the bounds are the protocol's own, not the host Python's, so an answe
 on every host; they change only with `PROTOCOL` (README.md, "The tool protocol").
 """
 
-# The tool protocol's host half (spec 031): the tools, and the frame host that answers the
+# The tool protocol's host half: the tools, and the frame host that answers the
 # guest's frames through the door.
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ _INT_CHARS = 64  # the longest integer literal a frame may hold
 _MESSAGE_CHARS = 4096  # the longest message the guest is told
 _ECHO_CHARS = 64  # the longest piece of guest text a message repeats
 _Json = dict[str, Any]  # a JSON object as json.loads gives it: a schema, a descriptor, a frame
-_FAULT_CHARS = 200  # a fault's type and first line, as spec 032's FileFault
+_FAULT_CHARS = 200  # a fault's type and first line, as a mount's FileFault
 _RECORD_OUTCOMES = 1000  # the frames a record lists, whatever max_calls is
 _MAX_ID = 2**53 - 1
 _KINDS = (
@@ -80,7 +80,7 @@ _DEADLINE_MARGIN_TICKS = 2  # a tool call ends this many ticks before the run's 
 
 _WRAPPER_DEPTH = 64  # partials, methods and __wrapped__ links walked to find bound keywords
 _PARTIALMETHOD = ("__partialmethod__", "_partialmethod")  # its mark: Python 3.13 on, and before
-_C_SLOTS = (  # a type's __call__ written in C: the walk to bound keywords stops there (spec 060)
+_C_SLOTS = (  # a type's __call__ written in C: the walk to bound keywords stops there
     types.WrapperDescriptorType,
     types.MethodWrapperType,
     types.MethodDescriptorType,
@@ -97,7 +97,7 @@ _HINTS = (
     ("open_world", "openWorldHint"),
 )
 _JSON_TYPES = ("string", "integer", "number", "boolean", "null", "array", "object")
-# Decision 3: what the validator checks, what it ignores, and what descends into the value.
+# What the validator checks, what it ignores, and what descends into the value.
 _CHECKED = frozenset(
     (
         "type", "enum", "const", "properties", "required", "additionalProperties",
@@ -114,7 +114,7 @@ _IGNORED = frozenset(
     )
 )  # fmt: skip
 _SURROGATE = re.compile("[\ud800-\udfff]")
-# One token per match, never retried: an escape pair, a quote or a bracket (Decision 4, rule 3).
+# One token per match, never retried: an escape pair, a quote or a bracket (rule 3).
 _TOKEN = re.compile(r'\\.|["\[\]{}]', re.S)
 
 
@@ -168,7 +168,7 @@ class Tool:
     _fixed: frozenset[str] = field(default=frozenset(), repr=False)  # keywords a partial binds
 
     def __post_init__(self) -> None:
-        # Only tool() makes one: not a direct call, and not dataclasses.replace (review F7).
+        # Only tool() makes one: not a direct call, and not dataclasses.replace.
         if not _MAKING.get():
             raise TypeError("a Tool is made by tool(), which describes and vets it")
 
@@ -259,7 +259,7 @@ class ToolRecord:
             hide a tool still running with your authority behind 1,000 cheap frames.
     """
 
-    # abandoned: spec 036, the build review's F2
+    # abandoned: the tool calls left running past their answer
 
     frames: int
     outcomes: tuple[ToolOutcome, ...]
@@ -267,7 +267,7 @@ class ToolRecord:
     abandoned: int = 0
 
 
-# The two shapes a type checker sees (spec 049, Decision 5): `fn` positionally, or none.
+# The two shapes a type checker sees: `fn` positionally, or none.
 @typing.overload
 def tool(
     fn: Callable[..., Any],
@@ -351,7 +351,7 @@ def tool(
             function, or a type hint has no schema.
         ValueError: A name or a schema the protocol does not allow.
     """
-    # timeout_s: spec 036
+    # timeout_s: the tool's own deadline, in seconds
     options = dict(
         name=name,
         description=description,
@@ -454,7 +454,7 @@ def _make(
 
 def _is_async_generator(fn: Any) -> bool:
     """Whether calling `fn` makes an async generator, read through `partial`s and at an
-    object's `__call__` (spec 053, Decision 1)."""
+    object's `__call__`."""
     while isinstance(fn, functools.partial):
         fn = fn.func
     if inspect.isasyncgenfunction(fn):
@@ -467,8 +467,8 @@ def _is_async_generator(fn: Any) -> bool:
 def _bound_keywords(name: str, fn: Any) -> frozenset[str]:
     """The keywords a `functools.partial` binds, wherever `inspect.signature` may meet one on
     its way to the function: the partial, nested partials, a bound method's function, a
-    `__wrapped__` chain, a callable object's or a class's `__call__`, to any depth (spec 056,
-    Decision 1; spec 060, Decision 8). Each is fixed:
+    `__wrapped__` chain, a callable object's or a class's `__call__`, to any depth.
+    Each is fixed:
     left out of the derived schema and refused in a frame, so the guest neither reads its value
     nor sets it. A `functools.partialmethod` met other than through an instance is refused."""
     found: set[str] = set()
@@ -488,7 +488,7 @@ def _bound_keywords(name: str, fn: Any) -> frozenset[str]:
             target = target.__wrapped__
         elif not (inspect.isfunction(target) or inspect.isbuiltin(target)):
             # Any other object, a class included: its type's __call__, as inspect.signature
-            # follows it, to any depth (spec 060, Decision 8: N8, and a metaclass's __call__),
+            # follows it, to any depth (a metaclass's __call__ included),
             # but not into C's slots, which hold no partial and where inspect stops too.
             try:
                 call = type(target).__call__
@@ -591,7 +591,7 @@ def _derived(
     required: list[str] = []
     for p in sig.parameters.values():
         if p.name in fixed:
-            continue  # bound by a partial: not the guest's to read or set (spec 056)
+            continue  # bound by a partial: not the guest's to read or set
         where = f"{name}: parameter {p.name!r}"
         if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
             raise TypeError(f"{where}: *args and **kwargs cannot be described; name each one")
@@ -625,7 +625,7 @@ def _derived(
 
 
 def _schema_of(hint: Any, where: str) -> _Json:
-    """Decision 2's hints, mapped to JSON Schema."""
+    """The hints a tool's signature may carry, mapped to JSON Schema."""
     if hint is Any:
         return {}
     if hint is None or hint is type(None):
@@ -696,7 +696,7 @@ def _plain(value: Any, where: str, depth: int) -> Any:
 
 
 # -------------------------------------------------------------------------------------------------
-# Vetting a schema (Decision 3)
+# Vetting a schema
 
 
 def _vet(name: str, root: _Json, validates_input: bool) -> list[Any]:
@@ -793,7 +793,7 @@ class _Vetting:
         """No walk along anyOf, oneOf and $ref alone, which stay on one value, comes back to
         where it began: a depth-first search over those edges finds no node on its own path.
         And none is longer than _SAME_VALUE_CHAIN nodes, so the validator's recursion is bounded
-        by the value's depth times that, never by the host Python's limit (review F5)."""
+        by the value's depth times that, never by the host Python's limit."""
         done: set[int] = set()
         longest: dict[int, int] = {}  # the most nodes a same-value walk from a node passes
         for start in nodes:
@@ -935,7 +935,7 @@ def _malformed(key: str, value: Any) -> str | None:
 
 
 # -------------------------------------------------------------------------------------------------
-# The validator (Decision 3)
+# The validator
 
 
 class _TooComplex(Exception):
@@ -959,9 +959,9 @@ _KeySets = dict[tuple[int, str], tuple[_Json, frozenset[Any]]]
 
 def _keysets(nodes: Iterable[Any]) -> _KeySets:
     """Each `enum` and `const` as a set of keys, made once when the tool is made, so checking a
-    value against them is one key and one lookup (review F1). Each entry keeps its node, and is
+    value against them is one key and one lookup. Each entry keeps its node, and is
     used only for that same object: an id alone can be reused by another node once a Tool is
-    copied or unpickled and the original freed (the confirmation's N1)."""
+    copied or unpickled and the original freed."""
     out: _KeySets = {}
     for s in nodes:
         if not isinstance(s, dict):
@@ -975,7 +975,7 @@ def _keysets(nodes: Iterable[Any]) -> _KeySets:
 
 class _Validator:
     """Checks a decoded value against a vetted schema, with no coercion and type-strict
-    equality, counting its work against a budget (Decision 3, and the build review's F1 and F2).
+    equality, counting its work against a budget.
 
     - One step for each schema node a value is checked against. A node that only delegates
       (`$ref`, `anyOf`, `oneOf`) leaves the value's children to the schema it delegates to, so a
@@ -1236,7 +1236,7 @@ def _key(value: Any, charge: Callable[[], None] | None = None) -> Any:
 
 
 # -------------------------------------------------------------------------------------------------
-# Frames (Decisions 4 and 7)
+# Frames
 
 
 class _Refused(Exception):
@@ -1253,7 +1253,7 @@ def _echo(value: Any) -> str:
 
 
 def _shown(value: Any) -> str:
-    """A value for a message, at a cost bounded whatever its size (review F1)."""
+    """A value for a message, at a cost bounded whatever its size."""
     if isinstance(value, str):
         return _echo(value)
     if value is None:
@@ -1326,7 +1326,7 @@ def _unique_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _parse(frame: bytes) -> _Json:
-    """Decision 4's rules 2 to 6, then the `$bytes` objects decoded."""
+    """The frame's parse rules, then the `$bytes` objects decoded."""
     try:
         text = frame.decode("utf-8")
     except UnicodeDecodeError:
@@ -1382,7 +1382,7 @@ class _NotJSON(Exception):
 
 
 def _to_json(value: Any, depth: int) -> Any:
-    """Decision 6's JSON form, which mirrors the guest's encoding."""
+    """A value's JSON form, which mirrors the guest's encoding."""
     if depth > _VALUE_NESTING:
         raise _NotJSON(f"the value nests deeper than {_VALUE_NESTING} levels")
     if value is None or isinstance(value, bool):
@@ -1430,9 +1430,9 @@ def _bounded(message: str) -> str:
 
 
 def _described(e: BaseException) -> str:
-    """An exception's type name and the first line of its text, as spec 032's `_described`
-    (so `fault` reads as 032's `FileFault`), but total over `BaseException`: a `__str__` that
-    raises `SystemExit` gives the name alone (review F3)."""
+    """An exception's type name and the first line of its text, as a mount's `_described`
+    (so `fault` reads as a mount's `FileFault`), but total over `BaseException`: a `__str__` that
+    raises `SystemExit` gives the name alone."""
     try:
         name = type.__dict__["__name__"].__get__(type(e))  # the type's own name
         if type(name) is not str:
@@ -1469,7 +1469,7 @@ class _Done(NamedTuple):
 
 
 class _Interrupted(NamedTuple):
-    """What a bounded invoke gives when it did not wait for the work (spec 036)."""
+    """What a bounded invoke gives when it did not wait for the work."""
 
     kind: str  # "timeout" or "cancelled"; "tool_error" when the bound itself failed
     abandoned: bool  # the work was left running
@@ -1488,9 +1488,9 @@ class _Work:
 
     def __call__(self, proceed: Callable[[], bool] | None = None, ops: _Ops | None = None) -> _Done:
         """`proceed`, from the bound, is asked once the gate has allowed and before the tool
-        starts: False when the call was already answered, so the tool never runs (spec 056).
+        starts: False when the call was already answered, so the tool never runs.
         `ops`, from the bound too, lets an awaitable the gate or the tool returns start only at
-        its wrapper's first step, under the bound's lock (spec 053, Decision 4)."""
+        its wrapper's first step, under the bound's lock."""
         t = self.tool
         args = self._args
         skipped = f"{t.name} was not run: its call had ended"
@@ -1552,7 +1552,7 @@ class _Work:
     @staticmethod
     def _cancelling(e: BaseException, ops: _Ops | None) -> bool:
         """A `CancelledError` the runner did not ask for, met while the run is being cancelled:
-        answered `cancelled`, as the bound would answer a slice later (spec 053, Decision 6)."""
+        answered `cancelled`, as the bound would answer a slice later."""
         if not isinstance(e, asyncio.CancelledError) or ops is None:
             return False
         try:
@@ -1574,20 +1574,20 @@ def _inline(work: _Work) -> _Done | _Interrupted:
 
 
 # -------------------------------------------------------------------------------------------------
-# The tool loop (spec 053): where an awaitable a gate or a tool returns is awaited.
+# The tool loop: where an awaitable a gate or a tool returns is awaited.
 
 _LOOP_THREAD = "wasi-python-tool--loop"  # no tool name starts with "-": no tool thread has it
 _LOOP_POLL_S = 0.01  # the work thread's wait, in slices: the runner's tick
 
 
 class _NotStarted(Exception):
-    """The call was answered before its awaitable started: it never runs (spec 053, D5)."""
+    """The call was answered before its awaitable started: it never runs."""
 
 
 class _Post:
     """One awaitable posted to the tool loop: whether its wrapper started it, under the bound's
     lock, and how it ended. `ended` is set by the wrapper's `finally`, the task's real end;
-    `returned` only once the awaitable returned, so nothing else reads as a value (spec 075)."""
+    `returned` only once the awaitable returned, so nothing else reads as a value."""
 
     __slots__ = (
         "awaitable",
@@ -1609,7 +1609,7 @@ class _Post:
         self.task: Any = None
         self.loop: Any = None
         self.value: Any = None
-        self.returned = False  # the awaitable returned `value` (spec 075, Decision 1)
+        self.returned = False  # the awaitable returned `value`
         self.error: BaseException | None = None
 
 
@@ -1625,7 +1625,7 @@ def _close_awaitable(awaitable: Any) -> None:
 
 def _cancel_post(post: _Post) -> None:
     """Ask a started task to cancel, on its loop's own thread. A closed loop is skipped, and
-    nothing raises, logs or warns (spec 053, Decision 4). The posted future is never cancelled:
+    nothing raises, logs or warns. The posted future is never cancelled:
     on a closed loop that logs a traceback."""
     try:
         loop, task = post.loop, post.task
@@ -1637,7 +1637,7 @@ def _cancel_post(post: _Post) -> None:
 
 
 class _ToolLoop:
-    """The loop a call's awaitables run on (spec 053, Decisions 2, 3 and 8): `loop`, the event
+    """The loop a call's awaitables run on: `loop`, the event
     loop that awaits `run_async`, which the runner never runs, stops or closes; or, with none,
     a private loop of the call's own, started at its first awaitable on a daemon thread that
     owns the loop's whole life. `count` is told +1 and -1 as that thread starts and ends."""
@@ -1726,8 +1726,8 @@ class _ToolLoop:
         while not post.ended.wait(_LOOP_POLL_S):
             # `future.done()` first, then `ended`: the wrapper sets `ended` in its `finally`
             # before its task completes, so a done future with `ended` unset is a wrapper whose
-            # body never ran (the Confirmation's C-1). Read in this order, neither fact can go
-            # stale (the build review's F1: a `started` read before them could).
+            # body never ran. Read in this order, neither fact can go
+            # stale (a `started` read before them could).
             if future.done() and not post.ended.is_set():
                 _close_awaitable(awaitable)
                 raise asyncio.CancelledError("cancelled before it started")
@@ -1741,7 +1741,7 @@ class _ToolLoop:
             raise _NotStarted
         if post.error is not None:
             raise post.error
-        if not post.returned:  # the wrapper ended with neither a return nor an error (spec 075)
+        if not post.returned:  # the wrapper ended with neither a return nor an error
             raise RuntimeError("the awaitable ended without a result")
         return post.value
 
@@ -1767,7 +1767,7 @@ class _ToolLoop:
             try:
                 post.value = await post.awaitable
                 post.returned = True
-            except GeneratorExit as e:  # kept, so the record names it (spec 075, Decision 2);
+            except GeneratorExit as e:  # kept, so the record names it;
                 post.error = e  # re-raised, so the wrapper's own close path is unchanged
                 raise
             except BaseException as e:  # KeyboardInterrupt and SystemExit stay in the call
@@ -1781,7 +1781,7 @@ class _ToolLoop:
             post.ended.set()
 
     def cancel_tasks(self) -> None:
-        """At a session's turn's end (spec 055, Decision 5): the runner's own tasks still pending
+        """At a session's turn's end: the runner's own tasks still pending
         are asked to cancel, on the loop's thread; the loop itself lives on for the next turn.
         Never waits, raises, logs or warns."""
         try:
@@ -1817,7 +1817,7 @@ class _ToolLoop:
 
 
 class _Ops:
-    """What the work of one bounded call may ask its bound about its awaitables (spec 053)."""
+    """What the work of one bounded call may ask its bound about its awaitables."""
 
     __slots__ = ("_bound", "_slot")
 
@@ -1845,7 +1845,7 @@ class _Ops:
 
 class _Slot:
     """One tool call's result: filled by its own thread, read by its own call only, so a late
-    result of an abandoned call is dropped, never delivered to a later one (spec 036, D4)."""
+    result of an abandoned call is dropped, never delivered to a later one."""
 
     __slots__ = ("abandoned", "done", "fault", "filled", "finished", "post", "started")
 
@@ -1856,15 +1856,15 @@ class _Slot:
         self.started = False  # its thread was started
         self.finished = False  # set under the bound's lock, as its thread ends
         self.abandoned = False  # set under the bound's lock, when the call was answered without it
-        self.post: _Post | None = None  # the awaitable the work posted last (spec 053)
+        self.post: _Post | None = None  # the awaitable the work posted last
 
 
 class _Bounded:
-    """The invoke of spec 036 (Decisions 3 to 5): the work of one tool call runs on a new daemon
+    """The bounded invoke: the work of one tool call runs on a new daemon
     thread, in a copy of the door thread's context, while the door thread waits beside it in
     slices of one tick. The call ends at the first of: the work's answer; a pending Ctrl-C or
     the call's `cancel` (`cancelled`); the call's deadline less two ticks, read from the ticker
-    as spec 010's waits read it, or the tool's `timeout_s` (`timeout`). A call left running is
+    as the poll's waits read it, or the tool's `timeout_s` (`timeout`). A call left running is
     abandoned: its thread runs to its end unseen, and its result is dropped. One call may hold
     `_MAX_ABANDONED` of them; while it does, its next tool call is answered `timeout` at once.
 
@@ -1872,8 +1872,7 @@ class _Bounded:
     ticker's count), `ctrl_c` (whether a Ctrl-C is pending; read, never cleared), `count` (told
     +1 and -1 as tool threads start and end), `start` (starts a thread) and `clock` (for
     `timeout_s`). It never raises an `Exception`: a thread that cannot start, or a fault of its
-    own, is a `tool_error` answer that keeps the call and its tool in the record (the 031 build
-    review's F5)."""
+    own, is a `tool_error` answer that keeps the call and its tool in the record."""
 
     def __init__(
         self,
@@ -1891,7 +1890,7 @@ class _Bounded:
         self._tick, self._stop_at, self._ticks = tick_s, stop_at, ticks
         self._cancel, self._ctrl_c, self._count = cancel, ctrl_c, count
         self._start, self._clock = start, clock
-        self._context = context  # where a call's context is copied: the home thread (spec 078)
+        self._context = context  # where a call's context is copied: the home thread
         self._lock = threading.Lock()
         self._abandoned = 0  # this call's threads still running after their call was answered
 
@@ -1901,8 +1900,8 @@ class _Bounded:
         cancel: Any,
         context: Callable[[], contextvars.Context] | None = None,
     ) -> None:
-        """A session's next turn: its deadline and stop (spec 055, Decision 11), and where its
-        tool calls copy their context (spec 078). The count of abandoned threads carries over, so
+        """A session's next turn: its deadline and stop, and where its
+        tool calls copy their context. The count of abandoned threads carries over, so
         it bounds the whole session, not each turn."""
         with self._lock:
             self._stop_at, self._cancel = stop_at, cancel
@@ -1973,7 +1972,7 @@ class _Bounded:
                 target=target, name=f"wasi-python-tool-{work.tool.name}", daemon=True
             )
             self._start(thread)
-        except Exception as e:  # the operating system's thread limit (spec 036, D5)
+        except Exception as e:  # the operating system's thread limit
             self._count(-1)
             slot.fault = _fault(e)
             return False
@@ -1983,15 +1982,15 @@ class _Bounded:
     def _proceed(self, slot: _Slot) -> bool:
         """Whether the tool may start: False once the call was answered without it. Taken under
         the lock `_abandon` takes, so a call is either answered before its tool starts (the tool
-        never runs) or after (it runs on, abandoned): the a4 security review's F2, spec 056."""
+        never runs) or after (it runs on, abandoned)."""
         with self._lock:
             return not slot.abandoned
 
     def _abandon(self, slot: _Slot) -> bool:
         """Mark the call answered without its work; False if the work had already finished or
-        filled its slot (its thread may not have reached its `finally` yet: the build review's
-        F3), so its answer stands and nothing is counted. An awaitable it had started is asked
-        to cancel (spec 053, Decision 4); one not yet started sees the answer at its first step."""
+        filled its slot (its thread may not have reached its `finally` yet),
+        so its answer stands and nothing is counted. An awaitable it had started is asked
+        to cancel; one not yet started sees the answer at its first step."""
         with self._lock:
             if slot.finished or slot.filled.is_set():
                 return False
@@ -2003,9 +2002,9 @@ class _Bounded:
         return True
 
     def _begin(self, slot: _Slot, task: Any) -> bool:
-        """The wrapper's first step (spec 053, the Confirmation's C-2): in one acquisition of
-        the lock, check that the call is unanswered (056's predicate), mark its awaitable
-        started and record its task. Never built on `_proceed`, which takes the lock itself."""
+        """The wrapper's first step: in one acquisition of the lock, check that the call is
+        unanswered (the admission predicate), mark its awaitable started and record its task.
+        Never built on `_proceed`, which takes the lock itself."""
         with self._lock:
             post = slot.post
             if slot.abandoned or post is None:
@@ -2045,7 +2044,7 @@ class _Bounded:
 class _ToolHost:
     """The frame host: answers one call's protocol frames and keeps its counters and record.
 
-    `admit(length)` is called with a frame's length before its bytes are read (spec 036's door
+    `admit(length)` is called with a frame's length before its bytes are read (the door
     does); `__call__(frame)` answers the frame. A raw `host=` calls only `__call__`, which then
     admits the frame itself, so every frame is counted exactly once. Nothing a frame, a gate or
     a tool does raises out of either."""
@@ -2075,14 +2074,14 @@ class _ToolHost:
         self._outcomes: list[ToolOutcome] = []
         self._pending: tuple[int, int] | None = None  # (seq, length) admitted, not yet read
         self._size = 0
-        # Spec 060: the bytes of the frames admitted, whatever their answer, against max_bytes
+        # The bytes of the frames admitted, whatever their answer, against max_bytes
         # (None: no limit; the runner passes the call's own); and the tool list, encoded once.
         self._max_bytes = max_bytes
         self._admitted = 0
         self._tools_json: bytes | None = None
 
     def close(self) -> None:
-        """End the call's tool loop without waiting (spec 053, Decision 8). Never raises."""
+        """End the call's tool loop without waiting. Never raises."""
         self._loop.close()
 
     @property
@@ -2102,7 +2101,7 @@ class _ToolHost:
 
     def admit(self, length: int) -> bytes | None:
         """Count a frame from its length alone: an answer for one past `max_calls`, over the
-        cap, or past `max_bytes` (spec 060), else None; then the length counts against
+        cap, or past `max_bytes`, else None; then the length counts against
         `max_bytes` and is kept for `__call__` to check."""
         self._frames += 1
         seq = self._frames
@@ -2162,7 +2161,7 @@ class _ToolHost:
 
     def _list_answer(self, frame_id: int | None) -> bytes:
         """`_encode` of the list answer, byte for byte, with the descriptors encoded once, at the
-        first `list` frame, and the id spliced in (spec 060, Decision 12): a guest that lists
+        first `list` frame, and the id spliced in: a guest that lists
         again and again no longer makes the host encode the list again."""
         return b"".join((*self._list_head(frame_id), self._tools_array(), b"}"))
 
@@ -2182,7 +2181,7 @@ class _ToolHost:
 
     def _list_length(self, frame_id: int | None) -> int:
         """The exact length of `_list_answer(frame_id)`, from its parts, without building it, so
-        a list over the answer cap is refused before it is copied (spec 075, Decision 6)."""
+        a list over the answer cap is refused before it is copied."""
         head = sum(len(part) for part in self._list_head(frame_id))
         return head + len(self._tools_array()) + len(b"}")
 
@@ -2272,7 +2271,7 @@ class _ToolHost:
 
 
 # -------------------------------------------------------------------------------------------------
-# Stubs for a prompt (Decision 10). The guest package renders its signatures by the same rules.
+# Stubs for a prompt. The guest package renders its signatures by the same rules.
 
 
 class _Hint:

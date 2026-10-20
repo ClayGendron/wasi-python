@@ -1,4 +1,4 @@
-"""The runner: one program, one call (spec 001, Decision 3).
+"""The runner: one program, one call.
 
     from wasi_python import run
 
@@ -6,12 +6,12 @@
     done.exit_code, done.stdout
 
 It does what any embedder does: preopen a directory at `/`, bind the one custom import
-(`host::call`), and call the reactor's exports. wasmtime-py (a dependency of the package since
-spec 028) is imported only here, when a call is made, so `import wasi_python` and `artifacts()`
-still work where it cannot load.
+(`host::call`), and call the reactor's exports. wasmtime-py (a dependency of the package) is
+imported only here, when a call is made, so `import wasi_python` and `artifacts()` still work
+where it cannot load.
 
-It is safe by default (spec 006): a call that names no root has no `/` and nothing writable
-(spec 025; `root=True` makes a fresh private one, removed afterwards); a call that names no
+It is safe by default: a call that names no root has no `/` and nothing writable
+(`root=True` makes a fresh private one, removed afterwards); a call that names no
 limit still has one for memory, time and output (`DEFAULTS`); and nothing a guest frame or a
 host function does makes `run` raise.
 """
@@ -78,18 +78,18 @@ class Defaults:
             0 skips the shutdown; it cannot be `None`.
     """
 
-    # Checked by run's rules (spec 013); async_workers sizes run_async's pool (spec 015).
+    # Checked by run's rules; async_workers sizes run_async's pool.
     memory_bytes: int | None
     deadline_s: float | None
     output_bytes: int | None
     async_workers: int = field(default_factory=_limits._default_workers)
     file_calls: int | None = 10_000
     tool_calls: int | None = 1000
-    tool_request_bytes: int | None = 16 << 20  # spec 060
-    open_files: int | None = 1024  # spec 068
-    session_idle_s: float | None = 900.0  # spec 055, the owner's decision 20
+    tool_request_bytes: int | None = 16 << 20  # the byte budget of a call's frames
+    open_files: int | None = 1024  # the cap on files open at once
+    session_idle_s: float | None = 900.0  # 15 minutes, the owner's number
     session_lifetime_s: float | None = 3600.0
-    session_shutdown_s: float = 5.0  # jupyter_client's shutdown_wait_time (spec 055, Decision 8)
+    session_shutdown_s: float = 5.0  # jupyter_client's shutdown_wait_time
 
     def __post_init__(self) -> None:
         _limits._check_limits(None, self.deadline_s, self.memory_bytes, self.output_bytes)
@@ -107,7 +107,7 @@ DEFAULTS = Defaults(memory_bytes=1 << 30, deadline_s=60.0, output_bytes=16 << 20
 
 
 def _current_defaults() -> Defaults:
-    """The defaults a call reads, once, when it is made (spec 049, Decision 2). The binding stays
+    """The defaults a call reads, once, when it is made. The binding stays
     this module's `DEFAULTS`, which `wasi_python.set_defaults` replaces under its lock."""
     return DEFAULTS
 
@@ -238,8 +238,7 @@ def run(
         BaseException: One that is not an `Exception`, raised by your own host, provider, tool
             or gate, propagates.
     """
-    # Defaults: spec 013; roots: spec 025; grants: spec 017; mounts: specs 032 and 034;
-    # cancel: spec 015; tools: spec 036; exceptions written down by spec 049, Decision 6.
+    # Every argument is checked before any work; the exceptions are the ones the docstring names.
     _platform._refuse_forked()
     wt = _engines._wasmtime()
     checked = _checked(
@@ -275,7 +274,7 @@ def _run_checked_flushed(
     artifacts: Artifacts | None,
     loop: asyncio.AbstractEventLoop | None,
 ) -> Completed:
-    """`_run_checked`, then the warnings its removals queued, outside every lock (spec 084)."""
+    """`_run_checked`, then the warnings its removals queued, outside every lock."""
     try:
         return _call._run_checked(wt, checked, host, snapshot, cache_dir, artifacts, loop)
     finally:
@@ -404,7 +403,6 @@ async def run_async(
         BaseException: One that is not an `Exception`, raised by your own host, provider, tool
             or gate, propagates.
     """
-    # spec 015
     import asyncio
     import contextvars
 
@@ -432,11 +430,11 @@ async def run_async(
         max_open_files=max_open_files,
     )
     _check_executor(executor)
-    loop = asyncio.get_running_loop()  # async tools await here (spec 053)
+    loop = asyncio.get_running_loop()  # async tools await here
     wt = _engines._wasmtime()
     _register_exit_hook()
     p = process()
-    with p.live_lock:  # the exit hook sets `exiting` before it reads `live` (the build review, N1)
+    with p.live_lock:  # the exit hook sets `exiting` before it reads `live`
         if p.exiting:
             raise RuntimeError("cannot schedule new futures after interpreter shutdown")
         p.live.add(event)
@@ -481,7 +479,7 @@ def _submit(
     """Submit to the caller's executor, or to the default pool, made anew when
     `async_workers` changed. The pool's size is process state, not a call's limit: it is read
     here, under the pool's lock, so the newest `set_defaults` always wins and a call that read
-    its limits earlier never sizes the pool back (spec 049, the build review's F3). The lookup,
+    its limits earlier never sizes the pool back. The lookup,
     any resize and the submit share one lock, so a resize on another thread never leaves a
     submit facing a pool that is shut down."""
     import concurrent.futures
@@ -507,7 +505,7 @@ def _register_exit_hook() -> None:
     """At exit, stop run_async's guests and drop its queued calls. threading runs its exit hooks
     in reverse order of registration, so this one, registered after concurrent.futures.thread is
     imported, runs before that module joins the pools' workers; registered before, exit would
-    wait for every queued call (spec 015's confirmation, EXECUTED both ways)."""
+    wait for every queued call (EXECUTED both ways)."""
     p = process()
     with p.pool_lock:
         if p.exit_hook_registered:
@@ -524,7 +522,7 @@ def _register_exit_hook() -> None:
 
 def _stop_async_calls() -> None:
     """Pools first, so no call can be submitted after its event was missed; then the events of the
-    calls already running (spec 015's build review, F3)."""
+    calls already running."""
     p = process()
     with p.pool_lock:
         p.exiting = True
@@ -560,12 +558,11 @@ def _checked(
     max_open_files: Any = _UNSET,
     limits: Defaults | None = None,
 ) -> _CheckedCall:
-    """Every argument a call's guest depends on, checked before any work (specs 013 to 015,
-    and 036 for the tools), as one frozen record built from its typed parts, each field named.
-    The defaults are read once, here, and every check that takes one takes it from this read,
-    so a `set_defaults` on another thread never gives a call a mix of the old and new limits
-    (spec 049, Decision 2). `async_workers` is not a call's limit: `_submit` reads it under the
-    pool's lock. A session passes the `limits` it read (spec 055)."""
+    """Every argument a call's guest depends on, checked before any work, as one frozen record
+    built from its typed parts, each field named. The defaults are read once, here, and every
+    check that takes one takes it from this read, so a `set_defaults` on another thread never
+    gives a call a mix of the old and new limits. `async_workers` is not a call's limit:
+    `_submit` reads it under the pool's lock. A session passes the `limits` it read."""
     limits = limits if limits is not None else _current_defaults()
     tool_args = _check_tools(
         host, tools, gate, max_tool_calls, limits, max_tool_request_bytes=max_tool_request_bytes
@@ -614,7 +611,7 @@ def _checked(
 
 def _is_async_callable(fn: Any) -> bool:
     """Whether calling `fn` makes a coroutine or an async generator, read through `partial`s and
-    at an object's `__call__`, as `tool()` reads a tool (spec 053, Decision 9). It does not
+    at an object's `__call__`, as `tool()` reads a tool. It does not
     import `wasi_python.tools`."""
     import functools
     import inspect
@@ -650,12 +647,12 @@ def _check_tools(
     *,
     max_tool_request_bytes: Any = _UNSET,
 ) -> _ToolArgs:
-    """tools=, gate= and max_tool_calls= as plain values (spec 036, Decision 1): a tuple of
+    """tools=, gate= and max_tool_calls= as plain values: a tuple of
     `Tool`s with unique names, a gate that is not an async generator function, the frame limit,
-    and spec 060's byte budget (with tools= only: a call without tools has every field None). A
+    and the byte budget (with tools= only: a call without tools has every field None). A
     plain function goes through `tool()`. `wasi_python.tools` is imported only when tools are
     given, so `import wasi_python` still does not import it. An async `host=` is
-    refused (spec 053, Decision 9)."""
+    refused."""
     if host is not None and _is_async_callable(host):
         raise TypeError(
             "host= must answer synchronously; serve an async host function as a tool (tools=)"
@@ -728,7 +725,7 @@ def stats() -> dict[str, int]:
     binary, loaded from a .cwasm file, and .cwasm files written; what they count may change with
     the cache. A later release may add keys.
     """
-    # spec 036, Decision 5; the judge reads it.
+    # the judge reads it.
     p = process()
     with p.cache_lock:
         counts = dict(p.counts)
@@ -918,7 +915,7 @@ class Session:
         try:
             _sessions._open_session(wt, c, host, snapshot, cache_dir, artifacts, state)
         finally:
-            _private_dirs._flush_warnings()  # the sweep's, or a failed opening's (spec 084)
+            _private_dirs._flush_warnings()  # the sweep's, or a failed opening's
         p = process()
         state.opened = state.last_end = p.observers.clock()
         with p.cache_lock:
@@ -928,7 +925,7 @@ class Session:
         with p.sessions_lock:
             p.sessions.add(state)
         self._finalizer = weakref.finalize(self, _sessions._collected, state)
-        # The exit hook ends sessions (Decision 13); `atexit` is a property on a slotted class, so
+        # The exit hook ends sessions; `atexit` is a property on a slotted class, so
         # the write works where the checker sees only the slots.
         self._finalizer.atexit = False  # type: ignore[misc]
         _sessions._ensure_reaper()

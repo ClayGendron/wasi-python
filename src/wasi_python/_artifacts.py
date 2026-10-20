@@ -19,7 +19,7 @@ _ARTIFACTS_ENV = "WASI_PYTHON_ARTIFACTS"
 def _checkout_artifact_dir() -> Path | None:
     """A source checkout's build/artifacts/: only when this package is <repo>/src/wasi_python/
     and <repo>/pyproject.toml names wasi-python. A copy installed with `pip install --target`,
-    or vendored, inside some project never takes that project's build/ (spec 087, Decision 10)."""
+    or vendored, inside some project never takes that project's build/."""
     package = Path(__file__).resolve().parent
     if package.parent.name != "src":
         return None
@@ -70,7 +70,7 @@ def artifact_dir() -> Path:
     Raises:
         ArtifactsMissing: None of the three is there.
     """
-    # The harness's order (spec 001, Decision 3; spec 003, Decision 10).
+    # The harness's order.
     env = os.environ.get(_ARTIFACTS_ENV)
     if env:  # set and not empty
         return Path(env).resolve()
@@ -149,8 +149,8 @@ GUEST_PACKAGE = "recipes/guest/host/tools.py"  # MANIFEST's recipe line for the 
 
 
 def _has_guest_package(manifest: Path) -> bool:
-    """Whether MANIFEST names the tool protocol's guest package among its recipes (spec 036,
-    Decision 1). Cached per path and stat stamp in `process().guest_packages`, with no lock: a
+    """Whether MANIFEST names the tool protocol's guest package among its recipes.
+    Cached per path and stat stamp in `process().guest_packages`, with no lock: a
     race only reads it twice."""
     key = str(manifest)
     stamp = _stamp(os.stat(manifest))
@@ -168,7 +168,7 @@ def _has_guest_package(manifest: Path) -> bool:
     return found
 
 
-SET_SUMS = "SHA256SUMS"  # beside MANIFEST in every set the build writes (spec 003, step 90)
+SET_SUMS = "SHA256SUMS"  # beside MANIFEST in every set the build writes (step 90)
 
 
 class _Checked(NamedTuple):
@@ -180,8 +180,8 @@ class _Checked(NamedTuple):
 
 def _found_and_checked(snapshot: bool) -> tuple[Artifacts, _Checked]:
     """The set `artifacts()` finds, its MANIFEST, the binary this call runs and the stdlib zip
-    each checked against the set's own SHA256SUMS before any is used (spec 087, Decision 10, the
-    0.1.0 security review's S3). A changed or half-written file is refused, not compiled. The
+    each checked against the set's own SHA256SUMS before any is used.
+    A changed or half-written file is refused, not compiled. The
     digests are kept per file stamp, so a later call reads only the two small files again. They
     are handed on: `_module` compiles only bytes with the checked digest, and `_zip_folder` holds
     the guest's private copy of the zip to it, so a file changed after the check is refused too,

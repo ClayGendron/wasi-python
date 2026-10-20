@@ -50,7 +50,7 @@ if TYPE_CHECKING:
     from .tools import _Bounded, _ToolHost, _ToolLoop
 
 # ---------------------------------------------------------------------------------------------
-# Sessions (spec 055): one instance of the guest kept across turns, with an idle bound and a
+# Sessions: one instance of the guest kept across turns, with an idle bound and a
 # lifetime, ended by Python's own shutdown inside a small budget, as a Jupyter kernel is.
 
 MAX_TURN_BYTES = 0x7FFFFFFF  # the `turn` export's length is an i32
@@ -76,7 +76,7 @@ class SessionEnded(RuntimeError):
 
 class _Either:
     """A stop that is set when either event is: a turn's `cancel`, or its session's closing; or
-    when an exception was raised into the turn's home thread (spec 078, C1)."""
+    when an exception was raised into the turn's home thread."""
 
     __slots__ = ("first", "second", "home")
 
@@ -196,7 +196,7 @@ def _move_guest(state: _State, event: _GuestEvent) -> _Guest:
 
 class _State:
     """Everything a session holds: its store and folders, its limits, its phase and its guest.
-    It never refers to its `Session`, so the collector can finalize a dropped one (Decision 13).
+    It never refers to its `Session`, so the collector can finalize a dropped one.
 
     What `lock` protects:
 
@@ -277,7 +277,7 @@ def _take_dropped() -> list[_State]:
 
 def _collected(state: _State) -> None:
     """The collector's finalizer for a dropped session: no lock, nothing closed; the state goes
-    to the reaper, which ends it on its own thread (the review's F9, the Confirmation's N2)."""
+    to the reaper, which ends it on its own thread."""
     p = process()
     if not p.forked:
         p.reaper_queue.put(state)
@@ -308,7 +308,7 @@ def _in_context(context: contextvars.Context, state: _State) -> None:
 
 
 def _start_closer(state: _State) -> None:
-    """Run an ending the runner starts itself on a closer thread of its own (Decision 8), in a
+    """Run an ending the runner starts itself on a closer thread of its own, in a
     copy of the context taken at the opening."""
     context = state.context.copy() if state.context is not None else None
     target = _end_quietly if context is None else functools.partial(_in_context, context)
@@ -335,8 +335,8 @@ def _end_quietly(state: _State) -> None:
 def _reap(now: float) -> float | None:
     """The reaper's one step: end every session whose bound has passed at `now` and that has no
     turn running, each ending handed to the observers' `start_ending`, or to a closer thread;
-    the seconds until the next is due, or None when none is (Decision 9)."""
-    for item in _take_dropped():  # the collector's finalizer queued them (Decision 13)
+    the seconds until the next is due, or None when none is."""
+    for item in _take_dropped():  # the collector's finalizer queued them
         _end_dropped(item)
     p = process()
     with p.sessions_lock:
@@ -365,7 +365,7 @@ def _reaper_loop(
 ) -> None:
     """The reaper: wait on the queue until the next bound is due or a session is dropped or
     changes, then take one step. `get` and `clock` are injected by the judge, with a number of
-    `rounds`, so it never sleeps (Decision 9)."""
+    `rounds`, so it never sleeps."""
     p = process()
     wait: float | None = None
     done = 0
@@ -416,7 +416,7 @@ def _ensure_reaper() -> None:
 def _sessions_at_exit() -> None:
     """Stop the reaper and wait for its step; end the sessions on the collector's queue and
     every session at rest, each on its own closer, side by side; mark those whose turn still
-    runs; then wait for every ending in progress (Decision 13; the re-review's F8)."""
+    runs; then wait for every ending in progress."""
     p = process()
     p.reaper_stop = True
     thread = p.reaper_thread
@@ -444,7 +444,7 @@ _CLOSER = -1  # the `holder` while a closer thread is being started for the endi
 
 
 def _claim_ending(state: _State, owner: int) -> bool:
-    """Under the state's lock: name who runs the ending, if no one does yet (Decision 8: a turn's
+    """Under the state's lock: name who runs the ending, if no one does yet (a turn's
     thread, `close()`'s caller, or a closer). False once someone has it or it is over; a claim
     before the mark is refused by the table."""
     if state.phase in (_Phase.ENDING, _Phase.ENDED):
@@ -454,7 +454,7 @@ def _claim_ending(state: _State, owner: int) -> bool:
 
 
 def _end_session(state: _State, owner: int | None = None) -> BaseException | None:
-    """The ending (Decision 8), on this thread, once: Python's shutdown if it applies, then
+    """The ending, on this thread, once: Python's shutdown if it applies, then
     everything released. `owner` is the claim the caller holds (`_claim_ending`); with none, it
     claims the ending if no one has. Returns what the embedder's code raised during it (a
     Ctrl-C, a `BaseException`), for a caller to raise; another's ending returns None at once."""
@@ -488,9 +488,9 @@ def _end_session(state: _State, owner: int | None = None) -> BaseException | Non
         home = state.ending_home
         if home is None:
             finish()
-        else:  # never while the ending's guest thread runs (spec 078, Decision 14)
+        else:  # never while the ending's guest thread runs
             home.finish(finish)
-    # what the release's removals queued, outside every lock (spec 084)
+    # what the release's removals queued, outside every lock
     _private_dirs._flush_warnings()
     return raised
 
@@ -508,7 +508,7 @@ def _shutdown_applies(state: _State) -> bool:
 
 def _ending_seconds(state: _State, now: float) -> float:
     """The seconds the ending may run guest code: its budget, capped so it ends by the opening
-    plus the lifetime plus the budget (the re-review's F2)."""
+    plus the lifetime plus the budget."""
     end = now + state.shutdown_s
     if state.lifetime_s is not None:
         end = min(end, state.opened + state.lifetime_s + state.shutdown_s)
@@ -524,10 +524,10 @@ def _shutdown(state: _State) -> tuple[str, BaseException | None]:
     if (
         _platform.PLATFORM.trap_handlers_ready() is not None
     ):  # a trap in the shutdown could end this process
-        return "skipped", None  # (spec 071, Decision 9)
+        return "skipped", None  #
     ticks = max(1, math.ceil(left / TICK_S))
     fuel = state.checked.fuel if state.metered else None
-    home = state.ending_home = _Home()  # the ending's home thread (spec 078)
+    home = state.ending_home = _Home()  # the ending's home thread
     call, _out, _err, tool_host = _arm(state, "ending", fuel, ticks, None, 0, None, home)
     wt = state.wt
     assert state.table is not None  # the store is open: an ending runs before the release
@@ -550,10 +550,10 @@ def _shutdown(state: _State) -> tuple[str, BaseException | None]:
         elif exited is not None or value in (0, 120):
             outcome = "finished"
         else:
-            outcome = "stopped"  # a runner fault: quiet here (the re-review's N3)
+            outcome = "stopped"  # a runner fault: quiet here
         if raised is None and not lost:
-            # spec 034's walk, its Ctrl-C check included (the re-review's F4), and made at exit
-            # too, whatever run_async's exit hook set (the build review's F1)
+            # the table's walk, its Ctrl-C check included, and made at exit too, whatever
+            # run_async's exit hook set
             state.table.walk(ending=True)
         return outcome, raised
     finally:
@@ -562,7 +562,7 @@ def _shutdown(state: _State) -> tuple[str, BaseException | None]:
 
 
 def _shutdown_export(state: _State, call: _Call) -> tuple[int | None, int | None, str | None, bool]:
-    """The `shutdown` export, on the ending's guest thread (spec 078): (its value, an exit code, a
+    """The `shutdown` export, on the ending's guest thread: (its value, an exit code, a
     trap's name, whether the runner lost track of the call)."""
     wt, store, exports = state.wt, state.store, state.exports
     assert exports is not None  # the store is open: an ending runs before the release
@@ -573,7 +573,7 @@ def _shutdown_export(state: _State, call: _Call) -> tuple[int | None, int | None
     process().calls.lost = False
     try:
         on_export = process().observers.on_export
-        if on_export is not None:  # told the home thread, the one spec 055 means
+        if on_export is not None:  # told the home thread, the thread that made the call
             on_export("shutdown", _home_ident(call))
         value = exports["shutdown"](store)
     except wt.ExitTrap as e:
@@ -650,7 +650,7 @@ def _arm(
 ) -> tuple[_Call, _Stream, _Stream, _ToolHost | None]:
     """One call into the session's instance: its fuel and epoch deadline re-armed, its waits on
     the session's clock base, fresh output streams, a frame host and mount counters of its own
-    (Decision 7, step 2)."""
+    (step 2)."""
     store, table = state.store, state.table
     assert store is not None and table is not None  # a turn or an ending: the store is open
     if state.metered:
@@ -667,7 +667,7 @@ def _arm(
         checks.append(stop.is_set)
     if _home._ctrl_c_watched():
         checks.append(lambda: process().ctrl_c_pending)
-    checks.append(home.stopped)  # a wait ends at an exception raised into the home (C1)
+    checks.append(home.stopped)  # a wait ends at an exception raised into the home
     waits = _Waits(
         lambda: time.perf_counter(),
         time.sleep,
@@ -697,7 +697,7 @@ def _session_tool_host(
 ) -> _ToolHost:
     """A frame host per turn; one bound per session, so abandoned tool threads are counted
     across its turns; one private tool loop per session for its synchronous turns, or the
-    caller's loop for a turn by run_async (Decision 5, Decision 11)."""
+    caller's loop for a turn by run_async."""
     from .tools import _ToolHost, _ToolLoop
 
     c = state.checked
@@ -734,9 +734,9 @@ def _drive_turn(
     state: _State, call: _Call, data: bytes
 ) -> tuple[int | None, int | None, str | None, bool]:
     """(the export's value, an exit code, a trap's name, whether guest code ran), on this
-    thread's stack, by `_drive`'s rules (Decision 7, steps 3 and 4). Before any guest code, as in
-    `_drive`, a turn is refused when wasmtime's trap handlers were replaced (spec 071, Decision
-    9): the session then ends as on an error, without Python's shutdown."""
+    thread's stack, by `_drive`'s rules (steps 3 and 4). Before any guest code, as in
+    `_drive`, a turn is refused when wasmtime's trap handlers were replaced: the session then
+    ends as on an error, without Python's shutdown."""
     not_ready = _platform.PLATFORM.trap_handlers_ready()
     if not_ready is not None:
         raise RuntimeError(_TRAP_HANDLERS_REPLACED.format(signal=not_ready))
@@ -763,7 +763,7 @@ def _drive_turn(
             else:
                 p = 0  # the guest raises MemoryError for its code
         on_export = process().observers.on_export
-        if on_export is not None:  # told the home thread, the one spec 055 means (spec 078)
+        if on_export is not None:  # told the home thread, the thread that made the call
             on_export("turn", _home_ident(call))
         value = exports["turn"](store, p, len(data))
     except wt.ExitTrap as e:
@@ -809,7 +809,7 @@ def _turn_inside(
 ) -> _TurnDone:
     own = NO_DEADLINE if deadline_s is None else max(1, math.ceil(deadline_s / TICK_S))
     ticks, capped = own, False
-    if state.lifetime_s is not None:  # the lifetime caps the turn's deadline (the review's F4)
+    if state.lifetime_s is not None:  # the lifetime caps the turn's deadline
         left = state.opened + state.lifetime_s - process().observers.clock()
         cap = max(1, math.ceil(left / TICK_S))
         if cap < own:
@@ -827,7 +827,7 @@ def _turn_inside(
         returned = value is not None
         cause: str | None = None
         if returned:
-            if not -1 < value <= 511:  # the C side owns the range (Decision 2)
+            if not -1 < value <= 511:  # the C side owns the range
                 raise RuntimeError("wasi_python lost track of a session")
             exit_code = value & 0xFF
             if value >= 256:
@@ -844,7 +844,7 @@ def _turn_inside(
             done = _Driven(exit_code, trapped, True, None)
             fuel_used = _call._fuel_used(budget, done, call, store.get_fuel)
         if ran:
-            table.walk()  # spec 034, Decision 8, after the fuel is read
+            table.walk()  # the write-backs, after the fuel is read
         context = _call._context_of(table)
         if context is not None:
             context.leave()  # between turns the table serves no call
@@ -867,7 +867,7 @@ def _turn_inside(
             if loop is not None:
                 tool_host.close()  # the caller's loop: the runner's tasks asked to cancel
             elif state.private_loop is not None:
-                state.private_loop.cancel_tasks()  # the session's loop lives on (spec 053)
+                state.private_loop.cancel_tasks()  # the session's loop lives on
 
 
 def _session_turn(
@@ -880,10 +880,10 @@ def _session_turn(
     loop: asyncio.AbstractEventLoop | None,
 ) -> Completed:
     """A claimed turn, on this thread: run it, decide whether it ended the session, and if the
-    session has ended by its return, run the ending here (Decision 7, step 6)."""
+    session has ended by its return, run the ending here (step 6)."""
     done: _TurnDone | None = None
     error: BaseException | None = None
-    home = _Home()  # this thread, while the turn runs on a guest thread (spec 078)
+    home = _Home()  # this thread, while the turn runs on a guest thread
     try:
         try:
             with _home._deferred_ctrl_c():
@@ -891,11 +891,11 @@ def _session_turn(
         except BaseException as e:
             error = e
         if home.phase in _home._GUEST_MAY_RUN:  # forced out while the guest thread runs
-            home.finish(lambda: _abandon_turn(state))  # (spec 078, Decision 14)
+            home.finish(lambda: _abandon_turn(state))  #
             raise error if error is not None else RuntimeError("wasi_python lost a turn")
         with state.lock:
             if error is not None:
-                _move_guest(state, _GuestEvent.FAILED)  # whatever the export returned (F3)
+                _move_guest(state, _GuestEvent.FAILED)  # whatever the export returned
                 _mark(state, "error")
             elif done is not None:
                 if done.returned:
@@ -913,7 +913,7 @@ def _session_turn(
             _move(state, _Event.TURN_RETURNED)
             state.last_end = process().observers.clock()
             me = threading.get_ident()
-            ended = state.phase is _Phase.MARKED and _claim_ending(state, me)  # this thread (F3)
+            ended = state.phase is _Phase.MARKED and _claim_ending(state, me)  # this thread
         if ended:
             raised = _end_with_ctrl_c(state, me)
             if error is None and raised is not None:
@@ -928,7 +928,7 @@ def _session_turn(
 
 def _abandon_turn(state: _State) -> None:
     """A turn whose home was forced out, run by its guest thread at its end: the session ends as
-    on an error, and only now may another thread enter its store (spec 078, Decision 14)."""
+    on an error, and only now may another thread enter its store."""
     with state.lock:
         _move_guest(state, _GuestEvent.FAILED)
         _mark(state, "error")
@@ -956,8 +956,8 @@ def _open_session(
     artifacts: Artifacts | None,
     state: _State,
 ) -> None:
-    """Decision 6: find the set and refuse one without the session exports, walk and judge the
-    folders, make the store and instantiate it; no guest code runs."""
+    """A session's opening: find the set and refuse one without the session exports, walk and
+    judge the folders, make the store and instantiate it; no guest code runs."""
     found, checked = (
         (artifacts, None) if artifacts is not None else _artifacts._found_and_checked(snapshot)
     )
@@ -989,7 +989,7 @@ def _open_session(
     )
     state.walked = [w for w in [walked_root, *(w for _, _, w in walked)] if w is not None]
     preopens: list[_Preopen] = []
-    home = _Home()  # this thread, while the opening's wasm runs on a guest thread (spec 078)
+    home = _Home()  # this thread, while the opening's wasm runs on a guest thread
     try:
         zip_want = None if checked is None else checked.zip
         root_path, state.private = _call._preopens(
@@ -1013,11 +1013,11 @@ def _open_session(
             home_guest = f"/tmp/{name}"
         store = state.store = wt.Store(engine)
         if metered:
-            store.set_fuel(UNMETERED)  # instantiation's own memory fill (spec 008)
+            store.set_fuel(UNMETERED)  # instantiation's own memory fill
         if c.memory_bytes is not None:
             store.set_limits(memory_size=c.memory_bytes)
         wasi = wt.WasiConfig()
-        state.origin_ns = time.perf_counter_ns()  # the session's clock base (the review's F6)
+        state.origin_ns = time.perf_counter_ns()  # the session's clock base
         wasi.argv = [ARGV0, *entries]
         fresh = {} if home_guest is None else {"HOME": home_guest}
         wasi.env = sorted({**_call.BASE_ENV, **fresh, **(c.env or {})}.items())
@@ -1057,12 +1057,12 @@ def _open_session(
             staging,
             metered,
             engine,
-            open_files=c.open_files,  # spec 068, per session: the store keeps them (Decision 5)
+            open_files=c.open_files,  # per session: the store keeps them
             context=_call._Context(),
         )
         table.session = True
         store.set_epoch_deadline(NO_DEADLINE)  # no guest code runs before the first turn
-        _call._watch(store)  # every turn can be stopped by a close (Decision 6)
+        _call._watch(store)  # every turn can be stopped by a close
         check = _engines._check_module(wt, engine, metered)
         state.exports = _home._on_guest_thread(
             "open",
@@ -1095,7 +1095,7 @@ def _open_session(
             with state.lock:
                 _move(state, _Event.RELEASED)  # from OPENING: nothing was counted
 
-        home.finish(release)  # never under a running guest (spec 078)
+        home.finish(release)  # never under a running guest
         raise
 
 
@@ -1109,14 +1109,12 @@ def _open_wasm(
     module: Any,
     table: Any,
 ) -> Any:
-    """A session's opening wasm, on its guest thread (spec 078): the signal guard, the preopen
+    """A session's opening wasm, on its guest thread: the signal guard, the preopen
     check, the instantiation and the mount table's bind; the instance's exports."""
-    not_ready = (
-        _platform.PLATFORM.trap_handlers_ready()
-    )  # spec 071, Decision 9: before any wasm runs
+    not_ready = _platform.PLATFORM.trap_handlers_ready()  # before any wasm runs
     if not_ready is not None:
         raise RuntimeError(_TRAP_HANDLERS_REPLACED.format(signal=not_ready))
-    _places._check_preopens(wt, linker, store, check, every)  # spec 017, Decision 5; once
+    _places._check_preopens(wt, linker, store, check, every)  # the identity check, once
     instance = guest_linker.instantiate(store, module)
     table.bind(wt, store, linker, instance)
     return instance.exports(store)

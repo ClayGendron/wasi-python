@@ -15,12 +15,12 @@ from pathlib import Path
 from . import _platform
 from ._process import process
 
-# Private folders and the sweep (spec 016, Decision 2). Each private root and stdin folder has a
+# Private folders and the sweep. Each private root and stdin folder has a
 # lock file beside it in the temporary folder, locked for the folder's life and naming the kernel
 # that made it. A process killed mid-call leaves both; the lock dies with it, so the next process
 # on the same kernel can tell its folder is dead. A pid could not: pids repeat across namespaces,
 # are reused, and a killed child is a zombie until reaped.
-_LOCK_NAME = re.compile(r"wasi-python-(root-|zip-)?[0-9a-f]{16}\.lock\Z")  # zip-: spec 017
+_LOCK_NAME = re.compile(r"wasi-python-(root-|zip-)?[0-9a-f]{16}\.lock\Z")  # zip-: the zip folders'
 
 
 class _Taken(Exception):
@@ -29,7 +29,7 @@ class _Taken(Exception):
 
 class _Private:
     """A private folder in the temporary folder, with `<name>.lock` beside it, held locked until
-    `remove` (spec 016). The name is drawn here, as mkdtemp draws one, because the lock file must
+    `remove`. The name is drawn here, as mkdtemp draws one, because the lock file must
     exist, locked, before the folder does."""
 
     def __init__(self, prefix: str) -> None:
@@ -77,8 +77,8 @@ class _Private:
 
     def remove(self) -> None:
         """Folder, then lock (close), then the lock file only if the folder is gone, then the
-        name; never raises (the 0.1.0a2 security review, F1). A folder left keeps its lock file,
-        is named in one warning, and re-arms the sweep, after its name is dropped (spec 084)."""
+        name; never raises. A folder left keeps its lock file,
+        is named in one warning, and re-arms the sweep, after its name is dropped."""
         errors: list[BaseException] = []
         gone = False
         try:
@@ -144,7 +144,7 @@ def _sweep_once() -> None:
     except Exception:
         return
     finally:
-        if retry:  # after the loop, so no second sweep starts while this one lists (spec 084)
+        if retry:  # after the loop, so no second sweep starts while this one lists
             with p.cache_lock:
                 p.sweep_claimed = False
 
@@ -222,7 +222,7 @@ def _first_error(errors: list[BaseException]) -> str:
 
 
 def _warn_later(key: str, message: str) -> None:
-    """Queue a warning, once per folder per process; `_flush_warnings` gives it (spec 084)."""
+    """Queue a warning, once per folder per process; `_flush_warnings` gives it."""
     p = process()
     with p.warnings_lock:
         if key in p.warned:
@@ -253,7 +253,7 @@ process().flush_warnings = _flush_warnings  # the exit release gives what the re
 
 def _remove_fresh_home(name: str, tmp: Path | None, tmp_fd: int | None) -> None:
     """A fresh HOME's removal: budgeted, since another call on the same root may be writing it;
-    a HOME left is named, never retried (it has no lock file) (spec 084, Decision 12)."""
+    a HOME left is named, never retried (it has no lock file)."""
     errors: list[BaseException] = []
     if tmp_fd is not None:
         gone = _platform.PLATFORM.remove_tree(

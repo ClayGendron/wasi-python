@@ -35,18 +35,17 @@ class Grant:
         writable: Whether the guest may write there. Keyword-only.
     """
 
-    # spec 017
     host: str | os.PathLike[str]
     guest: str
     writable: bool = field(default=False, kw_only=True)
 
 
-# Grants (spec 017). A grant is a host folder the guest sees at a guest path, read-only unless it
+# Grants. A grant is a host folder the guest sees at a guest path, read-only unless it
 # says `writable=True`. Every host path, `root` included, is walked one component at a time from
 # `/`, judging each link on the way, and every rule compares identities (device and inode), never
 # spellings: macOS folders are case-insensitive, and Windows spells one folder many ways. wasmtime
 # then opens each path itself, so before the guest runs a check module of the runner's own reads
-# back each preopen's identity and compares it with the walk's (Decision 5).
+# back each preopen's identity and compares it with the walk's.
 ZIP_GUEST = "/usr/local/lib"
 _M64 = (1 << 64) - 1
 
@@ -70,7 +69,7 @@ def _host_path(where: str, value: Any) -> str:
 
 def _guest_path(where: str, value: Any) -> str:
     """An absolute guest path with no empty, `.` or `..` component and no trailing `/`, which
-    wasi-libc would otherwise match by text alone (memo §7d); not `/` and not the runtime's."""
+    wasi-libc would otherwise match by text alone; not `/` and not the runtime's."""
     if not isinstance(value, str):
         raise TypeError(f"{where}: the guest path must be a str, not {type(value).__name__}")
     path = _limits._text(f"{where}: the guest path", value)
@@ -89,7 +88,7 @@ def _guest_path(where: str, value: Any) -> str:
 
 def _check_root(root: Any) -> str | bool | None:
     """The root as the runner keeps it: a host path; None for a private root (`root=True`); or
-    False for none, the default (spec 025: nothing writable unless the embedder asks)."""
+    False for none, the default (nothing writable unless the embedder asks)."""
     if root is None or root is False:
         return False
     if root is True:
@@ -145,8 +144,8 @@ def _check_places(
 ) -> _Places:
     """root, grants, mounts, the import path, the file-call limit and the cap on open files,
     checked together before any work: a mount may share no guest path with a grant, and a mount
-    at / comes with no root (spec 032); each import-path entry is served by a read-only grant
-    (spec 054); the cap applies to every call, with or without places (spec 068)."""
+    at / comes with no root; each import-path entry is served by a read-only grant; the cap
+    applies to every call, with or without places."""
     checked_root = _check_root(root)
     checked_grants = _check_grants(grants)
     checked_mounts = _check_mounts(mounts, checked_grants, checked_root)
@@ -177,7 +176,7 @@ def _check_import_path(
 ) -> tuple[tuple[str, ...], tuple[int, ...]]:
     """The import path's entries, as the plain strings `_guest_path` returns (never the caller's
     objects, which the prelude is built from), and for each the index of the read-only grant that
-    serves it; or TypeError for a type and ValueError for a value (spec 054, Decisions 2 to 4).
+    serves it; or TypeError for a type and ValueError for a value.
     The place serving an entry is the one with the longest guest prefix, as wasi-libc resolves
     it, and must be a read-only grant; no writable grant and no mount may lie under an entry."""
     if isinstance(import_path, (str, bytes, bytearray)) or not isinstance(import_path, Iterable):
@@ -228,7 +227,7 @@ def _check_import_path(
 
 def _check_mounts(mounts: Any, grants: tuple[Grant, ...], root: Any) -> tuple[Mount, ...]:
     """The mounts as a tuple of plain `Mount`s, or TypeError for a type and ValueError for a
-    value, each naming the mount's position and guest path (spec 032, Decision 2)."""
+    value, each naming the mount's position and guest path."""
     import inspect
 
     if isinstance(mounts, (str, bytes, bytearray, Mount)) or not isinstance(mounts, Iterable):
@@ -247,7 +246,7 @@ def _check_mounts(mounts: Any, grants: tuple[Grant, ...], root: Any) -> tuple[Mo
         where = f"mounts[{i}] at {guest}"
         if type(mount.writable) is not bool:
             raise TypeError(f"{where}: writable must be True or False, not {mount.writable!r}")
-        # A writable mount's provider has the write half too (spec 034, Decision 1).
+        # A writable mount's provider has the write half too.
         methods = METHODS if mount.writable else METHODS[:3]
         for method in methods:
             function = getattr(mount.provider, method, None)
@@ -299,10 +298,11 @@ def _judge(
     runtime: list[tuple[str, Any, Any]],
     shared: list[tuple[str, tuple[Identity, ...]]] = [],  # noqa: B006 (read only)
 ) -> None:
-    """Decision 4's rules, by identity. `runtime` is (name, identity or None, chain) for each of
-    the runtime's own folders: a writable grant at, inside or above one is refused; a folder not
-    made yet holds nothing, so only a grant above its deepest existing ancestor is. `shared` is
-    (name, chain) for each folder no grant, read-only included, may be at or above."""
+    """The rules between the grants and the runtime's own folders, by identity. `runtime` is
+    (name, identity or None, chain) for each of the runtime's own folders: a writable grant at,
+    inside or above one is refused; a folder not made yet holds nothing, so only a grant above
+    its deepest existing ancestor is. `shared` is (name, chain) for each folder no grant,
+    read-only included, may be at or above."""
     judged = [("root", None, root)] if root is not None else []
     for where, _, w in [*judged, *grants]:  # root too: the temporary folder may have moved
         for name, chain in shared:
@@ -418,7 +418,7 @@ def _walk_grants(
     import_path: tuple[str, ...] = (),
     serving: tuple[int, ...] = (),
 ) -> tuple[_Walked | None, list[tuple[str, Grant, _Walked]]]:
-    """Every grant and `root`, walked and judged before any work (Decision 4); a missing root is
+    """Every grant and `root`, walked and judged before any work; a missing root is
     made only once every rule has passed on its existing chain, the import path's included."""
     walked_root: _Walked | None = None
     walked: list[tuple[str, Grant, _Walked]] = []
@@ -452,7 +452,7 @@ def _judge_import_path(
     import_path: tuple[str, ...],
     serving: tuple[int, ...],
 ) -> None:
-    """Spec 054, Decision 5, by identity: no writable grant, and no root, at or inside the whole
+    """By identity: no writable grant, and no root, at or inside the whole
     folder of a read-only grant that serves an entry. The whole folder, not the entry's
     subfolder: a link inside a grant reaches any folder of it. A root still to be made carries
     its deepest existing ancestor's chain, so one to be made inside is refused before it is."""
@@ -474,8 +474,7 @@ def _runtime_folders(found: Artifacts, cache: Path | None) -> list[tuple[str, An
     temporary folder that will hold it), the artifact set's files, the module cache, and the
     runtime's own code (this package and wasmtime-py's, whose native library a guest must never
     replace). The module cache is made first, if it can be, so it is judged as it will be: a root
-    still to be made above a cache still to be made would otherwise come to hold it (the build
-    review, finding 1)."""
+    still to be made above a cache still to be made would otherwise come to hold it."""
     import wasmtime
 
     if cache is not None:
@@ -498,7 +497,7 @@ def _runtime_folders(found: Artifacts, cache: Path | None) -> list[tuple[str, An
         folders.append(("the module cache", *_chain(cache)))
     folders.append(("wasi_python's own code", *_chain(Path(__file__).resolve().parent)))
     folders.append(("wasmtime-py's own code", *_chain(Path(wasmtime.__file__).resolve().parent)))
-    # The host's own interpreter, which the next host process runs (spec 024, S2): its stdlib,
+    # The host's own interpreter, which the next host process runs: its stdlib,
     # its site-packages and scripts, and the user's site-packages it imports at start-up.
     import site
     import sysconfig
@@ -514,7 +513,7 @@ def _runtime_folders(found: Artifacts, cache: Path | None) -> list[tuple[str, An
 
 def _shared_folders() -> list[tuple[str, tuple[Identity, ...]]]:
     """Folders no grant may be at or above, read-only included: the temporary folder holds every
-    call's private root and stdin (the build review, finding 2)."""
+    call's private root and stdin."""
     temp = Path(tempfile.gettempdir())
     return [
         (

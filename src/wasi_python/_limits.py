@@ -12,7 +12,7 @@ from typing import Any, NamedTuple
 
 TICK_S = 0.01
 NO_DEADLINE = 2**62
-CANCEL_TICKS = 5  # a call with `cancel` is checked every 5 ticks while it computes (spec 015)
+CANCEL_TICKS = 5  # a call with `cancel` is checked every 5 ticks while it computes
 MAX_WORKERS = 1024
 
 
@@ -45,7 +45,7 @@ def _deadline_limit(value: Any) -> float | None:
 
 
 def _seconds_limit(name: str, value: Any) -> float | None:
-    """`deadline_s`'s rule, named for its argument (spec 055, Decision 9: idle_s, lifetime_s)."""
+    """`deadline_s`'s rule, named for its argument (idle_s, lifetime_s)."""
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, numbers.Real):
@@ -63,8 +63,7 @@ def _seconds_limit(name: str, value: Any) -> float | None:
 
 def _shutdown_limit(name: str, value: Any) -> float:
     """A session's shutdown budget in seconds: finite and at least 0; 0 skips the shutdown, and
-    `None` is refused, since the runner itself starts endings and must bound them (spec 055,
-    Decision 8)."""
+    `None` is refused, since the runner itself starts endings and must bound them."""
     if value is None or isinstance(value, bool) or not isinstance(value, numbers.Real):
         raise TypeError(f"{name} must be a number of seconds, 0 or more; got {value!r}")
     rule = f"{name} must be finite and 0 or more, and at most about 4.6e16 s"
@@ -90,7 +89,7 @@ class _Limits(NamedTuple):
 def _check_limits(fuel: Any, deadline_s: Any, memory_bytes: Any, output_bytes: Any) -> _Limits:
     """The four limits as plain values, or TypeError for a wrong type and ValueError for a value
     out of range. A negative fuel or memory cap, or a memory cap of 2**63 or more, would mean no
-    limit to wasmtime, and `True` would mean 1, so none of them reaches it (spec 013)."""
+    limit to wasmtime, and `True` would mean 1, so none of them reaches it."""
     return _Limits(
         _integer_limit("fuel", fuel),
         _deadline_limit(deadline_s),
@@ -126,7 +125,7 @@ class _Inputs(NamedTuple):
 def _check_inputs(argv: Any, env: Any, stdin: Any) -> _Inputs:
     """argv, env and stdin as plain values, or TypeError for a wrong type and ValueError for a
     value the guest would see differently: a NUL cut an argument or key short, and an = split a
-    key, so {"HOME\\0x": ...} set HOME (spec 014)."""
+    key, so {"HOME\\0x": ...} set HOME."""
     if isinstance(argv, (str, bytes, bytearray)) or not isinstance(argv, Iterable):
         raise TypeError(f"argv must be an iterable of str, not {type(argv).__name__}")
     args = tuple(_text(f"argv[{i}]", item) for i, item in enumerate(argv))
@@ -162,7 +161,7 @@ def _cpus() -> int:
 
 def _default_workers() -> int:
     """At most 8: at the defaults a worker holds up to 1 GiB of guest memory and 32 MiB of output,
-    so 8 bound a process at about 8.3 GiB, and past 8 the measured speedup flattens (spec 015)."""
+    so 8 bound a process at about 8.3 GiB, and past 8 the measured speedup flattens."""
     return min(_cpus(), 8)
 
 

@@ -24,7 +24,7 @@ CACHE_ENV = "WASI_PYTHON_CACHE"
 
 
 def _wasmtime() -> Any:
-    """wasmtime-py, or one `ImportError` whatever stopped it loading (spec 028, Decision 3): not
+    """wasmtime-py, or one `ImportError` whatever stopped it loading: not
     installed (`ImportError`), installed on a platform it does not support (its pure wheel raises
     `RuntimeError` naming the architecture), or its native library not loading (`OSError`). The
     original is chained as the cause, so its text still names the platform."""
@@ -35,12 +35,12 @@ def _wasmtime() -> Any:
             "wasi_python.run needs wasmtime-py (wasmtime>=49,<50), which installs with "
             "wasi-python; reinstall it or install wasmtime directly"
         ) from e
-    from . import _wasmtime_ffi  # noqa: F401  (spec 103: its own ImportError names what moved)
+    from . import _wasmtime_ffi  # noqa: F401  (its own ImportError names what moved)
 
     return wt
 
 
-# The identity check (Decision 5): wasmtime reports a preopen's `ino` as SipHash-1-3, zero keys,
+# The identity check: wasmtime reports a preopen's `ino` as SipHash-1-3, zero keys,
 # over the host folder's two identity numbers as 64-bit words (filesystem.rs:354-371; on Windows
 # the volume serial and file index, windows.rs:85-91). A wasmtime that hashes otherwise refuses
 # every grant, loudly; tests/unit/test_runner_grants.py pins it on every OS.
@@ -76,7 +76,7 @@ def _cache_dir(given: str | os.PathLike[str] | None | bool) -> Path | None:
 
 def _engine(metered: bool) -> wasmtime.Engine:
     """Two engines per process: fuel metering changes the compiled code. The async stack size
-    is set first, through the seam (spec 078, Decision 1; spec 103)."""
+    is set first, through the seam."""
     import wasmtime as wt
 
     from . import _wasmtime_ffi as ffi
@@ -106,8 +106,8 @@ def _module(
     A .cwasm is native code that wasmtime runs as it finds it, so the cache is used only where no
     one else can write: on POSIX, a directory and files owned by this user and writable by no one
     else (the directory is made 0700, the files 0600). Anything else is ignored, with a warning,
-    and the module is compiled in this process. `want` is a found set's checked digest (spec 087,
-    Decision 10): the module is then compiled from bytes read once and held to it, and the
+    and the module is compiled in this process. `want` is a found set's checked digest:
+    the module is then compiled from bytes read once and held to it, and the
     .cwasm under that digest is written only from them."""
     import wasmtime as wt
 
@@ -118,7 +118,7 @@ def _module(
         guard = p.compiling.setdefault((metered, digest), threading.Lock())
     if mod is not None:
         return mod
-    # One thread compiles or loads; the others wait for it (spec 011). Only this lock is held
+    # One thread compiles or loads; the others wait for it. Only this lock is held
     # while compiling: the epoch ticker takes the cache lock every round.
     with guard:
         with p.cache_lock:

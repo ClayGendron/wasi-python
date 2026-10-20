@@ -42,11 +42,11 @@ ARGV0 = "/usr/local/bin/python.wasm"
 NO_HOST = -1
 HOST_FAULT = -2
 MASK32 = 0xFFFFFFFF
-UNMETERED = 2**63 - 1  # the budget instantiation runs on, before the cap is set (spec 008)
+UNMETERED = 2**63 - 1  # the budget instantiation runs on, before the cap is set
 MAX_RESPONSE = 0x7FFFFFFF  # the largest door response: its length must fit a signed i32
 # The guest's environment before the caller's `env`. HOME is added per call: a fresh, empty
 # directory under /tmp that the runner removes afterwards, so nothing a call leaves in its HOME
-# (pdb's .pdbrc, for one) is read by the next (spec 006, Decision 2).
+# (pdb's .pdbrc, for one) is read by the next.
 BASE_ENV = {"TMPDIR": "/tmp", "PYTHONTZPATH": ""}
 
 Host = Callable[[bytes], "bytes | bytearray | memoryview"]  # the door's host function
@@ -80,8 +80,8 @@ class Completed:
     trapped: str | None
     fuel_used: int | None
     truncated: tuple[str, ...] = ()
-    files: FileRecord | None = None  # spec 032
-    tools: ToolRecord | None = None  # spec 036
+    files: FileRecord | None = None  # the mounts' record, for a call with mounts
+    tools: ToolRecord | None = None  # the tool protocol's record, for a call with tools
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,7 +147,7 @@ def _run_checked(
     )
     preopens: list[_Preopen] = []
     private = None
-    home = _Home()  # this thread, while the guest runs on its own (spec 078)
+    home = _Home()  # this thread, while the guest runs on its own
     try:
         after_walk = process().observers.after_walk
         if after_walk is not None:
@@ -170,7 +170,7 @@ def _run_checked(
             if private is not None:
                 private.remove()
 
-        home.finish(release)  # never while a guest thread runs (spec 078, Decision 14)
+        home.finish(release)  # never while a guest thread runs
 
 
 def _preopens(
@@ -183,8 +183,8 @@ def _preopens(
 ) -> tuple[Path | None, _Private | None]:
     """The zip's folder, matplotlib's data, the root and the grants, appended to `preopens` in
     the order wasmtime opens them; (the root's path, a private root to remove or None). Shared by
-    a call and a session's opening (spec 055). `zip_want` is the zip's checked digest, for a set
-    the runner found (spec 087, Decision 10)."""
+    a call and a session's opening. `zip_want` is the zip's checked digest, for a set
+    the runner found."""
     _private_dirs._sweep_once()
     folder = _zip._zip_folder(found, zip_want)
     preopens.append(
@@ -195,14 +195,14 @@ def _preopens(
             False,
         )
     )
-    if folder.data is not None:  # after the zip's grant (spec 023, Decision 5)
+    if folder.data is not None:  # after the zip's grant
         guest = f"{ZIP_GUEST}/{folder.name}/{MPL_DATA_GUEST}"
         walked_data = _platform.PLATFORM.walk("", str(folder.data), judge=False)
         preopens.append(_Preopen("matplotlib's data", walked_data, guest, False))
     root_path = None
     private = None
     if root is None:
-        private = _Private("wasi-python-root-")  # 0700, this user's own, locked (spec 016)
+        private = _Private("wasi-python-root-")  # 0700, this user's own, locked
         try:
             (private.path / "usr" / "local" / "lib").mkdir(parents=True)
             root_path = private.path
@@ -216,7 +216,7 @@ def _preopens(
         # Real folders, never a guest's link: without them /usr would vanish from a fresh
         # root's listing, and the zip's path could resolve into a file a guest wrote. Made
         # through the walked folder, never its path, which another guest may have swapped
-        # since the walk (spec 024).
+        # since the walk.
         _, made = _platform.PLATFORM.real_dir(root_path, walked_root.fd, ("usr", "local", "lib"))
         _platform._close(made)
         preopens.append(_Preopen("root", walked_root, "/", True))
@@ -263,7 +263,7 @@ def _call_deferred(
         # The fresh HOME is made, and removed, through a handle on /tmp opened without following a
         # link, so a guest running concurrently on the same folder cannot turn /tmp into a link
         # between the check and the mkdir (Windows has no dir_fd; its guests can make links only
-        # where the user holds the symbolic-link privilege, spec 084).
+        # where the user holds the symbolic-link privilege).
         name = f".home-{secrets.token_hex(16)}"
         try:
             if tmp_fd is not None:
@@ -286,15 +286,15 @@ def _call_deferred(
                 _private_dirs._remove_fresh_home(home[0], tmp, tmp_fd)
             _platform._close(tmp_fd)
 
-        ht.finish(release)  # never while a guest thread runs (spec 078, Decision 14)
+        ht.finish(release)  # never while a guest thread runs
 
 
 def _home_folder(
     root: Path | None, preopens: list[_Preopen], mounted: tuple[str, ...] = ()
 ) -> tuple[Path | None, int | None]:
-    """Where HOME is made (Decision 3): a writable grant at /tmp, else the root's tmp, else
+    """Where HOME is made: a writable grant at /tmp, else the root's tmp, else
     nowhere. A read-only grant at /tmp hides the root's tmp, so then there is no HOME either, and
-    a mount at /tmp counts as one (spec 032): the runner makes nothing in a mount."""
+    a mount at /tmp counts as one: the runner makes nothing in a mount."""
     if "/tmp" in mounted:
         return None, None
     at_tmp = [p for p in preopens if p.guest == "/tmp"]
@@ -309,13 +309,13 @@ def _home_folder(
     if root is None:
         return None, None
     # TMPDIR, a real folder (a guest's link there is removed), made through the root's walked
-    # folder, never its path (spec 024).
+    # folder, never its path.
     fd = next(p.walked.fd for p in preopens if p.guest == "/")
     return _platform.PLATFORM.real_dir(root, fd, ("tmp",))
 
 
 def _import_prelude(entries: tuple[str, ...]) -> list[str]:
-    """The `-c` prelude that puts the import path on `sys.path` (spec 054, Decision 7): one
+    """The `-c` prelude that puts the import path on `sys.path`: one
     expression statement that binds no name in `__main__`. It drops the `linecache` entry the
     reactor registered for it, so no later `exec` or `eval` of a string shows its source; extends
     `sys.path` after the stdlib zip; and runs the caller's argv through the reactor's own
@@ -353,7 +353,7 @@ def _instance(
     fuel, deadline_s = c.fuel, c.deadline_s
     memory_bytes, output_bytes = c.memory_bytes, c.output_bytes
     if fuel is not None:
-        # Fuel is metered from the end of instantiation (spec 008): instantiation runs only
+        # Fuel is metered from the end of instantiation: instantiation runs only
         # wasmtime's own memory fill, which it charges per byte when it cannot map the image
         # (macOS when compiled in the process, Windows always); the guest's work starts after.
         store.set_fuel(UNMETERED)
@@ -361,12 +361,12 @@ def _instance(
         store.set_limits(memory_size=memory_bytes)
     ticks = NO_DEADLINE if deadline_s is None else max(1, math.ceil(deadline_s / TICK_S))
     # A call with `cancel` is first checked within CANCEL_TICKS ticks, whatever its deadline; its
-    # callback then enforces the deadline too (spec 015).
-    # Every call is polled every CANCEL_TICKS ticks (spec 078, Decision 5): so Ctrl-C, and an
+    # callback then enforces the deadline too.
+    # Every call is polled every CANCEL_TICKS ticks: so Ctrl-C, and an
     # exception raised into the home thread, reach a guest that never calls back.
     store.set_epoch_deadline(min(CANCEL_TICKS, ticks))
-    # The ticker's count at which this store's deadline has passed, read after the deadline is set
-    # (spec 010): a wait in poll_oneoff stops there, so it never outlives the deadline.
+    # The ticker's count at which this store's deadline has passed, read after the deadline is
+    # set: a wait in poll_oneoff stops there, so it never outlives the deadline.
     stop_at = None if deadline_s is None else _stop_at(_epoch_ticker.count(), ticks)
     checks: list[Callable[[], bool]] = []
     if stop_at is not None:
@@ -375,7 +375,7 @@ def _instance(
         checks.append(cancel.is_set)  # a wait ends at a cancel, deadline or not
     if _home._ctrl_c_watched():
         checks.append(lambda: process().ctrl_c_pending)  # a wait on the main thread ends at Ctrl-C
-    checks.append(ht.stopped)  # and at an exception raised into the home (spec 078, C1)
+    checks.append(ht.stopped)  # and at an exception raised into the home
     waits = _Waits(
         lambda: time.perf_counter(),
         time.sleep,
@@ -390,7 +390,7 @@ def _instance(
 
     out, err = _Stream("stdout", output_bytes), _Stream("stderr", output_bytes)
     wasi = wt.WasiConfig()
-    origin_ns = time.perf_counter_ns()  # wasmtime's monotonic clock counts from here (spec 010)
+    origin_ns = time.perf_counter_ns()  # wasmtime's monotonic clock counts from here
     wasi.argv = [ARGV0, *_import_prelude(c.import_path), *argv]
     fresh = {} if home is None else {"HOME": home}  # no HOME where there is no /tmp to make it
     wasi.env = sorted({**BASE_ENV, **fresh, **(env or {})}.items())
@@ -402,8 +402,8 @@ def _instance(
     table = None
     files = None
     try:
-        # 0700, this user's own, locked (spec 016); made before the preopens, since it holds the
-        # mounts' placeholder, which lies under the temporary folder no grant may reach (spec 032).
+        # 0700, this user's own, locked; made before the preopens, since it holds the
+        # mounts' placeholder, which lies under the temporary folder no grant may reach.
         scratch = _Private("wasi-python-")
         if mounts:
             placeholder = scratch.path / "mount"
@@ -432,7 +432,7 @@ def _instance(
         else:
             # A call without mounts: the guard linker, today's but for fd_readdir and
             # path_rename, served by a table with no mounts, which forwards both with wasmtime
-            # 49.0.2's and 49.0.3's fixes (spec 048, Decision 7).
+            # 49.0.2's and 49.0.3's fixes.
             guest_linker = _guard_linker(wt, engine)
             numbers = []
         context = _Context()
@@ -443,36 +443,36 @@ def _instance(
             staging,
             fuel is not None,
             engine,
-            open_files=c.open_files,  # spec 068: strict, as file_calls
+            open_files=c.open_files,  # strict, as file_calls
             context=context,
         )
         call = _Call(store, host, waits, origin_ns, cancel, stop_at, table, admit, home=ht)
-        _watch(store)  # every call (spec 078, Decision 5)
+        _watch(store)  # every call
         with _epoch_ticker(engine, True):
             drive = functools.partial(_drive, plain=linker)
             args = (wt, guest_linker, store, module, call, fuel, every, check)
             done = _home._on_guest_thread("run", ht, call, drive, *args)
         fuel_used = _fuel_used(fuel, done, call, store.get_fuel)
-        # Spec 034, Decision 8: what the guest wrote is handed over at every ending that returns
-        # a result, after the fuel is read; a call that raises never gets here. Every call has a
-        # table since spec 048; a guard table's walk does nothing (no mount, nothing owed).
+        # What the guest wrote is handed over at every ending that returns a result, after the
+        # fuel is read; a call that raises never gets here. Every call has a table, with mounts
+        # or without; a guard table's walk does nothing (no mount, nothing owed).
         table.walk()
     finally:
-        if ht.done and table is not None:  # the record kept (the build review, F3)
-            # A guard table is never reported: `files` is None without mounts (spec 048).
+        if ht.done and table is not None:  # the record kept
+            # A guard table is never reported: `files` is None without mounts.
             files = table.record() if mounts else None
 
         def release() -> None:
-            if tool_host is not None:  # the call's tool loop, ended without waiting (spec 053)
+            if tool_host is not None:  # the call's tool loop, ended without waiting
                 tool_host.close()
             # The store holds every descriptor the guest opened; a guest can open them until the
             # host refuses. Close it first, so the clean-up below has descriptors to work with,
-            # and make that clean-up unable to raise (the 0.1.0a2 security review, F1).
+            # and make that clean-up unable to raise.
             store.close()
             with process().outputs_lock:  # the guest has ended; wasmtime frees the keys later
                 for key in keys:
                     process().outputs.pop(key, None)
-            if table is not None:  # the rest dropped now (the build review, F3)
+            if table is not None:  # the rest dropped now
                 table.release()
                 context.leave()
             for p in mounted:
@@ -480,9 +480,9 @@ def _instance(
             if scratch is not None:
                 scratch.remove()
 
-        ht.finish(release)  # never while a guest thread runs (spec 078, Decision 14)
+        ht.finish(release)  # never while a guest thread runs
     truncated = tuple(s.name for s in (out, err) if s.dropped)
-    record = None if tool_host is None else tool_host.record  # on every ending (C6)
+    record = None if tool_host is None else tool_host.record  # on every ending
     return Completed(
         done.exit_code,
         bytes(out.data),
@@ -499,14 +499,14 @@ def _fuel_used(
     fuel: int | None, done: _Driven, call: _Call, remaining: Callable[[], int]
 ) -> int | None:
     """The instructions the guest ran, or None when the count is meaningless: after an epoch
-    interrupt wasmtime's fuel counter is not brought up to date (spec 001 landing notes), and a
-    stopped call ended on one (spec 011)."""
+    interrupt wasmtime's fuel counter is not brought up to date, and a
+    stopped call ended on one."""
     if fuel is None or done.trapped == "deadline":
         return None
     table = call.table
     held = None if table is None else table.stop_fuel
     if held is not None and call.ended is None and call.stopped is held[0]:
-        # A forward's own trap or error, or an ABI error a served call raised (spec 032): the
+        # A forward's own trap or error, or an ABI error a served call raised: the
         # count read then is the guest's, as when wasmtime's WASI meets it directly.
         return fuel - held[1]
     if call.stopped is not None or call.ended is not None:
@@ -534,11 +534,10 @@ def _drive(
 ) -> _Driven:
     """Instantiate and run the guest with its call on this thread's stack. What a host function
     caught and recorded comes first: an exit or a trap is the call's result, and any other
-    exception (Ctrl-C, a host's cancellation) is raised here, on the thread that made the call
-    (spec 011). `plain` is today's linker when `linker` is the mount linker: the identity check
-    reads wasmtime's own answers through it, and the trampoline takes wasmtime's calls from it
-    (spec 032)."""
-    # spec 071, Decision 9: before every entry into the guest
+    exception (Ctrl-C, a host's cancellation) is raised here, on the thread that made the call.
+    `plain` is today's linker when `linker` is the mount linker: the identity check reads
+    wasmtime's own answers through it, and the trampoline takes wasmtime's calls from it."""
+    # before every entry into the guest
     not_ready = _platform.PLATFORM.trap_handlers_ready()
     if not_ready is not None:
         raise RuntimeError(_TRAP_HANDLERS_REPLACED.format(signal=not_ready))
@@ -555,7 +554,7 @@ def _drive(
             return _Driven(None, "cancelled", False, None)
         own = linker if plain is None else plain
         if preopens:
-            _places._check_preopens(wt, own, store, check, list(preopens))  # spec 017, Decision 5
+            _places._check_preopens(wt, own, store, check, list(preopens))  # the identity check
         instance = linker.instantiate(store, module)
         if call.table is not None:  # after the guest, before the fuel cap and _initialize
             call.table.bind(wt, store, own, instance)
@@ -591,8 +590,8 @@ def _drive(
             trapped = _first_line(str(cause))
         else:
             raise cause
-        cause.__traceback__ = None  # a reported stop's frames hold this call (spec 032, F3)
-    elif call.ended is not None:  # the epoch callback stopped it (spec 015)
+        cause.__traceback__ = None  # a reported stop's frames hold this call
+    elif call.ended is not None:  # the epoch callback stopped it
         exit_code, trapped = None, call.ended
     return _Driven(exit_code, trapped, metered, instance)
 
@@ -601,7 +600,7 @@ class _Call:
     """One call's state, which the shared host functions find on the calling thread's stack: its
     door, its poll_oneoff, its store's context address, and the first exception they caught; for
     a call with `cancel`, the event, the ticker count its deadline passes at, and the outcome the
-    epoch callback recorded (spec 015)."""
+    epoch callback recorded."""
 
     def __init__(
         self,
@@ -619,26 +618,26 @@ class _Call:
         from . import _wasmtime_ffi as ffi
 
         self.context = ffi.context_address(store)
-        self.origin_ns = origin_ns  # its waits count from here (spec 055, the review's F6)
-        # The thread that made the call, which runs the embedder's code (spec 078, Decision 4);
+        self.origin_ns = origin_ns  # its waits count from here
+        # The thread that made the call, which runs the embedder's code;
         # None calls it directly (the judge's stand-ins).
         self.home = home
-        # admit: the frame host's, under tools= (spec 036), whose host is the runner's own code
+        # admit: the frame host's, under tools=, whose host is the runner's own code
         self.door = _door(host, admit, home if admit is None else None)
         self.poll = _poll_oneoff(origin_ns, waits)
         self.stopped: BaseException | None = None
         self.cancel = cancel
         self.stop_at = stop_at
-        # "cancelled" or "deadline", from the epoch callback; "out of file calls" (spec 032)
+        # "cancelled" or "deadline", from the epoch callback; "out of file calls"
         self.ended: str | None = None
-        self.table = table  # the call's mount table (spec 032), or its guard table (spec 048)
+        self.table = table  # the call's mount table, or its guard table
         context = _context_of(table)
         if context is not None:
             context.enter(self)
 
     def files(self, caller: Any, name: str, *args: int) -> int:
-        """One of the 29 shadowed calls, for a call with mounts (spec 032), or one of the two
-        the guard shadows, for a call without (spec 048)."""
+        """One of the 29 shadowed calls, for a call with mounts, or one of the two
+        the guard shadows, for a call without."""
         if self.table is None:
             return EBADF
         return self.table(caller, name, *args)
@@ -656,8 +655,8 @@ class _Call:
 def _shared(kind: str, refused: int, stopped: int, *bound: Any) -> Callable[..., int]:
     """A host function defined once per engine. It serves the call on top of this thread's
     stack, and only when the caller is that call's store; it never raises into wasmtime-py,
-    whose exceptions travel by a process-wide slot (spec 011). `bound` goes before the guest's
-    arguments: a file shadow's name (spec 032)."""
+    whose exceptions travel by a process-wide slot. `bound` goes before the guest's
+    arguments: a file shadow's name."""
 
     import wasmtime as wt
 
@@ -673,12 +672,12 @@ def _shared(kind: str, refused: int, stopped: int, *bound: Any) -> Callable[...,
             if call is None or ffi.context_address(caller) != call.context:
                 return refused
             # Ctrl-C comes before the guard below: a pending Ctrl-C is recorded even for a call
-            # the epoch callback has ended (spec 015's order).
+            # the epoch callback has ended.
             if call.stopped is None and _home._ctrl_c_watched() and process().ctrl_c_pending:
                 process().ctrl_c_pending = False
                 raise KeyboardInterrupt
             if call.stopped is not None or call.ended is not None:
-                return stopped  # no host function runs for a stopped or ended call (spec 030)
+                return stopped  # no host function runs for a stopped or ended call
             answer: int = getattr(call, kind)(caller, *bound, *args)  # door, poll or files
             if _home._ctrl_c_watched() and process().ctrl_c_pending:  # Ctrl-C during a wait
                 process().ctrl_c_pending = False
@@ -693,10 +692,10 @@ def _shared(kind: str, refused: int, stopped: int, *bound: Any) -> Callable[...,
                     and call.ended is not None
                     and isinstance(cause, wasmtime_errors)
                 ):
-                    # The invariant (specs 030 and 032): while the guest runs, `call.ended` is
+                    # The invariant: while the guest runs, `call.ended` is
                     # set only where the runner also stops the guest by its own act in the same
                     # step: by the epoch callback, on a path that returns an error; or by the
-                    # file-call limit's shadow (spec 032), which sets the epoch deadline to 0
+                    # file-call limit's shadow, which sets the epoch deadline to 0
                     # before it returns (`_drive` sets it only before any guest code runs). So a
                     # Trap or WasmtimeError caught here after `ended` is set is the runner's own
                     # stop surfacing: the callback's error, met in host_alloc after a door call
@@ -784,10 +783,10 @@ def _context_of(table: _Files | None) -> _Context | None:
 
 def _epoch_answer(context: Any, delta: Any) -> int:
     """The epoch callback's decision for the call on top of this thread's stack, in order: a
-    recorded stop holds, a named end holds (spec 032: the first named end, such as "out of file
+    recorded stop holds, a named end holds (the first named end, such as "out of file
     calls", is kept under `cancel=` too), a deferred Ctrl-C becomes a stop, then a cancel, then
     the deadline; otherwise continue for up to CANCEL_TICKS ticks. 0 continues; an error (an int
-    address) stops the guest (spec 015)."""
+    address) stops the guest."""
     call = None
     try:
         try:
@@ -809,7 +808,7 @@ def _epoch_answer(context: Any, delta: Any) -> int:
             call.stopped = KeyboardInterrupt()
             return _stop_error(delta)
         home = getattr(call, "home", None)
-        if home is not None and home.raised is not None:  # raised into the home (spec 078)
+        if home is not None and home.raised is not None:  # raised into the home
             call.stopped = _Stopped()
             return _stop_error(delta)
         if call.cancel is not None and call.cancel.is_set():
@@ -835,7 +834,7 @@ def _epoch_answer(context: Any, delta: Any) -> int:
 
 def _stop_error(delta: Any) -> int:
     """A new wasmtime error, which wasmtime owns once returned. If none can be made, continue for
-    one tick, never 0, so the next callback tries again (spec 015's build review, F2)."""
+    one tick, never 0, so the next callback tries again."""
     try:
         from . import _wasmtime_ffi as ffi
 
@@ -857,7 +856,7 @@ def _on_epoch(context: Any, data: Any, delta: Any, kind: Any) -> int:
 
 def _watch(store: Any) -> None:
     """Give a store the epoch callback, with a NULL finalizer: no per-call ctypes object exists,
-    and the callback finds its call through the thread's stack (spec 015)."""
+    and the callback finds its call through the thread's stack."""
     from . import _wasmtime_ffi as ffi
 
     p = process()
@@ -870,7 +869,7 @@ def _watch(store: Any) -> None:
 
 def _linker(wt: Any, engine: wasmtime.Engine) -> Any:
     """The engine's one linker: WASI, the shadowed poll_oneoff and the door, defined once, so a
-    call adds nothing to wasmtime-py's process-wide table of host functions (spec 011)."""
+    call adds nothing to wasmtime-py's process-wide table of host functions."""
     p = process()
     with p.cache_lock:
         linker = p.linkers.get(engine)
@@ -892,7 +891,7 @@ def _runner_linker(wt: Any, engine: wasmtime.Engine) -> Any:
 
 
 def _mount_linker(wt: Any, engine: wasmtime.Engine) -> Any:
-    """The engine's second linker, used only by calls with mounts (spec 032, Decision 1):
+    """The engine's second linker, used only by calls with mounts:
     today's, plus a shadow over each of the 29 calls in `mounts.SHADOWED`, each in the shared
     form, answering EBADF to a caller that is not its call's store and EIO once its call has
     stopped. Defined once per engine, like the first."""
@@ -913,10 +912,10 @@ def _mount_linker(wt: Any, engine: wasmtime.Engine) -> Any:
 
 
 def _guard_linker(wt: Any, engine: wasmtime.Engine) -> Any:
-    """The engine's third linker, used by every call without mounts (spec 048, Decision 7):
+    """The engine's third linker, used by every call without mounts:
     today's, plus a shadow over the two calls in `mounts.GUARDED` (fd_readdir and path_rename)
     and the three in `mounts.COUNTED` (path_open, fd_close and fd_renumber, which the table
-    forwards and counts against the call's cap on open files; spec 068), in the shared form, as
+    forwards and counts against the call's cap on open files), in the shared form, as
     the mount linker's. Every other call stays wasmtime's own. Defined once per engine, like the
     others."""
     from .mounts import COUNTED, GUARDED, SIGNATURES
@@ -937,7 +936,7 @@ def _guard_linker(wt: Any, engine: wasmtime.Engine) -> Any:
 
 def _stat_trampoline_module(wt: Any, engine: wasmtime.Engine) -> Any:
     """The rename rule's stat trampoline, with its own one-page memory, compiled once per engine
-    and instantiated per call (spec 048, Decision 2)."""
+    and instantiated per call."""
     from .mounts import stat_trampoline_wat
 
     p = process()
@@ -949,7 +948,7 @@ def _stat_trampoline_module(wt: Any, engine: wasmtime.Engine) -> Any:
 
 
 def _trampoline_module(wt: Any, engine: wasmtime.Engine) -> Any:
-    """The forwarders, compiled once per engine and instantiated per call (spec 032)."""
+    """The forwarders, compiled once per engine and instantiated per call."""
     from .mounts import trampoline_wat
 
     p = process()
@@ -962,7 +961,7 @@ def _trampoline_module(wt: Any, engine: wasmtime.Engine) -> Any:
 
 # The guest's stdout and stderr, by a key that is never reused. wasmtime calls the two functions
 # below on its own threads, and frees a key when it drops the stream; wasmtime-py's own table for
-# custom outputs is not used, since it has no lock (spec 011).
+# custom outputs is not used, since it has no lock.
 
 
 def _write_output(key: int | None, data: Any, size: int) -> int:
@@ -998,7 +997,7 @@ def _send_outputs(wasi: Any, out: _Stream, err: _Stream) -> tuple[int, int]:
 
 
 EINVAL, ENOMEM, EBADF, EFAULT, EIO = 28, 48, 8, 21, 29  # WASI preview1 errno values
-MAX_SUBSCRIPTIONS = 4096  # one poll_oneoff's host work is bounded (spec 010)
+MAX_SUBSCRIPTIONS = 4096  # one poll_oneoff's host work is bounded
 SUBSCRIPTION = (
     "<QB7xIxxxxQQH6x"  # userdata, tag, clock id or fd, timeout, precision, flags: 48 bytes
 )
@@ -1020,7 +1019,7 @@ class _Plan:
 def _stop_at(count: int, ticks: int) -> int:
     """The ticker's count at which a deadline of `ticks`, set when the count was `count`, has
     passed. The engine's epoch can be one round ahead of the count (the ticker advances the engines
-    first), hence the + 1: a wait never ends before the epoch reaches the deadline (spec 010)."""
+    first), hence the + 1: a wait never ends before the epoch reaches the deadline."""
     return count + ticks + 1
 
 
@@ -1028,7 +1027,7 @@ def _poll_plan(raw: bytes, n: int, realtime_ns: int, monotonic_ns: int) -> _Plan
     """poll_oneoff as wasmtime 49 answers it (crates/wasi/src/p1.rs), for the guest's files and
     stdio: a descriptor subscription is ready at once (stdin for writing, stdout and stderr for
     reading and the preopened root answer EBADF); otherwise the shortest clock wins, and every
-    clock due by then is reported, with nbytes 0 as wasmtime writes it (spec 010)."""
+    clock due by then is reported, with nbytes 0 as wasmtime writes it."""
     if n == 0:
         return _Plan(EINVAL)
     if n > MAX_SUBSCRIPTIONS:
@@ -1061,7 +1060,7 @@ def _poll_plan(raw: bytes, n: int, realtime_ns: int, monotonic_ns: int) -> _Plan
 class _Waits:
     """A wait that the call's deadline ends: in slices of at most TICK_S while a deadline is set,
     one sleep otherwise. `now`, `sleep` and `deadline_passed` are injected so the judge counts the
-    slices without measuring time (spec 010)."""
+    slices without measuring time."""
 
     def __init__(
         self,
@@ -1090,7 +1089,7 @@ def _poll_oneoff(
     """The shadowed poll_oneoff. It never raises into wasmtime-py (an exception there travels by a
     process-wide slot another call can take): a wait ended by the deadline answers normally, and
     the guest traps at its next epoch check. A BaseException goes to the shared function, which
-    records it and stops the guest (spec 011). The clocks are injectable for the judge."""
+    records it and stops the guest. The clocks are injectable for the judge."""
 
     def call(caller: Any, in_ptr: int, out_ptr: int, n: int, nevents_ptr: int) -> int:
         try:
@@ -1114,7 +1113,7 @@ def _poll_oneoff(
             memory.write(caller, struct.pack("<I", len(plan.events)), nevents_ptr)
             return 0
         except Exception:
-            return EINVAL  # anything else is recorded by the shared function (spec 011)
+            return EINVAL  # anything else is recorded by the shared function
 
     return call
 
@@ -1147,7 +1146,7 @@ def _trap_name(e: wasmtime.Trap) -> str:
         return "out of fuel"
     if e.trap_code == wt.TrapCode.INTERRUPT:
         return "deadline"
-    if e.trap_code is not None:  # by its kind, not wasmtime's heading (spec 016, Decision 3)
+    if e.trap_code is not None:  # by its kind, not wasmtime's heading
         return _trap_code_name(e.trap_code)
     return _first_line(e.message)
 
@@ -1159,7 +1158,7 @@ def _trap_code_name(code: wasmtime.TrapCode) -> str:
 
 def _door_answer(host: Host, request: bytes) -> bytes | None:
     """The host's answer as plain bytes, or None for a fault; on the home thread, so a response's
-    own code (a bytes subclass's `__bytes__`) runs there too (spec 078, Decision 4)."""
+    own code (a bytes subclass's `__bytes__`) runs there too."""
     response = host(request)
     if not isinstance(response, (bytes, bytearray, memoryview)):
         return None
@@ -1173,9 +1172,9 @@ def _door(
     admit: Callable[[int], bytes | None] | None = None,
     home: _Home | None = None,
 ) -> Callable[..., int]:
-    """host::call(ptr, len, out_ptr_ptr, out_len_ptr) -> 0, -1 or -2 (spec 003, Decision 5).
+    """host::call(ptr, len, out_ptr_ptr, out_len_ptr) -> 0, -1 or -2.
 
-    With `admit` (the tool protocol's frame host, spec 036), each frame's length is offered to
+    With `admit` (the tool protocol's frame host), each frame's length is offered to
     it once the addresses are checked and before the frame is read: bytes it returns are the
     answer, and the frame is never copied out of guest memory, so a refused frame costs the
     host the same whatever its length. The raw `host=` path passes no `admit`, as before."""
@@ -1188,9 +1187,9 @@ def _door(
         try:
             return frame(caller, ptr, length, out_ptr_ptr, out_len_ptr, host)
         except (wt.Trap, wt.WasmtimeError):
-            raise  # a trap or exit inside host_alloc: the shared function records it (spec 011)
+            raise  # a trap or exit inside host_alloc: the shared function records it
         except Exception:
-            return HOST_FAULT  # nothing a frame or a host does escapes run() (spec 006)
+            return HOST_FAULT  # nothing a frame or a host does escapes run()
 
     def frame(
         caller: Any, ptr: int, length: int, out_ptr_ptr: int, out_len_ptr: int, host: Host
@@ -1227,7 +1226,7 @@ def _door(
     return call
 
 
-# The tool threads alive in this process (spec 036, Decision 5): one per tool call, counted in
+# The tool threads alive in this process: one per tool call, counted in
 # as it starts and out as it ends, after its call returned or not.
 
 
@@ -1239,7 +1238,7 @@ def _count_tool_threads(delta: int) -> None:
 
 def _home_context(home: _Home | None) -> Callable[[], contextvars.Context]:
     """How a tool call copies its context: on the home thread, so it sees what a provider or the
-    door host set earlier in the call (spec 078, Decision 4, the review's F12); with no home
+    door host set earlier in the call; with no home
     thread, where the call is made."""
     if home is None:
         return contextvars.copy_context
@@ -1259,8 +1258,8 @@ def _tool_host(
     home: _Home | None,
 ) -> _ToolHost | None:
     """The call's frame host, for a call with tools=, bound by the call's deadline, its cancel
-    and Ctrl-C (spec 036, Decisions 2 to 5), and by an exception raised into its home thread,
-    where each tool call's context is copied (spec 078, Decision 4, C1); None otherwise. With
+    and Ctrl-C, and by an exception raised into its home thread,
+    where each tool call's context is copied; None otherwise. With
     no home thread (a host the judge drives itself), the embedder's code runs where the frame
     is answered, as a `_Call` without a home runs its door."""
     if c.tools is None:
@@ -1276,7 +1275,7 @@ def _tool_host(
         count=_count_tool_threads,
         context=_home_context(home),
     )
-    # Under run_async, the caller's loop; otherwise a private loop of the call's own (spec 053).
+    # Under run_async, the caller's loop; otherwise a private loop of the call's own.
     tool_loop = _ToolLoop(loop, count=_count_tool_threads)
     return _ToolHost(
         c.tools,
@@ -1284,5 +1283,5 @@ def _tool_host(
         max_calls=c.tool_calls,
         invoke=bound,
         tool_loop=tool_loop,
-        max_bytes=c.tool_request_bytes,  # spec 060
+        max_bytes=c.tool_request_bytes,  # the call's byte budget for frames
     )

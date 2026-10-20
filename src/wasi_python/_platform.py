@@ -126,7 +126,7 @@ def _same_file(fd: int, path: str) -> bool:
     return (opened.st_dev, opened.st_ino) == (named.st_dev, named.st_ino)
 
 
-# Fork (spec 015, Decision 5). A child of a process that made an engine inherits state from
+# Fork. A child of a process that made an engine inherits state from
 # threads that no longer exist, and wasmtime does not support use across a fork (on macOS it
 # aborts), so such a child is refused. A child of a parent that only imported this runs normally.
 
@@ -151,11 +151,11 @@ def _unlink_quietly(path: str) -> None:
         pass
 
 
-# The guest's stack (spec 078). Every entry into wasm runs on a guest thread the runner makes for
-# it, with _THREAD_STACK bytes of stack, _WASM_STACK of them for wasm (Decision 1). The C-stack
-# window (128 KiB, recipes/reactor_main.c, spec 071) is unchanged. _HOST_ROOM holds what runs below
+# The guest's stack. Every entry into wasm runs on a guest thread the runner makes for
+# it, with _THREAD_STACK bytes of stack, _WASM_STACK of them for wasm. The C-stack
+# window (128 KiB, recipes/reactor_main.c) is unchanged. _HOST_ROOM holds what runs below
 # the guest's frames: the runner's own callbacks (measured at most 48 KiB), and the collector's
-# finalizers, audit hooks and trace functions that can run inside them (Decision 2; review F9).
+# finalizers, audit hooks and trace functions that can run inside them.
 _WASM_STACK = 8 << 20
 _HOST_ROOM = 2 << 20
 _THREAD_STACK = _WASM_STACK + _HOST_ROOM
@@ -171,7 +171,7 @@ _DIR_OPEN = _flags("O_RDONLY", "O_DIRECTORY", "O_NOFOLLOW", "O_CLOEXEC", "O_NONB
 _REMOVE_BATCH = 1024  # entries a listing reads before it acts
 MAX_LINKS = 40
 
-# Windows (Decision 5): Python cannot open a folder with os.open, so the walk opens every
+# Windows: Python cannot open a folder with os.open, so the walk opens every
 # component through CreateFileW, refuses a reparse point (a link or a junction), and holds each
 # handle without FILE_SHARE_DELETE until the identity check, so no walked folder can be renamed,
 # removed or replaced in between, and no path string is ever compared.
@@ -188,13 +188,13 @@ _OPEN_REPARSE_POINT = 0x00200000
 _ATTRIBUTE_DIRECTORY = 0x10
 _ATTRIBUTE_REPARSE_POINT = 0x400
 
-# Names a judged Windows walk refuses (spec 076, Decision 1): Win32 rewrites them, so the path
+# Names a judged Windows walk refuses: Win32 rewrites them, so the path
 # opened and the chain of folders walked could disagree, and a rule that reads the chain could
-# miss a true ancestor (the pre-build review's F1). A `:` is a drive letter (`C:\\b\\D:x` is
+# miss a true ancestor. A `:` is a drive letter (`C:\\b\\D:x` is
 # drive D's current folder) or a stream; a trailing space or period is trimmed in some positions
 # and not others; a reserved device name, with or without an extension, is the device, and a
 # root still to be made through one would fail after the folders before it were made. The set is
-# exactly Python's own `ntpath.isreserved` for one component (spec 077), which the runner cannot
+# exactly Python's own `ntpath.isreserved` for one component, which the runner cannot
 # call on 3.11 and 3.12: Microsoft's reserved names ("Naming Files, Paths, and Namespaces"), with
 # the superscript `COM¹` to `LPT³` it reserves "in every directory"; `CONIN$` and `CONOUT$`,
 # which CPython refuses "on the side of caution"; and the characters Windows rejects in a name.
@@ -206,7 +206,7 @@ _WIN_RESERVED_CHARS = frozenset('"*<>?|' + "".join(map(chr, range(32))))
 
 # Linux: the fatal signals wasmtime 49 handles to turn a fault in wasm into a trap
 # (crates/wasmtime/src/runtime/vm/sys/unix/signals.rs, foreach_handler): SIGSEGV and SIGILL, and
-# SIGFPE on x86_64. Its handlers are installed when the first engine is made (spec 071, Decision 9).
+# SIGFPE on x86_64. Its handlers are installed when the first engine is made.
 _TRAP_SIGNALS = ("SIGSEGV", "SIGILL")
 _TRAP_SIGNALS_X86_64 = ("SIGFPE",)
 _TRAP_HANDLERS_REPLACED = (
@@ -553,7 +553,7 @@ class _Posix:
 
 def _writable(fd: int, stack: list[tuple[int, Identity, str]]) -> bool:
     """Whether this user can write the folder open at `fd`: only a link in such a folder could be
-    a guest's, since a guest writes as this user (memo §7a)."""
+    a guest's, since a guest writes as this user."""
     effective = os.access in os.supports_effective_ids
     if os.access in os.supports_dir_fd:
         return os.access(".", os.W_OK, dir_fd=fd, effective_ids=effective)
@@ -570,7 +570,7 @@ def _make_by_path(path: str, missing: tuple[str, ...]) -> str:
 
 def _real_dir_at(fd: int, parts: tuple[str, ...]) -> int:
     """A descriptor on fd/parts…, each a real directory, each step taken from the folder before:
-    a link or file a guest left in the way is removed, never followed (spec 024). The caller
+    a link or file a guest left in the way is removed, never followed. The caller
     closes the result; `fd` stays open."""
     here = os.dup(fd)
     try:
@@ -598,8 +598,8 @@ def _real_dir_at(fd: int, parts: tuple[str, ...]) -> int:
 
 def _real_dir_by_path(root: Path, parts: tuple[str, ...]) -> Path:
     """root/parts…, each a real directory: a link or file a guest left in the way is removed.
-    Windows, where the walk holds every folder of the root's path (spec 017, Decision 5) and
-    guests can make links only where the user holds the symbolic-link privilege (spec 084), and
+    Windows, where the walk holds every folder of the root's path and
+    guests can make links only where the user holds the symbolic-link privilege, and
     a POSIX host without directory descriptors. The root is never made again here."""
     here = root
     for part in parts:
@@ -620,13 +620,13 @@ def _real_dir_by_path(root: Path, parts: tuple[str, ...]) -> Path:
     return here
 
 
-# The removal (spec 084). A guest can build a tree one level at a time through dir_fd, deeper
+# The removal. A guest can build a tree one level at a time through dir_fd, deeper
 # than the process's free descriptors, and shutil.rmtree holds one descriptor per level (and on
 # 3.11 one Python frame per level). The remover holds at most two: on POSIX it goes down by
 # name with O_NOFOLLOW and up by "..", checking each parent against the identity it recorded on
 # the way down; elsewhere (Windows) it walks extended-length paths. It creates, renames and
-# chmods nothing: what it may not delete, it leaves (spec 084, Decision 4). Only a fresh HOME,
-# which another call on the same root may be writing, gets a budget of calls (Decision 12).
+# chmods nothing: what it may not delete, it leaves. Only a fresh HOME,
+# which another call on the same root may be writing, gets a budget of calls.
 
 
 def _is_folder(entry: os.DirEntry[str]) -> bool:
@@ -745,7 +745,7 @@ def _enter(
         child = os.open(entry.name, _DIR_OPEN, dir_fd=cur)
     except FileNotFoundError:
         return None
-    except PermissionError as e:  # mode 0000, say: an empty one goes by rmdir (the review's N1)
+    except PermissionError as e:  # mode 0000, say: an empty one goes by rmdir
         removal.spend()
         try:
             os.rmdir(entry.name, dir_fd=cur)
@@ -847,7 +847,7 @@ def _remove_by_path(top: str, removal: _Removal) -> bool:
 
 def _pyapi(name: str, restype: Any, *argtypes: Any) -> Any:
     """A private prototype of a C API function: no restype or argtypes is set on
-    `ctypes.pythonapi`'s shared attributes (spec 078, the review's F5). AttributeError if absent."""
+    `ctypes.pythonapi`'s shared attributes. AttributeError if absent."""
     return ctypes.PYFUNCTYPE(restype, *argtypes)((name, ctypes.pythonapi))
 
 
@@ -899,12 +899,11 @@ class _Linux(_Posix):
     def _kernel_identity(self) -> str | None:
         return Path("/proc/sys/kernel/random/boot_id").read_text().strip()
 
-    # The guest thread's own stack (Decision 3). Each C function is a private prototype, resolved
+    # The guest thread's own stack. Each C function is a private prototype, resolved
     # once; no argtypes are set on a shared ctypes attribute. What is measured is the thread's
     # whole stack as the C library reports it (glibc's static TLS and thread descriptor lie
     # inside it, and the frames above the entry count too), not the room left at the entry: the
-    # 1 MiB between the refusal line and the thread's size, and the host room, absorb both (the
-    # review's F14).
+    # 1 MiB between the refusal line and the thread's size, and the host room, absorb both.
 
     def _stack_bounds(self) -> tuple[int, int] | None:
         api = self.stack_api
@@ -949,7 +948,7 @@ class _Linux(_Posix):
     ) -> bool:
         """Where CPython 3.14 and later guess their thread's stack (Linux without glibc), tell
         the interpreter this thread's real one, or a callback from deep in the guest ends the
-        process (Decision 3). True when told. CPython 3.14.0 there has no such call:
+        process. True when told. CPython 3.14.0 there has no such call:
         RuntimeError."""
         import platform as platform_module
 
@@ -988,7 +987,7 @@ class _Linux(_Posix):
         wasmtime_base: Callable[[], int | None] | None = None,
     ) -> str | None:
         """None when a trap in the guest would reach wasmtime; else the first signal whose
-        handler is not wasmtime's (spec 071, Decision 9): wasmtime catches traps with signal
+        handler is not wasmtime's: wasmtime catches traps with signal
         handlers that a later faulthandler.enable() or disable(), a signal.signal or a native
         crash reporter can replace. Exact for faulthandler, conservative for other handlers.
         Any failure counts as not ready."""
@@ -1070,7 +1069,7 @@ class _ByHandle(ctypes.Structure):
 
 def _rewritten(name: str) -> bool:
     """Whether Windows rewrites or rejects this one path component (never `.` or `..`): the same
-    answer as `ntpath.isreserved` gives for it (spec 077, Decision 3)."""
+    answer as `ntpath.isreserved` gives for it."""
     if name in (".", ".."):
         return False
     if ":" in name or _WIN_RESERVED_CHARS.intersection(name) or name.endswith((" ", ".")):
@@ -1080,7 +1079,7 @@ def _rewritten(name: str) -> bool:
 
 def _default_drive_folder(drive: str) -> str:
     """The current folder of `drive` (the process's own drive when empty), holding no `..`: where
-    a relative Windows path starts, and whose drive a rooted one takes (spec 076, Decision 1). The
+    a relative Windows path starts, and whose drive a rooted one takes. The
     observers' `drive_folder` stands in for it when set."""
     import ntpath
 
@@ -1156,7 +1155,7 @@ class _Windows:
         import ntpath
 
         if judge:
-            # Made absolute without dropping `..` (spec 076): only the start is ever normalised,
+            # Made absolute without dropping `..`: only the start is ever normalised,
             # and `..` is taken on the folders walked, as the POSIX walk takes it.
             drive, tail = ntpath.splitdrive(path)
             drive_folder = process().observers.drive_folder or _default_drive_folder
@@ -1242,7 +1241,7 @@ class _Windows:
 
     def identity_of(self, path: Path) -> Identity:
         # Attributes only: a runtime folder's chain must not be cut short by a folder one may not
-        # traverse, or by another handle's share mode (the follow-up review, F1).
+        # traverse, or by another handle's share mode.
         h, _, identity = self.open_handle(str(path), follow=True, access=_STAT_ACCESS)
         self.close_held(h)
         return identity
@@ -1340,7 +1339,7 @@ class _Windows:
 
     def stack_bounds(self) -> tuple[int, int] | None:
         """(the usable bottom, the usable size) of this thread's stack, or None if unreadable.
-        Counted conservatively: high - low - the thread's stack guarantee - one page (F7)."""
+        Counted conservatively: high - low - the thread's stack guarantee - one page."""
         try:
             api = self.stack_api
             if "limits" not in api:

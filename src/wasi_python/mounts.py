@@ -1,4 +1,4 @@
-"""Mounts (specs 032 and 034): a provider's files at a guest path, served from embedder code.
+"""Mounts: a provider's files at a guest path, served from embedder code.
 
     from wasi_python import Mount, run
 
@@ -7,26 +7,26 @@
 
 A provider answers three methods on normalized, absolute paths (`/` is the mount itself): `stat`,
 `list` and `read`, each returning a value or an `Errno`, or raising an `OSError` whose errno (by
-name) or, with no errno, whose class names one (spec 061). A writable mount's provider also
+name) or, with no errno, whose class names one. A writable mount's provider also
 answers the write half (`write`, `mkdir`, `remove`, `rmdir`, `rename`), each `None` or an
 `Errno`, raised the same way; a file's bytes are staged in the runner and handed over whole at
 open (a create or truncation), at close, at sync and at the call's ending. The runner owns every
 descriptor, offset, flag, cookie and pointer; the provider sees only normalized paths.
 
 How it works: on a call with mounts, the guest's 29 preview1 calls that act on a descriptor and
-are not forward-safe are shadowed (`SHADOWED`). Each finds its call on the thread's stack (spec
-011). A call that names a number in the call's mount table is served here; any other is forwarded
+are not forward-safe are shadowed (`SHADOWED`). Each finds its call on the thread's stack. A
+call that names a number in the call's mount table is served here; any other is forwarded
 to wasmtime's own WASI through a small trampoline instantiated on the guest's memory, by
 `wasmtime_func_call` on the caller's context, fuel-neutral. Each mount is preopened on an empty,
 read-only placeholder folder the runner owns, so wasi-libc's preopen scan finds it; a file or
 folder opened in a mount gets a number from 2**30 up, which wasmtime never reaches.
 
-A call without mounts shadows only the two calls in `GUARDED` (spec 048) and the three in
-`COUNTED` (spec 068), through a table with no mounts, so all five are forwarded: every forward of
+A call without mounts shadows only the two calls in `GUARDED` and the three in
+`COUNTED`, through a table with no mounts, so all five are forwarded: every forward of
 the first two carries wasmtime 49.0.2's and 49.0.3's fixes, which wasmtime 49.0.0, the newest
 wasmtime-py, lacks, and the last three let the table count the files the guest holds open.
 
-Every table, with mounts or without, keeps the call's cap on files open at once (spec 068): the
+Every table, with mounts or without, keeps the call's cap on files open at once: the
 wasmtime numbers the guest opened and still holds, plus its open mount files, and answers EMFILE
 to an open at the cap before wasmtime or a provider is asked.
 
@@ -53,7 +53,7 @@ class Errno(enum.IntEnum):
     that makes the guest's C library retry, and nothing that describes the guest's own
     arguments."""
 
-    # The numbers: READ, wasi-libc's wasip1.h (spec 032).
+    # The numbers: READ, wasi-libc's wasip1.h.
 
     EACCES = 2
     EBUSY = 10
@@ -143,7 +143,6 @@ class WritableFileProvider(FileProvider, Protocol):
     at the call's ending.
     """
 
-    # spec 034
     def write(self, path: str, data: bytes) -> None | Errno:
         """Replace a file's whole content, creating the file if it is missing.
 
@@ -200,8 +199,6 @@ class Mount:
             Keyword-only.
     """
 
-    # spec 032; writable: spec 034
-
     provider: FileProvider
     guest: str
     writable: bool = field(default=False, kw_only=True)
@@ -237,8 +234,6 @@ class RefusedWrite:
         cause: Why: "refused", "fault" or "limit".
     """
 
-    # spec 034, Decision 11
-
     mount: str
     method: str
     paths: tuple[str, ...]
@@ -265,7 +260,7 @@ class FileRecord:
     refused_total: int = 0
 
 
-# A provider's OSError (spec 061): the answer of its errno, matched by name, never by number,
+# A provider's OSError: the answer of its errno, matched by name, never by number,
 # which differs by host (ENOENT is 2 on every host and 2 is preview1's EACCES). One code path for
 # every host: the table is the host's own errno module, read by the guest's names.
 
@@ -324,7 +319,7 @@ def _raised(e: BaseException) -> Errno | None:
 # The 29 preview1 calls that act on a descriptor and are not forward-safe, with their raw
 # parameters (the result is one i32): every call the guest's file traffic can name a provider
 # number in. fd_renumber, fd_allocate and fd_fdstat_set_rights are not imported by today's
-# binaries (the reactor refuses qhull's freopen, fd_renumber's one user; spec 037); they are
+# binaries (the reactor refuses qhull's freopen, fd_renumber's one user); they are
 # shadowed so a later binary cannot reach a provider number unseen.
 SIGNATURES: dict[str, tuple[str, ...]] = {
     "fd_advise": ("i32", "i64", "i64", "i32"),
@@ -360,7 +355,7 @@ SIGNATURES: dict[str, tuple[str, ...]] = {
 SHADOWED = tuple(SIGNATURES)
 # Reviewed: on a provider number each answers EBADF (the number is not in wasmtime's table), or,
 # for poll_oneoff (the runner's own), as for any descriptor; on a mount's preopen wasmtime answers
-# as for a grant's (spec 032, Decision 1).
+# as for a grant's.
 FORWARD_SAFE = (
     "fd_prestat_get",
     "fd_prestat_dir_name",
@@ -371,7 +366,7 @@ FORWARD_SAFE = (
     "poll_oneoff",
 )
 
-# The guard (spec 048). wasmtime 49.0.0 carries two advisories that reach a guest, and no
+# The guard. wasmtime 49.0.0 carries two advisories that reach a guest, and no
 # wasmtime-py on PyPI carries a wasmtime with their fixes yet:
 # - GHSA-96f6-r43r-8c24 (fixed in wasmtime 49.0.2): fd_readdir copies up to three bytes of
 #   uninitialized host memory into each entry's padding. A forwarded listing is zeroed there.
@@ -384,7 +379,7 @@ FORWARD_SAFE = (
 # Each guard goes when the published floor admits only patched versions (tests/checks/
 # test_rules.py, test_the_rename_and_readdir_guard_match_the_floor).
 GUARDED = ("fd_readdir", "path_rename")
-# The calls that make or free a descriptor the guest holds (spec 068): in wasmtime 49's preview1
+# The calls that make or free a descriptor the guest holds: in wasmtime 49's preview1
 # only path_open adds one, fd_close frees one, and fd_renumber frees `to` and moves `from` there.
 # Shadowed on calls without mounts too, permanently, so the table counts against the call's cap.
 COUNTED = ("path_open", "fd_close", "fd_renumber")
@@ -405,7 +400,7 @@ STAGING_CEILING = 4 << 30  # wasm32's own ceiling, when memory_bytes is None
 FUEL_ALLOWANCE = 1000  # covers the trampoline's few instructions; set back after each forward
 FUEL_MAX = 2**63 - 1
 METHODS = ("stat", "list", "read", "write", "mkdir", "remove", "rmdir", "rename")
-WRITE_HALF = METHODS[3:]  # a writable mount's provider has each of these (spec 034)
+WRITE_HALF = METHODS[3:]  # a writable mount's provider has each of these
 
 MASK32, MASK64 = 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF
 # preview1 errno values the runner answers itself
@@ -441,13 +436,13 @@ RIGHTS = (1 << 30) - 1  # wasmtime 49's Rights::all()
 FILE_RIGHTS = RIGHTS & ~FD_WRITE  # a file opened read-only, as wasmtime reports it
 OFFSET_TOP = 2**63  # an offset, a position or a size from here on: the host's EINVAL
 # Which trailing `/` makes a rename served in a writable mount need a folder source: (the
-# source's, the destination's). Either path's counts, as wasmtime 49.0.3's rule, which spec 048
-# carries for a grant's rename (GHSA-m9f7-9w4p-gv38): the parity's reference is a guarded grant
-# (spec 034, the build review, F3). The source is judged by one `stat`, after the runner's own
+# source's, the destination's). Either path's counts, as wasmtime 49.0.3's rule, which the guard
+# carries for a grant's rename (GHSA-m9f7-9w4p-gv38): the parity's reference is a guarded grant.
+# The source is judged by one `stat`, after the runner's own
 # answers (the path rules, EBUSY, EINVAL) and before the provider's `rename`: for a slash-named
 # rename that is the guard's order, the stat's errno or ENOTDIR before anything is renamed.
 RENAME_SLASH_NEEDS_FOLDER = (True, True)
-ZEROS = bytes(1 << 16)  # the block a buffer grows from (the build review, F4)
+ZEROS = bytes(1 << 16)  # the block a buffer grows from
 DIR_RIGHTS = RIGHTS & ~(FD_SEEK | FD_WRITE | PATH_FILESTAT_SET_SIZE | FD_FILESTAT_SET_SIZE)
 FILESTAT = "<QQB7xQQQQQ"  # dev, ino, filetype, nlink, size, atim, mtim, ctim: 64 bytes
 FDSTAT = "<BxH4xQQ"  # filetype, flags, rights base and inheriting: 24 bytes
@@ -457,7 +452,7 @@ DIRENT = "<QQIB3x"  # d_next, d_ino, d_namlen, d_type: 24 bytes
 def trampoline_wat() -> str:
     """The forwarders: each imports one of wasmtime's own calls and exports a function that calls
     it, beside the guest's memory re-exported as `memory`, which wasmtime's WASI reads through
-    the calling instance (memo finding 3)."""
+    the calling instance."""
     lines = ["(module"]
     for name, params in SIGNATURES.items():
         sig = f"(param {' '.join(params)}) (result i32)"
@@ -473,7 +468,7 @@ def trampoline_wat() -> str:
 
 
 def stat_trampoline_wat() -> str:
-    """The guard's own trampoline (spec 048, Decision 2): it imports wasmtime's calls in
+    """The guard's own trampoline: it imports wasmtime's calls in
     `PRIVATE` and defines and exports its own memory, one page that the host grows when a
     listing needs it, which wasmtime's WASI reads and writes through, so what the guard asks
     never touches a byte of the guest's."""
@@ -544,7 +539,7 @@ class _Mounted:
     guest: str
     dev: int  # _siphash13 of the guest path
     nested: tuple[str, ...]  # more specific preopens, as paths within this mount
-    writable: bool = False  # the embedder said so (spec 034); else no write-half call is made
+    writable: bool = False  # the embedder said so; else no write-half call is made
 
 
 @dataclass
@@ -563,16 +558,16 @@ class _Open:
     fresh: bool = False  # the listing has not yet served a pass from cookie 0
     held: int = 0  # staged bytes this descriptor holds
     readable: bool = True  # wasmtime's open mode: FD_READ asked for, or not opened to write
-    writable: bool = False  # it may write (spec 034): CREAT or TRUNC, or FD_WRITE asked for
+    writable: bool = False  # it may write: CREAT or TRUNC, or FD_WRITE asked for
     dirty: bool = False  # the provider has not been given these bytes
-    unlinked: bool = False  # the guest removed or replaced its path in this call (Decision 7)
+    unlinked: bool = False  # the guest removed or replaced its path in this call
 
 
 @dataclass
 class _Forwards:
     """The trampoline's function handles and argument arrays, for one call's store only: a
     handle of one store used with another store's context aborts the process. `stat` and
-    `page` are the guard's own trampoline's calls (`PRIVATE`) and its memory (spec 048)."""
+    `page` are the guard's own trampoline's calls (`PRIVATE`) and its memory."""
 
     funcs: dict[str, Any]
     stat: dict[str, Any] = field(default_factory=dict)
@@ -582,7 +577,7 @@ class _Forwards:
 
 class _Memory:
     """The guest's memory for one host call: every pointer and length is checked against its
-    size before a byte is read or written (Decision 7)."""
+    size before a byte is read or written."""
 
     def __init__(self, caller: Any) -> None:
         import wasmtime
@@ -625,7 +620,7 @@ class _CallContext(Protocol):
 
 
 class _Files:
-    """One call's mount table and provider calls (spec 032). Called by the 29 shadows through
+    """One call's mount table and provider calls. Called by the 29 shadows through
     the shared function with the shadowed call's name; it answers an errno, or raises a
     wasmtime error that ends the run (a forward's, or an ABI error as wasmtime gives it), or a
     provider's BaseException, which the shared function records as the call's stop."""
@@ -671,21 +666,21 @@ class _Files:
         self.staged = 0
         self.opened = 0  # provider numbers in use, owed ones included
         self.free: list[int] = []
-        # Closed for the guest, written back at the ending (spec 034, Decision 5): out of `table`
-        # (so no call finds them; N2) and out of `free` (so no open reuses the number).
+        # Closed for the guest, written back at the ending: out of `table`
+        # (so no call finds them) and out of `free` (so no open reuses the number).
         self.owed: dict[int, _Open] = {}
         self.next = PROVIDER_BASE
         self.forwards: _Forwards | None = None
         # a forward's own error, or an ABI error the runner raised, and the guest's fuel then
         self.stop_fuel: tuple[BaseException, int] | None = None
-        # The cap on files open at once (spec 068), and the wasmtime numbers the guest opened and
+        # The cap on files open at once, and the wasmtime numbers the guest opened and
         # still holds. None: no cap (a table built by hand); a call's table gets the call's value.
         self.open_files = open_files
         self.held: set[int] = set()
-        self.session = False  # a session's table lives across turns (spec 055, Decision 11)
+        self.session = False  # a session's table lives across turns
 
     def open_now(self) -> int:
-        """The files and folders the guest holds open (spec 068): the wasmtime numbers it opened,
+        """The files and folders the guest holds open: the wasmtime numbers it opened,
         and its open mount files; an owed buffer is a number the guest has closed."""
         return len(self.held) + self.opened - len(self.owed)
 
@@ -694,7 +689,7 @@ class _Files:
 
     def new_turn(self) -> None:
         """A session's turn starts its counters at zero, so each turn's record and limit are its
-        own; the open files, their buffers and the owed write-backs carry over (spec 055)."""
+        own; the open files, their buffers and the owed write-backs carry over."""
         self.calls = dict.fromkeys(METHODS, 0)
         self.total = 0
         self.faults = []
@@ -711,7 +706,7 @@ class _Files:
         )
 
     def walk(self, *, ending: bool = False) -> None:
-        """The ending's write-backs (spec 034, Decision 8), made after the guest has stopped by
+        """The ending's write-backs, made after the guest has stopped by
         any ending that returns a result, on the call's thread, outside every host function:
         one `write` for each dirty buffer of a writable mount that is not unlinked, owed buffers
         included, in ascending provider number. Its own counted call path, never the gate: no
@@ -721,11 +716,11 @@ class _Files:
         makes no call once the interpreter is exiting or a Ctrl-C is pending: no result will
         carry a record then, and provider code must not run.
 
-        In a session (spec 055, Decision 11) the walk runs at every turn's ending: a write-back
-        the limit refuses is recorded and stays dirty, to be offered again at the next ending
-        (the review's F7), and an owed buffer is dropped once its write-back is made. A session's
-        ending (`ending=True`) runs on purpose at exit, so it ignores the exiting flag that
-        run_async's exit hook sets; a pending Ctrl-C still stops it (the build review's F1)."""
+        In a session the walk runs at every turn's ending: a write-back the limit refuses is
+        recorded and stays dirty, to be offered again at the next ending, and an owed buffer is
+        dropped once its write-back is made. A session's ending (`ending=True`) runs on purpose
+        at exit, so it ignores the exiting flag that run_async's exit hook sets; a pending Ctrl-C
+        still stops it."""
         for number in sorted([*self.table, *self.owed]):
             entry = self.table[number] if number in self.table else self.owed[number]
             if entry.kind != "file" or not entry.dirty or entry.unlinked:
@@ -747,7 +742,7 @@ class _Files:
                 self.staged -= entry.held
 
     def release(self) -> None:
-        """Drop what the call held once it has ended (the build review, F3): the staged files
+        """Drop what the call held once it has ended: the staged files
         and listings, the trampoline's handles and the link back to the call, so nothing waits
         for the cyclic collector."""
         self.table.clear()
@@ -757,11 +752,11 @@ class _Files:
         self.stop_fuel = None
         self.staged = 0
 
-    # The trampoline (Decision 1).
+    # The trampoline.
 
     def bind(self, wt: Any, store: Any, plain: Any, instance: Any) -> None:
         """Instantiate the trampoline on the guest's memory with wasmtime's own calls from
-        `plain` (today's linker), and the stat trampoline on its own page (spec 048). After
+        `plain` (today's linker), and the stat trampoline on its own page. After
         the guest, before the fuel cap and `_initialize`."""
         module, stat_module = self.context.trampolines(wt, self.engine)
         imports = [plain.get(store, "wasi_snapshot_preview1", name) for name in SIGNATURES]
@@ -781,15 +776,15 @@ class _Files:
         """wasmtime's own answer, on the caller's context, never through `Func.__call__` (whose
         exception slot is process-wide). Fuel-neutral on a metered call: read, raised by the
         allowance, and set back in a `finally` before any trap or error is raised. `stat`
-        forwards one of `PRIVATE` through the guard's own trampoline, on its page (spec 048).
-        The engine is reached through the seam (spec 103): a prepared call per name, made once."""
+        forwards one of `PRIVATE` through the guard's own trampoline, on its page.
+        The engine is reached through the seam: a prepared call per name, made once."""
         from wasmtime import Trap, WasmtimeError
 
         from . import _wasmtime_ffi as ffi
 
         if self.forwards is None:
             return EBADF  # no trampoline yet: nothing of wasmtime's can be reached
-        key = "stat:" + name if stat else name  # the guard trampoline's own slots (N2)
+        key = "stat:" + name if stat else name  # the guard trampoline's own slots
         slot = self.forwards.slots.get(key)
         if slot is None:
             func = self.forwards.stat[name] if stat else self.forwards.funcs[name]
@@ -821,7 +816,7 @@ class _Files:
         except BaseException as e:
             if self.metered and getattr(e, "abi", False):
                 # An ABI error ends the run where a grant's does, with the fuel then (served
-                # code spends none), as a forward's error keeps it (the build review, F4.2).
+                # code spends none), as a forward's error keeps it.
                 from . import _wasmtime_ffi as ffi
 
                 self.stop_fuel = (e, ffi.get_fuel(caller))
@@ -830,17 +825,17 @@ class _Files:
     def _entry(self, fd: int) -> _Open | None:
         return self.table.get(fd & MASK32)
 
-    # The provider (Decisions 3, 4, 8 and 10).
+    # The provider.
 
     def _home(self, fn: Callable[..., _T], *args: Any) -> _T:
-        """fn(*args) on the call's home thread, where the embedder's code runs (spec 078,
-        Decision 4): every step that can run a provider's code (its method, an answer's buffer
+        """fn(*args) on the call's home thread, where the embedder's code runs:
+        every step that can run a provider's code (its method, an answer's buffer
         or iteration, an exception's text) goes through here. Directly without a home."""
         return cast(_T, self.context.on_home(fn, *args))
 
     def _gate(self, caller: Any) -> int:
-        """0, or the errno that stops a provider call while the guest runs (Decision 10 of spec
-        032): the call's cancel, its deadline, then the file-call limit, which names the end."""
+        """0, or the errno that stops a provider call while the guest runs: the call's cancel,
+        its deadline, then the file-call limit, which names the end."""
         if self.context.cancelled():
             self.context.stop_now(caller)  # named "cancelled" by the callback at the next entry
             return ECANCELED
@@ -855,9 +850,9 @@ class _Files:
 
     def _invoke(self, mount: _Mounted, method: str, args: tuple[Any, ...]) -> tuple[int, Any]:
         """The provider call itself, counted, inside the fault boundary: (0, answer), or EIO with
-        the fault recorded. An OSError that names a member is that answer, as if returned (spec
-        061); nothing of it is kept. A BaseException that is not an Exception is let through: it
-        is the call's stop (spec 032, Decision 4)."""
+        the fault recorded. An OSError that names a member is that answer, as if returned;
+        nothing of it is kept. A BaseException that is not an Exception is let through: it
+        is the call's stop."""
         self.total += 1
         self.calls[method] += 1
         try:
@@ -868,14 +863,14 @@ class _Files:
             self._fault(method, args[0], _described(e))
             return EIO, None
 
-    # The write half (spec 034, Decisions 2, 5 and 11).
+    # The write half.
 
     def _change(
         self, caller: Any, mount: _Mounted, method: str, at: str, paths: tuple[str, ...], *data: Any
     ) -> tuple[int, bool]:
         """One write-half call: (errno, made). Not made (cancel, deadline, limit) means the
         provider never saw it: nothing is recorded here, since the guest gets the errno and a
-        write-back owed by a close or sync is recorded once, by the ending (N3, Decision 5)."""
+        write-back owed by a close or sync is recorded once, by the ending."""
         if errno := self._gate(caller):
             return errno, False
         return self._home(self._made, mount, method, at, paths, data), True
@@ -931,7 +926,7 @@ class _Files:
     def _stat(self, caller: Any, mount: _Mounted, path: str) -> tuple[int, str, int, int]:
         """(0, kind, size, mtime_ns), or (errno, "", 0, 0). Every answer is judged by its real
         type, which runs no provider code; what is left to look at runs inside the boundary, on
-        the home thread (spec 078: a `Stat` subclass's properties are the provider's code)."""
+        the home thread (a `Stat` subclass's properties are the provider's code)."""
         if errno := self._gate(caller):
             return errno, "", 0, 0
         return self._home(self._stat_answer, mount, path)
@@ -962,7 +957,7 @@ class _Files:
     ) -> tuple[int, bytes | bytearray | None]:
         """(0, bytes) for a file (a bytearray when `buffer`, for a descriptor that may write),
         (0, None) for a folder (EISDIR), or (errno, None). The answer is taken as a buffer on the
-        home thread, where its buffer export, the provider's code, runs (spec 078)."""
+        home thread, where its buffer export, the provider's code, runs."""
         if errno := self._gate(caller):
             return errno, None
         return self._home(self._read_answer, mount, path, buffer)
@@ -978,7 +973,7 @@ class _Files:
                 return (0, None) if answer is Errno.EISDIR else (int(answer), None)
             if not issubclass(type(answer), (bytes, bytearray, memoryview)):
                 return self._bad("read", path, answer), None
-            with memoryview(answer) as view:  # judged in bytes before any copy (Decision 8)
+            with memoryview(answer) as view:  # judged in bytes before any copy
                 if self.staged + view.nbytes > self.staging:
                     return EFBIG, None
                 return 0, (bytearray(view) if buffer else view.tobytes())
@@ -996,7 +991,7 @@ class _Files:
         the buffer, the array and the set of names that finds a repeat; once gathered, it holds
         the buffer and the array. Every name is checked before the guest sees it. The call and
         the whole gathering (iter, each next, close) run on the home thread, so a generator
-        `list` runs its body there (spec 078, Decision 4)."""
+        `list` runs its body there."""
         if errno := self._gate(caller):
             return errno, None, 0
         return self._home(self._list_answer, mount, path, ino, released)
@@ -1021,7 +1016,7 @@ class _Files:
             names = 0  # the bytes of the name objects the set holds
             prefix = path.rstrip("/") + "/"
             # iter() and each next() run the listing's own code, a generator method's body
-            # included: an OSError there is the answer of its errno too (spec 061, Decision 5).
+            # included: an OSError there is the answer of its errno too.
             try:
                 iterator = iter(answer)
             except Exception as e:
@@ -1055,14 +1050,14 @@ class _Files:
             _close(iterator)
 
     def _listing_raised(self, path: str, e: Exception) -> int:
-        """The errno for an exception the listing raised: its member's (spec 061), or EIO with
+        """The errno for an exception the listing raised: its member's, or EIO with
         the fault recorded."""
         if (member := _raised(e)) is not None:
             return int(member)
         self._fault("list", path, _described(e))
         return EIO
 
-    # Numbers and staging (Decisions 1 and 8).
+    # Numbers and staging.
 
     def _take(self, entry: _Open) -> int:
         number = heapq.heappop(self.free) if self.free else self.next
@@ -1080,7 +1075,7 @@ class _Files:
             heapq.heappush(self.free, number)
         self.staged -= entry.held
 
-    # Paths (Decision 5).
+    # Paths.
 
     def _path(self, memory: _Memory, ptr: int, length: int) -> bytes | int:
         """The guest's path bytes, after its pointer and length are checked."""
@@ -1110,7 +1105,7 @@ class _Files:
         if any(len(part.encode()) > MAX_NAME for part in parts):
             return ENAMETOOLONG
         if base.unlinked:
-            return ENOENT  # an open, removed folder holds nothing (spec 034, Decision 7)
+            return ENOENT  # an open, removed folder holds nothing
         stack = [p for p in base.path.split("/") if p]
         floor = len(stack)
         for part in parts:
@@ -1206,7 +1201,7 @@ class _Files:
             self._drop(number)
             return 0
         # A dirty buffer: one write-back, then the number is freed whatever the answer, as
-        # POSIX's close frees the descriptor even when it fails (spec 034, Decision 5).
+        # POSIX's close frees the descriptor even when it fails.
         errno, made = self._write_back(caller, entry, "close")
         if made:
             self._drop(number)
@@ -1241,7 +1236,7 @@ class _Files:
 
     def _sync(self, caller: Any, entry: _Open) -> int:
         """A dirty buffer's write-back, its answer the guest's; a clean one, an unlinked one or
-        one that may not write needs no call (spec 034, Decision 5). A folder is EBADF."""
+        one that may not write needs no call. A folder is EBADF."""
         if entry.kind != "file":
             return EBADF
         if entry.dirty and not entry.unlinked:
@@ -1296,7 +1291,7 @@ class _Files:
         if errno := self._result(memory, ptr, 64, 8):
             return errno
         # No provider call: the kind and size are the staged bytes', and the times are 0.
-        links = 0 if entry.unlinked else 1  # an unlinked file has no name left (spec 034)
+        links = 0 if entry.unlinked else 1  # an unlinked file has no name left
         stat = self._filestat(entry, entry.kind, len(entry.data), 0, entry.path, links)
         memory.write(ptr & MASK32, stat)
         return 0
@@ -1325,7 +1320,7 @@ class _Files:
 
     def _fits(self, entry: _Open, size: int) -> bool:
         """Whether a buffer may become `size` bytes: judged against the staging bound on the new
-        size, before a byte is allocated (spec 034, Decision 4)."""
+        size, before a byte is allocated."""
         return size <= len(entry.data) or self.staged - entry.held + size <= self.staging
 
     def _changed(self, entry: _Open) -> None:
@@ -1342,7 +1337,7 @@ class _Files:
         flags = _flags(flags, 0xF, 0xFFFF, "Fstflags")
         if (flags & ATIM and flags & ATIM_NOW) or (flags & MTIM and flags & MTIM_NOW):
             return EINVAL
-        # Times are the provider's (spec 034, Decision 9): a writable mount accepts and ignores
+        # Times are the provider's: a writable mount accepts and ignores
         # them, its own preopen included, as a writable grant accepts the call.
         return 0 if entry.mount.writable else EPERM
 
@@ -1370,10 +1365,10 @@ class _Files:
         if errno := self._result(memory, nread, 4, 4):
             return errno
         if entry.kind != "file" or not entry.readable:
-            return EBADF  # a folder, or a file opened only to write (spec 034)
+            return EBADF  # a folder, or a file opened only to write
         at = entry.position if offset is None else offset
         buf, size = chosen
-        # As Linux answers a grant (the reference, Decision 6): an offset past i64, or a read
+        # As Linux answers a grant (the reference): an offset past i64, or a read
         # whose end would pass it, is EINVAL (the kernel's rw_verify_area). fd_pread reads
         # through wasmtime's stream, which asks for at most MAX_READ_SIZE_ALLOC (64 KiB) at a
         # time (crates/wasi/src/lib.rs:31), so only that much counts there.
@@ -1404,8 +1399,8 @@ class _Files:
     def _writes(
         self, caller: Any, entry: _Open, iovs: int, count: int, offset: int | None, nwritten: int
     ) -> int:
-        """A write into a buffer, as wasmtime writes a writable grant's file (spec 034, Decision
-        4): the first non-empty ciovec; on an append descriptor at the end, `fd_pwrite`'s offset
+        """A write into a buffer, as wasmtime writes a writable grant's file: the first
+        non-empty ciovec; on an append descriptor at the end, `fd_pwrite`'s offset
         ignored; past the end, zeros in the gap. No provider call. A descriptor that may not
         write, or a folder, is the host's EBADF."""
         memory = _Memory(caller)
@@ -1515,11 +1510,11 @@ class _Files:
 
     def _zeroed(self, caller: Any, fd: int, buf: int, length: int, cookie: int, used: int) -> int:
         """After a forwarded fd_readdir that answered 0: every entry's three padding bytes
-        zero, as wasmtime 49.0.2 writes them (spec 048, Decision 4; GHSA-96f6-r43r-8c24). The
+        zero, as wasmtime 49.0.2 writes them (GHSA-96f6-r43r-8c24). The
         walk reads each d_namlen from the guest's buffer, which only wasmtime has written,
         unless the guest's `used` pointer lies over the listing: wasmtime writes the count there
-        last, over whatever field it lands on (a d_namlen the walk would follow included; the
-        build review, F1). Then the folder is listed again on the guard's own page, for no more
+        last, over whatever field it lands on (a d_namlen the walk would follow included).
+        Then the folder is listed again on the guard's own page, for no more
         than the guest's memory holds from `buf`, its padding zeroed there, and written out as
         wasmtime writes a listing, the entries and then the count at `used`; bytes the first
         listing wrote past the second are zeroed. If the folder
@@ -1538,7 +1533,7 @@ class _Files:
             return 0
         forwards = self.forwards
         assert forwards is not None and forwards.page is not None  # it just forwarded
-        # No more than the guest's memory can hold from `buf` (the confirmation, C2), so the
+        # No more than the guest's memory can hold from `buf`, so the
         # page, the listing and its count after it, never grows past the guest's own memory.
         length = min(length, memory.size - max(buf, 8))
         page, at = forwards.page, (length + 3) & ~3  # the listing at 0, its count after it
@@ -1564,8 +1559,8 @@ class _Files:
 
     def _fd_renumber(self, caller: Any, fd: int, to: int) -> int:
         """With mounts, never onto or from a number in the table, or at or above 2**30: wasmtime
-        would silently replace the target (the review's raw_answers.txt). A guard table has no
-        provider numbers, so it forwards whatever the numbers (spec 068, Decision 8). A renumber
+        would silently replace the target (as wasmtime 49 was seen to answer). A guard table has no
+        provider numbers, so it forwards whatever the numbers. A renumber
         wasmtime makes closes `to` and moves `from` there; the held set follows it, and a number
         renumbered onto itself stays held."""
         a, b = fd & MASK32, to & MASK32
@@ -1600,7 +1595,7 @@ class _Files:
         args = (fd, dirflags, ptr, length, oflags, base_rights, inheriting, fdflags, out)
         if entry is None:
             if self._at_cap():
-                return EMFILE  # at the cap (spec 068): nothing forwarded, nothing opened
+                return EMFILE  # at the cap: nothing forwarded, nothing opened
             errno = self.forward(caller, "path_open", args)
             if errno == 0:  # wasmtime wrote the new number at `out`, so it is in memory
                 (number,) = struct.unpack("<I", _Memory(caller).read(out & MASK32, 4))
@@ -1629,7 +1624,7 @@ class _Files:
         mount = entry.mount
         writes = bool(oflags & (O_CREAT | O_TRUNC) or base_rights & FD_WRITE)  # "may write"
         if writes and not mount.writable:
-            return EPERM  # a read-only grant's answer, before any provider call (Decision 6)
+            return EPERM  # a read-only grant's answer, before any provider call
         resolved = self._resolve(entry, text)
         if isinstance(resolved, int):
             return resolved
@@ -1665,10 +1660,10 @@ class _Files:
     def _open_writing(
         self, caller: Any, mount: _Mounted, path: str, folder_only: bool, oflags: int, rights: int
     ) -> _Open | int:
-        """An open that may write, on a writable mount (spec 034, Decision 3): the table read
+        """An open that may write, on a writable mount: the table read
         top to bottom, at most two provider calls, a create or a truncation made at open by
         `write(path, b"")`. The buffer starts clean. A call the gate stops owes nothing: no
-        buffer exists yet, so the open answers that errno and nothing is recorded (N3)."""
+        buffer exists yet, so the open answers that errno and nothing is recorded."""
         creat, trunc = oflags & O_CREAT, oflags & O_TRUNC
         if oflags & O_DIRECTORY or folder_only:
             # A folder is never opened to write; a name that must be a folder is not a file.
@@ -1809,7 +1804,7 @@ class _Files:
             texts.append(text)
         return texts
 
-    # The namespace calls of a writable mount (spec 034, Decisions 6 and 7). The answers the
+    # The namespace calls of a writable mount. The answers the
     # runner gives itself, with no provider call, are Linux's on a writable grant (wasmtime's
     # reference, EXECUTED in the build's probe); macOS differs on some, which the parity table
     # asserts per system.
@@ -1871,7 +1866,7 @@ class _Files:
 
     def _follow(self, mount: _Mounted, src: str, dst: str | None = None) -> None:
         """After `remove(src)` or `rmdir(src)` (no `dst`), or `rename(src, dst)`, succeeded,
-        this call's descriptors follow it, as POSIX's follow the file (Decision 7): those at the
+        this call's descriptors follow it, as POSIX's follow the file: those at the
         removed path, or at or under the rename's `dst`, are unlinked; then those at or under its
         `src` take the same path under `dst`. Owed buffers follow too: their bytes are the
         file's."""
@@ -1925,7 +1920,7 @@ class _Files:
         if isinstance(texts, int):
             return texts
         resolved = self._resolve(entry, texts[0])
-        # Times are the provider's (Decision 9): accepted and ignored, with no provider call.
+        # Times are the provider's: accepted and ignored, with no provider call.
         return resolved if isinstance(resolved, int) else 0
 
     def _path_symlink(
@@ -1937,7 +1932,7 @@ class _Files:
         refused = self._refused(caller, entry, (old, old_length), (new, new_length))
         if refused != EPERM or not entry.mount.writable:
             return refused
-        return ENOTSUP  # the protocol has no link (Decision 9)
+        return ENOTSUP  # the protocol has no link
 
     def _across(
         self, caller: Any, a: int, b: int, paths: tuple[tuple[int, int], ...], follow: bool = False
@@ -1946,7 +1941,7 @@ class _Files:
         them a number of the table: each side must be a folder (a number of wasmtime's is asked
         of wasmtime, with no side effect), then the paths are read; a read-only side refuses
         (EPERM), as across a writable and a read-only grant; two sides that may both be written
-        are two filesystems (EXDEV), so `shutil.move` copies (Decision 6)."""
+        are two filesystems (EXDEV), so `shutil.move` copies."""
         for fd in (a, b):
             entry = self._entry(fd)
             if entry is not None:
@@ -1983,7 +1978,7 @@ class _Files:
         self, caller: Any, fd: int, old: int, old_length: int, to: int, new: int, new_length: int
     ) -> int:
         a, b = self._entry(fd), self._entry(to)
-        if a is None and b is None:  # two of wasmtime's numbers: spec 048's rule
+        if a is None and b is None:  # two of wasmtime's numbers: the guard's rule
             return self._rename(caller, fd, old, old_length, to, new, new_length)
         paths = ((old, old_length), (new, new_length))
         if a is None or b is None or a.mount is not b.mount or not a.mount.writable:
@@ -2026,13 +2021,13 @@ class _Files:
     def _rename(
         self, caller: Any, fd: int, old: int, old_length: int, to: int, new: int, new_length: int
     ) -> int:
-        """wasmtime 49.0.3's rule (spec 048, Decisions 1 to 3; GHSA-m9f7-9w4p-gv38). With no
+        """wasmtime 49.0.3's rule (GHSA-m9f7-9w4p-gv38). With no
         trailing slash on either path, or a path wasmtime could not read either, the rename is
         forwarded unchanged. Otherwise the source must be a folder, judged without following its
         own link: the stat's errno, or ENOTDIR for anything else; and a folder is renamed by the
         plain names, every trailing slash trimmed from both paths (the same pointers, shorter
         lengths), so the kernel is never handed a slash-named link to follow. Once a slash is
-        seen, the rename is never forwarded with it (condition C2): a path the guard cannot
+        seen, the rename is never forwarded with it: a path the guard cannot
         read whole answers its errno instead."""
         memory = _Memory(caller)
         spans = ((old & MASK32, old_length & MASK32), (new & MASK32, new_length & MASK32))
@@ -2059,8 +2054,8 @@ class _Files:
     def _source_type(self, caller: Any, fd: int, source: bytes) -> int:
         """0 when `source` names a folder under `fd`, judged by wasmtime's own path_filestat_get
         with the follow flag clear, on the stat trampoline's page: the path at STAT_PATH, the
-        64-byte filestat at 0, its filetype at byte 16 (Decision 2). Else the stat's errno, or
-        ENOTDIR for a file or a link (Decision 3)."""
+        64-byte filestat at 0, its filetype at byte 16. Else the stat's errno, or
+        ENOTDIR for a file or a link."""
         forwards = self.forwards
         if forwards is None or forwards.page is None:
             return EBADF  # no trampoline yet: nothing of wasmtime's can be reached
@@ -2095,7 +2090,7 @@ class _Files:
             return EBADF
         if errno := self._read_paths(caller, paths):
             return errno
-        return EINVAL if flags & 1 else ENOTSUP  # the protocol has no link (Decision 9)
+        return EINVAL if flags & 1 else ENOTSUP  # the protocol has no link
 
 
 def _plain(path: bytes) -> bytes:
@@ -2142,7 +2137,7 @@ def _described(e: BaseException) -> str:
 
 def _grow(data: bytearray, size: int) -> None:
     """Zeros appended to `data` up to `size` bytes, from one shared 64 KiB block, so a growth
-    makes no temporary of the gap's size (the build review, F4)."""
+    makes no temporary of the gap's size."""
     block = memoryview(ZEROS)
     while len(data) < size:
         data += block[: size - len(data)]

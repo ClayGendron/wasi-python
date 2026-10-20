@@ -1,4 +1,4 @@
-"""`python -m wasi_python run …` is `wasi-python run …` (spec 019)."""
+"""`python -m wasi_python run …` is `wasi-python run …`."""
 
 from .cli import main
 

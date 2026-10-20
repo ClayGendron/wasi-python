@@ -31,7 +31,7 @@ def _stack() -> list[_Call]:
 
 # Ctrl-C while a guest runs on the main thread. Python's default handler raises KeyboardInterrupt
 # wherever the main thread next runs Python, and when that is the first line of wasmtime-py's
-# trampoline the exception cannot be caught and the process aborts (spec 011's review, EXECUTED:
+# trampoline the exception cannot be caught and the process aborts (EXECUTED:
 # exit 134). So while run() holds the main thread under the default handler, Ctrl-C only sets a
 # flag: the shared host functions turn it into a recorded stop, a wait ends at it, and a flag no
 # host function saw is raised once the call has ended. The flag is `process().ctrl_c_pending`.
@@ -44,7 +44,7 @@ def _note_ctrl_c(signum: int, frame: Any) -> None:
 def _ctrl_c_watched() -> bool:
     """Whether a Ctrl-C on the main thread is deferred for the call this thread serves: on the main
     thread, whether `_deferred_ctrl_c` holds it; on a guest thread, what its home answered when the
-    entry began (spec 078, Decision 5)."""
+    entry began."""
     import signal
 
     if threading.current_thread() is threading.main_thread():
@@ -73,12 +73,12 @@ def _deferred_ctrl_c() -> Iterator[None]:
         raise KeyboardInterrupt
 
 
-_GUEST_SLICE = CANCEL_TICKS * TICK_S  # how often a waiting thread looks up (Decisions 14, 15)
+_GUEST_SLICE = CANCEL_TICKS * TICK_S  # how often a waiting thread looks up
 
 
 class _Stopped(BaseException):
     """The guest thread's stop when its home has stopped (an exception raised into the home, or a
-    home that left): it stops the call as a host function's BaseException does (Decision 15)."""
+    home that left): it stops the call as a host function's BaseException does."""
 
 
 class _ThreadTooSmall(RuntimeError):
@@ -167,9 +167,9 @@ _NO_GUEST = (_HomePhase.IDLE, _HomePhase.CANCELLED, _HomePhase.DONE)  # no guest
 
 
 class _Home:
-    """The thread that made a call (spec 078, Decision 2): it waits while the call's guest thread
-    runs, serves the embedder's code the guest thread hands it (Decision 4), and keeps the
-    teardown of what the guest uses until the guest thread has ended (Decision 14).
+    """The thread that made a call: it waits while the call's guest thread
+    runs, serves the embedder's code the guest thread hands it, and keeps the
+    teardown of what the guest uses until the guest thread has ended.
 
     What `lock` protects:
 
@@ -193,7 +193,7 @@ class _Home:
         self.inbox: queue.SimpleQueue[_Box | _Done] = queue.SimpleQueue()
         self.lock = threading.Lock()
         self.raised: BaseException | None = None
-        self.watched = False  # this thread's _ctrl_c_watched(), for its guest thread (Decision 5)
+        self.watched = False  # this thread's _ctrl_c_watched(), for its guest thread
         self.thread: threading.Thread | None = None
         self.phase = _HomePhase.IDLE
         self.ended = threading.Event()  # set by the guest body at its end, or by a cancelled start
@@ -229,7 +229,7 @@ class _Home:
         for in slices, until it is answered, the home has an exception, or it stops serving."""
         if threading.get_ident() == self.ident:
             return fn(*args)
-        if self.raised is not None:  # the call has stopped: no more embedder code (F7)
+        if self.raised is not None:  # the call has stopped: no more embedder code
             raise _Stopped()
         box = _Box(fn, args)
         self.inbox.put(box)
@@ -250,7 +250,7 @@ class _Home:
                 item = self.inbox.get(timeout=_GUEST_SLICE)
                 if isinstance(item, _Done):  # the guest thread has ended
                     return
-                if self.raised is not None:  # stopped: answered, never run (F7)
+                if self.raised is not None:  # stopped: answered, never run
                     item.answer(error=_Stopped())
                 else:
                     item.run()
@@ -279,7 +279,7 @@ class _Home:
     def body(self, kind: str, fn: Callable[..., Any], args: tuple[Any, ...]) -> None:
         """The guest thread: check its stack, tell the interpreter where it guesses, run fn; then
         hand the result home and run the steps an abandoned home left."""
-        with self.lock:  # the start handshake (the build review's F1)
+        with self.lock:  # the start handshake
             if self._move(_HomeEvent.TAKE) is _HomePhase.CANCELLED:
                 return  # its start failed: no wasm, nothing to tear down, nobody waiting
         value: Any = None
@@ -302,7 +302,7 @@ class _Home:
                 if on_entry is not None:
                     on_entry(kind)
                 # The ticker runs while any guest thread runs, so its epoch checks go on even if
-                # its home has been forced out (spec 078, Decision 14).
+                # its home has been forced out.
                 with _epoch_ticker(None, True):
                     value = fn(*args)
             except BaseException as e:
@@ -324,7 +324,7 @@ class _Home:
 
 def _start_guest(home: _Home, kind: str, fn: Callable[..., Any], args: tuple[Any, ...]) -> None:
     """Start a guest thread with _THREAD_STACK bytes, restoring threading.stack_size without
-    erasing a value another thread set inside the window (Decision 2, the review's F6)."""
+    erasing a value another thread set inside the window."""
     context = contextvars.copy_context()
     thread = threading.Thread(
         target=context.run, args=(home.body, kind, fn, args), name="wasi-python-guest"
@@ -335,8 +335,8 @@ def _start_guest(home: _Home, kind: str, fn: Callable[..., Any], args: tuple[Any
         p.stack_size_found[:] = [old]
         try:
             try:
-                with home.lock:  # the start handshake (the build review's F1)
-                    home._move(_HomeEvent.START)  # serving, before the guest can hand off (F7)
+                with home.lock:  # the start handshake
+                    home._move(_HomeEvent.START)  # serving, before the guest can hand off
                     home.thread = thread
                     home.ended.clear()
                 thread.start()
@@ -358,15 +358,15 @@ def _start_guest(home: _Home, kind: str, fn: Callable[..., Any], args: tuple[Any
 
 def _join_guest(home: _Home) -> None:
     """Wait until the guest body has ended (its event, which a cancelled start also sets); an
-    exception raised meanwhile stops the guest and the wait goes on (Decision 14; the build
-    review's F1: never `thread.is_alive()` alone, which a forgotten thread would not answer)."""
+    exception raised meanwhile stops the guest and the wait goes on (never
+    `thread.is_alive()` alone, which a forgotten thread would not answer)."""
     while True:
         try:
             if home.ended.wait(_GUEST_SLICE):
                 return
             thread = home.thread
             if thread is None or not thread.is_alive():
-                # A backstop (the delta review's D3): a thread that never ran its body, or whose
+                # A backstop: a thread that never ran its body, or whose
                 # body ended without saying so (a second exception in the start's own handler, an
                 # embedder's trace hook raising at its first frame), would never set `ended`. Under
                 # the lock, a body not yet running is cancelled: it returns at once if it starts.
@@ -383,8 +383,8 @@ def _join_guest(home: _Home) -> None:
 
 def _on_guest_thread(kind: str, home: _Home, call: Any, fn: Callable[..., Any], *args: Any) -> Any:
     """fn(*args) on a guest thread of its own, this thread serving it as its home; returns or
-    raises only once that thread has ended (spec 078, Decisions 2, 14 and 15). `call` is pushed on
-    this thread's stack meanwhile, so a host function finds it as before (Decision 16)."""
+    raises only once that thread has ended. `call` is pushed on
+    this thread's stack meanwhile, so a host function finds it as before."""
     stack = _stack()
     if call is not None:
         stack.append(call)

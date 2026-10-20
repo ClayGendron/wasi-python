@@ -1,4 +1,4 @@
-"""The engine seam (spec 103): the one module of wasi_python that touches wasmtime-py's private
+"""The engine seam: the one module of wasi_python that touches wasmtime-py's private
 API.
 
 wasmtime-py's private API is every name of its that begins with an underscore or is not in its
@@ -7,7 +7,7 @@ from-pointer constructors and the pointer methods. The runner and the mounts dri
 through this module's named operations and name none of that themselves; a rules check holds it
 (`tests/checks/test_rules.py::test_only_the_engine_seam_touches_wasmtimes_private_api`). Each
 operation calls wasmtime-py's public API when the installed release has it and falls back to the
-private binding otherwise (Decision 8). This module holds no mutable state: constants, functions
+private binding otherwise. This module holds no mutable state: constants, functions
 and one class; nothing here is reset at fork or released at exit.
 
 At import, `check` asserts that every private name in `NEEDED` exists, and raises one
@@ -15,9 +15,9 @@ At import, `check` asserts that every private name in `NEEDED` exists, and raise
 `runner._wasmtime()` imports this module after wasmtime-py itself, so a moved symbol is seen at
 the first `run()`, before any engine, store or instance exists.
 
-The debt, one line per private binding, with the public name wanted in its place (the sheet
-`context/upstream/30-wasmtime-py-public-api-for-the-runner/facts.md` says more; the rules check
-`test_the_private_api_debt_is_documented` holds this list, the tuples and the sheet equal):
+The debt, one line per private binding, with the public name wanted in its place (the rules
+check `test_the_private_api_debt_is_documented` holds this list, the tuples and the debt sheet
+equal):
 
 - `wasmtime._ffi.wasmtime_context_set_epoch_deadline` -> `Caller.set_epoch_deadline(ticks)`
 - `wasmtime._ffi.wasmtime_store_epoch_deadline_callback` -> a public epoch callback on `Store`
@@ -54,18 +54,18 @@ The debt, one line per private binding, with the public name wanted in its place
 - `wasmtime._ffi.wasmtime_config_async_stack_size_set` (optional) -> `Config.async_stack_size`
   (sheet 21)
 
-A wasmtime-py major bump (Decision 6) is done here, in one place:
+A wasmtime-py major bump is done here, in one place:
 
 1. Change the range in `pyproject.toml` and `PIN`; `uv sync` (a unit row holds the two equal).
 2. `uv run python -c "import wasi_python._wasmtime_ffi"`: the import check names every name that
    moved. Nothing else in the package fails to import, because nothing else names the private
    API.
-3. Fix each named operation here. The table in spec 103, Decision 1, says what each must do;
+3. Fix each named operation here. Each operation's docstring says what it must do;
    `tests/unit/test_wasmtime_ffi.py` says what each must do observably.
 4. `uv run pytest tests/unit/test_wasmtime_ffi.py tests/checks/test_rules.py`, then the fast tier
    on the frozen set with `tests/harness/sameness.py` against the last accepted record: the same
    verdicts, or the differences named.
-5. The bump is its own specification (constitution §4.2).
+5. The bump is its own specification.
 6. When a release makes an operation public, the preference order is already public first, so
    often nothing changes in the operation; the private name leaves `NEEDED` or `OPTIONAL`, and
    its row moves from the sheet's table to its "Landed" list in the same change.
@@ -319,7 +319,7 @@ ASYNC_STACK_SETTER = getattr(_ffi, "wasmtime_config_async_stack_size_set", None)
 
 def set_async_stack(cfg: Config, size: int) -> None:
     """wasmtime's async stack size, which must be at least `max_wasm_stack` above 2 MiB, or
-    wasmtime refuses the config and wasmtime-py's engine aborts the process (spec 078, Decision 1).
+    wasmtime refuses the config and wasmtime-py's engine aborts the process.
     Through `Config.async_stack_size` when wasmtime-py has it, else the binding; with neither, a
     RuntimeError before any engine is made."""
     if isinstance(getattr(type(cfg), "async_stack_size", None), property):
@@ -334,7 +334,7 @@ def set_async_stack(cfg: Config, size: int) -> None:
 
 
 def engine_symbol_address() -> int:
-    """The address of one public symbol of wasmtime's library, for the load-base read (spec 071)."""
+    """The address of one public symbol of wasmtime's library, for the load-base read."""
     return ctypes.cast(_ffi.dll.wasm_engine_new, ctypes.c_void_p).value or 0
 
 
@@ -355,14 +355,14 @@ def host_function_count() -> int:
 
 
 def custom_output_table() -> Any:
-    """wasmtime-py's own table of custom outputs, which the runner never uses (spec 011); the
+    """wasmtime-py's own table of custom outputs, which the runner never uses; the
     judge counts its allocations."""
     return _wasi.CUSTOM_OUTPUTS
 
 
 class PreparedCall:
     """One function of the trampoline, with its argument array (its kinds set once) and its
-    one-slot result array made once and reused per call (spec 032: one forwarded file call is
+    one-slot result array made once and reused per call (one forwarded file call is
     the hottest path the runner has). The trap out-pointer is made per call, since the `Trap`
     takes ownership of what it points to."""
 
