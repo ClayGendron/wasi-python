@@ -96,8 +96,10 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   modules), Adobe's (the glyph list) and the QR encoder's with the MIT text. reportlab writes
   PDFs in memory with nothing writable (`invariant=1` for repeatable bytes); `renderPM` raises
   `RenderPMError` (no rlPyCairo). seaborn needs a writable `MPLCONFIGDIR`, as matplotlib does;
-  `sns.load_dataset` cannot fetch, and with a writable root it first makes a folder named `~`
-  there (`/~/.cache/seaborn`): read a granted CSV with `pd.read_csv` instead.
+  `sns.load_dataset` cannot fetch (through the runner with a writable root, its cache folder
+  goes under the runner's fresh `HOME` in `/tmp`, removed after the call; an embedder that gives
+  a writable root and no `HOME` gets a folder `/~/.cache/seaborn` in that root): read a granted
+  CSV with `pd.read_csv` instead.
 - **The judge: spec 084's read-only removal rows are blocked on Windows by a named need** (spec
   094). A Windows guest deletes a read-only file itself (084's C2, settled by wave 01's dry run),
   so the rows that check a removal keeps such a file now name the need `read-only files`, unmet on

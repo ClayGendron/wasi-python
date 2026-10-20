@@ -368,8 +368,9 @@ def test_seaborn_takes_its_scipy_paths(guest, guest_workdir, which) -> None:
         env={"MPLCONFIGDIR": "/cfg"},
         snapshot=which == "snapshot",
     )
-    assert (done.exit_code, done.stdout) == (0, b"FileNotFoundError '~'\n"), done
+    # The folder first: litter in the caller's grant is the worse failure (the build review's F2).
     assert not (cfg / "~").exists(), sorted(p.name for p in cfg.iterdir())
+    assert (done.exit_code, done.stdout) == (0, b"FileNotFoundError '~'\n"), done
 
 
 @BINARY
