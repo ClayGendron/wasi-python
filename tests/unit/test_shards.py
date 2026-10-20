@@ -369,7 +369,10 @@ def test_a_check_named_by_node_goes_to_the_build_shard_alone() -> None:
     ("change", "error"),
     [
         (  # spec 101: a shard may name checks, but runs where their file's shard runs
-            ("[shard.up-1]", OWN_2.replace('"macos", "linux", "windows"', '"linux"') + "[shard.up-1]"),
+            (
+                "[shard.up-1]",
+                OWN_2.replace('"macos", "linux", "windows"', '"linux"') + "[shard.up-1]",
+            ),
             "(h) own-2: runs on ['linux'], not on own-1's systems",
         ),
         (  # spec 101: a shard that names checks and nothing else selects by nodes alone
