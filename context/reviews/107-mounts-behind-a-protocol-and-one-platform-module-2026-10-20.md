@@ -1,0 +1,288 @@
+# Review of 107 — `mounts.py` behind a call-context protocol, one platform module, one stamp, and the source explains itself
+
+- **Date:** 2026-10-20
+- **Reviewer:** a fresh agent (Claude), not the builder; the build review (the pre-build review
+  is `107-mounts-behind-a-protocol-and-one-platform-module-spec-2026-10-20.md`).
+- **Reviewed:** `1893ede..ba32a59` on `spec/107-mounts-behind-a-protocol-and-one-platform-module`
+  in `/home/user/wt/107`: the six code commits `3d69db3`, `b447aa0`, `0b80b99`, `d1e3e67`,
+  `ee311a7`, `8325445` and the notes commit `ba32a59`; 32 files, +2,632 −1,678 (the spec's
+  landing notes included).
+- **Run:** none of its own, by the chain's rule (the owner, 2026-10-20): the chain 103 to 108
+  dispatches the release workflow once on its final tip, and that run is this link's dry run
+  too. The Windows and macOS legs of that run are the only runs of `_Windows` and `_Darwin`
+  against a real host; on Linux they run only as objects the unit checks drive.
+- **Time box:** 60 minutes, as the lane set it (the diff is parallel-safe but touches every
+  module of the package).
+- **Re-ran** (EXECUTED, on `ba32a59`, the frozen `v0.1.0a7` set at
+  `WASI_PYTHON_ARTIFACTS=/home/user/wasi_python/build/baseline-a7/set/wasi-python-0.1.0a7`,
+  under `build/fast-tier.lock`, `SIGINT` at its default through the builder's
+  `build/107/with-sigint.py`):
+  - `uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider` → **83 failed, 2432 passed, 52
+    skipped in 276.00s**, exit 1 (`build/107/review-fast.log`; the record copied as the run
+    ended to `build/107/review.json`). The 83 failing node ids, sorted, equal the chain
+    baseline's `failing-nodes.txt` line for line (`diff` empty; `build/107/review-failed-nodes.txt`).
+  - `uv run python tests/harness/sameness.py /home/user/wt/106/build/106/built-fix.json
+    build/107/review.json --claims build/107/claims.toml` →
+    `note: explained by claims: 107 4`, exit 0.
+  - `uv run python tests/harness/sameness.py /home/user/wasi_python/build/baseline-a7/baseline.json
+    build/107/review.json --claims build/107/claims-chain.toml` →
+    `note: explained by claims: 103 4 · 104 3 · 105 4 · 106 3 · 107 4`, exit 0.
+  - `uv run pytest tests/checks/test_rules.py -q -p no:cacheprovider` → 1 failed
+    (`test_version_states_the_platform_semantics`, the baseline's, an artifact set older than
+    the tree), 49 passed, 3 skipped; the three new checks among the passes.
+  - `uv run pytest tests/unit -n 3 -q -p no:cacheprovider` → 1 failed
+    (`test_runner_grants.py::test_the_walk_judges_links`, the baseline's, needs a non-root
+    user), 1905 passed, 13 skipped; the two stamp rows among the passes.
+  - `uv run ruff check src tests` → "All checks passed!"; `uv run ruff format --check src
+    tests` → "146 files already formatted"; `uv run mypy --strict src/wasi_python` → "Success:
+    no issues found in 18 source files"; `uv run python tests/harness/api.py --check` → nothing
+    printed, exit 0.
+  - The check's own scanner (`test_rules._citation_hits`, imported) over `git archive 0b80b99
+    src` → **636 tokens on 430 lines** (specification numbers 315, decision numbers 182,
+    finding IDs 76, review 58, memo 3, constitution 1, context path 1, question 0); over the
+    tip's `src/` → 0.
+  - `grep -nE "os\.name|sys\.platform" src/wasi_python/*.py` → `_platform.py:1398, 1400, 1402`,
+    all inside `_select`.
+  - `grep -nE '^\s*(from|import) ' src/wasi_python/mounts.py` → the standard library, `wasmtime`
+    inside functions, and `from . import _wasmtime_ffi as ffi` three times (767, 783, 820); no
+    other sibling.
+  - A grep for the 26 absorbed platform names in their old forms (`runner._walk`,
+    `_places._identity_of`, `setattr(_platform, "_try_lock", …)` and the rest, both spellings)
+    over `tests/` → empty.
+  - `grep -rn "predates the tool protocol\|needs a set built with them" tests docs README.md
+    context/` (less this spec and this review) → no golden, expected file or document quotes
+    either message the sixth commit edited; the one `from host import tools` message a check
+    asserts (`test_v1_4_embedding.py:3382`) is the guest's ImportError, not these.
+
+## The builder's self-check
+
+Every item of the list in `context/reviews/README.md` is present in the landing notes: the
+stacked base in the Status line (`1893ede`, no rebase since); the CI line names the chain's
+rule and the Windows criterion; every number labelled EXECUTED with its command and its file
+under `build/107/`; the claim list, the flags and the wave kind; every new check seen failing
+first with its output file; no gap and no reserved follow-up; `packages.toml` untouched and no
+README row; the CHANGELOG line proposed for the lane (the chain's links 103 to 106 wrote none on
+their branches either, READ, `git log 1893ede -- CHANGELOG.md`); ruff, ruff format and the
+fast tier in `build/107/`. Nothing unchecked.
+
+## The text commit `d1e3e67`, read mechanically
+
+The spec's Decision 4 rules: the commit removes a citation token, its parentheses, possessive
+and connector, and nothing else; where the citation was the whole explanation a reason is
+written in words and the landing notes list the sentence; no code token changes. Two readings,
+both EXECUTED on `git diff d1e3e67^ d1e3e67 -- src/` (the commit alone; the range from
+`1893ede` would fold commits 1 to 3 in).
+
+1. **Code tokens.** Every `.py` the commit touches (16 files) was tokenized at both ends with
+   `tokenize`, comments and string statements (docstrings) dropped, and the remaining token
+   streams compared. Fifteen files are identical token for token. One differs by two tokens:
+   `_sessions.py`'s `_open_wasm` lost a redundant `(` `)` pair around
+   `_platform.PLATFORM.trap_handlers_ready()` when its trailing comment shortened and the
+   formatter rewrapped the statement (the base's three-line form became one line). The value
+   and the call are the same; no other code token in `src/` changed. The commit's one
+   intended non-text change, `ALLOWED` in `tests/checks/test_rules.py` (2213 → 2206, 2450 →
+   2449), is the ceiling check's requirement that an entry equal its file's count.
+2. **Words.** The porcelain word diff (6,364 lines) was split into words; punctuation was
+   stripped, and the multiset of removed words less the multiset of added words gives the
+   words that left (a word that moved from one line to another, or gained a full stop, cancels
+   out). **1,295 word tokens left**, every one classified, none unclassified:
+
+   | class | tokens |
+   |---|---|
+   | specification numbers (`032`, `078's`, …) | 326 |
+   | the word `spec`, `specs`, `Spec` | 318 |
+   | decision, step, criterion and finding numbers (`8`, `14`, `20`, `4's`) | 206 |
+   | the word `Decision`, `Decisions`, `decision` | 185 |
+   | review phrases (`review's`, `build`, `security`, `re-review's`, `Confirmation's`, `a4`, `0.1.0a2`, `follow-up`, `delta`, `pre-build`, `raw_answers.txt`, `condition`, `landing notes`, `amended`, `sheet`) | 102 |
+   | finding IDs (`F1`, `F3`, `N2`, `C1`, `C-2`, `D5`, `S3`, `F4.2`, the word `finding`) | 81 |
+   | connectors and articles inside the deleted phrases (`the`, `and`, `to`, `by`, `of`, `since`, `one`, `what`, `means`, `says more`, `each`, `table`, `written down`, `Defaults:`, `roots:`, `cancel:`, `tools:`) | 69 |
+   | `memo`, `constitution`, `§4.2`, `§7a`, `§7d` | 7 |
+   | the `context/upstream/…/facts.md` path | 1 |
+
+   Every connector was read in its hunk (the grep of the word diff for each): each sits inside
+   a deleted citation phrase ("spec 001 landing notes", "the follow-up review, F1", "memo
+   finding 3", "amended by spec 023, Decision 5", "the owner's decision 20", the two-line map
+   "Defaults: spec 013; roots: spec 025; …"). **117 word tokens arrived**, in 82 distinct
+   words; every multi-word addition is one of the sentences the landing notes list under rule
+   2 ("the mounts' record, for a call with mounts", "the thread that made the call" twice,
+   "Every argument is checked before any work; the exceptions are the ones the docstring
+   names", "15 minutes, the owner's number", "(as wasmtime 49 was seen to answer)", "Each
+   operation's docstring says what it must do", "the rules between the grants and the
+   runtime's own folders", "the zip folders'", "the identity check", "the call's byte budget
+   for frames", "the cap on files open at once", "The hints a tool's signature may carry",
+   "The frame's parse rules", "A value's JSON form", "tool calls left running past their
+   answer", "the tool's own deadline, in seconds", "the bounded invoke", "the poll's waits",
+   "the admission predicate", "the guard" and "a mount's" forms, and the three re-capitalised
+   sentence heads "What", "By", "The"); the rest are single words re-attached to a full stop
+   or a bracket. The five bare tags the notes name are the only deleted lines without a
+   sentence, and each sits under a docstring that carries the reason (READ).
+3. **What the rule left behind** (finding 1): two comments that were a citation alone became
+   an empty `#` instead of a reason.
+
+## Acceptance criteria against evidence
+
+1. **The three rules checks and the two unit checks exist and were seen failing first** — met:
+   READ, `build/107/seen-failing-mounts-imports.txt` (7 findings on the base, `mounts.py:50`
+   and `630` and `631` naming `_call`, `_engines`, `_home`, `_places`, `runner`, `_process`),
+   `seen-failing-platform-chosen-once.txt` (22 findings on commit 1, the files and lines the
+   notes list), `seen-failing-stamp.txt` (the stale digest `2816…` against `d6cb…`, and `'315'
+   == '316'`), `seen-failing-citations.txt` (636 tokens on 430 lines on commit 3; my own run of
+   the scanner over `git archive 0b80b99` gives the same 636 and 430 and the same per-kind
+   counts, EXECUTED). The base's `_process.py` typed `digests` as `dict[tuple[str, int, int],
+   str]` and `versions` as `dict[Path, str]` (READ), which is what the two stamp rows fail on.
+2. **`mounts.py` imports nothing from the runner** — met: EXECUTED, the import grep above and
+   `test_mounts_imports_only_the_engine_seam` green. READ: `_CallContext` has the nine methods
+   of the spec's table, in its order; `_Files.__init__` takes `context` keyword-only and
+   required; `_gate` asks `cancelled`, `deadline_passed`, then the file-call limit with
+   `name_end` and `stop_now`; `walk` asks `exiting()` and `ctrl_c_pending()`; `bind` takes the
+   two modules from `trampolines(wt, self.engine)`.
+3. **The platform is chosen once** — met: EXECUTED, the three `sys.platform` lines are
+   `_select`'s; `PLATFORM: _Platform = _select()` is bound once at import (`_platform.py:1407`,
+   READ); no `from ._platform import PLATFORM` anywhere in `src/` or `tests/` (the six
+   `from ._platform import` lines bind `_Walked`, `Identity`, the stack constants and the
+   trap message, never `PLATFORM`; READ). Android: `_select` returns `_Posix` for it, whose
+   `stack_bounds` is `None` (READ, `_platform.py:496`: `_Posix.stack_bounds` wraps
+   `_stack_bounds`, which `_Posix` answers `None` at `:503` and `_Linux`, `_Darwin` override; the base's
+   `_guest_stack` took `android` with the POSIX probe, READ at `1893ede:_platform.py:165`), the
+   one behaviour change the spec names.
+4. **One stamp** — met: READ, `_stamp` returns the five-tuple; `_digest` stats the path for the
+   lookup and keys the stored digest on `os.fstat` of the descriptor it hashed; `_version_tag`
+   keys on `(str(manifest), *_stamp(os.stat(manifest)))`; `_process.py` types both keys as the
+   six-tuple; `_zip.py` uses `_artifacts._stamp` at its four sites. No cache keyed on fewer
+   fields remains (`grep -n '_stamp\|_digests\|_versions'` over `src/`, EXECUTED). The two
+   rows pass (EXECUTED, the unit run above); the digest row counts `os.open` calls through a
+   seam, never time, and `os.replace` of a same-size file with `os.utime` to the old
+   `mtime_ns` is what the stale key missed.
+5. **No citation of a `context/` document in `src/`** — met: EXECUTED, the scanner over the tip
+   finds 0; `CITATION_ALLOWED` is `()` (READ). The word diff is read above. The debt list in
+   `_wasmtime_ffi.py` keeps every `->` line (READ, the docstring diff: only "(spec 103)",
+   "(Decision 8)", "(Decision 6)", "constitution §4.2", the sheet path and "The table in spec
+   103, Decision 1" left), and `test_the_private_api_debt_is_documented` is among the rules
+   passes (EXECUTED).
+6. **The counts recorded** — met: the notes carry the eight kinds on commit 3; `grep -rohE
+   'spec [0-9]{3}' src/ --include='*.py' | wc -l` → 0 and the decision grep → 0 on the tip
+   (EXECUTED). One digit in the notes' by-file tally is off (finding 4).
+7. **No verdict moved** — met: EXECUTED, both sameness outputs above are exactly the claim
+   notes and nothing else; the 83 failing node ids equal the baseline's.
+8. **The parity checks are untouched, every platform site accounted for** — met: EXECUTED,
+   `git diff 1893ede ba32a59 -- tests/checks/test_v1_4_embedding.py` is the two `try_lock` /
+   `unlock_close` lines and no parity line; `tests/unit/test_runner_mounts.py` changes only the
+   hand-built table's constructor (`context=files.FakeContext()`); the old-name grep over
+   `tests/` is empty. READ: every patch of a platform answer goes through
+   `monkeypatch.setattr(_platform.PLATFORM, …)` or `m.setattr` inside `monkeypatch.context()`
+   (sweep 340), so it is undone at the test's end; none assigns `PLATFORM` or an attribute of
+   it directly (`grep -rnE '^\s*(_platform\.)?PLATFORM(\.\w+)?\s*='` over `tests/` → none,
+   EXECUTED); the grants model's `install` patches `open_handle` and `close_held` on its own
+   `_Windows()` instance, never on the class; `has_dir_fd` is an instance attribute set in
+   `_Posix.__init__`, so the sweep check's `setattr(PLATFORM, "has_dir_fd", False)` is restored
+   to the real value. 76 sites on the base, 74 after, the two fewer being `counting()`'s
+   `_dir_fd_ok` lines that `has_dir_fd` read at construction made needless (READ against the
+   notes).
+9. **`tests/public_api.txt` is unchanged** — met: EXECUTED, `git diff --stat 1893ede ba32a59 --
+   tests/public_api.txt` empty; `api.py --check` silent.
+10. **`ruff check`, `ruff format --check` and `mypy` are clean; the `Any` counts recorded, not
+    grown in `mounts.py`** — met: EXECUTED above; `grep -c '\bAny\b'`: `mounts.py` 70 → 69,
+    `_platform.py` 4 → 12 (the notes' reasons hold, READ: the moved `kernel32() -> Any`, the
+    three dict annotations that left the process object, `resolve: Callable[..., Any]` repeated
+    in the protocol and the three classes).
+11. **The chain's dispatch** — not this review's to evidence: the chain's one run on its final
+    tip, read by the lane.
+
+## The points the lane asked to look at hardest
+
+- **The platform object is one per process, chosen at import; the lazy state it holds** (the
+  kernel identity, the resolved C functions, `has_dir_fd`) is the same after a fork, so it is
+  right that it left the process object (READ, `_process.py` diff: the three dicts gone,
+  `handlers` kept). `_platform.py` is 1,407 lines because the two walks, the remover's two
+  walks, the real-dir pair, the lock pair, the identity, the three stack probes, the Windows
+  table and a 36-line protocol moved in; the base's 391 lines already held the fork refusal,
+  the stack constants and the trap-handler helpers, so nothing foreign came in (READ, both
+  outlines). It is one concern, "what the operating system decides", with a docstring that
+  says why each difference exists; under the 1,500 ceiling with 93 lines to spare, which 108
+  should know.
+- **`_call._Context`** holds only `call`; `exiting()` reads `process().exiting`,
+  `deadline_passed()` reads `process().ticker_count`, `ctrl_c_pending()` calls `_ctrl_c_now()`
+  — each at the call, nothing cached (READ, `_call.py:727`). One `_Context()` per table at
+  `_call.py:438` and `_sessions.py:1061`; `enter` in `_Call.__init__` through `_context_of`,
+  `leave` at the call's `release()` (`_call.py:477`) and at a session turn's ending
+  (`_sessions.py:850`), the latter new and harmless as the spec argued (nothing reads the call
+  between turns).
+- **The stamp**: see criterion 4. A race between the lookup's `os.stat` and the `os.open` is
+  closed by keying on the descriptor's `fstat`; a race in `_version_tag` between its `os.stat`
+  and `read_text` could key a new text under an old stamp, which the next reinstall's stamp
+  would correct, and the artifact folder is trusted: a note, not a finding.
+- **The three message strings**: no golden or document quotes them (EXECUTED above). The
+  citation check reads comments and docstrings, not string literals, so nothing holds these
+  three in future (finding 3, a note for 109).
+
+## Findings, most severe first
+
+1. **Two citation-only comments became an empty `#`** (`src/wasi_python/_sessions.py:527`,
+   `return "skipped", None  #`, was `# (spec 071, Decision 9)`; `:894`,
+   `home.finish(lambda: _abandon_turn(state))  #`, was `# (spec 078, Decision 14)`) — rule 2 of
+   Decision 4 says a citation that was the whole explanation gets its reason in words, and the
+   notes' rule-2 list does not name these two; the base's `src/` had no empty trailing comment
+   (`git grep -nE '#\s*$' 1893ede -- 'src/wasi_python/*.py'` → none, EXECUTED), the tip has
+   these two. **Low**, a code fix, the builder's. Fix text: at 527 delete the `#` (the line
+   above, `# a trap in the shutdown could end this process`, is the reason); at 894 either
+   delete the `#` or write `# the guest thread is forced out, never joined`, whichever the
+   builder reads as true of `_abandon_turn`.
+   Failure: none at run time; a reader meets a comment that says nothing.
+2. **The text commit changed two code tokens** (`src/wasi_python/_sessions.py`, `_open_wasm`:
+   the redundant `(` `)` around `_platform.PLATFORM.trap_handlers_ready()` went when the
+   formatter rewrapped the shortened line) — rule 3 says "no code token changes"; the value is
+   the same and `ruff format --check` requires the new form. **Note**, no action: the review
+   records it so the commit's claim "the one non-text change is `ALLOWED`" is read as "one
+   intended change, plus a formatter rewrap with no effect".
+3. **The citation rule does not read string literals** (`tests/checks/test_rules.py`,
+   `_prose`: comment tokens and docstrings only) — the two messages of the sixth commit were
+   found by criterion 6's one-off grep, and a future message that says "(spec 031)" to a user
+   passes the check. By the spec's own text the check covers "comments and docstrings", so this
+   is as specified. **Note** for 109's builder (its check for `tests/`, `scripts/` and
+   `release/`) or 108: one more regex over every string token for `spec NNN` only, the form
+   with the fewest false matches in message text, would hold the owner's rule for messages too.
+4. **The notes' by-file token tally sums to 635 against the stated 636** (the landing notes,
+   "by file (tokens) … `_wasmtime_ffi` 11"): the check's scanner counts 12 in
+   `_wasmtime_ffi.py` on commit 3 (EXECUTED, the recount above; the other fifteen files match
+   the notes). **Low**, `context/` only, written in by the reviewer as the commit after this
+   review ("11" → "12").
+5. **The spec's Decision 1 expected the four `test_runner_mounts.py` sites to move off
+   `monkeypatch`, and none did** — the notes' Difference 1 explains it (three already set
+   `process().ticker_count` through 105's seam; the fourth drives `_epoch_answer`, the call
+   pipeline, not the table), and `_ctrl_c_watched` keeps its eight lines on 108's list. READ
+   and agreed. **Note**, no action.
+
+## Constitution checks
+
+- §4.4 (the guest reaches the host through two things) and §4.6 (the artifact set is the
+  product): no guest byte, import or export changes; no artifact built; the frozen set judged.
+- §4.5 (embedder-neutral): the protocol and the platform object are private names; the public
+  surface is byte-equal (`tests/public_api.txt`).
+- §4.9 (tests count, benchmarks time): the digest row counts opens through a seam on `os.open`;
+  no wall-clock assertion added.
+- §4.10 (claims carry their evidence): every number in the landing notes has its command and
+  its file under `build/107/`; one digit off (finding 4).
+- §4.11 (platform semantics documented): `_platform.py`'s docstring says what differs and why,
+  and names Android as the POSIX host that gets no guest, the one behaviour change.
+- §4.13 (tooling): `uv` only; ruff, ruff format and mypy clean.
+- §4.14 (git): one specification on one branch in its own worktree; no rebase since the base.
+- §5.6 (review is a stage): the pre-build review landed with its confirmation; this is the
+  build review by an agent that wrote none of it.
+- §7: nothing tripped. No upstream tree touched, no unpinned fetch, no copy from prior art, no
+  commit or push beyond the branch's own, no number reported that was not run here, no
+  question list.
+
+## Disposition (filled in by the author, then confirmed by the reviewer)
+
+1. Finding 1 (the two empty `#`) — the builder's, a two-line edit; a Low with its fix text
+   needs no further round.
+2. Finding 2 — a note; nothing to do.
+3. Finding 3 — a note for 108 or 109; nothing to do here.
+4. Finding 4 — written in by the reviewer, the commit after this review on the 107 branch.
+5. Finding 5 — a note; nothing to do.
+
+## Verdict
+
+Lands: every criterion is met on the evidence above, the fast tier is the baseline's 83 and
+nothing else, both sameness lines are the claim notes alone, and the one Low is a two-line
+comment fix with its text given here.
