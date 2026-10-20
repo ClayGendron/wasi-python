@@ -1,0 +1,354 @@
+# 097 — host litter outside the home folder: the judge's guest folders leave HOME on macOS, and the OpenBLAS script never reads litter
+
+- **Status:** **drafted 2026-10-20** from main `5805af0`, on `spec/097-host-litter-outside-home`.
+  It changes the build recipe (two files under `scripts/`, each a `recipe` line of `MANIFEST`) and
+  the judge's guest driver, so constitution §5.6 and AGENTS.md rule 8 ask a review **before it is
+  built**. It waits for that review. A different agent reviews the build.
+- **Date:** 2026-10-20
+- **Owner:** Clay Gendron
+- **Kind:** a judge change and a recipe change; **build-class** (§5.7: it touches `scripts/`).
+  Edits: `tests/harness/paths.py` (`GUEST_TMP`, `guest_tmp()`), `tests/harness/guest.py`
+  (`host_roots_always`), `tests/harness/litter.py` (its messages and docstring),
+  `tests/harness/plugin.py` (the leftovers line), `tests/checks/conftest.py` (the `guest_workdir`
+  fixture), `scripts/litter.py` (`git_excludes`), `scripts/make_openblas_void_patch.sh` (its `add`
+  and its unstage). New: one check in `tests/checks/test_v1_4_embedding.py`; unit rows in
+  `tests/unit/test_scipy_build.py`, `tests/unit/test_build_scripts.py` and
+  `tests/unit/test_host_litter.py`; one CHANGELOG line. No `src/`, `recipes/`, `downloads/`,
+  workflow or README. No existing check, golden, gap or allowance is edited.
+- **Depends on:** nothing unlanded. Spec 066 (in wave 08) puts `/tmp/work` in the guest's writable
+  root; this spec moves that root, with every other, without touching 066's files (Decision 2).
+- **Research it stands on:** `../research/2026-10-19-ds-store-in-the-judges-stages.md` (spec 089's
+  memo: the writer, its probe, the refuted symlink); spec 089's landing notes and its accepted
+  residual (writable roots are detection-only); spec 081's measurement (a checkout's path length
+  moves fuel only through an input that names a host path); spec 066's delta review, L5. New
+  evidence here, EXECUTED, in `../research/2026-10-19-ds-store-in-the-judges-stages/for-097/`:
+  `race.sh` and `race.out` (the unstage race and its fixes), `tmpfacts.py` and `tmpfacts.out`
+  (the per-user temporary folder on this Mac), `probe.sh` and `probe.log` (a 12-minute probe
+  under the home folder and in `T`: no litter in either, so inconclusive).
+
+Labels: **EXECUTED** (run here), **READ** (read in code or files), **INFERRED** (reasoned).
+
+## The problem
+
+Spec 089 made host litter harmless in the judge's read-only stages. It seals them: no folder in a
+stage keeps a write bit, and macOS's folder-size cache, which runs as the user, respects that. It
+also watches every guest run: litter in any grant fails the run with `HostLitter`, and the run
+records no fuel. Two holes stayed open, and wave 08's acceptance fell into both while the owner
+was away with System Settings' Storage pane and Finder windows open on the checkout.
+
+1. **A writable guest root cannot be sealed.** The guest writes there, so its folders keep their
+   write bits. Spec 089 accepted that as a residual: writable roots are watched, not sealed. With
+   spec 066, a CPython or package group runs for minutes in a root whose `/tmp/work` the guest
+   fills. macOS wrote `.DS_Store` into `/`, `/tmp` and `/tmp/work` of that root. The watch named
+   them, and the group was void. A void group measures nothing, so the acceptance could not finish.
+   Every such root lives under `build/harness/guest-*`, in the checkout, under the home folder.
+2. **The OpenBLAS patch script races the writer.** `scripts/make_openblas_void_patch.sh` runs
+   `git add -A --force` on the unpacked tarball, then unstages every litter path with
+   `git rm -q --cached -- "$p"` (spec 090). `git rm --cached` refuses a path whose staged content
+   differs from both the file and `HEAD`. When macOS rewrites a `.DS_Store` between the add and the
+   rm, that is exactly the case. git says "the following file has staged content different from
+   both the file and the HEAD: .DS_Store (use -f to force removal)", the script exits 1, and
+   `test_the_openblas_patches_are_what_their_script_makes` fails. EXECUTED by hand in `race.out`,
+   case 1.
+
+## Principle
+
+A folder a guest sees **unsealed** lives where no desktop writer looks. A folder a guest sees
+**sealed** may stay where it is, since the seal holds there. A script that stages a tree for git
+**never opens a litter file**, and removes a staged one without asking the work tree. The watch
+stays as the backstop: anything that still gets in is named, never filtered and never measured.
+
+## Decisions
+
+1. **Two scratch roots, not one.**
+   - `paths.HARNESS_TMP` stays `build/harness`. It holds the host's own work and every sealed
+     stage. Every tarball and wheel the judge unpacks is unpacked there, as §4.8 asks
+     ("unpack under `downloads/` and `build/`").
+   - **New: `paths.GUEST_TMP`**, the root of every folder the judge's driver grants a guest
+     unsealed. On darwin it is
+     `realpath(tempfile.gettempdir()) / "judge-wasi_python-<k>"`, where `<k>` is the first 12
+     hex digits of the SHA-256 of `str(paths.REPO)`. On every other system it **is**
+     `HARNESS_TMP`, the same path object, so Linux and Windows see no change at all.
+   - **Why the per-user temporary folder.** On this Mac it is
+     `/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T`: mode 0700, owned by the user,
+     outside the home folder, on the same volume as the checkout (`st_dev` 16777230 for both)
+     (EXECUTED, `tmpfacts.out`). Spec 089's probe saw the writer only under the home folder, and
+     never in 40 minutes in a tree outside it (EXECUTED there). This spec's own probe on `T` was
+     inconclusive: the writer did not show up in the control either ("The probe" below). The product runner already keeps every call's
+     private folder there (READ: `runner._Private`), and the judge already treats it as a host
+     root (READ: `guest.host_roots_always`).
+   - **Why not `/private/tmp`.** It is shared by every user of the machine, so a fixed name there
+     can be taken by someone else first. `T` is this user's alone.
+   - **Why `realpath`.** `/var` is a link to `private/var`. The product runner refuses a root that
+     passes through a link in a folder the user can write (spec 089's first attempt: 87 checks
+     failed through a symlinked `build/harness`). `/var` sits in `/`, which only root can write, so
+     the runner would accept it. The real path holds no link at all, which is simpler to trust:
+     every component of `/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T` is a real
+     folder (EXECUTED, `tmpfacts.out`, `lstat` of each).
+   - **Why that name.** Keyed by the checkout, so two worktrees never share a folder. Not
+     `wasi-python-…`: that is the runner's private-folder prefix, its sweep matches lock files by
+     it (READ: `runner._LOCK_NAME`), and checks list the temporary folder for it (READ:
+     `_entries` in `test_v1_4_embedding.py`).
+   - **`paths.guest_tmp()` makes it.** On darwin: `mkdir(mode=0o700, exist_ok=True)`, then an
+     `lstat` that must show a real folder (not a link), owned by this user, with no group or other
+     bits; otherwise an `AssertionError` names it, and the judge uses nothing there. Elsewhere:
+     `HARNESS_TMP.mkdir(parents=True, exist_ok=True)`, today's call.
+   - **A `TMPDIR` inside the home folder is not accepted in silence.** The new check (Decision 8)
+     fails on darwin when the root it observes is under the home folder, and says to set `TMPDIR`
+     outside it. No fallback picks another folder.
+
+2. **What moves, on darwin.** The `guest_workdir` fixture (one per session, `tests/checks/conftest.py`)
+   makes its folder under `GUEST_TMP` instead of `HARNESS_TMP`. Everything the driver makes from
+   it moves with it, with no other edit:
+
+   | folder | made by | sealed? | after this spec, on darwin |
+   |---|---|---|---|
+   | a run's writable root `run-N/root` (066's `/tmp/work` inside it) and its `io` | `guest.run` under `workdir` | no | `GUEST_TMP` |
+   | a run's stdlib folder `run-N/lib` | `guest.run` | yes | `GUEST_TMP` |
+   | matplotlib's data `mpl-data-N` | `guest.mpl_data_dir(…, workdir)` | yes | `GUEST_TMP` |
+   | a `Turns` instance's folders | `guest.Turns(…, workdir)` | no | `GUEST_TMP` |
+   | every grant and product-runner root a check makes under `guest_workdir` (`ro-`, `rw-`, `data-`, `grants-`, …) | the checks | no | `GUEST_TMP` |
+   | the CPython stage `cpython/run-*` | `regrtest.Session` | yes | stays, `HARNESS_TMP` |
+   | the upstream stage `upstream/run-*` | `upstream.Session` | yes | stays, `HARNESS_TMP` |
+   | the zips `zips-<sha>-v2` | `zips.judge_zips` | never granted (a run clones one into its `lib`) | stays |
+   | `openblas-void` | the OpenBLAS check | host only (an unpacked tarball, git) | stays |
+   | `patched-*` | `pins.py` | host only (unpacked tarballs) | stays |
+   | `oracle-check` | the oracle check | native Python, no guest | stays |
+   | `unit-*` | the unit `work` fixture | see Decision 4 | stays |
+
+   READ: every use of `paths.HARNESS_TMP` (`grep -rn HARNESS_TMP tests src scripts`), every
+   `mkdtemp` in `tests/`, and the two `Session`s' `workdir` (both get `guest_workdir`,
+   `tests/checks/test_v1_3_upstream_suites.py`). Folders under pytest's `tmp_path` are already
+   under `T` (pytest's base temp), and the product runner's own private folders are already there.
+   So after this spec, on darwin, **every unsealed folder a guest sees is outside the home
+   folder**, except the unit suite's (Decision 4).
+
+3. **§4.8, read plainly.** Nothing is unpacked outside `build/`: the stages, the trees and the kit
+   wheels stay where they are. A writable root outside `build/` holds what a check writes there and
+   what the guest writes. With spec 066 that includes **copies** of a few staged members a check
+   names (lxml's three `cwd_files`, matplotlib's baseline images), read only by a guest under
+   wasmtime, which §4.8 allows ("execute only … as guests under wasmtime"), and removed with the
+   root. The repo's own wording, "never the system's temporary folder (§4.8)" (`pins.py`, the unit
+   `work` fixture), is about where downloads unpack, and stays true. **This reading is the one
+   point the pre-build review is asked to rule on** (R1 below). If the owner reads §4.8 more
+   strictly, the copies must come from a sealed read-only grant instead of the root, which is
+   066's change, and this spec is otherwise unchanged.
+
+4. **The unit suite's `work` stays under `build/harness`.** A unit guest is a small module built
+   from WAT; its run lasts milliseconds in a fresh folder, while the writer acts 4 to 7 s after a
+   change it sees (EXECUTED in spec 089's probe). Unit rows record no fuel, and a `HostLitter` there
+   names itself. Moving `work` would also move unit rows that unpack stand-in tarballs out of
+   `build/`, for no measured gain. A named residual, INFERRED from those timings.
+
+5. **Spec 081 still holds, and fuel does not follow the move.**
+   - `host_roots_always()` adds `GUEST_TMP`, so a measured run whose input names a host path there
+     is refused, in every form `_forms` makes (as written, resolved, `file:` URI). Today `T` is
+     already a host root, so on this Mac nothing changes; the addition covers a `TMPDIR` of
+     literally `/tmp`, where `host_roots_always` leaves the temporary folder out (READ).
+   - **Why fuel cannot move (INFERRED).** A preopen hands the guest a guest path only; the host
+     path never reaches it. Spec 081 measured 148 rows in two checkouts, 44 and 205 characters
+     long: only a row whose input named a host path moved (EXECUTED there). Spec 083's file facts
+     answer every inode number and time the guest reads. What a filestat still carries from the
+     host is the device number, the link count, the size and the type. The device number is the
+     same for the checkout and `T` on this Mac (EXECUTED, `tmpfacts.out`); the others depend on a
+     folder's contents, not on where it is.
+   - **The build proves it** (criterion 3): the same fuel-recording rows, on one private set, twice
+     with the guest folders under `build/harness` and twice under `T`, every value equal. The
+     builder's CI run then compares the macOS legs with `accepted.json`.
+
+6. **The seal and the watch stay as they are.** Each run's grants are still watched; every sealed
+   folder is still sealed. Only where the folders live changes. A killed judge now leaves its run
+   folders under `GUEST_TMP` on darwin, so `sealed_leftovers` looks under both roots, the plugin's
+   session-start line names both, and every `HostLitter` message and the `litter.py` docstring give
+   the recovery for both (`chmod -R u+w <folder>` then `rm -rf`), by their real paths.
+
+7. **The OpenBLAS script never opens a litter file, and never asks the work tree to unstage one.**
+   - **Excluded at the add.** `scripts/litter.py` gains `git_excludes()`: for each name in
+     `OS_LITTER`, `:(exclude,glob)**/<name>` and `:(exclude,glob)**/<name>/**`, and the same two
+     for `._*`. The script writes `.` and those, NUL-separated, to `$WORK/add.pathspec` (outside
+     the tree) once, and both adds become
+     `g add -A --force --pathspec-from-file="$WORK/add.pathspec" --pathspec-file-nul`. git then
+     never opens a litter file, so a file the writer rewrites, truncates or removes mid-add cannot
+     fail the add. EXECUTED (`race.out`): an unreadable `.DS_Store` fails a plain `git add -A
+     --force` with "error: open(".DS_Store"): Permission denied … fatal: adding files failed"
+     (case 4), and the excluded add passes and stages neither `.DS_Store` nor `sub/._a.c` (case 5).
+     `--pathspec-from-file` needs git 2.26 or later (this Mac: 2.51.0).
+   - **Forced at the unstage.** The unstage stays, with `has_litter` as the one authority, but
+     each staged litter path leaves the index by `g update-index --force-remove -- "$p"`, which
+     compares nothing with the work tree. EXECUTED (`race.out`): after a rewrite, `git rm --cached`
+     fails (case 1), `update-index --force-remove` passes (case 2), and so would `git rm --cached
+     -f` (case 3). With the excludes it should never find one; a unit row holds the two rules equal
+     (Decision 8), and the unstage remains so a disagreement can never put litter in a patch.
+   - **Siblings.** `make_openblas_void_patch.sh` is the only place in `scripts/` or
+     `tests/harness/` that adds and then unstages (READ: `grep -rn "rm --cached\|git add\|add -A\|update-index"`).
+     `apply_patches.sh` runs `git apply`, which reads no untracked file; `assemble_artifacts.py`
+     runs `git ls-files`; the patched-tree comparison in `pins.py` skips litter by name (spec 090).
+     None of them races the writer.
+   - **The set changes by two recipe lines.** Both files are tracked under `scripts/`, so each is a
+     `recipe <sha> <path>` line of `MANIFEST` (READ: `assemble_artifacts.py`, `git ls-files recipes
+     scripts`). `MANIFEST` changes, and with it the set's `SHA256SUMS`. `python.wasm`, the snapshot
+     and the stdlib zip are byte for byte the same (INFERRED: neither file is compiled or zipped;
+     the build compares their hashes, criterion 4). The three carried OpenBLAS patches do not
+     change: the tarball holds no litter name (the script checks), so the excludes leave out
+     nothing it holds.
+
+8. **Checks first, each seen failing on main's code.**
+   - **`test_the_judges_writable_roots_are_outside_the_home_folder`** (`test_v1_4_embedding.py`,
+     goal v1.4, beside spec 089's drop check). No artifact: it runs a WAT command
+     (`harness.wat.COMMAND_EXIT_7`) through the judge's driver in `guest_workdir`, unmeasured, and
+     looks at the root the run was given. On darwin: the root's real path is its path (no link
+     anywhere), it is not under the home folder, and it is under `paths.GUEST_TMP`. Elsewhere: it
+     is under `paths.HARNESS_TMP`, as today. On main it fails on darwin, naming a root under
+     `build/harness`; on Linux and Windows it passes on main too, which is the point.
+   - **`test_the_openblas_patch_script_survives_litter_rewritten_after_its_add`**
+     (`test_scipy_build.py`, beside spec 090's row and on its stand-in layout). A `git` wrapper
+     first on `PATH` (the script's `env -i` keeps `PATH`) writes `.DS_Store` into the tree and a
+     subfolder just before each `add`, runs the real git, then rewrites both. On main's script it
+     fails with git's "staged content different from both the file and the HEAD"; with the fix the
+     patches are made and name no litter. The race is simulated deterministically: the rewrite
+     always lands between the add and the unstage.
+   - **`test_the_openblas_patch_script_never_reads_host_litter`** (the same layout). The wrapper
+     makes those `.DS_Store` files unreadable before each `add` and readable after. On main it fails
+     with "Permission denied"; with the fix it passes. Skipped on Windows and as root, where a mode
+     does not stop a read.
+   - **Unit rows:** `git_excludes()` and `has_litter` agree on a tree of yes and no names through
+     real git (`test_build_scripts.py`: `.DS_Store` at the top and deep, `._x.c`, `Icon\r` where the
+     platform allows it, a file inside `.Trashes/`, and `DS_Store`, `x._y`, `Icon`,
+     `.DS_Store.bak`, `.gitignore` kept); `paths._guest_tmp_for(repo, temp, platform)` gives two
+     checkouts two folders, a real path under the temporary folder on darwin and `build/harness`
+     elsewhere; `guest_tmp()` refuses a link and a folder with group or other bits;
+     `host_roots_always()` holds `GUEST_TMP` (`test_host_litter.py`).
+
+### The probe (EXECUTED, `probe.log`)
+
+Two identical trees, shaped like a run's root and stdlib folder: one under the home folder (this
+worktree's `build/097-probe`), one in `T`. Both were changed every 5 s for 12 minutes, 14:59 to
+15:22 on 2026-10-20. **Neither got a `.DS_Store`** (`home tree litter: 0`, `temp tree litter:
+0`). **So the probe settles nothing.** The control under the home folder got none either, so the
+writer was not active, or did not scan this worktree, which sits under the dot-folder `.claude/`.
+The case for `T` therefore rests on spec 089's EXECUTED probe (a tree under the home folder got a
+`.DS_Store` within 7 s; the same tree under `/private/tmp` got none in 40 minutes), and on what
+the writer was seen to scan (the home folder, `~/Git/Repos`). That `T` in particular is never
+scanned is INFERRED: it is outside the home folder, like `/private/tmp`. The build repeats this
+probe while the writer is known to be active (System Settings' Storage pane open on the owner's
+Mac), with the control in the main tree's `build/`, if the lane grants that. Whether it can or
+not, the watch stays as the backstop (Decision 6).
+
+## Intent
+
+On macOS, no folder a guest sees unsealed lies under the home folder, so the desktop's folder-size
+cache never reaches one, and the watch stays to name anything else. The OpenBLAS script never
+opens a litter file and never needs the work tree's agreement to unstage one, so a desktop writer
+cannot fail it. On Linux and Windows nothing changes.
+
+## Design
+
+- `paths.py`: `_guest_tmp_for(repo, temp, platform)` (pure), `GUEST_TMP = _guest_tmp_for(REPO,
+  tempfile.gettempdir(), sys.platform)`, and `guest_tmp()` (makes and checks it; returns it).
+- `tests/checks/conftest.py`: `guest_workdir` calls `paths.guest_tmp()` and makes its `guest-*`
+  folder there.
+- `guest.host_roots_always()`: adds `paths.GUEST_TMP` when it is not `HARNESS_TMP`.
+- `litter.py`: the recovery text names `paths.HARNESS_TMP` and, when different, `paths.GUEST_TMP`.
+  `plugin.py`: `sealed_leftovers` over both, one line naming both.
+- `scripts/litter.py`: `git_excludes()`. `make_openblas_void_patch.sh`: writes the pathspec file
+  after `g init`, adds through it, unstages with `update-index --force-remove`.
+- The new check and unit rows of Decision 8.
+
+## Scope
+
+In: Decisions 1 to 8.
+
+Out, and why:
+- **The stages stay under `build/harness`.** They are sealed, the seal held against the real
+  writer in spec 089's build (it took a `.DS_Store` written during staging), and moving them
+  would unpack tarballs and wheels outside `build/` (§4.8, Decision 3).
+- **The roadmap's other two 097 items stay reserved:** `test_elementsoup.py` under pytest's import
+  mode, and the `stage-layout` class (spec 066's tables). Neither is on main (066 is in wave 08,
+  unlanded). Both mean staging a package's tests inside its package folder, which moves
+  matplotlib's and lxml's fuel and needs its own measurement; not small. Their closers point at
+  `context/roadmap.md`, not at this file (READ: `tests/upstream/lxml.toml`, `matplotlib.toml` on
+  `wave/08`), so nothing in the judge names 097. The lane gives them a number.
+- **The unit `work` fixture** (Decision 4).
+- **Which process writes the files** (spec 089 left it open; it does not matter here).
+
+## Acceptance criteria
+
+1. **The checks fail first.** On main's code (the branch's checks over `5805af0`'s harness and
+   script): the root check fails on darwin, naming a root under `build/harness`; the two script
+   rows fail with git's "staged content different from both the file and the HEAD" and
+   "Permission denied"; the unit rows fail to find `GUEST_TMP`, `_guest_tmp_for` and
+   `git_excludes`. The lines are in the landing notes.
+2. **They pass with the build,** with `ruff check` and `ruff format --check` green.
+3. **Fuel is location-free (EXECUTED at build).** On one private APFS copy of a frozen set (every
+   file at link count 1), these rows run twice on main's code (guest folders under
+   `build/harness`) and twice on the build (under `T`), by node id, serially:
+   `test_a_file_dropped_into_a_stage_changes_nothing` and
+   `test_file_facts_cost_the_same_on_every_run` and
+   `test_fuel_does_not_follow_the_stdlib_zips_link_count`, each on both binaries;
+   `test_matplotlib_data_is_granted_read_only` on both;
+   `test_upstream_suite[cpython-fs]`, `[cpython-archives]` and `[numpy-lib]`; and the numpy and
+   pandas jobs of `test_v1_3_data_stack.py`. Every row gives one fuel value across the four runs.
+   A row that differs between two runs of the same code is noise, not location, and is named.
+4. **The set.** After a rebuild (the lane grants the slot), `MANIFEST` differs from the base set's
+   in exactly the two recipe lines, and `python.wasm`, `python-snapshot.wasm` and
+   `python-stdlib.zip` have the base set's hashes.
+5. **The OpenBLAS check,** `test_the_openblas_patches_are_what_their_script_makes`, passes against
+   the real pinned tarball: the same three patches, byte for byte.
+6. **Nothing else moves.** The fast tier (`-n 3`, on a slot the lane grants): no failure, no lost
+   pass, no fuel row past its tolerance; gained, the new check; `judge changed`. The builder's
+   release workflow run: every job green; the macOS legs' fuel inside the tolerance of
+   `accepted.json` (the move, measured on CI); Linux and Windows rows as before.
+7. **Cleanup.** After the full judge, no `guest-*` folder of that run is left under `GUEST_TMP`,
+   and no folder under either root lacks its owner's write bit.
+
+## For the pre-build reviewer: the risks
+
+- **R1, §4.8 (Decision 3).** After 066, a writable root outside `build/` holds copies of a few
+  tarball members. Is "copies handed to a guest under wasmtime" within §4.8, or must they come
+  from a sealed grant? This is the one point that may need the owner.
+- **R2, a host fact that follows the location.** A filestat's device number reaches the guest. On
+  this Mac it is the same for both places; on a host where `T` is another volume it would differ.
+  The repeats (criterion 3) measure this Mac; the CI run measures GitHub's macOS runner.
+- **R3, macOS cleans `T`.** INFERRED: the system removes items in `T` not used for some days, as
+  root. A session's folders are fresh, so none of a live run's should go; `guest_tmp()` re-makes
+  the base folder each session. Leftovers a killed judge sealed are removed by it too, which is a
+  gain.
+- **R4, the product runner inside `T`.** Its rules refuse a grant at or above the temporary
+  folder and a writable grant inside its own stdlib or private folders (READ: `_judge`,
+  `_shared_folders`, `_runtime_folders`); `GUEST_TMP` is a sibling of those. Its sweep acts only on
+  lock files named `wasi-python-*.lock`. The fast tier is the proof, since spec 089's symlink failed there.
+- **R5, the git version.** `--pathspec-from-file` needs git 2.26 or later on every host that runs
+  the script (the macOS and Linux build hosts). INFERRED from GitHub's runner images; the CI run
+  shows it.
+- **R6, the unit suite's residual** (Decision 4), and the stages staying under the home folder,
+  sealed (Scope).
+- **R8, `T` itself is not proven clean.** This spec's probe saw no writer anywhere, so the case
+  for `T` rests on spec 089's `/private/tmp` probe and on where the writer was seen to scan
+  (INFERRED). The watch stays, so if that inference is wrong a run is voided by name, never
+  measured wrong.
+- **R7, `TMPDIR` set by a user** to a folder under the home folder: the check fails, by design,
+  naming it; there is no fallback.
+
+## For the lane
+
+- **Build-class.** It needs a rebuilt set for criterion 4 (`MANIFEST`'s two recipe lines), a
+  native build slot, and one CI run. Its CHANGELOG line goes under the unreleased section: "The
+  OpenBLAS patch script no longer fails when macOS rewrites a `.DS_Store` in the unpacked tree;
+  the judge's guest folders live outside the home folder on macOS (spec 097)."
+- **Accept with** `--accept-judge "spec 097: on darwin the judge's guest folders (guest_workdir:
+  each run's root, io, stdlib folder, matplotlib's data, Turns, every check-made grant) live under
+  paths.GUEST_TMP in the per-user temporary folder, outside the home folder; the stages stay
+  sealed under build/harness; host_roots_always holds GUEST_TMP; one new check,
+  test_the_judges_writable_roots_are_outside_the_home_folder; unit rows; no existing check,
+  golden, gap or allowance edited"` and `--accept "spec 097: scripts/make_openblas_void_patch.sh
+  adds with litter excluded and unstages with update-index --force-remove; scripts/litter.py
+  gains git_excludes; MANIFEST's two recipe lines"`.
+- **The expected record:** gained, the new check; lost 0; grew 0; `judge changed`.
+- **The roadmap's 097 line** becomes this spec; its two staging items get the next free number.
+
+## Landing notes
+
+Not built yet.
+
+One line: on macOS the judge's unsealed guest folders leave the home folder, where the desktop
+never writes, and the OpenBLAS script stops racing it.

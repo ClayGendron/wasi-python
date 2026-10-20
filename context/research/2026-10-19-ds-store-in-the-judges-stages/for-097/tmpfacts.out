@@ -1,0 +1,11 @@
+gettempdir /var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T realpath /private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T
+0o40700 501 /private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T 
+0o40755 501 /private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn 
+0o40755 0 /private/var/folders/_c 
+0o40755 0 /private/var/folders 
+0o40755 0 /private/var 
+0o40755 0 /private 
+0o40755 0 / 
+/var -> private/var
+dev temp 16777230 dev home 16777230
+home /Users/claygendron /Users/claygendron

@@ -1,0 +1,20 @@
+1. git rm -q --cached after a rewrite:
+error: the following file has staged content different from both the
+file and the HEAD:
+    .DS_Store
+(use -f to force removal)
+   exit 1
+2. git update-index --force-remove:
+   exit 0
+sub/a.c 
+3. git rm -q --cached -f after a rewrite:
+   exit 0
+sub/a.c 
+4. git add -A --force with an unreadable litter file:
+error: open(".DS_Store"): Permission denied
+error: unable to index file '.DS_Store'
+fatal: adding files failed
+   exit 128
+5. the same, litter excluded by pathspec (from a NUL file):
+   exit 0
+sub/a.c 
