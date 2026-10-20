@@ -2263,7 +2263,8 @@ Both are pure Python. seaborn draws through matplotlib; reportlab writes PDFs (s
 - `sns.load_dataset` cannot fetch (there is no network), and how it fails depends on what is
   writable, because seaborn first makes its cache folder under a `~` the guest cannot expand:
   with nothing writable, `import seaborn` itself fails (above); with only the `MPLCONFIGDIR`
-  grant, `load_dataset` raises `PermissionError` naming `'~'`; with a writable root, it makes a
+  grant and no root, `load_dataset` raises `FileNotFoundError` naming `'~'` (with a read-only
+  root, `PermissionError`); with a writable root, it makes a
   folder `/~/.cache/seaborn` in that root and then raises `URLError` (`unknown url type:
   https`). Put the CSV in a granted folder and read it with `pd.read_csv`.
 - seaborn uses scipy, which is compiled in: its kernel densities are `scipy.stats.gaussian_kde`
