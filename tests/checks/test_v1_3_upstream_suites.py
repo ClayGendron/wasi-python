@@ -4,7 +4,9 @@ One check per group runs upstream's own selection in the snapshot binary, from t
 pinned sources, and passes only when every failure falls in a known class. Each class, each test
 that traps the guest, and each of CPython's deselection, environment and host entries is its own
 check, admitted as an ordinary gap with its closer. The groups record `fuel` and `passes`, which
-must not fall.
+must not fall. A fuel fact's test (spec 091) runs in a session of its own inside its group's
+check: its outcomes count with the group's, and its fuel is a fact, not part of the group's
+`fuel`.
 """
 
 from __future__ import annotations
@@ -71,7 +73,8 @@ def test_upstream_suite(upstream_session, regrtest_session, metric, fact, packag
     """Every failure or error falls in a class of the group; nothing traps, runs out of fuel,
     fails to collect or load, or ends abnormally; no product module comes from the grant. numpy's
     and pandas' hypothesis profile is derandomized; CPython's modules are exactly the plan's, and
-    each environment change is one an entry names."""
+    each environment change is one an entry names. A fuel fact's cases ran exactly once, in their
+    own session, within its cap."""
     _need(package)
     run = _session(package, upstream_session, regrtest_session).group(package, group)
     fact("counts", run.outcome.counts)
@@ -82,6 +85,8 @@ def test_upstream_suite(upstream_session, regrtest_session, metric, fact, packag
         fact("env_altered", run.outcome.env_altered)
         if run.outcome.findings:  # every finding in the record, not only the message's first five
             fact("findings", run.outcome.findings)
+    elif run.fuel_facts:  # recorded, never ratcheted (spec 091)
+        fact("fuel_facts", run.fuel_facts)
     metric("fuel", run.fuel)
     metric("passes", run.outcome.passes)
     assert not run.outcome.findings, scan.report(run.outcome.findings, f"upstream {group}")

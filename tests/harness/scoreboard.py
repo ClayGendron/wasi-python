@@ -32,7 +32,7 @@ FUEL_TOLERANCE = 1e-4  # 0.01%: the clock-and-random memo
 NOT_MACHINE_CHECKED = (
     "publication · copying from prior art · numpy's 25 files that need its C test modules "
     "(number 89) · pandas beyond eight groups · CPython's tests that need its C test modules "
-    "(number 101) · CPython under -bb",
+    "(number 101) · CPython under -bb · a fuel fact's fuel below its cap (spec 091)",
     "licence content of wasi-libc, llvm-runtimes and unpinned components "
     "(presence only) · "
     "bundled sub-licences · files a build adds inside a source tree · "

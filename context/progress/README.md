@@ -104,6 +104,19 @@ The checks need the source trees, the frozen artifacts and the test kit
 and not red. But **`--accept` refuses** while any of them with an accepted pass or gap did not run
 here, unless `--partial "<why>"` is given.
 
+A **fuel fact** (spec 091, `[[fuel_fact]]` in `tests/upstream/numpy.toml`) is a test whose fuel
+measures where a type object sits in memory, not the product: today one, numpy's
+`test_string_comparisons`, whose fuel moves with the `bool` type's address at every rebuild. Its
+cases leave their group's session and run in one of their own inside the group's check. Their
+outcomes still count: the group's `passes`, classes and `passed_digest` are what one session
+gives. Their fuel is not in the group's `fuel` metric: it is the fact `fuel_facts` in
+`latest.json`, red only at its cap (at least twice its fuel when measured), and compared between
+two runs of one commit by `sameness.py` to the ratchet's tolerance. A build-class landing's notes
+quote it in one clause. A move of more than 10% from the last quoted value gets one sentence of
+cause from the reviewer; when the quoted fact exceeds half its cap, that landing raises the cap or
+its reviewer says why not. The group's own fuel stays ratcheted and may still grow by a residual
+that needs its reason.
+
 ## Flags
 
 | flag | what it does |

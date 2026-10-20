@@ -9,6 +9,10 @@
 #               by its own check, and a gap until fixed (Decision 9)
 # expected      the classes of known failures, each listed by node id under expected/<group>/
 #               and admitted as one gap (Decision 10)
+# fuel_fact     tests whose fuel measures where a type object sits in memory, not the product:
+#               deselected from their group and run alone in a second session inside the group's
+#               check; their outcomes count with the group's, their fuel is a recorded fact, never
+#               ratcheted, and `fuel` is their cap (spec 091)
 
 package = "numpy"
 marker = "not slow"
@@ -104,6 +108,23 @@ closes_with = "README.md"
 # closes_with; each deselected from its group and run alone by test_upstream_trap[<id>], a gap
 # until fixed. None today: the seven that trapped on numpy 2.5.2 (four C callbacks called through
 # pointers of another signature) run in numpy-core since spec 051's patch 0002.
+
+# The fuel facts (spec 091). The cap is at least twice the entry's fuel when measured, so only a
+# doubling is red; below it the fuel is reported in the group's record (`fuel_facts`) and compared
+# only between two runs of one commit (tests/harness/sameness.py). An entry needs a reason and the
+# reviewed trace that measured the dependence, and adding one is a judge change.
+
+[[fuel_fact]]
+id = "string-comparisons"
+group = "numpy-core"
+node = "numpy/_core/tests/test_strings.py::test_string_comparisons"
+fuel = 140_000_000_000
+reason = "each of its 84 cases turns six lists of 32,768 Python bools into arrays, and numpy finds each bool's DType in _global_pytype_to_type_dict, a dict keyed by the bool type object's address, which moves with the data segment at every rebuild: numpy-core moved +1.28 G at 047, +1.08 G at 071, +4.29 G at 073's build and with 086's toolchain, each time from this test"
+evidence = [
+    "context/reviews/047-regex-build-2026-10-18.md",
+    "context/reviews/071-deep-recursion-raises-recursionerror-build-2026-10-19.md",
+    "context/specifications/091-numpy-core-layout-fuel-as-a-fact.md",
+]
 
 # The classes of known failures (Decision 10): a failed or errored test goes to the first class
 # of its group whose outcome and `match` (a regular expression searched in the one-line reason)

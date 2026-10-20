@@ -4,7 +4,8 @@
 made of: each check's `status`, `need`, `area`, `closer`, `facts`, the names of its metrics, its
 `bytes` and `passes`; its `reason` where both records call it `gap` or `blocked` (there the
 reason is deterministic: a gap's first line, a need); its `fuel` where the two differ
-by more than the ratchet's tolerance, `abs(a - b) > FUEL_TOLERANCE * max(a, b)`; and the run's
+by more than the ratchet's tolerance, `abs(a - b) > FUEL_TOLERANCE * max(a, b)`, and so too each
+value of its `fuel_facts` fact (spec 091: fuel recorded, never ratcheted); and the run's
 `deselected`, `collected_files`, `suite` and `meta.foreign` (what steered the run from outside
 the judge, which makes it red). A failure's reason is not compared: it may name a
 temporary path, and the statuses already decide. A pass's reason, its note, is not compared
@@ -28,7 +29,8 @@ if __package__ in (None, ""):  # run as a script: the harness package lives one 
 
 from harness.scoreboard import FUEL_TOLERANCE  # noqa: E402
 
-FIELDS = ("status", "need", "area", "closer", "facts")
+FIELDS = ("status", "need", "area", "closer")
+FUEL_FACTS = "fuel_facts"  # a fact of fuel values, compared as fuel is (spec 091)
 EXACT_METRICS = ("bytes", "passes")
 REASONED = ("gap", "blocked")
 RUN_FIELDS = ("deselected", "collected_files", "suite")
@@ -38,12 +40,30 @@ def fuel_differs(a: int, b: int) -> bool:
     return abs(a - b) > FUEL_TOLERANCE * max(a, b)
 
 
+def _facts(record: dict) -> tuple[object, dict]:
+    """(the facts compared exactly, the fuel facts compared within the tolerance)."""
+    facts = record.get("facts")
+    if not isinstance(facts, dict) or FUEL_FACTS not in facts:
+        return facts, {}
+    return {k: v for k, v in facts.items() if k != FUEL_FACTS}, facts[FUEL_FACTS] or {}
+
+
 def _check(node: str, a: dict, b: dict) -> list[str]:
     found = [
         f"{node}: {field} {a.get(field)!r} != {b.get(field)!r}"
         for field in FIELDS
         if a.get(field) != b.get(field)
     ]
+    (fa, xa), (fb, xb) = _facts(a), _facts(b)
+    if fa != fb:
+        found.append(f"{node}: facts {fa!r} != {fb!r}")
+    if set(xa) != set(xb):
+        found.append(f"{node}: {FUEL_FACTS} {sorted(xa)} != {sorted(xb)}")
+    for name in sorted(set(xa) & set(xb)):
+        if fuel_differs(xa[name], xb[name]):
+            found.append(
+                f"{node}: {FUEL_FACTS} {name} {xa[name]} != {xb[name]} (beyond {FUEL_TOLERANCE})"
+            )
     if a.get("status") == b.get("status") in REASONED and a.get("reason") != b.get("reason"):
         found.append(f"{node}: reason {a.get('reason')!r} != {b.get('reason')!r}")
     ma, mb = a.get("metrics") or {}, b.get("metrics") or {}

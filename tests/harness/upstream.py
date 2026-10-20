@@ -7,6 +7,11 @@ runs pytest in the snapshot binary, one guest session per group. The guest write
 stream (`tests/upstream/drive.py`); this module reads it, sorts each failure into the class that
 admits it, and names everything else as a finding. Each class and each trap is its own check and
 an ordinary gap (spec 002); a group admits nothing by itself.
+
+A fuel fact (spec 091) is a test whose fuel measures where a type object sits in memory, not the
+product. It is deselected from its group and run alone in a second session inside the group's
+check: its outcomes count with the group's, its fuel is recorded and never ratcheted, and its cap
+is the only bound on it.
 """
 
 from __future__ import annotations
@@ -75,6 +80,28 @@ class Trap:
 
 
 @dataclass(frozen=True)
+class FuelFact:
+    """A test whose fuel is a fact, not a metric (spec 091). `node` is `file::function` (or
+    `file::Class::function`), a parametrized test: the group deselects `node[`, and the fact's own
+    session runs `node`. `fuel` is that session's cap, at least twice its fuel when measured."""
+
+    id: str
+    group: str
+    node: str
+    fuel: int
+    reason: str
+    evidence: tuple[str, ...]
+
+    @property
+    def file(self) -> str:
+        return self.node.split("::", 1)[0]
+
+    def owns(self, node: str) -> bool:
+        """Whether a test's node id is one of the entry's cases."""
+        return node.startswith(self.node + "[")
+
+
+@dataclass(frozen=True)
 class Klass:
     id: str
     group: str
@@ -105,9 +132,27 @@ class Config:
     deselected: list = field(default_factory=list)
     environment: list = field(default_factory=list)
     host_dependent: list = field(default_factory=list)
+    fuel_facts: list[FuelFact] = field(default_factory=list)  # spec 091
 
     def classes(self, group: str) -> list[Klass]:
         return [k for k in self.expected if k.group == group]
+
+    def facts(self, group: str) -> list[FuelFact]:
+        return [f for f in self.fuel_facts if f.group == group]
+
+
+def _fuel_facts(raw: dict) -> list[FuelFact]:
+    return [
+        FuelFact(
+            f["id"],
+            f["group"],
+            f["node"],
+            int(f["fuel"]),
+            f.get("reason", ""),
+            tuple(f.get("evidence", [])),
+        )
+        for f in raw.get("fuel_fact", [])
+    ]
 
 
 def load(package: str, directory: Path = HERE) -> Config:
@@ -136,6 +181,7 @@ def load(package: str, directory: Path = HERE) -> Config:
             Klass(e["id"], e["group"], e["outcome"], e["match"], e["reason"], e["closes_with"])
             for e in raw.get("expected", [])
         ],
+        fuel_facts=_fuel_facts(raw),
     )
 
 
@@ -185,6 +231,7 @@ def _load_regrtest(raw: dict, directory: Path) -> Config:
         deselected=deselected,
         environment=environment,
         host_dependent=hosts,
+        fuel_facts=_fuel_facts(raw),  # refused by the rules: a regrtest suite has none
     )
 
 
@@ -425,6 +472,7 @@ def group_spec(cfg: Config, group: Group) -> dict:
     ignores = [f for n in cfg.not_selected for f in n.files if mine(f)]
     ignores += [t.node for t in cfg.traps if "::" not in t.node and mine(t.node)]
     deselects = [t.node for t in cfg.traps if "::" in t.node and mine(t.node)]
+    deselects += [f.node + "[" for f in cfg.facts(group.name)]  # its cases only (spec 091)
     return {
         "path_packages": cfg.path_packages,
         "markers": cfg.markers,
@@ -445,6 +493,16 @@ def trap_spec(cfg: Config, trap: Trap) -> dict:
         "path_packages": cfg.path_packages,
         "markers": cfg.markers,
         "args": [*cfg.args, _abs(trap.node)],
+    }
+
+
+def fact_spec(cfg: Config, fact: FuelFact) -> dict:
+    """The entry alone, under its group's marker, so it runs exactly the cases its group would
+    have run (spec 091)."""
+    return {
+        "path_packages": cfg.path_packages,
+        "markers": cfg.markers,
+        "args": ["-m", cfg.marker, *cfg.args, _abs(fact.node)],
     }
 
 
@@ -601,6 +659,45 @@ def judge_group(stream: Stream, run: GuestRun, classes: list[Klass]) -> GroupOut
     )
 
 
+def _tests(stream: Stream) -> list[str]:
+    return list(dict.fromkeys(n for _, n, _ in stream.outcomes))
+
+
+def fact_findings(group: Stream, alone: Stream, fact: FuelFact) -> list[str]:
+    """Whether the entry's cases ran exactly once (spec 091): none in the group's session, and in
+    its own session at least one of them and nothing else."""
+    where = f"fuel fact {fact.id}"
+    found = [f"{where}: {n} also ran in the group" for n in _tests(group) if fact.owns(n)]
+    mine = _tests(alone)
+    if not any(fact.owns(n) for n in mine):
+        found.append(f"{where}: its session ran nothing of {fact.node}")
+    found += [f"{where}: its session ran {n}, outside the entry" for n in mine if not fact.owns(n)]
+    return found
+
+
+def combine(parts: list[tuple[Stream, GroupOutcome, str]], extra: list[str]) -> GroupOutcome:
+    """One group's outcome from its sessions, the group's own and each fuel fact's (spec 091):
+    findings keep their session's prefix; members, counts and passes add up; the digest is of every
+    passed id, so it is the one a single session gives when nothing else changed."""
+    passed = [n for s, _, _ in parts for o, n, _ in s.outcomes if o == "passed"]
+    members: dict[str, set[str]] = {}
+    counts: Counter[str] = Counter()
+    findings: list[str] = []
+    for _, outcome, prefix in parts:
+        findings += [prefix + f for f in outcome.findings]
+        for k, v in outcome.members.items():
+            members.setdefault(k, set()).update(v)
+        counts.update(outcome.counts)
+    return GroupOutcome(
+        findings=findings + extra,
+        members={k: sorted(v) for k, v in members.items()},
+        passes=len(passed),
+        passed_digest=passed_digest(passed),
+        counts=dict(sorted(counts.items())),
+        finished=all(outcome.finished for _, outcome, _ in parts),
+    )
+
+
 def class_findings(actual: list[str], listed: list[str]) -> list[str]:
     """One finding per member, plus `+id` for each not in the list and `-id` for each listed but
     gone; none when the class is empty (its gap then says "remove the gap"; condition C1)."""
@@ -615,9 +712,53 @@ def class_findings(actual: list[str], listed: list[str]) -> list[str]:
 
 
 def caps(configs: dict[str, Config]) -> int:
-    return sum(g.fuel for c in configs.values() for g in c.groups.values()) + TRAP_FUEL * sum(
-        len(c.traps) for c in configs.values()
+    return (
+        sum(g.fuel for c in configs.values() for g in c.groups.values())
+        + TRAP_FUEL * sum(len(c.traps) for c in configs.values())
+        + sum(f.fuel for c in configs.values() for f in c.fuel_facts)  # spec 091
     )
+
+
+# A fuel fact's node: `file::function` or `file::Class::function`, with no parameters (spec 091).
+FACT_NODE = re.compile(r"[\w./-]+\.py::\w+(::\w+)?")
+# Where a fuel fact's evidence lives: the reviewed trace that measured the dependence.
+EVIDENCE_DIRS = ("context/reviews/", "context/research/", "context/specifications/")
+
+
+def fact_errors(pkg: str, cfg: Config, repo: Path) -> list[str]:
+    """A fuel fact names its group, a parametrized test under that group's paths that no other
+    entry already takes out, a reason, and evidence in the repository (spec 091)."""
+    errors = []
+    taken = {f for n in cfg.not_selected for f in n.files}
+    for f in cfg.fuel_facts:
+        where = f"{pkg}: fuel fact {f.id}"
+        if cfg.runner != "pytest":
+            errors.append(f"{where}: only a pytest suite has fuel facts")
+            continue
+        if f.group not in cfg.groups:
+            errors.append(f"{where} names no group of its package: {f.group}")
+        elif not any(f.file.startswith(p + "/") for p in cfg.groups[f.group].paths):
+            errors.append(f"{where}: {f.file} is not under its group's paths")
+        if not FACT_NODE.fullmatch(f.node):
+            errors.append(f"{where}: node {f.node!r} is not file::function with no parameters")
+        cases = f.node + "["  # what the group deselects: a trap on a sibling name does not overlap
+        if f.file in taken or any(
+            t.node.startswith(cases) or cases.startswith(t.node) for t in cfg.traps
+        ):
+            errors.append(f"{where}: {f.node} is also left out by a not_selected or trap entry")
+        if not f.reason.strip():
+            errors.append(f"{where} has no reason")
+        if not f.evidence:
+            errors.append(f"{where} names no evidence")
+        for e in f.evidence:
+            if not e.startswith(EVIDENCE_DIRS) or not (repo / e).is_file():
+                errors.append(
+                    f"{where}: evidence {e} is not a file under context/reviews, "
+                    "context/research or context/specifications"
+                )
+        if f.fuel <= 0:
+            errors.append(f"{where}: fuel cap {f.fuel} is not positive")
+    return errors
 
 
 def families(configs: dict[str, Config]) -> dict[str, dict[str, Config]]:
@@ -660,6 +801,11 @@ def rule_errors(
             names.add(t.id)
             if trap_node(t.id) not in gap_checks:
                 errors.append(f"{pkg}: trap {t.id} has no gap in tests/known_gaps.toml")
+        for f in cfg.fuel_facts:
+            if f.id in names:
+                errors.append(f"{pkg}: the name {f.id} is used twice")
+            names.add(f.id)
+        errors += fact_errors(pkg, cfg, repo)
         seen: set[tuple[str, str]] = set()
         for k in cfg.expected:
             if (k.group, k.id) in seen:
@@ -706,7 +852,7 @@ def rule_errors(
                     if not any(m.startswith(p + "/") for m in have)
                 ]
             files = [f for n in cfg.not_selected for f in n.files] + [t.file for t in cfg.traps]
-            files += cfg.support
+            files += cfg.support + [f.file for f in cfg.fuel_facts]
             errors += [f"{pkg}: {f} is not a tarball member" for f in files if f not in have]
     if expected_dir.is_dir():
         for f in sorted(expected_dir.rglob("*.txt")):
@@ -731,8 +877,9 @@ def rule_errors(
 @dataclass
 class GroupRun:
     outcome: GroupOutcome
-    fuel: int
+    fuel: int  # the group's own session: the metric
     left_out: list[str]
+    fuel_facts: dict[str, int] = field(default_factory=dict)  # each fact's session (spec 091)
 
 
 @dataclass
@@ -808,6 +955,8 @@ class Session:
             (judge / f"{g.name}.json").write_text(json.dumps(group_spec(cfg, g), indent=1))
         for t in cfg.traps:
             (judge / f"{t.id}.json").write_text(json.dumps(trap_spec(cfg, t), indent=1))
+        for f in cfg.fuel_facts:
+            (judge / f"{f.id}.json").write_text(json.dumps(fact_spec(cfg, f), indent=1))
         return left_out
 
     def _run(self, package: str, name: str, fuel: int) -> tuple[Stream, GuestRun]:
@@ -837,12 +986,21 @@ class Session:
         return parse_stream(text), run
 
     def group(self, package: str, group: str) -> GroupRun:
+        """The group's session, then each of its fuel facts' (spec 091), judged as one."""
         if group not in self.groups:
             left_out = self.prepare(package)
             cfg = self.configs[package]
+            classes = cfg.classes(group)
             stream, run = self._run(package, group, cfg.groups[group].fuel)
-            outcome = judge_group(stream, run, cfg.classes(group))
-            self.groups[group] = GroupRun(outcome, run.fuel, left_out)
+            parts = [(stream, judge_group(stream, run, classes), "")]
+            extra: list[str] = []
+            facts: dict[str, int] = {}
+            for f in cfg.facts(group):
+                alone, f_run = self._run(package, f.id, f.fuel)
+                parts.append((alone, judge_group(alone, f_run, classes), f"fuel fact {f.id}: "))
+                extra += fact_findings(stream, alone, f)
+                facts[f.id] = f_run.fuel
+            self.groups[group] = GroupRun(combine(parts, extra), run.fuel, left_out, facts)
         return self.groups[group]
 
     def trap(self, package: str, trap_id: str) -> TrapRun:
