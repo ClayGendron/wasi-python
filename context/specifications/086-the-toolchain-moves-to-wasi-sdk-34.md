@@ -1,6 +1,11 @@
 # 086 — The toolchain moves to wasi-sdk 34
 
-- **Status:** **built 2026-10-19** on main `3866f56` (the Landing notes); **build review**
+- **Status:** **rebased and rebuilt 2026-10-20 on main `e8ba20a`** (wave 01 landed), with the
+  0.1.0 security review's S5 (`--with-hash-algorithm=siphash13`) and the zip's
+  `_missing_stdlib_info` folded in at the owner's word; the A/B done on 078's base (`97be88a`);
+  branch dry run 39360800335 read (one red line: the class 086 retires; see "The rebase"). **Ready
+  for a delta review**; wave 03 (086 with 092 and 094) rebases once more onto main after wave 02.
+  Before: **built 2026-10-19** on main `3866f56` (the Landing notes); **build review**
   (`../reviews/086-the-toolchain-moves-to-wasi-sdk-34-build-2026-10-19.md`, in the lane's
   scratchpad): "lands once the A/B is done on 083's base and B1 is run and written in"; B1 to
   B3 and N1 are done ("Disposition of the build review"): every criterion but
@@ -32,7 +37,13 @@
     - comments that name wasi-sdk 33: `recipes/wasi-numpy.cross:30`, `recipes/wasi-pandas.cross:30`,
       `recipes/iconv_refusals.c:3`, and the libxml2 patch's facts sheet, whose reason changes
       (Decision 4);
-    - `README.md`, `CHANGELOG.md`, `context/roadmap.md`.
+    - `README.md`, `CHANGELOG.md`, `context/roadmap.md`;
+    - at the rebase (the owner's word, `../decisions.md`, 2026-10-19): `scripts/steps/20_cpython.sh`
+      passes `--with-hash-algorithm=siphash13` (S5), `scripts/steps/70_zip.sh` copies
+      `_missing_stdlib_info.py` (spec 078's build review, F2), `tests/cpython_configure.txt` gains
+      `Py_HASH_ALGORITHM 3`, 078's class `no-missing-stdlib-info` is closed
+      (`tests/upstream/python.toml`, its expected file, `tests/known_gaps.toml`,
+      `tests/unit/test_regrtest.py`'s count).
   - **New:**
     - `recipes/fcntl_dup_refusal.c`: wasi-libc's `fcntl` answers the two dup commands as its `dup`
       does (Decision 5);
@@ -705,16 +716,121 @@ is done.
 9. **The record.** The memo and its folder (086's files only), the facts sheet, the README, the
    CHANGELOG, the libxml2 sheet and the roadmap line.
 
+### The rebase, S5 and the zip fix (2026-10-20)
+
+Evidence: `../research/2026-10-19-the-toolchain-move-evidence.md`, section 10, and its folder
+`rebase/`. Everything below is EXECUTED unless marked.
+
+- **The rebases.** 086 was rebased three times, each with `git rebase`:
+  - onto `45b917c` (083 and 089): clean;
+  - onto `97be88a` (078): two conflicts, in `tests/checks/test_v1_2_hostile_guest.py` (both
+    sides appended at the file's end; I kept 078's runner-stack checks, then 086's dup check) and
+    `CHANGELOG.md` (I kept 078's entry, then 086's);
+  - onto `e8ba20a` (wave 01): the same two files, each resolved by keeping both sides, wave 01's
+    first.
+- **What was folded in.**
+  - **S5:** step 20 passes `--with-hash-algorithm=siphash13`. It is a configure flag, not a patch.
+    The build-Python gets it too, and it is that host's default already.
+  - **The zip fix:** step 70 copies the generated `_missing_stdlib_info.py` beside
+    `_sysconfigdata`.
+  - **Two new checks,** each seen failing first on the `aac927dc` set:
+    - `test_the_string_hash_is_siphash13[plain]` and `[snapshot]`: "fnv 32 32 64";
+    - `test_a_missing_stdlib_module_says_why`: "Standard library module '_tkinter' was not found".
+  - **Check (c)** named `+Py_HASH_ALGORITHM 3 (built, not recorded)` (macOS and both containers),
+    and then the record took the line and its new digest.
+  - **README:** the snapshot facts state the hash (SipHash-1-3, 32 bits wide, the plain
+    reactor's key fresh per call, the snapshot's fixed and public). *Not protected* gains keys
+    built to collide under the snapshot's key. The sentence about the zip lacking
+    `_missing_stdlib_info` is restated. **CHANGELOG:** two lines.
+- **078's class closes.** After 078 landed, the full judge said `cpython-a-no-missing-stdlib-info`
+  "passes, but tests/known_gaps.toml still lists it". So I removed its class, its expected file
+  and its gap. `test_regrtest`'s class count went 26 → 25, as the lane asked. `cpython-a` passes
+  5,863 → 5,864 (`MiscTest.test_windows_only_module_error`).
+- **The same bytes.**
+  - On `45b917c` (at `45efcc3`): macOS A (empty `downloads/` and `build/`), macOS B, linux/arm64
+    and linux/amd64 all wrote `SHA256SUMS` `4586ce2a…`.
+  - On `e8ba20a` (at `77d2a81`): macOS (empty `build/`) and linux/arm64 wrote `6d362277…`. 087's
+    carried regex patch applied cleanly under clang 23: python.wasm +200 bytes.
+  - Criterion 5 ran in the containers. All nine trap entries trap as named on linux/amd64 before
+    078. After 078, 52 hostile checks pass on linux/arm64.
+- **The A/B** (Decision 9), on 078's base: four full judges, `-n 3`, one judge commit, darwin-arm64.
+  M is main's set; T, TZ and F are the steps (memo section 10).
+
+  | Step | Fuel: up / down | Median | Range | Sum |
+  |---|---|---|---|---|
+  | M→T, the toolchain | 66 / 100 | −0.097% | −0.365% to +2.706% | +0.230% |
+  | T→TZ, the zip file | 102 / 22 | +0.015% | −0.230% to +1.094% | −0.004% |
+  | TZ→F, the hash flag | 159 / 12 | +0.737% | −2.475% to +1.836% | +0.230% |
+  | M→F | 164 / 3 | +0.582% | −2.519% to +2.700% | +0.460% |
+
+  - **numpy-core** is +2.706%, which falls in Decision 9's band for tracing file by file. It is
+    the layout control's mechanism: `bool` moves 0xFF0 under the toolchain and stays put under
+    the flag; a bool conversion costs +31.5% on T and F alike. Spec 091, landed in wave 01, makes
+    `test_string_comparisons`' fuel a fact. **Not done:** the file-by-file trace of numpy-core's
+    remainder on 091's base. The lane lock held during wave 02, so the 200 G group was not run.
+    It is the first thing to measure at the rebase after wave 02, where the A/B is re-run; rule
+    7 has not been invoked.
+  - **The compress job** is +1.430% (the toolchain's; INFERRED, the backend's choices).
+  - **The zip file:** the uncaught-error traceback is +1.094%, traced (traceback now loads
+    `_missing_stdlib_info`).
+  - **The hash flag:** SipHash-1-3 costs 142.7 more instructions per fresh 8-character string than
+    FNV (`rebase/hashcost.txt`); plain starts are +1.43%; snapshot programs that import regex or
+    pickle are up to +1.84%.
+  - **The bounds hold.** The fuel sum is +0.460%; python.wasm is +0.164% and the snapshot
+    +0.186%; the zip moved only by the folded-in file.
+  - **078's 8 MiB edges** on darwin are unchanged, M against F, for every row that still traps.
+    x86-64 was not re-measured.
+- **The fast tier** on `77d2a81` (`build/086/fast-e8ba20a.log`): 561/675 pass, 1 gap, 3 blocked,
+  0 fail; unit suite 1727/1734. Ratchet: lost 0, absent 1, gained 7, grew 141. Against `e8ba20a`'s
+  accepted record: 143 fuel rows, 138 up and 3 down, from −2.519% to +1.795%, median +0.592%.
+  python.wasm 41,099,863 → 41,167,079, the snapshot 44,634,185 → 44,717,041, the zip
+  22,197,173 → 22,198,669. `ruff check` and `ruff format --check` are clean.
+- **The full judge**, `uv run pytest -n 3`, local, on 078's base, set F, on the commit before the
+  class count fix (`build/086/records-97be88a/`): 590/662 pass, 68 gap, 4 blocked, 0 fail in the
+  goals. One unit row failed, `test_regrtest`'s class count, since fixed. Ratchet: lost 0, absent
+  1, gained 7, grew 168, more 1. Under the waves rule, the full judges now run on CI.
+- **The branch dry run, 39360800335** (`77d2a81`), read with `gh run view`:
+  - The build shard ran 39/39, grew 0, gained 2. Its one red line is `ABSENT
+    tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-no-missing-stdlib-info]`.
+  - Both rebuilds from the pins (ubuntu-24.04 and -arm) are green.
+  - Every judge shard, gather and the same-bytes job were skipped, because each needs the build
+    job. A branch run before acceptance cannot pass the absent check: the workflow takes no
+    `--retire`, and its record still holds the class's gap.
+  - The lane ruled (a) (2026-10-20): the wave's dry run after acceptance with `--retire` is the
+    shards' confirmation, as it was for 078.
+
 ### For the lane
 
-- Rebase onto main once 089 (the stage seal) and then 083 have landed (the lane's order,
-  2026-10-19); the builder then rebuilds, runs the A/B (main's set
-  rebuilt on that base against 086's set, the same judge commit, one machine), does numpy-core's
-  test-by-test trace under Decision 9's rule, and writes the growth reason.
-- The flags, then: `--accept "<spec 086: wasi-sdk 34 (clang 23.1.0, wasi-libc 2e6fb9d8): every
-  artifact's bytes move once>"`, `--accept-judge "<the three checks of Decision 7,
-  tests/cpython_configure.txt and tests/fixtures/try-table-order.ll>"`, `--accept-growth "<the A/B
-  table>"`.
+- **Wave 03 is 086 with 092 and 094.** Rebase onto main after wave 02 (039 adds tier A to the
+  zip; 073 unfreezes the snapshot). Then redo the clang-23 rebuild on macOS and one linux/arm64
+  comparison (Decision 10's trigger), re-run the A/B on that base (numpy-core's remainder first),
+  and restate the growth text's figures. The text below gives 078's base.
+- **The claim list: the rows 086 changes.**
+  - **New checks (7):**
+    - `tests/checks/test_v1_5_rebuild_from_pins.py::test_the_backend_orders_try_tables_alike`
+      and `::test_the_guests_configure_results_are_recorded` (no fuel);
+    - `tests/checks/test_v1_2_hostile_guest.py::test_dup_is_refused_as_not_supported[plain]`,
+      `[snapshot]`, and `::test_the_string_hash_is_siphash13[plain]`, `[snapshot]` (fuel
+      recorded);
+    - `tests/checks/test_v1_1_artifact_set.py::test_a_missing_stdlib_module_says_why` (fuel
+      recorded).
+  - **Retired (1):**
+    `tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-no-missing-stdlib-info]`.
+  - **Passes moved:** `cpython-a` +1 (5,863 → 5,864). No group's passes fall.
+  - **Rows that grow:** every fuel and byte row may move. The toolchain and the hash flag touch
+    every guest run, and the three byte rows grow. The A/B above is their cause.
+- **The exact flags:**
+
+  ```
+  --accept "086: wasi-sdk 34 (clang 23.1.0, wasi-libc 2e6fb9d8, musl 1.2.6): every artifact's bytes move once, one SHA256SUMS from every host; fcntl's two dup commands refused as ENOTSUP by a link-time recipe; CPython configured with --with-hash-algorithm=siphash13 (the 0.1.0 security review's S5); the stdlib zip carries CPython's generated _missing_stdlib_info"
+  --accept-judge "086: seven new checks (the try_table reproducer compiled 64 times with each pinned clang, the guest pyconfig.h defines recorded in tests/cpython_configure.txt with Py_HASH_ALGORITHM 3, dup refused as ENOTSUP and sys.hash_info siphash13 on both binaries, a missing stdlib module named as natively) and the fixture tests/fixtures/try-table-order.ll; 078's class cpython-a no-missing-stdlib-info closed (its class, expected file and gap removed, test_regrtest's class count 26 to 25) because the zip now carries the file"
+  --accept-growth "086: A/B on 078's base, four full judges, one judge commit, darwin-arm64 (research 2026-10-19-the-toolchain-move-evidence, section 10): the toolchain 66 fuel rows up and 100 down, -0.365% to +2.706%, sum +0.230%, numpy-core +2.706% from bool's address moving 0xFF0 (now 091's fact) and the compress job +1.430%; the zip file median +0.015%, max +1.094% (a traceback now loads _missing_stdlib_info), sum -0.004%; the hash flag 159 up and 12 down, -2.475% to +1.836%, median +0.737%, sum +0.230% (SipHash-1-3 costs about 143 more instructions per 8-character string than FNV, plain starts +1.43%); the whole +0.460%; python.wasm +67,216 bytes, the snapshot +82,856, the zip +1,496"
+  --retire "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-no-missing-stdlib-info]"
+  ```
+
+  No `--accept-fewer-passes`: no group's passes fall. No `--partial`.
+- **Dry-run needs:** the wave's dry run after acceptance confirms the judge shards and the
+  same-bytes job on three systems, Windows included (criterion 7).
 
 ## For the owner
 

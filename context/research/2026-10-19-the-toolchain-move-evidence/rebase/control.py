@@ -1,7 +1,7 @@
 """Spec 086's layout control: fuel of numpy's import and of twenty bool-list conversions, per set.
 usage: control.py NAME=SETDIR ... (snapshot binary)"""
 import os, sys
-C = "/Users/claygendron/Git/Repos/wasi_python-086/context/research/2026-10-19-the-toolchain-move-evidence/control"
+C = str(__import__("pathlib").Path(__file__).resolve().parents[1]) + "/control"
 progs = {n: open(f"{C}/{n}.py").read() for n in ("ids", "npimport", "boolconv")}
 for arg in sys.argv[1:]:
     name, d = arg.split("=", 1)
