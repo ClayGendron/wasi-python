@@ -14,7 +14,11 @@
   closed". **M1 closed**: rebased onto main `2516875` (wave 07; no conflict hunk), the flag word
   allowed by name in step 60's weak-duplicate gate, **rebuilt from empty** (set `5f203242`), and
   the dry run 39454475153 on `6866dd1`'s only red lines are its 22 claimed growth lines. Its
-  Disposition is filled in. It changes the build recipe and the artifact set, so it was reviewed
+  Disposition is filled in. **Confirming review: lands**
+  (`../reviews/099-numpy-singular-inverse-confirm-2026-10-20.md`; L1 carried by spec 100).
+  **Rebased onto wave 08's tip** `66cc120` (042, 066): five named conflict hunks and 066's
+  `no-fp-exceptions` class emptied, as Decision 7 provides; no new run. It changes the build recipe
+  and the artifact set, so it was reviewed
   before it is built (constitution §5.6).
 - **Date:** 2026-10-20
 - **Owner:** Clay Gendron
@@ -641,6 +645,13 @@ None blocks the build.
     equal wave 07's dry run 39442080658 (numpy-core, numpy-lib, numpy-others, the eight pandas
     groups, cpython-a to c, -fs, -archives, on Linux, macOS and Windows; EXECUTED, the shards'
     records, `build/099/compare-upstream.sh`): note 8 moved nothing.
+  - 099: **against the wave's other entries (042, 066; the rebase onto `66cc120`):**
+    `test_v1_3_upstream_suites.py::test_upstream_suite[matplotlib-rest-b1]` gains two passes,
+    3,367 (066's) → 3,369, the two `test_mlab` KDE cases that now raise `LinAlgError`; its fuel
+    323,475,630,138 (066's) → 323,522,622,516 (+0.015%; EXECUTED by node id on 099's set).
+    `test_upstream_class[matplotlib-rest-b1-no-fp-exceptions]`: 066's gap → a pass, its class
+    emptied (the judge change in `--accept-judge`; one gap fewer). No 042 row moves with 099: its
+    13 member checks fail only in this worktree, whose set predates 042 (*Landing notes*).
   - 099: **rows that grow, 22** (the dry run's only red job, `judge (macos-15, own-guest)`, `grew
     22`, no G7 line; its `gained 7` is 099's six guest nodes and `test_wheel_carries_the_artifact_set`,
     blocked locally for want of a wheel, not 099's; check 4 passed in the build job): bytes `test_v1_1_artifact_set.py::test_stdlib_zip_is_bytecode_only_and_deflated`
@@ -677,7 +688,7 @@ None blocks the build.
 
   ```
   --accept "099: numpy's own floating-point signals are kept in software (recipe recipes/npy_fenv_flags.h, force-included into every numpy compile, its weak flag word allowed by name in recipes/weak-duplicates-allowed.txt): numpy.linalg raises LinAlgError when numpy's bundled lapack_lite finds a matrix singular or not positive definite (for a matrix singular only in exact arithmetic not always where native does; spec 100 narrows it), and integer division by zero, integer overflow in division and float16 overflow warn or raise under np.errstate, as natively; signals only the hardware gives stay silent, as documented; lstsq of a nan matrix now raises SystemError (build finding B1, closed by spec 100)"
-  --accept-judge "099: checks that inv, solve, tensorinv, tensorsolve, matrix_power(-1) of an exactly singular matrix and cholesky of one not positive definite raise LinAlgError as natively, that numpy's own integer and float16 signals reach errstate as natively, that hardware-only signals stay silent as the README says, and that every numpy compile (by compiler, from numpy's own compile records, missing records a failure) carries the header; the npy_fenv scanners and six unit rows; no existing expectation edited"
+  --accept-judge "099: checks that inv, solve, tensorinv, tensorsolve, matrix_power(-1) of an exactly singular matrix and cholesky of one not positive definite raise LinAlgError as natively, that numpy's own integer and float16 signals reach errstate as natively, that hardware-only signals stay silent as the README says, and that every numpy compile (by compiler, from numpy's own compile records, missing records a failure) carries the header; the npy_fenv scanners and six unit rows; and, as Decision 7 provides with 066 landing first, 066's class matplotlib-rest-b1 no-fp-exceptions emptied (its two test_mlab members pass with 099: id, match and reason kept, closes_with this specification, the expected list empty, its gap removed from known_gaps)"
   --accept-growth "099: numpy compiled with real flag bits and a software flag word (recipes/npy_fenv_flags.h): the zip +15 bytes (47,730,899 -> 47,730,914; numpy/__config__.py records the -include in both argument lines), while python.wasm and the snapshot each shrink 260 bytes; fuel moves either way on rows that run numpy ufuncs, the status read now an inlined load and bit tests where it was an out-of-line libc call: twenty-one rows up +0.0109% to +0.0846% (test_lxml_xml_job_matches_native the most), the rest within 0.01% or down; MANIFEST one recipe line added, two changed (recipes/wasi-numpy.cross, recipes/weak-duplicates-allowed.txt), and the snapshot's x-snapshot-zip line"
   ```
 
@@ -980,3 +991,62 @@ and 099's weak flag word, defined in 13 numpy archives, would stop it.
   because the rebase added a code change (the allow-list entry). A later rebase onto wave 08's tip
   that only resolves named conflict hunks, with the fast tier green, dispatches no new run; the
   wave's dry run is the check.
+
+### Rebased onto wave 08's tip (2026-10-20, `origin/wave/08` = `66cc120`: 042, then 066, on main `2516875`)
+
+The confirming review (`../reviews/099-numpy-singular-inverse-confirm-2026-10-20.md`) says lands;
+its Disposition is written (L1 carried by spec 100 at its restack, N1's clause written in above).
+`git rebase origin/wave/08` replayed 099's fifteen commits. **Five conflict hunks**, in three
+commits, each resolved as 099's builder; the progress files are the wave's and were not touched:
+
+1. **`context/upstream/README.md`** (the phase 1 commit): 066's rows 32 and 33 against 099's row
+   30. Kept all three, in folder order: 30, 32, 33.
+2. **`CHANGELOG.md`** (the phase 1 commit): 066's bullet against 099's, both new under `## 0.1.0a8 —
+   unreleased`. Kept both, 099's first (the wave's last entry is the newest), then 066's, then
+   096's; one blank line between bullets. Later commits' edits to 099's bullet (B1's sentence,
+   question 107's correction) then applied cleanly.
+3. **`README.md`** (the phase 1 commit): 066's platform-facts bullets against 099's. As Decision 7
+   says for 066 landing first, 066's bullet "**No floating-point exception flags**" ("Until spec
+   099 lands, …") is replaced word for word by 099's "**No floating-point status flags in
+   wasm**"; 066's four other new bullets (`__file__`, Pillow without `mmap`, no `resource`, at most
+   4 GiB) are kept, after it.
+4. **`README.md`** (the phase 2 commit): the same bullet's last line, where phase 2 adds the `lstsq`
+   `SystemError` clause, against 066's bullets after it. Took 099's two lines; kept 066's four
+   bullets.
+5. **`README.md`** (question 107's correction): the same bullet's `lapack_lite` sentences, corrected
+   on 099's side, against 066's bullets. Took 099's corrected sentences; kept 066's four bullets.
+
+**One judge change beyond the hunks, the one Decision 7 provides for "if 066 lands first"**
+(commit `352d219`): 066's class `no-fp-exceptions` (`tests/upstream/matplotlib.toml`, group
+`matplotlib-rest-b1`, two `test_mlab` members) is emptied, as spec 041 emptied
+`styler-templates`: it keeps its id, match and reason (now in the past tense), its
+`closes_with` becomes this specification, `tests/upstream/expected/matplotlib-rest-b1/no-fp-exceptions.txt`
+is empty, and its `[[gap]]` leaves `tests/known_gaps.toml`. 066's own spec names this as 099's to
+do (its *For the lane*, "099's order").
+
+**Checked after the rebase** (EXECUTED; the worktree's set is 099's on wave 07, `5f203242`, built
+before 042, so 042's members are not in it; no rebuild):
+
+- **The fast tier** (`-n 3`, started 13:26 with no lane lock and no other fast tier; `build/099/fast-08.log`):
+  `631/850 pass · 0 gap · 4 blocked · 13 fail`, unit suite 1,878/1,885; ratchet `lost 6 · gained 8
+  · grew 11`. **The 13 failures are 042's member checks on a set without its members, blocked in
+  this worktree, as 066 saw on the same kind of set**: `test_artifact_set_is_complete`,
+  `test_manifest_is_well_formed`, `test_manifest_recipes_match_the_tree`,
+  `test_seaborn_notice_carries_its_vendored_licences`,
+  `test_reportlab_notice_carries_its_third_party_parts`,
+  `test_licence_notices_cover_every_component`, `test_packages_carry_their_metadata[plain]` and
+  `[snapshot]`, `test_reportlab_runs_its_pure_paths[plain]` and `[snapshot]`,
+  `test_seaborn_takes_its_scipy_paths[plain]` and `[snapshot]`,
+  `test_reportlab_writes_a_pdf_with_nothing_writable`. The 6 lost are six of those 13. **No 099,
+  numpy, pandas or CPython row fails.** Gained 8: 099's seven and 042's
+  `test_reportlab_fonts_are_not_in_the_zip`. Grew 11: the zip's 15 bytes and ten fuel rows of
+  099's claim (+0.0109% to +0.0518%).
+- **`matplotlib-rest-b1`, run by node id** (the upstream kit cloned from the main tree's pinned
+  wheels; `build/099/rest-b1.log`): `test_upstream_suite[matplotlib-rest-b1]` passes with **3,369
+  passes** (066 measured 3,367: the two `test_mlab` cases now pass) and 12 failures, all
+  `no-processes`'s; fuel 323,522,622,516 (066's 323,475,630,138, +0.015%).
+  `test_upstream_class[matplotlib-rest-b1-no-fp-exceptions]` **passes** with its empty list;
+  `[matplotlib-rest-b1-no-processes]` stays a gap, 12 findings, digest `f80d3722a2b8`, unchanged.
+- **No run dispatched.** The hunks are text, and the class change is the judge change Decision 7
+  names; the wave's dry run judges both (the owner's rule). The lane decides if the class change
+  needs its own run.
