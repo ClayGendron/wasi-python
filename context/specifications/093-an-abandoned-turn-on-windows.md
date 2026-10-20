@@ -40,7 +40,7 @@ The check assumed a timing that spec 078 does not promise. The runner is right.
 
 - **The guest is stopped on purpose.** The child forces the turn's home out: its stand-in `serve`
   raises `KeyboardInterrupt`, which `_on_guest_thread` keeps with `home.stop`, and its stand-in
-  join raises `SystemExit`. `_run_turn` then sees `home.done` false and calls
+  join raises `SystemExit`. `_session_turn` then sees `home.done` false and calls
   `home.finish(_abandon_turn)`, which marks the home abandoned and stops it again. "Abandoned
   always means stopped" (078, Decision 14). A stopped guest ends soon: at its next epoch check
   (every 50 ms, `CANCEL_TICKS` ticks), or before its wasm starts.
@@ -115,12 +115,15 @@ The expected lines change in two places: line 3 gains the thread's liveness
 
 1. **The new check is certain.** On the runner at `97be88a`, on darwin-arm64, the new child prints
    the expected lines as is and with the caller made to look only after the guest's turn has
-   returned (the Windows order): six runs of each, all twelve identical
-   (`rows.py` rows "new as is" and "new, guest ends first"; `rows-runner.log`,
-   `rows-runner-six-times.log`).
+   returned: six runs of each, all twelve identical (`rows.py` rows "new as is" and "new, guest
+   ends first"; `rows-runner.log`, `rows-runner-six-times.log`). The second row is as near the
+   Windows order as the gate allows: the real turn has returned, but the guest thread is held
+   before its end, so nothing is torn down yet. It shows the check does not depend on how far the
+   turn got. The true Windows order is the old child's row "old, guest ends first" (the build
+   review, L2).
 2. **Seen failing first.** Against two mutants of the runner, the new check fails in both orders
    (`rows.py`, run with the runner edited and then restored):
-   - `_run_turn`'s `if not home.done:` made false (the turn frees `busy` while its guest runs):
+   - `_session_turn`'s `if not home.done:` made false (the turn frees `busy` while its guest runs):
      `busy while its guest runs False True`, the second turn told the session ended, and
      `closes while wasm ran ['MainThread']` (`rows-mutant-turn-frees-busy.log`);
    - `_Home.finish`'s `if not self.done:` made false (the home tears down at once):
