@@ -1322,6 +1322,13 @@ Every claim is EXECUTED unless labelled.
   module makes a `StreamHandler` and a `NullHandler`, so `test_pydoc` alters the environment;
   environment entry `cpython-c-pydoc-imports-scipy` and its gap record it (a judge change), and
   `SCIPY_NATIVE` loses its `_matfuncs_sqrtm_triu` row (the guest now names it as itself).
+  The delta review (2026-10-20, EXECUTED) traced the two: threadpoolctl comes from
+  `scipy.io._fast_matrix_market`'s `try: import threadpoolctl`; charset_normalizer by way of
+  numpy's f2py (`scipy._lib._array_api`, the vendored `array_api_compat`, then
+  `numpy.f2py.crackfortran`'s `try: import charset_normalizer`). Importing every scipy compiled
+  module by dotted name gives the same two first importers, the same key and the same handler
+  count natively (scipy 1.18.1's wheel) as in the guest. Nothing in 037 closes the entry: it
+  stays while scipy's builtins import those packages, as `stepped-clock` names spec 002.
 - **The final set.** macOS from empty at `88e3f65` (10 min 59 s): `SHA256SUMS` `40281c40…`;
   linux/arm64 from empty, a clean clone of `88e3f65` in the same container (31 min): the same
   `SHA256SUMS`, every line. Each host again rebuilt steps 38 and 57 and 60 to 90: the same
@@ -1495,7 +1502,8 @@ Changed: step 37 (copies the `.pc`), step 57 (fourth `pkgconf` folder,
   environment entry (the landing notes' "The first branch run and carried scipy patch 0002").
 - **Run 39382879444** on `88e3f65` (the final set, `40281c40…`): the build job, both rebuilds
   and "the same bytes from every host" green; the build job's reactor `e4f5773e…`, the same as
-  the local build. 21 of the 24 judge jobs green, Windows' four and Linux's ten among them
+  the local build. 21 of the 24 jobs that build or judge green (Windows' five: four judge shards and verify;
+  Linux's ten: nine judge shards and verify; and both rebuilds)
   (Linux `upstream-pandas-small`, the `cpython-c` group, green now). Red: macOS `own-guest`
   (154 GREW lines, lost 0), `own-embedding` (33 GREW, lost 0) and `upstream-macos` (2 GREW:
   `cpython-fs` +0.37%, `numpy-lib` +0.14%; lost 0): every red line a growth line, measured
@@ -1518,13 +1526,14 @@ Changed: step 37 (copies the `.pc`), step 57 (fourth `pkgconf` folder,
 - 037: flag, F4 ruled by the lane: no release tag carries 037 without 038's Sobol fix; 038 follows in the next wave; the tag is the owner's.
 - 037: flag, src/wasi_python/mounts.py changes by a comment only (fd_renumber no longer imported); no runner behaviour moves.
 - 037: flag, two upstream draft folders renumbered 26 and 27 at the trial rebase (main had 21 and 22); the LLVM draft 23 removed (fixed upstream, recorded in main's research folder).
-- 037: flag, the slow tier's upstream groups were not run against 043's set locally; their growth (cpython-fs +0.37%, numpy-lib +0.14% on macOS) is read from the branch run's darwin judge against main's accepted state, which has no 043.
+- 037: flag, the slow tier's upstream groups were not run against 043's set locally; the release measures macOS fuel only for upstream-macos (cpython-fs +0.37%, numpy-lib +0.14%, against main's accepted state, which has no 043), and Linux records no growth, so the lane's macOS judge will show the other groups' growth for the first time.
+- 037: macOS growth of the other upstream groups, measured by the delta review on this set against f70c666 (EXECUTED): cpython-c +6.29% (375.9 G to 399.5 G; CPython's test_pydoc apropos now imports scipy's 95 builtins and their Python packages), cpython-a +0.17%, cpython-archives +0.22%, cpython-b +0.05%; the numpy and pandas groups not measured (no upstream kit in the worktree): the lane reads them from its judge.
 - 037: flag, the patch 0002 and the environment entry came after the first branch run; the delta review reads both runs.
 
 **Accept texts for the lane** (restated on wasi-sdk 34; no quotes or backticks inside):
 
 - --accept-judge: spec 037, scipy 1.18.1 with OpenBLAS 0.3.34 on 043: the scipy checks, goldens and oracle pin (macosx_12_0 wheel on macOS arm64, one BLAS thread), the six gaps closed by spec 038, the reviewed constructors and simd128, scipy and OpenBLAS in the judge lists, scipy dotted builtins with native scipy one name (uarray), the licence source tarball-first rule, the step count in the progress unit checks, the patches-from-their-script check, guest.run root_writable for the behaviour checks (build review F1), test_one_qhull_is_linked and test_ducc0s_fft_compiles_to_one_object, the descriptor count 29 back to 28, the inittab unit row with matplotlib _qhull registered, and environment entry cpython-c-pydoc-imports-scipy with its gap (pydoc apropos imports every builtin; scipy brings in threadpoolctl and charset_normalizer, as natively)
-- --accept-growth: spec 037, scipy and OpenBLAS are linked (python.wasm +42.5 MB and the snapshot +42.9 MB against 043; build review F5: measured, accepted, nothing cut) and their package is in the zip (+608 members, +5.66 MB): every plain start pays about 18.6 M more for the members, the constructors and the C++ static destructors, every snapshot start about 1.6 M; zip-walking checks scale with the members (up to +13%); every import that misses the builtin table scans 95 more entries (build review F3), which the upstream groups and the long golden jobs show
+- --accept-growth: spec 037, scipy and OpenBLAS are linked (python.wasm +42.5 MB and the snapshot +42.9 MB against 043; build review F5: measured, accepted, nothing cut) and their package is in the zip (+608 members, +5.66 MB): every plain start pays about 18.6 M more for the members, the constructors and the C++ static destructors, every snapshot start about 1.6 M; zip-walking checks scale with the members (up to +13%); every import that misses the builtin table scans 95 more entries (build review F3), which the upstream groups and the long golden jobs show; CPython's test_pydoc apropos imports every builtin, scipy's 95 and their packages among them (cpython-c about +6.3% on macOS)
 
 - Build-class: it changes `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release workflow.
 - The main tree needs five new pins in `downloads/` (`scripts/00_download.sh` fetches them).

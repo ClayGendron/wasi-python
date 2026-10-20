@@ -6,7 +6,7 @@
 - **Why we carry it:** scipy's compiled modules are builtins here, and pydoc's `apropos` (and `help("modules word")`) imports every builtin by name; `scipy.linalg._matfuncs_sqrtm_triu` imported first raises `ImportError` (a circular import), so `apropos` failed for every keyword (spec 037, found by CPython's own `test_pydoc` in the release run).
 
 **This is a facts sheet, not a pull request.** scipy's AI policy
-(https://scipy.github.io/devdocs/dev/conduct/ai_policy.html) does not permit an agent to submit a
+(https://scipy.github.io/devdocs/dev/conduct/ai_policy.html, READ 2026-10-19 for 0001) does not permit an agent to submit a
 pull request, asks that no AI write the description, and requires a disclosure of what AI wrote.
 If the owner sends it, he writes the issue or pull request himself from these facts, with that
 disclosure. Nothing has been posted.
@@ -28,6 +28,8 @@ back while it is still partially initialized, and `within_block_loop` is not the
 module needs nothing from `_matfuncs_sqrtm`. Nothing else changes: the error class, its message
 and the loop are the same. The pure-Python fallback `_matfuncs_sqrtm_triu.py` (used by Pythran
 builds) raises `RuntimeError` and imports nothing, so it needs no change.
+On scipy's `main` (READ 2026-10-20) the `.pyx` keeps the top-level import and has gained
+`float32_t` and `complex64_t` in its fused type, so the change applies there as it does to 1.18.1.
 
 **Seen.** With the patch, every one of scipy's 95 compiled modules imports first in the guest,
 and CPython's `test_pydoc` apropos tests no longer meet the `ImportError`.
