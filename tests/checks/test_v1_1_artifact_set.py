@@ -186,6 +186,8 @@ def test_reportlab_notice_carries_its_third_party_parts(artifacts) -> None:
     that file's leading comment block, byte for byte."""
     errors = rules.reportlab_notice_errors(artifacts.dir, _pinned_source(artifacts, "reportlab"))
     assert not errors, scan.report(errors)
+
+
 def test_statsmodels_notice_carries_its_bundled_parts(artifacts) -> None:
     """LICENSES/statsmodels.txt holds statsmodels' licence, its COPYRIGHTS.txt, the licences of
     factor_rotation and libqsturng, and each bundled component's notice the build's sweep found, as
