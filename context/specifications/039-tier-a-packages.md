@@ -1,6 +1,6 @@
 # 039 — Tier A: the pure-Python packages
 
-- **Status:** **built** 2026-10-19 on `spec/039-tier-a-packages` (Landing notes); build-reviewed 2026-10-19 (lands once F1; F1, F2, F3 and F4 written in, below and in 041). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised the same day against its pre-build review
+- **Status:** **landed 2026-10-20 in wave 02** (039, 041, 073, 093) on main `b0c7a74`: accepted on `2bb98c8`, history line 83, 630/701 pass, 0 fail; the integration review `../reviews/wave-02-integration-2026-10-20.md` ("lands as merged at 170b4e2", every changed row attributed); the dry run 39363060501 dispatched on the acceptance as main moved (see "Landed in wave 02" below). Before: **built** 2026-10-19 on `spec/039-tier-a-packages` (Landing notes); build-reviewed 2026-10-19 (lands once F1; F1, F2, F3 and F4 written in, below and in 041). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised the same day against its pre-build review
   (`../reviews/039-tier-a-packages-spec-2026-10-17.md`): all ten findings are fixed here, and
   its Disposition says where. **Confirmed for build with conditions, written in:** the
   confirmation's condition C1 (the `df.to_latex()` finding) is in Decision 12, and its two
@@ -1140,3 +1140,8 @@ added).
 ```
 
 Only if 041 is ejected from the wave: `--accept-fewer-passes "039: pandas-frame 10,852 -> 10,851: test_inspect_getmembers meets the Styler gap (.style raises TemplateNotFound, a LookupError, where it raised AttributeError without jinja2); spec 041 restores it"`.
+
+### Landed in wave 02
+
+- Tier A's start cost is in every plain run (about +50.6 M) and snapshot run (+4.7 M), the distribution scans in the upstream groups (+205 M each), and the zip +16,524,471 bytes. With jinja2 in the zip, 20 more pandas-io-formats tests pass (+7.73 G), which the wave's integration review separated from 041's share. Its build review was copied by the lane from the reviewer's scratchpad (a later text than the copy in commit 59150da, which the rebase onto wave/02 did not carry, since it started from 428de1e).
+- Reviews: `../reviews/039-*` and the wave's integration review. The lane's accept flags are in the history line's reasons, each prefixed by its number.

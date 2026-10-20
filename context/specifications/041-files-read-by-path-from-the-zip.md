@@ -1,6 +1,6 @@
 # 041 — Files read by path from the zip
 
-- **Status:** **built** 2026-10-19 on `spec/041-files-read-by-path-from-the-zip`, a **stacked build** (constitution §4.14, the owner, 2026-10-19) on base commit `dcd94ff`, spec 039's reviewed tip, which is built and reviewed but not yet landed; when 039 lands, this branch is rebased onto main and gets a delta review of what the rebase changed (Landing notes). Its branch dry run 39345809724 is red only for growth lines. Build-reviewed 2026-10-19 (lands once F1; F1 to F4 answered, F5 to F7 noted: "The build review and its answers"). Not accepted. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised the same day against its pre-build review
+- **Status:** **landed 2026-10-20 in wave 02** (039, 041, 073, 093) on main `b0c7a74`: accepted on `2bb98c8`, history line 83, 630/701 pass, 0 fail; the integration review `../reviews/wave-02-integration-2026-10-20.md` ("lands as merged at 170b4e2", every changed row attributed); the dry run 39363060501 dispatched on the acceptance as main moved (see "Landed in wave 02" below). Before: **built** 2026-10-19 on `spec/041-files-read-by-path-from-the-zip`, a **stacked build** (constitution §4.14, the owner, 2026-10-19) on base commit `dcd94ff`, spec 039's reviewed tip, which is built and reviewed but not yet landed; when 039 lands, this branch is rebased onto main and gets a delta review of what the rebase changed (Landing notes). Its branch dry run 39345809724 is red only for growth lines. Build-reviewed 2026-10-19 (lands once F1; F1 to F4 answered, F5 to F7 noted: "The build review and its answers"). Not accepted. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised the same day against its pre-build review
   (`../reviews/041-files-read-by-path-from-the-zip-spec-2026-10-17.md`). All nine findings are
   written in here and in the two upstream folders, and the review's Disposition says where. The
   review's confirmation passed it for build with two conditions, written in: C1, the landing
@@ -869,3 +869,8 @@ chain):
 ```
 
 CI for this entry comes from the wave's run; the branch dry run 39345809724 was on the old base.
+
+### Landed in wave 02
+
+- pandas-io-formats reaches 1,972 passes (+995 on main: 041's +975 over 039's set, 039's +20) and +30.59 G; pandas-frame 10,853. Its two carried patches bring the count to ten; the README sentence that said eight is corrected in the notes commit (the integration review's L1). The integration review's N3: the new main() unit row would fail on Windows, harmless while it runs in the rest shard only.
+- Reviews: `../reviews/041-*` and the wave's integration review. The lane's accept flags are in the history line's reasons, each prefixed by its number.

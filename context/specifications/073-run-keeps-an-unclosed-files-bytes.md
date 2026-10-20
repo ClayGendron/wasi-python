@@ -1,6 +1,6 @@
 # 073 — `run` keeps an unclosed file's buffered bytes
 
-- **Status:** **built 2026-10-19** on `spec/073-run-keeps-unclosed-files-bytes`; **rebuilt the same day
+- **Status:** **landed 2026-10-20 in wave 02** (039, 041, 073, 093) on main `b0c7a74`: accepted on `2bb98c8`, history line 83, 630/701 pass, 0 fail; the integration review `../reviews/wave-02-integration-2026-10-20.md` ("lands as merged at 170b4e2", every changed row attributed); the dry run 39363060501 dispatched on the acceptance as main moved (see "Landed in wave 02" below). Before: **built 2026-10-19** on `spec/073-run-keeps-unclosed-files-bytes`; **rebuilt the same day
   against its build review** (B1 fixed, B2 to B4 written in; the review,
   `../reviews/073-run-keeps-an-unclosed-files-bytes-build-2026-10-19.md`, written in the lane's
   scratchpad, "lands once B1 is fixed and rebuilt"), rebased onto main `a6dfc17` (the Landing
@@ -1138,3 +1138,8 @@ and +44.52 M), and gives check (b) about 3.81 on a fresh copy of the set.
 - **D's digest today** with its three findings, `cfb1afda1a48`, is in Decision 7 and criterion 1.
 - **N1 (no action required) — noted for the builder.** It may use `show_and_drop` instead of
   `PyErr_Print` on `run`'s error path, as 055 did for `turn`.
+
+### Landed in wave 02
+
+- Every snapshot run unfreezes before finalizing: about +33 M to +34.5 M per snapshot run on the wave (+28 M of it 073's, the rest tier A's start and a slightly larger frozen heap), and the hard-exit row unchanged, as the mechanism says. **Correction to the accept text (the integration review's M1):** its numpy-core clause named a +4.48 G layout term; on this wave numpy-core grew +0.39 G (039's scans and 073's unfreeze), and the layout term is spec 091's separate fact string-comparisons, now 63.54 G. The snapshot's +739,926 bytes run about 15 K past the claims' sum: both snapshots hit wizer's cap of 10,000 data segments, where segments merge by heap layout. **The integration review's M2:** 073 had no release-workflow run of its own; under the owner's fix-forward rule (2026-10-19, `decisions.md`) the wave's dry run is its read, and a red line in its rows is fixed in the next wave.
+- Reviews: `../reviews/073-*` and the wave's integration review. The lane's accept flags are in the history line's reasons, each prefixed by its number.
