@@ -1,8 +1,11 @@
 # 105 — Typed call state, explicit lifecycles, and a type checker in the judge
 
 - **Status:** **drafted 2026-10-20** on `claude/gallant-ride-9nxxmn` from main `5feb7e9` (the memo's
-  commit `a9064a2` is on this branch), awaiting its pre-build review (AGENTS.md rule 8: it changes
-  the runner's code). It is **stacked on 104's reviewed tip** (constitution §4.14), the fourth entry
+  commit `a9064a2` is on this branch; committed as `46fa9fc`); **reviewed before build** the same
+  day (`../reviews/105-typed-call-state-and-explicit-lifecycles-spec-2026-10-20.md`, verdict "does
+  not land yet": one High, two Mediums, four Lows); **revised against all seven findings** (see
+  *Disposition of the pre-build review*), awaiting the reviewer's confirmation (AGENTS.md rule 8:
+  it changes the runner's code). It is **stacked on 104's reviewed tip** (constitution §4.14), the fourth entry
   of the chain 102 → 103 → 104 → 105 → 106 → 107; its base commit is written into this line when
   104 is reviewed, and it rebases onto main, or the wave's tip, when 104 lands. A different agent
   reviews the build.
@@ -15,8 +18,11 @@
   the type check the judge runs over `src/wasi_python` (Decision 5; constitution §4.13)**. And a
   judge change: a new rules check, new unit rows, stand-ins rewritten; the lane accepts with
   `--accept-judge`.
-- **Depends on:** 104 (one owner for the process's state; it gives the module names below their
-  final shape, on 103's split and 102's engine seam). Landed: 055 (bounded sessions: the lifecycle
+- **Depends on:** 104 (one owner for the process's state, on 103's split and 102's engine seam).
+  The module names below are 103's (its Design table): `_limits`, `_places`, `_call`, `_home`,
+  `_sessions`, `_engines`, `_wasmtime_ffi`, and the thin `runner.py` that keeps `_checked` and
+  `_check_tools`; a function or a mutable of another module is reached as `_module.name` (103's
+  rule). Landed: 055 (bounded sessions: the lifecycle
   `_State`'s flags encode, Decisions 7, 8, 9 and 13) and 078 (the runner runs each guest on a
   stack of its own: `_Home`, Decisions 2, 4 and 14), whose lifecycles this specification names
   without changing them. It meets 093 (one probe line, Decision 7).
@@ -32,9 +38,10 @@
 Two things in the runner are true only by convention, and nothing checks them.
 
 1. **A call's checked arguments travel as `dict[str, Any]`.** `_checked` returns a dict of 19
-   keys (READ: `_check_limits` 4, `_check_inputs` 3, `cancel`, `_check_tools` 4, `_check_places`
-   7). Two more are bound later: `home`, by `_run_checked` (`c = {**c, "home": home}`), and
-   `tool_loop`, by `run_async`. Readers use `c["fuel"]` in 7 places and `c.get("tools")` in 5, and
+   keys with tools and 18 without (READ: `_check_limits` 4, `_check_inputs` 3, `cancel`,
+   `_check_tools` 4 with tools and 3 without, `_check_places` 7). Three writes follow the check:
+   `home`, by `_run_checked` (`c = {**c, "home": home}`); `tool_loop`, by `run_async`; and
+   `checked["cancel"] = event`, by `run_async` at line 673, after it passed `None` as `cancel`. Readers use `c["fuel"]` in 7 places and `c.get("tools")` in 5, and
    the comments say why the `.get`s exist: "a hand-built `c` without it: no limit"
    (`_tool_host`), "one made here for a call built by hand (the judge's stand-ins)" (`_home_of`).
    Production code carries branches that only a test fixture's omission takes. A field spelled
@@ -100,6 +107,11 @@ has the honest shape, and this specification gives `run`'s path the same one:
   the one `Optional` the design keeps, and it is an honest one: a call either has a caller's loop
   or runs tools on a private loop of its own (spec 053).
 
+**The third late write goes away.** `run_async` makes its `threading.Event` before `_checked` and
+passes it as `cancel`, which `_checked` validates as it validates `run`'s; the `_live`
+registration of the event stays where it is. No production line calls `dataclasses.replace` on a
+call (criterion 2): the frozen record has no escape hatch.
+
 That is the whole answer to "without `Optional` soup": the two values that differ between a call
 and a session are parameters at the places that differ, not optional fields on the shared
 object.
@@ -110,13 +122,20 @@ every field explicit (no limits, nothing granted: `fuel=None`, `deadline_s=None`
 `cancel=None`, `tools=None`, `gate=None`, `tool_calls=None`, `tool_request_bytes=None`,
 `root=False`, `grants=()`, `mounts=()`, `import_path=()`, `import_serving=()`, `file_calls=None`,
 `open_files=None`), and `checked_call(**fields)`, which is `dataclasses.replace(BASE_CALL,
-**fields)`: an unknown name is `replace`'s own `TypeError`. The one hand-built dict today,
-`runner._tool_host({"tools": (waiter,), "gate": None, "tool_calls": 1000}, None, None)` in
-`tests/unit/test_async_tools.py`, becomes `_tool_host(checked_call(tools=(waiter,),
-tool_calls=1000), None, None, None, _Home())`. The checks that read `_checked(...)["open_files"]`
-and `["tool_request_bytes"]` (`test_runner_limits.py`, `test_runner_tools.py`) read the attribute;
-the one that compares `_check_inputs`'s result with a dict (`test_runner_inputs.py:148`) compares
-with an `_Inputs`. No production line reads a field with a default again: the acceptance grep
+**fields)`: an unknown name is `replace`'s own `TypeError`. **Every stand-in site today** (READ at `a9064a2`: the review's inventory plus one):
+four hand-built dicts given to `_tool_host`, at `tests/unit/test_async_tools.py:350`,
+`tests/unit/test_runner_tools.py:754` ("a hand-built call without the key: no byte limit"),
+`tests/checks/test_v1_4_embedding.py:3358-3359` and `:4962`, each becomes
+`_tool_host(checked_call(tools=(fn,), tool_calls=1000), None, None, None, _Home())`, and the
+`_max_bytes is None` row at `test_runner_tools.py:755` asserts the explicit
+`tool_request_bytes=None`; three reads of `_checked(...)` by key, the `checked()` helpers of
+`test_runner_limits.py:121-125` and `test_runner_tools.py:716-725` and
+`tests/checks/test_v1_4_public_api.py:373-374`, read the attribute; `test_runner_tools.py:162-168`
+reads `_check_tools(...)` by key and compares it with a dict, and compares with a `_ToolArgs`;
+`test_runner_limits.py:36-64` reads `_check_limits(...)` by key on five lines, and
+`test_runner_inputs.py:38-148` reads `_check_inputs(...)` by key on eight (38 and 47 compare
+`argv` with a list, which becomes a tuple; 148 compares the whole with a dict, which becomes an
+`_Inputs`). The two checks files are in Scope and in the claim list. No production line reads a field with a default again: the acceptance grep
 (criterion 3) holds it.
 
 ### 2. The session's lifecycle is one enum and one table; the interpreter's soundness is a second
@@ -235,10 +254,10 @@ asserted `home.state == "cancelled"`, and sets up the never-started thread with 
 **mypy**, for one decisive reason: the `pyright` wheel on PyPI is a wrapper that fetches a Node
 runtime and the pyright npm package on first run, a download that is in neither `uv.lock` nor
 `downloads/SHA256SUMS`. Constitution §4.2 says every tool is a URL plus a hash, verified before
-use, and the judge is a tool. mypy is a wheel `uv.lock` pins by hash. Two smaller reasons: the
-oracle project already pins `mypy==1.19.1` (READ, `tests/jobs/oracle/uv.lock`), so the repository
-names one mypy, not two; and `--strict` is one documented flag set, so "what the judge checks" is
-one word in the spec and in the check.
+use, and the judge is a tool. mypy is a wheel `uv.lock` pins by hash. One smaller reason: `--strict`
+is one documented flag set, so "what the judge checks" is one word in the spec and in the check.
+(A `mypy==1.19.1` line in `tests/jobs/oracle/uv.lock` is scipy's own dev-extra metadata, not a
+pin of this repository's: the repository names no mypy today.)
 
 **The dependency** (constitution §4.13): `mypy==1.19.1` in the dev group of `pyproject.toml`,
 with the comment: *mypy type-checks `src/wasi_python` in the judge (spec 105, Decision 5);
@@ -251,12 +270,30 @@ hash. The reason sentence of this Decision is the one §4.13 asks for.
 ```toml
 [tool.mypy]
 python_version = "3.11"      # the floor requires-python names; one target on every host
+platform = "linux"           # one platform's narrowing on every host (below)
 strict = true
 files = ["src/wasi_python"]
 cache_dir = "build/.mypy_cache"   # build/ is git-ignored (AGENTS.md: artifacts never live in git)
 ```
 
-so a bare `uv run mypy` and the judge's run say the same thing. wasmtime-py ships its types (READ:
+so a bare `uv run mypy` and the judge's run say the same thing.
+
+**One platform, as one Python version.** mypy narrows `sys.platform` for the host it runs on, so
+the same tree gives a different error set per system: under `--platform win32` the run finds
+**92 errors against 78** on linux and darwin (EXECUTED by the pre-build review: 6 `attr-defined`,
+`resource.RLIMIT_NOFILE`, `RLIM_INFINITY`, `getrlimit` and `setrlimit` in `cli.py` and
+`os.getuid`, `os.uname` in `runner.py`; and 8 `unused-ignore` in `runner.py`, since `--strict`
+warns on an ignore the platform does not need). The judge compares one verdict across three
+systems (criterion 5; the chain's one dispatch, criterion 8), and a red Windows line that is
+neither growth nor G7 would stop the wave. So `platform = "linux"` pins the narrowing: every
+host checks Linux's branches, as every host checks Python 3.11's. What is lost: the Windows-only
+and darwin-only lines are parsed and their functions annotated, but their bodies are typed
+against the linux stubs, so a wrong attribute inside a `sys.platform == "win32"` branch is not
+an error here. The runner already keeps every such line behind a `sys.platform` guard (the
+memo's M3; 106 gathers them into `_platform.py`), so the loss is bounded to those branches. The
+recourse, if the owner wants them checked too: a later specification runs mypy once per
+platform with `--platform` and keys the allowance by (module, platform), at three times the
+wall time. wasmtime-py ships its types (READ:
 the run resolved `Memory`, `Trap` and `WasmtimeError`), so no module needs
 `ignore_missing_imports`.
 
@@ -294,23 +331,27 @@ the insurance M1 asked for, and it is why the check passes with 78 fixes rather 
 
 ### 6. What this changes for the memo's chain
 
-- **102 and 103** are below this specification: the module names in the Design are the memo's
-  table (`_call.py`, `_home.py`, `_sessions.py`, `_limits.py`, `_places.py`), and the builder
-  uses the names 103 chose where they differ. The type check runs over the package as 103 left
-  it; errors 103's moves exposed are fixed here.
+- **102 and 103** are below this specification: the module names in the Design are 103's
+  (`_limits`, `_places`, `_call`, `_home`, `_sessions`, `_engines`, `_wasmtime_ffi`, and the thin
+  `runner.py` that keeps `_checked` and `_check_tools`), and a name of another module is reached
+  as `_module.name`, 103's rule. 103 owns the module size ceiling (its Decision 6). The type
+  check runs over the package as 103 left it; errors 103's moves exposed are fixed here.
 - **104** is the base: `_Process` is typed as 104 built it (no change to its shape), and the
   observers 104 moved off module globals are typed callables on it.
 - **106** inherits the one allowance and the `.get`-free `mounts.py` seam: `_Files` will take a
   `_CallContext` whose methods are typed here already where the runner implements them.
-- **107** gets a rules check to extend (the memo's section 5: a module size ceiling); this
-  specification adds none of that, so the two do not touch the same lines of `test_rules.py`.
+- **107** owns the function-length ceiling and the test-seam allowance check, **104** the checks
+  on where a module-level lock or mutable may live, **103** the module size ceiling; this
+  specification adds none of those, only the type check, so its lines in `test_rules.py` are its
+  own.
 
 ### 7. One probe line in spec 093's child program
 
 `tests/checks/test_v1_2_hostile_guest.py` has a child program (spec 093) that prints `s._state.busy`
-twice, and its expected lines are golden. The probe becomes `s._state.phase is _Phase.TURN`
-(imported from the session module), printed as the same `True`/`False`, so the expected lines
-and the verdict do not change. It is a judge change by the letter (the check's text), named in
+twice, and its expected lines are golden. The probe becomes `s._state.phase in (_Phase.TURN, _Phase.STOPPING)`
+(imported from `_sessions`), which is what `busy` meant (Decision 2: a turn claimed, marked or
+not), printed as the same `True`/`False`, so the expected lines and the verdict do not change,
+and the probe keeps its meaning for a later program that marks before it abandons. It is a judge change by the letter (the check's text), named in
 the `--accept-judge` reason, and no golden line moves.
 
 ## Intent
@@ -322,7 +363,12 @@ name, no message, no verdict moves.
 
 ## Design
 
-### The field list of `_CheckedCall` (in `_call.py`, beside `_checked`)
+### The field list of `_CheckedCall` (in `_call.py`; `runner._checked` builds it)
+
+`_Limits` lives in `_limits.py` beside `_check_limits`, `_Inputs` beside `_check_inputs` there,
+`_Places` in `_places.py` beside `_check_places`, and `_ToolArgs` beside `_check_tools` in the
+thin `runner.py` (103's table); `_CheckedCall` is defined in `_call.py`, which `runner.py`
+imports, and every reader names it as `_call._CheckedCall`.
 
 | field | type | from | checked by |
 |---|---|---|---|
@@ -346,17 +392,20 @@ name, no message, no verdict moves.
 | `file_calls` | `int \| None` | `_Places` | `_integer_limit` (spec 034) |
 | `open_files` | `int \| None` | `_Places` | `_integer_limit` (spec 068) |
 
-Nineteen fields, the dict's 19 keys (READ: `c["pending"]` in the grep is `_ctrl_c["pending"]`,
+Nineteen fields, the dict's 19 keys with tools and 18 without; `_ToolArgs`'s no-tools value
+carries `tool_request_bytes=None`, so the field is required and explicit where the dict had no
+key (READ: `c["pending"]` in the grep is `_ctrl_c["pending"]`,
 not a call's). Parameters, not fields: `home: _Home` and `loop: asyncio.AbstractEventLoop |
 None` (Decision 1).
 
 **The 19 `.get` reads, on 17 lines, and what each becomes** (EXECUTED, line numbers at `a9064a2`): `c.get("tools")`
-at 2753, 4028, 5367, 5639 and 5750 → `call.tools`; `c.get("mounts", ())` at 2877, 3029, 5524 and
-5667 → `call.mounts`; `c.get("import_path", ())` and `c.get("import_serving", ())` at 2763, 3023
-and 5658 → the two fields; `c.get("tool_request_bytes")` at 4049 and 5399 → `call.tool_request_bytes`;
+at 2753, 4028, 5367, 5639 and 5750 → `checked.tools`; `c.get("mounts", ())` at 2877, 3029 and
+5667 and `c.get("mounts")` at 5524 → `checked.mounts`; `c.get("import_path", ())` and `c.get("import_serving", ())` at 2763, 3023
+and 5658 → the two fields; `c.get("tool_request_bytes")` at 4049 and 5399 → `checked.tool_request_bytes`;
 `c.get("home")` at 2767 and 2845 → the `home` parameter (`_home_of` deleted); `c.get("tool_loop")`
-at 4042 → the `loop` parameter. `_State.c` becomes `_State.call: _CheckedCall`;
-`Session._turn_args` reads `call.fuel`, `call.deadline_s`, `call.output_bytes`.
+at 4042 → the `loop` parameter. `_State.c` becomes `_State.checked: _CheckedCall` (not `call`: `_drive_turn`, `_turn_inside`
+and `_arm` each hold a `_Call` named `call` beside it); `Session._turn_args` reads
+`checked.fuel`, `checked.deadline_s`, `checked.output_bytes`.
 
 ### The session's table
 
@@ -464,8 +513,8 @@ the turn's guest thread without the lock, as `called = True` does today; the pha
 - `_release_session`: `if counted: _counts -= 1; counted = False` → `if state.phase is ENDING:
   _counts -= 1`.
 - `_State` after this specification: `lock`, `phase`, `holder`, `ended`, `outcome`, `closing`,
-  `done`, `guest`, `opened`, `last_end`, `idle_s`, `lifetime_s`, `shutdown_s`, `call`, `wt`
-  (`types.ModuleType`, the lazily imported wasmtime-py, as 102's seam types it), `engine`
+  `done`, `guest`, `opened`, `last_end`, `idle_s`, `lifetime_s`, `shutdown_s`, `checked`, `wt`
+  (`types.ModuleType`, the lazily imported wasmtime-py, as `_engines._wasmtime` returns it), `engine`
   (`wasmtime.Engine | None`), `store` (`wasmtime.Store | None`), `exports`, `keys`, `table`
   (`_Files | None`), `host`, `metered`, `origin_ns`, `bounded` (`_Bounded | None`), `private_loop`,
   `scratch`, `private`, `walked`, `home`, `context` (`contextvars.Context | None`), `ending_home`
@@ -501,11 +550,13 @@ it runs the step at once and returns `True`, as today's `done` test did.
 
 1. `phase` is written under the lock only, through `_Home._move`, which refuses a pair not in the
    table with a `RuntimeError` naming both.
-2. `ended.is_set()` exactly in `IDLE`, `CANCELLED` and `DONE`; `START` clears it in the same lock
-   hold, `CANCEL`, `END` and `LOST` set it after theirs.
+2. `ended.is_set()` only in `IDLE`, `CANCELLED` and `DONE`; `START` clears it in the same lock
+   hold; `CANCEL` and `LOST` set it after theirs, and `END` sets it after the steps have run, so
+   `DONE` precedes `ended.is_set()` by the steps' run (the join waits on `ended`, as today).
 3. `thread` is the guest thread from `START` until the next `START`; `None` before the first.
-4. `steps` is non-empty only in `ABANDONED`, and `END` from `ABANDONED` empties it into the
-   guest thread's hands.
+4. `steps` grows only in `ABANDONED`; `END` from `ABANDONED` empties it into the guest thread's
+   hands; `LOST` from `ABANDONED` keeps them in `DONE`: the thread is dead and nothing can run
+   them, as today.
 5. `raised` is set in `ABANDONED` (`finish` stops the guest with a `_Stopped` at least).
 6. `serving` is `phase in (STARTING, RUNNING)`; `done` is `phase in (IDLE, CANCELLED, DONE)`.
 
@@ -549,7 +600,9 @@ In: Decisions 1 to 7. The files: the runner's package (every module 103 made, as
 `tools.py`, `cli.py`, `tests/harness/calls.py` (new), `tests/unit/test_lifecycles.py` (new),
 `tests/unit/test_async_tools.py`, `test_runner_inputs.py`, `test_runner_limits.py`,
 `test_runner_sessions.py`, `test_runner_threads.py`, `test_runner_tools.py`,
-`tests/checks/test_rules.py`, one probe line in `tests/checks/test_v1_2_hostile_guest.py`,
+`tests/checks/test_rules.py`, `tests/checks/test_v1_4_embedding.py` and
+`tests/checks/test_v1_4_public_api.py` (their stand-ins), one probe line in
+`tests/checks/test_v1_2_hostile_guest.py`,
 `pyproject.toml`, `uv.lock`, `CHANGELOG.md`, `context/roadmap.md`, this file.
 
 Out:
@@ -561,8 +614,10 @@ Out:
   cancelled queued turn after a `close()`) are kept exactly and recorded here for a later
   specification with its own research; neither is a gap of this one (no check expects
   otherwise, and the fast tier's verdicts do not move: criterion 5).
-- **A ratchet on the `Any` count**, a module size ceiling, a function length ceiling (the memo's
-  section 5: spec 107).
+- **A ratchet on the `Any` count.** The module size ceiling is 103's, the function-length ceiling
+  and the test-seam allowance check are 107's, the lock and mutable placement checks are 104's.
+- **A per-platform type check.** The check runs against the linux platform's narrowing on every
+  host (Decision 5); checking the Windows-only branches is a later specification's.
 - **Typing the tests.** `mypy` runs over `src/wasi_python` only; the harness and the checks are
   the judge's and stay as they are.
 - **`ruff`'s rule set.** Adding `ANN` or `TCH` rules is a judge change of its own.
@@ -572,18 +627,26 @@ Out:
 
 1. **The checks exist and were seen failing first.** `test_src_type_checks_under_mypy_strict`
    on the base commit: 78 errors in 4 files (or the base's own count, restated), the three of
-   The problem among them, recorded in the landing notes; then green with the one allowance. The
+   The problem among them, recorded in the landing notes, and 92 under `--platform win32` on the
+   same base (the pre-build review's EXECUTED count, restated by the builder); then green with
+   the one allowance, and, `platform = "linux"` pinned, with the same count on the Linux, macOS
+   and Windows judge shards of the chain's dispatch (criterion 8). The
    two table checks and the exhaustiveness and liveness rows red on the base (no enum to import)
    and green on the build. The exhaustiveness row seen red once more with one member added to a
    copy of each enum and no row for it, the output in `build/105/`.
 2. **The call is typed.** `_checked` returns a `_CheckedCall` with the 19 fields of the Design,
    frozen, every field required (a construction missing one is a `TypeError`: one unit row).
-   `home` and `loop` are parameters on `run`'s path as on the session's; `_home_of` is gone.
+   `home` and `loop` are parameters on `run`'s path as on the session's; `_home_of` is gone;
+   `run_async` passes its event as `cancel`; `grep -rn 'dataclasses.replace\|\breplace(' src/wasi_python`
+   finds no replace of a call (EXECUTED by the builder in the landing notes).
 3. **No read of a call's field has a default, and no flag remains.** EXECUTED by the builder in
-   the landing notes: `grep -rnE '\.get\("(tools|mounts|import_path|import_serving|tool_request_bytes|home|tool_loop)"' src/wasi_python`
-   finds nothing; `grep -rnE '\.(busy|called|sound|needs_initialize|counted|turn_thread|ending_thread|serving|abandoned)\b' src/wasi_python`
+   the landing notes: `grep -rnE '\.get\("(tools|mounts|import_path|import_serving|tool_request_bytes|home|tool_loop)"|checked\[' src/wasi_python`
+   finds nothing (no read with a default, no write after the check); `grep -rnE '\.(busy|called|sound|needs_initialize|counted|turn_thread|ending_thread|serving|abandoned)\b' src/wasi_python`
    finds nothing; `grep -rnE '\.state\b' src/wasi_python/<the home module>` finds nothing;
-   `tests/harness/calls.py` is the one place a stand-in call is built.
+   `tests/harness/calls.py` is the one place in the harness a stand-in call is built, and the
+   unit and check files Decision 1 names take theirs from it:
+   `grep -rnE '_tool_host\(\{|_tool_host\(c,|\)\["(fuel|deadline_s|memory_bytes|output_bytes|argv|env|stdin|tools|gate|tool_calls|tool_request_bytes|root|grants|mounts|import_path|import_serving|file_calls|open_files)"\]' tests`
+   finds nothing.
 4. **Both machines are whole.** Every row of the three tables is driven by a unit row; the
    exhaustiveness and liveness rows pass; every illegal pair raises `RuntimeError` naming the
    phase and the event. The existing session and home checks pass unchanged in their rows.
@@ -620,21 +683,52 @@ Out:
     tables, three exhaustiveness rows, three liveness rows, one `_CheckedCall` row).
   - 105: **rows that change text and not verdict:** the stand-ins in `test_async_tools.py`,
     `test_runner_inputs.py`, `test_runner_limits.py`, `test_runner_sessions.py`,
-    `test_runner_threads.py`, `test_runner_tools.py`; the probe line of spec 093's child program
-    in `test_v1_2_hostile_guest.py`.
+    `test_runner_threads.py`, `test_runner_tools.py`, and in `tests/checks/test_v1_4_embedding.py`
+    (two `_tool_host` stand-ins) and `test_v1_4_public_api.py` (one key read); the probe line of
+    spec 093's child program in `test_v1_2_hostile_guest.py`.
   - 105: **retired checks:** none. **Lost passes:** none. **Grown rows:** none (no artifact byte,
     no guest fuel: the machines run on the host).
   - **The judge hash changes** in `tests/checks/test_rules.py`, `tests/harness/calls.py`,
-    `tests/unit/test_lifecycles.py`, the six unit files above and `test_v1_2_hostile_guest.py`.
+    `tests/unit/test_lifecycles.py`, the six unit files above, `test_v1_4_embedding.py`,
+    `test_v1_4_public_api.py` and `test_v1_2_hostile_guest.py`.
 - **The flags** (paste-safe):
 
   ```
   --accept "105: a call's checked arguments are a frozen _CheckedCall with 19 required typed fields, home and loop are parameters, the session's lifecycle is a seven-phase table (_Phase) with a four-state guest (_Guest) and the home's a six-phase table (_HomePhase), each driven whole by the judge, and mypy --strict runs over src/wasi_python as a rules check with one allowance (mounts.py, spec 106); no public name, verdict or artifact byte moves"
-  --accept-judge "105: a rules check runs mypy --strict (1.19.1, pinned exactly) over src/wasi_python with a per-module allowlist that must shrink; unit rows drive the session's, the guest's and the home's transition tables whole with exhaustiveness and liveness; the stand-ins build a _CheckedCall through tests/harness/calls.py instead of a dict; spec 093's child program reads the phase where it read busy, its golden lines unchanged"
+  --accept-judge "105: a rules check runs mypy --strict (1.19.1, pinned exactly; platform pinned to linux so three systems give one verdict) over src/wasi_python with a per-module allowlist that must shrink; unit rows drive the session's, the guest's and the home's transition tables whole with exhaustiveness and liveness; every stand-in in the unit files, test_v1_4_embedding.py and test_v1_4_public_api.py builds a _CheckedCall through tests/harness/calls.py instead of a dict or a key read; spec 093's child program reads the phase (TURN or STOPPING) where it read busy, its golden lines unchanged"
   ```
 
 - **Dry-run needs:** none of its own; the chain's one dispatch on its final tip. The Windows judge
-  shards run the new unit rows and the mypy check as any other.
+  shards run the new unit rows as any other, and the mypy check against the linux platform's
+  narrowing, with the same count as the Linux shard (Decision 5).
+
+## Disposition of the pre-build review
+
+The review (`../reviews/105-typed-call-state-and-explicit-lifecycles-spec-2026-10-20.md`) re-ran
+the shape checks and the mypy run on three platforms, traced every setter of the lifecycle onto
+the tables (its finding: complete), and ranked seven findings. Every one is written in; no
+decision changed, one was extended (the platform).
+
+- **F1 (High), written in.** Decision 5 pins `platform = "linux"` with the reason, what is lost and
+  the recourse; criterion 1 states the Windows count (92) as the review's EXECUTED fact and asks
+  for one count on three systems; Scope out names the per-platform check; the lane's dry-run line
+  and the `--accept-judge` reason say it.
+- **F2 (Medium), written in.** The problem names the third late write (`runner.py:673`); Decision 1
+  makes `run_async` pass its event as `cancel`; criterion 2 forbids `dataclasses.replace` on a call;
+  criterion 3's grep gains `checked\[`.
+- **F3 (Medium), written in.** Decision 1 lists every stand-in site with its lines (the review's
+  plus `test_runner_tools.py:754`); Scope, the claim list and the judge-hash list name
+  `test_v1_4_embedding.py` and `test_v1_4_public_api.py`; criterion 3's last sentence is reworded
+  and carries the grep.
+- **F4 (Low), written in.** 19 keys with tools, 18 without; `_ToolArgs` carries
+  `tool_request_bytes=None`; `c.get("mounts")` at 5524 named without its default; the oracle
+  sentence dropped and replaced by what the line is.
+- **F5 (Low), written in.** The home's invariants 2 and 4 as the review's fix texts.
+- **F6 (Low), written in.** The probe reads `phase in (TURN, STOPPING)`.
+- **F7 (Low), written in.** `_State.checked`, with the reason.
+- **Cross-specification alignment** (the lane, 2026-10-20): the module names are 103's, with its
+  `_module.name` rule; the module size ceiling is 103's, the function-length ceiling and the
+  test-seam allowance check 107's, the lock and mutable placement checks 104's (Decision 6, Scope).
 
 ## One line
 
