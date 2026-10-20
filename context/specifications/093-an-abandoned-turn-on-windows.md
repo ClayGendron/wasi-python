@@ -1,6 +1,6 @@
 # 093 — An abandoned turn on Windows
 
-- **Status:** **built 2026-10-19** on `spec/093-an-abandoned-turn-on-windows` from main `97be88a`
+- **Status:** **built 2026-10-19** (tip `e58c07c`, release run 39357013719 green) on `spec/093-an-abandoned-turn-on-windows` from main `97be88a`
   (spec 078 accepted). It fixes the one red line of 078's dry run under the owner's "fix forward"
   rule, and enters wave 1 first. A judge-only specification, so its pre-build review is optional
   (AGENTS rule 8); a different agent reviews the build.
