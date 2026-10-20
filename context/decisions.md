@@ -112,6 +112,19 @@ about five and a half hours apart. The owner chose all three of the lane's propo
   native build when the hash of its pins and recipes is unchanged, and split the macOS own-guest
   and own-embedding shards. The lane's estimate, not measured: about 60 minutes to about 30.
 
+**Spec 101's build shard moves to Linux on every run (2026-10-20, later the same day).** The
+draft found a cache hit cannot skip a source build: the build shard's checks read the build tree
+(about 27 GB), not the finished set. It moves them to a new arm64 Linux job that builds from source
+on every run. Its pre-build review (M1) found that on a tag, seven of those checks (the compile
+records and `clang -###`, the host Python, the try-table and ducc0 clang checks, the link map's one
+qhull, `pyconfig.h`) would then read a Linux tree that builds the same bytes, not the published
+macOS tree: equal bytes stay proven (same-bytes, G2), but CI no longer reads how the published
+build was made. The review's corrected estimates: about 25 minutes on a reuse run (up to about 35),
+35 to 50 on a source run; reuse fits about a third of runs. The lane recommended keeping the build
+shard on macOS for source runs (2 to 3.5 minutes slower). The owner chose to move it to Linux
+always, tags included. The lane's darwin run at every landing still runs the seven checks on a
+macOS tree; the spec writes M1's corrected wording into its Decision 5 and Intent.
+
 ### Every test of every package we build (2026-10-20)
 
 Spec 066's re-survey on wave 06's set (branch tip `ad3c065`) found the budget rule's price was
