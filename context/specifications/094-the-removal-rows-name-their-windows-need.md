@@ -38,7 +38,9 @@ was written in a form the judge cannot accept.
    it, and unmet on Windows. This is the shape of `descriptor limit` (a host capability one system
    lacks by nature, spec 063). A known gap would be wrong. A gap says "this should pass and does
    not yet". Here there is nothing on Windows for the removal to protect, because the guest can
-   already delete the file. The check's question has no Windows instance.
+   already delete the file. The check's question has no Windows instance. Observed on wasmtime 49
+   (wave 01's dry run); a wasmtime upgrade that changes how Windows deletes a read-only file
+   revisits this need (the build review, L2).
 2. **The body names the need first.** The check calls `needs.need("read-only files")` before
    building anything, so on Windows the row is `blocked` with that need, as `descriptor limit`'s
    row is. The bare skip after the guest's run is removed. On POSIX nothing changes: the need is
