@@ -1,8 +1,10 @@
 # 102 — The engine seam: one module touches wasmtime-py's private API
 
-- **Status:** **drafted 2026-10-20** on branch `claude/gallant-ride-9nxxmn` from main `5feb7e9`
-  (the memo's commit `a9064a2` on top), awaiting its pre-build review: it changes the runner's
-  code, so AGENTS rule 8 asks for one. A different agent reviews the build.
+- **Status:** **built on `d77425d` in worktree `spec/102-the-engine-seam`, 2026-10-20, awaiting
+  the build review** (the landing notes below; the base `3626bb6` on branch
+  `claude/gallant-ride-9nxxmn`, main `5feb7e9` plus the chain's specifications and reviews).
+  Drafted 2026-10-20 on that branch; its pre-build review and confirmation are
+  `../reviews/102-the-engine-seam-spec-2026-10-20.md`. A different agent reviews the build.
 - **Date:** 2026-10-20
 - **Owner:** Clay Gendron
 - **Kind:** **parallel-safe**, not build-class (§5.7): it touches no file under `scripts/`,
@@ -799,4 +801,142 @@ the first `run()` instead of an `AttributeError` inside a call.
 
 ## Landing notes
 
-Filled in when it lands.
+Built 2026-10-20 in the worktree `/home/user/wt/102`, branch `spec/102-the-engine-seam`, from
+the base `3626bb6` (branch `claude/gallant-ride-9nxxmn`: main `5feb7e9`, the memo `a9064a2`, the
+chain's specifications and their pre-build reviews). Every number here is EXECUTED on that base
+or on the built commit, with its command; the outputs are kept under `build/102/` in the
+worktree (git-ignored): `seen-failing.txt`, `rule-before.txt`, `fast.log`, `built.json`,
+`claims.toml`, `sameness.txt`.
+
+- **Commits:** `e517a1a` (the seam `src/wasi_python/_wasmtime_ffi.py`, its checks, the runner
+  and the mounts behind it, the harness driver and the five test files), `d77425d` (the debt
+  sheet's row for `wasmtime_error_t` and the README row's count), and the commit that carries
+  this Status line and these notes.
+- **The checks were written first and seen failing on `3626bb6`** (`build/102/seen-failing.txt`,
+  EXECUTED): `tests/unit/test_wasmtime_ffi.py` fails at collection (`ImportError: cannot import
+  name '_wasmtime_ffi' from 'wasi_python'`);
+  `test_only_the_engine_seam_touches_wasmtimes_private_api` reports 31 findings, digest
+  `3f64ef046fdb` (`build/102/rule-before.txt`: `runner.py` 14, `mounts.py` 11, `tests/` 6, the
+  lines of The problem); `test_the_private_api_debt_is_documented` reports one finding,
+  `_wasmtime_ffi.py does not exist`. On the built commit all three pass (criteria 3, 4 and 13).
+- **EXECUTED numbers re-measured on `3626bb6`**, each agreeing with the draft: 31 hits of
+  Decision 3's regex over `src/` and `tests/` (25 in `src/`: `runner.py` 14, `mounts.py` 11; 6
+  in `tests/`); 0 under `scripts/` and `release/`; 0 in `tests/harness/constructors.py`; the
+  thirteen `_ffi` names of The problem (`re.findall(r"_ffi\.([A-Za-z_0-9]+)")` over the base
+  `runner.py` and `mounts.py`); `git grep LAST_EXCEPTION 3626bb6 -- src/wasi_python` empty;
+  `wasmtime.Func.__annotations__ == {"_func": wasmtime._bindings.wasmtime_func}` and
+  `hasattr(wasmtime.Func, "_func")` is `False`; `Config.async_stack_size` is not a property
+  (wasmtime-py 49.0.0).
+- **One difference from the specification, the sheet fixed and not the check:** `NEEDED` holds a
+  sixteenth `_ffi` name, `wasmtime_error_t`, so `NEEDED` has 30 entries, `OPTIONAL` 1, and the
+  sheet's table 31 rows (`context/upstream/README.md`'s row 34 says thirty-one; criterion 13's
+  "thirty" reads thirty-one). `delete_error(address)` must cast the address to
+  `ctypes.POINTER(_ffi.wasmtime_error_t)`: EXECUTED,
+  `_ffi.wasmtime_error_delete(ctypes.c_void_p(address))` raises `ctypes.ArgumentError: argument
+  1: TypeError: expected LP_wasmtime_error instance instead of c_void_p`, and no entry of
+  `NEEDED` gives that pointer type otherwise. Decision 2's reason for `wasmtime_context_t` ("the
+  alias is a private name too") covers it; the sheet's new row says the same.
+- **Choices the build made inside the Decisions:** `set_async_stack` reads the property from
+  `type(cfg)` at call time, as spec 078's `_set_async_stack` did, not from a module constant at
+  import: U7 and U18 give stand-in `Config` classes, which a constant read from
+  `wasmtime.Config` could not see; the real `Config` is covered by the same read. The three fuel
+  and deadline operations look the public method up per call (`getattr(storelike, name, None)`),
+  so a `Store` takes the method and a `Caller` the binding on its context, and a release that
+  gives `Caller` the methods is taken with no change here (Decision 8). U3 also removes the
+  package attribute `wasi_python._wasmtime_ffi` for its first half: `from . import name` returns
+  an existing attribute without importing, so without that the adapter's import check would not
+  run again; `monkeypatch.undo()` restores both before the second half. `__all__` has the 28
+  names of Decision 1's table (23 operations and constants, `Storelike`, `NEEDED`, `OPTIONAL`,
+  `missing`, `check`); U1 lists it. `forward` asserts the caught exception is set before it
+  raises it, for spec 105's type checker.
+- **U9 and wasmtime-py's slab:** `host_function_count()` is the length of `FUNCTIONS.list`, the
+  table's high-water mark; wasmtime-py's `Slab` reuses a freed slot before growing (READ,
+  `_slab.py`: `allocate` pops the free chain first). The first parallel run showed it (the row
+  was the 84th failure in that worker, after rows that freed host functions), so the row
+  defines functions until the count grows by exactly one, bounded by the mark, and asserts it
+  never shrinks; the kept run below is after that fix. The embedding check's assertion ("a call
+  defines no host function") is unchanged by it: it compares equal counts.
+- **Rows moved and re-pointed** (criterion 9; `uv run pytest --collect-only -q`, EXECUTED):
+  `test_the_bindings_the_runner_calls_exist` (from `test_runner_calls.py`) and
+  `test_the_stop_error_is_real_and_never_leaves_a_zero_delta` (from `test_runner_async.py`)
+  are collected once each, in `tests/unit/test_wasmtime_ffi.py` only; the assertion at
+  `test_runner_calls.py:116` reads `_wasmtime_ffi.last_exception()` (its row kept);
+  `_record_async_stack`, `test_the_async_stack_size_property_is_preferred` and
+  `test_no_engine_is_made_without_the_async_stack_size` patch `_wasmtime_ffi.ASYNC_STACK_SETTER`
+  and call `_wasmtime_ffi.set_async_stack`; `test_runner_cancel.py`'s `shared` fixture patches
+  `_wasmtime_ffi.context_address`; `test_runner_mounts.py:260` reads `str(call.stopped)`;
+  `test_calls_add_nothing_to_wasmtime_pys_tables` counts through `host_function_count()` and
+  patches `allocate` on `custom_output_table()`, every assertion kept. So the unit file has
+  seventeen rows (U1 to U16, U18), `test_scan.py` two (U17's two halves), two rows left their
+  files: the unit suite grows by 17.
+- **The fast tier** (EXECUTED, `uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider` on
+  `d77425d` with `WASI_PYTHON_ARTIFACTS` the verified `v0.1.0a7` set; `build/102/fast.log`):
+  **83 failed, 2363 passed, 52 skipped** in 308 s; the 83 are exactly the baseline's
+  (`build/baseline-a7/failing-nodes.txt`, a `diff` of the sorted node ids is empty: 82 checks
+  against an artifact set older than the tree and `test_the_walk_judges_links`, which needs a
+  non-root user). The baseline record (`build/baseline-a7/baseline.json`, `a9064a2`, the same
+  set): 83 failed, 2344 passed, 52 skipped; unit suite 1847 (1833 passed, 13 skipped). The built
+  record (`build/102/built.json`): unit suite 1864 (1850 passed, 13 skipped): 17 more, the same
+  one failing. No pass lost (criterion 7); `tests/unit/test_runner_mounts.py::
+  test_the_rename_rule_forward_is_fuel_neutral` passes unchanged (criterion 8).
+- **Sameness** (criterion 5; EXECUTED, `uv run python tests/harness/sameness.py
+  /home/user/wasi_python/build/baseline-a7/baseline.json build/102/built.json --claims
+  build/102/claims.toml`), the output verbatim, exit 0:
+
+  ```
+  note: explained by claims: 102 4
+  ```
+
+  **0 fuel rows, 0 bytes rows** (criterion 6); no verdict moved. The first run's one unexplained
+  line, `collected_files: tests/unit/test_wasmtime_ffi.py only in the second record`, is the new
+  unit file itself: the claim list names it under `new` (the draft's list had the two
+  rules-check nodes and the count only).
+- **The claim list** (`build/102/claims.toml`, as run):
+
+  ```toml
+  [[claim]]
+  spec = "102"
+  new = [
+    "tests/checks/test_rules.py::test_only_the_engine_seam_touches_wasmtimes_private_api",
+    "tests/checks/test_rules.py::test_the_private_api_debt_is_documented",
+    "tests/unit/test_wasmtime_ffi.py",
+  ]
+  units = 17
+  ```
+
+- **The flags for the lane** (paste-safe; no `--accept-growth`):
+
+  ```
+  --accept "102: one module, src/wasi_python/_wasmtime_ffi.py, touches wasmtime-py's private API, public first where a release has the public form; the runner and the mounts drive the engine through its named operations; a moved symbol is one ImportError at the first run(), naming the wasmtime-py version and the names; the private bindings still needed are listed in context/upstream/34-wasmtime-py-public-api-for-the-runner/facts.md; no behaviour change, the frozen set's verdicts the same"
+  --accept-judge "102: a rules check that no .py under src/ or tests/ but the seam and its unit file imports wasmtime._ffi, _bindings, _func or _wasi or touches ._context(), ._func, _from_ptr or .ptr(); a rules check that every entry of the adapter's NEEDED and OPTIONAL tuples is a row of the debt sheet's table, every row an entry, and every entry named in the adapter's docstring; the adapter's unit file (seventeen rows) and the scan's two rows; two rows moved to it; two files re-pointed to the adapter's names; one embedding check counts wasmtime-py's tables through the seam; the harness driver sets the async stack size through the seam; no existing expectation edited"
+  ```
+
+- **Other criteria:** `uv run python -c "import wasi_python._wasmtime_ffi"` prints nothing,
+  exit 0 (criterion 2); `ruff check` and `ruff format --check` are green on `src/` and `tests/`,
+  and `test_no_module_level_name_is_bound_twice` passes (criterion 11); `git diff --stat
+  3626bb6 -- tests/public_api.txt` is empty (criterion 12); `test_package_imports_without_
+  wasmtime` and U10 pass (criterion 10); U18 passes (criterion 14).
+- **CI:** none of its own; the chain's one dispatch on the final tip (the memo's section 8).
+- **CHANGELOG and roadmap:** not touched by the build; the integrator adds the specification's
+  lines under the one unreleased section.
+- **The builder's self-check** (`../reviews/README.md`):
+  - rebased onto the named base today, the base commit in the Status line: checked (`3626bb6`,
+    the chain's base; 102 is its first link, so nothing to rebase onto).
+  - CI run dispatched on this exact commit and read: not checked, by the chain's rule: one
+    dispatch on the final tip stands for the six.
+  - every number from a measured run on this base, labelled EXECUTED; the growth list this
+    build's: checked (no growth).
+  - "For the lane": the claim list, the exact flags, each reason beginning with the spec
+    number, the wave kind (parallel-safe, a judge change), dry-run needs (none of its own):
+    checked, above.
+  - every new check seen failing first: checked. A Windows and a Linux branch named or
+    excluded: excluded with a reason: the change has no platform branch (the seam reads one
+    symbol's address; `dladdr` and the signal reads stay in the runner).
+  - every gap names its closer; every reserved follow-up has a roadmap line: checked (no gap
+    added, no follow-up reserved).
+  - `packages.toml` has its reason line: not applicable (no package). README rows the spec
+    changes listed: checked (`context/upstream/README.md`, row 34's count).
+  - CHANGELOG under the one unreleased section: not checked, the integrator's (above);
+    questions numbered: none asked.
+  - `ruff check`, `ruff format --check`, the fast tier: green but the baseline's 83, output in
+    `build/102/`: checked.
