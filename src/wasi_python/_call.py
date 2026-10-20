@@ -137,7 +137,7 @@ def _run_checked(
     if c.tools is not None and not _artifacts._has_guest_package(found.manifest):
         raise ArtifactsMissing(
             f"{found.manifest} has no `recipe … {GUEST_PACKAGE}` line: this artifact set "
-            "predates the tool protocol (spec 031), so its guest cannot `from host import "
+            "predates the tool protocol, so its guest cannot `from host import "
             "tools`; tools= needs a set built with the guest package"
         )
     cache = _engines._cache_dir(cache_dir)
