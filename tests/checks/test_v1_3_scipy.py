@@ -1,10 +1,11 @@
 """v1.3: scipy, built in (spec 037): native scipy's answers in the guest, and what must reach Python
 when scipy meets the sandbox's edges.
 
-The three golden jobs run through the judge's driver. Every behaviour check runs through the
-runner as an embedder calls it with no root and no grant, so nothing is writable (§4.15), on both
-binaries. Three of them fail today, each a `[[gap]]` closed by spec 038 (Decision 9): Matrix
-Market's thread pool, Sobol's temporary file, and the `ctypes` values four functions make.
+The golden jobs run through the judge's driver. Every behaviour check runs as an embedder calls
+the runner with no root and no grant, so nothing is writable (§4.15), on both binaries. Three of
+them were `[[gap]]`s until spec 038 closed them (037's Decision 9; 038's Decisions 1 to 4): Matrix
+Market's thread pool, Sobol's temporary file, and the `ctypes` values four functions make. Spec
+038 adds the edges golden, run with nothing writable, and the address check.
 """
 
 from __future__ import annotations
@@ -38,10 +39,10 @@ def _json(done) -> dict:
     return json.loads(done.stdout.decode().strip().splitlines()[-1])
 
 
-def _golden(guest, which: str, job: str) -> None:
+def _golden(guest, which: str, job: str, *, root_writable: bool = True) -> None:
     files = {f"/jobs/{job}.py": jobs.script(job).read_bytes(), "/out/.keep": b""}
     files.update({f"/data/{n}": src.read_bytes() for n, src in jobs.DATA.items()})
-    r = guest(which, [f"/jobs/{job}.py", "/data", "/out"], files=files)
+    r = guest(which, [f"/jobs/{job}.py", "/data", "/out"], files=files, root_writable=root_writable)
     assert r.exit_code == 0, f"{job}: {r.describe()}"
     (r.root / "out" / ".keep").unlink()
     why = jobs.compare(jobs.expected_path(job).read_bytes(), jobs.render(r.stdout, r.root / "out"))
@@ -71,6 +72,15 @@ def test_scipy_lapack_job_matches_native(guest, which) -> None:
     """Every LAPACK routine that trapped before OpenBLAS's carried patches, in four precisions
     through f2py's function pointers, gees with a sort callback, and cython_lapack's callers."""
     _golden(guest, which, "scipy_lapack")
+
+
+@pytest.mark.slow
+@BINARY
+def test_scipy_edges_job_matches_native(guest, which) -> None:
+    """Matrix Market through `io.BytesIO` (the bytes' SHA-256 and the values read back), Sobol's
+    unscrambled and seeded scrambled points, the four functions that make `ctypes` values and
+    `loadarff`, as native scipy prints them, with nothing writable (spec 038, Decision 5)."""
+    _golden(guest, which, "scipy_edges", root_writable=False)
 
 
 SINGULAR = """
@@ -249,8 +259,9 @@ print(json.dumps(out))
 @BINARY
 def test_matrix_market_round_trips_in_memory(guest, which) -> None:
     """`mmwrite` then `mmread` of a sparse and a dense matrix through `io.BytesIO`, with
-    nothing writable, give back the same matrix. A gap until spec 038: fast_matrix_market's
-    default parallelism starts a thread pool, and starting a thread throws on WASI."""
+    nothing writable, give back the same matrix. A gap until spec 038, whose carried patch makes
+    the default parallelism 1 on WASI: fast_matrix_market's default started a thread pool, and
+    starting a thread throws on WASI."""
     want = {"sparse": True, "dense": True}
     _compare(_run(guest, which, MATRIX_MARKET), want, "Matrix Market in memory")
 
@@ -266,11 +277,11 @@ print(json.dumps({"points": pts.tolist()}))
 @BINARY
 def test_sobol_needs_nothing_writable(guest, which) -> None:
     """The first four points of the unscrambled two-dimensional Sobol sequence, with nothing
-    writable. A gap until spec 038: `_sobol.pyx` loads its direction numbers through
-    `importlib.resources.as_file`, which copies the zip member to a temporary file; with no
-    temporary folder that raises inside a `noexcept` Cython function, which prints "Exception
-    ignored" and leaves the direction numbers zero, so every point is 0 (the build's finding; the
-    README warns of it)."""
+    writable. A gap until spec 038, whose carried patch reads the direction numbers' bytes
+    without a file: `_sobol.pyx` loaded them through `importlib.resources.as_file`, which copies
+    the zip member to a temporary file; with no temporary folder that raised inside a `noexcept`
+    Cython function, which printed "Exception ignored" and left the direction numbers zero, so
+    every point was 0 (spec 037's build's finding)."""
     want = {"points": [[0.0, 0.0], [0.5, 0.5], [0.75, 0.25], [0.25, 0.75]]}
     _compare(_run(guest, which, SOBOL), want, "Sobol with nothing writable")
 
@@ -300,7 +311,8 @@ print(json.dumps(out))
 def test_ctypes_values_scipy_makes(guest, which) -> None:
     """Three distributions pass their parameters to C as a `ctypes.c_void_p`, and `loadarff`
     computes `ctypes.c_ulong(-1).value`; each returns a finite number or its records. A gap until
-    spec 038: the `ctypes` stand-in raises `OSError` for any instance of a C type."""
+    spec 038, whose stand-in holds numeric and `c_void_p` values: the stand-in raised `OSError` for
+    any instance of a C type."""
     want = {
         "geninvgauss": True,
         "genhyperbolic": True,
@@ -308,3 +320,24 @@ def test_ctypes_values_scipy_makes(guest, which) -> None:
         "loadarff": [[1.0, 2.0], [3.0, 4.0]],
     }
     _compare(_run(guest, which, CTYPES_VALUES), want, "ctypes values")
+
+
+ADDRESS = """
+import ctypes, json
+import numpy as np
+a = np.arange(5.0)
+p = a.ctypes.data_as(ctypes.c_void_p)
+address = a.__array_interface__["data"][0]
+print(json.dumps({"equal": p.value == address, "data": a.ctypes.data == address,
+                  "kept": p._arr is a, "fits": 0 < p.value < 2**32}))
+"""
+
+
+@BINARY
+def test_ndarray_ctypes_gives_the_arrays_address(guest, which) -> None:
+    """numpy's `ndarray.ctypes.data_as(ctypes.c_void_p).value` and `.ctypes.data` are the array's
+    `__array_interface__` address, a 32-bit one, and the pointer keeps the array alive, with the
+    real numpy in the guest (spec 038, Decision 5: a guest check, since a 64-bit host's address
+    does not fit the stand-in's 32 bits and numpy is not a development dependency)."""
+    want = {"equal": True, "data": True, "kept": True, "fits": True}
+    _compare(_run(guest, which, ADDRESS), want, "ndarray.ctypes's address")

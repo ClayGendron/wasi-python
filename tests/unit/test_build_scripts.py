@@ -397,6 +397,30 @@ STAND_IN_TYPES = (
     "set_errno",
 )  # fmt: skip
 STAND_IN_CONSTANTS = ("DEFAULT_MODE", "RTLD_GLOBAL", "RTLD_LOCAL", "WinError")
+# Spec 038, Decision 3: the types whose instances hold a value, written here too.
+NUMERIC_TYPES = (
+    "c_bool", "c_byte", "c_ubyte", "c_short", "c_ushort", "c_int", "c_uint", "c_long", "c_ulong",
+    "c_longlong", "c_ulonglong", "c_int8", "c_int16", "c_int32", "c_int64", "c_uint8", "c_uint16",
+    "c_uint32", "c_uint64", "c_size_t", "c_ssize_t", "c_float", "c_double", "c_longdouble",
+)  # fmt: skip
+VALUE_TYPES = (*NUMERIC_TYPES, "c_void_p")
+# wasm32's sizes, which `struct.calcsize` gives in the guest: the host checks size the stand-in's
+# types as the guest does, so the wraps they assert are wasm32's (spec 038, Decision 5).
+WASM32_SIZES = {"?": 1, "c": 1, "b": 1, "B": 1, "h": 2, "H": 2, "i": 4, "I": 4, "l": 4, "L": 4,
+                "q": 8, "Q": 8, "f": 4, "d": 8, "P": 4}  # fmt: skip
+
+
+def _load_stand_in_as_wasm32(monkeypatch):
+    """The stand-in with `struct.calcsize` answering wasm32's sizes while its types are built (on
+    the first lookup, which this makes before returning)."""
+    import struct
+
+    real = struct.calcsize
+    monkeypatch.setattr(struct, "calcsize", lambda code: WASM32_SIZES.get(code) or real(code))
+    ct = _load_stand_in()
+    assert f"{ct.__name__}._types" not in sys.modules, "the builder loaded at import"
+    assert ct.sizeof(ct.c_long) == 4 and ct.c_int is ct.c_long and ct.sizeof(ct.c_void_p) == 4
+    return ct
 
 
 def test_the_zips_code_carries_the_name_it_is_given() -> None:
@@ -458,8 +482,12 @@ def test_the_ctypes_stand_in_names_and_refuses() -> None:
     simple = [getattr(ct, n) for n in names if n.startswith("c_")]
     func = ct.CFUNCTYPE(ct.c_int, ct.c_char_p)
     kinds = [*simple, S, U, ct.c_char * 4, func, ct.POINTER(ct.c_int)]
+    # Spec 038, Decision 3: the numeric simple types and c_void_p hold values (the checks below);
+    # every other kind still refuses an instance.
+    holders = {getattr(ct, n) for n in VALUE_TYPES}
     for kind in kinds:
-        _refuses(kind)
+        if kind not in holders:
+            _refuses(kind)
         for method in ("from_buffer", "from_buffer_copy", "from_address", "from_param", "in_dll"):
             _refuses(lambda kind=kind, method=method: getattr(kind, method)(b""))
     for name in (
@@ -521,6 +549,121 @@ def test_the_ctypes_stand_in_documents_itself_with_numpy_loaded(monkeypatch) -> 
 
     for kind in (S, ct.Union, ct.c_int * 2, ct.POINTER(ct.c_int), ct.CFUNCTYPE(None)):
         _refuses(lambda kind=kind: kind.__numpy_dtype__)
+
+
+def test_the_ctypes_stand_in_holds_numeric_values_as_wasm32_stores_them(monkeypatch) -> None:
+    """Spec 038, Decision 3: a numeric simple type's instance holds a value, zero when given
+    none; `.value` reads and writes it as wasm32 C stores it: an integer wraps to the type's width
+    and signedness, `c_float` rounds to single precision, `c_bool` stores a bool."""
+    import struct
+
+    ct = _load_stand_in_as_wasm32(monkeypatch)
+    for name in NUMERIC_TYPES:
+        kind = getattr(ct, name)
+        zero = kind().value
+        assert zero == 0 and type(zero) is type(kind(1).value), name
+        assert kind(1).value == 1, name
+    assert ct.c_bool().value is False and ct.c_bool(2).value is True
+    assert ct.c_bool("").value is False and ct.c_bool([0]).value is True
+    assert ct.c_ulong(-1).value == 4294967295  # scipy's loadarff reads this (_arffread.py:485)
+    assert ct.c_byte(200).value == -56 and ct.c_ubyte(263).value == 7
+    assert ct.c_short(32768).value == -32768 and ct.c_ushort(-1).value == 65535
+    assert ct.c_long(2**31).value == -(2**31) and ct.c_uint(2**32 + 3).value == 3
+    assert ct.c_longlong(2**63).value == -(2**63) and ct.c_ulonglong(-1).value == 2**64 - 1
+    assert ct.c_size_t(-1).value == 2**32 - 1 and ct.c_ssize_t(2**32 - 1).value == -1
+    assert ct.c_int(True).value == 1 and type(ct.c_int(True).value) is int
+    single = struct.unpack("f", struct.pack("f", 0.1))[0]
+    assert ct.c_float(0.1).value == single != 0.1
+    assert ct.c_double(0.1).value == 0.1 and ct.c_longdouble(0.1).value == 0.1
+    assert ct.c_double(3).value == 3.0 and type(ct.c_double(3).value) is float
+    held = ct.c_uint()
+    held.value = -2
+    assert held.value == 4294967294
+    held.value = 5
+    assert held.value == 5
+    roundtrip = ct.c_float()
+    roundtrip.value = 0.1
+    assert roundtrip.value == single
+    for kind in (ct.c_int, ct.c_ulong, ct.c_byte):
+        with pytest.raises(TypeError):
+            kind(1.5)  # as CPython's ctypes: an integer type takes an integer
+        with pytest.raises(TypeError):
+            kind("1")
+        with pytest.raises(TypeError):
+            kind(None)
+    with pytest.raises(TypeError):
+        ct.c_double("1.0")
+    with pytest.raises(TypeError):
+        ct.c_long(1, 2)
+    assert repr(ct.c_long(-3)) == "c_long(-3)" and repr(ct.c_double(0.5)) == "c_double(0.5)"
+    note = ct.c_int(4)
+    note.anything = 1  # instances take attributes, as numpy's data_as needs (ptr._arr = ...)
+    assert note.anything == 1
+    for kind in (ct.c_long, ct.c_double):  # the byte-order twins are not among Decision 3's types
+        if kind.__ctype_be__ is not kind:
+            _refuses(kind.__ctype_be__)
+
+
+def test_the_ctypes_stand_in_holds_void_pointers_and_casts_them(monkeypatch) -> None:
+    """Spec 038, Decision 3: `c_void_p` holds an int wrapped to wasm32's 32 bits, or None (NULL,
+    as CPython's ctypes reads a zero pointer); `cast` of an int, None or a `c_void_p` to `c_void_p`
+    is a new `c_void_p` with that value. numpy's `ndarray.ctypes.data_as(c_void_p)` and scipy's
+    `LowLevelCallable` user data (`_lib/_ccallback.py`) are exactly these steps."""
+    ct = _load_stand_in_as_wasm32(monkeypatch)
+    assert ct.c_void_p().value is None and ct.c_void_p(None).value is None
+    assert ct.c_void_p(0).value is None
+    assert ct.c_void_p(0x1234).value == 0x1234
+    assert ct.c_void_p(2**32 + 5).value == 5  # a 64-bit host's address would not fit
+    assert ct.c_void_p(-1).value == 2**32 - 1
+    held = ct.c_void_p()
+    held.value = 2**32 + 8
+    assert held.value == 8
+    held.value = None
+    assert held.value is None
+    for bad in (1.5, b"x", "x", ct.c_int(1)):
+        with pytest.raises(TypeError):
+            ct.c_void_p(bad)
+    assert repr(ct.c_void_p(16)) == "c_void_p(16)" and repr(ct.c_void_p()) == "c_void_p(None)"
+
+    assert ct.cast(5, ct.c_void_p).value == 5
+    assert ct.cast(None, ct.c_void_p).value is None
+    assert ct.cast(2**32 + 9, ct.c_void_p).value == 9
+    data = ct.c_void_p(4096)  # numpy's _ctypes.__init__: self._data = ctypes.c_void_p(ptr)
+    ptr = ct.cast(data, ct.c_void_p)  # numpy's data_as(c_void_p)
+    assert type(ptr) is ct.c_void_p and ptr is not data and ptr.value == 4096
+    ptr._arr = [1, 2, 3]  # numpy keeps the array alive on the pointer
+    assert ct.cast(ptr, ct.c_void_p).value == 4096  # scipy's _get_ctypes_data
+    assert isinstance(ptr, ct.c_void_p)
+
+    # Nothing has an address, no pointer to typed data is made, and nothing is called.
+    for refused in (
+        lambda: ct.cast(data, ct.POINTER(ct.c_double)),  # numpy's data_as(POINTER(c_double))
+        lambda: ct.cast(4096, ct.POINTER(ct.c_int)),
+        lambda: ct.cast(4096, ct.c_long),
+        lambda: ct.cast(ct.c_int(1), ct.c_void_p),
+        lambda: ct.cast(1.5, ct.c_void_p),
+        lambda: ct.cast(b"x", ct.c_char_p),
+        lambda: ct.byref(ct.c_int(1)),
+        lambda: ct.byref(data),
+        lambda: ct.pointer(ct.c_int(1)),
+        lambda: ct.addressof(ct.c_int(1)),
+        lambda: ct.addressof(data),
+        lambda: ct.c_void_p.from_param(data),
+        lambda: ct.c_int.from_buffer(bytearray(4)),
+        lambda: ct.c_void_p.from_address(4096),
+        lambda: ct.c_char(b"a"),
+        lambda: ct.c_wchar("a"),
+        lambda: ct.c_char_p(b"x"),
+        lambda: ct.c_wchar_p("x"),
+        lambda: (ct.c_int * 2)(1, 2),  # numpy's ndarray.ctypes.shape and strides
+        lambda: ct.POINTER(ct.c_int)(),
+        lambda: ct.CFUNCTYPE(ct.c_int)(),
+        lambda: ct.memmove(4096, 8192, 4),
+        lambda: ct.string_at(4096),
+    ):
+        _refuses(refused)
+    function = ct.cast(4096, ct.CFUNCTYPE(ct.c_int))  # spec 037's cast, unchanged
+    _refuses(function)
 
 
 # Spec 035, Decision 5: the freezer names each module it freezes; its defaults keep _reactor's

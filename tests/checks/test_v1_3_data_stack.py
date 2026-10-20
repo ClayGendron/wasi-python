@@ -444,7 +444,9 @@ def test_packages_carry_their_metadata(guest, which) -> None:
 
 # Spec 033, Decision 5: the stand-in names and sizes wasm32's C types, gives numpy the dtype it
 # gives a real one, and refuses every foreign call. The names are what sympy and threadpoolctl
-# import, written here by name; the sizes are the guest's own sysconfig.
+# import, written here by name; the sizes are the guest's own sysconfig. Spec 038, Decision 3: the
+# numeric simple types and c_void_p hold values, so numpy's `ndarray.ctypes` works; nothing has
+# an address and nothing is called.
 CTYPES = """
 import json, sysconfig
 bad = []
@@ -538,12 +540,19 @@ step("pydoc.render_doc(ctypes.c_int)", lambda: "c_long" in pydoc.render_doc(ctyp
 step("pydoc.render_doc(numpy.ctypeslib)", lambda: "ctypeslib" in pydoc.render_doc(np.ctypeslib))
 step("np.info(ctypes.c_int)", lambda: info(ctypes.c_int))
 frame = pd.DataFrame({"a": [1, 2, 3]})
-refused("ndarray.ctypes", lambda: np.arange(3).ctypes)
+arr = np.arange(3)
+step("ndarray.ctypes.data", lambda: arr.ctypes.data == arr.__array_interface__["data"][0])
+step("c_int(1)", lambda: ctypes.c_int(1).value, 1)
+step("c_ulong(-1)", lambda: ctypes.c_ulong(-1).value, 2**32 - 1)
+refused("data_as(POINTER(c_double))", lambda: arr.ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
+refused("ndarray.ctypes.shape", lambda: arr.ctypes.shape)
 refused("from_dataframe", lambda: pd.api.interchange.from_dataframe(frame.__dataframe__()))
 refused("CDLL(None)", lambda: ctypes.CDLL(None))
-refused("c_int(1)", lambda: ctypes.c_int(1))
+refused("c_char_p(b'x')", lambda: ctypes.c_char_p(b"x"))
 refused("Structure()", lambda: declare()())
 refused("byref", lambda: ctypes.byref(None))
+refused("byref(c_int(1))", lambda: ctypes.byref(ctypes.c_int(1)))
+refused("addressof(c_void_p(8))", lambda: ctypes.addressof(ctypes.c_void_p(8)))
 refused("from_buffer", lambda: ctypes.c_int.from_buffer(b""))
 refused("dtype(Structure)", lambda: np.dtype(declare()))
 refused("WinError", lambda: ctypes.WinError())
@@ -560,7 +569,9 @@ print(json.dumps(bad))
 def test_ctypes_stand_in_names_what_packages_import(guest, which) -> None:
     """The names sympy, threadpoolctl and pandas' clipboard import resolve; each C type's size is
     the guest's sysconfig; numpy's dtypes are numpy's own for a real type, never dtype('O'); and
-    every call that would reach C raises OSError (spec 033, Decision 5)."""
+    every call that would reach C raises OSError (spec 033, Decision 5). A numeric value and a
+    `c_void_p` are held, so `ndarray.ctypes.data` is the array's address; what needs an address
+    or a typed pointer still raises (spec 038, Decision 3)."""
     r = guest(which, ["-c", CTYPES])
     assert r.exit_code == 0, r.describe()
     bad = json.loads(r.text)
