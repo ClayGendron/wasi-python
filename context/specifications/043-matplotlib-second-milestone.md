@@ -1,6 +1,6 @@
 # 043 — matplotlib, the second milestone: triangles, contours, SVG and PDF
 
-- **Status:** built 2026-10-19 (Landing notes), awaiting its build review. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17; revised 2026-10-18 against its pre-build review
+- **Status:** built 2026-10-19 (Landing notes); build reviewed 2026-10-19 (`../reviews/043-matplotlib-second-milestone-build-2026-10-19.md`: lands once F1; F1, F4, F5 and F6 answered at `737cef6`, F2 at the rebase); rebased onto main `f7511b7`, to be stacked on spec 086 and rebuilt under wasi-sdk 34 (For the lane). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17; revised 2026-10-18 against its pre-build review
   (`../reviews/043-matplotlib-second-milestone-spec-2026-10-17.md`): all eight findings written in, and its Disposition says where. Finding 1 also
   amended spec 037 (its status line says so). Confirmed for build 2026-10-18 with no new conditions; it builds only after the owner answers question 81. It changes the build recipe and the artifact
   set, so it is reviewed once more before it is built (constitution §5.6). It is build-class: it
@@ -725,3 +725,66 @@ At the rebase onto main, after 039 lands (the coordinator's order): F2 (the CHAN
 moves under 0.1.0a8), F3 (the README's size row, on the rebased set), the zero-patch count 22,
 a rebuild from empty and the full judge.
 
+
+### For the lane
+
+**The plan (the lane, 2026-10-19).** 043 is a stacked build on spec 086 (wasi-sdk 34, clang 23),
+which lands next as wave 04 (constitution §4.14), so its one rebuild is under the new toolchain.
+This branch is first rebased onto main, then onto 086's rebased tip once the lane sends it, then
+rebuilt from an empty `build/`. Its growth is measured against 086's set, not main's. The builder
+of record changed: the first builder is gone, and a second agent (Claude Opus 5.5) carries the
+branch from `737cef6`.
+
+**The patch's name.** Unchanged: `recipes/patches/matplotlib-3.11.2/0002-qhull-without-devnull-on-wasi.patch`,
+its draft `context/upstream/patches/matplotlib-3.11.2/0002-qhull-without-devnull-on-wasi.md`.
+`recipes/patches/README.md` numbers patches per tree folder (`NNNN` "unique in the folder"), and
+matplotlib's folder holds only `0001-ft2font-enums-without-python.patch`, so `0002` is the next
+free number there. regex's `0002-timeout-ticks.patch` (spec 087) sits in regex's own folder and
+does not clash. `MANIFEST` hashes every tracked recipe file (`scripts/assemble_artifacts.py`,
+`recipe <sha256> <path>`), so the patch's line comes with the rebuild; no table names it by hand
+(the Apache-2.0 `MODIFIED` table is regex's alone; matplotlib's licence is not Apache-2.0).
+
+#### Rebased onto main (`f7511b7`, wave 03)
+
+From `08de0c8` (the build review's base) onto `f7511b7`, 150 commits. The tip before the rebase is
+kept as the local branch `backup/043-pre-rebase-737cef6`. Each conflict hunk, as resolved:
+
+1. `tests/known_gaps.toml` (commit "the judge"): main's file, less 043's two closed M1 gaps
+   (`test_delaunay_triangulation_runs`, `test_contour_runs`) and their comment. 073's removal of
+   the run-keeps-bytes gap and 065's CPython entries are main's and stay.
+2. `tests/checks/test_v1_3_data_stack.py`, `DISTRIBUTIONS` (twice): 039's tier A names and 043's
+   `contourpy`, sorted; the trailing comment names both specs (shortened to fit 100 columns).
+3. `tests/checks/test_v1_2_hostile_guest.py`, the file's end: both kept, 078's guest-thread checks
+   first, then 043's triangulation check; the imports it needs (`tempfile`, `Path`, `paths`,
+   `_version`) are main's.
+4. `README.md`, the artifact table's zip row: 039's tier A sentence with 043's `contourpy`.
+5. `README.md`, the facts table's patch row (087's `CARRIED_ROW` check reads it): main's 10 plus
+   043's one, **11**, keeping 043's "matplotlib's enum fix" wording, since matplotlib now carries
+   two.
+6. `README.md`, *Since then* and *Out*: 043's second milestone after 023's first, then main's lxml,
+   regex and tier A; *Out* drops 043's two matplotlib items and keeps main's seaborn, reportlab and
+   pytz.
+7. `context/upstream/README.md`, rows 5 to 7: main's rows 5 and 6 (041's patches carried) and
+   043's row 7 (carried, its facts sheet moved).
+8. `.github/workflows/release.yml`, the zero-patch step (twice): **23** trees, "twenty-three". The
+   build review predicted 22 (19, plus 039's pyyaml and markupsafe, plus contourpy); main is
+   already at 22 with 041's networkx sdist (`tests/harness/pins.py` lists 22 there), so contourpy
+   makes 23.
+
+Not conflicts, but moved by hand: the CHANGELOG entry, which git placed under `## 0.1.0a7 —
+2026-10-19`, now ends `## 0.1.0a8 — unreleased` (the review's F2). Two README sentences main had
+left stale now count 043's patch too: "with eleven carried patches" (main: ten) and *How it is
+built*'s list, "eleven today" with all eleven named (main: "seven today", stale since 087 and
+041).
+
+Read and judged sound with no change: the auto-merged `scripts/make_stdlib_zip.py` (039's tier A
+and 043's contourpy host keys), `scripts/steps/70_zip.sh` (043's tree and METADATA lines beside
+039's and 041's), `scripts/steps/60_link.sh`, `scripts/gen_inittab.py`,
+`scripts/assemble_artifacts.py`, and the harness files. No semantic change from the merge. On the
+rebased tree, before any rebuild: `ruff check` and `ruff format --check` on `src/` and `tests/`
+green; `uv run pytest tests/unit -n 3`, 1779 passed, 7 skipped; `tests/checks/test_rules.py -m
+"not slow"`, 43 passed, 1 skipped (the patch rules and the README's count among them).
+
+Still to do, at 086's tip: the README's size row on the rebuilt set (F3), the CHANGELOG's byte
+figures, criterion 5's numbers against 086's set, the fast tier, the branch's release dry run, and
+the claim list and flags.

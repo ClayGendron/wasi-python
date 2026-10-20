@@ -209,9 +209,6 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   `…/python.wasm: No module named …`, a directory without `__main__.py` prints `can't find
   '__main__' module in …`, and an `-m` traceback shows runpy's `_run_module_as_main` and
   `_run_code` frames, each as CPython does. No public name, signature or default changes.
-
-## 0.1.0a7 — 2026-10-19
-
 - **matplotlib's second milestone: triangulations, contours, SVG and PDF** (spec 043).
   `matplotlib.tri.Triangulation(x, y)` (Delaunay, through matplotlib's `_qhull` and qhull 8.0.2),
   and so `tricontour`, `tricontourf`, `tripcolor` and `triplot` on bare points, now work, and so
@@ -229,6 +226,9 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   zip by 19 members; `import matplotlib.pyplot` costs what it did. The notices gain contourpy's
   licence with matplotlib's `LICENSE_YORICK` (GIST's notice, for contourpy's `mpl2005` code;
   question 81) and qhull's `COPYING.txt`.
+
+## 0.1.0a7 — 2026-10-19
+
 - **Fixed: an async gate that raises `GeneratorExit` refuses the call** (spec 075; the 0.1.0a6
   security review's F1). An async gate (an `async def`, a function returning an awaitable, or an
   object with an async `__call__`) that raised `GeneratorExit` or a subclass used to allow the
