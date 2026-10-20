@@ -3,9 +3,11 @@
 # with the line's Cython 3.3.0 (spec 044, Decision 2 and stage 1). No scikit-learn release was
 # built with 3.3.0, which its pyproject.toml caps out, so the builder runs the subset the pre-build
 # review ran and records the counts in the landing notes. Not a build step: the artifact set does
-# not depend on it, and build.sh never runs it.
+# not depend on it, and build.sh never runs it. It lives beside the oracle, not under scripts/,
+# because like the oracle it installs the pinned packages it runs with (scripts/ fetch nothing but
+# through scripts/00_download.sh, spec 003, Decision 13).
 #
-#   scripts/sklearn_native_tests.sh        (after step 10; reads only pins and lock files)
+#   sh tests/jobs/oracle/sklearn_native_tests.sh        (after steps 10 and 57; pins and lock files)
 #
 # It runs the sdist's code on the build host, as the oracle runs native wheels (the confirmation's
 # N1), so it is confined the same way: everything under build/sklearn-native/ (the venv, the
@@ -15,9 +17,9 @@
 # threadpoolctl, narwhals, pandas; pytest); one thread for OpenMP and BLAS. The source tree gets
 # its carried patch, so the patched code is what is tested.
 set -eu
-# common.sh finds the repository from a step's own folder, so this script, one folder up, names
-# what it needs itself: the repository, the pinned tools of step 10, and common.sh's helpers.
-HERE=$(CDPATH= cd "$(dirname "$0")/.." && pwd -P)
+# It names what it needs itself, as common.sh does for a step: the repository, the pinned tools
+# of step 10, and common.sh's helpers.
+HERE=$(CDPATH= cd "$(dirname "$0")/../../.." && pwd -P)
 D="$HERE/downloads"
 B="$HERE/build"
 T="$B/tools"

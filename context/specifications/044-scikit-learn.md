@@ -762,7 +762,7 @@ question 83 approved everything as decided here.
 - **The constructors:** exactly the three Decision 8 names, `_GLOBAL__sub_I__newrand.cpp` (after
   scipy's `_qmc_cy`) and `_GLOBAL__sub_I_linear.cpp`, `_GLOBAL__sub_I_libsvm_template.cpp` (last),
   each `newrand.h:22`'s `std::mt19937` under its renamed name, in link order.
-- **Stage 1's native subset** (`scripts/sklearn_native_tests.sh`, confined as N1 says): the 7846
+- **Stage 1's native subset** (`tests/jobs/oracle/sklearn_native_tests.sh`, confined as N1 says): the 7846
   probe passes (`__annotate__` pickles; KDTree and BallTree round-trip); `sklearn.svm` 308 passed,
   `sklearn.tree` 804, `sklearn.neighbors` 1,515, the cython_blas, loss, hdbscan and k-means group
   2,264, the sgd, coordinate-descent, pairwise-reduction and t-SNE group 763 (1 xfailed),
@@ -787,7 +787,7 @@ the lane asks it):
 - **L2:** the three lines go into the landing notes' sweep list (below).
 - **L3, done:** the Dependencies line, Decisions 10 and 14, acceptance criterion 1 and the Design
   row say `--drop`.
-- **N1, done in the script:** stage 1's native test subset is `scripts/sklearn_native_tests.sh`,
+- **N1, done in the script:** stage 1's native test subset is `tests/jobs/oracle/sklearn_native_tests.sh`,
   not a build step. It runs the sdist's code on the host, as the oracle runs native wheels, so it
   is confined the same way: the venv, the source, the native build, the test site and the
   outputs under `build/sklearn-native/`; `HOME`, `XDG_CACHE_HOME`, the uv cache and
