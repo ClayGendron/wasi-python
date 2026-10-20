@@ -278,8 +278,11 @@ own checks by node id, at most three guests, `build/lane.lock` absent at each st
      `32bit_segfault_check.py`, `check_icns_dos.py` and `check_j2k_dos.py` run their
      reproduction at import and expect the exception at module level, so pytest records a
      collection error and interrupts the session (seen in the rebuild's first run);
-     `check_fli_oob.py` and `check_jp2_overflow.py` are valgrind scripts, the second's inputs not
-     in the sdist.
+     `check_fli_oob.py` and `check_jp2_overflow.py` are valgrind scripts run by hand: each opens
+     its samples by a path relative to the folder it is run from, so at the tree root its first
+     open raises `FileNotFoundError` at import; every one of those samples is loaded by
+     `Tests/oss-fuzz/test_fuzzers.py::test_fuzz_images`, which passes (corrected by the confirming
+     review, L1: the `.jp2` samples are in the sdist).
    - Measured: `pillow` 432,950,151,677 fuel, 4,593 passes (was 4,587); `contourpy-rest`
      205,916,211,054, 277 passes (was 198, with L2's text cases and L3's file).
 2. **M2 — written in and measured.** `_keep` now keeps only `TestCase` items of a listed class

@@ -89,7 +89,7 @@ closes_with = "context/specifications/023-matplotlib-first-milestone.md"
 
 [[not_selected]]
 files = ["checks/check_fli_oob.py", "checks/check_jp2_overflow.py"]
-reason = "valgrind reproductions, not tests, run by hand from a chosen folder: check_jp2_overflow.py opens 00r0_gray_l.jp2 and 00r1_graya_la.jp2, which the sdist does not ship, and check_fli_oob.py opens images/fli_oob/... relative to Tests/, whose files Tests/test_file_fli.py's own tests open and run"
+reason = "valgrind reproductions run by hand, not tests: each opens its crash samples by a path relative to the folder it is run from (images/fli_oob/... from Tests/, 00r0_gray_l.jp2 and 00r1_graya_la.jp2 from Tests/images/) and prints each exception, so at the tree root its first open raises FileNotFoundError at import, a collection error (EXECUTED, the build); every one of those samples is loaded by Tests/oss-fuzz/test_fuzzers.py::test_fuzz_images, which runs and passes"
 closes_with = "README.md"
 
 [[expected]]
@@ -114,4 +114,4 @@ group = "pillow"
 outcome = "failed"
 match = "unrecognized data stream contents"
 reason = "checks/check_fli_overflow.py wants the crafted overflow file to load without raising; the repo's oracle, native Pillow 13.0.0, raises the same OSError (EXECUTED, the build), and Pillow's own test commands never run this check (testpaths = Tests): an upstream check that fails natively too, and does not crash in the guest"
-closes_with = "context/upstream/README.md"
+closes_with = "context/upstream/32-pillow-check-fli-overflow/notes.md"
