@@ -15,8 +15,11 @@
   `src/wasi_python/mounts.py`, `tests/harness/scan.py`, `tests/harness/guest.py`,
   `tests/checks/test_rules.py`, `tests/checks/test_v1_4_embedding.py` (one check's two private
   reads), `tests/unit/test_wasmtime_ffi.py` (new), `tests/unit/test_runner_calls.py`,
-  `tests/unit/test_runner_async.py`, `tests/unit/test_runner_mounts.py`,
-  `tests/unit/test_scan.py`, `CHANGELOG.md`, this specification.
+  `tests/unit/test_runner_cancel.py` (its `shared` fixture re-pointed; the pre-build review's
+  M1), `tests/unit/test_runner_async.py`, `tests/unit/test_runner_mounts.py`,
+  `tests/unit/test_scan.py`, `context/upstream/34-wasmtime-py-public-api-for-the-runner/facts.md`
+  (new) and one row of `context/upstream/README.md` (Design, "The debt is documented"),
+  `CHANGELOG.md`, this specification.
 - **Depends on:** landed specifications only: 011 (the shared host functions, which never raise
   into wasmtime-py), 015 (the epoch callback and its stop error), 028 (Decision 3: `run` needs
   wasmtime-py, importing the package does not), 032 (the forwarder), 048 (the guard trampoline
@@ -87,9 +90,9 @@ this).
 | `Context` | `ctypes.POINTER(_ffi.wasmtime_context_t)`, a type alias | the raw pointer type in four signatures |
 | `context_of(storelike)` | `-> Context` | `caller._context()` (four sites), `storelike._context()` |
 | `context_address(storelike)` | `-> int` | `_context_address` (removed; its two callers use this) |
-| `set_epoch_deadline(context, ticks)` | `-> None` | `_ffi.wasmtime_context_set_epoch_deadline` in `_Call.stop` and `_epoch_now` |
-| `get_fuel(context)` | `-> int`; raises `WasmtimeError` | `mounts._get_fuel` (removed) |
-| `set_fuel(context, fuel)` | `-> None`; never raises | `mounts._set_fuel` (removed) |
+| `set_epoch_deadline(storelike, ticks)` | `-> None`; public `Store.set_epoch_deadline` when the object has it, else the binding on `context_of` (Decision 8) | `_ffi.wasmtime_context_set_epoch_deadline` in `_Call.stop` and `_epoch_now` |
+| `get_fuel(storelike)` | `-> int`; raises `WasmtimeError`; public `Store.get_fuel` when the object has it (Decision 8) | `mounts._get_fuel` (removed) |
+| `set_fuel(storelike, fuel)` | `-> None`; never raises; public `Store.set_fuel` when the object has it (Decision 8) | `mounts._set_fuel` (removed) |
 | `new_error(text)` | `bytes -> int`: the address of an error wasmtime owns, 0 when none was made | `_ffi.wasmtime_error_new` and its cast in `_stop_error` |
 | `delete_error(address)` | `int -> None` | `_ffi.wasmtime_error_delete` in a unit row |
 | `EPOCH_CALLBACK` | the `CFUNCTYPE` type of the callback | `_bindings._wasmtime_store_epoch_deadline_callback.argtypes[1]` in `_watch` |
@@ -100,11 +103,16 @@ this).
 | `set_async_stack(cfg, size)` | `-> None`; `RuntimeError` naming `version()` when there is neither the property nor the binding | `_set_async_stack` (removed) |
 | `engine_symbol_address()` | `-> int` | `ctypes.cast(_ffi.dll.wasm_engine_new, c_void_p).value` in `_wasmtime_base` |
 | `raw_func(func)` | `Func -> wasmtime_func_t` | `exports[name]._func`, `stat[name]._func` in `bind` |
-| `PreparedCall(func, kinds)` | `kinds` a tuple of `"i32"` and `"i64"`; builds the argument array with its kinds set and a one-slot result array, once | the `slot` tuple `forward` builds and caches |
+| `PreparedCall(func, kinds)` | `kinds` a tuple of `"i32"` and `"i64"`; builds the argument array with its kinds set and a one-slot result array, once; the trap out-pointer is made per call, as `forward` makes it today, since `Trap._from_ptr` takes ownership of what it points to (the pre-build review's L8) | the `slot` tuple `forward` builds and caches |
 | `PreparedCall.call(context, args)` | `-> int`, the `i32` result; raises `Trap` or `WasmtimeError` | `_ffi.wasmtime_func_call`, `wasm_trap_t`, `Trap._from_ptr`, `WasmtimeError._from_ptr` |
 | `last_exception()` | `-> BaseException \| None` | `_func.LAST_EXCEPTION` in one unit row (no `src/` line reads it; EXECUTED, `grep -n LAST_EXCEPTION src/wasi_python/*.py` is empty) |
 | `host_function_count()` | `-> int` | `len(_func.FUNCTIONS.list)` in `test_calls_add_nothing_to_wasmtime_pys_tables` |
 | `custom_output_table()` | `-> Any`, wasmtime-py's own table of custom outputs, which the runner never uses (spec 011) | `_wasi.CUSTOM_OUTPUTS` in the same check, which counts its `allocate` calls |
+| *the check and the protocol* (the pre-build review's L5) | | |
+| `Storelike` | a `Protocol` with one method, `_context()`; a `Store` and a `Caller` satisfy it | the `Any` on today's `caller` and `storelike` parameters |
+| `NEEDED`, `OPTIONAL` | tuples of `(holder, name)` pairs (Decision 2) | nothing: the first list of the private names in one place |
+| `missing(holders)` | `-> list[str]`, pure (Decision 2) | nothing |
+| `check(holders)` | `-> None`; raises the one `ImportError` (Decision 2) | nothing |
 
 The reasons for the shape:
 
@@ -150,7 +158,10 @@ At import, after its own imports, the adapter calls `check(holders)` with a tabl
 "wasmtime.Caller": Caller, "wasmtime.Store": Store, "wasmtime.Config": Config,
 "wasmtime.WasiConfig": WasiConfig, "wasmtime.Func": Func, "wasmtime._ffi.dll": _ffi.dll}`.
 `NEEDED` is a tuple of `(holder, name)` pairs, one per private name of Decision 1's table except
-the optional `wasmtime_config_async_stack_size_set`: the thirteen `_ffi` names; `_bindings`'
+the optional `wasmtime_config_async_stack_size_set`, which is the one entry of a second tuple,
+`OPTIONAL`, that `check` does not read (the sheet of Design, "The debt is documented", lists
+both): the fifteen `_ffi` names (the thirteen of The problem, `wasmtime_error_delete` for
+`delete_error` and `wasmtime_context_t` for `Context`); `_bindings`'
 `_wasmtime_store_epoch_deadline_callback` and `_wasi_config_set_stdout_custom` (each with an
 `argtypes` of length 4, since `EPOCH_CALLBACK`, `OUTPUT_WRITE` and `OUTPUT_FREE` are read from
 them); `_func.LAST_EXCEPTION`; `_func.FUNCTIONS`; `_wasi.CUSTOM_OUTPUTS`; `Trap._from_ptr`;
@@ -158,6 +169,11 @@ them); `_func.LAST_EXCEPTION`; `_func.FUNCTIONS`; `_wasi.CUSTOM_OUTPUTS`; `Trap.
 `WasiConfig.ptr`; `dll.wasm_engine_new`; and `Func._func`, which is an instance attribute, read
 as a class annotation (EXECUTED, `wasmtime.Func.__annotations__ == {"_func":
 wasmtime._bindings.wasmtime_func}`; a class-level `hasattr` is `False`).
+
+The holder for `dll` is `getattr(_ffi, "dll", None)`, not `_ffi.dll`, since the dictionary
+literal evaluates its values while it is built, and `missing` reports every name of a holder that
+is `None` (the pre-build review's L6): so a wasmtime-py without `_ffi.dll` still raises the one
+`ImportError`, not an `AttributeError` at that line.
 
 `missing(holders) -> list[str]` is pure: it returns the dotted names absent from the table, in
 `NEEDED`'s order. `check(holders)` raises **one `ImportError`** when the list is not empty:
@@ -242,6 +258,17 @@ The reasons:
   `tests/harness/constructors.py:61`'s string `_GLOBAL__sub_I_highs_bindings.cpp` is not a hit
   (EXECUTED: 0 hits in that file).
 
+**The rule's own files avoid the rule** (the pre-build review's M2). The regex matches its own
+source: the raw line `r"|\._func\b"` is a hit (EXECUTED by the reviewer: the `\b` after `func` is
+met by the backslash that follows), and U17's stand-in tree needs lines such as `x._func` and
+`other._context()` spelled in `tests/unit/test_scan.py`. Neither file is exempt. So, in
+`scan.py`, the pattern is assembled from two string literals that do not match on their own
+(`"\\._" "func\\b"` for that alternation, and the same split for `_from_ptr` and `.ptr()`), with
+a comment saying why; and in `test_scan.py` every fixture line is built by concatenation
+(`"x._" + "func"`), with the same comment. U17 asserts that `tests/harness/scan.py` and
+`tests/unit/test_scan.py` themselves are not hits, so the dodge cannot lapse silently. The
+exemption list stays at exactly two files.
+
 **Seen failing first** (criterion 3): on `a9064a2` the check reports the 31 lines of The problem
 (EXECUTED with the same regex: 25 in `src/`, 6 in `tests/`); on the built commit it reports none.
 Its unit row (`tests/unit/test_scan.py`, Decision 5, U17) builds a stand-in tree with each of the
@@ -269,6 +296,9 @@ on the same thread, under the same lock, with the same fallback:
   `max_wasm_stack`, under `_lock`, with `_fork["used"]` set before.
 - **The trap-handler check reads the same base**: `_wasmtime_base` passes
   `engine_symbol_address()` to `_load_base`.
+- **The `.cwasm` cache name is the same string**: `_module_miss` (`runner.py:4739`) reads
+  `ffi.version()`, the same `importlib.metadata` string `_wasmtime_version()` gave, so no cache
+  file name changes (the pre-build review's L3).
 
 **The acceptance criterion** is the memo's, section 8: `tests/harness/sameness.py` between two
 fast-tier records on the **frozen baseline set**, the `v0.1.0a7` release's artifact set verified
@@ -286,24 +316,28 @@ lane*: the one new check and the unit count. No fuel row moves (host code spends
 fuel), no bytes row moves (no artifact changes), no pass is lost. Host-side counts the checks
 record as facts (file calls, tool frames) are compared by `sameness.py` too and must not move.
 
-### 5. Unit checks for the adapter: seventeen rows
+### 5. Unit checks for the adapter: eighteen rows
 
 `tests/unit/test_wasmtime_ffi.py` is new; it is the one test file that may import `wasmtime._ffi`
-(Decision 3). Rows U1 to U10 need no wasm module. Rows U11 to U16 drive wasmtime-py directly with
-a WAT module, as `test_runner_calls.py` does today, and need no `python.wasm`: nothing here needs
-the frozen set, and the fast tier runs every row. What *does* need the guest, the end-to-end
-forward with its errno and fuel, is already held by the checks under `tests/checks/` and by
-Decision 4's sameness.
+(Decision 3). Rows U1 to U10 and U18 need no wasm module. Rows U11 to U16 drive wasmtime-py
+directly with a WAT module, as `test_runner_calls.py` does today, and need no `python.wasm`:
+nothing here needs the frozen set, and the fast tier runs every row. What *does* need the guest,
+the end-to-end forward with its errno and fuel, is already held by the checks under
+`tests/checks/` and by Decision 4's sameness.
 
 - **U1** `missing()` names each absent name of a stand-in holder table, in `NEEDED`'s order, and
-  names nothing when every name is present (a table built from the real wasmtime-py).
+  names nothing when every name is present (a table built from the real wasmtime-py); its second
+  assertion lists the adapter's `__all__` against the names of Decision 1's table (the pre-build
+  review's L5).
 - **U2** `check()` on a table missing two names raises one `ImportError` whose text has
   `version()`, both dotted names and `PIN`.
 - **U3** `_wasmtime()` lets the adapter's error through: with `wasmtime_error_new` removed from
   `_ffi` and the adapter dropped from `sys.modules` (both by `monkeypatch`, restored after),
-  `runner._wasmtime()` raises `ImportError` matching `wasmtime-py 49\.0\.0 .*wasmtime_error_new`;
-  and with `sys.modules["wasmtime"] = None`, it raises the "needs wasmtime-py" error with the
-  cause chained, as today.
+  `runner._wasmtime()` raises `ImportError` matching `wasmtime-py <v> .*wasmtime_error_new`,
+  where `<v>` is `re.escape(importlib.metadata.version("wasmtime"))`, never a literal patch
+  version (the pre-build review's L7: a 49.1.0 install must not turn the row red); and with
+  `sys.modules["wasmtime"] = None`, it raises the "needs wasmtime-py" error with the cause
+  chained, as today.
 - **U4** `PIN` equals the one dependency of `pyproject.toml` (read with `tomllib`), and the
   range in `_wasmtime()`'s "needs wasmtime-py" message (U3's second half) equals `PIN`, so a bump
   that changes one of the three and not the others is red.
@@ -317,9 +351,11 @@ Decision 4's sameness.
 - **U7** `set_async_stack`: a stand-in with the property gets the property; a stand-in without
   it, with `ASYNC_STACK_SETTER` patched to a recorder, gets the binding with `cfg.ptr()`; with
   neither, `RuntimeError` matching `wasmtime-py .* cannot set async_stack_size`. And
+  `test_the_async_stack_size_property_is_preferred`,
   `test_no_engine_is_made_without_the_async_stack_size` and
-  `test_the_guest_driver_makes_the_runners_engine` stay in `test_runner_calls.py`, patching
-  `_wasmtime_ffi.ASYNC_STACK_SETTER` in place of `_ffi`.
+  `test_the_guest_driver_makes_the_runners_engine` stay in `test_runner_calls.py`, calling
+  `_wasmtime_ffi.set_async_stack` in place of the deleted `runner._set_async_stack` and
+  patching `_wasmtime_ffi.ASYNC_STACK_SETTER` in place of `_ffi` (the pre-build review's M1).
 - **U8** `engine_symbol_address()` is a non-zero `int`.
 - **U9** `last_exception()` is `None` after a clean call (the row at `test_runner_calls.py:116`,
   re-pointed); `host_function_count()` is an `int` that grows by one when a `Linker.define_func`
@@ -340,7 +376,19 @@ Decision 4's sameness.
 - **U16** `set_custom_outputs` on a `WasiConfig`, with `OUTPUT_WRITE` and `OUTPUT_FREE`
   callbacks the row defines: a WAT guest that `fd_write`s to 1 and to 2 reaches the write callback
   with the two keys and the bytes; dropping the store reaches the free callback once per key.
-- **U17** `private_engine_hits` (Decision 3's unit row, in `test_scan.py`).
+- **U17** `private_engine_hits` (Decision 3's unit row, in `test_scan.py`): the stand-in tree,
+  and then the real tree: `tests/harness/scan.py` and `tests/unit/test_scan.py` are not hits
+  (the pre-build review's M2); and `private_api_debt_errors` (Design, "The debt is
+  documented"): a stand-in adapter and sheet that agree give no error, a name missing from the
+  sheet, a row naming no entry and a name absent from the docstring each give one.
+- **U18** public first (Decision 8): for every operation whose public form the row's wasmtime-py
+  has, the adapter calls it and not the binding. A stand-in store-like object with `get_fuel`,
+  `set_fuel` and `set_epoch_deadline` recording their arguments, and `_ffi`'s three bindings
+  patched to raise, sees the three public methods used and no binding called; a stand-in
+  `Config` class with an `async_stack_size` property sees the property set and
+  `ASYNC_STACK_SETTER` not called; a stand-in without any of them sees the bindings called on
+  `context_of`. The row reads `wasmtime.Store` for the methods it has, so on a release that adds
+  `Caller.get_fuel` the row covers that too without a change.
 
 ### 6. A wasmtime-py major bump is done in one place
 
@@ -361,6 +409,13 @@ do:
    §4.2); this one gives it its shape. Whether a bump is build-class is that specification's to
    say: `pyproject.toml` is none of the four build-class files, but the released wheel's
    metadata changes.
+6. **When a release makes an operation public** (Design, "The debt is documented"), the same
+   change, or a minor bump's, does three things: the adapter's preference order is already
+   public first (Decision 8), so often nothing changes in the operation; the private name leaves
+   `NEEDED` or `OPTIONAL`; and its row is struck from the facts sheet's table (moved to the
+   sheet's "Landed" list) in the same change, which the rules check
+   `test_the_private_api_debt_is_documented` enforces. If the release is a new major, the pin
+   widens as steps 1 to 5 say.
 
 ### 7. What the chain honours
 
@@ -371,7 +426,10 @@ do:
   it; the one `_epoch_callback` object and the output table stay in the runner's modules
   (`_engine.py` and `_call.py` after 103).
 - **Tests patch the adapter's names**, never `wasmtime._ffi`: `new_error`, `ASYNC_STACK_SETTER`,
-  `watch_epochs`. The rule holds it.
+  `watch_epochs`, `context_address` (the `shared` fixture of `tests/unit/test_runner_cancel.py`,
+  which patches `runner._context_address` today; the pre-build review's M1). A patch takes
+  effect because the runner resolves `ffi.<name>` through the module attribute at call time. The
+  rule holds it.
 - **Prose in `src/` outside the adapter does not spell the private names** (Decision 3). A
   docstring says "through the seam".
 - **`_wasmtime()` keeps the adapter import inside it** wherever 103 moves the function; it is the
@@ -380,6 +438,55 @@ do:
   spec 106's call-context protocol may name it.
 - **Spec 106's `_platform.py`** takes `engine_symbol_address()` from the adapter and keeps
   `dladdr` to itself.
+
+### 8. Public first, in the seam (the owner, 2026-10-20; added after the pre-build review's draft)
+
+**Public first** means: every adapter operation calls wasmtime-py's public API when the installed
+release has it, and falls back to the private binding otherwise, the way `_set_async_stack`
+prefers `Config.async_stack_size` today (spec 078, Decision 1). The choice is made inside the
+adapter, once at import where the public form is a class attribute (`Config.async_stack_size`,
+read into a module constant beside `ASYNC_STACK_SETTER`), or per call by the object given (a
+`Store` has the public fuel and deadline methods; a `Caller` does not).
+
+**What 49.0.0 has** (EXECUTED, `uv run python` over `dir()` and `inspect` in the venv):
+`Store` has `get_fuel`, `set_fuel`, `set_epoch_deadline` and `set_limits`; `Caller` has `get`
+only (and `_context`, `_invalidate`), no fuel and no deadline; `Config` has no
+`async_stack_size`; `WasiConfig.stdout_custom` and `stderr_custom` exist only as setter
+properties; `Func.__call__(store, *params)` accepts a `Caller`; `Engine` has `increment_epoch`
+and no epoch callback; `Store` has no epoch callback; nothing public gives the library's path or a
+symbol's address; `Trap(message)` and `WasmtimeError(message)` build Python exceptions, not an
+owned C error.
+
+| operation | private binding it calls | public form in 49.0.0 | public name the adapter prefers once a release has it | today |
+|---|---|---|---|---|
+| `context_of`, `context_address` | `Caller._context`, `Store._context` | none (`Caller` has `get` only) | a public store identity on `Caller` and `Store` (the C API has `wasmtime_caller_context`) | private |
+| `set_epoch_deadline(storelike, ticks)` | `wasmtime_context_set_epoch_deadline` | `Store.set_epoch_deadline`; none on `Caller` | `Caller.set_epoch_deadline` | public on a `Store`, private on a `Caller` (below) |
+| `get_fuel(storelike)` | `wasmtime_context_get_fuel` | `Store.get_fuel`; none on `Caller` | `Caller.get_fuel` | public on a `Store`, private on a `Caller` (below) |
+| `set_fuel(storelike, fuel)` | `wasmtime_context_set_fuel` | `Store.set_fuel`; none on `Caller` | `Caller.set_fuel` | public on a `Store`, private on a `Caller` (below); the public path's `WasmtimeError` is caught and dropped, so `set_fuel` never raises on either path |
+| `new_error`, `delete_error` | `wasmtime_error_new`, `wasmtime_error_delete` | none: a C error the epoch callback returns and wasmtime owns | a public epoch callback that takes a Python function returning "stop" or "continue n" | private |
+| `EPOCH_CALLBACK`, `watch_epochs` | `_bindings._wasmtime_store_epoch_deadline_callback`, `wasmtime_store_epoch_deadline_callback`, `Store.ptr` | none | `Store.set_epoch_deadline_callback(fn)` | private |
+| `OUTPUT_WRITE`, `OUTPUT_FREE`, `set_custom_outputs` | `_bindings._wasi_config_set_stdout_custom`, `wasi_config_set_stdout_custom`, `wasi_config_set_stderr_custom`, `WasiConfig.ptr` | `WasiConfig.stdout_custom = fn`, `stderr_custom = fn` | the same properties, once their table is safe for several threads | private: the properties keep the callable in `_wasi.CUSTOM_OUTPUTS`, a `Slab` with no lock (READ, `_slab.py`; EXECUTED: no module of wasmtime-py imports `threading`), and wasmtime calls the write and free on its own threads, so the runner keeps its own locked table (spec 011) |
+| `ASYNC_STACK_SETTER`, `set_async_stack` | `wasmtime_config_async_stack_size_set`, `Config.ptr` | none (no property) | `Config.async_stack_size` (sheet 21) | private; the property first when present |
+| `engine_symbol_address` | `_ffi.dll.wasm_engine_new` | none | none wanted: the address of one public C symbol is enough, and only `dladdr` reads it | private |
+| `raw_func` | `Func._func` | none | the same as the prepared call's | private |
+| `PreparedCall` | `wasmtime_val_t`, `WASMTIME_I32`, `WASMTIME_I64`, `wasm_trap_t`, `wasmtime_func_call`, `Trap._from_ptr`, `WasmtimeError._from_ptr`, `wasmtime_context_t` | `Func.__call__(caller, *params)` | a public call that reuses its argument arrays and gives the trap and error back to the caller | private: `Func.__call__` allocates its arrays on every call, on the hottest path the runner has (one per forwarded file call), and hides the trap and error pointers that the fuel bookkeeping in `forward` reads before it raises |
+| `last_exception`, `host_function_count`, `custom_output_table` | `_func.LAST_EXCEPTION`, `_func.FUNCTIONS`, `_wasi.CUSTOM_OUTPUTS` | none | none: the judge reads them to assert the runner adds nothing (sheet 1 for the slot) | private, judge only |
+| `version` | none (`importlib.metadata`) | public already | — | public |
+
+**Fuel and the deadline inside a host function stay on the `Caller`.** Every one of the seven
+sites that reads fuel or sets the deadline today holds a `Caller`, the handle wasmtime gives a
+host function, and none holds the `Store` object (`_Call` keeps the store's context address, not
+the store). 102 does **not** thread the call's `Store` object into those sites, for three
+reasons: the public `Store` methods make the identical C call on the identical context (READ,
+`_store.py:69-92`: `ffi.wasmtime_context_get_fuel(self._context(), …)`), so nothing would change
+but an attribute lookup and a reference on the hottest path; spec 011's guard already compares
+the caller's context with the call's, and passing a different object into the forward would
+give that guard a second thing to be wrong about; and the judge's stand-in calls (`FakeCall` in
+`tests/unit/test_runner_cancel.py`) have no store, so six rows would change for no behaviour.
+So on 49.0.0 those seven sites take the private path, and the adapter takes the public one the
+day a release gives `Caller` the three methods, with no change to the runner. The public
+preference is real today wherever a `Store` is given (U18), and `set_async_stack`'s is real the
+day `Config.async_stack_size` lands.
 
 ## Intent
 
@@ -475,7 +582,11 @@ becomes `from . import _wasmtime_ffi as ffi`, in the same function. Then:
   `ffi.context_address(caller) != call.context`. `_context_address` is deleted.
 - `_Call.stop` and `_epoch_now`: `ffi.set_epoch_deadline(ffi.context_of(caller), 0)`.
 - `_stop_error`: `address = ffi.new_error(b"stopped by wasi_python")`; `if address: return
-  address`; the rest as today.
+  address`; the rest as today. The adapter import sits inside the `try`, where today's `from
+  wasmtime import _ffi` sits, so an import failure in the callback still continues by one tick
+  (the pre-build review's semantics note).
+- `_module_miss`'s cache name (`runner.py:4739`) reads `ffi.version()`, the same
+  `importlib.metadata` string, so no cache file name changes (the pre-build review's L3).
 - `_watch`: `_epoch_callback = ffi.EPOCH_CALLBACK(_on_epoch)` under the lock, then
   `ffi.watch_epochs(store, callback)`. The `_bindings` import goes.
 - `_output_write` and `_output_free` keep their plain `@ctypes.CFUNCTYPE(...)` declarations.
@@ -508,19 +619,69 @@ lines. Its docstring keeps its reason.
 
 ### The judge's side
 
-`scan.private_engine_hits`, the rules check, the unit file, the four touched unit files and
+`scan.private_engine_hits`, the rules check, the unit file, the five touched unit files and
 `test_calls_add_nothing_to_wasmtime_pys_tables` (its two private reads through the adapter), as
-Decisions 3 and 5 say. The claim list is `build/102/claims.toml`, copied into *For the lane*.
+Decisions 3 and 5 say. Two of the five reach names this specification deletes (the pre-build
+review's M1): the `shared` fixture of `tests/unit/test_runner_cancel.py` (`:49`) patches
+`_wasmtime_ffi.context_address` in place of `runner._context_address`, and
+`test_the_async_stack_size_property_is_preferred` (`tests/unit/test_runner_calls.py:312`) calls
+`_wasmtime_ffi.set_async_stack` and patches `_wasmtime_ffi.ASYNC_STACK_SETTER` in place of
+`runner._set_async_stack` and `_ffi`'s binding (U7). The claim list is `build/102/claims.toml`,
+copied into *For the lane*.
+
+### The debt is documented (the owner, 2026-10-20; added after the pre-build review's draft)
+
+**The debt** is the set of private bindings the runner still needs: each is a thing wasmtime-py
+could make public, and until it does, a thing a release can move. The debt is written down in
+one facts sheet, held in step with the code by a rules check, and paid down by the procedure of
+Decision 6, step 6.
+
+- **The sheet** is `context/upstream/34-wasmtime-py-public-api-for-the-runner/facts.md` (34 is
+  the next free number; the folder's shape follows
+  `21-wasmtime-py-async-stack-size/facts.md`: Project, Against, Status, Title, Files, Why we need
+  it, the "facts sheet, not an issue" paragraph, then numbered facts labelled EXECUTED or READ).
+  Its heart is one table, "The bindings", with **one row per entry of `NEEDED` and `OPTIONAL`**
+  (thirty rows: fifteen `_ffi` names, two `_bindings` records, two `_func` names, one `_wasi`
+  name, nine class attributes, and the optional async-stack setter): the binding as a dotted name
+  in backticks, the C API function it is, what the runner does with it, the public wasmtime-py
+  API that would replace it, whether 49.0.0 has it, and the existing sheet it overlaps (21 for
+  the async stack size, 1 for the exception slot). Below the table, a "Landed" list holds the
+  rows struck when a release made them public. `context/upstream/README.md`'s table gains the
+  matching row, appended after row 29.
+- **(a) The adapter's module docstring** carries the same list in short form, one line per
+  operation, `private binding → public name wanted`, so the one place to look (Decision 6) says
+  what is owed without the sheet open.
+- **(b) A rules check**, `tests/checks/test_rules.py::test_the_private_api_debt_is_documented`,
+  over `scan.private_api_debt_errors(adapter, sheet) -> list[str]`: it reads the adapter's
+  source with `ast` (no wasmtime-py import, as every other rules check is static), takes
+  `NEEDED` and `OPTIONAL` as tuple literals (`ast.literal_eval`), forms each dotted name as
+  `holder + "." + name`, reads every row of the sheet's "The bindings" table (a line starting
+  with `` | ` `` under that heading, its first cell), and reports: every dotted name with no row;
+  every row whose first cell is no dotted name of the two tuples; and every dotted name the
+  module docstring (`ast.get_docstring`) does not contain. So the sheet cannot drift from the
+  code in either direction, and a binding removed from `NEEDED` because a public name landed is
+  struck from the table in the same change (moved to "Landed"), or the check is red. Its unit
+  row is U17's second half.
+- **(c) When a release makes an operation public**, the change is Decision 6, step 6: switch
+  the preference order (already public first, so often nothing), drop the private name from
+  `NEEDED` or `OPTIONAL`, strike the row, and widen the pin if the release is a new major.
 
 ### `ruff`
 
-`from wasmtime import _bindings, _ffi, _func` and the `noqa: F401` on `_wasmtime()`'s import are
-the only lint-sensitive lines; `ruff check` and `ruff format --check` stay green on `src/` and
-`tests/`.
+`from wasmtime import _bindings, _ffi, _func, _wasi` and the `noqa: F401` on `_wasmtime()`'s
+import are the only lint-sensitive lines; `ruff check` and `ruff format --check` stay green on
+`src/` and `tests/`.
 
 ## Scope
 
-In: Decisions 1 to 7. Out:
+In: Decisions 1 to 8, and the facts sheet of Design, "The debt is documented", with its rules
+check and its README row. Out:
+
+- **Threading the call's `Store` object into the host functions** so fuel and the deadline take
+  the public path on 49.0.0 (Decision 8 says why not); the adapter takes it the day `Caller` has
+  the methods.
+- **Asking wasmtime-py for anything**: the sheet is a facts sheet, not an issue (question 80;
+  the Bytecode Alliance's policy on agents); whether to ask, and the words, are the owner's.
 
 - **Splitting `runner.py`** (spec 103), **the process-state owner** (104), **typed call state and
   the type checker** (105), **`mounts.py` behind a protocol and the platform module** (106).
@@ -534,16 +695,18 @@ In: Decisions 1 to 7. Out:
 
 ## Acceptance criteria
 
-Twelve, each checkable:
+Fourteen, each checkable:
 
 1. **The adapter exists** at `src/wasi_python/_wasmtime_ffi.py` and exposes exactly the names of
-   Decision 1's table (a unit row lists `__all__` against the table's names), each parameter and
-   return annotated.
+   Decision 1's table (U1's second assertion lists `__all__` against the table's names), each
+   parameter and return annotated.
 2. **The import check**: U1, U2 and U3 pass; `uv run python -c "import wasi_python._wasmtime_ffi"`
    prints nothing on wasmtime-py 49.0.0.
 3. **The rules check** `tests/checks/test_rules.py::test_only_the_engine_seam_touches_wasmtimes_
    private_api` is **seen failing first** on `a9064a2` with 31 hits (25 in `src/`, 6 in
-   `tests/`; the output kept as `build/102/rule-before.txt`) and passes on the built commit.
+   `tests/`; the output kept as `build/102/rule-before.txt`) and passes on the built commit,
+   `tests/harness/scan.py` and `tests/unit/test_scan.py` included (Decision 3, the split
+   literals; U17 holds it).
 4. **No line of `src/` or `tests/`** outside the two exempt files matches the regex of
    Decision 3 (criterion 3's pass is the evidence).
 5. **Sameness on the frozen set**: `sameness.py --claims build/102/claims.toml` between the base
@@ -555,16 +718,26 @@ Twelve, each checkable:
    the unit rows; the landing notes give both counts.
 8. **Fuel neutrality held**: `tests/unit/test_runner_mounts.py::test_the_rename_rule_forward_is_
    fuel_neutral` passes on the built commit, unchanged.
-9. **The seventeen unit rows** of Decision 5 pass, in `tests/unit/test_wasmtime_ffi.py` (U1 to
-   U16) and `tests/unit/test_scan.py` (U17); the three moved rows are gone from their old files
-   (`uv run pytest --collect-only -q` names no `test_the_bindings_the_runner_calls_exist` outside
-   the new file).
+9. **The eighteen unit rows** of Decision 5 pass, in `tests/unit/test_wasmtime_ffi.py` (U1 to
+   U16, U18) and `tests/unit/test_scan.py` (U17); the three moved rows are gone from their old
+   files (`uv run pytest --collect-only -q` names no `test_the_bindings_the_runner_calls_exist`
+   outside the new file); the two re-pointed files (`test_runner_cancel.py`,
+   `test_runner_calls.py`) keep every row they have.
 10. **The package imports without wasmtime-py** (`test_package_imports_without_wasmtime`) and
     without the adapter (U10).
 11. **`ruff check` and `ruff format --check`** are green on `src/` and `tests/`; `test_no_module_
     level_name_is_bound_twice` stays green (the adapter binds each name once).
 12. **`tests/public_api.txt` is unchanged**: `git diff --stat` of the branch against its base
     names no line of it, and the API snapshot check stays green.
+13. **The debt is documented** (Design): the sheet
+    `context/upstream/34-wasmtime-py-public-api-for-the-runner/facts.md` exists with its thirty
+    rows and its README row; `tests/checks/test_rules.py::test_the_private_api_debt_is_
+    documented` is **seen failing first** on `a9064a2` (no adapter file: one error naming it) and
+    passes on the built commit; the adapter's docstring names every entry of `NEEDED` and
+    `OPTIONAL` (the same check).
+14. **Public first** (Decision 8): U18 passes; `set_async_stack` and the three fuel and deadline
+    operations take the public path when the object has it, and the seven `Caller` sites keep
+    their private path on 49.0.0 (criterion 5's sameness is the evidence that nothing moved).
 
 ## For the lane
 
@@ -583,20 +756,24 @@ Twelve, each checkable:
   ```toml
   [[claim]]
   spec = "102"
-  new = ["tests/checks/test_rules.py::test_only_the_engine_seam_touches_wasmtimes_private_api"]
-  units = 17
+  new = [
+    "tests/checks/test_rules.py::test_only_the_engine_seam_touches_wasmtimes_private_api",
+    "tests/checks/test_rules.py::test_the_private_api_debt_is_documented",
+  ]
+  units = 18
   ```
 
   102: **retired checks:** none. **Lost passes:** none. **Rows that grow:** none.
   **The judge hash changes** in `tests/harness/scan.py`, `tests/harness/guest.py`,
   `tests/checks/test_rules.py`, `tests/checks/test_v1_4_embedding.py`,
   `tests/unit/test_wasmtime_ffi.py`, `tests/unit/test_scan.py`, `tests/unit/test_runner_calls.py`,
-  `tests/unit/test_runner_async.py` and `tests/unit/test_runner_mounts.py`.
+  `tests/unit/test_runner_cancel.py`, `tests/unit/test_runner_async.py` and
+  `tests/unit/test_runner_mounts.py`.
 - **The flags** (paste-safe; no `--accept-growth` is expected, and one would be a finding):
 
   ```
-  --accept "102: one module, src/wasi_python/_wasmtime_ffi.py, touches wasmtime-py's private API; the runner and the mounts drive the engine through its named operations; a moved symbol is one ImportError at the first run(), naming the wasmtime-py version and the names; no behaviour change, the frozen set's verdicts the same"
-  --accept-judge "102: a rules check that no .py under src/ or tests/ but the seam and its unit file imports wasmtime._ffi, _bindings, _func or _wasi or touches ._context(), ._func, _from_ptr or .ptr(); the adapter's unit file (sixteen rows) and the scan's row; three rows moved to it; one embedding check counts wasmtime-py's tables through the seam; the harness driver sets the async stack size through the seam; no existing expectation edited"
+  --accept "102: one module, src/wasi_python/_wasmtime_ffi.py, touches wasmtime-py's private API, public first where a release has the public form; the runner and the mounts drive the engine through its named operations; a moved symbol is one ImportError at the first run(), naming the wasmtime-py version and the names; the private bindings still needed are listed in context/upstream/34-wasmtime-py-public-api-for-the-runner/facts.md; no behaviour change, the frozen set's verdicts the same"
+  --accept-judge "102: a rules check that no .py under src/ or tests/ but the seam and its unit file imports wasmtime._ffi, _bindings, _func or _wasi or touches ._context(), ._func, _from_ptr or .ptr(); a rules check that every entry of the adapter's NEEDED and OPTIONAL tuples is a row of the debt sheet's table, every row an entry, and every entry named in the adapter's docstring; the adapter's unit file (seventeen rows) and the scan's row; three rows moved to it; two rows re-pointed to the adapter's names; one embedding check counts wasmtime-py's tables through the seam; the harness driver sets the async stack size through the seam; no existing expectation edited"
   ```
 
 - **Dry-run needs:** none of its own; the chain's one dispatch covers it on three systems.
