@@ -21,8 +21,8 @@
   as builtins, the per-file include rule in `scripts/wasi-cc`, `scripts/install_from_plan.py`,
   the rename table in `scripts/gen_inittab.py`, the pinned oracle's scipy and the recording
   platform), 039 (joblib, cloudpickle, threadpoolctl with `ctypes.util.dllist`, narwhals,
-  `jobs.run_in_guest`, `tests/checks/test_v1_3_default_profile.py`), 042 (`make_stdlib_zip.py
-  --leave-out`), and through them 023, 033 and 035. Landed: 020 (each source tree equals its
+  `jobs.run_in_guest`, `tests/checks/test_v1_3_default_profile.py`), 042 (whose `--leave-out` this no longer
+  needs: 023's `--drop` does the work, B2), and through them 023, 033 and 035. Landed: 020 (each source tree equals its
   tarball plus the recorded patches), 012 (the same bytes from any host). Where one of them lands
   in another shape than its text, this specification uses what landed and says so in its
   landing notes.
@@ -371,7 +371,8 @@ new here is small but sharp:
 
 10. **The zip.** Step 70 gains `--tree "$B/sklearn-install"`, `--metadata
     "$B/scikit_learn-1.9.1/PKG-INFO"` (033's option; `Name: scikit-learn`, `Version: 1.9.1`,
-    READ) and `--leave-out sklearn/datasets/images/` (042's option).
+    READ) and `--drop sklearn/datasets/images` (spec 023's option, which applies to every input
+    and stops when it matches nothing; 042's Decision 5 extends it rather than adding one, B2).
     - **Why the sample photographs are left out, while the datasets stay.** `china.jpg` and
       `flower.jpg` are under Creative Commons Attribution 2.0 (READ:
       `sklearn/datasets/images/README.txt`), and three of the datasets are copies of sets their
@@ -555,12 +556,11 @@ new here is small but sharp:
 
 14. **Ordering, and one builder** (§5.7: one build-class specification in flight, one landing at
     a time).
-    - **It builds after 038 and 039, and after 042.** 037 and 038 bring scipy whole (and the
-      machinery this reuses); 039 brings joblib, threadpoolctl with `dllist`, narwhals and the
-      check file; 042 brings `--leave-out`. The queue already puts 039 after 038, and 041 and
-      042 after 039 (their Decisions 9 and 13). If 042 has not landed when this is confirmed and
-      everything else has, this builds first and adds `--leave-out` exactly as 042's Decision 5
-      describes, and 042 then uses it.
+    - **It builds after 038 and 039.** 037 and 038 bring scipy whole (and the machinery this
+      reuses); 039 brings joblib, threadpoolctl with `dllist`, narwhals and the check file. It
+      does not wait for 042: the photographs leave with 023's `--drop`, which 042's Decision 5
+      itself says to extend rather than double (B2), so no option is added here and 042 can use
+      `--drop` too.
     - **045 (statsmodels) builds right after this one.** It reuses Decision 4's staging and this
       step's pattern. If this specification stalls (AGENTS.md rule 7), 045 may build first and
       brings `stage_scipy_cimports.sh` itself.
@@ -603,7 +603,7 @@ lets scikit-learn read its own style sheets from the zip.
 | `scripts/install_from_plan.py` | `--modules-only` (Decision 5) |
 | `scripts/weak_duplicates.py`, `recipes/weak-duplicates-allowed.txt` | new: the weak-duplicate gate before the link, its reviewed list; and the link-map check after it, in step 60 (Decision 6) |
 | `scripts/gen_inittab.py`, `scripts/steps/60_link.sh` | scikit-learn's modules and archives, four renames (Decisions 6, 8) |
-| `scripts/steps/70_zip.sh` | the tree, its metadata, the images left out (Decision 10) |
+| `scripts/steps/70_zip.sh` | the tree, its metadata, the images left out with `--drop sklearn/datasets/images` (Decision 10, B2) |
 | `scripts/build.sh`, `scripts/assemble_artifacts.py`, `LICENSES/` | step 58 in `ALL`; `PACKAGES`; `LICENSES/scikit-learn.txt` with its bundled notices and the datasets' attribution part (Decision 11) |
 | `tests/jobs/machine_learning.py`, `.expected`; `tests/jobs/oracle/pyproject.toml`, `uv.lock`; `tests/harness/jobs.py` | the golden, the oracle's pin and `OMP_NUM_THREADS=1`, `JOBS`, the recording platform (Decision 13) |
 | `tests/checks/test_v1_3_default_profile.py` | the four behaviour checks |
@@ -634,7 +634,7 @@ In: Decisions 1 to 14. Out:
    the `_pprint.py` part; the weak-duplicate gate against a build without `_newrand`'s rename
    header (it names `bounded_rand_int`); `test_scikit_learn_reads_its_files_from_the_zip`
    and the golden again on a build without the patch (`NotADirectoryError` at `import sklearn`),
-   which the builder runs once; the images check against a zip built without `--leave-out`;
+   which the builder runs once; the images check against a zip built without the `--drop`;
    the unit checks before their code; the constructor list without the new names.
 2. **The build** went through Decision 14's four stages. A full build from pins in a clean clone
    applies the patch with no offset, passes the OpenMP gate, the include log, the module count
@@ -690,7 +690,8 @@ question 83 approved everything as decided here.
   four files of `cluster/_hdbscan/`. And `StratifiedGroupKFold._iter_test_indices`
   (`model_selection/_split.py:1001-1015`), "based on this kaggle kernel … and is a subject to
   Apache 2.0 License", with its list of changes. Both families are approved elsewhere
-  (BSD-3-Clause throughout; Apache-2.0 with regex, decision 43), and both are compiled or packed
+  (BSD-3-Clause throughout; Apache-2.0 for SheenBidi and regex in the constitution's §4.12
+  list; decision 43 names regex's licence as CNRI-Python, as the confirmation corrected), and both are compiled or packed
   here, so `LICENSES/scikit-learn.txt` gains their parts (`_tree.pxd` lines 1-28; `_split.py`
   lines 1001-1015 and the plain Apache-2.0 text, wasi-libc's pinned `LICENSE-APACHE`, no new pin)
   and the judge's notice check holds them. The owner is asked to confirm both are inside question
@@ -737,6 +738,64 @@ question 83 approved everything as decided here.
 - **B10 (Note): the constructor list** grows at stage 3, when the build shows the names and their
   link order (Decision 8).
 
+**The confirmation's items** (`../reviews/044-scikit-learn-and-045-statsmodels-spec-2026-10-18.md`,
+"Confirmation (2026-10-20)": confirmed for build; B1 needs the owner's word before landing, and
+the lane asks it):
+
+- **L1, done: pytest's licence is pinned and shipped.** `_testing.py:575-577` attributes MIT
+  code to pytest but carries no permission text, so pytest's `LICENSE` is pinned as django's is:
+  `https://raw.githubusercontent.com/pytest-dev/pytest/0d90a31d4a647fa7ba0d53a05b9266c2d4aaa05a/LICENSE`
+  saved as `pytest-0d90a31d-LICENSE`, SHA-256
+  `ca836a5f9ecca3b2f350230faa20a48fb8b145653b5568d784862df864706b9b`, 1,091 bytes (EXECUTED: the
+  last commit to touch the file, its bytes equal to `main`'s). `LICENSES/scikit-learn.txt` carries
+  it after django's, and the judge's notice check holds it (seen failing without it).
+- **L2:** the three lines go into the landing notes' sweep list (below).
+- **L3, done:** the Dependencies line, Decisions 10 and 14, acceptance criterion 1 and the Design
+  row say `--drop`.
+- **N1, done in the script:** stage 1's native test subset is `scripts/sklearn_native_tests.sh`,
+  not a build step. It runs the sdist's code on the host, as the oracle runs native wheels, so it
+  is confined the same way: the venv, the source, the native build, the test site and the
+  outputs under `build/sklearn-native/`; `HOME`, `XDG_CACHE_HOME`, the uv cache and
+  `SCIKIT_LEARN_DATA` there; `SKLEARN_SKIP_NETWORK_TESTS=1`, so no test fetches a dataset; the
+  packages from the oracle's and the project's `uv.lock` with hashes; one thread. The landing
+  notes say so beside the counts.
+- **N2:** the compiled-objects case of `test_sklearn_build.py` runs and passes in the build tree,
+  after step 10, before "built"; the landing notes record it.
+- **N3, enforced:** each pattern in `recipes/weak-duplicates-allowed.txt` must carry `# <reason>`
+  on its line or the build stops (a unit check holds it), and the build review reads each one.
+
 ## Landing notes
 
-Not built.
+Not built. Drafted before the build, to be completed with it:
+
+**The notice sweep (Decision 11).** Every shipped `.py`, `.pyx`, `.pxd`, `.c`, `.cpp`, `.h` and
+`.tp` file outside `tests/` whose comments say "Copyright", "License" or "adapted / derived /
+copied / taken / borrowed / based on", paired (READ by the builder, 2026-10-20; the build checks
+it again):
+
+- Parts of `LICENSES/scikit-learn.txt`: `svm/src/libsvm/svm.cpp` (and the "borrowed from
+  original libsvm code" lines of `libsvm_helper.c:410` and `libsvm_sparse_helper.c:457`);
+  `svm/src/liblinear/`; `externals/array_api_compat/`, `externals/array_api_extra/`;
+  `externals/_arff.py`; `externals/_packaging/version.py` and `_structures.py` (with
+  `version.py:235`'s scheme from pkg_resources, inside packaging's file); `utils/src/MurmurHash3.*`;
+  `utils/_pprint.py`; `utils/_testing.py:575` (with pytest's pinned licence, L1);
+  `cluster/_hdbscan/` (B1); `model_selection/_split.py:1001` (B1, with the Apache-2.0 text);
+  `externals/_numpydoc/docscrape.py` (numpydoc's pinned licence); `datasets/_base.py:1547`
+  (django's pinned licence).
+- Under another notice the release ships: scipy's (`utils/fixes.py:117`, `utils/optimize.py:34`,
+  `gaussian_process/kernels.py:2240`); joblib's (`utils/_user_interface.py:24`); pandas'
+  (`utils/_show_versions.py:4`); networkx's (`utils/graph.py:15`); CPython's
+  (`utils/_testing.py:121`, "Copied from Python 2.7.5").
+- **L2's three, no notice needed, each with its reason:**
+  - `utils/deprecation.py:35`, "Adapted from https://wiki.python.org/moin/PythonDecoratorLibrary,
+    but with many changes": a decorator class rewritten from a recipe on the Python wiki; what
+    the file keeps is the general idiom, not the recipe's text (READ: the class is scikit-learn's
+    own). If the build review reads it otherwise, it pairs with the CPython/PSF family.
+  - `utils/_random.pyx:207`, "based on the one of Robert Kern" (a numpy-discussion post, 2010):
+    an algorithm described in a mailing-list message and reimplemented in Cython, no code copied.
+  - `linear_model/_sag_fast.pyx.tp:545`, "Idea taken from scikit-learn-contrib/lightning": an
+    idea, not code.
+- scikit-learn's own: its SPDX lines; `_cd_fast.pyx:19` and `tree/_criterion.pyx:1513` copy from
+  scikit-learn's own tree code; `feature_extraction/_stop_words.py:4`, the Glasgow list, named in
+  question 83; algorithm citations (`_samples_generator.py:213`, Guyon; `_robust_covariance.py`,
+  Pison and Croux; the `.pyx` proxies "derived from" their formulas).

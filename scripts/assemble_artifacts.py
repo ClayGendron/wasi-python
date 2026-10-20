@@ -273,10 +273,12 @@ SKLEARN_LINES = (
     # list of changes Apache-2.0 4(b) asks for (the build's notice sweep); the licence text follows
     ("sklearn/model_selection/_split.py", 1001, 1015, ("kaggle", "Apache 2.0 License")),
 )
-# Two adaptations whose source files carry no notice: the projects' own licence texts, pinned.
+# Three adaptations whose files carry no full notice: the projects' own licence texts, pinned.
 SKLEARN_PINNED = (
     ("numpydoc-894c8c47-LICENSE.txt", "numpydoc, for sklearn/externals/_numpydoc/docscrape.py"),
     ("django-1dae4ac1-LICENSE", "django, for the slugify adaptation in sklearn/datasets/_base.py"),
+    # the MIT permission text for _testing.py's pytest-derived lines (the confirmation's L1)
+    ("pytest-0d90a31d-LICENSE", "pytest, for the derived lines of sklearn/utils/_testing.py"),
 )
 # The six bundled datasets: three are copies of sets UCI publishes under CC BY 4.0, which asks for
 # this attribution (decision on question 83).

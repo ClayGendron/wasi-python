@@ -531,3 +531,215 @@ Both designs reproduce, goldens included, but 044 must tell the owner its digits
 cancer and wine data are CC BY 4.0 at UCI, ship two stripped notices and fix its patch's
 import order, and 045 must reconcile `--leave-out NAME` with 042's check and keep a missing
 file a `FileNotFoundError`, before either is built.
+
+## Confirmation (2026-10-20)
+
+- **Who:** a fresh agent (Claude Opus 5.5). I did not write either specification, the review
+  above or the builder's phase 1.
+- **What I read:** 044 at `2e7dadf` on `spec/044-scikit-learn` (worktree
+  `/Users/claygendron/Git/Repos/wasi_python-044`), with its new section "The builder's notes
+  before the build". The Disposition above. `context/decisions.md` (questions 80 and 83). The
+  constitution's §4.12 list. 042's Decision 5. The phase-1 diff `50a3fe3..2e7dadf` (49 files):
+  step 58, the cross file, the include map, the eight rename headers,
+  `scripts/weak_duplicates.py`, the allowed list, `stage_scipy_cimports.sh`, the step 60 and
+  step 70 hunks, `gen_inittab.py`, `install_from_plan.py`, `assemble_artifacts.py`,
+  `00_download.sh`, `SHA256SUMS`, the release workflow, and the judge's notice check.
+- **What I ran (EXECUTED, darwin-arm64):**
+  - `shasum -a 256` on the worktree's `downloads/` copies of the sdist, numpydoc's and django's
+    licence texts, wasi-libc's `LICENSE-APACHE`, and the carried patch. Each equals its pin.
+  - Reading the pinned sdist with `tar -xOf` only. Nothing from it was run.
+  - A sweep of my own over the sdist's shipped files (not under `tests/`) for notice words. It
+    was a read-only `tarfile` script, run with `uv run python -I` from my scratch folder. The
+    output is `…/scratchpad/sweep.txt` (134 lines).
+  - `uv run pytest tests/unit/test_sklearn_build.py tests/checks/test_rules.py` in the
+    worktree. `build/lane.lock` was absent in the main tree before the run. Result:
+    **48 passed, 3 skipped, 0 failed.** The skips: the compiled-objects case (step 10 has not
+    run in the worktree), and two rules that need the artifact directory or the prior-art
+    clones. The scoreboard prints RED, "1 accepted pass(es) blocked (say --partial to
+    allow)". That is the ratchet on a partial run without artifacts, not a failing check.
+- **Not done:** no build, no judge beyond those two files, no commit.
+
+### 1. The Disposition, finding by finding
+
+I read each answer against the specification's text at `2e7dadf`, and against the decision it
+leans on.
+
+- **Finding 1 (Medium), the datasets' terms: confirmed.** Decision 11 now names each of the six
+  datasets' source and stated terms. Question 83 was answered as decided: CC BY 4.0 is approved
+  for digits, breast cancer and wine, and all six ship with attribution. The constitution's
+  §4.12 list says the same. `assemble_artifacts.SKLEARN_DATA` has the attribution part. It
+  names the title, the creator, the UCI URL, CC BY 4.0 with the licence URL, and "unchanged",
+  which is what CC BY 4.0 §3(a) asks for. Decision 10 explains why the photographs are treated
+  differently. The "if the owner declines" branch is now moot.
+- **Finding 2 (Medium), notices stripped by compilation: confirmed.** These parts are in
+  `SKLEARN_LINES`:
+  - `_pprint.py` lines 7-67. I checked that line 7 is the first PSF copyright line and line 67
+    ends the summary of changes.
+  - `_testing.py` lines 575-577.
+  - `_structures.py` beside `version.py`, each lines 4-26 (the BSD-2-Clause block).
+  - `_arff.py` lines 1-25 and `MurmurHash3.cpp` lines 2-3. Both ranges match the sdist.
+
+  The django and numpydoc texts are pinned by commit URL and SHA-256, and they verify. The judge
+  check `sklearn_notice_errors` compares each part with the bytes of the pinned sdist. One
+  residue is listed under L1 below.
+- **Finding 3 (Medium), the patch's import order: confirmed.** The carried patch hashes to
+  `35064ebb…5680`, the value Decision 7 records. `from importlib.resources import files` now
+  sorts between `contextlib` and `inspect`. I did not re-run ruff on it; the author's EXECUTED
+  claim stands, and the sort order is plain to read.
+- **Finding 4 (Medium), why a patch and not a recipe: confirmed.** Decision 7 now uses 041's
+  reasoning. It accepts that a recipe would be recorded. It rules out the files-where-it-looks
+  route and a run-time swap (the read runs in the module body, at import). It says a working
+  recipe would be an import hook or a replacement module that 020 cannot see and nothing can
+  ever delete.
+- **Finding 6 (Medium-low), the weak duplicate: confirmed, with B3's narrowing accepted.** Two
+  gates exist and both are wired into step 60:
+  - **Before the link:** `weak_duplicates.py archives` lists weak definitions that two archives
+    share, and stops on any that is neither allowed by rule nor reviewed.
+  - **After the link:** `link-map` checks the link map.
+
+  The original fix asked that every renamed name be required in the map. B3 requires four
+  instead: the three renamed `mt_rand` objects and `sklearn_liblinear_set_seed`. It forbids all
+  three original names. B3's reason holds. A renamed function whose every call is in its own
+  file may be inlined and then dropped by the linker. A missed rename can only show up wrongly
+  where a definition is emitted in two archives, and that is exactly what the pre-link gate
+  sees. The forbid list catches any original name that survives.
+
+  I also checked the call sites in the sdist. `liblinear_helper.c:187` is the only outside call
+  to `set_seed`. `_newrand.pyx` uses its own copy. No libsvm helper calls the generator. So a
+  missed rename either links silently (and the gates cover that case) or fails loudly as an
+  undefined symbol.
+- **Findings 11 to 14 (Low and nits): confirmed.** They are in Decisions 2, 9 and 13, in the
+  facts sheet and in the golden. The sheet ends with scikit-learn's disclosure, verbatim, at its
+  new path. B4 corrects finding 14's nit: libsvm's comment closes on line **32**, which I
+  checked, and the code uses 1-32.
+- **Question 80:** answered as "a facts sheet the owner rewrites". The sheet keeps that form.
+  The landing notes still have to say so (acceptance criterion 5).
+- **Findings 5 and 7 to 10** belong to 045 and are not confirmed here.
+
+### 2. The builder's notes, B1 to B10
+
+- **B1 (Medium): both claims are accurate, and the notices are complete as the sdist carries
+  them. Neither component is inside question 83's approval as written. This needs the owner's
+  word.** EXECUTED, `tar -xOf` on the pinned sdist:
+  - **HDBSCAN.** Lines 1-28 of `sklearn/cluster/_hdbscan/_tree.pxd` are Leland McInnes'
+    complete BSD-3-Clause notice. It runs from "Copyright (c) 2015, Leland McInnes" to
+    "POSSIBILITY OF SUCH DAMAGE.", and line 29 is code. Four other files, `_linkage.pyx`,
+    `_reachability.pyx`, `_tree.pyx` and `hdbscan.py`, carry the same three clauses and the
+    disclaimer under "Authors: The scikit-learn developers", with no McInnes line.
+    `__init__.py` has only the SPDX line. So "its full notice heads `_tree.pxd` and its terms
+    the other four files" is exact. The `_tree.pxd` part is the notice to ship, and it is whole.
+  - **StratifiedGroupKFold.** `model_selection/_split.py` lines 1001-1015 hold three things:
+    the Kaggle kernel's URL (author `jakubwasikowski`), "is a subject to Apache 2.0 License",
+    and the changelist. Line 1000 is the `def` and line 1016 is code, so the range is exact. The
+    full licence text comes from wasi-libc's pinned `LICENSE-APACHE`. I checked that it is the
+    plain Apache 2.0 text: no LLVM exception, which is a separate pin. That meets Apache-2.0
+    §4(a). The changelist meets §4(b). The sdist carries no copyright line of the kernel's to
+    keep under §4(c), and no NOTICE file. Nothing more can be shipped without fetching the
+    kernel, which is not a pinned input.
+  - **Why this is not inside question 83.** §4.12 approves "scikit-learn's and statsmodels'
+    bundled code **as specs 044 and 045 list it**". Neither component was listed. Both licence
+    families are approved elsewhere: BSD-3-Clause for scikit-learn itself, and Apache-2.0 for
+    SheenBidi and regex. One correction: B1 cites "Apache-2.0 with regex, decision 43", but
+    decision 43's text names regex's licence as CNRI-Python. Apache-2.0 for regex is in the
+    constitution's §4.12 list. The project's precedent is to ask the owner: questions 81 (GIST
+    code under contourpy) and 82(c) (lxml's ElementTree and difflib-derived files "read as
+    inside the approved CPython family") were each put to the owner, not inferred.
+  - **What I recommend asking:** one question through AskUserQuestion: "Approve HDBSCAN's code
+    (BSD-3-Clause, Leland McInnes) and StratifiedGroupKFold's Kaggle-derived fold assignment
+    (Apache-2.0) inside scikit-learn, shipped with the notices in `LICENSES/scikit-learn.txt`?"
+    I recommend yes. L1's pytest text can go in the same question.
+  - **What it blocks:** stages 1 to 3 can be built while the question is open, because nothing
+    ships before landing. The specification must not land without the answer. If the owner
+    declines, HDBSCAN's three compiled modules leave the build, which changes the module count
+    and drops one of the four renames, and the specification is revised first.
+- **B2 (Low): confirmed.** 042's Decision 5 says: "If 023 lands any member-exclusion option …
+  this specification extends that option … and adds none of its own". `make_stdlib_zip.py`'s
+  `--drop` applies to every input, matches a folder prefix, and stops when it matches nothing
+  (`Selection.matched`). Decisions 10 and 14 and the Design table still say `--leave-out`; see
+  L3.
+- **B3 (Low): confirmed** (see finding 6 above).
+- **B4 (Low): confirmed**, line 32 (EXECUTED).
+- **B5 (Low): confirmed by reading.** There are nine entries and eight headers. The `@SO@`
+  entries name each module's private folder, which keeps the two `_gradient_boosting.c` and
+  the two `_utils.c` apart. Step 58 checks that each entry matched exactly one compile, so a
+  wrong suffix stops stage 2.
+- **B6 (Low): confirmed.** `scan.MESON_BUILDS` and `CPP_CROSS_FILES` gain the build and the
+  cross file. `packages.toml` marks scikit-learn `later`, with a reason and a closer, which
+  satisfies AGENTS.md's spec 063 rule. The notice check is in the build shard by node id. These
+  are judge changes for `--accept-judge`.
+- **B7 (Low): confirmed, with N3 below.** A stale pattern stops the build, so the list cannot
+  outlive what it allows. The list starts empty.
+- **B8, B9 and B10: confirmed as notes.** For B9, `descr/wine_data.rst`'s "Original Owners:
+  Forina, M. et al, PARVUS" is the right credit; `SKLEARN_DATA` uses it.
+
+### 3. Is phase 1 ready to build?
+
+**Yes. I found nothing unsafe.**
+
+- **Every input is pinned.** The sdist, numpydoc's and django's texts each have a `get` line and
+  a `SHA256SUMS` line, and each verifies (EXECUTED). Step 58 takes the tarball through
+  `pinned`, which runs `shasum -c` against `SHA256SUMS` before use. The Apache text is
+  wasi-libc's existing pin, which `assemble_artifacts` reads through `pinned_bytes`. The oracle's
+  wheel is pinned by hash in `uv.lock` (`e1b46824…8942`).
+- **Everything stays under `build/`.** Step 58 unpacks, patches, stages and builds only there:
+  `build/scikit_learn-1.9.1`, `sklearn-build`, `sklearn-install`, `sklearn-modules` and
+  `scipy-cimport`. It writes the rendered cross file and include map into `build/` and never
+  into `recipes/`. It runs `meson`, `ninja`, Cython and the sdist's version script as build
+  tools, as AGENTS.md allows. Step 60's gate runs only the SDK's `llvm-nm` and `llvm-cxxfilt`
+  (both present in SDK 34, EXECUTED `ls`) over `build/` archives. Nothing installs into the
+  system.
+- **The gates that matter are present.** Step 58 checks the version, that OpenMP is not found,
+  that no compile has `-fopenmp`, that `blas_int` was found, the include log, and the module
+  count. The cross file matches pandas' flags without the rename header (READ, compared).
+
+Items that do not block the build:
+
+- **L1 (Low, notices): pytest's MIT permission text is not shipped.** Lines 575-577 of
+  `_testing.py` are an attribution ("Licensed under MIT License. See
+  https://github.com/pytest-dev/pytest"). MIT asks that the copyright notice and the permission
+  notice go with substantial portions. The derived code is small, and finding 2's own fix asked
+  only for the attribution. Even so, pinning pytest's `LICENSE` by commit URL, as django's and
+  numpydoc's are pinned, costs one line. Do that, or write down why not, before landing; or put
+  it in B1's question.
+- **L2 (Low, the sweep's list): pair three lines by name in the landing notes' sweep list.** My
+  sweep found nothing beyond what Decision 11 and B1 name that would need a notice. Three lines
+  are not named in the text and should be paired explicitly:
+  - `utils/deprecation.py:35`: "Adapted from https://wiki.python.org/moin/PythonDecoratorLibrary,
+    but with many changes". This is a Python wiki snippet. Pair it with the CPython or PSF
+    family, or give a written reason.
+  - `utils/_random.pyx:207`: "based on the one of Robert Kern", a mailing-list post.
+  - `linear_model/_sag_fast.pyx.tp:545`: "Idea taken from scikit-learn-contrib/lightning".
+
+  The scipy-derived lines go under scipy's notice, as B1 says: `utils/fixes.py:117`,
+  `utils/optimize.py:34`, `gaussian_process/kernels.py:2240` and the `_dist_metrics` scipy
+  pull request.
+- **L3 (Low, text):** Decisions 10 and 14 and the Design row for step 70 still say
+  `--leave-out`. B2 records the change. Update the decision text, or point to B2 from it, by the
+  build review.
+- **N1 (Note):** Stage 1's native test subset (Decision 2) runs the sdist's code natively on the
+  host. That is neither a build tool nor wasmtime. It has the same standing as the oracle's
+  native wheels. Run it the way the review ran it: pinned inputs, a venv and output under
+  `build/`, `HOME` and `XDG_CACHE_HOME` pointed into `build/`, no dataset fetches. Say so in the
+  landing notes.
+- **N2 (Note):** The unit check's compiled-objects case was skipped in the worktree (no
+  `build/tools`). It must run, and pass, in the build tree before "built".
+- **N3 (Note):** The weak-duplicate gate is new for every package. Its first link at stage 3 may
+  well stop on C++ inline code shared across archives outside `std::`, for example pybind11
+  (matplotlib and kiwisolver), Boost.Math or xsf (scipy's modules), or Highway (numpy). Each
+  pattern added to `recipes/weak-duplicates-allowed.txt` is a recipe change with a reason. The
+  build review reads them one by one, and none may have C linkage with file-local state (the
+  list's own rule).
+
+### Verdict
+
+**Confirmed for build, on one condition:** the owner approves B1 (HDBSCAN's BSD-3-Clause code
+and the Apache-2.0 Kaggle-derived fold assignment) before 044 lands. Stages 1 to 3 may proceed
+while that question is open. L1 to L3 are answered in writing by the build review, and N1 to N3
+are recorded in the landing notes.
+
+### One line
+
+The Disposition's answers to findings 1, 2, 3, 4 and 6 are where they say, B1's two components
+and their notices are exactly as the builder describes, phase 1 pins and confines everything,
+and 044 is confirmed for build, but HDBSCAN and the Kaggle kernel need the owner's word before
+it lands.
