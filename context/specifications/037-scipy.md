@@ -1,6 +1,6 @@
 # 037 — scipy, the first milestone
 
-- **Status:** **Trial-rebased onto main `ebd0449` (2026-10-20; 086, wasi-sdk 34, landed), not rebuilt; Decision 17's same-bytes exception removed** (question 105 (b)), criterion 3 as first written. Next (For the lane): the stacked rebase onto spec 043's built tip (043 lands in the wave before this one), a rebuild from empty on wasi-sdk 34, the fast tier, a branch dry run, a delta review. Before that: built 2026-10-19 on wasi-sdk 33, judged green on macOS (0 fail, lost 0); build review "lands once F1 is fixed and F2 is done" (F1, F3 to F7 done; F2 waits on 043). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build with conditions, written in. Drafted 2026-10-17; revised the
+- **Status:** **Rebuilt 2026-10-20 on wasi-sdk 34, stacked on spec 043's tip `54022dd` (main `41bcc0f`); Decision 17's same-bytes exception removed** (question 105 (b)), criterion 3 as first written: `SHA256SUMS` `95d6b217…` from macOS and linux/arm64, twice each. The build review's F2 is done (one qhull, the `fd_renumber` tripwire); F4 ruled by the lane. Next: a delta review, then the lane, in the wave after 043's. Before that: built 2026-10-19 on wasi-sdk 33, judged green on macOS (0 fail, lost 0); build review "lands once F1 is fixed and F2 is done". **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build with conditions, written in. Drafted 2026-10-17; revised the
   same day against its pre-build review (`../reviews/037-scipy-spec-2026-10-17.md`): findings 1
   to 4 fixed in the text and the checks, 5 to 13 fixed or answered (the review's Disposition),
   and spec 040's asks written in, each conditional on 040 landing first. The review's
@@ -484,6 +484,9 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
         `_qhull`'s `.deps` still names step 37's archive once, and that 043's `plot_contour`
         job and its triangulation checks still pass on the patched qhull;
      f. acceptance criterion 8: one copy of qhull's functions in `python.wasm`.
+     *Done 2026-10-20* at the stacked rebase onto 043 (043 landed first): a to f as written, the
+     `.pc`'s paths relative to its own folder; the landing notes' "Rebuilt on wasi-sdk 34, stacked
+     on 043".
      If this lands before 043, scipy keeps its vendored qhull here, and 043 does a, b, d, e
      and f (its Decision 6).
 
@@ -1280,12 +1283,69 @@ on the branch at `2968512` (the rebase and F2 come after 043 lands):
   by `assemble_artifacts.py` (`SCIPY_HEAD_NOTICES`), each refused if its words move.
 - **F8, at the rebase:** the CHANGELOG entries move under 0.1.0a8.
 
+### Rebuilt on wasi-sdk 34, stacked on 043 (2026-10-20)
+
+By the second builder (Claude Opus 5.5), on the lane's word: rebased onto 043's built tip
+`047508c` (main `41bcc0f`, wave 05, plus 043), then onto `54022dd` (043's delta review's
+context-only write-in; no file this build reads moved); the build review's F2 done; rebuilt from
+an empty `build/` (the wasi-sdk 33 evidence kept aside in `build/037/sdk33/`). The machine:
+Apple arm64, macOS 26.5, 10 cores; Docker with `wp040-arm64`. Evidence: `build/037/p2/`.
+Every claim is EXECUTED unless labelled.
+
+- **The commits on 043.** "Spec 037 on 043 (047508c): one qhull" (conditions a, b, d, e, f
+  and the tripwire) and the check's path fix after it; the hunks of the stacked replay are in
+  For the lane.
+- **The set.** macOS from empty at `642537c` (12 min 10 s, 18 steps; step 38 1 min 32 s, step 57
+  1 min 39 s): `SHA256SUMS` `95d6b217…`. linux/arm64 from empty, a clean clone of `642537c` in
+  the `wp040-arm64` container (Debian 13.7, 10 cores; 32 min): the same `SHA256SUMS`, every line.
+  Each host then rebuilt steps 38 and 57 and steps 60 to 90 again: the same `SHA256SUMS` again
+  on both. So four builds, one `SHA256SUMS`, with no exception (criterion 3 as first written).
+  `4696d0f`, the tip pushed, changes only a check after `642537c`.
+- **The compile-twice comparison** (spec 086, Decision 10): the 4,492 objects of steps 38 and 57
+  (OpenBLAS's and scipy's, `pyduccfft.cxx` among them), hashed after each of the two builds on
+  each host: equal twice on macOS, equal twice on linux/arm64, and equal between the hosts by
+  content (one object's file name differs, meson's hash of its absolute source path in
+  `lib_fortranobject.a.p/`; its bytes are the same). `test_ducc0s_fft_compiles_to_one_object`:
+  one object in three compiles (58 s).
+- **One qhull** (criterion 8). `test_one_qhull_is_linked` passes: 381 of the 442 functions step
+  37's `libqhull_r.a` defines are linked, each once, from that archive, `qh_new_qhull` among
+  them; no line of the link map names scipy's vendored archive; both `_qhull` `.deps` name
+  step 37's archive once (matplotlib's through pkgconf's `-L` and the archive path, since the
+  new `.pc` is found first; condition e). Seen failing on the wasi-sdk 33 set: 388 findings,
+  every one scipy's vendored archive in the map (`build/037/sdk33/seen-failing-one-qhull.txt`). 043's `plot_contour` job (both binaries), `test_delaunay_triangulation_runs`,
+  `test_contour_runs` and the hostile-guest triangulation check pass on the patched qhull. The
+  patched tarball's `src/libqhull_r/*.c` and `*.h` equal scipy 1.18.1's vendored copy byte for
+  byte (`diff -r`).
+- **The tripwire.** On 043's set `test_every_descriptor_import_is_shadowed` fails with the
+  count 28 (043's binaries import `fd_renumber`), and on this set it passes: the freopen refusal
+  removes the import again.
+- **Constructors and features.** Step 60's reviewed-constructor and `target_features` gates
+  passed unchanged: clang 23 renumbered nothing in the reviewed list.
+- **The fast tier**, `uv run pytest -n 3 -m "not slow"` on `642537c`'s set with its wheel in
+  `dist/` (8 min 12 s): 605/745 pass, 6 gap, 2 blocked, **0 fail**; ratchet against main's
+  accepted `f70c666`: lost 0, gained 21, grew 162 (main's state has no 043, so its growth is
+  043's and 037's together; the A/B below is 037's alone). The scipy file and the qhull-related
+  matplotlib checks with the slow tier (`build/037/p2/slow-scipy.log`): 26 passed, 6 xfailed
+  (the six gaps as recorded), the three scipy goldens on both binaries among them.
+- **The A/B against 043's set** (the same judge, `WASI_PYTHON_ARTIFACTS` set to a private copy
+  of 043's set `4c7099a4…`; `build/037/p2/ab-043-vs-037.txt`): 160 metrics on checks passing
+  on both; all 157 fuel rows grew, median +3.09%, +0.05% to +12.98%; the three byte rows below.
+  Plain start (`test_guest_runs_here[plain]`) 222,096,155 to 240,674,231 (+18.58 M, +8.4%):
+  608 more zip members and the constructors before `main`, the C++ static destructors at
+  exit; snapshot start 48,942,227 to 50,510,480 (+1.57 M, +3.2%): the destructors and the zip.
+  The largest relative rows walk the zip's directory or its resources (+10% to +13%), as at
+  the first build. No pass was lost; 26 checks pass on this set that fail on 043's (scipy's).
+- **Sizes against 043's set** (`4c7099a4…`): `python.wasm` 42,251,129 to 84,794,188
+  (+42,543,059, +100.7%); the snapshot 46,533,054 to 89,465,229 (+42,932,175); the zip
+  38,788,145 to 44,445,916 (+5,657,771) and 4,454 to 5,062 members (+608); 95 scipy modules
+  linked; the wheel 82,629,999 bytes, 17.4 MB under PyPI's 100 MB.
+
 ### For the lane
 
-**Where it stands (2026-10-20).** Trial-rebased onto main `ebd0449` (wave 04 landed: 086,
-wasi-sdk 34) by a second builder; **not rebuilt**, so no set, number or accept text below this
-line's date is on wasi-sdk 34. It builds stacked on 043's built tip (§4.14) and lands in the wave
-after 043's (one package or chain per wave). The build review's F2 is done at that rebase.
+**Where it stands (2026-10-20).** Trial-rebased onto main `ebd0449` (wave 04: 086, wasi-sdk 34)
+by a second builder, then rebased onto 043's built tip (§4.14, a stacked build) and rebuilt from
+empty (the landing notes' "Rebuilt on wasi-sdk 34, stacked on 043"). It lands in the wave after
+043's (one package or chain per wave), after a delta review. The build review's F2 is done.
 
 #### Rebased onto main `ebd0449`
 
@@ -1357,64 +1417,75 @@ tests/unit tests/checks/test_rules.py` after `lane.lock` cleared: 1823 passed, 8
 `build/037/trial-unit.log`. A second commit adds the two blank lines PEP 8 wants before
 `assemble_artifacts.hash_notice` (from the F7 commit; no behaviour).
 
-#### What 037 takes from 043 at the stacked rebase
+#### Rebased onto 043's tip (`047508c`, then `54022dd`)
 
-043 is stacked on main `ebd0449` too (its tip was `c448232` when this was written; the lane sends
-the built tip). 037 takes, and the conflicts are expected in:
+`git rebase --onto 047508c ebd0449 spec/037-scipy` replayed the twenty commits; three stopped,
+each hunk resolved by hand, no test dropped (every test function of the trial tip and of 043's
+tip is in the result but `test_host_facts_in_the_two_members_are_named`, which 043 renamed
+`…_three_members_…`), no commit left with a marker. Then `git rebase --onto 54022dd 047508c`
+(043's context-only write-in): clean.
 
-- **The build review's F2, conditions a, b, d, e and f** (Decision 8; 043's Decision 6, branch A):
-  a. `recipes/qhull_r.pc.in` and step 37 writing `qhull_r.pc`; b. step 57's fourth `pkgconf`
-  folder (step 37's) and `-Duse-system-libraries=qhull`, so scipy links step 37's qhull and not
-  its vendored copy; d. `recipes/patches/qhull-8.0.2/0001-format-strings.patch` (qhull's
-  pull request 143, `poly2_r.c`, no offset against the qhull tarball), its draft
-  `context/upstream/patches/qhull-8.0.2/0001-format-strings.md`, its `MANIFEST` hash and a
-  CHANGELOG line; e. matplotlib's `_qhull` `.deps` still names step 37's archive once, and 043's
-  `plot_contour` job and triangulation checks pass on the patched qhull; f. criterion 8, one
-  copy of each qhull function in `python.wasm` (`llvm-nm` on the unstripped link).
-- **`fd_renumber`**: 043 sets `test_every_descriptor_import_is_shadowed`'s count to 29 and
-  `src/wasi_python/mounts.py`'s comment to "fd_renumber is [imported] since spec 043". 037's
-  freopen refusal covers the one qhull and removes that import again, so the count goes back to
-  28 and the comment back to main's, as a judge change with that reason (the build review's F2,
-  the reviewer's preference). `mounts.py` is the runner's code (a comment only).
-- **`scripts/steps/60_link.sh`**: 043's `contourpy` in the guard of step 55's folders, the inittab
-  line and the package loop; 043 drops `_qhull` from the skip list, and 037's per-package skip
-  becomes `*:*_tests|numpy:_simd|matplotlib:_tkagg` (matplotlib's `_qhull` linked); scipy's
-  `scipy:` pair and archive naming after 043's pairs.
-- **`scripts/gen_inittab.py`**: 043's `LEFT_OUT = {"_simd", "_tkagg"}` with 037's renamed-init
-  table (`scipy.spatial._qhull` → `PyInit_scipy_spatial__qhull`; matplotlib keeps `PyInit__qhull`).
-- **Step 70 and `make_stdlib_zip.py`**: 043's contourpy tree and its `_build_config.py` rewrite
-  beside 037's scipy tree and `scipy/__config__.py` in `REWRITE`.
-- **Counts**: `release.yml`'s trees **25** (043's 23, plus OpenBLAS and scipy; qhull's tree is
-  already counted); README's carried patches **16** (043's 11, plus OpenBLAS's three, scipy's
-  one and qhull's format-strings fix), in the table row and the prose ("sixteen").
-- **The judge's lists**: `paths.LICENCE_COMPONENTS` and `PACKAGES` (043's contourpy and qhull,
-  then scipy and OpenBLAS; `assemble_artifacts.PACKAGES` in the same order); `needs`, `pins`,
-  `packages.toml` (contourpy, then scipy and openblas); `DISTRIBUTIONS`; `jobs.JOBS` and
-  `PLATFORM_BOUND` (`plot_contour` and the three scipy jobs); `scan.MESON_BUILDS`
-  (`contourpy-build`, `scipy-build`); `known_gaps.toml` (043 removes its two M1 gaps).
-- **README rows**: the artifacts table (043's contourpy and `_qhull` beside scipy), the sizes row
-  (re-measured on the rebuilt set), *matplotlib in the guest* and *scipy in the guest* (one
-  qhull), and the CHANGELOG entries side by side under 0.1.0a8.
+- **"the checks first"**: `release.yml`'s tree count **25** (043's 23, plus OpenBLAS and scipy;
+  qhull's tree was already counted); `DISTRIBUTIONS`' comment names contourpy (043) and scipy
+  (037); `jobs.PLATFORM_BOUND` is `plot_line`, `plot_contour` and the three scipy jobs, both
+  comments kept; `scan.MESON_BUILDS` `contourpy-build` then `scipy-build`.
+- **"the build"**: README's patch row 15 at that commit (043's 11 plus 4; 16 with qhull's patch
+  in the conditions commit); `gen_inittab.py`: 043's docstring with scipy's folder and the
+  RENAMED paragraph, and `LEFT_OUT = {"numpy._core._simd", "matplotlib.backends._tkagg"}` by
+  dotted name, `matplotlib._qhull` no longer left out (043 links it; it keeps `PyInit__qhull`,
+  scipy's is renamed); `make_stdlib_zip.py`: the docstring names four rewritten members,
+  090's `SKIP_NAMES` (litter by `is_litter`) with `REWRITE` holding contourpy's
+  `_build_config.py` and `scipy/__config__.py`, both docstrings and the error message merged;
+  `60_link.sh`: the header names contourpy, `_qhull` and scipy, the inittab line and the
+  package loop carry `contourpy` and `scipy`, and the skip case is
+  `*:*_tests|numpy:_simd|matplotlib:_tkagg` (matplotlib's `_qhull` linked).
+- **"ducc0 at -Os"**: README's artifacts rows (043's contourpy and qhull with scipy), the prose
+  count, and the "How it is built" list with 043's, 087's, 041's and 037's patches. **A miss in
+  the trial rebase, fixed here:** on `ebd0449` that sentence had auto-merged to 037's old text
+  ("eleven today", without regex's timeout ticks, pandas' Styler and networkx's atlas); it now
+  names all sixteen.
 
-#### Then (phase 2, on the lane's word)
+The auto-merged files were read: `paths.py`, `needs.py`, `pins.py`, `packages.toml`,
+`assemble_artifacts.py`, `70_zip.sh`, `known_gaps.toml`, `test_artifact_rules.py` (043's entries,
+then scipy's and OpenBLAS's), CHANGELOG (037's entry first under 0.1.0a8, 043's below it).
 
-Rebuild from an empty `build/` on the stacked tip; the fast tier `-n 3` (no `lane.lock`); the
-compile-twice comparison over OpenBLAS's and scipy's objects on macOS and in the linux/arm64
-container (spec 086's Decision 10: they compile with clang 23 for the first time), and one
-`SHA256SUMS` from both hosts; push and dispatch the release workflow on the branch; growth
-measured against 043's set; the constructors' names (clang 23 may renumber
-`__cxx_global_var_init.*`), `target_features`, the numbers and the accept texts restated; the
-claim list and flags; a delta review.
+**The conditions commit** (Decision 8, a, b, d, e, f; the build review's F2): see the
+landing notes' "Rebuilt on wasi-sdk 34, stacked on 043". New files: `recipes/qhull_r.pc.in`,
+`recipes/patches/qhull-8.0.2/0001-format-strings.patch` (`892e485c…`), its draft
+`context/upstream/patches/qhull-8.0.2/0001-format-strings.md` (Status: merged, pull request 143).
+Changed: step 37 (copies the `.pc`), step 57 (fourth `pkgconf` folder,
+`-Duse-system-libraries=qhull`, a guard on step 37's `.pc`), `recipes/wasi-matplotlib.cross`
+(a comment), `src/wasi_python/mounts.py` (a comment back to main's sense),
+`tests/unit/test_runner_mounts.py` (29 to 28), `tests/unit/test_scipy_build.py` (matplotlib's
+`_qhull` registered), `test_one_qhull_is_linked`, README, CHANGELOG.
+
+#### The release run on the branch
+
+(written below once run 39376805947 finishes)
+
+#### Claim list and flags (paste-safe; each line starts "037:")
+
+- 037: rebuilt from empty on 043's tip; SHA256SUMS 95d6b217 from macOS and linux/arm64, twice each (four builds, one set), no same-bytes exception (Decision 17 withdrawn, question 105 (b)).
+- 037: 4,492 OpenBLAS and scipy objects equal twice on each host and across the two hosts by content (spec 086, Decision 10); ducc0 one object in three compiles.
+- 037: one qhull, step 37's 8.0.2 with qhull's merged format-string fix as carried patch qhull-8.0.2/0001 (Decision 8, conditions a, b, d, e, f; criterion 8; build review F2).
+- 037: seventeen new checks over 043 (the thirteen scipy behaviour, gap and golden checks, scipy's dotted builtins, the patches-from-their-script check, test_one_qhull_is_linked, test_ducc0s_fft_compiles_to_one_object) and seven new unit functions; six gaps (three checks on two binaries) closed by spec 038.
+- 037: the judge changed in 29 files under tests/, among them test_runner_mounts' descriptor count 29 back to 28 (the freopen refusal removes 043's fd_renumber import; seen failing on 043's set) and test_scipy_build's inittab row (matplotlib._qhull registered beside scipy's renamed one).
+- 037: fast tier 605/745, 0 fail, lost 0; growth against 043's set (same judge): python.wasm +42.5 MB, snapshot +42.9 MB, zip +5.66 MB and +608 members, 157 fuel rows up, median +3.09%, max +12.98% (zip-walking checks), plain start +8.4%, snapshot start +3.2%.
+- 037: flag, the wheel is 82.6 MB, 17.4 MB under PyPI's 100 MB (question 64).
+- 037: flag, F4 ruled by the lane: no release tag carries 037 without 038's Sobol fix; 038 follows in the next wave; the tag is the owner's.
+- 037: flag, src/wasi_python/mounts.py changes by a comment only (fd_renumber no longer imported); no runner behaviour moves.
+- 037: flag, two upstream draft folders renumbered 26 and 27 at the trial rebase (main had 21 and 22); the LLVM draft 23 removed (fixed upstream, recorded in main's research folder).
+- 037: flag, the slow tier's upstream groups were not run against 043's set locally; their growth is read from the branch run's darwin judge against main's accepted state, which has no 043.
+
+**Accept texts for the lane** (restated on wasi-sdk 34; no quotes or backticks inside):
+
+- --accept-judge: spec 037, scipy 1.18.1 with OpenBLAS 0.3.34 on 043: the scipy checks, goldens and oracle pin (macosx_12_0 wheel on macOS arm64, one BLAS thread), the six gaps closed by spec 038, the reviewed constructors and simd128, scipy and OpenBLAS in the judge lists, scipy dotted builtins with native scipy two names, the licence source tarball-first rule, the step count in the progress unit checks, the patches-from-their-script check, guest.run root_writable for the behaviour checks (build review F1), test_one_qhull_is_linked and test_ducc0s_fft_compiles_to_one_object, the descriptor count 29 back to 28 and the inittab unit row with matplotlib _qhull registered
+- --accept-growth: spec 037, scipy and OpenBLAS are linked (python.wasm +42.5 MB and the snapshot +42.9 MB against 043; build review F5: measured, accepted, nothing cut) and their package is in the zip (+608 members, +5.66 MB): every plain start pays about 18.6 M more for the members, the constructors and the C++ static destructors, every snapshot start about 1.6 M; zip-walking checks scale with the members (up to +13%); every import that misses the builtin table scans 95 more entries (build review F3), which the upstream groups and the long golden jobs show
 
 - Build-class: it changes `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release workflow.
-  Accept with `--accept-judge`, `--accept-growth` and `--accept`.
 - The main tree needs five new pins in `downloads/` (`scripts/00_download.sh` fetches them).
-- The same bytes in the lane are compared byte for byte again (`cmp`, or the `SHA256SUMS` lines),
-  as for every other specification: no exception holds.
+- The same bytes in the lane are compared byte for byte (`SHA256SUMS`), as for every other
+  specification: no exception holds. The lane's main-tree rebuild should give `95d6b217…`.
 - **The build review's F4, ruled by the lane (2026-10-20):** no release tag carries 037 without
   038's Sobol fix. The patch is not brought forward: 038 follows 037 in the next wave, the tag
   stays the owner's, and the lane records the rule in the roadmap.
-- **Main has moved** to `41bcc0f` (wave 05: 090's `scripts/litter.py`, `make_stdlib_zip.py`,
-  `assemble_artifacts.py`, step 20's `__pycache__` removal and the sums and wheel checks; 082's
-  `tests/conftest.py`). 037 takes it through 043's tip at the stacked rebase, and that rebase
-  names any hunk it meets in those files.
