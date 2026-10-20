@@ -794,3 +794,78 @@ specification's own files unless 037, 043 or 042 land first, in which case step 
 `WHEELS` and licences, `pins.SOURCE_PATTERNS`, `needs.SOURCE_COMPONENTS`, the release's tree count
 (22 plus theirs), the README's patch count (9 plus theirs) and `tests/upstream/pandas.toml` take
 both sides; then the delta review.
+
+#### Rebased onto wave/02 (`e8ba20a`, wave 01 landed; on 039's rebased tip `2d0a583`; 2026-10-20)
+
+041's base `dcd94ff` was checked (`git merge-base --is-ancestor`; `dcd94ff..HEAD` is 041's three
+commits), then `git rebase --onto` 039's tip as rebased onto wave/02 (`8e5df6a`; the context-only
+`2d0a583` follows it). Two hunks conflicted, both in the build commit:
+
+1. **`README.md`, the results row:** wave/02 says `upstream patches carried: 8` (087 added regex's
+   0002), 041 said 9 (7 + 2). Resolved to **10** (8 + 041's two). A semantic change only of the
+   number; 041's text elsewhere says "rises by two", which still holds.
+2. **`tests/known_gaps.toml`, one region:** 039's side (via the lane's rebase onto 97be88a) had
+   078's nine `c-stack-*` trap gaps removed and 039's four Tier A gaps added; 041's side had the
+   nine trap gaps (its old base) and 039's four removed. Resolved by dropping both: 078's removal
+   and 041's removal both hold. Checked: the file equals 039's rebased file without its four Tier A
+   gaps and their comment, byte for byte otherwise (`diff`).
+
+Git merged the rest; files both wave/02 and 041 touch, each read: `CHANGELOG.md` (041's two
+entries under `## 0.1.0a8 — unreleased`, after 039's three; the heading unchanged),
+`.github/workflows/release.yml` (085's lines beside the zero-patch count of 22 trees; 087 added no
+tree), `scripts/assemble_artifacts.py` (087's `MODIFIED` line is for Apache-2.0 files only; pandas
+and networkx are BSD-3-Clause, so 041's patches need no line there), `context/upstream/README.md`
+(087's row 24 beside 041's two rows). The other two commits replayed cleanly.
+
+**Checked after the rebase:** `ruff check` and `ruff format --check` clean; `tests/checks/test_rules.py`
+and `tests/unit/test_build_scripts.py` pass (71 passed, 1 skipped). **The fast tier** on this tip,
+against the worktree's old private set `95b2f93a` (`uv run pytest -m "not slow" -n 3`,
+`build/041/fast-wave02.txt`, record `build/041/latest-fast-wave02.json`): 565/693 pass, 1 gap,
+2 blocked, 4 fail; ratchet vs `47b3695c2d`: lost 4, gained 15, grew 142. **The four failures are
+the rows that need the rebuilt set**, which the lane's rebuild settles:
+- `test_manifest_recipes_match_the_tree`: the old MANIFEST lacks 087's
+  `recipes/patches/regex-2026.9.29/0002-timeout-ticks.patch`, and `assemble_artifacts.py` (087) and
+  `make_stdlib_zip.py` (041's F2) changed since that build;
+- `test_a_timeout_past_2_147_seconds_fires[plain]`, `[snapshot]`: the old binary has no 0002 patch
+  (`completed`, where the timeout should fire);
+- `test_source_tree_matches_its_tarball[regex]`: the worktree's regex tree predates 0002
+  (`src/_regex.c: modified`).
+Against the old base's fast record, the growth set gains ten rows, all wave 01's new checks growing
+by tier A's start cost (039's claim): 087's two DENY_ALL checks and 083's and 089's three
+file-facts and stage checks, each on both binaries.
+
+**The claim list: the rows 041 changes**, against main's accepted state `47b3695`, with 039 in the
+same acceptance:
+- **New checks:** `test_files_from_the_zip_job_matches_native`;
+  `test_pandas_styler_renders_from_the_zip[snapshot]` and `test_networkx_atlas_reads_from_the_zip[snapshot]`;
+  `test_source_tree_matches_its_tarball[networkx]`; the unit rows
+  `test_an_sdists_entry_points_go_beside_its_metadata` and
+  `test_main_puts_entry_points_beside_metadata_or_stops`.
+- **Gaps that close (039's, made passing):** `test_pandas_styler_renders_from_the_zip[plain]`,
+  `test_networkx_atlas_reads_from_the_zip[plain]`, `test_upstream_class[pandas-frame-styler-templates]`,
+  `test_upstream_class[pandas-io-formats-styler-templates]` (the classes kept, emptied).
+- **Retired checks:** none.
+- **Passes that move:** `pandas-frame` 10,853 (accepted 10,852; 039 alone 10,851):
+  `test_inspect_getmembers` and `test_latex_repr` render. `pandas-io-formats` 1,972 (accepted 977;
+  039 alone 997): the eleven Styler files run again.
+- **Rows that grow, and why:** `pandas-io-formats` +22.8 G over 039's (the 975 Styler tests) and
+  `pandas-frame` +0.69 G (its two); the other upstream groups −0.09% to +0.11% (eight more files on
+  the stage); layout moves of the rebuilt zip directory and snapshot heap, within +0.05% plain and
+  ±0.45% snapshot both ways, among them `test_unbuffered_output_survives_a_hard_exit[snapshot]`
+  (+1,623) and `test_the_readmes_encoding_workaround_reads_what_iconv_cannot` (+2.07 M). The zip
+  shrinks by 4,695 bytes and the snapshot by about 3,300 against 039's set; `python.wasm` does not
+  change.
+- **Judge files:** `tests/checks/test_v1_3_default_profile.py`, `tests/harness/jobs.py`, `needs.py`,
+  `pins.py`, `tests/jobs/files_from_the_zip.py` and `.expected` (new), `tests/known_gaps.toml`,
+  `tests/unit/test_artifact_rules.py`, `test_build_scripts.py`, `tests/upstream/pandas.toml`,
+  `packages.toml` and the two `styler-templates` lists.
+
+**The exact flags** (041's parts; the lane joins them with 039's; no `--accept-fewer-passes` for the
+chain):
+
+```
+--accept-judge "041: the files_from_the_zip job and golden; the Styler and atlas checks widened, on both binaries, and their two gaps removed; the unit check for --entry-points and its main() case (the build review's F2); networkx in the source-tree patterns; pandas' eleven Styler files selected again, the two styler-templates classes emptied and their gaps removed, the eight templates staged where pandas' tests read them, pandas-io-formats' cap 82 G -> 120 G; the artifact rules' synthetic set names networkx's sdist; networkx's packages.toml reason (now its sdist, which carries its tests; spec 067's to run them)"
+--accept-growth "041: pandas-io-formats +22.8 G and pandas-frame +0.69 G run the Styler tests that now pass (+975 and +2 passes); the other upstream groups move -0.09% to +0.11% with a stage of eight more files; the rest, within +0.05% plain and +-0.45% snapshot both ways, moves with the rebuilt zip directory and snapshot heap (one member fewer, two changed; python.wasm unchanged), among them test_unbuffered_output_survives_a_hard_exit[snapshot] +1,623 and the encoding workaround +2.07 M: neither program imports pandas or networkx, and the hard-exit program costs 19,554 less on plain"
+```
+
+CI for this entry comes from the wave's run; the branch dry run 39345809724 was on the old base.
