@@ -81,9 +81,9 @@ for label, old, new in MUTANTS:
         )
         failed = sorted(
             {
-                l.split("::")[1].split(" ")[0]
-                for l in r.stdout.splitlines()
-                if l.startswith("FAILED")
+                line.split("::")[1].split(" ")[0]
+                for line in r.stdout.splitlines()
+                if line.startswith("FAILED")
             }
         )
         print(f"{label}: {len(failed)} failed: {', '.join(failed) or 'NONE'}")
