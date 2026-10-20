@@ -335,8 +335,21 @@ has run. Evidence under the worktree's git-ignored `build/038/`.
   `import scipy.optimize` 3.8 M (snapshot), which every scipy check pays (+0.05% to +0.18%);
   threadpoolctl's check +0.87% / +0.34% (it looks up the types); 033's guest check +0.70% /
   +0.73% (its program does more). The rest, ±0.15%, follow from the two changed members.
-- **The release workflow on the branch:** run 39393706506 on `bcc1ac3` (results below, under
-  For the lane).
+- **The release workflow on the branch:** run 39393706506 on `bcc1ac3`, read by the build
+  review (2026-10-20, `../reviews/038-scipy-second-milestone-build-2026-10-20.md`): 18 jobs
+  passed, 7 failed, 4 publishing jobs skipped. The build, both rebuilds, every Windows leg and
+  `the same bytes from every host` passed: arm64 and x86_64 Linux rebuilt the same
+  `SHA256SUMS` as the macOS build, `e472e198` (the set's sums printed in the same-bytes job,
+  identical line for line to this build's), and the same wheel. Red lines that are growth:
+  macOS own-guest (154 GREW, 0 fail, 0 lost), macOS own-embedding (33 GREW), macOS
+  upstream-macos (2 GREW: `cpython-fs`, `numpy-lib`). **Red lines that are not growth (five,
+  in four Linux upstream shards):** `test_upstream_class[cpython-a-no-ctypes]`,
+  `[cpython-b-no-ctypes]`, `[cpython-c-no-ctypes]` and `[numpy-others-no-ctypes]` each
+  "passes, but tests/known_gaps.toml still lists it: remove the gap" (no test fails with
+  "ctypes is unavailable" there any more; numpy's eight, among them the five bit generators'
+  `test_ctypes`, now pass); and `test_upstream_suite[cpython-b]` is LOST: `test.test_memoryview.OtherTest.test_ctypes_cast`
+  now errors with `TypeError: cannot convert 'c_double' object to bytes` (digest
+  `553fd33fb0dc`), since an instance is made but has no buffer. The review's High 1.
 
 ### For the lane
 
@@ -358,11 +371,17 @@ native build slot is released.
   `[snapshot]`; their six `[[gap]]` entries removed.
 - **Changed checks:** `tests/checks/test_v1_3_data_stack.py::test_ctypes_stand_in_names_what_packages_import`
   `[plain]`, `[snapshot]` (fuel +0.70%, +0.73%: more steps), and the unit check
-  `test_the_ctypes_stand_in_names_and_refuses` (Decision 3's rule).
+  `test_the_ctypes_stand_in_names_and_refuses` (Decision 3's rule); and
+  `tests/checks/test_v1_3_data_stack.py::test_goldens_reproduce_under_the_pinned_oracle`, which
+  now reproduces `scipy_edges` too, on darwin-arm64 (`JOBS`, `PLATFORM_BOUND`; written in by the
+  build review, which ran it: pass).
 - **Retired:** none. No group's passes fall.
 - **Rows that grow:** the zip's bytes (+2,762); fuel rows that import scipy (+0.05% to +0.18%)
   or look up a `ctypes` type (threadpoolctl's check +0.87% snapshot, +0.34% plain); every other
-  fuel row within ±0.15% of 037's. `python.wasm` and the snapshot shrink.
+  fuel row within ±0.16% of 037's but one,
+  `tests/checks/test_v1_4_embedding.py::test_unbuffered_output_survives_a_hard_exit[snapshot]`,
+  +0.39% (1,265,275 → 1,270,242, +4,967 fuel; cause not identified; written in by the build
+  review from `build/038/growth-vs-037-2.txt`). `python.wasm` and the snapshot shrink.
 - **Not 038's:** every row 037 and 043 carry against main.
 
 #### The flags
