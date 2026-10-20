@@ -175,3 +175,39 @@ Lands once Findings 1 and 2 are fixed in code with their rows (sameness names a 
 status is worse than its source's beyond an allowed CI-need block, and refuses a sourceless check
 with a run status), and the README says to compare only a green run's record; Findings 3 and 4 are
 Lows with their fix text.
+
+## Confirmation (2026-10-20, on `69c3b25`, rebased onto main `880be64`)
+
+The same reviewer re-tried both Mediums against the builder's answer (`a10bc92..69c3b25`: `gather.py`,
+`sameness.py`, the two unit files, the progress README, the spec's disposition, this file). Before
+each pytest run, `build/lane.lock` was absent from the main tree.
+
+- **Unit files (EXECUTED):** `test_sameness.py`, `test_gather.py`, `test_several_cores.py`, 159
+  passed (153 before; six new rows).
+- **F1 confirmed (EXECUTED).** `regathered-39359915030-f1.json` matches the record I probed before
+  on every check except the new `worst_platform` (669 checks, 0 others differ). Compared with
+  itself, it prints `…test_the_removal_never_deletes_what_the_guest_may_not[home]: status 'pass' on
+  darwin-arm64, 'fail' on win32-amd64` and the same for `[private]`, and exits 1. A claim list with
+  `"*"` in every kind still leaves both lines, exit 1. The two `descriptor limit` rows print
+  nothing. The old record, without `worst_platform`, is refused, exit 2. The README now says to
+  compare only a run whose every job, the gather included, is green.
+- **F2 confirmed (EXECUTED).** The same record with every `source` stripped and every status `fail`
+  is refused, exit 2, with one line naming the first such check.
+- **F3, F4:** fixed, each with a row (READ; the rows pass).
+- **F5, F6:** answered in the spec's "Disposition of the build review"; I accept both answers.
+- **Mutants (EXECUTED), each killed and the file restored by copy (`git status` clean):**
+  F1 with the line off (`if False:`) fails 1 row; F1 with a CI-need block excused on any system
+  fails 1 row; F1 with the line made a claimable `status` field fails 1 row; F2 with the refusal off
+  fails 3 rows (`test_a_check_without_a_source_that_ran_is_refused`, each case).
+- **One residual, Low (a note, no round):** `worst_platform` records one system, the worst. A
+  check that is `blocked` by `descriptor limit` on Windows outranks a `gap` on Linux (`ORDER`), so a
+  Linux gap under a darwin `pass` on one of those two rows is not named (EXECUTED with the unit
+  fixtures: no difference). Between two `blocked` statuses the first record in order wins, so a
+  Linux block by another need could be masked the same way if Windows came first. G4 reds both (a
+  gap not held, a block not allowed on that system), and the README now asks for a green run, so
+  nothing lands on it; a later change may have `merge` keep each system's status, or the worst
+  status other than an allowed CI block.
+- No new CI run on `69c3b25` (the builder defers to wave 03's dry run; judge-only, the lane's call).
+
+**Confirmed:** F1 to F4 are fixed with rows that bite, F5 and F6 are answered, and the verdict is
+now "lands".
