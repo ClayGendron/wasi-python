@@ -524,8 +524,9 @@ def test_the_judges_own_cpython_files_load_and_pass_the_rules_without_the_tarbal
     }
     # 542, and test_traceback since spec 078 closed its trap entry
     assert sum(len(g.modules) for g in PY.groups.values()) == 543
-    # spec 078 closed the nine trap entries (an 8 MiB stack); its test_traceback added one class
-    assert len(PY.traps) == 0 and len(PY.expected) == 26
+    # spec 078 closed the nine trap entries (an 8 MiB stack); its test_traceback added one class,
+    # no-missing-stdlib-info, which spec 086 closed (the zip carries _missing_stdlib_info)
+    assert len(PY.traps) == 0 and len(PY.expected) == 25
     from harness import plugin, shards
 
     gaps, _ = plugin.load_gaps(paths.KNOWN_GAPS)
