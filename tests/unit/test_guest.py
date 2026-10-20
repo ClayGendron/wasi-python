@@ -83,6 +83,19 @@ def test_the_clock_starts_at_a_fixed_time_and_ticks_per_call(work) -> None:
     assert _run(work, "clock.wasm", wat.CLOCK_PROBE).exit_code == 1
 
 
+def test_the_clock_steps_by_the_runs_clock_step(work) -> None:
+    # spec 087, Decision 3: a check can make a guest second a count of clock reads.
+    assert _run(work, "step.wasm", wat.CLOCK_STEP_PROBE).exit_code == 1
+    assert _run(work, "step.wasm", wat.CLOCK_STEP_PROBE, clock_step_ns=2_000_000).exit_code == 2_000
+
+
+def test_a_changed_clock_step_is_the_stated_resolution(work) -> None:
+    # At the default step the resolution is spec 065's, held by its own guard; a changed step
+    # states itself, so time.get_clock_info tells that run the truth (spec 087, Decision 3).
+    r = _run(work, "res.wasm", wat.CLOCK_RES_PROBE, clock_step_ns=2_000_000)
+    assert r.exit_code == 2_000
+
+
 def test_fuel_of_a_deterministic_module_is_exact(work) -> None:
     a = _run(work, "plain.wasm", wat.PLAIN_REACTOR, host=lambda f: f[::-1]).fuel
     b = _run(work, "plain.wasm", wat.PLAIN_REACTOR, host=lambda f: f[::-1]).fuel

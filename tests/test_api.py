@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -41,3 +44,52 @@ def test_missing_artifacts_are_explained(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(wasi_python, "_CHECKOUT_ARTIFACT_DIR", tmp_path / "checkout")
     with pytest.raises(wasi_python.ArtifactsMissing, match="scripts/build.sh"):
         wasi_python.artifacts()
+
+
+def _installed(tmp_path: Path, where: str, project: str) -> tuple[Path, Path, Path]:
+    """A copy of the package at `proj/<where>/wasi_python`, as `pip install --target` or vendoring
+    leaves it, with its own set; the project's pyproject.toml names `project`, and a planted set
+    with a MANIFEST waits at `proj/build/artifacts`, where a guest with a writable grant at
+    `proj/build` could write one (the 0.1.0 security review's S3)."""
+    proj = tmp_path / "proj"
+    package = proj / where / "wasi_python"
+    package.mkdir(parents=True)
+    for source in Path(wasi_python.__file__).parent.glob("*.py"):
+        (package / source.name).write_bytes(source.read_bytes())
+    own = _set(package / "artifacts")
+    planted = _set(proj / "build" / "artifacts")
+    (proj / "pyproject.toml").write_text(f'[project]\nname = "{project}"\nversion = "1"\n')
+    return package.parent, own, planted
+
+
+def _found(path_entry: Path) -> str:
+    env = {k: v for k, v in os.environ.items() if k != wasi_python._ARTIFACTS_ENV}
+    code = "import sys; sys.path.insert(0, sys.argv[1]); import wasi_python; "
+    code += "print(wasi_python.artifact_dir())"
+    out = subprocess.run(
+        [sys.executable, "-I", "-c", code, str(path_entry)],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=True,
+    )
+    return out.stdout.strip()
+
+
+@pytest.mark.parametrize(
+    "where, project",
+    [("deps", "someproj"), ("deps", "wasi-python"), ("src", "someproj")],
+    ids=["target install", "target install in a wasi-python project", "vendored under src"],
+)
+def test_an_installed_copy_ignores_a_neighbouring_set(tmp_path, where, project) -> None:
+    """Spec 087, Decision 10 (S3): only a source checkout, the package at `<repo>/src/wasi_python`
+    beside a pyproject.toml that names wasi-python, prefers `<repo>/build/artifacts`. A copy
+    installed or vendored anywhere else uses its own set and never a neighbouring one."""
+    entry, own, planted = _installed(tmp_path, where, project)
+    assert _found(entry) == str(own.resolve()), planted
+
+
+def test_a_source_checkout_prefers_its_build(tmp_path) -> None:
+    """Spec 087, Decision 10: the layout of this repository still finds its build's set."""
+    entry, own, planted = _installed(tmp_path, "src", "wasi-python")
+    assert _found(entry) == str(planted.resolve()), own

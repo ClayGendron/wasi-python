@@ -35,11 +35,26 @@ __version__ = "0.1.0a8"
 
 _ARTIFACT_DIR = Path(__file__).resolve().parent / "artifacts"
 _ARTIFACTS_ENV = "WASI_PYTHON_ARTIFACTS"
-# A source checkout: <repo>/src/wasi_python/ beside <repo>/build/artifacts/ (and pyproject.toml).
-_REPO = Path(__file__).resolve().parents[2]
-_CHECKOUT_ARTIFACT_DIR = (
-    _REPO / "build" / "artifacts" if (_REPO / "pyproject.toml").is_file() else None
-)
+
+
+def _checkout_artifact_dir() -> Path | None:
+    """A source checkout's build/artifacts/: only when this package is <repo>/src/wasi_python/
+    and <repo>/pyproject.toml names wasi-python. A copy installed with `pip install --target`,
+    or vendored, inside some project never takes that project's build/ (spec 087, Decision 10)."""
+    package = Path(__file__).resolve().parent
+    if package.parent.name != "src":
+        return None
+    repo = package.parent.parent
+    try:
+        import tomllib
+
+        name = tomllib.loads((repo / "pyproject.toml").read_text()).get("project", {}).get("name")
+    except (OSError, ValueError, UnicodeDecodeError, AttributeError):
+        return None
+    return repo / "build" / "artifacts" if name == "wasi-python" else None
+
+
+_CHECKOUT_ARTIFACT_DIR = _checkout_artifact_dir()
 
 
 class ArtifactsMissing(RuntimeError):
@@ -68,8 +83,10 @@ class Artifacts:
 def artifact_dir() -> Path:
     """The folder holding the artifact set.
 
-    It is `$WASI_PYTHON_ARTIFACTS` when that is set and not empty; else a source checkout's
-    build/artifacts/ when it holds a MANIFEST; else the wheel's own artifacts/ when it holds one.
+    It is `$WASI_PYTHON_ARTIFACTS` when that is set and not empty; else, when this package runs
+    from a source checkout of wasi-python (`<repo>/src/wasi_python/`), its build/artifacts/ when
+    that holds a MANIFEST; else the wheel's own artifacts/ when it holds one. `run` and `Session`
+    check the set they find against its SHA256SUMS before using it.
 
     Raises:
         ArtifactsMissing: None of the three is there.

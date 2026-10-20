@@ -41,6 +41,18 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   of a hard link to the shared one, so no run sees another's link count. CPython's two
   `test_utime_current` tests now pass in the judge. The product runner is unchanged: programs run
   through `wasi_python.run` still see the host's real times and inode numbers.
+- **Fixed: regex's `timeout=` fires past 2.1 seconds** (spec 087; the 0.1.0a7 security review's
+  F3): a second carried patch, `recipes/patches/regex-2026.9.29/0002-timeout-ticks.patch`, keeps
+  regex's clock ticks in 64 bits (wasm32's `Py_ssize_t` is 32 bits, and wasi-libc counts 10**9
+  ticks a second); `timeout=inf` now means no timeout. Checks now hold the README's lxml
+  `DENY_ALL` sentences and each 512 KiB recursion row, on an engine at wasmtime's defaults.
+- **Fixed: an installed copy never loads a neighbouring artifact set** (spec 087, Decision 10;
+  the 0.1.0 security review's S3). Only a source checkout of wasi-python (`src/wasi_python/`
+  beside a `pyproject.toml` naming it) prefers its `build/artifacts/`; a copy installed with
+  `pip install --target`, or vendored, inside a project uses its own set. `run` and `Session`
+  check the set they find against its `SHA256SUMS` before using it and raise `ArtifactsMissing`
+  on a difference; a set passed as `artifacts=` is the caller's own, as before. No public name,
+  signature or default changes.
 
 ## 0.1.0a7 — 2026-10-19
 

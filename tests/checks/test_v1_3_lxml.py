@@ -272,6 +272,135 @@ def test_stylesheets_and_entities_reach_only_grants(guest, guest_workdir, which)
     assert not (ro / "out.xml").exists() and (rw / "out.xml").is_file()
 
 
+# Spec 087 (the 0.1.0a7 security review's F2): `XSLTAccessControl` governs what a stylesheet reads
+# while it runs, not the stylesheets it imports or includes, which libxslt loads through the parser
+# it was parsed with. The imported stylesheet declares an external entity on a granted file. These
+# two checks have a grant of their own, so `_grants`, `FILES_WANT` and every recorded fuel above
+# stay as they were.
+IMPORTED = (
+    b'<?xml version="1.0"?>\n'
+    b'<!DOCTYPE xsl:stylesheet [<!ENTITY s SYSTEM "/ro/secret.txt">]>\n'
+    b'<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">\n'
+    b'<xsl:template name="leak"><leak>&s;</leak></xsl:template>\n'
+    b"</xsl:stylesheet>\n"
+)
+
+
+def _import_grant(guest_workdir: Path) -> list[tuple[str, Path, bool]]:
+    """A fresh read-only folder at /ro holding only the imported stylesheet and the secret."""
+    ro = Path(tempfile.mkdtemp(prefix="ro-import-", dir=guest_workdir))
+    (ro / "ent.xsl").write_bytes(IMPORTED)
+    (ro / "secret.txt").write_bytes(SECRET)
+    return [("/ro", ro, False)]
+
+
+IMPORTS = """
+import json
+from lxml import etree
+
+XSL = "http://www.w3.org/1999/XSL/Transform"
+AC = etree.XSLTAccessControl
+PARSER = None  # a refusing parser, in the resolver's check
+
+def sheet(how, href):
+    return f'''<xsl:stylesheet version="1.0" xmlns:xsl="{XSL}"><xsl:{how} href="{href}"/>
+<xsl:template match="/"><o><xsl:call-template name="leak"/></o></xsl:template></xsl:stylesheet>'''
+
+def apply(how, href, base_url=None, access_control=AC.DENY_ALL):
+    root = etree.fromstring(sheet(how, href).encode(), PARSER, base_url=base_url)
+    return str(etree.XSLT(root, access_control=access_control)(etree.XML(b"<x/>")))
+
+out = {}
+
+def case(label, *args, **kw):
+    try:
+        out[label] = ["ok", apply(*args, **kw)]
+    except Exception as e:
+        out[label] = [type(e).__name__, str(e)]
+"""
+
+DENY_ALL_IMPORTS = (
+    IMPORTS
+    + """
+for how in ("import", "include"):
+    case(f"{how} file: href", how, "file:///ro/ent.xsl")
+    case(f"{how} relative href", how, "ent.xsl", base_url="file:///ro/main.xsl")
+    case(f"{how} path href", how, "/ro/ent.xsl", base_url="/ro/main.xsl")
+    case(f"{how} read_file=False", how, "file:///ro/ent.xsl", access_control=AC(read_file=False))
+    case(f"{how} absent", how, "file:///ro/none.xsl")
+print(json.dumps(out))
+"""
+)
+
+
+@BINARY
+def test_deny_all_leaves_a_stylesheets_imports_to_its_parser(guest, guest_workdir, which) -> None:
+    """The README's sentence: `XSLTAccessControl.DENY_ALL` does not cover a stylesheet's own
+    `xsl:import` and `xsl:include`. Compiled under `DENY_ALL`, or with `read_file=False`, a
+    stylesheet that imports or includes a granted one, by a `file:` href, by a relative href
+    against a base URL, or by a path against a path base, carries that stylesheet's external
+    entity, so the output holds the granted file. An absent file fails to compile, naming its
+    URL: compiling tells whether a granted file exists (spec 087, Decision 4)."""
+    r = guest(which, ["-c", DENY_ALL_IMPORTS], preopens=_import_grant(guest_workdir))
+    assert r.exit_code == 0, r.describe()
+    got = json.loads(r.text)
+    bad = []
+    for how in ("import", "include"):
+        for form in ("file: href", "relative href", "path href", "read_file=False"):
+            k, value = got[f"{how} {form}"]
+            if k != "ok" or "<o><leak>SECRET\n</leak></o>" not in value:
+                bad.append(f"{how} {form}: {k} {value!r}, want the granted file in the output")
+        k, value = got[f"{how} absent"]
+        if k != "XSLTParseError" or "file:///ro/none.xsl" not in value:
+            bad.append(f"{how} absent: {k} {value!r}, want XSLTParseError naming its URL")
+    assert not bad, "; ".join(bad)
+
+
+REFUSED_IMPORTS = (
+    IMPORTS
+    + """
+class Refused(Exception):
+    pass
+
+class Refuse(etree.Resolver):
+    def resolve(self, url, pubid, context):
+        raise Refused("refused " + url)
+
+PARSER = etree.XMLParser()
+PARSER.resolvers.add(Refuse())
+for how in ("import", "include"):
+    case(f"{how} file: href", how, "file:///ro/ent.xsl")
+    case(f"{how} relative href", how, "ent.xsl", base_url="file:///ro/main.xsl")
+    case(f"{how} path href", how, "/ro/ent.xsl", base_url="/ro/main.xsl")
+print(json.dumps(out))
+"""
+)
+
+
+@BINARY
+def test_a_refusing_resolver_stops_a_stylesheets_imports(guest, guest_workdir, which) -> None:
+    """The README's remedy: parse the stylesheet from its bytes with a parser whose resolver
+    refuses every URL. Then each of the three imports and includes that load under `DENY_ALL`
+    alone raises the resolver's own exception, naming the URL it refused, and nothing of the
+    granted file is read (spec 087, Decision 4)."""
+    r = guest(which, ["-c", REFUSED_IMPORTS], preopens=_import_grant(guest_workdir))
+    assert r.exit_code == 0, r.describe()
+    assert "SECRET" not in r.text, r.text
+    got = json.loads(r.text)
+    want = {
+        "file: href": "file:///ro/ent.xsl",
+        "relative href": "file:///ro/ent.xsl",
+        "path href": "/ro/ent.xsl",
+    }
+    bad = []
+    for how in ("import", "include"):
+        for form, url in want.items():
+            k, value = got[f"{how} {form}"]
+            if (k, value) != ("Refused", f"refused {url}"):
+                bad.append(f"{how} {form}: {k} {value!r}, want Refused naming {url}")
+    assert not bad, "; ".join(bad)
+
+
 # Spec 046, Decision 9: each encoding over its whole BMP repertoire (every character Python's codec
 # encodes, one element each), parsed from a document in that encoding and written back to it. The
 # lines are the guest's, as evidence/encodings_whole_repertoire.txt in

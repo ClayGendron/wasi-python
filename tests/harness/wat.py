@@ -135,6 +135,29 @@ CLOCK_PROBE = f"""
       (i64.const 1000)))))
 """
 
+# run() returns the difference of two monotonic clock reads in µs: the driver's step (spec 087).
+CLOCK_STEP_PROBE = f"""
+(module
+  (import "{WASI}" "clock_time_get" (func $clock (param i32 i64 i32) (result i32)))
+  (memory (export "memory") 1)
+  (func (export "run") (result i32)
+    (drop (call $clock (i32.const 1) (i64.const 0) (i32.const 304)))
+    (drop (call $clock (i32.const 1) (i64.const 0) (i32.const 312)))
+    (i32.wrap_i64 (i64.div_u
+      (i64.sub (i64.load (i32.const 312)) (i64.load (i32.const 304)))
+      (i64.const 1000)))))
+"""
+
+# run() returns the monotonic clock's stated resolution in µs (spec 087).
+CLOCK_RES_PROBE = f"""
+(module
+  (import "{WASI}" "clock_res_get" (func $res (param i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (func (export "run") (result i32)
+    (drop (call $res (i32.const 1) (i32.const 304)))
+    (i32.wrap_i64 (i64.div_u (i64.load (i32.const 304)) (i64.const 1000)))))
+"""
+
 THIRD_IMPORT = f"""
 (module
   {DOOR_IMPORT}

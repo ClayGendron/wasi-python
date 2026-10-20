@@ -118,6 +118,9 @@ MODIFIED = {
     "recipes/patches/regex-2026.9.29/0001-callback-signatures.patch": (
         "five callbacks gain the parameter CPython passes"
     ),
+    "recipes/patches/regex-2026.9.29/0002-timeout-ticks.patch": (
+        "clock ticks kept in 64 bits, so timeout= fires past 2.147 s"
+    ),
 }
 # The snapshot's pre-import list has one source, the recipe's #define (spec 069, Decision 3).
 PREIMPORT_RECIPE = "recipes/reactor_main.c"

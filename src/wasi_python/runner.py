@@ -428,7 +428,8 @@ def run(
         cache_dir: Where compiled modules are kept as .cwasm files, a folder only you can
             write. `None` or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder;
             `False` keeps them in this process only, never on disk.
-        artifacts: The artifact set to run; `None` finds it with `artifacts()`.
+        artifacts: The artifact set to run; `None` finds it with `artifacts()` and checks it
+            against its SHA256SUMS first. A set you pass is used as you give it.
         cancel: A `threading.Event`. Once it is set and the guest runs, the guest stops
             within 5 ticks of 10 ms while it computes, and the call ends "cancelled".
         max_file_calls: The most provider calls a call with mounts makes; then it ends "out
@@ -579,7 +580,8 @@ async def run_async(
         cache_dir: Where compiled modules are kept as .cwasm files, a folder only you can
             write. `None` or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder;
             `False` keeps them in this process only, never on disk.
-        artifacts: The artifact set to run; `None` finds it with `artifacts()`.
+        artifacts: The artifact set to run; `None` finds it with `artifacts()` and checks it
+            against its SHA256SUMS first. A set you pass is used as you give it.
         executor: Where the call runs: a `concurrent.futures.Executor` that runs callables
             on threads of this process (a process or interpreter pool is refused). `None` (the
             default) uses the runner's own pool of `defaults().async_workers` threads.
@@ -2367,7 +2369,7 @@ def _run_checked(
     cache_dir: str | os.PathLike[str] | None | bool,
     artifacts: Artifacts | None,
 ) -> Completed:
-    found = artifacts if artifacts is not None else find_artifacts()
+    found = artifacts if artifacts is not None else _found_and_checked(snapshot)
     if c.get("tools") is not None and not _has_guest_package(found.manifest):
         from . import ArtifactsMissing
 
@@ -4235,6 +4237,48 @@ def _trap_handlers_ready(
     return None
 
 
+SET_SUMS = "SHA256SUMS"  # beside MANIFEST in every set the build writes (spec 003, step 90)
+
+
+def _found_and_checked(snapshot: bool) -> Artifacts:
+    """The set `artifacts()` finds, its MANIFEST, the binary this call runs and the stdlib zip
+    each checked against the set's own SHA256SUMS before any is used (spec 087, Decision 10, the
+    0.1.0 security review's S3). A changed or half-written file is refused, not compiled. The
+    digests are the ones `_module` and `_zip_folder` take anyway, kept per file stamp, so a later
+    call reads only the two small files again. A set the caller passes is the caller's own."""
+    from . import ArtifactsMissing
+
+    found = find_artifacts()
+    sums_path = found.manifest.parent / SET_SUMS
+    try:
+        text = sums_path.read_text()
+    except (OSError, UnicodeDecodeError) as e:
+        raise ArtifactsMissing(
+            f"{sums_path} cannot be read ({e}): an artifact set the runner finds is checked "
+            "against its SHA256SUMS before use"
+        ) from None
+    sums = {}
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) == 2:
+            sums[parts[1].lstrip("*")] = parts[0].lower()
+    binary = found.snapshot if snapshot else found.plain
+    for path in (found.manifest, binary, found.stdlib_zip):
+        want = sums.get(path.name)
+        if want is None or path.parent != found.manifest.parent:
+            raise ArtifactsMissing(f"{path} is not listed in {sums_path}")
+        try:
+            got = _digest(path)
+        except OSError as e:
+            raise ArtifactsMissing(f"{path} cannot be read ({e})") from None
+        if got != want:
+            raise ArtifactsMissing(
+                f"{path} does not match {sums_path} (SHA-256 {got[:16]}…, listed {want[:16]}…): "
+                "the set changed after it was built; rebuild or reinstall it"
+            )
+    return found
+
+
 def _digest(path: Path) -> str:
     st = path.stat()
     key = (str(path.resolve()), st.st_size, st.st_mtime_ns)
@@ -5171,7 +5215,7 @@ def _open_session(
 ) -> None:
     """Decision 6: find the set and refuse one without the session exports, walk and judge the
     folders, make the store and instantiate it; no guest code runs."""
-    found = artifacts if artifacts is not None else find_artifacts()
+    found = artifacts if artifacts is not None else _found_and_checked(snapshot)
     from . import ArtifactsMissing
 
     if c.get("tools") is not None and not _has_guest_package(found.manifest):
@@ -5407,7 +5451,8 @@ class Session:
             cache_dir: Where compiled modules are kept as .cwasm files, a folder only you can
                 write. `None` or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder;
                 `False` keeps them in this process only, never on disk.
-            artifacts: The artifact set to run; `None` finds it with `artifacts()`.
+            artifacts: The artifact set to run; `None` finds it with `artifacts()` and checks it
+            against its SHA256SUMS first. A set you pass is used as you give it.
             max_file_calls: The most provider calls each turn with mounts makes; then it ends
                 "out of file calls". Default: `defaults().file_calls`, 10,000. `None` means no
                 limit.

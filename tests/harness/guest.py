@@ -559,6 +559,7 @@ def run(
     own: tuple[wt.Engine, wt.Module] | None = None,
     measured: bool = True,
     host_roots: Sequence[Path] = (),
+    clock_step_ns: int = CLOCK_STEP_NS,
 ) -> Result:
     """Run the guest once, in a fresh instance and a fresh root under `workdir`. With `mpl_data`,
     matplotlib's data is granted read-only beside the stdlib zip. `own` is an engine the caller
@@ -566,7 +567,11 @@ def run(
     embedder's would be (spec 071, criterion 3); the driver's cached engine is never swapped, and
     such a run counts no fuel. A `measured` run (the default: one whose fuel a check records) is
     refused before anything runs when its inputs name a host path under the checkout, the
-    system's temp folder or `host_roots` (spec 081): its fuel would depend on where they are."""
+    system's temp folder or `host_roots` (spec 081): its fuel would depend on where they are.
+    Each clock read advances the guest's clocks by `clock_step_ns`, so a guest's elapsed time is a
+    count of its reads (spec 087, Decision 3). The default keeps every other check's fuel; at the
+    default, `clock_res_get` answers from `CLOCK_RESOLUTION_NS`, read at call time (spec 065), and
+    with another step the realtime and monotonic clocks state that step as their resolution."""
     if measured and own is None:
         named = host_paths_in((*host_roots_always(), *host_roots), argv, env, files, preopens)
         if named:
@@ -642,16 +647,17 @@ def run(
 
     def clock_time_get(caller: wt.Caller, clock_id: int, _precision: int, out: int) -> int:
         start = REALTIME_START_NS if clock_id == 0 else 0
-        value = start + next(ticks) * CLOCK_STEP_NS
+        value = start + next(ticks) * clock_step_ns
         caller.get("memory").write(caller, struct.pack("<Q", value), out)
         return 0
 
     def clock_res_get(caller: wt.Caller, clock_id: int, out: int) -> int:
         if clock_id not in CLOCK_RESOLUTION_NS:
             return 28  # EINVAL: an unknown clock, as WASI answers
-        caller.get("memory").write(
-            caller, struct.pack("<Q", CLOCK_RESOLUTION_NS[clock_id]), out & 0xFFFFFFFF
-        )
+        res = CLOCK_RESOLUTION_NS[clock_id]
+        if clock_step_ns != CLOCK_STEP_NS and clock_id in (0, 1):
+            res = clock_step_ns  # a changed step is the run's stated resolution (spec 087)
+        caller.get("memory").write(caller, struct.pack("<Q", res), out & 0xFFFFFFFF)
         return 0
 
     def door(caller: wt.Caller, ptr: int, length: int, out_ptr_ptr: int, out_len_ptr: int) -> int:

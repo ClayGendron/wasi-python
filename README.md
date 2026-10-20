@@ -38,7 +38,7 @@ promises.
 
 | fact | value |
 |---|---|
-| upstream patches | upstream patches carried: 7, each with an upstream pull request drafted for the owner to send, or, for matplotlib's, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
+| upstream patches | upstream patches carried: 8, each with an upstream pull request drafted for the owner to send, or, for matplotlib's, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 8 min 35 s (macOS arm64, 10 cores, with matplotlib's and lxml's steps; spec 046's landing notes, 2026-10-18) |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 41.1 MB / 44.6 MB / 22.2 MB (3.15 line, with matplotlib, lxml and regex, no package pre-imported; spec 069's landing notes) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
@@ -53,7 +53,7 @@ promises.
 | numpy's and pandas' own tests in the guest (spec 050; upstream's fast selection, 11 groups) | 63,717 passing; 12 gaps, each a class of known failures listed by node id with its closer (the README 10, question 89 2); no test traps the guest |
 | CPython's own tests in the guest (spec 065; regrtest, 542 of 557 modules in five groups) | 28,109 passing on the frozen set `s-c50ca51fae5eb55b-c9dcb5b8`, the same 3,710 of the file-system group on macOS, Linux and Windows (measured on the set before); 61 gaps: 24 classes of known failures by test id, one deselection, two environment entries and 26 results recorded per host (the README 40, wasmtime's answers 6, spec 088 3, spec 002 1, spec 074 3), and eight tests where freeing or parsing deep structures still traps the guest at the runner's 512 KiB stack (spec 078 8) |
 
-The platform's facts, documented rather than patched (with seven carried patches,
+The platform's facts, documented rather than patched (with eight carried patches,
 below and under *matplotlib in the guest*, *lxml in the guest* and *regex in the guest*), are what `python.wasm -V` prints after its version:
 
 > (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl or zstd; compute about 1.3 to 2.3 times slower than native)
@@ -192,11 +192,12 @@ keeps its import name. Five of
 regex's callbacks are defined with one parameter where CPython passes two, which WebAssembly
 traps on; a carried patch (`recipes/patches/regex-2026.9.29/0001-callback-signatures.patch`)
 gives them the second, until regex releases the change. One edge: `timeout=` counts the guest's
-clock, and regex keeps its clock ticks in a 32-bit type on wasm32, so a `timeout=` above about
-2.1 seconds never fires (`timeout=2.2`, `5` and `1e9` all run on; a hostile pattern under
-`timeout=5` ran 35 s), while shorter ones fire on the guest's clock. The embedder's fuel and
-deadline are the limits that hold; a carried patch is reserved (spec 087). Its licence is Apache-2.0 and CNRI-Python:
-`LICENSES/regex.txt` is regex's `LICENSE.txt`, then a line naming the patched file, and CNRI's
+clock, which on WASI is the time since the guest started, waits included (wasi-libc's `clock()`),
+where native regex counts CPU time. regex kept its clock ticks in a 32-bit type on wasm32, so a
+`timeout=` above about 2.1 seconds never fired; a second carried patch
+(`recipes/patches/regex-2026.9.29/0002-timeout-ticks.patch`) keeps them in 64 bits, until regex
+releases the change, and makes `timeout=float('inf')` mean no timeout. Its licence is Apache-2.0 and CNRI-Python:
+`LICENSES/regex.txt` is regex's `LICENSE.txt`, then a line naming each patch, and CNRI's
 Python 1.6 licence is in `LICENSES/cpython.txt`.
 
 ### matplotlib in the guest
@@ -287,7 +288,8 @@ control (native lxml does the same), and an imported stylesheet resolves externa
 can read files in the grants, and compiling tells it whether a granted file exists. Parse an
 untrusted stylesheet with a parser whose resolver refuses every URL (an `etree.Resolver` whose
 `resolve` raises, added to `parser.resolvers`), and compile it from that parse: both loads then
-raise. pandas' `read_xml(…, stylesheet=…)` applies its stylesheet with no access control. The
+raise. Parse it from its bytes or an open file; parsed by path through that parser, the
+stylesheet itself is refused. pandas' `read_xml(…, stylesheet=…)` applies its stylesheet with no access control. The
 sandbox keeps all of this inside the grants (no network, nothing outside a grant, nothing
 written to a read-only one), but does not make untrusted input safe to transform; libxml2's own
 README advises against untrusted input too. lxml's parser keeps its safe defaults: external
@@ -701,8 +703,15 @@ your own profile, is one. Measured on Apple
 arm64 (spec 001's landing notes): the first call compiles for about 3 s, a
 first call with the `.cwasm` on disk takes about 0.1 s, and later calls in
 one process about 20 to 25 ms. The runner finds the artifact set through
-`wasi_python.artifacts()`: `$WASI_PYTHON_ARTIFACTS`, else a source
-checkout's `build/artifacts/`, else the wheel's own copy.
+`wasi_python.artifacts()`: `$WASI_PYTHON_ARTIFACTS`, else, when the
+package runs from a source checkout of wasi-python (`src/wasi_python/`
+beside a `pyproject.toml` that names it), that checkout's
+`build/artifacts/`, else the wheel's own copy; a copy installed with
+`pip install --target` or vendored never takes a neighbouring `build/`.
+`run` and `Session` check the set they find against its `SHA256SUMS`
+before using it. A folder named by `$WASI_PYTHON_ARTIFACTS`, and a set
+passed as `artifacts=`, are trusted input: keep them where only you can
+write.
 
 `run` runs each guest on a thread of its own, made for the call, with 10 MiB of stack, 8 MiB of
 it for wasm (spec 078), and checks that thread's stack before any wasm runs; the calling thread's
@@ -1381,7 +1390,11 @@ Any other embedder does the same four things:
    predicates; XSLT `call-template` nested past about 480 levels, or `apply-templates` over a
    tree deeper than about 470 with a template that copies (about 670 with one that only applies
    templates); C14N of a tree about 1,500 deep, or RelaxNG validation of one about 430 deep (a
-   parsed document stops at depth 256 unless `huge_tree` or `recover=True` is given). On Linux,
+   parsed document stops at depth 256 unless `huge_tree` or `recover=True` is given). These depths
+   were measured at 512 KiB with epoch interruption on, as the runner ran before spec 078; a fuel
+   cap moves them by up to an eighth, and an engine without epoch checks (wasmtime's defaults) has
+   up to a third more room. For untrusted XSLT, `etree.XSLT.set_global_max_depth(250)` makes
+   templates like these raise `XSLTApplyError` instead. On Linux,
    install `faulthandler`, and any crash reporter or signal handler for `SIGSEGV`, `SIGILL` or
    `SIGFPE`, before your first engine, or not at
    all: enabling or disabling one later makes any guest trap kill or hang your process.
@@ -2320,7 +2333,7 @@ One instance of the runtime kept across several calls, each a turn: variables, f
   - `memory_bytes`: The most linear memory the guest may hold, in bytes, for the whole session. Default: `defaults().memory_bytes`, 1 GiB. `None` means no limit.
   - `output_bytes`: The most bytes kept per stream in each turn, unless the turn passes its own; the rest are dropped and the stream named in `truncated`. Default: `defaults().output_bytes`, 16 MiB. `None` means no limit.
   - `cache_dir`: Where compiled modules are kept as .cwasm files, a folder only you can write. `None` or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder; `False` keeps them in this process only, never on disk.
-  - `artifacts`: The artifact set to run; `None` finds it with `artifacts()`.
+  - `artifacts`: The artifact set to run; `None` finds it with `artifacts()` and checks it against its SHA256SUMS first. A set you pass is used as you give it.
   - `max_file_calls`: The most provider calls each turn with mounts makes; then it ends "out of file calls". Default: `defaults().file_calls`, 10,000. `None` means no limit.
   - `tools`: Host functions offered to the guest through the tool protocol (`from host import tools`), each a `wasi_python.tools.Tool` or a plain function, which goes through `tool()`. A tool may be async: under `run` it is awaited on one loop of the session's own for all its turns, under `run_async` on the event loop that awaits it. Fixed for the session. Excludes `host`.
   - `gate`: Called with a `ToolCall` before each tool runs. It allows by returning `None` or `True`, and refuses by returning `False` or raising `ToolDenied`. It may be async, as a tool may. Needs `tools`.
@@ -2492,7 +2505,7 @@ Run one program in a fresh instance of the runtime and return how it ended.
 - `memory_bytes`: The most linear memory the guest may hold, in bytes. Default: `defaults().memory_bytes`, 1 GiB. `None` means no limit.
 - `output_bytes`: The most bytes kept per stream; the rest are dropped and the stream named in `truncated`. Default: `defaults().output_bytes`, 16 MiB. `None` means no limit.
 - `cache_dir`: Where compiled modules are kept as .cwasm files, a folder only you can write. `None` or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder; `False` keeps them in this process only, never on disk.
-- `artifacts`: The artifact set to run; `None` finds it with `artifacts()`.
+- `artifacts`: The artifact set to run; `None` finds it with `artifacts()` and checks it against its SHA256SUMS first. A set you pass is used as you give it.
 - `cancel`: A `threading.Event`. Once it is set and the guest runs, the guest stops within 5 ticks of 10 ms while it computes, and the call ends "cancelled".
 - `max_file_calls`: The most provider calls a call with mounts makes; then it ends "out of file calls". Default: `defaults().file_calls`, 10,000. `None` means no limit.
 - `tools`: Host functions offered to the guest through the tool protocol (`from host import tools`), each a `wasi_python.tools.Tool` or a plain function, which goes through `tool()`. A tool may be async (an `async def`, or a function returning an awaitable): it is awaited on the event loop that awaits `run_async`, or, under `run`, on a loop of the call's own; it never starts once its call has been answered, and is cancelled when its call ends. Excludes `host`.

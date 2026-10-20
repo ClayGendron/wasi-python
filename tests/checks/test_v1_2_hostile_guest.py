@@ -3232,3 +3232,157 @@ def test_an_interrupted_hand_off_is_answered_through_run(row: str) -> None:
     code, lines, err = _child(HANDOFF_CHILD, row)
     assert code == 0, (row, code, err)
     assert lines[-2:] == ["interrupted", "next 1"], (row, lines, err)
+
+
+# Spec 087, Decision 6: the README's 512 KiB rows of recursion that still traps, held on an engine
+# at wasmtime's defaults (no fuel, no epochs, 512 KiB), the engine an embedder who follows the
+# README's step 4 gets, so these depths do not move when the runner's stack does. Each completing
+# depth is at most three quarters of the lowest edge measured on the runner's engines (metered and
+# not) and on this one; each trapping depth at least a quarter past the highest, or between it and
+# upstream's own limit where that is closer. Trees are built in Python; each program leaves by
+# os._exit, so freeing is not what is measured, but in the row that measures freeing.
+TRAP_PRE = "import os, sys\nN = {n}\n"
+TRAP_TREE = "root = e = etree.Element('a')\nfor i in range(N - 1): e = etree.SubElement(e, 'a')\n"
+TRAP_SHEET = "X = 'http://www.w3.org/1999/XSL/Transform'\n"
+TRAP_CALL = """sheet = f'''<xsl:stylesheet version="1.0" xmlns:xsl="{{X}}">
+<xsl:template match="/"><o><xsl:call-template name="t"><xsl:with-param name="n" select="{{N}}"/>
+</xsl:call-template></o></xsl:template>
+<xsl:template name="t"><xsl:param name="n"/><xsl:if test="$n &gt; 0"><xsl:call-template name="t">
+<xsl:with-param name="n" select="$n - 1"/></xsl:call-template></xsl:if></xsl:template>
+</xsl:stylesheet>'''
+"""
+TRAP_COPY = """sheet = f'''<xsl:stylesheet version="1.0" xmlns:xsl="{{X}}">
+<xsl:template match="*"><xsl:copy><xsl:apply-templates/></xsl:copy></xsl:template>
+</xsl:stylesheet>'''
+"""
+TRAP_BARE = """sheet = f'''<xsl:stylesheet version="1.0" xmlns:xsl="{{X}}">
+<xsl:template match="*"><xsl:apply-templates/></xsl:template></xsl:stylesheet>'''
+"""
+TRAP_END = "print('ok', flush=True)\nos._exit(0)"
+TRAPS = {
+    "xpath-parens": "from lxml import etree\netree.XML(b'<a/>').xpath('(' * N + '1' + ')' * N)\n",
+    "xpath-predicates": "from lxml import etree\n"
+    "etree.XML(b'<r><a/></r>').xpath('a' + '[1]' * N)\n",
+    "xslt-call-template": "from lxml import etree\n"
+    + TRAP_SHEET
+    + TRAP_CALL
+    + "str(etree.XSLT(etree.XML(sheet.encode()))(etree.XML(b'<x/>')))\n",
+    "xslt-apply-templates-copy": "from lxml import etree\n"
+    + TRAP_TREE
+    + TRAP_SHEET
+    + TRAP_COPY
+    + "etree.XSLT(etree.XML(sheet.encode()))(root)\n",
+    "xslt-apply-templates-bare": "from lxml import etree\n"
+    + TRAP_TREE
+    + TRAP_SHEET
+    + TRAP_BARE
+    + "str(etree.XSLT(etree.XML(sheet.encode()))(root))\n",
+    "c14n": "from lxml import etree\n" + TRAP_TREE + "etree.tostring(root, method='c14n')\n",
+    "relaxng": "from lxml import etree\n"
+    + TRAP_TREE
+    + """rng = etree.RelaxNG(etree.XML(b'''<grammar xmlns="http://relaxng.org/ns/structure/1.0">
+<start><ref name="A"/></start><define name="A"><element name="a"><optional><ref name="A"/>
+</optional></element></define></grammar>'''))
+rng.validate(root)
+""",
+    "traceback-freed": """sys.setrecursionlimit(10**6)
+def f(k):
+    if k == 0: raise ValueError('bottom')
+    return f(k - 1) + 1
+try:
+    f(N)
+except ValueError:
+    pass
+""",
+}
+# row: (completes at, traps at); the edges, measured on arm64 macOS and linux/amd64, are in spec
+# 087's Decision 6 and its landing notes.
+TRAP_DEPTHS = {
+    "xpath-parens": (240, 640),
+    "xpath-predicates": (2700, 4950),  # below libxml2's own 5,000, which raises XPathEvalError
+    "xslt-call-template": (320, 700),
+    "xslt-apply-templates-copy": (320, 680),
+    "xslt-apply-templates-bare": (480, 930),
+    "c14n": (1000, 2100),
+    "relaxng": (260, 660),
+    "traceback-freed": (2000, 4200),
+}
+# Two rows that must not trap: plain recursion that returns (it is freeing a long traceback that
+# traps, not recursing), and libxslt's depth lowered by lxml's own call, which turns a deep
+# template into XSLTApplyError (spec 087, Decision 7).
+DEEP_RETURNS = """import os, sys
+sys.setrecursionlimit(10**6)
+def f(k):
+    return 0 if k == 0 else f(k - 1) + 1
+print('ok', f(20000), flush=True)
+os._exit(0)"""
+MAX_DEPTH = (
+    TRAP_PRE
+    + "from lxml import etree\n"
+    + TRAP_SHEET
+    + "etree.XSLT.set_global_max_depth(250)\n"
+    + "def run(sheet, doc):\n"
+    + "    try:\n"
+    + "        etree.XSLT(etree.XML(sheet.encode()))(doc)\n"
+    + "        print('completed', flush=True)\n"
+    + "    except etree.XSLTApplyError:\n"
+    + "        print('XSLTApplyError', flush=True)\n"
+    + TRAP_CALL
+    + "run(sheet, etree.XML(b'<x/>'))\n"
+    + TRAP_TREE.replace("N - 1", "N")
+    + TRAP_COPY
+    + "run(sheet, root)\nos._exit(0)"
+)
+EXHAUSTED = (None, "wasm trap: call stack exhausted")
+
+
+def test_what_traps_on_wasmtimes_default_engine(guest_workdir) -> None:
+    """Spec 087, Decision 6: each of the README's rows of recursion that still traps at 512 KiB,
+    on an engine at wasmtime's defaults: the completing depth prints `ok`; the deep one ends in a
+    stack overflow, which the driver's own-engine path reports as wasmtime's "call stack
+    exhausted"; the next call on the same engine prints `ok`. Recursing 20,000 deep and returning
+    completes, and `etree.XSLT.set_global_max_depth(250)` makes deep templates raise
+    `XSLTApplyError`. The snapshot binary only (every edge is the same on both), compiled once;
+    every failing row is reported together. It records no fuel."""
+    needs.need("artifact dir", "snapshot binary", "stdlib zip", "manifest", "wasmtime-py")
+    import wasmtime as wt
+
+    from harness import guest as driver
+
+    d = paths.artifact_dir()
+    assert d is not None
+    m = paths.parse_manifest((d / "MANIFEST").read_text())
+    wasm = d / "python-snapshot.wasm"
+    engine = wt.Engine(wt.Config())
+    module = wt.Module.from_file(engine, str(wasm))
+
+    def once(program: str):
+        return driver.run(
+            wasm,
+            ["-c", program],
+            workdir=guest_workdir,
+            python_version=m.python,
+            stdlib=d / "python-stdlib.zip",
+            own=(engine, module),
+            measured=False,
+        )
+
+    bad = []
+    for row, (good, deep) in TRAP_DEPTHS.items():
+        program = TRAP_PRE + TRAPS[row] + TRAP_END
+        ok = once(program.format(n=good))
+        if (ok.exit_code, ok.trapped, ok.text) != (0, None, "ok\n"):
+            bad.append(f"{row} at {good}: {ok.describe()}")
+        trap = once(program.format(n=deep))
+        if (trap.exit_code, trap.trap_cause) != EXHAUSTED:
+            bad.append(f"{row} at {deep}: {trap.describe()}, want {EXHAUSTED}")
+        after = once("print('ok')")
+        if (after.exit_code, after.text) != (0, "ok\n"):
+            bad.append(f"{row}, the next call: {after.describe()}")
+    returns = once(DEEP_RETURNS)
+    if (returns.exit_code, returns.text) != (0, "ok 20000\n"):
+        bad.append(f"recursion 20,000 deep that returns: {returns.describe()}")
+    lowered = once(MAX_DEPTH.format(n=2000))
+    if (lowered.exit_code, lowered.text) != (0, "XSLTApplyError\nXSLTApplyError\n"):
+        bad.append(f"set_global_max_depth(250): {lowered.describe()}")
+    assert not bad, "\n".join(bad)

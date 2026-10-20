@@ -1,0 +1,166 @@
+diff --git a/src/_regex.c b/src/_regex.c
+index 9befc4e..ba8b767 100644
+--- a/src/_regex.c
++++ b/src/_regex.c
+@@ -81,7 +81,13 @@ typedef uint32_t RE_STATUS_T;
+ 
+ /* The result of decoding the timeout. Values are in clock ticks. Non-negative
+  * values are valid.
++ *
++ * Clock ticks are kept in a long long, not in a Py_ssize_t: CLOCKS_PER_SEC may
++ * be 10**9 (WASI) where Py_ssize_t has 32 bits, and a 32-bit Py_ssize_t holds
++ * only about 2,147 seconds of ticks even at 10**6 per second.
+  */
++typedef long long RE_Ticks;
++
+ #define RE_NO_TIMEOUT -1
+ #define RE_BAD_TIMEOUT -2
+ 
+@@ -516,7 +522,7 @@ typedef struct RE_State {
+     size_t capture_change; /* Incremented every time a captive group changes. */
+     Py_ssize_t req_pos; /* The position where the required string matched. */
+     Py_ssize_t req_end; /* The end position where the required string matched. */
+-    Py_ssize_t timeout; /* The timeout in clock ticks. */
++    RE_Ticks timeout; /* The timeout in clock ticks. */
+     clock_t start_time; /* The clock time when matching started. */
+     int partial_side; /* The side that could truncate in a partial match. */
+     /* Various flags. */
+@@ -2255,7 +2261,7 @@ Py_LOCAL_INLINE(bool) check_timed_out(RE_State* state) {
+         /* No timeout. */
+         return false;
+ 
+-    if ((Py_ssize_t)(clock() - state->start_time) < state->timeout)
++    if ((RE_Ticks)(clock() - state->start_time) < state->timeout)
+         /* Hasn't timed out yet. */
+         return false;
+ 
+@@ -18282,7 +18288,7 @@ Py_LOCAL_INLINE(void) dealloc_groups(RE_GroupData* groups, size_t group_count)
+ Py_LOCAL_INLINE(bool) state_init_2(RE_State* state, PatternObject* pattern,
+   PyObject* string, RE_StringInfo* str_info, Py_ssize_t start, Py_ssize_t end,
+   bool overlapped, int concurrent, bool partial, bool use_lock, bool
+-  visible_captures, bool match_all, Py_ssize_t timeout) {
++  visible_captures, bool match_all, RE_Ticks timeout) {
+     Py_ssize_t final_pos;
+     int p;
+ 
+@@ -18605,7 +18611,7 @@ Py_LOCAL_INLINE(void) release_buffer(RE_StringInfo* str_info) {
+ Py_LOCAL_INLINE(bool) state_init(RE_State* state, PatternObject* pattern,
+   PyObject* string, Py_ssize_t start, Py_ssize_t end, bool overlapped, int
+   concurrent, bool partial, bool use_lock, bool visible_captures, bool
+-  match_all, Py_ssize_t timeout) {
++  match_all, RE_Ticks timeout) {
+     RE_StringInfo str_info;
+ 
+     /* Get the string to search or match. */
+@@ -21077,7 +21083,7 @@ Py_LOCAL_INLINE(int) decode_partial(PyObject* partial) {
+ }
+ 
+ /* Decodes a 'timeout' argument. */
+-Py_LOCAL_INLINE(Py_ssize_t) decode_timeout(PyObject* timeout) {
++Py_LOCAL_INLINE(RE_Ticks) decode_timeout(PyObject* timeout) {
+     double value;
+ 
+     if (timeout == Py_None)
+@@ -21089,7 +21095,11 @@ Py_LOCAL_INLINE(Py_ssize_t) decode_timeout(PyObject* timeout) {
+         return RE_BAD_TIMEOUT;
+     }
+ 
+-    return value >= 0.0 ? (Py_ssize_t)(value * CLOCKS_PER_SEC) : RE_NO_TIMEOUT;
++    /* A negative value, NaN, or one too large for any clock: no timeout. */
++    if (!(value >= 0.0) || value * CLOCKS_PER_SEC >= (double)LLONG_MAX)
++        return RE_NO_TIMEOUT;
++
++    return (RE_Ticks)(value * CLOCKS_PER_SEC);
+ }
+ 
+ /* Creates a new ScannerObject. */
+@@ -21100,7 +21110,7 @@ static PyObject* pattern_scanner(PatternObject* pattern, PyObject* args,
+     Py_ssize_t start;
+     Py_ssize_t end;
+     int conc;
+-    Py_ssize_t tim;
++    RE_Ticks tim;
+     int part;
+ 
+     PyObject* string;
+@@ -21500,7 +21510,7 @@ Py_LOCAL_INLINE(PyObject*) pattern_splitter(PatternObject* pattern, PyObject*
+   args, PyObject* kwargs) {
+     /* Create split state object. */
+     int conc;
+-    Py_ssize_t tim;
++    RE_Ticks tim;
+     SplitterObject* self;
+ 
+     PyObject* string;
+@@ -21557,7 +21567,7 @@ Py_LOCAL_INLINE(PyObject*) pattern_search_or_match(PatternObject* self,
+     Py_ssize_t start;
+     Py_ssize_t end;
+     int conc;
+-    Py_ssize_t tim;
++    RE_Ticks tim;
+     int part;
+     RE_State state;
+     int status;
+@@ -21759,7 +21769,7 @@ Py_LOCAL_INLINE(PyObject*) get_sub_replacement(PyObject* item, PyObject*
+ /* PatternObject's 'subx' method. */
+ Py_LOCAL_INLINE(PyObject*) pattern_subx(PatternObject* self, PyObject*
+   str_template, PyObject* string, Py_ssize_t maxsub, int sub_type, PyObject*
+-  pos, PyObject* endpos, int concurrent, Py_ssize_t timeout) {
++  pos, PyObject* endpos, int concurrent, RE_Ticks timeout) {
+     RE_StringInfo str_info;
+     Py_ssize_t start;
+     Py_ssize_t end;
+@@ -22145,7 +22155,7 @@ error:
+ static PyObject* pattern_sub(PatternObject* self, PyObject* args, PyObject*
+   kwargs) {
+     int conc;
+-    Py_ssize_t tim;
++    RE_Ticks tim;
+ 
+     PyObject* replacement;
+     PyObject* string;
+@@ -22176,7 +22186,7 @@ static PyObject* pattern_sub(PatternObject* self, PyObject* args, PyObject*
+ static PyObject* pattern_subf(PatternObject* self, PyObject* args, PyObject*
+   kwargs) {
+     int conc;
+-    Py_ssize_t tim;
++    RE_Ticks tim;
+ 
+     PyObject* format;
+     PyObject* string;
+@@ -22207,7 +22217,7 @@ static PyObject* pattern_subf(PatternObject* self, PyObject* args, PyObject*
+ static PyObject* pattern_subn(PatternObject* self, PyObject* args, PyObject*
+   kwargs) {
+     int conc;
+-    Py_ssize_t tim;
++    RE_Ticks tim;
+ 
+     PyObject* replacement;
+     PyObject* string;
+@@ -22238,7 +22248,7 @@ static PyObject* pattern_subn(PatternObject* self, PyObject* args, PyObject*
+ static PyObject* pattern_subfn(PatternObject* self, PyObject* args, PyObject*
+   kwargs) {
+     int conc;
+-    Py_ssize_t tim;
++    RE_Ticks tim;
+ 
+     PyObject* format;
+     PyObject* string;
+@@ -22269,7 +22279,7 @@ static PyObject* pattern_subfn(PatternObject* self, PyObject* args, PyObject*
+ static PyObject* pattern_split(PatternObject* self, PyObject* args, PyObject*
+   kwargs) {
+     int conc;
+-    Py_ssize_t tim;
++    RE_Ticks tim;
+     RE_State state;
+     PyObject* list;
+     PyObject* item;
+@@ -22396,7 +22406,7 @@ static PyObject* pattern_findall(PatternObject* self, PyObject* args, PyObject*
+     Py_ssize_t start;
+     Py_ssize_t end;
+     int conc;
+-    Py_ssize_t tim;
++    RE_Ticks tim;
+     RE_State state;
+     PyObject* list;
+     Py_ssize_t step;

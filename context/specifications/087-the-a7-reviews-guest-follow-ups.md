@@ -10,11 +10,17 @@
   upstream patch (§4.1) and changes the build recipe and the artifact set, so it was reviewed
   before it is built (constitution §5.6), and the review read the patch and its facts sheet
   (spec 020, Decision 8). A different agent reviews the build.
+  **Revised 2026-10-19 (the owner, "add to existing spec"):** the 0.1.0 whole-surface security
+  review's finding S3 joins the scope as Decision 10, criterion 10 and checks 7 and 8. It changes
+  the runner's code (`src/wasi_python/__init__.py`, `runner.py`); the owner's coordinator directed
+  that the build review cover it with the rest, in place of a pre-build review (AGENTS.md rule 8
+  asks one for the runner's code; named as a departure in the landing notes).
 - **Date:** 2026-10-19
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** (§5.7). It adds a carried patch under `recipes/patches/` and a line to
   `scripts/assemble_artifacts.py`'s `MODIFIED`. Everything else is judge additions (`tests/`), one
-  driver parameter, `README.md`, `CHANGELOG.md` and the patch's facts sheet. The guest's imports
+  driver parameter, the runner's artifact lookup (Decision 10, `src/`), `README.md`,
+  `CHANGELOG.md` and the patch's facts sheet. The guest's imports
   and exports do not change. `python.wasm` and the snapshot change by about 200 bytes each;
   `LICENSES/regex.txt` gains a line; `MANIFEST` gains the patch's hash. No line of
   `tests/public_api.txt` changes. The lane accepts it with `--accept-judge` and `--accept-growth`.
@@ -281,15 +287,21 @@ engines, metered and not, as long as `run` has 512 KiB:
 
 | row | completes at | traps at | why that trap depth |
 |---|---|---|---|
-| XPath, nested parentheses | 260 | 640 | 128% of 500 |
-| XPath, chained predicates | 3,000 | 4,950 | below libxml2's 5,000 (which raises `XPathEvalError`); 6.6% past 4,644 |
-| XSLT, nested `call-template` | 340 | 700 | 134% of 523 |
-| XSLT, `apply-templates` with `xsl:copy` | 330 | 680 | 134% of 509 |
-| XSLT, a bare `apply-templates` | 490 | 930 | 126% of 740 (74% of 663 to complete) |
-| C14N | 1,100 | 2,100 | 129% of 1,629 |
-| RelaxNG validation | 290 | 660 | 128% of 516 |
+| XPath, nested parentheses | ~~260~~ **240** | 640 | 128% of 500 |
+| XPath, chained predicates | ~~3,000~~ **2,700** | 4,950 | below libxml2's 5,000 (which raises `XPathEvalError`); 6.6% past 4,644 |
+| XSLT, nested `call-template` | ~~340~~ **320** | 700 | 134% of 523 |
+| XSLT, `apply-templates` with `xsl:copy` | ~~330~~ **320** | 680 | 134% of 509 |
+| XSLT, a bare `apply-templates` | ~~490~~ **480** | 930 | 126% of 740 (74% of 663 to complete) |
+| C14N | ~~1,100~~ **1,000** | 2,100 | 129% of 1,629 |
+| RelaxNG validation | ~~290~~ **260** | 660 | 128% of 516 |
 | an exception freed after N frames | 2,000 | 4,200 | 129% of 3,259 |
 
+- **Restated by the builder (2026-10-19), as the next paragraph but two allows.** linux/amd64's
+  edges (the landing notes) are lower than arm64 macOS's on every engine; its metered runner is the
+  lowest edge in every row but C14N (its unmetered runner, 1,355) and the traceback row. To keep
+  "at most three quarters of the lowest edge" on both hosts, seven "completes at" depths fall (struck
+  through above). Every "traps at" depth holds as drafted: the highest edge is arm64 macOS's
+  wasmtime's-defaults engine in every row, and no host's predicates edge passes 4,800.
 - **Two rows that must not trap.** A function that recurses 20,000 deep under a raised limit and
   returns completes (the README's corrected sentence). And with
   `etree.XSLT.set_global_max_depth(250)`, `call-template` 2,000 deep and `apply-templates` over a
@@ -396,6 +408,55 @@ were measured, and a template with much heavier C frames per level could still t
 - **085** (build-class, drafted) and **037** (build-class): no shared file but `CHANGELOG.md` and
   `context/upstream/README.md`; one build-class landing at a time (§5.7).
 
+### 10. S3: an installed copy never takes a neighbouring set, and a found set is checked (added 2026-10-19)
+
+The 0.1.0 whole-surface security review
+(`scratchpad/security-review/0.1.0-whole-surface-security-review-2026-10-19.md`, S3, Low; its
+helper's probe `probes/supply/s1_target_layout.log`) found two things in `__init__.py` and the
+runner (READ):
+
+- `_REPO = Path(__file__).resolve().parents[2]`, and a `build/artifacts/` holding a `MANIFEST`
+  under it was preferred to the wheel's own set whenever `_REPO/pyproject.toml` existed. After
+  `pip install --target proj/deps` (or vendoring), `_REPO` is the user's own project, and
+  `artifact_dir()` returned `proj/build/artifacts` (EXECUTED by the review's helper).
+- No set was checked when it loaded: the binaries were compiled from whatever bytes were there.
+- The planting path (INFERRED by the review, not run): an embedder so installed who gives a guest
+  a writable grant at `proj/build` lets it write a set that a later call loads and runs, with
+  that later call's grants. The runtime-folders judge does not refuse that grant, since
+  `proj/build/artifacts` is not yet the set in use.
+
+**The rule.** The checkout's `build/artifacts/` is looked at only when the package is
+`<repo>/src/wasi_python/` and `<repo>/pyproject.toml`'s `[project] name` is `wasi-python` (read
+with `tomllib`; any error reading it means "not a checkout"). Everywhere else, `$WASI_PYTHON_ARTIFACTS`
+and then the wheel's own `artifacts/` are the only places, as before.
+
+- **Why `src/` and the name, and not a `.git` folder** (the coordinator's example). The judge, the
+  build and the release workflow all import the package from `<repo>/src/wasi_python/` (uv's
+  editable install), so the rule keeps every one of them. A wheel never has a `src/` folder above
+  the package, and a project of the user's names itself, not wasi-python. A `.git` test would
+  add nothing against planting (the attacker needs no `.git`) and would break a checkout copied
+  without one (an exported tree, a container's `COPY`).
+- **The check of a found set.** `run` and `Session`, given no `artifacts=`, check the set
+  `artifacts()` finds before using it: its `MANIFEST`, the binary the call runs and the stdlib zip
+  each against the set's own `SHA256SUMS` (written by step 90; the wheel carries it, since the
+  release copies the whole `build/artifacts/`). A file that differs, is not listed, or a set with
+  no `SHA256SUMS`, raises `ArtifactsMissing` naming the file, before anything is compiled. The
+  digests are the ones `_module` and `_zip_folder` already take per file stamp, so the check costs
+  two small reads a call.
+- **What the check does and does not do.** It refuses a changed or half-written file. It does not
+  stop a guest that writes a whole consistent set, `SHA256SUMS` included: the location rule does
+  that. Both are needed; neither alone is the fix.
+- **A set the caller passes is the caller's own.** `run(artifacts=Artifacts(…))` is public API
+  for four paths of the caller's choosing, and three of the judge's checks pass a WAT stand-in
+  beside the real `MANIFEST` this way (`test_the_door_bounds_every_frame`,
+  `test_an_old_artifact_set_is_named`, `test_an_artifact_set_without_the_guest_package_is_refused`).
+  Checking such a set would break the API and those checks, so it is not checked; the README says
+  that `$WASI_PYTHON_ARTIFACTS` and a passed set are trusted input. This is the one place S3's
+  brief ("any set it does load") is narrowed, and why.
+- **No public signature changes**; `tests/public_api.txt` is unchanged. The docstrings of `run`,
+  `run_async` and `Session` and of `artifact_dir` say it, and the README's reference is
+  regenerated from them (`tests/harness/api.py --write`).
+
 ## Intent
 
 A program that sets `timeout=` on a regex match gets its timeout, whatever its length. And every
@@ -413,7 +474,9 @@ stated against an engine that does not move when the runner's stack does.
 | `tests/checks/test_v1_3_regex.py` | check 1 |
 | `tests/checks/test_v1_3_lxml.py` | checks 2 and 3, with a grant of their own |
 | `tests/checks/test_v1_2_hostile_guest.py` | check 4 and its table (Decision 6) |
-| `README.md`, `CHANGELOG.md` | Decision 8 |
+| `README.md`, `CHANGELOG.md` | Decision 8; Decision 10's sentence on where sets are found |
+| `src/wasi_python/__init__.py`, `src/wasi_python/runner.py` | Decision 10: the checkout rule; the found set checked against its `SHA256SUMS` |
+| `tests/test_api.py`, `tests/unit/test_runner_sets.py` | checks 7 and 8 |
 
 ## The checks, first
 
@@ -470,6 +533,20 @@ Each is written before the change it judges. Each was, or will be, seen failing 
    `test_source_tree_matches_its_tarball[regex]` cover 0002 by construction. Seen failing first:
    the builder shows the trees check failing on a tree with 0002 applied and the patch file absent.
 
+7. **`tests/test_api.py::test_an_installed_copy_ignores_a_neighbouring_set[…]`** (three layouts: a
+   `--target` install in a project, the same in a project that names itself wasi-python, a copy
+   vendored under a project's `src/`) and **`test_a_source_checkout_prefers_its_build`**. The
+   package's modules are copied to `proj/<where>/wasi_python/` with a set of its own, a planted
+   set waits at `proj/build/artifacts`, and a fresh `python -I` imports the copy and prints
+   `artifact_dir()`: the copy's own set, never the planted one; in the checkout layout, the
+   build's. Seen failing first: on main, all three layouts print the planted set.
+8. **`tests/unit/test_runner_sets.py`**: a small set at `$WASI_PYTHON_ARTIFACTS` (a WAT snapshot, an
+   empty zip, its `SHA256SUMS`) runs; with its snapshot, zip or `MANIFEST` changed, or its
+   `SHA256SUMS` gone, `run` raises `ArtifactsMissing` naming the file and `SHA256SUMS` before
+   anything is compiled (`stats()["compiled"]` unchanged); a `Session` checks too; the same set
+   passed as `artifacts=` runs unchecked. Seen failing first: on main, the five refusals fail and
+   the two runs pass.
+
 ## Scope
 
 In: Decisions 1 to 9. Out:
@@ -507,6 +584,8 @@ In: Decisions 1 to 9. Out:
    `--accept-growth` (the binaries' bytes, and any per-check fuel the patch moves, each with its
    reason).
 9. **The release.** A release dry run passes every job on all three systems (AGENTS.md rule 6b).
+10. **S3 (Decision 10).** Checks 7 and 8 pass, and were seen failing first on main. Every other
+    check finds its set as before: no check, expectation or recorded fuel moves for Decision 10.
 
 ## The judge's changes
 
@@ -520,6 +599,7 @@ In: Decisions 1 to 9. Out:
 - `tests/checks/test_v1_3_lxml.py`: checks 2 and 3, on a grant of their own. `_grants`,
   `FILES_WANT` and every existing check's fuel are unchanged (the pre-build review's F2).
 - `tests/checks/test_v1_2_hostile_guest.py`: check 4, with its programs and its table.
+- `tests/test_api.py`, `tests/unit/test_runner_sets.py`: checks 7 and 8 (Decision 10).
 - No golden output, gap, allowance or progress file is edited. No check is weakened.
 
 The accepting reasons, for the lane:
