@@ -607,3 +607,19 @@ def test_a_worker_is_known_by_workerinput_only(monkeypatch) -> None:
     assert plugin.is_worker(types.SimpleNamespace()) is False
     assert plugin.is_worker(types.SimpleNamespace(workerinput={})) is True
     assert os.environ["PYTEST_XDIST_WORKER"] == "gw9"
+
+
+def test_sameness_compares_fuel_facts_within_the_tolerance() -> None:
+    """Spec 091: a fuel fact is fuel, so two runs of one commit agree on it to the ratchet's
+    tolerance, as on a fuel metric; every other fact stays exact."""
+    facts = {"passed_digest": "abc", "fuel_facts": {"f": 1_000_000}}
+    a = _record(p={"status": "pass", "reason": "", "facts": facts})
+    b = json.loads(json.dumps(a))
+    b["checks"]["p"]["facts"]["fuel_facts"]["f"] = 1_000_090  # 9e-5: within the tolerance
+    assert sameness.differences(a, b) == []
+    b["checks"]["p"]["facts"]["fuel_facts"]["f"] = 1_000_200  # 2e-4: beyond it
+    assert len(sameness.differences(a, b)) == 1
+    c = json.loads(json.dumps(a))
+    c["checks"]["p"]["facts"]["passed_digest"] = "abd"
+    c["checks"]["p"]["facts"]["fuel_facts"] = {"g": 1_000_000}
+    assert len(sameness.differences(a, c)) == 2

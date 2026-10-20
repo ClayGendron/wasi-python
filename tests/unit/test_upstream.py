@@ -738,3 +738,185 @@ def test_a_trap_check_whose_entry_started_but_whose_session_did_not_finish_fails
     run = upstream.GuestRun(1, None, None, 1, "", "Traceback: boom")
     findings = upstream.trap_findings(upstream.parse_stream(text), run, "numpy/tests/test_a.py::t")
     assert len(findings) == 1 and findings[0].startswith("no E line"), findings
+
+
+# ---------------------------------------------------------------------------------------------
+# Fuel facts (spec 091): a test whose fuel measures a type object's address, run alone
+
+EVIDENCE = ("context/reviews/047-regex-build-2026-10-18.md",)
+
+
+def _fact(**change):
+    """Built inside each row, so on a judge without fuel facts only these rows fail."""
+    base = {
+        "id": "f",
+        "group": "g",
+        "node": "numpy/tests/test_a.py::test_x",
+        "fuel": 10**9,
+        "reason": "why",
+        "evidence": EVIDENCE,
+    }
+    return upstream.FuelFact(**{**base, **change})
+
+
+def test_a_fuel_facts_cases_leave_its_group_and_run_alone_under_the_marker() -> None:
+    cfg = _cfg(fuel_facts=[_fact()])
+    assert upstream.group_spec(cfg, cfg.groups["g"])["args"][-1] == (
+        "--deselect=numpy/tests/test_a.py::test_x["
+    )
+    assert upstream.fact_spec(cfg, _fact())["args"] == [
+        "-m",
+        "not slow",
+        "/upstream/tests/numpy/tests/test_a.py::test_x",
+    ]
+    assert _fact().owns("numpy/tests/test_a.py::test_x[S2-True]")
+    assert not _fact().owns("numpy/tests/test_a.py::test_x_empty[S2]")
+    assert not _fact().owns("numpy/tests/test_a.py::test_x")
+
+
+def test_the_judges_one_fuel_fact_is_string_comparisons_in_numpy_core() -> None:
+    """The list is pinned here as well as in numpy.toml: a second entry is a judge change in two
+    places, with its reason and its evidence (spec 091)."""
+    facts = [(p, f.id, f.group, f.node) for p, c in CONFIGS.items() for f in c.fuel_facts]
+    assert facts == [
+        (
+            "numpy",
+            "string-comparisons",
+            "numpy-core",
+            "numpy/_core/tests/test_strings.py::test_string_comparisons",
+        )
+    ]
+    cfg = CONFIGS["numpy"]
+    args = upstream.group_spec(cfg, cfg.groups["numpy-core"])["args"]
+    assert "--deselect=numpy/_core/tests/test_strings.py::test_string_comparisons[" in args
+    assert cfg.fuel_facts[0].fuel >= 2 * 65_730_000_000  # twice 073's measured 65.73 G at least
+
+
+def _r(*nodes: str, outcome: str = "passed") -> str:
+    return "".join(f"S {n}\nR {outcome} {n} -- \n" for n in nodes)
+
+
+@pytest.mark.parametrize(
+    ("group", "alone", "finding"),
+    [
+        ("numpy/tests/test_a.py::test_y", "numpy/tests/test_a.py::test_x[0]", None),
+        ("numpy/tests/test_a.py::test_x[0]", "numpy/tests/test_a.py::test_x[1]", "also ran in"),
+        ("numpy/tests/test_a.py::test_y", None, "ran nothing of"),
+        ("numpy/tests/test_a.py::test_y", "numpy/tests/test_a.py::test_x_empty[0]", "ran nothing"),
+    ],
+    ids=["once", "in-the-group-too", "nothing", "only-a-neighbour"],
+)
+def test_a_fuel_facts_cases_run_exactly_once(group, alone, finding) -> None:
+    g = upstream.parse_stream(_stream(_r(group).strip()))
+    a = upstream.parse_stream(_stream(*([_r(alone).strip()] if alone else [])))
+    found = upstream.fact_findings(g, a, _fact())
+    if finding is None:
+        assert found == []
+    else:
+        assert found and finding in found[0], found
+
+
+def test_a_neighbour_in_the_facts_session_is_a_finding() -> None:
+    g = upstream.parse_stream(_stream())
+    a = upstream.parse_stream(
+        _stream(_r("numpy/tests/test_a.py::test_x[0]", "numpy/tests/test_a.py::test_x_e[0]"))
+    )
+    assert upstream.fact_findings(g, a, _fact()) == [
+        "fuel fact f: its session ran numpy/tests/test_a.py::test_x_e[0], outside the entry"
+    ]
+
+
+def test_two_sessions_are_judged_as_one_group() -> None:
+    """Passes, counts and members add up, and the digest is the one session's digest would be
+    (spec 091): the passed set does not depend on how the group is split."""
+    one, two = "numpy/tests/test_a.py::test_y", "numpy/tests/test_a.py::test_x[0]"
+    fail = f"S {two.replace('[0]', '[1]')}\nR failed {two.replace('[0]', '[1]')} -- [Errno 58] x"
+    whole = upstream.parse_stream(_stream(_r(one).strip(), _r(two).strip(), fail))
+    g = upstream.parse_stream(_stream(_r(one).strip()))
+    a = upstream.parse_stream(_stream(_r(two).strip(), fail))
+    clean = upstream.GuestRun(0, None, None, 1, "", "")
+    combined = upstream.combine(
+        [
+            (g, upstream.judge_group(g, clean, [K_DUP, K_ANY]), ""),
+            (a, upstream.judge_group(a, clean, [K_DUP, K_ANY]), "fuel fact f: "),
+        ],
+        [],
+    )
+    single = upstream.judge_group(whole, clean, [K_DUP, K_ANY])
+    assert combined.passes == single.passes == 2
+    assert combined.passed_digest == single.passed_digest
+    assert combined.counts == single.counts == {"failed": 1, "passed": 2}
+    assert combined.members == single.members
+    assert combined.findings == [] and combined.finished
+
+
+def test_a_finding_in_the_facts_session_names_it() -> None:
+    g = upstream.parse_stream(_stream())
+    a = upstream.parse_stream(_stream(end=None))  # no E line: the session did not finish
+    clean = upstream.GuestRun(0, None, None, 1, "", "")
+    out = upstream.combine(
+        [
+            (g, upstream.judge_group(g, clean, []), ""),
+            (a, upstream.judge_group(a, clean, []), "fuel fact f: "),
+        ],
+        ["extra"],
+    )
+    assert out.findings[0].startswith("fuel fact f: no E line") and out.findings[-1] == "extra"
+    assert not out.finished
+
+
+@pytest.mark.parametrize(
+    ("change", "error"),
+    [
+        ({"reason": "  "}, "has no reason"),
+        ({"evidence": ()}, "names no evidence"),
+        ({"evidence": ("README.md",)}, "evidence README.md is not a file under"),
+        ({"evidence": ("context/reviews/nowhere.md",)}, "is not a file under"),
+        ({"group": "h"}, "names no group of its package: h"),
+        ({"node": "numpy/other/test_a.py::test_x"}, "is not under its group's paths"),
+        ({"node": "numpy/tests/test_a.py::test_x[0]"}, "is not file::function"),
+        ({"fuel": 0}, "is not positive"),
+    ],
+)
+def test_a_fuel_fact_needs_its_group_a_plain_node_a_reason_and_evidence(work, change, error):
+    good = _cfg(fuel_facts=[_fact()])
+    assert upstream.rule_errors({"numpy": good}, set(), expected_dir=work / "expected") == []
+    bad = _cfg(fuel_facts=[_fact(**change)])
+    errors = upstream.rule_errors({"numpy": bad}, set(), expected_dir=work / "expected")
+    assert any(error in e for e in errors), errors
+
+
+def test_a_fuel_fact_that_overlaps_another_entry_or_a_name_fails_the_rules(work) -> None:
+    cfg = _cfg(
+        fuel_facts=[_fact(), _fact(node="numpy/tests/test_a.py::test_x_e")],
+        not_selected=[upstream.NotSelected(("numpy/tests/test_a.py",), "r", "README.md")],
+    )
+    errors = upstream.rule_errors({"numpy": cfg}, set(), expected_dir=work / "expected")
+    assert any("also left out by" in e for e in errors), errors
+    assert any("the name f is used twice" in e for e in errors), errors
+    trap = upstream.Trap("t", "numpy/tests/test_a.py::test_x", "r", "README.md")
+    cfg = _cfg(fuel_facts=[_fact()], traps=[trap])
+    errors = upstream.rule_errors(
+        {"numpy": cfg}, {upstream.trap_node("t")}, expected_dir=work / "expected"
+    )
+    assert any("also left out by" in e for e in errors), errors
+    sibling = upstream.Trap("t", "numpy/tests/test_a.py::test_x_empty", "r", "README.md")
+    cfg = _cfg(fuel_facts=[_fact()], traps=[sibling])
+    errors = upstream.rule_errors(
+        {"numpy": cfg}, {upstream.trap_node("t")}, expected_dir=work / "expected"
+    )
+    assert not any("also left out by" in e for e in errors), errors
+
+
+def test_a_regrtest_suite_has_no_fuel_facts_and_caps_count_them(work) -> None:
+    py = upstream.Config(
+        **{**_cfg("python").__dict__, "runner": "regrtest", "fuel_facts": [_fact()]}
+    )
+    assert any(
+        "only a pytest suite" in e for e in upstream.fact_errors("python", py, upstream.paths.REPO)
+    )
+    big = _fact(fuel=3 * 10**12)
+    errors = upstream.rule_errors(
+        {"numpy": _cfg(fuel_facts=[big])}, set(), expected_dir=work / "expected"
+    )
+    assert any("caps" in e for e in errors), errors
