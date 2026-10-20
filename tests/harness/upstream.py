@@ -431,7 +431,10 @@ def stage(cfg: Config, tree: Path, allowed: set[str], dest: Path) -> list[str]:
             if p.is_dir():
                 continue
             rel = p.relative_to(tree).as_posix()
-            (wanted.add if rel in allowed else left_out.append)(rel)
+            if rel in allowed:
+                wanted.add(rel)
+            elif not litter.unrecorded(rel):  # no fact holds litter or bytecode (spec 090)
+                left_out.append(rel)
         for anc in _ancestors(folder + "/x"):
             wanted |= {f"{anc}/__init__.py", f"{anc}/conftest.py"} & allowed
     for rel in sorted(wanted):

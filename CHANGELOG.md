@@ -11,6 +11,19 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   so the rows that check a removal keeps such a file now name the need `read-only files`, unmet on
   Windows alone, instead of skipping without a need; the release's gather allows that block on
   Windows only. Nothing changes for the product.
+
+- **A desktop's files never change the build** (spec 090). The build skips one shared list of
+  names an operating system writes into folders (`.DS_Store`, AppleDouble `._x` files, `Icon\r`,
+  `Thumbs.db`, `desktop.ini`, `ehthumbs.db` and a volume's own folders such as
+  `.TemporaryItems`), where it skipped three: in the stdlib zip's walk, the licences and the
+  artifact set's list. The release tarball packs exactly the files the set's `SHA256SUMS` lists,
+  never the folder. The judge's set and wheel checks forgive those names and no others, and the
+  wheel may carry nothing the list does not name. Step 20 removes the bytecode CPython's build
+  writes into `Lib/` (its build-Python runs with `-E`, and its WASI interpreter under wasmtime
+  sees no host variable), and the test suites' `left_out` fact no longer records bytecode or
+  litter, so two trees built from the same pins record the same facts. The artifacts' bytes do
+  not change.
+
 - **Each guest runs on a stack of its own** (spec 078; question 102). The runner runs every guest
   on a thread it makes for the call, with 10 MiB of stack, 8 MiB of it for wasm (it was 512 KiB
   on the caller's thread), and checks that thread's stack before any wasm runs. Recursion in C

@@ -24,3 +24,9 @@ dist/
 # Prior art is studied in place and never committed; only its index is tracked.
 context/prior_art/*
 !context/prior_art/README.md
+
+# What an operating system writes into folders a person browses (spec 090): never a source file.
+# The Icon line ends in two carriage returns (git strips one), so it matches Finder's "Icon\r".
+.DS_Store
+._*
+Icon

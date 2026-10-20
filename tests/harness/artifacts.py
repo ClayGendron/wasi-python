@@ -42,9 +42,7 @@ def sums_errors(d: Path) -> list[str]:
         listed = paths.read_pin_list(sums)
     except ValueError as e:
         return [str(e)]
-    present = {
-        p.relative_to(d).as_posix() for p in d.rglob("*") if p.is_file() and p.name != "SHA256SUMS"
-    }
+    present = set(_set_folder_files(d)) - {"SHA256SUMS"}
     errors = [f"{f} is not listed in SHA256SUMS" for f in sorted(present - set(listed))]
     errors += [f"SHA256SUMS lists {f}, which is absent" for f in sorted(set(listed) - present)]
     errors += [
@@ -53,6 +51,13 @@ def sums_errors(d: Path) -> list[str]:
         if paths.sha256_file(d / f) != listed[f]
     ]
     return errors
+
+
+def _set_folder_files(d: Path) -> list[str]:
+    """The files in an artifact folder, but for litter (a path with a litter part): a desktop's
+    files are no finding, any other unlisted file is (spec 090, Decision 4)."""
+    rels = (p.relative_to(d).as_posix() for p in d.rglob("*") if p.is_file())
+    return sorted(rel for rel in rels if not paths.has_litter(rel))
 
 
 def cwasm_errors(d: Path) -> list[str]:
@@ -170,20 +175,35 @@ def shared_library_errors(z: Path) -> list[str]:
 TYPED = "wasi_python/py.typed"
 
 
+WHEEL_SET = "wasi_python/artifacts/"
+
+
 def wheel_errors(wheel: Path, d: Path) -> list[str]:
+    """The wheel carries every file of the set's folder (litter aside), byte for byte, and under
+    `wasi_python/artifacts/` nothing the set's SHA256SUMS does not list, litter or not: the wheel
+    is built from the folder (spec 090, Decision 4)."""
     errors = []
+    try:
+        listed = set(paths.read_pin_list(d / "SHA256SUMS")) | {"SHA256SUMS"}
+    except (OSError, ValueError):
+        listed = None  # sums_errors names it
     with zipfile.ZipFile(wheel) as w:
         names = set(w.namelist())
         if TYPED not in names:  # PEP 561: a type checker reads the package's hints (spec 049)
             errors.append(f"{wheel.name} lacks {TYPED}")
-        for p in sorted(d.rglob("*")):
-            if not p.is_file():
-                continue
-            member = f"wasi_python/artifacts/{p.relative_to(d).as_posix()}"
+        for rel in _set_folder_files(d):
+            member = WHEEL_SET + rel
             if member not in names:
                 errors.append(f"{wheel.name} lacks {member}")
-            elif paths.sha256_bytes(w.read(member)) != paths.sha256_file(p):
+            elif paths.sha256_bytes(w.read(member)) != paths.sha256_file(d / rel):
                 errors.append(f"{wheel.name}: {member} differs from the artifact set")
+        if listed is not None:
+            errors += [
+                f"{wheel.name} carries {n}, which SHA256SUMS does not list"
+                for n in sorted(names)
+                if n.startswith(WHEEL_SET) and not n.endswith("/")
+                and n[len(WHEEL_SET) :] not in listed
+            ]  # fmt: skip
     return errors
 
 

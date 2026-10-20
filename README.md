@@ -585,14 +585,18 @@ which configures liblzma, also runs the host's shell tools (`sh`, `sed`,
 `grep`, `awk`); the same-bytes gate is what shows they leave the artifacts
 alone.
 
-**Building on a Mac with Finder open.** Finder writes `.DS_Store` files into
-folders you browse, at any moment. Every shell step removes its old outputs
-through `remove` (`scripts/steps/remove.sh`), and step 90 through its own
-`_remove`; both retry. The zip, the licences
-and the artifact set never pack such a file (spec 018). One case is left: a
-`.DS_Store` written into the finished `build/artifacts/` makes the judge's
-`SHA256SUMS` check fail, naming the file, because a wheel built from that
-folder would carry it. Delete it with `find build/artifacts -name .DS_Store -delete`.
+**Building on a Mac with Finder open.** Finder, and System Settings' storage
+scan, write `.DS_Store` files into folders they size, at any moment. Every
+shell step removes its old outputs through `remove` (`scripts/steps/remove.sh`),
+and step 90 through its own `_remove`; both retry. Nothing a desktop writes
+into `build/` changes an artifact, a release asset or a recorded fact: the
+zip, the licences and the set's list skip one shared list of such names
+(`scripts/litter.py`: `.DS_Store`, AppleDouble `._x` files, `Icon\r`,
+`Thumbs.db` and a volume's own folders), the release tarball packs the set's
+list, and the judge's artifact checks forgive those names and no others
+(specs 018 and 090). The repository's `.gitignore` ignores them too. To stop
+the writers, close System Settings' Storage pane and any Finder window on the
+checkout.
 
 ## Releasing
 

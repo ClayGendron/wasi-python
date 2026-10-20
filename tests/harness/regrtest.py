@@ -210,7 +210,7 @@ def tarball_sources(tarball: Path) -> dict[str, str]:
 def stage(tarball: Path, tree: Path | None, dest: Path) -> list[str]:
     """Write every `Lib/test` member of `tarball`, read from the tarball itself, to
     `dest/lib/test/…`. Returns the tree's files under `Lib/test` that are not members (a warning:
-    what a build left there, never staged)."""
+    what a build left there, never staged), but for litter and bytecode (spec 090)."""
     names: set[str] = set()
     with tarfile.open(tarball) as t:
         for m in t:
@@ -232,7 +232,7 @@ def stage(tarball: Path, tree: Path | None, dest: Path) -> list[str]:
         for p in sorted((tree / LIB_TEST).rglob("*")):
             if p.is_file():
                 rel = p.relative_to(tree).as_posix()
-                if rel not in names:
+                if rel not in names and not litter.unrecorded(rel):  # spec 090, Decision 5
                     left_out.append(rel)
     return left_out
 

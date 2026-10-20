@@ -18,7 +18,7 @@ import zipfile
 from pathlib import Path
 
 import line
-from litter import OS_LITTER
+from litter import has_litter, is_litter
 
 LINE = line.read()
 PYTHON = LINE["PYTHON_VERSION"]
@@ -229,21 +229,30 @@ def _remove(path: Path) -> None:
 
 
 def drop_litter(folder: Path) -> None:
-    """Delete Finder and Explorer litter from a folder this script made, before it is listed."""
-    for p in sorted(folder.rglob("*")):
-        if p.name in OS_LITTER and p.is_file():
+    """Delete litter from a folder this script made, before it is listed: a litter file, and a
+    litter folder whole (spec 090)."""
+    for p in sorted(folder.rglob("*"), reverse=True):  # a folder's entries before the folder
+        if not is_litter(p.name) or not os.path.lexists(p):
+            continue
+        if p.is_dir() and not p.is_symlink():
+            _remove(p)
+        else:
             p.unlink()
 
 
 def listed_files(folder: Path) -> list[Path]:
-    """The set's files for SHA256SUMS. Litter written after drop_litter is never listed, so the
-    judge and the wheel rule see it as a file the set does not list (spec 018)."""
-    return sorted(p for p in folder.rglob("*") if p.is_file() and p.name not in OS_LITTER)
+    """The set's files for SHA256SUMS. Litter written after drop_litter is never listed (any path
+    with a litter part), and the judge forgives exactly those names (specs 018 and 090)."""
+    return sorted(
+        p
+        for p in folder.rglob("*")
+        if p.is_file() and not has_litter(p.relative_to(folder).as_posix())
+    )
 
 
 def licence_files(folder: Path) -> list[Path]:
     """A licence folder's files, without litter: each is packed into a LICENSES file."""
-    return sorted(p for p in folder.iterdir() if p.name not in OS_LITTER)
+    return sorted(p for p in folder.iterdir() if not is_litter(p.name))
 
 
 def sha256(path: Path) -> str:

@@ -88,6 +88,12 @@ def patch_files(top: str, patches: Path | None = None) -> list[Path]:
     return sorted((patches or PATCHES).joinpath(top).glob("[0-9][0-9][0-9][0-9]-*.patch"))
 
 
+# A pinned member the build's walks would skip without a word (spec 090, Decision 1's guard).
+PINNED_LITTER = (
+    "a pinned member with a name only an operating system leaves; the build skips it (spec 090)"
+)
+
+
 def tree_drift(tarball: Path, tree: Path, patches: Path | None = None) -> list[str]:
     """Every file that is missing or different in the tree, as 'path: why': against the tarball,
     or, when the tree has carried patches, against the tarball with them applied."""
@@ -115,8 +121,10 @@ def _patched_drift(tarball: Path, tree: Path, patch_dir: Path) -> list[str]:
         held = set(members)
         for p in sorted(result.rglob("*")):
             rel = p.relative_to(result).as_posix()
-            if p.name in paths.OS_LITTER and rel not in held:
-                continue  # Finder's or Explorer's, written into this extraction (spec 026)
+            if paths.has_litter(rel) and rel not in held:
+                continue  # Finder's or Explorer's, written into this extraction (specs 026, 090)
+            if paths.has_litter(rel):
+                drift.append(f"{rel}: {PINNED_LITTER}")
             target = tree / rel
             if p.is_symlink():
                 if not target.is_symlink() or os.readlink(target) != os.readlink(p):
@@ -155,6 +163,8 @@ def _tarball_drift(tarball: Path, tree: Path) -> list[str]:
                 continue
             rel = parts[1]
             target = tree / rel
+            if paths.has_litter(rel.rstrip("/")):
+                drift.append(f"{rel}: {PINNED_LITTER}")
             if member.isdir():
                 if not target.is_dir():
                     drift.append(f"{rel}: directory missing")

@@ -64,7 +64,7 @@ from collections.abc import Iterable
 from pathlib import Path, PurePosixPath
 
 import line
-from litter import OS_LITTER
+from litter import is_litter
 
 TARGET = line.target()
 SKIP_DIRS = {
@@ -79,7 +79,7 @@ SKIP_DIRS = {
     "site-packages",
 }
 SKIP_SUFFIXES = {".pyi", ".pxd", ".pyx", ".pxi", ".h", ".c", ".cpp", ".so", ".deps", ".a"}
-SKIP_NAMES = {"conftest.py", "meson.build", *OS_LITTER}  # Finder litter too (spec 018)
+SKIP_NAMES = {"conftest.py", "meson.build"}  # and litter, by is_litter (specs 018 and 090)
 REWRITE = ("_sysconfigdata", "numpy/__config__.py")
 EPOCH = (1980, 1, 1, 0, 0, 0)
 # build_time_vars keys that record the build host's tools, and the value each is given. The
@@ -104,12 +104,15 @@ def walk(root: Path, skip_top: frozenset[str] = frozenset()):
             d
             for d in dirnames
             if d not in SKIP_DIRS
+            and not is_litter(d)
             and not d.endswith(METADATA_DIRS)
             and not (rel == Path(".") and d in skip_top)
         )
         for f in sorted(filenames):
             p = here / f
             if p.suffix in SKIP_SUFFIXES or f in SKIP_NAMES or f.endswith((".so", ".so.deps")):
+                continue
+            if is_litter(f):
                 continue
             if rel == Path(".") and Path(f).stem in skip_top:
                 continue

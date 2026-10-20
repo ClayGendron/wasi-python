@@ -1955,7 +1955,7 @@ def patch_shape_errors(text: str, where: str) -> tuple[list[str], set[str]]:
             errors.append(f"{where}: {path!r} is outside the tree")
             continue
         touched.add(path)
-        if parts[-1] in paths_os_litter():
+        if _has_litter(path):
             errors.append(f"{where}: touches {path}, a name Finder or Explorer writes (spec 026)")
         if parts[-1] in AUTOTOOLS_INPUTS or parts[-1].endswith(".m4"):
             errors.append(f"{where}: changes the autotools input {path}; patch its output")
@@ -2007,8 +2007,8 @@ def patch_errors(root: Path, tops: Iterable[str]) -> list[str]:
     errors, count, made = [], 0, set()
     folders = sorted(p for p in patches.iterdir()) if patches.is_dir() else []
     for d in folders:
-        if d.name in paths_os_litter():
-            continue  # Finder's or Explorer's, not ours (spec 018)
+        if _is_litter(d.name):
+            continue  # Finder's or Explorer's, not ours (specs 018, 090)
         if not d.is_dir():
             if d.name != "README.md":
                 errors.append(f"recipes/patches/{d.name}: only folders and README.md belong here")
@@ -2017,7 +2017,7 @@ def patch_errors(root: Path, tops: Iterable[str]) -> list[str]:
             errors.append(f"recipes/patches/{d.name}: no pinned source tarball has this top folder")
         numbers = set()
         for f in sorted(d.iterdir()):
-            if f.name in paths_os_litter():
+            if _is_litter(f.name):
                 continue
             where = f"recipes/patches/{d.name}/{f.name}"
             m = PATCH_NAME.fullmatch(f.name)
@@ -2039,7 +2039,9 @@ def patch_errors(root: Path, tops: Iterable[str]) -> list[str]:
             else:
                 errors += _draft_errors(draft, d.name, touched, rel(draft, root))
     if drafts.is_dir():
-        for draft in sorted(p for p in drafts.rglob("*.md") if p.name not in paths_os_litter()):
+        for draft in sorted(
+            p for p in drafts.rglob("*.md") if not _has_litter(p.relative_to(drafts).as_posix())
+        ):
             if (draft.parent.name, draft.stem) not in made:
                 errors.append(f"{rel(draft, root)}: a draft with no patch")
     readme = (root / "README.md").read_text() if (root / "README.md").is_file() else ""
@@ -2049,10 +2051,18 @@ def patch_errors(root: Path, tops: Iterable[str]) -> list[str]:
     return errors
 
 
-def paths_os_litter() -> set[str]:
+# `paths` is a local name in patch_shape_errors, so the judge's litter rules are reached through
+# these two (spec 090, Decision 1).
+def _is_litter(name: str) -> bool:
     from harness import paths
 
-    return set(paths.OS_LITTER)
+    return paths.is_litter(name)
+
+
+def _has_litter(rel: str) -> bool:
+    from harness import paths
+
+    return paths.has_litter(rel)
 
 
 # ---------------------------------------------------------------------------------------------

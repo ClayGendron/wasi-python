@@ -152,14 +152,33 @@ def git(*args: str, strip: bool = True) -> str:
     return out.strip() if strip else out
 
 
+def set_files(artifacts: Path) -> list[Path]:
+    """The set's files, as its SHA256SUMS names them, and SHA256SUMS, sorted as the folder's walk
+    once sorted them; a listed file that is missing stops the release."""
+    sums = artifacts / "SHA256SUMS"
+    if not sums.is_file():
+        raise SystemExit(f"{sums} is missing: the artifact set has no list")
+    listed = [line.split(None, 1)[1].strip() for line in sums.read_text().splitlines() if line]
+    outside = [rel for rel in listed if rel.startswith("/") or ".." in rel.split("/")]
+    if outside:
+        raise SystemExit(f"SHA256SUMS lists paths outside the set: {', '.join(outside)}")
+    files = [artifacts / rel for rel in listed] + [sums]
+    missing = [p.relative_to(artifacts).as_posix() for p in files if not p.is_file()]
+    if missing:
+        raise SystemExit(f"SHA256SUMS lists files that are missing: {', '.join(missing)}")
+    return sorted(set(files))
+
+
 def write_assets(artifacts: Path, wheel: Path, out: Path, version: str) -> list[Path]:
-    """The wheel, the artifact set as a deterministic .tar.xz, and SHA256SUMS of both."""
+    """The wheel, the artifact set as a deterministic .tar.xz, and SHA256SUMS of both. The tarball
+    packs the files the set's own SHA256SUMS lists, and SHA256SUMS: never the folder, where a
+    desktop may have written litter (spec 090, Decision 3)."""
+    files = set_files(artifacts)
     out.mkdir(parents=True, exist_ok=True)
     top = f"wasi-python-{version}"
     tar_path = out / f"{top}-wasm32-wasip1.tar.xz"
     raw = io.BytesIO()
     with tarfile.open(fileobj=raw, mode="w", format=tarfile.PAX_FORMAT) as tar:
-        files = sorted(p for p in artifacts.rglob("*") if p.is_file())
         dirs = sorted({p.parent for p in files if p.parent != artifacts})
         for d in [artifacts, *dirs]:
             name = top if d == artifacts else f"{top}/{d.relative_to(artifacts).as_posix()}"

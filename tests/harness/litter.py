@@ -29,29 +29,21 @@ from pathlib import Path
 
 from harness import paths
 
-# What an operating system or its helpers leave in folders on their own, never a source file:
-# spec 011's three, and the names spec 090 adds to the build's list (AppleDouble `._x` files are
-# matched by their prefix).
-LITTER_NAMES = frozenset(
-    {
-        *paths.OS_LITTER,  # .DS_Store, Thumbs.db, desktop.ini
-        "ehthumbs.db",
-        "Icon\r",  # a folder's custom icon
-        ".Spotlight-V100",  # the rest are a volume's root folders
-        ".fseventsd",
-        ".Trashes",
-        ".TemporaryItems",
-        ".DocumentRevisions-V100",
-        ".apdisk",
-    }
-)
 SEAL_ROUNDS = 10  # scans for litter that landed while staging, before sealing gives up
 REMOVE_TRIES = 5  # a writer can refill a folder between rmtree's unlinks (spec 018's race)
 
 
-def is_litter(name: str) -> bool:
-    """True for a name only an operating system leaves."""
-    return name in LITTER_NAMES or name.startswith("._")
+# What an operating system or its helpers leave in folders on their own, never a source file: the
+# judge's one list, `paths.OS_LITTER`, with AppleDouble `._x` files matched by their prefix (spec
+# 090, Decision 1).
+is_litter = paths.is_litter
+
+
+def unrecorded(rel: str) -> bool:
+    """A path under a staged folder that no fact records (spec 090, Decision 5): litter in any
+    part, or a host Python's bytecode under a `__pycache__` folder, which step 20's build writes
+    itself. A fact then depends only on the pinned tarball and the tree's real extras."""
+    return paths.has_litter(rel) or "__pycache__" in rel.split("/")
 
 
 def refuse(member: str, source: str) -> None:

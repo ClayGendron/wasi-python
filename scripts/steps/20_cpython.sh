@@ -20,4 +20,9 @@ mkdir -p "$B/logs/cpython"
 env -u PYTHONPATH "$HOSTPY" Platforms/WASI build --quiet --logdir "$B/logs/cpython" -- \
   --disable-test-modules --with-hash-algorithm=siphash13
 [ -f "$W/python.wasm" ] || die "no python.wasm in $W"
+# The driver's two Pythons write bytecode into Lib/ though common.sh says not to (spec 090): the
+# build-Python's own make runs it with -E, which ignores PYTHONDONTWRITEBYTECODE, and `make
+# pythoninfo` runs python.wasm under wasmtime, which passes the guest no host variable. Nothing
+# reads them later (steps 60 and 70 marshal with the tools' Python), so they go.
+find "$CP/Lib" -name __pycache__ -type d -prune | while read -r d; do remove "$d"; done
 echo "cpython: $(wc -c < "$W/python.wasm" | tr -d ' ') bytes, $(shasum -a 256 "$W/python.wasm" | cut -c1-16)"
