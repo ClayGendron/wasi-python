@@ -119,9 +119,9 @@ def _descriptor_limit() -> bool:
 
 
 def _read_only_files() -> bool:
-    """A file's read-only mode refuses a guest's unlink: POSIX (a folder without write permission),
-    not Windows, where the guest deletes a read-only file itself (spec 084's C2, settled by wave
-    01's dry run 39358820218; spec 094)."""
+    """Read-only content refuses a guest's unlink: on POSIX the host's folder without write
+    permission does; on Windows the read-only attribute does not, and the guest deletes the file
+    itself (spec 084's C2, settled by wave 01's dry run 39358820218 on wasmtime 49; spec 094)."""
     import os
 
     return os.name != "nt"

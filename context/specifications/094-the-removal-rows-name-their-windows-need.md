@@ -1,7 +1,10 @@
 # 094 — The removal rows name their Windows need
 
 - **Status:** **built 2026-10-20** on `spec/094-the-removal-rows-name-their-windows-need`, from
-  main `e8ba20a` (the Landing notes); awaiting its review and its branch dry run. Drafted the same
+  main `e8ba20a` (the Landing notes); **build review: "lands once M1"**
+  (`../reviews/094-the-removal-rows-name-their-windows-need-build-2026-10-20.md`), M1 and L1 fixed,
+  L2 written in by the reviewer ("Disposition of the build review"); **rebased onto main
+  `e00d394`** (spec 093 landed in wave 02); rides in wave 03. Drafted the same
   day, after wave 01's dry run 39358820218 failed one job, `judge (windows-2025, own-embedding)`,
   on spec 084's two read-only rows (the lane's log `build/wave-01/dryrun-failed.log`).
 - **Date:** 2026-10-20
@@ -108,6 +111,24 @@ root skip (Decision 5); any change to what the check asserts; the runner.
 - **Dry-run needs:** the Windows own-embedding shard is the evidence (criterion 5); the branch
   dry run's id is in the Landing notes.
 
+## Disposition of the build review
+
+The review, `../reviews/094-the-removal-rows-name-their-windows-need-build-2026-10-20.md`
+(written in the lane's scratchpad, copied here by its builder): "lands once M1 is closed and run
+39361856604 finishes with no G4 line for the two rows".
+
+- **M1 (Medium), fixed.** The README said content the host made read-only is left by a removal,
+  without saying that on Windows the attribute does not stop the guest, which 084's criterion 3
+  asked the README never to suggest. Two sentences now say so: beside the removal bullet ("On
+  Windows that keeps it from the removal only, not from the guest: a guest with a writable grant
+  or a private root deletes a file the host gave the read-only attribute itself (seen on wasmtime
+  49; spec 094)"), and as a *Not protected* item ("on Windows, a file the host gave the read-only
+  attribute in a writable grant or a root: the guest can delete it itself").
+- **L1 (Low), fixed.** `_read_only_files`' docstring now names the folder's mode on POSIX and the
+  attribute on Windows, in the review's words.
+- **L2 (Low), written in by the reviewer** (`137c0a2`): Decision 1 names wasmtime 49, where the
+  Windows behaviour was observed, and says an upgrade revisits the need.
+
 ## Landing notes
 
 ### What was built
@@ -128,6 +149,25 @@ the Design, and the CHANGELOG line under `## 0.1.0a8 — unreleased`.
 - **Seen failing first:** wave 01's dry run, on 084's code (the Research line).
 - No fast tier: the lane was rebuilding for wave 02 under `build/lane.lock`.
 
-### The branch dry run
+### The branch dry run (READ, run 39361856604 on `1d70261`)
 
-To be recorded here (criterion 5).
+**Green: 26 jobs passed, 3 skipped (the release-only jobs), none failed** (criterion 5).
+- `judge (windows-2025, own-embedding)`: `165/669 pass · 1 gap · 2 blocked · 0 fail`,
+  `blocked by: read-only files 2`, `ratchet vs 47b3695c2d: lost 0 · unrun locally 2 · grew 0`.
+- The gather printed no G line at all, so none for the two rows. It reports `593/669 pass · 69 gap
+  · 7 blocked · 0 fail (unit suite 4121/4149, 28 skipped)`, `blocked by: descriptor limit 2 ·
+  read-only files 2 · oracle 1 · prior-art clones 1 · three systems 1`, and three systems on
+  `python.wasm` `5f8d1b29…`, set `89b14f67…`.
+- Everything after `1d70261` (L2, M1, L1 and the rebase onto `e00d394`) changes only `context/`,
+  `README.md` and one docstring in `tests/harness/needs.py`, so the run's verdict stands for the
+  tip.
+
+### Rebased onto main `e00d394` (spec 093 landed in wave 02)
+
+`git rebase e00d394` replayed both commits with no conflict hunk and no semantic change. The
+CHANGELOG line stays under `## 0.1.0a8 — unreleased`. After the rebase I ran the two node ids and
+`tests/checks/test_rules.py` against a private copy of main's wave 02 set (`python.wasm`
+`cef11d8d…`, set `2b0480af…`), with `tests/unit/test_gather.py`, `-n 3`, log
+`build/094-rebased.log`: `45/46 pass · 1 blocked (prior-art clones) · 0 fail (unit suite
+80/80)`, `125 passed, 1 skipped`, `ratchet vs 2bb98c8421: lost 0 · grew 0`; both rows pass.
+`ruff check` and `ruff format --check` green.

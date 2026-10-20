@@ -3036,7 +3036,10 @@ has one.
   private root, the stdin folder and the fresh `HOME` are removed by a walk
   that holds two descriptors at any depth, creates nothing, never follows a
   link and changes no mode or attribute, so content the host made read-only
-  is left, even when the guest moved it into its folder (spec 084). A folder
+  is left, even when the guest moved it into its folder (spec 084). On Windows
+  that keeps it from the removal only, not from the guest: a guest with a
+  writable grant or a private root deletes a file the host gave the read-only
+  attribute itself (seen on wasmtime 49; spec 094). A folder
   a removal could not remove (such content, a file another program holds open
   on Windows, a full descriptor table) is named in one `RuntimeWarning` per
   process; a private folder keeps its lock file and is retried by the next
@@ -3134,6 +3137,8 @@ folder and report the same identity, such as cloned Windows images, are not
 told apart; a temporary folder on a filesystem without file locks, where such
 folders are never removed); a folder a removal had to leave (see above: read-only
 content the host made, a file another program holds open), until a removal can;
+on Windows, a file the host gave the read-only attribute in a writable grant or a
+root: the guest can delete it itself (seen on wasmtime 49; spec 094);
 a concurrent call on the same root while a `HOME` there is removed: it can hold that
 removal for up to about a million system calls (2**20; about 50 s on an arm64 Mac, a
 benchmark fact), and a `HOME` past that is left in the caller's folder and named
