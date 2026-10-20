@@ -1,7 +1,10 @@
 # 066 — the compiled packages' own tests in the release
 
 - **Status:** drafted 2026-10-20 on `spec/066-the-compiled-packages-own-tests` from main `1ce7381`
-  (wave 05 landed). Not reviewed. It builds after spec 043 (matplotlib M2, which pins contourpy)
+  (wave 05 landed); **revised 2026-10-20 against its pre-build review**
+  (`../reviews/066-the-compiled-packages-own-tests-spec-2026-10-20.md`: "ready once H1, H2 and M1
+  to M3 are written in"; every finding is written in, and the Disposition section says where).
+  Next: the survey (Decision 1), then a confirmation round on its memo and delta. It builds after spec 043 (matplotlib M2, which pins contourpy)
   lands, on 043's set. It touches the release workflow (new Linux shards, Decision 12), so it is
   build-class by AGENTS.md's definition, though no artifact byte changes. The lane asks for a
   pre-build review, as it did for 063 and 065: it changes what the release judges, and its numbers
@@ -95,24 +98,28 @@ numpy and pandas and spec 065 for CPython:
 
 ## Decisions
 
-1. **The survey comes first; this draft's numbers are INFERRED until it runs.** No guest ran
-   while drafting. The test layouts, configurations and imports are READ. The outcomes, the
-   classes' members and the fuel are INFERRED. Constitution §5.2 forbids specifying on an
-   unanswered question, so the builder's first commit is the survey:
-   - it stages each group as Decision 4 says and runs it once, on the frozen set of 043's
-     landing, through the judge's own driver, with no class and no gap yet;
-   - it records each group's outcomes by node id, its fuel, every trap (a test whose guest
-     ends in a trap, found by bisecting the group by file, then by test), and every collection
-     error;
-   - it writes them as the memo
-     `context/research/2026-10-2x-the-compiled-packages-own-tests-under-the-runtime.md`,
-     labelled EXECUTED.
-
-   The memo replaces this draft's INFERRED numbers. Three findings return to the lane as a dated
-   delta to this specification, for a confirmation round before the rest is built: a group whose
-   measured fuel passes Decision 11's bound; a failure that fits none of Decision 9's classes and
-   has no product fix within this specification; a family whose caps pass its budget. Anything
-   else the builder writes in, and the build review reads.
+1. **The survey comes first, as research; a confirmation round always follows** (the review,
+   M1). No guest ran while drafting. The test layouts, configurations and imports are READ; the
+   outcomes, the classes' members and the fuel are INFERRED. Constitution §5.2 forbids building on
+   an unanswered question, so:
+   - **The survey is a research step, time-boxed at 90 minutes**, run before any check, TOML or
+     harness line is committed. It uses a stand-in driver kept in a scratch copy (as 065's drafting
+     driver was), with this specification's staging (Decision 4), keys (Decision 5), working folder
+     (Decision 6) and selection (Decisions 7 and 8), and the judge's own embedder
+     (`tests/harness/guest.py`) on a private copy of main's frozen set, one guest session per
+     group, at most three at once, never while `build/lane.lock` exists.
+   - **It records** each group's outcomes by node id, its fuel, every trap and every collection
+     error, and sorts the failures into the platform's classes by their one-line reasons.
+   - **It is written up** as the memo
+     `context/research/2026-10-20-the-compiled-packages-own-tests-under-the-runtime.md`, labelled
+     EXECUTED, with the stand-in driver and the raw streams beside it.
+   - **Its delta always goes to a confirmation round.** With the memo, the builder writes a dated
+     delta to Decisions 8, 9, 11 and 12 (what is not selected, the classes and their members, the
+     groups, caps and budgets, the shards). A fresh reviewer reads it as a context-only delta
+     review. Building starts on that verdict, never before.
+   - contourpy is measured on 043's set when 043 has landed; main's set does not hold it. Its
+     numbers come to the confirmation round as a second, smaller delta, or with the build review
+     if 043 lands after the confirmation.
 
 2. **One family per package: its own grant, stage, kit copy and budget.** Spec 065 made a family
    the unit of staging: one grant, one stage, one fuel budget. Each of the six packages is its own
@@ -125,8 +132,8 @@ numpy and pandas and spec 065 for CPython:
      (scipy's, say) would move matplotlib's accepted fuel. One family per package means a package
      moves only its own rows, and a shard fetches only the trees it runs.
    - **The cost.** One stage per family per judge run (host copies; the kit unpacked once per
-     family) and one pytest start per group (INFERRED a few G of fuel each: the kit is source, and
-     the driver keeps `sys.dont_write_bytecode`). Twelve groups pay it twelve times.
+     family) and one pytest start per group (the kit is source, and the driver keeps
+     `sys.dont_write_bytecode`; the survey measures it). Ten groups pay it ten times.
    - **The budget.** Each family's fuel caps sum to at most its budget, as 065's did. The six
      budgets together are at most 3×10¹² (Decision 11).
 
@@ -142,7 +149,15 @@ numpy and pandas and spec 065 for CPython:
      kit too). The kit's `packaging` wheel is the product's own pin (both SHA-256 `d7193f7c…`), so
      pytest runs on the product's copy;
    - the keys of Decision 5 and 6 applied before pytest starts;
-   - the same hypothesis profile as `drive.py`'s, registered and loaded first.
+   - the same hypothesis profile as `drive.py`'s, registered and loaded first;
+   - a skipped collection report (a module-level `importorskip` or `pytestmark` skip) written as
+     `R skipped <collector node id> -- <reason>`, so a file that skips itself whole is a counted
+     outcome in these families (the review, L1); `drive.py` does not, and is not changed;
+   - the doctest collector of Decision 7, for lxml.
+
+   **A family chooses its driver** with `driver = "package"` in its TOML. numpy's and pandas'
+   TOMLs carry no such key; for them `upstream.py` reads today's keys with today's meaning and
+   judges with today's guard, byte for byte (the review, M2; criterion 2).
 
 4. **Where the tests come from: the pinned sdists, members only, tied to the artifact.** Each
    family's stage holds the files of its package's own pinned tarball, after its carried patches,
@@ -155,7 +170,7 @@ numpy and pandas and spec 065 for CPython:
    |---|---|---|---|---|
    | matplotlib | `matplotlib-3.11.2.tar.gz` | `lib/matplotlib/tests/` (94 test modules, `conftest.py`, `baseline_images/` with 1,219 PNGs and their PDF and SVG twins, `data/`); `lib/matplotlib/testing/` (support, Decision 5); `lib/mpl_toolkits/{axes_grid1,axisartist,mplot3d}/tests/` (10 modules, 104 PNGs) | inside the packages | 2,522 files, 32.7 MB |
    | contourpy | `contourpy-1.4.0.tar.gz` (043) | `tests/` (19 modules, `conftest.py`, helpers, 52 baseline images) | top-level package `tests` | 76 files, 12.3 MB |
-   | Pillow | `pillow-13.0.0.tar.gz` | `Tests/` (166 modules, `conftest.py`, `helper.py`, `images/`, `fonts/`, `icc/`) | top-level package `Tests` | 1,310 files, 68.8 MB |
+   | Pillow | `pillow-13.0.0.tar.gz` | `Tests/` (166 modules with `oss-fuzz/test_fuzzers.py`, `conftest.py`, `helper.py`, `images/`, `fonts/`, `icc/`) | top-level package `Tests` | 1,279 files, 68.83 MB |
    | kiwisolver | `kiwisolver-1.5.1.tar.gz` | `py/tests/` (6 modules) | a folder | 7 files |
    | lxml | `lxml-6.1.3.tar.gz` | `src/lxml/tests/` (27 modules and their data), `src/lxml/html/tests/` (11 modules, 6 doctest files, two data folders), `doc/*.txt` (the 11 doctest files the modules' `test_suite()` names) | inside the packages | 182 files, 1.2 MB |
    | regex | `regex-2026.9.29.tar.gz` | `regex/tests/test_regex.py` | inside the package | 2 files |
@@ -171,35 +186,51 @@ numpy and pandas and spec 065 for CPython:
      guest). matplotlib's is 32.7 MB, Pillow's 47.1 MB. The next release's threat-model review
      sees them (§5.6).
 
-5. **How the guest finds the tests: three keys, and a guard that names what it allows.** Each
-   package's TOML says how its tests are found. The driver applies them before pytest starts.
-   - **`path_packages`, now a map** from a product package to its staged folder:
+5. **How the guest finds the tests: three new keys with new names, and a path-based guard** (the
+   review, M2). numpy's and pandas' keys keep their names and meaning: `path_packages` is a list of
+   product packages whose test folder is `<package path>/tests` under `/upstream/tests/`, and
+   `support` a list of tarball *files* (pandas' `conftest.py` and two `__init__.py`), each checked
+   as a member. The `driver = "package"` families use these instead, and the rules refuse the old
+   keys in them:
+   - **`package_paths`**, a map from a product package to its staged folder:
      `{"matplotlib" = "lib/matplotlib", "mpl_toolkits.mplot3d" = "lib/mpl_toolkits/mplot3d", …}`,
      `{"lxml" = "src/lxml", "lxml.html" = "src/lxml/html"}`, `{"regex" = "regex"}`. The driver
      appends `/upstream-<package>/tree/<folder>` to each package's `__path__`, so
      `matplotlib.tests` and `lxml.tests.common_imports` import from the grant, and nothing of the
      product is replaced (050, Decision 4).
-   - **`sys_path`**: staged folders appended to `sys.path`, for tests that are a top-level
+   - **`extra_sys_path`**: staged folders appended to `sys.path`, for tests that are a top-level
      package or import a sibling by name: the tree root for contourpy (`tests`) and Pillow
-     (`Tests`); `py/tests` for kiwisolver. Appended, never inserted: the stage holds no module of
-     the product, so nothing can shadow one.
-   - **`support`**: product subpackages the zip leaves out and the tests need, staged from the same
-     tarball and found through `path_packages`. One today: `matplotlib.testing` (its decorators,
-     `compare`, `conftest`, `jpl_units` and `widgets`). matplotlib's `tests/conftest.py` imports
-     it first (READ).
-   - **The guard, widened.** The `M` lines name every module loaded from the grant. A finding is
-     any such module that is neither under a staged test folder nor a named `support` package; and
-     any loaded module whose top-level name is one of the zip's top-level names or a builtin
-     module's, whose `__file__` is outside the zip, and which is neither builtin nor a staged test
-     or support module. So a test can never pass against a copy of
-     the product's code from the stage.
+     (`Tests`), and `Tests/oss-fuzz` for Pillow's fuzz tests (they import their sibling
+     `fuzzers`). kiwisolver needs none: its six modules import only `kiwisolver`, `pytest` and the
+     stdlib (the review, L8). Appended, never inserted: the stage holds no module of the product, so
+     nothing can shadow one.
+   - **`support_packages`**: product subpackages the zip leaves out and the tests need, as staged
+     *folders*, found through `package_paths`. One today: `lib/matplotlib/testing`
+     (`matplotlib.testing`: its decorators, `compare`, `conftest`, `jpl_units` and `widgets`).
+     matplotlib's `tests/conftest.py` imports it first. No module of matplotlib or mpl_toolkits
+     outside `tests/` and `testing/` imports it (the review's grep, READ), so no product code path
+     can pass against the stage's copy.
+   - **What the `M` lines report** in `package_drive.py`: (a) every module whose `__file__` is
+     under `/upstream-<package>/tree/`; (b) every module whose top-level name is in the list the
+     judge writes into the group's JSON (the zip's top-level names and the builtin module names)
+     and whose `__file__` is neither in the zip nor absent (a builtin has none). The kit's modules
+     appear only under (b), for example a `packaging` loaded from the kit instead of the zip; the
+     kit's pytest and hypothesis are never reported.
+   - **The guard, path-based.** For a `driver = "package"` group, a finding is any (a) module whose
+     file is under neither a staged test folder (a group path, or a folder of `extra_sys_path`) nor
+     a `support_packages` folder, and every (b) module. That admits Pillow's `Tests.*` and
+     matplotlib's `matplotlib.testing.*` by where they live, not by their names. numpy's and
+     pandas' groups keep today's name-based guard and its `pandas.conftest` exception unchanged.
 
 6. **The working folder and the environment, per package.**
    - **`cwd`**: the folder the driver changes into. matplotlib and contourpy write their
      comparison results to `./result_images/` (`decorators._image_directories`, READ), so theirs
      is `/tmp/work`, in the guest's writable root. Pillow's tests open `Tests/images/…` by a path
-     relative to the working folder (READ, `helper.py`), so its `cwd` is the stage's tree root,
-     read-only; a Pillow test that writes beside its data fails, and is a class (Decision 9).
+     relative to the working folder (READ, `helper.py`), and some write beside what they read.
+     So Pillow's `cwd` is also `/tmp/work`, and before the session the judge copies the stage's
+     `Tests/` folder there, into the guest's writable root (host I/O only; the review, M3). The
+     test modules still import from the read-only grant; only their relative data paths meet the
+     copy. No failure is then the judge's own making, and there is no `read-only-tree` class.
    - **The environment** is the judge's (`TMPDIR=/tmp`, `HOME=/tmp`). matplotlib's cache goes to
      `$HOME/.config/matplotlib`, writable; its data is granted as the runner grants it
      (`mpl_data=True`, as 023 grants it to numpy's and pandas' groups).
@@ -225,45 +256,67 @@ numpy and pandas and spec 065 for CPython:
      kept. The `.ini` registers `flaky` (pytest-rerunfailures' marker, which one test carries).
    - **Pillow**: `[tool.pytest]` holds `addopts = -ra --color=auto` and `testpaths`; nothing to
      transcribe but the testpath. Its `conftest.py` used as is.
-   - **lxml**: no pytest configuration. Its tests are `unittest` classes, which pytest collects,
-     plus two kinds of doctest that only lxml's own `test.py` runner adds, through each module's
-     `test_suite()`: 17 doctest files (11 under `doc/`, 6 beside the `html` tests), and the
-     docstring doctests of nine modules (`DocTestSuite` of `lxml.etree`, `lxml.objectify`,
-     `lxml.html`, `lxml.html.diff`, `lxml.cssselect`, `lxml.isoschematron`, the test helpers
-     `selftest` and `selftest2`, and `test_xpathevaluator` itself; READ). The doctest files run:
-     the group names them, and the `.ini` sets `doctest_optionflags = ELLIPSIS` (lxml's
-     `make_doctest` flag, READ). The docstring doctests do not: pytest's doctest plugin reads a
-     module's source file, and the product's modules are compiled or bytecode in a zip, so they
-     are not selected (Decision 8).
-     **The check of it**: the rules read each staged module's `test_suite()` with `ast`, and fail
-     if it adds anything but its own module's `TestCase` classes, the doctest files the group
-     names, and the docstring suites the `not_selected` entry names (Decision 14). So pytest's
-     collection is lxml's own less a named part, proved, not assumed.
+   - **lxml**: no pytest configuration. lxml's own runner (`test.py`) runs, per module, exactly
+     what that module's `test_suite()` builds. pytest by itself would collect more and less (the
+     review, H1): it collects every `unittest.TestCase` subclass in a module's namespace, including
+     the abstract bases `test_suite()` never adds (in `test_elementtree.py`, `_ETreeTestCaseBase`
+     with 274 `test_` methods, `_ElementSlicingTest`, `_XMLPullParserTest` and `_C14NTest`, each
+     with `etree = None`), and builds `FeedTestCase('runTest')` where lxml builds one case per data
+     file; and it collects none of lxml's doctests. So the lxml group's selection is made equal to
+     `test_suite()`'s, in both directions:
+     - **Classes.** The judge reads each staged module's `test_suite()` with `ast` and writes, per
+       module, the `TestCase` classes it adds into the group's JSON (`keep_classes`). The driver
+       deselects every collected unittest item whose class is not listed, and writes one
+       `D <node id>` line per deselected item. The verdict checks both ways: every listed class
+       has at least one collected item (no class lxml runs is lost), and the deselected set is
+       exactly the collected classes not listed (nothing else is dropped). A class `test_suite()`
+       builds from data (`FeedTestCase`) is not run: lxml's own runner builds none while
+       `lxml.html.clean` is absent, and it is (`lxml_html_clean` is not shipped, README), so its
+       module is not selected (Decision 8).
+     - **Doctest files.** The driver's doctest collector adds the 17 doctest files `test_suite()`
+       names, each with lxml's own flags: `ELLIPSIS` for the 11 `doc/*.txt` files lxml runs through
+       `make_doctest`, none for the 6 `html/tests/*.txt` files it runs through `DocFileSuite`
+       plainly. lxml runs `validation.txt` from five modules; the group runs it once, from one.
+     - **Docstring doctests.** The same collector adds, as doctest items, the docstrings of the nine
+       modules `test_suite()` passes to `DocTestSuite`: three staged as source (`selftest`,
+       `selftest2`, `test_xpathevaluator`) and six product modules found by import (`lxml.etree`,
+       `lxml.objectify`, `lxml.html`, `lxml.html.diff`, `lxml.cssselect`, `lxml.isoschematron`).
+       A docstring survives in bytecode and in a compiled module's `__doc__`, which is how lxml's
+       own runner reads them. `lxml.cssselect`'s raise `ImportError` without `cssselect` and
+       `lxml.isoschematron` is the product's stand-in: those two are collection reports, sorted
+       as Decision 8 says.
+     - **The check of it**: the rules read every `test_suite()` and fail if it adds anything not
+       accounted for here (a class, a doctest file, a docstring suite); a unit check feeds a staged
+       module with an unlisted `TestCase` and expects a finding (criterion 1).
    - **regex**, **kiwisolver**: no configuration; `unittest` and plain pytest modules.
 
 8. **What is not selected, each with its reason and closer.** A file is not selected only when it
-   cannot load or every one of its tests needs what the product does not have; a single test that
-   fails is a class member, never a reason to drop its file. READ from each file's imports
-   (`collection-risks.txt`); the survey confirms each line or moves it to a class.
+   cannot load or every one of its tests needs what the product does not have; a file that skips
+   itself is selected, and its skips are counted (Decision 3's `R skipped` lines); a single test
+   that fails is a class member, never a reason to drop its file (the review, L1). READ from each
+   file's imports (`collection-risks.txt`); the survey confirms each line, and the confirmation
+   round sees every change.
 
    | package | files | reason | closes with |
    |---|---|---|---|
-   | matplotlib | `test_backend_{gtk3,macosx,nbagg,qt,tk,webagg,inline,cairo}.py`, `test_backends_interactive.py` | GUI and notebook backends: step 70 keeps ten backends, none of these; the interactive tests start subprocesses | `README.md` |
-   | matplotlib | `test_determinism.py` | every test runs a subprocess and compares its output | `README.md` |
-   | matplotlib | `test_sphinxext.py`, `test_doc.py` | they build or read matplotlib's documentation tree, which is not staged, with Sphinx, which is not in the kit | `context/specifications/066-the-compiled-packages-own-tests.md` |
-   | contourpy | `tests/test_codebase.py` | it runs tools over the source repository through `subprocess` | the same |
+   | matplotlib | `test_backend_webagg.py` | it imports `backend_webagg_core`, which step 70 drops: it cannot load | `README.md` |
+   | matplotlib | `test_backends_interactive.py`, `test_determinism.py` | every test starts a subprocess | `README.md` |
+   | contourpy | `tests/test_codebase.py` | every test runs tools over the repository through `subprocess` | `README.md` |
    | contourpy | `tests/test_bokeh_renderer.py` | Bokeh and Selenium are not in the product (043's Scope) | `README.md` |
-   | Pillow | `Tests/oss-fuzz/` | fuzzers that import `atheris` | the same as contourpy's first |
-   | Pillow | `Tests/test_imagegrab.py`, `Tests/test_main.py` | screen grabs and `python -m PIL` in a subprocess | `README.md` |
+   | Pillow | `Tests/test_main.py` | every case runs `python -m PIL` in a subprocess | `README.md` |
    | lxml | `src/lxml/tests/test_threading.py` | every test starts threads | `README.md` |
-   | lxml | `src/lxml/tests/test_http_io.py` | a local HTTP server on a socket and a thread | `README.md` |
-   | lxml | `src/lxml/tests/test_isoschematron.py` | `lxml.isoschematron` is the product's stand-in (spec 046, Decision 8) | `context/specifications/046-lxml.md` |
-   | lxml | the nine docstring doctest suites of Decision 7 (not files: an entry of names, checked against the `test_suite()` functions) | pytest reads doctests from source files; these modules are compiled or bytecode in the zip | `context/specifications/066-the-compiled-packages-own-tests.md` |
+   | lxml | `src/lxml/tests/test_isoschematron.py`, and `lxml.isoschematron`'s docstring doctests | `lxml.isoschematron` is the product's stand-in (spec 046, Decision 8) | `context/specifications/046-lxml.md` |
+   | lxml | `src/lxml/html/tests/test_feedparser_data.py` | its `test_suite()` builds cases only when `lxml.html.clean` imports; `lxml_html_clean` is not shipped, so lxml's own runner runs none | `README.md` |
 
-   Files that skip themselves when an optional module is absent (matplotlib's `pikepdf`,
-   `IPython`, `tornado`; Pillow's `pyarrow`, `nanoarrow`, `PyQt6`; lxml's `cssselect`) stay
-   selected: their skips are counted outcomes, as upstream's own CI without those modules counts
-   them.
+   Selected although they may skip whole (each confirmed by the survey): matplotlib's
+   `test_backend_{nbagg,inline,gtk3,qt,macosx,tk,cairo}.py`, `test_sphinxext.py`, `test_doc.py`;
+   Pillow's `Tests/oss-fuzz/test_fuzzers.py` (the review, H2: it imports only `fuzzers`,
+   `packaging`, `pytest`, `PIL` and `Tests.helper`, and sends every file of `Tests/images` through
+   Pillow's decoders and every file of `Tests/fonts` through FreeType; its `atheris` modules are
+   not `test_*.py` and are never collected) and `Tests/test_imagegrab.py` (it skips off Windows and
+   macOS, and the guest's `sys.platform` is `wasi`); lxml's `test_http_io.py` (its `needs_http`
+   tests skip when libxml2 has no HTTP, as the product's has none) and `test_css.py` (skips without
+   `cssselect`).
 
 9. **Known failures are classes, by test id, each one gap.** As 050's Decision 10: a failed or
    errored test goes to the first class of its group whose outcome and `match` fit; each class is
@@ -281,8 +334,7 @@ numpy and pandas and spec 065 for CPython:
    | `shallow-recursion` | `Stack overflow \(used` | recursion through Python stops at 40 to 250 levels (README, "Deep recursion") | `README.md` | lxml (deep trees), matplotlib (`test_pickle`'s deep figures) |
    | `zip-no-source` | `could not get source code` | the product's modules are bytecode in a zip (README) | `README.md` | matplotlib (`test_api`'s source introspection) |
    | `zip-code-names` | as pandas' | code objects carry relative file names, so a warning's reported file differs | `README.md` | matplotlib (`_api.warn_external` tests) |
-   | `read-only-tree` | `Read-only file system\|Operation not permitted` | a test writes beside its data in the read-only stage | the survey names the files; `README.md` if none can move | Pillow |
-   | `wasm32-memory` | `MemoryError` | the guest's 4 GiB address space; a test that allocates more | `README.md` | Pillow (decompression-bomb and huge-image tests) |
+   | `wasm32-memory` | `MemoryError` | the declared maximum of `python.wasm`'s linear memory, which the survey records (the review, N2); a test that allocates more | `README.md` | Pillow (decompression-bomb and huge-image tests) |
    | `pillow-zlib-only` | `decoder \w+ not available\|encoder \w+ not available` | Pillow is built with zlib only (spec 023); a test that opens a codec without its own `skip_unless_feature` guard | `context/specifications/023-matplotlib-first-milestone.md` | Pillow |
    | `wasi-iconv` | `unknown encoding\|Unsupported encoding` | libxml2 decodes only what wasi-libc's `iconv` does (spec 046's README facts) | `README.md` | lxml |
    | `no-en-us-locale` | as the survey finds | `setlocale(LC_ALL, "en_US.UTF-8")` fails in the guest; matplotlib warns that date tests may fail | `README.md` | matplotlib (`test_dates`) |
@@ -303,6 +355,10 @@ numpy and pandas and spec 065 for CPython:
     group's survey fuel passes 480 G (pandas-groupby's, the largest group the release runs); a
     group past it is split by file, in the sdist's order, before the caps are set. A single file
     past it (likely only `test_axes.py`) stays one group and is named in the memo.
+    **mpl-toolkits** is surveyed first: its three test folders each hold an `__init__.py` and a
+    `conftest.py`, and with the toolkits' own `__init__.py` unstaged, `importlib` mode may load all
+    three as `tests.conftest` (the review, L4, INFERRED). If it does, the fallback is decided now:
+    one group per toolkit folder.
 
     | group | paths (under the tree) | `def test` (READ) | image comparisons (READ) | fuel (INFERRED) | provisional cap |
     |---|---|---|---|---|---|
@@ -324,7 +380,8 @@ numpy and pandas and spec 065 for CPython:
       100 M (numpy's groups average 16 to 27 M per pass, CPython's 17 to 48 M). mathtext's 681
       reference images are small, but each parses its expression with pyparsing in pure Python.
     - **The budget.** The six families' caps sum to at most 3×10¹², and each family's budget is
-      written in `upstream.py` beside 065's. The provisional caps above sum to 3.6×10¹²; that is
+      written in `upstream.py` beside 065's; the confirmation delta states each family's budget,
+      so "caps within budget" is not empty (the review, L6). The provisional caps above sum to 3.6×10¹²; that is
       why they are provisional. If the survey's caps still pass 3×10¹², Decision 1's delta goes
       to the lane before anything else is built.
     - **The plain binary is not run** (050, Decision 1).
@@ -333,9 +390,11 @@ numpy and pandas and spec 065 for CPython:
     - **What the last dry run shows** (`39371419248`, READ). The Linux upstream shards took 161 to
       225 s of job time each (`upstream-numpy-a` 161 s, `upstream-pandas-small` 175 s,
       `upstream-numpy-b` 190 s, `upstream-groupby` 209 s, `upstream-frame` 225 s, setup and
-      fetching included). The judge stage's longest leg was `own-guest` on macOS, 457 s. 21 judge
-      and verify jobs started together; one macOS job waited 58 s for a macOS slot. Rate: 0.16 to
-      0.31 s per G of fuel past about 60 s of setup.
+      fetching included). The judge stage's longest leg was `own-guest` on macOS, 457 s. 16 Linux
+      and Windows judge and verify jobs started at 05:00:39 while the x86_64 rebuild still ran, and
+      five macOS jobs from 05:00:43: 22 jobs at once. The binding limit was macOS's five concurrent
+      jobs: `own-rest` on macOS waited until 05:01:41 for a macOS slot (the review, L5). Rate: 0.16
+      to 0.31 s per G of fuel past about 60 s of setup.
     - **Why new shards.** The existing Linux shards already hold 450 to 650 G each. Adding about
       2 T to them would put each past the macOS leg. New shards add matrix legs to
       `release.yml`, which makes this build-class; that is accepted (Kind).
@@ -351,10 +410,10 @@ numpy and pandas and spec 065 for CPython:
       Past it, the builder moves a group to the shard with room, by a reviewed judge change; if no
       shard has room, a fourth (`upstream-plot-d`) is added the same way. A system is never
       dropped from a shard to get a pass.
-    - **The job count.** 24 jobs start together instead of 21, against the account's 20
-      concurrent. The early Linux jobs (`own-runner` 31 s, three `verify` about 30 s) free slots
-      within a minute, so the new shards start at most about 60 s late and end before the macOS
-      leg (INFERRED: 60 s + 355 s < 457 s). The dry run's length is INFERRED unchanged.
+    - **The job count.** The three Linux shards add Linux jobs only; macOS's five slots stay the
+      binding limit, so they are INFERRED to start at once with the others and to end before the
+      macOS leg (355 s < 457 s). The dry run's length is INFERRED unchanged; the landing notes
+      record the branch run's gather start against `39371419248`'s 05:08:22, as a benchmark.
     - **Linux only in the release.** No group of 066 probes the host's file system the way
       `cpython-fs` does: their files go to `/tmp` in the guest's root, and their data is read from
       a read-only grant. macOS runs every group at every landing on the lane, where fuel is
@@ -368,25 +427,30 @@ numpy and pandas and spec 065 for CPython:
     - matplotlib, contourpy, Pillow, kiwisolver, lxml and regex become `kind = "suite"`.
     - FreeType, HarfBuzz, SheenBidi, libraqm and qhull stay `via matplotlib`; libxml2 and libxslt
       `via lxml`. Each now names a suite that runs. pybind11 and cppy stay `build-only`.
-    - **scipy, scikit-learn and statsmodels are not 066's** (the drafting instruction; scipy's
-      suite is larger than numpy's, and 037's own Scope leaves its first gaps to 038). On 037's
-      branch, scipy's entry names `spec 066` as its closer. If 037 has landed when 066 is built,
-      066's builder re-points that `closes_with` to the number the lane reserves in
-      `context/roadmap.md` for "scipy's, scikit-learn's and statsmodels' own tests in the release"
-      (095 is the next free number at drafting). If 037 has not landed, the lane tells 037's
-      builder to name that number instead.
+    - **scipy, scikit-learn and statsmodels are not 066's** (scipy's suite is larger than numpy's,
+      and 037's own Scope leaves its first gaps to 038). **095 is reserved** for "scipy's and
+      scikit-learn's own tests in the release" (statsmodels' too if 045 adds an entry): the lane
+      adds it to `context/roadmap.md`'s `Reserved:` paragraph at this confirmation, since
+      `shards.package_errors` accepts only a number reserved there (the review, L7). Every entry
+      that names 066 points at 095 instead (READ on the branches at drafting):
+      - `scipy` on 037's, 038's and 044's branches (`closes_with = "spec 066"`);
+      - `scikit-learn` on 044's branch (`044-scikit-learn.md:722` names 066).
+      The lane tells those builders; any of them that lands before 066 is built carries 095, and
+      066's builder re-points whatever still names 066 when it builds.
     - **The check of it**: after 066, no entry of `packages.toml` names `spec 066` (criterion 10).
 
 14. **The rules check, widened.** `test_upstream_files_are_well_formed` also checks, with no
     guest:
     - each new family's grant is `/upstream-<package>`, unique, and not `/upstream` or `/cpython`;
-    - `path_packages` maps product packages (each in the zip or builtin) to folders that are
-      tarball folders; `sys_path` and `support` name tarball folders; `cwd` is `/tmp/work` or the
-      tree root;
+    - a `driver = "package"` family uses `package_paths`, `extra_sys_path` and
+      `support_packages`, never `path_packages` or `support`; `package_paths` maps product
+      packages (each in the zip or builtin) to tarball folders; `extra_sys_path` and
+      `support_packages` name tarball folders; `cwd` is `/tmp/work`; numpy's and pandas' TOMLs
+      pass today's rules unchanged;
     - every group path, `not_selected` file and support file is a tarball member or folder;
     - each family's caps sum to at most its budget, and the six budgets to at most 3×10¹²;
-    - lxml's `test_suite()` functions add only their module's `TestCase` classes, the doctest
-      files the group names, and the docstring suites its `not_selected` entry names (Decision 7);
+    - every lxml `test_suite()` adds only what Decision 7 accounts for: `keep_classes`, the doctest
+      files, the docstring suites, and the not-selected module of Decision 8;
     - no group is in two shards on one system, and each is in exactly one Linux shard (063's rule,
       unchanged).
 
@@ -411,23 +475,28 @@ artifact's own.
 ## Design
 
 ```
-tests/upstream/matplotlib.toml       package, grant /upstream-matplotlib, path_packages (map),
-                                       support ["lib/matplotlib/testing"], cwd /tmp/work,
+tests/upstream/matplotlib.toml       package, driver "package", grant /upstream-matplotlib,
+                                       package_paths (map), support_packages
+                                       ["lib/matplotlib/testing"], cwd /tmp/work,
                                        [groups.matplotlib-{axes,mathtext,render,rest}],
                                        [groups.mpl-toolkits], [[not_selected]], [[expected]]
-tests/upstream/contourpy.toml        grant /upstream-contourpy, sys_path ["."], cwd /tmp/work, one group
-tests/upstream/pillow.toml           grant /upstream-pillow, sys_path ["."], cwd ".", one group
-tests/upstream/kiwisolver.toml       grant /upstream-kiwisolver, sys_path ["py/tests"], one group
-tests/upstream/lxml.toml             grant /upstream-lxml, path_packages {lxml, lxml.html}, one group
-                                       with the 17 doctest files
-tests/upstream/regex.toml            grant /upstream-regex, path_packages {regex}, one group
+tests/upstream/contourpy.toml        grant /upstream-contourpy, extra_sys_path ["."], cwd /tmp/work
+tests/upstream/pillow.toml           grant /upstream-pillow, extra_sys_path [".", "Tests/oss-fuzz"],
+                                       cwd /tmp/work with a copy of Tests/, one group
+tests/upstream/kiwisolver.toml       grant /upstream-kiwisolver, one group
+tests/upstream/lxml.toml             grant /upstream-lxml, package_paths {lxml, lxml.html}, one group;
+                                       its JSON gains keep_classes, the 17 doctest files with their
+                                       flags, and the nine docstring modules
+tests/upstream/regex.toml            grant /upstream-regex, package_paths {regex}, one group
 tests/upstream/<package>.ini         each package's pytest configuration (Decision 7)
 tests/upstream/package_drive.py      guest side: the grant from its path, the kit appended, the keys,
                                        the hypothesis profile, the stream (as drive.py's)
 tests/upstream/expected/<group>/<class>.txt
-tests/harness/upstream.py            PACKAGES += six; Config: path_packages map, sys_path, support,
-                                       cwd, driver; a family per package; budgets per grant;
-                                       the guard over product distributions; rule_errors widened
+tests/harness/upstream.py            PACKAGES += six; Config: driver, package_paths, extra_sys_path,
+                                       support_packages, cwd (read only for driver "package");
+                                       a family per package; budgets per grant; the path-based
+                                       guard and the D lines for driver "package" groups; numpy's
+                                       and pandas' reading and guard unchanged; rule_errors widened
 tests/checks/test_v1_3_upstream_suites.py
                                      _need per family; the new groups, classes and traps
 tests/upstream/fetch.py              --shard: the kit, and each family's tarball for the groups the
@@ -443,11 +512,12 @@ README.md, CHANGELOG.md, context/progress/README.md, spec 063 (one dated line), 
 **A group's run, in order:**
 1. Stage `/upstream-<package>` once per judge run, after the tie, from the patched tree: the
    staged folders, the support folders, the kit (unpacked), the driver, the `.ini`, each group's
-   JSON. Seal it read-only (089).
+   JSON (with the zip's and the builtins' top-level names, and lxml's `keep_classes`). Seal it
+   read-only (089). For Pillow, copy `Tests/` into the guest's root at `/tmp/work/Tests`.
 2. `guest.run(snapshot, ["-u", "/upstream-<package>/judge/package_drive.py", "<package>",
    "<group>"], workdir, stdlib, env=ENV, fuel=<cap>, preopens=[("/upstream-<package>", <stage>,
    False)], mpl_data=True)`.
-3. In the guest: the kit appended to `sys.path`; `path_packages`, `sys_path`; `os.chdir(cwd)`; the
+3. In the guest: the kit appended to `sys.path`; `package_paths`, `extra_sys_path`; `os.chdir(cwd)`; the
    hypothesis profile; pytest with 050's options, the `.ini`, the group's paths, `--ignore`s and
    marker.
 4. Read the stream; sort failures into classes; check the guard; record `fuel` and `passes` and
@@ -483,23 +553,32 @@ applied in a scratch copy, never committed.
 
 1. **The rules.** `test_upstream_files_are_well_formed` passes with Decision 14's rules on the new
    files. `tests/unit/test_upstream.py` variants each fail with their own line: a family whose
-   grant is `/upstream`; two families with one grant; a `path_packages` folder not in the tarball;
-   a `support` folder not in the tarball; a `cwd` that is neither `/tmp/work` nor the tree root; a
-   family over its budget; the six budgets over 3×10¹²; an lxml `test_suite()` that adds a suite
-   the group does not name.
+   grant is `/upstream`; two families with one grant; a `package_paths` folder not in the tarball;
+   a `support_packages` folder not in the tarball; a `driver = "package"` family with
+   `path_packages` or `support`; a `cwd` other than `/tmp/work`; a family over its budget; the six
+   budgets over 3×10¹²; an lxml `test_suite()` that adds a suite Decision 7 does not account for; a
+   staged lxml module with a `TestCase` that `test_suite()` does not add and the JSON does not
+   deselect.
 2. **The stream and the verdict, on fixed streams** (no guest). `package_drive.py`'s stream parses
-   with `parse_stream` to the same outcomes as `drive.py`'s for the same lines. The guard: an `M`
-   line for `matplotlib.colors` from the stage is a finding; one for `matplotlib.testing.compare`
-   is not; one for `matplotlib.tests.test_axes` is not; a product module with a `__file__`
-   outside the zip is a finding.
-3. **The survey, then the baseline** (EXECUTED by the builder on 043's landed set, Decision 1). The
-   memo exists, labelled EXECUTED, with each group's outcomes by id, fuel, traps and collection
-   errors. Each group check, run before its TOML lists and gaps exist, fails with its findings.
+   with `parse_stream` to the same outcomes as `drive.py`'s for the same lines. A recorded numpy
+   stream and a recorded pandas stream are judged exactly as today (same findings, same counts).
+   The path-based guard: an (a) `M` line for `lib/matplotlib/colors.py` is a finding; one for
+   `lib/matplotlib/testing/compare.py` is not; one for `lib/matplotlib/tests/test_axes.py` is not;
+   one for `Tests/helper.py` is not; a (b) line for `packaging` from the kit is a finding. lxml: a
+   `D` line for an unlisted class's item is admitted; a listed class with no collected item is a
+   finding; a `D` line for a listed class is a finding. An `R skipped <collector>` line counts as
+   one skipped outcome.
+3. **The survey, then the baseline.** The memo exists, labelled EXECUTED, written before any check,
+   TOML or harness line (Decision 1), with each group's outcomes by id, fuel, traps and collection
+   errors; its delta has a confirmation verdict. Each group check, run before its TOML lists and
+   gaps exist, fails with its findings.
 4. **With the TOML, the lists and the gaps complete**, the run on that set gives: each group check
    passing; each class check and trap check failing as its gap says; the numbers (passes, fuel,
    classes, members) in the landing notes, equal to the memo's or explained.
-5. **Fuel repeats.** The builder runs each new group twice in one judge session (a one-off, as
-   050's criterion 7): equal fuel within `sameness.py`'s tolerance.
+5. **Fuel repeats.** The builder runs each new group twice (a one-off, as 050's criterion 7),
+   **restaging between the runs** (the review, N1: `os.listdir` and `rglob` orders follow the
+   host's file system): equal outcomes and `passed_digest`, and on darwin equal fuel within
+   `sameness.py`'s tolerance.
 6. **numpy, pandas and CPython do not move.** The full judge's ratchet against the base: every
    numpy, pandas and CPython row lost 0, grew 0; their stages' file lists are byte-for-byte the
    base's (a unit check hashes the `/upstream` and `/cpython` stage manifests).
@@ -528,9 +607,13 @@ applied in a scratch copy, never committed.
 
 ## The owner's choices
 
-None is needed to build. Two defaults are the owner's to move, each decided above with its reason:
-- **The release's job count** (Decision 12): three more Linux jobs, 24 at once against 20 slots,
-  INFERRED not to lengthen the dry run. The owner may prefer fewer, longer shards.
+None is needed to build. Three defaults are the owner's to move, each decided above with its reason:
+- **The release's job count** (Decision 12): three more Linux jobs, INFERRED not to lengthen the
+  dry run, since macOS's five slots bind. The owner may prefer fewer, longer shards.
+- **The lane's cost** (the review, L6; a benchmark estimate, INFERRED): today's accepted darwin
+  upstream fuel is 2.84 T over 16 groups; 066 adds 1.3 to 2.6 T, 45 to 90% more upstream guest
+  work at every landing, and more again on the serial judge every fifth landing. The survey's
+  measured total replaces the range in the confirmation delta.
 - **What runs per release when the survey's fuel passes the budget** (Decisions 1 and 11): the
   builder brings the numbers to the lane before building on; the choice between a fourth shard, a
   larger budget, and running a part on the lane only is then the owner's.
@@ -539,6 +622,8 @@ Everything else is decided above.
 
 ## For the lane
 
+- **Next, before building:** the survey and its memo (Decision 1), then the confirmation round on
+  their delta. The lane adds 095 to the roadmap's `Reserved:` paragraph at that round.
 - **Wave kind: build-class** (the release workflow; no artifact byte changes, no `scripts/`,
   `recipes/` or `downloads/` line). It may ride in a wave as one of the two other build-class
   changes, after 043 has landed. **Dry-run needs:** the branch dry run (criterion 12), then the
@@ -560,11 +645,58 @@ Everything else is decided above.
 
   ```
   --accept "066: the compiled packages' own tests in the release: matplotlib, contourpy, Pillow, kiwisolver, lxml and regex, <n> groups, <p> passes, <c> classes, <t> traps"
-  --accept-judge "066: tests/upstream/{matplotlib,contourpy,pillow,kiwisolver,lxml,regex}.toml and .ini; package_drive.py; a family per package in upstream.py (grant, stage, kit copy, budget), path_packages as a map, sys_path, support, cwd, the guard over product distributions; fetch.py --shard per family; packages.toml (six suites); three Linux shards in release_shards.toml and release.yml; the unit checks"
+  --accept-judge "066: tests/upstream/{matplotlib,contourpy,pillow,kiwisolver,lxml,regex}.toml and .ini; package_drive.py; a family per package in upstream.py (grant, stage, kit copy, budget), driver "package" with package_paths, extra_sys_path, support_packages and cwd, the path-based guard, lxml's selection equal to test_suite()'s, numpy's and pandas' reading unchanged; fetch.py --shard per family; packages.toml (six suites); three Linux shards in release_shards.toml and release.yml; the unit checks"
   ```
 
   No `--accept-growth` and no `--accept-fewer-passes`: new rows are not growth, and no accepted
   pass moves. If the lane's run has a growth line, it is the base's: name it in the base's words.
+
+## Disposition of the pre-build review (2026-10-20)
+
+The review (`../reviews/066-the-compiled-packages-own-tests-spec-2026-10-20.md`) said "ready once
+H1, H2 and M1 to M3 are written in"; the Lows came with fix text. Each is written in:
+
+- **H1 (lxml under pytest is not lxml's own): fixed, option (i).** Decision 7: the judge writes each
+  module's `test_suite()` classes into the JSON (`keep_classes`); the driver deselects every other
+  collected class and writes a `D` line for each; the verdict checks both ways. The 17 doctest
+  files run with lxml's own per-file flags, and the nine docstring suites are collected too (none
+  is left out for being in the zip). `test_feedparser_data.py` is not selected, with its true
+  reason (Decision 8). Criteria 1 and 2 gain the variants.
+- **H2 (Pillow's oss-fuzz reason is false): fixed.** `Tests/oss-fuzz/test_fuzzers.py` is selected,
+  with `Tests/oss-fuzz` in Pillow's `extra_sys_path` for its sibling `fuzzers` (Decisions 5 and 8).
+  If the survey finds a real blocker, the confirmation delta states it as measured.
+- **M1 (the survey and an unconditional confirmation): fixed.** Decision 1: the survey is a
+  research step, time-boxed at 90 minutes, with a stand-in driver from a scratch copy, before any
+  check, TOML or harness line; its EXECUTED memo and a dated delta to Decisions 8, 9, 11 and 12
+  always go to a confirmation round; building starts on its verdict. Criterion 3 says so.
+- **M2 (shared keys and guard): fixed.** Decisions 3 and 5: `driver = "package"` selects the new
+  reading; numpy and pandas keep `path_packages` (a list), `support` (files) and today's name-based
+  guard, byte for byte, proved by judging their recorded streams (criterion 2). The new keys have
+  new names (`package_paths`, `extra_sys_path`, `support_packages`); the `M` scope is specified
+  (the tree, plus product top-level names loaded from outside the zip, from a list in the JSON);
+  the new guard is path-based.
+- **M3 (`read-only-tree` closed by the README): fixed, option (i).** Decision 6: Pillow's `cwd` is
+  `/tmp/work`, holding a host copy of `Tests/` in the guest's writable root; the class is gone.
+- **L1: fixed.** Self-skipping files stay selected (Decision 8's last paragraph); the cairo and
+  webagg reasons are corrected; module-level skips are counted (`R skipped`, Decision 3).
+- **L2: fixed.** No closer names this specification: the remaining not-selected rows close with
+  `README.md` (platform or profile facts it states) or spec 046.
+- **L3: fixed.** Decision 7 states the three staged docstring modules and the six product ones, and
+  collects all nine; the flags follow lxml per file; `validation.txt` runs once, said so.
+- **L4: written in.** Decision 11: mpl-toolkits is surveyed first; the fallback is one group per
+  toolkit folder.
+- **L5: fixed.** Decision 12 restates the job count: macOS's five slots bound the base run; the
+  landing notes record the gather start as a benchmark.
+- **L6: fixed.** The owner's choices state the lane's cost; the confirmation delta states each
+  family's budget (Decision 11).
+- **L7: fixed.** Decision 13: 095 is reserved for scipy's and scikit-learn's own tests (statsmodels'
+  if 045 adds an entry); the lane adds it to the roadmap's `Reserved:` paragraph at this
+  confirmation; every entry naming 066 (scipy on 037, 038 and 044; scikit-learn on 044) points at
+  095.
+- **L8: fixed.** kiwisolver has no `extra_sys_path`; Pillow's `Tests/` is 1,279 files, 68.83 MB.
+- **N1: written in.** Criterion 5 restages between its two runs.
+- **N2: written in.** `wasm32-memory` cites the binary's declared maximum memory, which the survey
+  records.
 
 ## Landing notes
 
