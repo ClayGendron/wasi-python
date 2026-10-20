@@ -687,3 +687,35 @@ Its context-only Lows (3, 4 and 5) are written in above, by the reviewer's commi
   first 240 characters of a pass's reason, and check 3's coverage line is about 330, so
   `latest.json` loses its last three counts. Nothing is compared on it, so no verdict changes. The
   follow-up: a shorter summary, or the counts as a `fact`; it changes the judge only.
+
+### Rebased onto wave/06 (`40f30cd`: main `c091f3d`, then 043, then 037; 2026-10-20)
+
+`git rebase wave/06` replayed 096's eleven commits. One commit conflicted, the build commit
+(`15f1d18`), in two files, three hunks; I resolved each as 096's builder. Nothing else conflicted:
+`tests/harness/callbacks.py`, the three check files, `tests/unit/test_callbacks.py` and
+`context/upstream/README.md` merged on their own.
+
+1. **`README.md`, the patches row**: 037's "carried: 17" with its merged-upstream list
+   (matplotlib's enum fix, qhull's format strings, two of OpenBLAS's) becomes "carried: 19", the
+   list gaining kiwisolver's `tp_clear` fix and lxml's `fake_cython` line.
+2. **`README.md`, *How it is built***: 037's list of seventeen becomes nineteen, with 096's two
+   inserted in their places (kiwisolver's `tp_clear` fix after the callback signatures, lxml's line
+   before OpenBLAS's three); 037's and 043's entries kept word for word.
+3. **`CHANGELOG.md`, under `## 0.1.0a8 — unreleased`**: both bullets kept, 096's first (the newest
+   landing), then 037's whole. After the rebase, 096's bullet counts the functions on the set with
+   scipy (5,893; below).
+
+**Checked after the rebase** (EXECUTED; no rebuild: 044 holds the native slot):
+- **Check 3 on 037's built set** (`/Users/claygendron/Git/Repos/wasi_python-037/build/artifacts`,
+  read-only through `WASI_PYTHON_ARTIFACTS`; `python.wasm` 84,794,265 bytes, which has scipy, OpenBLAS
+  and 043's contourpy and `_qhull`, and not 096's patches): **exactly kiwisolver's four findings,
+  no new one** from scipy, OpenBLAS or contourpy. Coverage: 554 static types (18 metatypes), 461
+  specs, 246 module definitions, 5,893 functions; 0 unreferenced type candidates, 1 type named at
+  run time; 67 specs with slots past the image and 15 module slot arrays past the image (contourpy's
+  and scipy's pybind11 modules among them). Every minimum, bound and named record holds.
+- `tests/checks/test_rules.py` and `tests/unit/test_callbacks.py` (`-n 3`): 73 passed, 1 skipped
+  (prior-art clones), one red: `test_version_states_the_platform_semantics`, because this
+  worktree's own set predates 037 and its `-V` lacks 037's "or scipy.odr". Against 037's set it
+  passes. It is the set, not the tree; the wave's rebuild settles it.
+- Not rebuilt: the lane rebuilds the wave tip once in the main tree.
+
