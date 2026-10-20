@@ -962,5 +962,41 @@ skipped)`, `2096 passed, 133 skipped, 3 xfailed`, `lost 0 · absent 0 · unrun 0
   two descriptors, changes no mode, and (for a HOME) has a budget; new checks for deep, linked,
   moved and read-only trees, a writer, the sweep's retry and the warning; one sweep check
   restated to fail the removal through _remove_tree"`. No `--accept-growth`: nothing grew.
+  (For a wave, the claim list below replaces this line: its reason starts with the number.)
 - The Windows dry run (criterion 17), with the named nodes `PASSED` on `windows-2025`.
 - The pre-build review is in the lane's scratchpad, to be copied to `../reviews/`.
+
+#### Claim list (wave 1)
+
+Taken from the builder's full judge on `7740b01` (`-n 3`, `build/full-084-b1.log`, its record
+`build/progress/latest.json`: `501/629 pass · 3 gap · 125 blocked · 0 fail`, unit suite
+1595/1603, 8 skipped; `lost 0 · gained 6 · grew 0`) and the build review's record on `2fbeaca`,
+which `sameness.py` finds identical to it (the review's addendum). Own base: main `9d89535`.
+
+- **New checks (6), goal v1.4, each `pass`, no metrics:**
+  - `tests/checks/test_v1_4_embedding.py::test_a_deep_private_root_is_removed[run]` and
+    `[session]`;
+  - `tests/checks/test_v1_4_embedding.py::test_a_deep_fresh_home_is_removed[run]` and
+    `[session]`;
+  - `tests/checks/test_v1_4_embedding.py::test_the_removal_never_deletes_what_the_guest_may_not[home]`
+    and `[private]`.
+- **The unit suite:** 16 new nodes in `tests/unit/test_runner_sweep.py` (criteria 4 to 14), all
+  passing; one restated in place, `test_a_folder_rmtree_could_not_remove_keeps_its_lock_file`
+  (Decision 9, its name kept). The suite's total moves by 16 against the own base.
+- **Retired checks:** none. No `--retire`.
+- **Rows that grow:** none. The change is host-side (`src/wasi_python/runner.py`); no guest fuel
+  and no bytes move. No `--accept-growth`.
+- **Passes that move:** none. No gap closes, no upstream count moves. No
+  `--accept-fewer-passes`.
+- **The judge hash changes**, in exactly two files: `tests/checks/test_v1_4_embedding.py` and
+  `tests/unit/test_runner_sweep.py`. No golden output, gap entry, allowance, shard plan or
+  public-API line.
+- **The flags** (paste-safe):
+  - `--accept-judge "084: a private root and a fresh HOME are removed by a walk that holds two descriptors, changes no mode and, for a HOME, has a budget; six new v1.4 checks for deep and read-only trees, sixteen unit checks for linked and moved trees, a writer, the sweep retry and the warning; one sweep check restated to fail the removal through _remove_tree"`
+  - no `--accept-growth`, no `--accept-fewer-passes`, no `--retire`.
+- **Sameness:** the reviewer's record is `084-review/build-review/latest.json` in the lane's
+  scratchpad (on `2fbeaca`, equal to the builder's on `7740b01`). A difference against it is
+  clean only when it is a check blocked in that worktree (the upstream groups and the rebuild
+  checks, 125 blocked) or a row another entry claims.
+- **Not yet read:** this branch has no CI run (the wave's entry criterion 2); criterion 17's
+  Windows legs are first seen in the wave's dry run.
