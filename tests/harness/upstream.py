@@ -729,7 +729,8 @@ def fact_errors(pkg: str, cfg: Config, repo: Path) -> list[str]:
     """A fuel fact names its group, a parametrized test under that group's paths that no other
     entry already takes out, a reason, and evidence in the repository (spec 091)."""
     errors = []
-    taken = {f for n in cfg.not_selected for f in n.files}
+    # A not_selected path becomes `--ignore`, so a folder takes out every file under it.
+    taken = [x.rstrip("/") for n in cfg.not_selected for x in n.files]
     for f in cfg.fuel_facts:
         where = f"{pkg}: fuel fact {f.id}"
         if cfg.runner != "pytest":
@@ -742,7 +743,7 @@ def fact_errors(pkg: str, cfg: Config, repo: Path) -> list[str]:
         if not FACT_NODE.fullmatch(f.node):
             errors.append(f"{where}: node {f.node!r} is not file::function with no parameters")
         cases = f.node + "["  # what the group deselects: a trap on a sibling name does not overlap
-        if f.file in taken or any(
+        if any(f.file == x or f.file.startswith(x + "/") for x in taken) or any(
             t.node.startswith(cases) or cases.startswith(t.node) for t in cfg.traps
         ):
             errors.append(f"{where}: {f.node} is also left out by a not_selected or trap entry")

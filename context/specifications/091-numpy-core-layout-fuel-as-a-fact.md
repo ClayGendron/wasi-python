@@ -1,7 +1,10 @@
 # 091 — numpy-core's layout-dependent fuel as a fact
 
 - **Status:** **built 2026-10-19** on `spec/091-numpy-core-layout-fuel-as-a-fact`, on main
-  `b4d7c8e` (the Landing notes). Before that: **drafted 2026-10-19** on the same branch, from main
+  `b4d7c8e` (the Landing notes). **Build review: "lands once F1"**
+  (`../reviews/091-numpy-core-layout-fuel-as-a-fact-build-2026-10-19.md`); F1 fixed, F2 and F3
+  fixed (the section "Disposition of the build review"). Not yet rebased: it enters wave 1 last.
+  Before that: **drafted 2026-10-19** on the same branch, from main
   `dc8988c` (the draft was written from `302df18`; the commits between them touch no file under
   `tests/`), rebased onto main `b4d7c8e`. **Revised 2026-10-19 against its pre-build review**
   ("build once F1", `../reviews/091-numpy-core-layout-fuel-as-a-fact-spec-2026-10-19.md`; the
@@ -216,8 +219,8 @@ cause) and the cap (Decision 5: a doubling is red).
      runs them): an entry names a group of its package, a node under that group's paths in the
      `file::function` form, a non-empty `reason`, at least one `evidence` file that exists under
      `context/reviews/`, `context/research/` or `context/specifications/`, and a positive cap;
-     its id is unique among groups and traps; no `not_selected` file or trap entry overlaps it
-     (a trap overlaps when its node starts with `node[` or `node[` starts with its node, so a trap
+     its id is unique among groups and traps; no `not_selected` path (a file, or a folder that
+     holds the file; the build review's F3) or trap entry overlaps it (a trap overlaps when its node starts with `node[` or `node[` starts with its node, so a trap
      on the sibling `test_string_comparisons_empty` does not; the review's N2); its file is a
      tarball member (when the tarballs are present); a regrtest suite has none.
    - **The list is pinned**: `test_the_judges_one_fuel_fact_is_string_comparisons_in_numpy_core`
@@ -366,29 +369,60 @@ bound; a scoreboard line with the fact's value; fuel facts for pandas or the reg
 
 ## For the lane
 
+- **Wave kind: parallel-safe** (a judge change: no `src/`, `scripts/`, `recipes/`, `downloads/`
+  or workflow file). It enters wave 1 last (the lane, 2026-10-19). Its builder rebases onto the
+  wave's tip when the lane sends it and names each conflict hunk it resolves. **Dry-run needs:**
+  none of its own; the wave's dry run carries it (its G5 compares numpy-core's row, now the
+  group's own session, with the acceptance at 1e-4 on three systems).
 - **Order.** Land 091 before 086 and the other build-class specifications when the queue allows
-  (Decision 10). It is parallel-safe and may be batched.
-- **Accept with** `--accept "spec 091: numpy-core's layout-dependent fuel as a fact (the owner's
-  decision P3, 2026-10-19)"` and `--accept-judge "spec 091: numpy's test_string_comparisons is a
-  fuel fact: tests/upstream/numpy.toml's [[fuel_fact]] string-comparisons deselects its 84 cases
-  from numpy-core's session and runs them alone in a second session inside
+  (Decision 10).
+- **The claim list** (the rows 091 changes; the progress README's step 3a):
+  - **`test_upstream_suite[numpy-core]`, fuel, falling.** It falls by the 84 cases' share less
+    the second session's start, about **47.5 G (−23.4%)**, from the value the wave's other
+    entries leave it at. On `b4d7c8e` the fall was 47,518,372,527 (203,355,507,505 →
+    155,837,134,978, the build review's run). 091 lands after 078, whose accepted numpy-core fuel
+    is **203,331,725,349**; with nothing else in the wave moving that row, expect about
+    **155.81 G**. Quote the fall from the base the lane accepts on, never a fixed number: a wave
+    entry that claims numpy-core growth adds its own residual to this row. A fall is accepted by
+    itself (Decision 8).
+  - **`test_upstream_suite[numpy-core]`, facts.** A new key, `fuel_facts`
+    `{"string-comparisons": about 59.05 G}`, never ratcheted, compared by `sameness.py` to the
+    fuel tolerance. Passes stay 9,519; `passed_digest` `df21e78e7032` and the counts unchanged.
+  - **The judge hash changes**: `judge changed` names the seven files of the accept-judge text.
+  - Nothing else: no row grows, no pass moves, no node is gained, lost or retired.
+- **The exact flags:** `--accept` and `--accept-judge`, nothing else. **No `--accept-growth`, no
+  `--accept-fewer-passes`, no `--retire`** (Decision 8). Each reason begins with "091:".
+- **Accept with** `--accept "091: numpy-core's layout-dependent fuel as a fact (the owner's
+  decision P3, 2026-10-19)"` and `--accept-judge "091: numpy's test_string_comparisons is a fuel
+  fact: tests/upstream/numpy.toml's [[fuel_fact]] string-comparisons deselects its 84 cases from
+  numpy-core's session and runs them alone in a second session inside
   test_upstream_suite[numpy-core] (tests/harness/upstream.py: FuelFact, fact_spec,
-  fact_findings, combine, the rules, the caps); their outcomes still count in the group's passes,
-  classes and digest; their fuel is the fact fuel_facts, never ratcheted, red only at its 140 G
-  cap; sameness.py compares it to the tolerance; the scoreboard names it as not machine-checked;
-  new rows in tests/unit/test_upstream.py and tests/unit/test_several_cores.py; numpy-core's
-  accepted fuel falls by the test's share; the one check edit is test_upstream_suite recording
-  the fact fuel_facts, plus two docstrings in tests/checks/test_v1_3_upstream_suites.py, and no
-  assertion changed; the one allowance edit is the [[fuel_fact]] entry; no golden, gap, class
-  list or other allowance edited; seven files: tests/upstream/numpy.toml,
-  tests/harness/upstream.py, tests/harness/sameness.py, tests/harness/scoreboard.py,
-  tests/checks/test_v1_3_upstream_suites.py, tests/unit/test_upstream.py,
-  tests/unit/test_several_cores.py"`.
-- **No `--accept-growth`, no `--accept-fewer-passes`, no `--retire`** (Decision 8).
+  fact_findings, combine, Session.group, the rules, the caps); their outcomes still count in the
+  group's passes, classes and digest; their fuel is the fact fuel_facts, never ratcheted, red only
+  at its 140 G cap; sameness.py compares it to the tolerance; the scoreboard names it as not
+  machine-checked; new rows in tests/unit/test_upstream.py and tests/unit/test_several_cores.py;
+  numpy-core's accepted fuel falls by the test's share; the one check edit is
+  test_upstream_suite recording the fact fuel_facts, plus two docstrings in
+  tests/checks/test_v1_3_upstream_suites.py, and no assertion changed; the one allowance edit is
+  the [[fuel_fact]] entry; no golden, gap, class list or other allowance edited; seven files:
+  tests/upstream/numpy.toml, tests/harness/upstream.py, tests/harness/sameness.py,
+  tests/harness/scoreboard.py, tests/checks/test_v1_3_upstream_suites.py,
+  tests/unit/test_upstream.py, tests/unit/test_several_cores.py"`. Both are paste-safe in zsh:
+  no `"`, `$`, backquote, `!` or backslash inside the quotes.
 - **The expected record:** lost 0, gained 0, grew 0, fewer 0; `judge changed`, seven files;
-  numpy-core's accepted fuel about 145 G (from 203,355,507,505), passes 9,519.
+  numpy-core as the claim list says, passes 9,519.
 - **Sameness.** Both records now carry `fuel_facts`; `sameness.py` compares it to the tolerance.
-  A difference there beyond the tolerance is a real difference, and rule 6a applies.
+  The build review's record is on `b4d7c8e`, before 089, 083 and 078, so against the lane's record
+  on the wave's tip **the lane reads as clean the rows that 089, 083 and 078 moved (their claim
+  lists), checks blocked in the reviewer's worktree, and `cpython-*` fuel about 1e-4 apart, which
+  is the old base's own clock noise before 083 (089's build review, F3), not 091's: 091 changes no
+  regrtest path.** Any other difference, or a `fuel_facts` difference beyond the tolerance, is a
+  real difference and ejects 091 (rule 6a). If the lane wants a same-base comparison, the
+  reviewer's fast tier plus `test_upstream_suite[numpy-core]` on the rebased commit serves.
+- **CHANGELOG: none** (Decision 11: nothing a user of the artifact set or the wheel sees changes).
+  Were a line ever added, it would go under the existing unreleased section ("0.1.0a8 —
+  unreleased" today; its move to 0.1.0 is its own change, since `test_rules.py` ties that section
+  to `__version__`).
 - **At the next build-class landings,** the notes quote the fact in one clause and drop the
   numpy-core layout clause from the growth reason (Decision 10). A move of more than 10% from the
   last quoted value gets one sentence of cause from the reviewer. When the quoted fact exceeds
@@ -419,6 +453,50 @@ The review (`../reviews/091-numpy-core-layout-fuel-as-a-fact-spec-2026-10-19.md`
 - **N1:** Decision 3 says the start is part of the fact. **N2:** the overlap rule is the exact one,
   with a unit row for the sibling. **N3:** Decision 1 names the stable-lookup alternative and why
   not. **N4:** Decision 10's 086 bullet. **N5:** Design, wall time. **N6:** no change asked.
+
+## Disposition of the build review
+
+The review (`../reviews/091-numpy-core-layout-fuel-as-a-fact-build-2026-10-19.md`, on `fdab891`):
+"lands once F1 is fixed; F2 and F3 Low". Each is answered here, on the same base `b4d7c8e` (not
+rebased: 091 enters wave 1 last and rebases onto the wave's tip then).
+
+- **F1 (`Session.group`'s wiring and the fact's spec file): fixed.** One unit row,
+  `test_a_session_runs_the_group_then_its_fact_and_records_each_fuel` in
+  `tests/unit/test_upstream.py`. It uses `_scaffold`, gives numpy a fact with its own cap, and
+  replaces `Session._run` with canned sessions by name: the group's (fuel 111,000; a case of the
+  fact's in it too) and the fact's (fuel 222,000; one pass and one unexpected failure). It asserts
+  the two sessions' order and caps, the staged `judge/f.json` equal to `fact_spec`,
+  `GroupRun.fuel` 111,000 and `fuel_facts` `{"f": 222000}`, the combined passes (3) and counts,
+  the findings exactly (`fuel fact f: unexpected failed …` and `fuel fact f: … also ran in the
+  group`), and that a second call is served from the cache. **Seen failing on each mutant**
+  (EXECUTED; each applied to `upstream.py` alone, the row run, the file restored from a copy and
+  compared with `cmp`; the lines are in the worktree's `build/091/mutants-f1.txt`):
+
+  | mutant | how the row failed |
+  |---|---|
+  | M1 `combine(parts, [])` | the findings lack "also ran in the group" |
+  | M2 `facts[f.id] = run.fuel` | `fuel_facts` is `{'f': 111000}`, not `{'f': 222000}` |
+  | M3 group `fuel` includes the fact | `fuel` is 333,000, not 111,000 |
+  | M4 the fact's session left out of `combine` | passes 2, not 3 |
+  | M5 the fact's `judge/<id>.json` not written | `FileNotFoundError` on `judge/f.json` |
+  | M6 the fact's findings lose their prefix | the findings start `unexpected …`, not `fuel fact f: …` |
+
+  With the code restored, `test_upstream.py`, `test_several_cores.py` and `test_scoreboard.py`
+  pass in full (168: the 167 before and this row).
+- **F2 ("For the lane" written for `b4d7c8e`): fixed.** The claim list quotes numpy-core's fall
+  from the base the lane accepts on (after 078's accepted 203,331,725,349, about 155.81 G), and
+  one sentence says how the lane reads sameness differences: rows 089, 083 and 078 moved, checks
+  blocked in the reviewer's worktree, and `cpython-*` clock noise on the old base.
+- **F3 (the overlap rule matched files only): fixed.** `fact_errors` now takes a `not_selected`
+  path as a folder too: an entry overlaps when its file equals the path or lies under it (a
+  trailing `/` is ignored). The overlap row gains three cases: `numpy/tests` and `numpy/tests/`
+  overlap, `numpy/test` does not. On the old rule the row fails at the first case
+  (`('numpy/tests', [])`, EXECUTED, in `mutants-f1.txt`). The same file, `upstream.py`, so the
+  seven files and the accept text stand; the text now also names `Session.group`.
+- **N1 to N3:** no change asked.
+- **The wave pipeline** (the owner, 2026-10-19, that night): "For the lane" now carries the
+  claim list, the wave kind, the dry-run needs and the exact flags, and each reason begins with
+  "091:".
 
 ## Landing notes
 

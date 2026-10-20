@@ -865,6 +865,44 @@ def test_a_finding_in_the_facts_session_names_it() -> None:
     assert not out.finished
 
 
+def test_a_session_runs_the_group_then_its_fact_and_records_each_fuel(work, monkeypatch) -> None:
+    """The build review's F1: `Session.group` wires the parts together. The fact's spec file is
+    staged, each session runs on its own cap, the group's fuel is its own session's and the fact's
+    is the fact's, the passes add up, the fact's findings carry its prefix, and a case that ran in
+    both sessions is the exactly-once finding. `_run` returns canned sessions; no guest runs."""
+    configs = _scaffold(work, monkeypatch)
+    configs["numpy"] = _cfg(fuel_facts=[_fact(fuel=7 * 10**8)])
+    y, x0, x1 = (f"numpy/tests/test_a.py::{n}" for n in ("test_y", "test_x[0]", "test_x[1]"))
+    canned = {
+        "g": (_stream(_r(y, x0).strip()), 111_000),
+        "f": (_stream(_r(x0).strip(), f"S {x1}\nR failed {x1} -- boom"), 222_000),
+    }
+    calls = []
+
+    def run(self, package, name, fuel):
+        calls.append((package, name, fuel))
+        text, used = canned[name]
+        return upstream.parse_stream(text), upstream.GuestRun(0, None, None, used, "", "")
+
+    monkeypatch.setattr(upstream.Session, "_run", run)
+    s = upstream.Session(work, configs)
+    try:
+        got = s.group("numpy", "g")
+        staged = json.loads((s.root / "judge" / "f.json").read_text())
+    finally:
+        s.close()
+    assert calls == [("numpy", "g", 10**9), ("numpy", "f", 7 * 10**8)]
+    assert staged == upstream.fact_spec(configs["numpy"], _fact())
+    assert got.fuel == 111_000 and got.fuel_facts == {"f": 222_000}
+    assert got.outcome.passes == 3 and got.outcome.counts == {"failed": 1, "passed": 3}
+    assert got.outcome.findings == [
+        f"fuel fact f: unexpected failed {x1} — boom",
+        f"fuel fact f: {x0} also ran in the group",
+    ]
+    assert got.outcome.finished and s.group("numpy", "g") is got  # cached: no third session
+    assert len(calls) == 2
+
+
 @pytest.mark.parametrize(
     ("change", "error"),
     [
@@ -900,6 +938,12 @@ def test_a_fuel_fact_that_overlaps_another_entry_or_a_name_fails_the_rules(work)
         {"numpy": cfg}, {upstream.trap_node("t")}, expected_dir=work / "expected"
     )
     assert any("also left out by" in e for e in errors), errors
+    for folder, overlaps in (("numpy/tests", True), ("numpy/tests/", True), ("numpy/test", False)):
+        cfg = _cfg(
+            fuel_facts=[_fact()], not_selected=[upstream.NotSelected((folder,), "r", "README.md")]
+        )
+        errors = upstream.rule_errors({"numpy": cfg}, set(), expected_dir=work / "expected")
+        assert any("also left out by" in e for e in errors) == overlaps, (folder, errors)
     sibling = upstream.Trap("t", "numpy/tests/test_a.py::test_x_empty", "r", "README.md")
     cfg = _cfg(fuel_facts=[_fact()], traps=[sibling])
     errors = upstream.rule_errors(
