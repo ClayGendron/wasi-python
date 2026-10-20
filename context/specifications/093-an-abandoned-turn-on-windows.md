@@ -12,8 +12,14 @@
   `src/` changes; the artifact set does not change. It is a **judge change**: the lane accepts it
   with `--accept-judge`.
 - **Depends on:** 078 (landed; its criterion 17, the session row, and Decision 14).
+- **Research it stands on:** 078's research and its build evidence
+  (`../research/2026-10-19-the-runners-own-stack.md`); the dry run's failed log (job
+  `judge (windows-2025, own-guest)`, run 39351481374); this specification's own evidence
+  (`../research/2026-10-19-the-runners-own-stack/093-evidence/`, EXECUTED on darwin-arm64).
 
-## The failure
+## The problem
+
+### The failure
 
 The release workflow's dry run 39351481374, job `judge (windows-2025, own-guest)`, failed one
 check, `tests/checks/test_v1_2_hostile_guest.py::test_an_abandoned_turn_keeps_its_session_busy`.
@@ -28,7 +34,7 @@ Windows the third and fourth differed:
 The other five matched: the turn raised `SystemExit`, the session then ended `error`, no store
 was closed under running wasm, and the next session worked.
 
-## The cause
+### The cause
 
 The check assumed a timing that spec 078 does not promise. The runner is right.
 
@@ -57,7 +63,26 @@ The check assumed a timing that spec 078 does not promise. The runner is right.
   Windows. The new check tells the two apart, and it runs on Windows in the release, so the
   release run confirms it there (criterion 3).
 
-## The fix
+## Intent
+
+The session row of 078's criterion 17 passes on every platform for the reason it names: `busy`
+is held while the turn's guest thread lives. It must not depend on which thread runs first.
+The runner keeps its behaviour; the check stops racing it.
+
+## Decisions
+
+1. **A check fix, not a runner fix.** The runner keeps 078's promise on every platform (the
+   cause, above). Changing the runner to keep a stopped guest alive longer would be wrong.
+2. **Order by events, never by time.** The child holds the guest with a `threading.Event` and
+   waits for the guest's entry with another. No sleep. The 60 s bound on each wait is a
+   backstop so a broken runner fails instead of hanging; it never decides a verdict.
+3. **The check names its path.** It asserts the teardown ran on the guest thread, so the
+   abandoned path is the one tested, on every platform, and a home that tears down at once
+   (the bug the old lines could not tell from a fast guest) fails.
+4. **Same node id, every old assertion kept.** The ratchet sees one changed check, not a lost
+   and a gained one.
+
+## Design
 
 The check holds the guest thread instead of racing it. One idea: make the order certain, not
 likely.
@@ -77,6 +102,14 @@ likely.
 The expected lines change in two places: line 3 gains the thread's liveness
 (`busy while its guest runs True True`), and line 5 gains where the teardown ran
 (`then busy False ended error torn down on ['wasi-python-guest']`).
+
+## Scope
+
+- **In:** `ABANDONED_TURN_CHILD` and the expected lines and docstring of
+  `test_an_abandoned_turn_keeps_its_session_busy`; `CHANGELOG.md`; the evidence folder.
+- **Out:** `src/` (no runner change); 078's other child rows (`test_the_home_waits_for_its_guest_thread`,
+  the start row, the hand-off rows), which assert no such order and passed on Windows; why
+  Windows' guest ends first, which no check depends on.
 
 ## Acceptance criteria
 
