@@ -61,7 +61,9 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   (`c_int(5).value`, `c_ulong(-1).value == 4294967295`, `c_float` rounded to single precision)
   or of `c_void_p` (a 32-bit integer, or None), and `cast(x, c_void_p)` of an integer, None or a
   `c_void_p`, where each raised `OSError` before; numpy's `ndarray.ctypes.data` and
-  `data_as(ctypes.c_void_p)` give the array's address. Nothing has an address: `byref`,
+  `data_as(ctypes.c_void_p)` give the array's address. An instance is false when its value is
+  zero and unhashable, as in CPython; `c_void_p` takes only an `int`; its bytes cannot be read
+  (`bytes()` and `memoryview()` of it raise `OSError`). Nothing has an address: `byref`,
   `pointer`, `addressof`, typed pointers, strings, structures and every library load still raise
   `OSError`, and `-V` still says "no ctypes".
 - **The judge: spec 084's read-only removal rows are blocked on Windows by a named need** (spec

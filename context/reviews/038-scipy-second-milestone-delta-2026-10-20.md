@@ -192,9 +192,22 @@
 
 1. Medium 1 — the builder's (a claim-list and flags edit in `context/`; no rebuild, no rerun:
    the numbers are in run `39415728849`'s and `39416337718`'s records, identical).
+   *Answered by the builder:* "Rows that grow" and `--accept-growth` take the fix text:
+   `cpython-fs` +0.046%, `numpy-lib` −0.074%, the 27 slow job rows +0.001% to +0.096%, and the
+   ten groups not measured on darwin-arm64 on this set named one by one (`numpy-core`,
+   `cpython-archives`, the eight pandas groups), expected within ±0.1% for the same causes;
+   `--accept-growth` says "180 fast-tier rows, 27 slow rows and cpython-fs move against main".
 2. Low 2 — the builder's, or written in by the reviewer once the branch is handed over (text above).
+   *Answered by the builder:* the byte rows are main's, as the fix text gives them: the zip
+   +3,192 against `f12cd25c`, `python.wasm` −2,786, the snapshot −5,638, in "Rows that grow" and
+   `--accept-growth`.
 3. Low 3 — the same (text above).
+   *Answered by the builder:* "cause not identified" is replaced by the reviewer's measured
+   cause, in the phase-3 fuel line and `--accept-growth`.
 4. Low 4 — `CHANGELOG.md` is not under `context/`, so the builder's (text above).
+   *Answered by the builder:* the CHANGELOG's Changed sentence takes the fix text after "give the
+   array's address."; the heading stays "0.1.0a8 — unreleased".
+   The run ids `39415728849` and `39416337718` and their result are in the phase-3 note.
 
 ## Verdict
 

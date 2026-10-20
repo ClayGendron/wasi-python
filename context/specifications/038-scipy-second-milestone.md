@@ -406,10 +406,20 @@ has run. Evidence under the worktree's git-ignored `build/038/`.
   renders the value methods of every simple type (+63 M on the snapshot, measured,
   `build/038/fuel/ctypes-check-parts.txt`) and the program does more; threadpoolctl's check
   +0.90% / +0.35% (the first type lookup); checks that import scipy +0.05% to +0.19%;
-  `test_unbuffered_output_survives_a_hard_exit[snapshot]` +0.39% (+4,967 fuel, cause not
-  identified); the upstream groups `cpython-a` +0.044%, `cpython-b` +0.067%, `cpython-c` +0.038%,
-  `numpy-others` -0.038% with eight more passes; the rest within ±0.25%.
-- **The release workflow on the branch:** (the run below, under For the lane).
+  `test_unbuffered_output_survives_a_hard_exit[snapshot]` +0.39% (+4,967 fuel, measured by the
+  delta review on 037's set and 038's: +740 in the snapshot's start and about +3,750 in `-u`'s
+  unbuffered stdio, the same modules loaded; a heap-layout move of the rebuilt snapshot, large in
+  percent only because `os._exit` skips finalization: a 1.27 M base where other snapshot rows are
+  about 50 M and move up to ±19 k); the upstream groups `cpython-a` +0.044%, `cpython-b` +0.067%,
+  `cpython-c` +0.038%, `numpy-others` -0.038% with eight more passes; the rest within ±0.25%.
+- **The release workflow on the branch:** the builder's run `39415728849` and the delta
+  reviewer's `39416337718`, both on `ecc2423`, end alike: 22 jobs passed, 3 failed, 4 publishing
+  jobs skipped. Every red line is GREW: macOS own-guest 103 rows (lost 0), own-embedding 15,
+  upstream-macos 1 (`test_upstream_suite[cpython-fs]`); no G7, no LOST, no FAIL. Both Linux
+  rebuilds and "the same bytes from every host" passed, and every Windows job. The four Linux
+  shards that carry `cpython-a`, `cpython-b`, `cpython-c` and `numpy-others` passed with lost 0
+  and no "remove the gap"; `cpython-b-no-ctypes` matched as a gap. The two runs' three macOS
+  records agree row for row (757 rows, the delta review).
 
 ### For the lane
 
@@ -440,8 +450,18 @@ written in by the reviewer. A delta review reads `git diff 1073d68..` and the ne
   which reproduces `scipy_edges` too, on darwin-arm64 (written in by the build review, which ran
   it: pass).
 - **Retired:** none. No group's passes fall.
-- **Rows that grow:** as in the fuel line above, and the zip's bytes, +3,221 against 037's set
-  `40281c40` (two members). `python.wasm` (-2,778) and the snapshot (-5,611) shrink.
+- **Rows that grow:** as in the fuel line above (the fast tier and four upstream groups). From run
+  39415728849's records against main: `test_upstream_suite[cpython-fs]` +0.046% (test_io's
+  no-ctypes tests make the stand-in's first type lookup) and 27 slow job rows +0.001% to
+  +0.096% (scipy's three jobs, `test_symbolic_job_matches_native` +0.082%, the rest below
+  +0.07%); `numpy-lib` −0.074%. Not measured on darwin-arm64 on this set: `numpy-core`,
+  `cpython-archives` and the eight pandas groups (`pandas-frame`, `pandas-groupby`,
+  `pandas-reshape`, `pandas-io-parser`, `pandas-io-formats`, `pandas-tslibs`, `pandas-libs`,
+  `pandas-internals`), expected within ±0.1% for the same causes (the Linux shards record their
+  own fuel, which the ratchet does not compare with darwin's). The zip's bytes, +3,192 against
+  main's set `f12cd25c` (two members: `ctypes/_types.pyc` and
+  `scipy/io/_fast_matrix_market/__init__.pyc`). `python.wasm` (−2,786) and the snapshot
+  (−5,638) shrink.
 - **Not 038's:** none known.
 
 #### The flags
@@ -449,7 +469,7 @@ written in by the reviewer. A delta review reads `git diff 1073d68..` and the ne
 ```
 --accept "038: scipy's sandbox edges (spec 037's three gaps closed): carried scipy patches 0003 (Matrix Market's default parallelism 1 on WASI) and 0004 (Sobol's direction numbers read without a temporary file); the ctypes stand-in holds numeric and c_void_p values and casts to c_void_p, with CPython's truth and argument rules, no memory (its buffer refuses with the stand-in's OSError) and nothing with an address; the zip differs from 037's in exactly two members"
 --accept-judge "038: the edges golden (tests/jobs/scipy_edges.py, .expected, .platform, JOBS and PLATFORM_BOUND) run with nothing writable; the guest address check; the Sobol options check (the build review's Low 7); five host unit checks of the stand-in (its value rules at wasm32's sizes, no buffer, CPython's truth and argument types, its imports held to struct and sys); 033's guest and unit stand-in checks changed to Decision 3's rule; spec 037's six scipy [[gap]] entries removed because their checks pass; the no-ctypes classes of cpython-a, cpython-c and numpy-others emptied (their expected lists empty, their classes kept with a closed-by-038 reason) and their three [[gap]] entries removed, because no test in those groups meets the stand-in's OSError: cpython-a +1, cpython-c +5 and numpy-others +8 passes"
---accept-growth "038: the stand-in's types carry the value rules: the first type lookup +1.35 M fuel on the plain reactor and +1.30 M on the snapshot, import scipy (which builds them) +1.65 M and scipy.optimize +3.8 M, so every check that imports scipy grows 0.05% to 0.19% and threadpoolctl's check +0.90% / +0.35%; 033's guest check +1.39% / +1.32%, help(ctypes) rendering every simple type's value methods (+63 M on the snapshot) and more steps; test_unbuffered_output_survives_a_hard_exit[snapshot] +0.39% (+4,967 fuel, cause not identified); the upstream groups cpython-a +0.044%, cpython-b +0.067%, cpython-c +0.038% (more tests run); the zip +3,221 bytes in two members; 180 rows move against main, median +0.011%"
+--accept-growth "038: the stand-in's types carry the value rules: the first type lookup +1.35 M fuel on the plain reactor and +1.30 M on the snapshot, import scipy (which builds them) +1.65 M and scipy.optimize +3.8 M, so every check that imports scipy grows 0.05% to 0.19% and threadpoolctl's check +0.90% / +0.35%; 033's guest check +1.39% / +1.32%, help(ctypes) rendering every simple type's value methods (+63 M on the snapshot) and more steps; test_unbuffered_output_survives_a_hard_exit[snapshot] +0.39% (+4,967 fuel, measured on 037's set and 038's: +740 in the snapshot's start and about +3,750 in -u's unbuffered stdio, the same modules loaded; a heap-layout move of the rebuilt snapshot, large in percent only because os._exit skips finalization: a 1.27 M base where other snapshot rows are about 50 M and move up to ±19 k); the upstream groups cpython-a +0.044%, cpython-b +0.067%, cpython-c +0.038% (more tests run), cpython-fs +0.046% (test_io's no-ctypes tests make the first type lookup), numpy-lib -0.074%; 27 slow job rows +0.001% to +0.096% (scipy's three jobs, the symbolic job +0.082%, the rest below +0.07%); not measured on darwin-arm64 on this set, expected within ±0.1% for the same causes: numpy-core, cpython-archives and the eight pandas groups (pandas-frame, pandas-groupby, pandas-reshape, pandas-io-parser, pandas-io-formats, pandas-tslibs, pandas-libs, pandas-internals); the zip +3,192 bytes in two members, python.wasm -2,786 and the snapshot -5,638; 180 fast-tier rows, 27 slow rows and cpython-fs move against main, fast-tier median +0.011%"
 ```
 
 No `--retire`, no `--accept-fewer-passes`, no `--partial`.
