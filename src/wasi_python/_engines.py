@@ -1,6 +1,6 @@
-"""wasmtime-py's import and the two engines (spec 102 keeps the adapter import inside
-`_wasmtime`), the compiled modules and the `.cwasm` cache, the module lock and the counts, the
-epoch ticker (spec 015), and the preopen check's WAT module (spec 017)."""
+"""wasmtime-py's import and the two engines (the adapter import stays inside `_wasmtime`, so
+importing this module loads no wasmtime-py), the compiled modules and the `.cwasm` cache, the
+module lock and the counts, the epoch ticker, and the preopen check's WAT module."""
 
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 """What the operating system decides: the flags and the kernel's identity, the two lock
-implementations (spec 016), fork (spec 015), directory descriptors, the stack sizes and the
-three stack probes (spec 078), and the trap-handler guard (spec 071)."""
+implementations, fork, directory descriptors, the stack sizes and the three stack probes, and
+the trap-handler guard."""
 
 from __future__ import annotations
 

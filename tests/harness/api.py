@@ -35,7 +35,7 @@ SNAPSHOT = REPO / "tests" / "public_api.txt"
 README = REPO / "README.md"
 PUBLIC = ("wasi_python", "wasi_python.tools")
 PUBLIC_FILES = {"wasi_python": "__init__.py", "wasi_python.tools": "tools.py"}
-# The runner's modules (spec 103, one per concern), the engine seam (spec 102), and the rest.
+# The runner's modules (one per concern), the engine seam, and the rest.
 RUNNER_FILES = (
     "_limits.py",
     "_platform.py",

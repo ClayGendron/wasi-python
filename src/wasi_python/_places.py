@@ -1,7 +1,6 @@
 """Places a guest may reach: `Grant`, the argument checks for root, grants, mounts and the
-import path, the POSIX and Windows walks and their judge (spec 017, spec 076), SipHash-1-3
-and the preopen check, the runtime and shared folders, and the real directory at a path
-(spec 024)."""
+import path, the POSIX and Windows walks and their judge, SipHash-1-3 and the preopen check,
+the runtime and shared folders, and the real directory at a path."""
 
 from __future__ import annotations
 

@@ -349,7 +349,7 @@ def test_set_defaults_changes_what_run_reads(monkeypatch) -> None:
 
     # The runner reads its defaults only through `_current_defaults`, so the count of its calls
     # below is every read (the build review's F2); every module of the package is read, so a
-    # `DEFAULTS` load outside `_current_defaults` is refused wherever it is written (spec 103).
+    # `DEFAULTS` load outside `_current_defaults` is refused wherever it is written.
     direct = [
         hit
         for path in sorted(Path(runner.__file__).parent.glob("*.py"))

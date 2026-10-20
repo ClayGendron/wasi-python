@@ -1,5 +1,5 @@
-"""The private copy of the stdlib zip and matplotlib's data (spec 017, spec 023): the zip
-folders, the member extraction, the intact check and the removal at exit."""
+"""The private copy of the stdlib zip and matplotlib's data: the zip folders, the member
+extraction, the intact check and the removal at exit."""
 
 from __future__ import annotations
 

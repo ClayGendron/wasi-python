@@ -1,5 +1,5 @@
-"""Sessions (spec 055): `SessionEnded`, the state of a session, the reaper, the endings and the
-shutdown, the turns, and `_open_session`."""
+"""Sessions: `SessionEnded`, the state of a session, the reaper, the endings and the shutdown,
+the turns, and `_open_session`."""
 
 from __future__ import annotations
 

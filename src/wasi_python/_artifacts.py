@@ -1,6 +1,6 @@
-"""The artifact set: `Artifacts`, `ArtifactsMissing`, `artifact_dir` and `artifacts()` (spec 001,
-spec 003, spec 087), and the facts about the set's files the runner reads: its digests, stamps,
-version tag and guest packages (spec 017, spec 023, spec 087)."""
+"""The artifact set: `Artifacts`, `ArtifactsMissing`, `artifact_dir` and `artifacts()`, and the
+facts about the set's files the runner reads: its digests, stamps, version tag and guest
+packages."""
 
 from __future__ import annotations
 

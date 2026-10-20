@@ -1,5 +1,5 @@
-"""Private folders: `_Private` and its lock protocol (spec 016), the sweep, the budgeted tree
-remover and its two walks (spec 084), the queued warnings, and the removal of a fresh home."""
+"""Private folders: `_Private` and its lock protocol, the sweep, the budgeted tree remover and
+its two walks, the queued warnings, and the removal of a fresh home."""
 
 from __future__ import annotations
 

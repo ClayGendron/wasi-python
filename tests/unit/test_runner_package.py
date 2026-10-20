@@ -1,10 +1,10 @@
-"""The runner is a package of one module per concern (spec 103).
+"""The runner is a package of one module per concern.
 
 Four checks hold the package's shape: the fork hook re-makes every module-level lock the
-package holds (Decision 4), the modules import in one written order with no cycle (Decision 2),
+package holds, the modules import in one written order with no cycle,
 a module imports by `from` only what never changes, so a patched seam, a re-made lock or a
-cleared cache is seen by every caller (Decision 2's two forms), and every runner name is defined
-in exactly one module (Decision 1). Check 1 is 103's until spec 104 retires it for its own.
+cleared cache is seen by every caller, and every runner name is defined in exactly one module.
+Check 1 holds until the process state gets one owner, whose own check then retires it.
 """
 
 from __future__ import annotations
@@ -23,8 +23,8 @@ from harness import paths, scan
 
 PACKAGE = paths.REPO / "src" / "wasi_python"
 
-# Decision 2's order: a module imports only modules before it. A plain tuple: 104 prepends
-# `_process`.
+# The order: a module imports only modules before it. A plain tuple, so a new first module
+# (the process state's owner) is prepended.
 ORDER = (
     "_wasmtime_ffi",
     "_limits",
@@ -43,9 +43,9 @@ RUNNER_MODULES = ORDER[1:]  # the eleven: the runner's text, one concern each
 MAY_IMPORT_MOUNTS = ("_places", "_call", "_sessions", "runner")
 ABOVE = ("__init__", "__main__", "cli")  # above `runner`: they import what they like
 BESIDE = ("mounts", "tools")  # beside the list: no package module at module level
-LATE_ANYWHERE = ("_wasmtime_ffi",)  # 102's form: `from . import _wasmtime_ffi as ffi` in a def
+LATE_ANYWHERE = ("_wasmtime_ffi",)  # the seam's form: `from . import _wasmtime_ffi as ffi` in a def
 
-# The late imports Decision 2 allows, (file, function, module); any other is a finding.
+# The late imports allowed, (file, function, module); any other is a finding.
 LATE = (
     ("runner.py", "_check_tools", "tools"),
     ("_call.py", "_instance", "mounts"),
@@ -66,7 +66,7 @@ LATE = (
     ("cli.py", "_main", "runner"),
 )
 
-# Decision 4: the module-level locks the fork hook re-makes (eleven) and the ticker's Condition.
+# The module-level locks the fork hook re-makes (eleven) and the ticker's Condition.
 LOCKS_RESET_BY_FORK = (
     ("wasi_python.runner", "_pool_lock"),
     ("wasi_python.runner", "_live_lock"),
@@ -92,17 +92,17 @@ REBOUND_BY_FORK = (
 NOT_RESET = (
     (
         ("wasi_python._private_dirs", "_pending_warnings_lock"),
-        "never reset today; spec 104 decides",
+        "never reset today; the process state's owner decides",
     ),
     (
         ("wasi_python", "_defaults_lock"),
-        "never reset today; spec 104 takes it into `_Process` (group I)",
+        "never reset today; the process state's owner takes it",
     ),
 )
 TICKER_COND = ("wasi_python._engines", "_epoch_ticker._cond")
 
 # Check 3: the names a module may import by `from` that are neither a class, an alias nor an
-# immutable constant. A plain tuple: 104 adds `process`.
+# immutable constant. A plain tuple, so the process accessor can be added.
 SENTINELS = ("_UNSET", "_DONE")
 
 # The child interpreter of check 1: it walks the package for locks, calls the hook, walks again.
@@ -168,7 +168,7 @@ def _hook_targets(hook: typing.Any) -> set[tuple[str, str]]:
 
 
 def test_every_module_level_lock_is_remade_after_fork() -> None:
-    """Decision 4: a child interpreter finds every lock the package holds at module level, and the
+    """A child interpreter finds every lock the package holds at module level, and the
     hook re-makes each one it names; the hook, the lists and the modules agree three ways."""
     from wasi_python import runner
 
@@ -254,7 +254,7 @@ def _order_errors(package: Path) -> list[str]:
 
 
 def test_the_runner_modules_import_in_the_written_order() -> None:
-    """Decision 2: every module-level relative import names a module earlier in ORDER (or
+    """Every module-level relative import names a module earlier in ORDER (or
     `mounts` from the four that may); `__init__.py` and `cli.py` stand above; `mounts.py` and
     `tools.py` import no package module at module level; no module imports `tools` or
     `_wasmtime_ffi` at module level; a late import is one of LATE, or of `_wasmtime_ffi`."""
@@ -263,7 +263,7 @@ def test_the_runner_modules_import_in_the_written_order() -> None:
 
 
 def _is_unchanging(name: str, obj: typing.Any) -> bool:
-    """Decision 2's first form: a class, a generic alias, an immutable constant or a sentinel."""
+    """The by-name form: a class, a generic alias, an immutable constant or a sentinel."""
     if isinstance(obj, type) or typing.get_origin(obj) is not None:
         return True
     if isinstance(obj, (int, float, str, bytes, tuple, frozenset, re.Pattern)):
@@ -324,9 +324,9 @@ def _patched(tests: Path) -> set[tuple[str, str]]:
 
 
 def _seam_errors(package: Path, tests: Path) -> list[str]:
-    """Decision 2's condition: a class or a constant the judge patches by `setattr` is read only
-    in its defining module, so no package module from-imports it (103's until 104 moves the
-    seams off module globals)."""
+    """The condition the by-name form rests on: a class or a constant the judge patches by
+    `setattr` is read only in its defining module, so no package module from-imports it (held
+    here until the test seams move off module globals)."""
     imported = {name: f"{f}:{line}" for f, line, _, name in _from_imports(package)}
     errors = []
     for module, name in sorted(_patched(tests)):
@@ -337,7 +337,7 @@ def _seam_errors(package: Path, tests: Path) -> list[str]:
 
 
 def test_a_module_imports_by_name_only_what_never_changes() -> None:
-    """Decision 2's two forms: a `from ._x import name` binds a class, an alias, an immutable
+    """The two forms: a `from ._x import name` binds a class, an alias, an immutable
     constant or a sentinel; a function, a hook and every mutable object is reached as
     `_x.name`, so a re-made lock, a replaced seam or a cleared cache is seen by every caller."""
     errors = _by_name_errors(PACKAGE) + _seam_errors(PACKAGE, paths.REPO / "tests")
@@ -380,7 +380,7 @@ def _once_errors(package: Path) -> list[str]:
 
 
 def test_every_runner_name_is_defined_in_one_module() -> None:
-    """Decision 1: over the eleven runner modules, no top-level name is bound twice, and each
+    """Over the eleven runner modules, no top-level name is bound twice, and each
     module begins with a docstring."""
     errors = _once_errors(PACKAGE)
     assert not errors, scan.report(errors)

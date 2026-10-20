@@ -1,7 +1,6 @@
-"""One call (spec 001, spec 008, spec 015): `Completed`, the checked run and the instance, the
-driver and `_Call`, the host-function wrapper and the epoch callback, the linkers and
-trampolines (spec 034), the output streams, `poll_oneoff` (spec 026), the door (spec 001) and
-the tool host (spec 036)."""
+"""One call: `Completed`, the checked run and the instance, the driver and `_Call`, the
+host-function wrapper and the epoch callback, the linkers and trampolines, the output streams,
+`poll_oneoff`, the door and the tool host."""
 
 from __future__ import annotations
 

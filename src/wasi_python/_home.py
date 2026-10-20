@@ -1,5 +1,5 @@
-"""The threads of a call (spec 078): the per-thread stack of calls, Ctrl-C on the main thread
-(spec 015), and the home and guest threads a call runs on."""
+"""The threads of a call: the per-thread stack of calls, Ctrl-C on the main thread, and the
+home and guest threads a call runs on."""
 
 from __future__ import annotations
 

@@ -120,9 +120,9 @@ def test_specifications_have_no_open_question() -> None:
     assert not hits, scan.report(hits)
 
 
-# Spec 103, Decision 6: no module under src/ over 1,500 lines. The two over it today are not
-# 103's to split; their entries equal their counts and can only shrink (a stale entry is a
-# finding too), and an entry is deleted the day its file is at or under the ceiling.
+# No module under src/ over 1,500 lines. The two over it today are not yet split; their
+# entries equal their counts and can only shrink (a stale entry is a finding too), and an entry
+# is deleted the day its file is at or under the ceiling.
 LINE_CEILING = 1500
 ALLOWED = {"mounts.py": 2212, "tools.py": 2450}
 

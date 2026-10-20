@@ -1,6 +1,5 @@
-"""The limits of a call (spec 049, spec 015, spec 055): the tick constants, the checks of every
-limit argument, the text and input checks, the worker count, and the sentinel `_UNSET` for an
-argument not given."""
+"""The limits of a call: the tick constants, the checks of every limit argument, the text and
+input checks, the worker count, and the sentinel `_UNSET` for an argument not given."""
 
 from __future__ import annotations
 
