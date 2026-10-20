@@ -89,6 +89,22 @@ of 3.2.2, 30 to 56% less fuel on larger linear algebra and about 1.8 MB less `py
 owner's choice: "Yes, before 0.1.0". Exact singular-matrix parity is not a goal in wasm; the README
 says so.
 
+### Spec 102's four questions (2026-10-20, night)
+
+Asked when spec 102 (the release tier) was drafted (`spec/102-the-release-tier`, 2bee892):
+
+- **The constitution is amended at 102's landing:** the lane's landing judge is the normal tier;
+  the release tier runs as the release rules say. Its release-rule line is added with it.
+- **The lane runs the release tier locally only before a tag**, not at a landing that changes a
+  release-tier row (the owner chose the stricter reading; the lane had recommended both). A
+  release-tier regression therefore surfaces at the release acceptance and is traced back to its
+  wave then.
+- **contourpy's `random_big` cases (about 2.8 T) move to the release tier.** The owner, in their
+  words: "Move to slow teir. We can decide what is slow tier but do not exclude anything from the
+  full suite." So the tier is the project's choice, not only upstream's markers; the rule against
+  leaving tests out stands: every test runs in one tier or the other.
+- **CPython's resource-gated tests (`-u cpu`, `largefile`) join 102's release tier.**
+
 ### statsmodels' suite, its six components, sympy's slow test, and two tiers of tests (2026-10-20, evening)
 
 Four answers, asked as 045 and 067 were prepared (045's builder; 067's pre-build review):
