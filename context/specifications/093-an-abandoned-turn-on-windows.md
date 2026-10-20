@@ -1,6 +1,6 @@
 # 093 — An abandoned turn on Windows
 
-- **Status:** **built 2026-10-19** (tip `e58c07c`, release run 39357013719 green) on `spec/093-an-abandoned-turn-on-windows` from main `97be88a`
+- **Status:** **landed 2026-10-20 in wave 02** (039, 041, 073, 093) on main `b0c7a74`: accepted on `2bb98c8`, history line 83, 630/701 pass, 0 fail; the integration review `../reviews/wave-02-integration-2026-10-20.md` ("lands as merged at 170b4e2", every changed row attributed); the dry run 39363060501 dispatched on the acceptance as main moved (see "Landed in wave 02" below). Before: **built 2026-10-19** (tip `e58c07c`, release run 39357013719 green) on `spec/093-an-abandoned-turn-on-windows` from main `97be88a`
   (spec 078 accepted). It fixes the one red line of 078's dry run under the owner's "fix forward"
   rule. Wave 01 landed without it; it enters wave 02, after 073 (the build review's L1). Its build
   review says it lands (`../reviews/093-an-abandoned-turn-on-windows-build-2026-10-20.md`). A judge-only specification, so its pre-build review is optional
@@ -192,3 +192,8 @@ If the lane's run has a growth line, it is the base's, not this change's: name i
   artifact set being rebuilt mid-run, the second time from recipes not on this branch (a
   `regex-2026.9.29` patch), so its one failure (`test_manifest_recipes_match_the_tree`) and two
   byte growths are that set's, not this change's. The release run is the judge of record.
+
+### Landed in wave 02
+
+- The check holds the guest thread on a gate; no runner change. It fixes forward the red line of 078's dry run 39351481374; the next dry run on main confirms it on Windows.
+- Reviews: `../reviews/093-*` and the wave's integration review. The lane's accept flags are in the history line's reasons, each prefixed by its number.
