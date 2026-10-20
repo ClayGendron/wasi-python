@@ -595,6 +595,39 @@ def test_callbacks_have_the_types_cpython_calls(artifacts, note) -> None:
     note(f"scanned {report.summary()}")
 
 
+# Spec 096, check 3: the slot scan's minimums, set from main's set (481 types, 454 specs, 149
+# module definitions, 5,360 functions) with room; its bounds (0 unreferenced type candidates, at
+# most 1 type named at run time); and the records it must read, one or more per compiled package,
+# so one package's tables cannot vanish under the minimums (the pre-build review's F2).
+SLOT_MINIMUMS = {"types": 400, "specs": 380, "modules": 120, "functions": 4_500}
+SLOT_MAXIMUMS = {"unreferenced type candidates": 0, "types named at run time": 1}
+KIWI_SPECS = {f"kiwisolver.{t}" for t in ("Constraint", "Expression", "Term", "Variable")}
+SLOT_NAMED = {
+    "spec": KIWI_SPECS | {"pandas._libs.tslibs.timestamps._Timestamp"},
+    "spec slot": {f"{k}.tp_clear" for k in KIWI_SPECS},
+    "type": {"type", "numpy.ndarray", "ImagingCore", "lxml.etree._Element"},
+    "module": {"_regex", "ft2font"},
+}
+
+
+def test_type_slots_have_the_types_cpython_calls(artifacts, note) -> None:
+    """Every function CPython calls through a static type object's slots and method suites, a
+    `PyType_Slot` array or a static module definition has the wasm type CPython calls it with
+    (spec 096): a mismatch traps the guest at its first call, as kiwisolver's `void` tp_clear did
+    at every garbage collection that met one. Every dropped record is counted by its reason, the
+    coverage meets its minimums and bounds, and the named records were read. Read from the plain
+    binary; its coverage is the pass's reason in latest.json."""
+    needs.need("plain binary")
+    from harness import callbacks, wasm
+
+    report = callbacks.scan_slots(wasm.parse_file(artifacts.binary("plain")))
+    problems = callbacks.slot_verdict(report, SLOT_MINIMUMS, SLOT_MAXIMUMS, SLOT_NAMED)
+    assert not problems, (
+        f"{len(problems)} slot problems: {'; '.join(problems)} (scanned {report.summary()})"
+    )
+    note(f"scanned {report.summary()}")
+
+
 def _job_on(guest, which: str, job: str):
     files = {f"/jobs/{job}.py": jobs.script(job).read_bytes()}
     files.update({f"/data/{n}": src.read_bytes() for n, src in jobs.DATA.items()})

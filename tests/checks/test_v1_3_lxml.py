@@ -678,6 +678,22 @@ def test_read_html_uses_lxml_by_default(guest, which) -> None:
     assert r.text == "{'a': [1], 'b': ['x']}\n", r.text
 
 
+HTML_DIFF = """
+from lxml.html.diff import htmldiff
+print(htmldiff("<p>Hello world</p>", "<p>Hello there world</p>"))
+"""
+
+
+@BINARY
+def test_lxml_html_diff_imports(guest, which) -> None:
+    """`lxml.html.diff` imports and diffs as natively. The guest runs it as plain Python with no
+    Cython, and its `fake_cython` lacked `final`, so `@cython.final` called a string until carried
+    patch 0001, upstream's own line (spec 096)."""
+    r = guest(which, ["-c", HTML_DIFF])
+    assert r.exit_code == 0, r.describe()
+    assert r.text == "<p>Hello <ins>there</ins> world</p>\n", r.text
+
+
 @pytest.mark.slow
 def test_lxml_xml_job_matches_native(guest) -> None:
     """The golden job (spec 046, Decision 10): XPath, XSLT, objectify, C14N, lxml.html, files by

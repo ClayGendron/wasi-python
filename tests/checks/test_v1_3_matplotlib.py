@@ -233,6 +233,39 @@ def test_patched_callbacks_run(guest, which) -> None:
     assert why is None, why
 
 
+# Spec 096, Decision 5: one garbage cycle through all four kiwisolver types. The collector calls
+# tp_clear on the collectable objects in their order of allocation (Python/gc.c, delete_garbage):
+# the variable, the term, the expression, the constraint, then the list, which holds them all and
+# itself, so each type's tp_clear is called through its pointer in turn.
+KIWI_CYCLE = """
+import gc
+import kiwisolver as kiwi
+gc.disable()
+v = kiwi.Variable("x")
+t = v * 2.0
+e = t + 1.0
+c = e >= 0.0
+hold = [v, t, e, c]
+hold.append(hold)
+v.setContext(hold)
+print(type(t).__name__, type(e).__name__, type(c).__name__, flush=True)
+del v, t, e, c, hold
+print("collected", gc.collect() >= 5)
+print("ok")
+"""
+
+
+@BINARY
+def test_a_cycle_through_kiwisolver_objects_is_collected(guest, which) -> None:
+    """A garbage cycle holding a Variable, a Term, an Expression and a Constraint is collected, as
+    natively: kiwisolver's four tp_clear returned `void` where CPython calls `int (*)(PyObject *)`,
+    so the collection ended the guest in an indirect-call type mismatch before carried patch 0002
+    (spec 096)."""
+    r = guest(which, ["-c", KIWI_CYCLE])
+    assert r.exit_code == 0, r.describe()
+    assert r.text == "Term Expression Constraint\ncollected True\nok\n", r.text
+
+
 THROUGH_THE_RUNNER = """
 import os, matplotlib
 data = matplotlib.get_data_path()

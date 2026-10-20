@@ -6,6 +6,17 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a8 — unreleased
 
+- **A garbage cycle holding a kiwisolver object is collected, not a trap** (spec 096; spec 066's
+  survey). kiwisolver's `Variable`, `Term`, `Expression` and `Constraint` declared `tp_clear` as
+  returning nothing, so the collector's call ended the guest in `indirect call type mismatch`;
+  carried patch `recipes/patches/kiwisolver-1.5.1/0002-tp-clear-returns-int.patch` is upstream's
+  fix (#245), until a kiwisolver release has it. **`import lxml.html.diff` works**: its
+  plain-Python form lacked `cython.final` without Cython; carried patch
+  `recipes/patches/lxml-6.1.3/0001-fake-cython-final.patch` is upstream's line (#477), until lxml
+  7.0. **The judge's callback scan reads type slots**: static type objects and their method
+  suites, `PyType_Slot` arrays and module definitions, 5,360 functions on today's set, where spec
+  051's read method and getset tables.
+
 - **scipy 1.18.1, with OpenBLAS 0.3.34 as its BLAS and LAPACK, built in** (spec 037). All of scipy
   but `scipy.odr` (it needs Fortran; importing it says so): `linalg`, `sparse` (SuperLU, ARPACK,
   PROPACK, `csgraph`), `optimize` (HiGHS's `linprog` and `milp`), `integrate`, `interpolate`,
