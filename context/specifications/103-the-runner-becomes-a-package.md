@@ -1,8 +1,9 @@
 # 103 — The runner becomes a package: one module per concern
 
-- **Status:** **built on `ea08708` on `spec/103-the-runner-becomes-a-package`, stacked on
-  102's `c15adf4`, 2026-10-20, awaiting the build review** (the landing notes below; the commit
-  after `ea08708` carries this Status line and the notes). Drafted 2026-10-20 on
+- **Status:** **built on `dcd5fbe` on `spec/103-the-runner-becomes-a-package`, stacked on
+  102's `c15adf4`, 2026-10-20, reviewed** (`../reviews/103-the-runner-becomes-a-package-2026-10-20.md`:
+  lands; the landing notes below; the code's last commit is `dcd5fbe`, the review's three Lows,
+  on `ea08708`, the build the review read at `2a9546c`). Drafted 2026-10-20 on
   `claude/gallant-ride-9nxxmn` (tree `a9064a2`) from main `5feb7e9`, with its research; its
   pre-build review is `../reviews/103-the-runner-becomes-a-package-spec-2026-10-20.md`. It is
   the second of the chain 102 → 103 → 104 → 105 → 106 → 107 (the memo's section 8): 104, 105 and
@@ -840,7 +841,12 @@ evidence under `../research/2026-10-20-the-runner-split/` (`split.py`, `wrap_com
   PR branch at `b7a1250`; the moved text keeps what it carried), `ea08708` (fifteen child
   interpreters the checks run from a string reach moved names, so each string's own import
   line names the modules; three lines the mechanical update had put inside a string by mistake
-  are removed), and the commit after it, which carries this Status line and these notes.
+  are removed), `2a9546c` (this Status line and these notes, first written), `dcd5fbe` (the
+  build review's three Lows in the unit file: check 3 resolves the name a file imports a runner
+  module by, check 1's child loads every module of the package, a tuple or frozenset is
+  unchanging only when each element is), and the commit after it, which carries the review
+  `../reviews/103-the-runner-becomes-a-package-2026-10-20.md` (verdict: lands; four Lows, three
+  fixed in `dcd5fbe`, the fourth answered in its Disposition) and this updated list.
 - **CI: none of its own; the chain's one dispatch on the final tip** (criterion 10, the owner's
   rule for the chain). The fast tier below is the build's judge.
 - **The base re-measured (EXECUTED on `c15adf4`, the scripts copied from `build/103/` with the
