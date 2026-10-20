@@ -373,3 +373,4 @@ files never change an artifact or a fact and a real stray file still fails.
 
 - The lane rebuilt the set in the main tree at `70a8e07` (on 086's main): python.wasm, the snapshot, the zip and every LICENSES file equal 086's set (SHA256SUMS 4e0dc0cf); MANIFEST differs in exactly the four recipe lines and SHA256SUMS only in MANIFEST's line (criterion 2 against 086's base; new SHA256SUMS 4eaf1c3d). Step 20 left no `__pycache__` under Lib (criterion 5). No metric moved; the unit suite +6.
 - Reviews: `../reviews/090-*` and the wave's integration review.
+- **The dry run 39371419248 on `c74d0f0` passed every job on all three systems**, the gather and G7 included.

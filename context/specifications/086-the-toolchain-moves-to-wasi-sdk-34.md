@@ -1007,3 +1007,4 @@ said "lands once the A/B is done on 083's base and B1 is run and written in".
   `c4af3c4`). The delta review's N3: the growth text's 193 rows leave out Linux's two bimodal rows
   (cpython-b, cpython-archives), which 092 keeps out of the lane's comparison; the Linux swing on a fixed set
   is a follow-up for its own specification (this dry run's cpython-b near 293.4 G or 303 G confirms the reading).
+- **The dry run 39369492451 on `085dba5` passed every job on all three systems**, the gather and G7 included: the toolchain move holds on Windows and Linux x86-64. Linux x86-64's cpython-b read 293.447 G, the low mode plus 086's +0.23%, which confirms the delta review's reading of the 302.99 G branch value as runner variance.

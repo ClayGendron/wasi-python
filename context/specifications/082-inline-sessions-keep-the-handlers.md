@@ -268,3 +268,4 @@ If the lane's run has a growth line, it is the base's, not this change's: name i
 
 - The third check (L1, the parseconfig half) was read by the wave's integration review, which mutated each wrapper in turn: each half fails its own check alone. It has run on darwin only so far; the dry run on main runs it on Linux (the integration review's N1). The unit suite +3.
 - Reviews: `../reviews/082-*` and the wave's integration review.
+- **The dry run 39371419248 on `c74d0f0` passed every job on all three systems**: the third check (the parseconfig half) now ran on Linux too (the integration review's N1).
