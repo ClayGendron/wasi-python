@@ -32,7 +32,8 @@ pkg_config_libdir = ['@ROOT@/build/plot-libs/lib/pkgconfig', '@ROOT@/build/zlib-
 [built-in options]
 # -ffile-prefix-map: no builder's path in __FILE__ strings (pybind11's headers held 12 in the
 # research binary), so the binary's hash does not depend on the checkout. -I: qhull's headers,
-# which matplotlib's configure checks for (qhull has no .pc; nothing of it is linked).
+# which matplotlib's configure checked for while qhull had no .pc (step 37 writes one since spec
+# 037, which its configure finds first).
 c_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-I@ROOT@/build/plot-libs/include', '-fwasm-exceptions', '-mllvm', '-wasm-enable-sjlj', '-mllvm', '-wasm-use-legacy-eh=false']
 # C++ exceptions in their standard form (spec 005, Decision 3).
 cpp_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-I@ROOT@/build/plot-libs/include', '-fwasm-exceptions', '-mllvm', '-wasm-use-legacy-eh=false', '-fexceptions']

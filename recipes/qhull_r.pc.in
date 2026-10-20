@@ -1,0 +1,13 @@
+# qhull's libqhull_r as step 37 builds it (spec 037, Decision 8, condition a): scipy asks meson for
+# dependency('qhull_r', version : '8.0.2'), which only a .pc answers with CMake disabled. Step 37
+# copies this file to build/plot-libs/lib/pkgconfig/qhull_r.pc as it is; every path is relative to
+# that folder, so the file names no build host.
+prefix=${pcfiledir}/../..
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: qhull_r
+Description: qhull 8.0.2's reentrant library, built by step 37
+Version: 8.0.2
+Libs: -L${libdir} -lqhull_r
+Cflags: -I${includedir}

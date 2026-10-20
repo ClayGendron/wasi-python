@@ -139,8 +139,9 @@ def test_the_inittab_renames_what_the_table_names_and_checks_the_final_names(
     tmp_path, monkeypatch
 ) -> None:
     """scipy's _cyutility, cython_optimize._zeros and spatial._qhull register under their renamed
-    init functions beside pandas' _cyutility and optimize._zeros; matplotlib's _qhull is left out
-    by its dotted name while scipy's is kept; and a clash left after the renames still stops it."""
+    init functions beside pandas' _cyutility and optimize._zeros; matplotlib's _qhull, linked since
+    spec 043, keeps upstream's PyInit__qhull beside scipy's renamed one; and a clash left after the
+    renames still stops it."""
     import re
 
     built = {
@@ -175,6 +176,7 @@ def test_the_inittab_renames_what_the_table_names_and_checks_the_final_names(
         "scipy.optimize.cython_optimize._zeros": "scipy_optimize_cython_optimize__zeros",
         "scipy.spatial._qhull": "scipy_spatial__qhull",
         "pandas._libs._cyutility": "_cyutility",
+        "matplotlib._qhull": "_qhull",
         "matplotlib._path": "_path",
     }
     clash = tmp_path / "sp2" / "scipy" / "x" / ("_path" + gen_inittab.SUFFIX)

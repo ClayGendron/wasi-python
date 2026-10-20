@@ -380,6 +380,63 @@ def test_ducc0s_fft_compiles_to_one_object(tmp_path) -> None:
     )
 
 
+# One qhull (spec 037, Decision 8, conditions e and f; criterion 8): scipy's spatial._qhull and
+# matplotlib's _qhull (spec 043) both link step 37's libqhull_r, never scipy's vendored copy.
+QHULL_ARCHIVE = Path("plot-libs") / "lib" / "libqhull_r.a"
+QHULL_MODULE_DEPS = ("plot-modules/matplotlib", "scipy-modules/scipy/spatial")
+LINK_MAP_FUNCTION = re.compile(r"^\s+-\s+[0-9a-f]+\s+[0-9a-f]+\s+(\S+?)\((.+)\):\(([^)]+)\)$")
+
+
+def test_one_qhull_is_linked() -> None:
+    """Spec 037, criterion 8: every function step 37's libqhull_r.a defines that python.wasm
+    links comes from that archive and is linked once (the link map), `qh_new_qhull` among them;
+    the map names no qhull archive of scipy's own; and each _qhull module's .deps names qhull
+    only as step 37's archive or `-lqhull_r` (condition e). Without a build, blocked."""
+    needs.need("compile records")
+    archive = paths.BUILD / QHULL_ARCHIVE
+    link_map = paths.BUILD / "link" / "python.map"
+    assert archive.is_file(), f"no build/{QHULL_ARCHIVE}: step 37 has not run"
+    assert link_map.is_file(), "no build/link/python.map: step 60 has not run"
+    nm = paths.BUILD / "tools" / _line_values()["WASI_SDK_DIR"] / "bin" / "llvm-nm"
+    listed = subprocess.run(
+        [str(nm), "-g", "-j", "--defined-only", str(archive)],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    defined = {s for s in listed if s and not s.endswith(":")}
+    assert "qh_new_qhull" in defined, f"build/{QHULL_ARCHIVE} does not define qh_new_qhull"
+    errors = []
+    linked: dict[str, list[str]] = {}
+    with link_map.open(errors="replace") as f:
+        for line in f:
+            if "qhull" not in line:
+                continue
+            if "subprojects/qhull_r" in line:
+                errors.append(f"the link map names scipy's vendored qhull: {line.strip()[-160:]}")
+                continue
+            m = LINK_MAP_FUNCTION.match(line.rstrip("\n"))
+            if m and m[3] in defined:
+                linked.setdefault(m[3], []).append(m[1])
+    for name, sources in sorted(linked.items()):
+        if len(sources) != 1:
+            errors.append(f"{name} is linked {len(sources)} times")
+        if any(Path(s).resolve() != archive.resolve() for s in sources):
+            errors.append(f"{name} comes from {sorted(set(sources))}, not build/{QHULL_ARCHIVE}")
+    if "qh_new_qhull" not in linked:
+        errors.append("python.wasm links no qh_new_qhull from the link map")
+    for folder in QHULL_MODULE_DEPS:
+        deps = sorted((paths.BUILD / folder).glob("_qhull.*.so.deps"))
+        if len(deps) != 1:
+            errors.append(f"build/{folder}: {len(deps)} _qhull .deps files, not 1")
+            continue
+        for dep in deps[0].read_text().split():
+            if "qhull" in dep and dep != "-lqhull_r" and Path(dep).resolve() != archive.resolve():
+                errors.append(f"{deps[0].relative_to(paths.BUILD)} names {dep}")
+    print(f"qhull: {len(linked)} of {len(defined)} functions linked from build/{QHULL_ARCHIVE}")
+    assert not errors, scan.report(errors)
+
+
 CPYTHON_CONFIGURE = paths.REPO / "tests" / "cpython_configure.txt"
 PYCONFIG = Path("Python-3.15.0") / "cross-build" / "wasm32-wasip1" / "pyconfig.h"
 DEFINE = re.compile(r"^\s*#\s*define\s+(\S+)(?:\s+(.*?))?\s*$")

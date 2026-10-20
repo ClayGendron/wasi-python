@@ -9,7 +9,7 @@
 # and linked, so a signature clash shows at link time). The Python package comes from meson's
 # install plan (scripts/install_from_plan.py), never `meson install`, under build/scipy-install;
 # the extension modules' list goes to build/scipy-build/extension-modules.txt for step 60.
-# Needs steps 10, 20, 38 and 40.
+# Needs steps 10, 20, 37 (its qhull), 38 and 40.
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -23,6 +23,7 @@ OB="$B/openblas-wasi"
 TARBALL=$(pinned "$TOP.tar.gz")
 PYBIND11_WHL=$(pinned pybind11-3.1.0-py3-none-any.whl)
 [ -s "$OB/lib/libopenblas.a" ] || die "build/openblas-wasi has no libopenblas.a: run step 38"
+[ -s "$B/plot-libs/lib/pkgconfig/qhull_r.pc" ] || die "build/plot-libs has no qhull_r.pc: run step 37"
 [ -d "$B/numpy-host/numpy" ] || die "no host-side numpy stand-in: run step 40 first"
 [ -d "$T/f2py-numpy/numpy" ] || die "build/tools/f2py-numpy is missing: run step 10"
 NUMPY_SITE=$(find "$B/numpy-install" -type d -name numpy -path '*site-packages*' | head -n 1)
@@ -44,9 +45,12 @@ export PATH="$TOOLS/bin:$PATH"
 
 sed "s#@ROOT@#$HERE#g; s#@SDK@#$WASI_SDK_DIR#g; s#@NUMPY_INCLUDE@#$NUMPY_INCLUDE#g" \
   "$HERE/recipes/wasi-scipy.cross" > "$B/wasi-scipy.cross"
-# pkgconf sees exactly three folders, and none of the host's: PKG_CONFIG_LIBDIR replaces its default
-# search path, so a host's own openblas.pc can never be found if one of ours is missing.
+# pkgconf sees exactly four folders, and none of the host's: PKG_CONFIG_LIBDIR replaces its default
+# search path, so a host's own openblas.pc can never be found if one of ours is missing. The fourth
+# is step 37's, for qhull_r.pc: scipy links step 37's qhull, the one matplotlib's _qhull links, and
+# never compiles its vendored copy (Decision 8, condition b).
 PCDIRS="$OB/lib/pkgconfig:$NUMPY_SITE/_core/lib/pkgconfig:$TOOLS/pybind11/pybind11/share/pkgconfig"
+PCDIRS="$PCDIRS:$B/plot-libs/lib/pkgconfig"
 export PKG_CONFIG_PATH="$PCDIRS" PKG_CONFIG_LIBDIR="$PCDIRS"
 # The per-file include map, rendered into build/: nothing is ever written under recipes/.
 sed "s#@ROOT@#$HERE#g" "$HERE/recipes/scipy_file_includes.txt" > "$BUILD/file-includes.txt"
@@ -70,7 +74,7 @@ cd "$SRC"
 # The release build type and asserts off are meson-python's defaults, as scipy's wheels are built.
 meson setup "$BUILD" --cross-file "$B/wasi-scipy.cross" --buildtype=release -Db_ndebug=if-release \
   -D_without-fortran=true -Duse-pythran=false -Dblas=openblas -Dlapack=openblas \
-  -Duse-system-libraries=none
+  -Duse-system-libraries=qhull
 # Every installed target but the seven test modules (one, special._test_internal, sets the FPU's
 # rounding modes, which WASI lacks; none is linked).
 "$HOSTPY" "$HERE/scripts/install_from_plan.py" --targets "$BUILD" > "$BUILD/targets.txt"
