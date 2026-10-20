@@ -61,6 +61,20 @@ ready: Wed 2026-10-21, about 18:00 UTC (INFERRED), range Wed 10:00 UTC to Thu 20
   slots, not wall clock, and is build-class). A cache of the artifact set keyed by the pins (after
   0.1.0, unless CI minutes become the bottleneck).
 
+### numpy's linear algebra on OpenBLAS before 0.1.0 (question 106, 2026-10-20)
+
+numpy in the guest runs its bundled `lapack_lite`, not the OpenBLAS that has been in the set since
+spec 037. Spec 099's pre-build review inverted 300 exactly rank-deficient matrices in the guest
+and natively (numpy on OpenBLAS). After 099, the guest raises `LinAlgError` like native on 150, still
+returns finite numbers on 12 where native raises, and raises on 8 where native returns finite
+numbers. Matrices of `nan`s also fail with `ValueError: On entry to DLASCL` in the guest where
+native raises `LinAlgError` (099's drafting probe). The lane asked (AskUserQuestion), recommending
+099 now and the OpenBLAS link right after 0.1.0. The owner's choice: "Both before 0.1.0". So:
+
+- Spec 099 lands as drafted, its "as natively" qualified for `lapack_lite`.
+- Spec 100 (reserved) links numpy's linear algebra to the set's OpenBLAS, so its results and errors
+  match native numpy on OpenBLAS. It is build-class, stacked on 099, and lands before 0.1.0.
+
 ### Every test of every package we build (2026-10-20)
 
 Spec 066's re-survey on wave 06's set (branch tip `ad3c065`) found the budget rule's price was
