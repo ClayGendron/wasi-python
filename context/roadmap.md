@@ -83,19 +83,18 @@ release is `e7727db9…4b4b` (43,751,127 bytes), the tarball `fc59b977…291d`, 
 `ab78e893…`, snapshot `c50ca51f…`, zip `02026895…`; `SHA256SUMS` `c9dcb5b8…`), and every file
 passes `shasum -c`.
 
-In flight (decision 91, widened 2026-10-19: up to six build-class at once, the owner). **083 lands next, ahead of every built package**: the judge's CPython groups see real
-file times, inode numbers and the zip's link count, so their fuel differs between the lane's machine
-and the release runners, and every dry run, main's included, goes red on `cpython-fs` until 083
-lands (039's dry run on its acceptance, run 39291580648, +0.04%; 065's build review, section 4,
-predicted it). 089 (host litter never reaches a verdict: the judge seals its stages, so the
-.DS_Store files macOS writes cannot reach the guest) lands before 083; 090 (the build ignores host
-litter, build-class) follows later. The order after 083 (the owner told, 2026-10-19, `decisions.md`):
-086 (wasi-sdk 34; rebase, rebuild, A/B), then 039 (tier A; re-accepted after 083), then 043
+In flight (decision 91, widened 2026-10-19: up to six build-class at once, the owner). **089 and 083 landed 2026-10-19 as one batch** (`45b917c`; dry run 39346796670 green on all
+three systems, `cpython-fs` included): the judge seals its stages against host litter, and its
+driver answers file times and inode numbers itself, so the CPython groups' fuel is the same on
+the lane's machine and the release runners. 090 (the build ignores host litter, build-class)
+follows later; 089's delta review leaves one follow-up (L1: one `try`/`finally` from the seal to
+`run()`'s return). The order after 083 (the owner told, 2026-10-19, `decisions.md`):
+086 (wasi-sdk 34; rebase, rebuild, A/B), then 039 (tier A; re-accepted on the new base), then 043, then 041 (built stacked on 039)
 (matplotlib M2; rebase, rebuild, delta review), then 037's rework, built on 043's and 086's
 reviewed tips once they are (a stacked build). The parallel-safe specifications land in the gaps,
 in batches of up to three: 073 (`run` keeps an unclosed file's bytes), 085 (gather checks what it
-trusts), 084 (a private root never outlives its call), 078 (built and reviewed, after 083) and 087
-(build-class, it carries a patch; lands alone). Reserved: 091, numpy-core's layout-dependent fuel
+trusts), 084 (a private root never outlives its call), 078 (built, reviewed, rebased onto the batch) and 087
+(build-class, it carries a patch, with the security review's S3; lands alone). Reserved: 091, numpy-core's layout-dependent fuel
 as a fact (judge-only, parallel-safe; `test_string_comparisons`' fuel moves with the bool DType
 object's address at every build-class landing, so it leaves the ratchet as a recorded fact while
 the group's passes stay ratcheted). The whole-surface security review for 0.1.0 ran on main

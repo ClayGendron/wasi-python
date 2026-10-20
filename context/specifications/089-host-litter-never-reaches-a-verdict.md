@@ -1,6 +1,6 @@
 # 089 — host litter never reaches a verdict: the judge seals its stages and watches its grants
 
-- **Status:** **built 2026-10-19** on `spec/089-host-litter-never-reaches-a-verdict`, from main
+- **Status:** **landed 2026-10-19** in a batch with 083 (constitution §5.7; accepted on `69004e2` as `45b917c`, history line 80, `-n 3`; sameness clean against both reviewers; dry run 39346796670 green on all three systems; reviews: `../reviews/089-host-litter-never-reaches-a-verdict-spec-2026-10-19.md`, `../reviews/089-host-litter-never-reaches-a-verdict-build-2026-10-19.md`, `../reviews/089-083-batch-delta-2026-10-19.md`; follow-up from the delta review, L1: one `try`/`finally` from `litter.seal(lib)` to `run()`'s return, so a before-run `HostLitter` or an error before the `try` still releases; N1: on Windows an unremovable `lib` now prints a line after five tries). Before landing: **built 2026-10-19** on `spec/089-host-litter-never-reaches-a-verdict`, from main
   `3866f56` (the Landing notes). **Revised 2026-10-19 against its pre-build review** ("build once
   F1", `../reviews/089-host-litter-never-reaches-a-verdict-spec-2026-10-19.md`; the section
   "Disposition of the pre-build review"). **Drafted 2026-10-19** from main `3866f56`. It changes

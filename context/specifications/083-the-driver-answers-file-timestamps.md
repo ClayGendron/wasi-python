@@ -1,6 +1,6 @@
 # 083 — the judge's driver answers a file's times and inode number itself
 
-- **Status:** **built 2026-10-19** on `spec/083-the-driver-answers-file-timestamps`, rebased onto
+- **Status:** **landed 2026-10-19** in a batch with 089 (constitution §5.7; rebased onto 089 by the lane, its `_release` removing the sealed stdlib copy through `litter.remove` as 089 specified; accepted on `69004e2` as `45b917c`, history line 80, `-n 3`; sameness clean against both reviewers, every CPython row equal to 083's reviewer's; dry run 39346796670 green on all three systems, `cpython-fs` included; reviews: `../reviews/083-the-driver-answers-file-timestamps-spec-2026-10-19.md`, `../reviews/083-the-driver-answers-file-timestamps-build-2026-10-19.md`, `../reviews/089-083-batch-delta-2026-10-19.md`). Before landing: **built 2026-10-19** on `spec/083-the-driver-answers-file-timestamps`, rebased onto
   main `9d89535` (spec 065 landed; the Landing notes). **Amended 2026-10-19** (the stdlib zip's
   link count: the section "Amendment of 2026-10-19"; confirmed with A1 and A2). **Drafted
   2026-10-19** on `spec/083-the-driver-answers-file-timestamps` from main
