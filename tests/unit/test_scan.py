@@ -2442,3 +2442,116 @@ def test_a_citation_split_across_lines_is_one_hit(work) -> None:
     ]
     sh = write(work, "s/split.sh", f"#!/bin/sh\n# see {SPEC_WORD}\n#   063, Decision 2\necho\n")
     assert scan.context_citation_hits(sh) == [(2, "specification", f"{SPEC_WORD} 063")]
+
+# Spec 100's check 4: one OpenBLAS, no lapack_lite, and the shim set (scan.one_lapack_errors).
+_OB = "/b/build/openblas-wasi/lib/libopenblas.a"
+_SHIMS = "/b/build/numpy-shims/libnumpy_lapack_shims.a"
+_XERBLA = "/b/build/link/archives/numpy_lapack_lite.a"
+_OB_DEFINED = {"dgesv_", "dgesdd_", "cblas_dgemm", "xerbla_"}
+
+
+def _map_line(archive: str, member: str, symbol: str) -> str:
+    return f"       -   70782f       fb         {archive}({member}):({symbol})"
+
+
+def _good_map() -> list[str]:
+    return [
+        *(_map_line(_OB, f"{s}.o", s) for s in sorted(_OB_DEFINED)),
+        _map_line(_SHIMS, "numpy_lapack_shims.o", "wasi_numpy_dgesv_"),
+        _map_line(_XERBLA, "lapack_lite_python_xerbla.c.o", "wasi_numpy_xerbla_"),
+    ]
+
+
+def _one_lapack(lines, shims=frozenset({"wasi_numpy_dgesv_"}), called=None):
+    called = {"wasi_numpy_dgesv_", "wasi_numpy_xerbla_"} if called is None else called
+    return scan.one_lapack_errors(lines, _OB_DEFINED, set(shims), set(called))
+
+
+def test_one_lapack_passes_one_openblas_and_its_shims() -> None:
+    assert _one_lapack(_good_map()) == []
+
+
+def test_one_lapack_names_a_routine_linked_twice_or_from_elsewhere() -> None:
+    twice = [*_good_map(), _map_line(_OB, "dgesv2.o", "dgesv_")]
+    assert _one_lapack(twice) == ["dgesv_ is linked 2 times"]
+    other = _map_line("/b/x/libother.a", "d.o", "dgesv_")
+    elsewhere = [other if "(dgesv_)" in t else t for t in _good_map()]
+    assert _one_lapack(elsewhere) == ["dgesv_ comes from libother.a, not libopenblas.a"]
+
+
+def test_one_lapack_names_lapack_lite() -> None:
+    f2c = _map_line(_XERBLA, "lapack_lite_f2c_d_lapack.c.o", "numpy_lapack_lite_dgesv_")
+    assert _one_lapack([*_good_map(), f2c]) == [
+        "the link takes lapack_lite_f2c_d_lapack.c.o from numpy_lapack_lite.a",
+        "the link takes numpy_lapack_lite_dgesv_",
+    ]
+
+
+def test_one_lapack_names_a_shim_from_another_archive() -> None:
+    moved = [t.replace(_SHIMS, "/b/x/libscipy_lapack_shims.a") for t in _good_map()]
+    assert _one_lapack(moved) == [
+        "wasi_numpy_dgesv_ comes from libscipy_lapack_shims.a, not libnumpy_lapack_shims.a"
+    ]
+
+
+def test_one_lapack_with_no_openblas_is_a_finding() -> None:
+    errors = _one_lapack([t for t in _good_map() if _OB not in t])
+    assert errors[0] == "the link takes no symbol from libopenblas.a"
+
+
+def test_one_lapack_names_an_uncalled_shim_and_a_call_with_none() -> None:
+    extra = _one_lapack(_good_map(), shims={"wasi_numpy_dgesv_", "wasi_numpy_cgeev_"})
+    assert extra == ["shim wasi_numpy_cgeev_ is called by no numpy object"]
+    called = {"wasi_numpy_dgesv_", "wasi_numpy_dgetrf_", "wasi_numpy_xerbla_"}
+    assert _one_lapack(_good_map(), called=called) == [
+        "numpy calls wasi_numpy_dgetrf_, which no shim defines"
+    ]
+
+
+def test_one_lapack_recipe_as_written() -> None:
+    cross = (paths.REPO / scan.ONE_LAPACK_CROSS).read_text()
+    header = (paths.REPO / scan.ONE_LAPACK_HEADER).read_text()
+    imap = (paths.REPO / scan.ONE_LAPACK_MAP).read_text()
+    step = (paths.REPO / scan.ONE_LAPACK_STEP).read_text()
+    assert scan.one_lapack_recipe_errors(cross, header, imap, step) == []
+    old = cross.replace("'-DNPY_NO_SIGNAL'", "'-DBLAS_SYMBOL_PREFIX=x', '-DNPY_NO_SIGNAL'")
+    assert scan.one_lapack_recipe_errors(old, header, imap, step) == [
+        "recipes/wasi-numpy.cross still names BLAS_SYMBOL_PREFIX"
+    ]
+    assert scan.one_lapack_recipe_errors(cross, None, imap, step) == [
+        "recipes/numpy_lapack_abi.h is missing"
+    ]
+    noblas = step.replace(scan.ONE_LAPACK_MESON, "-Dblas=none -Dlapack=none")
+    assert scan.one_lapack_recipe_errors(cross, header, imap, noblas) == [
+        f"scripts/steps/40_numpy.sh does not pass {scan.ONE_LAPACK_MESON}"
+    ]
+
+
+def test_one_lapack_include_log() -> None:
+    entries = scan.include_map_entries((paths.REPO / scan.ONE_LAPACK_MAP).read_text())
+    assert [n for _, _, n in entries] == [1, 1, 2, 1]
+    log = "".join(f"{s}\tsrc\n" * n for s, _, n in entries)
+    assert scan.include_log_errors(entries, log) == []
+    assert scan.include_log_errors(entries, log.replace("common/", "x/")) == [
+        "per-file include common/python_xerbla.c matched 0 compiles, not 1"
+    ]
+    assert scan.include_log_errors(entries, None)[0].endswith("(step 40's per-file include log)")
+
+
+def test_one_lapack_records_and_deps() -> None:
+    f2c = {"file": "../numpy/linalg/lapack_lite/f2c_blas.c", "command": "wasi-cc -c f2c_blas.c"}
+    assert scan.numpy_blas_record_errors([f2c], ["a/lapack_lite_f2c_blas.c.o"]) == [
+        "numpy compiles ../numpy/linalg/lapack_lite/f2c_blas.c: lapack_lite's f2c LAPACK",
+        "build/numpy-build holds a/lapack_lite_f2c_blas.c.o",
+    ]
+    prefixed = {"file": "a.c", "command": "wasi-cc -DBLAS_SYMBOL_PREFIX=x -c a.c"}
+    assert scan.numpy_blas_record_errors([prefixed], []) == ["a.c: carries -DBLAS_SYMBOL_PREFIX"]
+    archive = Path("/b/build/openblas-wasi/lib/libopenblas.a")
+    assert scan.numpy_deps_errors({"m.deps": [str(archive), "-lm"]}, archive) == []
+    by_flags = ["-L/b/build/openblas-wasi/lib", "-lopenblas"]
+    assert scan.numpy_deps_errors({"m.deps": by_flags}, archive) == []
+    assert scan.numpy_deps_errors({"m.deps": ["-lm"]}, archive) == ["m.deps names no OpenBLAS"]
+    other = "/x/lib/libopenblas.a"
+    assert scan.numpy_deps_errors({"m.deps": [other]}, archive) == [
+        f"m.deps names {other}, not {archive}"
+    ]

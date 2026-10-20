@@ -20,7 +20,7 @@ directories and host functions you hand it.
 
 | artifact | what it is |
 |---|---|
-| `python.wasm` | a WASI reactor: CPython plus numpy, pandas, scipy (with OpenBLAS), scikit-learn's compiled modules, matplotlib's compiled modules (with FreeType, HarfBuzz, SheenBidi, libraqm and qhull), Pillow's core, kiwisolver, contourpy, lxml's `etree` and `objectify` (with libxml2 and libxslt), regex's `_regex`, zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
+| `python.wasm` | a WASI reactor: CPython plus numpy and scipy (sharing one OpenBLAS), pandas, scikit-learn's compiled modules, matplotlib's compiled modules (with FreeType, HarfBuzz, SheenBidi, libraqm and qhull), Pillow's core, kiwisolver, contourpy, lxml's `etree` and `objectify` (with libxml2 and libxslt), regex's `_regex`, zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
 | `python-snapshot.wasm` | the same binary after a Wizer snapshot: the interpreter started and the stdlib's bootstrap modules imported, no package (decision 34); one `run` per instance, about 14 ms |
 | `python-stdlib.zip` | the stdlib plus numpy, pandas, scipy, scikit-learn (with its six bundled datasets), matplotlib (its data as one inner archive), Pillow, kiwisolver, contourpy, lxml, regex, fontTools, cycler, pyparsing, packaging, python-dateutil, tzdata, six, the default profile's thirty pure-Python packages (Excel, PDF, HTML and XML, YAML, TOML and templates, graphs and model formulas, sympy, and utilities; see *What the default profile carries*), and `host`, the tool protocol's guest package, as a deflated zip |
 | `MANIFEST`, `SHA256SUMS` | every pinned source, every supported build host's toolchain, and every recipe hash |
@@ -47,7 +47,7 @@ promises.
 | `import pandas` / `import numpy`, snapshot | 4.66G / 0.81G guest instructions (spec 073's landing notes, with the finalization's unfreeze; 0.81 s for spec 069's research's small pandas job, before the unfreeze, a benchmark fact): the snapshot pre-imports no package (decision 34), so a call pays its own imports |
 | one call, plain reactor, `-c pass` / `import pandas` | 21 ms / 620 ms (spec 035's landing notes, 2026-10-18: the zip's directory read once); `-c pass` 218M guest instructions with tier A's 2,014 members in the zip (167M before, spec 039; 151M before matplotlib's, spec 023); `import pandas` 4.92G with matplotlib's members |
 | a line plot saved as PNG, snapshot, no package pre-imported | 8.78G guest instructions with a fresh font cache (a fresh `HOME`), 6.79G with a kept `MPLCONFIGDIR` (spec 069's landing notes; 7.56G and 5.57G while numpy and pandas were pre-imported) |
-| numpy kernels vs native (the spike's measurement) | 1.6 to 2.3 times slower (no SIMD, no BLAS, no threads) |
+| numpy kernels vs native (the spike's measurement) | 1.6 to 2.3 times slower (no SIMD in numpy's own loops, no threads; the spike's measurement, before numpy's `dot`, `matmul` and `linalg` moved to OpenBLAS in spec 100) |
 | pandas groupby, 1e6 rows, vs native (the spike's) | 1.3 to 1.4 times slower |
 | numpy, pandas, bz2, lzma and sqlite3 results vs native, same pins | byte-identical on six golden jobs |
 | numpy's and pandas' own tests in the guest (spec 050; upstream's fast selection, 11 groups) | 63,717 passing; 12 gaps, each a class of known failures listed by node id with its closer (the README 10, question 89 2); no test traps the guest |
@@ -269,7 +269,8 @@ nothing writable.
   output file, and qhull refuses `TO` first (QH7092).
 - **`OPENBLAS_*` environment variables** are read by OpenBLAS's constructor when the reactor
   initializes; on the snapshot that ran at build time, so they do nothing there. OpenBLAS runs on
-  one thread either way, and maps a 16 MiB buffer at its first level-3 call.
+  one thread either way, and maps a 16 MiB buffer at its first level-3 call; numpy's linear
+  algebra, `dot` and `matmul` share it (spec 100).
 
 ### scikit-learn in the guest
 
@@ -368,14 +369,22 @@ sandbox:
   `numpy.isfinite` where it matters. numpy's own signals are kept in software
   (`recipes/npy_fenv_flags.h`, spec 099): integer division by zero, integer overflow in division
   and float16 overflow warn, or raise under `np.errstate`, as natively, and `numpy.linalg`
-  raises `LinAlgError` when its LAPACK finds a matrix singular or not positive definite. That
-  LAPACK is numpy's own bundled `lapack_lite` until spec 100; native numpy's is OpenBLAS
-  (Accelerate in the macOS 14 arm64 wheel). For a matrix singular only in exact arithmetic,
-  LAPACKs round differently, so the guest may return finite numbers where native raises, or
-  raise where native returns: exact singular-matrix parity is not a goal in wasm. Until spec
-  100, a matrix of `nan` can raise `ValueError` ("On entry to DLASCL …") where native raises
-  `LinAlgError`, and `numpy.linalg.lstsq` of one raises `SystemError`, with that `ValueError` as
-  its context.
+  raises `LinAlgError` when its LAPACK finds a matrix singular or not positive definite.
+  numpy's linear algebra runs on the set's OpenBLAS, as native numpy's does (spec 100).
+- **A matrix singular only in exact arithmetic** may raise `LinAlgError` in the guest where
+  native numpy returns a huge, meaningless inverse: whether LAPACK meets an exact zero pivot
+  depends on rounding, and wasm has no fused multiply-add. Of 300 such test matrices, the guest
+  and native numpy on OpenBLAS disagree on 46 (measured on macOS arm64; the guest raising each
+  time), and native numpy on Accelerate and on OpenBLAS disagree on 57 (spec 100). Exact
+  singular-matrix parity is not a goal in wasm. Use `numpy.linalg.matrix_rank` or `cond` where
+  it matters.
+- **numpy's and scipy's linear algebra under a tight memory cap**: OpenBLAS maps a 16 MiB buffer
+  at its first `matmul` of 2-D float arrays, `numpy.linalg` or `scipy.linalg` call. If
+  `memory_bytes` leaves no room for it, OpenBLAS prints "OpenBLAS error: Memory allocation still
+  failed after 10 retries, giving up." to stderr and the call ends with exit status 1 (a session
+  ends), not a `MemoryError`. Allow about 16 MiB above what the program otherwise holds, or make
+  one small `matmul` early, while memory is free: the buffer is kept for the rest of the call
+  (spec 100).
 - **Builtin modules have no `__file__`**: the packages' compiled modules (`PIL._imaging`,
   `lxml.etree`, numpy's) are builtin, so code that reads their `__file__` fails, and
   `lxml.get_include()` names folders inside the stdlib zip, which are not folders.
@@ -609,7 +618,7 @@ meson, and the C libraries behind `bz2`, `lzma` and `sqlite3` (bzip2, liblzma
 from xz with xz's own `configure`, and SQLite's one-file amalgamation); compile regex's two C
 files; build libxml2
 and libxslt with their own `configure`s and compile lxml's two modules from the C its sdist
-ships; build OpenBLAS's C LAPACK with its own `make` and scipy with meson, its f2py wrappers
+ships; build OpenBLAS's C LAPACK with its own `make`, before numpy, whose linear algebra, `dot` and `matmul` call it, and scipy with meson, its f2py wrappers
 written on the build host by numpy's f2py (a pinned host wheel); link everything into one interpreter as builtin modules and relink it
 as a WASI reactor; build the bytecode-only, deterministic stdlib zip; snapshot
 the reactor with the pinned wasmtime's own `wasmtime wizer`, the stdlib's
@@ -695,7 +704,7 @@ a WASI guest, so nothing reads them.
 
 The recipe files under `recipes/`: two meson cross files, three rename headers
 for symbols that only collide in a static link, a header that keeps numpy's own floating-point
-signals in a software flag word, since wasm has none (`npy_fenv_flags.h`), the reactor entry, two link-time refusals
+signals in a software flag word, since wasm has none (`npy_fenv_flags.h`), numpy's side of the LAPACK ABI (`numpy_lapack_abi.h`, a one-line header force-included into numpy's linear-algebra files by `numpy_file_includes.txt`, and `numpy_lapack_shims.c`), the reactor entry, two link-time refusals
 (`iconv_refusals.c`, GB18030; `fcntl_dup_refusal.c`, which answers `fcntl`'s two dup commands
 `ENOTSUP` as wasi-libc's own `dup` does, where wasi-libc 34 answers `EINVAL`), two frozen modules the reactor
 links in (`_zip_directory`, which reads the zip's directory with one read where zipimport makes a
@@ -3454,7 +3463,7 @@ contourpy 1.4.0, SVG and PDF judged byte for byte); lxml 6.1.3 with libxml2 and 
 zip's tzdata is the route); pre-importing any package in the snapshot
 (decision 34: the default snapshot pre-imports none; a `full` profile, its own artifact set,
 only if an embedder asks); scipy (Fortran: f2c as Pyodide does; months);
-threads; BLAS and SIMD; `_ctypes`, `mmap`, sockets, `_ssl`; `_zstd`
+threads; SIMD in numpy's own loops; `_ctypes`, `mmap`, sockets, `_ssl`; `_zstd`
 (`compression.zstd`: libzstd needs its own research and licence approval);
 SQLite's `load_extension` (WASI has no `dlopen`); pip inside the guest.
 

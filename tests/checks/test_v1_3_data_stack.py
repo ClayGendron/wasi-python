@@ -906,3 +906,206 @@ def test_hardware_floating_point_signals_stay_silent_as_documented(guest, which)
     with the header's #error."""
     got = _signals(guest, which, HARDWARE_SIGNALS)
     assert got == HARDWARE_SIGNALS_GUEST, got
+
+
+# numpy on the set's OpenBLAS (spec 100). numpy's linear algebra, dot and matmul run on the
+# OpenBLAS scipy runs; recipes/numpy_lapack_abi.h and recipes/numpy_lapack_shims.c bridge numpy's
+# int declarations to OpenBLAS's void subroutines. The programs are the research folder's
+# check1_config.py, check2_rank_deficient.py and check3_errors.py
+# (context/research/2026-10-20-numpy-on-openblas/).
+OPENBLAS_CONFIG = """
+import numpy as np
+import scipy
+from numpy.linalg import lapack_lite
+
+nd = np.show_config(mode="dicts")["Build Dependencies"]
+sd = scipy.show_config(mode="dicts")["Build Dependencies"]
+keys = ("name", "found", "version", "detection method", "openblas configuration")
+for k in ("blas", "lapack"):
+    print(k, *(nd[k].get(x) for x in keys))
+both = (*keys, "include directory", "lib directory")
+print("same as scipy", all(nd[k].get(x) == sd[k].get(x) for k in ("blas", "lapack") for x in both))
+print("ilp64", lapack_lite._ilp64)
+"""
+
+_OPENBLAS_BUILT = (
+    "openblas True 0.3.34 pkgconfig USE_64BITINT= DYNAMIC_ARCH=0 DYNAMIC_OLDER= NO_CBLAS="
+    " NO_LAPACK= NO_LAPACKE=1 NO_AFFINITY=1 USE_OPENMP=0 WASM128_GENERIC MAX_THREADS=1"
+)
+OPENBLAS_CONFIG_GUEST = (
+    f"blas {_OPENBLAS_BUILT}\nlapack {_OPENBLAS_BUILT}\nsame as scipy True\nilp64 False\n"
+)
+
+RANK_DEFICIENT = """
+import numpy as np
+from scipy.linalg import lapack
+
+rng = np.random.default_rng(99)
+num, sci = [], []
+for _ in range(300):
+    n = int(rng.integers(3, 8))
+    k = int(rng.integers(1, n))
+    a = (rng.integers(-5, 6, size=(n, k)) @ rng.integers(-5, 6, size=(k, n))).astype(float)
+    if rng.random() < 0.5:
+        a = a * 0.1
+    try:
+        r = np.linalg.inv(a)
+        num.append("N" if np.isnan(r).all() else "F" if np.isfinite(r).all() else "M")
+    except np.linalg.LinAlgError:
+        num.append("E")
+    info = lapack.dgesv(a, np.eye(n))[-1]
+    sci.append("E" if info > 0 else "F" if info == 0 else "?")
+print("numpy", "".join(num))
+print("scipy", "".join(sci))
+print("agree", sum(p == q for p, q in zip(num, sci)))
+"""
+
+# The set's OpenBLAS's answer (E raises or info > 0, F finite): scipy's dgesv in the guest, the
+# same on main's set and 099's (spec 100, check 2's recorded string, a pinned fact).
+RANK_DEFICIENT_GUEST = (
+    "FEEFEFFFFEEFFEEEFEFEEFFFEEEFFEEFEFEEFFFFFFFEFFFFEFFEFEEEFEEFEFFEEEEFEFFFEFF"
+    "EFEFEEEFFEFEFFEFFEEEFEFFEFEFEEEFFFFFFFFEFFFEFEEEFFEFFEEFEFEEFFFFEFFFEFFFFEE"
+    "FEFEEFEFFFFFEFFFEFFEEEEFFEFFFEEEFFEEEFFEFFEFEEFEEFEEEEFEEEEEEEEFFEEFEEFEFFE"
+    "FEEEEEFEEEEEEFEFEFEFFEEFEFEEEEEEFEFEEFEFFFFEEEEFEEEFFFFEEFEFEEEFEFFEEEEFEFF"
+)
+# Native numpy 2.5.2 on OpenBLAS 0.3.34 (the macosx_11_0_arm64 wheel), the same program.
+RANK_DEFICIENT_NATIVE = (
+    "FEFFEFFFFEFFFEEEFFFEEFFFFEFFFFEFEFEEFFFFFFFEFFFFEFFEFFEFFFEFFFFEFEFFEFFFEFF"
+    "FFEFEEFFFEFFFFFFFEEFFEFFEFFFEEEFFFFFFFFEFFFEFFEFFFEFFEEFEFEEFFFFEFFFEFFFFFE"
+    "FEFFEFFFFFFFFFFFFFFFEFFFFEFFFFEFFFEFEFFEFFFFEEFEEFFEEEFFFEEEEEEFFEEFEFFEFFE"
+    "FEFEFEFEEEEEFFEFEFEFFEFFFFEEEEEEFEFEFFEFFFFFEEFFFEFFFFFEEFEFEEEFEFFEEEEFEFF"
+)
+
+LINALG_ERRORS = """
+import warnings
+
+import numpy as np
+from numpy.linalg import lapack_lite
+
+warnings.simplefilter("ignore")
+a = np.full((3, 3), np.nan)
+b = np.full((3, 1), np.nan)
+
+
+def kind(x):
+    if isinstance(x, dict):
+        return repr(x)
+    x = np.asarray(x)
+    return "all-nan" if np.isnan(x).all() else "finite" if np.isfinite(x).all() else "mixed"
+
+
+def case(name, fn):
+    try:
+        r = fn()
+        rs = r if isinstance(r, tuple) else (r,)
+        out = "returns " + ",".join(kind(x) for x in rs)
+    except Exception as e:
+        out = f"raises {type(e).__name__}: {e}"
+    print(f"{name:22s} {out}", flush=True)
+
+
+case("svd", lambda: np.linalg.svd(a))
+case("svd no uv", lambda: np.linalg.svd(a, compute_uv=False))
+case("pinv", lambda: np.linalg.pinv(a))
+case("matrix_rank", lambda: np.linalg.matrix_rank(a))
+case("norm 2", lambda: np.linalg.norm(a, 2))
+case("cond", lambda: np.linalg.cond(a))
+case("lstsq", lambda: np.linalg.lstsq(a, b, rcond=None)[0])
+case("eigh", lambda: np.linalg.eigh(a))
+case("eigvalsh", lambda: np.linalg.eigvalsh(a))
+case("eig", lambda: np.linalg.eig(a))
+case("inv", lambda: np.linalg.inv(a))
+case("solve", lambda: np.linalg.solve(a, b))
+case("cholesky", lambda: np.linalg.cholesky(a))
+case("qr", lambda: np.linalg.qr(a))
+case("det", lambda: np.linalg.det(a))
+case("xerbla", lambda: lapack_lite.xerbla())
+one = np.array([[1.0]])
+case("dorgqr lda 0", lambda: lapack_lite.dorgqr(1, 1, 1, one, 0, one, one, 0, 0))
+"""
+
+_SVD = "raises LinAlgError: SVD did not converge"
+_EIG = "raises LinAlgError: Eigenvalues did not converge"
+# Native numpy 2.5.2 on OpenBLAS 0.3.34 (check3_errors-native-openblas.out): Python's lines, then
+# OpenBLAS's own xerbla lines, which C's stdout writes when it flushes.
+LINALG_ERRORS_NATIVE = "".join(
+    f"{name:22s} {out}\n"
+    for name, out in (
+        ("svd", _SVD),
+        ("svd no uv", _SVD),
+        ("pinv", _SVD),
+        ("matrix_rank", _SVD),
+        ("norm 2", _SVD),
+        ("cond", _SVD),
+        ("lstsq", _SVD + " in Linear Least Squares"),
+        ("eigh", _EIG),
+        ("eigvalsh", _EIG),
+        ("eig", "raises LinAlgError: Array must not contain infs or NaNs"),
+        ("inv", "returns all-nan"),
+        ("solve", "returns all-nan"),
+        ("cholesky", "returns mixed"),
+        ("qr", "returns all-nan,mixed"),
+        ("det", "returns all-nan"),
+        ("xerbla", "raises ValueError: On entry to test parameter number -1 had an illegal value"),
+        ("dorgqr lda 0", "returns {'dorgqr_': 0, 'info': -5}"),
+    )
+)
+LINALG_XERBLA_NATIVE = sorted(
+    [
+        " ** On entry to DLASCL parameter number  4 had an illegal value",
+        " ** On entry to DLASCL parameter number  4 had an illegal value",
+        " ** On entry to DORGQR parameter number  5 had an illegal value",
+    ]
+)
+
+
+def _quiet(guest, which: str, code: str) -> str:
+    r = guest(which, ["-c", code], root_writable=False)
+    assert (r.exit_code, r.trapped) == (0, None), r.describe()
+    assert r.stderr == b"", r.describe()
+    return r.text
+
+
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_numpy_is_built_on_the_sets_openblas(guest, which) -> None:
+    """numpy's BLAS and LAPACK are the set's OpenBLAS 0.3.34, the one scipy uses, as numpy itself
+    reports them (spec 100, check 1): found by pkg-config, its configuration the step 38 build's
+    (one thread, no OpenMP, WASM128_GENERIC), numpy's entries equal to scipy's, and LP64."""
+    got = _quiet(guest, which, OPENBLAS_CONFIG)
+    assert got == OPENBLAS_CONFIG_GUEST, got
+
+
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_a_rank_deficient_matrix_meets_the_sets_openblas(guest, which) -> None:
+    """numpy.linalg.inv and scipy's dgesv agree on 300 exactly rank-deficient matrices (099's
+    review, seed 99), because both run the set's OpenBLAS (spec 100, check 2). Both equal the
+    recorded string, a pinned fact: wasm's floating point and the guest's bytes are the same on
+    every host (spec 012), and an OpenBLAS pin change that moves it is re-recorded as a judge
+    change with a reason. The held property: the guest is never finite where native numpy on
+    OpenBLAS raises. The other way it differs at 46 indices, where native returns a meaningless
+    inverse; whether a matrix singular only in exact arithmetic meets an exact zero pivot is a
+    rounding question, and wasm has no fused multiply-add (the README's bullet "A matrix singular
+    only in exact arithmetic")."""
+    got = _quiet(guest, which, RANK_DEFICIENT).splitlines()
+    assert got[0] == f"numpy {RANK_DEFICIENT_GUEST}", got[0]
+    assert got[1] == f"scipy {RANK_DEFICIENT_GUEST}", got[1]
+    assert got[2:] == ["agree 300"], got[2:]
+    numpy_letters = got[0].split()[1]
+    pairs = zip(RANK_DEFICIENT_NATIVE, numpy_letters, strict=True)
+    finite = [i for i, (n, g) in enumerate(pairs) if n == "E" != g]
+    assert not finite, f"finite where native raises, at {finite}"
+
+
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_numpy_linalg_errors_are_native_numpy_on_openblas(guest, which) -> None:
+    """A matrix of nan, and LAPACK's argument errors, behave as in native numpy on OpenBLAS (spec
+    100, check 3): the svd family, lstsq and eigh raise LinAlgError (099's B1, lstsq's SystemError,
+    is gone), inv, solve, cholesky, qr and det return nans as natively, lapack_lite.xerbla() raises
+    numpy's ValueError, and an illegal argument makes OpenBLAS's own xerbla print to stdout and
+    return. OpenBLAS's lines come through C's stdout, whose order against Python's is not
+    Python's, so they are compared apart, as a sorted list."""
+    lines = _quiet(guest, which, LINALG_ERRORS).splitlines(keepends=True)
+    xerbla = sorted(t.rstrip("\n") for t in lines if t.startswith(" ** On entry to"))
+    python = "".join(t for t in lines if not t.startswith(" ** On entry to"))
+    assert python == LINALG_ERRORS_NATIVE, python
+    assert xerbla == LINALG_XERBLA_NATIVE, xerbla

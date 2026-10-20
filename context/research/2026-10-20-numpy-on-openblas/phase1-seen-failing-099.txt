@@ -1,0 +1,16 @@
+wasi_python v1: 0/7 pass · 0 gap · 1 blocked · 6 fail   (unit suite 0/0)
+  v1.5  rebuild from pins    0/1   blocked 1
+blocked by: compile records 1
+FAIL tests/checks/test_v1_3_data_stack.py::test_a_rank_deficient_matrix_meets_the_sets_openblas[plain] — AssertionError: numpy FEEFEFFFFEEFFEEEFEFEEFFFEEEFFEEFEFEEFFFFFFFEFFFFEFFEFEEEFEEFEEFEEEEFEFFFEFFEFEFEEEEFEFEFFEFEEEEFEFFEEEFEEEFFFFEFF
+FAIL tests/checks/test_v1_3_data_stack.py::test_a_rank_deficient_matrix_meets_the_sets_openblas[snapshot] — AssertionError: numpy FEEFEFFFFEEFFEEEFEFEEFFFEEEFFEEFEFEEFFFFFFFEFFFFEFFEFEEEFEEFEEFEEEEFEFFFEFFEFEFEEEEFEFEFFEFEEEEFEFFEEEFEEEFFFF
+FAIL tests/checks/test_v1_3_data_stack.py::test_numpy_is_built_on_the_sets_openblas[plain] — AssertionError: blas none None None None None
+FAIL tests/checks/test_v1_3_data_stack.py::test_numpy_is_built_on_the_sets_openblas[snapshot] — AssertionError: blas none None None None None
+FAIL tests/checks/test_v1_3_data_stack.py::test_numpy_linalg_errors_are_native_numpy_on_openblas[plain] — AssertionError: svd                    raises LinAlgError: SVD did not converge
+FAIL tests/checks/test_v1_3_data_stack.py::test_numpy_linalg_errors_are_native_numpy_on_openblas[snapshot] — AssertionError: svd                    raises LinAlgError: SVD did not converge
+FAILED tests/checks/test_v1_3_data_stack.py::test_numpy_is_built_on_the_sets_openblas[plain]
+FAILED tests/checks/test_v1_3_data_stack.py::test_numpy_is_built_on_the_sets_openblas[snapshot]
+FAILED tests/checks/test_v1_3_data_stack.py::test_a_rank_deficient_matrix_meets_the_sets_openblas[plain]
+FAILED tests/checks/test_v1_3_data_stack.py::test_a_rank_deficient_matrix_meets_the_sets_openblas[snapshot]
+FAILED tests/checks/test_v1_3_data_stack.py::test_numpy_linalg_errors_are_native_numpy_on_openblas[plain]
+FAILED tests/checks/test_v1_3_data_stack.py::test_numpy_linalg_errors_are_native_numpy_on_openblas[snapshot]
+======================== 6 failed, 1 skipped in 23.60s =========================

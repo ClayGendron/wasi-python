@@ -1,0 +1,4 @@
+blas scipy-openblas True 0.3.34.0.0 pkgconfig OpenBLAS 0.3.34.0.0  USE64BITINT DYNAMIC_ARCH NO_AFFINITY neoversen1 MAX_THREADS=64
+lapack scipy-openblas True 0.3.34.0.0 pkgconfig OpenBLAS 0.3.34.0.0  USE64BITINT DYNAMIC_ARCH NO_AFFINITY neoversen1 MAX_THREADS=64
+same as scipy False
+ilp64 True

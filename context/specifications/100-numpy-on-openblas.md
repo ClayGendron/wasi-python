@@ -1,6 +1,6 @@
 # 100 — numpy's linear algebra, `dot` and `matmul` run on the set's OpenBLAS
 
-- **Status:** **drafted 2026-10-20** on `spec/100-numpy-on-openblas` from main `cf414a2`, with
+- **Status:** **build phase 1 done 2026-10-20**, stacked on 099's tip `b0e1593` (no conflict); **confirmed for build** by its pre-build reviewer (the review's *Confirmation*); phase 2 (the rebuild, the measured numbers, the release run) waits for the native slot after 099 (*Landing notes*). Before: **drafted 2026-10-20** on `spec/100-numpy-on-openblas` from main `cf414a2`, with
   its drafting runs; **reviewed before build** the same day
   (`../reviews/100-numpy-on-openblas-spec-2026-10-20.md`, verdict "passes for build once M1 is
   answered in writing", nothing High); **revised against all of its findings** and rebased onto
@@ -783,4 +783,64 @@ where rounding alone decides, measure the difference and say so.
 
 ## Landing notes
 
-Not built.
+### Build phase 1 (2026-10-20, no native build: 099 held the slot)
+
+Stacked on `origin/spec/099-numpy-singular-inverse` at `b0e1593`: the rebase of this branch's
+three commits had no conflict (this branch then touched only `context/`). Written:
+
+- **The recipe.** `recipes/numpy_lapack_abi.h` (the one `#define`), `recipes/numpy_file_includes.txt`
+  (the four entries), `recipes/numpy_lapack_shims.c` (35 pass-throughs; written from numpy 2.5.2's
+  own declarations by `../research/2026-10-20-numpy-on-openblas/make_numpy_shims.py`, so every
+  parameter list is numpy's, in numpy's order, never retyped; the script stops if numpy declares a
+  routine twice differently). `recipes/wasi-numpy.cross`: step 10's pkgconf, `cmake =` no-cmake,
+  `-DBLAS_SYMBOL_PREFIX=numpy_lapack_lite_` and its comment gone from both argument lines.
+  `scripts/steps/40_numpy.sh`: the OpenBLAS precondition, `PKG_CONFIG_LIBDIR`, the per-file map and
+  its count check, `-Dblas=openblas -Dlapack=openblas -Dallow-noblas=false -Duse-ilp64=false`, the
+  f2c-object check, the shims archive, and the `__config__.py` check. `scripts/steps/60_link.sh`:
+  the shims archive's precondition and its place in `libs`. `scripts/wasi-cc`: one comment.
+- **The prototype with the real files** (EXECUTED, the drafting's `prototype/proto.py`, main's
+  compile commands, read only, into a scratch folder): the shims compile with `-Wall -Wextra` and no
+  warning; variant B links against `libopenblas.a` with 0 signature mismatches and 0 duplicate
+  symbols; the 35 names the shims define equal the 35 `wasi_numpy_*` names numpy's two linear-algebra
+  objects leave undefined, less `xerbla`.
+- **The judge.** Checks 1 to 3 in `test_v1_3_data_stack.py` (their programs are the research
+  folder's `check1_config.py`, `check2_rank_deficient.py`, `check3_errors.py`, byte for byte); check
+  4 in `test_v1_5_rebuild_from_pins.py`; `scan.py`'s `one_lapack_recipe_errors`,
+  `include_map_entries`, `include_log_errors`, `numpy_blas_record_errors`, `numpy_deps_errors` and
+  `one_lapack_errors`; nine unit rows in `tests/unit/test_scan.py`. The oracle's numpy on macOS
+  arm64 is the `macosx_11_0_arm64` wheel; the pinned uv 0.9.22 rewrote `uv.lock` (the wheel's
+  SHA-256 `50a68f4b…c2c6842`, as before).
+- **Seen failing first** (EXECUTED, `build/100/seen-failing-099.txt`, its summary in the research folder's `phase1-seen-failing-099.txt`; the guest checks with
+  `WASI_PYTHON_ARTIFACTS` on a private copy of 099's built set, `SHA256SUMS` `7519b047…`): checks 1
+  to 3 fail on both binaries (numpy says `blas none`; numpy's letters differ from the recorded
+  string at nine indices, `agree 291`; `svd no uv` raises `ValueError`, `lstsq` `SystemError`,
+  `cholesky` `LinAlgError`). Check 4's first part, over 099's tip's files, names five findings
+  (`phase1-check4-on-099.txt`); on this branch it passes, and its second part is blocked here
+  (no compile records in this worktree). The unit rows fail on 099's tip, where the functions do
+  not exist. The expected texts equal native numpy on OpenBLAS's outputs (check 3's Python lines
+  and OpenBLAS's three lines; check 2's native letters), EXECUTED with the programs above
+  (`check*-native-openblas.out`, and on 099's set `check*-099-b0e1593-*.out`).
+- **Docs.** README: the six places Decision 11 names but the sizes row (phase 2's measured
+  sizes); 099's sentences from "That LAPACK is numpy's own bundled `lapack_lite` until spec 100"
+  to the bullet's end replaced (its B1 among them); the two new bullets. CHANGELOG: this entry
+  first (the measured `python.wasm` size goes in at phase 2), 099's "One case gets worse until
+  spec 100" sentence removed. `context/upstream/README.md`: folder 31's row, after 099's 30.
+- **Ran:** `ruff check` and `ruff format --check` on src, tests and recipes/guest; the rules check
+  (`build/100/rules.txt`); single node ids (`build/100/nodes-1.txt`, 224 passed, 3 skipped).
+  **The fast tier with `-n 3` against 099's built set** (`build/lane.lock` absent, no other judge
+  running; `build/100/fast-099set.txt`, its tail in `phase1-fast-tier-099set.txt`): 2,421 passed, 7 failed, 45 skipped, 6 xfailed. The seven
+  are this specification's six new guest nodes, which need its build, and
+  `test_manifest_recipes_match_the_tree`, whose set's `MANIFEST` predates this branch's recipe
+  files; both are expected on an old set and clear with phase 2's rebuild. Its 12 grown rows are
+  099's own (the zip's 15 bytes and eleven fuel rows, as 099's notes claim).
+
+### Build phase 2 (waits for the native slot after 099)
+
+From an empty `build/` on this branch's tip: `scripts/build.sh`; criterion 2's evidence (meson's
+`Run-time dependency openblas found: YES 0.3.34`, the include log, no f2c object, no clash);
+criterion 5's step 50 and 57 archive hashes against 099's build; criterion 6's numbers (bytes,
+checks 1 to 3's fuel, every moved fuel row, the 3×3 `matmul` and `inv` per call against the base,
+the 300-matrix and `nan` probes on both binaries, the memory-cap probes `cap_probe.py` and
+`cap_keep.py` with numpy's `matmul`, the oracle's goldens on the new pin); the README sizes row and
+the CHANGELOG's measured size; the fast tier with `-n 3`; a `release.yml` dispatch on the exact
+commit, read back; the self-check list and *For the lane*'s measured flags.

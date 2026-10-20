@@ -1,0 +1,24 @@
+FAIL tests/checks/test_v1_1_artifact_set.py::test_manifest_recipes_match_the_tree — AssertionError: findings: 4 finding(s), digest 1cbc6eb1794e: stale artifact: recipes/wasi-numpy.cross changed since the build; stale artifact: scripts/steps/40_
+FAIL tests/checks/test_v1_3_data_stack.py::test_a_rank_deficient_matrix_meets_the_sets_openblas[plain] — AssertionError: numpy FEEFEFFFFEEFFEEEFEFEEFFFEEEFFEEFEFEEFFFFFFFEFFFFEFFEFEEEFEEFEEFEEEEFEFFFEFFEFEFEEEEFEFEFFEFEEEEFEFFEEEFEEEFFFFEFFFEFFFEFEEEFFEFFEEFEFEEFFF
+FAIL tests/checks/test_v1_3_data_stack.py::test_a_rank_deficient_matrix_meets_the_sets_openblas[snapshot] — AssertionError: numpy FEEFEFFFFEEFFEEEFEFEEFFFEEEFFEEFEFEEFFFFFFFEFFFFEFFEFEEEFEEFEEFEEEEFEFFFEFFEFEFEEEEFEFEFFEFEEEEFEFFEEEFEEEFFFFEFFFEFFFEFEEEFFEFFEEFEFEEFFF
+FAIL tests/checks/test_v1_3_data_stack.py::test_numpy_is_built_on_the_sets_openblas[plain] — AssertionError: blas none None None None None
+FAIL tests/checks/test_v1_3_data_stack.py::test_numpy_is_built_on_the_sets_openblas[snapshot] — AssertionError: blas none None None None None
+FAIL tests/checks/test_v1_3_data_stack.py::test_numpy_linalg_errors_are_native_numpy_on_openblas[plain] — AssertionError: svd                    raises LinAlgError: SVD did not converge
++1 more failures in build/progress/latest.json
+ratchet vs d066695e15: lost 1 · absent 0 · unrun 0 · unrun locally 33 · gained 6 · grew 12 · upstream unrun 94 · not selected 67 · judge changed: tests/checks/test_v1_3_data_stack.py, tests/checks/test_v1_5_rebuild_from_pins.py, tests/harness/scan.py and 3 more
+LOST tests/checks/test_v1_1_artifact_set.py::test_manifest_recipes_match_the_tree
+GREW tests/checks/test_v1_1_artifact_set.py::test_dotted_builtins_keep_their_import_names[snapshot]: fuel 6117683458 -> 6118942375
+GREW tests/checks/test_v1_1_artifact_set.py::test_stdlib_zip_is_bytecode_only_and_deflated: bytes 44445945 -> 44445960
+GREW tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[np-apply-along-axis-snapshot]: fuel 826104463 -> 826225343
+RED: 1 accepted pass(es) lost; 12 metric(s) grew
+not machine-checked: publication · copying from prior art · numpy's 25 files that need its C test modules (number 89) · pandas beyond eight groups · CPython's tests that need its C test modules (number 101) · CPython under -bb · a fuel fact's fuel below its cap (spec 091)
+  licence content of wasi-libc, llvm-runtimes and unpinned components (presence only) · bundled sub-licences · files a build adds inside a source tree · source pragmas and compiler options outside the scanned records (same-bytes is the backstop)
+=========================== short test summary info ============================
+FAILED tests/checks/test_v1_1_artifact_set.py::test_manifest_recipes_match_the_tree
+FAILED tests/checks/test_v1_3_data_stack.py::test_numpy_is_built_on_the_sets_openblas[plain]
+FAILED tests/checks/test_v1_3_data_stack.py::test_numpy_is_built_on_the_sets_openblas[snapshot]
+FAILED tests/checks/test_v1_3_data_stack.py::test_a_rank_deficient_matrix_meets_the_sets_openblas[snapshot]
+FAILED tests/checks/test_v1_3_data_stack.py::test_a_rank_deficient_matrix_meets_the_sets_openblas[plain]
+FAILED tests/checks/test_v1_3_data_stack.py::test_numpy_linalg_errors_are_native_numpy_on_openblas[snapshot]
+FAILED tests/checks/test_v1_3_data_stack.py::test_numpy_linalg_errors_are_native_numpy_on_openblas[plain]
+====== 7 failed, 2421 passed, 45 skipped, 6 xfailed in 468.00s (0:07:47) =======

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import json
 import re
 import shutil
 import subprocess
@@ -270,6 +271,79 @@ def test_every_numpy_compile_keeps_its_floating_point_flags_in_software(note) ->
     errors, counts = scan.npy_fenv_records_file_errors(paths.REPO)
     assert not errors, scan.report(errors)
     note(", ".join(f"{k} {v}" for k, v in counts.items()))
+
+
+def _nm_names(nm: Path, *args: str) -> set[str]:
+    """Symbol names llvm-nm prints with -j (names only) for the given flags and files."""
+    out = subprocess.run([str(nm), "-j", *args], capture_output=True, text=True, check=True).stdout
+    return {s for s in out.splitlines() if s and not s.endswith(":")}
+
+
+def test_one_lapack_is_linked(note) -> None:
+    """numpy runs on the set's OpenBLAS, the one scipy runs (spec 100, check 4), in the form of
+    test_one_qhull_is_linked. Without a build: the numpy cross file names step 10's pkgconf and no
+    BLAS_SYMBOL_PREFIX, recipes/numpy_lapack_abi.h sets numpy's prefix, the per-file map has its
+    four entries, and step 40 asks meson for OpenBLAS with no fallback. With the build: each
+    per-file entry matched its count (the log missing is a failure); numpy compiled no
+    lapack_lite f2c file and carries no BLAS_SYMBOL_PREFIX; its linear-algebra and core modules'
+    .deps name only step 38's OpenBLAS; in python.wasm's link map every symbol libopenblas.a
+    defines comes from it, once, with no lapack_lite and every wasi_numpy_ shim once from numpy's
+    shims archive; and the shims are exactly the wasi_numpy_ names numpy's two linear-algebra
+    objects call, less xerbla (the review's L6)."""
+    header = paths.REPO / scan.ONE_LAPACK_HEADER
+    errors = scan.one_lapack_recipe_errors(
+        (paths.REPO / scan.ONE_LAPACK_CROSS).read_text(),
+        header.read_text() if header.is_file() else None,
+        (paths.REPO / scan.ONE_LAPACK_MAP).read_text(),
+        (paths.REPO / scan.ONE_LAPACK_STEP).read_text(),
+    )
+    assert not errors, scan.report(errors)
+    needs.need("compile records")
+    build = paths.BUILD / "numpy-build"
+    log = build / "file-includes.log"
+    entries = scan.include_map_entries((paths.REPO / scan.ONE_LAPACK_MAP).read_text())
+    errors = scan.include_log_errors(entries, log.read_text() if log.is_file() else None)
+    records = build / "compile_commands.json"
+    objects = sorted(str(p.relative_to(build)) for p in build.rglob("*.o"))
+    errors += scan.numpy_blas_record_errors(
+        json.loads(records.read_text()) if records.is_file() else [], objects
+    )
+    archive = paths.BUILD / "openblas-wasi" / "lib" / scan.ONE_LAPACK_ARCHIVE
+    deps = {}
+    for pattern in (
+        "numpy/linalg/_umath_linalg.*.so.deps",
+        "numpy/linalg/lapack_lite.*.so.deps",
+        "numpy/_core/_multiarray_umath.*.so.deps",
+    ):
+        found = sorted(build.glob(pattern))
+        if len(found) != 1:
+            errors.append(f"build/numpy-build/{pattern}: {len(found)} files, not 1")
+            continue
+        deps[found[0].name] = found[0].read_text().split()
+    errors += scan.numpy_deps_errors(deps, archive)
+    nm = paths.BUILD / "tools" / _line_values()["WASI_SDK_DIR"] / "bin" / "llvm-nm"
+    shims = paths.BUILD / "numpy-shims" / scan.ONE_LAPACK_SHIMS
+    link_map = paths.BUILD / "link" / "python.map"
+    linalg = [
+        *build.glob("numpy/linalg/_umath_linalg.*.so.p/umath_linalg.cpp.o"),
+        *build.glob("numpy/linalg/lapack_lite.*.so.p/lapack_litemodule.c.o"),
+    ]
+    for path, what in ((archive, "step 38"), (shims, "step 40"), (link_map, "step 60")):
+        if not path.is_file():
+            errors.append(f"no {path.relative_to(paths.BUILD)}: {what} has not run")
+    if len(linalg) != 2:
+        errors.append(f"{len(linalg)} of numpy's two linear-algebra objects found")
+    if not errors:
+        called = {n for n in _nm_names(nm, "-u", *map(str, linalg)) if n.startswith("wasi_numpy_")}
+        with link_map.open(errors="replace") as f:
+            errors += scan.one_lapack_errors(
+                f,
+                _nm_names(nm, "-g", "--defined-only", str(archive)),
+                _nm_names(nm, "-g", "--defined-only", str(shims)),
+                called,
+            )
+        note(f"{len(called - {scan.ONE_LAPACK_XERBLA})} shims called and defined")
+    assert not errors, scan.report(errors)
 
 
 def _line_values() -> dict[str, str]:

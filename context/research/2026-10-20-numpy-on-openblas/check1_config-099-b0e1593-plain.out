@@ -1,0 +1,5 @@
+# 099-b0e1593, plain binary: exit 0, trapped None, stderr ''
+blas none None None None None
+lapack none None None None None
+same as scipy False
+ilp64 False

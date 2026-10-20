@@ -3232,3 +3232,149 @@ def context_citation_files(root: Path) -> list[Path]:
         p for p in files_under(root, "tests", ".github/workflows") if p.suffix in CITATION_SUFFIXES
     ]
     return picked + [p for p in files_under(root, "scripts", "release") if _text(p) is not None]
+
+# numpy on the set's OpenBLAS (spec 100): numpy's meson finds step 38's OpenBLAS, a per-file header
+# sends numpy's int-declared LAPACK calls to 35 shims of ours, and one OpenBLAS, with no
+# lapack_lite, is linked. Check 4's rules, pure over text and name sets, need no build.
+ONE_LAPACK_CROSS = "recipes/wasi-numpy.cross"
+ONE_LAPACK_HEADER = "recipes/numpy_lapack_abi.h"
+ONE_LAPACK_MAP = "recipes/numpy_file_includes.txt"
+ONE_LAPACK_STEP = "scripts/steps/40_numpy.sh"
+ONE_LAPACK_PKGCONF = "pkg-config = '@ROOT@/build/tools/pylib/pkgconf/.bin/pkgconf'"
+ONE_LAPACK_MESON = "-Dblas=openblas -Dlapack=openblas -Dallow-noblas=false"
+ONE_LAPACK_PREFIX = "#define BLAS_SYMBOL_PREFIX wasi_numpy_"
+ONE_LAPACK_ENTRIES = (
+    ("linalg/umath_linalg.cpp", "@ROOT@/recipes/numpy_lapack_abi.h", 1),
+    ("linalg/lapack_litemodule.c", "@ROOT@/recipes/numpy_lapack_abi.h", 1),
+    ("lapack_lite/python_xerbla.c", "@ROOT@/recipes/numpy_lapack_abi.h", 2),
+    ("common/python_xerbla.c", "@ROOT@/recipes/numpy_lapack_abi.h", 1),
+)
+ONE_LAPACK_ARCHIVE = "libopenblas.a"
+ONE_LAPACK_SHIMS = "libnumpy_lapack_shims.a"
+ONE_LAPACK_XERBLA = "wasi_numpy_xerbla_"
+ONE_LAPACK_REQUIRED = ("dgesv_", "dgesdd_", "cblas_dgemm", "xerbla_", "wasi_numpy_dgesv_")
+LINK_MAP_SYMBOL = re.compile(r"^\s+-\s+[0-9a-f]+\s+[0-9a-f]+\s+(\S+?)\((.+)\):\(([^)]+)\)$")
+
+
+def include_map_entries(text: str) -> list[tuple[str, str, int]]:
+    """A per-file include map's entries (spec 037's format): suffix, header, count (1 if absent)."""
+    entries = []
+    for line in text.splitlines():
+        words = line.split()
+        if not words or words[0].startswith("#"):
+            continue
+        entries.append((words[0], words[1], int(words[2]) if len(words) > 2 else 1))
+    return entries
+
+
+def one_lapack_recipe_errors(
+    cross: str, header: str | None, include_map: str, step: str
+) -> list[str]:
+    """The recipe as written (spec 100, check 4's first part): the numpy cross file names step 10's
+    pkgconf and no BLAS_SYMBOL_PREFIX; the header sets numpy's prefix; the per-file map has exactly
+    its four entries and counts; step 40 asks meson for OpenBLAS and refuses a fallback."""
+    errors = []
+    if "BLAS_SYMBOL_PREFIX" in cross:
+        errors.append(f"{ONE_LAPACK_CROSS} still names BLAS_SYMBOL_PREFIX")
+    if ONE_LAPACK_PKGCONF not in cross:
+        errors.append(f"{ONE_LAPACK_CROSS} does not name step 10's pkgconf")
+    if header is None:
+        errors.append(f"{ONE_LAPACK_HEADER} is missing")
+    elif ONE_LAPACK_PREFIX not in header.splitlines():
+        errors.append(f"{ONE_LAPACK_HEADER} does not say {ONE_LAPACK_PREFIX!r}")
+    got = include_map_entries(include_map)
+    if got != list(ONE_LAPACK_ENTRIES):
+        errors.append(f"{ONE_LAPACK_MAP} has {got}, not {list(ONE_LAPACK_ENTRIES)}")
+    if ONE_LAPACK_MESON not in step:
+        errors.append(f"{ONE_LAPACK_STEP} does not pass {ONE_LAPACK_MESON}")
+    return errors
+
+
+def include_log_errors(entries: list[tuple[str, str, int]], log: str | None) -> list[str]:
+    """Each per-file entry matched exactly its count of compiles in wasi-cc's log (its first field
+    is the matched suffix). A missing log, once a build exists, is a failure."""
+    if log is None:
+        return ["build/numpy-build/file-includes.log is missing (step 40's per-file include log)"]
+    seen = [line.split("\t", 1)[0] for line in log.splitlines() if line.strip()]
+    return [
+        f"per-file include {suffix} matched {seen.count(suffix)} compiles, not {count}"
+        for suffix, _, count in entries
+        if seen.count(suffix) != count
+    ]
+
+
+def numpy_blas_record_errors(records: list[dict], objects: list[str]) -> list[str]:
+    """numpy's records name no lapack_lite f2c compile, object or BLAS_SYMBOL_PREFIX."""
+    errors = []
+    for e in records:
+        argv = _record_argv(e)
+        if re.search(r"lapack_lite/f2c[^/]*\.c$", str(e.get("file", ""))):
+            errors.append(f"numpy compiles {e.get('file')}: lapack_lite's f2c LAPACK")
+        if any(a.startswith("-DBLAS_SYMBOL_PREFIX") for a in argv):
+            errors.append(f"{e.get('file')}: carries -DBLAS_SYMBOL_PREFIX")
+    errors += [f"build/numpy-build holds {o}" for o in objects if "lapack_lite_f2c" in o]
+    return errors
+
+
+def numpy_deps_errors(deps: dict[str, list[str]], archive: Path) -> list[str]:
+    """Each numpy module's .deps names OpenBLAS, and only as `archive` by path or as -lopenblas
+    with -L its folder (spec 100: one OpenBLAS, scipy's)."""
+    errors = []
+    for name, tokens in deps.items():
+        named = [t for t in tokens if "openblas" in t]
+        if not named:
+            errors.append(f"{name} names no OpenBLAS")
+        for t in named:
+            if t == "-lopenblas":
+                continue
+            p = t[2:] if t.startswith("-L") else t
+            want = archive.parent if t.startswith("-L") else archive
+            if Path(p).resolve() != want.resolve():
+                errors.append(f"{name} names {t}, not {want}")
+    return errors
+
+
+def one_lapack_errors(
+    map_lines: Iterable[str],
+    openblas_defined: set[str],
+    shims_defined: set[str],
+    called: set[str],
+) -> list[str]:
+    """One OpenBLAS and no lapack_lite in python.wasm's link map (spec 100, check 4): every symbol
+    libopenblas.a defines that the link takes comes from that archive, once; no lapack_lite f2c
+    object and no numpy_lapack_lite_ symbol; every wasi_numpy_ shim once, from numpy's shims
+    archive, and wasi_numpy_xerbla_ once, from numpy's python_xerbla; and the shims defined are
+    exactly the wasi_numpy_ names numpy's two linear-algebra objects call, less xerbla."""
+    errors = []
+    sources: dict[str, list[tuple[str, str]]] = {}
+    for line in map_lines:
+        m = LINK_MAP_SYMBOL.match(line.rstrip("\n"))
+        if not m:
+            continue
+        archive, member, symbol = m[1], m[2], m[3]
+        if member.startswith("lapack_lite_f2c"):
+            errors.append(f"the link takes {member} from {Path(archive).name}")
+        if symbol.startswith("numpy_lapack_lite_"):
+            errors.append(f"the link takes {symbol}")
+        if symbol in openblas_defined or symbol.startswith("wasi_numpy_"):
+            sources.setdefault(symbol, []).append((archive, member))
+    for symbol, where in sorted(sources.items()):
+        if len(where) != 1:
+            errors.append(f"{symbol} is linked {len(where)} times")
+        archive, member = where[0]
+        name = archive.replace("\\", "/").rsplit("/", 1)[-1]
+        if symbol == ONE_LAPACK_XERBLA:
+            if "python_xerbla" not in member:
+                errors.append(f"{symbol} comes from {name}({member}), not numpy's python_xerbla")
+        elif symbol.startswith("wasi_numpy_"):
+            if name != ONE_LAPACK_SHIMS:
+                errors.append(f"{symbol} comes from {name}, not {ONE_LAPACK_SHIMS}")
+        elif name != ONE_LAPACK_ARCHIVE:
+            errors.append(f"{symbol} comes from {name}, not {ONE_LAPACK_ARCHIVE}")
+    if not any(s in openblas_defined for s in sources):
+        errors.append(f"the link takes no symbol from {ONE_LAPACK_ARCHIVE}")
+    errors += [f"the link takes no {s}" for s in ONE_LAPACK_REQUIRED if s not in sources]
+    wanted = called - {ONE_LAPACK_XERBLA}
+    errors += [f"shim {s} is called by no numpy object" for s in sorted(shims_defined - wanted)]
+    errors += [f"numpy calls {s}, which no shim defines" for s in sorted(wanted - shims_defined)]
+    return errors

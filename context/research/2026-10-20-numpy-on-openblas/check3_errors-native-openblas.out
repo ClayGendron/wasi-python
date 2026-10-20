@@ -1,0 +1,20 @@
+svd                    raises LinAlgError: SVD did not converge
+svd no uv              raises LinAlgError: SVD did not converge
+pinv                   raises LinAlgError: SVD did not converge
+matrix_rank            raises LinAlgError: SVD did not converge
+norm 2                 raises LinAlgError: SVD did not converge
+cond                   raises LinAlgError: SVD did not converge
+lstsq                  raises LinAlgError: SVD did not converge in Linear Least Squares
+eigh                   raises LinAlgError: Eigenvalues did not converge
+eigvalsh               raises LinAlgError: Eigenvalues did not converge
+eig                    raises LinAlgError: Array must not contain infs or NaNs
+inv                    returns all-nan
+solve                  returns all-nan
+cholesky               returns mixed
+qr                     returns all-nan,mixed
+det                    returns all-nan
+xerbla                 raises ValueError: On entry to test parameter number -1 had an illegal value
+dorgqr lda 0           returns {'dorgqr_': 0, 'info': -5}
+ ** On entry to DLASCL parameter number  4 had an illegal value
+ ** On entry to DLASCL parameter number  4 had an illegal value
+ ** On entry to DORGQR parameter number  5 had an illegal value

@@ -1,10 +1,10 @@
 #!/bin/sh
 # Step 60: link numpy, pandas, the plot packages (Pillow, kiwisolver, matplotlib; contourpy and
-# matplotlib's _qhull with step 37's qhull), regex, lxml with libxml2 and libxslt, scipy with
-# OpenBLAS, scikit-learn, zlib, bz2, lzma, sqlite3 and the host door into CPython as builtins
-# through the build-directory Modules/Setup.local, then relink the interpreter as a WASI reactor
-# (build/out/python.wasm) with recipes/reactor_main.c in place of Programs/python.o, and with three
-# link-time refusals: recipes/iconv_refusals.c, which refuses GB18030 at iconv_open,
+# matplotlib's _qhull with step 37's qhull), regex, lxml with libxml2 and libxslt, scipy and numpy
+# with one OpenBLAS, scikit-learn, zlib, bz2, lzma, sqlite3 and the host door into CPython as
+# builtins through the build-directory Modules/Setup.local, then relink the interpreter as a WASI
+# reactor (build/out/python.wasm) with recipes/reactor_main.c in place of Programs/python.o, and
+# with three link-time refusals: recipes/iconv_refusals.c, which refuses GB18030 at iconv_open,
 # recipes/fcntl_dup_refusal.c, which answers fcntl's two dup commands ENOTSUP as wasi-libc's dup
 # does, and recipes/freopen_refusal.c, which refuses freopen. Last, the static constructors and
 # target features are checked against the judge's reviewed lists, so a build with a constructor no
@@ -38,6 +38,8 @@ PM="$B/plot-modules"
 [ -s "$B/scipy-shims/libscipy_lapack_shims.a" ] || die "build/scipy-shims/libscipy_lapack_shims.a is missing: run step 57"
 # Step 58's modules.
 [ -d "$B/sklearn-modules/sklearn" ] || die "build/sklearn-modules/sklearn is missing: run step 58"
+# numpy's side of the same ABI (spec 100): step 40's shims, numpy's int-declared calls to OpenBLAS.
+[ -s "$B/numpy-shims/libnumpy_lapack_shims.a" ] || die "build/numpy-shims/libnumpy_lapack_shims.a is missing: run step 40"
 # The generated inittab declares CPython's internal _PyImport_SwapPackageContext itself, as this
 # header declares it: a CPython that changes it stops here, not at run time.
 grep -q '^extern const char \* _PyImport_SwapPackageContext(const char \*newcontext);$' \
@@ -81,15 +83,16 @@ done
 libs=$(printf '%s\n' $deps | grep '\.a$' | sort -u | tr '\n' ' ')
 libs="$libs$(printf '%s\n' $deps | grep '^-L' | sort -u | tr '\n' ' ')"
 libs="$libs$(printf '%s\n' $deps | grep '^-l' | sort -u | tr '\n' ' ')"
-# scipy's side of the LAPACK ABI (no module's .deps names it), and the emulated mmap OpenBLAS's
-# buffer uses (wasi-libc's, malloc underneath; no new import).
-libs="$libs$B/scipy-shims/libscipy_lapack_shims.a -lwasi-emulated-mman "
+# scipy's and numpy's sides of the LAPACK ABI (no module's .deps names them; specs 037 and 100),
+# and the emulated mmap OpenBLAS's buffer uses (wasi-libc's, malloc underneath; no new import).
+libs="$libs$B/scipy-shims/libscipy_lapack_shims.a $B/numpy-shims/libnumpy_lapack_shims.a -lwasi-emulated-mman "
 
 # The weak-duplicate gate: every archive this link takes but the SDK's
 # runtime libraries and CPython's own (the modules', the static libraries their .deps name,
-# scipy's shims, and the four C libraries the Setup lines below link), read with the SDK's llvm-nm.
+# scipy's and numpy's shims, and the four C libraries the Setup lines below link), read with the
+# SDK's llvm-nm.
 weak_archives="$archives $(printf '%s\n' $deps | grep '\.a$' | sort -u | tr '\n' ' ')"
-weak_archives="$weak_archives $B/scipy-shims/libscipy_lapack_shims.a $B/zlib-wasi/lib/libz.a"
+weak_archives="$weak_archives $B/scipy-shims/libscipy_lapack_shims.a $B/numpy-shims/libnumpy_lapack_shims.a $B/zlib-wasi/lib/libz.a"
 for lib in libbz2.a liblzma.a libsqlite3.a; do weak_archives="$weak_archives $B/stdlib-libs/lib/$lib"; done
 "$HOSTPY" "$HERE/scripts/weak_duplicates.py" archives "$SDK/bin/llvm-nm" "$SDK/bin/llvm-cxxfilt" \
   "$HERE/recipes/weak-duplicates-allowed.txt" $weak_archives > "$L/weak-duplicates.log" 2>&1 \

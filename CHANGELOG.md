@@ -54,6 +54,18 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   with the judge's allowance files, the guest's own sources and the `src/` check's own
   documentation of its shapes named as the exceptions. No code, behaviour, fuel or artifact byte
   changes; `MANIFEST`'s recipe hashes of `scripts/` move with their comments.
+- **numpy's linear algebra, `dot` and `matmul` run on the set's OpenBLAS** (spec 100; questions
+  106 and 107). numpy was built with no BLAS and ran its bundled `lapack_lite`, an f2c LAPACK
+  3.2.2. It now finds the OpenBLAS 0.3.34 scipy uses, through numpy's own build options; a
+  one-line recipe header (`recipes/numpy_lapack_abi.h`) and a file of shims
+  (`recipes/numpy_lapack_shims.c`) bridge numpy's `int` declarations to OpenBLAS's `void`
+  subroutines, and `lapack_lite`'s f2c code leaves the binary. A matrix of `nan` raises
+  `LinAlgError` in `svd`, `lstsq` and `eigh` as natively, where it raised `ValueError: On entry
+  to DLASCL …` (and `lstsq`, with spec 099 alone, `SystemError`); numpy and scipy agree on which
+  matrices are singular; a 200×200 inverse, decomposition or product takes 30 to 56 percent less
+  fuel. A matrix singular only in exact arithmetic is a rounding question, and the README says
+  how the guest differs there (measured on macOS arm64), and what OpenBLAS's buffer does under a
+  tight memory cap. The oracle's numpy on macOS arm64 is now the OpenBLAS wheel.
 - **A singular matrix raises `LinAlgError`** (spec 099; spec 066's survey). wasm has no
   floating-point status flags, and numpy reports a failed LAPACK call by one, so
   `numpy.linalg.inv`, `solve`, `tensorinv`, `tensorsolve` and `matrix_power(a, -1)` of a singular
@@ -64,9 +76,7 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   (LAPACKs round differently; exact parity is not a goal in wasm). The same word makes integer division by zero, integer overflow in
   division and float16 overflow warn, or raise under `np.errstate`, as natively: a widening of the
   owner's question, named here. Signals only the hardware gives (float division by zero,
-  `log(0)`, invalid casts) stay silent; the README says so. One case gets worse until spec 100:
-  `numpy.linalg.lstsq` of a matrix of `nan` raised `ValueError` from `lapack_lite` and now raises
-  `SystemError` with that `ValueError` as its context (native: `LinAlgError`).
+  `log(0)`, invalid casts) stay silent; the README says so.
 
 - **The release runs the compiled packages' own tests** (spec 066): matplotlib's, contourpy's,
   Pillow's, kiwisolver's, lxml's and regex's own suites, every test of each (contourpy's

@@ -1,0 +1,10 @@
+# Per-file force-includes for numpy's compile (spec 100, Decision 4), read by scripts/wasi-cc when
+# step 40 points WASI_CC_FILE_INCLUDES at the copy it renders into build/numpy-build (@ROOT@ is the
+# repository). One entry per line: a suffix of the compiled source's path, the header that compile
+# gets as `-include`, and, when it is not one, how many compiles it matches. Step 40 checks the log:
+# each entry matched exactly that many compiles. numpy compiles linalg's python_xerbla.c into both
+# linear-algebra modules, and _core's into _multiarray_umath once a BLAS is found.
+linalg/umath_linalg.cpp @ROOT@/recipes/numpy_lapack_abi.h
+linalg/lapack_litemodule.c @ROOT@/recipes/numpy_lapack_abi.h
+lapack_lite/python_xerbla.c @ROOT@/recipes/numpy_lapack_abi.h 2
+common/python_xerbla.c @ROOT@/recipes/numpy_lapack_abi.h
