@@ -104,6 +104,11 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   CPython's build generates beside `_sysconfigdata`, so `import _tkinter` fails with
   "Unsupported platform for standard library module '_tkinter'" as natively, not "was not found"
   (spec 086; spec 078's build review, F2).
+- **The judge's inline pytest sessions keep wasmtime's signal handlers** (spec 082; spec 080's
+  review, F1). A pytest session the judge runs inside its own process ended by switching
+  faulthandler off and on again, which dropped wasmtime's handlers on Linux, so the runner's
+  guard refused 16 later unit tests in a serial run. The judge's `pytester` now runs every such
+  session with `-p no:faulthandler`, and a check holds it. The runner does not change.
 - **CPython's own tests in the judge and the release** (spec 065). The judge runs CPython's own
   regrtest suite in the guest: 542 of its 557 modules in five groups, 28,109 passing tests, each
   known failure a class by test id with its closer, each test it does not run named, each result
