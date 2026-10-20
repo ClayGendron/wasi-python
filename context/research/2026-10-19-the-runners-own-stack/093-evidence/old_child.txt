@@ -1,0 +1,53 @@
+
+import threading, wasmtime
+import wasi_python
+from wasi_python import runner
+state = {"in wasm": 0, "bad": []}
+real_turn, real_close = runner._drive_turn, wasmtime.Store.close
+def drive_turn(*a, **k):
+    state["in wasm"] += 1
+    try:
+        return real_turn(*a, **k)
+    finally:
+        state["in wasm"] -= 1
+def close(self):
+    if state["in wasm"]:
+        state["bad"].append(threading.current_thread().name)
+        return None
+    return real_close(self)
+runner._drive_turn, wasmtime.Store.close = drive_turn, close
+real_serve, real_join = runner._Home.serve, runner._join_guest
+armed = []
+def serve(self):
+    if armed == [1]:
+        armed.append(2)
+        self.serving = True
+        raise KeyboardInterrupt
+    return real_serve(self)
+def join(home):
+    if armed == [1, 2]:
+        armed.append(3)
+        raise SystemExit("forced out")
+    return real_join(home)
+runner._Home.serve, runner._join_guest = serve, join
+s = wasi_python.Session(deadline_s=None)
+print("first", s.run("x = 1").exit_code, flush=True)
+armed.append(1)
+try:
+    s.run("while True: pass")
+except BaseException as e:
+    print("turn raised", type(e).__name__, flush=True)
+alive = [t for t in threading.enumerate() if t.name == "wasi-python-guest"]
+print("busy while its guest runs", s._state.busy, flush=True)
+try:
+    s.run("print(2)")
+    print("second turn ran", flush=True)
+except RuntimeError as e:
+    print("second turn refused", str(e), flush=True)
+for t in alive:
+    t.join(60)
+print("then busy", s._state.busy, "ended", s.ended, flush=True)
+s.close()
+print("closes while wasm ran", state["bad"], flush=True)
+with wasi_python.Session() as t:
+    print("next session", t.run("print(3)").stdout.decode().strip(), flush=True)

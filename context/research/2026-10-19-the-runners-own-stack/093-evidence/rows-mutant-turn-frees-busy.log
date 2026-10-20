@@ -1,0 +1,4 @@
+old as is | 0 | ['turn raised SystemExit', 'busy while its guest runs False', 'second turn refused the session has ended: error', 'then busy False ended error', "closes while wasm ran ['MainThread']", 'next session 3'] 
+old, guest ends first | 0 | ['turn raised SystemExit', 'busy while its guest runs False', 'second turn refused the session has ended: error', 'then busy False ended error', "closes while wasm ran ['MainThread']", 'next session 3'] 
+new as is | 0 | ['turn raised SystemExit', 'busy while its guest runs False True', 'second turn refused the session has ended: error', 'then busy False ended error torn down on []', "closes while wasm ran ['MainThread']", 'next session 3'] 
+new, guest ends first | 0 | ['turn raised SystemExit', 'busy while its guest runs False True', 'second turn refused the session has ended: error', 'then busy False ended error torn down on []', "closes while wasm ran ['MainThread']", 'next session 3'] 

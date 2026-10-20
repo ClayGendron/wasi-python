@@ -3107,11 +3107,20 @@ import wasi_python
 from wasi_python import runner
 state = {"in wasm": 0, "bad": []}
 real_turn, real_close = runner._drive_turn, wasmtime.Store.close
+hold, held, torn = [], [], []
+entered, gate = threading.Event(), threading.Event()
 def drive_turn(*a, **k):
+    mine = hold == [1]
+    if mine:
+        hold.append(2)
+        held.append(threading.current_thread())
+        entered.set()
     state["in wasm"] += 1
     try:
         return real_turn(*a, **k)
     finally:
+        if mine:
+            gate.wait(60)
         state["in wasm"] -= 1
 def close(self):
     if state["in wasm"]:
@@ -3119,6 +3128,11 @@ def close(self):
         return None
     return real_close(self)
 runner._drive_turn, wasmtime.Store.close = drive_turn, close
+real_abandon = runner._abandon_turn
+def abandon(session_state):
+    torn.append(threading.current_thread().name)
+    return real_abandon(session_state)
+runner._abandon_turn = abandon
 real_serve, real_join = runner._Home.serve, runner._join_guest
 armed = []
 def serve(self):
@@ -3136,20 +3150,21 @@ runner._Home.serve, runner._join_guest = serve, join
 s = wasi_python.Session(deadline_s=None)
 print("first", s.run("x = 1").exit_code, flush=True)
 armed.append(1)
+hold.append(1)
 try:
     s.run("while True: pass")
 except BaseException as e:
     print("turn raised", type(e).__name__, flush=True)
-alive = [t for t in threading.enumerate() if t.name == "wasi-python-guest"]
-print("busy while its guest runs", s._state.busy, flush=True)
+entered.wait(60)
+print("busy while its guest runs", s._state.busy, held[0].is_alive(), flush=True)
 try:
     s.run("print(2)")
     print("second turn ran", flush=True)
 except RuntimeError as e:
     print("second turn refused", str(e), flush=True)
-for t in alive:
-    t.join(60)
-print("then busy", s._state.busy, "ended", s.ended, flush=True)
+gate.set()
+held[0].join(60)
+print("then busy", s._state.busy, "ended", s.ended, "torn down on", torn, flush=True)
 s.close()
 print("closes while wasm ran", state["bad"], flush=True)
 with wasi_python.Session() as t:
@@ -3160,15 +3175,21 @@ with wasi_python.Session() as t:
 def test_an_abandoned_turn_keeps_its_session_busy() -> None:
     """Spec 078, criterion 17's session row (the build review's F4): a turn whose home is forced
     out keeps the session busy until its guest thread ends; a second turn meanwhile is refused; the
-    session then ends "error", no store is closed under wasm, and the next session works."""
+    session then ends "error", no store is closed under wasm, and the next session works.
+
+    Spec 093: the forced-out home stops its guest, which then ends soon (at its next epoch check,
+    or before its wasm starts), so the guest thread is held at the end of its turn by a gate in
+    the stand-in `_drive_turn`, opened once the second turn has been refused, instead of racing
+    the caller's look (the Windows release run saw the guest end first). The teardown is the
+    guest thread's, the abandoned path, on every platform."""
     code, lines, err = _child(ABANDONED_TURN_CHILD)
     assert code == 0, (code, err)
     assert lines == [
         "first 0",
         "turn raised SystemExit",
-        "busy while its guest runs True",
+        "busy while its guest runs True True",
         "second turn refused a turn is already running in this session",
-        "then busy False ended error",
+        "then busy False ended error torn down on ['wasi-python-guest']",
         "closes while wasm ran []",
         "next session 3",
     ], (lines, err)
