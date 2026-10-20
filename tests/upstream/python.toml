@@ -460,8 +460,8 @@ id = "no-ctypes"
 group = "cpython-a"
 outcome = "error"
 match = 'ctypes is unavailable'
-reason = "no ctypes calls: the stand-in raises OSError (README)"
-closes_with = "README.md"
+reason = "closed by spec 038: the ctypes stand-in holds numeric and c_void_p values, so these tests no longer meet its OSError (an empty class, kept so that a test that meets it again is classed)"
+closes_with = "context/specifications/038-scipy-second-milestone.md"
 
 [[expected]]
 id = "no-test-modules"
@@ -556,8 +556,8 @@ id = "no-ctypes"
 group = "cpython-c"
 outcome = "error"
 match = 'ctypes is unavailable'
-reason = "no ctypes calls: the stand-in raises OSError (README)"
-closes_with = "README.md"
+reason = "closed by spec 038: the ctypes stand-in holds numeric and c_void_p values, so these tests no longer meet its OSError (an empty class, kept so that a test that meets it again is classed)"
+closes_with = "context/specifications/038-scipy-second-milestone.md"
 
 [[expected]]
 id = "ctypes-stand-in-surface"

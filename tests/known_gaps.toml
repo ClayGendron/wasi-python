@@ -53,12 +53,6 @@ reason = "no /dev/null on WASI: os.devnull names a path that does not exist"
 closes_with = "README.md"
 
 [[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-others-no-ctypes]"
-match = "8 finding(s), digest 29089ac8c9cc"
-reason = "no ctypes calls: the stand-in raises OSError"
-closes_with = "README.md"
-
-[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-others-no-conftest]"
 match = "1 finding(s), digest de31d83c1d93"
 reason = "the product's zip carries no tests and no conftest.py, so numpy.conftest, listed in numpy's module list, does not import (README; the build review's F5)"
@@ -135,12 +129,6 @@ reason = "the judge's stepped clock (spec 002, Decision 9): it steps a microseco
 closes_with = "context/specifications/002-the-progress-harness.md"
 
 [[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-no-ctypes]"
-match = "1 finding(s), digest 079c2cde2551"
-reason = "no ctypes calls: the stand-in raises OSError (README)"
-closes_with = "README.md"
-
-[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-no-test-modules]"
 match = "140 finding(s), digest 6aa3974a625c"
 reason = "CPython's C test modules are not built (--disable-test-modules; question 101)"
@@ -198,12 +186,6 @@ closes_with = "README.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-b-stdlib-zip-error]"
 match = "2 finding(s), digest 064d87490e5a"
 reason = "the stdlib is bytecode in a zip: inspect.getsource has no source for it (README)"
-closes_with = "README.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-c-no-ctypes]"
-match = "5 finding(s), digest dac66b95c6d4"
-reason = "no ctypes calls: the stand-in raises OSError (README)"
 closes_with = "README.md"
 
 [[gap]]
