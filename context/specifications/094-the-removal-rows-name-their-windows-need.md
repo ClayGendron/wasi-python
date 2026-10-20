@@ -1,6 +1,6 @@
 # 094 — The removal rows name their Windows need
 
-- **Status:** **built 2026-10-20** on `spec/094-the-removal-rows-name-their-windows-need`, from
+- **Status:** **landed 2026-10-20 in wave 03** (094, 092) on main `44540cb`: accepted on `c0d2e7e`, history line 84, 630/701 pass, 0 fail, judge changes only; the integration review `../reviews/wave-03-integration-2026-10-20.md` ("lands as merged at c0d2e7e"); the dry run 39365394797 dispatched as main moved (see "Landed in wave 03" below). Before: **built 2026-10-20** on `spec/094-the-removal-rows-name-their-windows-need`, from
   main `e8ba20a` (the Landing notes); **build review: "lands once M1"**
   (`../reviews/094-the-removal-rows-name-their-windows-need-build-2026-10-20.md`), M1 and L1 fixed,
   L2 written in by the reviewer ("Disposition of the build review"); **rebased onto main
@@ -171,3 +171,8 @@ CHANGELOG line stays under `## 0.1.0a8 — unreleased`. After the rebase I ran t
 `build/094-rebased.log`: `45/46 pass · 1 blocked (prior-art clones) · 0 fail (unit suite
 80/80)`, `125 passed, 1 skipped`, `ratchet vs 2bb98c8421: lost 0 · grew 0`; both rows pass.
 `ruff check` and `ruff format --check` green.
+
+### Landed in wave 03
+
+- On Windows the two removal rows now read blocked by the need read-only files instead of FAIL. They were the only red lines in wave 01's dry run 39358820218 and wave 02's dry run 39363060501; wave 02's run was green on every other job on all three systems, Windows own-guest included (093's fix) and 073's rows included (its first release-workflow read, the integration review's M2).
+- Reviews: `../reviews/094-*` and the wave's integration review.

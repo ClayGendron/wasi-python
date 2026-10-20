@@ -1,6 +1,6 @@
 # 092 — the judge reads a release record: sameness against a CI run, and claim lists
 
-- **Status:** **built 2026-10-19** on `spec/092-the-judge-reads-a-release-record`, rebased onto main
+- **Status:** **landed 2026-10-20 in wave 03** (094, 092) on main `44540cb`: accepted on `c0d2e7e`, history line 84, 630/701 pass, 0 fail, judge changes only; the integration review `../reviews/wave-03-integration-2026-10-20.md` ("lands as merged at c0d2e7e"); the dry run 39365394797 dispatched as main moved (see "Landed in wave 03" below). Before: **built 2026-10-19** on `spec/092-the-judge-reads-a-release-record`, rebased onto main
   `e8ba20a` (wave 01) at `1a23fe0`; CI run 39359915030 on that tip red only on wave 01's two
   Windows removal rows (main's own dry run 39358820218 the same; spec 094 fixes them); before the
   rebase, run 39354482605 green on every job (the Landing notes). Drafted 2026-10-19 from main `97be88a`
@@ -407,3 +407,8 @@ build commits were squashed into one on the rebase, with each file merged once (
 
 One line: sameness now reads the release workflow's merged record as the darwin run it contains,
 and with a claim list prints only what no specification said it changes.
+
+### Landed in wave 03
+
+- From this landing the lane may run sameness against a CI release record (`gh run download <id> -n release-record-1`) with a wave's claim file, and builders and reviewers judge on CI alone (AGENTS.md rule 3a's bridge ends). A claim file for a wave is each entry's `[[claim]]` block one after another; 094's block is `spec = "094"`, `units = 1` (the integration review's N1). The Low left over: `worst_platform` names one system, so with two blocked records the first wins; G4 is the backstop.
+- Reviews: `../reviews/092-*` and the wave's integration review.
