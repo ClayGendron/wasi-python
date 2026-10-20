@@ -1,0 +1,18 @@
+# The five packages spec 067's revision adds (2026-10-20): PyPI sdists, each fetched into an empty
+# scratch folder, its SHA-256 recomputed equal to PyPI's, read with tar only (nothing imported or run).
+# name  sdist  sha256  url
+formulaic formulaic-1.2.2.tar.gz c99e8f11ff7d327eaecaf63855ca69b7fa0da100ad6c0041ef80912fbac667e6 https://files.pythonhosted.org/packages/f1/87/e7b9b39d218793f159d7425e264c0ac196da07f1decc333001502fac02fb/formulaic-1.2.2.tar.gz
+interface-meta interface_meta-2.0.1.tar.gz 902bd9a95a12f195f15753a1080075d4eca7a2cb934fac7ac03c9e362b50796a https://files.pythonhosted.org/packages/28/5b/202a48a1ccdef721a95357fbe263c54ef87c18c4972df1ab5c22fe0f33d5/interface_meta-2.0.1.tar.gz
+reportlab reportlab-5.0.1.tar.gz ebd13154be1c8515e665de70bd2d303ae9ddc3ef47e44afd5116441ca0283a26 https://files.pythonhosted.org/packages/4a/51/dbe28534ae12c852f61be91f039f343305fd1f34f1c66b8de75afae7a525/reportlab-5.0.1.tar.gz
+seaborn seaborn-0.13.2.tar.gz 93e60a40988f4d65e9f4885df477e2fdaff6b73a9ded434c1ab356dd57eefff7 https://files.pythonhosted.org/packages/86/59/a451d7420a77ab0b98f7affa3a1d78a313d2f7281a57afb1a34bae8ab412/seaborn-0.13.2.tar.gz
+wrapt wrapt-2.5.1.tar.gz f595bb0185aab3e9dc31950c95d914f56ea8278810c3b928f3426e12ed6d27bc https://files.pythonhosted.org/packages/04/22/89e2f3bdae5cb34e0cab0cd86d7172dbf418de4b46c9b17b9c7a560dfa44/wrapt-2.5.1.tar.gz
+
+# def test lines and test modules under tests/ (grep over the unpacked archive)
+formulaic-1.2.2: 263 def test, 54 modules
+interface_meta-2.0.1: 36 def test, 6 modules
+reportlab-5.0.1: 341 def test, 306 modules
+seaborn-0.13.2: 1596 def test, 39 modules
+wrapt-2.5.1: 1349 def test, 107 modules
+
+# runners (READ): formulaic hatch 'pytest tests'; interface-meta testpaths = tests; reportlab tests/runAll.py (unittest, 77 test_*.py modules);
+# seaborn pytest tests (conftest); wrapt tox 'python -m pytest tests' with WRAPT_DISABLE_EXTENSIONS for the pure path, tests/mypy runs mypy in a subprocess, tests/stress are hand-run scripts.
