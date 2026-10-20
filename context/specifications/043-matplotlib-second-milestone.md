@@ -885,10 +885,12 @@ steps in 8 min 27 s. The old `build/`'s logs were saved first, to the session sc
   `tests/checks/test_v1_5_rebuild_from_pins.py::test_source_tree_matches_its_tarball[contourpy]`.
 - **Gaps that now pass (2):** `tests/checks/test_v1_3_matplotlib.py::test_delaunay_triangulation_runs`
   and `::test_contour_runs`, their entries removed from `tests/known_gaps.toml`.
-- **The unit suite:** seven new test functions (`tests/unit/test_build_scripts.py`: the
-  meson plan and contourpy's build-config rewrite; `tests/unit/test_artifact_rules.py`: contourpy's
-  notices and the borrowed licence rule); `test_runner_mounts.py` and `test_scan.py` changed for
-  contourpy.
+- **The unit suite:** six new test functions, eight new test items (`tests/unit/test_build_scripts.py`:
+  the meson plan, two, and contourpy's build-config rewrite, three, one of them over three keys;
+  `tests/unit/test_artifact_rules.py`: contourpy's notices and the borrowed licence rule, one), and
+  one renamed, `test_host_facts_in_the_three_members_are_named` (was "two members", now with
+  contourpy's member); `test_runner_mounts.py` and `test_scan.py` changed for contourpy (the delta
+  review, 2026-10-20).
 - **Retired:** none. **Passes moved:** none; no group's passes fall.
 - **Rows that grow:** the three byte rows, and fuel rows across the board as above (the binary's
   static-data move, the zip's 19 members, the two inittab entries).
@@ -900,12 +902,19 @@ steps in 8 min 27 s. The old `build/`'s logs were saved first, to the session sc
 #### The exact flags
 
 ```
---accept "043: matplotlib's second milestone: contourpy 1.4.0 built in as contourpy._contourpy with its package in the zip, matplotlib's _qhull linked with qhull 8.0.2 and carried patch recipes/patches/matplotlib-3.11.2/0002-qhull-without-devnull-on-wasi.patch (eleven carried patches), a meson-python stand-in recipe, contourpy's _build_config.py made host-neutral; the release's zero-patch count 23 trees; built stacked on 086 (wasi-sdk 34), SHA256SUMS 4c7099a4 from macOS, linux/arm64 and linux/x86_64"
---accept-judge "043: five new checks (the plot_contour golden on both binaries with the guest's PDF pinned, contourpy's one thread, a triangulation leaves every writable grant as it was, contourpy's source tree) and two gaps closed (test_delaunay_triangulation_runs, test_contour_runs, removed from known_gaps); contourpy in the harness's host facts, licence, tree and distribution lists; seven new unit tests (the meson plan, contourpy's build-config rewrite, contourpy's notices and the borrowed licence rule); packages.toml names contourpy's suite as later (spec 066)"
---accept-growth "043, against 086's accepted set (a75e5d4): python.wasm +1,081,782 bytes (41,169,347 to 42,251,129) and the snapshot +1,089,018 (45,444,036 to 46,533,054), with contourpy, _qhull and qhull linked; the zip +65,005 bytes (38,723,140 to 38,788,145) and 19 members (4,435 to 4,454). Fuel, the branch dry run 39369636353's macOS shards: 186 rows move, 151 up and 35 down, median +0.075%, -0.101% to +0.452%, passes unchanged. The plain start +426,234 (+0.19%) is the zip's 19 members, about 26,400 each; the snapshot start +122,018 (+0.25%) and the snapshot probes are the binary's (its static data ends later, so every heap address moves; the build review's 2 x 2 on the old base); the zip-directory and builtin-lookup checks +0.30% to +0.45% (19 more zip entries, two more inittab entries); cpython-fs +0.058%, numpy-lib +0.049%"
+--accept "043: matplotlib's second milestone: contourpy 1.4.0 built in as contourpy._contourpy with its package in the zip, matplotlib's _qhull linked with qhull 8.0.2 and carried patch recipes/patches/matplotlib-3.11.2/0002-qhull-without-devnull-on-wasi.patch (eleven carried patches), a meson-python stand-in recipe, contourpy's _build_config.py made host-neutral; the release's zero-patch count 23 trees; built stacked on 086 (wasi-sdk 34), SHA256SUMS 4c7099a4 from macOS, linux/arm64 and linux/x86_64 at 6e127e8; rebased onto 41bcc0f (090, 082) and rebuilt by the lane as SHA256SUMS <the lane's>, equal to 4c7099a4 in every file but MANIFEST (090's recipe lines)"
+--accept-judge "043: five new checks (the plot_contour golden on both binaries with the guest's PDF pinned, contourpy's one thread, a triangulation leaves every writable grant as it was, contourpy's source tree) and two gaps closed (test_delaunay_triangulation_runs, test_contour_runs, removed from known_gaps); contourpy in the harness's host facts, licence, tree and distribution lists; six new unit test functions and one renamed (the meson plan, contourpy's build-config rewrite, contourpy's notices and the borrowed licence rule; the host-fact test over three members); packages.toml names contourpy's suite as later (spec 066)"
+--accept-growth "043, against 086's accepted set (a75e5d4): python.wasm +1,081,782 bytes (41,169,347 to 42,251,129) and the snapshot +1,089,018 (45,444,036 to 46,533,054), with contourpy, _qhull and qhull linked; the zip +65,005 bytes (38,723,140 to 38,788,145) and 19 members (4,435 to 4,454). Fuel, the branch dry run 39369636353's macOS shards: 186 rows move, 151 up and 35 down, median +0.075%, -0.101% to +0.452%, passes unchanged. The plain start +426,234 (+0.19%) is the zip's 19 members, about 26,400 each; the snapshot start +122,018 (+0.25%) and the snapshot probes are the binary's (its static data ends later, so every heap address moves; the build review's 2 x 2 on the old base); the zip-directory and builtin-lookup checks +0.30% to +0.45% (19 more zip entries, two more inittab entries); cpython-fs +0.058%, numpy-lib +0.049%; the upstream groups the release judges only on Linux, first compared on darwin by the lane's judge (numpy-core, pandas, cpython-a to c), the binary's, as numpy-core's +0.45% on the old base, with their passes unchanged"
 ```
 
 No `--retire`, no `--accept-fewer-passes`, no `--partial`.
+
+The delta review (2026-10-20, of `08de0c8..737cef6` against `41bcc0f..047508c`) wrote in three
+things above, `context/` only: the unit-suite count (six new functions and one renamed, not seven
+new); in `--accept`, the lane's own `SHA256SUMS` from its rebuild at the landed commit, which
+differs from `4c7099a4` in `MANIFEST` alone; and in `--accept-growth`, the upstream groups that
+only the lane's darwin judge compares with 086's record. If the lane's judge shows any of those
+groups growing by more than 1%, or any pass moving, the landing stops for a stated reason.
 
 #### Rebased onto 41bcc0f (wave 05: 090 and 082)
 
