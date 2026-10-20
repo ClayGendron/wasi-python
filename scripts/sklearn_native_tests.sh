@@ -15,7 +15,26 @@
 # threadpoolctl, narwhals, pandas; pytest); one thread for OpenMP and BLAS. The source tree gets
 # its carried patch, so the patched code is what is tested.
 set -eu
-. "$(dirname "$0")/steps/common.sh"
+# common.sh finds the repository from a step's own folder, so this script, one folder up, names
+# what it needs itself: the repository, the pinned tools of step 10, and common.sh's helpers.
+HERE=$(CDPATH= cd "$(dirname "$0")/.." && pwd -P)
+D="$HERE/downloads"
+B="$HERE/build"
+T="$B/tools"
+HOSTPY="$T/python/bin/python3"
+. "$HERE/scripts/steps/remove.sh"
+export PATH="$T/host-python:$T/pylib/bin:$PATH"
+die() {
+  echo "ERROR: $*" >&2
+  exit 1
+}
+pinned() {
+  [ -s "$D/$1" ] || die "downloads/$1 is missing: run scripts/00_download.sh"
+  grep "  $1\$" "$D/SHA256SUMS" > "$B/.pin-check" || die "$1 is not pinned in downloads/SHA256SUMS"
+  (cd "$D" && shasum -a 256 -c "$B/.pin-check" > /dev/null 2>&1) || die "downloads/$1 does not match its pin"
+  rm -f "$B/.pin-check"
+  printf '%s\n' "$D/$1"
+}
 
 N="$B/sklearn-native"
 TOP=scikit_learn-1.9.1
@@ -43,9 +62,11 @@ tar -xzf "$TARBALL" -C "$N"
 mv "$N/$TOP" "$N/src"
 sh "$HERE/scripts/steps/apply_patches.sh" "$N/src" "$HERE/recipes/patches/$TOP"
 cd "$N/src"
-PYTHONPATH="$T/pylib" "$VPY" "$T/pylib/bin/meson" setup "$N/build" --buildtype=release \
+# Cython runs under step 10's Python and finds numpy's .pxd files in the venv's site-packages.
+VSITE=$("$VPY" -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
+PYTHONPATH="$T/pylib:$VSITE" "$VPY" "$T/pylib/bin/meson" setup "$N/build" --buildtype=release \
   -Db_ndebug=if-release > "$N/setup.log" 2>&1 || { tail -n 20 "$N/setup.log"; die "native meson setup failed"; }
-ninja -C "$N/build" > "$N/build.log" 2>&1 || { tail -n 20 "$N/build.log"; die "native build failed"; }
+PYTHONPATH="$T/pylib:$VSITE" ninja -C "$N/build" > "$N/build.log" 2>&1 || { tail -n 20 "$N/build.log"; die "native build failed"; }
 cd "$HERE"
 grep -F "Program cython" "$N/setup.log" | head -n 1
 SUFFIX=$("$VPY" -c 'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX"))')

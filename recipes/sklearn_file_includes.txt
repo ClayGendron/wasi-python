@@ -10,6 +10,7 @@ sklearn/_cyutility.c @ROOT@/recipes/sklearn-renames/cyutility.h
 /_hist_gradient_boosting/_gradient_boosting@SO@.p/_gradient_boosting.c @ROOT@/recipes/sklearn-renames/hgb_gradient_boosting.h
 /_hdbscan/_tree@SO@.p/_tree.c @ROOT@/recipes/sklearn-renames/hdbscan_tree.h
 /manifold/_utils@SO@.p/_utils.c @ROOT@/recipes/sklearn-renames/manifold_utils.h
+/utils/_random@SO@.p/_random.c @ROOT@/recipes/sklearn-renames/utils_random.h
 /svm/_libsvm_sparse@SO@.p/_libsvm_sparse.c @ROOT@/recipes/sklearn-renames/svm_libsvm_sparse.h
 /svm/_liblinear@SO@.p/_liblinear.c @ROOT@/recipes/sklearn-renames/svm_liblinear.h
 /svm/src/liblinear/linear.cpp @ROOT@/recipes/sklearn-renames/svm_liblinear.h

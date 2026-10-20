@@ -83,6 +83,7 @@ def test_the_inittab_renames_scikit_learns_four(tmp_path, monkeypatch) -> None:
             "sklearn/cluster/_hdbscan/_tree",
             "sklearn/tree/_utils",
             "sklearn/manifold/_utils",
+            "sklearn/utils/_random",
         ],
         "sp": [
             "scipy/_cyutility",
@@ -128,6 +129,7 @@ def test_the_inittab_renames_scikit_learns_four(tmp_path, monkeypatch) -> None:
         "sklearn.cluster._hdbscan._tree": "sklearn_cluster__hdbscan__tree",
         "sklearn.tree._utils": "_utils",
         "sklearn.manifold._utils": "sklearn_manifold__utils",
+        "sklearn.utils._random": "sklearn_utils__random",
     }
     renamed = {k: v for k, v in gen_inittab.RENAMED.items() if not k.startswith("sklearn.")}
     monkeypatch.setattr(gen_inittab, "RENAMED", renamed)
@@ -135,6 +137,34 @@ def test_the_inittab_renames_scikit_learns_four(tmp_path, monkeypatch) -> None:
         r"share an init function name: \['_cyutility', '_gradient_boosting', '_tree', '_utils'\]"
     )
     with pytest.raises(SystemExit, match=clash):
+        gen_inittab.main()
+
+
+def test_the_inittab_stops_on_an_init_name_cpython_has(tmp_path, monkeypatch) -> None:
+    """With --against CPython's config.c, an entry whose init function is one of CPython's own
+    builtins' (sklearn.utils._random's PyInit__random, without its rename) stops the run, naming
+    it: the static link would keep CPython's function and silently drop the package's."""
+    so = tmp_path / "sk" / "sklearn" / "utils" / ("_random" + gen_inittab.SUFFIX)
+    so.parent.mkdir(parents=True)
+    so.write_bytes(b"!<arch>\n")
+    config = tmp_path / "config.c"
+    config.write_text(
+        "extern PyObject* PyInit__random(void);\nextern PyObject* PyInit_math(void);\n"
+    )
+    argv = [
+        "gen_inittab.py",
+        "--against",
+        str(config),
+        str(tmp_path / "i.c"),
+        f"sklearn={so.parents[2]}",
+    ]
+    monkeypatch.setattr(sys, "argv", argv)
+    renamed = {"sklearn.utils._random": gen_inittab.RENAMED["sklearn.utils._random"]}
+    monkeypatch.setattr(gen_inittab, "RENAMED", renamed)
+    gen_inittab.main()  # renamed: PyInit_sklearn_utils__random, no clash
+    monkeypatch.setattr(gen_inittab, "RENAMED", {})
+    want = r"CPython's own builtins have: \['sklearn.utils._random \(PyInit__random\)'\]"
+    with pytest.raises(SystemExit, match=want):
         gen_inittab.main()
 
 
