@@ -440,3 +440,14 @@ def test_except_without_claims_is_an_argument_error(tmp_path) -> None:
         [sys.executable, SCRIPT, "--except", "092", str(a), str(a)], capture_output=True, text=True
     )
     assert got.returncode == 2 and "--except" in got.stderr, got.stderr
+
+
+def test_a_read_only_files_block_on_windows_alone_is_no_difference() -> None:
+    """Spec 094's need joins F1's exception through gather.CI_NEEDS, on Windows only."""
+    records = shard_records()
+    records[("windows", "own")]["checks"][A].update(status="blocked", need="read-only files")
+    assert sameness.differences(release(records), local()) == []
+    records[("linux", "own")]["checks"][A].update(status="blocked", need="read-only files")
+    assert sameness.differences(release(records), local()) == [
+        f"{A}: status 'pass' on {DARWIN}, 'blocked' on {LINUX}"
+    ]

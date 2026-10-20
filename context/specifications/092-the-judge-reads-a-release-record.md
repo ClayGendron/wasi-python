@@ -220,8 +220,15 @@ under the artifact `release-record-<attempt>`.
   [[claim]]
   spec = "092"
   new = ["tests/unit/test_sameness.py"]
-  units = 45   # 42 rows in test_sameness.py, 3 in test_gather.py
+  units = 46   # 43 rows in test_sameness.py, 3 in test_gather.py
   ```
+- **Rebased onto `wave/03`** (`fd6db0f`: main `e00d394` plus 094). No hunk conflicted: 094's
+  `CI_NEEDS["read-only files"] = {"windows"}`, its `needs.py` need and its `test_gather.py` row
+  merged beside 092's changes without a textual or semantic conflict, and the CHANGELOG took both
+  entries. F1's exception reads `gather.CI_NEEDS`, so it covers 094's need: new row
+  `test_a_read_only_files_block_on_windows_alone_is_no_difference` (a Windows block is no
+  difference; the same block on Linux is one). After the rebase (EXECUTED): `tests/unit` `-n 3`,
+  1763 passed, 15 skipped; `tests/checks/test_rules.py`, 42 passed, 2 skipped; `ruff` green.
 
 ## Disposition of the build review
 
