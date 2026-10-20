@@ -678,6 +678,49 @@ unchanged to `../upstream/patches/statsmodels-0.15.0/0001-datasets-from-a-zip.md
 and the patch byte for byte (`751e7190…db58`). It applies to the pinned sdist with no offset
 (EXECUTED, `apply_patches.sh`).
 
+**R5a. What each answer on R5 means, drafted now so either is a one-step write-in.** Approval
+needs no further change: phase 1 already writes all six parts into `LICENSES/statsmodels.txt`
+(`scripts/assemble_artifacts.py`, `STATSMODELS_LINES` and `STATSMODELS_PINNED`), and the judge holds
+each part (`tests/harness/artifacts.py`, `STATSMODELS_PARTS`). A decline cannot simply leave a module
+out. Here is what imports each one (READ, every shipped `.py` and `.pyx` outside `tests/`):
+- `tools/docstring.py` is imported by `discrete_model`, `generalized_linear_model`, `ar_model`,
+  `ardl`, `arima_process`, `descriptivestats`, `treatment_effects` and `forecasting/stl`.
+- `graphics/boxplots.py` is imported by `graphics/api.py`.
+- `regression/quantile_regression.py` is imported by `statsmodels/api.py` and `formula/api.py`.
+- `tsa/stl/_stl` is imported by `tsa/seasonal/__init__.py` and `tsa/stl/mstl.py`.
+
+Leaving out any of those four breaks `import statsmodels.api`. A replacement would be a rewrite of
+upstream's code: a stand-in or a patch with no upstream exit, which §4.1 does not allow for this
+purpose. So declining any of the four means leaving statsmodels out of the build. The other two
+can each go alone:
+- `tools/parallel.py` is imported only by `base/distributed_estimation.py`, at call time. Leaving
+  it out (`--drop statsmodels/tools/parallel.py`) makes `DistributedModel.fit` raise
+  `ModuleNotFoundError`, and the mne-python pin goes.
+- `stats/libqsturng/` is imported only by `sandbox/stats/multicomp.py`, which `pairwise_tukeyhsd`
+  uses. Leaving the folder out (`--drop statsmodels/stats/libqsturng`) makes Tukey's HSD raise
+  `ModuleNotFoundError`. `_phi` lives inside `qsturng_.py`, so it cannot leave alone.
+
+Each such leave-out would be one line in `70_zip.sh`, one part fewer in both lists, a v1.1 check
+line and a README line. The builder writes them after the answer.
+
+**R6a. `packages.toml` for each answer on R6.** If the answer is spec 095, the text is as
+committed: `statsmodels` is `kind = "later"`, `closes_with = "spec 095"`. If the answer is "inside
+045", then after wave 08 lands (066's harness) and 045 is rebased onto it, the entry becomes:
+
+```toml
+[package.statsmodels]
+# Spec 045 runs its own suite (spec 066's design): the groups in tests/upstream/statsmodels.toml,
+# driver = "package", the grant /upstream-statsmodels, each group's cap 1.5 times its measured fuel,
+# a [[split]] for any file past the bound, and the groups in Linux shards (tests/release_shards.toml).
+kind = "suite"
+```
+
+That path adds, in this order: a survey (066's Decision 1, about 90 minutes), its delta to a
+confirmation round, `tests/upstream/statsmodels.toml` and `.ini` and `expected/` classes, about five
+new Linux shards, and the statsmodels tarball as a CI input of those shards. formulaic,
+interface-meta and wrapt stay `later` with spec 067 under either answer. Their wheels carry no
+tests, and 067 pins their sdists as data, as it does for the rest of tier A.
+
 **R12. The pre-build review's confirmation.** The 2026-10-20 confirmation covered 044 alone, and
 says that findings 5 and 7 to 10 are not confirmed there. A confirming reviewer reads this
 revision, R2 to R6 above all, before the build. The lane arranges it.
