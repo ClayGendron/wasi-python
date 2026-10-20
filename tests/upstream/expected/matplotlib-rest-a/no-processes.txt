@@ -1,0 +1,2 @@
+lib/matplotlib/tests/test_animation.py::test_movie_writer_registry
+lib/matplotlib/tests/test_basic.py::test_lazy_imports

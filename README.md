@@ -366,6 +366,11 @@ sandbox:
   `numpy.linalg.matrix_power(a, -1)` of a singular matrix return an array of `nan` instead of
   raising `LinAlgError`; check the result (for example with `numpy.isfinite`) or the matrix's
   rank first. numpy's own tests skip this case on wasm (spec 066's survey).
+- **Builtin modules have no `__file__`**: the packages' compiled modules (`PIL._imaging`,
+  `lxml.etree`, numpy's) are builtin, so code that reads their `__file__` fails, and
+  `lxml.get_include()` names folders inside the stdlib zip, which are not folders.
+- **Pillow without `mmap`**: Pillow falls back from `mmap` to reading the file, silently, so an
+  image it opens is never `readonly` and exposes no mapped buffer (spec 066's `no-mmap-silent`).
 - **Deep recursion**: recursion that runs through Python code (a `__repr__` that calls
   `repr(self)`, `lru_cache`, a `sort` key, a numpy, pandas or lxml callback) raises
   `RecursionError` ("Stack overflow (used 112 kB)") after 40 to 250 levels, where native Python
@@ -737,7 +742,11 @@ uv run python release/version.py release --push  # date the section, tag v0.1.0a
 Pushing the tag starts `.github/workflows/release.yml`. It builds from the pins on arm64 macOS,
 checks that the source trees are their tarballs plus the recorded patches, and judges the build
 host's own checks; then the rest of the judge runs in shards on macOS, Linux and Windows at once,
-with numpy's, pandas' and CPython's own test suites on Linux, and one group of numpy's and
+with numpy's, pandas', CPython's and the six compiled packages' own test suites on Linux (spec
+066: matplotlib's, contourpy's, Pillow's, kiwisolver's, lxml's and regex's own tests in 35 groups
+and twelve `upstream-plot-*` shards, contourpy's two largest files split into groups by `-k`
+expressions so every test runs; regex's `unittest.main()` entry point and a few files that cannot
+load or need processes or threads are not selected, each named in its TOML), and one group of numpy's and
 pandas', and CPython's file-system group, on macOS and on Windows
 (`tests/release_shards.toml`; `uv run pytest --shard=<name>` runs one). A job named `gather` reads
 every shard's record by its id and hash, and nothing is signed or published unless every shard ran
@@ -1374,6 +1383,9 @@ does on every host:
   opening a folder for reading there gives `OSError` `EINVAL` where other hosts give
   `IsADirectoryError` (spec 065 records these, with the open-file rule, as 25 of CPython's tests
   that differ on a Windows host).
+- an errno is WASI's number, not Linux's: a missing path is `[Errno 44]` (`ENOENT`), where Linux
+  says `[Errno 2]`; `open('')` answers `IsADirectoryError` (`EISDIR`), not `FileNotFoundError`
+  (spec 066's classes `wasi-errno-values` and `open-empty-path`).
 
 **Cost.** Every write-half call, every create at open and every write-back
 counts toward `max_file_calls`. Each close or `fsync` of a changed file hands

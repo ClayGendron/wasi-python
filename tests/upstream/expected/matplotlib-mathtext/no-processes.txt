@@ -1,0 +1,2 @@
+lib/matplotlib/tests/test_font_manager.py::test_fontcache_thread_safe
+lib/matplotlib/tests/test_font_manager.py::test_lockfilefailure

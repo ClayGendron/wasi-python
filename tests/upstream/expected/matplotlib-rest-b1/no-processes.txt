@@ -1,0 +1,12 @@
+lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_agg]
+lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_mixed]
+lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_pdf]
+lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_pgf]
+lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_ps]
+lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_svg]
+lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_template]
+lib/matplotlib/tests/test_matplotlib.py::test_importable_with__OO
+lib/matplotlib/tests/test_matplotlib.py::test_importable_with_no_home
+lib/matplotlib/tests/test_pickle.py::test_axeswidget_interactive
+lib/matplotlib/tests/test_pickle.py::test_pickle_load_from_subprocess[png]
+lib/matplotlib/tests/test_preprocess_data.py::test_data_parameter_replacement

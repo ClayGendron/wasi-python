@@ -1,0 +1,17 @@
+Tests/test_file_pdf.py::test_dpi[params0]
+Tests/test_file_pdf.py::test_dpi[params1]
+Tests/test_file_pdf.py::test_monochrome
+Tests/test_file_pdf.py::test_multiframe_normal_save
+Tests/test_file_pdf.py::test_p_alpha
+Tests/test_file_pdf.py::test_pdf_append
+Tests/test_file_pdf.py::test_pdf_info
+Tests/test_file_pdf.py::test_pdf_open
+Tests/test_file_pdf.py::test_resolution
+Tests/test_file_pdf.py::test_save[CMYK]
+Tests/test_file_pdf.py::test_save[L]
+Tests/test_file_pdf.py::test_save[P]
+Tests/test_file_pdf.py::test_save[RGB]
+Tests/test_file_pdf.py::test_save_all
+Tests/test_file_pdf.py::test_unsupported_mode
+Tests/test_pdfparser.py::test_duplicate_xref_entry
+Tests/test_pdfparser.py::test_trailer_loop

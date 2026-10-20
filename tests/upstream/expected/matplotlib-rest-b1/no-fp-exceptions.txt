@@ -1,0 +1,2 @@
+lib/matplotlib/tests/test_mlab.py::TestGaussianKDECustom::test_scott_multidim_dataset
+lib/matplotlib/tests/test_mlab.py::TestGaussianKDECustom::test_silverman_multidim_dataset

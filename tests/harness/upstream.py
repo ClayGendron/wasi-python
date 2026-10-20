@@ -1,5 +1,6 @@
 """numpy's and pandas' own tests, run inside the guest (spec 050), and the configuration of every
-upstream suite, CPython's included (spec 065: its runner is `harness.regrtest`).
+upstream suite, CPython's included (spec 065: its runner is `harness.regrtest`), and the compiled
+packages' (spec 066: `driver = "package"`, a family each, run by `harness.packages`).
 
 The judge stages the tests of the artifact's own pinned source trees (tarball members, and files a
 recorded patch creates, only) with the pinned test kit into one read-only grant, `/upstream`, and
@@ -35,6 +36,8 @@ EXPECTED = HERE / "expected"
 WHEELS = paths.BUILD / "upstream" / "wheels"
 CHECKS_FILE = "tests/checks/test_v1_3_upstream_suites.py"
 PACKAGES = ("numpy", "pandas", "python")
+# Spec 066: the compiled packages' own suites, one family (grant, stage, budget) each.
+PACKAGE_SUITES = ("matplotlib", "contourpy", "pillow", "kiwisolver", "lxml", "regex")
 GRANT = "/upstream"
 STREAM = "tmp/upstream/outcomes.txt"  # in the guest's root
 TRAP_FUEL = 5 * 10**10
@@ -133,6 +136,8 @@ class Config:
     environment: list = field(default_factory=list)
     host_dependent: list = field(default_factory=list)
     fuel_facts: list[FuelFact] = field(default_factory=list)  # spec 091
+    driver: str = "upstream"  # "package": spec 066's families, read by harness.packages
+    keys: object = None  # spec 066: harness.packages.PackageKeys when driver == "package"
 
     def classes(self, group: str) -> list[Klass]:
         return [k for k in self.expected if k.group == group]
@@ -159,6 +164,10 @@ def load(package: str, directory: Path = HERE) -> Config:
     raw = tomllib.loads((directory / f"{package}.toml").read_text())
     if raw.get("runner", "pytest") == "regrtest":
         return _load_regrtest(raw, directory)
+    if raw.get("driver") == "package":
+        from harness import packages
+
+        return packages.load(raw)
     return Config(
         package=raw["package"],
         marker=raw["marker"],
@@ -236,7 +245,8 @@ def _load_regrtest(raw: dict, directory: Path) -> Config:
 
 
 def load_all(directory: Path = HERE) -> dict[str, Config]:
-    return {p: load(p, directory) for p in PACKAGES}
+    names = PACKAGES + tuple(p for p in PACKAGE_SUITES if (directory / f"{p}.toml").is_file())
+    return {p: load(p, directory) for p in names}
 
 
 def suite_node(group: str) -> str:
@@ -334,6 +344,13 @@ TARBALL = {
     "numpy": re.compile(r"numpy-[\w.]+\.tar\.gz"),
     "pandas": re.compile(r"pandas-[\w.]+\.tar\.gz"),
     "python": re.compile(r"Python-\d+\.\d+\.\d+\.tar\.xz"),
+    # spec 066: the compiled packages' pinned sdists
+    "matplotlib": re.compile(r"matplotlib-[\w.]+\.tar\.gz"),
+    "contourpy": re.compile(r"contourpy-[\w.]+\.tar\.gz"),
+    "pillow": re.compile(r"pillow-[\w.]+\.tar\.gz"),
+    "kiwisolver": re.compile(r"kiwisolver-[\w.]+\.tar\.gz"),
+    "lxml": re.compile(r"lxml-[\w.]+\.tar\.gz"),
+    "regex": re.compile(r"regex-[\w.]+\.tar\.gz"),
 }
 
 
@@ -836,6 +853,11 @@ def rule_errors(
                 errors.append(f"{pkg}: class {k.group}-{k.id} has members but no gap")
             if not listed and has_gap:
                 errors.append(f"{pkg}: class {k.group}-{k.id} is empty but still has a gap")
+        if cfg.driver == "package":
+            from harness import packages
+
+            errors += packages.rule_errors(pkg, cfg, (members or {}).get(pkg))
+            continue
         if cfg.runner == "regrtest":
             from harness import regrtest
 
@@ -865,6 +887,9 @@ def rule_errors(
     from harness import regrtest
 
     budgets = {GRANT: CAP_BUDGET, regrtest.GRANT: regrtest.CAP_BUDGET}
+    # spec 066: each package family's budget is its own TOML's `budget`, the sum of its caps by
+    # the owner's rule (decisions.md, "Every test of every package we build", 2026-10-20)
+    budgets |= {c.grant: c.keys.budget for c in configs.values() if c.driver == "package"}
     for grant, family in sorted(families(configs).items()):
         total, budget = caps(family), budgets.get(grant, CAP_BUDGET)
         if total > budget:
@@ -928,7 +953,8 @@ class Session:
             from harness import pins
 
             for p, c in self.configs.items():
-                if c.runner == "pytest" and pins.source_pair(p) is not None:
+                # spec 066's families have stages of their own: never staged into /upstream
+                if c.runner == "pytest" and c.driver != "package" and pins.source_pair(p):
                     self.prepared[p] = self._prepare(p)
             if self.root is not None:
                 litter.seal(self.root)  # the whole stage, once every package is in (spec 089)

@@ -1,0 +1,2 @@
+lib/matplotlib/tests/test_figure.py::test_ginput
+lib/matplotlib/tests/test_figure.py::test_waitforbuttonpress

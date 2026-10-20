@@ -1,0 +1,163 @@
+# contourpy's own tests in the guest (spec 066). A judge file: every edit is a judge change.
+# The keys are matplotlib.toml's. A [[split]] names one file too big for one group, its groups in
+# order, and one -k expression fewer than groups: group i runs "(e_i) and not (e_1 or ... e_i-1)",
+# the last "not (e_1 or ... e_n-1)", so every collected test of the file is in exactly one group
+# (Decision 11; the owner, "Every test of every package we build", 2026-10-20).
+
+package = "contourpy"
+driver = "package"
+grant = "/upstream-contourpy"
+budget = 6_630_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "tree"  # compare_images opens tests/baseline_images/... by a relative path (the re-survey)
+markers = []
+
+[groups.contourpy-1]
+paths = [
+    "tests/test_array.py",
+    "tests/test_build_config.py",
+    "tests/test_chunk.py",
+    "tests/test_config.py",
+    "tests/test_constructor.py",
+    "tests/test_convert.py",
+    "tests/test_dechunk.py",
+    "tests/test_enum.py",
+]
+fuel = 330_000_000_000  # 1.5 times 217.4 G measured
+
+[groups.contourpy-rest]
+paths = [
+    "tests/test_internal.py",
+    "tests/test_minimal.py",
+    "tests/test_misc.py",
+    "tests/test_renderer.py",
+    "tests/test_static.py",
+    "tests/test_typecheck.py",
+    "tests/test_z_interp.py",
+]
+fuel = 140_000_000_000  # 1.5 times 90.3 G measured
+
+[groups.contourpy-filled-1]
+paths = ["tests/test_filled.py"]
+fuel = 370_000_000_000  # 1.5 times 242.2 G measured
+
+[groups.contourpy-filled-2]
+paths = ["tests/test_filled.py"]
+fuel = 400_000_000_000  # 1.5 times 262.9 G measured
+
+[groups.contourpy-filled-3]
+paths = ["tests/test_filled.py"]
+fuel = 370_000_000_000  # 1.5 times 244.7 G measured
+
+[groups.contourpy-filled-4]
+paths = ["tests/test_filled.py"]
+fuel = 370_000_000_000  # 1.5 times 242.3 G measured
+
+[groups.contourpy-filled-5]
+paths = ["tests/test_filled.py"]
+fuel = 400_000_000_000  # 1.5 times 263.0 G measured
+
+[groups.contourpy-filled-6]
+paths = ["tests/test_filled.py"]
+fuel = 370_000_000_000  # 1.5 times 244.7 G measured
+
+[groups.contourpy-filled-7]
+paths = ["tests/test_filled.py"]
+fuel = 660_000_000_000  # 1.5 times 439.8 G measured
+
+[groups.contourpy-filled-8]
+paths = ["tests/test_filled.py"]
+fuel = 370_000_000_000  # 1.5 times 242.6 G measured
+
+[groups.contourpy-filled-9]
+paths = ["tests/test_filled.py"]
+fuel = 490_000_000_000  # 1.5 times 322.1 G measured
+
+[[split]]
+file = "tests/test_filled.py"
+groups = [
+    "contourpy-filled-1",
+    "contourpy-filled-2",
+    "contourpy-filled-3",
+    "contourpy-filled-4",
+    "contourpy-filled-5",
+    "contourpy-filled-6",
+    "contourpy-filled-7",
+    "contourpy-filled-8",
+    "contourpy-filled-9",
+]
+keywords = [
+    "random_big and serial and None",
+    "random_big and serial and False",
+    "random_big and serial and True",
+    "random_big and threaded and None",
+    "random_big and threaded and False",
+    "random_big and threaded and True",
+    "random_big",
+    "serial",
+]
+
+[groups.contourpy-lines-1]
+paths = ["tests/test_lines.py"]
+fuel = 200_000_000_000  # 1.5 times 131.9 G measured
+
+[groups.contourpy-lines-2]
+paths = ["tests/test_lines.py"]
+fuel = 220_000_000_000  # 1.5 times 145.3 G measured
+
+[groups.contourpy-lines-3]
+paths = ["tests/test_lines.py"]
+fuel = 210_000_000_000  # 1.5 times 136.8 G measured
+
+[groups.contourpy-lines-4]
+paths = ["tests/test_lines.py"]
+fuel = 200_000_000_000  # 1.5 times 132.0 G measured
+
+[groups.contourpy-lines-5]
+paths = ["tests/test_lines.py"]
+fuel = 220_000_000_000  # 1.5 times 145.3 G measured
+
+[groups.contourpy-lines-6]
+paths = ["tests/test_lines.py"]
+fuel = 210_000_000_000  # 1.5 times 136.8 G measured
+
+[groups.contourpy-lines-7]
+paths = ["tests/test_lines.py"]
+fuel = 390_000_000_000  # 1.5 times 255.6 G measured
+
+[groups.contourpy-lines-8]
+paths = ["tests/test_lines.py"]
+fuel = 710_000_000_000  # 1.5 times 470.3 G measured
+
+[[split]]
+file = "tests/test_lines.py"
+groups = [
+    "contourpy-lines-1",
+    "contourpy-lines-2",
+    "contourpy-lines-3",
+    "contourpy-lines-4",
+    "contourpy-lines-5",
+    "contourpy-lines-6",
+    "contourpy-lines-7",
+    "contourpy-lines-8",
+]
+keywords = [
+    "random_big and serial and None",
+    "random_big and serial and False",
+    "random_big and serial and True",
+    "random_big and threaded and None",
+    "random_big and threaded and False",
+    "random_big and threaded and True",
+    "random_big",
+]
+
+[[not_selected]]
+files = ["tests/test_codebase.py"]
+reason = "every test runs tools over the source repository through subprocess (no processes on WASI)"
+closes_with = "README.md"
+
+[[not_selected]]
+files = ["tests/test_bokeh_renderer.py"]
+reason = "Bokeh and Selenium are not in the product (spec 043's Scope)"
+closes_with = "README.md"

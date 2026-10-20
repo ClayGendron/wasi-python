@@ -6,6 +6,13 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a8 — unreleased
 
+- **The release runs the compiled packages' own tests** (spec 066): matplotlib's, contourpy's,
+  Pillow's, kiwisolver's, lxml's and regex's own suites, every test of each (contourpy's
+  random_big cases included), in 35 groups, each package a family with its own grant, stage and
+  budget (caps 1.5 times the measured fuel, about 1.26×10¹³ in all), in twelve new Linux release
+  shards; known failures are 18 classes by node id, each a gap with its closer. `tests/upstream/
+  package_drive.py` drives them; numpy's and pandas' driver and verdict are unchanged.
+  `tests/upstream/packages.toml`: the six are `suite`s; scipy's suite now closes with spec 095.
 - **A garbage cycle holding a kiwisolver object is collected, not a trap** (spec 096; spec 066's
   survey). kiwisolver's `Variable`, `Term`, `Expression` and `Constraint` declared `tp_clear` as
   returning nothing, so the collector's call ended the guest in `indirect call type mismatch`;

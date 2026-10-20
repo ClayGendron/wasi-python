@@ -1,0 +1,5 @@
+Tests/test_arrow.py::test_mapped_file[L-ppm]
+Tests/test_arrow.py::test_mapped_file[L-tif]
+Tests/test_arrow.py::test_mapped_file[RGBA-tif]
+Tests/test_arrow.py::test_mapped_image_pgm
+Tests/test_image.py::TestImage::test_save_without_changing_readonly

@@ -1,0 +1,2 @@
+Tests/test_features.py::test_pilinfo[False]
+Tests/test_features.py::test_pilinfo[True]

@@ -1,0 +1,15 @@
+# kiwisolver's own tests in the guest (spec 066). A judge file: every edit is a judge change.
+# The keys are matplotlib.toml's. kiwisolver's C++ tests (tests/*.cpp) need a C++ test binary
+# built for the guest and are not staged (Scope).
+
+package = "kiwisolver"
+driver = "package"
+grant = "/upstream-kiwisolver"
+budget = 20_000_000_000
+stage_folders = ["py/tests"]
+cwd = "/tmp/work"
+markers = []
+
+[groups.kiwisolver]
+paths = ["py/tests"]
+fuel = 20_000_000_000  # 1.5 times 13.0 G measured
