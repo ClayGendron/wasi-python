@@ -6,7 +6,10 @@
   are answered"); the owner answered choice 2 (main `5feb7e9`, `decisions.md`: the build shard
   moves to Linux on every run, tags included); **revised against every finding** (*Disposition of
   the pre-build review*) and **rebased onto `origin/wave/08`** (`66cc120`: 042, then 066, on main
-  `2516875`) for a stacked build in wave 09. It changes the release workflow, so it is
+  `2516875`) for a stacked build in wave 09; **built 2026-10-20** at `25fcd1a`: a source run
+  (39468404589) and two reuse runs (39475482749, 39481889333), every red line a growth line but
+  one Linux timeout answered in Decision 9 (*Landing notes*); criteria 3 and 7 wait on the lane's
+  container slot and on landing. It changes the release workflow, so it is
   build-class (§5.7). It changes neither the guest's imports nor its exports, nor a byte of the
   artifact set: `scripts/` and `recipes/` do not change, so `MANIFEST` and `SHA256SUMS` stay the
   base's. A different agent reviews the build.
@@ -662,11 +665,75 @@ finding went:
 
 ## For the lane
 
-Filled in at the build (*Landing notes*).
+- **Kind:** build-class (the release workflow, a new workflow), with judge changes. It changes no
+  file under `scripts/`, `recipes/` or `downloads/`, so the set is the base's and its main-tree
+  rebuild gives the base's `SHA256SUMS`. A wave may hold it as one of the two other build-class
+  entries. Stacked on wave 08 (built on `66cc120`; the lane has since rebuilt wave 08 as
+  `72bc5ed`, with 099 and on main `5805af0`): it rebases onto wave 08's landed tip at wave 09's
+  entry.
+- **Conflicts to expect at that rebase:** `tests/release_shards.toml` and `release.yml`'s judge
+  matrices, `outputs:` and the gather's lists (all derived from the plan by rule 2 of spec 063),
+  `tests/unit/test_scan.py`'s mutation rows, `CHANGELOG.md`'s unreleased section. 099 touches none
+  of the workflow; its recipe change gives a new set key, so wave 09's first run builds from source.
+- **AGENTS.md rule 3a** could say, in the lane's words: "a branch run may reuse a set the cache
+  holds under its commit's key (spec 101); its verdict is the same verdict, and a release
+  record's `meta.set_source` says which". This builder does not edit the project's instructions.
+- **After the fast-forward:** the push to main starts `set-cache.yml` for the first time (GitHub
+  will not dispatch a workflow main does not hold); the lane records its run id, whether `seed`
+  built, and the entry's size (criterion 7).
+- **Nothing moves:** no check retired, no node id changed, no fuel or byte row of this
+  specification's own. The judge hash changes in `tests/release_shards.toml`,
+  `tests/harness/{shards,gather,sameness,scan}.py`, `tests/checks/test_rules.py` and
+  `tests/unit/test_{shards,gather,sameness,scan,set_key}.py`.
+- **The claim list block** (sameness, spec 092):
+
+  ```toml
+  [[claim]]
+  spec = "101"
+  new = [
+    "tests/checks/test_rules.py::test_the_set_key_names_every_build_input",
+    "tests/checks/test_rules.py::test_the_release_reuses_a_set_only_on_a_branch",
+    "tests/checks/test_rules.py::test_the_reuse_decision_refuses_tags_and_main*",
+  ]
+  units = 51
+  ```
+
+  (`units`: the unit rows this specification adds, by the builder's count: 33 in
+  `test_set_key.py`, 7 in `test_gather.py`, 3 in `test_sameness.py`, 5 net in `test_shards.py`
+  (one row replaced), 3 in `test_scan.py`; the lane's suite line is the check.)
+- **The flag:**
+
+  ```
+  --accept-judge "101: a branch dispatch reuses a set the cache holds under its commit's key (release/set_key.py: every pin, every tracked file under scripts/ and recipes/, the constructor gate and its imports, the build's env); a tag or main always builds; a reused set is checked against its SHA256SUMS and MANIFEST, matched by two rebuilds and a third fresh build in the same run, and the gather needs same-bytes; the build shard runs on build-shard's fresh arm64 Linux build on every run, tags included, and sameness counts its unit tests on the darwin side (H1); own-hostile and own-embedding-a split from own-guest and own-embedding, nodes may name functions on their file's systems, G3 names a stale entry, G7 refuses a tag whose set was not built; set-cache.yml's rules; no check retired, no node id changed"
+  ```
 
 ## The builder's self-check
 
-Filled in at the build (*Landing notes*).
+- [x] Every check of *The checks* seen failing first on the base, recorded below; each mutant
+      recorded (two of them found holes in the rules, fixed before commit).
+- [x] `release/set_key.py` gave one key for one commit in the `inputs` job and `save-set` (run
+      39468404589: `wasi-python-set-v1-ad003ce1…`, both); the build job's reuse check took the same
+      key in runs 39475482749 and 39481889333. `set-cache.yml` has not run (criterion 7).
+- [ ] The traced build (criterion 3): **not done**; it needs the lane's container slot.
+- [x] The source run and two reuse runs named by id; every red line a growth line (042's, against
+      the last acceptance `e9a76ce`) but one: run 39475482749's Linux `own-guest` timeout, answered
+      by restoring `own-runner` (Decision 9) and cleared by run 39481889333.
+- [x] The reuse runs' build job ran on `ubuntu-24.04` (1.7 minutes); no macOS job built.
+- [x] `build-shard`'s record: platform `linux-aarch64`, 51 goal checks run, all passing, none
+      blocked; 10 unit tests; the zero-patch step `27 passed`.
+- [ ] L6's `read:` comparison with the lane's darwin lines: **not done**. Those lines go to
+      pytest's captured output and show only on a failure; the record keeps no reason for a pass.
+      The lane can print them with `uv run pytest -s` on the six checks in its darwin tree, and a
+      reviewer from `build-shard`'s tree only by a diagnostic dispatch.
+- [x] No `scripts/`, `recipes/`, `downloads/` or `src/` change.
+- [x] `same-bytes` passed in every run; the gather never ran in CI (the macOS shards were red on
+      growth, as every branch run on an unaccepted set is), so it was run by the builder on run
+      39481889333's real records (*Landing notes*).
+- [x] Every new `uses:` pinned by a 40-hex commit with its release named
+      (`actions/cache/restore` and `actions/cache/save` at v6.1.0, `55cc8345…`).
+- [ ] The embedding halves within 20% on macOS: in run 39468404589 only (below).
+- [x] Decision 11's estimates beside the measured numbers (below).
+- [x] CHANGELOG line under the unreleased section.
 
 ## One line
 
@@ -676,4 +743,104 @@ split so none sets the run's length.
 
 ## Landing notes
 
-The build, below, as it goes.
+### What was built (on `spec/101-faster-release-run`, base `66cc120`, tip `25fcd1a`)
+
+The *Design* table, as written, but for two departures: `own-runner` stays a shard of its own
+(Decision 9, after run 39475482749), and `max-parallel` is 18, not 20 (with `own-runner` back, 20
+would have allowed 40 jobs at once). The split shard is `own-embedding-a` (the file's first 41
+functions), not `own-embedding-b` (the last 86): fewer names to keep. `AGENTS.md` is left to the
+lane (*For the lane*). `set-cache.yml` is two jobs (`lookup`, `seed`), so `seed`'s steps carry no
+`if:`.
+
+### The checks, seen failing first (EXECUTED)
+
+- Check 7 (sameness, H1), on `66cc120`: 3 failed, each new row
+  (`test_a_build_run_on_linux_counts_on_the_darwin_side`, `…one_unit_short…`,
+  `test_a_block_in_the_build_run_is_read_as_linux`).
+- Check 5 (shards): 4 of the new rows failed (a nodes-only shard off its file's systems, a
+  nodes-only shard, a function taking its cases, `names`); the named-twice row passed (an existing
+  rule).
+- Check 6 (gather): every row failed at `gather.Inputs(set_source=…)`, the 7 new among them.
+- Checks 1 to 3 (rules), with `release/set_key.py` set aside and the base workflow: 9 failed
+  (check 1, check 2, check 3's seven cases). `release/set_key.py` was written before its rules
+  check, not after: this is the order the base gives, recorded as such.
+- Check 1 then failed once on a finding of its own rule (K3 read `scripts/f2py-host`'s
+  `build/tools/…` `PYTHONPATH` as a repository folder); the rule now skips the build's own roots.
+- Check 1's mutant "the build with an argument" found a hole in the rule (a job whose build step
+  had an argument was not read as building); fixed. Check 4's rows were written after
+  `release/set_key.py` and fail on the base at import; each case's own failure is its mutation.
+
+### The runs (EXECUTED, `gh run view <id> --json jobs`, minutes from the run's creation)
+
+| | run 39468404589 (source) | run 39475482749 (reuse) | run 39481889333 (reuse) |
+|---|---|---|---|
+| commit | `827f826` | `827f826` | `25fcd1a` |
+| `inputs` | 0.2, `reuse=false` (no entry) | 0.2, `reuse=true` | 0.1, `reuse=true` |
+| build job | macOS, 29.2 (compile 24.9) | `ubuntu-24.04`, 1.7 | `ubuntu-24.04`, 1.7 |
+| `build-shard` | 21.6 (compile 19.1, shard 1.7) | 20.5 | 21.9 |
+| x86-64 / arm64 rebuild | 18.9 / 19.5 | 18.8 / 19.9 | **34.3** / 19.9 |
+| `same-bytes` | +30.0, passed | +20.6, passed | +34.9, passed |
+| `save-set` | +30.3, saved (85,904,392 bytes stored) | skipped (reused) | skipped |
+| macOS shards end | +46.0 | +20.9 | +20.9 |
+| last job | +46.0 | +37.0 (Linux `own-guest` timeout) | +34.9 |
+| peak jobs at once | 33 | 35 | 34 |
+| red lines | macOS growth only | macOS growth; Linux `own-guest` cancelled at 30 min | macOS growth only |
+
+The gather was skipped in all three: the macOS shards are red on growth (042's rows: 41, 152, 6,
+26 and 2 grown metrics, no lost pass, no failure), as on any branch run of an unaccepted set.
+`set-source` and the build record's new path were therefore run by the builder:
+`tests/harness/gather.py` on run 39481889333's 45 downloaded records
+laid out as the gather job lays them, with `WASM_SHA256` and `SET_SUMS_SHA256` from its
+`release-assets`, `SET_SOURCE` `reused wasi-python-set-v1-ad003ce1…`
+(`regather.py` in the builder's scratchpad). Its red lines: 22 at G5, all `grew`, and one at G7
+(the newest acceptance is not on this set). No line at G1, G2, G3, G4 or G6: `build-shard`'s
+`linux-aarch64` record matched the reused set's `python.wasm` and `SHA256SUMS`; the merged
+record's `meta.set_source` is the reused key and its `runs["build/build"]` is
+`linux-aarch64`, 10 units.
+
+**Against Decision 11's estimates:**
+
+- **Reuse:** estimate about 25, up to about 35 with a slow x86-64 rebuild. Measured: the judge
+  shards ended at +20.9 and `build-shard` at +20.6 to +22.1 in both reuse runs; the run's end was
+  set by the x86-64 rebuild (+34.9 in run 39481889333, its 34.3-minute leg; the gather would have
+  followed `same-bytes`), and in run 39475482749 by the Linux `own-guest` timeout. With a usual
+  x86-64 rebuild (18.8 to 19.9), a reuse run ends at about +22.5.
+- **Source:** estimate 35 to 50. Measured +46.0 (the gather would add about 0.4): the macOS build
+  29.2, then `own-guest` 16.3 and `own-embedding` 14.9 on macOS. Wave 07 took 59.7.
+- **macOS shards** (test minutes / tail after pytest's summary, runs 1, 2, 3):
+  `own-hostile` 10.5/2.5, 12.3/3.0, 12.1/2.8; `own-guest` (with `own-runner` in runs 1 and 2)
+  10.4/5.4, 10.3/5.6, 7.0/3.9; `own-embedding` 8.5/5.7, 9.1/6.0, 8.2/5.1; `own-embedding-a`
+  7.0/3.1, 6.4/2.9, 5.0/2.1. By pytest's own times the halves of the embedding file were within
+  20% in run 1 only (510 s and 424 s); runs 2 and 3 gave 552 s and 385 s, 496 s and 300 s. A
+  boundary a few functions later would even them; it is left for the build review to weigh with
+  the three samples, since a move is a judge change that only a run measures. The tail did
+  not shrink with the split: 2 to 6 minutes on every large macOS shard, 13 to 17 minutes of macOS
+  time a run (Decision 10).
+- **Queue:** the reuse runs' macOS shards waited 0 to 3.3 minutes for a slot (seven macOS jobs on
+  five; no other run was live).
+
+### The Linux `own-guest` timeout (run 39475482749)
+
+The leg ran "The shard" from 18:33:43 until the 30-minute limit cancelled the job; GitHub kept no
+log for it (`gh api …/jobs/118811204280/logs`: `BlobNotFound`), while its siblings' logs exist.
+The same bytes and the same plan passed there in 6.5 minutes in run 39468404589. Not attributed:
+one sample, no log. The fold of `own-runner` into `own-guest` was the one new thing in the leg, so
+it is undone (Decision 9); run 39481889333's Linux `own-guest` passed in 9.9 minutes and
+`own-runner` in 0.5. For the build review: the fast tier's one other failure on this branch,
+`tests/unit/test_async_tools.py::test_a_late_gate_skips_an_async_tool` under `-n 3`, passes alone;
+it is a timing row of the runner's async tools, not code this specification touches.
+
+### The tail (Decision 10; one reading, no second strike)
+
+Read from the three runs' logs: nothing is printed in the tail; it follows every macOS shard that
+starts many guests (not `upstream-macos`, not `own-rest`), on Linux and Windows it is 0.01 minute,
+and it does not shrink when a shard is split. That points at the process's exit on macOS (the
+runner's `atexit` handler dropping cached wasmtime engines and modules, on a 7 GB runner), not at
+the judge. Not confirmed; the follow-up is the lane's to number.
+
+### Not done
+
+- Criterion 3 (the traced build): needs the lane's container slot.
+- Criterion 7 (the seed): after landing.
+- L6's `read:` comparison: see the self-check.
+- Criterion 8's sameness line: the lane's, at wave 09.
