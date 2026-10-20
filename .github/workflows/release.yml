@@ -604,9 +604,9 @@ jobs:
     strategy:
       fail-fast: false
       # One run stays within the plan's 40 jobs at once (spec 101, Decision 9).
-      max-parallel: 20
+      max-parallel: 18
       matrix:
-        shard: [own-embedding, own-embedding-a, own-hostile, own-guest, own-rest, upstream-macos]
+        shard: [own-embedding, own-embedding-a, own-hostile, own-guest, own-runner, own-rest, upstream-macos]
     runs-on: macos-15
     timeout-minutes: 30
     permissions:
@@ -620,6 +620,8 @@ jobs:
       own-hostile-sha256: ${{ steps.out.outputs.own-hostile-sha256 }}
       own-guest-id: ${{ steps.out.outputs.own-guest-id }}
       own-guest-sha256: ${{ steps.out.outputs.own-guest-sha256 }}
+      own-runner-id: ${{ steps.out.outputs.own-runner-id }}
+      own-runner-sha256: ${{ steps.out.outputs.own-runner-sha256 }}
       own-rest-id: ${{ steps.out.outputs.own-rest-id }}
       own-rest-sha256: ${{ steps.out.outputs.own-rest-sha256 }}
       upstream-macos-id: ${{ steps.out.outputs.upstream-macos-id }}
@@ -729,9 +731,9 @@ jobs:
     strategy:
       fail-fast: false
       # One run stays within the plan's 40 jobs at once (spec 101, Decision 9).
-      max-parallel: 20
+      max-parallel: 18
       matrix:
-        shard: [own-embedding, own-embedding-a, own-hostile, own-guest, own-rest, upstream-groupby, upstream-frame, upstream-numpy-a, upstream-numpy-b, upstream-pandas-small, upstream-plot-a, upstream-plot-b, upstream-plot-c, upstream-plot-d, upstream-plot-e, upstream-plot-f, upstream-plot-g, upstream-plot-h, upstream-plot-i, upstream-plot-j, upstream-plot-k, upstream-plot-l, upstream-plot-m, upstream-plot-n]
+        shard: [own-embedding, own-embedding-a, own-hostile, own-guest, own-runner, own-rest, upstream-groupby, upstream-frame, upstream-numpy-a, upstream-numpy-b, upstream-pandas-small, upstream-plot-a, upstream-plot-b, upstream-plot-c, upstream-plot-d, upstream-plot-e, upstream-plot-f, upstream-plot-g, upstream-plot-h, upstream-plot-i, upstream-plot-j, upstream-plot-k, upstream-plot-l, upstream-plot-m, upstream-plot-n]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -745,6 +747,8 @@ jobs:
       own-hostile-sha256: ${{ steps.out.outputs.own-hostile-sha256 }}
       own-guest-id: ${{ steps.out.outputs.own-guest-id }}
       own-guest-sha256: ${{ steps.out.outputs.own-guest-sha256 }}
+      own-runner-id: ${{ steps.out.outputs.own-runner-id }}
+      own-runner-sha256: ${{ steps.out.outputs.own-runner-sha256 }}
       own-rest-id: ${{ steps.out.outputs.own-rest-id }}
       own-rest-sha256: ${{ steps.out.outputs.own-rest-sha256 }}
       upstream-groupby-id: ${{ steps.out.outputs.upstream-groupby-id }}
@@ -890,9 +894,9 @@ jobs:
     strategy:
       fail-fast: false
       # One run stays within the plan's 40 jobs at once (spec 101, Decision 9).
-      max-parallel: 20
+      max-parallel: 18
       matrix:
-        shard: [own-embedding, own-embedding-a, own-hostile, own-guest, upstream-windows]
+        shard: [own-embedding, own-embedding-a, own-hostile, own-guest, own-runner, upstream-windows]
     runs-on: windows-2025
     timeout-minutes: 30
     permissions:
@@ -906,6 +910,8 @@ jobs:
       own-hostile-sha256: ${{ steps.out.outputs.own-hostile-sha256 }}
       own-guest-id: ${{ steps.out.outputs.own-guest-id }}
       own-guest-sha256: ${{ steps.out.outputs.own-guest-sha256 }}
+      own-runner-id: ${{ steps.out.outputs.own-runner-id }}
+      own-runner-sha256: ${{ steps.out.outputs.own-runner-sha256 }}
       upstream-windows-id: ${{ steps.out.outputs.upstream-windows-id }}
       upstream-windows-sha256: ${{ steps.out.outputs.upstream-windows-sha256 }}
     env:
@@ -1035,12 +1041,14 @@ jobs:
           MACOS_OWN_EMBEDDING_A_ID: ${{ needs.judge-macos.outputs.own-embedding-a-id }}
           MACOS_OWN_HOSTILE_ID: ${{ needs.judge-macos.outputs.own-hostile-id }}
           MACOS_OWN_GUEST_ID: ${{ needs.judge-macos.outputs.own-guest-id }}
+          MACOS_OWN_RUNNER_ID: ${{ needs.judge-macos.outputs.own-runner-id }}
           MACOS_OWN_REST_ID: ${{ needs.judge-macos.outputs.own-rest-id }}
           MACOS_UPSTREAM_MACOS_ID: ${{ needs.judge-macos.outputs.upstream-macos-id }}
           LINUX_OWN_EMBEDDING_ID: ${{ needs.judge-linux.outputs.own-embedding-id }}
           LINUX_OWN_EMBEDDING_A_ID: ${{ needs.judge-linux.outputs.own-embedding-a-id }}
           LINUX_OWN_HOSTILE_ID: ${{ needs.judge-linux.outputs.own-hostile-id }}
           LINUX_OWN_GUEST_ID: ${{ needs.judge-linux.outputs.own-guest-id }}
+          LINUX_OWN_RUNNER_ID: ${{ needs.judge-linux.outputs.own-runner-id }}
           LINUX_OWN_REST_ID: ${{ needs.judge-linux.outputs.own-rest-id }}
           LINUX_UPSTREAM_GROUPBY_ID: ${{ needs.judge-linux.outputs.upstream-groupby-id }}
           LINUX_UPSTREAM_FRAME_ID: ${{ needs.judge-linux.outputs.upstream-frame-id }}
@@ -1065,6 +1073,7 @@ jobs:
           WINDOWS_OWN_EMBEDDING_A_ID: ${{ needs.judge-windows.outputs.own-embedding-a-id }}
           WINDOWS_OWN_HOSTILE_ID: ${{ needs.judge-windows.outputs.own-hostile-id }}
           WINDOWS_OWN_GUEST_ID: ${{ needs.judge-windows.outputs.own-guest-id }}
+          WINDOWS_OWN_RUNNER_ID: ${{ needs.judge-windows.outputs.own-runner-id }}
           WINDOWS_UPSTREAM_WINDOWS_ID: ${{ needs.judge-windows.outputs.upstream-windows-id }}
         run: |
           case "$WASM_SHA256" in
@@ -1081,7 +1090,7 @@ jobs:
             echo "the build job handed on no SHA-256 of the set's SHA256SUMS"
             exit 1
           fi
-          for id in "$BUILD_RECORD_ID" "$MACOS_OWN_EMBEDDING_ID" "$MACOS_OWN_EMBEDDING_A_ID" "$MACOS_OWN_HOSTILE_ID" "$MACOS_OWN_GUEST_ID" "$MACOS_OWN_REST_ID" "$MACOS_UPSTREAM_MACOS_ID" "$LINUX_OWN_EMBEDDING_ID" "$LINUX_OWN_EMBEDDING_A_ID" "$LINUX_OWN_HOSTILE_ID" "$LINUX_OWN_GUEST_ID" "$LINUX_OWN_REST_ID" "$LINUX_UPSTREAM_GROUPBY_ID" "$LINUX_UPSTREAM_FRAME_ID" "$LINUX_UPSTREAM_NUMPY_A_ID" "$LINUX_UPSTREAM_NUMPY_B_ID" "$LINUX_UPSTREAM_PANDAS_SMALL_ID" "$LINUX_UPSTREAM_PLOT_A_ID" "$LINUX_UPSTREAM_PLOT_B_ID" "$LINUX_UPSTREAM_PLOT_C_ID" "$LINUX_UPSTREAM_PLOT_D_ID" "$LINUX_UPSTREAM_PLOT_E_ID" "$LINUX_UPSTREAM_PLOT_F_ID" "$LINUX_UPSTREAM_PLOT_G_ID" "$LINUX_UPSTREAM_PLOT_H_ID" "$LINUX_UPSTREAM_PLOT_I_ID" "$LINUX_UPSTREAM_PLOT_J_ID" "$LINUX_UPSTREAM_PLOT_K_ID" "$LINUX_UPSTREAM_PLOT_L_ID" "$LINUX_UPSTREAM_PLOT_M_ID" "$LINUX_UPSTREAM_PLOT_N_ID" "$WINDOWS_OWN_EMBEDDING_ID" "$WINDOWS_OWN_EMBEDDING_A_ID" "$WINDOWS_OWN_HOSTILE_ID" "$WINDOWS_OWN_GUEST_ID" "$WINDOWS_UPSTREAM_WINDOWS_ID"; do
+          for id in "$BUILD_RECORD_ID" "$MACOS_OWN_EMBEDDING_ID" "$MACOS_OWN_EMBEDDING_A_ID" "$MACOS_OWN_HOSTILE_ID" "$MACOS_OWN_GUEST_ID" "$MACOS_OWN_RUNNER_ID" "$MACOS_OWN_REST_ID" "$MACOS_UPSTREAM_MACOS_ID" "$LINUX_OWN_EMBEDDING_ID" "$LINUX_OWN_EMBEDDING_A_ID" "$LINUX_OWN_HOSTILE_ID" "$LINUX_OWN_GUEST_ID" "$LINUX_OWN_RUNNER_ID" "$LINUX_OWN_REST_ID" "$LINUX_UPSTREAM_GROUPBY_ID" "$LINUX_UPSTREAM_FRAME_ID" "$LINUX_UPSTREAM_NUMPY_A_ID" "$LINUX_UPSTREAM_NUMPY_B_ID" "$LINUX_UPSTREAM_PANDAS_SMALL_ID" "$LINUX_UPSTREAM_PLOT_A_ID" "$LINUX_UPSTREAM_PLOT_B_ID" "$LINUX_UPSTREAM_PLOT_C_ID" "$LINUX_UPSTREAM_PLOT_D_ID" "$LINUX_UPSTREAM_PLOT_E_ID" "$LINUX_UPSTREAM_PLOT_F_ID" "$LINUX_UPSTREAM_PLOT_G_ID" "$LINUX_UPSTREAM_PLOT_H_ID" "$LINUX_UPSTREAM_PLOT_I_ID" "$LINUX_UPSTREAM_PLOT_J_ID" "$LINUX_UPSTREAM_PLOT_K_ID" "$LINUX_UPSTREAM_PLOT_L_ID" "$LINUX_UPSTREAM_PLOT_M_ID" "$LINUX_UPSTREAM_PLOT_N_ID" "$WINDOWS_OWN_EMBEDDING_ID" "$WINDOWS_OWN_EMBEDDING_A_ID" "$WINDOWS_OWN_HOSTILE_ID" "$WINDOWS_OWN_GUEST_ID" "$WINDOWS_OWN_RUNNER_ID" "$WINDOWS_UPSTREAM_WINDOWS_ID"; do
             case "$id" in
               "" | *[!0-9]*) echo "a job handed on no record id"; exit 1 ;;
             esac
@@ -1093,17 +1102,17 @@ jobs:
           digest-mismatch: error
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          artifact-ids: ${{ needs.judge-macos.outputs.own-embedding-id }},${{ needs.judge-macos.outputs.own-embedding-a-id }},${{ needs.judge-macos.outputs.own-hostile-id }},${{ needs.judge-macos.outputs.own-guest-id }},${{ needs.judge-macos.outputs.own-rest-id }},${{ needs.judge-macos.outputs.upstream-macos-id }}
+          artifact-ids: ${{ needs.judge-macos.outputs.own-embedding-id }},${{ needs.judge-macos.outputs.own-embedding-a-id }},${{ needs.judge-macos.outputs.own-hostile-id }},${{ needs.judge-macos.outputs.own-guest-id }},${{ needs.judge-macos.outputs.own-runner-id }},${{ needs.judge-macos.outputs.own-rest-id }},${{ needs.judge-macos.outputs.upstream-macos-id }}
           path: records/judge-macos
           digest-mismatch: error
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          artifact-ids: ${{ needs.judge-linux.outputs.own-embedding-id }},${{ needs.judge-linux.outputs.own-embedding-a-id }},${{ needs.judge-linux.outputs.own-hostile-id }},${{ needs.judge-linux.outputs.own-guest-id }},${{ needs.judge-linux.outputs.own-rest-id }},${{ needs.judge-linux.outputs.upstream-groupby-id }},${{ needs.judge-linux.outputs.upstream-frame-id }},${{ needs.judge-linux.outputs.upstream-numpy-a-id }},${{ needs.judge-linux.outputs.upstream-numpy-b-id }},${{ needs.judge-linux.outputs.upstream-pandas-small-id }},${{ needs.judge-linux.outputs.upstream-plot-a-id }},${{ needs.judge-linux.outputs.upstream-plot-b-id }},${{ needs.judge-linux.outputs.upstream-plot-c-id }},${{ needs.judge-linux.outputs.upstream-plot-d-id }},${{ needs.judge-linux.outputs.upstream-plot-e-id }},${{ needs.judge-linux.outputs.upstream-plot-f-id }},${{ needs.judge-linux.outputs.upstream-plot-g-id }},${{ needs.judge-linux.outputs.upstream-plot-h-id }},${{ needs.judge-linux.outputs.upstream-plot-i-id }},${{ needs.judge-linux.outputs.upstream-plot-j-id }},${{ needs.judge-linux.outputs.upstream-plot-k-id }},${{ needs.judge-linux.outputs.upstream-plot-l-id }},${{ needs.judge-linux.outputs.upstream-plot-m-id }},${{ needs.judge-linux.outputs.upstream-plot-n-id }}
+          artifact-ids: ${{ needs.judge-linux.outputs.own-embedding-id }},${{ needs.judge-linux.outputs.own-embedding-a-id }},${{ needs.judge-linux.outputs.own-hostile-id }},${{ needs.judge-linux.outputs.own-guest-id }},${{ needs.judge-linux.outputs.own-runner-id }},${{ needs.judge-linux.outputs.own-rest-id }},${{ needs.judge-linux.outputs.upstream-groupby-id }},${{ needs.judge-linux.outputs.upstream-frame-id }},${{ needs.judge-linux.outputs.upstream-numpy-a-id }},${{ needs.judge-linux.outputs.upstream-numpy-b-id }},${{ needs.judge-linux.outputs.upstream-pandas-small-id }},${{ needs.judge-linux.outputs.upstream-plot-a-id }},${{ needs.judge-linux.outputs.upstream-plot-b-id }},${{ needs.judge-linux.outputs.upstream-plot-c-id }},${{ needs.judge-linux.outputs.upstream-plot-d-id }},${{ needs.judge-linux.outputs.upstream-plot-e-id }},${{ needs.judge-linux.outputs.upstream-plot-f-id }},${{ needs.judge-linux.outputs.upstream-plot-g-id }},${{ needs.judge-linux.outputs.upstream-plot-h-id }},${{ needs.judge-linux.outputs.upstream-plot-i-id }},${{ needs.judge-linux.outputs.upstream-plot-j-id }},${{ needs.judge-linux.outputs.upstream-plot-k-id }},${{ needs.judge-linux.outputs.upstream-plot-l-id }},${{ needs.judge-linux.outputs.upstream-plot-m-id }},${{ needs.judge-linux.outputs.upstream-plot-n-id }}
           path: records/judge-linux
           digest-mismatch: error
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          artifact-ids: ${{ needs.judge-windows.outputs.own-embedding-id }},${{ needs.judge-windows.outputs.own-embedding-a-id }},${{ needs.judge-windows.outputs.own-hostile-id }},${{ needs.judge-windows.outputs.own-guest-id }},${{ needs.judge-windows.outputs.upstream-windows-id }}
+          artifact-ids: ${{ needs.judge-windows.outputs.own-embedding-id }},${{ needs.judge-windows.outputs.own-embedding-a-id }},${{ needs.judge-windows.outputs.own-hostile-id }},${{ needs.judge-windows.outputs.own-guest-id }},${{ needs.judge-windows.outputs.own-runner-id }},${{ needs.judge-windows.outputs.upstream-windows-id }}
           path: records/judge-windows
           digest-mismatch: error
       - name: The gather
@@ -1118,12 +1127,14 @@ jobs:
           RECORD_MACOS_OWN_EMBEDDING_A: ${{ needs.judge-macos.outputs.own-embedding-a-sha256 }}
           RECORD_MACOS_OWN_HOSTILE: ${{ needs.judge-macos.outputs.own-hostile-sha256 }}
           RECORD_MACOS_OWN_GUEST: ${{ needs.judge-macos.outputs.own-guest-sha256 }}
+          RECORD_MACOS_OWN_RUNNER: ${{ needs.judge-macos.outputs.own-runner-sha256 }}
           RECORD_MACOS_OWN_REST: ${{ needs.judge-macos.outputs.own-rest-sha256 }}
           RECORD_MACOS_UPSTREAM_MACOS: ${{ needs.judge-macos.outputs.upstream-macos-sha256 }}
           RECORD_LINUX_OWN_EMBEDDING: ${{ needs.judge-linux.outputs.own-embedding-sha256 }}
           RECORD_LINUX_OWN_EMBEDDING_A: ${{ needs.judge-linux.outputs.own-embedding-a-sha256 }}
           RECORD_LINUX_OWN_HOSTILE: ${{ needs.judge-linux.outputs.own-hostile-sha256 }}
           RECORD_LINUX_OWN_GUEST: ${{ needs.judge-linux.outputs.own-guest-sha256 }}
+          RECORD_LINUX_OWN_RUNNER: ${{ needs.judge-linux.outputs.own-runner-sha256 }}
           RECORD_LINUX_OWN_REST: ${{ needs.judge-linux.outputs.own-rest-sha256 }}
           RECORD_LINUX_UPSTREAM_GROUPBY: ${{ needs.judge-linux.outputs.upstream-groupby-sha256 }}
           RECORD_LINUX_UPSTREAM_FRAME: ${{ needs.judge-linux.outputs.upstream-frame-sha256 }}
@@ -1148,6 +1159,7 @@ jobs:
           RECORD_WINDOWS_OWN_EMBEDDING_A: ${{ needs.judge-windows.outputs.own-embedding-a-sha256 }}
           RECORD_WINDOWS_OWN_HOSTILE: ${{ needs.judge-windows.outputs.own-hostile-sha256 }}
           RECORD_WINDOWS_OWN_GUEST: ${{ needs.judge-windows.outputs.own-guest-sha256 }}
+          RECORD_WINDOWS_OWN_RUNNER: ${{ needs.judge-windows.outputs.own-runner-sha256 }}
           RECORD_WINDOWS_UPSTREAM_WINDOWS: ${{ needs.judge-windows.outputs.upstream-windows-sha256 }}
         run: |
           uv run python tests/harness/gather.py --records records --out release-record

@@ -383,6 +383,15 @@ def test_a_check_named_by_node_goes_to_the_build_shard_alone() -> None:
             ("[shard.up-1]", OWN_2 + OWN_2.replace("own-2", "own-3") + "[shard.up-1]"),
             "(h) tests/checks/test_b.py::test_x is named twice",
         ),
+        (  # spec 101: a function in one shard and one of its cases in another
+            (
+                "[shard.up-1]",
+                OWN_2
+                + OWN_2.replace("own-2", "own-3").replace("test_x", "test_x[1]")
+                + "[shard.up-1]",
+            ),
+            "(h) tests/checks/test_b.py::test_x (own-2) and tests/checks/test_b.py::test_x[1]",
+        ),
         (
             ('systems = ["build"]', 'systems = ["build"]\nnodes = ["tests/checks/test_zz.py::t"]'),
             "(h) tests/checks/test_zz.py::t: not a check of a tracked test file",

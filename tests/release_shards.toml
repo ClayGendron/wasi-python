@@ -86,8 +86,9 @@ files = ["tests/checks/test_v1_2_hostile_guest.py"]
 systems = ["macos", "linux", "windows"]
 
 [shard.own-guest]
-# The product's other checks, and the runner's own unit tests (own-runner's files until spec 101:
-# its job was mostly setup, and a macOS job is the scarce thing).
+# The product's other checks. Spec 101 first folded own-runner's files in here; the reuse run
+# 39475482749 then lost its Linux own-guest leg to the 30-minute limit with no log, on the bytes
+# run 39468404589 had judged there in 6.5 minutes, so own-runner stays a shard of its own.
 files = [
   "tests/checks/test_v1_3_data_stack.py",
   "tests/checks/test_v1_1_artifact_set.py",
@@ -102,6 +103,12 @@ files = [
   "tests/checks/test_v1_4_public_api.py",
   "tests/unit/test_runner_mounts.py",
   "tests/unit/test_runner_grants.py",
+]
+systems = ["macos", "linux", "windows"]
+
+[shard.own-runner]
+# The runner's own unit tests, the product's code on every host (today's verify ran three of them).
+files = [
   "tests/test_api.py",
   "tests/unit/test_cli.py",
   "tests/unit/test_tools.py",

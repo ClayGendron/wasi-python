@@ -404,39 +404,47 @@ The shard plan changes on all three systems (every own shard runs on all three; 
 | shard | what | macOS test min (wave 07) |
 |---|---|---|
 | `own-hostile` | `tests/checks/test_v1_2_hostile_guest.py` | 9.0 |
-| `own-guest` | the other thirteen files of today's `own-guest`, and today's `own-runner` files | 8.2 + about 0.5 |
+| `own-guest` | the other thirteen files of today's `own-guest` | 8.2 |
 | `own-embedding` | `tests/checks/test_v1_4_embedding.py`, but for the functions `own-embedding-a` names | about 6 |
 | `own-embedding-a` | the file's first 41 functions (its first 65 checks), named | about 6 |
+| `own-runner` | unchanged | under 1 |
 
-`own-runner` goes into `own-guest` because its job is mostly setup (1.4 minutes for under a minute
-of tests on macOS), and a macOS job is the scarce thing. macOS then runs six shards and `verify`
-(seven jobs) where it ran five and `verify` (six). On wave 08's plan, Linux runs 24 shards (066's
-23, less `own-runner`, plus `own-hostile` and `own-embedding-a`), Windows five.
+macOS then runs seven shards and `verify` (eight jobs) where it ran five and `verify` (six). On
+wave 08's plan, Linux runs 25 shards (066's 23, plus `own-hostile` and `own-embedding-a`),
+Windows six.
+
+**`own-runner` stays a shard of its own** (a departure from the reviewed draft, which folded it into
+`own-guest` to save a macOS job). The builder's reuse run 39475482749 lost its Linux `own-guest`
+leg, with `own-runner`'s files in it, to the 30-minute limit, with no log kept (`BlobNotFound`),
+on the bytes the source run 39468404589 had judged there in 6.5 minutes. The cause is not known;
+the fold was the one new thing in that leg, so it is undone, and the third run is the check.
 
 **Splitting one file.** A shard may now name test functions in `nodes` (today only the build
 shard may, and only by node id). An entry `file::function` takes every parameter case of that
 function; a whole node id still works. `shards.select` already gives `nodes` precedence over
 `files`. A shard that names only `nodes` runs on exactly the systems of the shard whose `files`
 hold their file, so nothing falls off a system. Two rules join `plan_errors` and G3: a function
-named by two shards is an error, and a named entry that no collected check matches is red (`G3
-<shard>: names <node>, which no collected check is`), so a renamed test cannot quietly unbalance
-the split. Moving tests into new files was rejected: it renames node ids, which the ratchet reads
-as lost passes.
+named by two shards (or a function and one of its cases) is an error, and a named entry that no
+collected check matches is red (`G3 <shard>: names <node>, which no collected check is`), so a
+renamed test cannot quietly unbalance the split. Moving tests into new files was rejected: it
+renames node ids, which the ratchet reads as lost passes.
 
 **Choosing the functions.** A local per-test timing of the file needs a judge slot. The first cut
 comes from wave 07's macOS log instead: the file's first 36 tests took 3.45 minutes, the next 72
 took 6.06, the last 70 took 2.32, so the halfway point (5.92 minutes) falls at about the 65th test
-in collection order. `own-embedding-a` names the 41 functions whose checks come before it (fewer names than the 86 after; a function added at the file's end goes to `own-embedding`). The
-builder's first dispatch measures both halves' jobs; if they differ by more than 20%, the boundary
-moves before the second. Shards are chosen by job times, as spec 065's Decision 7 chose them; no
-test asserts a time.
+in collection order. `own-embedding-a` names the 41 functions whose checks come before it (fewer
+names than the 86 after; a function added at the file's end goes to `own-embedding`). The
+builder's runs measure both halves (the *Landing notes*); a boundary that leaves the halves more
+than 20% apart moves. Shards are chosen by job times, as spec 065's Decision 7 chose them; no test
+asserts a time.
 
-**Width stays at or under 40** (the review's L1 counted 41 at once on a reuse run with 066). The
-three judge matrices carry `max-parallel: 20` (one text, as rule 3 of spec 063 requires; it binds
-only Linux's 24 legs). On a reuse run that gives at most 20 + 6 + 5 judge legs, 3 `verify` legs,
-`build-shard`, two rebuilds and `same-bytes`: 38, and 39 with `save-set` on a source run, before
-the gather. Linux's legs ran 0.6 to 8.5 minutes in spec 066's run 39451333969, so the four that
-wait add at most a few minutes to Linux, which ends long before macOS.
+**Width stays under 40** (the review's L1 counted 41 at once on a reuse run with 066). The three
+judge matrices carry `max-parallel: 18` (one text, as rule 3 of spec 063 requires; it binds only
+Linux's 25 legs). On a reuse run that gives at most 18 + 7 + 6 judge legs, 3 `verify` legs,
+`build-shard`, two rebuilds and `same-bytes`: 38. On a source run the judge legs start after the
+rebuilds have ended, and `save-set` runs beside them: 35. Linux's legs ran 0.6 to 8.5 minutes in
+spec 066's run 39451333969, so the seven that wait add a few minutes to Linux, which ends long
+before macOS.
 
 ### 10. The tail after pytest's summary
 
@@ -511,7 +519,7 @@ still builds everything itself.
 | file | change |
 |---|---|
 | `release/set_key.py` | new, stdlib only: `closure()`, `canonical()`, `key()`; `verify <set> [--key K]` (Decision 8's check, also run by `save-set` and `set-cache.yml`); prints the canonical text to the log |
-| `.github/workflows/release.yml` | the `inputs` job; `build`'s conditional runner, its reuse steps, `set-source` from evidence, no build shard; `build-shard`; `save-set`; `gather` needs `build-shard` and `same-bytes`, reads the build record from `build-shard`; the judge matrices follow the plan, with `max-parallel: 20`; the `from-source` dispatch input |
+| `.github/workflows/release.yml` | the `inputs` job; `build`'s conditional runner, its reuse steps, `set-source` from evidence, no build shard; `build-shard`; `save-set`; `gather` needs `build-shard` and `same-bytes`, reads the build record from `build-shard`; the judge matrices follow the plan, with `max-parallel: 18`; the `from-source` dispatch input |
 | `.github/workflows/set-cache.yml` | new: Decision 7's `lookup` and `seed` jobs |
 | `tests/release_shards.toml` | Decision 9's plan; the header's words on `build` |
 | `tests/harness/shards.py` | `nodes` on any shard, function-level matches; `PLATFORM["build"] = "linux"`; `plan_errors`' rules |
@@ -593,9 +601,12 @@ is retired and no node id changes.
    shard's test minutes and tail, the queue before each macOS shard, the peak of concurrent jobs,
    beside Decision 11's estimates. A reuse run over 35 minutes, or a macOS shard job over 15, is
    named with its cause (queue, tail, or a slow host).
-7. **The seed.** `set-cache.yml` dispatched on the branch finds the entry the source run saved
-   and builds nothing. Its build path is exercised by the first push to main after landing; the
-   lane records that run's id.
+7. **The seed.** GitHub dispatches only a workflow the default branch holds (the builder's
+   dispatch on the branch: `HTTP 404: workflow set-cache.yml not found on the default branch`), so
+   `set-cache.yml` first runs at the push to main that lands it: with no entry for main's key, its
+   `seed` job builds and saves. The lane records that run's id and the entry. Until then its rules
+   (check 2) and its shared steps (the key, the verify, the save, exercised in `release.yml`'s
+   `inputs` and `save-set` on the branch) are the evidence.
 8. **The judge.** The fast tier green in the worktree; the lane accepts with `--accept-judge` and
    no `--accept-growth`: no row lost, grown or moved, the judge hash changed by the files named in
    *Design*. Sameness between a reviewer's release record and the lane's darwin record shows no
@@ -632,7 +643,7 @@ finding went:
   the review's three mutants.
 - **L1, written in.** Decision 11's estimates: about 25 on a reuse run, up to about 35 with a slow
   x86-64 rebuild; 35 to 50 on a source run; the `inputs` job in both. The width: Decision 9's
-  `max-parallel: 20` keeps one run at 38 to 39 jobs, under the plan's 40.
+  `max-parallel: 18` keeps one run at 38 jobs at most, under the plan's 40.
 - **L2, written in.** Decision 11, "How often each happens": about 22 of the last 60 runs (37%).
 - **L3, written in.** Decision 6: `set-source` from `steps.compile.outcome`; Decision 4: the
   decision as one script, every consumer `== 'true'`; checks 2 and 3 with the two mutants.
