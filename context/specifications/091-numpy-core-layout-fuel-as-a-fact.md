@@ -1,9 +1,10 @@
 # 091 — numpy-core's layout-dependent fuel as a fact
 
-- **Status:** **built 2026-10-19** on `spec/091-numpy-core-layout-fuel-as-a-fact`, on main
-  `b4d7c8e` (the Landing notes). **Build review: "lands once F1"**
-  (`../reviews/091-numpy-core-layout-fuel-as-a-fact-build-2026-10-19.md`); F1 fixed, F2 and F3
-  fixed (the section "Disposition of the build review"). Not yet rebased: it enters wave 1 last.
+- **Status:** **rebased 2026-10-19 onto `wave/01` at `4d49f61`** (main `7d0649d`, then 087, 085
+  and 084), with no conflict hunk ("For the lane", "Rebased onto wave/01"). **Built 2026-10-19**
+  on `spec/091-numpy-core-layout-fuel-as-a-fact`, on main `b4d7c8e` (the Landing notes). **Build
+  review: "lands once F1"** (`../reviews/091-numpy-core-layout-fuel-as-a-fact-build-2026-10-19.md`);
+  F1 fixed, F2 and F3 fixed (the section "Disposition of the build review").
   Before that: **drafted 2026-10-19** on the same branch, from main
   `dc8988c` (the draft was written from `302df18`; the commits between them touch no file under
   `tests/`), rebased onto main `b4d7c8e`. **Revised 2026-10-19 against its pre-build review**
@@ -376,6 +377,22 @@ bound; a scoreboard line with the fact's value; fuel facts for pandas or the reg
   group's own session, with the acceptance at 1e-4 on three systems).
 - **Order.** Land 091 before 086 and the other build-class specifications when the queue allows
   (Decision 10).
+- **Rebased onto wave/01** (`4d49f61`: main `7d0649d`, then 087, 085 and 084), 2026-10-19.
+  - **Conflict hunks resolved: none.** `git rebase wave/01` applied all six commits as they were.
+    The only shared file with code in it is `tests/harness/upstream.py`, where 089's `litter`
+    edits (`safe_unzip`, `stage`, `close`, the seal in `prepare`, `_run`) sit apart from 091's
+    hunks. 085's shared judge files (`scoreboard.py`, `plugin.py`, the progress README) are
+    touched by 091 elsewhere in each.
+  - **No semantic change from the merge.** On the merged tree, `_prepare` writes the fact's
+    `judge/<id>.json` before `litter.seal` in `prepare`. The F1 row's stage is sealed and removed
+    through `Session.close`, as the other staging rows' are. 085's G5 asks every accepted metric
+    to be a finite number; `fuel_facts` lives in the record's facts, never in the metrics.
+  - **ruff** `check` and `format --check` on `src/` and `tests/`: green. **The fast tier, `-n 3`**
+    (the lane's slot), against this worktree's private copy of main's set: 532/669 pass · 1 gap ·
+    22 blocked · 3 fail (unit suite 1726/1734, 8 skipped). The three red rows are 087's
+    (`test_manifest_recipes_match_the_tree`, and `test_a_timeout_past_2_147_seconds_fires[plain]`
+    and `[snapshot]`): they need 087's patched set, which this private set lacks. Nothing else is
+    red; grew 0. Log: the worktree's `build/091/fast-wave01.log`.
 - **The claim list** (the rows 091 changes; the progress README's step 3a):
   - **`test_upstream_suite[numpy-core]`, fuel, falling.** It falls by the 84 cases' share less
     the second session's start, about **47.5 G (−23.4%)**, from the value the wave's other
