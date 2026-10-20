@@ -347,9 +347,11 @@ def test_seaborn_takes_its_scipy_paths(guest, guest_workdir, which) -> None:
     """seaborn takes scipy's paths, not its own copies: `_no_scipy` is False in `matrix` and
     `_statistics`, and its kernel density is scipy's `gaussian_kde`; it catches only ImportError,
     so a scipy that failed to import would leave it on its copies silently (the pre-build
-    review's finding 2). And `load_dataset`, with only a writable cache grant (the README's
-    set-up), raises PermissionError naming '~' (seaborn makes its cache folder under a `~` the
-    guest cannot expand) before any fetch (finding 3; spec 042, Decisions 3 and 8)."""
+    review's finding 2). And `load_dataset` through the runner, with only a writable cache grant
+    (the README's set-up), raises FileNotFoundError naming '~' before any fetch, and makes no `~`
+    folder in the grant: seaborn makes its cache folder under a `~` the guest cannot expand, a
+    relative path under a root the call does not have (finding 3; spec 042, Decisions 3 and 8,
+    as amended at build: the review's PermissionError was its driver's read-only root)."""
     needs.need("runner")
     import wasi_python
 
@@ -366,7 +368,8 @@ def test_seaborn_takes_its_scipy_paths(guest, guest_workdir, which) -> None:
         env={"MPLCONFIGDIR": "/cfg"},
         snapshot=which == "snapshot",
     )
-    assert (done.exit_code, done.stdout) == (0, b"PermissionError '~'\n"), done
+    assert (done.exit_code, done.stdout) == (0, b"FileNotFoundError '~'\n"), done
+    assert not (cfg / "~").exists(), sorted(p.name for p in cfg.iterdir())
 
 
 @BINARY
