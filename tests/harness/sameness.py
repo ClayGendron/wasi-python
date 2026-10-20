@@ -48,7 +48,10 @@ FUEL_FACTS = "fuel_facts"  # a fact of fuel values, compared as fuel is
 EXACT_METRICS = ("bytes", "passes")
 REASONED = ("gap", "blocked")
 SIDE = {0: "only in the first record", 1: "only in the second record"}
-SYSTEMS = {"darwin": {"macos", "build"}, "linux": {"linux"}, "win32": {"windows"}}
+# The build shard runs on a fresh arm64 Linux build (spec 101, Decision 5): its blocks are Linux's.
+SYSTEMS = {"darwin": {"macos"}, "linux": {"linux", "build"}, "win32": {"windows"}}
+# Its run's unit tests are the lane's darwin units all the same (spec 101, the review's H1).
+BUILD_RUN = "build/build"
 
 
 class NotComparable(ValueError):
@@ -141,8 +144,8 @@ def view(r: dict) -> View:
         if not platform[node].startswith("darwin-"):  # G5 holds darwin fuel only
             unheld.add(node)
     suite: dict[str, int] = {}
-    for run in r["runs"].values():
-        if str(run.get("platform", "")).startswith("darwin-"):
+    for key, run in r["runs"].items():
+        if key == BUILD_RUN or str(run.get("platform", "")).startswith("darwin-"):
             for k, n in (run.get("suite") or {}).items():
                 if type(n) is not int or n < 0:
                     raise NotComparable(

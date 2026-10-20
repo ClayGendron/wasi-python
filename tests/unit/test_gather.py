@@ -38,7 +38,7 @@ PLAN = {
     "up-l": shards.Shard("up-l", ("linux",), groups=("g1",)),
     "up-w": shards.Shard("up-w", ("windows",), groups=("g1",)),
 }
-PLATFORM = {"build": "darwin-arm64", "macos": "darwin-arm64", "linux": "linux-x86_64"}
+PLATFORM = {"build": "linux-aarch64", "macos": "darwin-arm64", "linux": "linux-x86_64"}
 PLATFORM["windows"] = "win32-amd64"
 MAY_BLOCK = {ART: frozenset({"prior-art clones"}), DESC: frozenset({"descriptor limit"})}
 
@@ -102,6 +102,8 @@ class Case:
         self.newest = {"artifact": W, "set_sums": S, "dirty": False, "partial_reason": None}
         self.gaps: set[str] = set()
         self.tag = False
+        self.set_source = "built"  # spec 101
+        self.plan = PLAN
         self.wasm = W
         self.set_sums = S
         self.wasmtime = WT
@@ -129,7 +131,7 @@ class Case:
 
     def inputs(self, records_dir: Path | None = None, handed: dict | None = None) -> gather.Inputs:
         return gather.Inputs(
-            plan=PLAN,
+            plan=self.plan,
             records_dir=records_dir or self.tmp / "records",
             handed=handed or {},
             wasm_sha256=self.wasm,
@@ -145,6 +147,7 @@ class Case:
             judge_hash=self.judge,
             head=HEAD,
             tag=self.tag,
+            set_source=self.set_source,
             repo=self.tmp,
         )
 
@@ -661,7 +664,8 @@ def test_the_merged_record_carries_what_sameness_needs(case) -> None:
     assert merged["checks"][PROBE]["source"]["status"] == "pass"
     assert "metrics" not in merged["checks"][PROBE]["source"]
     assert merged["checks"][SUITE]["source"]["platform"] == "linux-x86_64"  # no darwin run
-    assert merged["checks"][BUILD_NODE]["source"]["platform"] == "darwin-arm64"  # the build's
+    # The build's, from build-shard's arm64 Linux build since spec 101.
+    assert merged["checks"][BUILD_NODE]["source"]["platform"] == "linux-aarch64"
 
 
 def test_a_ci_need_block_is_no_source(case) -> None:
@@ -699,3 +703,60 @@ def test_a_check_no_record_ran_is_deselected_in_the_merged_record(case) -> None:
 def test_only_a_pushed_tag_is_a_tag(environ, tag) -> None:
     """The G7 judge clause applies to a pushed tag only."""
     assert gather.is_tag(environ) is tag
+
+
+# ---------------------------------------------------------------------------------------------
+# Spec 101: the build record comes from build-shard on arm64 Linux; where the set came from
+
+
+def test_the_build_record_is_build_shards_on_linux(case) -> None:
+    assert gather.JOB["build"] == "build-shard"
+    assert case.records[("build", "build")]["meta"]["platform"].startswith("linux-")
+    assert case.run().red == []
+
+
+def test_a_build_record_from_darwin_is_red_at_g2(case) -> None:
+    case.records[("build", "build")]["meta"]["platform"] = "darwin-arm64"
+    assert any(e.startswith("G2 build/build: platform") for e in case.run().red)
+
+
+def test_a_build_record_under_the_build_jobs_folder_is_red_at_g1(case) -> None:
+    def move(d: Path, h: dict) -> None:
+        old = d / "build-shard" / "latest.json"
+        (d / "build").mkdir()
+        old.rename(d / "build" / "latest.json")
+
+    case.after_write = move
+    red = case.run().red
+    assert any(e.startswith("G1 build/build") for e in red), red
+
+
+def test_a_tag_whose_set_was_reused_is_red_at_g7(case) -> None:
+    case.tag = True
+    case.set_source = "reused wasi-python-set-v1-" + "0" * 64
+    assert "G7 a tag, and the set was not built in this run" in case.run().red
+
+
+def test_a_branch_may_judge_a_reused_set(case) -> None:
+    case.set_source = "reused wasi-python-set-v1-" + "0" * 64
+    v = case.run()
+    assert v.red == []
+    assert v.merged["meta"]["set_source"] == case.set_source
+    assert any(line.startswith("set: reused wasi-python-set-v1-") for line in v.lines)
+
+
+def test_a_tag_with_no_set_source_is_red_at_g7(case) -> None:
+    case.tag = True
+    case.set_source = ""
+    assert "G7 a tag, and the set was not built in this run" in case.run().red
+
+
+def test_a_named_entry_no_check_matches_is_red_at_g3(case) -> None:
+    case.plan = {
+        **PLAN,
+        "build": shards.Shard(
+            "build", ("build",), files=PLAN["build"].files, nodes=(f"{RULE_NODE}_gone",)
+        ),
+    }
+    red = case.run().red
+    assert f"G3 build: names {RULE_NODE}_gone, which no collected check is" in red, red

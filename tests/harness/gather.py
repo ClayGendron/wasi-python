@@ -50,7 +50,15 @@ CI_NEEDS: dict[str, frozenset[str]] = {
 # The worst status first; `deselected` last, so a check run anywhere is never shown deselected.
 ORDER = ("fail", "unrun", "blocked", "gap", "pass", "deselected")
 UPSTREAM_SUITE = re.compile(re.escape(shards.UPSTREAM_FILE) + r"::test_upstream_suite\[(.+)\]$")
-JOB = {"build": "build", "macos": "judge-macos", "linux": "judge-linux", "windows": "judge-windows"}
+# The build record comes from build-shard, a fresh arm64 Linux build on every run (spec 101).
+JOB = {
+    "build": "build-shard",
+    "macos": "judge-macos",
+    "linux": "judge-linux",
+    "windows": "judge-windows",
+}
+# A set the build job built in this run, as its `set-source` output names it (spec 101).
+BUILT = "built"
 
 
 def env_name(system: str, shard: str) -> str:
@@ -81,6 +89,8 @@ class Inputs:
     judge_hash: str
     head: str
     tag: bool
+    # The build job's `set-source`: "built", or "reused <key>" (spec 101, Decision 6).
+    set_source: str = BUILT
     repo: Path = paths.REPO
 
 
@@ -213,6 +223,11 @@ def gather(i: Inputs) -> Verdict:
             red.append(f"{where}: selected nothing")
     for node in sorted(collected - run_somewhere):
         red.append(f"G3 {node}: collected, run in no record")
+    every = collected | set(i.unit_nodes)
+    for name, s in i.plan.items():  # a renamed check cannot quietly unbalance a split (spec 101)
+        for entry in s.nodes:
+            if not any(shards.names(entry, n) for n in every):
+                red.append(f"G3 {name}: names {entry}, which no collected check is")
     shared_units = {n for name in i.plan for n in unit_share[name]}
     for node in sorted(set(i.unit_nodes) - shared_units):
         red.append(f"G3 {node}: a unit test in no shard's share")
@@ -328,6 +343,8 @@ def gather(i: Inputs) -> Verdict:
         red.append("G7 the newest acceptance is partial")
     if i.tag and i.accepted.get("judge", {}).get("hash") != i.judge_hash:
         red.append("G7 a tag, and this commit's judge is not the accepted one")
+    if i.tag and i.set_source != BUILT:  # a tag publishes what its own run built (spec 101)
+        red.append("G7 a tag, and the set was not built in this run")
     v.merged = merge(v.records, i)
     providers = {}
     shown = dict(v.merged)
@@ -343,6 +360,8 @@ def gather(i: Inputs) -> Verdict:
         v.lines.insert(
             at, f"three systems: darwin linux win32 on {i.wasm_sha256} · set {i.set_sums_sha256}"
         )
+    at = next((n for n, line in enumerate(v.lines) if line.startswith("not machine-checked")), -1)
+    v.lines.insert(at, f"set: {i.set_source or '(none handed on)'}")  # spec 101
     quiet = no_trap_anywhere(v.records)
     if quiet:  # never red: a fixed trap asks the change that closes it to go ahead
         at = next(
@@ -428,6 +447,7 @@ def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:
             "judge": {"hash": i.judge_hash},
             "records": sorted(f"{s}/{n}" for s, n in records),
             "tag": i.tag,
+            "set_source": getattr(i, "set_source", BUILT),
             "foreign": sorted(foreign),
         },
         "checks": checks,
@@ -618,6 +638,7 @@ def main(argv: list[str]) -> int:
             judge_hash=paths.judge_hash(paths.judge_files()),
             head=head,
             tag=tag,
+            set_source=os.environ.get("SET_SOURCE", ""),
         )
     )
     a.out.mkdir(parents=True, exist_ok=True)

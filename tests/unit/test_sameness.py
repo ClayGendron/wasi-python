@@ -451,3 +451,38 @@ def test_a_read_only_files_block_on_windows_alone_is_no_difference() -> None:
     assert sameness.differences(release(records), local()) == [
         f"{A}: status 'pass' on {DARWIN}, 'blocked' on {LINUX}"
     ]
+
+
+# ---------------------------------------------------------------------------------------------
+# Spec 101: the build shard runs on a fresh arm64 Linux build; sameness reads its run by its key
+
+ARM = "linux-aarch64"
+
+
+def linux_build_records() -> dict[tuple[str, str], dict]:
+    records = shard_records()
+    records[("build", "build")] = _shard(ARM, "build", {B: _pass(bytes=10)}, (2, 0, 2))
+    return records
+
+
+def test_a_build_run_on_linux_counts_on_the_darwin_side() -> None:
+    """The review's H1: the build run's unit tests are the lane's darwin units too."""
+    r, lane = release(linux_build_records()), local()
+    assert r["runs"]["build/build"]["platform"] == ARM
+    assert sameness.differences(r, lane) == []
+    assert sameness.differences(lane, r) == []
+
+
+def test_a_build_run_on_linux_one_unit_short_is_still_a_difference() -> None:
+    records = linux_build_records()
+    records[("build", "build")]["suite"] = {"passed": 1, "skipped": 0, "total": 1}
+    assert sameness.differences(release(records), local()) == [
+        "suite: {'passed': 6, 'skipped': 1, 'total': 7} != {'passed': 7, 'skipped': 1, 'total': 8}"
+    ]
+
+
+def test_a_block_in_the_build_run_is_read_as_linux() -> None:
+    """`SYSTEMS` maps build to linux, so a block by a need CI lacks on Linux, seen in the build
+    run, is a CI block and not a difference."""
+    assert sameness._ci_block({"status": "blocked", "need": "oracle", "worst_platform": ARM})
+    assert "build" in sameness.SYSTEMS["linux"] and "build" not in sameness.SYSTEMS["darwin"]

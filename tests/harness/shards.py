@@ -22,8 +22,9 @@ PACKAGES_FILE = paths.REPO / "tests" / "upstream" / "packages.toml"
 UPSTREAM_FILE = "tests/checks/test_v1_3_upstream_suites.py"
 OWN_SYSTEMS = ("macos", "linux", "windows")
 SYSTEMS = (*OWN_SYSTEMS, "build")
-# Each system's platform, as a run record's `meta.platform` begins (sys.platform).
-PLATFORM = {"macos": "darwin", "linux": "linux", "windows": "win32", "build": "darwin"}
+# Each system's platform, as a run record's `meta.platform` begins (sys.platform). The build
+# shard runs on a fresh arm64 Linux build on every run (spec 101, Decision 5).
+PLATFORM = {"macos": "darwin", "linux": "linux", "windows": "win32", "build": "linux"}
 
 
 @dataclass(frozen=True)
@@ -33,7 +34,9 @@ class Shard:
     files: tuple[str, ...] = ()
     groups: tuple[str, ...] = ()
     rest: bool = False
-    nodes: tuple[str, ...] = ()  # the build shard only: single checks that need the build host
+    # Single checks by node id, or every case of a function by `file::function` (spec 101): the
+    # build shard's that need the build host, and a split of one file across shards.
+    nodes: tuple[str, ...] = ()
 
 
 def load(path: Path = PLAN) -> dict[str, Shard]:
@@ -99,13 +102,14 @@ def select(
     that names the group; another item goes to the shard whose `files` names its file, exactly
     (never by prefix); every item that no shard of the whole plan takes goes to `rest`."""
     out: dict[str, list[str]] = {name: [] for name in plan}
-    by_node = {n: name for name, s in plan.items() for n in s.nodes}
+    named = [(n, name) for name, s in plan.items() for n in s.nodes]
     by_file = {f: name for name, s in plan.items() for f in s.files}
     rest = [name for name, s in plan.items() if s.rest]
     for node in nodeids:
         group = groups.get(node)
-        if node in by_node:  # named by node id: that shard alone, whatever its file's shard
-            takers = [by_node[node]]
+        by_node = next((name for n, name in named if names(n, node)), None)
+        if by_node is not None:  # named: that shard alone, whatever its file's shard
+            takers = [by_node]
         elif group is not None:
             takers = [name for name, s in plan.items() if group in s.groups]
         else:
@@ -114,6 +118,12 @@ def select(
         for name in takers:
             out[name].append(node)
     return out
+
+
+def names(entry: str, node: str) -> bool:
+    """Whether a plan's `nodes` entry takes a node: the node itself, or, for an entry without
+    parameters, every parameter case of its function (spec 101, Decision 9)."""
+    return node == entry or ("[" not in entry and node.startswith(entry + "["))
 
 
 def units_digest(nodeids: list[str]) -> str:
@@ -159,9 +169,12 @@ def plan_errors(plan: dict[str, Shard], files: list[str], groups: list[str]) -> 
         return ["the plan names no shard"]
     seen: dict[str, str] = {}
     for name, s in plan.items():
-        kinds = [bool(s.files), bool(s.groups), s.rest]
+        # A shard that names checks and nothing else selects by nodes (spec 101, Decision 9).
+        kinds = [bool(s.files), bool(s.groups), s.rest, bool(s.nodes) and not s.files]
         if sum(kinds) != 1:
-            errors.append(f"(a) {name} selects by not exactly one of files, groups and rest")
+            errors.append(
+                f"(a) {name} selects by not exactly one of files, groups, rest and nodes alone"
+            )
         for f in s.files:
             if f not in files:
                 errors.append(f"(a) {name}: {f} is not a tracked test file")
@@ -200,15 +213,23 @@ def plan_errors(plan: dict[str, Shard], files: list[str], groups: list[str]) -> 
         # run, macOS and Linux (the first Windows run: 112 failures, none a product check).
         if s.rest and not {"macos", "linux"} <= set(s.systems):
             errors.append(f"(e) {name} does not run on macos and linux")
-    # (h) Single checks by node id: only the build shard names them, each once, each a check of a
-    # tracked test file.
+    # (h) Checks named by node id or by function: each once, each a check of a tracked test file.
+    # A shard other than build that names checks runs on exactly the systems of the shard whose
+    # files hold them, so a split never takes a check off a system.
     named: set[str] = set()
+    file_shard = {f: n for n, s in plan.items() for f in s.files}
     for name, s in plan.items():
         for n in s.nodes:
             file, _, test = n.partition("::")
             func = test.split("[", 1)[0]
-            if name != "build":
-                errors.append(f"(h) {name}: only the build shard names checks by node id")
+            holder = plan.get(file_shard.get(file, ""))
+            if name != "build" and holder is not None and set(s.systems) != set(holder.systems):
+                errors.append(
+                    f"(h) {name}: runs on {sorted(s.systems)}, not on {holder.name}'s systems "
+                    f"{sorted(holder.systems)}, which hold {file}"
+                )
+            if name != "build" and holder is None:
+                errors.append(f"(h) {name}: {file} is in no shard's files")
             if n in named:
                 errors.append(f"(h) {n} is named twice")
             named.add(n)
@@ -218,6 +239,11 @@ def plan_errors(plan: dict[str, Shard], files: list[str], groups: list[str]) -> 
                 paths.REPO / file
             ).read_text():
                 errors.append(f"(h) {n}: {file} defines no {func}")
+    entries = [(n, name) for name, s in plan.items() for n in s.nodes]
+    for k, (a, sa) in enumerate(entries):
+        for b, sb in entries[k + 1 :]:
+            if a != b and (names(a, b) or names(b, a)):
+                errors.append(f"(h) {a} ({sa}) and {b} ({sb}) name the same checks")
     # (g) Every product check file and every runner unit file is in a files shard that runs on all
     # three systems, so rest holds only the rules and the judge's own tooling, and a new product
     # file cannot fall off Windows by default.

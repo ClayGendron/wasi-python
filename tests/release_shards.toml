@@ -1,10 +1,13 @@
 # The release's shards. `uv run pytest --shard=<name>` runs one; the
 # release workflow runs every shard of each system in that system's judge job, and `build` in the
-# build job; `gather` merges their records. A shard selects by exactly one of:
+# build-shard job; `gather` merges their records. A shard selects by exactly one of:
 #   files   whole test modules (never the upstream file, whose group checks go with their groups)
 #   groups  upstream groups, each with its suite check, its classes' checks and its traps
 #   rest    every item no shard of the plan takes by files or groups (one shard; new files land here)
-# systems: macos, linux, windows; `build` is the build job's own shard (it needs the build tree).
+#   nodes   checks by node id, or every case of a function by `file::function`, taken from their
+#           file's shard and run on exactly its systems (spec 101: one file split in two)
+# systems: macos, linux, windows; `build` is the build-shard job's own shard: it needs the build
+# tree, and runs on a fresh arm64 Linux build on every run, tags included (spec 101, Decision 5).
 # Every upstream group is in exactly one Linux shard; every files shard but build runs on all three
 # systems; rest runs on macOS and Linux; every product check file and runner unit file is in a files
 # shard on all three systems, so rest holds only the rules and the judge's own tooling. Changing this file is a judge change (it is under tests/).
@@ -13,7 +16,7 @@
 # The build host's own checks: the trees of every component, the compile records, the zlib tarball.
 files = ["tests/checks/test_v1_5_rebuild_from_pins.py", "tests/unit/test_pins.py"]
 # Checks by node id: the recursion check on the wasmtime CLI needs the wasmtime CLI only the build
-# host unpacks; its file stays in own-guest (a node id kept, so nothing is retired). scikit-learn's
+# host unpacks; its file stays in own-hostile (a node id kept, so nothing is retired). scikit-learn's
 # and statsmodels' notice checks read the pinned sdists, which only the build host has.
 nodes = [
   "tests/checks/test_v1_2_hostile_guest.py::test_recursion_raises_under_the_wasmtime_cli",
@@ -23,13 +26,69 @@ nodes = [
 systems = ["build"]
 
 [shard.own-embedding]
-# 36% of the judge on a CI runner (221 s): the floor of any split by file.
+# The embedding file but its first part (own-embedding-a): on macOS the whole file took 11.8 test
+# minutes at wave 07 (run 39442080658), the longest single file (spec 101, Decision 9).
 files = ["tests/checks/test_v1_4_embedding.py"]
 systems = ["macos", "linux", "windows"]
 
+[shard.own-embedding-a]
+# The embedding file's first 41 functions, its first 65 checks in collection order: about half
+# its macOS time by wave 07's progress lines (3.45 minutes for the first 36 checks, 6.06 for the
+# next 72). A function added to the file goes to own-embedding unless named here.
+nodes = [
+  "tests/checks/test_v1_4_embedding.py::test_door_without_a_host_says_so",
+  "tests/checks/test_v1_4_embedding.py::test_door_round_trips_bytes_through_a_host",
+  "tests/checks/test_v1_4_embedding.py::test_run_returns_the_exit_code",
+  "tests/checks/test_v1_4_embedding.py::test_run_reads_argv_and_environment_each_call",
+  "tests/checks/test_v1_4_embedding.py::test_main_starts_as_native",
+  "tests/checks/test_v1_4_embedding.py::test_uncaught_errors_print_as_native",
+  "tests/checks/test_v1_4_embedding.py::test_exit_status_is_a_process_status",
+  "tests/checks/test_v1_4_embedding.py::test_unbuffered_output_survives_a_hard_exit",
+  "tests/checks/test_v1_4_embedding.py::test_run_keeps_an_unclosed_files_bytes",
+  "tests/checks/test_v1_4_embedding.py::test_run_keeps_unclosed_files_in_every_mode",
+  "tests/checks/test_v1_4_embedding.py::test_every_program_runs_in_an_unfrozen_main",
+  "tests/checks/test_v1_4_embedding.py::test_run_keeps_a_file_the_stdlib_reaches",
+  "tests/checks/test_v1_4_embedding.py::test_module_and_directory_errors_read_as_native",
+  "tests/checks/test_v1_4_embedding.py::test_a_program_sees_real_entropy_and_file_metadata",
+  "tests/checks/test_v1_4_embedding.py::test_file_facts_cost_the_same_on_every_run",
+  "tests/checks/test_v1_4_embedding.py::test_fuel_does_not_follow_the_stdlib_zips_link_count",
+  "tests/checks/test_v1_4_embedding.py::test_runner_runs_a_program_in_one_call",
+  "tests/checks/test_v1_4_embedding.py::test_runner_binds_a_host",
+  "tests/checks/test_v1_4_embedding.py::test_runner_stops_a_runaway_guest_by_fuel",
+  "tests/checks/test_v1_4_embedding.py::test_runner_runs_the_plain_reactor",
+  "tests/checks/test_v1_4_embedding.py::test_runner_reports_a_host_fault",
+  "tests/checks/test_v1_4_embedding.py::test_runner_caps_memory",
+  "tests/checks/test_v1_4_embedding.py::test_runner_caches_the_compiled_module",
+  "tests/checks/test_v1_4_embedding.py::test_fuel_does_not_depend_on_the_module_cache",
+  "tests/checks/test_v1_4_embedding.py::test_runner_refuses_a_cache_others_can_write",
+  "tests/checks/test_v1_4_embedding.py::test_runner_keeps_the_artifact_zip_out_of_the_guests_reach",
+  "tests/checks/test_v1_4_embedding.py::test_runner_never_follows_a_link_a_guest_left",
+  "tests/checks/test_v1_4_embedding.py::test_runner_replaces_a_directory_left_in_the_zips_place",
+  "tests/checks/test_v1_4_embedding.py::test_runner_serves_concurrent_calls_on_one_root",
+  "tests/checks/test_v1_4_embedding.py::test_reportlab_writes_a_pdf_with_nothing_writable",
+  "tests/checks/test_v1_4_embedding.py::test_package_imports_without_wasmtime",
+  "tests/checks/test_v1_4_embedding.py::test_a_plain_install_brings_wasmtime",
+  "tests/checks/test_v1_4_embedding.py::test_a_wasmtime_that_cannot_load_is_named",
+  "tests/checks/test_v1_4_embedding.py::test_a_failed_instantiation_reports_no_fuel",
+  "tests/checks/test_v1_4_embedding.py::test_an_ordinary_sleep_still_works",
+  "tests/checks/test_v1_4_embedding.py::test_concurrent_calls_get_their_own_results",
+  "tests/checks/test_v1_4_embedding.py::test_calls_add_nothing_to_wasmtime_pys_tables",
+  "tests/checks/test_v1_4_embedding.py::test_ctrl_c_while_the_guest_runs_ends_the_call",
+  "tests/checks/test_v1_4_embedding.py::test_a_limit_that_would_remove_itself_is_refused",
+  "tests/checks/test_v1_4_embedding.py::test_a_limit_given_as_another_integer_type_works",
+  "tests/checks/test_v1_4_embedding.py::test_an_input_the_guest_would_see_differently_is_refused",
+]
+systems = ["macos", "linux", "windows"]
+
+[shard.own-hostile]
+# 9.0 of own-guest's 17.1 macOS test minutes at wave 07 (spec 101, Decision 9).
+files = ["tests/checks/test_v1_2_hostile_guest.py"]
+systems = ["macos", "linux", "windows"]
+
 [shard.own-guest]
+# The product's other checks, and the runner's own unit tests (own-runner's files until spec 101:
+# its job was mostly setup, and a macOS job is the scarce thing).
 files = [
-  "tests/checks/test_v1_2_hostile_guest.py",
   "tests/checks/test_v1_3_data_stack.py",
   "tests/checks/test_v1_1_artifact_set.py",
   "tests/checks/test_v1_3_the_zips_directory.py",
@@ -43,12 +102,6 @@ files = [
   "tests/checks/test_v1_4_public_api.py",
   "tests/unit/test_runner_mounts.py",
   "tests/unit/test_runner_grants.py",
-]
-systems = ["macos", "linux", "windows"]
-
-[shard.own-runner]
-# The runner's own unit tests, the product's code on every host (today's verify ran three of them).
-files = [
   "tests/test_api.py",
   "tests/unit/test_cli.py",
   "tests/unit/test_tools.py",
@@ -70,6 +123,7 @@ files = [
   "tests/unit/test_runner_waits.py",
 ]
 systems = ["macos", "linux", "windows"]
+
 
 [shard.own-rest]
 # The rules and the judge's own tooling (the build scripts, the landing lane, the harness's
