@@ -274,8 +274,8 @@ id = "no-fp-exceptions"
 group = "matplotlib-rest-b1"
 outcome = "failed"
 match = "DID NOT RAISE <class 'numpy.linalg.LinAlgError'>"
-reason = "wasm32 has no floating-point exception flags: numpy.linalg raises no LinAlgError for a singular matrix (README; spec 099, reserved, fixes it)"
-closes_with = "context/roadmap.md"
+reason = "wasm32 has no floating-point exception flags: numpy.linalg raised no LinAlgError for a singular matrix until spec 099 kept numpy's own signals in software, which emptied this class"
+closes_with = "context/specifications/099-numpy-singular-inverse.md"
 
 [[expected]]
 id = "no-processes"
