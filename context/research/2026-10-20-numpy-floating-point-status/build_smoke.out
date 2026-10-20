@@ -1,0 +1,21 @@
+# Spec 099, build phase 1 (EXECUTED 2026-10-20, macOS arm64): build_smoke.py <worktree> <scratch out>, four
+# compiles from main's build/numpy-build/compile_commands.json, rerun with the worktree's wrappers and
+# recipes/npy_fenv_flags.h force-included; -MD/-MQ/-MF dropped, objects to a scratch folder.
+# With the header:
+ieee754.c.o: exit 0; warnings 0; errors 0
+    00000000 W wasi_python_fe_flags
+halffloat.cpp.o: exit 0; warnings 0; errors 0
+    00000000 W wasi_python_fe_flags
+loops_arithmetic.dispatch.c.o: exit 0; warnings 2; errors 0
+    00000000 W wasi_python_fe_flags
+umath_linalg.cpp.o: exit 0; warnings 8; errors 0
+    00000000 W wasi_python_fe_flags
+# Without it (NO_HEADER=1), as main compiles them: the same warning counts, so the header adds none.
+ieee754.c.o: exit 0; warnings 0; errors 0
+    U feraiseexcept; U fetestexcept
+halffloat.cpp.o: exit 0; warnings 0; errors 0
+    (no fe symbol)
+loops_arithmetic.dispatch.c.o: exit 0; warnings 2; errors 0
+    (no fe symbol)
+umath_linalg.cpp.o: exit 0; warnings 8; errors 0
+    (no fe symbol)

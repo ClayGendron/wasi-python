@@ -6,6 +6,18 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a8 — unreleased
 
+- **A singular matrix raises `LinAlgError`** (spec 099; spec 066's survey). wasm has no
+  floating-point status flags, and numpy reports a failed LAPACK call by one, so
+  `numpy.linalg.inv`, `solve`, `tensorinv`, `tensorsolve` and `matrix_power(a, -1)` of a singular
+  matrix, and `cholesky` of one not positive definite, returned `nan`s. A recipe header,
+  `recipes/npy_fenv_flags.h`, keeps the signals numpy raises itself in a software flag word: these
+  raise `LinAlgError` whenever numpy's bundled LAPACK (`lapack_lite`) finds the matrix singular,
+  which for a matrix singular only in exact arithmetic is not always where native numpy on
+  OpenBLAS does, until spec 100. The same word makes integer division by zero, integer overflow in
+  division and float16 overflow warn, or raise under `np.errstate`, as natively: a widening of the
+  owner's question, named here. Signals only the hardware gives (float division by zero,
+  `log(0)`, invalid casts) stay silent; the README says so.
+
 - **The release runs the compiled packages' own tests** (spec 066): matplotlib's, contourpy's,
   Pillow's, kiwisolver's, lxml's and regex's own suites, every test of each (contourpy's
   random_big, `--runslow` and `--runtext` cases included, and Pillow's `checks/` and
@@ -15,6 +27,7 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   classes by node id, each a gap with its closer. `tests/upstream/
   package_drive.py` drives them; numpy's and pandas' driver and verdict are unchanged.
   `tests/upstream/packages.toml`: the six are `suite`s; scipy's suite now closes with spec 095.
+
 - **A garbage cycle holding a kiwisolver object is collected, not a trap** (spec 096; spec 066's
   survey). kiwisolver's `Variable`, `Term`, `Expression` and `Constraint` declared `tp_clear` as
   returning nothing, so the collector's call ended the guest in `indirect call type mismatch`;

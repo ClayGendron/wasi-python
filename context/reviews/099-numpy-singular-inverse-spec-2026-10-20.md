@@ -252,3 +252,55 @@ qualified and measured, not inferred.
 
 One line: the header is right, but for `linalg` "as natively" has to read "when numpy's own
 LAPACK says singular".
+
+## Confirmation (2026-10-20, the same reviewer)
+
+- **Read:** `spec/099-numpy-singular-inverse` at tip `e907bc3`, on main `21dff9d`.
+- **Checked:** the diff `61c36c4..e907bc3` of the specification, the copied review's
+  *Disposition*, `singular_probe.py` with its outputs, `to_out.py` and `run_checks.sh`.
+- **Not run:** no build, no CI run and no judge tier. `build/lane.lock` was absent.
+- **Review copy:** the body of the review copied to
+  `context/reviews/099-numpy-singular-inverse-spec-2026-10-20.md` matches this file up to
+  *Disposition* (EXECUTED, `diff`).
+
+1. **Finding 1 (M1): sound.**
+   - **The subset argument:** Decision 5 now limits it to the non-LAPACK raisers. For
+     `umath_linalg` it says plainly that the argument fails.
+   - **Where a lost pass would show:** Decision 5 names it (`numpy-others`, pandas' groups,
+     the `numpy.linalg` golden jobs, the plot goldens, 044's and 045's goldens). A lost pass
+     stops the entry and is never allowed.
+   - **Decision 6:** it states both directions with both probes' counts and an example of each.
+   - **The qualified wording:** the Intent, Decision 9, the README bullet, the CHANGELOG line
+     and all three flags now say "when numpy's bundled LAPACK finds the matrix singular".
+   - **The author's probe replays exactly** (EXECUTED). I re-ran `singular_probe.py` natively
+     (`build/oracle/venv`) and in the guest (main's set `f12cd25c`, plain binary). Both outputs
+     match the recorded `singular_probe-native.out` and `singular_probe-guest-plain.out` byte
+     for byte. The crosstab's counts are 130, 141, 20 and 12, and case 26 is finite natively and
+     all-`nan` in the guest. Its counts differ from my probe's (150, 130, 12, 8) because its
+     entries run from −9 to 9 and it scales every second matrix. Both show the same two
+     directions.
+   - **Check 1 is clear of the divergence** (READ, and the arithmetic holds). LU of
+     `[[1, 2], [2, 4]]` with partial pivoting gives 2 − 0.5 × 4 = 0 exactly. Cholesky of
+     `[[1, 2], [2, 1]]` gives 1 − 2² = −3. So check 1 holds on any LAPACK, spec 100's OpenBLAS
+     included.
+   - **The closer:** spec 100 is reserved in the roadmap (line 129) on the owner's recorded answer
+     to question 106 (`decisions.md:64`). It is a proper closer.
+2. **Finding 2: overtaken, accepted.** The owner answered question 106, and the answer is cited.
+3. **Finding 3 (L3): check 4 is now right.**
+   - **The missing-file case:** the check reads `build/numpy-build/compile_commands.json` itself
+     and fails, not skips, when that file is missing while the need is met.
+   - **The compiler rule gives 189** (EXECUTED). Entries whose first argument ends in
+     `scripts/wasi-cc` or `scripts/wasi-cxx` and that contain `-c` number 189 of main's 198,
+     the same as the extension rule. The nine `cython` runs fall out.
+   - **The unit rows** cover the `.S` file, a link without `-c`, both record shapes, empty
+     records and the missing file.
+   - **One point for the build review:** the spec says "runs `scripts/wasi-cc`". So the
+     implementation should match the command's first argument by path suffix, as I did, and not
+     a bare substring anywhere in the command.
+4. **Findings 4 to 6: fixed** as stated. `run_checks.sh` now calls `to_out.py` through `uv run`.
+   The facts sheet's clause is labelled INFERRED. Decision 4 (f) is written in, and the
+   CHANGELOG names the widening.
+5. **Notes 7 and 8:** carried into the build, in Decision 5, criterion 5, the claim list and the
+   growth flag.
+
+**Verdict: confirmed for build.** No finding remains open.

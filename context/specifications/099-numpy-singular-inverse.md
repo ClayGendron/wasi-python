@@ -6,8 +6,11 @@
   finding 1 (Medium) is answered in the text"); **revised against every finding**, with the owner's
   answer to question 106 (spec 100, stacked on this one), and rebased onto main `21dff9d` (context
   only). *Disposition of the pre-build review* says where each went.
-  **Ready for build.** It changes the build recipe and the artifact set, so it was reviewed before
-  it is built (constitution §5.6). A different agent reviews the build.
+  **Confirmed for build** by the same reviewer (the review's *Confirmation*), no finding open.
+  **Building: phase 1 done** (everything that needs no fresh artifact set; *Landing notes*); phase
+  2, the native rebuild and the dry run, waits for the native slot. It changes the build recipe and
+  the artifact set, so it was reviewed before it is built (constitution §5.6). A different agent
+  reviews the build.
 - **Date:** 2026-10-20
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** (§5.7): a new recipe file, `recipes/npy_fenv_flags.h`, force-included
@@ -653,4 +656,56 @@ signals stays silent and says so.
 
 ## Landing notes
 
-Not built.
+### Phase 1: what needs no fresh artifact set (2026-10-20, base main `21dff9d`)
+
+- **The recipe:** `recipes/npy_fenv_flags.h`, as Decision 3 says, written fresh from the decision
+  (the drafting prototype's form: guard, five bits, weak word, three inline functions, their names
+  in `std`, three renames), with a comment naming spec 099 and when to remove it.
+  `recipes/wasi-numpy.cross` force-includes it in `c_args`, after the two rename headers, and in
+  `cpp_args`, after `-DBLAS_SYMBOL_PREFIX`; one comment line set says why.
+- **The judge:** checks 1 to 3 in `tests/checks/test_v1_3_data_stack.py` (their programs and
+  expected text equal the drafting files and outputs byte for byte, EXECUTED by a comparison
+  script); check 4 in `tests/checks/test_v1_5_rebuild_from_pins.py`; `npy_fenv_recipe_errors`,
+  `npy_fenv_record_errors` and `npy_fenv_records_file_errors` in `tests/harness/scan.py`; six unit
+  rows in `tests/unit/test_scan.py`. **The confirmation's point for the build review is
+  implemented:** an entry is a compile when its first argument equals, or ends in `/` followed by,
+  `scripts/wasi-cc` or `scripts/wasi-cxx`, and it holds `-c`; a name found elsewhere in the
+  command (`-DX=scripts/wasi-cc`) or a lookalike path (`scripts/not-wasi-cc`) is not, and a unit
+  row holds both.
+- **Seen failing first** (EXECUTED, `build/099/seen-failing-first.log`, on a private `cp -c` copy of
+  main's set `f12cd25c`, the checks written before the recipe): checks 1 and 2 fail on both
+  binaries, every case `returned` or `returned silent` as the drafting runs showed; check 3 passes
+  on both; check 4 fails on its first part (`c_args force-includes recipes/npy_fenv_flags.h 0 times`,
+  and `cpp_args`, and the header missing). Check 4's second part, run on main's records through
+  `scan.npy_fenv_records_file_errors`: 189 findings, one per compile (166 C, 23 C++, 9 not
+  compiles). The unit rows fail on main by construction (the three functions do not exist there);
+  the recipe row failed before the header was written.
+- **After the recipe** (EXECUTED, `build/099/units.log`): `tests/unit/test_scan.py` 213/213, the six
+  new rows among them; check 4's first part passes and its second part is blocked here (no compile records
+  in this worktree's `build/`). Checks 1 and 2 cannot pass before the rebuild.
+- **A smoke compile of four real numpy files** (EXECUTED, `../research/2026-10-20-numpy-floating-point-status/build_smoke.py`
+  and `.out`): `ieee754.c`, `halffloat.cpp`, `umath_linalg.cpp` and `loops_arithmetic.dispatch.c`,
+  each from main's own compile command with the header added, into a scratch folder: each
+  compiles with the warning count it has without the header (0, 0, 8, 2), each carries
+  `W wasi_python_fe_flags`, and `ieee754.c` no longer calls wasi-libc's `feraiseexcept` or
+  `fetestexcept` (without the header it does). Not a build: the set is phase 2's.
+- **`README.md`, `CHANGELOG.md`, `context/upstream/README.md`:** Decision 7's texts, written in
+  (the platform-facts bullet after "No threads", the recipe-files clause, the CHANGELOG bullet
+  first under `## 0.1.0a8 — unreleased`, folder 30's row).
+- **`MANIFEST`** is the build's: step 90 lists every tracked file under `recipes/` and `scripts/`, so
+  phase 2's set gains the header's `recipe` line and changes the cross file's. Nothing to write
+  by hand.
+- **Not run in phase 1:** the fast tier. Two other agents' judges were running on the machine
+  (`pgrep -fl pytest`: 066's upstream groups with `-n 3`, 042's checks), so only single node ids
+  and the rules check ran. ruff check and ruff format --check are green.
+
+### Phase 2 (the native slot)
+
+From an empty `build/` in this worktree: `scripts/build.sh` (steps 40 to 90 change their
+outputs). Then: the seven new nodes and the fast tier `-n 3` on the new set (no lane lock, no
+other fast tier); the bytes and every moved fuel row, up or down; `python.map` for one
+`wasi_python_fe_flags`; steps 50 and 57's archives against main's by hash; `singular_probe.py` and
+`fp_probe.py` on both binaries, with the four counts and an example of each row (`to_out.py
+--crosstab`), as facts for spec 100; then `release.yml` dispatched on the exact commit, read back
+(every red line a growth line or G7); the self-check and *For the lane* with flags beginning
+"099".

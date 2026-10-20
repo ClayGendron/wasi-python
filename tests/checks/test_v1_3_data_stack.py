@@ -721,3 +721,189 @@ def test_zip_code_objects_carry_the_zip_path(guest) -> None:
     assert r.exit_code == 0, r.describe()
     got = json.loads(r.text)
     assert got["pyc"] > 1000 and not got["bad"], got
+
+
+# numpy's own floating-point signals, kept in software (spec 099). wasm has no floating-point
+# status flags; recipes/npy_fenv_flags.h gives numpy's flags bits and one flag word, so what numpy
+# raises itself reaches np.errstate. Each program prints one line per case; the expected text is
+# native numpy's (checks 1 and 2) or the README's documented silence (check 3).
+SINGULAR = """
+import numpy as np
+
+S = np.array([[1.0, 2.0], [2.0, 4.0]])  # singular: LU's second pivot is exactly 0
+N = np.array([[1.0, 2.0], [2.0, 1.0]])  # symmetric, not positive definite
+
+
+def case(name, fn):
+    try:
+        fn()
+        print(name, "returned")
+    except np.linalg.LinAlgError as e:
+        print(name, "LinAlgError", e)
+
+
+case("inv", lambda: np.linalg.inv(S))
+case("inv float32", lambda: np.linalg.inv(S.astype(np.float32)))
+case("inv complex128", lambda: np.linalg.inv(S.astype(np.complex128)))
+case("inv stacked", lambda: np.linalg.inv(np.stack([np.eye(2), S])))
+case("solve", lambda: np.linalg.solve(S, np.array([1.0, 1.0])))
+case("solve matrix", lambda: np.linalg.solve(S, np.eye(2)))
+case("tensorinv", lambda: np.linalg.tensorinv(S, ind=1))
+case("tensorsolve", lambda: np.linalg.tensorsolve(S, np.array([1.0, 1.0])))
+case("matrix_power -1", lambda: np.linalg.matrix_power(S, -1))
+case("cholesky", lambda: np.linalg.cholesky(N))
+case("cholesky upper", lambda: np.linalg.cholesky(N, upper=True))
+with np.errstate(all="ignore"):
+    case("inv under errstate ignore", lambda: np.linalg.inv(S))
+print("det", np.linalg.det(S))
+print("slogdet", *np.linalg.slogdet(S))
+print("inv regular", np.linalg.inv(np.array([[2.0, 1.0], [1.0, 1.0]])).tolist())
+print("errstate after", np.geterr())
+"""
+
+SINGULAR_NATIVE = """\
+inv LinAlgError Singular matrix
+inv float32 LinAlgError Singular matrix
+inv complex128 LinAlgError Singular matrix
+inv stacked LinAlgError Singular matrix
+solve LinAlgError Singular matrix
+solve matrix LinAlgError Singular matrix
+tensorinv LinAlgError Singular matrix
+tensorsolve LinAlgError Singular matrix
+matrix_power -1 LinAlgError Singular matrix
+cholesky LinAlgError Matrix is not positive definite
+cholesky upper LinAlgError Matrix is not positive definite
+inv under errstate ignore LinAlgError Singular matrix
+det 0.0
+slogdet 0.0 -inf
+inv regular [[1.0, -1.0], [-1.0, 2.0]]
+errstate after {'divide': 'warn', 'over': 'warn', 'under': 'ignore', 'invalid': 'warn'}
+"""
+
+SIGNAL_CASE = """
+import warnings
+
+import numpy as np
+
+
+def case(name, fn):
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        try:
+            fn()
+            got = "returned"
+        except FloatingPointError as e:
+            got = f"FloatingPointError {e}"
+    said = [f"{x.category.__name__} {x.message}" for x in w]
+    print(name, got, *(["warns", *said] if said else ["silent"]))
+
+"""
+
+OWN_SIGNALS = (
+    SIGNAL_CASE
+    + """
+i64 = np.array([1, 2], dtype=np.int64)
+case("int floor_divide by 0", lambda: i64 // 0)
+case("int remainder by 0", lambda: i64 % 0)
+case("int divmod by 0", lambda: np.divmod(i64, 0))
+case("int32 min floor_divide -1", lambda: np.array([-(2**31)], dtype=np.int32) // -1)
+case("timedelta floor_divide 0", lambda: np.array([10], dtype="m8[s]") // np.timedelta64(0, "s"))
+case("float64 to float16 overflow", lambda: np.array([1e6]).astype(np.float16))
+case("int scalar floor_divide 0", lambda: np.int64(1) // np.int64(0))
+case("int8 scalar add overflow", lambda: np.int8(127) + np.int8(1))
+with np.errstate(divide="raise"):
+    case("int floor_divide by 0 under raise", lambda: i64 // 0)
+with np.errstate(over="raise"):
+    case("float16 overflow under raise", lambda: np.array([1e6]).astype(np.float16))
+with np.errstate(divide="ignore"):
+    case("int floor_divide by 0 under ignore", lambda: i64 // 0)
+"""
+)
+
+OWN_SIGNALS_NATIVE = "".join(
+    line + "\n"
+    for line in (
+        "int floor_divide by 0 returned warns RuntimeWarning divide by zero encountered in"
+        " floor_divide",
+        "int remainder by 0 returned warns RuntimeWarning divide by zero encountered in remainder",
+        "int divmod by 0 returned warns RuntimeWarning divide by zero encountered in divmod",
+        "int32 min floor_divide -1 returned warns RuntimeWarning overflow encountered in"
+        " floor_divide",
+        "timedelta floor_divide 0 returned warns RuntimeWarning divide by zero encountered in"
+        " floor_divide",
+        "float64 to float16 overflow returned warns RuntimeWarning overflow encountered in cast",
+        "int scalar floor_divide 0 returned warns RuntimeWarning divide by zero encountered in"
+        " scalar floor_divide",
+        "int8 scalar add overflow returned warns RuntimeWarning overflow encountered in scalar add",
+        "int floor_divide by 0 under raise FloatingPointError divide by zero encountered in"
+        " floor_divide silent",
+        "float16 overflow under raise FloatingPointError overflow encountered in cast silent",
+        "int floor_divide by 0 under ignore returned silent",
+    )
+)
+
+HARDWARE_SIGNALS = (
+    SIGNAL_CASE
+    + """
+one = np.array([1.0])
+case("float divide by 0", lambda: one / 0.0)
+case("float floor_divide by 0", lambda: one // 0.0)
+case("log 0", lambda: np.log(np.array([0.0])))
+case("sqrt -1", lambda: np.sqrt(np.array([-1.0])))
+case("exp 1000", lambda: np.exp(np.array([1000.0])))
+case("nan to int64", lambda: np.array([np.nan]).astype(np.int64))
+case("float scalar divide by 0", lambda: np.float64(1.0) / np.float64(0.0))
+with np.errstate(all="raise"):
+    case("float divide by 0 under raise", lambda: one / 0.0)
+"""
+)
+
+HARDWARE_SIGNALS_GUEST = """\
+float divide by 0 returned silent
+float floor_divide by 0 returned silent
+log 0 returned silent
+sqrt -1 returned silent
+exp 1000 returned silent
+nan to int64 returned silent
+float scalar divide by 0 returned silent
+float divide by 0 under raise returned silent
+"""
+
+
+def _signals(guest, which: str, code: str) -> str:
+    r = guest(which, ["-c", code], root_writable=False)
+    assert (r.exit_code, r.trapped) == (0, None), r.describe()
+    return r.text
+
+
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_a_singular_matrix_raises_linalgerror(guest, which) -> None:
+    """numpy.linalg raises LinAlgError for an exactly singular matrix and for one that is not
+    positive definite, as natively (spec 099, check 1): umath_linalg reports LAPACK's failure by
+    the invalid flag, which the recipe header keeps in software. Both matrices meet an exact zero or
+    negative pivot in any LAPACK, so the check is clear of the lapack_lite and OpenBLAS divergence
+    (Decision 6) and holds on spec 100's OpenBLAS too. The last four lines are controls."""
+    got = _signals(guest, which, SINGULAR)
+    assert got == SINGULAR_NATIVE, got
+
+
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_numpys_own_floating_point_signals_reach_errstate(guest, which) -> None:
+    """The signals numpy raises itself, in software, warn or raise under np.errstate as natively
+    (spec 099, check 2): integer division by zero and overflow in division, timedelta division by
+    zero, and float16 overflow (the C++ half of the recipe, through cpp_args). The scalar lines
+    are controls: scalar math returns its codes and warned before spec 099 too."""
+    got = _signals(guest, which, OWN_SIGNALS)
+    assert got == OWN_SIGNALS_NATIVE, got
+
+
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_hardware_floating_point_signals_stay_silent_as_documented(guest, which) -> None:
+    """What only the hardware would signal stays silent, as the README's bullet "No floating-point
+    status flags in wasm" says (spec 099, check 3, Decision 6): float division by zero, log(0),
+    sqrt(-1), exp(1000), a nan cast to an integer and a scalar division give native's values with
+    no warning, and errstate(all="raise") does not raise. Natively every line warns. It shows the
+    recipe changed only numpy's own signals; a toolchain with real wasm flags turns it red together
+    with the header's #error."""
+    got = _signals(guest, which, HARDWARE_SIGNALS)
+    assert got == HARDWARE_SIGNALS_GUEST, got

@@ -2516,3 +2516,116 @@ def host_python_record_errors(
     if (root / UNPINNED_LOG).exists():
         errors.append(f"{UNPINNED_LOG} exists: a step ran an unpinned Python")
     return errors, read
+
+
+# numpy's own floating-point signals, kept in software (spec 099): a recipe header force-included
+# into every numpy C and C++ compile gives FE_INVALID and its siblings bits and sends numpy's three
+# fe* calls to one weak flag word, since wasm has no floating-point status flags.
+NPY_FENV_HEADER = "recipes/npy_fenv_flags.h"
+NPY_FENV_CROSS = "recipes/wasi-numpy.cross"
+NPY_FENV_INCLUDE = "'-include', '@ROOT@/recipes/npy_fenv_flags.h'"
+NPY_FENV_COMPILERS = ("scripts/wasi-cc", "scripts/wasi-cxx")
+NPY_FENV_RECORDS = "build/numpy-build/compile_commands.json"
+NPY_FENV_HEADER_NEEDS = (
+    ("the #error guard", re.compile(r"^#if defined\(FE_INVALID\).*\n#error ", re.M)),
+    ("FE_INVALID's bit", re.compile(r"^#define FE_INVALID 0x01$", re.M)),
+    ("FE_DIVBYZERO's bit", re.compile(r"^#define FE_DIVBYZERO 0x04$", re.M)),
+    ("FE_OVERFLOW's bit", re.compile(r"^#define FE_OVERFLOW 0x08$", re.M)),
+    ("FE_UNDERFLOW's bit", re.compile(r"^#define FE_UNDERFLOW 0x10$", re.M)),
+    ("FE_INEXACT's bit", re.compile(r"^#define FE_INEXACT 0x20$", re.M)),
+    (
+        "the weak flag word",
+        re.compile(r"^__attribute__\(\(weak\)\) int wasi_python_fe_flags;$", re.M),
+    ),
+    (
+        "the feraiseexcept rename",
+        re.compile(r"^#define feraiseexcept wasi_python_feraiseexcept$", re.M),
+    ),
+    (
+        "the fetestexcept rename",
+        re.compile(r"^#define fetestexcept wasi_python_fetestexcept$", re.M),
+    ),
+    (
+        "the feclearexcept rename",
+        re.compile(r"^#define feclearexcept wasi_python_feclearexcept$", re.M),
+    ),
+)
+
+
+def npy_fenv_recipe_errors(cross: str, header: str | None) -> list[str]:
+    """The recipe as written (spec 099, check 4's first part): the numpy cross file's one `c_args`
+    and one `cpp_args` line each force-include the header once, and the header holds its guard,
+    its five bits, its weak word and its three renames."""
+    errors = []
+    for key in ("c_args", "cpp_args"):
+        lines = [t for t in cross.splitlines() if t.startswith(f"{key} ")]
+        if len(lines) != 1:
+            errors.append(f"{NPY_FENV_CROSS}: {len(lines)} {key} lines, not 1")
+            continue
+        n = lines[0].count(NPY_FENV_INCLUDE)
+        if n != 1:
+            errors.append(
+                f"{NPY_FENV_CROSS}: {key} force-includes {NPY_FENV_HEADER} {n} times, not once"
+            )
+    if header is None:
+        return [*errors, f"{NPY_FENV_HEADER} is missing"]
+    errors += [
+        f"{NPY_FENV_HEADER} lacks {what}"
+        for what, rx in NPY_FENV_HEADER_NEEDS
+        if not rx.search(header)
+    ]
+    return errors
+
+
+def _record_argv(entry: dict) -> list[str]:
+    """One compile record's command as an argument list: meson writes `command`, a shell string;
+    the compile-database format allows `arguments`, a list."""
+    if isinstance(entry.get("arguments"), list):
+        return [str(a) for a in entry["arguments"]]
+    return shlex.split(str(entry.get("command", "")))
+
+
+def _is_cross_compile(argv: list[str]) -> bool:
+    """A compile by the cross file's compilers: the first argument's path ends in scripts/wasi-cc or
+    scripts/wasi-cxx (a whole path ending, never a name found anywhere in the command; the pre-build
+    confirmation's point), and the command compiles (`-c`)."""
+    if not argv or "-c" not in argv:
+        return False
+    first = argv[0].replace("\\", "/")
+    return any(first == c or first.endswith("/" + c) for c in NPY_FENV_COMPILERS)
+
+
+def npy_fenv_record_errors(records: list[dict]) -> tuple[list[str], dict[str, int]]:
+    """Every numpy compile carries the header exactly once (spec 099, check 4's second part). An
+    entry is read by its compiler, not its file's extension, so a `.S` or a generated source cannot
+    escape; `cython` runs and links are not compiles. Returns (errors, counts)."""
+    counts = {"compiles": 0, "c": 0, "c++": 0, "not compiles": 0}
+    if not records:
+        return [f"{NPY_FENV_RECORDS} lists no entry (a build that compiled nothing)"], counts
+    errors = []
+    for e in records:
+        argv = _record_argv(e)
+        if not _is_cross_compile(argv):
+            counts["not compiles"] += 1
+            continue
+        counts["compiles"] += 1
+        counts["c++" if argv[0].endswith("wasi-cxx") else "c"] += 1
+        n = sum(
+            1
+            for flag, value in zip(argv, argv[1:], strict=False)
+            if flag == "-include" and value.replace("\\", "/").endswith("/" + NPY_FENV_HEADER)
+        )
+        if n != 1:
+            errors.append(f"{e.get('file')}: force-includes {NPY_FENV_HEADER} {n} times, not once")
+    if not counts["compiles"]:
+        errors.append(f"{NPY_FENV_RECORDS} lists no wasi-cc or wasi-cxx compile")
+    return errors, counts
+
+
+def npy_fenv_records_file_errors(root: Path) -> tuple[list[str], dict[str, int]]:
+    """numpy's own compile records, read from the file itself: once the `compile records` need is
+    met (any meson build left its records), numpy's file missing is a failure, never a skip."""
+    p = root / NPY_FENV_RECORDS
+    if not p.is_file():
+        return [f"{NPY_FENV_RECORDS} is missing (numpy's compile records)"], {}
+    return npy_fenv_record_errors(json.loads(p.read_text()))

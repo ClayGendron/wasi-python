@@ -255,6 +255,25 @@ def test_every_compile_contracts_nothing() -> None:
     assert not errors, scan.report(errors) + "\nread:\n" + "\n".join(read)
 
 
+def test_every_numpy_compile_keeps_its_floating_point_flags_in_software(note) -> None:
+    """numpy's own floating-point signals are kept in software (spec 099, check 4). Without a
+    build: the numpy cross file force-includes recipes/npy_fenv_flags.h once in `c_args` and once
+    in `cpp_args`, and the header holds its guard, bits, weak word and renames. With the compile
+    records: every compile in numpy's own `compile_commands.json`, picked by compiler (the first
+    argument's path ends in scripts/wasi-cc or scripts/wasi-cxx, with `-c`), carries the header
+    exactly once; numpy's file missing while another build's records exist is a failure."""
+    header = paths.REPO / scan.NPY_FENV_HEADER
+    errors = scan.npy_fenv_recipe_errors(
+        (paths.REPO / scan.NPY_FENV_CROSS).read_text(),
+        header.read_text() if header.is_file() else None,
+    )
+    assert not errors, scan.report(errors)
+    needs.need("compile records")
+    errors, counts = scan.npy_fenv_records_file_errors(paths.REPO)
+    assert not errors, scan.report(errors)
+    note(", ".join(f"{k} {v}" for k, v in counts.items()))
+
+
 def _line_values() -> dict[str, str]:
     """scripts/line.conf as the build reads it, through its own parser (spec 005)."""
     spec = importlib.util.spec_from_file_location("wasi_python_line", SCRIPTS / "line.py")
