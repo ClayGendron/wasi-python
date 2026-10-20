@@ -264,7 +264,19 @@ SLOT_IDS.update(
 )
 
 
-def cstring(image, addr: int, limit: int = 120) -> str | None:
+# Check 3's named records: one or more per compiled package with a static record, so the loss of
+# one package's tables cannot hide under the minimums (the pre-build review's F2).
+KIWI = ("kiwisolver.Constraint", "kiwisolver.Expression", "kiwisolver.Term", "kiwisolver.Variable")
+NAMED = {
+    "type": {"type", "numpy.ndarray", "ImagingCore", "lxml.etree._Element"},
+    "spec": {*KIWI, "pandas._libs.tslibs.timestamps._Timestamp"},
+    "spec slot": {f"{k}.tp_clear" for k in KIWI},
+    "module": {"_regex", "ft2font"},
+}
+
+
+def cstring(image, addr: int, limit: int = 257) -> str | None:
+    """1 to 256 bytes in 0x20-0x7E, ending in NUL (the pre-build review's F1)."""
     if not addr or not image.has(addr):
         return None
     off = addr - image.base
@@ -272,7 +284,7 @@ def cstring(image, addr: int, limit: int = 120) -> str | None:
     if end <= off:
         return None
     raw = image.mem[off:end]
-    if not all(0x20 < b < 0x7F for b in raw):
+    if not all(0x20 <= b <= 0x7E for b in raw):
         return None
     return raw.decode()
 
@@ -284,6 +296,7 @@ def main(path: str) -> None:
     el = mod.elements
     findings: list[str] = []
     cov = collections.Counter()
+    seen: dict[str, set] = {}  # kind -> the names of the records read (check 3's named records)
 
     def check(kind, owner, field, index, want):
         if not index or want is None:
@@ -299,29 +312,31 @@ def main(path: str) -> None:
                 f"{kind} {owner}.{field}: table index {index} has {have}, called as {want} ({nm})"
             )
 
-    # 1. static type objects. A candidate: the static immortal refcount, then a C string at
-    # tp_name. `type` is the one candidate whose ob_type is itself; a metatype is `type`, or a type
-    # whose instances are at least a PyTypeObject (tp_basicsize >= 212) or whose tp_base is a
-    # metatype. A type is a candidate whose ob_type is 0 (set by PyType_Ready) or a metatype.
-    # Every type's fields must read as a type's; one that does not is a finding, never skipped.
+    # 1. static type objects (spec 096, Decision 3, as revised for the pre-build review's F1).
+    # Every static-refcount record is classified, and every one dropped is counted by reason.
+    # `type` is the one record whose ob_type is itself; a metatype is `type`, or a named type
+    # whose tp_basicsize >= 212 or whose tp_base is a metatype. A module-shaped record goes to
+    # part 3. A type candidate has ob_type 0 or a metatype and a tp_name that is 0 or points into
+    # the image; it must be referenced (unreferenced ones are counted; check 3 holds them at 0).
+    # A referenced candidate whose tp_name points into the image but is not a C string, or whose
+    # fields do not read as a type's, is a finding. tp_name 0 is a type named at run time.
     start = image.base
-    cands = {}
+    recs = {}
     for addr in range(start, start + len(image.mem) - TYPE_SIZE, 4):
         w = image.words(addr, TYPE_SIZE // 4)
-        if w[0] != STATIC_REFCNT:
-            continue
-        name = cstring(image, w[3])
-        if name:
-            cands[addr] = (name, w)
-    selfref = [a for a, (_, w) in cands.items() if w[1] == a]
+        if w[0] == STATIC_REFCNT:
+            recs[addr] = w
+    names = {a: cstring(image, w[3]) for a, w in recs.items()}
+    selfref = [a for a, w in recs.items() if w[1] == a]
     if len(selfref) != 1:
         findings.append(f"{len(selfref)} candidates for `type` (an object whose type is itself)")
     meta = set(selfref)
     while True:
         new = {
             a
-            for a, (_, w) in cands.items()
+            for a, w in recs.items()
             if a not in meta
+            and names[a]
             and (w[1] == 0 or w[1] in meta)
             and (w[4] >= TYPE_SIZE or w[32] in meta)
         }
@@ -330,11 +345,22 @@ def main(path: str) -> None:
         meta |= new
     cov["metatypes"] = len(meta)
     types = []
-    for addr, (name, w) in cands.items():
-        if addr not in refs:
-            cov["type look-alikes unreferenced"] += 1
+    for addr, w in recs.items():
+        if not any(w[1:5]) and cstring(image, w[5]):
+            cov["records module-shaped (part 3)"] += 1
             continue
         if not (w[1] == 0 or w[1] in meta):
+            cov["dropped: ob_type neither 0 nor a metatype"] += 1
+            continue
+        if w[3] and not image.has(w[3]):
+            cov["dropped: tp_name neither 0 nor in the image"] += 1
+            continue
+        if addr not in refs:
+            cov["type candidates unreferenced"] += 1
+            continue
+        name = names[addr] or f"<tp_name NULL at {addr:#x}>"
+        if w[3] and not names[addr]:
+            findings.append(f"type at {addr:#x}: does not read as a type (tp_name)")
             continue
         bad = [f for off, (f, _) in TYPE_FUNCS.items() if w[off // 4] and w[off // 4] not in el]
         # bss (an empty table) lies past the image, so a pointer need only be in static memory
@@ -349,7 +375,10 @@ def main(path: str) -> None:
             findings.append(f"type {name}: does not read as a type ({', '.join(bad)})")
             continue
         types.append((addr, name, w))
+        if not names[addr]:
+            cov["static types named at run time"] += 1
     cov["static types"] = len(types)
+    seen["type"] = {name for _, name, _ in types}
     for _addr, name, w in types:
         for off, (field, want) in TYPE_FUNCS.items():
             check("type", name, field, w[off // 4], want)
@@ -382,14 +411,20 @@ def main(path: str) -> None:
         if addr not in refs:
             continue
         name = cstring(image, name_p)
-        if not name or not slots_p or not image.has(slots_p, 8):
+        if not name or not slots_p or basicsize >= 1 << 20 or itemsize >= 1 << 16:
             continue
-        if basicsize >= 1 << 20 or itemsize >= 1 << 16:
+        if not image.has(slots_p, 8):
+            if image.base <= slots_p < 1 << 31:
+                cov["dropped: spec-shaped, slots past the image"] += 1
             continue
 
         def readable(sw):
+            # A function slot holding 0 is readable (CPython's legacy iterator only logs it); it is
+            # skipped and counted, never checked (the pre-build review's L3).
             return (
-                sw is not None and sw[0] in SLOT_IDS and (SLOT_IDS[sw[0]][1] is None or sw[1] in el)
+                sw is not None
+                and sw[0] in SLOT_IDS
+                and (SLOT_IDS[sw[0]][1] is None or sw[1] == 0 or sw[1] in el)
             )
 
         # A spec is a record whose slots pointer starts a readable entry; from there the whole
@@ -414,8 +449,14 @@ def main(path: str) -> None:
             continue
         specs += 1
         cov["slot entries"] += len(entries)
+        seen.setdefault("spec", set()).add(name)
         for fname, pf, want in entries:
+            if want is not None and pf == 0:
+                cov["NULL function slots"] += 1
+                continue
             check("spec", name, fname, pf, want)
+            if want is not None:
+                seen.setdefault("spec slot", set()).add(f"{name}.{fname}")
     cov["specs"] = specs
 
     # 3. static PyModuleDefs: m_traverse, m_clear, m_free and the m_slots array
@@ -470,6 +511,7 @@ def main(path: str) -> None:
             slots.append((mod_slots[sw[0]], sw[1]))
             p += 8
         mods += 1
+        seen.setdefault("module", set()).add(name)
         check("module", name, "m_traverse", w[10], TERNARY)
         check("module", name, "m_clear", w[11], INQUIRY)
         check("module", name, "m_free", w[12], DESTRUCTOR)
@@ -477,8 +519,16 @@ def main(path: str) -> None:
             check("module", name, sname, v, want)
     cov["module defs"] = mods
 
+    # Check 3's named records (the pre-build review's F2): each must have been read.
+    for kind, want in NAMED.items():
+        for n in sorted(want - seen.get(kind, set())):
+            findings.append(f"named record not read: {kind} {n}")
+    if cov["type candidates unreferenced"]:
+        findings.append(f"{cov['type candidates unreferenced']} unreferenced type candidates")
+
     for f in sorted(set(findings)):
         print("FINDING", f)
+    print("findings", len(set(findings)))
     print("coverage", dict(cov))
 
 
