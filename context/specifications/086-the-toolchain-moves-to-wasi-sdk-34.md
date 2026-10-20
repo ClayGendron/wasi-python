@@ -1,6 +1,6 @@
 # 086 — The toolchain moves to wasi-sdk 34
 
-- **Status:** **rebased onto main `f7511b7` (wave 03 landed) and ready to land as wave 04, alone**,
+- **Status:** **landed 2026-10-20 as wave 04, alone**, on main `085dba5`: accepted on `a75e5d4`, history line 85, 638/708 pass, 0 fail; the dry run 39369492451 dispatched as main moved (see "Landed in wave 04" below). Before: **rebased onto main `f7511b7` (wave 03 landed) and ready to land as wave 04, alone**,
   2026-10-20. Rebuilt on `b0c7a74` (one `SHA256SUMS`, `4e0dc0cf…`, from macOS and linux/arm64; wave
   03 changed no build input, and step 90 on `f7511b7` gives the same). The delta review
   (`../reviews/086-the-toolchain-moves-to-wasi-sdk-34-delta-2026-10-20.md`, in the lane's
@@ -994,3 +994,16 @@ said "lands once the A/B is done on 083's base and B1 is run and written in".
 - **Still to come:** the A/B on the landing base, with a delta review if its numbers move beyond
   the preliminary table's.
 
+### Landed in wave 04
+
+- The lane rebuilt the set in the main tree at `c4af3c4` from the pins (13 downloads fetched for the new
+  toolchain): SHA256SUMS `4e0dc0cf`, the same file the builder's macOS and linux/arm64 builds wrote.
+- Against main `f7511b7`'s acceptance, 195 fuel rows moved, 167 up and 28 down, median +0.577%, -2.530% to
+  +1.854%, as the shard-by-shard A/B claimed; every row over 1% is the SipHash-1-3 flag's per-string cost.
+  python.wasm +0.164%, the snapshot +0.154%, the zip +0.004%. Seven new checks pass;
+  `test_upstream_class[cpython-a-no-missing-stdlib-info]` passes as an empty class (the delta review's M1),
+  and cpython-a gains one pass.
+- Reviews: `../reviews/086-*` (the specification, the build, and the delta with its confirmation at
+  `c4af3c4`). The delta review's N3: the growth text's 193 rows leave out Linux's two bimodal rows
+  (cpython-b, cpython-archives), which 092 keeps out of the lane's comparison; the Linux swing on a fixed set
+  is a follow-up for its own specification (this dry run's cpython-b near 293.4 G or 303 G confirms the reading).
