@@ -225,6 +225,17 @@ real extra or changed file still fails it.
 - 090: the tree check (`test_source_tree_matches_its_tarball`) now names a pinned member with a
   litter name; none of the twenty-two trees has one (the release run's build job, 22 passed).
 
+- 090: rebased onto main `ebd0449` (086, wasi-sdk 34, landed) on 2026-10-20. The one conflict,
+  `CHANGELOG.md`, keeps 094's bullet and 090's, both under `## 0.1.0a8 — unreleased`;
+  `scripts/steps/20_cpython.sh` merged on its own (086 changes the driver's command line, 090 adds
+  the removal after the `python.wasm` test). **Not rebuilt on the branch after the rebase:** the
+  lane rebuilds the wave tip in the main tree, and criterion 2 is redone there against 086's set:
+  `python.wasm`, the snapshot, the zip and every `LICENSES/*` file `cmp`-identical to 086's;
+  `MANIFEST` different in exactly the four `recipe` lines (`scripts/assemble_artifacts.py`,
+  `scripts/litter.py`, `scripts/make_stdlib_zip.py`, `scripts/steps/20_cpython.sh`), and
+  `SHA256SUMS` only in `MANIFEST`'s line. The criterion-2 compare in the landing notes is against
+  main's set before 086 (`2b0480af…`).
+
 **The flags**, each pasted as is:
 
 ```
