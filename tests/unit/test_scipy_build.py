@@ -301,3 +301,66 @@ def test_the_audit_pairs_each_rule_and_names_a_stranger() -> None:
     assert bad == ["-\treturn 0; / +\treturn 1;"]
     lone = AUDITED + "@@ -20,1 +20,0 @@\n-    i__1 = 0;\n"
     assert audit_openblas_void.audit(lone)[1] == ["unpaired: -    i__1 = 0;"]
+
+
+FAKE_MAKE_VOID = """
+import pathlib, sys
+tree = pathlib.Path(sys.argv[1])
+for rel in ("lapack-netlib/SRC/cgesv.c", "lapack-netlib/SRC/sgesv.c",
+            "lapack-netlib/INSTALL/ilaver.c"):
+    p = tree / rel
+    p.write_text(p.read_text().replace("int ", "void "))
+# What macOS writes into a folder a Finder or Spotlight process has looked at (spec 090's litter).
+for rel in (".DS_Store", "lapack-netlib/.DS_Store", "lapack-netlib/SRC/._sgesv.c"):
+    (tree / rel).write_bytes(b"Bud1 litter")
+print("files changed: 3")
+"""
+
+
+def test_the_openblas_patch_script_counts_no_host_litter(tmp_path) -> None:
+    """scripts/make_openblas_void_patch.sh counts the files git sees changed against what the
+    convention script says it changed; litter an operating system writes into the unpacked tree
+    (`.DS_Store`, AppleDouble `._` files; scripts/litter.py) is no change of OpenBLAS's and must not
+    be counted or patched (the lane's accept of wave 06: 1665 said, 1667 counted, under a home
+    folder on macOS). A stand-in tarball and convention script, so no pin is needed."""
+    import hashlib
+    import tarfile
+
+    repo = tmp_path / "repo"
+    for rel in ("make_openblas_void_patch.sh", "steps/remove.sh", "litter.py"):
+        (repo / "scripts" / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(paths.REPO / "scripts" / rel, repo / "scripts" / rel)
+    (repo / "scripts" / "openblas_make_void.py").write_text(FAKE_MAKE_VOID)
+    src = tmp_path / "src" / "OpenBLAS-0.3.34"
+    for rel in (
+        "lapack-netlib/SRC/cgesv.c",
+        "lapack-netlib/SRC/sgesv.c",
+        "lapack-netlib/INSTALL/ilaver.c",
+        "Makefile",
+    ):
+        (src / rel).parent.mkdir(parents=True, exist_ok=True)
+        (src / rel).write_text("int f(void) { return 0; }\n")
+    (repo / "downloads").mkdir()
+    tarball = repo / "downloads" / "OpenBLAS-0.3.34.tar.gz"
+    with tarfile.open(tarball, "w:gz") as t:
+        t.add(src, arcname="OpenBLAS-0.3.34")
+    sha = hashlib.sha256(tarball.read_bytes()).hexdigest()
+    (repo / "downloads" / "SHA256SUMS").write_text(f"{sha}  OpenBLAS-0.3.34.tar.gz\n")
+    out = tmp_path / "out"
+    env = {**os.environ, "PYTHON": sys.executable}
+    done = subprocess.run(
+        [SH, str(repo / "scripts" / "make_openblas_void_patch.sh"), str(out)],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert done.returncode == 0, done.stderr[-800:]
+    named = sorted(
+        line for f in sorted(out.glob("*.files")) for line in f.read_text().splitlines() if line
+    )
+    assert named == [
+        "lapack-netlib/INSTALL/ilaver.c",
+        "lapack-netlib/SRC/cgesv.c",
+        "lapack-netlib/SRC/sgesv.c",
+    ], named
+    assert not any("DS_Store" in p.read_text() for p in out.glob("*.patch"))

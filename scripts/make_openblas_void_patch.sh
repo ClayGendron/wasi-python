@@ -54,10 +54,6 @@ g() {
     GIT_CONFIG_GLOBAL=/dev/null GIT_CEILING_DIRECTORIES="$WORK" \
     git -c core.quotePath=false -C "$TREE" "$@"
 }
-g init -q
-g add -A --force
-g -c user.name=wasi-python -c user.email=build@wasi-python.invalid commit -q -m pristine
-
 py() { # the Python that runs this project's scripts: $PYTHON, or uv's
   if [ -n "${PYTHON:-}" ]; then
     "$PYTHON" -I "$@"
@@ -65,10 +61,41 @@ py() { # the Python that runs this project's scripts: $PYTHON, or uv's
     (cd "$HERE" && uv run python -I "$@")
   fi
 }
+# Host litter (specs 018 and 090): names an operating system writes into a folder on its own
+# (macOS's .DS_Store in a fresh tree under a home folder, AppleDouble ._ files), by the one list in
+# scripts/litter.py. Never OpenBLAS's: the tarball is checked to hold none, so unstaging them after
+# each `add` drops no real file. They stay out of the pristine commit, the count and the patches
+# (an untracked file is in no `git diff`).
+LITTER_IN='
+import sys
+sys.path.insert(0, sys.argv[1])
+from litter import has_litter
+names = sys.stdin.buffer.read().decode("utf-8", "surrogateescape").split("\0")
+with open(sys.argv[2], "w", encoding="utf-8", errors="surrogateescape") as f:
+    f.writelines(n + "\n" for n in names if n and has_litter(n.rstrip("/")))
+'
+litter_in() { # the litter paths among the NUL-separated paths on stdin, one per line, into $1
+  py -c "$LITTER_IN" "$HERE/scripts" "$1"
+}
+unstage_litter() { # every staged litter path leaves the index; the files stay where they are
+  g ls-files --cached -z | litter_in "$WORK/litter.txt"
+  while IFS= read -r p; do
+    g rm -q --cached -- "$p"
+  done < "$WORK/litter.txt"
+}
+tar -tzf "$TARBALL" | tr '\n' '\0' | litter_in "$WORK/tarball-litter.txt"
+[ ! -s "$WORK/tarball-litter.txt" ] || die "the tarball itself holds a litter name: $(head -n 1 "$WORK/tarball-litter.txt")"
+
+g init -q
+g add -A --force
+unstage_litter
+g -c user.name=wasi-python -c user.email=build@wasi-python.invalid commit -q -m pristine
+
 py "$HERE/scripts/openblas_make_void.py" "$TREE" > "$OUT/make_void.txt"
 cat "$OUT/make_void.txt"
 said=$(sed -n 's/^files changed: //p' "$OUT/make_void.txt")
 g add -A --force
+unstage_litter
 counted=$(g diff --cached --name-only | wc -l | tr -d ' ')
 g reset -q
 [ "$said" = "$counted" ] || die "openblas_make_void.py says $said files changed, git diff names $counted"

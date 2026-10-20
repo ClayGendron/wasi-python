@@ -1542,3 +1542,23 @@ Changed: step 37 (copies the `.pc`), step 57 (fourth `pkgconf` folder,
 - **The build review's F4, ruled by the lane (2026-10-20):** no release tag carries 037 without
   038's Sobol fix. The patch is not brought forward: 038 follows 037 in the next wave, the tag
   stays the owner's, and the lane records the rule in the roadmap.
+
+#### After the delta review (2026-10-20): host litter in the patch script
+
+The lane's accept of wave 06 (`b325747`: 043, 037, 096) was refused by
+`test_the_openblas_patches_are_what_their_script_makes`: "openblas_make_void.py says 1665 files
+changed, git diff names 1667". The check runs `scripts/make_openblas_void_patch.sh` into
+`build/harness/openblas-void`, under a home folder, and macOS wrote `.DS_Store` into the freshly
+unpacked tree (`.DS_Store`, `lapack-netlib/.DS_Store`), which the script's second
+`git add -A --force` counted. It is host litter, specs 089 and 090's class. The fix, one commit on
+`40f30cd`: the script unstages every litter path after both `git add` steps, by
+`scripts/litter.py`'s one list (`has_litter`: `.DS_Store` and the rest, AppleDouble `._` files),
+so litter is in neither the pristine commit, the count nor the patches (an untracked file is in
+no `git diff`); and it stops if the pinned tarball itself holds a litter name, so no real file can
+be dropped (OpenBLAS 0.3.34's holds none, EXECUTED). Unit row
+`test_the_openblas_patch_script_counts_no_host_litter` plants `.DS_Store` and `._` files in the
+tree between the two adds with a stand-in tarball and convention script; seen failing first on
+the old script ("says 3 files changed, git diff names 6"), passing on the new one. The check by
+node id in this worktree, output under `build/harness/`: passed, the three patches regenerated
+byte for byte. The script's `MANIFEST` recipe hash changes, so step 90 reruns; no other byte of
+the set moves.
