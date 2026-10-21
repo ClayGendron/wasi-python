@@ -2506,17 +2506,19 @@ def test_a_citation_in_a_string_is_a_hit(work, text, rule, phrase) -> None:
 def test_every_kind_of_string_is_read(work) -> None:
     """A plain string, an implicit concatenation split inside a citation, an f-string's literal
     part, a bytes literal, a string statement after the docstring, an f-string where a
-    docstring would be, the text given to `re.escape`, an allowance row's reason, a shell
-    command and a workflow step's name."""
+    docstring would be, the text given to `re.escape` (alone, and inside a pattern argument), an
+    allowance row's reason, a parenthesized first statement (no docstring to the comment rule), a
+    shell command and a workflow step's name."""
     cite = f"{SPEC_WORD} 052"
     py = write(
         work,
         "t/kinds.py",
         f'"""Module."""\nimport re\n\nA = "{cite}"\nB = ("see {SPEC_WORD} " "052 here")\n'
         f'C = f"{{A}} {cite}"\nD = b"{cite}"\n"{cite}"\n\n\ndef f():\n    f"""{cite}"""\n\n\n'
-        f'E = re.escape("{cite}")\nROWS_ALLOWED = (("t/x.py", "x", "{cite}"),)\n',
+        f'E = re.escape("{cite}")\nROWS_ALLOWED = (("t/x.py", "x", "{cite}"),)\n'
+        f'F = re.search(re.escape("{cite}"), "x")\n\n\ndef g():\n    ("{cite}")\n',
     )
-    assert [h[0] for h in scan.string_citation_hits(py)] == [4, 5, 6, 7, 8, 12, 15, 16]
+    assert [h[0] for h in scan.string_citation_hits(py)] == [4, 5, 6, 7, 8, 12, 15, 16, 17, 21]
     sh = write(work, "s/kinds.sh", f'#!/bin/sh\necho "{cite}" >&2\n')
     assert scan.string_citation_hits(sh) == [(2, "specification", cite)]
     yml = write(work, "w/kinds.yml", f"steps:\n  # a comment\n  - name: A step ({cite})\n")

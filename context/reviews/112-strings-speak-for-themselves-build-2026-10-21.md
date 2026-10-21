@@ -152,8 +152,16 @@ fifteen rows, four named reasons, each read by the rule; a stale row fails.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. L1 — 
-2. L2 — 
+1. L1 — fixed as the fix text: `_not_read` walks a pattern argument through `_pattern_nodes`,
+   which stops at a call, so `re.escape`'s text inside a pattern argument is read. The carriers
+   row gains `F = re.search(re.escape("<cite>"), "x")` as a hit, seen failing first (the row
+   failed on the old scanner, passes on the new).
+2. L2 — fixed as the fix text: `docs` is keyed by the statement's position,
+   `(first.lineno, first.col_offset)`, as 109's `_python_prose` keys it, so a parenthesized first
+   statement is read by this rule; the carriers row gains `def g():\n    ("<cite>")` as a hit,
+   seen failing first with L1's case. On the fixed scanner (EXECUTED): `tests/unit/test_scan.py`
+   and `tests/checks/test_rules.py` 334 passed, 1 skipped; the string rule over the tree 0
+   findings, every row used; `ruff check` and `ruff format --check` clean.
 3. Notes 3 to 6 — no answer needed.
 
 ## Verdict

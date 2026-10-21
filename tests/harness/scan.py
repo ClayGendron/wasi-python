@@ -3501,6 +3501,15 @@ _MIDDLE_TOKENS = {
 }
 
 
+def _pattern_nodes(node: ast.AST) -> Iterable[ast.AST]:
+    """The nodes of a pattern argument, stopping at a call: what a call is given (the text of
+    `re.escape`, say) is text, not the pattern."""
+    yield node
+    if not isinstance(node, ast.Call):
+        for child in ast.iter_child_nodes(node):
+            yield from _pattern_nodes(child)
+
+
 def _not_read(tree: ast.AST) -> tuple[set[tuple[int, int]], set[int]]:
     """What the string rule leaves to others: the start of every token the comment rule reads as
     a docstring (the first token of a plain string constant that opens a module, a class or a
@@ -3517,7 +3526,9 @@ def _not_read(tree: ast.AST) -> tuple[set[tuple[int, int]], set[int]]:
                 and isinstance(first.value, ast.Constant)
                 and isinstance(first.value.value, str)
             ):
-                docs.add((first.value.lineno, first.value.col_offset))
+                # Keyed by the statement, as the comment rule keys it: a parenthesized string
+                # starts after its parenthesis, so it is no docstring to either rule.
+                docs.add((first.lineno, first.col_offset))
         elif (
             isinstance(node, ast.Call)
             and isinstance(node.func, ast.Attribute)
@@ -3526,7 +3537,7 @@ def _not_read(tree: ast.AST) -> tuple[set[tuple[int, int]], set[int]]:
             and node.func.attr in PATTERN_FUNCTIONS
         ):
             given = node.args[:1] + [k.value for k in node.keywords if k.arg == "pattern"]
-            nodes.update(id(sub) for arg in given for sub in ast.walk(arg))
+            nodes.update(id(sub) for arg in given for sub in _pattern_nodes(arg))
         elif isinstance(node, ast.Assign | ast.AnnAssign) and node.value is not None:
             targets = node.targets if isinstance(node, ast.Assign) else [node.target]
             if any(isinstance(t, ast.Name) and t.id.endswith("_ALLOWED") for t in targets):
