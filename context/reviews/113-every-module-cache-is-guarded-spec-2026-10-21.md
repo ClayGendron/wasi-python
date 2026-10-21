@@ -370,7 +370,75 @@ each one's place:
    swap of L3 has none, with the reason); L7 answered: the self-check list is written before
    the build review.
 
-Confirmed by the reviewer: (pending the confirmation read).
+**Confirmation** (the same reviewer, 2026-10-21, `git diff 061e8942 fcd278de`; time box 20
+minutes, kept). I re-ran all thirty-three rows by function node id against the main tree's set
+(`SHA256SUMS` `d0d91cef`). Result: **28 failed, 5 passed in 18.11 s**, exit 1, the builder's
+count (EXECUTED, `build/113-review/checks-on-fcd278de.txt` in this worktree).
+
+Each failure is for the right reason:
+- The 18 plant rows fail with "was not refused … loaded 1".
+- The at/inside, link and root rows fail with "DID NOT RAISE".
+- The method row fails with `AttributeError: … no attribute 'default_cache_dirs'`.
+- The three mode and second-name rows fail with `loaded 1`.
+
+The seam and code-speaks rules checks pass, and so do `ruff check` and `ruff format --check`
+(EXECUTED).
+
+- **H1 — confirmed.** Decision 1's item 3 judges every default, with and without the
+  override, under `$HOME` and the password database's home. The six `fallback` rows and the
+  method row hold it, and criterion 2 names it. On macOS the `fallback` rows are the same
+  folder as the default, so the Linux and Windows legs hold the difference; criterion 2 says
+  so. **A changed `%USERPROFILE%` as trusted input: accepted.** Windows sets it at logon from
+  the profile. The variable a process is likelier to change, `%LOCALAPPDATA%`, is covered by
+  the fallback. A process with another profile variable is the embedder's own deliberate
+  environment, like `$WASI_PYTHON_CACHE`.
+- **M1 — confirmed.** Decision 3 has a section on what the modes stop and what they do not.
+  The Intent, the One line, the README and CHANGELOG text all say the rule is the guard.
+  `st_nlink == 1` has a row that fails on main.
+- **M2 — confirmed for the caches, with a Low on the reason** (L8 below). The chain now holds
+  every prefix of the path as written. Two rows hold it, the `own` row apart from H1, and
+  criterion 3 names it.
+- **M3 — confirmed.** Every label begins "the module cache". `_judge` keeps its 3-tuple, and
+  the new rule is a keyword argument with an empty default. Criterion 7 names the five
+  message assertions and the unit row, to stay unchanged byte for byte.
+- **L1, L2, L4, L5, L6 — fixed in the specification**, each with its row where a row can hold
+  it.
+- **L7 — answered.** The self-check list comes before the build review.
+- **L3 — fixed in the text, but the "no row" reason is wrong** (L9 below).
+- **`_platform.py` at about 1,445 of 1,500 — still not structural.** AGENTS.md calls a change
+  structural when it takes a module *past* the ceiling. About 55 lines stay free. Criterion 11
+  measures the built count; if it passes 1,500, the specification becomes structural and goes
+  back to review. The reserved Windows access-list specification is already marked "likely
+  structural", so it will have to split the module.
+
+Three new Lows, each with its fix. None needs another round.
+
+- **L8. M2's reason for leaving the other runtime folders out is wrong for the artifact set.**
+  The folder is held to the caches, and the specification says the others are "named by the
+  runner itself". But the artifact set comes from an argument (`artifacts=`) or from
+  `$WASI_PYTHON_ARTIFACTS`. It is checked only against its own `SHA256SUMS`
+  (`_artifacts.py:181-197`, READ). So a link on the set's path inside a writable grant would
+  let a guest swap a later call's interpreter. That code is wasm, so it stays inside the wall
+  and is not native code. It reaches another call's grants, but it is outside this
+  specification's subject.
+  **Fix (context only):** correct the reason to "the artifact set is an argument too, but a
+  set planted there is wasm under the wall, not native code; the path-as-written rule for it is
+  reserved". Add that reservation to `context/roadmap.md`. My original M2 asked for a roadmap
+  line, and this revision does not add one.
+- **L9. The swap of L3 can have a row.** `_module_miss` takes wasmtime-py as its first argument
+  (`wt`). So a check can pass a stand-in whose `Module.deserialize_file` swaps the file and then
+  calls the real one, and that patches no `wasi_python` name. **Fix (the builder's, in the
+  build):** add the row, asserting `compiled 1`. Or, if the stand-in proves unworkable, give
+  that as the reason instead.
+- **L10. The method row calls `_Linux()` and `_Darwin()` on a Windows host as well.** There,
+  `import pwd` raises `ImportError` and `os.getuid` raises `AttributeError`. Decision 1's
+  "No home" names only `RuntimeError` and `KeyError`. **Fix:** the `try` in `_Posix` also
+  catches `ImportError` and `AttributeError`. Or the row calls the POSIX classes only on a
+  POSIX host.
+
+**Confirmed fit to build.** H1, M1, M2 and M3 are answered in the specification, each by a row
+that fails on main for its reason. L8 is text in `context/`. L9 and L10 are the builder's in
+the build, and the build reviewer reads them against this paragraph.
 
 ## Verdict
 
