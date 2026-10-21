@@ -1,0 +1,2 @@
+sklearn/utils/tests/test_estimator_checks.py::test_check_estimator_callback
+sklearn/utils/tests/test_estimator_checks.py::test_xfail_count_with_no_fast_fail

@@ -1,0 +1,4 @@
+statsmodels/genmod/tests/test_glm.py::testTweediePowerEstimate
+statsmodels/genmod/tests/test_glm.py::test_glm_fit_cov_p_fallback_on_linalg_error
+statsmodels/genmod/tests/test_glm.py::test_non_invertible_hessian_fails_summary
+statsmodels/genmod/tests/test_glm.py::test_wtd_formula_with_missing

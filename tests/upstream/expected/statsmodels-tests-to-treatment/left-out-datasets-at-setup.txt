@@ -1,0 +1,2 @@
+statsmodels/tools/tests/test_numdiff.py::TestGradLogit::test_hess
+statsmodels/tools/tests/test_numdiff.py::TestGradLogit::test_score

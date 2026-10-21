@@ -66,7 +66,7 @@ def _need(package: str) -> None:
         "stdlib zip",
         "manifest",
         "wasmtime-py",
-        f"source tree {package}",
+        f"source tree {cfg.component or package}",
         "upstream kit",
     )
 
@@ -102,6 +102,8 @@ def test_upstream_suite(
     elif CONFIGS[package].driver == "package":
         if run.collected is not None:  # a split group: its file's collected count
             fact("collected", run.collected)
+        if run.derived is not None:  # the family's derived test data: each output's hash, fuel
+            fact("derived", run.derived)
     elif run.fuel_facts:  # recorded, never ratcheted
         fact("fuel_facts", run.fuel_facts)
     metric("fuel", run.fuel)
@@ -231,8 +233,34 @@ def test_upstream_files_are_well_formed() -> None:
             members[package], sources[package] = set(got), got
         else:
             members[package] = upstream.tarball_members(pair[0])
+    d = upstream.paths.artifact_dir()
+    stdlib = d / "python-stdlib.zip" if d is not None else None
+    product = packages.product_packages(stdlib) if stdlib and stdlib.is_file() else None
     errors = upstream.rule_errors(
-        CONFIGS, set(gaps), members=members, sources=sources, systems_of=shards.group_systems()
+        CONFIGS,
+        set(gaps),
+        members=members,
+        sources=sources,
+        systems_of=shards.group_systems(),
+        product=product,
     )
     errors += packages.lxml_errors(CONFIGS, members.get("lxml"))
     assert not errors, scan.report(errors, "upstream files")
+
+
+SMOKE_FAMILIES = [p for p, c in CONFIGS.items() if c.driver == "package" and c.keys.smoke_cover]
+
+
+def test_every_compiled_family_has_its_smoke_cover(guest_workdir) -> None:
+    """Each smoke family's cover names every compiled subpackage of the product's builtin
+    modules under the package, and nothing else but the paths a smoke file must cover: a re-pin
+    that adds a compiled subpackage, or an edit that drops a cover, is red at every check."""
+    needs.need("artifact dir", "snapshot binary", "stdlib zip", "manifest", "wasmtime-py")
+    names = packages.builtin_names(guest_workdir)
+    errors = []
+    for package in SMOKE_FAMILIES:
+        cfg = CONFIGS[package]
+        families = packages.compiled_families(names, packages.top_name(cfg))
+        errors += packages.cover_errors(package, cfg, families)
+    assert SMOKE_FAMILIES, "no family carries a smoke cover"
+    assert not errors, scan.report(errors, "smoke cover")

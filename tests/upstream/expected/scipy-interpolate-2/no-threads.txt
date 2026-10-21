@@ -1,0 +1,2 @@
+scipy/interpolate/tests/test_rbfinterp.py::TestRBFInterpolatorNeighbors20::test_concurrency
+scipy/interpolate/tests/test_rgi.py::TestRegularGridInterpolator::test_concurrency

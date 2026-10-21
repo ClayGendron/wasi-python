@@ -1,0 +1,9 @@
+sklearn/datasets/tests/test_svmlight_format.py::test_dump_read_only
+sklearn/metrics/tests/test_pairwise_distances_reduction.py::test_memmap_backed_data[float32-euclidean-ArgKmin]
+sklearn/metrics/tests/test_pairwise_distances_reduction.py::test_memmap_backed_data[float32-euclidean-RadiusNeighbors]
+sklearn/metrics/tests/test_pairwise_distances_reduction.py::test_memmap_backed_data[float32-manhattan-ArgKmin]
+sklearn/metrics/tests/test_pairwise_distances_reduction.py::test_memmap_backed_data[float32-manhattan-RadiusNeighbors]
+sklearn/metrics/tests/test_pairwise_distances_reduction.py::test_memmap_backed_data[float64-euclidean-ArgKmin]
+sklearn/metrics/tests/test_pairwise_distances_reduction.py::test_memmap_backed_data[float64-euclidean-RadiusNeighbors]
+sklearn/metrics/tests/test_pairwise_distances_reduction.py::test_memmap_backed_data[float64-manhattan-ArgKmin]
+sklearn/metrics/tests/test_pairwise_distances_reduction.py::test_memmap_backed_data[float64-manhattan-RadiusNeighbors]

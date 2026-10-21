@@ -1,0 +1,1 @@
+statsmodels/graphics/tests/test_mosaicplot.py::test_mosaic

@@ -1,0 +1,1 @@
+scipy/_lib/tests/test_public_api.py::test_all_modules_are_expected

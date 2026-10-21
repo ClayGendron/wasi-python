@@ -1,0 +1,5 @@
+scipy/ndimage/tests/test_filters.py::TestThreading::test_correlate1d[numpy]
+scipy/ndimage/tests/test_filters.py::TestThreading::test_correlate[numpy]
+scipy/ndimage/tests/test_filters.py::TestThreading::test_median_filter[numpy]
+scipy/ndimage/tests/test_filters.py::TestThreading::test_minmax_filter[numpy]
+scipy/ndimage/tests/test_filters.py::TestThreading::test_uniform_filter1d[numpy]

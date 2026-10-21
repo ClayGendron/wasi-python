@@ -1,0 +1,7 @@
+scipy/spatial/tests/test_kdtree.py::test_ckdtree_parallel[KDTree]
+scipy/spatial/tests/test_kdtree.py::test_ckdtree_parallel[cKDTree]
+scipy/spatial/tests/test_kdtree.py::test_multithreaded_tree_access
+scipy/spatial/tests/test_kdtree.py::test_query_ball_point_multithreaded_explicit[KDTree]
+scipy/spatial/tests/test_kdtree.py::test_query_ball_point_multithreaded_explicit[cKDTree]
+scipy/spatial/tests/test_kdtree.py::test_query_ball_point_multithreaded_workers[KDTree]
+scipy/spatial/tests/test_kdtree.py::test_query_ball_point_multithreaded_workers[cKDTree]

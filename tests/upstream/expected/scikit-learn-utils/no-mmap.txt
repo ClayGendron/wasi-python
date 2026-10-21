@@ -1,0 +1,10 @@
+sklearn/utils/tests/test_estimator_checks.py::test_check_estimator_pairwise
+sklearn/utils/tests/test_estimator_checks.py::test_check_estimator_transformer_no_mixin
+sklearn/utils/tests/test_estimator_checks.py::test_estimator_checks_generator_skipping_tests
+sklearn/utils/tests/test_estimator_checks.py::test_estimator_with_set_output
+sklearn/utils/tests/test_testing.py::test_create_memmap_backed_data
+sklearn/utils/tests/test_testing.py::test_tempmemmap
+sklearn/utils/tests/test_validation.py::test_check_array_memmap[False]
+sklearn/utils/tests/test_validation.py::test_check_array_memmap[True]
+sklearn/utils/tests/test_validation.py::test_check_array_writeable_mmap
+sklearn/utils/tests/test_validation.py::test_memmap

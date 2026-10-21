@@ -37,7 +37,17 @@ WHEELS = paths.BUILD / "upstream" / "wheels"
 CHECKS_FILE = "tests/checks/test_v1_3_upstream_suites.py"
 PACKAGES = ("numpy", "pandas", "python")
 # The compiled packages' own suites, one family (grant, stage, budget) each.
-PACKAGE_SUITES = ("matplotlib", "contourpy", "pillow", "kiwisolver", "lxml", "regex")
+PACKAGE_SUITES = (
+    "matplotlib",
+    "contourpy",
+    "pillow",
+    "kiwisolver",
+    "lxml",
+    "regex",
+    "scipy",
+    "scikit-learn",
+    "statsmodels",
+)
 GRANT = "/upstream"
 STREAM = "tmp/upstream/outcomes.txt"  # in the guest's root
 TIER = "normal"  # a group without `tier` is in the normal tier
@@ -429,6 +439,9 @@ TARBALL = {
     "kiwisolver": re.compile(r"kiwisolver-[\w.]+\.tar\.gz"),
     "lxml": re.compile(r"lxml-[\w.]+\.tar\.gz"),
     "regex": re.compile(r"regex-[\w.]+\.tar\.gz"),
+    "scipy": re.compile(r"scipy-[\w.]+\.tar\.gz"),
+    "scikit-learn": re.compile(r"scikit_learn-[\w.]+\.tar\.gz"),
+    "statsmodels": re.compile(r"statsmodels-[\w.]+\.tar\.gz"),
 }
 
 
@@ -907,6 +920,7 @@ def rule_errors(
     members: dict[str, set[str]] | None = None,
     sources: dict[str, dict[str, str]] | None = None,
     systems_of: dict[str, set[str]] | None = None,
+    product: set[str] | None = None,
 ) -> list[str]:
     errors = kit_errors(KIT.read_text()) if KIT.is_file() else ["tests/upstream/kit.txt is missing"]
     groups: set[str] = set()
@@ -966,7 +980,7 @@ def rule_errors(
         if cfg.driver == "package":
             from harness import packages
 
-            errors += packages.rule_errors(pkg, cfg, (members or {}).get(pkg))
+            errors += packages.rule_errors(pkg, cfg, (members or {}).get(pkg), product)
             continue
         if cfg.runner == "regrtest":
             from harness import regrtest

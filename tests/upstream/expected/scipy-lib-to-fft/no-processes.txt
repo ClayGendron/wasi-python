@@ -1,0 +1,5 @@
+scipy/_lib/tests/test__util.py::test__workers_wrapper
+scipy/_lib/tests/test__util.py::test_mapwrapper_parallel
+scipy/_lib/tests/test__util.py::test_pool
+scipy/_lib/tests/test_import_cycles.py::test_public_modules_importable_2
+scipy/fft/tests/test_multithreading.py::test_mixed_threads_processes

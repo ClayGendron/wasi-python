@@ -1,0 +1,1 @@
+scipy/signal/tests/test_fir_filter_design.py::TestMinimumPhase::test_nyquist[numpy-float32-964]

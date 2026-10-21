@@ -1,0 +1,4 @@
+sklearn/neighbors/tests/test_lof.py::test_novelty_true_common_tests[LocalOutlierFactor(novelty=True)-check_estimators_pickle(readonly_memmap=True)]
+sklearn/neighbors/tests/test_lof.py::test_novelty_true_common_tests[LocalOutlierFactor(novelty=True)-check_outliers_train(readonly_memmap=True)]
+sklearn/neighbors/tests/test_lof.py::test_novelty_true_common_tests[LocalOutlierFactor(novelty=True)-check_outliers_train]
+sklearn/neighbors/tests/test_lof.py::test_novelty_true_common_tests[LocalOutlierFactor(novelty=True)-check_readonly_memmap_input]

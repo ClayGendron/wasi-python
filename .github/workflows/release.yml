@@ -752,7 +752,7 @@ jobs:
       # One run stays within the plan's 40 jobs at once.
       max-parallel: 18
       matrix:
-        shard: [own-embedding, own-embedding-a, own-hostile, own-guest, own-runner, own-rest, upstream-groupby, upstream-frame, upstream-numpy-a, upstream-numpy-b, upstream-pandas-small, upstream-plot-a, upstream-plot-b, upstream-plot-c, upstream-plot-d, upstream-plot-e, upstream-plot-f, upstream-plot-g, upstream-plot-h, upstream-plot-i]
+        shard: [own-embedding, own-embedding-a, own-hostile, own-guest, own-runner, own-rest, upstream-groupby, upstream-frame, upstream-numpy-a, upstream-numpy-b, upstream-pandas-small, upstream-plot-a, upstream-plot-b, upstream-plot-c, upstream-plot-d, upstream-plot-e, upstream-plot-f, upstream-plot-g, upstream-plot-h, upstream-plot-i, upstream-sci-smoke-a, upstream-sci-smoke-b]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -798,6 +798,10 @@ jobs:
       upstream-plot-h-sha256: ${{ steps.out.outputs.upstream-plot-h-sha256 }}
       upstream-plot-i-id: ${{ steps.out.outputs.upstream-plot-i-id }}
       upstream-plot-i-sha256: ${{ steps.out.outputs.upstream-plot-i-sha256 }}
+      upstream-sci-smoke-a-id: ${{ steps.out.outputs.upstream-sci-smoke-a-id }}
+      upstream-sci-smoke-a-sha256: ${{ steps.out.outputs.upstream-sci-smoke-a-sha256 }}
+      upstream-sci-smoke-b-id: ${{ steps.out.outputs.upstream-sci-smoke-b-id }}
+      upstream-sci-smoke-b-sha256: ${{ steps.out.outputs.upstream-sci-smoke-b-sha256 }}
     env:
       # The judge reads its repository's text as UTF-8 on every host, as Python 3.15 does by
       # default (PEP 686); Windows' locale codec is not UTF-8 (the branch dry run 39182550825).
@@ -909,7 +913,7 @@ jobs:
       # One run stays within the plan's 40 jobs at once.
       max-parallel: 18
       matrix:
-        shard: [upstream-release-a, upstream-release-b, upstream-release-c, upstream-release-d, upstream-release-e, upstream-release-f, upstream-release-g, upstream-release-h, upstream-release-i, upstream-release-j, upstream-release-k, upstream-release-l]
+        shard: [upstream-release-a, upstream-release-b, upstream-release-c, upstream-release-d, upstream-release-e, upstream-release-f, upstream-release-g, upstream-release-h, upstream-release-i, upstream-release-j, upstream-release-k, upstream-release-l, upstream-sci-release-01, upstream-sci-release-02, upstream-sci-release-03, upstream-sci-release-04, upstream-sci-release-05, upstream-sci-release-06, upstream-sci-release-07, upstream-sci-release-08, upstream-sci-release-09, upstream-sci-release-10, upstream-sci-release-11, upstream-sci-release-12, upstream-sci-release-13, upstream-sci-release-14, upstream-sci-release-15, upstream-sci-release-16, upstream-sci-release-17, upstream-sci-release-18, upstream-sci-release-19, upstream-sci-release-20, upstream-sci-release-21, upstream-sci-release-22, upstream-sci-release-23, upstream-sci-release-24, upstream-sci-release-25, upstream-sci-release-26, upstream-sci-release-27, upstream-sci-release-28, upstream-sci-release-29, upstream-sci-release-30, upstream-sci-release-31, upstream-sci-release-32, upstream-sci-release-33, upstream-sci-release-34, upstream-sci-release-35, upstream-sci-release-36, upstream-sci-release-37, upstream-sci-release-38, upstream-sci-release-39, upstream-sci-release-40, upstream-sci-release-41, upstream-sci-release-42, upstream-sci-release-43, upstream-sci-release-44, upstream-sci-release-45, upstream-sci-release-46, upstream-sci-release-47, upstream-sci-release-48, upstream-sci-release-49, upstream-sci-release-50, upstream-sci-release-51, upstream-sci-release-52, upstream-sci-release-53, upstream-sci-release-54, upstream-sci-release-55, upstream-sci-release-56, upstream-sci-release-57, upstream-sci-release-58, upstream-sci-release-59, upstream-sci-release-60, upstream-sci-release-61, upstream-sci-release-62, upstream-sci-release-63, upstream-sci-release-64, upstream-sci-release-65, upstream-sci-release-66, upstream-sci-release-67, upstream-sci-release-68, upstream-sci-release-69, upstream-sci-release-70, upstream-sci-release-71, upstream-sci-release-72, upstream-sci-release-73, upstream-sci-release-74, upstream-sci-release-75, upstream-sci-release-76, upstream-sci-release-77, upstream-sci-release-78, upstream-sci-release-79, upstream-sci-release-80, upstream-sci-release-81, upstream-sci-release-82, upstream-sci-release-83, upstream-sci-release-84, upstream-sci-release-85, upstream-sci-release-86, upstream-sci-release-87, upstream-sci-release-88, upstream-sci-release-89, upstream-sci-release-90, upstream-sci-release-91]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -939,6 +943,188 @@ jobs:
       upstream-release-k-sha256: ${{ steps.out.outputs.upstream-release-k-sha256 }}
       upstream-release-l-id: ${{ steps.out.outputs.upstream-release-l-id }}
       upstream-release-l-sha256: ${{ steps.out.outputs.upstream-release-l-sha256 }}
+      upstream-sci-release-01-id: ${{ steps.out.outputs.upstream-sci-release-01-id }}
+      upstream-sci-release-01-sha256: ${{ steps.out.outputs.upstream-sci-release-01-sha256 }}
+      upstream-sci-release-02-id: ${{ steps.out.outputs.upstream-sci-release-02-id }}
+      upstream-sci-release-02-sha256: ${{ steps.out.outputs.upstream-sci-release-02-sha256 }}
+      upstream-sci-release-03-id: ${{ steps.out.outputs.upstream-sci-release-03-id }}
+      upstream-sci-release-03-sha256: ${{ steps.out.outputs.upstream-sci-release-03-sha256 }}
+      upstream-sci-release-04-id: ${{ steps.out.outputs.upstream-sci-release-04-id }}
+      upstream-sci-release-04-sha256: ${{ steps.out.outputs.upstream-sci-release-04-sha256 }}
+      upstream-sci-release-05-id: ${{ steps.out.outputs.upstream-sci-release-05-id }}
+      upstream-sci-release-05-sha256: ${{ steps.out.outputs.upstream-sci-release-05-sha256 }}
+      upstream-sci-release-06-id: ${{ steps.out.outputs.upstream-sci-release-06-id }}
+      upstream-sci-release-06-sha256: ${{ steps.out.outputs.upstream-sci-release-06-sha256 }}
+      upstream-sci-release-07-id: ${{ steps.out.outputs.upstream-sci-release-07-id }}
+      upstream-sci-release-07-sha256: ${{ steps.out.outputs.upstream-sci-release-07-sha256 }}
+      upstream-sci-release-08-id: ${{ steps.out.outputs.upstream-sci-release-08-id }}
+      upstream-sci-release-08-sha256: ${{ steps.out.outputs.upstream-sci-release-08-sha256 }}
+      upstream-sci-release-09-id: ${{ steps.out.outputs.upstream-sci-release-09-id }}
+      upstream-sci-release-09-sha256: ${{ steps.out.outputs.upstream-sci-release-09-sha256 }}
+      upstream-sci-release-10-id: ${{ steps.out.outputs.upstream-sci-release-10-id }}
+      upstream-sci-release-10-sha256: ${{ steps.out.outputs.upstream-sci-release-10-sha256 }}
+      upstream-sci-release-11-id: ${{ steps.out.outputs.upstream-sci-release-11-id }}
+      upstream-sci-release-11-sha256: ${{ steps.out.outputs.upstream-sci-release-11-sha256 }}
+      upstream-sci-release-12-id: ${{ steps.out.outputs.upstream-sci-release-12-id }}
+      upstream-sci-release-12-sha256: ${{ steps.out.outputs.upstream-sci-release-12-sha256 }}
+      upstream-sci-release-13-id: ${{ steps.out.outputs.upstream-sci-release-13-id }}
+      upstream-sci-release-13-sha256: ${{ steps.out.outputs.upstream-sci-release-13-sha256 }}
+      upstream-sci-release-14-id: ${{ steps.out.outputs.upstream-sci-release-14-id }}
+      upstream-sci-release-14-sha256: ${{ steps.out.outputs.upstream-sci-release-14-sha256 }}
+      upstream-sci-release-15-id: ${{ steps.out.outputs.upstream-sci-release-15-id }}
+      upstream-sci-release-15-sha256: ${{ steps.out.outputs.upstream-sci-release-15-sha256 }}
+      upstream-sci-release-16-id: ${{ steps.out.outputs.upstream-sci-release-16-id }}
+      upstream-sci-release-16-sha256: ${{ steps.out.outputs.upstream-sci-release-16-sha256 }}
+      upstream-sci-release-17-id: ${{ steps.out.outputs.upstream-sci-release-17-id }}
+      upstream-sci-release-17-sha256: ${{ steps.out.outputs.upstream-sci-release-17-sha256 }}
+      upstream-sci-release-18-id: ${{ steps.out.outputs.upstream-sci-release-18-id }}
+      upstream-sci-release-18-sha256: ${{ steps.out.outputs.upstream-sci-release-18-sha256 }}
+      upstream-sci-release-19-id: ${{ steps.out.outputs.upstream-sci-release-19-id }}
+      upstream-sci-release-19-sha256: ${{ steps.out.outputs.upstream-sci-release-19-sha256 }}
+      upstream-sci-release-20-id: ${{ steps.out.outputs.upstream-sci-release-20-id }}
+      upstream-sci-release-20-sha256: ${{ steps.out.outputs.upstream-sci-release-20-sha256 }}
+      upstream-sci-release-21-id: ${{ steps.out.outputs.upstream-sci-release-21-id }}
+      upstream-sci-release-21-sha256: ${{ steps.out.outputs.upstream-sci-release-21-sha256 }}
+      upstream-sci-release-22-id: ${{ steps.out.outputs.upstream-sci-release-22-id }}
+      upstream-sci-release-22-sha256: ${{ steps.out.outputs.upstream-sci-release-22-sha256 }}
+      upstream-sci-release-23-id: ${{ steps.out.outputs.upstream-sci-release-23-id }}
+      upstream-sci-release-23-sha256: ${{ steps.out.outputs.upstream-sci-release-23-sha256 }}
+      upstream-sci-release-24-id: ${{ steps.out.outputs.upstream-sci-release-24-id }}
+      upstream-sci-release-24-sha256: ${{ steps.out.outputs.upstream-sci-release-24-sha256 }}
+      upstream-sci-release-25-id: ${{ steps.out.outputs.upstream-sci-release-25-id }}
+      upstream-sci-release-25-sha256: ${{ steps.out.outputs.upstream-sci-release-25-sha256 }}
+      upstream-sci-release-26-id: ${{ steps.out.outputs.upstream-sci-release-26-id }}
+      upstream-sci-release-26-sha256: ${{ steps.out.outputs.upstream-sci-release-26-sha256 }}
+      upstream-sci-release-27-id: ${{ steps.out.outputs.upstream-sci-release-27-id }}
+      upstream-sci-release-27-sha256: ${{ steps.out.outputs.upstream-sci-release-27-sha256 }}
+      upstream-sci-release-28-id: ${{ steps.out.outputs.upstream-sci-release-28-id }}
+      upstream-sci-release-28-sha256: ${{ steps.out.outputs.upstream-sci-release-28-sha256 }}
+      upstream-sci-release-29-id: ${{ steps.out.outputs.upstream-sci-release-29-id }}
+      upstream-sci-release-29-sha256: ${{ steps.out.outputs.upstream-sci-release-29-sha256 }}
+      upstream-sci-release-30-id: ${{ steps.out.outputs.upstream-sci-release-30-id }}
+      upstream-sci-release-30-sha256: ${{ steps.out.outputs.upstream-sci-release-30-sha256 }}
+      upstream-sci-release-31-id: ${{ steps.out.outputs.upstream-sci-release-31-id }}
+      upstream-sci-release-31-sha256: ${{ steps.out.outputs.upstream-sci-release-31-sha256 }}
+      upstream-sci-release-32-id: ${{ steps.out.outputs.upstream-sci-release-32-id }}
+      upstream-sci-release-32-sha256: ${{ steps.out.outputs.upstream-sci-release-32-sha256 }}
+      upstream-sci-release-33-id: ${{ steps.out.outputs.upstream-sci-release-33-id }}
+      upstream-sci-release-33-sha256: ${{ steps.out.outputs.upstream-sci-release-33-sha256 }}
+      upstream-sci-release-34-id: ${{ steps.out.outputs.upstream-sci-release-34-id }}
+      upstream-sci-release-34-sha256: ${{ steps.out.outputs.upstream-sci-release-34-sha256 }}
+      upstream-sci-release-35-id: ${{ steps.out.outputs.upstream-sci-release-35-id }}
+      upstream-sci-release-35-sha256: ${{ steps.out.outputs.upstream-sci-release-35-sha256 }}
+      upstream-sci-release-36-id: ${{ steps.out.outputs.upstream-sci-release-36-id }}
+      upstream-sci-release-36-sha256: ${{ steps.out.outputs.upstream-sci-release-36-sha256 }}
+      upstream-sci-release-37-id: ${{ steps.out.outputs.upstream-sci-release-37-id }}
+      upstream-sci-release-37-sha256: ${{ steps.out.outputs.upstream-sci-release-37-sha256 }}
+      upstream-sci-release-38-id: ${{ steps.out.outputs.upstream-sci-release-38-id }}
+      upstream-sci-release-38-sha256: ${{ steps.out.outputs.upstream-sci-release-38-sha256 }}
+      upstream-sci-release-39-id: ${{ steps.out.outputs.upstream-sci-release-39-id }}
+      upstream-sci-release-39-sha256: ${{ steps.out.outputs.upstream-sci-release-39-sha256 }}
+      upstream-sci-release-40-id: ${{ steps.out.outputs.upstream-sci-release-40-id }}
+      upstream-sci-release-40-sha256: ${{ steps.out.outputs.upstream-sci-release-40-sha256 }}
+      upstream-sci-release-41-id: ${{ steps.out.outputs.upstream-sci-release-41-id }}
+      upstream-sci-release-41-sha256: ${{ steps.out.outputs.upstream-sci-release-41-sha256 }}
+      upstream-sci-release-42-id: ${{ steps.out.outputs.upstream-sci-release-42-id }}
+      upstream-sci-release-42-sha256: ${{ steps.out.outputs.upstream-sci-release-42-sha256 }}
+      upstream-sci-release-43-id: ${{ steps.out.outputs.upstream-sci-release-43-id }}
+      upstream-sci-release-43-sha256: ${{ steps.out.outputs.upstream-sci-release-43-sha256 }}
+      upstream-sci-release-44-id: ${{ steps.out.outputs.upstream-sci-release-44-id }}
+      upstream-sci-release-44-sha256: ${{ steps.out.outputs.upstream-sci-release-44-sha256 }}
+      upstream-sci-release-45-id: ${{ steps.out.outputs.upstream-sci-release-45-id }}
+      upstream-sci-release-45-sha256: ${{ steps.out.outputs.upstream-sci-release-45-sha256 }}
+      upstream-sci-release-46-id: ${{ steps.out.outputs.upstream-sci-release-46-id }}
+      upstream-sci-release-46-sha256: ${{ steps.out.outputs.upstream-sci-release-46-sha256 }}
+      upstream-sci-release-47-id: ${{ steps.out.outputs.upstream-sci-release-47-id }}
+      upstream-sci-release-47-sha256: ${{ steps.out.outputs.upstream-sci-release-47-sha256 }}
+      upstream-sci-release-48-id: ${{ steps.out.outputs.upstream-sci-release-48-id }}
+      upstream-sci-release-48-sha256: ${{ steps.out.outputs.upstream-sci-release-48-sha256 }}
+      upstream-sci-release-49-id: ${{ steps.out.outputs.upstream-sci-release-49-id }}
+      upstream-sci-release-49-sha256: ${{ steps.out.outputs.upstream-sci-release-49-sha256 }}
+      upstream-sci-release-50-id: ${{ steps.out.outputs.upstream-sci-release-50-id }}
+      upstream-sci-release-50-sha256: ${{ steps.out.outputs.upstream-sci-release-50-sha256 }}
+      upstream-sci-release-51-id: ${{ steps.out.outputs.upstream-sci-release-51-id }}
+      upstream-sci-release-51-sha256: ${{ steps.out.outputs.upstream-sci-release-51-sha256 }}
+      upstream-sci-release-52-id: ${{ steps.out.outputs.upstream-sci-release-52-id }}
+      upstream-sci-release-52-sha256: ${{ steps.out.outputs.upstream-sci-release-52-sha256 }}
+      upstream-sci-release-53-id: ${{ steps.out.outputs.upstream-sci-release-53-id }}
+      upstream-sci-release-53-sha256: ${{ steps.out.outputs.upstream-sci-release-53-sha256 }}
+      upstream-sci-release-54-id: ${{ steps.out.outputs.upstream-sci-release-54-id }}
+      upstream-sci-release-54-sha256: ${{ steps.out.outputs.upstream-sci-release-54-sha256 }}
+      upstream-sci-release-55-id: ${{ steps.out.outputs.upstream-sci-release-55-id }}
+      upstream-sci-release-55-sha256: ${{ steps.out.outputs.upstream-sci-release-55-sha256 }}
+      upstream-sci-release-56-id: ${{ steps.out.outputs.upstream-sci-release-56-id }}
+      upstream-sci-release-56-sha256: ${{ steps.out.outputs.upstream-sci-release-56-sha256 }}
+      upstream-sci-release-57-id: ${{ steps.out.outputs.upstream-sci-release-57-id }}
+      upstream-sci-release-57-sha256: ${{ steps.out.outputs.upstream-sci-release-57-sha256 }}
+      upstream-sci-release-58-id: ${{ steps.out.outputs.upstream-sci-release-58-id }}
+      upstream-sci-release-58-sha256: ${{ steps.out.outputs.upstream-sci-release-58-sha256 }}
+      upstream-sci-release-59-id: ${{ steps.out.outputs.upstream-sci-release-59-id }}
+      upstream-sci-release-59-sha256: ${{ steps.out.outputs.upstream-sci-release-59-sha256 }}
+      upstream-sci-release-60-id: ${{ steps.out.outputs.upstream-sci-release-60-id }}
+      upstream-sci-release-60-sha256: ${{ steps.out.outputs.upstream-sci-release-60-sha256 }}
+      upstream-sci-release-61-id: ${{ steps.out.outputs.upstream-sci-release-61-id }}
+      upstream-sci-release-61-sha256: ${{ steps.out.outputs.upstream-sci-release-61-sha256 }}
+      upstream-sci-release-62-id: ${{ steps.out.outputs.upstream-sci-release-62-id }}
+      upstream-sci-release-62-sha256: ${{ steps.out.outputs.upstream-sci-release-62-sha256 }}
+      upstream-sci-release-63-id: ${{ steps.out.outputs.upstream-sci-release-63-id }}
+      upstream-sci-release-63-sha256: ${{ steps.out.outputs.upstream-sci-release-63-sha256 }}
+      upstream-sci-release-64-id: ${{ steps.out.outputs.upstream-sci-release-64-id }}
+      upstream-sci-release-64-sha256: ${{ steps.out.outputs.upstream-sci-release-64-sha256 }}
+      upstream-sci-release-65-id: ${{ steps.out.outputs.upstream-sci-release-65-id }}
+      upstream-sci-release-65-sha256: ${{ steps.out.outputs.upstream-sci-release-65-sha256 }}
+      upstream-sci-release-66-id: ${{ steps.out.outputs.upstream-sci-release-66-id }}
+      upstream-sci-release-66-sha256: ${{ steps.out.outputs.upstream-sci-release-66-sha256 }}
+      upstream-sci-release-67-id: ${{ steps.out.outputs.upstream-sci-release-67-id }}
+      upstream-sci-release-67-sha256: ${{ steps.out.outputs.upstream-sci-release-67-sha256 }}
+      upstream-sci-release-68-id: ${{ steps.out.outputs.upstream-sci-release-68-id }}
+      upstream-sci-release-68-sha256: ${{ steps.out.outputs.upstream-sci-release-68-sha256 }}
+      upstream-sci-release-69-id: ${{ steps.out.outputs.upstream-sci-release-69-id }}
+      upstream-sci-release-69-sha256: ${{ steps.out.outputs.upstream-sci-release-69-sha256 }}
+      upstream-sci-release-70-id: ${{ steps.out.outputs.upstream-sci-release-70-id }}
+      upstream-sci-release-70-sha256: ${{ steps.out.outputs.upstream-sci-release-70-sha256 }}
+      upstream-sci-release-71-id: ${{ steps.out.outputs.upstream-sci-release-71-id }}
+      upstream-sci-release-71-sha256: ${{ steps.out.outputs.upstream-sci-release-71-sha256 }}
+      upstream-sci-release-72-id: ${{ steps.out.outputs.upstream-sci-release-72-id }}
+      upstream-sci-release-72-sha256: ${{ steps.out.outputs.upstream-sci-release-72-sha256 }}
+      upstream-sci-release-73-id: ${{ steps.out.outputs.upstream-sci-release-73-id }}
+      upstream-sci-release-73-sha256: ${{ steps.out.outputs.upstream-sci-release-73-sha256 }}
+      upstream-sci-release-74-id: ${{ steps.out.outputs.upstream-sci-release-74-id }}
+      upstream-sci-release-74-sha256: ${{ steps.out.outputs.upstream-sci-release-74-sha256 }}
+      upstream-sci-release-75-id: ${{ steps.out.outputs.upstream-sci-release-75-id }}
+      upstream-sci-release-75-sha256: ${{ steps.out.outputs.upstream-sci-release-75-sha256 }}
+      upstream-sci-release-76-id: ${{ steps.out.outputs.upstream-sci-release-76-id }}
+      upstream-sci-release-76-sha256: ${{ steps.out.outputs.upstream-sci-release-76-sha256 }}
+      upstream-sci-release-77-id: ${{ steps.out.outputs.upstream-sci-release-77-id }}
+      upstream-sci-release-77-sha256: ${{ steps.out.outputs.upstream-sci-release-77-sha256 }}
+      upstream-sci-release-78-id: ${{ steps.out.outputs.upstream-sci-release-78-id }}
+      upstream-sci-release-78-sha256: ${{ steps.out.outputs.upstream-sci-release-78-sha256 }}
+      upstream-sci-release-79-id: ${{ steps.out.outputs.upstream-sci-release-79-id }}
+      upstream-sci-release-79-sha256: ${{ steps.out.outputs.upstream-sci-release-79-sha256 }}
+      upstream-sci-release-80-id: ${{ steps.out.outputs.upstream-sci-release-80-id }}
+      upstream-sci-release-80-sha256: ${{ steps.out.outputs.upstream-sci-release-80-sha256 }}
+      upstream-sci-release-81-id: ${{ steps.out.outputs.upstream-sci-release-81-id }}
+      upstream-sci-release-81-sha256: ${{ steps.out.outputs.upstream-sci-release-81-sha256 }}
+      upstream-sci-release-82-id: ${{ steps.out.outputs.upstream-sci-release-82-id }}
+      upstream-sci-release-82-sha256: ${{ steps.out.outputs.upstream-sci-release-82-sha256 }}
+      upstream-sci-release-83-id: ${{ steps.out.outputs.upstream-sci-release-83-id }}
+      upstream-sci-release-83-sha256: ${{ steps.out.outputs.upstream-sci-release-83-sha256 }}
+      upstream-sci-release-84-id: ${{ steps.out.outputs.upstream-sci-release-84-id }}
+      upstream-sci-release-84-sha256: ${{ steps.out.outputs.upstream-sci-release-84-sha256 }}
+      upstream-sci-release-85-id: ${{ steps.out.outputs.upstream-sci-release-85-id }}
+      upstream-sci-release-85-sha256: ${{ steps.out.outputs.upstream-sci-release-85-sha256 }}
+      upstream-sci-release-86-id: ${{ steps.out.outputs.upstream-sci-release-86-id }}
+      upstream-sci-release-86-sha256: ${{ steps.out.outputs.upstream-sci-release-86-sha256 }}
+      upstream-sci-release-87-id: ${{ steps.out.outputs.upstream-sci-release-87-id }}
+      upstream-sci-release-87-sha256: ${{ steps.out.outputs.upstream-sci-release-87-sha256 }}
+      upstream-sci-release-88-id: ${{ steps.out.outputs.upstream-sci-release-88-id }}
+      upstream-sci-release-88-sha256: ${{ steps.out.outputs.upstream-sci-release-88-sha256 }}
+      upstream-sci-release-89-id: ${{ steps.out.outputs.upstream-sci-release-89-id }}
+      upstream-sci-release-89-sha256: ${{ steps.out.outputs.upstream-sci-release-89-sha256 }}
+      upstream-sci-release-90-id: ${{ steps.out.outputs.upstream-sci-release-90-id }}
+      upstream-sci-release-90-sha256: ${{ steps.out.outputs.upstream-sci-release-90-sha256 }}
+      upstream-sci-release-91-id: ${{ steps.out.outputs.upstream-sci-release-91-id }}
+      upstream-sci-release-91-sha256: ${{ steps.out.outputs.upstream-sci-release-91-sha256 }}
     env:
       # The judge reads its repository's text as UTF-8 on every host, as Python 3.15 does by
       # default (PEP 686); Windows' locale codec is not UTF-8 (the branch dry run 39182550825).
@@ -1217,6 +1403,8 @@ jobs:
           LINUX_UPSTREAM_PLOT_G_ID: ${{ needs.judge-linux.outputs.upstream-plot-g-id }}
           LINUX_UPSTREAM_PLOT_H_ID: ${{ needs.judge-linux.outputs.upstream-plot-h-id }}
           LINUX_UPSTREAM_PLOT_I_ID: ${{ needs.judge-linux.outputs.upstream-plot-i-id }}
+          LINUX_UPSTREAM_SCI_SMOKE_A_ID: ${{ needs.judge-linux.outputs.upstream-sci-smoke-a-id }}
+          LINUX_UPSTREAM_SCI_SMOKE_B_ID: ${{ needs.judge-linux.outputs.upstream-sci-smoke-b-id }}
           WINDOWS_OWN_EMBEDDING_ID: ${{ needs.judge-windows.outputs.own-embedding-id }}
           WINDOWS_OWN_EMBEDDING_A_ID: ${{ needs.judge-windows.outputs.own-embedding-a-id }}
           WINDOWS_OWN_HOSTILE_ID: ${{ needs.judge-windows.outputs.own-hostile-id }}
@@ -1238,7 +1426,7 @@ jobs:
             echo "the build job handed on no SHA-256 of the set's SHA256SUMS"
             exit 1
           fi
-          for id in "$BUILD_RECORD_ID" "$MACOS_OWN_EMBEDDING_ID" "$MACOS_OWN_EMBEDDING_A_ID" "$MACOS_OWN_HOSTILE_ID" "$MACOS_OWN_GUEST_ID" "$MACOS_OWN_RUNNER_ID" "$MACOS_OWN_REST_ID" "$MACOS_UPSTREAM_MACOS_ID" "$LINUX_OWN_EMBEDDING_ID" "$LINUX_OWN_EMBEDDING_A_ID" "$LINUX_OWN_HOSTILE_ID" "$LINUX_OWN_GUEST_ID" "$LINUX_OWN_RUNNER_ID" "$LINUX_OWN_REST_ID" "$LINUX_UPSTREAM_GROUPBY_ID" "$LINUX_UPSTREAM_FRAME_ID" "$LINUX_UPSTREAM_NUMPY_A_ID" "$LINUX_UPSTREAM_NUMPY_B_ID" "$LINUX_UPSTREAM_PANDAS_SMALL_ID" "$LINUX_UPSTREAM_PLOT_A_ID" "$LINUX_UPSTREAM_PLOT_B_ID" "$LINUX_UPSTREAM_PLOT_C_ID" "$LINUX_UPSTREAM_PLOT_D_ID" "$LINUX_UPSTREAM_PLOT_E_ID" "$LINUX_UPSTREAM_PLOT_F_ID" "$LINUX_UPSTREAM_PLOT_G_ID" "$LINUX_UPSTREAM_PLOT_H_ID" "$LINUX_UPSTREAM_PLOT_I_ID" "$WINDOWS_OWN_EMBEDDING_ID" "$WINDOWS_OWN_EMBEDDING_A_ID" "$WINDOWS_OWN_HOSTILE_ID" "$WINDOWS_OWN_GUEST_ID" "$WINDOWS_OWN_RUNNER_ID" "$WINDOWS_UPSTREAM_WINDOWS_ID"; do
+          for id in "$BUILD_RECORD_ID" "$MACOS_OWN_EMBEDDING_ID" "$MACOS_OWN_EMBEDDING_A_ID" "$MACOS_OWN_HOSTILE_ID" "$MACOS_OWN_GUEST_ID" "$MACOS_OWN_RUNNER_ID" "$MACOS_OWN_REST_ID" "$MACOS_UPSTREAM_MACOS_ID" "$LINUX_OWN_EMBEDDING_ID" "$LINUX_OWN_EMBEDDING_A_ID" "$LINUX_OWN_HOSTILE_ID" "$LINUX_OWN_GUEST_ID" "$LINUX_OWN_RUNNER_ID" "$LINUX_OWN_REST_ID" "$LINUX_UPSTREAM_GROUPBY_ID" "$LINUX_UPSTREAM_FRAME_ID" "$LINUX_UPSTREAM_NUMPY_A_ID" "$LINUX_UPSTREAM_NUMPY_B_ID" "$LINUX_UPSTREAM_PANDAS_SMALL_ID" "$LINUX_UPSTREAM_PLOT_A_ID" "$LINUX_UPSTREAM_PLOT_B_ID" "$LINUX_UPSTREAM_PLOT_C_ID" "$LINUX_UPSTREAM_PLOT_D_ID" "$LINUX_UPSTREAM_PLOT_E_ID" "$LINUX_UPSTREAM_PLOT_F_ID" "$LINUX_UPSTREAM_PLOT_G_ID" "$LINUX_UPSTREAM_PLOT_H_ID" "$LINUX_UPSTREAM_PLOT_I_ID" "$LINUX_UPSTREAM_SCI_SMOKE_A_ID" "$LINUX_UPSTREAM_SCI_SMOKE_B_ID" "$WINDOWS_OWN_EMBEDDING_ID" "$WINDOWS_OWN_EMBEDDING_A_ID" "$WINDOWS_OWN_HOSTILE_ID" "$WINDOWS_OWN_GUEST_ID" "$WINDOWS_OWN_RUNNER_ID" "$WINDOWS_UPSTREAM_WINDOWS_ID"; do
             case "$id" in
               "" | *[!0-9]*) echo "a job handed on no record id"; exit 1 ;;
             esac
@@ -1255,7 +1443,7 @@ jobs:
           digest-mismatch: error
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          artifact-ids: ${{ needs.judge-linux.outputs.own-embedding-id }},${{ needs.judge-linux.outputs.own-embedding-a-id }},${{ needs.judge-linux.outputs.own-hostile-id }},${{ needs.judge-linux.outputs.own-guest-id }},${{ needs.judge-linux.outputs.own-runner-id }},${{ needs.judge-linux.outputs.own-rest-id }},${{ needs.judge-linux.outputs.upstream-groupby-id }},${{ needs.judge-linux.outputs.upstream-frame-id }},${{ needs.judge-linux.outputs.upstream-numpy-a-id }},${{ needs.judge-linux.outputs.upstream-numpy-b-id }},${{ needs.judge-linux.outputs.upstream-pandas-small-id }},${{ needs.judge-linux.outputs.upstream-plot-a-id }},${{ needs.judge-linux.outputs.upstream-plot-b-id }},${{ needs.judge-linux.outputs.upstream-plot-c-id }},${{ needs.judge-linux.outputs.upstream-plot-d-id }},${{ needs.judge-linux.outputs.upstream-plot-e-id }},${{ needs.judge-linux.outputs.upstream-plot-f-id }},${{ needs.judge-linux.outputs.upstream-plot-g-id }},${{ needs.judge-linux.outputs.upstream-plot-h-id }},${{ needs.judge-linux.outputs.upstream-plot-i-id }}
+          artifact-ids: ${{ needs.judge-linux.outputs.own-embedding-id }},${{ needs.judge-linux.outputs.own-embedding-a-id }},${{ needs.judge-linux.outputs.own-hostile-id }},${{ needs.judge-linux.outputs.own-guest-id }},${{ needs.judge-linux.outputs.own-runner-id }},${{ needs.judge-linux.outputs.own-rest-id }},${{ needs.judge-linux.outputs.upstream-groupby-id }},${{ needs.judge-linux.outputs.upstream-frame-id }},${{ needs.judge-linux.outputs.upstream-numpy-a-id }},${{ needs.judge-linux.outputs.upstream-numpy-b-id }},${{ needs.judge-linux.outputs.upstream-pandas-small-id }},${{ needs.judge-linux.outputs.upstream-plot-a-id }},${{ needs.judge-linux.outputs.upstream-plot-b-id }},${{ needs.judge-linux.outputs.upstream-plot-c-id }},${{ needs.judge-linux.outputs.upstream-plot-d-id }},${{ needs.judge-linux.outputs.upstream-plot-e-id }},${{ needs.judge-linux.outputs.upstream-plot-f-id }},${{ needs.judge-linux.outputs.upstream-plot-g-id }},${{ needs.judge-linux.outputs.upstream-plot-h-id }},${{ needs.judge-linux.outputs.upstream-plot-i-id }},${{ needs.judge-linux.outputs.upstream-sci-smoke-a-id }},${{ needs.judge-linux.outputs.upstream-sci-smoke-b-id }}
           path: records/judge-linux
           digest-mismatch: error
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -1278,8 +1466,99 @@ jobs:
           RELEASE_UPSTREAM_RELEASE_J_ID: ${{ needs.judge-release.outputs.upstream-release-j-id }}
           RELEASE_UPSTREAM_RELEASE_K_ID: ${{ needs.judge-release.outputs.upstream-release-k-id }}
           RELEASE_UPSTREAM_RELEASE_L_ID: ${{ needs.judge-release.outputs.upstream-release-l-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_01_ID: ${{ needs.judge-release.outputs.upstream-sci-release-01-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_02_ID: ${{ needs.judge-release.outputs.upstream-sci-release-02-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_03_ID: ${{ needs.judge-release.outputs.upstream-sci-release-03-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_04_ID: ${{ needs.judge-release.outputs.upstream-sci-release-04-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_05_ID: ${{ needs.judge-release.outputs.upstream-sci-release-05-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_06_ID: ${{ needs.judge-release.outputs.upstream-sci-release-06-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_07_ID: ${{ needs.judge-release.outputs.upstream-sci-release-07-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_08_ID: ${{ needs.judge-release.outputs.upstream-sci-release-08-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_09_ID: ${{ needs.judge-release.outputs.upstream-sci-release-09-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_10_ID: ${{ needs.judge-release.outputs.upstream-sci-release-10-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_11_ID: ${{ needs.judge-release.outputs.upstream-sci-release-11-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_12_ID: ${{ needs.judge-release.outputs.upstream-sci-release-12-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_13_ID: ${{ needs.judge-release.outputs.upstream-sci-release-13-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_14_ID: ${{ needs.judge-release.outputs.upstream-sci-release-14-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_15_ID: ${{ needs.judge-release.outputs.upstream-sci-release-15-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_16_ID: ${{ needs.judge-release.outputs.upstream-sci-release-16-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_17_ID: ${{ needs.judge-release.outputs.upstream-sci-release-17-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_18_ID: ${{ needs.judge-release.outputs.upstream-sci-release-18-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_19_ID: ${{ needs.judge-release.outputs.upstream-sci-release-19-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_20_ID: ${{ needs.judge-release.outputs.upstream-sci-release-20-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_21_ID: ${{ needs.judge-release.outputs.upstream-sci-release-21-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_22_ID: ${{ needs.judge-release.outputs.upstream-sci-release-22-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_23_ID: ${{ needs.judge-release.outputs.upstream-sci-release-23-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_24_ID: ${{ needs.judge-release.outputs.upstream-sci-release-24-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_25_ID: ${{ needs.judge-release.outputs.upstream-sci-release-25-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_26_ID: ${{ needs.judge-release.outputs.upstream-sci-release-26-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_27_ID: ${{ needs.judge-release.outputs.upstream-sci-release-27-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_28_ID: ${{ needs.judge-release.outputs.upstream-sci-release-28-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_29_ID: ${{ needs.judge-release.outputs.upstream-sci-release-29-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_30_ID: ${{ needs.judge-release.outputs.upstream-sci-release-30-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_31_ID: ${{ needs.judge-release.outputs.upstream-sci-release-31-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_32_ID: ${{ needs.judge-release.outputs.upstream-sci-release-32-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_33_ID: ${{ needs.judge-release.outputs.upstream-sci-release-33-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_34_ID: ${{ needs.judge-release.outputs.upstream-sci-release-34-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_35_ID: ${{ needs.judge-release.outputs.upstream-sci-release-35-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_36_ID: ${{ needs.judge-release.outputs.upstream-sci-release-36-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_37_ID: ${{ needs.judge-release.outputs.upstream-sci-release-37-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_38_ID: ${{ needs.judge-release.outputs.upstream-sci-release-38-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_39_ID: ${{ needs.judge-release.outputs.upstream-sci-release-39-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_40_ID: ${{ needs.judge-release.outputs.upstream-sci-release-40-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_41_ID: ${{ needs.judge-release.outputs.upstream-sci-release-41-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_42_ID: ${{ needs.judge-release.outputs.upstream-sci-release-42-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_43_ID: ${{ needs.judge-release.outputs.upstream-sci-release-43-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_44_ID: ${{ needs.judge-release.outputs.upstream-sci-release-44-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_45_ID: ${{ needs.judge-release.outputs.upstream-sci-release-45-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_46_ID: ${{ needs.judge-release.outputs.upstream-sci-release-46-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_47_ID: ${{ needs.judge-release.outputs.upstream-sci-release-47-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_48_ID: ${{ needs.judge-release.outputs.upstream-sci-release-48-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_49_ID: ${{ needs.judge-release.outputs.upstream-sci-release-49-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_50_ID: ${{ needs.judge-release.outputs.upstream-sci-release-50-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_51_ID: ${{ needs.judge-release.outputs.upstream-sci-release-51-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_52_ID: ${{ needs.judge-release.outputs.upstream-sci-release-52-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_53_ID: ${{ needs.judge-release.outputs.upstream-sci-release-53-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_54_ID: ${{ needs.judge-release.outputs.upstream-sci-release-54-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_55_ID: ${{ needs.judge-release.outputs.upstream-sci-release-55-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_56_ID: ${{ needs.judge-release.outputs.upstream-sci-release-56-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_57_ID: ${{ needs.judge-release.outputs.upstream-sci-release-57-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_58_ID: ${{ needs.judge-release.outputs.upstream-sci-release-58-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_59_ID: ${{ needs.judge-release.outputs.upstream-sci-release-59-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_60_ID: ${{ needs.judge-release.outputs.upstream-sci-release-60-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_61_ID: ${{ needs.judge-release.outputs.upstream-sci-release-61-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_62_ID: ${{ needs.judge-release.outputs.upstream-sci-release-62-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_63_ID: ${{ needs.judge-release.outputs.upstream-sci-release-63-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_64_ID: ${{ needs.judge-release.outputs.upstream-sci-release-64-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_65_ID: ${{ needs.judge-release.outputs.upstream-sci-release-65-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_66_ID: ${{ needs.judge-release.outputs.upstream-sci-release-66-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_67_ID: ${{ needs.judge-release.outputs.upstream-sci-release-67-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_68_ID: ${{ needs.judge-release.outputs.upstream-sci-release-68-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_69_ID: ${{ needs.judge-release.outputs.upstream-sci-release-69-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_70_ID: ${{ needs.judge-release.outputs.upstream-sci-release-70-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_71_ID: ${{ needs.judge-release.outputs.upstream-sci-release-71-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_72_ID: ${{ needs.judge-release.outputs.upstream-sci-release-72-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_73_ID: ${{ needs.judge-release.outputs.upstream-sci-release-73-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_74_ID: ${{ needs.judge-release.outputs.upstream-sci-release-74-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_75_ID: ${{ needs.judge-release.outputs.upstream-sci-release-75-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_76_ID: ${{ needs.judge-release.outputs.upstream-sci-release-76-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_77_ID: ${{ needs.judge-release.outputs.upstream-sci-release-77-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_78_ID: ${{ needs.judge-release.outputs.upstream-sci-release-78-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_79_ID: ${{ needs.judge-release.outputs.upstream-sci-release-79-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_80_ID: ${{ needs.judge-release.outputs.upstream-sci-release-80-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_81_ID: ${{ needs.judge-release.outputs.upstream-sci-release-81-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_82_ID: ${{ needs.judge-release.outputs.upstream-sci-release-82-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_83_ID: ${{ needs.judge-release.outputs.upstream-sci-release-83-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_84_ID: ${{ needs.judge-release.outputs.upstream-sci-release-84-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_85_ID: ${{ needs.judge-release.outputs.upstream-sci-release-85-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_86_ID: ${{ needs.judge-release.outputs.upstream-sci-release-86-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_87_ID: ${{ needs.judge-release.outputs.upstream-sci-release-87-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_88_ID: ${{ needs.judge-release.outputs.upstream-sci-release-88-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_89_ID: ${{ needs.judge-release.outputs.upstream-sci-release-89-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_90_ID: ${{ needs.judge-release.outputs.upstream-sci-release-90-id }}
+          RELEASE_UPSTREAM_SCI_RELEASE_91_ID: ${{ needs.judge-release.outputs.upstream-sci-release-91-id }}
         run: |
-          for id in "$RELEASE_UPSTREAM_RELEASE_A_ID" "$RELEASE_UPSTREAM_RELEASE_B_ID" "$RELEASE_UPSTREAM_RELEASE_C_ID" "$RELEASE_UPSTREAM_RELEASE_D_ID" "$RELEASE_UPSTREAM_RELEASE_E_ID" "$RELEASE_UPSTREAM_RELEASE_F_ID" "$RELEASE_UPSTREAM_RELEASE_G_ID" "$RELEASE_UPSTREAM_RELEASE_H_ID" "$RELEASE_UPSTREAM_RELEASE_I_ID" "$RELEASE_UPSTREAM_RELEASE_J_ID" "$RELEASE_UPSTREAM_RELEASE_K_ID" "$RELEASE_UPSTREAM_RELEASE_L_ID"; do
+          for id in "$RELEASE_UPSTREAM_RELEASE_A_ID" "$RELEASE_UPSTREAM_RELEASE_B_ID" "$RELEASE_UPSTREAM_RELEASE_C_ID" "$RELEASE_UPSTREAM_RELEASE_D_ID" "$RELEASE_UPSTREAM_RELEASE_E_ID" "$RELEASE_UPSTREAM_RELEASE_F_ID" "$RELEASE_UPSTREAM_RELEASE_G_ID" "$RELEASE_UPSTREAM_RELEASE_H_ID" "$RELEASE_UPSTREAM_RELEASE_I_ID" "$RELEASE_UPSTREAM_RELEASE_J_ID" "$RELEASE_UPSTREAM_RELEASE_K_ID" "$RELEASE_UPSTREAM_RELEASE_L_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_01_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_02_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_03_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_04_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_05_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_06_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_07_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_08_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_09_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_10_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_11_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_12_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_13_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_14_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_15_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_16_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_17_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_18_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_19_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_20_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_21_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_22_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_23_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_24_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_25_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_26_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_27_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_28_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_29_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_30_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_31_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_32_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_33_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_34_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_35_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_36_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_37_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_38_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_39_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_40_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_41_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_42_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_43_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_44_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_45_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_46_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_47_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_48_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_49_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_50_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_51_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_52_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_53_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_54_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_55_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_56_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_57_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_58_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_59_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_60_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_61_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_62_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_63_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_64_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_65_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_66_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_67_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_68_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_69_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_70_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_71_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_72_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_73_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_74_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_75_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_76_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_77_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_78_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_79_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_80_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_81_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_82_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_83_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_84_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_85_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_86_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_87_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_88_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_89_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_90_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_91_ID"; do
             case "$id" in
               "" | *[!0-9]*) echo "a job handed on no record id"; exit 1 ;;
             esac
@@ -1287,7 +1566,7 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: needs.inputs.outputs.tier == 'release'
         with:
-          artifact-ids: ${{ needs.judge-release.outputs.upstream-release-a-id }},${{ needs.judge-release.outputs.upstream-release-b-id }},${{ needs.judge-release.outputs.upstream-release-c-id }},${{ needs.judge-release.outputs.upstream-release-d-id }},${{ needs.judge-release.outputs.upstream-release-e-id }},${{ needs.judge-release.outputs.upstream-release-f-id }},${{ needs.judge-release.outputs.upstream-release-g-id }},${{ needs.judge-release.outputs.upstream-release-h-id }},${{ needs.judge-release.outputs.upstream-release-i-id }},${{ needs.judge-release.outputs.upstream-release-j-id }},${{ needs.judge-release.outputs.upstream-release-k-id }},${{ needs.judge-release.outputs.upstream-release-l-id }}
+          artifact-ids: ${{ needs.judge-release.outputs.upstream-release-a-id }},${{ needs.judge-release.outputs.upstream-release-b-id }},${{ needs.judge-release.outputs.upstream-release-c-id }},${{ needs.judge-release.outputs.upstream-release-d-id }},${{ needs.judge-release.outputs.upstream-release-e-id }},${{ needs.judge-release.outputs.upstream-release-f-id }},${{ needs.judge-release.outputs.upstream-release-g-id }},${{ needs.judge-release.outputs.upstream-release-h-id }},${{ needs.judge-release.outputs.upstream-release-i-id }},${{ needs.judge-release.outputs.upstream-release-j-id }},${{ needs.judge-release.outputs.upstream-release-k-id }},${{ needs.judge-release.outputs.upstream-release-l-id }},${{ needs.judge-release.outputs.upstream-sci-release-01-id }},${{ needs.judge-release.outputs.upstream-sci-release-02-id }},${{ needs.judge-release.outputs.upstream-sci-release-03-id }},${{ needs.judge-release.outputs.upstream-sci-release-04-id }},${{ needs.judge-release.outputs.upstream-sci-release-05-id }},${{ needs.judge-release.outputs.upstream-sci-release-06-id }},${{ needs.judge-release.outputs.upstream-sci-release-07-id }},${{ needs.judge-release.outputs.upstream-sci-release-08-id }},${{ needs.judge-release.outputs.upstream-sci-release-09-id }},${{ needs.judge-release.outputs.upstream-sci-release-10-id }},${{ needs.judge-release.outputs.upstream-sci-release-11-id }},${{ needs.judge-release.outputs.upstream-sci-release-12-id }},${{ needs.judge-release.outputs.upstream-sci-release-13-id }},${{ needs.judge-release.outputs.upstream-sci-release-14-id }},${{ needs.judge-release.outputs.upstream-sci-release-15-id }},${{ needs.judge-release.outputs.upstream-sci-release-16-id }},${{ needs.judge-release.outputs.upstream-sci-release-17-id }},${{ needs.judge-release.outputs.upstream-sci-release-18-id }},${{ needs.judge-release.outputs.upstream-sci-release-19-id }},${{ needs.judge-release.outputs.upstream-sci-release-20-id }},${{ needs.judge-release.outputs.upstream-sci-release-21-id }},${{ needs.judge-release.outputs.upstream-sci-release-22-id }},${{ needs.judge-release.outputs.upstream-sci-release-23-id }},${{ needs.judge-release.outputs.upstream-sci-release-24-id }},${{ needs.judge-release.outputs.upstream-sci-release-25-id }},${{ needs.judge-release.outputs.upstream-sci-release-26-id }},${{ needs.judge-release.outputs.upstream-sci-release-27-id }},${{ needs.judge-release.outputs.upstream-sci-release-28-id }},${{ needs.judge-release.outputs.upstream-sci-release-29-id }},${{ needs.judge-release.outputs.upstream-sci-release-30-id }},${{ needs.judge-release.outputs.upstream-sci-release-31-id }},${{ needs.judge-release.outputs.upstream-sci-release-32-id }},${{ needs.judge-release.outputs.upstream-sci-release-33-id }},${{ needs.judge-release.outputs.upstream-sci-release-34-id }},${{ needs.judge-release.outputs.upstream-sci-release-35-id }},${{ needs.judge-release.outputs.upstream-sci-release-36-id }},${{ needs.judge-release.outputs.upstream-sci-release-37-id }},${{ needs.judge-release.outputs.upstream-sci-release-38-id }},${{ needs.judge-release.outputs.upstream-sci-release-39-id }},${{ needs.judge-release.outputs.upstream-sci-release-40-id }},${{ needs.judge-release.outputs.upstream-sci-release-41-id }},${{ needs.judge-release.outputs.upstream-sci-release-42-id }},${{ needs.judge-release.outputs.upstream-sci-release-43-id }},${{ needs.judge-release.outputs.upstream-sci-release-44-id }},${{ needs.judge-release.outputs.upstream-sci-release-45-id }},${{ needs.judge-release.outputs.upstream-sci-release-46-id }},${{ needs.judge-release.outputs.upstream-sci-release-47-id }},${{ needs.judge-release.outputs.upstream-sci-release-48-id }},${{ needs.judge-release.outputs.upstream-sci-release-49-id }},${{ needs.judge-release.outputs.upstream-sci-release-50-id }},${{ needs.judge-release.outputs.upstream-sci-release-51-id }},${{ needs.judge-release.outputs.upstream-sci-release-52-id }},${{ needs.judge-release.outputs.upstream-sci-release-53-id }},${{ needs.judge-release.outputs.upstream-sci-release-54-id }},${{ needs.judge-release.outputs.upstream-sci-release-55-id }},${{ needs.judge-release.outputs.upstream-sci-release-56-id }},${{ needs.judge-release.outputs.upstream-sci-release-57-id }},${{ needs.judge-release.outputs.upstream-sci-release-58-id }},${{ needs.judge-release.outputs.upstream-sci-release-59-id }},${{ needs.judge-release.outputs.upstream-sci-release-60-id }},${{ needs.judge-release.outputs.upstream-sci-release-61-id }},${{ needs.judge-release.outputs.upstream-sci-release-62-id }},${{ needs.judge-release.outputs.upstream-sci-release-63-id }},${{ needs.judge-release.outputs.upstream-sci-release-64-id }},${{ needs.judge-release.outputs.upstream-sci-release-65-id }},${{ needs.judge-release.outputs.upstream-sci-release-66-id }},${{ needs.judge-release.outputs.upstream-sci-release-67-id }},${{ needs.judge-release.outputs.upstream-sci-release-68-id }},${{ needs.judge-release.outputs.upstream-sci-release-69-id }},${{ needs.judge-release.outputs.upstream-sci-release-70-id }},${{ needs.judge-release.outputs.upstream-sci-release-71-id }},${{ needs.judge-release.outputs.upstream-sci-release-72-id }},${{ needs.judge-release.outputs.upstream-sci-release-73-id }},${{ needs.judge-release.outputs.upstream-sci-release-74-id }},${{ needs.judge-release.outputs.upstream-sci-release-75-id }},${{ needs.judge-release.outputs.upstream-sci-release-76-id }},${{ needs.judge-release.outputs.upstream-sci-release-77-id }},${{ needs.judge-release.outputs.upstream-sci-release-78-id }},${{ needs.judge-release.outputs.upstream-sci-release-79-id }},${{ needs.judge-release.outputs.upstream-sci-release-80-id }},${{ needs.judge-release.outputs.upstream-sci-release-81-id }},${{ needs.judge-release.outputs.upstream-sci-release-82-id }},${{ needs.judge-release.outputs.upstream-sci-release-83-id }},${{ needs.judge-release.outputs.upstream-sci-release-84-id }},${{ needs.judge-release.outputs.upstream-sci-release-85-id }},${{ needs.judge-release.outputs.upstream-sci-release-86-id }},${{ needs.judge-release.outputs.upstream-sci-release-87-id }},${{ needs.judge-release.outputs.upstream-sci-release-88-id }},${{ needs.judge-release.outputs.upstream-sci-release-89-id }},${{ needs.judge-release.outputs.upstream-sci-release-90-id }},${{ needs.judge-release.outputs.upstream-sci-release-91-id }}
           path: records/judge-release
           digest-mismatch: error
       - name: The gather
@@ -1325,6 +1604,8 @@ jobs:
           RECORD_LINUX_UPSTREAM_PLOT_G: ${{ needs.judge-linux.outputs.upstream-plot-g-sha256 }}
           RECORD_LINUX_UPSTREAM_PLOT_H: ${{ needs.judge-linux.outputs.upstream-plot-h-sha256 }}
           RECORD_LINUX_UPSTREAM_PLOT_I: ${{ needs.judge-linux.outputs.upstream-plot-i-sha256 }}
+          RECORD_LINUX_UPSTREAM_SCI_SMOKE_A: ${{ needs.judge-linux.outputs.upstream-sci-smoke-a-sha256 }}
+          RECORD_LINUX_UPSTREAM_SCI_SMOKE_B: ${{ needs.judge-linux.outputs.upstream-sci-smoke-b-sha256 }}
           RECORD_WINDOWS_OWN_EMBEDDING: ${{ needs.judge-windows.outputs.own-embedding-sha256 }}
           RECORD_WINDOWS_OWN_EMBEDDING_A: ${{ needs.judge-windows.outputs.own-embedding-a-sha256 }}
           RECORD_WINDOWS_OWN_HOSTILE: ${{ needs.judge-windows.outputs.own-hostile-sha256 }}
@@ -1344,6 +1625,97 @@ jobs:
           RECORD_RELEASE_UPSTREAM_RELEASE_J: ${{ needs.judge-release.outputs.upstream-release-j-sha256 }}
           RECORD_RELEASE_UPSTREAM_RELEASE_K: ${{ needs.judge-release.outputs.upstream-release-k-sha256 }}
           RECORD_RELEASE_UPSTREAM_RELEASE_L: ${{ needs.judge-release.outputs.upstream-release-l-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_01: ${{ needs.judge-release.outputs.upstream-sci-release-01-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_02: ${{ needs.judge-release.outputs.upstream-sci-release-02-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_03: ${{ needs.judge-release.outputs.upstream-sci-release-03-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_04: ${{ needs.judge-release.outputs.upstream-sci-release-04-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_05: ${{ needs.judge-release.outputs.upstream-sci-release-05-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_06: ${{ needs.judge-release.outputs.upstream-sci-release-06-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_07: ${{ needs.judge-release.outputs.upstream-sci-release-07-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_08: ${{ needs.judge-release.outputs.upstream-sci-release-08-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_09: ${{ needs.judge-release.outputs.upstream-sci-release-09-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_10: ${{ needs.judge-release.outputs.upstream-sci-release-10-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_11: ${{ needs.judge-release.outputs.upstream-sci-release-11-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_12: ${{ needs.judge-release.outputs.upstream-sci-release-12-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_13: ${{ needs.judge-release.outputs.upstream-sci-release-13-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_14: ${{ needs.judge-release.outputs.upstream-sci-release-14-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_15: ${{ needs.judge-release.outputs.upstream-sci-release-15-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_16: ${{ needs.judge-release.outputs.upstream-sci-release-16-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_17: ${{ needs.judge-release.outputs.upstream-sci-release-17-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_18: ${{ needs.judge-release.outputs.upstream-sci-release-18-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_19: ${{ needs.judge-release.outputs.upstream-sci-release-19-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_20: ${{ needs.judge-release.outputs.upstream-sci-release-20-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_21: ${{ needs.judge-release.outputs.upstream-sci-release-21-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_22: ${{ needs.judge-release.outputs.upstream-sci-release-22-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_23: ${{ needs.judge-release.outputs.upstream-sci-release-23-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_24: ${{ needs.judge-release.outputs.upstream-sci-release-24-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_25: ${{ needs.judge-release.outputs.upstream-sci-release-25-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_26: ${{ needs.judge-release.outputs.upstream-sci-release-26-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_27: ${{ needs.judge-release.outputs.upstream-sci-release-27-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_28: ${{ needs.judge-release.outputs.upstream-sci-release-28-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_29: ${{ needs.judge-release.outputs.upstream-sci-release-29-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_30: ${{ needs.judge-release.outputs.upstream-sci-release-30-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_31: ${{ needs.judge-release.outputs.upstream-sci-release-31-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_32: ${{ needs.judge-release.outputs.upstream-sci-release-32-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_33: ${{ needs.judge-release.outputs.upstream-sci-release-33-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_34: ${{ needs.judge-release.outputs.upstream-sci-release-34-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_35: ${{ needs.judge-release.outputs.upstream-sci-release-35-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_36: ${{ needs.judge-release.outputs.upstream-sci-release-36-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_37: ${{ needs.judge-release.outputs.upstream-sci-release-37-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_38: ${{ needs.judge-release.outputs.upstream-sci-release-38-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_39: ${{ needs.judge-release.outputs.upstream-sci-release-39-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_40: ${{ needs.judge-release.outputs.upstream-sci-release-40-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_41: ${{ needs.judge-release.outputs.upstream-sci-release-41-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_42: ${{ needs.judge-release.outputs.upstream-sci-release-42-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_43: ${{ needs.judge-release.outputs.upstream-sci-release-43-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_44: ${{ needs.judge-release.outputs.upstream-sci-release-44-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_45: ${{ needs.judge-release.outputs.upstream-sci-release-45-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_46: ${{ needs.judge-release.outputs.upstream-sci-release-46-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_47: ${{ needs.judge-release.outputs.upstream-sci-release-47-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_48: ${{ needs.judge-release.outputs.upstream-sci-release-48-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_49: ${{ needs.judge-release.outputs.upstream-sci-release-49-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_50: ${{ needs.judge-release.outputs.upstream-sci-release-50-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_51: ${{ needs.judge-release.outputs.upstream-sci-release-51-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_52: ${{ needs.judge-release.outputs.upstream-sci-release-52-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_53: ${{ needs.judge-release.outputs.upstream-sci-release-53-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_54: ${{ needs.judge-release.outputs.upstream-sci-release-54-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_55: ${{ needs.judge-release.outputs.upstream-sci-release-55-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_56: ${{ needs.judge-release.outputs.upstream-sci-release-56-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_57: ${{ needs.judge-release.outputs.upstream-sci-release-57-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_58: ${{ needs.judge-release.outputs.upstream-sci-release-58-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_59: ${{ needs.judge-release.outputs.upstream-sci-release-59-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_60: ${{ needs.judge-release.outputs.upstream-sci-release-60-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_61: ${{ needs.judge-release.outputs.upstream-sci-release-61-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_62: ${{ needs.judge-release.outputs.upstream-sci-release-62-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_63: ${{ needs.judge-release.outputs.upstream-sci-release-63-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_64: ${{ needs.judge-release.outputs.upstream-sci-release-64-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_65: ${{ needs.judge-release.outputs.upstream-sci-release-65-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_66: ${{ needs.judge-release.outputs.upstream-sci-release-66-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_67: ${{ needs.judge-release.outputs.upstream-sci-release-67-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_68: ${{ needs.judge-release.outputs.upstream-sci-release-68-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_69: ${{ needs.judge-release.outputs.upstream-sci-release-69-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_70: ${{ needs.judge-release.outputs.upstream-sci-release-70-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_71: ${{ needs.judge-release.outputs.upstream-sci-release-71-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_72: ${{ needs.judge-release.outputs.upstream-sci-release-72-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_73: ${{ needs.judge-release.outputs.upstream-sci-release-73-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_74: ${{ needs.judge-release.outputs.upstream-sci-release-74-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_75: ${{ needs.judge-release.outputs.upstream-sci-release-75-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_76: ${{ needs.judge-release.outputs.upstream-sci-release-76-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_77: ${{ needs.judge-release.outputs.upstream-sci-release-77-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_78: ${{ needs.judge-release.outputs.upstream-sci-release-78-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_79: ${{ needs.judge-release.outputs.upstream-sci-release-79-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_80: ${{ needs.judge-release.outputs.upstream-sci-release-80-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_81: ${{ needs.judge-release.outputs.upstream-sci-release-81-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_82: ${{ needs.judge-release.outputs.upstream-sci-release-82-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_83: ${{ needs.judge-release.outputs.upstream-sci-release-83-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_84: ${{ needs.judge-release.outputs.upstream-sci-release-84-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_85: ${{ needs.judge-release.outputs.upstream-sci-release-85-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_86: ${{ needs.judge-release.outputs.upstream-sci-release-86-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_87: ${{ needs.judge-release.outputs.upstream-sci-release-87-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_88: ${{ needs.judge-release.outputs.upstream-sci-release-88-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_89: ${{ needs.judge-release.outputs.upstream-sci-release-89-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_90: ${{ needs.judge-release.outputs.upstream-sci-release-90-sha256 }}
+          RECORD_RELEASE_UPSTREAM_SCI_RELEASE_91: ${{ needs.judge-release.outputs.upstream-sci-release-91-sha256 }}
         run: |
           uv run python tests/harness/gather.py --records records --out release-record
       - name: Keep the release's record

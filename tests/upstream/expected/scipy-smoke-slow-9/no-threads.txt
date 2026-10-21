@@ -1,0 +1,1 @@
+scipy/sparse/linalg/_dsolve/tests/test_linsolve.py::TestSplu::test_threads_parallel

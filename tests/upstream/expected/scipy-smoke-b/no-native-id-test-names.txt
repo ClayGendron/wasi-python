@@ -1,0 +1,2 @@
+scipy/io/tests/test_mmio.py::test_gh21999_file_not_exist[scipy.io._fast_matrix_market]
+scipy/io/tests/test_mmio.py::test_gh21999_file_not_exist[scipy.io._mmio]

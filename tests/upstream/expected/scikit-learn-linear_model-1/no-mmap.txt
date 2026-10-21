@@ -1,0 +1,3 @@
+sklearn/linear_model/tests/test_coordinate_descent.py::test_lasso_readonly_data
+sklearn/linear_model/tests/test_coordinate_descent.py::test_multi_task_lasso_readonly_data
+sklearn/linear_model/tests/test_least_angle.py::test_lars_path_readonly_data

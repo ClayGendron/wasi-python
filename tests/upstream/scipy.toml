@@ -1,0 +1,1689 @@
+# scipy's own tests in the guest. A judge file: every edit is a judge change.
+#
+# The suite runs whole in the release tier, before a publication; two smoke groups run in the
+# normal tier at every check, chosen to touch every compiled subpackage and every carried patch
+# (smoke_cover says which file or golden job line covers each). Every test runs in exactly one
+# tier: the smoke groups run upstream's normal marker, a marker release group runs their slow and
+# very slow cases, and the path release groups run every other staged file whole.
+#
+# stage_folders   every top-level tests folder of the sdist but scipy.odr's (out of this line:
+#                 the product's scipy.odr is a stand-in module)
+# package_inits   the ancestors' __init__.py are staged too, so pytest names every module by its
+#                 package; the generated package_paths entries are the product's own packages
+# derived         the three tables scipy's build makes from its text data for special's tests,
+#                 made in the guest from staged members; their facts are on derived_row's row
+# env             set for every run of the family, each with its reason
+# [groups.*]      one guest session and one check each; cap 1.5 times the measured fuel
+
+package = "scipy"
+driver = "package"
+grant = "/upstream-scipy"
+budget = 125_357_007_590_257
+stage_folders = [
+    "scipy/_lib/tests",
+    "scipy/cluster/hierarchy/tests",
+    "scipy/cluster/vq/tests",
+    "scipy/constants/tests",
+    "scipy/datasets/tests",
+    "scipy/differentiate/tests",
+    "scipy/fft/_duccfft/tests",
+    "scipy/fft/tests",
+    "scipy/fftpack/tests",
+    "scipy/integrate/_ivp/tests",
+    "scipy/integrate/tests",
+    "scipy/interpolate/tests",
+    "scipy/io/_harwell_boeing/tests",
+    "scipy/io/arff/tests",
+    "scipy/io/matlab/tests",
+    "scipy/io/tests",
+    "scipy/linalg/tests",
+    "scipy/ndimage/tests",
+    "scipy/optimize/_trustregion_constr/tests",
+    "scipy/optimize/tests",
+    "scipy/signal/tests",
+    "scipy/sparse/csgraph/tests",
+    "scipy/sparse/linalg/_dsolve/tests",
+    "scipy/sparse/linalg/_eigen/arpack/tests",
+    "scipy/sparse/linalg/_eigen/lobpcg/tests",
+    "scipy/sparse/linalg/_eigen/tests",
+    "scipy/sparse/linalg/_isolve/tests",
+    "scipy/sparse/linalg/tests",
+    "scipy/sparse/tests",
+    "scipy/spatial/tests",
+    "scipy/spatial/transform/tests",
+    "scipy/special/tests",
+    "scipy/stats/tests",
+]
+package_inits = true
+support_files = [
+    "scipy/conftest.py",
+    "scipy/special/utils/makenpz.py",
+]
+marker = "not slow and not xslow"
+release_marker = "slow or xslow"
+derived_row = "scipy-special-1"
+cwd = "/tmp/work"
+markers = []
+
+[env.SCIPY_XSLOW]
+value = "1"
+reason = "scipy's very slow cases run, in whichever tier their file is in; its tests read the variable outside their marker too, so it is set for every group"
+
+[[derived]]
+script = "scipy/special/utils/makenpz.py"
+args = ["boost"]
+inputs = "scipy/special/tests/data/boost"
+output = "scipy/special/tests/data/boost.npz"
+measured = 5_780_000_000
+fuel = 8_700_000_000
+
+[[derived]]
+script = "scipy/special/utils/makenpz.py"
+args = ["gsl"]
+inputs = "scipy/special/tests/data/gsl"
+output = "scipy/special/tests/data/gsl.npz"
+measured = 1_240_000_000
+fuel = 1_900_000_000
+
+[[derived]]
+script = "scipy/special/utils/makenpz.py"
+args = ["local"]
+inputs = "scipy/special/tests/data/local"
+output = "scipy/special/tests/data/local.npz"
+measured = 1_570_000_000
+fuel = 2_400_000_000
+
+[smoke_cover]
+"scipy" = "scipy/special/tests/test_cython_special.py"
+"scipy._lib" = "release-only: imported by every session; the files that test its compiled paths (test_ccallback.py, the deprecation calls) need scipy's test-only C modules"
+"scipy._lib._uarray" = "scipy/fft/tests/test_basic.py"
+"scipy.cluster.hierarchy" = "scipy/cluster/hierarchy/tests"
+"scipy.cluster.vq" = "scipy/cluster/vq/tests"
+"scipy.fft._duccfft" = "scipy/fft/tests/test_basic.py"
+"scipy.fftpack" = "scipy/fftpack/tests/test_pseudo_diffs.py"
+"scipy.integrate" = "scipy/integrate/tests/test_integrate.py"
+"scipy.interpolate" = "scipy/interpolate/tests/test_fitpack.py"
+"scipy.io._fast_matrix_market" = "scipy/io/tests/test_mmio.py"
+"scipy.io.matlab" = "scipy/io/matlab/tests"
+"scipy.linalg" = "scipy/linalg/tests/test_decomp_cholesky.py"
+"scipy.ndimage" = "scipy/ndimage/tests/test_measurements.py"
+"scipy.optimize" = "scipy/optimize/tests/test_minpack.py"
+"scipy.optimize._highspy" = "scipy/optimize/tests/test_milp.py"
+"scipy.optimize._lsq" = "scipy/optimize/tests/test_lsq_linear.py"
+"scipy.optimize._trlib" = "scipy/optimize/tests/test_trustregion_krylov.py"
+"scipy.optimize.cython_optimize" = "scipy/optimize/tests/test_cython_optimize.py"
+"scipy.signal" = "scipy/signal/tests/test_upfirdn.py"
+"scipy.sparse" = "scipy/sparse/tests/test_sparsetools.py"
+"scipy.sparse.csgraph" = "job tests/jobs/scipy_numeric.py:89 shortest_path"
+"scipy.sparse.linalg" = "scipy/sparse/linalg/tests/test_propack.py"
+"scipy.sparse.linalg._dsolve" = "scipy/sparse/linalg/_dsolve/tests"
+"scipy.sparse.linalg._eigen.arpack" = "job tests/jobs/scipy_numeric.py:75 eigsh"
+"scipy.spatial" = "scipy/spatial/tests/test_qhull.py"
+"scipy.spatial.transform" = "scipy/spatial/transform/tests"
+"scipy.special" = "scipy/special/tests/test_cython_special.py"
+"scipy.stats" = "scipy/stats/tests/test_qmc.py"
+"scipy.stats._levy_stable" = "release-only: its tests live in test_distributions.py, 680 test functions, past a smoke file's reach, and no golden line calls it"
+"scipy.stats._rcont" = "scipy/stats/tests/test_contingency.py"
+"scipy.stats._unuran" = "scipy/stats/tests/test_sampling.py"
+
+[[not_selected]]
+files = [
+    "scipy/_lib/tests/test_ccallback.py",
+    "scipy/integrate/tests/test_quadpack.py",
+    "scipy/ndimage/tests/test_c_api.py",
+    "scipy/special/tests/test_dd.py",
+    "scipy/special/tests/test_round.py",
+]
+reason = "each imports one of scipy's test-only C modules (_test_ccallback, _test_multivariate, _ctest, _cytest, _test_internal), which the product leaves out on purpose; the judge-only binary the roadmap reserves (088) links them; it fails to load without them"
+closes_with = "context/roadmap.md"
+
+[[not_selected]]
+files = [
+    "scipy/linalg/tests/test_cython_abi.py",
+    "scipy/optimize/tests/test_cython_abi.py",
+    "scipy/special/tests/test_cython_abi.py",
+]
+reason = "each reads capsule names through ctypes.pythonapi at import, which the ctypes stand-in lacks; the stand-ins' names at import (reserved in the roadmap as 074) would let them load, their tests then a no-ctypes class"
+closes_with = "context/roadmap.md"
+
+[[not_selected]]
+files = [
+    "scipy/linalg/tests/_cython_examples/ilp64_test_package/tests/test_direct.py",
+    "scipy/linalg/tests/_cython_examples/ilp64_test_package/tests/test_wrappers.py",
+]
+reason = "an example package test_extending.py would build with meson in a subprocess; scipy installs only its extending.pyx and meson.build, so it is not part of the installed suite"
+closes_with = "README.md"
+
+[groups.scipy-smoke-a]
+paths = [
+    "scipy/special/tests/test_cython_special.py",
+    "scipy/special/tests/test_boost_ufuncs.py",
+    "scipy/special/tests/test_ellip_harm.py",
+    "scipy/special/tests/test_sph_harm.py",
+    "scipy/special/tests/test_specfun.py",
+    "scipy/sparse/tests/test_sparsetools.py",
+    "scipy/sparse/tests/test_csr.py",
+    "scipy/sparse/tests/test_construct.py",
+    "scipy/sparse/linalg/_dsolve/tests",
+    "scipy/sparse/linalg/tests/test_propack.py",
+    "scipy/spatial/tests/test_qhull.py",
+    "scipy/spatial/tests/test_hausdorff.py",
+    "scipy/spatial/tests/test_spherical_voronoi.py",
+    "scipy/spatial/transform/tests",
+    "scipy/linalg/tests/test_decomp_cholesky.py",
+    "scipy/linalg/tests/test_solve_toeplitz.py",
+    "scipy/linalg/tests/test_matfuncs.py",
+    "scipy/linalg/tests/test_cython_blas.py",
+    "scipy/linalg/tests/test_cython_lapack.py",
+    "scipy/linalg/tests/test_cythonized_array_utils.py",
+    "scipy/linalg/tests/test_decomp_lu.py",
+]
+smoke = "scipy.special, sparse, spatial and linalg: each compiled family touched, qhull's and sqrtm's patches"
+fuel = 320_000_000_000
+measured = 207_361_269_653
+
+[groups.scipy-smoke-b]
+paths = [
+    "scipy/cluster/hierarchy/tests",
+    "scipy/cluster/vq/tests",
+    "scipy/fft/tests/test_basic.py",
+    "scipy/fftpack/tests/test_pseudo_diffs.py",
+    "scipy/integrate/tests/test_integrate.py",
+    "scipy/interpolate/tests/test_fitpack.py",
+    "scipy/interpolate/tests/test_interpnd.py",
+    "scipy/io/tests/test_mmio.py",
+    "scipy/io/matlab/tests",
+    "scipy/ndimage/tests/test_measurements.py",
+    "scipy/optimize/tests/test_minpack.py",
+    "scipy/optimize/tests/test_lbfgsb_setulb.py",
+    "scipy/optimize/tests/test_lbfgsb_hessinv.py",
+    "scipy/optimize/tests/test_slsqp.py",
+    "scipy/optimize/tests/test_zeros.py",
+    "scipy/optimize/tests/test_linear_assignment.py",
+    "scipy/optimize/tests/test_tnc.py",
+    "scipy/optimize/tests/test_direct.py",
+    "scipy/optimize/tests/test_isotonic_regression.py",
+    "scipy/optimize/tests/test__numdiff.py",
+    "scipy/optimize/tests/test_milp.py",
+    "scipy/optimize/tests/test_trustregion_krylov.py",
+    "scipy/optimize/tests/test_cython_optimize.py",
+    "scipy/optimize/tests/test_lsq_linear.py",
+    "scipy/signal/tests/test_max_len_seq.py",
+    "scipy/signal/tests/test_upfirdn.py",
+    "scipy/signal/tests/test_splines.py",
+    "scipy/signal/tests/test_bsplines.py",
+    "scipy/stats/tests/test_qmc.py",
+    "scipy/stats/tests/test_contingency.py",
+    "scipy/stats/tests/test_discrete_distns.py",
+    "scipy/stats/tests/test_sampling.py",
+]
+smoke = "the other compiled families of scipy, HiGHS, and the uarray, Matrix Market and Sobol patches"
+fuel = 390_000_000_000
+measured = 260_000_000_000
+
+[groups.scipy-smoke-slow-propack-1]
+paths = ["scipy/sparse/linalg/tests/test_propack.py"]
+tier = "release"
+release_by = "marker"
+fuel = 270_000_000_000
+measured = 178_062_401_056
+
+[groups.scipy-smoke-slow-propack-2]
+paths = ["scipy/sparse/linalg/tests/test_propack.py"]
+tier = "release"
+release_by = "marker"
+fuel = 810_000_000_000
+measured = 537_205_564_843
+
+[groups.scipy-smoke-slow-propack-3]
+paths = ["scipy/sparse/linalg/tests/test_propack.py"]
+tier = "release"
+release_by = "marker"
+fuel = 290_000_000_000
+measured = 189_172_175_086
+
+[groups.scipy-smoke-slow-propack-4]
+paths = ["scipy/sparse/linalg/tests/test_propack.py"]
+tier = "release"
+release_by = "marker"
+fuel = 1_300_000_000_000
+measured = 841_603_810_138
+
+[groups.scipy-smoke-slow-propack-5]
+paths = ["scipy/sparse/linalg/tests/test_propack.py"]
+tier = "release"
+release_by = "marker"
+fuel = 750_000_000_000
+measured = 493_547_418_379
+
+[groups.scipy-smoke-slow-sampling-1]
+paths = ["scipy/stats/tests/test_sampling.py"]
+tier = "release"
+release_by = "marker"
+fuel = 902_671_492_831
+measured = 601_780_995_220
+
+[groups.scipy-smoke-slow-sampling-2]
+paths = ["scipy/stats/tests/test_sampling.py"]
+tier = "release"
+release_by = "marker"
+fuel = 260_000_000_000
+measured = 170_280_975_660
+
+[groups.scipy-smoke-slow-8]
+paths = ["scipy/optimize/tests/test_milp.py"]
+tier = "release"
+release_by = "marker"
+fuel = 210_000_000_000
+measured = 137_712_213_663
+
+[groups.scipy-smoke-slow-9]
+paths = [
+    "scipy/optimize/tests/test_direct.py",
+    "scipy/sparse/linalg/_dsolve/tests",
+    "scipy/stats/tests/test_contingency.py",
+    "scipy/spatial/tests/test_qhull.py",
+    "scipy/optimize/tests/test_lsq_linear.py",
+    "scipy/special/tests/test_sph_harm.py",
+    "scipy/special/tests/test_cython_special.py",
+    "scipy/special/tests/test_boost_ufuncs.py",
+    "scipy/special/tests/test_ellip_harm.py",
+    "scipy/special/tests/test_specfun.py",
+    "scipy/sparse/tests/test_sparsetools.py",
+    "scipy/sparse/tests/test_csr.py",
+    "scipy/sparse/tests/test_construct.py",
+    "scipy/spatial/tests/test_hausdorff.py",
+    "scipy/spatial/tests/test_spherical_voronoi.py",
+    "scipy/spatial/transform/tests",
+    "scipy/linalg/tests/test_decomp_cholesky.py",
+    "scipy/linalg/tests/test_solve_toeplitz.py",
+    "scipy/linalg/tests/test_matfuncs.py",
+    "scipy/linalg/tests/test_cython_blas.py",
+    "scipy/linalg/tests/test_cython_lapack.py",
+    "scipy/linalg/tests/test_cythonized_array_utils.py",
+    "scipy/linalg/tests/test_decomp_lu.py",
+    "scipy/cluster/hierarchy/tests",
+    "scipy/cluster/vq/tests",
+    "scipy/fft/tests/test_basic.py",
+    "scipy/fftpack/tests/test_pseudo_diffs.py",
+    "scipy/integrate/tests/test_integrate.py",
+    "scipy/interpolate/tests/test_fitpack.py",
+    "scipy/interpolate/tests/test_interpnd.py",
+    "scipy/io/tests/test_mmio.py",
+    "scipy/io/matlab/tests",
+    "scipy/ndimage/tests/test_measurements.py",
+    "scipy/optimize/tests/test_minpack.py",
+    "scipy/optimize/tests/test_lbfgsb_setulb.py",
+    "scipy/optimize/tests/test_lbfgsb_hessinv.py",
+    "scipy/optimize/tests/test_slsqp.py",
+    "scipy/optimize/tests/test_zeros.py",
+    "scipy/optimize/tests/test_linear_assignment.py",
+    "scipy/optimize/tests/test_tnc.py",
+    "scipy/optimize/tests/test_isotonic_regression.py",
+    "scipy/optimize/tests/test__numdiff.py",
+    "scipy/optimize/tests/test_trustregion_krylov.py",
+    "scipy/optimize/tests/test_cython_optimize.py",
+    "scipy/signal/tests/test_max_len_seq.py",
+    "scipy/signal/tests/test_upfirdn.py",
+    "scipy/signal/tests/test_splines.py",
+    "scipy/signal/tests/test_bsplines.py",
+    "scipy/stats/tests/test_qmc.py",
+    "scipy/stats/tests/test_discrete_distns.py",
+]
+tier = "release"
+release_by = "marker"
+fuel = 440_000_000_000
+measured = 290_683_753_716
+
+[groups.scipy-lib-to-fft]
+paths = [
+    "scipy/_lib/tests",
+    "scipy/constants/tests",
+    "scipy/datasets/tests",
+    "scipy/differentiate/tests",
+    "scipy/fft/_duccfft/tests",
+    "scipy/fft/tests",
+]
+tier = "release"
+release_by = "path"
+fuel = 450_000_000_000
+measured = 297_970_154_818
+
+[groups.scipy-fftpack-to-integrate-ivp]
+paths = [
+    "scipy/fftpack/tests",
+    "scipy/integrate/_ivp/tests",
+]
+tier = "release"
+release_by = "path"
+fuel = 96_000_000_000
+measured = 63_699_503_021
+
+[groups.scipy-integrate-cubature-1]
+paths = ["scipy/integrate/tests/test_cubature.py"]
+tier = "release"
+release_by = "path"
+fuel = 890_000_000_000
+measured = 586_946_454_714
+
+[groups.scipy-integrate-cubature-2]
+paths = ["scipy/integrate/tests/test_cubature.py"]
+tier = "release"
+release_by = "path"
+fuel = 32_000_000_000
+measured = 21_006_266_727
+
+[groups.scipy-integrate-1]
+paths = [
+    "scipy/integrate/tests/test__quad_vec.py",
+    "scipy/integrate/tests/test_banded_ode_solvers.py",
+    "scipy/integrate/tests/test_bvp.py",
+    "scipy/integrate/tests/test_quadrature.py",
+    "scipy/integrate/tests/test_tanhsinh.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 190_000_000_000
+measured = 122_716_580_125
+
+[groups.scipy-interpolate-fitpack2-1]
+paths = ["scipy/interpolate/tests/test_fitpack2.py"]
+tier = "release"
+release_by = "path"
+fuel = 900_701_780_090
+measured = 600_467_853_393
+
+[groups.scipy-interpolate-fitpack2-2]
+paths = ["scipy/interpolate/tests/test_fitpack2.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_412_384_564_888
+measured = 941_589_709_925
+
+[groups.scipy-interpolate-fitpack2-3]
+paths = ["scipy/interpolate/tests/test_fitpack2.py"]
+tier = "release"
+release_by = "path"
+fuel = 910_000_000_000
+measured = 604_520_921_190
+
+[groups.scipy-interpolate-gil]
+paths = ["scipy/interpolate/tests/test_gil.py"]
+tier = "release"
+release_by = "path"
+fuel = 540_000_000_000
+measured = 354_095_659_327
+
+[groups.scipy-interpolate-1]
+paths = [
+    "scipy/interpolate/tests/test_bary_rational.py",
+    "scipy/interpolate/tests/test_bsplines.py",
+    "scipy/interpolate/tests/test_interpolate.py",
+    "scipy/interpolate/tests/test_ndgriddata.py",
+    "scipy/interpolate/tests/test_pade.py",
+    "scipy/interpolate/tests/test_polyint.py",
+    "scipy/interpolate/tests/test_rbf.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 200_000_000_000
+measured = 127_852_106_938
+
+[groups.scipy-interpolate-2]
+paths = [
+    "scipy/interpolate/tests/test_rbfinterp.py",
+    "scipy/interpolate/tests/test_rgi.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 400_000_000_000
+measured = 262_978_000_762
+
+[groups.scipy-io-harwell_boeing-to-io]
+paths = [
+    "scipy/io/_harwell_boeing/tests",
+    "scipy/io/arff/tests",
+    "scipy/io/tests",
+]
+tier = "release"
+release_by = "path"
+fuel = 55_000_000_000
+measured = 36_469_951_876
+
+[groups.scipy-linalg]
+paths = ["scipy/linalg/tests"]
+tier = "release"
+release_by = "path"
+fuel = 710_000_000_000
+measured = 470_504_568_537
+
+[groups.scipy-ndimage-to-optimize-trustregion_constr]
+paths = [
+    "scipy/ndimage/tests",
+    "scipy/optimize/_trustregion_constr/tests",
+]
+tier = "release"
+release_by = "path"
+fuel = 240_000_000_000
+measured = 159_467_129_733
+
+[groups.scipy-optimize-1]
+paths = [
+    "scipy/optimize/tests/test__basinhopping.py",
+    "scipy/optimize/tests/test__differential_evolution.py",
+    "scipy/optimize/tests/test__dual_annealing.py",
+    "scipy/optimize/tests/test__linprog_clean_inputs.py",
+    "scipy/optimize/tests/test__remove_redundancy.py",
+    "scipy/optimize/tests/test__root.py",
+    "scipy/optimize/tests/test__shgo.py",
+    "scipy/optimize/tests/test__spectral.py",
+    "scipy/optimize/tests/test_bracket.py",
+    "scipy/optimize/tests/test_chandrupatla.py",
+    "scipy/optimize/tests/test_cobyla.py",
+    "scipy/optimize/tests/test_cobyqa.py",
+    "scipy/optimize/tests/test_constraint_conversion.py",
+    "scipy/optimize/tests/test_constraints.py",
+    "scipy/optimize/tests/test_differentiable_functions.py",
+    "scipy/optimize/tests/test_extending.py",
+    "scipy/optimize/tests/test_hessian_update_strategy.py",
+    "scipy/optimize/tests/test_least_squares.py",
+    "scipy/optimize/tests/test_linesearch.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 730_000_000_000
+measured = 484_929_665_527
+
+[groups.scipy-optimize-2]
+paths = [
+    "scipy/optimize/tests/test_linprog.py",
+    "scipy/optimize/tests/test_lsq_common.py",
+    "scipy/optimize/tests/test_minimize_constrained.py",
+    "scipy/optimize/tests/test_nnls.py",
+    "scipy/optimize/tests/test_nonlin.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 1_107_074_192_576
+measured = 738_049_461_717
+
+[groups.scipy-optimize-3]
+paths = [
+    "scipy/optimize/tests/test_optimize.py",
+    "scipy/optimize/tests/test_quadratic_assignment.py",
+    "scipy/optimize/tests/test_regression.py",
+    "scipy/optimize/tests/test_trustregion.py",
+    "scipy/optimize/tests/test_trustregion_exact.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 701_706_900_240
+measured = 467_804_600_160
+
+[groups.scipy-signal]
+paths = [
+    "scipy/signal/tests/test_array_tools.py",
+    "scipy/signal/tests/test_cont2discrete.py",
+    "scipy/signal/tests/test_czt.py",
+    "scipy/signal/tests/test_dltisys.py",
+    "scipy/signal/tests/test_filter_design.py",
+    "scipy/signal/tests/test_fir_filter_design.py",
+    "scipy/signal/tests/test_ltisys.py",
+    "scipy/signal/tests/test_peak_finding.py",
+    "scipy/signal/tests/test_result_type.py",
+    "scipy/signal/tests/test_savitzky_golay.py",
+    "scipy/signal/tests/test_short_time_fft.py",
+    "scipy/signal/tests/test_spectral.py",
+    "scipy/signal/tests/test_waveforms.py",
+    "scipy/signal/tests/test_wavelets.py",
+    "scipy/signal/tests/test_whittaker.py",
+    "scipy/signal/tests/test_windows.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 220_000_000_000
+measured = 144_970_284_110
+
+[groups.scipy-signal-conv-method]
+paths = ["scipy/signal/tests/test_signaltools.py"]
+tier = "release"
+release_by = "path"
+fuel = 57_000_000_000
+measured = 37_829_843_318
+clock_step_ns = 1_000_000
+clock_reason = "the test repeats a call until the clock has advanced 0.5 ms; the judge's clock advances only when read"
+
+[groups.scipy-signal-signaltools]
+paths = ["scipy/signal/tests/test_signaltools.py"]
+tier = "release"
+release_by = "path"
+fuel = 420_000_000_000
+measured = 278_997_206_820
+
+[groups.scipy-sparse-csgraph-to-sparse-linalg-eigen]
+paths = [
+    "scipy/sparse/csgraph/tests",
+    "scipy/sparse/linalg/_eigen/arpack/tests",
+    "scipy/sparse/linalg/_eigen/lobpcg/tests",
+    "scipy/sparse/linalg/_eigen/tests",
+]
+tier = "release"
+release_by = "path"
+fuel = 390_000_000_000
+measured = 255_132_501_965
+
+[groups.scipy-sparse-linalg-isolve-iterative-1]
+paths = ["scipy/sparse/linalg/_isolve/tests/test_iterative.py"]
+tier = "release"
+release_by = "path"
+fuel = 710_000_000_000
+measured = 470_047_305_306
+
+[groups.scipy-sparse-linalg-isolve-iterative-2]
+paths = ["scipy/sparse/linalg/_isolve/tests/test_iterative.py"]
+tier = "release"
+release_by = "path"
+fuel = 52_000_000_000
+measured = 34_113_920_501
+
+[groups.scipy-sparse-linalg-isolve-1]
+paths = [
+    "scipy/sparse/linalg/_isolve/tests/test_gcrotmk.py",
+    "scipy/sparse/linalg/_isolve/tests/test_lgmres.py",
+    "scipy/sparse/linalg/_isolve/tests/test_lsmr.py",
+    "scipy/sparse/linalg/_isolve/tests/test_lsqr.py",
+    "scipy/sparse/linalg/_isolve/tests/test_minres.py",
+    "scipy/sparse/linalg/_isolve/tests/test_utils.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 36_000_000_000
+measured = 23_977_801_446
+
+[groups.scipy-sparse-linalg]
+paths = ["scipy/sparse/linalg/tests"]
+tier = "release"
+release_by = "path"
+fuel = 1_100_000_000_000
+measured = 678_052_705_507
+
+[groups.scipy-sparse-64bit-1]
+paths = ["scipy/sparse/tests/test_64bit.py"]
+tier = "release"
+release_by = "path"
+fuel = 828_621_000_026
+measured = 552_414_000_017
+
+[groups.scipy-sparse-64bit-2]
+paths = ["scipy/sparse/tests/test_64bit.py"]
+tier = "release"
+release_by = "path"
+fuel = 54_000_000_000
+measured = 35_356_112_483
+
+[groups.scipy-sparse-64bit-3]
+paths = ["scipy/sparse/tests/test_64bit.py"]
+tier = "release"
+release_by = "path"
+fuel = 764_741_824_839
+measured = 509_827_883_226
+
+[groups.scipy-sparse-base-1]
+paths = ["scipy/sparse/tests/test_base.py"]
+tier = "release"
+release_by = "path"
+fuel = 580_000_000_000
+measured = 380_619_596_565
+
+[groups.scipy-sparse-base-2]
+paths = ["scipy/sparse/tests/test_base.py"]
+tier = "release"
+release_by = "path"
+fuel = 213_724_197_726
+measured = 142_482_798_484
+
+[groups.scipy-sparse-1]
+paths = [
+    "scipy/sparse/tests/test_arithmetic1d.py",
+    "scipy/sparse/tests/test_array_api.py",
+    "scipy/sparse/tests/test_common1d.py",
+    "scipy/sparse/tests/test_coo.py",
+    "scipy/sparse/tests/test_csc.py",
+    "scipy/sparse/tests/test_dok.py",
+    "scipy/sparse/tests/test_extract.py",
+    "scipy/sparse/tests/test_indexing1d.py",
+    "scipy/sparse/tests/test_matrix_io.py",
+    "scipy/sparse/tests/test_minmax1d.py",
+    "scipy/sparse/tests/test_spfuncs.py",
+    "scipy/sparse/tests/test_sputils.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 300_000_000_000
+measured = 200_000_000_000
+
+[groups.scipy-spatial]
+paths = ["scipy/spatial/tests"]
+tier = "release"
+release_by = "path"
+fuel = 410_000_000_000
+measured = 268_237_679_491
+
+[groups.scipy-special-cdflib-1]
+paths = ["scipy/special/tests/test_cdflib.py"]
+tier = "release"
+release_by = "path"
+fuel = 862_094_815_969
+measured = 574_729_877_312
+
+[groups.scipy-special-cdflib-2]
+paths = ["scipy/special/tests/test_cdflib.py"]
+tier = "release"
+release_by = "path"
+fuel = 320_000_000_000
+measured = 210_575_264_692
+
+[groups.scipy-special-cdflib-3]
+paths = ["scipy/special/tests/test_cdflib.py"]
+tier = "release"
+release_by = "path"
+fuel = 200_000_000_000
+measured = 127_398_157_401
+
+[groups.scipy-special-mpmath-1]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_119_512_967_736
+measured = 746_341_978_490
+
+[groups.scipy-special-mpmath-2]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_082_122_623_489
+measured = 721_415_082_326
+
+[groups.scipy-special-mpmath-3]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 430_000_000_000
+measured = 286_449_517_088
+
+[groups.scipy-special-mpmath-4]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_245_345_861_644
+measured = 830_230_574_429
+
+[groups.scipy-special-mpmath-5]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 33_000_000_000
+measured = 21_387_043_603
+
+[groups.scipy-special-mpmath-6]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 210_000_000_000
+measured = 139_520_627_115
+
+[groups.scipy-special-mpmath-7]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 33_000_000_000
+measured = 21_389_434_921
+
+[groups.scipy-special-mpmath-betainc]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 33_000_000_000
+measured = 21_390_727_035
+clock_step_ns = 100_000
+clock_reason = "the test repeats a call until the clock has advanced 0.5 ms; the judge's clock advances only when read"
+
+[groups.scipy-special-mpmath-betaincc]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 33_000_000_000
+measured = 21_390_720_284
+clock_step_ns = 100_000
+clock_reason = "the test repeats a call until the clock has advanced 0.5 ms; the judge's clock advances only when read"
+
+[groups.scipy-special-mpmath-8]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 14_000_000_000_000
+measured = 9_305_160_289_440
+
+[groups.scipy-special-1]
+paths = [
+    "scipy/special/tests/test_basic.py",
+    "scipy/special/tests/test_bdtr.py",
+    "scipy/special/tests/test_boxcox.py",
+    "scipy/special/tests/test_cdft_asymptotic.py",
+    "scipy/special/tests/test_cephes_intp_cast.py",
+    "scipy/special/tests/test_cosine_distr.py",
+    "scipy/special/tests/test_data.py",
+    "scipy/special/tests/test_digamma.py",
+    "scipy/special/tests/test_erfinv.py",
+    "scipy/special/tests/test_exponential_integrals.py",
+    "scipy/special/tests/test_extending.py",
+    "scipy/special/tests/test_faddeeva.py",
+    "scipy/special/tests/test_gamma.py",
+    "scipy/special/tests/test_gammainc.py",
+    "scipy/special/tests/test_gen_harmonic.py",
+    "scipy/special/tests/test_hyp2f1.py",
+    "scipy/special/tests/test_hypergeometric.py",
+    "scipy/special/tests/test_iv_ratio.py",
+    "scipy/special/tests/test_kolmogorov.py",
+    "scipy/special/tests/test_lambertw.py",
+    "scipy/special/tests/test_legendre.py",
+    "scipy/special/tests/test_log1mexp.py",
+    "scipy/special/tests/test_loggamma.py",
+    "scipy/special/tests/test_logit.py",
+    "scipy/special/tests/test_logsumexp.py",
+    "scipy/special/tests/test_nan_inputs.py",
+    "scipy/special/tests/test_ndtr.py",
+    "scipy/special/tests/test_ndtri_exp.py",
+    "scipy/special/tests/test_orthogonal.py",
+    "scipy/special/tests/test_orthogonal_eval.py",
+    "scipy/special/tests/test_owens_t.py",
+    "scipy/special/tests/test_pcf.py",
+    "scipy/special/tests/test_pdtr.py",
+    "scipy/special/tests/test_powm1.py",
+    "scipy/special/tests/test_precompute_expn_asy.py",
+    "scipy/special/tests/test_precompute_gammainc.py",
+    "scipy/special/tests/test_precompute_utils.py",
+    "scipy/special/tests/test_sf_error.py",
+    "scipy/special/tests/test_sici.py",
+    "scipy/special/tests/test_spence.py",
+    "scipy/special/tests/test_spfun_stats.py",
+    "scipy/special/tests/test_spherical_bessel.py",
+    "scipy/special/tests/test_support_alternative_backends.py",
+    "scipy/special/tests/test_trig.py",
+    "scipy/special/tests/test_ufunc_infra.py",
+    "scipy/special/tests/test_ufunc_signatures.py",
+    "scipy/special/tests/test_wright_bessel.py",
+    "scipy/special/tests/test_wrightomega.py",
+    "scipy/special/tests/test_zeta.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 20_000_000_000_000
+measured = 13_333_333_333_333
+
+[groups.scipy-stats-axis-nan-policy-1]
+paths = ["scipy/stats/tests/test_axis_nan_policy.py"]
+tier = "release"
+release_by = "path"
+fuel = 170_000_000_000
+measured = 108_151_459_131
+
+[groups.scipy-stats-axis-nan-policy-2]
+paths = ["scipy/stats/tests/test_axis_nan_policy.py"]
+tier = "release"
+release_by = "path"
+fuel = 911_562_768_401
+measured = 607_708_512_267
+
+[groups.scipy-stats-axis-nan-policy-3]
+paths = ["scipy/stats/tests/test_axis_nan_policy.py"]
+tier = "release"
+release_by = "path"
+fuel = 983_753_362_481
+measured = 655_835_574_987
+
+[groups.scipy-stats-axis-nan-policy-4]
+paths = ["scipy/stats/tests/test_axis_nan_policy.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_067_805_314_595
+measured = 711_870_209_730
+
+[groups.scipy-stats-axis-nan-policy-5]
+paths = ["scipy/stats/tests/test_axis_nan_policy.py"]
+tier = "release"
+release_by = "path"
+fuel = 540_000_000_000
+measured = 354_791_800_776
+
+[groups.scipy-stats-axis-nan-policy-6]
+paths = ["scipy/stats/tests/test_axis_nan_policy.py"]
+tier = "release"
+release_by = "path"
+fuel = 330_000_000_000
+measured = 215_337_080_814
+
+[groups.scipy-stats-continuous-1]
+paths = ["scipy/stats/tests/test_continuous.py"]
+tier = "release"
+release_by = "path"
+fuel = 540_000_000_000
+measured = 355_784_921_938
+
+[groups.scipy-stats-continuous-2]
+paths = ["scipy/stats/tests/test_continuous.py"]
+tier = "release"
+release_by = "path"
+fuel = 516_457_278_794
+measured = 344_304_852_529
+
+[groups.scipy-stats-continuous-3]
+paths = ["scipy/stats/tests/test_continuous.py"]
+tier = "release"
+release_by = "path"
+fuel = 2_604_258_497_190
+measured = 1_736_172_331_460
+
+[groups.scipy-stats-continuous-4]
+paths = ["scipy/stats/tests/test_continuous.py"]
+tier = "release"
+release_by = "path"
+fuel = 370_000_000_000
+measured = 246_646_521_033
+
+[groups.scipy-stats-continuous-5]
+paths = ["scipy/stats/tests/test_continuous.py"]
+tier = "release"
+release_by = "path"
+fuel = 400_000_000_000
+measured = 263_954_388_341
+
+[groups.scipy-stats-continuous-6]
+paths = ["scipy/stats/tests/test_continuous.py"]
+tier = "release"
+release_by = "path"
+fuel = 745_503_936_327
+measured = 497_002_624_218
+
+[groups.scipy-stats-continuous-7]
+paths = ["scipy/stats/tests/test_continuous.py"]
+tier = "release"
+release_by = "path"
+fuel = 460_000_000_000
+measured = 300_567_655_116
+
+[groups.scipy-stats-continuous-8]
+paths = ["scipy/stats/tests/test_continuous.py"]
+tier = "release"
+release_by = "path"
+fuel = 651_840_208_961
+measured = 434_560_139_307
+
+[groups.scipy-stats-continuous-basic-1]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 230_000_000_000
+measured = 149_460_619_859
+
+[groups.scipy-stats-continuous-basic-2]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 540_000_000_000
+measured = 355_236_634_984
+
+[groups.scipy-stats-continuous-basic-3]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 4_221_491_530_105
+measured = 2_814_327_686_736
+
+[groups.scipy-stats-continuous-basic-4]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 486_394_899_020
+measured = 324_263_266_013
+
+[groups.scipy-stats-continuous-basic-5]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_100_000_000_000
+measured = 709_421_631_918
+
+[groups.scipy-stats-continuous-basic-6]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 130_000_000_000
+measured = 85_102_940_685
+
+[groups.scipy-stats-continuous-basic-7]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 510_000_000_000
+measured = 339_776_152_262
+
+[groups.scipy-stats-continuous-basic-8]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 2_909_176_866_978
+measured = 1_939_451_244_652
+
+[groups.scipy-stats-continuous-basic-9]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 621_164_321_680
+measured = 414_109_547_786
+
+[groups.scipy-stats-continuous-basic-10]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_471_500_050_690
+measured = 981_000_033_793
+
+[groups.scipy-stats-continuous-basic-11]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 340_000_000_000
+measured = 221_320_308_859
+
+[groups.scipy-stats-continuous-basic-12]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 2_500_000_000_000
+measured = 1_615_121_164_558
+
+[groups.scipy-stats-continuous-basic-13]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 200_000_000_000
+measured = 133_333_333_333
+
+[groups.scipy-stats-continuous-basic-14]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 7_035_697_879_245
+measured = 4_690_465_252_830
+
+[groups.scipy-stats-continuous-basic-15]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 2_400_000_000_000
+measured = 1_595_977_963_253
+
+[groups.scipy-stats-continuous-basic-16]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 560_000_000_000
+measured = 373_092_904_371
+
+[groups.scipy-stats-continuous-basic-17]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_079_666_653_126
+measured = 719_777_768_750
+
+[groups.scipy-stats-continuous-basic-18]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 300_000_000_000
+measured = 193_381_351_998
+
+[groups.scipy-stats-continuous-basic-19]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 650_000_000_000
+measured = 429_147_587_461
+
+[groups.scipy-stats-continuous-basic-20]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 819_330_581_304
+measured = 546_220_387_536
+
+[groups.scipy-stats-continuous-basic-21]
+paths = ["scipy/stats/tests/test_continuous_basic.py"]
+tier = "release"
+release_by = "path"
+fuel = 520_000_000_000
+measured = 345_920_996_478
+
+[groups.scipy-stats-distributions-1]
+paths = ["scipy/stats/tests/test_distributions.py"]
+tier = "release"
+release_by = "path"
+fuel = 540_000_000_000
+measured = 354_239_837_651
+
+[groups.scipy-stats-distributions-2]
+paths = ["scipy/stats/tests/test_distributions.py"]
+tier = "release"
+release_by = "path"
+fuel = 590_000_000_000
+measured = 389_831_547_883
+
+[groups.scipy-stats-distributions-3]
+paths = ["scipy/stats/tests/test_distributions.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_025_063_568_404
+measured = 683_375_712_269
+
+[groups.scipy-stats-fit-1]
+paths = ["scipy/stats/tests/test_fit.py"]
+tier = "release"
+release_by = "path"
+fuel = 600_000_000_000
+measured = 399_835_927_180
+
+[groups.scipy-stats-fit-2]
+paths = ["scipy/stats/tests/test_fit.py"]
+tier = "release"
+release_by = "path"
+fuel = 440_000_000_000
+measured = 292_321_611_762
+
+[groups.scipy-stats-fit-3]
+paths = ["scipy/stats/tests/test_fit.py"]
+tier = "release"
+release_by = "path"
+fuel = 288_637_650_902
+measured = 192_425_100_601
+
+[groups.scipy-stats-fit-4]
+paths = ["scipy/stats/tests/test_fit.py"]
+tier = "release"
+release_by = "path"
+fuel = 2_500_000_000_000
+measured = 1_648_973_633_684
+
+[groups.scipy-stats-fit-5]
+paths = ["scipy/stats/tests/test_fit.py"]
+tier = "release"
+release_by = "path"
+fuel = 7_200_000_000_000
+measured = 4_736_154_739_332
+
+[groups.scipy-stats-1]
+paths = [
+    "scipy/stats/tests/test_binned_statistic.py",
+    "scipy/stats/tests/test_censored_data.py",
+    "scipy/stats/tests/test_continued_fraction.py",
+    "scipy/stats/tests/test_continuous_fit_censored.py",
+    "scipy/stats/tests/test_correlation.py",
+    "scipy/stats/tests/test_crosstab.py",
+    "scipy/stats/tests/test_device_dtype.py",
+    "scipy/stats/tests/test_discrete_basic.py",
+    "scipy/stats/tests/test_entropy.py",
+    "scipy/stats/tests/test_fast_gen_inversion.py",
+    "scipy/stats/tests/test_hypotests.py",
+    "scipy/stats/tests/test_kdeoth.py",
+    "scipy/stats/tests/test_marray.py",
+    "scipy/stats/tests/test_mgc.py",
+    "scipy/stats/tests/test_morestats.py",
+    "scipy/stats/tests/test_mstats_basic.py",
+    "scipy/stats/tests/test_mstats_extras.py",
+    "scipy/stats/tests/test_multicomp.py",
+    "scipy/stats/tests/test_multivariate.py",
+    "scipy/stats/tests/test_new_distributions.py",
+    "scipy/stats/tests/test_odds_ratio.py",
+    "scipy/stats/tests/test_quantile.py",
+    "scipy/stats/tests/test_rank.py",
+    "scipy/stats/tests/test_relative_risk.py",
+    "scipy/stats/tests/test_resampling.py",
+    "scipy/stats/tests/test_sensitivity_analysis.py",
+    "scipy/stats/tests/test_stats.py",
+    "scipy/stats/tests/test_survival.py",
+    "scipy/stats/tests/test_tukeylambda_stats.py",
+    "scipy/stats/tests/test_variation.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 12_000_000_000_000
+measured = 7_718_533_480_186
+
+[[split]]
+file = "scipy/signal/tests/test_signaltools.py"
+groups = [
+    "scipy-signal-conv-method",
+    "scipy-signal-signaltools",
+]
+keywords = ["test_choose_conv_method and not _2"]
+
+[[split]]
+file = "scipy/sparse/linalg/tests/test_propack.py"
+groups = [
+    "scipy-smoke-slow-propack-1",
+    "scipy-smoke-slow-propack-2",
+    "scipy-smoke-slow-propack-3",
+    "scipy-smoke-slow-propack-4",
+    "scipy-smoke-slow-propack-5",
+]
+keywords = [
+    "test_examples[False-f",
+    "test_examples[False-c",
+    "test_examples[True-f",
+    "test_examples[True-complex6",
+]
+
+[[split]]
+file = "scipy/stats/tests/test_sampling.py"
+groups = [
+    "scipy-smoke-slow-sampling-1",
+    "scipy-smoke-slow-sampling-2",
+]
+keywords = ["TestNumericalInversePolynomial"]
+
+[[split]]
+file = "scipy/integrate/tests/test_cubature.py"
+groups = [
+    "scipy-integrate-cubature-1",
+    "scipy-integrate-cubature-2",
+]
+keywords = [
+    "TestCubature or test_scalar_output or test_array_output or test_break_points or test_infinite_limits[numpy-problem0 or test_infinite_limits[numpy-problem1 or test_infinite_limits[numpy-problem2 or test_infinite_limits[numpy-problem3 or test_infinite_limits[numpy-problem4 or test_infinite_limits[numpy-problem5 or test_infinite_limits[numpy-problem6 or test_infinite_limits[numpy-problem7 or test_infinite_limits[numpy-problem8 or test_infinite_limits[numpy-problem9-gk1",
+]
+
+[[split]]
+file = "scipy/interpolate/tests/test_fitpack2.py"
+groups = [
+    "scipy-interpolate-fitpack2-1",
+    "scipy-interpolate-fitpack2-2",
+    "scipy-interpolate-fitpack2-3",
+]
+keywords = [
+    "TestUnivariateSpline or TestLSQBivariateSpline or TestSmoothBivariateSpline or test_bivariate_spline_noncontiguous_input or TestLSQSphereBivariateSpline or TestSmoothSphereBivariateSpline or test_defaults or test_interpolated_offgrid_points or test_midpoints or test_custom_matches_reference or test_evaluate or test_derivatives_grid or test_derivatives or test_partial_derivative_method_grid or test_partial_derivative_method or test_partial_derivative_order_too_large or test_broadcast or test_invalid_input or test_array_like_input or test_not_increasing_input or test_grid_sparse_meshgrid or test_grid_sparse_meshgrid_values or test_not_increasing_input_2d or test_spline_large_2d[spl_apis0 or test_spline_large_2d[spl_apis1-s_tols0 or test_spline_large_2d[spl_apis1-s_tols1-shape0]",
+    "test_spline_large_2d[spl_apis1-s_tols1-shape1]",
+]
+
+[[split]]
+file = "scipy/sparse/linalg/_isolve/tests/test_iterative.py"
+groups = [
+    "scipy-sparse-linalg-isolve-iterative-1",
+    "scipy-sparse-linalg-isolve-iterative-2",
+]
+keywords = [
+    "test_maxiter or test_convergence or test_precond_dummy or test_precond_inverse or test_atol or test_zero_rhs or test_maxiter_worsening or test_x0_working or test_x0_solves_problem_exactly or test_positional_error or test_invalid_atol or test_nD",
+]
+
+[[split]]
+file = "scipy/sparse/tests/test_64bit.py"
+groups = [
+    "scipy-sparse-64bit-1",
+    "scipy-sparse-64bit-2",
+    "scipy-sparse-64bit-3",
+]
+keywords = [
+    "Test64BitArray or Test64BitMatrix",
+    "Test64BitMatrixSameAsArray",
+]
+
+[[split]]
+file = "scipy/sparse/tests/test_base.py"
+groups = [
+    "scipy-sparse-base-1",
+    "scipy-sparse-base-2",
+]
+keywords = [
+    "TestCSR or TestCSRMatrix or test_spmatrix_subscriptable or TestCSC or TestCSCMatrix or TestDOK or TestDOKMatrix or TestLIL or TestLILMatrix or TestCOO or TestCOOMatrix or test_sparray_subscriptable or TestDIA or TestDIAMatrix or TestBSR or TestBSRMatrix or TestCSRNonCanonical or TestCSRNonCanonicalMatrix or TestCSCNonCanonical or TestCSCNonCanonicalMatrix or TestBSRNonCanonical or TestBSRNonCanonicalMatrix",
+]
+
+[[split]]
+file = "scipy/special/tests/test_cdflib.py"
+groups = [
+    "scipy-special-cdflib-1",
+    "scipy-special-cdflib-2",
+    "scipy-special-cdflib-3",
+]
+keywords = [
+    "test_bdtrin or test_btdtria or test_btdtrib or test_fdtridfd or test_gdtria or test_gdtrib or test_gdtrix or test_nrdtrimn or test_nrdtrisd",
+    "test_stdtr or test_stdtridf or test_stdtrit or test_chdtriv or test_chndtridf or test_chndtrinc or test_chndtrix",
+]
+
+[[split]]
+file = "scipy/special/tests/test_mpmath.py"
+groups = [
+    "scipy-special-mpmath-1",
+    "scipy-special-mpmath-2",
+    "scipy-special-mpmath-3",
+    "scipy-special-mpmath-4",
+    "scipy-special-mpmath-5",
+    "scipy-special-mpmath-6",
+    "scipy-special-mpmath-7",
+    "scipy-special-mpmath-betainc",
+    "scipy-special-mpmath-betaincc",
+    "scipy-special-mpmath-8",
+]
+keywords = [
+    "test_expi_complex or test_expn_large_n or test_hyp0f1_gh5764 or test_hyp0f1_gh_1609 or test_hyperu_around_0 or test_hyp2f1_strange_points or test_hyp2f1_real_some_points or test_hyp2f1_some_points_2 or test_hyp2f1_real_some or test_hyp2f1_real_random or test_erf_complex or test_lpmv or test_beta or test_loggamma_taylor_transition or test_loggamma_taylor or test_rgamma_zeros or test_digamma_roots or test_digamma_negreal or test_digamma_boundary or test_gammainc_boundary or test_spence_circle or test_sinpi_zeros or test_cospi_zeros or test_dn_quarter_period or test_wrightomega_branch or test_wrightomega_region1",
+    "test_wrightomega_region2 or test_lambertw_smallz or test_airyai or test_airyai_complex or test_airyai_prime or test_airyai_prime_complex or test_airybi or test_airybi_complex or test_airybi_prime",
+    "test_airybi_prime_complex or test_bei or test_ber or test_bernoulli or test_besseli or test_besseli_complex or test_besselj or test_besselj_complex",
+    "test_besselk",
+    "test_besselk_int",
+    "test_besselk_complex or test_bessely or test_bessely_complex or test_bessely_int",
+    "test_beta",
+    "test_betainc and not test_betaincc",
+    "test_betaincc",
+]
+
+[[split]]
+file = "scipy/stats/tests/test_axis_nan_policy.py"
+groups = [
+    "scipy-stats-axis-nan-policy-1",
+    "scipy-stats-axis-nan-policy-2",
+    "scipy-stats-axis-nan-policy-3",
+    "scipy-stats-axis-nan-policy-4",
+    "scipy-stats-axis-nan-policy-5",
+    "scipy-stats-axis-nan-policy-6",
+]
+keywords = [
+    "test_axis_nan_policy_fast",
+    "test_axis_nan_policy_full[a",
+    "test_axis_nan_policy_full[mixed--",
+    "test_axis_nan_policy_full[mixed-0 or test_axis_nan_policy_full[mixed-1 or test_axis_nan_policy_full[mixed-2 or test_axis_nan_policy_axis_is_None",
+    "test_keepdims or test_hypotest_back_compat_no_axis or test_axis_nan_policy_decorated_positional_axis or test_axis_nan_policy_decorated_positional_args or test_axis_nan_policy_decorated_keyword_samples or test_axis_nan_policy_decorated_pickled or test_check_empty_inputs or test_empty[k or test_empty[r or test_empty[m or test_empty[w or test_empty[g or test_empty[h or test_empty[p or test_empty[t or test_empty[s or test_empty[i or test_empty[j or test_empty[d or test_empty[v",
+]
+
+[[split]]
+file = "scipy/stats/tests/test_continuous.py"
+groups = [
+    "scipy-stats-continuous-1",
+    "scipy-stats-continuous-2",
+    "scipy-stats-continuous-3",
+    "scipy-stats-continuous-4",
+    "scipy-stats-continuous-5",
+    "scipy-stats-continuous-6",
+    "scipy-stats-continuous-7",
+    "scipy-stats-continuous-8",
+]
+keywords = [
+    "Test_RealInterval or test_support_moments_sample",
+    "test_funcs or test_plot or test_complement_safe or test_icomplement_safe or test_subtraction_safe or test_logentropy_safe or test_logcdf2_safe or test_logexp_safe or test_sample_against_cdf or test_input_validation or test_rng_deepcopy_pickle or TestAttributes or test_rv_generic[0 or test_rv_generic[1- or test_rv_generic[10-",
+    "test_rv_generic[100",
+    "test_rv_generic[101 or test_rv_generic[102 or test_rv_generic[103 or test_rv_generic[104 or test_rv_generic[105 or test_rv_generic[106 or test_rv_generic[107 or test_rv_generic[108 or test_rv_generic[109 or test_rv_generic[11 or test_rv_generic[12 or test_rv_generic[13 or test_rv_generic[14 or test_rv_generic[15 or test_rv_generic[16 or test_rv_generic[17 or test_rv_generic[18 or test_rv_generic[19 or test_rv_generic[2 or test_rv_generic[3 or test_rv_generic[4",
+    "test_rv_generic[5 or test_rv_generic[6-",
+    "test_rv_generic[60",
+    "test_rv_generic[61 or test_rv_generic[62 or test_rv_generic[63 or test_rv_generic[64 or test_rv_generic[65 or test_rv_generic[66 or test_rv_generic[67 or test_rv_generic[68 or test_rv_generic[69 or test_rv_generic[7 or test_rv_generic[8",
+]
+
+[[split]]
+file = "scipy/stats/tests/test_continuous_basic.py"
+groups = [
+    "scipy-stats-continuous-basic-1",
+    "scipy-stats-continuous-basic-2",
+    "scipy-stats-continuous-basic-3",
+    "scipy-stats-continuous-basic-4",
+    "scipy-stats-continuous-basic-5",
+    "scipy-stats-continuous-basic-6",
+    "scipy-stats-continuous-basic-7",
+    "scipy-stats-continuous-basic-8",
+    "scipy-stats-continuous-basic-9",
+    "scipy-stats-continuous-basic-10",
+    "scipy-stats-continuous-basic-11",
+    "scipy-stats-continuous-basic-12",
+    "scipy-stats-continuous-basic-13",
+    "scipy-stats-continuous-basic-14",
+    "scipy-stats-continuous-basic-15",
+    "scipy-stats-continuous-basic-16",
+    "scipy-stats-continuous-basic-17",
+    "scipy-stats-continuous-basic-18",
+    "scipy-stats-continuous-basic-19",
+    "scipy-stats-continuous-basic-20",
+    "scipy-stats-continuous-basic-21",
+]
+keywords = [
+    "test_cont_basic[500-a or test_cont_basic[500-b or test_cont_basic[500-c or test_cont_basic[500-d or test_cont_basic[500-e or test_cont_basic[500-f or test_cont_basic[500-g or test_cont_basic[500-h or test_cont_basic[500-i or test_cont_basic[500-j",
+    "test_cont_basic[500-k or test_cont_basic[500-l or test_cont_basic[500-m or test_cont_basic[500-n or test_cont_basic[500-p or test_cont_basic[500-r or test_cont_basic[500-se or test_cont_basic[500-sk",
+    "test_cont_basic[500-st",
+    "test_cont_basic[500-t or test_cont_basic[500-u or test_cont_basic[500-v or test_cont_basic[500-w or test_cont_basic_fit_cases or test_cont_basic_fit[200-al or test_cont_basic_fit[200-an or test_cont_basic_fit[200-arc or test_cont_basic_fit[200-argus-arg12 or test_cont_basic_fit[200-argus-arg13 or test_cont_basic_fit[200-argus-arg14",
+    "test_cont_basic_fit[200-argus-arg15",
+    "test_cont_basic_fit[200-b or test_cont_basic_fit[200-c or test_cont_basic_fit[200-d or test_cont_basic_fit[200-er or test_cont_basic_fit[200-expon- or test_cont_basic_fit[200-exponn or test_cont_basic_fit[200-exponpow-arg80 or test_cont_basic_fit[200-exponpow-arg81",
+    "test_cont_basic_fit[200-exponpow-arg82",
+    "test_cont_basic_fit[200-exponpow-arg83",
+    "test_cont_basic_fit[200-exponw or test_cont_basic_fit[200-f or test_cont_basic_fit[200-ga or test_cont_basic_fit[200-gene or test_cont_basic_fit[200-geng or test_cont_basic_fit[200-genhalflogistic-arg132 or test_cont_basic_fit[200-genhalflogistic-arg133 or test_cont_basic_fit[200-genhalflogistic-arg134",
+    "test_cont_basic_fit[200-genhalflogistic-arg135",
+    "test_cont_basic_fit[200-genhy or test_cont_basic_fit[200-geni or test_cont_basic_fit[200-genl or test_cont_basic_fit[200-genn or test_cont_basic_fit[200-genp or test_cont_basic_fit[200-gi or test_cont_basic_fit[200-gompertz-arg164 or test_cont_basic_fit[200-gompertz-arg165 or test_cont_basic_fit[200-gompertz-arg166",
+    "test_cont_basic_fit[200-gompertz-arg167",
+    "test_cont_basic_fit[200-gu or test_cont_basic_fit[200-h or test_cont_basic_fit[200-i or test_cont_basic_fit[200-jf or test_cont_basic_fit[200-johnsonsb-arg212 or test_cont_basic_fit[200-johnsonsb-arg213",
+    "test_cont_basic_fit[200-johnsonsb-arg214",
+    "test_cont_basic_fit[200-johnsonsb-arg215",
+    "test_cont_basic_fit[200-johnsonsu or test_cont_basic_fit[200-k or test_cont_basic_fit[200-l or test_cont_basic_fit[200-m or test_cont_basic_fit[200-n or test_cont_basic_fit[200-p",
+    "test_cont_basic_fit[200-r or test_cont_basic_fit[200-s or test_cont_basic_fit[200-t or test_cont_basic_fit[200-u or test_cont_basic_fit[200-v",
+    "test_cont_basic_fit[200-w or test_rvs_scalar or test_levy_stable_random_state_property or test_moments[a or test_moments[b or test_moments[c or test_moments[d or test_moments[e or test_moments[f or test_moments[g or test_moments[h or test_moments[i or test_moments[j",
+    "test_moments[k or test_moments[l or test_moments[m or test_moments[n or test_moments[p or test_moments[r",
+    "test_moments[s or test_moments[t or test_moments[u",
+]
+
+[[split]]
+file = "scipy/stats/tests/test_distributions.py"
+groups = [
+    "scipy-stats-distributions-1",
+    "scipy-stats-distributions-2",
+    "scipy-stats-distributions-3",
+]
+keywords = [
+    "test_api_regression or test_distributions_submodule or TestVonMises or test_support or TestRandInt or TestBinom or TestArcsine or TestBernoulli or TestBradford or TestCauchy or TestChi or TestCrystalBall or TestNBinom or TestGenInvGauss or TestGenHyperbolic or TestHypSecant or TestNormInvGauss or TestGeom or TestPlanck or TestGennorm or TestGibrat or TestGompertz or TestFoldNorm or TestHalfNorm or TestHalfCauchy or TestHalfLogistic or TestHalfgennorm or TestLaplaceasymmetric or TestTruncnorm or TestGenLogistic or TestHypergeom or TestLoggamma or TestJohnsonsu or TestJohnsonb or TestLogistic or TestLogser or TestGumbel_r_l or TestPareto or TestGenpareto or TestPearson3 or TestKappa4 or TestPoisson or TestKSTwo or TestZipf or TestDLaplace or TestInvgauss or TestLandau or TestLaplace or TestLogLaplace or TestPowerlaw or TestPowerLogNorm or TestPowerNorm or TestInvGamma or TestF or TestStudentT or TestRvDiscrete or TestSkewCauchy or TestJFSkewT or TestSkewNorm or TestExpon or TestNorm or TestUniform or TestExponNorm or TestGenExpon or TestTruncexpon or TestExponpow or TestSkellam or TestLognorm or TestBeta or TestBetaPrime or TestGamma or test_pdf_overflow_gh19616 or TestDgamma or TestChi2 or TestGumbelL or TestGumbelR",
+    "TestLevyStable or TestArrayArgument or TestDocstring or test_args_reduce or TestFitMethod or TestFrozen or TestExpect or TestNct or TestRecipInvGauss or TestRice or TestErlang or TestRayleigh or TestExponWeib or TestFatigueLife or TestWeibull or TestDweibull or TestTruncWeibull or TestRdist or TestTrapezoid or TestTriang or TestMaxwell or TestMielke or TestBurr or TestBurr12",
+]
+
+[[split]]
+file = "scipy/stats/tests/test_fit.py"
+groups = [
+    "scipy-stats-fit-1",
+    "scipy-stats-fit-2",
+    "scipy-stats-fit-3",
+    "scipy-stats-fit-4",
+    "scipy-stats-fit-5",
+]
+keywords = [
+    "test_cont_fit[MLE-a or test_cont_fit[MLE-b or test_cont_fit[MLE-c or test_cont_fit[MLE-d or test_cont_fit[MLE-e or test_cont_fit[MLE-f or test_cont_fit[MLE-g or test_cont_fit[MLE-h or test_cont_fit[MLE-i or test_cont_fit[MLE-j or test_cont_fit[MLE-k or test_cont_fit[MLE-l or test_cont_fit[MLE-m",
+    "test_cont_fit[MLE-n or test_cont_fit[MLE-p or test_cont_fit[MLE-r or test_cont_fit[MLE-s or test_cont_fit[MLE-t or test_cont_fit[MLE-u or test_cont_fit[MLE-v or test_cont_fit[MLE-w or test_cont_fit[MM or test_non_default_loc_scale_mle_fit or test_expon_fit or test_fit_error or test_nnlf_and_related_methods or test_fitstart or test_dist_iv or test_data_iv or test_bounds_iv or test_guess_iv",
+    "test_basic_fit_mle[b or test_basic_fit_mle[d or test_basic_fit_mle[g or test_basic_fit_mle[h",
+    "test_basic_fit_mle[nchypergeom_f",
+]
+
+[[expected]]
+id = "no-processes"
+group = "scipy-integrate-1"
+outcome = "failed"
+match = "has no attribute 'pipe'|does not support processes|No module named '_multiprocessing'|_posixsubprocess"
+reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-native-id-test-names"
+group = "scipy-interpolate-1"
+outcome = "failed"
+match = "has no attribute 'get_native_id'"
+reason = "the runtime's threading names no native thread id on WASI, and these tests make their temporary file names from it (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-threads"
+group = "scipy-interpolate-1"
+outcome = "failed"
+match = "can't start new thread|thread constructor failed"
+reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-threads"
+group = "scipy-interpolate-2"
+outcome = "failed"
+match = "can't start new thread|thread constructor failed"
+reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "enotsup-io"
+group = "scipy-io-harwell_boeing-to-io"
+outcome = "failed"
+match = "OSError: \\[Errno 58\\] Not supported"
+reason = "numpy's fromfile and tofile duplicate the file's descriptor, which WASI preview1 refuses, so scipy.io's FortranFile and wavfile fail (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "enotsup-io-file-left-open-at-setup"
+group = "scipy-io-harwell_boeing-to-io"
+outcome = "error"
+match = "Exception ignored while finalizing file <_io\\.FileIO name='/upstream-scipy/tree/scipy/io/tests/data/"
+reason = "a file that a failed FortranFile read left open (numpy's fromfile cannot duplicate its descriptor on WASI) is reported when it is finalized, during whichever test runs then, at setup or teardown (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "enotsup-io-no-warning"
+group = "scipy-io-harwell_boeing-to-io"
+outcome = "failed"
+match = "DID NOT WARN\\. No warnings of type \\(<class 'scipy\\.io\\.wavfile\\.WavFileWarning'>"
+reason = "wavfile's read fails with ENOTSUP inside the test's warning block (numpy's fromfile cannot duplicate the descriptor on WASI), so the warning the test expects never comes (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap"
+group = "scipy-io-harwell_boeing-to-io"
+outcome = "failed"
+match = "mmap is unavailable"
+reason = "no mmap: the stand-in raises OSError (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-native-id-test-names"
+group = "scipy-io-harwell_boeing-to-io"
+outcome = "failed"
+match = "has no attribute 'get_native_id'"
+reason = "the runtime's threading names no native thread id on WASI, and these tests make their temporary file names from it (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "wasm32-memory"
+group = "scipy-io-harwell_boeing-to-io"
+outcome = "failed"
+match = "array is too big|MemoryError|Unable to allocate"
+reason = "wasm32's 4 GiB address space bounds the guest; these tests ask for more (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-native-id-uarray"
+group = "scipy-lib-to-fft"
+outcome = "failed"
+match = "has no attribute 'get_native_id'"
+reason = "uarray's set_backend and skip_backend read threading.get_native_id(), which the runtime's threading lacks on WASI, so switching scipy.fft's backend fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-processes"
+group = "scipy-lib-to-fft"
+outcome = "failed"
+match = "has no attribute 'pipe'|does not support processes|No module named '_multiprocessing'|_posixsubprocess"
+reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "odr-stand-in-visible"
+group = "scipy-lib-to-fft"
+outcome = "failed"
+match = "Found unexpected modules: \\['scipy\\.odr'\\]"
+reason = "scipy's public-API check finds the product's scipy.odr stand-in module, which upstream removes in 1.19 and the product keeps as a stand-in"
+closes_with = "context/specifications/037-scipy.md"
+
+[[expected]]
+id = "test-only-modules"
+group = "scipy-lib-to-fft"
+outcome = "failed"
+match = "DID NOT WARN\\. No warnings of type \\(<class 'DeprecationWarning'>"
+reason = "the test imports scipy's test-only C module _test_deprecation_call, which the product leaves out on purpose; the judge-only binary the roadmap reserves (088) links it"
+closes_with = "context/roadmap.md"
+
+[[expected]]
+id = "no-threads"
+group = "scipy-ndimage-to-optimize-trustregion_constr"
+outcome = "failed"
+match = "can't start new thread|thread constructor failed"
+reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-processes"
+group = "scipy-optimize-1"
+outcome = "failed"
+match = "has no attribute 'pipe'|does not support processes|No module named '_multiprocessing'|_posixsubprocess"
+reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "float32-rounding"
+group = "scipy-signal"
+outcome = "failed"
+match = "^AssertionError:$"
+reason = "two of 483 float32 values miss the test's 1e-5 absolute tolerance by about one float32 step (1.19e-5): wasm's float rounding differs from native's (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-threads"
+group = "scipy-signal-signaltools"
+outcome = "failed"
+match = "can't start new thread|thread constructor failed"
+reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-threads"
+group = "scipy-smoke-a"
+outcome = "failed"
+match = "can't start new thread|thread constructor failed"
+reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-fp-exceptions"
+group = "scipy-smoke-b"
+outcome = "failed"
+match = "DID NOT WARN\\. No warnings of type \\(<class 'RuntimeWarning'>|DID NOT RAISE <class '(ValueError|FloatingPointError)'>"
+reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero or an invalid value sees nothing (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-native-id-test-names"
+group = "scipy-smoke-b"
+outcome = "failed"
+match = "has no attribute 'get_native_id'"
+reason = "the runtime's threading names no native thread id on WASI, and these tests make their temporary file names from it (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-native-id-test-names-at-setup"
+group = "scipy-smoke-b"
+outcome = "error"
+match = "has no attribute 'get_native_id'"
+reason = "the runtime's threading names no native thread id on WASI, and these tests make their temporary file names from it, at setup or teardown (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-processes"
+group = "scipy-smoke-b"
+outcome = "failed"
+match = "has no attribute 'pipe'|does not support processes|No module named '_multiprocessing'|_posixsubprocess"
+reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-threads"
+group = "scipy-smoke-b"
+outcome = "failed"
+match = "can't start new thread|thread constructor failed"
+reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-threads-results"
+group = "scipy-smoke-b"
+outcome = "failed"
+match = "^AssertionError:$"
+reason = "a check of work that would run on threads: Matrix Market's parallelism stays 1 (the carried patch reads and writes serially) and qmc's C++ workers cannot start, so their result is unset (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-threads-unraisable-at-setup"
+group = "scipy-smoke-b"
+outcome = "error"
+match = "PytestUnraisableExceptionWarning: Exception ignored in: 'scipy\\.stats\\._qmc_cy\\.threaded_loops'"
+reason = "no threads: qmc's C++ workers fail to start and the exception they leave is reported when pytest collects it, at setup or teardown (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-threads"
+group = "scipy-smoke-slow-9"
+outcome = "failed"
+match = "can't start new thread|thread constructor failed"
+reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "wasm32-memory"
+group = "scipy-smoke-slow-9"
+outcome = "failed"
+match = "array is too big|MemoryError|Unable to allocate"
+reason = "wasm32's 4 GiB address space bounds the guest; these tests ask for more (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-threads"
+group = "scipy-sparse-csgraph-to-sparse-linalg-eigen"
+outcome = "failed"
+match = "can't start new thread|thread constructor failed"
+reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-threads"
+group = "scipy-spatial"
+outcome = "failed"
+match = "can't start new thread|thread constructor failed"
+reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "mpmath-tolerance"
+group = "scipy-special-mpmath-6"
+outcome = "failed"
+match = "^AssertionError:$"
+reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "mpmath-tolerance"
+group = "scipy-special-mpmath-8"
+outcome = "failed"
+match = "^AssertionError:$"
+reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-fp-exceptions"
+group = "scipy-stats-1"
+outcome = "failed"
+match = "DID NOT WARN\\. No warnings of type \\(<class 'RuntimeWarning'>|DID NOT RAISE <class '(ValueError|FloatingPointError)'>"
+reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero or an invalid value sees nothing (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-processes"
+group = "scipy-stats-1"
+outcome = "failed"
+match = "has no attribute 'pipe'|does not support processes|No module named '_multiprocessing'|_posixsubprocess"
+reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "fit-flat-likelihood"
+group = "scipy-stats-fit-1"
+outcome = "failed"
+match = "^AssertionError:$"
+reason = "fitting the f distribution to interval-censored data, the first shape parameter barely moves the likelihood: the guest's optimizer stops at 341.2 where native's stops at 290.5 (the other three within 3%), since wasm rounds differently (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-fp-exceptions"
+group = "scipy-stats-fit-2"
+outcome = "failed"
+match = "DID NOT WARN\\. No warnings of type \\(<class 'RuntimeWarning'>|DID NOT RAISE <class '(ValueError|FloatingPointError)'>"
+reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero or an invalid value sees nothing (README)"
+closes_with = "README.md"

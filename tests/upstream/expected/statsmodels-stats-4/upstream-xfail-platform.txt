@@ -1,0 +1,1 @@
+statsmodels/stats/tests/test_power.py::TestTTPowerOneS1::test_roots

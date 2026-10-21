@@ -1,0 +1,1 @@
+statsmodels/graphics/tests/test_functional.py::test_hdr_basic_brute

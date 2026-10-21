@@ -1,0 +1,697 @@
+# statsmodels' own tests in the guest. A judge file: every edit is a judge change.
+#
+# The suite runs whole in the release tier, before a publication; one smoke group runs in the
+# normal tier at every check, chosen to touch every compiled subpackage, ordinary least squares
+# and the carried datasets patch (smoke_cover says which file or golden job line covers each).
+# No smoke file carries a slow marker, so the smoke files run whole in the normal tier and the
+# path release groups run every other staged file whole, slow tests included: every test runs in
+# exactly one tier.
+#
+# package_inits   the ancestors' __init__.py are staged too (see scipy.toml)
+
+package = "statsmodels"
+driver = "package"
+grant = "/upstream-statsmodels"
+budget = 24_153_776_916_005
+stage_folders = [
+    "statsmodels/base/tests",
+    "statsmodels/compat/tests",
+    "statsmodels/datasets/tests",
+    "statsmodels/discrete/tests",
+    "statsmodels/distributions/copula/tests",
+    "statsmodels/distributions/tests",
+    "statsmodels/duration/tests",
+    "statsmodels/emplike/tests",
+    "statsmodels/formula/tests",
+    "statsmodels/gam/tests",
+    "statsmodels/genmod/families/tests",
+    "statsmodels/genmod/tests",
+    "statsmodels/graphics/tests",
+    "statsmodels/imputation/tests",
+    "statsmodels/iolib/tests",
+    "statsmodels/miscmodels/tests",
+    "statsmodels/multivariate/factor_rotation/tests",
+    "statsmodels/multivariate/tests",
+    "statsmodels/nonparametric/tests",
+    "statsmodels/othermod/tests",
+    "statsmodels/regression/tests",
+    "statsmodels/robust/tests",
+    "statsmodels/sandbox/distributions/tests",
+    "statsmodels/sandbox/nonparametric/tests",
+    "statsmodels/sandbox/panel/tests",
+    "statsmodels/sandbox/regression/tests",
+    "statsmodels/sandbox/stats/tests",
+    "statsmodels/sandbox/tests",
+    "statsmodels/sandbox/tools/tests",
+    "statsmodels/sandbox/tsa/tests",
+    "statsmodels/stats/libqsturng/tests",
+    "statsmodels/stats/tests",
+    "statsmodels/tests",
+    "statsmodels/tools/tests",
+    "statsmodels/tools/validation/tests",
+    "statsmodels/treatment/tests",
+    "statsmodels/tsa/ardl/tests",
+    "statsmodels/tsa/arima/estimators/tests",
+    "statsmodels/tsa/arima/tests",
+    "statsmodels/tsa/base/tests",
+    "statsmodels/tsa/filters/tests",
+    "statsmodels/tsa/forecasting/tests",
+    "statsmodels/tsa/holtwinters/tests",
+    "statsmodels/tsa/innovations/tests",
+    "statsmodels/tsa/interp/tests",
+    "statsmodels/tsa/regime_switching/tests",
+    "statsmodels/tsa/statespace/tests",
+    "statsmodels/tsa/stl/tests",
+    "statsmodels/tsa/tests",
+    "statsmodels/tsa/vector_ar/tests",
+]
+package_inits = true
+support_files = ["statsmodels/conftest.py"]
+cwd = "/tmp/work"
+markers = []
+
+[smoke_cover]
+"statsmodels.datasets" = "statsmodels/regression/tests/test_regression.py"
+"statsmodels.regression" = "statsmodels/regression/tests/test_regression.py"
+"statsmodels.nonparametric" = "statsmodels/nonparametric/tests/test_lowess.py"
+"statsmodels.robust" = "statsmodels/robust/tests/test_scale.py"
+"statsmodels.tsa" = "statsmodels/tsa/innovations/tests"
+"statsmodels.tsa.exponential_smoothing" = "release-only: its one test file, test_exponential_smoothing.py, costs past a smoke file's reach, and no golden line calls it"
+"statsmodels.tsa.holtwinters" = "job tests/jobs/statistical_models.py:117 SimpleExpSmoothing"
+"statsmodels.tsa.innovations" = "statsmodels/tsa/innovations/tests"
+"statsmodels.tsa.regime_switching" = "statsmodels/tsa/regime_switching/tests/test_markov_regression.py"
+"statsmodels.tsa.statespace" = "statsmodels/tsa/statespace/tests/test_simulation_smoothing.py"
+"statsmodels.tsa.statespace._filters" = "statsmodels/tsa/arima/tests"
+"statsmodels.tsa.statespace._smoothers" = "statsmodels/tsa/arima/tests"
+"statsmodels.tsa.stl" = "statsmodels/tsa/stl/tests/test_stl.py"
+
+[[not_selected]]
+files = [
+    "statsmodels/discrete/tests/test_constrained.py",
+    "statsmodels/discrete/tests/test_margins.py",
+    "statsmodels/emplike/tests/test_anova.py",
+    "statsmodels/genmod/tests/test_glm_weights.py",
+    "statsmodels/stats/tests/test_oaxaca.py",
+    "statsmodels/tsa/vector_ar/tests/test_vecm.py",
+]
+reason = "each loads, at import, one of the thirteen datasets the product leaves out for their terms, so the file cannot load and every test in it is lost"
+closes_with = "README.md"
+
+[groups.statsmodels-smoke]
+paths = [
+    "statsmodels/regression/tests/test_regression.py",
+    "statsmodels/nonparametric/tests/test_lowess.py",
+    "statsmodels/robust/tests/test_scale.py",
+    "statsmodels/tsa/innovations/tests",
+    "statsmodels/tsa/arima/tests",
+    "statsmodels/tsa/statespace/tests/test_tools.py",
+    "statsmodels/tsa/statespace/tests/test_simulation_smoothing.py",
+    "statsmodels/tsa/regime_switching/tests/test_markov_regression.py",
+    "statsmodels/tsa/stl/tests/test_stl.py",
+    "statsmodels/genmod/families/tests",
+    "statsmodels/formula/tests",
+    "statsmodels/iolib/tests",
+    "statsmodels/tsa/filters/tests",
+]
+smoke = "OLS and the datasets patch, and each compiled family of statsmodels' time series and smoothers"
+fuel = 210_000_000_000
+measured = 135_964_541_182
+
+[groups.statsmodels-base-to-datasets]
+paths = [
+    "statsmodels/base/tests",
+    "statsmodels/compat/tests",
+    "statsmodels/datasets/tests",
+]
+tier = "release"
+fuel = 280_000_000_000
+measured = 184_739_499_232
+
+[groups.statsmodels-discrete-count-model-1]
+paths = ["statsmodels/discrete/tests/test_count_model.py"]
+tier = "release"
+fuel = 770_000_000_000
+measured = 513_242_312_524
+
+[groups.statsmodels-discrete-count-model-2]
+paths = ["statsmodels/discrete/tests/test_count_model.py"]
+tier = "release"
+fuel = 1_116_638_353_746
+measured = 744_425_569_164
+
+[groups.statsmodels-discrete-discrete-1]
+paths = ["statsmodels/discrete/tests/test_discrete.py"]
+tier = "release"
+fuel = 1_134_238_002_394
+measured = 756_158_668_262
+
+[groups.statsmodels-discrete-discrete-2]
+paths = ["statsmodels/discrete/tests/test_discrete.py"]
+tier = "release"
+fuel = 140_000_000_000
+measured = 92_749_514_385
+
+[groups.statsmodels-discrete-1]
+paths = [
+    "statsmodels/discrete/tests/test_conditional.py",
+    "statsmodels/discrete/tests/test_diagnostic.py",
+    "statsmodels/discrete/tests/test_predict.py",
+    "statsmodels/discrete/tests/test_sandwich_cov.py",
+]
+tier = "release"
+fuel = 240_000_000_000
+measured = 155_094_050_171
+
+[groups.statsmodels-discrete-2]
+paths = ["statsmodels/discrete/tests/test_truncated_model.py"]
+tier = "release"
+fuel = 722_199_069_523
+measured = 481_466_046_348
+
+[groups.statsmodels-distributions-copula-to-duration]
+paths = [
+    "statsmodels/distributions/copula/tests",
+    "statsmodels/distributions/tests",
+    "statsmodels/duration/tests",
+]
+tier = "release"
+fuel = 290_000_000_000
+measured = 192_895_189_780
+
+[groups.statsmodels-emplike]
+paths = ["statsmodels/emplike/tests"]
+tier = "release"
+fuel = 680_000_000_000
+measured = 452_374_129_917
+
+[groups.statsmodels-gam]
+paths = ["statsmodels/gam/tests"]
+tier = "release"
+fuel = 400_000_000_000
+measured = 263_465_996_919
+
+[groups.statsmodels-genmod]
+paths = ["statsmodels/genmod/tests"]
+tier = "release"
+fuel = 590_000_000_000
+measured = 391_782_297_865
+
+[groups.statsmodels-graphics-to-multivariate-factor_rotation]
+paths = [
+    "statsmodels/graphics/tests",
+    "statsmodels/imputation/tests",
+    "statsmodels/miscmodels/tests",
+    "statsmodels/multivariate/factor_rotation/tests",
+]
+tier = "release"
+fuel = 420_000_000_000
+measured = 276_675_256_793
+
+[groups.statsmodels-multivariate]
+paths = ["statsmodels/multivariate/tests"]
+tier = "release"
+fuel = 230_000_000_000
+measured = 150_791_927_434
+
+[groups.statsmodels-nonparametric-1]
+paths = [
+    "statsmodels/nonparametric/tests/test_asymmetric.py",
+    "statsmodels/nonparametric/tests/test_bandwidths.py",
+    "statsmodels/nonparametric/tests/test_kde.py",
+    "statsmodels/nonparametric/tests/test_kernel_density.py",
+]
+tier = "release"
+fuel = 944_739_834_663
+measured = 629_826_556_442
+
+[groups.statsmodels-nonparametric-2]
+paths = [
+    "statsmodels/nonparametric/tests/test_kernel_regression.py",
+    "statsmodels/nonparametric/tests/test_kernels.py",
+]
+tier = "release"
+fuel = 1_111_616_461_351
+measured = 741_077_640_900
+
+[groups.statsmodels-othermod]
+paths = ["statsmodels/othermod/tests"]
+tier = "release"
+fuel = 54_000_000_000
+measured = 35_893_183_496
+
+[groups.statsmodels-regression-lme-1]
+paths = ["statsmodels/regression/tests/test_lme.py"]
+tier = "release"
+fuel = 600_000_000_000
+measured = 393_895_105_487
+
+[groups.statsmodels-regression-lme-2]
+paths = ["statsmodels/regression/tests/test_lme.py"]
+tier = "release"
+fuel = 794_818_732_085
+measured = 529_879_154_723
+
+[groups.statsmodels-regression-1]
+paths = [
+    "statsmodels/regression/tests/test_cov.py",
+    "statsmodels/regression/tests/test_dimred.py",
+    "statsmodels/regression/tests/test_glsar_gretl.py",
+    "statsmodels/regression/tests/test_glsar_stata.py",
+    "statsmodels/regression/tests/test_predict.py",
+]
+tier = "release"
+fuel = 91_000_000_000
+measured = 60_380_511_170
+
+[groups.statsmodels-regression-2]
+paths = [
+    "statsmodels/regression/tests/test_processreg.py",
+    "statsmodels/regression/tests/test_quantile_regression.py",
+    "statsmodels/regression/tests/test_recursive_ls.py",
+]
+tier = "release"
+fuel = 1_137_537_880_919
+measured = 758_358_587_279
+
+[groups.statsmodels-regression-3]
+paths = [
+    "statsmodels/regression/tests/test_robustcov.py",
+    "statsmodels/regression/tests/test_rolling.py",
+    "statsmodels/regression/tests/test_theil.py",
+    "statsmodels/regression/tests/test_tools.py",
+]
+tier = "release"
+fuel = 400_000_000_000
+measured = 260_310_752_921
+
+[groups.statsmodels-robust]
+paths = ["statsmodels/robust/tests"]
+tier = "release"
+fuel = 630_000_000_000
+measured = 418_236_782_987
+
+[groups.statsmodels-sandbox-distributions-to-stats-libqsturng]
+paths = [
+    "statsmodels/sandbox/distributions/tests",
+    "statsmodels/sandbox/nonparametric/tests",
+    "statsmodels/sandbox/panel/tests",
+    "statsmodels/sandbox/regression/tests",
+    "statsmodels/sandbox/stats/tests",
+    "statsmodels/sandbox/tests",
+    "statsmodels/sandbox/tools/tests",
+    "statsmodels/sandbox/tsa/tests",
+    "statsmodels/stats/libqsturng/tests",
+]
+tier = "release"
+fuel = 170_000_000_000
+measured = 106_910_024_021
+
+[groups.statsmodels-stats-1]
+paths = [
+    "statsmodels/stats/tests/test_anova.py",
+    "statsmodels/stats/tests/test_anova_rm.py",
+    "statsmodels/stats/tests/test_base.py",
+    "statsmodels/stats/tests/test_contingency_tables.py",
+    "statsmodels/stats/tests/test_contrast.py",
+    "statsmodels/stats/tests/test_correlation.py",
+    "statsmodels/stats/tests/test_corrpsd.py",
+    "statsmodels/stats/tests/test_covariance.py",
+    "statsmodels/stats/tests/test_deltacov.py",
+    "statsmodels/stats/tests/test_descriptivestats.py",
+    "statsmodels/stats/tests/test_diagnostic.py",
+    "statsmodels/stats/tests/test_diagnostic_other.py",
+    "statsmodels/stats/tests/test_dist_dependant_measures.py",
+    "statsmodels/stats/tests/test_effectsize.py",
+    "statsmodels/stats/tests/test_gof.py",
+    "statsmodels/stats/tests/test_groups_sw.py",
+    "statsmodels/stats/tests/test_inference_tools.py",
+    "statsmodels/stats/tests/test_influence.py",
+    "statsmodels/stats/tests/test_inter_rater.py",
+]
+tier = "release"
+fuel = 1_088_826_273_791
+measured = 725_884_182_527
+
+[groups.statsmodels-stats-2]
+paths = [
+    "statsmodels/stats/tests/test_knockoff.py",
+    "statsmodels/stats/tests/test_lilliefors.py",
+    "statsmodels/stats/tests/test_limited_iteration_mixin.py",
+]
+tier = "release"
+fuel = 1_051_001_170_880
+measured = 700_667_447_253
+
+[groups.statsmodels-stats-3]
+paths = [
+    "statsmodels/stats/tests/test_mediation.py",
+    "statsmodels/stats/tests/test_meta.py",
+    "statsmodels/stats/tests/test_moment_helpers.py",
+]
+tier = "release"
+fuel = 400_000_000_000
+measured = 261_017_329_938
+
+[groups.statsmodels-stats-proportion-1]
+paths = ["statsmodels/stats/tests/test_proportion.py"]
+tier = "release"
+fuel = 930_000_000_000
+measured = 618_609_608_717
+
+[groups.statsmodels-stats-proportion-2]
+paths = ["statsmodels/stats/tests/test_proportion.py"]
+tier = "release"
+fuel = 42_000_000_000
+measured = 27_552_835_505
+
+[groups.statsmodels-stats-proportion-3]
+paths = ["statsmodels/stats/tests/test_proportion.py"]
+tier = "release"
+fuel = 344_020_013_665
+measured = 229_346_675_776
+
+[groups.statsmodels-stats-4]
+paths = [
+    "statsmodels/stats/tests/test_multi.py",
+    "statsmodels/stats/tests/test_multivariate.py",
+    "statsmodels/stats/tests/test_multivariate_tools.py",
+    "statsmodels/stats/tests/test_nonparametric.py",
+    "statsmodels/stats/tests/test_oneway.py",
+    "statsmodels/stats/tests/test_outliers_influence.py",
+    "statsmodels/stats/tests/test_pairwise.py",
+    "statsmodels/stats/tests/test_panel_robustcov.py",
+    "statsmodels/stats/tests/test_power.py",
+    "statsmodels/stats/tests/test_qsturng.py",
+    "statsmodels/stats/tests/test_rates_poisson.py",
+    "statsmodels/stats/tests/test_regularized_covariance.py",
+    "statsmodels/stats/tests/test_robust_compare.py",
+    "statsmodels/stats/tests/test_sandwich.py",
+    "statsmodels/stats/tests/test_statstools.py",
+    "statsmodels/stats/tests/test_tabledist.py",
+    "statsmodels/stats/tests/test_tost.py",
+    "statsmodels/stats/tests/test_weightstats.py",
+]
+tier = "release"
+fuel = 300_000_000_000
+measured = 196_624_795_288
+
+[groups.statsmodels-tests-to-treatment]
+paths = [
+    "statsmodels/tests",
+    "statsmodels/tools/tests",
+    "statsmodels/tools/validation/tests",
+    "statsmodels/treatment/tests",
+]
+tier = "release"
+fuel = 420_000_000_000
+measured = 274_778_349_881
+
+[groups.statsmodels-tsa-ardl]
+paths = ["statsmodels/tsa/ardl/tests"]
+tier = "release"
+fuel = 660_000_000_000
+measured = 438_842_643_045
+
+[groups.statsmodels-tsa-arima-estimators-to-tsa-base]
+paths = [
+    "statsmodels/tsa/arima/estimators/tests",
+    "statsmodels/tsa/base/tests",
+]
+tier = "release"
+fuel = 79_000_000_000
+measured = 52_023_384_501
+
+[groups.statsmodels-tsa-forecasting]
+paths = ["statsmodels/tsa/forecasting/tests"]
+tier = "release"
+fuel = 550_000_000_000
+measured = 361_691_529_865
+
+[groups.statsmodels-tsa-holtwinters]
+paths = ["statsmodels/tsa/holtwinters/tests"]
+tier = "release"
+fuel = 510_000_000_000
+measured = 335_738_289_189
+
+[groups.statsmodels-tsa-interp-to-tsa-regime_switching]
+paths = [
+    "statsmodels/tsa/interp/tests",
+    "statsmodels/tsa/regime_switching/tests",
+]
+tier = "release"
+fuel = 110_000_000_000
+measured = 72_704_097_515
+
+[groups.statsmodels-tsa-statespace-1]
+paths = [
+    "statsmodels/tsa/statespace/tests/test_cfa_simulation_smoothing.py",
+    "statsmodels/tsa/statespace/tests/test_cfa_tvpvar.py",
+    "statsmodels/tsa/statespace/tests/test_chandrasekhar.py",
+    "statsmodels/tsa/statespace/tests/test_collapsed.py",
+    "statsmodels/tsa/statespace/tests/test_concentrated.py",
+    "statsmodels/tsa/statespace/tests/test_conserve_memory.py",
+    "statsmodels/tsa/statespace/tests/test_decompose.py",
+    "statsmodels/tsa/statespace/tests/test_dynamic_factor.py",
+    "statsmodels/tsa/statespace/tests/test_dynamic_factor_mq.py",
+    "statsmodels/tsa/statespace/tests/test_dynamic_factor_mq_frbny_nowcast.py",
+    "statsmodels/tsa/statespace/tests/test_dynamic_factor_mq_monte_carlo.py",
+    "statsmodels/tsa/statespace/tests/test_exact_diffuse_filtering.py",
+    "statsmodels/tsa/statespace/tests/test_exponential_smoothing.py",
+]
+tier = "release"
+fuel = 1_092_141_122_988
+measured = 728_094_081_992
+
+[groups.statsmodels-tsa-statespace-2]
+paths = [
+    "statsmodels/tsa/statespace/tests/test_fixed_params.py",
+    "statsmodels/tsa/statespace/tests/test_forecasting.py",
+    "statsmodels/tsa/statespace/tests/test_impulse_responses.py",
+    "statsmodels/tsa/statespace/tests/test_initialization.py",
+    "statsmodels/tsa/statespace/tests/test_kalman.py",
+    "statsmodels/tsa/statespace/tests/test_mlemodel.py",
+    "statsmodels/tsa/statespace/tests/test_models.py",
+    "statsmodels/tsa/statespace/tests/test_multivariate_switch_univariate.py",
+    "statsmodels/tsa/statespace/tests/test_news.py",
+    "statsmodels/tsa/statespace/tests/test_options.py",
+    "statsmodels/tsa/statespace/tests/test_pickle.py",
+    "statsmodels/tsa/statespace/tests/test_prediction.py",
+    "statsmodels/tsa/statespace/tests/test_representation.py",
+]
+tier = "release"
+fuel = 230_000_000_000
+measured = 149_426_268_757
+
+[groups.statsmodels-tsa-statespace-3]
+paths = [
+    "statsmodels/tsa/statespace/tests/test_sarimax.py",
+    "statsmodels/tsa/statespace/tests/test_save.py",
+    "statsmodels/tsa/statespace/tests/test_simulate.py",
+]
+tier = "release"
+fuel = 710_000_000_000
+measured = 467_751_181_573
+
+[groups.statsmodels-tsa-statespace-4]
+paths = [
+    "statsmodels/tsa/statespace/tests/test_smoothing.py",
+    "statsmodels/tsa/statespace/tests/test_structural.py",
+    "statsmodels/tsa/statespace/tests/test_univariate.py",
+    "statsmodels/tsa/statespace/tests/test_var.py",
+    "statsmodels/tsa/statespace/tests/test_varmax.py",
+    "statsmodels/tsa/statespace/tests/test_weights.py",
+]
+tier = "release"
+fuel = 390_000_000_000
+measured = 254_226_401_230
+
+[groups.statsmodels-tsa-stl]
+paths = ["statsmodels/tsa/stl/tests"]
+tier = "release"
+fuel = 190_000_000_000
+measured = 124_468_300_516
+
+[groups.statsmodels-tsa-1]
+paths = [
+    "statsmodels/tsa/tests/test_adfuller_lag.py",
+    "statsmodels/tsa/tests/test_adfvalues.py",
+    "statsmodels/tsa/tests/test_ar.py",
+    "statsmodels/tsa/tests/test_arima_process.py",
+    "statsmodels/tsa/tests/test_bds.py",
+]
+tier = "release"
+fuel = 370_000_000_000
+measured = 241_102_048_565
+
+[groups.statsmodels-tsa-2]
+paths = [
+    "statsmodels/tsa/tests/test_deterministic.py",
+    "statsmodels/tsa/tests/test_exponential_smoothing.py",
+    "statsmodels/tsa/tests/test_seasonal.py",
+]
+tier = "release"
+fuel = 440_000_000_000
+measured = 287_037_883_372
+
+[groups.statsmodels-tsa-3]
+paths = [
+    "statsmodels/tsa/tests/test_stattools.py",
+    "statsmodels/tsa/tests/test_tsa_tools.py",
+    "statsmodels/tsa/tests/test_varma_process.py",
+    "statsmodels/tsa/tests/test_x13.py",
+]
+tier = "release"
+fuel = 700_000_000_000
+measured = 463_297_646_078
+
+[groups.statsmodels-tsa-vector_ar]
+paths = ["statsmodels/tsa/vector_ar/tests"]
+tier = "release"
+fuel = 390_000_000_000
+measured = 259_606_044_900
+
+[[split]]
+file = "statsmodels/discrete/tests/test_count_model.py"
+groups = [
+    "statsmodels-discrete-count-model-1",
+    "statsmodels-discrete-count-model-2",
+]
+keywords = [
+    "TestZeroInflatedModel_logit or TestZeroInflatedModel_probit or TestZeroInflatedModel_offset or TestZeroInflatedModelPandas or TestZeroInflatedPoisson_predict or TestZeroInflatedGeneralizedPoisson or TestZeroInflatedGeneralizedPoisson_predict",
+]
+
+[[split]]
+file = "statsmodels/discrete/tests/test_discrete.py"
+groups = [
+    "statsmodels-discrete-discrete-1",
+    "statsmodels-discrete-discrete-2",
+]
+keywords = [
+    "TestProbitNewton or TestProbitBFGS or TestProbitNM or TestProbitPowell or TestProbitCG or TestProbitNCG or TestProbitBasinhopping or TestProbitMinimizeDefault or TestProbitMinimizeDogleg or TestProbitMinimizeAdditionalOptions or TestProbitL1 or TestMNLogitL1 or TestLogitL1 or TestCVXOPT or TestSweepAlphaL1 or TestPoissonL1Compatability or TestNegativeBinomialL1Compatability or TestNegativeBinomialGeoL1Compatability or TestLogitL1Compatability or TestMNLogitL1Compatability or TestProbitL1Compatability or TestL1AlphaZeroLogit or TestL1AlphaZeroProbit or TestL1AlphaZeroMNLogit or TestLogitNewton or TestLogitNewtonPrepend or TestLogitBFGS or TestPoissonNewton or TestNegativeBinomialNB2Newton or TestNegativeBinomialNB1Newton or TestNegativeBinomialNB2BFGS or TestNegativeBinomialNB1BFGS or TestNegativeBinomialGeometricBFGS or TestMNLogitNewtonBaseZero or TestMNLogitLBFGSBaseZero or test_mnlogit_basinhopping or test_perfect_prediction or test_poisson_predict or test_poisson_newton or test_l1_regularized_respects_warning_filters or test_issue_339 or test_issue_341 or test_issue_8943 or test_negative_binomial_default_alpha_param or test_iscount or test_isdummy or test_non_binary or test_mnlogit_factor or test_mnlogit_factor_categorical or test_formula_missing_exposure or test_predict_with_exposure or test_binary_pred_table_zeros or TestGeneralizedPoisson_p2 or TestGeneralizedPoisson_transparams or TestGeneralizedPoisson_p1 or TestGeneralizedPoisson_underdispersion or TestNegativeBinomialPNB2Newton or TestNegativeBinomialPNB1Newton or TestNegativeBinomialPNB2BFGS",
+]
+
+[[split]]
+file = "statsmodels/regression/tests/test_lme.py"
+groups = [
+    "statsmodels-regression-lme-1",
+    "statsmodels-regression-lme-2",
+]
+keywords = [
+    "test_compare_numdiff or test_default_re or test_history or test_profile_inference or test_vcomp_1 or test_vcomp_2 or test_vcomp_3 or test_sparse or test_dietox or test_dietox_slopes or test_pastes_vcomp or test_vcomp_formula or test_formulas",
+]
+
+[[split]]
+file = "statsmodels/stats/tests/test_proportion.py"
+groups = [
+    "statsmodels-stats-proportion-1",
+    "statsmodels-stats-proportion-2",
+    "statsmodels-stats-proportion-3",
+]
+keywords = [
+    "test_confint_proportion or test_confint_proportion_ndim or test_confint_proportion_wilson_clip or test_samplesize_confidenceinterval_prop or test_proportion_effect_size or test_confint_multinomial_proportions or test_multinomial_proportions_errors or test_confint_multinomial_proportions_zeros or test_confint_multinomial_proportions_sison_glaz_sparse or test_confint_multinomial_proportions_sison_glaz_sparse_r_reference or TestProportion or test_binom_test or test_binom_rejection_interval or test_binom_tost or test_power_binom_tost or test_power_ztost_prop or test_ztost or test_power_ztost_prop_norm or test_proportion_ztests or test_confint_2indep or test_confint_2indep_propcis or test_score_test_2indep or test_test_2indep or test_equivalence_2indep or test_score_confint_koopman_nam or test_power_2indep or test_ci_symmetry or test_ci_symmetry_binom_test[F or test_ci_symmetry_binom_test[True-count0 or test_ci_symmetry_binom_test[True-count1",
+    "test_ci_symmetry_binom_test[True-count2 or test_ci_symmetry_binom_test[True-count3 or test_ci_symmetry_binom_test[True-count4 or test_ci_symmetry_binom_test[True-count5 or test_ci_symmetry_binom_test[True-count6 or test_ci_symmetry_binom_test[True-count7",
+]
+
+[[expected]]
+id = "left-out-datasets"
+group = "statsmodels-base-to-datasets"
+outcome = "failed"
+match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
+reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "wasm-is-not-emscripten"
+group = "statsmodels-base-to-datasets"
+outcome = "failed"
+match = "SingularMatrixWarning: The design matrix is rank-deficient|Function is marked as not warning but the following warnings were found"
+reason = "upstream special-cases wasm by sys.platform 'emscripten' (Pyodide); the guest is wasm on WASI, so the case does not apply and the warning upstream expects of wasm (no floating-point exception flags) differs (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "left-out-datasets"
+group = "statsmodels-discrete-discrete-2"
+outcome = "failed"
+match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
+reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "left-out-datasets"
+group = "statsmodels-emplike"
+outcome = "failed"
+match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
+reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "left-out-datasets-at-setup"
+group = "statsmodels-emplike"
+outcome = "error"
+match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
+reason = "the test loads one of the thirteen datasets the product leaves out for their terms, at setup or teardown (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "left-out-datasets"
+group = "statsmodels-genmod"
+outcome = "failed"
+match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
+reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "left-out-datasets-at-setup"
+group = "statsmodels-genmod"
+outcome = "error"
+match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
+reason = "the test loads one of the thirteen datasets the product leaves out for their terms, at setup or teardown (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "left-out-datasets"
+group = "statsmodels-graphics-to-multivariate-factor_rotation"
+outcome = "failed"
+match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
+reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-processes"
+group = "statsmodels-graphics-to-multivariate-factor_rotation"
+outcome = "failed"
+match = "has no attribute 'pipe'|does not support processes"
+reason = "no processes: os has no pipe on WASI, so a multiprocessing pool fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "left-out-datasets"
+group = "statsmodels-smoke"
+outcome = "failed"
+match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
+reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "left-out-datasets-at-setup"
+group = "statsmodels-smoke"
+outcome = "error"
+match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
+reason = "the test loads one of the thirteen datasets the product leaves out for their terms, at setup or teardown (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "upstream-xfail-platform"
+group = "statsmodels-stats-4"
+outcome = "failed"
+match = "class: TestTTPowerOneS1, key: alpha"
+reason = "upstream xfails this alpha solve on Windows and macOS with recent scipy; the guest is neither, so it fails here as it does there unmarked"
+closes_with = "README.md"
+
+[[expected]]
+id = "left-out-datasets-at-setup"
+group = "statsmodels-tests-to-treatment"
+outcome = "error"
+match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
+reason = "the test loads one of the thirteen datasets the product leaves out for their terms, at setup or teardown (README)"
+closes_with = "README.md"

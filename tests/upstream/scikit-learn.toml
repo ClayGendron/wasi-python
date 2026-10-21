@@ -1,0 +1,653 @@
+# scikit-learn's own tests in the guest. A judge file: every edit is a judge change.
+#
+# The suite runs whole in the release tier, before a publication; one smoke group runs in the
+# normal tier at every check, chosen to touch every compiled subpackage and the carried patch
+# (smoke_cover says which file or golden job line covers each). scikit-learn marks no test slow,
+# so the smoke files run whole in the normal tier and the path release groups run every other
+# staged file whole: every test runs in exactly one tier.
+#
+# component       the source tree's name, as its tarball names it
+# package_inits   the ancestors' __init__.py are staged too (see scipy.toml)
+# env             set for every run of the family, each with its reason
+
+package = "scikit-learn"
+driver = "package"
+grant = "/upstream-scikit-learn"
+component = "scikit_learn"
+budget = 16_745_911_922_408
+stage_folders = [
+    "sklearn/_loss/tests",
+    "sklearn/callback/tests",
+    "sklearn/cluster/_hdbscan/tests",
+    "sklearn/cluster/tests",
+    "sklearn/compose/tests",
+    "sklearn/covariance/tests",
+    "sklearn/cross_decomposition/tests",
+    "sklearn/datasets/tests",
+    "sklearn/decomposition/tests",
+    "sklearn/ensemble/_hist_gradient_boosting/tests",
+    "sklearn/ensemble/tests",
+    "sklearn/experimental/tests",
+    "sklearn/feature_extraction/tests",
+    "sklearn/feature_selection/tests",
+    "sklearn/frozen/tests",
+    "sklearn/gaussian_process/tests",
+    "sklearn/impute/tests",
+    "sklearn/inspection/_plot/tests",
+    "sklearn/inspection/tests",
+    "sklearn/linear_model/_glm/tests",
+    "sklearn/linear_model/tests",
+    "sklearn/manifold/tests",
+    "sklearn/metrics/_plot/tests",
+    "sklearn/metrics/cluster/tests",
+    "sklearn/metrics/tests",
+    "sklearn/mixture/tests",
+    "sklearn/model_selection/tests",
+    "sklearn/neighbors/tests",
+    "sklearn/neural_network/tests",
+    "sklearn/preprocessing/tests",
+    "sklearn/semi_supervised/tests",
+    "sklearn/svm/tests",
+    "sklearn/tests",
+    "sklearn/tree/tests",
+    "sklearn/utils/_repr_html/tests",
+    "sklearn/utils/tests",
+]
+package_inits = true
+support_files = [
+    "sklearn/conftest.py",
+    "sklearn/externals/conftest.py",
+]
+cwd = "/tmp/work"
+markers = []
+
+[env.SKLEARN_RUN_FLOAT32_TESTS]
+value = "1"
+reason = "the float32 cases of each test run too"
+
+[env.SKLEARN_SEED]
+value = "0"
+reason = "the package's setup seeds the global generators from this, not from the product's own draws, so no change elsewhere moves every test on the global generator"
+
+[smoke_cover]
+"sklearn" = "sklearn/tests/test_isotonic.py"
+"sklearn.__check_build" = "sklearn/tests/test_isotonic.py"
+"sklearn._loss" = "job tests/jobs/machine_learning.py:74 LogisticRegression"
+"sklearn.cluster" = "sklearn/cluster/tests/test_dbscan.py"
+"sklearn.cluster._hdbscan" = "sklearn/cluster/_hdbscan/tests"
+"sklearn.datasets" = "sklearn/datasets/tests/test_svmlight_format.py"
+"sklearn.decomposition" = "sklearn/decomposition/tests/test_online_lda.py"
+"sklearn.ensemble" = "release-only: its one compiled module serves the classic gradient boosting, whose test file costs past a smoke file's reach, and no golden line calls it"
+"sklearn.ensemble._hist_gradient_boosting" = "sklearn/ensemble/_hist_gradient_boosting/tests/test_splitting.py"
+"sklearn.feature_extraction" = "sklearn/feature_extraction/tests/test_feature_hasher.py"
+"sklearn.linear_model" = "sklearn/linear_model/tests/test_sag.py"
+"sklearn.manifold" = "release-only: its compiled modules serve t-SNE, whose test file costs past a smoke file's reach, and no golden line calls it"
+"sklearn.metrics" = "job tests/jobs/machine_learning.py:117 KNeighborsClassifier"
+"sklearn.metrics._pairwise_distances_reduction" = "sklearn/metrics/tests/test_pairwise_distances_reduction.py"
+"sklearn.metrics.cluster" = "sklearn/metrics/cluster/tests"
+"sklearn.neighbors" = "sklearn/neighbors/tests/test_kd_tree.py"
+"sklearn.preprocessing" = "sklearn/preprocessing/tests/test_target_encoder.py"
+"sklearn.svm" = "sklearn/svm/tests"
+"sklearn.tree" = "sklearn/tree/tests/test_split.py"
+"sklearn.utils" = "sklearn/utils/tests/test_sparsefuncs.py"
+"sklearn.utils._repr_html" = "sklearn/utils/_repr_html/tests"
+
+[[not_selected]]
+files = [
+    "sklearn/cluster/tests/test_hierarchical.py",
+    "sklearn/metrics/tests/test_dist_metrics.py",
+]
+reason = "each builds memory-mapped arrays at import (create_memmap_backed_data), and the mmap stand-in raises, so the file cannot load"
+closes_with = "README.md"
+
+[[not_selected]]
+files = ["sklearn/neighbors/tests/test_neighbors.py"]
+reason = "it imports a constant from metrics/tests/test_dist_metrics.py, which cannot load without mmap"
+closes_with = "README.md"
+
+[groups.scikit-learn-smoke]
+paths = [
+    "sklearn/tree/tests/test_split.py",
+    "sklearn/ensemble/_hist_gradient_boosting/tests/test_splitting.py",
+    "sklearn/ensemble/_hist_gradient_boosting/tests/test_histogram.py",
+    "sklearn/ensemble/_hist_gradient_boosting/tests/test_predictor.py",
+    "sklearn/cluster/tests/test_dbscan.py",
+    "sklearn/cluster/_hdbscan/tests",
+    "sklearn/svm/tests",
+    "sklearn/linear_model/tests/test_base.py",
+    "sklearn/linear_model/tests/test_sag.py",
+    "sklearn/linear_model/tests/test_perceptron.py",
+    "sklearn/feature_extraction/tests/test_feature_hasher.py",
+    "sklearn/datasets/tests/test_svmlight_format.py",
+    "sklearn/metrics/cluster/tests",
+    "sklearn/metrics/tests/test_pairwise_distances_reduction.py",
+    "sklearn/neighbors/tests/test_kd_tree.py",
+    "sklearn/neighbors/tests/test_ball_tree.py",
+    "sklearn/neighbors/tests/test_quad_tree.py",
+    "sklearn/preprocessing/tests/test_target_encoder.py",
+    "sklearn/utils/tests/test_sparsefuncs.py",
+    "sklearn/utils/tests/test_murmurhash.py",
+    "sklearn/utils/tests/test_fast_dict.py",
+    "sklearn/utils/tests/test_seq_dataset.py",
+    "sklearn/utils/tests/test_arrayfuncs.py",
+    "sklearn/utils/tests/test_random.py",
+    "sklearn/utils/tests/test_typedefs.py",
+    "sklearn/utils/tests/test_weight_vector.py",
+    "sklearn/utils/_repr_html/tests",
+    "sklearn/decomposition/tests/test_online_lda.py",
+    "sklearn/tests/test_isotonic.py",
+]
+smoke = "each compiled family of scikit-learn touched (trees first) and its html-repr patch"
+fuel = 390_000_000_000
+measured = 260_000_000_000
+
+[groups.scikit-learn-loss-to-cross_decomposition]
+paths = [
+    "sklearn/_loss/tests",
+    "sklearn/callback/tests",
+    "sklearn/cluster/tests",
+    "sklearn/compose/tests",
+    "sklearn/covariance/tests",
+    "sklearn/cross_decomposition/tests",
+]
+tier = "release"
+fuel = 490_000_000_000
+measured = 322_567_375_793
+
+[groups.scikit-learn-datasets]
+paths = ["sklearn/datasets/tests"]
+tier = "release"
+fuel = 99_000_000_000
+measured = 65_566_937_060
+
+[groups.scikit-learn-decomposition-pca-1]
+paths = ["sklearn/decomposition/tests/test_pca.py"]
+tier = "release"
+fuel = 770_000_000_000
+measured = 513_072_780_379
+
+[groups.scikit-learn-decomposition-pca-2]
+paths = ["sklearn/decomposition/tests/test_pca.py"]
+tier = "release"
+fuel = 43_000_000_000
+measured = 28_580_418_044
+
+[groups.scikit-learn-decomposition-1]
+paths = [
+    "sklearn/decomposition/tests/test_dict_learning.py",
+    "sklearn/decomposition/tests/test_factor_analysis.py",
+    "sklearn/decomposition/tests/test_fastica.py",
+    "sklearn/decomposition/tests/test_incremental_pca.py",
+    "sklearn/decomposition/tests/test_kernel_pca.py",
+    "sklearn/decomposition/tests/test_nmf.py",
+]
+tier = "release"
+fuel = 350_000_000_000
+measured = 229_809_656_804
+
+[groups.scikit-learn-decomposition-2]
+paths = [
+    "sklearn/decomposition/tests/test_sparse_pca.py",
+    "sklearn/decomposition/tests/test_truncated_svd.py",
+]
+tier = "release"
+fuel = 71_000_000_000
+measured = 46_930_835_169
+
+[groups.scikit-learn-ensemble-hist_gradient_boosting]
+paths = ["sklearn/ensemble/_hist_gradient_boosting/tests"]
+tier = "release"
+fuel = 340_000_000_000
+measured = 223_096_708_868
+
+[groups.scikit-learn-ensemble-forest-1]
+paths = ["sklearn/ensemble/tests/test_forest.py"]
+tier = "release"
+fuel = 560_000_000_000
+measured = 368_343_106_076
+
+[groups.scikit-learn-ensemble-forest-2]
+paths = ["sklearn/ensemble/tests/test_forest.py"]
+tier = "release"
+fuel = 330_000_000_000
+measured = 215_016_341_830
+
+[groups.scikit-learn-ensemble-1]
+paths = [
+    "sklearn/ensemble/tests/test_bagging.py",
+    "sklearn/ensemble/tests/test_base.py",
+    "sklearn/ensemble/tests/test_bootstrap.py",
+    "sklearn/ensemble/tests/test_common.py",
+    "sklearn/ensemble/tests/test_gradient_boosting.py",
+]
+tier = "release"
+fuel = 934_253_371_023
+measured = 622_835_580_682
+
+[groups.scikit-learn-ensemble-2]
+paths = [
+    "sklearn/ensemble/tests/test_iforest.py",
+    "sklearn/ensemble/tests/test_stacking.py",
+    "sklearn/ensemble/tests/test_voting.py",
+    "sklearn/ensemble/tests/test_weight_boosting.py",
+]
+tier = "release"
+fuel = 450_000_000_000
+measured = 294_846_755_041
+
+[groups.scikit-learn-experimental-to-gaussian_process]
+paths = [
+    "sklearn/experimental/tests",
+    "sklearn/feature_extraction/tests",
+    "sklearn/feature_selection/tests",
+    "sklearn/frozen/tests",
+    "sklearn/gaussian_process/tests",
+]
+tier = "release"
+fuel = 430_000_000_000
+measured = 284_177_987_332
+
+[groups.scikit-learn-impute-to-inspection-plot]
+paths = [
+    "sklearn/impute/tests",
+    "sklearn/inspection/_plot/tests",
+]
+tier = "release"
+fuel = 380_000_000_000
+measured = 250_606_859_996
+
+[groups.scikit-learn-inspection]
+paths = ["sklearn/inspection/tests"]
+tier = "release"
+fuel = 530_000_000_000
+measured = 349_145_417_807
+
+[groups.scikit-learn-linear_model-glm]
+paths = ["sklearn/linear_model/_glm/tests"]
+tier = "release"
+fuel = 410_000_000_000
+measured = 273_131_582_878
+
+[groups.scikit-learn-linear_model-1]
+paths = [
+    "sklearn/linear_model/tests/test_bayes.py",
+    "sklearn/linear_model/tests/test_common.py",
+    "sklearn/linear_model/tests/test_coordinate_descent.py",
+    "sklearn/linear_model/tests/test_huber.py",
+    "sklearn/linear_model/tests/test_least_angle.py",
+    "sklearn/linear_model/tests/test_linear_loss.py",
+    "sklearn/linear_model/tests/test_logistic.py",
+    "sklearn/linear_model/tests/test_omp.py",
+    "sklearn/linear_model/tests/test_passive_aggressive.py",
+]
+tier = "release"
+fuel = 590_000_000_000
+measured = 388_910_438_064
+
+[groups.scikit-learn-linear_model-2]
+paths = [
+    "sklearn/linear_model/tests/test_quantile.py",
+    "sklearn/linear_model/tests/test_ransac.py",
+    "sklearn/linear_model/tests/test_ridge.py",
+]
+tier = "release"
+fuel = 480_000_000_000
+measured = 314_042_761_869
+
+[groups.scikit-learn-linear_model-3]
+paths = [
+    "sklearn/linear_model/tests/test_sgd.py",
+    "sklearn/linear_model/tests/test_sparse_coordinate_descent.py",
+    "sklearn/linear_model/tests/test_theil_sen.py",
+]
+tier = "release"
+fuel = 310_000_000_000
+measured = 205_797_083_766
+
+[groups.scikit-learn-manifold]
+paths = ["sklearn/manifold/tests"]
+tier = "release"
+fuel = 440_000_000_000
+measured = 288_833_103_920
+
+[groups.scikit-learn-metrics-plot]
+paths = ["sklearn/metrics/_plot/tests"]
+tier = "release"
+fuel = 190_000_000_000
+measured = 120_033_431_815
+
+[groups.scikit-learn-metrics]
+paths = ["sklearn/metrics/tests"]
+tier = "release"
+fuel = 490_000_000_000
+measured = 321_972_009_683
+
+[groups.scikit-learn-mixture]
+paths = ["sklearn/mixture/tests"]
+tier = "release"
+fuel = 96_000_000_000
+measured = 63_868_859_186
+
+[groups.scikit-learn-model_selection-1]
+paths = [
+    "sklearn/model_selection/tests/test_classification_threshold.py",
+    "sklearn/model_selection/tests/test_plot.py",
+    "sklearn/model_selection/tests/test_search.py",
+]
+tier = "release"
+fuel = 440_000_000_000
+measured = 288_348_690_619
+
+[groups.scikit-learn-model_selection-2]
+paths = [
+    "sklearn/model_selection/tests/test_split.py",
+    "sklearn/model_selection/tests/test_successive_halving.py",
+]
+tier = "release"
+fuel = 390_000_000_000
+measured = 254_114_367_846
+
+[groups.scikit-learn-model_selection-3]
+paths = ["sklearn/model_selection/tests/test_validation.py"]
+tier = "release"
+fuel = 544_623_505_101
+measured = 363_082_336_734
+
+[groups.scikit-learn-neighbors-to-neural_network]
+paths = [
+    "sklearn/neighbors/tests",
+    "sklearn/neural_network/tests",
+]
+tier = "release"
+fuel = 310_000_000_000
+measured = 203_028_856_570
+
+[groups.scikit-learn-preprocessing-to-semi_supervised]
+paths = [
+    "sklearn/preprocessing/tests",
+    "sklearn/semi_supervised/tests",
+]
+tier = "release"
+fuel = 370_000_000_000
+measured = 240_682_925_271
+
+[groups.scikit-learn-tests-common-1]
+paths = ["sklearn/tests/test_common.py"]
+tier = "release"
+fuel = 680_000_000_000
+measured = 452_271_427_733
+
+[groups.scikit-learn-tests-common-2]
+paths = ["sklearn/tests/test_common.py"]
+tier = "release"
+fuel = 1_104_249_696_850
+measured = 736_166_464_566
+
+[groups.scikit-learn-tests-common-3]
+paths = ["sklearn/tests/test_common.py"]
+tier = "release"
+fuel = 570_000_000_000
+measured = 373_834_185_124
+
+[groups.scikit-learn-tests-common-4]
+paths = ["sklearn/tests/test_common.py"]
+tier = "release"
+fuel = 850_000_000_000
+measured = 565_283_110_901
+
+[groups.scikit-learn-tests-common-5]
+paths = ["sklearn/tests/test_common.py"]
+tier = "release"
+fuel = 365_637_551_579
+measured = 243_758_367_719
+
+[groups.scikit-learn-tests-metaestimators-metadata-routing-1]
+paths = ["sklearn/tests/test_metaestimators_metadata_routing.py"]
+tier = "release"
+fuel = 200_000_000_000
+measured = 126_671_797_681
+
+[groups.scikit-learn-tests-metaestimators-metadata-routing-2]
+paths = ["sklearn/tests/test_metaestimators_metadata_routing.py"]
+tier = "release"
+fuel = 278_147_797_855
+measured = 185_431_865_236
+
+[groups.scikit-learn-tests-1]
+paths = [
+    "sklearn/tests/test_base.py",
+    "sklearn/tests/test_build.py",
+    "sklearn/tests/test_calibration.py",
+    "sklearn/tests/test_check_build.py",
+    "sklearn/tests/test_config.py",
+    "sklearn/tests/test_discriminant_analysis.py",
+    "sklearn/tests/test_docstring_parameters.py",
+    "sklearn/tests/test_docstring_parameters_consistency.py",
+    "sklearn/tests/test_docstrings.py",
+    "sklearn/tests/test_dummy.py",
+    "sklearn/tests/test_init.py",
+    "sklearn/tests/test_kernel_approximation.py",
+    "sklearn/tests/test_kernel_ridge.py",
+    "sklearn/tests/test_metadata_routing.py",
+    "sklearn/tests/test_metaestimators.py",
+    "sklearn/tests/test_min_dependencies_consistency.py",
+    "sklearn/tests/test_multiclass.py",
+    "sklearn/tests/test_multioutput.py",
+    "sklearn/tests/test_naive_bayes.py",
+    "sklearn/tests/test_pipeline.py",
+    "sklearn/tests/test_public_functions.py",
+    "sklearn/tests/test_random_projection.py",
+]
+tier = "release"
+fuel = 780_000_000_000
+measured = 518_787_835_638
+
+[groups.scikit-learn-tree]
+paths = ["sklearn/tree/tests"]
+tier = "release"
+fuel = 200_000_000_000
+measured = 131_283_752_631
+
+[groups.scikit-learn-utils]
+paths = ["sklearn/utils/tests"]
+tier = "release"
+fuel = 490_000_000_000
+measured = 323_407_249_913
+
+[[split]]
+file = "sklearn/decomposition/tests/test_pca.py"
+groups = [
+    "scikit-learn-decomposition-pca-1",
+    "scikit-learn-decomposition-pca-2",
+]
+keywords = [
+    "test_pca or test_pca_sparse or test_pca_sparse_fit_transform or test_sparse_pca_solver_error or test_sparse_pca_auto_arpack_singular_values_consistency or test_no_empty_slice_warning or test_whitening or test_pca_solver_equivalence or test_pca_explained_variance_empirical or test_pca_singular_values_consistency or test_pca_singular_values or test_pca_check_projection or test_pca_check_projection_list or test_pca_inverse or test_pca_validation or test_n_components_none or test_n_components_mle or test_n_components_mle_error or test_pca_dim or test_infer_dim_1 or test_infer_dim_2 or test_infer_dim_3 or test_infer_dim_by_explained_variance or test_pca_score or test_pca_score3 or test_pca_sanity_noise_variance or test_pca_score_consistency_solvers or test_pca_zero_noise_variance_edge_cases or test_pca_svd_solver_auto or test_pca_deterministic_output or test_pca_dtype_preservation or test_pca_n_components_mostly_explained_variance_ratio or test_assess_dimension_bad_rank or test_small_eigenvalues_mle or test_mle_redundant_data or test_fit_mle_too_few_samples or test_mle_simple_case or test_assess_dimension_rank_one or test_pca_randomized_svd_n_oversamples or test_feature_names_out",
+]
+
+[[split]]
+file = "sklearn/ensemble/tests/test_forest.py"
+groups = [
+    "scikit-learn-ensemble-forest-1",
+    "scikit-learn-ensemble-forest-2",
+]
+keywords = [
+    "test_classification_toy or test_iris_criterion or test_regression_criterion or test_poisson_vs_mse or test_balance_property_random_forest or test_regressor_attributes or test_probability or test_importances or test_importances_asymptotic or test_unfitted_feature_importances or test_forest_classifier_oob or test_forest_regressor_oob or test_forest_oob_warning or test_forest_oob_score_requires_bootstrap or test_classifier_error_oob_score_multiclass_multioutput or test_forest_multioutput_integral_regression_target or test_random_trees_embedding_raise_error_oob or test_gridsearch or test_parallel or test_pickle or test_multioutput or test_multioutput_string or test_classes_shape or test_random_trees_dense_type or test_random_trees_dense_equal or test_random_hasher or test_random_hasher_sparse_data or test_parallel_train or test_distribution or test_max_leaf_nodes_max_depth or test_min_samples_split or test_min_samples_leaf or test_min_weight_fraction_leaf or test_sparse_input or test_memory_layout or test_1d_input or test_validate_y_class_weight",
+]
+
+[[split]]
+file = "sklearn/tests/test_common.py"
+groups = [
+    "scikit-learn-tests-common-1",
+    "scikit-learn-tests-common-2",
+    "scikit-learn-tests-common-3",
+    "scikit-learn-tests-common-4",
+    "scikit-learn-tests-common-5",
+]
+keywords = [
+    "test_all_estimator_no_base_class or test_get_check_estimator_ids or test_estimators[A or test_estimators[B or test_estimators[C or test_estimators[D or test_estimators[E or test_estimators[F or test_estimators[G or test_estimators[H",
+    "test_estimators[I or test_estimators[K or test_estimators[L or test_estimators[M or test_estimators[N",
+    "test_estimators[O or test_estimators[P or test_estimators[Q or test_estimators[R or test_estimators[S",
+    "test_estimators[T or test_estimators[V or test_import_all_consistency or test_root_import_all_completeness or test_all_tests_are_importable or test_class_support_removed or test_pandas_column_name_consistency or test_transformers_get_feature_names_out or test_estimators_get_feature_names_out_error or test_check_param_validation or test_set_output_transform",
+]
+
+[[split]]
+file = "sklearn/tests/test_metaestimators_metadata_routing.py"
+groups = [
+    "scikit-learn-tests-metaestimators-metadata-routing-1",
+    "scikit-learn-tests-metaestimators-metadata-routing-2",
+]
+keywords = [
+    "test_unsupported_estimators_get_metadata_routing or test_unsupported_estimators_fit_with_metadata or test_registry_copy or test_default_request or test_error_on_missing_requests_for_sub_estimator or test_setting_request_on_sub_estimator_removes_error or test_non_consuming_estimator_works or test_metadata_is_routed_correctly_to_scorer or test_metadata_is_routed_correctly_to_splitter or test_metadata_routed_to_sub_estimator_in_pipeline",
+]
+
+[[expected]]
+id = "pillow-zlib-only-at-setup"
+group = "scikit-learn-datasets"
+outcome = "error"
+match = "(en|de)coder jpeg not available"
+reason = "Pillow is built with zlib only, so the faces dataset's JPEG fixtures cannot be written, at setup or teardown (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap"
+group = "scikit-learn-decomposition-1"
+outcome = "failed"
+match = "mmap is unavailable"
+reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap"
+group = "scikit-learn-linear_model-1"
+outcome = "failed"
+match = "mmap is unavailable"
+reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-dev-null"
+group = "scikit-learn-linear_model-3"
+outcome = "failed"
+match = "No such file or directory: '/dev/null'"
+reason = "WASI has no /dev/null, so a test that sends verbose output there fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap"
+group = "scikit-learn-linear_model-3"
+outcome = "failed"
+match = "mmap is unavailable"
+reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap"
+group = "scikit-learn-loss-to-cross_decomposition"
+outcome = "failed"
+match = "mmap is unavailable"
+reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap-at-setup"
+group = "scikit-learn-metrics"
+outcome = "error"
+match = "mmap is unavailable"
+reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails, at setup or teardown (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap"
+group = "scikit-learn-neighbors-to-neural_network"
+outcome = "failed"
+match = "mmap is unavailable"
+reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "wasm32-int128"
+group = "scikit-learn-preprocessing-to-semi_supervised"
+outcome = "failed"
+match = "^assert 16 == 8$"
+reason = "wasm32's compiler has a 128-bit integer, which upstream's test expects only on 64-bit platforms and on emscripten's wasm32; the guest's platform is wasi (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-dup"
+group = "scikit-learn-smoke"
+outcome = "failed"
+match = "OSError: \\[Errno 58\\] Not supported"
+reason = "a verbose fit redirects the process's standard output with a duplicated descriptor, which WASI preview1 refuses (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap"
+group = "scikit-learn-smoke"
+outcome = "failed"
+match = "mmap is unavailable"
+reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-openmp"
+group = "scikit-learn-tests-1"
+outcome = "failed"
+match = "^AssertionError:$"
+reason = "there is no OpenMP in the build (wasi-sdk has no runtime, and the guest no threads), so _openmp_parallelism_enabled() is False (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "package-in-zip"
+group = "scikit-learn-tests-1"
+outcome = "failed"
+match = "Not a directory: '/usr/local/lib/python\\d+\\.zip/sklearn/"
+reason = "the package's files are in the stdlib zip, not in folders, so a test that lists the package's folder fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap"
+group = "scikit-learn-tests-common-1"
+outcome = "failed"
+match = "mmap is unavailable"
+reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap"
+group = "scikit-learn-tests-common-3"
+outcome = "failed"
+match = "mmap is unavailable"
+reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap"
+group = "scikit-learn-tests-common-4"
+outcome = "failed"
+match = "mmap is unavailable"
+reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap"
+group = "scikit-learn-tree"
+outcome = "failed"
+match = "mmap is unavailable"
+reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap"
+group = "scikit-learn-utils"
+outcome = "failed"
+match = "mmap is unavailable"
+reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap-estimator-checks"
+group = "scikit-learn-utils"
+outcome = "failed"
+match = "assert 8 == 4$|^assert 4 == 0$"
+reason = "check_estimator finds four more failing checks for NuSVC than upstream expects: the checks that copy the data into memory maps fail without mmap (README)"
+closes_with = "README.md"

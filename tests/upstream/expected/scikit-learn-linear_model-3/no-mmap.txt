@@ -1,0 +1,2 @@
+sklearn/linear_model/tests/test_sparse_coordinate_descent.py::test_sparse_read_only_buffer[False]
+sklearn/linear_model/tests/test_sparse_coordinate_descent.py::test_sparse_read_only_buffer[True]

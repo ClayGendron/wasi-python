@@ -1,0 +1,4 @@
+statsmodels/formula/tests/test_formula.py::test_formula_missing_data
+statsmodels/formula/tests/test_formula.py::test_patsy_lazy_dict
+statsmodels/iolib/tests/test_summary2.py::TestSummaryLatex::test_summarycol_fixed_effects
+statsmodels/regression/tests/test_regression.py::test_wls_missing

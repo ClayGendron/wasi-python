@@ -1,0 +1,3 @@
+statsmodels/discrete/tests/test_discrete.py::test_mnlogit_resid_response
+statsmodels/discrete/tests/test_discrete.py::test_summary_after_remove_data[Logit]
+statsmodels/discrete/tests/test_discrete.py::test_summary_after_remove_data[Probit]

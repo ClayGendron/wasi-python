@@ -640,3 +640,103 @@ def test_a_smoke_family_with_a_release_marker_needs_it_over_the_smoke_paths() ->
     assert _smoke_errors(guarded) == []
     cfg = _contour(guarded)
     assert packages.group_args(cfg, cfg.groups["demo-smoke-slow"])[:2] == ["-m", "slow"]
+
+
+# ---------------------------------------------------------------------------------------------
+# A smoke family's tiers, collected by pytest itself: every test in exactly one tier
+
+PARTITION = """
+package = "demo"
+driver = "package"
+grant = "/upstream-demo"
+budget = 1000
+stage_folders = ["pkg/a/tests", "pkg/b/tests"]
+marker = "not slow"
+release_marker = "slow"
+cwd = "/tmp/work"
+
+[groups.demo-smoke]
+paths = ["pkg/a/tests/test_x.py", "pkg/a/tests/test_y.py"]
+smoke = "two files that call the package's compiled code"
+fuel = 30
+measured = 20
+
+[groups.demo-smoke-slow]
+paths = ["pkg/a/tests/test_x.py", "pkg/a/tests/test_y.py"]
+tier = "release"
+release_by = "marker"
+fuel = 30
+measured = 20
+
+[groups.demo-a]
+paths = ["pkg/a/tests"]
+tier = "release"
+release_by = "path"
+fuel = 30
+measured = 20
+
+[groups.demo-b]
+paths = ["pkg/b/tests"]
+tier = "release"
+release_by = "path"
+fuel = 30
+measured = 20
+"""
+TESTS = {
+    "pkg/a/tests/test_x.py": "import pytest\n\ndef test_x1(): pass\n\n"
+    "@pytest.mark.slow\ndef test_x2(): pass\n",
+    "pkg/a/tests/test_y.py": "def test_y1(): pass\n",
+    "pkg/a/tests/test_w.py": "import pytest\n\ndef test_w1(): pass\n\n"
+    "@pytest.mark.slow\ndef test_w2(): pass\n",
+    "pkg/b/tests/test_z.py": "def test_z1(): pass\n",
+}
+
+
+def _collected(tree: Path, args: list[str]) -> list[str]:
+    """The node ids pytest selects for one group's argv, collected in this process."""
+
+    class Seen:
+        def __init__(self) -> None:
+            self.ids: list[str] = []
+
+        def pytest_collection_finish(self, session) -> None:
+            self.ids = [item.nodeid for item in session.items]
+
+    seen = Seen()
+    ini = tree / "demo.ini"
+    ini.write_text("[pytest]\nmarkers =\n    slow: a slow test\n")
+    argv = [
+        "--collect-only",
+        "-q",
+        "-p",
+        "no:faulthandler",
+        "-p",
+        "no:cacheprovider",
+        "--import-mode=importlib",
+        f"--rootdir={tree}",
+        "-c",
+        str(ini),
+        *[a.replace("/upstream-demo/tree", str(tree)) for a in args],
+    ]
+    assert pytest.main(argv, plugins=[seen]) in (0, 5)
+    return seen.ids
+
+
+def test_every_collected_test_of_a_smoke_family_is_in_exactly_one_tier(tmp_path) -> None:
+    """The owner's rule, by collection: the smoke group over two files and the release groups
+    over all of them select each test once, none in both tiers and none in neither."""
+    tree = tmp_path / "tree"
+    for rel, text in TESTS.items():
+        (tree / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tree / rel).write_text(text)
+    cfg = packages.load(tomllib.loads(PARTITION))
+    assert tiers.rule_errors("demo", cfg, set(TESTS)) == []
+    every = _collected(tree, [str(tree / "pkg")])
+    by_tier: dict[str, list[str]] = {"normal": [], "release": []}
+    for g in cfg.groups.values():
+        by_tier[g.tier] += _collected(tree, packages.group_args(cfg, g))
+    normal, release = by_tier["normal"], by_tier["release"]
+    assert sorted(normal) == ["pkg/a/tests/test_x.py::test_x1", "pkg/a/tests/test_y.py::test_y1"]
+    assert len(release) == len(set(release))  # no test in two release groups
+    assert not set(normal) & set(release)  # none in both tiers
+    assert sorted(normal + release) == sorted(every)  # none in neither

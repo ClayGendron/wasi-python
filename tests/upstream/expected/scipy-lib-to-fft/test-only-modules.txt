@@ -1,0 +1,1 @@
+scipy/_lib/tests/test_deprecation.py::test_cython_api_deprecation
