@@ -40,6 +40,7 @@ PACKAGES = ("numpy", "pandas", "python")
 PACKAGE_SUITES = ("matplotlib", "contourpy", "pillow", "kiwisolver", "lxml", "regex")
 GRANT = "/upstream"
 STREAM = "tmp/upstream/outcomes.txt"  # in the guest's root
+TIER = "normal"  # a group without `tier` is in the normal tier
 TRAP_FUEL = 5 * 10**10
 CAP_BUDGET = 3 * 10**12
 ENV = {"TMPDIR": "/tmp", "HOME": "/tmp"}
@@ -57,6 +58,7 @@ class Group:
     fuel: int
     modules: tuple[str, ...] = ()  # a regrtest group's plan, in run order
     list_file: str = ""
+    tier: str = "normal"  # "release": run only before a publication, never left out
 
 
 @dataclass(frozen=True)
@@ -176,7 +178,7 @@ def load(package: str, directory: Path = HERE) -> Config:
         markers=list(raw.get("markers", [])),
         support=list(raw.get("support", [])),
         groups={
-            name: Group(name, tuple(g["paths"]), int(g["fuel"]))
+            name: Group(name, tuple(g["paths"]), int(g["fuel"]), tier=g.get("tier", TIER))
             for name, g in raw.get("groups", {}).items()
         },
         not_selected=[
@@ -207,7 +209,12 @@ def _load_regrtest(raw: dict, directory: Path) -> Config:
         support=[],
         groups={
             name: Group(
-                name, (), int(g["fuel"]), regrtest.read_plan(directory, g["list"]), g["list"]
+                name,
+                (),
+                int(g["fuel"]),
+                regrtest.read_plan(directory, g["list"]),
+                g["list"],
+                g.get("tier", TIER),
             )
             for name, g in raw.get("groups", {}).items()
         },
@@ -259,6 +266,29 @@ def class_node(group: str, klass: str) -> str:
 
 def trap_node(trap: str) -> str:
     return f"{CHECKS_FILE}::test_upstream_trap[{trap}]"
+
+
+def entry_node(kind: str, group: str, entry: str) -> str:
+    """A CPython deselection, environment or host entry's check."""
+    return f"{CHECKS_FILE}::test_upstream_{kind}[{group}-{entry}]"
+
+
+def release_checks(configs: dict[str, Config]) -> set[str]:
+    """Every check of a release-tier group: its suite, its classes, the traps and entries that
+    name it. A check takes its group's tier, so a group's checks never run in two tiers."""
+    out: set[str] = set()
+    for cfg in configs.values():
+        mine = {g.name for g in cfg.groups.values() if g.tier == "release"}
+        out |= {suite_node(g) for g in mine}
+        out |= {class_node(k.group, k.id) for k in cfg.expected if k.group in mine}
+        out |= {trap_node(t.id) for t in cfg.traps if t.group in mine}
+        for kind, entries in (
+            ("deselected", cfg.deselected),
+            ("environment", cfg.environment),
+            ("host", cfg.host_dependent),
+        ):
+            out |= {entry_node(kind, e.group, e.id) for e in entries if e.group in mine}
+    return out
 
 
 def list_path(klass: Klass, expected_dir: Path = EXPECTED) -> Path:

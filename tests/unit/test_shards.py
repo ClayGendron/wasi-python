@@ -510,3 +510,61 @@ def test_stand_in_a_cpython_trap_placed_by_the_path_rule_finds_no_group() -> Non
     assert not any(
         t.file and t.file.startswith(p + "/") for g in cfg.groups.values() for p in g.paths
     )
+
+
+# ---------------------------------------------------------------------------------------------
+# The release tier's shards: a pseudo-system of their own, on Linux
+
+RELEASE_PLAN = (
+    PLAN_TEXT
+    + """
+[shard.up-release]
+groups = ["r1", "r2"]
+systems = ["release"]
+"""
+)
+RELEASE_GROUPS = {"r1", "r2"}
+
+
+def test_release_shards_hold_the_release_groups_alone() -> None:
+    plan = _plan(RELEASE_PLAN)
+    assert shards.plan_errors(plan, FILES, [*GROUPS, "r1", "r2"], RELEASE_GROUPS) == []
+    assert shards.tier_of(plan, "up-release") == "release"
+    assert shards.tier_of(plan, "up-1") == "normal"
+    assert shards.PLATFORM["release"] == "linux"
+
+
+BAD_RELEASE_PLANS = [
+    # a release group in a Linux shard of the normal tier
+    (('groups = ["g3"]', 'groups = ["g3", "r1"]'), "(i) r1 is a release group in up-2"),
+    # a normal group in a release shard
+    (('groups = ["r1", "r2"]', 'groups = ["r1", "r2", "g3"]'), "(i) up-release: g3 is a normal"),
+    # a release group in two release shards
+    (
+        (
+            'systems = ["release"]',
+            'systems = ["release"]\n\n[shard.up-release-2]\ngroups = ["r1"]\nsystems = ["release"]',
+        ),
+        "(i) release group r1 is in 2 release shards, not one",
+    ),
+    # a release group in no release shard
+    (('groups = ["r1", "r2"]', 'groups = ["r1"]'), "(i) release group r2 is in 0 release shards"),
+    # a release shard on another system too, or by files
+    (('systems = ["release"]', 'systems = ["release", "linux"]'), "(i) up-release: a release"),
+    # an empty release shard
+    (('groups = ["r1", "r2"]', "groups = []"), "(a) up-release selects by not exactly one"),
+]
+
+
+@pytest.mark.parametrize(("change", "error"), BAD_RELEASE_PLANS)
+def test_each_bad_release_shard_is_named(change, error) -> None:
+    old, new = change
+    assert RELEASE_PLAN.count(old) == 1, old
+    plan = _plan(RELEASE_PLAN.replace(old, new))
+    errors = shards.plan_errors(plan, FILES, [*GROUPS, "r1", "r2"], RELEASE_GROUPS)
+    assert any(e.startswith(error) for e in errors), errors
+
+
+def test_a_release_group_needs_no_linux_shard_of_the_normal_tier() -> None:
+    errors = shards.plan_errors(_plan(RELEASE_PLAN), FILES, [*GROUPS, "r1", "r2"], RELEASE_GROUPS)
+    assert not any("Linux shards" in e for e in errors), errors

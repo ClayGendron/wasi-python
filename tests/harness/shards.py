@@ -21,10 +21,18 @@ PLAN = paths.REPO / "tests" / "release_shards.toml"
 PACKAGES_FILE = paths.REPO / "tests" / "upstream" / "packages.toml"
 UPSTREAM_FILE = "tests/checks/test_v1_3_upstream_suites.py"
 OWN_SYSTEMS = ("macos", "linux", "windows")
-SYSTEMS = (*OWN_SYSTEMS, "build")
-# Each system's platform, as a run record's `meta.platform` begins (sys.platform). The build
-# shard runs on a fresh arm64 Linux build on every run.
-PLATFORM = {"macos": "darwin", "linux": "linux", "windows": "win32", "build": "linux"}
+# Two pseudo-systems: the build shard, which runs on a fresh arm64 Linux build on every run, and
+# the release tier's shards, which run on Linux only before a publication and hold the
+# release-tier groups alone.
+SYSTEMS = (*OWN_SYSTEMS, "build", "release")
+# Each system's platform, as a run record's `meta.platform` begins (sys.platform).
+PLATFORM = {
+    "macos": "darwin",
+    "linux": "linux",
+    "windows": "win32",
+    "build": "linux",
+    "release": "linux",
+}
 
 
 @dataclass(frozen=True)
@@ -53,6 +61,11 @@ def load(path: Path = PLAN) -> dict[str, Shard]:
             nodes=tuple(s.get("nodes", ())),
         )
     return plan
+
+
+def tier_of(plan: dict[str, Shard], shard: str) -> str:
+    """The tier a shard's run judges: a release shard's is the release tier."""
+    return "release" if "release" in plan[shard].systems else "normal"
 
 
 def on(plan: dict[str, Shard], system: str) -> list[str]:
@@ -91,7 +104,7 @@ def group_systems(plan: dict[str, Shard] | None = None) -> dict[str, set[str]]:
     for s in plan.values():
         for g in s.groups:
             out.setdefault(g, set()).update(x for x in s.systems if x != "build")
-    names = {"macos": "darwin", "linux": "linux", "windows": "win32"}
+    names = {"macos": "darwin", "linux": "linux", "windows": "win32", "release": "linux"}
     return {g: {names[x] for x in xs} | {"darwin"} for g, xs in out.items()}
 
 
@@ -161,9 +174,11 @@ def product_files(files: list[str]) -> list[str]:
     ]
 
 
-def plan_errors(plan: dict[str, Shard], files: list[str], groups: list[str]) -> list[str]:
-    """Rules (a) to (g) of Decision 2: `files` are the tracked test modules, `groups` every upstream
-    group's name."""
+def plan_errors(
+    plan: dict[str, Shard], files: list[str], groups: list[str], release: set[str] = frozenset()
+) -> list[str]:
+    """Rules (a) to (i): `files` are the tracked test modules, `groups` every upstream group's
+    name, `release` the release-tier groups among them."""
     errors: list[str] = []
     if not plan:
         return ["the plan names no shard"]
@@ -197,6 +212,8 @@ def plan_errors(plan: dict[str, Shard], files: list[str], groups: list[str]) -> 
     if not [f for f in files if f not in seen]:
         errors.append("(b) every test file is listed, so rest selects nothing")
     for g in groups:
+        if g in release:
+            continue  # rule (i) places it
         linux = [name for name, s in plan.items() if g in s.groups and "linux" in s.systems]
         if len(linux) != 1:
             errors.append(f"(c) upstream group {g} is in {len(linux)} Linux shards, not one")
@@ -252,6 +269,20 @@ def plan_errors(plan: dict[str, Shard], files: list[str], groups: list[str]) -> 
     for f in product_files(files):
         if f not in on_all and f not in build_files:
             errors.append(f"(g) {f} is a product file in no files shard on all three systems")
+    # (i) The release tier: a release shard runs on the release pseudo-system alone, by groups,
+    # and holds only release groups; each release group is in exactly one release shard and in no
+    # other shard, so a normal run never runs it and a release run runs it once.
+    for name, s in plan.items():
+        if "release" not in s.systems:
+            errors += [f"(i) {g} is a release group in {name}" for g in s.groups if g in release]
+            continue
+        if s.systems != ("release",) or not s.groups:
+            errors.append(f"(i) {name}: a release shard runs on release alone, by groups")
+        errors += [f"(i) {name}: {g} is a normal group" for g in s.groups if g not in release]
+    for g in sorted(release):
+        n = sum(g in s.groups for s in plan.values() if "release" in s.systems)
+        if n != 1:
+            errors.append(f"(i) release group {g} is in {n} release shards, not one")
     for system in SYSTEMS:
         taken: dict[str, str] = {}
         for name in on(plan, system):

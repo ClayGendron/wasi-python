@@ -802,9 +802,11 @@ def test_release_shards_cover_the_judge() -> None:
     systems, and no system runs a group twice."""
     from harness import shards, upstream
 
-    groups = [g for c in upstream.load_all().values() for g in c.groups]
+    configs = upstream.load_all()
+    groups = [g for c in configs.values() for g in c.groups]
+    release = {g.name for c in configs.values() for g in c.groups.values() if g.tier == "release"}
     files = shards.test_files(paths.tracked_files("tests"))
-    errors = shards.plan_errors(shards.load(), files, groups)
+    errors = shards.plan_errors(shards.load(), files, groups, release)
     assert not errors, scan.report(errors)
 
 

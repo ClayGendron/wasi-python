@@ -105,6 +105,14 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
     g.addoption("--progress-latest", metavar="FILE", help="where the run record is written")
     g.addoption("--known-gaps", metavar="FILE", help="the known gaps file")
+    g.addoption(
+        "--accept-tier-move", metavar="REASON", help="also accept checks that moved between tiers"
+    )
+    g.addoption(
+        "--tier",
+        choices=scoreboard.TIERS,
+        help="normal (the default) leaves the release-tier checks unrun; release runs both tiers",
+    )
     g.addoption("--shard", metavar="NAME", help="run one shard of the release's plan (spec 063)")
     g.addoption("--shard-plan", metavar="FILE", help="the shard plan (tests/release_shards.toml)")
 
@@ -255,6 +263,14 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                 )
             )
 
+    if not _opt(config, "--shard") and run_tier(config) == "normal":
+        # The normal tier never runs a release-tier check, not even by node id: its rows keep
+        # what the release acceptance accepted.
+        release = set(release_checks())
+        out = [i for i in items if i.nodeid in release]
+        if out:
+            config.hook.pytest_deselected(items=out)
+            items[:] = [i for i in items if i.nodeid not in release]
     shard = _opt(config, "--shard")
     if shard:  # after every area is recorded, so a check outside the shard is `deselected`
         from harness import shards
@@ -297,7 +313,25 @@ def shard_refusal(config: pytest.Config) -> str | None:
         return f"refused: --shard {name} with --accept or --retire: only the lane accepts"
     if any("::" in arg for arg in config.args):
         return f"refused: --shard {name} with a node id: a shard selects from the whole judge"
+    if _opt(config, "--tier"):
+        return f"refused: --shard {name} with --tier: a shard's tier is its shard's"
     return None
+
+
+def release_checks() -> list[str]:
+    """Every release-tier check, by the upstream files of this tree."""
+    from harness import upstream
+
+    return sorted(upstream.release_checks(upstream.load_all()))
+
+
+def run_tier(config: pytest.Config) -> str:
+    shard = _opt(config, "--shard")
+    if shard:
+        from harness import shards
+
+        return shards.tier_of(shards.load(shard_plan(config)), shard)
+    return _opt(config, "--tier") or "normal"
 
 
 def pytest_deselected(items: list[pytest.Item]) -> None:
@@ -801,9 +835,13 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
         state.lines = ["RED: --accept refused: this run collected no goal checks"]
         session.exitstatus = pytest.ExitCode.TESTS_FAILED
         return
+    tier = run_tier(config)
+    release = release_checks()
+    leave = set(release) if tier == "normal" and not _opt(config, "--shard") else set()
     for node, area in state.areas.items():
         if node in state.deselected:
-            state.records[node] = {"area": area, "status": "deselected", "reason": ""}
+            why = "release tier" if node in leave else ""
+            state.records[node] = {"area": area, "status": "deselected", "reason": why}
         elif node not in state.records:  # collected, never ran (-x, --maxfail, an interrupt)
             state.records[node] = {"area": area, "status": "unrun", "reason": "did not run"}
     for rec in state.records.values():
@@ -819,6 +857,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
         for o in ("--progress-dir", "--known-gaps", "--progress-latest", "--shard-plan")
         if _opt(config, o)
     ]
+    meta["tier"] = tier
     shard = _opt(config, "--shard")
     meta["shard"] = shard or None
     if shard:  # what a gather compares with the plan's share
@@ -839,6 +878,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
         "meta": meta,
         "checks": dict(sorted(state.records.items())),
         "deselected": sorted(state.deselected),
+        "release_checks": release,
         "collected_files": sorted(state.collected_files - state.narrowed_files),
         "suite": {
             "passed": state.suite_passed,
@@ -893,6 +933,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
                 partial_reason=partial,
                 retire=_opt(config, "--retire"),
                 fewer_reason=_opt(config, "--accept-fewer-passes"),
+                tier_move_reason=_opt(config, "--accept-tier-move"),
             )
         except scoreboard.AcceptRefused as e:
             red.append(f"--accept refused: {e}")

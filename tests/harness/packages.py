@@ -101,7 +101,9 @@ def load(raw: dict) -> upstream.Config:
         markers=list(raw.get("markers", [])),
         support=[],
         groups={
-            name: upstream.Group(name, tuple(g["paths"]), int(g["fuel"]))
+            name: upstream.Group(
+                name, tuple(g["paths"]), int(g["fuel"]), tier=g.get("tier", upstream.TIER)
+            )
             for name, g in raw.get("groups", {}).items()
         },
         not_selected=[

@@ -571,6 +571,7 @@ def test_a_shard_that_selects_nothing_is_red(sharded) -> None:
         (("--shard", "a", "--retire", "test_inner.py::test_ok"), "with --accept or --retire"),
         (("--shard", "a", "test_inner.py::test_ok"), "with a node id"),
         (("--shard", "a", "-n", "2"), "with -n"),
+        (("--shard", "a", "--tier", "release"), "with --tier"),
     ],
 )
 def test_shard_refusals_come_before_collection(sharded, args, why) -> None:
@@ -594,3 +595,57 @@ def test_run_meta_records_the_sets_own_sha256sums(tmp_path, monkeypatch) -> None
     assert plugin.run_meta()["set_sums"] is None
     (tmp_path / "SHA256SUMS").write_text("x  python.wasm\n")
     assert plugin.run_meta()["set_sums"] == paths.sha256_file(tmp_path / "SHA256SUMS")
+
+
+# ---------------------------------------------------------------------------------------------
+# The two tiers: the normal tier leaves every release-tier check unrun
+
+OK = "test_inner.py::test_ok"
+
+
+@pytest.fixture
+def tiers(inner, monkeypatch):
+    """The inner file's test_ok made a release-tier check."""
+    monkeypatch.setattr(plugin, "release_checks", lambda: [OK])
+    return inner
+
+
+def test_the_normal_tier_deselects_every_release_tier_check(tiers) -> None:
+    result, record = tiers(fail=False)
+    assert result.ret == 0, result.stdout.str()
+    assert record["meta"]["tier"] == "normal" and record["release_checks"] == [OK]
+    assert record["checks"][OK]["status"] == "deselected" and OK in record["deselected"]
+    assert record["checks"][OK]["reason"] == "release tier"
+    result, record = tiers(OK, fail=False)  # by node id too
+    assert record["checks"][OK]["status"] == "deselected"
+
+
+def test_the_release_tier_runs_both_tiers(tiers) -> None:
+    result, record = tiers("--tier", "release", fail=False)
+    assert result.ret == 0, result.stdout.str()
+    assert record["meta"]["tier"] == "release" and record["release_checks"] == [OK]
+    assert record["checks"][OK]["status"] == "pass"
+    assert status(record, "test_blocked") == "blocked"
+
+
+def test_a_check_that_moves_tiers_needs_its_own_flag(inner, monkeypatch) -> None:
+    _accept_baseline(inner)
+    monkeypatch.setattr(plugin, "release_checks", lambda: [OK])
+    result, _ = inner("--accept", "again", fail=False)
+    assert result.ret == 1
+    result.stdout.fnmatch_lines(["*MOVED test_inner.py::test_ok*", "*--accept-tier-move*"])
+    result, _ = inner("--accept", "again", "--accept-tier-move", "it is slow", fail=False)
+    assert result.ret == 0, result.stdout.str()
+    entry = accepted_file(inner.progress)["checks"][OK]
+    assert entry["tier"] == "release" and entry["status"] == "pass"
+    line = json.loads((inner.progress / "history.jsonl").read_text().splitlines()[-1])
+    assert line["tier_move_reason"] == "it is slow" and OK not in line["passed_removed"]
+    result, _ = inner(fail=False)
+    assert result.ret == 0, result.stdout.str()
+    result.stdout.fnmatch_lines(["*release tier not run 1*"])
+
+
+def test_the_judge_reads_the_release_checks_from_the_upstream_files() -> None:
+    from harness import upstream
+
+    assert plugin.release_checks() == sorted(upstream.release_checks(upstream.load_all()))

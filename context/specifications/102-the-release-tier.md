@@ -478,7 +478,7 @@ filesystem probe passes. Fuel 0.3 to 3 T, until measured.
 
 ### 11. The survey comes first, as research
 
-A research step, **time-boxed at 90 minutes**, before any TOML, plan or harness line is committed,
+A research step, **time-boxed at 90 minutes**, before any TOML group, plan or shard entry is committed,
 on main's frozen set after wave 09, with the judge's embedder, a private copy of the set, one
 session per group, at most three at once, never while `build/lane.lock` exists. It measures numpy's
 and pandas' candidate release groups, CPython's release lists (the normal groups' resource skips,
@@ -676,7 +676,7 @@ Each written before the change it judges and seen failing first on the base's tr
 Counted, never timed.
 
 1. **The checks** exist and were each seen failing first; the landing notes give each failure.
-2. **The survey** (Decision 11) exists, EXECUTED, before any TOML, plan or harness line; its delta
+2. **The survey** (Decision 11) exists, EXECUTED, before any TOML group, plan or shard entry; its delta
    is in the build review (or a delta review, by Decision 11's rule).
 3. **The baseline.** Every release group by node id with `--tier release` (a builder's single node
    ids) passes its group check, each class check failing as its gap says; each new group run
@@ -786,3 +786,40 @@ tier runs only before a tag, and every change to it between tags meets a written
 ## Landing notes
 
 The build, below, as it goes.
+
+### Differences from the specification's text, each with its reason
+
+1. **The survey comes before the data, not before the machinery** (Decision 11, criterion 2).
+   The text said the survey precedes "any TOML, plan or harness line"; it now says "any TOML
+   group, plan or shard entry". The lane ruled the reorder on 2026-10-20, night: wave 09 (100,
+   101, 097) has not landed, and the survey must run on main's set after 100, whose OpenBLAS
+   changes `numpy.linalg`, where 9 of numpy's selected `slow` lines sit. The tier machinery
+   (the ratchet, the history, the plugin, the gather, sameness, the shard-plan rules and
+   `upstream.py`'s tier rules, with their unit checks) depends on no measurement, so it is built
+   first, each check seen failing first. No release group, plan file or shard entry is written
+   until the survey is in. The workflow half waits for 101's `inputs` job on main. No separate
+   confirmation round (the lane: the change is ordering only); the build review reads it.
+
+### The build, in order
+
+1. **The ratchet, the plugin and the shard plan** (branch tip after `7d31d1e`). Each new unit
+   check seen failing first on the tree before its code, the failures kept in the worktree's
+   `build/102/`:
+   - `tests/unit/test_scoreboard.py`, eleven rows (the release-tier rows of a normal run, the
+     acceptance without `--partial`, a release run's lost row, the carried passed set and counts,
+     the entries' `tier`, `moved` both ways, `--accept-tier-move`, a gone release-tier check
+     `absent`, a history line with and without `tier`): 11 failed (`AttributeError: 'Ratchet'
+     object has no attribute 'moved'`, `KeyError: 'tier'`, `accept() got an unexpected keyword
+     argument 'tier_move_reason'`). The last row, a line without `tier` replaying, passes by
+     construction of the history's replay, which reads no key it does not know; it guards that.
+   - `tests/unit/test_plugin.py`, five rows (the normal tier deselects a release-tier check with
+     reason `release tier`, by node id too; `--tier release` runs both tiers; a move needs its own
+     flag end to end; the judge reads its release checks from the upstream files; `--shard` with
+     `--tier` refused before collection): failed with `has no attribute 'release_checks'` and
+     `unrecognized arguments: --tier`.
+   - `tests/unit/test_shards.py`, eight rows (rule (i): a release shard on the release
+     pseudo-system alone, by groups; a release group in a normal shard, a normal group in a
+     release shard, a release group in two or in no release shard, an empty release shard; a
+     release group needs no Linux shard of the normal tier): 8 failed (`plan_errors() takes 3
+     positional arguments`, no `tier_of`).
+   - `test_release_shards_cover_the_judge` passes the release groups to the plan rules.

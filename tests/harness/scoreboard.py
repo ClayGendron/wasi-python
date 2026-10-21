@@ -4,10 +4,17 @@ Pure functions over plain dicts, so every transition is unit-tested without runn
 
 A run record:
     {"meta": {...}, "checks": {node id: {"area", "status", "reason", "need", "metrics"}},
-     "deselected": [node ids], "collected_files": [paths], "suite": {"passed": n, "total": n}}
+     "deselected": [node ids], "collected_files": [paths], "suite": {"passed": n, "total": n},
+     "release_checks": [node ids]}
 `accepted.json`:
     {"schema": 1, "judge": {"hash", "files"},
-     "checks": {node id: {"status", "commit", "artifact", "metrics": {platform: {...}}}}}
+     "checks": {node id: {"status", "commit", "artifact", "metrics": {platform: {...}},
+                          "tier": "release" (absent for a normal-tier check)}}}
+
+Two tiers: `meta.tier` says which a run judged. A normal run leaves every release-tier check
+(`release_checks`) unrun; it keeps what was accepted, in `accepted.json` and in the history's
+passed set. A check accepted in one tier and now in the other is `moved`, red until accepted with
+its own reason.
 """
 
 from __future__ import annotations
@@ -28,6 +35,7 @@ AREAS = {
     "rules": "constitution rules",
 }
 STATES = ("pass", "fail", "gap", "blocked", "deselected", "unrun")
+TIERS = ("normal", "release")  # a run judges the normal tier, or both
 FUEL_TOLERANCE = 1e-4  # 0.01%: a run's fuel repeats exactly under the judge's own clock
 NOT_MACHINE_CHECKED = (
     "publication · copying from prior art · numpy's 25 files that need its C test modules "
@@ -72,6 +80,8 @@ class Ratchet:
     fewer: list[str] = field(default_factory=list)  # a count that must not fall fell
     more: list[str] = field(default_factory=list)  # such a count rose: reported, not `gained`
     upstream_unrun: list[str] = field(default_factory=list)  # upstream checks this run left out
+    release_tier: list[str] = field(default_factory=list)  # release-tier rows a normal run left
+    moved: list[str] = field(default_factory=list)  # accepted in one tier, now in the other
     fuel_not_compared: list[str] = field(default_factory=list)
     judge_changed: list[str] = field(default_factory=list)
     baseline: str = ""
@@ -89,6 +99,8 @@ class Ratchet:
             why.append(f"{len(self.growth)} metric(s) grew")
         if self.unrun and not partial:
             why.append(f"{len(self.unrun)} accepted pass(es) blocked (say --partial to allow)")
+        if self.moved:
+            why.append(f"{len(self.moved)} check(s) moved between tiers (say --accept-tier-move)")
         return why
 
 
@@ -106,8 +118,19 @@ def compare(run: dict, accepted: dict | None, repo: Path = paths.REPO) -> Ratche
     run_checks = run["checks"]
     deselected = set(run.get("deselected", []))
     collected_files = set(run.get("collected_files", []))
+    release = set(run.get("release_checks", []))
+    normal_run = run_tier(run) == "normal"
     for node, acc in sorted(accepted["checks"].items()):
         now = run_checks.get(node)
+        here = now is not None or node in deselected  # collected by this run
+        was_release = acc.get("tier") == "release"
+        if (node in release and not was_release) or (was_release and here and node not in release):
+            r.moved.append(node)
+            if now is None or now["status"] not in ("pass", "fail", "gap"):
+                continue  # not run here: the move is all there is to say
+        elif normal_run and node in release:
+            r.release_tier.append(node)  # its tier did not run: kept, never lost
+            continue
         if acc["status"] == "pass":
             if now is not None:
                 if now["status"] in ("fail", "gap"):
@@ -172,6 +195,11 @@ def compare(run: dict, accepted: dict | None, repo: Path = paths.REPO) -> Ratche
     return r
 
 
+def run_tier(run: dict) -> str:
+    """The tier a run judged; a record from before the tiers judged the normal tier."""
+    return run["meta"].get("tier") or "normal"
+
+
 def dumps(obj: dict) -> str:
     return json.dumps(obj, sort_keys=True, indent=1) + "\n"
 
@@ -189,6 +217,7 @@ def accept(
     partial_reason: str | None = None,
     retire: list[str] = (),
     fewer_reason: str | None = None,
+    tier_move_reason: str | None = None,
 ) -> tuple[dict, str]:
     """(new accepted.json content, the history line to append), or AcceptRefused. The line is
     in format 2: the change in the passed set since the newest of
@@ -221,6 +250,11 @@ def accept(
             f"{' and more' if len(ratchet.judge_changed) > 4 else ''}); "
             "say --accept-judge with a reason"
         )
+    if ratchet.moved and not tier_move_reason:
+        refusals.append(
+            f"checks moved between tiers ({', '.join(ratchet.moved[:3])}); "
+            "say --accept-tier-move with a reason"
+        )
     unknown = [n for n in retire if n not in ratchet.absent]
     if unknown:
         refusals.append(f"--retire names checks that are not absent: {', '.join(unknown)}")
@@ -233,9 +267,12 @@ def accept(
 
     meta = run["meta"]
     platform = meta["platform"]
+    release = set(run.get("release_checks", []))
     checks = {k: dict(v) for k, v in (accepted or {}).get("checks", {}).items()}
     for node in retire:
         checks.pop(node, None)
+    for node in ratchet.moved:  # accepted with --accept-tier-move: the tier alone changes
+        _set_tier(checks[node], node in release)
     for node, now in run["checks"].items():
         if now["status"] not in ("pass", "fail", "gap"):
             continue  # not run here: keep what was accepted
@@ -262,12 +299,20 @@ def accept(
             "artifact": meta["artifact"],
             "metrics": metrics,
         }
+        _set_tier(checks[node], node in release)
     new = {"schema": 1, "commit": meta["commit"], "judge": meta["judge"], "checks": checks}
     prev = history_lines[-1] if history_lines else None
     passes = {n for n, c in run["checks"].items() if c["status"] == "pass"}
-    counts = {
-        area: f"{n_pass}/{n_all}" for area, (n_pass, n_all) in area_counts(run["checks"]).items()
-    }
+    counted = run["checks"]
+    if run_tier(run) == "normal":
+        # A release-tier pass this run could not run stays in the passed set, so the line names
+        # only what the normal tier changed; the counts take such a row at its accepted status.
+        passes |= release & before
+        counted = dict(counted)
+        for node in release & set(counted):
+            if counted[node]["status"] not in ("pass", "fail", "gap") and node in checks:
+                counted[node] = {**counted[node], "status": checks[node]["status"]}
+    counts = {area: f"{n_pass}/{n_all}" for area, (n_pass, n_all) in area_counts(counted).items()}
     line = {
         "n": len(history_lines) + 1,
         "prev": paths.sha256_bytes(prev.encode()) if prev else None,
@@ -284,6 +329,8 @@ def accept(
         "growth_reason": growth_reason,
         "partial_reason": partial_reason,
         "fewer_reason": fewer_reason,
+        "tier": run_tier(run),
+        "tier_move_reason": tier_move_reason,
         "retired": sorted(retire),
         "judge_changed": ratchet.judge_changed,
         "counts": counts,
@@ -302,6 +349,15 @@ def accept(
         )
     history.remember(text, passes)
     return new, text
+
+
+def _set_tier(entry: dict, release: bool) -> None:
+    """An entry names its tier only when it is the release tier, so a normal entry keeps the
+    bytes it had before there were tiers."""
+    if release:
+        entry["tier"] = "release"
+    else:
+        entry.pop("tier", None)
 
 
 def area_counts(checks: dict) -> dict[str, tuple[int, int]]:
@@ -405,6 +461,7 @@ def render(
         head += [f"FEWER {f}" for f in ratchet.fewer]
         examples += [f"LOST {node}" for node in ratchet.lost[:3]]
         examples += [f"ABSENT {node}" for node in ratchet.absent[:3]]
+        examples += [f"MOVED {node}" for node in ratchet.moved[:3]]
         examples += [f"GREW {g}" for g in ratchet.growth[:3]]
     if red:
         end.append("RED: " + "; ".join(red))
@@ -438,6 +495,8 @@ def _ratchet_line(r: Ratchet, partial: str | None) -> str:
         *([f"fewer {len(r.fewer)}"] if r.fewer else []),
         *([f"more {len(r.more)}"] if r.more else []),
         *([f"upstream unrun {len(r.upstream_unrun)}"] if r.upstream_unrun else []),
+        *([f"release tier not run {len(r.release_tier)}"] if r.release_tier else []),
+        *([f"moved {len(r.moved)}"] if r.moved else []),
     ]
     if r.deselected or r.outside:
         parts.append(f"not selected {len(r.deselected) + len(r.outside)}")

@@ -505,3 +505,134 @@ def test_the_line_carries_the_sets_sha256sums() -> None:
         run({A: check("pass")}), None, [], scoreboard.Ratchet(), green=True, reason="r"
     )
     assert json.loads(line)["set_sums"] is None
+
+
+# The release tier: rows a normal run does not run, moves between tiers, the carried passed set.
+
+UP = scoreboard.UPSTREAM_FILE
+SLOW = f"{UP}::test_upstream_suite[numpy-slow]"
+SLOW_K = f"{UP}::test_upstream_class[numpy-slow-wasm32-memory]"
+CORE = f"{UP}::test_upstream_suite[numpy-core]"
+
+
+def tiered(checks, release=(), tier="normal", deselected=()):
+    rec = run(checks, tier=tier)
+    rec["release_checks"] = sorted(release)
+    rec["deselected"] = sorted(deselected)
+    rec["collected_files"] = [FILE, UP]
+    return rec
+
+
+def released(status="pass", fuel=None):
+    entry = acc(status, fuel=fuel)
+    entry["tier"] = "release"
+    return entry
+
+
+def test_a_normal_run_leaves_accepted_release_tier_rows_in_their_own_list() -> None:
+    rec = tiered(
+        {A: check("pass"), SLOW: check("deselected", area="v1.3")},
+        release=[SLOW, SLOW_K],
+        deselected=[SLOW, SLOW_K],
+    )
+    base = accepted({A: acc(), SLOW: released(fuel=10), SLOW_K: released("gap")})
+    r = scoreboard.compare(rec, base)
+    assert r.release_tier == sorted([SLOW, SLOW_K])
+    assert r.deselected == [] and r.upstream_unrun == [] and r.absent == [] and r.moved == []
+    assert r.red(partial=False) == []
+    assert "release tier not run 2" in scoreboard._ratchet_line(r, None)
+
+
+def test_a_normal_acceptance_keeps_release_tier_rows_and_needs_no_partial() -> None:
+    rec = tiered(
+        {A: check("pass"), SLOW: check("deselected", area="v1.3")},
+        release=[SLOW],
+        deselected=[SLOW],
+    )
+    base = accepted({A: acc(), SLOW: released(fuel=10)})
+    new, line = _accept(rec, base)
+    assert new["checks"][SLOW] == base["checks"][SLOW]
+    assert json.loads(line)["tier"] == "normal"
+
+
+def test_a_release_run_ratchets_release_tier_rows_like_any_other() -> None:
+    rec = tiered({SLOW: check("fail", area="v1.3")}, release=[SLOW], tier="release")
+    r = scoreboard.compare(rec, accepted({SLOW: released()}))
+    assert r.lost == [SLOW] and r.release_tier == []
+
+
+def test_a_normal_acceptance_carries_release_tier_passes_in_the_history() -> None:
+    # A release acceptance in which SLOW passed, then a normal one that did not run it.
+    first = tiered(
+        {A: check("pass"), SLOW: check("pass", area="v1.3")}, release=[SLOW], tier="release"
+    )
+    base, line1 = _accept(first, None)
+    assert json.loads(line1)["tier"] == "release" and base["checks"][SLOW]["tier"] == "release"
+    second = tiered(
+        {A: check("pass"), SLOW: check("deselected", area="v1.3")},
+        release=[SLOW],
+        deselected=[SLOW],
+    )
+    _, line2 = _accept(second, base, line1)
+    entry = json.loads(line2)
+    assert SLOW not in entry["passed_removed"] and SLOW not in entry["passed_added"]
+    assert entry["passed_digest"] == history.digest({A, SLOW})
+    assert entry["counts"]["v1.3"] == "1/1"
+    assert list(history.passed_sets([line1, line2]))[-1] == {A, SLOW}
+
+
+def test_a_release_acceptance_writes_the_tier_only_on_release_tier_entries() -> None:
+    rec = tiered(
+        {A: check("pass"), SLOW: check("pass", area="v1.3")}, release=[SLOW], tier="release"
+    )
+    new, _ = _accept(rec, None)
+    assert new["checks"][SLOW]["tier"] == "release" and "tier" not in new["checks"][A]
+
+
+@pytest.mark.parametrize("tier", ["normal", "release"])
+def test_a_normal_accepted_check_now_release_tier_is_moved_and_red(tier) -> None:
+    status = "deselected" if tier == "normal" else "pass"
+    rec = tiered({CORE: check(status, area="v1.3")}, release=[CORE], tier=tier)
+    if tier == "normal":
+        rec["deselected"] = [CORE]
+    base = accepted({CORE: acc(fuel=5)})
+    r = scoreboard.compare(rec, base)
+    assert r.moved == [CORE] and r.release_tier == []
+    assert any("moved between tiers" in w for w in r.red(partial=True))
+    assert "moved 1" in scoreboard._ratchet_line(r, None)
+    with pytest.raises(scoreboard.AcceptRefused, match="--accept-tier-move"):
+        _accept(rec, base)
+
+
+def test_accept_tier_move_rewrites_the_tier_and_nothing_else() -> None:
+    rec = tiered({CORE: check("deselected", area="v1.3")}, release=[CORE], deselected=[CORE])
+    base = accepted({CORE: acc(fuel=5)})
+    new, line = _accept(rec, base, tier_move_reason="102: it is slow")
+    assert new["checks"][CORE] == {**base["checks"][CORE], "tier": "release"}
+    assert json.loads(line)["tier_move_reason"] == "102: it is slow"
+    assert scoreboard.compare(rec, new).moved == []
+
+
+def test_a_release_tier_entry_now_normal_is_moved_too() -> None:
+    rec = tiered({SLOW: check("pass", area="v1.3")})
+    r = scoreboard.compare(rec, accepted({SLOW: released()}))
+    assert r.moved == [SLOW]
+    new, _ = _accept(rec, accepted({SLOW: released()}), tier_move_reason="102: back")
+    assert "tier" not in new["checks"][SLOW]
+
+
+def test_a_release_tier_entry_whose_check_is_gone_is_absent_not_moved() -> None:
+    rec = tiered({A: check("pass")})
+    r = scoreboard.compare(rec, accepted({A: acc(), SLOW: released()}))
+    assert r.absent == [SLOW] and r.moved == []
+
+
+def test_a_history_line_with_and_without_a_tier_is_intact() -> None:
+    plain = tiered({A: check("pass")})
+    base, line1 = _accept(plain, None)
+    del plain["meta"]["tier"]
+    _, line2 = _accept(plain, base, line1)
+    assert json.loads(line2)["tier"] == "normal"
+    stripped = json.loads(line1)
+    stripped.pop("tier")
+    assert list(history.passed_sets([json.dumps(stripped, sort_keys=True)]))[-1] == {A}
