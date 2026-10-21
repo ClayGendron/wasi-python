@@ -46,6 +46,47 @@ document.
   recorded in `decisions.md`; the rubric stays as guidance and the pre-build half stays, since
   AGENTS.md rule 8 already requires a pre-build review of the runner's code.
 
+### 109. Docker Desktop stopped: may it be restarted?
+
+- **Asked:** 2026-10-21, night, by the lane. **Source:** spec 101's build review
+  (`reviews/101-faster-release-run-build-2026-10-20.md`), M1 and criterion 3.
+- **The fact:** Docker Desktop's virtual machine exited at 22:01 local on 2026-10-20 (its
+  `supervisor.log`: "wait status: 26624"). The backend still runs, so `docker info` hangs.
+  Spec 101's traced build (criterion 3) and its M1 (the build-record checks read on a Linux build
+  tree) need a container. The reviewer ruled that both must come before the lane accepts 101.
+- **The question:** please restart Docker Desktop. And for the future: may the lane restart it
+  itself when its engine is gone? (The standing rule is never to close or kill your apps.)
+- **Meanwhile:** 101 is built and reviewed but for those two items. Wave 09 lands as 100 and 097;
+  101 joins the next wave, and 102, which builds on 101's workflow, waits with it.
+
+### 110. Spec 095's four choices (scipy's, scikit-learn's and statsmodels' own tests)
+
+- **Asked:** 2026-10-21, night. **Source:** `specifications/095-…`, its pre-build review
+  (`reviews/095-scipy-sklearn-statsmodels-own-tests-spec-2026-10-20.md`) and its confirmation.
+- **The questions,** each with the default the spec now carries until you answer:
+  1. Widen spec 088 (C test modules) to cover scipy's seven test-only C modules? Default: yes.
+  2. Leave these upstream modes unrun, named in the README only, for 0.1.0: scikit-learn's seed
+     sweep, `--check-spmatrix`, `SKLEARN_WARNINGS_AS_ERRORS`; scipy's `SCIPY_ARRAY_API`;
+     statsmodels' formulaic engine; the doctests? Default: yes, with each mode's skips counted.
+  3. The price: about 15 to 35 T of fuel more per normal judge (inferred). Default: a threshold of
+     15 T; above it, scikit-learn's `test_common.py`, then its float32 cases, go to the release
+     tier (they still run in the full suite).
+  4. statsmodels' tests on its 13 datasets the zip leaves out (19 files): a README class?
+     Default: yes; a file that fails at import goes to a named gap instead.
+- **Meanwhile:** 095 is confirmed fit to build on these defaults; its survey runs after wave 09
+  and 045 land.
+
+### 111. Spec 109's leftovers: do strings a user reads fall under "code speaks for itself"?
+
+- **Asked:** 2026-10-21. **Source:** the structural chain's PR #1, "Still open"; spec 109's build
+  review, finding 2; the roadmap's numberless "Reserved: a closer for spec 109's leftovers".
+- **The fact:** 109 cleared comments and docstrings outside `src/`. It left 78 string literals
+  that cite a document, some of them read by a user: a progress group's title, `--shard`'s help
+  text, the scoreboard's "not machine-checked" line, the comment `gen_inittab.py` writes into
+  the inittab source.
+- **The question:** should those strings give their reasons in words too? Default: they stay as
+  they are for 0.1.0, and the reserved closer takes them after it.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more
