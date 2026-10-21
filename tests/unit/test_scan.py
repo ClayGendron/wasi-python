@@ -2575,3 +2575,30 @@ def test_one_lapack_records_and_deps() -> None:
     assert scan.numpy_deps_errors({"m.deps": [other]}, archive) == [
         f"m.deps names {other}, not {archive}"
     ]
+
+
+def test_only_the_body_of_type_checking_is_typing_only(work) -> None:
+    """An import under `if TYPE_CHECKING:` is for a type checker; one in its `else:` branch, in
+    a function or at module level runs, and so does any import elsewhere in the package."""
+    module = write(
+        work,
+        "pkg/mod.py",
+        "from typing import TYPE_CHECKING\n"
+        "if TYPE_CHECKING:\n"
+        "    from ._fs_table import _Files\n"
+        "else:\n"
+        "    from ._fs_table import _Files as F\n"
+        "from . import mounts\n"
+        "def f():\n"
+        "    import pkg._fs_memory\n"
+        "    if TYPE_CHECKING:\n"
+        "        from pkg._fs_paths import x\n"
+        "import os\n",
+    )
+    assert scan.sibling_imports(module) == [
+        (3, "_fs_table", True),
+        (5, "_fs_table", False),
+        (6, "mounts", False),
+        (8, "_fs_memory", False),
+        (10, "_fs_paths", True),
+    ]

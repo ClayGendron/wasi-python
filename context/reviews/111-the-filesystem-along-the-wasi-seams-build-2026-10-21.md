@@ -263,8 +263,21 @@ The rows R3, R6 and R7 move as the specification said. None moves toward Weak.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. Low 1 —
-2. Low 2 —
+1. Low 1 — fixed in the commit after `2504e5e`. The import walk moved, unchanged, from
+   `test_rules.py` into `tests/harness/scan.py` as `scan.sibling_imports`, so that a unit row
+   can drive it. That row is `tests/unit/test_scan.py::test_only_the_body_of_type_checking_is_typing_only`:
+   the probe's two lines plus a module-level, a function-level and a nested `TYPE_CHECKING`
+   import. It was seen failing first, on the moved walk: `(5, '_fs_table', True) !=
+   (5, '_fs_table', False)` (`build/111/red-else-branch.txt`). The fix is the finding's: an
+   `If` whose test is the name `TYPE_CHECKING` pushes its body with `True` and its `orelse`
+   with the inherited flag, and any other node pushes its children as before. Afterwards the row
+   passes, `test_rules.py` gives 60 passed and 1 skipped, and `test_runner_package.py` and
+   `test_scan.py` (240) pass (EXECUTED, by file). The claim list's `units` is 4, and the judge
+   hash moves in `tests/unit/test_scan.py` too.
+2. Low 2 — answered in writing. In "For the lane, as built", the `--accept-judge` flag now reads
+   "for the five forms of a write the specification names". The optional widening is not taken:
+   no handler uses any of the probe's forms today, and the row holds what Decision 5 names. The
+   same flag now also names the `TYPE_CHECKING` walk and its unit row.
 
 ## Verdict
 

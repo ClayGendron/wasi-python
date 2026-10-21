@@ -2192,6 +2192,44 @@ def table_write_hits(files: Iterable[Path], root: Path, name: str = "files") -> 
     return [f"{path}:{line}: {what}" for path, line, what in sorted(hits)]
 
 
+def sibling_imports(path: Path) -> list[tuple[int, str, bool]]:
+    """Every import of a package module in `path`, at any depth, as (line, module, typing_only):
+    a relative import (`from . import x`, `from .x import y`) or an absolute one of this package;
+    typing_only says it sits under `if TYPE_CHECKING:`."""
+    package = path.parent.name
+
+    def named(node: ast.AST) -> list[str]:
+        if isinstance(node, ast.ImportFrom):
+            if node.level:
+                return [node.module.split(".")[0]] if node.module else [a.name for a in node.names]
+            if node.module and node.module.split(".")[0] == package:
+                return node.module.split(".")[1:2] or [a.name for a in node.names]
+        elif isinstance(node, ast.Import):
+            return [
+                a.name.split(".")[1]
+                for a in node.names
+                if a.name.split(".")[0] == package and "." in a.name
+            ]
+        return []
+
+    found: list[tuple[int, str, bool]] = []
+    todo: list[tuple[ast.AST, bool]] = [(ast.parse(path.read_text(encoding="utf-8")), False)]
+    while todo:
+        node, typing_only = todo.pop()
+        found += [(getattr(node, "lineno", 0), module, typing_only) for module in named(node)]
+        if (
+            isinstance(node, ast.If)
+            and isinstance(node.test, ast.Name)
+            and node.test.id == "TYPE_CHECKING"
+        ):
+            # Only the body is for a type checker; the `else:` branch runs.
+            todo += [(child, True) for child in node.body]
+            todo += [(child, typing_only) for child in node.orelse]
+        else:
+            todo += [(child, typing_only) for child in ast.iter_child_nodes(node)]
+    return sorted(found)
+
+
 def _unpacked(target: ast.expr) -> list[ast.expr]:
     """A target and, for a tuple or list target, each of its elements, at any depth."""
     if isinstance(target, (ast.Tuple, ast.List)):
