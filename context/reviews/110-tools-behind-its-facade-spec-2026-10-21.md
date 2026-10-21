@@ -1,0 +1,246 @@
+# Review of 110 — `tools.py` behind its public facade
+
+- **Date:** 2026-10-21
+- **Reviewer:** a fresh agent (pre-build reviewer; wrote none of the specification or of `src/`)
+- **Reviewed:** the specification as drafted, `3c93fbc` on branch `spec/110-tools-behind-its-facade`,
+  worktree `/home/user/wt/110`, over `b14b68c` (the chain 103 to 109 before its rebase onto
+  main). Every read of `src/` and `tests/` below is of that tree.
+- **Run:** none (pre-build review of the draft; AGENTS.md rule 8).
+- **Re-ran:** `uv sync` in the worktree; `uv run pytest tests/checks/test_rules.py -k
+  "specifications or open_question" -q -p no:cacheprovider` → 4 passed, 54 deselected, exit 0;
+  seven single node ids the specification rests on (the four rules checks it edits or keeps,
+  the three checks of `tests/unit/test_runner_package.py`, the seam row of
+  `tests/unit/test_scan.py`, `test_importing_the_package_does_not_load_the_tools`) → 9 passed,
+  exit 0; `uv run python tests/harness/api.py --check` → silent, exit 0. No fast tier, no
+  build, no dispatch. Time box: 25 minutes (parallel-safe); the measurements and the seam
+  question took the box, the write-ins ran a few minutes over.
+
+## Acceptance criteria against evidence
+
+For a draft, "met" means the criterion is countable, the judge can check it, and the facts it
+rests on are true at `b14b68c`.
+
+1. **Checks seen red first** — met as written: each of the five is named by node id, the
+   commit it is red on (commit 1) and the red line are given. READ. One of them has a false
+   hit the draft does not see (L2 below).
+2. **Three modules, each under the ceiling** — met: the partition's sizes re-measured. EXECUTED
+   (my own `ast` walk, each top-level definition from its first decorator to its last line,
+   assigned by Decision 1's lists): facade 603 lines in 36 definitions, schema 693 in 40, host
+   911 in 41, 2,207 in all, no definition unassigned: the draft's numbers exactly. The file is
+   2,449 lines (`wc -l`), the package 12,870. The INFERRED file sizes (about 720, 800, 1,030)
+   leave the largest a third under 1,500.
+3. **Two functions split** — met: the two are the only two over 80 in the file. EXECUTED (the
+   rubric's command): nine functions over 80 in the package, `tools.py:_make` 82 at line 371
+   and `tools.py:_ToolHost._answer` 83 at line 2188 among them; `LONG_FUNCTIONS` holds
+   exactly those two keys for the file (READ, `tests/checks/test_rules.py:1034–1035`). The
+   two cuts are at seams the text has (READ: `_make`'s `else:` arm at lines 404 to 423; the
+   `op = "call"` arm of `_answer` from line 2231), and `failed` is a closure the arm reads, so
+   passing it keeps one `_note` per outcome.
+4. **One import direction** — met, and the one claim I doubted holds. EXECUTED: `tools.py` has
+   no `from .` or `import wasi_python` line; the only module-level readers of it in the package
+   are the three `TYPE_CHECKING` blocks (`_call.py:39`, `_sessions.py:50`, `runner.py:45`), and
+   the four late imports are at `_call.py:1267`, `_sessions.py:701`, `_sessions.py:1083`,
+   `runner.py:678`, as the draft says. Cross-group reads by my walk (every `ast.Name` in each
+   definition, and every identifier inside every string constant, which is wider than the
+   draft's "string annotations"): facade → schema `_Json`, `_KeySets`, `_derived`, `_keysets`,
+   `_plain`, `_scalar`, `_schema_of`, `_vet`; host → facade `PROTOCOL`, the four records, the
+   two exceptions (and the parameter named `tool`); host → schema `_ECHO_CHARS`, `_Json`,
+   `_TOOL_NESTING`, `_Validator`, `_echo`, `_to_json`, `_where`; facade → host none; schema →
+   host none; schema → facade only the words "tool" and "Tool" inside docstrings and messages
+   (`_schema_of:628,651`, `_vet:712`, `_Vetting:725,770,779`, `_keysets:961`), never a name.
+   So `_tool_schema < tools < _tool_host` is acyclic on the real graph, and the runner's late
+   imports re-point to a module that imports only the two below it: no cycle at call time.
+5. **The two forms over the private modules** — met: `_from_imports`, `_patched` and
+   `_seam_errors` key on `RUNNER_MODULES` (READ, `test_runner_package.py:158,190,211`), so adding
+   the two names there is the whole edit; `_Json` and `_KeySets` are generic aliases
+   (`typing.get_origin` is `dict`), `_TOOL_NESTING` and `_ECHO_CHARS` ints, `_Validator` and the
+   facade's seven names classes or an int, so `_is_unchanging` admits every by-name import the
+   Design lists. The patched constants `_TOOL_RESPONSE_BYTES` and `_TOKEN` are read only in
+   the host (EXECUTED, `grep -n`: lines 1544, 2216 and 1283), `_key` only in the schema
+   (970–1233), `_parse` and `_encode` only in the host (1541, 1569, 2171, 2198), so every
+   patch lands in the module that reads it.
+6. **The seam rule's scope** — met in substance; the draft names one of the two regexes. See
+   the seam-scanner section and L1.
+7. **Moved verbatim** — countable: `--color-moved=dimmed-zebra` and the list of non-move lines.
+   READ.
+8. **No verdict moved** — countable: the claim list is one node. READ. Nothing under
+   `recipes/`, `scripts/` or the guest package is touched, so no fuel or byte row can move.
+9. **The public API unchanged** — met: `tests/public_api.txt` names `wasi_python.tools` at
+   line 208 and lists `stubs` (line 248) and no private name (EXECUTED, `grep -n "stubs\|_Json\|
+   _KeySets\|_input_schema"`); `DEFINING` keeps `tools.py`; `api.py --check` is silent today.
+10. **The judge's tool checks unchanged** — met: the ten `setattr(T, …)` sites are exactly the
+    draft's (EXECUTED, `grep -rn "setattr(T,"`: `test_tools.py:764, 922, 1270, 1338, 1348,
+    1372, 1381, 1396, 1403, 1408`), the two class-attribute patches are at `test_tools.py:1371`
+    and `test_v1_4_embedding.py:5018`, and five files bind `T` (EXECUTED). The private names
+    read through `T` number **22**, not 23, and `_KINDS` is read **3** times, not 4 (EXECUTED,
+    `grep -rhoE "\bT\._[A-Za-z_]+" tests/ | sort | uniq -c`; the draft's own list has 22
+    names): L5.
+11. **Clean and not growing** — met, with one command to pin down: 74 `Any` by the draft's
+    command (`grep -oE '(: |-> )Any\b'`), 98 by the rubric's (`grep -c '\bAny\b'`, which counts
+    lines, the import line included), 3 `type: ignore`, all in `Tool` (EXECUTED): L4.
+12. **The dispatch** — countable. READ.
+
+## The seam-scanner decision (Decision 4, item 5)
+
+The question: 108's `RUNNER_MODULE` (`^wasi_python\.(runner|mounts|_\w+)$`,
+`tests/harness/scan.py:1967`) excludes `tools` by name; the draft extends the exclusion to
+`_tool_schema` and `_tool_host`. Is that weakening the judge?
+
+**My verdict: it is the rule's own reason, not a weakening.** Three reasons, each from the
+text that made the rule.
+
+- The rule is about the process state. 108's Design D4 (READ, its specification lines
+  285–297) says what is outside it and why: "`tools`, `cli` and the package `__init__` (the
+  memo's H5 and 105's rule are about the runner; `tools.py` is the model the memo points at,
+  and its patched names are bounds the judge lowers to reach a limit, `_TOOL_RESPONSE_BYTES`
+  six times, counted by measurement M6, not seams)". The exclusion is by concern; the file
+  name was the only handle the regex had. 108's pre-build review (READ, its M1) argued about
+  who owns the check, not about `tools`, and its verdict let the exclusion stand.
+- The letter was written for the runner. `_\w+` stands for "any `wasi_python._<name>` module,
+  which after 104 is the package": the runner's private modules, which at 108's time were the
+  only ones. The tool protocol's text in a `_tool_*` module is the same text the rule excluded,
+  in a new file. EXECUTED: a scratch file with `from wasi_python import _tool_host as H;
+  monkeypatch.setattr(H, "_TOOL_RESPONSE_BYTES", 100)` and the schema's `_key` is two hits
+  under today's regex and none under `_(?!tool_)\w+`; so without the edit the fast tier is red
+  on ten sites 108 itself said are not seams.
+- Nothing the judge holds today is loosened. No existing expectation changes (`SEAM_ALLOWED`
+  untouched; no case of `test_scan.py` flips); no runner name becomes exempt; the ten patches
+  are still counted by the rubric's M6 (`grep -rhoE 'monkeypatch\.setattr\(…"_\w+"'`), so the
+  structural review still sees them. The judge's scope is the same set of names before and
+  after; only the spelling of "the tool protocol" changes.
+
+The two alternatives the draft rejects are worse for the right reasons. Adding the five names
+to `SEAM_ALLOWED` is the weakening the question fears: the list only shrinks, and the
+stale-allowance logic would then guard tool names under a rule whose reason says they are not
+seams. Constructor parameters are a design change in a specification that moves text. But the
+draft's reason against them is partly wrong: a defaulted keyword on `_ToolHost` is exactly the
+form R6 prefers ("seams are constructor parameters or protocol objects"), not "a branch only the
+judge takes"; the rejection stands on "a move, not a design change", and the Scope already
+reserves the response cap as a parameter for later. L6 fixes the words.
+
+Two write-ins make the edit exact (L1): the scanner has a second regex for the dotted-string
+form, `SEAM_BY_PATH` (`scan.py:1971`), which the draft does not name (EXECUTED:
+`monkeypatch.setattr("wasi_python._tool_host._TOOL_RESPONSE_BYTES", 100)` is still a hit with
+only `RUNNER_MODULE` edited); and I recommend spelling the two names
+(`_tool_schema|_tool_host`) over the prefix `_(?!tool_)\w+`, so the exemption is exactly two
+modules and a later `_tool_x` module joins it by hand, with a reason, as every other allowance
+is explicit. Graded: the decision is right; the text needs L1 and L6.
+
+## Structure (reviews README 4a; 108's rubric on the planned result)
+
+The diff adds no concern, no lifecycle flag, no module-level mutable (`_MAKING` is the
+`ContextVar` the facade already holds; every other module constant is an int, str, tuple,
+frozenset, alias or compiled regex: READ, lines 51 to 118), no test seam (the ten move with
+their readers), no platform branch, no private-API use (the file never imports `wasmtime`:
+EXECUTED, `grep -nE "tools" src/wasi_python/*.py`), and no function past 80 (two leave). None of
+108's five triggers fires; **parallel-safe** is the right Kind, and the Kind line says why.
+Measurements at `b14b68c`, EXECUTED by the rubric's commands: module sizes `tools.py` 2,449,
+package 12,870; functions over 80: 9 (`runner.py` 4, `_call.py` 1, `_process.py` 1,
+`_sessions.py` 1, `tools.py` 2); `Any` lines in `tools.py` 98 (74 annotations); `type: ignore`
+3; private names patched on `tools` 10 sites, 5 names plus 2 class attributes. After the build,
+INFERRED from the draft: sizes about 720/800/1,030; functions over 80: 7; `Any` annotations 74
+(lines 100, two more import lines); ignores 3; patch sites 10, unchanged.
+
+| row | before | after | reason |
+|---|---|---|---|
+| R1 Contract | Strong | Strong, unchanged | `public_api.txt` byte-identical; `wasi_python.tools` keeps every name; the inventory's `DEFINING` keeps the file |
+| R2 Safety | Strong | Strong, unchanged | every bound stays with its reader; the patched constants are read in their defining module (criterion 5) |
+| R3 Layering | Adequate | Strong | one file of three concerns becomes three modules with one written, checked direction and no late import among them; no private API |
+| R4 Process state | Strong | Strong, unchanged | no mutable added; `_MAKING` stays a context variable in the facade |
+| R5 Portability | n/a | n/a | no platform branch in the three |
+| R6 Testability | Adequate | Adequate, unchanged | the ten patches stay module-level bounds and wraps, now outside the seam rule by name as before; the parameter form is reserved (Scope) |
+| R7 Evolvability | Weak for this file | Adequate | 2,449 lines → three under the ceiling; two long functions split; `Any` not growing; `mypy --strict` kept |
+| R8 Operability | Strong | Strong, unchanged | no message, record or kind changes |
+
+Nothing in the plan should change on the rubric's account.
+
+## Findings, most severe first
+
+No High, no Medium. Every finding is a write-in to the specification's text; I have written
+each in as a second commit on this branch, as the README's item 7 allows, and say so under
+Disposition.
+
+1. **L1. The scanner has two regexes; the draft names one** (`110:291–300`, `tests/harness/
+   scan.py:1967,1971`) — `SEAM_BY_PATH` matches the dotted-string form
+   `setattr("wasi_python._tool_host._x", …)` and keeps `_\w+`, so with only `RUNNER_MODULE`
+   edited the rule's two forms disagree about the tool modules. EXECUTED: that string form is
+   a hit under the proposed `RUNNER_MODULE` alone. No judge file uses the string form on `tools`
+   today, so nothing is red; the scope is inconsistent. Fix text, in Decision 4 item 5: "Both
+   regexes that name a runner module, `RUNNER_MODULE` and `SEAM_BY_PATH`, keep the two modules
+   outside the rule, spelled out (`_tool_schema|_tool_host`), so the exemption is exactly two
+   modules and a later `_tool_<x>` module joins it by hand with a reason; `test_scan.py`'s seam
+   row gains two cases, the local-name form and the dotted-string form, each no hit."
+2. **L2. The once-bound rule sees `tool`'s overloads as three bindings** (`110:279–280`,
+   `tests/unit/test_runner_package.py:228–241`) — `_bound_names` lists every `def` in the module
+   body, and `tool` is defined three times in `tools.py` (two `@typing.overload` stubs and the
+   body: lines 271, 288, 305). EXECUTED: a `Counter` over the body's definitions gives
+   `{'tool': 3}`. A new check that reuses `_once_errors`'s logic over `TOOLS` reports "`tool` is
+   bound in tools.py and tools.py and tools.py" and is red after the move. Fix text, in
+   Decision 4 item 3: "over the three, no top-level name is bound in two modules (a name bound
+   twice in one module, `tool`'s two `@overload` stubs and its body, is one binding)."
+3. **L3. The runner has a function named like the new module** (`src/wasi_python/_call.py:1253`,
+   `110:200–203`) — `_call._tool_host()` is the function that will import from the module
+   `_tool_host`; the LATE row reads `("_call.py", "_tool_host", "_tool_host")`, and a
+   `from . import _tool_host` in `_call.py` (the attribute form) would rebind the function's
+   name. The Design imports the three classes by name, which is right and avoids it; the draft
+   should say so, so the builder does not reach for the attribute form. Fix text, in Decision 2:
+   "`_call.py` keeps the by-name form for the three classes: its function `_tool_host` shares
+   the module's name, and `from . import _tool_host` would rebind it."
+4. **L4. The `Any` criterion names no command, and the rubric's command will rise by two**
+   (`110:344–346, 501–502`) — the draft's 74 is by `grep -oE '(: |-> )Any\b'` (annotations);
+   the rubric's `grep -rc '\bAny\b'` counts lines and gives 98 for the file today, and three
+   files mean two more `from typing import Any` lines, so the rubric's count reads 100 after
+   the move with no annotation added. Fix text, in criterion 11: "74 by `grep -ohE '(: |-> )Any\b'
+   … | wc -l` over the three files; the rubric's line count is 98 today and 100 after, the two
+   being the new import lines, which a release review should not read as growth."
+5. **L5. Two counts** (`110:119, 122`) — the judge reads **22** private names through `T`, not
+   23 (the draft's own list has 22), and `_KINDS` is read 3 times, not 4 (EXECUTED above). Fix:
+   the two numbers.
+6. **L6. The rejection of constructor parameters misreads R6** (`110:316–321`) — a defaulted
+   keyword is R6's preferred seam form, not "a branch only the judge takes"; the rejection
+   stands on the other half of the sentence (a design change in a specification that moves
+   text) and on the Scope line that reserves it. Fix text: "the response cap as a keyword of
+   `_ToolHost` is the form R6 prefers and is reserved (Scope); the four counting sites would be
+   parameters no production caller passes; either way a design change, not a move."
+7. **Note. The roadmap line is proposed, not in the tree** — the commit touches only the
+   specification; the lane wrote 109's reserved line when it reserved the number (`1893ede`),
+   so the same is expected here. No action.
+8. **Note. The new node is worth its own id.** The existing order check must change anyway (its
+   `module == "tools"` special case and `BESIDE` would flag `_tool_host`'s import of `tools`,
+   and a module not in `ORDER` trips the rank branch: READ, `test_runner_package.py:111–119`),
+   but it stays green through commits 1 and 2, since it asserts no file's existence; the new
+   node is the one that is red on commit 1 because the two modules do not exist. One node per
+   "seen red first" line keeps the claim list honest. Keep it; let it share `_order_errors`'s
+   walk rather than write a second one.
+
+## Constitution checks
+
+- §4 constraints: §4.1 (no upstream source touched); §4.14 (the branch is `spec/110-<slug>`,
+  built from main's tip after the wave, as the draft says); "Code speaks for itself" (the two
+  new docstrings are to be in words; the `(056)` comment at `tools.py:2250` is rewritten when it
+  moves; `test_src_names_no_context_document` is green today: EXECUTED). All hold.
+- §5.6: the pre-build review is this file; the build review is a different agent's. Held.
+- §7 never-do list: nothing tripped. No `--accept`, no judge weakened (the seam edit keeps a
+  rule's scope; every other judge edit is a shrink or an extension to new modules), no commit
+  outside this review and its write-ins, no push.
+- Document hygiene: the header has Status, Date, Owner, Kind with its reason, Depends on,
+  Research it stands on; the CHANGELOG and roadmap lines are proposed under the one unreleased
+  section; no TBD, TODO, "open question" or question heading (EXECUTED, the rules check and a
+  case-insensitive grep: none).
+
+## Disposition (filled in by the reviewer, who wrote the Lows in)
+
+1. L1 — written in: Decision 4 item 5 names both regexes, the spelled-out form and the two
+   cases; the flags' `--accept-judge` reason says "both regexes".
+2. L2 — written in: Decision 4 item 3's once-bound rule counts a name once per module.
+3. L3 — written in: Decision 2's by-name paragraph names `_call._tool_host`.
+4. L4 — written in: criterion 11 names the command and the rubric's 98 → 100.
+5. L5 — written in: 22 and 3.
+6. L6 — written in: the rejection's reason reworded.
+7. Notes — no change.
+
+## Verdict
+
+Fit to build: the partition, the import direction and the counts are as measured, the seam
+scanner's edit keeps a rule's scope on its own concern rather than widening an allowance, and
+the six Lows are written into the specification on this branch.
