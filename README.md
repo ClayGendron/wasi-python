@@ -805,15 +805,27 @@ Pushing the tag starts `.github/workflows/release.yml`. It builds from the pins 
 checks that the source trees are their tarballs plus the recorded patches, and judges the build
 host's own checks; then the rest of the judge runs in shards on macOS, Linux and Windows at once,
 with numpy's, pandas', CPython's and the six compiled packages' own test suites on Linux (spec
-066: matplotlib's, contourpy's, Pillow's, kiwisolver's, lxml's and regex's own tests in 40 groups
-and fourteen `upstream-plot-*` shards, contourpy's three largest files split into groups by `-k`
+066: matplotlib's, contourpy's, Pillow's, kiwisolver's, lxml's and regex's own tests in 41 groups,
+nine `upstream-plot-*` shards of the normal tier and contourpy's slow and `random_big` groups in
+the release tier, contourpy's three largest files split into groups by `-k`
 expressions so every test runs, its `--runslow` and `--runtext` cases included, and Pillow's
 `checks/` and `selftest.py` with its `Tests`; regex's `unittest.main()` entry point, Pillow's
 release-notes check and five of its `checks/` scripts that run a reproduction at import rather
 than as tests, and a few files that cannot load or need processes or threads are not selected,
 each named in its TOML), and one group of numpy's and
 pandas', and CPython's file-system group, on macOS and on Windows
-(`tests/release_shards.toml`; `uv run pytest --shard=<name>` runs one). A job named `gather` reads
+(`tests/release_shards.toml`; `uv run pytest --shard=<name>` runs one).
+
+The judge has two tiers (spec 102). The **normal tier** runs at every check: every branch run,
+every wave's dry run, every landing. The **release tier** is the slow tests: numpy's and pandas'
+`slow` markers, contourpy's `--runslow` cases and its `random_big` cases, and CPython's tests that
+need the `cpu` resource (51 tests and a module, and four modules run in full that do less work
+without it). It runs only before a publication: on the pushed tag, on the dry run on main before
+it, and in the lane's release acceptance, about 8.4 T of guest fuel, 21 to 24 minutes on darwin
+serially, in twelve Linux shards in the release. Together the tiers are every test of every
+package built; the rules prove each test lands in one, and nothing is left out of both.
+
+A job named `gather` reads
 every shard's record by its id and hash, and nothing is signed or published unless every shard ran
 exactly its share on the release's bytes, nothing failed, the probe passed on all three systems,
 and the lane's newest acceptance is on the same `python.wasm` and the same set, by the set's own

@@ -737,18 +737,47 @@ All four answered 2026-10-20, night (`decisions.md`, main `4161ef9`), and writte
     tier"`), checks every release-tier difference against `context/release-tier-claims.toml`
     (spec 102, Decision 6), then dispatches the release workflow on main's exact commit, which runs
     the release tier itself, and waits for every job to pass on all three systems."
-- **The claim list** (skeleton; the builder fills it from the survey): **new**, the release groups'
-  suite and class checks (deselected in the lane's normal record); **changed**, the moved
-  contourpy rows (17 groups, normal to release, the ratchet's `moved` list, accepted by
-  `--accept-tier-move`); **passes**, none (the inline tests stay in their normal groups);
-  **grows**, contourpy's normal groups if Decision 7's argv moves them, numpy's, pandas' and
-  CPython's if Decision 4's stage does; **retired**, none; **units**, the rows of *The checks*.
-  The same rows go in the ledger's first block (spec `"102"`).
-- **The flags** (skeleton; each reason begins with "102:"):
+- **The claim list** (from the survey, against wave 09's acceptance on the same set; also the
+  ledger's first block, spec `"102"`). The new release-tier checks are deselected in the lane's
+  normal record (reason `release tier`), so they are rows "only in the second record"; the moved
+  contourpy rows go from run to deselected.
+
+  ```toml
+  [[claim]]
+  spec = "102"
+  new = [
+      "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-slow-*",
+      "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-slow-*",
+      "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-release-*",
+      "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-slow-rest]",
+      "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-no-threads]",
+      "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-release-a-stdlib-zip-error]",
+  ]
+  changed = [
+      "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-filled-*",
+      "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-lines-*",
+  ]
+  passes = []
+  grows = [
+      "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-a]",
+      "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-b]",
+      "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-c]",
+      "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-1]",
+      "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-rest]",
+  ]
+  growth = "102: CPython's stage gains the release groups' JSONs and the driver's Z line (+1.2e-4 to +5.3e-4); contourpy's normal groups run -m 'not slow' (contourpy-1 +0.28%, contourpy-rest +3.7e-4)"
+  retired = []
+  units = 83
+  ```
+
+  The `changed` prefixes take contourpy's normal `filled-8`, `-12` and `lines-8` too, whose rows
+  stay within 1e-4; the claim names the moved seventeen and is wider by those three.
+- **The flags** (each reason begins with "102:"):
 
   ```
-  --accept "102: the release tier: slow tests run before a publication, nothing left out; numpy-slow, pandas-slow, contourpy's slow and random_big cases, CPython's cpu-gated tests and its four inline-cpu tests in full, in <r> release groups"
-  --accept-judge "102: tiers in upstream.py, packages.py and regrtest.py (release_marker with the truth table, release_select keyword entries, CPython's resource lists and their partition check, splits per tier, caps on release groups); --tier and release_checks (plugin.py); the ratchet's release_tier and moved, the entries' tier, the passed set carried forward, the history's tier and tier_move_reason; the release pseudo-system; G1, G3, G5, G7 by tier; sameness --tier-rows; judge-release and the tier step; the TOMLs, plans and shards; unit rows"
+  --accept "102: the release tier: slow tests run before a publication, nothing left out; numpy's and pandas' slow cases, contourpy's slow and random_big cases, CPython's cpu-gated tests and four inline-cpu modules in full, in 36 release groups, 8.37 T on darwin; the normal tier sheds about 4 T"
+  --accept-judge "102: tiers.py (the truth table, the closed exclusion list, keyword selections, release groups of named kinds, splits per tier, the guard key); the argv by tier in upstream.py and packages.py; CPython's release lists, their partition and the inline reader in regrtest.py, the driver's Z line; --tier and release_checks (plugin.py); the ratchet's release_tier and moved, each entry's tier, the passed set carried forward, the history's tier and tier_move_reason (scoreboard.py); the release pseudo-system and rule (i) (shards.py); G1, G2, G3, G5, G7 by tier (gather.py); --tier-rows (sameness.py); budgets by tier; the TOMLs, release lists, classes, gaps and shards; the retired plot shards out of judge-linux's matrix; unit rows"
+  --accept-growth "102: CPython's stage gains the release groups' JSONs and the driver's Z line (cpython-a, -b, -c, +1.2e-4 to +5.3e-4); contourpy's normal groups run -m 'not slow' (contourpy-1 +0.28%, contourpy-rest +3.7e-4)"
   --accept-tier-move "102: contourpy's slow and random_big cases move to the release tier, seventeen groups (the owner, 2026-10-20)"
   ```
 - **The acceptance's message** (a normal tier, from 102's landing on): the area counts a normal
@@ -758,9 +787,40 @@ All four answered 2026-10-20, night (`decisions.md`, main `4161ef9`), and writte
 
 ## The builder's self-check
 
-Filled in at the build, from `context/reviews/README.md`'s list, plus: both branch runs' ids; the
-survey's memo and its delta's verdict; the stage manifests' equality; every release leg's job time;
-the ledger's first block.
+As far as it goes before the workflow half (2026-10-21); the items marked **waits** wait for
+101's `inputs` job on main.
+
+- **Rebased** onto wave 09's tip `a68efbb` (no conflict hunk); main moves to it at wave 09's
+  landing, when the branch rebases again and names any hunk. **waits** for that rebase.
+- **CI run** on the exact commit: **waits** (the workflow half: the tier step, the
+  `release-tier` input, `judge-release`, the gather's `needs` and `TIER`). Until then a branch
+  run's gather is red at G1 on the missing `TIER`, by design.
+- **Every number measured on this base, EXECUTED**: the survey on wave 09's set `142bdd38`
+  (`../research/2026-10-21-the-release-tier-survey.md`), compared with the lane's own wave 09
+  record on that set; the growth list is the survey's.
+- **"For the lane"**: the claim block (new, changed, grows with its reason, units 83, retired
+  none, passes none) and the four flags, each beginning "102:"; the wave kind **build-class**;
+  dry-run needs: criteria 5 and 6 on the branch (**waits**).
+- **Every new check seen failing first**: the unit rows, each with its failure in the landing
+  notes (items 1 to 3), and the moved-collected row (item 5's fast tier, then
+  `build/102/fail-7-moved-collected.log`). The guard key's rule row was written beside its code,
+  not before it: named here. Windows and Linux: the release tier runs on Linux only (Decision 10);
+  the normal tier's shards on all three systems are unchanged but for the re-packed Linux plot
+  shards; the inline module `test_posixpath` keeps running in `cpython-fs` on all three.
+- **Every gap names its closer**: the two new class gaps, the README.
+- **Reserved follow-ups**: none.
+- **packages.toml**: unchanged (no package added). **README**: the Releasing section's tier
+  paragraph and its shard counts. **CHANGELOG**: one entry under the unreleased section.
+  **Questions**: none.
+- **ruff check, ruff format --check, the fast tier**: ruff clean; the fast tier after the survey
+  2,714 passed and 2 failed (the landing lane's self-tests, fixed and green by node id after);
+  **waits**: one more fast tier on the rebased tip, when `build/lane.lock` is gone.
+- **Criterion 3's baseline** (each release group by node id with `--tier release`, twice,
+  restaging between): **waits** for the rebase and the slot (about 8.4 T a pass, two passes).
+- **The survey's delta review**: passed (`979d178`), its two Lows written in (`084c5eb`).
+- **The stage**: every family's staged JSONs come from one function, both tiers', so a normal
+  row's fuel is the same in a normal and a release run; numpy's and pandas' normal fuel equal to
+  the instruction beside the release JSONs (the survey).
 
 ## Risks a pre-build reviewer should probe
 
@@ -930,7 +990,7 @@ The build, below, as it goes.
    --check` clean.
 
 5. **The survey** (Decision 11; `../research/2026-10-21-the-release-tier-survey.md`, EXECUTED, on
-   wave 09's set `142bdd38`, 03:10 to 04:15). The release tier: 41 groups, **8.37 T** on darwin
+   wave 09's set `142bdd38`, 03:10 to 04:15). The release tier: 36 groups, **8.37 T** on darwin
    (contourpy 3.99, CPython 3.51, numpy 0.48, pandas 0.39), 21 to 24 minutes of guest time
    serially; twelve release shards at 725 G, one of them a single test. The normal tier
    against the lane's wave 09 record on the same set: numpy's and pandas' normal groups equal to
@@ -939,7 +999,7 @@ The build, below, as it goes.
    gated by `cpu`, none by `largefile`; four inline modules. Two new classes, each closed by the
    README: `pandas-slow-b-no-threads` (6) and `cpython-release-a-stdlib-zip-error` (1). Written
    from it: every TOML's release groups with `measured` and caps by the rule, CPython's
-   fourteen release lists, the classes and their gaps, the shard plan (nine normal plot shards,
+   thirteen release lists, the classes and their gaps, the shard plan (nine normal plot shards,
    twelve release shards), and the judge-linux matrix's five retired plot shards in the release
    workflow (the rules hold the matrix to the plan; nothing else of the workflow changed).
    The four TOMLs' cited comments are cleared and their nineteen allowance entries removed.

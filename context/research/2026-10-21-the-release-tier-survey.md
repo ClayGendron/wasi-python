@@ -120,7 +120,7 @@ pandas-tslibs             38.77 ->    38.77  +0.000000  passes 590 -> 590
 - numpy's and pandas' normal groups: **equal to the instruction** (`+0.000000`), though the
   `/upstream` stage gained five release JSONs. Their fuel does not depend on the stage's files.
 - CPython's normal groups: within 5.3e-4 (`cpython-c` +5.25e-4, `cpython-a` +2.7e-4,
-  `cpython-b` +1.2e-4; `-fs` and `-archives` within 1e-4). The stage gained fourteen release
+  `cpython-b` +1.2e-4; `-fs` and `-archives` within 1e-4). The stage gained the release groups'
   JSONs and the driver its `Z` line; growth to claim. Passes equal in all five.
 - contourpy's normal groups: `contourpy-1` +0.28% (its new `-m "not slow"` filter over 1,196
   items), the rest within 4.4e-4; passes equal in all seven.

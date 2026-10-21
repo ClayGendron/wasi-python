@@ -6,6 +6,14 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a8 — unreleased
 
+- **Two tiers of tests** (spec 102). The slow tests run before a publication, never left out:
+  numpy's and pandas' `slow` cases, contourpy's slow and `random_big` cases and CPython's
+  `cpu`-gated tests form a release tier, judged on the tag, on the dry run on main and in the
+  lane's release acceptance (`--tier release`); every other run judges the normal tier, about
+  4 T lighter. A row a run's tier did not run keeps what was accepted, a check that moves between
+  tiers needs `--accept-tier-move`, and `context/release-tier-claims.toml` holds the claims
+  between two releases.
+
 - **One module touches wasmtime-py's private API** (spec 103).
   `src/wasi_python/_wasmtime_ffi.py` is the engine seam: the runner and the mounts drive the
   engine through its named operations, it prefers wasmtime-py's public API wherever the installed
