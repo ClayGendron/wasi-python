@@ -225,6 +225,32 @@ def test_a_cache_reached_through_a_link_in_a_writable_grant_is_refused(
         )
 
 
+@pytest.mark.parametrize("climbs", [1, 2])
+def test_a_cache_reached_through_a_link_then_dotdot_in_a_writable_grant_is_refused(
+    compiled, work, monkeypatch, climbs
+) -> None:
+    """`$WASI_PYTHON_CACHE` names a path through a link in a folder granted writable, then
+    climbs with `..`. The system walks the link and climbs from where it leads, not from the
+    link's own folder, so the folder that holds the link must be judged as the path is walked:
+    the guest could replace the link and choose where the cache resolves. Refused, with one `..`
+    or two."""
+    granted, target = work / "a", work / "x" / "y"
+    granted.mkdir()
+    target.mkdir(parents=True)
+    reached = (target.parent if climbs == 1 else work) / "c"
+    reached.mkdir(mode=0o700)
+    try:
+        (granted / "link").symlink_to(target, target_is_directory=True)
+    except OSError as e:
+        pytest.skip(f"this host cannot make a symbolic link ({e.errno})")
+    spelled = os.path.join(str(granted / "link"), *([".."] * climbs), "c")
+    monkeypatch.setenv(_engines.CACHE_ENV, spelled)
+    with pytest.raises(ValueError, match="module cache"):
+        wasi_python.run(
+            ["-c", "pass"], grants=[Grant(str(granted), "/c", writable=True)], cache_dir=False
+        )
+
+
 @pytest.mark.parametrize("own", OWN)
 def test_a_root_still_to_be_made_that_would_hold_a_cache_is_refused(
     compiled, work, monkeypatch, own

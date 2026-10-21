@@ -298,9 +298,11 @@ def _cache_chain(path: Path) -> tuple[Identity | None, tuple[Identity, ...], tup
     """A module cache's identity and chain, as `_chain` gives them, the chain also holding every
     existing folder on the path as written: a link on the path inside a writable grant is a
     folder the guest could replace with its own, so the next call's cache would be the guest's.
-    Third, the components not made yet, below the deepest existing ancestor (the chain's first)."""
+    Each prefix keeps its `..`, so its identity is the folder the system reaches by walking
+    through a link and climbing from where it leads, never one a spelling collapses to. Third,
+    the components not made yet, below the deepest existing ancestor (the chain's first)."""
     identity, chain = _chain(path)
-    written = Path(os.path.abspath(path))
+    written = Path(path).absolute()
     seen = list(chain)
     for prefix in [written, *written.parents]:
         try:

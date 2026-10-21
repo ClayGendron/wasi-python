@@ -155,8 +155,11 @@ as written lies outside that chain. With `$WASI_PYTHON_CACHE=/data/link/cache` a
 inside `/data`, a writable grant at `/data` would pass, and the guest could replace `link` with
 a folder of its own: the next call's cache would be the guest's (the review, EXECUTED on
 `_chain`). So a cache's chain also holds the identity of every existing prefix of
-`os.path.abspath(path)`, each by `identity_of` (links followed), and a writable grant or root at
-or above any of them is refused as one above the resolved folder is. This is the same on every
+`Path(path).absolute()`, each by `identity_of` (links followed), and a writable grant or root at
+or above any of them is refused as one above the resolved folder is. The prefixes keep their
+`..` (`pathlib` does not collapse it, `os.path.abspath` does): the system walks a link and then
+climbs from where it leads, so `work/a/link/../../c` passes through `work/a` and `link`, which a
+spelling collapsed to `work/c` would leave out (the build review's M1, EXECUTED). This is the same on every
 system. It is applied to the caches, which this specification guards. The runner's own code and
 the host Python's folders are named by the runner itself from its own `__file__` and
 `sysconfig`, so a link on their path is the installer's, not an argument's. The artifact set is
@@ -406,6 +409,7 @@ none is a time.
 | `test_a_writable_grant_over_another_calls_cache_is_refused[<caller>-<own>-<victim>]`, 18 rows: caller `run`, `run_async`, `Session`; own cache off or elsewhere; victim the cache `$WASI_PYTHON_CACHE` names (made), the platform default under a fresh home (not made), or the **fallback**: the default without `$XDG_CACHE_HOME`/`%LOCALAPPDATA%` under a fresh home while both name other folders (not made; on macOS, which reads no override, the same folder as the default) | step 1 of the probe is a `ValueError` naming the module cache *and which one* (`$WASI_PYTHON_CACHE` or "default folder"), nothing is planted, and a cache the call does not use is not made; were it not refused, step 2 runs in a fresh process with every default and its `stats()["loaded"]` is printed in the failure | **fail** ×18: "was not refused … loaded 1 compiled module(s) the guest wrote" |
 | `test_a_writable_grant_at_or_inside_another_calls_cache_is_refused[at\|inside]` | the grant is the `$WASI_PYTHON_CACHE` folder, or a folder inside it, with `cache_dir=False`: refused, naming `$WASI_PYTHON_CACHE` | **fail** ×2: "DID NOT RAISE" |
 | `test_a_cache_reached_through_a_link_in_a_writable_grant_is_refused[off\|own]` | `$WASI_PYTHON_CACHE` is `data/link/wasi_python`, `link` inside the granted `data`, resolving outside it; the call's own cache off, or that cache its own (`cache_dir=None`): refused. Skips only where no link can be made, naming the errno | **fail** ×2: "DID NOT RAISE" (the `own` row shows the path-as-written gap apart from H1) |
+| `test_a_cache_reached_through_a_link_then_dotdot_in_a_writable_grant_is_refused[1\|2]` (added after the build review, M1) | `$WASI_PYTHON_CACHE` is `a/link/../c` or `a/link/../../c`, `link` inside the granted `a` and leading to `x/y`, `cache_dir=False`: refused | the two-`..` row **fails** on `a891dec5` ("DID NOT RAISE", `build/113/dotdot-on-a891dec5.txt`); the one-`..` row passes there |
 | `test_a_root_still_to_be_made_that_would_hold_a_cache_is_refused[off\|elsewhere]` | a root to be made above a `$WASI_PYTHON_CACHE` to be made, and one inside it: refused, neither made; a root beside it passes; a call that keeps no cache, or its own elsewhere, makes neither `$WASI_PYTHON_CACHE` nor the platform default | **fail** ×2: "DID NOT RAISE" |
 | `test_every_default_a_process_of_this_user_could_compute_is_listed` | `_Linux`, `_Darwin` and `_Windows` `default_cache_dirs(home)`, with both overrides set: each lists the override's folder and the one without it; on a POSIX host also the password database's home | **fail**: `AttributeError: … no attribute 'default_cache_dirs'` |
 | `test_a_process_with_no_home_folder_still_runs` | `Path.home()` raising and, on POSIX, `pwd.getpwuid` raising: `run(…, cache_dir=False)` exits 0 | pass (holds Decision 1's "No home": main never asks for the home with `cache_dir=False`) |
@@ -546,9 +550,10 @@ In: Decisions 1 to 6. Out:
    rows of criterion 1 green, seen failing first; on Linux and Windows the `fallback` rows judge
    a folder this process's own default is not.
 3. **The cache's path as written is judged:** the two rows of
-   `test_a_cache_reached_through_a_link_in_a_writable_grant_is_refused` green on POSIX and on
-   Windows where a link can be made (a skip names its errno in the landing notes), seen failing
-   first.
+   `test_a_cache_reached_through_a_link_in_a_writable_grant_is_refused` and the two of
+   `test_a_cache_reached_through_a_link_then_dotdot_in_a_writable_grant_is_refused` (one `..`
+   and two) green on POSIX and on Windows where a link can be made (a skip names its errno in
+   the landing notes), seen failing first (the two-`..` row on `a891dec5`).
 4. **A root still to be made over or inside a cache still to be made is refused**, one beside it
    is not, and a call that does not use a cache makes none: the two rows of
    `test_a_root_still_to_be_made_that_would_hold_a_cache_is_refused` green, seen failing first.
@@ -578,8 +583,8 @@ In: Decisions 1 to 6. Out:
     methods and each `default_cache_dirs` recorded, each under its ceiling; `LONG_FUNCTIONS` and
     `SEAM_ALLOWED` unchanged; the rules checks green.
 12. **The README and the CHANGELOG** carry Decision 5's text (the Safety bullet, the
-    module-cache paragraph, the two `cache_dir` parameter lines, the two *Not protected* items,
-    the CHANGELOG line under the unreleased section).
+    module-cache paragraph, the two `cache_dir` parameter lines, the *Not protected* paragraph
+    holding both clauses, the CHANGELOG line under the unreleased section).
 13. **`tests/public_api.txt` is unchanged**; `ruff check`, `ruff format --check` and `mypy` are
     clean; no code file names a specification, review, finding or `context/` path.
 14. **The dispatch:** the release workflow on the built tip, every red line a growth line of

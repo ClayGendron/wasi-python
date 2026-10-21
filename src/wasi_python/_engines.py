@@ -179,8 +179,9 @@ def _module_miss(
             from . import _wasmtime_ffi as ffi
 
             cwasm = cache / f"{digest[:32]}-wasmtime{ffi.version()}-{flavor}.cwasm"
-    except OSError:
+    except OSError as e:
         cwasm = None  # unusable: compiled modules are kept in this process only
+        _cache_warning(f"not using the module cache at {cache}", e)
     mod: wasmtime.Module | None = None
     may_write = False
     if cwasm is not None:
@@ -211,21 +212,26 @@ def _file_stamp(st: os.stat_result) -> tuple[int, int, int, int]:
 
 
 def _load(wt: Any, engine: wasmtime.Engine, cwasm: Path) -> tuple[wasmtime.Module | None, bool]:
-    """The module a `.cwasm` holds, if the file is as the runner makes it and is still the file
-    checked once wasmtime has read it (wasmtime-py opens the path itself, so a file swapped in
-    between is discarded); and whether the runner may put its own file at that name: when there
-    is none, or the one there is refused, stale or swapped, but never over a folder."""
+    """The module a `.cwasm` holds, if the file is as the runner makes it and the file at that
+    name is still the one checked once wasmtime has read it (wasmtime-py opens the path itself),
+    which narrows, not closes, the window between the check and the load; and whether the runner
+    may put its own file at that name: when there is none, or the one there is refused, stale or
+    swapped, but never over a folder. A file that goes away meanwhile is a miss, never a
+    failure."""
     try:
         before = os.lstat(cwasm)
     except FileNotFoundError:
         return None, True
     except OSError:
         return None, False
-    if not _platform.PLATFORM.private(cwasm, is_dir=False):
-        return None, not stat.S_ISDIR(before.st_mode)  # never loaded; replaced unless a folder
+    try:
+        if not _platform.PLATFORM.private(cwasm, is_dir=False):
+            return None, not stat.S_ISDIR(before.st_mode)  # never loaded; replaced unless a folder
+    except OSError:
+        return None, False
     try:
         mod = wt.Module.deserialize_file(engine, str(cwasm))
-    except wt.WasmtimeError:
+    except (wt.WasmtimeError, OSError):
         return None, True  # stale or foreign: compiled again and replaced
     try:
         same = _file_stamp(os.lstat(cwasm)) == _file_stamp(before)
@@ -238,11 +244,17 @@ def _load(wt: Any, engine: wasmtime.Engine, cwasm: Path) -> tuple[wasmtime.Modul
     return mod, False
 
 
+def _cache_warning(what: str, error: OSError) -> None:
+    """The embedder's one sign that a module stays in memory because its cache is unusable."""
+    import warnings
+
+    warnings.warn(f"wasi_python: {what}: {error.strerror or error}", RuntimeWarning, stacklevel=6)
+
+
 def _store(mod: Any, cache: Path, cwasm: Path) -> None:
     """The runner's own `.cwasm`, made 0600 under another name and renamed into place, which
     replaces a refused file or link itself, never what a link names. A cache that cannot take it
     leaves the module in this process only, with a warning; it never fails the call."""
-    import warnings
 
     tmp = None
     try:
@@ -253,11 +265,7 @@ def _store(mod: Any, cache: Path, cwasm: Path) -> None:
     except OSError as e:
         if tmp is not None:
             Path(tmp).unlink(missing_ok=True)
-        warnings.warn(
-            f"wasi_python: not writing the module cache at {cwasm}: {e.strerror or e}",
-            RuntimeWarning,
-            stacklevel=5,
-        )
+        _cache_warning(f"not writing the module cache at {cwasm}", e)
         return
     except BaseException:
         if tmp is not None:
