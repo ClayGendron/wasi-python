@@ -222,10 +222,12 @@ def _found_and_checked(snapshot: bool) -> tuple[Artifacts, _Checked]:
 
 def _digest(path: Path) -> str:
     """The SHA-256 of the file at `path`, kept in `process().digests` per resolved path and the
-    full stamp (device, inode, size, both times) of the descriptor that was hashed, so what was
-    hashed and what is keyed are one file: a later call stats the path first, and a replacement
-    of the same size and modification time has another inode or change time, so it is hashed
-    again. The dictionary is unlocked: a race only hashes twice."""
+    full stamp (device, inode, size, both times) of the path, taken by name as a later call's
+    lookup takes it: Windows reports another st_ctime by name (the creation time) than by
+    descriptor (the change time). A replacement of the same size and modification time has
+    another inode or change time, so it is hashed again. The digest is kept only when the
+    descriptor hashed is the file the stamp names, so what was hashed and what is keyed are one
+    file. The dictionary is unlocked: a race only hashes twice."""
     resolved = str(path.resolve())
     digests = process().digests
     found = digests.get((resolved, *_stamp(os.stat(path))))
@@ -233,7 +235,8 @@ def _digest(path: Path) -> str:
         return found
     fd = os.open(path, _OPEN_FLAGS)
     with os.fdopen(fd, "rb") as f:
-        key = (resolved, *_stamp(os.fstat(fd)))
+        opened, named = os.fstat(fd), os.stat(path)
         digest = _hash_stream(f)
-    digests[key] = digest
+    if os.path.samestat(opened, named):
+        digests[(resolved, *_stamp(named))] = digest
     return digest

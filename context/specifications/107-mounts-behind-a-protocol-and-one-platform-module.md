@@ -1029,3 +1029,33 @@ Notes):
 **For 108 and 109, carried from this review:** a `spec NNN` regex over string tokens (every
 `.py` under `src/`, and 109's `tests/`, `scripts/` and `release/`), the form with the fewest
 false matches in message text; `_platform.py` stands at 1,407 lines, 93 under the ceiling.
+
+- Fixed at the lane (2026-10-20 night): the release runs 39533679276 and 39535794638, job
+  "judge (windows-2025, own-runner)", Python 3.14.2, failed
+  `tests/unit/test_runner_sets.py::test_a_same_size_same_mtime_replacement_is_hashed_again` at
+  line 176 (`opened.count(str(target)) == 2`, got 3: the cached digest of the file in place was
+  read again); run 39530569266 passed it. `_artifacts._digest` looked up `process().digests`
+  with `_stamp(os.stat(path))` and stored under `_stamp(os.fstat(fd))`. The field that differs
+  is `st_ctime_ns`, from CPython's source (the pinned 3.15.0 tarball): by name, `win32_xstat`
+  copies the creation time into st_ctime (`Modules/posixmodule.c:2347-2349`, "ctime is only
+  deprecated from 3.12, so we copy birthtime across"), after either the fast path
+  (`_Py_stat_basic_info_to_stat`) or the slow one; by descriptor, `FSTAT` is
+  `_Py_fstat_noraise` (`posixmodule.c:405`), whose `_Py_attribute_data_to_stat` sets st_ctime
+  from `FILE_BASIC_INFO.ChangeTime` (`Python/fileutils.c:1118`) and nothing copies birthtime
+  over it (`fileutils.c:1231-1287`). st_dev and st_ino agree by both routes (64-bit volume
+  serial, the 128-bit file id: `fileutils.c:1113`, `1128-1133`, `1164-1169`). The miss is
+  intermittent because creation and change time are equal when the replacement's create,
+  write, `utime` and rename fall in one system-clock tick. 3.14's source was not at hand; the
+  3.14.2 runs behave as 3.15.0's source reads. The product's effect: on Windows the digest
+  cache never hit for an installed set, so each call hashed python.wasm again (no wrong
+  digest). The fix: the key is taken by name, as the lookup is (`os.stat(path)` after the
+  open), and the digest is kept only when `os.path.samestat(os.fstat(fd), that stat)`, so what
+  was hashed and what is keyed stay one file; no platform branch. New rows, the first seen
+  failing first (2 == 1) on darwin: `test_a_change_time_the_name_reports_otherwise_still_hits_the_cache`
+  (`os.fstat` reports st_ctime_ns one higher, as Windows does) and
+  `test_a_descriptor_that_is_another_file_than_the_name_is_not_cached` (`os.fstat` reports
+  another inode: not cached, read again). The other stamp users take one route on both sides:
+  `_version_tag` and `_has_guest_package` (`os.stat` both), `_zip.py`'s zip copy and data
+  record (`os.lstat` both). On Windows `os.stat`'s st_ctime is the creation time, so an
+  in-place rewrite keeping inode, size and modification time is not seen there by any of these
+  caches; a replacement (another file id) is.

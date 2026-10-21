@@ -176,6 +176,48 @@ def test_a_same_size_same_mtime_replacement_is_hashed_again(tmp_path, monkeypatc
     assert opened.count(str(target)) == 2  # the cached digest of the file in place: no read
 
 
+def _descriptor_reports(monkeypatch, **changed: int) -> None:
+    """`os.fstat` reports the open file with `changed` fields, as Windows does for st_ctime_ns:
+    the change time by descriptor, the creation time by name."""
+    import os
+
+    real = os.fstat
+
+    def fstat(fd):
+        st = real(fd)
+        ns = {f: getattr(st, f) for f in ("st_atime_ns", "st_mtime_ns", "st_ctime_ns")}
+        fields = list(st)
+        fields[1] = changed.get("st_ino", st.st_ino)
+        ns.update((f, v) for f, v in changed.items() if f in ns)
+        return os.stat_result(fields, ns)
+
+    monkeypatch.setattr(os, "fstat", fstat)
+
+
+def test_a_change_time_the_name_reports_otherwise_still_hits_the_cache(
+    tmp_path, monkeypatch
+) -> None:
+    target = tmp_path / "python.wasm"
+    target.write_bytes(b"a" * 100)
+    _descriptor_reports(monkeypatch, st_ctime_ns=target.stat().st_ctime_ns + 1)
+    opened = _opens(monkeypatch)
+    assert _artifacts._digest(target) == hashlib.sha256(b"a" * 100).hexdigest()
+    assert _artifacts._digest(target) == hashlib.sha256(b"a" * 100).hexdigest()
+    assert opened.count(str(target)) == 1  # the second call takes the cached digest
+
+
+def test_a_descriptor_that_is_another_file_than_the_name_is_not_cached(
+    tmp_path, monkeypatch
+) -> None:
+    target = tmp_path / "python.wasm"
+    target.write_bytes(b"a" * 100)
+    _descriptor_reports(monkeypatch, st_ino=target.stat().st_ino + 1)
+    opened = _opens(monkeypatch)
+    assert _artifacts._digest(target) == hashlib.sha256(b"a" * 100).hexdigest()
+    assert _artifacts._digest(target) == hashlib.sha256(b"a" * 100).hexdigest()
+    assert opened.count(str(target)) == 2  # what was hashed is not the named file: read again
+
+
 def test_a_rewritten_manifest_gives_its_new_version_tag(tmp_path) -> None:
     manifest = tmp_path / "MANIFEST"
     manifest.write_text("python 3.15.0\n")
