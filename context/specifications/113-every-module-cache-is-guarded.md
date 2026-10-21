@@ -1,16 +1,20 @@
 # 113: every module cache is guarded
 
-- **Status:** **drafted 2026-10-21** on `spec/113-every-module-cache-is-guarded` from main
-  `1875d4cd`, with its checks written first and seen failing on main's code (Decision 6);
-  awaiting its pre-build review. The fix is not written. The worktree is
+- **Status:** **built 2026-10-21 on `a891dec5`** (the code; the commit after it carries these
+  notes, `context/` only) on `spec/113-every-module-cache-is-guarded`, from main `1875d4cd`;
+  the release workflow's run 39624848889 on `a891dec5` green on three systems on its second
+  attempt (*Landing notes*); awaiting its build review (a different agent). Before:
+  **drafted 2026-10-21** from main
+  `1875d4cd`, with its checks written first and seen failing on main's code (Decision 6). The
+  worktree is
   `.claude/worktrees/agent-a8a67f30f6c037394`; the checks ran against the main tree's frozen set
   (`build/artifacts`, `SHA256SUMS` `d0d91cef`) through `$WASI_PYTHON_ARTIFACTS`, and their
   output is under `build/113/` there. **Reviewed before build** the same day
   (`../reviews/113-every-module-cache-is-guarded-spec-2026-10-21.md`, "fit to build once H1, M1,
   M2 and M3 are answered in the specification"); **revised** the same day to answer every
   finding (*Disposition of the pre-build review*, below), with the new check rows written first
-  and seen failing on main's code. Awaiting the reviewer's confirmation read; a different agent
-  reviews the build.
+  and seen failing on main's code; **confirmed fit to build** by the same reviewer's
+  confirmation read (`35ec623f`, three new Lows, L8 to L10, answered in the build).
 - **Date:** 2026-10-21
 - **Owner:** Clay Gendron
 - **Kind:** **parallel-safe**, **not structural**: `src/` (`_engines.py`, `_places.py`,
@@ -653,6 +657,20 @@ the Windows deferral on two conditions. Each finding, and where its answer is:
 12. **The Windows deferral** — kept, citing the review's agreement and its two conditions, both
     met (Decision 4).
 
+The confirmation read (the same reviewer, `35ec623f`) confirmed H1 to M3 and the Lows, and
+raised three Lows, answered in the build:
+
+13. **L8, the reason for holding the path-as-written rule to the caches** — corrected in
+    Decision 1: the artifact set is an argument too, but a set planted through a link is wasm
+    under the wall, not native code; its rule is reserved in `../roadmap.md`, after 0.1.0.
+14. **L9, the swap can have a row** — added:
+    `test_a_cwasm_swapped_between_its_check_and_its_load_is_discarded`, a stand-in `wt` whose
+    `deserialize_file` swaps a `0644` module in; it failed on main's code first (loaded 1,
+    `build/113/swap-on-main.txt`) and passes on the build.
+15. **L10, the method row on a Windows host** — `_Posix.default_cache_dirs` catches
+    `ImportError`, `AttributeError` and `KeyError` around the password database; the row passes
+    on the Windows leg (*Landing notes*).
+
 ## One line
 
 A call that does not use the shared module cache still refuses to give its guest a way to write
@@ -661,9 +679,146 @@ folder a guest made.
 
 ## Landing notes
 
-Not built. The checks of Decision 6 were run on main's code by node id on 2026-10-21, against
-the main tree's frozen set through `$WASI_PYTHON_ARTIFACTS` (EXECUTED, in the builder's
-worktree): the draft's seventeen rows, 15 failed and 2 passed (`build/113/checks-on-main.txt`,
-`build/113/modes-on-main.txt`); after the pre-build review, all thirty-three rows, 28 failed and
-5 passed (`build/113/checks-on-main-1b.txt`), as the table says. The rest, the builder's
-self-check among it, is written once the fix is built.
+**Built** on `a891dec5` (2026-10-21), on the reviewed spec `fcd278de` and its confirmation read
+`35ec623f`, from main `1875d4cd`; runner code only, judged against the main tree's frozen set
+(`SHA256SUMS` `d0d91cef`) through `$WASI_PYTHON_ARTIFACTS`; nothing rebuilt. Every output named
+here is under `build/113/` in the builder's worktree.
+
+### The checks, each seen failing first
+
+- The draft's seventeen rows on main's code: 15 failed, 2 passed (`checks-on-main.txt`,
+  `modes-on-main.txt`). After the pre-build review, thirty-three rows: 28 failed, 5 passed
+  (`checks-on-main-1b.txt`). L9's swap row, added in the build: failed on main's code, loaded 1
+  (`swap-on-main.txt`, main's `src/` exported with `git archive 1875d4cd` and put first on
+  `PYTHONPATH`).
+- On the build, all **thirty-four** rows pass (EXECUTED, `checks-built.txt`, 27.15 s; again
+  after the rename below, `after-rename.txt`).
+- The existing checks criteria 7 and 10 name, by node id (EXECUTED, `existing-built.txt`): 46
+  passed, 2 skipped (`test_runner_grants.py`'s two Windows-only rows, as on main):
+  `test_v1_2_hostile_guest.py::test_a_bad_grant_is_refused_before_any_work` (the five message
+  assertions), all of `tests/unit/test_runner_grants.py` (its `_judge` 3-tuple row), all of
+  `tests/unit/test_runner_sets.py`, the three cache checks of `test_v1_4_embedding.py`
+  (`test_runner_caches_the_compiled_module`, `test_fuel_does_not_depend_on_the_module_cache`,
+  `test_runner_refuses_a_cache_others_can_write`) and
+  `test_runner_tools.py::test_an_artifact_set_without_the_guest_package_is_refused` (the one
+  check that patches `_walk_grants`). None was edited.
+
+### The review's probe (criterion 9)
+
+`p50_cwasm_plant.py`, copied to `build/113/probes/`, on the build (EXECUTED, `p50-built.log`):
+step 0 compiles the plain reactor as before; **step 1 is refused**, `ValueError: grants[0] at /c
+is writable and holds the module cache $WASI_PYTHON_CACHE names (…/fixtures/p50/xdg/wasi_python),
+which later calls trust`; step 2, with every default, reports **compiled 1, loaded 0, written
+1**. The probe's 471 MB of fixtures were removed after.
+
+### The sizes (criterion 11; EXECUTED, `wc -l` and `ast` on `a891dec5`)
+
+| module | base | built | ceiling |
+|---|---|---|---|
+| `_platform.py` | 1,407 | **1,464** | 1,500 |
+| `_places.py` | 524 | 583 | 1,500 |
+| `_engines.py` | 236 | 318 | 1,500 |
+| `_call.py` | 1,289 | 1,295 (the call's arguments, one per line, by `ruff format`) | 1,500 |
+| `_sessions.py` | 1,120 | 1,120 | 1,500 |
+
+Functions (lines, ceiling 80): `_judge` 52, `_runtime_folders` 48, `_walk_grants` 38,
+`_module_miss` 38, `_store` 27, `_load` 26, `_cache_chain` 23, `_chain` 21, `_caches` 20,
+`_cache_dir` 9, `_home` 7, `_spelled` 4; `_Posix.private` 18, `_Windows.private` 14,
+`_Posix.default_cache_dirs` 13, `_Windows.default_cache_dirs` 5, `_not_used` 8, `_one_file` 4.
+`LONG_FUNCTIONS` and `SEAM_ALLOWED` unchanged; not structural.
+
+### The fast tier
+
+Two runs on three cores, each with the slot the lane grants (`build/slots/fast`, released at
+its end; no `build/lane.lock`). On the build before the rename: 2,697 passed, **1 failed**,
+`test_runner_package.py::test_every_runner_name_is_defined_in_one_module` (`_stamp` bound in
+`_artifacts.py` and `_engines.py`), ratchet lost 0, grew 0 (`fast-tier.txt`). The helper was
+renamed `_file_stamp`, and on `a891dec5` itself: **2,698 passed, 51 skipped, 0 failed** in
+7 min 42 s; `643/889 pass · 0 gap · 42 blocked · 0 fail`, unit suite 2055/2064; ratchet lost 0,
+absent 0, unrun 0, gained 0, grew 0 (EXECUTED, `fast-tier-a891dec5.txt`).
+
+### The release workflow (criterion 14)
+
+Run **39624848889** on `a891dec5`, dispatched by the builder with no other run live.
+
+- **Attempt 1:** `build and judge (arm64 macOS)` failed at "Download the pinned inputs" on a DNS
+  error (`curl: (6) Could not resolve host: www.python.org`, four times, EXECUTED
+  `gh run view --attempt 1 --log-failed`), before any check ran; the jobs that need its set
+  waited on it.
+- **Attempt 2:** the lane re-ran the failed job alone (`gh run rerun --failed`), changing
+  nothing. **Success**: 40 jobs passed (build and judge, two rebuilds, same-bytes, 32 judge legs,
+  gather, three verify jobs); attest, publish and PyPI skipped, as on every dry run (EXECUTED,
+  `gh run view 39624848889 --json jobs`).
+- **The gather** (`release-record-2`, `build/113/record/`): **797/889 pass · 85 gap · 7
+  blocked · 0 fail**, unit suite 4826/4856 with 30 skipped, three systems on `d4192605…`, set
+  `d0d91cef`; the same counts as the 0.1.0 security review's run 39595555875 on main's
+  `b2d4ccd0`.
+- **The ratchet**, all 34 lines the run prints (the 32 judge legs and the build job's two;
+  EXECUTED, the run's log, `run-39624848889-attempt2.log`): lost 0, absent 0, unrun 0, grew 0.
+  No red line, so no GREW and no G7 line. The three own-guest legs read "gained 1", a pass
+  gained, not a red line.
+- **Windows:** the four Windows legs green (own-guest, own-runner, own-embedding,
+  upstream-windows) and `verify (windows-2025)`; own-runner ran all thirty-four rows of the new
+  file with none skipped (34 dots), so the link, junction and second-name rows and L10's method
+  row ran on `_Windows`. Per system the suite reads darwin 2046/2054, linux 2046/2054, win32
+  724/738 passed (8, 8 and 14 skipped).
+
+### For the lane, as built
+
+- **Claim list** (each line "113:"): **new checks**, the thirty-four rows of
+  `tests/unit/test_runner_module_caches.py` (Decision 6's thirty-three and L9's swap row);
+  **changed checks:** none (`tests/release_shards.toml` gains the file's line in `own-runner`);
+  **retired:** none; **lost passes:** none; **fuel and bytes:** none grow; no artifact byte
+  changes. The **judge hash changes** in `tests/unit/test_runner_module_caches.py` and
+  `tests/release_shards.toml`.
+- **The flags**, as in *For the lane*, with "thirty-three" read as "thirty-four" in
+  `--accept-judge`:
+
+  ```
+  --accept "113: every module cache a process of this user could use is judged in every call, whatever its own cache_dir: a writable grant or root at, inside or above the call's own cache, the folder WASI_PYTHON_CACHE names or any platform default (with or without XDG_CACHE_HOME or LOCALAPPDATA, under HOME and the system's home), made or not, or through a folder on the cache's path as written, is refused in run, run_async and Session; on POSIX the cache folder is used only at 0700 and a .cwasm loaded only at 0600 with one name, one that is not compiled again and replaced; Windows refuses links and second names in the cache"
+  --accept-judge "113: one unit file of thirty-four rows reproduces the 0.1.0 security review's planted compiled module by every route its pre-build review named and holds the cache's modes, in the own-runner shard on three systems; no existing expectation edited"
+  ```
+
+### Differences from the specification's text, each with its reason
+
+1. `_judge`'s keyword `missing` holds (label, deepest existing ancestor, components), not
+   (label, components): the rule compares the root's ancestor with the cache's, and the
+   ancestor is not in the label.
+2. The README's two `cache_dir` parameter lines are generated from the docstrings, so the text
+   went into the three `cache_dir` docstrings of `runner.py` and the README's API block was
+   written by `tests/harness/api.py --write`; `api.py --check` passes and
+   `tests/public_api.txt` is unchanged.
+3. A `.cwasm` that cannot be written (any `OSError`) gives a `RuntimeWarning`, "not writing the
+   module cache at …", and the module stays in memory; the specification said only that the
+   call goes on.
+4. A cache folder that cannot be made or read (an `OSError` from `private()`) also leaves the
+   module in memory, where it used to raise; the same rule, "no state of the cache folder makes
+   a call fail".
+5. The helper that compares two `lstat`s is `_file_stamp`: the fast tier found `_stamp` bound
+   in `_artifacts.py` too (`test_every_runner_name_is_defined_in_one_module`), and the name was
+   changed before the dispatch.
+
+### The builder's self-check
+
+```
+Before you ask for a review:
+- [x] rebased onto main's tip (or the named stacked base) today; the base commit in the Status
+      line: main 1875d4cd, today's tip; nothing landed since.
+- [x] CI run dispatched on this exact commit and read: 39624848889 on a891dec5, green on its
+      second attempt (the first failed on a DNS error before any check); no red line; the
+      Windows legs green.
+- [x] every number from a measured run on this base, labelled EXECUTED; no growth.
+- [x] "For the lane": the claim list, the exact flags beginning "113:", the wave kind
+      (parallel-safe), dry-run needs (none beyond the run above).
+- [x] every new check seen failing first (the swap row by main's src/ put first on PYTHONPATH);
+      the Windows and Linux branches named: the mode rows record Windows' answer, the link and
+      junction rows ran on Windows, the fallback rows differ from the default on Linux and
+      Windows only.
+- [x] every gap names its closer (none added); every reserved follow-up has a roadmap line (115,
+      116, the Windows access list, the artifact set's path as written).
+- [x] packages.toml: no package added; README rows changed: the cache paragraph, the Safety
+      bullet, the two cache_dir lines, one Not protected item.
+- [x] CHANGELOG under the one unreleased section; no questions raised.
+- [x] ruff check, ruff format --check, mypy: clean; the fast tier: 2,698 passed, 0 failed on a891dec5, output in
+      build/113/.
+```
