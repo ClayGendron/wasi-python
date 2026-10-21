@@ -548,6 +548,61 @@ Twelve criteria.
 - **Dry-run needs:** the builder's one dispatch on its tip; nothing platform-specific (the
   three modules have no platform branch), so the Windows shards are the matter-of-course run.
 
+## Disposition of the pre-build review
+
+The review (`../reviews/110-tools-behind-its-facade-spec-2026-10-21.md`, commit `bd886ac`;
+verdict "fit to build", no High, no Medium, six Lows, two Notes) re-ran the shape checks, the
+nine node ids the specification rests on and `api.py --check`, re-measured the partition
+(603, 693 and 911 definition lines, the draft's numbers exactly) and walked the cross-group
+reads with a wider net than the draft's (every identifier in every string constant), finding
+the same acyclic order. The reviewer wrote every Low into the specification's text in
+`be6424f`, as the reviews README's item 7 allows; the writer read each write-in against the
+Decisions it touches. None contradicts one; each is confirmed below.
+
+1. **L1, both scanner regexes, the exemption spelled as two names**: confirmed. The draft
+   named `RUNNER_MODULE` and missed `SEAM_BY_PATH`, the dotted-string form; with one regex
+   edited the rule's two forms would disagree about the tool modules. Decision 4 item 5 now
+   names both, spells the exemption as `_tool_schema|_tool_host` rather than a prefix, so a
+   later `_tool_<x>` joins it by hand with a reason, and gives `test_scan.py` two cases, one
+   per form; criterion 6, the shared-files list and the `--accept-judge` reason say "both
+   regexes" and "two cases". The writer agrees with the reviewer's reading of the edit: it
+   keeps a rule's scope on the concern 108 excluded, and widens no allowance.
+2. **L2, `tool`'s overloads are one binding**: confirmed. `tool` is defined three times in
+   the facade (two `@typing.overload` stubs, lines 271 and 288, and the body at 305), and a
+   check that reused `_once_errors`'s every-`def` count would be red on the facade after the
+   move. Decision 4 item 3 now says the new check counts a name once per module, which is also
+   how the judge's existing rule reads the file today
+   (`tests/checks/test_rules.py::test_no_module_level_name_is_bound_twice`, green on
+   `tools.py` with its overloads).
+3. **L3, `_call.py` keeps the by-name form**: confirmed. `_call.py:1253` defines a function
+   named `_tool_host`, the one that will import from the module of the same name; `from .
+   import _tool_host` there would rebind the function. Decision 2 already imported the three
+   classes by name (they are classes, so the by-name form is the rule's own); the write-in
+   says why the attribute form is not an option in that file, so the builder does not reach
+   for it.
+4. **L4, criterion 11 names the `Any` command and the rubric's rise**: confirmed. The draft's
+   74 is by `grep -ohE '(: |-> )Any\b'`, annotations only; the rubric's `grep -c '\bAny\b'`
+   counts lines and reads 98 today and 100 after the move, the two being the new modules'
+   `from typing import Any` lines. Criterion 11 now names both commands and both numbers, so
+   a release's structural review does not read the two import lines as growth.
+5. **L5, 22 names and 3 reads**: confirmed, re-measured by the writer: `grep -rhoE
+   "\bT\._[A-Za-z_]+" tests/ --include=*.py | sort -u`, 22 private names once `__all__` and
+   `__name__` are left out; `grep -rnE "\bT\._KINDS" tests/`, 3 lines, all in
+   `tests/unit/test_guest_tools.py` (272, 282, 287). The draft's 23 and 4 were a miscount.
+6. **L6, the constructor-parameter rejection restated**: confirmed. The draft called a
+   defaulted keyword on `_ToolHost` a test-only hook; it is the seam form R6 prefers, and the
+   Scope reserves it. The rejection stands on the other ground, which the write-in keeps: a
+   keyword for the response cap, and parameters for the four counting sites that no
+   production caller would pass, are a design change in a specification that moves text.
+7. **Note, the new node keeps its own id**: acknowledged, and kept: the existing order check
+   stays green through commits 1 and 2 because it asserts no file's existence, so the new
+   node is the one seen red first; one node per "seen red first" line keeps the claim list
+   honest. The builder lets it share `_order_errors`'s walk rather than write a second one.
+8. **Note, the roadmap line is the lane's**: acknowledged. Design's "The roadmap line" is
+   the proposed text; the lane writes it into `context/roadmap.md` when it reserves the
+   number, as it did for 109 in `1893ede`; the specification's commits touch only
+   `context/specifications/`.
+
 ## One line
 
 `wasi_python.tools` keeps its public names and sheds its machinery into two private modules,
