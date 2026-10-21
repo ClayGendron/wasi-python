@@ -1182,6 +1182,18 @@ The build, below, as it goes.
       The sixteen failures of item 9 were wave 10's statsmodels and set checks judged on a copy of
       wave 09's set; none was 102's, and on wave 10's set all pass.
 
+14. **The re-review's Lows** (re-review: lands, `09056de0`). L4: the gather's collection argv is
+    the constant `gather.COLLECT_ARGV`, held by a unit row that failed with `-p no:faulthandler`
+    dropped (`build/102/fail-13-faulthandler.log`) and passes with it. L5: the growth reason's
+    contourpy figures say they are the survey's, on `142bdd38`; the `--accept` reason reads
+    "8.36 T on d0d91cef". L6: the reviewer's words for the one branch-run exception, in
+    `decisions.md` and the two places here. `tests/unit/test_gather.py` 108 passed; ruff clean.
+    **Run 9** (`39642985842`, normal, on `a66d9659`, the set reused): every leg green but
+    `judge (macos-15, upstream-macos)`, on the claimed growth; `judge-release` skipped; the gather
+    skipped behind the red leg. The gather replayed over its 34 records at that commit: exit 1 on
+    exactly 18 red lines, the claimed `cpython-fs` growth and the seventeen G5 move lines; no other
+    line.
+
 **What waits for wave 09** (the lane's ruling): the rebase onto main; the survey (Decision 11)
 on main's set after 100 (done, item 5, on wave 09's tip before it landed); the TOML groups,
 release lists and shard entries from it (done); the context-only delta review the survey asks
