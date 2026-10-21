@@ -1,8 +1,8 @@
 #!/bin/sh
-# Step 59: statsmodels 0.15.0 for wasm32-wasip1 (spec 045, Decision 4): meson through
+# Step 59: statsmodels 0.15.0 for wasm32-wasip1 (Decision 4): meson through
 # recipes/wasi-statsmodels.cross against step 40's numpy and step 57's scipy, whose Cython
-# declarations scripts/stage_scipy_cimports.sh stages under build/scipy-cimport (spec 044, Decision
-# 4). Each extension module becomes a static archive beside a .deps file, as scripts/wasi-cc makes
+# declarations scripts/stage_scipy_cimports.sh stages under build/scipy-cimport, as
+# scikit-learn's step does. Each extension module becomes a static archive beside a .deps file, as scripts/wasi-cc makes
 # them; the four init names that would clash in one static link are renamed per file through
 # recipes/statsmodels_file_includes.txt and recipes/statsmodels-renames/ (Decision 5). statsmodels'
 # version script imports setuptools_scm and packaging at configure time: the recipe's stand-in
@@ -39,7 +39,7 @@ tar -xzf "$TARBALL" -C "$B"
 patch_tree "$SRC"
 mkdir -p "$BUILD"
 
-# scipy's cython_blas, cython_lapack and cython_special declarations (spec 044, Decision 4).
+# scipy's cython_blas, cython_lapack and cython_special declarations, as scikit-learn's step stages them.
 sh "$HERE/scripts/stage_scipy_cimports.sh" "$B/scipy-1.18.1" "$B/scipy-build" "$CIMPORT"
 
 sed "s#@ROOT@#$HERE#g; s#@SDK@#$WASI_SDK_DIR#g" "$HERE/recipes/wasi-statsmodels.cross" > "$B/wasi-statsmodels.cross"
@@ -92,7 +92,7 @@ cp "$SRC/pyproject.toml" "$INST/statsmodels/pyproject.toml"
 [ -f "$INST/statsmodels/__init__.py" ] && [ -f "$INST/statsmodels/datasets/longley/longley.csv" ] \
   || die "the statsmodels package lacks __init__.py or datasets/longley/longley.csv"
 
-# The extension modules' list from meson's install plan, nothing copied (spec 044, Decision 5).
+# The extension modules' list from meson's install plan, nothing copied, as scikit-learn's step reads it.
 out=$("$HOSTPY" "$HERE/scripts/install_from_plan.py" --modules-only "$BUILD" "$BUILD/extension-modules.txt" "$SUFFIX")
 echo "$out"
 [ "$out" = "$MODULES extension modules listed; 0 tagged tests left out" ] \

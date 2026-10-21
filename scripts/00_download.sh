@@ -125,7 +125,7 @@ get https://files.pythonhosted.org/packages/7e/74/66de6258867beb2ef08f35f9f2ac01
 get https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.34/OpenBLAS-0.3.34.tar.gz OpenBLAS-0.3.34.tar.gz
 # scikit-learn: its sdist, Cython, C and C++ built with meson against step 57's scipy
 get https://files.pythonhosted.org/packages/d2/eb/eaf5e07fcc0da7149b0e084f24e54edd7441b9a89ce7e034032ae97fe3a0/scikit_learn-1.9.1.tar.gz scikit_learn-1.9.1.tar.gz
-# statsmodels (spec 045): its sdist, Cython and C built with meson against step 57's scipy
+# statsmodels: its sdist, Cython and C built with meson against step 57's scipy
 get https://files.pythonhosted.org/packages/a8/1f/a3cbf6ed7cf6286afec694bfef561f3e51483197716717fb8476f1f0c50e/statsmodels-0.15.0.tar.gz statsmodels-0.15.0.tar.gz
 # Header-only C++ that is compiled in (matplotlib's and kiwisolver's bindings), so its notices ship
 get https://files.pythonhosted.org/packages/33/fd/8762f7ee3e4e4be6d1d846cffb4916dd9bb02b2f800d3603718a0efe494c/pybind11-3.1.0-py3-none-any.whl pybind11-3.1.0-py3-none-any.whl
@@ -179,7 +179,7 @@ get https://files.pythonhosted.org/packages/d1/89/5d4c86da1130d9059681e5b6cd7645
 # pieces of code it vendors (its wheel holds one licence), and reportlab's wheel; both pure Python
 get https://files.pythonhosted.org/packages/86/59/a451d7420a77ab0b98f7affa3a1d78a313d2f7281a57afb1a34bae8ab412/seaborn-0.13.2.tar.gz seaborn-0.13.2.tar.gz
 get https://files.pythonhosted.org/packages/db/cb/dacbc268cb68d0428ea2cbd85266195a9ab3e677449589ddae59bd7542ac/reportlab-5.0.1-py3-none-any.whl reportlab-5.0.1-py3-none-any.whl
-# statsmodels' formula engine formulaic and its two requirements (spec 045), each its pure wheel;
+# statsmodels' formula engine formulaic and its two requirements, each its pure wheel;
 # wrapt's py3-none-any wheel is upstream's pure form, its C file carried as source only
 get https://files.pythonhosted.org/packages/fc/75/0576b03f7889ad25b5385b4f6c69e0543713425a6f193b056c9b0a2e65ce/formulaic-1.2.2-py3-none-any.whl formulaic-1.2.2-py3-none-any.whl
 get https://files.pythonhosted.org/packages/a1/d3/20a61a248feb1249cd81f83ce731f0bdf5170ed96a08a298f7081cda9e90/interface_meta-2.0.1-py3-none-any.whl interface_meta-2.0.1-py3-none-any.whl
@@ -210,7 +210,7 @@ get https://raw.githubusercontent.com/numpy/numpydoc/894c8c47646fcbb4eae4fca068c
 get https://raw.githubusercontent.com/django/django/1dae4ac1778f04805c0ed62c8debb13b281ba02b/LICENSE django-1dae4ac1-LICENSE
 get https://raw.githubusercontent.com/pytest-dev/pytest/0d90a31d4a647fa7ba0d53a05b9266c2d4aaa05a/LICENSE pytest-0d90a31d-LICENSE
 # The notice of the project statsmodels' parallel_func is copied from, which carries no full notice
-# of its own (spec 045, Decision 13): MNE-Python's licence at the last commit that touched it
+# of its own (Decision 13): MNE-Python's licence at the last commit that touched it
 get https://raw.githubusercontent.com/mne-tools/mne-python/2c4a3b03968a29570f87c3d741d2adc53b35f1dc/LICENSE.txt mne-python-2c4a3b03-LICENSE.txt
 
 # Research inputs: the reference build the harness self-tests use

@@ -562,7 +562,7 @@ def reportlab_notice_errors(d: Path, wheel: Path | None) -> list[str]:
     return errors
 
 
-# statsmodels' notice (spec 045, Decision 13): its licence, COPYRIGHTS.txt (the numpy, scipy,
+# statsmodels' notice (Decision 13): its licence, COPYRIGHTS.txt (the numpy, scipy,
 # pandas, matplotlib, scikit-learn and qsturng-py code it carries), the two folders with licences of
 # their own, and each bundled component the build's notice sweep found, matched against the pinned
 # sdist's bytes as scikit-learn's are; then the pinned licence texts of the two projects whose

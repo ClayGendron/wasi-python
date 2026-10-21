@@ -5,7 +5,7 @@ pools, which is the truth on wasm32-wasi. pandas' Styler and networkx's graph at
 files from the zip through two carried patches, with native Python's output.
 scikit-learn gives native scikit-learn's answers serially: no OpenMP, joblib in the
 calling thread, its datasets and style sheets read from the zip (one carried patch), and what the
-sandbox lacks raised by name. statsmodels (spec 045) gives native statsmodels' answers, its
+sandbox lacks raised by name. statsmodels gives native statsmodels' answers, its
 public-domain datasets read from the zip (one carried patch), the thirteen left out raising
 FileNotFoundError, both formula engines in pure Python, and what the sandbox lacks raised."""
 
@@ -561,7 +561,7 @@ def test_scikit_learn_modules_are_builtin(guest, which) -> None:
     assert got["wrong"] == [], got["wrong"]
 
 
-# statsmodels (spec 045, Decision 12), as scikit-learn's: each behaviour check runs as an embedder
+# statsmodels (Decision 12), as scikit-learn's: each behaviour check runs as an embedder
 # calls it, nothing writable, with a fuel limit a hang ends at; the golden runs through the judge's
 # driver.
 SM_FUEL = 80 * 10**9  # an import of statsmodels.api and a few loads or fits, with room
@@ -648,7 +648,7 @@ print(json.dumps({"api": sm.OLS.__name__, "raised": raised}))
 def test_left_out_datasets_say_so(guest) -> None:
     """`import statsmodels.api` works, and each of the thirteen datasets whose files are left out
     raises FileNotFoundError: the type only, since the message is the zip's resource reader's,
-    which promises none (spec 035, Decision 6; Decision 9 here)."""
+    which promises none (Decision 9)."""
     got = _sklearn(guest, "plain", SM_LEFT)
     assert got == {"api": "OLS", "raised": dict.fromkeys(SM_LEFT_OUT, "FileNotFoundError")}
 

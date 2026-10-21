@@ -64,7 +64,7 @@ JOBS = (
     # seaborn's statistical plots and reportlab's PDF reports
     "statistical_plots",
     "pdf_reports",
-    # statsmodels (spec 045, Decision 12)
+    # statsmodels (Decision 12)
     "statistical_models",
 )
 # Jobs whose native output may differ off the platform that recorded them:
@@ -77,7 +77,7 @@ JOBS = (
 # edges job too). And scikit-learn's: PCA and the linear models reach
 # LAPACK through scipy. statistical_plots prints seaborn's figures' RGBA
 # buffers and SVGs, and values from scipy's kernel densities and clustering; pdf_reports prints no
-# pixel and reproduces everywhere. And statsmodels' (spec 045, Decision 12): OLS and ARIMA reach
+# pixel and reproduces everywhere. And statsmodels' (Decision 12): OLS and ARIMA reach
 # LAPACK through scipy too.
 PLATFORM_BOUND = (
     "plot_line",

@@ -63,7 +63,7 @@ RENAMED = {
     # build: the link kept CPython's and dropped scikit-learn's member without a word); --against
     # stops it.
     "sklearn.utils._random": "sklearn_utils__random",
-    # statsmodels (spec 045, Decision 5; recipes/statsmodels-renames/): statespace._tools shares
+    # statsmodels (Decision 5; recipes/statsmodels-renames/): statespace._tools shares
     # scipy.sparse.csgraph._tools' name; the three smoothers share their filters' names, and the
     # filters keep theirs.
     "statsmodels.tsa.statespace._tools": "statsmodels_tsa_statespace__tools",

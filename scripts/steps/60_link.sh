@@ -40,7 +40,7 @@ PM="$B/plot-modules"
 [ -d "$B/sklearn-modules/sklearn" ] || die "build/sklearn-modules/sklearn is missing: run step 58"
 # numpy's side of the same ABI: step 40's shims, numpy's int-declared calls to OpenBLAS.
 [ -s "$B/numpy-shims/libnumpy_lapack_shims.a" ] || die "build/numpy-shims/libnumpy_lapack_shims.a is missing: run step 40"
-# Step 59's modules (spec 045).
+# Step 59's modules.
 [ -d "$B/statsmodels-modules/statsmodels" ] || die "build/statsmodels-modules/statsmodels is missing: run step 59"
 # The generated inittab declares CPython's internal _PyImport_SwapPackageContext itself, as this
 # header declares it: a CPython that changes it stops here, not at run time.
