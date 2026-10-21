@@ -354,3 +354,86 @@ it only. I ran no fast tier and no judge.
   entry says `release`, so later runs show no move line.
 
 **Verdict:** fit to build. Every finding is answered in writing, so no further round is needed.
+
+## Delta review (after the survey; the reviewer, 2026-10-21, on `c9b169e3`)
+
+Decision 11 sends the survey to this review. The reason is two single CPython tests past 480 G
+that no split can bring under. What I read:
+- the specification's text from `7d31d1e` to `c9b169e3` ("Differences from the specification's
+  text", "The build, in order");
+- `context/research/2026-10-21-the-release-tier-survey.md`;
+- the data it writes: `python.toml`'s release groups, `release_shards.toml`, and `contourpy.toml`'s
+  guard group;
+- the code each difference rests on: `packages.rule_cap`, the budget loop in `upstream.py`
+  (around line 997), `scoreboard.compare` (the `moved` rule), the G5 move line in `gather.py`
+  (around line 316), and the inline reader `regrtest.CPU_READ`.
+
+I read only. I ran no tier of the judge. The machinery commits belong to the build review.
+
+**The two single tests: answered acceptably.** `test_sha3_256_update_over_4gb` measured 813 G
+and `test_sumprod_stress` 621 G.
+- **Nothing is excluded.** Both run in the release tier, on every release run and in the release
+  acceptance. That meets the owner's "do not exclude anything from the full suite".
+- **Their caps follow the rule.** `rule_cap(813.4 G)` is 1.3 T and `rule_cap(621.5 G)` is 940 G
+  (1.5 times, rounded up to two significant figures; READ).
+- **The 480 G bound has a precedent for this.** 066 set it as a rule for splitting groups, and it
+  named `matplotlib-axes` (699 G, one file) as standing past it. No rules check enforces 480 G, so
+  naming the test in the specification is the whole answer, as it was in 066.
+- **Their shards are fine.** `cpython-release-hashlib-3` has a shard of its own
+  (`upstream-release-a`). `cpython-release-math-2` shares `upstream-release-g` with
+  `cpython-release-archives`, 721.2 G, inside the 725 G packing rule.
+- **No owner allowance is needed, unlike sympy's.** On Linux, 813 G at 0.16 to 0.31 s per G plus
+  about 60 s of setup is roughly 3.2 to 5.2 minutes (INFERRED). That is under the 360 s shard
+  bound, which sympy's test needed the owner to waive. Criterion 6's job times will show it. If
+  that leg passes 360 s, it goes to the owner as sympy's did.
+
+**Each change beyond the specification:**
+1. **The survey goes before the data, not before the machinery.** Sound. The lane ruled the order.
+   No measurement feeds the machinery, and every unit row was seen failing first.
+2. **`release_marker` may name an excludable marker, negated.** Sound. pandas' `slow and not
+   network and not db` needs it. L5's door stays shut by the half that matters:
+   `excluded_marker` may name only `EXCLUDABLE`. The truth table catches a release marker that
+   selects an excluded test.
+3. **Inline entries are whole modules.** Sound. It only adds work: the whole module runs with
+   `cpu` on in the release tier and stays reduced in its normal group, so nothing leaves a system
+   (M1 holds). The reader is a text search because some 3.15 files do not parse on the host. It
+   accepts either quote (`regrtest.CPU_READ`).
+4. **The driver's `Z` line.** Sound. It is needed to tell `network` and `extralargefile` denials
+   from the tiers' own resources. The stage changes, so CPython's normal fuel grows by up to
+   5.3e-4. That is past the 1e-4 tolerance, so it is growth the claim list must name. Difference
+   4 says so; see finding D2.
+5. **contourpy's guard group** (`contourpy-slow-rest`, `selects_nothing`). Sound. Only a marker
+   release group may carry the key (`tiers.py:174`), and only pytest's exit 5 is forgiven
+   (`packages.py:485`). A collection error is still red. If contourpy adds a slow case outside
+   `test_filled.py`, the guard runs it. It costs 18 G a release run.
+6. **Budgets by tier.** Sound, and the normal tier is not loosened. numpy's and pandas' 3 T and
+   CPython's 2.5 T still bound what every check pays. The release tier gets a bound of its own:
+   3 T, and 6 T for CPython, whose caps sum to 5.39 T. contourpy's budget is the sum of both
+   tiers' caps (8.865 T), by the owner's rule.
+7. **A move is red only where the run collects the check.** It does **not** weaken M3:
+   - The gather's G5 checks every accepted entry's tier against `release_checks`, which come from
+     the TOMLs whether or not anything was collected (`gather.py:316`). So every CI run shows a
+     move.
+   - Locally, a run narrowed away from the upstream file cannot accept. Its normal-tier upstream
+     checks fall into `upstream_unrun`, and `accept` refuses them without `--partial`. A partial
+     acceptance is red at G7 on a tag.
+   - What remains: in a narrowed run, a moved check is printed under `release tier not run`
+     rather than `moved`. That is display only.
+8. **numpy's and pandas' release groups are by path.** Sound. One numpy group measured 656 G and
+   was split.
+
+**Findings:**
+- **D1, Low: Difference 7 overstates the packing.** It says "Each is a group and a shard of its
+  own". `cpython-release-math-2` shares `upstream-release-g` with `cpython-release-archives`.
+  **Fix text:** "Each is a group of its own. `cpython-release-hashlib-3` fills a shard alone.
+  `cpython-release-math-2` packs with `cpython-release-archives` (721.2 G, inside 725 G)."
+- **D2, Low: a sentence in "The build, in order" is now false.** Item 3 says "the driver is
+  unchanged, so the stage's fuel does not move". Difference 4 and the survey changed the driver.
+  **Fix text:** item 3's sentence becomes "A module-level `RESOURCE_DENIED` did not say which
+  resource was denied. The survey added the driver's `Z` line (Difference 4), and CPython's normal
+  fuel moves by up to 5.3e-4, claimed as growth."
+- **D3, Note:** the release acceptance's darwin price is now measured: 8.37 T, 21 to 24 minutes
+  serially, about 8 to 9 at `-n 3`. This answers Note 12. The lane can book the slot from it.
+
+**Verdict:** the delta passes, and the build goes on. The two single tests run, capped by the
+rule, under the 360 s bound by inference. D1 and D2 touch only `context/` and need no further round.
