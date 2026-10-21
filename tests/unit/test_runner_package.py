@@ -39,7 +39,6 @@ ORDER = (
 RUNNER_MODULES = tuple(m for m in ORDER if m != "_wasmtime_ffi")  # the runner's text, by concern
 MAY_IMPORT_MOUNTS = ("_places", "_call", "_sessions", "runner")
 ABOVE = ("__init__", "__main__", "cli")  # above `runner`: they import what they like
-BESIDE = ("mounts",)  # beside the list: no package module at module level
 # The tool protocol stands beside the runner in an order of its own: the schema rules, then the
 # public facade, then the host side of a call. Each imports at module level only those before
 # it, and no other module imports any of them at module level, so `import wasi_python` loads
@@ -47,19 +46,22 @@ BESIDE = ("mounts",)  # beside the list: no package module at module level
 # is given tools.
 TOOLS = ("_tool_schema", "tools", "_tool_host")
 BY_NAME_MODULES = (*RUNNER_MODULES, "_tool_schema", "_tool_host")  # the two forms hold over these
+# The filesystem stands beside the list too: its modules import one another, in the chain the
+# rules checks hold, and no other package module at module level.
+FILESYSTEM = ("mounts", "_fs_memory", "_fs_descriptors", "_fs_paths", "_fs_table")
 LATE_ANYWHERE = ("_wasmtime_ffi",)  # the seam's form: `from . import _wasmtime_ffi as ffi` in a def
 
 # The late imports allowed, (file, function, module); any other is a finding.
 LATE = (
     ("runner.py", "_check_tools", "tools"),
-    ("_call.py", "_instance", "mounts"),
-    ("_call.py", "_mount_linker", "mounts"),
-    ("_call.py", "_guard_linker", "mounts"),
-    ("_call.py", "_stat_trampoline_module", "mounts"),
-    ("_call.py", "_trampoline_module", "mounts"),
+    ("_call.py", "_instance", "_fs_table"),
+    ("_call.py", "_mount_linker", "_fs_memory"),
+    ("_call.py", "_guard_linker", "_fs_memory"),
+    ("_call.py", "_stat_trampoline_module", "_fs_memory"),
+    ("_call.py", "_trampoline_module", "_fs_memory"),
     ("_call.py", "_tool_host", "_tool_host"),
     ("_sessions.py", "_session_tool_host", "_tool_host"),
-    ("_sessions.py", "_open_session", "mounts"),
+    ("_sessions.py", "_open_session", "_fs_table"),
     ("_sessions.py", "_open_session", "_tool_host"),
     ("cli.py", "_grants", "runner"),
     ("cli.py", "_main", "runner"),
@@ -126,11 +128,14 @@ def _order_errors(package: Path, tools: bool = False) -> list[str]:
                         errors.append(f"{where} imports {module} at module level")
                     elif me in ABOVE:
                         continue
-                    elif me in BESIDE:
-                        errors.append(f"{where} ({me} imports a package module at module level)")
-                    elif module == "mounts":
+                    elif me in FILESYSTEM:
+                        if module not in FILESYSTEM:
+                            errors.append(
+                                f"{where} ({me} imports {module}, outside the filesystem)"
+                            )
+                    elif module in FILESYSTEM:
                         if me not in MAY_IMPORT_MOUNTS:
-                            errors.append(f"{where} ({me} may not import mounts)")
+                            errors.append(f"{where} ({me} may not import {module})")
                     elif module not in rank or rank[module] >= rank.get(me, -1):
                         errors.append(f"{where} ({me} imports {module}, not before it in ORDER)")
                 elif module in LATE_ANYWHERE:
@@ -155,11 +160,11 @@ def _tool_order_error(
 
 
 def test_the_runner_modules_import_in_the_written_order() -> None:
-    """Every module-level relative import names a module earlier in ORDER (or
-    `mounts` from the four that may); `__init__.py` and `cli.py` stand above; `mounts.py`
-    imports no package module at module level; no module imports `_wasmtime_ffi` at module
-    level; a late import is one of LATE, or of `_wasmtime_ffi`. The tool protocol's modules
-    have their own order, below."""
+    """Every module-level relative import names a module earlier in ORDER (or a filesystem
+    module from the four that may); `__init__.py` and `cli.py` stand above; a filesystem module
+    imports none outside the filesystem at module level; no module imports `_wasmtime_ffi` at
+    module level; a late import is one of LATE, or of `_wasmtime_ffi`. The tool protocol's
+    modules have their own order, below."""
     errors = _order_errors(PACKAGE)
     assert not errors, scan.report(errors)
 

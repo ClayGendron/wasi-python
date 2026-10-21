@@ -16,7 +16,20 @@ import wasmtime as wt
 
 from harness import files, needs, paths
 from harness.files import MemoryProvider, Mounted
-from wasi_python import Errno, Mount, Stat, _call, _engines, _home, _places, runner
+from wasi_python import (
+    Errno,
+    Mount,
+    Stat,
+    _call,
+    _engines,
+    _fs_descriptors,
+    _fs_memory,
+    _fs_paths,
+    _fs_table,
+    _home,
+    _places,
+    runner,
+)
 from wasi_python import mounts as mounts_module
 from wasi_python._process import process
 
@@ -356,10 +369,10 @@ def test_every_descriptor_import_is_shadowed(name) -> None:
     takes_a_descriptor = {
         n for n in imported if n.startswith(("fd_", "path_", "sock_")) or n == "poll_oneoff"
     }
-    allowed = set(mounts_module.SHADOWED) | set(mounts_module.FORWARD_SAFE)
+    allowed = set(_fs_memory.SHADOWED) | set(_fs_memory.FORWARD_SAFE)
     assert takes_a_descriptor - allowed == set()
-    assert len(mounts_module.SHADOWED) == 29
-    assert set(mounts_module.SHADOWED).isdisjoint(mounts_module.FORWARD_SAFE)
+    assert len(_fs_memory.SHADOWED) == 29
+    assert set(_fs_memory.SHADOWED).isdisjoint(_fs_memory.FORWARD_SAFE)
     # 26 file calls and the preopen pair, beside the four sock_* and poll_oneoff;
     # fd_renumber, imported with matplotlib's _qhull, goes again with the reactor's
     # freopen refusal (qhull's freopen was its one user)
@@ -379,14 +392,14 @@ def test_the_mount_linker_shadows_every_call(placeholder) -> None:
 
     m.table.__class__.__call__ = counting  # type: ignore[method-assign]
     try:
-        for name, params in mounts_module.SIGNATURES.items():
+        for name, params in _fs_memory.SIGNATURES.items():
             try:
                 m.raw(name, *([2**31 - 1] * len(params)))
             except files.Ends:
                 pass
     finally:
         m.table.__class__.__call__ = real  # type: ignore[method-assign]
-    assert sorted(set(seen)) == sorted(mounts_module.SHADOWED)
+    assert sorted(set(seen)) == sorted(_fs_memory.SHADOWED)
 
 
 def test_renumber_and_close_keep_the_table_true(placeholder) -> None:
@@ -426,7 +439,7 @@ def test_the_staging_bound_and_the_open_limit(placeholder) -> None:
     assert m.table.staged == 100
     assert r("fd_close", big) == 0 and m.table.staged == 0
     r = Mounted(provider, placeholder).raw
-    numbers = [r.open(3, "small")[1] for _ in range(mounts_module.MAX_MOUNT_FILES)]
+    numbers = [r.open(3, "small")[1] for _ in range(_fs_memory.MAX_MOUNT_FILES)]
     assert numbers == list(range(2**30, 2**30 + 1024))
     before = provider.calls["read"]
     assert r.open(3, "small")[0] == 33  # EMFILE
@@ -487,7 +500,7 @@ def test_a_call_without_mounts_is_unchanged(monkeypatch) -> None:
     from wasi_python import run
 
     used, served = [], []
-    real_drive, real_call = _call._drive, mounts_module._Files.__call__
+    real_drive, real_call = _call._drive, _fs_table._Files.__call__
 
     def drive(wt_, linker, *args, **kw):
         used.append(linker)
@@ -498,12 +511,12 @@ def test_a_call_without_mounts_is_unchanged(monkeypatch) -> None:
         return real_call(self, caller, name, *args)
 
     monkeypatch.setattr(_call, "_drive", drive)
-    monkeypatch.setattr(mounts_module._Files, "__call__", counted)
+    monkeypatch.setattr(_fs_table._Files, "__call__", counted)
     done = run(["-c", "import json; print(json.dumps([1]))"])
     assert (done.exit_code, done.stdout, done.files) == (0, b"[1]\n", None)
     engine = _engines._engine(False)
     assert used == [_call._guard_linker(wt, engine)]
-    assert set(served) <= set(mounts_module.GUARDED + mounts_module.COUNTED), served
+    assert set(served) <= set(_fs_memory.GUARDED + _fs_memory.COUNTED), served
     served.clear()
     a, b = MemoryProvider({"/x": b"from a\n"}), MemoryProvider({"/x": b"from b\n"})
     results: dict[str, object] = {}
@@ -603,7 +616,7 @@ def test_a_finished_call_holds_nothing(monkeypatch) -> None:
     }
 
     def alive() -> int:
-        kinds = (_call._Call, mounts_module._Files, mounts_module._Open)
+        kinds = (_call._Call, _fs_table._Files, mounts_module._Open)
         return sum(type(o) in kinds for o in gc.get_objects())
 
     for name, (code, fuel, calls) in endings.items():
@@ -653,7 +666,7 @@ def test_a_listing_is_counted_as_what_it_holds() -> None:
     gathering one past the bound peaks near the bound, not several times it."""
     import tracemalloc
 
-    from wasi_python.mounts import _Files
+    from wasi_python._fs_table import _Files
 
     names = 20_000
 
@@ -687,6 +700,102 @@ def test_a_listing_is_counted_as_what_it_holds() -> None:
     errno, _, now, peak = gathered(bound)
     assert errno == 22  # EFBIG, judged while gathering
     assert peak <= bound * 1.25 + 65536, (bound, peak)  # the gathering is counted too
+
+
+class _StandInMemory:
+    """The guest's memory as the readers see it, `fits`, `read` and `write` over a bytearray:
+    no caller and no engine."""
+
+    def __init__(self, size: int) -> None:
+        self.data = bytearray(size)
+        self.size = size
+
+    def fits(self, ptr: int, length: int) -> bool:
+        return ptr + length <= self.size
+
+    def read(self, ptr: int, length: int) -> bytes:
+        return bytes(self.data[ptr : ptr + length])
+
+    def write(self, ptr: int, data: bytes) -> None:
+        self.data[ptr : ptr + len(data)] = data
+
+
+def test_the_memory_readers_answer_over_a_stand_in() -> None:
+    """The four readers of the guest's memory answer as wasmtime reads a pointer, over a
+    stand-in with no caller: a path past the end is EFAULT, one longer than MAX_PATH is
+    ENAMETOOLONG, bytes that are not UTF-8 are EILSEQ, an iovec count over MAX_IOVECS is EINVAL,
+    an iovec past the end is EFAULT, an unaligned result pointer ends the run with an ABI error,
+    and a result that fits is 0."""
+    m = _fs_memory
+    memory = _StandInMemory(64)
+    memory.write(0, b"a.txt\xff")
+    assert m._path(memory, 0, 5) == b"a.txt"
+    assert m._path(memory, 60, 5) == EFAULT
+    assert m._path(_StandInMemory(m.MAX_PATH + 1), 0, m.MAX_PATH + 1) == ENAMETOOLONG
+    assert m._text(b"a.txt") == "a.txt"
+    assert m._text(memory.read(4, 2)) == m.EILSEQ
+    memory.write(16, struct.pack("<IIII", 40, 0, 40, 8))  # an empty buffer, then 8 bytes at 40
+    assert m._iovecs(memory, 16, 2) == (40, 8)
+    assert m._iovecs(memory, 16, m.MAX_IOVECS + 1) == EINVAL
+    assert m._iovecs(memory, 60, 1) == EFAULT
+    memory.write(16, struct.pack("<II", 60, 8))
+    assert m._iovecs(memory, 16, 1) == EFAULT
+    assert m._result(memory, 56, 8, 8) == 0
+    assert m._result(memory, 60, 8, 8) == EFAULT
+    with pytest.raises(wt.WasmtimeError) as raised:
+        m._result(memory, 4, 8, 8)
+    assert getattr(raised.value, "abi", False) is True
+
+
+def test_the_table_reuses_numbers_lowest_first() -> None:
+    """A table built by hand, with a fake context and no handler: a new row takes the lowest
+    free provider number, a dropped row frees its number for the next, an owed row is closed for
+    the guest's count of open files, and the cap answers at the cap and not below it."""
+    base = _fs_memory.PROVIDER_BASE
+    table = _fs_table._Files(
+        [(Mount(MemoryProvider(), "/m"), 3)],
+        [],
+        None,
+        1 << 30,
+        False,
+        open_files=3,
+        context=files.FakeContext(),
+    )
+    mount = table.mounts[0]
+
+    def row(path: str) -> mounts_module._Open:
+        return mounts_module._Open(mount, path, "file")
+
+    assert [table._take(row(f"/{n}")) for n in "abc"] == [base, base + 1, base + 2]
+    assert (table.open_now(), table._at_cap()) == (3, True)
+    table._drop(base)
+    table._drop(base + 1)
+    assert (table.open_now(), table._at_cap()) == (1, False)
+    assert [table._take(row(f"/{n}")) for n in "de"] == [base, base + 1]
+    table._owe(base + 2, table.table[base + 2])
+    assert base + 2 not in table.table and table.open_now() == 2
+    assert table._take(row("/f")) == base + 3  # an owed number is not reused before the ending
+
+
+def test_every_shadowed_call_has_one_handler_function() -> None:
+    """The dispatch is a table equal to the shadowed signatures: each `fd_*` call is one function
+    of the descriptor module and each `path_*` call one of the path module, named `_` and the
+    call, taking the table as `files` first; the two tables are disjoint, and the table class
+    has no method of a handler's name, so no call is reached two ways."""
+    import inspect
+    import types
+
+    fd, path = _fs_descriptors.HANDLERS, _fs_paths.HANDLERS
+    assert set(fd) | set(path) == set(_fs_memory.SIGNATURES)
+    assert not set(fd) & set(path)
+    assert all(name.startswith("fd_") for name in fd)
+    assert all(name.startswith("path_") for name in path)
+    for name, handler in {**fd, **path}.items():
+        assert type(handler) is types.FunctionType, name
+        assert handler.__name__ == "_" + name, name
+        assert next(iter(inspect.signature(handler).parameters)) == "files", name
+        assert not hasattr(_fs_table._Files, "_" + name), name
+    assert _fs_table.HANDLERS == {**fd, **path}
 
 
 def test_a_mount_writes_zero_dirent_padding(placeholder) -> None:
@@ -743,7 +852,7 @@ def test_a_grant_readdir_writes_zero_dirent_padding(tmp_path, monkeypatch) -> No
     every time. A `used` pointer inside the buffer gets wasmtime's count, and the padding is
     zeroed even where that count lands on a d_namlen the walk would follow
     (`buf + 16`) or on padding (`buf + 72`)."""
-    real_forward = mounts_module._Files.forward
+    real_forward = _fs_table._Files.forward
     layout: dict[str, list[int]] = {}  # the entries' offsets, when `used` hides one
 
     def soiled(self, caller, name, args, stat=False):
@@ -754,7 +863,7 @@ def test_a_grant_readdir_writes_zero_dirent_padding(tmp_path, monkeypatch) -> No
                 read = lambda at, n: bytes(page.read(caller, at, at + n))  # noqa: E731
                 write = lambda at, data: page.write(caller, data, at)  # noqa: E731
             else:
-                memory = mounts_module._Memory(caller)
+                memory = _fs_memory._Memory(caller)
                 read, write = memory.read, memory.write
             buf, used = args[1] & 0xFFFFFFFF, args[4] & 0xFFFFFFFF
             data = bytearray(read(buf, struct.unpack("<I", read(used, 4))[0]))
@@ -768,7 +877,7 @@ def test_a_grant_readdir_writes_zero_dirent_padding(tmp_path, monkeypatch) -> No
             write(buf, bytes(data))
         return errno
 
-    monkeypatch.setattr(mounts_module._Files, "forward", soiled)
+    monkeypatch.setattr(_fs_table._Files, "forward", soiled)
     tree = files.write_tree(tmp_path / "tree")
     r = files.Guarded([(tree, "/m", False)]).raw
     d = r.open(3, "d", files.O_DIRECTORY)[1]
@@ -806,19 +915,19 @@ def _over_its_listing(tmp_path, monkeypatch, then=None):
     """A guard over the folder `d` (`.`, `..`, `x.txt`: entries at 0, 25 and 51, 80 bytes) whose
     guest listing, once wasmtime has written it, gets 0xA5 in every entry's padding, as host
     bytes would be; `then(self, caller, name, args, stat)` replaces the guard's own listing."""
-    real = mounts_module._Files.forward
+    real = _fs_table._Files.forward
 
     def forward(self, caller, name, args, stat=False):
         if stat and name == "fd_readdir" and then is not None:
             return then(self, caller, name, args, stat, real)
         errno = real(self, caller, name, args, stat)
         if name == "fd_readdir" and not stat and errno == 0:
-            memory = mounts_module._Memory(caller)
+            memory = _fs_memory._Memory(caller)
             for pos in (0, 25, 51):
                 memory.write((args[1] & 0xFFFFFFFF) + pos + 21, b"\xa5\xa5\xa5")
         return errno
 
-    monkeypatch.setattr(mounts_module._Files, "forward", forward)
+    monkeypatch.setattr(_fs_table._Files, "forward", forward)
     tree = files.write_tree(tmp_path / "tree")
     g = files.Guarded([(tree, "/m", False)])
     d = g.raw.open(3, "d", files.O_DIRECTORY)[1]
@@ -895,24 +1004,21 @@ def test_the_rename_is_forwarded_by_its_plain_names(tmp_path, monkeypatch) -> No
         os.symlink("target", tmp_path / "probe")
     except OSError as e:
         pytest.skip(f"this host cannot make a symbolic link ({e.errno})")
-    real_type, real_forward = mounts_module._Files._source_type, mounts_module._Files.forward
+    real_forward = _fs_table._Files.forward
     forwarded = []
 
-    def swapped(self, caller, fd, source):
-        errno = real_type(self, caller, fd, source)
-        if errno == 0:
+    def recorded(self, caller, name, args, stat=False):
+        if name == "path_rename":
+            memory = _fs_memory._Memory(caller)
+            forwarded.append((memory.read(args[1], args[2]), memory.read(args[4], args[5])))
+        errno = real_forward(self, caller, name, args, stat)
+        source_stat = stat and name == "path_filestat_get" and args[2] == _fs_memory.STAT_PATH
+        if source_stat and errno == 0:  # the guard's stat of the source has seen the folder
             os.rmdir(grant / "d")
             os.symlink("../outside", grant / "d")
         return errno
 
-    def recorded(self, caller, name, args, stat=False):
-        if name == "path_rename":
-            memory = mounts_module._Memory(caller)
-            forwarded.append((memory.read(args[1], args[2]), memory.read(args[4], args[5])))
-        return real_forward(self, caller, name, args, stat)
-
-    monkeypatch.setattr(mounts_module._Files, "_source_type", swapped)
-    monkeypatch.setattr(mounts_module._Files, "forward", recorded)
+    monkeypatch.setattr(_fs_table._Files, "forward", recorded)
     r = files.Guarded([(grant, "/w", True)]).raw
     assert r.rename(3, "d/", 3, "stolen//") == 0
     assert forwarded == [(b"d", b"stolen")]

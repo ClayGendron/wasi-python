@@ -52,17 +52,24 @@ RUNNER_FILES = (
 )
 # The tool protocol's machinery behind its public module: the schema rules and the host side.
 TOOL_FILES = ("_tool_schema.py", "_tool_host.py")
+FILESYSTEM_FILES = (
+    "mounts.py",
+    "_fs_memory.py",
+    "_fs_table.py",
+    "_fs_descriptors.py",
+    "_fs_paths.py",
+)
 INTERNAL_FILES = (
     *RUNNER_FILES,
     "_wasmtime_ffi.py",
-    "mounts.py",
+    *FILESYSTEM_FILES,
     *TOOL_FILES,
     "cli.py",
     "__main__.py",
 )
 INTERNAL_MODULES = tuple(
     f"wasi_python.{f[:-3]}"
-    for f in (*RUNNER_FILES, "_wasmtime_ffi.py", "mounts.py", *TOOL_FILES, "cli.py")
+    for f in (*RUNNER_FILES, "_wasmtime_ffi.py", *FILESYSTEM_FILES, *TOOL_FILES, "cli.py")
 )
 DEFINING = (
     "__init__.py",

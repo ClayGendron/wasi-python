@@ -14,9 +14,10 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 
 from . import _limits, _platform, _zip
 from ._artifacts import Artifacts
+from ._fs_memory import METHODS
 from ._limits import _UNSET
 from ._platform import Identity, _Walked
-from .mounts import METHODS, Mount
+from .mounts import Mount
 
 if TYPE_CHECKING:
     from .runner import Defaults
