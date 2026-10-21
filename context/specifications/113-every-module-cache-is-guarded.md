@@ -845,6 +845,42 @@ the gather's `release-record-1` in `build/113/record-2/`, the run's log `run-396
   row ran on `_Windows`. Per system the suite reads darwin 2046/2054, linux 2046/2054, win32
   724/738 passed (8, 8 and 14 skipped).
 
+### Rebased onto wave 11
+
+On 2026-10-21, onto the wave's tip `33f22580` (main, then 101, 102 at `861d5e4b`, 112 at
+`599a99f9` and 114 at `33f22580`), as the lane sent it; the twelve commits are `97fb4380` to
+`d0cfb633`, then this paragraph's commit. No CI is dispatched; the wave's dry run is the check.
+
+- **Conflicts.** One, in `CHANGELOG.md`: 114's "HOME is never the root" and 113's "Every module
+  cache is guarded" both appended at the end of the unreleased section; both kept, 114's first.
+  `src/wasi_python/_call.py`, `_sessions.py`, `runner.py`, `README.md` and `context/roadmap.md`
+  merged without a conflict: 114's placeholder HOME (`_guest_home`, `_release_home`, after the
+  walk) and 113's `others=_engines._caches(cache)` (in the walk's call) touch different lines.
+  **No hunk changed:** the range-diff shows every commit equal but the CHANGELOG one, and 113's
+  lines added and removed under `src/` and `tests/` are byte for byte the same against
+  `1875d4cd` before and against `33f22580` after (8 files, +782 -65 both ways, compared with
+  `cmp`; `build/113/before.lines`, `after.lines`).
+- **Meaning conflicts.** None. 112's string rule, `test_no_string_names_a_context_document`,
+  passes on the merged tree, and so does all of `tests/checks/test_rules.py`; **no string was
+  reworded** (113's strings outside `src/` are its check file's docstrings and guest programs,
+  which name no specification, review or finding ID).
+- **By node id**, on 114's set (`SHA256SUMS` `60706eed`, through `$WASI_PYTHON_ARTIFACTS`):
+  `tests/checks/test_rules.py`, the thirty-six rows of `tests/unit/test_runner_module_caches.py`,
+  `tests/unit/test_runner_grants.py`, `tests/checks/test_v1_4_embedding.py`, 114's three HOME
+  rows (`test_where_the_runner_makes_no_fresh_home_the_home_is_empty_and_read_only`,
+  `test_a_planted_reportlab_start_up_file_never_runs`, `test_nothing_is_writable_by_default`) and
+  `test_a_bad_grant_is_refused_before_any_work`: **329 passed, 3 skipped, 0 failed** (EXECUTED,
+  `build/113/wave11-nodes.txt`).
+- **The fast tier** (`-n 3`, the lane's slot, released after; `build/113/fast-tier-wave11.txt`):
+  2,909 passed, 51 skipped, 1 failed; 667/935 pass. The ratchet: lost 1, absent 0, gained 25,
+  grew 81, moved 17, **the same five numbers 114's builder recorded on `33f22580` without 113**:
+  - **lost 1:** `test_v1_1_artifact_set.py::test_manifest_recipes_match_the_tree`, the set
+    predating 112's two reworded script lines, which the lane expected; not 113's.
+  - **moved 17:** 102's contourpy rows, claimed by 102.
+  - **grew 81:** 114's claimed growth; 113 changes no artifact byte and no guest fuel.
+  - 113 adds its thirty-six rows: 2,961 rows run here against 114's 2,925.
+- **`_platform.py`** is 1,464 lines after the merge, under 1,500 (114 does not touch it).
+
 ### For the lane, as built
 
 - **Claim list** (each line "113:"): **new checks**, the thirty-six rows of
