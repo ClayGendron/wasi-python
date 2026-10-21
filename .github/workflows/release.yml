@@ -509,7 +509,7 @@ jobs:
         run: scripts/00_download.sh
       - name: Build from the pins
         run: scripts/build.sh
-      - name: The source trees are their tarballs plus the recorded patches (spec 020)
+      - name: The source trees are their tarballs plus the recorded patches
         # All twenty-eight trees must pass (seaborn's sdist the twenty-seventh, statsmodels' the
         # twenty-eighth): a skipped check (a tree not unpacked) would exit 0 too.
         run: |
@@ -856,7 +856,7 @@ jobs:
           echo "WASI_PYTHON_ARTIFACTS=$(uv run python -c "import glob, sys; print(glob.glob(sys.argv[1] + '/wasi-python-*')[0])" "$RUNNER_TEMP/set")" >> "$GITHUB_ENV"
           mkdir -p dist
           cp release-assets/wasi_python-*.whl dist/
-      - name: What the shard needs (the upstream kit and source trees, verified; spec 063, Decision 5)
+      - name: What the shard needs (the upstream kit and source trees, verified)
         env:
           SHARD: ${{ matrix.shard }}
         run: |

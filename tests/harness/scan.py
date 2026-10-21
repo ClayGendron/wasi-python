@@ -3928,7 +3928,7 @@ KEY_RUN = 'uv run --no-project python -I release/set_key.py key >> "$GITHUB_OUTP
 DECIDE_STEP = "Reuse only on a dispatch from a branch other than main"
 SET_CHECK_STEP = "The set is this commit's"
 MOVE_STEP = "The reused set in build/artifacts"
-ZERO_PATCH_STEP = "The source trees are their tarballs plus the recorded patches (spec 020)"
+ZERO_PATCH_STEP = "The source trees are their tarballs plus the recorded patches"
 LOGS_STEP = "Keep the build logs when something fails"
 REUSED_KEY = "${{ needs.inputs.outputs.reuse == 'true' && needs.inputs.outputs.key || '' }}"
 SAVE_IF = "needs.build.outputs.set-source == 'built' && github.ref_type == 'branch'"
