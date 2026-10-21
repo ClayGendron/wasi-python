@@ -159,7 +159,13 @@ a folder of its own: the next call's cache would be the guest's (the review, EXE
 or above any of them is refused as one above the resolved folder is. The prefixes keep their
 `..` (`pathlib` does not collapse it, `os.path.abspath` does): the system walks a link and then
 climbs from where it leads, so `work/a/link/../../c` passes through `work/a` and `link`, which a
-spelling collapsed to `work/c` would leave out (the build review's M1, EXECUTED). This is the same on every
+spelling collapsed to `work/c` would leave out (the build review's M1, EXECUTED). **The limit,
+said in the README:** the folders judged are those on the path as written and those holding a
+link on it; a folder met only inside a link's target, when that target itself climbs through
+another link (`a/link -> ../m/n/..` with `m/n -> x/y`: a writable grant at `m` passes), is not
+judged (the build review's confirmation, L5). The full rule, resolving one component at a time
+and judging every folder that holds a link met on the way, is reserved after 0.1.0 (the lane's
+decision). This is the same on every
 system. It is applied to the caches, which this specification guards. The runner's own code and
 the host Python's folders are named by the runner itself from its own `__file__` and
 `sysconfig`, so a link on their path is the installer's, not an argument's. The artifact set is
@@ -340,6 +346,14 @@ the Windows limit (Decision 5). Both are; the deferral stands.
 >   written, links included), the code of `wasi_python` and
 >   wasmtime-py themselves, and the host Python's own `stdlib`,
 >   `site-packages` (the user's too) and `bin` (or `Scripts`) folders. So …
+
+And after the bullet's "… are refused", added after the build review's confirmation (L5):
+
+> For a cache, the folders judged are those on its path as written and
+> those holding a link on it; a folder reached only inside a link's target,
+> when that target itself climbs through another link, is not judged. So do
+> not spell a cache's path through links that a grant you give an untrusted
+> guest can reach;
 
 **README, the module-cache paragraph** (lines 942 to 947), its first sentences become:
 
@@ -701,6 +715,16 @@ answered in `21cc7296`:
 5. **L4, the docstring says the compare closes the window** — fixed: `_load`'s docstring says it
    narrows, not closes, the window; criterion 12 names "the *Not protected* paragraph holding
    both clauses".
+
+The confirmation (the same reviewer, `872cbf80`, "lands" once run 39644201639 reads green)
+closed M1 and L1 to L4 and raised one Low that does not block:
+
+6. **L5, a link inside another link's target is judged only by where it resolves** — documented
+   now, fixed after 0.1.0 (the lane's decision, 2026-10-21): the README's Safety bullet states
+   the limit and asks that a cache's path not be spelled through links a grant to an untrusted
+   guest can reach; Decision 1 says the same; `../roadmap.md` reserves the full rule (resolve
+   one component at a time, judge every folder holding a link met, a row for this case). No
+   code changes, so no new run.
 
 ## One line
 

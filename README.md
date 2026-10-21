@@ -1080,7 +1080,12 @@ cache, so that it is judged as it will be):
   themselves, and the host Python's own `stdlib`, `site-packages` (the
   user's too) and `bin` (or `Scripts`) folders. So
   `root=Path.home()`, a project folder holding the `.venv` this process runs
-  from or `build/artifacts`, and the temporary folder itself are refused;
+  from or `build/artifacts`, and the temporary folder itself are refused.
+  For a cache, the folders judged are those on its path as written and
+  those holding a link on it; a folder reached only inside a link's target,
+  when that target itself climbs through another link, is not judged. So do
+  not spell a cache's path through links that a grant you give an untrusted
+  guest can reach;
 - any grant, read-only too, at or above the temporary folder is refused: it
   holds every call's private folders and `stdin`;
 - folders are compared by identity (device and inode), never by spelling.
