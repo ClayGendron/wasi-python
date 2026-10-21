@@ -14,6 +14,13 @@ tests are release-tier in two ways, each with its reason in the family's TOML:
   runs `-k "not (K)"`, a keyword release group `-k "K"`, K being the OR of the entries naming
   that file, so within the normal marker each test matches K or does not, never both.
 
+A third way is a package's whole suite: a **smoke family** keeps, in the normal tier, a small
+smoke group per package (each normal group says why in its `smoke` key) and runs every other
+staged test file in path release groups, whole, with no `-m`, ignoring the smoke files under their
+paths (the owner, 2026-10-21: "we need to have fast tests and slow tests. We only run slow tests
+when we are trying to publish to pypi"). Every staged test file is under exactly one smoke path or
+one path release group.
+
 CPython's family says it by regrtest's resources (`regrtest.py`): its release lists name every
 test a normal group skips for the `cpu` or `largefile` resource, and its normal groups prove the
 lists on every run.
@@ -30,7 +37,11 @@ from harness import scoreboard
 # (no network, no database server), as README.md says. Any other name is a test left out, which
 # the owner ruled out: every test runs in one tier or the other.
 EXCLUDABLE = ("network", "db")
-KINDS = ("marker", "keyword")
+KINDS = ("marker", "keyword", "path")
+# A smoke family's smoke groups are small by rule, so the normal tier cannot grow a second suite
+# unnoticed: their measured fuel sums to at most this. A larger selection is a judge change.
+SMOKE_BUDGET = 500 * 10**9
+TEST_FILE = re.compile(r"(?:.*/)?(?:test_[^/]*|[^/]*_test)\.py")
 # pytest's identifier, as its expression scanner reads one
 IDENT = re.compile(r"(?:\w|:|\+|-|\.|\[|\]|\\|/)+")
 OPERATORS = frozenset({"and", "or", "not", "True", "False"})
@@ -118,10 +129,20 @@ def keyword_of(cfg, group) -> str | None:
     return " or ".join(f"({e.keyword})" for e in entries)
 
 
+def is_smoke_family(cfg) -> bool:
+    return any(g.smoke is not None for g in cfg.groups.values())
+
+
+def smoke_paths(cfg) -> list[str]:
+    return [p for g in cfg.groups.values() if g.smoke is not None for p in g.paths]
+
+
 def kind_of(cfg, group) -> str:
     """A pytest release group's kind: `release_by`, or the family's one kind."""
     if group.release_by:
         return group.release_by
+    if is_smoke_family(cfg):
+        return "" if cfg.release_marker else "path"
     if cfg.release_marker and not cfg.release_select:
         return "marker"
     if cfg.release_select and not cfg.release_marker:
@@ -130,17 +151,26 @@ def kind_of(cfg, group) -> str:
 
 
 def marker_of(cfg, group) -> str:
-    """The `-m` expression a group runs."""
+    """The `-m` expression a group runs: a path release group runs every test of its paths."""
     if group.tier == "release" and kind_of(cfg, group) == "marker":
         return cfg.release_marker
+    if group.tier == "release" and kind_of(cfg, group) == "path":
+        return ""
     return cfg.marker
+
+
+def smoke_ignores(cfg, group) -> list[str]:
+    """The smoke paths under a path release group's paths, which it leaves to the normal tier."""
+    if group.tier != "release" or kind_of(cfg, group) != "path":
+        return []
+    return [s for s in smoke_paths(cfg) if any(_covers(p, s) and p != s for p in group.paths)]
 
 
 def tier_filter(cfg, group) -> str | None:
     """The `-k` expression the tier adds: `not (K)` for a normal group over an entry's file, K for
     a keyword release group, None otherwise."""
     k = keyword_of(cfg, group)
-    if k is None:
+    if k is None or kind_of(cfg, group) == "path":
         return None
     if group.tier == "release":
         return k if kind_of(cfg, group) == "keyword" else None
@@ -161,8 +191,9 @@ def keyword_arg(cfg, group, split_keyword: str | None) -> str | None:
 # The rules
 
 
-def rule_errors(pkg: str, cfg) -> list[str]:
+def rule_errors(pkg: str, cfg, members: set[str] | None = None) -> list[str]:
     errors: list[str] = []
+    errors += smoke_errors(pkg, cfg, members)
     groups = list(cfg.groups.values())
     release = [g for g in groups if g.tier == "release"]
     for g in groups:
@@ -204,10 +235,15 @@ def rule_errors(pkg: str, cfg) -> list[str]:
     errors += _select_errors(pkg, cfg)
     for g in release:
         kind = kind_of(cfg, g)
-        if not kind and cfg.release_marker and cfg.release_select:
+        if not kind and cfg.release_marker and (cfg.release_select or is_smoke_family(cfg)):
             errors.append(f"{pkg}: release group {g.name} names no release_by; its family has both")
         elif not kind or (kind == "marker" and not cfg.release_marker):
             errors.append(f"{pkg}: release group {g.name} is of no named kind")
+        elif kind == "path" and not is_smoke_family(cfg):
+            errors.append(
+                f"{pkg}: release group {g.name} is of no named kind (a path group "
+                "belongs to a smoke family)"
+            )
         elif kind == "keyword" and not cfg.release_select:
             errors.append(f"{pkg}: release group {g.name} is of no named kind")
     normal_paths = {p for g in groups if g.tier == "normal" for p in g.paths}
@@ -239,6 +275,67 @@ def rule_errors(pkg: str, cfg) -> list[str]:
                 if other and not (split and split.file == p and other in split.groups):
                     errors.append(f"{pkg}: {p} is in two {kind} release groups: {other}, {g.name}")
                 seen[p] = g.name
+    return errors
+
+
+def smoke_errors(pkg: str, cfg, members: set[str] | None) -> list[str]:
+    """A smoke family's rules: every normal group says why it is the smoke, no path group lies in
+    a smoke path, the smoke stays small, and (with the tarball) every staged test file is in
+    exactly one tier."""
+    errors: list[str] = []
+    for g in cfg.groups.values():
+        if g.smoke is not None and g.tier != "normal":
+            errors.append(f"{pkg}: group {g.name}: smoke on a {g.tier} group")
+    if not is_smoke_family(cfg):
+        return errors
+    for g in cfg.groups.values():
+        if g.tier != "normal":
+            continue
+        if g.smoke is None:
+            errors.append(f"{pkg}: normal group {g.name} carries no smoke, in a smoke family")
+        elif not g.smoke.strip():
+            errors.append(f"{pkg}: group {g.name}: smoke is empty; it says why in words")
+    if cfg.release_select:
+        errors.append(f"{pkg}: a smoke family has no [[release_select]]; it moves whole paths")
+    smoke = smoke_paths(cfg)
+    total = sum(g.measured or 0 for g in cfg.groups.values() if g.smoke is not None)
+    if total > SMOKE_BUDGET:
+        errors.append(
+            f"{pkg}: the smoke groups measure {total / 1e9:.1f} G, past the 500 G smoke budget"
+        )
+    path_groups = [
+        g for g in cfg.groups.values() if g.tier == "release" and kind_of(cfg, g) == "path"
+    ]
+    split_of = getattr(getattr(cfg, "keys", None), "split_of", lambda _: None)
+    for g in path_groups:
+        for p in g.paths:
+            if any(_covers(s, p) for s in smoke):
+                errors.append(f"{pkg}: path release group {g.name}: {p} lies in a smoke path")
+    if members is None:
+        return errors
+    out = {f.split("::", 1)[0] for n in cfg.not_selected for f in n.files}
+    folders = getattr(getattr(cfg, "keys", None), "stage_folders", ())
+    staged = sorted(
+        m
+        for m in members
+        if TEST_FILE.fullmatch(m)
+        and any(_covers(f, m) for f in folders)
+        and not any(_covers(o, m) for o in out)
+    )
+    for s in smoke:
+        if not any(_covers(s, m) for m in staged):
+            errors.append(f"{pkg}: smoke path {s} holds no staged test file")
+    for m in staged:
+        if any(_covers(s, m) for s in smoke):
+            continue
+        holders = {g.name for g in path_groups if any(_covers(p, m) for p in g.paths)}
+        split = {split_of(n) for n in holders}
+        if not holders:
+            errors.append(f"{pkg}: {m} is in no tier: under no smoke path or path release group")
+        elif len(holders) > 1 and not (len(split) == 1 and None not in split):
+            errors.append(
+                f"{pkg}: {m} is under two path release groups: {', '.join(sorted(holders))}"
+            )
     return errors
 
 

@@ -509,3 +509,134 @@ def test_only_a_marker_release_group_may_select_nothing() -> None:
     assert any(
         "only a marker release group may select nothing" in e for e in _errors(_contour(normal))
     )
+
+
+# ---------------------------------------------------------------------------------------------
+# The smoke kind: a package's own suite in the release tier whole, a small smoke group normal
+
+SMOKE = """
+package = "demo"
+driver = "package"
+grant = "/upstream-demo"
+budget = 10_000
+stage_folders = ["pkg"]
+cwd = "/tmp/work"
+
+[groups.demo-smoke]
+paths = ["pkg/a/tests/test_x.py"]
+fuel = 15
+measured = 10
+smoke = "imports the package and runs its core path"
+
+[groups.demo-a]
+paths = ["pkg/a/tests"]
+fuel = 15
+measured = 10
+tier = "release"
+
+[groups.demo-b]
+paths = ["pkg/b/tests"]
+fuel = 15
+measured = 10
+tier = "release"
+"""
+SMOKE_MEMBERS = {
+    "pkg/a/__init__.py",
+    "pkg/a/tests/test_x.py",
+    "pkg/a/tests/test_y.py",
+    "pkg/b/tests/test_z.py",
+}
+
+
+def _smoke_errors(text: str = SMOKE) -> list[str]:
+    cfg = _contour(text)
+    return tiers.rule_errors("demo", cfg, SMOKE_MEMBERS) + packages.split_errors("demo", cfg)
+
+
+def test_a_smoke_family_is_clean_and_its_path_groups_run_whole() -> None:
+    assert _smoke_errors() == []
+    for text in (
+        SMOKE,
+        SMOKE.replace('cwd = "/tmp/work"', 'cwd = "/tmp/work"\nmarker = "not slow"'),
+    ):
+        cfg = _contour(text)
+        args = packages.group_args(cfg, cfg.groups["demo-a"])
+        assert "--ignore=/upstream-demo/tree/pkg/a/tests/test_x.py" in args
+        assert "-m" not in args and not any(a.startswith("-k") for a in args)
+        assert tiers.kind_of(cfg, cfg.groups["demo-a"]) == "path"
+
+
+BAD_SMOKE = [
+    # a staged test file in neither a smoke path nor a path release group
+    (
+        ('[groups.demo-b]\npaths = ["pkg/b/tests"]', '[groups.demo-b]\npaths = ["pkg/b/other"]'),
+        "pkg/b/tests/test_z.py is in no tier",
+    ),
+    # a path release group inside a smoke path
+    (
+        (
+            '[groups.demo-b]\npaths = ["pkg/b/tests"]',
+            '[groups.demo-b]\npaths = ["pkg/b/tests", "pkg/a/tests/test_x.py"]',
+        ),
+        "lies in a smoke path",
+    ),
+    # an empty smoke reason
+    (('smoke = "imports the package and runs its core path"', 'smoke = " "'), "smoke is empty"),
+    # a normal group without smoke in a smoke family
+    (
+        (
+            "[groups.demo-a]\n",
+            '[groups.demo-n]\npaths = ["pkg/c"]\nfuel = 1\nmeasured = 1\n\n[groups.demo-a]\n',
+        ),
+        "demo-n carries no smoke",
+    ),
+    # a keyword selection in a smoke family
+    (
+        (
+            'cwd = "/tmp/work"',
+            'cwd = "/tmp/work"\n[[release_select]]\nfiles = ["pkg/a/tests/test_y.py"]'
+            '\nkeyword = "big"\nreason = "r"',
+        ),
+        "a smoke family has no [[release_select]]",
+    ),
+    # smoke past its budget
+    (("measured = 10\nsmoke", "measured = 600_000_000_000\nsmoke"), "past the 500 G smoke budget"),
+    # a test file under two path release groups
+    (
+        (
+            "[groups.demo-b]\n",
+            '[groups.demo-a2]\npaths = ["pkg/a/tests/test_y.py"]\nfuel = 15\n'
+            'measured = 10\ntier = "release"\n\n[groups.demo-b]\n',
+        ),
+        "under two path release groups",
+    ),
+]
+
+
+@pytest.mark.parametrize(("change", "error"), BAD_SMOKE)
+def test_each_bad_smoke_family_is_named(change, error) -> None:
+    old, new = change
+    assert SMOKE.count(old) == 1, old
+    errors = _smoke_errors(SMOKE.replace(old, new))
+    assert any(error in e for e in errors), errors
+
+
+def test_a_path_group_outside_a_smoke_family_is_of_no_named_kind() -> None:
+    text = NUMPY.replace('tier = "release"', 'tier = "release"\nrelease_by = "path"').replace(
+        'release_marker = "slow"\n', ""
+    )
+    assert any("of no named kind" in e for e in _errors(_numpy(text)))
+
+
+def test_a_smoke_family_with_a_release_marker_needs_it_over_the_smoke_paths() -> None:
+    marked = SMOKE.replace(
+        'cwd = "/tmp/work"', 'cwd = "/tmp/work"\nmarker = "not slow"\nrelease_marker = "slow"'
+    ).replace('tier = "release"\n', 'tier = "release"\nrelease_by = "path"\n')
+    assert any("marker release groups' paths" in e for e in _smoke_errors(marked))
+    guarded = marked + (
+        '\n[groups.demo-smoke-slow]\npaths = ["pkg/a/tests/test_x.py"]\nfuel = 15\nmeasured = 10\n'
+        'tier = "release"\nrelease_by = "marker"\n'
+    )
+    assert _smoke_errors(guarded) == []
+    cfg = _contour(guarded)
+    assert packages.group_args(cfg, cfg.groups["demo-smoke-slow"])[:2] == ["-m", "slow"]

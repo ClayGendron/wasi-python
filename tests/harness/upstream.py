@@ -63,6 +63,7 @@ class Group:
     release_by: str = ""  # a pytest release group's kind, "marker" or "keyword"
     measured: int | None = None  # the fuel a judge run recorded, which bounds the cap
     selects_nothing: str = ""  # a marker release group kept as a guard: why it may run no test
+    smoke: str | None = None  # a smoke family's normal group: why it is the package's smoke
 
 
 @dataclass(frozen=True)
@@ -205,6 +206,7 @@ def group_of(name: str, g: dict) -> Group:
         release_by=g.get("release_by", ""),
         measured=None if measured is None else int(measured),
         selects_nothing=g.get("selects_nothing", ""),
+        smoke=g.get("smoke"),
     )
 
 
@@ -569,14 +571,14 @@ def group_spec(cfg: Config, group: Group) -> dict:
     mine = lambda f: any(f.startswith(p) for p in inside)  # noqa: E731
     ignores = [f for n in cfg.not_selected for f in n.files if mine(f)]
     ignores += [t.node for t in cfg.traps if "::" not in t.node and mine(t.node)]
+    ignores += tiers.smoke_ignores(cfg, group)  # a path release group leaves the smoke files
     deselects = [t.node for t in cfg.traps if "::" in t.node and mine(t.node)]
     deselects += [f.node + "[" for f in cfg.facts(group.name)]  # its cases only
     return {
         "path_packages": cfg.path_packages,
         "markers": cfg.markers,
         "args": [
-            "-m",
-            tiers.marker_of(cfg, group),
+            *(["-m", m] if (m := tiers.marker_of(cfg, group)) or group.tier == "normal" else []),
             *cfg.args,
             *[_abs(p) for p in group.paths],
             *[f"--ignore={_abs(f)}" for f in dict.fromkeys(ignores)],
@@ -934,7 +936,7 @@ def rule_errors(
         errors += fact_errors(pkg, cfg, repo)
         from harness import tiers
 
-        errors += tiers.rule_errors(pkg, cfg)
+        errors += tiers.rule_errors(pkg, cfg, (members or {}).get(pkg))
         seen: set[tuple[str, str]] = set()
         for k in cfg.expected:
             if (k.group, k.id) in seen:

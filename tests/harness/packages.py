@@ -237,6 +237,8 @@ def group_args(cfg: upstream.Config, group: upstream.Group) -> list[str]:
     deselects += [t.node for t in cfg.traps if "::" in t.node and mine(t.node)]
     from harness import tiers
 
+    ignores += tiers.smoke_ignores(cfg, group)
+
     marker = tiers.marker_of(cfg, group)
     args = ["-m", marker] if marker else []
     args += [*cfg.args, *(root + p for p in group.paths)]

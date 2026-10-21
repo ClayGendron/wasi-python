@@ -182,6 +182,25 @@ the set of tests a normal group skips for those two resources equals its release
 entries, by id. A test that reads `cpu` inline and does less work without it is the Principle's
 exception: it runs reduced in its normal group and in full in a release group.
 
+**(d) By the package's whole suite** (a change asked by spec 095, its "For 102: the smoke kind",
+confirmed by 095's delta review, D-M1; the owner, 2026-10-21, `decisions.md` "Fast tests and slow
+tests": "we need to have fast tests and slow tests. We only run slow tests when we are trying to
+publish to pypi, as it is critical we check that our package is working on the libraries we
+import before we release to catch any errors, otherwise we should only run the tests needed to
+confirm our new edits are working."). A **smoke family** keeps, per package, a small normal-tier
+smoke group: each normal group carries `smoke`, its reason in words. Every other staged test file
+runs in a **path release group** (`release_by = "path"`, the fourth kind), whole: no `-m`, no tier
+`-k`, and `--ignore` for each smoke path under its paths. The rules: every normal group of a smoke
+family carries a non-empty `smoke`, and no other group does; a path group is refused outside a
+smoke family, and its path never lies in a smoke path; no path is in two path groups but a split
+file; with the tarball, every staged test file (`test_*.py` or `*_test.py` under a stage folder,
+less `not_selected`) is under exactly one smoke path or else exactly one path group, never two
+(the 095 reviewer's added row), and each smoke path holds one; a smoke family has no
+`[[release_select]]`; with a `release_marker`, the marker release groups' paths are exactly the
+smoke paths, and `release_by` is required; the smoke groups' `measured` sum to at most 500 G
+(`tiers.SMOKE_BUDGET`). numpy's, pandas', contourpy's and CPython's families name no smoke group,
+so their TOMLs, JSON and checks are what (a) to (c) make them.
+
 | family | kind | normal selection (changes in bold) | release selection | reason |
 |---|---|---|---|---|
 | numpy | (a) | `-m "not slow"` | `-m slow` | upstream's own slow marker |
@@ -310,7 +329,9 @@ fuel ratchet.
 per landed specification that changes a release-tier row or what one runs:
 - a specification that adds, removes, moves between tiers, splits, re-caps or re-classes a
   release-tier group writes its block from its branch run with `release-tier: true` (required for
-  it; criterion 6 here) and its own measurements;
+  it; criterion 6 here) and its own measurements, or from its builder's local `--tier release`
+  runs by node id when no branch run runs release groups (asked by 095, by the owner's rule of
+  2026-10-21: "We only run slow tests when we are trying to publish to pypi");
 - a specification that changes a package with release-tier groups (its pin, its recipe, a patch, the
   toolchain) writes a block that names those groups under `changed`, with what it expects, or
   "release tier not run" when it did not dispatch with the tier.
@@ -1007,6 +1028,20 @@ The build, below, as it goes.
    move as Difference 8 says; fixed, both files then green), the ratchet `moved 17` (contourpy's
    seventeen groups, the move to claim) and `grew 84` (the set is wave 09's; accepted.json is
    main's before wave 09).
+
+6. **The smoke kind, asked by spec 095** (Decision 2(d); the lane routed 095's "For 102: the
+   smoke kind", confirmed by 095's delta review at `67521f1f`). Rebased first onto main
+   `1875d4c` (waves 09 and 10: 100, 097, 045, 110, 111 and the oracle-lock rules check), no
+   conflict hunk; ruff, the rules and the tier unit files green after it. Ten unit rows in
+   `tests/unit/test_tiers.py`, seen failing first (`build/102/fail-8-smoke.log`: 10 failed,
+   `rule_errors() takes 2 positional arguments`, no `kind_of` path): a clean three-file smoke
+   family whose path group over `pkg/a/tests` ignores the smoke file and carries no `-m`, with
+   and without a family `marker`; a staged file in no tier; a path group inside a smoke path; an
+   empty `smoke`; a normal group without `smoke`; a `[[release_select]]` in a smoke family; the
+   smoke past 500 G; a test file under two path groups (the 095 reviewer's row); a path group
+   outside a smoke family; a smoke family with a `release_marker` clean only with a marker
+   release group over exactly the smoke path. No family on main names a smoke group, so no JSON
+   and no check changes (the judge's own files' rows unchanged and green).
 
 **What waits for wave 09** (the lane's ruling): the rebase onto main; the survey (Decision 11)
 on main's set after 100 (done, item 5, on wave 09's tip before it landed); the TOML groups,
