@@ -412,21 +412,7 @@ def _make(
     if input_schema is None:
         schema = _derived(name, fn, hints_of, _args_section(doc), fixed)
     else:
-        maker = getattr(input_schema, "model_json_schema", None)
-        given = maker() if callable(maker) else input_schema
-        if not isinstance(given, Mapping):
-            raise TypeError(
-                f"{name}: input_schema must be a dict, or have model_json_schema(); "
-                f"got {type(input_schema).__name__}"
-            )
-        schema = _plain(given, f"{name}: input_schema", 0)
-        props = schema.get("properties")
-        named = sorted(fixed & set(props)) if isinstance(props, dict) else []
-        if named:
-            raise ValueError(
-                f"{name}: input_schema names {', '.join(map(repr, named))}, which the partial "
-                "binds; a bound keyword is fixed, so the guest cannot set it: leave it out"
-            )
+        schema = _given(name, input_schema, fixed)
     nodes = _vet(name, schema, validates_input)
     output = None
     if "return" in hints_of:
@@ -450,6 +436,28 @@ def _make(
         )
     finally:
         _MAKING.reset(making)
+
+
+def _given(name: str, input_schema: Any, fixed: frozenset[str]) -> _Json:
+    """A given input schema as plain JSON, before it is vetted: a model's `model_json_schema()`
+    or the mapping itself, copied. It may not name a keyword a partial binds, which the guest
+    could never set."""
+    maker = getattr(input_schema, "model_json_schema", None)
+    given = maker() if callable(maker) else input_schema
+    if not isinstance(given, Mapping):
+        raise TypeError(
+            f"{name}: input_schema must be a dict, or have model_json_schema(); "
+            f"got {type(input_schema).__name__}"
+        )
+    schema: _Json = _plain(given, f"{name}: input_schema", 0)
+    props = schema.get("properties")
+    named = sorted(fixed & set(props)) if isinstance(props, dict) else []
+    if named:
+        raise ValueError(
+            f"{name}: input_schema names {', '.join(map(repr, named))}, which the partial "
+            "binds; a bound keyword is fixed, so the guest cannot set it: leave it out"
+        )
+    return schema
 
 
 def _is_async_generator(fn: Any) -> bool:
@@ -2186,6 +2194,10 @@ class _ToolHost:
         return head + len(self._tools_array()) + len(b"}")
 
     def _answer(self, seq: int, frame: bytes) -> bytes:
+        """The envelope of a frame: it parses, its id and version, its operation and, for a
+        call, the tool it names; the call itself is `_call_answer`'s. `failed` notes an outcome
+        with the operation and the name this frame has reached, read when it is called, so both
+        are bound here before the call is handed on."""
         size = len(frame)
         op = name = None
 
@@ -2238,6 +2250,21 @@ class _ToolHost:
                 f"no tool named {_echo(raw_name)}; this run offers: {offered}",
                 frame_id,
             )
+        return self._call_answer(seq, t, name, request, frame_id, size, failed)
+
+    def _call_answer(
+        self,
+        seq: int,
+        t: Tool,
+        name: str,
+        request: _Json,
+        frame_id: Any,
+        size: int,
+        failed: Callable[..., bytes],
+    ) -> bytes:
+        """A call's answer once its tool is found: the arguments checked against its schema
+        and its bound keywords, then the work invoked and its outcome noted, once."""
+        op = "call"
         args = request.get("args", {})
         if not isinstance(args, dict):
             return failed(
@@ -2247,7 +2274,7 @@ class _ToolHost:
         if error is not None:
             return failed("invalid_arguments", f"{t.name}: {error}", frame_id)
         for k in args:
-            if k in t._fixed:  # an open schema let a bound keyword through: as unknown (056)
+            if k in t._fixed:  # an open schema let a bound keyword through: refused as unknown
                 message = f"{t.name}: {_where(None)}: unknown argument {_echo(k)}"
                 return failed("invalid_arguments", message, frame_id)
         work = _Work(self, seq, frame_id, t, args)
