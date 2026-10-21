@@ -1,8 +1,11 @@
 # 045 — statsmodels, with formulaic, interface-meta and wrapt
 
-- **Status:** **Built natively, not yet judged** (2026-10-20): rebased onto main `faa9c93` (wave
-  08), set `SHA256SUMS` `f2a3e87d`; the fast tier, the CI run and the hand-over wait for the lane
-  (*Landing notes*). The confirming pre-build review
+- **Status:** **Built** (2026-10-21): rebased onto `dbecd2d` (main plus the structural chain 103
+  to 109), rebuilt from an empty `build/`, set `SHA256SUMS` `14adfa5f`; the fast tier 0 fail
+  (growth only); release run 39533679276 on `7be1837`, red on growth on macOS and on two Windows
+  failures the base has too (*For the lane*). Awaiting its build review. Two findings against
+  Decision 14 are measured and explained there: `python.wasm` +6.87 MB (the bound's ratio was
+  numpy's) and seaborn's job +38.8 M (metadata walks). The confirming pre-build review
   (`../reviews/045-statsmodels-prebuild-confirm-2026-10-20.md`) said "build once M1 is answered";
   its Disposition answers it. Begun on `spec/045-statsmodels` from main `5805af0`, revised against main in *The builder's revision against main* (R1 to R12, written before any code; Decisions 3, 9, 12 and 13 move there, and where a Decision's text below says otherwise, the revision governs); its confirmation round is R12. Questions 80 and 83 are answered (`../decisions.md`). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. **Spec 096's slot scan binds this build too** (the confirming review's L2): spec 096's slot scan is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-18; revised the same day against its pre-build review
   (`../reviews/044-scikit-learn-and-045-statsmodels-spec-2026-10-18.md`): every finding that
@@ -754,6 +757,224 @@ says that findings 5 and 7 to 10 are not confirmed there. A confirming reviewer 
 revision, R2 to R6 above all, before the build. The lane arranges it.
 
 ## Landing notes
+
+### For the lane
+
+**Where it stands (2026-10-21, the second builder).** Rebased onto `dbecd2d` (main plus the
+structural chain 103 to 109, which main fast-forwards to), rebuilt from an empty `build/`,
+judged on the fast tier and by node id, and run once on the release workflow. Every number in
+this part is EXECUTED on this build unless marked. The first build, on main `faa9c93`, is
+written down further below; its numbers are that build's.
+
+**The builder's self-check** (`../reviews/README.md`):
+
+- [x] rebased onto the named base today: `dbecd2d` (the chain's tip on
+  `claude/gallant-ride-9nxxmn`; main fast-forwards to it); the base is in the Status line;
+- [x] CI run dispatched on the code tip and read: run **39533679276** on `7be1837` (the commits
+  after it touch only `README.md` and `context/`). Red lines: macOS own-guest 212 GREW and
+  own-embedding 33 GREW, upstream-macos 1 GREW (cpython-fs), 0 lost, no G7. **Two Windows legs
+  are red and neither is 045's** (below, *Not 045's*); the gather and the publish jobs were
+  skipped, so the run has no `release-record-1`;
+- [x] every number from a measured run on this base, labelled; the growth list is this build's
+  (`build/045/grew-1.txt`, against main's accepted record `72bc5ed6b5`);
+- [x] "For the lane": the claim list, the flags (each reason begins "045:"), the wave kind, the
+  dry-run needs, below;
+- [x] every new check seen failing first: on the set before 045 (`build/045/seen-failing-base.txt`,
+  12 failed, the first build's notes), the unit checks before their code
+  (`build/045/unit-seen-failing.txt`), and the notice check on a notice without `_stl.pyx`
+  lines 3-13 (the confirming review's L5; below). Windows and Linux: the guest checks run on all
+  three systems in the release workflow; the notice and source-tree checks run in the build
+  shard (Linux), none is excluded;
+- [x] no gap added or closed; statsmodels' own suite is reserved to spec 095 (the roadmap's line,
+  `tests/upstream/packages.toml`'s `later` entry);
+- [x] `packages.toml` has its reason lines (statsmodels `later`, closer spec 095; formulaic,
+  interface-meta and wrapt with spec 067); README rows: the sizes row (100.7 / 105.8 / 53.9 MB,
+  this build), the patch count (23), the artifact table, *statsmodels in the guest*, seaborn's
+  statsmodels fits;
+- [x] CHANGELOG under the one unreleased section; no new question;
+- [x] `ruff check`, `ruff format --check` (src, tests), the rules check: green; the fast tier:
+  0 fail, red on growth only (`build/045/fast-1.txt`).
+
+**The rebase onto `dbecd2d`** (89 commits since `faa9c93`: the chain 103 to 109, 110's and 111's
+drafts and their reviews). `git rebase dbecd2d` stopped twice. **Each conflict hunk, and how it
+was resolved:**
+
+- Phase 1 (`8258f2c`), 12 hunks in 10 files. In every one, the chain had reworded a comment
+  to give its reason in words (spec 109's rule), and 045 had added statsmodels to the same
+  comment or list. Each was resolved to the chain's wording with 045's addition written the same
+  way:
+  - `.github/workflows/release.yml`: the zero-patch step's comment, "all twenty-eight trees"
+    (seaborn's sdist the twenty-seventh, statsmodels' the twenty-eighth); the `grep` for
+    `^28 passed` is 045's and unchanged.
+  - `scripts/assemble_artifacts.py`: `WHEELS`, reportlab's line in the chain's words, then
+    045's three wheels.
+  - `scripts/gen_inittab.py`: the docstring's rename paragraph (scikit-learn's **five**, as 045
+    had corrected it, and statsmodels' four).
+  - `scripts/make_stdlib_zip.py`: the docstring's `--drop` paragraph with 045's one-member form.
+  - `scripts/steps/60_link.sh`, two hunks: the header's list of what links (statsmodels added),
+    and the archives-by-import-path comment.
+  - `scripts/steps/70_zip.sh`, two hunks: the header (045's statsmodels sentence after
+    reportlab's; a stray duplicate line, "nothing): no JPEG decoder...", that the first rebase had
+    left in 045's side, dropped) and the four `die` lines of the staged trees.
+  - `tests/checks/test_v1_1_artifact_set.py`: the dotted-builtin comment (statsmodels' 26).
+  - `tests/harness/needs.py`: the list, `statsmodels` after `seaborn`.
+  - `tests/harness/scan.py`: the build-folder list, `statsmodels-build` with a comment in words.
+  - `tests/release_shards.toml`: the node-id comment (scikit-learn's and statsmodels' notice
+    checks).
+- `5819ad8` (the confirming review's commit), 1 hunk: `context/roadmap.md`, the chain's new
+  "Reserved" lines (102 to 111 and the two closers) kept, then 045's wording of the 095 line (statsmodels' suite,
+  the owner's answer) in place of the chain's shorter one.
+- The other three commits applied cleanly.
+- **Found by testing, not a conflict:** the chain's new rules check
+  `test_code_outside_src_names_no_context_document` failed on 32 citations in 045's own comments
+  and docstrings (15 files: "spec 045", "spec 044, Decision 4", "037's" and the like). Each was
+  reworded in `7be1837`, the reason in words and no document named; the decisions keep their
+  numbers, as the chain's own wording does. One docstring line then ran past ruff's length and was
+  rewrapped. No allowance was added.
+
+**The build:** `scripts/build.sh --plain` from an empty `build/` at `7be1837`, all 20 steps in
+17 min 50 s (`build/045/build-2.txt`). Every gate held, with the first build's counts: step 59's
+26 archives; step 60's weak-duplicate gate (296 archives, 21,964 weak names, 0 unreviewed, 0
+stale), the link map (4 required, 3 forbidden, 0 findings), the constructors (158, none new) and
+the target features (11).
+
+**The set:** `SHA256SUMS` hashes to **`14adfa5f…ab5c`**. The three binaries are byte for byte
+the first build's: `python.wasm` 100,661,758 (`380883f22d06bbab`), `python-snapshot.wasm`
+105,765,849 (`25a28831d97b8473`), `python-stdlib.zip` 53,913,735 (`142d6043de861e1c`). Only
+`MANIFEST` differs from `f2a3e87d` (the recipe hashes of the reworded scripts).
+
+**Why `python.wasm` grew 6.87 MB, past Decision 14's bound** (the build review's finding to
+explain; EXECUTED unless marked). The base is main's set as the main tree holds it (`python.wasm`
+93,793,595 bytes, the same size as wave 08's). Measured three ways:
+
+- **By section** (`llvm-size -A` on both binaries, `build/045/size-sections.txt`): CODE
+  +6,064,838, DATA +415,728, the `name` section +366,631, ELEM +13,600, FUNCTION +7,285, TYPE +81.
+  These sum to exactly +6,868,163. No debug section ships.
+- **By archive** (the two link maps, `build/link/python.map`, summed per input;
+  `build/045/size-2.txt`): only 28 inputs changed, the 26 statsmodels archives, `inittab.o`
+  (+1,482) and the linker's own data. **No scipy, OpenBLAS or other archive grew by one byte.**
+  So the `cython_blas` and `cython_lapack` wrappers the state-space modules call were linked
+  already, by scipy; the draft's second candidate is ruled out. The 16 state-space modules are
+  4.50 MB of the 6.36 MB the archives add (71%), the largest `_kalman_filter` 672 KB and
+  `_representation` 629 KB. Each is a Tempita template expanded four times, once per dtype
+  (`s`, `d`, `c`, `z`: `TYPES` in `_kalman_filter.pyx.in`, READ).
+- **By optimisation level** (each of the 26 modules compiled again from its generated C at the
+  build's own command, only `-O3` swapped; `build/045/olevel/sizes.txt`): CODE 6,063,407 at
+  `-O3`, 5,886,567 at `-O2` (-2.9%), 5,520,023 at `-Os` (-9.0%). The `-O3` sum equals the link's
+  CODE growth to 51 bytes, so every function of every module is linked (each is reachable from its
+  module's init) and nothing is dead. The level explains at most 0.54 MB.
+
+**So the bound was wrong, not the build.** Decision 14 took Pyodide's 4.24 MB `.so` times 0.92,
+the ratio numpy and pandas gave. That ratio does not hold for Cython packages: scikit-learn grew
+`python.wasm` by 9.00 MB against Pyodide's 6.0 MB (044's notes), a ratio of 1.50, and statsmodels
+gives 6.87 / 4.24 = 1.62. With 044's ratio the expectation is about +6.4 MB, and the build is 7%
+above it. Why Pyodide's `.so` is smaller is not measured here (INFERRED: Pyodide builds at `-O2`
+and strips the `name` section: about 0.55 MB of this growth together, 0.9 MB had it built at `-Os`). **Nothing is linked that
+need not be:** the 26 modules are statsmodels' own compiled modules, each importable, whole. The
+`name` section is a set-wide choice (14.1 MB of `python.wasm`, of which statsmodels adds
+0.37 MB), not this specification's to change.
+
+**The fast tier** `uv run pytest -m "not slow" -n 3` on this set (`build/045/fast-1.txt`): 671 of
+878 pass, 0 fail, 3 blocked (the prior-art clones, three systems, the wheel), 204 deselected;
+unit suite 1,984 of 1,991 (7 skipped). The ratchet against `72bc5ed6b5`: lost 0, absent 0,
+gained 26 (14 are the chain's rules checks, 12 are 045's), grew 205. The RED is growth only.
+
+**By node id** (`build/045/nodes-1.txt`): 14 passed, 0 failed, among them the golden on both
+binaries, the four behaviour checks on both, `test_left_out_datasets_say_so`,
+`test_hdrboxplot_needs_processes`, `test_statsmodels_says_what_it_lacks`, the two zip checks and
+042's `test_statistical_plots_job_matches_native` (seaborn's statsmodels fits now run, the golden
+unchanged). **`regen.py --check --online`:** all 28 goldens reproduce natively, under hash seeds 0
+and 1 (`build/045/regen-check.txt`; the oracle fetched again into an empty `build/oracle/`).
+
+**The notice check, seen failing (L5):** on a copy of this set's `LICENSES/statsmodels.txt` with
+the `_stl.pyx, lines 3-13` part cut out, `statsmodels_notice_errors` returns "does not hold
+statsmodels/tsa/stl/_stl.pyx, lines 3-13"; on the intact notice, nothing
+(`build/045/l5_probe.py`).
+
+**The numbers Decision 14 and criterion 5 ask for** (fuel from the judge's rows and from
+`wasi-python run`, `build/045/fuel-probes.txt`):
+
+| row | base | this set | change | bound |
+|---|---|---|---|---|
+| `python.wasm` | 93,793,595 | 100,661,758 | +6,868,163 | +2.5 to +5.5 MB: **outside**, explained above |
+| snapshot | 98,682,976 | 105,765,849 | +7,082,873 | — |
+| the zip | 49,771,987 | 53,913,735 | +4,141,748, 588 members | ≤ +4.5 MB, +588: inside |
+| plain start (`test_guest_runs_here[plain]`) | 256,841,790 | 271,934,625 | +15,092,835 (25,668 per member) | ≤ +17.6 M: inside |
+| snapshot start (`[snapshot]`) | 52,070,609 | 53,538,310 | +1,467,701 (2,496 per member) | ≤ +2.1 M: inside |
+| `test_packages_carry_their_metadata[plain]` | 5,946,256,777 | 6,000,469,328 | +54,212,551 | four distributions, ≤ 25 M each: inside |
+| 042's `statistical_plots` (macOS, run 39533679276) | 38,702,920,564 | 38,741,672,028 | +38,751,464 | plain start + 2 M = 17.1 M: **outside** |
+| the golden, plain / snapshot (macOS, the run) | — | 19,847,024,185 / 19,453,687,062 | new | — |
+| `import statsmodels.api`, plain / snapshot | — | 17,386,095,372 / 16,900,084,275 | new | — |
+| `import statsmodels`, plain | — | 273,772,417 | +2.3 M over `pass` | — |
+
+**The seaborn row is a second finding against Decision 14**, smaller and of a known kind. The
+table expected the plain start plus `import statsmodels`. Measured on both sets with the same
+runner (`WASI_PYTHON_ARTIFACTS`): seaborn's own `import statsmodels` costs 0.35 M (seaborn
+imported with statsmodels blocked, against present). The rest is metadata: one walk of every
+distribution (`importlib.metadata.entry_points()`) costs +22.2 M more with the four new
+distributions (842.2 M against 820.0 M), and the job's four `version()` reads +3.9 M. Importing
+matplotlib, scipy.stats, pandas and seaborn pays +24.4 M over the start, most of it, INFERRED,
+such walks inside those imports. Decision 14 counted the metadata cost for 033's and 035's checks
+but not for a job that imports matplotlib.
+
+**The claim list** (against main's accepted record `72bc5ed6b5`; the chain's rows are its own):
+
+- **New checks (14 rows, and a unit file):** `test_v1_3_default_profile.py::test_statistical_models_job_matches_native[plain]`,
+  `[snapshot]` (slow); `::test_statsmodels_reads_its_datasets_from_the_zip[plain]`, `[snapshot]`;
+  `::test_formula_engines_run_pure[plain]`, `[snapshot]`; `::test_statsmodels_modules_are_builtin[plain]`,
+  `[snapshot]`; `::test_left_out_datasets_say_so`; `::test_hdrboxplot_needs_processes`;
+  `::test_statsmodels_says_what_it_lacks`; `test_v1_1_artifact_set.py::test_statsmodels_notice_carries_its_bundled_parts`
+  (the build shard); `::test_left_out_dataset_files_are_not_in_the_zip`;
+  `test_v1_5_rebuild_from_pins.py::test_source_tree_matches_its_tarball[statsmodels]`; and the
+  unit suite's `tests/unit/test_statsmodels_build.py`.
+- **Changed checks:** `test_packages_carry_their_metadata` (four more distributions);
+  `test_dotted_builtins_keep_their_import_names` (statsmodels runs apart, as scipy and
+  scikit-learn); `test_stdlib_c_modules_are_builtin`'s list; the package, licence, source-tree,
+  pin and metadata lists, `MESON_BUILDS`, `JOBS` and `PLATFORM_BOUND`; `packages.toml`'s four
+  entries; two unit fixtures (the step list, the synthetic set); the release tree count 28.
+- **Gaps:** none added, none closed. **Retired:** none. **Passes moved:** none lost.
+- **Rows that grow** (`build/045/grew-1.txt`): the three byte rows above; 202 fuel rows, all up,
+  none down. The largest by share are the zip-directory checks, +8.0% to +10.1%
+  (`test_resources_read_as_zipfile_reads_them` +1.35 G plain: they walk every member, and the
+  zip has 10% more); then each plain start's +15.1 M, 66 rows between +12.1 M and +19.9 M;
+  71 snapshot rows under +2.1 M (the smallest `test_unbuffered_output_survives_a_hard_exit[snapshot]`,
+  +5,671); rows that read metadata or import matplotlib or scipy, up to +162.8 M
+  (`test_scikit_learn_runs_without_threads[plain]`, +1.0%). The macOS legs' 245 GREW lines are
+  the same cause. **One upstream row the fast tier does not run:** macOS's
+  `test_upstream_suite[cpython-fs]`, 63,199,952,331 to 63,457,910,733 (+257,958,402, +0.41%),
+  the zip's directory rebuilt over 588 more members each time the suite invalidates the import
+  caches (044's reading of the same row; the count of rebuilds INFERRED, about five at +52 M
+  each).
+- **Not 045's:** in run 39533679276, `judge (windows-2025, own-embedding)` loses
+  `test_v1_4_embedding.py::test_a_forked_child_is_refused`. It fails the same way on the base's
+  own run 39530569266 (`dbecd2d`) and on spec 097's run 39532775277. `judge (windows-2025,
+  own-runner)` fails the unit test
+  `tests/unit/test_runner_sets.py::test_a_same_size_same_mtime_replacement_is_hashed_again`
+  (3 reads, not 2). It passed on the base's run and fails on spec 100's run 39535794638 too, so
+  it is intermittent on Windows. 045 changes no file under `src/` and neither test. The lane
+  should know both before the wave's dry run (AGENTS.md rule 6b: a check can pass the lane and
+  still fail on Windows).
+
+**The wave:** a package (§5.7: the wave's one package). It lands after the chain, on main's tip
+once main fast-forwards to `dbecd2d`. **Dry-run needs:** the wave's dry run on all three systems,
+its zero-patch job expecting 28 trees; the build review's own run (§5.6) unless it reviews
+`7be1837`'s code exactly, where run 39533679276 is on it.
+
+**The flags** (paste-safe):
+
+```
+--accept "045: statsmodels 0.15.0 built in with formulaic 1.2.2, interface-meta 2.0.1 and wrapt 2.5.1: 26 modules as builtins, four renamed per file, 588 zip members, the golden equal to native on both binaries, sixteen public-domain datasets read from the zip by one carried patch, the thirteen not approved left out and raising FileNotFoundError; the owner approved the six components (decisions.md, 2026-10-20)"
+--accept-judge "045: the statistical_models golden with the oracle's statsmodels pins; four statsmodels behaviour checks on both binaries and three that say what it lacks; the notice check (build shard) and the left-out check; statsmodels, formulaic, interface-meta and wrapt in the package, licence, source-tree, pin and metadata lists, MESON_BUILDS, JOBS, PLATFORM_BOUND and packages.toml, its suite later with spec 095 as its closer; statsmodels' own dotted-builtin run; the release tree count 28"
+--accept-growth "045: python.wasm +6.87 MB and the snapshot +7.08 MB by statsmodels' 26 modules, whole, 4.50 MB of them the four-dtype state-space modules, no other archive grown (the bound's 0.92 ratio is numpy's; Cython packages give 1.5 to 1.6); the zip +4.14 MB by 588 members; every plain start +15.1 M fuel (25,668 per member) and every snapshot start +1.47 M by those members' directory entries; the zip-directory checks walk them, and macOS's cpython-fs suite +258 M (0.41 percent) by rebuilding the zip's directory; four more distributions' metadata, which every metadata walk reads, seaborn's job +38.8 M with it"
+```
+
+**Remaining:** the build review (fresh agent; it explains or confirms both findings against
+Decision 14 above); the lane's acceptance in the wave. Criterion 2's "full build in a clean
+clone" is met by the release workflow's build job (run 39533679276, green, from pins on a clean
+runner) and the two rebuild jobs, not by a local clone; the wheel's bytes are the run's
+`release-assets` (not read here).
+
+### The first build, on main `faa9c93` (superseded by the rebuild above)
 
 **Built natively; not yet judged** (2026-10-20, darwin-arm64). The owner ran out of time for the
 day. On the lane's word the builder finished the one build that was running, wrote it down here,
