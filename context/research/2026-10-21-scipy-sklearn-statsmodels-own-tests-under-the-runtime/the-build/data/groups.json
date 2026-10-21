@@ -1,0 +1,1850 @@
+{
+ "scipy": [
+  {
+   "name": "scipy-smoke-slow-propack-1",
+   "paths": [
+    "scipy/sparse/linalg/tests/test_propack.py"
+   ],
+   "est": 237.3,
+   "cap": 711846089831,
+   "release_by": "marker"
+  },
+  {
+   "name": "scipy-smoke-slow-propack-2",
+   "paths": [
+    "scipy/sparse/linalg/tests/test_propack.py"
+   ],
+   "est": 277.0,
+   "cap": 831069742696,
+   "release_by": "marker"
+  },
+  {
+   "name": "scipy-smoke-slow-propack-3",
+   "paths": [
+    "scipy/sparse/linalg/tests/test_propack.py"
+   ],
+   "est": 145.8,
+   "cap": 437260145139,
+   "release_by": "marker"
+  },
+  {
+   "name": "scipy-smoke-slow-propack-4",
+   "paths": [
+    "scipy/sparse/linalg/tests/test_propack.py"
+   ],
+   "est": 488.8,
+   "cap": 1466366364004,
+   "release_by": "marker"
+  },
+  {
+   "name": "scipy-smoke-slow-propack-5",
+   "paths": [
+    "scipy/sparse/linalg/tests/test_propack.py"
+   ],
+   "est": 288.3,
+   "cap": 864844159214,
+   "release_by": "marker"
+  },
+  {
+   "name": "scipy-smoke-slow-sampling-1",
+   "paths": [
+    "scipy/stats/tests/test_sampling.py"
+   ],
+   "est": 300.9,
+   "cap": 902671492831,
+   "release_by": "marker"
+  },
+  {
+   "name": "scipy-smoke-slow-sampling-2",
+   "paths": [
+    "scipy/stats/tests/test_sampling.py"
+   ],
+   "est": 248.3,
+   "cap": 744945002719,
+   "release_by": "marker"
+  },
+  {
+   "name": "scipy-smoke-slow-8",
+   "paths": [
+    "scipy/optimize/tests/test_milp.py"
+   ],
+   "est": 363.6,
+   "cap": 1090794945730,
+   "release_by": "marker"
+  },
+  {
+   "name": "scipy-smoke-slow-9",
+   "paths": [
+    "scipy/optimize/tests/test_direct.py",
+    "scipy/sparse/linalg/_dsolve/tests",
+    "scipy/stats/tests/test_contingency.py",
+    "scipy/spatial/tests/test_qhull.py",
+    "scipy/optimize/tests/test_lsq_linear.py",
+    "scipy/special/tests/test_sph_harm.py",
+    "scipy/special/tests/test_cython_special.py",
+    "scipy/special/tests/test_boost_ufuncs.py",
+    "scipy/special/tests/test_ellip_harm.py",
+    "scipy/special/tests/test_specfun.py",
+    "scipy/sparse/tests/test_sparsetools.py",
+    "scipy/sparse/tests/test_csr.py",
+    "scipy/sparse/tests/test_construct.py",
+    "scipy/spatial/tests/test_hausdorff.py",
+    "scipy/spatial/tests/test_spherical_voronoi.py",
+    "scipy/spatial/transform/tests",
+    "scipy/linalg/tests/test_decomp_cholesky.py",
+    "scipy/linalg/tests/test_solve_toeplitz.py",
+    "scipy/linalg/tests/test_matfuncs.py",
+    "scipy/linalg/tests/test_cython_blas.py",
+    "scipy/linalg/tests/test_cython_lapack.py",
+    "scipy/linalg/tests/test_cythonized_array_utils.py",
+    "scipy/linalg/tests/test_decomp_lu.py",
+    "scipy/cluster/hierarchy/tests",
+    "scipy/cluster/vq/tests",
+    "scipy/fft/tests/test_basic.py",
+    "scipy/fftpack/tests/test_pseudo_diffs.py",
+    "scipy/integrate/tests/test_integrate.py",
+    "scipy/interpolate/tests/test_fitpack.py",
+    "scipy/interpolate/tests/test_interpnd.py",
+    "scipy/io/tests/test_mmio.py",
+    "scipy/io/matlab/tests",
+    "scipy/ndimage/tests/test_measurements.py",
+    "scipy/optimize/tests/test_minpack.py",
+    "scipy/optimize/tests/test_lbfgsb_setulb.py",
+    "scipy/optimize/tests/test_lbfgsb_hessinv.py",
+    "scipy/optimize/tests/test_slsqp.py",
+    "scipy/optimize/tests/test_zeros.py",
+    "scipy/optimize/tests/test_linear_assignment.py",
+    "scipy/optimize/tests/test_tnc.py",
+    "scipy/optimize/tests/test_isotonic_regression.py",
+    "scipy/optimize/tests/test__numdiff.py",
+    "scipy/optimize/tests/test_trustregion_krylov.py",
+    "scipy/optimize/tests/test_cython_optimize.py",
+    "scipy/signal/tests/test_max_len_seq.py",
+    "scipy/signal/tests/test_upfirdn.py",
+    "scipy/signal/tests/test_splines.py",
+    "scipy/signal/tests/test_bsplines.py",
+    "scipy/stats/tests/test_qmc.py",
+    "scipy/stats/tests/test_discrete_distns.py"
+   ],
+   "est": 362.9,
+   "cap": 1088768475103,
+   "release_by": "marker"
+  },
+  {
+   "name": "scipy-lib-to-fft",
+   "paths": [
+    "scipy/_lib/tests",
+    "scipy/constants/tests",
+    "scipy/datasets/tests",
+    "scipy/differentiate/tests",
+    "scipy/fft/_duccfft/tests",
+    "scipy/fft/tests"
+   ],
+   "est": 320.7,
+   "cap": 801750000000
+  },
+  {
+   "name": "scipy-fftpack-to-integrate-ivp",
+   "paths": [
+    "scipy/fftpack/tests",
+    "scipy/integrate/_ivp/tests"
+   ],
+   "est": 67.3,
+   "cap": 500000000000
+  },
+  {
+   "name": "scipy-integrate-cubature-1",
+   "paths": [
+    "scipy/integrate/tests/test_cubature.py"
+   ],
+   "est": 360.4,
+   "cap": 1081100008203
+  },
+  {
+   "name": "scipy-integrate-cubature-2",
+   "paths": [
+    "scipy/integrate/tests/test_cubature.py"
+   ],
+   "est": 219.8,
+   "cap": 659370437496
+  },
+  {
+   "name": "scipy-integrate-1",
+   "paths": [
+    "scipy/integrate/tests/test__quad_vec.py",
+    "scipy/integrate/tests/test_banded_ode_solvers.py",
+    "scipy/integrate/tests/test_bvp.py",
+    "scipy/integrate/tests/test_quadrature.py",
+    "scipy/integrate/tests/test_tanhsinh.py"
+   ],
+   "est": 124.3,
+   "cap": 372947991429
+  },
+  {
+   "name": "scipy-interpolate-fitpack2-1",
+   "paths": [
+    "scipy/interpolate/tests/test_fitpack2.py"
+   ],
+   "est": 300.2,
+   "cap": 900701780090
+  },
+  {
+   "name": "scipy-interpolate-fitpack2-2",
+   "paths": [
+    "scipy/interpolate/tests/test_fitpack2.py"
+   ],
+   "est": 470.8,
+   "cap": 1412384564888
+  },
+  {
+   "name": "scipy-interpolate-fitpack2-3",
+   "paths": [
+    "scipy/interpolate/tests/test_fitpack2.py"
+   ],
+   "est": 301.1,
+   "cap": 903391300654
+  },
+  {
+   "name": "scipy-interpolate-gil",
+   "paths": [
+    "scipy/interpolate/tests/test_gil.py"
+   ],
+   "est": 399.6,
+   "cap": 1198791184699
+  },
+  {
+   "name": "scipy-interpolate-1",
+   "paths": [
+    "scipy/interpolate/tests/test_bary_rational.py",
+    "scipy/interpolate/tests/test_bsplines.py",
+    "scipy/interpolate/tests/test_interpolate.py",
+    "scipy/interpolate/tests/test_ndgriddata.py",
+    "scipy/interpolate/tests/test_pade.py",
+    "scipy/interpolate/tests/test_polyint.py",
+    "scipy/interpolate/tests/test_rbf.py"
+   ],
+   "est": 353.4,
+   "cap": 1060280461537
+  },
+  {
+   "name": "scipy-interpolate-2",
+   "paths": [
+    "scipy/interpolate/tests/test_rbfinterp.py",
+    "scipy/interpolate/tests/test_rgi.py"
+   ],
+   "est": 236.7,
+   "cap": 709969380801
+  },
+  {
+   "name": "scipy-io-harwell_boeing-to-io",
+   "paths": [
+    "scipy/io/_harwell_boeing/tests",
+    "scipy/io/arff/tests",
+    "scipy/io/tests"
+   ],
+   "est": 44.3,
+   "cap": 500000000000
+  },
+  {
+   "name": "scipy-linalg",
+   "paths": [
+    "scipy/linalg/tests"
+   ],
+   "est": 553.0,
+   "cap": 1382500000000
+  },
+  {
+   "name": "scipy-ndimage-to-optimize-trustregion_constr",
+   "paths": [
+    "scipy/ndimage/tests",
+    "scipy/optimize/_trustregion_constr/tests"
+   ],
+   "est": 188.2,
+   "cap": 500000000000
+  },
+  {
+   "name": "scipy-optimize-1",
+   "paths": [
+    "scipy/optimize/tests/test__basinhopping.py",
+    "scipy/optimize/tests/test__differential_evolution.py",
+    "scipy/optimize/tests/test__dual_annealing.py",
+    "scipy/optimize/tests/test__linprog_clean_inputs.py",
+    "scipy/optimize/tests/test__remove_redundancy.py",
+    "scipy/optimize/tests/test__root.py",
+    "scipy/optimize/tests/test__shgo.py",
+    "scipy/optimize/tests/test__spectral.py",
+    "scipy/optimize/tests/test_bracket.py",
+    "scipy/optimize/tests/test_chandrupatla.py",
+    "scipy/optimize/tests/test_cobyla.py",
+    "scipy/optimize/tests/test_cobyqa.py",
+    "scipy/optimize/tests/test_constraint_conversion.py",
+    "scipy/optimize/tests/test_constraints.py",
+    "scipy/optimize/tests/test_differentiable_functions.py",
+    "scipy/optimize/tests/test_extending.py",
+    "scipy/optimize/tests/test_hessian_update_strategy.py",
+    "scipy/optimize/tests/test_least_squares.py",
+    "scipy/optimize/tests/test_linesearch.py"
+   ],
+   "est": 372.4,
+   "cap": 1117212528252
+  },
+  {
+   "name": "scipy-optimize-2",
+   "paths": [
+    "scipy/optimize/tests/test_linprog.py",
+    "scipy/optimize/tests/test_lsq_common.py",
+    "scipy/optimize/tests/test_minimize_constrained.py",
+    "scipy/optimize/tests/test_nnls.py",
+    "scipy/optimize/tests/test_nonlin.py"
+   ],
+   "est": 369.0,
+   "cap": 1107074192576
+  },
+  {
+   "name": "scipy-optimize-3",
+   "paths": [
+    "scipy/optimize/tests/test_optimize.py",
+    "scipy/optimize/tests/test_quadratic_assignment.py",
+    "scipy/optimize/tests/test_regression.py",
+    "scipy/optimize/tests/test_trustregion.py",
+    "scipy/optimize/tests/test_trustregion_exact.py"
+   ],
+   "est": 233.9,
+   "cap": 701706900240
+  },
+  {
+   "name": "scipy-signal",
+   "paths": [
+    "scipy/signal/tests/test_array_tools.py",
+    "scipy/signal/tests/test_cont2discrete.py",
+    "scipy/signal/tests/test_czt.py",
+    "scipy/signal/tests/test_dltisys.py",
+    "scipy/signal/tests/test_filter_design.py",
+    "scipy/signal/tests/test_fir_filter_design.py",
+    "scipy/signal/tests/test_ltisys.py",
+    "scipy/signal/tests/test_peak_finding.py",
+    "scipy/signal/tests/test_result_type.py",
+    "scipy/signal/tests/test_savitzky_golay.py",
+    "scipy/signal/tests/test_short_time_fft.py",
+    "scipy/signal/tests/test_spectral.py",
+    "scipy/signal/tests/test_waveforms.py",
+    "scipy/signal/tests/test_wavelets.py",
+    "scipy/signal/tests/test_whittaker.py",
+    "scipy/signal/tests/test_windows.py"
+   ],
+   "est": 452.7,
+   "cap": 1131750000000
+  },
+  {
+   "name": "scipy-signal-conv-method",
+   "paths": [
+    "scipy/signal/tests/test_signaltools.py"
+   ],
+   "cap": 60000000000,
+   "clock": 1000000,
+   "est": 37.9
+  },
+  {
+   "name": "scipy-signal-signaltools",
+   "paths": [
+    "scipy/signal/tests/test_signaltools.py"
+   ],
+   "cap": 1500000000000,
+   "est": 400
+  },
+  {
+   "name": "scipy-sparse-csgraph-to-sparse-linalg-eigen",
+   "paths": [
+    "scipy/sparse/csgraph/tests",
+    "scipy/sparse/linalg/_eigen/arpack/tests",
+    "scipy/sparse/linalg/_eigen/lobpcg/tests",
+    "scipy/sparse/linalg/_eigen/tests"
+   ],
+   "est": 262.7,
+   "cap": 656750000000
+  },
+  {
+   "name": "scipy-sparse-linalg-isolve-iterative-1",
+   "paths": [
+    "scipy/sparse/linalg/_isolve/tests/test_iterative.py"
+   ],
+   "est": 379.2,
+   "cap": 1137724121850
+  },
+  {
+   "name": "scipy-sparse-linalg-isolve-iterative-2",
+   "paths": [
+    "scipy/sparse/linalg/_isolve/tests/test_iterative.py"
+   ],
+   "est": 123.8,
+   "cap": 371461755080
+  },
+  {
+   "name": "scipy-sparse-linalg-isolve-1",
+   "paths": [
+    "scipy/sparse/linalg/_isolve/tests/test_gcrotmk.py",
+    "scipy/sparse/linalg/_isolve/tests/test_lgmres.py",
+    "scipy/sparse/linalg/_isolve/tests/test_lsmr.py",
+    "scipy/sparse/linalg/_isolve/tests/test_lsqr.py",
+    "scipy/sparse/linalg/_isolve/tests/test_minres.py",
+    "scipy/sparse/linalg/_isolve/tests/test_utils.py"
+   ],
+   "est": 37.2,
+   "cap": 300000000000
+  },
+  {
+   "name": "scipy-sparse-linalg",
+   "paths": [
+    "scipy/sparse/linalg/tests"
+   ],
+   "est": 2822.7,
+   "cap": 7056750000000
+  },
+  {
+   "name": "scipy-sparse-64bit-1",
+   "paths": [
+    "scipy/sparse/tests/test_64bit.py"
+   ],
+   "est": 276.2,
+   "cap": 828621000026
+  },
+  {
+   "name": "scipy-sparse-64bit-2",
+   "paths": [
+    "scipy/sparse/tests/test_64bit.py"
+   ],
+   "est": 303.7,
+   "cap": 911138236258
+  },
+  {
+   "name": "scipy-sparse-64bit-3",
+   "paths": [
+    "scipy/sparse/tests/test_64bit.py"
+   ],
+   "est": 254.9,
+   "cap": 764741824839
+  },
+  {
+   "name": "scipy-sparse-base-1",
+   "paths": [
+    "scipy/sparse/tests/test_base.py"
+   ],
+   "est": 378.8,
+   "cap": 1136547301687
+  },
+  {
+   "name": "scipy-sparse-base-2",
+   "paths": [
+    "scipy/sparse/tests/test_base.py"
+   ],
+   "est": 71.2,
+   "cap": 213724197726
+  },
+  {
+   "name": "scipy-sparse-1",
+   "paths": [
+    "scipy/sparse/tests/test_arithmetic1d.py",
+    "scipy/sparse/tests/test_array_api.py",
+    "scipy/sparse/tests/test_common1d.py",
+    "scipy/sparse/tests/test_coo.py",
+    "scipy/sparse/tests/test_csc.py",
+    "scipy/sparse/tests/test_dok.py",
+    "scipy/sparse/tests/test_extract.py",
+    "scipy/sparse/tests/test_indexing1d.py",
+    "scipy/sparse/tests/test_matrix_io.py",
+    "scipy/sparse/tests/test_minmax1d.py",
+    "scipy/sparse/tests/test_spfuncs.py",
+    "scipy/sparse/tests/test_sputils.py"
+   ],
+   "est": 55.0,
+   "cap": 300000000000
+  },
+  {
+   "name": "scipy-spatial",
+   "paths": [
+    "scipy/spatial/tests"
+   ],
+   "est": 348.8,
+   "cap": 872000000000
+  },
+  {
+   "name": "scipy-special-cdflib-1",
+   "paths": [
+    "scipy/special/tests/test_cdflib.py"
+   ],
+   "est": 287.4,
+   "cap": 862094815969
+  },
+  {
+   "name": "scipy-special-cdflib-2",
+   "paths": [
+    "scipy/special/tests/test_cdflib.py"
+   ],
+   "est": 312.1,
+   "cap": 936156468612
+  },
+  {
+   "name": "scipy-special-cdflib-3",
+   "paths": [
+    "scipy/special/tests/test_cdflib.py"
+   ],
+   "est": 117.4,
+   "cap": 352291831963
+  },
+  {
+   "name": "scipy-special-mpmath-1",
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "est": 373.2,
+   "cap": 1119512967736
+  },
+  {
+   "name": "scipy-special-mpmath-2",
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "est": 360.7,
+   "cap": 1082122623489
+  },
+  {
+   "name": "scipy-special-mpmath-3",
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "est": 330.7,
+   "cap": 992241976411
+  },
+  {
+   "name": "scipy-special-mpmath-4",
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "est": 415.1,
+   "cap": 1245345861644
+  },
+  {
+   "name": "scipy-special-mpmath-5",
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "est": 268.9,
+   "cap": 806728344021
+  },
+  {
+   "name": "scipy-special-mpmath-6",
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "est": 354.4,
+   "cap": 1063067929154
+  },
+  {
+   "name": "scipy-special-mpmath-7",
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "est": 165.7,
+   "cap": 497179420206
+  },
+  {
+   "name": "scipy-special-mpmath-betainc",
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "est": 63.3,
+   "cap": 200000000000,
+   "clock": 100000
+  },
+  {
+   "name": "scipy-special-mpmath-betaincc",
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "est": 26.8,
+   "cap": 200000000000,
+   "clock": 100000
+  },
+  {
+   "name": "scipy-special-mpmath-8",
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "est": 16760.1,
+   "cap": 20000000000000
+  },
+  {
+   "name": "scipy-special-1",
+   "paths": [
+    "scipy/special/tests/test_basic.py",
+    "scipy/special/tests/test_bdtr.py",
+    "scipy/special/tests/test_boxcox.py",
+    "scipy/special/tests/test_cdft_asymptotic.py",
+    "scipy/special/tests/test_cephes_intp_cast.py",
+    "scipy/special/tests/test_cosine_distr.py",
+    "scipy/special/tests/test_data.py",
+    "scipy/special/tests/test_digamma.py",
+    "scipy/special/tests/test_erfinv.py",
+    "scipy/special/tests/test_exponential_integrals.py",
+    "scipy/special/tests/test_extending.py",
+    "scipy/special/tests/test_faddeeva.py",
+    "scipy/special/tests/test_gamma.py",
+    "scipy/special/tests/test_gammainc.py",
+    "scipy/special/tests/test_gen_harmonic.py",
+    "scipy/special/tests/test_hyp2f1.py",
+    "scipy/special/tests/test_hypergeometric.py",
+    "scipy/special/tests/test_iv_ratio.py",
+    "scipy/special/tests/test_kolmogorov.py",
+    "scipy/special/tests/test_lambertw.py",
+    "scipy/special/tests/test_legendre.py",
+    "scipy/special/tests/test_log1mexp.py",
+    "scipy/special/tests/test_loggamma.py",
+    "scipy/special/tests/test_logit.py",
+    "scipy/special/tests/test_logsumexp.py",
+    "scipy/special/tests/test_nan_inputs.py",
+    "scipy/special/tests/test_ndtr.py",
+    "scipy/special/tests/test_ndtri_exp.py",
+    "scipy/special/tests/test_orthogonal.py",
+    "scipy/special/tests/test_orthogonal_eval.py",
+    "scipy/special/tests/test_owens_t.py",
+    "scipy/special/tests/test_pcf.py",
+    "scipy/special/tests/test_pdtr.py",
+    "scipy/special/tests/test_powm1.py",
+    "scipy/special/tests/test_precompute_expn_asy.py",
+    "scipy/special/tests/test_precompute_gammainc.py",
+    "scipy/special/tests/test_precompute_utils.py",
+    "scipy/special/tests/test_sf_error.py",
+    "scipy/special/tests/test_sici.py",
+    "scipy/special/tests/test_spence.py",
+    "scipy/special/tests/test_spfun_stats.py",
+    "scipy/special/tests/test_spherical_bessel.py",
+    "scipy/special/tests/test_support_alternative_backends.py",
+    "scipy/special/tests/test_trig.py",
+    "scipy/special/tests/test_ufunc_infra.py",
+    "scipy/special/tests/test_ufunc_signatures.py",
+    "scipy/special/tests/test_wright_bessel.py",
+    "scipy/special/tests/test_wrightomega.py",
+    "scipy/special/tests/test_zeta.py"
+   ],
+   "est": 317.9,
+   "cap": 20000000000000
+  },
+  {
+   "name": "scipy-stats-axis-nan-policy-1",
+   "paths": [
+    "scipy/stats/tests/test_axis_nan_policy.py"
+   ],
+   "est": 116.7,
+   "cap": 350193940967
+  },
+  {
+   "name": "scipy-stats-axis-nan-policy-2",
+   "paths": [
+    "scipy/stats/tests/test_axis_nan_policy.py"
+   ],
+   "est": 303.9,
+   "cap": 911562768401
+  },
+  {
+   "name": "scipy-stats-axis-nan-policy-3",
+   "paths": [
+    "scipy/stats/tests/test_axis_nan_policy.py"
+   ],
+   "est": 327.9,
+   "cap": 983753362481
+  },
+  {
+   "name": "scipy-stats-axis-nan-policy-4",
+   "paths": [
+    "scipy/stats/tests/test_axis_nan_policy.py"
+   ],
+   "est": 355.9,
+   "cap": 1067805314595
+  },
+  {
+   "name": "scipy-stats-axis-nan-policy-5",
+   "paths": [
+    "scipy/stats/tests/test_axis_nan_policy.py"
+   ],
+   "est": 372.8,
+   "cap": 1118318274513
+  },
+  {
+   "name": "scipy-stats-axis-nan-policy-6",
+   "paths": [
+    "scipy/stats/tests/test_axis_nan_policy.py"
+   ],
+   "est": 251.6,
+   "cap": 754911210701
+  },
+  {
+   "name": "scipy-stats-continuous-1",
+   "paths": [
+    "scipy/stats/tests/test_continuous.py"
+   ],
+   "est": 265.4,
+   "cap": 796221411748
+  },
+  {
+   "name": "scipy-stats-continuous-2",
+   "paths": [
+    "scipy/stats/tests/test_continuous.py"
+   ],
+   "est": 172.2,
+   "cap": 516457278794
+  },
+  {
+   "name": "scipy-stats-continuous-3",
+   "paths": [
+    "scipy/stats/tests/test_continuous.py"
+   ],
+   "est": 868.1,
+   "cap": 2604258497190
+  },
+  {
+   "name": "scipy-stats-continuous-4",
+   "paths": [
+    "scipy/stats/tests/test_continuous.py"
+   ],
+   "est": 224.4,
+   "cap": 673108826742
+  },
+  {
+   "name": "scipy-stats-continuous-5",
+   "paths": [
+    "scipy/stats/tests/test_continuous.py"
+   ],
+   "est": 248.3,
+   "cap": 744890419069
+  },
+  {
+   "name": "scipy-stats-continuous-6",
+   "paths": [
+    "scipy/stats/tests/test_continuous.py"
+   ],
+   "est": 248.5,
+   "cap": 745503936327
+  },
+  {
+   "name": "scipy-stats-continuous-7",
+   "paths": [
+    "scipy/stats/tests/test_continuous.py"
+   ],
+   "est": 275.9,
+   "cap": 827715331791
+  },
+  {
+   "name": "scipy-stats-continuous-8",
+   "paths": [
+    "scipy/stats/tests/test_continuous.py"
+   ],
+   "est": 217.3,
+   "cap": 651840208961
+  },
+  {
+   "name": "scipy-stats-continuous-basic-1",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 144.7,
+   "cap": 434041377577
+  },
+  {
+   "name": "scipy-stats-continuous-basic-2",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 369.9,
+   "cap": 1109729032900
+  },
+  {
+   "name": "scipy-stats-continuous-basic-3",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 1407.2,
+   "cap": 4221491530105
+  },
+  {
+   "name": "scipy-stats-continuous-basic-4",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 162.1,
+   "cap": 486394899020
+  },
+  {
+   "name": "scipy-stats-continuous-basic-5",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 847.9,
+   "cap": 2543724735888
+  },
+  {
+   "name": "scipy-stats-continuous-basic-6",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 78.6,
+   "cap": 235875113078
+  },
+  {
+   "name": "scipy-stats-continuous-basic-7",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 463.6,
+   "cap": 1390924706123
+  },
+  {
+   "name": "scipy-stats-continuous-basic-8",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 969.7,
+   "cap": 2909176866978
+  },
+  {
+   "name": "scipy-stats-continuous-basic-9",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 207.1,
+   "cap": 621164321680
+  },
+  {
+   "name": "scipy-stats-continuous-basic-10",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 490.5,
+   "cap": 1471500050690
+  },
+  {
+   "name": "scipy-stats-continuous-basic-11",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 203.4,
+   "cap": 610120996409
+  },
+  {
+   "name": "scipy-stats-continuous-basic-12",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 1586.2,
+   "cap": 4758728654343
+  },
+  {
+   "name": "scipy-stats-continuous-basic-13",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 37.2,
+   "cap": 200000000000
+  },
+  {
+   "name": "scipy-stats-continuous-basic-14",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 2345.2,
+   "cap": 7035697879245
+  },
+  {
+   "name": "scipy-stats-continuous-basic-15",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 1786.3,
+   "cap": 5358953608916
+  },
+  {
+   "name": "scipy-stats-continuous-basic-16",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 324.3,
+   "cap": 972914552713
+  },
+  {
+   "name": "scipy-stats-continuous-basic-17",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 359.9,
+   "cap": 1079666653126
+  },
+  {
+   "name": "scipy-stats-continuous-basic-18",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 175.5,
+   "cap": 526478065551
+  },
+  {
+   "name": "scipy-stats-continuous-basic-19",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 366.6,
+   "cap": 1099912747020
+  },
+  {
+   "name": "scipy-stats-continuous-basic-20",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 273.1,
+   "cap": 819330581304
+  },
+  {
+   "name": "scipy-stats-continuous-basic-21",
+   "paths": [
+    "scipy/stats/tests/test_continuous_basic.py"
+   ],
+   "est": 377.1,
+   "cap": 1131202156434
+  },
+  {
+   "name": "scipy-stats-distributions-1",
+   "paths": [
+    "scipy/stats/tests/test_distributions.py"
+   ],
+   "est": 265.7,
+   "cap": 797039439635
+  },
+  {
+   "name": "scipy-stats-distributions-2",
+   "paths": [
+    "scipy/stats/tests/test_distributions.py"
+   ],
+   "est": 231.5,
+   "cap": 694581955152
+  },
+  {
+   "name": "scipy-stats-distributions-3",
+   "paths": [
+    "scipy/stats/tests/test_distributions.py"
+   ],
+   "est": 341.7,
+   "cap": 1025063568404
+  },
+  {
+   "name": "scipy-stats-fit-1",
+   "paths": [
+    "scipy/stats/tests/test_fit.py"
+   ],
+   "est": 359.3,
+   "cap": 1077826101352
+  },
+  {
+   "name": "scipy-stats-fit-2",
+   "paths": [
+    "scipy/stats/tests/test_fit.py"
+   ],
+   "est": 362.3,
+   "cap": 1087028869974
+  },
+  {
+   "name": "scipy-stats-fit-3",
+   "paths": [
+    "scipy/stats/tests/test_fit.py"
+   ],
+   "est": 96.2,
+   "cap": 288637650902
+  },
+  {
+   "name": "scipy-stats-fit-4",
+   "paths": [
+    "scipy/stats/tests/test_fit.py"
+   ],
+   "est": 1390.3,
+   "cap": 4170774054683
+  },
+  {
+   "name": "scipy-stats-fit-5",
+   "paths": [
+    "scipy/stats/tests/test_fit.py"
+   ],
+   "est": 380.1,
+   "cap": 20000000000000
+  },
+  {
+   "name": "scipy-stats-1",
+   "paths": [
+    "scipy/stats/tests/test_binned_statistic.py",
+    "scipy/stats/tests/test_censored_data.py",
+    "scipy/stats/tests/test_continued_fraction.py",
+    "scipy/stats/tests/test_continuous_fit_censored.py",
+    "scipy/stats/tests/test_correlation.py",
+    "scipy/stats/tests/test_crosstab.py",
+    "scipy/stats/tests/test_device_dtype.py",
+    "scipy/stats/tests/test_discrete_basic.py",
+    "scipy/stats/tests/test_entropy.py",
+    "scipy/stats/tests/test_fast_gen_inversion.py",
+    "scipy/stats/tests/test_hypotests.py",
+    "scipy/stats/tests/test_kdeoth.py",
+    "scipy/stats/tests/test_marray.py",
+    "scipy/stats/tests/test_mgc.py",
+    "scipy/stats/tests/test_morestats.py",
+    "scipy/stats/tests/test_mstats_basic.py",
+    "scipy/stats/tests/test_mstats_extras.py",
+    "scipy/stats/tests/test_multicomp.py",
+    "scipy/stats/tests/test_multivariate.py",
+    "scipy/stats/tests/test_new_distributions.py",
+    "scipy/stats/tests/test_odds_ratio.py",
+    "scipy/stats/tests/test_quantile.py",
+    "scipy/stats/tests/test_rank.py",
+    "scipy/stats/tests/test_relative_risk.py",
+    "scipy/stats/tests/test_resampling.py",
+    "scipy/stats/tests/test_sensitivity_analysis.py",
+    "scipy/stats/tests/test_stats.py",
+    "scipy/stats/tests/test_survival.py",
+    "scipy/stats/tests/test_tukeylambda_stats.py",
+    "scipy/stats/tests/test_variation.py"
+   ],
+   "est": 113.7,
+   "cap": 20000000000000
+  }
+ ],
+ "scikit-learn": [
+  {
+   "name": "scikit-learn-loss-to-cross_decomposition",
+   "paths": [
+    "sklearn/_loss/tests",
+    "sklearn/callback/tests",
+    "sklearn/cluster/tests",
+    "sklearn/compose/tests",
+    "sklearn/covariance/tests",
+    "sklearn/cross_decomposition/tests"
+   ],
+   "est": 323.0,
+   "cap": 807500000000
+  },
+  {
+   "name": "scikit-learn-datasets",
+   "paths": [
+    "sklearn/datasets/tests"
+   ],
+   "est": 70.0,
+   "cap": 500000000000
+  },
+  {
+   "name": "scikit-learn-decomposition-pca-1",
+   "paths": [
+    "sklearn/decomposition/tests/test_pca.py"
+   ],
+   "est": 376.3,
+   "cap": 1128754334335
+  },
+  {
+   "name": "scikit-learn-decomposition-pca-2",
+   "paths": [
+    "sklearn/decomposition/tests/test_pca.py"
+   ],
+   "est": 33.9,
+   "cap": 200000000000
+  },
+  {
+   "name": "scikit-learn-decomposition-1",
+   "paths": [
+    "sklearn/decomposition/tests/test_dict_learning.py",
+    "sklearn/decomposition/tests/test_factor_analysis.py",
+    "sklearn/decomposition/tests/test_fastica.py",
+    "sklearn/decomposition/tests/test_incremental_pca.py",
+    "sklearn/decomposition/tests/test_kernel_pca.py",
+    "sklearn/decomposition/tests/test_nmf.py"
+   ],
+   "est": 336.2,
+   "cap": 1008654879800
+  },
+  {
+   "name": "scikit-learn-decomposition-2",
+   "paths": [
+    "sklearn/decomposition/tests/test_sparse_pca.py",
+    "sklearn/decomposition/tests/test_truncated_svd.py"
+   ],
+   "est": 100.8,
+   "cap": 302432966493
+  },
+  {
+   "name": "scikit-learn-ensemble-hist_gradient_boosting",
+   "paths": [
+    "sklearn/ensemble/_hist_gradient_boosting/tests"
+   ],
+   "est": 225.7,
+   "cap": 564250000000
+  },
+  {
+   "name": "scikit-learn-ensemble-forest-1",
+   "paths": [
+    "sklearn/ensemble/tests/test_forest.py"
+   ],
+   "est": 364.1,
+   "cap": 1092319816883
+  },
+  {
+   "name": "scikit-learn-ensemble-forest-2",
+   "paths": [
+    "sklearn/ensemble/tests/test_forest.py"
+   ],
+   "est": 209.4,
+   "cap": 628225196647
+  },
+  {
+   "name": "scikit-learn-ensemble-1",
+   "paths": [
+    "sklearn/ensemble/tests/test_bagging.py",
+    "sklearn/ensemble/tests/test_base.py",
+    "sklearn/ensemble/tests/test_bootstrap.py",
+    "sklearn/ensemble/tests/test_common.py",
+    "sklearn/ensemble/tests/test_gradient_boosting.py"
+   ],
+   "est": 311.4,
+   "cap": 934253371023
+  },
+  {
+   "name": "scikit-learn-ensemble-2",
+   "paths": [
+    "sklearn/ensemble/tests/test_iforest.py",
+    "sklearn/ensemble/tests/test_stacking.py",
+    "sklearn/ensemble/tests/test_voting.py",
+    "sklearn/ensemble/tests/test_weight_boosting.py"
+   ],
+   "est": 286.6,
+   "cap": 859911621954
+  },
+  {
+   "name": "scikit-learn-experimental-to-gaussian_process",
+   "paths": [
+    "sklearn/experimental/tests",
+    "sklearn/feature_extraction/tests",
+    "sklearn/feature_selection/tests",
+    "sklearn/frozen/tests",
+    "sklearn/gaussian_process/tests"
+   ],
+   "est": 284.6,
+   "cap": 711500000000
+  },
+  {
+   "name": "scikit-learn-impute-to-inspection-plot",
+   "paths": [
+    "sklearn/impute/tests",
+    "sklearn/inspection/_plot/tests"
+   ],
+   "est": 250.6,
+   "cap": 626500000000
+  },
+  {
+   "name": "scikit-learn-inspection",
+   "paths": [
+    "sklearn/inspection/tests"
+   ],
+   "est": 348.8,
+   "cap": 872000000000
+  },
+  {
+   "name": "scikit-learn-linear_model-glm",
+   "paths": [
+    "sklearn/linear_model/_glm/tests"
+   ],
+   "est": 273.1,
+   "cap": 682750000000
+  },
+  {
+   "name": "scikit-learn-linear_model-1",
+   "paths": [
+    "sklearn/linear_model/tests/test_bayes.py",
+    "sklearn/linear_model/tests/test_common.py",
+    "sklearn/linear_model/tests/test_coordinate_descent.py",
+    "sklearn/linear_model/tests/test_huber.py",
+    "sklearn/linear_model/tests/test_least_angle.py",
+    "sklearn/linear_model/tests/test_linear_loss.py",
+    "sklearn/linear_model/tests/test_logistic.py",
+    "sklearn/linear_model/tests/test_omp.py",
+    "sklearn/linear_model/tests/test_passive_aggressive.py"
+   ],
+   "est": 369.1,
+   "cap": 1107218695288
+  },
+  {
+   "name": "scikit-learn-linear_model-2",
+   "paths": [
+    "sklearn/linear_model/tests/test_quantile.py",
+    "sklearn/linear_model/tests/test_ransac.py",
+    "sklearn/linear_model/tests/test_ridge.py"
+   ],
+   "est": 332.3,
+   "cap": 996851821915
+  },
+  {
+   "name": "scikit-learn-linear_model-3",
+   "paths": [
+    "sklearn/linear_model/tests/test_sgd.py",
+    "sklearn/linear_model/tests/test_sparse_coordinate_descent.py",
+    "sklearn/linear_model/tests/test_theil_sen.py"
+   ],
+   "est": 219.4,
+   "cap": 658139677645
+  },
+  {
+   "name": "scikit-learn-manifold",
+   "paths": [
+    "sklearn/manifold/tests"
+   ],
+   "est": 288.8,
+   "cap": 722000000000
+  },
+  {
+   "name": "scikit-learn-metrics-plot",
+   "paths": [
+    "sklearn/metrics/_plot/tests"
+   ],
+   "est": 120.0,
+   "cap": 500000000000
+  },
+  {
+   "name": "scikit-learn-metrics",
+   "paths": [
+    "sklearn/metrics/tests"
+   ],
+   "est": 374.4,
+   "cap": 936000000000
+  },
+  {
+   "name": "scikit-learn-mixture",
+   "paths": [
+    "sklearn/mixture/tests"
+   ],
+   "est": 63.8,
+   "cap": 500000000000
+  },
+  {
+   "name": "scikit-learn-model_selection-1",
+   "paths": [
+    "sklearn/model_selection/tests/test_classification_threshold.py",
+    "sklearn/model_selection/tests/test_plot.py",
+    "sklearn/model_selection/tests/test_search.py"
+   ],
+   "est": 300.6,
+   "cap": 901853500512
+  },
+  {
+   "name": "scikit-learn-model_selection-2",
+   "paths": [
+    "sklearn/model_selection/tests/test_split.py",
+    "sklearn/model_selection/tests/test_successive_halving.py"
+   ],
+   "est": 261.0,
+   "cap": 783038540003
+  },
+  {
+   "name": "scikit-learn-model_selection-3",
+   "paths": [
+    "sklearn/model_selection/tests/test_validation.py"
+   ],
+   "est": 181.5,
+   "cap": 544623505101
+  },
+  {
+   "name": "scikit-learn-neighbors-to-neural_network",
+   "paths": [
+    "sklearn/neighbors/tests",
+    "sklearn/neural_network/tests"
+   ],
+   "est": 207.0,
+   "cap": 517500000000
+  },
+  {
+   "name": "scikit-learn-preprocessing-to-semi_supervised",
+   "paths": [
+    "sklearn/preprocessing/tests",
+    "sklearn/semi_supervised/tests"
+   ],
+   "est": 277.7,
+   "cap": 694250000000
+  },
+  {
+   "name": "scikit-learn-tests-common-1",
+   "paths": [
+    "sklearn/tests/test_common.py"
+   ],
+   "est": 370.7,
+   "cap": 1112125483546
+  },
+  {
+   "name": "scikit-learn-tests-common-2",
+   "paths": [
+    "sklearn/tests/test_common.py"
+   ],
+   "est": 368.1,
+   "cap": 1104249696850
+  },
+  {
+   "name": "scikit-learn-tests-common-3",
+   "paths": [
+    "sklearn/tests/test_common.py"
+   ],
+   "est": 275.2,
+   "cap": 825686424707
+  },
+  {
+   "name": "scikit-learn-tests-common-4",
+   "paths": [
+    "sklearn/tests/test_common.py"
+   ],
+   "est": 306.9,
+   "cap": 920709543879
+  },
+  {
+   "name": "scikit-learn-tests-common-5",
+   "paths": [
+    "sklearn/tests/test_common.py"
+   ],
+   "est": 121.9,
+   "cap": 365637551579
+  },
+  {
+   "name": "scikit-learn-tests-metaestimators-metadata-routing-1",
+   "paths": [
+    "sklearn/tests/test_metaestimators_metadata_routing.py"
+   ],
+   "est": 368.2,
+   "cap": 1104592118099
+  },
+  {
+   "name": "scikit-learn-tests-metaestimators-metadata-routing-2",
+   "paths": [
+    "sklearn/tests/test_metaestimators_metadata_routing.py"
+   ],
+   "est": 92.7,
+   "cap": 278147797855
+  },
+  {
+   "name": "scikit-learn-tests-1",
+   "paths": [
+    "sklearn/tests/test_base.py",
+    "sklearn/tests/test_build.py",
+    "sklearn/tests/test_calibration.py",
+    "sklearn/tests/test_check_build.py",
+    "sklearn/tests/test_config.py",
+    "sklearn/tests/test_discriminant_analysis.py",
+    "sklearn/tests/test_docstring_parameters.py",
+    "sklearn/tests/test_docstring_parameters_consistency.py",
+    "sklearn/tests/test_docstrings.py",
+    "sklearn/tests/test_dummy.py",
+    "sklearn/tests/test_init.py",
+    "sklearn/tests/test_kernel_approximation.py",
+    "sklearn/tests/test_kernel_ridge.py",
+    "sklearn/tests/test_metadata_routing.py",
+    "sklearn/tests/test_metaestimators.py",
+    "sklearn/tests/test_min_dependencies_consistency.py",
+    "sklearn/tests/test_multiclass.py",
+    "sklearn/tests/test_multioutput.py",
+    "sklearn/tests/test_naive_bayes.py",
+    "sklearn/tests/test_pipeline.py",
+    "sklearn/tests/test_public_functions.py",
+    "sklearn/tests/test_random_projection.py"
+   ],
+   "est": 379.7,
+   "cap": 1139005904690
+  },
+  {
+   "name": "scikit-learn-tree",
+   "paths": [
+    "sklearn/tree/tests"
+   ],
+   "est": 152.9,
+   "cap": 500000000000
+  },
+  {
+   "name": "scikit-learn-utils",
+   "paths": [
+    "sklearn/utils/tests"
+   ],
+   "est": 336.0,
+   "cap": 840000000000
+  }
+ ],
+ "statsmodels": [
+  {
+   "name": "statsmodels-base-to-datasets",
+   "paths": [
+    "statsmodels/base/tests",
+    "statsmodels/compat/tests",
+    "statsmodels/datasets/tests"
+   ],
+   "est": 205.8,
+   "cap": 514500000000
+  },
+  {
+   "name": "statsmodels-discrete-count-model-1",
+   "paths": [
+    "statsmodels/discrete/tests/test_count_model.py"
+   ],
+   "est": 358.2,
+   "cap": 1074709765233
+  },
+  {
+   "name": "statsmodels-discrete-count-model-2",
+   "paths": [
+    "statsmodels/discrete/tests/test_count_model.py"
+   ],
+   "est": 372.2,
+   "cap": 1116638353746
+  },
+  {
+   "name": "statsmodels-discrete-discrete-1",
+   "paths": [
+    "statsmodels/discrete/tests/test_discrete.py"
+   ],
+   "est": 378.1,
+   "cap": 1134238002394
+  },
+  {
+   "name": "statsmodels-discrete-discrete-2",
+   "paths": [
+    "statsmodels/discrete/tests/test_discrete.py"
+   ],
+   "est": 74.4,
+   "cap": 223197135283
+  },
+  {
+   "name": "statsmodels-discrete-1",
+   "paths": [
+    "statsmodels/discrete/tests/test_conditional.py",
+    "statsmodels/discrete/tests/test_diagnostic.py",
+    "statsmodels/discrete/tests/test_predict.py",
+    "statsmodels/discrete/tests/test_sandwich_cov.py"
+   ],
+   "est": 192.6,
+   "cap": 577778382612
+  },
+  {
+   "name": "statsmodels-discrete-2",
+   "paths": [
+    "statsmodels/discrete/tests/test_truncated_model.py"
+   ],
+   "est": 240.7,
+   "cap": 722199069523
+  },
+  {
+   "name": "statsmodels-distributions-copula-to-duration",
+   "paths": [
+    "statsmodels/distributions/copula/tests",
+    "statsmodels/distributions/tests",
+    "statsmodels/duration/tests"
+   ],
+   "est": 202.5,
+   "cap": 506250000000
+  },
+  {
+   "name": "statsmodels-emplike",
+   "paths": [
+    "statsmodels/emplike/tests"
+   ],
+   "est": 465.7,
+   "cap": 1164250000000
+  },
+  {
+   "name": "statsmodels-gam",
+   "paths": [
+    "statsmodels/gam/tests"
+   ],
+   "est": 302.4,
+   "cap": 756000000000
+  },
+  {
+   "name": "statsmodels-genmod",
+   "paths": [
+    "statsmodels/genmod/tests"
+   ],
+   "est": 439.2,
+   "cap": 1098000000000
+  },
+  {
+   "name": "statsmodels-graphics-to-multivariate-factor_rotation",
+   "paths": [
+    "statsmodels/graphics/tests",
+    "statsmodels/imputation/tests",
+    "statsmodels/miscmodels/tests",
+    "statsmodels/multivariate/factor_rotation/tests"
+   ],
+   "est": 297.6,
+   "cap": 744000000000
+  },
+  {
+   "name": "statsmodels-multivariate",
+   "paths": [
+    "statsmodels/multivariate/tests"
+   ],
+   "est": 209.1,
+   "cap": 522750000000
+  },
+  {
+   "name": "statsmodels-nonparametric-1",
+   "paths": [
+    "statsmodels/nonparametric/tests/test_asymmetric.py",
+    "statsmodels/nonparametric/tests/test_bandwidths.py",
+    "statsmodels/nonparametric/tests/test_kde.py",
+    "statsmodels/nonparametric/tests/test_kernel_density.py"
+   ],
+   "est": 314.9,
+   "cap": 944739834663
+  },
+  {
+   "name": "statsmodels-nonparametric-2",
+   "paths": [
+    "statsmodels/nonparametric/tests/test_kernel_regression.py",
+    "statsmodels/nonparametric/tests/test_kernels.py"
+   ],
+   "est": 370.5,
+   "cap": 1111616461351
+  },
+  {
+   "name": "statsmodels-othermod",
+   "paths": [
+    "statsmodels/othermod/tests"
+   ],
+   "est": 35.9,
+   "cap": 500000000000
+  },
+  {
+   "name": "statsmodels-regression-lme-1",
+   "paths": [
+    "statsmodels/regression/tests/test_lme.py"
+   ],
+   "est": 378.4,
+   "cap": 1135296423608
+  },
+  {
+   "name": "statsmodels-regression-lme-2",
+   "paths": [
+    "statsmodels/regression/tests/test_lme.py"
+   ],
+   "est": 264.9,
+   "cap": 794818732085
+  },
+  {
+   "name": "statsmodels-regression-1",
+   "paths": [
+    "statsmodels/regression/tests/test_cov.py",
+    "statsmodels/regression/tests/test_dimred.py",
+    "statsmodels/regression/tests/test_glsar_gretl.py",
+    "statsmodels/regression/tests/test_glsar_stata.py",
+    "statsmodels/regression/tests/test_predict.py"
+   ],
+   "est": 56.4,
+   "cap": 300000000000
+  },
+  {
+   "name": "statsmodels-regression-2",
+   "paths": [
+    "statsmodels/regression/tests/test_processreg.py",
+    "statsmodels/regression/tests/test_quantile_regression.py",
+    "statsmodels/regression/tests/test_recursive_ls.py"
+   ],
+   "est": 379.2,
+   "cap": 1137537880919
+  },
+  {
+   "name": "statsmodels-regression-3",
+   "paths": [
+    "statsmodels/regression/tests/test_robustcov.py",
+    "statsmodels/regression/tests/test_rolling.py",
+    "statsmodels/regression/tests/test_theil.py",
+    "statsmodels/regression/tests/test_tools.py"
+   ],
+   "est": 310.5,
+   "cap": 931547756311
+  },
+  {
+   "name": "statsmodels-robust",
+   "paths": [
+    "statsmodels/robust/tests"
+   ],
+   "est": 423.5,
+   "cap": 1058750000000
+  },
+  {
+   "name": "statsmodels-sandbox-distributions-to-stats-libqsturng",
+   "paths": [
+    "statsmodels/sandbox/distributions/tests",
+    "statsmodels/sandbox/nonparametric/tests",
+    "statsmodels/sandbox/panel/tests",
+    "statsmodels/sandbox/regression/tests",
+    "statsmodels/sandbox/stats/tests",
+    "statsmodels/sandbox/tests",
+    "statsmodels/sandbox/tools/tests",
+    "statsmodels/sandbox/tsa/tests",
+    "statsmodels/stats/libqsturng/tests"
+   ],
+   "est": 157.4,
+   "cap": 500000000000
+  },
+  {
+   "name": "statsmodels-stats-1",
+   "paths": [
+    "statsmodels/stats/tests/test_anova.py",
+    "statsmodels/stats/tests/test_anova_rm.py",
+    "statsmodels/stats/tests/test_base.py",
+    "statsmodels/stats/tests/test_contingency_tables.py",
+    "statsmodels/stats/tests/test_contrast.py",
+    "statsmodels/stats/tests/test_correlation.py",
+    "statsmodels/stats/tests/test_corrpsd.py",
+    "statsmodels/stats/tests/test_covariance.py",
+    "statsmodels/stats/tests/test_deltacov.py",
+    "statsmodels/stats/tests/test_descriptivestats.py",
+    "statsmodels/stats/tests/test_diagnostic.py",
+    "statsmodels/stats/tests/test_diagnostic_other.py",
+    "statsmodels/stats/tests/test_dist_dependant_measures.py",
+    "statsmodels/stats/tests/test_effectsize.py",
+    "statsmodels/stats/tests/test_gof.py",
+    "statsmodels/stats/tests/test_groups_sw.py",
+    "statsmodels/stats/tests/test_inference_tools.py",
+    "statsmodels/stats/tests/test_influence.py",
+    "statsmodels/stats/tests/test_inter_rater.py"
+   ],
+   "est": 362.9,
+   "cap": 1088826273791
+  },
+  {
+   "name": "statsmodels-stats-2",
+   "paths": [
+    "statsmodels/stats/tests/test_knockoff.py",
+    "statsmodels/stats/tests/test_lilliefors.py",
+    "statsmodels/stats/tests/test_limited_iteration_mixin.py"
+   ],
+   "est": 350.3,
+   "cap": 1051001170880
+  },
+  {
+   "name": "statsmodels-stats-3",
+   "paths": [
+    "statsmodels/stats/tests/test_mediation.py",
+    "statsmodels/stats/tests/test_meta.py",
+    "statsmodels/stats/tests/test_moment_helpers.py"
+   ],
+   "est": 350.3,
+   "cap": 1051001164947
+  },
+  {
+   "name": "statsmodels-stats-proportion-1",
+   "paths": [
+    "statsmodels/stats/tests/test_proportion.py"
+   ],
+   "est": 354.0,
+   "cap": 1061950540121
+  },
+  {
+   "name": "statsmodels-stats-proportion-2",
+   "paths": [
+    "statsmodels/stats/tests/test_proportion.py"
+   ],
+   "est": 366.7,
+   "cap": 1100024498130
+  },
+  {
+   "name": "statsmodels-stats-proportion-3",
+   "paths": [
+    "statsmodels/stats/tests/test_proportion.py"
+   ],
+   "est": 114.7,
+   "cap": 344020013665
+  },
+  {
+   "name": "statsmodels-stats-4",
+   "paths": [
+    "statsmodels/stats/tests/test_multi.py",
+    "statsmodels/stats/tests/test_multivariate.py",
+    "statsmodels/stats/tests/test_multivariate_tools.py",
+    "statsmodels/stats/tests/test_nonparametric.py",
+    "statsmodels/stats/tests/test_oneway.py",
+    "statsmodels/stats/tests/test_outliers_influence.py",
+    "statsmodels/stats/tests/test_pairwise.py",
+    "statsmodels/stats/tests/test_panel_robustcov.py",
+    "statsmodels/stats/tests/test_power.py",
+    "statsmodels/stats/tests/test_qsturng.py",
+    "statsmodels/stats/tests/test_rates_poisson.py",
+    "statsmodels/stats/tests/test_regularized_covariance.py",
+    "statsmodels/stats/tests/test_robust_compare.py",
+    "statsmodels/stats/tests/test_sandwich.py",
+    "statsmodels/stats/tests/test_statstools.py",
+    "statsmodels/stats/tests/test_tabledist.py",
+    "statsmodels/stats/tests/test_tost.py",
+    "statsmodels/stats/tests/test_weightstats.py"
+   ],
+   "est": 261.4,
+   "cap": 784234609716
+  },
+  {
+   "name": "statsmodels-tests-to-treatment",
+   "paths": [
+    "statsmodels/tests",
+    "statsmodels/tools/tests",
+    "statsmodels/tools/validation/tests",
+    "statsmodels/treatment/tests"
+   ],
+   "est": 321.3,
+   "cap": 803250000000
+  },
+  {
+   "name": "statsmodels-tsa-ardl",
+   "paths": [
+    "statsmodels/tsa/ardl/tests"
+   ],
+   "est": 438.8,
+   "cap": 1097000000000
+  },
+  {
+   "name": "statsmodels-tsa-arima-estimators-to-tsa-base",
+   "paths": [
+    "statsmodels/tsa/arima/estimators/tests",
+    "statsmodels/tsa/base/tests"
+   ],
+   "est": 57.2,
+   "cap": 500000000000
+  },
+  {
+   "name": "statsmodels-tsa-forecasting",
+   "paths": [
+    "statsmodels/tsa/forecasting/tests"
+   ],
+   "est": 363.2,
+   "cap": 908000000000
+  },
+  {
+   "name": "statsmodels-tsa-holtwinters",
+   "paths": [
+    "statsmodels/tsa/holtwinters/tests"
+   ],
+   "est": 334.3,
+   "cap": 835750000000
+  },
+  {
+   "name": "statsmodels-tsa-interp-to-tsa-regime_switching",
+   "paths": [
+    "statsmodels/tsa/interp/tests",
+    "statsmodels/tsa/regime_switching/tests"
+   ],
+   "est": 114.2,
+   "cap": 500000000000
+  },
+  {
+   "name": "statsmodels-tsa-statespace-1",
+   "paths": [
+    "statsmodels/tsa/statespace/tests/test_cfa_simulation_smoothing.py",
+    "statsmodels/tsa/statespace/tests/test_cfa_tvpvar.py",
+    "statsmodels/tsa/statespace/tests/test_chandrasekhar.py",
+    "statsmodels/tsa/statespace/tests/test_collapsed.py",
+    "statsmodels/tsa/statespace/tests/test_concentrated.py",
+    "statsmodels/tsa/statespace/tests/test_conserve_memory.py",
+    "statsmodels/tsa/statespace/tests/test_decompose.py",
+    "statsmodels/tsa/statespace/tests/test_dynamic_factor.py",
+    "statsmodels/tsa/statespace/tests/test_dynamic_factor_mq.py",
+    "statsmodels/tsa/statespace/tests/test_dynamic_factor_mq_frbny_nowcast.py",
+    "statsmodels/tsa/statespace/tests/test_dynamic_factor_mq_monte_carlo.py",
+    "statsmodels/tsa/statespace/tests/test_exact_diffuse_filtering.py",
+    "statsmodels/tsa/statespace/tests/test_exponential_smoothing.py"
+   ],
+   "est": 364.0,
+   "cap": 1092141122988
+  },
+  {
+   "name": "statsmodels-tsa-statespace-2",
+   "paths": [
+    "statsmodels/tsa/statespace/tests/test_fixed_params.py",
+    "statsmodels/tsa/statespace/tests/test_forecasting.py",
+    "statsmodels/tsa/statespace/tests/test_impulse_responses.py",
+    "statsmodels/tsa/statespace/tests/test_initialization.py",
+    "statsmodels/tsa/statespace/tests/test_kalman.py",
+    "statsmodels/tsa/statespace/tests/test_mlemodel.py",
+    "statsmodels/tsa/statespace/tests/test_models.py",
+    "statsmodels/tsa/statespace/tests/test_multivariate_switch_univariate.py",
+    "statsmodels/tsa/statespace/tests/test_news.py",
+    "statsmodels/tsa/statespace/tests/test_options.py",
+    "statsmodels/tsa/statespace/tests/test_pickle.py",
+    "statsmodels/tsa/statespace/tests/test_prediction.py",
+    "statsmodels/tsa/statespace/tests/test_representation.py"
+   ],
+   "est": 178.1,
+   "cap": 534363505344
+  },
+  {
+   "name": "statsmodels-tsa-statespace-3",
+   "paths": [
+    "statsmodels/tsa/statespace/tests/test_sarimax.py",
+    "statsmodels/tsa/statespace/tests/test_save.py",
+    "statsmodels/tsa/statespace/tests/test_simulate.py"
+   ],
+   "est": 364.0,
+   "cap": 1092141122988
+  },
+  {
+   "name": "statsmodels-tsa-statespace-4",
+   "paths": [
+    "statsmodels/tsa/statespace/tests/test_smoothing.py",
+    "statsmodels/tsa/statespace/tests/test_structural.py",
+    "statsmodels/tsa/statespace/tests/test_univariate.py",
+    "statsmodels/tsa/statespace/tests/test_var.py",
+    "statsmodels/tsa/statespace/tests/test_varmax.py",
+    "statsmodels/tsa/statespace/tests/test_weights.py"
+   ],
+   "est": 300.5,
+   "cap": 901482594077
+  },
+  {
+   "name": "statsmodels-tsa-stl",
+   "paths": [
+    "statsmodels/tsa/stl/tests"
+   ],
+   "est": 127.4,
+   "cap": 500000000000
+  },
+  {
+   "name": "statsmodels-tsa-1",
+   "paths": [
+    "statsmodels/tsa/tests/test_adfuller_lag.py",
+    "statsmodels/tsa/tests/test_adfvalues.py",
+    "statsmodels/tsa/tests/test_ar.py",
+    "statsmodels/tsa/tests/test_arima_process.py",
+    "statsmodels/tsa/tests/test_bds.py"
+   ],
+   "est": 371.4,
+   "cap": 1114086733019
+  },
+  {
+   "name": "statsmodels-tsa-2",
+   "paths": [
+    "statsmodels/tsa/tests/test_deterministic.py",
+    "statsmodels/tsa/tests/test_exponential_smoothing.py",
+    "statsmodels/tsa/tests/test_seasonal.py"
+   ],
+   "est": 296.0,
+   "cap": 888036528098
+  },
+  {
+   "name": "statsmodels-tsa-3",
+   "paths": [
+    "statsmodels/tsa/tests/test_stattools.py",
+    "statsmodels/tsa/tests/test_tsa_tools.py",
+    "statsmodels/tsa/tests/test_varma_process.py",
+    "statsmodels/tsa/tests/test_x13.py"
+   ],
+   "est": 324.0,
+   "cap": 972141734758
+  },
+  {
+   "name": "statsmodels-tsa-vector_ar",
+   "paths": [
+    "statsmodels/tsa/vector_ar/tests"
+   ],
+   "est": 269.4,
+   "cap": 673500000000
+  }
+ ]
+}

@@ -1,0 +1,65 @@
+        two_text = one_text + "R passed tests/test_big.py::test_b --\n"
+_ test_a_failed_derived_run_fails_every_group_of_the_family[exit1-the script exited 1] _
+tmp_path = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-7306/test_a_failed_derived_run_fail0')
+    def test_a_failed_derived_run_fails_every_group_of_the_family(
+tarball = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-7306/test_a_failed_derived_run_fail0/scipy-1.0.tar.gz')
+_ test_a_failed_derived_run_fails_every_group_of_the_family[nothing-the script wrote no file] _
+tmp_path = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-7306/test_a_failed_derived_run_fail1')
+    def test_a_failed_derived_run_fails_every_group_of_the_family(
+tarball = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-7306/test_a_failed_derived_run_fail1/scipy-1.0.tar.gz')
+_ test_a_failed_derived_run_fails_every_group_of_the_family[empty-the archive holds no array] _
+tmp_path = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-7306/test_a_failed_derived_run_fail2')
+    def test_a_failed_derived_run_fails_every_group_of_the_family(
+tarball = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-7306/test_a_failed_derived_run_fail2/scipy-1.0.tar.gz')
+_ test_a_failed_derived_run_fails_every_group_of_the_family[link-not a regular file] _
+tmp_path = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-7306/test_a_failed_derived_run_fail3')
+    def test_a_failed_derived_run_fails_every_group_of_the_family(
+tarball = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-7306/test_a_failed_derived_run_fail3/scipy-1.0.tar.gz')
+_ test_a_failed_derived_run_fails_every_group_of_the_family[big-past the 2,541,286 bound] _
+tmp_path = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-7306/test_a_failed_derived_run_fail4')
+    def test_a_failed_derived_run_fails_every_group_of_the_family(
+tarball = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-7306/test_a_failed_derived_run_fail4/scipy-1.0.tar.gz')
+_ test_a_failed_derived_run_fails_every_group_of_the_family[cap-out of fuel at its cap] _
+tmp_path = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-7306/test_a_failed_derived_run_fail5')
+    def test_a_failed_derived_run_fails_every_group_of_the_family(
+tarball = PosixPath('/private/var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/pytest-of-claygendron/pytest-7306/test_a_failed_derived_run_fail5/scipy-1.0.tar.gz')
+FAILED tests/unit/test_packages.py::test_a_shard_fetches_only_its_families_trees[upstream-sci-smoke-a-families5]
+FAILED tests/unit/test_packages.py::test_a_shard_fetches_only_its_families_trees[upstream-sci-smoke-b-families6]
+FAILED tests/unit/test_packages.py::test_package_inits_generates_the_ancestors_paths_and_inits
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[no init]
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[product lacks]
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[script]
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[inputs]
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[output member]
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[output outside]
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[derived cap]
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[no derived_row]
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[group env]
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[env name]
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[env HOME]
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[env PYTHONPATH]
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[env profile]
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[env network]
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[clock normal]
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[clock reason]
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[clock 2 ms]
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[inits not boolean]
+FAILED tests/unit/test_packages.py::test_a_malformed_key_fails_with_its_own_line[paths listed]
+FAILED tests/unit/test_packages.py::test_a_clock_stepped_group_with_two_outcomes_is_red
+FAILED tests/unit/test_packages.py::test_staging_takes_the_ancestors_inits_and_the_support_files
+FAILED tests/unit/test_packages.py::test_a_valid_derived_output_is_staged_and_recorded_on_its_row_alone[demo-a]
+FAILED tests/unit/test_packages.py::test_a_valid_derived_output_is_staged_and_recorded_on_its_row_alone[demo-b]
+FAILED tests/unit/test_packages.py::test_a_failed_derived_run_fails_every_group_of_the_family[exit1-the script exited 1]
+FAILED tests/unit/test_packages.py::test_a_failed_derived_run_fails_every_group_of_the_family[nothing-the script wrote no file]
+FAILED tests/unit/test_packages.py::test_a_failed_derived_run_fails_every_group_of_the_family[empty-the archive holds no array]
+FAILED tests/unit/test_packages.py::test_a_failed_derived_run_fails_every_group_of_the_family[link-not a regular file]
+FAILED tests/unit/test_packages.py::test_a_failed_derived_run_fails_every_group_of_the_family[big-past the 2,541,286 bound]
+FAILED tests/unit/test_packages.py::test_a_failed_derived_run_fails_every_group_of_the_family[cap-out of fuel at its cap]
+FAILED tests/unit/test_packages.py::test_a_differing_pin_fails_the_group_and_never_blocks_it
+FAILED tests/unit/test_packages.py::test_the_smoke_cover_holds_every_compiled_family
+FAILED tests/unit/test_packages.py::test_a_cover_that_names_nothing_real_is_refused["pkg.a" = "pkg/a/tests/test_x.py"-"pkg.a" = "pkg/a/tests/test_y.py"-in no smoke]
+FAILED tests/unit/test_packages.py::test_a_cover_that_names_nothing_real_is_refused[scipy_numeric.py:1 Golden-scipy_numeric.py:1 nowhere-does not hold nowhere]
+FAILED tests/unit/test_packages.py::test_a_cover_that_names_nothing_real_is_refused[release-only: every file of it costs past the bound and no golden line calls it-release-only: -without its reason]
+FAILED tests/unit/test_packages.py::test_a_family_a_smoke_file_must_cover_is_refused_otherwise[release-only: a reason]
+FAILED tests/unit/test_packages.py::test_a_family_a_smoke_file_must_cover_is_refused_otherwise[job tests/jobs/scipy_numeric.py:1 Golden]
+39 failed, 79 passed in 6.40s

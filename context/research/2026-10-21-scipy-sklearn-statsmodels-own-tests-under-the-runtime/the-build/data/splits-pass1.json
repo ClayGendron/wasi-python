@@ -1,0 +1,14 @@
+{
+ "scipy": [
+  {
+   "file": "scipy/signal/tests/test_signaltools.py",
+   "groups": [
+    "scipy-signal-conv-method",
+    "scipy-signal-signaltools"
+   ],
+   "keywords": [
+    "test_choose_conv_method and not _2"
+   ]
+  }
+ ]
+}
