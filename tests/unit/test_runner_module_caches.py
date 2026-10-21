@@ -38,9 +38,13 @@ from wasi_python._process import process
 POSIX = os.name == "posix"
 CALLERS = ("run", "run_async", "Session")
 OWN = ("off", "elsewhere")
-# Whose cache the guest aims at: the one `$WASI_PYTHON_CACHE` names (it exists), or the
-# platform's default under a home folder that holds nothing yet (the cache not made).
-VICTIMS = ("env", "default")
+# Whose cache the guest aims at: the one `$WASI_PYTHON_CACHE` names (it exists); the platform's
+# default under a home folder that holds nothing yet (the cache not made); or that default as a
+# process without this one's `$XDG_CACHE_HOME` or `%LOCALAPPDATA%` computes it, while this
+# process's own default is elsewhere.
+VICTIMS = ("env", "default", "fallback")
+# What a refusal names, so a row knows which cache refused it.
+NAMED = {"env": "$WASI_PYTHON_CACHE", "default": "default folder", "fallback": "default folder"}
 
 # Step 2 of the plant, in a fresh process (nothing compiled in memory): one call with every
 # default, and how many modules it loaded from a cache.
@@ -93,13 +97,29 @@ def _victim(work: Path, victim: str, monkeypatch: pytest.MonkeyPatch) -> tuple[P
     home = work / "home"
     home.mkdir()
     monkeypatch.delenv(_engines.CACHE_ENV, raising=False)
-    monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
-    monkeypatch.delenv("LOCALAPPDATA", raising=False)
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("USERPROFILE", str(home))
-    cache = _platform.PLATFORM.default_cache_dir(Path.home())
+    if victim == "default":
+        monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
+        monkeypatch.delenv("LOCALAPPDATA", raising=False)
+        cache = _platform.PLATFORM.default_cache_dir(Path.home())
+    else:
+        # This process's default is elsewhere; the one without the overrides is under home.
+        monkeypatch.setenv("XDG_CACHE_HOME", str(work / "xdg"))
+        monkeypatch.setenv("LOCALAPPDATA", str(work / "local"))
+        cache = _without_overrides(home)
     assert not cache.exists() and home in cache.parents, cache
     return home, cache
+
+
+def _without_overrides(home: Path, system: str = sys.platform) -> Path:
+    """The platform's default as a process of this user with no `$XDG_CACHE_HOME` or
+    `%LOCALAPPDATA%` computes it."""
+    if system == "win32":
+        return home / "AppData" / "Local" / "wasi_python" / "cache"
+    if system == "darwin":
+        return home / "Library" / "Caches" / "wasi_python"
+    return home / ".cache" / "wasi_python"
 
 
 def _plant_code(target: str) -> str:
@@ -149,8 +169,10 @@ def test_a_writable_grant_over_another_calls_cache_is_refused(
     try:
         exit_code = _call(caller, _plant_code(target), grant, cache_dir)
     except ValueError as e:
-        assert "module cache" in str(e), e
+        assert "module cache" in str(e) and NAMED[victim] in str(e), e
         assert not (cache / _snapshot_name()).exists()
+        if victim != "env":
+            assert not cache.exists(), "a cache the call does not use was made"
         return
     outcome, loaded = _fresh_process_loads()
     pytest.fail(
@@ -160,20 +182,116 @@ def test_a_writable_grant_over_another_calls_cache_is_refused(
     )
 
 
+@pytest.mark.parametrize("where", ["at", "inside"])
+def test_a_writable_grant_at_or_inside_another_calls_cache_is_refused(
+    compiled, work, monkeypatch, where
+) -> None:
+    """The grant is the cache `$WASI_PYTHON_CACHE` names, or a folder inside it, in a call that
+    keeps no cache: refused, naming that cache."""
+    cache = work / "wasi_python"
+    cache.mkdir(mode=0o700)
+    granted = cache if where == "at" else cache / "sub"
+    granted.mkdir(exist_ok=True)
+    monkeypatch.setenv(_engines.CACHE_ENV, str(cache))
+    with pytest.raises(ValueError, match="module cache") as refused:
+        wasi_python.run(
+            ["-c", "pass"], grants=[Grant(str(granted), "/c", writable=True)], cache_dir=False
+        )
+    assert "$WASI_PYTHON_CACHE" in str(refused.value), refused.value
+
+
+@pytest.mark.parametrize("own", ["off", "own"])
+def test_a_cache_reached_through_a_link_in_a_writable_grant_is_refused(
+    compiled, work, monkeypatch, own
+) -> None:
+    """`$WASI_PYTHON_CACHE` names a path through a link that lies in a folder granted writable,
+    while the folder the link resolves to is outside it. The guest could replace the link with a
+    folder of its own, and the next call's cache would be the guest's: refused, whether the call
+    keeps no cache or that cache is its own."""
+    granted, safe = work / "data", work / "safe"
+    granted.mkdir()
+    (safe / "wasi_python").mkdir(parents=True, mode=0o700)
+    try:
+        (granted / "link").symlink_to(safe, target_is_directory=True)
+    except OSError as e:
+        pytest.skip(f"this host cannot make a symbolic link ({e.errno})")
+    monkeypatch.setenv(_engines.CACHE_ENV, str(granted / "link" / "wasi_python"))
+    with pytest.raises(ValueError, match="module cache"):
+        wasi_python.run(
+            ["-c", "pass"],
+            grants=[Grant(str(granted), "/c", writable=True)],
+            cache_dir=False if own == "off" else None,
+        )
+
+
+@pytest.mark.parametrize("own", OWN)
 def test_a_root_still_to_be_made_that_would_hold_a_cache_is_refused(
-    compiled, work, monkeypatch
+    compiled, work, monkeypatch, own
 ) -> None:
     """Neither the root nor `$WASI_PYTHON_CACHE` exists yet, and the cache would lie inside the
-    root once it is made: refused, and neither is made. A root beside it, under the same
-    existing folder, is not refused, and a call with `cache_dir=False` makes no cache."""
+    root once it is made, or the root inside the cache: refused, and neither is made. A root
+    beside it, under the same existing folder, is not refused, and a call that keeps no cache, or
+    keeps its own elsewhere, makes neither `$WASI_PYTHON_CACHE` nor the platform's default."""
     cache = work / "new" / "wasi_python"
+    home = work / "home"
+    home.mkdir()
     monkeypatch.setenv(_engines.CACHE_ENV, str(cache))
-    with pytest.raises(ValueError, match="module cache"):
-        wasi_python.run(["-c", "pass"], root=str(work / "new"), cache_dir=False)
-    assert not (work / "new").exists()
-    done = wasi_python.run(["-c", "pass"], root=str(work / "other"), cache_dir=False)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
+    monkeypatch.delenv("LOCALAPPDATA", raising=False)
+    cache_dir: object = False if own == "off" else str(work / "own-cache")
+    for root in (work / "new", cache / "sub"):
+        with pytest.raises(ValueError, match="module cache"):
+            wasi_python.run(["-c", "pass"], root=str(root), cache_dir=cache_dir)
+        assert not (work / "new").exists(), root
+    done = wasi_python.run(["-c", "pass"], root=str(work / "other"), cache_dir=cache_dir)
     assert done.exit_code == 0, done
     assert not (work / "new").exists()
+    assert not _platform.PLATFORM.default_cache_dir(Path.home()).exists()
+
+
+def test_every_default_a_process_of_this_user_could_compute_is_listed(work, monkeypatch) -> None:
+    """Each platform lists its default as this process computes it and as a process of the same
+    user without `$XDG_CACHE_HOME` or `%LOCALAPPDATA%` computes it; on POSIX also under the home
+    folder the password database gives this user, when `$HOME` says otherwise."""
+    home = work / "home"
+    monkeypatch.setenv("XDG_CACHE_HOME", str(work / "xdg"))
+    monkeypatch.setenv("LOCALAPPDATA", str(work / "local"))
+    linux = set(_platform._Linux().default_cache_dirs(home))
+    assert {work / "xdg" / "wasi_python", _without_overrides(home, "linux")} <= linux, linux
+    darwin = set(_platform._Darwin().default_cache_dirs(home))
+    assert _without_overrides(home, "darwin") in darwin, darwin
+    windows = set(_platform._Windows().default_cache_dirs(home))
+    want = {work / "local" / "wasi_python" / "cache", _without_overrides(home, "win32")}
+    assert want <= windows, windows
+    if POSIX:
+        import pwd
+
+        real = Path(pwd.getpwuid(os.getuid()).pw_dir)
+        assert _without_overrides(real, "linux") in linux, linux
+        assert _without_overrides(real, "darwin") in darwin, darwin
+
+
+def test_a_process_with_no_home_folder_still_runs(compiled, monkeypatch) -> None:
+    """Where no home folder can be found (a container with no `$HOME` and a uid the password
+    database does not list), there is no default cache to judge, and a call that keeps no cache
+    runs."""
+
+    def no_home() -> Path:
+        raise RuntimeError("Could not determine home directory.")
+
+    monkeypatch.delenv(_engines.CACHE_ENV, raising=False)
+    monkeypatch.setattr(Path, "home", staticmethod(no_home))
+    if POSIX:
+        import pwd
+
+        def unlisted(uid: int) -> object:
+            raise KeyError(f"getpwuid(): uid not found: {uid}")
+
+        monkeypatch.setattr(pwd, "getpwuid", unlisted)
+    done = wasi_python.run(["-c", "pass"], cache_dir=False)
+    assert done.exit_code == 0, done
 
 
 # The cache's own checks, on a module of a few bytes: no artifact set needed.
@@ -265,3 +383,54 @@ def test_a_cwasm_that_is_a_link_is_never_loaded(work) -> None:
     counts, _ = _miss(binary, cache, digest)
     assert counts["loaded"] == 0 and counts["compiled"] == 1, counts
     assert real.read_bytes() == _serialized()  # never written through
+
+
+def test_a_cwasm_with_a_second_name_is_never_loaded(work) -> None:
+    """A hard link in the cache to a compiled module at 0600 elsewhere: a guest can make one
+    (WASI's `path_link`) without writing a byte, and the file it names keeps its mode and owner.
+    The runner's own files have one name; one with two is not loaded, on any system, and the
+    file elsewhere is never written through."""
+    binary, digest = _tiny(work)
+    cache = work / "cache"
+    cache.mkdir(mode=0o700)
+    real = work / "elsewhere.cwasm"
+    real.write_bytes(_serialized())
+    real.chmod(0o600)
+    os.link(real, cache / _name(digest))
+    counts, _ = _miss(binary, cache, digest)
+    assert counts["loaded"] == 0 and counts["compiled"] == 1, counts
+    assert real.read_bytes() == _serialized()
+
+
+def test_a_folder_at_a_cwasm_name_is_skipped_not_raised(work) -> None:
+    """A folder where a `.cwasm` would be, as a guest's `mkdir` could leave it: the module is
+    compiled and kept in memory, the call goes on, and the folder is left as it is."""
+    binary, digest = _tiny(work)
+    cache = work / "cache"
+    cache.mkdir(mode=0o700)
+    (cache / _name(digest)).mkdir()
+    counts, _ = _miss(binary, cache, digest)
+    assert counts == {"compiled": 1, "loaded": 0, "written": 0}, counts
+    assert (cache / _name(digest)).is_dir()
+
+
+def test_a_cache_folder_that_is_a_link_is_not_used(work) -> None:
+    """The cache folder is a link (a symbolic link on POSIX, a junction on Windows) to a folder
+    at 0700 holding a `.cwasm` at 0600: not used on any system; on Windows the folder's kind is
+    one of the two things the cache can check there."""
+    binary, digest = _tiny(work)
+    real = work / "real"
+    real.mkdir(mode=0o700)
+    planted = real / _name(digest)
+    planted.write_bytes(_serialized())
+    planted.chmod(0o600)
+    cache = work / "cache"
+    if POSIX:
+        cache.symlink_to(real, target_is_directory=True)
+    else:
+        import _winapi
+
+        _winapi.CreateJunction(str(real), str(cache))
+    counts, _ = _miss(binary, cache, digest)
+    assert counts == {"compiled": 1, "loaded": 0, "written": 0}, counts
+    assert sorted(p.name for p in real.iterdir()) == [planted.name]

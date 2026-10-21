@@ -353,11 +353,24 @@ each function named grows to at most about 50 of 80. No rubric row scores down.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. H1 — 
-2. M1 — 
-3. M2 — 
-4. M3 — 
-5. L1 to L7 — 
+The author's answers, in the specification's *Disposition of the pre-build review*, which gives
+each one's place:
+
+1. H1 — fixed in the specification: every default a process of this user could compute,
+   `default_cache_dirs(home)` in `_platform.py` (with and without `$XDG_CACHE_HOME` and
+   `%LOCALAPPDATA%`, under `$HOME` and the password database's home); six `fallback` rows and a
+   method row, failing on main; criterion 2.
+2. M1 — fixed in the text (Decision 3, the Intent, the One line, the README and CHANGELOG
+   lines); `st_nlink == 1` decided yes, with a row failing on main.
+3. M2 — fixed in the specification: every existing prefix of the cache's path as written is
+   judged, held to the caches with the reason; two rows, failing on main; criterion 3.
+4. M3 — fixed in the specification: every label begins "the module cache"; `_judge` keeps its
+   3-tuple, the new rule a keyword argument; criterion 7 names the six assertions kept.
+5. L1 to L7 — L1 to L6 fixed in the specification, each with its row where one can hold it (the
+   swap of L3 has none, with the reason); L7 answered: the self-check list is written before
+   the build review.
+
+Confirmed by the reviewer: (pending the confirmation read).
 
 ## Verdict
 

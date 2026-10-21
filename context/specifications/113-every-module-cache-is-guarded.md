@@ -5,8 +5,12 @@
   awaiting its pre-build review. The fix is not written. The worktree is
   `.claude/worktrees/agent-a8a67f30f6c037394`; the checks ran against the main tree's frozen set
   (`build/artifacts`, `SHA256SUMS` `d0d91cef`) through `$WASI_PYTHON_ARTIFACTS`, and their
-  output is under `build/113/` there. A different agent reviews the specification, and another
-  the build.
+  output is under `build/113/` there. **Reviewed before build** the same day
+  (`../reviews/113-every-module-cache-is-guarded-spec-2026-10-21.md`, "fit to build once H1, M1,
+  M2 and M3 are answered in the specification"); **revised** the same day to answer every
+  finding (*Disposition of the pre-build review*, below), with the new check rows written first
+  and seen failing on main's code. Awaiting the reviewer's confirmation read; a different agent
+  reviews the build.
 - **Date:** 2026-10-21
 - **Owner:** Clay Gendron
 - **Kind:** **parallel-safe**, **not structural**: `src/` (`_engines.py`, `_places.py`,
@@ -109,25 +113,64 @@ folders hold **every module cache this process could use**, whatever this call's
 1. **the call's own**, if it has one (`cache_dir` a path, or `None`/`True`, which name one of
    the next two);
 2. **the folder `$WASI_PYTHON_CACHE` names**, if it is set and not empty;
-3. **the platform's default folder** (`PLATFORM.default_cache_dir(Path.home())`), always, even
-   when `$WASI_PYTHON_CACHE` is set: another process of this user may run without it.
+3. **every platform default a process of this user could compute**, always, even when
+   `$WASI_PYTHON_CACHE` is set (another process of this user may run without it), and for the
+   same reason one variable down: another process may run without this one's
+   `$XDG_CACHE_HOME` or `%LOCALAPPDATA%`, or with another `$HOME`. So
+   `PLATFORM.default_cache_dirs(home)` gives, deduplicated by path, this process's own
+   (`default_cache_dir`, overrides read as today) and the same folder with the override
+   ignored, for each home:
+   - **Linux and other POSIX:** `$XDG_CACHE_HOME/wasi_python` if set, and
+     `<home>/.cache/wasi_python`;
+   - **macOS:** `<home>/Library/Caches/wasi_python` (it reads no override);
+   - **Windows:** `%LOCALAPPDATA%\wasi_python\cache` if set, and
+     `<home>\AppData\Local\wasi_python\cache`;
+   - **the homes:** on POSIX, `Path.home()` (`$HOME`) and the password database's home for this
+     uid (`pwd.getpwuid(os.getuid()).pw_dir`) when the two differ, as they do under `sudo -E`,
+     in containers and on CI. On Windows, `Path.home()` (`%USERPROFILE%`) only: Windows sets it
+     at logon from the user's profile, and a process with another `%USERPROFILE%` is the
+     embedder's own environment, trusted as `$WASI_PYTHON_CACHE` is (reading the system's
+     profile folder would need `shell32`'s known-folder call for a case that, unlike POSIX's
+     `$HOME`, ordinary tools do not produce).
+   - **No home** (`Path.home()` raises `RuntimeError`, `pwd` raises `KeyError`: a container with
+     no `$HOME` and a uid the password database does not list): that home gives no default and
+     none is judged for it; the call goes on. Such a process has no default cache of its own
+     either (`_module` keeps modules in memory), and the README says so.
 
 Each is refused as the module cache is today: a writable grant or `root` **at, inside or above**
-any of them is a `ValueError` before any work, its message naming which cache ("the module
-cache `$WASI_PYTHON_CACHE` names", "the platform's default module cache", "this call's module
-cache") and its path. A read-only grant over a cache stays allowed, as today: it cannot write.
+any of them is a `ValueError` before any work. **Every label begins "the module cache"**, so
+the existing checks that match the message's start hold unchanged (criterion 7): the call's own
+is exactly "the module cache", as today; the others are "the module cache `$WASI_PYTHON_CACHE`
+names (<path>)" and "the module cache in the platform's default folder (<path>)". When the
+call's own is also one of the others, it is judged once, under the call's own label. A read-only
+grant over a cache stays allowed, as today: it cannot write.
+
+**The cache's path as written** is judged, not only its resolved folder. `_chain` resolves the
+path (`os.path.realpath`) and judges the resolved folder and its ancestors; a link on the path
+as written lies outside that chain. With `$WASI_PYTHON_CACHE=/data/link/cache` and `link`
+inside `/data`, a writable grant at `/data` would pass, and the guest could replace `link` with
+a folder of its own: the next call's cache would be the guest's (the review, EXECUTED on
+`_chain`). So a cache's chain also holds the identity of every existing prefix of
+`os.path.abspath(path)`, each by `identity_of` (links followed), and a writable grant or root at
+or above any of them is refused as one above the resolved folder is. This is the same on every
+system. It is applied to the caches, which this specification guards; the other runtime folders
+are named by the runner itself from its own `__file__`, `sysconfig` and the artifact set, so a
+link on their path is the installer's, not an argument's, and they keep the resolved chain (the
+review allowed the builder to hold it to the caches with this reason).
 
 **A cache not made yet** is judged by its deepest existing ancestor, the rule the judge already
 applies to a missing runtime folder (`_places._chain`): a writable grant or root at or above
 that ancestor is refused, since the guest could make the cache below it. One case that rule
-misses today is closed here: **a root still to be made** whose path would come to hold a cache
-still to be made. Both have no identity yet, and both carry the same deepest existing ancestor;
-the root is refused when, below that ancestor, its missing components are a leading part of the
-cache's missing components. The components are compared after `str.casefold()` on every
-system: a compare by spelling is safe here because it can only refuse more (a case-sensitive
-Linux folder `Cache` beside `cache` is refused too), and a component not made yet has no link,
-no 8.3 short name and no identity to compare instead. A root beside the cache under the same
-ancestor is not refused.
+misses today is closed here: **a root still to be made** and a cache still to be made, either
+inside the other. Both have no identity yet, and both carry the same deepest existing ancestor;
+the root is refused when, below that ancestor, **either list of missing components is a leading
+part of the other** (a root above the cache would come to hold it; a root inside it would make
+the cache folder, at the umask's mode, when it is made). The components are compared as
+`unicodedata.normalize("NFC", c).casefold().rstrip(" .")` on every system: a compare by
+spelling is safe here because it can only refuse more (a case-sensitive Linux folder `Cache`
+beside `cache` is refused too; `é` spelled two ways is one name on APFS; Windows drops a
+trailing dot or space), and a component not made yet has no link, no 8.3 short name and no
+identity to compare instead. A root beside the cache under the same ancestor is not refused.
 
 **Only the call's own cache is made.** `_runtime_folders` makes the call's own cache first, as
 today, so it is judged as it will be. The other two are never made by a call that does not use
@@ -142,12 +185,21 @@ function of the call's arguments and the process's environment. `cache_dir` and
 
 ### 2. Where it lives
 
+- `_platform.py` gains `default_cache_dirs(home) -> tuple[Path, ...]` on `_Posix`, `_Darwin`
+  and `_Windows` (and in the `_Platform` protocol), beside `default_cache_dir`, which stays. The
+  password-database home is read inside `_Posix`, so no platform branch leaves `_platform.py`.
 - `_engines.py` gains one function beside `_cache_dir`, which returns every cache the process
   could use for a given `cache_dir`, each with the label the judge's message uses, the call's
-  own first and the rest without duplicates by path.
+  own first and the rest without duplicates by path. It asks for the home folders inside a
+  `try` (Decision 1, "No home").
 - `_places._walk_grants` takes those caches; `_runtime_folders` makes only the call's own and
-  lists all of them; `_places._chain` (or a sibling) also returns a missing folder's missing
-  components; `_places._judge` gains the root-still-to-be-made rule over them.
+  lists all of them. **`_judge` keeps its `runtime` list of 3-tuples** `(name, identity,
+  chain)`, so `tests/unit/test_runner_grants.py:156-175`, which calls it with hand-made
+  3-tuples, is unchanged; the root-still-to-be-made rule takes the caches' missing components
+  as a separate keyword argument, `missing: Sequence[tuple[str, tuple[str, ...]]] = ()` (each a
+  label and the components below the deepest existing ancestor), with an empty default.
+  `_chain` (or a sibling for the caches) also returns a missing folder's missing components and
+  the identities of the existing prefixes of the path as written.
 - `_call.py:145` and `_sessions.py:971` pass the caches in. `Session` loads its module before
   it walks (`_sessions.py:974-976`), as today; its walk still refuses before any guest code runs.
 
@@ -161,21 +213,54 @@ guest, under the usual umask, does not:
 - **a cache folder**: a directory, not a link (`lstat`), owned by this user, with **no bit for
   group or other** (`st_mode & 0o077 == 0`; `0700`, or stricter);
 - **a `.cwasm`**: a regular file, not a link, owned by this user, with no bit for group or
-  other (`0600`, or stricter).
+  other (`0600`, or stricter), and **one name** (`st_nlink == 1`).
 
-The runner makes both so already (`mkdir(mode=0o700)`, `mkstemp`); a guest's `mkdir` gives
-`0755` and its `open` gives `0644` under umask `022`, since WASI preview 1 has no `chmod`. Under
-umask `077` a guest's files are `0600` too, and this defence gives nothing; the rule still
-holds. The warning names the mode wanted: "it must be a directory owned by this user that no
-one else may read, write or enter (mode 0700)", and "a file … (mode 0600)".
+The runner makes both so already (`mkdir(mode=0o700)`, `mkstemp`, `os.replace`, which leave a
+file with one name); a guest's `mkdir` gives `0755` and its `open` gives `0644` under umask
+`022`, since WASI preview 1 has no `chmod`. Under umask `077` a guest's files are `0600` too,
+and this defence gives nothing; the rule still holds. The warning names the mode wanted: "it
+must be a directory owned by this user that no one else may read, write or enter (mode 0700)",
+and "a file … (mode 0600) with one name".
+
+**What the modes stop, and what they do not.** They read *how a file or folder was made*. They
+stop a file or folder a guest makes. They do **not** stop a guest that reaches a cache in use
+and rewrites the runner's own `.cwasm` in place: the file keeps its owner and its `0600` (the
+review, EXECUTED: a `0600` file rewritten by a guest's `open(…, 'wb')` stays `0600`). Every
+cache in use holds that file, so the modes guard only a cache never used for that digest. The
+argument the digest record fails on below applies to them too: a guest that can reach the cache
+can change what is there. **The rule (Decision 1) is the guard; the modes are a filter on new
+files.** They are still worth having: they close a guest's new file wherever a residual route
+remains (a cache passed as another call's `cache_dir`, a `$WASI_PYTHON_CACHE` that changes
+between calls), they cost an existing cache nothing, and they make a planted file loud.
+
+**`st_nlink == 1`, decided yes.** WASI preview 1 has `path_link`, so a guest that can reach a
+cache and a runner-made `0600` file elsewhere on the same file system (another cache, or
+another digest's file) can give that file a second name in the cache without writing a byte;
+the mode and owner checks would pass. The runner's own files never have two names, so the check
+refuses nothing it wrote, and costs nothing (`lstat` already reads it). On Windows `os.lstat`
+reports `st_nlink` too, and a hard link there needs no privilege, so the check applies on both.
+
+**The swap between the check and the load.** `private()` takes an `lstat`; wasmtime-py's
+`Module.deserialize_file` then opens the path itself (it takes no descriptor), so a file
+swapped between the two is not the file checked. The runner takes a second `lstat` after the
+load and compares `(st_dev, st_ino, st_size, st_mtime_ns)` with the first; on a difference it
+discards the loaded module and compiles. That narrows a window only a guest the rule failed to
+stop can use. No check row holds it: it needs a seam between two system calls the runner does
+not have; the review reads it in the diff.
 
 **What happens to what is there:**
 
-- **A `.cwasm` that fails** (`0644`, a link, another owner) in a folder that passes: it is
-  never loaded. The module is compiled, and the runner's own file, written `0600` beside it,
-  takes its place by `os.replace` (a rename replaces a link itself, never its target). The
-  counts read compiled 1, loaded 0, written 1; the warning names the file once. Today such a
-  file is left in place and recompiled around on every process's first call.
+- **A `.cwasm` that fails** (`0644`, a link, a second name, another owner) in a folder that
+  passes: it is never loaded. The module is compiled, and the runner's own file, written `0600`
+  beside it, takes its place by `os.replace` (a rename replaces a link itself, never its
+  target, and drops a hard link's extra name, never the file elsewhere). The counts read
+  compiled 1, loaded 0, written 1; the warning names the file once. Today such a file is left
+  in place and recompiled around on every process's first call.
+- **A folder at a `.cwasm`'s name** (a guest's `mkdir` could leave one): it is not replaced,
+  since `os.replace` onto a folder raises. The module is compiled and kept in memory, the
+  warning names it, and the call goes on. **Any `OSError` from writing or replacing** a `.cwasm`
+  does the same, so no state of the cache folder makes a call fail; today a raising
+  `os.replace` is re-raised by the `except BaseException` around it (`_engines.py:177-179`).
 - **A cache folder that fails** (`0755`, a link, another owner): nothing in it is read or
   written; the module is compiled and kept in memory; a warning names the folder, as today for
   a folder others may write. The runner never `chmod`s a folder it finds: it cannot tell a
@@ -191,8 +276,7 @@ adds nothing the rule does not; a record that a guest could not rewrite needs a 
 elsewhere, which only moves the trusted folder, and that folder needs this same rule; and
 checking it reads the whole of each `.cwasm` (253,998,072 bytes for this set's unmetered
 snapshot module, `d734fbea…-wasmtime49.0.0-plain.cwasm`, EXECUTED) on every process's first
-load, where wasmtime maps it. The review itself
-calls the rule "the real fix".
+load, where wasmtime maps it. The review itself calls the rule "the real fix".
 
 ### 4. Windows: what `private()` can check there, and what it cannot
 
@@ -200,20 +284,32 @@ Windows has no mode bits, and a guest there writes as this user through wasmtime
 gets the folder's inherited access list exactly as the runner's own file does. After this
 specification, Windows `private()` checks what it can without reading security descriptors:
 
-- **can check:** the folder is a directory and the file a regular file, and neither is a
-  reparse point (a symbolic link or a junction): `os.lstat(path).st_file_attributes &
-  stat.FILE_ATTRIBUTE_REPARSE_POINT == 0`. A planted link to a module elsewhere is refused and
-  replaced (Decision 3).
+- **can check:** the folder is a directory and the file a regular file, neither is a reparse
+  point (a symbolic link or a junction): `os.lstat(path).st_file_attributes &
+  stat.FILE_ATTRIBUTE_REPARSE_POINT == 0`, and the file has one name (`st_nlink == 1`). A
+  planted link or second name is refused and replaced (Decision 3); a junction as the cache
+  folder is not used.
 - **cannot check:** who wrote the file, or who else may write the folder. Its owner is this
   user whether the runner or a guest wrote it; its access list is inherited the same way.
   Telling them apart would take the runner setting a protected access list of its own on every
   folder and file it writes and requiring it on load (`SetSecurityInfo` and `GetSecurityInfo`
   through `advapi32`), which is a later specification (the roadmap's reserved line), not this
-  one: it adds a ctypes surface `_platform.py` has no room for under its ceiling (1,407 of
-  1,500 lines today).
+  one: it adds a ctypes surface `_platform.py` has little room for under its ceiling (1,407 of
+  1,500 lines today, about 1,445 after this specification). Even then it would refuse a guest's
+  *new* file only: a guest that rewrites the runner's file in place keeps its access list, as on
+  POSIX it keeps its `0600` (Decision 3).
+- **Folders outside the profile:** a folder made directly under a drive (`C:\cache`) inherits
+  write access for every authenticated local user, so `cache_dir` or `$WASI_PYTHON_CACHE` there
+  is writable by other users; the default, under `%LOCALAPPDATA%`, is not. The README says so
+  (Decision 5).
 
 So on Windows the cache is guarded by Decision 1's rule alone, and the README says so
 (Decision 5). The change is about ten lines in `_Windows.private`.
+
+**The deferral of the protected access list past 0.1.0 is agreed** by the pre-build review
+("Windows: is the deferral safe? Yes, for 0.1.0"), on the conditions that H1's every-default
+rule and M2's path-as-written rule are in this specification (Decision 1) and the README states
+the Windows limit (Decision 5). Both are; the deferral stands.
 
 ### 5. The README and the CHANGELOG
 
@@ -223,21 +319,34 @@ So on Windows the cache is guarded by Decision 1's rule alone, and the README sa
 >   is refused, since later calls and processes trust them: the stdlib folder
 >   (or the temporary folder that holds it), the artifact set, every module
 >   cache this process could use (the call's own, the folder
->   `$WASI_PYTHON_CACHE` names, and the platform's default, whatever the
->   call's `cache_dir`, made or not), the code of `wasi_python` and
+>   `$WASI_PYTHON_CACHE` names, and the platform's default, as this process
+>   computes it and without `$XDG_CACHE_HOME` or `%LOCALAPPDATA%`, under
+>   `$HOME` and, on POSIX, the home the system gives this user; whatever the
+>   call's `cache_dir`, made or not, and by every folder on its path as
+>   written, links included), the code of `wasi_python` and
 >   wasmtime-py themselves, and the host Python's own `stdlib`,
 >   `site-packages` (the user's too) and `bin` (or `Scripts`) folders. So …
 
 **README, the module-cache paragraph** (lines 942 to 947), its first sentences become:
 
 > The compiled module is cached as a `.cwasm` in the user cache directory, or
-> in `$WASI_PYTHON_CACHE`, only in a folder at mode `0700` holding files at
-> `0600`, as the runner makes them (a `.cwasm` is native code); anything else
-> is compiled again and never loaded. `cache_dir=False` keeps it in memory
-> only. On Windows the runner can check only that the folder and its files
-> are not links, not who wrote them, so `cache_dir` and `$WASI_PYTHON_CACHE`
-> must name a folder only you can write; the default, in your own profile, is
-> one.
+> in `$WASI_PYTHON_CACHE` (an absolute path: a relative one names a different
+> folder in each working folder), only in a folder at mode `0700` holding
+> files at `0600` with one name, as the runner makes them (a `.cwasm` is
+> native code); a file or folder made otherwise, as a guest's would be, is
+> compiled around and never loaded. That stops a file a guest makes, not one
+> it rewrites in place, so the guard is that no guest can reach the cache at
+> all (see "Safety"). `cache_dir=False` keeps it in memory only, and so does
+> a process with no home folder and no `$WASI_PYTHON_CACHE`. On Windows the
+> runner can check only that the folder and its files are not links, not who
+> wrote them, so `cache_dir` and `$WASI_PYTHON_CACHE` must name a folder only
+> you can write; the default, in your own profile, is one, and a folder made
+> outside your profile (directly under `C:\`, say) is writable by every local
+> user unless you change its permissions.
+
+**README, the `cache_dir` parameter lines** (README:2740 and :2912), "a folder only you can
+write" becomes "a folder only you and the runner write: never one a guest is granted, in this
+or another call".
 
 **README, "Not protected"**, two items added:
 
@@ -246,7 +355,8 @@ So on Windows the cache is guarded by Decision 1's rule alone, and the README sa
 > write a folder of compiled modules can run code in the host process at the
 > next call, outside wasm (the runner refuses a grant or `root` over every
 > cache it knows of, and on POSIX loads only files at `0600` in a folder at
-> `0700`, but a folder you pass as another call's `cache_dir` it cannot know);
+> `0700`, which stops a file a guest makes, not one it rewrites in place; a
+> folder you pass as another call's `cache_dir` it cannot know);
 > `cache_dir` and `$WASI_PYTHON_CACHE` are trusted input, as the artifact
 > folder is: name only folders that no guest and no other user can write;
 
@@ -256,18 +366,24 @@ becomes 0.1.0):
 > - **Every module cache is guarded, whatever a call's own `cache_dir`** (spec 113; the 0.1.0
 >   security review's H1). A call with `cache_dir=False` or a cache of its own no longer passes
 >   a writable grant or `root` over the cache other calls and processes use: the judge now
->   refuses one at, inside or above the call's own cache, `$WASI_PYTHON_CACHE` and the
->   platform's default, made or not, in `run`, `run_async` and `Session`. Before, a guest given
->   such a grant could write a compiled module under the snapshot's public name that the next
->   call loaded as native code. On POSIX a cache folder is used only at `0700` and a `.cwasm`
->   loaded only at `0600`, as the runner makes them; a file that is not is compiled again and
->   replaced, never loaded. On Windows the cache refuses links; it cannot tell who wrote a
->   file, and the README says so. No public name, artifact byte or guest-visible errno changes.
+>   refuses one at, inside or above the call's own cache, `$WASI_PYTHON_CACHE` and every
+>   platform default a process of this user could compute (with or without `$XDG_CACHE_HOME`
+>   or `%LOCALAPPDATA%`, under `$HOME` and the system's home), made or not, and through every
+>   folder on the cache's path as written, in `run`, `run_async` and `Session`. Before, a guest
+>   given such a grant could write a compiled module under the snapshot's public name that the
+>   next call loaded as native code. On POSIX a cache folder is used only at `0700` and a
+>   `.cwasm` loaded only at `0600` with one name, as the runner makes them; a file that is not
+>   is compiled again and replaced, never loaded. That stops a file a guest makes, not one it
+>   rewrites in place: the refusal is the guard. On Windows the cache refuses links and second
+>   names; it cannot tell who wrote a file, and the README says so. No public name, artifact
+>   byte or guest-visible errno changes.
 
 ### 6. The checks first, and what they hold
 
 One new file, `tests/unit/test_runner_module_caches.py`, written before the fix and run by
-node id on main's code (EXECUTED, `build/113/checks-on-main.txt`: **15 failed, 2 passed**).
+node id on main's code: the draft's seventeen rows (EXECUTED, `build/113/checks-on-main.txt`:
+15 failed, 2 passed), then, after the pre-build review, all **thirty-three** rows (EXECUTED,
+`build/113/checks-on-main-1b.txt`: **28 failed, 5 passed** in 17.03 s).
 The run-level rows need the runner and the artifact set (`needs.need("runner", "artifact
 dir")`); a module-scoped fixture compiles the snapshot once in memory (`cache_dir=False`) so no
 row writes a 254 MB module to disk on its way to the judge. The mode rows need only wasmtime and
@@ -276,12 +392,19 @@ none is a time.
 
 | row | holds | on main |
 |---|---|---|
-| `test_a_writable_grant_over_another_calls_cache_is_refused[<caller>-<own>-<victim>]`, 12 rows: caller `run`, `run_async`, `Session`; own cache off or elsewhere; victim the cache `$WASI_PYTHON_CACHE` names (made) or the platform default under a fresh home (not made) | step 1 of the probe is a `ValueError` naming the module cache, and nothing is planted; were it not, step 2 runs in a fresh process with every default and its `stats()["loaded"]` is printed in the failure | **fail** ×12: "was not refused … loaded 1 compiled module(s) the guest wrote" |
-| `test_a_root_still_to_be_made_that_would_hold_a_cache_is_refused` | `root` to be made above a `$WASI_PYTHON_CACHE` to be made: refused, neither made; a root beside it passes; `cache_dir=False` makes no cache | **fail**: "DID NOT RAISE ValueError" |
+| `test_a_writable_grant_over_another_calls_cache_is_refused[<caller>-<own>-<victim>]`, 18 rows: caller `run`, `run_async`, `Session`; own cache off or elsewhere; victim the cache `$WASI_PYTHON_CACHE` names (made), the platform default under a fresh home (not made), or the **fallback**: the default without `$XDG_CACHE_HOME`/`%LOCALAPPDATA%` under a fresh home while both name other folders (not made; on macOS, which reads no override, the same folder as the default) | step 1 of the probe is a `ValueError` naming the module cache *and which one* (`$WASI_PYTHON_CACHE` or "default folder"), nothing is planted, and a cache the call does not use is not made; were it not refused, step 2 runs in a fresh process with every default and its `stats()["loaded"]` is printed in the failure | **fail** ×18: "was not refused … loaded 1 compiled module(s) the guest wrote" |
+| `test_a_writable_grant_at_or_inside_another_calls_cache_is_refused[at\|inside]` | the grant is the `$WASI_PYTHON_CACHE` folder, or a folder inside it, with `cache_dir=False`: refused, naming `$WASI_PYTHON_CACHE` | **fail** ×2: "DID NOT RAISE" |
+| `test_a_cache_reached_through_a_link_in_a_writable_grant_is_refused[off\|own]` | `$WASI_PYTHON_CACHE` is `data/link/wasi_python`, `link` inside the granted `data`, resolving outside it; the call's own cache off, or that cache its own (`cache_dir=None`): refused. Skips only where no link can be made, naming the errno | **fail** ×2: "DID NOT RAISE" (the `own` row shows the path-as-written gap apart from H1) |
+| `test_a_root_still_to_be_made_that_would_hold_a_cache_is_refused[off\|elsewhere]` | a root to be made above a `$WASI_PYTHON_CACHE` to be made, and one inside it: refused, neither made; a root beside it passes; a call that keeps no cache, or its own elsewhere, makes neither `$WASI_PYTHON_CACHE` nor the platform default | **fail** ×2: "DID NOT RAISE" |
+| `test_every_default_a_process_of_this_user_could_compute_is_listed` | `_Linux`, `_Darwin` and `_Windows` `default_cache_dirs(home)`, with both overrides set: each lists the override's folder and the one without it; on a POSIX host also the password database's home | **fail**: `AttributeError: … no attribute 'default_cache_dirs'` |
+| `test_a_process_with_no_home_folder_still_runs` | `Path.home()` raising and, on POSIX, `pwd.getpwuid` raising: `run(…, cache_dir=False)` exits 0 | pass (holds Decision 1's "No home": main never asks for the home with `cache_dir=False`) |
 | `test_a_cwasm_others_may_read_is_compiled_again_and_replaced_never_loaded` | POSIX: a `0644` `.cwasm` in a `0700` folder: compiled 1, loaded 0, written 1, the file now `0600`. Windows: loaded, recorded | **fail** (POSIX): loaded 1, compiled 0 |
 | `test_a_cache_folder_others_may_enter_is_not_used` | POSIX: a `0755` folder holding a `0600` `.cwasm`: compiled 1, loaded 0, written 0, a warning naming the folder, nothing written. Windows: loaded, recorded | **fail** (POSIX): loaded 1, compiled 0 |
 | `test_the_runner_makes_its_cache_folder_0700_and_its_files_0600` | a fresh cache: the folder `0700`, the file `0600` (POSIX); compiled 1, written 1 everywhere | pass (holds the runner's own modes) |
 | `test_a_cwasm_that_is_a_link_is_never_loaded` | a link in the cache to a `0600` module: never loaded, never written through, on every system | pass on POSIX; on Windows main loads it (INFERRED from `_platform.py:1389-1392`; the Windows leg shows it) |
+| `test_a_cwasm_with_a_second_name_is_never_loaded` | a hard link in the cache to a `0600` module elsewhere: never loaded, the file elsewhere unchanged, on every system | **fail**: loaded 1 |
+| `test_a_folder_at_a_cwasm_name_is_skipped_not_raised` | a folder at the `.cwasm`'s name: compiled 1, loaded 0, written 0, no exception, the folder left | pass (holds Decision 3's "not replaced" against a fix that would raise) |
+| `test_a_cache_folder_that_is_a_link_is_not_used` | the cache folder a symbolic link (POSIX) or a junction (Windows, `_winapi.CreateJunction`) to a `0700` folder with a `0600` module: compiled 1, loaded 0, written 0 | pass on POSIX; on Windows main loads it (INFERRED; the Windows leg shows it) |
 
 The Windows branches of the two mode rows record Windows' answer (Decision 4) rather than skip,
 as `test_runner_refuses_a_cache_others_can_write` does. The link row skips only where the host
@@ -293,6 +416,14 @@ beside it. A check that grants `build/`, the repository or the home folder writa
 own cache off, would now be refused. The builder lists every such row in the claim list with
 its reason, or records that there is none (INFERRED: none; the checks' writable folders are
 under `build/harness/` or the guest temporary folder, siblings of the cache).
+
+**Existing assertions on the message and on `_judge`** (the review's M3, READ):
+`tests/checks/test_v1_2_hostile_guest.py:688`, `:699`, `:731`, `:745` and `:748` match
+"holds the module cache" or "is inside the module cache", and
+`tests/unit/test_runner_grants.py:156-175` calls `_places._judge` with hand-made 3-tuples
+labelled "the module cache". Decision 1 keeps the call's own label exactly "the module cache"
+and every other label starting with it, and Decision 2 keeps `_judge`'s 3-tuple with the new
+rule as a keyword argument, so all six stay unchanged, byte for byte (criterion 7).
 
 ### 7. Kind: parallel-safe, not structural, measured
 
@@ -306,12 +437,16 @@ object, or takes a module past the size ceiling or a function past 80 lines. Aga
   and the environment.
 - **private API:** none; `Module.deserialize_file` and `serialize` are public.
 - **platform branch:** none outside `_platform.py`. The Windows checks go in `_Windows.private`
-  and the POSIX ones in `_Posix.private`; the default folder is already
-  `PLATFORM.default_cache_dir`. The casefold compare of Decision 1 is the same on every system.
-- **test seam:** none; the checks set environment variables and call `_engines._module_miss`
-  and `PLATFORM.default_cache_dir`, patching nothing.
-- **module ceiling (1,500):** `_platform.py` 1,407 (about +12, INFERRED), `_places.py` 524
-  (about +30), `_engines.py` 236 (about +20); the builder records each.
+  and the POSIX ones in `_Posix.private`; the defaults in each class's `default_cache_dirs`,
+  the password database read in `_Posix`. The compare of Decision 1 and the path-as-written
+  chain are the same on every system.
+- **test seam:** none; the checks set environment variables and call `_engines._module_miss`,
+  `PLATFORM.default_cache_dir` and each platform class's `default_cache_dirs`. The one patch is
+  of the standard library (`Path.home`, `pwd.getpwuid`, for the no-home row), never of a
+  `wasi_python` name.
+- **module ceiling (1,500):** `_platform.py` 1,407 (about +38, INFERRED: `private` about +16,
+  `default_cache_dirs` about +22 over three classes and the protocol), `_places.py` 524 (about
+  +45), `_engines.py` 236 (about +35); the builder records each.
 - **function ceiling (80):** `_judge` is 37 lines, `_runtime_folders` 40, `_walk_grants` 34,
   `_chain` 21, `_module_miss` 52, `_Posix.private` 17, `_Windows.private` 4 (EXECUTED, `ast`); each
   grows by about ten. The builder records each; none may pass 80, and
@@ -324,30 +459,43 @@ checklist asks. It is still reviewed before it is built: it is runner code and a
 
 After this specification, no argument a call takes opens a way for its guest to write where the
 runner keeps compiled modules. A call that keeps nothing on disk, or keeps its own cache, still
-refuses a writable grant or root over the cache the next call will read, made or not, in `run`,
-`run_async` and `Session` alike. Behind that rule, on POSIX the cache loads only what the runner
-itself could have written: a folder at `0700`, files at `0600`. A file that is not is compiled
-again and replaced, never run. On Windows the cache refuses links, and the README says plainly
-that the rule is the only guard there. The README also says what stays the embedder's to keep:
+refuses a writable grant or root over the cache the next call will read, made or not, as any
+process of this user would compute it, and through any folder on its path, in `run`,
+`run_async` and `Session` alike. Behind that rule, on POSIX the cache loads only files made the
+way the runner makes them: a folder at `0700`, files at `0600` with one name. That stops a file
+or folder a guest makes; it does not stop a guest that rewrites a file the runner made, so the
+rule is the guard. A file that fails is compiled again and replaced, never run. On Windows the
+cache refuses links and second names, and the README says plainly that the rule is the only
+guard there. The README also says what stays the embedder's to keep:
 `cache_dir` and `$WASI_PYTHON_CACHE` are trusted input, and anything that can write a folder of
 compiled modules can run code in the host.
 
 ## Design
 
+
 ### The commits, in order
 
-Each commit is green on its own but the first, which carries the checks seen failing
-(AGENTS.md, rule 3) and is this specification's draft.
+Each commit is green on its own but the first two, which carry the checks seen failing
+(AGENTS.md, rule 3) and are this specification's draft and its revision.
 
-1. **The specification, the roadmap lines and the checks** (this draft): the seventeen rows of
-   Decision 6, fifteen of them red on main's code, and the file's line in the `own-runner`
-   shard (`test_release_shards_cover_the_judge` green with it, EXECUTED).
-2. **The rule** (Decisions 1 and 2): `_engines`' list of caches, `_places`' judge of every
-   cache and of a root still to be made over a cache still to be made, the two call sites. The
-   thirteen run-level rows go green.
-3. **The modes** (Decisions 3 and 4): `_Posix.private` at `0o077`, a refused `.cwasm` replaced,
-   `_Windows.private`'s kind and reparse-point checks. The four mode rows go green.
-4. **The README and the CHANGELOG** (Decision 5).
+1. **The specification, the roadmap lines and the checks** (the draft, `6559c149`): seventeen
+   rows of Decision 6, fifteen of them red on main's code, and the file's line in the
+   `own-runner` shard (`test_release_shards_cover_the_judge` green with it, EXECUTED).
+2. **The revision after the pre-build review** (the review cherry-picked, then this text): the
+   rows for every default, the path as written, at and inside, the root inside, the second name,
+   the folder at a `.cwasm`'s name, the cache folder as a link and no home; thirty-three rows,
+   twenty-eight red on main's code.
+3. **The defaults** (Decision 1's item 3): `default_cache_dirs` in `_platform.py`. The method
+   row goes green.
+4. **The rule** (Decisions 1 and 2): `_engines`' list of caches with their labels and the
+   no-home guard, `_places`' judge of every cache by its path as written and of a root still to
+   be made over or inside a cache still to be made, the two call sites. The twenty-four
+   run-level rows go green.
+5. **The modes** (Decisions 3 and 4): `_Posix.private` at `0o077` with one name,
+   `_Windows.private`'s kind, reparse-point and one-name checks, a refused `.cwasm` replaced
+   unless it is a folder, any `OSError` of the write kept in memory, the `lstat` after the load.
+   The mode rows go green.
+6. **The README and the CHANGELOG** (Decision 5).
 
 ### The roadmap line
 
@@ -365,75 +513,149 @@ In: Decisions 1 to 6. Out:
 
 - **H2** (code planted in a reused root runs on `import reportlab`): its own specification.
 - **A digest record beside the cache** (Decision 3): not built.
-- **A protected access list on Windows** (Decision 4): a later specification, reserved.
-- **Caches named by other calls' `cache_dir`**: trusted input, said in the README (Decision 1).
+- **A protected access list on Windows** (Decision 4): a later specification, reserved; the
+  pre-build review agreed to the deferral.
+- **The path as written for the other runtime folders** (Decision 1): the runner names them
+  itself; they keep the resolved chain.
+- **Caches named by other calls' `cache_dir`**, and a changed `%USERPROFILE%`: trusted input,
+  said in the README (Decision 1).
 - **Any change to what the guest sees**: no errno, no file, no limit, no default but the
   refusals added.
 
 ## Acceptance criteria
 
-1. **The plant is refused, in every caller:** the twelve rows of
-   `test_a_writable_grant_over_another_calls_cache_is_refused` green on three systems, each seen
-   failing first on `1875d4cd` (`build/113/checks-on-main.txt`).
-2. **A root still to be made over a cache still to be made is refused**, one beside it is not,
-   and `cache_dir=False` makes no cache: `test_a_root_still_to_be_made_that_would_hold_a_cache_is_refused`
-   green, seen failing first.
-3. **The modes on POSIX:** `test_a_cwasm_others_may_read_is_compiled_again_and_replaced_never_loaded`
+1. **The plant is refused, in every caller:** the eighteen rows of
+   `test_a_writable_grant_over_another_calls_cache_is_refused`, the two of
+   `test_a_writable_grant_at_or_inside_another_calls_cache_is_refused`, green on three systems,
+   each seen failing first on `1875d4cd` (`build/113/checks-on-main-1b.txt`), each refusal
+   naming which cache.
+2. **Every default a process of this user could compute is judged:**
+   `test_every_default_a_process_of_this_user_could_compute_is_listed` and the six `fallback`
+   rows of criterion 1 green, seen failing first; on Linux and Windows the `fallback` rows judge
+   a folder this process's own default is not.
+3. **The cache's path as written is judged:** the two rows of
+   `test_a_cache_reached_through_a_link_in_a_writable_grant_is_refused` green on POSIX and on
+   Windows where a link can be made (a skip names its errno in the landing notes), seen failing
+   first.
+4. **A root still to be made over or inside a cache still to be made is refused**, one beside it
+   is not, and a call that does not use a cache makes none: the two rows of
+   `test_a_root_still_to_be_made_that_would_hold_a_cache_is_refused` green, seen failing first.
+5. **No home is not a failure:** `test_a_process_with_no_home_folder_still_runs` green on three
+   systems.
+6. **The modes on POSIX:** `test_a_cwasm_others_may_read_is_compiled_again_and_replaced_never_loaded`
    and `test_a_cache_folder_others_may_enter_is_not_used` green, seen failing first on POSIX;
    their Windows branches green on the Windows leg.
-4. **The runner's own modes and links:** `test_the_runner_makes_its_cache_folder_0700_and_its_files_0600`
-   and `test_a_cwasm_that_is_a_link_is_never_loaded` green on three systems (the link row named
-   in the landing notes if the Windows runner skips it, with its errno).
-5. **The review's probe, re-run on the built tip:** `p50_cwasm_plant.py` (copied into this
+7. **No verdict moves but the claim list's:** the five message assertions of
+   `tests/checks/test_v1_2_hostile_guest.py` (lines 688, 699, 731, 745, 748) and
+   `tests/unit/test_runner_grants.py:156-175` unchanged and green; every existing row that newly
+   refuses is named in the claim list with its reason, or the landing notes say there is none.
+8. **The runner's own files, links, second names and folders:**
+   `test_the_runner_makes_its_cache_folder_0700_and_its_files_0600`,
+   `test_a_cwasm_that_is_a_link_is_never_loaded`, `test_a_cwasm_with_a_second_name_is_never_loaded`
+   (seen failing first), `test_a_folder_at_a_cwasm_name_is_skipped_not_raised` and
+   `test_a_cache_folder_that_is_a_link_is_not_used` green on three systems (a link row's skip on
+   Windows named with its errno).
+9. **The review's probe, re-run on the built tip:** `p50_cwasm_plant.py` (copied into this
    worktree's `build/113/`) stops at step 1 with the `ValueError`, and step 2 reports loaded 0;
    output in `build/113/`.
-6. **Existing caches still load:** `test_runner_caches_the_compiled_module` and
-   `test_fuel_does_not_depend_on_the_module_cache` green (a cache the runner made loads, compiled
-   0 and loaded 1, on the second process).
-7. **No verdict moves but the claim list's:** every existing row that newly refuses is named in
-   the claim list with its reason, or the landing notes say there is none.
-8. **Not structural, measured:** the sizes of `_platform.py`, `_places.py`, `_engines.py` and of
-   `_judge`, `_runtime_folders`, `_walk_grants`, `_module_miss` and both `private` methods
-   recorded, each under its ceiling; `LONG_FUNCTIONS` and `SEAM_ALLOWED` unchanged; the rules
-   checks green.
-9. **The README and the CHANGELOG** carry Decision 5's text (the Safety bullet, the module-cache
-   paragraph, the two *Not protected* items, the CHANGELOG line under the unreleased section).
-10. **`tests/public_api.txt` is unchanged**; `ruff check`, `ruff format --check` and `mypy` are
+10. **Existing caches still load:** `test_runner_caches_the_compiled_module` and
+    `test_fuel_does_not_depend_on_the_module_cache` green (a cache the runner made loads,
+    compiled 0 and loaded 1, on the second process).
+11. **Not structural, measured:** the sizes of `_platform.py`, `_places.py`, `_engines.py` and of
+    `_judge`, `_runtime_folders`, `_walk_grants`, `_chain`, `_module_miss`, both `private`
+    methods and each `default_cache_dirs` recorded, each under its ceiling; `LONG_FUNCTIONS` and
+    `SEAM_ALLOWED` unchanged; the rules checks green.
+12. **The README and the CHANGELOG** carry Decision 5's text (the Safety bullet, the
+    module-cache paragraph, the two `cache_dir` parameter lines, the two *Not protected* items,
+    the CHANGELOG line under the unreleased section).
+13. **`tests/public_api.txt` is unchanged**; `ruff check`, `ruff format --check` and `mypy` are
     clean; no code file names a specification, review, finding or `context/` path.
-11. **The dispatch:** the release workflow on the built tip, every red line a growth line of
+14. **The dispatch:** the release workflow on the built tip, every red line a growth line of
     another entry or G7; the run id in the landing notes; the Windows legs read.
 
-Eleven criteria.
+Fourteen criteria.
 
 ## For the lane
 
 - **Kind:** parallel-safe; lands in the next wave, before the 0.1.0 tag; rebased onto the
   wave's tip in the lane's order, every conflict named.
-- **Files it shares with others:** `README.md` (the Safety bullet, the cache paragraph,
-  *Not protected*, which H2's specification may also touch), `CHANGELOG.md`,
-  `context/roadmap.md`, `tests/release_shards.toml` (one line). Its `src/` files are shared with no specification in flight.
-- **The claim list** (each line "113:"): **new checks**, the seventeen rows of Decision 6;
+- **Files it shares with others:** `README.md` (the Safety bullet, the cache paragraph, the
+  `cache_dir` lines, *Not protected*, which H2's specification may also touch), `CHANGELOG.md`,
+  `context/roadmap.md`, `tests/release_shards.toml` (one line). Its `src/` files are shared
+  with no specification in flight.
+- **The claim list** (each line "113:"): **new checks**, the thirty-three rows of Decision 6;
   **retired:** none; **lost passes:** none expected (criterion 7); **fuel and bytes:** none. The
   **judge hash changes** in `tests/unit/test_runner_module_caches.py` (new) and
   `tests/release_shards.toml` (one line in `own-runner`).
 - **The flags** (paste-safe):
 
   ```
-  --accept "113: every module cache the process could use is judged in every call, whatever its own cache_dir: a writable grant or root at, inside or above the call's own cache, the folder WASI_PYTHON_CACHE names or the platform's default, made or not, is refused in run, run_async and Session; on POSIX the cache folder is used only at 0700 and a .cwasm loaded only at 0600, and one that is not is compiled again and replaced; Windows refuses links in the cache"
-  --accept-judge "113: one unit file of seventeen rows reproduces the 0.1.0 security review's planted compiled module and holds the cache's modes, in the own-runner shard on three systems; no existing expectation edited"
+  --accept "113: every module cache a process of this user could use is judged in every call, whatever its own cache_dir: a writable grant or root at, inside or above the call's own cache, the folder WASI_PYTHON_CACHE names or any platform default (with or without XDG_CACHE_HOME or LOCALAPPDATA, under HOME and the system's home), made or not, or through a folder on the cache's path as written, is refused in run, run_async and Session; on POSIX the cache folder is used only at 0700 and a .cwasm loaded only at 0600 with one name, one that is not compiled again and replaced; Windows refuses links and second names in the cache"
+  --accept-judge "113: one unit file of thirty-three rows reproduces the 0.1.0 security review's planted compiled module by every route its pre-build review named and holds the cache's modes, in the own-runner shard on three systems; no existing expectation edited"
   ```
 
 - **Dry-run needs:** one dispatch on the built tip; the builder reads the `unit` group on the
   three systems, the Windows leg above all (Decision 4).
 
+## Disposition of the pre-build review
+
+The review (`../reviews/113-every-module-cache-is-guarded-spec-2026-10-21.md`) re-ran the
+draft's seventeen rows, probed a rewrite in place and a link on the cache's path, and agreed to
+the Windows deferral on two conditions. Each finding, and where its answer is:
+
+1. **H1, the default judged only as this process computes it** — fixed in the specification:
+   Decision 1's item 3 judges every default a process of this user could compute
+   (`default_cache_dirs(home)`, with and without `$XDG_CACHE_HOME` and `%LOCALAPPDATA%`, under
+   `$HOME` and on POSIX the password database's home); Decision 2 places it in `_platform.py`;
+   the six `fallback` rows and the method row are written and fail on main (Decision 6);
+   criterion 2. On Windows a changed `%USERPROFILE%` is trusted input, with the reason.
+2. **M1, the modes stop a new file, not a rewrite in place** — fixed in the text: Decision 3's
+   "What the modes stop, and what they do not", the Intent, the One line, the README's cache
+   paragraph and *Not protected* item, the CHANGELOG line. `st_nlink == 1` decided yes, on POSIX
+   and Windows, with its reason and a row (`test_a_cwasm_with_a_second_name_is_never_loaded`,
+   fails on main).
+3. **M2, a link on the cache's path inside a writable grant** — fixed in the specification:
+   Decision 1's "The cache's path as written", every existing prefix of `os.path.abspath(path)`
+   judged; held to the caches, with the reason for the other runtime folders; two rows, failing
+   on main; criterion 3.
+4. **M3, the labels and `_judge`'s tuple** — fixed in the specification: every label begins "the
+   module cache", the call's own exactly that (Decision 1); `_judge` keeps its 3-tuple and the
+   new rule is a keyword argument with an empty default (Decision 2); criterion 7 names the six
+   assertions that stay unchanged.
+5. **L1, a root inside a cache, both still to be made** — fixed: either list of missing
+   components a leading part of the other (Decision 1); the root row asserts it.
+6. **L2, the spelling compare** — fixed: NFC, casefold, trailing dots and spaces stripped
+   (Decision 1).
+7. **L3, the replace and its races** — fixed: a folder at the name is not replaced, any
+   `OSError` of the write keeps the module in memory, an `lstat` after the load is compared
+   with the one before (Decision 3); a row holds the folder case; the swap has no row, with the
+   reason.
+8. **L4, `Path.home()` on every call** — fixed: a home that cannot be found gives no default
+   and the call goes on (Decision 1, "No home"); the README says such a process has no default
+   cache (Decision 5); a row holds it.
+9. **L5, gaps in what the checks hold** — fixed: the plant rows assert which cache refused and
+   that a default not used is not made; at and inside rows; the root row with its own cache
+   elsewhere, asserting no default is made; a junction as the cache folder on Windows
+   (`test_a_cache_folder_that_is_a_link_is_not_used`).
+10. **L6, README wording** — fixed in Decision 5: the `cache_dir` parameter lines, folders
+    outside the Windows profile, `$WASI_PYTHON_CACHE` as an absolute path.
+11. **L7, the builder's self-check list** — answered: it is written under *Landing notes*, "The
+    builder's self-check", before the build review is asked for, as 107 and 111 did; at this
+    stage there is no build to check.
+12. **The Windows deferral** — kept, citing the review's agreement and its two conditions, both
+    met (Decision 4).
+
 ## One line
 
 A call that does not use the shared module cache still refuses to give its guest a way to write
-there, and the cache loads only files the runner itself could have written.
+there, by any route a process of this user could take to it, and the cache loads no file or
+folder a guest made.
 
 ## Landing notes
 
 Not built. The checks of Decision 6 were run on main's code by node id on 2026-10-21, against
-the main tree's frozen set through `$WASI_PYTHON_ARTIFACTS` (EXECUTED,
-`build/113/checks-on-main.txt` and `build/113/modes-on-main.txt` in the builder's worktree):
-15 failed, 2 passed, as the table says. The rest is written once the fix is built.
+the main tree's frozen set through `$WASI_PYTHON_ARTIFACTS` (EXECUTED, in the builder's
+worktree): the draft's seventeen rows, 15 failed and 2 passed (`build/113/checks-on-main.txt`,
+`build/113/modes-on-main.txt`); after the pre-build review, all thirty-three rows, 28 failed and
+5 passed (`build/113/checks-on-main-1b.txt`), as the table says. The rest, the builder's
+self-check among it, is written once the fix is built.
