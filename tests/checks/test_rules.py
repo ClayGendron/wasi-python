@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import tomllib
+import types
 from pathlib import Path
 
 import pytest
@@ -358,7 +359,7 @@ def test_main_is_linear() -> None:
     assert not errors, scan.report(errors)
 
 
-def _release_version_module():  # noqa: ANN202
+def _release_version_module() -> types.ModuleType:
     """`release/version.py`, loaded by path: the one reader of the version string."""
     import importlib.util
 
