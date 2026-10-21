@@ -45,6 +45,23 @@ the hard constraints, and it governs this file. Then `README.md` and
   the diff, before it lands; the review is recorded under
   `context/reviews/` and cited in the landing notes. Findings are fixed
   or answered in writing first.
+- **Structure is reviewed, not only behaviour** (spec 108; the design
+  review `context/research/2026-10-20-a-design-review-of-the-runner.md`).
+  A specification is **structural** when its change to `src/` adds a
+  module-level mutable or lock outside `_process.py`, a use of
+  wasmtime-py's private API outside `_wasmtime_ffi.py`, a platform branch
+  (`sys.platform`, `os.name`, `platform.system()`) outside
+  `_platform.py`, a test seam that is not on the process object, or takes
+  a module past the size ceiling or a function past 80 lines. Its Kind
+  line carries the bold word **structural**, and it is reviewed before it
+  is built, as a change to the build recipe is (constitution §5.6),
+  against the eight-row rubric in `context/reviews/README.md`. The rules
+  checks of specs 103 to 108 hold the letter of this; the review holds
+  its spirit. Before every release, a fresh agent writes a structural
+  review of `src/` against the same rubric,
+  `context/reviews/<version>-structural-review-YYYY-MM-DD.md`, beside
+  the security review; the release waits on its High findings, and the
+  judge refuses a released version without one.
 - **Code speaks for itself** (the owner, 2026-10-20). A code file
   (`src/`, `tests/`, `scripts/`, `release/`) names no specification,
   memo, review, finding ID or `context/` path: its comments and
@@ -178,7 +195,8 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    review under `context/reviews/`. Review follows risk (the owner,
    2026-10-19): the pre-build review is required where constitution §5.6
    requires it (the guest's imports or exports, the artifact set, the
-   build recipe) and for the runner's code, optional for a judge-only or
+   build recipe), for the runner's code and for a structural change
+   ("Structure is reviewed", above), optional for a judge-only or
    context-only specification; a Low finding or a note needs no further
    review round when its answer is in writing or touches only `context/`.
    A Low finding that touches only `context/` may be written in by the
