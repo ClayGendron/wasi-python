@@ -99,7 +99,9 @@ ceiling is not what this specification serves; it is what the split must not cro
 builder), `SIGNATURES` (898), `COUNTED`, `GUARDED`, `SIGNATURES` (921), `stat_trampoline_wat`
 (940) and `trampoline_wat` (952); `_places.py:19` imports `METHODS`, `Mount`; `_sessions.py`
 imports `STAGING_CEILING` (42) and `_Files` (49 under `TYPE_CHECKING`, 1042); `runner.py:39`
-imports `Mount`; `tools.py` imports nothing of it. Out of `mounts`: `_wasmtime_ffi` three times,
+imports `Mount`; `tools.py` imports nothing of it. Three docstrings of `_call.py` name the
+tables by module (`mounts.SHADOWED` 895, `mounts.GUARDED` 916, `mounts.COUNTED` 917) and read
+`_fs_memory.` after the move; `mounts._CallContext` at 728 stays. Out of `mounts`: `_wasmtime_ffi` three times,
 inside `bind` (767), `forward` (783) and `__call__` (820), and nothing else of the package
 (107's rule, `test_mounts_imports_only_the_engine_seam`, green). The runner's whole surface of
 the table is eleven names: the constructor, `walk`, `record`, `release`, `bind`, `new_turn`,
@@ -138,9 +140,9 @@ ceiling, 107's import rule, 108's function ceiling and seam check, 106's type ch
 
 ## Decisions
 
-### 1. Four seams, three new modules, free functions over one table
+### 1. Four seams, four new modules, free functions over one table
 
-**The modules.** `mounts.py` splits into itself and three flat siblings, named for the WASI
+**The modules.** `mounts.py` splits into itself and four flat siblings, named for the WASI
 seam each holds. The sizes are INFERRED from the measured sections and families above plus a
 module header, the dispatch tables and the blank lines a move keeps; the builder records the
 `wc -l` of each in the landing notes.
@@ -185,7 +187,11 @@ listing). Five small methods are new, each replacing a by-hand write a handler m
 listing, held)` for the `staged` and entry update in `_fd_readdir`. Each is two to six lines;
 together they are what "the table owns its state" means, and the rule is one the reviewer can
 read in each handler module: no `files.<field> =`, no `files.<field>.<mutator>(`, no `del
-files.<field>[…]` (the builder greps for the three forms and records the empty result).
+files.<field>[…]` (the builder greps for the forms criterion 3 names and records the empty
+result). A handler reads six fields of the table and no other: `context`, `forwards`, `held`,
+`mounts`, `opened` and `table` (EXECUTED, the pre-build review: the attributes read by the
+methods that stay after the five moves); the builder records the per-module list beside that
+grep.
 
 **Why free functions and not two or three classes.** Three measured reasons. First, the GC row:
 a `_Descriptors(files)` object holding the table back would make `_Files` wait for the cyclic
@@ -226,7 +232,7 @@ types with their docstrings (the package's API reference is generated from them,
 the `_CallContext` protocol; and the errno-by-name table (`_errno_table`, `_HOST_ERRNO`,
 `_RAISED`, `_ERRNO_SLOT`, `_raised`), which is the contract that a provider's `OSError` is read
 by its errno's name. Its docstring keeps the two usage lines and the paragraph on providers,
-and sends the reader to the three siblings for how a call is served. `__all__` is unchanged.
+and sends the reader to the four siblings for how a call is served. `__all__` is unchanged.
 After the split it imports no sibling at all: `bind`, `forward` and `__call__`, which imported
 the engine seam, are the table's. About 380 lines (INFERRED: 49 + 213 + 56 + 33 for the rows
 and `_Listing` + 15 + 11, less the half of the docstring that describes the serving).
@@ -251,7 +257,7 @@ builders from `_fs_memory`, `STAGING_CEILING` from `_fs_memory`; `_sessions.py` 
 
 ### 3. Flat now; the directory is a follow-up with a named trigger
 
-The three new modules are files beside `mounts.py`, prefixed `_fs_`, not a package
+The four new modules are files beside `mounts.py`, prefixed `_fs_`, not a package
 `wasi_python/_fs/`. The reason is what the judge sees. Five checks read the package flat, by
 `src/wasi_python/*.py` or by a one-level module name, and a subdirectory would be invisible to
 each (EXECUTED, read):
@@ -271,11 +277,11 @@ each (EXECUTED, read):
 Four read the tree whole and need nothing: 104's ceiling walk and 108's function ceiling
 (`scan.files_under`, `rglob`), 107's citation check (the same), and 106's `mypy` target
 (`files = ["src/wasi_python"]`, a directory, `pyproject.toml:92`). A directory now would mean
-five judge changes in a specification whose point is three files, each change a chance to
+five judge changes in a specification whose point is four files, each change a chance to
 loosen a check by accident.
 
 **The trigger for the directory.** The follow-up is reserved for when the filesystem group,
-which is `mounts.py`, the three `_fs_*` modules, `_places.py` (the grants and the preopen check),
+which is `mounts.py`, the four `_fs_*` modules, `_places.py` (the grants and the preopen check),
 `_private_dirs.py` and `_zip.py`, has an internal API of its own: a module that other runner
 modules import by one name, not five. Its specification does the five judge changes above first
 (each check learns `rglob` and a dotted module name), moves the files second, and names in its
@@ -322,7 +328,7 @@ under `build/111/` and quoted in the landing notes (AGENTS.md, rule 3).
    names that is not one file under the package is a finding. The table reads as a chain with
    `mounts.py` at the bottom, so the graph is acyclic by inspection, and `mounts.py`'s own row is
    empty: it imported the engine seam for `forward`, which is the table's now. Seen failing on
-   the commit before the split: `mounts.py:767: imports _wasmtime_ffi` and three modules not
+   the commit before the split: `mounts.py:767: imports _wasmtime_ffi` and four modules not
    found. 107's rule is not loosened: the filesystem imports nothing of the runner but the engine
    seam, and the seam is reachable from one module of the five.
 
@@ -350,7 +356,7 @@ under `build/111/` and quoted in the landing notes (AGENTS.md, rule 3).
 
 6. `test_api_lists_every_module_of_the_package`: every `.py` under `src/wasi_python/` is in
    `api.DEFINING` or `api.INTERNAL_FILES`, and every name those lists hold is one file. Green
-   today (18 files, 18 listed: EXECUTED, read); seen failing on the commit that adds the three
+   today (18 files, 18 listed: EXECUTED, read); seen failing on the commit that adds the four
    modules before `INTERNAL_FILES` gains them, so a module whose private names could reach a
    public docstring unseen is a red line, not an oversight.
 
@@ -469,7 +475,7 @@ names from `mounts.py` more churn than clarity; the landing notes say which.
 ```
 """Mounts: a provider's files at a guest path, served from embedder code.
 …the two usage lines and the paragraph on providers, unchanged…
-How a call is served is the three modules beside this one: the bytes that cross the WASI
+How a call is served is the four modules beside this one: the bytes that cross the WASI
 boundary (_fs_memory), the table a call holds (_fs_table), and the descriptor and path calls
 over it (_fs_descriptors, _fs_paths)."""
 
@@ -623,8 +629,9 @@ Twelve criteria.
   expected: `ALLOWED` and the end of `test_rules.py`).
 - **Files it shares with others:** `tests/checks/test_rules.py` (`ALLOWED`; the checks appended
   at the end), `tests/harness/api.py` (`INTERNAL_FILES`, if 110 extends it too), `CHANGELOG.md`,
-  `context/roadmap.md`. Its source files, `src/wasi_python/mounts.py`, the three new modules,
-  `_call.py`, `_sessions.py`, `_places.py` (import lines only), are shared with no specification
+  `context/roadmap.md`. Its source files, `src/wasi_python/mounts.py`, the four new modules,
+  `_call.py`, `_sessions.py`, `_places.py` (import lines, and `_call.py`'s three docstring
+  tokens, only), are shared with no specification
   in flight.
 - **The claim list** (`build/111/claims.toml`, each line "111:"; the counts filled by the
   builder):
