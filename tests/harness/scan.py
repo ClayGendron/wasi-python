@@ -11,6 +11,7 @@ import re
 import shlex
 import subprocess
 import tempfile
+import warnings
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -1949,6 +1950,139 @@ def duplicate_name_hits(files: Iterable[Path], root: Path) -> list[str]:
                     )
                 seen.setdefault(name, node.lineno)
     return hits
+
+
+# ---------------------------------------------------------------------------------------------
+# Seams are injected, not patched. A check or a unit test that replaces a private name of a
+# runner module, by a fixture's `setattr` or by assignment, reaches into the runner from
+# outside; the one way to set a seam is a field on the process object. The judge's child
+# programs are string constants, so every string that parses as Python is walked the same way
+# with its own imports, and one that does not is read by a regular expression. `tools`, `cli`
+# and the package itself are outside the rule; a class attribute or an attribute of a call's
+# result is never a module.
+
+RUNNER_MODULE = re.compile(r"^wasi_python\.(runner|mounts|_\w+)$")
+SEAM_IN_TEXT = re.compile(
+    r"""\b\w+\.setattr\(\s*([\w.]+)\s*,\s*["'](_\w+)["']|\b([\w.]+)\.(_\w+)\s*=[^=]"""
+)
+SEAM_BY_PATH = re.compile(r"^(wasi_python\.(?:runner|mounts|_\w+))\.(_\w+)$")
+
+
+def _runner_names(tree: ast.AST) -> dict[str, str]:
+    """Local name -> the runner module the tree's imports bind it to."""
+    names: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                if RUNNER_MODULE.match(a.name):
+                    names[a.asname or a.name] = a.name
+        elif isinstance(node, ast.ImportFrom) and (node.module or "").startswith("wasi_python"):
+            for a in node.names:
+                full = f"{node.module}.{a.name}"
+                if RUNNER_MODULE.match(full):
+                    names[a.asname or a.name] = full
+    return names
+
+
+def _dotted(node: ast.expr) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        base = _dotted(node.value)
+        return None if base is None else f"{base}.{node.attr}"
+    return None  # a call, a subscript, a literal: never a module
+
+
+def _runner_module(text: str | None, names: dict[str, str]) -> str | None:
+    """The short name of the runner module `text` names, through the imports or by its path."""
+    if text is None:
+        return None
+    full = names.get(text) or (text if RUNNER_MODULE.match(text) else None)
+    return full.rsplit(".", 1)[-1] if full else None
+
+
+def _assigned(node: ast.Assign) -> list[ast.expr]:
+    """Every target of an assignment, tuples and starred ones flattened."""
+    out: list[ast.expr] = []
+    todo = list(node.targets)
+    while todo:
+        t = todo.pop(0)
+        if isinstance(t, (ast.Tuple, ast.List)):
+            todo[:0] = t.elts
+        elif isinstance(t, ast.Starred):
+            todo.insert(0, t.value)
+        else:
+            out.append(t)
+    return out
+
+
+def _seam_sites(tree: ast.AST, names: dict[str, str], base: int) -> list[tuple[int, str, str]]:
+    """(line, module, name) for every patch of a private runner name under `tree`, in code and
+    inside its string constants; `base` is the file line of a tree parsed from a string."""
+    sites: list[tuple[int, str, str]] = []
+    todo: list[ast.AST] = [tree]
+    while todo:
+        node = todo.pop()
+        line = base + getattr(node, "lineno", 1) - 1
+        if isinstance(node, ast.JoinedStr):  # an f-string: its pieces read as one text
+            text = "".join(v.value if isinstance(v, ast.Constant) else "0" for v in node.values)
+            sites += _seam_sites_in_text(text, names, line)
+            continue
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and "_" in node.value:
+            sites += _seam_sites_in_text(node.value, names, line)
+        elif isinstance(node, ast.Call) and len(node.args) >= 2:
+            func, target, name = node.func, node.args[0], node.args[1]
+            if isinstance(func, ast.Attribute) and func.attr == "setattr":
+                if isinstance(target, ast.Constant) and isinstance(target.value, str):
+                    by_path = SEAM_BY_PATH.match(target.value)  # setattr("pkg.mod._name", …)
+                    if by_path:
+                        sites.append((line, by_path[1].rsplit(".", 1)[-1], by_path[2]))
+                elif isinstance(name, ast.Constant) and isinstance(name.value, str):
+                    module = _runner_module(_dotted(target), names)
+                    if module and name.value.startswith("_"):
+                        sites.append((line, module, name.value))
+        elif isinstance(node, ast.Assign):
+            for t in _assigned(node):
+                if isinstance(t, ast.Attribute) and t.attr.startswith("_"):
+                    module = _runner_module(_dotted(t.value), names)
+                    if module:
+                        sites.append((line, module, t.attr))
+        todo.extend(ast.iter_child_nodes(node))
+    return sites
+
+
+def _seam_sites_in_text(text: str, names: dict[str, str], base: int) -> list[tuple[int, str, str]]:
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # a string that is not a program: whatever it holds
+            inner = ast.parse(text)
+    except (SyntaxError, ValueError):
+        sites = []
+        for m in SEAM_IN_TEXT.finditer(text):
+            target, name = (m[1], m[2]) if m[2] else (m[3], m[4])
+            module = _runner_module(target, names)
+            if module:
+                sites.append((base + text.count("\n", 0, m.start()), module, name))
+        return sites
+    return _seam_sites(inner, {**names, **_runner_names(inner)}, base)
+
+
+def seam_hits(files: Iterable[Path], root: Path, allowed: Iterable[str]) -> list[str]:
+    """Every `<fixture>.setattr(<runner module>, "_name", …)` and `<runner module>._name = …` in
+    the judge, in code and in the programs it runs as subprocesses, whose _name is not allowed;
+    and every allowed name no file patches (a stale allowance)."""
+    allowed = tuple(allowed)
+    hits = []
+    seen: set[str] = set()
+    for p in sorted(files):
+        tree = _parsed(p)
+        if tree is None:
+            continue
+        for line, module, name in sorted(_seam_sites(tree, _runner_names(tree), 1)):
+            seen.add(name)
+            if name not in allowed:
+                hits.append(f"{rel(p, root)}:{line}: {module}.{name}")
+    return hits + [f"stale allowance: {name}" for name in allowed if name not in seen]
 
 
 # ---------------------------------------------------------------------------------------------

@@ -853,3 +853,50 @@ def test_src_names_no_context_document() -> None:
     `context/` path or finding ID in any comment or docstring of any `.py` under `src/`."""
     hits = _citation_hits(paths.REPO / "src")
     assert not hits, scan.report(hits)
+
+
+# Seams are injected, not patched: a check or a unit test sets a seam through a field of the
+# process object, never by replacing a private name of a runner module by `setattr` or by
+# assignment, in its code or in a child program it runs. These are the private names the judge
+# still patches by name, each with what closes it. An entry leaves when its seam is fixed; none
+# is ever added; an entry no test patches any more is red.
+SEAM_ALLOWED = (
+    # _home: the guest thread's home. The flag its watch reads, the stack it asks for, the join
+    # it runs and the box it keeps become fields or constructor parameters of the home.
+    "_ctrl_c_watched",
+    "_stack",
+    "_join_guest",
+    "_Box",
+    # _call: the typed call. Its clock and its stop error come from the process object's clock
+    # and the call's own state; the drive is the lifecycle table's.
+    "_epoch_now",
+    "_stop_error",
+    "_drive",
+    # _sessions: the session's turn. Both are rows of its lifecycle table.
+    "_drive_turn",
+    "_abandon_turn",
+    # _engines and _artifacts: the compile miss, the artifact check's cache and the two artifact
+    # folders become observers or fields of the process object, or parameters of artifacts().
+    "_module_miss",
+    "_found_and_checked",
+    "_ARTIFACT_DIR",
+    "_CHECKOUT_ARTIFACT_DIR",
+    # _private_dirs: the sweep's budget and its drop hook become parameters of the remover.
+    "_REMOVE_BUDGET",
+    "_drop",
+    # _places and runner: the walk, the preopen check and the defaults, patched by one check
+    # each; constructor parameters of the places and the call.
+    "_walk_grants",
+    "_check_preopens",
+    "_current_defaults",
+)
+
+
+def test_the_judge_patches_the_runner_only_through_the_process_object() -> None:
+    """No `<fixture>.setattr(<runner module>, "_name", …)` and no `<runner module>._name = …`
+    in any `.py` under `tests/`, in code or in a program string, but for SEAM_ALLOWED, which
+    only shrinks; `tools`, `cli` and the package itself are outside the rule, as is a class
+    attribute or an attribute of a call's result (`process().observers`)."""
+    files = [p for p in scan.files_under(paths.REPO, "tests") if p.suffix == ".py"]
+    hits = scan.seam_hits(files, paths.REPO, SEAM_ALLOWED)
+    assert not hits, scan.report(hits)

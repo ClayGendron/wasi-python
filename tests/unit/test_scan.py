@@ -326,6 +326,53 @@ def test_a_built_structural_spec_cites_its_pre_build_review(work) -> None:
     ]
 
 
+# The programs below are assembled from pieces at run time, so this file's own string constants
+# carry no import and patch together and do not trip the scanner they test.
+RUNNER_IMPORT = "from wasi_python import runner\n"
+PATCH_LINE = "def test(monkeypatch):\n    monkeypatch.setattr(runner, '_x', 1)\n"
+
+
+def _seams(work: Path, allowed: tuple[str, ...]) -> list[str]:
+    files = sorted(p for p in work.rglob("*.py"))
+    return scan.seam_hits(files, work, allowed)
+
+
+def test_a_private_runner_name_the_judge_patches_is_a_hit(work) -> None:
+    write(work, "t/test_a.py", RUNNER_IMPORT + PATCH_LINE)
+    assert _seams(work, ()) == ["t/test_a.py:3: runner._x"]
+    assert _seams(work, ("_x",)) == []
+    write(work, "t/test_a.py", RUNNER_IMPORT + "runner._x = 1\n")  # a plain assignment
+    assert _seams(work, ()) == ["t/test_a.py:2: runner._x"]
+    write(work, "t/test_a.py", "import wasi_python.runner\n" + "wasi_python." + "runner._x = 1\n")
+    assert _seams(work, ()) == ["t/test_a.py:2: runner._x"]
+    write(work, "t/test_a.py", 'PROGRAM = """\n' + RUNNER_IMPORT + "runner._x = 1\n" + '"""\n')
+    assert _seams(work, ()) == ["t/test_a.py:3: runner._x"]  # a child program in a string
+    write(work, "t/test_a.py", RUNNER_IMPORT + "def test(m):\n    m.setattr(runner, '_x', 1)\n")
+    assert _seams(work, ()) == ["t/test_a.py:3: runner._x"]  # the fixture under another name
+    write(work, "t/test_a.py", RUNNER_IMPORT + "runner._x, other = 1, 2\n")
+    assert _seams(work, ()) == ["t/test_a.py:2: runner._x"]  # a tuple target
+    write(
+        work,
+        "t/test_a.py",
+        "def test(monkeypatch):\n    monkeypatch.setattr('wasi_python." + "runner._x', 1)\n",
+    )
+    assert _seams(work, ()) == ["t/test_a.py:2: runner._x"]  # the dotted-string form
+    write(work, "t/test_a.py", RUNNER_IMPORT + "monkeypatch.setattr(runner._Home, '_x', 1)\n")
+    assert _seams(work, ()) == []  # a class attribute
+    write(
+        work, "t/test_a.py", "from wasi_python import tools\nmonkeypatch.setattr(tools, '_x', 1)\n"
+    )
+    assert _seams(work, ()) == []  # tools is outside the rule
+    write(
+        work,
+        "t/test_a.py",
+        "from wasi_python._process import process\n"
+        "monkeypatch.setattr(process().observers, '_x', 1)\n",
+    )
+    assert _seams(work, ()) == []  # the one way: through the process object
+    assert _seams(work, ("_x",)) == ["stale allowance: _x"]
+
+
 def test_memo_labels(work) -> None:
     labelled = write(work, "a.md", "- **Status:** executed\n\nIt ran (EXECUTED).\n")
     placeholder = write(work, "b.md", "- **Status:** placeholder (research to do)\n")
