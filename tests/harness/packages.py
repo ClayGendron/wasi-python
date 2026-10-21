@@ -100,18 +100,13 @@ def load(raw: dict) -> upstream.Config:
         path_packages=[],
         markers=list(raw.get("markers", [])),
         support=[],
-        groups={
-            name: upstream.Group(
-                name, tuple(g["paths"]), int(g["fuel"]), tier=g.get("tier", upstream.TIER)
-            )
-            for name, g in raw.get("groups", {}).items()
-        },
+        groups={name: upstream.group_of(name, g) for name, g in raw.get("groups", {}).items()},
         not_selected=[
             upstream.NotSelected(tuple(n["files"]), n["reason"], n["closes_with"])
             for n in raw.get("not_selected", [])
         ],
         traps=[
-            upstream.Trap(t["id"], t["node"], t["reason"], t["closes_with"])
+            upstream.Trap(t["id"], t["node"], t["reason"], t["closes_with"], t.get("group", ""))
             for t in raw.get("trap", [])
         ],
         expected=[
@@ -123,6 +118,7 @@ def load(raw: dict) -> upstream.Config:
         grant=raw["grant"],
         driver="package",
         keys=keys,
+        **upstream.tier_fields(raw),
     )
 
 
@@ -239,13 +235,17 @@ def group_args(cfg: upstream.Config, group: upstream.Group) -> list[str]:
     ignores = [f for f in out if "::" not in f]  # a file
     deselects = [f for f in out if "::" in f]  # one test by node id (regex's test_main)
     deselects += [t.node for t in cfg.traps if "::" in t.node and mine(t.node)]
-    args = ["-m", cfg.marker] if cfg.marker else []
+    from harness import tiers
+
+    marker = tiers.marker_of(cfg, group)
+    args = ["-m", marker] if marker else []
     args += [*cfg.args, *(root + p for p in group.paths)]
     args += [f"--ignore={root}{f}" for f in dict.fromkeys(ignores)]
     args += [f"--deselect={d}" for d in deselects]
     split = cfg.keys.split_of(group.name)
-    if split is not None:
-        args.append(f"-k{split.keyword(group.name)}")
+    k = tiers.keyword_arg(cfg, group, split.keyword(group.name) if split is not None else None)
+    if k is not None:
+        args.append(f"-k{k}")
     return args
 
 

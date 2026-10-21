@@ -800,6 +800,16 @@ The build, below, as it goes.
    until the survey is in. The workflow half waits for 101's `inputs` job on main. No separate
    confirmation round (the lane: the change is ordering only); the build review reads it.
 
+2. **`release_marker` may use an excludable name, negated** (Decision 2(a), check 1). The text,
+   from the pre-build review's L5, refuses "a name of that list used in `release_marker`". That
+   refuses pandas' own release marker, `slow and not network and not db` (Decision 2's table),
+   which must name `network` and `db` to keep excluded tests out of the release tier. The rule
+   kept is the half that closes L5's door: `excluded_marker` may name only `EXCLUDABLE`
+   (`network`, `db`), so `excluded_marker = "slow"` is refused. The other half is held by the
+   truth table itself: a release marker that selects an excluded test (`slow` beside
+   `excluded_marker = "network"`) is red, "selects an excluded test". Check 1's row for it is
+   that mutant.
+
 ### The build, in order
 
 1. **The ratchet, the plugin and the shard plan** (branch tip after `7d31d1e`). Each new unit
@@ -843,3 +853,37 @@ The build, below, as it goes.
    - The record's `G2` gains `meta.tier`; the merged record carries `meta.tier` and
      `release_checks`; `CI_NEEDS`' "everywhere" and sameness' Linux systems include the release
      pseudo-system.
+3. **The tier rules and the argv** (`tests/harness/tiers.py`, new; `upstream.py`,
+   `packages.py`, `regrtest.py`). `tests/unit/test_tiers.py`, 36 rows, failed first at
+   collection on the base's tree (`cannot import name 'tiers'`; with a stub module,
+   `module 'harness.regrtest' has no attribute 'ReleaseEntry'`), then row by row while the code
+   went in. The rows: the truth table (overlap, a union short of the whole suite, a marker with
+   keyword arguments, `excluded_marker = "slow"`, a release marker that selects an excluded
+   test, `excluded_marker` without its reason); `tier = "fast"`; a release group without
+   `measured`, or capped past `rule_cap`; marker release groups whose paths are not the normal
+   groups'; a trap naming no group in a family with release groups; a plain release group of no
+   named kind; a `[[release_select]]` entry without a reason, with an unparsable keyword, or
+   naming a file no group covers; keyword release groups whose paths are not the entries'
+   files; a split mixing tiers; a release group naming no `release_by` where the family has both
+   kinds; a normal group holding an entry's file beside another file. The argv: a numpy-like
+   normal group's JSON equal to the same family's without release fields, `np-slow` with
+   `-m slow`; every normal group of the judge's own files with no tier filter and the family's
+   marker; contourpy-like groups by tier and kind (`-k(not (random_big)) and (not ((serial)))`
+   for group 12, `-k(random_big) and (not ((corner_mask)))` for a keyword split's last group,
+   `-m slow` and no `-k` for the marker release group); the stage holds every group's JSON,
+   both tiers'. CPython: a normal stream whose resource skips equal the list passes; an unlisted
+   skip, a listed test not gated, a `RESOURCE_DENIED` module unlisted, and a missing inline test
+   are findings; a release stream must run each listed id with its resource; no partition
+   before a family has release lists; the release group's JSON (`match` its ids, a module as
+   `test.<module>.*`, `resources` `all,-gui`); a release plan line parsed and refused; the list
+   rules; the inline reader over a fixed source (a fifth reader unlisted, a listed one missing).
+   - Each staged JSON is now written from `upstream.judge_specs`, in the order the files were
+     written before; with no release fields in the TOMLs, every JSON is byte for byte the base's
+     (the `-k` and the marker come from `tiers`, which returns the family's marker and no filter
+     for a normal group over no entry's file).
+   - A module-level `RESOURCE_DENIED` does not say which resource was denied (the driver's `D`
+     line carries the state alone), so the partition takes every `RESOURCE_DENIED` module of a
+     normal group as needing a `gated` entry. A module denied `gui` would show at the survey; the
+     driver is unchanged, so the stage's fuel does not move.
+   - A module entry's `match` is the pattern `test.<module>.*`; the survey confirms regrtest
+     matches a package's submodules' tests by it.

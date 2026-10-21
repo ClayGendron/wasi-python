@@ -97,6 +97,79 @@ def host_node(group: str, entry: str) -> str:
     return f"tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[{group}-{entry}]"
 
 
+@dataclass(frozen=True)
+class ReleaseEntry:
+    """One line of a release list: a test (or a whole module) the release tier runs with the
+    `cpu` and `largefile` resources on. `gated`: a normal group skips it for want of the
+    resource; `inline`: it runs in its normal group too, doing less work there."""
+
+    id: str  # a full test id, or a module for a module-level gate
+    kind: str  # "gated" or "inline"
+    group: str  # the normal group that holds it
+    release_group: str
+
+
+RELEASE_KINDS = ("gated", "inline")
+# How regrtest says a test or a module was skipped for want of one of the two resources: the
+# decorator's text, and support.requires' (a ResourceDenied, which unittest reports as a skip).
+RESOURCE_SKIP = re.compile(
+    r"resource '(cpu|largefile)' is not enabled|Use of the '(cpu|largefile)' resource not enabled"
+)
+
+
+def read_release_plan(directory: Path, rel: str, release_group: str) -> list[ReleaseEntry]:
+    """A release list: one `<id> <gated|inline> <normal group>` per line."""
+    out = []
+    for line in read_plan(directory, rel):
+        parts = line.split()
+        if len(parts) != 3 or parts[1] not in RELEASE_KINDS:
+            raise ValueError(f"{rel}: {line!r} is not <id> <gated|inline> <group>")
+        out.append(ReleaseEntry(parts[0], parts[1], parts[2], release_group))
+    return out
+
+
+def groups_from(raw: dict, directory: Path) -> tuple[dict, list[ReleaseEntry]]:
+    """The groups, normal ones from their module plans, release ones from their lists: a release
+    group's modules are its ids' modules, in the order its normal groups place them."""
+    from harness import upstream
+
+    groups: dict = {}
+    entries: list[ReleaseEntry] = []
+    release = []
+    for name, g in raw.get("groups", {}).items():
+        tier = g.get("tier", upstream.TIER)
+        measured = None if g.get("measured") is None else int(g["measured"])
+        if tier == "release":
+            release.append((name, g, measured))
+            continue
+        groups[name] = upstream.Group(
+            name,
+            (),
+            int(g["fuel"]),
+            read_plan(directory, g["list"]),
+            g["list"],
+            tier,
+            "",
+            measured,
+        )
+    for name, g, measured in release:
+        mine = read_release_plan(directory, g["list"], name)
+        entries += mine
+        modules = tuple(sorted({m for e in mine if (m := entry_module(groups, e)) is not None}))
+        groups[name] = upstream.Group(
+            name, (), int(g["fuel"]), modules, g["list"], "release", "", measured
+        )
+    return groups, entries
+
+
+def entry_module(groups: dict, e: ReleaseEntry) -> str | None:
+    """The module a release entry runs: itself when its normal group places it as a module,
+    else the module of its test id."""
+    held = groups.get(e.group)
+    mods = set(held.modules) if held is not None else set()
+    return e.id if e.id in mods else module_of_id(e.id, mods)
+
+
 def read_plan(directory: Path, rel: str) -> tuple[str, ...]:
     f = directory / rel
     if not f.is_file():
@@ -152,12 +225,29 @@ def module_of_id(test_id: str, modules: set[str]) -> str | None:
 
 
 def group_spec(cfg, group: str) -> dict:
+    if cfg.groups[group].tier == "release":
+        return release_spec(cfg, group)
     ignore = [t.test for t in cfg.traps if t.group == group and t.test]
     ignore += [i for d in cfg.deselected if d.group == group for i in d.tests]
     return {
         "modules": list(cfg.groups[group].modules),
         "ignore": ignore,
         "resources": cfg.resources,
+        "options": list(cfg.options),
+        "warnings": cfg.warnings,
+    }
+
+
+def release_spec(cfg, group: str) -> dict:
+    """A release group: its ids' modules, matched to its ids (a whole module by its pattern),
+    with the release resources."""
+    mine = [e for e in cfg.release_entries if e.release_group == group]
+    whole = {e.id for e in mine if entry_module(cfg.groups, e) == e.id}
+    return {
+        "modules": sorted({m for e in mine if (m := entry_module(cfg.groups, e)) is not None}),
+        "match": sorted(f"test.{e.id}.*" if e.id in whole else e.id for e in mine),
+        "ignore": [],
+        "resources": cfg.release_resources,
         "options": list(cfg.options),
         "warnings": cfg.warnings,
     }
@@ -343,6 +433,8 @@ def universe(cfg) -> dict[str, str]:
     """Every module the plan places, and where: a group, not selected, or a whole-module trap."""
     where: dict[str, str] = {}
     for g in cfg.groups.values():
+        if g.tier == "release":
+            continue  # it runs modules its normal groups place
         for m in g.modules:
             where.setdefault(m, g.name)
     for n in cfg.not_selected:
@@ -463,6 +555,7 @@ def judge_group(stream: Stream, run: GuestRun, cfg, group: str, here: str) -> Gr
         if kind == "product":
             findings.append(f"a product module came from the grant: {name} {f}")
 
+    findings += partition_findings(stream, cfg, group)
     deselected = {i for d in cfg.deselected if d.group == group for i in d.tests}
     ran = sorted({n for n in stream.started if n in deselected})
     return GroupOutcome(
@@ -478,6 +571,42 @@ def judge_group(stream: Stream, run: GuestRun, cfg, group: str, here: str) -> Gr
         host_seen=host_seen,
         finished=not bad,
     )
+
+
+def partition_findings(stream: Stream, cfg, group: str) -> list[str]:
+    """No test falls between the tiers. A normal group skips for the `cpu` or `largefile`
+    resource exactly the tests (and modules) its release lists name `gated`, and runs each
+    `inline` one; a release group runs every id it lists, none skipped for those resources. A
+    module's end does not say which resource it was denied, so any RESOURCE_DENIED module of a
+    normal group must be listed. A family with no release lists proves nothing yet."""
+    if not cfg.release_entries:
+        return []
+    skipped = {n for o, n, why in stream.outcomes if o == "skipped" and RESOURCE_SKIP.search(why)}
+    denied = {name for name, state, _, _ in stream.ended if state == "RESOURCE_DENIED"}
+    ran = {n for o, n, _ in stream.outcomes if o != "skipped"}
+    findings = []
+    if cfg.groups[group].tier == "release":
+        for e in (e for e in cfg.release_entries if e.release_group == group):
+            if e.id in denied or e.id in skipped:
+                findings.append(f"{e.id}: skipped for the cpu or largefile resource here")
+            elif e.id not in ran and not any(n.startswith(f"test.{e.id}.") for n in ran):
+                findings.append(f"{e.id}: listed, did not run in its release group")
+        return findings
+    gated = {e.id for e in cfg.release_entries if e.group == group and e.kind == "gated"}
+    seen = skipped | denied
+    findings += [
+        f"{x}: skipped for the cpu or largefile resource, but in no release list"
+        for x in sorted(seen - gated)
+    ]
+    findings += [
+        f"{x}: listed gated, but not skipped for its resource here" for x in sorted(gated - seen)
+    ]
+    findings += [
+        f"{e.id}: an inline test that did not run in its normal group"
+        for e in cfg.release_entries
+        if e.group == group and e.kind == "inline" and e.id not in ran
+    ]
+    return findings
 
 
 def environment_findings(actual: list[str], listed: tuple[str, ...]) -> list[str]:
@@ -607,7 +736,12 @@ def rule_errors(
     pkg = cfg.package
     errors: list[str] = []
     placed: dict[str, str] = {}
+    errors += release_errors(cfg)
+    if sources is not None and cfg.release_entries:
+        errors += inline_errors(cfg, sources)
     for g in cfg.groups.values():
+        if g.tier == "release":
+            continue  # its modules are its normal groups'
         mods = list(g.modules)
         if not mods:
             errors.append(f"{pkg}: group {g.name}'s plan {g.list_file} is missing or empty")
@@ -699,6 +833,86 @@ def rule_errors(
             for i in ids
             if not id_exists(i, sources)
         ]
+    return errors
+
+
+def release_errors(cfg) -> list[str]:
+    """The release lists: each id once, each in a module of the normal group it names, and the
+    release resources given."""
+    pkg = cfg.package
+    errors: list[str] = []
+    if cfg.release_entries and not cfg.release_resources:
+        errors.append(f"{pkg}: release lists without release_resources")
+    seen: set[str] = set()
+    for e in cfg.release_entries:
+        if e.id in seen:
+            errors.append(f"{pkg}: {e.id} is listed twice in the release lists")
+        seen.add(e.id)
+        g = cfg.groups.get(e.group)
+        if g is None or g.tier != "normal":
+            errors.append(f"{pkg}: {e.id} names no normal group: {e.group!r}")
+            continue
+        mods = set(g.modules)
+        if e.id not in mods and module_of_id(e.id, mods) is None:
+            errors.append(f"{pkg}: {e.id} is in no module of {e.group}")
+        if e.id in mods and e.kind != "gated":
+            errors.append(f"{pkg}: module {e.id} is listed {e.kind}; a module is gated")
+    return errors
+
+
+def _reads_cpu(node: ast.AST) -> bool:
+    for n in ast.walk(node):
+        if not (isinstance(n, ast.Call) and n.args):
+            continue
+        f = n.func
+        name = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", "")
+        first = n.args[0]
+        if (
+            name == "is_resource_enabled"
+            and isinstance(first, ast.Constant)
+            and first.value == "cpu"
+        ):
+            return True
+    return False
+
+
+def inline_cpu_tests(sources: dict[str, str], modules) -> set[str]:
+    """The tests, by full id, of the planned modules whose own body reads the `cpu` resource: a
+    test that does less work without it. A helper that reads it outside a test method is not
+    seen."""
+    found: set[str] = set()
+    for m in modules:
+        base = "Lib/test/" + m.replace(".", "/")
+        src = sources.get(f"{base}.py") or sources.get(f"{base}/__init__.py")
+        if src is None:
+            continue
+        for node in ast.walk(ast.parse(src)):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            for f in node.body:
+                if (
+                    isinstance(f, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    and f.name.startswith("test")
+                    and _reads_cpu(f)
+                ):
+                    found.add(f"test.{m}.{node.name}.{f.name}")
+    return found
+
+
+def inline_errors(cfg, sources: dict[str, str]) -> list[str]:
+    """The release lists' `inline` entries are exactly the planned tests that read the `cpu`
+    resource inline, so a re-pin that adds one cannot leave it doing its reduced work alone."""
+    modules = {m for g in cfg.groups.values() if g.tier == "normal" for m in g.modules}
+    found = inline_cpu_tests(sources, sorted(modules))
+    listed = {e.id for e in cfg.release_entries if e.kind == "inline"}
+    errors = [
+        f"{cfg.package}: {i} reads the cpu resource inline, but no release list names it inline"
+        for i in sorted(found - listed)
+    ]
+    errors += [
+        f"{cfg.package}: {i} is listed inline, but its source does not read the cpu resource"
+        for i in sorted(listed - found)
+    ]
     return errors
 
 

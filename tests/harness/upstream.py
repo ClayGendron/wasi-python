@@ -59,6 +59,18 @@ class Group:
     modules: tuple[str, ...] = ()  # a regrtest group's plan, in run order
     list_file: str = ""
     tier: str = "normal"  # "release": run only before a publication, never left out
+    release_by: str = ""  # a pytest release group's kind, "marker" or "keyword"
+    measured: int | None = None  # the fuel a judge run recorded, which bounds the cap
+
+
+@dataclass(frozen=True)
+class ReleaseSelect:
+    """Tests the project runs in the release tier: within `files`, those matching `keyword` that
+    the family's normal marker selects."""
+
+    files: tuple[str, ...]
+    keyword: str
+    reason: str
 
 
 @dataclass(frozen=True)
@@ -75,7 +87,7 @@ class Trap:
     node: str  # a node id, a node-id prefix or a file
     reason: str
     closes_with: str
-    group: str = ""  # a regrtest trap names its group
+    group: str = ""  # its group: a regrtest trap's, and any in a family with release groups
     test: str = ""  # a regrtest trap's full test id, or
     module: str = ""  # its whole module
 
@@ -140,6 +152,13 @@ class Config:
     fuel_facts: list[FuelFact] = field(default_factory=list)  # recorded, never ratcheted
     driver: str = "upstream"  # "package": the compiled packages' families, read by harness.packages
     keys: object = None  # harness.packages.PackageKeys when driver == "package"
+    release_marker: str = ""  # the -m its marker release groups run
+    excluded_marker: str = ""  # what no tier runs, for a capability the guest lacks
+    excluded_reason: str = ""
+    excluded_closes_with: str = ""
+    release_select: list[ReleaseSelect] = field(default_factory=list)
+    release_resources: str = ""  # regrtest: the resources its release groups enable
+    release_entries: list = field(default_factory=list)  # regrtest: the release lists' ids
 
     def classes(self, group: str) -> list[Klass]:
         return [k for k in self.expected if k.group == group]
@@ -170,6 +189,38 @@ def load(package: str, directory: Path = HERE) -> Config:
         from harness import packages
 
         return packages.load(raw)
+    return from_raw(raw, directory)
+
+
+def group_of(name: str, g: dict) -> Group:
+    """A pytest family's group, its tier fields read as the TOML gives them."""
+    measured = g.get("measured")
+    return Group(
+        name,
+        tuple(g["paths"]),
+        int(g["fuel"]),
+        tier=g.get("tier", TIER),
+        release_by=g.get("release_by", ""),
+        measured=None if measured is None else int(measured),
+    )
+
+
+def tier_fields(raw: dict) -> dict:
+    """The family's release-tier keys, as Config takes them."""
+    return {
+        "release_marker": raw.get("release_marker", ""),
+        "excluded_marker": raw.get("excluded_marker", ""),
+        "excluded_reason": raw.get("excluded_reason", ""),
+        "excluded_closes_with": raw.get("excluded_closes_with", ""),
+        "release_select": [
+            ReleaseSelect(tuple(e.get("files", [])), e.get("keyword", ""), e.get("reason", ""))
+            for e in raw.get("release_select", [])
+        ],
+    }
+
+
+def from_raw(raw: dict, directory: Path = HERE) -> Config:
+    """numpy's and pandas' kind of family, from its parsed TOML."""
     return Config(
         package=raw["package"],
         marker=raw["marker"],
@@ -177,22 +228,21 @@ def load(package: str, directory: Path = HERE) -> Config:
         path_packages=list(raw["path_packages"]),
         markers=list(raw.get("markers", [])),
         support=list(raw.get("support", [])),
-        groups={
-            name: Group(name, tuple(g["paths"]), int(g["fuel"]), tier=g.get("tier", TIER))
-            for name, g in raw.get("groups", {}).items()
-        },
+        groups={name: group_of(name, g) for name, g in raw.get("groups", {}).items()},
         not_selected=[
             NotSelected(tuple(n["files"]), n["reason"], n["closes_with"])
             for n in raw.get("not_selected", [])
         ],
         traps=[
-            Trap(t["id"], t["node"], t["reason"], t["closes_with"]) for t in raw.get("trap", [])
+            Trap(t["id"], t["node"], t["reason"], t["closes_with"], t.get("group", ""))
+            for t in raw.get("trap", [])
         ],
         expected=[
             Klass(e["id"], e["group"], e["outcome"], e["match"], e["reason"], e["closes_with"])
             for e in raw.get("expected", [])
         ],
         fuel_facts=_fuel_facts(raw),
+        **tier_fields(raw),
     )
 
 
@@ -200,6 +250,7 @@ def _load_regrtest(raw: dict, directory: Path) -> Config:
     from harness import regrtest
 
     deselected, environment, hosts = regrtest.entries_from(raw)
+    groups, entries = regrtest.groups_from(raw, directory)
     return Config(
         package=raw["package"],
         marker="",
@@ -207,17 +258,7 @@ def _load_regrtest(raw: dict, directory: Path) -> Config:
         path_packages=[],
         markers=[],
         support=[],
-        groups={
-            name: Group(
-                name,
-                (),
-                int(g["fuel"]),
-                regrtest.read_plan(directory, g["list"]),
-                g["list"],
-                g.get("tier", TIER),
-            )
-            for name, g in raw.get("groups", {}).items()
-        },
+        groups=groups,
         not_selected=[
             NotSelected((), n["reason"], n["closes_with"], tuple(n["modules"]))
             for n in raw.get("not_selected", [])
@@ -248,6 +289,8 @@ def _load_regrtest(raw: dict, directory: Path) -> Config:
         environment=environment,
         host_dependent=hosts,
         fuel_facts=_fuel_facts(raw),  # refused by the rules: a regrtest suite has none
+        release_resources=raw.get("release_resources", ""),
+        release_entries=entries,
     )
 
 
@@ -517,6 +560,8 @@ def _abs(rel: str) -> str:
 
 
 def group_spec(cfg: Config, group: Group) -> dict:
+    from harness import tiers
+
     inside = [p + "/" for p in group.paths]
     mine = lambda f: any(f.startswith(p) for p in inside)  # noqa: E731
     ignores = [f for n in cfg.not_selected for f in n.files if mine(f)]
@@ -528,11 +573,12 @@ def group_spec(cfg: Config, group: Group) -> dict:
         "markers": cfg.markers,
         "args": [
             "-m",
-            cfg.marker,
+            tiers.marker_of(cfg, group),
             *cfg.args,
             *[_abs(p) for p in group.paths],
             *[f"--ignore={_abs(f)}" for f in dict.fromkeys(ignores)],
             *[f"--deselect={d}" for d in deselects],
+            *[f"-k{k}" for k in [tiers.keyword_arg(cfg, group, None)] if k is not None],
         ],
     }
 
@@ -547,13 +593,33 @@ def trap_spec(cfg: Config, trap: Trap) -> dict:
 
 
 def fact_spec(cfg: Config, fact: FuelFact) -> dict:
-    """The entry alone, under its group's marker, so it runs exactly the cases its group would
-    have run."""
+    """The entry alone, under its group's marker and tier filter, so it runs exactly the cases
+    its group would have run."""
+    from harness import tiers
+
+    group = cfg.groups[fact.group]
+    k = tiers.keyword_arg(cfg, group, None)
     return {
         "path_packages": cfg.path_packages,
         "markers": cfg.markers,
-        "args": ["-m", cfg.marker, *cfg.args, _abs(fact.node)],
+        "args": [
+            "-m",
+            tiers.marker_of(cfg, group),
+            *cfg.args,
+            _abs(fact.node),
+            *([f"-k{k}"] if k is not None else []),
+        ],
     }
+
+
+def judge_specs(cfg: Config) -> dict[str, dict]:
+    """Every JSON a family's stage holds, by name: each group's, both tiers', each trap's and
+    each fuel fact's. The tier a run judges never changes what is staged, so a normal row's fuel
+    is the same in a normal run and a release run."""
+    out = {g.name: group_spec(cfg, g) for g in cfg.groups.values()}
+    out |= {t.id: trap_spec(cfg, t) for t in cfg.traps}
+    out |= {f.id: fact_spec(cfg, f) for f in cfg.fuel_facts}
+    return out
 
 
 def guest_argv(package: str, name: str) -> list[str]:
@@ -856,6 +922,9 @@ def rule_errors(
                 errors.append(f"{pkg}: the name {f.id} is used twice")
             names.add(f.id)
         errors += fact_errors(pkg, cfg, repo)
+        from harness import tiers
+
+        errors += tiers.rule_errors(pkg, cfg)
         seen: set[tuple[str, str]] = set()
         for k in cfg.expected:
             if (k.group, k.id) in seen:
@@ -1011,12 +1080,8 @@ class Session:
         root = self._stage_root()
         left_out = stage(cfg, tree, allowed, root / "tests")
         judge = root / "judge"
-        for g in cfg.groups.values():
-            (judge / f"{g.name}.json").write_text(json.dumps(group_spec(cfg, g), indent=1))
-        for t in cfg.traps:
-            (judge / f"{t.id}.json").write_text(json.dumps(trap_spec(cfg, t), indent=1))
-        for f in cfg.fuel_facts:
-            (judge / f"{f.id}.json").write_text(json.dumps(fact_spec(cfg, f), indent=1))
+        for name, spec in judge_specs(cfg).items():
+            (judge / f"{name}.json").write_text(json.dumps(spec, indent=1))
         return left_out
 
     def _run(self, package: str, name: str, fuel: int) -> tuple[Stream, GuestRun]:
