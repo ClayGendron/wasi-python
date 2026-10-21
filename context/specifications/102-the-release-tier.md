@@ -837,8 +837,7 @@ As built (2026-10-21); an item marked **waits** says what it waits for.
 - **ruff check, ruff format --check, the fast tier**: ruff clean; the fast tier on the stacked
   tip 2,826 passed, the 16 failures all wave 10's set checks run on a copy of wave 09's set, and
   green by node id on wave 10's set (item 9); output in `build/102/`.
-- **Criterion 3's baseline** (each release group by node id with `--tier release`, twice,
-  restaging between): **waits** for the rebase and the slot (about 8.4 T a pass, two passes).
+- **Criterion 3's baseline**: done, item 12 (two passes equal to the instruction).
 - **The survey's delta review**: passed (`979d178`), its two Lows written in (`084c5eb`).
 - **The stage**: every family's staged JSONs come from one function, both tiers', so a normal
   row's fuel is the same in a normal and a release run; numpy's and pandas' normal fuel equal to
@@ -1103,6 +1102,12 @@ The build, below, as it goes.
       legs green on Linux (job times 131 to 284 s, `upstream-release-d` the longest); the same one
       macOS growth line, the same skipped gather. Every red line a growth line.
     - The claim block gains `cpython-fs` under `grows` with the measured figure.
+
+12. **Criterion 3's baseline** (EXECUTED, the fast slot held, wave 10's set `d0d91cef`): every
+    release-tier check by node id with `--tier release`, `-n 3`, twice, each pass staging anew:
+    36 passed and 2 xfailed (the two class gaps) in both, 6.6 and 6.0 minutes; `sameness.py
+    --tier-rows release` between the two records: no difference, and the largest fuel
+    difference between them exactly 0. The release tier measures 8.36 T on this set.
 
 **What waits for wave 09** (the lane's ruling): the rebase onto main; the survey (Decision 11)
 on main's set after 100 (done, item 5, on wave 09's tip before it landed); the TOML groups,
