@@ -4,10 +4,13 @@
   `b14b68c` (the chain's tip before its rebase onto main), awaiting its pre-build review. The
   worktree is `/home/user/wt/111`; the measurements are scripts under `build/111/` there
   (`measure.py`, `helpers.py`), each run on `b14b68c` and labelled EXECUTED; a number not yet
-  measured is labelled INFERRED. A different agent reviews the design, then the build.
+  measured is labelled INFERRED. **Reviewed before build** the same day
+  (`../reviews/111-the-filesystem-along-the-wasi-seams-spec-2026-10-21.md`, "fit to build once
+  finding 1 is written in"): the Medium written in by the writer, the three Lows by the
+  reviewer, each in its *Disposition*. A different agent reviews the build.
 - **Date:** 2026-10-21
 - **Owner:** Clay Gendron
-- **Kind:** **parallel-safe**: `src/` only, plus unit checks, two rules checks and the harness's
+- **Kind:** **parallel-safe**: `src/` only, plus unit checks, three rules checks and the harness's
   import paths. It **changes no line of `tests/public_api.txt`**, no artifact byte, no errno a
   guest sees, no golden output, no gap, no allowance but the two that shrink, and no progress
   file. Build-class it is not: it touches nothing under `scripts/`, `recipes/`,
@@ -186,9 +189,13 @@ listing). Five small methods are new, each replacing a by-hand write a handler m
 `del self.table[number]; self.owed[number] = entry` pair in `_fd_close`; `_relist(entry,
 listing, held)` for the `staged` and entry update in `_fd_readdir`. Each is two to six lines;
 together they are what "the table owns its state" means, and the rule is one the reviewer can
-read in each handler module: no `files.<field> =`, no `files.<field>.<mutator>(`, no `del
-files.<field>[…]` (the builder greps for the forms criterion 3 names and records the empty
-result). A handler reads six fields of the table and no other: `context`, `forwards`, `held`,
+read in each handler module, in any of the five forms a write takes: no plain assignment
+`files.<field> =`, no augmented one `files.<field> +=`, no subscript store
+`files.<field>[…] =`, no mutator call `files.<field>.<mutator>(`, no `del files.<field>[…]`.
+Today's ten by-hand writes take four of the five (EXECUTED, the pre-build review:
+`held.discard` 1192, `del table[…]` 1211, `owed[…] =` 1212, `staged +=` 1329, 1497 and 1893,
+`held.discard` and `held.add` 1573 to 1576, `held.add` 1602), and the rule is held by a rules
+row, not a one-time grep (Decision 5, row 7; criterion 3 records the grep beside it). A handler reads six fields of the table and no other: `context`, `forwards`, `held`,
 `mounts`, `opened` and `table` (EXECUTED, the pre-build review: the attributes read by the
 methods that stay after the five moves); the builder records the per-module list beside that
 grep.
@@ -352,13 +359,26 @@ under `build/111/` and quoted in the landing notes (AGENTS.md, rule 3).
    method) named `_` plus its key whose first parameter is `files`; and `_Files` has no attribute
    `_` plus any key, so no handler can be reached two ways. Red before: no `HANDLERS`.
 
-**One rules row for the lists:**
+**Two rules rows, for the lists and for the handlers' seam:**
 
 6. `test_api_lists_every_module_of_the_package`: every `.py` under `src/wasi_python/` is in
    `api.DEFINING` or `api.INTERNAL_FILES`, and every name those lists hold is one file. Green
    today (18 files, 18 listed: EXECUTED, read); seen failing on the commit that adds the four
    modules before `INTERNAL_FILES` gains them, so a module whose private names could reach a
    public docstring unseen is a red line, not an oversight.
+7. `test_the_handlers_change_the_table_only_through_its_methods`: an AST walk of
+   `_fs_descriptors.py` and `_fs_paths.py` (its scanner in `tests/harness/scan.py`, beside
+   `long_function_hits`) for the five forms of a write to the table: an `Assign`, `AnnAssign`
+   or `AugAssign` whose target, or a `Delete` whose target, is an `Attribute` or `Subscript`
+   chain rooted at the name `files`; and a `Call` whose function is `files.<field>.<name>` with
+   `<name>` one of `add`, `discard`, `pop`, `clear`, `append`, `update`, `remove`, `extend`,
+   `setdefault`. A hit is `file:line: files.<field> <form>`; a read of `files.<field>` is not a
+   hit; the allowance is none and there is no list to grow. Seen failing on the handlers moved
+   verbatim, before their ten by-hand writes become the table's methods: ten hits, the ones
+   Decision 1 lists, the output kept under `build/111/`. Why a row and not criterion 3's grep
+   alone: the grep is run once, at the build; the promise, that the table's invariants (`staged`
+   is the sum of the rows' `held`, `opened` counts the table and the owed, `held` holds only
+   wasmtime's numbers) are kept in one file, is for every later change.
 
 **The seam that moves** (Decision 1): `test_runner_mounts.py:914`'s patch of `_source_type`
 goes; its `recorded` forward (915) performs the swap when `stat` is true, `name` is
@@ -391,8 +411,8 @@ The judge is the one 107 used, with the same baseline:
 - **The fast tier** (`uv run pytest -m "not slow" -n 3`, once, at the end of the build, in the
   worktree) gives `build/progress/latest.json`; `uv run python tests/harness/sameness.py --claims
   build/111/claims.toml A.json B.json` against the wave's tip record prints nothing outside the
-  claim list: the six rows above (two rules rows, three unit rows, one renamed rules row and its
-  retired name) and the judge-hash lines of the five files the move touches (`test_rules.py`,
+  claim list: the seven rows above (three rules rows, three unit rows, one renamed rules row and
+  its retired name) and the judge-hash lines of the five files the move touches (`test_rules.py`,
   `test_runner_mounts.py`, `tests/harness/files.py`, `tests/harness/api.py`, `tests/harness/scan.py`).
 - **The parity and errno tables** are the judge of what the guest sees; none is edited
   (`GRANT_PARITY`, `WRITE_PARITY`, `WRITE_DIFFERENCES`, `ERRNO_GUEST`, `MOUNT_CANCEL`; `_HOSTS`,
@@ -462,7 +482,9 @@ before its code, by node id, the output kept under `build/111/`.
    `api.INTERNAL_FILES` gains the modules).
 3. **`111: the descriptor and path handlers (Decision 1)`**: `_fs_descriptors.py` and
    `_fs_paths.py` with their `HANDLERS`; `_Files.__call__` through the union; the `_source_type`
-   seam moved into the `forward` patch; `test_every_shadowed_call_has_one_handler_function`.
+   seam moved into the `forward` patch; `test_every_shadowed_call_has_one_handler_function`;
+   `test_the_handlers_change_the_table_only_through_its_methods`, seen failing on the handlers
+   moved verbatim (ten hits), green once the ten writes are the table's methods.
 4. **`111: the two allowances shrink (Decision 5)`**: `ALLOWED` loses `mounts.py`;
    `FILESYSTEM_IMPORTS` and the group's import check in place of 107's; both seen failing on
    commit 3's parent state as Decision 5 says.
@@ -595,15 +617,20 @@ In: Decisions 1 to 8. Out:
    commit shows every method of `_Files` moved, and the landing notes list every line that is
    not a move with its reason (the `self` to `files` rename, the ten table methods of Decision 1,
    `HANDLERS`, `__call__`'s lookup, the module headers).
-3. **The handlers change no table state by hand**: `grep -nE 'files\.[a-z_]+ ?=[^=]|files\.[a-z_]+\.(add|discard|pop|clear|append|update)\(|del files\.' src/wasi_python/_fs_descriptors.py src/wasi_python/_fs_paths.py`
-   is empty, recorded.
+3. **The handlers change no table state by hand**:
+   `test_the_handlers_change_the_table_only_through_its_methods` green, seen failing first with
+   its ten hits (Decision 5, row 7); and beside it, recorded empty per handler module,
+   `grep -nE 'files\.[a-z_]+(\[[^]]*\])? ?([-+*/|&^%]|<<|>>)?=[^=]|files\.[a-z_]+\.(add|discard|pop|clear|append|update|remove|extend|setdefault)\(|del files\.' src/wasi_python/_fs_descriptors.py src/wasi_python/_fs_paths.py`.
+   The five forms are a plain assignment, an augmented one, a subscript store, a mutator call
+   and a `del`; a `files.<field>` read is not a hit. The row and the grep agree on the forms;
+   the row is the judge, the grep the record.
 4. **The dispatch equals the signatures**: `test_every_shadowed_call_has_one_handler_function`
    green, seen failing first.
 5. **The two allowances shrank and the import rule holds the group**: `ALLOWED` without
    `mounts.py`; `FILESYSTEM_IMPORTS` as Decision 5 writes it; both checks seen failing on the
    commit before their code, outputs under `build/111/`; `grep -nE 'from \.|import wasi_python'
    src/wasi_python/mounts.py` lists nothing.
-6. **The three unit rows and the lists row** green, each seen failing first.
+6. **The three unit rows, the lists row and the handlers row** green, each seen failing first.
 7. **No function is over 80 lines**: `test_no_function_is_over_eighty_lines` green with
    `LONG_FUNCTIONS` unchanged; `_path_open`'s length recorded.
 8. **The test seams are accounted for**: the landing notes list every site of The problem's
@@ -636,7 +663,8 @@ Twelve criteria.
 - **The claim list** (`build/111/claims.toml`, each line "111:"; the counts filled by the
   builder):
   - 111: **new checks**: `test_rules.py::test_the_filesystem_imports_only_itself_and_the_engine_seam`,
-    `::test_api_lists_every_module_of_the_package`;
+    `::test_api_lists_every_module_of_the_package`,
+    `::test_the_handlers_change_the_table_only_through_its_methods`;
     `test_runner_mounts.py::test_the_memory_readers_answer_over_a_stand_in`,
     `::test_the_table_reuses_numbers_lowest_first`,
     `::test_every_shadowed_call_has_one_handler_function`.
@@ -648,12 +676,54 @@ Twelve criteria.
 
   ```
   --accept "111: the runner's filesystem reads along the WASI seams: mounts.py keeps the public types, their two rows and the call-context protocol; _fs_memory.py the preview1 bytes and the forwards' tables; _fs_table.py the call's table, its lifecycle and the provider bridge; _fs_descriptors.py and _fs_paths.py the fd_* and path_* calls as free functions over the table, dispatched by a table equal to the shadowed signatures; every module under the ceiling, every function under 80 lines, no public name or guest-visible answer changed"
-  --accept-judge "111: the ceiling's allowance loses mounts.py; 107's import rule becomes a per-module table over the five filesystem modules, runtime and typing imports apart; one rules row holds api.py's lists complete; three unit rows drive the memory readers, the table's numbers and the dispatch table without the other seams; one mounts unit row injects its rename race through the forward patch it already made instead of a class attribute that is a function now; no existing expectation edited"
+  --accept-judge "111: the ceiling's allowance loses mounts.py; 107's import rule becomes a per-module table over the five filesystem modules, runtime and typing imports apart; one rules row holds api.py's lists complete; one rules row holds the two handler modules to the table's methods for every form of a write; three unit rows drive the memory readers, the table's numbers and the dispatch table without the other seams; one mounts unit row injects its rename race through the forward patch it already made instead of a class attribute that is a function now; no existing expectation edited"
   ```
 
 - **Dry-run needs:** one dispatch on the built tip (Decision 8). The Windows shard runs the
   mounts rows on `_Windows` as a matter of course; the builder reads the run's `rules` and
   `unit` groups on the three systems.
+
+## Disposition of the pre-build review
+
+The review (`../reviews/111-the-filesystem-along-the-wasi-seams-spec-2026-10-21.md`) re-measured
+`_Files` with its own script, read every check the plan reads, probed 105's mutable scan with a
+stand-in `HANDLERS`, and walked the moved race injection against the row and the code. Every
+finding is written in.
+
+- **Finding 1 (Medium), written in by the writer, this commit.** Criterion 3's grep missed an
+  augmented assignment and a subscript store, three of today's ten by-hand writes. Decision 1
+  now names the five forms with the ten sites; Decision 5 gains row 7, a rules row whose AST
+  walk holds the two handler modules to the five forms with no allowance; criterion 3 cites the
+  row as the judge and records the review's widened grep beside it; the claim list, the
+  accept-judge flag, Design's commit 3, criterion 6 and the Kind line count the row.
+- **Finding 2 (Low), written in by the reviewer (`668026c`), confirmed.** "Three new modules"
+  read "four" at nine sites; the module table, the chain and the lines always counted four.
+- **Finding 3 (Low), written in by the reviewer (`668026c`), confirmed.** `_call.py`'s three
+  docstring tokens (`mounts.SHADOWED` 895, `mounts.GUARDED` 916, `mounts.COUNTED` 917) read
+  `_fs_memory.` after the move; `mounts._CallContext` at 728 stays; For the lane names them.
+- **Finding 4 (Low), written in by the reviewer (`668026c`), confirmed.** The handlers' read
+  surface is six fields (`context`, `forwards`, `held`, `mounts`, `opened`, `table`), named in
+  Decision 1 and recorded per module by the builder beside criterion 3's grep.
+- **Note 1, acknowledged.** `_path_open` stays at 78 lines (`self,` has its own signature line
+  and becomes `files: _Files,`); Decision 4's fallback stays as the rule for a crossing that does
+  not come.
+- **Note 2, acknowledged.** The moved injection fires on any `stat=True` `path_filestat_get`
+  that answers 0, where today's fires only after a folder is judged; in the row the source is
+  always the folder `d` and `_rename` forwards one stat per call, so the row reaches the same
+  race. The builder may narrow the condition with `args[2] == STAT_PATH`; the specification does
+  not require it.
+- **Note 3, acknowledged.** The CHANGELOG and roadmap lines go in at the build, as the chain's
+  did at its rebase commit.
+- **Note 4, acknowledged.** The dict dispatch is cheaper than today's `getattr`; host time is not
+  metered, so no verdict can move either way.
+- **Note 5, accepted as the builder's option.** A small `_Table` protocol (the six fields and
+  the table's methods the handlers call) in place of the `TYPE_CHECKING` import of `_fs_table`
+  would make the seam a type the checker holds and drop the one upward import; it would live
+  in `_fs_memory.py`, which is below the handlers and names `_Forwards` and, through `mounts`,
+  `_Open` (not in `mounts.py`, which must not import `_fs_memory` for `_Forwards`). The builder may
+  take it, and then `FILESYSTEM_IMPORTS`' typing column for the two handler modules is empty
+  and the landing notes say so; the `TYPE_CHECKING` import stays the default, as the simpler
+  move and the form 104 allowed.
 
 ## One line
 
