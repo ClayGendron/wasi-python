@@ -188,6 +188,8 @@ def _inputs(**changes) -> dict:
         "gates": sk.GATES,
         "tests_names": sorted(p.name for p in tests.iterdir() if p.suffix == ".py" or p.is_dir()),
         "gate_imports": scan.local_import_files(paths.REPO, sk.GATE_ROOT, sk.GATES),
+        "root_names": sorted({rel.split("/")[0] for rel in paths.tracked_files()}),
+        "pyproject_text": (paths.REPO / "pyproject.toml").read_text(),
     }
     out.update(changes)
     return out
@@ -229,6 +231,18 @@ KEY_MUTANTS = {
         "K7: tests/sitecustomize.py",
     ),
     "a tests/json.py": (lambda i: {"tests_names": [*i["tests_names"], "json.py"]}, "K7:"),
+    "a top-level Modules/": (
+        lambda i: {"root_names": [*i["root_names"], "Modules"]},
+        "K10: Modules",
+    ),
+    "a uv.toml at the root": (
+        lambda i: {"root_names": [*i["root_names"], "uv.toml"]},
+        "K10: uv.toml",
+    ),
+    "a [tool.uv] table in pyproject.toml": (
+        lambda i: {"pyproject_text": i["pyproject_text"] + '\n[tool.uv]\nindex-url = "x"\n'},
+        "K11:",
+    ),
     "the build with an argument": (
         lambda i: {
             "release_text": i["release_text"].replace(

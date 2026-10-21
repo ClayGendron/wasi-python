@@ -1145,6 +1145,8 @@ def set_key_inputs() -> dict:
         "gates": sk.GATES,
         "tests_names": sorted(p.name for p in tests.iterdir() if p.suffix == ".py" or p.is_dir()),
         "gate_imports": scan.local_import_files(paths.REPO, sk.GATE_ROOT, sk.GATES),
+        "root_names": sorted({rel.split("/")[0] for rel in paths.tracked_files()}),
+        "pyproject_text": (paths.REPO / "pyproject.toml").read_text(),
     }
 
 

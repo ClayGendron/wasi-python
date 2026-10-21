@@ -3972,6 +3972,32 @@ def local_import_files(repo: Path, root: str, modules: Iterable[str]) -> set[str
     return found
 
 
+# Names the build looks up at the checkout's root, found by a traced build from the pins on arm64
+# Linux, none of them tracked today: CPython's make probes its source folders and RCS/SCCS one
+# level above its source tree, git reads .mailmap, uv looks for uv.toml, the host Python for
+# lib/python315.zip, a linker probe writes a.out where it runs, and two tools name "-" and
+# "<stdin>". A tracked file at one of them would change the build without changing the key.
+TRACED_ROOT_LOOKUPS = (
+    "-",
+    ".mailmap",
+    "<stdin>",
+    "Include",
+    "Lib",
+    "Misc",
+    "Modules",
+    "Objects",
+    "Parser",
+    "Programs",
+    "Python",
+    "RCS",
+    "SCCS",
+    "Tools",
+    "a.out",
+    "lib",
+    "uv.toml",
+)
+
+
 def set_key_errors(
     closure: Iterable[str],
     tracked: Iterable[str],
@@ -3982,11 +4008,14 @@ def set_key_errors(
     gates: Iterable[str],
     tests_names: Iterable[str],
     gate_imports: Iterable[str] = (),
+    root_names: Iterable[str] = (),
+    pyproject_text: str = "",
 ) -> list[str]:
     """The first layer of the key's proof: what the set's key (release/set_key.py) must hold,
     one line per input it leaves out. `tracked` is every tracked file under scripts/ and
     recipes/; `texts` their text; `tests_names` the top-level names under the gate root (files
-    and folders); `gate_imports` the files `local_import_files` finds for the gates."""
+    and folders); `gate_imports` the files `local_import_files` finds for the gates;
+    `root_names` the top-level names of every tracked file; `pyproject_text` pyproject.toml."""
     import sys
 
     errors: list[str] = []
@@ -4056,4 +4085,14 @@ def set_key_errors(
             errors.append(
                 f"K7: {gate_root}/{name} would be imported by the gate ahead of the stdlib"
             )
+    for name in sorted(set(root_names) & set(TRACED_ROOT_LOOKUPS)):
+        errors.append(
+            f"K10: {name} is tracked at the checkout's root, where the build looks it up, and the"
+            " key does not hold it"
+        )
+    if re.search(r"^\[tool\.uv(?:\.[\w-]+)?\]", pyproject_text, re.M):
+        errors.append(
+            "K11: pyproject.toml has a [tool.uv] table, which the build's uv reads from the"
+            " checkout's root, and the key does not hold pyproject.toml"
+        )
     return errors
