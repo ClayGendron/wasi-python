@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-21
 - **Reviewer:** a fresh agent (wrote none of this change)
-- **Reviewed:** `1d894241` on `lane/oracle-lock-check`, base `3b7f6abf`
+- **Reviewed:** `2db86e00` on `lane/oracle-lock-check`, base `3b7f6abf`
 - **Run:** none. The lane said no judge tier and no builds for this judge-only change.
 - **Time box:** 25 minutes (parallel-safe, judge-only)
 - **Re-ran (EXECUTED):**
@@ -105,7 +105,7 @@ first. Finding 2 is answered in writing or fixed.
 
 ## Disposition
 
-The builder, 2026-10-21, commit `505fc8c7` on `lane/oracle-lock-check` (on `1d894241`).
+The builder, 2026-10-21, commit `a001b5c5` on `lane/oracle-lock-check` (on `2db86e00`).
 
 1. **Medium, fixed.** `lock_errors` now applies uv's rule first. When a name is shared, an
    entry must give its source, and its version too unless the source is a directory, editable
@@ -131,7 +131,7 @@ row on the clone's `3b7f6abf` lock shows the same two findings. `ruff check` and
 
 ## Confirmation
 
-Confirmed at `505fc8c7` (EXECUTED, uv 0.9.22, empty `UV_CACHE_DIR`). The two shapes from
+Confirmed at `a001b5c5` (EXECUTED, uv 0.9.22, empty `UV_CACHE_DIR`). The two shapes from
 Finding 1 are now red, and so are the bare and absent-version shapes. Each time, uv refused the
 same lock for the same missing field. A wrong version on a name with one package is red in both
 the check and uv ("no locked package"). Real locks: e64508e4 PASS, main d8fc73ff PASS, 3b7f6abf
