@@ -10,7 +10,10 @@
   choices the owner may make are written in as **defaults pending the owner's answer** (the
   lane files the questions): 088 widened to scipy's seven test modules (Decision 8); the modes
   README-only for 0.1.0 (Decision 7); a 15 T threshold for scikit-learn's release tier (Decision
-  7); statsmodels' left-out datasets as a README class (Decisions 8 and 9). **Confirmed fit to
+  7); statsmodels' left-out datasets as a README class (Decisions 8 and 9). The owner kept all
+  four (question 110, `decisions.md`); after the survey showed the threshold could not be met, the
+  owner replaced it on 2026-10-21 with a standing rule: each suite in the release tier whole, a
+  small smoke group per package in the normal tier (Decision 7, revised). **Confirmed fit to
   build** by the same reviewer (the review's Confirmation, `f2926ae`). **Surveyed 2026-10-21**
   (`../research/2026-10-21-scipy-sklearn-statsmodels-own-tests-under-the-runtime.md`, EXECUTED:
   scipy and scikit-learn on wave 09's set `142bdd38`, statsmodels on 045's set `14adfa5f`); its
@@ -188,8 +191,7 @@ where 102 runs it.
      collected with `SCIPY_XSLOW=1`, and every direct read of each `env` variable in each sdist
      (H1); the derived run's fuel and each output's size (M1); every `setup_module` and
      `teardown_module` in the staged ancestor inits (L2); each not-selected file's collected count
-     (L3); the tests that skip only because a mode's variable is unset (L7); and which step of
-     Decision 7's threshold the measured total took.
+     (L3); and the tests that skip only because a mode's variable is unset (L7).
    - **It is written up** as the memo, labelled EXECUTED, with the scripts and raw streams beside
      it; its dated delta to Decisions 8, 9, 11 and 12 goes to a fresh reviewer as a context-only
      delta review. Building starts on that verdict, never before.
@@ -361,61 +363,52 @@ where 102 runs it.
      `gmpy2`, `array_api_strict`, `polars`, `pyarrow`, `pytest_run_parallel`, `scipy_doctest`).
      The survey confirms it; a needed wheel would be a `kit_extra` line shared with 067.
 
-7. **The two tiers (102): the rule, with these named choices** (revised for the review, H1 and
-   N3). The starting rule is that what upstream's own default command runs is the normal tier and
-   what it runs only when asked is the release tier. The owner's "we can decide what is slow tier"
-   (2026-10-20) allows named choices against it; each is written here with its evidence, and none
-   leaves a test out of both tiers.
-   - **scipy: `SCIPY_XSLOW=1` for every group, and two kinds of release selection.** scipy's
-     default test task is `spin test`; its separate task `test-xslow` runs `spin test -m full`
-     with `SCIPY_XSLOW=1` ("Test SciPy (full and x-slow)"; READ: `pixi.toml:276-290`), so the
-     default leaves out the `slow` and `xslow` tests and everything the variable gates (INFERRED
-     from the task pair; `.spin/cmds.py` is not in the sdist).
-     - **The variable is read outside the marker** (the review, H1, READ in the pinned sdist):
-       `stats/tests/test_axis_nan_policy.py:26,390` defines a block of tests only when it is set
-       (its comment: ">3,000 tests"), and `:384,907` skips the `kruskal` and `friedmanchisquare`
-       cases without it; `stats/tests/test_continuous.py:1142` skips sixteen distributions of
-       `test_rv_generic` without it; `integrate/tests/test_tanhsinh.py:265` skips two cases of
-       `test_accuracy` without it; `special/_mptestutils.py:193` uses 5,000 points in place of 500
-       for every mpmath comparison when it is set; `stats/tests/test_fit.py:113` gates the very
-       slow fits inside a `slow`-marked test. So the variable cannot be set for release groups
-       alone (the gated cases inside unmarked tests would then run in neither tier), and setting it
-       family-wide without more would put upstream's very slow cases in the normal tier.
-     - **So: `env` is a family key only.** Every scipy group, in both tiers, runs with
-       `SCIPY_XSLOW=1`; no group sets its own variables (Decision 14). A normal group's argv and
-       environment are the same on a normal run and on a release run (102, Decision 4).
-     - **Release by marker** (102's kind (a)): `marker = "not slow and not xslow"`,
-       `release_marker = "slow or xslow"`.
-     - **Release by keyword** (102's kind (b)), one `[[release_select]]` entry per file for the
-       cases upstream runs only with `SCIPY_XSLOW` inside tests that carry no `slow` or `xslow`
-       marker, each with the reason "upstream runs it only with SCIPY_XSLOW set":
-       `stats/tests/test_axis_nan_policy.py` (the functions defined under `if SCIPY_XSLOW:`, and
-       the `kruskal` and `friedmanchisquare` cases), `stats/tests/test_continuous.py`
-       (`test_rv_generic`'s sixteen distributions), `integrate/tests/test_tanhsinh.py`
-       (`studentized_range` and `levy_stable` in `test_accuracy`). The survey writes each keyword
-       from the collected ids and confirms, by collecting both tiers, that every case the variable
-       adds or unskips is in exactly one of them.
-     - **The mpmath point count cannot be split by keyword.** The normal tier runs scipy's mpmath
-       comparisons at 5,000 points, upstream's `SCIPY_XSLOW` setting, and the README says so.
-     - **Counts.** The drafting counts, 80,926 normal and 15,174 release (10,347 in
-       `signal/tests/test_signaltools.py`, 2,919 in `sparse/tests/test_64bit.py`), were collected
-       without `SCIPY_XSLOW` (EXECUTED); with it the suite collects the 3,000-odd hidden tests more.
-       The survey re-collects both tiers with the variable set, and its memo lists every direct
-       read of each `env` variable in each sdist (a grep, READ), so the delta review sees what each
-       variable changes.
-   - **scikit-learn: normal, with a threshold** (*default pending the owner's answer*). It has no
-     slow marker (READ). Its float32 cases are opt-in (`SKLEARN_RUN_FLOAT32_TESTS=1`,
-     `conftest.py:88-91`): they run, with the variable in the family's `env`, because they are
-     tests of the product's float32 paths. **The threshold:** if the survey measures more than
-     15 T for the normal tiers of the three packages together (about 2.3 times today's 11.2 T of
-     upstream fuel), scikit-learn's tests move to the release tier by 102's kind (b) keyword or
-     path entries until the total is under it, in this order: first `sklearn/tests/test_common.py`
-     (the estimator checks, 13,387 tests), then the float32 cases (keyword `float32`). Nothing is
-     left out. The rule follows the owner's reading ("for normal checks, we don't run the slow
-     tests"; "we can decide what is slow tier") and bounds the lane's darwin accept at every
-     landing. The memo states which step the measured total took.
-   - **statsmodels: everything normal.** Its `slow` tests run by default (`--skip-slow` is an
-     opt-out; READ), so they are normal by the rule.
+7. **The two tiers (102): each suite in the release tier whole, and a small normal-tier smoke
+   group per package** (revised 2026-10-21 by the owner's standing rule; it replaces the
+   threshold of the reviewed text and the marker split as the line between the tiers).
+   - **The owner's words** (2026-10-21, through the lane, answering the survey's threshold
+     question): "we need to have fast tests and slow tests. We only run slow tests when we are
+     trying to publish to pypi, as it is critical we check that our package is working on the
+     libraries we import before we release to catch any errors, otherwise we should only run the
+     tests needed to confirm our new edits are working."
+   - **So:** scipy's, scikit-learn's and statsmodels' own suites run in the **release tier**, whole
+     (102's machinery: the tag run, the dry run on main before a tag, and the lane's release
+     acceptance). Each package keeps **one or two smoke groups in the normal tier**: a few test
+     folders or files that prove the package imports and its core compiled paths work, so a
+     landing that breaks a package is still caught at every landing and on every branch run.
+     Nothing leaves the full suite: every test runs in exactly one tier.
+   - **The smoke groups** (chosen from the survey; each measured, EXECUTED 2026-10-21 on the
+     survey's sets, each well under 100 G, 277.6 G in all):
+
+     | group | paths | what it proves | fuel | outcomes |
+     |---|---|---|---|---|
+     | `scipy-smoke-a` | `sparse/linalg/_dsolve/tests` (SuperLU), `sparse/linalg/_eigen/arpack/tests` (ARPACK), `optimize/_trustregion_constr/tests`, `integrate/_ivp/tests`, `cluster/vq/tests` | the C solvers, sparse eigenvalues, constrained optimisation, ODEs, k-means | 80.2 G | 895 passed, 7 skipped, 1 failed (`no-threads`) |
+     | `scipy-smoke-b` | `fftpack/tests` (ducc0 and pocketfft paths), `io/matlab/tests`, `linalg/tests/test_decomp_cholesky.py` and `test_solve_toeplitz.py` (OpenBLAS's LAPACK through the f2py and Cython wrappers) | the FFTs, file reading, the void-convention LAPACK | 67.6 G | 920 passed, 1 xfailed, 1 xpassed |
+     | `scikit-learn-smoke` | `svm/tests` (libsvm and liblinear), `covariance/tests`, `cross_decomposition/tests`, `cluster/_hdbscan/tests` | the compiled estimators, scipy's BLAS through Cython | 69.4 G | 284 passed, 134 skipped, 1 xfailed, 1 failed (`enotsup-io`) |
+     | `statsmodels-smoke` | `formula/tests` (patsy and formulaic), `tsa/arima/tests`, `genmod/families/tests`, `tsa/filters/tests`, `iolib/tests` | formulas, ARIMA, GLM families, filters, summaries | 60.4 G | 365 passed, 3 skipped, 1 xfailed, 3 failed (`left-out-datasets`) |
+
+     Every failure there is a member of a measured class, so each smoke group is green with its
+     gaps. scipy's smoke groups run with scipy's normal marker, `-m "not slow and not xslow"`, and
+     without the three `SCIPY_XSLOW` keyword cases (none is in their files); their few slow tests
+     stay in the release tier.
+   - **The release tier is everything else**, by 102's kinds: each family's release groups cover
+     every staged path; a release group over a smoke group's path adds `-k "not (S)"` or, for a
+     scipy smoke file, takes only its `slow or xslow` tests, so no test runs in both tiers (102's
+     partition, by construction). The release groups are packed by the 480 G bound and the cap
+     rule from the survey's folders, split by `[[split]]` where a folder passes the bound.
+   - **scipy keeps `SCIPY_XSLOW=1` family-wide** (H1's answer stands): every scipy group, in both
+     tiers, runs with it. The three keyword entries of the reviewed text are no longer needed to
+     keep the gated cases out of the normal tier, since only the smoke groups are normal and none
+     holds them; they stay in the survey's record (`keywords.txt`) for any later smoke group that
+     would take one of those files.
+   - **scikit-learn's float32 cases** run, with `SKLEARN_RUN_FLOAT32_TESTS=1` in the family's
+     `env`, in whichever tier their file is in. **statsmodels' `slow` tests** run in the release
+     tier with the rest.
+   - **A landing that changes a package's own build** (its pin, its recipe, a carried patch) runs
+     that package's release groups on its branch run (102's `release-tier` input true), so the
+     whole suite sees the change before review; any other landing runs the smoke groups only.
+     This follows the owner's "only run the tests needed to confirm our new edits are working".
+
    - **`env`, a new family key**, a map of variables the harness adds to the judge's `ENV` for
      every guest run of that family, never per group (H1). **The allowed names are a constant in
      `packages.py`, per family** (the review, L6), as 102's `EXCLUDABLE` is: today `SCIPY_XSLOW`
@@ -512,19 +505,23 @@ where 102 runs it.
     - **Groups follow the package's subpackages** (one group per subpackage or a run of small
       ones, by sdist order), so a class's members and a regression read by subpackage.
 
-12. **The release: new Linux shards, packed from the survey's fuel.**
-    - **Normal tier:** Linux shards of at most about 725 G each (066's packing), named
-      `upstream-sci-*` (scipy), `upstream-skl-*` (scikit-learn) and `upstream-sm-*` (statsmodels),
-      each within 360 s of job time on the branch's dry run (066's criterion 12). The lane's darwin
-      judge runs every normal group at every landing.
-    - **Release tier:** scipy's release groups (marker and keyword), and scikit-learn's if
-      Decision 7's threshold moves any, in release shards of 102's kind, run only where 102 runs
-      them (the tag run and the dry run on main before a tag).
-    - **The derived run counts in every scipy shard** (Decision 5): its measured fuel is added once
-      to each scipy shard's packing and to its 360 s bound.
-    - **The job count.** 101 sets the Linux matrix's `max-parallel` (20 in 067's reading of it);
-      the new shards queue behind it. Decision 12's price below states the wall-clock cost as an
-      estimate; the branch's dry run measures it.
+12. **The release: one normal-tier shard for the smoke groups, and release-tier shards for the
+    rest** (revised 2026-10-21 for Decision 7's owner rule).
+    - **Normal tier:** the four smoke groups (277.6 G measured) in one Linux shard,
+      `upstream-sci-smoke`, about 45 to 85 s of guest time plus about 60 s of setup, on every
+      release run; the lane's darwin judge runs them at every landing (about 50 s of guest time at
+      0.18 s per G).
+    - **Release tier:** every other group of the three families in release shards of 102's kind,
+      Linux only, at most about 725 G each, run only where 102 runs them (the tag run, the dry run
+      on main before a tag, a branch run with `release-tier: true`): about **74 to 80 shards**
+      for the measured at least 53 T (the price below). A 725 G shard is 116 to 225 s of guest
+      time plus about 60 s of setup.
+    - **The derived run counts in every scipy shard** (Decision 5): 8.59 G measured, added once to
+      each scipy shard's packing and to its 360 s bound.
+    - **The job count.** On a normal run the Linux matrix gains one job. On a release-tier run it
+      gains about 75, which at 101's 20 parallel jobs is about four more waves of four to five
+      minutes: about 15 to 25 more minutes of wall clock on the tag run and the dry run on main
+      (INFERRED from the packing; the branch run with `release-tier: true` measures it).
     - **Linux only in the release**, as 066's: fuel is ratcheted on the lane's darwin judge; G5
       compares `passes` and `passed_digest` between the Linux record and the lane's.
 
@@ -587,8 +584,8 @@ tests/upstream/scipy.toml            package "scipy", driver "package", grant /u
 tests/upstream/scikit-learn.toml     grant /upstream-scikit-learn, stage_folders (sklearn/**/tests),
                                        package_inits, support_files [the two conftests],
                                        env {SKLEARN_RUN_FLOAT32_TESTS, SKLEARN_SEED}, groups,
-                                       [[split]] for tests/test_common.py, [[release_select]]
-                                       entries if Decision 7's threshold moves any
+                                       [[split]] for tests/test_common.py, the smoke group
+                                       (normal) and the release groups (Decision 7)
 tests/upstream/statsmodels.toml      grant /upstream-statsmodels, stage_folders, package_inits,
                                        support_files [statsmodels/conftest.py], groups
 tests/upstream/<package>.ini         Decision 6
@@ -662,16 +659,21 @@ code or a stand-in; the builder records each failing assertion in the landing no
 4. **With the TOMLs, the lists and the gaps complete**, the run on that set gives each group check
    passing; each class and trap check failing as its gap says; the numbers (passes, fuel, classes,
    members) in the landing notes, equal to the memo's or explained.
-5. **Fuel repeats.** Each new normal group run twice, restaging between the runs: equal outcomes
-   and `passed_digest`; on darwin equal fuel within `sameness.py`'s tolerance. The release groups
-   once each, on darwin.
+5. **Fuel repeats.** Each smoke group run twice, restaging between the runs: equal outcomes and
+   `passed_digest`; on darwin equal fuel within `sameness.py`'s tolerance. The release groups once
+   each, on darwin, with scipy's `special` and `stats` slow groups measured to the end (the
+   survey's caps stopped them).
 6. **Nothing else moves.** The ratchet against the base: every numpy, pandas, CPython and 066 row
    lost 0, grew 0. **A new unit check, written first** (the review, L5: 066 has no such check),
    compares each of 066's six families' staged file list and group JSON with the base's, byte for
    byte, and numpy's, pandas' and CPython's stage manifests too.
-7. **The shards.** 063's `test_release_shards_cover_the_judge` and the workflow scan pass with the
-   new shards; each new normal group is in exactly one Linux shard and each release group in one
-   release shard (102's rule).
+7. **The shards and the partition.** 063's `test_release_shards_cover_the_judge` and the workflow
+   scan pass with the new shards; each smoke group is in exactly one normal Linux shard and each
+   release group in one release shard (102's rule). **A unit check, written first**, collects a
+   synthetic family with a smoke group over two of its files and release groups over all of them,
+   and shows every collected test in exactly one tier: none in both, none in neither (the owner's
+   rule, Decision 7). Each smoke group's measured fuel is under 100 G, and the four together under
+   1 T (a rules check on their `measured` values).
 8. **The fetch.** `tests/unit/test_fetch_trees.py`, with a fake `urlopen`: a shard with a scipy
    group fetches the kit and scipy's tarball only; a hash mismatch deletes the `.part` file and
    exits 1 naming it.
@@ -686,60 +688,43 @@ code or a stand-in; the builder records each failing assertion in the landing no
 12. **The branch's dry run, before landing** (not a check): every job passes on all three systems,
     every red line a growth line or G7; the new shards' job times in the landing notes, each
     within 360 s, or Decision 12's move made and recorded. One dispatch with 102's `release-tier`
-    input true shows the release shards once.
+    input true runs the release shards once, before review; its run id and the release tier's
+    measured total are in the landing notes.
 13. **The lane's dry run after landing**, on main's exact commit, as 063's criterion 13.
 
-## The price (estimates, labelled; the survey replaces them)
+## The price (measured by the survey, 2026-10-21; Decision 7 as the owner ruled)
 
-- **Normal-tier fuel per full judge, before Decision 7's threshold** (INFERRED from the probes):
-  scipy about 5 to 9 T (80,926 tests collected without `SCIPY_XSLOW` at the sample's 63 M a test
-  is 5.1 T, before each group's start, its heavier files and the mpmath comparisons at 5,000
-  points); scikit-learn about 8 to 20 T (46,955 tests; the sample's 444 M a test gives 20.8 T, but
-  the sample holds forests, trees and ridge paths, likely heavier than the median file);
-  statsmodels about 2 to 6 T (21,412 tests natively in 468 s by 045's builder, EXECUTED there; 045
-  inferred about 3 T). In all about 15 to 35 T, 2.3 to 4.1 times today's about 11.2 T of upstream
-  fuel. scikit-learn is the largest part and the least certain.
-- **After the threshold** (*default pending the owner's answer*): the three normal tiers together
-  are held under about 15 T by moving scikit-learn's `tests/test_common.py`, then its float32
-  cases, to the release tier; the rest of any excess goes to the release tier with them.
-- **The lane's darwin accept at every landing** (INFERRED, at the samples' 0.18 s per G): about
-  15 T more is about 45 more minutes of guest time, about 15 more minutes of wall clock at `-n 3`
-  (up to about 35 minutes if the owner declines the threshold).
-- **Release-tier fuel**: scipy's slow, xslow and `SCIPY_XSLOW`-gated cases about 4 to 12 T, plus
-  whatever the threshold moves (0 to about 20 T of scikit-learn's), run only before a tag
-  (INFERRED: slow tests are slower per test by construction; the survey measures it once). The
-  release acceptance before a tag pays it on darwin: about 4 to 12 minutes at `-n 3` for scipy's
-  part, more with scikit-learn's (INFERRED; the review, L8).
-- **The derived run**: once per scipy stage, so once per scipy shard and once per darwin worker
-  that runs a scipy group; about 15.9 MB of text tables through `np.loadtxt`, tens of G
-  (INFERRED; the survey measures it, and the packing counts it).
-- **Caps** by the rule, 1.5 times: about 23 T for a 15 T normal tier (up to about 53 T without the
-  threshold).
-- **Linux shards**: about 21 to 32 normal-tier shards of at most 725 G (up to 48 without the
-  threshold; today 23 Linux shards, 066 added fourteen), and about 6 to 17 release-tier shards
-  for scipy, more with what the threshold moves. At 0.16 to 0.31 s per G (066's reading of run
-  `39371419248`), a 725 G shard is 116 to 225 s of guest time plus about 60 s of setup (corrected
-  by the review, L8). With the Linux matrix capped at 20 parallel jobs (101), 44 to 55 Linux jobs
-  run in three waves of twenty where today's run in two, so the new shards add about **5 to 10
-  minutes** of wall clock to a release run (up to 15 without the threshold), and they hold Pro's
-  40 concurrent jobs longer when another run is live (INFERRED).
-- **The survey:** about 2 to 4.5 CPU hours on darwin-arm64 (Decision 1), on main's set after wave
-  09 for scipy and scikit-learn, and on statsmodels' set (main after 045, or 045's reviewed set).
-- **What else would lower it, not chosen here:** a release tier for statsmodels' `slow`, or for
-  scipy's heaviest normal files, by the same reviewed keyword or path entries, never out; spec 092
-  (the judge reads CI's record) shortens the lane's own accept.
+- **Normal tier: 277.6 G** per full judge, the four smoke groups (EXECUTED, each measured on the
+  survey's sets): 2.5 % of today's about 11.2 T of upstream fuel. The lane's darwin accept grows
+  by about 50 s of guest time, under 20 s of wall clock at `-n 3`; a release run by one Linux job.
+- **Release tier: at least 53 T** (the survey, EXECUTED: scipy's normal-marker tests 7.35 T and its
+  slow, xslow and keyword cases at least 22.02 T; scikit-learn 9.61 T; statsmodels 14.23 T; less
+  the smoke groups' share). A lower bound: scipy's `special` and `stats` slow sessions stopped at
+  the survey's 6 T caps, and the build measures them to the end.
+- **The release acceptance before a tag** (102, Decision 5) grows by about 160 minutes of guest
+  time on darwin, about 55 minutes of wall clock at `-n 3`, or more by the bound above (INFERRED
+  at the survey's 0.18 s per G).
+- **Caps** by the rule, 1.5 times: about 0.42 T for the smoke groups; at least about 80 T for the
+  release groups.
+- **Linux shards:** one normal-tier shard (`upstream-sci-smoke`), and about 74 to 80 release-tier
+  shards of at most 725 G, adding about 15 to 25 minutes of wall clock to the tag run and the dry
+  run on main (Decision 12; INFERRED from the packing).
+- **The survey:** done, about 3 hours of guest time in one process (the memo).
 
 ## The claim list's shape (for the lane, filled in by the build)
 
-- **Gained rows:** `test_upstream_suite[<group>]` for each new group, with metrics `fuel` and
-  `passes` and 066's facts (`counts`, `passed_digest`, `left_out`, `collected` for split groups),
-  plus `derived` on scipy's `derived_row` group only; `test_upstream_class[<group>-<class>]` for
-  each class with members, each a gap; `test_upstream_trap[<id>]` for each trap.
-- **Release-tier rows** (scipy's release groups, and scikit-learn's if the threshold moves any)
-  are new rows in 102's `release_tier` list on a normal accept, accepted only at the release
-  acceptance before a tag (102, Decision 5). **Their claim block** goes in
-  `context/release-tier-claims.toml` (102, Decision 6), written from a branch run with 102's
-  `release-tier` input true (the review, L8).
+- **Gained rows, normal tier:** `test_upstream_suite[<smoke group>]` for the four smoke groups,
+  with metrics `fuel` and `passes` and 066's facts, plus `derived` on scipy's `derived_row` group
+  only if that group is a smoke group (else the release tier's); the classes their failures fit,
+  each a gap.
+- **Gained rows, release tier:** every other group's `test_upstream_suite[<group>]`,
+  `test_upstream_class[<group>-<class>]` for each class with members, and
+  `test_upstream_trap[<id>]` for each trap: new rows in 102's `release_tier` list on a normal
+  accept, accepted only at the release acceptance before a tag (102, Decision 5). **Their claim
+  block** goes in `context/release-tier-claims.toml` (102, Decision 6), written from a branch run
+  with 102's `release-tier` input true (the review, L8).
+- **The deselected clock-timed test** (`test_choose_conv_method[numpy]`) is its own row with its
+  closer (the delta, item 3), in the release tier with its file.
 - **Moved rows: none.** numpy's, pandas', CPython's and 066's rows: lost 0, grew 0.
 - **Retired: none. Passes moved: none.**
 - **The judge hash changes**: the accept-judge text names the three TOMLs, `.ini`s, the expected
@@ -757,13 +742,13 @@ code or a stand-in; the builder records each failing assertion in the landing no
   citation rule exists only there (the review, N4).
 - **Release-tier claims:** the builder's branch run with `release-tier: true` writes 095's block
   in `context/release-tier-claims.toml` (102, Decision 6).
-- **Defaults pending the owner's answer** (the lane files the four questions; each answer other
-  than the default is a revision of the named Decision before the build): 088 widened to scipy's
-  seven test modules and five files (Decision 8); the modes README-only for 0.1.0, copy-on-write
-  dropped, `SCIPY_XFAIL` added, mode-gated skips counted (Decision 7); the 15 T threshold, moving
-  scikit-learn's `tests/test_common.py` then its float32 cases to the release tier (Decision 7);
-  statsmodels' left-out datasets a README class, with import failures under Decision 8
-  (Decisions 8 and 9).
+- **The owner's answers** (question 110, then the standing rule of 2026-10-21): 088 widened to
+  scipy's seven test modules and five files (Decision 8); the modes README-only for 0.1.0,
+  copy-on-write dropped, `SCIPY_XFAIL` added, mode-gated skips counted (Decision 7); each suite
+  in the release tier whole with a smoke group per package in the normal tier, in place of the
+  15 T threshold (Decision 7); statsmodels' left-out datasets a README class, with import failures
+  under Decision 8 (Decisions 8 and 9).
+- **Reserve** a judge follow-up for the clock-timed test (the delta, item 3): its closer.
 - **074's line:** the lane may name scikit-learn's three `mmap` files there (Decision 8).
 
 ## Delta from the survey (2026-10-21, for the delta review)
@@ -773,31 +758,27 @@ EXECUTED on darwin-arm64: scipy and scikit-learn on wave 09's set `142bdd38`, st
 build-reviewed set `14adfa5f`) replaces this specification's INFERRED numbers. What it changes, by
 Decision; a fresh reviewer rules on each before anything is built (Decision 1).
 
-1. **The price, measured** (the price section's INFERRED ranges are replaced by these):
-   - **Normal tier: 31.18 T** per full judge (scipy 7.35 T, scikit-learn 9.61 T, statsmodels
-     14.23 T), 2.8 times today's about 11.2 T. statsmodels is 4.7 times 045's inferred 3 T.
-   - **Release tier (scipy): at least 22.02 T.** Two sessions, `special` (mpmath at 5,000 points)
-     and `stats` (slow fits), stopped at the survey's 6 T session caps, so the true total is
-     higher; the build measures it group by group.
-   - **The lane's darwin accept** grows by about 94 minutes of guest time, about 31 minutes of
-     wall clock at `-n 3`, on every landing (at the survey's 0.18 s per G).
-   - **Linux shards:** at most 725 G each, about **43 to 46 normal-tier shards** (31.2 T, plus the
-     starts of the split groups), and **at least 31 release-tier shards**. A 725 G shard is 116 to
-     225 s of guest time plus about 60 s of setup; with the Linux matrix at 20 parallel jobs, 66 to
-     69 Linux jobs run in four waves where today's run in two, so a release run grows by about
-     **10 to 15 minutes** of wall clock, and the tag run by about as much again for the release
-     tier (INFERRED from the packing).
-   - **Caps** by the rule: about 47 T for the normal tier.
-2. **Decision 7's 15 T threshold cannot be met as written.** Even all of scikit-learn (9.61 T) in
-   the release tier leaves scipy's and statsmodels' 21.6 T in the normal tier. The default the
-   draft wrote (scikit-learn's `tests/test_common.py`, then its float32 cases) moves about 2.2 T
-   and 0.4 T (INFERRED from the folder's fuel and the 292 float32 cases of the drafting sample).
-   **The owner's question, re-asked by the lane with the measured numbers:** (a) accept a normal
-   tier of about 31 T (no move); (b) keep the 15 T threshold and extend the order past
-   scikit-learn to the heaviest normal files of statsmodels and scipy (statsmodels' `stats`,
-   `discrete`, `tsa`, `regression`; scipy's `stats`), about 16 T moved to the release tier, which
-   would then be at least 38 T; (c) a different threshold. Until the answer, the build packs the
-   normal tier as measured (option (a)), which every other answer only shrinks.
+1. **The price, measured.** The survey's tiers, by folder: scipy's normal-marker tests 7.35 T,
+   scikit-learn 9.61 T, statsmodels 14.23 T (statsmodels 4.7 times 045's inferred 3 T; together
+   31.18 T, 2.8 times today's about 11.2 T); scipy's slow, xslow and keyword cases at least
+   22.02 T (`special` and `stats` stopped at the survey's 6 T caps). Under the owner's rule of
+   item 2 the price section now reads: **normal tier 277.6 G** (four smoke groups, measured),
+   **release tier at least 53 T**, one normal Linux shard and about 74 to 80 release shards.
+2. **Decision 7's 15 T threshold could not be met, and the owner replaced it** (2026-10-21, a
+   standing rule; Decision 7 records the owner's words). The survey found that even all of
+   scikit-learn in the release tier would leave scipy's and statsmodels' 21.6 T in the normal
+   tier. The owner: "we need to have fast tests and slow tests. We only run slow tests when we are
+   trying to publish to pypi, … otherwise we should only run the tests needed to confirm our new
+   edits are working." So the three suites go to the release tier whole, and each package keeps a
+   normal-tier smoke group, chosen from the survey and measured (EXECUTED 2026-10-21):
+   `scipy-smoke-a` 80.2 G (SuperLU, ARPACK, trust-region, ODEs, k-means), `scipy-smoke-b` 67.6 G
+   (fftpack, MATLAB files, Cholesky and Toeplitz through OpenBLAS), `scikit-learn-smoke` 69.4 G
+   (svm, covariance, cross-decomposition, HDBSCAN), `statsmodels-smoke` 60.4 G (formulas, ARIMA,
+   GLM families, filters, summaries): 277.6 G in all, each under 100 G, every failure in them a
+   member of a measured class. Nothing leaves the full suite; a unit check proves the partition
+   (criterion 7). Decision 7 also proposes that a landing changing a package's own build runs that
+   package's release groups on its branch run, the delta review to confirm or strike.
+
 3. **A test the judge's clock never lets end** (Decision 8 gains a row, and the spec gains a
    kind): scipy's `signal/tests/test_signaltools.py::test_choose_conv_method[numpy]` times both
    convolution methods until a fixed time passes (`measure=True`). Under the judge's counted clock
@@ -854,7 +835,7 @@ Decision; a fresh reviewer rules on each before anything is built (Decision 1).
     stage outside `tests`); every scipy not-selected file of Decision 8 is as drafted; the three
     scikit-learn `mmap` files are as drafted.
 
-**What remains:** this delta's review; the owner's answer to item 2 (and to the other three
+**What remains:** this delta's review (the owner has answered item 2 and the other three
 defaults); then the build, from main after wave 09 and the chain, with each group measured as
 built (the survey measured folders, not the final groups), the release tier's `special` and
 `stats` measured to the end, and the about 25 single failures read.
