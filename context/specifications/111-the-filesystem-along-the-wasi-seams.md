@@ -739,8 +739,24 @@ Written by the builder.
 
 **Built** 2026-10-20 on `spec/111-the-filesystem-along-the-wasi-seams`, from `727bd4c` (the PR
 branch `claude/gallant-ride-9nxxmn`: main plus the chain 103 to 109 and its one Windows fix,
-which lands on main by fast-forward, so the base is main's future tip). Code commit: `91f66da`. Release run:
-39541506877 on `91f66da`, dispatched, its verdict not yet read at this writing. A different agent reviews the build.
+which lands on main by fast-forward, so the base is main's future tip). Code commit: `91f66da`.
+**Rebased** 2026-10-21 onto `5af0a42` (the same branch: the chain plus the lane's two reviewed
+fixes, `_artifacts.py`'s digest cache at `2a878f0` and one embedding check), at the lane's word:
+no conflict; the code commit is `46ddf0b` there. A different agent reviews the build.
+
+**The release runs, read back** (`gh run view <id> --json jobs`, `--log-failed`):
+
+- **39541506877 on `91f66da`** (the first base): every judge job green on all three systems,
+  the four Windows legs (own-runner, own-guest, own-embedding, upstream-windows) included; the
+  gather's one red line is **G7** ("the newest acceptance is not on the release's set"):
+  774/866 pass, 85 gap, 7 blocked, 0 fail; no GREW line.
+- **39551619591 on `f763178`** (the rebased tip; its code is `46ddf0b`'s): attempt 1 failed in
+  one job, `judge (ubuntu-24.04, upstream-plot-a)`, before any test, on the network:
+  `tests/upstream/fetch.py` fetching the upstream kit got `SSL: UNEXPECTED_EOF_WHILE_READING`;
+  the failed jobs were re-run once (attempt 2, under the same slot rules): every judge job green
+  on all three systems, Windows included; the gather's one red line is **G7**: 774/866 pass, 85
+  gap, 7 blocked, 0 fail (unit suite 4,644/4,674, 30 skipped); no GREW line. This is the run
+  the build review reads.
 
 ### Re-measured on the base (EXECUTED, `build/111/measure.py`, `build/111/measure-base.txt`)
 
@@ -896,7 +912,7 @@ page, not the table.
   `from typing import … Any`; the uses outside an import line are 68 before and 68 after (83
   occurrences against 79, the same four). Criterion 11's sum is over by those four lines, named
   here (Differences, 4).
-- **12:** run 39541506877 on `91f66da`, dispatched; to be read back (`gh run view 39541506877 --json jobs`) before the review.
+- **12:** runs 39541506877 (`91f66da`) and 39551619591 (`f763178`, attempt 2): every red line G7, no growth, 0 fail on three systems (above).
 
 ### Differences from the specification's text, each with its reason
 
@@ -971,14 +987,14 @@ units = 3
   --accept-judge "111: the ceiling's allowance loses mounts.py; 107's import rule becomes a per-module table over the five filesystem modules, runtime and typing imports apart; the package-order rule keeps the five filesystem modules beside the order as it kept mounts, its late imports naming the module each now reads; the guard-floor check reads the five filesystem modules for the advisories; one rules row holds api.py's lists complete; one rules row holds the two handler modules to the table's methods for every form of a write; three unit rows drive the memory readers, the table's numbers and the dispatch table without the other seams; one mounts unit row injects its rename race through the forward patch it already made instead of a class attribute that is a function now; no existing expectation edited"
   ```
 
-- **Dry-run needs:** this build's one dispatch (39541506877); the Windows shard runs the mounts and
+- **Dry-run needs:** this build's dispatches (39541506877, and 39551619591 on the rebased tip); the Windows shard runs the mounts and
   rules rows on `_Windows`.
 
 ### The builder's self-check
 
-- base: `727bd4c`, the PR branch's tip today, named in the Status line; not rebased onto main,
+- base: `5af0a42` after the rebase (built on `727bd4c`), named above; not rebased onto main,
   since main reaches it by fast-forward tonight.
-- CI run 39541506877 dispatched on `91f66da`; not yet read; the Windows legs to be read with it.
+- CI runs 39541506877 and 39551619591 (attempt 2), read: red lines G7 only; the Windows legs green.
 - every number from a measured run on this base, labelled EXECUTED; no growth list (no artifact
   byte, no guest fuel moves).
 - "For the lane": the claim list, the exact flags (each beginning "111:"), the wave kind
