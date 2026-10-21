@@ -783,6 +783,17 @@ number in this paragraph and its list is EXECUTED on this rebuild; the sections 
     in front.
   - No hunk changes code beyond the merge (two comment lines and two `die` lines kept side by
     side), so **no new release run**: the wave's dry run is the check (AGENTS.md rule 2).
+  - **Missed merge, found by the lane, not a conflict:** `tests/jobs/oracle/uv.lock`, a generated
+    file git merged as text, cleanly. Wave 09's 100 split numpy into two sources (the macOS
+    arm64 OpenBLAS wheel by URL, the registry elsewhere) and rewrote every dependent's numpy
+    line; 045's formulaic and statsmodels entries still said `{ name = "numpy" }`, so
+    `uv run --frozen --project tests/jobs/oracle` failed to parse the lock. Both lines now carry
+    the two sources, as 100's own fix gave scikit-learn's and seaborn's (`8e7eac9`). Under the
+    judge's `jobs.oracle_env()`, `uv lock --check` passes and `uv lock` leaves the file byte
+    for byte unchanged; the oracle synced online (`jobs.oracle_command(..., offline=False)`:
+    numpy 2.5.2, statsmodels 0.15.0, formulaic 1.2.2); and
+    `test_v1_3_data_stack.py::test_goldens_reproduce_under_the_pinned_oracle` passes by node id
+    on this set (`build/045/oracle-goldens.txt`). EXECUTED.
 - **Checks:** `ruff check` and `ruff format --check` on `src` and `tests`: clean. The rules
   check ran in the fast tier: green.
 - **The build:** `scripts/build.sh --plain` from an empty `build/`, 20 steps in 12 min 57 s
