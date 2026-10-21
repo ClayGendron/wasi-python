@@ -243,6 +243,14 @@ KEY_MUTANTS = {
         lambda i: {"pyproject_text": i["pyproject_text"] + '\n[tool.uv]\nindex-url = "x"\n'},
         "K11:",
     ),
+    "a dotted uv key under [tool] in pyproject.toml": (
+        lambda i: {"pyproject_text": i["pyproject_text"] + '\n[tool]\nuv.index-url = "x"\n'},
+        "K11:",
+    ),
+    "an inline uv table under [tool] in pyproject.toml": (
+        lambda i: {"pyproject_text": i["pyproject_text"] + '\n[tool]\nuv = { index-url = "x" }\n'},
+        "K11:",
+    ),
     "the build with an argument": (
         lambda i: {
             "release_text": i["release_text"].replace(

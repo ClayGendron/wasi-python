@@ -713,6 +713,14 @@ reviewed code and found the design sound. Where each finding went:
 - **N2, acknowledged.** The gather's `needs` on `same-bytes` stays: rule 7 and R6 hold it.
 - **N3, acknowledged.** The pre-build review file stays as it was copied; its disposition is this
   specification's *Disposition of the pre-build review*.
+- **The confirmation's Low C1, fixed (code).** K11 now reads `pyproject.toml` as TOML and refuses
+  any `uv` key under `tool`. So a `[tool.uv]` table, a dotted key (`[tool]` then
+  `uv.index-url = …`) and an inline table (`uv = {…}`) are one case. A file that does not parse
+  is named too. Two mutant rows were added, the dotted key and the inline table. Both failed
+  before the fix (`build/101b/c1-before.txt`: 2 failed). After it, `tests/unit/test_set_key.py`,
+  the set-key rule and the citation rule pass: 42 passed (`build/101b/c1-after.txt`). No new CI
+  run, at the lane's word: this is a rule's own code and its rows, and the wave's dry run judges
+  them.
 
 ## For the lane
 
@@ -772,12 +780,13 @@ reviewed code and found the design sound. Where each finding went:
     "tests/checks/test_rules.py::test_the_release_reuses_a_set_only_on_a_branch",
     "tests/checks/test_rules.py::test_the_reuse_decision_refuses_tags_and_main*",
   ]
-  units = 56
+  units = 58
   ```
 
-  (`units`: the unit rows this specification adds, by the builder's count: 38 in
-  `test_set_key.py` (two of them L4's, three K10's and K11's), 7 in `test_gather.py`, 3 in `test_sameness.py`, 5 net in `test_shards.py`
-  (one row replaced), 3 in `test_scan.py`; the lane's suite line is the check.)
+  (`units`: the unit rows this specification adds, by the builder's count: 40 in
+  `test_set_key.py` (two of them L4's, three K10's and K11's, two C1's), 7 in `test_gather.py`,
+  3 in `test_sameness.py`, 5 net in `test_shards.py` (one row replaced), 3 in `test_scan.py`; the
+  lane's suite line is the check.)
 - **The flag:**
 
   ```
@@ -785,7 +794,8 @@ reviewed code and found the design sound. Where each finding went:
   ```
 
   After the rebase onto main `1875d4c` (wave 10) the claim block, the unit count and the flag
-  stand as written: the rebase added no row, and the R4 fix is a line of the workflow.
+  stand as written: the rebase added no row, and the R4 fix is a line of the workflow. C1's fix
+  then added two unit rows (56 to 58); the flag's K11 words already cover its three forms.
 
 ## The builder's self-check
 

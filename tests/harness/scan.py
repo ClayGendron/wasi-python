@@ -4090,7 +4090,14 @@ def set_key_errors(
             f"K10: {name} is tracked at the checkout's root, where the build looks it up, and the"
             " key does not hold it"
         )
-    if re.search(r"^\[tool\.uv(?:\.[\w-]+)?\]", pyproject_text, re.M):
+    # Read as TOML, so a [tool.uv] table, a dotted uv key under [tool] and an inline uv table
+    # are one case; an unparsable file is named, since uv would refuse it too.
+    try:
+        tool = tomllib.loads(pyproject_text).get("tool", {})
+    except tomllib.TOMLDecodeError as e:
+        errors.append(f"K11: pyproject.toml does not parse as TOML: {e}")
+        tool = {}
+    if "uv" in tool:
         errors.append(
             "K11: pyproject.toml has a [tool.uv] table, which the build's uv reads from the"
             " checkout's root, and the key does not hold pyproject.toml"
