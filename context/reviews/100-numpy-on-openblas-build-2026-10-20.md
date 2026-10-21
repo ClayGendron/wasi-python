@@ -318,12 +318,30 @@ No High. No Medium.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. L1 — 
-2. L2 — 
-3. L3 — 
-4. L4 — 
-5. L5 — 
-6. L6 — 
+1. L1 — written in as given (restack commit `d445a65`): the notes' clause replaced, and
+   Decision 13's "Measured on the built set" sentence added. The restacked set moved the
+   threshold: numpy's `a @ a` exits 1 at 64 MiB and returns at 65 MiB and above, on both binaries
+   (`restack-cap-bracket.txt`). Decision 13 and the notes now say so, and the README's advice
+   (about 16 MiB of room) is the rule, not a fixed number.
+2. L2 — written in on the restacked claim list. Rows that import no numpy (the recursion, hard-exit,
+   preopen, dup, sqlite-lock and kiwisolver rows) are given the layout reason, marked INFERRED,
+   and `--accept-growth` carries the clause "and, for rows that import no numpy, the rebuilt
+   binary's layout".
+3. L3 — written in. Decisions 6 and 9 were corrected in `d445a65`. The "For the owner" line is in
+   *For the lane*, with the restacked numbers: 23 to 55% less at 200×200, 1.24 MB, 3×3 `matmul`
+   1.283 per call and `inv` 1.098 against main's set (phase 2's 1.563 was against 099's set). The
+   CHANGELOG says "28 percent". No new question.
+4. L4 — written in (`d445a65`). On the restacked build the fast tier waited for `build/lane.lock`
+   to go and ran holding the lane's fast slot. Only single node ids ran while the lock existed.
+5. L5 — superseded. The restacked claim list compares darwin fuel only, as the ratchet keys it (G5),
+   so the Linux bimodal rows are no longer claims. The claim list says so in one line.
+6. L6 — fixed in `scripts/steps/60_link.sh` at the restack (`d445a65`). The restacked build's
+   `build/link/weak-duplicates.log`: 271 archives, 0 unreviewed, 0 stale.
+
+Notes: N1 — the restacked build re-measured the claim list and flags (the spec's *Rebuilt on the
+structural chain*; release run 39535794638). N2 and N4 — written in (`d445a65`). N3 — the restacked
+self-check's run is on `186b9a4`. The commit after it touches only `context/`, `README.md` and
+`CHANGELOG.md`.
 
 ## The reviewer's own deviation
 

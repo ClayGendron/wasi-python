@@ -1,6 +1,10 @@
 # 100 — numpy's linear algebra, `dot` and `matmul` run on the set's OpenBLAS
 
-- **Status:** **built 2026-10-20** from empty (phase 2); release run **39439703872** on `664e183` read (red on growth lines only); fast tier 2,464 passed, 0 failed; stacked on 099's tip `b0e1593` (no conflict); **confirmed for build** by its pre-build reviewer (the review's *Confirmation*); two findings for the build review written in the landing notes (the bytes, small-call fuel) (*Landing notes*). Before: **drafted 2026-10-20** on `spec/100-numpy-on-openblas` from main `cf414a2`, with
+- **Status:** **rebuilt 2026-10-21** from empty on the structural chain `dbecd2d` (set `SHA256SUMS`
+  `f43586b0…`); release run **39535794638** on `186b9a4` read (macOS red on growth lines only; two
+  Windows rows the chain's own, fixed by the lane at `5af0a42`); fast tier 2,655 passed, 0 failed;
+  **build reviewed: lands** (`../reviews/100-numpy-on-openblas-build-2026-10-20.md`, its
+  Disposition filled in). Before: **built 2026-10-20** from empty (phase 2); release run **39439703872** on `664e183` read (red on growth lines only); fast tier 2,464 passed, 0 failed; stacked on 099's tip `b0e1593` (no conflict); **confirmed for build** by its pre-build reviewer (the review's *Confirmation*); two findings for the build review written in the landing notes (the bytes, small-call fuel) (*Landing notes*). Before: **drafted 2026-10-20** on `spec/100-numpy-on-openblas` from main `cf414a2`, with
   its drafting runs; **reviewed before build** the same day
   (`../reviews/100-numpy-on-openblas-spec-2026-10-20.md`, verdict "passes for build once M1 is
   answered in writing", nothing High); **revised against all of its findings** and rebased onto
@@ -18,7 +22,8 @@
   `recipes/numpy_lapack_shims.c`, `recipes/numpy_file_includes.txt`); `recipes/wasi-numpy.cross`,
   `scripts/steps/40_numpy.sh`, `scripts/steps/60_link.sh` and one comment of `scripts/wasi-cc`
   change. It changes `python.wasm`, the snapshot and the stdlib zip (`numpy/__config__.py`), and
-  `MANIFEST` gains three `recipe` lines and changes four (those four files). No carried patch, no
+  `MANIFEST` gains three `recipe` lines and changes four (those four files; six on main's set, with
+  099's L1 write-in to `npy_fenv_flags.h` and `weak-duplicates-allowed.txt`). No carried patch, no
   new pin; a facts sheet for numpy (`../upstream/31-numpy-lapack-subroutines-declared-int/`). It fixes a package already in the set and adds none, so it is not a package
   entry in a wave. **And a judge change:** four new checks (seven nodes), one scan function and its
   unit rows, and the oracle's numpy pin on macOS arm64 (Decision 7). The lane accepts with
@@ -496,6 +501,12 @@ codes until the build; checks 2 and 3 hold it):
 - **Measured on the built set** (criterion 6, `phase2-cap-thresholds.txt`): numpy's `a @ a` after
   `import numpy, scipy` exits 1 with OpenBLAS's line at 62 MiB and below, and returns at 64 MiB
   and above, on both binaries.
+  **Re-measured on the set rebuilt on the structural chain** (`restack-probes.txt`,
+  `restack-cap-bracket.txt`, set `f43586b0…`, with scikit-learn and wave 08 in it): it exits 1 at
+  64 MiB and returns at 65 MiB and above, on both binaries; the early call still keeps it
+  (`cap_keep_np.py`, `FIRST=1` returns 64.0, `FIRST=0` exits 1). The threshold follows what the
+  rest of the set holds; the README's advice, about 16 MiB above what the program otherwise
+  holds, is the rule, not a fixed number.
 - **Recipe fixes weighed:**
   - **(a) A smaller buffer by make variable.** `make BUFFERSIZE=…` adds `-DBUFFERSIZE`
     (`Makefile.system:1569-1570`), but `common_wasm.h:87` defines `BUFFER_SIZE` as `16 << 20`
@@ -742,8 +753,8 @@ None is open.
 
 ## For the lane
 
-- **Kind:** build-class, stacked on 099; not a package. In a wave it is one of the "at most two
-  other build-class changes", entering after 099 in the same stacked chain, or in the wave after.
+- **Kind:** build-class; not a package. 099 landed in wave 08, so it is no longer stacked; in a
+  wave it is one of the "at most two other build-class changes", rebased on the structural chain.
   It shares `recipes/wasi-numpy.cross` with 099, `scripts/steps/60_link.sh` with any entry that
   touches its `libs` line (044, 045), `README.md` and `CHANGELOG.md` with every entry, and four
   judge files with 099: `tests/checks/test_v1_3_data_stack.py`,
@@ -753,43 +764,85 @@ None is open.
 - **The rebuild:** steps 40 (numpy), 60, 70 (`numpy/__config__.py`), 80 and 90 change their
   outputs. Steps 50 and 57 compile against numpy's installed headers, which do not change
   (criterion 5). Steps 10 to 38 do not run differently.
-- **The claim list** (the builder's measured numbers replace each INFERRED one; each line starts
-  "100:"):
-  (measured, EXECUTED: the fast tier on the built set against 099's own fast-tier record of its
-  set, `phase2-fast-tier-vs-099.txt`, and release run 39439703872 against 099's run 39432450036,
-  shard records merged per system, `phase2-ci-vs-099.txt`)
-  - 100: **new checks (7 nodes), each passing** on all three systems: checks 1 to 3 on `[plain]`
-    and `[snapshot]`, and check 4 (the build shard: "35 shims called and defined"). **Unit rows:**
-    check 5's ten.
-  - 100: **retired checks:** none. **Lost passes:** none. **Status changes:** none on any system.
-  - 100: **rows that shrink, bytes:** `test_binary_is_a_core_wasm_module[plain]` −1,240,268
-    (−1.463%) and `[snapshot]` −1,252,711 (−1.400%). **Rows that grow, bytes:**
-    `test_stdlib_zip_is_bytecode_only_and_deflated` +130 (`numpy/__config__.py`).
-  - 100: **fuel rows that grow by more than 1%:** `test_a_singular_matrix_raises_linalgerror`
-    (099's check 1) +1.434% plain, +2.047% snapshot, the same on all three systems: its sixteen
-    calls are 2×2 `inv`, `solve`, `cholesky` and their kin, where OpenBLAS's call costs more than
-    `lapack_lite`'s inlined f2c code (Decision 6's small-call finding).
-  - 100: **fuel rows that move less** (all systems, median +0.023% over 224 to 238 rows): the
-    golden jobs `numpy_csv` +0.351%, `modelling` +0.28%, `plot_line` +0.16% to +0.21%,
-    `plot_contour` +0.12% to +0.16%, `symbolic` +0.075%, the rest within ±0.07% (scipy's
-    `solvers` −0.03% to −0.19%); upstream groups, Linux: `numpy-others` +0.244%, `numpy-core`
-    +0.198%, `pandas-reshape` +0.150%, `pandas-groupby` +0.148%, `pandas-io-parser` +0.109%
-    (Windows +0.280%), `pandas-frame` +0.105%, the other pandas groups +0.04% to +0.07%,
-    `numpy-lib` −0.063% (macOS +0.122%), `cpython-fs` +0.013% to +0.027%; fast-tier rows
-    −0.27% to +0.47%. The reason in every case: numpy's import-time `dot` and its products and
-    linear algebra on OpenBLAS (Decisions 6 and 9).
-  - 100, **not this specification's**: Linux's `cpython-b` −3.130% and `cpython-archives`
-    +1.664% between the two runs are the bimodal Linux x86-64 fuel spec 098 names (292.5 G or
-    302 G, 163 G or 166 G); the two groups run on Linux only.
+- **The claim list** (re-measured on the set rebuilt on the structural chain `dbecd2d`, set
+  `SHA256SUMS` `f43586b0…`; EXECUTED: the fast tier on that set against main's acceptance
+  `72bc5ed`, `build/100/fast-restack.txt`, and release run 39535794638's shard records against the
+  same acceptance, darwin fuel only, as the ratchet keys it. The chain's own run 39530569266 on
+  `dbecd2d` has every macOS shard green, so the chain moves no row and every move below is this
+  specification's. Phase 2's list, against 099's set, is superseded.)
+  - 100: **new checks (7 nodes), each passing:** checks 1 to 3 on `[plain]` and `[snapshot]`, and
+    check 4. **Unit rows:** check 5's ten (`tests/unit/test_scan.py`, 239 to 249).
+  - 100: **retired checks:** none. **Lost passes:** none. **Status changes:** none on macOS or
+    Linux. On Windows two red rows are the structural chain's, not this specification's (*Landing
+    notes*, "Rebuilt on the structural chain").
+  - 100: **bytes:** `test_binary_is_a_core_wasm_module[plain]` −1,240,316 (−1.322%) and
+    `[snapshot]` −1,237,935 (−1.254%); `test_stdlib_zip_is_bytecode_only_and_deflated` +130
+    (`numpy/__config__.py`).
+  - 100: **fuel rows past 1%:** `test_a_singular_matrix_raises_linalgerror` +1.408% plain and
+    +1.983% snapshot: its sixteen calls are 2×2 `inv`, `solve`, `cholesky` and their kin, where
+    OpenBLAS's call costs more than `lapack_lite`'s inlined f2c code (Decision 6's small-call
+    finding).
+  - 100: **fuel rows that move less** (darwin, 168 rows past the ratchet's 0.01% in CI, median
+    +0.014%; the fast tier's 203 moved rows, median +0.006%, −0.192% to +0.278% outside the two
+    above): the golden jobs `numpy_csv` +0.306%, `modelling` +0.223%, `plot_line` +0.200% and
+    +0.222%, `plot_contour` +0.160% and +0.140%, `pdf_reports` +0.085%, the rest within ±0.05%
+    except `lxml_xml` −0.173% and scipy's `solvers` −0.081% and −0.098%;
+    `test_stdlib_c_modules_are_builtin[snapshot]` +0.278%; the upstream groups ratcheted on
+    darwin, `numpy-lib` +0.018% and `cpython-fs` −0.012%. Rows that import numpy move by its
+    import-time `dot` and its products and linear algebra on OpenBLAS (Decisions 6 and 9). Rows
+    that import no numpy (the recursion, hard-exit, preopen, dup, sqlite-lock and kiwisolver
+    rows, −0.192% to +0.153%) move with the rebuilt binary's layout (`.bss` 640 KiB smaller, so the
+    heap starts lower) and the zip's 130 bytes (INFERRED; the build review's L2).
+  - 100: **Linux and Windows fuel** is not ratcheted (G5 holds darwin fuel only), so phase 2's
+    Linux rows, and the bimodal `cpython-b` and `cpython-archives` figures the build review's L5
+    corrected, are no longer claims.
   - **The judge hash changes** in `tests/harness/scan.py`, `tests/checks/test_v1_3_data_stack.py`,
-    `tests/checks/test_v1_5_rebuild_from_pins.py`, `tests/unit/test_scan.py` and the oracle's
-    `pyproject.toml` and `uv.lock`.
-- **The flags** (the builder fills the measured numbers):
+    `tests/checks/test_v1_5_rebuild_from_pins.py`, `tests/unit/test_scan.py`, the oracle's
+    `pyproject.toml` and `uv.lock`, and `scripts/wasi-cc`'s comment.
+  - **The claim block** (`sameness.py --claims`; its shape checked, exit 0):
+
+    ```toml
+    [[claim]]
+    spec = "100"
+    new = [
+      "tests/checks/test_v1_3_data_stack.py::test_numpy_is_built_on_the_sets_openblas[plain]",
+      "tests/checks/test_v1_3_data_stack.py::test_numpy_is_built_on_the_sets_openblas[snapshot]",
+      "tests/checks/test_v1_3_data_stack.py::test_a_rank_deficient_matrix_meets_the_sets_openblas[plain]",
+      "tests/checks/test_v1_3_data_stack.py::test_a_rank_deficient_matrix_meets_the_sets_openblas[snapshot]",
+      "tests/checks/test_v1_3_data_stack.py::test_numpy_linalg_errors_are_native_numpy_on_openblas[plain]",
+      "tests/checks/test_v1_3_data_stack.py::test_numpy_linalg_errors_are_native_numpy_on_openblas[snapshot]",
+      "tests/checks/test_v1_5_rebuild_from_pins.py::test_one_lapack_is_linked",
+    ]
+    grows = [
+      "tests/checks/test_v1_1_artifact_set.py",
+      "tests/checks/test_v1_2_hostile_guest.py",
+      "tests/checks/test_v1_2_portable_and_sealed.py",
+      "tests/checks/test_v1_3_data_stack.py",
+      "tests/checks/test_v1_3_default_profile.py",
+      "tests/checks/test_v1_3_lxml.py",
+      "tests/checks/test_v1_3_matplotlib.py",
+      "tests/checks/test_v1_3_regex.py",
+      "tests/checks/test_v1_3_scipy.py",
+      "tests/checks/test_v1_3_the_zips_directory.py",
+      "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-fs]",
+      "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-lib]",
+      "tests/checks/test_v1_4_embedding.py",
+    ]
+    growth = "numpy's linear algebra, dot and matmul on the set's OpenBLAS: python.wasm and the snapshot about 1.24 MB smaller (lapack_lite's f2c code gone), the zip 130 bytes longer (numpy/__config__.py); fuel moves in rows that import numpy, and in rows that do not with the rebuilt binary's layout"
+    units = 10
+    ```
+
+- **For the owner, which the lane relays** (the build review's L3): question 107 was answered on
+  "30 to 56% less fuel" and "about 1.8 MB". Measured on main's set: 23 to 55% less at 200×200
+  (`inv` 0.598, singular values 0.766, `eigh` 0.630, `matmul` 0.455), 1.24 MB (`.bss` was counted
+  in the estimate), and 3×3 calls dearer (`matmul` 1.283 per call, `inv` 1.098;
+  `restack-fuel-per-call.txt`). No golden row grows past +0.31%.
+- **The flags** (measured on the restacked set):
 
   ```
   --accept "100: numpy's linear algebra, dot and matmul run on the set's OpenBLAS 0.3.34 (step 40 finds it through the pinned pkgconf; recipes numpy_lapack_abi.h, numpy_lapack_shims.c and numpy_file_includes.txt bridge numpy's int declarations to OpenBLAS's void subroutines); lapack_lite is gone from the link; nan matrices fail as native numpy on OpenBLAS; a matrix singular only in exact arithmetic is a rounding question, as documented"
-  --accept-judge "100: checks that numpy is built on the set's OpenBLAS as scipy is, that numpy and scipy agree on 300 rank-deficient matrices with the guest's recorded answer, that nan matrices and LAPACK's argument errors behave as native numpy on OpenBLAS, and that one OpenBLAS and no lapack_lite is linked; one_lapack_errors and its unit rows; the oracle's numpy on macOS arm64 is the OpenBLAS wheel; no existing expectation edited"
-  --accept-growth "100: numpy on OpenBLAS: python.wasm -1,240,268 bytes, the snapshot -1,252,711 (lapack_lite's f2c code gone), the zip +130 (numpy/__config__.py's BLAS and LAPACK entries); fuel rows that import numpy move (median +0.023%): 099's singular-matrix check +1.43% plain and +2.05% snapshot (sixteen 2x2 linalg calls, where OpenBLAS's call costs more than lapack_lite's f2c code), the numpy_csv golden +0.35%, modelling +0.28%, plot_line +0.16% to +0.21%, plot_contour +0.12% to +0.16%, numpy-others +0.24%, numpy-core +0.20%, the pandas groups +0.04% to +0.28%, the other rows within +-0.5%, by numpy's import-time dot and its products and linear algebra on OpenBLAS; MANIFEST three recipe lines added, four changed (wasi-numpy.cross, 40_numpy.sh, 60_link.sh, wasi-cc's comment)"
+  --accept-judge "100: checks that numpy is built on the set's OpenBLAS as scipy is, that numpy and scipy agree on 300 rank-deficient matrices with the guest's recorded answer, that nan matrices and LAPACK's argument errors behave as native numpy on OpenBLAS, and that one OpenBLAS and no lapack_lite is linked; one_lapack_errors and its ten unit rows; the oracle's numpy on macOS arm64 is the OpenBLAS wheel; no existing expectation edited"
+  --accept-growth "100: numpy on OpenBLAS: python.wasm -1,240,316 bytes, the snapshot -1,237,935 (lapack_lite's f2c code gone), the zip +130 (numpy/__config__.py's BLAS and LAPACK entries); fuel rows move (median +0.014% over 168 rows in CI): 099's singular-matrix check +1.41% plain and +1.98% snapshot (sixteen 2x2 linalg calls, where OpenBLAS's call costs more than lapack_lite's f2c code), the numpy_csv golden +0.31%, modelling +0.22%, plot_line +0.20% to +0.22%, plot_contour +0.14% to +0.16%, numpy-lib +0.018%, cpython-fs -0.012%, the other rows within +-0.3%, by numpy's import-time dot and its products and linear algebra on OpenBLAS, and, for rows that import no numpy, the rebuilt binary's layout; MANIFEST three recipe lines added, six changed (wasi-numpy.cross, 40_numpy.sh, 60_link.sh, wasi-cc's comment, and npy_fenv_flags.h's comment and weak-duplicates-allowed.txt's reason as 099's confirming review asked)"
   ```
 
 - **Dry-run needs:** the release workflow on the branch (criterion 8); the Windows judge shards
@@ -983,3 +1036,99 @@ Carried from 099's confirming build review (its L1): `recipes/weak-duplicates-al
 reason for `wasi_python_fe_flags` now says "(numpy's module archives and the static libraries their
 .deps name: 17 of the link's archives at numpy 2.5.2)"; `recipes/npy_fenv_flags.h`'s comment
 rewrapped (its 118-column line).
+
+### Rebuilt on the structural chain (2026-10-20 to 21, the native slot)
+
+- **Rebase onto the structural chain.** `git rebase dbecd2d` (`claude/gallant-ride-9nxxmn`, specs
+  103 to 109 and the drafts of 110 and 111, which main fast-forwards to). Conflict hunks resolved,
+  every one named, both sides kept in each:
+  - `CHANGELOG.md`, the unreleased section: the chain's seven bullets (103 to 109) first, then
+    this specification's, then 099's; this bullet's blank lines dropped to match the section.
+  - `scripts/steps/40_numpy.sh`, the header comment: the chain's "pandas' build imports." with
+    this branch's sentences on OpenBLAS after it, without their specification numbers.
+  - `scripts/steps/60_link.sh`, the header comment: the chain's citation-free wording, with "scipy
+    and numpy with one OpenBLAS" in place of "scipy with OpenBLAS".
+  - `tests/harness/scan.py`, the file's end: the chain's citation rule and this branch's one-LAPACK
+    section, in that order. In phase 2's commit, the imports: the chain's `tokenize` and
+    `warnings` kept, and `Callable` added to `collections.abc`'s line.
+  - `tests/unit/test_scan.py`, the file's end: the chain's citation-rule fixtures, then this
+    branch's ten unit rows.
+  - Then, in a commit of its own (`186b9a4`): the chain's rule that comments and docstrings
+    outside `src/` name no specification, review, finding or `context/` path
+    (`test_code_outside_src_names_no_context_document`) found 26 such phrases in what this
+    branch adds, in `tests/checks/test_v1_3_data_stack.py`, `test_v1_5_rebuild_from_pins.py`,
+    `tests/harness/scan.py`, `tests/unit/test_scan.py`, the oracle's `pyproject.toml`, steps 40
+    and 60 and `scripts/wasi-cc`. Each is reworded with its reason in words, none allowed, no code
+    changed. `ruff check`, `ruff format --check`, `test_rules.py` and `test_scan.py`: green
+    (`build/100/rules-unit.log`, 306 passed).
+- **Built from empty** (EXECUTED, `scripts/build.sh --plain` on `186b9a4`, 19 steps, macOS arm64,
+  `build/100/build-restack.log`; the native slot released when step 90 finished): `SHA256SUMS`
+  `f43586b0…`; `python.wasm` 92,553,279 bytes (`11d7799d…`), the snapshot 97,445,041
+  (`e65dfa2d…`), the zip 49,772,117 (`02d3a3b7…`). Against main's set (`SHA256SUMS` `83789790…`,
+  the bytes main accepted at `72bc5ed`): python.wasm **−1,240,316**, the snapshot **−1,237,935**,
+  the zip **+130**.
+- **Criterion 2** (EXECUTED): numpy's meson log says `scipy-openblas found: NO`, then `openblas
+  found: YES 0.3.34` for BLAS and LAPACK, `BLAS symbol suffix:` empty; the include log matched each
+  entry its count (1, 1, 2, 1); no `lapack_lite_f2c*` object; 0 `signature mismatch` and 0
+  `duplicate symbol` in step 60's logs; no new constructor. The weak-duplicate gate, with numpy's
+  shims archive in it (the build review's L6): `271 archives, 21964 weak names, 0 unreviewed, 0
+  stale patterns`. `MANIFEST` against main's set: three recipe lines added (the three recipe
+  files), six changed (`wasi-numpy.cross`, steps 40 and 60, `wasi-cc`, and `npy_fenv_flags.h` and
+  `weak-duplicates-allowed.txt` from 099's confirming review's L1).
+- **The bytes** (EXECUTED, `restack-map-compare.txt`, main's link map against this one): the mapped
+  sections fall by 1,880,685, exactly as in phase 2: `numpy__umath_linalg.a` −1,920,912,
+  `numpy__multiarray_umath.a` +29,662, `libopenblas.a` +9,508, the shims +1,057.
+- **Criterion 5** (EXECUTED, `restack-archives-compare.txt`, against main's build tree): step 50's
+  90 and step 57's 190 archives and `.deps` files, and scipy's shims, byte-identical. Step 58's 69
+  scikit-learn archives are identical too, and its `.deps` files differ only in the checkout path.
+- **The probes** (EXECUTED, `phase2_probes.sh` with `SET` the new set and `BASE` main's,
+  `restack-probes.txt`, both binaries): the 300 matrices and the `nan` probe print exactly what
+  they printed in phase 2. Fuel per call against main's set (`restack-fuel-per-call.txt`): 200×200
+  `inv` 0.598, singular values 0.766, `eigh` 0.630, `matmul` 0.455; 3×3 `matmul` 19,541 → 25,067
+  (**1.283**, phase 2's 1.563 was against 099's set), 3×3 `inv` 72,709 → 79,863 (1.098). The
+  memory cap: numpy's `a @ a` exits 1 with OpenBLAS's line at 64 MiB and returns at 65, 66, 67, 68
+  and 72 MiB, on both binaries (`restack-cap-bracket.txt`; phase 2's set returned at 64). With an
+  early call `cap_keep_np.py` returns 64.0, and without one it exits 1, on both. Decision 13 and
+  the CHANGELOG say so.
+- **The spec's nodes on the set** (EXECUTED, single node ids while `build/lane.lock` existed,
+  `build/100/nodes-restack.txt`): checks 1 to 4, `test_manifest_recipes_match_the_tree` and the
+  citation rule, 9 passed.
+- **The fast tier** (EXECUTED, `-n 3`, the fast slot held, after `build/lane.lock` was removed,
+  `build/100/fast-restack.txt`): **2,655 passed, 0 failed**, 10 skipped; against main's
+  acceptance lost 0, gained 21 (this specification's 7 and the chain's 14 rules checks), 84 grew;
+  unit suite 1,989 of 1,996, 7 skipped. Red on growth lines only.
+- **The release run** (EXECUTED): **39535794638** on `186b9a4`, read with `gh run view --json
+  jobs` and the shard records (`gh run download -p 'record-*'`; the gather job is skipped when a
+  shard is red, so there is no `release-record-1`). Every build, rebuild and verify job succeeded,
+  and so did **the same bytes from every host**. Every Linux shard is green. macOS: `own-guest`
+  (`RED: 89 metric(s) grew`), `own-embedding` (11 grew) and `upstream-macos` (1 grew,
+  `numpy-lib`), growth lines only. **Windows: two red jobs, both the structural chain's, neither a
+  growth line nor G7.**
+  - `own-embedding`: `test_a_forked_child_is_refused` LOST. The chain's own run 39530569266 on
+    `dbecd2d` fails it the same way, and this branch changes nothing under `src/` or in that test.
+  - `own-runner`: the unit test `test_a_same_size_same_mtime_replacement_is_hashed_again`, `assert
+    3 == 2`. It is intermittent on Windows: it passed in 39530569266 and failed in spec 045's run
+    39533679276.
+  - The lane fixed both on the chain after this run: `727bd4c` (105's no-fork child) and
+    `2a878f0` (107's digest cache, which names this run), both reviewed at `5af0a42`. A rebase
+    onto that tip touches no file of this branch.
+
+### The builder's self-check, on the restacked build (`../reviews/README.md`)
+
+- **Rebased** today onto the named base: the structural chain's `dbecd2d` (Status line); every
+  conflict hunk named above. The chain has since moved to `5af0a42` with the lane's two Windows
+  fixes, which touch no file of this branch.
+- **CI run** 39535794638 on `186b9a4`, read. Its red lines are GREW only on macOS. Windows has two
+  red rows that are not this specification's, named above, with the lane's fixes. The commit after
+  it touches only `context/`, `README.md` and `CHANGELOG.md`.
+- **Every number** in the restacked notes is from a run on this base, labelled EXECUTED. The claim
+  list and flags are this build's, against main's acceptance.
+- **"For the lane"**: the claim list, the claim block, the three flags (each reason begins "100:"),
+  the wave kind (build-class; 099 has landed, so no longer stacked), dry-run needs.
+- **Every new check seen failing first** (phase 1). Windows: checks 1 to 3 ran in the Windows guest
+  shard, green; check 4 runs in the build shard only.
+- **No gap** is added and no follow-up is reserved. **`packages.toml`**: unchanged. **README
+  rows**: the sizes row, now 92.6 / 97.4 / 49.8 MB.
+- **CHANGELOG**: under the one unreleased section, after the chain's bullets; the bytes and the
+  3×3 figure re-measured. **Questions**: none new; L3's line for the owner is in *For the lane*.
+- **ruff check, ruff format --check, the fast tier**: green but for growth; output in `build/100/`.

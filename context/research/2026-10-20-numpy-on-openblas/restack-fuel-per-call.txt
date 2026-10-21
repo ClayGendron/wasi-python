@@ -1,0 +1,7 @@
+# from restack-probes.txt (set names rewritten to per_call.py's set099 and set100): (op - none) / calls, plain binary
+np_matmul3: base (main 83789790) 19,541, built (100 f43586b0) 25,067 fuel per call, ratio 1.283
+np_inv3: base (main 83789790) 72,709, built (100 f43586b0) 79,863 fuel per call, ratio 1.098
+np_inv: base (main 83789790) 173,162,306, built (100 f43586b0) 103,625,164 fuel per call, ratio 0.598
+np_svd: base (main 83789790) 245,998,265, built (100 f43586b0) 188,454,551 fuel per call, ratio 0.766
+np_eigh: base (main 83789790) 418,350,067, built (100 f43586b0) 263,360,777 fuel per call, ratio 0.630
+np_matmul: base (main 83789790) 156,810,458, built (100 f43586b0) 71,394,025 fuel per call, ratio 0.455

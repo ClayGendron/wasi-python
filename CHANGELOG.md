@@ -63,9 +63,10 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   `LinAlgError` in `svd`, `lstsq` and `eigh` as natively, where it raised `ValueError: On entry
   to DLASCL …` (and `lstsq`, with spec 099 alone, `SystemError`); numpy and scipy agree on which
   matrices are singular; a 200×200 inverse, decomposition or product takes 23 to 55 percent less
-  fuel, and a 3×3 product about 56 percent more (OpenBLAS's call costs more than numpy's own loop
-  at that size); `python.wasm` is 1,240,268 bytes smaller and the snapshot 1,252,711. A matrix singular only in exact arithmetic is a rounding question, and the README says
-  how the guest differs there (measured on macOS arm64), and what OpenBLAS's buffer does under a
+  fuel, and a 3×3 product 28 percent more (OpenBLAS's call costs more than numpy's own loop at
+  that size); `python.wasm` is 1,240,316 bytes smaller and the snapshot 1,237,935. A matrix
+  singular only in exact arithmetic is a rounding question, and the README says how the guest
+  differs there (measured on macOS arm64), and what OpenBLAS's buffer does under a
   tight memory cap. The oracle's numpy on macOS arm64 is now the OpenBLAS wheel.
 - **A singular matrix raises `LinAlgError`** (spec 099; spec 066's survey). wasm has no
   floating-point status flags, and numpy reports a failed LAPACK call by one, so

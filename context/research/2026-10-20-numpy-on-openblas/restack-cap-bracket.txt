@@ -1,0 +1,7 @@
+# numpy's a @ a after import numpy, scipy (cap_probe_np.py) on the restacked set f43586b0, under 65 to 67 MiB; with restack-probes.txt's 64 (exit 1), 68 and 72 (exit 0): the threshold lies between 64 and 65 MiB on both binaries
+plain 65 MiB exit 0 | numpy matmul returned 64.0 | []
+plain 66 MiB exit 0 | numpy matmul returned 64.0 | []
+plain 67 MiB exit 0 | numpy matmul returned 64.0 | []
+snapshot 65 MiB exit 0 | numpy matmul returned 64.0 | []
+snapshot 66 MiB exit 0 | numpy matmul returned 64.0 | []
+snapshot 67 MiB exit 0 | numpy matmul returned 64.0 | []
