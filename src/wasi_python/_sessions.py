@@ -975,7 +975,7 @@ def _open_session(
     root = c.root
     entries = c.import_path
     walked_root, walked = _places._walk_grants(
-        root, c.grants, found, cache, entries, c.import_serving
+        root, c.grants, found, cache, entries, c.import_serving, others=_engines._caches(cache)
     )
     state.walked = [w for w in [walked_root, *(w for _, _, w in walked)] if w is not None]
     preopens: list[_Preopen] = []

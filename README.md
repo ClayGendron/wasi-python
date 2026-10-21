@@ -958,11 +958,19 @@ recipe's hash and MANIFEST's `x-preimport` line then follow it. That is not a
 product promise.
 
 The compiled module is cached as a `.cwasm` in the user cache directory, or
-in `$WASI_PYTHON_CACHE`, only where no other user can write (a `.cwasm` is
-native code); `cache_dir=False` keeps it in memory only. On Windows the
-runner cannot check who may write a folder, so `cache_dir` and
-`$WASI_PYTHON_CACHE` must name a folder only you can write; the default, in
-your own profile, is one. Measured on Apple
+in `$WASI_PYTHON_CACHE` (an absolute path: a relative one names a different
+folder in each working folder), only in a folder at mode `0700` holding
+files at `0600` with one name, as the runner makes them (a `.cwasm` is
+native code); a file or folder made otherwise, as a guest's would be, is
+compiled around and never loaded. That stops a file a guest makes, not one
+it rewrites in place, so the guard is that no guest can reach the cache at
+all (see "Safety"). `cache_dir=False` keeps it in memory only, and so does
+a process with no home folder and no `$WASI_PYTHON_CACHE`. On Windows the
+runner can check only that the folder and its files are not links, not who
+wrote them, so `cache_dir` and `$WASI_PYTHON_CACHE` must name a folder only
+you can write; the default, in your own profile, is one, and a folder made
+outside your profile (directly under `C:\`, say) is writable by every local
+user unless you change its permissions. Measured on Apple
 arm64 (spec 001's landing notes): the first call compiles for about 3 s, a
 first call with the `.cwasm` on disk takes about 0.1 s, and later calls in
 one process about 20 to 25 ms. The runner finds the artifact set through
@@ -1062,10 +1070,15 @@ cache, so that it is judged as it will be):
   could change it through the other;
 - a writable grant or `root` at, inside or above the runtime's own folders
   is refused, since later calls and processes trust them: the stdlib folder
-  (or the temporary folder that holds it), the artifact set, the module
-  cache, the code of `wasi_python` and wasmtime-py themselves, and the host
-  Python's own `stdlib`, `site-packages` (the user's too) and `bin` (or
-  `Scripts`) folders. So
+  (or the temporary folder that holds it), the artifact set, every module
+  cache this process could use (the call's own, the folder
+  `$WASI_PYTHON_CACHE` names, and the platform's default, as this process
+  computes it and without `$XDG_CACHE_HOME` or `%LOCALAPPDATA%`, under
+  `$HOME` and, on POSIX, the home the system gives this user; whatever the
+  call's `cache_dir`, made or not, and by every folder on its path as
+  written, links included), the code of `wasi_python` and wasmtime-py
+  themselves, and the host Python's own `stdlib`, `site-packages` (the
+  user's too) and `bin` (or `Scripts`) folders. So
   `root=Path.home()`, a project folder holding the `.venv` this process runs
   from or `build/artifacts`, and the temporary folder itself are refused;
 - any grant, read-only too, at or above the temporary folder is refused: it
@@ -2763,7 +2776,7 @@ One instance of the runtime kept across several calls, each a turn: variables, f
   - `deadline_s`: Each turn's wall-clock seconds, unless the turn passes its own; past them the turn ends "deadline". Default: `defaults().deadline_s`, 60. `None` means no limit but the lifetime's.
   - `memory_bytes`: The most linear memory the guest may hold, in bytes, for the whole session. Default: `defaults().memory_bytes`, 1 GiB. `None` means no limit.
   - `output_bytes`: The most bytes kept per stream in each turn, unless the turn passes its own; the rest are dropped and the stream named in `truncated`. Default: `defaults().output_bytes`, 16 MiB. `None` means no limit.
-  - `cache_dir`: Where compiled modules are kept as .cwasm files, a folder only you can write. `None` or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder; `False` keeps them in this process only, never on disk.
+  - `cache_dir`: Where compiled modules are kept as .cwasm files, a folder only you and the runner write: never one a guest is granted, in this or another call. `None` or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder; `False` keeps them in this process only, never on disk.
   - `artifacts`: The artifact set to run; `None` finds it with `artifacts()` and checks it against its SHA256SUMS first. A set you pass is used as you give it.
   - `max_file_calls`: The most provider calls each turn with mounts makes; then it ends "out of file calls". Default: `defaults().file_calls`, 10,000. `None` means no limit.
   - `tools`: Host functions offered to the guest through the tool protocol (`from host import tools`), each a `wasi_python.tools.Tool` or a plain function, which goes through `tool()`. A tool may be async: under `run` it is awaited on one loop of the session's own for all its turns, under `run_async` on the event loop that awaits it. Fixed for the session. Excludes `host`.
@@ -2935,7 +2948,7 @@ Run one program in a fresh instance of the runtime and return how it ended.
 - `deadline_s`: Wall-clock seconds; past them the call ends "deadline". Default: `defaults().deadline_s`, 60. `None` means no limit.
 - `memory_bytes`: The most linear memory the guest may hold, in bytes. Default: `defaults().memory_bytes`, 1 GiB. `None` means no limit.
 - `output_bytes`: The most bytes kept per stream; the rest are dropped and the stream named in `truncated`. Default: `defaults().output_bytes`, 16 MiB. `None` means no limit.
-- `cache_dir`: Where compiled modules are kept as .cwasm files, a folder only you can write. `None` or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder; `False` keeps them in this process only, never on disk.
+- `cache_dir`: Where compiled modules are kept as .cwasm files, a folder only you and the runner write: never one a guest is granted, in this or another call. `None` or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder; `False` keeps them in this process only, never on disk.
 - `artifacts`: The artifact set to run; `None` finds it with `artifacts()` and checks it against its SHA256SUMS first. A set you pass is used as you give it.
 - `cancel`: A `threading.Event`. Once it is set and the guest runs, the guest stops within 5 ticks of 10 ms while it computes, and the call ends "cancelled".
 - `max_file_calls`: The most provider calls a call with mounts makes; then it ends "out of file calls". Default: `defaults().file_calls`, 10,000. `None` means no limit.
@@ -3451,6 +3464,15 @@ the default 60 s; point `tempfile.tempdir`, or `root`, at a size-limited
 volume if that matters); links a guest leaves in a granted root that point
 outside it (host code that reads or writes the root after a call must not
 follow links: open with `O_NOFOLLOW`, or check `os.lstat` first);
+the module cache's contents, if anything but the runner can write there: a
+writable grant, a mount provider, another program or another user that can
+write a folder of compiled modules can run code in the host process at the
+next call, outside wasm (the runner refuses a grant or `root` over every
+cache it knows of, and on POSIX loads only files at `0600` in a folder at
+`0700`, which stops a file a guest makes, not one it rewrites in place; a
+folder you pass as another call's `cache_dir` it cannot know);
+`cache_dir` and `$WASI_PYTHON_CACHE` are trusted input, as the artifact
+folder is: name only folders that no guest and no other user can write;
 the host's file descriptors beyond each call's cap (a call or session holds at
 most `max_open_files` files and folders open, 1,024 by default, plus its
 preopens and stdin, and that protects your process only within its soft

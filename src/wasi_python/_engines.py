@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import stat
 import tempfile
 import threading
 import time
@@ -64,6 +65,15 @@ def _check_module(wt: Any, engine: Any, metered: bool) -> Any:
         return p.check_modules[metered]
 
 
+def _home() -> Path | None:
+    """The home folder, or None where none can be found (no `$HOME` and a uid the password
+    database does not list): such a process has no default cache."""
+    try:
+        return Path.home()
+    except (RuntimeError, KeyError, OSError):
+        return None
+
+
 def _cache_dir(given: str | os.PathLike[str] | None | bool) -> Path | None:
     if given is False:
         return None
@@ -71,7 +81,30 @@ def _cache_dir(given: str | os.PathLike[str] | None | bool) -> Path | None:
         return Path(given)
     if os.environ.get(CACHE_ENV):
         return Path(os.environ[CACHE_ENV])
-    return _platform.PLATFORM.default_cache_dir(Path.home())
+    home = _home()
+    return None if home is None else _platform.PLATFORM.default_cache_dir(home)
+
+
+def _caches(own: Path | None) -> tuple[tuple[str, Path], ...]:
+    """Every other module cache a call or process of this user could use, whatever this call's
+    own: the folder `$WASI_PYTHON_CACHE` names and every platform default, each with the name
+    the judge's refusal gives it. A call that keeps no cache, or its own elsewhere, must still
+    give its guest no way to write where the next call loads native code from. Each name begins
+    "the module cache"; `own` and repeats are left out."""
+    found: list[tuple[str, Path]] = []
+    if os.environ.get(CACHE_ENV):
+        path = Path(os.environ[CACHE_ENV])
+        found.append((f"the module cache ${CACHE_ENV} names ({path})", path))
+    home = _home()
+    for path in () if home is None else _platform.PLATFORM.default_cache_dirs(home):
+        found.append((f"the module cache in the platform's default folder ({path})", path))
+    seen = set() if own is None else {os.path.abspath(own)}
+    caches = []
+    for name, path in found:
+        if os.path.abspath(path) not in seen:
+            seen.add(os.path.abspath(path))
+            caches.append((name, path))
+    return tuple(caches)
 
 
 def _engine(metered: bool) -> wasmtime.Engine:
@@ -103,10 +136,12 @@ def _module(
 ) -> wasmtime.Module:
     """The compiled module: from this process, else the .cwasm cache, else compiled and cached.
 
-    A .cwasm is native code that wasmtime runs as it finds it, so the cache is used only where no
-    one else can write: on POSIX, a directory and files owned by this user and writable by no one
-    else (the directory is made 0700, the files 0600). Anything else is ignored, with a warning,
-    and the module is compiled in this process. `want` is a found set's checked digest:
+    A .cwasm is native code that wasmtime runs as it finds it, so the cache is used only as the
+    runner makes it: on POSIX, a directory at 0700 and files at 0600 with one name, owned by this
+    user; on Windows, no link or junction. Anything else is ignored, with a warning, and the
+    module is compiled in this process; a refused file is replaced by the runner's own. That
+    stops a file a guest makes, not one it rewrites in place: the guard is that the grant judge
+    lets no guest reach any cache. `want` is a found set's checked digest:
     the module is then compiled from bytes read once and held to it, and the
     .cwasm under that digest is written only from them."""
     import wasmtime as wt
@@ -138,20 +173,18 @@ def _module_miss(
     held: bool = False,
 ) -> wasmtime.Module:
     flavor = "fuel" if metered else "plain"
-    mod: wasmtime.Module | None = None
     cwasm = None
-    if cache is not None and _platform.PLATFORM.private(cache, is_dir=True):
-        from . import _wasmtime_ffi as ffi
+    try:
+        if cache is not None and _platform.PLATFORM.private(cache, is_dir=True):
+            from . import _wasmtime_ffi as ffi
 
-        cwasm = cache / f"{digest[:32]}-wasmtime{ffi.version()}-{flavor}.cwasm"
-    if cwasm is not None and cwasm.exists() and _platform.PLATFORM.private(cwasm, is_dir=False):
-        try:
-            mod = wt.Module.deserialize_file(engine, str(cwasm))
-            with process().cache_lock:
-                process().counts["loaded"] += 1
-        except wt.WasmtimeError:
-            mod = None  # stale or foreign: compiled again below and replaced
-            cwasm.unlink(missing_ok=True)
+            cwasm = cache / f"{digest[:32]}-wasmtime{ffi.version()}-{flavor}.cwasm"
+    except OSError:
+        cwasm = None  # unusable: compiled modules are kept in this process only
+    mod: wasmtime.Module | None = None
+    may_write = False
+    if cwasm is not None:
+        mod, may_write = _load(wt, engine, cwasm)
     if mod is None:
         if held:
             data = binary.read_bytes()
@@ -166,20 +199,72 @@ def _module_miss(
             mod = wt.Module.from_file(engine, str(binary))
         with process().cache_lock:
             process().counts["compiled"] += 1
-        if cwasm is not None and not cwasm.exists():
-            fd, tmp = tempfile.mkstemp(prefix=".cwasm-", dir=cache)  # created 0600
-            try:
-                with os.fdopen(fd, "wb") as f:
-                    f.write(mod.serialize())
-                os.replace(tmp, cwasm)
-                with process().cache_lock:
-                    process().counts["written"] += 1
-            except BaseException:
-                Path(tmp).unlink(missing_ok=True)
-                raise
+        if cwasm is not None and cache is not None and may_write:
+            _store(mod, cache, cwasm)
     with process().cache_lock:
         process().modules[(metered, digest)] = mod
     return mod
+
+
+def _file_stamp(st: os.stat_result) -> tuple[int, int, int, int]:
+    return st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns
+
+
+def _load(wt: Any, engine: wasmtime.Engine, cwasm: Path) -> tuple[wasmtime.Module | None, bool]:
+    """The module a `.cwasm` holds, if the file is as the runner makes it and is still the file
+    checked once wasmtime has read it (wasmtime-py opens the path itself, so a file swapped in
+    between is discarded); and whether the runner may put its own file at that name: when there
+    is none, or the one there is refused, stale or swapped, but never over a folder."""
+    try:
+        before = os.lstat(cwasm)
+    except FileNotFoundError:
+        return None, True
+    except OSError:
+        return None, False
+    if not _platform.PLATFORM.private(cwasm, is_dir=False):
+        return None, not stat.S_ISDIR(before.st_mode)  # never loaded; replaced unless a folder
+    try:
+        mod = wt.Module.deserialize_file(engine, str(cwasm))
+    except wt.WasmtimeError:
+        return None, True  # stale or foreign: compiled again and replaced
+    try:
+        same = _file_stamp(os.lstat(cwasm)) == _file_stamp(before)
+    except OSError:
+        same = False
+    if not same:
+        return None, True
+    with process().cache_lock:
+        process().counts["loaded"] += 1
+    return mod, False
+
+
+def _store(mod: Any, cache: Path, cwasm: Path) -> None:
+    """The runner's own `.cwasm`, made 0600 under another name and renamed into place, which
+    replaces a refused file or link itself, never what a link names. A cache that cannot take it
+    leaves the module in this process only, with a warning; it never fails the call."""
+    import warnings
+
+    tmp = None
+    try:
+        fd, tmp = tempfile.mkstemp(prefix=".cwasm-", dir=cache)  # created 0600
+        with os.fdopen(fd, "wb") as f:
+            f.write(mod.serialize())
+        os.replace(tmp, cwasm)
+    except OSError as e:
+        if tmp is not None:
+            Path(tmp).unlink(missing_ok=True)
+        warnings.warn(
+            f"wasi_python: not writing the module cache at {cwasm}: {e.strerror or e}",
+            RuntimeWarning,
+            stacklevel=5,
+        )
+        return
+    except BaseException:
+        if tmp is not None:
+            Path(tmp).unlink(missing_ok=True)
+        raise
+    with process().cache_lock:
+        process().counts["written"] += 1
 
 
 class _epoch_ticker:

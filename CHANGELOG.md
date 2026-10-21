@@ -469,6 +469,20 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   `RL_*` variables. The README names what an `env=` HOME in a reused root still carries (pdb's
   `.pdbrc`, scikit-learn's pickled caches), matplotlib's `./matplotlibrc` and a planted
   `/etc/xml/catalog`.
+- **Every module cache is guarded, whatever a call's own `cache_dir`** (spec 113; the 0.1.0
+  security review's H1). A call with `cache_dir=False` or a cache of its own no longer passes
+  a writable grant or `root` over the cache other calls and processes use: the judge now
+  refuses one at, inside or above the call's own cache, `$WASI_PYTHON_CACHE` and every
+  platform default a process of this user could compute (with or without `$XDG_CACHE_HOME`
+  or `%LOCALAPPDATA%`, under `$HOME` and the system's home), made or not, and through every
+  folder on the cache's path as written, in `run`, `run_async` and `Session`. Before, a guest
+  given such a grant could write a compiled module under the snapshot's public name that the
+  next call loaded as native code. On POSIX a cache folder is used only at `0700` and a
+  `.cwasm` loaded only at `0600` with one name, as the runner makes them; a file that is not
+  is compiled again and replaced, never loaded. That stops a file a guest makes, not one it
+  rewrites in place: the refusal is the guard. On Windows the cache refuses links and second
+  names; it cannot tell who wrote a file, and the README says so. No public name, artifact
+  byte or guest-visible errno changes.
 
 ## 0.1.0a7 — 2026-10-19
 

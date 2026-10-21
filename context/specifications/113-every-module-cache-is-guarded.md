@@ -153,10 +153,15 @@ a folder of its own: the next call's cache would be the guest's (the review, EXE
 `_chain`). So a cache's chain also holds the identity of every existing prefix of
 `os.path.abspath(path)`, each by `identity_of` (links followed), and a writable grant or root at
 or above any of them is refused as one above the resolved folder is. This is the same on every
-system. It is applied to the caches, which this specification guards; the other runtime folders
-are named by the runner itself from its own `__file__`, `sysconfig` and the artifact set, so a
-link on their path is the installer's, not an argument's, and they keep the resolved chain (the
-review allowed the builder to hold it to the caches with this reason).
+system. It is applied to the caches, which this specification guards. The runner's own code and
+the host Python's folders are named by the runner itself from its own `__file__` and
+`sysconfig`, so a link on their path is the installer's, not an argument's. The artifact set is
+an argument too (`artifacts=`, `$WASI_PYTHON_ARTIFACTS`), checked only against its own
+`SHA256SUMS` (`_artifacts.py:181-197`), so a link on its path inside a writable grant could let
+a guest swap a later call's interpreter; but a set planted there is wasm under the wall, not
+native code in the host, so it is outside this specification's subject, and the path-as-written
+rule for it is reserved (the roadmap, after 0.1.0; the confirmation read's L8). The other
+runtime folders keep the resolved chain.
 
 **A cache not made yet** is judged by its deepest existing ancestor, the rule the judge already
 applies to a missing runtime folder (`_places._chain`): a writable grant or root at or above
@@ -245,8 +250,10 @@ reports `st_nlink` too, and a hard link there needs no privilege, so the check a
 swapped between the two is not the file checked. The runner takes a second `lstat` after the
 load and compares `(st_dev, st_ino, st_size, st_mtime_ns)` with the first; on a difference it
 discards the loaded module and compiles. That narrows a window only a guest the rule failed to
-stop can use. No check row holds it: it needs a seam between two system calls the runner does
-not have; the review reads it in the diff.
+stop can use. A row holds it (the confirmation read's L9):
+`test_a_cwasm_swapped_between_its_check_and_its_load_is_discarded` hands `_module_miss` a
+stand-in for wasmtime-py as its `wt` argument, whose `Module.deserialize_file` swaps a `0644`
+module in and then loads; no `wasi_python` name is patched.
 
 **What happens to what is there:**
 
@@ -403,6 +410,7 @@ none is a time.
 | `test_the_runner_makes_its_cache_folder_0700_and_its_files_0600` | a fresh cache: the folder `0700`, the file `0600` (POSIX); compiled 1, written 1 everywhere | pass (holds the runner's own modes) |
 | `test_a_cwasm_that_is_a_link_is_never_loaded` | a link in the cache to a `0600` module: never loaded, never written through, on every system | pass on POSIX; on Windows main loads it (INFERRED from `_platform.py:1389-1392`; the Windows leg shows it) |
 | `test_a_cwasm_with_a_second_name_is_never_loaded` | a hard link in the cache to a `0600` module elsewhere: never loaded, the file elsewhere unchanged, on every system | **fail**: loaded 1 |
+| `test_a_cwasm_swapped_between_its_check_and_its_load_is_discarded` (added in the build, L9) | a stand-in `wt` swaps a `0644` module in after the check: compiled 1, loaded 0, written 1, the name now the runner's `0600` file | **fail** on main's code (`build/113/swap-on-main.txt`): loaded 1 |
 | `test_a_folder_at_a_cwasm_name_is_skipped_not_raised` | a folder at the `.cwasm`'s name: compiled 1, loaded 0, written 0, no exception, the folder left | pass (holds Decision 3's "not replaced" against a fix that would raise) |
 | `test_a_cache_folder_that_is_a_link_is_not_used` | the cache folder a symbolic link (POSIX) or a junction (Windows, `_winapi.CreateJunction`) to a `0700` folder with a `0600` module: compiled 1, loaded 0, written 0 | pass on POSIX; on Windows main loads it (INFERRED; the Windows leg shows it) |
 

@@ -23,6 +23,7 @@ import os
 import stat
 import subprocess
 import sys
+import types
 import warnings
 from pathlib import Path
 
@@ -400,6 +401,39 @@ def test_a_cwasm_with_a_second_name_is_never_loaded(work) -> None:
     counts, _ = _miss(binary, cache, digest)
     assert counts["loaded"] == 0 and counts["compiled"] == 1, counts
     assert real.read_bytes() == _serialized()
+
+
+def test_a_cwasm_swapped_between_its_check_and_its_load_is_discarded(work) -> None:
+    """wasmtime-py opens a `.cwasm` by its path, after the runner has checked the file at that
+    path. A stand-in for wasmtime-py, handed to the cache miss as its own, puts another file
+    there between the two (a compiled module at 0644, as a guest would make it) and then loads:
+    the module loaded is discarded, the binary is compiled, and the runner's own file replaces
+    the one swapped in."""
+    binary, digest = _tiny(work)
+    cache = work / "cache"
+    cache.mkdir(mode=0o700)
+    checked = cache / _name(digest)
+    checked.write_bytes(_serialized())
+    checked.chmod(0o600)
+    swapped_in = work / "swapped-in.cwasm"
+    swapped_in.write_bytes(_serialized())
+    swapped_in.chmod(0o644)
+
+    class Module(wt.Module):
+        @classmethod
+        def deserialize_file(cls, engine, path):
+            os.replace(swapped_in, path)
+            return wt.Module.deserialize_file(engine, path)
+
+    stand_in = types.SimpleNamespace(Module=Module, WasmtimeError=wt.WasmtimeError)
+    before = dict(process().counts)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        _engines._module_miss(stand_in, _engines._engine(False), False, binary, cache, digest)
+    counts = {k: process().counts[k] - before[k] for k in ("compiled", "loaded", "written")}
+    assert counts == {"compiled": 1, "loaded": 0, "written": 1}, counts
+    if POSIX:
+        assert stat.S_IMODE(checked.stat().st_mode) == 0o600
 
 
 def test_a_folder_at_a_cwasm_name_is_skipped_not_raised(work) -> None:

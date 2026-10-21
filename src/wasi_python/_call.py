@@ -146,7 +146,13 @@ def _run_checked(
     cache = _engines._cache_dir(cache_dir)
     root = c.root
     walked_root, walked = _places._walk_grants(
-        root, c.grants, found, cache, c.import_path, c.import_serving
+        root,
+        c.grants,
+        found,
+        cache,
+        c.import_path,
+        c.import_serving,
+        others=_engines._caches(cache),
     )
     preopens: list[_Preopen] = []
     private = None

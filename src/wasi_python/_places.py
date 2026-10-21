@@ -7,7 +7,8 @@ from __future__ import annotations
 import os
 import struct
 import tempfile
-from collections.abc import Iterable
+import unicodedata
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -293,17 +294,53 @@ def _chain(path: Path) -> tuple[Identity | None, tuple[Identity, ...]]:
     return (first if exists else None), tuple(chain)
 
 
+def _cache_chain(path: Path) -> tuple[Identity | None, tuple[Identity, ...], tuple[str, ...]]:
+    """A module cache's identity and chain, as `_chain` gives them, the chain also holding every
+    existing folder on the path as written: a link on the path inside a writable grant is a
+    folder the guest could replace with its own, so the next call's cache would be the guest's.
+    Third, the components not made yet, below the deepest existing ancestor (the chain's first)."""
+    identity, chain = _chain(path)
+    written = Path(os.path.abspath(path))
+    seen = list(chain)
+    for prefix in [written, *written.parents]:
+        try:
+            seen.append(_platform.PLATFORM.identity_of(prefix))
+        except OSError:
+            continue
+    missing: list[str] = []
+    here = Path(os.path.realpath(path))
+    while identity is None and here.parent != here:
+        try:
+            _platform.PLATFORM.identity_of(here)
+            break
+        except OSError:
+            missing.insert(0, here.name)
+            here = here.parent
+    return identity, tuple(dict.fromkeys(seen)), tuple(missing)
+
+
+def _spelled(parts: tuple[str, ...]) -> tuple[str, ...]:
+    """Names not made yet, compared as any of this host's file systems might match them; a
+    looser match only refuses more."""
+    return tuple(unicodedata.normalize("NFC", c).casefold().rstrip(" .") for c in parts)
+
+
 def _judge(
     root: _Walked | None,
     grants: list[tuple[str, Grant, _Walked]],
     runtime: list[tuple[str, Any, Any]],
     shared: list[tuple[str, tuple[Identity, ...]]] = [],  # noqa: B006 (read only)
+    *,
+    missing: Sequence[tuple[str, Identity, tuple[str, ...]]] = (),
 ) -> None:
     """The rules between the grants and the runtime's own folders, by identity. `runtime` is
     (name, identity or None, chain) for each of the runtime's own folders: a writable grant at,
     inside or above one is refused; a folder not made yet holds nothing, so only a grant above
     its deepest existing ancestor is. `shared` is (name, chain) for each folder no grant,
-    read-only included, may be at or above."""
+    read-only included, may be at or above. `missing` is (name, deepest existing ancestor,
+    components not made yet) for each cache not made yet: a root still to be made from the same
+    ancestor, whose components lead the cache's or follow from them, would come to hold it or
+    make it, and is refused."""
     judged = [("root", None, root)] if root is not None else []
     for where, _, w in [*judged, *grants]:  # root too: the temporary folder may have moved
         for name, chain in shared:
@@ -320,6 +357,16 @@ def _judge(
                 raise ValueError(
                     f"{where} is writable and {how} {name}, which later calls trust; grant a "
                     "folder apart from it"
+                )
+    if root is not None and root.missing:
+        made = _spelled(root.missing)
+        for name, ancestor, parts in missing:
+            n = min(len(made), len(parts))
+            if root.chain[0] == ancestor and made[:n] == _spelled(parts)[:n]:
+                how = "hold" if len(made) <= len(parts) else "lie inside"
+                raise ValueError(
+                    f"root is still to be made and would {how} {name}, which later calls "
+                    "trust; grant a folder apart from it"
                 )
     for where, g, r in grants:
         if g.writable:
@@ -418,12 +465,16 @@ def _walk_grants(
     cache: Path | None,
     import_path: tuple[str, ...] = (),
     serving: tuple[int, ...] = (),
+    *,
+    others: tuple[tuple[str, Path], ...] = (),
 ) -> tuple[_Walked | None, list[tuple[str, Grant, _Walked]]]:
     """Every grant and `root`, walked and judged before any work; a missing root is
-    made only once every rule has passed on its existing chain, the import path's included."""
+    made only once every rule has passed on its existing chain, the import path's included.
+    `others` are the module caches other calls and processes may use, judged as this call's own
+    is, and never made here."""
     walked_root: _Walked | None = None
     walked: list[tuple[str, Grant, _Walked]] = []
-    runtime = _runtime_folders(found, cache)  # first: it makes the module cache if it can
+    runtime, missing = _runtime_folders(found, cache, others)  # first: it makes the call's cache
     try:
         if isinstance(root, str):
             walked_root = _platform.PLATFORM.walk("root", root, judge=True, may_make=True)
@@ -432,7 +483,7 @@ def _walk_grants(
             walked.append(
                 (where, grant, _platform.PLATFORM.walk(where, os.fspath(grant.host), judge=True))
             )
-        _judge(walked_root, walked, runtime, _shared_folders())
+        _judge(walked_root, walked, runtime, _shared_folders(), missing=missing)
         _judge_import_path(walked_root, walked, import_path, serving)
         if walked_root is not None and walked_root.missing:
             try:
@@ -470,12 +521,15 @@ def _judge_import_path(
                 )
 
 
-def _runtime_folders(found: Artifacts, cache: Path | None) -> list[tuple[str, Any, Any]]:
+def _runtime_folders(
+    found: Artifacts, cache: Path | None, others: tuple[tuple[str, Path], ...] = ()
+) -> tuple[list[tuple[str, Any, Any]], list[tuple[str, Identity, tuple[str, ...]]]]:
     """The folders later calls and processes trust: this zip's folder (or, before it is made, the
-    temporary folder that will hold it), the artifact set's files, the module cache, and the
+    temporary folder that will hold it), the artifact set's files, every module cache, and the
     runtime's own code (this package and wasmtime-py's, whose native library a guest must never
-    replace). The module cache is made first, if it can be, so it is judged as it will be: a root
-    still to be made above a cache still to be made would otherwise come to hold it."""
+    replace); and, for each cache not made yet, its deepest existing ancestor and the components
+    below it. This call's module cache is made first, if it can be, so it is judged as it will
+    be; the others are never made by a call that does not use them."""
     import wasmtime
 
     if cache is not None:
@@ -494,8 +548,13 @@ def _runtime_folders(found: Artifacts, cache: Path | None) -> list[tuple[str, An
     parts = {found.manifest.parent, found.snapshot.parent, found.plain.parent}
     parts.add(found.stdlib_zip.parent)
     folders += [("the artifact set", *_chain(d)) for d in sorted(parts)]
-    if cache is not None:
-        folders.append(("the module cache", *_chain(cache)))
+    missing: list[tuple[str, Identity, tuple[str, ...]]] = []
+    caches = ([("the module cache", cache)] if cache is not None else []) + list(others)
+    for name, path in caches:
+        identity, chain, below = _cache_chain(path)
+        folders.append((name, identity, chain))
+        if below and chain:
+            missing.append((name, chain[0], below))
     folders.append(("wasi_python's own code", *_chain(Path(__file__).resolve().parent)))
     folders.append(("wasmtime-py's own code", *_chain(Path(wasmtime.__file__).resolve().parent)))
     # The host's own interpreter, which the next host process runs: its stdlib,
@@ -509,7 +568,7 @@ def _runtime_folders(found: Artifacts, cache: Path | None) -> list[tuple[str, An
     if site.ENABLE_USER_SITE:
         own.add(Path(site.getusersitepackages()).resolve())
     folders += [("the host Python's own code", *_chain(d)) for d in sorted(own) if d.is_dir()]
-    return folders
+    return folders, missing
 
 
 def _shared_folders() -> list[tuple[str, tuple[Identity, ...]]]:

@@ -27,8 +27,10 @@ What differs, and why each difference exists:
 - wasmtime's trap handlers: on Linux they are signal handlers that a later `faulthandler`,
   `signal.signal` or crash reporter can replace, so Linux alone checks them before a guest runs;
   macOS uses Mach ports and Windows a vectored handler.
-- The default cache folder, and whether it is this user's alone: on Windows it sits under the
-  user's profile, so it is trusted; elsewhere its owner and mode are checked.
+- The default cache folders, and whether a cache path is as the runner makes it: every default a
+  process of this user could compute, with or without the override variable each platform
+  reads; on POSIX the owner, the mode and the number of names are checked, while on Windows,
+  which has no mode bits, only the kind of file and that it is no link.
 - A file a running guest holds open cannot be replaced on Windows, so a copy of the zip or a
   data file that is already right is left in place there.
 
@@ -258,6 +260,7 @@ class _Platform(Protocol):
     ) -> bool: ...
     def trap_handlers_ready(self, machine: str | None = None) -> str | None: ...
     def default_cache_dir(self, home: Path) -> Path: ...
+    def default_cache_dirs(self, home: Path) -> tuple[Path, ...]: ...
     def private(self, path: Path, *, is_dir: bool) -> bool: ...
 
 
@@ -532,23 +535,58 @@ class _Posix:
         base = os.environ.get("XDG_CACHE_HOME")
         return (Path(base) if base else home / ".cache") / "wasi_python"
 
-    def private(self, path: Path, *, is_dir: bool) -> bool:
-        """Whether a cache path is this user's alone; a directory is made if absent."""
-        import warnings
+    def _unset_default(self, home: Path) -> Path:
+        """The default a process without the override variable computes."""
+        return home / ".cache" / "wasi_python"
 
+    def default_cache_dirs(self, home: Path) -> tuple[Path, ...]:
+        """Every default a process of this user could compute: this one's, and the one without
+        `$XDG_CACHE_HOME`, under `home` and under the home the password database gives this
+        user, which a process with another `$HOME` (sudo, a container, CI) still reaches."""
+        homes = [home]
+        try:
+            import pwd
+
+            homes.append(Path(pwd.getpwuid(os.getuid()).pw_dir))
+        except (ImportError, AttributeError, KeyError):
+            pass  # no password database, or no entry for this uid: `home` alone
+        found = [self.default_cache_dir(home), *(self._unset_default(h) for h in homes)]
+        return tuple(dict.fromkeys(found))
+
+    def private(self, path: Path, *, is_dir: bool) -> bool:
+        """Whether a cache path is as the runner makes it: this user's, no link, and no bit for
+        group or other (a directory 0700, a file 0600 with one name). A guest's `mkdir` and
+        `open` give 0755 and 0644 under the usual umask, so its new folder or file fails here; a
+        file the runner made and a guest rewrote in place does not. A directory is made if
+        absent."""
         if is_dir:
             path.mkdir(mode=0o700, parents=True, exist_ok=True)
         st = os.lstat(path)
-        kind_ok = stat.S_ISDIR(st.st_mode) if is_dir else stat.S_ISREG(st.st_mode)
-        if kind_ok and st.st_uid == os.getuid() and not st.st_mode & 0o022:
+        kind_ok = stat.S_ISDIR(st.st_mode) if is_dir else _one_file(st)
+        if kind_ok and st.st_uid == os.getuid() and not st.st_mode & 0o077:
             return True
-        warnings.warn(
-            f"wasi_python: not using the module cache at {path}: it must be a "
-            f"{'directory' if is_dir else 'file'} owned by this user and writable by no one else",
-            RuntimeWarning,
-            stacklevel=5,
+        how = "owned by this user that no one else may read, write or enter"
+        _not_used(
+            path,
+            f"a directory {how} (mode 0700)" if is_dir else f"a file {how} (mode 0600), one name",
         )
         return False
+
+
+def _one_file(st: os.stat_result) -> bool:
+    """A regular file with one name, as `mkstemp` and a rename leave the runner's own: a second
+    name is a hard link a guest could make to a file elsewhere without writing a byte."""
+    return stat.S_ISREG(st.st_mode) and st.st_nlink == 1
+
+
+def _not_used(path: Path, must_be: str) -> None:
+    import warnings
+
+    warnings.warn(
+        f"wasi_python: not using the module cache at {path}: it must be {must_be}",
+        RuntimeWarning,
+        stacklevel=6,
+    )
 
 
 def _writable(fd: int, stack: list[tuple[int, Identity, str]]) -> bool:
@@ -1053,6 +1091,9 @@ class _Darwin(_Posix):
     def default_cache_dir(self, home: Path) -> Path:
         return home / "Library" / "Caches" / "wasi_python"
 
+    def _unset_default(self, home: Path) -> Path:
+        return self.default_cache_dir(home)  # macOS reads no override
+
 
 class _ByHandle(ctypes.Structure):
     _fields_ = [
@@ -1386,10 +1427,26 @@ class _Windows:
         base = os.environ.get("LOCALAPPDATA")
         return (Path(base) if base else home / "AppData" / "Local") / "wasi_python" / "cache"
 
+    def default_cache_dirs(self, home: Path) -> tuple[Path, ...]:
+        """This process's default and the one a process without `%LOCALAPPDATA%` computes.
+        `home` is `%USERPROFILE%`, which Windows sets at logon from the profile."""
+        unset = home / "AppData" / "Local" / "wasi_python" / "cache"
+        return tuple(dict.fromkeys([self.default_cache_dir(home), unset]))
+
     def private(self, path: Path, *, is_dir: bool) -> bool:
+        """Whether a cache path is of the kind the runner makes: a directory, or a file with one
+        name, and no link or junction. Windows has no mode bits, and a guest's file inherits the
+        folder's access list as the runner's own does, so who wrote a file cannot be told here.
+        A directory is made if absent."""
         if is_dir:
             path.mkdir(mode=0o700, parents=True, exist_ok=True)
-        return True  # the default cache is under the user's own profile
+        st = os.lstat(path)
+        link = getattr(st, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT
+        kind_ok = stat.S_ISDIR(st.st_mode) if is_dir else _one_file(st)
+        if kind_ok and not link:
+            return True
+        _not_used(path, "a directory, no link or junction" if is_dir else "a file with one name")
+        return False
 
 
 def _select() -> _Platform:

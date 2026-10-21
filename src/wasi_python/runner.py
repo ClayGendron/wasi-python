@@ -182,9 +182,10 @@ def run(
         output_bytes: The most bytes kept per stream; the rest are dropped and the stream
             named in `truncated`. Default: `defaults().output_bytes`, 16 MiB. `None` means no
             limit.
-        cache_dir: Where compiled modules are kept as .cwasm files, a folder only you can
-            write. `None` or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder;
-            `False` keeps them in this process only, never on disk.
+        cache_dir: Where compiled modules are kept as .cwasm files, a folder only you and the
+            runner write: never one a guest is granted, in this or another call. `None` or
+            `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder; `False` keeps them
+            in this process only, never on disk.
         artifacts: The artifact set to run; `None` finds it with `artifacts()` and checks it
             against its SHA256SUMS first. A set you pass is used as you give it.
         cancel: A `threading.Event`. Once it is set and the guest runs, the guest stops
@@ -349,9 +350,10 @@ async def run_async(
         output_bytes: The most bytes kept per stream; the rest are dropped and the stream
             named in `truncated`. Default: `defaults().output_bytes`, 16 MiB. `None` means no
             limit.
-        cache_dir: Where compiled modules are kept as .cwasm files, a folder only you can
-            write. `None` or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder;
-            `False` keeps them in this process only, never on disk.
+        cache_dir: Where compiled modules are kept as .cwasm files, a folder only you and the
+            runner write: never one a guest is granted, in this or another call. `None` or
+            `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder; `False` keeps them
+            in this process only, never on disk.
         artifacts: The artifact set to run; `None` finds it with `artifacts()` and checks it
             against its SHA256SUMS first. A set you pass is used as you give it.
         executor: Where the call runs: a `concurrent.futures.Executor` that runs callables
@@ -819,9 +821,10 @@ class Session:
             output_bytes: The most bytes kept per stream in each turn, unless the turn passes
                 its own; the rest are dropped and the stream named in `truncated`. Default:
                 `defaults().output_bytes`, 16 MiB. `None` means no limit.
-            cache_dir: Where compiled modules are kept as .cwasm files, a folder only you can
-                write. `None` or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder;
-                `False` keeps them in this process only, never on disk.
+            cache_dir: Where compiled modules are kept as .cwasm files, a folder only you and
+                the runner write: never one a guest is granted, in this or another call. `None`
+                or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder; `False` keeps
+                them in this process only, never on disk.
             artifacts: The artifact set to run; `None` finds it with `artifacts()` and checks
                 it against its SHA256SUMS first. A set you pass is used as you give it.
             max_file_calls: The most provider calls each turn with mounts makes; then it ends
