@@ -631,7 +631,13 @@ def collect(
     os.chdir(repo)
     try:
         with contextlib.redirect_stdout(io.StringIO()):  # the per-file counts, not the verdict
-            code = pytest.main(["--collect-only", "-qq", "-p", "no:cacheprovider"], plugins=[c])
+            # Both tiers: every shard record holds every goal check, the release tier's too
+            # (deselected in a normal shard, run in a release one), so the gather's collection
+            # must, or every run is red at G3 and no move between tiers reaches G5. The plugin
+            # is named, since it takes --tier and its conftest is read after the arguments.
+            argv = ["--collect-only", "-qq", "-p", "no:cacheprovider", "-p", "harness.plugin"]
+            argv += ["--tier", "release"]
+            code = pytest.main(argv, plugins=[c])
     finally:
         os.chdir(here)
     if code != 0:

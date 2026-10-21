@@ -890,3 +890,116 @@ def test_an_unknown_tier_is_red(tmp_path) -> None:
 )
 def test_a_release_run_is_a_tag_or_main(environ, release) -> None:
     assert gather.is_release_run(environ) is release
+
+
+# ---------------------------------------------------------------------------------------------
+# The gather's own collection holds both tiers, as every shard record does
+
+
+def test_the_gathers_collection_holds_every_release_tier_check() -> None:
+    """A shard record holds every goal check, the release tier's included; the gather's own
+    collection must too, or every run is red at G3 and no move reaches G5."""
+    from harness import upstream
+
+    goal, _, _ = gather.collect()
+    assert set(upstream.release_checks(upstream.load_all())) <= set(goal)
+
+
+REPLAY_INNER = """
+import pytest
+
+pytestmark = pytest.mark.goal("rules")
+
+def test_ok():
+    pass
+
+def test_slow():
+    pass
+"""
+REPLAY_PLAN = """
+[shard.own]
+files = ["test_inner.py"]
+systems = ["macos"]
+
+[shard.rel]
+groups = ["r1"]
+systems = ["release"]
+"""
+
+
+def test_the_gather_replayed_over_records_the_plugin_writes(pytester, monkeypatch) -> None:
+    """Two shard records the plugin itself writes, a normal shard and a release shard, read by
+    the gather with its own goal nodes: no G3 line at all, and the one planted move named at G5.
+    (G2, G6 and G7 belong to the release's hosts and acceptance, which one local host does not
+    make; they are not this row's.)"""
+    from harness import plugin
+
+    slow, ok = "test_inner.py::test_slow", "test_inner.py::test_ok"
+    monkeypatch.setattr(plugin, "release_checks", lambda: [slow])
+    monkeypatch.setattr(shards, "group_of", lambda *a, **k: {slow: "r1"})
+    pytester.makepyfile(test_inner=REPLAY_INNER)
+    plan_file = pytester.path / "plan.toml"
+    plan_file.write_text(REPLAY_PLAN)
+    gaps = pytester.path / "gaps.toml"
+    gaps.write_text("")
+    records = pytester.path / "records"
+    handed = {}
+    for system, shard, job in (
+        ("macos", "own", "judge-macos"),
+        ("release", "rel", "judge-release"),
+    ):
+        out = records / job / f"record-{system}-{shard}" / "latest.json"
+        out.parent.mkdir(parents=True)
+        result = pytester.runpytest(
+            "-p",
+            "harness.plugin",
+            "--shard-plan",
+            str(plan_file),
+            "--shard",
+            shard,
+            "--progress-dir",
+            str(pytester.path / "progress"),
+            "--progress-latest",
+            str(out),
+            "--known-gaps",
+            str(gaps),
+        )
+        assert out.is_file(), result.stdout.str()
+        handed[(system, shard)] = paths.sha256_file(out)
+    first = json.loads(
+        (records / "judge-release" / "record-release-rel" / "latest.json").read_text()
+    )
+    meta = first["meta"]
+    assert meta["tier"] == "release" and first["checks"][slow]["status"] == "pass"
+    accepted = {
+        "checks": {
+            ok: {"status": "pass", "metrics": {}},
+            slow: {"status": "pass", "metrics": {}},  # accepted in the normal tier: a move
+        },
+        "judge": {"hash": meta["judge"]["hash"]},
+    }
+    v = gather.gather(
+        gather.Inputs(
+            plan=shards.load(plan_file),
+            records_dir=records,
+            handed=handed,
+            wasm_sha256=meta["artifact"] or "a" * 64,
+            set_sums_sha256=meta["set_sums"] or "5" * 64,
+            wasmtime=meta["wasmtime"] or "",
+            may_block={},
+            goal_nodes=gather.collect(pytester.path)[0],
+            unit_nodes=[],
+            groups={slow: "r1"},
+            accepted=accepted,
+            history_lines=[json.dumps({"tier": "release"})],
+            gaps=set(),
+            judge_hash=meta["judge"]["hash"],
+            head=meta["commit"],
+            tag=False,
+            tier="release",
+            release_checks={slow},
+        )
+    )
+    assert [r for r in v.red if r.startswith("G3")] == [], v.red
+    moves = [r for r in v.red if "release-tier now" in r]
+    assert moves == [f"G5 {slow}: accepted in the normal tier, release-tier now"], v.red
