@@ -1,7 +1,8 @@
 # 114: HOME is never the root
 
-- **Status:** **drafted 2026-10-21** on `spec/114-home-is-never-the-root` from main `1875d4cd`,
-  with its checks written first and seen failing on main's code (EXECUTED,
+- **Status:** **built 2026-10-21** on `spec/114-home-is-never-the-root`, tip `2147b335`, from main
+  `1875d4cd`; release run 39633291201 read, red by growth only, Windows and Linux green (Landing
+  notes); awaiting its build review. Before: **drafted** the same day, with its checks written first and seen failing on main's code (EXECUTED,
   `build/114/checks-on-main.log` in the builder's worktree, against the main tree's frozen set,
   `SHA256SUMS` `d0d91cef`): 12 rows fail, the 2 fresh-HOME guard rows pass. **Reviewed before
   build** the same day (`../reviews/114-home-is-never-the-root-spec-2026-10-21.md`, "fit to build
@@ -487,8 +488,117 @@ answered".
 
 ## Landing notes
 
-Not built yet. Written by the builder at drafting, 2026-10-21, on
-`spec/114-home-is-never-the-root` from main `1875d4cd`: the specification, its roadmap line and
-the three new check functions, run by node id against the main tree's frozen set (`SHA256SUMS`
-`d0d91cef`) on main's code: 12 rows FAIL for the reasons Decision 4 gives, the 2 fresh-HOME rows
-pass (EXECUTED, `build/114/checks-on-main.log`). The fix waits on the pre-build review.
+**Built** 2026-10-21 on `spec/114-home-is-never-the-root` from main `1875d4cd`, in the builder's
+worktree; tip `2147b335`. Not accepted; awaiting its build review. Logs and scripts are under the
+worktree's `build/114/`.
+
+### The commits
+
+- `aa427420`: the specification, its roadmap line, the three new check functions.
+- `86d95601`: the pre-build review, cherry-picked from `review/114-spec` (`66e2925d`).
+- `243ea259`: the review answered (M1 pinned in Decision 6, L1 to L5 written in), and the checks
+  it asked for. On main's code: 16 rows fail, 11 pass (EXECUTED, `checks-on-main-2.log`).
+- `3178c7ed`: the fix, the recipe, the README, the CHANGELOG, and the checks of Decision 5.
+- `2147b335`: the mount-at-`/tmp` check keeps its node id (Disposition, L2).
+
+### As built (EXECUTED unless marked)
+
+- **The runner.** `_guest_home` and `_release_home` in `_call.py`, as Decision 6 pins them, with
+  `_remove_home` moved from `_sessions.py` beside them (`tests/unit/test_runner_sweep.py` now
+  calls `_call._remove_home`). Lengths, def to last line (`lengths.txt`): `_instance` 159 -> 158,
+  `_call_deferred` 43 -> 24, `_open_session` 150 -> 136, `_guest_home` 33, `_release_home` 10;
+  `_call.py` 1,337 lines, `_sessions.py` 1,096. The rules checks for function length, module size
+  and citations are green, and `mypy --strict` is clean.
+- **The recipe.** `recipes/reportlab_start_up_stand_in.py`, packed by `70_zip.sh` as
+  `reportlab_mods.py` and `reportlab_settings.py`.
+- **The set** (`scripts/build.sh`, full, 17 min 14 s, the lane's native slot; `SHA256SUMS`
+  `60706eed`): `python.wasm` unchanged (`d4192605…`, byte for byte); the zip gains exactly
+  `reportlab_mods.pyc` and `reportlab_settings.pyc`, and no member changes (`setdiff.py`):
+  53,913,865 -> 53,915,154 bytes (+1,289). The snapshot is rebuilt over the new zip:
+  104,511,377 -> 104,517,748 bytes (+6,371). `MANIFEST` gains the recipe's line.
+- **The checks on that set.** All 27 rows of the new and changed checks pass (`checks-on-fix-2.log`).
+  The removal, session, public-API and nearest unit checks: 245 passed, 2 skipped (`more.log`).
+- **Found at build and fixed in the check, not the fix.** The stand-in check compared
+  `rl_config.defaultPageSize` with `_DEFAULTS['defaultPageSize']`. That is wrong whatever the
+  stand-ins are: `_startUp` converts the name `"A4"` to its tuple. It now compares every one of
+  `_DEFAULTS` with `rl_settings`' value.
+- **The errors the README now names.** Measured on the set: scikit-learn's fetch is
+  `PermissionError` on `<HOME>/scikit_learn_data`; seaborn's `load_dataset` is `PermissionError`
+  on `<HOME>/.cache`; statsmodels' `get_rdataset(cache=True)` is `PermissionError` on
+  `<HOME>/statsmodels_data` (`probe_statsmodels.py`).
+- **Fuel** (`fuel.py`; the snapshot rows, which are deterministic; plain calls draw a fresh hash
+  key each and are not compared). `-c pass`: default profile 53,423,312 -> 53,438,780 (+15,468,
+  0.029%), `root=True` 53,430,745 -> 53,438,780 (+8,035, 0.015%). With the fix, the two profiles
+  cost the same: the empty HOME's preopen and variable cost what the fresh HOME's did, and the
+  rest is the rebuilt snapshot. `import reportlab.rl_config`: 490,013,761 -> 486,438,090
+  (-3,575,671), since reportlab no longer looks for either file under `~`.
+
+### The fast tier (EXECUTED, `-n 3`, the lane's fast slot, `fast.log`)
+
+697/904 pass, 0 fail, 0 lost; red only by growth and by the renamed check, ABSENT, which commit
+`2147b335` then restored. `growth.py`: 123 metrics grew against the accepted record's
+darwin-arm64 values: 121 fuel, 2 bytes. 79 are over 1e-4, and the largest is +0.31%
+(`test_recursion_through_python_raises[min-key-snapshot]`, +174,255). Each is start-up on the
+rebuilt snapshot, or a no-root call's HOME preopen and variable.
+
+### The branch's release runs (READ, `gh run view --json jobs`)
+
+- **39626982133** on `3178c7ed`: failed in the build shard of `build and judge (arm64 macOS)`,
+  on one red line, `ABSENT test_a_mount_at_tmp_means_no_home`. That was the rename. Every judge
+  shard was skipped behind it. Not a growth line, so the check kept its id (`2147b335`).
+- **39633291201** on `2147b335`, this build's run. 37 jobs passed:
+  - the build and judge, both rebuilds from the pins, and the same bytes from every host;
+  - the three verify jobs;
+  - every Linux and Windows judge shard.
+- Two jobs failed, red by growth only:
+  - `judge (macos-15, own-guest)`: 448 pass, 0 fail, "RED: 72 metric(s) grew";
+  - `judge (macos-15, own-embedding)`: 180 pass, 0 fail, "RED: 19 metric(s) grew".
+- The gather was skipped behind them, so the run has no G line. No red line is anything but
+  growth.
+
+### For the lane, as built
+
+- **Wave kind:** build-class (a recipe and the zip step), with runner code.
+- **The claim list:**
+  - **new:** the 18 rows of the three new functions. That is the 14 of Decision 4, plus the stand-in
+    check's second binary.
+  - **changed**, each because the guest now always has a HOME:
+    - `test_nothing_is_writable_by_default[plain|snapshot]`;
+    - `test_no_root_and_no_grants_runs`;
+    - `test_a_mount_at_the_root[plain|snapshot]`;
+    - `test_a_mount_at_tmp_means_no_home` (same id);
+    - `test_seaborn_takes_its_scipy_paths[plain|snapshot]`;
+    - `test_scikit_learn_says_what_it_lacks`;
+    - the unit test `test_a_writer_cannot_keep_a_home_removal_going`, which now calls the
+      moved `_call._remove_home`.
+  - **retired:** none.
+  - **grown:**
+    - the zip's bytes (+1,289) and the snapshot's (+6,371);
+    - start-up fuel on the rebuilt snapshot and in no-root calls: 123 rows locally, up to +0.31%;
+      72 and 19 on the two macOS shards.
+- **Flags:**
+  - `--accept "114: HOME is never the root"`;
+  - `--accept-judge "114: the guest always has a HOME; checks that encoded none now read the empty
+    read-only one"`;
+  - `--accept-growth "114: the zip gains reportlab's two empty hooks, so the snapshot is rebuilt
+    over it; a call without a fresh HOME carries one more preopen and variable"`.
+
+### The builder's self-check
+
+```
+Before you ask for a review:
+- [x] rebased onto main's tip today: built from main 1875d4cd, which is main's tip at the build;
+- [x] CI run dispatched on this exact commit and read: 39633291201 on 2147b335; red lines are
+      growth only (macos-15 own-guest 72, own-embedding 19); the Windows legs green;
+- [x] every number from a measured run on this base, labelled EXECUTED; the growth list is this
+      build's;
+- [x] "For the lane": the claim list, the exact flags, each reason beginning with 114, the wave
+      kind (build-class), dry-run needs (none beyond the wave's);
+- [x] every new check seen failing first (aa427420 and 243ea259 on main's code); Windows and
+      Linux run in 39633291201, green;
+- [x] every gap names its closer (none added); every reserved follow-up has a roadmap line (114's);
+- [x] packages.toml needs no line (no package added); README rows the spec changes listed and made;
+- [x] CHANGELOG under the one unreleased section; no question asked;
+- [x] ruff check, ruff format --check, the fast tier: green but for the growth above and the
+      restored id; output in build/114/.
+```
