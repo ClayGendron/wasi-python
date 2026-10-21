@@ -237,8 +237,15 @@ Structural verdict: the structure holds.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. Finding 1 —
-2. Finding 2 —
+1. Finding 1 — fixed in the commit after `7a51742`: *Sizes and lengths* gives `_answer` 59 and `_call_answer`
+   46, the built commit's, with commit 2's 58 and 43 beside them and why they differ.
+2. Finding 2 — fixed in the commit after `7a51742`: the unit row
+   `tests/unit/test_tools.py::test_a_refused_call_records_its_operation_and_tool`, as the fix
+   text gives it (a non-string tool, a tool not offered, arguments that are not an object, one
+   `_ToolHost`, `(op, tool, outcome)` for each). Seen failing first with `_answer` binding the
+   name only for `_call_answer`: `('call', None, 'unknown_tool') != ('call', 'nope',
+   'unknown_tool')`; green on the build. The claim list's units are 2 and the `--accept-judge`
+   string names the row.
 
 ## Verdict
 

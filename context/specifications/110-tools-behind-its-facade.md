@@ -671,8 +671,9 @@ import made by or naming one of `TOOLS` goes to the new rule, every other to the
 EXECUTED on `64d8d76`: `tools.py` 727 lines, `_tool_schema.py` 785, `_tool_host.py` 1,027 (the
 draft's INFERRED 720, 800, 1,030). `ALLOWED` is `{"mounts.py": 2206}`. `LONG_FUNCTIONS` holds no
 `tools.py:` or `_tool_host.py:` key; functions over 80 lines in the package: 7 (`runner.py` 4,
-`_call.py`, `_process.py`, `_sessions.py` 1 each). `_make` 68 lines, `_given` 20, `_answer` 58,
-`_call_answer` 43.
+`_call.py`, `_process.py`, `_sessions.py` 1 each). `_make` 68 lines, `_given` 20, `_answer` 59,
+`_call_answer` 46 (58 and 43 at commit 2, before the move wrapped two f-strings past 100
+columns).
 
 **One departure from Decision 3, with its reason.** The draft's cut gave `_call_answer` the whole
 `call` arm, the tool's name included, with the signature `(self, seq, request, frame_id, size,
@@ -756,16 +757,18 @@ system. The Windows legs of the run are the matter-of-course check.
 - **Claim list** (`build/110/claims.toml`):
 
   ```toml
-  # One unit row: tests/unit/test_runner_package.py::test_the_tool_modules_import_in_their_written_order
+  # Two unit rows: tests/unit/test_runner_package.py::test_the_tool_modules_import_in_their_written_order
+  # and tests/unit/test_tools.py::test_a_refused_call_records_its_operation_and_tool
   [[claim]]
   spec = "110"
   new = []
   retired = []
   changed = []
-  units = 1
+  units = 2
   ```
 
-  No check row is new, retired or changed; no fuel or byte row; no pass moved.
+  No check row is new, retired or changed; no fuel or byte row; no pass moved. The second unit
+  row answers the build review's L2 (see *The build review's two Lows*).
 - **Judge hash:** changes in `tests/checks/test_rules.py`, `tests/unit/test_runner_package.py`,
   `tests/unit/test_scan.py`, `tests/harness/scan.py`, `tests/harness/api.py` and the five judge
   files.
@@ -773,11 +776,28 @@ system. The Windows legs of the run are the matter-of-course check.
 
   ```
   --accept "110: tools.py is the public facade alone, its schema rules in _tool_schema.py and the host side of a call in _tool_host.py, each under the ceiling, importing in one written direction, the two long functions split at a seam each; no public name, message, artifact byte or fuel count changes"
-  --accept-judge "110: ALLOWED loses tools.py and LONG_FUNCTIONS its two tools.py entries; one unit check holds the three tool modules' import order, docstrings and once-bound names; the by-name check reads the two private modules; the seam scanner keeps the tool protocol's three modules outside its rule in both its regexes, as it kept tools.py, with two unit cases; api.py lists the two modules as internal; five judge files name the defining module; no existing expectation edited"
+  --accept-judge "110: ALLOWED loses tools.py and LONG_FUNCTIONS its two tools.py entries; one unit check holds the three tool modules' import order, docstrings and once-bound names; the by-name check reads the two private modules; the seam scanner keeps the tool protocol's three modules outside its rule in both its regexes, as it kept tools.py, with two unit cases; api.py lists the two modules as internal; five judge files name the defining module; one unit row holds the operation and tool recorded on a call refused before its tool runs; no existing expectation edited"
   ```
 
 - **Dry-run needs:** none beyond the one run above.
 - **Neighbours:** spec 111 is built beside it; neither touches the other's files.
+
+### The build review's two Lows
+
+The review (`../reviews/110-tools-behind-its-facade-build-2026-10-21.md`, `7a51742`, verdict
+"lands") found two Lows, both answered in the commit after `7a51742`:
+
+- **L1**, two lengths of commit 2: *Sizes and lengths* now gives the built commit's, `_answer` 59
+  and `_call_answer` 46, with commit 2's beside them.
+- **L2**, no check held the tool recorded on an `unknown_tool` outcome, which the departure from
+  Decision 3 was made to keep: `tests/unit/test_tools.py::test_a_refused_call_records_its_operation_and_tool`
+  sends a call with `"tool": 7`, one naming a tool not offered, and one with `"args": []`, and
+  holds `(op, tool, outcome)` for each. Seen failing first against a deliberately broken
+  recording (`_answer` binding the name only for `_call_answer`, so `failed` never sees it):
+  `At index 1 diff: ('call', None, 'unknown_tool') != ('call', 'nope', 'unknown_tool')`; green on
+  the build, the unit file 183 passed. The claim list's units go from 1 to 2 and the
+  `--accept-judge` string names the row. No new release run: a unit row only, which the wave's
+  dry run judges.
 
 ### Self-check
 

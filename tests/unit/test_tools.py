@@ -1248,6 +1248,25 @@ def test_the_record_is_bounded() -> None:
     assert not any(o.abandoned for o in r.outcomes)
 
 
+def test_a_refused_call_records_its_operation_and_tool() -> None:
+    """A call refused before its tool runs is recorded with the operation and the name it
+    reached: no name for a tool that is not a string, the name given for one that is not
+    offered, the tool's for arguments that are not an object."""
+
+    @tool
+    def f(a: int) -> int:
+        return a
+
+    host = H._ToolHost([f])
+    for raw in (call_frame(7, {}), call_frame("nope", {}), call_frame("f", [])):
+        host(raw)
+    assert [(o.op, o.tool, o.outcome) for o in host.record.outcomes] == [
+        ("call", None, "protocol"),
+        ("call", "nope", "unknown_tool"),
+        ("call", "f", "invalid_arguments"),
+    ]
+
+
 # -------------------------------------------------------------------------------------------------
 # 9. A per-run budget of request bytes, and the tool list encoded once.
 
