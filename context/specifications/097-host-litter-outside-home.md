@@ -455,6 +455,9 @@ The first half of the build (checks first, the fix, criterion 3's fuel legs) was
   `test_scipy_build.py`, `test_host_litter.py`, `test_build_scripts.py` and `test_guest.py`:
   418 passed, 5 skipped (EXECUTED). No new CI run (the lane's ruling; the wave's dry run is the
   check).
+- **Wave 09, again (2026-10-21):** onto 100's new tip `8e7eac9` (the oracle's `uv.lock`), from
+  `d5c76bb`. **No conflict hunk.** `ruff check`, `ruff format --check` and `test_rules.py`
+  (57 passed, 1 skipped) green (EXECUTED). No CI run.
 - Onto `dbecd2d` from `5805af0`. Four conflict hunks, all in `27253fe` (the fix commit), each
   resolved keeping both sides:
   1. `CHANGELOG.md`, the unreleased section: the chain's seven lines (103 to 109) and 066's and
