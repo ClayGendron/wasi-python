@@ -181,9 +181,19 @@
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. Finding 1 —
-2. Finding 2 —
-3. Finding 3 —
+1. Finding 1 (Medium, the wheel's bytes) — written in. *For the lane*'s table gains the row in the
+   review's fix text: the wheel 99,010,212 bytes (run 39533679276's `rebuild-wheel-ubuntu-24.04`),
+   about +7.4 MB on run 39530569266's 91,470,969, under the 100 MB line by 0.99 MB. README's sizes
+   row carries "the wheel 99.0 MB". *The wave* now says plainly that 045 lands after wave 09 (100,
+   101, 097), whose numpy-on-OpenBLAS change may grow the wheel, so the lane re-measures the wheel
+   on 045's rebase onto wave 09 before accepting and brings question 64 back to the owner first if
+   it passes 100,000,000 bytes. The *Remaining* line no longer says the wheel was not read.
+2. Finding 2 (Low, the per-import cost) — written in. The review's fix text is appended to
+   `--accept-growth` word for word. A paragraph after the seaborn one says Decision 14's last row
+   is outside for the same causes and one more: about 8.2 k fuel per import lookup from the
+   binary's 26 longer inittab entries, with the review's probes and the six golden jobs' rows.
+3. Finding 3 (Low, the build shard's host) — written in. Self-check item 5 now reads "the build
+   shard, on arm64 macOS; Linux and Windows run the zip's left-out check and every guest check".
 
 ## Verdict
 
