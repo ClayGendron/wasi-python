@@ -33,6 +33,7 @@ from wasi_python import (
 from wasi_python import (
     _artifacts as artifacts_module,
 )
+from wasi_python import _tool_host as H
 from wasi_python import tools as T
 from wasi_python._process import process
 from wasi_python.tools import tool
@@ -281,10 +282,10 @@ def test_the_door_refuses_by_length_before_reading() -> None:
 
 
 def test_a_frame_host_behind_the_door_counts_a_refused_frame_unread() -> None:
-    host = T._ToolHost([lookup], max_calls=1)
+    host = H._ToolHost([lookup], max_calls=1)
     door = _call._door(host, host.admit)
     memory = Memory(1 << 21)
-    big = T._TOOL_REQUEST_BYTES + 1
+    big = H._TOOL_REQUEST_BYTES + 1
     assert door(Caller(memory), 4096, big, 16, 20) == 0
     assert (memory.reads, kind(_answer(memory))) == (0, "too_large")
     assert door(Caller(memory), 4096, 3, 16, 20) == 0  # frame 2, past max_calls=1
@@ -306,7 +307,7 @@ class Ticks:
 
 def _host(tools: list, *, stop_at=None, cancel=None, ctrl_c=None, ticks=None, **kw) -> Any:
     counted = []
-    bound = T._Bounded(
+    bound = H._Bounded(
         tick_s=0.001,
         stop_at=stop_at,
         ticks=ticks,
@@ -315,7 +316,7 @@ def _host(tools: list, *, stop_at=None, cancel=None, ctrl_c=None, ticks=None, **
         count=counted.append,
         **kw,
     )
-    host = T._ToolHost(tools, invoke=bound)
+    host = H._ToolHost(tools, invoke=bound)
     host.counted = counted
     return host
 
@@ -377,13 +378,13 @@ def test_too_little_time_or_too_many_abandoned_answers_at_once(release) -> None:
     started: list = []
     # Fewer than two ticks left: timeout at once, and neither gate nor tool runs.
     gated: list = []
-    bound = T._Bounded(tick_s=0.001, stop_at=11, ticks=Ticks(10))
-    host = T._ToolHost([_blocking(release, started)], gate=gated.append, invoke=bound)
+    bound = H._Bounded(tick_s=0.001, stop_at=11, ticks=Ticks(10))
+    host = H._ToolHost([_blocking(release, started)], gate=gated.append, invoke=bound)
     assert kind(host(call_frame("slow"))) == "timeout"
     assert (started, gated, _last(host).abandoned) == ([], [], False)
     # Exactly two ticks left: the end is already reached, so the same.
-    bound = T._Bounded(tick_s=0.001, stop_at=12, ticks=Ticks(10))
-    host = T._ToolHost(
+    bound = H._Bounded(tick_s=0.001, stop_at=12, ticks=Ticks(10))
+    host = H._ToolHost(
         [_blocking(release, started, timeout_s=0.01)], gate=gated.append, invoke=bound
     )
     assert kind(host(call_frame("slow"))) == "timeout"
@@ -398,7 +399,7 @@ def test_too_little_time_or_too_many_abandoned_answers_at_once(release) -> None:
     host = _host([_blocking(release, started, timeout_s=0.01)])
     answers = [kind(host(call_frame("slow", id=i))) for i in range(6)]
     assert answers == ["timeout"] * 6
-    assert len(started) == T._MAX_ABANDONED == 4
+    assert len(started) == H._MAX_ABANDONED == 4
     outcomes = host.record.outcomes
     assert [o.abandoned for o in outcomes] == [True] * 4 + [False] * 2
     assert outcomes[4].message == "slow timed out: 4 earlier tool calls are still running"
@@ -530,10 +531,10 @@ def test_abandoned_calls_are_counted_past_the_listed_outcomes(release) -> None:
     """With no frame limit, 1,000 `list` frames fill the listed
     outcomes; the four abandoned calls after them are still counted in `abandoned`."""
     started: list = []
-    bound = T._Bounded(tick_s=0.001)
-    host = T._ToolHost([_blocking(release, started, timeout_s=0.01)], max_calls=None, invoke=bound)
+    bound = H._Bounded(tick_s=0.001)
+    host = H._ToolHost([_blocking(release, started, timeout_s=0.01)], max_calls=None, invoke=bound)
     listing = json.dumps({"v": 1, "id": 1, "op": "list"}).encode()
-    for _ in range(T._RECORD_OUTCOMES):
+    for _ in range(H._RECORD_OUTCOMES):
         assert json.loads(host(listing))["ok"]
     assert [kind(host(call_frame("slow"))) for _ in range(5)] == ["timeout"] * 5
     record = host.record
@@ -552,13 +553,13 @@ def _held_slot(monkeypatch, hold: threading.Event, filled: threading.Event) -> N
             filled.set()
             hold.wait(60)  # a fail-safe, not a timing: the check sets it
 
-    made = T._Slot.__init__
+    made = H._Slot.__init__
 
     def init(self) -> None:
         made(self)
         self.filled = Held()
 
-    monkeypatch.setattr(T._Slot, "__init__", init)
+    monkeypatch.setattr(H._Slot, "__init__", init)
 
 
 def test_a_result_that_finished_at_an_end_is_delivered(release) -> None:
@@ -584,8 +585,8 @@ def test_a_result_that_finished_at_an_end_is_delivered(release) -> None:
                 t.join(60)
         return 100  # past the deadline
 
-    bound = T._Bounded(tick_s=0.001, stop_at=50, ticks=ticks)
-    host = T._ToolHost([quick], invoke=bound)
+    bound = H._Bounded(tick_s=0.001, stop_at=50, ticks=ticks)
+    host = H._ToolHost([quick], invoke=bound)
     assert value(host(call_frame("quick"))) == "done"
     assert (_last(host).outcome, _last(host).abandoned, bound._abandoned) == ("ok", False, 0)
 
@@ -613,8 +614,8 @@ def test_a_result_filled_before_an_end_is_delivered(release, monkeypatch) -> Non
         filled.wait(60)  # the slot is filled; its thread is held before its finally
         return 100  # past the deadline
 
-    bound = T._Bounded(tick_s=0.001, stop_at=50, ticks=ticks)
-    host = T._ToolHost([quick], invoke=bound)
+    bound = H._Bounded(tick_s=0.001, stop_at=50, ticks=ticks)
+    host = H._ToolHost([quick], invoke=bound)
     try:
         answer = host(call_frame("quick"))
         assert (_last(host).outcome, _last(host).abandoned, bound._abandoned) == ("ok", False, 0)
@@ -668,8 +669,8 @@ def test_a_call_ended_at_its_gate_never_runs_its_tool(release) -> None:
             return True
 
         counted: list = []
-        bound = T._Bounded(tick_s=0.001, count=counted.append, **kw)
-        host = T._ToolHost([transfer], gate=gate, invoke=bound)
+        bound = H._Bounded(tick_s=0.001, count=counted.append, **kw)
+        host = H._ToolHost([transfer], gate=gate, invoke=bound)
         assert kind(host(call_frame("transfer"))) == want
         assert _last(host).abandoned is True
         answered.set()
@@ -681,9 +682,9 @@ def test_a_call_ended_at_its_gate_never_runs_its_tool(release) -> None:
 
     # The other order: the gate allowed, the tool started, then the call was cancelled.
     cancel = threading.Event()
-    bound = T._Bounded(tick_s=0.001, cancel=cancel)
+    bound = H._Bounded(tick_s=0.001, cancel=cancel)
     slow = _blocking(release, ran, then=cancel.set)
-    host = T._ToolHost([slow], gate=lambda call: True, invoke=bound)
+    host = H._ToolHost([slow], gate=lambda call: True, invoke=bound)
     assert kind(host(call_frame("slow"))) == "cancelled"
     assert (_last(host).abandoned, ran) == (True, [1])
 
@@ -691,11 +692,11 @@ def test_a_call_ended_at_its_gate_never_runs_its_tool(release) -> None:
 def test_the_tool_starts_only_if_its_call_was_not_answered() -> None:
     """The check between the gate and the tool, and the mark of an answered call,
     are taken under one lock, so exactly one of them wins."""
-    bound = T._Bounded(tick_s=0.001)
-    slot = T._Slot()
+    bound = H._Bounded(tick_s=0.001)
+    slot = H._Slot()
     assert bound._abandon(slot) is True
     assert bound._proceed(slot) is False
-    slot = T._Slot()
+    slot = H._Slot()
     assert bound._proceed(slot) is True
     assert bound._abandon(slot) is True  # the tool runs on, abandoned: a thread cannot be stopped
 

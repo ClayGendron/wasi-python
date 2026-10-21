@@ -19,6 +19,7 @@ from typing import Any, Literal
 import pytest
 
 from harness import paths
+from wasi_python import _tool_host as H
 from wasi_python import tools as T
 from wasi_python.tools import ToolDenied, ToolError, tool
 
@@ -148,7 +149,7 @@ class Frame:
 
 
 def test_the_guest_package_speaks_the_hosts_protocol(load) -> None:
-    host = T._ToolHost(offered())
+    host = H._ToolHost(offered())
     door = Door(host)
     package, tools = load(door)
     assert package.PROTOCOL == T.PROTOCOL == 1
@@ -268,7 +269,7 @@ BASES = {
 
 
 def test_every_kind_maps_to_its_class(load) -> None:
-    host = T._ToolHost([tool(describe)])
+    host = H._ToolHost([tool(describe)])
     kinds = iter([*T._KINDS, "a_kind_from_later"])
 
     def answer(frame: bytes) -> bytes:
@@ -295,7 +296,7 @@ def test_every_kind_maps_to_its_class(load) -> None:
 
 
 def test_an_answer_that_does_not_match_is_a_protocol_error(load) -> None:
-    host = T._ToolHost([tool(describe)])
+    host = H._ToolHost([tool(describe)])
     replies: list[Any] = []
 
     def answer(frame: bytes) -> bytes:
@@ -324,7 +325,7 @@ def test_the_guest_refuses_what_the_host_would_refuse_as_protocol(load) -> None:
     """Arguments the frame rules would refuse (nested past 62 levels inside args, an
     integer literal over 64 characters) are a ToolArgumentError with no frame sent; at the bound
     they reach the tool."""
-    host = T._ToolHost([tool(describe)])
+    host = H._ToolHost([tool(describe)])
     door = Door(host)
     package, tools = load(door)
 
@@ -349,7 +350,7 @@ def test_the_guest_refuses_what_the_host_would_refuse_as_protocol(load) -> None:
 
 def test_a_loose_bytes_answer_is_a_protocol_error(load) -> None:
     """The guest decodes $bytes strictly, as the host does."""
-    host = T._ToolHost([tool(describe)])
+    host = H._ToolHost([tool(describe)])
     replies: list[bytes] = []
 
     def answer(frame: bytes) -> bytes:
@@ -396,11 +397,11 @@ def test_without_the_protocol_the_import_says_why(load) -> None:
     with pytest.raises(ImportError, match="not protocol 1"):
         load(Door(lambda frame: b"pong"))
     with pytest.raises(ImportError, match="budget_exceeded"):
-        load(Door(T._ToolHost([], max_calls=0)))
+        load(Door(H._ToolHost([], max_calls=0)))
     with pytest.raises(ImportError, match="not protocol 1"):
         bad = {"v": 1, "id": 1, "ok": True, "tools": [{"name": "_private"}]}
         load(Door(lambda frame: json.dumps(bad).encode()))
-    package, tools = load(Door(T._ToolHost([])))  # no tools offered: an empty module
+    package, tools = load(Door(H._ToolHost([])))  # no tools offered: an empty module
     assert tools.__all__ == []
 
 
@@ -457,7 +458,7 @@ def test_stubs_match_the_guest_signatures(load) -> None:
             },
         ),
     ]
-    _, tools = load(Door(T._ToolHost(given)))
+    _, tools = load(Door(H._ToolHost(given)))
     text = T.stubs(given)
     lines = text.splitlines()
     assert lines[0] == "from host import tools"

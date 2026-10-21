@@ -13,6 +13,8 @@ from typing import Any, Literal
 
 import pytest
 
+from wasi_python import _tool_host as H
+from wasi_python import _tool_schema as S
 from wasi_python import tools as T
 from wasi_python.tools import Tool, ToolDenied, ToolError, tool
 
@@ -150,11 +152,11 @@ def test_a_tool_is_described_by_its_hints_and_docstring() -> None:
     assert named.descriptor()["annotations"] == {"destructiveHint": True, "openWorldHint": True}
 
     # The list answer keeps the order the embedder gave.
-    host = T._ToolHost([t, p, named])
+    host = H._ToolHost([t, p, named])
     a = answer(host(frame("list", id=7)))
     assert a == {"v": 1, "id": 7, "ok": True, "tools": [LOOKUP_REGION, *a["tools"][1:]]}
     assert [d["name"] for d in a["tools"]] == ["lookup_region", "plain", "other"]
-    host = T._ToolHost([named, t, p])
+    host = H._ToolHost([named, t, p])
     assert [d["name"] for d in answer(host(frame("list")))["tools"]] == [
         "other",
         "lookup_region",
@@ -402,7 +404,7 @@ def test_validates_input_lets_unknown_keywords_through_but_never_a_cycle() -> No
     t = tool(square, input_schema=s, validates_input=True)
     assert t.descriptor()["inputSchema"] == s
     # The pattern is the tool's to check: the validator skips it.
-    host = T._ToolHost([t])
+    host = H._ToolHost([t])
     assert kind(host(call_frame("square", {"x": "bbb"}))) is None
     with pytest.raises(ValueError, match=r"\$ref"):
         tool(square, input_schema=_cycle(), validates_input=True)
@@ -431,7 +433,7 @@ def test_a_schema_may_come_from_a_model() -> None:
 
     t = tool(lookup, input_schema=Model)
     assert t.input_schema == Model.model_json_schema()
-    host = T._ToolHost([t])
+    host = H._ToolHost([t])
     assert answer(host(call_frame("lookup", {"code": "EMEA"})))["value"] == "ok"
     assert seen == [{"code": "EMEA"}]
     assert kind(host(call_frame("lookup", {"code": "EMEA", "x": 1}))) == "invalid_arguments"
@@ -457,7 +459,7 @@ def test_a_vetted_schema_cannot_change() -> None:
     t.descriptor()["inputSchema"]["properties"].clear()
     assert t.descriptor() == before
     assert t.input_schema == before["inputSchema"]
-    host = T._ToolHost([t])
+    host = H._ToolHost([t])
     assert answer(host(call_frame("take", {"n": 3})))["value"] == 3
     assert kind(host(call_frame("take", {"n": "3"}))) == "invalid_arguments"
     # Compared and hashed by identity.
@@ -572,7 +574,7 @@ TABLE = [
 
 @pytest.mark.parametrize("s, value, passes", TABLE)
 def test_the_validator_does_not_coerce(s, value, passes) -> None:
-    v = T._Validator(s)
+    v = S._Validator(s)
     error = v.check(value)
     assert (error is None) == passes, error
     assert not v.exhausted
@@ -591,7 +593,7 @@ def test_bytes_cross_only_where_the_schema_says_so() -> None:
     def anything(x: Any) -> Any:
         return x
 
-    host = T._ToolHost([text, blob, anything])
+    host = H._ToolHost([text, blob, anything])
     assert kind(host(call_frame("text", {"s": {"$bytes": "eA=="}}))) == "invalid_arguments"
     assert kind(host(call_frame("anything", {"x": {"$bytes": "eA=="}}))) == "invalid_arguments"
     assert kind(host(call_frame("anything", {"x": [{"y": {"$bytes": ""}}]}))) == "invalid_arguments"
@@ -620,15 +622,15 @@ def deep(levels: int, leaf: Any) -> Any:
 
 
 def test_a_recursive_union_is_checked_within_the_budget() -> None:
-    v = T._Validator(TREE)
+    v = S._Validator(TREE)
     assert v.check({"tree": deep(3, 1)}) is None  # an ordinary value passes
-    v = T._Validator(TREE)
+    v = S._Validator(TREE)
     error = v.check({"tree": deep(62, "leaf")})  # fails only at its deepest leaf
     assert error == "the arguments are too complex to check", error
-    assert v.exhausted and v.steps <= T._TOOL_VALIDATION_STEPS == 100_000
+    assert v.exhausted and v.steps <= S._TOOL_VALIDATION_STEPS == 100_000
     # And through a frame: 62 levels inside args is the most a frame may carry.
     t = tool(square, name="walk", input_schema=TREE)
-    host = T._ToolHost([t])
+    host = H._ToolHost([t])
     a = answer(host(call_frame("walk", {"tree": deep(62, "leaf")})))
     assert a["error"] == {
         "kind": "invalid_arguments",
@@ -638,25 +640,25 @@ def test_a_recursive_union_is_checked_within_the_budget() -> None:
 
 def test_unique_items_take_one_pass() -> None:
     s = {"type": "array", "uniqueItems": True}
-    v = T._Validator(s)
+    v = S._Validator(s)
     items = [*range(50_000), 0]
     error = v.check(items)
     assert error is not None and "unique" in error, error
     assert not v.exhausted
     assert v.keys == 50_001  # one key per item, then the repeat is found: no pairwise comparison
     assert v.steps <= 50_001 + 1
-    v = T._Validator(s)
+    v = S._Validator(s)
     error = v.check(list(range(100_001)))  # about 600 KB as a frame
     assert error == "the arguments are too complex to check", error
-    assert v.exhausted and v.steps <= T._TOOL_VALIDATION_STEPS
+    assert v.exhausted and v.steps <= S._TOOL_VALIDATION_STEPS
 
 
 def test_unique_item_keys_are_charged() -> None:
     """Each uniqueItems key is a counted step, made before the items are visited, so
     100,001 distinct strings exhaust the budget before the first one fails its type."""
-    v = T._Validator({"type": "array", "uniqueItems": True, "items": {"type": "integer"}})
+    v = S._Validator({"type": "array", "uniqueItems": True, "items": {"type": "integer"}})
     assert v.check([f"s{i}" for i in range(100_001)]) == "the arguments are too complex to check"
-    assert v.exhausted and v.steps <= T._TOOL_VALIDATION_STEPS
+    assert v.exhausted and v.steps <= S._TOOL_VALIDATION_STEPS
 
 
 def values(x: Any) -> int:
@@ -738,7 +740,7 @@ def test_valid_arguments_cost_about_one_step_per_value(schema_, args, per_value)
     anyOf branch tried. A node that only delegates never walks the value again, so the cost per
     value does not grow with depth. pydantic's shapes: an order at most 1.5 steps per value; a
     tree whose Optional parent tries a $ref before null at most 2.5."""
-    v = T._Validator(schema_)
+    v = S._Validator(schema_)
     assert v.check(args) is None
     assert v.steps <= per_value * values(args), (v.steps, values(args))
 
@@ -755,22 +757,22 @@ def test_an_enum_costs_one_key_per_value(monkeypatch) -> None:
     zones.__annotations__["places"] = list[Literal[names]]
     t = tool(zones)
     built = {"keys": 0}
-    real = T._key
+    real = S._key
 
     def counting(value: Any, *more: Any) -> Any:
         built["keys"] += 1
         return real(value, *more)
 
-    monkeypatch.setattr(T, "_key", counting)
-    host = T._ToolHost([t])
+    monkeypatch.setattr(S, "_key", counting)
+    host = H._ToolHost([t])
     raw = host(call_frame("zones", {"places": [names[-1]] * 99_990}))
     assert answer(raw)["value"] == 99_990
     assert built["keys"] <= 99_990 + 10, built  # one per name: never the enum's 600 per name
     # A const or an enum compared with a container charges the values below it: 100,000 of
     # them exhaust the budget before the comparison could fail.
-    v = T._Validator({"const": [1]})
+    v = S._Validator({"const": [1]})
     assert v.check(list(range(100_000))) == "the arguments are too complex to check"
-    assert v.exhausted and v.steps <= T._TOOL_VALIDATION_STEPS
+    assert v.exhausted and v.steps <= S._TOOL_VALIDATION_STEPS
 
 
 def many(**kw: Any) -> dict:
@@ -792,7 +794,7 @@ def test_a_pickled_tool_checks_each_enum_against_its_own_set() -> None:
         data = pickle.dumps(t)
         del t
         gc.collect()
-        host = T._ToolHost([pickle.loads(data)], max_calls=None)
+        host = H._ToolHost([pickle.loads(data)], max_calls=None)
         for i in range(n):
             assert answer(host(call_frame("many", {f"p{i}": f"v{i}"})))["ok"] is True
             for j in range(n):
@@ -804,12 +806,12 @@ def test_a_pickled_tool_checks_each_enum_against_its_own_set() -> None:
 def test_messages_never_format_a_whole_value() -> None:
     """A failing enum, const or bound names the value by its kind and size, never by
     dumping it, so a message costs what it says."""
-    v = T._Validator({"type": "object", "properties": {"x": {"const": 1}}})
+    v = S._Validator({"type": "object", "properties": {"x": {"const": 1}}})
     big = list(range(50_000))
     error = v.check({"x": big})
     assert error is not None and "array of 50000 items" in error and len(error) < 200, error
-    assert T._shown({"k" * 100: 1}) == "an object of 1 keys"
-    assert T._shown("y" * 100) == "'" + "y" * 64 + "'..."
+    assert S._shown({"k" * 100: 1}) == "an object of 1 keys"
+    assert S._shown("y" * 100) == "'" + "y" * 64 + "'..."
 
 
 # -------------------------------------------------------------------------------------------------
@@ -854,7 +856,7 @@ BAD_FRAMES = [
 @pytest.mark.parametrize("what, raw", BAD_FRAMES, ids=[b[0] for b in BAD_FRAMES])
 def test_frames_follow_the_protocols_rules(what, raw) -> None:
     c = Counter()
-    host = T._ToolHost(counting_tools(c), gate=c.gate)
+    host = H._ToolHost(counting_tools(c), gate=c.gate)
     a = answer(host(raw))
     assert a["v"] == 1 and a["ok"] is False, a
     assert a["error"]["kind"] == "protocol", a
@@ -866,7 +868,7 @@ def test_frames_follow_the_protocols_rules(what, raw) -> None:
 
 def test_the_frame_rules_name_versions_ops_tools_and_arguments() -> None:
     c = Counter()
-    host = T._ToolHost(counting_tools(c), gate=c.gate)
+    host = H._ToolHost(counting_tools(c), gate=c.gate)
     a = answer(host(frame("list", v=0, id=3)))
     assert a["id"] == 3 and "version 1" in a["error"]["message"], a
     a = answer(host(frame("fly")))
@@ -885,7 +887,7 @@ def test_the_frame_rules_name_versions_ops_tools_and_arguments() -> None:
 
 def test_the_frame_limits_pass_at_their_bounds() -> None:
     c = Counter()
-    host = T._ToolHost(counting_tools(c), gate=c.gate)
+    host = H._ToolHost(counting_tools(c), gate=c.gate)
     assert kind(host(nested(64))) is None  # 64 levels in all: 62 inside args
     assert kind(host(raw_call('{"x":' + "9" * 64 + "}"))) is None
     assert answer(host(raw_call('{"x":"\\ud83d\\ude00"}')))["value"] == "\U0001f600"  # a pair
@@ -918,12 +920,12 @@ class CountingPattern:
 def test_the_nesting_scan_is_one_pass(monkeypatch, text) -> None:
     """Decision 4, rule 3, on a guest's frame of up to 1 MiB: one token per match, each character
     seen once, whatever the frame (a regular expression retried at every quote is quadratic)."""
-    counter = CountingPattern(T._TOKEN)
-    monkeypatch.setattr(T, "_TOKEN", counter)
-    T._nesting(text)
+    counter = CountingPattern(H._TOKEN)
+    monkeypatch.setattr(H, "_TOKEN", counter)
+    H._nesting(text)
     assert counter.matches <= len(text)
     c = Counter()
-    host = T._ToolHost(counting_tools(c), gate=c.gate)
+    host = H._ToolHost(counting_tools(c), gate=c.gate)
     assert kind(host(text.encode())) == "protocol"
 
 
@@ -932,7 +934,7 @@ def test_a_long_integer_is_refused_whatever_the_process_allows() -> None:
     sys.set_int_max_str_digits(0)
     try:
         c = Counter()
-        host = T._ToolHost(counting_tools(c), gate=c.gate)
+        host = H._ToolHost(counting_tools(c), gate=c.gate)
         assert kind(host(raw_call('{"x":' + "9" * 65 + "}"))) == "protocol"
         assert kind(host(raw_call('{"x":' + "9" * 5000 + "}"))) == "protocol"
         assert c.tool_calls == 0
@@ -942,7 +944,7 @@ def test_a_long_integer_is_refused_whatever_the_process_allows() -> None:
 
 def test_a_lone_surrogate_in_a_key_is_echoed_and_encodes() -> None:
     c = Counter()
-    host = T._ToolHost(counting_tools(c), gate=c.gate)
+    host = H._ToolHost(counting_tools(c), gate=c.gate)
     raw = host(raw_call('{"\\ud800":1}', "count"))
     assert b"\\ud800" in raw  # echoed, as an escape: the answer is ASCII
     assert kind(raw) == "protocol"
@@ -951,12 +953,12 @@ def test_a_lone_surrogate_in_a_key_is_echoed_and_encodes() -> None:
 
 def test_the_cap_and_the_budget_answer_from_the_length_alone() -> None:
     c = Counter()
-    host = T._ToolHost(counting_tools(c), gate=c.gate, max_calls=2)
-    over = host.admit(T._TOOL_REQUEST_BYTES + 1)  # no bytes at all
+    host = H._ToolHost(counting_tools(c), gate=c.gate, max_calls=2)
+    over = host.admit(H._TOOL_REQUEST_BYTES + 1)  # no bytes at all
     assert kind(over) == "too_large" and answer(over)["id"] is None
-    assert host.admit(T._TOOL_REQUEST_BYTES) is None  # at the cap: admitted
+    assert host.admit(H._TOOL_REQUEST_BYTES) is None  # at the cap: admitted
     f = frame("list")
-    assert kind(host(f[:0] + b" " * (T._TOOL_REQUEST_BYTES - len(f)) + f)) is None
+    assert kind(host(f[:0] + b" " * (H._TOOL_REQUEST_BYTES - len(f)) + f)) is None
     past = host.admit(10)
     assert kind(past) == "budget_exceeded"
     assert kind(host(frame("list"))) == "budget_exceeded"  # the raw path counts it too
@@ -969,12 +971,12 @@ def test_the_cap_and_the_budget_answer_from_the_length_alone() -> None:
     ]
     assert (c.gate_calls, c.tool_calls) == (0, 0)
     # max_calls=0 refuses the first frame, the guest's discovery.
-    assert kind(T._ToolHost([], max_calls=0)(frame("list"))) == "budget_exceeded"
+    assert kind(H._ToolHost([], max_calls=0)(frame("list"))) == "budget_exceeded"
 
 
 def test_every_frame_is_counted_once_on_both_paths() -> None:
     c = Counter()
-    host = T._ToolHost(counting_tools(c), gate=c.gate)
+    host = H._ToolHost(counting_tools(c), gate=c.gate)
     f = call_frame("count", {"n": 2})
     assert host.admit(len(f)) is None  # the door's path: admit, then the bytes
     assert answer(host(f))["value"] == 2
@@ -1004,7 +1006,7 @@ def test_the_gate_decides_after_validation() -> None:
         return n
 
     def run(gate) -> dict:
-        host = T._ToolHost([count], gate=gate)
+        host = H._ToolHost([count], gate=gate)
         a = answer(host(call_frame("count", {"n": 1, "tags": ["a"]})))
         return {"answer": a, "outcome": host.record.outcomes[-1]}
 
@@ -1054,7 +1056,7 @@ def test_the_gate_decides_after_validation() -> None:
 
     # Invalid arguments never reach the gate.
     seen.clear()
-    host = T._ToolHost([count], gate=watch(None))
+    host = H._ToolHost([count], gate=watch(None))
     assert kind(host(call_frame("count", {"n": "1"}))) == "invalid_arguments"
     assert seen == []
 
@@ -1101,7 +1103,7 @@ def test_only_chosen_text_crosses_and_is_bounded() -> None:
             raise r
         return r
 
-    host = T._ToolHost([give])
+    host = H._ToolHost([give])
 
     def ask(what: str, value: Any) -> tuple[dict, T.ToolOutcome]:
         results[what] = value
@@ -1170,7 +1172,7 @@ def test_a_base_exception_never_escapes_the_frame_host(where, raised) -> None:
             boom()
         return n
 
-    host = T._ToolHost([act], gate=boom if where == "gate" else None)
+    host = H._ToolHost([act], gate=boom if where == "gate" else None)
     a = answer(host(call_frame("act", {"n": 1})))
     assert a["ok"] is False and a["error"]["kind"] in ("denied", "tool_error"), a
     o = host.record.outcomes[-1]
@@ -1187,7 +1189,7 @@ def test_a_result_nested_too_deep_is_a_fault() -> None:
     def nest(levels: int) -> Any:
         return deep(levels, 0)
 
-    host = T._ToolHost([nest])
+    host = H._ToolHost([nest])
     assert answer(host(call_frame("nest", {"levels": 62})))["ok"] is True
     a = answer(host(call_frame("nest", {"levels": 64})))
     assert a["error"] == {"kind": "tool_error", "message": "nest failed (internal error)"}, a
@@ -1203,11 +1205,11 @@ def test_a_long_same_value_chain_is_refused() -> None:
         defs[f"D{n}"] = {"type": "integer"}
         return schema({"x": {"$ref": "#/$defs/D0"}}, **{"$defs": defs})
 
-    tool(square, input_schema=chained(T._SAME_VALUE_CHAIN - 2))
+    tool(square, input_schema=chained(S._SAME_VALUE_CHAIN - 2))
     with pytest.raises(ValueError, match="chain of more than 8"):
         tool(square, input_schema=chained(1_500))
     with pytest.raises(ValueError, match="chain of more than 8"):
-        tool(square, input_schema=chained(T._SAME_VALUE_CHAIN))
+        tool(square, input_schema=chained(S._SAME_VALUE_CHAIN))
 
 
 def test_only_tool_makes_a_tool() -> None:
@@ -1228,12 +1230,12 @@ def test_the_record_is_bounded() -> None:
     def f(a: int) -> int:
         return a
 
-    host = T._ToolHost([f], max_calls=None)
+    host = H._ToolHost([f], max_calls=None)
     for _ in range(1500):
         raw = host(call_frame("f", {"a": 1, "k" * 10_000: 1}))
         assert kind(raw) == "invalid_arguments"
     big = call_frame("f", {"a": 1, "k" * 1_000_000: 1})
-    assert len(big) <= T._TOOL_REQUEST_BYTES  # it fits the cap, so it reaches the validator
+    assert len(big) <= H._TOOL_REQUEST_BYTES  # it fits the cap, so it reaches the validator
     a = answer(host(big))
     assert a["error"]["kind"] == "invalid_arguments", a
     assert "k" * 64 in a["error"]["message"] and "k" * 65 not in a["error"]["message"]
@@ -1261,15 +1263,15 @@ def test_the_request_byte_budget_counts_admitted_bytes(monkeypatch) -> None:
     a frame is read, whatever its answer; a frame that would pass the budget is refused unread,
     `budget_exceeded`, and spends nothing. Parses are counted, never timed."""
     parses: list[int] = []
-    real = T._parse
+    real = H._parse
 
     def counting(raw: bytes) -> dict:
         parses.append(len(raw))
         return real(raw)
 
-    monkeypatch.setattr(T, "_parse", counting)
+    monkeypatch.setattr(H, "_parse", counting)
     c = Counter()
-    host = T._ToolHost(counting_tools(c), gate=c.gate, max_bytes=1000)
+    host = H._ToolHost(counting_tools(c), gate=c.gate, max_bytes=1000)
     assert host.admit(600) is None
     assert kind(host(b"x" * 600)) == "protocol"  # not JSON: it still spent its bytes
     assert len(parses) == 1
@@ -1293,31 +1295,31 @@ def test_the_request_byte_budget_counts_admitted_bytes(monkeypatch) -> None:
     assert c.tool_calls == 1
 
     # The 1 MiB cap comes first, and a frame over it spends nothing.
-    host = T._ToolHost([], max_bytes=T._TOOL_REQUEST_BYTES)
-    assert kind(host.admit(T._TOOL_REQUEST_BYTES + 1)) == "too_large"
-    assert host.admit(T._TOOL_REQUEST_BYTES) is None
-    assert kind(host(padded(frame("list"), T._TOOL_REQUEST_BYTES))) is None
+    host = H._ToolHost([], max_bytes=H._TOOL_REQUEST_BYTES)
+    assert kind(host.admit(H._TOOL_REQUEST_BYTES + 1)) == "too_large"
+    assert host.admit(H._TOOL_REQUEST_BYTES) is None
+    assert kind(host(padded(frame("list"), H._TOOL_REQUEST_BYTES))) is None
     assert len(parses) == 3
 
     # The raw path admits in __call__ and counts the same way.
-    host = T._ToolHost([], max_bytes=100)
+    host = H._ToolHost([], max_bytes=100)
     assert kind(host(padded(frame("list"), 60))) is None
     assert kind(host(padded(frame("list"), 60))) == "budget_exceeded"
     assert len(parses) == 4
 
     # The frame limit comes first; 0 refuses every non-empty frame.
-    host = T._ToolHost([], max_calls=1, max_bytes=0)
+    host = H._ToolHost([], max_calls=1, max_bytes=0)
     first, second = host.admit(26), host.admit(26)
     assert kind(first) == kind(second) == "budget_exceeded"
     assert "bytes" in answer(first)["error"]["message"]
     assert "tool frames" in answer(second)["error"]["message"]
-    host = T._ToolHost([], max_bytes=0)
+    host = H._ToolHost([], max_bytes=0)
     assert kind(host(b"")) == "protocol"  # an empty frame is admitted, and spends nothing
     assert kind(host(frame("list"))) == "budget_exceeded"
     assert len(parses) == 5
 
     # None, the private default, is no limit.
-    host = T._ToolHost([], max_calls=None)
+    host = H._ToolHost([], max_calls=None)
     one = padded(frame("list"), 1000)
     for _ in range(2000):
         assert kind(host(one)) is None
@@ -1329,15 +1331,15 @@ def test_the_tool_list_is_encoded_once(monkeypatch) -> None:
     `list` frame and the frame's id spliced in, byte for byte what encoding the whole answer
     gives; a list over the answer cap is `too_large` on every `list` frame."""
     encodes: list[int] = []
-    real = T._encode
+    real = H._encode
 
     def counting(body: dict) -> bytes:
         encodes.append(1)
         return real(body)
 
-    monkeypatch.setattr(T, "_encode", counting)
+    monkeypatch.setattr(H, "_encode", counting)
     tools = [*counting_tools(Counter()), tool(square)]
-    host = T._ToolHost(tools, max_calls=None)
+    host = H._ToolHost(tools, max_calls=None)
     ids = [1, 2, 3, 4, None]
     raws = [host(frame("list", id=i)) for i in ids[:4]]
     raws.append(host(json.dumps({"v": 1, "op": "list"}).encode()))
@@ -1345,8 +1347,8 @@ def test_the_tool_list_is_encoded_once(monkeypatch) -> None:
     descriptors = [t.descriptor() for t in tools]
     for raw, i in zip(raws, ids, strict=True):
         assert raw == real({"v": 1, "id": i, "ok": True, "tools": descriptors}), i
-    monkeypatch.setattr(T, "_TOOL_RESPONSE_BYTES", 100)
-    small = T._ToolHost(tools, max_calls=None)
+    monkeypatch.setattr(H, "_TOOL_RESPONSE_BYTES", 100)
+    small = H._ToolHost(tools, max_calls=None)
     assert [kind(small(frame("list", id=i))) for i in (1, 2)] == ["too_large", "too_large"]
 
 
@@ -1362,15 +1364,15 @@ def test_an_oversized_tool_list_is_refused_before_it_is_built(monkeypatch) -> No
     """A list over the answer cap is
     refused from its length, on every `list` frame, and its answer is never built."""
     builds: list = []
-    real = T._ToolHost._list_answer
+    real = H._ToolHost._list_answer
 
     def counting(self: Any, frame_id: Any) -> bytes:
         builds.append(frame_id)
         return real(self, frame_id)
 
-    monkeypatch.setattr(T._ToolHost, "_list_answer", counting)
-    monkeypatch.setattr(T, "_TOOL_RESPONSE_BYTES", 100)
-    host = T._ToolHost(_list_tools(), max_calls=None)
+    monkeypatch.setattr(H._ToolHost, "_list_answer", counting)
+    monkeypatch.setattr(H, "_TOOL_RESPONSE_BYTES", 100)
+    host = H._ToolHost(_list_tools(), max_calls=None)
     for i in (1, 2, None):
         a = answer(host(_list_frame(i)))
         refused = {"kind": "too_large", "message": "the tool list is over the 16 MiB cap"}
@@ -1378,8 +1380,8 @@ def test_an_oversized_tool_list_is_refused_before_it_is_built(monkeypatch) -> No
     outcomes = [(o.op, o.tool, o.outcome) for o in host.record.outcomes]
     assert outcomes == [("list", None, "too_large")] * 3
     assert builds == []
-    monkeypatch.setattr(T, "_TOOL_RESPONSE_BYTES", 16 << 20)
-    host = T._ToolHost(_list_tools(), max_calls=None)
+    monkeypatch.setattr(H, "_TOOL_RESPONSE_BYTES", 16 << 20)
+    host = H._ToolHost(_list_tools(), max_calls=None)
     assert [kind(host(_list_frame(i))) for i in (1, 2)] == [None, None]
     assert builds == [1, 2]
 
@@ -1391,21 +1393,21 @@ def test_the_tool_list_cap_is_exact_for_each_id(monkeypatch) -> None:
     descriptors = [t.descriptor() for t in tools]
 
     def length(i: int | None) -> int:
-        return len(T._encode({"v": 1, "id": i, "ok": True, "tools": descriptors}))
+        return len(H._encode({"v": 1, "id": i, "ok": True, "tools": descriptors}))
 
-    monkeypatch.setattr(T, "_TOOL_RESPONSE_BYTES", length(9))
-    host = T._ToolHost(tools, max_calls=None)
+    monkeypatch.setattr(H, "_TOOL_RESPONSE_BYTES", length(9))
+    host = H._ToolHost(tools, max_calls=None)
     nine = host(_list_frame(9))
     assert (kind(nine), len(nine)) == (None, length(9))
     assert kind(host(_list_frame(10))) == "too_large"
     assert kind(host(_list_frame(None))) == "too_large"
     assert kind(host(_list_frame(0))) is None
-    monkeypatch.setattr(T, "_TOOL_RESPONSE_BYTES", length(9) - 1)
-    host = T._ToolHost(tools, max_calls=None)
+    monkeypatch.setattr(H, "_TOOL_RESPONSE_BYTES", length(9) - 1)
+    host = H._ToolHost(tools, max_calls=None)
     assert [kind(host(_list_frame(i))) for i in (9, 0)] == ["too_large", "too_large"]
     # The length the refusal reads is the length of the answer that would be built (last, so
     # that on main, which has no `_list_length`, the boundary rows above are seen to pass).
-    monkeypatch.setattr(T, "_TOOL_RESPONSE_BYTES", 16 << 20)
-    host = T._ToolHost(tools, max_calls=None)
+    monkeypatch.setattr(H, "_TOOL_RESPONSE_BYTES", 16 << 20)
+    host = H._ToolHost(tools, max_calls=None)
     for i in (None, 0, 9, 10, 2**53 - 1):
         assert host._list_length(i) == len(host._list_answer(i)) == length(i), i

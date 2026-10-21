@@ -46,8 +46,8 @@ if TYPE_CHECKING:
 
     import wasmtime
 
+    from ._tool_host import _Bounded, _ToolHost, _ToolLoop
     from .mounts import _Files
-    from .tools import _Bounded, _ToolHost, _ToolLoop
 
 # ---------------------------------------------------------------------------------------------
 # Sessions: one instance of the guest kept across turns, with an idle bound and a
@@ -698,7 +698,7 @@ def _session_tool_host(
     """A frame host per turn; one bound per session, so abandoned tool threads are counted
     across its turns; one private tool loop per session for its synchronous turns, or the
     caller's loop for a turn by run_async."""
-    from .tools import _ToolHost, _ToolLoop
+    from ._tool_host import _ToolHost, _ToolLoop
 
     c = state.checked
     assert c.tools is not None and state.bounded is not None  # made together at the opening
@@ -1080,7 +1080,7 @@ def _open_session(
         )
         state.engine, state.metered = engine, metered
         if c.tools is not None:
-            from .tools import _Bounded
+            from ._tool_host import _Bounded
 
             state.bounded = _Bounded(
                 tick_s=TICK_S,

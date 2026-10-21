@@ -35,8 +35,9 @@ if TYPE_CHECKING:
 
     import wasmtime
 
+    from ._tool_host import _ToolHost
     from .mounts import _Files
-    from .tools import Tool, ToolCall, ToolRecord, _ToolHost
+    from .tools import Tool, ToolCall, ToolRecord
 
 ARGV0 = "/usr/local/bin/python.wasm"
 NO_HOST = -1
@@ -1264,7 +1265,7 @@ def _tool_host(
     is answered, as a `_Call` without a home runs its door."""
     if c.tools is None:
         return None
-    from .tools import _Bounded, _ToolHost, _ToolLoop
+    from ._tool_host import _Bounded, _ToolHost, _ToolLoop
 
     bound = _Bounded(
         tick_s=TICK_S,

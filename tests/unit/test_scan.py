@@ -1553,7 +1553,7 @@ def test_private_engine_hits_each_alternation_once_and_the_exempt_files_not(work
         "handle = exports[name]." + "_func",
         "raised = Trap." + "_from" + "_ptr(trap)",
         "address = store." + "ptr()",
-        "copy = self." + "_context()",  # tools.py's own method, not wasmtime-py's
+        "copy = self." + "_context()",  # the tool host's own method, not wasmtime-py's
         "sym = '_GLOBAL__sub_I_highs_bindings.cpp'",  # no `wasmtime.` prefix
         "x = 1",
     ]
