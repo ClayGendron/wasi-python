@@ -1345,7 +1345,10 @@ JOB_PERMISSIONS = {
     "same-bytes": set(),
     "verify": {"contents: read"},
     # The judge jobs check out and read the build's files; the gather checks out alone.
-    **{job: {"contents: read"} for job in ("judge-macos", "judge-linux", "judge-windows")},
+    **{
+        job: {"contents: read"}
+        for job in ("judge-macos", "judge-linux", "judge-windows", "judge-release")
+    },
     "gather": {"contents: read"},
     # The key and the decision; the build shard on a fresh build; the cache's writer.
     "inputs": {"contents: read"},
@@ -1481,6 +1484,16 @@ def release_binding_errors(text: str) -> list[str]:
                 errors.append(f"rule 10: {name} has no guard step that tests the id it downloads")
             elif ids == ASSETS_ID:
                 guard_blocks[name] = guards[0][0]
+    # A guard that loops over a variable its own env does not set tests an empty string, and
+    # fails every run: each name its loop lists is one its step binds.
+    for name, job_steps in steps.items():
+        for _, f in job_steps:
+            for m in re.finditer(r"for \w+ in ([^;\n]*); do", str(f.get("run", ""))):
+                for var in re.findall(r'"\$(\w+)"', m[1]):
+                    if var not in f.get("env", {}):
+                        errors.append(
+                            f"rule 10: {name}'s guard loops over {var}, which its env does not set"
+                        )
     # Rule 6: every output a job reads is one the job it needs defines.
     for name, lines in jobs.items():
         for job, output in re.findall(r"needs\.([\w-]+)\.outputs\.([\w-]+)", "\n".join(lines)):
@@ -1557,7 +1570,19 @@ def release_binding_errors(text: str) -> list[str]:
                 or f.get("name") == CHECK_STEP
                 or GUARD_TEST in str(f.get("run", ""))
             )
-            if role and ({"if", "continue-on-error"} & set(f)):
+            # The one exception: the gather's guard and download of judge-release's records, which
+            # exist only on a run that judges the release tier. The gather itself is red when such
+            # a run lacks them (G1), so the condition hides nothing.
+            reads = str(f.get("with", {}).get("artifact-ids", "")) + " ".join(
+                f.get("env", {}).values()
+            )
+            release_only = (
+                name == "gather"
+                and f.get("if") == RELEASE_JUDGE_IF
+                and "continue-on-error" not in f
+                and "judge-release.outputs" in reads
+            )
+            if role and ({"if", "continue-on-error"} & set(f)) and not release_only:
                 errors.append(
                     f"rule 15: {name} has a guard, check or download step with if: or "
                     "continue-on-error:"
@@ -1602,6 +1627,12 @@ JUDGE_JOBS = {  # job -> (runner, the plan's system)
     "judge-linux": ("ubuntu-24.04", "linux"),
     "judge-windows": ("windows-2025", "windows"),
 }
+# The release tier's judge: judge-linux's legs over the plan's release shards, only on a run that
+# judges the release tier; the gather runs beside it when it is skipped, never after a failure.
+RELEASE_JUDGE = ("judge-release", "ubuntu-24.04", "release")
+RELEASE_JUDGE_IF = "needs.inputs.outputs.tier == 'release'"
+GATHER_IF = "${{ !cancelled() && !failure() }}"
+STATUS_FUNCTION = re.compile(r"\b(?:always|cancelled|failure|success)\(\)")
 # `--shard=NAME`, never `--shard NAME`: before the plugin loads, pytest reads a bare `build` as a
 # path, collects build/ instead of tests/, and never loads the plugin (the first branch dry run).
 RECORD_PATH = '"$RUNNER_TEMP/record/latest.json"'
@@ -1668,12 +1699,30 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
     }
     errors: list[str] = []
     shapes = set()
-    for job, (runner, system) in JUDGE_JOBS.items():
+    judges = {**JUDGE_JOBS, RELEASE_JUDGE[0]: RELEASE_JUDGE[1:]}
+    for job, (runner, system) in judges.items():
         lines = jobs.get(job)
         if lines is None:
             errors.append(f"rule 1: no job {job}")
             continue
         body = "\n".join(lines)
+        release = job == RELEASE_JUDGE[0]
+        if release:
+            if _needs(lines) != {"inputs", "build"} or _job_field(lines, "if") != RELEASE_JUDGE_IF:
+                errors.append(
+                    f"rule 11: {job} does not need inputs and build with exactly "
+                    f"if: {RELEASE_JUDGE_IF}"
+                )
+            # set aside what it may differ in, then hold it to judge-linux's text
+            lines = [
+                "    needs: build" if re.fullmatch(r"    needs: \[inputs, build\]\s*", ln) else ln
+                for ln in lines
+                if not re.fullmatch(r"    if: .*", ln)
+            ]
+            lines = [
+                re.sub(r"name: judge the release tier \(", "name: judge (", ln) for ln in lines
+            ]
+            body = "\n".join(lines)
         if (
             _job_field(lines, "runs-on") != runner
             or _needs(lines) != {"build"}
@@ -1690,7 +1739,14 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
         want = shards.on(plan, system)
         if _matrix_shards(lines) != want:
             errors.append(f"rule 2: {job}'s matrix is not the plan's {system} shards {want}")
-        shapes.add(_judge_shape(lines, runner, system))
+        if release:
+            linux = jobs.get("judge-linux", [])
+            if _judge_shape(lines, runner, "\0") != _judge_shape(linux, runner, "\0"):
+                errors.append(
+                    f"rule 3: {job} differs from judge-linux beyond its needs, its if: and lists"
+                )
+        else:
+            shapes.add(_judge_shape(lines, runner, system))
         js = [f for _, f in steps[job]]
         at = {}
         for i, f in enumerate(js):
@@ -1827,14 +1883,18 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
             _job_field(gather, "runs-on") != "ubuntu-24.04"
             or _job_field(gather, "timeout-minutes") != "15"
             or _permission_set(gather) != {"contents: read"}
-            or not {"build", BUILD_SHARD_JOB, "same-bytes", *JUDGE_JOBS} <= _needs(gather)
-            or _job_field(gather, "if") is not None
+            or not {"inputs", "build", BUILD_SHARD_JOB, "same-bytes", *judges} <= _needs(gather)
             or _job_field(gather, "continue-on-error") is not None
         ):
             errors.append(
-                "rule 7: gather is not on ubuntu-24.04, 15 minutes, contents: read, needing build, "
-                "build-shard, same-bytes and the three judge jobs, with no job-level if: or "
+                "rule 7: gather is not on ubuntu-24.04, 15 minutes, contents: read, needing "
+                "inputs, build, build-shard, same-bytes and the four judge jobs, with no "
                 "continue-on-error:"
+            )
+        if _job_field(gather, "if") != GATHER_IF:
+            errors.append(
+                f"rule 11: gather's if: is not exactly {GATHER_IF}: it must run beside a skipped "
+                "judge-release and never after a failed or cancelled need"
             )
         downloads = [
             f.get("with", {})
@@ -1842,7 +1902,7 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
             if f.get("uses", "").startswith("actions/download-artifact@")
         ]
         want_ids = {BUILD_SHARD_JOB: [f"${{{{ needs.{BUILD_SHARD_JOB}.outputs.record-id }}}}"]}
-        for job, (_, system) in JUDGE_JOBS.items():
+        for job, (_, system) in judges.items():
             want_ids[job] = [
                 f"${{{{ needs.{job}.outputs.{n}-id }}}}" for n in shards.on(plan, system)
             ]
@@ -1863,15 +1923,39 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
             "SET_SUMS_SHA256": "${{ needs.build.outputs.set-sums-sha256 }}",
             "SET_SOURCE": "${{ needs.build.outputs.set-source }}",  # built or reused
             "RECORD_BUILD_BUILD": f"${{{{ needs.{BUILD_SHARD_JOB}.outputs.record-sha256 }}}}",
+            "TIER": "${{ needs.inputs.outputs.tier }}",
         }
-        for job, (_, system) in JUDGE_JOBS.items():
+        for job, (_, system) in judges.items():
             for n in shards.on(plan, system):
                 key = f"RECORD_{system}_{n}".upper().replace("-", "_")
                 want_env[key] = f"${{{{ needs.{job}.outputs.{n}-sha256 }}}}"
         if not step or env != want_env:
             errors.append(
                 "rule 7: gather's step does not run tests/harness/gather.py with exactly "
-                "WASM_SHA256, SET_SUMS_SHA256, SET_SOURCE and every record's SHA-256 bound in env:"
+                "WASM_SHA256, SET_SUMS_SHA256, SET_SOURCE, TIER and every record's SHA-256 bound "
+                "in env:"
+            )
+        # The release shards' records are fetched only on a run that judges the release tier.
+        for f in gs:
+            w = f.get("with", {})
+            fetches = "judge-release.outputs" in str(w.get("artifact-ids", ""))
+            guards = "judge-release.outputs" in " ".join(f.get("env", {}).values()) and (
+                GUARD_TEST in str(f.get("run", ""))
+            )
+            if (fetches or guards) and f.get("if") != RELEASE_JUDGE_IF:
+                errors.append(
+                    f"rule 11: gather reads judge-release's ids without if: {RELEASE_JUDGE_IF}"
+                )
+    # Rule 12: past the gather, a job a branch run reaches needs a status function in its if:,
+    # or a skipped judge-release would skip it too.
+    for job, lines in jobs.items():
+        if "gather" not in _needs(lines):
+            continue
+        cond = _job_field(lines, "if") or ""
+        if cond != TAG_ONLY and not STATUS_FUNCTION.search(cond):
+            errors.append(
+                f"rule 12: {job} needs gather, runs on a branch run, and its if: has no status "
+                "function"
             )
     # Rule 8: attest and publish need the gather; only the gather reads a record id.
     for job in ("attest", "publish"):
@@ -3735,8 +3819,9 @@ def release_reuse_errors(release_text: str, cache_text: str, key_env: Iterable[s
         if _job_map(jobs["inputs"], "outputs") != {
             "key": "${{ steps.key.outputs.key }}",
             "reuse": "${{ steps.decide.outputs.reuse }}",
+            "tier": "${{ steps.tier.outputs.tier }}",  # which tier the run judges
         }:
-            errors.append("R2: inputs does not hand on key and reuse from its steps")
+            errors.append("R2: inputs does not hand on key, reuse and tier from its steps")
         if _job_field(jobs["inputs"], "needs") is not None:
             errors.append("R2: inputs needs another job")
     # R3: the build job.

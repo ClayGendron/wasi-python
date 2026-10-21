@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -2772,3 +2773,88 @@ def test_extras_spaces_and_an_unnormalised_name_are_read_as_uv_writes_them() -> 
     project = project.replace('"seaborn==0.13.2"', '"seaborn[stats] == 0.13.2"')
     lock = _lock().replace('name = "p"', 'name = "p-"')
     assert scan.lock_errors(lock, project) == []
+
+
+# ---------------------------------------------------------------------------------------------
+# The release tier in the workflow: the tier step, judge-release, and the gather beside it
+
+RELEASE_IF = "    if: needs.inputs.outputs.tier == 'release'\n"
+GATHER_IF = "    if: ${{ !cancelled() && !failure() }}\n"
+
+BAD_TIER = [
+    # judge-release runs on every run without its if:
+    ("judge-release", RELEASE_IF, "", "rule 11: judge-release"),
+    # a release shard missing from its matrix
+    ("judge-release", "upstream-release-a, ", "", "rule 2: judge-release"),
+    # its steps not judge-linux's
+    ("judge-release", "fetch-depth: 0", "fetch-depth: 1", "rule 3:"),
+    # the gather's if: lets it run after a failed leg
+    ("gather", GATHER_IF, "    if: always()\n", "rule 11: gather"),
+    ("gather", GATHER_IF, "", "rule 11: gather"),
+    # the gather does not wait for judge-release, or reads no TIER
+    ("gather", ", judge-release]", "]", "rule 7: gather is not"),
+    ("gather", "          TIER: ${{ needs.inputs.outputs.tier }}\n", "", "rule 7: gather's step"),
+    # a job after the gather that a branch run reaches, with no status function in its if:
+    (
+        "attest",
+        "    if: github.event_name == 'push' && github.ref_type == 'tag'\n",
+        "",
+        "rule 12: attest",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("job", "old", "new", "error"), BAD_TIER, ids=[b[3] + b[1][:30] for b in BAD_TIER]
+)
+def test_the_release_tier_scan_names_each_breach(job, old, new, error) -> None:
+    errors = _shard_errors(_in_job(REAL_WORKFLOW, job, old, new))
+    assert any(e.startswith(error) for e in errors), errors
+
+
+def test_a_guard_loop_names_only_ids_its_step_binds() -> None:
+    """A guard that loops over a variable its env no longer sets tests an empty string, and the
+    gather fails on every run: the scan names it."""
+    extra = '"$WINDOWS_UPSTREAM_WINDOWS_ID"; do'
+    text = _in_job(REAL_WORKFLOW, "gather", extra, '"$WINDOWS_UPSTREAM_WINDOWS_ID" "$GONE_ID"; do')
+    errors = scan.release_binding_errors(text)
+    assert any(e.startswith("rule 10: gather's guard loops over GONE_ID") for e in errors), errors
+
+
+def _tier_step() -> str:
+    """The inputs job's tier step, as the workflow runs it."""
+    lines = scan.workflow_jobs(scan.without_comments(REAL_WORKFLOW))["inputs"]
+    step = next(
+        f
+        for _, f in ((s, scan.step_fields(s)) for s in scan.workflow_steps(lines))
+        if f.get("id") == "tier"
+    )
+    return str(step["run"])
+
+
+@pytest.mark.parametrize(
+    ("event", "ref_type", "ref", "input_", "tier"),
+    [
+        ("push", "tag", "refs/tags/v0.1.0", "", "release"),
+        ("workflow_dispatch", "branch", "refs/heads/main", "false", "release"),
+        ("workflow_dispatch", "branch", "refs/heads/spec/102", "true", "release"),
+        ("workflow_dispatch", "branch", "refs/heads/spec/102", "false", "normal"),
+        ("workflow_dispatch", "branch", "refs/heads/spec/102", "", "normal"),
+        ("workflow_dispatch", "branch", "refs/heads/spec/102", "True", "normal"),
+        ("workflow_dispatch", "branch", "refs/heads/mainline", "false", "normal"),
+    ],
+)
+def test_the_tier_step_decides_by_the_runners_own_variables(
+    tmp_path, event, ref_type, ref, input_, tier
+) -> None:
+    out = tmp_path / "out"
+    env = {
+        "PATH": "/usr/bin:/bin",
+        "GITHUB_EVENT_NAME": event,
+        "GITHUB_REF_TYPE": ref_type,
+        "GITHUB_REF": ref,
+        "RELEASE_TIER": input_,
+        "GITHUB_OUTPUT": str(out),
+    }
+    subprocess.run(["bash", "-e", "-c", _tier_step()], env=env, check=True, capture_output=True)
+    assert out.read_text() == f"tier={tier}\n"
