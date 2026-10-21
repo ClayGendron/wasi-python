@@ -318,6 +318,86 @@
 - §5.6: this is the delta's confirmation round. The pre-build review is done.
 - §7: nothing tripped.
 
+## Disposition (filled in by the author, then confirmed by the reviewer)
+
+The builder's answers are spec 067's section "Disposition of the delta review (2026-10-21)", at
+`ecbc5878`, on a branch rebased onto main `1875d4cd` with this review cherry-picked as `18a428b4`.
+
+**Confirmation (2026-10-21, the same reviewer; 20-minute box, about 15 used; context only).**
+- **Read:** `git diff 18a428b4 ecbc5878`, which touches the spec, the memo, and a new
+  `context/upstream/patches/pypdf-6.21.1/0001-tests-import-ssl-where-it-is-used.md`; 102's
+  `tiers.py` at `492b4586`; `tests/harness/scan.py`'s draft rules.
+- **Run, EXECUTED:** `uv run pytest
+  "tests/checks/test_rules.py::test_carried_patches_follow_the_rules"`, with `build/lane.lock`
+  absent. It **failed**, 1 failed, losing an accepted pass. The finding: "a draft with no patch".
+
+**What is answered:**
+- **H1: confirmed.** There is no dispatch with `release-tier` true anywhere: not in the Intent,
+  Decisions 10 and 11, criterion 13, or "For the lane". Criterion 7 measures each release group
+  locally by node id, pausing on the lane lock, and writes the claim block and the release total
+  from those runs. The first CI run of the release shards is the pre-tag dry run on main, with
+  re-packing from the darwin fuel. That is 095's form and 102's widened ledger.
+- **H2: confirmed.** The new section uses 102's kind as built: `smoke`, the `--ignore` of smoke
+  paths, 500 G a family, and no `[[release_select]]`. It widens exactly the three points (i) to
+  (iii), in 067's branch on 102's reviewed tip. "Whichever first" is gone, and 102's rows are not
+  repeated. I checked it against `tiers.py`:
+  - (i) replaces `TEST_FILE` with the `.ini`'s `python_files` in `smoke_errors`' staged set;
+  - (ii) adds item units beside test files in the same exactly-one-tier loop, and lets
+    `kind_of` name an item group;
+  - (iii) is a new rule beside them.
+
+  All three are expressible without changing a row 102 tests. Each has a unit row in criterion 2.
+  The twenty whole-as-smoke families carry `smoke`.
+- **M1: confirmed.** Decision 8's rule is written. It is applied to cloudpickle (now
+  `testutils.py:13`), formulaic and jinja2's asyncio half, and narwhals and pyparsing are to be
+  read against it. Criterion 9 counts the patches.
+- **M2: confirmed in the spec text.** The Kind, Decision 4, the Design, the applier, `tree_drift`
+  and `tie_errors`, the `recipe` line (criterion 9), the tie row (criterion 3), the CHANGELOG and
+  the README count are all there. **The facts sheet is the right form.** pypdf's `CONTRIBUTING.md`,
+  as the draft quotes it, asks that comments and issues be written by humans.
+  `recipes/patches/README.md` already provides for this case ("the draft's body is the facts for
+  the owner to write from", numpy's precedent). The draft says no agent posts anything, and it
+  keeps §4.1's six header lines.
+- **M3: confirmed.** The answer has the `sys_flags` key with its allowed list, sympy's `slow`
+  registered, `judge` loaded again after the conftests, and `xfailed` and `xpassed` in `counts`,
+  with lists written from flagged runs. Criterion 4 has rows for the flag, the XFAIL and the `P`
+  line.
+- **L1: confirmed.**
+  - **The 3 to 3.6 hours are right.** The upper estimate of 77 T at 0.14 to 0.17 s per G is
+    10,780 to 13,090 s, which is 3.0 to 3.6 hours of guest time, or 1.0 to 1.2 hours of wall
+    clock at `-n 3`. The lower bound of 66.3 T gives 2.6 to 3.1 hours.
+  - The caps check out: 65.8 T times 1.5 is about 99 T, and 77 T times 1.5 is about 115 T.
+  - So do the shards: 77 T over 725 G is at least 106, so 110 to 125 is right.
+  - Every figure is labelled INFERRED or "at least".
+- **L2, L3 and L4: confirmed**, each with its text: the bounds are scoped to the 42 families,
+  102's tip is `492b4586` and its build review is awaited, and the opt-in-skip verdict row is in.
+
+**Still open:**
+1. **Medium, new: the branch turns a rules check red.**
+   `context/upstream/patches/pypdf-6.21.1/0001-tests-import-ssl-where-it-is-used.md` is a draft
+   whose patch the build will write. `scan.patch_errors` refuses a draft with no patch (EXECUTED
+   above). Its Status line, `drafted (2026-10-21, …)`, would also fail `STATUS.fullmatch` once the
+   patch exists, because the rule takes exactly `drafted`, `sent <url>`, `merged <url>` or
+   `released <version>`.
+   **Fix:** move the facts sheet out of `context/upstream/patches/` until the build. For example,
+   put it beside the survey memo, as
+   `context/research/2026-10-21-the-pure-python-packages-own-tests-under-the-runtime/pypdf-ssl-facts.md`.
+   The build then commits it at its rules path together with its patch, in one commit. Make its
+   Status line exactly `- **Status:** drafted`, and move the date and the note into the body.
+   **The evidence that closes it:** the node id above passing on the branch.
+2. **Low: one sentence for patsy.** patsy's `python_files = *.py` makes (i) treat the library
+   modules under `patsy/` in the tarball as staged test files, while (ii) names the same modules as
+   `module_functions` units. Write: "for patsy, a member `patsy/<m>.py` that is a
+   `module_functions` module counts as that group's unit, and the path partition sees only the
+   staged `patsy/test_*.py`." Then the two rules cannot each claim, or each miss, the same file.
+3. **Low: the patch count.** Criterion 9 and the Kind say "four" test-source patches. The narwhals
+   and pyparsing reads may add more. Write "four, plus any the build's reads under Decision 8's
+   rule add, each named".
+
+**Confirmation verdict:** fit to build once open item 1 is answered and the rules check passes.
+Items 2 and 3 are Lows that need only their text. H1, H2 and M1 to M3 are confirmed answered and
+testable.
+
 ## Verdict
 
 Fit once the named findings are answered. **H1** (no branch run with `release-tier: true`) and
