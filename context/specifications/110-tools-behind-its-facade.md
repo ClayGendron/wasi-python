@@ -1,7 +1,9 @@
 # 110 — `tools.py` behind its public facade
 
 - **Status:** **drafted 2026-10-21** on `spec/110-tools-behind-its-facade` from `b14b68c` (the
-  chain's tip before its rebase onto main), awaiting its pre-build review. It is written after
+  chain's tip before its rebase onto main); **reviewed before build 2026-10-21**
+  (`../reviews/110-tools-behind-its-facade-spec-2026-10-21.md`: fit to build, six Lows written
+  in by the reviewer). It is written after
   the structural chain 103 to 109 and is not a link of it: it builds on main once the chain's
   wave has landed, from main's tip, as the normal rule (constitution §4.14). A different agent
   reviews it before the build (AGENTS.md, rule 8: runner code) and a different one after.
@@ -87,7 +89,9 @@ Three allowances name the file today, each written to shrink and never grow:
   (1371) and `_ToolHost.__call__` (`tests/checks/test_v1_4_embedding.py:5018`), which the rule
   never counts. Each of the ten is a bound the judge lowers to reach a limit, or a function it
   wraps to count its calls; 108 said so when it put `tools` outside the rule. The day those
-  names live in a `wasi_python._<name>` module, the letter of the rule meets them.
+  names live in a `wasi_python._<name>` module, the letter of the rule meets them, in both of
+  the scanner's forms: `RUNNER_MODULE` reads a local name the file's imports bind, and
+  `SEAM_BY_PATH` (line 1971) reads the dotted-string form `setattr("wasi_python._x._name", …)`.
 
 The import graph is simple and must stay so (EXECUTED, `grep -nE "tools" src/wasi_python/*.py`
 and the file's lines 30 to 49): `tools.py` imports no sibling, only the standard library. No
@@ -116,10 +120,10 @@ The facade never reads the host. The schema reads neither. So the layering is
 `_tool_schema` below `tools` below `_tool_host`, with no cycle and no late import needed among
 the three.
 
-The judge reads 23 private names through the module (EXECUTED, `grep -rhoE "\bT\._[A-Za-z_]+"
+The judge reads 22 private names through the module (EXECUTED, `grep -rhoE "\bT\._[A-Za-z_]+"
 tests/`, five files that bind `from wasi_python import tools as T`): `_ToolHost` 60 times,
 `_Bounded` 12, `_Validator` 9, `_TOOL_REQUEST_BYTES` 9, `_bound_keywords` 7, `_Slot` 6,
-`_ToolLoop` 4, `_TOOL_VALIDATION_STEPS` 4, `_Post` 4, `_KINDS` 4, and `_shown`, `_encode`,
+`_ToolLoop` 4, `_TOOL_VALIDATION_STEPS` 4, `_Post` 4, `_KINDS` 3, and `_shown`, `_encode`,
 `_cancel_post`, `_SAME_VALUE_CHAIN`, `_parse`, `_nesting`, `_key`, `_WRAPPER_DEPTH`, `_TOKEN`,
 `_RECORD_OUTCOMES`, `_NotStarted`, `_MAX_ABANDONED` once or twice each. By file:
 `tests/unit/test_tools.py` (13 names), `test_runner_tools.py` (6), `test_async_tools.py` (7),
@@ -219,7 +223,9 @@ bound by `from ._tool_schema import _Json, _KeySets`; a function is reached as
 wrapper is seen by every caller. The facade's six function reads of the schema and the host's
 three become attribute reads; the constants and classes stay by-name. The public facade's own
 names are outside the by-name rule, as today: they are promised by `tests/public_api.txt`, never
-patched, and `runner._check_tools` imports `tool` by name as it does now.
+patched, and `runner._check_tools` imports `tool` by name as it does now. `_call.py` keeps the
+by-name form for the three classes for one more reason: its function `_tool_host` (line 1253)
+shares the module's name, and `from . import _tool_host` there would rebind it.
 
 **Rejected.** *The facade re-exports the private names* (`from ._tool_host import _ToolHost` in
 `tools.py`, so `T._ToolHost` keeps working in the judge): it makes the facade import the host at
@@ -277,7 +283,9 @@ expectation is edited.
    module; no runner module imports any of the three at module level; a late import of one of
    them is one of `LATE`, whose four tool rows now name `_tool_host` for `_call` and
    `_sessions` and `tools` for `runner`; each of the three begins with a docstring; over the
-   three, no top-level name is bound twice. `BESIDE` becomes `("mounts",)`, and the existing
+   three, no top-level name is bound in two modules (a name bound twice in one module, `tool`'s
+   two `@overload` stubs and its body, is one binding: the walk counts a name once per module,
+   where the runner's `_once_errors` counts every `def`). `BESIDE` becomes `("mounts",)`, and the existing
    order check's special case for `tools` (`if module == "tools"`) becomes the `TOOLS` rule.
    Red before: `_tool_schema.py` and `_tool_host.py` do not exist. Why a new check and not
    three tuples folded into the runner's: `tools` stands beside the runner's order, as 104 put
@@ -290,12 +298,15 @@ expectation is edited.
    attribute. Red before: the modules do not import.
 5. **The seam scanner names the concern.** 108 put `tools` outside the seam rule because its
    patched names are bounds the judge lowers and functions it counts, not process state, and
-   `process()` has no field for them. That reason is the concern's, not the file's. So
-   `RUNNER_MODULE` in `tests/harness/scan.py` keeps `tools`, `_tool_schema` and `_tool_host`
-   outside the rule (`_(?!tool_)\w+`, or the two names spelled out; the builder's choice), the
-   comment above it says why in words, and `tests/unit/test_scan.py`'s seam row gains one case:
-   `from wasi_python import _tool_host as H; monkeypatch.setattr(H, '_x', 1)` is no hit. Red
-   before: that case reports `_tool_host._x`. `SEAM_ALLOWED` is not touched. This is a judge
+   `process()` has no field for them. That reason is the concern's, not the file's. So both
+   regexes in `tests/harness/scan.py` that name a runner module, `RUNNER_MODULE` (the local-name
+   form) and `SEAM_BY_PATH` (the dotted-string form), keep `tools`, `_tool_schema` and
+   `_tool_host` outside the rule, the two names spelled out (`_tool_schema|_tool_host`, not a
+   prefix), so the exemption is exactly two modules and a later `_tool_<x>` module joins it by
+   hand with a reason; the comment above them says why in words; and `tests/unit/test_scan.py`'s
+   seam row gains two cases, `from wasi_python import _tool_host as H; monkeypatch.setattr(H,
+   '_x', 1)` and `monkeypatch.setattr('wasi_python._tool_host._x', 1)`, each no hit. Red
+   before: each case reports `_tool_host._x`. `SEAM_ALLOWED` is not touched. This is a judge
    change the lane accepts with `--accept-judge`, with this reason; it widens no allowance list,
    it keeps one rule's scope on one concern.
 6. **The harness's module lists**: `tests/harness/api.py`'s `INTERNAL_FILES` and
@@ -315,10 +326,10 @@ and `tests/unit/test_tools.py::test_importing_the_package_does_not_load_the_tool
 
 **Rejected.** *Convert the ten patch sites to constructor parameters* (`_ToolHost(...,
 response_bytes=100)`, `_nesting(text, token=...)`, `_Validator(..., key=...)`): the six
-response-cap sites could take a keyword that `max_bytes` already models, but the four counting
-sites (`_key`, `_TOKEN`, `_parse`, `_encode`) would be parameters only the judge passes, the
-test-only hooks the rubric's R6 forbids; and the cap as a parameter is a design change in a
-specification that moves text. *Add the five names to `SEAM_ALLOWED`*: the list is never added
+response-cap sites could take a keyword of `_ToolHost` that `max_bytes` already models, which
+is the seam form the rubric's R6 prefers and the Scope reserves; the four counting sites
+(`_key`, `_TOKEN`, `_parse`, `_encode`) would be parameters no production caller passes;
+either way a design change, not a move. *Add the five names to `SEAM_ALLOWED`*: the list is never added
 to. *Leave the scanner alone and let the ten sites be hits*: the fast tier would be red on a
 rule whose own reason says the names are not seams.
 
@@ -484,8 +495,8 @@ In: Decisions 1 to 7. Out:
    `_tool_host` in its lists; the nine function reads are attribute reads, each named in the
    landing notes.
 6. **The seam rule's scope**: `test_the_judge_patches_the_runner_only_through_the_process_object`
-   green with `SEAM_ALLOWED` unchanged; the scanner's rule names the three tool modules outside
-   it and `test_scan.py`'s new case is green.
+   green with `SEAM_ALLOWED` unchanged; both of the scanner's regexes name the three tool
+   modules outside the rule and `test_scan.py`'s two new cases are green.
 7. **The text moved verbatim**: `git diff --color-moved=dimmed-zebra <commit 2>..<commit 3> --
    src/` shows no changed line inside a moved block but the nine prefixed reads; the landing
    notes list every non-move line in `src/` with its reason.
@@ -499,7 +510,10 @@ In: Decisions 1 to 7. Out:
     tests/checks/test_v1_4_embedding.py` touches only import lines and the module operand of the
     ten `setattr` sites; no assertion, parity table or golden line.
 11. **`ruff check`, `ruff format --check` and `mypy --strict` are clean**; the `Any` count over
-    the three modules is 74 and the `type: ignore` count 3, not more, recorded;
+    the three modules is 74 by `grep -ohE '(: |-> )Any\b' <the three files> | wc -l` and the
+    `type: ignore` count 3, not more, recorded; the rubric's line count (`grep -c '\bAny\b'`)
+    is 98 today and 100 after, the two being the new modules' `from typing import Any` lines,
+    which a release review does not read as growth;
     `test_src_names_no_context_document` green with `CITATION_ALLOWED` empty.
 12. **The dispatch**: the release workflow on the built tip, every red line a growth line or
     G7; the run id in the landing notes.
@@ -513,7 +527,7 @@ Twelve criteria.
 - **Files it shares with others:** `tests/checks/test_rules.py` (two dict entries removed and
   one comment line; a rebase against another specification's appended check is a trivial
   merge), `tests/unit/test_runner_package.py` (one new check, three tuples), `tests/harness/scan.py`
-  (one regex and its comment), `tests/unit/test_scan.py` (one case), `tests/harness/api.py` (two
+  (two regexes and their comment), `tests/unit/test_scan.py` (two cases), `tests/harness/api.py` (two
   list entries), `src/wasi_python/_call.py`, `_sessions.py`, `runner.py` (import lines only),
   the five judge files (import lines and ten `setattr` operands), `CHANGELOG.md`,
   `context/roadmap.md`.
@@ -528,7 +542,7 @@ Twelve criteria.
 
   ```
   --accept "110: tools.py is the public facade alone, its schema rules in _tool_schema.py and the host side of a call in _tool_host.py, each under the ceiling, importing in one written direction, the two long functions split at a seam each; no public name, message, artifact byte or fuel count changes"
-  --accept-judge "110: ALLOWED loses tools.py and LONG_FUNCTIONS its two tools.py entries; one unit check holds the three tool modules' import order, docstrings and once-bound names; the by-name check reads the two private modules; the seam scanner keeps the tool protocol's three modules outside its rule, as it kept tools.py, with one unit case; api.py lists the two modules as internal; five judge files name the defining module; no existing expectation edited"
+  --accept-judge "110: ALLOWED loses tools.py and LONG_FUNCTIONS its two tools.py entries; one unit check holds the three tool modules' import order, docstrings and once-bound names; the by-name check reads the two private modules; the seam scanner keeps the tool protocol's three modules outside its rule in both its regexes, as it kept tools.py, with two unit cases; api.py lists the two modules as internal; five judge files name the defining module; no existing expectation edited"
   ```
 
 - **Dry-run needs:** the builder's one dispatch on its tip; nothing platform-specific (the
