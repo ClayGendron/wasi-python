@@ -24,6 +24,11 @@ confirm our new edits are working. I do not understand why this questions keeps 
   specification. It came back because the 2026-10-21 default was framed as "normal tier unless
   over 15 T", the rule inverted.
 - **Applied to** spec 095 (its rule (8) struck) and spec 067.
+- **The one branch-run exception** (2026-10-21, asked on spec 102's build review, M2): a branch
+  run may run the release tier only when a specification changes the release-tier CI job itself
+  (the `judge-release` job, the release shards' plan, the gather's release half). The owner:
+  "Allow it for that case only." The workflow keeps its `release-tier` input for that one use; the
+  specification says so in its Kind line. Spec 102's run 6 stands as its proof of `judge-release`.
 
 ### Questions 108 to 111 (2026-10-21, early morning)
 

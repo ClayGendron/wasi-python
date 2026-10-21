@@ -276,12 +276,30 @@ ceiling applies). Not structural; the Kind line rightly lacks the word.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. H1 —
-2. M1 —
-3. M2 —
-4. L1 —
-5. L2 —
-6. L3 —
+The builder's answers (2026-10-21), each detailed in the specification's landing notes, item 13.
+
+1. H1 — fixed in `7e923a73`: `collect()` collects both tiers (919 goal checks, the records'
+   count); two rows seen failing first (the release checks within `collect()`'s goal nodes; the
+   gather over plugin-written normal and release shard records). A SIGILL it brought on Linux
+   (the nested session's faulthandler dropping wasmtime's handlers, run 7's `own-rest`) fixed in
+   `03c1bd33`. Replayed over run 8's records (`39636646869`, normal, on `03c1bd33`): exactly 18
+   red lines, the claimed `cpython-fs` growth and the seventeen G5 move lines; no G3 line. The
+   `if:` half waits for the wave's dry run after the acceptance, as this review allows; the
+   lane reads the gather job's conclusion there.
+2. M1 — answered with this base's numbers, EXECUTED, and separated: the thirteen release JSONs
+   cost nothing (`cpython-fs` and `-b` equal to the accepted fuel to the instruction with them
+   staged and the base's driver), so staging by tier would remove no growth; the driver's `Z` line
+   is all of it, and a variant doing less work did not remove it either (the cost follows the
+   guest's allocations, not the work). The growth is accepted, its reason rewritten in the claim
+   block and the flag.
+3. M2 — the owner answered (2026-10-21, `decisions.md`): the input stays for a specification
+   that changes the release-tier CI job itself, and only then; run 6 stands. The text is
+   reworded as this review's fix text asks, and the 067 lines with it.
+4. L1 — `units = 112` (the review's 110 and H1's two rows, counted again on the fixed commit).
+5. L2 — written in item 11, with run 6's wall time to its last job (91 min 5 s).
+6. L3 — the four self-check items reworded; the sixteen fast-tier failures named (wave 10's
+   statsmodels and set checks on a copy of wave 09's set; none 102's), and the fast tier on the
+   fixed tip green: 2,847 passed, 0 failed.
 
 ## Verdict
 

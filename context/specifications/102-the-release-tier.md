@@ -15,7 +15,9 @@
   agent reviews the draft and, later, the build.
 - **Date:** 2026-10-20
 - **Owner:** Clay Gendron
-- **Kind:** **build-class** by AGENTS.md's definition (it edits `.github/workflows/release.yml`)
+- **Kind:** **build-class** by AGENTS.md's definition (it edits `.github/workflows/release.yml`);
+  **it changes the release-tier CI job itself** (it makes `judge-release`), the one case in which a
+  branch run may judge the release tier (the owner, 2026-10-21)
   **and a judge change**. Edits to `tests/harness/upstream.py`, `packages.py`, `regrtest.py`,
   `plugin.py`, `scoreboard.py`, `history.py`, `shards.py`, `gather.py`, `sameness.py`, `scan.py`;
   `tests/upstream/numpy.toml`, `pandas.toml`, `contourpy.toml`, `python.toml`, new
@@ -136,16 +138,21 @@ newest acceptance judged both.
   |---|---|
   | a pushed tag `v*` (the publishing run) | release, always |
   | a dispatch on `main` (AGENTS.md rule 6b's dry run before a tag) | release, always |
-  | a dispatch on any other branch (`spec/*`, `wave/*`) | normal; release when the dispatch input `release-tier` is true |
+  | a dispatch on any other branch (`spec/*`, `wave/*`) | normal; release only for a specification that changes the release-tier CI job itself, which says so in its Kind line (the owner, 2026-10-21) |
   | the lane's acceptance | normal at every landing; release only at the release acceptance before a tag (Decision 5) |
   | a builder's or reviewer's local run | normal; release with `--tier release` (single node ids, AGENTS.md rule 3a) |
 
 - **Why main is always release, with no input to turn it off.** Rule 6b's dry run rehearses the
   tag and must be what the tag run will be. Since the wave pipeline began, every dispatch on main
   has been a pre-tag dry run (EXECUTED, the run list); landings dry-run on `wave/NN`.
-- **Why a branch may ask for it.** A specification that adds or changes release-tier groups (this
-  one, 067, 095) shows them on CI before review, and writes its claims from that run (Decision 6).
-  The owner's answer 2 limits the lane's local runs, not a builder's CI run.
+- **Why the input exists, and its one use.** No branch run runs release groups (the owner,
+  2026-10-21, `decisions.md` "Fast tests and slow tests"), with one case allowed: a specification
+  that changes the release-tier CI job itself (the `judge-release` job, the release shards' plan,
+  the gather's release half) dispatches its branch run with `release-tier: true`, says so in its
+  Kind line, and nobody else sets it. The owner: "Allow it for that case only." This
+  specification is that case; its run 6 is the proof of `judge-release`. A specification that adds
+  or changes release-tier groups (067, 095) proves them by its builder's local `--tier release`
+  runs by node id, and their first CI run is the dry run on main.
 
 ### 2. Which tests are release-tier: three kinds of selection, each with its reason
 
@@ -220,8 +227,10 @@ that moves out of a normal group lowers that group's `passes`, which is `fewer`,
   `release_by = "marker"` or `"keyword"` when its family has both kinds.
 - **A release group is one of the named kinds, or it is refused.** It is a marker release group
   (its family has `release_marker`), a keyword release group (its family has `[[release_select]]`
-  entries), or a regrtest list group (its plan a `cpython-release-<n>.txt` of ids). 067 adds a
-  fourth, the node-id group, under these rules. A group with `tier = "release"` that is none of
+  entries), a regrtest list group (its plan a `cpython-release-<n>.txt` of ids), or a path group
+  of a smoke family (Decision 2(d), the fourth kind, 102's). 067 widens the path kind (doctest,
+  doc-file and module-function groups, test files outside `test_*` and `*_test`, node-id groups)
+  on 102's tip. A group with `tier = "release"` that is none of
   these (a plain group in a family with neither `release_marker` nor `[[release_select]]`) is
   refused, so a whole group cannot be moved out of the normal tier without a selection that says
   why.
@@ -246,7 +255,8 @@ that moves out of a normal group lowers that group's `passes`, which is `fewer`,
   `rule_cap(measured)`; in numpy's, pandas' and CPython's TOMLs too, where normal groups keep
   their caps. The 480 G bound applies; a release group past it is split by path or by `[[split]]`.
 - **Traps and fuel facts** in a family with release groups name their `group`, and take its tier.
-- **067's node-id group** (`sympy-slow-17141`): 067 adds that form under these rules.
+- **067's node-id group** (`sympy-slow-17141`): 067 adds it as a widening of the path kind,
+  on 102's tip.
 
 ### 4. The stage never depends on the tier
 
@@ -328,10 +338,11 @@ fuel ratchet.
 `[[claim]]` block (092's shape: `spec`, `new`, `retired`, `changed`, `passes`, `grows`, `growth`)
 per landed specification that changes a release-tier row or what one runs:
 - a specification that adds, removes, moves between tiers, splits, re-caps or re-classes a
-  release-tier group writes its block from its branch run with `release-tier: true` (required for
-  it; criterion 6 here) and its own measurements, or from its builder's local `--tier release`
-  runs by node id when no branch run runs release groups (asked by 095, by the owner's rule of
-  2026-10-21: "We only run slow tests when we are trying to publish to pypi");
+  release-tier group writes its block from its builder's local `--tier release` runs by node id
+  and its own measurements; no dispatch with `release-tier` true (the owner's rule of
+  2026-10-21: "We only run slow tests when we are trying to publish to pypi"), but for a
+  specification that changes the release-tier CI job itself, which takes its block from that one
+  run;
 - a specification that changes a package with release-tier groups (its pin, its recipe, a patch, the
   toolchain) writes a block that names those groups under `changed`, with what it expects, or
   "release tier not run" when it did not dispatch with the tier.
@@ -576,9 +587,10 @@ Each alone stops a tag:
   cites a document; 102's code follows it (Design).
 - **101** lands in wave 09; textual conflicts in the `inputs` job, the matrices, the gather's
   `needs` and `env:`, and `scan.py`.
-- **067** is built after 102 lands: its release groups carry `tier = "release"`, its families
-  `release_marker`; its node-id group and its marker `D` lines are 067's; its complement rule is
-  Decision 2's truth table.
+- **067** is built on 102's tip: its families are smoke families (Decision 2(d)); it widens
+  102's path kind (doctest, doc-file and module-function groups, test files outside `test_*` and
+  `*_test`, node-id groups); its marker `D` lines are 067's; a family of its with a
+  `release_marker` keeps Decision 2's truth table.
 - **095** applies Decision 2 to scipy, scikit-learn and statsmodels (its survey reads their slow
   options) and packs its release groups into release shards.
 - **0.1.0** waits for 067, which waits for 102: 0.1.0's tag is the first publishing run with a
@@ -709,7 +721,8 @@ Counted, never timed.
 5. **A normal branch run** (default inputs): `tier=normal`; `judge-release` skipped; the gather runs
    and passes, `meta.tier` `normal`; no release-tier check in any record; every red line a growth
    line, a G5 move line for the seventeen contourpy groups (Decision 7), or G7.
-6. **A release branch run** (`release-tier: true`): every release leg runs and passes; the gather's
+6. **A release branch run** (`release-tier: true`, the one use the owner allowed: this
+   specification changes the release-tier CI job itself; run 6): every release leg runs and passes; the gather's
    only red lines are the ones criterion 5 allows, `meta.tier` `release`. The landing notes give
    each release leg's job time, the peak of concurrent jobs and the wall time beside run 5's. The ledger's 102 block is written from it.
 7. **The gather's conditions.** Run 5 shows the gather running beside a skipped `judge-release`.
@@ -751,8 +764,11 @@ All four answered 2026-10-20, night (`decisions.md`, main `4161ef9`), and writte
   - rule 3a, after "The one local full judge is the lane's `uv run pytest -n 3` on the wave's tip.":
     "That is the judge's normal tier. The release tier (spec 102) runs on a tag, on the dry run on
     main, and in the lane's release acceptance before a tag, never at a landing; a builder whose
-    specification changes a release-tier row dispatches its branch run with `release-tier: true`
-    and writes its block in `context/release-tier-claims.toml`."
+    specification changes a release-tier row writes its block in
+    `context/release-tier-claims.toml` from its local `--tier release` runs by node id, and the
+    first CI run of its release groups is the dry run on main. Only a specification that changes
+    the release-tier CI job itself dispatches a branch run with `release-tier: true`, and says so in
+    its Kind line (the owner, 2026-10-21)."
   - rule 6b, first sentence becomes: "Before a release tag, the lane makes the release acceptance on
     main's tip (`uv run pytest -n 3 --tier release --accept "Release <version>: the release
     tier"`), checks every release-tier difference against `context/release-tier-claims.toml`
@@ -787,9 +803,9 @@ All four answered 2026-10-20, night (`decisions.md`, main `4161ef9`), and writte
       "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-1]",
       "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-rest]",
   ]
-  growth = "102: CPython's stage gains the release groups' JSONs and the driver's Z line (cpython-fs +6.9e-4 on the branch runs' macOS leg, cpython-a, -b, -c +1.2e-4 to +5.3e-4 in the survey); contourpy's normal groups run -m 'not slow' (contourpy-1 +0.28%, contourpy-rest +3.7e-4)"
+  growth = "102: the regrtest driver's Z line (it names a module's denied resource) moves every CPython group's fuel on this set, EXECUTED on d0d91cef: cpython-fs +43.8 M (+6.9e-4), cpython-a +43.3 M (+1.56e-4), cpython-b +53.0 M (+1.79e-4), cpython-c +73.8 M (+1.77e-4); the thirteen staged release JSONs cost nothing (cpython-fs and cpython-b equal to the instruction with them staged and the base's driver); contourpy's normal groups run -m 'not slow' (contourpy-1 +0.28%, contourpy-rest +3.7e-4)"
   retired = []
-  units = 83
+  units = 112
   ```
 
   The `changed` prefixes take contourpy's normal `filled-8`, `-12` and `lines-8` too, whose rows
@@ -799,7 +815,7 @@ All four answered 2026-10-20, night (`decisions.md`, main `4161ef9`), and writte
   ```
   --accept "102: the release tier: slow tests run before a publication, nothing left out; numpy's and pandas' slow cases, contourpy's slow and random_big cases, CPython's cpu-gated tests and four inline-cpu modules in full, in 36 release groups, 8.37 T on darwin; the normal tier sheds about 4 T"
   --accept-judge "102: tiers.py (the truth table, the closed exclusion list, keyword selections, release groups of named kinds, splits per tier, the guard key); the argv by tier in upstream.py and packages.py; CPython's release lists, their partition and the inline reader in regrtest.py, the driver's Z line; --tier and release_checks (plugin.py); the ratchet's release_tier and moved, each entry's tier, the passed set carried forward, the history's tier and tier_move_reason (scoreboard.py); the release pseudo-system and rule (i) (shards.py); G1, G2, G3, G5, G7 by tier (gather.py); --tier-rows (sameness.py); budgets by tier; the TOMLs, release lists, classes, gaps and shards; the retired plot shards out of judge-linux's matrix; unit rows"
-  --accept-growth "102: CPython's stage gains the release groups' JSONs and the driver's Z line (cpython-fs +6.9e-4 on the branch runs' macOS leg, cpython-a, -b, -c +1.2e-4 to +5.3e-4 in the survey); contourpy's normal groups run -m 'not slow' (contourpy-1 +0.28%, contourpy-rest +3.7e-4)"
+  --accept-growth "102: the regrtest driver's Z line (it names a module's denied resource) moves every CPython group's fuel on this set, EXECUTED on d0d91cef: cpython-fs +43.8 M (+6.9e-4), cpython-a +43.3 M (+1.56e-4), cpython-b +53.0 M (+1.79e-4), cpython-c +73.8 M (+1.77e-4); the thirteen staged release JSONs cost nothing (cpython-fs and cpython-b equal to the instruction with them staged and the base's driver); contourpy's normal groups run -m 'not slow' (contourpy-1 +0.28%, contourpy-rest +3.7e-4)"
   --accept-tier-move "102: contourpy's slow and random_big cases move to the release tier, seventeen groups (the owner, 2026-10-20)"
   ```
 - **The acceptance's message** (a normal tier, from 102's landing on): the area counts a normal
@@ -814,12 +830,14 @@ As built (2026-10-21); an item marked **waits** says what it waits for.
 - **Rebased and stacked**: on 101's confirmed tip `1ebb992f` (main `1875d4c` beneath it, waves
   09 and 10), the hunks of the first restack named (landing notes, item 7), none the second.
 - **CI runs** on the exact code commit `63a42630`, read back (item 11): run 5 normal
-  `39610466007`, run 6 release `39610491729`; every red line a growth line (`cpython-fs` on the
-  macOS leg, claimed), the release legs green; the Windows legs green in both.
+  `39610466007`, run 6 release `39610491729`; every red line of the legs a growth line
+  (`cpython-fs` on the macOS leg, claimed), the release legs green, the Windows legs green in
+  both; the gather, which carries the G-lines, never ran, and replayed it was red (H1, fixed;
+  the replay over run 7 on the fixed commit, item 13).
 - **Every number measured on this base, EXECUTED**: the survey on wave 09's set `142bdd38`
   (`../research/2026-10-21-the-release-tier-survey.md`), compared with the lane's own wave 09
-  record on that set; the growth list is the survey's.
-- **"For the lane"**: the claim block (new, changed, grows with its reason, units 83, retired
+  record on that set; the growth list is this build's, on this base's set `d0d91cef` (item 13).
+- **"For the lane"**: the claim block (new, changed, grows with its reason, units 112, retired
   none, passes none) and the four flags, each beginning "102:"; the wave kind **build-class**;
   dry-run needs: criteria 5 and 6 on the branch (done, item 11), the wave's dry run in the normal
   tier.
@@ -834,11 +852,15 @@ As built (2026-10-21); an item marked **waits** says what it waits for.
 - **packages.toml**: unchanged (no package added). **README**: the Releasing section's tier
   paragraph and its shard counts. **CHANGELOG**: one entry under the unreleased section.
   **Questions**: none.
-- **ruff check, ruff format --check, the fast tier**: ruff clean; the fast tier on the stacked
-  tip 2,826 passed, the 16 failures all wave 10's set checks run on a copy of wave 09's set, and
-  green by node id on wave 10's set (item 9); output in `build/102/`.
+- **ruff check, ruff format --check, the fast tier**: ruff clean. The fast tier on the stacked
+  tip was not green: 2,826 passed and 16 failed, each of the sixteen a check of wave 10's
+  statsmodels build or its set (`test_v1_1_artifact_set.py` 5, `test_v1_3_data_stack.py` 2,
+  `test_v1_3_default_profile.py` 9) run on a copy of wave 09's set, none of 102's; on wave 10's
+  set the sixteen passed by node id (item 9). The fast tier on the fixed tip: 2,847 passed,
+  0 failed (item 13).
 - **Criterion 3's baseline**: done, item 12 (two passes equal to the instruction).
-- **The survey's delta review**: passed (`979d178`), its two Lows written in (`084c5eb`).
+- **The survey's delta review**: passed (`cc7e9d61` on this branch), its two Lows written in
+  (`e746d172`).
 - **The stage**: every family's staged JSONs come from one function, both tiers', so a normal
   row's fuel is the same in a normal and a release run; numpy's and pandas' normal fuel equal to
   the instruction beside the release JSONs (the survey).
@@ -1099,8 +1121,12 @@ The build, below, as it goes.
       run with no red leg (the wave's dry run after the lane accepts the growth, or the dry run on
       main). Every red line a growth line.
     - **Run 6, release** (`39610491729`, `release-tier: true`): `tier=release`; all twelve release
-      legs green on Linux (job times 131 to 284 s, `upstream-release-d` the longest); the same one
-      macOS growth line, the same skipped gather. Every red line a growth line.
+      legs green on Linux, each leg's job time `a` 131 s, `b` 206, `c` 223, `d` 284, `e` 206,
+      `f` 180, `g` 169, `h` 161, `i` 217, `j` 138, `k` 206, `l` 170; peak concurrent jobs 39 (of
+      the plan's 40); wall time 35 min 43 s to the last judge leg, 91 min 5 s to the last job (a
+      rebuild leg); run 5's peak 32, its wall 55 min 23 s (READ from the jobs by the build
+      review). The same one macOS growth line, the same skipped gather: every red line of the legs
+      a growth line; the gather, which carries the G-lines, never ran (H1, item 13).
     - The claim block gains `cpython-fs` under `grows` with the measured figure.
 
 12. **Criterion 3's baseline** (EXECUTED, the fast slot held, wave 10's set `d0d91cef`): every
@@ -1108,6 +1134,53 @@ The build, below, as it goes.
     36 passed and 2 xfailed (the two class gaps) in both, 6.6 and 6.0 minutes; `sameness.py
     --tier-rows release` between the two records: no difference, and the largest fuel
     difference between them exactly 0. The release tier measures 8.36 T on this set.
+
+13. **The build review's answers** (`../reviews/102-the-release-tier-build-2026-10-21.md`,
+    "does not land yet").
+    - **H1 fixed** (`7e923a73`): `gather.collect()` collects both tiers (`--tier release`, the
+      plugin named so its option is known), as every shard record does: 919 goal checks, the
+      records' count. Two rows, seen failing first (`build/102/fail-12-collect-replay.log`, both
+      failed without the fix): the release checks within `collect()`'s goal nodes on the real
+      tree, and the gather over a normal and a release shard record the plugin writes, with its
+      own `collect()` (no G3 line, the planted move named at G5).
+    - **A crash it brought, fixed** (`03c1bd33`): run 7 (`39630805417`, normal) lost its Linux
+      `own-rest` leg twice to SIGILL (exit 132) just after `test_gather.py`. The nested session
+      enabled and disabled faulthandler, which put back the default handlers and dropped
+      wasmtime's, so the next guest trap killed the process (darwin traps by Mach ports, so the
+      fast tier never saw it). `collect()` now passes `-p no:faulthandler`.
+    - **The gather, replayed** over run 8's records (`39636646869`, normal, on `03c1bd33`, the
+      set reused; 34 records laid out as the workflow lays them, each SHA-256 handed on, a branch
+      dispatch's variables, `TIER=normal`; the replay script in the builder's scratchpad, stdlib
+      only): exit 1 on **exactly 18 red lines**, the one claimed growth (`G5 macos/upstream-macos:
+      grew …[cpython-fs]: fuel 63478190051 -> 63521999127`) and the seventeen move lines
+      (`G5 …[contourpy-filled-1]: accepted in the normal tier, release-tier now`, and sixteen
+      more). No G3 line: the collection and "selects nothing" lines are gone. Run 8's legs: every
+      leg green but the macOS upstream leg on that growth; `judge-release` skipped; the gather
+      skipped behind the red leg. The run-7 replay (records one commit older, its `own-rest`
+      missing) showed the same 17 moves and growth, and no G3 line.
+    - **M1, the growth, separated** (EXECUTED by node id on wave 10's set `d0d91cef`): with the
+      base's driver and all thirteen release JSONs staged, `cpython-fs` 63,478,190,051 and
+      `cpython-b` 296,680,018,211, the accepted numbers to the instruction. So the release JSONs
+      cost nothing, and staging only the selected tier's JSONs would remove no growth (and would
+      make the stage depend on the tier, against Decision 4). The whole growth is the driver's `Z`
+      line: `cpython-fs` +43.8 M (+6.9e-4), `-a` +43.3 M (+1.56e-4), `-b` +53.0 M (+1.79e-4),
+      `-c` +73.8 M (+1.77e-4). A variant that writes `Z` only on the denial path (no per-module
+      work) measured `cpython-fs` −5.4 M but `-a` +47.8 M, `-b` +44.3 M, `-archives` +30.7 M: the
+      cost does not follow the work done (the guest's allocations shift with the driver's text),
+      so no wording of the line avoids it. Kept the reviewed `Z` line; the growth is accepted with
+      the reason in the claim block and the flag, which now carry these numbers.
+    - **M2** (the owner, 2026-10-21, `decisions.md`): a branch run may judge the release tier only
+      when a specification changes the release-tier CI job itself, and says so in its Kind line;
+      "Allow it for that case only." The input stays for that one use; run 6 stands as 102's
+      proof of `judge-release`. Decision 1's row and its "Why the input exists", Decision 6's
+      first bullet, criterion 6, the AGENTS.md text in *For the lane* and the Kind line say so;
+      the 067 lines say 067 widens 102's path kind on 102's tip.
+    - **L1** `units = 112` (2,088 to 2,200 in the gather's count: the review's 110 and H1's two).
+      **L2** criterion 6's numbers in item 11. **L3** the self-check's four items reworded.
+    - **The fast tier on the fixed tip** (`03c1bd33`, wave 10's set, the fast slot held):
+      **2,847 passed, 0 failed**, 47 skipped; the ratchet's one red line `moved 17`, claimed.
+      The sixteen failures of item 9 were wave 10's statsmodels and set checks judged on a copy of
+      wave 09's set; none was 102's, and on wave 10's set all pass.
 
 **What waits for wave 09** (the lane's ruling): the rebase onto main; the survey (Decision 11)
 on main's set after 100 (done, item 5, on wave 09's tip before it landed); the TOML groups,
