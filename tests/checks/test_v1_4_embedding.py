@@ -2777,10 +2777,10 @@ def test_a_mounted_run_out_of_fuel_counts_the_cap(guest_workdir, which) -> None:
         assert done.stdout.startswith(b"hello, mount\n"), done
 
 
-def test_a_mount_at_tmp_makes_nothing_in_the_roots_tmp(guest_workdir) -> None:
+def test_a_mount_at_tmp_means_no_home(guest_workdir) -> None:
     """A mount at /tmp counts as a read-only grant there, so a call with a root, private or
-    given, makes no HOME in the root's own tmp, which the guest could not see behind the mount:
-    its HOME is the runner's empty, read-only folder instead."""
+    given, makes no HOME in the root's own tmp, which the guest could not see behind the mount,
+    and nothing at all there: its HOME is the runner's empty, read-only folder instead."""
     from harness.files import MemoryProvider
     from wasi_python import Mount
 

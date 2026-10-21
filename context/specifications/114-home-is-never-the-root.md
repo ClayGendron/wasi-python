@@ -240,11 +240,13 @@ makes no fresh one.
 - `test_v1_4_embedding.py::test_a_mount_at_the_root[plain]` and `[snapshot]`: `"home": None`
   becomes the runner's form; its start-up bound of provider calls must still hold (the
   placeholder is not the provider's).
-- `test_v1_4_embedding.py::test_a_mount_at_tmp_means_no_home` becomes
-  `test_a_mount_at_tmp_makes_nothing_in_the_roots_tmp` (the review's L2). Only its first claim is
+- `test_v1_4_embedding.py::test_a_mount_at_tmp_means_no_home` is changed, not retired (the
+  review's L2), and keeps its node id ("no HOME" in the root's tmp). Only its first claim is
   reversed: `HOME` is now the runner's empty form, not `None`. Its two loops (a private root and
   a given one) and its last assertion, that the root's own `tmp` gets nothing, still hold and stay.
-  The old node id is retired with `--retire` because the name changes; the claims are kept.
+  A rename was tried at build and dropped: the build shard of run 39626982133 reported the old
+  id ABSENT, which is red in a run and stops every judge shard, so the id stays and its docstring
+  says what it holds now.
 - `test_v1_3_default_profile.py::test_seaborn_takes_its_scipy_paths[*]`: `FileNotFoundError '~'`
   becomes the placeholder's refusal (INFERRED `PermissionError` naming a path under the HOME;
   the builder records what it sees). The assertion that no `~` folder appears in the grant
@@ -416,8 +418,8 @@ In: Decisions 1 to 6, the README lines, the CHANGELOG line, the roadmap line. Ou
    recipe file, and nothing else in the zip changes. No reportlab byte changes. Spec 020's
    sameness check passes with no new patch.
 6. **The judge changes are exactly those listed** in Decision 5, plus any the build's grep finds,
-   each named in the claim list with its reason. `test_a_mount_at_tmp_means_no_home` is renamed
-   `test_a_mount_at_tmp_makes_nothing_in_the_roots_tmp`, its claims kept but the first.
+   each named in the claim list with its reason. `test_a_mount_at_tmp_means_no_home` keeps its
+   node id and its claims but the first.
 7. **Not structural.** No function on `LONG_FUNCTIONS` grows, and none joins it. One helper
    chooses HOME for the call and the session. The rules checks of specs 103 to 109 stay green.
 8. **The README and CHANGELOG** carry the lines above. The README's API reference matches the
@@ -438,8 +440,7 @@ In: Decisions 1 to 6, the README lines, the CHANGELOG line, the roadmap line. Ou
 - **The claim list** (to be completed at build with measured numbers):
   - new: the 14 rows of Decision 4;
   - changed: the rows of Decision 5;
-  - renamed, so its old id is retired: `test_v1_4_embedding.py::test_a_mount_at_tmp_means_no_home`,
-    now `test_a_mount_at_tmp_makes_nothing_in_the_roots_tmp`;
+  - changed, not retired: `test_v1_4_embedding.py::test_a_mount_at_tmp_means_no_home`;
   - grown: the zip's bytes, the snapshot's (certain: it is rebuilt over the new zip), and
     start-up fuel where the build measures it.
 - **Flags:** `--accept "114: HOME is never the root"`, `--accept-judge "114: the guest always
@@ -469,10 +470,10 @@ answered".
 2. **L1** (Low), matplotlib's folder is `~/.matplotlib` on `wasi`: written in (the survey,
    Decisions 1 and 3, the README's `env=` item), with the README sentence on the `mkdir -p
    failed` warning and the build's grep widened to stderr comparisons.
-3. **L2** (Low), the mount-at-`/tmp` check: changed, not retired. Renamed
-   `test_a_mount_at_tmp_makes_nothing_in_the_roots_tmp`, its loops and its last assertion kept,
-   its `None` now the runner's form. The rename retires the old node id (`--retire`), which "For
-   the lane" names.
+3. **L2** (Low), the mount-at-`/tmp` check: changed, not retired. Its loops and its last
+   assertion are kept, and its `None` is now the runner's form. It keeps its node id: the rename
+   the review offered made the old id ABSENT in run 39626982133's build shard, which is red there
+   and stopped the judge shards, so the docstring says what it holds instead.
 4. **L3** (Low), criterion 4's grant folder: the HOME check asserts the read-only grant's host
    folder is empty after the probe, and that the mount's provider gained no path and made no
    write-half call.

@@ -305,8 +305,8 @@ The routes that stay open are data, or an embedder's `env=` choice. They are nam
    `_call_deferred` and `_open_session`, removed by `_release_home` with its walk closed first;
    the HOME check's mount rows read a provider file. Awaiting the reviewer's confirmation.
 2. L1 — written in: `~/.matplotlib`, the `mkdir -p failed` sentence, the build's grep widened.
-3. L2 — the check is renamed `test_a_mount_at_tmp_makes_nothing_in_the_roots_tmp`, its claims
-   kept but the first; the old id is retired for the rename.
+3. L2 — the check is changed, its claims kept but the first; it keeps its node id, since the
+   rename made the old id ABSENT in the branch run's build shard (39626982133), which is red there.
 4. L3 — the HOME check asserts the read-only grant's folder empty and the provider unchanged.
 5. L4 — `test_nothing_is_writable_by_default` writes `$HOME/x` and asserts `HOME-refused`.
 6. L5 — the snapshot's rebuild READ and certain; the stand-in check on both binaries.
