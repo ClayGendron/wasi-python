@@ -636,3 +636,32 @@ Before you ask for a review:
 - [x] ruff check, ruff format --check, the fast tier: green but for the growth above and the
       restored id; output in build/114/.
 ```
+
+### Rebased onto wave 11 (`599a99f9`: main, 101, 102 at `861d5e4b`, then 112)
+
+- **The rebase.** `git rebase 599a99f9` replayed all eight commits with **no conflict**. The
+  overlaps the lane expected merged as text: `CHANGELOG.md` and `README.md` with 102, and
+  `tests/checks/test_v1_2_hostile_guest.py` and `tests/checks/test_v1_4_embedding.py` with 112's
+  rewording. 114's diff against the wave's tip equals its diff against `1875d4cd`, file for file
+  and line for line (`git diff --stat`: 15 files, +1,702 -125 both ways), so no hunk was lost or
+  doubled. The rebased commits are `d5124a75` to `6d8eeacf`, then this paragraph's commit.
+- **Meaning conflicts.** None. 112's string rule, `test_no_string_names_a_context_document`,
+  passes on the merged tree, and so does every rules check: 70 passed, 1 skipped (`prior-art
+  clones`). **No string was reworded.** None of the strings 114 adds (the guest programs and
+  probes in the new checks, the recipe's docstring, the zip step's comment) cites a
+  specification, a review or a finding ID. ruff check and ruff format --check are green.
+- **114's rows** on this worktree's set (`SHA256SUMS` `60706eed`, which 101, 102 and 112 do not
+  change): all 27 of the new and changed rows and their guards pass (`checks-wave11.log`).
+- **The fast tier** (`-n 3`, the lane's fast slot, released after; `fast.log`): 2,914 passed, 1
+  failed, 10 skipped; 706/935 pass, 3 blocked.
+  - The ratchet: lost 1, absent 0, gained 25, grew 81, moved 17.
+  - **moved 17:** 102's contourpy rows, claimed by 102.
+  - **lost 1:** `test_v1_1_artifact_set.py::test_manifest_recipes_match_the_tree`, the difference
+    the lane expected on 112's base. It reports "stale artifact: scripts/gen_inittab.py changed
+    since the build" and the same for `scripts/refuse-python`, the two script files 112 rewords
+    (`git diff 1875d4cd 599a99f9`: one line each). This worktree's set was built before 112
+    reached them. A set built on the wave's tip would pass it (INFERRED: the two files are the
+    only findings, and neither is 114's), so it is not 114's.
+  - **grew 81:** 114's claimed growth, as before.
+  - The known flake, `test_close_ends_the_calls_loop`, did not show.
+- No CI is dispatched. The wave's dry run is the check.
