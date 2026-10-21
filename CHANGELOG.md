@@ -68,6 +68,13 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   singular only in exact arithmetic is a rounding question, and the README says how the guest
   differs there (measured on macOS arm64), and what OpenBLAS's buffer does under a
   tight memory cap. The oracle's numpy on macOS arm64 is now the OpenBLAS wheel.
+- **`tools.py` is three modules behind one public facade** (spec 110). `wasi_python.tools` keeps
+  every public name and nothing else of weight; the schema rules (what a tool's schema may say,
+  how one is derived from a signature, how a value is checked) live in `_tool_schema.py` and the
+  host side of a call (the frames, the thread, the budget, the slot table) in `_tool_host.py`,
+  each under the 1,500-line ceiling, importing in one written direction; `tools.py` leaves the
+  size allowance and its two functions leave the long-function allowance, split at a seam each.
+  No public name, message, artifact byte or fuel count changes.
 - **A singular matrix raises `LinAlgError`** (spec 099; spec 066's survey). wasm has no
   floating-point status flags, and numpy reports a failed LAPACK call by one, so
   `numpy.linalg.inv`, `solve`, `tensorinv`, `tensorsolve` and `matrix_power(a, -1)` of a singular
