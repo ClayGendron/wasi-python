@@ -23,9 +23,16 @@ compared, and `notes` names it; `suite` is the sum of the darwin runs' suites.
     uv run python tests/harness/sameness.py A.json B.json
     uv run python tests/harness/sameness.py --claims wave.toml [--except NNN] A.json B.json
 
+    uv run python tests/harness/sameness.py --tier-rows release [--claims ledger.toml] A.json B.json
+
 prints the differences, one per line, and exits 1 when there are any; with `--claims`, only those
 no claim explains (a claim list is what B has that A lacks, by kind). Notes
 go to stderr. A record or a claim list it cannot read exits 2.
+
+Release-tier rows (a record's `release_checks`) are compared only when both records judged the
+release tier: a normal record never ran them, so they are counted in a note. `--tier-rows
+release` compares those rows alone, with their `deselected` entries, and neither the files nor
+the unit suite: the comparison between two release acceptances, against the ledger of claims.
 """
 
 from __future__ import annotations
@@ -48,8 +55,9 @@ FUEL_FACTS = "fuel_facts"  # a fact of fuel values, compared as fuel is
 EXACT_METRICS = ("bytes", "passes")
 REASONED = ("gap", "blocked")
 SIDE = {0: "only in the first record", 1: "only in the second record"}
-# The build shard runs on a fresh arm64 Linux build: its blocks are Linux's.
-SYSTEMS = {"darwin": {"macos"}, "linux": {"linux", "build"}, "win32": {"windows"}}
+# The build shard runs on a fresh arm64 Linux build: its blocks are Linux's, as are the release
+# tier's shards'.
+SYSTEMS = {"darwin": {"macos"}, "linux": {"linux", "build", "release"}, "win32": {"windows"}}
 # Its run's unit tests are the lane's darwin units all the same: the lane runs them on darwin.
 BUILD_RUN = "build/build"
 
@@ -91,6 +99,8 @@ class View:
     foreign: list[str]
     unheld: set[str] = field(default_factory=set)  # release only: fuel no shard on darwin gave
     elsewhere: dict[str, str] = field(default_factory=dict)  # release only: a worse status
+    tier: str = "normal"  # the tier the record judged
+    release: set[str] = field(default_factory=set)  # its release-tier checks
 
 
 def is_release(r: dict) -> bool:
@@ -110,6 +120,8 @@ def view(r: dict) -> View:
             collected_files=r.get("collected_files", []),
             suite=r.get("suite", {}),
             foreign=meta.get("foreign") or [],
+            tier=meta.get("tier") or "normal",
+            release=set(r.get("release_checks", [])),
         )
     missing = [k for k in ("runs", "deselected", "collected_files") if k not in r]
     missing += ["meta.foreign"] if "foreign" not in meta else []
@@ -163,6 +175,8 @@ def view(r: dict) -> View:
         foreign=meta["foreign"],
         unheld=unheld,
         elsewhere=elsewhere,
+        tier=meta.get("tier") or "normal",
+        release=set(r.get("release_checks", [])),
     )
 
 
@@ -226,16 +240,25 @@ def _items(name: str, a: list[str], b: list[str]) -> list[Diff]:
     ]
 
 
-def compare(a: dict, b: dict) -> tuple[list[Diff], list[str]]:
+def compare(a: dict, b: dict, rows: str = "all") -> tuple[list[Diff], list[str]]:
     """Every difference between two records that could change a verdict, and the notes: what
-    was not compared, and why."""
+    was not compared, and why. With `rows="release"`, the release-tier rows alone."""
     va, vb = view(a), view(b)
+    release = va.release | vb.release
+    # A record of the normal tier never ran a release-tier row: nothing to compare it with.
+    untiered = release if "normal" in (va.tier, vb.tier) else set()
+    keep = (lambda n: n in release) if rows == "release" else (lambda n: True)  # noqa: E731
     found: list[Diff] = []
     unrun: Counter[str] = Counter()
     across: Counter[str] = Counter()
     unheld: Counter[str] = Counter()
+    not_tiered = 0
     for node in sorted(va.names | vb.names):
-        if node not in vb.names:
+        if not keep(node):
+            continue
+        if node in untiered:
+            not_tiered += 1
+        elif node not in vb.names:
             found.append(Diff(f"{node}: {SIDE[0]}", "only", node, 0))
         elif node not in va.names:
             found.append(Diff(f"{node}: {SIDE[1]}", "only", node, 1))
@@ -252,13 +275,23 @@ def compare(a: dict, b: dict) -> tuple[list[Diff], list[str]]:
                 across[f"{pa} against {pb}"] += 1
             found += _check(node, ca, cb, held and pa == pb)
     for node, text in sorted({**vb.elsewhere, **va.elsewhere}.items()):
+        if not keep(node) or node in untiered:
+            continue
         found.append(Diff(text, "elsewhere", node))  # no claim explains it
         if node in va.elsewhere and node in vb.elsewhere and vb.elsewhere[node] != text:
             found.append(Diff(vb.elsewhere[node], "elsewhere", node))
-    found += _items("deselected", va.deselected, vb.deselected)
-    found += _items("collected_files", va.collected_files, vb.collected_files)
+    shown = [n for n in va.deselected if keep(n) and n not in untiered]
+    found += _items(
+        "deselected", shown, [n for n in vb.deselected if keep(n) and n not in untiered]
+    )
     notes = []
-    if va.suite != vb.suite:
+    if not_tiered:
+        notes.append(
+            f"release-tier rows not compared: {not_tiered} (one record judged the normal tier)"
+        )
+    if rows == "release":
+        pass  # rows alone: the files and the unit suite belong to the whole run
+    elif va.suite != vb.suite:
         # A release ran on other hosts: a unit test may skip there and pass here.
         if is_release(a) != is_release(b) and _tally(va.suite) == _tally(vb.suite):
             notes.append(
@@ -267,6 +300,8 @@ def compare(a: dict, b: dict) -> tuple[list[Diff], list[str]]:
             )
         else:
             found.append(Diff(f"suite: {va.suite!r} != {vb.suite!r}", "suite"))
+    if rows != "release":
+        found += _items("collected_files", va.collected_files, vb.collected_files)
     if sorted(va.foreign) != sorted(vb.foreign):  # the one meta field that decides a verdict
         found.append(Diff(f"meta.foreign: {va.foreign!r} != {vb.foreign!r}", "foreign"))
     if unrun:
@@ -281,9 +316,9 @@ def compare(a: dict, b: dict) -> tuple[list[Diff], list[str]]:
     return found, notes
 
 
-def differences(a: dict, b: dict) -> list[str]:
+def differences(a: dict, b: dict, rows: str = "all") -> list[str]:
     """Every difference between two run records that could change a verdict."""
-    return [d.text for d in compare(a, b)[0]]
+    return [d.text for d in compare(a, b, rows)[0]]
 
 
 def notes(a: dict, b: dict) -> list[str]:
@@ -379,11 +414,15 @@ def _suite_explained(a: dict, b: dict, units: int) -> bool:
 
 
 def explain(
-    a: dict, b: dict, claims: list[Claim], drop: frozenset[str] | set[str] = frozenset()
+    a: dict,
+    b: dict,
+    claims: list[Claim],
+    drop: frozenset[str] | set[str] = frozenset(),
+    rows: str = "all",
 ) -> tuple[list[str], list[str]]:
     """(the differences no claim explains, the notes: the counts per spec, the unseen claims)."""
     claims = [c for c in claims if c.spec not in drop]
-    found, notes_ = compare(a, b)
+    found, notes_ = compare(a, b, rows)
     seen: set[tuple[str, str]] = set()
     per_spec: Counter[str] = Counter()
     left = []
@@ -414,9 +453,13 @@ def explain(
 
 
 def unexplained(
-    a: dict, b: dict, claims: list[Claim], drop: frozenset[str] | set[str] = frozenset()
+    a: dict,
+    b: dict,
+    claims: list[Claim],
+    drop: frozenset[str] | set[str] = frozenset(),
+    rows: str = "all",
 ) -> list[str]:
-    return explain(a, b, claims, drop)[0]
+    return explain(a, b, claims, drop, rows)[0]
 
 
 def main(argv: list[str]) -> int:
@@ -425,6 +468,7 @@ def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(prog="sameness.py")
     ap.add_argument("--claims", type=Path, help="a claim list (spec 092, Decision 5)")
     ap.add_argument("--except", dest="drop", action="append", default=[], metavar="SPEC")
+    ap.add_argument("--tier-rows", choices=["release"], help="compare the release-tier rows alone")
     ap.add_argument("a", type=Path)
     ap.add_argument("b", type=Path)
     args = ap.parse_args(argv)
@@ -433,11 +477,12 @@ def main(argv: list[str]) -> int:
     try:
         a, b = (json.loads(p.read_text(encoding="utf-8")) for p in (args.a, args.b))
         claims = load_claims(args.claims) if args.claims else None
+        rows = args.tier_rows or "all"
         if claims is None:
-            found, notes_ = compare(a, b)
+            found, notes_ = compare(a, b, rows)
             lines = [d.text for d in found]
         else:
-            lines, notes_ = explain(a, b, claims, set(args.drop))
+            lines, notes_ = explain(a, b, claims, set(args.drop), rows)
     except (OSError, ValueError) as e:  # NotComparable, ClaimError, and JSON errors are ValueError
         print(f"sameness.py: {e}", file=sys.stderr)
         return 2

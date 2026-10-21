@@ -823,3 +823,23 @@ The build, below, as it goes.
      release group needs no Linux shard of the normal tier): 8 failed (`plan_errors() takes 3
      positional arguments`, no `tier_of`).
    - `test_release_shards_cover_the_judge` passes the release groups to the plan rules.
+2. **The gather and sameness.** Seen failing first:
+   - `tests/unit/test_gather.py`, fifteen rows on a plan with one release shard (`up-r` on the
+     release pseudo-system): a normal run expects no release record and leaves the release-tier
+     check unrun, with no source in the merged record and `meta.tier` `normal`; one that a
+     normal shard ran is red at G3; a release run expects the release record (red at G1 without
+     it) and merges `meta.tier` `release`; a release record whose `meta.tier` is not its shard's
+     is red at G2; a tag or a run on main in the normal tier is red at G1, and without a release
+     acceptance at G7; a branch run with the release tier needs none; an accepted entry whose
+     tier moved, either way, is red at G5 on both kinds of run; an unknown `TIER` is red at G1;
+     `is_release_run` over five environments: 15 failed (`expected_keys() takes 1 positional
+     argument`, no `is_release_run`, `Inputs` has no `tier`).
+   - `tests/unit/test_sameness.py`, five rows: release-tier rows against a normal record are
+     counted in a note, not compared, both ways, and against CI's merged record; `--tier-rows
+     release` compares those rows alone; the ledger explains a claimed growth and leaves a lost
+     pass; the command takes the flag: 5 failed (`compare() got an unexpected keyword argument
+     'rows'`, no note). The helper that builds a merged record gains `tier` and
+     `release_checks`, which the merge now reads.
+   - The record's `G2` gains `meta.tier`; the merged record carries `meta.tier` and
+     `release_checks`; `CI_NEEDS`' "everywhere" and sameness' Linux systems include the release
+     pseudo-system.

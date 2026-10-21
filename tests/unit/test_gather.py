@@ -27,6 +27,7 @@ DESC = "tests/checks/test_v1_2_portable_and_sealed.py::test_descriptors"  # Wind
 SUITE = f"{U}::test_upstream_suite[g1]"
 CLASS = f"{U}::test_upstream_class[g1-k]"
 GOAL = sorted([BUILD_NODE, PROBE, RULE_NODE, ART, DESC, SUITE, CLASS])
+R_SUITE = f"{U}::test_upstream_suite[r1]"  # a release-tier group's suite
 UNITS = ["tests/unit/test_u.py::test_1", "tests/unit/test_u.py::test_2"]
 GROUPS = {SUITE: "g1", CLASS: "g1"}
 PLAN = {
@@ -40,18 +41,19 @@ PLAN = {
 }
 PLATFORM = {"build": "linux-aarch64", "macos": "darwin-arm64", "linux": "linux-x86_64"}
 PLATFORM["windows"] = "win32-amd64"
+PLATFORM["release"] = "linux-x86_64"
 MAY_BLOCK = {ART: frozenset({"prior-art clones"}), DESC: frozenset({"descriptor limit"})}
 
 
-def _record(system: str, shard: str) -> dict:
-    goal = set(shards.select(GOAL, PLAN, GROUPS)[shard])
-    units = shards.select(UNITS, PLAN, GROUPS)[shard]
+def _record(system: str, shard: str, plan=PLAN, goal_nodes=GOAL, groups=GROUPS, release=()) -> dict:
+    goal = set(shards.select(goal_nodes, plan, groups)[shard])
+    units = shards.select(UNITS, plan, groups)[shard]
     checks = {}
-    for node in GOAL:
+    for node in goal_nodes:
         area = "rules" if node in (RULE_NODE, ART) else "v1.3"
         if node in goal:
             c = {"area": area, "status": "pass", "reason": "", "need": None, "metrics": {}}
-            if node == SUITE:
+            if node in (SUITE, R_SUITE):
                 c["metrics"] = {"passes": 5, "fuel": 100}
                 c["facts"] = {"passed_digest": "d1"}
             if node == PROBE:
@@ -77,10 +79,12 @@ def _record(system: str, shard: str) -> dict:
             "overrides": ["--progress-latest /tmp/r/latest.json"],
             "units": {"count": len(units), "digest": shards.units_digest(units)},
             "wasmtime": WT,
+            "tier": shards.tier_of(plan, shard),
         },
         "checks": checks,
         "deselected": sorted(n for n, c in checks.items() if c["status"] == "deselected"),
-        "collected_files": sorted({n.split("::")[0] for n in GOAL + UNITS}),
+        "release_checks": sorted(release),
+        "collected_files": sorted({n.split("::")[0] for n in goal_nodes + UNITS}),
         "suite": {"passed": len(units), "skipped": 0, "total": len(units)},
     }
 
@@ -760,3 +764,129 @@ def test_a_named_entry_no_check_matches_is_red_at_g3(case) -> None:
     }
     red = case.run().red
     assert f"G3 build: names {RULE_NODE}_gone, which no collected check is" in red, red
+
+
+# ---------------------------------------------------------------------------------------------
+# The two tiers: a normal run leaves the release shards out; a release run must run them
+
+R_PLAN = {**PLAN, "up-r": shards.Shard("up-r", ("release",), groups=("r1",))}
+R_GOAL = sorted([*GOAL, R_SUITE])
+R_GROUPS = {**GROUPS, R_SUITE: "r1"}
+
+
+class TierCase(Case):
+    def __init__(self, tmp: Path, tier: str) -> None:
+        super().__init__(tmp)
+        self.tier = tier
+        self.release_run = False
+        self.records = {
+            k: _record(*k, plan=R_PLAN, goal_nodes=R_GOAL, groups=R_GROUPS, release=[R_SUITE])
+            for k in gather.expected_keys(R_PLAN, tier)
+        }
+        self.accepted["checks"][R_SUITE] = {
+            "status": "pass",
+            "artifact": W,
+            "commit": HEAD,
+            "tier": "release",
+            "metrics": {"darwin-arm64": {"passes": 5, "fuel": 100, "wasmtime": WT}},
+        }
+        self.newest["tier"] = "release"
+
+    def inputs(self, records_dir: Path | None = None, handed: dict | None = None) -> gather.Inputs:
+        i = super().inputs(records_dir, handed)
+        i.plan, i.goal_nodes, i.groups = R_PLAN, R_GOAL, R_GROUPS
+        i.tier, i.release_run, i.release_checks = self.tier, self.release_run, {R_SUITE}
+        return i
+
+
+def test_a_normal_run_expects_no_release_record_and_leaves_its_checks_unrun(tmp_path) -> None:
+    case = TierCase(tmp_path, "normal")
+    assert ("release", "up-r") not in case.records
+    v = case.run()
+    assert v.red == [], v.red
+    assert v.merged["meta"]["tier"] == "normal"
+    assert v.merged["checks"][R_SUITE]["status"] == "deselected"
+    assert "source" not in v.merged["checks"][R_SUITE]
+
+
+def test_a_release_tier_check_run_in_a_normal_run_is_red(tmp_path) -> None:
+    case = TierCase(tmp_path, "normal")
+    c = case.records[LIN]["checks"][R_SUITE]
+    c.update(status="pass", metrics={"passes": 5, "fuel": 100})
+    assert f"G3 {R_SUITE}: a release-tier check ran in a normal run" in case.run().red
+
+
+def test_a_release_run_expects_the_release_record(tmp_path) -> None:
+    case = TierCase(tmp_path, "release")
+    assert ("release", "up-r") in case.records
+    v = case.run()
+    assert v.red == [], v.red
+    assert v.merged["meta"]["tier"] == "release"
+    assert v.merged["checks"][R_SUITE]["source"]["platform"] == "linux-x86_64"
+    del case.records[("release", "up-r")]
+    assert any(r.startswith("G1 release/up-r: no SHA-256") for r in case.run().red)
+
+
+def test_a_release_record_must_say_its_tier(tmp_path) -> None:
+    case = TierCase(tmp_path, "release")
+    case.records[("release", "up-r")]["meta"]["tier"] = "normal"
+    assert "G2 release/up-r: meta.tier is 'normal', not release" in case.run().red
+
+
+def test_a_tag_or_main_with_the_normal_tier_is_red_at_g1(tmp_path) -> None:
+    case = TierCase(tmp_path, "normal")
+    case.release_run = True
+    red = case.run().red
+    assert "G1 a tag (or a dispatch on main), and the release tier did not run" in red
+
+
+def test_a_tag_or_main_needs_a_release_acceptance(tmp_path) -> None:
+    case = TierCase(tmp_path, "release")
+    case.release_run = True
+    assert case.run().red == []
+    case.newest["tier"] = "normal"
+    red = case.run().red
+    assert (
+        "G7 a tag (or a dispatch on main), and the newest acceptance did not run the release tier"
+        in red
+    )
+
+
+def test_a_branch_run_with_the_release_tier_needs_no_release_acceptance(tmp_path) -> None:
+    case = TierCase(tmp_path, "release")
+    case.newest["tier"] = "normal"
+    assert case.run().red == []
+
+
+@pytest.mark.parametrize("tier", ["normal", "release"])
+def test_an_accepted_check_whose_tier_moved_is_red_at_g5(tmp_path, tier) -> None:
+    case = TierCase(tmp_path, tier)
+    del case.accepted["checks"][R_SUITE]["tier"]
+    red = case.run().red
+    assert f"G5 {R_SUITE}: accepted in the normal tier, release-tier now" in red
+    case = TierCase(tmp_path, tier)
+    case.accepted["checks"][SUITE]["tier"] = "release"
+    assert f"G5 {SUITE}: accepted in the release tier, normal-tier now" in case.run().red
+
+
+def test_an_unknown_tier_is_red(tmp_path) -> None:
+    case = TierCase(tmp_path, "normal")
+    case.tier = "fast"
+    assert "G1 TIER is 'fast', not normal or release" in case.run().red
+
+
+@pytest.mark.parametrize(
+    ("environ", "release"),
+    [
+        (
+            {"GITHUB_EVENT_NAME": "push", "GITHUB_REF_TYPE": "tag", "GITHUB_REF": "refs/tags/v1"},
+            True,
+        ),
+        ({"GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_REF": "refs/heads/main"}, True),
+        ({"GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_REF": "refs/heads/spec/102"}, False),
+        ({"GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_REF": "refs/heads/mainline"}, False),
+        ({}, False),
+    ],
+)
+def test_a_release_run_is_a_tag_or_main(environ, release) -> None:
+    assert gather.is_release_run(environ) is release

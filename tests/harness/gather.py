@@ -4,9 +4,11 @@
 
 reads `WASM_SHA256` (the build job's `wasm-sha256`), `SET_SUMS_SHA256` (its `set-sums-sha256`, the
 set's own `SHA256SUMS`), one `RECORD_<SYSTEM>_<SHARD>` per shard (the SHA-256 its job
-handed on; `-` as `_`, upper case), and `GITHUB_EVENT_NAME` and `GITHUB_REF_TYPE` as the runner
-sets them (a step cannot override a `GITHUB_*` variable). It collects the judge once at this
-commit and is red, one line per reason, unless G1 to G7 hold. It prints the merged
+handed on; `-` as `_`, upper case), `TIER` (the tier the run's inputs job decided), and
+`GITHUB_EVENT_NAME`, `GITHUB_REF_TYPE` and `GITHUB_REF` as the runner sets them (a step cannot
+override a `GITHUB_*` variable). From those it derives again whether this is a release run (a
+pushed tag, or a run on main), which must have judged the release tier. It collects the judge
+once at this commit and is red, one line per reason, unless G1 to G7 hold. It prints the merged
 scoreboard, writes the merged record, and writes nothing to the progress history: only the lane
 accepts. It is the parallel judge's controller merge, across machines.
 """
@@ -38,7 +40,7 @@ HEX64 = re.compile(r"[0-9a-f]{64}")
 # Windows guest deletes a read-only file itself), there alone. Not "wasmtime cli": its
 # check runs in the build shard, on the host that has it. A check may be blocked only by a need its
 # own body names.
-EVERYWHERE = frozenset({"build", "macos", "linux", "windows"})
+EVERYWHERE = frozenset({"build", "macos", "linux", "windows", "release"})
 CI_NEEDS: dict[str, frozenset[str]] = {
     "oracle": EVERYWHERE,
     "prior-art clones": EVERYWHERE,
@@ -56,6 +58,7 @@ JOB = {
     "macos": "judge-macos",
     "linux": "judge-linux",
     "windows": "judge-windows",
+    "release": "judge-release",
 }
 # A set the build job built in this run, as its `set-source` output names it.
 BUILT = "built"
@@ -65,10 +68,14 @@ def env_name(system: str, shard: str) -> str:
     return f"RECORD_{system}_{shard}".upper().replace("-", "_")
 
 
-def expected_keys(plan: dict[str, shards.Shard]) -> list[tuple[str, str]]:
-    """(system, shard) for every record the release hands on: each system's shards, and build."""
+def expected_keys(plan: dict[str, shards.Shard], tier: str = "normal") -> list[tuple[str, str]]:
+    """(system, shard) for every record the release hands on: each system's shards, and build;
+    the release shards only when the run judged the release tier."""
     keys = [("build", "build")] if "build" in plan else []
-    return keys + [(s, name) for s in shards.OWN_SYSTEMS for name in shards.on(plan, s)]
+    keys += [(s, name) for s in shards.OWN_SYSTEMS for name in shards.on(plan, s)]
+    if tier == "release":
+        keys += [("release", name) for name in shards.on(plan, "release")]
+    return keys
 
 
 @dataclass
@@ -92,6 +99,9 @@ class Inputs:
     # The build job's `set-source`: "built", or "reused <key>", from what ran.
     set_source: str = BUILT
     repo: Path = paths.REPO
+    tier: str = "normal"  # the tier the run's inputs job decided
+    release_run: bool = False  # a pushed tag, or a run on main: the release tier must have run
+    release_checks: set[str] = field(default_factory=set)  # by the upstream files at this commit
 
 
 @dataclass
@@ -126,7 +136,12 @@ def _files(folder: Path) -> list[Path]:
 def gather(i: Inputs) -> Verdict:
     v = Verdict()
     red = v.red
-    keys = expected_keys(i.plan)
+    if i.tier not in scoreboard.TIERS:
+        red.append(f"G1 TIER is {i.tier!r}, not normal or release")
+    if i.release_run and i.tier != "release":
+        red.append("G1 a tag (or a dispatch on main), and the release tier did not run")
+    normal = i.tier != "release"
+    keys = expected_keys(i.plan, i.tier)
     # G1: every record, and only those, one to one, each under its own job's folder.
     handed = {k: i.handed.get(k, "") for k in keys}
     for (system, shard), sha in handed.items():
@@ -185,6 +200,10 @@ def gather(i: Inputs) -> Verdict:
                 meta.get("judge", {}).get("hash") == i.judge_hash,
                 "judge hash is not this commit's",
             ),
+            (
+                meta.get("tier") == shards.tier_of(i.plan, shard),
+                f"meta.tier is {meta.get('tier')!r}, not {shards.tier_of(i.plan, shard)}",
+            ),
             (meta.get("dirty") is False, "dirty"),
             (not meta.get("foreign"), f"steered from outside: {meta.get('foreign')}"),
             (not meta.get("partial"), "partial"),
@@ -221,7 +240,14 @@ def gather(i: Inputs) -> Verdict:
             red.append(f"{where}: ran other unit tests ({units.get('count')} against {len(mine)})")
         if not ran and not units.get("count"):
             red.append(f"{where}: selected nothing")
-    for node in sorted(collected - run_somewhere):
+    unrun = collected - run_somewhere
+    if normal:  # the normal tier runs no release-tier check, and must not
+        unrun -= i.release_checks
+        red += [
+            f"G3 {n}: a release-tier check ran in a normal run"
+            for n in sorted(run_somewhere & i.release_checks)
+        ]
+    for node in sorted(unrun):
         red.append(f"G3 {node}: collected, run in no record")
     every = collected | set(i.unit_nodes)
     for name, s in i.plan.items():  # a renamed check cannot quietly unbalance a split
@@ -293,9 +319,18 @@ def gather(i: Inputs) -> Verdict:
             ("blocked, protected", rt.unrun),
         ):
             red += [f"G5 {system}/{shard}: {what} {n}" for n in nodes[:5]]
+    # A check accepted in one tier and now in the other: shown on every run, so a branch run
+    # names a move before the lane accepts it.
+    for node, acc in sorted(i.accepted.get("checks", {}).items()):
+        was = acc.get("tier") or "normal"
+        now = "release" if node in i.release_checks else "normal"
+        if node in collected and was != now:
+            red.append(f"G5 {node}: accepted in the {was} tier, {now}-tier now")
     for node, acc in sorted(i.accepted.get("checks", {}).items()):
         if acc.get("status") not in ("pass", "gap"):
             continue
+        if normal and node in i.release_checks:
+            continue  # its tier did not run here
         states = [(s, r.get("checks", {}).get(node, {})) for (s, _), r in v.records.items()]
         if any(c.get("status") in ("pass", "gap") for _, c in states):
             continue
@@ -345,6 +380,11 @@ def gather(i: Inputs) -> Verdict:
         red.append("G7 a tag, and this commit's judge is not the accepted one")
     if i.tag and i.set_source != BUILT:  # a tag publishes what its own run built
         red.append("G7 a tag, and the set was not built in this run")
+    if i.release_run and newest.get("tier") != "release":
+        red.append(
+            "G7 a tag (or a dispatch on main), and the newest acceptance did not run the release"
+            " tier"
+        )
     v.merged = merge(v.records, i)
     providers = {}
     shown = dict(v.merged)
@@ -448,10 +488,12 @@ def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:
             "records": sorted(f"{s}/{n}" for s, n in records),
             "tag": i.tag,
             "set_source": getattr(i, "set_source", BUILT),
+            "tier": i.tier,
             "foreign": sorted(foreign),
         },
         "checks": checks,
         "deselected": sorted(n for n, c in checks.items() if c.get("status") == "deselected"),
+        "release_checks": sorted(i.release_checks),
         "collected_files": sorted(files),
         "suite": suite,
         "runs": {
@@ -603,6 +645,13 @@ def is_tag(environ) -> bool:
     return environ.get("GITHUB_EVENT_NAME") == "push" and environ.get("GITHUB_REF_TYPE") == "tag"
 
 
+def is_release_run(environ) -> bool:
+    """A pushed tag, or a run on main (the dry run before a tag): it publishes, or rehearses
+    publishing, so it must judge the release tier. Read from the runner's own variables, which
+    no step can set."""
+    return is_tag(environ) or environ.get("GITHUB_REF") == "refs/heads/main"
+
+
 def main(argv: list[str]) -> int:
     import argparse
 
@@ -612,8 +661,11 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--records", required=True, type=Path)
     ap.add_argument("--out", default="release-record", type=Path)
     a = ap.parse_args(argv)
+    from harness import upstream
+
     plan = shards.load()
-    handed = {k: os.environ.get(env_name(*k), "") for k in expected_keys(plan)}
+    tier = os.environ.get("TIER", "")
+    handed = {k: os.environ.get(env_name(*k), "") for k in expected_keys(plan, tier)}
     goal, units, may_block = collect()
     gaps, _ = plugin.load_gaps(paths.KNOWN_GAPS)
     head = subprocess.run(
@@ -639,6 +691,9 @@ def main(argv: list[str]) -> int:
             head=head,
             tag=tag,
             set_source=os.environ.get("SET_SOURCE", ""),
+            tier=tier,
+            release_run=is_release_run(os.environ),
+            release_checks=upstream.release_checks(upstream.load_all()),
         )
     )
     a.out.mkdir(parents=True, exist_ok=True)

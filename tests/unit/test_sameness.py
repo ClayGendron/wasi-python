@@ -79,6 +79,8 @@ def release(records: dict | None = None) -> dict:
         set_sums_sha256="s" * 64,
         judge_hash="j" * 64,
         tag=False,
+        tier="normal",
+        release_checks=set(),
     )
     return gather.merge(records or shard_records(), i)
 
@@ -486,3 +488,71 @@ def test_a_block_in_the_build_run_is_read_as_linux() -> None:
     run, is a CI block and not a difference."""
     assert sameness._ci_block({"status": "blocked", "need": "oracle", "worst_platform": ARM})
     assert "build" in sameness.SYSTEMS["linux"] and "build" not in sameness.SYSTEMS["darwin"]
+
+
+# ---------------------------------------------------------------------------------------------
+# Release-tier rows: compared only where both records ran them; `--tier-rows release` alone
+
+
+def tiered_local(tier: str, fuel: int = 1234, status: str = "pass") -> dict:
+    """The lane's darwin run, with the upstream group U a release-tier check."""
+    r = local()
+    r["meta"]["tier"] = tier
+    r["release_checks"] = [U]
+    if tier == "normal":
+        r["checks"][U] = {
+            "area": "v1.3",
+            "status": "deselected",
+            "reason": "release tier",
+            "need": None,
+            "metrics": {},
+        }
+        r["deselected"] = [U]
+    else:
+        r["checks"][U] = {**_pass(passes=5, fuel=fuel), "facts": {"passed_digest": "d1"}}
+        r["checks"][U]["status"] = status
+    return r
+
+
+def test_release_tier_rows_against_a_normal_record_are_counted_not_compared() -> None:
+    found, notes = sameness.compare(tiered_local("release"), tiered_local("normal"))
+    assert found == [], found
+    assert "release-tier rows not compared: 1 (one record judged the normal tier)" in notes
+    found, _ = sameness.compare(tiered_local("normal"), tiered_local("release"))
+    assert found == []
+
+
+def test_a_release_record_from_ci_against_a_normal_local_record() -> None:
+    r = release()
+    r["meta"]["tier"] = "release"
+    r["release_checks"] = [U]
+    assert sameness.differences(r, tiered_local("normal")) == []
+
+
+def test_tier_rows_release_compares_the_release_tier_rows_alone() -> None:
+    a, b = tiered_local("release"), tiered_local("release", fuel=2000)
+    b["checks"][A]["metrics"]["fuel"] = 999  # a normal row: not compared
+    b["suite"] = {"passed": 1, "skipped": 0, "total": 1}
+    found, _ = sameness.compare(a, b, rows="release")
+    assert [d.text for d in found] == [f"{U}: fuel 1234 != 2000 (beyond {sameness.FUEL_TOLERANCE})"]
+    assert len(sameness.compare(a, b)[0]) > 1
+
+
+def test_the_ledger_explains_a_growth_and_leaves_a_lost_pass(tmp_path) -> None:
+    ledger = claims(tmp_path, '[[claim]]\nspec = "102"\ngrows = ["' + U + '"]\ngrowth = "102: g"\n')
+    a, b = tiered_local("release"), tiered_local("release", fuel=2000)
+    assert sameness.unexplained(a, b, ledger, rows="release") == []
+    lost = tiered_local("release", fuel=2000, status="fail")
+    left = sameness.unexplained(a, lost, ledger, rows="release")
+    assert left == [f"{U}: status 'pass' != 'fail'"], left
+
+
+def test_the_command_takes_tier_rows(tmp_path) -> None:
+    a, b = tmp_path / "a.json", tmp_path / "b.json"
+    a.write_text(json.dumps(tiered_local("release")))
+    other = tiered_local("release")
+    other["checks"][A]["metrics"]["fuel"] = 999
+    b.write_text(json.dumps(other))
+    run = [sys.executable, SCRIPT, str(a), str(b)]
+    assert subprocess.run(run, capture_output=True).returncode == 1
+    assert subprocess.run([*run, "--tier-rows", "release"], capture_output=True).returncode == 0
