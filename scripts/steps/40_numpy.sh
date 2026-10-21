@@ -23,14 +23,14 @@ mkdir -p "$BUILD" "$SHIMS"
 # pkgconf sees OpenBLAS's own openblas.pc and nothing else: PKG_CONFIG_LIBDIR replaces its default
 # search path, so a host's openblas.pc can never be found (step 57's rule).
 export PKG_CONFIG_PATH="$OB/lib/pkgconfig" PKG_CONFIG_LIBDIR="$OB/lib/pkgconfig"
-# The per-file include map (spec 100, Decision 4), rendered into build/: numpy's linear-algebra
+# The per-file include map, rendered into build/: numpy's linear-algebra
 # files and its three python_xerbla.c compiles get recipes/numpy_lapack_abi.h, nothing else does.
 sed "s#@ROOT@#$HERE#g" "$HERE/recipes/numpy_file_includes.txt" > "$BUILD/file-includes.txt"
 export WASI_CC_FILE_INCLUDES="$BUILD/file-includes.txt" WASI_CC_FILE_INCLUDES_LOG="$BUILD/file-includes.log"
 : > "$WASI_CC_FILE_INCLUDES_LOG"
 cd "$SRC"
 MESON="$SRC/vendored-meson/meson/meson.py"  # the meson that configures a build directory installs it
-# -Dallow-noblas=false: a failed detection stops here, never falls back to lapack_lite (spec 100).
+# -Dallow-noblas=false: a failed detection stops here, never falls back to lapack_lite.
 "$HOSTPY" "$MESON" setup "$BUILD" --cross-file "$B/wasi-numpy.cross" --buildtype=release \
   -Dblas=openblas -Dlapack=openblas -Dallow-noblas=false -Duse-ilp64=false \
   -Ddisable-optimization=true -Ddisable-threading=true \
@@ -52,7 +52,7 @@ fi
 # installer on a macOS host runs install_name_tool on them, and they are archives, not Mach-O.
 "$HOSTPY" "$MESON" install -C "$BUILD" --destdir "$B/numpy-install" --tags python-runtime,devel --quiet
 
-# numpy's side of the LAPACK ABI (spec 100, Decision 4): 35 shims of ours, compiled alone, no numpy
+# numpy's side of the LAPACK ABI: 35 shims of ours, compiled alone, no numpy
 # flag and no rename header.
 "$SDK/bin/clang" --target=wasm32-wasip1 -O2 -ffile-prefix-map="$HERE=/wasi-python-build" \
   -c "$HERE/recipes/numpy_lapack_shims.c" -o "$SHIMS/numpy_lapack_shims.o"

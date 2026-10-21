@@ -3233,9 +3233,10 @@ def context_citation_files(root: Path) -> list[Path]:
     ]
     return picked + [p for p in files_under(root, "scripts", "release") if _text(p) is not None]
 
-# numpy on the set's OpenBLAS (spec 100): numpy's meson finds step 38's OpenBLAS, a per-file header
+
+# numpy on the set's OpenBLAS: numpy's meson finds step 38's OpenBLAS, a per-file header
 # sends numpy's int-declared LAPACK calls to 35 shims of ours, and one OpenBLAS, with no
-# lapack_lite, is linked. Check 4's rules, pure over text and name sets, need no build.
+# lapack_lite, is linked. The rules, pure over text and name sets, need no build.
 ONE_LAPACK_CROSS = "recipes/wasi-numpy.cross"
 ONE_LAPACK_HEADER = "recipes/numpy_lapack_abi.h"
 ONE_LAPACK_MAP = "recipes/numpy_file_includes.txt"
@@ -3257,7 +3258,7 @@ LINK_MAP_SYMBOL = re.compile(r"^\s+-\s+[0-9a-f]+\s+[0-9a-f]+\s+(\S+?)\((.+)\):\(
 
 
 def include_map_entries(text: str) -> list[tuple[str, str, int]]:
-    """A per-file include map's entries (spec 037's format): suffix, header, count (1 if absent)."""
+    """A per-file include map's entries (wasi-cc's format): suffix, header, count (1 if absent)."""
     entries = []
     for line in text.splitlines():
         words = line.split()
@@ -3270,9 +3271,9 @@ def include_map_entries(text: str) -> list[tuple[str, str, int]]:
 def one_lapack_recipe_errors(
     cross: str, header: str | None, include_map: str, step: str
 ) -> list[str]:
-    """The recipe as written (spec 100, check 4's first part): the numpy cross file names step 10's
-    pkgconf and no BLAS_SYMBOL_PREFIX; the header sets numpy's prefix; the per-file map has exactly
-    its four entries and counts; step 40 asks meson for OpenBLAS and refuses a fallback."""
+    """The recipe as written: the numpy cross file names step 10's pkgconf and no
+    BLAS_SYMBOL_PREFIX; the header sets numpy's prefix; the per-file map has exactly its four
+    entries and counts; step 40 asks meson for OpenBLAS and refuses a fallback."""
     errors = []
     if "BLAS_SYMBOL_PREFIX" in cross:
         errors.append(f"{ONE_LAPACK_CROSS} still names BLAS_SYMBOL_PREFIX")
@@ -3318,7 +3319,7 @@ def numpy_blas_record_errors(records: list[dict], objects: list[str]) -> list[st
 
 def numpy_deps_errors(deps: dict[str, list[str]], archive: Path) -> list[str]:
     """Each numpy module's .deps names OpenBLAS, and only as `archive` by path or as -lopenblas
-    with -L its folder (spec 100: one OpenBLAS, scipy's)."""
+    with -L its folder: one OpenBLAS, scipy's."""
     errors = []
     for name, tokens in deps.items():
         named = [t for t in tokens if "openblas" in t]
@@ -3341,16 +3342,15 @@ def one_lapack_errors(
     called: set[str],
     is_global: Callable[[str, str, str], bool] = lambda archive, member, symbol: True,
 ) -> list[str]:
-    """One OpenBLAS and no lapack_lite in python.wasm's link map (spec 100, check 4): every symbol
-    libopenblas.a defines that the link takes comes from that archive, once; no lapack_lite f2c
-    object and no numpy_lapack_lite_ symbol; every wasi_numpy_ shim once, from numpy's shims
-    archive, and wasi_numpy_xerbla_ once, from numpy's python_xerbla; and the shims defined are
-    exactly the wasi_numpy_ names numpy's two linear-algebra objects call, less xerbla.
-
-    Only global definitions count: `is_global(archive, member, symbol)` says whether that member
-    defines the name globally. f2c's LAPACK files, OpenBLAS's own among them, and scipy's PROPACK
-    and ARPACK each carry a file-local `static` complex dot wrapper named cdotc_ or zdotu_, which
-    the map lists like any function but which no other object can call (build phase 2)."""
+    """One OpenBLAS and no lapack_lite in python.wasm's link map: every symbol libopenblas.a defines
+    that the link takes comes from that archive, once; no lapack_lite f2c object and no
+    numpy_lapack_lite_ symbol; every wasi_numpy_ shim once, from numpy's shims archive, and
+    wasi_numpy_xerbla_ once, from numpy's python_xerbla; and the shims defined are exactly the
+    wasi_numpy_ names numpy's two linear-algebra objects call, less xerbla. Only global definitions
+    count: `is_global(archive, member, symbol)` says whether that member defines the name globally.
+    f2c's LAPACK files, OpenBLAS's own among them, and scipy's PROPACK and ARPACK each carry a file-
+    local `static` complex dot wrapper named cdotc_ or zdotu_, which the map lists like any function
+    but which no other object can call (build phase 2)."""
     errors = []
     sources: dict[str, list[tuple[str, str]]] = {}
     for line in map_lines:

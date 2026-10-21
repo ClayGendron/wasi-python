@@ -908,11 +908,10 @@ def test_hardware_floating_point_signals_stay_silent_as_documented(guest, which)
     assert got == HARDWARE_SIGNALS_GUEST, got
 
 
-# numpy on the set's OpenBLAS (spec 100). numpy's linear algebra, dot and matmul run on the
-# OpenBLAS scipy runs; recipes/numpy_lapack_abi.h and recipes/numpy_lapack_shims.c bridge numpy's
-# int declarations to OpenBLAS's void subroutines. The programs are the research folder's
-# check1_config.py, check2_rank_deficient.py and check3_errors.py
-# (context/research/2026-10-20-numpy-on-openblas/).
+# numpy on the set's OpenBLAS. numpy's linear algebra, dot and matmul run on the OpenBLAS scipy
+# runs; recipes/numpy_lapack_abi.h and recipes/numpy_lapack_shims.c bridge numpy's int
+# declarations to OpenBLAS's void subroutines. The programs below are kept beside the build's
+# research notes as check1_config.py, check2_rank_deficient.py and check3_errors.py.
 OPENBLAS_CONFIG = """
 import numpy as np
 import scipy
@@ -961,7 +960,7 @@ print("agree", sum(p == q for p, q in zip(num, sci)))
 """
 
 # The set's OpenBLAS's answer (E raises or info > 0, F finite): scipy's dgesv in the guest, the
-# same on main's set and 099's (spec 100, check 2's recorded string, a pinned fact).
+# same on every set built from these pins (the recorded string, a pinned fact).
 RANK_DEFICIENT_GUEST = (
     "FEEFEFFFFEEFFEEEFEFEEFFFEEEFFEEFEFEEFFFFFFFEFFFFEFFEFEEEFEEFEFFEEEEFEFFFEFF"
     "EFEFEEEFFEFEFFEFFEEEFEFFEFEFEEEFFFFFFFFEFFFEFEEEFFEFFEEFEFEEFFFFEFFFEFFFFEE"
@@ -1069,7 +1068,7 @@ def _quiet(guest, which: str, code: str) -> str:
 @pytest.mark.parametrize("which", ["plain", "snapshot"])
 def test_numpy_is_built_on_the_sets_openblas(guest, which) -> None:
     """numpy's BLAS and LAPACK are the set's OpenBLAS 0.3.34, the one scipy uses, as numpy itself
-    reports them (spec 100, check 1): found by pkg-config, its configuration the step 38 build's
+    reports them: found by pkg-config, its configuration the step 38 build's
     (one thread, no OpenMP, WASM128_GENERIC), numpy's entries equal to scipy's, and LP64."""
     got = _quiet(guest, which, OPENBLAS_CONFIG)
     assert got == OPENBLAS_CONFIG_GUEST, got
@@ -1077,15 +1076,14 @@ def test_numpy_is_built_on_the_sets_openblas(guest, which) -> None:
 
 @pytest.mark.parametrize("which", ["plain", "snapshot"])
 def test_a_rank_deficient_matrix_meets_the_sets_openblas(guest, which) -> None:
-    """numpy.linalg.inv and scipy's dgesv agree on 300 exactly rank-deficient matrices (099's
-    review, seed 99), because both run the set's OpenBLAS (spec 100, check 2). Both equal the
-    recorded string, a pinned fact: wasm's floating point and the guest's bytes are the same on
-    every host (spec 012), and an OpenBLAS pin change that moves it is re-recorded as a judge
-    change with a reason. The held property: the guest is never finite where native numpy on
-    OpenBLAS raises. The other way it differs at 46 indices, where native returns a meaningless
-    inverse; whether a matrix singular only in exact arithmetic meets an exact zero pivot is a
-    rounding question, and wasm has no fused multiply-add (the README's bullet "A matrix singular
-    only in exact arithmetic")."""
+    """numpy.linalg.inv and scipy's dgesv agree on 300 exactly rank-deficient matrices (seed 99),
+    because both run the set's OpenBLAS. Both equal the recorded string, a pinned fact: wasm's
+    floating point and the guest's bytes are the same on every host, and an OpenBLAS pin change that
+    moves it is re-recorded as a judge change with a reason. The held property: the guest is never
+    finite where native numpy on OpenBLAS raises. The other way it differs at 46 indices, where
+    native returns a meaningless inverse; whether a matrix singular only in exact arithmetic meets
+    an exact zero pivot is a rounding question, and wasm has no fused multiply-add (the README's
+    bullet "A matrix singular only in exact arithmetic")."""
     got = _quiet(guest, which, RANK_DEFICIENT).splitlines()
     assert got[0] == f"numpy {RANK_DEFICIENT_GUEST}", got[0]
     assert got[1] == f"scipy {RANK_DEFICIENT_GUEST}", got[1]
@@ -1098,12 +1096,12 @@ def test_a_rank_deficient_matrix_meets_the_sets_openblas(guest, which) -> None:
 
 @pytest.mark.parametrize("which", ["plain", "snapshot"])
 def test_numpy_linalg_errors_are_native_numpy_on_openblas(guest, which) -> None:
-    """A matrix of nan, and LAPACK's argument errors, behave as in native numpy on OpenBLAS (spec
-    100, check 3): the svd family, lstsq and eigh raise LinAlgError (099's B1, lstsq's SystemError,
-    is gone), inv, solve, cholesky, qr and det return nans as natively, lapack_lite.xerbla() raises
-    numpy's ValueError, and an illegal argument makes OpenBLAS's own xerbla print to stdout and
-    return. OpenBLAS's lines come through C's stdout, whose order against Python's is not
-    Python's, so they are compared apart, as a sorted list."""
+    """A matrix of nan, and LAPACK's argument errors, behave as in native numpy on OpenBLAS: the svd
+    family, lstsq and eigh raise LinAlgError (lapack_lite's DLASCL ValueError, and lstsq's
+    SystemError, are gone), inv, solve, cholesky, qr and det return nans as natively,
+    lapack_lite.xerbla() raises numpy's ValueError, and an illegal argument makes OpenBLAS's own
+    xerbla print to stdout and return. OpenBLAS's lines come through C's stdout, whose order against
+    Python's is not Python's, so they are compared apart, as a sorted list."""
     lines = _quiet(guest, which, LINALG_ERRORS).splitlines(keepends=True)
     xerbla = sorted(t.rstrip("\n") for t in lines if t.startswith(" ** On entry to"))
     python = "".join(t for t in lines if not t.startswith(" ** On entry to"))

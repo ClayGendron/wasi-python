@@ -2443,7 +2443,8 @@ def test_a_citation_split_across_lines_is_one_hit(work) -> None:
     sh = write(work, "s/split.sh", f"#!/bin/sh\n# see {SPEC_WORD}\n#   063, Decision 2\necho\n")
     assert scan.context_citation_hits(sh) == [(2, "specification", f"{SPEC_WORD} 063")]
 
-# Spec 100's check 4: one OpenBLAS, no lapack_lite, and the shim set (scan.one_lapack_errors).
+
+# The one-LAPACK check: one OpenBLAS, no lapack_lite, and the shim set (scan.one_lapack_errors).
 _OB = "/b/build/openblas-wasi/lib/libopenblas.a"
 _SHIMS = "/b/build/numpy-shims/libnumpy_lapack_shims.a"
 _XERBLA = "/b/build/link/archives/numpy_lapack_lite.a"

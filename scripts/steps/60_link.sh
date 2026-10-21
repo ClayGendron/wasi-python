@@ -38,7 +38,7 @@ PM="$B/plot-modules"
 [ -s "$B/scipy-shims/libscipy_lapack_shims.a" ] || die "build/scipy-shims/libscipy_lapack_shims.a is missing: run step 57"
 # Step 58's modules.
 [ -d "$B/sklearn-modules/sklearn" ] || die "build/sklearn-modules/sklearn is missing: run step 58"
-# numpy's side of the same ABI (spec 100): step 40's shims, numpy's int-declared calls to OpenBLAS.
+# numpy's side of the same ABI: step 40's shims, numpy's int-declared calls to OpenBLAS.
 [ -s "$B/numpy-shims/libnumpy_lapack_shims.a" ] || die "build/numpy-shims/libnumpy_lapack_shims.a is missing: run step 40"
 # The generated inittab declares CPython's internal _PyImport_SwapPackageContext itself, as this
 # header declares it: a CPython that changes it stops here, not at run time.
@@ -83,7 +83,7 @@ done
 libs=$(printf '%s\n' $deps | grep '\.a$' | sort -u | tr '\n' ' ')
 libs="$libs$(printf '%s\n' $deps | grep '^-L' | sort -u | tr '\n' ' ')"
 libs="$libs$(printf '%s\n' $deps | grep '^-l' | sort -u | tr '\n' ' ')"
-# scipy's and numpy's sides of the LAPACK ABI (no module's .deps names them; specs 037 and 100),
+# scipy's and numpy's sides of the LAPACK ABI (no module's .deps names them),
 # and the emulated mmap OpenBLAS's buffer uses (wasi-libc's, malloc underneath; no new import).
 libs="$libs$B/scipy-shims/libscipy_lapack_shims.a $B/numpy-shims/libnumpy_lapack_shims.a -lwasi-emulated-mman "
 

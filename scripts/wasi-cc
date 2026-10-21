@@ -62,7 +62,7 @@ done
 # A per-file force-include: when WASI_CC_FILE_INCLUDES names a map file
 # (`<path suffix> <header> [count]` per line, # for a comment), a compile whose source path ends with an
 # entry's suffix gets that entry's -include, and one line goes to the log WASI_CC_FILE_INCLUDES_LOG
-# names. Steps 40 (numpy, spec 100) and 57 (scipy) set them; unset, the command is exactly as above.
+# names. Steps 40 (numpy) and 57 (scipy) set them; unset, the command is exactly as above.
 if [ -n "${WASI_CC_FILE_INCLUDES:-}" ]; then
   src=""; prev=""
   for a in "$@"; do

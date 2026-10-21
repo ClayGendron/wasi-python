@@ -280,7 +280,7 @@ def _nm_names(nm: Path, *args: str) -> set[str]:
 
 
 def test_one_lapack_is_linked(note) -> None:
-    """numpy runs on the set's OpenBLAS, the one scipy runs (spec 100, check 4), in the form of
+    """numpy runs on the set's OpenBLAS, the one scipy runs, in the form of
     test_one_qhull_is_linked. Without a build: the numpy cross file names step 10's pkgconf and no
     BLAS_SYMBOL_PREFIX, recipes/numpy_lapack_abi.h sets numpy's prefix, the per-file map has its
     four entries, and step 40 asks meson for OpenBLAS with no fallback. With the build: each
@@ -289,7 +289,7 @@ def test_one_lapack_is_linked(note) -> None:
     .deps name only step 38's OpenBLAS; in python.wasm's link map every symbol libopenblas.a
     defines comes from it, once, with no lapack_lite and every wasi_numpy_ shim once from numpy's
     shims archive; and the shims are exactly the wasi_numpy_ names numpy's two linear-algebra
-    objects call, less xerbla (the review's L6)."""
+    objects call, less xerbla, so a shim nothing calls cannot stay."""
     header = paths.REPO / scan.ONE_LAPACK_HEADER
     errors = scan.one_lapack_recipe_errors(
         (paths.REPO / scan.ONE_LAPACK_CROSS).read_text(),
