@@ -10,8 +10,12 @@
   choices the owner may make are written in as **defaults pending the owner's answer** (the
   lane files the questions): 088 widened to scipy's seven test modules (Decision 8); the modes
   README-only for 0.1.0 (Decision 7); a 15 T threshold for scikit-learn's release tier (Decision
-  7); statsmodels' left-out datasets as a README class (Decisions 8 and 9). **Not yet surveyed**
-  (Decision 1): the drafting probes below are calibration, not the survey.
+  7); statsmodels' left-out datasets as a README class (Decisions 8 and 9). **Confirmed fit to
+  build** by the same reviewer (the review's Confirmation, `f2926ae`). **Surveyed 2026-10-21**
+  (`../research/2026-10-21-scipy-sklearn-statsmodels-own-tests-under-the-runtime.md`, EXECUTED:
+  scipy and scikit-learn on wave 09's set `142bdd38`, statsmodels on 045's set `14adfa5f`); its
+  dated delta is the section "Delta from the survey", for a context-only delta review before any
+  build. The drafting probes below were calibration, not the survey.
 - **Owner:** Clay Gendron
 - **Kind:** the judge and the release workflow. No line of `src/`, `scripts/`, `recipes/` or
   `downloads/SHA256SUMS` changes: scipy's and scikit-learn's sdists are main's pins (037, 044),
@@ -761,3 +765,96 @@ code or a stand-in; the builder records each failing assertion in the landing no
   statsmodels' left-out datasets a README class, with import failures under Decision 8
   (Decisions 8 and 9).
 - **074's line:** the lane may name scikit-learn's three `mmap` files there (Decision 8).
+
+## Delta from the survey (2026-10-21, for the delta review)
+
+The survey (`../research/2026-10-21-scipy-sklearn-statsmodels-own-tests-under-the-runtime.md`,
+EXECUTED on darwin-arm64: scipy and scikit-learn on wave 09's set `142bdd38`, statsmodels on 045's
+build-reviewed set `14adfa5f`) replaces this specification's INFERRED numbers. What it changes, by
+Decision; a fresh reviewer rules on each before anything is built (Decision 1).
+
+1. **The price, measured** (the price section's INFERRED ranges are replaced by these):
+   - **Normal tier: 31.18 T** per full judge (scipy 7.35 T, scikit-learn 9.61 T, statsmodels
+     14.23 T), 2.8 times today's about 11.2 T. statsmodels is 4.7 times 045's inferred 3 T.
+   - **Release tier (scipy): at least 22.02 T.** Two sessions, `special` (mpmath at 5,000 points)
+     and `stats` (slow fits), stopped at the survey's 6 T session caps, so the true total is
+     higher; the build measures it group by group.
+   - **The lane's darwin accept** grows by about 94 minutes of guest time, about 31 minutes of
+     wall clock at `-n 3`, on every landing (at the survey's 0.18 s per G).
+   - **Linux shards:** at most 725 G each, about **43 to 46 normal-tier shards** (31.2 T, plus the
+     starts of the split groups), and **at least 31 release-tier shards**. A 725 G shard is 116 to
+     225 s of guest time plus about 60 s of setup; with the Linux matrix at 20 parallel jobs, 66 to
+     69 Linux jobs run in four waves where today's run in two, so a release run grows by about
+     **10 to 15 minutes** of wall clock, and the tag run by about as much again for the release
+     tier (INFERRED from the packing).
+   - **Caps** by the rule: about 47 T for the normal tier.
+2. **Decision 7's 15 T threshold cannot be met as written.** Even all of scikit-learn (9.61 T) in
+   the release tier leaves scipy's and statsmodels' 21.6 T in the normal tier. The default the
+   draft wrote (scikit-learn's `tests/test_common.py`, then its float32 cases) moves about 2.2 T
+   and 0.4 T (INFERRED from the folder's fuel and the 292 float32 cases of the drafting sample).
+   **The owner's question, re-asked by the lane with the measured numbers:** (a) accept a normal
+   tier of about 31 T (no move); (b) keep the 15 T threshold and extend the order past
+   scikit-learn to the heaviest normal files of statsmodels and scipy (statsmodels' `stats`,
+   `discrete`, `tsa`, `regression`; scipy's `stats`), about 16 T moved to the release tier, which
+   would then be at least 38 T; (c) a different threshold. Until the answer, the build packs the
+   normal tier as measured (option (a)), which every other answer only shrinks.
+3. **A test the judge's clock never lets end** (Decision 8 gains a row, and the spec gains a
+   kind): scipy's `signal/tests/test_signaltools.py::test_choose_conv_method[numpy]` times both
+   convolution methods until a fixed time passes (`measure=True`). Under the judge's counted clock
+   (each read advances 1 µs) it spent more than 3 T inside one session, and 600 G alone without
+   an outcome. It is deselected by node id, never run, as a trap is, with its own row: reason "it
+   repeats a convolution until the guest's clock has advanced a fixed time, which the judge's
+   counted clock makes take more than 600 G", closer: a judge follow-up the lane reserves (a
+   clock step for timed tests). Without it `signal`'s normal tier is 250.2 G.
+4. **statsmodels' import failures: six files, not two** (Decision 8's statsmodels row grows):
+   `discrete/tests/test_constrained.py` and `test_margins.py`, `emplike/tests/test_anova.py`,
+   `genmod/tests/test_glm_weights.py`, `stats/tests/test_oaxaca.py`,
+   `tsa/vector_ar/tests/test_vecm.py`, each loading a left-out dataset at import; and the
+   `left-out-datasets` class holds 832 run-time failures (`spector` 428, `cpunish` 230,
+   `star98` 65, `ccard` 42, `committee` 19, `scotland` 19, `fair` 10, `cancer` 7, `heart` 7, four
+   single ones). It is statsmodels' largest class by far: the owner's answer to question 83 is
+   what would empty it.
+5. **Two more markers for statsmodels' `.ini`** (Decision 6): `thread_unsafe` (pytest-run-parallel's,
+   313 uses) and `skip_randomstate_check`, both registered nowhere in its sdist; without them
+   three files of `base/` failed to collect.
+6. **scikit-learn's own wasm skip** (Decision 8, a row of its own): its
+   `callback/tests/conftest.py` ignores the folder on wasm (`pytest_ignore_collect` returning
+   `_IS_WASM`), so its 54 test functions are never collected. Upstream's choice; the README names
+   it; not a test the judge leaves out.
+7. **The classes, measured** (Decision 9; the memo's table): `no-native-id` is scipy's largest
+   (335: `io`'s temporary names made from `threading.get_native_id()`); `no-processes` (44, `os`
+   has no `pipe`), `no-threads` (39), `no-mmap` (16), `no-fp-exceptions` (12); two new ones,
+   `enotsup-io` (21 in `io`, `OSError: [Errno 58] Not supported`; the build names the call) and
+   `odr-stand-in-visible` (1: scipy's public-API check finds the `scipy.odr` stand-in module);
+   release-tier `wasm32-memory` (2). scikit-learn: `no-mmap` 1,536 of its 1,547 failures, and
+   `pillow-zlib-only` 4. statsmodels: `left-out-datasets` 832, and one `DLASCL` (a `nan` reaching
+   LAPACK). About 25 single failures across the three are read one by one in the build, each a
+   class with a closer or a finding.
+8. **Mode-gated skips, for the README** (Decision 7): scikit-learn 1,077 skip because
+   `SCIPY_ARRAY_API` is unset and 7,011 because an array-API backend is not installed; scipy 73;
+   statsmodels none. scikit-learn's 211 `numpydoc` skips name a pure test-only package the kit
+   lacks: a `kit_extra` candidate shared with 067 (Decision 6's "the survey confirms it" found
+   one), pinned by whichever of 067 and 095 lands second.
+9. **The start of a group costs 12 to 32 G** (Decision 11): 20.1 G for scipy, 26.2 G for
+   scikit-learn and 31.8 G for statsmodels with every ancestor imported first. Importing only a
+   group's own ancestors cut scipy's to 12.4 G, but statsmodels' tests import other packages'
+   `tests` (`statsmodels.multivariate.tests` from `sandbox`), so the generated `package_paths`
+   stays the family's whole list (Decision 4's rule) and the groups are made large, near the
+   480 G bound, so the starts stay a few percent of each.
+10. **The derived files, measured** (Decision 5): `boost.npz` 1,270,643 bytes (111 arrays,
+    5.78 G), `gsl.npz` 51,433 (3, 1.24 G), `local.npz` 203,438 (8, 1.57 G): 8.59 G per scipy
+    stage. **The bound becomes 2,541,286 bytes**, twice the largest measured output (the
+    confirmation's condition), in place of the INFERRED 16 MiB.
+11. **The keyword entries, by full id** (Decision 7; the confirmation's condition): 19
+    `test_rv_generic[<i>-distdata<i>]` ids under `TestMakeDistribution`, four `test_accuracy`
+    ids (`case68`, `case100`) under `TestTanhSinh`, and `test_axis_nan_policy_full or
+    (test_axis_nan_policy_fast and kruskal)`; each id checked against a collection with
+    `SCIPY_XSLOW=1` (`keywords.txt`). Their release session: 3.11 T, 4,832 passes.
+12. **Unchanged:** no trap; the guard held (only each package's `conftest.py` loaded from the
+    stage outside `tests`); every scipy not-selected file of Decision 8 is as drafted; the three
+    scikit-learn `mmap` files are as drafted.
+
+**What remains:** this delta's review; the owner's answer to item 2 (and to the other three
+defaults); then the build, from main after wave 09 and the chain, with each group measured as
+built (the survey measured folders, not the final groups), the release tier's `special` and
+`stats` measured to the end, and the about 25 single failures read.

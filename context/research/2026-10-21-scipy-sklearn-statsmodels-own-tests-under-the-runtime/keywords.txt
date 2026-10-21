@@ -1,0 +1,5 @@
+test_rv_generic cases: 19
+test_accuracy ids: 4
+K continuous: test_rv_generic[3-distdata3] or test_rv_generic[20-distdata20] or test_rv_generic[21-distdata21] or test_rv_generic[29-distdata29] or test_rv_generic[41-distdata41] or test_rv_generic[53-distdata53] or test_rv_generic[55-distdata55] or test_rv_generic[56-distdata56] or test_rv_generic[57-distdata57] or test_rv_generic[58-distdata58] or test_rv_generic[60-distdata60] or test_rv_generic[61-distdata61] or test_rv_generic[62-distdata62] or test_rv_generic[83-distdata83] or test_rv_generic[89-distdata89] or test_rv_generic[90-distdata90] or test_rv_generic[93-distdata93] or test_rv_generic[100-distdata100] or test_rv_generic[114-distdata114]
+K tanhsinh: test_accuracy[numpy-case100-0.5] or test_accuracy[numpy-case100-ref1] or test_accuracy[numpy-case68-0.5] or test_accuracy[numpy-case68-ref1]
+K axis_nan_policy: test_axis_nan_policy_full or kruskal or friedmanchisquare

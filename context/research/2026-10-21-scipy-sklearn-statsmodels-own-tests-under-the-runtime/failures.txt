@@ -1,0 +1,136 @@
+== scikit-learn normal: 1547
+   1536  OSError: mmap is unavailable on wasm#-wasi
+           sklearn/_loss/tests/test_loss.py::test_loss_dtype[1-None-None-None-float32-float32-True-HalfSquaredError]
+           sklearn/_loss/tests/test_loss.py::test_loss_dtype[1-None-None-None-float32-float32-True-AbsoluteError]
+           sklearn/_loss/tests/test_loss.py::test_loss_dtype[1-None-None-None-float32-float32-True-PinballLoss]
+      4  OSError: encoder jpeg not available
+           sklearn/datasets/tests/test_lfw.py::test_load_fake_lfw_people
+           sklearn/datasets/tests/test_lfw.py::test_load_fake_lfw_people_too_restrictive
+           sklearn/datasets/tests/test_lfw.py::test_load_fake_lfw_pairs
+      2  assert # == #
+           sklearn/preprocessing/tests/test_polynomial.py::test_sizeof_LARGEST_INT_t
+           sklearn/utils/tests/test_estimator_checks.py::test_check_estimator_callback
+      1  FileNotFoundError: [Errno #] No such file or directory: '/dev/null'
+           sklearn/linear_model/tests/test_theil_sen.py::test_verbosity
+      1  OSError: [Errno #] Not supported
+           sklearn/svm/tests/test_svm.py::test_linearsvc_verbose
+      1  AssertionError:
+           sklearn/tests/test_build.py::test_openmp_parallelism_enabled
+      1  NotADirectoryError: [Errno #] Not a directory: '/usr/local/lib/python#.zip/sklearn/__check_build'
+           sklearn/tests/test_check_build.py::test_raise_build_error
+      1  AssertionError: assert # == #
+           sklearn/utils/tests/test_estimator_checks.py::test_xfail_count_with_no_fast_fail
+== scipy normal: 478
+    335  AttributeError: module 'threading' has no attribute 'get_native_id'
+           scipy/fft/tests/test_backend.py::test_backend_call[fft-fft-mock0]
+           scipy/fft/tests/test_backend.py::test_backend_call[fft2-fft2-mock1]
+           scipy/fft/tests/test_backend.py::test_backend_call[fftn-fftn-mock2]
+     44  AttributeError: module 'os' has no attribute 'pipe'. Did you mean '.pipe#' instead of '.pipe'?
+           scipy/_lib/tests/test__util.py::test_pool
+           scipy/_lib/tests/test__util.py::test_mapwrapper_parallel
+           scipy/_lib/tests/test__util.py::test__workers_wrapper
+     36  RuntimeError: can't start new thread
+           scipy/fft/tests/test_basic.py::TestFFTThreadSafe::test_fft[numpy]
+           scipy/fft/tests/test_basic.py::TestFFTThreadSafe::test_ifft[numpy]
+           scipy/fft/tests/test_basic.py::TestFFTThreadSafe::test_rfft[numpy]
+     21  OSError: [Errno #] Not supported
+           scipy/io/tests/test_fortran.py::test_fortranfiles_read
+           scipy/io/tests/test_fortran.py::test_fortranfiles_mixed_record
+           scipy/io/tests/test_fortran.py::test_fortranfile_read_mixed_record
+     16  OSError: mmap is unavailable on wasm#-wasi
+           scipy/io/tests/test_netcdf.py::test_read_write_files
+           scipy/io/tests/test_netcdf.py::test_read_example_data
+           scipy/io/tests/test_netcdf.py::test_itemset_no_segfault_on_readonly
+     12  Failed: DID NOT WARN. No warnings of type (<class 'RuntimeWarning'>,) were emitted.
+           scipy/optimize/tests/test_linprog.py::TestLinprogSimplexNoPresolve::test_bounds_infeasible_2
+           scipy/sparse/tests/test_array_api.py::test_sparse_dense_divide[bsr]
+           scipy/sparse/tests/test_array_api.py::test_sparse_dense_divide[coo]
+      4  AssertionError:
+           scipy/io/tests/test_mmio.py::test_threadpoolctl[scipy.io._mmio]
+           scipy/io/tests/test_mmio.py::test_threadpoolctl[scipy.io._fast_matrix_market]
+           scipy/signal/tests/test_fir_filter_design.py::TestMinimumPhase::test_nyquist[numpy-float32-964]
+      3  RuntimeError: thread constructor failed: Not supported
+           scipy/stats/tests/test_qmc.py::TestVDC::test_van_der_corput
+           scipy/stats/tests/test_qmc.py::TestVDC::test_van_der_corput_scramble
+           scipy/stats/tests/test_qmc.py::TestHalton::test_workers
+      1  Failed: DID NOT WARN. No warnings of type (<class 'DeprecationWarning'>,) were emitted.
+           scipy/_lib/tests/test_deprecation.py::test_cython_api_deprecation
+      1  AssertionError: Found unexpected modules: ['scipy.odr']
+           scipy/_lib/tests/test_public_api.py::test_all_modules_are_expected
+      1  Failed: DID NOT RAISE <class 'ValueError'>
+           scipy/interpolate/tests/test_fitpack.py::TestSplder::test_kink
+      1  pytest.PytestUnraisableExceptionWarning: Exception ignored while finalizing file <_io.FileIO name='/upstream-s
+           scipy/io/tests/test_idl.py::TestCompressed::test_byte
+      1  Failed: DID NOT WARN. No warnings of type (<class 'scipy.io.wavfile.WavFileWarning'>,) were emitted.
+           scipy/io/tests/test_wavfile.py::test_read_early_eof_with_data
+      1  Failed: DID NOT RAISE <class 'scipy.special._sf_error.SpecialFunctionError'>
+           scipy/special/tests/test_sf_error.py::test_check_overflow_message
+      1  pytest.PytestUnraisableExceptionWarning: Exception ignored in: 'scipy.stats._qmc_cy.threaded_loops'
+           scipy/stats/tests/test_qmc.py::TestUtils::test_discrepancy_parallel
+== scipy release: 8
+      3  AssertionError:
+           scipy/special/tests/test_mpmath.py::TestSystematic::test_airyai_prime
+           scipy/special/tests/test_mpmath.py::TestSystematic::test_airybi
+           scipy/special/tests/test_mpmath.py::TestSystematic::test_bessely
+      2  AttributeError: module 'os' has no attribute 'pipe'. Did you mean '.pipe#' instead of '.pipe'?
+           scipy/_lib/tests/test_import_cycles.py::test_public_modules_importable_2
+           scipy/fft/tests/test_multithreading.py::test_mixed_threads_processes
+      2  ValueError: array is too big; `arr.size * arr.dtype.itemsize` is larger than the maximum possible size.
+           scipy/io/tests/test_wavfile.py::test_write_roundtrip_rf64
+           scipy/linalg/tests/test_decomp_cholesky.py::TestCholesky::test_int_overflow
+      1  RuntimeError: can't start new thread
+           scipy/sparse/linalg/_dsolve/tests/test_linsolve.py::TestSplu::test_threads_parallel
+== statsmodels normal: 836
+    428  FileNotFoundError: /usr/local/lib/python#.zip/statsmodels/datasets/spector/spector.csv
+           statsmodels/datasets/tests/test_data.py::test_dataset[spector]
+           statsmodels/discrete/tests/test_discrete.py::TestProbitNewton::test_fit_regularized_invalid_method
+           statsmodels/discrete/tests/test_discrete.py::TestProbitNewton::test_params
+    230  FileNotFoundError: /usr/local/lib/python#.zip/statsmodels/datasets/cpunish/cpunish.csv
+           statsmodels/datasets/tests/test_data.py::test_dataset[cpunish]
+           statsmodels/formula/tests/test_formula.py::test_patsy_lazy_dict
+           statsmodels/formula/tests/test_formula.py::test_formula_missing_data
+     65  FileNotFoundError: /usr/local/lib/python#.zip/statsmodels/datasets/star#/star#.csv
+           statsmodels/datasets/tests/test_data.py::test_dataset[star98]
+           statsmodels/emplike/tests/test_descriptive.py::TestDescriptiveStatistics::test_test_mean
+           statsmodels/emplike/tests/test_descriptive.py::TestDescriptiveStatistics::test_test_mean_weights
+     42  FileNotFoundError: /usr/local/lib/python#.zip/statsmodels/datasets/ccard/ccard.csv
+           statsmodels/datasets/tests/test_data.py::test_dataset[ccard]
+           statsmodels/regression/tests/test_regression.py::TestWLSExogWeights::test_params
+           statsmodels/regression/tests/test_regression.py::TestWLSExogWeights::test_standarderrors
+     19  FileNotFoundError: /usr/local/lib/python#.zip/statsmodels/datasets/committee/committee.csv
+           statsmodels/datasets/tests/test_data.py::test_dataset[committee]
+           statsmodels/genmod/tests/test_glm.py::TestGlmNegbinomial::test_params
+           statsmodels/genmod/tests/test_glm.py::TestGlmNegbinomial::test_standard_errors
+     19  FileNotFoundError: /usr/local/lib/python#.zip/statsmodels/datasets/scotland/scotvote.csv
+           statsmodels/datasets/tests/test_data.py::test_dataset[scotland]
+           statsmodels/genmod/tests/test_glm.py::TestGlmGamma::test_params
+           statsmodels/genmod/tests/test_glm.py::TestGlmGamma::test_standard_errors
+     10  FileNotFoundError: /usr/local/lib/python#.zip/statsmodels/datasets/fair/fair.csv
+           statsmodels/datasets/tests/test_data.py::test_dataset[fair]
+           statsmodels/genmod/tests/test_glm.py::TestTweedieLog15Fair::test_resid
+           statsmodels/genmod/tests/test_glm.py::TestTweedieLog15Fair::test_bse
+      7  FileNotFoundError: /usr/local/lib/python#.zip/statsmodels/datasets/cancer/cancer.csv
+           statsmodels/datasets/tests/test_data.py::test_dataset[cancer]
+           statsmodels/emplike/tests/test_origin.py::TestOrigin::test_params
+           statsmodels/emplike/tests/test_origin.py::TestOrigin::test_predict
+      7  FileNotFoundError: /usr/local/lib/python#.zip/statsmodels/datasets/heart/heart.csv
+           statsmodels/datasets/tests/test_data.py::test_dataset[heart]
+           statsmodels/emplike/tests/test_aft.py::Test_AFTModel::test_params
+           statsmodels/emplike/tests/test_aft.py::Test_AFTModel::test_predict
+      2  AssertionError: Function is marked as not warning but the following warnings were found:
+           statsmodels/base/tests/test_generic_methods.py::TestGenericGLM::test_zero_collinear
+           statsmodels/base/tests/test_generic_methods.py::TestGenericGLMPoissonOffset::test_zero_collinear
+      1  FileNotFoundError: /usr/local/lib/python#.zip/statsmodels/datasets/china_smoking/china_smoking.csv
+           statsmodels/datasets/tests/test_data.py::test_dataset[china_smoking]
+      1  FileNotFoundError: /usr/local/lib/python#.zip/statsmodels/datasets/copper/copper.csv
+           statsmodels/datasets/tests/test_data.py::test_dataset[copper]
+      1  FileNotFoundError: /usr/local/lib/python#.zip/statsmodels/datasets/fertility/fertility.csv
+           statsmodels/datasets/tests/test_data.py::test_dataset[fertility]
+      1  FileNotFoundError: /usr/local/lib/python#.zip/statsmodels/datasets/interest_inflation/E#.csv
+           statsmodels/datasets/tests/test_data.py::test_dataset[interest_inflation]
+      1  AttributeError: module 'os' has no attribute 'pipe'. Did you mean '.pipe#' instead of '.pipe'?
+           statsmodels/graphics/tests/test_functional.py::test_hdr_basic_brute
+      1  AssertionError: class: TestTTPowerOneS#, key: alpha, value: #, kwds: {'effect_size': #, 'nobs': #, 'alpha': No
+           statsmodels/stats/tests/test_power.py::TestTTPowerOneS1::test_roots
+      1  ValueError: On entry to DLASCL parameter number # had an illegal value
+           statsmodels/tsa/statespace/tests/test_structural.py::test_lltrend_cycle_seasonal_reg_ar1
