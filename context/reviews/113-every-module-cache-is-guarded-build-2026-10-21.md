@@ -180,8 +180,12 @@ diff and the run's ratchet lines.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. M1 —
-2. L1 to L4 —
+1. M1 — fixed in `21cc7296`: `_cache_chain` takes its prefixes from `Path(path).absolute()`,
+   keeping `..`; the two-`..` row failed on `a891dec5` and passes, beside a one-`..` row.
+2. L1 to L4 — L1 corrected in the landing notes (remeasured on `21cc7296`); L2 fixed, `_load`
+   catches `OSError` around `private()` (no row: only a patch of `PLATFORM.private` reaches the
+   gap); L3 fixed, a warning through one helper shared with `_store`; L4 fixed in `_load`'s
+   docstring and criterion 12. The specification's *Disposition of the build review* has each.
 
 ## Verdict
 

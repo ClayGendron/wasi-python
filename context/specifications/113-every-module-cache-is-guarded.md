@@ -676,6 +676,32 @@ raised three Lows, answered in the build:
     `ImportError`, `AttributeError` and `KeyError` around the password database; the row passes
     on the Windows leg (*Landing notes*).
 
+## Disposition of the build review
+
+The build review (`../reviews/113-every-module-cache-is-guarded-build-2026-10-21.md`,
+`b39cd22b`, "lands once M1 is answered") found no High, one Medium and four Lows; each is
+answered in `21cc7296`:
+
+1. **M1, a `..` after a link drops the link's folder from the judged chain** — fixed:
+   `_cache_chain` takes its prefixes from `Path(path).absolute()`, which keeps `..`, so each
+   prefix's identity is the folder the system reaches (Decision 1). The reviewer's case is
+   `test_a_cache_reached_through_a_link_then_dotdot_in_a_writable_grant_is_refused[2]`, failing
+   on `a891dec5` ("DID NOT RAISE", `build/113/dotdot-on-a891dec5.txt`) and passing now, beside
+   the one-`..` row `[1]`; criterion 3 names both.
+2. **L1, two sizes off** — corrected in *The sizes*, remeasured on `21cc7296`, with why the
+   first notes read 318 and 38.
+3. **L2, a file gone between the two `lstat`s fails the call** — fixed: `_load` catches
+   `OSError` around `private(cwasm)` and treats it as a miss (and `deserialize_file`'s
+   `OSError` as a stale file). No row: the only way between the two `lstat`s is to patch
+   `PLATFORM.private`, a seam the judge's rule would allow but the specification keeps out of
+   its checks; the path is read in the diff.
+4. **L3, an unusable cache folder is silent** — fixed: one helper, `_cache_warning`, gives
+   "not using the module cache at …: <strerror>" there and "not writing the module cache at …"
+   in `_store`.
+5. **L4, the docstring says the compare closes the window** — fixed: `_load`'s docstring says it
+   narrows, not closes, the window; criterion 12 names "the *Not protected* paragraph holding
+   both clauses".
+
 ## One line
 
 A call that does not use the shared module cache still refuses to give its guest a way to write
@@ -716,21 +742,24 @@ is writable and holds the module cache $WASI_PYTHON_CACHE names (…/fixtures/p5
 which later calls trust`; step 2, with every default, reports **compiled 1, loaded 0, written
 1**. The probe's 471 MB of fixtures were removed after.
 
-### The sizes (criterion 11; EXECUTED, `wc -l` and `ast` on `a891dec5`)
+### The sizes (criterion 11; EXECUTED, `wc -l` and `ast` on `21cc7296`)
 
-| module | base | built | ceiling |
+| module | base | built, after the build review | ceiling |
 |---|---|---|---|
 | `_platform.py` | 1,407 | **1,464** | 1,500 |
-| `_places.py` | 524 | 583 | 1,500 |
-| `_engines.py` | 236 | 318 | 1,500 |
+| `_places.py` | 524 | 585 | 1,500 |
+| `_engines.py` | 236 | 329 | 1,500 |
 | `_call.py` | 1,289 | 1,295 (the call's arguments, one per line, by `ruff format`) | 1,500 |
 | `_sessions.py` | 1,120 | 1,120 | 1,500 |
 
-Functions (lines, ceiling 80): `_judge` 52, `_runtime_folders` 48, `_walk_grants` 38,
-`_module_miss` 38, `_store` 27, `_load` 26, `_cache_chain` 23, `_chain` 21, `_caches` 20,
-`_cache_dir` 9, `_home` 7, `_spelled` 4; `_Posix.private` 18, `_Windows.private` 14,
-`_Posix.default_cache_dirs` 13, `_Windows.default_cache_dirs` 5, `_not_used` 8, `_one_file` 4.
-`LONG_FUNCTIONS` and `SEAM_ALLOWED` unchanged; not structural.
+Functions (lines, ceiling 80): `_judge` 52, `_runtime_folders` 48, `_module_miss` 42,
+`_walk_grants` 38, `_load` 31, `_cache_chain` 25, `_store` 22, `_chain` 21, `_caches` 20,
+`_cache_dir` 9, `_home` 7, `_cache_warning` 5, `_spelled` 4, `_file_stamp` 2; `_Posix.private`
+18, `_Windows.private` 14, `_Posix.default_cache_dirs` 13, `_Windows.default_cache_dirs` 5,
+`_not_used` 8, `_one_file` 4. `LONG_FUNCTIONS` and `SEAM_ALLOWED` unchanged; not structural.
+On `a891dec5` `_engines.py` was 321 lines and `_module_miss` 41 (the build review's L1): the
+first notes' 318 and 38 were measured before mypy's fix in `_module_miss` (three lines that
+type its module).
 
 ### The fast tier
 
@@ -797,8 +826,8 @@ Run **39624848889** on `a891dec5`, dispatched by the builder with no other run l
    module cache at …", and the module stays in memory; the specification said only that the
    call goes on.
 4. A cache folder that cannot be made or read (an `OSError` from `private()`) also leaves the
-   module in memory, where it used to raise; the same rule, "no state of the cache folder makes
-   a call fail".
+   module in memory, where it used to raise, with a warning (the build review's L3); the same
+   rule, "no state of the cache folder makes a call fail".
 5. The helper that compares two `lstat`s is `_file_stamp`: the fast tier found `_stamp` bound
    in `_artifacts.py` too (`test_every_runner_name_is_defined_in_one_module`), and the name was
    changed before the dispatch.
