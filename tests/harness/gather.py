@@ -635,8 +635,11 @@ def collect(
             # (deselected in a normal shard, run in a release one), so the gather's collection
             # must, or every run is red at G3 and no move between tiers reaches G5. The plugin
             # is named, since it takes --tier and its conftest is read after the arguments.
+            # faulthandler is left alone: called inside a judge run (its own unit rows), a nested
+            # session that enabled and then disabled it would put back the default handlers and
+            # drop wasmtime's, and the next guest trap on Linux would kill the run (SIGILL).
             argv = ["--collect-only", "-qq", "-p", "no:cacheprovider", "-p", "harness.plugin"]
-            argv += ["--tier", "release"]
+            argv += ["-p", "no:faulthandler", "--tier", "release"]
             code = pytest.main(argv, plugins=[c])
     finally:
         os.chdir(here)
