@@ -192,3 +192,83 @@ diff and the run's ratchet lines.
 **Lands once M1 is answered**: the `..`-after-a-link spelling judged through
 `Path(path).absolute()` with its row seen failing first, or answered in writing; the Lows are
 write-ins.
+
+## Confirmation
+
+- **Date:** 2026-10-21. **Reviewer:** the same agent as above. **Box:** 30 minutes.
+- **Read:** `git diff e4f0252c 21cc7296 -- src tests` and the specification's *Disposition of the
+  build review*, on `a1a1c346`. This section is committed on `review/113-build-confirm`, since
+  `review/113-confirm` is the pre-build reviewer's branch (`35ec623f`, in another worktree) and was
+  left as it is.
+- **Run:** the builder's **39644201639** on `21cc7296`, **not finished by the end of this box** (EXECUTED,
+  `gh run view 39644201639 --json jobs` at 13:56: head `21cc7296`; one job success, two in
+  progress, "build and judge (arm64 macOS)" and "rebuild from the pins (ubuntu-24.04)"; no judge
+  leg, Windows included, has started; nothing failed). Its read-back is the lane's or the
+  builder's: every red line a GREW line or G7, and none is expected here, since the change is
+  runner code and two new rows.
+
+**Re-ran** (EXECUTED; outputs under `build/113r/` in this worktree, against
+`WASI_PYTHON_ARTIFACTS=…/build/artifacts`, `SHA256SUMS` `d0d91cef`):
+
+- My route (`route/dotdot.py`, `route/dotdot-21cc.log`): the one-`..` and the two-`..` spellings
+  are both **refused** now. On `a891dec5` the two-`..` grant passed with exit 0.
+- `tests/unit/test_runner_module_caches.py`: **36 passed** (34 earlier rows and the two new
+  `[1]`, `[2]` rows).
+- The rules checks by node id (line ceiling, eighty lines, names bound twice, module-level
+  mutable, the platform chosen once, no `context/` names in or outside `src/`, the seam
+  allowance) and `tests/unit/test_runner_package.py`: **12 passed**. `ruff check` and
+  `ruff format --check`: clean. Sizes: `_platform.py` 1,464, `_places.py` 585, `_engines.py`
+  329, each under 1,500.
+- New spellings (`route/links2.py`, `route/links2.log`; the guest runs `pass`):
+  - `..` after two links (`a/l1 -> p`, `p/l2 -> x/y`, cache `a/l1/l2/../../c`): a writable grant at
+    `a` and one at `p` are both **refused**.
+  - A link whose target has `..` (`a/link -> ../x/y/..`, cache `a/link/c`): a grant at `a` is
+    **refused**.
+  - A link whose target climbs through a **second link in another folder**
+    (`a/link -> ../m/n/..`, `m/n -> x/y`, cache `a/link/c`, which is `x/c`): a grant at `a` is
+    refused; a writable grant at **`m` passes** (exit 0). See L5.
+
+**The answers:**
+
+1. **M1: closed.** `Path(path).absolute()` keeps `..`, so every prefix of the path as written is
+   judged by the folder the system reaches. My case is refused, and the new row holds it. On
+   Windows, Win32 collapses `..` by spelling before the file system sees the path, so there the
+   prefixes can only refuse more.
+2. **L1: closed.** The sizes are corrected in the notes.
+3. **L2: closed; the broader catch is safe.** Every new `except` returns "not loaded" (`None`):
+   the `OSError` around `private()` gives no load and no write, and an `OSError` from
+   `deserialize_file` gives no load and a recompile that replaces the file. The only outcome an
+   attack wants is a load, and no new path can return a module. Nothing new is silenced either:
+   the judge's refusals are `ValueError`s raised in `_walk_grants`, before `_module`, and these
+   `except` clauses do not catch them. A file that `private()` refuses still warns as before. A
+   stale or corrupt file was already a silent recompile (`WasmtimeError`), and an `OSError` there
+   is the same signal. No row is acceptable: the path is read in the diff, and the only way to
+   reach it is a patch the specification keeps out of its checks.
+4. **L3: closed.** `_cache_warning` warns for an unusable folder and for a failed write. A note,
+   no fix asked: its `stacklevel=6` points one frame higher from `_module_miss` than from
+   `_store`, which sits one call deeper. The warning text is what an embedder reads, and it names
+   the path in both.
+5. **L4: closed.** The docstring now says "narrows, not closes", and criterion 12 is reworded.
+
+**New finding:**
+
+- **L5 (Low). A link met inside another link's target is judged only by where it resolves**
+  (`_places._cache_chain`). The chain holds the resolved folder and its ancestors, plus every
+  prefix of the path as written. A folder the system walks *while resolving a link's target*,
+  here `m`, which holds `n`, is in neither. A guest with a writable grant at `m` could re-point
+  `n` (a relative link inside its grant) and so choose where a later call's cache resolves
+  (EXECUTED at the judge only: the grant passes; nothing was planted).
+  - **Why Low, and why it does not block:** the README promises the folders "on its path as
+    written", and `m` is on a link's target, not on that path. It needs a trusted
+    `$WASI_PYTHON_CACHE` or `cache_dir` through a link whose target climbs with `..` out of a
+    second link. On POSIX, under the usual umask, the `0700` folder check still refuses a folder
+    a guest makes.
+  - **Fix**, now or as the roadmap's next line for the cache's path: resolve the path one
+    component at a time, as `os.path.realpath` does, and add to the chain the identity of every
+    folder that holds a link met, in the path or in any link's target. Add a row with case (c)
+    above, seen failing first. Or else state the limit in the README's Safety bullet: "a link
+    whose own target passes through further links is judged by where it resolves".
+
+**Confirmation verdict: lands**, once run 39644201639 is read back green on three systems with
+no red line (still running when this box ended). M1 and L1 to L4 are closed. L5 is a Low that
+does not block: a write-in, or a roadmap line for the next change to the cache's path.
