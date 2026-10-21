@@ -1,9 +1,14 @@
 # 113: every module cache is guarded
 
-- **Status:** **built 2026-10-21 on `a891dec5`** (the code; the commit after it carries these
-  notes, `context/` only) on `spec/113-every-module-cache-is-guarded`, from main `1875d4cd`;
-  the release workflow's run 39624848889 on `a891dec5` green on three systems on its second
-  attempt (*Landing notes*); awaiting its build review (a different agent). Before:
+- **Status:** **built 2026-10-21 on `21cc7296`** (the code, after the build review; the commits
+  after it are `README.md` and `context/` only) on `spec/113-every-module-cache-is-guarded`,
+  from main `1875d4cd`; the release workflow's run **39644201639** on `21cc7296` green on three
+  systems on its first attempt (*Landing notes*). **Build-reviewed**
+  (`../reviews/113-every-module-cache-is-guarded-build-2026-10-21.md`): "lands once M1 is
+  answered", M1 and L1 to L4 answered in `21cc7296`, and its confirmation (`872cbf80`) says
+  **lands** once this run reads green, which it does; L5 documented, its fix reserved after
+  0.1.0. Awaiting wave 11. First built on `a891dec5`, whose run 39624848889 was green on its
+  second attempt. Before:
   **drafted 2026-10-21** from main
   `1875d4cd`, with its checks written first and seen failing on main's code (Decision 6). The
   worktree is
@@ -747,7 +752,9 @@ here is under `build/113/` in the builder's worktree.
   (`swap-on-main.txt`, main's `src/` exported with `git archive 1875d4cd` and put first on
   `PYTHONPATH`).
 - On the build, all **thirty-four** rows pass (EXECUTED, `checks-built.txt`, 27.15 s; again
-  after the rename below, `after-rename.txt`).
+  after the rename below, `after-rename.txt`). After the build review, with M1's two rows,
+  **thirty-six** pass on `21cc7296` (EXECUTED, `checks-built-2.txt`); the two-`..` row failed on
+  `a891dec5` first (`dotdot-on-a891dec5.txt`).
 - The existing checks criteria 7 and 10 name, by node id (EXECUTED, `existing-built.txt`): 46
   passed, 2 skipped (`test_runner_grants.py`'s two Windows-only rows, as on main):
   `test_v1_2_hostile_guest.py::test_a_bad_grant_is_refused_before_any_work` (the five message
@@ -793,11 +800,28 @@ its end; no `build/lane.lock`). On the build before the rename: 2,697 passed, **
 `_artifacts.py` and `_engines.py`), ratchet lost 0, grew 0 (`fast-tier.txt`). The helper was
 renamed `_file_stamp`, and on `a891dec5` itself: **2,698 passed, 51 skipped, 0 failed** in
 7 min 42 s; `643/889 pass · 0 gap · 42 blocked · 0 fail`, unit suite 2055/2064; ratchet lost 0,
-absent 0, unrun 0, gained 0, grew 0 (EXECUTED, `fast-tier-a891dec5.txt`).
+absent 0, unrun 0, gained 0, grew 0 (EXECUTED, `fast-tier-a891dec5.txt`). After the build
+review, on `21cc7296`: **2,700 passed, 51 skipped, 0 failed** in 8 min 1 s; ratchet lost 0,
+absent 0, unrun 0, gained 0, grew 0 (EXECUTED, `fast-tier-m1.txt`).
 
 ### The release workflow (criterion 14)
 
-Run **39624848889** on `a891dec5`, dispatched by the builder with no other run live.
+**On `21cc7296`, after the build review: run 39644201639**, dispatched by the builder with one
+other run live; **green on its first attempt** (EXECUTED, `gh run view 39644201639 --json jobs`,
+the gather's `release-record-1` in `build/113/record-2/`, the run's log `run-39644201639.log`):
+
+- 40 jobs passed (build and judge, two rebuilds, same-bytes, 32 judge legs, gather, three verify
+  jobs); attest, publish and PyPI skipped, as on every dry run.
+- The gather: **797/889 pass · 85 gap · 7 blocked · 0 fail**, unit suite 4832/4862 with 30
+  skipped, three systems on `d4192605…`, set `d0d91cef`; the record's commit `21cc7296`.
+- The ratchet, all 34 lines: lost 0, absent 0, unrun 0, grew 0. No red line, so no GREW and no
+  G7 line; no lost pass.
+- Per system: **darwin** 2048/2056 passed (8 skipped), **linux** 2048/2056 (8 skipped),
+  **win32** 726/740 (14 skipped). The four Windows legs (own-guest, own-runner, own-embedding,
+  upstream-windows) and `verify (windows-2025)` green; own-runner ran all thirty-six rows of the
+  new file with none skipped (36 dots), M1's two link rows among them.
+
+**First, on `a891dec5`: run 39624848889**, dispatched by the builder with no other run live.
 
 - **Attempt 1:** `build and judge (arm64 macOS)` failed at "Download the pinned inputs" on a DNS
   error (`curl: (6) Could not resolve host: www.python.org`, four times, EXECUTED
@@ -823,18 +847,19 @@ Run **39624848889** on `a891dec5`, dispatched by the builder with no other run l
 
 ### For the lane, as built
 
-- **Claim list** (each line "113:"): **new checks**, the thirty-four rows of
-  `tests/unit/test_runner_module_caches.py` (Decision 6's thirty-three and L9's swap row);
+- **Claim list** (each line "113:"): **new checks**, the thirty-six rows of
+  `tests/unit/test_runner_module_caches.py` (Decision 6's thirty-three, L9's swap row and M1's
+  two link-then-`..` rows);
   **changed checks:** none (`tests/release_shards.toml` gains the file's line in `own-runner`);
   **retired:** none; **lost passes:** none; **fuel and bytes:** none grow; no artifact byte
   changes. The **judge hash changes** in `tests/unit/test_runner_module_caches.py` and
   `tests/release_shards.toml`.
-- **The flags**, as in *For the lane*, with "thirty-three" read as "thirty-four" in
+- **The flags**, as in *For the lane*, with "thirty-three" read as "thirty-six" in
   `--accept-judge`:
 
   ```
   --accept "113: every module cache a process of this user could use is judged in every call, whatever its own cache_dir: a writable grant or root at, inside or above the call's own cache, the folder WASI_PYTHON_CACHE names or any platform default (with or without XDG_CACHE_HOME or LOCALAPPDATA, under HOME and the system's home), made or not, or through a folder on the cache's path as written, is refused in run, run_async and Session; on POSIX the cache folder is used only at 0700 and a .cwasm loaded only at 0600 with one name, one that is not compiled again and replaced; Windows refuses links and second names in the cache"
-  --accept-judge "113: one unit file of thirty-four rows reproduces the 0.1.0 security review's planted compiled module by every route its pre-build review named and holds the cache's modes, in the own-runner shard on three systems; no existing expectation edited"
+  --accept-judge "113: one unit file of thirty-six rows reproduces the 0.1.0 security review's planted compiled module by every route its pre-build review named and holds the cache's modes, in the own-runner shard on three systems; no existing expectation edited"
   ```
 
 ### Differences from the specification's text, each with its reason
@@ -862,8 +887,9 @@ Run **39624848889** on `a891dec5`, dispatched by the builder with no other run l
 Before you ask for a review:
 - [x] rebased onto main's tip (or the named stacked base) today; the base commit in the Status
       line: main 1875d4cd, today's tip; nothing landed since.
-- [x] CI run dispatched on this exact commit and read: 39624848889 on a891dec5, green on its
-      second attempt (the first failed on a DNS error before any check); no red line; the
+- [x] CI run dispatched on this exact commit and read: 39644201639 on 21cc7296 (the code
+      after the build review), green on its first attempt; before it 39624848889 on a891dec5,
+      green on its second (the first failed on a DNS error before any check); no red line; the
       Windows legs green.
 - [x] every number from a measured run on this base, labelled EXECUTED; no growth.
 - [x] "For the lane": the claim list, the exact flags beginning "113:", the wave kind
@@ -877,6 +903,6 @@ Before you ask for a review:
 - [x] packages.toml: no package added; README rows changed: the cache paragraph, the Safety
       bullet, the two cache_dir lines, one Not protected item.
 - [x] CHANGELOG under the one unreleased section; no questions raised.
-- [x] ruff check, ruff format --check, mypy: clean; the fast tier: 2,698 passed, 0 failed on a891dec5, output in
+- [x] ruff check, ruff format --check, mypy: clean; the fast tier: 2,700 passed, 0 failed on 21cc7296, output in
       build/113/.
 ```
