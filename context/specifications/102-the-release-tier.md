@@ -1083,6 +1083,13 @@ The build, below, as it goes.
    copied from the main tree) the sixteen pass by node id. The ratchet's other red line is
    `moved 17`, the move to claim.
 
+10. **A shard leaves moves to the gather** (Decision 5, a difference). The first branch runs
+    (`39606885378`, `39606902868`, cancelled) failed in the build shard on "17 check(s) moved
+    between tiers": every shard collects the upstream file, so a move turned every leg red and
+    the gather would never run. A shard never accepts; the gather names each move once (G5), and
+    the lane's acceptance needs `--accept-tier-move`. So a shard run's ratchet lists no move. A
+    unit row, seen failing first (`build/102/fail-10-shard-moves.log`).
+
 **What waits for wave 09** (the lane's ruling): the rebase onto main; the survey (Decision 11)
 on main's set after 100 (done, item 5, on wave 09's tip before it landed); the TOML groups,
 release lists and shard entries from it (done); the context-only delta review the survey asks

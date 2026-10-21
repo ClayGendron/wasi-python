@@ -120,11 +120,13 @@ def compare(run: dict, accepted: dict | None, repo: Path = paths.REPO) -> Ratche
     collected_files = set(run.get("collected_files", []))
     release = set(run.get("release_checks", []))
     normal_run = run_tier(run) == "normal"
+    shard_run = bool(meta.get("shard"))
     for node, acc in sorted(accepted["checks"].items()):
         now = run_checks.get(node)
         here = now is not None or node in deselected  # collected by this run
         was_release = acc.get("tier") == "release"
-        if here and (node in release) != was_release:  # a move this run can see
+        # A move this run can see; a shard never accepts, so the gather names it there (G5).
+        if here and not shard_run and (node in release) != was_release:
             r.moved.append(node)
             if now is None or now["status"] not in ("pass", "fail", "gap"):
                 continue  # not run here: the move is all there is to say

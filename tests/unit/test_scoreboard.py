@@ -645,3 +645,12 @@ def test_a_run_that_did_not_collect_a_moved_check_does_not_report_it() -> None:
     rec["collected_files"] = [FILE]
     r = scoreboard.compare(rec, accepted({A: acc(), CORE: acc(fuel=5)}))
     assert r.moved == [] and r.red(partial=False) == []
+
+
+def test_a_shard_run_leaves_moves_to_the_gather() -> None:
+    """A shard never accepts, and every shard collects the upstream file: a move would turn every
+    leg red. The gather names each move once (G5); the shard's ratchet does not."""
+    rec = tiered({CORE: check("deselected", area="v1.3")}, release=[CORE], deselected=[CORE])
+    rec["meta"]["shard"] = "upstream-plot-a"
+    r = scoreboard.compare(rec, accepted({CORE: acc(fuel=5)}))
+    assert r.moved == [] and r.red(partial=False) == []
