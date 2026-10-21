@@ -306,3 +306,109 @@ The builder's answers (2026-10-21), each detailed in the specification's landing
 Does not land yet: H1, the gather's collection leaves out every release-tier check, so the gather
 is red on every run, main's dry run and the tag included. Once H1 is fixed and shown by replay,
 it lands when M1 and M2 are answered in writing and L1 to L3 are written in.
+
+## Re-review (the same reviewer, 2026-10-21, on `b58ec56b`)
+
+- **Reviewed:** `git diff 492b4586 b58ec56b`; code commits `7e923a73` (H1) and `03c1bd33`
+  (faulthandler), the rest `context/` only (the specification, `decisions.md`, this file's
+  Disposition)
+- **Run:** none of its own; the builder's runs 7 (`39630805417`, on `7e923a73`) and 8
+  (`39636646869`, on `03c1bd33`, the exact code tip) read back
+- **Box:** 40 minutes; finished inside it
+- **Re-ran** (EXECUTED; wave 10's set `d0d91cef` linked read-only; no `build/lane.lock`; the fast
+  slot held by another agent, so single node ids):
+  - Run 7: `judge (ubuntu-24.04, own-rest)` failed with exit code 132 (SIGILL) in
+    `tests/unit/test_guest.py`, right after `tests/unit/test_gather.py`. Run 8: 41 success,
+    6 skipped, 1 failure, the macOS upstream leg on the claimed `cpython-fs` growth; `own-rest`
+    green on all three systems.
+  - **The gather replayed over run 8's 34 records** at `03c1bd33` (as before: laid out by job,
+    SHA-256s handed on, a branch dispatch's variables, `TIER=normal`): exit 1 on **exactly 18**
+    red lines: `G5 macos/upstream-macos: grew …[cpython-fs]: fuel 63478190051 -> 63521999127`
+    and the seventeen `G5 …[contourpy-…]: accepted in the normal tier, release-tier now`
+    (`filled-1` to `-7`, `-9` to `-11`, `lines-1` to `-7`). No G3 line.
+  - **Run 6's release records through the fixed gather** (`TIER=release`; the records are one
+    commit older, so every record's G2 commit and judge-hash lines are expected and set aside):
+    the same 17 moves and the growth, and two "G3 …/own-rest: ran other unit tests (1484 against
+    1486)", H1's two new rows. No collection, "selects nothing" or "ran other goal checks" line.
+    So the release-run shape holds too, short of a release run on the fixed commit.
+  - `gather.collect()` at `b58ec56b`: 919 goal checks, 2,200 unit nodes (2,088 at `1ebb992f`).
+  - The sixteen checks of the builder's item 9, by name, `-n 3`: 16 passed; ratchet `lost 0 ·
+    grew 0`.
+  - `tests/unit/test_gather.py`: 107 passed. `ruff check`, `ruff format --check`: clean.
+
+### Each answer against the finding
+
+1. **H1 — closed.** `collect()` passes `--tier release` and names the plugin
+   (`tests/harness/gather.py:641-643`). The replay above shows exactly the claimed lines. The two
+   new rows (READ: seen failing first, `fail-12-collect-replay.log` in the builder's worktree)
+   hold the collection and a plugin-written replay. The `if:` half waits for the wave's dry run,
+   as this review allowed; the lane reads the gather job's conclusion there (success, not
+   skipped).
+2. **`03c1bd33`, faulthandler — safe, and the right scope.** The mechanism is sound (READ, and it
+   matches the repository's own precedent: `tests/conftest.py` already runs every pytester
+   session with `-p no:faulthandler` for this very reason, since spec 082). A nested session's
+   faulthandler plugin disables and re-enables faulthandler at its end. That restores the
+   handlers faulthandler saw first and drops wasmtime's, which wasmtime installed later. On Linux
+   wasmtime traps by signal, so the next guest trap kills the process. Darwin traps through Mach
+   ports, which is why no local run saw it. What it hides: nothing the judge reads. Inside a judge
+   run, the outer session's faulthandler stays as it was, since the nested session no longer
+   touches it. In the gather job, where `collect()` is the only session, a crash during
+   collection would lose only Python's traceback dump; the exit code and the red gather remain,
+   and no check reads faulthandler's output. The scope is the one call that needs it: the nested
+   collection, not the judge's own session. A new failure mode wants a check (AGENTS.md rule 3).
+   Run 8's Linux `own-rest` leg is one by accident of shard order, and darwin cannot see it; L4.
+3. **M1 — answered; the reason is now true.** The claim's and the flag's CPython numbers are
+   this review's to the digit (EXECUTED in the first round: `cpython-fs` +43.8 M, `-a` +43.3 M,
+   `-b` +53.0 M, `-c` +73.8 M, on `d0d91cef`). The separation is READ, not re-run (this review
+   edits no code): the base's driver with all thirteen JSONs staged gives the accepted fuel to the
+   instruction for `cpython-fs` and `-b`. That agrees with this review's bisection to `bcaae57a`,
+   which changes only those two things in the guest's view. It also explains the set-to-set
+   variance (3.7 M on wave 09's set, 43.8 M here) as layout, not work, with the builder's
+   leaner-variant numbers behind it. The cost is real, deterministic and a consequence of
+   Decision 4 plus one diagnostic line; accepting it under rule 5 is right. The contourpy figures
+   in the same string are still the survey's set's, unlabelled; L5.
+4. **M2 — answered; the wording is faithful, with one loophole to close.** `decisions.md` records
+   the owner's answer, "Allow it for that case only", for a specification that changes the
+   release-tier CI job itself, and run 6 stands as 102's proof. The specification says so in its
+   Kind line, Decision 1's row, "Why the input exists", Decision 6, criterion 6, the AGENTS.md
+   text and the 067 lines (READ). But both texts gloss "the job itself" as "the `judge-release`
+   job, the release shards' plan, the gather's release half". 067 and 095 add release shards to
+   `tests/release_shards.toml`, which reads, literally, as changing "the release shards' plan".
+   That is the case the owner's rule forbids. The specification's own next sentence (067 and 095
+   prove theirs locally) shows the intent, but the gloss in `decisions.md` is what a later builder
+   will read. L6.
+5. **L1 — closed.** `units = 112`, EXECUTED (2,088 to 2,200). The claim block is complete: `new`
+   (19 suites, 2 classes), `changed` (the 17 moved and 3 normal contourpy rows), `grows` (six
+   rows), `passes` and `retired` empty, the growth reason and units; the goal checks 898 to 919
+   with both tiers, 881 in the normal tier, as claimed.
+6. **L2, L3 — closed** (READ: item 11's numbers; the four self-check items reworded). The fast tier:
+   the builder's `fast-5.log` (READ, its worktree) shows 2,847 passed, 0 failed, the ratchet's one
+   red line `moved 17`; this review's run of the sixteen by name on wave 10's set, 16 passed, grew
+   0, confirms the failures were the set, not 102.
+
+### New findings, write-ins
+
+7. **L4 — the SIGILL has no check that darwin can see** (`tests/harness/gather.py:641-643`).
+   **Fix:** a rules row: every in-process `pytest.main(` under `tests/` passes
+   `-p no:faulthandler` (today only `gather.collect()`; pytester's sessions are already held by
+   `tests/conftest.py`). Or a unit row asserting that `collect()`'s argv carries it. Either is seen
+   failing first by dropping the flag.
+8. **L5 — the contourpy figures in the growth reason are the survey's set's**
+   (`102-the-release-tier.md`, the claim's `growth` and `--accept-growth`). **Fix:** label them
+   "(the survey, on 142bdd38)"; the lane's darwin acceptance measures them on this set, and the
+   flag's text follows its numbers. The `--accept` reason's "8.37 T" may read "8.36 T on
+   d0d91cef" (item 12).
+9. **L6 — "the release shards' plan" in the M2 gloss admits what the owner forbade**
+   (`context/decisions.md`, "The one branch-run exception"; the specification's Decision 1 row
+   and "Why the input exists"). **Fix**, for the lane, which writes `decisions.md`: "(the
+   `judge-release` job, the release pseudo-system's rules in `tests/harness/shards.py`, the
+   gather's release half); adding or re-packing release shards for a package's groups is not such
+   a change". The same words go in the specification's two places. A context-only text; it needs
+   no new round.
+
+### Re-review verdict
+
+Lands. L4 to L6 are Lows with their fix text and need no further round: L4 is the builder's
+(code), L5 the builder's or this reviewer's (context), L6 the lane's (`decisions.md`). H1 is fixed
+and shown by replay over the exact code tip's records. M1 and M2 are answered in writing with measured numbers and the owner's words. The
+`if:` half of criterion 7 is the lane's to read at the wave's dry run.
