@@ -1,0 +1,42 @@
+== scipy: 4212 skips
+    1547  Skipped: feature not implemented
+     300  Skipped: impossible combination
+     196  Skipped: Bool comparisons only implemented for BSR, CSC, and CSR.
+     173  Skipped: specific to poisson#d and poisson#d cases
+     171  Skipped: tfqmr specific test
+     166  Skipped: fblas_# is not available
+     140  Skipped: `# < p < m` and `# < q < m` must hold
+     137  Skipped: pydata/sparse not installed
+     125  Skipped: m = n != # is not a case that needs to be tested here.
+     102  Skipped: Test fails and may be slow.
+      90  Skipped: linsolve for #-bit indices not available
+      73  Skipped: MArray is only available if SCIPY_ARRAY_API=#
+  mode or backend skips: 117
+== scikit-learn: 9716 skips
+    3605  Skipped: torch is not installed: not checking array_api input
+    1933  Skipped: dpnp is not installed: not checking array_api input
+     989  Skipped: array_api_strict is not installed: not checking array_api input
+     747  Skipped: SCIPY_ARRAY_API is not set: not checking array_api input
+     484  Skipped: cupy is not installed: not checking array_api input
+     330  Skipped: SCIPY_ARRAY_API not set, or versions of NumPy/SciPy too old.
+     211  Skipped: could not import 'numpydoc': No module named 'numpydoc'
+     193  Skipped: could not import 'polars': No module named 'polars'
+     164  Skipped: skipped on #bit platforms
+     164  Skipped: polars is not installed: not checking set output
+      80  Skipped: could not import 'lightgbm': No module named 'lightgbm'
+      70  Skipped: could not import 'pyarrow': No module named 'pyarrow'
+  mode or backend skips: 8153
+== statsmodels: 417 skips
+      61  Skipped: X#/X# not available
+      43  Skipped: unconditional skip
+      30  Skipped: Fails on # bit systems
+      27  Skipped: Matplotlib uses different backend in WASM/Pyodide
+      16  Skipped: model AMN not implemented or not converging in R
+      16  Skipped: model AAM not implemented or not converging in R
+      16  Skipped: model AMA not implemented or not converging in R
+      16  Skipped: model AMM not implemented or not converging in R
+      16  Skipped: model MMA not implemented or not converging in R
+      15  Skipped: not available yet
+      15  Skipped: TODO: This test is skipped since an exception is currently raised if k_posdef > k_states. H
+      12  Skipped: Not implemented
+  mode or backend skips: 0
