@@ -140,10 +140,11 @@ for raw in sys.stdin.buffer:
     handle(pid, call, rest_args)
 
 orphans = 0
-for pid, events in pending.items():
+while pending:
+    pid, events = pending.popitem()
+    cwd.setdefault(pid, None)
     for call, a in events:
         orphans += 1
-        cwd.setdefault(pid, None)
         handle(pid, call, a)
 stats["orphan_lines_resolved_without_a_cwd"] = orphans
 stats["paths"] = len(touched)

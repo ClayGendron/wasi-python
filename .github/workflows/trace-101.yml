@@ -54,6 +54,7 @@ jobs:
           wc -l "$RUNNER_TEMP/trace/touched.tsv"
           cut -f1 "$RUNNER_TEMP/trace/touched.tsv" | head -400
       - name: The build-record checks, their read lines printed
+        if: always()
         run: |
           uv run pytest -s -rA -p no:cacheprovider \
             "tests/checks/test_v1_5_rebuild_from_pins.py::test_every_compile_contracts_nothing" \
@@ -65,6 +66,7 @@ jobs:
             "tests/checks/test_v1_2_hostile_guest.py::test_recursion_raises_under_the_wasmtime_cli" \
             2>&1 | tee "$RUNNER_TEMP/trace/m1-linux.txt"
       - name: The set's own SHA256SUMS
+        if: always()
         run: cp build/artifacts/SHA256SUMS "$RUNNER_TEMP/trace/SHA256SUMS"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
