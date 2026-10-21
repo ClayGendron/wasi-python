@@ -365,3 +365,78 @@ answer" (the lane files them).
 Not fit to build yet: H1 (`SCIPY_XSLOW` is read by scipy's tests outside its marker, so the tier
 split either runs upstream's very slow cases in the normal tier or runs them in neither); fit to
 build once H1 and M1 are written in and confirmed, the Lows answered in writing.
+
+## Confirmation
+
+- **By:** the reviewer, on 2026-10-20, against `d9310d4`. That is the branch rebased onto the
+  chain's tip `727bd4c`, with the Disposition above. I read the revised Decisions 1, 4, 5, 7, 8,
+  12 and 14, the criteria, the price and *For the lane* in the specification. I checked them
+  against the pinned sdists again, as data. No guest was run.
+- **H1 — confirmed.**
+  - `env` is a family key only, and "never per group" is now a rule with its own criterion 1
+    variant. So neither failure reading remains.
+  - **Do the three keyword entries cover every gated case? Yes.** I grepped every `.py` member of
+    the pinned scipy sdist for `SCIPY_XSLOW` (READ). The only reads in staged test code are the
+    ones Decision 7 lists. Each lands in one tier:
+    - `test_axis_nan_policy.py:390`'s block is one unmarked function, `test_axis_nan_policy_full`,
+      so its keyword is clean.
+    - `:384`, the `kruskal` case of `test_axis_nan_policy_fast`, is unmarked. pytest names a
+      function parameter by its `__name__`, so the id carries `kruskal`.
+    - `:907`, `test_empty`, is `@pytest.mark.slow`. It is already release-tier by the marker, and
+      102's kind (b) skips tests the marker already selected. The entry's `friedmanchisquare` part
+      is harmless.
+    - `test_fit.py:113` sits inside `test_cont_fit`, which is `slow`: release by the marker.
+    - `test_continuous.py:1142` and `test_tanhsinh.py:265`: see the condition below.
+    - So the normal tier pays for no xslow case once the keywords are right.
+  - **Condition for the survey (not a new finding).** Two entries cannot be written with
+    distribution names. `test_rv_generic` is parametrized over `enumerate(distcont + distdiscrete)`,
+    and `test_accuracy` over `distcont`. Both lists hold lists, so pytest names them `distdataN`
+    and `caseN`, not by the distribution (`_distr_params.py:6-11`, READ). Their keywords must be
+    full parametrized names, such as `test_rv_generic[3-distdata3]`. pytest 9.0.3's `-k` grammar
+    allows the brackets (`_pytest/mark/expression.py:10`, READ). The draft already has the survey
+    write each keyword from the collected ids. A wrong keyword can only put a case in the wrong
+    tier. It can never drop one, because 102 builds normal as `not (K)` and release as `(K)`.
+  - **The price of mpmath at 5,000 points is small in the normal tier.** I parsed every staged test
+    file that calls `assert_mpmath_equal` or `MpmathData` (`ast`, READ):
+    - `test_mpmath.py`: 137 tests, all under a `slow` marker;
+    - `test_cdflib.py`: 2, both `slow`;
+    - `test_precompute_gammainc.py`: 1 slow and 1 unmarked.
+    So the tenfold point count falls on the release tier, except one normal test. The README
+    sentence stands; the normal-tier price needs no new line for it (INFERRED from the counts).
+- **M1 — confirmed.** Every fixed part is written in Decision 5 and criterion 2: the `inputs`
+  folder, `measured` and the cap, the one `derived_row`, a run in every stage and in the price, the
+  `lstat` read, and the regular-file and `.npy`-member checks. One wording point, for the survey:
+  the 16 MiB bound is INFERRED. The memo should replace it with a bound set from the measured
+  sizes, for example twice the largest output. Until then a larger `boost.npz` would fail the
+  family by name, so nothing passes wrongly.
+- **L1 to L8 — answered in writing, confirmed.** I spot-checked each in the text:
+  - L1: the mechanism is corrected and the ancestor rule refuses (Decisions 4 and 14).
+  - L2: `SKLEARN_SEED = "0"`.
+  - L3: the two statsmodels files are in Decision 8.
+  - L4: `tests/checks/test_rules.py` is in the Changed list.
+  - L5: criterion 6 is a new check.
+  - L6: a per-family constant, with the forbidden names listed.
+  - L7: copy-on-write dropped, `SCIPY_XFAIL` added.
+  - L8: the claim block, and 116 to 225 s per shard.
+- **Note for the build, no new round.** Decision 7's threshold says "keyword or path entries".
+  102 has no path selection. Moving all of `sklearn/tests/test_common.py` means a kind (b) entry
+  whose keyword matches every id in that file (`test_common` does, through the module's name). The
+  normal group that held it must keep other files, because a normal group left selecting nothing
+  fails as an empty split does.
+- **N1 to N4 — acknowledged.** The four owner questions are written in as defaults pending the
+  owner's answers. That matches my recommendations.
+- **What blocks the survey** (Decision 1):
+  - for scipy and scikit-learn, wave 09 landing, so the survey runs on main's set with numpy on
+    OpenBLAS;
+  - for statsmodels, 045 landed or build-reviewed;
+  - the lane's grant of up to three guest sessions for the 4-hour box, never while
+    `build/lane.lock` exists.
+
+  102 need not land first: the survey's stand-in emulates the two tiers. The builder rebases onto
+  main after the chain lands before writing code.
+
+## Verdict, confirmed
+
+Fit to build, which means the survey may start once its sets exist. H1 and M1 are written in and
+confirmed, and the Lows are answered in writing. Building starts on the survey's delta review, as
+Decision 1 says.
