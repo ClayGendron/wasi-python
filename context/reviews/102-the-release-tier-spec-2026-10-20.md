@@ -237,19 +237,78 @@ The question here is whether each criterion can be checked, not whether it is me
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. —
-2. —
-3. —
-4. —
-5. —
-6. —
-7. —
-8. —
-9. —
-10. —
-11. —
-12. —
-13. —
+The builder's answers (2026-10-20, late night), on `spec/102-the-release-tier` rebased onto
+`dbecd2d` (the chain 103 to 109; no conflict hunk, since the branch touches only the
+specification and this review). Every finding is written into the specification in the same
+commit as this section.
+
+1. M1 (the inline-cpu tests leave Windows and macOS) — **fixed, the review's text taken.** An
+   `inline` entry is no longer ignored in its normal group: it runs reduced there, on every system
+   the group runs on, and in full in its release group (Decision 9). The Principle names it as the
+   one exception to "one tier", and Decision 2(c) says the same. CPython's normal groups' JSON is
+   byte for byte the base's (Decision 3, the table in Decision 2, check 2). The proof: each inline
+   id ran in its normal group's stream and is in its release group's `match`; check 4 gains the
+   stream missing an inline id. `passes` does not fall, so `--accept-fewer-passes` leaves the
+   Kind line, Decision 9, criterion 4 (now "JSON byte for byte, `passes` unchanged"), the claim
+   list (**passes**: none) and the flags.
+2. M2 (a normal acceptance writes release-tier passes as removed) — **fixed, the review's text
+   taken.** Decision 5, *The acceptance*: on a normal run the passed set is the run's passes plus
+   every check in the run's `release_checks` that is in the newest line's passed set, so
+   `passed_added` and `passed_removed` name normal-tier changes only and `passed_digest` covers the
+   carried rows; the line's `counts` take each unrun release-tier check at its accepted status.
+   Check 5 adds the review's row (after a release acceptance in which X passed, a normal
+   acceptance has X in neither list, its digest covers X, its counts count X). The Principle says
+   a row not run keeps its place in the history's passed set too.
+3. M3 (a move between tiers has no flag) — **fixed, the review's text taken, in both directions.**
+   The record gains `release_checks` on every run (it replaces the draft's `tier_deselected`, so
+   a release run says which checks are release-tier too). Each `accepted.json` entry records its
+   check's tier (`"release"`, or absent for normal, so today's entries keep their bytes). The
+   ratchet's new `moved` list is red on any run, normal to release or back; `--accept` refuses it
+   without `--accept-tier-move "<reason>"`, which rewrites only the moved entries' `tier` and goes
+   in the history line as `tier_move_reason`. A release-tier check that is gone is `absent`, not
+   `moved`. The gather's G5 shows a move on a branch run, so the claim list names it (Decision 13;
+   criterion 5 allows that line). Decision 3: a release group is a marker, keyword or regrtest list
+   group (067's node-id form later), or refused. Decision 2 states both ways a test can move: a
+   whole check is `moved`; a test leaving a normal group lowers its `passes`, `fewer`. Decision 7
+   and *For the lane*: 102's landing carries `--accept-tier-move` for contourpy's seventeen groups.
+   Checks 1 and 5 carry the mutants.
+4. L4 (the `largefile` gates do not run under WASI) — **fixed, the review's text taken.**
+   Decision 9 says both gates sit in `win`/`darwin` branches, both modules stay in `cpython-fs`
+   where the filesystem probe decides, the survey records which, `release_resources` keeps
+   `largefile`, and no `gated` entry names a `largefile` gate unless the survey's streams show one;
+   `test_largefile`'s two `cpu`-decorated tests are `gated` entries. The Problem, Decision 9's
+   title, its INFERRED paragraph and *The owner's answers* (4) follow.
+5. L5 (`excluded_marker` can leave tests out of both tiers) — **fixed.** Decision 2(a): a closed
+   list, `upstream.EXCLUDABLE` (`network`, `db`); any other name, or one of them in
+   `release_marker`, is refused; a name joins the list only by a judge change. Check 1 adds
+   `excluded_marker = "slow"` and a `release_marker` using `network`.
+6. L6 (the previous release record lives only in `build/`) — **fixed, the review's text taken**
+   (Decision 6, *If that record is gone*): the ratchet against `accepted.json` is the comparison
+   that needs no file; the lane keeps the record, names its SHA-256 in the release acceptance's
+   reason, or says it is missing there.
+7. L7 (criteria 5 and 6 disagree) — **fixed.** Criterion 6: "the gather's only red lines are the
+   ones criterion 5 allows". Criterion 5's allowed lines are now a growth line, the G5 move line
+   for the seventeen contourpy groups, or G7; the `fewer` line is gone with M1.
+8. L8 (the §5.5 amendment splits a sentence) — **fixed.** *For the lane*: a new last sentence of
+   §5.5's paragraph, after "…prepares one and asks (owner, 2026-10-17)."
+9. L9 (a re-pin can add an unlisted inline test) — **fixed.** Decision 9: a rules check over the
+   pinned tarball's `Lib/test` members, read as data as `regrtest.py` already reads them for its
+   id checks: the test functions in planned modules that read `is_resource_enabled('cpu')` equal
+   the plans' `inline` entries. Check 4 adds the two mutants (a plan missing one; a fifth such
+   test). The Design table names the reader in `regrtest.py` and the row in `test_rules.py`.
+10. L10 (the chain changes what 102's code may say) — **fixed.** The branch is rebased onto the
+    chain. The Design table gains `tests/checks/test_rules.py` (the four TOMLs'
+    `CONTEXT_CITATION_ALLOWED` entries removed as 102's edits clear their cited comments, and the
+    new rules rows), and a paragraph under it says no new comment or docstring cites a document,
+    the ledger's path appearing only as code. Decision 15 names the chain as the base.
+11. N11 (the skip reaches past the gather) — **taken.** Decision 13 gains the sentence; check 9
+    gains a rules row (every job that needs `gather` and is not limited to tags carries a status
+    function) and its mutant.
+12. N12 (the darwin price) — **taken.** Decision 11: the survey states the release tier's measured
+    darwin fuel and its longest group, with the review's INFERRED range beside it until measured.
+13. N13 (the acceptance's counts read lower) — **taken.** *For the lane*: the lane's message
+    quotes the ratchet line's `release tier not run <n>` beside the printed counts; the history's `counts`
+    do not fall (M2).
 
 ## Verdict
 

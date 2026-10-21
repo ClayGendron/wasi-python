@@ -3,8 +3,12 @@
 - **Status:** **drafted 2026-10-20** from main `5805af0` (tip `2bee892`); **revised 2026-10-20,
   night, against the owner's answers to its four questions** (`decisions.md`, "Spec 102's four
   questions", main `4161ef9`) and **rebased onto main `4161ef9`** (wave 08 landed: 066 is on main).
-  For its pre-build review. It changes the release workflow (a new judge job, a dispatch input, the
-  gather's conditions), so constitution §5.6 and AGENTS.md rule 8 require that review before it is
+  **Revised 2026-10-20, late night, against its pre-build review**
+  (`../reviews/102-the-release-tier-spec-2026-10-20.md`: three Mediums, seven Lows, three Notes,
+  each answered in its Disposition) and **rebased onto `dbecd2d`** (`claude/gallant-ride-9nxxmn`:
+  main plus the structural chain 103 to 109; no conflict, the branch touched only this file and
+  its review). For the reviewer's confirmation of the Mediums, then the build. It changes the
+  release workflow (a new judge job, a dispatch input, the gather's conditions), so constitution §5.6 and AGENTS.md rule 8 require that review before it is
   built. It changes neither the guest's imports nor its exports, nor a byte of the artifact set: no
   line of `src/`, `scripts/`, `recipes/` or `downloads/SHA256SUMS` changes. It amends the
   constitution at its landing (the owner's answer 1; the text is in *For the lane*). A different
@@ -17,10 +21,12 @@
   `tests/upstream/numpy.toml`, `pandas.toml`, `contourpy.toml`, `python.toml`, new
   `tests/upstream/python/cpython-release*.txt`; `tests/release_shards.toml`; unit rows; new
   `context/release-tier-claims.toml`; `context/progress/README.md`, `README.md` (the testing
-  paragraph), `CHANGELOG.md`. New class lists under `tests/upstream/expected/` and their gaps in
-  `tests/known_gaps.toml`. The lane accepts with `--accept-judge`, with `--accept-fewer-passes`
-  for the tests that leave normal groups (Decisions 7 and 9), and with `--accept-growth` only for
-  what criterion 4 measures.
+  paragraph), `CHANGELOG.md`; `tests/checks/test_rules.py` (the allowance entries the four TOMLs'
+  edits retire, and the new rules rows). New class lists under `tests/upstream/expected/` and
+  their gaps in `tests/known_gaps.toml`. The lane accepts with `--accept-judge`, with the new
+  `--accept-tier-move` for contourpy's seventeen groups that move from the normal tier to the
+  release tier (Decisions 5 and 7), and with `--accept-growth` only for what criterion 4 measures.
+  No pass leaves a normal group, so no `--accept-fewer-passes`.
 - **Depends on:**
   - **066** (landed in wave 08, main `faa9c93`): the package families, `measured`, `rule_cap`,
     `[[split]]` by constructed `-k` expressions, contourpy's 40 groups and the fourteen
@@ -84,8 +90,8 @@ is met in the most expensive way, and in places not at all:
 1. **Tests are left out.** numpy's 33 and pandas' 27 `slow` lines in the selected files are dropped
    by `-m "not slow"` (spec 050). CPython's tests that need the `cpu` or `largefile` resource are
    skipped by `-u all,-cpu,-gui,-largefile` (spec 065): 82 decorator lines in 53 planned files,
-   one module-level gate, two `largefile` gates, and four tests that do less work without `cpu`
-   (EXECUTED, Decision 9).
+   one module-level gate, and four tests that do less work without `cpu` (EXECUTED, Decision 9).
+   The two `largefile` gates do not run under WASI (Decision 9).
 2. **The tests that do run cost every check.** Every branch run, wave dry run and lane acceptance
    pays for contourpy's slow and `random_big` cases, about 3.97 T of 066's measured fuel (EXECUTED
    there, Decision 7). After 067 it would pay for sympy's slow tests too.
@@ -98,12 +104,19 @@ The owner's answer: two tiers. The slow ones run before a publication. Nothing i
 
 ## Principle
 
-**Each test runs in exactly one tier, by construction.** The normal tier and the release tier
-together are the whole suite. Which tests are slow is the project's choice, written down with a
-reason; that every test lands in one tier is proven, not trusted.
+**Each test runs in one tier, by construction, with one named exception.** The normal tier and
+the release tier together are the whole suite. Which tests are slow is the project's choice, written down with a
+reason; that every test lands in a tier is proven, not trusted. The exception runs in both:
+a CPython test that does less work when the `cpu` resource is off (Decision 9). It runs reduced in
+its normal group, on every system that group runs on, and in full in the release tier. So no test
+leaves a system it runs on today.
 
-**A row its tier did not run is not run, never lost.** It keeps what was accepted, it is counted by
-name, and it never needs `--partial`.
+**A row its tier did not run is not run, never lost.** It keeps what was accepted, in
+`accepted.json` and in the history's passed set, it is counted by name, and it never needs
+`--partial`.
+
+**A move between tiers is never quiet.** A check accepted in one tier that is now in the other is
+red until the lane accepts the move with a flag and a reason of its own.
 
 **Only the lane accepts, on darwin, and the release tier only before a tag.** Between tags, the
 release-tier rows a specification changes are claimed in writing; at the release acceptance every
@@ -148,7 +161,11 @@ the family's `marker`. **The truth table**: with pytest's own expression parser 
 of true and false to the names the three expressions use, `marker and release_marker` is never true
 and `marker or release_marker` is exactly `not excluded_marker` (or always true without one). An
 expression the parser accepts but the table cannot evaluate (a marker with keyword arguments) is
-refused.
+refused. **What may be excluded is a closed list.** `excluded_marker` may name only markers in
+`upstream.EXCLUDABLE`, today `network` and `db`, each a guest capability `README.md` says is
+absent. Any other name in it, or a name of that list used in `release_marker`, is refused. So
+`excluded_marker = "slow"` (which the truth table alone would allow) cannot leave a family's slow
+tests out of both tiers. A name joins the list only by a judge change with its reason.
 
 **(b) By the project's keyword selections** (pytest families). `[[release_select]]` entries, each
 with `files` (test files of the family), `keyword` (a pytest `-k` expression) and `reason`. Within
@@ -161,29 +178,42 @@ exactly the entries' files.
 
 **(c) By CPython's resources** (the regrtest family). Decision 9: a test that needs the `cpu` or
 `largefile` resource is release-tier, and **the judge proves the partition on every normal run**:
-the set of tests a normal group skips for those two resources equals its release list, by id.
+the set of tests a normal group skips for those two resources equals its release list's `gated`
+entries, by id. A test that reads `cpu` inline and does less work without it is the Principle's
+exception: it runs reduced in its normal group and in full in a release group.
 
 | family | kind | normal selection (changes in bold) | release selection | reason |
 |---|---|---|---|---|
 | numpy | (a) | `-m "not slow"` | `-m slow` | upstream's own slow marker |
 | pandas | (a) | `-m "not slow and not network and not db"` | `-m "slow and not network and not db"` | upstream's own slow marker |
 | contourpy | (a) and (b) | **`-m "not slow"`**, and **`-k "not (random_big)"`** in `test_filled.py` and `test_lines.py` | `-m slow`; `-m "not slow" -k "(random_big)"` in those files | `--runslow`, contourpy's opt-in; `random_big`, contourpy's own slow-host selection (its CI's emulated legs run `-k "not big"`), about 2.83 T, the owner, 2026-10-20 |
-| python (CPython) | (c) | `-u all,-cpu,-gui,-largefile`, **`-i`** the four inline-`cpu` tests | `-u all,-gui`, `-m` each listed test | regrtest's own opt-in resources, the owner, 2026-10-20 |
+| python (CPython) | (c) | `-u all,-cpu,-gui,-largefile`, unchanged | `-u all,-gui`, `-m` each listed test (the four inline-`cpu` tests also stay in their normal groups) | regrtest's own opt-in resources, the owner, 2026-10-20 |
 
 So nobody can drop a test, and nobody can move one quietly: a move is a TOML or plan edit with its
-reason, seen in the diff and the judge hash, and the partition still holds.
+reason, seen in the diff and the judge hash, and the partition still holds. The ratchet sees it
+too (Decision 5): a whole check that moves is `moved`, red without `--accept-tier-move`; a test
+that moves out of a normal group lowers that group's `passes`, which is `fewer`, red without
+`--accept-fewer-passes`.
 
 ### 3. The groups
 
 - A group carries `tier = "release"` (default `"normal"`); a pytest release group carries
   `release_by = "marker"` or `"keyword"` when its family has both kinds.
+- **A release group is one of the named kinds, or it is refused.** It is a marker release group
+  (its family has `release_marker`), a keyword release group (its family has `[[release_select]]`
+  entries), or a regrtest list group (its plan a `cpython-release-<n>.txt` of ids). 067 adds a
+  fourth, the node-id group, under these rules. A group with `tier = "release"` that is none of
+  these (a plain group in a family with neither `release_marker` nor `[[release_select]]`) is
+  refused, so a whole group cannot be moved out of the normal tier without a selection that says
+  why.
 - **Paths.** In a family, the marker release groups' paths taken together are exactly the normal
   groups' paths taken together; the keyword release groups' paths are exactly the entries' files
   (Decision 2b); no path is in two release groups of one kind, except a file split by `[[split]]`.
 - **The argv.** A release group's argv is its family's, with its tier's `-m` and `-k` in place:
   its paths, the family's `not_selected` as `--ignore`, its traps as `--deselect`, the family's
   `args`. A normal group's argv, and so its JSON, is byte for byte what it is today, except
-  contourpy's and CPython's (Decisions 7 and 9) (criterion 4).
+  contourpy's (Decision 7) (criterion 4). CPython's normal groups' JSON does not change
+  (Decision 9).
 - **`[[split]]` per tier.** A split's groups share one tier (and one `release_by`); a file may
   carry one split per tier and kind. The constructed expressions (066, Decision 11) are built
   within the split, then joined to the tier's filter: group i of a split runs `-k "(F) and (eᵢ)
@@ -209,20 +239,55 @@ one-time change, measured by criterion 4.
 
 ### 5. The ratchet, and who accepts release-tier rows
 
-**The record.** Every run record carries `meta.tier`. In a run that is not a shard run, the normal
-tier deselects every release-tier check, reason `release tier`, and lists them in a new field,
-`tier_deselected`. A shard run's tier is its shard's (Decision 7); `--tier` with `--shard` is an
-argument error, one line.
+**The record.** Every run record carries `meta.tier` and a new field, `release_checks`: every
+release-tier check by this tree's TOMLs and plans, sorted, on every run, both tiers. In a run that
+is not a shard run, the normal tier deselects each of them, reason `release tier`. A shard run's
+tier is its shard's (Decision 10); `--tier` with `--shard` is an argument error, one line.
 
-**The ratchet** (`scoreboard.compare`): an accepted check in `tier_deselected` goes to a new list,
-`release_tier`, and nowhere else (not `deselected`, `upstream_unrun` or `absent`); never red, never
-asking for `--partial`; the ratchet line prints `release tier not run <n>`. On a release run the
-release-tier rows are ratcheted like any other.
+**Each accepted entry records its tier.** An entry in `accepted.json` gains `tier`, written as
+`"release"` for a check in the run's `release_checks` and left out for a normal-tier check
+(absent reads as normal, so today's file needs no rewrite and its normal entries keep their
+bytes). It is the check's tier, not the run's: a release acceptance writes both kinds.
 
-**The acceptance** (`scoreboard.accept`): a check not run here keeps what was accepted (READ: the
-code keeps every status but pass, fail and gap). So a normal acceptance never changes a
-release-tier row. The history line gains `tier` (`"normal"` or `"release"`; absent reads as
-normal), and `test_progress_history_is_intact` accepts it.
+**The ratchet** (`scoreboard.compare`), with `R` the run's `release_checks` and an entry's tier
+read as above:
+- **`moved`**: an accepted entry whose tier is normal and whose check is in `R`, or whose tier is
+  release and whose check this run collected (in its checks or its deselected list) outside `R`.
+  It is red on any run, in either direction, whether or not the check ran. A move is never only a
+  TOML edit: it is a row the lane names. A release-tier check that is gone altogether is `absent`,
+  as today, and `--retire` takes it.
+- **`release_tier`**: on a normal run, an accepted check in `R` that is not `moved`. It goes there
+  and nowhere else (not `deselected`, `upstream_unrun` or `absent`); never red, never asking for
+  `--partial`; the ratchet line prints `release tier not run <n>`, and `moved <n>` when there are
+  moves.
+- On a release run the release-tier rows are ratcheted like any other.
+
+A single test that leaves a normal group for a release group (a new `[[release_select]]` entry,
+say) leaves the group's check where it was and lowers its `passes`: that is `fewer`, red without
+`--accept-fewer-passes`, as today. So both ways of moving tests, by test and by check, are red.
+
+**The acceptance** (`scoreboard.accept`):
+- **Rows.** A check not run here keeps what was accepted (READ: the code keeps every status but
+  pass, fail and gap). So a normal acceptance never changes a release-tier row's status or
+  metrics.
+- **Moves.** `--accept` refuses while `moved` is not empty, unless `--accept-tier-move "<reason>"`
+  is given; the reason begins with the specification's number and goes in the history line as
+  `tier_move_reason`. With it, each moved entry's `tier` is rewritten to its check's tier now,
+  status and metrics kept, whether or not the check ran.
+- **The history's passed set.** On a normal run, the passed set is the run's passes **plus** every
+  check in `R` that is in the newest line's passed set (`history.last_passed`). So a release-tier
+  pass that a normal run did not run is carried forward, and a normal acceptance's `passed_added`
+  and `passed_removed` name normal-tier changes only. A release acceptance's name every change. The
+  `passed_digest` covers the carried rows, so the history replays.
+- **Counts.** The line's per-area `counts` take each check in `R` that this run did not run at its
+  accepted status, so a normal acceptance's counts do not fall by the release tier's size.
+- The history line gains `tier` (`"normal"` or `"release"`; absent reads as normal) and
+  `tier_move_reason`, and `test_progress_history_is_intact` accepts both.
+
+**At 102's own landing**, contourpy's seventeen groups move (Decision 7): their suite, class and
+trap checks are accepted, tier normal, and are in `R`. They are `moved`, and the landing carries
+`--accept-tier-move` (For the lane). The new release groups' checks have no entry: they are not
+moved, only not run, until the release acceptance accepts them.
 
 **Who accepts: the lane, on darwin, only at the release acceptance before a tag** (the owner's
 answer 2). On main's tip, after the last wave and before the dry run on main:
@@ -267,6 +332,13 @@ is new in `sameness.py`: it compares release-tier rows alone. Every difference n
 and every ratchet line on a release-tier row (`LOST`, `FEWER`, `GREW`, a class whose members now
 pass), is a **release-tier regression**, and the tag waits.
 
+**If that record is gone.** The lane has cleared `build/` before to free disk. The ratchet does
+not need it: no normal acceptance writes a release-tier row (Decision 5), so `accepted.json`'s
+release-tier rows are the previous release acceptance's, and the ratchet at the release
+acceptance already compares every one of them for `LOST`, `FEWER` and `GREW`. The record adds
+outcomes by id. The lane keeps it, and names its SHA-256 in the release acceptance's reason. If it
+is missing, the lane says so in that reason and relies on the ratchet alone.
+
 **Tracing it back.** For each regression:
 1. the ledger and the waves' claim lists since the previous release acceptance name candidate
    specifications (a `changed` entry, a guest-fuel growth, a package rebuild);
@@ -308,6 +380,9 @@ that names its wave. This is the price of the owner's answer 2, stated so the la
   `-k "not (random_big)"`; every release group's `-k` changes form. Selections do not change; fuel
   may move by the filters' cost on each item. The survey re-measures all 40 groups; each `measured`
   and cap follows the new number, and a move past 1e-4 is claimed with this reason.
+- **The seventeen groups' checks are `moved`** (Decision 5): accepted in the normal tier, now
+  release-tier. 102's landing accepts the move with `--accept-tier-move` and the owner's answer 3
+  as its reason; their status and metrics are kept until the release acceptance runs them.
 - **The normal tier gets lighter.** About 3.97 T of the 5.82 T of contourpy's measured fuel leaves
   every branch run, wave dry run and lane acceptance.
 
@@ -325,7 +400,7 @@ that names its wave. This is the price of the owner's answer 2, stated so the la
   `no-processes`, `no-threads`, `wasm32-memory`, and skips where numpy's `requires_memory` cannot
   read the host's memory. 0.1 to 2 T for both, unknown to within an order until measured.
 
-### 9. CPython's `cpu` and `largefile` tests join
+### 9. CPython's `cpu` tests join; its `largefile` tests already run
 
 **What is there** (EXECUTED, `readers/cpython_resources.py` over `Lib/test` of the pinned
 `Python-3.15.0.tar.xz`, against the five plan files' 543 modules):
@@ -333,7 +408,13 @@ that names its wave. This is the price of the owner's answer 2, stated so the la
   the plans already leave out (`test_gdb`, `test_cext`, `test_subprocess`, …) stay out with those
   modules;
 - one module-level gate, `requires('cpu')` in `test_peg_generator/__init__.py`;
-- two `requires('largefile', …)` gates, in `test_io/test_largefile.py` and `test_mmap.py`;
+- two `requires('largefile', …)` gates, in `test_io/test_largefile.py` and `test_mmap.py`.
+  **Neither runs under WASI** (READ by the pre-build review: `test_largefile.py:274` gates only
+  when `sys.platform[:3] == 'win' or sys.platform == 'darwin'`, `test_mmap.py:1281` only on
+  Windows and Apple; the guest's `sys.platform` is `wasi`). Both modules take the other branch:
+  they seek past 2 GiB and skip with "filesystem does not have largefile support" if that fails.
+  Both are planned in the normal tier already (`cpython-fs.txt`), and stay there, where that probe
+  decides whether they run; the survey records which;
 - four tests that read `is_resource_enabled('cpu')` and do less work without it, in
   `test_posixpath`, `test_tokenize`, `test_unicodedata` and `test_unparse`.
 
@@ -342,7 +423,11 @@ resources plus `cpu` and `largefile`; nothing else changes) and release groups,
 `[groups.cpython-release-<n>]`, each with a plan file `tests/upstream/python/cpython-release-<n>.txt`
 of **full test ids** (or a module, for a module-level gate), one per line with its kind (`gated` or
 `inline`) and its normal group. The release group's JSON: `modules` the ids' modules, `match` the
-ids, `resources` the release resources. The normal groups keep today's resources.
+ids, `resources` the release resources. The normal groups keep today's resources and today's
+JSON, byte for byte. `release_resources` keeps `largefile`, so the release tier enables what the
+owner asked for, but no `gated` entry names a `largefile` gate unless the survey's normal streams
+show one. The `cpu`-decorated tests inside `test_largefile` (its lines 192 and 242) are `gated`
+entries like any other.
 
 **The partition, proven on every normal run** (the regrtest verdict, `regrtest.py`):
 - **gated**: the set of tests a normal group reports skipped with `resource 'cpu' is not enabled`,
@@ -350,16 +435,26 @@ ids, `resources` the release resources. The normal groups keep today's resources
   enabled`, plus its modules ending `RESOURCE_DENIED` for those resources, equals the `gated`
   entries naming that group, by id. A gated test missing from the list, or a listed test that was
   not gated, is a finding: no test can fall between the tiers;
-- **inline**: each `inline` entry is in its normal group's `ignore` (`-i`), so it runs in the
-  release tier alone, with `cpu` enabled, and does its full work there;
+- **inline**: an `inline` entry is **not** ignored in its normal group. It runs in both tiers:
+  in its normal group on every system that group runs on, doing the reduced work `cpu` off
+  allows, and in its release group on Linux and in the release acceptance, with `cpu` on, doing
+  the full work. This is the one case where a test id runs in both tiers (the Principle). It is
+  not a duplicate, because the work differs, and nothing leaves a system: `test_posixpath`'s
+  inline test is in `cpython-fs`, which runs on Linux, macOS and Windows, and keeps running on all
+  three. The proof: each `inline` entry ran in its normal group's stream (not skipped, not
+  missing) and is in its release group's `match`;
 - **in the release group**: every listed id ran, and none was skipped for those two resources.
+- **No inline test is unlisted** (a rules check, so a re-pin cannot add one quietly): over the
+  `Lib/test` members of the pinned CPython tarball, read as data as `regrtest.py` already reads
+  them for its id checks, the set of test functions in planned modules whose body reads
+  `is_resource_enabled('cpu')` equals the plans' `inline` entries, by id. A fifth such test after
+  a re-pin is red until it is listed.
 
-The four inline tests leave their normal groups: `passes` falls there (`--accept-fewer-passes`,
-"102: four inline-cpu tests move to the release tier").
+So the normal groups' `passes` do not fall, and 102 needs no `--accept-fewer-passes`.
 
-**What they will find, INFERRED.** `largefile` writes files of 2 GiB and more in the guest's
-writable root; `test_mmap` meets the `mmap` stand-in (an existing class). Fuel 0.3 to 3 T, until
-measured.
+**What they will find, INFERRED.** The `cpu`-gated tests are long loops and large inputs;
+`test_largefile`'s two `cpu`-gated tests write past 2 GiB in the guest's writable root, if its
+filesystem probe passes. Fuel 0.3 to 3 T, until measured.
 
 ### 10. Where the release tier runs: a fourth judge matrix, Linux only
 
@@ -390,7 +485,11 @@ and pandas' candidate release groups, CPython's release lists (the normal groups
 read from their streams, and the release groups run with `-u all,-gui`), and every contourpy group
 under Decision 7's argv: outcomes by id, fuel, traps, collection errors, classes. Written up as
 `context/research/2026-10-2x-the-release-tier-survey.md`, EXECUTED, with the stand-in and the
-streams. Its delta goes to the build review, unless it finds a trap, a group past 480 G that a split
+streams. **It states the release tier's measured darwin cost**, its fuel in total and its longest
+group, at 0.154 to 0.170 s per G (the parallel-shards research), so the lane can book the release
+acceptance's slot; INFERRED before measuring, 4.4 to 9 T, about 12 to 25 minutes of guest time on
+top of the normal tier at `-n 3`, and after 067 sympy's 2.6 T group the longest leg. Its delta goes
+to the build review, unless it finds a trap, a group past 480 G that a split
 cannot bring under, or a class whose closer is not `README.md` or a landed specification: then a
 context-only delta review first, as 066's.
 
@@ -419,7 +518,10 @@ release tier did not run").
   <node>: a release-tier check ran in a normal run"). On a release run G3 is today's.
 - **G5.** On a normal run, "accepted pass, ran in no record" skips release-tier checks. On a
   release run it holds them, and `passes` and `passed_digest` are compared with the darwin
-  acceptance as for any upstream group.
+  acceptance as for any upstream group. On every run, an accepted entry whose `tier` differs from
+  its check's tier in the merged record's `release_checks` is red ("G5 <node>: accepted in the
+  normal tier, release-tier now", or the reverse), so a branch run shows a move before the lane
+  does, and the builder's claim list names it beside its growth lines.
 - **G7.** On a release run, the newest acceptance's `tier` is `release` ("G7 a tag (or a dispatch on
   main), and the newest acceptance did not run the release tier"), besides today's rules.
 - **The merged record** carries `meta.tier`; a release-tier check of a normal run has no `source`
@@ -427,7 +529,11 @@ release tier did not run").
 - **The workflow.** `gather` needs `judge-release` too, with `if: ${{ !cancelled() && !failure()
   }}`. INFERRED from GitHub's documented `needs` semantics: a skipped need skips its dependents
   unless a status function says otherwise; `!failure()` lets the gather run beside a skipped
-  `judge-release` and still skips it when any need failed.
+  `judge-release` and still skips it when any need failed. **The skip reaches past the gather**:
+  a job that needs `gather` (or any job downstream of `judge-release`) is skipped on a normal run
+  unless its own `if:` carries a status function. `attest`, `publish` and `pypi` run only on tags,
+  where `judge-release` always runs, so they are unaffected. A later job that needs `gather` and
+  can run on a branch carries `!cancelled() && !failure()` too; check 9 holds it.
 
 ### 14. What the release fails on
 
@@ -444,6 +550,9 @@ Each alone stops a tag:
 ### 15. The order with 066, 067, 095 and 101
 
 - **066** is on main; 102 edits its contourpy TOML and its shard plan.
+- **103 to 109** (the structural chain) are 102's base (`dbecd2d`). They change only comments and
+  docstrings in the files 102 edits, and add the rule that no comment or docstring outside `src/`
+  cites a document; 102's code follows it (Design).
 - **101** lands in wave 09; textual conflicts in the `inputs` job, the matrices, the gather's
   `needs` and `env:`, and `scan.py`.
 - **067** is built after 102 lands: its release groups carry `tier = "release"`, its families
@@ -471,14 +580,15 @@ own run judged, both tiers, and every release-tier change since the last tag mee
 
 | file | change |
 |---|---|
-| `tests/harness/upstream.py`, `packages.py` | `Group.tier`, `release_by`, `measured` in every family; `release_marker`, `excluded_marker`, `[[release_select]]`; the argv by tier, splits per tier and kind; `tier_of(check)`; the rules (truth table, keyword entries, paths, splits, caps, traps naming a group) |
-| `tests/harness/regrtest.py` | `release_resources`, release groups from id plans, the `inline` ignores in normal groups; the partition check in the verdict; the release group's "every id ran" check |
-| `tests/harness/plugin.py` | `--tier normal|release`; `tier_deselected`; `meta.tier`; `--tier` with `--shard` refused |
-| `tests/harness/scoreboard.py`, `history.py` | `Ratchet.release_tier`; the ratchet line; the history line's `tier` |
+| `tests/harness/upstream.py`, `packages.py` | `Group.tier`, `release_by`, `measured` in every family; `release_marker`, `excluded_marker` and `EXCLUDABLE`, `[[release_select]]`; the argv by tier, splits per tier and kind; `tier_of(check)`; the rules (truth table, the closed exclusion list, keyword entries, a release group of a named kind, paths, splits, caps, traps naming a group) |
+| `tests/harness/regrtest.py` | `release_resources`, release groups from id plans; the partition check in the verdict (gated equal to the list, each inline id run in its normal group); the release group's "every id ran" check; the reader of `is_resource_enabled('cpu')` over the tarball's `Lib/test` |
+| `tests/harness/plugin.py` | `--tier normal|release`; `release_checks`; `meta.tier`; `--tier` with `--shard` refused |
+| `tests/harness/scoreboard.py`, `history.py` | `Ratchet.release_tier` and `Ratchet.moved`; the entries' `tier`; `--accept-tier-move`; the passed set and counts carried forward on a normal acceptance; the ratchet line; the history line's `tier` and `tier_move_reason` |
 | `tests/harness/shards.py` | the `release` pseudo-system and its plan rules |
-| `tests/harness/gather.py` | `TIER` and the release run from `GITHUB_*`; G1, G3, G5, G7 by tier; `meta.tier` |
+| `tests/harness/gather.py` | `TIER` and the release run from `GITHUB_*`; G1, G3, G5, G7 by tier; G5's move line; `meta.tier` |
 | `tests/harness/sameness.py` | `SYSTEMS["release"]`; release-tier rows compared only when both records ran them; `--tier-rows release` |
-| `tests/harness/scan.py` | the input, the tier step, `judge-release` and its text-alike rule, its matrix against the plan, the gather's `needs`, `if:` and `env:` |
+| `tests/harness/scan.py` | the input, the tier step, `judge-release` and its text-alike rule, its matrix against the plan, the gather's `needs`, `if:` and `env:`; a status function on every branch-run job that needs `gather` |
+| `tests/checks/test_rules.py` | the rules rows (the inline reader, the workflow rows); the `CONTEXT_CITATION_ALLOWED` entries for `numpy.toml`, `pandas.toml`, `contourpy.toml` and `python.toml` removed as 102's edits clear those files' cited comments (an entry that admits nothing fails) |
 | `.github/workflows/release.yml` | the input, the step, `judge-release`, the gather |
 | `tests/release_shards.toml` | the release shards; the normal plot shards re-packed |
 | `tests/upstream/numpy.toml`, `pandas.toml`, `contourpy.toml`, `python.toml`, `python/cpython-release-*.txt` | Decisions 7 to 9 |
@@ -486,6 +596,13 @@ own run judged, both tiers, and every release-tier change since the last tag mee
 | `context/release-tier-claims.toml` | new, empty: the ledger (Decision 6) |
 | `context/progress/README.md` | "The release tier (spec 102)": tiers, the ratchet line, the release acceptance, the ledger, tracing back |
 | `README.md`, `CHANGELOG.md` | which tests run before a publication only, and why; one line |
+
+**No new comment or docstring cites a document.** The chain 103 to 109 holds every comment and
+docstring under `tests/` and `.github/workflows/` to giving its reasons in words: no specification
+number, section sign, `context/` path or finding id
+(`test_code_outside_src_names_no_context_document`). 102's code, its `judge-release` job's comments and its TOML comments follow it. The ledger's path
+may appear in code (an argument's default), never in a docstring. 102's edits to the four TOMLs
+clear their cited comments, and the matching allowance entries go in the same change.
 
 ## Scope
 
@@ -504,33 +621,49 @@ Each written before the change it judges and seen failing first on the base's tr
    with keyword arguments; a `[[release_select]]` without `reason`, with an unparsable keyword, or
    naming a file no group covers; keyword release groups whose paths are not the entries' files; a
    split mixing tiers; a release group without `measured` or over `rule_cap`; a trap without
-   `group`; `tier = "fast"`.
+   `group`; `tier = "fast"`; `excluded_marker = "slow"` (a name outside `EXCLUDABLE`) and a
+   `release_marker` that uses `network`; a plain `tier = "release"` group in a family with neither
+   `release_marker` nor `[[release_select]]`.
 2. **The argv** (unit): numpy's and pandas' normal groups' JSON byte-identical to the base's;
    `numpy-slow`'s `-m slow`; contourpy's group 12 `-m "not slow" -k "(not (random_big)) and (not
    (serial))"`; group 7 `-k "(random_big) and not (e₁ or … or e₆)"`; CPython's normal groups'
-   JSON byte-identical but for the four `-i` entries; a release group's `match` its plan's ids and
-   `resources` `all,-gui`.
+   JSON byte-identical to the base's, no `-i` entry added; a release group's `match` its plan's
+   ids (the inline entries among them) and `resources` `all,-gui`.
 3. **The stage** (unit): every family's stage manifest equal under both tiers.
 4. **The CPython partition** (unit, fixed streams): a normal stream whose resource skips equal the
    list passes; one with an unlisted `cpu` skip, one missing a listed id, and one module
-   `RESOURCE_DENIED` but unlisted are findings; a release stream with a listed id skipped for
-   `cpu` is a finding.
+   `RESOURCE_DENIED` but unlisted are findings; a normal stream missing an `inline` id is a
+   finding; a release stream with a listed id skipped for `cpu` is a finding. And the rules row
+   over the tarball's `Lib/test`: the readers' set equals the `inline` entries; a mutant plan
+   missing one, and a mutant source with a fifth test reading `is_resource_enabled('cpu')`, each
+   red.
 5. **The ratchet** (unit): a normal run with accepted release-tier rows not run is not red, puts
    them in `release_tier` alone, and `--accept` succeeds without `--partial`, keeping their entries
-   byte for byte and writing `tier: "normal"`; a release run failing one is `lost`; a history line
-   with and without `tier` is intact.
+   byte for byte and writing the line's `tier: "normal"`; a release run failing one is `lost`; a
+   history line with and without `tier` is intact. **The passed set**: after a release acceptance
+   in which release-tier check X passed, a normal acceptance's line has X in neither
+   `passed_removed` nor `passed_added`, its `passed_digest` covers X, and its `counts` count X as
+   a pass. **Moves**: a normal-accepted pass that is now release-tier is `moved` and red on a normal
+   and on a release run; `--accept` refuses it without `--accept-tier-move` and, with it, rewrites
+   that entry's `tier` and nothing else of it; the reverse move is `moved` too; a release-tier
+   entry whose check is gone is `absent`, not `moved`; a release acceptance writes `tier:
+   "release"` on release-tier entries and no `tier` on normal ones.
 6. **The plugin** (unit): `--tier release --shard upstream-plot-a` is an argument error before
-   anything runs; a normal record lists every release-tier check in `tier_deselected`.
+   anything runs; every record lists every release-tier check in `release_checks`, and a normal
+   record deselects each with reason `release tier`.
 7. **The shard plan** (unit): a release group in a Linux shard, a normal group in a release shard,
    a release group in two release shards, and an empty shard each fail `plan_errors`.
 8. **The gather** (unit): normal run: no release record expected, a release-tier check run nowhere
    is not red, one that ran is red at G3; release run: a missing release record red at G1; a tag
    with `TIER` normal red at G1; a tag or a dispatch on main with a normal newest acceptance red at
-   G7; a branch with `release-tier` and a normal acceptance not red; `meta.tier` merged.
+   G7; a branch with `release-tier` and a normal acceptance not red; `meta.tier` merged; an
+   accepted entry whose tier differs from the record's red at G5, on both kinds of run.
 9. **The workflow** (rules): `judge-release`'s matrix is the plan's release shards; its `if:` is
    exact; its steps are `judge-linux`'s; the gather needs it with exactly `if: ${{ !cancelled() &&
-   !failure() }}` and gets every `RECORD_RELEASE_<SHARD>` and `TIER`. Mutants, each red: the `if:`
-   dropped; a shard missing; `always()` in the gather's `if:`.
+   !failure() }}` and gets every `RECORD_RELEASE_<SHARD>` and `TIER`; every job that needs
+   `gather` and is not limited to tags carries a status function in its `if:`. Mutants, each red:
+   the `if:` dropped; a shard missing; `always()` in the gather's `if:`; a branch-run job needing
+   `gather` without a status function.
 10. **The tier step** (rules, run in bash): a tag, a dispatch on main, and a branch dispatch with
     `release-tier` true give `release`; a branch without it, with an empty value, and with `True`
     give `normal`.
@@ -550,14 +683,14 @@ Counted, never timed.
    twice, restaging between: equal outcomes and `passed_digest`, darwin fuel within tolerance.
 4. **Nothing normal moves but what is named.** numpy's and pandas' normal groups within 1e-4 of the
    base (the stage gained files), or the growth named; contourpy's normal groups re-measured, each
-   move claimed with Decision 7's reason; CPython's normal groups: `passes` down by exactly the
-   four inline tests' passes, nothing else lost.
+   move claimed with Decision 7's reason; CPython's normal groups' JSON byte for byte as the
+   base's, `passes` unchanged, within 1e-4 or the growth named (the stage gained files).
 5. **A normal branch run** (default inputs): `tier=normal`; `judge-release` skipped; the gather runs
    and passes, `meta.tier` `normal`; no release-tier check in any record; every red line a growth
-   line, a fall Decision 9 names, or G7.
-6. **A release branch run** (`release-tier: true`): every release leg runs and passes; the gather
-   passes, `meta.tier` `release`. The landing notes give each release leg's job time, the peak of
-   concurrent jobs and the wall time beside run 5's. The ledger's 102 block is written from it.
+   line, a G5 move line for the seventeen contourpy groups (Decision 7), or G7.
+6. **A release branch run** (`release-tier: true`): every release leg runs and passes; the gather's
+   only red lines are the ones criterion 5 allows, `meta.tier` `release`. The landing notes give
+   each release leg's job time, the peak of concurrent jobs and the wall time beside run 5's. The ledger's 102 block is written from it.
 7. **The gather's conditions.** Run 5 shows the gather running beside a skipped `judge-release`.
    A failed leg skipping the gather is GitHub's documented meaning of `failure()` and today's
    behaviour (spec 092's run `39357023086`; READ there); the first red release leg on any later run
@@ -572,7 +705,9 @@ All four answered 2026-10-20, night (`decisions.md`, main `4161ef9`), and writte
 2. **The lane runs the release tier only before a tag.** Decisions 1, 5 and 6.
 3. **contourpy's `random_big` cases move to the release tier**, and the project chooses what is
    slow without leaving anything out. Decisions 2(b) and 7.
-4. **CPython's `-u cpu` and `largefile` tests join.** Decisions 2(c) and 9.
+4. **CPython's `-u cpu` and `largefile` tests join.** Decisions 2(c) and 9. Under WASI the two
+   `largefile` gates do not apply, so those tests already run in the normal tier, where a
+   filesystem probe decides; the release tier enables `largefile` all the same.
 
 ## For the lane
 
@@ -585,7 +720,8 @@ All four answered 2026-10-20, night (`decisions.md`, main `4161ef9`), and writte
   - §5.7, the sentence "runs the full judge on that exact commit in the main tree" becomes "runs the
     judge's normal tier on that exact commit in the main tree", and "judges the tip once" becomes
     "judges the tip's normal tier once".
-  - §5.5, after "re-pin, re-run, re-verify, publish": "**The release rule** (owner, 2026-10-20):
+  - §5.5, a new last sentence of the paragraph (after "…prepares one and asks (owner,
+    2026-10-17)."): "**The release rule** (owner, 2026-10-20):
     the judge has two tiers, normal and release, which together are every test of every package
     built; nothing is left out of both. Before a tag, the lane accepts both tiers on main's tip (the
     release acceptance), and the release workflow judges both on main's exact commit and on the tag
@@ -603,17 +739,22 @@ All four answered 2026-10-20, night (`decisions.md`, main `4161ef9`), and writte
     the release tier itself, and waits for every job to pass on all three systems."
 - **The claim list** (skeleton; the builder fills it from the survey): **new**, the release groups'
   suite and class checks (deselected in the lane's normal record); **changed**, the moved
-  contourpy rows (17 groups, normal to release); **passes**, CPython's normal groups that lose the
-  four inline tests; **grows**, contourpy's normal groups if Decision 7's argv moves them, numpy's
-  and pandas' if Decision 4's stage does; **retired**, none; **units**, the rows of *The checks*.
+  contourpy rows (17 groups, normal to release, the ratchet's `moved` list, accepted by
+  `--accept-tier-move`); **passes**, none (the inline tests stay in their normal groups);
+  **grows**, contourpy's normal groups if Decision 7's argv moves them, numpy's, pandas' and
+  CPython's if Decision 4's stage does; **retired**, none; **units**, the rows of *The checks*.
   The same rows go in the ledger's first block (spec `"102"`).
 - **The flags** (skeleton; each reason begins with "102:"):
 
   ```
-  --accept "102: the release tier: slow tests run before a publication, nothing left out; numpy-slow, pandas-slow, contourpy's slow and random_big cases, CPython's cpu and largefile tests in <r> release groups"
-  --accept-judge "102: tiers in upstream.py, packages.py and regrtest.py (release_marker with the truth table, release_select keyword entries, CPython's resource lists and their partition check, splits per tier, caps on release groups); --tier and tier_deselected (plugin.py); the ratchet's release_tier and the history's tier; the release pseudo-system; G1, G3, G5, G7 by tier; sameness --tier-rows; judge-release and the tier step; the TOMLs, plans and shards; unit rows"
-  --accept-fewer-passes "102: four inline-cpu CPython tests move to the release tier"
+  --accept "102: the release tier: slow tests run before a publication, nothing left out; numpy-slow, pandas-slow, contourpy's slow and random_big cases, CPython's cpu-gated tests and its four inline-cpu tests in full, in <r> release groups"
+  --accept-judge "102: tiers in upstream.py, packages.py and regrtest.py (release_marker with the truth table, release_select keyword entries, CPython's resource lists and their partition check, splits per tier, caps on release groups); --tier and release_checks (plugin.py); the ratchet's release_tier and moved, the entries' tier, the passed set carried forward, the history's tier and tier_move_reason; the release pseudo-system; G1, G3, G5, G7 by tier; sameness --tier-rows; judge-release and the tier step; the TOMLs, plans and shards; unit rows"
+  --accept-tier-move "102: contourpy's slow and random_big cases move to the release tier, seventeen groups (the owner, 2026-10-20)"
   ```
+- **The acceptance's message** (a normal tier, from 102's landing on): the area counts a normal
+  scoreboard prints fall by the release tier's size, since those checks show as deselected. The
+  history line's `counts` do not (Decision 5). The lane's message quotes the ratchet line's
+  `release tier not run <n>` beside the counts, so the gap is explained.
 
 ## The builder's self-check
 
@@ -628,8 +769,8 @@ the ledger's first block.
 - **Release-time surprises** (answer 2): regressions surface only at the release acceptance; is
   Decision 6's ledger and bisection enough, and is the previous release record safe in `build/`?
 - **The CPython partition**: regrtest's skip texts and the `RESOURCE_DENIED` state must be read
-  exactly; a test gated by both a resource and a platform check may report the other reason; four
-  inline tests leave normal groups (a fall in `passes`).
+  exactly; a test gated by both a resource and a platform check may report the other reason; the
+  four inline tests run in both tiers (Decision 9), reduced and in full.
 - **The `-k` composition**: substring matching (`random_big` matches two functions today); a new
   upstream name containing it moves silently to the release tier, still run, never dropped.
 - **contourpy's re-made splits and `collected` facts**, and the re-packed normal shards.
