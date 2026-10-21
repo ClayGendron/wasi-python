@@ -260,8 +260,10 @@ must show:
 2. M2 — closed on the rebased tip. The citation rule failed with 74 findings after the rebase
    onto `dbecd2d` and passes after a comment-and-docstring-only reword, its own commit; the
    reword is checked as such by AST (Python) and comment-stripped lines (YAML, TOML). Every
-   rebase hunk is named in the specification's *Landing notes*. The fast tier is L1.
-3. L1 open (`build/lane.lock` held the session); L2, L3 and L5 written in with the review's
+   rebase hunk is named in the specification's *Landing notes*. The fast tier on `2190443`: 0
+   fail. Run 39537732021 on `2190443`: one red line, the base's own Windows no-fork check (the
+   chain's run 39530569266, fixed at `727bd4c`), not 101's.
+3. L1 closed (the fast tier on `2190443`: 0 fail); L2, L3 and L5 written in with the review's
    text; L4 fixed as rule C10, its two mutants seen failing first, its own commit; L6 left to the
    lane, as the review asks; N1 to N3 acknowledged. Each in the specification's *Disposition of
    the build review*.

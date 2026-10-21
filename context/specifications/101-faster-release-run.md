@@ -691,9 +691,8 @@ reviewed code and found the design sound. Where each finding went:
   lines are the same. The two `Decision 3, layer 1` docstrings the rule does not catch were
   reworded too. One consequence: `release/set_key.py` is in its own key, so its reworded
   docstring gives a new key; the next run builds from source.
-- **L1, open.** The fast tier was not run: `build/lane.lock` existed in the main tree for this
-  whole session. It runs on the rebased tip when the lane grants the fast slot, or the lane's
-  integration fast tier covers it; the notes will name which.
+- **L1, closed.** The fast tier ran on the rebased tip `2190443` once `build/lane.lock` was
+  gone, holding the fast slot: 0 fail (*Landing notes*).
 - **L2, written in.** Decision 9 carries the review's text: the boundary stays.
 - **L3, written in.** *What was built* says check 4 is a unit row calling `verify()`, its step's
   text held by R3.
@@ -737,10 +736,11 @@ reviewed code and found the design sound. Where each finding went:
   specification's own. The judge hash changes in `tests/release_shards.toml`,
   `tests/harness/{shards,gather,sameness,scan}.py`, `tests/checks/test_rules.py` and
   `tests/unit/test_{shards,gather,sameness,scan,set_key}.py`.
-- **A run on the code after the build review:** not dispatched yet. Rule C10 (L4) is code, so a
-  run is owed. It waits for the container session, because criterion 3's trace may add a closure
-  entry or a rule; one run then covers both. The set key is new (`release/set_key.py`'s
-  docstring changed), so that run builds from source.
+- **A run on the code after the build review:** run 39537732021 on `2190443`, at the lane's
+  word, without waiting for the trace. One red line, Windows `own-embedding`'s
+  `test_a_forked_child_is_refused`, the same as the chain's own run 39530569266 on `dbecd2d`, and
+  fixed on the chain at `727bd4c`; every other job passed (*Landing notes*). If criterion 3's
+  trace changes the closure or a rule, that is code, and a run on it is owed.
 - **The claim list block** (sameness, spec 092):
 
   ```toml
@@ -780,13 +780,16 @@ reviewed code and found the design sound. Where each finding went:
       line, not even a growth line (the set is wave 08's accepted one). Read back with
       `gh run view 39488829008 --json jobs` and `gh run download 39488829008 -n
       release-record-1` (*Landing notes*).
-- [ ] The rebases onto `faa9c93` and then `dbecd2d`: every stop and hunk named below. The fast
-      tier on the rebased tip is not recorded: `build/lane.lock` held the whole session (L1).
+- [x] The rebases onto `faa9c93` and then `dbecd2d`: every stop and hunk named below. The fast
+      tier on the rebased tip `2190443`: 0 fail, 537 blocked for want of an artifact set
+      (`build/101/fast-tier.txt`).
 - [x] M2 closed: `test_code_outside_src_names_no_context_document` red with 74 findings after
       the rebase, green after the reword (`build/101/m2-before.txt`, `m2-after.txt`); the reword
       is comments and docstrings only, by AST and comment-stripped lines.
 - [x] L4 fixed: rule C10, its two mutant rows seen failing first (`build/101/l4-before.txt`).
-- [ ] CI on the tip after the build review: owed (C10 is code), held for the container session.
+- [x] CI on the tip after the build review: run 39537732021 on `2190443`; one red line, not a
+      growth line and not G7: Windows `test_a_forked_child_is_refused`, the base's own (the
+      chain's run 39530569266, fixed at `727bd4c`), not 101's.
 - [x] The reuse runs' build job ran on `ubuntu-24.04` (1.7 minutes); no macOS job built.
 - [x] `build-shard`'s record: platform `linux-aarch64`, 51 goal checks run, all passing, none
       blocked; 10 unit tests; the zero-patch step `27 passed`.
@@ -970,6 +973,41 @@ the chain's wording. The rebase stopped twice.
 - **After the rebase:** ruff check and format green; the citation rule red with 74 findings, all
   in 101's lines, closed by the reword commit (M2). Then the L4 rule as its own commit.
 
+### Run 39537732021 on `2190443`, after the build review (EXECUTED)
+
+Dispatched on the branch at `2190443` (the chain's `dbecd2d` plus 101, M2's reword and L4's
+rule), with fewer than three release runs live. Read back with `gh run view 39537732021 --json
+jobs` and the failing leg's log.
+
+- **Verdict:** `failure`, from one leg. 52 jobs: 47 passed, 1 failed, 4 skipped (the gather,
+  `attest` and both `publish` jobs). Wall clock 50.6 minutes.
+- **The one red line is the base's, not 101's.** Windows `own-embedding` lost one accepted pass:
+  `test_a_forked_child_is_refused` expected `{'used': True, 'forked': False}` and got
+  `True False`. The chain's own dry run 39530569266 on `dbecd2d` failed the same check on the
+  same leg, with the same assertion. The lane has since fixed it on the chain (`727bd4c`, spec
+  105's no-fork child reads the process object's two fields). 101 changes no `src/` file and not
+  this check. With that line red, the gather was skipped.
+- **Everything else passed.** Every macOS leg, every Linux leg, the other five Windows legs,
+  `build-shard`, both rebuilds, `same-bytes` and `save-set`. No growth line on any leg.
+- **The set came from source,** as expected: `inputs` logged `from-source 'false', cached '':
+  reuse=false`, because the key is new (`release/set_key.py`'s docstring changed). The macOS
+  build took 29.4 minutes. `save-set` logged `Cache saved with key:
+  wasi-python-set-v1-951f9f5f…`, 85,896,705 bytes sent.
+- **Times:** the x86-64 rebuild took 33.6 minutes (the slow leg again; the arm64 rebuild 18.2);
+  `same-bytes` ended at +34.2. The macOS shards started at +29.8 with no queue to speak of;
+  `own-embedding` took 14.8 minutes. The run ended at +50.6, before the gather.
+
+When 101 is rebased onto the chain's fixed tip, the Windows line should clear. That is the
+lane's wave dry run to show (AGENTS.md rule 2: a rebase onto a wave's tip dispatches no run).
+
+### The fast tier on `2190443` (EXECUTED)
+
+`uv run pytest -m "not slow" -n 3` in the worktree, holding the fast slot, after
+`build/lane.lock` was gone (`build/101/fast-tier.txt`). Its result: 2120 passed, 590 skipped,
+**0 fail**. The rules: 66/68, 2 blocked. The unit suite: 2023/2039, 16 skipped. Its one red line
+is `537 accepted pass(es) blocked`: the worktree holds no artifact set (blocked by "artifact
+dir" 538), as every worktree without a build does. No check failed.
+
 ### The Linux `own-guest` timeout (run 39475482749)
 
 The leg ran "The shard" from 18:33:43 until the 30-minute limit cancelled the job; GitHub kept no
@@ -994,8 +1032,9 @@ the judge. Not confirmed; the follow-up is the lane's to number.
 - Criterion 3 (the traced build) and the build review's M1 (the Linux `read:` counts): one
   container session. Docker did not answer on 2026-10-20 at night, so neither ran. The slot was
   never taken.
-- A release run on the tip after the build review: owed for C10, held for that session.
+- The Windows red line of run 39537732021: the chain's, fixed at `727bd4c`; it clears when 101
+  is rebased onto the chain's fixed tip.
 - Criterion 7 (the seed): after landing.
 - L6's `read:` comparison: see the self-check.
 - Criterion 8's sameness line: the lane's, at wave 09.
-- The fast tier on the rebased tip: not run (`build/lane.lock` held the whole session; L1).
+- The fast tier on the rebased tip: run, 0 fail (L1 closed).
