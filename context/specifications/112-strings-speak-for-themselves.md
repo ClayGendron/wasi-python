@@ -1,13 +1,16 @@
 # 112 — Strings speak for themselves: no document cited in a string literal
 
 - **Status:** **drafted 2026-10-21** on `spec/112-strings-speak-for-themselves` from main's
-  `d8fc73f`. A different agent reviews it before the build (constitution §5.6: two files under
-  `scripts/` change, which the build runs or hashes), and a different one after.
+  `d8fc73f`; **reviewed before build 2026-10-21**
+  (`../reviews/112-strings-speak-for-themselves-spec-2026-10-21.md`, commit `6d98601c`: lands once
+  M1 and M2 are written in; both, the five Lows and the three Notes are written in, its
+  Disposition). A different agent reviews the build.
 - **Date:** 2026-10-21
 - **Owner:** Clay Gendron
 - **Kind:** **parallel-safe by effect, build-class by the letter** (§5.7), as spec 109 was. Two
   files under `scripts/` change (one string each: `gen_inittab.py`'s generated C comment and
-  `refuse-python`'s refusal) and eight step names of `.github/workflows/release.yml`, so the
+  `refuse-python`'s refusal) and eight step names of `.github/workflows/release.yml` (and the
+  `goal` marker's help in `pyproject.toml`, which no artifact carries), so the
   specification is build-class by AGENTS.md's definition. **One artifact's bytes move:**
   `MANIFEST` records the SHA-256 of every tracked file under `scripts/`, so its two `recipe`
   lines for those files change, and with them `SHA256SUMS`'s `MANIFEST` line and the wheel that
@@ -17,7 +20,8 @@
   moves, and a C comment compiles to nothing; `refuse-python` runs only when a build step calls
   an unpinned Python. **A judge change** (a rules check, its scanner, its unit rows, an
   allowance, and string literals across `tests/`): the lane accepts it with `--accept-judge`.
-  No fuel row moves: no check that records fuel has a string that changes.
+  No fuel row moves: no check that records fuel has a string that changes (the one citing
+  string in such a check is kept for the closer, Decision 5's `GUEST_FUEL`).
 - **Depends on:** **109** (landed: the comment rule outside `src/`, its scanner
   `CITATION_RULES`, its file list `context_citation_files` and its allowance
   `CONTEXT_CITATION_ALLOWED`). It builds on main. Wave 10 (045, 110, 111) edits
@@ -47,9 +51,10 @@ closer, after 0.1.0.
 **The population** (EXECUTED, `uv run python build/112/measure2.py` in the builder's worktree,
 the reading of Decisions 2 and 3, on `d8fc73f`): **92 citations in string literals** in the
 files this rule reads (and **108** more in the judge's allowance files, out of scope, Decision
-4). With 109's eight forms unchanged over every string, the count is 263 (`measure.py`); the 171
-it drops are paths the judge opens and labels such as `S1` (Decision 2). Every one of the 92 is
-in one of four kinds:
+4), and **93** with the review form the pre-build review added (Decision 2), the one more being
+`CTYPES`'s, kind E. With 109's eight forms unchanged over every string, the count is 263 (`measure.py`); the 171
+it drops are paths the judge opens and labels such as `S1` (Decision 2). Every one of the 93 is
+in one of five kinds:
 
 | kind | hits | literals | files |
 |---|---|---|---|
@@ -57,12 +62,16 @@ in one of four kinds:
 | **B. A test's copy of a message in A**, which it matches | 10 | 10 | `test_pins.py` 2, `test_sameness.py` 2, `test_landing_lane.py` 2, `test_patches.py` 1, `test_build_progress.py` 1, `test_several_cores.py` 1, `test_scan.py` 1 (the workflow step it splices) |
 | **C. A comment inside a program held as a string**: nine host programs a check runs in a child Python, one guest program | 20 | 10 | `test_v1_4_embedding.py` 10 (four programs), `test_v1_2_hostile_guest.py` 6 (four; `PLANT` is the guest's), `test_landing_lane.py` 2, `test_scipy_build.py` 2 |
 | **D. Data**: a rule's own name, a scanner's fixture, a gap's closer | 17 | 14 rows | `test_scan.py` 9, `test_shards.py` 5, `test_landing_lane.py` 1, `test_rules.py` 1, `scan.py` 1 |
+| **E. Kept for the closer**: a guest program in a check that records fuel | 1 | 1 row | `test_v1_3_data_stack.py` 1 (`CTYPES`, "review 033") |
 
-A, B and C are reworded: **75 hits**. D stays, one allowance row per phrase (Decision 5). The
-read found four more citations the forms do not match, all in kind A, reworded with the rest:
-the scoreboard's "(number 89)" and "(number 101)" (the owner's questions), `data_stack`'s
-"(decision 34, …)", and `tests/harness/packages.py:560`'s "(Decision 14)". `src/` has none
-(EXECUTED, the same reading over every `.py` under `src/`: 0).
+A, B and C are reworded: **75 hits**. D and E stay, one allowance row per phrase (Decision 5).
+The read found four more citations the forms do not match, all in kind A, reworded with the
+rest: the scoreboard's "(number 89)" and "(number 101)" (the owner's questions), `data_stack`'s
+"(decision 34, …)", and `tests/harness/packages.py:560`'s "(Decision 14)". The pre-build review
+found three more: the `goal` marker's help in `pyproject.toml:101` ("(spec 002)", a file 109 does
+not read; Decision 3 now reads it), `CTYPES`'s "(review 033, finding 1)" (kind E, a form now),
+and `tests/unit/test_gather.py:420`'s test id "(from before 085)" (reworded; no form matches a
+bare number). `src/` has none (EXECUTED, the same reading over every `.py` under `src/`: 0).
 
 ## Decisions
 
@@ -82,7 +91,7 @@ scanner and allowance do not change.
 | `specification` | 109's two forms: `spec NNN` in any case and spelling, and a bare `0NN's` |
 | `constitution` | 109's: `constitution §` and a section numbered like `§4.15` |
 | `memo` | 109's: the word |
-| `review` | a review followed by a date `YYYY-MM-DD`; a review named by its kind (109's list: build, pre-build, delta, follow-up, security, integration, re-review, confirmation's) |
+| `review` | a review followed by a date `YYYY-MM-DD`; a review followed by a specification's number, `review 033` (`\breviews?\s+0\d{2}\b`, any case; the pre-build review's M2); a review named by its kind (109's list: build, pre-build, delta, follow-up, security, integration, re-review, confirmation's) |
 | `question` | 109's: `question NN` |
 | `named finding` | a finding a review names, **any letter**: `the review's C2`, `the build review, F1` |
 
@@ -104,20 +113,34 @@ where one stands beside a removed specification it is removed with it.
 ### 3. What it reads
 
 - **Files:** 109's files (`context_citation_files`: `tests/`, `.github/workflows/`, `scripts/`,
-  `release/`), **and every `.py` under `src/`**, less the judge's allowance files (Decision 4).
-  `src/` has no citing string today; reading it costs nothing and holds the product's own
-  messages, the ones a user of the wheel reads.
+  `release/`), **every `.py` under `src/`**, **and `pyproject.toml`**, less the judge's allowance
+  files (Decision 4). `src/` has no citing string today; reading it costs nothing and holds the
+  product's own messages, the ones a user of the wheel reads. `pyproject.toml` registers the
+  `goal` marker a second time, and `pytest --markers` prints both (the review's M1); its
+  non-comment lines are read as any TOML's.
 - **Python:** through `ast`: every `str` and `bytes` constant, and each f-string's literal parts
-  joined (a replacement field read as `{…}`), so `"a " "spec 052"` is read whole. Not read: the
-  docstrings (109's), the pattern given to a `re` function (`re.compile(r"\bmemo\b")` is the rule's
-  own vocabulary), and the value of an assignment to a name ending in `_ALLOWED` (an allowance
-  holds the phrases it admits). A phrase assembled with `+` (`"m" + "emo"`) is two strings, and
-  is how a unit row writes a citation it needs (109's practice).
+  joined (a replacement field read as `{…}`), so `"a " "spec 052"` is read whole. Not read, each
+  edge exact (the review's Note 8):
+  - **the docstrings 109 reads, and no more:** the first string token of a module's, a class's or
+    a function's first statement when that statement is a plain string constant. A bare string
+    statement elsewhere, an f-string in that place, and the later tokens of an implicitly
+    concatenated docstring are read here, since 109 does not read them;
+  - **a pattern:** the pattern argument (the first, or `pattern=`) of `re.compile`, `search`,
+    `match`, `fullmatch`, `findall`, `finditer`, `sub`, `subn` and `split`
+    (`re.compile(r"\bmemo\b")` is the rule's own vocabulary). `re.escape`'s argument is text and
+    is read, and so is `sub`'s replacement;
+  - **an admitted phrase:** the second item of each `(path, phrase, reason)` row of an assignment
+    to a name ending in `_ALLOWED`. The paths and the reasons are read; a reason is a named
+    constant, read like any string, so a reason cannot hide a citation.
+
+  A phrase assembled with `+` (`"m" + "emo"`) is two strings, and is how a unit row writes a
+  citation it needs (109's practice).
 - **Other files:** every line that is not a `#` comment, and the part of a line before a
   trailing ` # `: the complement of 109's reading, so a shell `echo`, a YAML step name and a
   TOML value are read.
-- A hit is reported as `path:line: rule: phrase`, the line being where the phrase starts inside
-  the literal.
+- A hit is reported as `path:line: rule: phrase`, the line being where the phrase starts: each
+  string token of an implicitly concatenated literal keeps its own line (from `tokenize`), and a
+  triple-quoted token adds the newlines before the phrase (the review's Note 9).
 
 ### 4. The judge's allowance files are not read
 
@@ -134,7 +157,7 @@ string (EXECUTED: 0; 109's bare-finding form saw `/F1`, a PDF font's name, twice
 
 `STRING_CITATION_ALLOWED` in `tests/checks/test_rules.py` holds `(path, phrase, reason)`, 109's
 grain: a row admits that phrase anywhere in that file's strings; a row that admits nothing
-fails. Fourteen rows, three reasons as named constants:
+fails. Fifteen rows, four reasons as named constants:
 
 - **`RULE_NAME`** (2): `"memo"` in `tests/checks/test_rules.py` and `tests/harness/scan.py`, the
   name a rule table gives the form it refuses.
@@ -146,6 +169,11 @@ fails. Fourteen rows, three reasons as named constants:
   so rewording it would change the row; the rows stay as 109 wrote them.
 - **`GAP_DATA`** (3): `tests/unit/test_shards.py`'s `spec 065`, `spec 001` and `spec 099`,
   `closes_with` values in a known-gaps fixture, the format the judge parses.
+- **`GUEST_FUEL`** (1): `tests/checks/test_v1_3_data_stack.py`'s `review 033`, a comment in
+  `CTYPES`, the guest program of `test_ctypes_stand_in_names_what_packages_import`, whose `guest`
+  fixture records the run's fuel for both rows (`[plain]`, `[snapshot]`). Reason: "a guest program
+  in a check that records fuel: its bytes are the guest's input, so it changes with the closer
+  that re-measures the guest's fuel" (the review's M2). It is not reworded here.
 
 No other row is added; a reviewer reads any addition.
 
@@ -159,7 +187,8 @@ No other row is added; a reviewer reads any addition.
   it cited, which the builder reads; the landing notes list each with its document.
 - **(c)** A test that matches a reworded message (kind B) changes to the new text in the same
   way it matched the old: an exact string stays exact, a substring a substring, a `match=` a
-  `match=`. No verdict, golden, expected file or progress file changes. The workflow step that
+  `match=`, and a test that singled a message out by its citation singles it out by its whole new
+  shape (the review's L6: `test_several_cores.py` matches `plugin.REFUSAL` as a pattern). No verdict, golden, expected file or progress file changes. The workflow step that
   `test_scan.py` splices out and back (`SET_SUMS_STEP`) is the workflow's text, so it follows
   the workflow's new name.
 - **(d)** The inittab comment stays on one line, so the generated C keeps its line numbers.
@@ -179,8 +208,9 @@ show the final text of every one.
 | `plugin.py:151`; `test_landing_lane.py:395` | `… in the main tree (constitution §5.7); this is a linked worktree` | `… in the main tree; this is a linked worktree` |
 | `plugin.py:181`, `:193` | `(spec 029, Decision 2)`, `(spec 029)` | removed (a) |
 | `plugin.py:204`, the `goal` marker's help | `a v1 progress check (spec 002)` | `a v1 progress check` |
+| `pyproject.toml:101`, the `goal` marker (found by the review) | `a v1 progress check (spec 002); area is …` | `a v1 progress check; area is v1.1 to v1.5 or rules` |
 | `plugin.py:295` | `a shard runs serially (spec 063, Decision 4)` | `a shard runs serially: the shards are the parallelism` (b) |
-| `plugin.py:517`, `REFUSAL`; `test_several_cores.py:434` | `refused: {} ({}; spec 052, Decision 7)`; the test looks for `spec 052` | `refused: {} ({})`; the test looks for `refused:` beside the option |
+| `plugin.py:517`, `REFUSAL`; `test_several_cores.py:434` | `refused: {} ({}; spec 052, Decision 7)`; the test looks for `spec 052` | `refused: {} ({})`; the test matches the line naming the option against `REFUSAL` made a pattern, each `{}` as `.+` (the review's L6) |
 | `plugin.py:543` | `… it fails (the build review, F1)` | `… it fails` |
 | `scoreboard.py:33`, the not-machine-checked line | `(number 89)`, `(number 101)`, `(spec 091)` | each removed (a) |
 | `scoreboard.py:232`, `:300`; `history.py:258` | `(spec 062)` | removed (a) |
@@ -203,15 +233,17 @@ show the final text of every one.
 | `test_v1_5_rebuild_from_pins.py:486` | `(spec 086, Decision 7)` | removed (a) |
 | `release.yml:79`, `:103` (and `test_scan.py:2102`), `:192`, `:258`, `:367`, `:483`, `:640`, `:759`, step names | `(spec 020)`, `(spec 085)`, `(spec 016, Decision 1)`, `(spec 016)`, `(…, verified; spec 063, Decision 5)` | each removed (a); the last three read `What the shard needs (the upstream kit and source trees, verified)` |
 | `scripts/refuse-python:14`; `test_build_progress.py:1086` | `… host-python's Python (spec 079)` | `… host-python's Python` |
+| `tests/unit/test_gather.py:420`, a test id (found by the review) | `the newest line with no set (from before 085)` | `the newest line with no set (from before a history line named its set)` |
 | `scripts/gen_inittab.py:137`, the generated C comment | `/* Each init function runs inside the package context of its dotted name (spec 047). */` | `/* Each init function runs inside the package context of its dotted name. */` |
 
 No check reads a workflow step's name but `test_scan.py`'s splice (EXECUTED, `grep` of the
-eight names under `tests/`).
+eight names under `tests/`; the review's own read: `workflow_step_script`'s three callers name
+none of the eight, and `needs:` and `if:` use ids).
 
 ## Intent
 
-Every string a person reads outside the judge's allowance files, and every string a check
-holds, gives its reason in words. A rules check over string tokens holds it, beside 109's for
+Every string a person reads outside the judge's allowance files and the guest's sources under
+`recipes/`, and every string a check holds but one guest program's, gives its reason in words. A rules check over string tokens holds it, beside 109's for
 comments and 107's for `src/`, and the only citations left in a string are data, named row by
 row: a rule's own name, a scanner's fixture, a gap's closer.
 
@@ -220,21 +252,24 @@ row: a rule's own name, a scanner's fixture, a gap's closer.
 - **The scanner** (`tests/harness/scan.py`, after 109's block): `STRING_CITATION_RULES`
   (Decision 2), `_python_strings(text)` and `_code_lines(text)` (Decision 3),
   `string_citation_hits(path)` returning `(line, rule, phrase)`, and
-  `string_citation_files(root)`: 109's files plus `src/**/*.py`, less the judge's allowance
+  `string_citation_files(root)`: 109's files plus `src/**/*.py` and `pyproject.toml`, less the judge's allowance
   files.
 - **The check** (`tests/checks/test_rules.py`, after 109's):
-  `test_no_string_names_a_context_document`, with `RULE_NAME`, `FIXTURE`, `GAP_DATA`,
+  `test_no_string_names_a_context_document`, with `RULE_NAME`, `FIXTURE`, `GAP_DATA`, `GUEST_FUEL`,
   `STRING_CITATION_ALLOWED` and `STRING_RULE_LATER` (the judge's allowance files' patterns and
   the reason of Decision 4). It reports each hit as `path:line: rule: phrase`, and each stale row.
-- **The unit rows** (`tests/unit/test_scan.py`, thirteen): one parametrized row per form (nine
-  cases: two specification forms, two constitution forms, the memo, a dated review, a review by
+- **The unit rows** (`tests/unit/test_scan.py`, fourteen): one parametrized row per form (ten
+  cases: two specification forms, two constitution forms, the memo, a dated review, a numbered review, a review by
   its kind, a question, a named finding of a letter outside 109's six); one row for the carriers
   (a plain string, an implicit concatenation split mid-citation, an f-string's literal part, a
-  bytes literal, a shell `echo`, a YAML step name); one negative row (a docstring, a comment, a
-  `re.compile` pattern, an `*_ALLOWED` tuple, a `context/` path, a `reviews/` path, a label `S1`,
-  a phrase assembled with `+`, a file that does not parse: no hit); one row for the files read
-  (`src/` in, the judge's allowance files out); one row for the line reported inside a
-  multi-line string. Their fixtures are assembled from parts, so the unit file's own strings are
+  bytes literal, a shell `echo`, a YAML step name, and the three edges of Decision 3 that are
+  read: a bare string statement after the first, an f-string in a docstring's place, an
+  `re.escape` argument, an allowance row's reason); one negative row (a docstring, a comment, a
+  pattern given to `re.compile` and to `re.sub`, an allowance row's phrase, a `context/` path, a
+  `reviews/` path, a label `S1`, a phrase assembled with `+`, a file that does not parse: no
+  hit); one row for the files read (`src/` and `pyproject.toml` in, the judge's allowance files
+  out); one row for the line reported inside a triple-quoted string and on the second line of an
+  implicitly concatenated literal. Their fixtures are assembled from parts, so the unit file's own strings are
   never a hit.
 - **The rewording:** by hand, kind by kind, from Decision 7's table and Decision 6's rules; 75
   hits in 62 literals across 24 files, plus `packages.py:560`.
@@ -245,9 +280,14 @@ In: the string literals of `tests/`, `scripts/`, `release/` and `.github/workflo
 `src/`, read and found clean); the check, its scanner, its unit rows, its allowance. Out: the
 judge's allowance files (Decision 4: the reserved closer after 0.1.0); comments and docstrings
 (109's and 107's checks, unchanged); the guest's own sources' comments (109's `GUEST_INPUT`
-rows, unchanged; their strings hold no citation); a bare `Decision N` or `criterion N` with no
-specification beside it (Decision 2; `test_history.py`'s three `criterion N OPS` prints and one
-comment in a held program keep theirs); `context/`, `CHANGELOG.md` and the roadmap (the lane's).
+rows, unchanged; their strings hold no citation); `recipes/` (the guest's own sources, compiled
+or frozen into the guest, such as `npy_fenv_flags.h`'s `#error … (spec 099)` and the stand-in
+modules' docstrings: the reserved closer; the review's L4); `CTYPES`'s comment (Decision 5's
+`GUEST_FUEL`, the closer that re-measures guest fuel); a bare `Decision N` or `criterion N` with no
+specification beside it, and a bare number in an id (Decision 2; `test_history.py`'s three
+`criterion N OPS` prints, `WRITE_PARITY`'s "Decision 12's deliberate differences" in a guest
+program, and `test_landing_lane.py`'s ids `steer052` and `spoof052` keep theirs; the closer may
+take them, the review's Note 10); `context/`, `CHANGELOG.md` and the roadmap (the lane's).
 
 ## Acceptance criteria
 
@@ -258,13 +298,15 @@ comment in a held program keep theirs); `context/`, `CHANGELOG.md` and the roadm
 2. **Measured on the base it builds on:** the population table is re-run by the built scanner
    on the build's base (main, or wave 10's tip if it landed) and the landing notes give the
    counts by kind and file; any hit not in the table is reworded or answered in writing.
-3. **Passes on the built commit**, with `STRING_CITATION_ALLOWED` holding only the fourteen rows
+3. **Passes on the built commit**, with `STRING_CITATION_ALLOWED` holding only the fifteen rows
    of Decision 5, every one used, and 109's and 107's checks still green.
-4. **The unit rows** (thirteen) pass; `tests/unit/test_scan.py` passes whole.
-5. **Strings only:** for every Python file changed but the check's own and the scanner's, the
-   `ast` dump with every string constant blanked is the same before and after; for the other
-   files, the lines that change are the eight step names, the one `echo` and nothing else
-   (`build/112/same-code.py`, prints nothing).
+4. **The unit rows** (fourteen) pass; `tests/unit/test_scan.py` passes whole.
+5. **Strings only:** for every Python file changed but `tests/harness/scan.py`,
+   `tests/checks/test_rules.py` and `tests/unit/test_scan.py`, the `ast` dump with every string
+   constant blanked is the same before and after; in those three, every top-level statement
+   present on the base has the same blanked `ast`, apart from `SET_SUMS_STEP`'s string; for the
+   other files, the lines that change are the eight step names, the one `echo` and the one marker
+   line, and nothing else (`build/112/same-code.py`, prints nothing; the review's L5).
 6. **No protected file changes:** `git diff --stat <base> -- tests/known_gaps.toml
    'tests/upstream/*.toml' tests/upstream/expected tests/upstream/python context/progress src
    tests/jobs tests/upstream/drive.py tests/upstream/regrtest_drive.py
@@ -274,12 +316,16 @@ comment in a held program keep theirs); `context/`, `CHANGELOG.md` and the roadm
 8. **Rule (b) traced:** the landing notes list every string written under rule (b) with the
    document it stood on.
 9. **The artifact set:** the builder's release workflow run on the built commit builds a set
-   whose `python.wasm`, snapshot and stdlib zip have the SHA-256 of main's last dry run on the
-   base, and whose `MANIFEST` differs from it only in the `recipe` lines of
+   whose `python.wasm`, snapshot and stdlib zip have the SHA-256 of a release workflow run on the
+   base, or on the latest commit whose `recipes/`, `scripts/` (but the two files) and
+   `downloads/SHA256SUMS` are the base's (its run id in the landing notes; the review's L7), and
+   whose `MANIFEST` differs from it only in the `recipe` lines of
    `scripts/gen_inittab.py` and `scripts/refuse-python`; every red line of the run is G7 or one
    the landing notes explain; the run id is in the landing notes.
 10. **The fast tier** on the built commit fails exactly the baseline's nodes, and `sameness.py`
-    against the base's record prints nothing outside this specification's claims.
+    against the base's record prints nothing outside this specification's claims. Against a
+    frozen set built on the base, `test_manifest_recipes_match_the_tree` is the one expected
+    difference, its message naming exactly the two files (the review's L7).
 11. **Ruff:** `ruff check` and `ruff format --check` are green on `src/` and `tests/`.
 
 ## For the lane
@@ -297,7 +343,7 @@ comment in a held program keep theirs); `context/`, `CHANGELOG.md` and the roadm
   new = [
     "tests/checks/test_rules.py::test_no_string_names_a_context_document",
   ]
-  units = 13
+  units = 14
   ```
 
   112: **retired checks:** none. **Lost passes:** none. **Rows that grow:** none (no fuel row:

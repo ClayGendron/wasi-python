@@ -186,13 +186,33 @@ structural, and the Kind line rightly does not say so.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. —
-2. —
-3. —
-4. —
-5. —
-6. —
-7. —
+1. M1 — written in: Decision 3's files add `pyproject.toml` (its non-comment lines, as any
+   TOML's); Decision 7's table gains the marker's row, worded as the fix text; criterion 5's
+   non-Python lines add "the one marker line"; the Kind line and the `--accept-judge` reason name
+   the file. No artifact carries it.
+2. M2 — written in as the fix text: Decision 2's `review` rule adds `review 0NN`
+   (`\breviews?\s+0\d{2}\b`, any case); Decision 5 adds the `GUEST_FUEL` row for
+   `test_v1_3_data_stack.py`'s `review 033` with the fix text's reason, so fifteen rows; the
+   population table gains kind E (1); the extra-finds sentence names it "found by the review";
+   Scope's Out and the Kind line say it is kept for the closer. It is not reworded.
+3. L3 — written in: Decision 7's table gains the `test_gather.py:420` id, `(from before a history
+   line named its set)`, "found by the review".
+4. L4 — written in: Scope's Out names `recipes/` (the guest's own sources, the reserved closer),
+   and the Intent's first sentence names it in its exception.
+5. L5 — written in: criterion 5 as the fix text.
+6. L6 — written in: Decision 6 (c) adds the rule, and the `REFUSAL` row says the test matches the
+   line naming the option against `plugin.REFUSAL` made a pattern (each `{}` as `.+`).
+7. L7 — written in: criteria 9 and 10 as the fix text. The comparison run is 39572424790
+   (`wave/09`, `111d56f4`, green): `git diff --stat 111d56f4 d8fc73f -- recipes scripts
+   downloads/SHA256SUMS .github` is empty (EXECUTED).
+8. Note 8 — taken: Decision 3 states the three edges exactly (109's docstrings and no more; the
+   nine `re` functions' pattern argument, `re.escape` and `sub`'s replacement read; only the
+   phrase of an allowance row skipped, the reasons read). The carriers row and the negative row
+   of the Design hold each edge.
+9. Note 9 — taken: each string token keeps its own line, from `tokenize`; the line row includes a
+   phrase on the second line of an implicitly concatenated literal.
+10. Note 10 — acknowledged in Scope's Out: `WRITE_PARITY`'s "Decision 12's" and the ids
+    `steer052` and `spoof052` keep theirs, consistent with the forms; the closer may take them.
 
 ## Verdict
 
