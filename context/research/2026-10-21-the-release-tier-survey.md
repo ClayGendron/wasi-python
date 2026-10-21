@@ -158,7 +158,8 @@ pandas-tslibs             38.77 ->    38.77  +0.000000  passes 590 -> 590
    `test_peg_generator` whose `Tools/peg_generator` is not staged); one errors
    (`test_trace`, the class above). Two **single tests are past 480 G and cannot be split**:
    `test_sha3_256_update_over_4gb` (813 G: SHA3 over 4 GiB in the guest) and
-   `test_sumprod_stress` (621 G). Each is a group and a shard of its own, as 067's sympy test is.
+   `test_sumprod_stress` (621 G). Each is a group of its own; `cpython-release-hashlib-3` fills a shard alone and
+   `cpython-release-math-2` packs with `cpython-release-archives` (721.2 G, inside 725 G).
    The other heavy ones were split by id to under 480 G: the three `*_update_over_4gb` hashes
    (222, 331 and 813 G), `test_unicodedata` whole (255 G), the inline `test_tokenize` and
    `test_unparse` (472 G), `test_math`'s two sumprod tests.
@@ -184,8 +185,8 @@ delta to **a context-only delta review before the build continues**. The delta, 
 4. Budgets per tier: numpy's, pandas' and CPython's budgets bound each tier; CPython's release
    tier has its own, 6 T (its caps sum to 5.39 T); a package family's budget stays the sum of all
    its caps (contourpy's 8.865 T).
-5. The release shards: twelve, packed at 725 G from these numbers, two of them one single test
-   each; the normal plot shards re-packed into nine (6.01 T).
+5. The release shards: twelve, packed at 725 G from these numbers, one of them a single test
+   alone; the normal plot shards re-packed into nine (6.01 T).
 6. pandas' and numpy's release groups are by path (two and three), not one each.
 
 In one line: the release tier is 8.37 T on darwin, every test lands in a tier, and two single

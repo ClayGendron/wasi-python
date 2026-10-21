@@ -833,7 +833,9 @@ The build, below, as it goes.
    the sum of all its caps, both tiers (contourpy's, 8.865 T).
 7. **Two single tests past 480 G** (Decision 3's bound, Decision 10's packing):
    `test_sha3_256_update_over_4gb` (813 G) and `test_sumprod_stress` (621 G) cannot be split. Each
-   is a group and a shard of its own, as 067's sympy test is. By Decision 11's rule this sends the
+   is a group of its own. `cpython-release-hashlib-3` fills a shard alone.
+   `cpython-release-math-2` packs with `cpython-release-archives` (721.2 G, inside 725 G). By
+   Decision 11's rule this sends the
    survey's delta to a context-only delta review before the build goes on.
 8. **A move is red where the run collected the check** (Decision 5). "Red on any run" made a run
    of other files red (the landing lane's self-tests run the plugin on a unit file in a
@@ -914,10 +916,9 @@ The build, below, as it goes.
      written before; with no release fields in the TOMLs, every JSON is byte for byte the base's
      (the `-k` and the marker come from `tiers`, which returns the family's marker and no filter
      for a normal group over no entry's file).
-   - A module-level `RESOURCE_DENIED` does not say which resource was denied (the driver's `D`
-     line carries the state alone), so the partition takes every `RESOURCE_DENIED` module of a
-     normal group as needing a `gated` entry. A module denied `gui` would show at the survey; the
-     driver is unchanged, so the stage's fuel does not move.
+   - A module-level `RESOURCE_DENIED` did not say which resource was denied. The survey added
+     the driver's `Z` line (Difference 4), and CPython's normal fuel moves by up to 5.3e-4,
+     claimed as growth.
    - A module entry's `match` is the pattern `test.<module>.*`; the survey confirms regrtest
      matches a package's submodules' tests by it.
 4. **The fast tier on the machinery** (`uv run pytest -m "not slow" -n 3`, the fast slot held,
@@ -931,7 +932,7 @@ The build, below, as it goes.
 5. **The survey** (Decision 11; `../research/2026-10-21-the-release-tier-survey.md`, EXECUTED, on
    wave 09's set `142bdd38`, 03:10 to 04:15). The release tier: 41 groups, **8.37 T** on darwin
    (contourpy 3.99, CPython 3.51, numpy 0.48, pandas 0.39), 21 to 24 minutes of guest time
-   serially; twelve release shards at 725 G, two of them a single test each. The normal tier
+   serially; twelve release shards at 725 G, one of them a single test. The normal tier
    against the lane's wave 09 record on the same set: numpy's and pandas' normal groups equal to
    the instruction; CPython's within +5.3e-4; contourpy's within 4.4e-4 but `contourpy-1`
    (+0.28%, its new `-m "not slow"`); passes equal everywhere. CPython: 51 tests and one module
