@@ -310,11 +310,17 @@ structural**, as the Kind line says.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. L1 — 
-2. L2 — 
-3. L3 — 
-4. L4 — 
-5. L5 — 
+1. L1 — written in: 15 new rows (8 plant, 2 stand-in, 5 HOME), 9 changed rows plus 1 unit
+   test, none retired; "27 rows" is 24; the flags' text says which rows each covers.
+2. L2 — written in with the reviewer's measurement: the largest rows are the rebuilt snapshot's
+   moved heap and zip index, in both directions; the default profile's +15,468 on `-c pass` is
+   +8,035 from the new set and +7,433 from the placeholder.
+3. L3 — answered in writing and accepted: the empty HOME is left until the process ends only if
+   `wt.Store` raises, the shape the fresh HOME had before; a later sweep removes it. No code
+   change, so the run on `2147b335` stands.
+4. L4 — answered in writing; the check row is reserved by a roadmap line after 0.1.0. Today a
+   Windows regression in the release order shows only as a `RuntimeWarning`.
+5. L5 — the grep is listed in the landing notes, "As built": no other check encodes no HOME.
 
 ## Verdict
 

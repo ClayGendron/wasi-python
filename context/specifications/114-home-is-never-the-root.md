@@ -2,7 +2,9 @@
 
 - **Status:** **built 2026-10-21** on `spec/114-home-is-never-the-root`, tip `2147b335`, from main
   `1875d4cd`; release run 39633291201 read, red by growth only, Windows and Linux green (Landing
-  notes); awaiting its build review. Before: **drafted** the same day, with its checks written first and seen failing on main's code (EXECUTED,
+  notes). **Build review: "lands"** (`../reviews/114-home-is-never-the-root-build-2026-10-21.md`),
+  no High, no Medium; its five Lows closed in `context/` only, each in its Disposition, so the run
+  on `2147b335` stands. Before: **drafted** the same day, with its checks written first and seen failing on main's code (EXECUTED,
   `build/114/checks-on-main.log` in the builder's worktree, against the main tree's frozen set,
   `SHA256SUMS` `d0d91cef`): 12 rows fail, the 2 fresh-HOME guard rows pass. **Reviewed before
   build** the same day (`../reviews/114-home-is-never-the-root-spec-2026-10-21.md`, "fit to build
@@ -516,12 +518,33 @@ worktree's `build/114/`.
   `reportlab_mods.pyc` and `reportlab_settings.pyc`, and no member changes (`setdiff.py`):
   53,913,865 -> 53,915,154 bytes (+1,289). The snapshot is rebuilt over the new zip:
   104,511,377 -> 104,517,748 bytes (+6,371). `MANIFEST` gains the recipe's line.
-- **The checks on that set.** All 27 rows of the new and changed checks pass (`checks-on-fix-2.log`).
+- **The checks on that set.** All 24 rows of the new and changed checks pass (`checks-on-fix-2.log`;
+  the 15 new rows and 9 of the changed rows; the build review's L1 corrected the count from 27).
   The removal, session, public-API and nearest unit checks: 245 passed, 2 skipped (`more.log`).
 - **Found at build and fixed in the check, not the fix.** The stand-in check compared
   `rl_config.defaultPageSize` with `_DEFAULTS['defaultPageSize']`. That is wrong whatever the
   stand-ins are: `_startUp` converts the name `"A4"` to its tuple. It now compares every one of
   `_DEFAULTS` with `rl_settings`' value.
+- **The build's grep** (Decision 5; the build review's L5). The grep of `tests/` for `HOME`,
+  `expanduser` and `'~'` finds no other check that encodes no HOME. The `.pdbrc` row, the
+  deep-tree rows (`test_v1_4_embedding.py:1611-1720`) and `test_home_follows_a_writable_tmp_grant`
+  read a fresh HOME and are unchanged; the unit tests that name HOME (`tests/unit/test_guest.py`,
+  `test_build_progress.py`) set their own. No stderr comparison of matplotlib or seaborn without a
+  writable `/tmp` was found.
+- **A failed `wt.Store`** (the build review's L3), answered in writing and accepted. In
+  `_call_deferred`, `_guest_home` runs before `store = wt.Store(engine)`, which is outside the
+  `try`, so if the store cannot be made, `_release_home` never runs: the empty HOME's private
+  folder and its lock are left until the process ends, and a later process's sweep removes them.
+  The fresh HOME had the same shape before this change, and only an out-of-memory error makes a
+  store fail. The session releases `state.home` on any failure. Changing it would be code, and
+  the run on `2147b335` stands on this code.
+- **The placeholder's removal has no check of its own** (the build review's L4), answered in
+  writing. The temp-folder checks run with `root=True`, so with a fresh HOME; the new HOME check
+  watches the grant's folder, not the temp folder. A regression in the release order on Windows
+  would today show only as one `RuntimeWarning`, and nothing would fail. The row the review
+  describes (a call with a read-only grant at `/tmp` and a session, under a redirected
+  `tempfile.tempdir`, which must end empty with no warning flushed) is reserved by a roadmap line
+  after 0.1.0.
 - **The errors the README now names.** Measured on the set: scikit-learn's fetch is
   `PermissionError` on `<HOME>/scikit_learn_data`; seaborn's `load_dataset` is `PermissionError`
   on `<HOME>/.cache`; statsmodels' `get_rdataset(cache=True)` is `PermissionError` on
@@ -538,8 +561,13 @@ worktree's `build/114/`.
 697/904 pass, 0 fail, 0 lost; red only by growth and by the renamed check, ABSENT, which commit
 `2147b335` then restored. `growth.py`: 123 metrics grew against the accepted record's
 darwin-arm64 values: 121 fuel, 2 bytes. 79 are over 1e-4, and the largest is +0.31%
-(`test_recursion_through_python_raises[min-key-snapshot]`, +174,255). Each is start-up on the
-rebuilt snapshot, or a no-root call's HOME preopen and variable.
+(`test_recursion_through_python_raises[min-key-snapshot]`, +174,255). Each grown row is the
+rebuilt snapshot (its heap and zip index moved, so a program's own work costs a little more or
+less: 120 rows grew and 110 shrank in the macOS guest shard, the build review's measurement; the
+recursion row grows on the judge's driver, which has no HOME, while `-c pass` there falls by
+4,468), plus, in a call where the runner makes no fresh HOME, the placeholder's preopen and
+variable. The default profile's `-c pass` +15,468 is +8,035 from the new set (the `root=True`
+row's growth) plus +7,433 from the placeholder (the build review's L2).
 
 ### The branch's release runs (READ, `gh run view --json jobs`)
 
@@ -560,8 +588,9 @@ rebuilt snapshot, or a no-root call's HOME preopen and variable.
 
 - **Wave kind:** build-class (a recipe and the zip step), with runner code.
 - **The claim list:**
-  - **new:** the 18 rows of the three new functions. That is the 14 of Decision 4, plus the stand-in
-    check's second binary.
+  - **new:** the 15 rows of the three new functions: the 14 of Decision 4 plus the stand-in
+    check's second binary (8 plant rows, 2 stand-in rows, 5 HOME rows; the build review's fast
+    tier says `gained 15`).
   - **changed**, each because the guest now always has a HOME:
     - `test_nothing_is_writable_by_default[plain|snapshot]`;
     - `test_no_root_and_no_grants_runs`;
@@ -569,19 +598,24 @@ rebuilt snapshot, or a no-root call's HOME preopen and variable.
     - `test_a_mount_at_tmp_means_no_home` (same id);
     - `test_seaborn_takes_its_scipy_paths[plain|snapshot]`;
     - `test_scikit_learn_says_what_it_lacks`;
-    - the unit test `test_a_writer_cannot_keep_a_home_removal_going`, which now calls the
-      moved `_call._remove_home`.
+    - and one unit test, `test_a_writer_cannot_keep_a_home_removal_going`, which now calls the
+      moved `_call._remove_home`: 9 check rows changed, plus that unit test.
   - **retired:** none.
   - **grown:**
     - the zip's bytes (+1,289) and the snapshot's (+6,371);
-    - start-up fuel on the rebuilt snapshot and in no-root calls: 123 rows locally, up to +0.31%;
+    - fuel: the rebuilt snapshot's moved heap and zip index, in both directions (the largest
+      rows, up to +0.31%, are a program's own work, not start-up), plus the placeholder's preopen
+      and variable where the runner makes no fresh HOME (+7,433 on `-c pass`): 123 rows locally,
       72 and 19 on the two macOS shards.
 - **Flags:**
   - `--accept "114: HOME is never the root"`;
   - `--accept-judge "114: the guest always has a HOME; checks that encoded none now read the empty
     read-only one"`;
+  - `--accept "114: HOME is never the root"` covers 15 new rows; `--accept-judge` the 9 changed
+    rows and the unit test;
   - `--accept-growth "114: the zip gains reportlab's two empty hooks, so the snapshot is rebuilt
-    over it; a call without a fresh HOME carries one more preopen and variable"`.
+    over it and a program's own work moves a little either way; a call without a fresh HOME
+    carries one more preopen and variable"`.
 
 ### The builder's self-check
 
