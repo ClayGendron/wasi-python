@@ -1,6 +1,6 @@
 # 097 — host litter outside the home folder: the judge's guest folders leave HOME on macOS, and the OpenBLAS script never reads litter
 
-- **Status:** **built 2026-10-20 on `dbecd2d`** (main plus the structural chain 103 to 109;
+- **Status:** **landed 2026-10-21 in wave 09** (100, 097) on main `111d56f4`: accepted on `a3bb5854`, history line 91, 785/872 pass, 0 fail, on a set rebuilt from the same pins in the main tree (`SHA256SUMS` `142bdd38`, equal to CI's); the dry run 39559520924 on `a68efbb` red only on 100's claimed growth and G7; the integration review `../reviews/wave-09-integration-2026-10-21.md` and the lane's addendum. Before: **built 2026-10-20 on `dbecd2d`** (main plus the structural chain 103 to 109;
   code tip `90eed13`, CI run 39532775277; the section "Landing notes"); awaits its build review.
   **Revised 2026-10-20 against its pre-build review** ("build once finding 1 is
   answered in writing": `../reviews/097-host-litter-outside-home-prebuild-2026-10-20.md`; the

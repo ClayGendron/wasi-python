@@ -1,6 +1,6 @@
 # 100 — numpy's linear algebra, `dot` and `matmul` run on the set's OpenBLAS
 
-- **Status:** **rebuilt 2026-10-21** from empty on the structural chain `dbecd2d` (set `SHA256SUMS`
+- **Status:** **landed 2026-10-21 in wave 09** (100, 097) on main `111d56f4`: accepted on `a3bb5854`, history line 91, 785/872 pass, 0 fail, on a set rebuilt from the same pins in the main tree (`SHA256SUMS` `142bdd38`, equal to CI's); the dry run 39559520924 on `a68efbb` red only on 100's claimed growth and G7; the integration review `../reviews/wave-09-integration-2026-10-21.md` and the lane's addendum. Before: **rebuilt 2026-10-21** from empty on the structural chain `dbecd2d` (set `SHA256SUMS`
   `f43586b0…`); release run **39535794638** on `186b9a4` read (macOS red on growth lines only; two
   Windows rows the chain's own, fixed by the lane at `5af0a42`); fast tier 2,655 passed, 0 failed;
   **build reviewed: lands** (`../reviews/100-numpy-on-openblas-build-2026-10-20.md`, its

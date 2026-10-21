@@ -421,3 +421,25 @@ would be ejected and 097 land alone (097 touches nothing of 100's).
 One line: numpy on OpenBLAS and the guest folders outside the home folder merge cleanly; the one
 real defect, a rebase that broke the oracle's lock, is fixed on the tip; the rest is claims the lane
 must widen to the darwin upstream rows CI never measures.
+
+## The lane's addendum (2026-10-21)
+
+- **The conditions met.** The main tree's oracle was synced online with the judge's helper and
+  `test_goldens_reproduce_under_the_pinned_oracle` passes in the acceptance; 100's
+  `--accept-growth` carries M1's clause for the darwin upstream groups; the acceptance used this
+  review's claim file (100's block with `test_upstream_suite[*`, 097's block with `units = 7`).
+- **The acceptance** on `a3bb5854` (`a68efbb` and this review): history line 91, 785/872 pass,
+  0 fail, lost 0; `uv run python tests/harness/sameness.py
+  build/wave-structural/accepted-record.json build/wave-09/lane/accepted-record.json --claims
+  build/wave-09/lane/claims.toml` → `note: explained by claims: 097 2 · 100 196`, exit 0. The
+  acceptance commit `111d56f4`; `test_rules.py` 58 passed on it; main fast-forwarded
+  `58f108f..111d56f4`. The step-7 dry run 39572424790 on `111d56f4`.
+- **L2** written in by the lane with this review's fix text (`CHANGELOG.md`, 037's and 099's
+  bullets). **L3** carried by the roadmap's reserved line for the staging items. **L1** answered
+  by this review's claim file.
+- **Criterion 7 of 097** (the full judge's cleanup), read after the acceptance (EXECUTED): the
+  main tree's guest root (`paths.GUEST_TMP`, `…/T/judge-wasi_python-0417e7885a08`) holds no
+  `guest-*` folder and no folder without its owner's write bit. `build/harness` (`HARNESS_TMP`)
+  still holds 15 `guest-*` folders dated 2026-10-17 to 10-19, older than 097 and left by earlier
+  runs; none is this run's. Another worktree's guest root (`…-de372d043573`, written 03:34 to 04:32
+  tonight by a survey session) holds 15, read as that session's own, not the judge's.

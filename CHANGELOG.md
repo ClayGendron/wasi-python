@@ -73,7 +73,7 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   `numpy.linalg.inv`, `solve`, `tensorinv`, `tensorsolve` and `matrix_power(a, -1)` of a singular
   matrix, and `cholesky` of one not positive definite, returned `nan`s. A recipe header,
   `recipes/npy_fenv_flags.h`, keeps the signals numpy raises itself in a software flag word: these
-  raise `LinAlgError` whenever numpy's bundled LAPACK (`lapack_lite`) finds the matrix singular;
+  raise `LinAlgError` whenever numpy's LAPACK (`lapack_lite` then; OpenBLAS since spec 100, above) finds the matrix singular;
   for a matrix singular only in exact arithmetic that is not always where native numpy does
   (LAPACKs round differently; exact parity is not a goal in wasm). The same word makes integer division by zero, integer overflow in
   division and float16 overflow warn, or raise under `np.errstate`, as natively: a widening of the
@@ -151,7 +151,7 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   from the `ctypes` stand-in. `fft`'s `workers=` runs serially; `differential_evolution` and
   `brute` with `workers` other than 1, and `cKDTree.query(workers=...)` other than 1, raise.
   numpy's own LAPACK (`lapack_lite`) now carries a symbol prefix so it cannot meet OpenBLAS's;
-  numpy computes as before. The set is the same bytes from every build host with no exception:
+  numpy computes as before. (Later in this release numpy links the same OpenBLAS and `lapack_lite` leaves the binary: spec 100, above.) The set is the same bytes from every build host with no exception:
   wasi-sdk 34 (spec 086) compiles scipy's ducc0 FFT to one object, so the same-bytes exception
   this specification built on wasi-sdk 33 was withdrawn before it landed.
 - **scipy's sandbox edges work** (spec 038; spec 037's three known gaps closed). With nothing
