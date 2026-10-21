@@ -3502,7 +3502,10 @@ def one_lapack_errors(
 # ---------------------------------------------------------------------------------------------
 # A uv project's lock, read as uv reads it
 
-_REQUIREMENT = re.compile(r"\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:@\s*([^;\s]+))?([^;]*)")
+_REQUIREMENT = re.compile(
+    r"\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[[^\]]*\])?\s*(?:@\s*([^;\s]+))?([^;]*)"
+)
+_SOURCE_TREE = ("directory", "editable", "virtual")
 
 
 def _dist_name(name: str) -> str:
@@ -3510,14 +3513,15 @@ def _dist_name(name: str) -> str:
 
 
 def _requirement_pins(pyproject: dict) -> set[tuple[str, str]]:
-    """The project's requirements as (name, url or specifier), its uv sources applied."""
+    """The project's requirements as (name, url or specifier), its uv sources applied, the
+    specifier without spaces as uv writes it."""
     sources = pyproject.get("tool", {}).get("uv", {}).get("sources", {})
     urls = {_dist_name(k): v["url"] for k, v in sources.items() if "url" in v}
     pins = set()
     for text in pyproject.get("project", {}).get("dependencies", []):
         m = _REQUIREMENT.match(text)
         name = _dist_name(m[1]) if m else text
-        pins.add((name, (m[2] or urls.get(name) or m[3].strip()) if m else "?"))
+        pins.add((name, (m[2] or urls.get(name) or re.sub(r"\s+", "", m[3])) if m else "?"))
     return pins
 
 
@@ -3531,9 +3535,11 @@ def _dependency_entries(package: dict) -> list[dict]:
 
 def lock_errors(lock_text: str, pyproject_text: str) -> list[str]:
     """What keeps uv from taking a lock as its project's: the lock does not parse; a dependency
-    entry matches no package, or several (uv refuses a bare name that more than one package of
-    that name answers); or the root package's requirements or Python bound differ from the
-    project's. It reads the files only, so it needs no network, cache or interpreter."""
+    entry for a name that several packages share does not name its source, and its version too
+    unless the source is a source tree; an entry matches no package, or several; or the root
+    package's requirements (names and pins; markers and extras are left out) or Python bound
+    differ from the project's. It reads the files only, so it needs no network, cache or
+    interpreter."""
     try:
         lock = tomllib.loads(lock_text)
     except tomllib.TOMLDecodeError as e:
@@ -3546,9 +3552,18 @@ def lock_errors(lock_text: str, pyproject_text: str) -> list[str]:
     errors = []
     for p in packages:
         for dep in _dependency_entries(p):
+            same = by_name.get(_dist_name(dep["name"]), [])
+            tree = any(k in dep.get("source", {}) for k in _SOURCE_TREE)
+            if len(same) > 1 and ("source" not in dep or ("version" not in dep and not tree)):
+                missing = "source" if "source" not in dep else "version"
+                errors.append(
+                    f"{p['name']} {p.get('version', '')}: its {dep['name']} entry has no {missing},"
+                    f" and {len(same)} packages are named {dep['name']}"
+                )
+                continue
             found = [
                 q
-                for q in by_name.get(_dist_name(dep["name"]), [])
+                for q in same
                 if dep.get("version", q.get("version")) == q.get("version")
                 and dep.get("source", q.get("source")) == q.get("source")
             ]
@@ -3559,11 +3574,11 @@ def lock_errors(lock_text: str, pyproject_text: str) -> list[str]:
                     f"{p['name']} {p.get('version', '')}: its {entry} matches {len(found)} packages"
                 )
     project = pyproject.get("project", {})
-    root = [p for p in packages if p["name"] == project.get("name")]
+    root = [p for p in packages if _dist_name(p["name"]) == _dist_name(project.get("name", ""))]
     if len(root) != 1:
         return errors + [f"the lock holds {len(root)} packages named {project.get('name')}"]
     locked = {
-        (_dist_name(r["name"]), r.get("url") or r.get("specifier", ""))
+        (_dist_name(r["name"]), r.get("url") or re.sub(r"\s+", "", r.get("specifier", "")))
         for r in root[0].get("metadata", {}).get("requires-dist", [])
     }
     wanted = _requirement_pins(pyproject)

@@ -2683,14 +2683,46 @@ def test_a_bare_entry_that_two_packages_answer_is_named() -> None:
     # but has more than one matching package".
     lock = _lock(seaborn_numpy='    { name = "numpy" },\n')
     assert scan.lock_errors(lock, LOCK_PROJECT) == [
-        "seaborn 0.13.2: its bare numpy entry matches 2 packages"
+        "seaborn 0.13.2: its numpy entry has no source, and 2 packages are named numpy"
     ]
 
 
-def test_an_entry_that_no_package_answers_is_named() -> None:
-    lock = _lock(seaborn_numpy='    { name = "numpy", version = "2.4.0" },\n')
+def test_a_shared_name_entry_with_a_version_and_no_source_is_named() -> None:
+    # One version matches one package, but uv asks a shared name for its source all the same.
+    lock = _lock(seaborn_numpy='    { name = "numpy", version = "2.5.2" },\n')
+    lock = lock.replace('version = "2.5.2", source = { url', 'version = "2.4.0", source = { url')
+    lock = lock.replace('version = "2.5.2"\nsource = { url', 'version = "2.4.0"\nsource = { url')
     assert scan.lock_errors(lock, LOCK_PROJECT) == [
-        "seaborn 0.13.2: its numpy entry by version matches 0 packages"
+        "seaborn 0.13.2: its numpy entry has no source, and 2 packages are named numpy"
+    ]
+
+
+def test_a_shared_name_entry_with_a_source_and_no_version_is_named() -> None:
+    entry = '    { name = "numpy", source = { registry = "https://pypi.org/simple" } },\n'
+    assert scan.lock_errors(_lock(seaborn_numpy=entry), LOCK_PROJECT) == [
+        "seaborn 0.13.2: its numpy entry has no version, and 2 packages are named numpy"
+    ]
+
+
+def test_a_shared_name_entry_from_a_source_tree_needs_no_version() -> None:
+    lock = _lock(seaborn_numpy='    { name = "numpy", source = { directory = "numpy" } },\n')
+    lock = lock.replace(
+        'version = "2.5.2", source = { url = "https://e.org/numpy.whl" }',
+        'version = "2.5.2", source = { directory = "numpy" }',
+    )
+    lock = lock.replace(
+        'version = "2.5.2"\nsource = { url = "https://e.org/numpy.whl" }',
+        'version = "2.5.2"\nsource = { directory = "numpy" }',
+    )
+    assert scan.lock_errors(lock, LOCK_PROJECT) == []
+
+
+def test_an_entry_that_no_package_answers_is_named() -> None:
+    entry = (
+        '    { name = "numpy", version = "2.4.0", source = { url = "https://e.org/numpy.whl" } },\n'
+    )
+    assert scan.lock_errors(_lock(seaborn_numpy=entry), LOCK_PROJECT) == [
+        "seaborn 0.13.2: its numpy entry by version+source matches 0 packages"
     ]
 
 
@@ -2708,3 +2740,12 @@ def test_a_lock_behind_its_project_is_named() -> None:
         "the lock requires tqdm ==4.70.1, the project does not",
         "the lock's requires-python '==3.15.0' is not the project's '==3.15.1'",
     ]
+
+
+def test_extras_spaces_and_an_unnormalised_name_are_read_as_uv_writes_them() -> None:
+    # Extras are left out of the comparison, as markers are; uv writes a specifier without
+    # spaces and the project's name normalised.
+    project = LOCK_PROJECT.replace('name = "p"', 'name = "P_"')
+    project = project.replace('"seaborn==0.13.2"', '"seaborn[stats] == 0.13.2"')
+    lock = _lock().replace('name = "p"', 'name = "p-"')
+    assert scan.lock_errors(lock, project) == []
