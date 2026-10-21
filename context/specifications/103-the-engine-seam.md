@@ -1,6 +1,6 @@
 # 103 — The engine seam: one module touches wasmtime-py's private API
 
-- **Status:** **built on `d77425d` in worktree `spec/103-the-engine-seam`, 2026-10-20, awaiting
+- **Status:** **landed 2026-10-21 with the structural chain** (103 to 109, PR #1) on main `5495b46`: accepted on `7a22103`, history line 90, 777/864 pass, 0 fail, on a set rebuilt from the same pins in the main tree (`SHA256SUMS` `83789790`; the three binaries byte-identical to wave 08's); the dry run 39540823534 on `5af0a42` green on three systems but G7; the integration review `../reviews/wave-structural-chain-103-109-integration-2026-10-21.md` and the lane's addendum to it (three fixes found by the dry run and the acceptance, each reviewed by a fresh agent). Before: **built on `d77425d` in worktree `spec/103-the-engine-seam`, 2026-10-20, awaiting
   the build review** (the landing notes below; the base `3626bb6` on branch
   `claude/gallant-ride-9nxxmn`, main `5feb7e9` plus the chain's specifications and reviews).
   Drafted 2026-10-20 on that branch; its pre-build review and confirmation are

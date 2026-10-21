@@ -1,6 +1,6 @@
 # 104 — The runner becomes a package: one module per concern
 
-- **Status:** **built on `dcd5fbe` on `spec/104-the-runner-becomes-a-package`, stacked on
+- **Status:** **landed 2026-10-21 with the structural chain** (103 to 109, PR #1) on main `5495b46`: accepted on `7a22103`, history line 90, 777/864 pass, 0 fail, on a set rebuilt from the same pins in the main tree (`SHA256SUMS` `83789790`; the three binaries byte-identical to wave 08's); the dry run 39540823534 on `5af0a42` green on three systems but G7; the integration review `../reviews/wave-structural-chain-103-109-integration-2026-10-21.md` and the lane's addendum to it (three fixes found by the dry run and the acceptance, each reviewed by a fresh agent). Before: **built on `dcd5fbe` on `spec/104-the-runner-becomes-a-package`, stacked on
   103's `c15adf4`, 2026-10-20, reviewed** (`../reviews/104-the-runner-becomes-a-package-2026-10-20.md`:
   lands; the landing notes below; the code's last commit is `dcd5fbe`, the review's three Lows,
   on `ea08708`, the build the review read at `2a9546c`). Drafted 2026-10-20 on

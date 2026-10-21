@@ -1,6 +1,6 @@
 # 105 — One owner for the process's state, and the test seams move off module globals
 
-- **Status:** **built on `1f959c2` (the code; the commits after it carry these notes) on `spec/105-one-owner-for-the-process-state`, stacked on 104's
+- **Status:** **landed 2026-10-21 with the structural chain** (103 to 109, PR #1) on main `5495b46`: accepted on `7a22103`, history line 90, 777/864 pass, 0 fail, on a set rebuilt from the same pins in the main tree (`SHA256SUMS` `83789790`; the three binaries byte-identical to wave 08's); the dry run 39540823534 on `5af0a42` green on three systems but G7; the integration review `../reviews/wave-structural-chain-103-109-integration-2026-10-21.md` and the lane's addendum to it (three fixes found by the dry run and the acceptance, each reviewed by a fresh agent). Before: **built on `1f959c2` (the code; the commits after it carry these notes) on `spec/105-one-owner-for-the-process-state`, stacked on 104's
   reviewed tip `538e831` (rebased from its built tip `2a9546c` after 104's build review), 2026-10-20, awaiting the build review.** Drafted 2026-10-20 on
   `claude/gallant-ride-9nxxmn` from main `5feb7e9` (the memo's plan; the tree read is `a9064a2`,
   which adds only the memo). **Stacked on 104's reviewed tip** (constitution §4.14): the third

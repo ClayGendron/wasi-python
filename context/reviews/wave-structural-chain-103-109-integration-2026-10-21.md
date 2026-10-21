@@ -10,7 +10,7 @@
   the coordinator onto main `dda6075` (wave 08 landed), 74 commits, linear (EXECUTED:
   `git log --oneline origin/main..1b85fe1 | wc -l` → 74; `git merge-base` → `dda6075`). The
   chain's base before the rebase was `5feb7e9` (EXECUTED: `git merge-base origin/main e319829`).
-- **Run:** pending: dispatched by the owner on `1b85fe1`; read back before the verdict. The
+- **Run:** (the lane, 2026-10-21) 39530569266 on `dbecd2d`: red on one line no entry claims, Windows own-embedding `test_a_forked_child_is_refused` (see the lane's addendum); 39540823534 on `5af0a42`, after the lane's two fixes: every shard green on three systems, the gather red on G7 only. Before the lane's dispatch: pending, dispatched by the owner on `1b85fe1`; read back before the verdict. The
   integration's GitHub App cannot dispatch the release workflow (403), so no run of the chain's
   own exists yet: each entry's build review says "none; the chain's one dispatch on its final
   tip" (the owner, 2026-10-20, the memo's section 8). 109 is build-class by the letter (comments
@@ -283,3 +283,50 @@ and no entry to eject.
 One line: seven rebases are what was reviewed, the conflicts kept both sides, the judge on the
 tip is main's plus the chain's 115 claimed rows, and the structure the memo scored Weak on three
 rows now scores Strong on them, with the two allowances reserved for their closer.
+
+## The lane's addendum (2026-10-21)
+
+Written by the lane, which reviewed none of the entries. Records in the main tree's
+`build/wave-structural/` (git-ignored): the logs, the records, the flags, the claim file, the
+sameness outputs, the gather's log.
+
+- **The set.** Rebuilt from the same pins in the main tree at `dbecd2d`: `SHA256SUMS` `83789790`;
+  `python.wasm`, the snapshot and the zip byte-identical to wave 08's (`b5a66245`); `MANIFEST`
+  differs in the recipe lines of the `scripts/` files 109 reworded, as 109 says.
+- **The first judge** (`-n 3`, no `--accept`, on `dbecd2d`): green; sameness against wave 08's
+  accepted record with the claim file prints the claims' note exactly as this review predicts,
+  plus one row: the oracle check, blocked in the main tree because its venv was never synced for
+  wave 08's `reportlab` (wave 08 accepted from a clone). Synced online with the judge's own
+  helper; the check passes by node id; a check blocked in that tree is clean by rule.
+- **The first dry run** 39530569266 on `dbecd2d`: one red line no entry claims, Windows
+  own-embedding `tests/checks/test_v1_4_embedding.py::test_a_forked_child_is_refused`. 105 had
+  rewritten the no-fork child to print `process().fork_used, process().forked` ("True False")
+  and left the expectation in the old dict form; the branch runs only where there is no fork.
+  **Fix** `727bd4c`: the child prints the labelled pair, the expectation byte-identical to before
+  the chain; the fixer also checked every other Windows-only or no-fork branch the chain touched.
+  Review `105-the-no-fork-child-fix-2026-10-20.md`: lands, no findings.
+- **An intermittent Windows miss** seen in three builders' runs on `dbecd2d` (045, 100, 110):
+  `tests/unit/test_runner_sets.py::test_a_same_size_same_mtime_replacement_is_hashed_again`, line
+  176. 107's `_digest` looked its stamp up with `os.stat(path)` and stored it under
+  `os.fstat(fd)`; on Windows the first puts the creation time in `st_ctime`, the second the
+  change time, so the cache missed and `python.wasm` was hashed again on every call. **Fix**
+  `2a878f0`: the key is taken by name after the open, the same way as the lookup, and stored only
+  when `os.path.samestat` says the hashed descriptor is the named file; two unit rows. Review
+  `107-the-digest-cache-fix-2026-10-20.md`: lands, two Notes. 110's run 39546608171 on this base
+  had all five Windows jobs green.
+- **The first acceptance** on `2f53613` refused on one unit check,
+  `tests/unit/test_plugin.py::test_a_lost_pass_is_red_and_cannot_be_accepted`: the scoreboard's
+  block is capped at 25 lines and each worktree inside the repository added a note line; with ten
+  agent worktrees under `.claude/worktrees/` the `LOST` example was cut. **Fix** `5768d89`: two or
+  more worktree notes fold into one line; a unit row over 0, 1, 2, 10 and 40 notes. Review
+  `scoreboard-worktree-notes-fix-2026-10-21.md`: lands, two Lows needing no change.
+- **The acceptance** on `7a22103`: history line 90, 777/864 pass, 0 fail, lost 0, grew 0;
+  `uv run python tests/harness/sameness.py build/wave-08/latest-accepted.json
+  build/wave-structural/accepted-record.json --claims build/wave-structural/claims-chain.toml` →
+  `note: explained by claims: 103 4 · 104 3 · 105 4 · 106 3 · 107 4 · 108 5 · 109 2 · lane 1`,
+  exit 0 (the claim file is this review's, with 107's units 2 → 4 and a "lane" claim of 5 units
+  for the fixes' rows). The acceptance commit `5495b46`; `test_rules.py` 58 passed on it; main
+  fast-forwarded `dda6075..5495b46`. The step-7 dry run 39555247244 on `5495b46`.
+- **Findings 1 to 3 of this review** were written in by the reviewer, as its Disposition says;
+  Note 6 (the Status lines) is done: each entry's Status now begins "landed 2026-10-21 with the
+  structural chain".
