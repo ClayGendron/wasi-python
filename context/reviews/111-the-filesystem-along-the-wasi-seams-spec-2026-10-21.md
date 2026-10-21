@@ -341,3 +341,41 @@ Fit to build once finding 1 is written in: the measurements hold under my own cu
 the honest one for what is there, the moved race injection exercises the same race with the
 same assertions, the chain is acyclic and every flat-reading check sees the four new modules;
 the one gap is that criterion 3's grep would not catch the writes Decision 1 forbids.
+
+## Confirmation
+
+- **Read:** `git diff 668026c b75c3a7` (the specification only, +84 −14). READ.
+- **Finding 1 (Medium), confirmed written in.** Decision 1 names the five forms of a write and the
+  ten sites (the same ten my grep found, by line); Decision 5's row 7,
+  `test_the_handlers_change_the_table_only_through_its_methods`, is an AST walk with no
+  allowance, seen failing with ten hits on the verbatim move; criterion 3 cites the row as the
+  judge and records the widened grep as the record; criterion 6, Design's commit 3, the claim
+  list, the accept-judge flag and the Kind line count the row. EXECUTED, a probe of the walk as
+  row 7 describes it (`Assign`, `AnnAssign`, `AugAssign` and `Delete` targets that are an
+  `Attribute` or `Subscript` chain rooted at the name `files`; a `Call` of `files.<field>.<m>`
+  with `<m>` among the nine mutators) over a scratch snippet: eight hits, one per form — a plain
+  assignment, an augmented one, a subscript store, an attribute store under a subscript
+  (`files.table[fd].held = 1`), a mutator call, a `del`, an annotated assignment and a nested
+  subscript store (`files.forwards.slots[fd] = 1`) — the four my grep missed among them; and no
+  hit on a read (`files.staged + 1`), a non-mutator call (`files.table.get`,
+  `files.context.name_end`, `files.forwards.page.write`), a call of a table method
+  (`files._hold`), or a row's field (`entry.held = 2`). The row holds what the criterion promises.
+  One edge, for the build reviewer's eye and not a finding: a write through a local alias
+  (`x = files.held; x.add(fd)`) is outside the rule as written, as its "rooted at the name
+  `files`" says; no handler today aliases a table field to mutate it (the one alias,
+  `forwards = self.forwards` in `_source_type`, writes the guard page, not the table), and the
+  build review reads for the pattern.
+- **Findings 2–4 (Low), confirmed** as written in at `668026c`; the Disposition restates each
+  correctly.
+- **Note 5, the placement: the writer is right and I was loose.** A `_Table` protocol names
+  `_Forwards`, which the plan puts in `_fs_memory.py`; `mounts.py` is the bottom of the chain and
+  imports nothing of the package (verified item 6), so the protocol cannot live there without
+  either a cycle or an `Any` where the type should be. `_fs_memory.py` is its one home. The
+  Disposition's "builder's option, `TYPE_CHECKING` import the default" is the right disposition.
+- **Notes 1–4** acknowledged as I meant them.
+- **Hygiene:** `uv run pytest tests/checks/test_rules.py -k "specifications or open_question"
+  -q -p no:cacheprovider` on `b75c3a7` → 4 passed, 54 deselected. EXECUTED. The Status line now
+  cites this review and says what each party wrote in.
+
+**Verdict, confirmed: fit to build.** Nothing remains open; the build review reads the handler
+modules for an aliased write beside row 7's green line.
