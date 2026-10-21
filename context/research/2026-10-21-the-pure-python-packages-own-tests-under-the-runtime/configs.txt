@@ -1,0 +1,177 @@
+=== attrs  (attrs-26.1.0)
+  pyproject addopts = ['-ra', '--strict-markers', '--strict-config', '--import-mode=importlib']
+  pyproject xfail_strict = True
+  pyproject testpaths = 'tests'
+  pyproject filterwarnings = ['once::Warning', 'ignore:::pympler[.*]']
+  conftests: ['tests/conftest.py'] 
+=== beautifulsoup4  (beautifulsoup4-4.15.0)
+  conftests: [] 
+=== charset-normalizer  (charset_normalizer-3.5.2)
+  pyproject log_level = 'DEBUG'
+  pyproject filterwarnings = ['error']
+  conftests: [] 
+=== cloudpickle  (cloudpickle-3.1.2)
+  tox.ini addopts = '-s'
+  conftests: [] 
+=== cycler  (cycler-0.12.1)
+  conftests: [] 
+=== defusedxml  (defusedxml-0.7.1)
+  tox.ini norecursedirs = 'build .tox'
+  tox.ini python_files = 'tests.py'
+  conftests: [] 
+=== et-xmlfile  (et_xmlfile-2.0.0)
+  pytest.ini addopts = '-l --strict-markers'
+  pytest.ini norecursedirs = 'lib include .tox et_xmlfile/tests/_vendor'
+  conftests: [] 
+=== fonttools  (fonttools-4.67.0)
+  setup.cfg minversion = '7.0.0'
+  setup.cfg testpaths = '\nTests\nfontTools'
+  setup.cfg python_files = '\n*_test.py'
+  setup.cfg python_classes = '\n*Test\nTest*'
+  setup.cfg addopts = '\n-r a\n--doctest-modules\n--doctest-ignore-import-errors\n--pyargs'
+  setup.cfg doctest_optionflags = '\nALLOW_UNICODE\nELLIPSIS'
+  setup.cfg filterwarnings = '\nignore:readPlist:DeprecationWarning:plistlib_test\nignore:writePlist:DeprecationWarning:plistlib_test\nignore:some_function:DeprecationWarning:fontTools.ufoLib.utils\nignore::DeprecationWarning:fontTools.varLib.designspace'
+  setup.cfg markers = '\nslow: marks tests as slow (deselect with \'-m "not slow"\')'
+  conftests: ['Tests/conftest.py', 'Tests/varLib/instancer/conftest.py'] 
+=== formulaic  (formulaic-1.2.2)
+  conftests: [] 
+=== html5lib  (html5lib-1.1)
+  pytest.ini addopts = '-rfEXw -p no:doctest --strict'
+  pytest.ini xfail_strict = 'true'
+  pytest.ini markers = '\nDOM: mark a test as a DOM tree test\nElementTree: mark a test as a ElementTree tree test\ncElementTree: mark a test as a cElementTree tree test\nlxml: mark a test as a lxml tree test\ngenshi: mark a test as a genshi tree test\nparser: mark a test as a parser test\nnamespaced: mark a test as a namespaced parser test\ntreewalker: mark a test as a treewalker test'
+  conftests: ['html5lib/tests/conftest.py'] 
+=== interface-meta  (interface_meta-2.0.1)
+  pyproject testpaths = ['tests']
+  conftests: [] 
+=== jinja2  (jinja2-3.1.6)
+  pyproject testpaths = ['tests']
+  pyproject filterwarnings = ['error']
+  conftests: ['tests/conftest.py'] 
+=== joblib  (joblib-1.6.0)
+  pyproject doctest_optionflags = ['NORMALIZE_WHITESPACE', 'ELLIPSIS']
+  pyproject addopts = ["--doctest-glob='doc/*.rst'", '--doctest-modules', '--color=yes']
+  pyproject testpaths = 'joblib'
+  pyproject norecursedirs = 'joblib/externals/*'
+  conftests: ['conftest.py', 'doc/conftest.py'] 
+=== markupsafe  (markupsafe-3.0.4)
+  pyproject testpaths = ['tests']
+  pyproject filterwarnings = ['error']
+  pyproject markers = ['thread_unsafe: mark test as not safe to run in multiple threads']
+  conftests: ['tests/conftest.py'] 
+=== more-itertools  (more_itertools-11.2.1)
+  conftests: [] 
+=== mpmath  (mpmath-1.3.0)
+  setup.cfg doctest_optionflags = 'IGNORE_EXCEPTION_DETAIL'
+  setup.cfg addopts = "--doctest-modules\n--ignore=setup.py\n--doctest-glob='*.txt'"
+  setup.cfg norecursedirs = 'doc/source/plots demo .eggs .git'
+  conftests: [] 
+=== narwhals  (narwhals-2.27.1)
+  pyproject norecursedirs = ['*.egg', '.*', '_darcs', 'build', 'CVS', 'dist', 'node_modules', 'venv', '{arch}', 'src/narwhals/_*']
+  pyproject testpaths = ['tests']
+  pyproject pythonpath = ['src']
+  pyproject filterwarnings = ['error', 'ignore:.*defaulting to pandas implementation:Warning:modin', 'ignore:.*implementation has mismatches with pandas:Warning:modin', 'ignore:.*You are using pyarrow version', 'ignore:.*fetch_arrow_table\\(\\) is deprecated:DeprecationWarning:sqlframe', 'ignore:.*fetch_arrow_table\\(\\) is deprecated:DeprecationWarning:ibis', "ignore:.*'_UnionGenericAlias' is dep
+  pyproject xfail_strict = True
+  pyproject markers = ['slow: marks tests as slow (deselect with \'-m "not slow"\')']
+  pyproject env = ['MODIN_ENGINE=python', 'PYARROW_IGNORE_TIMEZONE=1', 'TZ=UTC']
+  conftests: ['tests/conftest.py', 'tests/dependencies/conftest.py', 'tests/testing/conftest.py'] 
+=== networkx  (networkx-3.7)
+  pyproject filterwarnings = ['error']
+  conftests: ['networkx/conftest.py'] 
+=== openpyxl  (openpyxl-3.1.5)
+  pytest.ini addopts = '--strict-markers --showlocals'
+  pytest.ini norecursedirs = 'lib include openpyxl/Issues .tox local'
+  pytest.ini python_files = 'test_*.py'
+  pytest.ini markers = '\npil_required: PIL required to run test\npil_not_installed: Run test only if PIL is not installed\nnot_py33: Do not run test on Python 3.\nlxml_required: lxml required to run test\ndefusedxml_required: lxml required to run test\nlxml_buffering: lxml >= 3.4.0 required\nno_lxml: do not use lxml\npandas_required: Pandas required for the test\nnumpy_required: Numpy required fo
+  pytest.ini filterwarnings = '\nerror\nignore::FutureWarning\nignore::pytest.PytestUnraisableExceptionWarning\nignore::UserWarning\nignore::DeprecationWarning'
+  conftests: ['conftest.py', 'openpyxl/chart/tests/conftest.py', 'openpyxl/comments/tests/conftest.py', 'openpyxl/drawing/tests/conftest.py', 'openpyxl/formatting/tests/conftest.py', 'openpyxl/packaging/tests/conftest.py', 'openpyxl/pivot/tests/conftest.py', 'openpyxl/reader/tests/conftest.py', 'openpyxl/styles/tests/conftest.py', 'openpyxl/tests/conftest.py', 'openpyxl/workbook/external_link/tests/conftest.py', 'openpyxl/workbook/tests/conftest.py'] …
+=== packaging  (packaging-26.3)
+  pyproject minversion = '6.2'
+  pyproject addopts = ['-ra', '--showlocals', '--strict-markers', '--strict-config', '-m', 'not property']
+  pyproject xfail_strict = True
+  pyproject filterwarnings = ['error']
+  pyproject log_level = 'INFO'
+  pyproject testpaths = ['tests']
+  pyproject markers = ['property: property-based tests (opt-in)']
+  conftests: ['tests/conftest.py'] 
+=== patsy  (patsy-1.0.3)
+  setup.cfg python_files = '*.py'
+  setup.cfg testpaths = 'patsy'
+  conftests: [] 
+=== pyparsing  (pyparsing-3.3.3)
+  conftests: [] 
+=== pypdf  (pypdf-6.21.1)
+  pyproject addopts = '--disable-socket'
+  pyproject filterwarnings = ['error']
+  pyproject markers = ['slow: Test which require more than a second', 'samples: Tests which use files from https://github.com/py-pdf/sample-files', 'enable_socket: Tests which need to download files']
+  pyproject testpaths = ['tests']
+  pyproject norecursedirs = ['tests/pdf_cache']
+  conftests: ['tests/conftest.py'] 
+=== pypdf-samples  (sample-files-818dc013ad1f537198e9fcfae8a6b0dffe25ffa3)
+  conftests: [] 
+=== python-dateutil  (python-dateutil-2.9.0.post0)
+  setup.cfg python_files = '\ntest_*.py\n*_test.py\n*_solution.py'
+  setup.cfg xfail_strict = 'true'
+  setup.cfg filterwarnings = '\nerror\nerror::DeprecationWarning\nerror::PendingDeprecationWarning'
+  setup.cfg markers = '\ngettz\nimport_star\nisoparser\nparserinfo\nrrule\nrruleset\nrrulestr\nsmoke\ntz_resolve_imaginary\ntzfile\ntzlocal\ntzoffset\ntzstr'
+  conftests: ['tests/conftest.py'] 
+=== pyyaml  (pyyaml-6.0.3)
+  conftests: ['tests/legacy_tests/conftest.py'] 
+=== reportlab  (reportlab-5.0.1)
+  conftests: [] 
+=== seaborn  (seaborn-0.13.2)
+  pyproject filterwarnings = ['ignore:The --rsyncdir command line argument and rsyncdirs config variable are deprecated.:DeprecationWarning', 'ignore:\\s*Pyarrow will become a required dependency of pandas:DeprecationWarning', 'ignore:datetime.datetime.utcfromtimestamp\\(\\) is deprecated:DeprecationWarning']
+  conftests: ['tests/conftest.py'] 
+=== six  (six-1.17.0)
+  setup.cfg minversion = '2.2.0'
+  conftests: [] 
+=== soupsieve  (soupsieve-3.0.3)
+  pyproject filterwarnings = ["ignore:The 'strip_cdata':DeprecationWarning"]
+  conftests: [] 
+=== sympy  (sympy-1.14.0)
+  pyproject addopts = "-m 'not slow and not tooslow'"
+  pyproject filterwarnings = ['ignore:More than 20 figures have been opened.*:RuntimeWarning', 'ignore:FigureCanvasAgg is non-interactive, and thus cannot be shown:UserWarning']
+  pyproject testpaths = ['sympy', 'doc/src']
+  pyproject doctest_optionflags = ['NORMALIZE_WHITESPACE', 'IGNORE_EXCEPTION_DETAIL', 'ELLIPSIS', 'FLOAT_CMP']
+  pyproject norecursedirs = ['sympy/parsing/autolev/test-examples']
+  pyproject markers = ['nocache_fail', 'tooslow']
+  conftests: ['sympy/conftest.py'] 
+=== tabulate  (tabulate-0.10.0)
+  conftests: [] 
+=== threadpoolctl  (threadpoolctl-3.7.0)
+  conftests: ['conftest.py'] 
+=== tomli-w  (tomli-w-1.2.0)
+  pyproject addopts = '--strict-markers --strict-config'
+  pyproject xfail_strict = True
+  conftests: [] 
+=== toolz  (toolz-1.2.0)
+  pyproject minversion = '6.0'
+  pyproject testpaths = ['toolz']
+  pyproject xfail_strict = True
+  pyproject addopts = ['--strict-config', '--strict-markers', '-ra']
+  pyproject log_cli_level = 'info'
+  pyproject filterwarnings = ['error', 'ignore:The toolz.compatibility module is no longer needed:DeprecationWarning:']
+  conftests: [] 
+=== tqdm  (tqdm-4.70.1)
+  pyproject minversion = '6.0'
+  pyproject timeout = 30
+  pyproject log_level = 'INFO'
+  pyproject markers = ['asyncio', 'slow']
+  pyproject python_files = ['tests_*.py', 'tests_*.ipynb']
+  pyproject testpaths = ['tests']
+  pyproject addopts = '-v --tb=short -rxs -W=error --durations=0 --durations-min=0.1 --asyncio-mode=strict'
+  pyproject asyncio_default_fixture_loop_scope = 'function'
+  conftests: ['tests/conftest.py'] 
+=== typing-extensions  (typing_extensions-4.16.0)
+  conftests: [] 
+=== tzdata  (tzdata-2026.5)
+  conftests: [] 
+=== webencodings  (webencodings-0.6.1)
+  conftests: [] 
+=== wrapt  (wrapt-2.5.1)
+  conftests: ['tests/conftest.py'] 
+=== xlrd  (xlrd-2.0.2)
+  conftests: [] 
+=== xlsxwriter  (XlsxWriter-RELEASE_3.2.9)
+  conftests: [] 
+=== xmltodict  (xmltodict-1.0.4)
+  conftests: [] 

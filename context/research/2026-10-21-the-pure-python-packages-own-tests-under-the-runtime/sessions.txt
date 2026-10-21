@@ -1,0 +1,158 @@
+six-all                           13.5 G exit=0 trap=None failed=2 passed=179 skipped=17
+cycler-all                        10.8 G exit=0 trap=None passed=26
+tzdata-all                        11.3 G exit=0 trap=None passed=628
+webencodings-all                  11.3 G exit=0 trap=None passed=11
+defusedxml-all                    11.5 G exit=0 trap=None failed=12 passed=76 skipped=3
+xmltodict-all                     19.3 G exit=0 trap=None passed=119
+markupsafe-all                    12.3 G exit=0 trap=None passed=39 skipped=41
+interface-meta-all                11.3 G exit=0 trap=None passed=36
+et-xmlfile-all                    15.6 G exit=0 trap=None error=8 failed=10 passed=282 skipped=22 xfailed=23 xpassed=5
+tomli-w-all                       13.5 G exit=0 trap=None passed=269 xfailed=2
+charset-normalizer-all            32.9 G exit=0 trap=None failed=5 passed=306
+threadpoolctl-all                 13.9 G exit=0 trap=None failed=6 passed=15 skipped=68
+cloudpickle-all                   16.3 G exit=0 trap=None collect-error=1 failed=1 passed=6 skipped=7
+xlrd-all                          11.3 G exit=0 trap=None failed=66 passed=18
+tabulate-all                      17.8 G exit=0 trap=None failed=7 passed=288 skipped=24
+more-itertools-all               265.0 G exit=0 trap=None failed=10 passed=21949
+toolz-all                         21.8 G exit=0 trap=None failed=1 passed=192
+typing-extensions-all             18.8 G exit=0 trap=None failed=6 passed=1991 skipped=21
+pyyaml-all                        60.3 G exit=0 trap=None passed=1283
+beautifulsoup4-all                38.0 G exit=0 trap=None passed=898 skipped=7
+soupsieve-all                     43.5 G exit=0 trap=None failed=1 passed=410 skipped=1
+html5lib-all                      21.9 G exit=0 trap=None collect-error=2 passed=830 skipped=17 xfailed=2
+jinja2-all                        36.4 G exit=0 trap=None collect-error=2 error=3 failed=4 passed=777
+attrs-all                        162.1 G exit=0 trap=None passed=1380 skipped=5 xfailed=2
+packaging-all                    499.0 G exit=0 trap=None passed=62422 skipped=1
+packaging-property              2072.0 G exit=0 trap=None passed=427
+python-dateutil-all               55.8 G exit=0 trap=None failed=56 passed=1976 skipped=47 xfailed=17
+pyparsing-all                    790.7 G exit=0 trap=None collect-error=1 failed=2 passed=4144 skipped=6
+tqdm-all                          24.7 G exit=0 trap=None error=112 failed=122 passed=44 skipped=8
+mpmath-all                      1213.1 G exit=0 trap=None failed=1 passed=338 xfailed=2
+joblib-all                        34.6 G exit=0 trap=None collect-error=6 failed=29 passed=763 skipped=14
+patsy-all                        239.7 G exit=0 trap=None passed=39
+formulaic-all                     45.2 G exit=0 trap=None collect-error=1 passed=546 skipped=114
+wrapt-all                         25.2 G exit=0 trap=None failed=43 passed=1367 skipped=2
+nx-alg                          1150.1 G exit=0 trap=None collect-error=1 failed=1 passed=5527 skipped=5 xfailed=740
+nx-rest                          414.0 G exit=0 trap=None failed=1 passed=3161 skipped=10
+nx-slow                         1359.2 G exit=0 trap=None collect-error=6 passed=6 skipped=3
+nw-all                           141.2 G exit=0 trap=None failed=14 passed=4563 skipped=744 xfailed=121
+nw-slow                           71.6 G exit=0 trap=None failed=1 passed=5 skipped=62
+ft-a                             375.9 G exit=0 trap=None collect-error=1 failed=3 passed=2681 skipped=135
+ft-b                             198.7 G exit=0 trap=None failed=20 passed=2726 skipped=39 xfailed=2
+ox-all                            35.4 G exit=0 trap=None collect-error=24 error=539 failed=108 passed=114 xfailed=2
+xw-comparison                    103.5 G exit=0 trap=None collect-error=7 passed=1115
+xw-rest                           20.3 G exit=0 trap=None passed=620
+sb-all                          1931.2 G exit=0 trap=None collect-error=1 failed=25 passed=2168 skipped=16 xfailed=6
+rl-all                           141.9 G exit=0 trap=None collect-error=2 error=7 failed=61 passed=303 skipped=27
+pp-all                           373.6 G exit=0 trap=None failed=18 passed=1689 skipped=62 xfailed=1
+patsy-inline                      43.5 G exit=0 trap=None passed=108 skipped=1
+doc-fonttools                     33.9 G exit=0 trap=None collect-error=4 failed=2 passed=129
+doc-joblib                        12.6 G exit=0 trap=None collect-error=3 failed=1 passed=4
+docfiles-joblib                   16.2 G exit=0 trap=None failed=3 passed=2
+doc-mpmath                      2052.9 G exit=0 trap=None failed=2 passed=271
+doc-networkx                     114.5 G exit=0 trap=None collect-error=1 failed=18 passed=763
+doc-tabulate                      10.4 G exit=0 trap=None passed=16
+doc-more-itertools                15.4 G exit=0 trap=None failed=2 passed=163
+doc-typing-extensions             10.2 G exit=0 trap=None passed=1
+doc-sympy                       3446.6 G exit=0 trap=None collect-error=26 failed=735 passed=3907
+docfiles-sympy                  2789.2 G exit=0 trap=None failed=42 passed=61
+attrs-smoke                       91.3 G exit=0 trap=None passed=315
+packaging-smoke                   44.9 G exit=0 trap=None passed=2342
+more-itertools-smoke              12.0 G exit=0 trap=None passed=51
+pyparsing-smoke                   14.1 G exit=0 trap=None passed=91
+patsy-smoke                       19.2 G exit=0 trap=None passed=4
+mpmath-smoke                      52.3 G exit=0 trap=None failed=1 passed=54 xfailed=1
+joblib-smoke                      18.4 G exit=0 trap=None collect-error=1 failed=4 passed=510
+python-dateutil-smoke             15.8 G exit=0 trap=None passed=817 xfailed=1
+html5lib-smoke                    14.6 G exit=0 trap=None passed=117 skipped=17
+jinja2-smoke                      19.8 G exit=0 trap=None failed=1 passed=228
+networkx-smoke                    33.1 G exit=0 trap=None passed=175
+narwhals-smoke                    24.3 G exit=0 trap=None passed=325 skipped=7
+fonttools-smoke                   18.9 G exit=0 trap=None failed=2 passed=115
+openpyxl-smoke                    21.9 G exit=0 trap=None error=216 failed=26 passed=82 xfailed=2
+xlsxwriter-smoke                  14.5 G exit=0 trap=None passed=68
+seaborn-smoke                     38.4 G exit=0 trap=None failed=2 passed=116 skipped=5
+reportlab-smoke                   27.4 G exit=0 trap=None failed=5 passed=36 skipped=7
+pypdf-smoke                       53.9 G exit=0 trap=None passed=303 skipped=1
+sympy-smoke                       40.2 G exit=0 trap=None failed=10 passed=132
+sy-core                          724.2 G exit=0 trap=None failed=96 passed=1970
+sy-functions                    2080.5 G exit=0 trap=None failed=8 passed=557
+sy-integrals                    5655.6 G exit=0 trap=None failed=39 passed=447
+sy-matrices                     1886.0 G exit=0 trap=None failed=11 passed=879
+sy-physics                      3460.8 G exit=0 trap=None failed=4 passed=1505 skipped=8
+sy-polys                        1889.8 G exit=0 trap=None failed=69 passed=2195 skipped=20
+sy-printing                      181.9 G exit=0 trap=None failed=48 passed=1079 skipped=97
+sy-solvers                      6000.0 G exit=None trap=None failed=6 passed=120
+sy-series                       1718.5 G exit=0 trap=None failed=22 passed=691
+sy-simplify                     6000.0 G exit=None trap=None failed=21 passed=394
+sy-utilities                    2647.4 G exit=0 trap=None failed=196 passed=873
+sy-rest                         6000.0 G exit=None trap=None failed=11 passed=196
+sy-slow                         1247.6 G exit=0 trap=None 
+attrs-smoke2                      88.0 G exit=0 trap=None passed=124
+packaging-smoke2                  19.2 G exit=0 trap=None passed=660
+mpmath-smoke2                     51.1 G exit=0 trap=None failed=1 passed=40
+pypdf-smoke2                      28.0 G exit=0 trap=None passed=217
+sympy-smoke2                      34.0 G exit=0 trap=None failed=2 passed=79
+seaborn-smoke2                    37.0 G exit=0 trap=None failed=2 passed=78 skipped=5
+networkx-smoke2                   29.2 G exit=0 trap=None passed=98
+openpyxl-smoke2                   21.4 G exit=0 trap=None collect-error=4 error=181 failed=108 passed=47 xfailed=2
+joblib-smoke2                     18.3 G exit=0 trap=None failed=4 passed=519
+charset-normalizer-smoke          12.8 G exit=0 trap=None passed=202
+beautifulsoup4-smoke              15.7 G exit=0 trap=None passed=227
+soupsieve-smoke                   23.2 G exit=0 trap=None passed=88
+formulaic-smoke                   30.4 G exit=0 trap=None passed=226
+sy-solvers-ode                  4000.0 G exit=None trap=None failed=4 passed=66
+sy-solvers-rest                 4000.0 G exit=None trap=None failed=13 passed=231
+sy-simplify-only                1993.3 G exit=0 trap=None failed=18 passed=316
+sy-stats                        4000.0 G exit=None trap=None failed=4 passed=140
+sy-alg-assume                   1171.8 G exit=0 trap=None failed=10 passed=167
+sy-calculus                     3000.0 G exit=None trap=None failed=1 passed=29
+sy-rest2                        2109.7 G exit=0 trap=None failed=40 passed=589
+sy-rest3                        1978.0 G exit=0 trap=None failed=7 passed=407 skipped=7
+sy-rest4                         863.1 G exit=0 trap=None failed=22 passed=370 skipped=42
+attrs-smoke3                      13.3 G exit=0 trap=None passed=234
+mpmath-smoke3                     48.0 G exit=0 trap=None failed=1 passed=35
+
+sympy                  68918.1 G passed=17400 failed=1439 error=0 skipped=174 X=26
+mpmath                  3417.4 G passed=738 failed=6 error=0 skipped=0 X=0
+networkx                3100.3 G passed=9730 failed=20 error=0 skipped=18 X=8
+packaging               2635.2 G passed=65851 failed=0 error=0 skipped=1 X=0
+seaborn                 2006.6 G passed=2362 failed=29 error=0 skipped=26 X=1
+pyparsing                804.8 G passed=4235 failed=2 error=0 skipped=6 X=1
+fonttools                627.4 G passed=5651 failed=27 error=0 skipped=174 X=5
+pypdf                    455.4 G passed=2209 failed=18 error=0 skipped=63 X=0
+attrs                    354.7 G passed=2053 failed=0 error=0 skipped=5 X=0
+patsy                    302.4 G passed=151 failed=0 error=0 skipped=1 X=0
+more-itertools           292.3 G passed=22163 failed=12 error=0 skipped=0 X=0
+narwhals                 237.1 G passed=4893 failed=15 error=0 skipped=813 X=0
+reportlab                169.3 G passed=339 failed=66 error=7 skipped=34 X=2
+xlsxwriter               138.3 G passed=1803 failed=0 error=0 skipped=0 X=7
+joblib                   100.1 G passed=1798 failed=41 error=0 skipped=14 X=10
+openpyxl                  78.7 G passed=243 failed=242 error=936 skipped=0 X=28
+formulaic                 75.6 G passed=772 failed=0 error=0 skipped=114 X=1
+python-dateutil           71.6 G passed=2793 failed=56 error=0 skipped=47 X=0
+soupsieve                 66.7 G passed=498 failed=1 error=0 skipped=1 X=0
+pyyaml                    60.3 G passed=1283 failed=0 error=0 skipped=0 X=0
+jinja2                    56.2 G passed=1005 failed=5 error=3 skipped=0 X=2
+beautifulsoup4            53.7 G passed=1125 failed=0 error=0 skipped=7 X=0
+charset-normalizer        45.7 G passed=508 failed=5 error=0 skipped=0 X=0
+html5lib                  36.4 G passed=947 failed=0 error=0 skipped=34 X=2
+typing-extensions         29.0 G passed=1992 failed=6 error=0 skipped=21 X=0
+tabulate                  28.2 G passed=304 failed=7 error=0 skipped=24 X=0
+wrapt                     25.2 G passed=1367 failed=43 error=0 skipped=2 X=0
+tqdm                      24.7 G passed=44 failed=122 error=112 skipped=8 X=0
+toolz                     21.8 G passed=192 failed=1 error=0 skipped=0 X=0
+xmltodict                 19.3 G passed=119 failed=0 error=0 skipped=0 X=0
+cloudpickle               16.3 G passed=6 failed=1 error=0 skipped=7 X=1
+et-xmlfile                15.6 G passed=282 failed=10 error=8 skipped=22 X=0
+threadpoolctl             13.9 G passed=15 failed=6 error=0 skipped=68 X=0
+six                       13.5 G passed=179 failed=2 error=0 skipped=17 X=0
+tomli-w                   13.5 G passed=269 failed=0 error=0 skipped=0 X=0
+markupsafe                12.3 G passed=39 failed=0 error=0 skipped=41 X=0
+defusedxml                11.5 G passed=76 failed=12 error=0 skipped=3 X=0
+tzdata                    11.3 G passed=628 failed=0 error=0 skipped=0 X=0
+interface-meta            11.3 G passed=36 failed=0 error=0 skipped=0 X=0
+webencodings              11.3 G passed=11 failed=0 error=0 skipped=0 X=0
+xlrd                      11.3 G passed=18 failed=66 error=0 skipped=0 X=0
+cycler                    10.8 G passed=26 failed=0 error=0 skipped=0 X=0
+TOTAL 84.40 T in 114 sessions

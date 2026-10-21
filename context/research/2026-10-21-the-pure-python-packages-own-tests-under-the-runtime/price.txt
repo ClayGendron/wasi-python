@@ -1,0 +1,48 @@
+family                whole suite     smoke  passed failed error skipped xfail  smoke group
+sympy                   52205.3 G    34.0 G   16479   1389     0     174     0  sympy-smoke2
+mpmath                   3266.0 G    48.0 G     609      3     0       0     2  mpmath-smoke3
+networkx                 3037.9 G    29.2 G    9457     20     0      18   740  networkx-smoke2
+packaging                2571.0 G    19.2 G   62849      0     0       1     0  packaging-smoke2
+seaborn                  1931.2 G    37.0 G    2168     25     0      16     6  seaborn-smoke2
+pyparsing                 790.7 G    14.1 G    4144      2     0       6     0  pyparsing-smoke
+fonttools                 608.5 G    18.9 G    5536     25     0     174     2  fonttools-smoke
+pypdf                     373.6 G    28.0 G    1689     18     0      62     1  pypdf-smoke2
+patsy                     283.2 G    19.2 G     147      0     0       1     0  patsy-smoke
+more-itertools            280.4 G    12.0 G   22112     12     0       0     0  more-itertools-smoke
+narwhals                  212.8 G    24.3 G    4568     15     0     806   121  narwhals-smoke
+attrs                     162.1 G    13.3 G    1380      0     0       5     2  attrs-smoke3
+reportlab                 141.9 G    27.4 G     303     61     7      27     0  reportlab-smoke
+xlsxwriter                123.8 G    14.5 G    1735      0     0       0     0  xlsxwriter-smoke
+joblib                     63.4 G    18.3 G     769     33     0      14     0  joblib-smoke2
+pyyaml                     60.3 G    60.3 G    1283      0     0       0     0  whole
+python-dateutil            55.8 G    15.8 G    1976     56     0      47    17  python-dateutil-smoke
+formulaic                  45.2 G    30.4 G     546      0     0     114     0  formulaic-smoke
+soupsieve                  43.5 G    23.2 G     410      1     0       1     0  soupsieve-smoke
+beautifulsoup4             38.0 G    15.7 G     898      0     0       7     0  beautifulsoup4-smoke
+jinja2                     36.4 G    19.8 G     777      4     3       0     0  jinja2-smoke
+openpyxl                   35.4 G    21.4 G     114    108   539       0     2  openpyxl-smoke2
+charset-normalizer         32.9 G    12.8 G     306      5     0       0     0  charset-normalizer-smoke
+typing-extensions          29.0 G    29.0 G    1992      6     0      21     0  whole
+tabulate                   28.2 G    28.2 G     304      7     0      24     0  whole
+wrapt                      25.2 G    25.2 G    1367     43     0       2     0  whole
+tqdm                       24.7 G    24.7 G      44    122   112       8     0  whole
+html5lib                   21.9 G    21.9 G     830      0     0      17     2  whole
+toolz                      21.8 G    21.8 G     192      1     0       0     0  whole
+xmltodict                  19.3 G    19.3 G     119      0     0       0     0  whole
+cloudpickle                16.3 G    16.3 G       6      1     0       7     0  whole
+et-xmlfile                 15.6 G    15.6 G     282     10     8      22    23  whole
+threadpoolctl              13.9 G    13.9 G      15      6     0      68     0  whole
+six                        13.5 G    13.5 G     179      2     0      17     0  whole
+tomli-w                    13.5 G    13.5 G     269      0     0       0     2  whole
+markupsafe                 12.3 G    12.3 G      39      0     0      41     0  whole
+defusedxml                 11.5 G    11.5 G      76     12     0       3     0  whole
+tzdata                     11.3 G    11.3 G     628      0     0       0     0  whole
+interface-meta             11.3 G    11.3 G      36      0     0       0     0  whole
+webencodings               11.3 G    11.3 G      11      0     0       0     0  whole
+xlrd                       11.3 G    11.3 G      18     66     0       0     0  whole
+cycler                     10.8 G    10.8 G      26      0     0       0     0  whole
+
+whole suites (all 42): 66.72 T
+normal tier (smoke groups): 0.879 T
+release tier (the rest): 66.34 T (the whole-as-smoke families, 383.0 G, run in the normal tier only)
+trapped or stopped sessions: ['sy-solvers-ode', 'sy-solvers-rest', 'sy-stats', 'sy-calculus']

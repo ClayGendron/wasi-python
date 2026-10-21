@@ -1,0 +1,145 @@
+# ---- jobs-1.txt
+# pass 1: each small family's whole suite in one session (upstream's default selection), 2 T caps
+six six-all 2e12 test_six.py
+cycler cycler-all 2e12 test_cycler.py
+tzdata tzdata-all 2e12 tests
+webencodings webencodings-all 2e12 tests
+defusedxml defusedxml-all 2e12 tests.py
+xmltodict xmltodict-all 2e12 tests
+markupsafe markupsafe-all 2e12 tests
+interface-meta interface-meta-all 2e12 tests
+et-xmlfile et-xmlfile-all 2e12 et_xmlfile/tests
+tomli-w tomli-w-all 2e12 tests
+charset-normalizer charset-normalizer-all 2e12 tests
+threadpoolctl threadpoolctl-all 2e12 tests
+cloudpickle cloudpickle-all 2e12 tests
+xlrd xlrd-all 2e12 tests
+tabulate tabulate-all 2e12 test
+more-itertools more-itertools-all 2e12 tests
+toolz toolz-all 2e12 toolz/tests toolz/sandbox/tests
+typing-extensions typing-extensions-all 2e12 src/test_typing_extensions.py
+pyyaml pyyaml-all 2e12 tests/legacy_tests
+beautifulsoup4 beautifulsoup4-all 2e12 bs4/tests
+soupsieve soupsieve-all 3e12 tests
+html5lib html5lib-all 3e12 html5lib/tests
+jinja2 jinja2-all 2e12 tests
+attrs attrs-all 3e12 tests
+packaging packaging-all 2e12 -m "not property" tests
+packaging packaging-property 3e12 -m property tests
+python-dateutil python-dateutil-all 3e12 tests docs/exercises/solutions
+pyparsing pyparsing-all 3e12 tests examples/tiny/tests
+tqdm tqdm-all 2e12 tests
+mpmath mpmath-all 4e12 mpmath/tests
+joblib joblib-all 3e12 joblib/test
+patsy patsy-all 2e12 patsy/test_build.py patsy/test_highlevel.py patsy/test_regressions.py patsy/test_state.py
+formulaic formulaic-all 3e12 tests
+wrapt wrapt-all 3e12 tests/core
+# ---- jobs-2b.txt
+networkx nx-alg 6e12 networkx/algorithms
+networkx nx-rest 5e12 networkx/classes networkx/drawing networkx/generators networkx/linalg networkx/readwrite networkx/tests networkx/utils
+networkx nx-slow 4e12 --runslow -m slow networkx
+narwhals nw-all 5e12 tests
+narwhals nw-slow 3e12 --runslow -m slow tests
+fonttools ft-a 5e12 Tests/ttLib Tests/varLib
+fonttools ft-b 5e12 Tests --ignore Tests/ttLib --ignore Tests/varLib --ignore Tests/metaTools/check_table_coverage_test.py
+openpyxl ox-all 5e12 openpyxl
+xlsxwriter xw-comparison 6e12 xlsxwriter/test/comparison
+xlsxwriter xw-rest 4e12 xlsxwriter/test --ignore xlsxwriter/test/comparison
+seaborn sb-all 8e12 tests
+reportlab rl-all 5e12 tests
+pypdf pp-all 6e12 tests
+patsy patsy-inline 1e12 --script patsy_inline.py
+fonttools doc-fonttools 3e12 --docpkg fontTools
+joblib doc-joblib 2e12 --docpkg joblib joblib.externals
+joblib docfiles-joblib 2e12 --docfiles 12 @joblib-docfiles.txt
+mpmath doc-mpmath 3e12 --docpkg mpmath
+networkx doc-networkx 3e12 --docpkg networkx
+tabulate doc-tabulate 1e12 --docpkg tabulate
+more-itertools doc-more-itertools 1e12 --docstrings more_itertools.more more_itertools.recipes
+typing-extensions doc-typing-extensions 1e12 --docstrings typing_extensions
+sympy doc-sympy 8e12 --docpkg sympy
+sympy docfiles-sympy 5e12 --docfiles 44 @sympy-docfiles.txt
+# ---- jobs-2.txt
+# pass 3: re-runs after the configuration fixes
+html5lib html5lib-all 3e12 html5lib/tests
+jinja2 jinja2-all 2e12 tests
+python-dateutil python-dateutil-all 3e12 tests docs/exercises/solutions
+mpmath mpmath-all 4e12 mpmath/tests
+joblib joblib-all 3e12 joblib/test
+wrapt wrapt-all 3e12 tests/core
+pypdf pp-all 6e12 tests
+reportlab rl-all 5e12 tests
+patsy patsy-inline 1e12 --script patsy_inline.py
+# pass 4: smoke-group candidates (normal tier), for families whose whole suite is past 70 G
+attrs attrs-smoke 2e11 tests/test_dunders.py tests/test_validators.py tests/test_funcs.py
+packaging packaging-smoke 2e11 tests/test_specifiers.py tests/test_tags.py tests/test_utils.py
+more-itertools more-itertools-smoke 2e11 --docstrings more_itertools.recipes
+pyparsing pyparsing-smoke 2e11 tests/test_simple_unit.py examples/tiny/tests
+patsy patsy-smoke 2e11 patsy/test_state.py patsy/test_regressions.py
+mpmath mpmath-smoke 2e11 mpmath/tests/test_basic_ops.py mpmath/tests/test_convert.py mpmath/tests/test_trig.py mpmath/tests/test_matrices.py
+joblib joblib-smoke 2e11 joblib/test/test_hashing.py joblib/test/test_func_inspect.py joblib/test/test_logger.py
+python-dateutil python-dateutil-smoke 2e11 tests/test_easter.py tests/test_relativedelta.py tests/test_isoparser.py
+html5lib html5lib-smoke 2e11 html5lib/tests/test_serializer.py html5lib/tests/test_treewalkers.py html5lib/tests/test_parser2.py
+jinja2 jinja2-smoke 2e11 tests/test_api.py tests/test_filters.py tests/test_core_tags.py
+networkx networkx-smoke 2e11 networkx/classes/tests/test_graph.py networkx/algorithms/shortest_paths/tests/test_generic.py networkx/algorithms/tests/test_dag.py
+narwhals narwhals-smoke 2e11 tests/frame/select_test.py tests/frame/filter_test.py tests/frame/group_by_test.py tests/frame/join_test.py
+fonttools fonttools-smoke 2e11 Tests/ttLib/ttFont_test.py Tests/misc/arrayTools_test.py Tests/misc/transform_test.py
+openpyxl openpyxl-smoke 2e11 openpyxl/cell/tests openpyxl/workbook/tests
+xlsxwriter xlsxwriter-smoke 2e11 xlsxwriter/test/comparison/test_simple01.py xlsxwriter/test/comparison/test_chart_bar01.py xlsxwriter/test/workbook
+seaborn seaborn-smoke 2e11 tests/test_utils.py tests/_core/test_data.py tests/test_palettes.py
+reportlab reportlab-smoke 2e11 tests/test_pdfgen_general.py tests/test_platypus_paragraphs.py
+pypdf pypdf-smoke 2e11 tests/test_page.py tests/test_generic.py
+sympy sympy-smoke 2e11 sympy/core/tests/test_basic.py sympy/core/tests/test_sympify.py sympy/simplify/tests/test_cse.py
+sympy sy-core 6e12 -m "not slow and not tooslow" sympy/core
+sympy sy-functions 6e12 -m "not slow and not tooslow" sympy/functions
+sympy sy-integrals 6e12 -m "not slow and not tooslow" sympy/integrals
+sympy sy-matrices 6e12 -m "not slow and not tooslow" sympy/matrices
+sympy sy-physics 6e12 -m "not slow and not tooslow" sympy/physics
+sympy sy-polys 6e12 -m "not slow and not tooslow" sympy/polys
+sympy sy-printing 6e12 -m "not slow and not tooslow" sympy/printing
+sympy sy-solvers 6e12 -m "not slow and not tooslow" sympy/solvers
+sympy sy-series 6e12 -m "not slow and not tooslow" sympy/series sympy/sets
+sympy sy-simplify 6e12 -m "not slow and not tooslow" sympy/simplify sympy/stats
+sympy sy-utilities 6e12 -m "not slow and not tooslow" sympy/utilities sympy/tensor
+sympy sy-rest 6e12 -m "not slow and not tooslow" sympy/algebras sympy/assumptions sympy/calculus sympy/categories sympy/codegen sympy/combinatorics sympy/concrete sympy/crypto sympy/diffgeom sympy/discrete sympy/external sympy/geometry sympy/holonomic sympy/interactive sympy/liealgebras sympy/logic sympy/multipledispatch sympy/ntheory sympy/parsing sympy/plotting sympy/sandbox sympy/strategies sympy/testing sympy/unify sympy/vector
+sympy sy-slow 10e12 -m "slow or tooslow" --deselect sympy/simplify/tests/test_simplify.py::test_issue_17141_slow sympy
+# ---- jobs-5.txt
+# pass 5: re-runs after the second round of configuration fixes
+html5lib html5lib-all 3e12 html5lib/tests
+joblib joblib-all 3e12 joblib/test
+joblib doc-joblib 2e12 --docpkg joblib joblib.externals
+joblib docfiles-joblib 2e12 --docfiles 12 @joblib-docfiles.txt
+pypdf pp-all 6e12 tests
+# ---- jobs-6.txt
+# pass 6: second smoke candidates where the first were past about 30 G, and subsets for the
+# suites between 30 and 50 G
+attrs attrs-smoke2 2e11 tests/test_funcs.py tests/test_filters.py tests/test_converters.py
+packaging packaging-smoke2 2e11 tests/test_tags.py tests/test_utils.py tests/test_licenses.py tests/test_metadata.py
+mpmath mpmath-smoke2 2e11 mpmath/tests/test_basic_ops.py mpmath/tests/test_convert.py mpmath/tests/test_trig.py
+pypdf pypdf-smoke2 2e11 tests/test_generic.py tests/test_pagerange.py
+sympy sympy-smoke2 2e11 sympy/core/tests/test_basic.py sympy/core/tests/test_sympify.py
+seaborn seaborn-smoke2 2e11 tests/test_utils.py tests/_core/test_data.py
+networkx networkx-smoke2 2e11 networkx/classes/tests/test_graph.py networkx/algorithms/shortest_paths/tests/test_generic.py
+openpyxl openpyxl-smoke2 2e11 openpyxl/cell/tests openpyxl/utils/tests
+joblib joblib-smoke2 2e11 joblib/test/test_hashing.py joblib/test/test_logger.py joblib/test/test_disk.py
+charset-normalizer charset-normalizer-smoke 2e11 tests/test_base_detection.py tests/test_utils.py tests/test_mess_detection.py
+beautifulsoup4 beautifulsoup4-smoke 2e11 bs4/tests/test_soup.py bs4/tests/test_htmlparser.py bs4/tests/test_css.py
+soupsieve soupsieve-smoke 2e11 tests/test_api.py tests/test_level1
+formulaic formulaic-smoke 2e11 tests/test_formula.py tests/parser tests/test_model_spec.py
+# ---- jobs-7.txt
+# pass 7: sympy areas whose first sessions stopped at the 6 T cap, split (the whole selection: the
+# driver imports sympy before its conftest sets sys._running_pytest, so @slow tests run and no -m
+# deselects them; the memo says so)
+sympy sy-solvers-ode 4e12 sympy/solvers/ode
+sympy sy-solvers-rest 4e12 sympy/solvers --ignore sympy/solvers/ode
+sympy sy-simplify-only 4e12 --deselect sympy/simplify/tests/test_simplify.py::test_issue_17141_slow sympy/simplify
+sympy sy-stats 4e12 sympy/stats
+sympy sy-alg-assume 3e12 sympy/algebras sympy/assumptions
+sympy sy-calculus 3e12 sympy/calculus
+sympy sy-rest2 3e12 sympy/categories sympy/codegen sympy/combinatorics sympy/concrete sympy/crypto sympy/diffgeom sympy/discrete sympy/external
+sympy sy-rest3 3e12 sympy/geometry sympy/holonomic sympy/interactive sympy/liealgebras sympy/logic sympy/multipledispatch sympy/ntheory
+sympy sy-rest4 3e12 sympy/parsing sympy/plotting sympy/sandbox sympy/strategies sympy/testing sympy/unify sympy/vector
+# ---- jobs-8.txt
+# pass 8: smoke candidates without hypothesis-driven files
+attrs attrs-smoke3 2e11 tests/test_validators.py tests/test_converters.py tests/test_filters.py
+mpmath mpmath-smoke3 2e11 mpmath/tests/test_convert.py mpmath/tests/test_division.py mpmath/tests/test_str.py mpmath/tests/test_bitwise.py

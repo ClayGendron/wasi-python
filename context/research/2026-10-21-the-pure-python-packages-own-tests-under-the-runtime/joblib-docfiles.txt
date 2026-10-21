@@ -1,0 +1,1 @@
+doc/user_guide/custom_parallel_backend.rst doc/user_guide/memory.rst doc/user_guide/parallel.rst doc/user_guide/parallel_numpy.rst doc/user_guide/persistence.rst

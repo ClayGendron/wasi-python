@@ -1,0 +1,112 @@
+== cloudpickle-all (1)
+   X tests/cloudpickle_test.py -- E   ModuleNotFoundError: No module named 'psutil'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+== html5lib-all (2)
+   X html5lib/tests/testdata/tokenizer -- See https://docs.pytest.org/en/stable/deprecations.html#node-construction-changed-to-node-from-parent for more details.
+   X html5lib/tests/testdata/tree-construction -- See https://docs.pytest.org/en/stable/deprecations.html#node-construction-changed-to-node-from-parent for more details.
+== jinja2-all (2)
+   X tests/test_async.py -- E   ModuleNotFoundError: No module named 'trio'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+   X tests/test_async_filters.py -- E   ModuleNotFoundError: No module named 'trio'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+== pyparsing-all (1)
+   X tests/test_diagram.py -- E   ModuleNotFoundError: No module named 'railroad'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+== joblib-all (6)
+   X joblib/test/test_cloudpickle_wrapper.py -- E   ImportError: attempted relative import beyond top-level package
+   X joblib/test/test_config.py -- 'no_cover' not found in `markers` configuration option
+   X joblib/test/test_dask.py -- E   ImportError: attempted relative import beyond top-level package
+   X joblib/test/test_memmapping.py -- E   ModuleNotFoundError: Unsupported platform for standard library module '_multiprocessing'
+   X joblib/test/test_memory_async.py -- 'asyncio' not found in `markers` configuration option
+   X joblib/test/test_parallel.py -- 'no_cover' not found in `markers` configuration option
+== formulaic-all (1)
+   X tests/materializers/test_base.py -- E   ModuleNotFoundError: No module named 'pyarrow'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environme
+== nx-alg (1)
+   X networkx/algorithms/bipartite/tests/test_generators.py -- E   ImportError: attempted relative import beyond top-level package
+== nx-slow (6)
+   X networkx/algorithms/bipartite/tests/test_generators.py -- E   ImportError: attempted relative import beyond top-level package
+   X networkx/classes/tests/test_digraph.py -- E   ModuleNotFoundError: No module named 'tests.test_graph'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your vi
+   X networkx/classes/tests/test_digraph_historical.py -- E   ModuleNotFoundError: No module named 'tests.historical_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or 
+   X networkx/classes/tests/test_graph_historical.py -- E   ModuleNotFoundError: No module named 'tests.historical_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to
+   X networkx/classes/tests/test_multidigraph.py -- E   ModuleNotFoundError: No module named 'tests.test_multigraph'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enab
+   X networkx/classes/tests/test_special.py -- E   ImportError: cannot import name 'BaseDiGraphTester' from 'tests.test_digraph' (/upstream-networkx/tree/networkx/classes/tests/test_digraph.py)
+== ft-a (1)
+   X Tests/ttLib/tables/_v_m_t_x_test.py -- E   ModuleNotFoundError: No module named '_h_m_t_x_test'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual 
+== ox-all (24)
+   X openpyxl/chart/tests -- {'57821968': <_pytest.config.PytestPluginManager object at 0x3724b10>, 'pytestconfig': <_pytest.config.Config object at 0x3bca580>, 'faulthandler': None, 'pytest_faulthandler': None, 'stepwise':
+   X openpyxl/chartsheet/tests/test_chartsheet.py -- E   ImportError: attempted relative import beyond top-level package
+   X openpyxl/comments/tests -- {'57821968': <_pytest.config.PytestPluginManager object at 0x3724b10>, 'pytestconfig': <_pytest.config.Config object at 0x3bca580>, 'faulthandler': None, 'pytest_faulthandler': None, 'stepwis
+   X openpyxl/compat/tests/test_compat.py -- E   ImportError: attempted relative import beyond top-level package
+   X openpyxl/descriptors/tests/test_base.py -- E   ImportError: attempted relative import beyond top-level package
+   X openpyxl/descriptors/tests/test_container.py -- E   ImportError: attempted relative import beyond top-level package
+   X openpyxl/descriptors/tests/test_excel.py -- E   ImportError: attempted relative import beyond top-level package
+   X openpyxl/descriptors/tests/test_namespace.py -- E   ImportError: attempted relative import beyond top-level package
+   X openpyxl/descriptors/tests/test_nested.py -- E   ImportError: attempted relative import beyond top-level package
+   X openpyxl/descriptors/tests/test_sequence.py -- E   ImportError: attempted relative import beyond top-level package
+   X openpyxl/drawing/tests -- {'57821968': <_pytest.config.PytestPluginManager object at 0x3724b10>, 'pytestconfig': <_pytest.config.Config object at 0x3bca580>, 'faulthandler': None, 'pytest_faulthandler': None, 'stepwise
+   X openpyxl/formatting/tests -- {'57821968': <_pytest.config.PytestPluginManager object at 0x3724b10>, 'pytestconfig': <_pytest.config.Config object at 0x3bca580>, 'faulthandler': None, 'pytest_faulthandler': None, 'stepw
+   X openpyxl/packaging/tests -- {'57821968': <_pytest.config.PytestPluginManager object at 0x3724b10>, 'pytestconfig': <_pytest.config.Config object at 0x3bca580>, 'faulthandler': None, 'pytest_faulthandler': None, 'stepwi
+   X openpyxl/pivot/tests -- {'57821968': <_pytest.config.PytestPluginManager object at 0x3724b10>, 'pytestconfig': <_pytest.config.Config object at 0x3bca580>, 'faulthandler': None, 'pytest_faulthandler': None, 'stepwise':
+   X openpyxl/reader/tests -- {'57821968': <_pytest.config.PytestPluginManager object at 0x3724b10>, 'pytestconfig': <_pytest.config.Config object at 0x3bca580>, 'faulthandler': None, 'pytest_faulthandler': None, 'stepwise'
+   X openpyxl/styles/tests -- {'57821968': <_pytest.config.PytestPluginManager object at 0x3724b10>, 'pytestconfig': <_pytest.config.Config object at 0x3bca580>, 'faulthandler': None, 'pytest_faulthandler': None, 'stepwise'
+   X openpyxl/utils/tests/test_formulas.py -- E   ImportError: attempted relative import beyond top-level package
+   X openpyxl/utils/tests/test_inference.py -- E   ImportError: attempted relative import beyond top-level package
+   X openpyxl/utils/tests/test_units.py -- E   ImportError: attempted relative import beyond top-level package
+   X openpyxl/workbook/external_link/tests -- {'57821968': <_pytest.config.PytestPluginManager object at 0x3724b10>, 'pytestconfig': <_pytest.config.Config object at 0x3bca580>, 'faulthandler': None, 'pytest_faulthandler': 
+   X openpyxl/workbook/tests -- {'57821968': <_pytest.config.PytestPluginManager object at 0x3724b10>, 'pytestconfig': <_pytest.config.Config object at 0x3bca580>, 'faulthandler': None, 'pytest_faulthandler': None, 'stepwis
+   X openpyxl/worksheet/tests -- {'57821968': <_pytest.config.PytestPluginManager object at 0x3724b10>, 'pytestconfig': <_pytest.config.Config object at 0x3bca580>, 'faulthandler': None, 'pytest_faulthandler': None, 'stepwi
+   X openpyxl/writer/tests -- {'57821968': <_pytest.config.PytestPluginManager object at 0x3724b10>, 'pytestconfig': <_pytest.config.Config object at 0x3bca580>, 'faulthandler': None, 'pytest_faulthandler': None, 'stepwise'
+   X openpyxl/xml/tests/test_functions.py -- E   ImportError: attempted relative import beyond top-level package
+== xw-comparison (7)
+   X xlsxwriter/test/comparison/test_bootstrap62.py -- E   ImportError: attempted relative import beyond top-level package
+   X xlsxwriter/test/comparison/test_bootstrap63.py -- E   ImportError: attempted relative import beyond top-level package
+   X xlsxwriter/test/comparison/test_bootstrap64.py -- E   ImportError: attempted relative import beyond top-level package
+   X xlsxwriter/test/comparison/test_chart_axis53.py -- E   ImportError: attempted relative import beyond top-level package
+   X xlsxwriter/test/comparison/test_chart_axis54.py -- E   ImportError: attempted relative import beyond top-level package
+   X xlsxwriter/test/comparison/test_hyperlink46.py -- E   ImportError: attempted relative import beyond top-level package
+   X xlsxwriter/test/comparison/test_hyperlink52.py -- E   ImportError: attempted relative import beyond top-level package
+== sb-all (1)
+   X tests/test_base.py -- See docs: https://docs.pytest.org/en/stable/deprecations.html#applying-a-mark-to-a-fixture-function
+== rl-all (2)
+   X tests/test_graphics_barcode.py -- E   ModuleNotFoundError: No module named 'reportlab.graphics.barcode'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your 
+   X tests/test_platypus_general.py -- E   TypeError: expected str, bytes or os.PathLike object, not NoneType
+== doc-fonttools (4)
+   X docstrings:fontTools.pens.freetypePen -- ModuleNotFoundError: No module named 'freetype'
+   X docstrings:fontTools.pens.quartzPen -- ModuleNotFoundError: No module named 'Quartz'
+   X docstrings:fontTools.ttLib.removeOverlaps -- ModuleNotFoundError: No module named 'pathops'
+   X docstrings:fontTools.varLib.interpolatablePlot -- ModuleNotFoundError: No module named 'cairo'
+== doc-joblib (3)
+   X docstrings:joblib._memmapping_reducer -- ModuleNotFoundError: No module named '_multiprocessing'
+   X docstrings:joblib.executor -- ModuleNotFoundError: No module named '_multiprocessing'
+   X docstrings:joblib.pool -- ModuleNotFoundError: No module named '_multiprocessing'
+== doc-networkx (1)
+   X docstrings:networkx.readwrite.p2g -- DeprecationWarning: The p2g module is deprecated and will be removed in v3.9
+== doc-sympy (26)
+   X docstrings:sympy.galgebra -- ImportError: As of SymPy 1.0 the galgebra module is maintained separately at https://github.com/pygae/galgebra
+   X docstrings:sympy.parsing.autolev._antlr.autolevlexer -- ModuleNotFoundError: No module named 'antlr4'
+   X docstrings:sympy.parsing.autolev._antlr.autolevlistener -- ModuleNotFoundError: No module named 'antlr4'
+   X docstrings:sympy.parsing.autolev._antlr.autolevparser -- ModuleNotFoundError: No module named 'antlr4'
+   X docstrings:sympy.parsing.autolev.test-examples.pydy-example-repo.chaos_pendulum -- NonInvertibleMatrixError: Matrix det == 0; not invertible.
+   X docstrings:sympy.parsing.autolev.test-examples.pydy-example-repo.double_pendulum -- NonInvertibleMatrixError: Matrix det == 0; not invertible.
+   X docstrings:sympy.parsing.autolev.test-examples.pydy-example-repo.mass_spring_damper -- NonInvertibleMatrixError: Matrix det == 0; not invertible.
+   X docstrings:sympy.parsing.autolev.test-examples.pydy-example-repo.non_min_pendulum -- NonInvertibleMatrixError: Matrix det == 0; not invertible.
+   X docstrings:sympy.parsing.autolev.test-examples.ruletest10 -- ValueError: Velocity of point o has not been defined in ReferenceFrame n.
+   X docstrings:sympy.parsing.autolev.test-examples.ruletest6 -- TypeError: 'ConditionSet' object is not iterable
+   X docstrings:sympy.parsing.latex._antlr.latexlexer -- ModuleNotFoundError: No module named 'antlr4'
+   X docstrings:sympy.parsing.latex._antlr.latexparser -- ModuleNotFoundError: No module named 'antlr4'
+   X docstrings:sympy.plotting.pygletplot.color_scheme -- ModuleNotFoundError: No module named 'pyglet'
+   X docstrings:sympy.plotting.pygletplot.managed_window -- ModuleNotFoundError: No module named 'pyglet'
+   X docstrings:sympy.plotting.pygletplot.plot -- ImportError: pyglet is required for plotting.
+   X docstrings:sympy.plotting.pygletplot.plot_axes -- ModuleNotFoundError: No module named 'pyglet'
+   X docstrings:sympy.plotting.pygletplot.plot_camera -- ModuleNotFoundError: No module named 'pyglet'
+   X docstrings:sympy.plotting.pygletplot.plot_controller -- ModuleNotFoundError: No module named 'pyglet'
+   X docstrings:sympy.plotting.pygletplot.plot_curve -- ModuleNotFoundError: No module named 'pyglet'
+   X docstrings:sympy.plotting.pygletplot.plot_mode -- ModuleNotFoundError: No module named 'pyglet'
+   X docstrings:sympy.plotting.pygletplot.plot_mode_base -- ModuleNotFoundError: No module named 'pyglet'
+   X docstrings:sympy.plotting.pygletplot.plot_modes -- ModuleNotFoundError: No module named 'pyglet'
+   X docstrings:sympy.plotting.pygletplot.plot_rotation -- ModuleNotFoundError: No module named 'pyglet'
+   X docstrings:sympy.plotting.pygletplot.plot_surface -- ModuleNotFoundError: No module named 'pyglet'
+   X docstrings:sympy.plotting.pygletplot.plot_window -- ModuleNotFoundError: No module named 'pyglet'
+== joblib-smoke (1)
+   X joblib/test/test_func_inspect.py -- 'thread_unsafe' not found in `markers` configuration option
+== openpyxl-smoke2 (4)
+   X openpyxl/utils/tests/test_formulas.py -- E   ImportError: attempted relative import beyond top-level package
+   X openpyxl/utils/tests/test_inference.py -- E   ImportError: attempted relative import beyond top-level package
+   X openpyxl/utils/tests/test_protection.py -- E   ImportError: attempted relative import beyond top-level package
+   X openpyxl/utils/tests/test_units.py -- E   ImportError: attempted relative import beyond top-level package

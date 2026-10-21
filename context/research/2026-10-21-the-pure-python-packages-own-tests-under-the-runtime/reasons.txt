@@ -1,0 +1,449 @@
+== six-all
+       1 AttributeError: module 'six.moves.urllib.request' has no attribute 'HTTPSHandler'. Did you mean '.HTTPHandler'
+       1 OSError: [Errno #] wasi does not support processes.
+== defusedxml-all
+       8 AttributeError: 'BaseTests' object has no attribute 'parse'
+       2 AssertionError: DeprecationWarning not raised
+       1 AttributeError: 'BaseTests' object has no attribute 'parseString'
+       1 AttributeError: module 'unittest' has no attribute 'makeSuite'
+== et-xmlfile-all
+      16 PermissionError: [Errno #] Operation not permitted: '@test_#_tmpæ'
+       1 AssertionError: "<Element 'subtag' at #x…> not in <Element 'tag' at #x…>" != 'list.remove(x): x not in list'
+       1 AssertionError: "must be dict, not str" does not match "Element() argument # must be dict or frozendict, not s
+== charset-normalizer-all
+       3 AssertionError: # != #
+       2 RuntimeError: can't start new thread
+== threadpoolctl-all
+       3 RuntimeError: can't start new thread
+       3 OSError: [Errno #] wasi does not support processes.
+== cloudpickle-all
+       1 TypeError: cannot pickle 'CaptureIO' instances
+== xlrd-all
+      65 OSError: mmap is unavailable on wasm#-wasi
+       1 AssertionError: False is not true
+== tabulate-all
+       7 OSError: [Errno #] wasi does not support processes.
+== more-itertools-all
+       9 RuntimeError: can't start new thread
+       1 AssertionError: Lists differ: [#, #, #] != [#, #]
+== toolz-all
+       1 AttributeError: module 'os' has no attribute 'pipe'. Did you mean '.pipe#' instead of '.pipe'?
+== typing-extensions-all
+       4 OSError: [Errno #] wasi does not support processes.
+       1 AssertionError: Tuples differ: ([],) != ([], [])
+       1 AssertionError: "attribute lookup anonymous_sentinel on \w+ failed|not found as \w+.anonymous_sentinel" does n
+== soupsieve-all
+       1 AttributeError: module 'signal' has no attribute 'alarm'
+== jinja2-all
+       3 ModuleNotFoundError: No module named 'res'. Site initialization is disabled, did you forget to add the site-pa
+       1 RecursionError: Stack overflow (used # kB) during compilation
+       1 PermissionError: [Errno #] Operation not permitted: '/upstream-jinja#/tree/tests/res/templates/test.html'
+       1 Failed: DID NOT RAISE <class 'ValueError'>
+       1 AssertionError: assert 'tests.test_utils.X object' == 'test_utils.X object'
+== python-dateutil-all
+      51 AttributeError: module 'time' has no attribute 'tzset'
+       2 AssertionError: assert tzstr('JST-#') is not tzstr('JST-#')
+       1 AssertionError: assert tzfile('America/New_York') is not tzfile('America/New_York')
+       1 AssertionError: assert tzfile('Europe/Monaco') is None
+       1 AssertionError: assert tzfile('America/New_York') is None
+== pyparsing-all
+       1 Exception: must ``pip install pyparsing[diagrams]`` to generate parser railroad diagrams
+       1 OSError: [Errno #] wasi does not support processes.
+== tqdm-all
+      98 tqdm.std.TqdmMonitorWarning: tqdm:disabling monitor support (monitor_interval = #) due to:
+      97 OSError: # `tqdm` instances still in existence POST-test
+      13 TypeError: 'NoneType' object does not support the context manager protocol (missed __exit__ method)
+       9 OSError: [Errno #] Not supported
+       4 RuntimeError: can't start new thread
+       2 NotImplementedError: This Python build lacks multiprocessing.synchronize, usually due to named semaphores bein
+       2 AttributeError: module 'os' has no attribute 'pipe'. Did you mean '.pipe#' instead of '.pipe'?
+       1 ExceptionGroup: multiple unraisable exception warnings (# sub-exceptions)
+       1 OSError: [Errno #] wasi does not support processes.
+       1 pytest.PytestUnraisableExceptionWarning: Exception ignored while calling deallocator <function tqdm.__del__ at
+       1 pytest.PytestUnraisableExceptionWarning: Exception ignored while calling deallocator <function BaseEventLoop._
+       1 ModuleNotFoundError: Unsupported platform for standard library module '_multiprocessing'
+== mpmath-all
+       1 assert np.float#(#.#) < (#.# ** -#)
+== joblib-all
+      16 OSError: mmap is unavailable on wasm#-wasi
+       6 OSError: [Errno #] wasi does not support processes.
+       1 AssertionError: assert # >= #
+       1 NotImplementedError: This Python build lacks multiprocessing.synchronize, usually due to named semaphores bein
+       1 AssertionError: assert # == #
+       1 PermissionError: [Errno #] Operation not permitted: 'some_folder'
+       1 assert not True
+       1 assert False
+       1 OSError: [Errno #] Not supported
+== wrapt-all
+      37 OSError: [Errno #] Not supported
+       4 RuntimeError: can't start new thread
+       1 AssertionError: <FunctionWrapper at #x… for function at #x…> is not None
+       1 AssertionError: <zipimporter object "/usr/local/lib/python#.zip/"> is not an instance of <class '_frozen_impor
+== nx-alg
+       1 assert #.# is None
+== nx-rest
+       1 RuntimeError: can't start new thread
+== nw-all
+       6 AssertionError: Mismatch at index #, key a: # != #
+       4 AttributeError: module 'os' has no attribute 'get_terminal_size'. Did you mean '.terminal_size' instead of '.g
+       2 AssertionError: Mismatch at index #, key a: -# != #
+       1 OSError: ctypes is unavailable on wasm#-wasi
+       1 FileNotFoundError: [Errno #] No such file or directory: 'pyproject.toml'
+== nw-slow
+       1 OSError: mmap is unavailable on wasm#-wasi
+== ft-a
+       2 ModuleNotFoundError: No module named 'ttFont_test'. Site initialization is disabled, did you forget to add the
+       1 OSError: [Errno #] wasi does not support processes.
+== ft-b
+       3 PermissionError: [Errno #] Operation not permitted: '/upstream-fonttools/tree/Tests/t#Lib/data/temp.other'
+       3 OSError: [Errno #] wasi does not support processes.
+       2 PermissionError: [Errno #] Operation not permitted: '/upstream-fonttools/tree/Tests/t#Lib/data/temp.pfb'
+       2 AssertionError: assert # > #
+       1 PermissionError: [Errno #] Operation not permitted: '/upstream-fonttools/tree/Tests/afmLib/data/temp.afm'
+       1 FileNotFoundError: [Errno #] No such file or directory: '/upstream-fonttools/tree/Tests/cffLib/data/TestSupple
+       1 OSError: could not get source code
+       1 AssertionError: assert 'Tests.misc.l...gTools_test.A' == 'loggingTools_test.A'
+       1 FileNotFoundError: [Errno #] No such file or directory: '/upstream-fonttools/tree/Tests/tfmLib/data/dummy-spac
+       1 FileNotFoundError: [Errno #] No such file or directory: '/upstream-fonttools/tree/Tests/tfmLib/data/cmr#.tfm'
+       1 FileNotFoundError: [Errno #] No such file or directory: '/upstream-fonttools/tree/Tests/tfmLib/data/cmex#.tfm'
+       1 FileNotFoundError: [Errno #] No such file or directory: '/upstream-fonttools/tree/Tests/tfmLib/data/cmsy#.tfm'
+== ox-all
+     494 ImportError: attempted relative import beyond top-level package
+      52 file /upstream-openpyxl/tree/openpyxl/cell/tests/test_cell.py, line #
+       3 file /upstream-openpyxl/tree/openpyxl/chartsheet/tests/test_protection.py, line #
+== sb-all
+      12 AttributeError: module 'numpy' has no attribute 'in#d'. Did you mean '.int#' instead of '.in#d'?
+       4 RuntimeError: Encountered an exception when converting data source to a pandas DataFrame. See traceback above 
+       4 AssertionError:
+       2 KeyError: 'labelleft'
+       1 AssertionError: Series.index are different
+       1 AssertionError: Regex pattern did not match.
+       1 AttributeError: module 'numpy' has no attribute 'VisibleDeprecationWarning'
+== rl-all
+      26 reportlab.pdfbase.ttfonts.TTFError: Can't open file "Vera.ttf"
+      11 TypeError: expected str, bytes or os.PathLike object, not NoneType
+       7 NameError: name '_c_funcs' is not defined
+       5 AssertionError: Missing attribute strokeOverprint from <reportlab.graphics.shapes.Rect object at #x…>
+       5 TypeError: chdir: path should be string, bytes or os.PathLike, not NoneType
+       4 ValueError: "/usr/local/lib/python#.zip/reportlab" is not a directory
+       3 OSError:
+       1 OSError: Cannot open resource 'test-rgba.png'
+       1 file /upstream-reportlab/tree/tests/test_lib_pdfencrypt.py, line #
+       1 AssertionError: 'division by zero' not found in "Could not import 'unimportable'\nusing sys.path ['/tmp/work',
+       1 LookupError: unknown encoding: EncodingWithoutVowels
+       1 KeyError: 'DarkGardenMK'
+== pp-all
+       5 OSError: decoder jpeg not available
+       4 OSError: [Errno #] wasi does not support processes.
+       4 OSError: encoder jpeg not available
+       2 OSError: decoder libtiff not available
+       1 OSError: encoder jpeg#k not available
+       1 PermissionError: [Errno #] Operation not permitted: 'annotated-pdf-popup.pdf'
+       1 PermissionError: [Errno #] Operation not permitted: 'pypdf_pdfLocation.txt'
+== doc-fonttools
+       1 AssertionError: doctest failed: ngTools.Timer
+       1 AssertionError: doctest failed: ****************************************
+== doc-joblib
+       1 AssertionError: doctest failed: il ; shutil.rmtree(location)
+== docfiles-joblib
+       1 AssertionError: doctest failed: ************************************
+       1 AssertionError: doctest failed: le:
+       1 AssertionError: doctest failed: d(filename + '.lz#')
+== doc-mpmath
+       1 AssertionError: doctest failed: **********************************************************************
+       1 AssertionError: doctest failed: #, in mpmath.libmp.gammazeta.bernfrac
+== doc-networkx
+       1 AssertionError: doctest failed: *******************************************************
+       1 AssertionError: doctest failed: hms/bipartite/__init__.py", line #, in networkx.algorithms.bipartite
+       1 AssertionError: doctest failed: rkx.algorithms.community.local.greedy_source_expansion
+       1 AssertionError: doctest failed: **********************************************************************
+       1 AssertionError: doctest failed: in _call_if_no_backends_installed
+       1 AssertionError: doctest failed: gorithms/graph_hashing.py", line #, in networkx.algorithms.graph_hashing.weisf
+       1 AssertionError: doctest failed: #]>", line #, in <module>
+       1 AssertionError: doctest failed: usr/local/lib/python#.zip/networkx/drawing/nx_agraph.py", line #, in networkx.
+       1 AssertionError: doctest failed: zip/networkx/drawing/nx_agraph.py", line #, in networkx.drawing.nx_agraph.from
+       1 AssertionError: doctest failed: networkx.drawing.nx_agraph.graphviz_layout[#]>", line #, in <module>
+       1 AssertionError: doctest failed: H.nodes[n]["node_label"]: p for n, p in H_layout.items()}
+       1 AssertionError: doctest failed: The above exception was the direct cause of the following exception:
+== doc-more-itertools
+       1 AssertionError: doctest failed: #.zip/more_itertools/more.py", line ?, in more_itertools.more.callback_iter
+       1 AssertionError: doctest failed: #.zip/more_itertools/more.py", line ?, in more_itertools.more.time_limited
+== doc-sympy
+     199 AssertionError: doctest failed: **********************************************************************
+       7 AssertionError: doctest failed: ed:
+       5 AssertionError: doctest failed: :
+       4 AssertionError: doctest failed: ***************************
+       4 AssertionError: doctest failed: ********************************************
+       4 AssertionError: doctest failed: ***************
+       4 AssertionError: doctest failed: ***********************************
+       3 AssertionError: doctest failed: *********************
+       3 AssertionError: doctest failed: *****
+       3 AssertionError: doctest failed: *******
+       3 AssertionError: doctest failed: ********
+       3 AssertionError: doctest failed: (most recent call last):
+== docfiles-sympy
+       7 AssertionError: doctest failed: **********************************************************************
+       1 AssertionError: doctest failed: ting-tests.md", line #, in writing-tests.md
+       1 AssertionError: doctest failed: #, in active-deprecations.md
+       1 AssertionError: doctest failed: et(FiniteSet(#, #, #)) # We don't want this to be the same as {#, #, #}
+       1 AssertionError: doctest failed: )
+       1 AssertionError: doctest failed: (np.float#(#.#), np.float#(#.#), np.float#(#.#))
+       1 AssertionError: doctest failed: **************
+       1 AssertionError: doctest failed: e(rb, # * N.x)
+       1 AssertionError: doctest failed: ue, 'extended_positive': True, 'extended_nonzero': True, 'extended_real': True
+       1 AssertionError: doctest failed: line #, in custom-functions.md
+       1 AssertionError: doctest failed: r#.conjugate()
+       1 AssertionError: doctest failed: Failed example:
+== mpmath-smoke
+       1 assert np.float#(#.#) < (#.# ** -#)
+== joblib-smoke
+       2 OSError: mmap is unavailable on wasm#-wasi
+       1 assert #.# < #.#
+       1 NotImplementedError: This Python build lacks multiprocessing.synchronize, usually due to named semaphores bein
+== jinja2-smoke
+       1 RecursionError: Stack overflow (used # kB) during compilation
+== fonttools-smoke
+       2 ModuleNotFoundError: No module named 'ttFont_test'. Site initialization is disabled, did you forget to add the
+== openpyxl-smoke
+     162 ImportError: attempted relative import beyond top-level package
+      12 file /upstream-openpyxl/tree/openpyxl/cell/tests/test_writer.py, line #
+== seaborn-smoke
+       1 AssertionError: Series.index are different
+       1 RuntimeError: Encountered an exception when converting data source to a pandas DataFrame. See traceback above 
+== reportlab-smoke
+       3 TypeError: expected str, bytes or os.PathLike object, not NoneType
+       2 OSError:
+== sympy-smoke
+       3 sympy.testing.pytest.XFail: test_issue_#
+       1 sympy.testing.pytest.XFail: test_sympify_rational_numbers_set
+       1 sympy.testing.pytest.XFail: test_non_commutative_cse
+       1 sympy.testing.pytest.XFail: test_non_commutative_order
+       1 sympy.testing.pytest.XFail: test_powers
+       1 sympy.testing.pytest.XFail: test_cse_matrix_nested_matmul_collapsed
+       1 sympy.testing.pytest.XFail: test_cse_matrix_optimize_out_single_argument_mul_combined
+       1 sympy.testing.pytest.XFail: test_cse_matrix_optimize_out_single_argument_add_combined
+== sy-core
+      56 sympy.testing.pytest.Skipped: abstract class
+       8 sympy.testing.pytest.Skipped: abstract Class
+       4 sympy.testing.pytest.Skipped: Abstract Class
+       4 sympy.testing.pytest.XFail: test_issue_#
+       1 sympy.testing.pytest.Skipped: does it make sense to test this?
+       1 sympy.testing.pytest.Skipped: TODO: sympy.physics.quantum.shor: Cmod Not Implemented
+       1 sympy.testing.pytest.Skipped: deprecated class
+       1 sympy.testing.pytest.XFail: test_evenness_in_ternary_integer_product_with_odd
+       1 sympy.testing.pytest.XFail: test_oddness_in_ternary_integer_product_with_odd
+       1 sympy.testing.pytest.XFail: test_symbol_infinitereal_mul
+       1 sympy.testing.pytest.XFail: test_neg_symbol_falsenonnegative
+       1 sympy.testing.pytest.XFail: test_subexpression_postprocessors
+== sy-functions
+       1 sympy.testing.pytest.XFail: test_factorial_simplify_fail
+       1 sympy.testing.pytest.XFail: test_sign_issue_#
+       1 sympy.testing.pytest.XFail: test_principal_branch_fail
+       1 sympy.testing.pytest.XFail: test_issue_#_#
+       1 sympy.testing.pytest.XFail: test_log_expand_fail
+       1 sympy.testing.pytest.XFail: test_log_product_simplify_to_sum
+       1 sympy.testing.pytest.XFail: test_issue_#
+       1 sympy.testing.pytest.XFail: test_tan_cot_sin_cos_ratsimp
+== sy-integrals
+      18 sympy.testing.pytest.XFail: test_issue_#
+       5 sympy.testing.pytest.XFail: test_issue_#a
+       4 sympy.testing.pytest.XFail: test_issue_#b
+       2 sympy.testing.pytest.XFail: test_issue_#c
+       1 sympy.testing.pytest.Skipped: Too slow
+       1 sympy.testing.pytest.XFail: test_integrate_DiracDelta_fails
+       1 sympy.testing.pytest.XFail: test_issue_#d
+       1 sympy.testing.pytest.XFail: test_issue_#b_manual
+       1 sympy.testing.pytest.XFail: test_integrate_Piecewise_rational_over_reals
+       1 sympy.testing.pytest.XFail: test_issue_#_slow
+       1 sympy.testing.pytest.XFail: test_polylog
+       1 sympy.testing.pytest.XFail: test_polylog_manual
+== sy-matrices
+       2 sympy.testing.pytest.Skipped: Cannot create threads under pyodide.
+       1 sympy.testing.pytest.XFail: test_block_index_symbolic_fail
+       1 sympy.testing.pytest.XFail: test_matrix_Add_with_scalar
+       1 sympy.testing.pytest.XFail: test_factor_expand
+       1 sympy.testing.pytest.XFail: test_MatAdd_postprocessor_xfail
+       1 sympy.testing.pytest.XFail: test_matmul_args_cnc_symbols
+       1 sympy.testing.pytest.XFail: test_symmetry
+       1 sympy.testing.pytest.XFail: test_diff
+       1 sympy.testing.pytest.XFail: test_eigen_vects
+       1 sympy.testing.pytest.XFail: test_issue_#
+== sy-physics
+       2 sympy.testing.pytest.XFail: test_gate_failing
+       1 sympy.testing.pytest.XFail: test_CMod
+       1 sympy.testing.pytest.XFail: test_Pauli_should_work
+== sy-polys
+      62 sympy.testing.pytest.Skipped: DFM not supported in this ground type
+       2 sympy.testing.pytest.Skipped: Too slow
+       1 TypeError: raises() takes from # to # positional arguments but # were given
+       1 sympy.testing.pytest.XFail: test_dmp_zz_wang_fail
+       1 sympy.testing.pytest.XFail: test_FracElement___call__
+       1 sympy.testing.pytest.XFail: test_noncommutative_pseudomultivariate
+       1 sympy.testing.pytest.XFail: test_Poly_rootof_same_symbol_issue_#
+== sy-printing
+      18 sympy.testing.pytest.Skipped: JAX not installed
+      12 sympy.testing.pytest.Skipped: PyTorch not installed
+       4 sympy.testing.pytest.Skipped: TensorFlow not installed
+       2 sympy.testing.pytest.XFail: test_Matrices_entries_not_hadamard
+       1 sympy.testing.pytest.XFail: test_C#CodePrinter__precision_f#
+       1 sympy.testing.pytest.XFail: test_requires_partial_unspecified_variables
+       1 sympy.testing.pytest.Skipped: CuPy not installed
+       1 sympy.testing.pytest.XPass: test_#
+       1 sympy.testing.pytest.XFail: test_latex_symbols_failing
+       1 sympy.testing.pytest.XFail: test_builtin_without_args_mismatched_names
+       1 sympy.testing.pytest.XFail: test_vector_cross_xfail
+       1 sympy.testing.pytest.Skipped: Jax not installed
+== sy-solvers
+       1 sympy.testing.pytest.XFail: test_fail_holzer
+       1 sympy.testing.pytest.XFail: test_not_implemented
+       1 sympy.testing.pytest.XFail: test_kamke
+       1 sympy.testing.pytest.XFail: test_lie_group_issue#
+       1 sympy.testing.pytest.XFail: test_noncircularized_real_imaginary_parts
+       1 sympy.testing.pytest.Skipped: too slow for @slow
+== sy-series
+       2 sympy.testing.pytest.Skipped: slow
+       2 sympy.testing.pytest.XFail: test_issue_#
+       2 sympy.testing.pytest.XFail: test_issue_#b
+       1 sympy.testing.pytest.XFail: test_fps__logarithmic_singularity_fail
+       1 sympy.testing.pytest.XFail: test_grunts_eval_special_slow_sometimes_fail
+       1 sympy.testing.pytest.XFail: test_gruntz_eval_special_fail
+       1 sympy.testing.pytest.XFail: test_MrvTestCase_page#_ex#_#
+       1 sympy.testing.pytest.XFail: test_doit#
+       1 sympy.testing.pytest.XFail: test_order_oo
+       1 sympy.testing.pytest.XFail: test_limit_seq_fail
+       1 sympy.testing.pytest.XFail: test_series#_failing
+       1 sympy.testing.pytest.XFail: test_order_failing_due_to_solveset
+== sy-simplify
+       4 sympy.testing.pytest.XFail: test_issue_#
+       3 sympy.testing.pytest.Skipped: PyMC is not installed. Abort tests for _sample_pymc.
+       2 sympy.testing.pytest.XFail: test_prudnikov_fail_#F#
+       1 sympy.testing.pytest.XFail: test_non_commutative_cse
+       1 sympy.testing.pytest.XFail: test_non_commutative_order
+       1 sympy.testing.pytest.XFail: test_powers
+       1 sympy.testing.pytest.XFail: test_cse_matrix_nested_matmul_collapsed
+       1 sympy.testing.pytest.XFail: test_cse_matrix_optimize_out_single_argument_mul_combined
+       1 sympy.testing.pytest.XFail: test_cse_matrix_optimize_out_single_argument_add_combined
+       1 sympy.testing.pytest.XFail: test_roach_fail
+       1 sympy.testing.pytest.XFail: test_meijerg_expand_fail
+       1 sympy.testing.pytest.Skipped: Too slow
+== sy-utilities
+      16 sympy.testing.pytest.XFail: test_R#
+      16 sympy.testing.pytest.XFail: test_W#
+      14 sympy.testing.pytest.XFail: test_M#
+      12 sympy.testing.pytest.XFail: test_P#
+       9 sympy.testing.pytest.Skipped: tensorflow not installed.
+       9 sympy.testing.pytest.XFail: test_D#
+       8 sympy.testing.pytest.XFail: test_U#
+       8 sympy.testing.pytest.XFail: test_X#
+       7 sympy.testing.pytest.XFail: test_H#
+       7 sympy.testing.pytest.XFail: test_I#
+       7 sympy.testing.pytest.XFail: test_N#
+       6 sympy.testing.pytest.Skipped: numexpr not installed.
+== sy-rest
+       1 sympy.testing.pytest.XFail: test_invertible_fullrank
+       1 sympy.testing.pytest.XFail: test_non_trivial_implies
+       1 sympy.testing.pytest.XFail: test_issue_#_xfail
+       1 sympy.testing.pytest.XFail: test_bounded_xfail
+       1 sympy.testing.pytest.XFail: test_evenness_in_ternary_integer_product_with_odd
+       1 sympy.testing.pytest.XFail: test_oddness_in_ternary_integer_product_with_odd
+       1 sympy.testing.pytest.XFail: test_issue_#_failing
+       1 sympy.testing.pytest.XFail: test_failing_number_line_properties
+       1 sympy.testing.pytest.XFail: test_equality_failing
+       1 sympy.testing.pytest.XFail: test_invertible
+       1 sympy.testing.pytest.XFail: test_AccumBounds_powf
+== mpmath-smoke2
+       1 assert np.float#(#.#) < (#.# ** -#)
+== sympy-smoke2
+       1 sympy.testing.pytest.XFail: test_issue_#
+       1 sympy.testing.pytest.XFail: test_sympify_rational_numbers_set
+== seaborn-smoke2
+       1 AssertionError: Series.index are different
+       1 RuntimeError: Encountered an exception when converting data source to a pandas DataFrame. See traceback above 
+== openpyxl-smoke2
+     198 ImportError: attempted relative import beyond top-level package
+      52 file /upstream-openpyxl/tree/openpyxl/cell/tests/test_cell.py, line #
+== joblib-smoke2
+       2 OSError: mmap is unavailable on wasm#-wasi
+       1 NotImplementedError: This Python build lacks multiprocessing.synchronize, usually due to named semaphores bein
+       1 AssertionError: assert # >= #
+== sy-solvers-ode
+       1 sympy.testing.pytest.XFail: test_kamke
+       1 sympy.testing.pytest.XFail: test_lie_group_issue#
+       1 sympy.testing.pytest.XFail: test_noncircularized_real_imaginary_parts
+       1 sympy.testing.pytest.Skipped: too slow for @slow
+== sy-solvers-rest
+       1 sympy.testing.pytest.XFail: test_fail_holzer
+       1 sympy.testing.pytest.XFail: test_not_implemented
+       1 sympy.testing.pytest.XFail: test_nonlocal_simplification
+       1 sympy.testing.pytest.XFail: test_decompogen_fails
+       1 sympy.testing.pytest.XFail: test_slow_general_univariate
+       1 sympy.testing.pytest.XFail: test_isolve_Sets
+       1 sympy.testing.pytest.XFail: test_nsolve_fail
+       1 sympy.testing.pytest.XFail: test_rsolve_ratio_missed
+       1 sympy.testing.pytest.XFail: test_linear_system_xfail
+       1 sympy.testing.pytest.XFail: test_issue_#_xfail
+       1 sympy.testing.pytest.XFail: test_unrad_fail
+       1 sympy.testing.pytest.XFail: test_other_lambert
+== sy-simplify-only
+       4 sympy.testing.pytest.XFail: test_issue_#
+       2 sympy.testing.pytest.XFail: test_prudnikov_fail_#F#
+       1 sympy.testing.pytest.XFail: test_non_commutative_cse
+       1 sympy.testing.pytest.XFail: test_non_commutative_order
+       1 sympy.testing.pytest.XFail: test_powers
+       1 sympy.testing.pytest.XFail: test_cse_matrix_nested_matmul_collapsed
+       1 sympy.testing.pytest.XFail: test_cse_matrix_optimize_out_single_argument_mul_combined
+       1 sympy.testing.pytest.XFail: test_cse_matrix_optimize_out_single_argument_add_combined
+       1 sympy.testing.pytest.XFail: test_roach_fail
+       1 sympy.testing.pytest.XFail: test_meijerg_expand_fail
+       1 sympy.testing.pytest.Skipped: Too slow
+       1 sympy.testing.pytest.XFail: test_prudnikov_fail_other
+== sy-stats
+       3 sympy.testing.pytest.Skipped: PyMC is not installed. Abort tests for _sample_pymc.
+       1 sympy.testing.pytest.XFail: test_uniform_P
+== sy-alg-assume
+       1 sympy.testing.pytest.XFail: test_invertible_fullrank
+       1 sympy.testing.pytest.XFail: test_non_trivial_implies
+       1 sympy.testing.pytest.XFail: test_issue_#_xfail
+       1 sympy.testing.pytest.XFail: test_bounded_xfail
+       1 sympy.testing.pytest.XFail: test_evenness_in_ternary_integer_product_with_odd
+       1 sympy.testing.pytest.XFail: test_oddness_in_ternary_integer_product_with_odd
+       1 sympy.testing.pytest.XFail: test_issue_#_failing
+       1 sympy.testing.pytest.XFail: test_failing_number_line_properties
+       1 sympy.testing.pytest.XFail: test_equality_failing
+       1 sympy.testing.pytest.XFail: test_invertible
+== sy-calculus
+       1 sympy.testing.pytest.XFail: test_AccumBounds_powf
+== sy-rest2
+       9 sympy.testing.pytest.Skipped: Couldn't import Cython.
+       7 sympy.testing.pytest.Skipped: Couldn't run f#py.
+       4 sympy.testing.pytest.Skipped: cython not installed.
+       4 sympy.testing.pytest.Skipped: No fortran compiler found.
+       2 sympy.testing.pytest.Skipped: Emscripten does not support process spawning
+       2 sympy.testing.pytest.XFail: test_optims_numpy_TODO
+       2 sympy.testing.pytest.Skipped: `cc' command didn't work as expected (C#)
+       1 sympy.testing.pytest.XFail: test_ImpliedDoLoop
+       1 sympy.testing.pytest.XFail: test_Subroutine
+       1 sympy.testing.pytest.XFail: test_rubik
+       1 sympy.testing.pytest.XFail: test_subgroup_search#
+       1 sympy.testing.pytest.XFail: test_riemann_invariants#
+== sy-rest3
+       2 sympy.testing.pytest.Skipped: z# not installed.
+       1 sympy.testing.pytest.XFail: test_multivariate_bool_as_set
+       1 sympy.testing.pytest.Skipped: z# is not installed
+       1 sympy.testing.pytest.XFail: test_pos_neg_zero
+       1 sympy.testing.pytest.XFail: test_pos_neg_infinite
+       1 sympy.testing.pytest.XFail: test_infinite_strict_inequalities
+== sy-rest4
+      12 AssertionError: assert # == #
+       1 sympy.testing.pytest.Skipped: Warnings not emitted in Pyodide because of lack of WASM fp exception support
+       1 sympy.testing.pytest.XFail: test_no_adaptive_meshing
+       1 ModuleNotFoundError: No module named 'matplotlib.testing'. Site initialization is disabled, did you forget to 
+       1 sympy.testing.pytest.XFail: test_particular_case_#_with_adaptive_true
+       1 sympy.testing.pytest.XFail: test_complex_range_line_plot_#
+       1 sympy.testing.pytest.XFail: test_module_imports_are_direct
+       1 AssertionError: assert [] == ['/usr/local/....zip/doc/src']
+       1 AssertionError: assert [] == ['/usr/local/...est_basic.py']
+       1 sympy.testing.pytest.XFail: test_pretty_printing_ascii
+       1 sympy.testing.pytest.XFail: test_cross_xfail
+== mpmath-smoke3
+       1 assert np.float#(#.#) < (#.# ** -#)
