@@ -887,3 +887,16 @@ The build, below, as it goes.
      driver is unchanged, so the stage's fuel does not move.
    - A module entry's `match` is the pattern `test.<module>.*`; the survey confirms regrtest
      matches a package's submodules' tests by it.
+4. **The fast tier on the machinery** (`uv run pytest -m "not slow" -n 3`, the fast slot held,
+   no `build/lane.lock`; this worktree holds no artifact set): the first run had one failure, a
+   module-level name bound twice in `tests/unit/test_scoreboard.py` (the rules check
+   `test_no_module_level_name_is_bound_twice`), fixed by renaming the new constant. The second:
+   2,138 passed, 590 skipped, 0 failed; the one red line is the 537 accepted passes blocked by
+   the missing artifact set, as on any worktree without one. `ruff check` and `ruff format
+   --check` clean.
+
+**What waits for wave 09** (the lane's ruling): the rebase onto main; the survey (Decision 11)
+on main's set after 100; the TOML groups, release lists and shard entries from it; the tier
+step, the `release-tier` input, `judge-release` and the gather's `needs` and `env:` on 101's
+`inputs` job, with their scan rules (checks 9 and 10); the README and CHANGELOG lines; both
+branch runs (criteria 5 and 6); "For the lane" filled in; the self-check.

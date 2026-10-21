@@ -509,17 +509,17 @@ def test_the_line_carries_the_sets_sha256sums() -> None:
 
 # The release tier: rows a normal run does not run, moves between tiers, the carried passed set.
 
-UP = scoreboard.UPSTREAM_FILE
-SLOW = f"{UP}::test_upstream_suite[numpy-slow]"
-SLOW_K = f"{UP}::test_upstream_class[numpy-slow-wasm32-memory]"
-CORE = f"{UP}::test_upstream_suite[numpy-core]"
+UPSTREAM = scoreboard.UPSTREAM_FILE
+SLOW = f"{UPSTREAM}::test_upstream_suite[numpy-slow]"
+SLOW_K = f"{UPSTREAM}::test_upstream_class[numpy-slow-wasm32-memory]"
+CORE = f"{UPSTREAM}::test_upstream_suite[numpy-core]"
 
 
 def tiered(checks, release=(), tier="normal", deselected=()):
     rec = run(checks, tier=tier)
     rec["release_checks"] = sorted(release)
     rec["deselected"] = sorted(deselected)
-    rec["collected_files"] = [FILE, UP]
+    rec["collected_files"] = [FILE, UPSTREAM]
     return rec
 
 
