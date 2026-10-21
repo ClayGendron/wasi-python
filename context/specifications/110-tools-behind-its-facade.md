@@ -782,6 +782,19 @@ system. The Windows legs of the run are the matter-of-course check.
 - **Dry-run needs:** none beyond the one run above.
 - **Neighbours:** spec 111 is built beside it; neither touches the other's files.
 
+### Rebase for wave 10
+
+- **Rebase:** from `2e5ea17` (on `5af0a42`) onto `3b7f6abf`, 045 rebased onto wave 09's tip
+  `265607bd`, wave 10's order being 045, 110, 111. One conflict hunk, in `CHANGELOG.md`: main's
+  spec 100 entry (numpy on OpenBLAS) and 110's entry were both added after spec 109's; both kept,
+  100's first, as main has it. No other file conflicted; main since `5af0a42` adds no read of a
+  moved name (`grep` for `T._<moved name>`, `from wasi_python.tools import _…` and `setattr(T,`:
+  none). After it (EXECUTED): `ruff check`, `ruff format --check`, `mypy --strict` clean;
+  `tests/checks/test_rules.py` and the seven unit and judge files by name, 655 passed, 1 skipped;
+  `api.py --check` silent; the fast tier in this worktree against a clone of 045's artifact set,
+  `-n 3`: 2,648 passed, 51 skipped, 0 failed, v1 640/886 pass, 0 fail. No new release run: only
+  the rebase changed; the wave's dry run judges it.
+
 ### The build review's two Lows
 
 The review (`../reviews/110-tools-behind-its-facade-build-2026-10-21.md`, `7a51742`, verdict
