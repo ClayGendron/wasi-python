@@ -91,7 +91,7 @@ def distributing(config) -> bool:
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
-    g = parser.getgroup("progress", "the progress harness (spec 002)")
+    g = parser.getgroup("progress", "the progress harness")
     g.addoption("--accept", metavar="REASON", help="record this run as the accepted state")
     g.addoption("--accept-judge", metavar="REASON", help="also accept a changed judge")
     g.addoption("--accept-growth", metavar="REASON", help="also accept fuel or bytes growth")
@@ -113,7 +113,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         choices=scoreboard.TIERS,
         help="normal (the default) leaves the release-tier checks unrun; release runs both tiers",
     )
-    g.addoption("--shard", metavar="NAME", help="run one shard of the release's plan (spec 063)")
+    g.addoption("--shard", metavar="NAME", help="run one shard of the release's plan")
     g.addoption("--shard-plan", metavar="FILE", help="the shard plan (tests/release_shards.toml)")
 
 
@@ -156,8 +156,7 @@ def load_gaps(path: Path) -> tuple[dict[str, Gap], list[str]]:
 
 
 WORKTREE_REFUSAL = (
-    "accept: only the landing lane accepts, in the main tree (constitution §5.7); "
-    "this is a linked worktree"
+    "accept: only the landing lane accepts, in the main tree; this is a linked worktree"
 )
 
 
@@ -185,10 +184,7 @@ def accept_refusal(reason: str | None, progress: Path, repo: Path | None = None)
         return WORKTREE_REFUSAL
     changed = paths.dirty_path(repo)
     if changed is not None:
-        return (
-            f"accept: refused on a dirty tree: {changed} has a change the judge could see "
-            "(spec 029, Decision 2)"
-        )
+        return f"accept: refused on a dirty tree: {changed} has a change the judge could see"
     return None
 
 
@@ -198,7 +194,7 @@ def head_moved(config: pytest.Config) -> str | None:
     now = (paths.git("rev-parse", "HEAD") or "").strip()
     if start is None or now == start:
         return None
-    return f"accept: HEAD moved during the run ({start[:12]} to {now[:12]}) (spec 029)"
+    return f"accept: HEAD moved during the run ({start[:12]} to {now[:12]})"
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -209,7 +205,7 @@ def pytest_configure(config: pytest.Config) -> None:
             pytest.exit(refusal, returncode=1)  # before collection; nothing is written
         if reason and writes_accepted_state(progress, paths.REPO):  # checked again when written
             config.stash[HEAD_AT_START] = (paths.git("rev-parse", "HEAD") or "").strip()
-    config.addinivalue_line("markers", "goal(area): a v1 progress check (spec 002)")
+    config.addinivalue_line("markers", "goal(area): a v1 progress check")
     config.addinivalue_line("markers", "slow: a guest job or the oracle")
     gaps_file = _opt(config, "--known-gaps")
     gaps, errors = load_gaps(Path(gaps_file) if gaps_file else paths.KNOWN_GAPS)
@@ -308,7 +304,10 @@ def shard_refusal(config: pytest.Config) -> str | None:
     if name not in plan:
         return f"refused: --shard {name}: the plan holds no such shard"
     if getattr(config.option, "numprocesses", None):
-        return f"refused: --shard {name} with -n: a shard runs serially (spec 063, Decision 4)"
+        return (
+            f"refused: --shard {name} with -n: a shard runs serially: the shards are the "
+            "parallelism"
+        )
     if _opt(config, "--accept") or _opt(config, "--retire"):
         return f"refused: --shard {name} with --accept or --retire: only the lane accepts"
     if any("::" in arg for arg in config.args):
@@ -548,7 +547,7 @@ def _judge(item: pytest.Item, call: pytest.CallInfo, rep: pytest.TestReport):
 # ---------------------------------------------------------------------------------------------
 # Several cores: one way to run in parallel, and the judge's scheduler
 
-REFUSAL = "refused: {} ({}; spec 052, Decision 7)"
+REFUSAL = "refused: {} ({})"
 
 
 def xdist_refusal(option) -> str | None:
@@ -574,7 +573,7 @@ def xdist_refusal(option) -> str | None:
          "its child would judge and accept again on every change"),
         (get("maxworkerrestart") not in (None, "0"),
          f"--max-worker-restart {get('maxworkerrestart')}",
-         "a dead worker's check is never run again: it fails (the build review, F1)"),
+         "a dead worker's check is never run again: it fails"),
     ]  # fmt: skip
     for refused, name, why in rows:
         if refused:

@@ -98,9 +98,7 @@ def patch_files(top: str, patches: Path | None = None) -> list[Path]:
 
 
 # A pinned member the build's walks would skip without a word.
-PINNED_LITTER = (
-    "a pinned member with a name only an operating system leaves; the build skips it (spec 090)"
-)
+PINNED_LITTER = "a pinned member with a name only an operating system leaves; the build skips it"
 
 
 def tree_drift(tarball: Path, tree: Path, patches: Path | None = None) -> list[str]:

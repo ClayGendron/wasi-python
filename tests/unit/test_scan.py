@@ -2113,7 +2113,7 @@ def _without_wasm_then_late(text: str) -> str:
 
 # The set's own SHA256SUMS, hashed before the upload, for the gather.
 SET_SUMS_STEP = (
-    "      - name: The SHA-256 of the set's own SHA256SUMS, handed to the gather (spec 085)\n"
+    "      - name: The SHA-256 of the set's own SHA256SUMS, handed to the gather\n"
     "        id: set-sums\n"
     '        run: echo "sha256=$(shasum -a 256 build/artifacts/SHA256SUMS | cut -c1-64)" >> '
     '"$GITHUB_OUTPUT"\n'

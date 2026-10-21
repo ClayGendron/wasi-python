@@ -98,6 +98,6 @@ pythonpath = ["tests"]
 # tests/jobs holds guest programs and the oracle project, not tests.
 norecursedirs = ["jobs", ".*", "build"]
 markers = [
-    "goal(area): a v1 progress check (spec 002); area is v1.1 to v1.5 or rules",
+    "goal(area): a v1 progress check; area is v1.1 to v1.5 or rules",
     "slow: a guest job or the oracle; skipped by the fast tier, -m 'not slow'",
 ]

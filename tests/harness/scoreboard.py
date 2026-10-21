@@ -39,8 +39,8 @@ TIERS = ("normal", "release")  # a run judges the normal tier, or both
 FUEL_TOLERANCE = 1e-4  # 0.01%: a run's fuel repeats exactly under the judge's own clock
 NOT_MACHINE_CHECKED = (
     "publication · copying from prior art · numpy's 25 files that need its C test modules "
-    "(number 89) · pandas beyond eight groups · CPython's tests that need its C test modules "
-    "(number 101) · CPython under -bb · a fuel fact's fuel below its cap (spec 091)",
+    "· pandas beyond eight groups · CPython's tests that need its C test modules "
+    "· CPython under -bb · a fuel fact's fuel below its cap",
     "licence content of wasi-libc, llvm-runtimes and unpinned components "
     "(presence only) · "
     "bundled sub-licences · files a build adds inside a source tree · "
@@ -265,7 +265,7 @@ def accept(
     try:
         before = history.last_passed(history_lines)
     except ValueError as e:
-        raise AcceptRefused(f"the history does not replay: {e} (spec 062)") from None
+        raise AcceptRefused(f"the history does not replay: {e}") from None
 
     meta = run["meta"]
     platform = meta["platform"]
@@ -346,8 +346,7 @@ def accept(
     size = len(text.encode()) + 1
     if size > history.BUDGET:  # never written, even once
         raise AcceptRefused(
-            f"the history line would be {size} bytes, over the volume budget of "
-            f"{history.BUDGET} (spec 062)"
+            f"the history line would be {size} bytes, over the volume budget of {history.BUDGET}"
         )
     history.remember(text, passes)
     return new, text

@@ -431,7 +431,8 @@ def test_each_refused_option_exits_before_anything_runs(suite, option) -> None:
     assert result.ret == 1, result.stdout.str()[-2000:]
     assert record is None
     assert list((suite.path / "progress-refused").iterdir()) == []
-    assert any(option.split()[0] in line and "spec 052" in line for line in result.errlines), (
+    refusal = re.compile(".+".join(re.escape(part) for part in plugin.REFUSAL.split("{}")))
+    assert any(option.split()[0] in line and refusal.search(line) for line in result.errlines), (
         result.errlines
     )
 

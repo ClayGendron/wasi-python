@@ -255,7 +255,7 @@ def errors(
     for name in sorted(found):
         n = first_line_of(name)
         if n is None:
-            errs.append(f"{name}: an unrecognised history file (spec 062)")
+            errs.append(f"{name}: an unrecognised history file")
         else:
             vols[n] = name
     order = sorted(vols)

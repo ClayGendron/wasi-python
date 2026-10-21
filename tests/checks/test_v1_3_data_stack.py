@@ -229,12 +229,15 @@ def test_the_snapshot_starts_cheaper_than_plain(guest) -> None:
         f"snapshot start {snap.fuel:,} fuel, plain start {plain.fuel:,}: {ratio:.2f} times, "
         f"under {START_FACTOR}; either a package is pre-imported (see "
         "test_the_snapshot_pre_imports_no_package) or the snapshot's reason to exist must be "
-        "restated (spec 069, Decision 5b)"
+        "restated"
     )
 
 
 def _named(names: list[str], what: str) -> str:
-    return f"{what}: {', '.join(names)} (decision 34, spec 069)"
+    return (
+        f"{what}: {', '.join(names)}; the snapshot starts with the stdlib's bootstrap and no "
+        "package"
+    )
 
 
 CPP_THROW = """

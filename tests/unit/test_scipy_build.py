@@ -310,7 +310,7 @@ for rel in ("lapack-netlib/SRC/cgesv.c", "lapack-netlib/SRC/sgesv.c",
             "lapack-netlib/INSTALL/ilaver.c"):
     p = tree / rel
     p.write_text(p.read_text().replace("int ", "void "))
-# What macOS writes into a folder a Finder or Spotlight process has looked at (spec 090's litter).
+# What macOS writes into a folder a Finder or Spotlight process has looked at (host litter).
 for rel in (".DS_Store", "lapack-netlib/.DS_Store", "lapack-netlib/SRC/._sgesv.c"):
     (tree / rel).write_bytes(b"Bud1 litter")
 print("files changed: 3")

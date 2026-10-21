@@ -147,7 +147,7 @@ def main() -> None:
         f"extern {SWAP}(const char *);",
         *(f"extern PyObject *PyInit_{name}(void);" for _, name in entries),
         "",
-        "/* Each init function runs inside the package context of its dotted name (spec 047). */",
+        "/* Each init function runs inside the package context of its dotted name. */",
         *(wrapper(n, dotted, name) for n, (dotted, name) in enumerate(entries)),
         "static int registered = 0;",
         "",

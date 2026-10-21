@@ -11,5 +11,5 @@ dir=$(dirname "$0")
 if [ "$(basename "$dir")" = no-host-python ] && [ -d "$dir/../logs" ]; then
   printf '%s\n' "$0 $*" >> "$dir/../logs/unpinned-python.log"
 fi
-echo "ERROR: an unpinned $name was run; a build step runs only build/tools/host-python's Python (spec 079)" >&2
+echo "ERROR: an unpinned $name was run; a build step runs only build/tools/host-python's Python" >&2
 exit 1

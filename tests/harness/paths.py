@@ -71,7 +71,7 @@ def _make_guest_tmp(path: Path) -> Path:
         raise AssertionError(
             f"{path}: the judge's guest folder must be a real folder of this user's with no"
             f" group or other bits (mode {stat.filemode(st.st_mode)}, owner {st.st_uid}); remove"
-            " it, or set TMPDIR to another folder outside the home folder (spec 097)"
+            " it, or set TMPDIR to another folder outside the home folder"
         )
     return path
 
@@ -411,7 +411,9 @@ DIRTY_UNTRACKED = (
     "context/upstream",
     *JUDGE_PATHS,
 )
-WORKTREE_NOTE = "note: a worktree inside the repository: {} (constitution §4.14 puts them outside)"
+WORKTREE_NOTE = (
+    "note: a worktree inside the repository: {} (a worktree belongs outside the repository)"
+)
 
 
 def git(*args: str, repo: Path | None = None) -> str | None:

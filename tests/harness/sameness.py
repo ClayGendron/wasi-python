@@ -126,11 +126,12 @@ def view(r: dict) -> View:
     missing = [k for k in ("runs", "deselected", "collected_files") if k not in r]
     missing += ["meta.foreign"] if "foreign" not in meta else []
     if any("worst_platform" not in c for c in r.get("checks", {}).values()):
-        missing.append("worst_platform on every check (from 092's build review)")
+        missing.append("worst_platform on every check")
     if missing:
         raise NotComparable(
-            f"a release record from before spec 092 (it has no {', '.join(missing)}): "
-            "download the record of a run on a commit that has gather.py from spec 092"
+            "a release record older than the merged release record (it has no "
+            f"{', '.join(missing)}): "
+            "download the record of a run on a commit whose gather.py writes the merged record"
         )
     checks, platform, unrun, unheld, elsewhere = {}, {}, {}, set(), {}
     for node, c in r.get("checks", {}).items():
@@ -466,7 +467,7 @@ def main(argv: list[str]) -> int:
     import argparse
 
     ap = argparse.ArgumentParser(prog="sameness.py")
-    ap.add_argument("--claims", type=Path, help="a claim list (spec 092, Decision 5)")
+    ap.add_argument("--claims", type=Path, help="a claim list ([[claim]] tables)")
     ap.add_argument("--except", dest="drop", action="append", default=[], metavar="SPEC")
     ap.add_argument("--tier-rows", choices=["release"], help="compare the release-tier rows alone")
     ap.add_argument("a", type=Path)

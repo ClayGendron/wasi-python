@@ -76,7 +76,7 @@ PLANT = """
 import os
 mm, tag = {mm!r}, {tag!r}
 # Through /usr/./local/lib: the root's own folder, behind the stdlib's read-only grant for every
-# path spelled normally (spec 017), but still the guest's to write.
+# path spelled normally, but still the guest's to write.
 lib = f"/usr/./local/lib/python{{mm}}"
 venv = f"/usr/local/bin/lib/python{{mm}}/site-packages"
 for d in (lib, lib + "/lib-dynload", lib + "/site-packages", venv):
@@ -576,7 +576,7 @@ guest = "\n".join([
 ])
 first = wasi_python.run(["-c", guest], root=root)
 (folder,) = folders()
-# The zip in the folder's lib/, matplotlib's data beside it (spec 023, Decision 5).
+# The zip in the folder's lib/, matplotlib's data beside it.
 (name,) = os.listdir(os.path.join(temp, folder, "lib"))
 copy = os.path.join(temp, folder, "lib", name)
 stamp = os.stat(copy)
@@ -1651,7 +1651,7 @@ elif case == "a Ctrl-C in the walk":
         print("returned")
     except KeyboardInterrupt:
         print("KeyboardInterrupt")
-else:  # the exit hook stops a run_async call (spec 015), called directly as its check does
+else:  # the exit hook stops a run_async call, called directly as its check does
 
     def host(frame):
         runner._stop_async_calls()
@@ -2636,11 +2636,11 @@ elif order == "after-then-disable":
     faulthandler.disable()
 elif order == "signal-after":
     signal.signal(signal.SIGILL, lambda *a: None)
-# A guest that traps at the runner's 8 MiB stack: freeing a 200,000-deep list (spec 078,
-# criterion 11; json.loads of nested arrays now raises RecursionError there).
+# A guest that traps at the runner's 8 MiB stack: freeing a 200,000-deep list (json.loads
+# of nested arrays now raises RecursionError there).
 deep = "x = []\nfor i in range(200000): x = [x]\ndel x"
 try:
-    if order == "session-turn-after":  # spec 055's turn path: a turn after a late enable
+    if order == "session-turn-after":  # a session's turn: a turn after a late enable
         with wasi_python.Session() as session:
             assert session.run("print(1)").exit_code == 0
             faulthandler.enable()

@@ -583,7 +583,7 @@ def run(
                 "a measured run gives the guest a host path in "
                 + ", ".join(named)
                 + ": its fuel would depend on where the checkout is; give it guest paths, or"
-                " record no fuel for this run (spec 081)"
+                " record no fuel for this run"
             )
     eng, mod = own if own is not None else (engine(), module(wasm))
     counted = own is None

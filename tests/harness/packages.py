@@ -563,7 +563,7 @@ def rule_cap(measured: int) -> int:
 
 def rule_errors(pkg: str, cfg: upstream.Config, members: set[str] | None) -> list[str]:
     k = cfg.keys
-    errors = [f"{pkg}: a package TOML may not carry {key} (Decision 14)" for key in k.refused]
+    errors = [f"{pkg}: a package TOML may not carry {key}" for key in k.refused]
     for g in cfg.groups.values():
         m = k.measured.get(g.name)
         if m is None:

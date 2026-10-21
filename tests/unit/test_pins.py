@@ -84,9 +84,9 @@ def test_a_pinned_member_with_a_litter_name_is_named(work) -> None:
         t.extractall(work / "build", filter="data")
     assert sorted(pins.tree_drift(tarball, work / "build" / "zlib-9.9")) == [
         ".DS_Store: a pinned member with a name only an operating system leaves; the build skips"
-        " it (spec 090)",
+        " it",
         "src/._z.c: a pinned member with a name only an operating system leaves; the build skips"
-        " it (spec 090)",
+        " it",
     ]
 
 

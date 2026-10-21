@@ -175,7 +175,7 @@ jobs:
         run: |
           cp -R build/artifacts src/wasi_python/artifacts
           uv build --wheel --build-constraints release/build-constraints.txt --require-hashes
-      - name: The source trees are their tarballs plus the recorded patches (spec 020)
+      - name: The source trees are their tarballs plus the recorded patches
         # On a source run only: a reuse run has no tree here. build-shard runs the same step on
         # every run, with no if:.
         if: steps.compile.outcome == 'success'
@@ -189,7 +189,7 @@ jobs:
       - name: The SHA-256 of python.wasm, handed to the gather
         id: wasm
         run: echo "sha256=$(shasum -a 256 build/artifacts/python.wasm | cut -c1-64)" >> "$GITHUB_OUTPUT"
-      - name: The SHA-256 of the set's own SHA256SUMS, handed to the gather (spec 085)
+      - name: The SHA-256 of the set's own SHA256SUMS, handed to the gather
         id: set-sums
         run: echo "sha256=$(shasum -a 256 build/artifacts/SHA256SUMS | cut -c1-64)" >> "$GITHUB_OUTPUT"
       - name: Release assets
@@ -276,7 +276,7 @@ jobs:
           name: rebuild-ubuntu-24.04-arm
           path: build/artifacts/SHA256SUMS
           if-no-files-found: error
-      - name: The wheel, as the build job makes it (spec 016, Decision 1)
+      - name: The wheel, as the build job makes it
         run: |
           cp -R build/artifacts src/wasi_python/artifacts
           uv build --wheel --build-constraints release/build-constraints.txt --require-hashes
@@ -342,7 +342,7 @@ jobs:
           name: rebuild-ubuntu-24.04
           path: build/artifacts/SHA256SUMS
           if-no-files-found: error
-      - name: The wheel, as the build job makes it (spec 016, Decision 1)
+      - name: The wheel, as the build job makes it
         run: |
           cp -R build/artifacts src/wasi_python/artifacts
           uv build --wheel --build-constraints release/build-constraints.txt --require-hashes
@@ -451,7 +451,7 @@ jobs:
             echo "$runner: the same SHA256SUMS"
           done
           cat "$sums"
-      - name: The wheel carries the set and is the wheel each host rebuilt (spec 016)
+      - name: The wheel carries the set and is the wheel each host rebuilt
         # Three rules name what differs; the last comparison covers everything else in the wheel
         # (runner.py, METADATA), so a wheel built from any other source or set fails.
         run: |
@@ -703,7 +703,7 @@ jobs:
           echo "WASI_PYTHON_ARTIFACTS=$(uv run python -c "import glob, sys; print(glob.glob(sys.argv[1] + '/wasi-python-*')[0])" "$RUNNER_TEMP/set")" >> "$GITHUB_ENV"
           mkdir -p dist
           cp release-assets/wasi_python-*.whl dist/
-      - name: What the shard needs (the upstream kit and source trees, verified; spec 063, Decision 5)
+      - name: What the shard needs (the upstream kit and source trees, verified)
         env:
           SHARD: ${{ matrix.shard }}
         run: |
@@ -997,7 +997,7 @@ jobs:
           echo "WASI_PYTHON_ARTIFACTS=$(uv run python -c "import glob, sys; print(glob.glob(sys.argv[1] + '/wasi-python-*')[0])" "$RUNNER_TEMP/set")" >> "$GITHUB_ENV"
           mkdir -p dist
           cp release-assets/wasi_python-*.whl dist/
-      - name: What the shard needs (the upstream kit and source trees, verified; spec 063, Decision 5)
+      - name: What the shard needs (the upstream kit and source trees, verified)
         env:
           SHARD: ${{ matrix.shard }}
         run: |
@@ -1122,7 +1122,7 @@ jobs:
           echo "WASI_PYTHON_ARTIFACTS=$(uv run python -c "import glob, sys; print(glob.glob(sys.argv[1] + '/wasi-python-*')[0])" "$RUNNER_TEMP/set")" >> "$GITHUB_ENV"
           mkdir -p dist
           cp release-assets/wasi_python-*.whl dist/
-      - name: What the shard needs (the upstream kit and source trees, verified; spec 063, Decision 5)
+      - name: What the shard needs (the upstream kit and source trees, verified)
         env:
           SHARD: ${{ matrix.shard }}
         run: |

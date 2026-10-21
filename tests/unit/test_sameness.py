@@ -220,13 +220,13 @@ def test_a_release_record_from_before_092_is_refused(tmp_path) -> None:
     del old["runs"], old["deselected"], old["collected_files"], old["meta"]["foreign"]
     for c in old["checks"].values():
         c.pop("worst_platform")
-    with pytest.raises(sameness.NotComparable, match="before spec 092"):
+    with pytest.raises(sameness.NotComparable, match="older than the merged release record"):
         sameness.differences(old, local())
     a, b = tmp_path / "old.json", tmp_path / "lane.json"
     a.write_text(json.dumps(old))
     b.write_text(json.dumps(local()))
     r = subprocess.run([sys.executable, SCRIPT, str(a), str(b)], capture_output=True, text=True)
-    assert r.returncode == 2 and "before spec 092" in r.stderr, r.stderr
+    assert r.returncode == 2 and "older than the merged release record" in r.stderr, r.stderr
 
 
 # ---------------------------------------------------------------------------------------------

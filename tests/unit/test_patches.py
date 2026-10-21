@@ -264,7 +264,7 @@ def test_a_litter_name_the_tarball_ships_is_still_compared(tools, tmp_path, monk
     tree = _tree(tmp_path, tarball)
     assert _apply(tree, patches / TOP).returncode == 0
     shipped = ".DS_Store: a pinned member with a name only an operating system leaves; the build"
-    shipped += " skips it (spec 090)"
+    shipped += " skips it"
     assert pins.tree_drift(tarball, tree, patches) == [shipped]
     (tree / ".DS_Store").write_bytes(b"changed\n")
     assert pins.tree_drift(tarball, tree, patches) == [shipped, ".DS_Store: modified"]

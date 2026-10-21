@@ -1241,7 +1241,7 @@ async def main():
         await task
         print("not cancelled")
     except asyncio.CancelledError:
-        # The process's own zip folder (spec 017) lives until it exits: not the call's.
+        # The process's own zip folder lives until it exits: not the call's.
         left = sorted(
             n for n in os.listdir(tempfile.tempdir)
             if n.startswith("wasi-python") and not n.startswith("wasi-python-zip-")
@@ -1284,7 +1284,7 @@ def raises(frame):
 def ticks(n):
     # Hold the host in the door until the runner's ticker has advanced n epochs: a count, never a
     # time. Past CANCEL_TICKS + 2 (the engine can run one round ahead of the count, and one to
-    # spare) the store's epoch deadline is overdue, whatever its phase (spec 030).
+    # spare) the store's epoch deadline is overdue, whatever its phase.
     start = process().ticker_count
     while process().ticker_count < start + n:
         threading.Event().wait(0.001)
@@ -1313,11 +1313,11 @@ if case.startswith("door-cancel-"):
     threading.Thread(target=check, daemon=True).start()
     show(wasi_python.run(["-c", after], host=blocks, cancel=event, deadline_s=None, fuel=10**15))
 elif case == "door-deadline":
-    deadline_s = 60.0  # long enough that no load ends the run before the door (spec 052)
+    deadline_s = 60.0  # long enough that no load ends the run before the door
 
     def blocks(frame):
         print("in the door", flush=True)  # the guest reached the door before its deadline
-        # By count, never by time (spec 032's fourth revision): this call's deadline is moved to
+        # By count, never by time: this call's deadline is moved to
         # the ticker's count now, then the host holds the door until the cancel check, every
         # CANCEL_TICKS, has run past it.
         _home._stack()[-1].stop_at = process().ticker_count
@@ -2323,8 +2323,8 @@ DEADLINE_S = 60.0  # long enough that no load ends the run before the provider i
 def past_deadline():
     # By count, never by time: the ticker's count, which the runner checks before each
     # provider call, and every engine's epoch, which stops the guest, both past this call's
-    # deadline (the seams of spec 017's deadline check and tests/unit/test_runner_async.py).
-    call = _home._stack()[-1]  # on the caller's thread, under its call, kept there (spec 078)
+    # deadline (the seams of the deadline check and tests/unit/test_runner_async.py).
+    call = _home._stack()[-1]  # on the caller's thread, under its call, kept there
     process().ticker_count = call.stop_at
     for engine in list(process().engines.values()):
         for _ in range(int(DEADLINE_S / _limits.TICK_S) + 2):
@@ -3117,9 +3117,9 @@ release = threading.Event()
 @tool
 def block() -> int:
     "Wait for the check, which releases it only after run returns."
-    # By count, never by time (spec 052, Decision 9): the ticker's count, which the tool bound
+    # By count, never by time: the ticker's count, which the tool bound
     # reads, is set past any deadline. Not this call's stop_at: the call stack is per thread,
-    # and a tool runs on its own (the review's C2).
+    # and a tool runs on its own.
     process().ticker_count = 2**62
     release.wait()
     return 1
@@ -5430,13 +5430,13 @@ def test_the_judges_writable_roots_are_outside_the_home_folder(guest_workdir) ->
     home = Path(os.path.realpath(Path.home()))
     assert not root.is_relative_to(home), (
         f"a writable guest root under the home folder: {root}; macOS writes .DS_Store there"
-        " (spec 097; set TMPDIR to a folder outside the home folder)"
+        " (set TMPDIR to a folder outside the home folder)"
     )
     assert root.is_relative_to(paths.GUEST_TMP), (root, paths.GUEST_TMP)
     paths.HARNESS_TMP.mkdir(parents=True, exist_ok=True)
     devices = os.stat(paths.GUEST_TMP).st_dev, os.stat(paths.HARNESS_TMP).st_dev
     assert devices[0] == devices[1], (
         f"{paths.GUEST_TMP} (device {devices[0]}) and {paths.HARNESS_TMP} (device {devices[1]})"
-        " are on two devices; the fuel proof covers one (spec 097): set TMPDIR to a folder on the"
+        " are on two devices; the fuel proof covers one: set TMPDIR to a folder on the"
         " checkout's volume outside the home folder"
     )

@@ -1562,7 +1562,7 @@ def release_binding_errors(text: str) -> list[str]:
         errors.append("rule 14: the workflow-level permissions are not {}")
     for name, lines in jobs.items():
         if _permission_set(lines) != JOB_PERMISSIONS.get(name):
-            errors.append(f"rule 14: {name}'s permissions are not its row in spec 057's table")
+            errors.append(f"rule 14: {name}'s permissions are not its row in JOB_PERMISSIONS")
     # Rule 15: nothing may let a guard, a check or a download fail quietly or be skipped.
     for name, job_steps in steps.items():
         for _, f in job_steps:
@@ -1872,7 +1872,7 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
     ):
         errors.append(
             "rule 6: build does not hand on the set's own SHA256SUMS' SHA-256, made before the "
-            "upload (set-sums-sha256; spec 085)"
+            "upload (set-sums-sha256)"
         )
     # Rule 7: the gather holds no assets, downloads every record id by job, and runs gather.py.
     gather = jobs.get("gather")
@@ -2556,7 +2556,7 @@ def patch_shape_errors(text: str, where: str) -> tuple[list[str], set[str]]:
             continue
         touched.add(path)
         if _has_litter(path):
-            errors.append(f"{where}: touches {path}, a name Finder or Explorer writes (spec 026)")
+            errors.append(f"{where}: touches {path}, a name Finder or Explorer writes")
         if parts[-1] in AUTOTOOLS_INPUTS or parts[-1].endswith(".m4"):
             errors.append(f"{where}: changes the autotools input {path}; patch its output")
     if not touched:

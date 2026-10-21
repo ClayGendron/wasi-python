@@ -391,10 +391,7 @@ def test_a_tracked_change_under_context_is_dirty(repo) -> None:
 # Only the lane accepts (Decision 4), and a dirty acceptance is refused when made (Decision 2)
 
 
-WORKTREE_LINE = (
-    "accept: only the landing lane accepts, in the main tree (constitution §5.7); "
-    "this is a linked worktree"
-)
+WORKTREE_LINE = "accept: only the landing lane accepts, in the main tree; this is a linked worktree"
 
 
 @pytest.fixture
@@ -624,7 +621,7 @@ def pytest_configure(config):
 
 
 SPOOF_CONFTEST = """
-class WorkerInteractor:  # xdist's worker loop by name and module only (the build review, F8)
+class WorkerInteractor:  # xdist's worker loop by name and module only
     def __init__(self):
         pass
 
@@ -674,7 +671,7 @@ def test_the_plugin_self_tests_pass_in_a_worktree(clone_worktree) -> None:
 
 NOTE = (
     "note: a worktree inside the repository: .claude/worktrees/x "
-    "(constitution §4.14 puts them outside)"
+    "(a worktree belongs outside the repository)"
 )
 
 

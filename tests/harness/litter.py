@@ -53,7 +53,7 @@ def refuse(member: str, source: str) -> None:
     if any(is_litter(part) for part in parts):
         raise AssertionError(
             f"{source}: member {member!r} has a name only an operating system leaves; the judge"
-            " would take it for host litter (spec 089, F6)"
+            " would take it for host litter"
         )
 
 
@@ -161,8 +161,7 @@ def remove(root: Path) -> bool:
     sys.stderr.write(
         f"host litter: could not remove {root} after {REMOVE_TRIES} tries"
         + (f"; folders still sealed: {stuck[:3]}" if stuck else " (left unsealed)")
-        + f"; it is never read again; `chmod -R u+w {root}` then `rm -rf` clears it"
-        " (spec 089)\n"
+        + f"; it is never read again; `chmod -R u+w {root}` then `rm -rf` clears it\n"
     )
     return False
 
@@ -217,7 +216,7 @@ def _message(problems: list[str]) -> str:
     return (
         "a host process changed a folder the guest sees, so this run's outcome and fuel prove"
         " nothing: " + "; ".join(shown) + " (litter such as .DS_Store comes from macOS's"
-        " folder-size cache: System Settings' storage scan, Finder; spec 089. A run it voids is"
+        " folder-size cache: System Settings' storage scan, Finder. A run it voids is"
         " run again once the writer is stopped; a stage a killed judge left sealed is cleared by"
         f" `chmod -R u+w {' '.join(map(str, scratch_roots()))}`)"
     )

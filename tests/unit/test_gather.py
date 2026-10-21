@@ -424,7 +424,7 @@ FORGERIES = [
         "G7 the newest acceptance is not on the release's set (SHA256SUMS)",
     ),
     (
-        "the newest line with no set (from before 085)",
+        "the newest line with no set (from before a history line named its set)",
         lambda c: c.newest.pop("set_sums"),
         "G7 the newest acceptance is not on the release's set (SHA256SUMS)",
     ),

@@ -414,7 +414,9 @@ def test_the_backend_orders_try_tables_alike(tmp_path) -> None:
     try_table case to one object in 64 runs. It counts distinct objects, never time. A run with no
     clang found fails: the check must compile something to pass."""
     digest = hashlib.sha256(TRY_TABLE_FIXTURE.read_bytes()).hexdigest()
-    assert digest == TRY_TABLE_SHA256, f"{TRY_TABLE_FIXTURE.name} is {digest}, not the memo's"
+    assert digest == TRY_TABLE_SHA256, (
+        f"{TRY_TABLE_FIXTURE.name} is {digest}, not the reproducer's recorded TRY_TABLE_SHA256"
+    )
     needs.need("compile records")
     clangs = sorted((paths.BUILD / "tools").glob("wasi-sdk-*/bin/clang"))
     assert clangs, "no build/tools/wasi-sdk-*/bin/clang: nothing was compiled"
@@ -484,7 +486,7 @@ def test_ducc0s_fft_compiles_to_one_object(tmp_path) -> None:
     print(f"{DUCC0}: {len(digests)} object(s) in {DUCC0_RUNS} compiles")
     assert len(digests) == 1, (
         f"{DUCC0}: {len(digests)} objects in {DUCC0_RUNS} compiles "
-        f"({', '.join(d[:12] for d in digests)}): the clang varies again (spec 086, Decision 7)"
+        f"({', '.join(d[:12] for d in digests)}): the clang varies again"
     )
 
 

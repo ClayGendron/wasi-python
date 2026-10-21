@@ -1085,7 +1085,7 @@ def test_a_step_that_runs_an_unpinned_python_fails(work) -> None:
     assert out.returncode == 1, out.stdout
     assert out.stdout.splitlines()[-1] == (
         "ERROR 40_numpy: ERROR: an unpinned python3 was run; a build step runs only "
-        "build/tools/host-python's Python (spec 079) (log: build/logs/40_numpy.log)"
+        "build/tools/host-python's Python (log: build/logs/40_numpy.log)"
     ), out.stdout
     logged = (work / "build" / "logs" / "unpinned-python.log").read_text()
     assert logged.endswith("/build/no-host-python/python3 -c print(1)\n"), logged
