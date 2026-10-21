@@ -3,7 +3,10 @@
 - **Status:** **drafted 2026-10-21** on `spec/110-tools-behind-its-facade` from `b14b68c` (the
   chain's tip before its rebase onto main); **reviewed before build 2026-10-21**
   (`../reviews/110-tools-behind-its-facade-spec-2026-10-21.md`: fit to build, six Lows written
-  in by the reviewer). It is written after
+  in by the reviewer); **built 2026-10-21** on `spec/110-tools-behind-its-facade` from
+  `727bd4c` and rebased onto `5af0a42` (main plus the chain 103 to 109 and the lane's two
+  fixes, main's tip once the chain lands), release run 39546608171 on `e6728fa`: every job
+  green on three systems, the one red line G7 (see *Landing notes*). It is written after
   the structural chain 103 to 109 and is not a link of it: it builds on main once the chain's
   wave has landed, from main's tip, as the normal rule (constitution §4.14). A different agent
   reviews it before the build (AGENTS.md, rule 8: runner code) and a different one after.
@@ -611,4 +614,182 @@ one way, with two allowances shorter and no verdict moved.
 
 ## Landing notes
 
-Written by the builder.
+Written by the builder, 2026-10-21, on `spec/110-tools-behind-its-facade`: built on `727bd4c`,
+then rebased onto `5af0a42` with no conflict (it adds the lane's digest-cache fix `2a878f0`,
+whose files this specification does not touch). Commits after the rebase: `bf208e6` (the
+checks), `8199c0a` (the two splits), `159e6a0` (the move), `e6728fa` (the CHANGELOG line), then
+these notes. Before the rebase they were `61b3a1a`, `90a5011`, `64d8d76` and `806e1ab`; the
+measurements below were taken there and the diff of `src/` and `tests/` is the same.
+
+**Release runs.** 39546608171 on `e6728fa`: 39 jobs green, Windows' five included; `gather
+the shards' records` red on its one line, `G7 the newest acceptance is not on the release's set
+(SHA256SUMS)`. The first dispatch, 39541508092 on `806e1ab` (the base without `2a878f0`), was red
+on Windows' `own-runner` shard twice (attempts 1 and 2) on one unit check this specification does
+not touch, `tests/unit/test_runner_sets.py::test_a_same_size_same_mtime_replacement_is_hashed_again`
+(`assert 3 == 2`, a digest hashed a third time): the intermittent Windows miss `2a878f0` fixes,
+which is why the branch was rebased. Neither run's other shards had a red line.
+
+### Re-measured on the base
+
+Every number *The problem* states was drafted on `b14b68c`; on `727bd4c` each is the same
+(EXECUTED): `tools.py` 2,449 lines; the partition 603, 693 and 911 definition lines, none
+unassigned (`build/110/move.py`'s walk over `git show 727bd4c:src/wasi_python/tools.py`); 74
+`Any` annotations, 98 `Any` lines, 3 `type: ignore`; the ten `setattr(T, …)` sites at the same
+lines of `tests/unit/test_tools.py`; 22 private names read through `T`; the four late imports at
+`_call.py:1267`, `_sessions.py:701` and `:1083`, `runner.py:678`. Two line numbers differ:
+`LONG_FUNCTIONS`' two entries were at `tests/checks/test_rules.py:1054` and `1055` (not 1034 and
+1035), and `_make`'s given-schema arm was lines 415 to 429 (the draft's 404 to 423).
+
+### The checks, seen red first (commit `61b3a1a`, now `bf208e6`; criterion 1)
+
+Each by node id, the output under `build/110/`:
+
+- `test_no_module_under_src_is_over_the_line_ceiling`: `src/wasi_python/tools.py: 2,449 lines,
+  over 1,500`.
+- `test_no_function_is_over_eighty_lines`: `src/wasi_python/tools.py:2188: _ToolHost._answer (83
+  lines)`; `src/wasi_python/tools.py:371: _make (82 lines)`.
+- `test_the_tool_modules_import_in_their_written_order` (new): `_call.py:1267 (_tool_host imports
+  tools late, not in LATE)`; `_sessions.py:701 (_session_tool_host imports tools late, not in
+  LATE)`; `_sessions.py:1083 (_open_session imports tools late, not in LATE)`; `_tool_schema.py
+  does not exist`; `_tool_host.py does not exist`.
+- `test_a_module_imports_by_name_only_what_never_changes` (extended): `_tool_schema.py does not
+  exist`; `_tool_host.py does not exist`. The extension needed one new line to be red before
+  the move: a module the rule lists and the package lacks is a finding (a stale entry), since
+  with no file there is no import to read.
+- `test_scan.py::test_a_private_runner_name_the_judge_patches_is_a_hit`, its two new cases, each
+  seen red alone: with neither regex edited, `t/test_a.py:2: _tool_host._x` (the local-name form);
+  with `RUNNER_MODULE` edited and `SEAM_BY_PATH` not, `t/test_a.py:1: _tool_host._x` (the
+  dotted-string form). Both regexes now share one lookahead, `NOT_TOOL_MODULE =
+  (?!(?:_tool_schema|_tool_host)\b)`, the two names spelled out; probed: `_tool_hostx` and
+  `_tool_x` are still runner modules to the rule.
+
+The existing order check stayed green through commits 1 and 2: the walk is shared, and an
+import made by or naming one of `TOOLS` goes to the new rule, every other to the runner's.
+
+### Sizes and lengths (criteria 2, 3)
+
+EXECUTED on `64d8d76`: `tools.py` 727 lines, `_tool_schema.py` 785, `_tool_host.py` 1,027 (the
+draft's INFERRED 720, 800, 1,030). `ALLOWED` is `{"mounts.py": 2206}`. `LONG_FUNCTIONS` holds no
+`tools.py:` or `_tool_host.py:` key; functions over 80 lines in the package: 7 (`runner.py` 4,
+`_call.py`, `_process.py`, `_sessions.py` 1 each). `_make` 68 lines, `_given` 20, `_answer` 58,
+`_call_answer` 43.
+
+**One departure from Decision 3, with its reason.** The draft's cut gave `_call_answer` the whole
+`call` arm, the tool's name included, with the signature `(self, seq, request, frame_id, size,
+failed)`. That would change the record: `failed` is a closure that reads `op` and `name` from
+`_answer`'s frame when it is called, so an `op` and a `name` bound inside `_call_answer` would
+leave every `unknown_tool` and `invalid_arguments` outcome with `op` and `tool` `None`. The cut
+falls after the tool is found instead: `_answer` keeps the envelope and binds `op = "call"` and
+`name` before it hands on, and `_call_answer(self, seq, t, name, request, frame_id, size, failed)`
+takes the arguments, the validator, the bound keywords, the work and its outcome; it binds `op =
+"call"` once so its two `ToolOutcome` lines stay as they were. `failed` is passed, not rebuilt;
+every outcome is still noted once.
+
+### One import direction (criteria 4, 5)
+
+`grep -nE "^from \.|^import wasi_python"`: `_tool_schema.py` none; `tools.py` lines 49 and 50,
+`from . import _tool_schema` and `from ._tool_schema import _Json, _KeySets`; `_tool_host.py`
+lines 26 to 28, `_tool_schema` twice and `.tools` once. `_call.py`'s and `_sessions.py`'s late
+imports and `TYPE_CHECKING` blocks name `._tool_host`; `runner.py` is unchanged.
+`test_importing_the_package_does_not_load_the_tools` green.
+
+The "nine function reads" are nine functions at 17 sites, each now `_tool_schema.<name>(`:
+`tools.py:377` `_derived`, `:380` `_vet`, `:384` `_schema_of`, `:397` `_keysets`, `:416` `_plain`
+(in `_given`), `:596` and `:598` `_scalar`; `_tool_host.py:83`, `:99`, `:136`, `:143`, `:948`,
+`:963`, `:977`, `:1007` `_echo`, `:274` `_to_json`, `:1006` `_where`.
+
+### The move, verbatim (criterion 7)
+
+`build/110/verbatim.py 90a5011` compares every top-level definition of the three modules with
+the same definition in commit 2's `tools.py`, the `_tool_schema.` prefix taken away: no
+definition missing or added, and two differences, both in `_ToolHost`, where a prefixed read
+took a line past 100 columns and an f-string was split in two (`unknown operation …` in
+`_answer`, `unknown argument …` in `_call_answer`; the same message bytes). The other non-move
+lines in `src/`, each with its reason: the two new docstrings; the facade's top comment, now the
+map of the three modules; the import blocks; two section comments in `_tool_schema.py` ("A
+schema from a signature" above `_derived`, which sat under "Tools", and "JSON values: as a
+message shows them, and as an answer carries them" above `_echo`, which sat under "Frames"); and
+the two annotations of commit 2's new signatures narrowed from `Any` (`_given`'s `input_schema`
+to `object`, `_call_answer`'s `frame_id` to `int | None`), so the `Any` count does not grow.
+Commit 2 rewrote the comment `as unknown (056)` as `refused as unknown`.
+
+### No verdict moved (criteria 8 to 11)
+
+- **Sameness.** The fast tier on the base (`727bd4c`, `build/110/A.json`) and on the built
+  tree (`806e1ab`'s files, `build/110/B.json`), both in this worktree against the main tree's
+  artifact set cloned in, `-n 3`: 2,600 and 2,601 passed, 48 skipped each, 0 failed; v1 623/864
+  pass, 0 fail, the same per goal. `uv run python tests/harness/sameness.py --claims
+  build/110/claims.toml build/110/A.json build/110/B.json`: exit 0, "explained by claims: 110 1"
+  (the one unit row). Without the claims: one line, the unit suite 1,977 to 1,978. After the
+  rebase, the fast tier on `e6728fa`'s code (`build/110/C.json`): 2,603 passed, 48 skipped, 0
+  failed, v1 623/864; against B, one line, the unit suite 1,978 to 1,980, the two unit checks
+  `2a878f0` adds.
+- **The public API.** `tests/public_api.txt` unchanged (`git diff 727bd4c -- tests/public_api.txt`
+  empty); `api.py --check` silent; `INTERNAL_FILES` and `INTERNAL_MODULES` name the two modules
+  through one tuple, `TOOL_FILES`.
+- **The judge's tool checks.** In the five files, every changed line is an import line, one of
+  the ten `setattr` operands, or the module operand of a private read (`T._X` to `H._X` or
+  `S._X`; `build/110/judge_diff.py` finds no other). Beyond the draft's list: the three patches of
+  `T.asyncio` in `tests/unit/test_async_tools.py` (lines 418, 552, 1122) now read `H.asyncio`,
+  since the facade no longer imports `asyncio` (the same module object); and
+  `tests/checks/test_v1_4_embedding.py`'s three by-name imports of `_ToolHost` (lines 2836, 2863,
+  3523) now name `wasi_python._tool_host`. No assertion, parity table or golden line changed.
+- **Clean.** `ruff check`, `ruff format --check` and `mypy --strict src/wasi_python` clean. `Any`
+  annotations over the three modules 74, `Any` lines 100 (the two new `from typing import Any`
+  lines), `type: ignore` 3, all in `Tool`. `test_src_names_no_context_document` green.
+
+Three judge edits outside the draft's list of lines, all words: the docstring of
+`test_no_module_under_src_is_over_the_line_ceiling` ("the two files ALLOWED holds" becomes "the
+files"), the seam check's docstring (names the tool protocol's three modules), and one comment
+in `tests/unit/test_scan.py` (`tools.py's own method` becomes `the tool host's own method`, where
+`self._context()` now lives).
+
+### Platforms
+
+The three modules have no platform branch, and no moved line names a path or an OS. The judge's
+edits change only which module object a name is read from; `H.asyncio` is `asyncio` on every
+system. The Windows legs of the run are the matter-of-course check.
+
+### For the lane
+
+- **Kind:** parallel-safe; on main once the chain's wave has landed (`5af0a42` is its tip).
+- **Claim list** (`build/110/claims.toml`):
+
+  ```toml
+  # One unit row: tests/unit/test_runner_package.py::test_the_tool_modules_import_in_their_written_order
+  [[claim]]
+  spec = "110"
+  new = []
+  retired = []
+  changed = []
+  units = 1
+  ```
+
+  No check row is new, retired or changed; no fuel or byte row; no pass moved.
+- **Judge hash:** changes in `tests/checks/test_rules.py`, `tests/unit/test_runner_package.py`,
+  `tests/unit/test_scan.py`, `tests/harness/scan.py`, `tests/harness/api.py` and the five judge
+  files.
+- **The flags:**
+
+  ```
+  --accept "110: tools.py is the public facade alone, its schema rules in _tool_schema.py and the host side of a call in _tool_host.py, each under the ceiling, importing in one written direction, the two long functions split at a seam each; no public name, message, artifact byte or fuel count changes"
+  --accept-judge "110: ALLOWED loses tools.py and LONG_FUNCTIONS its two tools.py entries; one unit check holds the three tool modules' import order, docstrings and once-bound names; the by-name check reads the two private modules; the seam scanner keeps the tool protocol's three modules outside its rule in both its regexes, as it kept tools.py, with two unit cases; api.py lists the two modules as internal; five judge files name the defining module; no existing expectation edited"
+  ```
+
+- **Dry-run needs:** none beyond the one run above.
+- **Neighbours:** spec 111 is built beside it; neither touches the other's files.
+
+### Self-check
+
+- Rebased onto `5af0a42` (the chain's tip, main's once it lands) today, named in the Status
+  line; no conflict.
+- Release run 39546608171 on `e6728fa`, read: the one red line G7; the Windows legs green.
+- Every number above re-measured on this base and labelled EXECUTED; the draft's INFERRED sizes
+  replaced by the measured ones.
+- "For the lane": the claim list, the two flags each beginning "110:", the kind, the dry-run
+  needs.
+- Every new check seen failing first (above); no Windows or Linux branch touched (Platforms).
+- No gap, no reserved follow-up; `packages.toml` and README rows not touched (no package, no
+  public name).
+- The CHANGELOG line under the one unreleased section; no question for the owner.
+- `ruff check`, `ruff format --check`, the fast tier: green, output in `build/110/`.
