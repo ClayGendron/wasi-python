@@ -1,0 +1,110 @@
+sklearn: 259 test files, 5395 test functions (def test*, before parametrization)
+non-.py files under tests/ or testing/: 83, 137537 bytes
+conftest.py files: 3
+  callback/tests/conftest.py
+  conftest.py
+  externals/conftest.py
+
+by subpackage: files, test functions
+  _loss/tests: 2 files, 31 defs
+  callback/tests: 5 files, 54 defs
+  cluster/_hdbscan: 1 files, 4 defs
+  cluster/tests: 12 files, 241 defs
+  compose/tests: 2 files, 104 defs
+  covariance/tests: 4 files, 30 defs
+  cross_decomposition/tests: 1 files, 23 defs
+  datasets/tests: 13 files, 161 defs
+  decomposition/tests: 10 files, 243 defs
+  ensemble/_hist_gradient_boosting: 9 files, 122 defs
+  ensemble/tests: 10 files, 280 defs
+  experimental/tests: 3 files, 3 defs
+  feature_extraction/tests: 4 files, 119 defs
+  feature_selection/tests: 8 files, 139 defs
+  frozen/tests: 1 files, 7 defs
+  gaussian_process/tests: 3 files, 67 defs
+  impute/tests: 4 files, 99 defs
+  inspection/_plot: 2 files, 56 defs
+  inspection/tests: 3 files, 52 defs
+  linear_model/_glm: 1 files, 23 defs
+  linear_model/tests: 18 files, 530 defs
+  manifold/tests: 6 files, 101 defs
+  metrics/_plot: 6 files, 61 defs
+  metrics/cluster: 4 files, 57 defs
+  metrics/tests: 8 files, 412 defs
+  mixture/tests: 3 files, 57 defs
+  model_selection/tests: 6 files, 292 defs
+  neighbors/tests: 11 files, 175 defs
+  neural_network/tests: 4 files, 66 defs
+  preprocessing/tests: 8 files, 338 defs
+  semi_supervised/tests: 2 files, 29 defs
+  svm/tests: 3 files, 85 defs
+  tests: 25 files, 559 defs
+  tree/tests: 7 files, 124 defs
+  utils/_repr_html: 5 files, 68 defs
+  utils/tests: 45 files, 583 defs
+
+top-level imports across test files (count of files)
+  sklearn: 258
+  pytest: 244
+  numpy: 232
+  scipy: 93
+  re: 67
+  warnings: 67
+  itertools: 39
+  functools: 29
+  pickle: 24
+  io: 23
+  sys: 19
+  joblib: 18
+  os: 16
+  unittest: 15
+  inspect: 13
+  collections: 10
+  math: 9
+  copy: 9
+  textwrap: 8
+  importlib: 8
+  pandas: 8
+  matplotlib: 7
+  tempfile: 6
+  numbers: 5
+  shutil: 4
+  typing: 4
+  contextlib: 4
+  time: 4
+  pathlib: 3
+  operator: 3
+  types: 3
+  pkgutil: 3
+  threadpoolctl: 2
+  pyamg: 2
+  urllib: 2
+  random: 2
+  gzip: 2
+  copyreg: 2
+  dataclasses: 2
+  polars: 2
+  narwhals: 2
+  subprocess: 1
+  hashlib: 1
+  PIL: 1
+  json: 1
+  bz2: 1
+  sysconfig: 1
+  cPickle: 1
+  uuid: 1
+  concurrent: 1
+  numpydoc: 1
+  argparse: 1
+  tomllib: 1
+  struct: 1
+  locale: 1
+  html: 1
+  socket: 1
+  http: 1
+  threading: 1
+  pprint: 1
+  atexit: 1
+  timeit: 1
+  string: 1
+  pyarrow: 1

@@ -1,0 +1,202 @@
+== subprocess: 2 files, 10 hits
+  base/tests/test_distributed_estimation.py 1
+  tests/test_package.py 9
+== multiprocessing: 0 files, 0 hits
+== threads: 3 files, 6 hits
+  discrete/tests/test_discrete.py 2
+  formula/tests/test_manager.py 2
+  tsa/statespace/tests/test_dynamic_factor_mq_frbny_nowcast.py 2
+== network: 32 files, 78 hits
+  compat/tests/test_scipy_compat.py 1
+  datasets/tests/test_data.py 2
+  datasets/tests/test_utils.py 15
+  discrete/tests/test_count_model.py 2
+  duration/tests/test_survfunc.py 1
+  genmod/families/tests/test_family.py 1
+  imputation/tests/test_mice.py 1
+  iolib/tests/test_table_econpy.py 3
+  multivariate/factor_rotation/tests/test_rotation.py 6
+  multivariate/tests/test_cancorr.py 1
+  multivariate/tests/test_factor.py 1
+  multivariate/tests/test_manova.py 2
+  multivariate/tests/test_multivariate_ols.py 1
+  regression/tests/test_regression.py 1
+  stats/tests/test_dist_dependant_measures.py 3
+  stats/tests/test_inter_rater.py 1
+  stats/tests/test_nonparametric.py 1
+  stats/tests/test_power.py 1
+  stats/tests/test_proportion.py 1
+  stats/tests/test_sandwich.py 2
+  tools/tests/test_web.py 4
+  tsa/holtwinters/tests/test_holtwinters.py 1
+  tsa/regime_switching/tests/test_markov_autoregression.py 1
+  tsa/regime_switching/tests/test_markov_regression.py 11
+  tsa/statespace/tests/test_cfa_tvpvar.py 1
+  tsa/statespace/tests/test_impulse_responses.py 3
+  tsa/statespace/tests/test_kalman.py 2
+  tsa/statespace/tests/test_representation.py 2
+  tsa/statespace/tests/test_sarimax.py 1
+  tsa/statespace/tests/test_univariate.py 1
+  tsa/tests/test_bds.py 2
+  tsa/tests/test_exponential_smoothing.py 2
+== ctypes: 0 files, 0 hits
+== mmap: 0 files, 0 hits
+== importorskip: 1 files, 1 hits
+  base/tests/test_polars_compat.py 1
+== signal: 0 files, 0 hits
+== fork: 0 files, 0 hits
+== tmp_path: 6 files, 28 hits
+  datasets/tests/test_utils.py 4
+  iolib/tests/test_foreign.py 6
+  iolib/tests/test_pickle.py 9
+  iolib/tests/test_table.py 4
+  tsa/statespace/tests/test_save.py 1
+  tsa/tests/test_x13.py 4
+== hypothesis: 11 files, 32 hits
+  emplike/tests/test_regression.py 4
+  genmod/tests/test_score_test.py 5
+  multivariate/tests/test_manova.py 10
+  multivariate/tests/test_multivariate_ols.py 2
+  regression/tests/test_glsar_gretl.py 4
+  regression/tests/test_regression.py 2
+  stats/tests/test_multi.py 1
+  stats/tests/test_power.py 1
+  stats/tests/test_proportion.py 1
+  tsa/statespace/tests/test_fixed_params.py 1
+  tsa/tests/test_stattools.py 1
+== slow_mark: 22 files, 73 hits
+  base/tests/test_distributed_estimation.py 1
+  discrete/tests/test_count_model.py 1
+  emplike/tests/test_aft.py 1
+  emplike/tests/test_regression.py 13
+  graphics/tests/test_functional.py 8
+  imputation/tests/test_mice.py 1
+  multivariate/tests/test_pca.py 2
+  nonparametric/tests/test_kernel_density.py 12
+  nonparametric/tests/test_kernel_regression.py 8
+  nonparametric/tests/test_kernels.py 1
+  regression/tests/test_lme.py 6
+  regression/tests/test_processreg.py 4
+  robust/tests/test_tools.py 1
+  stats/libqsturng/tests/test_qsturng.py 3
+  stats/tests/test_corrpsd.py 1
+  stats/tests/test_knockoff.py 1
+  stats/tests/test_mediation.py 3
+  tsa/statespace/tests/test_sarimax.py 1
+  tsa/statespace/tests/test_structural.py 1
+  tsa/tests/test_exponential_smoothing.py 2
+  tsa/tests/test_stattools.py 1
+  tsa/vector_ar/tests/test_var.py 1
+== xslow_mark: 0 files, 0 hits
+== thread_unsafe: 59 files, 313 hits
+  base/tests/test_distributed_estimation.py 1
+  base/tests/test_generic_methods.py 3
+  base/tests/test_shrink_pickle.py 3
+  datasets/tests/test_utils.py 1
+  discrete/tests/test_count_model.py 13
+  discrete/tests/test_diagnostic.py 1
+  discrete/tests/test_discrete.py 2
+  discrete/tests/test_predict.py 2
+  distributions/copula/tests/test_copula.py 3
+  duration/tests/test_survfunc.py 1
+  emplike/tests/test_aft.py 3
+  emplike/tests/test_descriptive.py 16
+  formula/tests/test_formula.py 1
+  formula/tests/test_manager.py 3
+  gam/tests/test_gam.py 1
+  gam/tests/test_penalized.py 1
+  genmod/tests/test_gee.py 4
+  genmod/tests/test_glm_weights.py 1
+  graphics/tests/test_agreement.py 2
+  graphics/tests/test_boxplots.py 7
+  graphics/tests/test_correlation.py 2
+  graphics/tests/test_dotplot.py 2
+  graphics/tests/test_factorplots.py 6
+  graphics/tests/test_functional.py 10
+  graphics/tests/test_gofplots.py 59
+  graphics/tests/test_mosaicplot.py 8
+  graphics/tests/test_plot_grids.py 2
+  graphics/tests/test_regressionplots.py 16
+  graphics/tests/test_tsaplots.py 19
+  imputation/tests/test_mice.py 4
+  multivariate/tests/test_pca.py 3
+  nonparametric/tests/test_kernel_regression.py 1
+  regression/tests/test_recursive_ls.py 1
+  regression/tests/test_rolling.py 1
+  stats/tests/test_influence.py 1
+  stats/tests/test_meta.py 1
+  stats/tests/test_pairwise.py 2
+  stats/tests/test_power.py 1
+  tools/tests/test_grouputils.py 1
+  tools/tests/test_parallel.py 1
+  tsa/ardl/tests/test_ardl.py 2
+  tsa/forecasting/tests/test_stl.py 1
+  tsa/forecasting/tests/test_theta.py 1
+  tsa/holtwinters/tests/test_holtwinters.py 1
+  tsa/statespace/tests/test_dynamic_factor.py 1
+  tsa/statespace/tests/test_exponential_smoothing.py 8
+  tsa/statespace/tests/test_kalman.py 1
+  tsa/statespace/tests/test_models.py 1
+  tsa/statespace/tests/test_sarimax.py 49
+  tsa/statespace/tests/test_simulation_smoothing.py 4
+  tsa/statespace/tests/test_varmax.py 14
+  tsa/stl/tests/test_mstl.py 1
+  tsa/stl/tests/test_stl.py 1
+  tsa/tests/test_ar.py 3
+  tsa/tests/test_exponential_smoothing.py 1
+  tsa/tests/test_seasonal.py 1
+  tsa/tests/test_x13.py 1
+  tsa/vector_ar/tests/test_var.py 11
+  tsa/vector_ar/tests/test_vecm.py 1
+== timeout: 0 files, 0 hits
+== xfail_32bit: 0 files, 0 hits
+== network_mark: 0 files, 0 hits
+== matplotlib: 47 files, 445 hits
+  discrete/tests/test_diagnostic.py 2
+  discrete/tests/test_predict.py 4
+  distributions/copula/tests/test_copula.py 6
+  distributions/copula/tests/test_model.py 1
+  duration/tests/test_survfunc.py 3
+  emplike/tests/test_descriptive.py 10
+  gam/tests/test_gam.py 3
+  genmod/tests/test_gee.py 9
+  genmod/tests/test_glm.py 1
+  graphics/tests/test_agreement.py 6
+  graphics/tests/test_boxplots.py 15
+  graphics/tests/test_correlation.py 4
+  graphics/tests/test_dotplot.py 5
+  graphics/tests/test_factorplots.py 13
+  graphics/tests/test_functional.py 21
+  graphics/tests/test_gofplots.py 122
+  graphics/tests/test_mosaicplot.py 17
+  graphics/tests/test_plot_grids.py 6
+  graphics/tests/test_regressionplots.py 35
+  graphics/tests/test_tsaplots.py 45
+  graphics/tests/test_utils.py 10
+  imputation/tests/test_mice.py 9
+  multivariate/tests/test_factor.py 2
+  multivariate/tests/test_pca.py 4
+  regression/tests/test_recursive_ls.py 3
+  regression/tests/test_rolling.py 3
+  stats/tests/test_influence.py 3
+  stats/tests/test_meta.py 3
+  stats/tests/test_pairwise.py 4
+  stats/tests/test_power.py 3
+  tests/test_package.py 2
+  tsa/ardl/tests/test_ardl.py 7
+  tsa/forecasting/tests/test_stl.py 2
+  tsa/forecasting/tests/test_theta.py 2
+  tsa/statespace/tests/test_dynamic_factor.py 2
+  tsa/statespace/tests/test_dynamic_factor_mq.py 1
+  tsa/statespace/tests/test_sarimax.py 3
+  tsa/statespace/tests/test_structural.py 3
+  tsa/stl/tests/test_mstl.py 2
+  tsa/stl/tests/test_stl.py 2
+  tsa/tests/test_ar.py 7
+  tsa/tests/test_exponential_smoothing.py 5
+  tsa/tests/test_seasonal.py 3
+  tsa/tests/test_x13.py 2
+  tsa/vector_ar/tests/test_local_projection.py 4
+  tsa/vector_ar/tests/test_var.py 24
+  tsa/vector_ar/tests/test_vecm.py 2
+== compiled test extensions: 0 files
