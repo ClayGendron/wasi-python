@@ -318,3 +318,39 @@ without its own flag. The Lows and Notes need no further round once their text i
 
 In one line: the tiers are sound and nothing is dropped, but three ways a pass could leave a
 system or the record quietly must be closed first.
+
+## Confirmation (the reviewer, 2026-10-20, on `ee75f50`)
+
+I read the Disposition against the specification at `ee75f50`. That is `spec/102-the-release-tier`
+rebased onto `dbecd2d`, and the rebase touches only the specification and this review. I read
+it only. I ran no fast tier and no judge.
+
+1. **M1: confirmed.** In Decision 9, an `inline` entry stays in its normal group and runs in full
+   in its release group. The Principle and Decision 2(c) name this as the one exception. Decision
+   3 and check 2 keep CPython's normal groups' JSON byte for byte the base's. `test_posixpath`
+   stays in `cpython-fs`, so it still runs on Linux, macOS and Windows. With no tests leaving a
+   normal group, `--accept-fewer-passes` is gone from the Kind line, criterion 4, the claim list
+   and the flags. Check 4 gains the stream with a missing inline id.
+2. **M2: confirmed.** Decision 5 ("The history's passed set" and "Counts") carries forward every
+   check in `release_checks` that is in the newest line's passed set. So `passed_digest` covers
+   those rows and the history still replays. The `counts` take each unrun release-tier check at
+   its accepted status. Check 5 holds the row I asked for. The seventeen contourpy checks that
+   move at 102's landing were already in the passed set, so they are carried too.
+3. **M3: confirmed, and stronger than asked.** `moved` is red in both directions on every run,
+   whether or not the check ran. `--accept-tier-move` rewrites only the `tier` of the moved
+   entries. A gone check stays `absent`. G5 shows a move on CI. Decision 3 refuses a release group
+   that is none of the named kinds. Decision 2 also covers moving a single test: it lowers the
+   group's `passes`, so it shows as `fewer`. Today's entries carry no `tier`, which reads as
+   normal, so `accepted.json` needs no rewrite. 102's own landing names its seventeen groups under
+   the new flag.
+4. **The Lows and Notes: confirmed as written in.** The inline rules check reads the tarball's
+   `Lib/test` members the same way `regrtest.py` already does (`tests/harness/regrtest.py:190-215`,
+   READ), so it needs no new input.
+
+**New problems from the revision: none found.** Two things I looked at:
+- A test id that runs in both tiers does not trouble G3, because the gather counts checks, which
+  are groups, not test ids.
+- The G5 move line is a one-time red. After `--accept-tier-move` at 102's landing, every moved
+  entry says `release`, so later runs show no move line.
+
+**Verdict:** fit to build. Every finding is answered in writing, so no further round is needed.
