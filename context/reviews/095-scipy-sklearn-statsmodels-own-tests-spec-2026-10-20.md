@@ -440,3 +440,193 @@ build once H1 and M1 are written in and confirmed, the Lows answered in writing.
 Fit to build, which means the survey may start once its sets exist. H1 and M1 are written in and
 confirmed, and the Lows are answered in writing. Building starts on the survey's delta review, as
 Decision 1 says.
+
+## Delta review (after the survey)
+
+- **By:** the same reviewer, on 2026-10-21. I wrote none of the survey or its revision.
+- **Reviewed:** `f4d252b4` (context only, on main `d8fc73ff`, wave 09 landed). I read the survey
+  memo and its folder (`failures.txt`, `keywords.txt`, `summary.md`). I read the spec's revised
+  Decisions 7 and 8, its criteria 7 to 12, the price, *For the lane* and "Delta from the survey"
+  items 1 to 12. I read 102 at its tip `8fb3df7a`, Decision 3's kinds and paths rule.
+- **Read again, as data:** the pinned scipy, scikit-learn and statsmodels sdists, and the kit's
+  pytest 9.0.3. No guest was run. No CI run was dispatched, because the change is context only.
+- **Time box:** 45 minutes.
+
+### Each change, ruled
+
+1. **Item 1, the measured price — sound, as a lower bound.**
+   - 31.18 T for the normal markers is 2.8 times today's 11.2 T. So the drafted 15 T threshold
+     could not hold.
+   - The release tier is at least 53 T. `special` and `stats` stopped at the survey's 6 T caps, so
+     the true figure is higher (D-L1).
+2. **Item 2, the owner's rule — sound in intent.** Each suite goes to the release tier whole, with
+   a smoke group per package in the normal tier. That matches the owner's words. But 102's rules
+   refuse it as written (D-M1), and the smoke groups do not show what Decision 7 claims (D-M2).
+3. **Item 3, the deselected clock-timed test — as written, a test left out of both tiers** (D-M3).
+4. **Item 4, six statsmodels files fail at import — sound.**
+   - `test_constrained.py:29` and `emplike/tests/test_anova.py:12` were READ before. The memo
+     names the other four.
+   - They are Decision 8 rows. Their closer is the owner's answer to question 83, through the
+     README.
+   - The 832 run-time failures are rightly one class, with that same closer.
+5. **Item 5, two statsmodels markers registered — sound.** `thread_unsafe` and
+   `skip_randomstate_check` are used and registered nowhere. Registering them keeps
+   `--strict-markers` in force, as with `no_check_spmatrix`. It does not weaken the judge.
+6. **Item 6, scikit-learn's own wasm skip of `callback/tests` — acceptable as a named row.** It is
+   upstream's own choice for this platform: `pytest_ignore_collect` returns `_IS_WASM`. The judge
+   cannot undo it without editing upstream's conftest, and §4.1 does not allow that edit. The
+   README should give the folder and its 54 test functions as upstream's exclusion, not ours.
+7. **Item 7, the classes — sound, with one exception** (D-L2).
+   - `no-native-id` (335) is not only a test-side fact.
+   - `enotsup-io` must name its call before the build review, not only "in the build".
+8. **Item 8, the mode-gated skips — sound.** The numpydoc `kit_extra` candidate goes to whichever
+   of 067 and 095 lands second, as drafted. Until then the 211 skips are counted and named in the
+   README.
+9. **Items 9 to 12 — sound.**
+   - Group starts of 12 to 32 G; the family-wide `package_paths` keeps the rule.
+   - The derived bound is set from measured sizes: 2,541,286 bytes, which meets my condition.
+   - The keyword entries are written by full id, which meets my condition. They are now kept only
+     as a record.
+   - No trap was seen, and the guard held.
+
+### Findings, most severe first
+
+1. **D-M1. The owner's split is not one of 102's kinds, so 102's rules refuse it.**
+   - **What 095 says.** Depends on still says "095 adds no tier mechanism of its own". Decision 7
+     says the release tier is "everything else, by 102's kinds".
+   - **What 102 says.** At `8fb3df7a` (Decision 3, READ), a release group must be one of three
+     things. It is a marker group (its family has `release_marker`), a keyword group (in
+     `[[release_select]]` files), or a regrtest list group. 067 adds a node-id group.
+   - **102's path rule.** "the marker release groups' paths taken together are exactly the normal
+     groups' paths taken together". A release group of whole paths that no normal group holds is
+     none of these. It is exactly what 102 refuses: "so a whole group cannot be moved out of the
+     normal tier without a selection that says why".
+   - **Failure:** about 110 release groups are refused by `test_upstream_files_are_well_formed`
+     on the first build. Or the builder loosens 102's rule unreviewed, which is AGENTS.md rule 4.
+   - **Fix text** for Decision 7, Decision 14 and Depends on:
+     - "095 adds one kind to 102's list, the **smoke kind**. A family may name its normal groups
+       as smoke groups, each with a reason in words (the owner's rule of 2026-10-21). Its release
+       groups by path cover every staged test path that no smoke group holds, each path whole."
+     - "Over a smoke group's own paths, the release side is a marker group (scipy's
+       `slow or xslow`, statsmodels' `slow`) or nothing (scikit-learn)."
+     - "The rules check proves it on the real TOMLs, not only on a synthetic family:
+       1. the smoke paths and the release paths together are the staged test paths, less
+          `not_selected`;
+       2. no path is in both, except a smoke path whose release side is marker-selected;
+       3. 102's truth table holds on those paths."
+     - "Decision 3 of 102 gains the kind's name, as 067 adds its own."
+     - Drop the unexplained `-k "not (S)"`.
+2. **D-M2. The smoke groups do not show "the package's core compiled paths"** (Decision 7's
+   table).
+   - **What they cover** (READ, by path):
+     - scipy: SuperLU and ARPACK; trust-constr; the ODE solvers (`_ivp`, LSODA); `cluster.vq`;
+       `fftpack` (ducc0 and pocketfft through `scipy.fft`); `io.matlab`'s Cython readers; LAPACK
+       through f2py and Cython for Cholesky and Toeplitz.
+     - scikit-learn: libsvm and liblinear, covariance, PLS and CCA, HDBSCAN.
+     - statsmodels: formulas, ARIMA (statespace), the GLM family and link functions, the filters,
+       the summaries.
+   - **What none covers.** No smoke group covers these:
+     - scipy.special: the xsf, Boost.Math and Cython ufuncs. This is the largest compiled surface,
+       and the one most sensitive to the toolchain.
+     - scipy.sparse's C++ `sparsetools`, where 32-bit indices are a risk.
+     - scipy.spatial's qhull and `_ckdtree`.
+     - scipy.optimize's HiGHS, L-BFGS-B, SLSQP, MINPACK and root finders.
+     - scipy.interpolate's FITPACK and `_bspl`; scipy.signal's C filters; scipy.ndimage; scipy.stats
+       (`_stats`, `_qmc`, unuran, `_boost`).
+     - **Any of scipy's four carried patches' paths:** uarray in `scipy.fft`, `sqrtm`, Matrix Market
+       and Sobol.
+     - scikit-learn's trees and forests, `_cd_fast` and SGD, KD and ball trees, `_loss`,
+       hist-gradient-boosting, pairwise reductions and `utils`' Cython.
+     - statsmodels' OLS, WLS and GLS (`regression/tests`), lowess, STL and Holt-Winters.
+   - The golden jobs touch most of these with a few values each: `scipy_numeric.py`,
+     `scipy_solvers.py`, `scipy_edges.py`, `machine_learning.py` and 045's `statistical_models.py`
+     (READ). So "the normal tier proves the core" is true of jobs and smoke together. It is not
+     true of the smoke groups alone, and the selection has no stated rule.
+   - **Failure:** a toolchain, numpy or OpenBLAS change that breaks `scipy.special`'s Boost.Math
+     paths or `sparsetools` at 32 bits passes every normal run and every landing. It is found only
+     at the release acceptance before the tag, about 55 minutes in. Then it must be traced back
+     through the ledger.
+   - **Fix text:** "Each smoke group's paths are chosen by a stated rule. The rule covers each
+     compiled extension family of the package, from the build's own list: a smoke test file, or a
+     named golden-job line. It also covers each carried patch's path with a smoke test. Decision
+     7's table gains a row per family naming its cover. Each package's smoke groups total at most
+     500 G (about 4.5 % of today's upstream fuel)."
+   - **Candidates for the builder to measure:**
+     - scipy: `special/tests/test_cython_special.py`, `sparse/tests/test_sparsetools.py`,
+       `spatial/tests/test_qhull.py`, a `-k highs` slice of `optimize/tests/test_linprog.py`,
+       `interpolate/tests/test_fitpack.py`, `signal/tests/test_upfirdn.py`, `stats/tests/test_qmc.py`
+       (patch 0004), `io/tests/test_mmio.py` (patch 0003), `fft/tests/test_backend.py` (patch 0001;
+       today in D-L2's class);
+     - scikit-learn: `utils/tests/test_sparsefuncs.py`, `neighbors/tests/test_kd_tree.py`,
+       `ensemble/_hist_gradient_boosting/tests/test_splitting.py`, a slice of
+       `tree/tests/test_tree.py`;
+     - statsmodels: `regression/tests/test_regression.py`,
+       `nonparametric/tests/test_lowess.py`, `tsa/stl/tests`.
+3. **D-M3. `test_choose_conv_method[numpy]` is left out of both tiers, and the fix is already in
+   the harness.**
+   - **Why it never ends.** `_timeit_fast` raises `number` by powers of ten until one measured
+     interval reaches 0.5 ms, up to 10⁹ (`signal/_signaltools.py:1231-1250`, READ). Under the
+     judge's counted clock, the interval between its two clock reads is one 1 µs step, whatever
+     the work done between them. So it never reaches 0.5 ms, and the loop runs up to 10⁹ calls,
+     then 10¹⁰ more for each of three repeats.
+   - **The fix is one existing parameter.** `guest.run` already takes `clock_step_ns`
+     (`tests/harness/guest.py:563`). At a step of 1 ms, the first interval passes at `number = 1`,
+     and the test ends.
+   - **As written** ("deselected by node id, never run … closer: a judge follow-up the lane
+     reserves"), the test runs in no tier, which breaks the owner's rule. The roadmap reserves no
+     such follow-up yet (grep, READ), so the closer is not a reserved number either.
+   - **Fix text:** "The test runs alone in its own release-tier node-id group, with a clock step of
+     1 ms (a group key `clock_step_ns`, its reason in words: 'the test repeats a call until the
+     clock has advanced 0.5 ms; the judge's clock advances only when read'). It has a cap by the
+     rule from its measured fuel. The key is allowed only on a node-id group, and only with that
+     reason."
+   - **Fallback, acceptable only if the key cannot be built in 095:** a named gap whose closer the
+     roadmap reserves before the build starts.
+   - **Same pattern, a lead for the build.** `special/_mptestutils.py:385-400` enforces mpmath's
+     time limits with `sys.settrace` and `time.time()` when there is no `SIGALRM`, as in WASI. That
+     reads the clock on every trace event. It may be why `special`'s slow sessions reached the 6 T
+     cap. The build should measure it, and say whether a clock step belongs there too.
+4. **D-L1. The release tier has no upper bound for the booking.** The lane books the release
+   acceptance from Decision 11 of 102.
+   - **Fix text:** "The build measures `special` and `stats` to the end with a cap of 20 T each.
+     A session past it is split by `[[split]]` and recorded. The memo then states the release
+     tier's measured total and its darwin minutes at `-n 3`."
+5. **D-L2. `no-native-id` mixes a product defect with a test-side fact.**
+   - 288 of its 335 members are in `io`'s tests: temporary names that the tests themselves make.
+     That part is a README fact.
+   - But `scipy/_lib/_uarray/_backend.py:270,299` calls `threading.get_native_id()` inside
+     `set_backend` and `skip_backend` (READ). So `scipy.fft.set_backend` and `skip_backend` raise
+     `AttributeError` in the product. That is user-facing; the members include
+     `fft/tests/test_backend.py::test_backend_call[...]` (`failures.txt`).
+   - **Fix text:** "`no-native-id` is split by where the call is. The tests' temporary names close
+     with `README.md`. The library's call in uarray's backend is a product finding the lane gives a
+     number. Its likely fix is the runtime's `threading` naming a native id, the one thread's, on
+     WASI. It is not a scipy patch."
+   - Likewise, `enotsup-io` names the call that answers `ENOTSUP` before the build review.
+6. **D-N1. Rule (8): not 095's to make, so strike it from Decision 7 and file it with the owner.**
+   - **What it says.** "A landing that changes a package's own build runs that package's release
+     groups on its branch run."
+   - **Against the owner's words.** It fits the second clause, "only run the tests needed to
+     confirm our new edits are working". It strains the first, "We only run slow tests when we are
+     trying to publish to pypi". It also binds every later specification's landing. That makes it
+     a rule of the lane's process (AGENTS.md, 102's tier table), not a decision of this
+     specification.
+   - **It does not touch the owner's answer to 102's question 2.** It is a CI branch run (102's
+     `release-tier` input), never a lane-local run, and nothing is accepted from it (102, Decision
+     5).
+   - **My recommendation for the question's default:** yes, and widened to the package's shared
+     build inputs: the toolchain, CPython, numpy and OpenBLAS pins and recipes. D-M2's failure
+     comes from exactly those changes. The cost is about 75 release shards per such run, about 20
+     to 25 more minutes (INFERRED from the delta's packing), on the few landings that touch a
+     build.
+   - **Where it goes.** Each such run writes the specification's `[[claim]]` block (102, Decision
+     6). The reviewer reads the run's tier. The rule needs no judge check.
+
+### Verdict, delta
+
+The survey is sound, and items 1 and 4 to 12 stand. The delta lands once D-M1 (the smoke kind
+added to 102's list and proved on the real TOMLs), D-M2 (the smoke selection by a stated rule
+covering each compiled family and each carried patch) and D-M3 (the clock-timed test run with its
+own clock step, or a reserved closer) are written in and confirmed. D-L1, D-L2 and D-N1 are
+answered in writing, and rule (8) goes to the owner as a question. Building waits for that
+confirmation (Decision 1).
