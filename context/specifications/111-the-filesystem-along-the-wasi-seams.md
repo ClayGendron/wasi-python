@@ -792,6 +792,22 @@ and 111 does not change. It shows one absent check, the retired
 skipped. Two hunks needed a little code beyond keeping both sides: `BESIDE`'s removal and
 `ALLOWED`'s annotation. So one release run is dispatched on the rebased tip, read back below.
 
+- **39579884932 on `dd711674`** (the wave-10 rebase): red at its first job, `build and judge
+  (arm64 macOS)`. Every other job was skipped, so the run gives no read on three systems. The
+  build shard passed all 65 of its checks; the job's one red line is `ABSENT
+  tests/checks/test_rules.py::test_mounts_imports_only_the_engine_seam`, "1 accepted check(s)
+  absent (retire them with --retire)". This is 111's own claim, the retired row of the claim
+  list, and not a defect. The record this run compares with, `a3bb585`, now holds the chain's
+  acceptance of that check. The two earlier runs compared with a record from before the chain,
+  so they never met it. A builder cannot retire a check, since only the lane accepts. While
+  main's record holds the check, every release run of this branch stops here, before the judge
+  jobs. A run of the wave's tip after the lane's acceptance with `--retire
+  tests/checks/test_rules.py::test_mounts_imports_only_the_engine_seam` does not. So the
+  three-system read of the rebased code is the wave's dry run. For the merge's two lines of new
+  code (`BESIDE` dropped, `ALLOWED` annotated), the record is the fast tier above; both are in
+  the judge and run there. I did not re-run, and I did not rename the new check to the old node
+  id: either would only route around the claim.
+
 ### Re-measured on the base (EXECUTED, `build/111/measure.py`, `build/111/measure-base.txt`)
 
 Every number The problem states holds on `727bd4c` as it did on `b14b68c`: `mounts.py` 2,206
