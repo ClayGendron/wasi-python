@@ -1,10 +1,12 @@
 # 114: HOME is never the root
 
 - **Status:** **drafted 2026-10-21** on `spec/114-home-is-never-the-root` from main `1875d4cd`,
-  awaiting its pre-build review. The checks are written first and seen failing on main's code
-  (EXECUTED, `build/114/checks-on-main.log` in the builder's worktree, against the main tree's
-  frozen set, `SHA256SUMS` `d0d91cef`): 12 rows fail, the 2 fresh-HOME guard rows pass. No fix
-  is written yet. A different agent reviews it before build.
+  with its checks written first and seen failing on main's code (EXECUTED,
+  `build/114/checks-on-main.log` in the builder's worktree, against the main tree's frozen set,
+  `SHA256SUMS` `d0d91cef`): 12 rows fail, the 2 fresh-HOME guard rows pass. **Reviewed before
+  build** the same day (`../reviews/114-home-is-never-the-root-spec-2026-10-21.md`, "fit to build
+  once M1 is answered"): M1 answered in Decision 6, the five Lows written in, each in "Disposition
+  of the pre-build review". A different agent reviews the build.
 - **Date:** 2026-10-21
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** and runner code. Build-class because it adds one recipe file under
@@ -92,7 +94,7 @@ source (READ). Only these read a file under `~` that is not a path the program p
 | reportlab | `.reportlab_settings` | Python code | `import reportlab.rl_config` |
 | pdb | `.pdbrc` | pdb commands, which run Python | when the program starts pdb |
 | scikit-learn | `scikit_learn_data/*.pkz` | **pickle**, so code (`joblib.load`, `pickle.loads`; `_california_housing.py:195`, `_twenty_newsgroups.py:310`, `:564`) | when a `fetch_*` finds its cache |
-| matplotlib | `.config/matplotlib/matplotlibrc`, `stylelib/` | data that names callables | at import, only when `MPLCONFIGDIR` is unset |
+| matplotlib | `.matplotlib/matplotlibrc`, `stylelib/` (the guest's `sys.platform` is `wasi`, so not the XDG path) | data that names callables | at import, only when `MPLCONFIGDIR` is unset |
 | reportlab | `fonts`, `.fonts`, `.local/share/fonts` | font data | font lookup |
 | Pillow | `.fonts`, `.local/share/fonts` | font data | `ImageFont.truetype` by bare name |
 | seaborn | `.cache/seaborn` | CSV | `load_dataset` |
@@ -111,10 +113,10 @@ Where the runner makes a fresh HOME today, nothing changes. Where it makes none,
 an empty, read-only folder at a guest path of the same form, `/tmp/.home-<32 hex>`, and sets
 `HOME` to it.
 
-- **The folder.** An empty folder in the call's private folder (`_Private`), beside the mounts'
-  placeholder, made before the preopens and removed with the private folder. A session keeps its
-  own for its life. It is preopened read-only, as a read-only grant is, so every write under it
-  answers `EPERM` (`PermissionError`).
+- **The folder.** A private folder of its own (`_Private`, prefix `wasi-python-`), empty, made
+  after the preopens are listed and removed once its handles are closed (Decision 6 pins where and
+  by whom). A session keeps its own for its life. It is preopened read-only, as a read-only grant
+  is, so every write under it answers `EPERM` (`PermissionError`).
 - **The guest path.** A fresh random name, as the fresh HOME's is. It never equals a grant's or a
   mount's guest path (the runner refuses two preopens at one path), it is nested inside whatever
   serves `/tmp` or `/` (wasi-libc picks the longest matching preopen, and grants and mounts
@@ -135,7 +137,7 @@ an empty, read-only folder at a guest path of the same form, `/tmp/.home-<32 hex
 **What it closes:** both reportlab files in both no-HOME rows of H2 (a read-only grant or a mount
 at `/tmp`); L3's whole class in every configuration where the runner chooses HOME (scikit-learn's
 pickles, seaborn's and statsmodels' caches, the fonts, pdb's `~/.pdbrc`, matplotlib's
-`~/.config`); a mount at `/`; and the `chdir` route above. It does not close the `env=` row: the
+`~/.matplotlib`); a mount at `/`; and the `chdir` route above. It does not close the `env=` row: the
 runner cannot make a HOME the embedder chose safe by choosing another.
 
 **Why a placeholder, not an unset or a dangling HOME.** An unset HOME is today's bug. A HOME no
@@ -157,7 +159,9 @@ imports them from the import path before it would read `~`, so it never reads
   (the survey), so the policy's sentence holds as written. No qualifier is added to it.
 - **What it costs.**
   - It is build-class: the zip is rebuilt with two more members (a few hundred bytes compiled).
-    The snapshot is rebuilt with it (INFERRED: the snapshot is built over the zip).
+    The snapshot is rebuilt with it (READ, `scripts/steps/80_snapshot.sh:5`: it freezes
+    zipimport's offsets, so it runs only beside this exact zip), and it finds the stand-ins
+    only through its rebuilt index.
   - It takes the wave's build-class slot, and the builder dispatches the release workflow on the
     branch, as every build does.
   - What an embedder loses: a `reportlab_mods` or `reportlab_settings` of its own on
@@ -183,7 +187,7 @@ These go in *Not protected*, beside pdb's `.pdbrc`:
 - **An `env=` HOME into a reused root, or into a writable grant or mount a later call reuses:**
   pdb's `~/.pdbrc` (when the program starts pdb), scikit-learn's pickled caches in
   `~/scikit_learn_data` (code, when a `fetch_*` runs; `SCIKIT_LEARN_DATA` too), matplotlib's
-  `~/.config/matplotlib/matplotlibrc` when `MPLCONFIGDIR` is unset, and data (`zoneinfo`'s
+  `~/.matplotlib/matplotlibrc` when `MPLCONFIGDIR` is unset, and data (`zoneinfo`'s
   files, as today). reportlab is named there as reading neither of its start-up files.
 - **L1, `./matplotlibrc` in the working folder.** It is data that picks a callable from the
   zip, not new code; the reviewer ranked it Low and offered the README. Dropping matplotlib's
@@ -216,8 +220,11 @@ check, 14 rows (EXECUTED on main's code: 12 fail, 2 pass):
   nothing new appears in the root. On main: all five fail (`"home": false`; with a root,
   `"planted": true`).
 
-The checks run on the default binary only. Neither decision depends on the binary: HOME and the
-preopens are set the same way for both, and the snapshot pre-imports no package.
+The plant and HOME checks run on the default binary only: Decision 1 does not depend on the
+binary, since HOME and the preopens are set the same way for both. The stand-in check runs on
+both binaries, since Decision 2 does: the snapshot finds the stand-ins only through the zip
+index it froze (the review's L5). `test_nothing_is_writable_by_default` writes under `$HOME`
+on both binaries (Decision 5).
 
 ### 5. The existing checks Decision 1 changes (a judge change, with its reason)
 
@@ -226,13 +233,18 @@ list. The reason, in each: the guest now always has a HOME, empty and read-only 
 makes no fresh one.
 
 - `test_v1_2_hostile_guest.py::test_nothing_is_writable_by_default[plain]` and `[snapshot]`: the
-  word `no HOME` becomes `HOME`; every refusal stays.
+  write loop also tries `$HOME/x`, which must be refused, so the token `no HOME` becomes
+  `HOME-refused`; every other refusal stays. The check then holds Decision 1's read-only HOME on
+  both binaries (the review's L4; written with the checks, before the code).
 - `test_v1_4_embedding.py::test_no_root_and_no_grants_runs`: `None` becomes a `/tmp/.home-` path.
 - `test_v1_4_embedding.py::test_a_mount_at_the_root[plain]` and `[snapshot]`: `"home": None`
   becomes the runner's form; its start-up bound of provider calls must still hold (the
   placeholder is not the provider's).
-- `test_v1_4_embedding.py::test_a_mount_at_tmp_means_no_home`: **retired**. Its claim is reversed,
-  and the new check's `mount at /tmp` rows hold what replaces it.
+- `test_v1_4_embedding.py::test_a_mount_at_tmp_means_no_home` becomes
+  `test_a_mount_at_tmp_makes_nothing_in_the_roots_tmp` (the review's L2). Only its first claim is
+  reversed: `HOME` is now the runner's empty form, not `None`. Its two loops (a private root and
+  a given one) and its last assertion, that the root's own `tmp` gets nothing, still hold and stay.
+  The old node id is retired with `--retire` because the name changes; the claims are kept.
 - `test_v1_3_default_profile.py::test_seaborn_takes_its_scipy_paths[*]`: `FileNotFoundError '~'`
   becomes the placeholder's refusal (INFERRED `PermissionError` naming a path under the HOME;
   the builder records what it sees). The assertion that no `~` folder appears in the grant
@@ -241,24 +253,61 @@ makes no fresh one.
   `["FileNotFoundError", "~"]` becomes the placeholder's refusal, matched by the HOME's prefix,
   since the name is random.
 
-The builder greps `tests/` again at build for any other check that reads `HOME` and lists what it
-finds. Fuel: a call with the placeholder carries one more preopen and one more environment
+The builder greps `tests/` again at build for any other check that reads `HOME`, and for any
+check that compares a matplotlib or seaborn call's stderr where `/tmp` is not writable and
+`MPLCONFIGDIR` is unset (the read-only HOME adds a `mkdir -p failed` line; the review's L1),
+and lists what it finds. Fuel: a call with the placeholder carries one more preopen and one more environment
 variable. Every row of the default profile may grow by a little (INFERRED: within the gather's
 1e-4; the builder measures it on `-c pass`, both binaries, and names any GREW line).
 
-### 6. The shape of the change (not structural)
+### 6. The shape of the change (not structural; the review's M1)
 
-- **One helper owns HOME.** The choice (fresh, or the placeholder) and the fresh folder's
-  `mkdir` move into one function in `_call.py`, called by the call and by the session's
-  opening. Today both bodies carry their own copy of the fresh HOME's `mkdir` block. Neither `_instance` nor
-  `_open_session` grows, and both should shrink. No new function passes 80 lines.
-- **No new state.** The placeholder is a path in the call's or session's own private folder,
-  which already holds the mounts' placeholder. No module-level mutable, no lock, no
+**The design, pinned.**
+
+- **One helper, `_guest_home`, in `_call.py`.** It runs where the fresh HOME's block runs
+  today: in `_call_deferred` (`_call.py:262-278`) and in `_open_session`
+  (`_sessions.py:1000-1013`), after `_preopens` has built the list. It calls `_home_folder` as
+  today. It returns a `_GuestHome`: the guest's HOME path, always set, and either the fresh
+  folder's `(name, tmp, tmp_fd)`, as today, or the empty folder and its walk.
+- **Where the empty folder is.** A `_Private` of its own, with the prefix `wasi-python-`, which
+  `_private_dirs._LOCK_NAME` knows, so the sweep removes a stale one a killed process left. The
+  `_Private` folder itself is the HOME: its lock file lies beside it, not in it, so the folder is
+  empty. It is walked like the private root (`judge=False`).
+- **Where it sits in the preopen list: appended to `preopens`.** So it sorts after the grants
+  and before the mounts. `others` (the nested-preopen rule of the mount table), `first = 3 +
+  len(preopens)` (the mounts' numbers) and the identity check (`_check_preopens` over `every`)
+  all count it, in a call and in a session. A mount's descriptor is never shifted onto it.
+- **Who makes and removes it.** `_guest_home` makes it, and removes it again if its walk fails.
+  One function, `_release_home`, removes either kind of HOME: the fresh one by its budgeted
+  removal and its handle closed, as `_sessions._remove_home` does today (it moves to `_call.py`
+  beside it); the empty one by **closing its walk first, then** `_Private.remove()`. Windows
+  holds every walked folder and refuses to remove a held one, so the handle goes before the
+  folder.
+  - In a call, `_call_deferred`'s release runs `_release_home` after `store.close()`, so
+    wasmtime's own handle is gone too. `_run_checked`'s release then closes every preopen's walk
+    again; `_Walked.close` is idempotent (`_platform.py:85-89`), so the second close does
+    nothing.
+  - In a session, `state.home` holds the `_GuestHome`, and `_release_session` runs
+    `_release_home` after the store, the walks and the scratch folder.
+- **What the two long functions do.** `_call_deferred` (43 lines) loses its `mkdir` block and
+  shrinks. `_instance` (159, on `LONG_FUNCTIONS`) changes by one line at most: its `home` is
+  always a string, so the `fresh` line loses its `None` case. `_open_session` (150, on
+  `LONG_FUNCTIONS`) loses its copy of the block and shrinks. The build shows the long-function
+  rules check green and each length.
+- **The check that a mount is not shifted.** The HOME check's `mount at /tmp` and `mount at /`
+  rows read a provider file through the mount, so a mount numbered onto the placeholder fails
+  them; and they assert the provider holds nothing new (criterion 4).
+
+**What else holds.**
+
+- **One helper owns HOME** (above). No new function passes 80 lines.
+- **No new state.** The empty HOME is a `_Private` of the call's or session's own, held in a
+  local or in `state.home`. No module-level mutable, no lock, no
   `sys.platform` branch (the fresh HOME's `dir_fd` route stays in `_platform`), no test seam.
   `_call.py` stays under 1,500 lines (1,289 today).
-- **The filesystem table.** The placeholder is one more read-only `_Preopen` in the call's list,
-  passed to wasmtime like a grant. Under a writable mount at `/tmp` or `/`, the table forwards its
-  paths to wasmtime, as it does for a grant nested in a mount.
+- **The filesystem table.** The placeholder is one more read-only `_Preopen` in `preopens`,
+  passed to wasmtime like a grant and named in `others`. Under a mount at `/tmp` or `/`, the
+  table treats it as it treats a grant nested in a mount.
 
 ## Intent
 
@@ -288,6 +337,9 @@ the embedder chooses it, the README says what that HOME can carry into a later c
   `reportlab_mods` and `reportlab_settings` modules, which reportlab finds first. Set its
   options with `RL_*` variables in `env=`, or through `reportlab.rl_config` in the program. The
   seaborn item's "no `HOME`" sentences (2346-2354) say what the read-only HOME gives instead.
+- **matplotlib, no writable `/tmp`** (394-397): one sentence: with the read-only HOME,
+  matplotlib also logs one `mkdir -p failed` warning naming `<HOME>/.matplotlib` (the review's
+  L1).
 - **scikit-learn** (293-296) and **statsmodels** (341-344): "there is no `HOME`" becomes "the
   `HOME` is read-only", with the error the build records.
 - **By default** (893-894): "no `/`, no `/tmp` and no `HOME`" becomes "no `/`, no `/tmp`, and a
@@ -305,11 +357,13 @@ the embedder chooses it, the README says what that HOME can carry into a later c
   sees no writable `/tmp`, an empty, read-only `HOME` in the call's private folder)".
 - **Not protected**, the reused-root data list (3445-3448): add matplotlib's `./matplotlibrc` in
   the working folder, `/`, which can name a callable from the zip (`figure.hooks`), and libxml2's
-  `/etc/xml/catalog`.
-- **Not protected**, the `env=` item (3463-3465): "an `env=` that overrides `HOME` or
+  `/etc/xml/catalog`; and say that a writable mount at `/` whose provider keeps its state is a
+  reused root for these, and for pdb's `./.pdbrc` (the review's N1).
+- **Not protected**, the `env=` item (3463-3465): "an `env=` that overrides `HOME` (an empty one
+  included, which sends `~` to `/`) or
   `PYTHONTZPATH` on a reused root, or into a writable grant or mount a later call reuses (pdb
   then reads a `.pdbrc`, scikit-learn's `fetch_*` unpickle what they find in
-  `~/scikit_learn_data`, matplotlib reads `~/.config/matplotlib/matplotlibrc` unless
+  `~/scikit_learn_data`, matplotlib reads `~/.matplotlib/matplotlibrc` unless
   `MPLCONFIGDIR` is set, and `zoneinfo` a zone file, that a guest may have planted there;
   reportlab reads neither of its start-up files)".
 
@@ -362,7 +416,8 @@ In: Decisions 1 to 6, the README lines, the CHANGELOG line, the roadmap line. Ou
    recipe file, and nothing else in the zip changes. No reportlab byte changes. Spec 020's
    sameness check passes with no new patch.
 6. **The judge changes are exactly those listed** in Decision 5, plus any the build's grep finds,
-   each named in the claim list with its reason. `test_a_mount_at_tmp_means_no_home` is retired.
+   each named in the claim list with its reason. `test_a_mount_at_tmp_means_no_home` is renamed
+   `test_a_mount_at_tmp_makes_nothing_in_the_roots_tmp`, its claims kept but the first.
 7. **Not structural.** No function on `LONG_FUNCTIONS` grows, and none joins it. One helper
    chooses HOME for the call and the session. The rules checks of specs 103 to 109 stay green.
 8. **The README and CHANGELOG** carry the lines above. The README's API reference matches the
@@ -383,9 +438,10 @@ In: Decisions 1 to 6, the README lines, the CHANGELOG line, the roadmap line. Ou
 - **The claim list** (to be completed at build with measured numbers):
   - new: the 14 rows of Decision 4;
   - changed: the rows of Decision 5;
-  - retired: `test_v1_4_embedding.py::test_a_mount_at_tmp_means_no_home`;
-  - grown: the zip's bytes, the snapshot's if it grows, and start-up fuel where the build
-    measures it.
+  - renamed, so its old id is retired: `test_v1_4_embedding.py::test_a_mount_at_tmp_means_no_home`,
+    now `test_a_mount_at_tmp_makes_nothing_in_the_roots_tmp`;
+  - grown: the zip's bytes, the snapshot's (certain: it is rebuilt over the new zip), and
+    start-up fuel where the build measures it.
 - **Flags:** `--accept "114: HOME is never the root"`, `--accept-judge "114: the guest always
   has a HOME; checks that encoded none now read the empty read-only one"`, and
   `--accept-growth` with the measured reasons.
@@ -395,6 +451,38 @@ In: Decisions 1 to 6, the README lines, the CHANGELOG line, the roadmap line. Ou
 Where the runner makes no fresh HOME, the guest now gets an empty one it cannot write, so `~`
 never falls back to a writable root; and the zip's empty `reportlab_mods` and
 `reportlab_settings` mean reportlab never runs a start-up file from any HOME.
+
+## Disposition of the pre-build review
+
+The review: `../reviews/114-home-is-never-the-root-spec-2026-10-21.md`, "fit to build once M1 is
+answered".
+
+1. **M1** (Medium), the placeholder's place in the list and who makes and removes it: answered in
+   Decision 6, "The design, pinned". The empty HOME is a `_Private` of its own with the
+   `wasi-python-` prefix the sweep knows, made and walked by `_guest_home` where the fresh HOME's
+   block runs today (`_call_deferred`, `_open_session`), **appended to `preopens`**, so `others`,
+   the mounts' `first` and the identity check count it. `_release_home` closes its walk before it
+   removes the folder (Windows' order), after `store.close()` in a call and after the walks in a
+   session. Decision 6 no longer says `_instance` carries the `mkdir` block: `_call_deferred` and
+   `_open_session` do, and both shrink; `_instance` changes by one line at most. The HOME check's
+   mount rows read a provider file, so a shifted mount fails them.
+2. **L1** (Low), matplotlib's folder is `~/.matplotlib` on `wasi`: written in (the survey,
+   Decisions 1 and 3, the README's `env=` item), with the README sentence on the `mkdir -p
+   failed` warning and the build's grep widened to stderr comparisons.
+3. **L2** (Low), the mount-at-`/tmp` check: changed, not retired. Renamed
+   `test_a_mount_at_tmp_makes_nothing_in_the_roots_tmp`, its loops and its last assertion kept,
+   its `None` now the runner's form. The rename retires the old node id (`--retire`), which "For
+   the lane" names.
+4. **L3** (Low), criterion 4's grant folder: the HOME check asserts the read-only grant's host
+   folder is empty after the probe, and that the mount's provider gained no path and made no
+   write-half call.
+5. **L4** (Low), the nothing-writable check: its write loop also tries `$HOME/x`, asserted as
+   `HOME-refused`, on both binaries; written with the checks, before the code.
+6. **L5** (Low), the snapshot freezes zipimport's index: the snapshot's rebuild is READ
+   (`80_snapshot.sh:5`) and a certain GREW line; the stand-in check runs on both binaries; the
+   sentence "neither decision depends on the binary" is limited to Decision 1.
+7. **N1** (notes): an empty `env=` HOME and a writable mount at `/` are named in the README lines
+   of Decision 3's items; the shadowing note needs no change.
 
 ## Landing notes
 

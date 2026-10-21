@@ -440,11 +440,13 @@ def test_a_planted_reportlab_start_up_file_never_runs(guest_workdir, configurati
     assert not (root / "PLANTED-RAN").exists()
 
 
-def test_reportlab_start_up_hooks_are_the_zips_empty_modules() -> None:
+@BOTH
+def test_reportlab_start_up_hooks_are_the_zips_empty_modules(snapshot) -> None:
     """Guards a change: reportlab looks for `reportlab_mods` and `reportlab_settings` on the
     import path before it reads either file from the home folder, so the stdlib zip carries both
     as modules that define nothing. Each imports from the zip, defines no public name, and leaves
-    reportlab's settings at their defaults."""
+    reportlab's settings at their defaults, on both binaries: the snapshot finds them only through
+    the zip index it froze when it was built."""
     run = _run()
     code = (
         "import json, reportlab_mods, reportlab_settings\n"
@@ -454,7 +456,7 @@ def test_reportlab_start_up_hooks_are_the_zips_empty_modules() -> None:
         " for m in (reportlab_mods, reportlab_settings)}, sort_keys=True))\n"
         "print(rl_config.defaultPageSize == rl_config._DEFAULTS['defaultPageSize'])\n"
     )
-    done = run(["-c", code])
+    done = run(["-c", code], snapshot=snapshot)
     assert done.exit_code == 0, done
     assert done.stdout.decode().splitlines() == [
         '{"reportlab_mods": [true, []], "reportlab_settings": [true, []]}',
@@ -465,6 +467,8 @@ def test_reportlab_start_up_hooks_are_the_zips_empty_modules() -> None:
 # What a guest sees of its HOME: whether it has one in the runner's own form, whether `~`
 # expands, and, where it has one, whether it is an empty folder it cannot write and whether a
 # file the first call planted at `/~/planted` (the root's folder named `~`) is seen through it.
+# `mount_file`, set before it, names a provider's file to read through a mount, or is None: a
+# mount whose descriptor were numbered onto the HOME's folder would not serve it.
 HOME_PROBE = """
 import json, os
 home = os.environ.get('HOME')
@@ -472,6 +476,7 @@ row = {
     'home': home is not None and home.startswith('/tmp/.home-'),
     'expands': not os.path.expanduser('~/x').startswith('~'),
     'planted': os.path.exists(os.path.expanduser('~/planted')),
+    'mount': None if mount_file is None else open(mount_file).read(),
 }
 if home is not None:
     row['empty'] = os.path.isdir(home) and os.listdir(home) == []
@@ -486,6 +491,7 @@ UNWRITABLE_HOME = {
     "empty": True,
     "expands": True,
     "home": True,
+    "mount": None,
     "planted": False,
     "write": "PermissionError",
 }
@@ -508,7 +514,10 @@ def test_where_the_runner_makes_no_fresh_home_the_home_is_empty_and_read_only(
     mount at /tmp, a mount at /, in a call or a session), the guest still has a HOME, an empty
     folder it cannot write, so `~` never falls back to the working folder, which a root or a
     mount at / serves. A file planted at `/~/planted` by an earlier call on the same root is not
-    seen through `~`, and no write under `~` reaches the root."""
+    seen through `~`, and no write under `~` reaches the root. The HOME's folder is the
+    runner's own, not the grant's or the provider's: the read-only grant's folder stays empty, a
+    mount's provider is asked for no path under the HOME and makes no write, and its own file is
+    still served through the mount."""
     from harness.files import MemoryProvider
     from wasi_python import Mount
 
@@ -516,12 +525,19 @@ def test_where_the_runner_makes_no_fresh_home_the_home_is_empty_and_read_only(
     base = Path(tempfile.mkdtemp(prefix="no-fresh-home-", dir=guest_workdir))
     root = base / "root"
     configurations = _home_configurations(base, root)
+    provider, mount_file = None, None
     if configuration == "no root":
         kwargs: dict = {}
     elif configuration == "mount at /":
-        kwargs = {"mounts": [Mount(MemoryProvider(), "/")]}
+        provider, mount_file = MemoryProvider(), "/a.txt"
+        kwargs = {"mounts": [Mount(provider, "/")]}
+    elif configuration == "mount at /tmp":
+        provider, mount_file = MemoryProvider({"/a.txt": b"hello, mount\n"}), "/tmp/a.txt"
+        kwargs = {"root": root, "mounts": [Mount(provider, "/tmp")]}
     else:
         kwargs = configurations[configuration.removeprefix("session, ")]
+    probe = f"mount_file = {mount_file!r}\n" + HOME_PROBE
+    tree = None if provider is None else dict(provider.tree)
     if "root" in kwargs:
         plant = "import os\nos.makedirs('/~', exist_ok=True)\nopen('/~/planted', 'w').close()\n"
         first = run(["-c", plant], **kwargs)
@@ -530,13 +546,19 @@ def test_where_the_runner_makes_no_fresh_home_the_home_is_empty_and_read_only(
         import wasi_python
 
         with wasi_python.Session(**kwargs) as session:
-            done = session.run(HOME_PROBE)
+            done = session.run(probe)
     else:
-        done = run(["-c", HOME_PROBE], **kwargs)
+        done = run(["-c", probe], **kwargs)
     assert done.exit_code == 0, done
-    assert _json_line(done.stdout) == UNWRITABLE_HOME, done
+    want = dict(UNWRITABLE_HOME, mount=None if mount_file is None else "hello, mount\n")
+    assert _json_line(done.stdout) == want, done
     if "root" in kwargs:
         assert sorted(p.name for p in (root / "~").iterdir()) == ["planted"]
+    if "grant" in configuration:
+        assert list((base / "read-only-tmp").iterdir()) == []
+    if provider is not None:
+        assert provider.log == [] and provider.tree == tree, provider.log
+        assert not [p for _, p in provider.paths if ".home-" in p], provider.paths
 
 
 def _json_line(stdout: bytes) -> dict:
@@ -987,7 +1009,15 @@ for path in ('/x', '/tmp/x', '/usr/local/lib/x', 'x'):
         out.append('wrote ' + path)
     except OSError:
         out.append('refused ' + path)
-out.append('HOME' if 'HOME' in os.environ else 'no HOME')
+home = os.environ.get('HOME')
+if home is None:
+    out.append('no-HOME')
+else:
+    try:
+        open(os.path.join(home, 'x'), 'w').close()
+        out.append('HOME-wrote')
+    except OSError:
+        out.append('HOME-refused')
 import numpy, pandas
 out.append(str(int(pandas.Series(numpy.arange(4)).sum())))
 print(' '.join(out))
@@ -996,8 +1026,8 @@ print(' '.join(out))
 
 @pytest.mark.parametrize("snapshot", [True, False], ids=["snapshot", "plain"])
 def test_nothing_is_writable_by_default(snapshot) -> None:
-    """Guards a change: a call given no root
-    and no grants has nothing writable, no `/` and no HOME, and still imports and computes."""
+    """Guards a change: a call given no root and no grants has nothing writable, no `/`, and a
+    HOME it cannot write, and still imports and computes."""
     run = _run()
     done = run(["-c", NOTHING_WRITABLE], snapshot=snapshot)
     assert done.exit_code == 0, done.stderr[-1500:]
@@ -1012,8 +1042,7 @@ def test_nothing_is_writable_by_default(snapshot) -> None:
         "/usr/local/lib/x",
         "refused",
         "x",
-        "no",
-        "HOME",
+        "HOME-refused",
         "6",
     ], done.stdout
     # The private root is asked for by name.
