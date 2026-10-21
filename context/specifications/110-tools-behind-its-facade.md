@@ -1,6 +1,6 @@
 # 110 — `tools.py` behind its public facade
 
-- **Status:** **drafted 2026-10-21** on `spec/110-tools-behind-its-facade` from `b14b68c` (the
+- **Status:** **landed 2026-10-21 in wave 10** (045, 110, 111, and the lane's oracle-lock check) on main `b2d4ccd0`: accepted on `81155492`, history line 92, 802/889 pass, 0 fail, on a set rebuilt from the same pins in the main tree (`SHA256SUMS` `d0d91cef`, equal to CI's; the wheel 98,259,192 bytes); the integration review `../reviews/wave-10-integration-2026-10-21.md` and the lane's addendum. Before: **drafted 2026-10-21** on `spec/110-tools-behind-its-facade` from `b14b68c` (the
   chain's tip before its rebase onto main); **reviewed before build 2026-10-21**
   (`../reviews/110-tools-behind-its-facade-spec-2026-10-21.md`: fit to build, six Lows written
   in by the reviewer); **built 2026-10-21** on `spec/110-tools-behind-its-facade` from

@@ -1,6 +1,6 @@
 # 045 — statsmodels, with formulaic, interface-meta and wrapt
 
-- **Status:** **Built, reviewed, rebased for wave 10** (2026-10-21): on wave 09's tip `265607bd`,
+- **Status:** **landed 2026-10-21 in wave 10** (045, 110, 111, and the lane's oracle-lock check) on main `b2d4ccd0`: accepted on `81155492`, history line 92, 802/889 pass, 0 fail, on a set rebuilt from the same pins in the main tree (`SHA256SUMS` `d0d91cef`, equal to CI's; the wheel 98,259,192 bytes); the integration review `../reviews/wave-10-integration-2026-10-21.md` and the lane's addendum. Before: **Built, reviewed, rebased for wave 10** (2026-10-21): on wave 09's tip `265607bd`,
   6 hunks named, rebuilt from an empty `build/`, set `SHA256SUMS` `d0d91cef`, the wheel 98,251,487
   bytes (under 100 MB); the fast tier 0 fail (growth only); no new release run (no hunk changes
   code). Built first on `dbecd2d` (set `14adfa5f`; release run 39533679276 on `7be1837`, red on

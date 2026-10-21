@@ -479,3 +479,20 @@ claimed retirement, before any judge job, with the set `d0d91cef` on every host 
 One line: statsmodels, the tool facade and the filesystem seams merge cleanly once 045's lock is
 repaired, which the tip carries and a new rules check now guards; the wave's Windows and Linux
 read can only come after the acceptance retires 111's old check.
+
+## The lane's addendum (2026-10-21)
+
+- **The conditions met.** The acceptance on `81155492` (`a001b5c5` and this review) ran with
+  `--retire tests/checks/test_rules.py::test_mounts_imports_only_the_engine_seam`, the lock
+  check's own `--accept-judge` reason and M1's clause in 045's `--accept-growth`: history line 92,
+  802/889 pass, 0 fail, lost 0, as predicted. `uv run python tests/harness/sameness.py
+  build/wave-09/lane/accepted-record.json build/wave-10/lane/accepted-record.json --claims
+  build/wave-10/lane/claims.toml` → `note: explained by claims: 045 311 · 110 1 · 111 5 · lane 2`,
+  exit 0 (with three "claimed, not seen" notes). The acceptance commit `b2d4ccd0`; `test_rules.py`
+  61 passed on it; main fast-forwarded `d8fc73ff..b2d4ccd0`. The step-7 dry run, the wave's first
+  read on Linux and Windows (M3), is 39595555875 on `b2d4ccd0`.
+- **L2** written in by the lane: the lock check's review names this repository's commits
+  (`2db86e00`, `a001b5c5`, the cherry-picks of the scratch clone's `1d894241` and `505fc8c7`).
+- **The lock check's conflicts** with 110 and 111 in `tests/checks/test_rules.py` and
+  `tests/unit/test_scan.py` were append-only: resolved as the wave's file plus the check's block;
+  262 rows passed on the result.

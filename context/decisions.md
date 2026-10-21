@@ -8,6 +8,23 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### Fast tests and slow tests (2026-10-21, morning)
+
+Asked again, with spec 095's measured price, whether a 15 T fuel threshold should decide which of
+the packages' own tests run on every landing. The owner, in their words: "My thoughts on this have
+not changed, we need to have fast tests and slow tests. We only run slow tests when we are trying
+to publish to pypi, as it is critical we check that our package is working on the libraries we
+import before we release to catch any errors, otherwise we should only run the tests needed to
+confirm our new edits are working. I do not understand why this questions keeps coming up."
+
+- **The rule, standing:** a package's own test suite runs in the release tier, whole; the normal
+  tier holds the judge's own checks and, per package, a small smoke group that proves it imports
+  and its core paths work. Nothing leaves the full suite. No branch run runs release groups.
+- **Never re-asked:** the lane decides tier placement by this rule and writes each choice in its
+  specification. It came back because the 2026-10-21 default was framed as "normal tier unless
+  over 15 T", the rule inverted.
+- **Applied to** spec 095 (its rule (8) struck) and spec 067.
+
 ### Questions 108 to 111 (2026-10-21, early morning)
 
 Asked one by one, each with the lane's recommendation.

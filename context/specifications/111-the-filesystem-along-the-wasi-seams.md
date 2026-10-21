@@ -1,6 +1,6 @@
 # 111: the filesystem along the WASI seams
 
-- **Status:** **drafted 2026-10-21** on `spec/111-the-filesystem-along-the-wasi-seams` from
+- **Status:** **landed 2026-10-21 in wave 10** (045, 110, 111, and the lane's oracle-lock check) on main `b2d4ccd0`: accepted on `81155492`, history line 92, 802/889 pass, 0 fail, on a set rebuilt from the same pins in the main tree (`SHA256SUMS` `d0d91cef`, equal to CI's; the wheel 98,259,192 bytes); the integration review `../reviews/wave-10-integration-2026-10-21.md` and the lane's addendum. Before: **drafted 2026-10-21** on `spec/111-the-filesystem-along-the-wasi-seams` from
   `b14b68c` (the chain's tip before its rebase onto main), awaiting its pre-build review. The
   worktree is `/home/user/wt/111`; the measurements are scripts under `build/111/` there
   (`measure.py`, `helpers.py`), each run on `b14b68c` and labelled EXECUTED; a number not yet
