@@ -32,7 +32,7 @@
 - **Owner:** Clay Gendron
 - **Kind:** the build recipe's pins (39 lines in `downloads/SHA256SUMS`, 39 `tests` lines in
   `scripts/00_download.sh`), the judge, and the release workflow. No line of `src/` changes;
-  **`recipes/patches/` gains four test-source patches** (pypdf's, cloudpickle's, formulaic's and
+  **`recipes/patches/` gains test-source patches: four, plus any the build's reads add (narwhals, pyparsing), each named** (pypdf's, cloudpickle's, formulaic's and
   jinja2's, Decisions 4 and 8; the delta review's M1 and M2), each touching only the test source's
   test files, never a byte the zip ships; `python.wasm`, the snapshot and the stdlib zip do not
   change; `MANIFEST` gains 39 `pin` lines, one `recipe` line per carried test-source patch, and
@@ -424,7 +424,7 @@ branch run and at every landing.
    delta review's M1). **A file that cannot load only because of a module-level import that some
    of its tests use gets a recorded test-source patch** (Decision 4's form, §4.1) that makes that
    import lazy or optional; the tests that need the module are then a class, or `D` lines with that
-   reason, and every other test in the file runs. It applies to four sources today, each patch and
+   reason, and every other test in the file runs. It applies to four, plus any the build's reads add (narwhals, pyparsing), each named; each patch and
    its count of tests recovered in the landing notes:
    - **pypdf**: `tests/__init__.py` imports `ssl` at module level and uses it only in
      `_get_data_from_url` (lines 46 to 48, which download); the patch moves the import into that
@@ -653,9 +653,9 @@ branch run and at every landing.
     sample-files commit; each class closed by `README.md` has its fact there. The CHANGELOG: "The
     release runs the pure-Python packages' own tests (spec 067): each whole suite before a
     publication, a smoke group per package on every run; 39 test sources are pinned and named in
-    `MANIFEST`; four test-source patches are carried (pypdf, cloudpickle, formulaic, jinja2), each
+    `MANIFEST`; test-source patches are carried (four, plus any the build's reads add (narwhals, pyparsing), each named: pypdf, cloudpickle, formulaic, jinja2), each
     making one test-only import lazy or optional." The README's "upstream patches carried" count
-    rises by four.
+    rises by as many.
 
 ## For 102's path kind: 067's widening
 
@@ -670,7 +670,10 @@ its doctests and modes stay unrun for 0.1.0.
   `tests/tests_*.py`, dateutil's `docs/exercises/solutions/*_solution.py`, defusedxml's `tests.py`
   and patsy's `*.py` are then staged test files the partition sees; without it, a tqdm smoke group
   over `tests/` fails 102's "holds no staged test file", and dateutil's solutions would be in no
-  tier unseen.
+  tier unseen. **patsy** (`python_files = *.py`, `testpaths = patsy`): its stage holds only its six
+  `patsy/test_*.py` files, which the path rule partitions as staged test files; its library
+  modules are never staged (they run from the product's zip), so **`module_functions` covers
+  them**, each of its 18 modules in exactly one item group under (ii), never the path rule.
 - **(ii) A release group of a smoke family may be an item group**: its unit is a module or a file,
   not a test path. Four forms: `docstring_modules`, `docstring_packages`, `doctest_files` and
   `module_functions` (sympy's doctests 3.45 T and doc files 2.79 T, mpmath's doctests 2.05 T,
@@ -705,7 +708,8 @@ source is not the shipped code's.
 ```
 downloads/SHA256SUMS                 39 lines (30 sdists, 9 *-tag.tar.gz, pypdf's sample files among them)
 scripts/00_download.sh               tests(): 39 lines; --tests fetches them
-recipes/patches/<source>/0001-*.patch four test-source patches (pypdf, cloudpickle, formulaic, jinja2),
+recipes/patches/<source>/0001-*.patch test-source patches: four (pypdf, cloudpickle, formulaic, jinja2),
+                                       plus any the build's reads add (narwhals, pyparsing), each named,
                                        applied by scripts/steps/apply_patches.sh when the judge
                                        unpacks the test source; checked by pins.tree_drift and
                                        tie_errors (repo_patches)
@@ -824,7 +828,7 @@ code or a stand-in, recorded in the landing notes; a stand-in is never committed
 9. **The artifact set.** The set rebuilt on the branch equals the base's in `python.wasm`, the
    snapshot, the zip and every `LICENSES` file; `MANIFEST` differs in exactly 39 added `pin`
    lines, the `recipe` line of `scripts/00_download.sh`, and one added `recipe` line per carried
-   test-source patch (four: pypdf, cloudpickle, formulaic, jinja2); the set's `SHA256SUMS` only in
+   test-source patch (four, plus any the build's reads add (narwhals, pyparsing), each named: pypdf, cloudpickle, formulaic, jinja2); the set's `SHA256SUMS` only in
    `MANIFEST`'s line; 101's key changes once, for these pins and patches.
 10. **`packages.toml`.** The 42 are `suite`; a unit check fails if any entry names `spec 067`.
 11. **The shards and the fetch** (as 066's criteria 7 and 8): each smoke group in exactly one
@@ -965,14 +969,14 @@ code or a stand-in, recorded in the landing notes; a stand-in is never committed
     node id (criterion 7; 102, Decision 6 as widened).
   - **Gaps added:** their count and ids, each with its closer.
   - **Moved rows:** none (criterion 8).
-  - **The artifact set:** `MANIFEST` +39 `pin` lines, +4 `recipe` lines for the test-source
+  - **The artifact set:** `MANIFEST` +39 `pin` lines, one `recipe` line per test-source patch (four, plus any the build's reads add (narwhals, pyparsing), each named) for the test-source
     patches, and the changed `recipe` line of `scripts/00_download.sh`; the set's `SHA256SUMS`
     line for `MANIFEST`; nothing else (criterion 9).
   - **The judge hash changes**; **packages.toml**: 39 `later` become `suite`, three added.
 - **The flags** (skeleton; each reason begins with "067:"):
 
   ```
-  --accept "067: the pure-Python packages' own tests: 42 packages, 42 smoke groups in the normal tier (<p> passes, <s> G), each whole suite in <r> release-tier groups; <c> classes, <t> traps; 39 test sources pinned and four test-source patches carried, named in MANIFEST"
+  --accept "067: the pure-Python packages' own tests: 42 packages, 42 smoke groups in the normal tier (<p> passes, <s> G), each whole suite in <r> release-tier groups; <c> classes, <t> traps; 39 test sources pinned and <k> test-source patches carried, named in MANIFEST"
   --accept-judge "067: tests/upstream/<package>.toml and .ini for 42 families; kit-extra.txt; the wheel tie over patched test sources, kit_extra, cwd_folders, docstring_packages, module_functions, sys_flags, support-file group paths, marker D lines, the judge profile reloaded after conftests, the smoke bounds, and the widening of 102's path kind in packages.py, tiers.py and package_drive.py; SOURCE_PATTERNS; fetch.py's tests lines, retries, wheels and patches; packages.toml (42 suites); the normal and release shards in release_shards.toml and release.yml; the unit checks"
   ```
 
@@ -1077,7 +1081,9 @@ rebase onto main `1875d4cd` (no conflict). Every finding is written in, before a
   the test source, checked by `pins.tree_drift` and `tie_errors` with `repo_patches` (Decision 4),
   a `recipe` line in `MANIFEST` (criterion 9), a tie row for an unapplied or offset patch
   (criterion 3), the CHANGELOG line and the README's count (Decision 14). Its upstream pull request
-  draft is `../upstream/patches/pypdf-6.21.1/0001-tests-import-ssl-where-it-is-used.md`, written
+  draft is `../research/2026-10-21-the-pure-python-packages-own-tests-under-the-runtime/pypdf-0001-tests-import-ssl-where-it-is-used.md`
+  until the build, which commits it at `../upstream/patches/pypdf-6.21.1/` with the patch (the
+  confirmation's Medium: a draft without its patch fails the carried-patch rules), written
   with this revision; the patch file itself is the build's (no file under `recipes/` changes in a
   context-only revision).
 - **M3 — written in.** Decision 5: `sys_flags = ["_running_pytest"]`, a declared key in
