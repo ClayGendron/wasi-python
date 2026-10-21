@@ -1964,12 +1964,17 @@ def duplicate_name_hits(files: Iterable[Path], root: Path) -> list[str]:
 # with its own imports, and one that does not is read by a regular expression. `tools`, `cli`
 # and the package itself are outside the rule; a class attribute or an attribute of a call's
 # result is never a module.
-
-RUNNER_MODULE = re.compile(r"^wasi_python\.(runner|mounts|_\w+)$")
+#
+# The tool protocol's two private modules stand outside it with `tools`, in both forms: the
+# names the judge patches there are bounds it lowers to reach a limit and functions it wraps to
+# count their calls, not the process's state, which is what the rule is about. They are named
+# one by one, so a later module of the protocol joins them by hand, with its reason.
+NOT_TOOL_MODULE = r"(?!(?:_tool_schema|_tool_host)\b)"
+RUNNER_MODULE = re.compile(rf"^wasi_python\.(runner|mounts|{NOT_TOOL_MODULE}_\w+)$")
 SEAM_IN_TEXT = re.compile(
     r"""\b\w+\.setattr\(\s*([\w.]+)\s*,\s*["'](_\w+)["']|\b([\w.]+)\.(_\w+)\s*=[^=]"""
 )
-SEAM_BY_PATH = re.compile(r"^(wasi_python\.(?:runner|mounts|_\w+))\.(_\w+)$")
+SEAM_BY_PATH = re.compile(rf"^(wasi_python\.(?:runner|mounts|{NOT_TOOL_MODULE}_\w+))\.(_\w+)$")
 
 
 def _runner_names(tree: ast.AST) -> dict[str, str]:

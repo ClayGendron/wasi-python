@@ -50,9 +50,19 @@ RUNNER_FILES = (
     "_sessions.py",
     "runner.py",
 )
-INTERNAL_FILES = (*RUNNER_FILES, "_wasmtime_ffi.py", "mounts.py", "cli.py", "__main__.py")
+# The tool protocol's machinery behind its public module: the schema rules and the host side.
+TOOL_FILES = ("_tool_schema.py", "_tool_host.py")
+INTERNAL_FILES = (
+    *RUNNER_FILES,
+    "_wasmtime_ffi.py",
+    "mounts.py",
+    *TOOL_FILES,
+    "cli.py",
+    "__main__.py",
+)
 INTERNAL_MODULES = tuple(
-    f"wasi_python.{f[:-3]}" for f in (*RUNNER_FILES, "_wasmtime_ffi.py", "mounts.py", "cli.py")
+    f"wasi_python.{f[:-3]}"
+    for f in (*RUNNER_FILES, "_wasmtime_ffi.py", "mounts.py", *TOOL_FILES, "cli.py")
 )
 DEFINING = (
     "__init__.py",

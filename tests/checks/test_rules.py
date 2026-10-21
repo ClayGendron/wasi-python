@@ -156,17 +156,17 @@ def test_specifications_have_no_open_question() -> None:
     assert not hits, scan.report(hits)
 
 
-# No module under src/ over 1,500 lines. The two over it today are not yet split; their
-# entries equal their counts and can only shrink (a stale entry is a finding too), and an entry
-# is deleted the day its file is at or under the ceiling.
+# No module under src/ over 1,500 lines. The one over it today is not yet split; its entry
+# equals its count and can only shrink (a stale entry is a finding too), and an entry is
+# deleted the day its file is at or under the ceiling.
 LINE_CEILING = 1500
-ALLOWED = {"mounts.py": 2206, "tools.py": 2449}
+ALLOWED = {"mounts.py": 2206}
 
 
 def test_no_module_under_src_is_over_the_line_ceiling() -> None:
     """A module a person can hold in their head: every `.py` under src/ is at most 1,500
     physical lines (code, comments, docstrings and blanks alike, as `wc -l` counts a file that
-    ends in a newline), but the two files ALLOWED holds at exactly today's count."""
+    ends in a newline), but the files ALLOWED holds at exactly today's count."""
     files = [p for p in scan.files_under(paths.REPO, "src") if p.suffix == ".py"]
     counts = {p: len(p.read_text(encoding="utf-8").splitlines()) for p in files}
     findings = []
@@ -1026,8 +1026,9 @@ SEAM_ALLOWED = (
 def test_the_judge_patches_the_runner_only_through_the_process_object() -> None:
     """No `<fixture>.setattr(<runner module>, "_name", …)` and no `<runner module>._name = …`
     in any `.py` under `tests/`, in code or in a program string, but for SEAM_ALLOWED, which
-    only shrinks; `tools`, `cli` and the package itself are outside the rule, as is a class
-    attribute or an attribute of a call's result (`process().observers`)."""
+    only shrinks; the tool protocol's three modules, `cli` and the package itself are outside
+    the rule, as is a class attribute or an attribute of a call's result
+    (`process().observers`)."""
     files = [p for p in scan.files_under(paths.REPO, "tests") if p.suffix == ".py"]
     hits = scan.seam_hits(files, paths.REPO, SEAM_ALLOWED)
     assert not hits, scan.report(hits)
@@ -1050,9 +1051,6 @@ LONG_FUNCTIONS = {
     "_call.py:_instance": 159,
     # The process object's fields, one line each; a dataclass would make them declarations.
     "_process.py:_Process.__init__": 82,
-    # The tool protocol's validator and the host's answer, one concern each a helper would take.
-    "tools.py:_make": 82,
-    "tools.py:_ToolHost._answer": 83,
 }
 
 

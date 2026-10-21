@@ -366,6 +366,14 @@ def test_a_private_runner_name_the_judge_patches_is_a_hit(work) -> None:
     write(
         work,
         "t/test_a.py",
+        "from wasi_python import _tool_host as H\nmonkeypatch.setattr(H, '_x', 1)\n",
+    )
+    assert _seams(work, ()) == []  # so is the tool protocol's host, under the name it is bound to
+    write(work, "t/test_a.py", "monkeypatch.setattr('wasi_python._tool_host._x', 1)\n")
+    assert _seams(work, ()) == []  # and in the dotted-string form
+    write(
+        work,
+        "t/test_a.py",
         "from wasi_python._process import process\n"
         "monkeypatch.setattr(process().observers, '_x', 1)\n",
     )
