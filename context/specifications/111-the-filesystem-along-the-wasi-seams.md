@@ -736,3 +736,259 @@ moves.
 ## Landing notes
 
 Written by the builder.
+
+**Built** 2026-10-20 on `spec/111-the-filesystem-along-the-wasi-seams`, from `727bd4c` (the PR
+branch `claude/gallant-ride-9nxxmn`: main plus the chain 103 to 109 and its one Windows fix,
+which lands on main by fast-forward, so the base is main's future tip). Code commit: `91f66da`. Release run:
+39541506877 on `91f66da`, dispatched, its verdict not yet read at this writing. A different agent reviews the build.
+
+### Re-measured on the base (EXECUTED, `build/111/measure.py`, `build/111/measure-base.txt`)
+
+Every number The problem states holds on `727bd4c` as it did on `b14b68c`: `mounts.py` 2,206
+lines; `_Files` lines 622 to 2093, 1,472 lines, 84 methods, method lines 1,359; the families
+`fd_*` 27 / 395, `path_*` 25 / 514, the table 12 / 161, the bridge 14 / 199, memory and forwards
+6 / 90; `__init__` binds the same 22 attributes; the longest methods `_path_open` 78,
+`_open_writing` 56, `__init__` 53, `_list_answer` 52, `_zeroed` 48, `_path_rename` 43; the ten
+by-hand writes at 1192, 1211, 1212, 1329, 1497, 1573, 1575, 1576, 1602 and 1893; `Any` 69 lines
+(79 occurrences), `type: ignore` 2, `cast` 2; `ALLOWED = {"mounts.py": 2206, "tools.py": 2449}`
+at `test_rules.py:163`; the runner's imports at the lines the specification names. The one
+difference is where the rules live: 107's check is at `test_rules.py:869` (not 849) and the
+function ceiling's list at 1041 (not 1021), since the chain's rebase added lines above them.
+
+### As built
+
+| module | lines (`wc -l`, EXECUTED) | holds |
+|---|---|---|
+| `mounts.py` | 361 | the eight public types, the errno-by-name table, `_Listing`, `_Mounted`, `_Open`, `_CallContext`, `__all__` |
+| `_fs_memory.py` | 317 | the WASI tables and numbers, the WAT builders, the ABI checks, `_Forwards`, `_Memory`, `_aligned`, `_path`, `_text`, `_iovecs`, `_result`, `_filestat(dev, ino, kind, size, mtime, links)` |
+| `_fs_table.py` | 681 | `_Files`: the table, its lifecycle, the bridge, `bind`, `forward`, `__call__` through `HANDLERS`, the five moved methods and the five new ones; `_described`, `_dots`, `_kind`, `_number`, `_listed`, `_close` |
+| `_fs_descriptors.py` | 513 | the 19 `fd_*` functions, `_sync`, `_reads`, `_writes`, `_zeroed`, `_zero_pads`, `_grow`, `HANDLERS` |
+| `_fs_paths.py` | 644 | the 10 `path_*` functions, `_resolve`, `_open_writing`, `_create`, `_refused`, `_read_paths`, `_texts`, `_namespace`, `_above`, `_across`, `_wasmtime_folder`, `_wasmtime_writable`, `_rename`, `_source_type`, `_plain`, `HANDLERS` |
+
+2,516 lines in all, against 2,206: the module headers, the import lists (one name a line, as
+ruff formats them), the two `HANDLERS` tables and the five new methods. `ALLOWED` holds
+`tools.py` alone. The longest function is `_path_open`, 78 lines (Decision 4's fallback not
+needed); `LONG_FUNCTIONS` unchanged.
+
+**How it was built.** `build/111/split.py` cut each method of `_Files` out of the base's text,
+dedented, with `self` read as `files` and a call of a helper that became a free function made a
+call of that function; `build/111/assemble.py` put the five modules together from the base's
+line ranges and those pieces; `build/111/unstar.py` turned the placeholder star imports into the
+explicit lists ruff's report named; ruff formatted. Then the hand edits below. One commit for the
+code and the judge, one for this note (Design allows squashing 1 to 3 into two; the four could
+not each be green alone: the moment `mounts.py` loses a line the ceiling's `ALLOWED` entry is
+stale, and the moment it imports a sibling 107's rule is red, so the split, the two allowances
+and the import rule land together).
+
+### The lines that are not a move (criterion 2)
+
+`git diff --color-moved=plain --color-moved-ws=allow-indentation-change 727bd4c <tip> --
+src/wasi_python` (EXECUTED, counted by `build/111/moved_count.py`): of 1,865 lines removed,
+1,614 are moved; of 2,177 added, 1,714 are moved. The 463 added lines git does not see as moved
+are the ones below; a line whose only change is `self.` read as `files.` counts among them.
+
+- **`self` read as `files`** in every moved function, and its first parameter `files: _Files`
+  (ruff re-wrapped the signatures that then passed 100 columns).
+- **Six helpers lose the table parameter**, since they read nothing of it: `_path`, `_text`,
+  `_iovecs`, `_result` (in `_fs_memory.py`, as Decision 1 says) and `_resolve`, `_above` (in
+  `_fs_paths.py`), called as `_resolve(entry, text)`, `_above(mount, path)`.
+- **`_filestat`** becomes a function of `(dev, ino, kind, size, mtime, links)`; its two callers
+  read `files.context.ino_of(path)` first and pass `entry.mount.dev` (two lines each).
+- **The ten by-hand writes become the table's methods**: `files._unhold(fd & MASK32)` in
+  `_fd_close`; `files._owe(number, entry)` for the `del`/store pair in `_fd_close`;
+  `files._relist(entry, listing, held)` in `_fd_readdir`; `files._renumbered(a, b)` in
+  `_fd_renumber`; `files._hold(number)` in `_path_open`; the three `staged +=` of `_changed`,
+  `_unlink` and (through `_relist`) `_fd_readdir` are the table's own now.
+- **Five methods moved into the table verbatim** (`_write_back`, `_fits`, `_changed`,
+  `_follow`, `_unlink`), under one comment, and **five new** (`_hold`, `_unhold`,
+  `_renumbered`, `_owe`, `_relist`), two to five lines each with a docstring.
+- **`__call__`**: `return HANDLERS[name](self, caller, *args)` for
+  `return cast(int, getattr(self, "_" + name)(caller, *args))`; `HANDLERS` bound at module level
+  as the union of the two modules' tables.
+- **Module headers**: five docstrings and the import blocks. `mounts.py`'s docstring keeps the
+  two usage lines and the paragraph on providers and says which sibling serves what; its
+  "How it works", guard and cap paragraphs moved to `_fs_table.py`'s docstring verbatim; the
+  descriptor calls' section comment became `_fs_descriptors.py`'s docstring; the namespace
+  calls' section comment stays, re-filled at module level, above `_path_create_directory`
+  (written back by hand after the fast tier, since the cut took methods only: a comment, so
+  the rules checks were re-run on it by node id, 62 passed); the class's bare headings
+  ("Paths.", "The path calls.") went with the class.
+- **The runner's imports** (`_call.py`, `_sessions.py`, `_places.py`), and `_call.py`'s three
+  docstring tokens `mounts.SHADOWED`, `mounts.GUARDED`, `mounts.COUNTED`, now `_fs_memory.`;
+  `mounts._CallContext` at `_call.py:729` stays true.
+
+### Criterion 3: the handlers change no table state by hand
+
+`test_the_handlers_change_the_table_only_through_its_methods` seen failing on the handlers moved
+verbatim (the five helpers still in the handler modules), ten hits
+(`build/111/red-handlers-verbatim-hits.txt`): `_fs_descriptors.py` 41 `held` discard, 60
+`table` deleted, 61 `owed` assigned, 189 `staged` augmented (`_changed`), 362 `staged`
+augmented (`_fd_readdir`), 440, 442 `held` discard, 443 `held` add (`_fd_renumber`);
+`_fs_paths.py` 71 `held` add (`_path_open`), 368 `staged` augmented (`_unlink`): the ten of
+Decision 1. The widened grep found the same ten there (`build/111/grep-verbatim.txt`), and finds
+nothing on the tip (exit 1, EXECUTED). The scanner is `scan.table_write_hits`, beside
+`long_function_hits`.
+
+**The read surface, per module** (EXECUTED, `grep -oE 'files\.[a-z][a-z_]*'`):
+`_fs_descriptors.py` reads `context`, `forwards`, `mounts`, `table`; `_fs_paths.py` reads
+`context`, `forwards`, `opened`. Five fields, not Decision 1's six: `held` was read only by
+`_fd_renumber`'s move of the held set, which is `_renumbered` now. The methods they call:
+`_entry`, `_drop`, `_fits`, `_changed`, `_write_back`, `_list`, `_owe`, `_relist`,
+`_renumbered`, `_unhold`, `forward` (descriptors); `_entry`, `_take`, `_at_cap`, `_hold`,
+`_stat`, `_read`, `_list`, `_change`, `_follow`, `forward` (paths). No aliased write: the one
+alias, `forwards = files.forwards` in `_zeroed` and `_source_type`, writes and grows the guard's
+page, not the table.
+
+### The checks, each seen failing first (outputs under `build/111/`)
+
+- `test_no_module_under_src_is_over_the_line_ceiling`, `ALLOWED` without `mounts.py`, on the
+  base: `src/wasi_python/mounts.py: 2,206 lines, over 1,500` (`red-rules-on-base.txt`).
+- `test_the_filesystem_imports_only_itself_and_the_engine_seam` on the base: seven findings,
+  `mounts.py:767`, `:783`, `:820: imports _wasmtime_ffi` and the four modules not found.
+- `test_api_lists_every_module_of_the_package`: green on the base (18 files, 18 listed); seen
+  failing with the four modules added and the base's `api.py` (`red-api-lists.txt`: four
+  findings, one per module).
+- `test_the_handlers_change_the_table_only_through_its_methods`: on the base, both modules not
+  found; on the verbatim move, the ten hits above.
+- The three unit rows: on the base the file does not import (`red-unit-on-base.txt`:
+  `cannot import name '_fs_descriptors'`).
+- **Two existing checks changed, which the specification did not name** (Differences, 1 and 2):
+  `test_the_rename_and_readdir_guard_match_the_floor` (on the base with its new text:
+  `FileNotFoundError` for `_fs_memory.py`) and `tests/unit/test_runner_package.py`'s order rule
+  (the old rule on the split tree: 17 findings, `build/111/red-package-old-rule.txt`).
+
+### The test seams (criterion 8)
+
+- `tests/harness/files.py:654`, `:713`: `_Files` from `wasi_python._fs_table`; nothing else.
+- `tests/unit/test_runner_mounts.py`: the import block gains `_fs_descriptors`, `_fs_memory`,
+  `_fs_paths`, `_fs_table`; the use sites of the moved names read `_fs_table._Files` (11) and
+  `_fs_memory.` for `_Memory`, `SHADOWED`, `FORWARD_SAFE`, `SIGNATURES`, `MAX_MOUNT_FILES`,
+  `GUARDED`, `COUNTED`; `mounts_module.` stays for `_errno_table`, `_HOST_ERRNO`, `_Open`,
+  `FileFault`; `:669` imports `_Files` from `_fs_table`; the child program at `:1882` is
+  unchanged. The three `forward` patches and the `__call__` patch keep their shape.
+- **The `_source_type` patch is gone**: `test_the_rename_is_forwarded_by_its_plain_names`'s
+  `recorded` forward swaps the folder for the link after a `stat=True` `path_filestat_get` whose
+  path is at `STAT_PATH` answers 0 (the pre-build review's note 2, narrowed as it allowed). The
+  assertions are not edited; the row passes on macOS (EXECUTED), so the swap fired (had it not,
+  `os.readlink(grant / "stolen")` would raise).
+- `SEAM_ALLOWED` not touched; the hostile-guest, grants, sweep, embedding and sessions files not
+  touched.
+
+### Criteria 9 to 12
+
+- **9, no verdict moved:** the fast tier, `uv run pytest -m "not slow" -n 3`, once, in the
+  worktree, on the tip's code less the namespace comment, against the main tree's artifact set
+  (clone-copied): 2,605 passed, 48 skipped, 0 failed; 625/866 pass, 0 gap, 39 blocked, 0 fail;
+  rules 60/61 (1 blocked); the ratchet against `72bc5ed`: lost 0, absent 0, grew 0, gained 16
+  (EXECUTED, `build/111/fast.log`; the record `build/111/fast-latest.json`). The sameness line
+  against the wave's tip record is the lane's to print with `build/111/claims.toml`: no wave
+  record exists in this worktree. The guest checks that hold the errnos (the hostile guest,
+  the mounts, grants and sweep unit files, the embedding and sessions files) ran unedited in
+  that tier, and the four unit files by name (147 passed, 2 skipped: the two Windows-only
+  grant rows).
+- **10:** `tests/public_api.txt` unchanged; `uv run python tests/harness/api.py --check` exit 0
+  (EXECUTED).
+- **11:** `ruff check`, `ruff format --check`, `mypy --strict src/wasi_python` (no issues in 22
+  files) clean (EXECUTED). Per module, `Any` lines / `type: ignore` / `cast`: `mounts.py` 6 / 0 /
+  0, `_fs_memory.py` 6 / 1 / 0, `_fs_table.py` 15 / 0 / 1, `_fs_descriptors.py` 24 / 0 / 0,
+  `_fs_paths.py` 22 / 1 / 0. Sums: `type: ignore` 2 (as before), `cast` 1 (one fewer, the
+  dispatch's), `Any` 73 lines against 69. The four lines over are the four new modules'
+  `from typing import … Any`; the uses outside an import line are 68 before and 68 after (83
+  occurrences against 79, the same four). Criterion 11's sum is over by those four lines, named
+  here (Differences, 4).
+- **12:** run 39541506877 on `91f66da`, dispatched; to be read back (`gh run view 39541506877 --json jobs`) before the review.
+
+### Differences from the specification's text, each with its reason
+
+1. **`tests/unit/test_runner_package.py` changes**, which the specification does not list. Its
+   order rule had `mounts` beside the list with no package import at module level, and six `LATE`
+   rows naming `mounts`. The four new modules import one another at module level, and the runner's
+   late imports now name `_fs_memory` and `_fs_table`, so the old rule is red on the split (17
+   findings). The rule now keeps `FILESYSTEM`, the five modules, beside the list: a filesystem
+   module imports only filesystem modules at module level (their chain is the rules check's), and
+   the four runner modules that could import `mounts` may import any of the five; `BESIDE` is
+   `tools` alone; the six `LATE` rows name the module the import now reads. Nothing loosened: the
+   same four importers, the same late sites. Its judge hash changes.
+2. **`test_the_rename_and_readdir_guard_match_the_floor` changes**: it read `mounts.py` for the
+   two advisories' names, which now live in `_fs_memory.py` (`GUARDED`), `_fs_descriptors.py`
+   (`_zeroed`) and `_fs_paths.py` (`_rename`); it reads the five filesystem modules, in both
+   directions (a guard named while the floor admits only patched versions is red there too).
+3. **One commit for the code and the judge**, not four (Design allows two); the reason is in
+   "How it was built".
+4. **`Any` is 73 lines, not at most 69**: the four new modules' import lines; the uses are equal.
+5. **The handlers read five fields, not six**: `held` left with `_renumbered` (criterion 3's
+   paragraph).
+6. **`_resolve` and `_above` take no table** (they read nothing of it), as the four readers in
+   `_fs_memory.py`.
+7. **`test_the_memory_readers_answer_over_a_stand_in`** uses a second stand-in of
+   `MAX_PATH + 1` bytes for the ENAMETOOLONG row: a 64-byte one answers EFAULT first, since the
+   pointer check comes before the length's.
+8. **`FILESYSTEM_IMPORTS`' `_fs_memory.py` row allows `mounts`**, as Decision 5 writes it; the
+   module imports nothing of the package today (Note 5's protocol was not taken; the
+   `TYPE_CHECKING` import of `_fs_table` from the two handler modules is the default kept).
+9. **`api.py` gains `FILESYSTEM_FILES`**, the five filesystem files, used in `INTERNAL_FILES` and
+   `INTERNAL_MODULES` in place of `"mounts.py"`; `DEFINING` and `RUNNER_FILES` unchanged.
+10. **The ceiling's comment and docstring** say "a module over it" for "the two over it", so the
+    text stays true when 110 removes the last entry.
+
+### For the lane, as built
+
+- **Kind:** parallel-safe; lands after the chain's wave, with or after 110, rebased onto the
+  wave's tip in the lane's order. Expected conflicts with 110: `ALLOWED` in `test_rules.py`
+  (each removes its own entry; the comment above it changed here), the end of `test_rules.py`
+  (each appends), `CHANGELOG.md` (one line each under the unreleased section); and
+  `tests/harness/api.py`'s `INTERNAL_FILES` if 110 extends it.
+- **Files shared with no specification in flight:** `src/wasi_python/mounts.py`, the four new
+  modules, `_call.py`, `_sessions.py`, `_places.py` (import lines and three docstring tokens),
+  `tests/harness/files.py`, `tests/unit/test_runner_mounts.py`, `tests/unit/test_runner_package.py`
+  (110 may touch its `LATE` rows for `tools`; then a trivial merge).
+- **The claim list** (`build/111/claims.toml`):
+
+  ```toml
+[[claim]]
+spec = "111"
+new = [
+  "tests/checks/test_rules.py::test_the_filesystem_imports_only_itself_and_the_engine_seam",
+  "tests/checks/test_rules.py::test_api_lists_every_module_of_the_package",
+  "tests/checks/test_rules.py::test_the_handlers_change_the_table_only_through_its_methods",
+]
+retired = [
+  "tests/checks/test_rules.py::test_mounts_imports_only_the_engine_seam",
+]
+changed = [
+  "tests/checks/test_rules.py::test_no_module_under_src_is_over_the_line_ceiling",
+  "tests/checks/test_rules.py::test_the_rename_and_readdir_guard_match_the_floor",
+]
+units = 3
+
+
+  ```
+
+- **The flags** (paste-safe):
+
+  ```
+  --accept "111: the runner's filesystem reads along the WASI seams: mounts.py keeps the public types, their two rows and the call-context protocol; _fs_memory.py the preview1 bytes and the forwards' tables; _fs_table.py the call's table, its lifecycle and the provider bridge; _fs_descriptors.py and _fs_paths.py the fd_* and path_* calls as free functions over the table, dispatched by a table equal to the shadowed signatures; every module under the ceiling, every function under 80 lines, no public name or guest-visible answer changed"
+  --accept-judge "111: the ceiling's allowance loses mounts.py; 107's import rule becomes a per-module table over the five filesystem modules, runtime and typing imports apart; the package-order rule keeps the five filesystem modules beside the order as it kept mounts, its late imports naming the module each now reads; the guard-floor check reads the five filesystem modules for the advisories; one rules row holds api.py's lists complete; one rules row holds the two handler modules to the table's methods for every form of a write; three unit rows drive the memory readers, the table's numbers and the dispatch table without the other seams; one mounts unit row injects its rename race through the forward patch it already made instead of a class attribute that is a function now; no existing expectation edited"
+  ```
+
+- **Dry-run needs:** this build's one dispatch (39541506877); the Windows shard runs the mounts and
+  rules rows on `_Windows`.
+
+### The builder's self-check
+
+- base: `727bd4c`, the PR branch's tip today, named in the Status line; not rebased onto main,
+  since main reaches it by fast-forward tonight.
+- CI run 39541506877 dispatched on `91f66da`; not yet read; the Windows legs to be read with it.
+- every number from a measured run on this base, labelled EXECUTED; no growth list (no artifact
+  byte, no guest fuel moves).
+- "For the lane": the claim list, the exact flags (each beginning "111:"), the wave kind
+  (parallel-safe), dry-run needs.
+- every new check seen failing first; no Windows or Linux branch added or moved (the split moves
+  no platform code: `grep -nE 'sys\.platform|os\.name' src/wasi_python/_fs_*.py
+  src/wasi_python/mounts.py` is empty, EXECUTED); the Windows paths the moved rows exercise
+  (junctions, read-only grants, case folding) live in `_platform.py` and `_places.py`, untouched.
+- gaps: none; reserved follow-ups: the `_fs/` directory and the bridge as its own module,
+  already in the roadmap's 111 line.
+- `packages.toml`: untouched; README rows: none change.
+- CHANGELOG: the Design's line, under the one unreleased section; no owner question.
+- `ruff check`, `ruff format --check`, mypy, the fast tier: green, output in `build/111/`.
