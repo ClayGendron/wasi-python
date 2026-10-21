@@ -371,6 +371,181 @@ def test_a_planted_pdbrc_in_home_never_runs(guest_workdir) -> None:
     assert second.stdout.endswith(b"False\n"), second
 
 
+# reportlab runs two files from the guest's home as code: `~/.reportlab_mods` when `reportlab` is
+# imported, and `~/.reportlab_settings` when `reportlab.rl_config` is (the canvas imports it).
+REPORTLAB_START_UP = {
+    ".reportlab_mods": "import reportlab",
+    ".reportlab_settings": "import reportlab.rl_config",
+}
+# The first call writes the file everywhere a later call's `~` could name inside the root: `/~`,
+# where an unset HOME leaves `~` against the working folder `/`; `/home`, the HOME an embedder
+# names in the configuration that passes one; and its own HOME, where it has one it can write.
+PLANT_START_UP = """
+import os, sys
+name, code = sys.argv[1], sys.argv[2]
+places = ['/~', '/home']
+if os.environ.get('HOME'):
+    places.append(os.environ['HOME'])
+planted = []
+for d in places:
+    try:
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, name), 'w') as f:
+            f.write(code)
+        planted.append(d)
+    except OSError:
+        pass
+print(' '.join(planted))
+"""
+PLANTED_CODE = "open('/PLANTED-RAN', 'w').close()\nprint('PLANTED RAN')\n"
+
+
+def _home_configurations(base: Path, root: Path) -> dict[str, dict]:
+    """Each way a call on a reused root gets its HOME: none, behind a read-only grant or a mount
+    at /tmp, which the runner makes nothing in; one the embedder names in `env=`, inside the
+    root; and the fresh one the runner makes in the root's own tmp."""
+    from harness.files import MemoryProvider
+    from wasi_python import Grant, Mount
+
+    read_only_tmp = base / "read-only-tmp"
+    read_only_tmp.mkdir(exist_ok=True)
+    return {
+        "read-only grant at /tmp": {"root": root, "grants": [Grant(read_only_tmp, "/tmp")]},
+        "mount at /tmp": {"root": root, "mounts": [Mount(MemoryProvider({}), "/tmp")]},
+        "HOME in env, inside the root": {"root": root, "env": {"HOME": "/home"}},
+        "fresh HOME": {"root": root},
+    }
+
+
+@pytest.mark.parametrize("name", sorted(REPORTLAB_START_UP))
+@pytest.mark.parametrize(
+    "configuration",
+    ["read-only grant at /tmp", "mount at /tmp", "HOME in env, inside the root", "fresh HOME"],
+)
+def test_a_planted_reportlab_start_up_file_never_runs(guest_workdir, configuration, name) -> None:
+    """Guards a change: code a call plants in a reused root never runs when a later call imports
+    reportlab, whatever HOME the later call has. Without a HOME the guest has no `pwd` to ask,
+    so `~` stayed `~`, a folder in the writable root, and reportlab ran the file it found there;
+    an embedder's HOME inside the root did the same. The plant itself must reach the root, so
+    the check cannot pass on a call that wrote nothing."""
+    run = _run()
+    base = Path(tempfile.mkdtemp(prefix="start-up-", dir=guest_workdir))
+    root = base / "root"
+    kwargs = _home_configurations(base, root)[configuration]
+    first = run(["-c", PLANT_START_UP, name, PLANTED_CODE], **kwargs)
+    assert first.exit_code == 0, first
+    assert (root / "~" / name).is_file() and (root / "home" / name).is_file(), first
+    second = run(["-c", REPORTLAB_START_UP[name] + "\nprint('imported')\n"], **kwargs)
+    assert (second.exit_code, second.stdout) == (0, b"imported\n"), second
+    assert not (root / "PLANTED-RAN").exists()
+
+
+def test_reportlab_start_up_hooks_are_the_zips_empty_modules() -> None:
+    """Guards a change: reportlab looks for `reportlab_mods` and `reportlab_settings` on the
+    import path before it reads either file from the home folder, so the stdlib zip carries both
+    as modules that define nothing. Each imports from the zip, defines no public name, and leaves
+    reportlab's settings at their defaults."""
+    run = _run()
+    code = (
+        "import json, reportlab_mods, reportlab_settings\n"
+        "from reportlab import rl_config\n"
+        "print(json.dumps({m.__name__: ['.zip/' in m.__spec__.origin,"
+        " [n for n in vars(m) if not n.startswith('_')]]"
+        " for m in (reportlab_mods, reportlab_settings)}, sort_keys=True))\n"
+        "print(rl_config.defaultPageSize == rl_config._DEFAULTS['defaultPageSize'])\n"
+    )
+    done = run(["-c", code])
+    assert done.exit_code == 0, done
+    assert done.stdout.decode().splitlines() == [
+        '{"reportlab_mods": [true, []], "reportlab_settings": [true, []]}',
+        "True",
+    ], done
+
+
+# What a guest sees of its HOME: whether it has one in the runner's own form, whether `~`
+# expands, and, where it has one, whether it is an empty folder it cannot write and whether a
+# file the first call planted at `/~/planted` (the root's folder named `~`) is seen through it.
+HOME_PROBE = """
+import json, os
+home = os.environ.get('HOME')
+row = {
+    'home': home is not None and home.startswith('/tmp/.home-'),
+    'expands': not os.path.expanduser('~/x').startswith('~'),
+    'planted': os.path.exists(os.path.expanduser('~/planted')),
+}
+if home is not None:
+    row['empty'] = os.path.isdir(home) and os.listdir(home) == []
+    try:
+        open(os.path.join(home, 'x'), 'w').close()
+        row['write'] = 'wrote'
+    except OSError as e:
+        row['write'] = type(e).__name__
+print(json.dumps(row, sort_keys=True))
+"""
+UNWRITABLE_HOME = {
+    "empty": True,
+    "expands": True,
+    "home": True,
+    "planted": False,
+    "write": "PermissionError",
+}
+
+
+@pytest.mark.parametrize(
+    "configuration",
+    [
+        "no root",
+        "read-only grant at /tmp",
+        "mount at /tmp",
+        "mount at /",
+        "session, read-only grant at /tmp",
+    ],
+)
+def test_where_the_runner_makes_no_fresh_home_the_home_is_empty_and_read_only(
+    guest_workdir, configuration
+) -> None:
+    """Guards a change: where the runner makes no fresh HOME (no root, a read-only grant or a
+    mount at /tmp, a mount at /, in a call or a session), the guest still has a HOME, an empty
+    folder it cannot write, so `~` never falls back to the working folder, which a root or a
+    mount at / serves. A file planted at `/~/planted` by an earlier call on the same root is not
+    seen through `~`, and no write under `~` reaches the root."""
+    from harness.files import MemoryProvider
+    from wasi_python import Mount
+
+    run = _run()
+    base = Path(tempfile.mkdtemp(prefix="no-fresh-home-", dir=guest_workdir))
+    root = base / "root"
+    configurations = _home_configurations(base, root)
+    if configuration == "no root":
+        kwargs: dict = {}
+    elif configuration == "mount at /":
+        kwargs = {"mounts": [Mount(MemoryProvider(), "/")]}
+    else:
+        kwargs = configurations[configuration.removeprefix("session, ")]
+    if "root" in kwargs:
+        plant = "import os\nos.makedirs('/~', exist_ok=True)\nopen('/~/planted', 'w').close()\n"
+        first = run(["-c", plant], **kwargs)
+        assert first.exit_code == 0 and (root / "~" / "planted").is_file(), first
+    if configuration.startswith("session, "):
+        import wasi_python
+
+        with wasi_python.Session(**kwargs) as session:
+            done = session.run(HOME_PROBE)
+    else:
+        done = run(["-c", HOME_PROBE], **kwargs)
+    assert done.exit_code == 0, done
+    assert _json_line(done.stdout) == UNWRITABLE_HOME, done
+    if "root" in kwargs:
+        assert sorted(p.name for p in (root / "~").iterdir()) == ["planted"]
+
+
+def _json_line(stdout: bytes) -> dict:
+    """The last line of a guest's output, read as JSON."""
+    import json
+
+    return json.loads(stdout.decode().strip().splitlines()[-1])
+
+
 def _returns(call):
     """Run a call that must end at its deadline in a daemon thread and return its result; fail if
     it has not returned after 120 s. A fail-safe against waiting forever (a sleeping guest whose
