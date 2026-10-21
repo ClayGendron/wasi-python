@@ -975,7 +975,7 @@ changed = [
   "tests/checks/test_rules.py::test_no_module_under_src_is_over_the_line_ceiling",
   "tests/checks/test_rules.py::test_the_rename_and_readdir_guard_match_the_floor",
 ]
-units = 3
+units = 4
 
 
   ```
@@ -984,7 +984,7 @@ units = 3
 
   ```
   --accept "111: the runner's filesystem reads along the WASI seams: mounts.py keeps the public types, their two rows and the call-context protocol; _fs_memory.py the preview1 bytes and the forwards' tables; _fs_table.py the call's table, its lifecycle and the provider bridge; _fs_descriptors.py and _fs_paths.py the fd_* and path_* calls as free functions over the table, dispatched by a table equal to the shadowed signatures; every module under the ceiling, every function under 80 lines, no public name or guest-visible answer changed"
-  --accept-judge "111: the ceiling's allowance loses mounts.py; 107's import rule becomes a per-module table over the five filesystem modules, runtime and typing imports apart; the package-order rule keeps the five filesystem modules beside the order as it kept mounts, its late imports naming the module each now reads; the guard-floor check reads the five filesystem modules for the advisories; one rules row holds api.py's lists complete; one rules row holds the two handler modules to the table's methods for every form of a write; three unit rows drive the memory readers, the table's numbers and the dispatch table without the other seams; one mounts unit row injects its rename race through the forward patch it already made instead of a class attribute that is a function now; no existing expectation edited"
+  --accept-judge "111: the ceiling's allowance loses mounts.py; 107's import rule becomes a per-module table over the five filesystem modules, runtime and typing imports apart (only the body of `if TYPE_CHECKING:` is typing-only, its walk in scan.py with one unit row); the package-order rule keeps the five filesystem modules beside the order as it kept mounts, its late imports naming the module each now reads; the guard-floor check reads the five filesystem modules for the advisories; one rules row holds api.py's lists complete; one rules row holds the two handler modules to the table's methods for the five forms of a write the specification names; three unit rows drive the memory readers, the table's numbers and the dispatch table without the other seams; one mounts unit row injects its rename race through the forward patch it already made instead of a class attribute that is a function now; no existing expectation edited"
   ```
 
 - **Dry-run needs:** this build's dispatches (39541506877, and 39551619591 on the rebased tip); the Windows shard runs the mounts and
