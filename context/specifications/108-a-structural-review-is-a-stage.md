@@ -1,14 +1,17 @@
 # 108 — A structural review is a stage
 
-- **Status:** **drafted 2026-10-20** on `claude/gallant-ride-9nxxmn` from main `5feb7e9` (the
+- **Status:** **built on `3942323` (the code; the commit after it carries these notes) on
+  `spec/108-a-structural-review-is-a-stage`, stacked on `0e145b7` (107's reviewed and landed
+  tip, its build review's disposition written in), 2026-10-21; awaiting its build review (a
+  different agent).** Drafted 2026-10-20 on `claude/gallant-ride-9nxxmn` from main `5feb7e9` (the
   memo's commit `a9064a2` on top; `src/` is unchanged from `30e9b41`, the memo's tree: EXECUTED,
   `git diff --stat 30e9b41 a9064a2 -- src` is empty); **reviewed before build** the same day
   (`../reviews/108-a-structural-review-is-a-stage-spec-2026-10-20.md`, verdict "builds once the
   three Mediums are written into the text"); **revised against all of its findings** the same
   day, with the owner's decision on M1 (*Disposition of the pre-build review* says where each
   went). It is the last of the stacked chain 103 → 104 → 105 → 106 → 107 → 108 (the memo,
-  section 8; the owner, 2026-10-20): it is built stacked on 107's reviewed tip, whose commit the
-  builder writes here, and lands last in the chain's one wave. A pre-build review is optional
+  section 8; the owner, 2026-10-20): it is built stacked on 107's reviewed tip, named above, and
+  lands last in the chain's one wave. A pre-build review is optional
   for a context-and-judge specification (AGENTS.md rule 8); this one asked for it anyway, because
   it changes the review stage itself. A different agent reviews the build.
 - **Date:** 2026-10-20
@@ -1086,4 +1089,273 @@ refusing a release that skipped it.
 
 ## Landing notes
 
-Filled in when it lands.
+Built 2026-10-20 and 2026-10-21 in the worktree `/home/user/wt/108`, branch
+`spec/108-a-structural-review-is-a-stage`, from the base `0e145b7` (the PR branch
+`claude/gallant-ride-9nxxmn`'s tip: 107's reviewed and landed tip, its build review's
+disposition written in). Every number here is EXECUTED on that base or on the built commit, with
+its command; the outputs are kept under `build/108/` in the worktree (git-ignored):
+`measure-base.txt` (the two measurements on the base, by a scratch walk), the seen-failing
+records `seen-failing-review-checks.txt`, `seen-failing-release-review.txt`,
+`seen-failing-structural-spec.txt`, `seen-failing-seams.txt`,
+`seen-failing-seams-empty-allowance.txt`, `seen-failing-seams-stale.txt`,
+`seen-failing-long-functions.txt`, `seen-failing-long-functions-empty-allowance.txt`,
+`seen-failing-long-functions-stale.txt`, `verbatim.txt` (each Design block found verbatim in
+its file), `api-check.txt`, `mypy.txt`, `fast-tier.sh`, `with-sigint.py`, `fast.log`,
+`built.json`, `claims.toml`, `claims-chain.toml`, `sameness-107.txt`,
+`sameness-baseline-chain.txt`.
+
+- **Commits, in the order built** (`git log --oneline 0e145b7..`): `0540fc7` (Decision 4, Design
+  D1 to D3: `structural_review_errors` and `structural_spec_review_errors` in the harness, the
+  two checks, the two unit rows, the loader of `release/version.py` factored into
+  `_release_version_module()`), `f645bd7` (Decision 5a, D4: `seam_hits`, the seam check,
+  `SEAM_ALLOWED`, its unit row), `4b99408` (Decision 5a, D5: `long_function_hits`, the function
+  ceiling, `LONG_FUNCTIONS`, its unit row), `75a4d98` (Design A, B, C: the AGENTS.md bullet and
+  rule 8's clause, the README's item 4a and section, question 108), `3942323` (the version
+  loader's return annotation in place of a `noqa` for a rule ruff does not enable), and the
+  commit after it (this Status line and these notes). `git diff --stat 0e145b7 `3942323``:
+  6 files changed, 672 insertions(+), 5 deletions(-) (`tests/` three files; `src/` none; `AGENTS.md`, `context/reviews/README.md`,
+  `context/questions-for-the-owner.md`). No model name in any repository file.
+- **CI: none of its own; the chain's one dispatch on the final tip** (criterion 10; the owner,
+  2026-10-20). This specification is the chain's tip, so that dispatch is this specification's
+  run; its id is the lane's to write here when it dispatches. The fast tier below is the build's
+  judge.
+- **The texts are in the tree, verbatim (criterion 1):** each Design block, read from the
+  specification's own fence and searched for in its file (`verbatim.txt`): A1 17 lines and A2 3
+  lines in `AGENTS.md`, B1 5 lines and B2 117 lines in `context/reviews/README.md`, C 37 lines in
+  `context/questions-for-the-owner.md`, all five found whole. A1 sits after "Nothing lands
+  unreviewed" and before "Code speaks for itself", the bullet the owner added on 2026-10-20
+  between the two the Design names (Decision 1 says "right after Nothing lands unreviewed"). The
+  roadmap and CHANGELOG lines (E1 to E3) are proposed below and not written, as 103 to 107's
+  were: both files are the lane's at the wave (the lane's instruction to this builder).
+- **The checks were seen failing first (criteria 2 to 6):** on the base's `scan.py`, the two
+  review checks fail `AttributeError: module 'harness.scan' has no attribute
+  'structural_review_errors'` and `… 'structural_spec_review_errors'`, and the unit file errors
+  at collection on `STRUCTURAL_ROWS` (`seen-failing-review-checks.txt`); the seam row and check,
+  `… no attribute 'seam_hits'`; the ceiling row and check, `… no attribute 'FUNCTION_CEILING'`
+  and `… 'long_function_hits'`. Criterion 2 on the real tree: `scan.structural_review_errors
+  ('0.1.0', Path('context/reviews'))` prints `['0.1.0 is a release; reviews/ has no
+  0.1.0-structural-review-<date>.md']` and `('0.1.0a8', …)` prints `[]`; the check passes on the
+  tree, whose `read_version` gives `0.1.0a8`. Criterion 3 on this file
+  (`seen-failing-structural-spec.txt`): with its Status set to `**built 2026-10-20**` and the
+  tree's Kind line, `[]` (the line carries no token, which is Decision 4b's design); with the
+  token `**structural**` added to the Kind line and the citation of its pre-build review
+  present, `[]`; with the token and the citation's file name changed, `['108-a-structural-
+  review-is-a-stage.md: structural and built, but cites no reviews/108-<slug>-spec-<date>.md']`.
+  On the tree, `grep -rhn '^- \*\*Kind:\*\*' context/specifications | grep -c
+  '\*\*structural\*\*'` → `0`, and the plain word → `0`; 103 to 107's Status lines begin "built
+  on", each citing its `-spec-` and build reviews, and none carries the token, so the check
+  reads nothing of them; 109 has no file under `specifications/`. Criterion 4
+  (`seen-failing-seams-empty-allowance.txt`): with `SEAM_ALLOWED` empty, **36 sites, 18 names**,
+  below; with the eighteen, green; with `_nobody_patches_this` added, `stale allowance:
+  _nobody_patches_this`. Criterion 5 (`seen-failing-long-functions-empty-allowance.txt`): with
+  `LONG_FUNCTIONS` empty, the nine below; with them, green; with `_process.py:process` (a 3-line
+  function) added at 90, `stale allowance: _process.py:process (3 lines)`. Criterion 6: every case
+  of D3 passes; `ruff check` and `ruff format --check` clean on `src/` and `tests/`.
+- **The seam allowance as measured and as allowed (Decision 5a, EXECUTED on `0e145b7` by the
+  check's own walk, `scan.seam_hits` over every `.py` under `tests/` with the allowance empty):**
+  36 sites, 18 names: `_home._ctrl_c_watched` 8 (`test_async_tools.py:348`, `test_runner_async.py:24,
+  75, 200`, `test_runner_cancel.py:52, 112`, `test_runner_mounts.py:172`, `test_runner_tools.py:366`),
+  `_home._join_guest` 3 (`test_runner_threads.py:260` by `setattr`; `test_v1_2_hostile_guest.py:2961`
+  and `:3152` assigned in child programs, the second a tuple target), `_artifacts._ARTIFACT_DIR` 2
+  and `_artifacts._CHECKOUT_ARTIFACT_DIR` 2 (`tests/test_api.py:30, 31, 44, 45`), `_call._drive` 2
+  (`test_runner_mounts.py:500`; `test_v1_2_hostile_guest.py:2938`, a tuple target in a program),
+  `_call._epoch_now` 2, `_call._stop_error` 2, `_engines._module_miss` 2, `_home._Box` 2
+  (`test_runner_threads.py:215, 220`, assigned), `_private_dirs._REMOVE_BUDGET` 2
+  (`test_runner_sweep.py:745, 764`, through the fixture named `m`), `_private_dirs._drop` 2,
+  `_artifacts._found_and_checked` 1, `_home._stack` 1, `_places._check_preopens` 1,
+  `_places._walk_grants` 1, `_sessions._abandon_turn` 1 (`test_v1_2_hostile_guest.py:3138`, in a
+  program), `_sessions._drive_turn` 1 (`:3133`, a tuple target in a program),
+  `runner._current_defaults` 1. **Against 107's "for 108" list:** every name and count agrees but
+  `_sessions._Phase`, which 107's grep counted at `test_runner_sessions.py:104`, a parameter's
+  annotation with a default (`phase: _sessions._Phase = _sessions._Phase.OPEN`), not a patch; the
+  AST walk does not see it and it is not allowed. **Against the specification's twenty-four:**
+  fourteen stay (`_drop`, `_drive`, `_stack`, `_ctrl_c_watched`, `_stop_error`, `_epoch_now`,
+  `_module_miss`, `_found_and_checked`, `_join_guest`, `_walk_grants`, `_check_preopens`,
+  `_current_defaults`, `_Box`, `_abandon_turn`); ten are removed because no test patches them on
+  this tree: the nine 107 retired into `_platform.py` (`_guest_stack`, `_tell_interpreter`,
+  `_trap_handlers_ready`, `_dir_fd_ok`, `_win_open`, `_close_held`, `_try_lock`, `_unlock_close`,
+  `_remove_tree`) and `_context_address` (`grep -rn _context_address tests` → none); four are
+  patched and were not on the twenty-four: `_ARTIFACT_DIR` and `_CHECKOUT_ARTIFACT_DIR` (the
+  artifact folders `tests/test_api.py` redirects), `_REMOVE_BUDGET` (the sweep's budget) and
+  `_drive_turn` (the turn's driver, in 093's child program). None has a field on the process
+  object (`_process.py`'s fields: observers, clock, `start_ending`, `drive_folder`, the reaper's
+  two), so none can be fixed in the test through `process()` today; the specification's rule for
+  that remainder names them to the chain's integration review as 105's or 107's to close, and
+  they enter the initial allowance with their closers so the check is green on the tree:
+  parameters of `artifacts()` or fields of the process object for the two folders, a parameter of
+  the remover for the budget, a row of the session's lifecycle table for the driver. **The
+  allowance is eighteen names**, grouped by module in `test_rules.py` with the closer of each
+  group; it only shrinks from here.
+- **The function ceiling as measured and as allowed (Decision 5a, EXECUTED on `0e145b7` by
+  `scan.long_function_hits` with the allowance empty, lines def to last line):** nine:
+  `runner.py:run` 151, `runner.py:run_async` 176, `runner.py:Session.__init__` 173,
+  `runner.py:Session.run_async` 82, `_sessions.py:_open_session` 150, `_call.py:_instance` 159,
+  `_process.py:_Process.__init__` 82, `tools.py:_make` 82, `tools.py:_ToolHost._answer` 83. The
+  specification's eight at `a9064a2` are these under their new files after 104's split
+  (`_open_session` into `_sessions.py`, `_instance` into `_call.py`) with 106's lengths (`run`
+  152 → 151, `run_async` 177 → 176, `_instance` 150 → 159, `_open_session` 137 → 150,
+  `Session.__init__` 169 → 173, `Session.run_async` 81 → 82), plus one more, `_Process.__init__`,
+  105's process object, 82 lines of one field per line with its comment. The lengths in the dict
+  are the record; the check reads the ceiling.
+- **What the reviews' checks read (Decision 4):** `test_a_release_has_its_structural_review`
+  reads `release/version.py`'s `read_version` of `src/wasi_python/__init__.py` (`0.1.0a8`, a
+  prerelease: `RELEASE_VERSION` does not match, no file is required) and would read
+  `context/reviews/0.1.0-structural-review-<date>.md` for the tokens `R1` to `R8` and the eight
+  row names; `test_built_structural_specifications_cite_their_pre_build_review` reads every
+  `context/specifications/*.md`'s Kind line for the bold token and, where it is there and the
+  Status begins `built` or `landed`, the file's citations of `reviews/NNN-<slug>-spec-<date>.md`.
+  The whole rules file: `uv run pytest tests/checks/test_rules.py -q` → **53 passed, 4 skipped**
+  (49 and 4 on the base), the open-question and shape scans among them, with AGENTS.md's new
+  bullet and this specification read (criterion 8).
+- **Nothing under `src/` changed (criterion 9):** `git diff --stat 0e145b7..HEAD -- src
+  tests/public_api.txt` is empty; `uv run python tests/harness/api.py --check` exits 0 and prints
+  nothing; `uv run mypy --strict src/wasi_python` → `Success: no issues found in 18 source files`.
+- **The fast tier on the frozen `v0.1.0a7` set** (`WASI_PYTHON_ARTIFACTS=/home/user/wasi_python/build/baseline-a7/set/wasi-python-0.1.0a7`,
+  `uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider`, under the machine's
+  `build/fast-tier.lock`, `SIGINT` at its default through `with-sigint.py`): **83 failed, 2440 passed, 52 skipped in 290.11s (0:04:50)** on
+  `3942323`, the final code commit, the tree unchanged for the run's length. The failures are
+  the chain's baseline's `failing-nodes.txt` exactly (`diff` of the sorted lists empty,
+  `build/108/failed-nodes.txt`: 82 checks of an artifact set older than the tree, and
+  `test_runner_grants.py::test_the_walk_judges_links`, which needs a non-root user); 107's
+  record had 2432 passed, the four more being the four rules checks. The record is
+  `build/108/built.json` (`fast.log`), copied from `build/progress/latest.json` as the run ended;
+  the ratchet line names the judge changed. An earlier run on `75a4d98`, before the annotation commit, gave the same counts and the same 83 (`fast-run1.log`, `built-run1.json`, 383.96 s; its two sameness lines read the same).
+- **Sameness (criterion 7).** Against 107's reviewed record (`/home/user/wt/107/build/107/review.json`)
+  with `--claims build/108/claims.toml` (`build/108/sameness-107.txt`):
+
+```
+note: explained by claims: 108 5
+sameness exit 0
+```
+
+  Against the chain's baseline (`/home/user/wasi_python/build/baseline-a7/baseline.json`) with
+  the chain's claims (`build/108/claims-chain.toml`: 107's list, then this one's;
+  `build/108/sameness-baseline-chain.txt`):
+
+```
+note: explained by claims: 103 4 · 104 3 · 105 4 · 106 3 · 107 4 · 108 5
+sameness exit 0
+```
+
+  The claim: `new` the four rules checks; `units = 4` for the four scanner rows in
+  `tests/unit/test_scan.py` (the record names a unit file, not its rows, so an existing file's
+  new rows go by the suite tally). No row grows, no pass moves.
+- **The judge's files (the claim list's hash line):** `tests/checks/test_rules.py`,
+  `tests/harness/scan.py`, `tests/unit/test_scan.py`.
+
+### For the lane, as built
+
+- **Kind:** parallel-safe, context and judge only; the last entry of the chain's wave, rebased
+  after 107. No other entry touches `AGENTS.md`'s rule 8, `reviews/README.md` or the questions
+  file; `tests/checks/test_rules.py` merges textually with 103 to 107's checks (this one appends
+  at the file's end and after `test_landed_specifications_cite_an_existing_review`).
+- **The claim list** (each line starts "108:"):
+  - 108: **new checks (4 nodes), each passing, no fuel, no bytes:**
+    `tests/checks/test_rules.py::test_a_release_has_its_structural_review`,
+    `::test_built_structural_specifications_cite_their_pre_build_review`,
+    `::test_the_judge_patches_the_runner_only_through_the_process_object`,
+    `::test_no_function_is_over_eighty_lines`.
+  - 108: **unit rows:** `tests/unit/test_scan.py` gains four rows (D3's two, D4's one, D5's
+    one): the suite's count rises by four.
+  - 108: **retired checks:** none. **Lost passes:** none. **Grown rows:** none.
+  - 108: **the judge hash changes** in `tests/harness/scan.py`, `tests/checks/test_rules.py`
+    and `tests/unit/test_scan.py`.
+- **The flags** (paste-safe; the spec's, adjusted to what was built):
+
+  ```
+  --accept "108: a structural review is a stage: the rule in AGENTS.md, the rubric and template in reviews/README.md, the reviewer's checklist line 4a, question 108 for the owner's amendment of §5.6, and the two checks of the letter the chain handed here (the seam check with the eighteen names the judge still patches on 107's tip, the function ceiling with the tree's nine offenders)"
+  --accept-judge "108: four rules checks: a released version (X.Y.Z, no suffix) has context/reviews/<version>-structural-review-<date>.md scoring R1 to R8; a built or landed specification whose Kind line carries **structural** cites its own existing -spec- review; the judge patches the runner's private names only through process() but for SEAM_ALLOWED (eighteen names measured on 107's tip, by setattr under any fixture name, by assignment with tuple targets, and inside child programs, only ever removed, a stale entry red); no function in src/wasi_python over 80 lines but for LONG_FUNCTIONS (the tree's nine offenders on 107's tip, only ever removed); four unit rows in test_scan.py; no existing expectation edited"
+  ```
+
+- **Dry-run needs:** none beyond the chain's one dispatch on this tip (criterion 10). The four
+  checks run in the `own-rest` shard on macOS and Linux, where `test_rules.py` runs (spec 063,
+  Decision 18: not on Windows); they read files only.
+- **For the integration review:** the four allowed seams outside the specification's twenty-four
+  (`_ARTIFACT_DIR`, `_CHECKOUT_ARTIFACT_DIR`, `_REMOVE_BUDGET`, `_drive_turn`), named above with
+  their closers, to assign to 105's or 107's follow-up.
+- **At the release of 0.1.0:** the lane's order of operations is Decision 4's; the first
+  `0.1.0-structural-review-<date>.md` is written then, by a fresh agent, in the README's
+  template, of the commit before the bump.
+- **CHANGELOG line proposed** (not written; the file is the lane's), under the one unreleased
+  section, the specification's E3 verbatim: *A structural review is a stage (spec 108; the
+  design review of 2026-10-20). A change that adds a module-level mutable or lock, a use of
+  wasmtime-py's private API, a platform branch or a test seam outside the one place specs 103
+  to 107 give each, or takes a module past the size ceiling or a function past 80 lines, is
+  reviewed before it is built; every release gets a structural review of `src/` against the
+  design review's eight-row rubric, beside its security review, which the judge requires of a
+  released version; and two rules checks hold that the judge patches the runner only through
+  its process object and that no function is over 80 lines, each with an allowance list that
+  only shrinks. Nothing in the artifact set or the wheel changes.*
+- **Roadmap lines proposed** (not written): E1, the paragraph "Reserved: 108 (a structural
+  review is a stage; …)" verbatim from the specification, placed after "Reserved: 101" and
+  before "Reserved: 109", which the roadmap already carries; and E2, the "Release rule"
+  paragraph's "Before 0.1.0: a security review of the whole surface (milestone 6)," becoming
+  "Before 0.1.0: a security review of the whole surface (milestone 6), a structural review of
+  `src/` against the design review's rubric (spec 108; `reviews/0.1.0-structural-review-<date>.md`,
+  written by a fresh agent on the commit before the bump and committed with it, the dry run on
+  that commit),".
+
+### The builder's self-check
+
+- rebased onto the named stacked base today: built on `0e145b7`, the base commit in the Status
+  line; no rebase since (the PR branch has not moved).
+- CI run: none of its own, by the chain's rule (the owner, 2026-10-20); the Windows criterion is
+  named: the four checks run only on macOS and Linux (`own-rest`); they read files.
+- every number from a measured run on this base, labelled EXECUTED; no growth list (no
+  artifact byte, no guest fuel).
+- "For the lane": the claim list, the exact flags, each reason beginning with the spec number,
+  the wave kind (parallel-safe, context and judge), dry-run needs.
+- every new check seen failing first; no Windows or Linux branch in the checks (they read
+  files; the one platform difference, `\\` in a path, is in `scan.rel`, which they share).
+- gaps: none; reserved follow-ups: the four seams for the integration review, above.
+- `packages.toml`: untouched (no package); README rows: none change.
+- CHANGELOG: proposed above, not written (the lane's); the question: 108, the next free number
+  (`grep -ohE 'question (1[0-9][0-9])' context/*.md | sort -t' ' -k2 -n | tail -1` → `question
+  107` before this build).
+- `ruff check`, `ruff format --check`, the fast tier: green but for the baseline's failures,
+  output in `build/108/`.
+
+### Differences from the specification's text, each with its reason
+
+1. **The judge's new code names no specification, decision, memo or review.** Design D's
+   docstrings and comments cite "spec 108, Decision 4" and the memo; the owner's rule of
+   2026-10-20 ("Code speaks for itself", AGENTS.md) binds every code file, 107's checks set the
+   form, and 109 clears the rest of `tests/`; so each reason is given in words (the AGENTS.md
+   rule's name where a document must be pointed at). The names, signatures, messages and cases
+   are the Design's.
+2. **The seam walk sees more forms than the two the Design lists**, because the tree holds them:
+   a `setattr` on the fixture under any name (`m.setattr`, `test_runner_sweep.py:745, 764`,
+   without which `_REMOVE_BUDGET` would be a stale entry); a tuple target (`_call._drive,
+   wasmtime.Store.close = …`, `test_v1_2_hostile_guest.py:2938`, and `:3133`); a string constant
+   parsed as a program and walked with its own imports (the hostile-guest programs import
+   `_home`, `_call` and `_sessions` themselves; the file does not, so the Design's regex against
+   the file's imports found one of their five sites); an f-string's pieces read as one text; and
+   the dotted-string form `setattr("wasi_python.<mod>._name", …)` (no site today, one branch).
+   The regex of the Design stays as the fallback for a string that does not parse. Each form
+   has a unit case.
+3. **`SEAM_ALLOWED` is eighteen names, not twenty-four**, for the reasons measured above: nine
+   retired by 107, `_context_address` patched nowhere, and four names outside the twenty-four
+   that no process field can take today, entered with their closers and named for the
+   integration review (the specification's own rule for the remainder, read with "the check is
+   green on the tree it lands on").
+4. **`LONG_FUNCTIONS` is nine entries, not eight**, under 104's files and 106's lengths, plus
+   `_process.py:_Process.__init__` (82), which 105 added after `a9064a2`; the specification said
+   "never one more" of `a9064a2`'s eight, and the ninth is a function 105 built, measured by the
+   check's own walk.
+5. **The two allowance lists sit at the end of `test_rules.py`** with 107's structural checks,
+   not beside `WASMTIME_GUARDS`, a constant of the release section; the file reads by concern.
+6. **A1 sits before "Code speaks for itself"**, the bullet the owner added between the two the
+   Design names; Decision 1's "right after Nothing lands unreviewed" holds.
+7. **E1 to E3 are proposed in these notes, not written**, as 103 to 107 did; the roadmap and
+   the CHANGELOG are the lane's at the wave.
+8. **Criterion 3's record on this file needed the token**: the tree's Kind line carries no
+   `**structural**` (Decision 4b, M3), so the check names this file only with the token added;
+   recorded with and without it.
+9. **The seam row's programs are assembled from pieces** (an import in one constant, a patch in
+   another), so `tests/unit/test_scan.py` does not trip the check it tests, as `test_clock_reads`
+   does for the clock scanner.
+10. **The sameness outputs are in two files**, `sameness-107.txt` and
+    `sameness-baseline-chain.txt`, 107's names, not criterion 7's `sameness.txt`.
+11. **The version loader's helper is annotated `-> types.ModuleType`** (the Design leaves the
+    helper's shape to the builder); a first commit carried a `noqa` for a rule ruff does not
+    enable, removed in `3942323` before the fast tier's run on the final code commit.
