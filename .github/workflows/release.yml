@@ -491,13 +491,13 @@ jobs:
       - name: Build from the pins
         run: scripts/build.sh
       - name: The source trees are their tarballs plus the recorded patches (spec 020)
-        # All twenty-seven trees must pass (seaborn's sdist the twenty-seventh): a
-        # skipped check (a tree not unpacked) would exit 0 too.
+        # All twenty-eight trees must pass (seaborn's sdist the twenty-seventh, statsmodels' the
+        # twenty-eighth): a skipped check (a tree not unpacked) would exit 0 too.
         run: |
           set -o pipefail
           uv run pytest -p no:cacheprovider -q tests/checks/test_v1_5_rebuild_from_pins.py \
             -k test_source_tree_matches_its_tarball | tee zero-patch.txt
-          grep -Eq "^27 passed, [0-9]+ deselected in" zero-patch.txt
+          grep -Eq "^28 passed, [0-9]+ deselected in" zero-patch.txt
       - name: The build shard
         # Only the checks that need the build tree: every component's tree, the compile records and
         # the zlib tarball, on this job's own build. The rest of the judge runs in the judge jobs.
