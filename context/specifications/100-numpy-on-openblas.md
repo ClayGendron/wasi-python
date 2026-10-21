@@ -1118,6 +1118,21 @@ rewrapped (its 118-column line).
   `ruff check`, `ruff format --check`, `tests/checks/test_rules.py` (57 passed, 1 skipped) and
   `tests/unit/test_scan.py` (249 passed): green. No new release run (a rebase onto a wave's tip);
   run 39535794638 stands.
+- **The missed merge in the oracle's lock** (found by wave 09's judge on `6fa6254`: `uv run --frozen
+  --project tests/jobs/oracle` failed with "Dependency `numpy` has missing `source` field but has
+  more than one matching package"). Phase 1 split numpy into two sources in
+  `tests/jobs/oracle/uv.lock` (the macOS arm64 OpenBLAS wheel by URL, the registry elsewhere) and
+  rewrote each dependent's numpy line. scikit-learn's and seaborn's entries came later, from main
+  (044 and 042), and still said `{ name = "numpy" }`. The restacks merged the generated lock as
+  text with no conflict, so no hunk was named, and the fast tier and CI never ran the oracle (CI
+  lacks it). **The fix:** uv refuses to read the broken lock, so those two lines were written in the
+  split form every other dependent has, and `uv lock --project tests/jobs/oracle` under
+  `jobs.oracle_env()` (Python 3.15.0) then resolved 52 packages and left the file byte-identical.
+  The lock's diff against `d5c76bb` is those two lines only (4 added, 2 removed); no version, hash
+  or other package moves. EXECUTED: the oracle synced through `jobs.oracle_command(..., offline=False)`
+  and imports numpy, pandas, seaborn and sklearn, its numpy naming `scipy-openblas 0.3.34.0.0`
+  (`build/100/oracle-sync.txt`); `test_goldens_reproduce_under_the_pinned_oracle` passes by node id
+  against this set (`build/100/goldens-node.txt`), with `tests/unit/test_scan.py` (250 passed).
 
 ### The builder's self-check, on the restacked build (`../reviews/README.md`)
 
