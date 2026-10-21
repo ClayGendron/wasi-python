@@ -1,0 +1,140 @@
+scipy	sc-conv@clock1ms	200e9	-ktest_choose_conv_method and not _2	scipy/signal/tests/test_signaltools.py
+scipy	sc-start	60e9	-kzzznomatch	scipy/constants/tests
+scikit-learn	sk-start	60e9	-kzzznomatch	sklearn/utils/tests/test_typedefs.py
+statsmodels	sm-start	60e9	-kzzznomatch	statsmodels/tsa/interp/tests
+scipy	sc-cluster.hierarchy	150e9	-mnot slow and not xslow	scipy/cluster/hierarchy/tests
+scipy	sc-cluster.vq	150e9	-mnot slow and not xslow	scipy/cluster/vq/tests
+scipy	sc-fft.test_basic	150e9	-mnot slow and not xslow	scipy/fft/tests/test_basic.py
+scipy	sc-fft._duccfft.test_basic	150e9	-mnot slow and not xslow	scipy/fft/_duccfft/tests/test_basic.py
+scipy	sc-fftpack.test_pseudo_diffs	150e9	-mnot slow and not xslow	scipy/fftpack/tests/test_pseudo_diffs.py
+scipy	sc-integrate.test_integrate	150e9	-mnot slow and not xslow	scipy/integrate/tests/test_integrate.py
+scipy	sc-integrate.test_quadrature	150e9	-mnot slow and not xslow	scipy/integrate/tests/test_quadrature.py
+scipy	sc-integrate._ivp	150e9	-mnot slow and not xslow	scipy/integrate/_ivp/tests
+scipy	sc-interpolate.test_fitpack	150e9	-mnot slow and not xslow	scipy/interpolate/tests/test_fitpack.py
+scipy	sc-interpolate.test_fitpack2	150e9	-mnot slow and not xslow	scipy/interpolate/tests/test_fitpack2.py
+scipy	sc-interpolate.test_interpnd	150e9	-mnot slow and not xslow	scipy/interpolate/tests/test_interpnd.py
+scipy	sc-interpolate.test_rgi	150e9	-mnot slow and not xslow	scipy/interpolate/tests/test_rgi.py
+scipy	sc-interpolate.test_rbfinterp	150e9	-mnot slow and not xslow	scipy/interpolate/tests/test_rbfinterp.py
+scipy	sc-interpolate.test_bsplines	150e9	-mnot slow and not xslow	scipy/interpolate/tests/test_bsplines.py
+scipy	sc-io.test_mmio	150e9	-mnot slow and not xslow	scipy/io/tests/test_mmio.py
+scipy	sc-io.matlab	150e9	-mnot slow and not xslow	scipy/io/matlab/tests
+scipy	sc-linalg.test_decomp_cholesky	150e9	-mnot slow and not xslow	scipy/linalg/tests/test_decomp_cholesky.py
+scipy	sc-linalg.test_solve_toeplitz	150e9	-mnot slow and not xslow	scipy/linalg/tests/test_solve_toeplitz.py
+scipy	sc-linalg.test_matfuncs	150e9	-mnot slow and not xslow	scipy/linalg/tests/test_matfuncs.py
+scipy	sc-linalg.test_cython_blas	150e9	-mnot slow and not xslow	scipy/linalg/tests/test_cython_blas.py
+scipy	sc-linalg.test_cython_lapack	150e9	-mnot slow and not xslow	scipy/linalg/tests/test_cython_lapack.py
+scipy	sc-linalg.test_cythonized_array_utils	150e9	-mnot slow and not xslow	scipy/linalg/tests/test_cythonized_array_utils.py
+scipy	sc-linalg.test_decomp_update	150e9	-mnot slow and not xslow	scipy/linalg/tests/test_decomp_update.py
+scipy	sc-linalg.test_interpolative	150e9	-mnot slow and not xslow	scipy/linalg/tests/test_interpolative.py
+scipy	sc-linalg.test_batch	150e9	-mnot slow and not xslow	scipy/linalg/tests/test_batch.py
+scipy	sc-linalg.test_decomp_lu	150e9	-mnot slow and not xslow	scipy/linalg/tests/test_decomp_lu.py
+scipy	sc-linalg.test_blas	150e9	-mnot slow and not xslow	scipy/linalg/tests/test_blas.py
+scipy	sc-linalg.test_lapack	150e9	-mnot slow and not xslow	scipy/linalg/tests/test_lapack.py
+scipy	sc-ndimage.test_measurements	150e9	-mnot slow and not xslow	scipy/ndimage/tests/test_measurements.py
+scipy	sc-ndimage.test_filters	150e9	-mnot slow and not xslow	scipy/ndimage/tests/test_filters.py
+scipy	sc-optimize.test_minpack	150e9	-mnot slow and not xslow	scipy/optimize/tests/test_minpack.py
+scipy	sc-optimize.test_lbfgsb_setulb	150e9	-mnot slow and not xslow	scipy/optimize/tests/test_lbfgsb_setulb.py
+scipy	sc-optimize.test_lbfgsb_hessinv	150e9	-mnot slow and not xslow	scipy/optimize/tests/test_lbfgsb_hessinv.py
+scipy	sc-optimize.test_slsqp	150e9	-mnot slow and not xslow	scipy/optimize/tests/test_slsqp.py
+scipy	sc-optimize.test_zeros	150e9	-mnot slow and not xslow	scipy/optimize/tests/test_zeros.py
+scipy	sc-optimize.test_linear_assignment	150e9	-mnot slow and not xslow	scipy/optimize/tests/test_linear_assignment.py
+scipy	sc-optimize.test_tnc	150e9	-mnot slow and not xslow	scipy/optimize/tests/test_tnc.py
+scipy	sc-optimize.test_direct	150e9	-mnot slow and not xslow	scipy/optimize/tests/test_direct.py
+scipy	sc-optimize.test_isotonic_regression	150e9	-mnot slow and not xslow	scipy/optimize/tests/test_isotonic_regression.py
+scipy	sc-optimize.test__numdiff	150e9	-mnot slow and not xslow	scipy/optimize/tests/test__numdiff.py
+scipy	sc-optimize.test_milp	150e9	-mnot slow and not xslow	scipy/optimize/tests/test_milp.py
+scipy	sc-optimize.test_lsq_linear	150e9	-mnot slow and not xslow	scipy/optimize/tests/test_lsq_linear.py
+scipy	sc-optimize.test_trustregion_krylov	150e9	-mnot slow and not xslow	scipy/optimize/tests/test_trustregion_krylov.py
+scipy	sc-optimize.test_cython_optimize	150e9	-mnot slow and not xslow	scipy/optimize/tests/test_cython_optimize.py
+scipy	sc-signal.test_max_len_seq	150e9	-mnot slow and not xslow	scipy/signal/tests/test_max_len_seq.py
+scipy	sc-signal.test_upfirdn	150e9	-mnot slow and not xslow	scipy/signal/tests/test_upfirdn.py
+scipy	sc-signal.test_splines	150e9	-mnot slow and not xslow	scipy/signal/tests/test_splines.py
+scipy	sc-signal.test_bsplines	150e9	-mnot slow and not xslow	scipy/signal/tests/test_bsplines.py
+scipy	sc-signal.test_spectral	150e9	-mnot slow and not xslow	scipy/signal/tests/test_spectral.py
+scipy	sc-sparse.test_sparsetools	150e9	-mnot slow and not xslow	scipy/sparse/tests/test_sparsetools.py
+scipy	sc-sparse.test_csr	150e9	-mnot slow and not xslow	scipy/sparse/tests/test_csr.py
+scipy	sc-sparse.test_csc	150e9	-mnot slow and not xslow	scipy/sparse/tests/test_csc.py
+scipy	sc-sparse.test_construct	150e9	-mnot slow and not xslow	scipy/sparse/tests/test_construct.py
+scipy	sc-sparse.csgraph	150e9	-mnot slow and not xslow	scipy/sparse/csgraph/tests
+scipy	sc-sparse.linalg._dsolve	150e9	-mnot slow and not xslow	scipy/sparse/linalg/_dsolve/tests
+scipy	sc-sparse.linalg._eigen.arpack	150e9	-mnot slow and not xslow	scipy/sparse/linalg/_eigen/arpack/tests
+scipy	sc-sparse.linalg.test_propack	150e9	-mnot slow and not xslow	scipy/sparse/linalg/tests/test_propack.py
+scipy	sc-spatial.test_qhull	150e9	-mnot slow and not xslow	scipy/spatial/tests/test_qhull.py
+scipy	sc-spatial.test_kdtree	150e9	-mnot slow and not xslow	scipy/spatial/tests/test_kdtree.py
+scipy	sc-spatial.test_hausdorff	150e9	-mnot slow and not xslow	scipy/spatial/tests/test_hausdorff.py
+scipy	sc-spatial.test_spherical_voronoi	150e9	-mnot slow and not xslow	scipy/spatial/tests/test_spherical_voronoi.py
+scipy	sc-spatial.test_distance	150e9	-mnot slow and not xslow	scipy/spatial/tests/test_distance.py
+scipy	sc-spatial.transform	150e9	-mnot slow and not xslow	scipy/spatial/transform/tests
+scipy	sc-special.test_cython_special	150e9	-mnot slow and not xslow	scipy/special/tests/test_cython_special.py
+scipy	sc-special.test_boost_ufuncs	150e9	-mnot slow and not xslow	scipy/special/tests/test_boost_ufuncs.py
+scipy	sc-special.test_ellip_harm	150e9	-mnot slow and not xslow	scipy/special/tests/test_ellip_harm.py
+scipy	sc-special.test_sph_harm	150e9	-mnot slow and not xslow	scipy/special/tests/test_sph_harm.py
+scipy	sc-special.test_specfun	150e9	-mnot slow and not xslow	scipy/special/tests/test_specfun.py
+scipy	sc-stats.test_qmc	150e9	-mnot slow and not xslow	scipy/stats/tests/test_qmc.py
+scipy	sc-stats.test_sampling	150e9	-mnot slow and not xslow	scipy/stats/tests/test_sampling.py
+scipy	sc-stats.test_contingency	150e9	-mnot slow and not xslow	scipy/stats/tests/test_contingency.py
+scipy	sc-stats.test_discrete_distns	150e9	-mnot slow and not xslow	scipy/stats/tests/test_discrete_distns.py
+scipy	sc-stats.test_rank	150e9	-mnot slow and not xslow	scipy/stats/tests/test_rank.py
+scikit-learn	sk-tree.test_tree	150e9	sklearn/tree/tests/test_tree.py
+scikit-learn	sk-tree.test_split	150e9	sklearn/tree/tests/test_split.py
+scikit-learn	sk-tree.test_monotonic_tree	150e9	sklearn/tree/tests/test_monotonic_tree.py
+scikit-learn	sk-tree.test_export	150e9	sklearn/tree/tests/test_export.py
+scikit-learn	sk-ensemble.test_iforest	150e9	sklearn/ensemble/tests/test_iforest.py
+scikit-learn	sk-ensemble._hist_gradient_boosting.test_splitting	150e9	sklearn/ensemble/_hist_gradient_boosting/tests/test_splitting.py
+scikit-learn	sk-ensemble._hist_gradient_boosting.test_histogram	150e9	sklearn/ensemble/_hist_gradient_boosting/tests/test_histogram.py
+scikit-learn	sk-ensemble._hist_gradient_boosting.test_binning	150e9	sklearn/ensemble/_hist_gradient_boosting/tests/test_binning.py
+scikit-learn	sk-ensemble._hist_gradient_boosting.test_predictor	150e9	sklearn/ensemble/_hist_gradient_boosting/tests/test_predictor.py
+scikit-learn	sk-cluster.test_k_means	150e9	sklearn/cluster/tests/test_k_means.py
+scikit-learn	sk-cluster.test_dbscan	150e9	sklearn/cluster/tests/test_dbscan.py
+scikit-learn	sk-cluster._hdbscan	150e9	sklearn/cluster/_hdbscan/tests
+scikit-learn	sk-feature_extraction.test_feature_hasher	150e9	sklearn/feature_extraction/tests/test_feature_hasher.py
+scikit-learn	sk-_loss.test_loss	150e9	sklearn/_loss/tests/test_loss.py
+scikit-learn	sk-datasets.test_svmlight_format	150e9	sklearn/datasets/tests/test_svmlight_format.py
+scikit-learn	sk-linear_model.test_sag	150e9	sklearn/linear_model/tests/test_sag.py
+scikit-learn	sk-linear_model.test_base	150e9	sklearn/linear_model/tests/test_base.py
+scikit-learn	sk-metrics.test_pairwise	150e9	sklearn/metrics/tests/test_pairwise.py
+scikit-learn	sk-metrics.test_pairwise_distances_reduction	150e9	sklearn/metrics/tests/test_pairwise_distances_reduction.py
+scikit-learn	sk-metrics.cluster	150e9	sklearn/metrics/cluster/tests
+scikit-learn	sk-manifold.test_t_sne	150e9	sklearn/manifold/tests/test_t_sne.py
+scikit-learn	sk-manifold.test_isomap	150e9	sklearn/manifold/tests/test_isomap.py
+scikit-learn	sk-neighbors.test_kd_tree	150e9	sklearn/neighbors/tests/test_kd_tree.py
+scikit-learn	sk-neighbors.test_ball_tree	150e9	sklearn/neighbors/tests/test_ball_tree.py
+scikit-learn	sk-neighbors.test_quad_tree	150e9	sklearn/neighbors/tests/test_quad_tree.py
+scikit-learn	sk-neighbors.test_neighbors_tree	150e9	sklearn/neighbors/tests/test_neighbors_tree.py
+scikit-learn	sk-preprocessing.test_polynomial	150e9	sklearn/preprocessing/tests/test_polynomial.py
+scikit-learn	sk-preprocessing.test_target_encoder	150e9	sklearn/preprocessing/tests/test_target_encoder.py
+scikit-learn	sk-svm	150e9	sklearn/svm/tests
+scikit-learn	sk-utils.test_sparsefuncs	150e9	sklearn/utils/tests/test_sparsefuncs.py
+scikit-learn	sk-utils.test_cython_blas	150e9	sklearn/utils/tests/test_cython_blas.py
+scikit-learn	sk-utils.test_murmurhash	150e9	sklearn/utils/tests/test_murmurhash.py
+scikit-learn	sk-utils.test_fast_dict	150e9	sklearn/utils/tests/test_fast_dict.py
+scikit-learn	sk-utils.test_seq_dataset	150e9	sklearn/utils/tests/test_seq_dataset.py
+scikit-learn	sk-utils.test_arrayfuncs	150e9	sklearn/utils/tests/test_arrayfuncs.py
+scikit-learn	sk-utils.test_random	150e9	sklearn/utils/tests/test_random.py
+scikit-learn	sk-utils.test_typedefs	150e9	sklearn/utils/tests/test_typedefs.py
+scikit-learn	sk-utils.test_weight_vector	150e9	sklearn/utils/tests/test_weight_vector.py
+scikit-learn	sk-utils.test_graph	150e9	sklearn/utils/tests/test_graph.py
+scikit-learn	sk-utils._repr_html	150e9	sklearn/utils/_repr_html/tests
+scikit-learn	sk-decomposition.test_online_lda	150e9	sklearn/decomposition/tests/test_online_lda.py
+scikit-learn	sk-decomposition.test_nmf	150e9	sklearn/decomposition/tests/test_nmf.py
+scikit-learn	sk-decomposition.test_pca	150e9	sklearn/decomposition/tests/test_pca.py
+scikit-learn	sk-tests.test_isotonic	150e9	sklearn/tests/test_isotonic.py
+scikit-learn	sk-tests.test_check_build	150e9	sklearn/tests/test_check_build.py
+statsmodels	sm-regression.test_regression	150e9	statsmodels/regression/tests/test_regression.py
+statsmodels	sm-regression.test_glsar_gretl	150e9	statsmodels/regression/tests/test_glsar_gretl.py
+statsmodels	sm-nonparametric.test_lowess	150e9	statsmodels/nonparametric/tests/test_lowess.py
+statsmodels	sm-nonparametric.test_kde	150e9	statsmodels/nonparametric/tests/test_kde.py
+statsmodels	sm-robust.test_scale	150e9	statsmodels/robust/tests/test_scale.py
+statsmodels	sm-tsa.stl.test_stl	150e9	statsmodels/tsa/stl/tests/test_stl.py
+statsmodels	sm-tsa.test_exponential_smoothing	150e9	statsmodels/tsa/tests/test_exponential_smoothing.py
+statsmodels	sm-tsa.innovations	150e9	statsmodels/tsa/innovations/tests
+statsmodels	sm-tsa.arima	150e9	statsmodels/tsa/arima/tests
+statsmodels	sm-tsa.regime_switching.test_markov_regression	150e9	statsmodels/tsa/regime_switching/tests/test_markov_regression.py
+statsmodels	sm-tsa.regime_switching.test_markov_autoregression	150e9	statsmodels/tsa/regime_switching/tests/test_markov_autoregression.py
+statsmodels	sm-tsa.statespace.test_simulation_smoothing	150e9	statsmodels/tsa/statespace/tests/test_simulation_smoothing.py
+statsmodels	sm-tsa.statespace.test_tools	150e9	statsmodels/tsa/statespace/tests/test_tools.py
+statsmodels	sm-tsa.statespace.test_kalman	150e9	statsmodels/tsa/statespace/tests/test_kalman.py
+statsmodels	sm-genmod.families	150e9	statsmodels/genmod/families/tests
+statsmodels	sm-formula	150e9	statsmodels/formula/tests
+statsmodels	sm-iolib	150e9	statsmodels/iolib/tests
+statsmodels	sm-tsa.filters	150e9	statsmodels/tsa/filters/tests

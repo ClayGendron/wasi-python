@@ -1,0 +1,129 @@
+sc-cluster.hierarchy	32.7	0	None	{"passed": 190}	91
+sc-cluster.vq	30.8	0	None	{"passed": 35}	91
+sc-conv@clock1ms	37.9	0	None	{"passed": 1}	91
+sc-fft._duccfft.test_basic	56.4	0	None	{"passed": 459}	91
+sc-fft.test_basic	27.7	0	None	{"failed": 10, "passed": 161}	91
+sc-fftpack.test_pseudo_diffs	21.3	0	None	{"passed": 29}	91
+sc-integrate._ivp	36.4	0	None	{"passed": 68}	91
+sc-integrate.test_integrate	21.2	0	None	{"passed": 48}	91
+sc-integrate.test_quadrature	38.7	0	None	{"passed": 302}	91
+sc-interpolate.test_bsplines	71.9	0	None	{"failed": 3, "passed": 532, "xfailed": 1}	91
+sc-interpolate.test_fitpack	22.5	0	None	{"failed": 1, "passed": 44, "skipped": 1}	91
+sc-interpolate.test_fitpack2	30.1	0	None	{"failed": 1, "passed": 102}	91
+sc-interpolate.test_interpnd	24.1	0	None	{"passed": 33}	91
+sc-interpolate.test_rbfinterp	150.0	None	out of fuel	{"passed": 109}	0
+sc-interpolate.test_rgi	62.3	0	None	{"failed": 1, "passed": 212, "skipped": 14}	91
+sc-io.matlab	35.3	0	None	{"passed": 105}	91
+sc-io.test_mmio	26.1	0	None	{"error": 146, "failed": 4, "passed": 8}	92
+sc-linalg.test_batch	46.0	0	None	{"passed": 513}	92
+sc-linalg.test_blas	23.1	0	None	{"passed": 172, "skipped": 166, "xfailed": 1}	91
+sc-linalg.test_cython_blas	20.2	0	None	{"passed": 8}	91
+sc-linalg.test_cython_lapack	20.1	0	None	{"passed": 4}	91
+sc-linalg.test_cythonized_array_utils	20.5	0	None	{"passed": 33}	91
+sc-linalg.test_decomp_cholesky	24.8	0	None	{"passed": 232}	91
+sc-linalg.test_decomp_lu	21.2	0	None	{"passed": 92}	91
+sc-linalg.test_decomp_update	43.5	0	None	{"passed": 665}	91
+sc-linalg.test_interpolative	62.3	0	None	{"passed": 48}	91
+sc-linalg.test_matfuncs	66.1	0	None	{"passed": 157, "xfailed": 5, "xpassed": 1}	92
+sc-linalg.test_solve_toeplitz	20.4	0	None	{"passed": 31, "xpassed": 1}	91
+sc-ndimage.test_measurements	22.9	0	None	{"passed": 125}	91
+sc-optimize.test__numdiff	21.6	0	None	{"failed": 4, "passed": 48}	91
+sc-optimize.test_cython_optimize	20.1	0	None	{"passed": 5}	92
+sc-optimize.test_direct	22.8	0	None	{"passed": 62}	91
+sc-optimize.test_isotonic_regression	20.7	0	None	{"passed": 45}	91
+sc-optimize.test_lbfgsb_hessinv	21.3	0	None	{"passed": 3}	91
+sc-optimize.test_lbfgsb_setulb	20.2	0	None	{"passed": 2}	91
+sc-optimize.test_linear_assignment	21.4	0	None	{"passed": 22}	91
+sc-optimize.test_lsq_linear	52.9	0	None	{"passed": 21}	91
+sc-optimize.test_milp	37.2	0	None	{"passed": 12, "xfailed": 2}	91
+sc-optimize.test_minpack	24.1	0	None	{"failed": 4, "passed": 94}	91
+sc-optimize.test_slsqp	21.1	0	None	{"passed": 38}	91
+sc-optimize.test_tnc	21.2	0	None	{"passed": 20}	91
+sc-optimize.test_trustregion_krylov	20.2	0	None	{"passed": 5}	91
+sc-optimize.test_zeros	26.4	0	None	{"passed": 170}	91
+sc-signal.test_bsplines	20.6	0	None	{"passed": 24, "xfailed": 5, "xpassed": 2}	91
+sc-signal.test_max_len_seq	20.2	0	None	{"passed": 2}	91
+sc-signal.test_splines	21.0	0	None	{"passed": 77}	91
+sc-signal.test_upfirdn	30.0	0	None	{"passed": 305}	91
+sc-sparse.csgraph	45.6	0	None	{"passed": 1345, "skipped": 58}	92
+sc-sparse.linalg._dsolve	24.4	0	None	{"passed": 62, "skipped": 7}	91
+sc-sparse.linalg._eigen.arpack	46.8	0	None	{"failed": 1, "passed": 689}	91
+sc-sparse.linalg.test_propack	22.5	0	None	{"passed": 68}	91
+sc-sparse.test_construct	25.6	0	None	{"passed": 103}	91
+sc-sparse.test_csc	23.1	0	None	{"passed": 11, "skipped": 8}	91
+sc-sparse.test_csr	20.6	0	None	{"passed": 14, "xfailed": 4}	91
+sc-sparse.test_sparsetools	20.7	0	None	{"failed": 1, "passed": 4, "skipped": 2}	91
+sc-spatial.test_distance	53.7	0	None	{"passed": 445, "skipped": 6}	91
+sc-spatial.test_hausdorff	20.3	0	None	{"passed": 18}	91
+sc-spatial.test_kdtree	91.0	0	None	{"failed": 7, "passed": 233}	91
+sc-spatial.test_qhull	66.5	0	None	{"passed": 189}	91
+sc-spatial.test_spherical_voronoi	23.8	0	None	{"passed": 119}	91
+sc-spatial.transform	39.6	0	None	{"passed": 641, "skipped": 1}	91
+sc-special.test_boost_ufuncs	20.3	0	None	{"passed": 19}	91
+sc-special.test_cython_special	64.3	0	None	{"passed": 214, "xfailed": 21}	91
+sc-special.test_ellip_harm	21.9	0	None	{"passed": 5}	91
+sc-special.test_specfun	20.1	0	None	{"passed": 5}	91
+sc-special.test_sph_harm	23.2	0	None	{"passed": 15}	91
+sc-start	20.1	0	None	{}	91
+sc-stats.test_contingency	20.3	0	None	{"passed": 14}	91
+sc-stats.test_discrete_distns	22.9	0	None	{"passed": 89}	91
+sc-stats.test_qmc	59.3	0	None	{"error": 1, "failed": 4, "passed": 155, "skipped": 14, "xfailed": 1}	91
+sc-stats.test_rank	28.0	0	None	{"passed": 79}	91
+sc-stats.test_sampling	64.9	0	None	{"failed": 1, "passed": 352, "skipped": 28}	92
+scikit-learn-smoke	205.5	0	None	{"failed": 2, "passed": 1467, "skipped": 189, "xfailed": 5, "xpassed": 8}	69
+scipy-smoke-a	207.4	0	None	{"failed": 1, "passed": 2033, "skipped": 10, "xfailed": 30, "xpassed": 2}	92
+scipy-smoke-b	221.8	0	None	{"error": 147, "failed": 28, "passed": 2322, "skipped": 43, "xfailed": 8, "xpassed": 2}	94
+sk-_loss.test_loss	55.1	0	None	{"failed": 640, "passed": 1189, "skipped": 384}	67
+sk-cluster._hdbscan	26.5	0	None	{"passed": 8}	67
+sk-cluster.test_dbscan	28.8	0	None	{"passed": 32}	67
+sk-cluster.test_k_means	50.3	0	None	{"failed": 3, "passed": 273, "skipped": 6}	67
+sk-datasets.test_svmlight_format	31.2	0	None	{"failed": 1, "passed": 91, "skipped": 1}	67
+sk-decomposition.test_nmf	66.3	0	None	{"passed": 284}	67
+sk-decomposition.test_online_lda	52.4	0	None	{"passed": 57}	67
+sk-ensemble._hist_gradient_boosting.test_binning	98.1	0	None	{"passed": 63}	67
+sk-ensemble._hist_gradient_boosting.test_histogram	26.5	0	None	{"passed": 7}	67
+sk-ensemble._hist_gradient_boosting.test_predictor	27.2	0	None	{"passed": 10}	67
+sk-ensemble._hist_gradient_boosting.test_splitting	28.4	0	None	{"passed": 31, "skipped": 2}	67
+sk-ensemble.test_gradient_boosting	150.0	None	out of fuel	{"passed": 104, "skipped": 13}	0
+sk-feature_extraction.test_feature_hasher	26.6	0	None	{"passed": 13}	67
+sk-group-a	234.9	0	None	{"failed": 3, "passed": 843, "skipped": 138, "xfailed": 5, "xpassed": 8}	68
+sk-group-b	266.4	0	None	{"failed": 10, "passed": 2102, "skipped": 350}	68
+sk-linear_model.test_base	35.5	0	None	{"passed": 76, "skipped": 2, "xfailed": 4, "xpassed": 8}	67
+sk-linear_model.test_perceptron	27.1	0	None	{"passed": 6}	67
+sk-linear_model.test_sag	38.3	0	None	{"passed": 27}	67
+sk-linear_model.test_sparse_coordinate_descent	49.1	0	None	{"failed": 2, "passed": 157}	67
+sk-manifold.test_t_sne	150.0	None	out of fuel	{"passed": 64, "skipped": 1}	0
+sk-metrics.cluster	37.0	0	None	{"passed": 189, "skipped": 45}	67
+sk-metrics.test_pairwise	84.7	0	None	{"passed": 360, "skipped": 226, "xfailed": 2}	67
+sk-metrics.test_pairwise_distances_reduction	78.7	0	None	{"failed": 8, "passed": 123}	67
+sk-neighbors.test_ball_tree	28.0	0	None	{"passed": 64}	67
+sk-neighbors.test_kd_tree	27.3	0	None	{"passed": 13}	67
+sk-neighbors.test_quad_tree	26.5	0	None	{"passed": 11}	67
+sk-preprocessing.test_polynomial	64.6	0	None	{"failed": 1, "passed": 627, "skipped": 255}	67
+sk-preprocessing.test_target_encoder	64.0	0	None	{"passed": 65}	67
+sk-start	26.4	0	None	{}	68
+sk-svm	48.0	0	None	{"failed": 1, "passed": 172, "skipped": 134, "xfailed": 1}	68
+sk-tests.test_isotonic	27.9	0	None	{"passed": 49}	67
+sk-tree.test_monotonic_tree	72.0	0	None	{"passed": 224}	67
+sk-tree.test_split	48.4	0	None	{"passed": 30}	67
+sk-utils._repr_html	42.1	0	None	{"passed": 93, "skipped": 5}	67
+sk-utils.test_arrayfuncs	26.5	0	None	{"passed": 18}	67
+sk-utils.test_cython_blas	26.8	0	None	{"skipped": 44}	67
+sk-utils.test_fast_dict	26.5	0	None	{"passed": 3}	67
+sk-utils.test_murmurhash	27.2	0	None	{"passed": 6}	67
+sk-utils.test_random	30.6	0	None	{"passed": 5}	67
+sk-utils.test_seq_dataset	27.0	0	None	{"passed": 20}	67
+sk-utils.test_sparsefuncs	33.6	0	None	{"passed": 360}	67
+sk-utils.test_typedefs	26.5	0	None	{"passed": 9}	68
+sk-utils.test_weight_vector	26.4	0	None	{"passed": 2}	67
+sm-group	71.9	0	None	{"failed": 3, "passed": 496, "skipped": 3, "xfailed": 1}	26
+sm-nonparametric.test_kde	149.5	0	None	{"passed": 61, "skipped": 1, "xfailed": 6}	21
+sm-regression.test_regression	57.2	0	None	{"error": 40, "failed": 1, "passed": 334, "skipped": 2}	26
+sm-start	26.4	0	None	{}	20
+sm-tsa.holtwinters.test_holtwinters	150.0	None	out of fuel	{"passed": 23, "xfailed": 2}	0
+sm-tsa.regime_switching.test_markov_regression	67.7	0	None	{"passed": 45}	22
+sm-tsa.statespace.test_kalman	33.7	0	None	{"passed": 42, "skipped": 8}	20
+sm-tsa.statespace.test_simulation_smoothing	34.3	0	None	{"passed": 44}	20
+sm-tsa.stl.test_stl	34.8	0	None	{"passed": 20}	21
+sm-tsa.test_exponential_smoothing	150.0	None	out of fuel	{"passed": 151, "skipped": 107}	0
+statsmodels-smoke	136.0	0	None	{"error": 40, "failed": 4, "passed": 939, "skipped": 5, "xfailed": 1}	26

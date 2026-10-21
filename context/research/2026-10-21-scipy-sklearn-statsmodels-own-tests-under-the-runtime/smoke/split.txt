@@ -1,0 +1,21 @@
+scipy: 329 test files; 63 in smoke paths (normal tier, their marked tests release), 266 in 28 path release groups (47 smoke paths ignored by construction); rules: clean
+  mutant, path release group scipy-_lib dropped: REFUSED: scipy: scipy/_lib/tests/test__gcutils.py is in 0 path release groups, not one
+  mutant, a path release group over a smoke path: REFUSED: scipy: path release group x-inside's scipy/special/tests/test_cython_special.py lies in a smoke path
+  mutant, an empty smoke reason: REFUSED: scipy: normal group scipy-smoke-a gives no smoke reason
+  mutant, path release groups and no smoke group: REFUSED: scipy: release group scipy-_lib: a path release group needs smoke groups
+  mutant, a [[release_select]] in a smoke family: REFUSED: scipy: a family with smoke groups has no [[release_select]]
+  mutant, smoke groups past the budget: REFUSED: scipy: the smoke groups' measured fuel 721,784,341,840 is past 500,000,000,000
+scikit-learn: 256 test files; 37 in smoke paths (normal tier), 219 in 32 path release groups (24 smoke paths ignored by construction); rules: clean
+  mutant, path release group scikit-learn-_loss dropped: REFUSED: scikit-learn: sklearn/_loss/tests/test_link.py is in 0 path release groups, not one
+  mutant, a path release group over a smoke path: REFUSED: scikit-learn: path release group x-inside's sklearn/tree/tests/test_split.py lies in a smoke path
+  mutant, an empty smoke reason: REFUSED: scikit-learn: normal group scikit-learn-smoke gives no smoke reason
+  mutant, path release groups and no smoke group: REFUSED: scikit-learn: release group scikit-learn-_loss: a path release group needs smoke groups
+  mutant, a [[release_select]] in a smoke family: REFUSED: scikit-learn: a family with smoke groups has no [[release_select]]
+  mutant, smoke groups past the budget: REFUSED: scikit-learn: the smoke groups' measured fuel 500,000,000,001 is past 500,000,000,000
+statsmodels: 285 test files; 26 in smoke paths (normal tier), 259 in 44 path release groups (7 smoke paths ignored by construction); rules: clean
+  mutant, path release group statsmodels-base dropped: REFUSED: statsmodels: statsmodels/base/tests/test_constraints.py is in 0 path release groups, not one
+  mutant, a path release group over a smoke path: REFUSED: statsmodels: path release group x-inside's statsmodels/regression/tests/test_regression.py lies in a smoke path
+  mutant, an empty smoke reason: REFUSED: statsmodels: normal group statsmodels-smoke gives no smoke reason
+  mutant, path release groups and no smoke group: REFUSED: statsmodels: release group statsmodels-base: a path release group needs smoke groups
+  mutant, a [[release_select]] in a smoke family: REFUSED: statsmodels: a family with smoke groups has no [[release_select]]
+  mutant, smoke groups past the budget: REFUSED: statsmodels: the smoke groups' measured fuel 500,000,000,001 is past 500,000,000,000

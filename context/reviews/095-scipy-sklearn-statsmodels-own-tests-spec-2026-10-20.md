@@ -630,3 +630,72 @@ covering each compiled family and each carried patch) and D-M3 (the clock-timed 
 own clock step, or a reserved closer) are written in and confirmed. D-L1, D-L2 and D-N1 are
 answered in writing, and rule (8) goes to the owner as a question. Building waits for that
 confirmation (Decision 1).
+
+## Disposition of the delta review (filled in by the author, then confirmed by the reviewer)
+
+By the builder, 2026-10-21, who took over the specification from its stopped drafter and wrote
+none of the survey. Every finding is written into the specification; none is declined. New
+measurements are EXECUTED on the main tree's frozen set `SHA256SUMS d0d91cef` (wave 10's), one
+guest at a time, never while `build/lane.lock` existed; the memo's section *Smoke selection, the
+clock-stepped test and the split* and its folder `smoke/` hold the records.
+
+1. **D-M1 — fixed, as the fix text says, as a request to 102.** A new section, *For 102: the
+   smoke kind*, gives the exact change 102 must make: a group key `smoke` (a reason in words) on
+   every normal group of a smoke family; a fourth kind, `release_by = "path"`, whose groups run
+   their paths whole with no `-m` and ignore by construction each smoke path under them; the
+   paths rules (no path release path in a smoke path, none in two path groups, every staged test
+   file under exactly one smoke path or one path release group when the tarball is present, no
+   `[[release_select]]` in a smoke family; 102's marker rule unchanged over the smoke paths); a
+   500 G smoke budget; and Decision 6's ledger widened to local `--tier release` runs. It lists
+   102's unit rows on a three-file synthetic family. Depends on (102) now says 095 needs this kind
+   and adds no other. Decision 7 drops `-k "not (S)"`. **Proved on the real stage**:
+   `smoke/split.py` carries those rules and runs them on the three pinned tarballs with Decision
+   7's smoke groups and one path release group per staged folder: clean for all three (scipy 329
+   files, 63 smoke and 266 in 28 path groups; scikit-learn 256, 37, 219 in 32; statsmodels 285, 26,
+   259 in 44), and each of six mutants per family refused with its own line (`smoke/split.txt`).
+   Criterion 7 runs the same rules on the real TOMLs. The lane routes the request to 102's builder.
+2. **D-M2 — fixed, as the fix text says.** Decision 7 states the selection rule: every compiled
+   family from the product's own `sys.builtin_module_names` (95, 69 and 26 modules; 31, 19 and 11
+   families) is touched by the cheapest file of its own tests, or by a named golden-job line where
+   the file costs more than about 15 G net; the review's named families (scipy.special,
+   `sparsetools`, qhull, HiGHS, scikit-learn's trees, statsmodels' OLS) and every carried patch
+   (scipy's four, OpenBLAS's void LAPACK, qhull's, scikit-learn's html repr, statsmodels'
+   datasets) always by a smoke file; the main entry points named; whole paths only; at most 500 G
+   a package; four named release-only exceptions with their reasons (scipy `_levy_stable` and
+   `_lib`, statsmodels `linbin` and `exponential_smoothing`). Your candidates were measured among
+   117 probes; `test_cython_special.py`, `test_sparsetools.py`, `test_qhull.py`, `test_milp.py`
+   (HiGHS), `test_qmc.py`, `test_mmio.py`, `fft/tests/test_basic.py`, `test_matfuncs.py`,
+   `tree/tests/test_split.py`, `test_sparsefuncs.py`, `test_kd_tree.py`, HGB's `test_splitting.py`,
+   `test_regression.py`, `test_lowess.py` and `test_stl.py` are in. The four groups, each
+   measured whole: **`scipy-smoke-a` 207.4 G, `scipy-smoke-b` 221.8 G, `scikit-learn-smoke`
+   205.5 G, `statsmodels-smoke` 136.0 G, 770.6 G in all**, every failure a member of a measured
+   class. Decision 7's table gives each group's paths and cover, and the golden lines that stand
+   in. A new `[smoke_cover]` table per TOML, checked against the compiled-family list, holds the
+   rule against drift (criterion 1). Decision 12 now packs them in two normal Linux shards; the
+   price section moves to 770.6 G.
+3. **D-M3 — fixed, the preferred way.** With `guest.run`'s existing `clock_step_ns` at 1 ms,
+   `test_choose_conv_method[numpy]` **passed**: one outcome, 37.92 G for the session (EXECUTED).
+   Decision 10 now runs it in the release tier, alone, as the first split group of
+   `signal/tests/test_signaltools.py`'s path release split, with a new group key
+   `clock_step_ns` and its `clock_reason` in words; the key is allowed only on a release group,
+   from 1 µs to 1 ms, and a run of such a group with more than one outcome is red (Decision 14,
+   criterion 1). No reservation is needed; For the lane says so. Your lead on
+   `_mptestutils.py`'s `sys.settrace` timer is in Decision 11 for the build to measure.
+4. **D-L1 — answered in writing.** Decision 11 measures `special` and `stats` to the end under
+   20 T each, splits at the file where a session reaches the cap, and the memo states the release
+   tier's measured total and darwin minutes; the price states the bound (at most about 81 T).
+5. **D-L2 — answered in writing.** Decision 9 splits `no-native-id` into
+   `no-native-id-test-names` (`io`'s temporary names) and `no-native-id-uarray` (the library's
+   call), and gives the README text in words: "`scipy.fft.set_backend` and
+   `scipy.fft.skip_backend` (and every uarray `set_backend`/`skip_backend` in scipy) raise
+   `AttributeError: module 'threading' has no attribute 'get_native_id'` in this build …". For the
+   lane asks for a number for the product finding. `enotsup-io` names its call: numpy's
+   `tofile`/`fromfile` duplicate the descriptor, which preview1 refuses; EXECUTED, a path fails
+   too, so the README's advice is `tobytes`/`frombuffer`.
+6. **D-N1 (rule (8)) — struck, by the owner's words**, not filed as a question: "We only run slow
+   tests when we are trying to publish to pypi". Decision 7 now says no branch run runs release
+   groups and the smoke groups confirm an edit (the reason D-M2's cover matters); criterion 12
+   drops 095's own `release-tier: true` dispatch, its release groups measured locally by node id
+   (criterion 5), its claim block written from those runs (*For 102* item 6).
+
+**Not changed:** items 1 and 4 to 12 of the delta, which the review found sound.

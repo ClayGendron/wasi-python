@@ -1,0 +1,78 @@
+"""The smoke groups as chosen by the stated rule, one session each.
+
+    uv run python build/095b/survey/mkfinal.py
+"""
+
+from pathlib import Path
+
+S = Path.cwd() / "build/095b/survey"
+M = "-mnot slow and not xslow"
+GROUPS = {
+    "scipy-smoke-a": ("scipy", [M], [
+        "scipy/special/tests/test_cython_special.py", "scipy/special/tests/test_boost_ufuncs.py",
+        "scipy/special/tests/test_ellip_harm.py", "scipy/special/tests/test_sph_harm.py",
+        "scipy/special/tests/test_specfun.py",
+        "scipy/sparse/tests/test_sparsetools.py", "scipy/sparse/tests/test_csr.py",
+        "scipy/sparse/tests/test_construct.py", "scipy/sparse/linalg/_dsolve/tests",
+        "scipy/sparse/linalg/tests/test_propack.py",
+        "scipy/spatial/tests/test_qhull.py", "scipy/spatial/tests/test_hausdorff.py",
+        "scipy/spatial/tests/test_spherical_voronoi.py", "scipy/spatial/transform/tests",
+        "scipy/linalg/tests/test_decomp_cholesky.py", "scipy/linalg/tests/test_solve_toeplitz.py",
+        "scipy/linalg/tests/test_matfuncs.py", "scipy/linalg/tests/test_cython_blas.py",
+        "scipy/linalg/tests/test_cython_lapack.py",
+        "scipy/linalg/tests/test_cythonized_array_utils.py",
+        "scipy/linalg/tests/test_decomp_lu.py",
+    ]),
+    "scipy-smoke-b": ("scipy", [M], [
+        "scipy/cluster/hierarchy/tests", "scipy/cluster/vq/tests", "scipy/fft/tests/test_basic.py",
+        "scipy/fftpack/tests/test_pseudo_diffs.py", "scipy/integrate/tests/test_integrate.py",
+        "scipy/interpolate/tests/test_fitpack.py", "scipy/interpolate/tests/test_interpnd.py",
+        "scipy/io/tests/test_mmio.py", "scipy/io/matlab/tests",
+        "scipy/ndimage/tests/test_measurements.py",
+        "scipy/optimize/tests/test_minpack.py", "scipy/optimize/tests/test_lbfgsb_setulb.py",
+        "scipy/optimize/tests/test_lbfgsb_hessinv.py", "scipy/optimize/tests/test_slsqp.py",
+        "scipy/optimize/tests/test_zeros.py", "scipy/optimize/tests/test_linear_assignment.py",
+        "scipy/optimize/tests/test_tnc.py", "scipy/optimize/tests/test_direct.py",
+        "scipy/optimize/tests/test_isotonic_regression.py", "scipy/optimize/tests/test__numdiff.py",
+        "scipy/optimize/tests/test_milp.py", "scipy/optimize/tests/test_trustregion_krylov.py",
+        "scipy/optimize/tests/test_cython_optimize.py",
+        "scipy/signal/tests/test_max_len_seq.py", "scipy/signal/tests/test_upfirdn.py",
+        "scipy/signal/tests/test_splines.py", "scipy/signal/tests/test_bsplines.py",
+        "scipy/stats/tests/test_qmc.py", "scipy/stats/tests/test_contingency.py",
+        "scipy/stats/tests/test_discrete_distns.py", "scipy/stats/tests/test_sampling.py",
+    ]),
+    "scikit-learn-smoke": ("scikit-learn", [], [
+        "sklearn/tree/tests/test_split.py",
+        "sklearn/ensemble/_hist_gradient_boosting/tests/test_splitting.py",
+        "sklearn/ensemble/_hist_gradient_boosting/tests/test_histogram.py",
+        "sklearn/ensemble/_hist_gradient_boosting/tests/test_predictor.py",
+        "sklearn/cluster/tests/test_dbscan.py", "sklearn/cluster/_hdbscan/tests",
+        "sklearn/svm/tests", "sklearn/linear_model/tests/test_base.py",
+        "sklearn/linear_model/tests/test_sag.py", "sklearn/linear_model/tests/test_perceptron.py",
+        "sklearn/feature_extraction/tests/test_feature_hasher.py",
+        "sklearn/datasets/tests/test_svmlight_format.py", "sklearn/metrics/cluster/tests",
+        "sklearn/neighbors/tests/test_kd_tree.py", "sklearn/neighbors/tests/test_ball_tree.py",
+        "sklearn/neighbors/tests/test_quad_tree.py",
+        "sklearn/preprocessing/tests/test_target_encoder.py",
+        "sklearn/utils/tests/test_sparsefuncs.py", "sklearn/utils/tests/test_murmurhash.py",
+        "sklearn/utils/tests/test_fast_dict.py", "sklearn/utils/tests/test_seq_dataset.py",
+        "sklearn/utils/tests/test_arrayfuncs.py", "sklearn/utils/tests/test_random.py",
+        "sklearn/utils/tests/test_typedefs.py", "sklearn/utils/tests/test_weight_vector.py",
+        "sklearn/utils/_repr_html/tests", "sklearn/decomposition/tests/test_online_lda.py",
+        "sklearn/tests/test_isotonic.py",
+    ]),
+    "statsmodels-smoke": ("statsmodels", [], [
+        "statsmodels/regression/tests/test_regression.py",
+        "statsmodels/nonparametric/tests/test_lowess.py",
+        "statsmodels/robust/tests/test_scale.py", "statsmodels/tsa/innovations/tests",
+        "statsmodels/tsa/arima/tests", "statsmodels/tsa/statespace/tests/test_tools.py",
+        "statsmodels/tsa/statespace/tests/test_simulation_smoothing.py",
+        "statsmodels/tsa/regime_switching/tests/test_markov_regression.py",
+        "statsmodels/tsa/stl/tests/test_stl.py", "statsmodels/genmod/families/tests",
+        "statsmodels/formula/tests", "statsmodels/iolib/tests", "statsmodels/tsa/filters/tests",
+    ]),
+}
+lines = ["\t".join([fam, name, "480e9", *marker, *paths])
+         for name, (fam, marker, paths) in GROUPS.items()]
+(S / "jobs-final.tsv").write_text("\n".join(lines) + "\n")
+print(len(lines), "jobs")
