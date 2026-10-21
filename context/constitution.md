@@ -52,6 +52,9 @@
   Amended 2026-10-20 by the owner, to cut duplicate CI runs: a reviewer
   reads the builder's release workflow run when it is on the exact
   commit reviewed, in place of its own dispatch (§5.6).
+  Amended 2026-10-21 by the owner's answer to question 108: a
+  structural change is reviewed before it is built, and a structural
+  review of `src/` precedes each release beside the security review (§5.6).
 - **Owner:** Clay Gendron
 - **Scope:** every document, script, recipe and line of code in this
   repository, and every agent or person working on it. The other
@@ -298,11 +301,18 @@ works.
    wave). A specification that changes
    the guest's imports or exports, the artifact set or the build
    recipe is reviewed once more before it is built, so a wrong design
-   is caught before it is code. Reviews live in `context/reviews/`.
+   is caught before it is code. A specification that is structural (AGENTS.md: it adds a module-level mutable or lock outside the
+   process object's module, a use of the engine's private API outside the engine seam, a platform
+   branch outside the platform module, a test seam not on the process object, or takes a module
+   or a function past its ceiling) is reviewed before it is built in the same way, against the
+   structural rubric in `reviews/README.md` (owner, 2026-10-21, question 108). Reviews live in `context/reviews/`.
    Before each release, a fresh reviewer checks the release against
    the written threat model (`research/2026-10-16-a-principal-engineers-direction.md`,
    section 2) and the changes since the last release; the release
-   waits on its findings (owner, 2026-10-17).
+   waits on its findings (owner, 2026-10-17). Before each release a fresh
+   reviewer also writes a structural review of `src/` against that rubric, recorded under
+   `reviews/` beside the security review; the release waits on its High findings (owner,
+   2026-10-21, question 108).
 7. **One landing lane.** Builders and reviewers may work in parallel,
    each in its own worktree. Main changes in one place only: the lane
    rebases one reviewed branch onto main, compares it with what was

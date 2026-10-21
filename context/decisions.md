@@ -8,6 +8,31 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### Questions 108 to 111 (2026-10-21, early morning)
+
+Asked one by one, each with the lane's recommendation.
+
+- **108 (a structural review is a stage):** "Yes, amend as written." §5.6 now says a structural
+  specification is reviewed before it is built against the rubric in `reviews/README.md`, and a
+  fresh structural review of `src/` precedes each release beside the security review; the release
+  waits on its High findings. The constitution's Status line records it. 0.1.0 needs
+  `reviews/0.1.0-structural-review-<date>.md` (spec 108's check).
+- **109 (Docker Desktop stopped):** the lane may start it. Standing rule: when Docker Desktop's
+  engine has stopped (`docker` does not answer), the lane restarts it itself without asking. The
+  lane restarted it that morning (its backend, running since 2026-09-04, would not stop; it was
+  ended and the app started; engine 29.7.2).
+- **110 (spec 095's four choices):** keep all four defaults: spec 088 widens to scipy's seven
+  test-only C modules; the upstream opt-in modes (scikit-learn's seed sweep, `--check-spmatrix`,
+  `SKLEARN_WARNINGS_AS_ERRORS`; scipy's `SCIPY_ARRAY_API`; statsmodels' formulaic engine; the
+  doctests) stay unrun and are named in the README for 0.1.0, each mode's skips counted; a 15 T
+  fuel threshold, above which scikit-learn's `test_common.py`, then its float32 cases, move to the
+  release tier (still in the full suite); statsmodels' 13 left-out datasets are a README class,
+  and a file that fails at import is a named gap.
+- **111 (strings a user reads):** "Before 0.1.0." The string literals outside `src/` that cite a
+  project document are reworded before the version bump, by their own specification (the lane's
+  number, taken from the roadmap's reserved closer for spec 109's leftovers); the judge's
+  allowance files' comments and the guest's own sources stay in that reserved line, after 0.1.0.
+
 ### Waves, judging on CI, and the dry run as the serial check (2026-10-19)
 
 The owner asked for "5 spec implementors, 5 spec reviewers, merge them all together and build, fix
