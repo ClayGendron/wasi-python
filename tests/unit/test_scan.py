@@ -2602,3 +2602,109 @@ def test_only_the_body_of_type_checking_is_typing_only(work) -> None:
         (8, "_fs_memory", False),
         (10, "_fs_paths", True),
     ]
+
+
+LOCK_PROJECT = """\
+[project]
+name = "p"
+requires-python = "==3.15.0"
+dependencies = [
+    "numpy @ https://e.org/numpy.whl ; platform_machine == 'arm64'",
+    "numpy==2.5.2 ; platform_machine != 'arm64'",
+    "seaborn==0.13.2",
+    "wrapt==2.5.1",
+]
+
+[tool.uv.sources]
+wrapt = { url = "https://e.org/wrapt.whl" }
+"""
+
+NUMPY_BY_SOURCE = """\
+    { name = "numpy", version = "2.5.2", source = { registry = "https://pypi.org/simple" } },
+    { name = "numpy", version = "2.5.2", source = { url = "https://e.org/numpy.whl" } },
+"""
+
+
+def _lock(seaborn_numpy: str = NUMPY_BY_SOURCE, root_extra: str = "") -> str:
+    """A lock in uv's shape: numpy as two packages (a registry pin and a direct wheel), so every
+    entry naming numpy must say which."""
+    return f"""\
+version = 1
+revision = 3
+requires-python = "==3.15.0"
+
+[[package]]
+name = "numpy"
+version = "2.5.2"
+source = {{ registry = "https://pypi.org/simple" }}
+
+[[package]]
+name = "numpy"
+version = "2.5.2"
+source = {{ url = "https://e.org/numpy.whl" }}
+
+[[package]]
+name = "p"
+version = "0"
+source = {{ virtual = "." }}
+dependencies = [
+{NUMPY_BY_SOURCE}    {{ name = "seaborn" }},
+    {{ name = "wrapt" }},
+]
+
+[package.metadata]
+requires-dist = [
+    {{ name = "numpy", marker = "platform_machine == 'arm64'", url = "https://e.org/numpy.whl" }},
+    {{ name = "numpy", marker = "platform_machine != 'arm64'", specifier = "==2.5.2" }},
+    {{ name = "seaborn", specifier = "==0.13.2" }},
+    {{ name = "wrapt", url = "https://e.org/wrapt.whl" }},{root_extra}
+]
+
+[[package]]
+name = "seaborn"
+version = "0.13.2"
+source = {{ registry = "https://pypi.org/simple" }}
+dependencies = [
+{seaborn_numpy}]
+
+[[package]]
+name = "wrapt"
+version = "2.5.1"
+source = {{ url = "https://e.org/wrapt.whl" }}
+"""
+
+
+def test_a_lock_uv_takes_is_quiet() -> None:
+    assert scan.lock_errors(_lock(), LOCK_PROJECT) == []
+
+
+def test_a_bare_entry_that_two_packages_answer_is_named() -> None:
+    # The shape a text merge left twice: the entry uv refuses with "has missing `source` field
+    # but has more than one matching package".
+    lock = _lock(seaborn_numpy='    { name = "numpy" },\n')
+    assert scan.lock_errors(lock, LOCK_PROJECT) == [
+        "seaborn 0.13.2: its bare numpy entry matches 2 packages"
+    ]
+
+
+def test_an_entry_that_no_package_answers_is_named() -> None:
+    lock = _lock(seaborn_numpy='    { name = "numpy", version = "2.4.0" },\n')
+    assert scan.lock_errors(lock, LOCK_PROJECT) == [
+        "seaborn 0.13.2: its numpy entry by version matches 0 packages"
+    ]
+
+
+def test_an_unparsable_lock_is_named() -> None:
+    (error,) = scan.lock_errors(_lock() + "[[package]\n", LOCK_PROJECT)
+    assert error.startswith("the lock does not parse: ")
+
+
+def test_a_lock_behind_its_project_is_named() -> None:
+    project = LOCK_PROJECT.replace('"wrapt==2.5.1",', '"wrapt==2.5.1",\n    "six==1.17.0",')
+    project = project.replace('"==3.15.0"', '"==3.15.1"')
+    extra = '\n    { name = "tqdm", specifier = "==4.70.1" },'
+    assert scan.lock_errors(_lock(root_extra=extra), project) == [
+        "the project requires six ==1.17.0, the lock does not",
+        "the lock requires tqdm ==4.70.1, the project does not",
+        "the lock's requires-python '==3.15.0' is not the project's '==3.15.1'",
+    ]

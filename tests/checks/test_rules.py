@@ -1094,3 +1094,15 @@ def test_the_handlers_change_the_table_only_through_its_methods() -> None:
     hits = [f"{p.name}: not found" for p in handlers if not p.is_file()]
     hits += scan.table_write_hits([p for p in handlers if p.is_file()], paths.REPO)
     assert not hits, scan.report(hits)
+
+
+def test_the_oracles_lock_is_its_projects() -> None:
+    """The oracle's lock is generated: a text merge can leave it unparsable to uv, and the oracle
+    then only reads as unavailable. Read from the files alone, so it holds on every system."""
+    from harness import jobs
+
+    errors = scan.lock_errors(
+        (jobs.ORACLE_PROJECT / "uv.lock").read_text(),
+        (jobs.ORACLE_PROJECT / "pyproject.toml").read_text(),
+    )
+    assert not errors, scan.report(errors, "tests/jobs/oracle/uv.lock")

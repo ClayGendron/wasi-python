@@ -13,6 +13,7 @@ import shlex
 import subprocess
 import tempfile
 import tokenize
+import tomllib
 import warnings
 from collections.abc import Callable, Iterable
 from pathlib import Path
@@ -3495,4 +3496,86 @@ def one_lapack_errors(
     wanted = called - {ONE_LAPACK_XERBLA}
     errors += [f"shim {s} is called by no numpy object" for s in sorted(shims_defined - wanted)]
     errors += [f"numpy calls {s}, which no shim defines" for s in sorted(wanted - shims_defined)]
+    return errors
+
+
+# ---------------------------------------------------------------------------------------------
+# A uv project's lock, read as uv reads it
+
+_REQUIREMENT = re.compile(r"\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:@\s*([^;\s]+))?([^;]*)")
+
+
+def _dist_name(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def _requirement_pins(pyproject: dict) -> set[tuple[str, str]]:
+    """The project's requirements as (name, url or specifier), its uv sources applied."""
+    sources = pyproject.get("tool", {}).get("uv", {}).get("sources", {})
+    urls = {_dist_name(k): v["url"] for k, v in sources.items() if "url" in v}
+    pins = set()
+    for text in pyproject.get("project", {}).get("dependencies", []):
+        m = _REQUIREMENT.match(text)
+        name = _dist_name(m[1]) if m else text
+        pins.add((name, (m[2] or urls.get(name) or m[3].strip()) if m else "?"))
+    return pins
+
+
+def _dependency_entries(package: dict) -> list[dict]:
+    entries = list(package.get("dependencies", []))
+    for table in ("optional-dependencies", "dev-dependencies"):
+        for group in package.get(table, {}).values():
+            entries += group
+    return entries
+
+
+def lock_errors(lock_text: str, pyproject_text: str) -> list[str]:
+    """What keeps uv from taking a lock as its project's: the lock does not parse; a dependency
+    entry matches no package, or several (uv refuses a bare name that more than one package of
+    that name answers); or the root package's requirements or Python bound differ from the
+    project's. It reads the files only, so it needs no network, cache or interpreter."""
+    try:
+        lock = tomllib.loads(lock_text)
+    except tomllib.TOMLDecodeError as e:
+        return [f"the lock does not parse: {e}"]
+    pyproject = tomllib.loads(pyproject_text)
+    packages = lock.get("package", [])
+    by_name: dict[str, list[dict]] = {}
+    for p in packages:
+        by_name.setdefault(_dist_name(p["name"]), []).append(p)
+    errors = []
+    for p in packages:
+        for dep in _dependency_entries(p):
+            found = [
+                q
+                for q in by_name.get(_dist_name(dep["name"]), [])
+                if dep.get("version", q.get("version")) == q.get("version")
+                and dep.get("source", q.get("source")) == q.get("source")
+            ]
+            if len(found) != 1:
+                by = "+".join(k for k in ("version", "source") if k in dep)
+                entry = f"{dep['name']} entry by {by}" if by else f"bare {dep['name']} entry"
+                errors.append(
+                    f"{p['name']} {p.get('version', '')}: its {entry} matches {len(found)} packages"
+                )
+    project = pyproject.get("project", {})
+    root = [p for p in packages if p["name"] == project.get("name")]
+    if len(root) != 1:
+        return errors + [f"the lock holds {len(root)} packages named {project.get('name')}"]
+    locked = {
+        (_dist_name(r["name"]), r.get("url") or r.get("specifier", ""))
+        for r in root[0].get("metadata", {}).get("requires-dist", [])
+    }
+    wanted = _requirement_pins(pyproject)
+    errors += [
+        f"the project requires {n} {pin}, the lock does not" for n, pin in sorted(wanted - locked)
+    ]
+    errors += [
+        f"the lock requires {n} {pin}, the project does not" for n, pin in sorted(locked - wanted)
+    ]
+    if lock.get("requires-python") != project.get("requires-python"):
+        errors.append(
+            f"the lock's requires-python {lock.get('requires-python')!r} is not the project's"
+            f" {project.get('requires-python')!r}"
+        )
     return errors
