@@ -1,0 +1,201 @@
+# Review of 109 — Code speaks for itself: no document cited in a comment outside `src/`
+
+- **Date:** 2026-10-21
+- **Reviewer:** a fresh agent (Claude Fable 5.1); wrote none of the branch
+- **Reviewed:** `d92307f..8fe2a8a` on `spec/109-code-speaks-for-itself` in `/home/user/wt/109`
+  (the built commit `1cf9762`, plus `8fe2a8a`, the Status line and the landing notes); the base
+  `d92307f` is the PR branch's tip with the chain 103 to 108 landed. This is the build review and
+  the only review: a judge-and-text specification needs no review before build (AGENTS.md rule 8).
+- **Run:** none of its own, by the chain's rule (the owner, 2026-10-20): the chain dispatches
+  once on its final tip, which is this specification's tip; that run's id is the lane's to write
+  into the landing notes. The fast tier below is this review's re-run of the counted tests.
+- **Box:** 45 minutes (build-class by the letter); the measurements and the reads fit in it, the
+  reproduction of the cleanup included.
+- **Re-ran** (all EXECUTED, `WASI_PYTHON_ARTIFACTS` the frozen `v0.1.0a7` set, under the
+  machine's `build/fast-tier.lock`, taken 00:47:40Z and freed 00:52:14Z, through
+  `build/109/with-sigint.py`; outputs in `build/109/review-fast.log`, `review.json`):
+  - `uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider` → **83 failed, 2,459 passed,
+    52 skipped** in 273.88 s; the 83 failed node ids are exactly the baseline's
+    (`build/baseline-a7/failing-nodes.txt`, `diff` of the sorted lists empty).
+  - `uv run python tests/harness/sameness.py /home/user/wt/108/build/108/review.json
+    build/109/review.json --claims build/109/claims.toml` → `note: explained by claims: 109 2`,
+    exit 0.
+  - `uv run python tests/harness/sameness.py /home/user/wasi_python/build/baseline-a7/baseline.json
+    build/109/review.json --claims build/109/claims-chain.toml` → `note: explained by claims:
+    103 4 · 104 3 · 105 4 · 106 3 · 107 4 · 108 5 · 109 2`, exit 0. No fuel or bytes row printed.
+  - `uv run pytest tests/checks/test_rules.py -q -p no:cacheprovider` → 54 passed, 3 skipped,
+    1 failed (`test_version_states_the_platform_semantics`, the older set's, in the baseline's 83).
+  - `uv run pytest tests/unit/test_scan.py -q -p no:cacheprovider` → 233 passed; `--collect-only`
+    lists the eighteen citation rows (15 parametrized hits, the negative row, the files row, the
+    split row).
+  - `uv run ruff check src tests` → all checks passed; `uv run ruff format --check src tests` →
+    146 files already formatted; `uv run mypy --strict src/wasi_python` → no issues in 18 files.
+  - `uv run python build/109/same-code.py b42e653` → `tests/checks/test_rules.py` only (the
+    allowance commit); `... d92307f` → the three judge files only.
+  - `uv run python build/109/measure.py <out>` on the tip → `total 81 {'tests': 81}`, by rule
+    specification 61, finding 14, memo 4, context path 1, review 1; the 72 (file, phrase) pairs of
+    `CONTEXT_CITATION_ALLOWED` are the 72 pairs the hits make: 0 unadmitted, 0 unused; the rows
+    are 30 `JUDGE_FILE`, 32 `GUEST_INPUT`, 10 `SHAPE_SHOWN`.
+  - The tip's scanner over `d92307f`'s and over `b42e653`'s content (unpacked with `git archive`
+    into the scratchpad) → 2,239 hits each (`tests` 1,910, `.github` 51, `scripts` 272,
+    `release` 6): the builder's "before" count, and 2,208 once the 31 `JUDGE_FILE` hits are
+    admitted, the builder's seen-failing count (`build/109/seen-failing-B.log`, READ: 1 failed,
+    1 passed).
+  - The reproduction (criterion 9): `clean.py` then `hand.py` on `b42e653`'s content, with the
+    worktree's environment → `lines changed: 1230`; `applied 468, missed 0, skipped as guest
+    inputs 10`; the 148 files `26dde7b` changed are byte-identical to the reproduced tree, and
+    the reproduction changed no other tracked file.
+  - The parsed workflow (`pyyaml`, `safe_load`) at `d92307f` against the tip: equal in every key
+    and value but three `run:` scalars (finding 1).
+
+## The builder's self-check
+
+Every item is checked: the base in the Status line; CI named as the chain's one dispatch with the
+Windows criterion stated (the check runs in `own-rest`, macOS and Linux, and reads files); every
+number labelled EXECUTED with its command; the claim list and the paste-safe flags, each reason
+starting "109:"; the check seen failing first (2,208); gaps none; `packages.toml` untouched; the
+CHANGELOG line proposed, not written; ruff, mypy and the fast tier in `build/109/`. One item is
+answered rather than checked: "every reserved follow-up has a roadmap line" says there is no
+follow-up, and finding 2 says there is one.
+
+## Acceptance criteria against evidence
+
+1. Seen failing first — met: READ `seen-failing-B.log` (the check fails on `b42e653`'s content
+   with 2,208 findings); EXECUTED the tip's scanner over the base's content, 2,239 hits.
+2. Passes on the built commit, every allowance row used — met: EXECUTED `test_rules.py` alone
+   (the check passes) and the rows-against-hits count (0 unused, 0 unadmitted).
+3. Counts before and after — met as the Differences section amends it: 2,239 → 81, all in the
+   files of Decision 5 plus the `src/` check's own shapes; EXECUTED, the pairs identical to
+   `hits-after-B.txt` (only `test_rules.py`'s line numbers moved with the allowance commit).
+4. The eighteen unit rows pass; `test_scan.py` whole — met: EXECUTED.
+5. Comments only — met: EXECUTED `same-code.py`, and a stricter comparison of my own that keeps
+   `INDENT`, `DEDENT` and `NEWLINE` tokens and compares every non-`#` line of the other files
+   exactly: Python code differs only in `scan.py`, `test_rules.py` and `test_scan.py` (the
+   judge's own additions); non-comment lines differ in four shell files by their trailing
+   ` # ` comments only (`build.sh` LC_ALL, `70_zip.sh` three `die` lines, `apply_patches.sh`,
+   `common.sh` PKGCONF). Finding 1 names the one reading the criterion does not take.
+6. No protected file changes — met: EXECUTED `git diff --stat d92307f 8fe2a8a` is empty for
+   `tests/known_gaps.toml`, `tests/upstream/*.toml`, `tests/upstream/expected`,
+   `tests/upstream/python`, `context/progress`, `src`, `tests/jobs/*.py` but `regen.py`,
+   `tests/upstream/drive.py` and `regrtest_drive.py`.
+7. Rule (b) traced — met: READ the 121 lines; one checked against its document: "to be made
+   green there, never skipped" (`test_runner_mounts.py`) is spec 076's Decision 9 (line 440,
+   "every row that has never run on Windows must run green there"); "run now runs every
+   program in a fresh `__main__`" is spec 073's line 24.
+8. The literals reported — met: READ the 78 lines; fourteen read in the files (see finding 2).
+9. Reproducible — met: EXECUTED (above), byte for byte, with no extra file.
+10. The fast tier and sameness — met: EXECUTED (above).
+11. Ruff — met: EXECUTED; mypy too.
+12. AGENTS.md carries the one parenthesis — met: EXECUTED `git diff d92307f 8fe2a8a -- AGENTS.md`
+    is the parenthesis and nothing else.
+
+## The hard looks
+
+- **Prose only** (point 1). `same-code.py` tokenizes Python with comments, `NL`, `NEWLINE`,
+  `INDENT` and `DEDENT` dropped and the first string of a module, class or function blanked, and
+  for other files drops whole-line `#` comments and the part after ` # `; dropping `INDENT` and
+  `DEDENT` would hide a re-indented statement, so I re-ran the comparison keeping them (above):
+  the same answer. Hunks read: `scripts/steps/70_zip.sh`, `scripts/gen_inittab.py`,
+  `scripts/build.sh`, `scripts/assemble_artifacts.py`, `release/build-backend.in`,
+  `release/version.py`, `tests/release_shards.toml`, `.github/workflows/release.yml` (whole),
+  `tests/harness/plugin.py`, `tests/harness/files.py`, `tests/harness/scan.py`,
+  `tests/harness/api.py`, `tests/unit/test_runner_mounts.py`, the first ninety hunk lines of
+  `tests/checks/test_v1_4_embedding.py` and of `tests/checks/test_v1_2_hostile_guest.py`,
+  `tests/jobs/oracle/pyproject.toml`, `tests/jobs/oracle/sklearn_native_tests.sh`,
+  `tests/jobs/regen.py`, `tests/upstream/fetch.py`. No rewording changes a meaning; "since
+  spec 017 the zip is a read-only grant" became "now the zip is a read-only grant", "spec 076,
+  Decision 9" became the rule in words. A grep of the changed lines for directive forms
+  (`shellcheck`, `noqa`, `type: ignore`, `pragma`, `fmt:`, yaml anchors and aliases,
+  `pytest.mark`, `reason=`, `#!`, `set -e`) finds none changed: the matches are prose that says
+  "pragma" or the unit rows' own `noqa` fixture. No check reads a docstring under `tests/`:
+  `tests/harness/api.py` reads `src/` objects' docstrings (untouched) and `scan.py`'s
+  `ast.get_docstring` reads the engine adapter in `src/`; `api.py`'s argparse description takes
+  its own first docstring line, which lost "(spec 049, Decisions 9-11)": a help text, no verdict.
+- **The guest-run rule's breadth** (point 4). `tests/jobs/oracle/` is run on the host by
+  `tests/harness/jobs.py` (`uv run --frozen --project tests/jobs/oracle`), `--frozen` reading
+  `uv.lock` and not the project file's bytes; `sklearn_native_tests.sh` is a host script
+  `build.sh` never runs; `regen.py` regenerates goldens on the host; `fetch.py` fetches the
+  upstream kit on the host (`scan.py`'s `FETCH_RUN` names its command, unchanged). None is read
+  by the guest or hashed into a verdict; the 25 jobs and the two drivers are byte-identical.
+- **The allowance** (point 3). It keys on `(file, exact phrase)`, a stale row fails, so the tuple
+  only shrinks (READ, `test_rules.py`); a new phrase in an admitted file is caught (a "spec 052"
+  in `tests/jobs/compress.py`, where only "spec 007" is admitted); a second occurrence of an
+  admitted phrase in the same file is admitted too, which is the grain a phrase allowance has
+  (note 3). `SHAPE_SHOWN`'s ten rows are the tokens the `src/` check's comment shows (`C6`,
+  `C99`, `D3`, `F1`, `F3`, `F4.2`, `L1`, `N12`, `S3`, `memo`), read at `test_rules.py` lines
+  906 to 915 and 963: fair, since words cannot show a regex's shape. `JUDGE_FILE` and
+  `GUEST_INPUT` are deferrals with a stated closer and no owner: finding 2.
+- **Workflows** (point 5). Finding 1.
+- **The chain's own test code** (point 6). `calls.py`, `test_lifecycles.py`, `test_process.py`,
+  `test_runner_package.py` are untouched (no hit on the base); `files.py` and
+  `test_wasmtime_ffi.py` lost their citations; the check holds all six. The AGENTS.md parenthesis
+  restates what the bullet's own next clause says ("its comments and docstrings give the reason
+  in words") and adds the carve-out the judge needs to read `context/` as data; it reads as the
+  owner's rule's meaning, and the owner confirms it at landing, since AGENTS.md is the owner's.
+- **The history** (point 7, for the lane, not a finding): `aa483e2` (the first build's notes)
+  stays under the final notes; the first four commits carry another model's attribution trailer
+  (`Claude Opus 5.5`), the last four this one's; the content was re-applied on `d92307f` and the
+  reproduction above stands on its own.
+- **Structure** (checklist 4a): the diff adds no concern, lifecycle flag, module-level mutable,
+  test seam, platform branch or private-API use under `src/`, which it does not touch; the
+  rubric of the structural review does not apply to a text-and-judge specification.
+
+## Findings, most severe first
+
+1. **Three `run:` scalars of the workflow changed** (`.github/workflows/release.yml`, the
+   `verify` job's step 5 and the two rebuild jobs' step 2) — **Low**, written in. A `#` line
+   inside a `run: |` block is part of the step's script string, not a YAML comment, so the parsed
+   documents at `d92307f` and at the tip differ in exactly those three values; the commands in
+   them are identical and only their shell comments changed (EXECUTED, a deep comparison with
+   `pyyaml`; every other key and value equal), and every workflow rule check passes. By the
+   specification's own reading (Decision 3: a line whose first non-blank character is `#`) they
+   are comments, so the Kind line's "no string literal changes" holds as the specification means
+   it; the landing notes now say so, so the lane's reading of "parsed documents equal" has its
+   answer. Fix text: the sentence added to the "Comments only" bullet of the landing notes.
+2. **The rule's leftovers have no owner** (the landing notes, "Roadmap: untouched; no line to
+   add") — **Low**, written in. The 78 string-literal lines carry the citations the owner's
+   bullet names, and several are read by a user: `tests/harness/plugin.py:94` (the progress
+   group's title, "(spec 002)"), `:108` (`--shard`'s help, "(spec 063)"),
+   `tests/harness/scoreboard.py:35` (the not-machine-checked line, "(spec 091)"),
+   `scripts/gen_inittab.py:137` (a C comment written into the inittab source, "(spec 047)");
+   the notes name them "spec 107's or the owner's", and 107 is landed. 107's build review (note
+   3) asked this specification or a later one for one regex over string tokens for `spec NNN`.
+   This specification was right not to take them under rule (c): a message a check matches is a
+   judge change of its own, and a guest program held as a string is the guest's input and its
+   fuel (Decision 8 measured it). The same holds for the 31 `JUDGE_FILE` and the 36
+   `GUEST_INPUT` hits, whose closers are stated and reserved nowhere. Fix text: the "Roadmap"
+   bullet of the landing notes now proposes the reserved line; the lane writes it into
+   `context/roadmap.md`, and whether a message a user reads falls under the rule is the owner's
+   to say.
+3. **Note: the allowance's grain is a phrase per file.** A second "spec 007" comment in
+   `tests/jobs/compress.py`, or another "memo" in `tests/checks/test_rules.py`'s prose, is
+   admitted by the existing row; any other phrase is caught and a removed phrase turns the row
+   red. Adequate for files whose edits are a judge change of their own; named so the next
+   reader knows.
+4. **Note: bare `Decision N` and `criterion N` remain** (206 and 28, scoped out): after the
+   pass `scripts/steps/70_zip.sh` says "(Decision 5)" and "(Decision 8)",
+   `tests/harness/plugin.py` "(Decision 5: ...)", `tests/unit/test_runner_mounts.py` "Decision
+   4's fallback", each naming a numbered part of no named document. The specification scopes
+   them out with its reason; the pass of finding 2 may take them.
+
+## Constitution checks
+
+- §4 constraints: §4.1 no upstream source touched; §4.13 the one dependency stays (its check's
+  docstring now gives the rule in words); §4.14 the work is in its own worktree on
+  `spec/109-code-speaks-for-itself`; no input, pin, artifact or recipe step changes, and
+  `MANIFEST`'s recipe lines move only with the comments of `scripts/`.
+- §7 never-do list: nothing tripped; no check, golden, allowance file or progress file edited;
+  the judge changes are the new check, its scanner and its rows, under `--accept-judge`.
+
+## Disposition (filled in by the author, then confirmed by the reviewer)
+
+1. Finding 1 — written in by the reviewer, commit `f17a67a` (the landing notes' "Comments only"
+   bullet); confirmed.
+2. Finding 2 — written in by the reviewer, commit `f17a67a` (the landing notes' "Roadmap"
+   bullet, a proposed reserved line for the lane); the roadmap line itself is the lane's.
+3. Notes 3 and 4 — no action.
+
+## Verdict
+
+Lands: the cleanup is prose only and reproducible, no verdict, fuel or byte moves, the check holds
+the four trees with every allowance row used, and both Lows are written into the landing notes.
