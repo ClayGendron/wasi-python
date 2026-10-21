@@ -678,6 +678,12 @@ with its command; the outputs are kept under `build/107/` in the worktree (git-i
   `1893ede` → `fd3a14c`, `3d69db3` → `849bc3a`, `b447aa0` → `fa747f3`, `0b80b99` → `ecbdf53`,
   `d1e3e67` → `76bbb99`, `ee311a7` → `6d2135d`, `8325445` → `22112c5`, `ba32a59` → `8f42938`,
   `bbfa9b8` → `896ea43`, `21e04e8` → `c3cbda2`, `01471a6` → `4ad1ede`, `0e145b7` → `c6c48db`.
+- **`type: ignore` lines 19 → 25** (the integration review's finding 2, written in by its
+  reviewer; EXECUTED, `git grep -c 'type: ignore'` over `src/wasi_python` at `26b2c64` and
+  `c6c48db`): the six new are `[attr-defined]` on `msvcrt.locking` (two) and `winreg` names
+  (four) in `_platform.py`, Windows-only names that mypy, configured `platform = "linux"`,
+  cannot see, moved out of the `sys.platform` branches that used to hide them from the
+  checker; each carries its code, as 106 asks of a new one.
 - **Commits, in the order built** (`git log --oneline 1893ede..`): `3d69db3` (Decision 1: the
   `_CallContext` protocol in `mounts.py`, `_Context` with `enter`/`leave` in `_call.py`,
   `FakeContext` in `tests/harness/files.py`, the hand-built table of

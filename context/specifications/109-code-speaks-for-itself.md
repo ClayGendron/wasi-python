@@ -294,7 +294,7 @@ records (`seen-failing.txt`, `hits-before.txt`, `hits-after.txt`, `regex-job-*.j
   `3a4a75f` in a scratch worktree gives `9793964`'s files byte for byte. After: **114**, all in
   the allowance (the `src/` check's shapes 14; the judge's allowance files 54:
   `known_gaps.toml` 5, the upstream suites' ten files 49; the guest's sources 46: 24 golden
-  jobs 34, the three drivers 12). The allowance is 92 rows: `JUDGE_FILE` 41 (eleven new, for
+  jobs 34, the three drivers 12). The allowance is 92 rows: `JUDGE_FILE` 41 (twelve new, one removed, net eleven, for
   the six compiled packages' suites, `packages.toml`'s and the known gaps' new lines),
   `GUEST_INPUT` 41 (nine new: the two golden jobs, the package driver), `SHAPE_SHOWN` 10; one
   row removed, `packages.toml`'s "spec 043", a phrase main's file no longer carries; every row
