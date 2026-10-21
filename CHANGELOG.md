@@ -6,6 +6,54 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a8 — unreleased
 
+- **One module touches wasmtime-py's private API** (spec 103).
+  `src/wasi_python/_wasmtime_ffi.py` is the engine seam: the runner and the mounts drive the
+  engine through its named operations, it prefers wasmtime-py's public API wherever the installed
+  release has it, and at the first `run()` it raises one `ImportError` naming the wasmtime-py
+  version and every private name that moved. A rules check holds that no other `.py` under
+  `src/` or `tests/` reaches the private API; a second holds the debt sheet
+  `context/upstream/34-wasmtime-py-public-api-for-the-runner/facts.md` equal to the names the
+  seam needs. No behaviour, fuel or errno changes.
+- **The runner is a package** (spec 104; the runner design review's H1, M5, L1). `runner.py`
+  (6,241 lines) is eleven modules, one per concern (`_limits`, `_platform`, `_artifacts`,
+  `_engines`, `_private_dirs`, `_zip`, `_places`, `_home`, `_call`, `_sessions`, and `runner` as
+  the thin entry), the text moved verbatim, in a written import order with no cycle;
+  `__init__.py` no longer imports `runner` last; a unit check finds every module-level lock and
+  proves the fork hook re-makes it; a rule holds every module under `src/` to 1,500 lines.
+  Nothing the embedder sees changes: no public name, no message, no fuel count.
+- **The runner's process state has one owner** (spec 105): every lock, cache, counter and
+  registry of the runner is an attribute of one `_Process` object, reset for a fork by
+  introspection over its locks and released at exit by one method; the judge's seams are fields
+  of that object, not module globals; two rules checks keep locks and mutables out of module
+  level. No public name changes.
+- **The runner's checked call is a frozen typed record**, a session's and a home's life are
+  transition tables the judge drives whole, and `mypy --strict` runs over `src/wasi_python` in
+  the judge (spec 106).
+- **The runner's mount table, platform choice, file stamps and comments explain themselves**
+  (spec 107; the design review's H4, M3, M4 and M2). `mounts.py` asks nine questions of a
+  call-context protocol and imports nothing from the runner; one `_platform.py` holds every
+  POSIX, macOS and Windows difference behind one interface chosen once at import; the digest and
+  version caches in front of the artifact check key on the full file stamp, so a same-size,
+  same-time replacement is hashed again; `src/` names no specification, memo, review, finding ID
+  or `context/` path, every reason kept in words, held by one rules check (the owner's rule,
+  "code speaks for itself"; `tests/`, `scripts/` and `release/` follow in spec 109); and
+  `mypy --strict` is clean over the whole package. No public name, artifact byte or
+  guest-visible errno changes.
+- **A structural review is a stage** (spec 108; the design review of 2026-10-20). A change that
+  adds a module-level mutable or lock, a use of wasmtime-py's private API, a platform branch or a
+  test seam outside the one place specs 103 to 107 give each, or takes a module past the size
+  ceiling or a function past 80 lines, is reviewed before it is built; every release gets a
+  structural review of `src/` against the design review's eight-row rubric, beside its security
+  review, which the judge requires of a released version; and two rules checks hold that the
+  judge patches the runner only through its process object and that no function is over 80
+  lines, each with an allowance list that only shrinks. Nothing in the artifact set or the wheel
+  changes.
+- **Code speaks for itself outside `src/`** (spec 109). Comments and docstrings under `tests/`,
+  `scripts/`, `release/` and the release workflow give their reasons in words, with no
+  specification number, review, finding identifier or `context/` path; a rules check holds it,
+  with the judge's allowance files, the guest's own sources and the `src/` check's own
+  documentation of its shapes named as the exceptions. No code, behaviour, fuel or artifact byte
+  changes; `MANIFEST`'s recipe hashes of `scripts/` move with their comments.
 - **A singular matrix raises `LinAlgError`** (spec 099; spec 066's survey). wasm has no
   floating-point status flags, and numpy reports a failed LAPACK call by one, so
   `numpy.linalg.inv`, `solve`, `tensorinv`, `tensorsolve` and `matrix_power(a, -1)` of a singular

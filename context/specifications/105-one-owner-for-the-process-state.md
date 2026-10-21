@@ -687,6 +687,9 @@ copied there from the main tree's `build/105/`.
   265 passed, 3 skipped, the one failure `test_version_states_the_platform_semantics`, a
   baseline failure of the older artifact set. The fast tier and the sameness lines below are
   the rebased tip's; the run before the rebase is kept under them.
+- **Rebase onto main** (the coordinator, 2026-10-21): rebased onto main's `dda6075` with the
+  chain; no conflict in this entry's commits. Hashes: `a73b0fe` → `48d5d50`, `1f959c2` →
+  `02b78ad`, `e96f1b9` → `2ca4752`, `3133f18` → `20ce297`, `550d79f` → `02a45c6`.
 - **CI: none of its own; the chain's one dispatch on the final tip** (criterion 9, the owner's
   rule for the chain); its run id is the integrator's to write here when that dispatch is read.
   The fast tier below is the build's judge.

@@ -809,6 +809,23 @@ or on the built commit, with its command; the outputs are kept under `build/103/
 worktree (git-ignored): `seen-failing.txt`, `rule-before.txt`, `fast.log`, `built.json`,
 `claims.toml`, `sameness.txt`.
 
+- **Rebase onto main** (the coordinator, 2026-10-21): the chain was rebased onto main's
+  `dda6075` (wave 08 landed), linear, every commit replayed. Two conflicts fell in this entry's
+  commits, both append-style, both sides kept: `context/upstream/README.md` at `755e102` and
+  `d77425d` (main's rows 30, 32 and 33 beside this entry's row) and `tests/harness/scan.py` at
+  `e517a1a` (main's `npy_fenv_*` block of spec 099 and this entry's private-API rule, both
+  appended at the end; main's first). Main took sheet number 30 (numpy's floating-point status)
+  and spec 100's branch holds 31, so this entry's sheet is
+  `context/upstream/34-wasmtime-py-public-api-for-the-runner/` and its README row is 34: the
+  folder moved by `git mv` in `755e102`'s replay, its text unchanged, and the path and "row 30"
+  in this file (eight lines) and in `tests/checks/test_rules.py` (one line) follow, amended into
+  the commits that wrote them (`e319829`'s replay met those lines once more and took its own
+  text, renumbered); the memo, the reviews and 107's notes keep the path they read. Hashes:
+  `755e102` → `50d61ed`, `e517a1a` → `8a36a1c`, `d77425d` → `a92c0d4`, `c15adf4` → `5bba86b`,
+  `e319829` → `287b1f8`; before them the memo `a9064a2` → `e087213`, the drafts `c9515ef` →
+  `73d3e85`, `a4f31c8` → `67c5c74`, `5c35061` → `340a495`, `46fa9fc` → `1995a7d`, `e364b99` →
+  `e867874`, and the pre-build reviews `3626bb6` → `c3391ca`, `b0ce5e7` → `4fae0bf`, `244975f`
+  → `e8cafb5`, `9a3f8e6` → `4db7837`, `05b3329` → `9d7f749`, `2cffdcf` → `3675106`.
 - **Commits:** `e517a1a` (the seam `src/wasi_python/_wasmtime_ffi.py`, its checks, the runner
   and the mounts behind it, the harness driver and the five test files), `d77425d` (the debt
   sheet's row for `wasmtime_error_t` and the README row's count), and the commit that carries

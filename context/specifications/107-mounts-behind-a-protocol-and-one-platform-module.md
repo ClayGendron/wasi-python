@@ -668,6 +668,16 @@ with its command; the outputs are kept under `build/107/` in the worktree (git-i
 `seen-failing-citations.txt`, `fast-tier.sh`, `with-sigint.py`, `fast.log`, `built.json`,
 `claims.toml`, `claims-chain.toml`, `sameness-106.txt`, `sameness-baseline-chain.txt`.
 
+- **Rebase onto main** (the coordinator, 2026-10-21): rebased onto main's `dda6075` with the
+  chain. The renumbering commit `1893ede`, this entry's base, met three conflicts, each in a
+  region an earlier replay had already resolved: `context/roadmap.md` ("Reserved: 108" becoming
+  109, after main's "Reserved: 102"), `context/upstream/README.md` (103's row, now 34, after
+  main's rows 30, 32 and 33) and `context/specifications/103-the-engine-seam.md` (the
+  `--accept` strings' "102:" to "103:", on lines the sheet's renumbering had touched); the
+  commit's text was taken each time. No conflict in this entry's own commits. Hashes:
+  `1893ede` → `fd3a14c`, `3d69db3` → `849bc3a`, `b447aa0` → `fa747f3`, `0b80b99` → `ecbdf53`,
+  `d1e3e67` → `76bbb99`, `ee311a7` → `6d2135d`, `8325445` → `22112c5`, `ba32a59` → `8f42938`,
+  `bbfa9b8` → `896ea43`, `21e04e8` → `c3cbda2`, `01471a6` → `4ad1ede`, `0e145b7` → `c6c48db`.
 - **Commits, in the order built** (`git log --oneline 1893ede..`): `3d69db3` (Decision 1: the
   `_CallContext` protocol in `mounts.py`, `_Context` with `enter`/`leave` in `_call.py`,
   `FakeContext` in `tests/harness/files.py`, the hand-built table of

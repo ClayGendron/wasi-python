@@ -1104,6 +1104,11 @@ its file), `api-check.txt`, `mypy.txt`, `fast-tier.sh`, `with-sigint.py`, `fast.
 `built.json`, `claims.toml`, `claims-chain.toml`, `sameness-107.txt`,
 `sameness-baseline-chain.txt`.
 
+- **Rebase onto main** (the coordinator, 2026-10-21): rebased onto main's `dda6075` with the
+  chain; no conflict in this entry's commits (main's `tests/harness/scan.py` block of spec 099
+  sits before the chain's additions, and this entry's hunks replayed clean). Hashes: `0540fc7`
+  → `6e99c88`, `f645bd7` → `b8047ae`, `4b99408` → `b2aa167`, `75a4d98` → `dfd2a58`, `3942323` →
+  `74be2b6`, `3dc9f1f` → `eacacbb`, `64de806` → `0a46365`, `d92307f` → `ab84933`.
 - **Commits, in the order built** (`git log --oneline 0e145b7..`): `0540fc7` (Decision 4, Design
   D1 to D3: `structural_review_errors` and `structural_spec_review_errors` in the harness, the
   two checks, the two unit rows, the loader of `release/version.py` factored into

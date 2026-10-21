@@ -833,6 +833,12 @@ evidence under `../research/2026-10-20-the-runner-split/` (`split.py`, `wrap_com
 `do-split.sh`, `retarget.py`, `verbatim.py`, `claims.toml`); `map.py`, `sites.py`, `table.py`,
 `count_globals.py` and `dups.py` stay scratch under `build/104/`, as the Research line says.
 
+- **Rebase onto main** (the coordinator, 2026-10-21): rebased onto main's `dda6075` with the
+  chain; one conflict in this entry's commits, `context/roadmap.md` at `b7a1250` (main's
+  "Reserved: 102" and the chain's "Reserved: 108", 109 after the renumbering, both kept after
+  101), none in its code. Hashes: `b7a1250` → `720a01b`, `806280f` → `6cd0c58`, `c515398` →
+  `3e1deac`, `09e9387` → `0a0ca40`, `d4fb6b1` → `9642fd5`, `8aae152` → `ffbfda8`, `06e06e1` →
+  `c787028`, `be73aab` → `73a8f7f`, `987068b` → `d207ea8`, `538e831` → `67273d0`.
 - **Commits, in the order built:** `bbdafa3` (the checks first: `tests/unit/test_runner_package.py`,
   the size-ceiling rules check, `api.py`'s module tables, the `DEFAULTS`-loads scan over every
   module, the shard line), `b92aa5b` (the split: the ten new modules, `runner.py`, `__init__.py`,

@@ -132,6 +132,25 @@ Reserved: 101 (a faster release run: the workflow reuses the native build when t
 
 Reserved: 102 (the release tier: upstream's opt-in slow tests, sympy's slow and tooslow, networkx's and narwhals' `--runslow`, numpy's and pandas' `slow`, contourpy's `--runslow` cases, run only on the publishing run and the dry run on main before a tag; sympy's one 2.6 T test in a shard of its own past the 360 s bound; drafted on `spec/102-the-release-tier`; before 0.1.0, the owner, 2026-10-20, `decisions.md`, "two tiers of tests").
 
+Reserved: 103 to 108, the runner's structural chain (the design review of 2026-10-20, section 8): 103 the engine seam, 104 the runner as a package of one module per concern, 105 one owner for process state and the test seams off module globals, 106 typed call state and a type checker, 107 `mounts.py` behind a protocol and one platform module, 108 a structural review as a stage; parallel-safe, stacked, one wave, one dispatch on the chain's tip, the `v0.1.0a7` set as the baseline; the owner, 2026-10-20.
+
+Reserved: 105 (one owner for the process's state: `_process.py`, one object with every lock, cache and registry, a fork reset by introspection and one exit release; the test seams move onto it; two rules checks keep locks and mutables off module level; parallel-safe, stacked on 104, the third of the chain 103–108 from the design review memo of 2026-10-20).
+
+Reserved: 107, "`mounts.py` behind a call-context protocol, one platform module, one stamp, and the source explains itself" (the design review's H4, M3, M4, M2): the fifth link of the chain 103 to 108, stacked on 106; parallel-safe; lands in the chain's wave.
+
+Reserved: 108 (a structural review is a stage; the last of the chain 103 to 108 that
+`research/2026-10-20-a-design-review-of-the-runner.md`, section 8, sets out; the owner,
+2026-10-20): the rule "Structure is reviewed, not only behaviour" in AGENTS.md, the eight-row
+rubric, its measurements and a template in `reviews/README.md`, one line in the reviewer's
+checklist, four rules checks (a released version has its structural review; a built structural
+specification cites its pre-build review; the judge patches the runner only through the process
+object, with 105's allowance that 107 shrinks; no function over 80 lines, with the tree's
+offenders as an allowance that only shrinks), and question 108 for the owner's amendment of
+§5.6. Parallel-safe, context and judge only; before 0.1.0, since 0.1.0 is the first release the
+rule gates.
+
+Reserved: a closer for spec 108's two allowances (the eighteen private runner names the judge still patches, `SEAM_ALLOWED` in `tests/checks/test_rules.py`, each with the field or parameter its comment names; the nine functions over 80 lines, `LONG_FUNCTIONS`): parallel-safe, `src/` and the tests that patch, one specification or two; before the first structural review scores R6 and R7, or named in that review as the Medium's reserved specification.
+
 Reserved: 109 (code speaks for itself in `tests/`, `scripts/` and `release/`: no specification number, memo, review, finding ID or `context/` path in a code file, the reason kept in words, 1,360 references cleared by a reproducible script plus a read, held by a rules check beside spec 107's for `src/`; build-class by the letter, since comments in `scripts/` change, comments only; the last entry of the chain 103 to 108; the owner, 2026-10-20).
 
 Reserved: 095 (scipy's, scikit-learn's and statsmodels' (045, the owner, 2026-10-20) own tests in the release, the closer `tests/upstream/packages.toml` names for 037, 038 and 044 in place of 066); 096 (two product defects spec 066's survey found: kiwisolver's four `*_clear` functions return `void` where `tp_clear` returns `int`, so a garbage collection that clears a cycle holding a kiwisolver object traps the guest, and `import lxml.html.diff` raises `TypeError` because lxml's `fake_cython` has no `final`; build-class, carried patches; 066 depends on it); 097 (the judge's staging follow-ups 066 names: `test_elementsoup.py` under pytest's import mode, the `stage-layout` class; and host litter in writable guest roots, spec 089's accepted residual, which 066's surveys hit four times: 066's delta review L5); 098 (Linux x86-64 fuel is bimodal on a fixed artifact set, cpython-b 292.5 G or 302 G and cpython-archives 163 G or 166 G between CI runs, while darwin rows match exactly: 092's builder and 086's trace). Noted for the owner: with no floating-point exception flags in wasm, `numpy.linalg.inv` of a singular matrix returns `nan`s and raises no `LinAlgError` (066's survey, a guest probe); the owner chose to fix it before 0.1.0, and spec 099's draft (branch `spec/099-numpy-singular-inverse`) does it with a recipe header, `recipes/npy_fenv_flags.h`, not a numpy patch. 037 and 038: no release tag carries 037 without 038's Sobol fix (the lane's ruling on 037's build review F4). Reserved by the lane on 2026-10-20.
@@ -237,7 +256,7 @@ call that imports from the zip pays, through 068's counted `path_open` and `fd_c
 
 Release rule: alphas are cut by the agent after their pre-release security review (the owner,
 2026-10-18: "You may publish alpha releases but not the 0.1.0 release"); 0.1.0 is the owner's to
-tag. Before 0.1.0: a security review of the whole surface (milestone 6), the a4 review's F3 (a
+tag. Before 0.1.0: a security review of the whole surface (milestone 6), a structural review of `src/` against the design review's rubric (spec 108; `reviews/0.1.0-structural-review-<date>.md`, written by a fresh agent on the commit before the bump and committed with it, the dry run on that commit), the a4 review's F3 (a
 per-run request-byte budget) and N8 (both spec 060), and the wheel's size against PyPI's limit (question 64:
 49.7 MiB with matplotlib M1).
 

@@ -760,6 +760,10 @@ the worktree (git-ignored): `mypy-base-linux.txt`, `mypy-base-win32.txt`,
   builder and the reviewer wrote; rebased they are `7de0416` → `d97c1be`, `0944ead` → `d62dc33`,
   `7618b48` → `f678505`, `51eba18` → `7e86c67`, `e5eb363` → `0a5c09e`, `aa2239e` → `c475c59`,
   `5c8f82e` → `092f3f9`, `257c87b` → `9112bb0`.
+- **Rebase onto main** (the coordinator, 2026-10-21): rebased onto main's `dda6075` with the
+  chain; no conflict in this entry's commits. The hashes of the bullet above, rebased again:
+  `d97c1be` → `69cab2b`, `d62dc33` → `95c3a1b`, `f678505` → `7efa660`, `7e86c67` → `6736278`,
+  `0a5c09e` → `0188472`, `c475c59` → `607412e`, `092f3f9` → `cc10e6e`, `9112bb0` → `26b2c64`.
 - **Commits, in the order built:** `7de0416` (the checks first: `mypy==1.19.1` in the dev group
   with `[tool.mypy]` and the lock file's wheels; `test_src_type_checks_under_mypy_strict` with
   `UNTYPED` in `tests/checks/test_rules.py`; `tests/harness/calls.py`;
