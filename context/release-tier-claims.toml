@@ -1,0 +1,5 @@
+# The release-tier claims ledger: between two release acceptances, one [[claim]] block per landed
+# specification that changes a release-tier row or what one runs, in the claim list's shape
+# (context/progress/README.md, "The release tier"). The lane appends each block at its landing
+# and nobody edits an earlier one. At the release acceptance the blocks move under
+# "## <version>" in context/release-tier-claims-history.md, and this file starts empty again.

@@ -131,6 +131,8 @@ that needs its reason.
 | `--accept-fewer-passes "<reason>"` | also accept a fall in an upstream group's `passes` (spec 050) |
 | `--partial "<reason>"` | allow accepted passes to be blocked here |
 | `--retire <node id>` | with `--accept`: drop a check from the protected set |
+| `--tier release` | judge both tiers; without it a run judges the normal tier (spec 102) |
+| `--accept-tier-move "<reason>"` | also accept checks that moved between tiers (spec 102) |
 | `-m "not slow"` | the fast tier: skip the golden jobs and the oracle |
 | `-n 6` | run on six cores (spec 052): the same verdicts, about a third of the time |
 
@@ -220,6 +222,45 @@ The plain `uv run pytest` stays serial.
   An entry with `::` is a check; one without is a file and stands for its checks; a trailing `*`
   is a prefix (`"*"`: every row). A claim explains only its own kind: `grows` never explains a
   status, `new` never a check that went away. `meta.foreign` is never explained.
+
+## The release tier (spec 102)
+
+- **Two tiers.** The normal tier runs at every check: a branch run, a wave's dry run, every
+  landing's acceptance, a builder's or reviewer's local run. The release tier is the slow tests
+  (upstream's `slow` markers, contourpy's `random_big` cases, CPython's `cpu`-gated tests and its
+  four inline-`cpu` tests in full); it runs on a pushed tag, on the dry run on main before a tag,
+  and in the lane's release acceptance, and on a branch run dispatched with `release-tier: true`.
+  Together the tiers are every test of every package built; nothing is left out of both. Which
+  tests are release-tier is written in each family's TOML with its reason
+  (`release_marker`, `[[release_select]]`, CPython's `cpython-release-*.txt`), and the rules
+  prove each test lands in a tier.
+- **A run record** says `meta.tier` and lists every release-tier check in `release_checks`. A
+  normal run deselects each, reason `release tier`, even when named by node id; `--tier release`
+  runs them.
+- **The ratchet.** On a normal run an accepted release-tier row is `release tier not run <n>`:
+  never red, never `--partial`; it keeps what was accepted, in `accepted.json` and in the
+  history's passed set, and the line's counts take it at its accepted status. Each accepted
+  entry records its tier (`"tier": "release"`; absent means normal). A check accepted in one tier
+  and now in the other is `moved`, red on any run, until `--accept-tier-move "<NNN>: <reason>"`
+  rewrites its tier; the reason is in the history line. A test that leaves a normal group for a
+  release group lowers that group's `passes`: `fewer`, as ever.
+- **The release acceptance**, before a tag, on main's tip, after the last wave and before the
+  dry run on main: `uv run pytest -n 3 --tier release --accept "Release <version>: the release
+  tier"`, then compare the release-tier rows with the previous release acceptance's record,
+  `uv run python tests/harness/sameness.py build/releases/<previous>/record.json
+  build/progress/latest.json --tier-rows release --claims context/release-tier-claims.toml`.
+  Every difference no claim explains is a release-tier regression and the tag waits. Keep the
+  record under `build/releases/<version>/` and name its SHA-256 in the reason; if the previous
+  one is gone, say so in the reason and rely on the ratchet, which compares every release-tier
+  row with `accepted.json`.
+- **The ledger**, `context/release-tier-claims.toml`: between two release acceptances, one
+  `[[claim]]` block (the claim list's shape) per landed specification that changes a release-tier
+  row or what one runs, appended by the lane at the landing. At the release acceptance its blocks
+  move under `## <version>` in `context/release-tier-claims-history.md` and the file starts empty.
+- **The gather** expects the release shards' records only on a release run, and is red at G1
+  when a tag or a run on main did not judge the release tier, at G7 when the newest acceptance
+  did not, at G3 when a normal run ran a release-tier check, and at G5 when an accepted entry's
+  tier differs from the check's tier now.
 
 ## The landing lane (spec 029)
 
