@@ -1,0 +1,19 @@
+# criterion 4: run 39532775277 (90eed13) vs main tree's set at dbecd2d
+python.wasm base ee45b2410a0de71b build ee45b2410a0de71b
+python-snapshot.wasm base 9c2af97055b554bb build 9c2af97055b554bb
+python-stdlib.zip base fb12a1e673ed1aea build fb12a1e673ed1aea
+SHA256SUMS base 83789790 build c1cc11ba
+## diff MANIFEST
+269,270c269,270
+< recipe 18cb85bb2dc2bd96bf3d88f46d21c94bf600f30d8c4b3f07600e971a811a52c2 scripts/litter.py
+< recipe b62b58f5766a2ed38e824487d21cb398038a4f92e53a706259abf0fbd9837118 scripts/make_openblas_void_patch.sh
+---
+> recipe edbd9ecad330ff68bf255b2d558239c14f5374e5b9c471bf3c01a61e8cf52798 scripts/litter.py
+> recipe 558d901f83b5fab582be6decd399ee184ec136d183e79b63a605dcb6c0f756e2 scripts/make_openblas_void_patch.sh
+## diff SHA256SUMS
+68c68
+< be1a316622f244fae2923ec331638d8a1a8d39dafb8c371135c9cb7a236a410b  MANIFEST
+---
+> 5ec8e985898486fc790fb0582d9e298f9b27b0bdf34a842e26e22a861c14e63b  MANIFEST
+## diff LICENSES
+same

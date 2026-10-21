@@ -1,6 +1,8 @@
 # 097 — host litter outside the home folder: the judge's guest folders leave HOME on macOS, and the OpenBLAS script never reads litter
 
-- **Status:** **revised 2026-10-20 against its pre-build review** ("build once finding 1 is
+- **Status:** **built 2026-10-20 on `dbecd2d`** (main plus the structural chain 103 to 109;
+  code tip `90eed13`, CI run 39532775277; the section "Landing notes"); awaits its build review.
+  **Revised 2026-10-20 against its pre-build review** ("build once finding 1 is
   answered in writing": `../reviews/097-host-litter-outside-home-prebuild-2026-10-20.md`; the
   section "Disposition of the pre-build review"). **Drafted 2026-10-20** from main `5805af0`, on
   `spec/097-host-litter-outside-home`. It changes the build recipe (two files under `scripts/`,
@@ -427,9 +429,11 @@ The review (`../reviews/097-host-litter-outside-home-prebuild-2026-10-20.md`, on
 
 ## Landing notes
 
-**Half-built, stopped 2026-10-20 at the owner's end of day** (the lane's instruction: finish the
-step in progress, commit, push, stop). Built on main `5805af0`, **not yet rebased** onto main
-`faa9c93` (wave 08 landed meanwhile). Evidence: `../research/2026-10-19-ds-store-in-the-judges-stages/for-097/at-build/`.
+**Built 2026-10-20 on `dbecd2d`** (branch `claude/gallant-ride-9nxxmn`: main `faa9c93` plus the
+structural chain 103 to 109, which main fast-forwards to tonight). Code tip `90eed13`; CI run
+**39532775277** on it. Evidence: `../research/2026-10-19-ds-store-in-the-judges-stages/for-097/at-build/`.
+The first half of the build (checks first, the fix, criterion 3's fuel legs) was done on main
+`5805af0` by the previous builder session; this session rebased it and finished it.
 
 ### What was built
 
@@ -441,50 +445,122 @@ step in progress, commit, push, stop). Built on main `5805af0`, **not yet rebase
 - The checks of Decision 8: the root check; three script rows; the parity row; three
   guest-folder rows.
 
-### Done (EXECUTED)
+### Rebase
 
-- **Criterion 1, checks failed first** on main's code (`first-fail-*.txt`). The root check:
-  "a writable guest root under the home folder: …/build/harness/guest-tk1wxo35/run-0/root".
-  Rewrite row: "staged content different from both the file and the HEAD". Unreadable row:
-  "error: open(".DS_Store"): Permission denied". The forced-unstage row, on the branch's script
-  with only the unstage reverted, failed alone with "staged content different"
-  (`first-fail-unstage-reverted.txt`). The unit rows failed on `_guest_tmp_for`, `GUEST_TMP` and
-  `git_excludes`.
-- **Criterion 2:** the new rows and their neighbours (`test_scipy_build.py`,
-  `test_host_litter.py`, `test_build_scripts.py`, `test_guest.py`, the root check): 112 passed,
-  4 skipped (`after-unit.txt`). `ruff check` and `ruff format --check` on `src` and `tests`: green.
-- **Criterion 3, fuel is location-free.** All runs used a private `cp -c` clone of the frozen set
-  `s-a8333e46710221fa-ada941bc` (`shasum -c` OK; no file above link count 1). Main's code came
-  from `git archive 5805af0`, unpacked outside the home folder in the scratchpad (its guest
-  folders under `/private/tmp/…/base-097/build/harness`). The build's guest folders were under
-  `T`. Two legs of each, serially (`repeats.sh`). **Every fuel row gave one value across the four
-  legs:**
-  - drop check plain 218,765,145, snapshot 20,981,332;
-  - file facts plain 223,703,451, snapshot 25,878,984;
-  - zip link count plain 334,546,494, snapshot 21,225,960;
-  - numpy CSV job 4,996,759,427; pandas CSV job 5,105,780,200;
-  - `cpython-fs` 62,324,809,402; `cpython-archives` 165,638,282,607.
+- Onto `dbecd2d` from `5805af0`. Four conflict hunks, all in `27253fe` (the fix commit), each
+  resolved keeping both sides:
+  1. `CHANGELOG.md`, the unreleased section: the chain's seven lines (103 to 109) and 066's and
+     099's, then 097's line after 066's.
+  2. `tests/harness/guest.py`, `host_roots_always`'s docstring: the chain's wording (no spec
+     number) with 097's clause, "and the judge's guest folders, wherever they are", in words.
+  3. `tests/harness/litter.py`, the module docstring's recovery sentence: 097's two scratch
+     roots, in words.
+  4. `tests/harness/plugin.py`, the leftovers line: 097's loop over `scratch_roots()`; its
+     comment without the spec numbers, as the chain's wording has it.
+- After the rebase, spec 109's rule (`test_code_outside_src_names_no_context_document`) found
+  22 citations in this branch's new comments and docstrings (`spec 097`, `spec 089's`, `§4.8`,
+  `F2`, "pre-build review", in `conftest.py`, `test_v1_4_embedding.py`, `paths.py`,
+  `test_build_scripts.py`, `test_host_litter.py`, `test_scipy_build.py`, `scripts/litter.py`,
+  `make_openblas_void_patch.sh`). Each reworded in words, commit `90eed13`; 0 left (EXECUTED).
+  No code, string literal or check changed. The rewording of the two scripts changes their
+  `MANIFEST` recipe hashes, which this spec changes anyway.
 
-  The two `test_matplotlib_data_is_granted_read_only` rows passed on every leg. They record no
-  fuel: they run the product runner, whose clock is real. `numpy-lib` was blocked on every leg
-  ("upstream kit": the kit wheels were not cloned in). No leg was voided by `HostLitter`.
-- **Criterion 5:** `test_the_openblas_patches_are_what_their_script_makes` passed against the
-  real pinned tarball, by node id (`openblas-check.txt`).
+### Criteria (EXECUTED unless labelled)
 
-### Not done yet, for the builder's next session
+1. **The checks failed first** on main's code (`first-fail-*.txt`, on `5805af0`). The root check:
+   "a writable guest root under the home folder: …/build/harness/guest-tk1wxo35/run-0/root".
+   Rewrite row: "staged content different from both the file and the HEAD". Unreadable row:
+   "error: open(".DS_Store"): Permission denied". The forced-unstage row, on the branch's script
+   with only the unstage reverted, failed alone with "staged content different"
+   (`first-fail-unstage-reverted.txt`). The unit rows failed on `_guest_tmp_for`, `GUEST_TMP` and
+   `git_excludes`. The Linux and Windows branch of the root check passes on main too, by design
+   (Decision 8); CI ran it on all three systems: pass on each.
+2. **They pass with the build.** After the rebase: `test_rules.py`, `test_scipy_build.py`,
+   `test_host_litter.py`, `test_build_scripts.py`, `test_guest.py`: 168 passed, 6 skipped, the
+   only blocked rows needing artifacts or prior-art clones. `ruff check` and `ruff format --check`
+   on `src` and `tests`: green.
+3. **Fuel is location-free** (on `5805af0`, the previous session). Every fuel row gave one value
+   across four legs (two of main's code from a clone outside the home folder, two of the build
+   with its guest folders under `T`): drop check plain 218,765,145, snapshot 20,981,332; file
+   facts plain 223,703,451, snapshot 25,878,984; zip link count plain 334,546,494, snapshot
+   21,225,960; numpy CSV job 4,996,759,427; pandas CSV job 5,105,780,200; `cpython-fs`
+   62,324,809,402; `cpython-archives` 165,638,282,607. The matplotlib rows record no fuel and
+   passed; `numpy-lib` was blocked on every leg ("upstream kit"). No leg voided. INFERRED for the
+   rebased tip: the chain changes no fuel (its specs say so), and CI run 39532775277 has no
+   GREW line.
+4. **The set** (`criterion-4.txt`): run 39532775277's release tarball against the main tree's set
+   rebuilt at `dbecd2d` (SHA256SUMS `83789790`). `python.wasm` `ee45b241…`, the snapshot
+   `9c2af970…` and the zip `fb12a1e6…`: the base's hashes. `MANIFEST` differs in exactly two
+   lines, the `recipe` lines of `scripts/litter.py` and `scripts/make_openblas_void_patch.sh`;
+   `SHA256SUMS` only in its `MANIFEST` line (`c1cc11ba`); `LICENSES` the same. No local rebuild
+   (the lane's ruling).
+5. **The OpenBLAS check** passed against the real pinned tarball (`openblas-check.txt`, the
+   previous session), and in CI run 39532775277 (pass, darwin-arm64).
+6. **Nothing else moves.**
+   - The fast tier, `-n 3`, on `90eed13` against a `cp -c` clone of the main tree's set
+     (`fast-tier-90eed13.txt`): 2612 passed, 43 skipped, 1 failed. The failure is the expected
+     one: `test_manifest_recipes_match_the_tree`, "stale artifact: scripts/litter.py …;
+     scripts/make_openblas_void_patch.sh", since the copied set's `MANIFEST` was built from the
+     base's two scripts. Lost 1 (that row, the same cause), grew 0, gained 15: the new root
+     check and fourteen rules rows of the unaccepted chain 103 to 109. The fast tier compares
+     with `accepted.json` of main `faa9c93`, so the chain's rows count as gained here.
+   - **CI run 39532775277** on `90eed13`: every job green but `judge (windows-2025,
+     own-embedding)`, which failed `test_a_forked_child_is_refused` ("At index 1 diff: 'True
+     False' != \"{'used': True, 'forked': False}\""). **That failure is the base's**: the chain's
+     own run 39530569266 on `dbecd2d` fails the same job on the same check with the same diff.
+     097 touches no runner or fork code. The failed job skipped the gather, so I gathered the 33
+     shard records locally with the build's hashes (`ci-39532775277-gather.txt`): red lines G4
+     and G5 for that one Windows row, and G7; **no GREW line**, so the macOS legs' fuel is inside
+     `accepted.json`'s tolerance with the guest folders moved. 772/865 pass, 1 fail.
+   - The earlier run 39487633271 on `27253fe` (before the rebase): every shard green, the gather
+     red on G7 only.
+7. **Cleanup** (partly). After the fast tier: `GUEST_TMP`
+   (`T/judge-wasi_python-11909bf415b5`) is empty, as it was before the run, and `find` found no
+   folder without its owner's write bit under it or under `build/harness`. The full judge's
+   cleanup is the lane's to read at its acceptance; CI's runners are discarded and record none.
 
-- **Rebase onto main `faa9c93`** and name any conflict.
-- **The CI run 39487633271** (dispatched on `27253fe`, before the rebase) was still in progress
-  when this stopped; it is not read back. After the rebase, a new run on the rebased tip is the
-  one the landing notes cite.
-- **Criterion 4:** compare `python.wasm`, the snapshot and the zip from that run's
-  `release-assets` with the base's. Expected: the same three hashes, with `MANIFEST` (and so
-  `SHA256SUMS`) differing in exactly the two recipe lines. The lane's ruling: no native rebuild.
-- **Criterion 6, the fast tier** (`-n 3`), once, against a private clone of main's accepted set.
-  It is already cloned at `build/097/set-main` (SHA256SUMS `b5a66245`). Expected difference:
-  the set's `MANIFEST` recipe-line check, since the branch changes two recipe lines.
-- **Criterion 7** (cleanup after a full judge): from the CI run, and the lane's.
-- The self-check list, then the build review.
+### For the lane
+
+- **Wave kind:** build-class (two files under `scripts/`, two `MANIFEST` recipe lines). Base
+  `dbecd2d`. A dry run needs nothing extra.
+- **The base's red row.** `test_a_forked_child_is_refused` fails on Windows on `dbecd2d` itself
+  (run 39530569266). It is not this spec's; it blocks any wave on this base until the chain's
+  fix lands. 097 claims no change to it.
+- **The rebuild.** The set changes in `MANIFEST`'s two recipe lines only (criterion 4); the
+  lane's set must be rebuilt (or its `MANIFEST` regenerated by the build) before acceptance, or
+  `test_manifest_recipes_match_the_tree` is red, as in this fast tier.
+- **Claim list:** gained `tests/checks/test_v1_4_embedding.py::test_the_judges_writable_roots_are_outside_the_home_folder`;
+  the unit rows of Decision 8 (unit suite); lost 0; grown 0; retired 0; no pass moved. Judge
+  changed: `tests/harness/paths.py`, `guest.py`, `litter.py`, `plugin.py`,
+  `tests/checks/conftest.py`, `test_v1_4_embedding.py`, and the three unit files.
+- **Flags:** `--accept "097: scripts/make_openblas_void_patch.sh adds with litter excluded and
+  unstages with update-index --force-remove; scripts/litter.py gains git_excludes; MANIFEST's two
+  recipe lines" --accept-judge "097: on darwin the judge's guest folders (guest_workdir: each
+  run's root, io, stdlib folder, matplotlib's data, Turns, every check-made grant) live under
+  paths.GUEST_TMP in the per-user temporary folder, outside the home folder; the stages stay
+  sealed under build/harness; host_roots_always holds GUEST_TMP; one new check,
+  test_the_judges_writable_roots_are_outside_the_home_folder; unit rows; no existing check,
+  golden, gap or allowance edited"`. No `--accept-growth`.
+- **The roadmap's 097 line** becomes this spec; its two staging items (`test_elementsoup.py`
+  under pytest's import mode, the `stage-layout` class) need the next free number.
+- **Leftovers:** the probe trees named in the Disposition, for the lane.
+
+### The builder's self-check
+
+- [x] rebased onto the named stacked base `dbecd2d` today; the base is in these notes' first line.
+- [x] CI run 39532775277 dispatched on `90eed13` and read: red lines G7, and G4 and G5 for the
+  base's Windows fork row (the base's own run 39530569266 has it too); no GREW; the new check
+  passes on Windows, Linux and macOS.
+- [x] every number from a measured run, labelled EXECUTED; criterion 3's legs on `5805af0`, named
+  as such; the growth list is empty.
+- [x] "For the lane": the claim list, the exact flags, each reason beginning "097:", the wave kind.
+- [x] every new check seen failing first; the root check's Linux and Windows branch passes on
+  main by design, named.
+- [x] no gap; the two reserved staging items need a roadmap number, named for the lane.
+- [x] `packages.toml`: no package added; no README row changes.
+- [x] CHANGELOG under the one unreleased section; no question for the owner.
+- [x] `ruff check`, `ruff format --check`, the fast tier: output in `build/097/` (the fast tier's
+  one red row is the copied set's stale `MANIFEST`, named above).
 
 One line: on macOS the judge's unsealed guest folders leave the home folder, where the desktop
 never writes, and the OpenBLAS script stops racing it.

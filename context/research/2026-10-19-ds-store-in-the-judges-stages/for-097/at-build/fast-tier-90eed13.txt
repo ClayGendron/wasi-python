@@ -1,0 +1,21 @@
+tests/checks/test_v1_1_artifact_set.py:96: AssertionError
+=================================== progress ===================================
+wasi_python v1: 627/865 pass · 0 gap · 35 blocked · 1 fail · 202 deselected   (unit suite 1985/1993, 8 skipped)
+  v1.1  artifact set        43/46  blocked 2 fail 1
+  v1.2  portable, sealed    158/161 blocked 2
+  v1.3  data stack          118/318 
+  v1.4  embedding           231/231 
+  v1.5  rebuild from pins   19/50  blocked 30
+  rules constitution rules  58/59  blocked 1
+blocked by: compile records 6 · source tree scikit_learn 2 · prior-art clones 1 · source tree bzip2 1 · source tree contourpy 1 · source tree freetype 1 · source tree harfbuzz 1 · source tree kiwisolver 1 · source tree libraqm 1 · source tree libxml2 1 · source tree libxslt 1 · source tree lxml 1 · source tree markupsafe 1 · source tree matplotlib 1 · source tree networkx 1 · source tree pandas 1 
+next: context/research/2026-10-16-reproducible-builds-on-linux.md (unblocks 25, closes 0)
+FAIL tests/checks/test_v1_1_artifact_set.py::test_manifest_recipes_match_the_tree — AssertionError: findings: 2 finding(s), digest 302d4b78907a: stale artifact: scripts/litter.py changed since the build; stale artifact: scripts/make_openblas_vo
+ratchet vs 72bc5ed6b5: lost 1 · absent 0 · unrun 0 · unrun locally 33 · gained 15 · grew 0 · upstream unrun 157 · not selected 117 · judge changed: pyproject.toml, tests/checks/conftest.py, tests/checks/test_rules.py and 103 more
+LOST tests/checks/test_v1_1_artifact_set.py::test_manifest_recipes_match_the_tree
+RED: 1 accepted pass(es) lost
+not machine-checked: publication · copying from prior art · numpy's 25 files that need its C test modules (number 89) · pandas beyond eight groups · CPython's tests that need its C test modules (number 101) · CPython under -bb · a fuel fact's fuel below its cap (spec 091)
+  licence content of wasi-libc, llvm-runtimes and unpinned components (presence only) · bundled sub-licences · files a build adds inside a source tree · source pragmas and compiler options outside the scanned records (same-bytes is the backstop)
+=========================== short test summary info ============================
+FAILED tests/checks/test_v1_1_artifact_set.py::test_manifest_recipes_match_the_tree
+============ 1 failed, 2612 passed, 43 skipped in 719.77s (0:11:59) ============
+exit 1

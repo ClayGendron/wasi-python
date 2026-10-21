@@ -1,0 +1,6 @@
+G4 windows/own-embedding tests/checks/test_v1_4_embedding.py::test_a_forked_child_is_refused: fail AssertionError: assert ["False b'ran... 'True False'] == ["False b'ran...ked': False}"]
+G5 windows/own-embedding: lost tests/checks/test_v1_4_embedding.py::test_a_forked_child_is_refused
+G7 the newest acceptance is not on the release's set (SHA256SUMS)
+wasi_python v1: 772/865 pass · 85 gap · 7 blocked · 1 fail   (unit suite 4643/4673, 30 skipped)
+FAIL tests/checks/test_v1_4_embedding.py::test_a_forked_child_is_refused — AssertionError: assert ["False b'ran... 'True False'] == ["False b'ran...ked': False}"]
+RED: G4 windows/own-embedding tests/checks/test_v1_4_embedding.py::test_a_forked_child_is_refused: fail AssertionError: assert ["False b'ran... 'True False'] == ["False b'ran...ked': False}"]; G5 windows/own-embedding: lost tests/checks/test_v1_4_embedding.py::test_a_forked_child_is_refused; G7 the 
