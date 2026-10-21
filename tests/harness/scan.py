@@ -2086,6 +2086,46 @@ def seam_hits(files: Iterable[Path], root: Path, allowed: Iterable[str]) -> list
 
 
 # ---------------------------------------------------------------------------------------------
+# A function a person can read whole. Lines are what a reader scrolls, so the measure is lines,
+# def to last line, and a method or a nested function counts on its own under its qualified
+# name (`Class.method`, `outer.inner`).
+
+FUNCTION_CEILING = 80
+
+
+def long_function_hits(files: Iterable[Path], root: Path, allowed: dict[str, int]) -> list[str]:
+    """Every function or method (nested ones too) longer than FUNCTION_CEILING lines whose
+    `<file>:<qualname>` is not allowed, as `file:line: qualname (n lines)`; and every allowed key
+    whose function is at or under the ceiling, or gone, as `stale allowance: key (n lines)`."""
+    hits = []
+    lengths: dict[str, int] = {}
+    for p in sorted(files):
+        tree = _parsed(p)
+        if tree is None:
+            continue
+        todo: list[tuple[ast.AST, list[str]]] = [(tree, [])]
+        while todo:
+            node, scope = todo.pop()
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                scope = [*scope, node.name]
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                n = (node.end_lineno or node.lineno) - node.lineno + 1
+                key = f"{p.name}:{'.'.join(scope)}"
+                lengths[key] = n
+                if n > FUNCTION_CEILING and key not in allowed:
+                    hits.append(f"{rel(p, root)}:{node.lineno}: {'.'.join(scope)} ({n} lines)")
+            todo.extend((child, scope) for child in ast.iter_child_nodes(node))
+    hits.sort()
+    for key in allowed:
+        n = lengths.get(key)
+        if n is None:
+            hits.append(f"stale allowance: {key} (gone)")
+        elif n <= FUNCTION_CEILING:
+            hits.append(f"stale allowance: {key} ({n} lines)")
+    return hits
+
+
+# ---------------------------------------------------------------------------------------------
 # The process's state has one owner: no lock and no mutable container is bound at module or
 # class level in a runner module. A lock made at module level is inherited across a fork, held
 # by a thread the child does not have; a cache or registry at module level is one more list the

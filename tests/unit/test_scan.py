@@ -373,6 +373,35 @@ def test_a_private_runner_name_the_judge_patches_is_a_hit(work) -> None:
     assert _seams(work, ("_x",)) == ["stale allowance: _x"]
 
 
+def _function(name: str, lines: int, indent: str = "") -> str:
+    """A function of exactly `lines` lines, def to last line."""
+    body = "".join(f"{indent}    x = {i}\n" for i in range(lines - 1))
+    return f"{indent}def {name}():\n{body}"
+
+
+def test_a_function_over_the_ceiling_is_a_hit(work) -> None:
+    over = scan.FUNCTION_CEILING + 1
+    f = write(work, "m.py", _function("f", over))
+    assert scan.long_function_hits([f], work, {}) == [f"m.py:1: f ({over} lines)"]
+    assert scan.long_function_hits([f], work, {"m.py:f": over}) == []
+    write(work, "m.py", _function("f", scan.FUNCTION_CEILING))
+    assert scan.long_function_hits([f], work, {}) == []  # at the ceiling: fine
+    assert scan.long_function_hits([f], work, {"m.py:f": over}) == [
+        f"stale allowance: m.py:f ({scan.FUNCTION_CEILING} lines)"
+    ]
+    write(work, "m.py", "class C:\n" + _function("m", over, "    "))
+    assert scan.long_function_hits([f], work, {}) == [f"m.py:2: C.m ({over} lines)"]
+    write(work, "m.py", "def f():\n" + _function("g", over, "    ") + "    return g\n")
+    assert scan.long_function_hits([f], work, {}) == [
+        f"m.py:1: f ({over + 2} lines)",
+        f"m.py:2: f.g ({over} lines)",
+    ]
+    assert scan.long_function_hits([f], work, {"m.py:f": over + 2, "m.py:f.g": over}) == []
+    assert scan.long_function_hits(
+        [f], work, {"m.py:f": over + 2, "m.py:f.g": over, "m.py:h": 90}
+    ) == ["stale allowance: m.py:h (gone)"]
+
+
 def test_memo_labels(work) -> None:
     labelled = write(work, "a.md", "- **Status:** executed\n\nIt ran (EXECUTED).\n")
     placeholder = write(work, "b.md", "- **Status:** placeholder (research to do)\n")

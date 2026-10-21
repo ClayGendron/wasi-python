@@ -900,3 +900,34 @@ def test_the_judge_patches_the_runner_only_through_the_process_object() -> None:
     files = [p for p in scan.files_under(paths.REPO, "tests") if p.suffix == ".py"]
     hits = scan.seam_hits(files, paths.REPO, SEAM_ALLOWED)
     assert not hits, scan.report(hits)
+
+
+# A function a person can read whole: none over 80 lines, def to last line. These are the
+# functions over it on the tree the check was built on, measured by scan.long_function_hits
+# (the length beside each key is the record, not the test: the check reads the ceiling). An
+# entry leaves when its function is at or under 80 lines; none is ever added; a stale entry
+# is red.
+LONG_FUNCTIONS = {
+    # The two entry points and the session's opening each validate every argument before any
+    # work; a shared argument object would carry the checks out of them.
+    "runner.py:run": 151,
+    "runner.py:run_async": 176,
+    "runner.py:Session.__init__": 173,
+    "runner.py:Session.run_async": 82,
+    "_sessions.py:_open_session": 150,
+    # The engine instance's assembly: the linker, the store and the imports, one builder each.
+    "_call.py:_instance": 159,
+    # The process object's fields, one line each; a dataclass would make them declarations.
+    "_process.py:_Process.__init__": 82,
+    # The tool protocol's validator and the host's answer, one concern each a helper would take.
+    "tools.py:_make": 82,
+    "tools.py:_ToolHost._answer": 83,
+}
+
+
+def test_no_function_is_over_eighty_lines() -> None:
+    """No function or method in src/wasi_python, nested ones included, is over
+    scan.FUNCTION_CEILING lines but for LONG_FUNCTIONS, which only shrinks."""
+    files = [p for p in scan.files_under(paths.REPO, "src") if p.suffix == ".py"]
+    hits = scan.long_function_hits(files, paths.REPO, LONG_FUNCTIONS)
+    assert not hits, scan.report(hits)
