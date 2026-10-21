@@ -447,6 +447,14 @@ The first half of the build (checks first, the fix, criterion 3's fuel legs) was
 
 ### Rebase
 
+- **Wave 09 (2026-10-21):** onto `spec/100-numpy-on-openblas` at `d5c76bb` (100 rebased onto
+  main `58f108f`), from `dbecd2d`, by `git rebase --onto`. **No conflict hunk**: git applied all
+  eight commits cleanly, `CHANGELOG.md` included (097's line stays after 066's; 100's lines are
+  untouched). 097 changes neither `tests/harness/scan.py` nor `tests/unit/test_scan.py`. After it:
+  `ruff check` and `ruff format --check` green; `test_rules.py`, `test_scan.py`,
+  `test_scipy_build.py`, `test_host_litter.py`, `test_build_scripts.py` and `test_guest.py`:
+  418 passed, 5 skipped (EXECUTED). No new CI run (the lane's ruling; the wave's dry run is the
+  check).
 - Onto `dbecd2d` from `5805af0`. Four conflict hunks, all in `27253fe` (the fix commit), each
   resolved keeping both sides:
   1. `CHANGELOG.md`, the unreleased section: the chain's seven lines (103 to 109) and 066's and
