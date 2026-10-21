@@ -2083,7 +2083,7 @@ ASSETS_IN_GATHER = f"""      - uses: actions/download-artifact@{PIN} # v8.0.2
           digest-mismatch: error
       - name: The gather
 """
-# Spec 101: the build job runs no shard; the build shard is build-shard's.
+# The build job runs no shard; the build shard is build-shard's.
 REC_IN_BUILD = (
     "      - name: The build shard\n"
     "        run: uv run pytest -p no:cacheprovider --shard=build --progress-latest x\n"
@@ -2207,7 +2207,7 @@ BAD_SHARDS = [
         "          SET_SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}\n          SET_SOURCE:",
         "rule 7: gather's step",
     ),
-    # Spec 101: the gather is told where the set came from, and reads build-shard's record.
+    # The gather is told where the set came from, and reads build-shard's record.
     (
         "gather",
         "          SET_SOURCE: ${{ needs.build.outputs.set-source }}\n",

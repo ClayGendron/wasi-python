@@ -1109,7 +1109,7 @@ def test_the_oracles_lock_is_its_projects() -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# A faster release run (spec 101)
+# A faster release run: a proven set reused on branch dispatches
 
 SET_CACHE_WORKFLOW = paths.REPO / ".github" / "workflows" / "set-cache.yml"
 
@@ -1151,7 +1151,7 @@ def set_key_inputs() -> dict:
 def test_the_set_key_names_every_build_input() -> None:
     """The key of a reused set holds every input of the build: every tracked file under scripts/
     and recipes/, every repository path they name, the gate the build runs from tests/ with its
-    imports, and the build's environment (spec 101, Decision 3, layer 1)."""
+    imports, and the build's environment: the first of the key's three layers of proof."""
     needs.need("git", "git history")
     errors = scan.set_key_errors(**set_key_inputs())
     assert not errors, scan.report(errors)
@@ -1159,8 +1159,8 @@ def test_the_set_key_names_every_build_input() -> None:
 
 def test_the_release_reuses_a_set_only_on_a_branch() -> None:
     """Only a dispatch on a branch other than main reuses a set; the build job's conditional
-    steps, build-shard, the cache's readers and writers, and set-cache.yml follow spec 101's
-    rules (Decisions 4 to 8; the pre-build review's M2, L3, L4 and L6)."""
+    steps, build-shard, the cache's readers and writers, and set-cache.yml follow the reuse
+    rules: where a set may be reused, how it is checked, who writes the cache and who reads it."""
     errors = scan.release_reuse_errors(
         RELEASE_WORKFLOW.read_text(),
         SET_CACHE_WORKFLOW.read_text() if SET_CACHE_WORKFLOW.is_file() else "",
@@ -1225,7 +1225,7 @@ DECIDE_CASES = {
 @pytest.mark.parametrize("case", DECIDE_CASES)
 def test_the_reuse_decision_refuses_tags_and_main(case, tmp_path) -> None:
     """The inputs job's own decision step, run in bash: reuse only on a dispatch from a branch
-    other than main, not from-source, with the key cached (spec 101, Decision 4; review L3)."""
+    other than main, not from-source, with the key cached; any other value builds from source."""
     script = scan.workflow_step_script(RELEASE_WORKFLOW.read_text(), "inputs", scan.DECIDE_STEP)
     event, ref, from_source, hit, want = DECIDE_CASES[case]
     out = tmp_path / "out"

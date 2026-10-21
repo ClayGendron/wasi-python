@@ -43,7 +43,7 @@ env:
 jobs:
   inputs:
     name: the set's key, and whether this run may reuse a set
-    # Spec 101, Decision 4: only a dispatch on a branch other than main, not from-source, reuses a
+    # Only a dispatch on a branch other than main, not from-source, reuses a
     # set the cache holds under this commit's key. Every consumer compares reuse with == 'true', so
     # an empty or broken output builds from source.
     runs-on: ubuntu-24.04
@@ -88,8 +88,8 @@ jobs:
   build:
     name: build on arm64 macOS, or reuse a set
     # The published set is built on arm64 macOS; a branch dispatch whose key is cached reuses it on
-    # Linux instead (spec 101, Decision 8), and build-shard, the rebuild jobs and same-bytes prove
-    # it from the pins in the same run. The build shard runs in build-shard (Decision 5).
+    # Linux instead, and build-shard, the rebuild jobs and same-bytes prove it from the pins in
+    # the same run. The build shard runs in build-shard, which has a build tree on every run.
     needs: inputs
     runs-on: ${{ needs.inputs.outputs.reuse == 'true' && 'ubuntu-24.04' || 'macos-15' }}
     timeout-minutes: 120
@@ -102,7 +102,7 @@ jobs:
       wasm-sha256: ${{ steps.wasm.outputs.sha256 }}
       # The set's own SHA256SUMS (not the release assets'), for the gather's G2 and G7.
       set-sums-sha256: ${{ steps.set-sums.outputs.sha256 }}
-      # Spec 101: built or reused, from what ran (the compile step's outcome), for the gather's G7.
+      # Built or reused, from what ran (the compile step's outcome), for the gather's G7.
       set-source: ${{ steps.compile.outcome == 'success' && 'built' || format('reused {0}', needs.inputs.outputs.key) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -143,7 +143,7 @@ jobs:
           mv wasi-python-set build/artifacts
       - name: The set is this commit's
         # Every run, no if: each file against the set's own SHA256SUMS, no other file, MANIFEST's
-        # pin and recipe lines against this checkout; and a reused set's key (spec 101, Decision 8).
+        # pin and recipe lines against this checkout; and a reused set's key.
         env:
           REUSED_KEY: ${{ needs.inputs.outputs.reuse == 'true' && needs.inputs.outputs.key || '' }}
         run: |
@@ -468,7 +468,7 @@ jobs:
     name: the build shard on a fresh build (ubuntu-24.04-arm)
     # The build shard reads the build tree (the source trees, the compile records, the toolchain),
     # which a reused set does not have; so on every run, tags included, it runs here on a fresh
-    # build from the pins (spec 101, Decision 5; the owner, 2026-10-20). Its record's artifact and
+    # build from the pins (the owner's choice, 2026-10-20). Its record's artifact and
     # set_sums are this tree's own, and the gather's G2 holds them to the build job's.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 120
@@ -491,7 +491,7 @@ jobs:
       - name: Build from the pins
         run: scripts/build.sh
       - name: The source trees are their tarballs plus the recorded patches (spec 020)
-        # All twenty-seven trees must pass (seaborn's sdist the twenty-seventh, spec 042): a
+        # All twenty-seven trees must pass (seaborn's sdist the twenty-seventh): a
         # skipped check (a tree not unpacked) would exit 0 too.
         run: |
           set -o pipefail
@@ -500,7 +500,7 @@ jobs:
           grep -Eq "^27 passed, [0-9]+ deselected in" zero-patch.txt
       - name: The build shard
         # Only the checks that need the build tree: every component's tree, the compile records and
-        # the zlib tarball (spec 063, Decision 6), on this job's own build (spec 101, Decision 5).
+        # the zlib tarball, on this job's own build. The rest of the judge runs in the judge jobs.
         run: uv run pytest -p no:cacheprovider --shard=build --progress-latest "$RUNNER_TEMP/record/latest.json"
       - name: The record's SHA-256
         id: record-sha
@@ -523,7 +523,7 @@ jobs:
 
   save-set:
     name: keep the set this run built and both hosts rebuilt
-    # Spec 101, Decision 7: a branch run that built its set writes it to the cache under the key its
+    # A branch run that built its set writes it to the cache under the key its
     # own checkout gives, once same-bytes has matched it with both rebuilds; a later dispatch on this
     # branch with the same key reuses it.
     needs: [build, same-bytes]
@@ -541,7 +541,7 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
       - name: The build job handed on an artifact id
-        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run.
         env:
           ASSETS_ID: ${{ needs.build.outputs.assets-id }}
         run: |
@@ -555,7 +555,7 @@ jobs:
           digest-mismatch: error
       - name: These are the bytes the build job made
         # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
-        # handed on, every file against SHA256SUMS, and no other file (spec 057).
+        # handed on, every file against SHA256SUMS, and no other file.
         env:
           SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
         run: |
@@ -603,7 +603,7 @@ jobs:
     needs: build
     strategy:
       fail-fast: false
-      # One run stays within the plan's 40 jobs at once (spec 101, Decision 9).
+      # One run stays within the plan's 40 jobs at once.
       max-parallel: 18
       matrix:
         shard: [own-embedding, own-embedding-a, own-hostile, own-guest, own-runner, own-rest, upstream-macos]
@@ -730,7 +730,7 @@ jobs:
     needs: build
     strategy:
       fail-fast: false
-      # One run stays within the plan's 40 jobs at once (spec 101, Decision 9).
+      # One run stays within the plan's 40 jobs at once.
       max-parallel: 18
       matrix:
         shard: [own-embedding, own-embedding-a, own-hostile, own-guest, own-runner, own-rest, upstream-groupby, upstream-frame, upstream-numpy-a, upstream-numpy-b, upstream-pandas-small, upstream-plot-a, upstream-plot-b, upstream-plot-c, upstream-plot-d, upstream-plot-e, upstream-plot-f, upstream-plot-g, upstream-plot-h, upstream-plot-i, upstream-plot-j, upstream-plot-k, upstream-plot-l, upstream-plot-m, upstream-plot-n]
@@ -893,7 +893,7 @@ jobs:
     needs: build
     strategy:
       fail-fast: false
-      # One run stays within the plan's 40 jobs at once (spec 101, Decision 9).
+      # One run stays within the plan's 40 jobs at once.
       max-parallel: 18
       matrix:
         shard: [own-embedding, own-embedding-a, own-hostile, own-guest, own-runner, upstream-windows]

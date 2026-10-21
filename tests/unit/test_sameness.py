@@ -454,7 +454,7 @@ def test_a_read_only_files_block_on_windows_alone_is_no_difference() -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# Spec 101: the build shard runs on a fresh arm64 Linux build; sameness reads its run by its key
+# The build shard runs on a fresh arm64 Linux build; sameness reads its run by its key
 
 ARM = "linux-aarch64"
 
@@ -466,7 +466,7 @@ def linux_build_records() -> dict[tuple[str, str], dict]:
 
 
 def test_a_build_run_on_linux_counts_on_the_darwin_side() -> None:
-    """The review's H1: the build run's unit tests are the lane's darwin units too."""
+    """The build run's unit tests are the lane's darwin units too, though it ran on Linux."""
     r, lane = release(linux_build_records()), local()
     assert r["runs"]["build/build"]["platform"] == ARM
     assert sameness.differences(r, lane) == []

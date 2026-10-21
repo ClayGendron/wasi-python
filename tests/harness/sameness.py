@@ -48,9 +48,9 @@ FUEL_FACTS = "fuel_facts"  # a fact of fuel values, compared as fuel is
 EXACT_METRICS = ("bytes", "passes")
 REASONED = ("gap", "blocked")
 SIDE = {0: "only in the first record", 1: "only in the second record"}
-# The build shard runs on a fresh arm64 Linux build (spec 101, Decision 5): its blocks are Linux's.
+# The build shard runs on a fresh arm64 Linux build: its blocks are Linux's.
 SYSTEMS = {"darwin": {"macos"}, "linux": {"linux", "build"}, "win32": {"windows"}}
-# Its run's unit tests are the lane's darwin units all the same (spec 101, the review's H1).
+# Its run's unit tests are the lane's darwin units all the same: the lane runs them on darwin.
 BUILD_RUN = "build/build"
 
 

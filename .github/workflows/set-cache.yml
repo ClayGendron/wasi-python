@@ -1,10 +1,10 @@
-# Main's set cache (context/specifications/101-faster-release-run.md, Decision 7).
+# Main's set cache: the one writer to the cache every branch can read.
 #
 # A release run on a branch may reuse a set the cache holds under its commit's key
 # (release/set_key.py), but a branch reads only its own caches and main's. So on every push to main
 # (the lane's fast-forward), this workflow looks the key up in main's cache, and when it is absent
 # builds the set from the pins on arm64 Linux, checks it, and saves it. Every run that reuses the set
-# still rebuilds it from the pins three times and requires the same bytes (spec 101, Decision 3).
+# still rebuilds it from the pins three times and requires the same bytes.
 # It holds no secret, signs nothing and publishes nothing. Its env is release.yml's, name for name
 # and value for value, as the key holds it (the rules check). Third-party actions are pinned by
 # commit, their release named beside each. Values reach scripts through env:, never as expressions.

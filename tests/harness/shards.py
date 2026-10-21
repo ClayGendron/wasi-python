@@ -23,7 +23,7 @@ UPSTREAM_FILE = "tests/checks/test_v1_3_upstream_suites.py"
 OWN_SYSTEMS = ("macos", "linux", "windows")
 SYSTEMS = (*OWN_SYSTEMS, "build")
 # Each system's platform, as a run record's `meta.platform` begins (sys.platform). The build
-# shard runs on a fresh arm64 Linux build on every run (spec 101, Decision 5).
+# shard runs on a fresh arm64 Linux build on every run.
 PLATFORM = {"macos": "darwin", "linux": "linux", "windows": "win32", "build": "linux"}
 
 
@@ -34,7 +34,7 @@ class Shard:
     files: tuple[str, ...] = ()
     groups: tuple[str, ...] = ()
     rest: bool = False
-    # Single checks by node id, or every case of a function by `file::function` (spec 101): the
+    # Single checks by node id, or every case of a function by `file::function`: the
     # build shard's that need the build host, and a split of one file across shards.
     nodes: tuple[str, ...] = ()
 
@@ -122,7 +122,7 @@ def select(
 
 def names(entry: str, node: str) -> bool:
     """Whether a plan's `nodes` entry takes a node: the node itself, or, for an entry without
-    parameters, every parameter case of its function (spec 101, Decision 9)."""
+    parameters, every parameter case of its function."""
     return node == entry or ("[" not in entry and node.startswith(entry + "["))
 
 
@@ -169,7 +169,7 @@ def plan_errors(plan: dict[str, Shard], files: list[str], groups: list[str]) -> 
         return ["the plan names no shard"]
     seen: dict[str, str] = {}
     for name, s in plan.items():
-        # A shard that names checks and nothing else selects by nodes (spec 101, Decision 9).
+        # A shard that names checks and nothing else selects by nodes.
         kinds = [bool(s.files), bool(s.groups), s.rest, bool(s.nodes) and not s.files]
         if sum(kinds) != 1:
             errors.append(

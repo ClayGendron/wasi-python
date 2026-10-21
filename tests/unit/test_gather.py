@@ -102,7 +102,7 @@ class Case:
         self.newest = {"artifact": W, "set_sums": S, "dirty": False, "partial_reason": None}
         self.gaps: set[str] = set()
         self.tag = False
-        self.set_source = "built"  # spec 101
+        self.set_source = "built"  # a set this run built
         self.plan = PLAN
         self.wasm = W
         self.set_sums = S
@@ -664,7 +664,7 @@ def test_the_merged_record_carries_what_sameness_needs(case) -> None:
     assert merged["checks"][PROBE]["source"]["status"] == "pass"
     assert "metrics" not in merged["checks"][PROBE]["source"]
     assert merged["checks"][SUITE]["source"]["platform"] == "linux-x86_64"  # no darwin run
-    # The build's, from build-shard's arm64 Linux build since spec 101.
+    # The build's, from build-shard's arm64 Linux build.
     assert merged["checks"][BUILD_NODE]["source"]["platform"] == "linux-aarch64"
 
 
@@ -706,7 +706,7 @@ def test_only_a_pushed_tag_is_a_tag(environ, tag) -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# Spec 101: the build record comes from build-shard on arm64 Linux; where the set came from
+# The build record comes from build-shard on arm64 Linux; where the set came from
 
 
 def test_the_build_record_is_build_shards_on_linux(case) -> None:

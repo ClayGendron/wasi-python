@@ -1347,7 +1347,7 @@ JOB_PERMISSIONS = {
     # The judge jobs check out and read the build's files; the gather checks out alone.
     **{job: {"contents: read"} for job in ("judge-macos", "judge-linux", "judge-windows")},
     "gather": {"contents: read"},
-    # Spec 101: the key and the decision; the build shard on a fresh build; the cache's writer.
+    # The key and the decision; the build shard on a fresh build; the cache's writer.
     "inputs": {"contents: read"},
     "build-shard": {"contents: read"},
     "save-set": {"contents: read"},
@@ -1627,7 +1627,7 @@ BUILD_SHARD_RUN = (
 RECORD_ID_OUTPUT = re.compile(
     r"needs\.(?:build(?:-shard)?\.outputs\.record-id|judge-[a-z]+\.outputs\.[\w-]+-id)\b"
 )
-# The job whose build tree the build shard reads: a fresh arm64 Linux build (spec 101).
+# The job whose build tree the build shard reads: a fresh arm64 Linux build.
 BUILD_SHARD_JOB = "build-shard"
 
 
@@ -1737,7 +1737,7 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
     if len(shapes) > 1:
         errors.append("rule 3: the three judge jobs differ beyond their runner, system and lists")
     # Rule 6: build-shard judges the build shard on its own build and hands on its record; the
-    # build job hands on python.wasm's hash and runs no other pytest (spec 101, Decision 5).
+    # build job hands on python.wasm's hash and runs no other pytest: a reused set has no tree.
     build = [f for _, f in steps.get("build", [])]
     outputs = _job_map(jobs.get("build", []), "outputs")
     runs = [str(f.get("run", "")).strip() for f in build]
@@ -1861,7 +1861,7 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
         want_env = {
             "WASM_SHA256": "${{ needs.build.outputs.wasm-sha256 }}",
             "SET_SUMS_SHA256": "${{ needs.build.outputs.set-sums-sha256 }}",
-            "SET_SOURCE": "${{ needs.build.outputs.set-source }}",  # spec 101
+            "SET_SOURCE": "${{ needs.build.outputs.set-source }}",  # built or reused
             "RECORD_BUILD_BUILD": f"${{{{ needs.{BUILD_SHARD_JOB}.outputs.record-sha256 }}}}",
         }
         for job, (_, system) in JUDGE_JOBS.items():
@@ -3621,7 +3621,7 @@ def lock_errors(lock_text: str, pyproject_text: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------------------------
-# A faster release run: a proven set reused on branch dispatches (spec 101)
+# A faster release run: a proven set reused on branch dispatches
 
 CACHE_RESTORE = "actions/cache/restore@"
 CACHE_SAVE = "actions/cache/save@"
@@ -3673,7 +3673,7 @@ def _step_runs(job_steps: list[dict]) -> list[str]:
 
 def _build_step_errors(job: str, job_steps: list[dict]) -> list[str]:
     """A job that builds runs exactly `scripts/00_download.sh` then `scripts/build.sh`, no
-    arguments, and no other step names either script (spec 101, Decision 3)."""
+    arguments, and no other step names either script, so the key's env is the build's."""
     errors = []
     runs = _step_runs(job_steps)
     for r in runs:
@@ -3691,9 +3691,9 @@ def _build_step_errors(job: str, job_steps: list[dict]) -> list[str]:
 
 
 def release_reuse_errors(release_text: str, cache_text: str, key_env: Iterable[str]) -> list[str]:
-    """Spec 101's rules on both workflows, one line per breach: where a set may be reused
-    (Decision 4), the build job's steps (Decision 8), build-shard (Decision 5), the writers and
-    readers of the cache (Decision 7), and set-cache.yml's rules (the pre-build review's M2)."""
+    """The reuse rules on both workflows, one line per breach: where a set may be reused, the
+    build job's steps, build-shard, the writers and readers of the cache, and set-cache.yml's
+    rules."""
     errors: list[str] = []
     text = without_comments(release_text)
     jobs = workflow_jobs(text)
@@ -3867,14 +3867,14 @@ def release_reuse_errors(release_text: str, cache_text: str, key_env: Iterable[s
     g = jobs.get("gather", [])
     if not {"build-shard", "same-bytes"} <= _needs(g):
         errors.append("R6: gather does not need build-shard and same-bytes")
-    # The set-cache workflow (the pre-build review's M2).
+    # The set-cache workflow, the one writer to main's cache.
     errors += set_cache_errors(cache_text, release_text, key_env)
     return errors
 
 
 def set_cache_errors(cache_text: str, release_text: str, key_env: Iterable[str]) -> list[str]:
     """set-cache.yml, the one writer to main's cache: its triggers, permissions, uv, env, build
-    steps and the order of its check and its save (spec 101, Decision 7)."""
+    steps and the order of its check and its save."""
     errors: list[str] = []
     text = without_comments(cache_text)
     m = re.search(r"^on:\n(?:[ ].*\n|\n)*", text, re.M)
@@ -3925,7 +3925,7 @@ def set_cache_errors(cache_text: str, release_text: str, key_env: Iterable[str])
 def local_import_files(repo: Path, root: str, modules: Iterable[str]) -> set[str]:
     """Every file under `repo/root` that `modules` import, directly or not, with the packages on
     the way: the judge's own walk, written apart from release/set_key.py's so each checks the
-    other (spec 101, Decision 3)."""
+    other."""
     found: set[str] = set()
     todo, seen = list(modules), set()
     while todo:
@@ -3972,10 +3972,10 @@ def set_key_errors(
     tests_names: Iterable[str],
     gate_imports: Iterable[str] = (),
 ) -> list[str]:
-    """Decision 3, layer 1: what the set's key (release/set_key.py) must hold, one line per input
-    it leaves out. `tracked` is every tracked file under scripts/ and recipes/; `texts` their
-    text; `tests_names` the top-level names under the gate root (files and folders);
-    `gate_imports` the files `local_import_files` finds for the gates."""
+    """The first layer of the key's proof: what the set's key (release/set_key.py) must hold,
+    one line per input it leaves out. `tracked` is every tracked file under scripts/ and
+    recipes/; `texts` their text; `tests_names` the top-level names under the gate root (files
+    and folders); `gate_imports` the files `local_import_files` finds for the gates."""
     import sys
 
     errors: list[str] = []

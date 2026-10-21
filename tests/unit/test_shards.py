@@ -46,7 +46,7 @@ systems = ["macos"]
 """
 
 
-# Spec 101: a shard that takes one function of own-1's file, on own-1's systems.
+# A shard that takes one function of own-1's file, on own-1's systems.
 OWN_2 = """[shard.own-2]
 nodes = ["tests/checks/test_b.py::test_x"]
 systems = ["macos", "linux", "windows"]
@@ -368,14 +368,14 @@ def test_a_check_named_by_node_goes_to_the_build_shard_alone() -> None:
 @pytest.mark.parametrize(
     ("change", "error"),
     [
-        (  # spec 101: a shard may name checks, but runs where their file's shard runs
+        (  # a shard may name checks, but runs where their file's shard runs
             (
                 "[shard.up-1]",
                 OWN_2.replace('"macos", "linux", "windows"', '"linux"') + "[shard.up-1]",
             ),
             "(h) own-2: runs on ['linux'], not on own-1's systems",
         ),
-        (  # spec 101: a shard that names checks and nothing else selects by nodes alone
+        (  # a shard that names checks and nothing else selects by nodes alone
             ("[shard.up-1]", OWN_2.replace("nodes = ", "files = [] \nnodes = ") + "[shard.up-1]"),
             None,
         ),
@@ -383,7 +383,7 @@ def test_a_check_named_by_node_goes_to_the_build_shard_alone() -> None:
             ("[shard.up-1]", OWN_2 + OWN_2.replace("own-2", "own-3") + "[shard.up-1]"),
             "(h) tests/checks/test_b.py::test_x is named twice",
         ),
-        (  # spec 101: a function in one shard and one of its cases in another
+        (  # a function in one shard and one of its cases in another
             (
                 "[shard.up-1]",
                 OWN_2
@@ -413,7 +413,7 @@ def test_each_bad_node_is_named(change, error) -> None:
 
 
 def test_a_shard_names_a_function_and_takes_every_case_of_it() -> None:
-    """Spec 101, Decision 9: `file::function` takes each parameter case; the file's other checks
+    """`file::function` takes each parameter case; the file's other checks
     stay with the file's shard; a whole node id still names one check."""
     plan = _plan(PLAN_TEXT.replace("[shard.up-1]", OWN_2 + "[shard.up-1]"))
     b = "tests/checks/test_b.py"

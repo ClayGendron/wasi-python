@@ -1,5 +1,5 @@
-"""The set's key, the check that a set is this commit's, and spec 101's workflow rules: each row a
-mutant of what the rules check reads, red with its own reason (spec 101, checks 1, 2 and 4)."""
+"""The set's key, the check that a set is this commit's, and the reuse rules on the workflows:
+each row a mutant of what the rules check reads, red with its own reason."""
 
 from __future__ import annotations
 
@@ -172,7 +172,7 @@ def test_the_set_check_refuses_another_key(repo, tmp_path) -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# Check 1's mutants: what the key must hold (Decision 3, layer 1)
+# The key rule's mutants: what the key must hold, the first layer of its proof
 
 
 def _inputs(**changes) -> dict:
@@ -249,7 +249,7 @@ def test_each_key_mutant_is_named(case) -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# Check 2's mutants: where a set may be reused, and set-cache.yml (Decisions 4 to 8; review M2)
+# The reuse rules' mutants: where a set may be reused, how it is checked, and set-cache.yml
 
 
 def _reuse(release: str | None = None, cache: str | None = None) -> list[str]:

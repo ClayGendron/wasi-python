@@ -1,4 +1,4 @@
-"""The key of a finished artifact set, and the check that a set is this commit's (spec 101).
+"""The key of a finished artifact set, and the check that a set is this commit's.
 
     uv run --no-project python -I release/set_key.py key     # key=wasi-python-set-v1-<sha256>
     uv run --no-project python -I release/set_key.py verify <set> [--key <key>]
@@ -8,7 +8,8 @@ workflow sets it (`ENV`), and `file <sha256> <path>` for every file of `closure(
 tracked file under `scripts/` and `recipes/`, this file, the build constraints an env value names,
 and the gate step 60 runs with `tests/` on PYTHONPATH (`GATES`) with every local module it
 imports. A reused set is never judged alone: the same run rebuilds it from the pins three times
-(spec 101, Decision 3). So a key that missed an input can make a run red, never a stale set pass.
+and requires the same bytes. So a key that missed an input can make a run red, never a stale set
+pass.
 
 `verify` checks a set folder: every file against the set's own SHA256SUMS, no other file, and
 MANIFEST's `pin` and `recipe` lines equal to what this checkout gives, by the selection
