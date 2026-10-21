@@ -1,0 +1,1 @@
+test.test_math.MathTests.test_sumprod_stress gated cpython-c

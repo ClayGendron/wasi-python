@@ -1,0 +1,6 @@
+pandas/tests/io/parser/test_multi_thread.py::test_multi_thread_path_multipart_read_csv[c_high]
+pandas/tests/io/parser/test_multi_thread.py::test_multi_thread_path_multipart_read_csv[c_low]
+pandas/tests/io/parser/test_multi_thread.py::test_multi_thread_path_multipart_read_csv[python]
+pandas/tests/io/parser/test_multi_thread.py::test_multi_thread_string_io_read_csv[c_high]
+pandas/tests/io/parser/test_multi_thread.py::test_multi_thread_string_io_read_csv[c_low]
+pandas/tests/io/parser/test_multi_thread.py::test_multi_thread_string_io_read_csv[python]

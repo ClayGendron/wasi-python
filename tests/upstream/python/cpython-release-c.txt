@@ -1,0 +1,12 @@
+test.test_collections.TestNamedTuple.test_large_size gated cpython-c
+test.test_hashlib.HashLibTestCase.test_threaded_hashing_slow gated cpython-c
+test.test_http_cookies.CookieTests.test_unquote_large gated cpython-c
+test.test_minidom.MinidomTest.testAppendChildNoQuadraticComplexity gated cpython-c
+test.test_ntpath.NtCommonTest.test_expandvars_large gated cpython-c
+test.test_ntpath.TestNtpath.test_expandvars_large gated cpython-c
+test.test_peepholer.TestTranforms.test_format_combinations gated cpython-c
+test.test_pickle.CDumpPickle_LoadPickle.test_framing_many_objects gated cpython-c
+test.test_pickle.CPicklerTests.test_framing_many_objects gated cpython-c
+test.test_pickle.DumpPickle_CLoadPickle.test_framing_many_objects gated cpython-c
+test.test_pickle.InMemoryPickleTests.test_framing_many_objects gated cpython-c
+test.test_pickle.PyPicklerTests.test_framing_many_objects gated cpython-c

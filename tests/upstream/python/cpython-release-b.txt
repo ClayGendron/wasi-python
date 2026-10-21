@@ -1,0 +1,9 @@
+test.test_compile.TestSpecifics.test_stack_overflow gated cpython-b
+test.test_fstring.TestCase.test_many_fstrings_in_module gated cpython-b
+test.test_htmlparser.HTMLParserTestCase.test_eof_no_quadratic_complexity gated cpython-b
+test.test_htmlparser.HTMLParserTestCase.test_incremental_no_quadratic_complexity gated cpython-b
+test.test_multibytecodec.Test_ISO2022.test_bug1572832 gated cpython-b
+test.test_str.StrTest.test_isprintable_invariant gated cpython-b
+test.test_str.StrTest.test_isspace_invariant gated cpython-b
+test.test_support.TestSupport.test_args_from_interpreter_flags gated cpython-b
+test.test_tstring.TestTString.test_many_tstrings_in_module gated cpython-b

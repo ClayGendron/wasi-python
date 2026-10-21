@@ -810,6 +810,39 @@ The build, below, as it goes.
    `excluded_marker = "network"`) is red, "selects an excluded test". Check 1's row for it is
    that mutant.
 
+3. **CPython's inline entries are modules** (Decision 9, check 4). The survey's reader found the
+   drafter's four places, but only two are in a test: `test_unicodedata` reads `cpu` at module
+   level (`quicktest` steers several tests) and `test_unparse` in a class helper. So an `inline`
+   entry names a module, the release group runs the whole module with `cpu` on, the rules check
+   reads each planned module's source for an inline `is_resource_enabled('cpu')` (a text search:
+   some 3.15 test files do not parse on the host's Python), and the partition asks that each
+   inline module ran in its normal group.
+4. **The regrtest driver says which resource a module was denied** (Decision 9). A
+   `RESOURCE_DENIED` module's `D` line carries no reason, and four planned modules are denied
+   `network` or `extralargefile`, which are not the tiers'. The driver writes `Z <module> --
+   <reason>` before such a module's `D` line; the partition reads only `cpu` and `largefile`
+   denials. The stage changes, so CPython's normal fuel moves (at most +5.3e-4, criterion 4).
+5. **contourpy's guard group** (Decision 3's paths rule). The marker release groups must cover
+   every normal path, but contourpy marks slow cases in `test_filled.py` alone. A marker release
+   group over the other files, `contourpy-slow-rest`, holds any slow case contourpy adds there;
+   it selects nothing today, so it carries `selects_nothing` with its reason and pytest's exit 5
+   is its pass. Only a marker release group may carry the key (a rules row).
+6. **Budgets by tier** (Decision 3's caps). numpy's, pandas' and CPython's family budgets bound
+   each tier separately; CPython's release tier has a budget of its own, 6 T, its caps summing to
+   5.39 T (the 4 GiB hashes, the sumprod stress, every code point). A package family's budget stays
+   the sum of all its caps, both tiers (contourpy's, 8.865 T).
+7. **Two single tests past 480 G** (Decision 3's bound, Decision 10's packing):
+   `test_sha3_256_update_over_4gb` (813 G) and `test_sumprod_stress` (621 G) cannot be split. Each
+   is a group and a shard of its own, as 067's sympy test is. By Decision 11's rule this sends the
+   survey's delta to a context-only delta review before the build goes on.
+8. **A move is red where the run collected the check** (Decision 5). "Red on any run" made a run
+   of other files red (the landing lane's self-tests run the plugin on a unit file in a
+   worktree). A move is now red on any run that collects the upstream file: every full run and
+   fast tier, never a run narrowed to other files. A unit row holds it.
+9. **numpy's and pandas' release groups are by path** (Decision 8): `numpy-slow-a`
+   (`_core`, `lib`), `numpy-slow-linalg`, `numpy-slow-b`; `pandas-slow-a` (`frame`, `groupby`) and
+   `pandas-slow-b` (the other six paths). One numpy group measured 656 G, past 480.
+
 ### The build, in order
 
 1. **The ratchet, the plugin and the shard plan** (branch tip after `7d31d1e`). Each new unit
@@ -895,8 +928,29 @@ The build, below, as it goes.
    the missing artifact set, as on any worktree without one. `ruff check` and `ruff format
    --check` clean.
 
+5. **The survey** (Decision 11; `../research/2026-10-21-the-release-tier-survey.md`, EXECUTED, on
+   wave 09's set `142bdd38`, 03:10 to 04:15). The release tier: 41 groups, **8.37 T** on darwin
+   (contourpy 3.99, CPython 3.51, numpy 0.48, pandas 0.39), 21 to 24 minutes of guest time
+   serially; twelve release shards at 725 G, two of them a single test each. The normal tier
+   against the lane's wave 09 record on the same set: numpy's and pandas' normal groups equal to
+   the instruction; CPython's within +5.3e-4; contourpy's within 4.4e-4 but `contourpy-1`
+   (+0.28%, its new `-m "not slow"`); passes equal everywhere. CPython: 51 tests and one module
+   gated by `cpu`, none by `largefile`; four inline modules. Two new classes, each closed by the
+   README: `pandas-slow-b-no-threads` (6) and `cpython-release-a-stdlib-zip-error` (1). Written
+   from it: every TOML's release groups with `measured` and caps by the rule, CPython's
+   fourteen release lists, the classes and their gaps, the shard plan (nine normal plot shards,
+   twelve release shards), and the judge-linux matrix's five retired plot shards in the release
+   workflow (the rules hold the matrix to the plan; nothing else of the workflow changed).
+   The four TOMLs' cited comments are cleared and their nineteen allowance entries removed.
+   The fast tier after it: 2,714 passed, 2 failed (the landing lane's self-tests, red on the
+   move as Difference 8 says; fixed, both files then green), the ratchet `moved 17` (contourpy's
+   seventeen groups, the move to claim) and `grew 84` (the set is wave 09's; accepted.json is
+   main's before wave 09).
+
 **What waits for wave 09** (the lane's ruling): the rebase onto main; the survey (Decision 11)
-on main's set after 100; the TOML groups, release lists and shard entries from it; the tier
-step, the `release-tier` input, `judge-release` and the gather's `needs` and `env:` on 101's
-`inputs` job, with their scan rules (checks 9 and 10); the README and CHANGELOG lines; both
+on main's set after 100 (done, item 5, on wave 09's tip before it landed); the TOML groups,
+release lists and shard entries from it (done); the context-only delta review the survey asks
+for (Difference 7); the tier step, the `release-tier` input, `judge-release` and the gather's
+`needs` and `env:` (its `TIER`: until then a branch run's gather is red at G1) on 101's `inputs`
+job, with their scan rules (checks 9 and 10); the README and CHANGELOG lines; both
 branch runs (criteria 5 and 6); "For the lane" filled in; the self-check.

@@ -1,0 +1,2 @@
+test.test_posixpath.PosixCommonTest.test_expandvars_large gated cpython-fs
+test_posixpath inline cpython-fs

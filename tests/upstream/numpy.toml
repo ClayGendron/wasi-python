@@ -1,4 +1,4 @@
-# numpy's own tests in the guest (spec 050). A judge file: every edit is a judge change.
+# numpy's own tests in the guest. A judge file: every edit is a judge change.
 #
 # marker        upstream's fast selection, numpy.test()'s default (numpy/_pytesttester.py:164)
 # path_packages the packages whose __path__ gains the staged test folders (Decision 4)
@@ -12,10 +12,11 @@
 # fuel_fact     tests whose fuel measures where a type object sits in memory, not the product:
 #               deselected from their group and run alone in a second session inside the group's
 #               check; their outcomes count with the group's, their fuel is a recorded fact, never
-#               ratcheted, and `fuel` is their cap (spec 091)
+#               ratcheted, and `fuel` is their cap
 
 package = "numpy"
 marker = "not slow"
+release_marker = "slow"
 args = []
 path_packages = [
     "numpy",
@@ -59,6 +60,32 @@ paths = [
     "numpy/tests",
 ]
 fuel = 270_000_000_000
+
+[groups.numpy-slow-a]
+paths = ["numpy/_core/tests", "numpy/lib/tests"]
+fuel = 220_000_000_000
+measured = 143_817_011_073
+tier = "release"
+
+[groups.numpy-slow-linalg]
+paths = ["numpy/linalg/tests"]
+fuel = 380_000_000_000
+measured = 251_342_303_340
+tier = "release"
+
+[groups.numpy-slow-b]
+paths = [
+    "numpy/fft/tests",
+    "numpy/ma/tests",
+    "numpy/matrixlib/tests",
+    "numpy/polynomial/tests",
+    "numpy/random/tests",
+    "numpy/testing/tests",
+    "numpy/tests",
+]
+fuel = 130_000_000_000
+measured = 81_857_243_510
+tier = "release"
 
 [[not_selected]]
 files = [
@@ -107,9 +134,9 @@ closes_with = "README.md"
 # The tests that trap the guest (Decision 9) would be [[trap]] entries here: id, node, reason,
 # closes_with; each deselected from its group and run alone by test_upstream_trap[<id>], a gap
 # until fixed. None today: the seven that trapped on numpy 2.5.2 (four C callbacks called through
-# pointers of another signature) run in numpy-core since spec 051's patch 0002.
+# pointers of another signature) run in numpy-core since the carried patch 0002.
 
-# The fuel facts (spec 091). The cap is at least twice the entry's fuel when measured, so only a
+# The fuel facts. The cap is at least twice the entry's fuel when measured, so only a
 # doubling is red; below it the fuel is reported in the group's record (`fuel_facts`) and compared
 # only between two runs of one commit (tests/harness/sameness.py). An entry needs a reason and the
 # reviewed trace that measured the dependence, and adding one is a judge change.
@@ -130,7 +157,7 @@ evidence = [
 # of its group whose outcome and `match` (a regular expression searched in the one-line reason)
 # fit. Each class's members are listed in expected/<group>/<id>.txt and admitted as one gap.
 # A class a fix emptied keeps its id, an empty list and the closer that emptied it, as a record,
-# and has no gap (C1). Failures that come back need a gap with a new closer, not this one.
+# and has no gap. Failures that come back need a gap with a new closer, not this one.
 
 [[expected]]
 id = "no-dup"

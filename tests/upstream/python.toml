@@ -1,4 +1,4 @@
-# CPython's own tests in the guest (spec 065). A judge file: every edit is a judge change.
+# CPython's own tests in the guest. A judge file: every edit is a judge change.
 #
 # runner        regrtest: CPython's own runner, run in one guest process per group (Decision 9)
 # component     the source component whose pinned tarball holds Lib/test (the need and the tie)
@@ -17,7 +17,7 @@
 # host_dependent results that differ by host, recorded per system (Decision 21; none today)
 #
 # The driver's adaptations, with their reasons, are in tests/upstream/regrtest_drive.py: A2 (make
-# /tmp), A1 (single.clear_caches gives the ctypes stand-in a no-op _reset_cache, until spec 074),
+# /tmp), A1 (single.clear_caches gives the ctypes stand-in a no-op _reset_cache, until the stand-in has one),
 # and -W error.
 
 package = "python"
@@ -25,6 +25,11 @@ runner = "regrtest"
 component = "cpython"
 grant = "/cpython"
 resources = "all,-cpu,-gui,-largefile"
+# The release tier enables what the normal tier leaves off: the cpu resource and largefile. Its
+# groups' lists name each test (or module) a normal group skips for want of one, `gated`, and
+# each module that reads cpu itself to do less work without it, `inline`; the normal groups prove
+# the lists on every run.
+release_resources = "all,-gui"
 options = ["--fail-env-changed"]
 warnings = "error"
 
@@ -47,6 +52,84 @@ fuel = 490_000_000_000
 [groups.cpython-c]
 list = "python/cpython-c.txt"
 fuel = 560_000_000_000
+
+[groups.cpython-release-fs]
+list = "python/cpython-release-fs.txt"
+fuel = 12_000_000_000
+measured = 7_917_003_815
+tier = "release"
+
+[groups.cpython-release-archives]
+list = "python/cpython-release-archives.txt"
+fuel = 150_000_000_000
+measured = 99_706_714_102
+tier = "release"
+
+[groups.cpython-release-a]
+list = "python/cpython-release-a.txt"
+fuel = 660_000_000_000
+measured = 434_086_011_061
+tier = "release"
+
+[groups.cpython-release-b]
+list = "python/cpython-release-b.txt"
+fuel = 120_000_000_000
+measured = 77_719_118_787
+tier = "release"
+
+[groups.cpython-release-c]
+list = "python/cpython-release-c.txt"
+fuel = 170_000_000_000
+measured = 108_349_369_380
+tier = "release"
+
+[groups.cpython-release-int]
+list = "python/cpython-release-int.txt"
+fuel = 82_000_000_000
+measured = 54_037_238_933
+tier = "release"
+
+[groups.cpython-release-math-1]
+list = "python/cpython-release-math-1.txt"
+fuel = 13_000_000_000
+measured = 8_654_767_842
+tier = "release"
+
+[groups.cpython-release-math-2]
+list = "python/cpython-release-math-2.txt"
+fuel = 940_000_000_000
+measured = 621_527_882_923
+tier = "release"
+
+[groups.cpython-release-unicodedata]
+list = "python/cpython-release-unicodedata.txt"
+fuel = 390_000_000_000
+measured = 254_938_790_055
+tier = "release"
+
+[groups.cpython-release-b-inline]
+list = "python/cpython-release-b-inline.txt"
+fuel = 710_000_000_000
+measured = 472_025_465_989
+tier = "release"
+
+[groups.cpython-release-hashlib-1]
+list = "python/cpython-release-hashlib-1.txt"
+fuel = 340_000_000_000
+measured = 221_960_895_303
+tier = "release"
+
+[groups.cpython-release-hashlib-2]
+list = "python/cpython-release-hashlib-2.txt"
+fuel = 500_000_000_000
+measured = 331_012_546_337
+tier = "release"
+
+[groups.cpython-release-hashlib-3]
+list = "python/cpython-release-hashlib-3.txt"
+fuel = 1_300_000_000_000
+measured = 813_412_268_534
+tier = "release"
 
 [[not_selected]]
 modules = ["test_ctypes"]
@@ -78,8 +161,8 @@ modules = ["test_time", "test_calendar", "test_strptime", "test_os.test_posix"]
 reason = "platform.libc_ver() at import opens sys.executable, a file the guest does not have (spec 074, follow-up A: sys.executable empty)"
 closes_with = "context/research/2026-10-18-cpythons-own-tests-under-the-runtime.md"
 
-# The trap entries (Decision 1). Spec 071's C-stack window closed the four test_recursive_pickle
-# entries; spec 078 (the runner runs each guest on a stack of its own, 8 MiB) closed the nine that
+# The trap entries (Decision 1). The runtime's C-stack window closed the four
+# test_recursive_pickle entries; a stack of its own for each guest (8 MiB) closed the nine that
 # trapped at 512 KiB, and their tests run in their groups. None is open.
 
 [[host_dependent]]
@@ -589,4 +672,12 @@ group = "cpython-c"
 outcome = "error"
 match = "NotADirectoryError: \\[Errno 54\\]|argument of type 'NoneType' is not a container"
 reason = "the stdlib is bytecode in a zip: pydoc's sourceless paths are not folders (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "stdlib-zip-error"
+group = "cpython-release-a"
+outcome = "error"
+match = 'NotADirectoryError: \[Errno 54\]'
+reason = "the stdlib is bytecode in a zip: trace's coverage report opens a stdlib module's source by its path inside the zip (README)"
 closes_with = "README.md"

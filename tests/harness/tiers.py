@@ -170,6 +170,9 @@ def rule_errors(pkg: str, cfg) -> list[str]:
             errors.append(f"{pkg}: group {g.name}: tier {g.tier!r} is neither normal nor release")
         if g.release_by and (g.tier != "release" or g.release_by not in KINDS):
             errors.append(f"{pkg}: group {g.name}: release_by {g.release_by!r} on a {g.tier} group")
+    for g in groups:
+        if g.selects_nothing and (g.tier != "release" or kind_of(cfg, g) != "marker"):
+            errors.append(f"{pkg}: group {g.name}: only a marker release group may select nothing")
     for g in release:
         if g.measured is None:
             errors.append(f"{pkg}: release group {g.name} records no measured fuel")

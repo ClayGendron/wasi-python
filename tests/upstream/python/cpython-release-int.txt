@@ -1,0 +1,3 @@
+test.test_int.PyLongModuleTests.test_pylong_int_to_decimal_2 gated cpython-c
+test.test_int.PyLongModuleTests.test_pylong_roundtrip_huge gated cpython-c
+test.test_int.PyLongModuleTests.test_whitebox_dec_str_to_int_inner_failsafe gated cpython-c

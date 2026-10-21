@@ -1,18 +1,26 @@
-# contourpy's own tests in the guest (spec 066). A judge file: every edit is a judge change.
+# contourpy's own tests in the guest. A judge file: every edit is a judge change.
 # The keys are matplotlib.toml's. A [[split]] names one file too big for one group, its groups in
 # order, and one -k expression fewer than groups: group i runs "(e_i) and not (e_1 or ... e_i-1)",
 # the last "not (e_1 or ... e_n-1)", so every collected test of the file is in exactly one group
-# (Decision 11; the owner, "Every test of every package we build", 2026-10-20).
+# of the split. Every test of every package we build runs (the owner, 2026-10-20).
+#
+# Two tiers. The normal tier runs at every check; the release tier only before a publication.
+# Which tests are slow is the project's choice, and nothing is left out of both (the owner,
+# 2026-10-20). contourpy's are its own `slow` marker (--runslow's 1000 by 1000 cases) and its
+# `random_big` cases, which its own CI leaves out of its emulated legs (-k "not big"). Normal
+# groups run `marker`; marker release groups `release_marker`; keyword release groups `marker`
+# with the [[release_select]] keyword, and a normal group over one of its files the keyword's
+# negation. A split's groups share one tier and one kind.
 
 package = "contourpy"
 driver = "package"
 grant = "/upstream-contourpy"
-budget = 8_817_000_000_000
+budget = 8_865_000_000_000
 stage_folders = ["tests"]
 extra_sys_path = ["."]
 # compare_images opens tests/baseline_images/... by a relative path and, when an image differs,
-# writes result_images/ beside it: a writable folder holding a copy of the baselines (the build
-# review, L2: with the read-only tree root, a differing text image failed on the write instead)
+# writes result_images/ beside it: a writable folder holding a copy of the baselines (with the
+# read-only tree root, a differing text image failed on the write instead)
 cwd = "/tmp/work"
 cwd_files = [
     "tests/baseline_images/bokeh_renderer_filled.png",
@@ -70,8 +78,16 @@ cwd_files = [
 ]
 markers = []
 # Every test (the owner, "Every test of every package we build"): contourpy's own opt-in slow
-# and text cases run too (the build review, L2).
+# and text cases run too. --runslow stays so its conftest does not skip a slow case before -m
+# sees it; the tier decides where each runs.
 args = ["--runslow", "--runtext"]
+marker = "not slow"
+release_marker = "slow"
+
+[[release_select]]
+files = ["tests/test_filled.py", "tests/test_lines.py"]
+keyword = "random_big"
+reason = "contourpy's own selection of its big random cases, which its CI leaves out on slow (emulated) hosts; about 2.8 T of guest fuel; the owner moved them to the release tier, 2026-10-20"
 
 [groups.contourpy-1]
 paths = [
@@ -84,18 +100,18 @@ paths = [
     "tests/test_enum.py",
 ]
 fuel = 37_000_000_000
-measured = 24_302_411_222
+measured = 24_393_548_734
 
 [groups.contourpy-config-1]
-# test_config.py's text cases (show_text True, --runtext; the build review, L2)
+# test_config.py's text cases (show_text True, --runtext)
 paths = ["tests/test_config.py"]
 fuel = 570_000_000_000
-measured = 377_115_648_313
+measured = 377_066_886_560
 
 [groups.contourpy-config-2]
 paths = ["tests/test_config.py"]
 fuel = 310_000_000_000
-measured = 205_064_641_953
+measured = 204_782_987_583
 
 [[split]]
 file = "tests/test_config.py"
@@ -115,68 +131,90 @@ paths = [
     "tests/test_z_interp.py",
 ]
 fuel = 310_000_000_000
-measured = 205_916_211_054
+measured = 205_822_838_913
 
 [groups.contourpy-filled-1]
 paths = ["tests/test_filled.py"]
 fuel = 370_000_000_000
-measured = 242_186_713_480
+measured = 242_329_313_786
+tier = "release"
+release_by = "keyword"
 
 [groups.contourpy-filled-2]
 paths = ["tests/test_filled.py"]
 fuel = 400_000_000_000
-measured = 262_863_338_600
+measured = 262_951_226_565
+tier = "release"
+release_by = "keyword"
 
 [groups.contourpy-filled-3]
 paths = ["tests/test_filled.py"]
 fuel = 370_000_000_000
-measured = 244_622_814_075
+measured = 244_713_179_405
+tier = "release"
+release_by = "keyword"
 
 [groups.contourpy-filled-4]
 paths = ["tests/test_filled.py"]
 fuel = 370_000_000_000
-measured = 242_278_211_994
+measured = 242_356_208_114
+tier = "release"
+release_by = "keyword"
 
 [groups.contourpy-filled-5]
 paths = ["tests/test_filled.py"]
 fuel = 400_000_000_000
-measured = 262_960_529_253
+measured = 263_055_856_819
+tier = "release"
+release_by = "keyword"
 
 [groups.contourpy-filled-6]
 paths = ["tests/test_filled.py"]
 fuel = 370_000_000_000
-measured = 244_716_491_786
+measured = 244_794_738_666
+tier = "release"
+release_by = "keyword"
 
 [groups.contourpy-filled-7]
 paths = ["tests/test_filled.py"]
 fuel = 660_000_000_000
-measured = 439_769_031_420
+measured = 439_885_416_331
+tier = "release"
+release_by = "keyword"
 
 [groups.contourpy-filled-8]
 paths = ["tests/test_filled.py"]
 fuel = 370_000_000_000
-measured = 242_525_303_438
+measured = 242_511_849_779
 
 [groups.contourpy-filled-9]
 paths = ["tests/test_filled.py"]
 fuel = 570_000_000_000
-measured = 376_107_304_014
+measured = 376_374_445_299
+tier = "release"
+release_by = "marker"
 
 [groups.contourpy-filled-10]
 paths = ["tests/test_filled.py"]
-fuel = 430_000_000_000
-measured = 285_402_242_645
+fuel = 440_000_000_000
+measured = 287_702_625_548
+tier = "release"
+release_by = "marker"
 
 [groups.contourpy-filled-11]
 paths = ["tests/test_filled.py"]
-fuel = 430_000_000_000
-measured = 285_138_695_010
+fuel = 440_000_000_000
+measured = 287_484_106_530
+tier = "release"
+release_by = "marker"
 
 [groups.contourpy-filled-12]
 paths = ["tests/test_filled.py"]
 fuel = 490_000_000_000
-measured = 322_104_145_580
+measured = 321_958_315_140
 
+# test_filled.py, split per tier and kind: its random_big cases (the keyword release tier), its
+# ten slow cases (the marker release tier, about 91 G each), and the rest (the normal tier).
 [[split]]
 file = "tests/test_filled.py"
 groups = [
@@ -187,11 +225,6 @@ groups = [
     "contourpy-filled-5",
     "contourpy-filled-6",
     "contourpy-filled-7",
-    "contourpy-filled-8",
-    "contourpy-filled-9",
-    "contourpy-filled-10",
-    "contourpy-filled-11",
-    "contourpy-filled-12",
 ]
 keywords = [
     "random_big and serial and None",
@@ -200,53 +233,103 @@ keywords = [
     "random_big and threaded and None",
     "random_big and threaded and False",
     "random_big and threaded and True",
-    "random_big",
-    "serial",
-    # --runslow's ten 1000 by 1000 cases, about 91 G each (the build review, L2)
+]
+
+[[split]]
+file = "tests/test_filled.py"
+groups = ["contourpy-filled-9", "contourpy-filled-10", "contourpy-filled-11"]
+keywords = [
     "compare_slow and (seed0 or seed1 or seed2 or seed3)",
     "compare_slow and (seed4 or seed5 or seed6)",
-    "compare_slow",
 ]
+
+[[split]]
+file = "tests/test_filled.py"
+groups = ["contourpy-filled-8", "contourpy-filled-12"]
+keywords = ["serial"]
+
+# A guard: the marker release tier over every other file, so a slow case contourpy adds there runs
+# before a publication, never in no tier. It selects nothing today.
+[groups.contourpy-slow-rest]
+paths = [
+    "tests/test_array.py",
+    "tests/test_bokeh_renderer.py",
+    "tests/test_build_config.py",
+    "tests/test_chunk.py",
+    "tests/test_codebase.py",
+    "tests/test_config.py",
+    "tests/test_constructor.py",
+    "tests/test_convert.py",
+    "tests/test_dechunk.py",
+    "tests/test_enum.py",
+    "tests/test_internal.py",
+    "tests/test_lines.py",
+    "tests/test_minimal.py",
+    "tests/test_misc.py",
+    "tests/test_renderer.py",
+    "tests/test_static.py",
+    "tests/test_typecheck.py",
+    "tests/test_z_interp.py",
+]
+fuel = 28_000_000_000
+measured = 18_130_268_838
+tier = "release"
+release_by = "marker"
+selects_nothing = "a guard for a slow case contourpy adds outside test_filled.py; contourpy 1.4.0 marks none there"
 
 [groups.contourpy-lines-1]
 paths = ["tests/test_lines.py"]
 fuel = 200_000_000_000
-measured = 131_945_956_831
+measured = 132_002_535_293
+tier = "release"
+release_by = "keyword"
 
 [groups.contourpy-lines-2]
 paths = ["tests/test_lines.py"]
 fuel = 220_000_000_000
-measured = 145_247_547_499
+measured = 145_317_986_036
+tier = "release"
+release_by = "keyword"
 
 [groups.contourpy-lines-3]
 paths = ["tests/test_lines.py"]
 fuel = 210_000_000_000
-measured = 136_754_187_772
+measured = 136_817_685_081
+tier = "release"
+release_by = "keyword"
 
 [groups.contourpy-lines-4]
 paths = ["tests/test_lines.py"]
 fuel = 200_000_000_000
-measured = 132_012_123_022
+measured = 132_077_305_783
+tier = "release"
+release_by = "keyword"
 
 [groups.contourpy-lines-5]
 paths = ["tests/test_lines.py"]
 fuel = 220_000_000_000
-measured = 145_313_557_762
+measured = 145_398_454_272
+tier = "release"
+release_by = "keyword"
 
 [groups.contourpy-lines-6]
 paths = ["tests/test_lines.py"]
 fuel = 210_000_000_000
-measured = 136_832_358_330
+measured = 136_892_227_875
+tier = "release"
+release_by = "keyword"
 
 [groups.contourpy-lines-7]
 paths = ["tests/test_lines.py"]
 fuel = 390_000_000_000
-measured = 255_561_081_448
+measured = 255_686_801_505
+tier = "release"
+release_by = "keyword"
 
 [groups.contourpy-lines-8]
 paths = ["tests/test_lines.py"]
 fuel = 710_000_000_000
-measured = 470_250_567_395
+measured = 470_160_778_304
 
 [[split]]
 file = "tests/test_lines.py"
@@ -258,7 +341,6 @@ groups = [
     "contourpy-lines-5",
     "contourpy-lines-6",
     "contourpy-lines-7",
-    "contourpy-lines-8",
 ]
 keywords = [
     "random_big and serial and None",
@@ -267,7 +349,6 @@ keywords = [
     "random_big and threaded and None",
     "random_big and threaded and False",
     "random_big and threaded and True",
-    "random_big",
 ]
 
 [[expected]]

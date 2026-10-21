@@ -174,75 +174,113 @@ systems = ["macos"]
 groups = ["pandas-io-parser", "cpython-fs"]
 systems = ["windows"]
 
-# The compiled packages' own tests, fourteen Linux shards packed from the build's measured
-# darwin fuel on main's set dc6ba3a5 (at most 725 G each; Decision 12). A system is never dropped
-# from a shard to get a pass; a move between shards is a reviewed judge change.
+# The compiled packages' own tests in the normal tier, nine Linux shards packed from the
+# measured darwin fuel (at most 725 G each). A system is never dropped from a shard to get a
+# pass; a move between shards is a reviewed judge change.
 [shard.upstream-plot-a]
-# 724.9 G measured
-groups = ["contourpy-filled-7", "contourpy-filled-11"]
+# 723.4 G measured
+groups = ["matplotlib-axes", "contourpy-1"]
 systems = ["linux"]
 
 [shard.upstream-plot-b]
-# 724.3 G measured
-groups = ["contourpy-filled-2", "contourpy-lines-7", "contourpy-rest"]
+# 721.7 G measured
+groups = ["pillow", "matplotlib-render-3", "regex"]
 systems = ["linux"]
 
 [shard.upstream-plot-c]
-# 723.9 G measured
-groups = ["contourpy-filled-9", "matplotlib-rest-b1", "contourpy-1"]
-systems = ["linux"]
-
-[shard.upstream-plot-d]
 # 721.2 G measured
 groups = ["matplotlib-rest-b2", "matplotlib-render-2b"]
 systems = ["linux"]
 
+[shard.upstream-plot-d]
+# 717.6 G measured
+groups = ["matplotlib-rest-a", "matplotlib-render-2a", "lxml"]
+systems = ["linux"]
+
 [shard.upstream-plot-e]
-# 720.7 G measured
-groups = ["matplotlib-render-2a", "matplotlib-mathtext", "lxml", "regex"]
+# 717.3 G measured
+groups = ["matplotlib-rest-b1", "contourpy-filled-12", "mpl-axes_grid1"]
 systems = ["linux"]
 
 [shard.upstream-plot-f]
-# 718.5 G measured
-groups = ["contourpy-lines-1", "contourpy-lines-2", "contourpy-lines-3", "contourpy-lines-4", "contourpy-lines-6", "mpl-axisartist"]
-systems = ["linux"]
-
-[shard.upstream-plot-g]
-# 718.4 G measured
-groups = ["pillow", "contourpy-filled-10"]
-systems = ["linux"]
-
-[shard.upstream-plot-h]
-# 718.3 G measured
-groups = ["contourpy-filled-3", "contourpy-filled-8", "matplotlib-render-1"]
-systems = ["linux"]
-
-[shard.upstream-plot-i]
-# 716.6 G measured
-groups = ["contourpy-filled-12", "matplotlib-rest-a", "mpl-axes_grid1", "kiwisolver"]
-systems = ["linux"]
-
-[shard.upstream-plot-j]
-# 715.0 G measured
-groups = ["contourpy-lines-8", "contourpy-filled-6"]
-systems = ["linux"]
-
-[shard.upstream-plot-k]
-# 713.5 G measured
+# 713.4 G measured
 groups = ["contourpy-config-1", "mpl-mplot3d"]
 systems = ["linux"]
 
-[shard.upstream-plot-l]
-# 699.0 G measured
-groups = ["matplotlib-axes"]
+[shard.upstream-plot-g]
+# 712.7 G measured
+groups = ["contourpy-lines-8", "contourpy-filled-8"]
 systems = ["linux"]
 
-[shard.upstream-plot-m]
-# 689.5 G measured
-groups = ["contourpy-filled-1", "contourpy-filled-4", "contourpy-config-2"]
+[shard.upstream-plot-h]
+# 576.5 G measured
+groups = ["matplotlib-mathtext", "matplotlib-render-1", "mpl-axisartist", "kiwisolver"]
 systems = ["linux"]
 
-[shard.upstream-plot-n]
-# 681.0 G measured
-groups = ["matplotlib-render-3", "contourpy-filled-5", "contourpy-lines-5"]
+[shard.upstream-plot-i]
+# 410.6 G measured
+groups = ["contourpy-rest", "contourpy-config-2"]
 systems = ["linux"]
+
+# The release tier: every release-tier group, on the release pseudo-system (Linux), only on a
+# run that judges the release tier: a tag, a run on main, or a branch run that asks for it.
+# Packed the same way; a group past 725 G has a shard of its own.
+[shard.upstream-release-a]
+# 813.4 G measured
+groups = ["cpython-release-hashlib-3"]
+systems = ["release"]
+
+[shard.upstream-release-b]
+# 724.0 G measured
+groups = ["contourpy-filled-9", "cpython-release-hashlib-2", "cpython-release-math-1", "cpython-release-fs"]
+systems = ["release"]
+
+[shard.upstream-release-c]
+# 723.4 G measured
+groups = ["cpython-release-b-inline", "numpy-slow-linalg"]
+systems = ["release"]
+
+[shard.upstream-release-d]
+# 723.1 G measured
+groups = ["pandas-slow-a", "contourpy-filled-11", "contourpy-lines-4"]
+systems = ["release"]
+
+[shard.upstream-release-e]
+# 721.8 G measured
+groups = ["cpython-release-a", "contourpy-filled-10"]
+systems = ["release"]
+
+[shard.upstream-release-f]
+# 721.7 G measured
+groups = ["cpython-release-unicodedata", "contourpy-filled-6", "cpython-release-hashlib-1"]
+systems = ["release"]
+
+[shard.upstream-release-g]
+# 721.2 G measured
+groups = ["cpython-release-math-2", "cpython-release-archives"]
+systems = ["release"]
+
+[shard.upstream-release-h]
+# 721.1 G measured
+groups = ["contourpy-filled-7", "contourpy-filled-5", "contourpy-slow-rest"]
+systems = ["release"]
+
+[shard.upstream-release-i]
+# 719.0 G measured
+groups = ["contourpy-filled-3", "contourpy-filled-4", "contourpy-lines-2", "pandas-slow-b"]
+systems = ["release"]
+
+[shard.upstream-release-j]
+# 718.1 G measured
+groups = ["contourpy-filled-2", "contourpy-lines-7", "contourpy-lines-5", "cpython-release-int"]
+systems = ["release"]
+
+[shard.upstream-release-k]
+# 659.9 G measured
+groups = ["contourpy-filled-1", "numpy-slow-a", "contourpy-lines-6", "contourpy-lines-3"]
+systems = ["release"]
+
+[shard.upstream-release-l]
+# 399.9 G measured
+groups = ["contourpy-lines-1", "cpython-release-c", "numpy-slow-b", "cpython-release-b"]
+systems = ["release"]

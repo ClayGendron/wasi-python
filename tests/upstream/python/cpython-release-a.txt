@@ -1,0 +1,13 @@
+test.test_itertools.RegressionTests.test_long_chain_of_empty_iterables gated cpython-a
+test.test_pickletools.OptimizedPickleTests.test_framing_many_objects gated cpython-a
+test.test_pyexpat.ChardataBufferTest.test_large_character_data_does_not_crash gated cpython-a
+test.test_re.ReTests.test_search_anchor_at_beginning gated cpython-a
+test.test_statistics.TestKDE.test_kde gated cpython-a
+test.test_statistics.TestKDE.test_kde_random gated cpython-a
+test.test_statistics.TestNormalDistC.test_inv_cdf gated cpython-a
+test.test_statistics.TestNormalDistPython.test_inv_cdf gated cpython-a
+test.test_statistics.TestSqrtHelpers.test_float_sqrt_of_frac gated cpython-a
+test.test_sys_settrace.JumpTestCase.test_jump_extended_args_for_iter gated cpython-a
+test.test_trace.TestCoverage.test_coverage gated cpython-a
+test.test_traceback.MiscTest.test_levenshtein_distance_short_circuit gated cpython-a
+test_peg_generator gated cpython-a

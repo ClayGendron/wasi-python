@@ -28,6 +28,9 @@ GRANT = "/cpython"
 STREAM = "judge/outcomes.txt"  # in the guest's root
 DRIVER = "regrtest_drive.py"
 CAP_BUDGET = 25 * 10**11
+# The release tier's caps: its cpu-gated tests hash 4 GiB, stress sums and walk every code point,
+# about 3.6 T measured on darwin, each group capped at 1.5 times its measurement.
+RELEASE_CAP_BUDGET = 6 * 10**12
 ENV = {"TMPDIR": "/tmp", "HOME": "/tmp"}
 OUTCOMES = ("failed", "error")
 FINE_STATES = ("PASSED", "FAILED", "SKIPPED", "RESOURCE_DENIED", "DID_NOT_RUN")
@@ -101,7 +104,7 @@ def host_node(group: str, entry: str) -> str:
 class ReleaseEntry:
     """One line of a release list: a test (or a whole module) the release tier runs with the
     `cpu` and `largefile` resources on. `gated`: a normal group skips it for want of the
-    resource; `inline`: it runs in its normal group too, doing less work there."""
+    resource; `inline`: a module that runs in its normal group too, doing less work there."""
 
     id: str  # a full test id, or a module for a module-level gate
     kind: str  # "gated" or "inline"
@@ -339,6 +342,7 @@ class Stream:
     modules_started: list[str] = field(default_factory=list)
     load_errors: list[tuple[str, str]] = field(default_factory=list)
     ended: list[tuple[str, str, str, list[str]]] = field(default_factory=list)  # D lines
+    denied: list[tuple[str, str]] = field(default_factory=list)  # Z lines: module, reason
     guard: list[tuple[str, str, str]] = field(default_factory=list)  # M lines
     exit_code: int | None = None
     open_node: str | None = None  # the last S or C line
@@ -370,6 +374,9 @@ def parse_stream(text: str) -> Stream:
         elif kind == "X":
             name, _, reason = rest.partition(" -- ")
             s.load_errors.append((name.strip(), reason.strip()))
+        elif kind == "Z":
+            name, _, reason = rest.partition(" -- ")
+            s.denied.append((name.strip(), reason.strip()))
         elif kind == "D":
             parts = rest.split(" ", 3)
             name, state = parts[0], parts[1] if len(parts) > 1 else ""
@@ -577,19 +584,23 @@ def partition_findings(stream: Stream, cfg, group: str) -> list[str]:
     """No test falls between the tiers. A normal group skips for the `cpu` or `largefile`
     resource exactly the tests (and modules) its release lists name `gated`, and runs each
     `inline` one; a release group runs every id it lists, none skipped for those resources. A
-    module's end does not say which resource it was denied, so any RESOURCE_DENIED module of a
-    normal group must be listed. A family with no release lists proves nothing yet."""
+    module denied a resource as a whole says which on its Z line. A family with no release lists
+    proves nothing yet."""
     if not cfg.release_entries:
         return []
     skipped = {n for o, n, why in stream.outcomes if o == "skipped" and RESOURCE_SKIP.search(why)}
-    denied = {name for name, state, _, _ in stream.ended if state == "RESOURCE_DENIED"}
-    ran = {n for o, n, _ in stream.outcomes if o != "skipped"}
+    denied = {name for name, why in stream.denied if RESOURCE_SKIP.search(why)}
     findings = []
     if cfg.groups[group].tier == "release":
+        # A listed test ran when it started; a module, when it ended. Either may then skip for a
+        # reason of its own (memory, a subprocess, a tool missing), as in any group.
+        started = set(stream.started) | {n for _, n, _ in stream.outcomes}
+        ended = {name for name, _, _, _ in stream.ended}
         for e in (e for e in cfg.release_entries if e.release_group == group):
+            module = entry_module(cfg.groups, e) == e.id
             if e.id in denied or e.id in skipped:
                 findings.append(f"{e.id}: skipped for the cpu or largefile resource here")
-            elif e.id not in ran and not any(n.startswith(f"test.{e.id}.") for n in ran):
+            elif (e.id not in ended) if module else (e.id not in started):
                 findings.append(f"{e.id}: listed, did not run in its release group")
         return findings
     gated = {e.id for e in cfg.release_entries if e.group == group and e.kind == "gated"}
@@ -601,10 +612,11 @@ def partition_findings(stream: Stream, cfg, group: str) -> list[str]:
     findings += [
         f"{x}: listed gated, but not skipped for its resource here" for x in sorted(gated - seen)
     ]
+    ended = {name for name, state, _, _ in stream.ended if state != "RESOURCE_DENIED"}
     findings += [
-        f"{e.id}: an inline test that did not run in its normal group"
+        f"{e.id}: an inline module that did not run in its normal group"
         for e in cfg.release_entries
-        if e.group == group and e.kind == "inline" and e.id not in ran
+        if e.group == group and e.kind == "inline" and e.id not in ended
     ]
     return findings
 
@@ -855,55 +867,32 @@ def release_errors(cfg) -> list[str]:
         mods = set(g.modules)
         if e.id not in mods and module_of_id(e.id, mods) is None:
             errors.append(f"{pkg}: {e.id} is in no module of {e.group}")
-        if e.id in mods and e.kind != "gated":
-            errors.append(f"{pkg}: module {e.id} is listed {e.kind}; a module is gated")
+        if e.kind == "inline" and e.id not in mods:
+            errors.append(f"{pkg}: {e.id} is listed inline; an inline entry is a module")
     return errors
 
 
-def _reads_cpu(node: ast.AST) -> bool:
-    for n in ast.walk(node):
-        if not (isinstance(n, ast.Call) and n.args):
-            continue
-        f = n.func
-        name = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", "")
-        first = n.args[0]
-        if (
-            name == "is_resource_enabled"
-            and isinstance(first, ast.Constant)
-            and first.value == "cpu"
-        ):
-            return True
-    return False
+CPU_READ = re.compile(r"""is_resource_enabled\(\s*['"]cpu['"]""")
 
 
-def inline_cpu_tests(sources: dict[str, str], modules) -> set[str]:
-    """The tests, by full id, of the planned modules whose own body reads the `cpu` resource: a
-    test that does less work without it. A helper that reads it outside a test method is not
-    seen."""
-    found: set[str] = set()
+def inline_cpu_modules(sources: dict[str, str], modules) -> set[str]:
+    """The planned modules whose source reads the `cpu` resource itself, to do less work without
+    it: in a test, a helper or at module level (test_unicodedata's `quicktest` steers several
+    tests), so the whole module is what runs in full in the release tier."""
+    found = set()
     for m in modules:
         base = "Lib/test/" + m.replace(".", "/")
         src = sources.get(f"{base}.py") or sources.get(f"{base}/__init__.py")
-        if src is None:
-            continue
-        for node in ast.walk(ast.parse(src)):
-            if not isinstance(node, ast.ClassDef):
-                continue
-            for f in node.body:
-                if (
-                    isinstance(f, (ast.FunctionDef, ast.AsyncFunctionDef))
-                    and f.name.startswith("test")
-                    and _reads_cpu(f)
-                ):
-                    found.add(f"test.{m}.{node.name}.{f.name}")
+        if src is not None and CPU_READ.search(src):
+            found.add(m)
     return found
 
 
 def inline_errors(cfg, sources: dict[str, str]) -> list[str]:
-    """The release lists' `inline` entries are exactly the planned tests that read the `cpu`
-    resource inline, so a re-pin that adds one cannot leave it doing its reduced work alone."""
+    """The release lists' `inline` entries are exactly the planned modules that read the `cpu`
+    resource themselves, so a re-pin that adds one cannot leave it doing its reduced work alone."""
     modules = {m for g in cfg.groups.values() if g.tier == "normal" for m in g.modules}
-    found = inline_cpu_tests(sources, sorted(modules))
+    found = inline_cpu_modules(sources, sorted(modules))
     listed = {e.id for e in cfg.release_entries if e.kind == "inline"}
     errors = [
         f"{cfg.package}: {i} reads the cpu resource inline, but no release list names it inline"

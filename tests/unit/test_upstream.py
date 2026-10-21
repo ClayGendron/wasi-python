@@ -586,7 +586,8 @@ def test_paths_that_are_not_tarball_members_fail_the_rules(work) -> None:
 def test_the_judges_own_upstream_files_load() -> None:
     # python: CPython's own tests; the six compiled packages: their own tests
     assert set(CONFIGS) == {"numpy", "pandas", "python", *upstream.PACKAGE_SUITES}
-    assert sum(len(CONFIGS[n].groups) for n in ("numpy", "pandas")) == 11
+    tiers = [g.tier for n in ("numpy", "pandas") for g in CONFIGS[n].groups.values()]
+    assert tiers.count("normal") == 11 and tiers.count("release") == 5
 
 
 def test_digests_of_passing_ids_are_twelve_hex() -> None:

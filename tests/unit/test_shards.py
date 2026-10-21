@@ -206,7 +206,8 @@ def test_the_real_plan_takes_every_upstream_check_by_its_group() -> None:
     got = shards.select(sorted(groups), plan, groups)
     assert not [n for n in got["own-rest"] if n in groups]
     linux = {n for name in shards.on(plan, "linux") for n in got[name]}
-    assert linux == set(groups)
+    release = {n for name in shards.on(plan, "release") for n in got[name]}
+    assert linux | release == set(groups) and not linux & release
 
 
 def test_the_units_digest_is_the_sorted_ids() -> None:
@@ -437,9 +438,11 @@ def test_a_node_whose_file_defines_no_such_check_is_named() -> None:
     from harness import paths, upstream
 
     files = shards.test_files(paths.tracked_files("tests"))
-    groups = [g for c in upstream.load_all().values() for g in c.groups]
+    configs = upstream.load_all()
+    groups = [g for c in configs.values() for g in c.groups]
+    release = {n for c in configs.values() for n, g in c.groups.items() if g.tier == "release"}
     plan = shards.load()
-    assert shards.plan_errors(plan, files, groups) == []
+    assert shards.plan_errors(plan, files, groups, release) == []
     build = plan["build"]
     gone = shards.Shard(
         "build",
@@ -447,7 +450,7 @@ def test_a_node_whose_file_defines_no_such_check_is_named() -> None:
         build.files,
         nodes=("tests/checks/test_v1_2_hostile_guest.py::test_gone",),
     )
-    errors = shards.plan_errors({**plan, "build": gone}, files, groups)
+    errors = shards.plan_errors({**plan, "build": gone}, files, groups, release)
     file = "tests/checks/test_v1_2_hostile_guest.py"
     assert f"(h) {file}::test_gone: {file} defines no test_gone" in errors
 

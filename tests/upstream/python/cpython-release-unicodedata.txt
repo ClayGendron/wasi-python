@@ -1,0 +1,6 @@
+test.test_unicodedata.NormalizationTest.test_normalization gated cpython-c
+test.test_unicodedata.NormalizationTest.test_normalization_3_2_0 gated cpython-c
+test.test_unicodedata.UnicodeFunctionsTest.test_name_inverse_lookup gated cpython-c
+test.test_unicodedata.UnicodeMiscTest.test_bug_5828 gated cpython-c
+test.test_unicodedata.Unicode_3_2_0_FunctionsTest.test_name_inverse_lookup gated cpython-c
+test_unicodedata inline cpython-c

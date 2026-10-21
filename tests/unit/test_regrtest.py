@@ -515,7 +515,8 @@ def test_a_listed_module_the_tarball_lacks_fails_the_rules() -> None:
 
 
 def test_the_judges_own_cpython_files_load_and_pass_the_rules_without_the_tarball() -> None:
-    assert PY.runner == "regrtest" and set(PY.groups) == {
+    normal = {n: g for n, g in PY.groups.items() if g.tier == "normal"}
+    assert PY.runner == "regrtest" and set(normal) == {
         "cpython-fs",
         "cpython-archives",
         "cpython-a",
@@ -523,9 +524,12 @@ def test_the_judges_own_cpython_files_load_and_pass_the_rules_without_the_tarbal
         "cpython-c",
     }
     # 542, and test_traceback since the 8 MiB guest stack closed its trap entry
-    assert sum(len(g.modules) for g in PY.groups.values()) == 543
-    # the 8 MiB guest stack closed the nine trap entries; its test_traceback added one class
-    assert len(PY.traps) == 0 and len(PY.expected) == 26
+    assert sum(len(g.modules) for g in normal.values()) == 543
+    # the 8 MiB guest stack closed the nine trap entries; its test_traceback added one class, and
+    # the release tier's test_trace one more
+    assert len(PY.traps) == 0 and len(PY.expected) == 27
+    # the release tier: the tests the normal groups skip for want of cpu, by their lists
+    assert {g.tier for n, g in PY.groups.items() if n not in normal} == {"release"}
     from harness import plugin, shards
 
     gaps, _ = plugin.load_gaps(paths.KNOWN_GAPS)
@@ -533,11 +537,12 @@ def test_the_judges_own_cpython_files_load_and_pass_the_rules_without_the_tarbal
 
 
 def test_each_family_has_its_own_cap_budget() -> None:
-    assert upstream.caps({"python": PY}) <= regrtest.CAP_BUDGET
+    assert upstream.caps({"python": PY}, "normal") <= regrtest.CAP_BUDGET
+    assert upstream.caps({"python": PY}, "release") <= regrtest.RELEASE_CAP_BUDGET
     big = replace(PY, groups={**PY.groups, "x": upstream.Group("x", (), 10**12, ("test_x",), "x")})
     errors = upstream.rule_errors({"numpy": CONFIGS["numpy"], "python": big}, set())
-    assert any("/cpython family's fuel caps" in e for e in errors), errors
-    assert not any("/upstream family's fuel caps" in e for e in errors), errors
+    assert any("/cpython family's normal-tier fuel caps" in e for e in errors), errors
+    assert not any("/upstream family's" in e and "fuel caps" in e for e in errors), errors
 
 
 # ---------------------------------------------------------------------------------------------

@@ -13,6 +13,8 @@ process and writes the outcome stream (Decision 13) to /judge/outcomes.txt, flus
     X <module> -- <reason>          a module failed to load, or raised outside any test
     D <module> <state> <env>[ <w>]  a module ends: regrtest's state, altered or kept, and after
                                     altered the first line of each print_warning, |-separated
+    Z <module> -- <reason>          a module denied a resource as a whole, and which: before
+                                    its D line
     M <module> <file> <kind>        at the end: each module whose __file__ is under /cpython/,
                                     `product` when the product provides that name, else `test`
     E <exit code>                   last
@@ -156,6 +158,7 @@ _wrap("addSubTest", _subtest)
 
 # ---- each module ----------------------------------------------------------------------------
 _load_error: list[str] = []
+_denied: list[str] = []  # why a module was denied a resource as a whole
 _original_load_run = single._load_run_test
 
 
@@ -163,6 +166,8 @@ def _load_run_test(result, runtests):
     try:
         return _original_load_run(result, runtests)
     except BaseException as exc:
+        if isinstance(exc, support.ResourceDenied):
+            _denied.append(first_line(str(exc)))
         if not isinstance(exc, (support.TestFailed, support.ResourceDenied, support.TestDidNotRun)):
             import unittest
 
@@ -176,12 +181,14 @@ _original_run_single = regrtest_main.run_single_test
 
 
 def _run_single_test(test_name, runtests):
-    del _warnings_now[:], _load_error[:]
+    del _warnings_now[:], _load_error[:], _denied[:]
     emit(f"C {test_name}")
     result = _original_run_single(test_name, runtests)
     state = getattr(result.state, "name", str(result.state)) if result.state else "NONE"
     if state == "UNCAUGHT_EXC":
         emit(f"X {test_name} -- {_load_error[0] if _load_error else 'uncaught exception'}")
+    if state == "RESOURCE_DENIED" and _denied:
+        emit(f"Z {test_name} -- {_denied[0]}")
     env = "altered" if support.environment_altered else "kept"
     line = f"D {test_name} {state} {env}"
     if env == "altered" and _warnings_now:

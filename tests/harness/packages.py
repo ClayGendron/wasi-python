@@ -482,6 +482,8 @@ class Session:
             cfg = self.configs[package]
             text, run = self._run(package, group, cfg.groups[group].fuel)
             outcome, extra = judge(cfg, group, text, run, keep)
+            if cfg.groups[group].selects_nothing:  # a guard: pytest's "no tests ran" is its pass
+                outcome.findings = [f for f in outcome.findings if f != "pytest exit code 5"]
             outcome.findings += self._split_findings(cfg, group, extra.collected)
             self.groups[group] = PackageRun(outcome, run.fuel, left_out, extra.collected)
         return self.groups[group]

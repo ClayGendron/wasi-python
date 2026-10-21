@@ -1,13 +1,17 @@
-# pandas' own tests in the guest (spec 050). A judge file: every edit is a judge change.
+# pandas' own tests in the guest. A judge file: every edit is a judge change.
 # The keys are numpy.toml's. `support` names files staged for import but not collected: tests in
 # two groups import pandas.tests.extension.decimal (groupby/aggregate/test_other.py,
 # reshape/concat/test_concat.py). The Styler's eight templates are staged where pandas' own tests
 # read them by path, beside the tests as in pandas' source tree (style/test_html.py's `env`
-# fixture and `test_html_template_extends_options`; spec 041): the product reads its own copies
+# fixture and `test_html_template_extends_options`): the product reads its own copies
 # from the zip, through the carried patch.
 
 package = "pandas"
 marker = "not slow and not network and not db"
+release_marker = "slow and not network and not db"
+excluded_marker = "network or db"
+excluded_reason = "no tier runs pandas' network and database tests: the guest has no network and no database server (README.md)"
+excluded_closes_with = "README.md"
 args = ["--no-strict-data-files"]
 path_packages = ["pandas"]
 markers = []
@@ -58,11 +62,30 @@ fuel = 28_000_000_000
 paths = ["pandas/tests/libs"]
 fuel = 35_000_000_000
 
+[groups.pandas-slow-a]
+paths = ["pandas/tests/frame", "pandas/tests/groupby"]
+fuel = 460_000_000_000
+measured = 303_552_780_365
+tier = "release"
+
+[groups.pandas-slow-b]
+paths = [
+    "pandas/tests/reshape",
+    "pandas/tests/io/parser",
+    "pandas/tests/io/formats",
+    "pandas/tests/tslibs",
+    "pandas/tests/internals",
+    "pandas/tests/libs",
+]
+fuel = 130_000_000_000
+measured = 86_589_604_744
+tier = "release"
+
 # The classes of known failures (Decision 10): a failed or errored test goes to the first class
 # of its group whose outcome and `match` (a regular expression searched in the one-line reason)
 # fit. Each class's members are listed in expected/<group>/<id>.txt and admitted as one gap.
 # A class a fix emptied keeps its id, an empty list and the closer that emptied it, as a record,
-# and has no gap (C1). Failures that come back need a gap with a new closer, not this one.
+# and has no gap. Failures that come back need a gap with a new closer, not this one.
 
 [[expected]]
 id = "zip-code-names"
@@ -120,9 +143,9 @@ match = 'wasi does not support processes'
 reason = 'no processes: subprocess is unavailable on WASI'
 closes_with = "README.md"
 
-# pandas' Styler, and `to_latex`, which renders through it (spec 039): the tests that import
-# jinja2 ran as skips before it was in the zip, and failed where the Styler loaded its templates
-# by path from the zip. Spec 041's carried patch reads them from the zip and emptied both classes;
+# pandas' Styler, and `to_latex`, which renders through it: the tests that import jinja2 ran as
+# skips before it was in the zip, and failed where the Styler loaded its templates by path from
+# the zip. The carried patch that reads them from the zip emptied both classes;
 # its eleven Styler files that stopped at collection are selected again.
 
 [[expected]]
@@ -140,3 +163,11 @@ outcome = "failed"
 match = 'TemplateNotFound|Regex pattern did not match'
 reason = "the same; jinja2's TemplateNotFound is a LookupError, so test_filepath_or_buffer_arg's pytest.raises(LookupError, match='unknown encoding') for to_latex catches it with another message"
 closes_with = "context/specifications/041-files-read-by-path-from-the-zip.md"
+
+[[expected]]
+id = "no-threads"
+group = "pandas-slow-b"
+outcome = "failed"
+match = "module 'os' has no attribute 'pipe'"
+reason = "no threads: pandas' multi-thread reader starts a thread pool, which needs os.pipe (README)"
+closes_with = "README.md"

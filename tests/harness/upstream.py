@@ -41,6 +41,7 @@ PACKAGE_SUITES = ("matplotlib", "contourpy", "pillow", "kiwisolver", "lxml", "re
 GRANT = "/upstream"
 STREAM = "tmp/upstream/outcomes.txt"  # in the guest's root
 TIER = "normal"  # a group without `tier` is in the normal tier
+TIERS = ("normal", "release")
 TRAP_FUEL = 5 * 10**10
 CAP_BUDGET = 3 * 10**12
 ENV = {"TMPDIR": "/tmp", "HOME": "/tmp"}
@@ -61,6 +62,7 @@ class Group:
     tier: str = "normal"  # "release": run only before a publication, never left out
     release_by: str = ""  # a pytest release group's kind, "marker" or "keyword"
     measured: int | None = None  # the fuel a judge run recorded, which bounds the cap
+    selects_nothing: str = ""  # a marker release group kept as a guard: why it may run no test
 
 
 @dataclass(frozen=True)
@@ -202,6 +204,7 @@ def group_of(name: str, g: dict) -> Group:
         tier=g.get("tier", TIER),
         release_by=g.get("release_by", ""),
         measured=None if measured is None else int(measured),
+        selects_nothing=g.get("selects_nothing", ""),
     )
 
 
@@ -827,11 +830,18 @@ def class_findings(actual: list[str], listed: list[str]) -> list[str]:
 # The rules (Decision 17)
 
 
-def caps(configs: dict[str, Config]) -> int:
+def caps(configs: dict[str, Config], tier: str | None = None) -> int:
+    """The family's fuel caps: its groups', its traps' and its fuel facts', of one tier or of
+    both. A trap or a fact takes its group's tier."""
+
+    def mine(c: Config, group: str) -> bool:
+        g = c.groups.get(group)
+        return tier is None or (g.tier if g is not None else TIER) == tier
+
     return (
-        sum(g.fuel for c in configs.values() for g in c.groups.values())
-        + TRAP_FUEL * sum(len(c.traps) for c in configs.values())
-        + sum(f.fuel for c in configs.values() for f in c.fuel_facts)
+        sum(g.fuel for c in configs.values() for g in c.groups.values() if mine(c, g.name))
+        + TRAP_FUEL * sum(1 for c in configs.values() for t in c.traps if mine(c, t.group))
+        + sum(f.fuel for c in configs.values() for f in c.fuel_facts if mine(c, f.group))
     )
 
 
@@ -988,12 +998,22 @@ def rule_errors(
     # each package family's budget is its own TOML's `budget`, the sum of its caps by
     # the owner's rule (decisions.md, "Every test of every package we build", 2026-10-20)
     budgets |= {c.grant: c.keys.budget for c in configs.values() if c.driver == "package"}
+    # numpy's, pandas' and CPython's budgets bound each tier: what every check pays, and what a
+    # release run adds; a package family's is the sum of all its caps, both tiers.
+    release_budgets = {regrtest.GRANT: regrtest.RELEASE_CAP_BUDGET}
     for grant, family in sorted(families(configs).items()):
-        total, budget = caps(family), budgets.get(grant, CAP_BUDGET)
-        if total > budget:
-            errors.append(
-                f"the {grant} family's fuel caps sum to {total:.3g}, over the {budget:.2g} budget"
-            )
+        package = any(c.driver == "package" for c in family.values())
+        for tier in (None,) if package else TIERS:
+            budget = budgets.get(grant, CAP_BUDGET)
+            if tier == "release":
+                budget = release_budgets.get(grant, budget)
+            total = caps(family, tier)
+            if total > budget:
+                what = f"{tier}-tier " if tier else ""
+                errors.append(
+                    f"the {grant} family's {what}fuel caps sum to {total:.3g}, over the "
+                    f"{budget:.2g} budget"
+                )
     return errors
 
 

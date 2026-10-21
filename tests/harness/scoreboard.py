@@ -124,7 +124,7 @@ def compare(run: dict, accepted: dict | None, repo: Path = paths.REPO) -> Ratche
         now = run_checks.get(node)
         here = now is not None or node in deselected  # collected by this run
         was_release = acc.get("tier") == "release"
-        if (node in release and not was_release) or (was_release and here and node not in release):
+        if here and (node in release) != was_release:  # a move this run can see
             r.moved.append(node)
             if now is None or now["status"] not in ("pass", "fail", "gap"):
                 continue  # not run here: the move is all there is to say

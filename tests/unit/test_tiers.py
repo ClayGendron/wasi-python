@@ -275,11 +275,11 @@ def test_a_normal_numpy_group_keeps_its_argv_and_the_release_group_takes_its_mar
 
 
 def test_the_judges_own_normal_groups_keep_their_argv() -> None:
-    """With no release fields, a group's JSON is what it was before there were tiers: the tier
-    filter is empty and the marker is the family's."""
+    """A normal group of a family with no keyword selection runs what it ran before there were
+    tiers: no tier filter, and the family's marker."""
     for cfg in upstream.load_all().values():
         for g in cfg.groups.values():
-            if g.tier != "normal" or cfg.runner == "regrtest":
+            if g.tier != "normal" or cfg.runner == "regrtest" or cfg.release_select:
                 continue
             assert tiers.tier_filter(cfg, g) is None
             assert tiers.marker_of(cfg, g) == cfg.marker
@@ -351,7 +351,7 @@ def _py(entries=(), **kw) -> upstream.Config:
 
 
 GATED = regrtest.ReleaseEntry("test.test_a.T.test_long", "gated", "g", "r")
-INLINE = regrtest.ReleaseEntry("test.test_a.T.test_more", "inline", "g", "r")
+INLINE = regrtest.ReleaseEntry("test_b", "inline", "g", "r")
 LISTED = "L test_a\nL test_b\n"
 NORMAL = (
     LISTED
@@ -363,8 +363,9 @@ NORMAL = (
 RELEASE = (
     LISTED
     + "C test_a\nS test.test_a.T.test_long\nR passed test.test_a.T.test_long -- \n"
-    + "S test.test_a.T.test_more\nR passed test.test_a.T.test_more -- \n"
-    + "D test_a PASSED kept\nE 0\n"
+    + "D test_a PASSED kept\n"
+    + "C test_b\nS test.test_b.U.test_all\nR passed test.test_b.U.test_all -- \n"
+    + "D test_b PASSED kept\nE 0\n"
 )
 
 
@@ -396,15 +397,23 @@ def test_a_listed_gated_test_that_was_not_gated_is_a_finding() -> None:
 
 
 def test_a_module_denied_its_resource_but_unlisted_is_a_finding() -> None:
-    text = NORMAL.replace("D test_b PASSED kept", "D test_b RESOURCE_DENIED kept")
+    text = NORMAL.replace(
+        "D test_b PASSED kept",
+        "Z test_b -- Use of the 'cpu' resource not enabled\nD test_b RESOURCE_DENIED kept",
+    )
     assert any("test_b: skipped for" in f for f in _judge(text, "g"))
     module = regrtest.ReleaseEntry("test_b", "gated", "g", "r")
-    assert _judge(text, "g", _py([GATED, INLINE, module])) == []
+    assert _judge(text, "g", _py([GATED, module])) == []
+    network = NORMAL.replace(
+        "D test_b PASSED kept",
+        "Z test_b -- Use of the 'network' resource not enabled\nD test_b RESOURCE_DENIED kept",
+    )
+    assert _judge(network, "g", _py([GATED])) == []  # another resource: not the tiers' business
 
 
-def test_an_inline_test_missing_from_its_normal_group_is_a_finding() -> None:
-    text = NORMAL.replace("S test.test_a.T.test_more\nR passed test.test_a.T.test_more -- \n", "")
-    assert any("test.test_a.T.test_more: an inline test" in f for f in _judge(text, "g"))
+def test_an_inline_module_missing_from_its_normal_group_is_a_finding() -> None:
+    text = NORMAL.replace("C test_b\nD test_b PASSED kept\n", "")
+    assert any("test_b: an inline module that did not run" in f for f in _judge(text, "g"))
 
 
 def test_a_release_stream_must_run_every_listed_test_with_its_resource() -> None:
@@ -415,9 +424,19 @@ def test_a_release_stream_must_run_every_listed_test_with_its_resource() -> None
     )
     assert any("test.test_a.T.test_long: skipped for" in f for f in _judge(skipped, "r"))
     missing = RELEASE.replace(
-        "S test.test_a.T.test_more\nR passed test.test_a.T.test_more -- \n", ""
+        "C test_b\nS test.test_b.U.test_all\nR passed test.test_b.U.test_all -- \n"
+        "D test_b PASSED kept\n",
+        "",
     )
-    assert any("test.test_a.T.test_more: listed, did not run" in f for f in _judge(missing, "r"))
+    assert any("test_b: listed, did not run" in f for f in _judge(missing, "r"))
+    gone = RELEASE.replace("S test.test_a.T.test_long\nR passed test.test_a.T.test_long -- \n", "")
+    assert any("test.test_a.T.test_long: listed, did not run" in f for f in _judge(gone, "r"))
+    # a listed test that then skips for a reason of its own ran in the release tier
+    own = RELEASE.replace(
+        "R passed test.test_a.T.test_long -- ",
+        "R skipped test.test_a.T.test_long -- not enough memory: 8.0G minimum needed",
+    )
+    assert _judge(own, "r") == []
 
 
 def test_without_release_lists_there_is_no_partition() -> None:
@@ -426,10 +445,10 @@ def test_without_release_lists_there_is_no_partition() -> None:
 
 
 def test_the_release_groups_json_matches_its_ids_with_the_release_resources() -> None:
-    cfg = _py([GATED, INLINE, regrtest.ReleaseEntry("test_b", "gated", "g", "r")])
+    cfg = _py([GATED, INLINE])
     spec = regrtest.group_spec(cfg, "r")
     assert spec["resources"] == "all,-gui" and spec["ignore"] == []
-    assert spec["match"] == ["test.test_a.T.test_long", "test.test_a.T.test_more", "test.test_b.*"]
+    assert spec["match"] == ["test.test_a.T.test_long", "test.test_b.*"]
     assert spec["modules"] == ["test_a", "test_b"]
     normal = regrtest.group_spec(cfg, "g")
     assert normal["resources"] == "all,-cpu,-gui,-largefile" and "match" not in normal
@@ -437,9 +456,7 @@ def test_the_release_groups_json_matches_its_ids_with_the_release_resources() ->
 
 def test_a_release_plan_line_is_parsed_and_checked(tmp_path) -> None:
     (tmp_path / "python").mkdir()
-    (tmp_path / "python" / "r.txt").write_text(
-        "test.test_a.T.test_long gated g\ntest.test_a.T.test_more inline g\n"
-    )
+    (tmp_path / "python" / "r.txt").write_text("test.test_a.T.test_long gated g\ntest_b inline g\n")
     entries = regrtest.read_release_plan(tmp_path, "python/r.txt", "r")
     assert entries == [GATED, INLINE]
     (tmp_path / "python" / "r.txt").write_text("test.test_a.T.test_long sometimes\n")
@@ -459,34 +476,36 @@ def test_the_release_list_rules() -> None:
     assert any("names no normal group" in e for e in regrtest.release_errors(_py([to_release])))
 
 
-SOURCE = """
-from test import support
-import unittest
-
-class T(unittest.TestCase):
-    def test_more(self):
-        n = 1000 if support.is_resource_enabled("cpu") else 10
-
-    def test_other(self):
-        pass
-
-class U(unittest.TestCase):
-    def test_fifth(self):
-        if is_resource_enabled('cpu'):
-            pass
-"""
+SOURCE_A = "from test import support\nN = 1000 if support.is_resource_enabled('cpu') else 10\n"
+SOURCE_B = 'quick = not is_resource_enabled("cpu")\n'
 
 
-def test_the_inline_cpu_tests_are_read_from_the_source() -> None:
-    sources = {"Lib/test/test_a.py": SOURCE}
-    found = regrtest.inline_cpu_tests(sources, ["test_a", "test_b"])
-    assert found == {"test.test_a.T.test_more", "test.test_a.U.test_fifth"}
+def test_the_inline_cpu_modules_are_read_from_the_source() -> None:
+    sources = {"Lib/test/test_a.py": SOURCE_A, "Lib/test/test_b.py": SOURCE_B}
+    assert regrtest.inline_cpu_modules(sources, ["test_a", "test_b"]) == {"test_a", "test_b"}
     errors = regrtest.inline_errors(_py([GATED, INLINE]), sources)
     assert errors == [
-        "python: test.test_a.U.test_fifth reads the cpu resource inline, but no "
-        "release list names it inline"
+        "python: test_a reads the cpu resource inline, but no release list names it inline"
     ]
-    fifth = regrtest.ReleaseEntry("test.test_a.U.test_fifth", "inline", "g", "r")
-    assert regrtest.inline_errors(_py([GATED, INLINE, fifth]), sources) == []
-    missing = regrtest.inline_errors(_py([GATED, fifth]), sources)
-    assert any("test.test_a.T.test_more reads the cpu resource" in e for e in missing)
+    a = regrtest.ReleaseEntry("test_a", "inline", "g", "r")
+    assert regrtest.inline_errors(_py([GATED, INLINE, a]), sources) == []
+    gone = regrtest.inline_errors(_py([GATED, INLINE, a]), {"Lib/test/test_a.py": SOURCE_A})
+    assert gone == [
+        "python: test_b is listed inline, but its source does not read the cpu resource"
+    ]
+    test_id = regrtest.ReleaseEntry("test.test_a.T.test_x", "inline", "g", "r")
+    assert any("an inline entry is a module" in e for e in regrtest.release_errors(_py([test_id])))
+
+
+def test_only_a_marker_release_group_may_select_nothing() -> None:
+    guard = CONTOUR.replace(
+        "[groups.demo-slow]\n", '[groups.demo-slow]\nselects_nothing = "a guard"\n'
+    )
+    assert _errors(_contour(guard)) == []
+    normal = CONTOUR.replace(
+        '[groups.demo-rest]\npaths = ["tests/test_misc.py"]',
+        '[groups.demo-rest]\nselects_nothing = "no"\npaths = ["tests/test_misc.py"]',
+    )
+    assert any(
+        "only a marker release group may select nothing" in e for e in _errors(_contour(normal))
+    )

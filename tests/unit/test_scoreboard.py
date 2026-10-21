@@ -636,3 +636,12 @@ def test_a_history_line_with_and_without_a_tier_is_intact() -> None:
     stripped = json.loads(line1)
     stripped.pop("tier")
     assert list(history.passed_sets([json.dumps(stripped, sort_keys=True)]))[-1] == {A}
+
+
+def test_a_run_that_did_not_collect_a_moved_check_does_not_report_it() -> None:
+    """A run of other files (a unit file, a node id) says nothing of a tier it never saw: the
+    move is red where the upstream file is collected, as in every full or fast run."""
+    rec = tiered({A: check("pass")}, release=[CORE])
+    rec["collected_files"] = [FILE]
+    r = scoreboard.compare(rec, accepted({A: acc(), CORE: acc(fuel=5)}))
+    assert r.moved == [] and r.red(partial=False) == []

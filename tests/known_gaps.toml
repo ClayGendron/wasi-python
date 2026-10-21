@@ -525,3 +525,15 @@ check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[contourp
 match = "2 finding(s), digest 376c9949dc25"
 reason = "no processes: test_cppcheck and test_mypy run their tools through subprocess, which WASI lacks (README)"
 closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-no-threads]"
+match = "6 finding(s), digest 010a91a8c398"
+reason = "no threads"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-release-a-stdlib-zip-error]"
+match = "1 finding(s), digest 9f28f1a1fbc4"
+reason = "the stdlib is bytecode in a zip"
+closes_with = "README.md"
