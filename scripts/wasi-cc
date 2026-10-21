@@ -1,5 +1,5 @@
 #!/bin/sh
-# Compiler/linker wrapper for the meson cross builds: numpy, pandas, matplotlib and scipy (spike s12, specs 023, 037).
+# Compiler/linker wrapper for the meson cross builds: numpy, pandas, matplotlib and scipy (spike s12).
 # Compile steps: run wasi-sdk clang for wasm32-wasip1 with -fPIC dropped (the objects are linked statically into python.wasm).
 # Link steps that meson emits for an extension module (`-shared -o X.so`): instead of a shared object (wasi-libc has no
 # dlopen), write X.so as a static archive of the module's own objects and X.so.deps listing the archives it links with.
@@ -9,7 +9,7 @@ set -eu
 tool=${WASI_CC_TOOL:-clang}
 # A response file (`@file`, which meson writes for a link with many objects: scipy's
 # stats._unuran) is expanded first, its words read as the shell reads them, so the link below is
-# seen as the archive it must become (spec 037). A command with no `@` argument is untouched.
+# seen as the archive it must become. A command with no `@` argument is untouched.
 case " $* " in
   *" @"*)
     expanded=""
@@ -52,14 +52,14 @@ for a in "$@"; do
   case "$a" in
     -fPIC|-fpic|-fPIE|-fpie) ;;
     # meson adds -pthread to HarfBuzz and matplotlib; it would compile +atomics in, a feature every
-    # host must then support (spec 023). wasm32-wasip1 has no threads; numpy and pandas never pass it.
+    # host must then support. wasm32-wasip1 has no threads; numpy and pandas never pass it.
     -pthread) ;;
     -Wl,--start-group|-Wl,--end-group) ;;  # wasm-ld has no archive groups; it resolves archives in any order
     *) args="$args
 $a";;
   esac
 done
-# A per-file force-include (spec 037, Decision 6): when WASI_CC_FILE_INCLUDES names a map file
+# A per-file force-include: when WASI_CC_FILE_INCLUDES names a map file
 # (`<path suffix> <header> [count]` per line, # for a comment), a compile whose source path ends with an
 # entry's suffix gets that entry's -include, and one line goes to the log WASI_CC_FILE_INCLUDES_LOG
 # names. Only step 57 (scipy) sets them; unset, the command is exactly as above.

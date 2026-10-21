@@ -1,9 +1,9 @@
-"""v1.3: the default profile's pure-Python packages, tier A (spec 039). Each family's golden job
+"""v1.3: the default profile's pure-Python packages, tier A. Each family's golden job
 prints native Python's output in the guest; pyyaml, markupsafe and charset-normalizer run their
 pure-Python paths, as nothing native of theirs is in the zip; threadpoolctl finds no native thread
 pools, which is the truth on wasm32-wasi. pandas' Styler and networkx's graph atlas read their own
-files from the zip through spec 041's two carried patches, with native Python's output.
-scikit-learn (spec 044) gives native scikit-learn's answers serially: no OpenMP, joblib in the
+files from the zip through two carried patches, with native Python's output.
+scikit-learn gives native scikit-learn's answers serially: no OpenMP, joblib in the
 calling thread, its datasets and style sheets read from the zip (one carried patch), and what the
 sandbox lacks raised by name."""
 
@@ -31,8 +31,8 @@ def _job(guest, job: str, **kw) -> None:
 @pytest.mark.slow
 def test_files_from_the_zip_job_matches_native(guest) -> None:
     """pandas' Styler renders HTML, LaTeX, text, Typst and a custom template, and networkx reads
-    its graph atlas, from the zip, as native Python does with the files on disk (spec 041,
-    Decision 7). Equal output shows the patches change no result on these calls; the Styler check
+    its graph atlas, from the zip, as native Python does with the files on disk.
+    Equal output shows the patches change no result on these calls; the Styler check
     below shows the patched branch served them."""
     _job(guest, "files_from_the_zip")
 
@@ -53,7 +53,7 @@ def test_pdf_job_matches_native(guest) -> None:
 @pytest.mark.slow
 def test_markup_job_matches_native(guest) -> None:
     """beautifulsoup4 with html.parser and html5lib, soupsieve, `pd.read_html` with bs4 and its
-    default flavor (lxml, spec 046), webencodings, xmltodict and defusedxml."""
+    default flavor (lxml), webencodings, xmltodict and defusedxml."""
     _job(guest, "markup")
 
 
@@ -85,7 +85,7 @@ def test_utilities_job_matches_native(guest) -> None:
 
 
 # seaborn imports matplotlib.pyplot, which needs a writable cache folder; both jobs read
-# matplotlib's data (its fonts, DejaVu Sans for reportlab) from its grant (spec 042, Decision 8).
+# matplotlib's data (its fonts, DejaVu Sans for reportlab) from its grant.
 MPL = {"env": {"MPLCONFIGDIR": "/mplconfig"}, "mpl_data": True}
 
 
@@ -94,7 +94,7 @@ def test_statistical_plots_job_matches_native(guest) -> None:
     """seaborn's relational, distribution, categorical, grid, matrix and objects plots, each
     figure's RGBA buffer (and its SVG when it holds no raster) equal to the oracle's, and its
     regression, kernel densities, violins and clustering as text at nine digits (recorded on the
-    platform tests/jobs/statistical_plots.platform names; spec 042, Decision 10)."""
+    platform tests/jobs/statistical_plots.platform names)."""
     _job(guest, "statistical_plots", **MPL)
 
 
@@ -102,7 +102,7 @@ def test_statistical_plots_job_matches_native(guest) -> None:
 def test_pdf_reports_job_matches_native(guest) -> None:
     """reportlab's canvas, platypus, charts through renderPDF and renderSVG, renderPM's error,
     Unicode text in DejaVu Sans and a matplotlib image, each PDF's bytes (built invariant and
-    uncompressed) or pypdf's read-back equal to the oracle's (spec 042, Decision 10)."""
+    uncompressed) or pypdf's read-back equal to the oracle's."""
     _job(guest, "pdf_reports", **MPL)
 
 
@@ -133,7 +133,7 @@ print(json.dumps(out))
 def test_the_default_profile_runs_its_pure_python_paths(guest, which) -> None:
     """pyyaml has no libyaml (`__with_libyaml__` is False, no C loaders, no `_yaml`); markupsafe
     escapes through `_native`; charset-normalizer's modules are bytecode and no mypyc module is in
-    the zip or loaded after it runs (Decision 3; the review's finding 8)."""
+    the zip or loaded after it runs (Decision 3)."""
     r = guest(which, ["-c", PURE])
     assert r.exit_code == 0, r.describe()
     want = {
@@ -231,8 +231,8 @@ MINE = b'{% extends "html_table.tpl" %}{% block table %}<p>mine</p>{{ super() }}
 def test_pandas_styler_renders_from_the_zip(guest, which) -> None:
     """pandas' Styler loads its templates from the zip: `df.style` to HTML, text and Typst,
     `df.to_latex()`, and a custom template in a granted folder that extends a built-in one, with
-    jinja2's PackageLoader, the carried patch's branch for templates that are not a folder (spec
-    041, Decisions 2 and 7). Without the patch, importing the Styler raises TemplateNotFound."""
+    jinja2's PackageLoader, the carried patch's branch for templates that are not a folder.
+    Without the patch, importing the Styler raises TemplateNotFound."""
     findings = _findings(guest, which, STYLER, files={"/data/mine.tpl": MINE})
     assert not findings, scan.report(findings)
 
@@ -307,7 +307,7 @@ def test_reportlab_runs_its_pure_paths(guest, which) -> None:
     """reportlab runs without `_rl_accel` (all eleven of its functions are the Python ones), has
     no bitmap renderer (renderPM needs rlPyCairo), has no fonts of its own in the zip (bundled
     `Vera.ttf` raises TTFError), has no barcode modules while the leave-out stands, and writes a
-    PDF in memory (spec 042, Decisions 3, 4 and 4a)."""
+    PDF in memory."""
     r = guest(which, ["-c", REPORTLAB])
     assert r.exit_code == 0, r.describe()
     want = {
@@ -346,12 +346,12 @@ except Exception as e:
 def test_seaborn_takes_its_scipy_paths(guest, guest_workdir, which) -> None:
     """seaborn takes scipy's paths, not its own copies: `_no_scipy` is False in `matrix` and
     `_statistics`, and its kernel density is scipy's `gaussian_kde`; it catches only ImportError,
-    so a scipy that failed to import would leave it on its copies silently (the pre-build
-    review's finding 2). And `load_dataset` through the runner, with only a writable cache grant
+    so a scipy that failed to import would leave it on its copies silently.
+    And `load_dataset` through the runner, with only a writable cache grant
     (the README's set-up), raises FileNotFoundError naming '~' before any fetch, and makes no `~`
     folder in the grant: seaborn makes its cache folder under a `~` the guest cannot expand, a
-    relative path under a root the call does not have (finding 3; spec 042, Decisions 3 and 8,
-    as amended at build: the review's PermissionError was its driver's read-only root)."""
+    relative path under a root the call does not have (as amended at build: the review's
+    PermissionError was its driver's read-only root)."""
     needs.need("runner")
     import wasi_python
 
@@ -368,7 +368,7 @@ def test_seaborn_takes_its_scipy_paths(guest, guest_workdir, which) -> None:
         env={"MPLCONFIGDIR": "/cfg"},
         snapshot=which == "snapshot",
     )
-    # The folder first: litter in the caller's grant is the worse failure (the build review's F2).
+    # The folder first: litter in the caller's grant is the worse failure.
     assert not (cfg / "~").exists(), sorted(p.name for p in cfg.iterdir())
     assert (done.exit_code, done.stdout) == (0, b"FileNotFoundError '~'\n"), done
 
@@ -376,13 +376,13 @@ def test_seaborn_takes_its_scipy_paths(guest, guest_workdir, which) -> None:
 @BINARY
 def test_networkx_atlas_reads_from_the_zip(guest, which) -> None:
     """networkx opens its graph atlas resource and decompresses the stream, the carried patch, so
-    `graph_atlas` and `graph_atlas_g` read it from the zip (spec 041, Decisions 3 and 7). Without
-    the patch, `gzip.open` refuses the zip's Traversable with TypeError (spec 039, Decision 9)."""
+    `graph_atlas` and `graph_atlas_g` read it from the zip. Without
+    the patch, `gzip.open` refuses the zip's Traversable with TypeError."""
     findings = _findings(guest, which, ATLAS)
     assert not findings, scan.report(findings)
 
 
-# scikit-learn (spec 044, Decision 13). Each behaviour check runs as an embedder calls it, nothing
+# scikit-learn. Each behaviour check runs as an embedder calls it, nothing
 # writable, on both binaries, with a fuel limit a hang ends at; the golden runs through the judge's
 # driver, as scipy's do.
 SKLEARN_FUEL = 80 * 10**9  # an import of scikit-learn and a small fit, with room
@@ -548,8 +548,8 @@ print(json.dumps({"names": names, "wrong": wrong}))
 
 @BINARY
 def test_scikit_learn_modules_are_builtin(guest, which) -> None:
-    """Each of scikit-learn's 69 extension modules is a builtin that imports under its dotted
-    name, the form 023's and 037's checks use; the four whose init functions are renamed are
+    """Each of scikit-learn's 69 extension modules is a builtin that imports under its dotted name,
+    the form matplotlib's and scipy's checks use; the four whose init functions are renamed are
     among them (Decisions 6 and 8). They run apart from the other packages' dotted builtins
     (test_v1_1_artifact_set), as scipy's do."""
     got = _sklearn(guest, which, SKLEARN_BUILTINS)

@@ -1,7 +1,7 @@
-"""The callback scan (spec 051, Decision 4) on small modules built with wat2wasm: a referenced
+"""The callback scan on small modules built with wat2wasm: a referenced
 mismatch is found, an unreferenced look-alike is not, a code-referenced single definition is
 checked, an exclusion that stops matching is a finding, and a passive segment is a finding. Three
-rules each have a case that fails without them (the build review, finding 2): setters are
+rules each have a case that fails without them: setters are
 checked, a table referenced only from code is found, and return types are compared."""
 
 from __future__ import annotations
@@ -147,8 +147,7 @@ def test_code_constants_are_read_at_every_position() -> None:
 
 def test_an_extended_constant_offset_is_recorded_not_raised(work) -> None:
     """A data segment placed by an extended constant expression (wasm-ld can emit one) is unread
-    by the scan, a finding, while the wall's readers still read the module (the build review,
-    finding 4)."""
+    by the scan, a finding, while the wall's readers still read the module."""
     text = """
 (module
   (import "host" "call" (func (param i32 i32 i32 i32) (result i32)))
@@ -200,7 +199,7 @@ METHOD_FINDING = (
 
 def test_a_single_at_a_parser_rule_is_not_a_method(work) -> None:
     """A code-referenced record whose function, at table index 1 to 20, the name section names as
-    a parser rule is not read as a single PyMethodDef (spec 023's build: FreeType's BDF property
+    a parser rule is not read as a single PyMethodDef (matplotlib's build: FreeType's BDF property
     table, {"ADD_STYLE_NAME", BDF_ATOM = 1, 1, 0}); the same record at index 21 is."""
     report = callbacks.scan(_low_index_module(work, "_tmp_6_rule"))
     assert callbacks.findings(report) == [METHOD_FINDING]
@@ -209,8 +208,8 @@ def test_a_single_at_a_parser_rule_is_not_a_method(work) -> None:
 
 @pytest.mark.parametrize("at_one", ["handler", "_rule_handler"])
 def test_a_low_index_that_is_no_parser_rule_is_checked(work, at_one) -> None:
-    """The exemption is checked against the name section, never assumed from link order (the
-    build review, F3): another function at index 1 is a method like any other, and so is any
+    """The exemption is checked against the name section, never assumed from link order:
+    another function at index 1 is a method like any other, and so is any
     function there in a module whose names are gone."""
     mod = _low_index_module(work, at_one)
     report = callbacks.scan(mod)
@@ -222,7 +221,7 @@ def test_a_low_index_that_is_no_parser_rule_is_checked(work, at_one) -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# Spec 096: the slot scan (`callbacks.scan_slots`) on small modules. Functions $u (i32) -> (i32),
+# The slot scan (`callbacks.scan_slots`) on small modules. Functions $u (i32) -> (i32),
 # $d (i32) -> (), $b (i32, i32) -> (i32) and $t (i32, i32, i32) -> (i32) sit at table indices 21
 # to 24. Records are laid at fixed addresses; one data segment of pointers references the ones
 # meant to be referenced, as a real type's module or a PyType_FromSpec call would.
@@ -305,7 +304,7 @@ def test_slots_a_static_types_void_clear_is_found_and_its_destructor_is_not(work
 
 
 def test_slots_a_type_named_with_a_space_is_read(work) -> None:
-    """F1: a C string is 1 to 256 bytes in 0x20-0x7E; CPython names `<dummy key> type` so."""
+    """A C string is 1 to 256 bytes in 0x20-0x7E; CPython names `<dummy key> type` so."""
     lay = _Layout()
     _with_type(lay)
     lay.put(_type(lay.string(b"<a b> type"), o44=B))
@@ -356,7 +355,7 @@ def test_slots_no_record_for_type_is_a_finding(work) -> None:
 
 
 def test_slots_names_unreadable_null_and_typed_by_a_nameless_type(work) -> None:
-    """F1 and the confirmation's Low: a referenced candidate whose tp_name points at no C string
+    """A referenced candidate whose tp_name points at no C string
     is a finding; tp_name 0 is a type named at run time, read and counted; a static record whose
     type is such a type is a finding, since no metatype rule classifies it."""
     lay = _Layout()
@@ -430,7 +429,7 @@ def test_slots_old_and_new_ids_are_both_read(work) -> None:
 
 
 def test_slots_a_null_function_slot_is_read_and_counted(work) -> None:
-    """L3: CPython's legacy iterator only logs a NULL function slot, so the spec is read."""
+    """CPython's legacy iterator only logs a NULL function slot, so the spec is read."""
     lay = _Layout()
     _with_type(lay)
     _spec(lay, b"m.First", _slots((51, 0), (52, D)))
@@ -458,7 +457,7 @@ def test_slots_a_module_definitions_functions_are_read(work) -> None:
 
 
 def test_slots_check_3s_verdict_bounds_and_named_records(work) -> None:
-    """F2 and the bounds: a named spec whose slots word is zeroed goes unread, and that alone is
+    """The bounds: a named spec whose slots word is zeroed goes unread, and that alone is
     the problem while every minimum holds; a second type named at run time, or an unreferenced
     candidate, passes its bound."""
     named = {"spec": {"m.S"}, "spec slot": {"m.S.tp_clear"}, "type": {"type"}}
@@ -498,7 +497,7 @@ def test_slots_an_exclusion_is_strict_both_ways(work) -> None:
 
 
 def test_slots_a_types_pointer_fields_must_be_in_static_memory(work) -> None:
-    """The build review's L1: a pointer field below the image's base is no type's."""
+    """A pointer field below the image's base is no type's."""
     lay = _Layout()
     _with_type(lay)
     lay.put(_type(lay.string(b"m.P"), o116=16))

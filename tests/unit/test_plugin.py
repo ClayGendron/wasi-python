@@ -279,7 +279,7 @@ def test_a_run_stopped_early_reports_unrun_checks(inner) -> None:
     assert status(record, "test_second") == "unrun"
 
 
-# The build review's attacks (context/reviews/002-the-progress-harness-2026-10-16.md), each kept.
+# Attacks on the plugin, each kept.
 
 SCANNER = """
 import pytest
@@ -392,7 +392,7 @@ def test_gained_carry_over_and_another_platform_end_to_end(inner, monkeypatch) -
     _accept_baseline(inner)
     real = plugin.run_meta
 
-    # A platform no host is, so the case holds on every system (spec 063's first Linux run: on a
+    # A platform no host is, so the case holds on every system (the release's first Linux run: on a
     # Linux host "linux-x86_64" was the baseline's own platform, not another).
     other = "plan9-amd64"
 
@@ -432,7 +432,7 @@ def test_group(metric, fact):
 
 
 def test_passes_ratchet_end_to_end_with_its_own_flag(inner) -> None:
-    """spec 050, criterion 6: `metric("passes")` is allowed, a fall is FEWER and red, and only
+    """`metric("passes")` is allowed, a fall is FEWER and red, and only
     --accept-fewer-passes accepts it; the fact reaches latest.json."""
     result, record = inner("--accept", "base", source=PASSES.format(passes=5))
     assert result.ret == 0, result.stdout.str()
@@ -457,7 +457,7 @@ def test_passes_ratchet_end_to_end_with_its_own_flag(inner) -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# Spec 062: the plugin writes the line where history.target says, and says so (criteria 7, 8)
+# The plugin writes the line where history.target says, and says so (criteria 7, 8)
 
 
 def _filler_volume(progress: Path, lines: int, passed=()) -> bytes:
@@ -499,7 +499,7 @@ def test_an_oversize_line_is_refused_through_the_plugin(inner) -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# Spec 063: --shard, a named selection of the judge's own checks (acceptance 3)
+# --shard, a named selection of the judge's own checks (acceptance 3)
 
 SHARD_PLAN = """
 [shard.a]
@@ -588,7 +588,7 @@ def test_without_shard_the_record_says_none(sharded) -> None:
 
 
 def test_run_meta_records_the_sets_own_sha256sums(tmp_path, monkeypatch) -> None:
-    """Spec 085, Decision 4: the run names the whole artifact set by its SHA256SUMS."""
+    """The run names the whole artifact set by its SHA256SUMS."""
     (tmp_path / "python.wasm").write_bytes(b"\0asm")
     monkeypatch.setenv(paths.ARTIFACTS_ENV, str(tmp_path))
     assert plugin.run_meta()["set_sums"] is None

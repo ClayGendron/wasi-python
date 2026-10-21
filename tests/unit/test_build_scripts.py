@@ -1,7 +1,7 @@
-"""Finder litter never breaks a build (spec 018): `remove` retries, and the zip, the licences and
+"""Finder litter never breaks a build: `remove` retries, and the zip, the licences and
 the artifact set never carry litter. Each case works on a temporary folder; `remove` runs under a
 POSIX `sh` with `rm` replaced by a shell function that counts its calls. Nothing measures time.
-The zip's package metadata and the `ctypes` stand-in (spec 033) are checked here on the host too."""
+The zip's package metadata and the `ctypes` stand-in are checked here on the host too."""
 
 from __future__ import annotations
 
@@ -74,7 +74,7 @@ def _tree(tmp_path):
 @pytest.mark.parametrize(("fails", "calls"), [(0, 1), (1, 2), (2, 3)])
 def test_remove_retries_until_the_path_is_gone(tmp_path, fails, calls) -> None:
     if SH is None:
-        pytest.skip("needs: a POSIX sh")  # blocked, never passed or failed (spec 018, B)
+        pytest.skip("needs: a POSIX sh")  # blocked, never passed or failed (B)
     target = _tree(tmp_path)
     assert _remove(target, fails)[:2] == (0, calls)
     assert not target.exists()
@@ -114,7 +114,7 @@ def test_remove_removes_every_path_it_is_given(tmp_path) -> None:
 
 
 # Every litter name this host can create (a Windows file name cannot hold `Icon\r`'s CR), an
-# AppleDouble file, and a file inside a volume's litter folder (spec 090, Decisions 1 and 2).
+# AppleDouble file, and a file inside a volume's litter folder.
 PLANTABLE = sorted(n for n in litter.OS_LITTER if sys.platform != "win32" or "\r" not in n)
 
 
@@ -175,7 +175,7 @@ def test_step_90_removes_or_says_why(tmp_path, monkeypatch) -> None:
 
 
 def test_the_scripts_litter_is_the_judges() -> None:
-    """Spec 090, Decision 1: one definition in two copies, the names and both rules."""
+    """One definition in two copies, the names and both rules."""
     assert set(litter.OS_LITTER) == set(paths.OS_LITTER)
     assert all(litter.is_litter(n) for n in ("._x.py", "Icon\r", ".TemporaryItems", "ehthumbs.db"))
     names = [*paths.OS_LITTER, "._x", "a.py", "Icon", "DS_Store", ".gitignore", "_x"]
@@ -187,7 +187,7 @@ def test_the_scripts_litter_is_the_judges() -> None:
 
 @pytest.mark.skipif(sys.platform == "win32", reason="a Windows file name cannot hold Icon\\r's CR")
 def test_the_repository_ignores_litter_itself() -> None:
-    """Spec 090, Decision 7: step 90's untracked check and `paths.dirty_path` must not stop on a
+    """Step 90's untracked check and `paths.dirty_path` must not stop on a
     Finder file on a Mac without the owner's global ignore, so the user's excludes are off here."""
     if shutil.which("git") is None:
         pytest.skip("needs: git")
@@ -206,7 +206,7 @@ def test_the_repository_ignores_litter_itself() -> None:
         assert not ignored(name), name
 
 
-# Spec 033: the zip carries package metadata, and the ctypes stand-in names and refuses.
+# The zip carries package metadata, and the ctypes stand-in names and refuses.
 
 STAND_IN = paths.REPO / "recipes" / "ctypes_stand_in"
 REFUSED = "ctypes is unavailable on wasm32-wasi"
@@ -268,7 +268,7 @@ def test_an_sdists_pkg_info_becomes_metadata(tmp_path) -> None:
 def test_an_sdists_entry_points_go_beside_its_metadata(tmp_path, monkeypatch) -> None:
     """`--entry-points` packs the file, bytes unchanged, in the folder `--metadata` names for the
     same PKG-INFO; one whose folder has no METADATA member stops in one line naming both files,
-    matched by the computed folder, however the PKG-INFO path is spelled (spec 041, Decision 5).
+    matched by the computed folder, however the PKG-INFO path is spelled.
     The guard gets the members gathered, as main gives it."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "x").mkdir()
@@ -293,8 +293,8 @@ def test_an_sdists_entry_points_go_beside_its_metadata(tmp_path, monkeypatch) ->
 def test_main_puts_entry_points_beside_metadata_or_stops(tmp_path, monkeypatch) -> None:
     """main() runs the guard after every input is gathered: `--entry-points` with no `--metadata`
     for its PKG-INFO stops naming both files; with the same PKG-INFO spelled another way under
-    `--metadata`, the zip holds both members, the entry points' bytes unchanged (spec 041,
-    Decision 5; the build review's F2). The line's version check and the host-neutral rewrite are
+    `--metadata`, the zip holds both members, the entry points' bytes unchanged.
+    The line's version check and the host-neutral rewrite are
     set aside, as this zip has no stdlib."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(make_stdlib_zip, "TARGET", sys.version_info[:2])
@@ -323,7 +323,7 @@ def test_main_puts_entry_points_beside_metadata_or_stops(tmp_path, monkeypatch) 
 
 
 def test_a_left_out_folder_is_not_packed(tmp_path, monkeypatch) -> None:
-    """Spec 042, Decision 5: a wheel's folder is left out by spec 023's `--drop`, which applies to
+    """A wheel's folder is left out by the `--drop` matplotlib's build added, which applies to
     every input, so no option of its own is added. `Selection.take` drops exactly the members
     under the folder, whether written with a trailing slash or not, keeps a sibling whose name
     only starts the same (`pkg/subway.py`), and records the folder as matched; it is given each
@@ -407,7 +407,7 @@ def test_a_tree_with_package_metadata_stops_the_zip(tmp_path) -> None:
 
 
 def test_a_staged_tree_ignores_litter(tmp_path) -> None:
-    """Spec 039, Decision 12: a tree staged as step 70 stages pyyaml's and markupsafe's pure
+    """A tree staged as step 70 stages pyyaml's and markupsafe's pure
     folders (a fresh folder holding a copied package) gives the same members, names and bytes,
     with Finder litter at the tree's top and inside the package."""
 
@@ -461,7 +461,7 @@ STAND_IN_TYPES = (
     "set_errno",
 )  # fmt: skip
 STAND_IN_CONSTANTS = ("DEFAULT_MODE", "RTLD_GLOBAL", "RTLD_LOCAL", "WinError")
-# Spec 038, Decision 3: the types whose instances hold a value, written here too.
+# The types whose instances hold a value, written here too.
 NUMERIC_TYPES = (
     "c_bool", "c_byte", "c_ubyte", "c_short", "c_ushort", "c_int", "c_uint", "c_long", "c_ulong",
     "c_longlong", "c_ulonglong", "c_int8", "c_int16", "c_int32", "c_int64", "c_uint8", "c_uint16",
@@ -469,7 +469,7 @@ NUMERIC_TYPES = (
 )  # fmt: skip
 VALUE_TYPES = (*NUMERIC_TYPES, "c_void_p")
 # wasm32's sizes, which `struct.calcsize` gives in the guest: the host checks size the stand-in's
-# types as the guest does, so the wraps they assert are wasm32's (spec 038, Decision 5).
+# types as the guest does, so the wraps they assert are wasm32's.
 WASM32_SIZES = {"?": 1, "c": 1, "b": 1, "B": 1, "h": 2, "H": 2, "i": 4, "I": 4, "l": 4, "L": 4,
                 "q": 8, "Q": 8, "f": 4, "d": 8, "P": 4}  # fmt: skip
 
@@ -488,7 +488,7 @@ def _load_stand_in_as_wasm32(monkeypatch):
 
 
 def test_the_zips_code_carries_the_name_it_is_given() -> None:
-    """Spec 051, Decision 7: `pyc` compiles under the name it is given, and every nested code
+    """`pyc` compiles under the name it is given, and every nested code
     object carries it, so the zip's code names the path zipimport gives the module."""
     import marshal
 
@@ -546,7 +546,7 @@ def test_the_ctypes_stand_in_names_and_refuses() -> None:
     simple = [getattr(ct, n) for n in names if n.startswith("c_")]
     func = ct.CFUNCTYPE(ct.c_int, ct.c_char_p)
     kinds = [*simple, S, U, ct.c_char * 4, func, ct.POINTER(ct.c_int)]
-    # Spec 038, Decision 3: the numeric simple types and c_void_p hold values (the checks below);
+    # The numeric simple types and c_void_p hold values (the checks below);
     # every other kind still refuses an instance.
     holders = {getattr(ct, n) for n in VALUE_TYPES}
     for kind in kinds:
@@ -590,7 +590,7 @@ def test_the_ctypes_stand_in_names_and_refuses() -> None:
         assert twin is kind if ct.sizeof(kind) == 1 else twin.__ctype_le__ is kind, kind
     util = importlib.import_module(f"{ct.__name__}.util")
     assert util.find_library("c") is None
-    # Spec 039, Decision 5: the loaded shared libraries, which threadpoolctl lists, are none
+    # The loaded shared libraries, which threadpoolctl lists, are none
     assert util.dllist() == []
 
 
@@ -616,7 +616,7 @@ def test_the_ctypes_stand_in_documents_itself_with_numpy_loaded(monkeypatch) -> 
 
 
 def test_the_ctypes_stand_in_holds_numeric_values_as_wasm32_stores_them(monkeypatch) -> None:
-    """Spec 038, Decision 3: a numeric simple type's instance holds a value, zero when given
+    """A numeric simple type's instance holds a value, zero when given
     none; `.value` reads and writes it as wasm32 C stores it: an integer wraps to the type's width
     and signedness, `c_float` rounds to single precision, `c_bool` stores a bool."""
     import struct
@@ -669,8 +669,8 @@ def test_the_ctypes_stand_in_holds_numeric_values_as_wasm32_stores_them(monkeypa
 
 
 def test_the_ctypes_stand_in_values_have_no_memory(monkeypatch) -> None:
-    """038's build review, High 1: a value instance has no memory to read, so its buffer refuses
-    with spec 033's OSError (PEP 688's `__buffer__`), as `bytes()`, `memoryview()` and
+    """A value instance has no memory to read, so its buffer refuses
+    with the stand-in's OSError (PEP 688's `__buffer__`), as `bytes()`, `memoryview()` and
     `bytearray()` of it would touch memory; CPython's test_memoryview reads `bytes(c_double(0.6))`
     and must meet "ctypes is unavailable", not a TypeError."""
     ct = _load_stand_in_as_wasm32(monkeypatch)
@@ -680,7 +680,7 @@ def test_the_ctypes_stand_in_values_have_no_memory(monkeypatch) -> None:
 
 
 def test_the_ctypes_stand_in_values_are_true_and_typed_as_cpythons(monkeypatch) -> None:
-    """038's build review, Medium 2 and Low 3: an instance is false when its stored C bytes are
+    """An instance is false when its stored C bytes are
     all zero, as CPython's (so -0.0 and NaN are true, and a NULL c_void_p is false); c_void_p takes
     only an int, a floating type only what has `__float__` or `__index__` (never a str or a
     buffer), and instances are unhashable, each as CPython's ctypes."""
@@ -713,9 +713,9 @@ def test_the_ctypes_stand_in_values_are_true_and_typed_as_cpythons(monkeypatch) 
 
 
 def test_the_ctypes_stand_in_types_import_only_what_a_start_has_loaded() -> None:
-    """Spec 038, Decision 6: the first type lookup imports nothing new. `ctypes._types` imports
+    """The first type lookup imports nothing new. `ctypes._types` imports
     only `struct` and `sys`, which every start has loaded; `operator` and `math` cost a plain
-    start 5.9 M and 1.0 M fuel (measured on 038's build), so the value rules do without them."""
+    start 5.9 M and 1.0 M fuel (measured), so the value rules do without them."""
     import ast
 
     tree = ast.parse((STAND_IN / "_types.py").read_text())
@@ -729,7 +729,7 @@ def test_the_ctypes_stand_in_types_import_only_what_a_start_has_loaded() -> None
 
 
 def test_the_ctypes_stand_in_holds_void_pointers_and_casts_them(monkeypatch) -> None:
-    """Spec 038, Decision 3: `c_void_p` holds an int wrapped to wasm32's 32 bits, or None (NULL,
+    """`c_void_p` holds an int wrapped to wasm32's 32 bits, or None (NULL,
     as CPython's ctypes reads a zero pointer); `cast` of an int, None or a `c_void_p` to `c_void_p`
     is a new `c_void_p` with that value. numpy's `ndarray.ctypes.data_as(c_void_p)` and scipy's
     `LowLevelCallable` user data (`_lib/_ccallback.py`) are exactly these steps."""
@@ -786,11 +786,11 @@ def test_the_ctypes_stand_in_holds_void_pointers_and_casts_them(monkeypatch) -> 
         lambda: ct.string_at(4096),
     ):
         _refuses(refused)
-    function = ct.cast(4096, ct.CFUNCTYPE(ct.c_int))  # spec 037's cast, unchanged
+    function = ct.cast(4096, ct.CFUNCTYPE(ct.c_int))  # scipy's cast, unchanged
     _refuses(function)
 
 
-# Spec 035, Decision 5: the freezer names each module it freezes; its defaults keep _reactor's
+# The freezer names each module it freezes; its defaults keep _reactor's
 # header as it was.
 
 FROZEN_HEADER = """\
@@ -827,7 +827,7 @@ CONSTRUCTORS_SH = paths.REPO / "scripts" / "steps" / "constructors.sh"
 
 @pytest.mark.parametrize("passes", [True, False])
 def test_a_binary_that_fails_the_constructor_check_is_removed(tmp_path, passes) -> None:
-    """Step 60's last gate (spec 023's build review, F6): a python.wasm whose static constructors
+    """Step 60's last gate: a python.wasm whose static constructors
     or features no review has read is removed before the step stops, so a later step run by name
     cannot snapshot it; one that passes stays. The check itself is a stand-in here."""
     if SH is None:
@@ -847,7 +847,7 @@ def test_a_binary_that_fails_the_constructor_check_is_removed(tmp_path, passes) 
         assert "it is removed" in r.stderr, r.stderr
 
 
-# Spec 047, Decision 4: every builtin's init function runs inside CPython's package context.
+# Every builtin's init function runs inside CPython's package context.
 
 
 def test_the_inittab_registers_each_module_through_its_package_context(
@@ -902,7 +902,7 @@ RECIPE_ONE = '#ifndef PREIMPORT\n#define PREIMPORT "import encodings, io, os"\n#
 
 
 def test_the_pre_import_list_is_read_from_the_recipe() -> None:
-    """MANIFEST's x-preimport line is read from the recipe's one #define (spec 069, Decision 3):
+    """MANIFEST's x-preimport line is read from the recipe's one #define:
     a recipe with none, or with two, stops the build naming the file."""
     assert assemble_artifacts.preimport_list(RECIPE_ONE) == "encodings, io, os"
     for text in ("#ifndef PREIMPORT\n#endif\n", RECIPE_ONE + RECIPE_ONE.splitlines()[1] + "\n"):
@@ -910,7 +910,7 @@ def test_the_pre_import_list_is_read_from_the_recipe() -> None:
             assemble_artifacts.preimport_list(text)
 
 
-# contourpy's _build_config.py as meson writes it (spec 043, Decision 4): its host keys are keyword
+# contourpy's _build_config.py as meson writes it: its host keys are keyword
 # arguments of the dict(...) call build_config() returns, not a dict display.
 CONTOURPY_CONFIG = """
 def build_config() -> dict[str, str]:
@@ -979,7 +979,7 @@ CONFIG_DEST = "{py_platlib}/contourpy/util/_build_config.py"
 def test_untagged_files_go_where_meson_s_plan_says(tmp_path) -> None:
     """Step 55 places contourpy's _build_config.py, which meson installs with no tag, at the
     destination meson's install plan gives it, and stops unless that is exactly the expected
-    path (spec 043's build review, F5)."""
+    path."""
     build, site = tmp_path / "build", tmp_path / "site"
     _plan(
         build,

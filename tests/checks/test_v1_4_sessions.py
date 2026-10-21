@@ -1,4 +1,4 @@
-"""v1.4: bounded sessions (spec 055). One instance of the guest kept across turns.
+"""v1.4: bounded sessions. One instance of the guest kept across turns.
 
 The first checks drive the `turn` and `shutdown` exports raw, with the judge's own driver; the
 rest use `wasi_python.Session`, the runner's sessions, end to end on the built set. Nothing here
@@ -103,7 +103,7 @@ SHUTDOWN_TURN = (
 @BINARY
 def test_the_shutdown_export_raw(guest_turns, which) -> None:
     """Criterion 34: Python's shutdown runs atexit and flushes a file left open beside a function
-    defined in __main__ (the memo's P10b: the snapshot loses it without the unfreeze); then every
+    defined in __main__ (the snapshot loses it without the unfreeze); then every
     export refuses."""
     t = guest_turns(which)
     assert t.turn(SHUTDOWN_TURN).value == 0
@@ -541,7 +541,7 @@ def test_mounts_and_grants_across_turns(guest_workdir) -> None:
     s = wp.Session(mounts=[wp.Mount(p, "/m", writable=True)], max_file_calls=3)
     r = s.run("import os\nfor i in range(10):\n    os.path.exists(f'/m/{i}')\n")
     assert (r.trapped, s.ended) == ("out of file calls", "out of file calls"), r
-    # A refused write-back stays dirty, and the next turn's ending offers it (the review's F7).
+    # A refused write-back stays dirty, and the next turn's ending offers it.
     opening = "import os\nfd = os.open('/m/f.txt', os.O_WRONLY | os.O_CREAT)\nos.write(fd, b'z')\n"
     p = MemoryProvider({})
     with wp.Session(mounts=[wp.Mount(p, "/m", writable=True)]) as pilot:
@@ -837,7 +837,7 @@ def test_fork_exit_and_the_collector(guest_workdir) -> None:
             assert after == before - 1, lines
         if want is not None:
             assert lines == want
-    # The build review's F1: at exit, after run_async has run once in the process (its exit
+    # At exit, after run_async has run once in the process (its exit
     # hook sets the interpreter's "exiting" flag first), the ending's write-back still reaches
     # a mount: the handler's descriptor, written and never closed, is handed over by the walk.
     log = Path(tempfile.mkdtemp(prefix="mount-", dir=guest_workdir)) / "writes.log"
@@ -956,7 +956,8 @@ def test_close_runs_python_shutdown(guest_workdir) -> None:
 def test_expiry_runs_python_shutdown(
     guest_workdir, fake_clock, monkeypatch, exports_called
 ) -> None:
-    """Criterion 36, the re-review's F2 included."""
+    """Python's shutdown runs when a session ends at its idle bound or its lifetime, and the
+    ending's deadline is capped by what is left of the lifetime."""
     wp = _wp()
     from wasi_python import _limits, _sessions
     from wasi_python._process import process
@@ -1021,7 +1022,8 @@ HOG = "import atexit\natexit.register(lambda: [0 for _ in iter(int, 1)])\n"
 
 
 def test_a_hostile_atexit_is_stopped(guest_workdir) -> None:
-    """Criterion 37, the re-review's F5 included."""
+    """A handler that never ends is stopped, by the session's own fuel when it is metered and by
+    the shutdown's seconds when it is not; the session still closes."""
     wp = _wp()
     from wasi_python._process import process
 
@@ -1067,7 +1069,8 @@ def test_a_hostile_atexit_is_stopped(guest_workdir) -> None:
 
 
 def test_no_guest_code_after_a_stopped_ending(exports_called) -> None:
-    """Criterion 38, the re-review's F4 included."""
+    """After a stopped ending no export is called again, and after a Ctrl-C or an embedder's
+    BaseException in the ending nothing is written back."""
     wp = _wp()
     from harness.files import MemoryProvider
 
@@ -1210,12 +1213,13 @@ except KeyboardInterrupt:
 def test_a_turn_that_returns_after_close_runs_the_shutdown(
     guest_workdir, monkeypatch, exports_called
 ) -> None:
-    """Criterion 42, F3's error row included."""
+    """A turn that returns after close() marked the session runs Python's shutdown before close()
+    returns; a turn whose run raises ends "error" and skips it."""
     wp = _wp()
     from wasi_python._process import process
 
     host = Path(tempfile.mkdtemp(prefix="race-", dir=guest_workdir))
-    order: list[str] = []  # one list: the shutdown's handler, and close()'s return (F3)
+    order: list[str] = []  # one list: the shutdown's handler, and close()'s return
 
     def door(frame: bytes) -> bytes:
         order.append("shutdown ran its handler")
@@ -1248,7 +1252,7 @@ def test_a_turn_that_returns_after_close_runs_the_shutdown(
 
 
 def test_the_cap_on_open_files_in_a_session(guest_workdir) -> None:
-    """Criterion 40 (spec 068's cap, per session: counted across turns and the ending)."""
+    """Criterion 40 (the cap on open files, per session: counted across turns and the ending)."""
     wp = _wp()
     host = Path(tempfile.mkdtemp(prefix="cap-", dir=guest_workdir))
     with wp.Session(
@@ -1280,7 +1284,7 @@ def test_the_cap_on_open_files_in_a_session(guest_workdir) -> None:
 
 
 def test_a_closer_sees_the_openings_context(fake_clock) -> None:
-    """The re-review's F7: an ending on a closer thread runs the embedder's code in a copy of the
+    """An ending on a closer thread runs the embedder's code in a copy of the
     context taken when the session was opened."""
     import contextvars
 
@@ -1305,7 +1309,7 @@ def test_a_closer_sees_the_openings_context(fake_clock) -> None:
 
 
 def test_a_turn_frees_a_deep_structure() -> None:
-    """Spec 078, criterion 10: on the runner's 8 MiB stack a turn that frees a 20,000-deep list
+    """On the runner's 8 MiB stack a turn that frees a 20,000-deep list
     (a trap at 512 KiB, which ended the session) completes, and the session goes on."""
     wp = _wp()
     with wp.Session() as s:

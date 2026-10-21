@@ -1,9 +1,9 @@
-"""v1.3: the zip's directory is read once (spec 035). The stdlib's own import and resource
+"""v1.3: the zip's directory is read once. The stdlib's own import and resource
 machinery works, and is cheap: a start reads the zip's directory through the reactor's own
 reader, which gives zipimport's dict; resource reads and metadata answer from that one parse.
 
 Slopes are (fuel on padded.zip − fuel on small.zip) ÷ (their member counts' difference), plain
-only: the snapshot runs only beside its own zip (spec 003). Each check runs its measured program
+only: the snapshot runs only beside its own zip. Each check runs its measured program
 last, on small.zip (plain) or on the artifact zip (snapshot), so that is its fuel metric."""
 
 from __future__ import annotations
@@ -409,8 +409,8 @@ def test_metadata_answers_from_the_zips_directory(guest, judge_zips, note, which
     if which == "snapshot":
         a, b = _fuel(guest, which, QUERY), _fuel(guest, which, MISS)
         # The miss splits every member's name (Decision 7), so its bound grows with the artifact
-        # zip: 20 M at 1,758 members, plus 6,000 a member beyond them (spec 039, Decision 13,
-        # proposed for this check); the plain slope bound below holds each member's cost.
+        # zip: 20 M at 1,758 members, plus 6,000 a member beyond them; the plain slope bound below
+        # holds each member's cost.
         with zipfile.ZipFile(paths.artifact_dir() / "python-stdlib.zip") as z:
             members = len(z.infolist())
         bound = 20_000_000 + 6_000 * max(0, members - 1_758)

@@ -78,7 +78,7 @@ def test_same_bytes_passed_on_three_systems() -> None:
 
 
 def test_the_guest_clocks_resolution_is_the_judges(guest, monkeypatch) -> None:
-    """Guards a change (spec 065, its build review's F1): the judge answers `clock_res_get`
+    """Guards a change: the judge answers `clock_res_get`
     itself, so every host shows the guest the same resolutions. Distinct values prove the judge
     answered, not the host (a Linux host answers 1 ns, which turned CPython's timing tests from
     skips into failures there)."""

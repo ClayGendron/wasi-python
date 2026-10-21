@@ -1,4 +1,4 @@
-"""The shard plan, the selection and every package's suite (spec 063, acceptances 1, 2 and 7)."""
+"""The shard plan, the selection and every package's suite (acceptances 1, 2 and 7)."""
 
 from __future__ import annotations
 
@@ -319,7 +319,7 @@ def test_the_components_are_the_packages_the_sources_and_the_runtimes() -> None:
 )
 def test_a_product_file_left_to_rest_is_named(new) -> None:
     """Rule (g): a product check file or a runner unit file that no files shard on all three
-    systems names would fall to rest, off Windows; the plan names it (the build review, F1)."""
+    systems names would fall to rest, off Windows; the plan names it."""
     assert shards.plan_errors(_plan(), FILES, GROUPS) == []
     errors = shards.plan_errors(_plan(), [*FILES, new], GROUPS)
     assert errors == [f"(g) {new} is a product file in no files shard on all three systems"]
@@ -344,7 +344,7 @@ def test_the_rules_the_upstream_file_and_tooling_may_stay_in_rest() -> None:
 
 
 def test_a_check_named_by_node_goes_to_the_build_shard_alone() -> None:
-    """The confirmation's D1: one check of a product file, named by node id in the build shard,
+    """One check of a product file, named by node id in the build shard,
     runs there only; the rest of its file stays where its file is."""
     text = PLAN_TEXT.replace(
         'systems = ["build"]',
@@ -402,12 +402,12 @@ def test_a_node_whose_file_defines_no_such_check_is_named() -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# CPython's groups in the plan (spec 065, Decision 7, criterion 6)
+# CPython's groups in the plan
 
 
 def _with_stand_in_traps():
-    """The judge's configs with stand-in CPython trap entries: since spec 078 closed the nine,
-    none is open, and the rules for one still hold."""
+    """The judge's configs with stand-in CPython trap entries: since the 8 MiB guest stack closed
+    the nine, none is open, and the rules for one still hold."""
     from dataclasses import replace
 
     from harness import upstream
@@ -451,8 +451,8 @@ def test_cpython_entry_checks_go_with_their_group() -> None:
 
 
 def test_stand_in_a_cpython_trap_placed_by_the_path_rule_finds_no_group() -> None:
-    """Criterion 6's stand-in: 063's path rule alone gives a regrtest trap (no file) no group, so
-    it would fall into `rest`."""
+    """Criterion 6's stand-in: the shard plan's path rule alone gives a regrtest trap (no file) no
+    group, so it would fall into `rest`."""
 
     cfg = _with_stand_in_traps()["python"]
     t = next(t for t in cfg.traps if t.id == "t-c")

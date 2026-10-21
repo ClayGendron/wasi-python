@@ -1,10 +1,10 @@
 #!/bin/sh
 # Step 10: unpack the toolchain and the host Python under build/tools/, replace the toolchain's wasm
-# runtime with the host-neutral one (spec 012), and install the build tools (Cython, meson, ninja,
-# versioneer, pkgconf) from their pinned wheels: offline, with their hashes (spec 003; pkgconf,
-# spec 023), and the build host's numpy, for f2py alone (spec 037). On x86_64 Linux, put
+# runtime with the host-neutral one, and install the build tools (Cython, meson, ninja,
+# versioneer, pkgconf) from their pinned wheels: offline, with their hashes (pkgconf
+# for matplotlib), and the build host's numpy, for f2py alone. On x86_64 Linux, put
 # the arm64 Linux SDK's clang, under the pinned qemu-aarch64, behind the native SDK's clang, and
-# stop unless it is in place (spec 040, Decision 5).
+# stop unless it is in place.
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -23,7 +23,7 @@ for archive in "$SDK_TGZ" "$WASMTIME_TXZ" "$PYTHON_TGZ"; do
 done
 [ -x "$HOSTPY" ] || die "the host Python did not unpack to $HOSTPY"
 
-# The one host Python every step runs (spec 079, Decision 3). build/tools/host-python/ holds
+# The one host Python every step runs. build/tools/host-python/ holds
 # python, python3 and python<major>.<minor>, each exec'ing $HOSTPY, and common.sh puts it first on
 # PATH, so meson's find_program, an `env python3` shebang (HarfBuzz's and matplotlib's generators)
 # and configure's probes (CPython's PYTHON_FOR_REGEN) all find the pinned interpreter. Behind it,
@@ -45,7 +45,7 @@ prefix=$(/usr/bin/env python3 -c 'import sys; print(sys.prefix)') \
 behind=$(command -v python2 || echo none)
 echo "host python: python3 is ${SHIM#"$HERE"/}/python3, Python $("$HOSTPY" -c 'import platform; print(platform.python_version())'), prefix ${prefix#"$HERE"/}; behind it python2 is ${behind#"$HERE"/}"
 
-# The wasm runtime every host links (spec 012, Decision 2): a host tarball keeps only its compiler.
+# The wasm runtime every host links: a host tarball keeps only its compiler.
 # Its own sysroot and its wasm32-wasip1 builtins are removed and replaced by wasi-sdk's host-neutral
 # ones, the same bytes on every host. The SDK is a downloaded binary toolchain, not a source tree.
 neutral_runtime() { # an SDK tree under build/tools/
@@ -62,7 +62,7 @@ neutral_runtime() { # an SDK tree under build/tools/
 }
 neutral_runtime "$SDK"
 
-# x86_64 Linux compiles with the arm64 Linux SDK's clang under the pinned qemu-aarch64 (spec 040):
+# x86_64 Linux compiles with the arm64 Linux SDK's clang under the pinned qemu-aarch64:
 # wasi-sdk's x86_64 clang orders two stack slots of one numpy function differently, so every host
 # compiles with an arm64 build of the pinned clang. Only the compiler is emulated; every other tool
 # stays native. Nothing is installed into the system and nothing is registered with the kernel.
@@ -122,7 +122,7 @@ if [ "$CSDK" != "$SDK" ]; then
   printf '#!/bin/sh\nexec "%s/bin/wasm-ld" "$@"\n' "$SDK" > "$CSDK/bin/wasm-ld"
   chmod 755 "$CSDK/bin/wasm-ld"
 
-  # The gate (spec 040, Decision 5): the build stops here, in one line, unless each probe holds.
+  # The gate: the build stops here, in one line, unless each probe holds.
   G="$B/compiler-gate"
   remove "$G"
   mkdir -p "$G"
@@ -158,12 +158,12 @@ if [ "$CSDK" != "$SDK" ]; then
   echo "compiler gate: the guest's loader maps no ld.so.cache; $(head -n 1 "$G/version.txt")"
 fi
 
-# Every compile contracts nothing (spec 059, Decisions 1 and 2). -ffp-contract=off goes into the
+# Every compile contracts nothing. -ffp-contract=off goes into the
 # toolchain's own configuration files, bin/clang.cfg and bin/clang++.cfg, which every clang and
 # clang++ call reads whatever the caller (CPython's driver, wasi-cc and wasi-cxx, meson, autoconf,
 # a direct compile), so no compile can miss it. wasi-sdk's x86_64 and aarch64 builds of the same
 # clang order two stack slots differently only where the IR holds llvm.fmuladd, which this flag
-# removes (context/research/2026-10-18-byte-identical-wasm-builds-prior-art.md). Every SDK tree
+# removes. Every SDK tree
 # under build/tools/ gets it: $SDK, and $CSDK when the fallback's switch puts another tree's clang
 # behind $SDK/bin/clang. On wasm32 nothing fuses a multiply and an add, so run-time arithmetic
 # does not change; a constant the compiler folds moves to the value the run time computes.
@@ -216,9 +216,9 @@ for tool in meson ninja cython; do
   command -v "$tool" > /dev/null || die "$tool is not on PATH from build/tools/pylib/bin"
 done
 # The pinned pkgconf binary itself, never the wheel's Python entry point, which would run a
-# pkg-config it finds on PATH instead (spec 023). Steps 37 and 55 name it in their cross file.
+# pkg-config it finds on PATH instead. Steps 37 and 55 name it in their cross file.
 [ -x "$PKGCONF" ] || die "the pkgconf wheel did not install $PKGCONF"
-# f2py's numpy (spec 037, Decision 7): the build host's own pinned numpy wheel, in a folder of its
+# f2py's numpy: the build host's own pinned numpy wheel, in a folder of its
 # own, never in build/tools/pylib, where it would shadow the host-side numpy stand-in that pandas'
 # and scipy's builds import. scripts/f2py-host runs f2py from it, on scipy's .pyf files only.
 F2PY="$T/f2py-numpy"

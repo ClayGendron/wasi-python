@@ -1,4 +1,4 @@
-# Sourced by scripts/build.sh (spec 027): how the build shows where it is. It defines functions
+# Sourced by scripts/build.sh: how the build shows where it is. It defines functions
 # only. Nothing here changes what a step sees: no export, no file a step reads, no descriptor.
 #
 # Two ways to show it. Plain (a pipe, a file, CI, TERM unset or dumb, --plain, BUILD_PROGRESS=plain)

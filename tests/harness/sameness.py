@@ -1,21 +1,21 @@
-"""Whether two run records give the same answer (spec 052, Decision 12; spec 092).
+"""Whether two run records give the same answer.
 
 `differences(a, b)` lists every difference between two `latest.json` records in what a verdict is
 made of: each check's `status`, `need`, `area`, `closer`, `facts`, the names of its metrics, its
 `bytes` and `passes`; its `reason` where both records call it `gap` or `blocked` (there the
 reason is deterministic: a gap's first line, a need); its `fuel` where the two differ
 by more than the ratchet's tolerance, `abs(a - b) > FUEL_TOLERANCE * max(a, b)`, and so too each
-value of its `fuel_facts` fact (spec 091: fuel recorded, never ratcheted), both between records
+value of its `fuel_facts` fact (fuel recorded, never ratcheted), both between records
 of one platform (the ratchet keys fuel by platform too); and the run's `deselected`,
 `collected_files` (one line per node or file), `suite` and `meta.foreign` (what steered the run
 from outside the judge, which makes it red). A failure's reason is not compared: it may name a
 temporary path, and the statuses already decide. A pass's reason, its note, is not compared
 either: the plugin never compares a note, and one may print a fuel count, which carries the
-residual serial runs show (spec 035's zone-load check: 17 instructions in 8.7 million between a
-serial and a parallel run, the build's evidence). The rest of `meta` is never compared.
+residual serial runs show (the zip directory's zone-load check: 17 instructions in 8.7 million
+between a serial and a parallel run, the build's evidence). The rest of `meta` is never compared.
 
 Either record may be the release workflow's merged record (`release-record-1`, written by
-`gather.merge`; spec 092). It is read as the darwin run it contains: each check as its `source`
+`gather.merge`). It is read as the darwin run it contains: each check as its `source`
 saw it (the darwin record that ran it, else the first other system's), with that source's
 platform; a check no shard ran (deselected everywhere, or blocked by a need CI lacks) is not
 compared, and `notes` names it; `suite` is the sum of the darwin runs' suites.
@@ -24,7 +24,7 @@ compared, and `notes` names it; `suite` is the sum of the darwin runs' suites.
     uv run python tests/harness/sameness.py --claims wave.toml [--except NNN] A.json B.json
 
 prints the differences, one per line, and exits 1 when there are any; with `--claims`, only those
-no claim explains (Decision 5 of spec 092: a claim list is what B has that A lacks, by kind). Notes
+no claim explains (a claim list is what B has that A lacks, by kind). Notes
 go to stderr. A record or a claim list it cannot read exits 2.
 """
 
@@ -44,7 +44,7 @@ from harness.gather import CI_NEEDS  # noqa: E402
 from harness.scoreboard import FUEL_TOLERANCE  # noqa: E402
 
 FIELDS = ("status", "need", "area", "closer")
-FUEL_FACTS = "fuel_facts"  # a fact of fuel values, compared as fuel is (spec 091)
+FUEL_FACTS = "fuel_facts"  # a fact of fuel values, compared as fuel is
 EXACT_METRICS = ("bytes", "passes")
 REASONED = ("gap", "blocked")
 SIDE = {0: "only in the first record", 1: "only in the second record"}
@@ -52,11 +52,11 @@ SYSTEMS = {"darwin": {"macos", "build"}, "linux": {"linux"}, "win32": {"windows"
 
 
 class NotComparable(ValueError):
-    """A record sameness cannot read (a release record from before spec 092)."""
+    """A record sameness cannot read (a release record older than the merged release record)."""
 
 
 class ClaimError(ValueError):
-    """A claim list that does not have the shape spec 092 gives it."""
+    """A claim list that does not have the shape of `[[claim]]` tables."""
 
 
 def fuel_differs(a: int, b: int) -> bool:
@@ -87,7 +87,7 @@ class View:
     suite: dict
     foreign: list[str]
     unheld: set[str] = field(default_factory=set)  # release only: fuel no shard on darwin gave
-    elsewhere: dict[str, str] = field(default_factory=dict)  # release only: a worse status (F1)
+    elsewhere: dict[str, str] = field(default_factory=dict)  # release only: a worse status
 
 
 def is_release(r: dict) -> bool:
@@ -249,14 +249,14 @@ def compare(a: dict, b: dict) -> tuple[list[Diff], list[str]]:
                 across[f"{pa} against {pb}"] += 1
             found += _check(node, ca, cb, held and pa == pb)
     for node, text in sorted({**vb.elsewhere, **va.elsewhere}.items()):
-        found.append(Diff(text, "elsewhere", node))  # no claim explains it (092's review, F1)
+        found.append(Diff(text, "elsewhere", node))  # no claim explains it
         if node in va.elsewhere and node in vb.elsewhere and vb.elsewhere[node] != text:
             found.append(Diff(vb.elsewhere[node], "elsewhere", node))
     found += _items("deselected", va.deselected, vb.deselected)
     found += _items("collected_files", va.collected_files, vb.collected_files)
     notes = []
     if va.suite != vb.suite:
-        # A release ran on other hosts: a unit test may skip there and pass here (spec 092).
+        # A release ran on other hosts: a unit test may skip there and pass here.
         if is_release(a) != is_release(b) and _tally(va.suite) == _tally(vb.suite):
             notes.append(
                 f"unit tests skipped on one host and passed on the other: {va.suite!r} against "
@@ -288,7 +288,7 @@ def notes(a: dict, b: dict) -> list[str]:
 
 
 # ---------------------------------------------------------------------------------------------
-# Claim lists (spec 092, Decision 5)
+# Claim lists
 
 LISTS = ("new", "retired", "changed", "passes", "grows")
 KEYS = frozenset({"spec", "growth", "units", *LISTS})

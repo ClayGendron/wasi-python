@@ -1,5 +1,5 @@
-"""Spec 035 on the host: the recipe modules `_zip_directory` and `_zip_resources`, and the
-judge's own zips. They run on the judge's Python, which need not be the guest's version, so
+"""The zip directory's reader on the host: the recipe modules `_zip_directory` and `_zip_resources`,
+and the judge's own zips. They run on the judge's Python, which need not be the guest's version, so
 each compares with the host's `zipfile`, never with the host's zipimport (whose reader differs
 across versions)."""
 
@@ -536,7 +536,7 @@ def _no_private_modules_left():
         del sys.modules[name]
 
 
-# Part 3: the judge's zips folder, made by several processes at once (spec 052, Decision 13).
+# Part 3: the judge's zips folder, made by several processes at once.
 
 CONCURRENT_ZIPS = r"""
 import sys, zipfile
@@ -557,7 +557,7 @@ PROCESSES, TRIALS, SOURCE_MEMBERS = 6, 3, 400
 
 def test_the_judges_zips_folder_is_safe_across_processes(work) -> None:
     """Six processes build the folder from cold at once, three times: each gets both zips whole,
-    one folder is published, and no work folder is left (spec 052, criterion 10)."""
+    one folder is published, and no work folder is left."""
     import subprocess
 
     source = work / "source.zip"

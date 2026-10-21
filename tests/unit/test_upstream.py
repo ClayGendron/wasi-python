@@ -1,4 +1,4 @@
-"""numpy's and pandas' own tests in the guest, on fixed inputs (spec 050): the kit, the unzip, the
+"""numpy's and pandas' own tests in the guest, on fixed inputs: the kit, the unzip, the
 MANIFEST tie, the member filter, the argv, the stream, the sorting into classes, the class lists'
 +/- findings, the trap's node, and the rules. No guest runs here."""
 
@@ -185,7 +185,7 @@ def test_a_stray_file_is_not_staged_and_is_listed(work) -> None:
     members = upstream.tarball_members(tb) | {"numpy/tests/patched_in.py"}
     (tree / "numpy/tests/patched_in.py").write_text("")
     left_out = upstream.stage(_cfg(), tree, members, dest)
-    # Spec 090, Decision 5: bytecode and litter are no fact; the conftest a build left is.
+    # Bytecode and litter are no fact; the conftest a build left is.
     assert left_out == ["numpy/tests/conftest.py"]
     staged = sorted(p.relative_to(dest).as_posix() for p in dest.rglob("*") if p.is_file())
     assert staged == [
@@ -443,7 +443,7 @@ def test_an_entry_that_no_longer_traps_has_no_finding_and_another_cause_differs(
 
 def test_a_trap_entry_whose_test_passes_makes_its_gap_say_remove_it(pytester) -> None:
     """The plugin's own rule, through a trap check's assertion: a gap whose check passes fails
-    with "remove the gap" (spec 002, Decision 4)."""
+    with "remove the gap"."""
     node = "test_inner.py::test_upstream_trap[t]"
     gaps = pytester.path / "gaps.toml"
     gaps.write_text(
@@ -500,8 +500,7 @@ def test_one_more_member_shows_plus_and_one_fewer_shows_minus() -> None:
 
 def test_ids_that_the_digest_normalises_are_still_compared_exactly() -> None:
     """scan.digest strips `:<digits>` before a space or the end, so `…00:00:00]`-style ids are
-    partly normalised inside a gap's digest; the +/- comparison with the list is exact (the
-    review's builder note on F3)."""
+    partly normalised inside a gap's digest; the +/- comparison with the list is exact."""
     other = ODD.replace("00:00:00", "00:00:01")
     assert upstream.class_findings([other], [ODD]) == [other, f"+{other}", f"-{ODD}"]
 
@@ -585,7 +584,7 @@ def test_paths_that_are_not_tarball_members_fail_the_rules(work) -> None:
 
 
 def test_the_judges_own_upstream_files_load() -> None:
-    # python: spec 065; the six compiled packages: spec 066
+    # python: CPython's own tests; the six compiled packages: their own tests
     assert set(CONFIGS) == {"numpy", "pandas", "python", *upstream.PACKAGE_SUITES}
     assert sum(len(CONFIGS[n].groups) for n in ("numpy", "pandas")) == 11
 
@@ -652,7 +651,7 @@ def test_the_stage_holds_every_package_whichever_check_asks_first(work, monkeypa
     ids=["no-tests-collected", "usage-error", "another-test", "no-E-line"],
 )
 def test_a_trap_check_whose_session_runs_nothing_of_its_entry_fails(text) -> None:
-    """The build review's F6: an entry renamed away, or a session that never got to it, is a
+    """An entry renamed away, or a session that never got to it, is a
     finding, not a pass."""
     clean = upstream.GuestRun(0, None, None, 1, "", "")
     findings = upstream.trap_findings(
@@ -710,7 +709,7 @@ def _scaffold(work, monkeypatch, *, pandas_sha: str | None = None):
 
 
 def test_a_manifest_mismatch_fails_the_checks_through_prepare_not_blocks(work, monkeypatch) -> None:
-    """The build review's F1: the tie's errors reach the checks as a failure (an AssertionError),
+    """The tie's errors reach the checks as a failure (an AssertionError),
     never dropped and never a skip, which the plugin would file as blocked."""
     configs = _scaffold(work, monkeypatch, pandas_sha="0" * 64)
     s = upstream.Session(work, configs)
@@ -733,7 +732,7 @@ def test_a_manifest_mismatch_fails_the_checks_through_prepare_not_blocks(work, m
 
 
 def test_a_trap_check_whose_entry_started_but_whose_session_did_not_finish_fails() -> None:
-    """The build review's confirmation (mutant F6a): the entry's test started, then the session
+    """The entry's test started, then the session
     ended without its E line and without a trap (the driver died, say). That is a finding."""
     text = "C \nC numpy/tests/test_a.py\nS numpy/tests/test_a.py::t[0]\n"
     run = upstream.GuestRun(1, None, None, 1, "", "Traceback: boom")
@@ -742,7 +741,7 @@ def test_a_trap_check_whose_entry_started_but_whose_session_did_not_finish_fails
 
 
 # ---------------------------------------------------------------------------------------------
-# Fuel facts (spec 091): a test whose fuel measures a type object's address, run alone
+# Fuel facts: a test whose fuel measures a type object's address, run alone
 
 EVIDENCE = ("context/reviews/047-regex-build-2026-10-18.md",)
 
@@ -777,7 +776,7 @@ def test_a_fuel_facts_cases_leave_its_group_and_run_alone_under_the_marker() -> 
 
 def test_the_judges_one_fuel_fact_is_string_comparisons_in_numpy_core() -> None:
     """The list is pinned here as well as in numpy.toml: a second entry is a judge change in two
-    places, with its reason and its evidence (spec 091)."""
+    places, with its reason and its evidence."""
     facts = [(p, f.id, f.group, f.node) for p, c in CONFIGS.items() for f in c.fuel_facts]
     assert facts == [
         (
@@ -790,7 +789,7 @@ def test_the_judges_one_fuel_fact_is_string_comparisons_in_numpy_core() -> None:
     cfg = CONFIGS["numpy"]
     args = upstream.group_spec(cfg, cfg.groups["numpy-core"])["args"]
     assert "--deselect=numpy/_core/tests/test_strings.py::test_string_comparisons[" in args
-    assert cfg.fuel_facts[0].fuel >= 2 * 65_730_000_000  # twice 073's measured 65.73 G at least
+    assert cfg.fuel_facts[0].fuel >= 2 * 65_730_000_000  # twice the measured 65.73 G at least
 
 
 def _r(*nodes: str, outcome: str = "passed") -> str:
@@ -828,8 +827,8 @@ def test_a_neighbour_in_the_facts_session_is_a_finding() -> None:
 
 
 def test_two_sessions_are_judged_as_one_group() -> None:
-    """Passes, counts and members add up, and the digest is the one session's digest would be
-    (spec 091): the passed set does not depend on how the group is split."""
+    """Passes, counts and members add up, and the digest is the one session's digest would be:
+    the passed set does not depend on how the group is split."""
     one, two = "numpy/tests/test_a.py::test_y", "numpy/tests/test_a.py::test_x[0]"
     fail = f"S {two.replace('[0]', '[1]')}\nR failed {two.replace('[0]', '[1]')} -- [Errno 58] x"
     whole = upstream.parse_stream(_stream(_r(one).strip(), _r(two).strip(), fail))
@@ -867,7 +866,7 @@ def test_a_finding_in_the_facts_session_names_it() -> None:
 
 
 def test_a_session_runs_the_group_then_its_fact_and_records_each_fuel(work, monkeypatch) -> None:
-    """The build review's F1: `Session.group` wires the parts together. The fact's spec file is
+    """`Session.group` wires the parts together. The fact's spec file is
     staged, each session runs on its own cap, the group's fuel is its own session's and the fact's
     is the fact's, the passes add up, the fact's findings carry its prefix, and a case that ran in
     both sessions is the exactly-once finding. `_run` returns canned sessions; no guest runs."""

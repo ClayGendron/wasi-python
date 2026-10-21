@@ -2,7 +2,7 @@
 # The "target Python" meson introspects for the numpy and pandas cross builds: the native
 # build-Python CPython's driver built, answering with the WASI build's sysconfig data (the same trick
 # CPython's own Makefile uses for PYTHON_FOR_BUILD). Host-neutral: the build-Python is found under
-# cross-build/, not named by host triple (spec 003, Decision 3). Its PYTHONPATH adds the caller's,
+# cross-build/, not named by host triple. Its PYTHONPATH adds the caller's,
 # which carries the build tools (Cython, versioneer) and, for pandas, the host-side numpy stand-in.
 HERE=$(CDPATH= cd "$(dirname "$0")/.." && pwd -P)
 . "$HERE/scripts/line.sh"

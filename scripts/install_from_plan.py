@@ -1,5 +1,4 @@
-"""Install a meson build's Python package from its install plan, without `meson install` (spec 037,
-Decision 7).
+"""Install a meson build's Python package from its install plan, without `meson install`.
 
     install_from_plan.py <meson build dir> <dest dir> <extension list out> <module suffix>
     install_from_plan.py --targets <meson build dir>
@@ -20,7 +19,7 @@ build for that install: every installed target not tagged `tests`. A test module
 compile for wasm32-wasip1 (scipy.special._test_internal sets the FPU's rounding modes, which WASI
 lacks), and none is linked.
 
-With `--modules-only` (spec 044, Decision 5) it writes <extension list out> as above and copies
+With `--modules-only` it writes <extension list out> as above and copies
 nothing: scikit-learn installs its Python package with `install_subdir`, whose files meson does not
 tag, so step 58 copies the package from the patched source tree and takes only the module list
 from the plan. Every other entry of the plan is ignored, whatever its tag. It prints how many

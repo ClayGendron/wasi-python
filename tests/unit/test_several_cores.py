@@ -1,4 +1,4 @@
-"""The judge on several cores (spec 052): a parallel run judges as a serial run.
+"""The judge on several cores: a parallel run judges as a serial run.
 
 Each end-to-end case runs a small inner suite in a subprocess (xdist's workers are processes),
 with its own progress folder, gaps file and run record, so nothing here touches the real ratchet.
@@ -247,14 +247,14 @@ def test_c():
 CRASHES = {  # (workers, CRASH_HOW, whether every worker dies)
     "once": ("2", "once", False),
     "always": ("2", "always", False),
-    "-n 1": ("1", "once", True),  # the only worker dies (the build review, F7)
-    "every worker": ("2", "every", True),  # each worker dies at its first check (F7)
+    "-n 1": ("1", "once", True),  # the only worker dies
+    "every worker": ("2", "every", True),  # each worker dies at its first check
 }
 
 
 @pytest.mark.parametrize("case", CRASHES)
 def test_a_dead_workers_check_fails_and_the_run_ends(suite, monkeypatch, case) -> None:
-    """Decision 14, as the build review's F1 and F7 measured it: no worker is restarted, the run
+    """Decision 14: no worker is restarted, the run
     ends (bounded by a 120 s fail-safe, never a sleep), and a check that was running when its
     worker died is `fail`, "worker crashed", even if xdist would run it again elsewhere and even
     if no worker finishes. The scoreboard never says 0 fail, and a run in which no worker handed
@@ -328,7 +328,7 @@ def test_a_worker_writes_nothing_and_hands_its_collection_over(tmp_path) -> None
         "deselected",
         "collected_files",
         "narrowed_files",
-        "foreign",  # what steered this worker (the build review, F2)
+        "foreign",  # what steered this worker
     }
     assert sorted(p.name for p in tmp_path.rglob("*")) == []
 
@@ -402,7 +402,7 @@ def test_other_plugins_stay_foreign(tmp_path) -> None:
     stranger = types.ModuleType("stranger")
     stranger.__file__ = str(tmp_path / "stranger.py")
     found = _steering([iniconfig, impostor, stranger])
-    assert len(found) == 3, found  # iniconfig: site-packages outside xdist/ (C1)
+    assert len(found) == 3, found  # iniconfig: site-packages outside xdist/
 
 
 # ---------------------------------------------------------------------------------------------
@@ -470,7 +470,7 @@ def test_the_upstream_scopes_are_exact() -> None:
             by_hand[f"{plugin.UPSTREAM_FILE}::test_upstream_class[{k.group}-{k.id}]"] = (
                 f"upstream {k.group}"
             )
-        # CPython's named entries read their group's run (spec 065, Decision 21)
+        # CPython's named entries read their group's run
         for kind, entries in (
             ("deselected", c.deselected),
             ("environment", c.environment),
@@ -610,7 +610,7 @@ def test_a_worker_is_known_by_workerinput_only(monkeypatch) -> None:
 
 
 def test_sameness_compares_fuel_facts_within_the_tolerance() -> None:
-    """Spec 091: a fuel fact is fuel, so two runs of one commit agree on it to the ratchet's
+    """A fuel fact is fuel, so two runs of one commit agree on it to the ratchet's
     tolerance, as on a fuel metric; every other fact stays exact."""
     facts = {"passed_digest": "abc", "fuel_facts": {"f": 1_000_000}}
     a = _record(p={"status": "pass", "reason": "", "facts": facts})

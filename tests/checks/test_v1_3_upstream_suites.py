@@ -1,11 +1,10 @@
-"""v1.3: numpy's, pandas', CPython's and the compiled packages' own tests pass inside the guest
-(specs 050, 065 and 066).
+"""v1.3: numpy's, pandas', CPython's and the compiled packages' own tests pass inside the guest.
 
 One check per group runs upstream's own selection in the snapshot binary, from the artifact's own
 pinned sources, and passes only when every failure falls in a known class. Each class, each test
 that traps the guest, and each of CPython's deselection, environment and host entries is its own
 check, admitted as an ordinary gap with its closer. The groups record `fuel` and `passes`, which
-must not fall. A fuel fact's test (spec 091) runs in a session of its own inside its group's
+must not fall. A fuel fact's test runs in a session of its own inside its group's
 check: its outcomes count with the group's, and its fuel is a fact, not part of the group's
 `fuel`.
 """
@@ -36,7 +35,7 @@ def upstream_session(guest_workdir):
 
 @pytest.fixture(scope="session")
 def package_session(guest_workdir):
-    """Spec 066's families: a stage and a grant each, staged on first use."""
+    """The compiled packages' families: a stage and a grant each, staged on first use."""
     s = packages.Session(guest_workdir, CONFIGS)
     yield s
     s.close()
@@ -101,9 +100,9 @@ def test_upstream_suite(
         if run.outcome.findings:  # every finding in the record, not only the message's first five
             fact("findings", run.outcome.findings)
     elif CONFIGS[package].driver == "package":
-        if run.collected is not None:  # a split group: its file's collected count (spec 066)
+        if run.collected is not None:  # a split group: its file's collected count
             fact("collected", run.collected)
-    elif run.fuel_facts:  # recorded, never ratcheted (spec 091)
+    elif run.fuel_facts:  # recorded, never ratcheted
         fact("fuel_facts", run.fuel_facts)
     metric("fuel", run.fuel)
     metric("passes", run.outcome.passes)
@@ -138,7 +137,7 @@ if TRAPS:  # an empty parametrization would be a skip that names no need, so a f
         upstream_session, regrtest_session, package_session, metric, fact, package, trap
     ) -> None:
         """The entry, run alone in its own session, completes without a trap. A CPython entry,
-        while open: the named trap, or no trap, on every host (spec 065, Decision 1)."""
+        while open: the named trap, or no trap, on every host."""
         _need(package)
         if CONFIGS[package].runner == "regrtest":
             verdict = regrtest_session.trap(package, trap)
@@ -161,7 +160,7 @@ if DESELECTED:
     )
     def test_upstream_deselected(regrtest_session, package, entry) -> None:
         """The tests a deselection entry keeps from running, one finding each, on the scoreboard
-        under its closer; red if one of them ran (spec 065, Decision 21)."""
+        under its closer; red if one of them ran."""
         _need(package)
         run = regrtest_session.group(package, entry.group)
         findings = [f"deselected: {i}" for i in entry.tests]
@@ -181,7 +180,7 @@ if ENVIRONMENT:
     )
     def test_upstream_environment(regrtest_session, package, entry) -> None:
         """The modules that altered the environment in only the entry's kinds of change, exactly
-        its list: one finding each, `+module`/`-module` for a change (spec 065, Decision 21)."""
+        its list: one finding each, `+module`/`-module` for a change."""
         _need(package)
         run = regrtest_session.group(package, entry.group)
         findings = regrtest.environment_findings(run.outcome.environment[entry.id], entry.modules)
@@ -198,7 +197,7 @@ if HOSTS:
     )
     def test_upstream_host(regrtest_session, fact, package, entry) -> None:
         """A result recorded per system: one constant finding on the scoreboard, red if this
-        system did otherwise (spec 065, Decision 21)."""
+        system did otherwise."""
         _need(package)
         run = regrtest_session.group(package, entry.group)
         seen = run.outcome.host_seen.get(entry.id, {})

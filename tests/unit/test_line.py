@@ -1,4 +1,4 @@
-"""`scripts/line.py` on each build host, and on a host that builds nothing (spec 012, Decision 1).
+"""`scripts/line.py` on each build host, and on a host that builds nothing.
 
 A build host gets its own toolchain, host Python and wheels under the plain names. Any other host
 (Windows, an Intel Mac) still reads the line, with the host names left unset, so the judge's

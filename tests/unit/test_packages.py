@@ -1,5 +1,5 @@
-"""Spec 066's families (harness.packages): the split by construction, the rules, the guard, lxml's
-selection both ways and the extra stream lines, on fixed inputs, with no guest."""
+"""The compiled packages' families (harness.packages): the split by construction, the rules,
+the guard, lxml's selection both ways and the extra stream lines, on fixed inputs, with no guest."""
 
 from __future__ import annotations
 
@@ -182,7 +182,7 @@ def test_lxml_selection_is_checked_both_ways() -> None:
     assert any("ran nothing" in f for f in packages.keep_findings(extra, lost, keep))
     wrong = packages.parse_extra("D tests/test_e.py::Kept::test_x\n")
     assert any("deselected a test" in f for f in packages.keep_findings(wrong, stream, keep))
-    # the third direction: every test that ran is one test_suite() adds (the build review, M2)
+    # the third direction: every test that ran is one test_suite() adds
     builder = upstream.parse_stream(
         "R passed tests/test_e.py::Kept::test_x --\nR passed tests/test_e.py::test_suite --\n"
     )

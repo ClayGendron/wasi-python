@@ -1,12 +1,12 @@
-"""Compare two Wizer snapshots byte for byte, naming every difference (spec 003, criterion 2).
+"""Compare two Wizer snapshots byte for byte, naming every difference.
 
     uv run python scripts/compare_snapshots.py <a.wasm> <b.wasm> <build/link/python.map>
 
 Each snapshot is instantiated (nothing in it runs) and its initial linear memory read; differing
 bytes are grouped and named by the data symbol that holds them, from the reactor's link map. The
 run passes when no byte differs: the reactor pins every clock, entropy and file-metadata read
-while it initializes, so two builds give the same snapshot
-(context/research/2026-10-16-what-makes-the-snapshot-differ.md, findings 8 and 9). The files'
+while it initializes, so two builds give the same snapshot.
+The files'
 SHA-256 is the stronger test; this tool says where two snapshots differ when that test fails.
 """
 

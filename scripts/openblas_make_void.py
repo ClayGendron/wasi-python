@@ -1,10 +1,9 @@
-"""One return convention for every subroutine in OpenBLAS C_LAPACK builds: all `void` (spec 037,
-Decision 5). Moved from the research memo's evidence folder
-(context/research/2026-10-17-openblas-one-return-convention/scripts/make_void.py, kept there as
-evidence) unchanged but for this header and R4 and R5 run as functions, so that no module-level
-name is bound twice (the repository's rules). scripts/make_openblas_void_patch.sh runs it on a fresh
-unpack of the pinned OpenBLAS 0.3.34 tarball and writes the three carried patches from what it changes.
-usage: openblas_make_void.py <tree> [--no-xerbla-length] [--keep-xerbla-int]
+"""One return convention for every subroutine in OpenBLAS C_LAPACK builds: all `void`. Moved from
+the evidence folder of the research on OpenBLAS's return convention (a copy is kept there as
+evidence) unchanged but for this header and R4 and R5 run as functions, so that no module-level name
+is bound twice (the repository's rules). scripts/make_openblas_void_patch.sh runs it on a fresh
+unpack of the pinned OpenBLAS 0.3.34 tarball and writes the three carried patches from what it
+changes. usage: openblas_make_void.py <tree> [--no-xerbla-length] [--keep-xerbla-int]
 
 Rules (each counted and printed):
   R1  f2c sources (lapack-netlib/SRC, SRC/DEPRECATED, INSTALL, TESTING/MATGEN): a declaration or definition

@@ -1,4 +1,4 @@
-"""Compile a recipe module at build time (spec 003, Decision 6; spec 035, Decision 5).
+"""Compile a recipe module at build time.
 
     PYTHONHASHSEED=0 freeze_bootstrap.py <src.py> <out.h> [<NAME> <filename>]
 

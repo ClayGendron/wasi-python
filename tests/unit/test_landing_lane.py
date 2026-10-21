@@ -1,4 +1,4 @@
-"""The landing lane is guarded (spec 029): each rule against temporary git repositories made with
+"""The landing lane is guarded: each rule against temporary git repositories made with
 `git` only, under pytest's tmp_path. Nothing here measures time."""
 
 from __future__ import annotations
@@ -83,8 +83,8 @@ NO_KEY = object()
 
 def accept(repo: Path, named: str | None = None, *, dirty=False, lane: bool = True):
     """Append an acceptance line naming `named` (HEAD by default), as `--accept` would, and write
-    accepted.json; `lane` says whether the judge that wrote it is 029's (it knows this file).
-    `dirty=NO_KEY` leaves the key out."""
+    accepted.json; `lane` says whether the judge that wrote it is the guarded lane's (it knows this
+    file). `dirty=NO_KEY` leaves the key out."""
     lines = [x for x in (repo / HISTORY).read_text().splitlines() if x.strip()]
     named = named or git(repo, "rev-parse", "HEAD")
     line = {"n": len(lines) + 1, "commit": named}
@@ -207,14 +207,15 @@ def test_rule_1_is_blocked_in_a_shallow_clone(repo, tmp_path, monkeypatch) -> No
 
 
 # ---------------------------------------------------------------------------------------------
-# Rule 1 across history volumes (spec 062, criterion 9) and the lane's commit (criterion 10)
+# Rule 1 across history volumes and the lane's commit (criterion 10)
 
 PROGRESS = "context/progress"
 
 
 def accept_volume(repo: Path, *, new: bool = False, named: str | None = None, dirty=False) -> str:
-    """An acceptance line written into the newest volume, or, with `new`, a volume begun with it,
-    as `--accept` would after spec 062. Returns the volume's path in the repository."""
+    """An acceptance line written into the newest volume, or, with `new`, a volume begun with it, as
+    `--accept` would since the history went into volumes. Returns the volume's path in the
+    repository."""
     folder = repo / PROGRESS
     n = len(history.lines(folder)) + 1
     vol = folder / history.volume_name(n) if new else history.volumes(folder)[-1]
@@ -374,7 +375,7 @@ def test_untracked_files_outside_the_judge_are_clean_and_a_tracked_change_is_dir
 )
 def test_an_untracked_judge_input_is_dirty(repo, rel) -> None:
     """The rules read specifications, reviews and patch drafts: an untracked one there can turn a
-    rule green on disk that the commit fails (the build review, finding 3)."""
+    rule green on disk that the commit fails."""
     write(repo, rel, "\n")
     assert paths.dirty_path() == rel
 
@@ -456,7 +457,7 @@ MOVE = "subprocess.run(['git', '-C', r'{repo}', 'commit', '-q', '--allow-empty',
     "action, why", [(EDIT, "dirty"), (MOVE, "HEAD moved")], ids=["edit", "commit"]
 )
 def test_a_change_during_the_run_refuses_the_acceptance(repo, pytester, action, why) -> None:
-    """Checked again when the acceptance is written (the build review, finding 2): a tracked edit
+    """Checked again when the acceptance is written: a tracked edit
     or a new commit made while the judge runs refuses it, and nothing is written."""
     progress = repo / "context" / "progress"
     before = [(progress / f).read_bytes() for f in ("accepted.json", "history.jsonl")]
@@ -581,7 +582,7 @@ def test_meanwhile():
 
 
 def test_the_guards_hold_under_several_cores_in_a_main_tree(clone_worktree) -> None:
-    """Spec 052, criterion 4: under -n 2 the controller refuses once, and nothing is written: on a
+    """Under -n 2 the controller refuses once, and nothing is written: on a
     dirty tree before collection, and when HEAD moves during the run (a worker commits)."""
     main = clone_worktree.parent / "repo"  # the clone itself: a main tree
     history = main / HISTORY
@@ -639,10 +640,10 @@ STEERS = {"steer052": STEER_CONFTEST, "spoof052": SPOOF_CONFTEST}
 
 @pytest.mark.parametrize("name", STEERS)
 def test_a_plugin_registered_while_collecting_is_foreign_on_any_cores(clone_worktree, name) -> None:
-    """The build review's F2: a conftest that pytest loads only while collecting (below an
+    """A conftest that pytest loads only while collecting (below an
     argument, in a folder not named test*) is loaded by the workers alone under -n; each worker
     hands what steers it to the controller. Serial and -n 2 are both red, and judged the same.
-    F8: so is a class that takes the name of xdist's worker loop without its code."""
+    So is a class that takes the name of xdist's worker loop without its code."""
     folder = clone_worktree / "tests" / "unit" / "zz052"
     try:
         (folder / "inner").mkdir(parents=True)

@@ -1,4 +1,4 @@
-"""rules: the mechanically checkable parts of the constitution (§4, §5, §7)."""
+"""rules: the mechanically checkable parts of the constitution."""
 
 from __future__ import annotations
 
@@ -22,22 +22,22 @@ RESEARCH = paths.CONTEXT / "research"
 
 def test_no_module_level_name_is_bound_twice() -> None:
     """A second binding silently replaces the first; in a check file it makes other checks run the
-    wrong code (spec 019's rebase lost two checks that way)."""
+    wrong code (a rebase once lost two checks that way)."""
     files = scan.files_under(paths.REPO, "tests", "src", "scripts", "release")
     hits = scan.duplicate_name_hits(files, paths.REPO)
     assert not hits, scan.report(hits)
 
 
 def test_the_readme_carries_the_licences_credit_lines() -> None:
-    """Constitution §4.12: FreeType's licence makes a credit line in the distribution's
+    """FreeType's licence makes a credit line in the distribution's
     documentation a condition of binary redistribution; the README, the wheel's description,
-    carries it while FreeType is pinned (spec 023's build review, F1)."""
+    carries it while FreeType is pinned."""
     errors = scan.credit_errors(paths.README.read_text(), paths.read_pin_list())
     assert not errors, scan.report(errors)
 
 
 def test_carried_patches_follow_the_rules() -> None:
-    """Constitution §4.1 (spec 020): every carried patch has its pull request draft, its CHANGELOG
+    """Every carried patch has its pull request draft, its CHANGELOG
     line and a safe shape, and the README counts them."""
     from harness import pins
 
@@ -323,7 +323,7 @@ def test_code_outside_src_names_no_context_document() -> None:
 
 
 def test_only_the_engine_seam_touches_wasmtimes_private_api() -> None:
-    """Spec 103, Decision 3: one module, `src/wasi_python/_wasmtime_ffi.py`, and its unit file
+    """One module, `src/wasi_python/_wasmtime_ffi.py`, and its unit file
     reach wasmtime-py's private API (its underscore modules, the store context, the raw function
     handle, the from-pointer constructors and the pointer method); every other `.py` under `src/`
     and `tests/`, comments and docstrings included, drives the engine through the seam."""
@@ -333,7 +333,7 @@ def test_only_the_engine_seam_touches_wasmtimes_private_api() -> None:
 
 
 def test_the_private_api_debt_is_documented() -> None:
-    """Spec 103, Design, "The debt is documented": every entry of the seam's `NEEDED` and
+    """Every entry of the seam's `NEEDED` and
     `OPTIONAL` tuples is a row of the debt sheet's table, every row is an entry, and the seam's
     docstring names every entry; read statically, so the check needs no wasmtime-py."""
     sheet = paths.CONTEXT / "upstream" / "34-wasmtime-py-public-api-for-the-runner" / "facts.md"
@@ -342,8 +342,8 @@ def test_the_private_api_debt_is_documented() -> None:
 
 
 def test_version_states_the_platform_semantics(guest) -> None:
-    """Constitution §4.11: the guest's -V states the platform's facts, and the README says the
-    same (spec 003, Decision 8)."""
+    """The guest's -V states the platform's facts, and the README says the
+    same."""
     r = guest("plain", ["-V"], record=False)
     assert r.exit_code == 0, r.describe()
     line = r.text.strip()
@@ -363,7 +363,7 @@ def test_landed_specifications_cite_an_existing_review() -> None:
 
 def test_a_release_has_its_structural_review() -> None:
     """AGENTS.md, "Structure is reviewed": a released version (`X.Y.Z`, no `aN`, `bN` or `rcN`)
-    has its structural review of `src/` under `context/reviews/`, scoring the rubric's eight
+    has its structural review of `src/` on file among the reviews, scoring the rubric's eight
     rows. A prerelease needs none from the judge: its string is what the tree carries all
     cycle."""
     version = _release_version_module()
@@ -417,7 +417,7 @@ def test_known_gaps_are_well_formed() -> None:
 
 
 def _committed_volumes() -> dict[str, bytes] | None:
-    """Every history volume in HEAD's tree, with its committed bytes (spec 062, Decision 10)."""
+    """Every history volume in HEAD's tree, with its committed bytes."""
     if not needs.VOCABULARY["git"].met():
         return None
     rel = paths.PROGRESS.relative_to(paths.REPO).as_posix()
@@ -439,7 +439,7 @@ def _committed_volumes() -> dict[str, bytes] | None:
 
 
 def test_progress_history_is_intact() -> None:
-    """Every volume of the history (spec 062): the chain, the names, the budget, the replay with
+    """Every volume of the history: the chain, the names, the budget, the replay with
     every digest, volume 1's seal, and every committed volume only extended."""
     accepted = paths.ACCEPTED.read_text() if paths.ACCEPTED.is_file() else None
     found = history.found_in(paths.PROGRESS)
@@ -448,7 +448,7 @@ def test_progress_history_is_intact() -> None:
 
 
 def test_the_newest_acceptance_sits_on_the_commit_it_judged() -> None:
-    """Constitution §5.7 (spec 029, Decisions 1 and 2): the newest acceptance commit's first
+    """The newest acceptance commit's first
     parent is the commit its history line judged, it carries only the two progress files, and it
     was made on a clean tree. Committed history only, so the lane is never red between accepting
     and committing."""
@@ -458,14 +458,14 @@ def test_the_newest_acceptance_sits_on_the_commit_it_judged() -> None:
 
 
 def test_the_clean_acceptance_key_is_in_the_judge() -> None:
-    """Rule 1 requires `dirty: false` of an acceptance whose judge holds this file (spec 029).
+    """Rule 1 requires `dirty: false` of an acceptance whose judge holds this file.
     Kept here, among the protected checks, so that deleting the file cannot quietly end the
-    requirement (029's build review, finding 5)."""
+    requirement."""
     assert (paths.REPO / scan.FIRST_CLEAN_JUDGE).is_file(), scan.FIRST_CLEAN_JUDGE
 
 
 def test_main_is_linear() -> None:
-    """Constitution §4.14 (spec 029, Decision 3): main moves only by fast-forward."""
+    """Main moves only by fast-forward."""
     needs.need("git", "git history")
     errors = scan.merge_commit_errors(paths.REPO)
     assert not errors, scan.report(errors)
@@ -484,7 +484,7 @@ def _release_version_module() -> types.ModuleType:
 
 
 def test_the_version_is_released_by_the_book() -> None:
-    """One version in __init__.py, read dynamically, with its changelog section (spec 004)."""
+    """One version in __init__.py, read dynamically, with its changelog section."""
     version = _release_version_module()
     errors = version.check_errors(
         version.INIT.read_text(), version.PYPROJECT.read_text(), version.CHANGELOG.read_text()
@@ -505,13 +505,13 @@ def test_the_release_signs_and_publishes_what_build_made() -> None:
     """Every job that checks, signs or publishes downloads the build's files by an id it has
     guarded, checks them against the SHA-256 of SHA256SUMS the build job handed on, and acts on
     nothing else; the publish jobs name their environments, setup-uv runs with no cache, and each
-    job holds only the permissions it uses (spec 057; the a4 security review's F4 and N3)."""
+    job holds only the permissions it uses."""
     errors = scan.release_binding_errors(RELEASE_WORKFLOW.read_text())
     assert not errors, scan.report(errors)
 
 
 def test_every_action_is_pinned_by_commit() -> None:
-    """Every `uses:` in every workflow is local or pinned by a full commit (spec 057)."""
+    """Every `uses:` in every workflow is local or pinned by a full commit."""
     errors = [
         f"{w.name}: {e}"
         for w in sorted((paths.REPO / ".github" / "workflows").glob("*.y*ml"))
@@ -573,7 +573,7 @@ CHECK_CASES = {
 @pytest.mark.parametrize("case", CHECK_CASES)
 def test_the_release_check_refuses_other_bytes(case, tmp_path) -> None:
     """The workflow's own check step, run in bash: the build's own files pass, and every other
-    set of bytes fails closed (spec 057, Decision 3). Its absence fails every case."""
+    set of bytes fails closed. Its absence fails every case."""
     script = scan.workflow_step_script(RELEASE_WORKFLOW.read_text(), "attest", scan.CHECK_STEP)
     change, want = CHECK_CASES[case]
     good = _fake_assets(tmp_path)
@@ -600,7 +600,7 @@ GUARD_CASES = {
 @pytest.mark.parametrize("case", GUARD_CASES)
 def test_the_id_guard_refuses_a_missing_id(case, tmp_path) -> None:
     """The workflow's own id guard, run in bash: an empty artifact-ids would download every
-    artifact of the run, so only a non-empty decimal passes (spec 057, Decision 2)."""
+    artifact of the run, so only a non-empty decimal passes."""
     script = scan.workflow_step_script(
         RELEASE_WORKFLOW.read_text(), "attest", "The build job handed on an artifact id"
     )
@@ -617,8 +617,7 @@ def test_the_id_guard_refuses_a_missing_id(case, tmp_path) -> None:
 
 def test_every_build_host_has_its_whole_table() -> None:
     """Each build host names its five inputs in scripts/line.conf; each is pinned and fetched in
-    that host's own branch of the download script; and the four files know the same hosts
-    (spec 012, Decision 1)."""
+    that host's own branch of the download script; and the four files know the same hosts."""
     import importlib.util
 
     scripts = paths.REPO / "scripts"
@@ -635,10 +634,10 @@ def test_every_build_host_has_its_whole_table() -> None:
     assert not errors, scan.report(errors)
 
 
-# Spec 048, Decision 5: the runner carries two guards for wasmtime advisories while the published
+# The runner carries two guards for wasmtime advisories while the published
 # floor of the `wasmtime` requirement admits a vulnerable wasmtime. Each advisory's patched
 # versions, as its record lists them (`patched_versions` in
-# context/research/2026-10-18-wasmtime-49-advisories/advisories/<id>.json). Never "at or past":
+# the advisory's own JSON record). Never "at or past":
 # wasmtime's releases are not one ordered line (v50.0.0-rc.1 came before v49.0.3).
 WASMTIME_GUARDS = {
     "GHSA-96f6-r43r-8c24": ("36.0.17", "48.0.4", "49.0.2"),  # fd_readdir's dirent padding
@@ -654,9 +653,9 @@ def _version(text: str) -> tuple[int, int, int]:
 
 
 def _guard_may_go(requirement: str, patched: tuple[str, ...]) -> bool:
-    """Condition C1: a guard may go only when, for every release line the requirement admits,
+    """A guard may go only when, for every release line the requirement admits,
     the advisory lists a patched version in that line at or below the lowest version the
-    requirement admits in it. wasmtime releases only `M.0.P` (READ, the memo's releases.txt), so
+    requirement admits in it. wasmtime releases only `M.0.P` (READ, wasmtime's list of releases), so
     a line is a major version. An open top, a bound with a minor version, or an operator other
     than >=, <, <= and == admits lines no list can speak for: the guard stays."""
     low, high = None, None  # inclusive low; (high, inclusive)
@@ -693,7 +692,7 @@ def _wasmtime_requirement() -> str:
 
 
 def test_the_rename_and_readdir_guard_match_the_floor() -> None:
-    """Spec 048, criterion 7: each guard is in the runner while the published floor (the
+    """Each guard is in the runner while the published floor (the
     `wasmtime` requirement in pyproject.toml, not uv.lock) admits a wasmtime its advisory does
     not list as patched, and is gone, with its checks, once it does not."""
     rename, padding = WASMTIME_GUARDS["GHSA-m9f7-9w4p-gv38"], WASMTIME_GUARDS["GHSA-96f6-r43r-8c24"]
@@ -737,8 +736,7 @@ def test_every_host_compiles_natively_with_the_fallback_kept() -> None:
     while carrying the five emulation names; exactly one key carries those names, each pinned and
     fetched in its branch beside another host's SDK, so the fallback is runnable; step 10 still
     lays out and probes the emulated compiler, and the launcher still clears the emulator's and
-    the loader's environment and keeps each name's driver mode (spec 059, Decisions 3 and 4; spec
-    040, Decisions 5 and 7)."""
+    the loader's environment and keeps each name's driver mode."""
     scripts = paths.REPO / "scripts"
     errors = scan.compiler_table_errors(
         (scripts / "line.conf").read_text(),
@@ -756,7 +754,7 @@ PREIMPORT_COPY = re.compile(r'^\s*PREIMPORT\s*=\s*"', re.M)
 
 
 def test_the_pre_import_list_is_the_stdlib_bootstrap() -> None:
-    """Decision 34 (spec 069, check c): the snapshot pre-imports the stdlib's bootstrap and no
+    """Decision 34: the snapshot pre-imports the stdlib's bootstrap and no
     package. The recipe's `#define` is the list's one source; no build step overrides it, and the
     MANIFEST writer keeps no copy of its own."""
     recipe = (paths.REPO / "recipes" / "reactor_main.c").read_text()
@@ -780,7 +778,7 @@ def test_the_pre_import_list_is_the_stdlib_bootstrap() -> None:
 def test_release_shards_cover_the_judge() -> None:
     """The release's shard plan holds every test file and every upstream group: one rest shard
     takes what no other names, every group is in one Linux shard, our own shards run on all three
-    systems, and no system runs a group twice (spec 063, Decision 2)."""
+    systems, and no system runs a group twice."""
     from harness import shards, upstream
 
     groups = [g for c in upstream.load_all().values() for g in c.groups]
@@ -792,7 +790,7 @@ def test_release_shards_cover_the_judge() -> None:
 def test_every_package_names_its_own_suite() -> None:
     """Every component of the artifact (paths.PACKAGES, the source components, the linked
     runtimes) runs its own suite in the release, or says what reaches it, that it only builds
-    another, or which specification will run it (spec 063, Decision 15)."""
+    another, or which specification will run it."""
     from harness import shards, upstream
 
     raw = tomllib.loads(shards.PACKAGES_FILE.read_text())
@@ -804,7 +802,7 @@ def test_every_package_names_its_own_suite() -> None:
 def test_release_judges_in_shards() -> None:
     """The release runs every shard of the plan in its system's judge job, hands on each record's
     id and SHA-256, and publishes nothing until the gather, which holds no assets, has read every
-    record (spec 063, Decisions 6 to 9 and 13)."""
+    record."""
     from harness import shards
 
     errors = scan.release_shard_errors(RELEASE_WORKFLOW.read_text(), shards.load())

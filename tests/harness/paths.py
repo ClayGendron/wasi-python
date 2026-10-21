@@ -1,7 +1,7 @@
-"""Where things are, and what the harness reads from the artifact directory (spec 002, Decision 12).
+"""Where things are, and what the harness reads from the artifact directory.
 
 The artifact directory is `$WASI_PYTHON_ARTIFACTS` when it is set, and nothing else; otherwise
-build/artifacts/ when it holds a MANIFEST (what scripts/build.sh writes: spec 003, Decision 10);
+build/artifacts/ when it holds a MANIFEST (what scripts/build.sh writes);
 otherwise the wheel's `wasi_python._artifacts._ARTIFACT_DIR` when it holds one; otherwise there is
 none.
 """
@@ -56,8 +56,8 @@ LICENCE_COMPONENTS = (
     "six",
     "wasi-libc",
     "llvm-runtimes",
-    "regex",  # spec 047, Decision 10
-    # matplotlib (spec 023, Decision 9)
+    "regex",  # Apache-2.0 headed by its CNRI derivation
+    # matplotlib
     "matplotlib",
     "pillow",
     "kiwisolver",
@@ -71,15 +71,15 @@ LICENCE_COMPONENTS = (
     "pyparsing",
     "packaging",
     "fonttools",
-    # matplotlib's second milestone (spec 043, Decision 11): contourpy, whose notice carries
+    # matplotlib's second milestone: contourpy, whose notice carries
     # LICENSE_YORICK for its GIST-derived code, and qhull, now linked
     "contourpy",
     "qhull",
-    # lxml (spec 046, Decision 15)
+    # lxml
     "libxml2",
     "libxslt",
     "lxml",
-    # tier A (spec 039, Decision 8)
+    # tier A
     "openpyxl",
     "et-xmlfile",
     "xlsxwriter",
@@ -110,12 +110,12 @@ LICENCE_COMPONENTS = (
     "cloudpickle",
     "threadpoolctl",
     "narwhals",
-    # scipy (spec 037, Decision 13)
+    # scipy
     "scipy",
     "openblas",
-    # scikit-learn (spec 044, Decision 11)
+    # scikit-learn
     "scikit-learn",
-    # seaborn and reportlab (spec 042, Decision 7): seaborn's notice carries its five vendored
+    # seaborn and reportlab: seaborn's notice carries its five vendored
     # licences, reportlab's its three third-party parts (their own checks hold both)
     "seaborn",
     "reportlab",
@@ -183,12 +183,12 @@ PACKAGES = (
     "scipy",
     "openblas",
     "scikit-learn",
-    "seaborn",  # spec 042
+    "seaborn",
     "reportlab",
 )
 
 # What the snapshot pre-imports (recipes/reactor_main.c, PREIMPORT): the stdlib's bootstrap, no
-# package, for every package now and later (decision 34, spec 069). Changing it is a judge change.
+# package, for every package now and later (decision 34). Changing it is a judge change.
 PREIMPORT = ("encodings", "io", "os", "sys", "json", "csv", "re", "_colorize")
 # The reactor's own top-level modules: the frozen recipe modules, the door, and the program.
 REACTOR_MODULES = ("__main__", "_reactor", "_zip_directory", "_zip_resources", "_host")
@@ -200,7 +200,7 @@ CPYTHON_UNLISTED_PREFIXES = ("_sysconfigdata_",)
 
 def is_stdlib_or_reactor(name: str, stdlib: frozenset[str] | set[str]) -> bool:
     """A top-level module name is the stdlib's (in the guest's `sys.stdlib_module_names`, or one
-    CPython ships outside it) or the reactor's own (spec 069, check a)."""
+    CPython ships outside it) or the reactor's own."""
     return (
         name in stdlib
         or name in REACTOR_MODULES
@@ -209,7 +209,7 @@ def is_stdlib_or_reactor(name: str, stdlib: frozenset[str] | set[str]) -> bool:
     )
 
 
-# The judge: every file that decides a check's outcome or steers pytest (spec 002, Decision 14).
+# The judge: every file that decides a check's outcome or steers pytest.
 JUDGE_PATHS = (
     "tests",
     "context/embedders.txt",
@@ -224,9 +224,8 @@ JUDGE_PATHS = (
 # Directories never searched for a stray conftest.py: build output, downloads, clones, venvs.
 NOT_SOURCE = {"build", "downloads", "prior_art", ".venv", ".venv-build", ".git", "__pycache__"}
 # Files an operating system writes into any folder a person opens: never part of the judge, or a
-# hash taken on a desktop could not be reproduced by CI (spec 011 concurrency-check review, F3).
-# The build keeps the same set and rules in scripts/litter.py; a unit check holds the two equal
-# (spec 090, Decision 1).
+# hash taken on a desktop could not be reproduced by CI.
+# The build keeps the same set and rules in scripts/litter.py; a unit check holds the two equal.
 OS_LITTER = frozenset(
     {
         ".DS_Store",
@@ -256,7 +255,7 @@ def has_litter(rel: str) -> bool:
 
 def artifact_dir() -> Path | None:
     env = os.environ.get(ARTIFACTS_ENV)
-    if env:  # set and not empty, as the runner reads it (spec 001, Decision 3)
+    if env:  # set and not empty, as the runner reads it
         return Path(env).resolve()
     if (BUILD / "artifacts" / "MANIFEST").is_file():
         return (BUILD / "artifacts").resolve()
@@ -267,7 +266,7 @@ def artifact_dir() -> Path | None:
 
 
 def wasmtime_cli() -> Path | None:
-    """The pinned wasmtime CLI step 10 unpacked under build/tools (spec 071, criterion 3)."""
+    """The pinned wasmtime CLI step 10 unpacked under build/tools."""
     found = sorted((BUILD / "tools").glob("wasmtime-v*/wasmtime"))
     return found[0] if found else None
 
@@ -307,8 +306,8 @@ def judge_files() -> dict[str, str]:
         p = REPO / rel
         found.update([p] if p.is_file() else p.rglob("*") if p.is_dir() else [])
     for dirpath, dirnames, filenames in os.walk(REPO):  # a stray conftest steers pytest too
-        # Not into another checkout: a worktree or a repository below the root (spec 029,
-        # Decision 5). Only this walk; one under JUDGE_PATHS stays in the hash.
+        # Not into another checkout: a worktree or a repository below the root.
+        # Only this walk; one under JUDGE_PATHS stays in the hash.
         dirnames[:] = [
             d
             for d in dirnames
@@ -330,12 +329,12 @@ def judge_hash(files: dict[str, str]) -> str:
 
 
 # ---------------------------------------------------------------------------------------------
-# Git: what the landing lane's rules read (spec 029)
+# Git: what the landing lane's rules read
 
 # An untracked file makes the tree dirty when the judge could see it: under the judge's inputs, a
-# judging file, a stray conftest.py anywhere (spec 029, Decision 2, condition D), or a document
+# judging file, a stray conftest.py anywhere, or a document
 # whose presence can turn a rules check green that the commit fails: a specification, a review,
-# a patch's pull request draft (029's build review, finding 3).
+# a patch's pull request draft.
 DIRTY_UNTRACKED = (
     "src",
     "tests",
@@ -365,7 +364,7 @@ def git(*args: str, repo: Path | None = None) -> str | None:
 
 def linked_worktree(repo: Path | None = None) -> bool:
     """Whether `repo` is checked out in a linked worktree: its git directory is not the common
-    one. A main tree, a plain clone and a submodule are not (spec 029, Decision 4)."""
+    one. A main tree, a plain clone and a submodule are not."""
     own = (git("rev-parse", "--absolute-git-dir", repo=repo) or "").strip()
     common = (
         git("rev-parse", "--path-format=absolute", "--git-common-dir", repo=repo) or ""
@@ -388,7 +387,7 @@ def worktrees(repo: Path | None = None) -> list[Path]:
 
 
 def worktrees_inside(repo: Path | None = None) -> list[str]:
-    """The worktrees below `repo`'s root, relative to it (spec 029, Decision 5)."""
+    """The worktrees below `repo`'s root, relative to it."""
     root = (repo or REPO).resolve()
     inside = []
     for w in worktrees(repo):
@@ -407,8 +406,8 @@ def _judge_could_see(rel: str) -> bool:
 
 def dirty_path(repo: Path | None = None) -> str | None:
     """The first change the judge could see, or None for a clean tree: any tracked change outside
-    context/progress/, or an untracked file it could see; an untracked .idea/ or a research draft
-    under context/research/ is clean (spec 029, Decision 2)."""
+    the progress history, or an untracked file it could see; an untracked .idea/ or a research
+    draft is clean."""
     out = git("status", "--porcelain", "-z", "--untracked-files=all", repo=repo)
     entries = (out or "").split("\0")
     i = 0
@@ -577,11 +576,11 @@ def _top_level_licence(archive: Path) -> bytes | None:
     return None
 
 
-# Licence text a notice must hold besides the top-level file, read from the same pinned archive
-# (spec 007's build review, finding 7): xz's library is under 0BSD, and SQLite's notice is the
+# Licence text a notice must hold besides the top-level file, read from the same pinned archive:
+# xz's library is under 0BSD, and SQLite's notice is the
 # blessing at the head of sqlite3.h. libxml2's and libxslt's terms are in a top-level file named
-# `Copyright`, which the top-level search does not match (spec 046, Decision 15); qhull's in
-# `COPYING.txt` (spec 043, Decision 11).
+# `Copyright`, which the top-level search does not match; qhull's in
+# `COPYING.txt`.
 BLESSING = b"The author disclaims copyright to this source code."
 MORE_LICENCE = {
     "xz": "COPYING.0BSD",
@@ -591,7 +590,7 @@ MORE_LICENCE = {
     "qhull": "COPYING.txt",
 }
 # A notice a component's file must hold that ships in another component's pinned archive, named
-# here so it stays if that component's own list changes (spec 043, Decision 11): contourpy's
+# here so it stays if that component's own list changes: contourpy's
 # mpl2005 code came from GIST's gcntr.c, whose notice, the Regents of the University of
 # California's, matplotlib ships as LICENSE/LICENSE_YORICK.
 BORROWED_LICENCE = {"contourpy": ("matplotlib", "LICENSE/LICENSE_YORICK")}
@@ -645,8 +644,8 @@ def licence_source(component: str, m: Manifest | None) -> Path | None:
     else:
         package = "sqlite-autoconf" if component == "sqlite" else component  # as its pin names it
         version = m.packages.get(package)
-        # A source tarball before a wheel of the same version: numpy's host wheel (f2py's, spec
-        # 037) is a build tool, and numpy's notices are its sdist's.
+        # A source tarball before a wheel of the same version: numpy's host wheel (f2py's)
+        # is a build tool, and numpy's notices are its sdist's.
         names = sorted(
             (f for f in pinned if version and is_version_of(f, package, version)),
             key=lambda f: (".tar." not in f, f),

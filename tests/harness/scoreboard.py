@@ -1,4 +1,4 @@
-"""States, the ratchet, acceptance and the printed scoreboard (spec 002, Decisions 3, 6, 7, 13).
+"""States, the ratchet, acceptance and the printed scoreboard.
 
 Pure functions over plain dicts, so every transition is unit-tested without running pytest.
 
@@ -28,7 +28,7 @@ AREAS = {
     "rules": "constitution rules",
 }
 STATES = ("pass", "fail", "gap", "blocked", "deselected", "unrun")
-FUEL_TOLERANCE = 1e-4  # 0.01%: the clock-and-random memo
+FUEL_TOLERANCE = 1e-4  # 0.01%: a run's fuel repeats exactly under the judge's own clock
 NOT_MACHINE_CHECKED = (
     "publication · copying from prior art · numpy's 25 files that need its C test modules "
     "(number 89) · pandas beyond eight groups · CPython's tests that need its C test modules "
@@ -36,22 +36,22 @@ NOT_MACHINE_CHECKED = (
     "licence content of wasi-libc, llvm-runtimes and unpinned components "
     "(presence only) · "
     "bundled sub-licences · files a build adds inside a source tree · "
-    # Spec 059: the gate sees the driver; the record scan sees meson, autoconf, CPython and step
+    # The gate sees the driver; the record scan sees meson, autoconf, CPython and step
     # 60; a compile that leaves no record, or a pragma the grep misses, is caught by same-bytes.
     "source pragmas and compiler options outside the scanned records (same-bytes is the backstop)",
 )
 # An accepted pass blocked by one of these is red: a product (artifact, runner, wheel) went missing,
 # is how a regression could hide. Other needs (clones, the oracle, source trees, git) are local
-# tooling a fresh clone lacks; their unrun passes are reported, not red (spec 002, Decision 6).
+# tooling a fresh clone lacks; their unrun passes are reported, not red.
 PROTECTED_NEEDS = frozenset(
     {"artifact dir", "plain binary", "snapshot binary", "stdlib zip", "manifest", "runner", "wheel"}
 )
 MAX_FAIL_LINES = 10
 MAX_LINES = 25
-# A metric that must not fall (spec 050, Decision 12): a fall is `fewer`, never `growth`.
+# A metric that must not fall: a fall is `fewer`, never `growth`.
 COUNTS_UP = frozenset({"passes"})
 # The checks that run numpy's and pandas' own tests: `--accept` refuses while one that has an
-# accepted pass or gap did not run here, unless --partial (spec 050, Decision 13).
+# accepted pass or gap did not run here, unless --partial.
 UPSTREAM_FILE = "tests/checks/test_v1_3_upstream_suites.py"
 
 
@@ -69,9 +69,9 @@ class Ratchet:
     absent: list[str] = field(default_factory=list)
     gained: list[str] = field(default_factory=list)
     growth: list[str] = field(default_factory=list)
-    fewer: list[str] = field(default_factory=list)  # a count that must not fall fell (spec 050)
+    fewer: list[str] = field(default_factory=list)  # a count that must not fall fell
     more: list[str] = field(default_factory=list)  # such a count rose: reported, not `gained`
-    upstream_unrun: list[str] = field(default_factory=list)  # spec 050, Decision 13
+    upstream_unrun: list[str] = field(default_factory=list)  # upstream checks this run left out
     fuel_not_compared: list[str] = field(default_factory=list)
     judge_changed: list[str] = field(default_factory=list)
     baseline: str = ""
@@ -127,7 +127,7 @@ def compare(run: dict, accepted: dict | None, repo: Path = paths.REPO) -> Ratche
                 r.outside.append(node)
         elif acc["status"] == "gap" and now is None and node not in deselected:
             # A gap's check that is gone (its class or trap removed once fixed) is absent too,
-            # so --retire can take it; a gap is never "lost" (spec 050, condition C1).
+            # so --retire can take it; a gap is never "lost".
             if not (repo / _file_of(node)).is_file() or _file_of(node) in collected_files:
                 r.absent.append(node)
         if (
@@ -142,7 +142,7 @@ def compare(run: dict, accepted: dict | None, repo: Path = paths.REPO) -> Ratche
         old = acc.get("metrics", {}).get(meta["platform"], {})
         if now["status"] == "pass":
             for name in sorted(set(old) - {"wasmtime"} - set(now.get("metrics", {}))):
-                if name in COUNTS_UP:  # only --accept-fewer-passes may drop it (spec 050, F4)
+                if name in COUNTS_UP:  # only --accept-fewer-passes may drop it
                     r.fewer.append(f"{node}: {name} {old[name]} -> none")
                 else:
                     r.growth.append(f"{node}: {name} is no longer recorded")
@@ -191,7 +191,7 @@ def accept(
     fewer_reason: str | None = None,
 ) -> tuple[dict, str]:
     """(new accepted.json content, the history line to append), or AcceptRefused. The line is
-    in format 2 (spec 062, Decision 6): the change in the passed set since the newest of
+    in format 2: the change in the passed set since the newest of
     `history_lines`, and a digest of the whole set."""
     refusals = []
     if not green:
@@ -247,7 +247,7 @@ def accept(
             same_engine = old.get("wasmtime") == meta["wasmtime"]
             merged = {"wasmtime": meta["wasmtime"]}
             for name, value in fresh.items():
-                if name in COUNTS_UP:  # only --accept-fewer-passes lowers it (spec 050)
+                if name in COUNTS_UP:  # only --accept-fewer-passes lowers it
                     keep = name in old and not fewer_reason
                     merged[name] = max(old[name], value) if keep else value
                     continue
@@ -277,7 +277,7 @@ def accept(
         "platform": platform,
         "host": meta["host"],
         "artifact": meta["artifact"],
-        "set_sums": meta.get("set_sums"),  # spec 085: the set, beside python.wasm
+        "set_sums": meta.get("set_sums"),  # the set, beside python.wasm
         "wasmtime": meta["wasmtime"],
         "reason": reason,
         "judge_reason": judge_reason,
@@ -295,7 +295,7 @@ def accept(
     }
     text = json.dumps(line, sort_keys=True)
     size = len(text.encode()) + 1
-    if size > history.BUDGET:  # spec 062, Decision 9: never written, even once
+    if size > history.BUDGET:  # never written, even once
         raise AcceptRefused(
             f"the history line would be {size} bytes, over the volume budget of "
             f"{history.BUDGET} (spec 062)"
@@ -313,8 +313,8 @@ def area_counts(checks: dict) -> dict[str, tuple[int, int]]:
 
 
 def no_trap_here(checks: dict) -> list[str]:
-    """The open trap entries (spec 065, Decision 1) whose check ran here and recorded no trap: a
-    fixed trap asks to be seen, never red (the confirmation's C4)."""
+    """The open trap entries whose check ran here and recorded no trap: a
+    fixed trap asks to be seen, never red."""
     out = []
     for node, c in sorted(checks.items()):
         if "::test_upstream_trap[" in node and (c.get("facts") or {}).get("trap") == (
@@ -347,7 +347,7 @@ def render(
     if run["meta"].get("overrides"):
         names = ", ".join(o.split(" ", 1)[0] for o in run["meta"]["overrides"])
         lines.append(f"JUDGE INPUTS OVERRIDDEN: {names} (see latest.json)")
-    lines += run["meta"].get("notes", [])  # e.g. a worktree inside the repository (spec 029)
+    lines += run["meta"].get("notes", [])  # e.g. a worktree inside the repository
     for area, (n_pass, n_all) in area_counts(checks).items():
         mine = Counter(c["status"] for c in checks.values() if c["area"] == area)
         rest = " ".join(f"{k} {mine[k]}" for k in ("gap", "blocked", "fail") if mine[k])
@@ -376,9 +376,9 @@ def render(
     quiet = no_trap_here(checks)
     if quiet:
         lines.append("trap entries with no trap here: " + " · ".join(quiet))
-    # The ratchet line, every FEWER line (spec 050, Decision 12), the verdict and the "not
+    # The ratchet line, every FEWER line, the verdict and the "not
     # machine-checked" lines are never cut. LOST, ABSENT and GREW lines give way first, then the
-    # FAIL lines, then the lines above the tail (the build review's F3).
+    # FAIL lines, then the lines above the tail.
     head, examples, end = [], [], []
     if ratchet is not None:
         head.append(_ratchet_line(ratchet, run["meta"].get("partial")))

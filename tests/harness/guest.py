@@ -1,14 +1,13 @@
-"""The judge's own guest driver (spec 002, Decision 9).
+"""The judge's own guest driver.
 
 It does only what any embedder must do: preopen the stdlib, read-only, in a folder of its own at
-`/usr/local/lib` (spec 017: the runtime's files are never in a writable root), one directory at
+`/usr/local/lib` (the runtime's files are never in a writable root), one directory at
 `/` (and, when a check asks, more directories, read-only or writable, in a chosen order), bind
 `host::call`, and call one export. A check that plots asks for matplotlib's data too: the zip's
 inner archive `matplotlib/mpl-data.zip`, extracted once per zip and granted read-only at the path
-matplotlib computes, as the README's embedder contract says (spec 023, Decision 5). It is kept
+matplotlib computes, as the README's embedder contract says. It is kept
 apart from `wasi_python.run`, the runner it judges. It also answers `random_get` and
-`clock_time_get` itself (context/research/2026-10-16-a-host-supplied-clock-and-random-make-fuel-
-exact.md), and a file's times and inode number (spec 083: its times are the clock's values, its
+`clock_time_get` itself, and a file's times and inode number (its times are the clock's values, its
 inode a count), and gives each run its own copy of the stdlib, so no link count is shared. So
 every run is seeded alike, and fuel (instructions executed) repeats exactly on one machine whose
 file system stamps every change apart, at one checkout path.
@@ -36,16 +35,16 @@ import wasmtime as wt
 from harness import litter, paths
 
 DEFAULT_FUEL = 2 * 10**11
-WASM_STACK = 8 << 20  # the runner's stated wasm stack (spec 078, Decision 1; spec 071, Decision 3)
-THREAD_STACK = WASM_STACK + (2 << 20)  # the runner's guest thread (spec 078, Decision 2)
+WASM_STACK = 8 << 20  # the runner's stated wasm stack
+THREAD_STACK = WASM_STACK + (2 << 20)  # the runner's guest thread
 EPOCH_FAR_OFF = 2**40  # epochs are on, as in the runner, but no check is ever interrupted
-UNMETERED = 2**63 - 1  # instantiation's own memory fill is not the guest's work (spec 008)
+UNMETERED = 2**63 - 1  # instantiation's own memory fill is not the guest's work
 NO_HOST = -1
 HOST_FAULT = -2
 ARGV0 = "/usr/local/bin/python.wasm"
 REALTIME_START_NS = 1_767_225_600_000_000_000  # 2026-01-01T00:00:00Z, a fixed start
 CLOCK_STEP_NS = 1_000
-# Each clock's resolution, stated by the judge, not read from the host (spec 065): realtime and
+# Each clock's resolution, stated by the judge, not read from the host: realtime and
 # monotonic at the step, the CPU-time clocks at a nanosecond. The values are the ones a darwin host
 # answered before this was stated, so no darwin result moves; a Linux host answered 1 ns for the
 # first two, which turned CPython's timing tests from skips into failures there.
@@ -59,8 +58,8 @@ MPL_DATA_MEMBER = "matplotlib/mpl-data.zip"
 
 
 def engine() -> wt.Engine:
-    """The runner's engine (spec 071, Decision 3): fuel, epoch interruption and the runner's
-    8 MiB wasm stack (spec 078), so a check sees the native frames and the stack `run` gives.
+    """The runner's engine: fuel, epoch interruption and the runner's
+    8 MiB wasm stack, so a check sees the native frames and the stack `run` gives.
     Epoch checks make Cranelift's frames larger; a driver without them measured more room than
     users get. Above 2 MiB wasmtime needs the async stack size raised first."""
     global _engine
@@ -70,7 +69,7 @@ def engine() -> wt.Engine:
         cfg = wt.Config()
         cfg.consume_fuel = True
         cfg.epoch_interruption = True
-        _wasmtime_ffi.set_async_stack(cfg, WASM_STACK)  # the seam's three branches (spec 103)
+        _wasmtime_ffi.set_async_stack(cfg, WASM_STACK)  # the seam's three branches
         cfg.max_wasm_stack = WASM_STACK
         _engine = wt.Engine(cfg)
     return _engine
@@ -80,7 +79,7 @@ _stack_lock = threading.Lock()
 
 
 def on_own_stack(fn: Callable[[], Any]) -> Any:
-    """fn() on a thread with room for the 8 MiB wasm stack, as the runner gives (spec 078): its
+    """fn() on a thread with room for the 8 MiB wasm stack, as the runner gives: its
     value, or its exception. The driver's host functions run there too; they are the judge's own."""
     import contextvars
 
@@ -123,7 +122,7 @@ class Result:
     trapped: str | None  # None, "out of fuel", or the trap's first line
     fuel: int
     root: Path
-    trap_cause: str | None = None  # the line after "Caused by:" (spec 050, Decision 14)
+    trap_cause: str | None = None  # the line after "Caused by:"
 
     @property
     def text(self) -> str:
@@ -165,13 +164,13 @@ def stdlib_name(python_version: str, stdlib: Path) -> str:
 
 
 def _place(src: Path, dest: Path) -> None:
-    """The stdlib in a run's own folder, with an inode of its own (spec 083, Decision 10): a hard
+    """The stdlib in a run's own folder, with an inode of its own: a hard
     link would share the set's file, whose link count every other run moves, and the guest sees it.
     On darwin an APFS clone (what `cp -c` makes), else, or if that fails, a copy."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     if src.is_dir():
         # A host folder a desktop may write into: its litter is no input, and the seal would
-        # delete it anyway (spec 089, N1).
+        # delete it anyway.
         shutil.copytree(
             src, dest, ignore=lambda _d, names: [n for n in names if litter.is_litter(n)]
         )
@@ -193,7 +192,7 @@ def _clone(src: Path, dest: Path) -> bool:
 
 def _release(store: wt.Store, lib: Path | None) -> None:
     """After a guest: its store closed first (on Windows, wasmtime's handles in `lib` go with it),
-    then its own stdlib folder, which spec 089 sealed, unsealed and removed; `litter.remove`
+    then its own stdlib folder, sealed, unsealed and removed; `litter.remove`
     never raises, so it can never fail a run, and names on stderr anything it could not remove."""
     store.close()
     if lib is not None:
@@ -210,9 +209,9 @@ def mpl_data_dir(stdlib: Path, workdir: Path) -> Path:
             inner = io.BytesIO(outer.read(MPL_DATA_MEMBER))
         with zipfile.ZipFile(inner) as z:
             for member in z.namelist():
-                litter.refuse(member, MPL_DATA_MEMBER)  # the seal must never meet it (spec 089)
+                litter.refuse(member, MPL_DATA_MEMBER)  # the seal must never meet it
             z.extractall(dest)
-        litter.seal(dest)  # read-only for every run that shares it (spec 089)
+        litter.seal(dest)  # read-only for every run that shares it
         _mpl_data[key] = dest
     return _mpl_data[key]
 
@@ -229,7 +228,7 @@ def _random_stream() -> Callable[[int], bytes]:
     return take
 
 
-# What the guest learns about a file (spec 083). wasmtime's filestat and readdir calls hand the
+# What the guest learns about a file. wasmtime's filestat and readdir calls hand the
 # guest the host's real times, and an inode number that is a hash of the host's own, new for a
 # fresh file; each moves the instructions a program runs. The driver forwards the five calls that
 # carry them to wasmtime and answers those fields itself, as it answers the clock and random.
@@ -340,7 +339,7 @@ class FileFacts:
 
     def listing(self, data: bytearray) -> None:
         """A readdir answer, in place: each whole entry's d_ino answered and its padding zeroed
-        (wasmtime 49.0.0 leaves host bytes there; spec 048); of an entry cut at the end, only the
+        (wasmtime 49.0.0 leaves host bytes there); of an entry cut at the end, only the
         d_ino and padding bytes present are zeroed (wasi-libc never reads a cut entry)."""
         at = 0
         while at < len(data):
@@ -487,7 +486,7 @@ class _FileCalls:
 
 
 def _forms(root: Path) -> set[str]:
-    """The ways a check can write `root` into a guest's input (spec 081, Decision 2): as written and
+    """The ways a check can write `root` into a guest's input: as written and
     resolved, each also in forward slashes and, for an absolute path, as a `file:` URI; and any of
     these holding a backslash with every backslash doubled, as `repr()` and JSON write it."""
     forms: set[str] = set()
@@ -508,7 +507,7 @@ def host_paths_in(
     fold_case: bool = sys.platform == "win32",
 ) -> list[str]:
     """Each input the guest can see that names a host path under one of `roots`: an argument, an
-    environment variable, a file's guest path or contents, or a grant's guest path (spec 081).
+    environment variable, a file's guest path or contents, or a grant's guest path.
     The guest's work moves with the length of any host path it is given, so a run whose fuel is
     recorded must give it guest paths only. On Windows (`fold_case`) case is ignored."""
     needles = sorted({form for root in roots for form in _forms(root)})
@@ -537,7 +536,7 @@ def host_paths_in(
 
 def host_roots_always() -> tuple[Path, ...]:
     """The roots every measured run is checked against: the checkout, and the system's temp folder
-    unless it is literally `/tmp`, a path guests are given as their own (spec 081, Decision 2)."""
+    unless it is literally `/tmp`, a path guests are given as their own."""
     temp = tempfile.gettempdir()
     return (paths.REPO,) if temp == "/tmp" else (paths.REPO, Path(temp))
 
@@ -565,14 +564,14 @@ def run(
     """Run the guest once, in a fresh instance and a fresh root under `workdir`. With `mpl_data`,
     matplotlib's data is granted read-only beside the stdlib zip. `own` is an engine the caller
     made at wasmtime's defaults (no fuel, no epochs) and the module compiled on it, as another
-    embedder's would be (spec 071, criterion 3); the driver's cached engine is never swapped, and
+    embedder's would be; the driver's cached engine is never swapped, and
     such a run counts no fuel. A `measured` run (the default: one whose fuel a check records) is
     refused before anything runs when its inputs name a host path under the checkout, the
-    system's temp folder or `host_roots` (spec 081): its fuel would depend on where they are.
+    system's temp folder or `host_roots`: its fuel would depend on where they are.
     Each clock read advances the guest's clocks by `clock_step_ns`, so a guest's elapsed time is a
-    count of its reads (spec 087, Decision 3), and the file times the driver answers take the same
-    step (spec 083's ticks). The default keeps every other check's fuel; at the
-    default, `clock_res_get` answers from `CLOCK_RESOLUTION_NS`, read at call time (spec 065), and
+    count of its reads, and the file times the driver answers take the same
+    step. The default keeps every other check's fuel; at the
+    default, `clock_res_get` answers from `CLOCK_RESOLUTION_NS`, read at call time, and
     with another step the realtime and monotonic clocks state that step as their resolution.
     `root_writable=False` grants the root read-only."""
     if measured and own is None:
@@ -600,7 +599,7 @@ def run(
         (root / "usr/local/lib").mkdir(parents=True)
         lib = base / "lib"
         _place(stdlib, lib / stdlib_name(python_version, stdlib))
-        litter.seal(lib)  # read-only and fresh: sealed like a stage (spec 089, F4)
+        litter.seal(lib)  # read-only and fresh: sealed like a stage
     for guest_path, content in (files or {}).items():
         dest = root / guest_path.lstrip("/")
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -608,18 +607,18 @@ def run(
 
     store = wt.Store(eng)
     if counted:
-        store.set_fuel(UNMETERED)  # fuel is metered from the end of instantiation (spec 008)
+        store.set_fuel(UNMETERED)  # fuel is metered from the end of instantiation
         store.set_epoch_deadline(EPOCH_FAR_OFF)
     wasi = wt.WasiConfig()
     wasi.argv = [ARGV0, *argv]
     wasi.env = sorted((env or {}).items())
     # Extra preopens are (guest path, host directory, writable); they go after the root, or
-    # before it with preopens_first, so a check can try both orders (spec 006, check 1.11).
+    # before it with preopens_first, so a check can try both orders.
     extra = [
         (str(host_dir), guest_path, writable) for guest_path, host_dir, writable in preopens or []
     ]
     # The root is writable unless a check runs as an embedder's default call does, with nothing
-    # writable (spec 037's build review, F1: its checks moved here from `wasi_python.run`).
+    # writable (its checks moved here from `wasi_python.run`).
     top = (str(root), "/", root_writable)
     ordered = [*extra, top] if preopens_first else [top, *extra]
     if lib is not None:
@@ -630,7 +629,7 @@ def run(
         name = stdlib_name(python_version or "", stdlib)
         data = mpl_data_dir(stdlib, workdir)
         ordered.insert(1, (str(data), f"/usr/local/lib/{name}/matplotlib/mpl-data", False))
-    watch = litter.Watch(ordered)  # host litter, before the run and after it (spec 089)
+    watch = litter.Watch(ordered)  # host litter, before the run and after it
     for host_dir, guest_path, writable in ordered:
         wasi.preopen_dir(host_dir, guest_path, writable)
     wasi.stdout_file = str(io / "stdout")
@@ -660,7 +659,7 @@ def run(
             return 28  # EINVAL: an unknown clock, as WASI answers
         res = CLOCK_RESOLUTION_NS[clock_id]
         if clock_step_ns != CLOCK_STEP_NS and clock_id in (0, 1):
-            res = clock_step_ns  # a changed step is the run's stated resolution (spec 087)
+            res = clock_step_ns  # a changed step is the run's stated resolution
         caller.get("memory").write(caller, struct.pack("<Q", res), out & 0xFFFFFFFF)
         return 0
 
@@ -673,7 +672,7 @@ def run(
             return HOST_FAULT
         ptr, length = ptr & 0xFFFFFFFF, length & 0xFFFFFFFF  # i32 values; addresses are unsigned
         out_ptr_ptr, out_len_ptr = out_ptr_ptr & 0xFFFFFFFF, out_len_ptr & 0xFFFFFFFF
-        size = memory.data_len(caller)  # the runner's bounds (spec 006, Decision 3)
+        size = memory.data_len(caller)  # the runner's bounds
         if ptr + length > size or out_ptr_ptr + 4 > size or out_len_ptr + 4 > size:
             return HOST_FAULT
         request = bytes(memory.read(caller, ptr, ptr + length))
@@ -705,10 +704,10 @@ def run(
     cause: str | None = None
     metered = False  # the budget is set only once instantiation has succeeded
 
-    def go() -> int:  # on a thread with room for the wasm stack (spec 078)
+    def go() -> int:  # on a thread with room for the wasm stack
         nonlocal metered
         inst = linker.instantiate(store, mod)
-        files.bind(store, eng, inst)  # before the guest runs (spec 083)
+        files.bind(store, eng, inst)  # before the guest runs
         if counted:
             store.set_fuel(fuel)
             metered = True
@@ -746,7 +745,7 @@ def run(
     try:
         watch.after()  # a run whose grants changed raises HostLitter: its fuel is not recorded
     finally:
-        _release(store, lib)  # after the watch: it must see the run's own stdlib copy (spec 089)
+        _release(store, lib)  # after the watch: it must see the run's own stdlib copy
     return result
 
 
@@ -772,8 +771,8 @@ class Turn:
 
 
 class Turns:
-    """One instance of the guest kept across calls, driven raw (spec 055, criteria 1 to 3 and
-    34): `turn(code)` writes the code through `host_alloc` and calls the `turn` export;
+    """One instance of the guest kept across calls, driven raw:
+    `turn(code)` writes the code through `host_alloc` and calls the `turn` export;
     `turn_raw(ptr, length)`, `run()` and `shutdown()` call the exports as they are. Each call
     gets `fuel` and reports only what it wrote. The door's host function, if any, is called with
     this object and the request, so a check can call back into the instance from the door."""
@@ -801,7 +800,7 @@ class Turns:
         _place(stdlib, lib / stdlib_name(python_version, stdlib))
         self.store = wt.Store(engine())
         self.store.set_fuel(UNMETERED)
-        self.store.set_epoch_deadline(EPOCH_FAR_OFF)  # the runner's engine has epochs (spec 071)
+        self.store.set_epoch_deadline(EPOCH_FAR_OFF)  # the runner's engine has epochs
         wasi = wt.WasiConfig()
         wasi.argv = [ARGV0, *(argv or [])]
         wasi.env = sorted((env or {}).items())
@@ -850,7 +849,7 @@ class Turns:
         trapped: str | None = None
         exit_code: int | None = None
 
-        def go() -> int:  # on a thread with room for the wasm stack (spec 078)
+        def go() -> int:  # on a thread with room for the wasm stack
             if self.how == "reactor" and not self._initialized:
                 self._initialized = True
                 self.exports["_initialize"](self.store)
@@ -901,5 +900,5 @@ class Turns:
 
 
 def turns(wasm: Path, **kw: Any) -> Turns:
-    """A `Turns` instance of `wasm` (spec 055)."""
+    """A `Turns` instance of `wasm`."""
     return Turns(wasm, **kw)

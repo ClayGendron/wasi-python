@@ -1,15 +1,15 @@
-# The release workflow (context/specifications/004-alpha-releases.md).
+# The release workflow.
 #
 # A pushed tag v<version> builds the artifact set from its pins, judges it in parallel shards on
-# Linux, Windows and macOS (spec 063: the judge's own checks on all three, numpy's and pandas' own
-# test suites on Linux and one group of them on macOS and Windows; `gather` decides from every
-# shard's hashed record), rebuilds it from the pins on arm64 Linux and x86_64 Linux and requires
-# the same bytes (specs 012, 040 and 059), and publishes a GitHub release (and, once the owner enables it, the wheel on PyPI). A
-# manual run (workflow_dispatch) is a dry run: build, rebuild, judge and gather, never sign or publish.
-# Third-party actions are pinned by commit, their release named beside each.
-# Every job that reads the build's files downloads them by the id the build job handed on, after a
-# step that refuses an empty id, and checks them against the SHA-256 of SHA256SUMS the build job
-# handed on before it uses them (spec 057). Values reach scripts through env:, never as expressions.
+# Linux, Windows and macOS (the judge's own checks on all three, numpy's and pandas' own test suites
+# on Linux and one group of them on macOS and Windows; `gather` decides from every shard's hashed
+# record), rebuilds it from the pins on arm64 Linux and x86_64 Linux and requires the same bytes,
+# and publishes a GitHub release (and, once the owner enables it, the wheel on PyPI). A manual run
+# (workflow_dispatch) is a dry run: build, rebuild, judge and gather, never sign or publish.
+# Third-party actions are pinned by commit, their release named beside each. Every job that reads
+# the build's files downloads them by the id the build job handed on, after a step that refuses an
+# empty id, and checks them against the SHA-256 of SHA256SUMS the build job handed on before it uses
+# them. Values reach scripts through env:, never as expressions.
 name: release
 
 on:
@@ -43,12 +43,12 @@ jobs:
     outputs:
       assets-id: ${{ steps.assets.outputs.artifact-id }}
       sums-sha256: ${{ steps.sums.outputs.sha256 }}
-      # Spec 063: the build shard's record, and python.wasm's SHA-256 for the gather, which never
+      # The build shard's record, and python.wasm's SHA-256 for the gather, which never
       # holds the assets (Decision 9).
       record-id: ${{ steps.record.outputs.artifact-id }}
       record-sha256: ${{ steps.record-sha.outputs.sha256 }}
       wasm-sha256: ${{ steps.wasm.outputs.sha256 }}
-      # Spec 085: the set's own SHA256SUMS (not the release assets'), for the gather's G2 and G7.
+      # The set's own SHA256SUMS (not the release assets'), for the gather's G2 and G7.
       set-sums-sha256: ${{ steps.set-sums.outputs.sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -77,7 +77,7 @@ jobs:
           cp -R build/artifacts src/wasi_python/artifacts
           uv build --wheel --build-constraints release/build-constraints.txt --require-hashes
       - name: The source trees are their tarballs plus the recorded patches (spec 020)
-        # All twenty-seven trees must pass (seaborn's sdist the twenty-seventh, spec 042): a
+        # All twenty-seven trees must pass (seaborn's sdist the twenty-seventh): a
         # skipped check (a tree not unpacked) would exit 0 too.
         run: |
           set -o pipefail
@@ -86,7 +86,7 @@ jobs:
           grep -Eq "^27 passed, [0-9]+ deselected in" zero-patch.txt
       - name: The build shard
         # Only the checks that need the build host: every component's tree, the compile records and
-        # the zlib tarball (spec 063, Decision 6). The rest of the judge runs in the judge jobs.
+        # the zlib tarball. The rest of the judge runs in the judge jobs.
         run: uv run pytest -p no:cacheprovider --shard=build --progress-latest "$RUNNER_TEMP/record/latest.json"
       - name: The record's SHA-256
         id: record-sha
@@ -136,16 +136,15 @@ jobs:
   rebuild-linux-arm64:
     name: rebuild from the pins (ubuntu-24.04-arm)
     # Two more hosts rebuild the whole set from an empty downloads/ and build/, beside the build,
-    # and upload their SHA256SUMS; same-bytes compares each with the set's (spec 012, Decision 7).
+    # and upload their SHA256SUMS; same-bytes compares each with the set's.
     # One job per host, not a matrix: a job's outputs are its own, while a matrix's legs share one
-    # namespace, so one leg could hand on the other's ids and cast both votes (spec 057, Decision 4).
+    # namespace, so one leg could hand on the other's ids and cast both votes.
     # Each runner compiles with its own pinned wasi-sdk clang, and every compile carries
     # -ffp-contract=off, set in the toolchain's own configuration files by step 10: that makes
-    # wasi-sdk's x86_64 and aarch64 builds of clang emit the same bytes (spec 059;
-    # context/research/2026-10-18-byte-identical-wasm-builds-prior-art.md). So no input runs in
-    # both jobs' compilers: each vote rests on its own host's toolchain. Spec 040's emulated
+    # wasi-sdk's x86_64 and aarch64 builds of clang emit the same bytes. So no input runs in
+    # both jobs' compilers: each vote rests on its own host's toolchain. The emulated
     # compiler stays in the tree, switched off, for one release. Each job's time limit is 120
-    # minutes, so a hung job frees the gate after two hours (spec 059, Decision 5).
+    # minutes, so a hung job frees the gate after two hours.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 120
     permissions:
@@ -164,7 +163,7 @@ jobs:
       - name: The runner's own tools (unpinned host inputs, recorded here)
         # nproc: the core count beside every time figure. binfmt_misc: a runner that could run an
         # aarch64 program through its own, unpinned qemu would hide a gap in the emulated
-        # compiler's closure (spec 040, Decisions 5 and 6).
+        # compiler's closure.
         run: |
           uname -srm
           nproc
@@ -177,8 +176,8 @@ jobs:
           shasum --version
           git --version
           uv --version
-          # The runner's own python3, which step 10's shim keeps out of the build (spec 079),
-          # named so the log records what stood on PATH (spec 085; the a7 security review's N5).
+          # The runner's own python3, which step 10's shim keeps out of the build,
+          # named so the log records what stood on PATH.
           python3 --version
       - name: Download the pinned inputs
         run: scripts/00_download.sh
@@ -230,7 +229,7 @@ jobs:
       - name: The runner's own tools (unpinned host inputs, recorded here)
         # nproc: the core count beside every time figure. binfmt_misc: a runner that could run an
         # aarch64 program through its own, unpinned qemu would hide a gap in the emulated
-        # compiler's closure (spec 040, Decisions 5 and 6).
+        # compiler's closure.
         run: |
           uname -srm
           nproc
@@ -243,8 +242,8 @@ jobs:
           shasum --version
           git --version
           uv --version
-          # The runner's own python3, which step 10's shim keeps out of the build (spec 079),
-          # named so the log records what stood on PATH (spec 085; the a7 security review's N5).
+          # The runner's own python3, which step 10's shim keeps out of the build,
+          # named so the log records what stood on PATH.
           python3 --version
       - name: Download the pinned inputs
         run: scripts/00_download.sh
@@ -279,7 +278,7 @@ jobs:
     name: the same bytes from every host
     # Each rebuild's SHA256SUMS lists the whole set (the three artifacts, MANIFEST and the licences)
     # and must equal the set's, byte for byte, from arm64 Linux and from x86_64 Linux, each with its
-    # own pinned clang (specs 012, 040 and 059). The .tar.xz asset is made from the set deterministically but is
+    # own pinned clang. The .tar.xz asset is made from the set deterministically but is
     # outside this claim. attest and publish need this job, so a tag never signs or publishes bytes
     # that both hosts did not rebuild.
     needs: [build, rebuild-linux-arm64, rebuild-linux-x86-64]
@@ -288,7 +287,7 @@ jobs:
     permissions: {}
     steps:
       - name: The build job handed on an artifact id
-        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run.
         env:
           ASSETS_ID: ${{ needs.build.outputs.assets-id }}
         run: |
@@ -302,7 +301,7 @@ jobs:
           digest-mismatch: error
       - name: These are the bytes the build job made
         # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
-        # handed on, every file against SHA256SUMS, and no other file (spec 057).
+        # handed on, every file against SHA256SUMS, and no other file.
         env:
           SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
         run: |
@@ -399,7 +398,7 @@ jobs:
 
   judge-macos:
     name: judge (macos-15, ${{ matrix.shard }})
-    # One leg per shard of this system's plan (tests/release_shards.toml; spec 063, Decision 7).
+    # One leg per shard of this system's plan (tests/release_shards.toml).
     # Each leg runs its shard serially against accepted.json, hashes its record and hands on the
     # record's id and SHA-256 under the shard's own names. The legs of one system share every
     # host-side input, so the shared output namespace gives nothing away; the systems are three jobs.
@@ -440,7 +439,7 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
       - name: The build job handed on an artifact id
-        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run.
         env:
           ASSETS_ID: ${{ needs.build.outputs.assets-id }}
         run: |
@@ -454,7 +453,7 @@ jobs:
           digest-mismatch: error
       - name: These are the bytes the build job made
         # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
-        # handed on, every file against SHA256SUMS, and no other file (spec 057).
+        # handed on, every file against SHA256SUMS, and no other file.
         env:
           SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
         run: |
@@ -520,7 +519,7 @@ jobs:
 
   judge-linux:
     name: judge (ubuntu-24.04, ${{ matrix.shard }})
-    # One leg per shard of this system's plan (tests/release_shards.toml; spec 063, Decision 7).
+    # One leg per shard of this system's plan (tests/release_shards.toml).
     # Each leg runs its shard serially against accepted.json, hashes its record and hands on the
     # record's id and SHA-256 under the shard's own names. The legs of one system share every
     # host-side input, so the shared output namespace gives nothing away; the systems are three jobs.
@@ -597,7 +596,7 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
       - name: The build job handed on an artifact id
-        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run.
         env:
           ASSETS_ID: ${{ needs.build.outputs.assets-id }}
         run: |
@@ -611,7 +610,7 @@ jobs:
           digest-mismatch: error
       - name: These are the bytes the build job made
         # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
-        # handed on, every file against SHA256SUMS, and no other file (spec 057).
+        # handed on, every file against SHA256SUMS, and no other file.
         env:
           SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
         run: |
@@ -677,7 +676,7 @@ jobs:
 
   judge-windows:
     name: judge (windows-2025, ${{ matrix.shard }})
-    # One leg per shard of this system's plan (tests/release_shards.toml; spec 063, Decision 7).
+    # One leg per shard of this system's plan (tests/release_shards.toml).
     # Each leg runs its shard serially against accepted.json, hashes its record and hands on the
     # record's id and SHA-256 under the shard's own names. The legs of one system share every
     # host-side input, so the shared output namespace gives nothing away; the systems are three jobs.
@@ -716,7 +715,7 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
       - name: The build job handed on an artifact id
-        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run.
         env:
           ASSETS_ID: ${{ needs.build.outputs.assets-id }}
         run: |
@@ -730,7 +729,7 @@ jobs:
           digest-mismatch: error
       - name: These are the bytes the build job made
         # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
-        # handed on, every file against SHA256SUMS, and no other file (spec 057).
+        # handed on, every file against SHA256SUMS, and no other file.
         env:
           SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
         run: |
@@ -798,7 +797,7 @@ jobs:
     name: gather the shards' records
     # One verdict from every shard's record, each downloaded by the id its job handed on and
     # checked against the SHA-256 it handed on; tied to this commit, its judge, the build's
-    # python.wasm, the lane's acceptance and three systems (spec 063, Decision 9). It never holds
+    # python.wasm, the lane's acceptance and three systems. It never holds
     # the assets: python.wasm's hash comes from the build job. It writes no history.
     needs: [build, judge-macos, judge-linux, judge-windows]
     runs-on: ubuntu-24.04
@@ -814,8 +813,8 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
       - name: Every job handed on its record's id, and the build python.wasm's SHA-256
-        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
-        # The set's own SHA256SUMS hash too (spec 085).
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run.
+        # The set's own SHA256SUMS hash too.
         env:
           WASM_SHA256: ${{ needs.build.outputs.wasm-sha256 }}
           SET_SUMS_SHA256: ${{ needs.build.outputs.set-sums-sha256 }}
@@ -964,7 +963,7 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
       - name: The build job handed on an artifact id
-        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run.
         env:
           ASSETS_ID: ${{ needs.build.outputs.assets-id }}
         run: |
@@ -978,7 +977,7 @@ jobs:
           digest-mismatch: error
       - name: These are the bytes the build job made
         # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
-        # handed on, every file against SHA256SUMS, and no other file (spec 057).
+        # handed on, every file against SHA256SUMS, and no other file.
         env:
           SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
         run: |
@@ -1001,7 +1000,7 @@ jobs:
           fi
       - name: The wheel, installed fresh, runs a program in one call
         # Installed by its plain name, no extra: `pip install wasi-python` must run programs, so
-        # a wheel whose plain install could not never publishes (spec 028, Decision 4).
+        # a wheel whose plain install could not never publishes.
         run: |
           wheel="$(ls release-assets/wasi_python-*.whl)"
           uv run --isolated --no-project --with "wasi-python @ ./$wheel" python -c "
@@ -1010,7 +1009,7 @@ jobs:
           print(done)
           assert (done.exit_code, done.stdout) == (0, b'6\n'), done
           "
-          # The wheel's own command (spec 019) prints the one line its README promises.
+          # The wheel's own command prints the one line its README promises.
           line=$(uv run --isolated --no-project --with "wasi-python @ ./$wheel" \
             wasi-python run -- -c "print(1)")
           echo "$line"
@@ -1036,8 +1035,8 @@ jobs:
   attest:
     name: attest the release assets
     # Build provenance for every asset, signed through Sigstore's public-good instance and then
-    # verified strictly, before anything is published (spec 009), and only once arm64 Linux and
-    # x86_64 Linux rebuilt the same bytes (same-bytes, specs 012 and 040). Only a pushed tag gets here: a signature is
+    # verified strictly, before anything is published, and only once arm64 Linux and
+    # x86_64 Linux rebuilt the same bytes (same-bytes). Only a pushed tag gets here: a signature is
     # permanent in the public transparency log, so dry runs never sign.
     if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: [build, verify, same-bytes, gather]
@@ -1048,7 +1047,7 @@ jobs:
       contents: read
     steps:
       - name: The build job handed on an artifact id
-        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run.
         env:
           ASSETS_ID: ${{ needs.build.outputs.assets-id }}
         run: |
@@ -1062,7 +1061,7 @@ jobs:
           digest-mismatch: error
       - name: These are the bytes the build job made
         # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
-        # handed on, every file against SHA256SUMS, and no other file (spec 057).
+        # handed on, every file against SHA256SUMS, and no other file.
         env:
           SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
         run: |
@@ -1114,7 +1113,7 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
       - name: The build job handed on an artifact id
-        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run.
         env:
           ASSETS_ID: ${{ needs.build.outputs.assets-id }}
         run: |
@@ -1128,7 +1127,7 @@ jobs:
           digest-mismatch: error
       - name: These are the bytes the build job made
         # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
-        # handed on, every file against SHA256SUMS, and no other file (spec 057).
+        # handed on, every file against SHA256SUMS, and no other file.
         env:
           SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
         run: |
@@ -1172,7 +1171,7 @@ jobs:
       id-token: write
     steps:
       - name: The build job handed on an artifact id
-        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run.
         env:
           ASSETS_ID: ${{ needs.build.outputs.assets-id }}
         run: |
@@ -1186,7 +1185,7 @@ jobs:
           digest-mismatch: error
       - name: These are the bytes the build job made
         # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
-        # handed on, every file against SHA256SUMS, and no other file (spec 057).
+        # handed on, every file against SHA256SUMS, and no other file.
         env:
           SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
         run: |

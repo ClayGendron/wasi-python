@@ -1,5 +1,5 @@
 #!/bin/sh
-# f2py on the build host (spec 037, Decision 7): numpy 2.5.2's f2py from step 10's
+# f2py on the build host: numpy 2.5.2's f2py from step 10's
 # build/tools/f2py-numpy, the only folder on its path. scipy's tools/generate_f2pymod.py runs `f2py`
 # from PATH, so step 57 puts this script first on PATH under that name. f2py reads scipy's .pyf
 # files and writes C; it never runs scipy code. -s keeps the user's site folder out and -P the

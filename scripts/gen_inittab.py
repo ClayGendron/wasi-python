@@ -1,33 +1,33 @@
 """Generate the inittab constructor: one C file that registers every cross-built extension module
 on CPython's inittab under its dotted import name, derived from the archive's path under its meson
-build directory (spec 003, step 60).
+build directory.
 
     gen_inittab.py [--against <CPython's Modules/config.c>] <out.c> <package>=<meson build dir> ...
 
 Builtin lookup compares the full dotted name (Python/import.c, is_builtin), so
 `numpy._core._multiarray_umath` resolves to a builtin from inside the numpy package. Test-only
 numpy modules (*_tests, _simd) are left out, and so is matplotlib's `_tkagg` (no Tk); its `_qhull`
-is registered since spec 043. A module built at the root of a build directory is placed by
+is registered. A module built at the root of a build directory is placed by
 ROOT_MODULES, or the run fails. The plot packages' directories (build/plot-modules/*) and scipy's
-(build/scipy-modules, spec 037) hold each archive at its install path (spec 023, step 55;
-contourpy's `_contourpy`, spec 043), so their names are those paths.
+(build/scipy-modules) hold each archive at its install path (step 55;
+contourpy's `_contourpy`), so their names are those paths.
 
 A module whose init function would share its name with another's is compiled with a renamed one
 (recipes/scipy_rename.h and recipes/scipy_cython_optimize_zeros.h; scikit-learn's four in
-recipes/sklearn-renames/, spec 044), and RENAMED names it here; the clash check runs on the final
-names (spec 037, Decision 8). scikit-learn's archives lie at their install paths
+recipes/sklearn-renames/), and RENAMED names it here; the clash check runs on the final
+names. scikit-learn's archives lie at their install paths
 (build/sklearn-modules), as scipy's do.
 
-`--against` names CPython's own Modules/config.c: an entry whose init function has the name of
-one of CPython's builtins (`PyInit__random`) stops the run. The static link would resolve the
-inittab's reference to CPython's function, never pull in the package's archive member, and say
-nothing, so the package's module would be CPython's (spec 044's build: sklearn.utils._random).
+`--against` names CPython's own Modules/config.c: an entry whose init function has the name of one
+of CPython's builtins (`PyInit__random`) stops the run. The static link would resolve the inittab's
+reference to CPython's function, never pull in the package's archive member, and say nothing, so the
+package's module would be CPython's (as scikit-learn's build found: sklearn.utils._random).
 
 Each entry is registered through a wrapper that calls its init function inside CPython's package
 context, set to the entry's dotted name, as `_PyImport_RunModInitFunction` does for a module loaded
 from a shared library (Python/importdl.c); a builtin gets no context otherwise, so a single-phase
-module (regex's `_regex`) would keep its short name and pickle would look for a top-level module
-(spec 047, Decision 4). Multi-phase modules return a definition and never read the context. The
+module (regex's `_regex`) would keep its short name and pickle would look for a top-level module.
+Multi-phase modules return a definition and never read the context. The
 one internal function is declared here, as Include/internal/pycore_import.h declares it; step 60
 stops if the pinned header no longer does.
 """
@@ -42,16 +42,16 @@ SUFFIX = f".cpython-{line.read()['PYTHON_TAG']}-wasm32-wasi.so"
 # Cython 3.1+ builds its shared utility module at the build root; pandas imports it from here.
 ROOT_MODULES = {("pandas", "_cyutility"): "pandas._libs._cyutility"}
 # Left out by dotted name: numpy's SIMD test module, and matplotlib's _tkagg (no Tk). Both
-# _qhull modules are linked (matplotlib's since spec 043; scipy.spatial's, spec 037).
+# _qhull modules are linked (matplotlib's and scipy.spatial's).
 LEFT_OUT = {"numpy._core._simd", "matplotlib.backends._tkagg"}
-# Init functions compiled under another name (spec 037, Decision 8): dotted name -> the name after
+# Init functions compiled under another name: dotted name -> the name after
 # PyInit_. scipy's _cyutility shares pandas' name; scipy.optimize.cython_optimize._zeros shares
-# scipy.optimize._zeros'; scipy.spatial._qhull shares matplotlib's _qhull (linked by spec 043).
+# scipy.optimize._zeros'; scipy.spatial._qhull shares matplotlib's _qhull.
 RENAMED = {
     "scipy._cyutility": "scipy__cyutility",
     "scipy.optimize.cython_optimize._zeros": "scipy_optimize_cython_optimize__zeros",
     "scipy.spatial._qhull": "scipy_spatial__qhull",
-    # scikit-learn (spec 044, Decision 6; recipes/sklearn-renames/): its _cyutility shares pandas'
+    # scikit-learn (recipes/sklearn-renames/): its _cyutility shares pandas'
     # and scipy's name; three modules share a name with another of its own, whose partner keeps it.
     "sklearn._cyutility": "sklearn__cyutility",
     "sklearn.ensemble._hist_gradient_boosting._gradient_boosting": (
@@ -59,8 +59,9 @@ RENAMED = {
     ),
     "sklearn.cluster._hdbscan._tree": "sklearn_cluster__hdbscan__tree",
     "sklearn.manifold._utils": "sklearn_manifold__utils",
-    # sklearn.utils._random's PyInit__random is CPython's own `_random` (found at spec 044's build:
-    # the link kept CPython's and dropped scikit-learn's member without a word); --against stops it.
+    # sklearn.utils._random's PyInit__random is CPython's own `_random` (found at scikit-learn's
+    # build: the link kept CPython's and dropped scikit-learn's member without a word); --against
+    # stops it.
     "sklearn.utils._random": "sklearn_utils__random",
 }
 # CPython's own declaration (Include/internal/pycore_import.h), less the parameter's name.

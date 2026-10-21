@@ -1,4 +1,4 @@
-"""The runner's answer to poll_oneoff (spec 010): the wait is bounded by the call's deadline and
+"""The runner's answer to poll_oneoff: the wait is bounded by the call's deadline and
 the subscriptions are read as wasmtime reads them. Fakes stand in for time: these tests count
 what the runner asks to sleep, never how long anything takes."""
 

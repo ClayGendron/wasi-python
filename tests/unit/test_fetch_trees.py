@@ -1,5 +1,5 @@
 """`tests/upstream/fetch.py --shard`: the kit and every upstream tree, verified, unpacked and
-patched, with nothing fetched from the network (spec 063, acceptance 6)."""
+patched, with nothing fetched from the network."""
 
 from __future__ import annotations
 
@@ -153,7 +153,7 @@ def test_a_tree_already_there_is_refused(tmp_path, monkeypatch) -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# CPython's tests have their own stage (spec 065, Decision 7, criterion 7)
+# CPython's tests have their own stage
 
 
 def _xz(top: str, members: dict[str, bytes]) -> bytes:

@@ -1,4 +1,4 @@
-"""Decode a PNG with the stdlib alone (spec 023, Decision 8): zlib and the five row filters.
+"""Decode a PNG with the stdlib alone: zlib and the five row filters.
 
 The judge compares a plot's pixels, never its PNG bytes alone: native matplotlib's Pillow deflates
 with zlib-ng and the guest's with zlib, so equal pixels can make different files. This reads

@@ -1,4 +1,4 @@
-"""Typed grants (spec 017): the identity check against wasmtime's own numbers, the argument rules,
+"""Typed grants: the identity check against wasmtime's own numbers, the argument rules,
 the rules between grants, and the raw WASI calls a read-only grant refuses. Nothing here needs
 the artifact set, so the `verify` job runs this file on Linux, macOS and Windows; nothing here
 measures time."""
@@ -127,7 +127,7 @@ def test_the_argument_types(tmp_path) -> None:
     for not_iterable in ("/d", b"/d", Grant(tmp_path, "/d"), 3):
         with pytest.raises(TypeError, match="iterable of Grant"):
             _places._check_grants(not_iterable)
-    # spec 025: True asks for a private root (kept as None), None and False mean none
+    # True asks for a private root (kept as None), None and False mean none
     assert (_places._check_root(True), _places._check_root(None)) == (None, False)
     with pytest.raises(TypeError, match="not bytes"):
         _places._check_root(bytes(tmp_path))
@@ -178,8 +178,8 @@ def test_the_rules_compare_identities() -> None:
 
 @pytest.mark.skipif(not POSIX, reason="making a link needs privileges on Windows")
 def test_the_walk_judges_links(tmp_path) -> None:
-    """A link in a folder this user can write is refused, a link in one it cannot is followed
-    (memo §7a), and a missing root's tail is returned for making."""
+    """A link in a folder this user can write is refused, a link in one it cannot is followed,
+    and a missing root's tail is returned for making."""
     target = tmp_path / "target"
     target.mkdir()
     (tmp_path / "link").symlink_to(target)
@@ -216,7 +216,7 @@ def test_the_walk_judges_links(tmp_path) -> None:
 
 
 def test_the_walk_takes_dot_dot_on_the_real_file_system(tmp_path) -> None:
-    """Spec 076, Decision 1, on every system and its real file system (no link, so no skip): a
+    """On every system and its real file system (no link, so no skip): a
     `..` is taken on the folders walked. After a missing folder it is refused for a root and a
     grant alike, and nothing is made; after a file it is "is not a folder"; after a real folder
     it is that folder's parent."""
@@ -239,13 +239,13 @@ def test_the_walk_takes_dot_dot_on_the_real_file_system(tmp_path) -> None:
         walked.close()
 
 
-# Spec 076: a model of the Win32 path rules the Windows walk meets, as Microsoft's "File path
-# formats on Windows systems" states them (the pre-build review READ it; the model is INFERRED
+# A model of the Win32 path rules the Windows walk meets, as Microsoft's "File path
+# formats on Windows systems" states them (READ; the model is INFERRED
 # from it): `.` and `..` evaluated by text; a drive-relative `D:x` resolved against drive D's
 # current folder; a rooted `\x` against the current drive; a single trailing period trimmed from
 # each segment and trailing spaces and periods from the last; a reserved device name in the last
 # segment is the device. A verbatim `\\?\` path is taken literally. Identities are `(1, n)`.
-# Spec 077: the reserved names are Microsoft's and CPython's `ntpath` together, matched
+# The reserved names are Microsoft's and CPython's `ntpath` together, matched
 # upper-cased as CPython matches them, and a segment that holds a reserved character names
 # nothing (Win32's ERROR_INVALID_NAME).
 _WIN_FOLDERS = [
@@ -359,11 +359,11 @@ def _win_chain(walked_path: str) -> tuple:
 
 
 def test_the_windows_walk_takes_dot_dot_on_walked_folders(monkeypatch) -> None:
-    """Spec 076, Decision 1 and criterion 1, on every system: the judged Windows walk over the
+    """On every system: the judged Windows walk over the
     Win32 model above. `..` is taken on the folders walked (refused after a missing folder or a
     file); a name Windows rewrites (a `:`, a trailing space or period, a reserved device name) is
     refused before it is opened; a rooted path takes the current drive; a drive's root keeps its
-    separator; and no `..` leaks a handle. Spec 077, criterion 1: the superscript device names,
+    separator; and no `..` leaks a handle. The superscript device names,
     the console names and the reserved characters are refused the same way, and `COM0` is not."""
     fake = _WinFake()
     windows = fake.install(monkeypatch)
@@ -402,15 +402,15 @@ def test_the_windows_walk_takes_dot_dot_on_walked_folders(monkeypatch) -> None:
     walked_to("sub\\x", r"C:\b\sub\x")  # relative: the current folder of the current drive
     walked_to(r"\b\x", r"C:\b\x")  # rooted with no drive: qualified with the current drive
     walked_to("D:sub", r"D:\work\proj\sub")  # drive-relative: that drive's current folder
-    walked_to(r"C:\b\..", "C:\\")  # a drive's root keeps its separator (the review's N6)
+    walked_to(r"C:\b\..", "C:\\")  # a drive's root keeps its separator
     walked_to(r"\\srv\share\x\..", "\\\\srv\\share\\")
     walked_to(r"\\srv\share\x\..\..\x", r"\\srv\share\x")
     walked_to(r"\\?\C:\b\sub\..\x", r"\\?\C:\b\x")
     walked_to("C:/b/sub/x/", r"C:\b\sub\x")
     walked_to(r"C:\b\.hidden", r"C:\b\.hidden")  # a period inside a name is no rewrite
     walked_to(r"C:\b\v1.2", r"C:\b\v1.2")
-    walked_to(r"C:\b\COM0", r"C:\b\COM0")  # spec 077: no source reserves COM0
-    # The pre-build review's two cases (F1), and the rest of the names Windows rewrites: each is
+    walked_to(r"C:\b\COM0", r"C:\b\COM0")  # no source reserves COM0
+    # Two more cases, and the rest of the names Windows rewrites: each is
     # refused before anything is opened for it.
     before = len(fake.opened)
     for path, may_make in [
@@ -427,7 +427,7 @@ def test_the_windows_walk_takes_dot_dot_on_walked_folders(monkeypatch) -> None:
         (r"C:\b\Com1.log", True),
         (r"C:\b\LPT9", True),
         (r"C:\b\aux .x", True),
-        # Spec 077: Microsoft's superscript names, CPython's console names and reserved
+        # Microsoft's superscript names, CPython's console names and reserved
         # characters; the three roots still to be made are refused before anything is made.
         ("C:\\b\\new\\COM\u00b9", True),
         (r"C:\b\new\CONIN$", True),
@@ -447,7 +447,7 @@ def test_the_windows_walk_takes_dot_dot_on_walked_folders(monkeypatch) -> None:
 
 
 def test_the_windows_walk_records_the_true_chain(monkeypatch) -> None:
-    """Spec 076, cause 5 (the pre-build review's F1 and its fuzz): over every spelling of up to
+    """Over every spelling of up to
     three components from a small alphabet, under seven heads, whenever the judged Windows walk
     accepts a path, the chain it records is the true chain of the folder its walked path names,
     and no handle is left held."""
@@ -479,7 +479,7 @@ def test_the_windows_walk_records_the_true_chain(monkeypatch) -> None:
 
 @pytest.mark.skipif(sys.version_info < (3, 13), reason="ntpath.isreserved is new in Python 3.13")
 def test_a_rewritten_name_is_one_ntpath_refuses() -> None:
-    """Spec 077, Decision 4: the Windows walk refuses exactly the names Python's own
+    """The Windows walk refuses exactly the names Python's own
     `ntpath.isreserved` refuses, for one path component, over every name of one to three pieces
     (a leading `x\\` keeps `ntpath` from reading `D:` as a drive)."""
     import itertools
@@ -522,12 +522,12 @@ TRUNC = 8
 
 
 def test_a_read_only_grant_refuses_raw_writes(tmp_path) -> None:
-    """The raw preview1 rows of memo §1 and the review's extras, on a preopen made as the runner
+    """Every raw preview1 write-type call, on a preopen made as the runner
     makes a read-only grant (`fs_mutable=False`); fd 4 is a writable control. A descriptor used
-    in a mode it was not opened for is refused with the host's errno, per system (spec 076,
-    Decision 4): a write through the grant's read descriptor, and a read through a write-only
+    in a mode it was not opened for is refused with the host's errno, per system:
+    a write through the grant's read descriptor, and a read through a write-only
     descriptor of the writable grant. The read asks for two real bytes, and a control read through
-    the same export, its count and buffer zeroed first, shows it does (spec 077, Decision 1)."""
+    the same export, its count and buffer zeroed first, shows it does."""
     ro, rw = tmp_path / "ro", tmp_path / "rw"
     ro.mkdir()
     rw.mkdir()
@@ -579,8 +579,8 @@ def test_a_read_only_grant_refuses_raw_writes(tmp_path) -> None:
 
 @pytest.mark.skipif(not POSIX, reason="POSIX permission bits")
 def test_a_folder_one_may_search_but_not_list_is_walked(tmp_path) -> None:
-    """wasmtime opens a grant below such a folder, so the walk passes through it too (the build
-    review, finding 6); a folder one may not even search is refused with ValueError."""
+    """wasmtime opens a grant below such a folder, so the walk passes through it too;
+    a folder one may not even search is refused with ValueError."""
     (tmp_path / "noread" / "child").mkdir(parents=True)
     (tmp_path / "noread").chmod(0o311)
     try:
@@ -597,8 +597,8 @@ def test_a_folder_one_may_search_but_not_list_is_walked(tmp_path) -> None:
 
 @pytest.mark.skipif(POSIX, reason="junctions are Windows'")
 def test_a_junction_is_refused_on_windows(tmp_path) -> None:
-    """Windows' link rule: every reparse point on the way is refused (the build review, finding
-    5); a junction needs no privilege to make."""
+    """Windows' link rule: every reparse point on the way is refused;
+    a junction needs no privilege to make."""
     import _winapi
 
     target = tmp_path / "target"
@@ -625,7 +625,7 @@ def test_a_walked_folder_cannot_be_moved_on_windows(tmp_path) -> None:
     os.rename(tmp_path / "a", tmp_path / "c")  # released: it moves again
 
 
-# Spec 032, acceptance 3: the raw parity table. The same rows run on a read-only grant (plain
+# The raw parity table. The same rows run on a read-only grant (plain
 # wasmtime) and on a mount of the same tree (the runner's mount linker, its call on the stack);
 # preopen 3 is the tree on each side and preopen 4 a writable folder. Every result is compared
 # whole (the errno and every byte written), with dev, ino, times, descriptor numbers and a
@@ -909,14 +909,14 @@ def _two_sides(tmp_path: Path) -> tuple[files.Raw, files.Mounted]:
         (tmp_path / name / "w.txt").write_bytes(b"w\n")
         sides.append(tmp_path / name)
     # A grant as the runner serves it: wasmtime's own calls, but for the two the guard forwards
-    # with wasmtime 49.0.2's and 49.0.3's fixes (spec 048).
+    # with wasmtime 49.0.2's and 49.0.3's fixes.
     grant = files.Guarded([(tree, "/m", False), (sides[0], "/w", True)]).raw
     mount = files.Mounted(files.MemoryProvider(), placeholder, folders=[(sides[1], "/w", True)])
     return grant, mount
 
 
 def test_raw_calls_answer_as_a_grant_does(tmp_path) -> None:
-    """Spec 032, acceptance 3: each of the 29 shadowed calls on a provider file, folder and
+    """Each of the 29 shadowed calls on a provider file, folder and
     preopen answers as on a read-only grant's (errno and every byte written), but for Decision
     6's deliberate differences, asserted in the next test."""
     grant, mount = _two_sides(tmp_path)
@@ -935,7 +935,7 @@ def test_raw_calls_answer_as_a_grant_does(tmp_path) -> None:
 
 
 def test_the_deliberate_differences_are_as_decided(tmp_path) -> None:
-    """Spec 032, Decision 6's table: where a mount answers otherwise than a read-only grant,
+    """Where a mount answers otherwise than a read-only grant,
     each answer is the one the table decides (and the grant's is asserted where it does not
     depend on the host, or per system where it does)."""
     grant, mount = _two_sides(tmp_path)
@@ -1008,12 +1008,12 @@ def test_the_deliberate_differences_are_as_decided(tmp_path) -> None:
     assert (m.path_filestat(3, "a.txt/")[0], m.path_filestat(3, "a.txt/.")[0]) == (54, 54)
 
 
-# Spec 034, acceptance 3: the raw write rows. Each row runs on a fresh tree, as a writable grant
-# (wasmtime behind spec 048's guard, as every call without mounts runs) and as a writable mount (the
-# runner's mount linker over the in-memory provider); preopen 3 is the tree on each side, 4 a
-# writable folder and 5 a read-only one. A row's whole result (the errno and every byte written;
-# dev, ino, times and numbers masked) and the tree it leaves, after the call's ending, are compared.
-# Decision 12's deliberate differences are asserted in the test after this one.
+# The raw write rows. Each row runs on a fresh tree, as a writable grant (wasmtime behind the
+# runner's guard, as every call without mounts runs) and as a writable mount (the runner's mount
+# linker over the in-memory provider); preopen 3 is the tree on each side, 4 a writable folder and 5
+# a read-only one. A row's whole result (the errno and every byte written; dev, ino, times and
+# numbers masked) and the tree it leaves, after the call's ending, are compared. Decision 12's
+# deliberate differences are asserted in the test after this one.
 
 C, X, T, D = files.O_CREAT, files.O_EXCL, files.O_TRUNC, files.O_DIRECTORY
 R, RW = files.READ_RIGHTS, files.RIGHTS_ALL
@@ -1256,7 +1256,7 @@ LINUX_ROWS: dict[str, object] = {
 }  # fmt: skip
 # Rows wasmtime answers by its own logic, the same on every host; every other row's grant answer
 # is the host's own, so it is compared on POSIX hosts only (the release dry run's Windows `verify`
-# job asserts the mount's side, as spec 032's rows do).
+# job asserts the mount's side, as the mounts' rows do).
 WASMTIME_ROWS = {
     "open SYNC to write",
     "open DSYNC to write",
@@ -1272,7 +1272,7 @@ WASMTIME_ROWS = {
     ),
 }
 # A file renamed to a name ending in `/`: ENOTDIR, the source's stat deciding it, on the guarded
-# grant (spec 048 carries wasmtime 49.0.3's rule; 49.0.0 strips the target's `/` and renames)
+# grant (the guard carries wasmtime 49.0.3's rule; 49.0.0 strips the target's `/` and renames)
 # and on the mount (`RENAME_SLASH_NEEDS_FOLDER`), the same on every host.
 SLASH_ROWS = {
     "rename 'a.txt' 'newname/'": 54,
@@ -1292,7 +1292,7 @@ def _write_sides(root: Path) -> tuple[files.Raw, Path, files.Mounted, files.Memo
         (ro / "r.txt").write_bytes(b"r")
         out.append([(w, "/w", True), (ro, "/ro", False)])
     tree = files.write_tree(root / "tree")
-    grant = files.Guarded([(tree, "/m", True), *out[0]]).raw  # spec 048's guarded grant
+    grant = files.Guarded([(tree, "/m", True), *out[0]]).raw  # the guarded grant
     placeholder = root / "placeholder"
     placeholder.mkdir()
     provider = files.MemoryProvider()
@@ -1322,7 +1322,7 @@ def _in_memory(provider: files.MemoryProvider) -> list[str]:
 
 
 def test_raw_write_calls_answer_as_a_writable_grant_does(tmp_path) -> None:
-    """Spec 034, acceptance 3: each call that can write, on a provider file, folder and preopen
+    """Each call that can write, on a provider file, folder and preopen
     of a writable mount, answers as on a writable grant's (the whole result, and the tree left
     after the call's ending), but for Decision 12's differences, asserted next. A row whose
     grant answer is the host's own is asserted per system: Linux's answer on the mount
@@ -1352,7 +1352,7 @@ def test_raw_write_calls_answer_as_a_writable_grant_does(tmp_path) -> None:
 
 
 def test_the_write_differences_are_as_decided(tmp_path) -> None:
-    """Spec 034, Decision 12's table: where a writable mount answers otherwise than a writable
+    """Where a writable mount answers otherwise than a writable
     grant, each answer is the one the table decides; the grant's is asserted beside it on POSIX
     hosts (on Windows its answers are the host's, which the release dry run first sees)."""
     grant, tree, mount, provider = _write_sides(tmp_path / "one")
@@ -1420,7 +1420,7 @@ def test_the_write_differences_are_as_decided(tmp_path) -> None:
 
 
 # The Windows grant's listing at the v1.4 parity's "sorted listing" row, as release run
-# 39135024458 printed it (EXECUTED, both binaries; spec 058): the two `tmp…` names are a
+# 39135024458 printed it (EXECUTED, both binaries): the two `tmp…` names are a
 # `TemporaryFile` and a `NamedTemporaryFile` whose open file Windows would not unlink or rename.
 WINDOWS_LISTING = ["a.txt", "b.txt", "copy2.txt", "cr.txt", "g", "h", "save.txt", "tmp7zr2b8wp",
                    "tmpwlt5wwnt", "x.txt"]  # fmt: skip
@@ -1428,7 +1428,7 @@ WINDOWS_LISTING = ["a.txt", "b.txt", "copy2.txt", "cr.txt", "g", "h", "save.txt"
 
 @pytest.mark.parametrize("system", ["linux", "darwin", "win32"])
 def test_the_write_parity_asserts_each_systems_grant(system) -> None:
-    """Spec 058: the v1.4 write parity's per-system table gives each of the three systems its own
+    """The v1.4 write parity's per-system table gives each of the three systems its own
     grant answer, exactly, and one mount answer for all. A Windows grant renames a folder over a
     file and lists what follows from that; Linux's and macOS's grants answer `ENOTDIR` (54) and
     list what the mount lists. A `tmp…` slot takes only a name `tempfile` makes; a system the

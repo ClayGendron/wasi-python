@@ -1,4 +1,4 @@
-"""Carried patches (spec 020): the one applier the build and the judge share, the patched
+"""Carried patches: the one applier the build and the judge share, the patched
 zero-diff check, and the rules a patch and its pull request draft must keep. Each case makes a
 small tarball and tree in a temporary folder; the applier runs under `sh` with `git`. Nothing
 here measures time."""
@@ -133,7 +133,7 @@ def test_a_patch_that_is_not_exact_stops_the_step_with_one_line(tools, tmp_path,
 
 
 def test_a_tree_holding_git_is_refused(tools, tmp_path) -> None:
-    """Spec 024 (the 0.1.0a3 security review, S3): git would read a repository inside the tree,
+    """git would read a repository inside the tree,
     with its own configuration and attributes, so a tree that holds .git is refused."""
     tree = _tree(tmp_path, _tarball(tmp_path))
     subprocess.run([GIT, "init", "-q", str(tree)], check=True)
@@ -145,8 +145,8 @@ def test_a_tree_holding_git_is_refused(tools, tmp_path) -> None:
 
 
 def test_the_callers_git_settings_change_nothing(tools, tmp_path) -> None:
-    """Each setting the pre-build review found changing the bytes or skipping a patch (spec 020,
-    Decision 3), all at once: the applier clears them."""
+    """Each setting found changing the bytes or skipping a patch,
+    all at once: the applier clears them."""
     clean_tree = _tree(tmp_path / "clean", _tarball(tmp_path))
     d = _patches(tmp_path, _edit("a.c", FILES["a.c"], NEW_A) + _add("n.c", b"int n;\n"))
     assert _apply(clean_tree, d).returncode == 0
@@ -174,7 +174,7 @@ def test_the_callers_git_settings_change_nothing(tools, tmp_path) -> None:
 
 
 def test_a_patch_to_a_crlf_file_survives_a_commit(tools, tmp_path) -> None:
-    """`.gitattributes` keeps `recipes/patches/**` byte for byte (spec 020, Decision 4)."""
+    """`.gitattributes` keeps `recipes/patches/**` byte for byte."""
     repo = tmp_path / "repo"
     subprocess.run([GIT, "init", "-q", str(repo)], check=True)
     shutil.copy(paths.REPO / ".gitattributes", repo / ".gitattributes")
@@ -225,7 +225,7 @@ def test_the_zero_diff_check_takes_exactly_the_recorded_patches(tools, tmp_path)
         "sub/n.c",
     }  # unpatched: the edit, the deletion and the added file are each seen
     assert _apply(tree, patches / TOP).returncode == 0
-    assert not (tree / "del.txt").exists()  # deleted, not left as an empty file (review, F1)
+    assert not (tree / "del.txt").exists()  # deleted, not left as an empty file
     assert pins.tree_drift(tarball, tree, patches) == []
     (tree / "del.txt").write_bytes(b"")  # an empty file left where a patch deleted one
     assert pins.tree_drift(tarball, tree, patches) == ["del.txt: a recorded patch deletes it"]
@@ -235,7 +235,7 @@ def test_the_zero_diff_check_takes_exactly_the_recorded_patches(tools, tmp_path)
 
 
 def test_os_litter_in_the_judges_own_extraction_is_not_drift(tools, tmp_path, monkeypatch) -> None:
-    """Spec 026: Finder writes .DS_Store into folders it shows, the judge's fresh extraction
+    """Finder writes .DS_Store into folders it shows, the judge's fresh extraction
     under build/harness included. A litter name the tarball does not hold is not drift; one it
     holds is still compared."""
     tarball = _tarball(tmp_path)
@@ -254,8 +254,8 @@ def test_os_litter_in_the_judges_own_extraction_is_not_drift(tools, tmp_path, mo
 
 
 def test_a_litter_name_the_tarball_ships_is_still_compared(tools, tmp_path, monkeypatch) -> None:
-    """Spec 026, the build review's finding 1: only litter the tarball does not hold is skipped.
-    Spec 090: and one it holds is named, since the build's walks skip it."""
+    """Only litter the tarball does not hold is skipped.
+    And one it holds is named, since the build's walks skip it."""
     monkeypatch.setitem(FILES, ".DS_Store", b"shipped by upstream\n")
     tarball = _tarball(tmp_path)
     root = tmp_path / "recipes"
@@ -271,11 +271,11 @@ def test_a_litter_name_the_tarball_ships_is_still_compared(tools, tmp_path, monk
 
 
 def test_a_patch_may_not_touch_a_litter_name() -> None:
-    """Spec 026, the build review's finding 2: a patch-added .DS_Store would never be compared, so
+    """A patch-added .DS_Store would never be compared, so
     no patch may touch one."""
     errors, _ = scan.patch_shape_errors(_add("sub/.DS_Store", b"x\n"), "p")
     assert any("sub/.DS_Store, a name Finder or Explorer writes" in e for e in errors), errors
-    for rel in ("sub/._a.c", ".TemporaryItems/a.c"):  # spec 090: the prefix and every part
+    for rel in ("sub/._a.c", ".TemporaryItems/a.c"):  # the prefix and every part
         errors, _ = scan.patch_shape_errors(_add(rel, b"x\n"), "p")
         assert any(f"{rel}, a name Finder or Explorer writes" in e for e in errors), errors
 
@@ -347,7 +347,7 @@ def test_released_in_a_later_version_is_allowed(tmp_path) -> None:
         (_edit("Makefile.am", b"x\n", b"y\n"), "autotools"),
         (_edit("m4/x.m4", b"x\n", b"y\n"), "autotools"),
         (_add("run.sh", b"echo\n").replace("100644", "100755"), "mode"),
-        # git applies by the ---/+++ names, and a plain section after a hunk (review, F2)
+        # git applies by the ---/+++ names, and a plain section after a hunk
         (
             "diff --git a/src/a.c b/src/a.c\n--- a/configure.ac\n+++ b/configure.ac\n"
             "@@ -1 +1 @@\n-x\n+y\n",

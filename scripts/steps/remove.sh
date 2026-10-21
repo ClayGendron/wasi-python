@@ -1,4 +1,4 @@
-# Sourced by scripts/build.sh and scripts/steps/common.sh (spec 018). Removes each path, retrying:
+# Sourced by scripts/build.sh and scripts/steps/common.sh. Removes each path, retrying:
 # macOS Finder can write a .DS_Store into a folder while rm empties it, which fails the rm with
 # "Directory not empty". Three attempts, no sleep; only the last one's error is shown.
 remove() {

@@ -1,5 +1,5 @@
 """v1.5: the whole thing rebuilds from pinned sources; each upstream tree is its tarball plus
-exactly the recorded patches (constitution §4.1, spec 020)."""
+exactly the recorded patches."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ DOWNLOAD_SCRIPT = SCRIPTS / "00_download.sh"
 
 
 def _scripts():
-    """Every file under scripts/, steps included (spec 003, Decision 13)."""
+    """Every file under scripts/, steps included."""
     return scan.every_file(SCRIPTS)
 
 
@@ -41,7 +41,7 @@ def test_download_script_verifies_and_never_writes_the_pins() -> None:
 
 
 def test_every_fetched_file_is_pinned() -> None:
-    """Every file a get or research line fetches has its line in SHA256SUMS (spec 057)."""
+    """Every file a get or research line fetches has its line in SHA256SUMS."""
     errors = scan.unpinned_fetch_errors(DOWNLOAD_SCRIPT, paths.read_pin_list())
     assert not errors, scan.report(errors)
 
@@ -74,7 +74,7 @@ def _run_download(repo: Path, bin_dir: Path, host: str) -> subprocess.CompletedP
 def test_download_step_fails_on_a_fetched_file_with_no_pin(host, tmp_path) -> None:
     """The download step, run on a copy with a fake file per fetched name, a fake uname for each
     build host and a curl that fails if called: with every pin it passes, N of N verified; with
-    one pin's line gone it fails and names the file (spec 057, Decision 5; the a4 review's N1)."""
+    one pin's line gone it fails and names the file."""
     repo, bin_dir = tmp_path / "repo", tmp_path / "bin"
     (repo / "scripts").mkdir(parents=True)
     (repo / "downloads").mkdir()
@@ -155,7 +155,7 @@ def test_the_openblas_patches_are_what_their_script_makes() -> None:
     """OpenBLAS's three carried patches are byte for byte what their script makes from the pinned
     tarball (scripts/make_openblas_void_patch.sh, git run with no caller configuration), each
     draft's `Files:` line is the script's, and the audit pairs every changed line of the
-    convention's two with one of its rules (spec 037, Decision 5)."""
+    convention's two with one of its rules."""
     import sys
 
     needs.need("source tree openblas")
@@ -209,8 +209,7 @@ def test_release_workflow_runs_the_zero_patch_check() -> None:
 
 def test_stdlib_zip_names_no_build_host(artifacts) -> None:
     """_sysconfigdata and numpy's __config__ say nothing about the machine that built them, so the
-    zip, and the snapshot that holds its offsets, are the same bytes from any host (spec 012,
-    Decision 5)."""
+    zip, and the snapshot that holds its offsets, are the same bytes from any host."""
     needs.need("stdlib zip")
     errors = rules.host_fact_errors(artifacts.path("python-stdlib.zip"), str(paths.REPO))
     assert not errors, scan.report(errors)
@@ -219,8 +218,7 @@ def test_stdlib_zip_names_no_build_host(artifacts) -> None:
 def test_release_workflow_rebuilds_on_two_more_hosts() -> None:
     """An arm64 Linux runner and an x86_64 Linux runner rebuild the set beside the build, each
     within its own time limit and printing its core count and binfmt_misc entries, and nothing is
-    signed or published until each one's SHA256SUMS and wheel equal the set's (spec 012,
-    Decision 7; spec 040, Decision 6)."""
+    signed or published until each one's SHA256SUMS and wheel equal the set's."""
     workflow = paths.REPO / ".github" / "workflows" / "release.yml"
     errors = scan.rebuild_gate_errors(workflow.read_text())
     assert not errors, scan.report(errors)
@@ -231,7 +229,7 @@ def test_every_compile_contracts_nothing() -> None:
     clang++.cfg by step 10, and nothing overrides it: no recipe file, no compiler command in the
     build's records (every meson build's compile_commands.json, the autoconf Makefiles, CPython's
     cross-build Makefile, step 60's command files), no source pragma, and the compiler's own -cc1
-    line says so (spec 059, Decisions 1, 2 and 4). Without a build, the record parts are blocked."""
+    line says so. Without a build, the record parts are blocked."""
     step_10 = SCRIPTS / "steps" / "10_tools.sh"
     files = {
         rel: (paths.REPO / rel).read_text(errors="replace")
@@ -245,7 +243,7 @@ def test_every_compile_contracts_nothing() -> None:
     trees = [pair[1] for c in needs.SOURCE_COMPONENTS if (pair := pins.source_pair(c))]
     trees += [paths.BUILD / name for name in scan.MESON_BUILDS if (paths.BUILD / name).is_dir()]
     # The project's own C under recipes/ too: the rename headers are force-included into every
-    # numpy and pandas compile, and reactor_main.c is compiled in step 60 (the build review, F2).
+    # numpy and pandas compile, and reactor_main.c is compiled in step 60.
     errors += scan.fp_pragma_hits([*trees, paths.REPO / "recipes"])
     read.append(f"source trees, meson folders and recipes/ grepped for pragmas: {len(trees) + 1}")
     for clang in sorted((paths.BUILD / "tools").glob("wasi-sdk-*/bin/clang")):
@@ -256,7 +254,7 @@ def test_every_compile_contracts_nothing() -> None:
 
 
 def test_every_numpy_compile_keeps_its_floating_point_flags_in_software(note) -> None:
-    """numpy's own floating-point signals are kept in software (spec 099, check 4). Without a
+    """numpy's own floating-point signals are kept in software. Without a
     build: the numpy cross file force-includes recipes/npy_fenv_flags.h once in `c_args` and once
     in `cpp_args`, and the header holds its guard, bits, weak word and renames. With the compile
     records: every compile in numpy's own `compile_commands.json`, picked by compiler (the first
@@ -275,7 +273,7 @@ def test_every_numpy_compile_keeps_its_floating_point_flags_in_software(note) ->
 
 
 def _line_values() -> dict[str, str]:
-    """scripts/line.conf as the build reads it, through its own parser (spec 005)."""
+    """scripts/line.conf as the build reads it, through its own parser."""
     spec = importlib.util.spec_from_file_location("wasi_python_line", SCRIPTS / "line.py")
     assert spec is not None and spec.loader is not None
     line = importlib.util.module_from_spec(spec)
@@ -284,7 +282,7 @@ def _line_values() -> dict[str, str]:
 
 
 def test_every_build_python_is_pinned() -> None:
-    """Every Python a build step runs is the pinned host Python or one built from pins (spec 079):
+    """Every Python a build step runs is the pinned host Python or one built from pins:
     step 10's shim comes first on every step's PATH, build.sh puts a refusing stand-in for every
     other Python name behind it, and the build's records (each meson build's log and build.ninja,
     every config.log, the folders steps put on PATH, step 10's gate line) name no other
@@ -300,11 +298,10 @@ def test_every_build_python_is_pinned() -> None:
     assert not errors, scan.report(errors) + "\nread:\n" + "\n".join(read)
 
 
-# The backend's try_table order (spec 086, Decision 7 (a)): the memo's reproducer
-# (context/research/2026-10-19-the-try-table-order-in-llvm/), copied under the judge's paths and
-# named by its hash, compiled 64 times by each unpacked clang in the set's exception mode. wasi-sdk
-# 33's clang (LLVM 22.1.0) nests its try_table blocks by heap address and gives two objects; LLVM's
-# fd76c9bd (in wasi-sdk 34) gives one.
+# The backend's try_table order: the research's reduced reproducer, copied under the judge's
+# paths and named by its hash, compiled 64 times by each unpacked clang in the set's exception
+# mode. wasi-sdk 33's clang (LLVM 22.1.0) nests its try_table blocks by heap address and gives
+# two objects; LLVM's fd76c9bd (in wasi-sdk 34) gives one.
 TRY_TABLE_FIXTURE = paths.REPO / "tests" / "fixtures" / "try-table-order.ll"
 TRY_TABLE_SHA256 = "63a709ecfd611ccbe7d2beb4d5c5c2b85e450fa2217296d117957b398ee138a3"
 TRY_TABLE_RUNS = 64
@@ -321,7 +318,7 @@ TRY_TABLE_FLAGS = (
 
 
 def test_the_backend_orders_try_tables_alike(tmp_path) -> None:
-    """Spec 086, Decision 7 (a): each pinned clang under build/tools/ compiles the reduced
+    """Each pinned clang under build/tools/ compiles the reduced
     try_table case to one object in 64 runs. It counts distinct objects, never time. A run with no
     clang found fails: the check must compile something to pass."""
     digest = hashlib.sha256(TRY_TABLE_FIXTURE.read_bytes()).hexdigest()
@@ -350,7 +347,7 @@ def test_the_backend_orders_try_tables_alike(tmp_path) -> None:
     assert not errors, "\n".join(errors)
 
 
-# scipy's ducc0 FFT (spec 037, Decision 17 withdrawn by spec 086): wasi-sdk 33's clang compiled it
+# scipy's ducc0 FFT: wasi-sdk 33's clang compiled it
 # to another object on every run (32 compiles, 32 objects), the one file of scipy's 910 that did.
 DUCC0 = "scipy/fft/_duccfft/pyduccfft.cxx"
 DUCC0_RUNS = 3
@@ -358,7 +355,7 @@ DUCC0_RUNS = 3
 
 @pytest.mark.slow
 def test_ducc0s_fft_compiles_to_one_object(tmp_path) -> None:
-    """Spec 037 (Decision 17 withdrawn at its rebase onto spec 086): `pyduccfft.cxx`, compiled
+    """`pyduccfft.cxx`, compiled
     three times at once with its own command from the build's compile_commands.json, gives one
     object, so `python.wasm` is the same bytes from every build with no exception. It counts
     distinct objects, never time. The opposite of the withdrawn still-needed check, which passed on
@@ -399,15 +396,15 @@ def test_ducc0s_fft_compiles_to_one_object(tmp_path) -> None:
     )
 
 
-# One qhull (spec 037, Decision 8, conditions e and f; criterion 8): scipy's spatial._qhull and
-# matplotlib's _qhull (spec 043) both link step 37's libqhull_r, never scipy's vendored copy.
+# One qhull: scipy's spatial._qhull and
+# matplotlib's _qhull both link step 37's libqhull_r, never scipy's vendored copy.
 QHULL_ARCHIVE = Path("plot-libs") / "lib" / "libqhull_r.a"
 QHULL_MODULE_DEPS = ("plot-modules/matplotlib/matplotlib", "scipy-modules/scipy/spatial")
 LINK_MAP_FUNCTION = re.compile(r"^\s+-\s+[0-9a-f]+\s+[0-9a-f]+\s+(\S+?)\((.+)\):\(([^)]+)\)$")
 
 
 def test_one_qhull_is_linked() -> None:
-    """Spec 037, criterion 8: every function step 37's libqhull_r.a defines that python.wasm
+    """Every function step 37's libqhull_r.a defines that python.wasm
     links comes from that archive and is linked once (the link map), `qh_new_qhull` among them;
     the map names no qhull archive of scipy's own; and each _qhull module's .deps names qhull
     only as step 37's archive or `-lqhull_r` (condition e). Without a build, blocked."""
@@ -469,10 +466,10 @@ def _defines(text: str) -> set[str]:
 
 
 def test_the_guests_configure_results_are_recorded() -> None:
-    """Spec 086, Decision 7 (c): every #define of the guest CPython's pyconfig.h equals
+    """Every #define of the guest CPython's pyconfig.h equals
     tests/cpython_configure.txt, so a toolchain that flips a configure result (wasi-sdk 34 flipped
-    ten HAVE_* lines) fails here and its specification says why. A line holding a word
-    context/embedders.txt reserves is not written in the file (constitution §4.5); the file's
+    ten HAVE_* lines) fails here and its specification says why. A line holding a reserved
+    embedder's name is not written in the file; the file's
     digest, over every line, covers it. Without a build, blocked."""
     text = CPYTHON_CONFIGURE.read_text().splitlines()
     digests = [line.split()[1] for line in text if line.startswith("digest ")]

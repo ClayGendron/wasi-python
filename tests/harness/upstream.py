@@ -1,15 +1,15 @@
-"""numpy's and pandas' own tests, run inside the guest (spec 050), and the configuration of every
-upstream suite, CPython's included (spec 065: its runner is `harness.regrtest`), and the compiled
-packages' (spec 066: `driver = "package"`, a family each, run by `harness.packages`).
+"""numpy's and pandas' own tests, run inside the guest, and the configuration of every
+upstream suite, CPython's included (its runner is `harness.regrtest`), and the compiled
+packages' (`driver = "package"`, a family each, run by `harness.packages`).
 
 The judge stages the tests of the artifact's own pinned source trees (tarball members, and files a
 recorded patch creates, only) with the pinned test kit into one read-only grant, `/upstream`, and
 runs pytest in the snapshot binary, one guest session per group. The guest writes an outcome
 stream (`tests/upstream/drive.py`); this module reads it, sorts each failure into the class that
 admits it, and names everything else as a finding. Each class and each trap is its own check and
-an ordinary gap (spec 002); a group admits nothing by itself.
+an ordinary gap; a group admits nothing by itself.
 
-A fuel fact (spec 091) is a test whose fuel measures where a type object sits in memory, not the
+A fuel fact is a test whose fuel measures where a type object sits in memory, not the
 product. It is deselected from its group and run alone in a second session inside the group's
 check: its outcomes count with the group's, its fuel is recorded and never ratcheted, and its cap
 is the only bound on it.
@@ -36,7 +36,7 @@ EXPECTED = HERE / "expected"
 WHEELS = paths.BUILD / "upstream" / "wheels"
 CHECKS_FILE = "tests/checks/test_v1_3_upstream_suites.py"
 PACKAGES = ("numpy", "pandas", "python")
-# Spec 066: the compiled packages' own suites, one family (grant, stage, budget) each.
+# The compiled packages' own suites, one family (grant, stage, budget) each.
 PACKAGE_SUITES = ("matplotlib", "contourpy", "pillow", "kiwisolver", "lxml", "regex")
 GRANT = "/upstream"
 STREAM = "tmp/upstream/outcomes.txt"  # in the guest's root
@@ -55,7 +55,7 @@ class Group:
     name: str
     paths: tuple[str, ...]
     fuel: int
-    modules: tuple[str, ...] = ()  # a regrtest group's plan, in run order (spec 065)
+    modules: tuple[str, ...] = ()  # a regrtest group's plan, in run order
     list_file: str = ""
 
 
@@ -64,7 +64,7 @@ class NotSelected:
     files: tuple[str, ...]
     reason: str
     closes_with: str
-    modules: tuple[str, ...] = ()  # regrtest modules listed nowhere (spec 065)
+    modules: tuple[str, ...] = ()  # regrtest modules listed nowhere
 
 
 @dataclass(frozen=True)
@@ -73,7 +73,7 @@ class Trap:
     node: str  # a node id, a node-id prefix or a file
     reason: str
     closes_with: str
-    group: str = ""  # a regrtest trap names its group (spec 065)
+    group: str = ""  # a regrtest trap names its group
     test: str = ""  # a regrtest trap's full test id, or
     module: str = ""  # its whole module
 
@@ -84,7 +84,7 @@ class Trap:
 
 @dataclass(frozen=True)
 class FuelFact:
-    """A test whose fuel is a fact, not a metric (spec 091). `node` is `file::function` (or
+    """A test whose fuel is a fact, not a metric. `node` is `file::function` (or
     `file::Class::function`), a parametrized test: the group deselects `node[`, and the fact's own
     session runs `node`. `fuel` is that session's cap, at least twice its fuel when measured."""
 
@@ -135,9 +135,9 @@ class Config:
     deselected: list = field(default_factory=list)
     environment: list = field(default_factory=list)
     host_dependent: list = field(default_factory=list)
-    fuel_facts: list[FuelFact] = field(default_factory=list)  # spec 091
-    driver: str = "upstream"  # "package": spec 066's families, read by harness.packages
-    keys: object = None  # spec 066: harness.packages.PackageKeys when driver == "package"
+    fuel_facts: list[FuelFact] = field(default_factory=list)  # recorded, never ratcheted
+    driver: str = "upstream"  # "package": the compiled packages' families, read by harness.packages
+    keys: object = None  # harness.packages.PackageKeys when driver == "package"
 
     def classes(self, group: str) -> list[Klass]:
         return [k for k in self.expected if k.group == group]
@@ -319,14 +319,14 @@ def kit_met(kit: Path = KIT, wheels: Path = WHEELS) -> bool:
 
 
 def safe_unzip(wheel: Path, dest: Path) -> None:
-    """Unpack a wheel; refuse an absolute member name or any member with a `..` part (§4.8)."""
+    """Unpack a wheel; refuse an absolute member name or any member with a `..` part."""
     with zipfile.ZipFile(wheel) as z:
         names = z.namelist()
         for name in names:
             parts = re.split(r"[\\/]", name)
             if name.startswith(("/", "\\")) or re.match(r"[A-Za-z]:", name) or ".." in parts:
                 raise ValueError(f"{wheel.name}: member {name!r} refused (outside its folder)")
-            litter.refuse(name, wheel.name)  # the seal's cleanup must never meet it (spec 089)
+            litter.refuse(name, wheel.name)  # the seal's cleanup must never meet it
         dest.mkdir(parents=True, exist_ok=True)
         for info in z.infolist():
             target = dest / info.filename
@@ -344,7 +344,7 @@ TARBALL = {
     "numpy": re.compile(r"numpy-[\w.]+\.tar\.gz"),
     "pandas": re.compile(r"pandas-[\w.]+\.tar\.gz"),
     "python": re.compile(r"Python-\d+\.\d+\.\d+\.tar\.xz"),
-    # spec 066: the compiled packages' pinned sdists
+    # the compiled packages' pinned sdists
     "matplotlib": re.compile(r"matplotlib-[\w.]+\.tar\.gz"),
     "contourpy": re.compile(r"contourpy-[\w.]+\.tar\.gz"),
     "pillow": re.compile(r"pillow-[\w.]+\.tar\.gz"),
@@ -450,14 +450,14 @@ def stage(cfg: Config, tree: Path, allowed: set[str], dest: Path) -> list[str]:
             rel = p.relative_to(tree).as_posix()
             if rel in allowed:
                 wanted.add(rel)
-            elif not litter.unrecorded(rel):  # no fact holds litter or bytecode (spec 090)
+            elif not litter.unrecorded(rel):  # no fact holds litter or bytecode
                 left_out.append(rel)
         for anc in _ancestors(folder + "/x"):
             wanted |= {f"{anc}/__init__.py", f"{anc}/conftest.py"} & allowed
     for rel in sorted(wanted):
         if rel not in allowed or not (tree / rel).is_file():
             continue
-        litter.refuse(rel, tree.name)  # the seal's cleanup must never meet it (spec 089)
+        litter.refuse(rel, tree.name)  # the seal's cleanup must never meet it
         target = dest / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(tree / rel, target)
@@ -492,7 +492,7 @@ def group_spec(cfg: Config, group: Group) -> dict:
     ignores = [f for n in cfg.not_selected for f in n.files if mine(f)]
     ignores += [t.node for t in cfg.traps if "::" not in t.node and mine(t.node)]
     deselects = [t.node for t in cfg.traps if "::" in t.node and mine(t.node)]
-    deselects += [f.node + "[" for f in cfg.facts(group.name)]  # its cases only (spec 091)
+    deselects += [f.node + "[" for f in cfg.facts(group.name)]  # its cases only
     return {
         "path_packages": cfg.path_packages,
         "markers": cfg.markers,
@@ -518,7 +518,7 @@ def trap_spec(cfg: Config, trap: Trap) -> dict:
 
 def fact_spec(cfg: Config, fact: FuelFact) -> dict:
     """The entry alone, under its group's marker, so it runs exactly the cases its group would
-    have run (spec 091)."""
+    have run."""
     return {
         "path_packages": cfg.path_packages,
         "markers": cfg.markers,
@@ -620,8 +620,8 @@ def _ended(stream: Stream, run: GuestRun) -> list[str]:
 def trap_findings(stream: Stream, run: GuestRun, entry: str) -> list[str]:
     """A trap check's findings: the trap (or fuel) that ended the entry's session; or, when it
     did not trap, a session that did not finish or never started anything under the entry's
-    node id (a renamed test, nothing collected, a usage error), which guards nothing (the build
-    review's F6). The entry is a node id, a node-id prefix or a file, as `--deselect` reads it."""
+    node id (a renamed test, nothing collected, a usage error), which guards nothing.
+    The entry is a node id, a node-id prefix or a file, as `--deselect` reads it."""
     if run.trapped:
         return _ended(stream, run)
     if stream.exit_code is None:
@@ -684,7 +684,7 @@ def _tests(stream: Stream) -> list[str]:
 
 
 def fact_findings(group: Stream, alone: Stream, fact: FuelFact) -> list[str]:
-    """Whether the entry's cases ran exactly once (spec 091): none in the group's session, and in
+    """Whether the entry's cases ran exactly once: none in the group's session, and in
     its own session at least one of them and nothing else."""
     where = f"fuel fact {fact.id}"
     found = [f"{where}: {n} also ran in the group" for n in _tests(group) if fact.owns(n)]
@@ -696,7 +696,7 @@ def fact_findings(group: Stream, alone: Stream, fact: FuelFact) -> list[str]:
 
 
 def combine(parts: list[tuple[Stream, GroupOutcome, str]], extra: list[str]) -> GroupOutcome:
-    """One group's outcome from its sessions, the group's own and each fuel fact's (spec 091):
+    """One group's outcome from its sessions, the group's own and each fuel fact's:
     findings keep their session's prefix; members, counts and passes add up; the digest is of every
     passed id, so it is the one a single session gives when nothing else changed."""
     passed = [n for s, _, _ in parts for o, n, _ in s.outcomes if o == "passed"]
@@ -720,7 +720,7 @@ def combine(parts: list[tuple[Stream, GroupOutcome, str]], extra: list[str]) -> 
 
 def class_findings(actual: list[str], listed: list[str]) -> list[str]:
     """One finding per member, plus `+id` for each not in the list and `-id` for each listed but
-    gone; none when the class is empty (its gap then says "remove the gap"; condition C1)."""
+    gone; none when the class is empty (its gap then says "remove the gap")."""
     if not actual:
         return []
     now, was = sorted(set(actual)), set(listed)
@@ -735,11 +735,11 @@ def caps(configs: dict[str, Config]) -> int:
     return (
         sum(g.fuel for c in configs.values() for g in c.groups.values())
         + TRAP_FUEL * sum(len(c.traps) for c in configs.values())
-        + sum(f.fuel for c in configs.values() for f in c.fuel_facts)  # spec 091
+        + sum(f.fuel for c in configs.values() for f in c.fuel_facts)
     )
 
 
-# A fuel fact's node: `file::function` or `file::Class::function`, with no parameters (spec 091).
+# A fuel fact's node: `file::function` or `file::Class::function`, with no parameters.
 FACT_NODE = re.compile(r"[\w./-]+\.py::\w+(::\w+)?")
 # Where a fuel fact's evidence lives: the reviewed trace that measured the dependence.
 EVIDENCE_DIRS = ("context/reviews/", "context/research/", "context/specifications/")
@@ -747,7 +747,7 @@ EVIDENCE_DIRS = ("context/reviews/", "context/research/", "context/specification
 
 def fact_errors(pkg: str, cfg: Config, repo: Path) -> list[str]:
     """A fuel fact names its group, a parametrized test under that group's paths that no other
-    entry already takes out, a reason, and evidence in the repository (spec 091)."""
+    entry already takes out, a reason, and evidence in the repository."""
     errors = []
     # A not_selected path becomes `--ignore`, so a folder takes out every file under it.
     taken = [x.rstrip("/") for n in cfg.not_selected for x in n.files]
@@ -783,8 +783,7 @@ def fact_errors(pkg: str, cfg: Config, repo: Path) -> list[str]:
 
 
 def families(configs: dict[str, Config]) -> dict[str, dict[str, Config]]:
-    """The configs by grant: each family shares one stage, one grant and one fuel budget (spec
-    065, Decisions 15 and 16)."""
+    """The configs by grant: each family shares one stage, one grant and one fuel budget."""
     out: dict[str, dict[str, Config]] = {}
     for p, c in configs.items():
         out.setdefault(c.grant, {})[p] = c
@@ -887,7 +886,7 @@ def rule_errors(
     from harness import regrtest
 
     budgets = {GRANT: CAP_BUDGET, regrtest.GRANT: regrtest.CAP_BUDGET}
-    # spec 066: each package family's budget is its own TOML's `budget`, the sum of its caps by
+    # each package family's budget is its own TOML's `budget`, the sum of its caps by
     # the owner's rule (decisions.md, "Every test of every package we build", 2026-10-20)
     budgets |= {c.grant: c.keys.budget for c in configs.values() if c.driver == "package"}
     for grant, family in sorted(families(configs).items()):
@@ -908,7 +907,7 @@ class GroupRun:
     outcome: GroupOutcome
     fuel: int  # the group's own session: the metric
     left_out: list[str]
-    fuel_facts: dict[str, int] = field(default_factory=dict)  # each fact's session (spec 091)
+    fuel_facts: dict[str, int] = field(default_factory=dict)  # each fact's session
 
 
 @dataclass
@@ -929,7 +928,7 @@ class Session:
 
     def close(self) -> None:
         if self.root is not None:
-            litter.remove(self.root)  # sealed: unsealed first (spec 089)
+            litter.remove(self.root)  # sealed: unsealed first
 
     def _stage_root(self) -> Path:
         if self.root is None:
@@ -953,11 +952,12 @@ class Session:
             from harness import pins
 
             for p, c in self.configs.items():
-                # spec 066's families have stages of their own: never staged into /upstream
+                # the compiled packages' families have stages of their own, never staged into
+                # /upstream
                 if c.runner == "pytest" and c.driver != "package" and pins.source_pair(p):
                     self.prepared[p] = self._prepare(p)
             if self.root is not None:
-                litter.seal(self.root)  # the whole stage, once every package is in (spec 089)
+                litter.seal(self.root)  # the whole stage, once every package is in
         got = self.prepared.get(package, f"no source tree for {package}")
         if isinstance(got, str):
             raise AssertionError(got)
@@ -1003,7 +1003,7 @@ class Session:
             env=ENV,
             fuel=fuel,
             preopens=preopens(self._stage_root()),
-            # matplotlib's data, as the runner grants it on every call (spec 023, Decision 5):
+            # matplotlib's data, as the runner grants it on every call:
             # without it `import matplotlib` raises NotADirectoryError, which pandas' own
             # `importorskip("matplotlib")` does not catch, so a group would fail to collect.
             mpl_data=_has_mpl_data(d / "python-stdlib.zip"),
@@ -1012,11 +1012,11 @@ class Session:
         text = stream_file.read_text(errors="replace") if stream_file.is_file() else ""
         tail = r.stderr.decode(errors="replace").strip().splitlines()[-1:] or [""]
         run = GuestRun(r.exit_code, r.trapped, r.trap_cause, r.fuel, r.text, tail[0][:200])
-        litter.remove(r.root.parent)  # the run's root and its sealed stdlib folder (spec 089)
+        litter.remove(r.root.parent)  # the run's root and its sealed stdlib folder
         return parse_stream(text), run
 
     def group(self, package: str, group: str) -> GroupRun:
-        """The group's session, then each of its fuel facts' (spec 091), judged as one."""
+        """The group's session, then each of its fuel facts', judged as one."""
         if group not in self.groups:
             left_out = self.prepare(package)
             cfg = self.configs[package]

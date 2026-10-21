@@ -1,4 +1,4 @@
-"""The package's version, its changelog and its release tag (spec 004).
+"""The package's version, its changelog and its release tag.
 
     uv run python release/version.py show
     uv run python release/version.py bump [--to 0.1.0a2]
@@ -10,7 +10,7 @@
 `__version__` in src/wasi_python/__init__.py is the only place the version is written;
 pyproject.toml reads it through hatchling. A release is the annotated tag `v<version>` on a
 pushed commit of main; pushing it starts .github/workflows/release.yml. Pushing a release tag is
-cutting a release, which only the owner decides (constitution §7).
+cutting a release, which only the owner decides.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ VERSION_LINE = re.compile(r'^__version__ = "([^"]+)"$', re.M)
 FORM = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:(a|b|rc)([1-9]\d*))?$")
 STAGES = {"a": 0, "b": 1, "rc": 2, None: 3}
 SECTION = re.compile(r"^## (\S+) — (unreleased|\d{4}-\d{2}-\d{2})$", re.M)
-EPOCH = 1767225600  # SOURCE_DATE_EPOCH, as the build (spec 003, Decision 1)
+EPOCH = 1767225600  # SOURCE_DATE_EPOCH, as the build
 
 
 class ReleaseError(Exception):
@@ -172,7 +172,7 @@ def set_files(artifacts: Path) -> list[Path]:
 def write_assets(artifacts: Path, wheel: Path, out: Path, version: str) -> list[Path]:
     """The wheel, the artifact set as a deterministic .tar.xz, and SHA256SUMS of both. The tarball
     packs the files the set's own SHA256SUMS lists, and SHA256SUMS: never the folder, where a
-    desktop may have written litter (spec 090, Decision 3)."""
+    desktop may have written litter."""
     files = set_files(artifacts)
     out.mkdir(parents=True, exist_ok=True)
     top = f"wasi-python-{version}"
@@ -294,7 +294,7 @@ def _release(a: argparse.Namespace) -> int:
 
 def verify_note(version: str) -> str:
     """How a user checks this release's assets: appended to the release's notes, not to the tag's
-    message (spec 009, Decision 3)."""
+    message."""
     return (
         "\n**Verify a download** (`gh` logged in; see the README's *Verifying a download*):\n\n"
         "```\n"

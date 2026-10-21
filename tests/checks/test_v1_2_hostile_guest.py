@@ -1,6 +1,6 @@
 """v1.2, the hostile guest: a program written to escape, persist, exhaust or crash is held by the
-wall and by the runner's defaults (spec 006). Each check names whether it guards a change spec 006
-made or behaviour that already held."""
+wall and by the runner's defaults. Each check names whether it guards a change the
+safe-by-default work made or behaviour that already held."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def _run():
 
 def _version() -> tuple[str, str]:
     """('3.15', '315') from MANIFEST's python line. Without an artifact set the need blocks the
-    check, as every other check is blocked (spec 065, Decision 22)."""
+    check, as every other check is blocked."""
     needs.need("artifact dir", "manifest")
     directory = paths.artifact_dir()
     major, minor = paths.parse_manifest((directory / "MANIFEST").read_text()).python.split(".")[:2]
@@ -121,7 +121,7 @@ for d in ("/usr/local/lib/python{mm}", "/usr/local/lib/python{mm}/site-packages"
 def test_planted_code_never_runs(guest_workdir, snapshot) -> None:
     """Guards a change on the plain reactor (it ran a planted .pth and imported planted modules),
     existing behaviour on the snapshot: code one run leaves in a root never runs in the next.
-    Since spec 017 the /usr/local/lib routes are refused outright (the stdlib's read-only grant),
+    Now the /usr/local/lib routes are refused outright (the stdlib's read-only grant),
     and the same code is planted through /usr/./local/lib, the root's own folder."""
     run = _run()
     mm, tag = _version()
@@ -133,7 +133,7 @@ def test_planted_code_never_runs(guest_workdir, snapshot) -> None:
     second = run(["-c", PROBE], root=root, snapshot=snapshot)
     assert second.exit_code == 0, second
     # Not sys.prefix: a planted pyvenv.cfg still moves the plain reactor's, which is data, not
-    # code (spec 006, Decision 4).
+    # code.
     want = f"[] [] ['/usr/local/lib/python{tag}.zip']\n"
     assert second.stdout.decode() == want, second
     assert second.stderr == b"", second.stderr
@@ -175,10 +175,10 @@ def test_temporary_files_go_to_tmp(guest_workdir) -> None:
 
 
 def test_a_call_without_a_root_shares_nothing(guest_workdir, monkeypatch) -> None:
-    """Guards a change: a private root (`root=True` since spec 025) is fresh, and removed after the
+    """Guards a change: a private root (`root=True`) is fresh, and removed after the
     call. The runner's stdlib folder is made once per process, in the temporary folder: one call
     first makes it there, as any earlier check would, so the scratch folder judges the root alone
-    (spec 052, Decision 9: the check passes run alone)."""
+    (the check passes run alone)."""
     run = _run()
     run(["-c", "pass"])  # before the redirect: the runtime's once-per-process folder
     scratch = Path(tempfile.mkdtemp(prefix="rootless-", dir=guest_workdir))
@@ -333,9 +333,9 @@ def test_extra_preopens_work_on_the_snapshot(guest, guest_workdir, order) -> Non
 @pytest.mark.parametrize("how", ["busy", "sleeping"])
 def test_a_trapped_call_without_a_root_is_removed(guest_workdir, monkeypatch, how) -> None:
     """Guards a change: a call that ends in a trap still releases its store and removes its root,
-    whether the guest was running or waiting (spec 010). The warm-up call comes before the
+    whether the guest was running or waiting. The warm-up call comes before the
     redirect, so the runner's once-per-process stdlib folder is not made in the scratch folder
-    (spec 052, Decision 9: the check passes run alone)."""
+    (the check passes run alone)."""
     run = _run()
     run(["-c", "pass"])  # the engine, module and stdlib folder, once per process; count after
     scratch = Path(tempfile.mkdtemp(prefix="trapped-", dir=guest_workdir))
@@ -373,8 +373,9 @@ def test_a_planted_pdbrc_in_home_never_runs(guest_workdir) -> None:
 
 def _returns(call):
     """Run a call that must end at its deadline in a daemon thread and return its result; fail if
-    it has not returned after 120 s. A fail-safe against waiting forever (a sleeping guest without
-    spec 010 waits 11.6 days), not a timing; a daemon thread cannot keep the test process alive."""
+    it has not returned after 120 s. A fail-safe against waiting forever (a sleeping guest whose
+    deadline was not kept waited 11.6 days), not a timing; a daemon thread cannot keep the
+    test process alive."""
     import threading
 
     box: list = []
@@ -394,7 +395,7 @@ SLEEPERS = {
 
 @pytest.mark.parametrize("how", list(SLEEPERS))
 def test_a_sleeping_guest_ends_at_its_deadline(guest_workdir, how) -> None:
-    """Guards a change: a guest that waits in poll_oneoff still ends at its deadline (spec 010).
+    """Guards a change: a guest that waits in poll_oneoff still ends at its deadline.
     The call runs under the 120 s fail-safe of `_returns`."""
     run = _run()
     done = _returns(lambda: run(["-c", SLEEPERS[how]], root=_root(guest_workdir), deadline_s=0.2))
@@ -433,7 +434,7 @@ print(done.exit_code, done.stdout.decode().strip(), sorted(left))
 
 def test_a_guest_that_uses_up_host_descriptors_cannot_make_run_raise(guest_workdir) -> None:
     """Guards a change: a guest that opened files until the host refused made run raise
-    OSError (Errno 24) and left its stdin behind (the 0.1.0a2 security review, F1). The store is
+    OSError (Errno 24) and left its stdin behind. The store is
     now closed, releasing the guest's descriptors, before anything else is cleaned up. In a child
     process with a 256-descriptor limit, so the judge's own process is not starved. Windows has
     no RLIMIT_NOFILE to lower: there the child shows only that a call leaves nothing behind."""
@@ -449,22 +450,22 @@ def test_a_guest_that_uses_up_host_descriptors_cannot_make_run_raise(guest_workd
     assert out.returncode == 0, out.stderr[-1500:]
     exit_code, refused, _errno, left = out.stdout.split("\n")[0].split(" ", 3)
     assert (exit_code, refused, left) == ("0", "refused", "[]"), out.stdout
-    # The child's zip folder (spec 017) was filtered above while it lived; its exit removes it.
+    # The child's zip folder was filtered above while it lived; its exit removes it.
     assert list(scratch.iterdir()) == [], list(scratch.iterdir())
 
 
 def test_a_stack_overflow_is_named() -> None:
     """Guards a change: a stack overflow was reported as wasmtime's heading, "error while
     executing at wasm backtrace:", which says nothing of why; a trap with a code is now named by
-    it (the 0.1.0a2 security review, F7; spec 016)."""
+    it."""
     run = _run()
     code = "import sys\nsys.setrecursionlimit(10**8)\ndef f(n): return f(n + 1)\nf(0)"
     done = run(["-c", code])
     assert (done.exit_code, done.trapped) == (None, "stack overflow"), done
 
 
-# Typed grants (spec 017). Every write-type call on a read-only grant is refused with EPERM
-# (WASI errno 63), whatever route a program takes; memo §1's rows and the pre-build review's.
+# Typed grants. Every write-type call on a read-only grant is refused with EPERM
+# (WASI errno 63), whatever route a program takes: each write-type call, by each route measured.
 READ_ONLY = r"""
 import os, shutil, tempfile
 R, W = "/ro", "/rw"
@@ -525,11 +526,11 @@ def _tree(folder: Path) -> list[tuple[str, int, bytes]]:
 
 @BOTH
 def test_a_read_only_grant_refuses_every_write(guest_workdir, snapshot) -> None:
-    """Guards a change (spec 017): a read-only grant refuses every write-type call with EPERM, on
+    """Guards a change: a read-only grant refuses every write-type call with EPERM, on
     every system (wasmtime refuses a write open before the host sees the path, so the row
-    through a link answers EPERM where no link was made too; spec 076, Decision 3), and a write
+    through a link answers EPERM where no link was made too), and a write
     through a read descriptor with the host's errno, EBADF on Linux and macOS and EACCES on
-    Windows (spec 076, Decision 4); the host files, their modes and times, and the folder a link
+    Windows; the host files, their modes and times, and the folder a link
     inside the grant points at are unchanged."""
     from wasi_python import Grant
 
@@ -597,8 +598,8 @@ print(first.stdout.decode().strip(), second.stdout.decode().strip(), copied_once
 
 
 def test_the_zip_is_read_only_and_shared(guest_workdir) -> None:
-    """Guards a change (spec 017; §4.15's alpha exception ends): the zip is no longer copied into
-    a root but granted read-only from one folder per process, copied once, replaced if changed
+    """Guards a change (the alphas' exception to safe defaults ends): the zip is no longer copied
+    into a root but granted read-only from one folder per process, copied once, replaced if changed
     on disk, and removed when the process exits. In a child with its own temporary folder."""
     _run()
     base = Path(tempfile.mkdtemp(prefix="zip-", dir=guest_workdir))
@@ -636,7 +637,7 @@ for what, attempt in [
 
 @BOTH
 def test_matplotlib_data_is_granted_read_only(snapshot) -> None:
-    """Guards a change (spec 023, Decision 5): the runner grants matplotlib's data, extracted from
+    """Guards a change: the runner grants matplotlib's data, extracted from
     the zip's inner archive, read-only at the path matplotlib computes; every write, create, mkdir
     and remove there is refused with EPERM (63 in the guest)."""
     _, tag = _version()
@@ -651,7 +652,7 @@ def test_matplotlib_data_is_granted_read_only(snapshot) -> None:
 
 @BOTH
 def test_usr_local_lib_holds_only_the_zip(snapshot) -> None:
-    """Guards a change (spec 023, Decision 5, amending spec 017's Decision 2): the runner's private
+    """Guards a change: the runner's private
     folder now holds the zip in lib/ and matplotlib's data beside it, and only lib/ is granted at
     /usr/local/lib, so the guest sees the zip there and nothing else."""
     _, tag = _version()
@@ -661,8 +662,8 @@ def test_usr_local_lib_holds_only_the_zip(snapshot) -> None:
 
 
 def test_a_bad_grant_is_refused_before_any_work(guest_workdir, tmp_path) -> None:
-    """Guards a change (spec 017, Decision 4): each rule refuses before anything is made, a
-    guest's link cannot redirect a later grant (memo §7a), and identities, not spellings, are
+    """Guards a change: each rule refuses before anything is made, a
+    guest's link cannot redirect a later grant, and identities, not spellings, are
     compared."""
     from wasi_python import Grant
 
@@ -687,7 +688,7 @@ def test_a_bad_grant_is_refused_before_any_work(guest_workdir, tmp_path) -> None
     refused(ValueError, "holds the module cache", root=base.parent)
     refused(ValueError, "does not exist", root=base / "new" / ".." / "x")
     assert not (base / "x").exists() and not (base / "new").exists()
-    # The same rule on every system (spec 076, Decision 1): `..` is taken on the folders walked,
+    # The same rule on every system: `..` is taken on the folders walked,
     # so after a missing folder it is refused for a grant too, and after a file it is not a
     # folder; a root to be made inside the module cache by way of `..` is refused before anything.
     refused(ValueError, "does not exist", grants=[Grant(base / "new" / ".." / "shared", "/s")])
@@ -702,7 +703,7 @@ def test_a_bad_grant_is_refused_before_any_work(guest_workdir, tmp_path) -> None
     refused(ValueError, either, root=tempfile.gettempdir())
     # Read-only too: the temporary folder holds every call's private folders and stdin.
     refused(ValueError, "holds the temporary folder", grants=[Grant(tempfile.gettempdir(), "/t")])
-    # A root there too, after the temporary folder moved (the confirmation, C1): the folder the
+    # A root there too, after the temporary folder moved: the folder the
     # runner's private folders go to now is never a guest's root.
     moved = base / "moved-temp"
     moved.mkdir()
@@ -715,17 +716,17 @@ def test_a_bad_grant_is_refused_before_any_work(guest_workdir, tmp_path) -> None
 
     own = Path(wasmtime.__file__).parent
     refused(ValueError, "wasmtime-py's own code", grants=[Grant(own, "/w", writable=True)])
-    # The host's own interpreter too (spec 024, S2): the next host process runs its stdlib.
+    # The host's own interpreter too: the next host process runs its stdlib.
     import sysconfig
 
     stdlib = Path(sysconfig.get_paths()["stdlib"])
     refused(ValueError, "the host Python's own code", grants=[Grant(stdlib, "/w", writable=True)])
-    scripts = Path(sysconfig.get_paths()["scripts"])  # bin/ or Scripts\ (the build review, 2)
+    scripts = Path(sysconfig.get_paths()["scripts"])  # bin/ or Scripts\
     refused(ValueError, "the host Python's own code", grants=[Grant(scripts, "/w", writable=True)])
     done = run(["-c", "pass"], grants=[Grant(stdlib, "/w")], cache_dir=cache)
     assert done.exit_code == 0, done  # read-only stays allowed
     # A root still to be made above a cache still to be made: the cache is made first, so the
-    # root is judged to hold it (the build review, finding 1); the root gets no folders of its own.
+    # root is judged to hold it; the root gets no folders of its own.
     fresh = base / "fresh"
     with pytest.raises(ValueError, match="holds the module cache"):
         run(["-c", "pass"], root=fresh / "a", cache_dir=fresh / "a" / "cache")
@@ -746,7 +747,7 @@ def test_a_bad_grant_is_refused_before_any_work(guest_workdir, tmp_path) -> None
     if sys.platform in ("darwin", "win32"):  # case-insensitive folders: another spelling
         refused(ValueError, "is inside the module cache", root=str(inside).swapcase())
     if os.name == "posix":
-        # Memo §7a: call 1 may make links in its writable grant; call 2 names a path through one.
+        # Call 1 may make links in its writable grant; call 2 names a path through one.
         plant = "import os\nos.rmdir('/s/data')\nos.symlink('../secret', '/s/data')\n"
         assert (
             run(["-c", plant], root=False, grants=[Grant(shared, "/s", writable=True)]).exit_code
@@ -757,7 +758,7 @@ def test_a_bad_grant_is_refused_before_any_work(guest_workdir, tmp_path) -> None
 
 
 def test_a_swapped_grant_is_refused(guest_workdir, monkeypatch) -> None:
-    """Guards a change (spec 017, Decision 5): a middle folder of a grant's path swapped between
+    """Guards a change: a middle folder of a grant's path swapped between
     the runner's walk and wasmtime's own open is caught by the identity check before the guest
     runs, and the door is never called. On Windows the walk holds every folder on the way, so the
     swap itself is refused and the call reads the folder that was granted."""
@@ -820,7 +821,7 @@ print(' '.join(out))
 
 @pytest.mark.parametrize("snapshot", [True, False], ids=["snapshot", "plain"])
 def test_nothing_is_writable_by_default(snapshot) -> None:
-    """Guards a change (spec 025; the owner's answer to question 24, §4.15): a call given no root
+    """Guards a change: a call given no root
     and no grants has nothing writable, no `/` and no HOME, and still imports and computes."""
     run = _run()
     done = run(["-c", NOTHING_WRITABLE], snapshot=snapshot)
@@ -847,7 +848,7 @@ def test_nothing_is_writable_by_default(snapshot) -> None:
 
 @pytest.mark.parametrize("how", ["link", "rename"])
 def test_a_swapped_root_is_never_prepared_by_path(guest_workdir, monkeypatch, how) -> None:
-    """Guards a change (spec 024, the 0.1.0a3 security review's S1): a root swapped after its walk,
+    """Guards a change: a root swapped after its walk,
     as a guest of another call with a writable folder above it could do, changes nothing outside
     the folder that was checked. The runner prepares the root's usr/local/lib and tmp through
     the walked descriptor, so a link put in its place is never followed and a root moved away is
@@ -896,7 +897,7 @@ def test_a_swapped_root_is_never_prepared_by_path(guest_workdir, monkeypatch, ho
         assert all((outside / n).read_text() == "HOST FILE" for n in ("usr", "tmp"))
 
 
-# Read-only mounts (spec 032): a provider is the embedder's code, and nothing it does may make
+# Read-only mounts: a provider is the embedder's code, and nothing it does may make
 # run() raise or reach wasmtime-py; a guest cannot spend host descriptors through a mount.
 
 
@@ -1065,7 +1066,7 @@ print(json.dumps(out))
 
 @BOTH
 def test_a_provider_fault_never_escapes(snapshot) -> None:
-    """Guards a change (spec 032, acceptance 7): a provider that raises, answers outside its
+    """Guards a change: a provider that raises, answers outside its
     protocol (a wrong type, an awaitable, a listing whose iterator or a buffer whose export
     raises, a name the guest could misread, a bool for a size, a file for /) gives the guest EIO
     and a fault in the record, and no more; one that answers more than the staging bound gives
@@ -1105,7 +1106,7 @@ def test_a_provider_fault_never_escapes(snapshot) -> None:
 
 
 def test_a_providers_base_exception_is_raised_from_run() -> None:
-    """Guards a change (spec 032, Decision 4): a provider's BaseException that is not an
+    """Guards a change: a provider's BaseException that is not an
     Exception is recorded as the call's stop and raised from run, as a door host's is."""
     from wasi_python import Mount
 
@@ -1207,7 +1208,7 @@ print(json.dumps(out))
 
 
 def test_an_oserror_that_names_no_member_stays_a_fault() -> None:
-    """Guards a change (spec 061, criterion 4): an `OSError` whose errno names no member of the
+    """Guards a change: an `OSError` whose errno names no member of the
     closed set (EINTR, EAGAIN, EBADF, EFAULT, an unknown number, a bool, an int subclass, a slot
     a property lies about) and any other exception stay EIO and a fault, one provider call each;
     an errno set after construction is read from the slot; the boundary never runs the `errno`
@@ -1286,12 +1287,12 @@ print(done.exit_code, done.stdout.decode().strip(), Files.reads, seen, left)
 
 @BOTH
 def test_mount_descriptors_are_bounded(guest_workdir, snapshot) -> None:
-    """Guards a change (spec 032, acceptance 8): in a child whose soft descriptor limit is 256,
+    """Guards a change: in a child whose soft descriptor limit is 256,
     a guest that opens 1,025 provider files gets EMFILE on the last: provider numbers cost no
     host handle, so the runner's own bound, MAX_MOUNT_FILES, holds at any host limit. The run
     exits 0 after 1,024 reads; the placeholder is empty during the run and gone after it."""
     _run()
-    needs.need("descriptor limit")  # Windows has no RLIMIT_NOFILE to lower (spec 063)
+    needs.need("descriptor limit")  # Windows has no RLIMIT_NOFILE to lower
     scratch = Path(tempfile.mkdtemp(prefix="mount-fds-", dir=guest_workdir))
     out = subprocess.run(
         [sys.executable, "-c", MOUNT_DESCRIPTORS, str(scratch), "1" if snapshot else "0"],
@@ -1304,7 +1305,7 @@ def test_mount_descriptors_are_bounded(guest_workdir, snapshot) -> None:
     assert list(scratch.iterdir()) == []
 
 
-# Spec 048: the sandbox holds on wasmtime 49.0.0. wasmtime 49.0.0's path_rename puts a source's
+# The sandbox holds on wasmtime 49.0.0. wasmtime 49.0.0's path_rename puts a source's
 # trailing slash back before renameat, and on a kernel that follows a symbolic link named with a
 # trailing slash there (macOS, FreeBSD) a guest with a writable place moves a folder from outside
 # its sandbox in (GHSA-m9f7-9w4p-gv38, fixed in wasmtime 49.0.3). The runner carries 49.0.3's rule.
@@ -1344,7 +1345,7 @@ print(done.stdout.decode().strip())
 
 def _follows_slash_links(base: Path) -> str:
     """Whether this kernel's rename follows a symbolic link named with a trailing slash: only
-    reported, never a condition of a check (spec 048, criterion 1)."""
+    reported, never a condition of a check."""
     probe = base / "probe"
     (probe / "target").mkdir(parents=True)
     try:
@@ -1362,7 +1363,7 @@ def _follows_slash_links(base: Path) -> str:
 
 @pytest.mark.parametrize("where", ["grant", "root"])
 def test_a_trailing_slash_symlink_rename_cannot_escape(tmp_path, where) -> None:
-    """Guards a change (spec 048, criterion 1): a guest with a writable place makes a link that
+    """Guards a change: a guest with a writable place makes a link that
     climbs out, then renames it with a trailing slash. The rename is refused with ENOTDIR, the
     folder outside every grant and its canary are unchanged, and nothing named `stolen` exists.
     In a child whose temporary folder is this check's own, so the private root's parent is too."""
@@ -1423,7 +1424,7 @@ print(json.dumps(out))
 
 
 def test_a_trailing_slash_rename_rule(tmp_path) -> None:
-    """Guards a change (spec 048, criterion 2), on every host: in a writable grant with a folder
+    """Guards a change, on every host: in a writable grant with a folder
     `d`, a file `f` and a link `s` to `d`, a trailing slash on either path of a rename needs a
     source that is a folder, judged without following the source's own link. A slash-named
     file or link, as source or as target, is refused with ENOTDIR; a missing one answers its
@@ -1463,7 +1464,7 @@ def test_a_trailing_slash_rename_rule(tmp_path) -> None:
     assert os.readlink(grant / "s") == "d" and (grant / "f").read_text() == "f"
 
 
-# Writable mounts (spec 034): a writable mount at / cannot reach the runtime's files, a
+# Writable mounts: a writable mount at / cannot reach the runtime's files, a
 # read-only grant inside it, another mount, or the host.
 
 WRITABLE_ROOT = r"""
@@ -1528,7 +1529,7 @@ print(json.dumps([done.exit_code, done.stderr.decode()[-500:], json.loads(done.s
 
 @BOTH
 def test_a_writable_root_mount_keeps_the_runtime_and_other_grants(guest_workdir, snapshot) -> None:
-    """Guards a change (spec 034, acceptance 10; guards: the EBUSY rule, the rule across, the
+    """Guards a change (guards: the EBUSY rule, the rule across, the
     dst-inside-src rule): a writable mount at / with a read-only grant at /data and a writable
     mount at /work/out: writing, making, removing or renaming into the zip's folder (spelled
     plainly or past wasi-libc) or the grant is EPERM with no provider call; an rmdir or rename
@@ -1577,7 +1578,7 @@ DIRTY = (
 
 
 def test_a_call_that_raises_writes_nothing_back() -> None:
-    """Guards a change (spec 034, acceptance 7; guard: the skip when the call raises): when the
+    """Guards a change (guard: the skip when the call raises): when the
     call will raise rather than return, the ending's walk makes no write-back: a door host's
     KeyboardInterrupt, and a provider's KeyboardInterrupt in the walk's first write (the second
     file is never written). The Ctrl-C and exit-hook rows are the next check's, in children."""
@@ -1672,11 +1673,11 @@ print(provider.log)
     ],
 )
 def test_a_stopped_host_gets_no_write_back(case, want) -> None:
-    """Guards a change (spec 034, acceptance 7; guards: the skip when the call raises, the skip
+    """Guards a change (guards: the skip when the call raises, the skip
     at the exit hook): in a child, a Ctrl-C the door host sends itself makes run raise
     KeyboardInterrupt with no content write; one sent during the walk's first write stops the
     walk there (the second file is never written) and is raised; a run_async call stopped by
-    spec 015's exit hook makes no content write."""
+    the hook run_async registers for the interpreter's exit makes no content write."""
     _run()
     out = subprocess.run(
         [sys.executable, "-c", STOPPED, case, str(paths.REPO / "tests")],
@@ -1691,7 +1692,7 @@ def test_a_stopped_host_gets_no_write_back(case, want) -> None:
     assert (ended, log) == (want, creates + walked + "]"), out.stdout
 
 
-WRITE_FAULTS = {  # spec 034 (the build review, F2): answers outside the write half's protocol
+WRITE_FAULTS = {  # answers outside the write half's protocol
     "a fake Errno of 0": (lambda: _FakeErrno(0), "bad answer: _FakeErrno"),
     "a fake Errno past i32": (lambda: _FakeErrno(2**32 + 8), "bad answer: _FakeErrno"),
     "0": (lambda: 0, "bad answer: int"),
@@ -1730,7 +1731,7 @@ print(json.dumps(out))
 
 @BOTH
 def test_a_write_half_fault_never_escapes(snapshot) -> None:
-    """Guards a change (spec 034, Decision 2; the build review, F2): an answer of the write half
+    """Guards a change: an answer of the write half
     outside its protocol (a fake Errno whose int is 0 or past i32, a 0, a coroutine, an
     exception whose type's name raises) at a create at open, a write-back at close, a namespace
     call and the walk gives the guest EIO, one fault and one RefusedWrite(EIO, "fault") each;
@@ -1792,7 +1793,7 @@ def test_a_write_half_fault_never_escapes(snapshot) -> None:
     assert not [w for w in caught if "never awaited" in str(w.message)], caught
 
 
-# Read-only code on the import path (spec 054): nothing the same call can write lies under an
+# Read-only code on the import path: nothing the same call can write lies under an
 # entry, and nothing is written to one.
 
 
@@ -1808,7 +1809,7 @@ def _digests(folder: Path) -> dict[str, str]:
 
 @BOTH
 def test_the_import_path_writes_nothing(guest_workdir, snapshot) -> None:
-    """Spec 054, criterion 4: an import from a read-only entry writes no `.pyc`, even when the
+    """An import from a read-only entry writes no `.pyc`, even when the
     program asks for one (the refused write is quiet), and a valid `.pyc` already in an entry is
     the one imported."""
     from wasi_python import Grant
@@ -1843,7 +1844,7 @@ def test_the_import_path_writes_nothing(guest_workdir, snapshot) -> None:
 
 
 class _Lying(str):
-    """A str whose repr and str would write code into a prelude built from them (spec 054, A5)."""
+    """A str whose repr and str would write code into a prelude built from them (A5)."""
 
     PAYLOAD = "'/code'] + [print('injected') or '/code'"
 
@@ -1856,7 +1857,7 @@ class _Lying(str):
 
 @BOTH
 def test_a_writable_place_never_serves_the_import_path(guest_workdir, snapshot) -> None:
-    """Spec 054, criterion 5: each refused layout raises before any work (the door is never
+    """Each refused layout raises before any work (the door is never
     called), and each allowed one imports from its entry. Every case is tried, and the failure
     names every case that answered wrongly, so a stand-in's count is exact."""
     import re
@@ -1940,10 +1941,10 @@ def test_a_writable_place_never_serves_the_import_path(guest_workdir, snapshot) 
     refused("S4", ValueError, mount, ["/w/lib"], mounts=[Mount(mem, "/w", writable=True)])
     refused("S5", ValueError, "no grant serves it", ["/nowhere/lib"])
     refused("S6", ValueError, mount, ["/lib"], mounts=[Mount(mem, "/")])
-    alias = [Mount(mem, "/lib"), Mount(mem, "/work", writable=True)]  # the review's F1
+    alias = [Mount(mem, "/lib"), Mount(mem, "/work", writable=True)]  # one provider, two places
     refused("S7", ValueError, mount, ["/lib/lib"], mounts=alias)
     refused("S8", ValueError, writable, ["/code2"], root=folder("apart"))  # R1: apart from code
-    # The build review's F1 (R3): the match is case-sensitive, as wasi-libc's; a grant at /Code
+    # R3: the match is case-sensitive, as wasi-libc's; a grant at /Code
     # does not serve /code/lib, which the guest resolves through the root.
     refused("S9", ValueError, writable, ["/code/lib"], grants=[Grant(code, "/Code")],
             root=folder("apart"))  # fmt: skip
@@ -1954,7 +1955,7 @@ def test_a_writable_place_never_serves_the_import_path(guest_workdir, snapshot) 
     refused("G2", ValueError, under, ["/code"], mounts=[Mount(mem, "/code/out")])
     deep = Grant(folder("ab"), "/code/a/b", writable=True)
     refused("G3", ValueError, under, ["/code"], grants=[ro, deep])
-    # The build review's F1 (R8, R9): every entry is judged, not only the first.
+    # R8, R9: every entry is judged, not only the first.
     a = Grant(folder("a", mylib=True), "/a")
     refused("G4", ValueError, r"import_path\[1\].*" + under, ["/a", "/code"], grants=[a, ro, out])
     # Host nesting: a writable folder inside the serving grant's whole folder.
@@ -1984,7 +1985,7 @@ def test_a_writable_place_never_serves_the_import_path(guest_workdir, snapshot) 
     assert wrong == [], f"{len(wrong)} wrong: {[n for n, _ in wrong]}\n{wrong}"
 
 
-# Spec 068: a cap on files open at once. In a child, as the descriptor checks above, so the
+# A cap on files open at once. In a child, as the descriptor checks above, so the
 # judge's own process is never starved.
 
 CAP_CHILD = r"""
@@ -2030,7 +2031,7 @@ print(json.dumps([uncapped.exit_code, uncapped.stdout.decode()]))
 
 
 def test_a_guest_at_the_open_file_cap_leaves_the_host_descriptors(guest_workdir) -> None:
-    """Spec 068, criterion 5: at the default cap, in a child whose soft descriptor limit is 2,048,
+    """At the default cap, in a child whose soft descriptor limit is 2,048,
     the guest opens exactly 1,024 files and gets EMFILE (33), and the door's host can still open
     a file: the guest no longer takes the descriptors the process needs. With no cap the guest
     opens 1,500. On Windows, which has no RLIMIT_NOFILE, the child sets nothing and the same
@@ -2054,7 +2055,7 @@ def test_a_guest_at_the_open_file_cap_leaves_the_host_descriptors(guest_workdir)
     assert json.loads(lines[1]) == [0, "1500\n"], lines
 
 
-# Deep recursion (spec 071). The guest narrows CPython's C-stack guard to 128 KiB of linear memory,
+# Deep recursion. The guest narrows CPython's C-stack guard to 128 KiB of linear memory,
 # so recursion that runs through Python code raises RecursionError while wasmtime's 512 KiB native
 # stack still has room. Each program recurses until it is stopped and prints its exception's class,
 # the depth it reached and the message.
@@ -2180,7 +2181,7 @@ RECURSIONS = {
         185,
         True,
     ),
-    "heapq": (  # the thinnest margin measured: 1.12 on x86_64 (spec 071, Decision 1)
+    "heapq": (  # the thinnest margin measured: 1.12 on x86_64
         "import heapq\nclass A:\n    def __lt__(self, o):\n        mark(); h = [A(), A()]; "
         "heapq.heapify(h); return True\ndef go(): heapq.heapify([A(), A()])",
         "RecursionError",
@@ -2203,7 +2204,7 @@ RECURSIONS = {
         145,
         False,
     ),
-    "pickle-partial": (  # spec 065's test_recursive_pickle
+    "pickle-partial": (  # CPython's own test_recursive_pickle
         "import functools, pickle\ndef go():\n    f = functools.partial(min)\n"
         "    f.__setstate__((f, (), {}, {}))\n    pickle.dumps(f)",
         "RecursionError",
@@ -2264,7 +2265,7 @@ RECURSIONS = {
         140,
         False,
     ),
-    # lxml's callbacks out of libxml2 and libxslt (spec 071, criterion 10): measured on the built
+    # lxml's callbacks out of libxml2 and libxslt: measured on the built
     # set, they raise on both hosts (margins 1.45 to 1.78 on x86_64), so they are rows here.
     "lxml-target": (
         "from lxml import etree\nclass Tg:\n    def start(self, tag, attrib):\n        mark(); "
@@ -2338,10 +2339,10 @@ def _recursed(done) -> tuple[str, int, str]:
 
 @pytest.mark.parametrize(("name", "snapshot"), RECURSION_CASES)
 def test_recursion_through_python_raises(name: str, snapshot: bool, guest) -> None:
-    """Spec 071, criterion 1: recursion that runs through Python code raises (RecursionError, or
+    """Recursion that runs through Python code raises (RecursionError, or
     the parser's MemoryError for eval and exec) instead of trapping, at no less than the measured
     depth less a tenth; the depths are set by linear bytes, so they hold on every host. Through
-    the judge's driver (spec 080): the runner's engine, with the seeded random and the stepped
+    the judge's driver: the runner's engine, with the seeded random and the stepped
     clock, so the plain binary's hash secret, and so the fuel the check records, are the same on
     every run."""
     import re
@@ -2354,9 +2355,9 @@ def test_recursion_through_python_raises(name: str, snapshot: bool, guest) -> No
 
 
 def test_pickling_a_deep_list_raises(guest) -> None:
-    """Spec 071, criterion 1: pickle.dumps of a 100,000-deep nested list raises RecursionError
+    """pickle.dumps of a 100,000-deep nested list raises RecursionError
     (ratio 2.7, inside the window's reach); the structure is never freed (os._exit). Through the
-    judge's driver, so its fuel is the same on every run (spec 080)."""
+    judge's driver, so its fuel is the same on every run."""
     done = guest("snapshot", ["-c", PICKLE_DEEP])
     assert (done.exit_code, done.trapped) == (0, None), (done.trapped, done.stderr[-600:])
     assert done.stdout.decode().startswith("RecursionError 0 Stack overflow"), done.stdout
@@ -2364,9 +2365,9 @@ def test_pickling_a_deep_list_raises(guest) -> None:
 
 @BOTH
 def test_the_c_stack_window_is_128_kib(snapshot: bool) -> None:
-    """Spec 071, criterion 2: the guard fires 112 kB in, the 128 KiB window less CPython's
+    """The guard fires 112 kB in, the 128 KiB window less CPython's
     16 KiB; on the snapshot this also shows the window survived Wizer. Through `run`, metered:
-    the product's thin engine meets a Python-through-C recursion end to end (spec 080, F2); it
+    the product's thin engine meets a Python-through-C recursion end to end; it
     records no fuel."""
     done = _run()(
         ["-c", COUNTED.format(body=RECURSIONS["repr"][0])], snapshot=snapshot, fuel=10**11
@@ -2376,7 +2377,7 @@ def test_the_c_stack_window_is_128_kib(snapshot: bool) -> None:
 
 
 def test_recursion_raises_on_wasmtimes_default_engine(guest_workdir) -> None:
-    """Spec 071, criterion 3: on an engine left at wasmtime's defaults (no fuel, no epochs, no
+    """On an engine left at wasmtime's defaults (no fuel, no epochs, no
     stack set), as another embedder's would be, the window still makes recursion raise. Its own
     engine and module; the driver's cached engine is never swapped."""
     needs.need("artifact dir", "snapshot binary", "stdlib zip", "manifest", "wasmtime-py")
@@ -2403,7 +2404,7 @@ def test_recursion_raises_on_wasmtimes_default_engine(guest_workdir) -> None:
 
 
 def test_recursion_raises_under_the_wasmtime_cli(guest_workdir) -> None:
-    """Spec 071, criterion 3: the pinned wasmtime CLI, at its own default stack, runs the plain
+    """The pinned wasmtime CLI, at its own default stack, runs the plain
     binary's __repr__ recursion to a RecursionError (it used to exit 134 on the trap)."""
     needs.need("artifact dir", "plain binary", "stdlib zip", "manifest", "wasmtime cli")
     d = paths.artifact_dir()
@@ -2439,7 +2440,7 @@ def test_recursion_raises_under_the_wasmtime_cli(guest_workdir) -> None:
     assert "RecursionError" in out.stdout, out.stdout[-400:]
 
 
-# Spec 078, criterion 9 (restating spec 071's criterion 4): what still traps at the runner's 8 MiB
+# What still traps at the runner's 8 MiB
 # wasm stack, with the lower host's numbers. Each kind has a depth that ends without a trap on both
 # hosts with a quarter of room, and one at least 40% past the higher host's edge that ends in the
 # named trap; then the next call works. The structure is built, acted on, and either freed (`del`)
@@ -2488,7 +2489,7 @@ LIMITS = {
 
 @pytest.mark.parametrize("kind", list(LIMITS))
 def test_deep_data_limits(kind: str) -> None:
-    """Spec 078, criterion 9 (restating spec 071's criterion 4): the README's limits at the
+    """The README's limits at the
     runner's 8 MiB wasm stack hold, on a metered call (the engine the limits were measured on).
     The shallower depth ends without a trap; the deep one ends in the trap "stack overflow", the
     host survives, and the next call works."""
@@ -2503,7 +2504,7 @@ def test_deep_data_limits(kind: str) -> None:
     assert (after.exit_code, after.stdout) == (0, b"ok\n"), after
 
 
-# Spec 078, criterion 9: what traps at 512 KiB and now ends in its own exception (or completes) at
+# What traps at 512 KiB and now ends in its own exception (or completes) at
 # 8 MiB, on both hosts (the research's edges-8m-*.jsonl). Each program prints the exception's class.
 CAUGHT = """import os
 N = {n}
@@ -2603,7 +2604,7 @@ RAISES = {
 
 @pytest.mark.parametrize("kind", list(RAISES))
 def test_deep_data_raises(kind: str) -> None:
-    """Spec 078, criterion 9: recursion in C over nested data, the parser, expat's callbacks, deep
+    """Recursion in C over nested data, the parser, expat's callbacks, deep
     exception groups, XPath and XSLT, which trap at 512 KiB, end in their own exception (or
     complete) at the runner's 8 MiB stack, on a metered call; the next call works."""
     run = functools.partial(_run(), fuel=10**12)
@@ -2615,7 +2616,7 @@ def test_deep_data_raises(kind: str) -> None:
     assert (after.exit_code, after.stdout) == (0, b"ok\n"), after
 
 
-# Spec 071, criterion 11: on Linux, a faulthandler change after the first engine used to turn any
+# On Linux, a faulthandler change after the first engine used to turn any
 # guest trap into the host's death (SIGILL), and a late Python signal handler for SIGILL into a
 # hang; the runner now refuses such a call before the guest runs. Each order in a fresh process.
 FAULTHANDLER_CHILD = r"""
@@ -2666,12 +2667,11 @@ REFUSED_ON_LINUX = {"after", "before-then-disable", "signal-after", "session-tur
     ],
 )
 def test_a_faulthandler_change_cannot_kill_the_host(order: str) -> None:
-    """Spec 071, criterion 11 (and spec 063's build review, F3): whatever the order of the host's
+    """Whatever the order of the host's
     faulthandler (or a Python signal handler) and the first run, the host survives: on Linux a call
     after a late change is refused with RuntimeError naming the remedy, on macOS and Windows the
     trap is returned. The "after" row is also a second entry into the guest in one process; the
-    "session-turn-after" row is a session's second turn after a late enable (spec 055's turn
-    path)."""
+    "session-turn-after" row is a session's second turn after a late enable."""
     _run()
     env = {k: v for k, v in os.environ.items() if k != "PYTHONFAULTHANDLER"}
     try:
@@ -2693,7 +2693,7 @@ def test_a_faulthandler_change_cannot_kill_the_host(order: str) -> None:
         assert line == "trapped stack overflow", line
 
 
-# Spec 078: the runner runs each guest on a stack of its own. Every entry into wasm runs on a
+# The runner runs each guest on a stack of its own. Every entry into wasm runs on a
 # guest thread the runner makes, with a 10 MiB stack (8 MiB of it for wasm), checked before any
 # wasm; the embedder's code runs on the thread that made the call (the home); Ctrl-C and an
 # exception raised into the home reach the guest. A child process has a 120 s limit only so a hang
@@ -2730,7 +2730,7 @@ def _child(program: str, *args: str) -> tuple[int, list[str], str]:
 
 
 def test_every_entry_runs_on_a_guest_thread_with_room(monkeypatch) -> None:
-    """Spec 078, criterion 1: each run, each session's opening, turn and ending (a closer's
+    """Each run, each session's opening, turn and ending (a closer's
     included) enters wasm exactly once, on a thread that is not the caller's, whose stack is at
     least the refusal line; run_async with its own pool and with an executor the same."""
     import asyncio
@@ -2779,7 +2779,7 @@ def test_every_entry_runs_on_a_guest_thread_with_room(monkeypatch) -> None:
 
 
 def test_a_small_guest_thread_is_refused_before_any_wasm(monkeypatch) -> None:
-    """Spec 078, criterion 3: a guest thread whose stack reads under 9 MiB (or cannot be read)
+    """A guest thread whose stack reads under 9 MiB (or cannot be read)
     refuses the call, a session's opening and a turn with RuntimeError before any wasm runs; the
     door host and the hook are never called; with the real check, the next call works."""
     run = _run()
@@ -2830,7 +2830,7 @@ print(d.exit_code, d.trapped, d.stdout.decode().strip(), flush=True)
 
 @pytest.mark.parametrize("row", ["thread-free", "thread-repr", "executor-free", "executor-repr"])
 def test_a_guest_cannot_overrun_a_small_calling_thread(row: str) -> None:
-    """Spec 078, criterion 5: a caller whose thread has 256 KiB of stack (musl gives 128 KiB) runs
+    """A caller whose thread has 256 KiB of stack (musl gives 128 KiB) runs
     a guest that frees a 20,000-deep list, or recurses through __repr__, to its end; so does
     run_async on an executor of such threads. On main the first killed the host (SIGILL)."""
     code, lines, err = _child(SMALL_CALLER, row)
@@ -2897,7 +2897,7 @@ print("next", wasi_python.run(["-c", "print(1)"]).stdout.decode().strip(), flush
 
 @pytest.mark.parametrize("row", ["default", "default-turn"])
 def test_ctrl_c_stops_a_computing_guest(row: str) -> None:
-    """Spec 078, criterion 7: on the main thread, with deadline_s=None and no cancel, a Ctrl-C
+    """On the main thread, with deadline_s=None and no cancel, a Ctrl-C
     (Python's default handler; a simulated SIGINT) stops a guest that computes and never calls
     back, and run (or the turn) raises KeyboardInterrupt; the next call works. On main the call
     never ended."""
@@ -2908,7 +2908,7 @@ def test_ctrl_c_stops_a_computing_guest(row: str) -> None:
 
 @pytest.mark.parametrize("row", ["raising", "raising-sleep", "raising-tool"])
 def test_an_embedders_raising_sigint_handler_stops_the_call(row: str) -> None:
-    """Spec 078, criterion 8 (and the confirmation's C1): an embedder's SIGINT handler that raises
+    """An embedder's SIGINT handler that raises
     KeyboardInterrupt, with cancel= set and deadline_s=None, stops a guest that computes, one that
     sleeps, and one waiting for a tool; run raises KeyboardInterrupt and the next call works. On
     main ctypes dropped the interrupt in the epoch callback and the call ran on."""
@@ -2974,7 +2974,7 @@ print("next", wasi_python.run(["-c", "print(1)"]).stdout.decode().strip(), flush
 
 @pytest.mark.parametrize("row", ["raised-into-home", "abandoned", "start-interrupted"])
 def test_the_home_never_tears_down_a_running_guest(row: str) -> None:
-    """Spec 078, criterion 17 (the review's F1; the build review's F1): an exception raised into
+    """An exception raised into
     the home while its guest computes stops the guest, and the call raises only after the guest
     thread ended; a home forced out of its join as well leaves the teardown to the guest thread;
     an interrupt inside Thread.start() after the OS made the thread keeps the guest known to its
@@ -2985,7 +2985,7 @@ def test_the_home_never_tears_down_a_running_guest(row: str) -> None:
 
 
 def test_host_functions_run_on_the_callers_thread() -> None:
-    """Spec 078, criterion 6 (and the review's F4, F12): the door host, every provider step (a
+    """The door host, every provider step (a
     generator listing using the caller's sqlite3 connection, a __getattr__ provider, a read's
     buffer, a bytes subclass's __bytes__) and a tool's context run on the thread that called run,
     in its live context: thread-locals, context variables and signal.signal work there; through
@@ -3178,11 +3178,11 @@ with wasi_python.Session() as t:
 
 
 def test_an_abandoned_turn_keeps_its_session_busy() -> None:
-    """Spec 078, criterion 17's session row (the build review's F4): a turn whose home is forced
+    """A turn whose home is forced
     out keeps the session busy until its guest thread ends; a second turn meanwhile is refused; the
     session then ends "error", no store is closed under wasm, and the next session works.
 
-    Spec 093: the forced-out home stops its guest, which then ends soon (at its next epoch check,
+    The forced-out home stops its guest, which then ends soon (at its next epoch check,
     or before its wasm starts), so the guest thread is held at the end of its turn by a gate in
     the stand-in `_drive_turn`, opened once the second turn has been refused, instead of racing
     the caller's look (the Windows release run saw the guest end first). The teardown is the
@@ -3251,7 +3251,7 @@ print("next", wasi_python.run(["-c", "print(1)"]).stdout.decode().strip(), flush
 
 @pytest.mark.parametrize("row", ["after-get", "before-answer"])
 def test_an_interrupted_hand_off_is_answered_through_run(row: str) -> None:
-    """Spec 078, criterion 18 through run (the build review's F4): an interrupt landing just after
+    """Through run: an interrupt landing just after
     the home took a provider's hand-off, or after the provider answered and before its box was
     released, still ends the call: run raises KeyboardInterrupt within the child's limit, and the
     next call works."""
@@ -3260,7 +3260,7 @@ def test_an_interrupted_hand_off_is_answered_through_run(row: str) -> None:
     assert lines[-2:] == ["interrupted", "next 1"], (row, lines, err)
 
 
-# Spec 087, Decision 6: the README's 512 KiB rows of recursion that still traps, held on an engine
+# The README's 512 KiB rows of recursion that still traps, held on an engine
 # at wasmtime's defaults (no fuel, no epochs, 512 KiB), the engine an embedder who follows the
 # README's step 4 gets, so these depths do not move when the runner's stack does. Each completing
 # depth is at most three quarters of the lowest edge measured on the runner's engines (metered and
@@ -3321,8 +3321,7 @@ except ValueError:
     pass
 """,
 }
-# row: (completes at, traps at); the edges, measured on arm64 macOS and linux/amd64, are in spec
-# 087's Decision 6 and its landing notes.
+# row: (completes at, traps at); the edges were measured on arm64 macOS and linux/amd64.
 TRAP_DEPTHS = {
     "xpath-parens": (240, 640),
     "xpath-predicates": (2700, 4950),  # below libxml2's own 5,000, which raises XPathEvalError
@@ -3335,7 +3334,7 @@ TRAP_DEPTHS = {
 }
 # Two rows that must not trap: plain recursion that returns (it is freeing a long traceback that
 # traps, not recursing), and libxslt's depth lowered by lxml's own call, which turns a deep
-# template into XSLTApplyError (spec 087, Decision 7).
+# template into XSLTApplyError.
 DEEP_RETURNS = """import os, sys
 sys.setrecursionlimit(10**6)
 def f(k):
@@ -3363,7 +3362,7 @@ EXHAUSTED = (None, "wasm trap: call stack exhausted")
 
 
 def test_what_traps_on_wasmtimes_default_engine(guest_workdir) -> None:
-    """Spec 087, Decision 6: each of the README's rows of recursion that still traps at 512 KiB,
+    """Each of the README's rows of recursion that still traps at 512 KiB,
     on an engine at wasmtime's defaults: the completing depth prints `ok`; the deep one ends in a
     stack overflow, which the driver's own-engine path reports as wasmtime's "call stack
     exhausted"; the next call on the same engine prints `ok`. Recursing 20,000 deep and returning
@@ -3436,7 +3435,7 @@ print("os.pipe", "present" if hasattr(os, "pipe") else "absent")
 
 @pytest.mark.parametrize("which", ["snapshot", "plain"])
 def test_dup_is_refused_as_not_supported(guest, which) -> None:
-    """Spec 086, Decision 7 (b): a duplicated descriptor and a CPU clock are refused as not
+    """A duplicated descriptor and a CPU clock are refused as not
     supported, the answer wasi-libc's own dup gives on preview1. Guards a change: wasi-libc 34's
     fcntl answers F_DUPFD_CLOEXEC, the command os.dup uses, with EINVAL, and
     recipes/fcntl_dup_refusal.c makes it ENOTSUP again (Decision 5); os.dup2, os.pipe2 and
@@ -3463,7 +3462,7 @@ print(h.algorithm, h.width, h.hash_bits, h.seed_bits)
 
 @pytest.mark.parametrize("which", ["snapshot", "plain"])
 def test_the_string_hash_is_siphash13(guest, which) -> None:
-    """Spec 086, the security review's S5 (0.1.0 whole-surface review): str, bytes and memoryview
+    """str, bytes and memoryview
     hash with SipHash-1-3, CPython's own default, not 32-bit FNV. CPython's configure falls back to
     FNV when it cannot run its aligned-access probe, as in a cross build, and wasm loads unaligned
     words fine; FNV can be flooded with colliding keys whatever its key (PEP 456). Step 20 passes
@@ -3474,7 +3473,7 @@ def test_the_string_hash_is_siphash13(guest, which) -> None:
     assert r.text.splitlines() == ["siphash13 32 64 128"], r.text
 
 
-# Spec 043, Decision 9: matplotlib's `_qhull` sends qhull's messages to a stream that writes
+# matplotlib's `_qhull` sends qhull's messages to a stream that writes
 # nowhere and opens no path (carried patch 0002). Released, it opens MPL_DEVNULL, /dev/null, for
 # writing: in a writable root that holds a `dev` folder, that makes a regular file in the host's
 # folder no Python code asked for.
@@ -3501,7 +3500,7 @@ def _listing(folder: Path) -> list[tuple[str, str, int]]:
 
 @pytest.mark.slow
 def test_a_triangulation_leaves_every_writable_grant_as_it_was(guest_turns, guest_workdir) -> None:
-    """Spec 043, Decision 9: in a call whose writable root holds a `dev` folder, a Delaunay
+    """In a call whose writable root holds a `dev` folder, a Delaunay
     triangulation and a qhull error leave every writable grant as it was: the root, and the font
     cache's own grant (MPLCONFIGDIR), each listed with every path's type and size after
     matplotlib's import and again after the triangulations, in one instance kept across two

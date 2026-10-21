@@ -1,5 +1,5 @@
 #!/bin/sh
-# Step 38: OpenBLAS 0.3.34 for wasm32-wasip1, its C LAPACK the LAPACK (spec 037, Decisions 3 to 5):
+# Step 38: OpenBLAS 0.3.34 for wasm32-wasip1, its C LAPACK the LAPACK:
 # unpacked from its pinned tarball, its three carried patches applied (every C LAPACK subroutine
 # returns void), copied, built in the copy with make (the judged tree stays its tarball plus the
 # patches whatever make writes) through scripts/wasi-cc, and installed under build/openblas-wasi/.

@@ -1,11 +1,11 @@
-"""v1.3: scipy, built in (spec 037): native scipy's answers in the guest, and what must reach Python
+"""v1.3: scipy, built in: native scipy's answers in the guest, and what must reach Python
 when scipy meets the sandbox's edges.
 
 The golden jobs run through the judge's driver. Every behaviour check runs as an embedder calls
-the runner with no root and no grant, so nothing is writable (§4.15), on both binaries. Three of
-them were `[[gap]]`s until spec 038 closed them (037's Decision 9; 038's Decisions 1 to 4): Matrix
-Market's thread pool, Sobol's temporary file, and the `ctypes` values four functions make. Spec
-038 adds the edges golden, run with nothing writable, and the address check.
+the runner with no root and no grant, so nothing is writable, on both binaries. Three of
+them were `[[gap]]`s until scipy's second milestone closed them: Matrix
+Market's thread pool, Sobol's temporary file, and the `ctypes` values four functions make. The
+same milestone adds the edges golden, run with nothing writable, and the address check.
 """
 
 from __future__ import annotations
@@ -24,8 +24,8 @@ FUEL = 60 * 10**9  # a scipy import and one small computation, with room; a hang
 
 def _run(guest, which: str, code: str):
     """One program, as an embedder runs it with nothing writable (the root `/` read-only), through
-    the judge's own driver, whose seeded random and stepped clock make its fuel repeat (spec 080;
-    037's build review, F1). The fuel is the check's metric."""
+    the judge's own driver, whose seeded random and stepped clock make its fuel repeat.
+    The fuel is the check's metric."""
     return guest(which, ["-c", code], fuel=FUEL, root_writable=False)
 
 
@@ -79,7 +79,7 @@ def test_scipy_lapack_job_matches_native(guest, which) -> None:
 def test_scipy_edges_job_matches_native(guest, which) -> None:
     """Matrix Market through `io.BytesIO` (the bytes' SHA-256 and the values read back), Sobol's
     unscrambled and seeded scrambled points, the four functions that make `ctypes` values and
-    `loadarff`, as native scipy prints them, with nothing writable (spec 038, Decision 5)."""
+    `loadarff`, as native scipy prints them, with nothing writable."""
     _golden(guest, which, "scipy_edges", root_writable=False)
 
 
@@ -259,7 +259,7 @@ print(json.dumps(out))
 @BINARY
 def test_matrix_market_round_trips_in_memory(guest, which) -> None:
     """`mmwrite` then `mmread` of a sparse and a dense matrix through `io.BytesIO`, with
-    nothing writable, give back the same matrix. A gap until spec 038, whose carried patch makes
+    nothing writable, give back the same matrix. A gap until a carried patch made
     the default parallelism 1 on WASI: fast_matrix_market's default started a thread pool, and
     starting a thread throws on WASI."""
     want = {"sparse": True, "dense": True}
@@ -277,11 +277,11 @@ print(json.dumps({"points": pts.tolist()}))
 @BINARY
 def test_sobol_needs_nothing_writable(guest, which) -> None:
     """The first four points of the unscrambled two-dimensional Sobol sequence, with nothing
-    writable. A gap until spec 038, whose carried patch reads the direction numbers' bytes
+    writable. A gap until a carried patch read the direction numbers' bytes
     without a file: `_sobol.pyx` loaded them through `importlib.resources.as_file`, which copies
     the zip member to a temporary file; with no temporary folder that raised inside a `noexcept`
     Cython function, which printed "Exception ignored" and left the direction numbers zero, so
-    every point was 0 (spec 037's build's finding)."""
+    every point was 0."""
     want = {"points": [[0.0, 0.0], [0.5, 0.5], [0.75, 0.25], [0.25, 0.75]]}
     _compare(_run(guest, which, SOBOL), want, "Sobol with nothing writable")
 
@@ -311,7 +311,7 @@ print(json.dumps(out))
 def test_ctypes_values_scipy_makes(guest, which) -> None:
     """Three distributions pass their parameters to C as a `ctypes.c_void_p`, and `loadarff`
     computes `ctypes.c_ulong(-1).value`; each returns a finite number or its records. A gap until
-    spec 038, whose stand-in holds numeric and `c_void_p` values: the stand-in raised `OSError` for
+    the stand-in held numeric and `c_void_p` values: the stand-in raised `OSError` for
     any instance of a C type."""
     want = {
         "geninvgauss": True,
@@ -337,7 +337,7 @@ print(json.dumps({"equal": p.value == address, "data": a.ctypes.data == address,
 def test_ndarray_ctypes_gives_the_arrays_address(guest, which) -> None:
     """numpy's `ndarray.ctypes.data_as(ctypes.c_void_p).value` and `.ctypes.data` are the array's
     `__array_interface__` address, a 32-bit one, and the pointer keeps the array alive, with the
-    real numpy in the guest (spec 038, Decision 5: a guest check, since a 64-bit host's address
+    real numpy in the guest (a guest check, since a 64-bit host's address
     does not fit the stand-in's 32 bits and numpy is not a development dependency)."""
     want = {"equal": True, "data": True, "kept": True, "fits": True}
     _compare(_run(guest, which, ADDRESS), want, "ndarray.ctypes's address")
@@ -365,9 +365,9 @@ print(json.dumps(out))
 
 @BINARY
 def test_the_sobol_options_need_nothing_writable(guest, which) -> None:
-    """`differential_evolution(init='sobol')` and `shgo(sampling_method='sobol')` find the
-    minimum of a two-dimensional sphere with nothing writable (spec 038; its build review's Low 7:
-    the README says they work). Before 038, the first started from Sobol's zero population and the
-    second raised QhullError (QH6421)."""
+    """`differential_evolution(init='sobol')` and `shgo(sampling_method='sobol')` find the minimum
+    of a two-dimensional sphere with nothing writable (the README says they work). Before scipy's
+    second milestone, the first started from Sobol's zero population and the second raised
+    QhullError (QH6421)."""
     want = {"differential_evolution": [True, True], "shgo": [True, True]}
     _compare(_run(guest, which, SOBOL_OPTIONS), want, "Sobol's options with nothing writable")

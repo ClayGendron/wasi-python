@@ -31,7 +31,7 @@ DOOR_RUN = """
     (i32.const 0))
 """
 
-# A session's two exports (spec 055): a turn that runs nothing, and a shutdown that does nothing.
+# A session's two exports: a turn that runs nothing, and a shutdown that does nothing.
 SESSION = """
   (func (export "turn") (param i32 i32) (result i32) (i32.const 0))
   (func (export "shutdown") (result i32) (i32.const 0))
@@ -69,7 +69,7 @@ SNAPSHOT = f"""
 )
 """
 
-# A snapshot as sets before spec 055 were: no `turn` and no `shutdown`.
+# A snapshot as sets before bounded sessions were: no `turn` and no `shutdown`.
 BEFORE_SESSIONS = f"""
 (module
   {DOOR_IMPORT}
@@ -79,7 +79,7 @@ BEFORE_SESSIONS = f"""
 )
 """
 
-# A snapshot with `turn` and without `shutdown` (spec 055, criterion 6).
+# A snapshot with `turn` and without `shutdown`.
 TURN_ONLY = f"""
 (module
   {DOOR_IMPORT}
@@ -135,7 +135,7 @@ CLOCK_PROBE = f"""
       (i64.const 1000)))))
 """
 
-# run() returns the difference of two monotonic clock reads in µs: the driver's step (spec 087).
+# run() returns the difference of two monotonic clock reads in µs: the driver's step.
 CLOCK_STEP_PROBE = f"""
 (module
   (import "{WASI}" "clock_time_get" (func $clock (param i32 i64 i32) (result i32)))
@@ -148,7 +148,7 @@ CLOCK_STEP_PROBE = f"""
       (i64.const 1000)))))
 """
 
-# run() returns the monotonic clock's stated resolution in µs (spec 087).
+# run() returns the monotonic clock's stated resolution in µs.
 CLOCK_RES_PROBE = f"""
 (module
   (import "{WASI}" "clock_res_get" (func $res (param i32 i32) (result i32)))
@@ -247,7 +247,7 @@ def reactor_with_init(iterations: int) -> str:
 """
 
 
-# A stand-in for the judge's raw turn driver (spec 055): `turn` returns the length of the code
+# A stand-in for the judge's raw turn driver: `turn` returns the length of the code
 # written at its pointer plus the first byte there, and counts its calls; `shutdown` returns the
 # count of turns. Each call that runs nothing else lets the driver's bookkeeping be checked.
 TURNS = f"""
@@ -267,9 +267,9 @@ TURNS = f"""
 """
 
 
-# Spec 087 (its build review's F3): run() reads the realtime clock twice, then stats `f` in the
+# run() reads the realtime clock twice, then stats `f` in the
 # grant at fd 4, and returns (its mtim - the second read) in µs: one step when a file's times
-# follow the run's clock step, as 083's driver draws them from the same ticks.
+# follow the run's clock step, as the driver draws them from the same ticks.
 FILE_TIME_PROBE = f"""
 (module
   (import "{WASI}" "clock_time_get" (func $clock (param i32 i64 i32) (result i32)))
@@ -287,7 +287,7 @@ FILE_TIME_PROBE = f"""
 """
 
 
-# Spec 083: what a guest learns about a file, through the judge's driver. `run` stats `f` in the
+# What a guest learns about a file, through the judge's driver. `run` stats `f` in the
 # grant at fd 4 (after filling the result with 0xAA), stats it again after the host changes it
 # (the door call between), opens and reads it and stats it by descriptor after the host reads it
 # too, lists the grant, sets its times exactly by path and by descriptor, then "now", and stats
@@ -388,7 +388,7 @@ FILE_FACTS = f"""
 
 def stat_loop(call: str, n: int) -> str:
     """A command that calls a two-argument preview1 call (`fd_filestat_get` or `fd_fdstat_get`)
-    on fd 3 `n` times, its answer at address 0: the same instructions whichever it is (spec 083)."""
+    on fd 3 `n` times, its answer at address 0: the same instructions whichever it is."""
     return f"""
 (module
   (import "{WASI}" "{call}" (func $call (param i32 i32) (result i32)))

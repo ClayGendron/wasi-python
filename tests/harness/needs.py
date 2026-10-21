@@ -1,4 +1,4 @@
-"""The fixed vocabulary of needs (spec 002, Decision 5).
+"""The fixed vocabulary of needs.
 
 A check that cannot run calls `need(name)`. The call skips only when the need's predicate is
 false, with the reason `needs: <name>`; the plugin re-evaluates the predicate and turns a skip
@@ -91,8 +91,7 @@ def _git() -> bool:
 
 
 def _git_history() -> bool:
-    """The whole history is here: a shallow clone's oldest commit has no parent to compare
-    (spec 029, Decision 7)."""
+    """The whole history is here: a shallow clone's oldest commit has no parent to compare."""
     return (paths.git("rev-parse", "--is-shallow-repository") or "").strip() == "false"
 
 
@@ -103,7 +102,7 @@ def _upstream_kit() -> bool:
 
 
 def _compile_records() -> bool:
-    """A build left its meson records under build/ (spec 059, Decision 4): the compile-flag check
+    """A build left its meson records under build/: the compile-flag check
     reads them, and the generated Makefiles and step 60's command files beside them."""
     from harness import scan
 
@@ -111,8 +110,8 @@ def _compile_records() -> bool:
 
 
 def _descriptor_limit() -> bool:
-    """The host can lower a process's descriptor limit (RLIMIT_NOFILE): POSIX, not Windows. Spec
-    063's first Windows run found the one check that needs it skipping without a need."""
+    """The host can lower a process's descriptor limit (RLIMIT_NOFILE): POSIX, not Windows. The
+    first Windows run found the one check that needs it skipping without a need."""
     import importlib.util
 
     return importlib.util.find_spec("resource") is not None
@@ -121,7 +120,7 @@ def _descriptor_limit() -> bool:
 def _read_only_files() -> bool:
     """Read-only content refuses a guest's unlink: on POSIX the host's folder without write
     permission does; on Windows the read-only attribute does not, and the guest deletes the file
-    itself (spec 084's C2, settled by wave 01's dry run 39358820218 on wasmtime 49; spec 094)."""
+    itself (seen in a dry run, 39358820218, on wasmtime 49)."""
     import os
 
     return os.name != "nt"
@@ -173,8 +172,8 @@ SOURCE_COMPONENTS = (
     "networkx",
     "openblas",
     "scipy",
-    "scikit_learn",  # spec 044
-    "seaborn",  # spec 042
+    "scikit_learn",
+    "seaborn",
 )
 
 VOCABULARY: dict[str, Need] = {
@@ -197,8 +196,8 @@ VOCABULARY: dict[str, Need] = {
         Need("upstream kit", _upstream_kit, SPEC_050),  # tests/upstream/fetch.py fetches it
         Need("compile records", _compile_records, SPEC_059),
         Need("wasmtime cli", lambda: paths.wasmtime_cli() is not None, SPEC_071),
-        Need("descriptor limit", _descriptor_limit, SPEC_032),  # RLIMIT_NOFILE (spec 063)
-        Need("read-only files", _read_only_files, SPEC_094),  # not on Windows (spec 084, C2)
+        Need("descriptor limit", _descriptor_limit, SPEC_032),  # RLIMIT_NOFILE
+        Need("read-only files", _read_only_files, SPEC_094),  # not on Windows
         *[Need(f"source tree {c}", _source_tree(c), REPRO_MEMO) for c in SOURCE_COMPONENTS],
     ]
 }

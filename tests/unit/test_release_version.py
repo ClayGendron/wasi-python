@@ -1,4 +1,4 @@
-"""release/version.py: versions, the changelog, the tag check and the assets (spec 004)."""
+"""release/version.py: versions, the changelog, the tag check and the assets."""
 
 from __future__ import annotations
 
@@ -126,7 +126,7 @@ def test_assets_are_deterministic(tmp_path: Path) -> None:
 
 
 def test_the_assets_pack_the_sets_list_never_its_folder(tmp_path: Path) -> None:
-    """Spec 090, Decision 3: litter in the folder (a name, an AppleDouble file, a volume folder)
+    """Litter in the folder (a name, an AppleDouble file, a volume folder)
     never enters the tarball, and the bytes are those of a clean folder."""
     wheel = tmp_path / "wasi_python-0.1.0a1-py3-none-any.whl"
     wheel.write_bytes(b"PK")

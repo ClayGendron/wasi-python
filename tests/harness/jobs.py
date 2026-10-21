@@ -1,4 +1,4 @@
-"""Golden jobs: native Python at the guest's pins is the oracle (spec 002, Decision 11).
+"""Golden jobs: native Python at the guest's pins is the oracle.
 
 A job takes a data directory and an output directory. Its expected output is its stdout, then
 each file it wrote in path order, each after a `=== <name>` line. The oracle is its own uv
@@ -6,8 +6,8 @@ project (`tests/jobs/oracle/`), run with every uv download under `build/oracle/`
 
 Its interpreter is its own copy of the line's pinned host Python (`scripts/line.conf`'s
 `HOST_PYTHON_ARCHIVE`), checked against `downloads/SHA256SUMS` and unpacked under
-`build/oracle/python/`, because the pinned uv cannot install the line's version (spec 005,
-Decision 9). It shares no directory with the build.
+`build/oracle/python/`, because the pinned uv cannot install the line's version.
+It shares no directory with the build.
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ JOBS = (
     "plot_contour",
     "lxml_xml",
     "regex_features",
-    # Tier A, one job per family (spec 039, Decision 11)
+    # Tier A, one job per family
     "excel",
     "pdf",
     "markup",
@@ -51,29 +51,29 @@ JOBS = (
     "modelling",
     "symbolic",
     "utilities",
-    # The files two packages read by path, from the zip (spec 041, Decision 7)
+    # The files two packages read by path, from the zip
     "files_from_the_zip",
-    # scipy's first milestone (spec 037, Decision 15)
+    # scipy's first milestone
     "scipy_numeric",
     "scipy_solvers",
     "scipy_lapack",
-    # scipy's second milestone: the sandbox's edges (spec 038, Decision 5)
+    # scipy's second milestone: the sandbox's edges
     "scipy_edges",
-    # scikit-learn (spec 044, Decision 13)
+    # scikit-learn
     "machine_learning",
-    # seaborn's statistical plots and reportlab's PDF reports (spec 042, Decision 10)
+    # seaborn's statistical plots and reportlab's PDF reports
     "statistical_plots",
     "pdf_reports",
 )
-# Jobs whose native output may differ off the platform that recorded them (spec 023, Decision 8):
+# Jobs whose native output may differ off the platform that recorded them:
 # native matplotlib's pixels may move by platform (its own tests allow it in 61 places), while the
 # guest's never do. Each records its platform in tests/jobs/<job>.platform; the oracle reproduces
-# it only there, and the guest must match it everywhere. plot_contour (spec 043, Decision 8) prints
+# it only there, and the guest must match it everywhere. plot_contour prints
 # a figure's RGBA buffer and its SVG and PDF bytes, so it is bound in the same way.
-# The scipy jobs too (spec 037, Decision 15): the oracle's scipy is pinned to scipy-openblas on
-# macOS arm64, where its goldens are recorded; elsewhere its LAPACK and kernels differ (spec 038's
-# edges job too). And scikit-learn's (spec 044, Decision 13): PCA and the linear models reach
-# LAPACK through scipy. statistical_plots (spec 042, Decision 10) prints seaborn's figures' RGBA
+# The scipy jobs too: the oracle's scipy is pinned to scipy-openblas on
+# macOS arm64, where its goldens are recorded; elsewhere its LAPACK and kernels differ (the
+# edges job too). And scikit-learn's: PCA and the linear models reach
+# LAPACK through scipy. statistical_plots prints seaborn's figures' RGBA
 # buffers and SVGs, and values from scipy's kernel densities and clustering; pdf_reports prints no
 # pixel and reproduces everywhere.
 PLATFORM_BOUND = (
@@ -88,7 +88,7 @@ PLATFORM_BOUND = (
 )
 DATA = {"sales.csv": paths.REPO / "fixtures" / "sales.csv"}
 # pyyaml publishes no cp315 wheel, so the oracle takes its pure tree from the pinned sdist, as the
-# guest does (spec 039, Decision 11): nothing is built on the host.
+# guest does: nothing is built on the host.
 PURE_SDIST = "pyyaml-6.0.3.tar.gz"
 VERSIONS = re.compile(r"versions( [\w-]+=\S+)+")
 
@@ -182,7 +182,7 @@ def oracle_python() -> Path:
 
 
 def oracle_pure() -> Path:
-    """pyyaml as the guest has it (spec 039, Decision 11): the pinned sdist, hash-checked, of which
+    """pyyaml as the guest has it: the pinned sdist, hash-checked, of which
     only `lib/yaml/` and `PKG-INFO` are unpacked under build/oracle/pure/, `PKG-INFO` as
     `pyyaml-<version>.dist-info/METADATA` beside `yaml/`. A stamp holding the archive's hash marks a
     finished unpack. A missing or mismatched sdist raises RuntimeError, which oracle_available()
@@ -227,14 +227,14 @@ def oracle_env(seed: int | None = None) -> dict[str, str]:
     )
     env.pop("VIRTUAL_ENV", None)
     env["PYTHONPATH"] = str(oracle_pure())  # pyyaml's pure tree, as the guest has it
-    # matplotlib uses its own fonts only, as the guest does (spec 023, Decision 8): natively it
+    # matplotlib uses its own fonts only, as the guest does: natively it
     # would otherwise list every font of the machine.
     env["MPL_IGNORE_SYSTEM_FONTS"] = "1"
-    # One BLAS thread, so the oracle's sums are taken in one order (spec 037, Decision 15).
+    # One BLAS thread, so the oracle's sums are taken in one order.
     env["OPENBLAS_NUM_THREADS"] = "1"
     env["VECLIB_MAXIMUM_THREADS"] = "1"
     # One OpenMP thread: the native scikit-learn wheel has OpenMP, the guest has none, and one
-    # thread takes its sums in one order (spec 044, Decision 13; a guard: the draft's output was the
+    # thread takes its sums in one order (a guard: the draft's output was the
     # same without it).
     env["OMP_NUM_THREADS"] = "1"
     if seed is not None:
@@ -292,8 +292,7 @@ def run_native(job: str, seed: int, workdir: Path, *, offline: bool = True) -> b
 
 def run_in_guest(guest, job: str, **kw) -> bytes:
     """One run of a job on the plain binary through the judge's guest; the rendered output. `kw`
-    goes to the guest (a job that imports matplotlib passes its cache folder and its data grant,
-    spec 042)."""
+    goes to the guest (a job that imports matplotlib passes its cache folder and its data grant)."""
     files = {f"/jobs/{job}.py": script(job).read_bytes()}
     files.update({f"/data/{n}": src.read_bytes() for n, src in DATA.items()})
     files["/out/.keep"] = b""

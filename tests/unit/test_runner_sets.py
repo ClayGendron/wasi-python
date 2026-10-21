@@ -1,5 +1,5 @@
-"""The runner checks a set it finds against the set's own SHA256SUMS before using it (spec 087,
-Decision 10, from the 0.1.0 security review's S3). A set the caller passes is the caller's own."""
+"""The runner checks a set it finds against the set's own SHA256SUMS before using it.
+A set the caller passes is the caller's own."""
 
 from __future__ import annotations
 
@@ -76,7 +76,7 @@ def test_a_set_the_caller_passes_is_its_own(found) -> None:
     assert runner.run([], artifacts=given, cache_dir=False).exit_code == 101
 
 
-# Spec 087's build review, F1: a file swapped after the check, by a writer of the set's folder
+# A file swapped after the check, by a writer of the set's folder
 # during a call, is refused too; the checked digest binds the bytes the call compiles and the
 # zip the guest reads, and a .cwasm is written only from checked bytes.
 PLANTED = wat.SNAPSHOT.replace(wat.DOOR_RUN, '(func (export "run") (result i32) (i32.const 42))')

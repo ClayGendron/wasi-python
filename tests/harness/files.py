@@ -1,4 +1,4 @@
-"""Spec 032's fixtures: an in-memory provider that counts its own calls, the same tree on disk, and
+"""The mounts' fixtures: an in-memory provider that counts its own calls, the same tree on disk, and
 a table-driven raw preview1 module, so a parity row is data rather than a new guest.
 
 `RAW_SIGNATURES` lists every preview1 call that takes a descriptor, with its raw wasm signature.
@@ -292,7 +292,7 @@ class Raw:
 
 
 # d_ino only. The padding after d_type (21 to 24) is compared: the runner zeroes it on a grant's
-# forwarded listing as a mount writes it (spec 048; wasmtime 49.0.0 fills it from uninitialized
+# forwarded listing as a mount writes it (wasmtime 49.0.0 fills it from uninitialized
 # host memory, GHSA-96f6-r43r-8c24, fixed in wasmtime 49.0.2).
 DIRENT_MASKED = tuple(range(8, 16))
 
@@ -336,7 +336,7 @@ def write_tree(root: Path, tree: Mapping[str, bytes | None] = TREE) -> Path:
     return root
 
 
-# Spec 058: rows of spec 034's v1.4 write parity (`WRITE_PARITY`) whose grant answer is the host
+# Rows of the writable mounts' v1.4 write parity (`WRITE_PARITY`) whose grant answer is the host
 # system's, asserted exactly per system (keyed by `sys.platform`), and the mount's answer, the same
 # on every host. Windows's values were seen on GitHub's `windows-2025-vs2026` runner image and
 # depend on it: there a folder renamed onto an empty folder succeeded too (`g`, no `d`), which
@@ -387,11 +387,11 @@ def answer_matches(want: object, got: object) -> bool:
 
 
 # A write through a grant's descriptor opened only to read, or a read through one opened only to
-# write (spec 076, Decision 4): refused on every host, with the host's own errno. wasmtime 49's
+# write: refused on every host, with the host's own errno. wasmtime 49's
 # preview1 `fd_write` and `fd_read` check neither the grant's permissions nor the open mode, so
 # the host answers: `write(2)` and `read(2)` give EBADF (8) on Linux and macOS (EXECUTED);
 # Windows gives ERROR_ACCESS_DENIED, which wasmtime maps to EACCES (2) (READ, wasmtime-wasi
-# 49.0.0 `p1.rs:626-695`, `filesystem.rs:434`; seen on windows-2025 in spec 063's dry runs).
+# 49.0.0 `p1.rs:626-695`, `filesystem.rs:434`; seen on windows-2025 in the release's dry runs).
 WRONG_MODE_ERRNO: dict[str, int] = {"linux": 8, "darwin": 8, "win32": 2}
 
 
@@ -406,12 +406,12 @@ _UNSET = object()
 
 
 class MemoryProvider:
-    """A provider over an in-memory tree that counts its own calls by method (all eight, spec 034)
-    and records every path it was given, and every write-half call whole in `log`. It follows the
-    protocol's contract: `read` answers EISDIR for a folder and ENOTDIR when a parent is a file;
-    the write half answers as Decision 2 of spec 034 says. `answers` overrides one method on one
-    path: an `Errno` is answered, an exception is raised, a callable is called with the method's
-    arguments. Thread-safe: one provider may serve concurrent calls."""
+    """A provider over an in-memory tree that counts its own calls by method (all eight) and records
+    every path it was given, and every write-half call whole in `log`. It follows the protocol's
+    contract: `read` answers EISDIR for a folder and ENOTDIR when a parent is a file; the write half
+    answers as a writable mount's provider does. `answers` overrides one method on one path: an
+    `Errno` is answered, an exception is raised, a callable is called with the method's arguments.
+    Thread-safe: one provider may serve concurrent calls."""
 
     def __init__(self, tree: Mapping[str, bytes | None] = TREE) -> None:
         from wasi_python import Errno, Stat
@@ -508,7 +508,7 @@ class MemoryProvider:
                 return self.tree[path]
             return self._missing(path)
 
-    # The write half (spec 034, Decision 2).
+    # The write half.
 
     def write(self, path: str, data: bytes) -> Any:
         if (answer := self._count("write", path, data)) is not _UNSET:
@@ -692,12 +692,12 @@ class Mounted(_OnStack):
 
 
 class Guarded(_OnStack):
-    """The raw module on the runner's guard linker (spec 048), with its call on the thread's
+    """The raw module on the runner's guard linker, with its call on the thread's
     stack around every export: what a call without mounts answers. Each (host folder, guest
     path, writable) in `folders` is preopened from 3 up and served by wasmtime, but for the five
     calls the guard linker shadows: the two guarded ones (`fd_readdir`, `path_rename`), which a
     guard table (no mounts) forwards with the fixes of wasmtime 49.0.2 and 49.0.3, and the three
-    counted ones (`path_open`, `fd_close`, `fd_renumber`; spec 068), which it forwards and
+    counted ones (`path_open`, `fd_close`, `fd_renumber`), which it forwards and
     counts against `table.open_files` (no cap unless a check sets one)."""
 
     def __init__(

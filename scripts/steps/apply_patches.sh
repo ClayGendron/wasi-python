@@ -1,5 +1,5 @@
 #!/bin/sh
-# Apply the carried patches of one source tree (spec 020): scripts/steps/apply_patches.sh TREE DIR
+# Apply the carried patches of one source tree: scripts/steps/apply_patches.sh TREE DIR
 #
 # The build runs it right after a step unpacks a pinned tarball; the judge runs the same script on
 # a fresh extraction, so the two can never apply differently. It sources only remove.sh. Each
@@ -18,7 +18,7 @@ die() {
 [ "$#" -eq 2 ] || die "usage: apply_patches.sh TREE PATCH_DIR"
 [ -d "$1" ] || die "no tree $1"
 TREE=$(CDPATH= cd "$1" && pwd -P)  # absolute: with a relative tree git ignores the ceiling
-# git would read a repository inside the tree, with its own configuration and attributes (spec 024).
+# git would read a repository inside the tree, with its own configuration and attributes.
 [ ! -e "$TREE/.git" ] && [ ! -L "$TREE/.git" ] || die "$TREE holds .git; a source tree is never a repository"
 [ -d "$2" ] || exit 0              # no patches for this tree
 DIR=$(CDPATH= cd "$2" && pwd -P)
@@ -26,7 +26,7 @@ DIR=$(CDPATH= cd "$2" && pwd -P)
 set -- "$DIR"/[0-9][0-9][0-9][0-9]-*.patch
 [ -e "$1" ] || exit 0  # an empty folder: the glob matched nothing
 
-. "$(dirname "$0")/remove.sh"  # spec 018: removals retry
+. "$(dirname "$0")/remove.sh"  # removals retry
 WORK=$(mktemp -d)
 trap 'remove "$WORK"' EXIT
 mkdir "$WORK/home"

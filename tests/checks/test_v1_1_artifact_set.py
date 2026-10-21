@@ -66,7 +66,7 @@ def test_no_start_section(artifacts, which) -> None:
 
 def test_plain_reactor_exports(artifacts) -> None:
     errors = rules.export_errors(_binary(artifacts, "plain"), rules.PLAIN_EXPORTS)
-    errors += rules.export_type_errors(_binary(artifacts, "plain"))  # spec 055
+    errors += rules.export_type_errors(_binary(artifacts, "plain"))  # the session exports' types
     assert not errors, scan.report(errors)
 
 
@@ -74,7 +74,7 @@ def test_snapshot_exports(artifacts) -> None:
     errors = rules.export_errors(
         _binary(artifacts, "snapshot"), rules.SNAPSHOT_EXPORTS, rules.SNAPSHOT_FORBIDDEN
     )
-    errors += rules.export_type_errors(_binary(artifacts, "snapshot"))  # spec 055
+    errors += rules.export_type_errors(_binary(artifacts, "snapshot"))  # the session exports' types
     assert not errors, scan.report(errors)
 
 
@@ -98,7 +98,7 @@ def test_manifest_recipes_match_the_tree(artifacts) -> None:
 
 def test_manifest_names_the_pre_imports(artifacts) -> None:
     """MANIFEST's `x-preimport` line says what the snapshot pre-imports: the stdlib's bootstrap
-    and no package (decision 34; spec 069, check e)."""
+    and no package (decision 34)."""
     needs.need("manifest")
     lines = artifacts.path("MANIFEST").read_text().splitlines()
     found = [ln.removeprefix("x-preimport ") for ln in lines if ln.startswith("x-preimport ")]
@@ -117,7 +117,7 @@ def test_tqdm_notice_carries_the_mpl_and_its_source(artifacts) -> None:
     """tqdm ships as bytecode, MPL-2.0's Executable Form, so the set carries its source (the
     pinned wheel, unchanged, as LICENSES/tqdm-<version>-source.whl) and its notice holds the
     full MPL-2.0 text beside the wheel's LICENCE; sympy's notice holds the MIT notice nested in
-    its package (spec 039, Decision 8)."""
+    its package."""
     errors = rules.tier_a_notice_errors(artifacts.dir)
     assert not errors, scan.report(errors)
 
@@ -128,7 +128,7 @@ def test_scikit_learn_notice_carries_its_bundled_parts(artifacts) -> None:
     liac-arff's, packaging's two, MurmurHash3's, CPython's pprint's (the PSF licence and its
     summary of changes), the pytest-derived lines, HDBSCAN's and the Apache-2.0 kernel's; then
     numpydoc's, django's and pytest's pinned licences and the Apache-2.0 text; and the datasets'
-    sources and terms, three of them CC BY 4.0 at UCI (spec 044, Decision 11). A .pyc keeps no
+    sources and terms, three of them CC BY 4.0 at UCI. A .pyc keeps no
     comment, so these parts are where the zip's users meet the notices. It reads the sdist, so it
     runs in the build shard (tests/release_shards.toml)."""
     needs.need("source tree scikit_learn")
@@ -138,7 +138,7 @@ def test_scikit_learn_notice_carries_its_bundled_parts(artifacts) -> None:
 
 
 def test_the_sample_images_are_not_in_the_zip(artifacts) -> None:
-    """scikit-learn's two sample photographs stay out with their folder (spec 044, Decision 10):
+    """scikit-learn's two sample photographs stay out with their folder:
     no member under sklearn/datasets/images/, while the six datasets beside them are in."""
     needs.need("stdlib zip")
     with zipfile.ZipFile(artifacts.path("python-stdlib.zip")) as z:
@@ -161,7 +161,7 @@ def test_reportlab_fonts_are_not_in_the_zip(artifacts) -> None:
     """reportlab's fonts are not in the zip, nor any font file of their formats (.pfb, .afm,
     .sfd): their licences are not approved, and reportlab cannot read them from a zip. Its barcode
     folder is not in it either, until the change that ships it with Tyler C. Sarna's
-    acknowledgement removes this assertion (spec 042, Decisions 4 and 4a)."""
+    acknowledgement removes this assertion."""
     needs.need("stdlib zip")
     with zipfile.ZipFile(artifacts.path("python-stdlib.zip")) as z:
         names = z.namelist()
@@ -172,7 +172,7 @@ def test_reportlab_fonts_are_not_in_the_zip(artifacts) -> None:
 def test_seaborn_notice_carries_its_vendored_licences(artifacts) -> None:
     """LICENSES/seaborn.txt holds seaborn's licence and the five licences of the code it vendors
     (appdirs, husl, numpydoc, packaging, scipy), each headed by its path in the sdist; with the
-    pinned sdist in downloads/, each part is that file, byte for byte (spec 042, Decision 7)."""
+    pinned sdist in downloads/, each part is that file, byte for byte."""
     errors = rules.seaborn_notice_errors(artifacts.dir, _pinned_source(artifacts, "seaborn"))
     assert not errors, scan.report(errors)
 
@@ -182,14 +182,14 @@ def test_reportlab_notice_carries_its_third_party_parts(artifacts) -> None:
     carries as comments, which compilation drops: Tyler C. Sarna's four-clause BSD notice with
     his acknowledgement, Adobe's for the glyph list, the QR encoder's, and the MIT text the last
     names (its SHA-256 MANIFEST's pin line); with the pinned wheel in downloads/, each part is
-    that file's leading comment block, byte for byte (spec 042, Decisions 4a and 7)."""
+    that file's leading comment block, byte for byte."""
     errors = rules.reportlab_notice_errors(artifacts.dir, _pinned_source(artifacts, "reportlab"))
     assert not errors, scan.report(errors)
 
 
 def test_cpython_notice_covers_hacl(artifacts) -> None:
-    """HACL* is compiled into the binary and CPython's license.rst does not name it (review of
-    spec 004, finding 1), so its MIT notice must be in LICENSES/cpython.txt."""
+    """HACL* is compiled into the binary and CPython's license.rst does not name it,
+    so its MIT notice must be in LICENSES/cpython.txt."""
     text = artifacts.path("LICENSES/cpython.txt").read_text(errors="replace")
     assert "HACL* Contributors" in text and "Permission is hereby granted" in text
 
@@ -216,8 +216,8 @@ def test_artifacts_carry_no_build_path(artifacts) -> None:
 
 @BINARY
 def test_binaries_hold_no_build_path(artifacts, which) -> None:
-    """Neither binary holds the checkout's path or the build user's home folder (spec 046,
-    Decision 10): a path compiled in through a `-D` string (libxml2's default catalog, from its
+    """Neither binary holds the checkout's path or the build user's home folder:
+    a path compiled in through a `-D` string (libxml2's default catalog, from its
     configure's `--prefix`) or an `assert`'s `__FILE__` names the builder's disk, and no two
     checkouts would give the same bytes. The binary-side twin of the zip's host-fact check."""
     folders = rules.build_folders(paths.REPO, Path.home())
@@ -227,7 +227,7 @@ def test_binaries_hold_no_build_path(artifacts, which) -> None:
 
 def test_reactor_holds_no_sdk_builder_path(artifacts) -> None:
     """The reactor links the host-neutral wasm runtime, not the one inside the builder's SDK
-    tarball, whose assert messages name where that tarball was built (spec 012, Decision 2)."""
+    tarball, whose assert messages name where that tarball was built."""
     errors = rules.sdk_builder_path_errors(_binary(artifacts, "plain"))
     assert not errors, scan.report(errors)
 
@@ -245,7 +245,7 @@ def test_no_cpython_test_module_is_built_in(guest) -> None:
 def test_a_missing_stdlib_module_says_why(guest) -> None:
     """The zip carries _missing_stdlib_info, which CPython's build generates beside
     _sysconfigdata, so a traceback for a stdlib module this platform lacks says why, as native
-    CPython's does (spec 086; spec 078's build review, F2). Without it traceback falls back to
+    CPython's does. Without it traceback falls back to
     "was not found"."""
     code = (
         "import traceback\n"
@@ -261,7 +261,7 @@ def test_a_missing_stdlib_module_says_why(guest) -> None:
 
 @BINARY
 def test_stdlib_c_modules_are_builtin(guest, which) -> None:
-    """zlib, _bz2, _lzma and _sqlite3 are linked in as builtins (spec 007). A Setup.local line
+    """zlib, _bz2, _lzma and _sqlite3 are linked in as builtins. A Setup.local line
     holding `=` is read by makesetup as a Make variable and its module is dropped without an
     error, so only the guest can say the module is there."""
     code = (
@@ -291,16 +291,15 @@ for n in dotted:
         wrong.append([n, got])
 print(json.dumps({"dotted": len(dotted), "wrong": wrong}))
 """
-# Importing every dotted builtin pulls in most of each package (spec 047, Decision 7): 5.0 G
-# fuel on the plain reactor and 0.1 G on the snapshot before regex (its pre-build review's
-# finding 10). One program per binary, each with a budget; a figure above half its budget is a
-# finding for the build review, and a plain run past its budget is split per top-level package,
-# never narrowed to fewer modules. scipy's 95 modules are their own run (spec 037), and so are
-# scikit-learn's 69 (spec 044; test_v1_3_default_profile's test_scikit_learn_modules_are_builtin).
+# Importing every dotted builtin pulls in most of each package: 5.0 G fuel on the plain reactor and
+# 0.1 G on the snapshot before regex. One program per binary, each with a budget; a figure above
+# half its budget is a finding to raise, and a plain run past its budget is split per top-level
+# package, never narrowed to fewer modules. scipy's 95 modules are their own run, and so are
+# scikit-learn's 69 (test_v1_3_default_profile's test_scikit_learn_modules_are_builtin).
 DOTTED_FUEL = {"plain": 20_000_000_000, "snapshot": 10_000_000_000}
 SCIPY_DOTTED_FUEL = 40_000_000_000
-# What native scipy 1.18.1 itself gives, not this build's (EXECUTED under the pinned oracle, spec
-# 037's landing notes): `_uarray`'s module definition names it `uarray._uarray`. It equals the
+# What native scipy 1.18.1 itself gives, not this build's (EXECUTED under the pinned oracle):
+# `_uarray`'s module definition names it `uarray._uarray`. It equals the
 # native answer; nothing of this build is excused. (`_matfuncs_sqrtm_triu` imported first was a
 # circular import natively too, until carried patch scipy-1.18.1/0002 moved its import: pydoc's
 # apropos imports every builtin.)
@@ -308,14 +307,14 @@ SCIPY_NATIVE = {
     "scipy._lib._uarray._uarray": "uarray._uarray",
 }
 # matplotlib's package needs its data folder and a writable cache folder to import, as in its
-# own checks (spec 023): granted here, so its builtins are named like every other.
+# own checks: granted here, so its builtins are named like every other.
 MPL_ENV = {"MPLCONFIGDIR": "/mplconfig"}
 
 
 @BINARY
 def test_dotted_builtins_keep_their_import_names(guest, which) -> None:
     """Every builtin with a dot in its name imports as a module whose `__name__` is that name, as
-    a native import from a shared library gives it (spec 047, Decision 4). CPython gives a builtin
+    a native import from a shared library gives it. CPython gives a builtin
     no package context, so a single-phase module (regex's `_regex`, scipy's f2py modules) keeps
     its short `m_name` unless the inittab's wrapper sets the context around its init function;
     pickle then looks for a top-level module that does not exist. General: a later single-phase
@@ -331,7 +330,7 @@ def test_dotted_builtins_keep_their_import_names(guest, which) -> None:
 
 @BINARY
 def test_scipys_dotted_builtins_keep_their_import_names(guest, which) -> None:
-    """The same for scipy's 95 builtins, in their own run (spec 037): each imports as a module
+    """The same for scipy's 95 builtins, in their own run: each imports as a module
     named by its dotted name, or as native scipy imports it where native differs (SCIPY_NATIVE)."""
     r = guest(which, ["-c", DOTTED_NAMES, "scipy"], fuel=SCIPY_DOTTED_FUEL)
     assert (r.exit_code, r.trapped) == (0, None), r.describe()
@@ -353,8 +352,7 @@ print(json.dumps({"builtin": "regex._regex" in sys.builtin_module_names,
 
 @BINARY
 def test_regex_is_builtin_at_manifest_version(guest, which) -> None:
-    """`regex._regex` is a builtin, and regex is the version MANIFEST names (spec 047, Decision
-    10)."""
+    """`regex._regex` is a builtin, and regex is the version MANIFEST names."""
     r = guest(which, ["-c", REGEX])
     assert r.exit_code == 0, r.describe()
     m = paths.parse_manifest((paths.artifact_dir() / "MANIFEST").read_text())
@@ -371,7 +369,7 @@ def test_wheel_carries_the_artifact_set(artifacts) -> None:
 
 
 def test_static_constructors_are_reviewed(artifacts) -> None:
-    """Every function `__wasm_call_ctors` calls is on the reviewed list (spec 023, Decision 8): a
+    """Every function `__wasm_call_ctors` calls is on the reviewed list: a
     static constructor runs in `_initialize`, before Python starts, and one that touches Python
     hangs there (matplotlib 3.11.2's ft2font enums did, until carried patch 0001). Read from the
     plain binary's name section, so a new one fails here instead of hanging a run."""
@@ -384,7 +382,7 @@ def test_static_constructors_are_reviewed(artifacts) -> None:
 
 @BINARY
 def test_target_features_are_the_lines(artifacts, which) -> None:
-    """`target_features` is exactly the line's ten (spec 023, Decision 8): `+atomics` (which
+    """`target_features` is exactly the line's ten: `+atomics` (which
     `-pthread` adds), `+simd128` or `+tail-call` would each be a new host requirement."""
     from harness import constructors, wasm
 
@@ -410,7 +408,7 @@ print(json.dumps({
 @BINARY
 def test_lxml_is_builtin_at_manifest_versions(guest, which) -> None:
     """`lxml.etree` and `lxml.objectify` are builtins, and lxml, libxml2 and libxslt are the
-    versions MANIFEST names (spec 046, Decision 10). libxml2 converts encodings through
+    versions MANIFEST names. libxml2 converts encodings through
     wasi-libc's iconv and keeps Schematron; it has no zlib and no threads (Decision 3)."""
     r = guest(which, ["-c", LXML])
     assert r.exit_code == 0, r.describe()

@@ -1,4 +1,4 @@
-"""v1.4: the public API is frozen and documented (spec 049).
+"""v1.4: the public API is frozen and documented.
 
 An embedder relies on the names in `wasi_python.__all__` and `wasi_python.tools.__all__`, the
 command and two environment variables; everything else is internal. These checks keep that
@@ -35,7 +35,7 @@ TOP = [
     "Grant",
     "Mount",
     "RefusedWrite",
-    "Session",  # spec 055
+    "Session",  # bounded sessions
     "SessionEnded",
     "Stat",
     "WritableFileProvider",
@@ -179,8 +179,8 @@ def test_every_public_name_is_documented() -> None:
     assert api.doc_gaps(inv)["docstrings"] == ["m.Bare", "m.NoDoc"]
 
 
-# A README in the shape that hid spans from weaker scanners (the pre-build review's
-# Confirmation): a fence at the start of a line holding one backtick, three spans, an indented
+# A README in the shape that hid spans from weaker scanners:
+# a fence at the start of a line holding one backtick, three spans, an indented
 # fence holding one, a second line-start fence holding one, three more spans.
 FENCED = """# A page
 
@@ -234,7 +234,7 @@ def test_public_docs_name_nothing_internal() -> None:
         f"public docstrings: {len(in_docstrings)}, README: {len(in_readme)}; "
         + scan.report(in_docstrings + in_readme)
     )
-    # Stand-ins (condition C1): fences are blanked first, indented ones included.
+    # Stand-ins: fences are blanked first, indented ones included.
     hold = [s for s in _naive(FENCED) if api._holds(s, constants)]
     line_start = [s for s in _line_start_only(FENCED) if api._holds(s, constants)]
     assert (len(api.readme_hits(FENCED, constants)), len(hold), len(line_start)) == (6, 0, 3)
@@ -349,7 +349,7 @@ def test_set_defaults_changes_what_run_reads(monkeypatch) -> None:
     from wasi_python._process import process
 
     # The runner reads its defaults only through `_current_defaults`, so the count of its calls
-    # below is every read (the build review's F2); every module of the package is read, so a
+    # below is every read; every module of the package is read, so a
     # `DEFAULTS` load outside `_current_defaults` is refused wherever it is written.
     direct = [
         hit
@@ -438,7 +438,7 @@ class _Racing:
 def test_the_pool_takes_the_newest_size(monkeypatch) -> None:
     """The size of `run_async`'s own pool is process state, not a call's limit: it is read
     under the pool's lock, so a call that read its limits before a `set_defaults` never sizes
-    the pool back (the build review's F3, and its confirmation's N1)."""
+    the pool back."""
     import wasi_python
     from wasi_python import _artifacts, runner
     from wasi_python._process import process

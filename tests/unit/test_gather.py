@@ -1,4 +1,4 @@
-"""The gather (spec 063, acceptance 4; spec 085): a good set of synthetic records passes; each
+"""The gather: a good set of synthetic records passes; each
 mutation is red with its own reason."""
 
 from __future__ import annotations
@@ -14,14 +14,14 @@ from harness import gather, history, paths, shards
 
 U = shards.UPSTREAM_FILE
 W = "a" * 64  # python.wasm
-S = "5" * 64  # the set's own SHA256SUMS (spec 085)
+S = "5" * 64  # the set's own SHA256SUMS
 WT = "49.0.0"  # the wasmtime uv.lock names
 J = "j" * 64  # the judge hash
 HEAD = "c" * 40
 PROBE = history.PROBE
 BUILD_NODE = "tests/checks/test_v1_5_x.py::test_tree"
 RULE_NODE = "tests/checks/test_rules.py::test_rule"
-# Spec 085: two checks whose bodies name a CI need, blocked honestly where CI lacks it.
+# Two checks whose bodies name a CI need, blocked honestly where CI lacks it.
 ART = "tests/checks/test_rules.py::test_clones"  # prior-art clones: blocked on every system
 DESC = "tests/checks/test_v1_2_portable_and_sealed.py::test_descriptors"  # Windows only
 SUITE = f"{U}::test_upstream_suite[g1]"
@@ -273,7 +273,7 @@ def _unit_failed(c: Case) -> None:
     c.records[("macos", "own-rest")]["suite"]["passed"] -= 1
 
 
-# Spec 085: forged records, each red with its own line (F6, F7 and F5 of the a7 security review).
+# Forged records, each red with its own line.
 UPS = (("linux", "up-l"), ("windows", "up-w"))
 REST = ("macos", "own-rest")
 
@@ -303,7 +303,7 @@ def _metrics(key, node, value):
 
 
 def _fuel_unchecked(wasmtime):
-    """The pre-build review's F1: a darwin record's own meta.wasmtime turns off its fuel ratchet."""
+    """A darwin record's own meta.wasmtime turns off its fuel ratchet."""
 
     def edit(c: Case) -> None:
         c.records[MAC_A]["checks"][PROBE]["metrics"] = {"fuel": 70}
@@ -379,7 +379,7 @@ FORGERIES = [
         _metrics(("linux", "own-a"), PROBE, {"fuel": "7"}),
         f"G5 linux/own-a: {PROBE} metric fuel is not a number",
     ),
-    # The build review's B1: json reads NaN and Infinity, and the ratchet's `>` is false for NaN.
+    # json reads NaN and Infinity, and the ratchet's `>` is false for NaN.
     (
         "a macOS record's fuel is NaN",
         _metrics(MAC_A, PROBE, {"fuel": float("nan")}),
@@ -390,7 +390,7 @@ FORGERIES = [
         _metrics(MAC_A, PROBE, {"fuel": float("inf")}),
         f"G5 macos/own-a: {PROBE} metric fuel is not a number",
     ),
-    # The build review's B3: malformed shapes give a reason line, never a raise.
+    # Malformed shapes give a reason line, never a raise.
     (
         "a need given as a list",
         _blocked([("linux", "own-a")], DESC, ["descriptor limit"]),
@@ -491,7 +491,7 @@ def test_each_mutation_is_red(case, what, edit, error) -> None:
 
 @pytest.mark.parametrize(("what", "edit", "error"), FORGERIES, ids=[m[0] for m in FORGERIES])
 def test_each_forgery_is_red(case, what, edit, error) -> None:
-    """Spec 085: each of these left the gather green (or made it raise) before."""
+    """Each of these left the gather green (or made it raise) before."""
     edit(case)
     v = case.run()
     assert any(r.startswith(error) for r in v.red), (what, v.red)
@@ -536,9 +536,9 @@ def test_needs_called_on_a_source_it_cannot_read() -> None:
 
 
 def test_the_removal_rows_may_be_blocked_on_windows_alone() -> None:
-    """Spec 094: the two rows of spec 084's read-only check name "read-only files" in their own
-    body, a need met everywhere but Windows, where a guest deletes a read-only file itself (084's
-    C2); the gather allows that block on Windows and refuses it on every other system."""
+    """The two rows of the private root's read-only check name "read-only files" in their own
+    body, a need met everywhere but Windows, where a guest deletes a read-only file itself;
+    the gather allows that block on Windows and refuses it on every other system."""
     import importlib.util
     import os
 
@@ -565,7 +565,7 @@ def test_the_removal_rows_may_be_blocked_on_windows_alone() -> None:
 
 
 def test_no_ci_need_is_hidden_in_the_repository() -> None:
-    """Spec 085, Decision 1: every CI need the gather allows is found in a check's own body."""
+    """Every CI need the gather allows is found in a check's own body."""
     assert gather.hidden_ci_needs(paths.REPO) == []
 
 
@@ -576,7 +576,7 @@ HIDDEN = {
     "tests/harness/h.py": 'X = {"k": "descriptor limit"}\n',
     "tests/harness/k.py": 'X = "prior-art clones"\n',
     "tests/conftest.py": 'ALL = ["three systems"]\n',
-    # The build review's B2: a check's decorator and defaults are not its body.
+    # A check's decorator and defaults are not its body.
     "tests/checks/test_p.py": '@pytest.mark.parametrize("n", ["oracle"])\ndef test_p(n):\n'
     "    needs.need(n)\n",
     "tests/checks/test_d.py": 'def test_d(n="three systems"):\n    needs.need(n)\n',
@@ -639,7 +639,7 @@ def test_the_merged_record(case) -> None:
 
 
 def test_the_merged_record_carries_what_sameness_needs(case) -> None:
-    """Spec 092, Decision 1: the run fields, a suite per run, a foreign union, each check's
+    """The run fields, a suite per run, a foreign union, each check's
     source."""
     case.records[("windows", "own-a")]["checks"][PROBE].update(status="blocked", need="oracle")
     case.records[("linux", "own-rest")]["meta"]["foreign"] = ["a conftest outside"]
@@ -697,5 +697,5 @@ def test_a_check_no_record_ran_is_deselected_in_the_merged_record(case) -> None:
     ],
 )
 def test_only_a_pushed_tag_is_a_tag(environ, tag) -> None:
-    """The G7 judge clause applies to a pushed tag only (the build review, F7)."""
+    """The G7 judge clause applies to a pushed tag only."""
     assert gather.is_tag(environ) is tag

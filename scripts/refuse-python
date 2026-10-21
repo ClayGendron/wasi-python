@@ -1,6 +1,6 @@
 #!/bin/sh
-# The stand-in for every Python a build step could find on PATH other than the pinned one (spec
-# 079, Decision 4). scripts/build.sh links each Python name the caller's PATH holds, and a fixed
+# The stand-in for every Python a build step could find on PATH other than the pinned one.
+# scripts/build.sh links each Python name the caller's PATH holds, and a fixed
 # list besides, to this file from build/no-host-python/, behind step 10's shim for the pinned host
 # Python (build/tools/host-python/). Run through such a link, it logs the call to
 # build/logs/unpinned-python.log, found from its own location and never from the environment

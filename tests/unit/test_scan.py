@@ -131,7 +131,7 @@ def test_rm_without_both_flags_and_remove_sh_are_not_hits(work) -> None:
 
 
 def test_no_build_script_removes_without_retrying() -> None:
-    """Spec 018: every removal in a build script goes through `remove`."""
+    """Every removal in a build script goes through `remove`."""
     scripts = scan.files_under(paths.REPO, "scripts")
     assert scan.bare_rm_hits(scripts, paths.REPO) == []
 
@@ -521,7 +521,7 @@ BAD_WORKFLOWS = [
         ("    needs: [build, verify, attest, gather]\n", "    needs: [build, verify, attest]\n"),
         "publish does not need attest and gather",
     ),
-    # The review's ways around the first scan (spec 009's build review, findings 1 to 4).
+    # Ways around the first scan.
     (
         ("      - uses: actions/attest@", "      # - uses: actions/attest@"),
         "no actions/attest step pinned by a 40-hex commit",
@@ -646,7 +646,7 @@ def test_host_table_names_each_breach() -> None:
     ]
 
 
-# Spec 057: one workflow that every release scan reads. Every reader of the build's files guards
+# One workflow that every release scan reads. Every reader of the build's files guards
 # the id, downloads by it, and checks the files; the rebuilds are two jobs alike.
 PIN = "0123456789abcdef0123456789abcdef01234567"
 GUARD = """      - name: The build job handed on an artifact id
@@ -893,7 +893,7 @@ BAD_BINDINGS = [
         {9},
     ),
     (("verify", GUARD, ""), {10}),
-    # The Confirmation's M1: a rebuild id bound, but no longer tested.
+    # A rebuild id bound, but no longer tested.
     (
         ("same-bytes", REBUILD_GUARD_LOOP, REBUILD_GUARD_LOOP.replace(' "$X86_64_WHEEL_ID"', "")),
         {10},
@@ -905,7 +905,7 @@ BAD_BINDINGS = [
     (("build", "enable-cache: false", "enable-cache: true"), {13}),
     (("verify", "      contents: read\n", "      contents: write\n"), {14}),
     (("same-bytes", "    permissions: {}\n", ""), {14}),
-    # The Confirmation's M2: the rebuild guard, which has no twin, told to carry on.
+    # The rebuild guard, which has no twin, told to carry on.
     (
         (
             "same-bytes",
@@ -915,7 +915,7 @@ BAD_BINDINGS = [
         ),
         {15, 17},
     ),
-    # The Confirmation's M6: publish's check step told to carry on.
+    # publish's check step told to carry on.
     (
         (
             "publish",
@@ -933,7 +933,7 @@ BAD_BINDINGS = [
         ),
         {15},
     ),
-    # The build review's R1: attest fetches a rebuild's SHA256SUMS into release-assets after its
+    # Attest fetches a rebuild's SHA256SUMS into release-assets after its
     # check, guarded and by id, with that job added to its needs.
     (
         (
@@ -964,7 +964,7 @@ BAD_BINDINGS = [
         ),
         {16},
     ),
-    # The build review's R2 to R5: the gate around pypi, and carrying on past a failure.
+    # The gate around pypi, and carrying on past a failure.
     (("pypi", "    needs: [build, publish]\n", "    needs: [build]\n"), {18}),
     (("pypi", "    if: github.event_name", "    if: always() && github.event_name"), {18}),
     (
@@ -1009,7 +1009,7 @@ def test_release_binding_scan_reads_with_not_the_display_name() -> None:
     assert scan.release_binding_errors(renamed) == []
 
 
-# Spec 070, Decision 1 (spec 057's Confirmation, its remaining gap): rule 16 reads `path:` as a
+# Rule 16 reads `path:` as a
 # path, so another spelling of release-assets in same-bytes is the plain spelling's breach.
 OTHER_SPELLINGS = [
     "./release-assets",
@@ -1017,7 +1017,7 @@ OTHER_SPELLINGS = [
     "${{ github.workspace }}/release-assets",
     "${{github.workspace}}/./release-assets/",
     "./release-assets/wheel",
-    # The build review's F1: a quoted value, as a YAML formatter may write it, and a doubled slash.
+    # A quoted value, as a YAML formatter may write it, and a doubled slash.
     '"release-assets"',
     "'release-assets'",
     '"./release-assets"',
@@ -1156,7 +1156,7 @@ BAD_REBUILDS = [
         ("same-bytes", '            cmp "$sums"', '            diff "$sums"'),
         "same-bytes does not compare",
     ),
-    # The Confirmation's M5: the x86_64 job's id downloaded into the arm64 job's folder.
+    # The x86_64 job's id downloaded into the arm64 job's folder.
     (
         ("same-bytes", ARM_SUMS, ARM_SUMS.replace("arm64", "x86-64")),
         "same-bytes does not download rebuild-linux-arm64's SHA256SUMS by id into "
@@ -1179,7 +1179,7 @@ BAD_REBUILDS = [
         "same-bytes' wheel loop does not run over ubuntu-24.04",
     ),
     (("same-bytes", '/SHA256SUMS"\n', '/SHA256SUMS" || true\n'), "a step of same-bytes swallows"),
-    # Spec 085 (the a7 security review's N5): the runner's own python3 is named in the log.
+    # The runner's own python3 is named in the log.
     (
         ("rebuild-linux-arm64", "          python3 --version\n", ""),
         "rebuild-linux-arm64's tools step does not print python3 --version",
@@ -1205,7 +1205,7 @@ def test_rebuild_gate_scan_names_each_breach(change, error) -> None:
     assert errors and errors[0].startswith(error), errors
 
 
-# Spec 059: every host compiles with its own SDK; X carries the five emulation names, the
+# Every host compiles with its own SDK; X carries the five emulation names, the
 # fallback, switched off (its COMPILER_SDK_DIR is its own SDK; B's would throw the switch).
 COMPILER_CONF = """PYTHON_VERSION=3.15.0
 A_WASI_SDK_DIR=sdk-a-arm64
@@ -1349,8 +1349,8 @@ def test_compiler_table_passes_a_whole_table() -> None:
 
 
 def test_compiler_table_passes_with_the_switch_thrown() -> None:
-    """X compiling with B's SDK under the emulator, the five names present (spec 040's position),
-    is the fallback's legal second position (spec 059, Decision 3)."""
+    """X compiling with B's SDK under the emulator, the five names present,
+    is the fallback's legal second position."""
     thrown = COMPILER_CONF.replace("X_COMPILER_SDK_DIR=sdk-x", "X_COMPILER_SDK_DIR=sdk-b-arm64")
     assert _compiler_table(conf=thrown) == []
 
@@ -1531,7 +1531,7 @@ def test_a_mutable_at_module_or_class_level_is_found_and_the_exceptions_are_not(
     assert hits[0] == "src/wasi_python/_mod.py:7: a (Dict)"
 
 
-# Spec 103: only the engine seam touches wasmtime-py's private API, and the debt is documented.
+# Only the engine seam touches wasmtime-py's private API, and the debt is documented.
 # Every fixture line below is built by concatenation, so this file is not a hit of the rule.
 
 FFI = "wasmtime." + "_ffi"  # the private module's dotted name, never spelled whole here
@@ -1558,7 +1558,7 @@ def test_private_engine_hits_each_alternation_once_and_the_exempt_files_not(work
     assert hits == [f"src/wasi_python/runner.py:{n}: {lines[n - 1]}" for n in range(1, 7)]
     own = ["tests/harness/scan.py", "tests/unit/test_scan.py"]
     real = scan.private_engine_hits(paths.REPO, own, ())
-    assert real == [], real  # the rule's own files avoid the rule (spec 103, Decision 3)
+    assert real == [], real  # the rule's own files avoid the rule
 
 
 ADAPTER = f'''"""The seam.
@@ -1619,7 +1619,7 @@ def test_private_api_debt_agrees_and_names_each_drift(work) -> None:
     assert scan.private_api_debt_errors(work / "none.py", sheet) == ["none.py does not exist"]
 
 
-# Spec 059: every compile contracts nothing.
+# Every compile contracts nothing.
 def test_fp_override_names_the_family_as_whole_tokens() -> None:
     assert scan.fp_override("-ffp-contract=off") is None
     for tok in (
@@ -1645,7 +1645,7 @@ def test_fp_override_names_the_family_as_whole_tokens() -> None:
         assert scan.fp_override(tok) is None, tok
     assert scan.fp_hits("clang -O3 '-ffp-model=precise' -c x.c") == ["-ffp-model=precise"]
     assert scan.fp_hits("wasmtime run --dir a::/ --config x.toml") == ["--config"]
-    # The build review's finding 1: a flag inside a quoted multi-flag string, or in NAME=-flag.
+    # A flag inside a quoted multi-flag string, or in NAME=-flag.
     eh = (
         'CXX_EH="-fwasm-exceptions -mllvm -wasm-use-legacy-eh=false'
         ' -fexceptions -ffp-model=precise"'
@@ -1685,7 +1685,7 @@ def test_fp_makefile_scan_reads_compiler_lines_and_flag_variables_only() -> None
         "/t/bin/clang --target=wasm32-wasip1 -O3 -c a.c\nwasmtime run --config x\n"
     )
     assert hits == [] and read == 1
-    # The build review's finding 3: automake's COMPILE variable runs the compiler by its value.
+    # Automake's COMPILE variable runs the compiler by its value.
     automake = (
         "COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(AM_CFLAGS) $(CFLAGS)\n"
         "all:\n\t$(AM_V_CC)$(COMPILE) -c -o a.o a.c\n"
@@ -1758,7 +1758,7 @@ def test_fp_pragmas_are_found_in_source_trees(work) -> None:
         "lib-1.0/b.c: a pragma turns contraction on",
         "lib-1.0/c.cpp: a pragma turns contraction on",
     ], hits
-    # The build review's finding 2: the project's own C under recipes/, force-included headers too.
+    # The project's own C under recipes/, force-included headers too.
     recipes = work / "recipes"
     write(recipes, "npy_rename.h", "#define npy_x wp_npy_x\n#pragma clang fp contract(fast)\n")
     write(recipes, "reactor_main.c", "#pragma STDC FP_CONTRACT ON\nint main(void) { return 0; }\n")
@@ -1817,7 +1817,7 @@ def test_fp_recipe_scan_reads_step_10_and_forbids_the_family_elsewhere() -> None
         STEP_10_FP, {"scripts/steps/30_zlib.sh": 'CFLAGS="-O2 -ffp-contract=off"\n'}
     )
     assert errors == ["scripts/steps/30_zlib.sh:1: sets -ffp-contract outside step 10"], errors
-    # The build review's finding 1, its own example: step 55's quoted C++ flags, and NAME=-flag.
+    # Step 55's quoted C++ flags, and NAME=-flag.
     planted = {
         "scripts/steps/55_matplotlib.sh": (
             'CXX_EH="-fwasm-exceptions -mllvm -wasm-use-legacy-eh=false'
@@ -1832,7 +1832,7 @@ def test_fp_recipe_scan_reads_step_10_and_forbids_the_family_elsewhere() -> None
     ], errors
 
 
-# Spec 079: the build runs only the pinned host Python.
+# The build runs only the pinned host Python.
 SHIMS = scan.shim_names("3.15.0")
 COMMON_079 = 'export PATH="$T/host-python:$T/pylib/bin:$T/$WASMTIME_DIR:$PATH"\n'
 STEP_10_079 = (
@@ -1890,7 +1890,7 @@ def test_host_python_recipe_holds_and_each_part_is_missed(work) -> None:
         _recipe_079(work, **{"scripts/build.sh": BUILD_079.replace(' "$p_dir"/idle*', "")})
     )
     assert errors == ['build.sh does not name "$p_dir"/idle*'], errors
-    # The review's F1: a stand-in that takes its log from the environment is refused.
+    # A stand-in that takes its log from the environment is refused.
     from_env = REFUSER_079.replace('"$dir/../logs/unpinned-python.log"', '"$UNPINNED_PYTHON_LOG"')
     errors = scan.host_python_recipe_errors(
         _recipe_079(work, **{"scripts/refuse-python": from_env + "# unpinned-python.log\n"})
@@ -1932,7 +1932,7 @@ def test_program_word_reads_env_meson_shells_and_shebangs(work) -> None:
     for bad, says in (
         ("/opt/homebrew/bin/python3 x.py", "/opt/homebrew/bin/python3 is not a pinned"),
         ("env PYTHONPATH=x /usr/bin/python3 y.py", "/usr/bin/python3 is not a pinned"),
-        # The confirmation's C1: env's options by their grammar.
+        # env's options by their grammar.
         ("env -u FOO /usr/bin/python3 y.py", "/usr/bin/python3 is not a pinned"),
         ("env -P /usr/local/bin python3 y.py", "`env -P` does not search"),
         ("env -i python3 y.py", "`env -i` does not search"),
@@ -2028,7 +2028,7 @@ def test_config_log_skips_only_direct_children_of_build(work) -> None:
 
 
 def test_ninja_reader_skips_only_command_and_names_other_variables(work) -> None:
-    # The build review's F1: only meson's `$COMMAND` indirection is skipped.
+    # Only meson's `$COMMAND` indirection is skipped.
     root = work.resolve()
     text = (
         "rule CUSTOM_COMMAND\n command = $COMMAND\n"
@@ -2041,7 +2041,7 @@ def test_ninja_reader_skips_only_command_and_names_other_variables(work) -> None
 
 
 def test_step_folder_with_a_command_substitution_is_unresolved(work) -> None:
-    # The build review's F2: `$(` and backticks are never resolved, so never skipped.
+    # `$(` and backticks are never resolved, so never skipped.
     root = work.resolve()
     steps = {
         "common.sh": 'B="$HERE/build"\n',
@@ -2055,9 +2055,9 @@ def test_step_folder_with_a_command_substitution_is_unresolved(work) -> None:
     ], unresolved
 
 
-# ---------------------------------------------------------------------------------------------
-# Spec 063: the release judges in parallel shards (acceptance 5). The good workflow is the real
-# one; each variant breaks one rule of release_shard_errors, or one of 057's widened rules.
+# --------------------------------------------------------------------------------------------- The
+# release judges in parallel shards (acceptance 5). The good workflow is the real one; each variant
+# breaks one rule of release_shard_errors, or one of the signing ties' widened rules.
 
 REAL_WORKFLOW = (paths.REPO / ".github" / "workflows" / "release.yml").read_text()
 LINUX_IDS = "${{ needs.judge-linux.outputs.own-embedding-id }}"
@@ -2097,7 +2097,7 @@ def _without_wasm_then_late(text: str) -> str:
     return text.replace(late, WASM_STEP + late, 1)
 
 
-# Spec 085, Decision 4: the set's own SHA256SUMS, hashed before the upload, for the gather.
+# The set's own SHA256SUMS, hashed before the upload, for the gather.
 SET_SUMS_STEP = (
     "      - name: The SHA-256 of the set's own SHA256SUMS, handed to the gather (spec 085)\n"
     "        id: set-sums\n"
@@ -2172,7 +2172,7 @@ BAD_SHARDS = [
         "      - name: The wheel, installed fresh, runs a program in one call\n",
         "rule 9: verify runs pytest",
     ),
-    # Spec 085: the set's own SHA256SUMS, from the build to the gather alone.
+    # The set's own SHA256SUMS, from the build to the gather alone.
     ("build", "      set-sums-sha256: ${{ steps.set-sums.outputs.sha256 }}\n", "", "rule 6:"),
     ("build", "shasum -a 256 build/artifacts/SHA256SUMS", "shasum -a 256 MANIFEST", "rule 6:"),
     (
@@ -2220,13 +2220,13 @@ def test_the_python_wasm_hash_must_come_before_the_upload() -> None:
 
 
 def test_the_set_sums_hash_must_come_before_the_upload() -> None:
-    """Spec 085: hashed after the upload, it could name a file other than the one uploaded."""
+    """Hashed after the upload, it could name a file other than the one uploaded."""
     errors = _shard_errors(_without_set_sums_then_late(REAL_WORKFLOW))
     assert any(e.startswith("rule 6:") for e in errors), errors
 
 
 def test_the_gather_guards_the_set_sums_hash() -> None:
-    """Spec 085: the gather's guard step tests SET_SUMS_SHA256 as 64 hex, with WASM_SHA256."""
+    """The gather's guard step tests SET_SUMS_SHA256 as 64 hex, with WASM_SHA256."""
     guard = scan.workflow_step_script(
         REAL_WORKFLOW,
         "gather",
@@ -2261,7 +2261,7 @@ def test_a_list_of_ids_from_two_jobs_or_with_one_unguarded_is_refused() -> None:
     assert any(e.startswith("rule 10: gather") for e in errors), errors
 
 
-# Spec 099, check 5: numpy's compile records each force-include the fenv recipe header once.
+# numpy's compile records each force-include the fenv recipe header once.
 FENV_H = "/r/recipes/npy_fenv_flags.h"
 
 
@@ -2286,7 +2286,7 @@ def test_npy_fenv_records_name_a_missing_or_doubled_header() -> None:
     records = [
         _compile("wasi-cxx", "b.cpp", include=0),
         _compile("wasi-cc", "c.c", include=2),
-        _compile("wasi-cc", "d.S", include=0),  # by compiler, not by extension (the review's L3)
+        _compile("wasi-cc", "d.S", include=0),  # by compiler, not by extension
     ]
     errors, _ = scan.npy_fenv_record_errors(records)
     assert errors == [

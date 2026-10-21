@@ -1,11 +1,10 @@
 #!/bin/sh
-# Step 36: lxml's C libraries as static archives for wasm32-wasip1 under build/xml-libs/ (spec 046,
-# Decision 3): libxml2 2.15.4 (with its one carried patch: files without dup() on WASI) and
+# Step 36: lxml's C libraries as static archives for wasm32-wasip1 under build/xml-libs/:
+# libxml2 2.15.4 (with its one carried patch: files without dup() on WASI) and
 # libxslt 1.1.45 with libexslt. Step 35's pattern: each is unpacked from its pinned tarball,
 # patched, and built outside its tree by its own configure (an autotools VPATH build), so the tree
-# stays its tarball plus its recorded patches (spec 020); every tool runs under `clean`, an empty
-# environment but for PATH and LC_ALL, with the toolchain's clang over the host-neutral sysroot
-# (spec 012).
+# stays its tarball plus its recorded patches; every tool runs under `clean`, an empty
+# environment but for PATH and LC_ALL, with the toolchain's clang over the host-neutral sysroot.
 #
 # libxml2: no threads (one guest thread), no modules (no dlopen), no zlib (lxml compresses through
 # Python's gzip; the decompression branch would call dup a third time), Schematron on (as lxml's
@@ -13,7 +12,7 @@
 # -DLIBXML_STATIC compiles out libxml2's one destructor, so __wasm_call_ctors gains nothing. The
 # default catalogs are native Linux's paths: configure would build them from --prefix, a folder of
 # this checkout, and compile it into the binary. configure requires a pkg-config: it is the pinned
-# pkgconf (step 10, spec 023), with an empty search path, so no .pc file can answer; nothing is asked
+# pkgconf (step 10), with an empty search path, so no .pc file can answer; nothing is asked
 # of it with zlib, ICU and libgcrypt off and libxslt given libxml2's flags.
 set -eu
 . "$(dirname "$0")/common.sh"

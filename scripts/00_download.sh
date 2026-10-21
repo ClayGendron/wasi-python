@@ -4,14 +4,14 @@
 #   scripts/00_download.sh          the build's inputs
 #   scripts/00_download.sh --all    also the research input (Brett's 3.14.7 build)
 #
-# Each pin is one `get <url> <name>` line: a literal URL and the file's name in downloads/ (spec 003,
-# Decision 1). Downloads are untrusted data: they land in downloads/ only, and nothing here runs
+# Each pin is one `get <url> <name>` line: a literal URL and the file's name in downloads/.
+# Downloads are untrusted data: they land in downloads/ only, and nothing here runs
 # them. This script reads SHA256SUMS and never writes it; a mismatch fails the build.
 #
 # One line per pin, `fetched <name>` or `present <name>`, then shasum's `<name>: OK` lines, then
-# `downloads: <n> pins, <f> fetched, <v> verified`, which build.sh shows as the step's line (spec
-# 027). curl is needed only for a pin that is not present yet, and checked there. A fetched name
-# with no pin fails the step, named (spec 057).
+# `downloads: <n> pins, <f> fetched, <v> verified`, which build.sh shows as the step's line.
+# curl is needed only for a pin that is not present yet, and checked there. A fetched name
+# with no pin fails the step, named.
 set -eu
 HERE=$(CDPATH= cd "$(dirname "$0")/.." && pwd -P)
 D="$HERE/downloads"
@@ -40,8 +40,8 @@ research() { # url name: fetched only with --all
 }
 
 # The running build host's own inputs: its toolchain, host Python and native build-tool wheels, in
-# the branch of its key (scripts/line.sh; spec 012, Decision 1). The line's versions are named in
-# scripts/line.conf; the URLs here stay literal, one pin per line (spec 003, Decision 1).
+# the branch of its key (scripts/line.sh). The line's versions are named in
+# scripts/line.conf; the URLs here stay literal, one pin per line.
 . "$HERE/scripts/line.sh"
 case "$HOST_KEY" in
   MACOS_ARM64)
@@ -51,7 +51,7 @@ case "$HOST_KEY" in
     get https://files.pythonhosted.org/packages/ea/45/7f6988070013e16918e39b1b3dab9c5f2c8e404253a7fd10ee685bbd6902/cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl
     get https://files.pythonhosted.org/packages/b5/b8/90a9518f2264637084d6199bc20c2f3fb97fefc4c474d277720150c3bd6d/ninja-1.13.2-py3-none-macosx_10_9_universal2.whl ninja-1.13.2-py3-none-macosx_10_9_universal2.whl
     get https://files.pythonhosted.org/packages/bf/67/fcd20a9e78fd6bba952e982a86e98e0240a95a216143eab389cbef045d43/pkgconf-3.0.7.post0-py3-none-macosx_11_0_arm64.whl pkgconf-3.0.7.post0-py3-none-macosx_11_0_arm64.whl
-    # numpy for the build host, whose f2py writes scipy's Fortran-wrapper C (spec 037, Decision 7)
+    # numpy for the build host, whose f2py writes scipy's Fortran-wrapper C
     get https://files.pythonhosted.org/packages/78/d9/8c4b3937ef204cb2fd88d389ccd0f265a2ffb11f35a01d2064cf46714bd6/numpy-2.5.2-cp315-cp315-macosx_14_0_arm64.whl numpy-2.5.2-cp315-cp315-macosx_14_0_arm64.whl
     ;;
   LINUX_AARCH64)
@@ -71,7 +71,7 @@ case "$HOST_KEY" in
     get https://files.pythonhosted.org/packages/6e/53/ebfed7b689c338dd8ebeec9c0730c8d56821292f14e2536e5f3ef1a05744/ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
     get https://files.pythonhosted.org/packages/6c/eb/4a4fe6c178d4447f3a3189b5fb740a76dc7ef8846a57886270315f22f7ee/pkgconf-3.0.7.post0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl pkgconf-3.0.7.post0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
     get https://files.pythonhosted.org/packages/a9/bf/a8e9bb0db815a0e265b5744ebedd3af0bd5faad8604e5b50a1cd012f3c91/numpy-2.5.2-cp315-cp315-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl numpy-2.5.2-cp315-cp315-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
-    # The fallback's compiler (spec 040, Decisions 3 and 4; spec 059, Decision 3): the arm64 Linux
+    # The fallback's compiler: the arm64 Linux
     # SDK's clang, under Debian's qemu-aarch64 (a static binary) with the four aarch64 libraries
     # that clang loads, each a snapshot.debian.org URL, which does not change when Debian moves on.
     # Fetched only when scripts/line.conf's switch names that SDK; a native build never asks for them.
@@ -86,7 +86,7 @@ case "$HOST_KEY" in
     ;;
 esac
 # The wasm runtime every host links, the same bytes for each: wasi-sdk's host-neutral sysroot and
-# compiler-rt builtins, laid in place of the host tarball's own by step 10 (spec 012, Decision 2).
+# compiler-rt builtins, laid in place of the host tarball's own by step 10.
 get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sysroot-34.0.tar.gz wasi-sysroot-34.0.tar.gz
 get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/libclang_rt-34.0.tar.gz libclang_rt-34.0.tar.gz
 
@@ -95,13 +95,13 @@ get https://www.python.org/ftp/python/3.15.0/Python-3.15.0.tar.xz Python-3.15.0.
 get https://files.pythonhosted.org/packages/9a/80/db0b4559e57ec36362bedbb05530a87fafbcb6067708c946967a41d449e7/numpy-2.5.2.tar.gz numpy-2.5.2.tar.gz
 get https://files.pythonhosted.org/packages/e2/17/d7b106e05bfa642e8694451e7d3d759c6a241c5386a5d962e4f66c047e06/pandas-3.0.6.tar.gz pandas-3.0.6.tar.gz
 get https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz zlib-1.3.1.tar.gz
-# The C libraries of _bz2, _lzma and _sqlite3 (spec 007): host-neutral sources, like zlib's
+# The C libraries of _bz2, _lzma and _sqlite3: host-neutral sources, like zlib's
 get https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz bzip2-1.0.8.tar.gz
 get https://github.com/tukaani-project/xz/releases/download/v5.8.4/xz-5.8.4.tar.gz xz-5.8.4.tar.gz
 get https://sqlite.org/2026/sqlite-autoconf-3540100.tar.gz sqlite-autoconf-3540100.tar.gz
-# regex (spec 047): its sdist, whose two C files are compiled and whose package goes in the zip
+# regex: its sdist, whose two C files are compiled and whose package goes in the zip
 get https://files.pythonhosted.org/packages/fc/f2/af1da9d3ceed77bfcdce40427d49ba0be94e4fe84245e3bfef68c10e75b6/regex-2026.9.29.tar.gz regex-2026.9.29.tar.gz
-# matplotlib (spec 023): the five C libraries at matplotlib 3.11.2's own wrap versions, which give
+# matplotlib: the five C libraries at matplotlib 3.11.2's own wrap versions, which give
 # native pixel parity; qhull and SheenBidi saved under names that are their top folders (the
 # release workflow's tree check names a tree by its file)
 get https://download.savannah.nongnu.org/releases/freetype/freetype-2.14.3.tar.xz freetype-2.14.3.tar.xz
@@ -112,18 +112,18 @@ get https://github.com/qhull/qhull/archive/v8.0.2/qhull-8.0.2.tar.gz qhull-8.0.2
 get https://files.pythonhosted.org/packages/e7/c8/9aa712a0afb882649424dd8de8ad9aa6235e796e84c6052e8f6dc1598d0d/matplotlib-3.11.2.tar.gz matplotlib-3.11.2.tar.gz
 get https://files.pythonhosted.org/packages/ba/07/bd78e6a8fae171ea041ef5bba3ed21a003522fa088834b069b1909981f30/kiwisolver-1.5.1.tar.gz kiwisolver-1.5.1.tar.gz
 get https://files.pythonhosted.org/packages/ce/a4/9cc30690a394a8305e8be4c9036aa16d0dfddadd09079860b582f562496d/pillow-13.0.0.tar.gz pillow-13.0.0.tar.gz
-# matplotlib's second milestone (spec 043): contourpy's sdist, whose C++ is compiled
+# matplotlib's second milestone: contourpy's sdist, whose C++ is compiled
 get https://files.pythonhosted.org/packages/83/5a/a55177dd22553a277388e8a1b3220e92de91bacb28356cdc73caa240121d/contourpy-1.4.0.tar.gz contourpy-1.4.0.tar.gz
-# lxml (spec 046): libxml2 and libxslt, the newest release of each, and lxml's sdist, whose
+# lxml: libxml2 and libxslt, the newest release of each, and lxml's sdist, whose
 # Cython-generated C is compiled
 get https://download.gnome.org/sources/libxml2/2.15/libxml2-2.15.4.tar.xz libxml2-2.15.4.tar.xz
 get https://download.gnome.org/sources/libxslt/1.1/libxslt-1.1.45.tar.xz libxslt-1.1.45.tar.xz
 get https://files.pythonhosted.org/packages/23/ad/28ecd7cb894d172f3c9c80a075eeeb2017ac62e3632cee05a5f9493547eb/lxml-6.1.3.tar.gz lxml-6.1.3.tar.gz
-# scipy (spec 037): its sdist, built with meson against OpenBLAS 0.3.34, whose C LAPACK is the
+# scipy: its sdist, built with meson against OpenBLAS 0.3.34, whose C LAPACK is the
 # LAPACK (no Fortran compiler targets wasm32-wasip1)
 get https://files.pythonhosted.org/packages/7e/74/66de6258867beb2ef08f35f9f2ac017a52cacd5081714d239ff1a442d458/scipy-1.18.1.tar.gz scipy-1.18.1.tar.gz
 get https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.34/OpenBLAS-0.3.34.tar.gz OpenBLAS-0.3.34.tar.gz
-# scikit-learn (spec 044): its sdist, Cython, C and C++ built with meson against step 57's scipy
+# scikit-learn: its sdist, Cython, C and C++ built with meson against step 57's scipy
 get https://files.pythonhosted.org/packages/d2/eb/eaf5e07fcc0da7149b0e084f24e54edd7441b9a89ce7e034032ae97fe3a0/scikit_learn-1.9.1.tar.gz scikit_learn-1.9.1.tar.gz
 # Header-only C++ that is compiled in (matplotlib's and kiwisolver's bindings), so its notices ship
 get https://files.pythonhosted.org/packages/33/fd/8762f7ee3e4e4be6d1d846cffb4916dd9bb02b2f800d3603718a0efe494c/pybind11-3.1.0-py3-none-any.whl pybind11-3.1.0-py3-none-any.whl
@@ -141,7 +141,7 @@ get https://files.pythonhosted.org/packages/e7/05/c19819d5e3d95294a6f5947fb9b962
 get https://files.pythonhosted.org/packages/38/bb/d215ee7c73b61497b28a5503f9f53523f294fcc936762b7caf90e0c1c2b5/pyparsing-3.3.3-py3-none-any.whl pyparsing-3.3.3-py3-none-any.whl
 get https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl packaging-26.3-py3-none-any.whl
 get https://files.pythonhosted.org/packages/3d/61/4161946319472aaa9b897bd18ad5108a5b10f5ebaa503d921a001ac4fff9/fonttools-4.67.0-py3-none-any.whl fonttools-4.67.0-py3-none-any.whl
-# Tier A (spec 039): thirty pure-Python distributions, each its py3-none-any wheel, but pyyaml
+# Tier A: thirty pure-Python distributions, each its py3-none-any wheel, but pyyaml
 # and markupsafe, which publish no pure wheel: their sdists, whose pure package folders step 70 takes
 get https://files.pythonhosted.org/packages/c0/da/977ded879c29cbd04de313843e76868e6e13408a94ed6b987245dc7c8506/openpyxl-3.1.5-py2.py3-none-any.whl openpyxl-3.1.5-py2.py3-none-any.whl
 get https://files.pythonhosted.org/packages/c1/8b/5fe2cc11fee489817272089c4203e679c63b570a5aaeb18d852ae3cbba6a/et_xmlfile-2.0.0-py3-none-any.whl et_xmlfile-2.0.0-py3-none-any.whl
@@ -173,7 +173,7 @@ get https://files.pythonhosted.org/packages/18/53/84099323c2ec4be98d935f63c033ac
 get https://files.pythonhosted.org/packages/88/39/799be3f2f0f38cc727ee3b4f1445fe6d5e4133064ec2e4115069418a5bb6/cloudpickle-3.1.2-py3-none-any.whl cloudpickle-3.1.2-py3-none-any.whl
 get https://files.pythonhosted.org/packages/43/3f/f88a53f60a472b46f4023f56d204dd7de33d34c5d2acbfa0d70a674e639e/threadpoolctl-3.7.0-py3-none-any.whl threadpoolctl-3.7.0-py3-none-any.whl
 get https://files.pythonhosted.org/packages/d1/89/5d4c86da1130d9059681e5b6cd7645df5c10279a6a079c5c37dcb2cc6f3f/narwhals-2.27.1-py3-none-any.whl narwhals-2.27.1-py3-none-any.whl
-# seaborn and reportlab (spec 042, Decision 2): seaborn's sdist, which holds the licences of the five
+# seaborn and reportlab: seaborn's sdist, which holds the licences of the five
 # pieces of code it vendors (its wheel holds one licence), and reportlab's wheel; both pure Python
 get https://files.pythonhosted.org/packages/86/59/a451d7420a77ab0b98f7affa3a1d78a313d2f7281a57afb1a34bae8ab412/seaborn-0.13.2.tar.gz seaborn-0.13.2.tar.gz
 get https://files.pythonhosted.org/packages/db/cb/dacbc268cb68d0428ea2cbd85266195a9ab3e677449589ddae59bd7542ac/reportlab-5.0.1-py3-none-any.whl reportlab-5.0.1-py3-none-any.whl
@@ -190,14 +190,14 @@ get https://raw.githubusercontent.com/llvm/llvm-project/895aa2c896ada719451be2e3
 get https://raw.githubusercontent.com/llvm/llvm-project/895aa2c896ada719451be2e3673c83da8ddf1141/libcxxabi/LICENSE.TXT llvm-895aa2c8-libcxxabi-LICENSE.TXT
 get https://raw.githubusercontent.com/llvm/llvm-project/895aa2c896ada719451be2e3673c83da8ddf1141/libunwind/LICENSE.TXT llvm-895aa2c8-libunwind-LICENSE.TXT
 get https://raw.githubusercontent.com/llvm/llvm-project/895aa2c896ada719451be2e3673c83da8ddf1141/compiler-rt/LICENSE.TXT llvm-895aa2c8-compiler-rt-LICENSE.TXT
-# The Unicode data terms of HarfBuzz's tables, whose tree carries no copy (spec 023, Decision 9): the
+# The Unicode data terms of HarfBuzz's tables, whose tree carries no copy: the
 # Unicode License V3 from Unicode's own repository at a commit, so the bytes cannot change
 get https://raw.githubusercontent.com/unicode-org/unicodetools/4fd8eca90b30aa4c72543ccddb4c15d05becdf8d/LICENSE unicodetools-4fd8eca9-LICENSE
-# The full MPL-2.0 text tqdm's notice needs (spec 039, Decision 8): its wheel carries only Exhibit A;
+# The full MPL-2.0 text tqdm's notice needs: its wheel carries only Exhibit A;
 # SPDX's license-list-data at a commit, so the bytes cannot change
 get https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MPL-2.0.txt spdx-31ba1a50-MPL-2.0.txt
-# The notices of three projects scikit-learn adapts code from with no full notice of their own
-# (spec 044, Decision 11): numpydoc's docscrape, django's slugify and pytest's lines in
+# The notices of three projects scikit-learn adapts code from with no full notice of their own:
+# numpydoc's docscrape, django's slugify and pytest's lines in
 # sklearn/utils/_testing.py, each at the last commit that touched the file
 get https://raw.githubusercontent.com/numpy/numpydoc/894c8c47646fcbb4eae4fca068c229ae761f7a62/LICENSE.txt numpydoc-894c8c47-LICENSE.txt
 get https://raw.githubusercontent.com/django/django/1dae4ac1778f04805c0ed62c8debb13b281ba02b/LICENSE django-1dae4ac1-LICENSE
@@ -238,7 +238,7 @@ case "$OTHER" in
 esac
 echo "$summary"
 # Every pin this run fetched or found must have verified: a name with no line in SHA256SUMS is
-# skipped by --ignore-missing, so it is named here and fails the step (spec 057; the a4 review, N1).
+# skipped by --ignore-missing, so it is named here and fails the step.
 # set -f: the names are split on spaces, never expanded as patterns.
 UNPINNED=""
 set -f

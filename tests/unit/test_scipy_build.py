@@ -1,4 +1,4 @@
-"""scipy's build scripts on the host (spec 037, Decision 15's unit checks): the direct-call file
+"""scipy's build scripts on the host: the direct-call file
 f2py's routines get, the install from meson's plan, gen_inittab's rename table, the wrapper's
 per-file include (and its argv unchanged when unset), and the audit of OpenBLAS's void
 convention. No artifact, no toolchain: the wrapper runs a stand-in compiler that prints its argv."""
@@ -139,8 +139,8 @@ def test_the_inittab_renames_what_the_table_names_and_checks_the_final_names(
     tmp_path, monkeypatch
 ) -> None:
     """scipy's _cyutility, cython_optimize._zeros and spatial._qhull register under their renamed
-    init functions beside pandas' _cyutility and optimize._zeros; matplotlib's _qhull, linked since
-    spec 043, keeps upstream's PyInit__qhull beside scipy's renamed one; and a clash left after the
+    init functions beside pandas' _cyutility and optimize._zeros; matplotlib's _qhull
+    keeps upstream's PyInit__qhull beside scipy's renamed one; and a clash left after the
     renames still stops it."""
     import re
 
@@ -209,8 +209,8 @@ def _wrapper(tmp_path, argv: list[str], env_extra: dict | None = None) -> list[s
     return r.stdout.splitlines()
 
 
-# Command lines shaped like numpy's, pandas' and OpenBLAS's compiles (spec 037's pre-build review,
-# finding 4): with the map unset, the wrapper hands the compiler exactly what it did before.
+# Command lines shaped like numpy's, pandas' and OpenBLAS's compiles:
+# with the map unset, the wrapper hands the compiler exactly what it did before.
 SHAPES = [
     [
         "-Inumpy/_core",

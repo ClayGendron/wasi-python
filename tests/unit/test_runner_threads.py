@@ -1,4 +1,4 @@
-"""The guest's own thread (spec 078): the stack it is given and checked against, the interpreter
+"""The guest's own thread: the stack it is given and checked against, the interpreter
 told its stack where it guesses, the home thread that waits and serves, and a teardown that never
 runs under a live guest. Stand-ins only: no wasm runs here. Nothing here measures time; a wait is
 a count of events, and the slices the runner waits in are its own."""
@@ -25,14 +25,14 @@ def roomy(monkeypatch):
 
 
 def test_the_guest_thread_is_sized_from_the_wasm_stack() -> None:
-    """Spec 078, criterion 2 (its constants): 8 MiB for wasm, 2 MiB of host room."""
+    """The constants: 8 MiB for wasm, 2 MiB of host room."""
     assert _platform._WASM_STACK == 8 * MIB
     assert _platform._HOST_ROOM == 2 * MIB
     assert _platform._THREAD_STACK == _platform._WASM_STACK + 2 * MIB
 
 
 def test_a_guest_thread_is_not_the_home_and_has_room() -> None:
-    """Spec 078, criterion 1, in miniature: the function runs once, on another thread, whose real
+    """In miniature: the function runs once, on another thread, whose real
     stack is at least the refusal line, and the home's value comes back."""
     seen = []
     home = _home._Home()
@@ -49,7 +49,7 @@ def test_a_guest_thread_is_not_the_home_and_has_room() -> None:
 
 
 def test_a_small_guest_thread_is_refused_after_one_retry(monkeypatch) -> None:
-    """Spec 078, criterion 3: a thread whose stack reads under 9 MiB, or cannot be read, is
+    """A thread whose stack reads under 9 MiB, or cannot be read, is
     refused before anything runs on it, once more made, then refused with RuntimeError."""
     for answer in ((4096, 8 * MIB), None):
         reads: list[object] = []
@@ -71,7 +71,7 @@ def test_a_small_guest_thread_is_refused_after_one_retry(monkeypatch) -> None:
 
 
 def test_the_stack_size_is_restored_without_erasing_another(monkeypatch, roomy) -> None:
-    """Spec 078, criterion 3 (the review's F6): the runner sets the guest thread's size, then
+    """The runner sets the guest thread's size, then
     restores what it found; if another thread set a size inside the window, that one is put back;
     it never calls threading.stack_size() without an argument, which would set 0."""
     calls = []
@@ -88,7 +88,7 @@ def test_the_stack_size_is_restored_without_erasing_another(monkeypatch, roomy) 
 
 
 def test_windows_counts_its_stack_conservatively() -> None:
-    """Spec 078, criterion 3 (the review's F7): high - low - guarantee - one page."""
+    """High - low - guarantee - one page."""
     low, high, guarantee = 0x10000, 0x10000 + 10 * MIB, 64 * 1024
     bottom, size = _platform._windows_usable(low, high, guarantee)
     assert size == 10 * MIB - guarantee - 4096 and bottom == low + guarantee + 4096
@@ -96,13 +96,13 @@ def test_windows_counts_its_stack_conservatively() -> None:
 
 
 def test_an_unknown_platform_cannot_be_read() -> None:
-    """Spec 078, criterion 4 (the review's F13): FreeBSD's bounds are not read, so its calls are
+    """FreeBSD's bounds are not read, so its calls are
     refused by the stack check."""
     assert _platform._Posix().stack_bounds() is None
 
 
 def test_the_interpreter_is_told_its_stack_where_it_guesses() -> None:
-    """Spec 078, criterion 4: on musl with CPython 3.14.1 the runner tells the interpreter the
+    """On musl with CPython 3.14.1 the runner tells the interpreter the
     thread's bounds once; with 3.14.0 (no such function) it refuses; elsewhere it tells nothing."""
     told = []
 
@@ -133,7 +133,7 @@ def test_the_interpreter_is_told_its_stack_where_it_guesses() -> None:
 
 
 def test_the_interpreter_prototypes_are_private() -> None:
-    """Spec 078, criterion 4 (the review's F5): resolving the C API functions sets no restype or
+    """Resolving the C API functions sets no restype or
     argtypes on ctypes.pythonapi's shared attributes."""
     shared = ctypes.pythonapi.PyThreadState_Get
     before = (shared.restype, shared.argtypes)
@@ -144,7 +144,7 @@ def test_the_interpreter_prototypes_are_private() -> None:
 
 
 def test_a_hand_off_runs_on_the_home_and_carries_its_exception(roomy) -> None:
-    """Spec 078, Decision 4: the guest thread hands a function home; it runs on the home thread,
+    """The guest thread hands a function home; it runs on the home thread,
     and its value, or its exception, comes back to the guest thread unchanged."""
     home = _home._Home()
 
@@ -162,7 +162,7 @@ def test_a_hand_off_runs_on_the_home_and_carries_its_exception(roomy) -> None:
 
 
 def test_the_home_keeps_its_call_on_its_stack(roomy) -> None:
-    """Spec 078, Decision 16: while it serves, the home has its call on its own stack, so a host
+    """While it serves, the home has its call on its own stack, so a host
     function there finds it as before; it is popped after."""
     home, call = _home._Home(), object()
     found = _home._on_guest_thread("run", home, call, lambda: home.call(lambda: _home._stack()[-1]))
@@ -187,7 +187,7 @@ class _OnceRaisingInbox:
 
 
 def test_an_interrupted_hand_off_is_answered(roomy) -> None:
-    """Spec 078, criterion 18 (the review's F2): an interrupt landing just after the home took a
+    """An interrupt landing just after the home took a
     hand-off, or after the host function returned and before its box was released, still answers
     the guest (with a stop), the call raises KeyboardInterrupt, and both threads end."""
     home = _home._Home()
@@ -222,7 +222,7 @@ def test_an_interrupted_hand_off_is_answered(roomy) -> None:
 
 
 def test_the_home_waits_for_its_guest_thread(monkeypatch, roomy) -> None:
-    """Spec 078, criterion 17 (the review's F1): an exception raised into the home while the guest
+    """An exception raised into the home while the guest
     runs stops the guest, and the call returns only once the guest thread has ended."""
     home = _home._Home()
     ended = threading.Event()
@@ -243,7 +243,7 @@ def test_the_home_waits_for_its_guest_thread(monkeypatch, roomy) -> None:
 
 
 def test_an_abandoned_home_leaves_its_teardown_to_the_guest(monkeypatch, roomy) -> None:
-    """Spec 078, criterion 17 (the review's F1 and the confirmation's C2): a home forced out of its
+    """A home forced out of its
     join leaves the teardown to the guest thread, which runs it once, after its work; finishing an
     abandoned home stops the guest."""
     home = _home._Home()
@@ -280,7 +280,7 @@ def test_an_abandoned_home_leaves_its_teardown_to_the_guest(monkeypatch, roomy) 
 
 
 def test_a_tool_copies_the_homes_context() -> None:
-    """Spec 078, Decision 4 (the review's F12): with a home, a tool call's context is copied on
+    """With a home, a tool call's context is copied on
     the home thread, through one hand-off."""
     import contextvars
 
@@ -293,7 +293,7 @@ def test_a_tool_copies_the_homes_context() -> None:
 
 
 def test_an_interrupted_thread_start_keeps_its_guest(monkeypatch, roomy) -> None:
-    """Spec 078, criterion 17 (the build review's F1): an interrupt raised inside Thread.start()
+    """An interrupt raised inside Thread.start()
     after the OS made the thread leaves the guest known to its home: the call raises only once the
     guest has ended, and a teardown waits for it."""
     home = _home._Home()
@@ -319,7 +319,7 @@ def test_an_interrupted_thread_start_keeps_its_guest(monkeypatch, roomy) -> None
 
 
 def test_a_failed_thread_start_is_cancelled(monkeypatch, roomy) -> None:
-    """Spec 078, criterion 17 (the build review's F1): a start that fails before the body takes
+    """A start that fails before the body takes
     it is cancelled: the call raises, nothing ran, and a body the OS starts anyway returns at
     once."""
     home = _home._Home()
@@ -338,7 +338,7 @@ def test_a_failed_thread_start_is_cancelled(monkeypatch, roomy) -> None:
 
 
 def test_a_stopped_home_answers_new_hand_offs_with_a_stop(roomy) -> None:
-    """Spec 078 (the build review's F7): once the home has an exception, a new hand-off is not
+    """Once the home has an exception, a new hand-off is not
     posted, and one already posted is answered with a stop, never run."""
     home = _home._Home()
     home.stop(KeyboardInterrupt())
@@ -353,7 +353,7 @@ def test_a_stopped_home_answers_new_hand_offs_with_a_stop(roomy) -> None:
 
 
 def test_the_join_does_not_wait_for_a_thread_that_never_ran() -> None:
-    """Spec 078 (the delta review's D3): a start left "starting" by a thread that never ran its
+    """A start left "starting" by a thread that never ran its
     body (a second exception in the start's handler, a trace hook raising at its first frame) is
     cancelled by the join, which returns; a body that starts after it returns at once."""
     home = _home._Home()

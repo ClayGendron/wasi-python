@@ -1,7 +1,7 @@
 #!/bin/sh
 # Step 40: numpy 2.5.2 cross-compiled for wasm32-wasip1 as static archives, with numpy's vendored
 # meson, outside its source tree; installed (its Python package and headers); then the host-side numpy stand-in
-# pandas' build imports (spec 003, Decisions 1 and 6).
+# pandas' build imports.
 set -eu
 . "$(dirname "$0")/common.sh"
 

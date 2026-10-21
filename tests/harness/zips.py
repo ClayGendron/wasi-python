@@ -1,4 +1,4 @@
-"""The zips spec 035's checks run on (Decision 11), made on the host.
+"""The zips the zip-directory checks run on, made on the host.
 
 - `small.zip`: the artifact zip, appended to with two made-up distributions. Append mode keeps
   every existing member's bytes, so an import from it costs what it costs from the artifact zip.
@@ -31,7 +31,7 @@ from harness import paths
 DATE = (2026, 1, 1, 0, 0, 0)
 PADS = ("pad1/", "pad2/", "pad3/")
 GROUP = "judge.zip_directory"
-# The judge's two distributions: names spec 033's cannot clash with.
+# The judge's two distributions: names the zip's own cannot clash with.
 DISTRIBUTIONS = {
     "judge_meta_a-1.0.dist-info/METADATA": (
         "Metadata-Version: 2.1\nName: judge_meta_a\nVersion: 1.0\nSummary: the judge's first\n"
@@ -72,7 +72,7 @@ def build(members: dict[str, bytes | str], *, comment: bytes = b"") -> bytes:
 
 def zip64_zip() -> bytes:
     """A module `zip64_mod` in a zip with a Zip64 end record and Zip64 extras: zipfile writes
-    them for a small zip only with its limits lowered (the review's `odd.py`)."""
+    them for a small zip only with its limits lowered."""
     old = zipfile.ZIP64_LIMIT, zipfile.ZIP_FILECOUNT_LIMIT
     zipfile.ZIP64_LIMIT, zipfile.ZIP_FILECOUNT_LIMIT = 8, 2
     try:
@@ -229,7 +229,7 @@ class JudgeZips:
 
 
 def judge_zips(artifact_zip: Path) -> JudgeZips:
-    """The two zips, made once per artifact zip and safe across processes (spec 052, Decision 13).
+    """The two zips, made once per artifact zip and safe across processes.
 
     Each process builds in its own work folder and publishes it with one rename. A home that
     exists is complete, since a rename of a finished build is the only way one comes to exist,

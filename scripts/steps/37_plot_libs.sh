@@ -1,13 +1,13 @@
 #!/bin/sh
 # Step 37: matplotlib's C libraries as static archives for wasm32-wasip1, installed under
-# build/plot-libs/ (spec 023): FreeType 2.14.3, HarfBuzz 14.1.0, SheenBidi 3.0.0 and libraqm
-# 0.10.5, at matplotlib 3.11.2's own wrap versions (native pixel parity), each with meson and the
-# cross file recipes/wasi-plot-libs.cross; and qhull 8.0.2's libqhull_r, the one qhull linked, by
-# matplotlib's _qhull (spec 043) and scipy's spatial._qhull (spec 037, Decision 8), with its
-# qhull_r.pc from recipes/qhull_r.pc.in, which scipy's configure asks for. Each is unpacked from its
-# pinned tarball into build/<top>, patched (qhull's format strings, spec 037) and built outside its
-# tree, so the tree stays its tarball plus its recorded patches (spec 020). libraqm finds the other three through
-# the pinned pkgconf; FreeType is built against step 30's zlib, so one zlib is linked (§5.5).
+# build/plot-libs/: FreeType 2.14.3, HarfBuzz 14.1.0, SheenBidi 3.0.0 and libraqm 0.10.5, at
+# matplotlib 3.11.2's own wrap versions (native pixel parity), each with meson and the cross file
+# recipes/wasi-plot-libs.cross; and qhull 8.0.2's libqhull_r, the one qhull linked, by matplotlib's
+# _qhull and scipy's spatial._qhull, with its qhull_r.pc from recipes/qhull_r.pc.in, which scipy's
+# configure asks for. Each is unpacked from its pinned tarball into build/<top>, patched (qhull's
+# format strings) and built outside its tree, so the tree stays its tarball plus its recorded
+# patches. libraqm finds the other three through the pinned pkgconf; FreeType is built against step
+# 30's zlib, so one zlib is linked.
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -71,7 +71,7 @@ for f in $(cd "$B/qhull-8.0.2/src/libqhull_r" && ls geom2_r.c geom_r.c global_r.
 done
 "$SDK/bin/llvm-ar" rcD "$PREFIX/lib/libqhull_r.a" $QH_OBJS
 cp "$B/qhull-8.0.2/src/libqhull_r/"*.h "$PREFIX/include/libqhull_r/"
-# Its .pc (spec 037, Decision 8, condition a): scipy's dependency('qhull_r') and matplotlib's
+# Its .pc: scipy's dependency('qhull_r') and matplotlib's
 # first try both read it; its paths are relative to its own folder.
 cp "$HERE/recipes/qhull_r.pc.in" "$PREFIX/lib/pkgconfig/qhull_r.pc"
 

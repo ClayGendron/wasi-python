@@ -1,8 +1,8 @@
-"""Spec 066: the compiled packages' own tests, each package its own family.
+"""The compiled packages' own tests, each package its own family.
 
 A `driver = "package"` configuration (`tests/upstream/<package>.toml`) has its own grant
 (`/upstream-<package>`), its own stage, its own copy of the kit and its own fuel budget, so no
-package's tests can move another's fuel (spec 063, Decision 5). Its groups run through
+package's tests can move another's fuel. Its groups run through
 `tests/upstream/package_drive.py`, which keeps `drive.py`'s stream and adds three lines: `R skipped
 <collector>` for a file that skips itself whole, `D <node id>` for an item lxml's own runner would
 not run, and `K <n>`, the file's collected count before a split's `-k` deselects.
@@ -31,7 +31,7 @@ WORK = "/tmp/work"  # the writable working folder, in the guest's root
 
 @dataclass(frozen=True)
 class Split:
-    """One file too big for one group, split by construction (spec 066, Decision 11): group i runs
+    """One file too big for one group, split by construction: group i runs
     `-k "(e_i) and not (e_1 or ... or e_{i-1})"`, the last `-k "not (e_1 or ... or e_{n-1})"`."""
 
     file: str
@@ -134,7 +134,7 @@ def guest_cwd(cfg: upstream.Config) -> str:
 
 
 # ---------------------------------------------------------------------------------------------
-# lxml: what each module's test_suite() runs (spec 066, Decision 7)
+# lxml: what each module's test_suite() runs
 
 LOADERS = ("loadTestsFromTestCase", "makeSuite")
 
@@ -214,12 +214,12 @@ def stage(cfg: upstream.Config, tree: Path, allowed: set[str], dest: Path) -> li
             rel = p.relative_to(tree).as_posix()
             if rel in allowed:
                 wanted.add(rel)
-            elif not litter.unrecorded(rel):  # no fact holds litter or bytecode (spec 090)
+            elif not litter.unrecorded(rel):  # no fact holds litter or bytecode
                 left_out.append(rel)
     for rel in sorted(wanted):
         if rel not in allowed or not (tree / rel).is_file():
             continue
-        litter.refuse(rel, tree.name)  # the seal's cleanup must never meet it (spec 089)
+        litter.refuse(rel, tree.name)  # the seal's cleanup must never meet it
         target = dest / "tree" / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(tree / rel, target)
@@ -228,8 +228,8 @@ def stage(cfg: upstream.Config, tree: Path, allowed: set[str], dest: Path) -> li
 
 def group_args(cfg: upstream.Config, group: upstream.Group) -> list[str]:
     """pytest's selection for one group. The host makes every path absolute under the grant's tree
-    and leaves every other argument as it is: a marker or an option's value is never a path (spec
-    066's build review, L5). `--deselect` takes a node id, relative to the rootdir (the tree)."""
+    and leaves every other argument as it is: a marker or an option's value is never a path.
+    `--deselect` takes a node id, relative to the rootdir (the tree)."""
     root = tree_root(cfg) + "/"
     inside = [p if p.endswith(".py") else p + "/" for p in group.paths]
     mine = lambda f: any(f == p or f.startswith(p) for p in inside)  # noqa: E731
@@ -296,7 +296,7 @@ def parse_extra(text: str) -> Extra:
 
 
 def guard_findings(cfg: upstream.Config, modules: list[tuple[str, str]]) -> list[str]:
-    """Path-based (spec 066, Decision 5): a module loaded from the tree must lie under a staged
+    """Path-based: a module loaded from the tree must lie under a staged
     folder; a module of the product's names reported from outside the zip is a finding."""
     root = tree_root(cfg) + "/"
     folders = [root + f.rstrip("/") + "/" for f in cfg.keys.stage_folders]
@@ -323,7 +323,7 @@ def _added(listed, node: str) -> bool:
 
 
 def keep_findings(extra: Extra, stream: upstream.Stream, keep: dict) -> list[str]:
-    """lxml, exactly test_suite()'s tests (spec 066, Decision 7; the build review, M2): every class
+    """lxml, exactly test_suite()'s tests: every class
     it names ran at least one test; every test that ran is one it adds; every item deselected is
     one it does not add (its own `test_suite` builder among them)."""
     if not keep:
@@ -432,7 +432,7 @@ class Session:
             spec = {**group_spec(cfg, cfg.groups[next(iter(cfg.groups))], keep, top)}
             spec["args"], spec["split"] = [*cfg.args, t.node], False
             (judge_dir / f"{t.id}.json").write_text(json.dumps(spec, indent=1))
-        litter.seal(root)  # read-only, once staged (spec 089)
+        litter.seal(root)  # read-only, once staged
         return left_out, keep
 
     def _files(self, package: str) -> dict[str, bytes] | None:
@@ -471,7 +471,7 @@ class Session:
         (kept / f"{package}-{name}.txt").write_text(text)
         tail = r.stderr.decode(errors="replace").strip().splitlines()[-1:] or [""]
         run = upstream.GuestRun(r.exit_code, r.trapped, r.trap_cause, r.fuel, r.text, tail[0][:200])
-        litter.remove(r.root.parent)  # the run's root and its sealed stdlib folder (spec 089)
+        litter.remove(r.root.parent)  # the run's root and its sealed stdlib folder
         return text, run
 
     def group(self, package: str, group: str) -> PackageRun:
@@ -486,7 +486,7 @@ class Session:
 
     def _split_findings(self, cfg: upstream.Config, group: str, collected: int | None) -> list[str]:
         """Every group of a split collected the same file: a count unequal to an earlier group's
-        of the same split in this judge run is red (spec 066's build review, L1)."""
+        of the same split in this judge run is red."""
         split = cfg.keys.split_of(group)
         if split is None or collected is None:
             return []
@@ -508,7 +508,7 @@ class Session:
 
 
 # ---------------------------------------------------------------------------------------------
-# The rules (spec 066, Decision 14)
+# The rules
 
 
 def _keyword_errors(expr: str) -> str | None:
@@ -600,7 +600,7 @@ def rule_errors(pkg: str, cfg: upstream.Config, members: set[str] | None) -> lis
 
 
 def lxml_errors(configs: dict[str, upstream.Config], members: set[str] | None) -> list[str]:
-    """lxml's selection is its own runner's (spec 066, Decision 7), read statically from the
+    """lxml's selection is its own runner's, read statically from the
     tarball: the doctest files the selected modules' test_suite() functions name are exactly the
     configuration's, and their docstring suites are as many as it runs or names as left out."""
     from harness import pins

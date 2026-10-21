@@ -1,4 +1,4 @@
-"""The limits are checked (spec 013): `run` refuses a limit of the wrong type with TypeError and
+"""The limits are checked: `run` refuses a limit of the wrong type with TypeError and
 one out of range with ValueError, before any work, and passes on plain values."""
 
 from __future__ import annotations
@@ -104,7 +104,7 @@ class _Refusing(concurrent.futures.Executor):
 
 
 def test_the_open_file_cap_is_a_limit_with_a_default(monkeypatch) -> None:
-    """Spec 068, criterion 3: `max_open_files=` and `Defaults.open_files`, default 1,024, by
+    """`max_open_files=` and `Defaults.open_files`, default 1,024, by
     `_integer_limit`'s rules, read from the call's one read of the defaults, for every call
     (no grant, mount or root needed), and a bad value refused before any work."""
     import wasi_python

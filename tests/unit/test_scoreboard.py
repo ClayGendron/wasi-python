@@ -308,14 +308,14 @@ def test_accept_drops_a_metric_no_longer_recorded_when_growth_is_accepted() -> N
 
 def test_files_an_os_writes_are_not_part_of_the_judge(tmp_path, monkeypatch) -> None:
     """A `.DS_Store` that Finder writes into `tests/` must not change the judge's hash, or a hash
-    accepted on a desktop could never match CI's (spec 011 concurrency-check review, F3)."""
+    accepted on a desktop could never match CI's."""
     (tmp_path / "tests").mkdir()
     (tmp_path / "tests" / "test_a.py").write_text("")
     monkeypatch.setattr(paths, "REPO", tmp_path)
     monkeypatch.setattr(paths, "JUDGE_PATHS", ("tests",))
     clean = paths.judge_files()
     (tmp_path / "tests" / ".TemporaryItems").mkdir()
-    (tmp_path / "tests" / ".TemporaryItems" / "x.py").write_text("")  # spec 090: every part
+    (tmp_path / "tests" / ".TemporaryItems" / "x.py").write_text("")  # every part
     for name in {".DS_Store", "._test_a.py", *paths.OS_LITTER} - {".TemporaryItems"}:
         if sys.platform == "win32" and "\r" in name:
             continue  # a Windows file name cannot hold Icon\r's CR
@@ -324,7 +324,7 @@ def test_files_an_os_writes_are_not_part_of_the_judge(tmp_path, monkeypatch) -> 
 
 
 # ---------------------------------------------------------------------------------------------
-# The `passes` metric, its own list and flag, absent gaps, and the upstream refusal (spec 050)
+# The `passes` metric, its own list and flag, absent gaps, and the upstream refusal
 
 UP = "tests/checks/test_v1_3_upstream_suites.py"
 G = f"{UP}::test_upstream_suite[pandas-libs]"
@@ -352,7 +352,7 @@ def test_fewer_passes_are_red_in_their_own_list_and_print_first() -> None:
 
 @pytest.mark.parametrize("n_fewer", [0, 2, 6, 11])
 def test_every_fewer_line_the_red_line_and_the_tail_survive_the_line_cap(n_fewer) -> None:
-    """The build review's F3: eleven FEWER lines and three each of LOST, ABSENT and GREW must not
+    """Eleven FEWER lines and three each of LOST, ABSENT and GREW must not
     push the RED line or the "not machine-checked" lines off the scoreboard."""
     fewer = [f"t.py::g{i}: passes 9 -> 8" for i in range(n_fewer)]
     checks = {f"t.py::f{i}": check("fail", area="rules") for i in range(40)}
@@ -371,7 +371,7 @@ def test_every_fewer_line_the_red_line_and_the_tail_survive_the_line_cap(n_fewer
 
 
 def test_a_passes_metric_no_longer_recorded_is_fewer_not_growth() -> None:
-    """The build review's F4: dropping `passes` must not ride on --accept-growth."""
+    """Dropping `passes` must not ride on --accept-growth."""
     rec = run({G: check("pass", area="v1.3", metrics={"fuel": 10})})
     base = accepted({G: acc_passes(1063)})
     r = scoreboard.compare(rec, base)
@@ -436,9 +436,9 @@ def test_an_accepted_gap_now_failing_or_outside_is_not_lost_or_absent() -> None:
 def test_accept_refuses_while_an_accepted_upstream_check_is_blocked_or_deselected(
     now, status
 ) -> None:
-    """The case Decision 13 was written for (the pre-build review's F9): every upstream check is
+    """The case Decision 13 was written for: every upstream check is
     in the run, blocked because the kit is gone, or deselected. Nothing else in the run would
-    refuse (the build review's F2: an accepted pass and an accepted gap, each alone)."""
+    refuse (an accepted pass and an accepted gap, each alone)."""
     checks = {
         A: check("pass"),
         G: check(now, area="v1.3", need="upstream kit" if now == "blocked" else None),
@@ -475,7 +475,7 @@ def test_a_passing_upstream_check_is_not_unrun() -> None:
 
 
 def test_the_line_carries_the_sets_sha256sums() -> None:
-    """Spec 085, Decision 4: the lane's acceptance names the whole set, beside python.wasm."""
+    """The lane's acceptance names the whole set, beside python.wasm."""
     r = run({A: check("pass")}, set_sums="s" * 64)
     _, line = scoreboard.accept(r, None, [], scoreboard.Ratchet(), green=True, reason="r")
     assert json.loads(line)["set_sums"] == "s" * 64

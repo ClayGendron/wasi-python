@@ -1,9 +1,9 @@
 #!/bin/sh
-# Step 55: the plot packages for wasm32-wasip1 (spec 023): Pillow 13.0.0's _imaging, _imagingmath
+# Step 55: the plot packages for wasm32-wasip1: Pillow 13.0.0's _imaging, _imagingmath
 # and _imagingmorph (zlib only) and kiwisolver 1.5.1's _cext, compiled directly from their source
 # lists, matplotlib 3.11.2 (with its two carried patches) through meson and
 # recipes/wasi-matplotlib.cross against step 37's libraries, and contourpy 1.4.0's _contourpy
-# through meson and the same cross file (spec 043). Each extension module becomes a static
+# through meson and the same cross file. Each extension module becomes a static
 # archive beside a .deps file, as scripts/wasi-cc makes them, laid out at its import path under
 # build/plot-modules/<package>/ for step 60; each package's Python files go under
 # build/plot-install/ for step 70. Needs steps 10 (pkgconf), 20 (the cross Python), 30 (zlib) and
@@ -154,7 +154,7 @@ EOF_MPL
 "$HOSTPY" "$TOOLS/place_extensions.py" "$B/matplotlib-build" "$MODS/matplotlib" "$SUFFIX" \
   || die "matplotlib's extension archives could not be placed"
 
-# contourpy (spec 043, Decision 4): meson with matplotlib's cross file, at meson-python's defaults
+# contourpy: meson with matplotlib's cross file, at meson-python's defaults
 # for the code (release, asserts off as b_ndebug=if-release gives), werror off (contourpy's
 # meson.build turns it on, and the SDK's headers warn), no numpy at build time (pybind11 binds
 # numpy's C API at import). Its meson.build asks the target Python for meson-python's version only

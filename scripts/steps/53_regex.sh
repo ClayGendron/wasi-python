@@ -1,6 +1,6 @@
 #!/bin/sh
-# Step 53: regex 2026.9.29's one C extension module, regex._regex, for wasm32-wasip1 (spec 047,
-# Decision 2). Its two C files are compiled here as regex's setup.py compiles them: setup.py adds
+# Step 53: regex 2026.9.29's one C extension module, regex._regex, for wasm32-wasip1.
+# Its two C files are compiled here as regex's setup.py compiles them: setup.py adds
 # one macro, Py_GIL_DISABLED, and only on a free-threaded CPython, which the line's is not. The
 # tree gets its one carried patch first (recipes/patches/regex-2026.9.29/, Decision 3: five
 # callbacks gain the parameter CPython passes). The module becomes a static archive beside a .deps
@@ -26,7 +26,7 @@ REGEX_VERSION=$(sed -n 's/^Version: //p' "$R/PKG-INFO" | head -n 1)
 [ "$REGEX_VERSION" = 2026.9.29 ] || die "regex's PKG-INFO says version $REGEX_VERSION"
 
 # -DNDEBUG, as CPython's release build and regex's wheels compile, and the prefix map: no build
-# path in the binary (spec 046, Decision 3).
+# path in the binary.
 CFLAGS="-O2 -DNDEBUG -ffile-prefix-map=$HERE=/wasi-python-build -I$CP/Include -I$W"
 for m in _regex _regex_unicode; do
   "$HERE/scripts/wasi-cc" $CFLAGS -c "$R/src/$m.c" -o "$OBJ/$m.o" > "$OBJ/$m.log" 2>&1 \

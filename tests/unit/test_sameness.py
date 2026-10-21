@@ -1,4 +1,4 @@
-"""Sameness against a release record, and claim lists (spec 092).
+"""Sameness against a release record, and claim lists.
 
 The release records here are made by `gather.merge` itself from synthetic shard records, so the
 rows test the merged record the release workflow writes, not a copy of its shape."""
@@ -365,7 +365,7 @@ def test_the_command_prints_only_what_no_claim_explains(tmp_path) -> None:
 
 
 def test_a_fuel_fact_follows_the_fuel_rules(tmp_path) -> None:
-    """Spec 091's fuel facts are fuel: compared to the tolerance between darwin rows only, and
+    """Fuel facts are fuel: compared to the tolerance between darwin rows only, and
     explained by a grows claim (the rebase onto wave 01)."""
     records = shard_records()
     records[("linux", "up")]["checks"][U]["facts"]["fuel_facts"] = {"f": 1000}
@@ -382,11 +382,11 @@ def test_a_fuel_fact_follows_the_fuel_rules(tmp_path) -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# The build review's findings (F1 to F4)
+# Edge cases: merged statuses, missing sources, odd suites and arguments
 
 
 def test_a_failure_on_another_system_is_a_difference_no_claim_explains(tmp_path) -> None:
-    """F1: the darwin view never hides a merged status worse than its source's; only a block by a
+    """The darwin view never hides a merged status worse than its source's; only a block by a
     CI need on a system that lacks it (descriptor limit, Windows) is no difference."""
     records = shard_records()
     records[("windows", "own")]["checks"][A].update(status="fail", reason="boom", metrics={})
@@ -412,7 +412,7 @@ def test_a_failure_on_another_system_is_a_difference_no_claim_explains(tmp_path)
     ],
 )
 def test_a_check_without_a_source_that_ran_is_refused(entry) -> None:
-    """F2: only a check every record deselected or blocked by a CI need may lack a source."""
+    """Only a check every record deselected or blocked by a CI need may lack a source."""
     r = release()
     r["checks"][A].pop("source")
     r["checks"][A].update(entry)
@@ -421,7 +421,7 @@ def test_a_check_without_a_source_that_ran_is_refused(entry) -> None:
 
 
 def test_a_malformed_suite_is_refused_in_one_line(tmp_path) -> None:
-    """F3: a non-number in a darwin run's suite is exit 2, one line, not a traceback."""
+    """A non-number in a darwin run's suite is exit 2, one line, not a traceback."""
     r = release()
     r["runs"]["macos/own"]["suite"]["passed"] = "5"
     a, b = tmp_path / "r.json", tmp_path / "l.json"
@@ -433,7 +433,7 @@ def test_a_malformed_suite_is_refused_in_one_line(tmp_path) -> None:
 
 
 def test_except_without_claims_is_an_argument_error(tmp_path) -> None:
-    """F4."""
+    """`--except` without `--claims` is an argument error, not a silent no-op."""
     a = tmp_path / "a.json"
     a.write_text(json.dumps(local()))
     got = subprocess.run(
@@ -443,7 +443,7 @@ def test_except_without_claims_is_an_argument_error(tmp_path) -> None:
 
 
 def test_a_read_only_files_block_on_windows_alone_is_no_difference() -> None:
-    """Spec 094's need joins F1's exception through gather.CI_NEEDS, on Windows only."""
+    """The read-only-files need joins the CI needs' exception (gather.CI_NEEDS), on Windows only."""
     records = shard_records()
     records[("windows", "own")]["checks"][A].update(status="blocked", need="read-only files")
     assert sameness.differences(release(records), local()) == []

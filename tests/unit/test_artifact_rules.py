@@ -191,7 +191,7 @@ def good(work) -> Path:
 
 
 def test_the_session_exports_have_their_types(good, work) -> None:
-    """Spec 055, criterion 26: `turn` is (i32, i32) -> i32 and `shutdown` () -> i32; a set from
+    """`turn` is (i32, i32) -> i32 and `shutdown` () -> i32; a set from
     before sessions names both as missing."""
     for b in ("python.wasm", "python-snapshot.wasm"):
         assert rules.export_type_errors(good / b) == []
@@ -229,7 +229,7 @@ def test_a_good_set_passes_every_rule(good) -> None:
 
 
 def test_build_paths_are_named_in_a_binary(work) -> None:
-    """Spec 046, Decision 10: a binary holding the checkout's path or the home folder is named,
+    """A binary holding the checkout's path or the home folder is named,
     with how many times; a shallow home folder is not searched for."""
     b = work / "python.wasm"
     b.write_bytes(b"\0file:///w/repo/build/xml-libs/etc/xml/catalog\0/home/u/x\0/w/repo/a\0")
@@ -265,7 +265,7 @@ def test_sums_catch_a_changed_an_unlisted_and_a_missing_file(good) -> None:
 
 
 def test_sums_forgive_litter_names_only(good) -> None:
-    """Spec 090, Decision 4: a Finder file in the set's folder is no finding; a real stray file
+    """A Finder file in the set's folder is no finding; a real stray file
     still is, by name."""
     for rel in (".DS_Store", "LICENSES/._six.txt", ".TemporaryItems/x", "desktop.ini"):
         (good / rel).parent.mkdir(parents=True, exist_ok=True)
@@ -412,7 +412,7 @@ def _tar(path: Path, top: str, files: dict[str, bytes]) -> None:
 def test_xz_and_sqlite_notices_must_hold_their_whole_licence(good, work, monkeypatch) -> None:
     """xz's library is under 0BSD, which its top-level COPYING only points to, and SQLite has no
     licence file: their notices must also hold COPYING.0BSD and the blessing that heads
-    sqlite3.h, read from the pinned tarballs (spec 007's build review, finding 7). SQLite's pin
+    sqlite3.h, read from the pinned tarballs. SQLite's pin
     is named sqlite-autoconf, not sqlite."""
     downloads = work / "downloads"
     downloads.mkdir()
@@ -452,7 +452,7 @@ def test_xz_and_sqlite_notices_must_hold_their_whole_licence(good, work, monkeyp
     )
 
 
-# A cut of GIST's notice as matplotlib ships it in LICENSE/LICENSE_YORICK (the build review's F6).
+# A cut of GIST's notice as matplotlib ships it in LICENSE/LICENSE_YORICK.
 YORICK = (
     b"BSD-style license for gist/yorick packages.\n"
     b"Copyright (c) 1996.  The Regents of the University of California.\n"
@@ -467,7 +467,7 @@ YORICK = (
 def test_contourpys_notice_holds_gists_and_qhulls_its_copying(good, work, monkeypatch) -> None:
     """contourpy's notice must hold GIST's, which matplotlib's pinned tarball ships as
     LICENSE/LICENSE_YORICK (BORROWED_LICENCE), and qhull's must hold its COPYING.txt, which the
-    top-level search does not match (MORE_LICENCE; spec 043, Decision 11)."""
+    top-level search does not match (MORE_LICENCE)."""
     downloads = work / "downloads"
     downloads.mkdir()
     _tar(downloads / "contourpy-1.4.0.tar.gz", "contourpy-1.4.0", {"LICENSE": b"contourpy BSD\n"})
@@ -527,7 +527,7 @@ def test_a_wheel_must_carry_the_same_bytes(good, work) -> None:
 
 
 def test_a_wheel_carries_the_list_and_nothing_else(good, work) -> None:
-    """Spec 090, Decision 4: litter in the folder is forgiven, but a wheel member the set's list
+    """Litter in the folder is forgiven, but a wheel member the set's list
     does not name is not, litter or not (the wheel is built with `cp -R build/artifacts`)."""
     wheel = work / "wasi_python-0-py3-none-any.whl"
 
@@ -554,7 +554,7 @@ def test_a_wheel_carries_the_list_and_nothing_else(good, work) -> None:
 
 
 def test_a_wheel_must_carry_py_typed(good, work) -> None:
-    """Spec 049, criterion 8: without `py.typed` a type checker treats the package as untyped."""
+    """Without `py.typed` a type checker treats the package as untyped."""
     wheel = work / "wasi_python-0-py3-none-any.whl"
     with zipfile.ZipFile(wheel, "w") as w:
         for p in good.rglob("*"):
@@ -660,7 +660,7 @@ def _tier_a_set(work: Path) -> Path:
 
 
 def test_tqdm_notice_carries_the_mpl_and_its_source(work) -> None:
-    """Spec 039, criterion 1: the rule passes the set step 90 writes, with no downloads/, and names
+    """The rule passes the set step 90 writes, with no downloads/, and names
     each mutant: the MPL text missing or one byte changed, the carried source missing or one byte
     changed, and sympy's notice without its nested MIT notice."""
     d = _tier_a_set(work)
@@ -688,7 +688,7 @@ def test_tqdm_notice_carries_the_mpl_and_its_source(work) -> None:
     ]
 
 
-# Spec 042: reportlab's leave-outs, and seaborn's and reportlab's notices as step 90 writes them.
+# reportlab's leave-outs, and seaborn's and reportlab's notices as step 90 writes them.
 
 
 def _assemble():
@@ -702,7 +702,7 @@ def _assemble():
 
 
 def test_reportlab_fonts_and_barcodes_are_named_in_the_zip() -> None:
-    """Spec 042, criterion 1: the rule passes names without reportlab's fonts or barcode folder,
+    """The rule passes names without reportlab's fonts or barcode folder,
     matplotlib's inner archive included, and names a member under either folder and a font file
     of Decision 4's formats anywhere."""
     good = ["reportlab/__init__.pyc", "reportlab/graphics/shapes.pyc", "matplotlib/mpl-data.zip"]
@@ -748,7 +748,7 @@ def _seaborn_set(work: Path) -> tuple[Path, Path]:
 
 
 def test_seaborn_notice_carries_its_vendored_licences(work) -> None:
-    """Spec 042, criterion 1: the notice step 90 writes passes with the sdist and without it; a
+    """The notice step 90 writes passes with the sdist and without it; a
     missing notice, a vendored licence left out, and one byte changed are named (the byte only
     with the sdist; a heading missing either way)."""
     d, sdist = _seaborn_set(work)
@@ -812,8 +812,8 @@ def _reportlab_set(work: Path) -> tuple[Path, Path]:
 
 
 def test_reportlab_notice_carries_its_third_party_parts(work) -> None:
-    """Spec 042, criterion 1: the notice step 90 writes passes with the wheel and without it; the
-    notice 039's builder wrote (the wheel's LICENSE alone) is named for its three missing parts
+    """The notice step 90 writes passes with the wheel and without it; the
+    notice tier A's build wrote (the wheel's LICENSE alone) is named for its three missing parts
     and the MIT text; one byte changed in a comment part is named with the wheel; Sarna's
     acknowledgement removed, and one byte changed in the MIT text, are named either way."""
     d, wheel = _reportlab_set(work)

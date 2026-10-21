@@ -1,4 +1,4 @@
-"""The progress history in volumes (spec 062): synthetic histories in temporary folders, written
+"""The progress history in volumes: synthetic histories in temporary folders, written
 through the same `scoreboard.accept` and `history.target` the plugin uses. Every number here is a
 count of bytes, lines, digests or ids; nothing measures time."""
 
@@ -17,7 +17,7 @@ SYSTEMS = ("darwin-arm64", "linux-x86_64", "win32-amd64")
 
 
 def node(i: int) -> str:
-    """A synthetic node id of 83 bytes, the mean length of today's (the memo, finding 2)."""
+    """A synthetic node id of 83 bytes, the mean length of today's."""
     out = f"tests/checks/test_synthetic_area.py::test_a_synthetic_check_that_holds[{i:011d}]"
     assert len(out) == 83
     return out
@@ -370,7 +370,7 @@ def test_accepted_json_edited(vols) -> None:
 
 
 def test_an_old_format_line_moved_out_of_volume_1(tmp_path) -> None:
-    """The review's P6: the last old line moved into a volume of its own, ahead of the change
+    """The last old line moved into a volume of its own, ahead of the change
     lines. Lines are big enough that no volume could have taken the next one, so the chain, `n`,
     the names and the begun-early rule all hold; only the old-format rule (and the seal) see it."""
     folder = tmp_path
@@ -557,7 +557,7 @@ def test_a_first_line_whose_n_is_not_a_number_is_reported_not_raised(vols) -> No
 
 
 # ---------------------------------------------------------------------------------------------
-# Spec 070, Decisions 2 and 3 (spec 062's build review, F1 and F2): the roll at exactly BUDGET
+# The roll at exactly BUDGET
 # bytes, and a volume that holds a carriage return.
 
 
@@ -633,7 +633,7 @@ def test_a_volume_that_holds_a_carriage_return(vols) -> None:
 
 
 def test_a_bare_carriage_return_inside_the_newest_line(vols) -> None:
-    """Spec 070's build review, F2: a CR away from the line's end, inside the newest line, where
+    """A CR away from the line's end, inside the newest line, where
     `json.loads` reads it as whitespace and nothing chains to it."""
     folder, v, _ = vols
     data = v[2].read_bytes()
@@ -643,7 +643,7 @@ def test_a_bare_carriage_return_inside_the_newest_line(vols) -> None:
 
 
 def test_lines_without_set_sums_then_one_with_it_are_intact(tmp_path) -> None:
-    """Spec 085, Decision 5: `set_sums` is one more key of a format-2 line; older lines lack it."""
+    """`set_sums` is one more key of a format-2 line; older lines lack it."""
     old_volume(tmp_path, [{node(1)}])
     accept_into(tmp_path, {node(1), node(2)})
     accept_into(tmp_path, {node(2)}, set_sums="s" * 64)

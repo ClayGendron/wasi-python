@@ -1,4 +1,4 @@
-# Sourced by every build step (spec 003): where things are, the line (scripts/line.conf, spec 005),
+# Sourced by every build step: where things are, the line (scripts/line.conf),
 # and the one host Python's environment.
 # Downloads are untrusted data: they are unpacked under build/ and run only as build tools.
 HERE=$(CDPATH= cd "$(dirname "$0")/../.." && pwd -P)
@@ -8,22 +8,22 @@ B="$HERE/build"
 . "$HERE/scripts/steps/remove.sh"
 T="$B/tools"
 SDK="$T/$WASI_SDK_DIR"
-# The SDK whose clang compiles (spec 040, Decision 4): $SDK itself on the arm64 hosts; on x86_64
+# The SDK whose clang compiles: $SDK itself on the arm64 hosts; on x86_64
 # Linux the arm64 Linux SDK, whose clang step 10 puts behind $SDK/bin/clang under the emulator. Its
 # sysroot and builtins are the ones the emulated driver links.
 CSDK="$T/$COMPILER_SDK_DIR"
 HOSTPY="$T/python/bin/python3"
-PKGCONF="$T/pylib/pkgconf/.bin/pkgconf"  # the pinned pkgconf wheel's binary (step 10, spec 023)
+PKGCONF="$T/pylib/pkgconf/.bin/pkgconf"  # the pinned pkgconf wheel's binary (step 10)
 CP="$B/Python-$PYTHON_VERSION"
 W="$CP/cross-build/wasm32-wasip1"
 OUT="$B/out"
 
 export WASI_SDK_PATH="$SDK"
-# Step 10's shim for the pinned host Python comes first (spec 079): every Python a step finds by name.
+# Step 10's shim for the pinned host Python comes first: every Python a step finds by name.
 export PATH="$T/host-python:$T/pylib/bin:$T/$WASMTIME_DIR:$PATH"
 export PYTHONPATH="$T/pylib"
 export UV_CACHE_DIR="${UV_CACHE_DIR:-$B/uv-cache}"
-# Build tools must not leave bytecode caches inside the upstream source trees (spec 003, Decision 4).
+# Build tools must not leave bytecode caches inside the upstream source trees.
 export PYTHONDONTWRITEBYTECODE=1
 
 # Marshal writes a string as shared or not by its reference count in the compiling process, and
@@ -34,7 +34,7 @@ host_from_source() {
   find "$T/python/lib" -name __pycache__ -type d -prune | while read -r d; do remove "$d"; done
 }
 
-# Apply a tree's carried patches right after its unpack, before anything reads it (spec 020).
+# Apply a tree's carried patches right after its unpack, before anything reads it.
 patch_tree() {
   sh "$HERE/scripts/steps/apply_patches.sh" "$1" "$HERE/recipes/patches/$(basename "$1")"
 }

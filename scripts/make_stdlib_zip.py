@@ -1,4 +1,4 @@
-"""Build the stdlib zip: bytecode-only, deflated and deterministic (spec 003, Decision 7).
+"""Build the stdlib zip: bytecode-only, deflated and deterministic.
 
     make_stdlib_zip.py --lib <CPython Lib/> [--tree <dir whose children go to the zip root>]...
         [--wheel <pinned wheel>]... [--metadata <an sdist's PKG-INFO>]...
@@ -15,21 +15,21 @@ give the same bytes. Run it with PYTHONHASHSEED=0: set and frozenset constants a
 hash order.
 
 _sysconfigdata, numpy's and scipy's __config__.py and contourpy's util/_build_config.py say nothing
-about the build host, so the zip is the same bytes from any host (spec 012, Decision 5; contourpy's,
-spec 043; scipy's, spec 037, Decision 10). Their host keys are set to fixed values, whatever the
+about the build host, so the zip is the same bytes from any host (contourpy's
+and scipy's). Their host keys are set to fixed values, whatever the
 host wrote (HOST_KEYS, NUMPY_BUILD_KEYS, which scipy's "Machine Information" shares,
 CONTOURPY_BUILD_KEYS); a key that is absent, or that does not read back as its fixed value once
 rewritten, stops the build. Then each --replace rewrites its text in the four, in the order given;
 an old text found in none stops the build. Both run before compiling.
 
-Each module's code is compiled under its member name after --code-prefix (spec 051): the guest
+Each module's code is compiled under its member name after --code-prefix: the guest
 path of the zip itself and a slash, so `co_filename` is what zipimport gives a source in the same
 zip, `/usr/local/lib/python315.zip/pandas/core/frame.py`. zipimport takes a .pyc's code as it is,
 and pandas and numpy find their own frames by that name. The prefix must be absolute and end in
 `.zip/`; it is a constant of the line's version, never a host path. Without it, the name is the
 member's alone, as before.
 
-What cannot run, or is not built, stays out (spec 023, Decision 4): `--drop` leaves out every member
+What cannot run, or is not built, stays out: `--drop` leaves out every member
 under a folder (`matplotlib/testing`), and `--keep` leaves out every member under a folder but the
 files it names (matplotlib's backends: the ten that a plot and its PNG, PDF, PS, EPS and SVG saves
 import, and two more that need nothing missing). A drop or keep that matches nothing stops the
@@ -38,15 +38,15 @@ build.
 `--inner` packs a folder of data files into one member, `<folder>.zip`, an inner archive whose
 files are stored at their paths under the folder, sorted, with the same fixed time and mode; the
 outer member is deflated like every other, so the data is compressed once. zipimport reads the
-whole directory at every plain start, so 204 files of matplotlib's `mpl-data` cost one entry (spec
-023, Decision 6); the runner extracts the inner archive and grants it read-only at the path
+whole directory at every plain start, so 204 files of matplotlib's `mpl-data` cost one entry;
+the runner extracts the inner archive and grants it read-only at the path
 matplotlib computes (Decision 5). An inner folder with no member stops the build.
 
-Package metadata (spec 033): a wheel keeps two files of its .dist-info, METADATA and
+Package metadata: a wheel keeps two files of its .dist-info, METADATA and
 entry_points.txt, bytes unchanged; a package built from its sdist gets that sdist's PKG-INFO as
 <name>-<version>.dist-info/METADATA (--metadata). A tree never brings metadata of its own: walk
 skips every .dist-info and .egg-info folder, and a tree with one at its top stops the build.
-`--entry-points <PKG-INFO> <file>` (spec 041, Decision 5) packs an sdist's entry_points.txt,
+`--entry-points <PKG-INFO> <file>` packs an sdist's entry_points.txt,
 bytes unchanged, beside that PKG-INFO's METADATA, in the folder sdist_metadata names; once every
 input is gathered, an entry-points file whose folder has no METADATA member stops the build.
 """
@@ -81,7 +81,7 @@ SKIP_DIRS = {
     "site-packages",
 }
 SKIP_SUFFIXES = {".pyi", ".pxd", ".pyx", ".pxi", ".h", ".c", ".cpp", ".so", ".deps", ".a"}
-SKIP_NAMES = {"conftest.py", "meson.build"}  # and litter, by is_litter (specs 018 and 090)
+SKIP_NAMES = {"conftest.py", "meson.build"}  # and litter, by is_litter
 REWRITE = (
     "_sysconfigdata",
     "numpy/__config__.py",
@@ -96,14 +96,14 @@ INSTALL_KEYS = ("INSTALL", "INSTALL_DATA", "INSTALL_PROGRAM", "INSTALL_SCRIPT", 
 INSTALL = re.compile(r"\S*install -c((?: \S+)*)")
 # numpy's "Machine Information" -> "build" keys; its "endian" stays.
 NUMPY_BUILD_KEYS = {"cpu": "build", "family": "build", "system": "build"}
-# contourpy's build_config() keywords for the build machine (spec 043, Decision 4), by numpy's rule;
+# contourpy's build_config() keywords for the build machine, by numpy's rule;
 # its build_cpu_endian stays.
 CONTOURPY_BUILD_KEYS = {
     "build_cpu": "build",
     "build_cpu_family": "build",
     "build_cpu_system": "build",
 }
-# Package metadata (spec 033): the folders importlib.metadata reads, and the two files of a
+# Package metadata: the folders importlib.metadata reads, and the two files of a
 # wheel's .dist-info the zip keeps (RECORD would list .py files the zip does not hold).
 METADATA_DIRS = (".dist-info", ".egg-info")
 KEPT_METADATA = ("METADATA", "entry_points.txt")
@@ -183,7 +183,7 @@ def sdist_metadata(path: Path) -> tuple[bytes, str]:
 
 def sdist_entry_points(pkg_info: Path, path: Path) -> tuple[bytes, str]:
     """An sdist's entry_points.txt, bytes unchanged, and its member: entry_points.txt in the
-    .dist-info folder sdist_metadata names for the same PKG-INFO (spec 041, Decision 5)."""
+    .dist-info folder sdist_metadata names for the same PKG-INFO."""
     _, metadata = sdist_metadata(pkg_info)
     return path.read_bytes(), metadata.rpartition("/")[0] + "/entry_points.txt"
 

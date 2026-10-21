@@ -1,9 +1,9 @@
-"""An inline pytest session keeps the signal handlers it found (spec 082).
+"""An inline pytest session keeps the signal handlers it found.
 
 pytest's faulthandler plugin, in a session run inside this process (pytester's `runpytest`), calls
 `faulthandler.disable()` at its end and then `enable()` again. `disable()` puts back the handlers
 faulthandler saw when the outer session enabled it, so any handler installed in between is gone:
-on Linux, wasmtime's, which the runner's guard then misses (spec 071; spec 080's review, F1).
+on Linux, wasmtime's, which the runner's guard then misses.
 The judge's `pytester` (tests/conftest.py) runs every inline session with `-p no:faulthandler`."""
 
 from __future__ import annotations
@@ -80,8 +80,7 @@ def test_an_inline_session_keeps_a_handler_installed_after_faulthandler(pytester
 @posix
 def test_a_parseconfigure_keeps_a_handler_installed_after_faulthandler(pytester) -> None:
     """The same through pytester's `parseconfig`: a config `parseconfigure` configures runs the
-    plugins' `pytest_configure`, and its unconfigure their `pytest_unconfigure` (the build
-    review, L1)."""
+    plugins' `pytest_configure`, and its unconfigure their `pytest_unconfigure`."""
 
     def session():
         config = pytester.parseconfigure()
@@ -92,7 +91,7 @@ def test_a_parseconfigure_keeps_a_handler_installed_after_faulthandler(pytester)
 
 
 def test_an_inline_session_after_an_engine_leaves_the_guard_ready(pytester) -> None:
-    """End to end, as spec 080's review found it: an engine, then an inline session, and the
+    """End to end: an engine, then an inline session, and the
     runner's guard still finds wasmtime's handlers. Only Linux has the guard (macOS uses Mach
     ports, Windows a vectored handler), so elsewhere both reads are None by design."""
     import wasmtime

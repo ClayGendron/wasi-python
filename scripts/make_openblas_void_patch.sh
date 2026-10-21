@@ -1,5 +1,5 @@
 #!/bin/sh
-# Make OpenBLAS 0.3.34's carried patches from their script (spec 037, Decision 5):
+# Make OpenBLAS 0.3.34's carried patches from their script:
 #
 #   scripts/make_openblas_void_patch.sh OUT_DIR
 #
@@ -11,7 +11,7 @@
 #   OUT_DIR/0002-c-lapack-subroutines-return-void-2-of-2.patch   the convention, every file but
 #       ilaver.c: one `git diff` cut in two at the first file at or after lapack-netlib/SRC/s, so
 #       that each stays under the rules check's 1 MiB; the two concatenated are that one diff, byte
-#       for byte (spec 037, Revised at build)
+#       for byte
 #   OUT_DIR/0003-ilaver-returns-void.patch   ilaver.c alone,
 # and beside each its drafts' `Files:` line (`<patch>.files`), from `git diff --name-only`.
 # The tree is added with --force: the tarball's own .gitignore hides two of its files, and an edit
@@ -61,7 +61,7 @@ py() { # the Python that runs this project's scripts: $PYTHON, or uv's
     (cd "$HERE" && uv run python -I "$@")
   fi
 }
-# Host litter (specs 018 and 090): names an operating system writes into a folder on its own
+# Host litter: names an operating system writes into a folder on its own
 # (macOS's .DS_Store in a fresh tree under a home folder, AppleDouble ._ files), by the one list in
 # scripts/litter.py. Never OpenBLAS's: the tarball is checked to hold none, so unstaging them after
 # each `add` drops no real file. They stay out of the pristine commit, the count and the patches

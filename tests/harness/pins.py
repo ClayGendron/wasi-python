@@ -1,11 +1,10 @@
-"""The source trees are their tarballs plus the recorded patches, mechanically (constitution §4.1,
-spec 020).
+"""The source trees are their tarballs plus the recorded patches, mechanically.
 
 A source tree under `build/` matches its pinned tarball when every file the tarball holds is
 present and byte-identical in the tree (symlinks: same target). A tree with carried patches under
 `recipes/patches/<top>/` must instead equal its tarball with exactly those applied, by the same
 `scripts/steps/apply_patches.sh` the build runs; a path a patch deletes must be absent. Files the
-build adds are not judged (spec 002, Decision 17).
+build adds are not judged.
 """
 
 from __future__ import annotations
@@ -31,8 +30,8 @@ SOURCE_PATTERNS = {
     "bzip2": re.compile(r"bzip2-[\w.]+\.tar\.gz"),
     "xz": re.compile(r"xz-[\w.]+\.tar\.gz"),
     "sqlite": re.compile(r"sqlite-autoconf-\d+\.tar\.gz"),
-    "regex": re.compile(r"regex-[\w.]+\.tar\.gz"),  # spec 047
-    # matplotlib (spec 023): its five C libraries and three packages
+    "regex": re.compile(r"regex-[\w.]+\.tar\.gz"),
+    # matplotlib: its five C libraries and three packages
     "freetype": re.compile(r"freetype-[\w.]+\.tar\.xz"),
     "harfbuzz": re.compile(r"harfbuzz-[\w.]+\.tar\.xz"),
     "sheenbidi": re.compile(r"SheenBidi-[\w.]+\.tar\.gz"),
@@ -41,22 +40,22 @@ SOURCE_PATTERNS = {
     "pillow": re.compile(r"pillow-[\w.]+\.tar\.gz"),
     "kiwisolver": re.compile(r"kiwisolver-[\w.]+\.tar\.gz"),
     "matplotlib": re.compile(r"matplotlib-[\w.]+\.tar\.gz"),
-    "contourpy": re.compile(r"contourpy-[\w.]+\.tar\.gz"),  # spec 043
-    # lxml (spec 046): its two C libraries and the package
+    "contourpy": re.compile(r"contourpy-[\w.]+\.tar\.gz"),
+    # lxml: its two C libraries and the package
     "libxml2": re.compile(r"libxml2-[\w.]+\.tar\.xz"),
     "libxslt": re.compile(r"libxslt-[\w.]+\.tar\.xz"),
     "lxml": re.compile(r"lxml-[\w.]+\.tar\.gz"),
-    # tier A (spec 039): the two sdists whose pure package folders step 70 takes
+    # tier A: the two sdists whose pure package folders step 70 takes
     "pyyaml": re.compile(r"pyyaml-[\w.]+\.tar\.gz"),
     "markupsafe": re.compile(r"markupsafe-[\w.]+\.tar\.gz"),
-    # spec 041, Decision 4: networkx from its sdist, so its carried patch has a tree
+    # networkx from its sdist, so its carried patch has a tree
     "networkx": re.compile(r"networkx-[\w.]+\.tar\.gz"),
-    # scipy (spec 037): OpenBLAS, whose C LAPACK is the LAPACK, and the package
+    # scipy: OpenBLAS, whose C LAPACK is the LAPACK, and the package
     "openblas": re.compile(r"OpenBLAS-[\w.]+\.tar\.gz"),
     "scipy": re.compile(r"scipy-[\w.]+\.tar\.gz"),
-    # scikit-learn (spec 044)
+    # scikit-learn
     "scikit_learn": re.compile(r"scikit_learn-[\w.]+\.tar\.gz"),
-    # spec 042, Decision 2: seaborn from its sdist, whose package step 70 takes
+    # seaborn from its sdist, whose package step 70 takes
     "seaborn": re.compile(r"seaborn-[\w.]+\.tar\.gz"),
 }
 
@@ -96,7 +95,7 @@ def patch_files(top: str, patches: Path | None = None) -> list[Path]:
     return sorted((patches or PATCHES).joinpath(top).glob("[0-9][0-9][0-9][0-9]-*.patch"))
 
 
-# A pinned member the build's walks would skip without a word (spec 090, Decision 1's guard).
+# A pinned member the build's walks would skip without a word.
 PINNED_LITTER = (
     "a pinned member with a name only an operating system leaves; the build skips it (spec 090)"
 )
@@ -111,7 +110,7 @@ def tree_drift(tarball: Path, tree: Path, patches: Path | None = None) -> list[s
 
 
 def _patched_drift(tarball: Path, tree: Path, patch_dir: Path) -> list[str]:
-    # Under the project's own build/harness, never the system's temporary folder (§4.8): the
+    # Under the project's own build/harness, never the system's temporary folder: the
     # applier's ceiling keeps git from taking the outer repository for the tree's.
     paths.HARNESS_TMP.mkdir(parents=True, exist_ok=True)
     d = tempfile.mkdtemp(prefix="patched-", dir=paths.HARNESS_TMP)
@@ -130,7 +129,7 @@ def _patched_drift(tarball: Path, tree: Path, patch_dir: Path) -> list[str]:
         for p in sorted(result.rglob("*")):
             rel = p.relative_to(result).as_posix()
             if paths.has_litter(rel) and rel not in held:
-                continue  # Finder's or Explorer's, written into this extraction (specs 026, 090)
+                continue  # Finder's or Explorer's, written into this extraction
             if paths.has_litter(rel):
                 drift.append(f"{rel}: {PINNED_LITTER}")
             target = tree / rel
@@ -153,8 +152,8 @@ def _patched_drift(tarball: Path, tree: Path, patch_dir: Path) -> list[str]:
 
 
 def _remove_tree(d: Path) -> None:
-    """Removed with spec 018's retries: a Finder window showing build/ can write litter into a
-    folder while it is removed (spec 026). One that still will not go is left under build/harness,
+    """Removed with retries: a Finder window showing build/ can write litter into a
+    folder while it is removed. One that still will not go is left under build/harness,
     which git ignores, rather than failing the check."""
     for _ in range(3):
         shutil.rmtree(d, ignore_errors=True)

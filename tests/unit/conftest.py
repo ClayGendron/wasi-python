@@ -12,8 +12,8 @@ from harness import litter, paths
 
 @pytest.fixture
 def work() -> Path:
-    """A fresh directory under build/harness/ (never the system temp dir: §4.8)."""
+    """A fresh directory under build/harness/ (never the system temp dir)."""
     paths.HARNESS_TMP.mkdir(parents=True, exist_ok=True)
     d = Path(tempfile.mkdtemp(prefix="unit-", dir=paths.HARNESS_TMP))
     yield d
-    litter.remove(d)  # a run's stdlib folder in it is sealed (spec 089)
+    litter.remove(d)  # a run's stdlib folder in it is sealed

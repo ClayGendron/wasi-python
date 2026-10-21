@@ -1,4 +1,4 @@
-"""Async tools and gates (spec 053), with no guest: an awaitable a tool or a gate returns is
+"""Async tools and gates, with no guest: an awaitable a tool or a gate returns is
 awaited on the tool loop (a loop the check owns stands for `run_async`'s caller's loop; with none
 given, the call's own private loop), it starts only at its wrapper's first step, every end
 cancels a started task, faults stay in the record, and the call's loop is closed at its end.
@@ -111,7 +111,7 @@ def joined() -> Iterator[None]:
 
 
 def _host(tools: list, *, gate=None, loop=None, start=None, **kw) -> Any:
-    """A frame host with spec 036's bound and spec 053's tool loop, both counting their threads
+    """A frame host with its bound and its async tool loop, both counting their threads
     into `host.counted`."""
     counted: list = []
     bound = T._Bounded(tick_s=0.001, count=counted.append, **kw)
@@ -401,7 +401,7 @@ def test_a_task_that_ignores_its_cancel_holds_its_slot(caller) -> None:
 
 
 # -------------------------------------------------------------------------------------------------
-# Criterion 5: an answered call starts no awaitable (the review's F1, the Confirmation's C-2).
+# Criterion 5: an answered call starts no awaitable.
 
 
 @pytest.fixture
@@ -524,7 +524,7 @@ class CountingLock:
 
 
 def test_a_tool_that_ran_is_never_reported_as_not_started(caller, monkeypatch) -> None:
-    """The build review's F1: the work thread's wait must not decide "cancelled before it
+    """The work thread's wait must not decide "cancelled before it
     started" from a read that went stale. The loop is busy when the post arrives, so the wait
     passes its first slice with `started` and `ended` both false. Then, inside the wait's first
     read of the posted future, the loop is released and the read returns only once the wrapper
@@ -567,10 +567,10 @@ def test_a_tool_that_ran_is_never_reported_as_not_started(caller, monkeypatch) -
 
 
 def test_the_first_step_takes_the_lock_once() -> None:
-    """The Confirmation's C-2: the wrapper's first step is one acquisition of the bound's lock
-    that checks the call is unanswered, marks the start and records the task. Built from 056's
-    self-locking `_proceed` it would deadlock; built from two acquisitions, an abandon could fall
-    between them."""
+    """The wrapper's first step is one acquisition of the bound's lock that checks the call is
+    unanswered, marks the start and records the task. Built from the sync tools' self-locking
+    `_proceed` it would deadlock; built from two acquisitions, an abandon could fall between
+    them."""
     bound = T._Bounded(tick_s=0.001)
     bound._lock = CountingLock()
     task = object()
@@ -589,7 +589,7 @@ def test_the_first_step_takes_the_lock_once() -> None:
 
 
 # -------------------------------------------------------------------------------------------------
-# Criterion 6: a late gate skips an async tool (spec 056's rule, extended).
+# Criterion 6: a late gate skips an async tool (the sync tools' rule, extended).
 
 
 def test_a_late_gate_skips_an_async_tool(caller, posted) -> None:
@@ -693,7 +693,7 @@ def test_faults_in_an_awaitable_stay_in_the_record(caller) -> None:
         assert _last(host).fault.startswith("RuntimeError")
         assert sum(host.counted) == 0
 
-        # The Confirmation's C-1: the wrapper is cancelled before its first step, on a loop
+        # The wrapper is cancelled before its first step, on a loop
         # that stays open. The callback below cancels the first task it finds, re-queueing
         # itself until the post has made one, so the cancel lands before the task's first step.
         coros: list = []
@@ -811,7 +811,7 @@ def test_close_ends_the_calls_loop(caller) -> None:
             post.task = asyncio.Future(loop=closed)
             T._cancel_post(post)
 
-            # A loop that closes between the check and the call (the build review's N1).
+            # A loop that closes between the check and the call.
             class Closing:
                 def is_closed(self) -> bool:
                     return False
@@ -859,7 +859,7 @@ def test_a_loop_that_ends_is_closed_and_ends_the_wait() -> None:
 
 
 # -------------------------------------------------------------------------------------------------
-# Spec 075 (the 0.1.0a6 security review's F1): a gate allows a call only when it returns `None` or
+# A gate allows a call only when it returns `None` or
 # `True`; an awaitable's result counts only if the awaitable returned.
 
 
@@ -894,7 +894,7 @@ class BareAwait:
 
 def _gate(form: str, what: tuple[str, Any]) -> Any:
     """A gate of `form` that raises a fresh exception from `what`'s factory, or returns its
-    value (spec 075, criterion 1)."""
+    value."""
     how, x = what
 
     def act() -> Any:
@@ -960,7 +960,7 @@ ALLOWING = [
 @pytest.mark.parametrize("where", ["private", "caller"])
 @pytest.mark.parametrize(("form", "what", "fault"), REFUSING + ALLOWING)
 def test_a_gate_refuses_unless_it_returns_an_allow(caller, where, form, what, fault) -> None:
-    """Spec 075, criterion 1: every gate form, on `run`'s private loop and on `run_async`'s
+    """Every gate form, on `run`'s private loop and on `run_async`'s
     caller's loop, refuses on any raise (a `BaseException` included, `GeneratorExit` and its
     subclasses too, however the awaitable delivers it), keeps the fault, and never runs the
     tool; it allows only on a return of `None` or `True`."""
@@ -1019,7 +1019,7 @@ def _boom(form: str, exc: Any) -> T.Tool:
 def test_an_async_tool_that_raises_generatorexit_is_a_fault(
     caller, where, form, exc, fault
 ) -> None:
-    """Spec 075, criterion 2: an async tool that raises `GeneratorExit` or a subclass is a
+    """An async tool that raises `GeneratorExit` or a subclass is a
     fault, never `ok` with `None`."""
     with warnings.catch_warnings(record=True) as seen:
         warnings.simplefilter("always")
@@ -1059,7 +1059,7 @@ class _FirstStep:
 def test_the_tool_loop_gives_a_value_only_when_the_awaitable_returned(
     caller, where, monkeypatch
 ) -> None:
-    """Spec 075, criterion 3: `_ToolLoop.run` gives a value only once the awaitable returned
+    """`_ToolLoop.run` gives a value only once the awaitable returned
     (Decision 1); a skipped post still raises `_NotStarted` first."""
     given = caller.loop if where == "caller" else None
     runs: list = []
@@ -1071,8 +1071,7 @@ def test_the_tool_loop_gives_a_value_only_when_the_awaitable_returned(
     with warnings.catch_warnings(record=True) as seen:
         warnings.simplefilter("always")
         # The cleanups are in `finally`: a failing assertion must not leave the private loop's
-        # thread running, or every later check's `joined` fail-safe waits 60 s on it (spec
-        # 075's build review, F1).
+        # thread running, or every later check's `joined` fail-safe waits 60 s on it.
         loop = T._ToolLoop(given)
         try:
             # The wrapper's first step raises GeneratorExit: neither a return nor an error.
@@ -1117,7 +1116,7 @@ def test_the_tool_loop_gives_a_value_only_when_the_awaitable_returned(
 
 
 def test_a_generatorexit_thrown_into_the_wrapper_is_raised_on(monkeypatch) -> None:
-    """Spec 075, Decision 2 (its build review, N1): a `GeneratorExit` met at the wrapper's
+    """A `GeneratorExit` met at the wrapper's
     `await` is recorded and raised on, so the wrapper never ends as though its awaitable had
     returned (the reviewer's X2, recorded but not re-raised, ends it with `StopIteration`)."""
     monkeypatch.setattr(T.asyncio, "current_task", lambda: object())  # no loop needed

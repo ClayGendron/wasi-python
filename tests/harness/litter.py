@@ -1,9 +1,9 @@
-"""Host litter: files a host process drops into a folder the guest sees (spec 089).
+"""Host litter: files a host process drops into a folder the guest sees.
 
 macOS writes `.DS_Store` files into folders it sizes (System Settings' storage scan and Finder,
 through its folder-size cache), as the user, at any moment. A file that appears in a grant while a
-guest runs changes what the guest lists, and the folder's times, and so its fuel
-(`context/research/2026-10-19-ds-store-in-the-judges-stages.md`). Two defences, and neither ever
+guest runs changes what the guest lists, and the folder's times, and so its fuel.
+Two defences, and neither ever
 hides a file from the guest:
 
 - A read-only stage is sealed: every folder in it loses its write bits once it is staged, so no
@@ -15,7 +15,7 @@ hides a file from the guest:
 A stage's writer refuses a member with a litter name (`refuse`), so the cleanup in `seal` can
 never delete a real input. A judge killed before its teardown leaves sealed stages, which
 `rm -rf` cannot empty; they are never read again (every stage has a fresh name), and
-`chmod -R u+w build/harness` makes them removable (spec 089, F3).
+`chmod -R u+w build/harness` makes them removable.
 """
 
 from __future__ import annotations
@@ -30,17 +30,16 @@ from pathlib import Path
 from harness import paths
 
 SEAL_ROUNDS = 10  # scans for litter that landed while staging, before sealing gives up
-REMOVE_TRIES = 5  # a writer can refill a folder between rmtree's unlinks (spec 018's race)
+REMOVE_TRIES = 5  # a writer can refill a folder between rmtree's unlinks
 
 
 # What an operating system or its helpers leave in folders on their own, never a source file: the
-# judge's one list, `paths.OS_LITTER`, with AppleDouble `._x` files matched by their prefix (spec
-# 090, Decision 1).
+# judge's one list, `paths.OS_LITTER`, with AppleDouble `._x` files matched by their prefix.
 is_litter = paths.is_litter
 
 
 def unrecorded(rel: str) -> bool:
-    """A path under a staged folder that no fact records (spec 090, Decision 5): litter in any
+    """A path under a staged folder that no fact records: litter in any
     part, or a host Python's bytecode under a `__pycache__` folder, which step 20's build writes
     itself. A fact then depends only on the pinned tarball and the tree's real extras."""
     return paths.has_litter(rel) or "__pycache__" in rel.split("/")
@@ -169,7 +168,7 @@ def remove(root: Path) -> bool:
 
 def sealed_leftovers(root: Path) -> list[str]:
     """Folders under `root` without their owner's write bit: what a killed judge left sealed.
-    Only named, never unsealed here (no sweep: spec 089, Decision 3)."""
+    Only named, never unsealed here (no sweep)."""
     if sys.platform == "win32" or not root.is_dir():
         return []
     return [d for d, _dirs, _files in os.walk(root) if not os.lstat(d).st_mode & stat.S_IWUSR]

@@ -1,16 +1,16 @@
-"""The progress history in volumes (spec 062).
+"""The progress history in volumes.
 
-The history is one hash-chained sequence of lines, one per acceptance, kept in volumes in
-`context/progress/`. Volume 1 is `history.jsonl` (lines 1 to 59, the old format, sealed by its
-SHA-256). Every later volume is named after its first line, `history-<n:05d>.jsonl`, and holds at
-most `BUDGET` bytes. A line written under this spec (format 2, `"schema": 2`) records the change
-in the passed set since the line before (`passed_added`, `passed_removed`) and a digest of the whole
-set (`passed_digest`); an old-format line carries the whole `passed` list. A line's passed set is
-found by replay from line 1.
+The history is one hash-chained sequence of lines, one per acceptance, kept in volumes in the
+repository's progress folder. Volume 1 is `history.jsonl` (lines 1 to 59, the old format, sealed by
+its SHA-256). Every later volume is named after its first line, `history-<n:05d>.jsonl`, and holds
+at most `BUDGET` bytes. A line of format 2 (`"schema": 2`) records the change in the passed set
+since the line before (`passed_added`, `passed_removed`) and a digest of the whole set
+(`passed_digest`); an old-format line carries the whole `passed` list. A line's passed set is found
+by replay from line 1.
 
 Only `errors` (the intact check) verifies every digest. `last_passed` (for `accept`) checks the
-newest line's alone, and `systems_that_passed` none (the pre-build review, F2). Every size is in
-bytes (F5).
+newest line's alone, and `systems_that_passed` none. Every size is in
+bytes.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from pathlib import Path
 
 BUDGET = 1 << 19  # half the tracked-file limit of the rules check (Decision 4)
 FIRST = "history.jsonl"
-# Volume 1 at main f6b3f75: lines 1 to 59, pinned byte for byte (Decision 1, the review's F3).
+# Volume 1 at main f6b3f75: lines 1 to 59, pinned byte for byte (Decision 1).
 SEALED = {FIRST: "0a99162aefbb4d997b80b2012e73a39364aba108defe56781611cb1623ed1120"}
 PROBE = "tests/checks/test_v1_2_portable_and_sealed.py::test_guest_runs_here[plain]"
 # The lane's step 4 (Decision 12): `git add` first, since a new volume is untracked.
@@ -210,7 +210,7 @@ def _volume_errors(name: str, data: bytes, sealed: dict | None) -> tuple[list[st
         return [*errors, f"{name} is empty"], []
     if not data.endswith(b"\n"):
         errors.append(f"{name} does not end with a newline")
-    if b"\r" in data:  # lines end in LF alone; JSON escapes a CR in a value (spec 070)
+    if b"\r" in data:  # lines end in LF alone; JSON escapes a CR in a value
         errors.append(f"{name} holds a carriage return")
     raw = data.split(b"\n")
     if raw[-1] == b"":

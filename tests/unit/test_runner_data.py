@@ -1,4 +1,4 @@
-"""matplotlib's data in the runner's zip folder (spec 023, Decision 5): extracted from the zip's
+"""matplotlib's data in the runner's zip folder: extracted from the zip's
 inner archive, every file read back and recorded, refused when a member could leave the folder,
 and made equal to the archive again when the tree changed on the host. Synthetic zips only, so
 nothing here needs the artifact set; nothing here measures time."""

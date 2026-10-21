@@ -1,4 +1,4 @@
-"""Audit OpenBLAS's void-convention patches line by line (spec 037, Decision 5).
+"""Audit OpenBLAS's void-convention patches line by line.
 
     audit_openblas_void.py <patch>...
 
@@ -17,7 +17,7 @@ scripts/openblas_make_void.py):
 
 It prints the count of each kind and every line it cannot pair, and exits 1 if there is one. So a
 review checks the script and its rules, and this shows the patches hold nothing else. Adapted from
-the pre-build review's audit (context/reviews/037-scipy-spec-2026-10-17.md, finding 3).
+the audit made before scipy's build.
 """
 
 from __future__ import annotations

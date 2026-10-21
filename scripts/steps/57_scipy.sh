@@ -1,5 +1,5 @@
 #!/bin/sh
-# Step 57: scipy 1.18.1 for wasm32-wasip1 (spec 037, Decisions 6 and 7), with no Fortran compiler:
+# Step 57: scipy 1.18.1 for wasm32-wasip1, with no Fortran compiler:
 # meson through recipes/wasi-scipy.cross against step 38's OpenBLAS, step 40's numpy and pybind11,
 # with f2py run on the build host (scripts/f2py-host) and pythran off. Each extension module becomes
 # a static archive beside a .deps file, as scripts/wasi-cc makes them; scipy's own side of the

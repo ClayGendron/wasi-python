@@ -1,5 +1,5 @@
-"""The hostile-guest helper blocks, not fails, without an artifact set (spec 065, Decision 22 and
-criterion 14): the two checks that read MANIFEST before starting a guest are `blocked` on the need
+"""The hostile-guest helper blocks, not fails, without an artifact set:
+the two checks that read MANIFEST before starting a guest are `blocked` on the need
 `manifest` when WASI_PYTHON_ARTIFACTS names an empty folder (`artifact dir` is then met:
 `paths.artifact_dir()` returns the folder whenever the variable is set)."""
 

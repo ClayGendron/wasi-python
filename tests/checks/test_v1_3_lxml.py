@@ -1,4 +1,4 @@
-"""v1.3: lxml, with libxml2 and libxslt built in (spec 046). Files by path go through libxml2's own
+"""v1.3: lxml, with libxml2 and libxslt built in. Files by path go through libxml2's own
 input, which needs the carried patch on WASI (no `dup()`); what a stylesheet or an entity can reach
 is only what a grant holds; the character encodings are wasi-libc's, as the README's table says;
 and what the build leaves out fails in the named way."""
@@ -118,7 +118,7 @@ FILES_WANT = (
 @BINARY
 def test_files_by_path_in_grants(guest, guest_workdir, which) -> None:
     """libxml2 reads and writes files by name through its own I/O, which calls `dup()` natively
-    and the carried patch's code on WASI (spec 046, Decision 4): a parse (fifty in a row, no
+    and the carried patch's code on WASI: a parse (fifty in a row, no
     descriptor left open), `iterparse`, a DTD, XInclude and XSLT's `document()` read a read-only
     grant; a missing file raises `OSError`; a write into the read-only grant raises
     `PermissionError` and leaves it unchanged, one into a writable grant lands; and `write("-")`
@@ -187,8 +187,8 @@ print(json.dumps(out))
 """
 
 # The host path outside every grant, in a run of its own that records no fuel: the guest's work
-# moves with the path's length, and the path moves with the checkout (spec 081). Its control
-# reads the same file by its guest path, in the same run (spec 081, Decision 6).
+# moves with the path's length, and the path moves with the checkout. Its control
+# reads the same file by its guest path, in the same run.
 OUTSIDE = """
 import json, sys
 from lxml import etree
@@ -212,7 +212,7 @@ OUTSIDE_KEYS = {"entity by guest path, outside run", "entity outside grants"}
 
 @BINARY
 def test_stylesheets_and_entities_reach_only_grants(guest, guest_workdir, which) -> None:
-    """Spec 046, Decision 7. An XSLT with no access control loads a granted document with
+    """An XSLT with no access control loads a granted document with
     libxslt's own parse options, so the document's external entity on another granted file is
     read; `XSLTAccessControl.DENY_ALL` and `read_file=False` refuse the read. An `exsl:document`
     aimed at a read-only grant fails and writes nothing; under `DENY_ALL` it is refused; into a
@@ -222,11 +222,11 @@ def test_stylesheets_and_entities_reach_only_grants(guest, guest_workdir, which)
     by name, so libxml2 reports the load failed, and still nothing is read), an `http:` entity
     gives an empty element (there is no network), and a billion-laughs document raises. The host
     path goes to a run of its own, which records no fuel and also reads the same file by its guest
-    path; the measured run's inputs are guest paths only (spec 081)."""
+    path; the measured run's inputs are guest paths only."""
     ro, rw, preopens = _grants(guest_workdir)
     host = str(ro / "secret.txt")
     # The path handed to the guest is the granted file itself, so the probe cannot pass on a
-    # path that names nothing (spec 081, Decision 6).
+    # path that names nothing.
     assert Path(host).read_bytes() == SECRET and Path(host).samefile(ro / "secret.txt"), host
     outside = guest(which, ["-c", OUTSIDE, host], preopens=preopens, record=False)
     assert outside.exit_code == 0, outside.describe()
@@ -256,14 +256,13 @@ def test_stylesheets_and_entities_reach_only_grants(guest, guest_workdir, which)
     if sys.platform == "win32":
         # A Windows host path is no guest path at all: its drive and backslashes are refused by
         # name (EPERM), so libxml2 reports the load failed instead of an empty element. Either
-        # way nothing outside the grants is read (spec 063's branch dry run 39203592916).
+        # way nothing outside the grants is read (a release dry run, 39203592916).
         expect(
             "entity outside grants", "XMLSyntaxError", "failed to load", "Operation not permitted"
         )
     else:
         expect("entity outside grants", "ok", "<r/>")
-    # On every platform, whatever the kind of answer: the host's secret is never read (spec 081,
-    # Decision 5).
+    # On every platform, whatever the kind of answer: the host's secret is never read.
     if "SECRET" in str(got["entity outside grants"][1]):
         bad.append("entity outside grants: the host's secret was read")
     expect("entity network", "ok", "<r/>")
@@ -272,7 +271,7 @@ def test_stylesheets_and_entities_reach_only_grants(guest, guest_workdir, which)
     assert not (ro / "out.xml").exists() and (rw / "out.xml").is_file()
 
 
-# Spec 087 (the 0.1.0a7 security review's F2): `XSLTAccessControl` governs what a stylesheet reads
+# `XSLTAccessControl` governs what a stylesheet reads
 # while it runs, not the stylesheets it imports or includes, which libxslt loads through the parser
 # it was parsed with. The imported stylesheet declares an external entity on a granted file. These
 # two checks have a grant of their own, so `_grants`, `FILES_WANT` and every recorded fuel above
@@ -340,7 +339,7 @@ def test_deny_all_leaves_a_stylesheets_imports_to_its_parser(guest, guest_workdi
     stylesheet that imports or includes a granted one, by a `file:` href, by a relative href
     against a base URL, or by a path against a path base, carries that stylesheet's external
     entity, so the output holds the granted file. An absent file fails to compile, naming its
-    URL: compiling tells whether a granted file exists (spec 087, Decision 4)."""
+    URL: compiling tells whether a granted file exists."""
     r = guest(which, ["-c", DENY_ALL_IMPORTS], preopens=_import_grant(guest_workdir))
     assert r.exit_code == 0, r.describe()
     got = json.loads(r.text)
@@ -382,7 +381,7 @@ def test_a_refusing_resolver_stops_a_stylesheets_imports(guest, guest_workdir, w
     """The README's remedy: parse the stylesheet from its bytes with a parser whose resolver
     refuses every URL. Then each of the three imports and includes that load under `DENY_ALL`
     alone raises the resolver's own exception, naming the URL it refused, and nothing of the
-    granted file is read (spec 087, Decision 4)."""
+    granted file is read."""
     r = guest(which, ["-c", REFUSED_IMPORTS], preopens=_import_grant(guest_workdir))
     assert r.exit_code == 0, r.describe()
     assert "SECRET" not in r.text, r.text
@@ -401,11 +400,10 @@ def test_a_refusing_resolver_stops_a_stylesheets_imports(guest, guest_workdir, w
     assert not bad, "; ".join(bad)
 
 
-# Spec 046, Decision 9: each encoding over its whole BMP repertoire (every character Python's codec
-# encodes, one element each), parsed from a document in that encoding and written back to it. The
-# lines are the guest's, as evidence/encodings_whole_repertoire.txt in
-# context/upstream/8-libxml2-input-without-dup/ records them, but GB18030's, which the revised
-# guard (the build review's finding 1) fails as invalid bytes instead of refusing; a wasi-sdk whose
+# Each encoding over its whole BMP repertoire (every character Python's codec encodes, one element
+# each), parsed from a document in that encoding and written back to it. The lines are the guest's,
+# as the upstream facts sheet on libxml2's input without dup records them in its evidence, but
+# GB18030's, which the revised guard fails as invalid bytes instead of refusing; a wasi-sdk whose
 # iconv tables change turns this red, and the README's table changes with it.
 ENCODINGS = """
 import hashlib
@@ -480,7 +478,7 @@ utf-16 | parse 56926/56926 bad 0 | write bad 0 sha 716351c8ebbd
 
 @pytest.mark.slow
 def test_encodings_are_wasi_libcs_as_documented(guest) -> None:
-    """Spec 046, Decision 9: the guest's character conversion is wasi-libc's iconv, measured over
+    """The guest's character conversion is wasi-libc's iconv, measured over
     each encoding's whole repertoire. Seven encodings round-trip every character; Shift_JIS,
     ISO-2022-JP and GB2312 read a few characters as other characters (mapping conventions); cp932,
     EUC-JP, Big5 and cp950 documents fail; the CJK writes but Shift_JIS's and ISO-2022-JP's raise
@@ -512,7 +510,7 @@ for enc in ("cp932", "euc-jp", "gb18030", "big5"):
 
 @pytest.mark.slow
 def test_the_readmes_encoding_workaround_reads_what_iconv_cannot(guest) -> None:
-    """The README's workaround for the partial encodings (spec 046, Decision 9): decode with
+    """The README's workaround for the partial encodings: decode with
     Python's codec, parse the UTF-8. Over each whole repertoire, cp932, EUC-JP, GB18030 and Big5
     give native's counts, which are Python's own round-trip gaps (6 and 2), not libxml2's."""
     r = guest("snapshot", ["-c", WORKAROUND], fuel=20 * 10**9)
@@ -580,11 +578,11 @@ TEXT = "中文网页：数据表格" + chr(0xF900) + chr(0xF901)
 def test_gb18030_is_never_silently_wrong(guest, which) -> None:
     """wasi-libc decodes 1,617 GB18030 characters wrongly without an error, so the guard
     (`recipes/iconv_refusals.c`) lets a GB18030 decode pass ASCII and fail at the first byte
-    above it (spec 046, Decision 9, revised against the build review's finding 1). In no mode is
+    above it. In no mode is
     a character decoded wrongly: strict XML raises "Invalid bytes"; `recover=True` keeps no
     root; lxml's HTML parser ends the text there (an `ERR_INVALID_ENCODING` in its error log),
     where refusing the encoding made it read the page as windows-1252; `read_html` of a Chinese
-    table finds no table with lxml, falls back to bs4 (spec 039), which reads the bytes as UTF-8,
+    table finds no table with lxml, falls back to bs4, which reads the bytes as UTF-8,
     and raises UnicodeDecodeError (ImportError before bs4 was in the build), but a table that
     reaches the first non-ASCII byte comes back cut there with no exception (the README's one silent
     case, pinned as documented); asking for GB18030 by name, to read or to write, raises
@@ -597,7 +595,7 @@ def test_gb18030_is_never_silently_wrong(guest, which) -> None:
     assert got["xml recover"] == ["ok", [None, ["ERR_INVALID_ENCODING"]]], got["xml recover"]
     assert got["lxml.html"] == ["ok", [[None], ["ERR_INVALID_ENCODING"]]], got["lxml.html"]
     assert got["read_html"][0] == "UnicodeDecodeError", got["read_html"]
-    # The silent case the README names (the review's R1): a table that reaches the first
+    # The silent case the README names: a table that reaches the first
     # non-ASCII byte comes back cut there, with no exception; its last row may be all NaN, a column
     # may turn float, and the rows and tables after it are missing. Pinned as documented.
     straddling = [{"k": ["a", "b", None], "v": [1.0, 2.0, None], "dtypes": ["str", "float64"]}]
@@ -625,7 +623,7 @@ except etree.XMLSyntaxError:
 
 @BINARY
 def test_libxml2_has_no_zlib(guest, which) -> None:
-    """libxml2 is built without zlib (spec 046, Decision 3), so `XMLParser(decompress=True)` on a
+    """libxml2 is built without zlib, so `XMLParser(decompress=True)` on a
     gzip file raises `XMLSyntaxError`, as the README says; lxml compresses its own output through
     Python's gzip (the golden job)."""
     files = {"/w.xml.gz": gzip.compress(b"<w>1</w>", mtime=0)}
@@ -650,8 +648,8 @@ print(s.validate(etree.XML(b"<r k='1'/>")), s.validate(etree.XML(b"<r/>")))
 
 @BINARY
 def test_isoschematron_is_left_out_and_schematron_validates(guest, which) -> None:
-    """`lxml.isoschematron` reads its stylesheets by file path and their licences are not approved
-    (spec 046, Decision 8): a stand-in raises `ImportError` saying so. libxml2's own Schematron,
+    """`lxml.isoschematron` reads its stylesheets by file path and their licences are not approved:
+    a stand-in raises `ImportError` saying so. libxml2's own Schematron,
     `etree.Schematron`, validates."""
     r = guest(which, ["-c", SCHEMATRON])
     assert r.exit_code == 0, r.describe()
@@ -671,7 +669,7 @@ print(pd.read_html(io.StringIO(t))[0].to_dict("list"))
 
 @BINARY
 def test_read_html_uses_lxml_by_default(guest, which) -> None:
-    """pandas' `read_html` with no `flavor` tries lxml first (spec 039, Decision 9), so with lxml
+    """pandas' `read_html` with no `flavor` tries lxml first, so with lxml
     built in it returns the table instead of raising `ImportError`."""
     r = guest(which, ["-c", READ_HTML])
     assert r.exit_code == 0, r.describe()
@@ -688,7 +686,7 @@ print(htmldiff("<p>Hello world</p>", "<p>Hello there world</p>"))
 def test_lxml_html_diff_imports(guest, which) -> None:
     """`lxml.html.diff` imports and diffs as natively. The guest runs it as plain Python with no
     Cython, and its `fake_cython` lacked `final`, so `@cython.final` called a string until carried
-    patch 0001, upstream's own line (spec 096)."""
+    patch 0001, upstream's own line."""
     r = guest(which, ["-c", HTML_DIFF])
     assert r.exit_code == 0, r.describe()
     assert r.text == "<p>Hello <ins>there</ins> world</p>\n", r.text
@@ -696,7 +694,7 @@ def test_lxml_html_diff_imports(guest, which) -> None:
 
 @pytest.mark.slow
 def test_lxml_xml_job_matches_native(guest) -> None:
-    """The golden job (spec 046, Decision 10): XPath, XSLT, objectify, C14N, lxml.html, files by
+    """The golden job: XPath, XSLT, objectify, C14N, lxml.html, files by
     path, validation, compressed output, the full-coverage encodings, and pandas' readers, equal
     to native lxml 6.1.3 at the guest's pins."""
     job = "lxml_xml"

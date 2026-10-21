@@ -1,4 +1,4 @@
-"""What `python.wasm` runs before Python starts, and what it asks of a host (spec 023, Decision 8).
+"""What `python.wasm` runs before Python starts, and what it asks of a host.
 
 A reactor's `_initialize` calls `__wasm_call_ctors`, which runs every static constructor linked
 in, before `Py_Initialize`. A constructor that touches Python there waits for a GIL that never
@@ -28,7 +28,7 @@ from harness import wasm
 # and what it does. None calls Python. The list is compared whole, order and count included: two
 # of the names are generic (clang names every C++ file's first guarded static's initializer
 # `__cxx_global_var_init`, and every `init_priority(100)` group `_GLOBAL__I_000100`), so one more
-# constructor with a reviewed name is still a new constructor (spec 023's build review, F2).
+# constructor with a reviewed name is still a new constructor.
 REVIEWED_CONSTRUCTORS = (
     "init",  # wasi-libc: the preopened directories
     "__wasilibc_initialize_environ_eagerly",  # wasi-libc: environ
@@ -39,10 +39,10 @@ REVIEWED_CONSTRUCTORS = (
     # registered with __cxa_atexit
     "_GLOBAL__sub_I_kiwisolver.cpp",
     # matplotlib's _image_wrapper.cpp: Agg's sRGB_conv_base<int16u>::lut and <float>::lut, two
-    # guarded template statics filled with pow(); spec 023's build read their disassembly
+    # guarded template statics filled with pow(); matplotlib's build read their disassembly
     "__cxx_global_var_init",
     "__cxx_global_var_init.5",
-    # scipy (spec 037, Decision 8): each one's call graph was walked in the linked binary (every
+    # scipy: each one's call graph was walked in the linked binary (every
     # function it reaches by a direct call; the build's landing notes): libc++'s strings, maps
     # and hash tables built and their destructors registered with __cxa_atexit, operator new and
     # its failure path (bad_alloc, terminate, abort, a message to stderr), getenv; no function of
@@ -73,7 +73,7 @@ REVIEWED_CONSTRUCTORS = (
     "__cxx_global_var_init.11",
     "__cxx_global_var_init.12",
     "_GLOBAL__sub_I__qmc_cy.cpp",
-    # scikit-learn (spec 044, Decision 8): sklearn.svm._newrand's copy of newrand.h's
+    # scikit-learn: sklearn.svm._newrand's copy of newrand.h's
     # generator, `std::mt19937 mt_rand(std::mt19937::default_seed)` renamed sklearn_newrand_mt_rand:
     # it seeds a Mersenne Twister and touches no Python.
     "_GLOBAL__sub_I__newrand.cpp",
@@ -208,14 +208,14 @@ REVIEWED_CONSTRUCTORS = (
     "_GLOBAL__sub_I_starting_basis.cc",
     "_GLOBAL__sub_I_symbolic_invert.cc",
     "_GLOBAL__sub_I_utils.cc",
-    # scikit-learn (spec 044, Decision 8): the same generator's copies in its two static libraries,
+    # scikit-learn: the same generator's copies in its two static libraries,
     # liblinear's linear.cpp (sklearn_liblinear_mt_rand) and libsvm's libsvm_template.cpp
     # (sklearn_libsvm_mt_rand), each seeding a Mersenne Twister; no Python.
     "_GLOBAL__sub_I_linear.cpp",
     "_GLOBAL__sub_I_libsvm_template.cpp",
 )
 
-# The features the build compiles for (spec 023, Decision 8): every host must support each.
+# The features the build compiles for: every host must support each.
 FEATURES = (
     "+bulk-memory",
     "+bulk-memory-opt",
@@ -227,7 +227,7 @@ FEATURES = (
     "+nontrapping-fptoint",
     "+reference-types",
     "+sign-ext",
-    # OpenBLAS's kernels, compiled for WASM128_GENERIC (spec 037; decision 29): wasm SIMD is a
+    # OpenBLAS's kernels, compiled for WASM128_GENERIC: wasm SIMD is a
     # host requirement of the default build. Only OpenBLAS is compiled with it.
     "+simd128",
 )

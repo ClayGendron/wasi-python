@@ -1,4 +1,4 @@
-# The release's shards (spec 063, Decisions 2 and 3). `uv run pytest --shard=<name>` runs one; the
+# The release's shards. `uv run pytest --shard=<name>` runs one; the
 # release workflow runs every shard of each system in that system's judge job, and `build` in the
 # build job; `gather` merges their records. A shard selects by exactly one of:
 #   files   whole test modules (never the upstream file, whose group checks go with their groups)
@@ -12,8 +12,8 @@
 [shard.build]
 # The build host's own checks: the trees of every component, the compile records, the zlib tarball.
 files = ["tests/checks/test_v1_5_rebuild_from_pins.py", "tests/unit/test_pins.py"]
-# Checks by node id: 071's CLI check needs the wasmtime CLI only the build host unpacks; its
-# file stays in own-guest (the confirmation's D1; a node id kept, so nothing is retired). 044's
+# Checks by node id: the recursion check on the wasmtime CLI needs the wasmtime CLI only the build
+# host unpacks; its file stays in own-guest (a node id kept, so nothing is retired). scikit-learn's
 # notice check reads the pinned sdist, which only the build host has.
 nodes = [
   "tests/checks/test_v1_2_hostile_guest.py::test_recursion_raises_under_the_wasmtime_cli",
@@ -73,8 +73,7 @@ systems = ["macos", "linux", "windows"]
 [shard.own-rest]
 # The rules and the judge's own tooling (the build scripts, the landing lane, the harness's
 # self-tests) run where the lane and the rebuild hosts run. Not on Windows: the branch dry run
-# 39182550825 found 112 failures there, every one in this tooling, none in a product check
-# (spec 063, Decision 18).
+# 39182550825 found 112 failures there, every one in this tooling, none in a product check.
 rest = true
 systems = ["macos", "linux"]
 
@@ -83,7 +82,7 @@ groups = ["pandas-groupby"]
 systems = ["linux"]
 
 [shard.upstream-frame]
-# CPython: spec 065, Decision 7 (shards chosen by the job times of 063's dry run 39182550825).
+# CPython (shards chosen by the job times of the dry run 39182550825).
 groups = ["pandas-frame", "cpython-b"]
 systems = ["linux"]
 
@@ -109,11 +108,11 @@ groups = ["numpy-lib", "cpython-fs"]
 systems = ["macos"]
 
 [shard.upstream-windows]
-# Where the host's file system differs most (spec 058): files, compressed files, encodings.
+# Where the host's file system differs most: files, compressed files, encodings.
 groups = ["pandas-io-parser", "cpython-fs"]
 systems = ["windows"]
 
-# Spec 066: the compiled packages' own tests, fourteen Linux shards packed from the build's measured
+# The compiled packages' own tests, fourteen Linux shards packed from the build's measured
 # darwin fuel on main's set dc6ba3a5 (at most 725 G each; Decision 12). A system is never dropped
 # from a shard to get a pass; a move between shards is a reviewed judge change.
 [shard.upstream-plot-a]

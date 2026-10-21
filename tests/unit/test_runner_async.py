@@ -1,4 +1,4 @@
-"""Run from async code (spec 015): the epoch callback's decisions, run_async's refusals and the
+"""Run from async code: the epoch callback's decisions, run_async's refusals and the
 default pool's size. Fakes stand in for wasmtime; nothing here measures time."""
 
 from __future__ import annotations
@@ -63,7 +63,7 @@ def test_the_epoch_callback_ends_a_call_at_its_deadline_and_at_a_cancel(epoch) -
 
 
 def test_a_recorded_stop_holds_under_the_epoch_callback(epoch) -> None:
-    """Spec 015's review, finding 1: a callback that continued undid spec 011's stops."""
+    """A callback that continued undid the stops host functions record."""
     epoch.call.stopped = KeyboardInterrupt()
     epoch.call.cancel.set()
     epoch.call.stop_at = 100
@@ -99,7 +99,7 @@ def test_another_stores_context_is_not_this_call(epoch) -> None:
 
 
 def test_a_lost_call_stops_the_guest_and_drive_says_so(epoch, monkeypatch) -> None:
-    """Spec 015's confirmation, findings 22 and 26: a stack lookup that raises sets the thread's
+    """A stack lookup that raises sets the thread's
     flag and stops the guest; `_drive` then raises, and clears the flag for the next call."""
 
     def broken():
@@ -124,8 +124,8 @@ def test_a_lost_call_stops_the_guest_and_drive_says_so(epoch, monkeypatch) -> No
             raise WasmtimeError("stopped by wasi_python")
 
     # This `_drive` gets stand-ins, not wasmtime, so on Linux a process that has made no engine yet
-    # has no wasmtime trap handlers for spec 071's guard to find; the guard is not what this tests
-    # (spec 080, Decision 2).
+    # has no wasmtime trap handlers for the trap-handler guard to find; the guard is not what
+    # this tests.
     monkeypatch.setattr(_platform.PLATFORM, "trap_handlers_ready", lambda: None)
     call = SimpleNamespace(cancel=None, stopped=None, ended=None)
     with pytest.raises(RuntimeError, match="lost track of a call"):
@@ -191,15 +191,14 @@ def test_a_forked_child_of_a_used_runner_is_refused(monkeypatch) -> None:
 
 def test_a_host_function_returning_under_a_set_event_stops_the_guest(monkeypatch) -> None:
     """A wait the cancel ended, or a door call made after it, sets the store's epoch deadline to
-    0, so the guest meets the callback at its next entry instead of finishing (spec 015's
-    landing notes; its build review, F4)."""
+    0, so the guest meets the callback at its next entry instead of finishing."""
     holder = ctypes.c_int(0)
     caller = SimpleNamespace(_context=lambda: ctypes.pointer(holder))
     now = []
     monkeypatch.setattr(_call, "_epoch_now", lambda c: now.append(c))
     monkeypatch.setattr(_home, "_ctrl_c_watched", lambda: False)
     event = threading.Event()
-    call = SimpleNamespace(  # `ended` as every `_Call` has it; the entry guard reads it (spec 030)
+    call = SimpleNamespace(  # `ended` as every `_Call` has it; the entry guard reads it
         context=ctypes.addressof(holder),
         stopped=None,
         ended=None,
@@ -220,8 +219,8 @@ def test_a_host_function_returning_under_a_set_event_stops_the_guest(monkeypatch
 
 
 def test_a_call_cancelled_before_it_runs_never_starts_its_guest(monkeypatch) -> None:
-    """Spec 015, Decision 1: `run` checks the event once more just before it instantiates."""
-    # Stand-ins, not wasmtime: no engine need exist, so spec 071's guard is set aside (spec 080).
+    """`run` checks the event once more just before it instantiates."""
+    # Stand-ins, not wasmtime: no engine need exist, so the trap-handler guard is set aside.
     monkeypatch.setattr(_platform.PLATFORM, "trap_handlers_ready", lambda: None)
 
     class Linker:

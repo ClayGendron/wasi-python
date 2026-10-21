@@ -1,5 +1,5 @@
-"""Fetch the upstream test kit into build/upstream/wheels/ (spec 050, Decision 2), and, for a
-release shard, the upstream packages' source trees (spec 063, Decision 5).
+"""Fetch the upstream test kit into build/upstream/wheels/, and, for a
+release shard, the upstream packages' source trees.
 
 Run by hand, `uv run python tests/upstream/fetch.py`; the judge never fetches. Each wheel is
 downloaded to a temporary name and renamed only after its SHA-256 equals its `kit.txt` line. A
@@ -11,9 +11,9 @@ groups. For one with groups it fetches the kit, then every upstream package's so
 `downloads/SHA256SUMS`, renamed only after the match. It unpacks each into `build/` with tarfile's
 `data` filter and applies the tree's carried patches with `scripts/steps/apply_patches.sh`, the
 applier the build runs. Every tree of each family whose group the shard runs, not only the
-group's own: the guest's fuel depends on the whole stage (spec 063, Decision 5). numpy and pandas
+group's own: the guest's fuel depends on the whole stage. numpy and pandas
 share the `/upstream` stage, so a shard with either fetches both and the kit; CPython's tests have
-their own stage, so a shard with a CPython group fetches the CPython tarball (spec 065, Decision 7).
+their own stage, so a shard with a CPython group fetches the CPython tarball.
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""`wasi-python run` (spec 019): parsing, the output line and the exit codes, with a fake `run`
+"""`wasi-python run`: parsing, the output line and the exit codes, with a fake `run`
 that records its arguments. Real calls are in tests/checks/test_v1_4_embedding.py."""
 
 from __future__ import annotations
@@ -192,7 +192,7 @@ def test_the_result_line(fake, capsysbinary) -> None:
     assert base64.b64decode(line["stderr_base64"]) == b"\xff\xfe"
 
 
-# Grants on the command line (spec 022).
+# Grants on the command line.
 
 
 def test_grants_reach_run_in_the_order_typed_with_their_modes(fake, capsysbinary) -> None:
@@ -256,7 +256,7 @@ def test_an_empty_side_reaches_run_which_refuses_it(fake, capsysbinary, value, g
     assert (g.host, g.guest) == grant
 
 
-# The import path on the command line (spec 054).
+# The import path on the command line.
 
 
 def test_import_paths_reach_run_in_the_order_typed(fake, capsysbinary) -> None:
@@ -279,11 +279,11 @@ def test_an_import_path_without_a_value_is_a_usage_error(fake, capsysbinary) -> 
     assert fake[0] == []
 
 
-# The cap on open files on the command line (spec 068).
+# The cap on open files on the command line.
 
 
 def test_max_open_files_reaches_run(fake, capsysbinary) -> None:
-    """Spec 068, criterion 6: `--max-open-files N|none` is `run`'s `max_open_files`, passed only
+    """`--max-open-files N|none` is `run`'s `max_open_files`, passed only
     when given; anything else is a usage error."""
     calls, _ = fake
     assert _main(capsysbinary, "run", "--max-open-files", "5", "--", "-c", "1")[0] == 0
@@ -321,7 +321,7 @@ class FakeLimits:
 
 
 def test_the_command_raises_its_own_descriptor_limit(fake, capsysbinary, monkeypatch) -> None:
-    """Spec 068, criterion 6 (Decision 7): the command, run as its own process (`main()` with no
+    """The command, run as its own process (`main()` with no
     argument, as `wasi-python` and `python -m wasi_python` call it), raises its soft descriptor
     limit to its hard one before it calls `run`; a refused raise is tried once more at
     min(hard, 10240), then let be; without `resource` (Windows) nothing is tried. The library

@@ -6,7 +6,7 @@ import pytest
 
 pytest_plugins = ["harness.plugin", "pytester"]
 
-# Spec 082: an inline session's faulthandler plugin disables faulthandler at its end and enables it
+# An inline session's faulthandler plugin disables faulthandler at its end and enables it
 # again, which puts back the handlers faulthandler first saw and drops any installed since (on
 # Linux, wasmtime's, so the runner's guard refuses every later call that makes an engine).
 NO_FAULTHANDLER = ("-p", "no:faulthandler")

@@ -1,4 +1,4 @@
-"""The build says where it is (spec 027): build.sh's two modes, every exit path, the failure block,
+"""The build says where it is: build.sh's two modes, every exit path, the failure block,
 the summary, the options and the preflight, and the download step's lines.
 
 Each check copies build.sh and its libraries into a temporary tree with fake steps under the eleven
@@ -47,7 +47,7 @@ STEPS = (
     "80_snapshot",
     "90_artifacts",
 )
-N_STEPS = len(STEPS)  # counted, so a new step moves no frame below (spec 037)
+N_STEPS = len(STEPS)  # counted, so a new step moves no frame below
 K_NUMPY = STEPS.index("40_numpy") + 1
 # Real tools the driver, the libraries and the fake steps run; linked into the tree's own bin/.
 REAL_TOOLS = (
@@ -1072,7 +1072,7 @@ def test_a_download_that_does_not_match_fails_the_step(work) -> None:
 
 
 # --------------------------------------------------------------------------------------------
-# 8. Only the pinned host Python (spec 079, Decision 4): behind the shim, every other Python name
+# 8. Only the pinned host Python: behind the shim, every other Python name
 # refuses, and a step that ran one fails even when it swallowed the refusal.
 
 
@@ -1094,7 +1094,7 @@ def test_a_step_that_runs_an_unpinned_python_fails(work) -> None:
     "body",
     [
         "python3 -V 2> /dev/null || true\necho swallowed\n",
-        # The review's F1: configure under `env -i` keeps PATH and drops every other variable.
+        # Configure under `env -i` keeps PATH and drops every other variable.
         "env -i PATH=\"$PATH\" sh -c 'python3.14 -V 2> /dev/null || true'\necho swallowed\n",
     ],
     ids=["plain", "env-i"],

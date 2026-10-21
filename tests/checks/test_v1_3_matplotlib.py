@@ -1,6 +1,6 @@
-"""v1.3: matplotlib, the first milestone (spec 023): a line plot saved as a PNG in a granted folder
+"""v1.3: matplotlib, the first milestone: a line plot saved as a PNG in a granted folder
 is native matplotlib's image, pixel for pixel; its errors reach Python as native's do. The second
-milestone (spec 043): Delaunay triangulations through `_qhull`, contours through contourpy, and
+milestone: Delaunay triangulations through `_qhull`, contours through contourpy, and
 SVG and PDF saves whose bytes are native matplotlib's (the PDF up to its font subset tags)."""
 
 from __future__ import annotations
@@ -15,10 +15,10 @@ from harness import jobs, needs, png, scan
 pytestmark = pytest.mark.goal("v1.3")
 
 BINARY = pytest.mark.parametrize("which", ["plain", "snapshot"])
-# The guest's PNG file, pinned (spec 023, Decision 8): the same bytes on both binaries and every
+# The guest's PNG file, pinned: the same bytes on both binaries and every
 # host. Native's differ (its Pillow deflates with zlib-ng), so only the guest's are pinned.
 PNG_SHA256 = "b8759b7ba05818b6bc3eb95b85387cc592691571ed92e6bf5d9c0e596b68d9a3"
-# The guest's PDF file from the plot_contour job, pinned (spec 043, Decision 9): the same bytes on
+# The guest's PDF file from the plot_contour job, pinned: the same bytes on
 # both binaries and every host. Native's differ in their font subset tags (matplotlib derives each
 # from hash(), 32 bits wide in the guest), so the golden holds the PDF with its tags normalized.
 # The pin moves with the guest's zlib (step 30): the PDF's streams are deflated at level 6, so a
@@ -112,7 +112,7 @@ def test_plot_contour_job_matches_native(guest, which) -> None:
     PDF, each printed line equal to the oracle's (recorded on the platform
     tests/jobs/plot_contour.platform names). The SVG and PDF files `savefig` wrote in a granted
     folder are the files the golden describes, the PDF with its subset tags normalized; and the
-    PDF's own bytes are the pinned ones (spec 043, Decisions 8 and 9)."""
+    PDF's own bytes are the pinned ones."""
     job = "plot_contour"
     files = {
         f"/jobs/{job}.py": jobs.script(job).read_bytes(),
@@ -164,7 +164,7 @@ print(contourpy.max_threads(), threaded.thread_count, len(a), sum(map(len, a)), 
 def test_contourpy_runs_one_thread(guest) -> None:
     """The guest has no threads: `contourpy.max_threads()` is 1, and the `threaded` algorithm asked
     for four threads runs one, with lines whose points equal `serial`'s at the same chunk count
-    (the points depend on the chunk count, so both use 16; spec 043, Decisions 7 and 9)."""
+    (the points depend on the chunk count, so both use 16)."""
     r = guest("snapshot", ["-c", THREADS])
     assert r.exit_code == 0, r.describe()
     fields = r.text.split()
@@ -186,7 +186,7 @@ except Exception as e:
 @pytest.mark.slow
 def test_delaunay_triangulation_runs(guest) -> None:
     """A Delaunay triangulation of four points gives two triangles, through matplotlib's `_qhull`
-    with carried patch 0002, which opens no /dev/null on WASI (spec 043; a known gap of M1's,
+    with carried patch 0002, which opens no /dev/null on WASI (a known gap of M1's,
     closed by M2)."""
     r = _plot(guest, "snapshot", TRIANGULATION)
     assert r.exit_code == 0, r.describe()
@@ -209,7 +209,7 @@ except Exception as e:
 
 @pytest.mark.slow
 def test_contour_runs(guest) -> None:
-    """`contour` draws a QuadContourSet, through contourpy, built in by M2 (spec 043; a known gap of
+    """`contour` draws a QuadContourSet, through contourpy, built in by M2 (a known gap of
     M1's, closed by M2)."""
     r = _plot(guest, "snapshot", CONTOUR)
     assert r.exit_code == 0, r.describe()
@@ -220,9 +220,9 @@ def test_contour_runs(guest) -> None:
 @pytest.mark.slow
 @BINARY
 def test_patched_callbacks_run(guest, which) -> None:
-    """kiwisolver's 21 and Pillow's two callbacks that spec 051's scan found, each defined with
-    fewer parameters than CPython calls it with, now run and print native's output; each trapped
-    the guest before its carried patch (spec 023)."""
+    """kiwisolver's 21 and Pillow's two callbacks that the callback-signature scan found, each
+    defined with fewer parameters than CPython calls it with, now run and print native's output;
+    each trapped the guest before its carried patch."""
     job = "plot_callbacks"
     files = {f"/jobs/{job}.py": jobs.script(job).read_bytes(), "/out/.keep": b""}
     files.update({f"/data/{n}": src.read_bytes() for n, src in jobs.DATA.items()})
@@ -233,7 +233,7 @@ def test_patched_callbacks_run(guest, which) -> None:
     assert why is None, why
 
 
-# Spec 096, Decision 5: one garbage cycle through all four kiwisolver types. The collector calls
+# One garbage cycle through all four kiwisolver types. The collector calls
 # tp_clear on the collectable objects in their order of allocation (Python/gc.c, delete_garbage):
 # the variable, the term, the expression, the constraint, then the list, which holds them all and
 # itself, so each type's tp_clear is called through its pointer in turn.
@@ -259,8 +259,8 @@ print("ok")
 def test_a_cycle_through_kiwisolver_objects_is_collected(guest, which) -> None:
     """A garbage cycle holding a Variable, a Term, an Expression and a Constraint is collected, as
     natively: kiwisolver's four tp_clear returned `void` where CPython calls `int (*)(PyObject *)`,
-    so the collection ended the guest in an indirect-call type mismatch before carried patch 0002
-    (spec 096)."""
+    so the collection ended the guest in an indirect-call type mismatch before carried patch
+    0002."""
     r = guest(which, ["-c", KIWI_CYCLE])
     assert r.exit_code == 0, r.describe()
     assert r.text == "Term Expression Constraint\ncollected True\nok\n", r.text
@@ -276,9 +276,9 @@ print(matplotlib.rcParams["backend"], matplotlib.matplotlib_fname())
 
 
 def test_matplotlib_finds_its_data_through_the_runner() -> None:
-    """Through `wasi_python.run` itself, not the judge's driver (the build review, F7): matplotlib
+    """Through `wasi_python.run` itself, not the judge's driver: matplotlib
     finds its data where the runner extracted and granted it, the 40 bundled fonts and the
-    `matplotlibrc` that sets the Agg backend (spec 023, Decision 5)."""
+    `matplotlibrc` that sets the Agg backend."""
     needs.need("runner", "artifact dir")
     import wasi_python
 

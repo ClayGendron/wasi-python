@@ -1,6 +1,6 @@
 #!/bin/sh
 # Step 30: zlib 1.3.1 as a static archive for wasm32-wasip1, configured and built outside its source
-# tree (build/zlib-build/), so the tree stays byte-identical to its tarball (spec 003, Decision 4).
+# tree (build/zlib-build/), so the tree stays byte-identical to its tarball.
 set -eu
 . "$(dirname "$0")/common.sh"
 

@@ -1,7 +1,7 @@
-# The native oracle for the golden jobs (spec 002, Decision 11): the guest's package pins, natively.
+# The native oracle for the golden jobs: the guest's package pins, natively.
 # Python is the line's own pinned host Python (scripts/line.conf), which tests/harness/jobs.py
 # unpacks under build/oracle/python/ after checking its hash: the pinned uv (0.9.22) cannot install
-# 3.15.0 (spec 005, Decision 9). Run it through tests/jobs/regen.py, which keeps every download
+# 3.15.0. Run it through tests/jobs/regen.py, which keeps every download
 # under build/.
 [project]
 name = "wasi-python-oracle"
@@ -13,7 +13,7 @@ dependencies = [
     "python-dateutil==2.9.0.post0",
     "tzdata==2026.5",
     "six==1.17.0",
-    # matplotlib and its dependencies at the guest's pins (spec 023); contourpy is native only
+    # matplotlib and its dependencies at the guest's pins; contourpy is native only
     # (the guest has none until M2), at the version the research pinned.
     "matplotlib==3.11.2",
     "contourpy==1.4.0",
@@ -23,12 +23,12 @@ dependencies = [
     "packaging==26.3",
     "pillow==13.0.0",
     "pyparsing==3.3.3",
-    # lxml at the guest's pin (spec 046). Its wheels bundle libxml2 2.14.6 and libxslt 1.1.43, older
+    # lxml at the guest's pin. Its wheels bundle libxml2 2.14.6 and libxslt 1.1.43, older
     # than the guest's 2.15.4 and 1.1.45, so the golden prints only what the two share.
     "lxml==6.1.3",
-    # regex at the guest's pin (spec 047)
+    # regex at the guest's pin
     "regex==2026.9.29",
-    # Tier A at the guest's pins (spec 039, Decision 11), but pyyaml: it has no cp315 wheel, so uv
+    # Tier A at the guest's pins, but pyyaml: it has no cp315 wheel, so uv
     # would build its sdist on the host with tools no lock pins. tests/harness/jobs.py stages its
     # pure tree from the pinned sdist instead, as the guest takes it, and puts it on PYTHONPATH.
     # markupsafe comes as its locked cp315 wheel, with its C speedups; the guest runs _native.
@@ -61,16 +61,16 @@ dependencies = [
     "cloudpickle==3.1.2",
     "threadpoolctl==3.7.0",
     "narwhals==2.27.1",
-    # scipy at the guest's pin (spec 037, Decision 15), on one LAPACK: on macOS arm64 the
+    # scipy at the guest's pin, on one LAPACK: on macOS arm64 the
     # macosx_12_0 wheel, which bundles scipy-openblas (left to itself uv would take the macosx_14_0
     # wheel there, which links Apple's Accelerate); elsewhere the wheels bundle scipy-openblas.
     "scipy @ https://files.pythonhosted.org/packages/8c/c5/ba929d7feb9b2332f96827c12e0e924b61973b59b4dea383b603372c65ce/scipy-1.18.1-cp315-cp315-macosx_12_0_arm64.whl ; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "scipy==1.18.1 ; sys_platform != 'darwin' or platform_machine != 'arm64'",
-    # scikit-learn at the guest's pin (spec 044, Decision 13): on macOS arm64 its one cp315 wheel,
+    # scikit-learn at the guest's pin: on macOS arm64 its one cp315 wheel,
     # macosx_12_0, calls BLAS only through the scipy above. Its wheels have OpenMP; the oracle runs
     # one thread (tests/harness/jobs.py, OMP_NUM_THREADS).
     "scikit-learn==1.9.1",
-    # seaborn and reportlab at the guest's pins (spec 042, Decision 10): both pure wheels, so
+    # seaborn and reportlab at the guest's pins: both pure wheels, so
     # nothing is built on the host. seaborn's wheel holds the package its sdist (the guest's pin)
     # holds, byte for byte; reportlab's keeps its fonts natively, which neither job uses.
     "seaborn==0.13.2",

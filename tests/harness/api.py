@@ -1,4 +1,4 @@
-"""The public API, rendered as plain text and as the README's reference (spec 049, Decisions 9-11).
+"""The public API, rendered as plain text and as the README's reference.
 
     uv run python tests/harness/api.py --write   # rewrite tests/public_api.txt and the README block
     uv run python tests/harness/api.py --check   # exit 1 if either differs from the live surface
@@ -227,7 +227,7 @@ def _function(name: str, fn: Any, *, method: bool = False) -> dict[str, Any]:
 
 
 # The dunders a plain class's render records: its constructor and the context-manager pair
-# (spec 055, Decision 17: `Session`), beside `__call__`, which every class's records.
+# (`Session`), beside `__call__`, which every class's records.
 _PLAIN_DUNDERS = ("__init__", "__enter__", "__exit__")
 
 
@@ -272,7 +272,7 @@ def _class(name: str, cls: type) -> dict[str, Any]:
         params = cls.__dataclass_params__
         item["frozen"] = params.frozen
         # Each other parameter that differs from dataclass()'s default: `Tool`'s eq=False is
-        # its identity equality (the build review's F5).
+        # its identity equality.
         item["options"] = [
             f"{k}={getattr(params, k)}"
             for k, default in (("init", True), ("repr", True), ("eq", True), ("order", False),

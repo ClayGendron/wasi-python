@@ -1,4 +1,4 @@
-"""The engine seam (spec 103): the one test file that may import wasmtime-py's private modules.
+"""The engine seam: the one test file that may import wasmtime-py's private modules.
 Rows U1 to U10 and U18 need no wasm module; U11 to U16 drive wasmtime-py with a WAT module and
 need no python.wasm. Nothing here measures time."""
 
@@ -87,7 +87,7 @@ def test_missing_names_each_absent_name_in_order_and_all_lists_the_table() -> No
     # An empty stand-in for every holder: every name is absent, in NEEDED's order.
     empty = {holder: SimpleNamespace() for holder in real_holders()}
     assert ffi.missing(empty) == dotted(ffi.NEEDED)
-    # A holder that is None reports its names (the pre-build review's L6), nothing more.
+    # A holder that is None reports its names, nothing more.
     partial = real_holders()
     partial["wasmtime._ffi.dll"] = None
     assert ffi.missing(partial) == ["wasmtime._ffi.dll.wasm_engine_new"]
@@ -189,7 +189,7 @@ def test_the_bindings_the_runner_calls_exist() -> None:
         ctypes.POINTER(_ffi.wasmtime_context_t),
         ctypes.c_uint64,
     ]
-    # spec 015: the epoch callback, and the error it answers with
+    # the epoch callback, and the error it answers with
     assert callable(_ffi.wasmtime_store_epoch_deadline_callback)
     argtypes = _bindings._wasmtime_store_epoch_deadline_callback.argtypes
     assert len(argtypes) == 4
@@ -212,7 +212,7 @@ def test_the_bindings_the_runner_calls_exist() -> None:
 
 
 def test_the_stop_error_is_real_and_never_leaves_a_zero_delta(monkeypatch) -> None:
-    """Spec 015's build review, F2: an error wasmtime can own, or, when none can be made, a
+    """An error wasmtime can own, or, when none can be made, a
     continue by one tick, never by 0."""
     address = ffi.new_error(b"x")
     assert isinstance(address, int) and address

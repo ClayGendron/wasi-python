@@ -1,14 +1,14 @@
-"""The release's gather: one verdict from every shard's hashed record (spec 063, Decision 9).
+"""The release's gather: one verdict from every shard's hashed record.
 
     uv run python tests/harness/gather.py --records records [--out release-record]
 
 reads `WASM_SHA256` (the build job's `wasm-sha256`), `SET_SUMS_SHA256` (its `set-sums-sha256`, the
-set's own `SHA256SUMS`; spec 085), one `RECORD_<SYSTEM>_<SHARD>` per shard (the SHA-256 its job
+set's own `SHA256SUMS`), one `RECORD_<SYSTEM>_<SHARD>` per shard (the SHA-256 its job
 handed on; `-` as `_`, upper case), and `GITHUB_EVENT_NAME` and `GITHUB_REF_TYPE` as the runner
 sets them (a step cannot override a `GITHUB_*` variable). It collects the judge once at this
 commit and is red, one line per reason, unless G1 to G7 hold. It prints the merged
-scoreboard, writes the merged record, and writes nothing under `context/progress/`: only the lane
-accepts. It is spec 052's controller merge, across machines.
+scoreboard, writes the merged record, and writes nothing to the progress history: only the lane
+accepts. It is the parallel judge's controller merge, across machines.
 """
 
 from __future__ import annotations
@@ -35,9 +35,9 @@ HEX64 = re.compile(r"[0-9a-f]{64}")
 # The needs that may block a check in CI, each with the systems (as `expected_keys` names them)
 # that lack it: local tooling (the oracle, the prior-art clones) and the claim G6 proves instead,
 # everywhere; a host capability one system lacks by nature (Windows has no RLIMIT_NOFILE, and a
-# Windows guest deletes a read-only file itself, spec 094), there alone. Not "wasmtime cli": its
+# Windows guest deletes a read-only file itself), there alone. Not "wasmtime cli": its
 # check runs in the build shard, on the host that has it. A check may be blocked only by a need its
-# own body names (spec 085, Decision 1).
+# own body names.
 EVERYWHERE = frozenset({"build", "macos", "linux", "windows"})
 CI_NEEDS: dict[str, frozenset[str]] = {
     "oracle": EVERYWHERE,
@@ -69,8 +69,8 @@ class Inputs:
     records_dir: Path
     handed: dict[tuple[str, str], str]  # (system, shard) -> the SHA-256 its job handed on
     wasm_sha256: str
-    set_sums_sha256: str  # the build's set's own SHA256SUMS (spec 085, Decision 4)
-    wasmtime: str  # the version uv.lock names (spec 085, the pre-build review's F1)
+    set_sums_sha256: str  # the build's set's own SHA256SUMS
+    wasmtime: str  # the version uv.lock names
     may_block: dict[str, frozenset[str]]  # goal check -> the CI needs its body names
     goal_nodes: list[str]  # the gather's own collection, goal checks
     unit_nodes: list[str]  # and unit tests
@@ -94,7 +94,7 @@ class Verdict:
 
 def allowed(node: str, need, system: str, may_block: dict[str, frozenset[str]]) -> bool:
     """May this check be reported blocked by this need in this system's record (Decision 1)?"""
-    if not isinstance(need, str):  # a list cannot be looked up (the build review, B3)
+    if not isinstance(need, str):  # a list cannot be looked up
         return False
     return need in may_block.get(node, ()) and system in CI_NEEDS.get(need, ())
 
@@ -105,7 +105,7 @@ def _whole(x) -> bool:
 
 def _number(x) -> bool:
     """A metric value: an int, or a finite float. json reads NaN and Infinity, and the ratchet's
-    `>` is false for NaN (the build review, B1)."""
+    `>` is false for NaN."""
     return type(x) is int or (type(x) is float and math.isfinite(x))
 
 
@@ -216,8 +216,7 @@ def gather(i: Inputs) -> Verdict:
     shared_units = {n for name in i.plan for n in unit_share[name]}
     for node in sorted(set(i.unit_nodes) - shared_units):
         red.append(f"G3 {node}: a unit test in no shard's share")
-    # G4: nothing failed, the unit tests included (the build review, F6); the tally is the share
-    # (spec 085, Decision 2).
+    # G4: nothing failed, the unit tests included; the tally is the share.
     for (system, shard), r in v.records.items():
         suite = r.get("suite", {})
         count = (r.get("meta", {}).get("units") or {}).get("count")
@@ -248,7 +247,7 @@ def gather(i: Inputs) -> Verdict:
                     f"{where}: blocked by {c.get('need')!r}, which does not block on {system}"
                 )
     # G5: the lane's acceptance holds. First, every metric the lane accepted for a passing check,
-    # on every system, each a finite number (spec 085, Decision 3; the build review, B1 and B3).
+    # on every system, each a finite number.
     # Values off darwin are not compared (Decision 9).
     for (system, shard), r in v.records.items():
         for node, c in sorted(r.get("checks", {}).items()):
@@ -321,7 +320,7 @@ def gather(i: Inputs) -> Verdict:
     newest = json.loads(i.history_lines[-1]) if i.history_lines else {}
     if newest.get("artifact") != i.wasm_sha256:
         red.append("G7 the newest acceptance is not on the release's python.wasm")
-    if newest.get("set_sums") != i.set_sums_sha256:  # a line from before spec 085 has none
+    if newest.get("set_sums") != i.set_sums_sha256:  # a line older than the set's own sums has none
         red.append("G7 the newest acceptance is not on the release's set (SHA256SUMS)")
     if newest.get("dirty") is not False:
         red.append("G7 the newest acceptance was not made on a clean tree")
@@ -345,7 +344,7 @@ def gather(i: Inputs) -> Verdict:
             at, f"three systems: darwin linux win32 on {i.wasm_sha256} · set {i.set_sums_sha256}"
         )
     quiet = no_trap_anywhere(v.records)
-    if quiet:  # never red: a fixed trap asks the change that closes it to go ahead (spec 065, C4)
+    if quiet:  # never red: a fixed trap asks the change that closes it to go ahead
         at = next(
             (n for n, line in enumerate(v.lines) if line.startswith("not machine-checked")), -1
         )
@@ -354,7 +353,7 @@ def gather(i: Inputs) -> Verdict:
 
 
 def no_trap_anywhere(records: dict[tuple[str, str], dict]) -> list[str]:
-    """The open trap entries (spec 065, Decision 1) that ran in at least one record and recorded
+    """The open trap entries that ran in at least one record and recorded
     "no trap on this host" in every record that ran them."""
     seen: dict[str, set[str]] = {}
     for r in records.values():
@@ -380,7 +379,7 @@ def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:
     """One record of the release (Decision 9): each goal check's worst status across the records;
     its `source`, the entry of the record that ran it (darwin first, then linux, then any) with
     that record's platform, and its metrics from the same record; `suite` per system and per run;
-    and what sameness compares (spec 092): the platform of the worst status (`worst_platform`),
+    and what sameness compares: the platform of the worst status (`worst_platform`),
     the checks no record ran (`deselected`), the union of `collected_files` and of
     `meta.foreign`."""
     checks: dict[str, dict] = {}
@@ -407,7 +406,7 @@ def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:
                     "platform": platform,
                 },
             }
-        checks[node]["worst_platform"] = worst_on  # where the worst status was seen (092, F1)
+        checks[node]["worst_platform"] = worst_on  # where the worst status was seen (092)
         for entry in (checks[node], checks[node].get("source") or {}):
             need = entry.get("need")
             if need is not None and not isinstance(need, str):  # already red at G4 (B3)
@@ -417,7 +416,7 @@ def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:
         s = suite.setdefault(shards.PLATFORM[system] if system != "build" else "build", {})
         tally = r.get("suite", {})
         for k, n in (tally if isinstance(tally, dict) else {}).items():
-            if _whole(n):  # anything else is already red at G4 (spec 085, Decision 2)
+            if _whole(n):  # anything else is already red at G4
                 s[k] = s.get(k, 0) + n
     foreign = {f for r in records.values() for f in r.get("meta", {}).get("foreign") or []}
     files = {f for r in records.values() for f in r.get("collected_files", [])}
@@ -457,7 +456,7 @@ def _need_call(n: ast.AST) -> bool:
 
 def needs_called(func) -> set[str]:
     """The needs a function's own source names as literal arguments of a `need(…)` or `….need(…)`
-    call (spec 085, Decision 1). A need named any other way is not seen, so a check blocked by it
+    call. A need named any other way is not seen, so a check blocked by it
     is red in the gather; an unreadable source names none."""
     try:
         tree = ast.parse(textwrap.dedent(inspect.getsource(func)))
@@ -477,8 +476,8 @@ VOCABULARY_FILES = ("tests/harness/needs.py", "tests/harness/gather.py")
 
 
 def hidden_ci_needs(repo: Path = paths.REPO) -> list[str]:
-    """Every place a CI need is spelled where `needs_called` cannot see it (Decision 1, the
-    pre-build review's F5 and its confirmation's c1), as `file:line: <string>`: a CI need string
+    """Every place a CI need is spelled where `needs_called` cannot see it (Decision 1),
+    as `file:line: <string>`: a CI need string
     under tests/checks/ or in tests/conftest.py outside a `test_` function's body; under
     tests/harness/, one used as a call argument, a container member, a keyword value or a module
     constant (never a path piece such as `JOB_DIR / "oracle"`); and any `"needs: "` string,
@@ -516,7 +515,7 @@ def hidden_ci_needs(repo: Path = paths.REPO) -> list[str]:
                 up = parent.get(id(n))
                 plain = (ast.Call, ast.Dict, ast.List, ast.Tuple, ast.Set, ast.keyword)
                 # A module constant or a class attribute, or either through a conditional
-                # expression (the confirmation's c1; the build review's B2).
+                # expression.
                 if isinstance(up, ast.IfExp):
                     up = parent.get(id(up))
                 constant = isinstance(up, (ast.Assign, ast.AnnAssign)) and isinstance(
@@ -537,7 +536,7 @@ def locked_version(name: str, lock: Path = paths.REPO / "uv.lock") -> str:
 
 class _Collector:
     """Each collected item's node id and `goal` marker, read as the plugin reads it, and the CI
-    needs each goal check's own body names (spec 085, Decision 1)."""
+    needs each goal check's own body names."""
 
     def __init__(self) -> None:
         self.items: list[tuple[str, str | None]] = []

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Step 58: scikit-learn 1.9.1 for wasm32-wasip1 (spec 044, Decision 5): meson through
+# Step 58: scikit-learn 1.9.1 for wasm32-wasip1: meson through
 # recipes/wasi-sklearn.cross against step 40's numpy and step 57's scipy, whose Cython
 # declarations scripts/stage_scipy_cimports.sh stages under build/scipy-cimport (Decision 4). Each
 # extension module becomes a static archive beside a .deps file, as scripts/wasi-cc makes them; the

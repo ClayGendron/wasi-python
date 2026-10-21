@@ -76,7 +76,7 @@ def test_files_the_build_adds_are_not_judged(pair) -> None:
 
 
 def test_a_pinned_member_with_a_litter_name_is_named(work) -> None:
-    """Spec 090: the build's walks skip a litter name, so a pin that ships one is named by the
+    """The build's walks skip a litter name, so a pin that ships one is named by the
     tree check instead of being dropped from the zip without a word."""
     files = {**FILES, "zlib-9.9/src/._z.c": b"\0\5\26\7", "zlib-9.9/.DS_Store": b"Bud1"}
     tarball = make_tarball(work / "zlib-9.9.tar.gz", files)

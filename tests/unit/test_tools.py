@@ -1,4 +1,4 @@
-"""The tool protocol's host half (spec 031), with no guest: `tool()` describes and vets, the
+"""The tool protocol's host half, with no guest: `tool()` describes and vets, the
 validator checks without coercion inside a counted budget, and the frame host answers raw frames
 in a fixed order, as a raw `host=` would see them. Nothing here measures time."""
 
@@ -163,7 +163,7 @@ def test_a_tool_is_described_by_its_hints_and_docstring() -> None:
 
 
 def test_importing_the_package_does_not_load_the_tools() -> None:
-    """Decision 1: `import wasi_python` leaves `wasi_python.tools` unloaded (spec 015's F6)."""
+    """Decision 1: `import wasi_python` leaves `wasi_python.tools` unloaded."""
     probe = "import sys, wasi_python; print('wasi_python.tools' in sys.modules)"
     r = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, check=True)
     assert r.stdout.strip() == "False", r.stdout + r.stderr
@@ -178,7 +178,7 @@ def schema(properties: dict, **more: Any) -> dict:
 
 
 async def fetch(url: str):
-    yield url  # an async generator: protocol 1 answers once (spec 053)
+    yield url  # an async generator: protocol 1 answers once
 
 
 def _cycle() -> dict:
@@ -320,7 +320,7 @@ def test_a_tool_that_cannot_be_described_is_refused(what, make, error, words) ->
 
 
 def test_bound_keywords_are_found_through_any_wrapper() -> None:
-    """Spec 056, Decision 1: a callable object whose `__call__` is a partial's target, and a
+    """A callable object whose `__call__` is a partial's target, and a
     `__wrapped__` cycle (refused, not walked forever)."""
 
     class Orders:
@@ -381,7 +381,7 @@ def _wrapped_chain(end: Any, links: int) -> Any:
 
 @pytest.mark.parametrize("slot", list(C_SLOT_ENDS))
 def test_the_bound_keyword_walk_stops_at_each_c_slot(slot) -> None:
-    """Spec 070, Decision 4 (spec 060's build review, N3): the walk stops at a C `__call__` itself,
+    """The walk stops at a C `__call__` itself,
     in the hop that meets it, as at a function. A function at the end of 63 links is the deepest
     chain the walk reads (64 hops); one link more is refused. Each slot kind at the same depth is
     read too, so no kind of `_C_SLOTS` can go without a hop more and the refusal."""
@@ -600,7 +600,7 @@ def test_bytes_cross_only_where_the_schema_says_so() -> None:
 
 
 # pydantic 2.14.1's schema for Node = RootModel[Union[list[Node], list[Union[int, Node]]]]
-# (EXECUTED in the pre-build review, recursive_union.txt), written here so pydantic is not a
+# (EXECUTED), written here so pydantic is not a
 # dependency.
 NODE = {
     "anyOf": [
@@ -652,7 +652,7 @@ def test_unique_items_take_one_pass() -> None:
 
 
 def test_unique_item_keys_are_charged() -> None:
-    """Review F6: each uniqueItems key is a counted step, made before the items are visited, so
+    """Each uniqueItems key is a counted step, made before the items are visited, so
     100,001 distinct strings exhaust the budget before the first one fails its type."""
     v = T._Validator({"type": "array", "uniqueItems": True, "items": {"type": "integer"}})
     assert v.check([f"s{i}" for i in range(100_001)]) == "the arguments are too complex to check"
@@ -668,7 +668,7 @@ def values(x: Any) -> int:
     return 1
 
 
-# pydantic's shapes (review F2): an order whose lines are a $ref, and a recursive tree with an
+# pydantic's shapes: an order whose lines are a $ref, and a recursive tree with an
 # Optional parent (anyOf of a $ref and null).
 ORDER = {
     "type": "object",
@@ -733,7 +733,7 @@ def chain(depth: int, leaves: int) -> dict:
     ],
 )
 def test_valid_arguments_cost_about_one_step_per_value(schema_, args, per_value) -> None:
-    """Decision 3's basis, as the README states it (review F2): a value costs one step for each
+    """Decision 3's basis, as the README states it: a value costs one step for each
     schema node it is checked against: its own, each $ref, anyOf or oneOf around it, and each
     anyOf branch tried. A node that only delegates never walks the value again, so the cost per
     value does not grow with depth. pydantic's shapes: an order at most 1.5 steps per value; a
@@ -744,7 +744,7 @@ def test_valid_arguments_cost_about_one_step_per_value(schema_, args, per_value)
 
 
 def test_an_enum_costs_one_key_per_value(monkeypatch) -> None:
-    """Review F1: `names: list[Literal[<600 names>]]` with 99,990 names in one frame. Each name's
+    """`names: list[Literal[<600 names>]]` with 99,990 names in one frame. Each name's
     key is built once and looked up in the enum's key set, made once when the tool is made; a
     container's key is charged one step per value below it."""
     names = tuple(f"z{i:04d}" for i in range(600))
@@ -779,7 +779,7 @@ def many(**kw: Any) -> dict:
 
 
 def test_a_pickled_tool_checks_each_enum_against_its_own_set() -> None:
-    """Confirmation N1: the key sets are found by node identity. A Tool pickled, the original
+    """The key sets are found by node identity. A Tool pickled, the original
     freed, then unpickled, reuses the freed ids; each node still checks only its own set."""
     import gc
     import pickle
@@ -802,7 +802,7 @@ def test_a_pickled_tool_checks_each_enum_against_its_own_set() -> None:
 
 
 def test_messages_never_format_a_whole_value() -> None:
-    """Review F1: a failing enum, const or bound names the value by its kind and size, never by
+    """A failing enum, const or bound names the value by its kind and size, never by
     dumping it, so a message costs what it says."""
     v = T._Validator({"type": "object", "properties": {"x": {"const": 1}}})
     big = list(range(50_000))
@@ -1158,7 +1158,7 @@ class LoudKey(KeyError):
     ],
 )
 def test_a_base_exception_never_escapes_the_frame_host(where, raised) -> None:
-    """Decision 6 and review F3: a BaseException from a tool or a gate, or from an exception's
+    """Decision 6: a BaseException from a tool or a gate, or from an exception's
     own __str__, is a fault, answered and recorded; nothing raises out of the frame host."""
 
     def boom(*_: Any) -> None:
@@ -1181,7 +1181,7 @@ def test_a_base_exception_never_escapes_the_frame_host(where, raised) -> None:
 
 
 def test_a_result_nested_too_deep_is_a_fault() -> None:
-    """The builder's bound, checked (review F6): a result nested deeper than 62 levels faults."""
+    """The builder's bound, checked: a result nested deeper than 62 levels faults."""
 
     @tool
     def nest(levels: int) -> Any:
@@ -1195,7 +1195,7 @@ def test_a_result_nested_too_deep_is_a_fault() -> None:
 
 
 def test_a_long_same_value_chain_is_refused() -> None:
-    """Review F5: a $ref chain that stays on one value is at most _SAME_VALUE_CHAIN nodes, so the
+    """A $ref chain that stays on one value is at most _SAME_VALUE_CHAIN nodes, so the
     validator's recursion never depends on the host Python's limit."""
 
     def chained(n: int) -> dict:
@@ -1211,7 +1211,7 @@ def test_a_long_same_value_chain_is_refused() -> None:
 
 
 def test_only_tool_makes_a_tool() -> None:
-    """Review F7: dataclasses.replace cannot make a Tool that tool() never vetted."""
+    """dataclasses.replace cannot make a Tool that tool() never vetted."""
     import dataclasses
 
     t = tool(square)
@@ -1247,7 +1247,7 @@ def test_the_record_is_bounded() -> None:
 
 
 # -------------------------------------------------------------------------------------------------
-# 9. A per-run budget of request bytes, and the tool list encoded once (spec 060).
+# 9. A per-run budget of request bytes, and the tool list encoded once.
 
 
 def padded(raw: bytes, size: int) -> bytes:
@@ -1257,7 +1257,7 @@ def padded(raw: bytes, size: int) -> bytes:
 
 
 def test_the_request_byte_budget_counts_admitted_bytes(monkeypatch) -> None:
-    """Spec 060, criterion 1: the bytes `admit` lets through are counted from their length, before
+    """The bytes `admit` lets through are counted from their length, before
     a frame is read, whatever its answer; a frame that would pass the budget is refused unread,
     `budget_exceeded`, and spends nothing. Parses are counted, never timed."""
     parses: list[int] = []
@@ -1325,7 +1325,7 @@ def test_the_request_byte_budget_counts_admitted_bytes(monkeypatch) -> None:
 
 
 def test_the_tool_list_is_encoded_once(monkeypatch) -> None:
-    """Spec 060, criterion 5 (its pre-build review, F1): the descriptors are encoded at the first
+    """The descriptors are encoded at the first
     `list` frame and the frame's id spliced in, byte for byte what encoding the whole answer
     gives; a list over the answer cap is `too_large` on every `list` frame."""
     encodes: list[int] = []
@@ -1359,7 +1359,7 @@ def _list_frame(i: int | None) -> bytes:
 
 
 def test_an_oversized_tool_list_is_refused_before_it_is_built(monkeypatch) -> None:
-    """Spec 075, criterion 4 (spec 060's build review, N1): a list over the answer cap is
+    """A list over the answer cap is
     refused from its length, on every `list` frame, and its answer is never built."""
     builds: list = []
     real = T._ToolHost._list_answer
@@ -1385,7 +1385,7 @@ def test_an_oversized_tool_list_is_refused_before_it_is_built(monkeypatch) -> No
 
 
 def test_the_tool_list_cap_is_exact_for_each_id(monkeypatch) -> None:
-    """Spec 075, criterion 5: the refusal from the length keeps the cap to the byte, for each
+    """The refusal from the length keeps the cap to the byte, for each
     frame's own id (`null` is 4 bytes, an id 1 to 16 digits)."""
     tools = _list_tools()
     descriptors = [t.descriptor() for t in tools]

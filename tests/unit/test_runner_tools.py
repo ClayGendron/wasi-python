@@ -1,4 +1,4 @@
-"""Tools in the runner (spec 036), with no guest: `run` refuses its tool arguments before any
+"""Tools in the runner, with no guest: `run` refuses its tool arguments before any
 work, the door asks `admit(length)` before it reads a frame, and the bound of one tool call
 answers each of its ends in order. Fakes stand in for wasmtime, the ticker, `cancel` and the
 Ctrl-C flag. Nothing here measures time: a tool that must block waits on an event the check
@@ -85,7 +85,7 @@ def unhinted(code):
 
 
 async def async_gate(call):
-    yield None  # an async generator: refused as a gate (spec 053)
+    yield None  # an async generator: refused as a gate
 
 
 async def async_host(frame):
@@ -381,7 +381,7 @@ def test_too_little_time_or_too_many_abandoned_answers_at_once(release) -> None:
     host = T._ToolHost([_blocking(release, started)], gate=gated.append, invoke=bound)
     assert kind(host(call_frame("slow"))) == "timeout"
     assert (started, gated, _last(host).abandoned) == ([], [], False)
-    # Exactly two ticks left: the end is already reached, so the same (the build review's F5).
+    # Exactly two ticks left: the end is already reached, so the same.
     bound = T._Bounded(tick_s=0.001, stop_at=12, ticks=Ticks(10))
     host = T._ToolHost(
         [_blocking(release, started, timeout_s=0.01)], gate=gated.append, invoke=bound
@@ -448,7 +448,7 @@ def test_a_thread_that_cannot_start_is_a_fault(release) -> None:
 
 
 def test_a_fault_in_the_bound_keeps_the_call_in_the_record(release) -> None:
-    """The 031 build review's F5: if the bound fails after the tool started, the record still
+    """If the bound fails after the tool started, the record still
     names the call and its tool, and says the tool may still run."""
     started: list = []
     seen = []
@@ -516,7 +516,7 @@ print("parent", runner.stats()["tool_threads_running"])
 
 @pytest.mark.skipif(not hasattr(os, "fork"), reason="no fork on this system")
 def test_the_fork_hook_resets_the_tool_thread_count() -> None:
-    """Decision 8, in a forked child (the build review's F4): the child has none of its
+    """Decision 8, in a forked child: the child has none of its
     parent's tool threads, and a lock of its own. Run in a fresh process, since the hook
     rebinds every lock of the runner."""
     out = subprocess.run(
@@ -527,7 +527,7 @@ def test_the_fork_hook_resets_the_tool_thread_count() -> None:
 
 
 def test_abandoned_calls_are_counted_past_the_listed_outcomes(release) -> None:
-    """The build review's F2: with no frame limit, 1,000 `list` frames fill the listed
+    """With no frame limit, 1,000 `list` frames fill the listed
     outcomes; the four abandoned calls after them are still counted in `abandoned`."""
     started: list = []
     bound = T._Bounded(tick_s=0.001)
@@ -544,7 +544,7 @@ def test_abandoned_calls_are_counted_past_the_listed_outcomes(release) -> None:
 
 def _held_slot(monkeypatch, hold: threading.Event, filled: threading.Event) -> None:
     """Make each slot's `filled.set()` hold the tool's thread after setting it, before the
-    thread's `finally` runs: the window the build review's F3 found."""
+    thread's `finally` runs: the window where a result and an end race."""
 
     class Held(threading.Event):
         def set(self) -> None:
@@ -562,7 +562,7 @@ def _held_slot(monkeypatch, hold: threading.Event, filled: threading.Event) -> N
 
 
 def test_a_result_that_finished_at_an_end_is_delivered(release) -> None:
-    """The build review's F3, case A: the work finishes and its thread ends before the bound
+    """Case A: the work finishes and its thread ends before the bound
     sees the deadline; its answer stands, and nothing is counted abandoned."""
     gate = threading.Event()
 
@@ -591,7 +591,7 @@ def test_a_result_that_finished_at_an_end_is_delivered(release) -> None:
 
 
 def test_a_result_filled_before_an_end_is_delivered(release, monkeypatch) -> None:
-    """The build review's F3, case B: the work has filled its slot, but its thread has not yet
+    """Case B: the work has filled its slot, but its thread has not yet
     reached its `finally`, when the bound sees the deadline. The result is in hand, so it is
     the answer, and the call is not counted abandoned, now or after the thread ends."""
     gate, hold, filled = threading.Event(), threading.Event(), threading.Event()
@@ -628,7 +628,7 @@ def test_a_result_filled_before_an_end_is_delivered(release, monkeypatch) -> Non
 
 
 def test_a_call_ended_at_its_gate_never_runs_its_tool(release) -> None:
-    """Spec 056 (the a4 security review's F2): the gate moves one end of the call (the tool's
+    """The gate moves one end of the call (the tool's
     `timeout_s` on a fake clock, the deadline on a fake ticker, `cancel`), then waits until the
     call has been answered and released. It allows; the tool never runs, and the thread ends.
     A gate that allowed before the end still starts its tool, which then runs on (abandoned),
@@ -689,7 +689,7 @@ def test_a_call_ended_at_its_gate_never_runs_its_tool(release) -> None:
 
 
 def test_the_tool_starts_only_if_its_call_was_not_answered() -> None:
-    """Spec 056, F2: the check between the gate and the tool, and the mark of an answered call,
+    """The check between the gate and the tool, and the mark of an answered call,
     are taken under one lock, so exactly one of them wins."""
     bound = T._Bounded(tick_s=0.001)
     slot = T._Slot()
@@ -697,7 +697,7 @@ def test_the_tool_starts_only_if_its_call_was_not_answered() -> None:
     assert bound._proceed(slot) is False
     slot = T._Slot()
     assert bound._proceed(slot) is True
-    assert bound._abandon(slot) is True  # the tool runs on, abandoned, as spec 036 says
+    assert bound._abandon(slot) is True  # the tool runs on, abandoned: a thread cannot be stopped
 
 
 def test_completed_has_no_tool_record_by_default() -> None:
@@ -708,7 +708,7 @@ def test_completed_has_no_tool_record_by_default() -> None:
 
 
 def test_the_request_byte_budget_is_a_limit_with_a_default(monkeypatch) -> None:
-    """Spec 060, criterion 2: `max_tool_request_bytes=` and `Defaults.tool_request_bytes`, by
+    """`max_tool_request_bytes=` and `Defaults.tool_request_bytes`, by
     `max_tool_calls`' rules, read from the call's one read of the defaults; refused without
     `tools=` before any work; passed to the call's frame host."""
     import dataclasses

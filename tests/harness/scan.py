@@ -50,7 +50,7 @@ def rel(p: Path, root: Path) -> str:
 
 
 # ---------------------------------------------------------------------------------------------
-# Constitution §4.5: no embedder names in code
+# No embedder names in code
 
 
 def read_names(path: Path) -> list[str]:
@@ -73,7 +73,7 @@ def embedder_hits(root: Path, subdirs: Iterable[str], names: list[str]) -> list[
             continue
         for n, line in enumerate(text.splitlines(), 1):
             if p.suffix == ".patch" and not _our_patch_line(line):
-                continue  # a patch's context and removed lines are upstream's text (spec 020)
+                continue  # a patch's context and removed lines are upstream's text
             low = line.lower()
             if any(name in low for name in names):
                 hits.append(f"{r}:{n}")
@@ -88,7 +88,7 @@ def _our_patch_line(line: str) -> bool:
 
 
 # ---------------------------------------------------------------------------------------------
-# Constitution §4.9: no test reads a clock
+# No test reads a clock
 
 CLOCK = re.compile(
     r"\btime\.(time|perf_counter|monotonic|process_time|thread_time)(_ns)?\b"
@@ -132,7 +132,7 @@ FETCH = re.compile(r"\b(curl|wget|git\s+clone|uv\s+pip|uv\s+add|pip3?\s+install)
 
 
 def offline_install(line: str) -> bool:
-    """An install that cannot fetch: from local, hash-checked files only (spec 003, Decision 13).
+    """An install that cannot fetch: from local, hash-checked files only.
     It exempts a line only when `uv pip` is the line's one fetch word."""
     words = [m.group(1) for m in FETCH.finditer(line)]
     return (
@@ -195,7 +195,7 @@ def _recursive_force(flags: str) -> bool:
 def bare_rm_hits(scripts: list[Path], root: Path) -> list[str]:
     """A recursive, forced `rm` in a build script outside remove.sh, in any spelling (`-rf`,
     `-fr`, `-Rf`, `-r -f`, `--recursive --force`): Finder can make it fail, so every removal goes
-    through `remove`, which retries (spec 018)."""
+    through `remove`, which retries."""
     hits = []
     for p in scripts:
         if not is_shell(p) or rel(p, root) == REMOVE_SH:
@@ -269,8 +269,8 @@ CPP_CROSS_FILES = (
     "recipes/wasi-pandas.cross",
     "recipes/wasi-plot-libs.cross",
     "recipes/wasi-matplotlib.cross",
-    "recipes/wasi-scipy.cross",  # spec 037
-    "recipes/wasi-sklearn.cross",  # spec 044
+    "recipes/wasi-scipy.cross",  # added for scipy
+    "recipes/wasi-sklearn.cross",  # added for scikit-learn
 )
 # kiwisolver's C++ is compiled by step 55 itself: its flags variable, and the compile that uses it.
 CPP_DIRECT = "scripts/steps/55_matplotlib.sh"
@@ -279,11 +279,11 @@ CPP_SETUP_CROSS = '--cross-file "$B/wasi-matplotlib.cross"'
 
 
 def cpp_exception_errors(root: Path) -> list[str]:
-    """Every C++ object is compiled, and the binary linked, for standard-form exceptions (spec 005,
-    Decision 9): a cross file without the flags compiles C++ whose `throw` is never caught. Every
-    C++ build is judged (spec 023): numpy's and pandas' cross files, HarfBuzz's (step 37),
+    """Every C++ object is compiled, and the binary linked, for standard-form exceptions:
+    a cross file without the flags compiles C++ whose `throw` is never caught. Every
+    C++ build is judged: numpy's and pandas' cross files, HarfBuzz's (step 37),
     matplotlib's, kiwisolver's compile line in step 55, and contourpy's configure there, with
-    matplotlib's cross file (spec 043)."""
+    matplotlib's cross file."""
     errors = []
     for cross in CPP_CROSS_FILES:
         lines = [t for t in (root / cross).read_text().splitlines() if t.startswith("cpp_args")]
@@ -304,7 +304,7 @@ def cpp_exception_errors(root: Path) -> list[str]:
     compiles = [t for t in direct if t.lstrip().startswith("$CXX ")]
     if not compiles or not all("$CXX_EH" in t for t in compiles):
         errors.append(f"{CPP_DIRECT}: a $CXX compile without $CXX_EH")
-    # contourpy's C++ is configured by step 55 with matplotlib's cross file (spec 043, Decision 4):
+    # contourpy's C++ is configured by step 55 with matplotlib's cross file:
     # every meson setup there names it, and one of them is contourpy's.
     setups = [t for t in direct if t.lstrip().startswith("meson setup ")]
     if not all(CPP_SETUP_CROSS in t for t in setups):
@@ -330,8 +330,8 @@ FREETYPE_CREDIT = (
 
 
 def credit_errors(readme: str, pinned: Iterable[str]) -> list[str]:
-    """The credit lines the linked libraries' licences ask of the distribution's documentation
-    (spec 023's build review, F1): the README, which is also the wheel's description, carries
+    """The credit lines the linked libraries' licences ask of the distribution's documentation:
+    the README, which is also the wheel's description, carries
     FreeType's while FreeType is pinned. Line breaks and a blockquote's `>` are read as spaces."""
     text = " ".join(re.sub(r"^\s*>\s?", "", line) for line in readme.splitlines()).split()
     if any(n.lower().startswith("freetype-") for n in pinned) and FREETYPE_CREDIT not in " ".join(
@@ -446,8 +446,8 @@ STRUCTURAL_TOKEN = "**structural**"
 
 def structural_spec_review_errors(path: Path, reviews: Path) -> list[str]:
     """A specification whose Kind line carries the bold token **structural** cites, once its
-    Status begins with built or landed, its own review before build,
-    `reviews/NNN-<slug>-spec-YYYY-MM-DD.md`, and the file exists: the mirror of
+    Status begins with built or landed, its own review before build, a file named
+    `NNN-<slug>-spec-YYYY-MM-DD.md` among the reviews, and the file exists: the mirror of
     landed_review_errors for the review before build."""
     text = path.read_text()
     kind = KIND_LINE.search(text)
@@ -499,7 +499,7 @@ def prior_art_errors(prior_art: Path) -> list[str]:
 
 
 # ---------------------------------------------------------------------------------------------
-# How a check reports its findings (spec 002, Decision 4)
+# How a check reports its findings
 
 
 LINE_REF = re.compile(r":\d+(?=[:\s]|$)")
@@ -520,7 +520,7 @@ def report(findings: list[str], what: str = "findings") -> str:
 
 
 # ---------------------------------------------------------------------------------------------
-# The release workflow's provenance (spec 009)
+# The release workflow's provenance
 
 ATTEST_PERMISSIONS = {"id-token: write", "attestations: write", "contents: read"}
 ATTEST_USES = re.compile(r"uses:\s*actions/attest@[0-9a-f]{40}\b")
@@ -585,8 +585,8 @@ def _job_permissions(lines: list[str]) -> set[str]:
 
 
 def release_attestation_errors(text: str) -> list[str]:
-    """Every rule of spec 009, Decision 6, as one line per breach, on the workflow without its
-    comments; attest and publish also need gather (spec 063, Decision 13)."""
+    """Every rule of the release's provenance (each asset attested, then verified), as one line
+    per breach, on the workflow without its comments; attest and publish also need gather."""
     text = without_comments(text)
     jobs = workflow_jobs(text)
     if "attest" not in jobs:
@@ -637,7 +637,7 @@ def release_attestation_errors(text: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------------------------
-# The build hosts (spec 012, Decision 1)
+# The build hosts
 
 HOST_NAMES = ("WASI_SDK_DIR", "WASMTIME_DIR", "HOST_PYTHON_ARCHIVE", "CYTHON_WHEEL", "NINJA_WHEEL")
 # The file in downloads/ each host name stands for: a directory name is its tarball's stem.
@@ -709,7 +709,7 @@ def host_table_errors(
 
 
 # ---------------------------------------------------------------------------------------------
-# The compiler each host runs (spec 040, Decision 4; spec 059, Decisions 3 and 4): each host's own
+# The compiler each host runs: each host's own
 # pinned clang, natively. One host key carries the five emulation names: the fallback, switched off,
 # runnable by one line (COMPILER_SDK_DIR naming another host's SDK).
 
@@ -749,7 +749,7 @@ def _maps(launcher: str, name: str, mode: str | None) -> bool:
 def compiler_table_errors(
     conf: str, download: str, pinned: Iterable[str], step_10: str, launcher: str | None
 ) -> list[str]:
-    """Every rule of spec 059, Decision 4's rule check (spec 040, Decision 7, amended), one line
+    """Every rule of the build hosts' compiler table, one line
     per breach. Each host's COMPILER_SDK_DIR is its own SDK, or another host's own SDK while the
     key carries all five emulation names (the fallback's switch thrown). Exactly one key carries
     the five names, each pinned and fetched in its branch, and that branch fetches another host's
@@ -821,11 +821,11 @@ def compiler_table_errors(
 
 
 # ---------------------------------------------------------------------------------------------
-# Every compile contracts nothing (spec 059, Decisions 1, 2 and 4): -ffp-contract=off lives in the
+# Every compile contracts nothing: -ffp-contract=off lives in the
 # toolchain's own clang.cfg and clang++.cfg, written by step 10, and nothing on any compiler's
 # command line may override it.
 
-# The options that override or drop the configuration file (the pre-build review's F1), as whole
+# The options that override or drop the configuration file, as whole
 # tokens; any -ffp-contract= value but off is one too (fp_override).
 FP_CONTRACT_OVERRIDES = (
     "-ffp-model=",
@@ -837,7 +837,7 @@ FP_CONTRACT_OVERRIDES = (
 )
 FP_FLAG = "-ffp-contract=off"
 # The meson builds, by their folder under build/: every one's compile_commands.json is a compile
-# record the judge reads; a specification that adds a meson build extends this (spec 059, N2).
+# record the judge reads; a specification that adds a meson build extends this.
 MESON_BUILDS = (
     "numpy-build",
     "pandas-build",
@@ -846,11 +846,11 @@ MESON_BUILDS = (
     "sheenbidi-build",
     "libraqm-build",
     "matplotlib-build",
-    "contourpy-build",  # spec 043
-    "scipy-build",  # spec 037
-    "sklearn-build",  # spec 044
+    "contourpy-build",  # added for matplotlib's contours
+    "scipy-build",  # added for scipy
+    "sklearn-build",  # added for scikit-learn
 )
-# The Makefiles autoconf generates for the C libraries (libxml2's and libxslt's: spec 046), and
+# The Makefiles autoconf generates for the C libraries (libxml2's and libxslt's), and
 # step 60's two command files.
 AUTOCONF_MAKEFILES = (
     "zlib-build/Makefile",
@@ -866,7 +866,7 @@ CPYTHON_MAKEFILE = "Python-*/cross-build/wasm32-wasip1/Makefile"
 # What step 10's code must name: the two files, the flag, and the -### probe, matched on its -cc1
 # line.
 STEP_10_FP_WORDS = ("clang.cfg", "clang++.cfg", FP_FLAG, "-###", "-cc1")
-# A source pragma that turns contraction back on inside a block (the pre-build review's F5).
+# A source pragma that turns contraction back on inside a block.
 FP_PRAGMA = re.compile(r"FP_CONTRACT\s+ON\b|\bfp\s+contract\s*\(\s*(?:on|fast)\s*\)")
 SOURCE_SUFFIXES = {".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".pyx", ".pxd", ".pxi"}
 _MAKE_ASSIGNMENT = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*[:?+]?=(.*)$")
@@ -902,7 +902,7 @@ def fp_hits(text: str) -> list[str]:
     read without the brackets, commas and quotes a meson list or a Makefile puts around it; a
     quoted multi-flag string (`CXX_EH="-fwasm-exceptions … -ffp-model=precise"`) is split again on
     whitespace, and a leading `NAME=` is dropped (`CFLAGS=-ffast-math`), so a flag inside a shell
-    variable's value is a hit too (the build review's finding 1)."""
+    variable's value is a hit too."""
     hits = []
     for tok in _tokens(text):
         for piece in tok.strip("[](),;'\"").split():
@@ -930,7 +930,7 @@ def _logical_lines(text: str) -> list[str]:
 
 def is_compiler_line(line: str) -> bool:
     """A command line that runs a compiler: `$(CC)`, `$(CXX)`, `$(CPP)` or a word ending in clang
-    or clang++ among its whole tokens (the review's N1: wasmtime's `--config` on a line that runs
+    or clang++ among its whole tokens (wasmtime's `--config` on a line that runs
     no compiler is not a hit)."""
     return any(_COMPILER_TOKEN.match(tok) for tok in _tokens(line))
 
@@ -1090,7 +1090,7 @@ def fp_recipe_errors(step_10: str | None, files: dict[str, str]) -> list[str]:
     return errors
 
 
-# The release workflow's steps, read as text (the judge has no YAML library; spec 009, Decision 6)
+# The release workflow's steps, read as text (the judge has no YAML library)
 
 
 def workflow_steps(lines: list[str]) -> list[list[str]]:
@@ -1145,7 +1145,7 @@ def step_fields(step: list[str]) -> dict:
 def workflow_step_script(text: str, job: str, name: str) -> str:
     """The `run:` script of the step named `name` in `job`, exactly as the workflow holds it.
     Raises LookupError when there is no such step, so a check that runs it cannot pass on a
-    workflow without it (an empty script would exit 0; spec 057's review, F5.4)."""
+    workflow without it (an empty script would exit 0)."""
     for step in workflow_steps(workflow_jobs(text).get(job, [])):
         fields = step_fields(step)
         if fields.get("name") == name and isinstance(fields.get("run"), str):
@@ -1179,12 +1179,12 @@ def _permission_set(lines: list[str]) -> set[str] | None:
 
 
 # ---------------------------------------------------------------------------------------------
-# The release workflow's rebuilds (spec 012, Decision 7; specs 040 and 059; spec 057, Decision 4)
+# The release workflow's rebuilds
 
-# One job per host, so each job's outputs are its own (a matrix shares one output namespace;
-# spec 057's pre-build review, F2): arm64 Linux and x86_64 Linux, each compiling with its own
-# pinned clang (spec 059). Each job's time limit, in minutes: both rebuild natively, and a hung
-# job frees the gate after two hours (spec 059, Decision 5).
+# One job per host, so each job's outputs are its own (a matrix shares one output namespace):
+# arm64 Linux and x86_64 Linux, each compiling with its own
+# pinned clang. Each job's time limit, in minutes: both rebuild natively, and a hung
+# job frees the gate after two hours.
 REBUILD_JOBS = {
     "rebuild-linux-arm64": ("ubuntu-24.04-arm", 120),
     "rebuild-linux-x86-64": ("ubuntu-24.04", 120),
@@ -1207,11 +1207,11 @@ def _rebuild_shape(lines: list[str]) -> str:
 
 
 def rebuild_gate_errors(text: str) -> list[str]:
-    """Every rule of spec 012, Decision 7, as spec 040 and spec 057 (Decision 4) left it, one line
-    per breach, on the workflow without its comments: a rebuild job on each gated runner beside the
-    build, the two alike, each handing on its uploads' ids; a same-bytes job that downloads each by
-    id into that runner's folders and compares every rebuild's SHA256SUMS with the set's byte for
-    byte; and nothing signed or published before it."""
+    """Every rule of the rebuild gate, as the x86_64 rebuild and the signing ties left it, one
+    line per breach, on the workflow without its comments: a rebuild job on each gated runner
+    beside the build, the two alike, each handing on its uploads' ids; a same-bytes job that
+    downloads each by id into that runner's folders and compares every rebuild's SHA256SUMS with
+    the set's byte for byte; and nothing signed or published before it."""
     text = without_comments(text)
     jobs = workflow_jobs(text)
     same = jobs.get("same-bytes")
@@ -1227,8 +1227,8 @@ def rebuild_gate_errors(text: str) -> list[str]:
             errors.append(f"{job}'s timeout-minutes is not {minutes}")
         # The core count beside every time figure, and any binfmt_misc entry that would run an
         # aarch64 ELF through the runner's own qemu and hide a gap in the launcher's closure.
-        # The runner's own python3, which step 10's shim keeps out of the build (spec 079), named
-        # in the log (spec 085; the a7 security review's N5).
+        # The runner's own python3, which step 10's shim keeps out of the build, named
+        # in the log.
         for fact, pattern in (
             ("nproc", r"^\s+nproc\s*$"),
             ("binfmt_misc", r"/proc/sys/fs/binfmt_misc"),
@@ -1271,12 +1271,12 @@ def rebuild_gate_errors(text: str) -> list[str]:
         errors.append("same-bytes does not need build and both rebuild jobs")
     same_body = "\n".join(line for line in same if not line.startswith("    runs-on:"))
     # One operand a rebuild's download, the other not: comparing the set's file with itself, or
-    # one rebuild with another, proves nothing (spec 012's build review, mutation M18).
+    # one rebuild with another, proves nothing.
     pairs = re.findall(r"\bcmp\s+(\S+)\s+(\S+)", same_body)
     if not any(("rebuilds/" in a) != ("rebuilds/" in b) for a, b in pairs):
         errors.append("same-bytes does not compare a rebuild's SHA256SUMS with the set's (cmp)")
     # Each job's id into its own runner's folder, pairing artifact-ids with the path: of the same
-    # with: block; one job's id in the other's folder fails (spec 057's Confirmation, M5).
+    # with: block; one job's id in the other's folder fails.
     fetched = {
         (w.get("artifact-ids"), w.get("path"))
         for f in map(step_fields, workflow_steps(same))
@@ -1292,7 +1292,7 @@ def rebuild_gate_errors(text: str) -> list[str]:
                 errors.append(
                     f"same-bytes does not download {job}'s {what} by id into {folder}/{runner}"
                 )
-    # Both of same-bytes' loops, the set's SHA256SUMS and spec 016's wheel, run over every runner.
+    # Both of same-bytes' loops, the set's SHA256SUMS and the wheel, run over every runner.
     for what, marker in (("SHA256SUMS", "rebuilds/$"), ("wheel", "rebuilt-wheels/$")):
         looped = {
             runner
@@ -1315,10 +1315,10 @@ def rebuild_gate_errors(text: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------------------------
-# What is checked, signed and published is what the build job made (spec 057)
+# What is checked, signed and published is what the build job made
 
 ASSETS_ID = "${{ needs.build.outputs.assets-id }}"
-# A download's `path:` with a leading workspace expression dropped (spec 070, Decision 1).
+# A download's `path:` with a leading workspace expression dropped.
 WORKSPACE_PREFIX = re.compile(r"^\$\{\{\s*github\.workspace\s*\}\}/+")
 
 SUMS_SHA256 = "${{ needs.build.outputs.sums-sha256 }}"
@@ -1342,7 +1342,7 @@ JOB_PERMISSIONS = {
     **{job: {"contents: read"} for job in REBUILD_JOBS},
     "same-bytes": set(),
     "verify": {"contents: read"},
-    # Spec 063: the judge jobs check out and read the build's files; the gather checks out alone.
+    # The judge jobs check out and read the build's files; the gather checks out alone.
     **{job: {"contents: read"} for job in ("judge-macos", "judge-linux", "judge-windows")},
     "gather": {"contents: read"},
     "attest": ATTEST_PERMISSIONS,
@@ -1353,7 +1353,7 @@ JOB_PERMISSIONS = {
 
 def _guard_tests(run: str, var: str) -> bool:
     """The guard's script tests `var` itself: `case "$var"` with the refusing branch, or a `for`
-    loop that lists `"$var"` and tests its loop variable so (spec 057's Confirmation, M1)."""
+    loop that lists `"$var"` and tests its loop variable so."""
     branch = re.escape(GUARD_TEST) + r"[^\n]*\bexit 1\b"
     if re.search(rf'case "\${re.escape(var)}" in\s*\n\s*{branch}', run):
         return True
@@ -1365,7 +1365,7 @@ def _guard_tests(run: str, var: str) -> bool:
 
 def download_path(value: object) -> str:
     """A download's `path:` as the folder it names: one pair of matching YAML quotes dropped,
-    then a leading `${{ github.workspace }}/`, then `posixpath.normpath` (spec 070, Decision 1)."""
+    then a leading `${{ github.workspace }}/`, then `posixpath.normpath`."""
     text = str(value).strip()
     if len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'":
         text = text[1:-1]
@@ -1373,8 +1373,9 @@ def download_path(value: object) -> str:
 
 
 def release_binding_errors(text: str) -> list[str]:
-    """Every rule of spec 057's Design (rules 1 to 18), one line per breach, each starting with its
-    rule's number, on the workflow without its comments: every reader of the build's files
+    """Every rule that ties what the release signs to what it built (rules 1 to 18), one line per
+    breach, each starting with its rule's number, on the workflow without its comments: every
+    reader of the build's files
     downloads them by an id it has guarded, checks them against the SHA-256 of SHA256SUMS the
     build job handed on, and acts on nothing else; nothing carries on past a failure; PyPI waits
     on publish and a pushed tag; the publish jobs name their environments, run setup-uv with no
@@ -1446,7 +1447,7 @@ def release_binding_errors(text: str) -> list[str]:
                 continue
             w = f.get("with", {})
             ids = w.get("artifact-ids", "")
-            # One id, or several joined by commas, all of one job (spec 063, Decision 16).
+            # One id, or several joined by commas, all of one job.
             parts = [p.strip() for p in ids.split(",")] if ids else []
             matched = [NEEDS_OUTPUT.match(p) for p in parts]
             if (
@@ -1556,8 +1557,8 @@ def release_binding_errors(text: str) -> list[str]:
                     "continue-on-error:"
                 )
     # Rule 16: nothing but the build's files lands in release-assets, and a job that holds them
-    # downloads nothing else, so no bytes arrive after its check (spec 057's build review, F1).
-    # `path:` is read as a path, so `./release-assets` is release-assets too (spec 070).
+    # downloads nothing else, so no bytes arrive after its check.
+    # `path:` is read as a path, so `./release-assets` is release-assets too.
     for name, job_steps in steps.items():
         downloads = [
             f.get("with", {})
@@ -1577,7 +1578,7 @@ def release_binding_errors(text: str) -> list[str]:
                 f"rule 16: {name} holds the build's files but downloads something else too"
             )
     # Rule 17: nothing in the release may carry on past a failure: a failed judge, verify leg or
-    # check must stop what needs it (spec 057's build review, F2).
+    # check must stop what needs it.
     if re.search(r"^\s*(- )?continue-on-error:", text, re.M):
         errors.append("rule 17: the workflow has a continue-on-error:")
     # Rule 18: PyPI only after publish, and only for a pushed tag with the owner's switch on.
@@ -1588,7 +1589,7 @@ def release_binding_errors(text: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------------------------
-# The release judges in parallel shards (spec 063)
+# The release judges in parallel shards
 
 JUDGE_JOBS = {  # job -> (runner, the plan's system)
     "judge-macos": ("macos-15", "macos"),
@@ -1632,7 +1633,7 @@ def _matrix_shards(lines: list[str]) -> list[str] | None:
 
 def _judge_shape(lines: list[str], runner: str, system: str) -> str:
     """A judge job with its runner, its system and its own lists set aside: the three must be this
-    text alike (spec 063, rule 3)."""
+    text alike (rule 3)."""
     kept, skip = [], False
     for line in lines:
         if re.fullmatch(r"    outputs:\s*", line):
@@ -1648,7 +1649,7 @@ def _judge_shape(lines: list[str], runner: str, system: str) -> str:
 
 
 def release_shard_errors(text: str, plan: dict) -> list[str]:
-    """The workflow against the shard plan (spec 063's Design, rules 1 to 10), one line per
+    """The workflow against the shard plan, one line per
     breach, each starting with its rule's number, on the workflow without its comments."""
     from harness import shards
 
@@ -1752,7 +1753,7 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
         r"\$\{\{ steps\.([\w-]+)\.outputs\.sha256 \}\}", outputs.get("record-sha256", "")
     )
     sha_step = next((f for f in build if sha and f.get("id") == sha[1]), {})
-    # Spec 085: the set's own SHA256SUMS, hashed before the upload, as python.wasm is.
+    # The set's own SHA256SUMS, hashed before the upload, as python.wasm is.
     set_sums = re.fullmatch(
         r"\$\{\{ steps\.([\w-]+)\.outputs\.sha256 \}\}", outputs.get("set-sums-sha256", "")
     )
@@ -1856,7 +1857,7 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
     # Rule 9: verify runs no pytest.
     if "pytest" in "\n".join(str(f.get("run", "")) for _, f in steps.get("verify", [])):
         errors.append("rule 9: verify runs pytest")
-    # Rule 10: only build sets wasm-sha256 and set-sums-sha256 (spec 085), and only the gather
+    # Rule 10: only build sets wasm-sha256 and set-sums-sha256, and only the gather
     # reads them.
     for job, lines in jobs.items():
         body = "\n".join(lines)
@@ -1869,7 +1870,7 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
 
 
 def action_pin_errors(text: str) -> list[str]:
-    """Every `uses:` is a local action or `owner/repo[/path]@<40 hex>` (spec 057, Decision 7)."""
+    """Every `uses:` is a local action or `owner/repo[/path]@<40 hex>`."""
     errors = []
     for m in re.finditer(r"^\s*(?:- )?uses:\s*(\S+)", without_comments(text), re.M):
         ref = m[1]
@@ -1879,8 +1880,8 @@ def action_pin_errors(text: str) -> list[str]:
 
 
 def unpinned_fetch_errors(download_script: Path, pinned: Iterable[str]) -> list[str]:
-    """Every file a `get` or `research` line fetches is pinned in SHA256SUMS (spec 057; the a4
-    security review's N1): the name given, or else the URL's last part."""
+    """Every file a `get` or `research` line fetches is pinned in SHA256SUMS:
+    the name given, or else the URL's last part."""
     pinned = set(pinned)
     text = "\n".join(line for _, line in _code_lines(download_script))
     names = [name or url.rstrip("/").rsplit("/", 1)[-1] for url, name in GET.findall(text)]
@@ -1893,7 +1894,7 @@ def unpinned_fetch_errors(download_script: Path, pinned: Iterable[str]) -> list[
 
 # ---------------------------------------------------------------------------------------------
 # A module-level name bound twice: the second silently replaces the first, so checks that used
-# the first run the second's code (spec 019's rebase redefined `CTRL_C` and lost two checks).
+# the first run the second's code (a rebase once redefined `CTRL_C` and lost two checks).
 
 
 def _bound(node: ast.stmt) -> list[str]:
@@ -2250,7 +2251,7 @@ def module_mutable_hits(files: Iterable[Path], root: Path) -> list[str]:
     return hits
 
 
-# Constitution §4.1: carried patches, recorded and temporary (spec 020)
+# Carried patches, recorded and temporary
 
 PATCH_NAME = re.compile(r"(\d{4})-[A-Za-z0-9][A-Za-z0-9._-]*\.patch")
 DRAFT_FIELDS = ("Project", "Against", "Status", "Title", "Files", "Why we carry it")
@@ -2307,9 +2308,9 @@ def _git_reads(text: str) -> tuple[list[str], str, str]:
 
 
 def patch_shape_errors(text: str, where: str) -> tuple[list[str], set[str]]:
-    """What a patch may not contain (spec 020, Decision 6), and the paths it touches, as git reads
+    """What a patch may not contain, and the paths it touches, as git reads
     it: a plain `---`/`+++` section after a hunk, or names that differ from `diff --git`, are
-    applied by git and so are judged here too (the build review, finding 2)."""
+    applied by git and so are judged here too."""
     errors: list[str] = []
     for n, line in enumerate(text.splitlines(), 1):
         for start, why in PATCH_SHAPES.items():
@@ -2377,7 +2378,7 @@ def _draft_errors(draft: Path, top: str, touched: set[str], where: str) -> list[
 
 
 def patch_errors(root: Path, tops: Iterable[str]) -> list[str]:
-    """Every rule of spec 020, Decisions 6 and 7, on `recipes/patches/` and its drafts. `tops` are
+    """Every rule of a carried patch, on `recipes/patches/` and its drafts. `tops` are
     the pinned source tarballs' top folders."""
     tops = set(tops)
     patches, drafts = root / "recipes" / "patches", root / "context" / "upstream" / "patches"
@@ -2386,7 +2387,7 @@ def patch_errors(root: Path, tops: Iterable[str]) -> list[str]:
     folders = sorted(p for p in patches.iterdir()) if patches.is_dir() else []
     for d in folders:
         if _is_litter(d.name):
-            continue  # Finder's or Explorer's, not ours (specs 018, 090)
+            continue  # Finder's or Explorer's, not ours
         if not d.is_dir():
             if d.name != "README.md":
                 errors.append(f"recipes/patches/{d.name}: only folders and README.md belong here")
@@ -2430,7 +2431,7 @@ def patch_errors(root: Path, tops: Iterable[str]) -> list[str]:
 
 
 # `paths` is a local name in patch_shape_errors, so the judge's litter rules are reached through
-# these two (spec 090, Decision 1).
+# these two.
 def _is_litter(name: str) -> bool:
     from harness import paths
 
@@ -2444,13 +2445,13 @@ def _has_litter(rel: str) -> bool:
 
 
 # ---------------------------------------------------------------------------------------------
-# The landing lane (spec 029)
+# The landing lane
 
 ACCEPTED_FILE = "context/progress/accepted.json"
 PROGRESS_DIR = "context/progress"
-VOLUMES_GLOB = ":(glob)context/progress/history*.jsonl"  # every history volume (spec 062)
-# Rule 1 requires `dirty: false` of an acceptance whose judge holds this file: 029's own and every
-# later one. Older lines are not re-judged (they all say true: Decision 2).
+VOLUMES_GLOB = ":(glob)context/progress/history*.jsonl"  # every history volume
+# Rule 1 requires `dirty: false` of an acceptance whose judge holds this file: the guarded lane's
+# own and every later one. Older lines are not re-judged (they all say true: Decision 2).
 FIRST_CLEAN_JUDGE = "tests/unit/test_landing_lane.py"
 
 
@@ -2463,10 +2464,10 @@ def _committed_json(repo: Path, rev: str, path: str) -> object:
 
 
 def acceptance_errors(repo: Path) -> list[str]:
-    """Rule 1 (spec 029, Decisions 1 and 2; spec 062, Decision 11), read from committed history
+    """Rule 1, read from committed history
     only: the newest commit that changed a history volume sits on (first parent) the commit the
     newest line of its newest volume names, changes nothing but accepted.json and that volume,
-    and, from 029's judge on, says `dirty: false`."""
+    and, from the guarded lane's judge on, says `dirty: false`."""
     found = paths.git("rev-list", "-1", "HEAD", "--", VOLUMES_GLOB, repo=repo)
     if found is None:
         return [f"git rev-list -1 HEAD -- {VOLUMES_GLOB} failed"]
@@ -2534,14 +2535,14 @@ def acceptance_errors(repo: Path) -> list[str]:
 
 
 def merge_commit_errors(repo: Path) -> list[str]:
-    """Rule 3 (spec 029, Decision 3): no merge commit is reachable from HEAD."""
+    """Rule 3: no merge commit is reachable from HEAD."""
     out = paths.git("rev-list", "--merges", "HEAD", repo=repo)
     if out is None:
         return ["git rev-list --merges HEAD failed"]
     return [f"{h[:12]} is a merge commit; main moves only by fast-forward" for h in out.split()]
 
 
-# Spec 079: every Python a build step runs is the pinned host Python, or one built from pins. Step
+# Every Python a build step runs is the pinned host Python, or one built from pins. Step
 # 10's shim (build/tools/host-python/) comes first on every step's PATH; scripts/build.sh puts a
 # refusing stand-in for every other Python name behind it; this part reads the recipe and what the
 # meson builds and configure recorded.
@@ -2609,8 +2610,8 @@ def allowed_interpreter(path: str, root: Path, shims: tuple[str, ...]) -> bool:
 
 
 def env_program(words: list[str]) -> tuple[int | None, str | None]:
-    """(index of the program word, problem) for a command, read past any `env` by its grammar (the
-    confirmation's C1). The index is None when there is no program word."""
+    """(index of the program word, problem) for a command, read past any `env` by its grammar.
+    The index is None when there is no program word."""
     i = 0
     while i < len(words) and posixpath.basename(words[i]) == "env":
         i += 1
@@ -2773,8 +2774,8 @@ def step_path_folders(
     steps: dict[str, str], root: Path, line: dict[str, str]
 ) -> tuple[list[tuple[str, str]], list[str]]:
     """((step, folder), unresolved) for every folder a step script puts on PATH ahead of the rest:
-    variables are read from common.sh's and the step's own simple assignments and from line.conf
-    (the confirmation's C3); a folder that cannot be resolved is returned as unresolved."""
+    variables are read from common.sh's and the step's own simple assignments and from line.conf;
+    a folder that cannot be resolved is returned as unresolved."""
     base = {"HERE": str(root), **line}
     common = steps.get("common.sh", "")
     folders: list[tuple[str, str]] = []
@@ -2882,7 +2883,7 @@ def host_python_record_errors(
     return errors, read
 
 
-# numpy's own floating-point signals, kept in software (spec 099): a recipe header force-included
+# numpy's own floating-point signals, kept in software: a recipe header force-included
 # into every numpy C and C++ compile gives FE_INVALID and its siblings bits and sends numpy's three
 # fe* calls to one weak flag word, since wasm has no floating-point status flags.
 NPY_FENV_HEADER = "recipes/npy_fenv_flags.h"
@@ -2917,7 +2918,7 @@ NPY_FENV_HEADER_NEEDS = (
 
 
 def npy_fenv_recipe_errors(cross: str, header: str | None) -> list[str]:
-    """The recipe as written (spec 099, check 4's first part): the numpy cross file's one `c_args`
+    """The recipe as written: the numpy cross file's one `c_args`
     and one `cpp_args` line each force-include the header once, and the header holds its guard,
     its five bits, its weak word and its three renames."""
     errors = []
@@ -2951,8 +2952,8 @@ def _record_argv(entry: dict) -> list[str]:
 
 def _is_cross_compile(argv: list[str]) -> bool:
     """A compile by the cross file's compilers: the first argument's path ends in scripts/wasi-cc or
-    scripts/wasi-cxx (a whole path ending, never a name found anywhere in the command; the pre-build
-    confirmation's point), and the command compiles (`-c`)."""
+    scripts/wasi-cxx (a whole path ending, never a name found anywhere in the
+    command), and the command compiles (`-c`)."""
     if not argv or "-c" not in argv:
         return False
     first = argv[0].replace("\\", "/")
@@ -2960,7 +2961,7 @@ def _is_cross_compile(argv: list[str]) -> bool:
 
 
 def npy_fenv_record_errors(records: list[dict]) -> tuple[list[str], dict[str, int]]:
-    """Every numpy compile carries the header exactly once (spec 099, check 4's second part). An
+    """Every numpy compile carries the header exactly once. An
     entry is read by its compiler, not its file's extension, so a `.S` or a generated source cannot
     escape; `cython` runs and links are not compiles. Returns (errors, counts)."""
     counts = {"compiles": 0, "c": 0, "c++": 0, "not compiles": 0}
@@ -2996,7 +2997,7 @@ def npy_fenv_records_file_errors(root: Path) -> tuple[list[str], dict[str, int]]
 
 
 # ---------------------------------------------------------------------------------------------
-# Spec 103: one module, the engine seam, touches wasmtime-py's private API. The rule reads raw
+# One module, the engine seam, touches wasmtime-py's private API. The rule reads raw
 # text, comments and docstrings included. Its last three alternations (the raw function handle,
 # the from-pointer constructors, the pointer method) are assembled from two literals each, so
 # that this file is not a hit of its own rule (U17 holds that it is not).

@@ -1,11 +1,11 @@
-"""CPython's own tests, run inside the guest by regrtest (spec 065).
+"""CPython's own tests, run inside the guest by regrtest.
 
 The judge stages `Lib/test` from the pinned CPython tarball's members into its own read-only grant,
 `/cpython`, and runs regrtest's own `main()` in the snapshot binary, one guest session per group.
 The guest writes an outcome stream (`tests/upstream/regrtest_drive.py`); this module reads it,
 sorts each failure into the class that admits it, each altered environment into the entry that
 admits it, and names everything else as a finding. Classes, trap entries, the deselection, the
-environment and host entries are each a check and an ordinary gap (spec 002); a group admits
+environment and host entries are each a check and an ordinary gap; a group admits
 nothing by itself. The configuration is `tests/upstream/python.toml`, loaded by `upstream.load`.
 """
 
@@ -38,7 +38,7 @@ STACK_TRAP = "call stack exhausted"
 
 
 def system() -> str:
-    """This host's system key, as 063's records name platforms."""
+    """This host's system key, as the release's shard records name platforms."""
     return (
         "win32" if sys.platform == "win32" else ("darwin" if sys.platform == "darwin" else "linux")
     )
@@ -68,7 +68,7 @@ class Environment:
 
     def admits(self, line: str) -> bool:
         """A recorded warning line is one of this entry's kinds: `<change> was modified by …`,
-        the resource named exactly (the second confirmation's D1)."""
+        the resource named exactly."""
         return any(line.startswith(f"{c} was modified by ") for c in self.changes)
 
 
@@ -210,7 +210,7 @@ def tarball_sources(tarball: Path) -> dict[str, str]:
 def stage(tarball: Path, tree: Path | None, dest: Path) -> list[str]:
     """Write every `Lib/test` member of `tarball`, read from the tarball itself, to
     `dest/lib/test/…`. Returns the tree's files under `Lib/test` that are not members (a warning:
-    what a build left there, never staged), but for litter and bytecode (spec 090)."""
+    what a build left there, never staged), but for litter and bytecode."""
     names: set[str] = set()
     with tarfile.open(tarball) as t:
         for m in t:
@@ -222,7 +222,7 @@ def stage(tarball: Path, tree: Path | None, dest: Path) -> list[str]:
                 raise ValueError(f"{tarball.name}: member {m.name!r} refused (outside its folder)")
             src = t.extractfile(m)
             assert src is not None
-            litter.refuse(rel, tarball.name)  # the seal's cleanup must never meet it (spec 089)
+            litter.refuse(rel, tarball.name)  # the seal's cleanup must never meet it
             target = dest / "lib" / rel[len("Lib/") :]
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(src.read())
@@ -232,7 +232,7 @@ def stage(tarball: Path, tree: Path | None, dest: Path) -> list[str]:
         for p in sorted((tree / LIB_TEST).rglob("*")):
             if p.is_file():
                 rel = p.relative_to(tree).as_posix()
-                if rel not in names and not litter.unrecorded(rel):  # spec 090, Decision 5
+                if rel not in names and not litter.unrecorded(rel):
                     left_out.append(rel)
     return left_out
 
@@ -725,7 +725,7 @@ class Session:
 
     def close(self) -> None:
         if self.root is not None:
-            litter.remove(self.root)  # sealed: unsealed first (spec 089)
+            litter.remove(self.root)  # sealed: unsealed first
 
     def prepare(self, package: str) -> list[str]:
         if package not in self.prepared:
@@ -758,7 +758,7 @@ class Session:
             (judge / f"{g}.json").write_text(json.dumps(group_spec(cfg, g), indent=1))
         for t in cfg.traps:
             (judge / f"{t.id}.json").write_text(json.dumps(trap_spec(cfg, t), indent=1))
-        litter.seal(self.root)  # no host process can add to the stage now (spec 089)
+        litter.seal(self.root)  # no host process can add to the stage now
         return left_out
 
     def _run(self, name: str, fuel: int) -> tuple[Stream, GuestRun]:
@@ -782,7 +782,7 @@ class Session:
         text = stream_file.read_text(errors="replace") if stream_file.is_file() else ""
         tail = r.stderr.decode(errors="replace").strip().splitlines()[-1:] or [""]
         run = GuestRun(r.exit_code, r.trapped, r.trap_cause, r.fuel, tail[0][:200])
-        litter.remove(r.root.parent)  # its stdlib folder is sealed (spec 089)
+        litter.remove(r.root.parent)  # its stdlib folder is sealed
         return parse_stream(text), run
 
     def group(self, package: str, group: str) -> GroupRun:

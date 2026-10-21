@@ -53,7 +53,7 @@ def test_random_matches_native(guest) -> None:
 
 @pytest.mark.slow
 def test_compress_job_matches_native(guest) -> None:
-    """bz2, lzma and tarfile write the same bytes as native (spec 007)."""
+    """bz2, lzma and tarfile write the same bytes as native."""
     why = jobs.compare(
         jobs.expected_path("compress").read_bytes(), jobs.run_in_guest(guest, "compress")
     )
@@ -63,7 +63,7 @@ def test_compress_job_matches_native(guest) -> None:
 @pytest.mark.slow
 def test_sqlite_job_matches_native(guest) -> None:
     """sqlite3 on a file, with a forced spill to temporary files, and pandas' to_sql and read_sql
-    give native's results (spec 007)."""
+    give native's results."""
     why = jobs.compare(
         jobs.expected_path("sqlite").read_bytes(), jobs.run_in_guest(guest, "sqlite")
     )
@@ -106,8 +106,8 @@ probe("after")
 def test_sqlite_holds_a_lock_while_it_writes(guest) -> None:
     """SQLite's own default locking on WASI is a `<db>.lock` directory beside the database, held
     while a connection writes or has a statement open; another connection then gets "database is
-    locked" (at once with timeout=0; after its busy timeout otherwise). The README states it
-    (spec 007, Decision 8), and this check holds that default: a future pin that chose another
+    locked" (at once with timeout=0; after its busy timeout otherwise). The README states it,
+    and this check holds that default: a future pin that chose another
     locking would fail here."""
     r = guest("snapshot", ["-c", SQLITE_LOCK])
     assert r.exit_code == 0, r.describe()
@@ -164,7 +164,7 @@ def test_default_integer_width_is_documented(guest) -> None:
     )
 
 
-# What the snapshot holds at start, read by the program's first statement (spec 069, check a).
+# What the snapshot holds at start, read by the program's first statement.
 START_PROBE = (
     "import sys\n"
     "mods = list(sys.modules)\n"
@@ -172,15 +172,15 @@ START_PROBE = (
     "print(json.dumps({'modules': mods, 'stdlib': sorted(sys.stdlib_module_names)}))\n"
 )
 GUARD_NAMES = ("numpy", "pandas", "host")  # the zip's derivation is not vacuous
-# The snapshot's start at least 3 times cheaper than the plain start (spec 069, check b). Spec 073
-# restated it from 8: by the owner's answer to question 103, run on the snapshot undoes the freeze
-# before finalizing, as CPython finalizes, at about 28 M fuel a run (about 3.8 times, measured).
+# The snapshot's start at least 3 times cheaper than the plain start. It was 8 until run on the
+# snapshot began to undo the freeze before finalizing, as CPython finalizes, at about 28 M fuel a
+# run (about 3.8 times, measured).
 START_FACTOR = 3
 
 
 def zip_non_stdlib_names(zip_path: Path, stdlib: set[str]) -> set[str]:
     """The top-level names of the zip's members (a folder's first part, a root module's stem) that
-    are neither the stdlib's nor the reactor's (spec 069, Decision 5a): the zip's packages."""
+    are neither the stdlib's nor the reactor's: the zip's packages."""
     tops = set()
     with zipfile.ZipFile(zip_path) as z:
         for name in z.namelist():
@@ -194,7 +194,7 @@ def zip_non_stdlib_names(zip_path: Path, stdlib: set[str]) -> set[str]:
 
 
 def test_the_snapshot_pre_imports_no_package(guest, artifacts) -> None:
-    """Decision 34 (spec 069): the snapshot starts with the stdlib's bootstrap and no package,
+    """Decision 34: the snapshot starts with the stdlib's bootstrap and no package,
     for every package now and later. The rule needs no list of packages: a module is the stdlib's
     or the reactor's, or it is refused; the zip's own non-stdlib names say which of the refused
     ones is a package from the zip."""
@@ -217,11 +217,10 @@ def test_the_snapshot_pre_imports_no_package(guest, artifacts) -> None:
 
 
 def test_the_snapshot_starts_cheaper_than_plain(guest) -> None:
-    """The snapshot's reason to exist (spec 069, check b): its start, `-c pass`, is at least
+    """The snapshot's reason to exist: its start, `-c pass`, is at least
     START_FACTOR times cheaper than the plain reactor's. A change to the plain start, the freeze
-    or the teardown restates the factor, with its numbers, as a judge change: spec 073 restated it
-    from 8 to 3, when run on the snapshot began to undo the freeze before finalizing (question
-    103's answer)."""
+    or the teardown restates the factor, with its numbers, as a judge change: it was restated
+    from 8 to 3 when run on the snapshot began to undo the freeze before finalizing."""
     plain = guest("plain", ["-c", "pass"], record=False)
     snap = guest("snapshot", ["-c", "pass"])
     assert plain.exit_code == 0 and snap.exit_code == 0, f"{plain.describe()} / {snap.describe()}"
@@ -250,7 +249,7 @@ print(np.allclose(np.fft.fft(np.ones(4)), [4, 0, 0, 0]))
 
 def test_a_cpp_exception_reaches_python(guest_workdir) -> None:
     """A C++ `throw` inside numpy (pocketfft's allocation, under a memory cap) becomes a Python
-    MemoryError, and the program goes on (spec 005, Decision 9). numpy's own array-allocation
+    MemoryError, and the program goes on. numpy's own array-allocation
     error carries a shape and a dtype; the bare MemoryError() is C++'s std::bad_alloc."""
     needs.need("runner", "artifact dir")
     import wasi_python
@@ -266,7 +265,7 @@ def test_a_cpp_exception_reaches_python(guest_workdir) -> None:
     assert (done.exit_code, done.trapped) == (0, None), done
     assert done.stdout == b"caught MemoryError()\nTrue\n", done
     # No fuel metric: the runner's clock is real, which spreads this count by about 96,000,
-    # wider than the ratchet's 0.01% (spec 008's review, N2). The judge's driver, whose clock is
+    # wider than the ratchet's 0.01%. The judge's driver, whose clock is
     # fixed, records the stack's fuel elsewhere.
 
 
@@ -276,7 +275,7 @@ def test_goldens_reproduce_under_the_pinned_oracle() -> None:
     workdir = paths.HARNESS_TMP / "oracle-check"
     for job in jobs.JOBS:
         if not jobs.reproducible_here(job):
-            continue  # native pixels may differ off the recording platform (spec 023, Decision 8)
+            continue  # native pixels may differ off the recording platform
         first = jobs.run_native(job, 0, workdir)
         second = jobs.run_native(job, 1, workdir)
         assert jobs.compare(first, second) is None, f"{job}: two hash seeds disagree"
@@ -343,12 +342,12 @@ except Exception as e:
 
 @pytest.mark.parametrize("which", ["snapshot", "plain"])
 def test_npy_files_round_trip(guest, which) -> None:
-    """Guards a change (spec 021, the first carried patch): `np.save` and `np.load` of real files
+    """Guards a change (the first carried patch): `np.save` and `np.load` of real files
     raised OSError 58, because numpy's `tofile` and `fromfile` need `os.dup`, which WASI lacks.
     The object array and `.npz` always worked and guard. A masked array saved to a path raises
     native's NotImplementedError, where patch 0001 first wrote its data and dropped its mask; a
     truncated file raises ValueError, native's type, with numpy's in-memory message, a documented
-    difference (spec 051, Decision 10)."""
+    difference."""
     r = guest(which, ["-c", NPY])
     assert r.exit_code == 0, r.describe()
     names = ["plain", "record", "0-d", "fortran", "large", "empty", "object", "two", "npz"]
@@ -358,7 +357,7 @@ def test_npy_files_round_trip(guest, which) -> None:
     assert r.text == want, r.text
 
 
-# Spec 033: the zip keeps each distribution's METADATA, so a package that asks for its own
+# The zip keeps each distribution's METADATA, so a package that asks for its own
 # version gets it. A later specification that adds a distribution adds it here.
 DISTRIBUTIONS = (
     "attrs",
@@ -433,7 +432,7 @@ print(json.dumps({
 def test_packages_carry_their_metadata(guest, which) -> None:
     """`importlib.metadata` finds each distribution in the zip at its MANIFEST version. `files()`
     is None: the zip keeps METADATA and entry_points.txt, never RECORD, which would list `.py`
-    files the zip does not hold (spec 033, Decision 1)."""
+    files the zip does not hold."""
     r = guest(which, ["-c", METADATA])
     assert r.exit_code == 0, r.describe()
     got = json.loads(r.text)
@@ -446,9 +445,9 @@ def test_packages_carry_their_metadata(guest, which) -> None:
     assert got["files"] is None, f"files('numpy') is {got['files']!r}: RECORD is not kept"
 
 
-# Spec 033, Decision 5: the stand-in names and sizes wasm32's C types, gives numpy the dtype it
+# The stand-in names and sizes wasm32's C types, gives numpy the dtype it
 # gives a real one, and refuses every foreign call. The names are what sympy and threadpoolctl
-# import, written here by name; the sizes are the guest's own sysconfig. Spec 038, Decision 3: the
+# import, written here by name; the sizes are the guest's own sysconfig. The
 # numeric simple types and c_void_p hold values, so numpy's `ndarray.ctypes` works; nothing has
 # an address and nothing is called.
 CTYPES = """
@@ -573,16 +572,16 @@ print(json.dumps(bad))
 def test_ctypes_stand_in_names_what_packages_import(guest, which) -> None:
     """The names sympy, threadpoolctl and pandas' clipboard import resolve; each C type's size is
     the guest's sysconfig; numpy's dtypes are numpy's own for a real type, never dtype('O'); and
-    every call that would reach C raises OSError (spec 033, Decision 5). A numeric value and a
+    every call that would reach C raises OSError. A numeric value and a
     `c_void_p` are held, so `ndarray.ctypes.data` is the array's address; what needs an address
-    or a typed pointer still raises (spec 038, Decision 3)."""
+    or a typed pointer still raises."""
     r = guest(which, ["-c", CTYPES])
     assert r.exit_code == 0, r.describe()
     bad = json.loads(r.text)
     assert bad == [], "; ".join(bad)
 
 
-# Spec 051, Decision 4: the minimum coverage, set from the frozen set's 3,072 / 1,125 / 1,990
+# The minimum coverage, set from the frozen set's 3,072 / 1,125 / 1,990
 # with room, so a toolchain change cannot make the scan pass by finding nothing.
 CALLBACK_MINIMUMS = {"arrays": 2_500, "getsets": 1_000, "singles": 1_500}
 
@@ -590,7 +589,7 @@ CALLBACK_MINIMUMS = {"arrays": 2_500, "getsets": 1_000, "singles": 1_500}
 def test_callbacks_have_the_types_cpython_calls(artifacts, note) -> None:
     """Every C callback in a table something points at (method arrays, code-referenced single
     method definitions, getset arrays) has the wasm type CPython calls it with; a mismatch traps
-    the guest at its first call (spec 051, Decision 4). Read from the plain binary: the snapshot is
+    the guest at its first call. Read from the plain binary: the snapshot is
     the same code and the same table. Its coverage is the pass's reason in latest.json."""
     needs.need("plain binary")
     from harness import callbacks, wasm
@@ -610,10 +609,10 @@ def test_callbacks_have_the_types_cpython_calls(artifacts, note) -> None:
     note(f"scanned {report.summary()}")
 
 
-# Spec 096, check 3: the slot scan's minimums, set from main's set (481 types, 454 specs, 149
+# The slot scan's minimums, set from main's set (481 types, 454 specs, 149
 # module definitions, 5,360 functions) with room; its bounds (0 unreferenced type candidates, at
 # most 1 type named at run time); and the records it must read, one or more per compiled package,
-# so one package's tables cannot vanish under the minimums (the pre-build review's F2).
+# so one package's tables cannot vanish under the minimums.
 SLOT_MINIMUMS = {"types": 400, "specs": 380, "modules": 120, "functions": 4_500}
 SLOT_MAXIMUMS = {"unreferenced type candidates": 0, "types named at run time": 1}
 KIWI_SPECS = {f"kiwisolver.{t}" for t in ("Constraint", "Expression", "Term", "Variable")}
@@ -627,8 +626,8 @@ SLOT_NAMED = {
 
 def test_type_slots_have_the_types_cpython_calls(artifacts, note) -> None:
     """Every function CPython calls through a static type object's slots and method suites, a
-    `PyType_Slot` array or a static module definition has the wasm type CPython calls it with
-    (spec 096): a mismatch traps the guest at its first call, as kiwisolver's `void` tp_clear did
+    `PyType_Slot` array or a static module definition has the wasm type CPython calls it with:
+    a mismatch traps the guest at its first call, as kiwisolver's `void` tp_clear did
     at every garbage collection that met one. Every dropped record is counted by its reason, the
     coverage meets its minimums and bounds, and the named records were read. Read from the plain
     binary; its coverage is the pass's reason in latest.json."""
@@ -657,14 +656,14 @@ def _job_on(guest, which: str, job: str):
 @pytest.mark.parametrize("which", ["plain", "snapshot"])
 def test_callbacks_job_matches_native(guest, which) -> None:
     """`copy.copy` of numpy scalars, `a.dtype = …`, and the scan's private findings called in the
-    guest give native's output; each trapped the guest before patch 0002 (spec 051, Decision 5)."""
+    guest give native's output; each trapped the guest before patch 0002."""
     why = jobs.compare(
         jobs.expected_path("callbacks").read_bytes(), _job_on(guest, which, "callbacks")
     )
     assert why is None, why
 
 
-# Spec 051, Decision 9: the warning's fourth line is the caller's; pandas' find_stack_level skips
+# The warning's fourth line is the caller's; pandas' find_stack_level skips
 # the frames whose code names a file under pandas' own folder.
 WARN = """import io, json, os, warnings; warnings.simplefilter("always")
 import pandas as pd
@@ -683,7 +682,7 @@ print(json.dumps({
 def test_a_pandas_warning_names_the_callers_line(guest, which) -> None:
     """A pandas warning points at the user's line, as natively: the zip's code objects carry the
     path zipimport gives the module (`/usr/local/lib/python3XY.zip/<member>.py`), so pandas'
-    `find_stack_level` recognises its own frames (spec 051, Decisions 6 to 9)."""
+    `find_stack_level` recognises its own frames."""
     r = guest(which, ["/job/warn.py"], files={"/job/warn.py": WARN.encode()})
     assert r.exit_code == 0, r.describe()
     got = json.loads(r.text)
@@ -716,14 +715,14 @@ print(json.dumps({"archive": archive, "pyc": len(names), "codes": codes, "bad": 
 def test_zip_code_objects_carry_the_zip_path(guest) -> None:
     """Every code object in every `.pyc` of the zip, nested ones included, names its file as
     zipimport would name a source in the same zip: the archive's path, a slash, the member less
-    its `c` (spec 051, Decision 7; criterion 2)."""
+    its `c`."""
     r = guest("plain", ["-c", ZIP_NAMES], record=False)
     assert r.exit_code == 0, r.describe()
     got = json.loads(r.text)
     assert got["pyc"] > 1000 and not got["bad"], got
 
 
-# numpy's own floating-point signals, kept in software (spec 099). wasm has no floating-point
+# numpy's own floating-point signals, kept in software. wasm has no floating-point
 # status flags; recipes/npy_fenv_flags.h gives numpy's flags bits and one flag word, so what numpy
 # raises itself reaches np.errstate. Each program prints one line per case; the expected text is
 # native numpy's (checks 1 and 2) or the README's documented silence (check 3).
@@ -879,20 +878,20 @@ def _signals(guest, which: str, code: str) -> str:
 @pytest.mark.parametrize("which", ["plain", "snapshot"])
 def test_a_singular_matrix_raises_linalgerror(guest, which) -> None:
     """numpy.linalg raises LinAlgError for an exactly singular matrix and for one that is not
-    positive definite, as natively (spec 099, check 1): umath_linalg reports LAPACK's failure by
+    positive definite, as natively: umath_linalg reports LAPACK's failure by
     the invalid flag, which the recipe header keeps in software. Both matrices meet an exact zero or
     negative pivot in any LAPACK, so the check is clear of the lapack_lite and OpenBLAS divergence
-    (Decision 6) and holds on spec 100's OpenBLAS too. The last four lines are controls."""
+    (Decision 6) and holds on the OpenBLAS build too. The last four lines are controls."""
     got = _signals(guest, which, SINGULAR)
     assert got == SINGULAR_NATIVE, got
 
 
 @pytest.mark.parametrize("which", ["plain", "snapshot"])
 def test_numpys_own_floating_point_signals_reach_errstate(guest, which) -> None:
-    """The signals numpy raises itself, in software, warn or raise under np.errstate as natively
-    (spec 099, check 2): integer division by zero and overflow in division, timedelta division by
+    """The signals numpy raises itself, in software, warn or raise under np.errstate as natively:
+    integer division by zero and overflow in division, timedelta division by
     zero, and float16 overflow (the C++ half of the recipe, through cpp_args). The scalar lines
-    are controls: scalar math returns its codes and warned before spec 099 too."""
+    are controls: scalar math returns its codes and warned before the recipe header too."""
     got = _signals(guest, which, OWN_SIGNALS)
     assert got == OWN_SIGNALS_NATIVE, got
 
@@ -900,7 +899,7 @@ def test_numpys_own_floating_point_signals_reach_errstate(guest, which) -> None:
 @pytest.mark.parametrize("which", ["plain", "snapshot"])
 def test_hardware_floating_point_signals_stay_silent_as_documented(guest, which) -> None:
     """What only the hardware would signal stays silent, as the README's bullet "No floating-point
-    status flags in wasm" says (spec 099, check 3, Decision 6): float division by zero, log(0),
+    status flags in wasm" says: float division by zero, log(0),
     sqrt(-1), exp(1000), a nan cast to an integer and a scalar division give native's values with
     no warning, and errstate(all="raise") does not raise. Natively every line warns. It shows the
     recipe changed only numpy's own signals; a toolchain with real wasm flags turns it red together

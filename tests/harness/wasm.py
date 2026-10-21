@@ -4,7 +4,7 @@ Enough of the binary format (WebAssembly core spec, chapter 5) to judge the wall
 the guest imports from, with which function types, what it exports, and which sections it has
 (a tag section, id 13, is where the exception-handling proposal defines its exception tags).
 
-For the callback scan (spec 051, `harness/callbacks.py`) it also reads the function section
+For the callback scan (`harness/callbacks.py`) it also reads the function section
 (each defined function's type), the element section (the table index a C function pointer
 holds), the data section (the static memory image), the code section's bytes, and the function
 names of the name section when present. An element segment in any form but an active `funcref`
@@ -54,7 +54,7 @@ class Module:
     types: list[FuncType] = field(default_factory=list)
     imports: list[Import] = field(default_factory=list)
     exports: dict[str, str] = field(default_factory=dict)  # name -> kind
-    export_index: dict[str, int] = field(default_factory=dict)  # name -> its index (spec 055)
+    export_index: dict[str, int] = field(default_factory=dict)  # name -> its index
     sections: set[int] = field(default_factory=set)  # the ids of the sections present
     funcs: list[int] = field(default_factory=list)  # each defined function's type index
     elements: dict[int, int] = field(default_factory=dict)  # table index -> function index
@@ -343,7 +343,7 @@ WASI = "wasi_snapshot_preview1"
 
 
 def wall_errors(mod: Module) -> list[str]:
-    """Constitution §4.4: imports only from WASI preview1 and `host::call` with the door's type."""
+    """Imports only from WASI preview1 and `host::call` with the door's type."""
     errors = []
     for imp in mod.imports:
         if imp.module == WASI:

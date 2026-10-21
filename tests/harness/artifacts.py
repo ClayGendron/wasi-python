@@ -1,5 +1,5 @@
 """The v1.1 rules as functions over an artifact directory, so a self-test can run each one on a
-good and a bad synthetic set (spec 002, criterion 7). Each returns a list of findings."""
+good and a bad synthetic set. Each returns a list of findings."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ PLAIN_EXPORTS = {
     "shutdown",
 }
 SNAPSHOT_EXPORTS = {"memory", "run", "host_alloc", "turn", "shutdown"}
-# The session exports' function types (spec 055, Decision 19).
+# The session exports' function types.
 EXPORT_TYPES = {"turn": "(i32, i32) -> (i32)", "shutdown": "() -> (i32)"}
 SNAPSHOT_FORBIDDEN = {"_initialize", "wizer.initialize"}
 
@@ -56,7 +56,7 @@ def sums_errors(d: Path) -> list[str]:
 
 def _set_folder_files(d: Path) -> list[str]:
     """The files in an artifact folder, but for litter (a path with a litter part): a desktop's
-    files are no finding, any other unlisted file is (spec 090, Decision 4)."""
+    files are no finding, any other unlisted file is."""
     rels = (p.relative_to(d).as_posix() for p in d.rglob("*") if p.is_file())
     return sorted(rel for rel in rels if not paths.has_litter(rel))
 
@@ -95,7 +95,7 @@ def export_errors(binary: Path, required: set[str], forbidden: set[str] = frozen
 
 
 def export_type_errors(binary: Path, types: dict[str, str] = EXPORT_TYPES) -> list[str]:
-    """Each named function export has the given type, as `FuncType` prints it (spec 055)."""
+    """Each named function export has the given type, as `FuncType` prints it."""
     try:
         mod = wasm.parse_file(binary)
     except wasm.WasmError as e:
@@ -113,7 +113,7 @@ def export_type_errors(binary: Path, types: dict[str, str] = EXPORT_TYPES) -> li
 
 def start_section_errors(binary: Path) -> list[str]:
     """The binary has no start section, so instantiation runs no guest code: the runner and the
-    judge meter fuel from after instantiation (spec 008, Decision 2)."""
+    judge meter fuel from after instantiation."""
     try:
         mod = wasm.parse_file(binary)
     except wasm.WasmError as e:
@@ -124,7 +124,7 @@ def start_section_errors(binary: Path) -> list[str]:
 
 
 def exception_errors(binary: Path) -> list[str]:
-    """The binary uses the exception-handling proposal's standard form (spec 005, Decision 9): it
+    """The binary uses the exception-handling proposal's standard form: it
     has a tag section, validates on an engine with exceptions on, and fails with them off.
     wasmtime has no legacy form, so legacy `try` code fails the first validation."""
     import wasmtime
@@ -182,7 +182,7 @@ WHEEL_SET = "wasi_python/artifacts/"
 def wheel_errors(wheel: Path, d: Path) -> list[str]:
     """The wheel carries every file of the set's folder (litter aside), byte for byte, and under
     `wasi_python/artifacts/` nothing the set's SHA256SUMS does not list, litter or not: the wheel
-    is built from the folder (spec 090, Decision 4)."""
+    is built from the folder."""
     errors = []
     try:
         listed = set(paths.read_pin_list(d / "SHA256SUMS")) | {"SHA256SUMS"}
@@ -190,7 +190,7 @@ def wheel_errors(wheel: Path, d: Path) -> list[str]:
         listed = None  # sums_errors names it
     with zipfile.ZipFile(wheel) as w:
         names = set(w.namelist())
-        if TYPED not in names:  # PEP 561: a type checker reads the package's hints (spec 049)
+        if TYPED not in names:  # PEP 561: a type checker reads the package's hints
             errors.append(f"{wheel.name} lacks {TYPED}")
         for rel in _set_folder_files(d):
             member = WHEEL_SET + rel
@@ -208,12 +208,12 @@ def wheel_errors(wheel: Path, d: Path) -> list[str]:
     return errors
 
 
-# The two zip members that once recorded the build host (spec 012, Decision 5), and the words that
+# The two zip members that once recorded the build host, and the words that
 # would show a host in them. Case-sensitive: the sysconfig member holds keys such as HAVE_LINUX_*.
 HOST_FACT_MEMBERS = (
     "_sysconfigdata__wasi_wasm32-wasi.pyc",
     "numpy/__config__.pyc",
-    "contourpy/util/_build_config.pyc",  # spec 043, Decision 4
+    "contourpy/util/_build_config.pyc",  # made host-neutral at build time
 )
 HOST_WORDS = (
     "darwin",
@@ -249,7 +249,7 @@ def host_fact_errors(z: Path, repo: str) -> list[str]:
     return errors
 
 
-# The builder path of a per-host wasi-sdk tarball's own wasm runtime (spec 012, Decision 2): the
+# The builder path of a per-host wasi-sdk tarball's own wasm runtime: the
 # macOS tarball's libc++abi carries it in two assert messages. The host-neutral runtime the build
 # links carries its own builder's path, /src/src/llvm-project, the same bytes on every host.
 SDK_HOST_BUILDER_PATHS = ("/Users/runner/work/wasi-sdk",)
@@ -261,7 +261,7 @@ def sdk_builder_path_errors(binary: Path) -> list[str]:
 
 
 def build_folders(repo: Path, home: Path) -> list[str]:
-    """The folders a binary must not name (spec 046, Decision 10): the checkout, and the build
+    """The folders a binary must not name: the checkout, and the build
     user's home folder when it is deep enough to be distinctive (`/Users/<name>`, `/home/<name>`;
     a container's `/root` is two bytes from common strings, and the checkout check covers it)."""
     folders = [str(repo)]
@@ -282,7 +282,7 @@ def build_path_errors(binary: Path, folders: list[str]) -> list[str]:
     ]
 
 
-# tqdm is MPL-2.0 AND MIT and ships as bytecode, MPL-2.0's Executable Form (spec 039, Decision 8):
+# tqdm is MPL-2.0 AND MIT and ships as bytecode, MPL-2.0's Executable Form:
 # the set carries its source, the pinned wheel unchanged, and its notice holds the full MPL text.
 # The rule reads the artifact set alone (MANIFEST's pin lines, the carried wheel, the zip), so it
 # runs wherever the set is, the release's judge shards included, which have no downloads/.
@@ -308,8 +308,7 @@ def tier_a_notice_errors(d: Path) -> list[str]:
     """LICENSES/tqdm.txt holds the carried wheel's LICENCE, a part that is the pinned MPL-2.0 text
     byte for byte (its SHA-256 is MANIFEST's pin line) and a `tqdm source` part naming the carried
     source and its SHA-256; the carried source is the pinned wheel MANIFEST names;
-    LICENSES/sympy.txt holds the MIT notice nested in sympy's package, as the zip carries it (spec
-    039, Decision 8)."""
+    LICENSES/sympy.txt holds the MIT notice nested in sympy's package, as the zip carries it."""
     m = paths.parse_manifest((d / "MANIFEST").read_text())
     tqdm = m.packages.get("tqdm")
     if tqdm is None or "sympy" not in m.packages:
@@ -350,7 +349,7 @@ def tier_a_notice_errors(d: Path) -> list[str]:
     return errors
 
 
-# scikit-learn's notice (spec 044, Decision 11): its licence and each bundled component's notice,
+# scikit-learn's notice: its licence and each bundled component's notice,
 # matched against the pinned sdist's bytes, read from the tarball itself, and the pinned licence
 # texts of the projects whose adapted code carries none. The judge keeps its own list, so a part
 # step 90 drops or a range it moves is named here. (path in the sdist, first line, last line), or
@@ -431,7 +430,7 @@ def sklearn_notice_errors(d: Path, tarball: Path, downloads: Path) -> list[str]:
     return errors
 
 
-# seaborn and reportlab (spec 042). reportlab's fonts are left out of the zip (their licences are
+# seaborn and reportlab. reportlab's fonts are left out of the zip (their licences are
 # not approved, and reportlab cannot read them from a zip; Decision 4), and so is its barcode
 # folder until a later change ships it with Tyler C. Sarna's acknowledgement (Decision 4a). The
 # font formats of Decision 4: matplotlib's AFM files travel inside its one inner archive, so no
@@ -462,7 +461,7 @@ MIT_PIN = re.compile(r"wasi-libc-[0-9a-f]+-LICENSE-MIT")
 
 def reportlab_left_out_errors(names: list[str]) -> list[str]:
     """No zip member under reportlab's fonts or barcode folder, and no font file of Decision 4's
-    formats anywhere in the zip's names (spec 042, Decisions 4 and 4a)."""
+    formats anywhere in the zip's names."""
     errors = []
     for prefix in REPORTLAB_LEFT_OUT:
         held = sorted(n for n in names if n.startswith(prefix))
@@ -497,7 +496,7 @@ def _parts(notice: Path) -> dict[str, bytes] | None:
 def seaborn_notice_errors(d: Path, sdist: Path | None) -> list[str]:
     """LICENSES/seaborn.txt holds a part headed by each of SEABORN_NOTICES; given the pinned sdist
     (hash-checked by the caller), each part is that file of the sdist, byte for byte. Without it,
-    the headings only, as licence_errors checks presence only (spec 042, Decision 11)."""
+    the headings only, as licence_errors checks presence only."""
     parts = _parts(d / "LICENSES" / "seaborn.txt")
     if parts is None:
         return ["LICENSES/seaborn.txt is missing"]
@@ -523,7 +522,7 @@ def reportlab_notice_errors(d: Path, wheel: Path | None) -> list[str]:
     Sarna's with his acknowledgement sentence, and the MIT text the QR encoder's notice names,
     whose SHA-256 is MANIFEST's pin line for it. Given the pinned wheel (hash-checked by the
     caller), the LICENSE part is the wheel's and each comment part that file's leading comment
-    block, byte for byte; without it, the headings (spec 042, Decision 11)."""
+    block, byte for byte; without it, the headings."""
     m = paths.parse_manifest((d / "MANIFEST").read_text())
     version = m.packages.get("reportlab")
     if version is None:

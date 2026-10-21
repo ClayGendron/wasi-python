@@ -1,13 +1,13 @@
 #!/bin/sh
 # Step 35: the C libraries behind three stdlib modules CPython's WASI build lacks, as static
-# archives for wasm32-wasip1 under build/stdlib-libs/ (spec 007): bzip2 1.0.8 (_bz2), liblzma
-# from xz 5.8.4 (_lzma) and SQLite 3.54.1 (_sqlite3). Each is unpacked from its pinned tarball and
-# compiled outside its source tree, so the tree stays byte-identical to the tarball (spec 003,
-# Decision 4). Every option is written here, and every tool (clang, llvm-ar, xz's configure and
-# make) runs in an empty environment but for PATH and LC_ALL, through `clean`: autoconf reads cache
-# variables (`*_cv_*`) and clang reads CCC_OVERRIDE_OPTIONS, CPATH and more from the environment,
-# so none can change the archives (spec 007's build review, finding 4, and its confirmation, N1). The compiler is the toolchain's clang over the host-neutral sysroot step 10 put in
-# place, so every build host makes the same objects (spec 012). Step 60 links them in as builtins.
+# archives for wasm32-wasip1 under build/stdlib-libs/: bzip2 1.0.8 (_bz2), liblzma from xz 5.8.4
+# (_lzma) and SQLite 3.54.1 (_sqlite3). Each is unpacked from its pinned tarball and compiled
+# outside its source tree, so the tree stays byte-identical to the tarball.
+# Every option is written here, and every tool (clang, llvm-ar, xz's configure and make) runs in an
+# empty environment but for PATH and LC_ALL, through `clean`: autoconf reads cache variables
+# (`*_cv_*`) and clang reads CCC_OVERRIDE_OPTIONS, CPATH and more from the environment, so none can
+# change the archives. The compiler is the toolchain's clang over the host-neutral sysroot step 10
+# put in place, so every build host makes the same objects. Step 60 links them in as builtins.
 set -eu
 . "$(dirname "$0")/common.sh"
 clean() { env -i PATH="$PATH" LC_ALL=C "$@"; }  # PATH may hold spaces

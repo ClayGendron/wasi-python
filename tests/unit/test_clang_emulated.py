@@ -1,4 +1,4 @@
-"""The x86_64 host's compiler launcher, `scripts/clang-emulated` (spec 040, Decisions 5 and 7).
+"""The x86_64 host's compiler launcher, `scripts/clang-emulated`.
 
 The launcher runs against a stand-in emulator, a script that writes its arguments one per line and
 then the `QEMU_` names in its environment, in a temporary tree laid out as step 10 lays out

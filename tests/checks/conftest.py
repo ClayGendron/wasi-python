@@ -18,8 +18,7 @@ CACHE_ENV = "WASI_PYTHON_CACHE"
 
 @pytest.fixture(scope="session", autouse=True)
 def runner_cache_in_build():
-    """The runner's compiled-module cache lives under build/, never in the user's cache
-    (spec 001, Design)."""
+    """The runner's compiled-module cache lives under build/, never in the user's cache."""
     import os
 
     before = os.environ.get(CACHE_ENV)
@@ -61,7 +60,7 @@ def guest_workdir():
     paths.HARNESS_TMP.mkdir(parents=True, exist_ok=True)
     d = Path(tempfile.mkdtemp(prefix="guest-", dir=paths.HARNESS_TMP))
     yield d
-    litter.remove(d)  # its matplotlib data is sealed (spec 089)
+    litter.remove(d)  # its matplotlib data is sealed
 
 
 @pytest.fixture
@@ -71,8 +70,8 @@ def guest(guest_workdir: Path, metric, tmp_path_factory: pytest.TempPathFactory)
     It names its needs before it runs anything, so a check that uses it is `blocked`, never
     `fail`, when the artifact is absent. It records the run's fuel as the check's metric (the
     last run wins, so a check runs its measured program last). `stdlib` names another zip to
-    grant in the artifact zip's place (spec 035, Decision 11). A recorded run whose inputs name a
-    host path (under the checkout, the system's temp folder or pytest's) is refused (spec 081):
+    grant in the artifact zip's place. A recorded run whose inputs name a
+    host path (under the checkout, the system's temp folder or pytest's) is refused:
     its fuel would depend on where they are; a run given one passes `record=False`."""
 
     def run(which: str, argv: list[str], *, record: bool = True, stdlib: Path | None = None, **kw):
@@ -102,7 +101,7 @@ def guest(guest_workdir: Path, metric, tmp_path_factory: pytest.TempPathFactory)
 @pytest.fixture
 def guest_turns(guest_workdir: Path) -> Callable:
     """`guest_turns(which, host=…, preopens=…)` is one instance of the artifact kept across calls,
-    driven raw by the judge's own driver (spec 055, criteria 1 to 3 and 34). Closed at the end."""
+    driven raw by the judge's own driver. Closed at the end."""
     made = []
 
     def make(which: str, **kw):

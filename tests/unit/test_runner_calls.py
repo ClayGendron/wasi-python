@@ -1,4 +1,4 @@
-"""Concurrent calls share nothing (spec 011): the runner's host functions are defined once per
+"""Concurrent calls share nothing: the runner's host functions are defined once per
 engine and find their call through a stack checked against the caller's store; whatever they
 catch is recorded on that call, the guest is stopped through its epoch deadline, and the call
 reports or re-raises it on its own thread. Nothing here measures time."""
@@ -123,7 +123,7 @@ def test_a_caller_from_another_store_gets_no_host() -> None:
 
 def test_a_stopped_call_reports_no_fuel() -> None:
     """After the stop's interrupt the fuel counter is stale, so a stopped call reports None,
-    even when its recorded cause is an exit (spec 011)."""
+    even when its recorded cause is an exit."""
     from types import SimpleNamespace
 
     done = _call._Driven(7, None, True, None)
@@ -185,7 +185,7 @@ def test_ctrl_c_is_left_alone_under_an_embedders_handler() -> None:
 
 
 def test_a_handler_a_host_sets_during_a_call_is_kept(default_ctrl_c) -> None:
-    """The default handler comes back only if the runner's own is still installed (spec 011)."""
+    """The default handler comes back only if the runner's own is still installed."""
     import signal
 
     def hosts(signum, frame) -> None:
@@ -213,7 +213,7 @@ class RecordingConfig:
 
 
 def _record_async_stack(monkeypatch) -> None:
-    """The seam's binding for the async stack size, recording into the stand-in (spec 103)."""
+    """The seam's binding for the async stack size, recording into the stand-in."""
     monkeypatch.setattr(
         _wasmtime_ffi,
         "ASYNC_STACK_SETTER",
@@ -225,7 +225,7 @@ STATED = 8 * 1024 * 1024
 
 
 def test_the_runner_states_its_wasm_stack(monkeypatch) -> None:
-    """Spec 078, criterion 2 (restating spec 071's criterion 5): the runner's engines are made
+    """The runner's engines are made
     with an 8 MiB wasm stack, stated, beside fuel (for the metered one) and epoch interruption;
     wasmtime's async stack size is raised to it first, through wasmtime-py's own binding."""
     made: list[RecordingConfig] = []
@@ -255,7 +255,7 @@ def test_the_runner_states_its_wasm_stack(monkeypatch) -> None:
 
 
 def test_the_async_stack_size_property_is_preferred(monkeypatch) -> None:
-    """Spec 078, criterion 2: a wasmtime-py whose Config has an async_stack_size property is set
+    """A wasmtime-py whose Config has an async_stack_size property is set
     through it, and the binding is not called."""
 
     class WithProperty(RecordingConfig):
@@ -280,7 +280,7 @@ def test_the_async_stack_size_property_is_preferred(monkeypatch) -> None:
 
 
 def test_no_engine_is_made_without_the_async_stack_size(monkeypatch) -> None:
-    """Spec 078, criterion 2 (the review's F5): with neither the property nor the binding, the
+    """With neither the property nor the binding, the
     engine is refused with RuntimeError naming wasmtime-py's version, before max_wasm_stack is set
     and before an Engine is made (wasmtime's refusal would abort the process)."""
     made: list[RecordingConfig] = []
@@ -295,7 +295,7 @@ def test_no_engine_is_made_without_the_async_stack_size(monkeypatch) -> None:
 
 
 def test_the_guest_driver_makes_the_runners_engine(monkeypatch) -> None:
-    """Spec 078, criterion 2 (restating spec 071's criterion 5, Decision 3): the judge's driver
+    """The judge's driver
     makes the runner's engine: fuel, epoch interruption and the same 8 MiB stack, the async stack
     size first, so checks see the frames `run` gives."""
     from harness import guest
@@ -316,7 +316,7 @@ def test_the_guest_driver_makes_the_runners_engine(monkeypatch) -> None:
 
 
 def test_trap_handlers_ready_reads_each_signal_by_load_base() -> None:
-    """Spec 071, criterion 11's unit: on Linux the check names the first signal whose handler
+    """On Linux the check names the first signal whose handler
     lies outside wasmtime's library (compared by load base), counts SIGFPE on x86_64 only, treats
     any failure as not ready, and reads nothing on macOS or Windows."""
     import signal

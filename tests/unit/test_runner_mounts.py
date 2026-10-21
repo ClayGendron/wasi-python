@@ -1,4 +1,4 @@
-"""Read-only mounts (spec 032): the runner's own boundary code, which does not depend on the host,
+"""Read-only mounts: the runner's own boundary code, which does not depend on the host,
 so these run on the judge's machine only. Raw preview1 calls through the mount linker, with the
 call on the thread's stack (harness/files.py); fuel and provider calls are counted, nothing is
 timed."""
@@ -149,7 +149,7 @@ def test_the_file_call_limit_names_the_end(placeholder) -> None:
     with pytest.raises(files.Ends, match="interrupt"):  # the deadline was set to 0 in that step
         r.path_filestat(3, "a.txt")
     m.store.set_epoch_deadline(2**40)
-    assert r.path_filestat(3, "a.txt")[0] == 29  # spec 030's guard: no host function runs
+    assert r.path_filestat(3, "a.txt")[0] == 29  # the entry guard: an ended call runs no host
     assert provider.calls["stat"] == 2
     assert m.table.record().calls == {
         "stat": 2,
@@ -232,7 +232,7 @@ def _loop(placeholder: Path, mounted: bool, cap: int, n: int = 200) -> tuple[str
 
 
 def test_forwards_cost_no_fuel_and_keep_traps(placeholder, tmp_path) -> None:
-    """Spec 032, acceptance 12 (exact part, N2): a guest that calls a WASI function N times
+    """A guest that calls a WASI function N times
     spends exactly the fuel it spends on today's linker, and ends the same way with the same
     fuel used at every cap from 1 up to past its need; a forwarded bad pointer ends the call
     with the same `trapped` and fuel used, and the error is wasmtime-py's own wrapper."""
@@ -360,9 +360,9 @@ def test_every_descriptor_import_is_shadowed(name) -> None:
     assert takes_a_descriptor - allowed == set()
     assert len(mounts_module.SHADOWED) == 29
     assert set(mounts_module.SHADOWED).isdisjoint(mounts_module.FORWARD_SAFE)
-    # memo finding 1: 26 file calls and the preopen pair, beside the four sock_* and poll_oneoff;
-    # fd_renumber, imported with matplotlib's _qhull (spec 043), goes again with the reactor's
-    # freopen refusal (spec 037: qhull's freopen was its one user)
+    # 26 file calls and the preopen pair, beside the four sock_* and poll_oneoff;
+    # fd_renumber, imported with matplotlib's _qhull, goes again with the reactor's
+    # freopen refusal (qhull's freopen was its one user)
     assert len({n for n in takes_a_descriptor if n.startswith(("fd_", "path_"))}) == 28
 
 
@@ -478,11 +478,11 @@ def test_a_folder_stat_comes_from_the_mount(placeholder) -> None:
 
 
 def test_a_call_without_mounts_is_unchanged(monkeypatch) -> None:
-    """A call without mounts uses the guard linker (spec 048, Decision 7), whose only shadows are
+    """A call without mounts uses the guard linker, whose only shadows are
     the two guarded calls (fd_readdir, path_rename) and the three counted ones (path_open,
-    fd_close, fd_renumber; spec 068), and reports no file record; a call with one uses the mount
+    fd_close, fd_renumber), and reports no file record; a call with one uses the mount
     linker. Concurrent calls with and without mounts on two threads each get their own results,
-    and each provider sees only its own call's paths (spec 011's pattern)."""
+    and each provider sees only its own call's paths."""
     needs.need("runner", "artifact dir")
     from wasi_python import run
 
@@ -586,7 +586,7 @@ def test_the_record_keeps_the_first_thousand_faults(placeholder) -> None:
 
 
 def test_a_finished_call_holds_nothing(monkeypatch) -> None:
-    """The build review, F3: when run() returns, no call, mount table or staged file of it is
+    """When run() returns, no call, mount table or staged file of it is
     left for the cyclic collector, whatever ended the guest: an exit with a mount file still
     open, or running out of fuel while holding one. Counted with the collector off."""
     import gc
@@ -621,7 +621,7 @@ def test_a_finished_call_holds_nothing(monkeypatch) -> None:
 
 
 def test_an_abi_error_keeps_the_grants_fuel(placeholder, tmp_path) -> None:
-    """The build review, F4.2: a served call that meets an argument its ABI cannot carry ends
+    """A served call that meets an argument its ABI cannot carry ends
     the run with the fuel a grant reports for the same guest, not None."""
     guest = f"""(module
   (import "{P1}" "path_open"
@@ -648,7 +648,7 @@ def test_an_abi_error_keeps_the_grants_fuel(placeholder, tmp_path) -> None:
 
 
 def test_a_listing_is_counted_as_what_it_holds() -> None:
-    """The build review, F2: a kept listing holds what the staging bound counts for it (its
+    """A kept listing holds what the staging bound counts for it (its
     encoded entries and their offsets, measured by tracemalloc, within a small constant), and
     gathering one past the bound peaks near the bound, not several times it."""
     import tracemalloc
@@ -712,7 +712,7 @@ def test_a_mount_writes_zero_dirent_padding(placeholder) -> None:
             assert r.get(files.DIRBUF + len(data), 1) == b"\xff"  # nothing past what it used
 
 
-# Spec 048: the guard. A call without mounts runs on the guard linker, which shadows only
+# The guard. A call without mounts runs on the guard linker, which shadows only
 # fd_readdir and path_rename, and forwards both with wasmtime 49.0.2's zeroed dirent padding and
 # 49.0.3's trailing-slash rename rule (GHSA-96f6-r43r-8c24, GHSA-m9f7-9w4p-gv38).
 
@@ -741,8 +741,8 @@ def test_a_grant_readdir_writes_zero_dirent_padding(tmp_path, monkeypatch) -> No
     any the guard makes on its own page, then gets such bytes, 0xA5, in every entry's padding,
     where wasmtime's layout puts it, before its count is written: what the guard must zero,
     every time. A `used` pointer inside the buffer gets wasmtime's count, and the padding is
-    zeroed even where that count lands on a d_namlen the walk would follow (the build review,
-    F1: `buf + 16`) or on padding (F4: `buf + 72`)."""
+    zeroed even where that count lands on a d_namlen the walk would follow
+    (`buf + 16`) or on padding (`buf + 72`)."""
     real_forward = mounts_module._Files.forward
     layout: dict[str, list[int]] = {}  # the entries' offsets, when `used` hides one
 
@@ -827,7 +827,7 @@ def _over_its_listing(tmp_path, monkeypatch, then=None):
 
 
 def test_a_listing_that_cannot_be_listed_again_is_zeroed_whole(tmp_path, monkeypatch) -> None:
-    """Decision 4's fallback (the build review's confirmation, C1): with `used` over its own
+    """Decision 4's fallback: with `used` over its own
     listing and the guard's second listing failing, the guest gets EIO, a count of 0 and a
     listing of zeros: no byte of the first listing, its host bytes included, is left; nothing
     past it is touched."""
@@ -842,7 +842,7 @@ def test_a_listing_that_cannot_be_listed_again_is_zeroed_whole(tmp_path, monkeyp
 def test_a_listing_that_shrinks_between_the_two_is_zeroed_past_the_second(
     tmp_path, monkeypatch
 ) -> None:
-    """Decision 4 (C1): the folder loses its file between the guest's listing and the guard's
+    """Decision 4: the folder loses its file between the guest's listing and the guard's
     second one. The guest gets the second listing (`.` and `..`, 51 bytes) with zero padding,
     and the first listing's bytes past it, host bytes included, are zeroed."""
 
@@ -863,7 +863,7 @@ def test_a_listing_that_shrinks_between_the_two_is_zeroed_past_the_second(
 
 
 def test_the_second_listing_never_outgrows_the_guests_memory(tmp_path, monkeypatch) -> None:
-    """Decision 4 (C2): the guard's second listing asks for no more than the guest's buffer can
+    """Decision 4: the guard's second listing asks for no more than the guest's buffer can
     hold in its memory, `min(length, memory - buf)`, so its page never grows past the guest's
     memory and a `length` past the store's memory limit is not a way to EIO: the answer is
     wasmtime's 0 and the listing's padding is zero."""
@@ -881,7 +881,7 @@ def test_the_second_listing_never_outgrows_the_guests_memory(tmp_path, monkeypat
 
 
 def test_the_rename_is_forwarded_by_its_plain_names(tmp_path, monkeypatch) -> None:
-    """Decision 1 (the build review, F2): once a slash-named source passes as a folder, the
+    """Decision 1: once a slash-named source passes as a folder, the
     rename is forwarded with every trailing slash trimmed from both paths, so whatever replaces
     the source between the guard's stat and wasmtime's rename is renamed by its plain name and
     never followed. Here the folder `d` is swapped for a link out, `d -> ../outside`, right after
@@ -969,16 +969,17 @@ def _rename_loop(base: Path, guarded: bool, cap: int, n: int = 40) -> tuple[str,
     return end, cap - g.store.get_fuel()
 
 
-# How today's native linker (wasmtime 49.0.0 alone) ends the rename loop, per system (spec 076,
-# Decision 5). The guard ends `returned ENOTDIR` on every system: it carries wasmtime 49.0.3's
-# rule, a path ending in `/` needs a folder source (spec 048). On Linux and macOS 49.0.0 puts the
+# How today's native linker (wasmtime 49.0.0 alone) ends the rename loop, per system.
+# The guard ends `returned ENOTDIR` on every system: it carries wasmtime 49.0.3's
+# rule, a path ending in `/` needs a folder source. On Linux and macOS 49.0.0 puts the
 # source's slash back and the kernel answers ENOTDIR too. On Windows 49.0.0 strips the slash and
 # renames the file `f` to `e` with no kind check (its `via_parent/rename.rs` re-appends the slash
 # under `#[cfg(unix)]` only; READ); the next turn renames the folder `d` over the file `e`, which
-# Windows allowed on GitHub's `windows-2025-vs2026` image, version 20261007.264.1 (spec 058's
-# cause); from then on `f/` is missing, ENOENT. Seen there: `returned 44` against the guard's
-# `returned 54`, with equal fuel (spec 063's dry runs, EXECUTED). Another image may differ: a red
-# run there is a fact about the reference, decided by spec 076's Decision 9.
+# Windows allowed on GitHub's `windows-2025-vs2026` image, version 20261007.264.1;
+# from then on `f/` is missing, ENOENT. Seen there: `returned 44` against the guard's
+# `returned 54`, with equal fuel (the release workflow's dry runs, EXECUTED).
+# Another image may differ: a red run there is a fact about the reference, to be made green
+# there, never skipped.
 NATIVE_RENAME_END = {
     "linux": f"returned {ENOTDIR}",
     "darwin": f"returned {ENOTDIR}",
@@ -991,8 +992,8 @@ def test_the_rename_rule_forward_is_fuel_neutral(tmp_path) -> None:
     trampoline) and then a path_rename, and a fd_readdir, spends exactly the guest fuel today's
     native calls spend, and ends the same way with the same fuel at every cap from 1 up to past
     its need: each forward's allowance is set back. The guard's loop ends ENOTDIR on every
-    system; today's native loop ends as `NATIVE_RENAME_END` says for this system (spec 076,
-    Decision 5), so on Windows a loop that completes ends differently on the two sides."""
+    system; today's native loop ends as `NATIVE_RENAME_END` says for this system,
+    so on Windows a loop that completes ends differently on the two sides."""
     native_end = NATIVE_RENAME_END[sys.platform]
     guarded_end = f"returned {ENOTDIR}"  # the renames of d succeed; f/ is refused
 
@@ -1010,7 +1011,8 @@ def test_the_rename_rule_forward_is_fuel_neutral(tmp_path) -> None:
 
 def test_a_guard_call_leaves_the_other_calls_native(tmp_path) -> None:
     """Criterion 5: the guard linker shadows exactly fd_readdir and path_rename, and the three
-    calls spec 068 counts (path_open, fd_close, fd_renumber); every other descriptor call
+    calls the cap on open files counts (path_open, fd_close, fd_renumber); every other
+    descriptor call
     (fd_read, fd_write, fd_seek and the rest) reaches wasmtime without passing the guard table,
     and the table makes no provider call."""
     seen = []
@@ -1039,7 +1041,7 @@ def test_a_guard_call_leaves_the_other_calls_native(tmp_path) -> None:
     ]
     assert g.table.record().calls == dict.fromkeys(
         ("stat", "list", "read", "write", "mkdir", "remove", "rmdir", "rename"), 0
-    )  # spec 034's eight keys (Decision 11)
+    )  # the eight provider calls a mount's record counts
 
 
 def _answer(fn, *args, **kw) -> object:
@@ -1054,7 +1056,7 @@ def test_a_call_without_mounts_is_unchanged_but_for_the_two_fixes(tmp_path) -> N
     never reported (`done.files is None`), and the raw fd_readdir and path_rename answers (errno,
     any trap and its message, every byte written but each entry's d_ino and padding) are
     today's native answers, except the two fixes: zeroed padding, and the trailing-slash rule
-    (with a path past MAX_PATH unread once a slash is seen, condition C2)."""
+    (with a path past MAX_PATH unread once a slash is seen)."""
     sides = []
     for name in ("native", "guarded"):
         tree = files.write_tree(tmp_path / name / "tree")
@@ -1152,7 +1154,7 @@ def test_a_call_without_mounts_is_unchanged_but_for_the_two_fixes(tmp_path) -> N
     assert (done.exit_code, done.files) == (0, None), done
 
 
-# Writable mounts (spec 034): the runner's own guards, which do not depend on the host.
+# Writable mounts: the runner's own guards, which do not depend on the host.
 
 WRITE_HALF = ("write", "mkdir", "remove", "rmdir", "rename")
 ALL = files.RIGHTS_ALL
@@ -1163,7 +1165,7 @@ def _written(provider: MemoryProvider) -> dict[str, int]:
 
 
 def test_a_writable_mount_is_asked_for(placeholder) -> None:
-    """Spec 034, acceptance 8 (guard: the writable check): a mount not made writable, over a
+    """Guards the writable check: a mount not made writable, over a
     provider that has the write half, answers every write-shaped call EPERM and never calls the
     write half."""
     provider = MemoryProvider()
@@ -1216,7 +1218,7 @@ class _AsyncWrite(MemoryProvider):
     ],
 )
 def test_a_writable_mount_is_checked_before_any_work(mount, match) -> None:
-    """Spec 034, acceptance 8: `writable` must be a real bool, and a writable mount's provider
+    """`writable` must be a real bool, and a writable mount's provider
     must have the whole write half, none of it a coroutine function; each is a TypeError naming
     the mount, raised by run and run_async before the provider or a door host is called."""
     import asyncio
@@ -1231,7 +1233,7 @@ def test_a_writable_mount_is_checked_before_any_work(mount, match) -> None:
 
 
 def test_writes_are_bounded(placeholder) -> None:
-    """Spec 034, acceptance 12 (guard: the growth bound): with a staging bound of 1,000 bytes, a
+    """Guards the growth bound: with a staging bound of 1,000 bytes, a
     size past it, a write after a seek to it, a second file whose bytes would take the sum past
     it, and a one-byte `fd_pwrite` at 2**40 each answer EFBIG and change nothing; the table's
     staged count never passes the bound. (Each is asserted before the next, so a runner without
@@ -1259,7 +1261,7 @@ def test_writes_are_bounded(placeholder) -> None:
 
 
 def test_an_unlinked_folder_holds_nothing(placeholder) -> None:
-    """Spec 034, acceptance 9's raw part (guard: the unlinked-folder rule): a folder open while
+    """Guards the unlinked-folder rule, raw: a folder open while
     the guest removes it and makes it again answers every path call through the old descriptor
     ENOENT and lists only `.` and `..` from cookie 0, each with no provider call; a file open
     while the guest removes it keeps its buffer and is never written back."""
@@ -1314,7 +1316,7 @@ def test_an_unlinked_folder_holds_nothing(placeholder) -> None:
 
 
 def test_the_runner_answers_namespace_calls_it_can(placeholder, tmp_path) -> None:
-    """Spec 034, Decision 6: the calls the runner answers with no provider call: the mount
+    """The calls the runner answers with no provider call: the mount
     itself (Linux's answers, wasmtime's reference), a rename into its own subfolder, a rename or
     rmdir strictly above a more specific preopen (EBUSY), a rename or link to another
     descriptor (EPERM when that side is read-only, EXDEV when both may be written), a link or
@@ -1382,8 +1384,8 @@ SPIN_DIRTY = (
 
 
 def test_the_walk_is_bounded_and_keeps_its_record(placeholder) -> None:
-    """Spec 034, acceptance 12 (guards: the limit in the walk, the fault catch in the walk,
-    `refused_total`): when the walk's write-backs would pass `max_file_calls`, the provider's
+    """Guards the limit in the walk, the fault catch in the walk and
+    `refused_total`: when the walk's write-backs would pass `max_file_calls`, the provider's
     calls stop exactly at the limit, each unmade write-back is one RefusedWrite for the limit,
     and the run keeps its exit and its fuel count (the walk names no end and spends no fuel:
     exactly, on the table, below; a guest's fuel differs run to run, so `run()` shows only that
@@ -1466,7 +1468,7 @@ OWED = f"""(module
 
 
 def test_a_close_stopped_by_a_cancel_is_owed(placeholder) -> None:
-    """Spec 034, acceptance 16 (guard: the reserved number): a guest writes a provider file; a
+    """Guards the reserved number: a guest writes a provider file; a
     provider whose `stat` sets the call's cancel is called, and the file's `fd_close` follows
     with no function entry between: the close answers ECANCELED, an open after it makes no call,
     the number stays reserved (not free, still counted), and the walk writes it back once, with
@@ -1509,7 +1511,7 @@ def test_a_close_stopped_by_a_cancel_is_owed(placeholder) -> None:
 
 
 def test_a_refused_rename_or_removal_moves_no_descriptor(placeholder) -> None:
-    """Spec 034, Decision 7 (the build review, F1(b)): descriptors follow only a namespace call
+    """Descriptors follow only a namespace call
     the provider accepted. A rename the provider refuses leaves a descriptor at its `src`
     writing back to `src` and one at its `dst` still writing back to `dst`; a refused `remove`
     unlinks nothing; a refused `rmdir` leaves a folder descriptor that still asks the provider."""
@@ -1563,7 +1565,7 @@ PAST_THE_LIMIT = (
 
 
 def test_the_write_half_is_gated(placeholder) -> None:
-    """Spec 034, Decision 10 (the build review's confirmation, N1): a create at open and a
+    """A create at open and a
     namespace call are provider calls like any other. Past `max_file_calls`, `mkdir`s and
     writing opens stop at exactly the limit and the run ends "out of file calls"; once the
     call's cancel is set (by a provider's `stat`, with no function entry after it), a `mkdir`,
@@ -1588,10 +1590,10 @@ def test_the_write_half_is_gated(placeholder) -> None:
         m.instance.exports(m.store)["run"](m.store)
     assert struct.unpack("<4I", m.raw.get(600, 16)) == (0, 11, 11, 11)
     assert provider.total() == 1 and _written(provider) == dict.fromkeys(WRITE_HALF, 0)
-    assert m.table.record().refused_total == 0  # an unmade call is not a refusal (N3)
+    assert m.table.record().refused_total == 0  # an unmade call is not a refusal
 
 
-# Spec 061: a provider's OSError carries its errno.
+# A provider's OSError carries its errno.
 
 
 def test_a_generator_listing_that_raises_answers_its_errno(placeholder) -> None:
@@ -1613,8 +1615,7 @@ def test_a_generator_listing_that_raises_answers_its_errno(placeholder) -> None:
         return how
 
     class RaisingIterable:
-        """Not a generator: its `__iter__` raises, so `iter()` runs provider code (the build
-        review, F2)."""
+        """Not a generator: its `__iter__` raises, so `iter()` runs provider code."""
 
         def __iter__(self):
             raise FileNotFoundError("x")
@@ -1669,7 +1670,7 @@ def test_a_mapped_oserror_leaves_nothing_of_itself(placeholder) -> None:
     record = repr(m.table.record())
     assert "the-secret-message-061" not in record and "_SecretNotFound" not in record, record
 
-    # The listing's path (the build review, F2): a raise from a generator `list`'s body.
+    # The listing's path: a raise from a generator `list`'s body.
     listed: list[weakref.ref] = []
 
     def listing(path):
@@ -1691,7 +1692,7 @@ def test_a_mapped_oserror_leaves_nothing_of_itself(placeholder) -> None:
     assert "the-secret-message-061" not in record and "_SecretNotFound" not in record, record
 
 
-# The memo's table (2026-10-18-a-providers-oserror-carries-its-errno): macOS and Linux EXECUTED,
+# The errno table of a provider's OSError, as measured: macOS and Linux EXECUTED,
 # Windows READ (CPython's errnomodule.c: the WSA values) and INFERRED (MSVC's small numbers).
 _ERRNO_NAMES = (
     "EPERM ENOENT EIO EACCES EBUSY EEXIST EXDEV ENOTDIR EISDIR EINVAL EFBIG ENOSPC EROFS "
@@ -1781,7 +1782,7 @@ def test_the_host_errno_table_is_by_name() -> None:
     assert (child.returncode, child.stdout.strip()) == (0, "False"), child.stderr[-500:]
 
 
-# Spec 068: a cap on files open at once. The call's table counts the descriptors the guest holds
+# A cap on files open at once. The call's table counts the descriptors the guest holds
 # (wasmtime's numbers it opened, and its open mount files), and answers EMFILE at the cap before
 # wasmtime or the provider is asked. Forwards and provider calls are counted, nothing is timed.
 
@@ -1810,7 +1811,7 @@ def _folder(tmp_path: Path) -> Path:
 
 
 def test_open_files_are_counted_on_a_call_without_mounts(tmp_path) -> None:
-    """Spec 068, criterion 1: under a cap of 3, exactly three opens succeed and the fourth is
+    """Under a cap of 3, exactly three opens succeed and the fourth is
     EMFILE without reaching wasmtime; a close frees one slot; a failed open holds nothing;
     closing what the guest did not open frees nothing; fd_renumber moves and frees as wasmtime
     does, a number onto itself included; with no cap, nothing is refused; and below the cap the
@@ -1875,7 +1876,7 @@ def test_open_files_are_counted_on_a_call_without_mounts(tmp_path) -> None:
 
 
 def test_mount_files_count_toward_the_open_file_cap(placeholder, tmp_path) -> None:
-    """Spec 068, criterion 2: mount files count with wasmtime's under one cap; a refused open in
+    """Mount files count with wasmtime's under one cap; a refused open in
     a mount makes no provider call and spends no file call; a close of either kind frees a slot
     for either kind; a renumber of two held grant numbers frees one, with mounts as without."""
     folder = _folder(tmp_path)
@@ -1897,7 +1898,7 @@ def test_mount_files_count_toward_the_open_file_cap(placeholder, tmp_path) -> No
     assert r("fd_close", grant[0]) == 0
     assert r.open(3, "a.txt")[0] == 0
     assert r.open(3, "b.txt")[0] == EMFILE and r.open(4, "f3")[0] == EMFILE
-    # The build review's F1: in a table with mounts, a renumber of two held grant numbers closes
+    # In a table with mounts, a renumber of two held grant numbers closes
     # one and frees its slot, as in a guard table.
     held = sorted(m.table.held)
     assert len(held) == 2 and r("fd_renumber", held[0], held[1]) == 0

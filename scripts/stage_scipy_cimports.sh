@@ -1,6 +1,6 @@
 #!/bin/sh
-# scipy's Cython declarations, staged for a package that cimports them (spec 044, Decision 4; spec
-# 045 uses it too):
+# scipy's Cython declarations, staged for a package that cimports them
+# (scikit-learn and statsmodels):
 #
 #   scripts/stage_scipy_cimports.sh <scipy source tree> <scipy meson build folder> <out folder>
 #

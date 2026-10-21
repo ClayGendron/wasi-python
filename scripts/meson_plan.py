@@ -1,4 +1,4 @@
-"""Place the files a meson build installs with no install tag (spec 043, the build review's F5).
+"""Place the files a meson build installs with no install tag.
 
     meson_plan.py <meson build dir> <site-packages dir> <path under site-packages>...
 

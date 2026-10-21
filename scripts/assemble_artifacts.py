@@ -1,4 +1,4 @@
-"""Assemble the artifact directory (spec 003, Decision 9): the two binaries, the stdlib zip, the
+"""Assemble the artifact directory: the two binaries, the stdlib zip, the
 licence notices of everything inside, MANIFEST and SHA256SUMS, written to build/artifacts.new/ and
 renamed to build/artifacts/ only when complete.
 
@@ -29,14 +29,14 @@ PACKAGES = {
     "zlib": "1.3.1",
     "bzip2": "1.0.8",
     "xz": "5.8.4",
-    "sqlite-autoconf": "3540100",  # SQLite 3.54.1, named as its pin names it (spec 007)
+    "sqlite-autoconf": "3540100",  # SQLite 3.54.1, named as its pin names it
     "python-dateutil": "2.9.0.post0",
     "tzdata": "2026.5",
     "six": "1.17.0",
-    "regex": "2026.9.29",  # spec 047
-    # matplotlib (spec 023): the package, its compiled dependencies, the C libraries linked in, the
-    # header-only C++ compiled in, and the pure packages in the zip. Its second milestone (spec
-    # 043): contourpy, and qhull, linked with matplotlib's _qhull.
+    "regex": "2026.9.29",
+    # matplotlib: the package, its compiled dependencies, the C libraries linked in, the
+    # header-only C++ compiled in, and the pure packages in the zip. Its second milestone:
+    # contourpy, and qhull, linked with matplotlib's _qhull.
     "matplotlib": "3.11.2",
     "pillow": "13.0.0",
     "kiwisolver": "1.5.1",
@@ -52,11 +52,11 @@ PACKAGES = {
     "fonttools": "4.67.0",
     "contourpy": "1.4.0",
     "qhull": "8.0.2",
-    # lxml (spec 046): the package and its two C libraries, linked in.
+    # lxml: the package and its two C libraries, linked in.
     "libxml2": "2.15.4",
     "libxslt": "1.1.45",
     "lxml": "6.1.3",
-    # tier A (spec 039): thirty pure-Python distributions, in its Decision 1's order
+    # tier A: thirty pure-Python distributions, in the order they were chosen in
     "openpyxl": "3.1.5",
     "et-xmlfile": "2.0.0",
     "xlsxwriter": "3.2.9",
@@ -87,13 +87,13 @@ PACKAGES = {
     "cloudpickle": "3.1.2",
     "threadpoolctl": "3.7.0",
     "narwhals": "2.27.1",
-    # scipy (spec 037): the package, and OpenBLAS, whose C LAPACK is the LAPACK, linked in.
+    # scipy: the package, and OpenBLAS, whose C LAPACK is the LAPACK, linked in.
     "scipy": "1.18.1",
     "openblas": "0.3.34",
-    # scikit-learn (spec 044): the package, its bundled C and C++ (libsvm, liblinear, MurmurHash3)
+    # scikit-learn: the package, its bundled C and C++ (libsvm, liblinear, MurmurHash3)
     # and vendored Python, under its notice.
     "scikit-learn": "1.9.1",
-    # seaborn and reportlab (spec 042): pure Python, seaborn from its sdist, reportlab its wheel
+    # seaborn and reportlab: pure Python, seaborn from its sdist, reportlab its wheel
     "seaborn": "0.13.2",
     "reportlab": "5.0.1",
 }
@@ -107,8 +107,8 @@ WHEELS = {
     "pyparsing": "pyparsing-3.3.3-py3-none-any.whl",
     "packaging": "packaging-26.3-py3-none-any.whl",
     "fonttools": "fonttools-4.67.0-py3-none-any.whl",
-    # tier A (spec 039, Decision 8): the 27 wheels; pyyaml, markupsafe and networkx are sdists
-    # (networkx's since spec 041, Decision 4, so that its carried patch has a tree to apply to)
+    # tier A: the 27 wheels; pyyaml, markupsafe and networkx are sdists
+    # (networkx's so that its carried patch has a tree to apply to)
     "openpyxl": "openpyxl-3.1.5-py2.py3-none-any.whl",
     "et-xmlfile": "et_xmlfile-2.0.0-py3-none-any.whl",
     "xlsxwriter": "xlsxwriter-3.2.9-py3-none-any.whl",
@@ -136,9 +136,9 @@ WHEELS = {
     "cloudpickle": "cloudpickle-3.1.2-py3-none-any.whl",
     "threadpoolctl": "threadpoolctl-3.7.0-py3-none-any.whl",
     "narwhals": "narwhals-2.27.1-py3-none-any.whl",
-    "reportlab": "reportlab-5.0.1-py3-none-any.whl",  # spec 042; its other parts are below
+    "reportlab": "reportlab-5.0.1-py3-none-any.whl",  # its other parts are below
 }
-# The Unicode data terms of HarfBuzz's tables, pinned as a file (spec 023, Decision 9).
+# The Unicode data terms of HarfBuzz's tables, pinned as a file.
 UNICODE_TERMS = "unicodetools-4fd8eca9-LICENSE"
 # The licence notices of what the SDK links in, named by the line's wasi-libc and LLVM commits.
 WASI_LIBC = [
@@ -157,11 +157,11 @@ LLVM = [
     for component in ("libcxx", "libcxxabi", "libunwind", "compiler-rt")
 ]
 # wasi-libc's LICENSE-MIT, already pinned and shipped: a generic MIT text with no holder named, the
-# text reportlab's QR encoder's notice names (spec 042, Decision 7)
+# text reportlab's QR encoder's notice names
 MIT_TEXT = f"wasi-libc-{LINE['WASI_LIBC_COMMIT']}-LICENSE-MIT"
 RESEARCH_PINS = {"python-3.14.7-wasi_sdk-24.zip"}
 # matplotlib's notices beside its LICENSE/ folder: Agg's, compiled in, and the fonts' that travel
-# with mpl-data (the AFM files' readme must go with them; spec 023, Decision 9).
+# with mpl-data (the AFM files' readme must go with them).
 MPL_NOTICES = (
     "extern/agg24-svn/src/copying",
     "lib/matplotlib/mpl-data/fonts/ttf/LICENSE_DEJAVU",
@@ -170,9 +170,9 @@ MPL_NOTICES = (
 )
 # contourpy's mpl2005 code came from GIST's gcntr.c (src/mpl2005_original.cpp), whose notice, the
 # Regents of the University of California's, contourpy does not ship; matplotlib ships it, and it
-# goes beside contourpy's own licence (spec 043, Decision 11; question 81).
+# goes beside contourpy's own licence.
 CONTOURPY_GIST_NOTICE = "LICENSE/LICENSE_YORICK"
-# libxml2's own notices beside its Copyright file (spec 046, Decision 15): the two files Copyright
+# libxml2's own notices beside its Copyright file: the two files Copyright
 # names as its exceptions, each under an ISC-style grant of its own, and timsort.h's MIT notice.
 # Each is the comment at the file's head that holds these words; a file missing, or a notice not
 # where it was, stops the build.
@@ -184,7 +184,7 @@ LIBXML2_NOTICES = (
     ),
     ("timsort.h", ("The MIT License (MIT)", "Copyright (c) 2010-2017 Christopher Swenson.")),
 )
-# lxml's terms (spec 046, Decision 15): its licence, its list of the licences in its wheels (which
+# lxml's terms: its licence, its list of the licences in its wheels (which
 # bundle GNU libiconv and zlib; this build links neither), and the BSD and ElementTree texts.
 LXML_NOTICES = (
     "LICENSE.txt",
@@ -192,7 +192,7 @@ LXML_NOTICES = (
     "doc/licenses/BSD.txt",
     "doc/licenses/elementtree.txt",
 )
-# scipy's terms (spec 037, Decision 13): its licence and its list of bundled licences, then the licence
+# scipy's terms: its licence and its list of bundled licences, then the licence
 # of each bundled component that is compiled in or packed, as the sdist ships it (the vendored
 # subprojects and the libraries inside scipy's own tree). Tempita is a build tool and ampgo only a
 # benchmark; Chebfun's Python carries its notice in place, as LICENSES_bundled.txt says.
@@ -230,7 +230,7 @@ SCIPY_NOTICES = (
     "scipy/stats/biasedurn/license.txt",
 )
 # The bundled notices scipy's LICENSES_bundled.txt points to inside source headers ("For details,
-# see ..."), for the three compiled or packed here (037's build review, F7): pystreambuf (cctbx,
+# see ..."), for the three compiled or packed here: pystreambuf (cctbx,
 # BSD-3-Clause, linked in io._fast_matrix_market), Chebfun and getLebedevSphere (BSD-3-Clause and
 # BSD-2-Clause, packed as bytecode). (path, words the notice must hold.)
 SCIPY_HEAD_NOTICES = (
@@ -238,7 +238,7 @@ SCIPY_HEAD_NOTICES = (
     ("scipy/interpolate/_bary_rational.py", ("Chebfun Developers", "Redistribution")),
     ("scipy/integrate/_lebedev.py", ("getLebedevSphere", "Redistribution")),
 )
-# scikit-learn's terms (spec 044, Decision 11): its licence, then each bundled component's notice,
+# scikit-learn's terms: its licence, then each bundled component's notice,
 # labelled with its path in the sdist. Comments do not survive compilation to .pyc, so these parts
 # are where the zip's users meet the notices of the vendored Python. A file's licence file is taken
 # whole; a notice inside a source file is its exact lines, which must hold the words given, so an
@@ -285,11 +285,11 @@ SKLEARN_LINES = (
 SKLEARN_PINNED = (
     ("numpydoc-894c8c47-LICENSE.txt", "numpydoc, for sklearn/externals/_numpydoc/docscrape.py"),
     ("django-1dae4ac1-LICENSE", "django, for the slugify adaptation in sklearn/datasets/_base.py"),
-    # the MIT permission text for _testing.py's pytest-derived lines (the confirmation's L1)
+    # the MIT permission text for _testing.py's pytest-derived lines
     ("pytest-0d90a31d-LICENSE", "pytest, for the derived lines of sklearn/utils/_testing.py"),
 )
 # The six bundled datasets: three are copies of sets UCI publishes under CC BY 4.0, which asks for
-# this attribution (decision on question 83).
+# this attribution.
 SKLEARN_DATA = """\
 scikit-learn 1.9.1 bundles six datasets (sklearn/datasets/data/), each with a description
 (sklearn/datasets/descr/), which a loader's DESCR returns and which carries the full citation.
@@ -322,7 +322,7 @@ The two sample photographs of sklearn/datasets/images/ (CC BY 2.0) are not in th
 # OpenBLAS's terms: its own licence and Reference-LAPACK's, whose C translation it carries.
 OPENBLAS_NOTICES = ("LICENSE", "lapack-netlib/LICENSE")
 # What each carried patch to an Apache-2.0 file changes, for the notice Apache-2.0 §4(b) asks of
-# a modified file (spec 047, Decision 10): keyed by the patch's path, which the notice names, so a
+# a modified file: keyed by the patch's path, which the notice names, so a
 # patch added or deleted without its line here stops the build.
 MODIFIED = {
     "recipes/patches/regex-2026.9.29/0001-callback-signatures.patch": (
@@ -332,8 +332,8 @@ MODIFIED = {
         "clock ticks kept in 64 bits, so timeout= fires past 2.147 s"
     ),
 }
-# tqdm is MPL-2.0 AND MIT, and the zip ships it as bytecode, MPL-2.0's Executable Form (spec 039,
-# Decision 8): the release carries its source, the pinned wheel unchanged (its SHA-256 is the
+# tqdm is MPL-2.0 AND MIT, and the zip ships it as bytecode, MPL-2.0's Executable Form:
+# the release carries its source, the pinned wheel unchanged (its SHA-256 is the
 # pin's), and its notice holds the full MPL-2.0 text, which the wheel's LICENCE only names.
 TQDM_WHEEL = "tqdm-4.70.1-py3-none-any.whl"
 TQDM_SOURCE = "tqdm-4.70.1-source.whl"
@@ -344,10 +344,10 @@ TQDM_URL = (
 TQDM_TAG = "https://github.com/tqdm/tqdm/tree/v4.70.1"
 MPL_TEXT = "spdx-31ba1a50-MPL-2.0.txt"
 # sympy's LaTeX grammar and its generated parser carry their own MIT notice inside the package,
-# where wheel_licences does not look (spec 039, Decision 8).
+# where wheel_licences does not look.
 SYMPY_WHEEL = "sympy-1.14.0-py3-none-any.whl"
 SYMPY_NESTED = "sympy/parsing/latex/LICENSE.txt"
-# seaborn's notice (spec 042, Decision 7): its licence, then the licences of the five pieces of code
+# seaborn's notice: its licence, then the licences of the five pieces of code
 # it vendors in seaborn/external/ (appdirs, husl, numpydoc, packaging, scipy), from its sdist.
 SEABORN_NOTICES = (
     "LICENSE.md",
@@ -357,11 +357,11 @@ SEABORN_NOTICES = (
     "licences/PACKAGING_LICENSE",
     "licences/SCIPY_LICENSE",
 )
-# reportlab's third-party notices (spec 042, Decisions 4a and 7), comments in its code that
+# reportlab's third-party notices, comments in its code that
 # compilation drops: each file's leading comment block, byte for byte from the pinned wheel, after
 # its wheel's LICENSE. (file, words the block must hold, what the heading says.) Sarna's notice
-# heads seven files of reportlab/graphics/barcode/, named in the heading, outside the compared bytes
-# (the pre-build review's C2); the QR encoder's names the MIT licence, whose text follows it.
+# heads seven files of reportlab/graphics/barcode/, named in the heading, outside the compared
+# bytes; the QR encoder's names the MIT licence, whose text follows it.
 REPORTLAB_WHEEL = "reportlab-5.0.1-py3-none-any.whl"
 SARNA_FILES = ("__init__", "code128", "code39", "code93", "common", "fourstate", "usps")
 REPORTLAB_NOTICES = (
@@ -383,7 +383,7 @@ REPORTLAB_NOTICES = (
         "Open End AB's and Kazuhiko Arase's notice; the MIT licence it names follows",
     ),
 )
-# The snapshot's pre-import list has one source, the recipe's #define (spec 069, Decision 3).
+# The snapshot's pre-import list has one source, the recipe's #define.
 PREIMPORT_RECIPE = "recipes/reactor_main.c"
 PREIMPORT_DEFINE = re.compile(r'^#define PREIMPORT "import (.*)"\s*$', re.M)
 LICENCE_NAME = re.compile(r"(LICEN[CS]E|COPYING|NOTICE)[^/]*$", re.I)
@@ -400,7 +400,7 @@ def preimport_list(text: str) -> str:
 
 def _remove(path: Path) -> None:
     """Remove a folder, retrying as scripts/steps/remove.sh does: Finder can write into it while
-    it is emptied (spec 018). A path already gone is success."""
+    it is emptied. A path already gone is success."""
     for _ in range(3):
         if os.path.islink(path) or os.path.isfile(path):
             try:
@@ -416,7 +416,7 @@ def _remove(path: Path) -> None:
 
 def drop_litter(folder: Path) -> None:
     """Delete litter from a folder this script made, before it is listed: a litter file, and a
-    litter folder whole (spec 090)."""
+    litter folder whole."""
     for p in sorted(folder.rglob("*"), reverse=True):  # a folder's entries before the folder
         if not is_litter(p.name) or not os.path.lexists(p):
             continue
@@ -428,7 +428,7 @@ def drop_litter(folder: Path) -> None:
 
 def listed_files(folder: Path) -> list[Path]:
     """The set's files for SHA256SUMS. Litter written after drop_litter is never listed (any path
-    with a litter part), and the judge forgives exactly those names (specs 018 and 090)."""
+    with a litter part), and the judge forgives exactly those names."""
     return sorted(
         p
         for p in folder.rglob("*")
@@ -543,7 +543,7 @@ def hash_notice(path: Path, words: tuple[str, ...]) -> bytes:
 
 def leading_comment(data: bytes, name: str, words: tuple[str, ...]) -> bytes:
     """A Python file's leading comment block, byte for byte: its first lines that begin with `#`,
-    up to the first that does not (spec 042, Decision 7). It must hold every one of `words`."""
+    up to the first that does not. It must hold every one of `words`."""
     lines = []
     for line in data.splitlines(keepends=True):
         if not line.startswith(b"#"):
@@ -557,7 +557,7 @@ def leading_comment(data: bytes, name: str, words: tuple[str, ...]) -> bytes:
 
 def reportlab_parts(d: Path) -> list[tuple[str, bytes]]:
     """reportlab's three third-party notices from the pinned wheel, checked against its pin first,
-    and the pinned MIT text the QR encoder's notice names (spec 042, Decisions 4a and 7)."""
+    and the pinned MIT text the QR encoder's notice names."""
     wheel = pinned_bytes(d, REPORTLAB_WHEEL)
     parts = []
     with zipfile.ZipFile(io.BytesIO(wheel)) as z:
@@ -593,7 +593,7 @@ def lines_notice(path: Path, first: int, last: int, words: tuple[str, ...]) -> b
 
 
 def sklearn_parts(tree: Path, d: Path) -> list[tuple[str, bytes]]:
-    """LICENSES/scikit-learn.txt's parts, in order (spec 044, Decision 11)."""
+    """LICENSES/scikit-learn.txt's parts, in order."""
     parts = [(f"scikit-learn {n}", (tree / n).read_bytes()) for n in SKLEARN_FILES]
     parts += [
         (f"scikit-learn {n}, lines {a}-{b}", lines_notice(tree / n, a, b, words))
@@ -681,7 +681,7 @@ def main() -> None:
         # Only liblzma is linked, and its files are 0BSD (COPYING says which parts are which).
         "xz": [(f"xz {n}", (b / "xz-5.8.4" / n).read_bytes()) for n in ("COPYING", "COPYING.0BSD")],
         "sqlite": [("SQLite sqlite3.h, its header comment", sqlite_notice(b))],
-        # spec 023, Decision 9: FreeType's BDF and PCF drivers are built, so their notices ship.
+        # FreeType's BDF and PCF drivers are built, so their notices ship.
         "freetype": [
             (f"FreeType {n}", (b / "freetype-2.14.3" / n).read_bytes())
             for n in ("LICENSE.TXT", "docs/FTL.TXT", "src/bdf/README", "src/pcf/README")
@@ -700,7 +700,7 @@ def main() -> None:
         + [(f"matplotlib {n}", (b / "matplotlib-3.11.2" / n).read_bytes()) for n in MPL_NOTICES],
         "pillow": [("Pillow LICENSE", (b / "pillow-13.0.0" / "LICENSE").read_bytes())],
         "kiwisolver": [("kiwisolver LICENSE", (b / "kiwisolver-1.5.1" / "LICENSE").read_bytes())],
-        # spec 043, Decision 11: contourpy's licence and GIST's notice for its mpl2005 code; qhull's
+        # contourpy's licence and GIST's notice for its mpl2005 code; qhull's
         # licence now that it is linked
         "contourpy": [
             ("contourpy LICENSE", (b / "contourpy-1.4.0" / "LICENSE").read_bytes()),
@@ -717,7 +717,7 @@ def main() -> None:
         ],
         "libxslt": [("libxslt Copyright", (b / "libxslt-1.1.45" / "Copyright").read_bytes())],
         "lxml": [(f"lxml {n}", (b / "lxml-6.1.3" / n).read_bytes()) for n in LXML_NOTICES],
-        # spec 047, Decision 10: Apache-2.0 headed by its CNRI derivation, then the modified file
+        # Apache-2.0 headed by its CNRI derivation, then the modified file
         "regex": [
             ("regex LICENSE.txt", (b / "regex-2026.9.29" / "LICENSE.txt").read_bytes()),
             ("regex, as this build compiles it", modified_notice(root, "regex-2026.9.29")),
@@ -732,14 +732,14 @@ def main() -> None:
         ],
         "scikit-learn": sklearn_parts(b / SKLEARN_TOP, d),
         **{pkg: wheel_licences(d / wheel) for pkg, wheel in WHEELS.items()},
-        # spec 039, Decision 8: the sdists' notices from their trees
+        # the sdists' notices from their trees
         "pyyaml": [("PyYAML LICENSE", (b / "pyyaml-6.0.3" / "LICENSE").read_bytes())],
         "markupsafe": [
             ("MarkupSafe LICENSE.txt", (b / "markupsafe-3.0.4" / "LICENSE.txt").read_bytes())
         ],
-        # spec 041, Decision 6: networkx from its sdist, its notice from its tree
+        # networkx from its sdist, its notice from its tree
         "networkx": [("NetworkX LICENSE.txt", (b / "networkx-3.7" / "LICENSE.txt").read_bytes())],
-        # spec 042, Decision 7: seaborn from its sdist, its licence and its five vendored ones
+        # seaborn from its sdist, its licence and its five vendored ones
         "seaborn": [
             (f"seaborn {n}", (b / "seaborn-0.13.2" / n).read_bytes()) for n in SEABORN_NOTICES
         ],
@@ -779,7 +779,7 @@ def main() -> None:
     manifest += [f"recipe {sha256(root / f)} {f}" for f in recipes]
     manifest += [
         # The pin lines are every supported build host's inputs, not only this build's: each host
-        # builds the same bytes, so MANIFEST is the same file from any of them (spec 012).
+        # builds the same bytes, so MANIFEST is the same file from any of them.
         "x-pins every-supported-build-host",
         f"x-wizer {wizer}",
         f"x-source-date-epoch {os.environ['SOURCE_DATE_EPOCH']}",

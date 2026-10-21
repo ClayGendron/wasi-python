@@ -1,4 +1,4 @@
-"""Find C callbacks whose wasm type is not the type CPython calls them with (spec 051).
+"""Find C callbacks whose wasm type is not the type CPython calls them with.
 
 CPython calls a C callback through a pointer of a fixed type. Native code tolerates a function
 defined with fewer parameters; WebAssembly's `call_indirect` checks the type and traps. This scan
@@ -18,19 +18,19 @@ A table is kept only when something points at it: an entry's address appears as 
 over-approximates: it can add references, never lose one. A run of entries is kept from its first
 referenced entry, so bytes that happen to look like an entry just before a table do not hide it.
 
-Members go first because a member array also reads as a getset array (its type code taken for
-a getter's table index). The cost: a getset array whose getters all sit at table indices 1 to 20
-with no doc would read as members. In the linked binary those twenty are CPython's parser rules
-(READ, spec 051's build), never a getter. A single definition whose function sits at one of them is
-not read as a method (spec 023's build): FreeType's BDF property table begins `{"ADD_STYLE_NAME",
-BDF_ATOM = 1, 1, 0}`, sixteen bytes the BDF driver's code points at, which read as `{name, table
-index 1, METH_VARARGS, no doc}`. That rests on link order, so it is checked, not assumed: a single
-is skipped only when the name section names the function there as a parser rule (`*_rule` or
-`_PyPegen_*`); any other function at index 1 to 20, or a module without names, is checked as a
-method like any other (the build review, F3).
+Members go first because a member array also reads as a getset array (its type code taken for a
+getter's table index). The cost: a getset array whose getters all sit at table indices 1 to 20 with
+no doc would read as members. In the linked binary those twenty are CPython's parser rules (READ, in
+the callback scan's build), never a getter. A single definition whose function sits at one of them
+is not read as a method (matplotlib's build): FreeType's BDF property table begins
+`{"ADD_STYLE_NAME", BDF_ATOM = 1, 1, 0}`, sixteen bytes the BDF driver's code points at, which read
+as `{name, table index 1, METH_VARARGS, no doc}`. That rests on link order, so it is checked, not
+assumed: a single is skipped only when the name section names the function there as a parser rule
+(`*_rule` or `_PyPegen_*`); any other function at index 1 to 20, or a module without names, is
+checked as a method like any other.
 
 The slots of static type objects, `PyType_Slot` arrays and module definitions are read by the
-second scan, `scan_slots` (spec 096), whose own docstring says what it leaves out. Out of both: C
+second scan, `scan_slots`, whose own docstring says what it leaves out. Out of both: C
 callbacks passed to C APIs (`qsort`, LAPACK).
 """
 
@@ -304,7 +304,7 @@ def findings(report: Report, excluded: dict[str, str] | None = None) -> list[str
 
 
 # ---------------------------------------------------------------------------------------------
-# Spec 096: the type slots, slot arrays and module definitions CPython calls through.
+# The type slots, slot arrays and module definitions CPython calls through.
 
 UNARY = FuncType((I32,), (I32,))
 BINARY = FuncType((I32, I32), (I32,))
@@ -523,7 +523,7 @@ class SlotReport:
 
 
 def _string(image: _Image, addr: int) -> str | None:
-    """A C string: 1 to 256 bytes in 0x20-0x7E, ending in NUL (spec 096, the review's F1)."""
+    """A C string: 1 to 256 bytes in 0x20-0x7E, ending in NUL."""
     if not addr or not image.has(addr):
         return None
     m = STRING.match(image.mem, addr - image.base)
@@ -538,8 +538,8 @@ def _static(image: _Image, addr: int) -> bool:
 def scan_slots(mod: Module) -> SlotReport:
     """The functions CPython calls through the slots of static type objects (and the method
     suites they point at), through `PyType_Slot` arrays (found by their `PyType_Spec`) and through
-    static module definitions, each checked against the type CPython calls it with (spec 096,
-    Decision 3). Only records something points at are read. Every static record is classified,
+    static module definitions, each checked against the type CPython calls it with.
+    Only records something points at are read. Every static record is classified,
     each one dropped is counted by its reason, and one that starts like a record but does not read
     as one is a finding.
 
@@ -669,7 +669,7 @@ def _specs(mod, image, refs, report, check) -> None:
 
     def readable(entry) -> bool:
         # A function slot holding 0 is readable (CPython's legacy iterator only logs it): it is
-        # skipped and counted, never checked (spec 096, the review's L3).
+        # skipped and counted, never checked.
         if entry is None or entry[0] not in SLOT_IDS:
             return False
         return SLOT_IDS[entry[0]][1] is None or entry[1] == 0 or entry[1] in mod.elements
@@ -761,7 +761,7 @@ def _modules(mod, image, refs, records, report, check) -> None:
 
 
 def unread_named(report: SlotReport, named: dict[str, set[str]]) -> list[str]:
-    """Each named record the report did not read (spec 096, check 3; the review's F2)."""
+    """Each named record the report did not read."""
     return [
         f"named record not read: {kind} {n}"
         for kind, names in named.items()
@@ -775,7 +775,7 @@ def slot_verdict(
     maximums: dict[str, int],
     named: dict[str, set[str]],
 ) -> list[str]:
-    """Check 3's problems with a slot report (spec 096): its findings less the reviewed
+    """Check 3's problems with a slot report: its findings less the reviewed
     exclusions, any coverage below its minimum or above its bound, and each named record unread."""
     c = report.coverage
     return (

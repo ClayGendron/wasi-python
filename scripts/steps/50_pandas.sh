@@ -2,7 +2,7 @@
 # Step 50: pandas 3.0.6 cross-compiled for wasm32-wasip1 as static archives, outside its source
 # tree. pandas generates no Python file at build time (its sdist ships the one meson-time file,
 # _version_meson.py), so its Python package for the zip is the sdist's pandas/ tree plus that file:
-# no `meson install`, whose macOS install-name fixer chokes on wasm archives (spec 003, landing notes).
+# no `meson install`, whose macOS install-name fixer chokes on wasm archives (landing notes).
 set -eu
 . "$(dirname "$0")/common.sh"
 

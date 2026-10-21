@@ -1,47 +1,45 @@
 #!/bin/sh
-# Step 60: link numpy, pandas, the plot packages (Pillow, kiwisolver, matplotlib; spec 023; contourpy
-# and matplotlib's _qhull with step 37's qhull, spec 043), regex (spec 047), lxml with libxml2 and
-# libxslt (spec 046), scipy with OpenBLAS (spec 037), scikit-learn (spec 044), zlib, bz2, lzma,
-# sqlite3 and the host door into CPython as
-# builtins through the build-directory Modules/Setup.local, then relink the interpreter as a WASI
-# reactor (build/out/python.wasm) with recipes/reactor_main.c in place of Programs/python.o (spec
-# 003), and with three link-time refusals: recipes/iconv_refusals.c, which refuses GB18030 at
-# iconv_open (spec 046, Decision 9), recipes/fcntl_dup_refusal.c, which answers fcntl's two dup
-# commands ENOTSUP as wasi-libc's dup does (spec 086, Decision 5), and recipes/freopen_refusal.c,
-# which refuses freopen (spec 037). Last, the static constructors and target features are checked against the judge's
-# reviewed lists (spec 023, Decision 4), so a build with a constructor no review has read stops
-# here, before step 80 would hang on it. Around the link, two checks of scripts/weak_duplicates.py
-# (spec 044, Decision 6): before it, no weak definition that two archives share unless a review
+# Step 60: link numpy, pandas, the plot packages (Pillow, kiwisolver, matplotlib; contourpy and
+# matplotlib's _qhull with step 37's qhull), regex, lxml with libxml2 and libxslt, scipy with
+# OpenBLAS, scikit-learn, zlib, bz2, lzma, sqlite3 and the host door into CPython as builtins
+# through the build-directory Modules/Setup.local, then relink the interpreter as a WASI reactor
+# (build/out/python.wasm) with recipes/reactor_main.c in place of Programs/python.o, and with three
+# link-time refusals: recipes/iconv_refusals.c, which refuses GB18030 at iconv_open,
+# recipes/fcntl_dup_refusal.c, which answers fcntl's two dup commands ENOTSUP as wasi-libc's dup
+# does, and recipes/freopen_refusal.c, which refuses freopen. Last, the static constructors and
+# target features are checked against the judge's reviewed lists, so a build with a constructor no
+# review has read stops here, before step 80 would hang on it. Around the link, two checks of
+# scripts/weak_duplicates.py: before it, no weak definition that two archives share unless a review
 # allowed it (recipes/weak-duplicates-allowed.txt), which wasm-ld would resolve without a word;
 # after it, the link map names scikit-learn's renamed random generators and none of the originals.
 set -eu
 . "$(dirname "$0")/common.sh"
 
 L="$B/link"
-# Step 35's archives (spec 007): a tree built before that step has none, and make would fail
+# Step 35's archives: a tree built before that step has none, and make would fail
 # with a long log.
 for lib in libbz2.a liblzma.a libsqlite3.a; do
   [ -s "$B/stdlib-libs/lib/$lib" ] || die "build/stdlib-libs/lib/$lib is missing: run step 35"
 done
-# Step 55's extension archives, each at its import path (spec 023; contourpy, spec 043).
+# Step 55's extension archives, each at its import path (contourpy).
 for pkg in pillow kiwisolver matplotlib contourpy; do
   [ -d "$B/plot-modules/$pkg" ] || die "build/plot-modules/$pkg is missing: run step 55"
 done
-# Step 36's archives and step 54's modules (spec 046).
+# Step 36's archives and step 54's modules.
 for lib in libxml2.a libxslt.a libexslt.a; do
   [ -s "$B/xml-libs/lib/$lib" ] || die "build/xml-libs/lib/$lib is missing: run step 36"
 done
 [ -d "$B/lxml-build/lxml" ] || die "build/lxml-build/lxml is missing: run step 54"
 PM="$B/plot-modules"
 [ -d "$B/regex-build/regex" ] || die "build/regex-build/regex is missing: run step 53"
-# Step 38's OpenBLAS and step 57's modules and shims (spec 037).
+# Step 38's OpenBLAS and step 57's modules and shims.
 [ -s "$B/openblas-wasi/lib/libopenblas.a" ] || die "build/openblas-wasi/lib/libopenblas.a is missing: run step 38"
 [ -d "$B/scipy-modules/scipy" ] || die "build/scipy-modules/scipy is missing: run step 57"
 [ -s "$B/scipy-shims/libscipy_lapack_shims.a" ] || die "build/scipy-shims/libscipy_lapack_shims.a is missing: run step 57"
-# Step 58's modules (spec 044).
+# Step 58's modules.
 [ -d "$B/sklearn-modules/sklearn" ] || die "build/sklearn-modules/sklearn is missing: run step 58"
 # The generated inittab declares CPython's internal _PyImport_SwapPackageContext itself, as this
-# header declares it (spec 047, Decision 4): a CPython that changes it stops here, not at run time.
+# header declares it: a CPython that changes it stops here, not at run time.
 grep -q '^extern const char \* _PyImport_SwapPackageContext(const char \*newcontext);$' \
   "$CP/Include/internal/pycore_import.h" \
   || die "Include/internal/pycore_import.h no longer declares _PyImport_SwapPackageContext as gen_inittab.py does"
@@ -56,11 +54,10 @@ mkdir -p "$L/archives" "$OUT"
 # the static libraries its .deps file names are linked once each, with its -L and -l lines (qhull's
 # -lqhull_r, matplotlib's -lm and -ldl). A relative path in a .deps file is its build folder's.
 # Left out, as scripts/gen_inittab.py leaves them out: numpy's test modules, and matplotlib's _tkagg
-# (no Tk). matplotlib's _qhull is linked since spec 043, with carried patch 0002, which opens no
+# (no Tk). matplotlib's _qhull is linked, with carried patch 0002, which opens no
 # /dev/null on WASI; its .deps names step 37's libqhull_r once. scipy's _qhull is linked too, with
-# the same qhull (spec 037, Decision 8). scipy has two modules named _zeros, so its archives are
-# named by their import path (spec 037), and so are scikit-learn's, which has three such pairs
-# (spec 044).
+# the same qhull. scipy has two modules named _zeros, so its archives are
+# named by their import path, and so are scikit-learn's, which has three such pairs.
 archives=""
 deps=""
 for pair in numpy:"$B/numpy-build" pandas:"$B/pandas-build" pillow:"$PM/pillow" \
@@ -88,7 +85,7 @@ libs="$libs$(printf '%s\n' $deps | grep '^-l' | sort -u | tr '\n' ' ')"
 # buffer uses (wasi-libc's, malloc underneath; no new import).
 libs="$libs$B/scipy-shims/libscipy_lapack_shims.a -lwasi-emulated-mman "
 
-# The weak-duplicate gate (spec 044, Decision 6): every archive this link takes but the SDK's
+# The weak-duplicate gate: every archive this link takes but the SDK's
 # runtime libraries and CPython's own (the modules', the static libraries their .deps name,
 # scipy's shims, and the four C libraries the Setup lines below link), read with the SDK's llvm-nm.
 weak_archives="$archives $(printf '%s\n' $deps | grep '\.a$' | sort -u | tr '\n' ' ')"
@@ -101,7 +98,7 @@ tail -n 1 "$L/weak-duplicates.log"
 
 # _sqlite3 from CPython's own sources (Modules/Setup.stdlib.in), with the one define CPython's
 # configure adds when it finds sqlite3_serialize. No `=` may appear in a Setup.local module line:
-# makesetup reads such a line as a Make variable and drops the module without an error (spec 007).
+# makesetup reads such a line as a Make variable and drops the module without an error.
 SL="$B/stdlib-libs"
 SQLITE_SRC=""
 for f in blob connection cursor microprotocols module prepare_protocol row statement util; do
@@ -131,7 +128,7 @@ clashes() {
 }
 clashes "$L/make.log"
 # makesetup drops a module it cannot read without an error; the judge would see it, but the build
-# stops here first (spec 007's build review, finding 9).
+# stops here first.
 for m in _bz2 _lzma _sqlite3; do
   grep -q "PyInit_$m" "$W/Modules/config.c" || die "Setup.local's $m line was dropped (Modules/config.c)"
 done
@@ -140,9 +137,9 @@ done
 # Programs/python.c swapped for the reactor's entry points. The link wraps the four WASI calls whose
 # answers a snapshot would otherwise capture (recipes/reactor_main.c, "pinned"), and iconv_open,
 # whose wrapper refuses GB18030, which wasi-libc decodes wrongly without an error
-# (recipes/iconv_refusals.c; spec 046, Decision 9), and fcntl, whose wrapper answers F_DUPFD and
+# (recipes/iconv_refusals.c), and fcntl, whose wrapper answers F_DUPFD and
 # F_DUPFD_CLOEXEC with ENOTSUP, which wasi-libc 34 answers EINVAL on preview1
-# (recipes/fcntl_dup_refusal.c; spec 086, Decision 5). Each guard is compiled by the reactor's own
+# (recipes/fcntl_dup_refusal.c). Each guard is compiled by the reactor's own
 # command into its own object. Only the reactor carries them: the interpreter `make all` links
 # above is CPython's own build, never shipped.
 rm -f python.wasm Programs/python.o
@@ -151,8 +148,8 @@ compile=$(grep -- '-o Programs/python.o' "$L/make-n.txt" | tail -n 1)
 link=$(grep -- '-o python.wasm Programs/python.o' "$L/make-n.txt" | tail -n 1)
 [ -n "$compile" ] && [ -n "$link" ] || die "make -n python.wasm printed no compile or link command"
 compile=$(printf '%s' "$compile" | sed "s#[^ ]*Programs/python\.c#$HERE/recipes/reactor_main.c#; s#-o Programs/python\.o#-I$L -o Modules/reactor_main.o#")
-# freopen refused (spec 037): qhull's `TI` option is its one caller, and wasi-libc's freopen is the
-# one user of fd_renumber, which the runner shadows (spec 068); refusing it keeps the import list as
+# freopen refused: qhull's `TI` option is its one caller, and wasi-libc's freopen is the
+# one user of fd_renumber, which the runner shadows; refusing it keeps the import list as
 # it is (recipes/freopen_refusal.c).
 GUARDS="iconv_refusals fcntl_dup_refusal freopen_refusal"
 guards=""
@@ -167,7 +164,7 @@ link=$(printf '%s' "$link" | sed "s#-o python\.wasm Programs/python\.o#-mexec-mo
 host_from_source
 "$HOSTPY" "$HERE/scripts/freeze_bootstrap.py" "$HERE/recipes/reactor_bootstrap.py" "$L/reactor_bootstrap.h" \
   > "$L/freeze.log" 2>&1 || { cat "$L/freeze.log"; die "the reactor's bootstrap did not compile"; }
-# The zip's directory reader and resource reader (spec 035, Decision 5): frozen modules of the
+# The zip's directory reader and resource reader: frozen modules of the
 # reactor's own, named as CPython names its frozen modules.
 "$HOSTPY" "$HERE/scripts/freeze_bootstrap.py" "$HERE/recipes/zip_directory.py" "$L/zip_directory.h" \
   ZIP_DIRECTORY "<frozen _zip_directory>" \
@@ -183,7 +180,7 @@ for g in $GUARDS; do
 done
 eval "$link" > "$L/reactor-link.log" 2>&1 || { tail -n 20 "$L/reactor-link.log"; die "the reactor's link failed"; }
 clashes "$L/reactor-link.log"
-# scikit-learn's three random generators kept their own names (spec 044, Decision 6): the map names
+# scikit-learn's three random generators kept their own names: the map names
 # each renamed mt_rand and liblinear's set_seed, which _liblinear's helper calls from another file,
 # and none of the original names. The other renamed set_seed and bounded_rand_int calls sit in the
 # file that defines them, where the compiler may inline every call and the linker then drop the
@@ -194,11 +191,11 @@ clashes "$L/reactor-link.log"
   || { cat "$L/link-map-check.log"; die "the link map shows a random generator of scikit-learn's under its original name, or none (build/link/link-map-check.log)"; }
 tail -n 1 "$L/link-map-check.log"
 
-# The link used the host-neutral wasm runtime that step 10 put in place (spec 012, Decision 2), not
+# The link used the host-neutral wasm runtime that step 10 put in place, not
 # the host tarball's: each runtime archive the link map names, its path resolved (the map writes
 # bin/../share/...), lies in the replaced sysroot or builtins directory and equals its member of the
 # pinned neutral tarball. Read only: the tarballs are opened, never unpacked, here. The directories
-# are the compiling SDK's, whose driver links (spec 040): $SDK's own on the arm64 hosts.
+# are the compiling SDK's, whose driver links: $SDK's own on the arm64 hosts.
 set -- "$CSDK"/lib/clang/*/lib/wasm32-unknown-wasip1
 "$HOSTPY" - "$L/python.map" "$CSDK/share/wasi-sysroot" "$1" \
   "$(pinned "wasi-sysroot-$WASI_SDK_VERSION.0.tar.gz")" "$(pinned "libclang_rt-$WASI_SDK_VERSION.0.tar.gz")" \

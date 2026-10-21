@@ -1,4 +1,4 @@
-"""The inputs are checked (spec 014): `run` refuses an argv, env or stdin that the guest would see
+"""The inputs are checked: `run` refuses an argv, env or stdin that the guest would see
 differently, with TypeError for a wrong type and ValueError for a wrong value, naming the argument
 but never quoting a value, and passes on plain values."""
 

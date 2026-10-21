@@ -1,6 +1,6 @@
 #!/bin/sh
-# Step 54: lxml 6.1.3's two C extension modules, lxml.etree and lxml.objectify, for wasm32-wasip1
-# (spec 046, Decision 5). The sdist ships the C that Cython 3.2.9 generated from them, so a build
+# Step 54: lxml 6.1.3's two C extension modules, lxml.etree and lxml.objectify, for wasm32-wasip1.
+# The sdist ships the C that Cython 3.2.9 generated from them, so a build
 # needs no Cython (lxml's setupinfo.py uses it when Cython is absent); it is compiled here, as step
 # 35 compiles SQLite's amalgamation, with lxml's own macros for a static build. Each module becomes
 # a static archive beside a .deps file, written by scripts/wasi-cc at its import path under

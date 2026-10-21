@@ -5,8 +5,8 @@
     uv run python tests/jobs/regen.py --online   # allow uv to fetch the pinned oracle first
 
 Each job runs twice, with PYTHONHASHSEED 0 and 1; the two outputs must agree, or nothing is
-written. Every uv download lands under build/oracle/ (spec 002, Decisions 11 and 16). A
-platform-bound job (the plot, spec 023) also records the platform that made it, in
+written. Every uv download lands under build/oracle/. A
+platform-bound job (the plot) also records the platform that made it, in
 tests/jobs/<job>.platform, and --check reproduces it only on that platform.
 """
 

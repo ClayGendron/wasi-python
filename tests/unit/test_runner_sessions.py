@@ -1,4 +1,4 @@
-"""Sessions without artifacts (spec 055): the argument checks, the reaper's step and loop, and a
+"""Sessions without artifacts: the argument checks, the reaper's step and loop, and a
 turn's waits on the session's clock base, all with fakes. Nothing here measures time."""
 
 from __future__ import annotations
@@ -216,7 +216,7 @@ def test_a_turn_waits_on_the_sessions_clock_base() -> None:
 
 
 def test_a_shutdown_budget_is_capped_by_the_lifetime() -> None:
-    """The re-review's F2: the ending's seconds end by the opening plus the lifetime plus the
+    """The ending's seconds end by the opening plus the lifetime plus the
     budget, whatever the start."""
     s = _state(None, 3600.0)
     s.shutdown_s = 5.0

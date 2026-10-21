@@ -1,41 +1,41 @@
 #!/bin/sh
 # Step 70: the stdlib zip (build/out/python-stdlib.zip): bytecode-only, deflated, deterministic,
-# compiled by the pinned host Python (spec 003, Decision 7). _sysconfigdata and numpy's __config__
-# say nothing about the build host (spec 012, Decision 5): make_stdlib_zip.py sets their host keys
+# compiled by the pinned host Python. _sysconfigdata and numpy's __config__
+# say nothing about the build host: make_stdlib_zip.py sets their host keys
 # to fixed values, and the text rewrites below, computed from what the build knows and applied in
 # this order (the triple appears only inside the build-Python's path, which goes first), replace
-# the rest. Each Python distribution's METADATA rides along (spec 033): a wheel's from the wheel,
+# the rest. Each Python distribution's METADATA rides along: a wheel's from the wheel,
 # numpy's and pandas' from their pinned sdists' PKG-INFO. CPython's own ctypes stays out (no libffi
 # in wasi-sdk); the recipe's stand-in package takes its place. The tool protocol's guest package,
-# `host` (spec 031), rides along as the project's own code; the snapshot does not pre-import it.
+# `host`, rides along as the project's own code; the snapshot does not pre-import it.
 # Each module's code is compiled under the name zipimport gives a source in the same zip, the
-# archive's guest path plus the member (spec 051): that path is recipes/reactor_main.c's
-# STDLIB_ZIP, written there once more, and step 80's ZIP. The plot packages (spec 023, Decision 4):
+# archive's guest path plus the member: that path is recipes/reactor_main.c's
+# STDLIB_ZIP, written there once more, and step 80's ZIP. The plot packages:
 # Pillow's, kiwisolver's and matplotlib's Python files from step 55, the four pure wheels, and their
 # METADATA; matplotlib's backends but the ten a plot and its saves can use, its testing and
 # sphinxext folders, and every tests/ folder stay out; its mpl-data goes in as one member, an inner
-# archive the runner extracts and grants at the path matplotlib computes (Decision 5). contourpy
-# (spec 043): its Python package from step 55, its _build_config.py made host-neutral as numpy's
-# __config__ is, and its METADATA from the pinned sdist. lxml (spec
-# 046): its Python package from step 54 without isoschematron, whose stand-in takes its place
-# (Decision 8), and its METADATA from the pinned sdist. Tier A (spec 039, Decision 4): twenty-seven
+# archive the runner extracts and grants at the path matplotlib computes (Decision 5). contourpy:
+# its Python package from step 55, its _build_config.py made host-neutral as numpy's
+# __config__ is, and its METADATA from the pinned sdist. lxml:
+# its Python package from step 54 without isoschematron, whose stand-in takes its place
+# (Decision 8), and its METADATA from the pinned sdist. Tier A: twenty-seven
 # pure wheels, and the pure package folders of pyyaml's, markupsafe's and networkx's sdists, each
 # unpacked from its pin, given its carried patches, and staged under build/pure-install/, since
 # each sdist keeps an .egg-info beside the package, which the zip refuses at a tree's top; their
 # METADATA is their PKG-INFO. pyyaml and markupsafe publish no pure wheel; networkx does, but a
-# wheel is never patched, so a pure package that needs a carried patch comes from its sdist (spec
-# 041, Decision 4), and its entry_points.txt rides beside its METADATA (--entry-points). scipy
-# (spec 037): its package as step 57 installed it from meson's plan, a stand-in at scipy/odr.py
+# wheel is never patched, so a pure package that needs a carried patch comes from its sdist,
+# and its entry_points.txt rides beside its METADATA (--entry-points). scipy:
+# its package as step 57 installed it from meson's plan, a stand-in at scipy/odr.py
 # (scipy.odr needs Fortran), its METADATA from the sdist, and its __config__.py made host-neutral
-# as numpy's is. scikit-learn (spec 044, Decision 10): its package as step 58 staged it from the
+# as numpy's is. scikit-learn: its package as step 58 staged it from the
 # patched sdist, its METADATA from the sdist, and its two sample photographs left out with their
-# folder (`--drop`, spec 023's rule, which applies to every input and stops when it matches
-# nothing): no JPEG decoder could read them, so their loaders fail by name. seaborn and reportlab
-# (spec 042): seaborn's package from its sdist, which holds the licences of the code it vendors,
+# folder (`--drop`, matplotlib's rule, which applies to every input and stops when it matches
+# nothing): no JPEG decoder could read them, so their loaders fail by name. seaborn and reportlab:
+# seaborn's package from its sdist, which holds the licences of the code it vendors,
 # staged beside tier A's, its METADATA its PKG-INFO; reportlab's wheel, without its fonts (their
 # licences are not approved, and reportlab cannot read them from a zip; Decision 4) and, until a
 # later change ships it with Tyler C. Sarna's acknowledgement, without its barcode folder
-# (Decision 4a; question 73), both by the same --drop.
+# (Decision 4a), both by the same --drop.
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -43,16 +43,16 @@ NUMPY_SITE=$(dirname "$(find "$B/numpy-install" -type d -name numpy -path '*site
 SYSCONFIG="$W/build/lib.wasi-wasm32-$PYTHON_MM/_sysconfigdata__wasi_wasm32-wasi.py"
 [ -f "$SYSCONFIG" ] || die "no WASI _sysconfigdata at $SYSCONFIG"
 # traceback's reasons for the stdlib modules this platform lacks, generated beside _sysconfigdata
-# by CPython's build (spec 086; spec 078's build review, F2).
+# by CPython's build.
 MISSING_INFO="$(dirname "$SYSCONFIG")/_missing_stdlib_info.py"
 [ -f "$MISSING_INFO" ] || die "no _missing_stdlib_info at $MISSING_INFO"
 for pkg in pillow kiwisolver matplotlib contourpy; do
   [ -d "$B/plot-install/$pkg" ] || die "build/plot-install/$pkg is missing: run step 55"
 done
 [ -d "$B/lxml-install/lxml" ] || die "build/lxml-install/lxml is missing: run step 54"
-[ -d "$B/regex-install/regex" ] || die "build/regex-install/regex is missing: run step 53"  # spec 047
-[ -d "$B/scipy-install/scipy" ] || die "build/scipy-install/scipy is missing: run step 57"  # spec 037
-[ -d "$B/sklearn-install/sklearn" ] || die "build/sklearn-install/sklearn is missing: run step 58"  # spec 044
+[ -d "$B/regex-install/regex" ] || die "build/regex-install/regex is missing: run step 53"
+[ -d "$B/scipy-install/scipy" ] || die "build/scipy-install/scipy is missing: run step 57"
+[ -d "$B/sklearn-install/sklearn" ] || die "build/sklearn-install/sklearn is missing: run step 58"
 BACKENDS="__init__.py,registry.py,_backend_pdf_ps.py,backend_mixed.py,backend_agg.py,backend_pdf.py"
 BACKENDS="$BACKENDS,backend_ps.py,backend_svg.py,backend_pgf.py,backend_template.py"
 # The build-Python CPython's driver built, found as scripts/python-wasi-cross finds it: its

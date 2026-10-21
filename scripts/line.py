@@ -1,4 +1,4 @@
-"""The release line for the Python build scripts: `scripts/line.conf`, parsed (spec 005).
+"""The release line for the Python build scripts: `scripts/line.conf`, parsed.
 
 The grammar is one `NAME=value` per line, the value only letters, digits and `._+-`, and `#`
 starting a comment line; any other line, a blank one included, is an error (so the file is also
@@ -6,7 +6,7 @@ safe for the shell to source). `PYTHON_MM` and `PYTHON_TAG` are derived from `PY
 `steps/common.sh` derives them, so they cannot disagree with it.
 
 The host-specific names (`WASI_SDK_DIR`, ...) are set for the build host this runs on, from its
-key's lines, as `line.sh` sets them (spec 012, Decision 1). On any other host (Windows, an Intel
+key's lines, as `line.sh` sets them. On any other host (Windows, an Intel
 Mac) they are left unset and nothing is raised: such a host reads the line but builds nothing, and
 a reader that needs a host name says so itself.
 """
@@ -31,7 +31,7 @@ HOST_NAMES = (
     "CYTHON_WHEEL",
     "NINJA_WHEEL",
     "PKGCONF_WHEEL",
-    "NUMPY_HOST_WHEEL",  # f2py's numpy, for scipy's build (spec 037, Decision 7)
+    "NUMPY_HOST_WHEEL",  # f2py's numpy, for scipy's build
 )
 
 

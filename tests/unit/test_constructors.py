@@ -1,4 +1,4 @@
-"""The constructor check compares the reviewed list whole (spec 023's build review, F2): one more
+"""The constructor check compares the reviewed list whole: one more
 constructor with a name already reviewed, a missing one, or another order each fails; the real
 list passes."""
 

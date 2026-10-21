@@ -1,4 +1,4 @@
-"""Names an operating system or its helpers write into folders on their own (specs 018 and 090):
+"""Names an operating system or its helpers write into folders on their own:
 macOS Finder and its folder-size cache, Windows Explorer, and a volume's own folders. No build
 input reads them and no artifact may carry them. The judge keeps the same set and rules in
 `tests/harness/paths.py`; a unit check holds the two equal."""

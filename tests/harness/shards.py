@@ -1,4 +1,4 @@
-"""The release's shards and every package's own suite (spec 063).
+"""The release's shards and every package's own suite.
 
 A shard is a named selection of the judge's own checks, read from `tests/release_shards.toml`:
 `uv run pytest --shard=<name>` deselects everything outside it through pytest's own hook, so node
@@ -58,9 +58,9 @@ def on(plan: dict[str, Shard], system: str) -> list[str]:
 
 
 def group_of(configs: dict | None = None) -> dict[str, str]:
-    """Every upstream check's group: a group's suite check, its classes' checks (the map spec 052's
-    scheduler keeps) and each trap whose file lies under one of the group's paths (the rule
-    `upstream.group_spec` uses for its ignores)."""
+    """Every upstream check's group: a group's suite check, its classes' checks (the map the
+    parallel judge's scheduler keeps) and each trap whose file lies under one of the group's paths
+    (the rule `upstream.group_spec` uses for its ignores)."""
     from harness import plugin, upstream
 
     configs = upstream.load_all() if configs is None else configs
@@ -70,7 +70,7 @@ def group_of(configs: dict | None = None) -> dict[str, str]:
     }
     for cfg in configs.values():
         for t in cfg.traps:
-            if t.group:  # a regrtest trap names its group (spec 065)
+            if t.group:  # a regrtest trap names its group
                 out[upstream.trap_node(t.id)] = t.group
                 continue
             for g in cfg.groups.values():
@@ -81,7 +81,7 @@ def group_of(configs: dict | None = None) -> dict[str, str]:
 
 
 def group_systems(plan: dict[str, Shard] | None = None) -> dict[str, set[str]]:
-    """Each upstream group's systems in the release: the union of its shards' (spec 065: what a
+    """Each upstream group's systems in the release: the union of its shards' (what a
     host entry must record a result for)."""
     plan = load() if plan is None else plan
     out: dict[str, set[str]] = {}
@@ -197,11 +197,11 @@ def plan_errors(plan: dict[str, Shard], files: list[str], groups: list[str]) -> 
             errors.append(f"(e) {name} does not run on all of macos, linux and windows")
         # The rest shard holds the rules and the judge's own tooling (the build scripts, the
         # landing lane, the harness's self-tests): they run where the lane and the rebuild hosts
-        # run, macOS and Linux (spec 063's first Windows run: 112 failures, none a product check).
+        # run, macOS and Linux (the first Windows run: 112 failures, none a product check).
         if s.rest and not {"macos", "linux"} <= set(s.systems):
             errors.append(f"(e) {name} does not run on macos and linux")
     # (h) Single checks by node id: only the build shard names them, each once, each a check of a
-    # tracked test file (the confirmation's D1).
+    # tracked test file.
     named: set[str] = set()
     for name, s in plan.items():
         for n in s.nodes:
@@ -220,7 +220,7 @@ def plan_errors(plan: dict[str, Shard], files: list[str], groups: list[str]) -> 
                 errors.append(f"(h) {n}: {file} defines no {func}")
     # (g) Every product check file and every runner unit file is in a files shard that runs on all
     # three systems, so rest holds only the rules and the judge's own tooling, and a new product
-    # file cannot fall off Windows by default (spec 063's build review, F1).
+    # file cannot fall off Windows by default.
     on_all = {f for s in plan.values() if set(OWN_SYSTEMS) <= set(s.systems) for f in s.files}
     build_files = set(plan["build"].files) if "build" in plan else set()
     for f in product_files(files):
@@ -240,10 +240,10 @@ def plan_errors(plan: dict[str, Shard], files: list[str], groups: list[str]) -> 
 # Every package names its own suite (Decision 15)
 
 KINDS = ("suite", "via", "build-only", "later")
-# The runtimes linked into every binary, which neither list names (the pre-build review, F5).
+# The runtimes linked into every binary, which neither list names.
 LINKED_RUNTIMES = ("wasi-libc", "llvm-runtimes")
 # needs.SOURCE_COMPONENTS names three components otherwise than paths.PACKAGES and the file do
-# (scikit-learn's tree is named as its tarball names it; spec 044).
+# (scikit-learn's tree is named as its tarball names it).
 COMPONENT_NAMES = {"cpython": "python", "sqlite": "sqlite-autoconf", "scikit_learn": "scikit-learn"}
 SPEC_NUMBER = re.compile(r"spec (\d{3})\b")
 
@@ -258,7 +258,7 @@ def components() -> list[str]:
 
 
 def reserved_numbers(roadmap_text: str) -> set[str]:
-    """The specification numbers `context/roadmap.md` reserves on lines beginning `Reserved:`."""
+    """The specification numbers the roadmap reserves on lines beginning `Reserved:`."""
     out: set[str] = set()
     for line in roadmap_text.split("\n\n"):
         if line.lstrip().startswith("Reserved:"):

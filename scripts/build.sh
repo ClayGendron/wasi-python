@@ -1,6 +1,6 @@
 #!/bin/sh
-# Build the artifact set from pinned inputs (spec 003): one line per step, the full log under
-# build/logs/<step>.log; on a terminal, a status line below them says where it is (spec 027).
+# Build the artifact set from pinned inputs: one line per step, the full log under
+# build/logs/<step>.log; on a terminal, a status line below them says where it is.
 #
 #   scripts/build.sh                 every step, in order
 #   scripts/build.sh 60 70 80 90     only the named steps (by number or full name)
@@ -20,7 +20,7 @@ P_LC_ALL=${LC_ALL:-} P_LC_CTYPE=${LC_CTYPE:-} P_LANG=${LANG:-}
 export SOURCE_DATE_EPOCH=1767225600  # 2026-01-01T00:00:00Z: a constant, so rebuilds are equal
 export UV_CACHE_DIR="$HERE/build/uv-cache"
 export PYTHONHASHSEED=0
-export LC_ALL=C  # one collation on every host: each step's `sort` orders bytes alike (spec 012)
+export LC_ALL=C  # one collation on every host: each step's `sort` orders bytes alike
 . "$HERE/scripts/steps/remove.sh"
 . "$HERE/scripts/steps/progress.sh"
 
@@ -173,7 +173,7 @@ if [ "$P_DO" = check ]; then
   exit 0
 fi
 
-# Every Python a step runs is the pinned one (spec 079, Decision 4). Step 10's shim for it,
+# Every Python a step runs is the pinned one. Step 10's shim for it,
 # build/tools/host-python/, comes first on each step's PATH (common.sh). Behind it this folder
 # shadows, with the refusing stand-in scripts/refuse-python, every python*, pypy*, pip*, pydoc*
 # and idle* file the caller's PATH holds, and a fixed list besides; the first link of a name wins.

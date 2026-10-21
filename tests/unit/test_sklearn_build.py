@@ -1,4 +1,4 @@
-"""scikit-learn's build scripts on the host (spec 044, Decision 13's unit checks): the module list
+"""scikit-learn's build scripts on the host: the module list
 from meson's install plan with nothing copied, gen_inittab's four renames, the staging of scipy's
 Cython declarations, and the weak-duplicate gate and link-map check. No artifact; the gate's
 llvm-nm output is the form the SDK's llvm-nm prints for wasm objects, and one check compiles two

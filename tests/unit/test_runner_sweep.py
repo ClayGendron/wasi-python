@@ -1,5 +1,5 @@
 """A dead process's private folders are swept, by lock and kernel, and a trap is named by its
-code (spec 016). Each case sweeps an empty temporary folder of its own; nothing here measures
+code. Each case sweeps an empty temporary folder of its own; nothing here measures
 time. The `verify` job runs this file on Linux, macOS and Windows."""
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ def temp(tmp_path, monkeypatch):
     monkeypatch.setattr(tempfile, "tempdir", str(folder))
     monkeypatch.setattr(process(), "sweep_claimed", False)
     monkeypatch.setattr(process(), "sweep_swept", 0)
-    monkeypatch.setattr(process(), "sweep_failed", {})  # spec 084: failed sweeps per name
+    monkeypatch.setattr(process(), "sweep_failed", {})  # failed sweeps per name
     monkeypatch.setattr(process(), "warned", set())
     monkeypatch.setattr(process(), "pending_warnings", [])
     return folder
@@ -183,7 +183,7 @@ def test_a_failing_listing_leaves_the_call_alone(temp, monkeypatch) -> None:
 
 def test_a_busy_name_is_drawn_again(temp, monkeypatch) -> None:
     """A sweeper holding a new lock file at the instant its creator tries it: the creator draws
-    another name instead of raising (spec 016's confirmation, C4)."""
+    another name instead of raising."""
     real = _platform.PLATFORM.try_lock
     calls = []
 
@@ -219,7 +219,7 @@ def test_a_private_folder_goes_before_its_lock_file(temp, monkeypatch) -> None:
 
 def test_a_lock_file_swept_before_its_lock_makes_the_creator_draw_again(temp, monkeypatch) -> None:
     """A sweeper removes a new, still-empty lock file (the lone-lock rule) before its creator
-    locks it: the creator draws another name instead of raising (build review, finding 1). On
+    locks it: the creator draws another name instead of raising. On
     Windows the race cannot happen: the creator holds the file open from its creation, and an
     open file cannot be deleted, by a sweeper or by this check; there the check shows that, and
     that the creator keeps its first name."""
@@ -255,7 +255,7 @@ def test_a_filesystem_without_locks_still_makes_a_folder_that_is_never_swept(
     temp, monkeypatch
 ) -> None:
     """ENOLCK (NFS without a lock daemon): no lock and no identity, so the folder is only ever
-    leaked, never swept; the call goes on (build review, finding 2)."""
+    leaked, never swept; the call goes on."""
     if POSIX:
         import fcntl
 
@@ -277,7 +277,7 @@ def test_a_filesystem_without_locks_still_makes_a_folder_that_is_never_swept(
 
 def test_a_lock_that_errors_keeps_its_folder(temp, monkeypatch) -> None:
     """A lock file naming this kernel whose lock attempt errors (a lock daemon gone away) stays
-    with its folder: only a lock taken may lead to a removal (build review confirmation, N1)."""
+    with its folder: only a lock taken may lead to a removal."""
     folder = dead(temp)
     no_lock = lambda *a: _raise(OSError(errno.ENOLCK, "no locks"))  # noqa: E731
     if POSIX:
@@ -332,7 +332,7 @@ def test_an_existing_lock_file_is_never_opened_again(temp, monkeypatch) -> None:
 
 
 def test_a_folder_rmtree_could_not_remove_keeps_its_lock_file(temp, monkeypatch) -> None:
-    """Otherwise what is left is never swept (build review, finding 5). Since spec 084 the
+    """Otherwise what is left is never swept. Now the
     removal is the platform's `remove_tree`, and a folder it leaves is named in one warning."""
     private = _private_dirs._Private("wasi-python-root-")
     (private.path / "file").write_text("guest data")
@@ -349,7 +349,7 @@ def test_a_folder_rmtree_could_not_remove_keeps_its_lock_file(temp, monkeypatch)
 @pytest.mark.skipif(not POSIX, reason="Windows cannot delete an open file")
 def test_the_sweep_unlinks_before_it_lets_the_lock_go(temp, monkeypatch) -> None:
     """A creator that locks the file after the sweep fails its same-file check and draws again,
-    instead of keeping a folder whose lock file is gone (build review, finding 6)."""
+    instead of keeping a folder whose lock file is gone."""
     folder = dead(temp)
     lock, real = f"{folder}.lock", _platform.PLATFORM.unlock_close
     seen = []
@@ -376,7 +376,7 @@ class FakeTrap:
 
 
 def test_a_trap_is_named_by_its_code() -> None:
-    """The 0.1.0a2 security review, F7: a stack overflow read "error while executing at wasm
+    """A stack overflow read "error while executing at wasm
     backtrace:", wasmtime's heading, not its cause."""
     import wasmtime as wt
 
@@ -403,7 +403,7 @@ def test_the_kernel_identity_is_one_line() -> None:
     assert IDENTITY and "\n" not in IDENTITY and IDENTITY == IDENTITY.strip()
 
 
-# A private root never outlives its call (spec 084). `_remove_tree` walks a tree holding at most
+# A private root never outlives its call. `_remove_tree` walks a tree holding at most
 # two descriptors, changes no mode, and never follows a link; a folder it leaves keeps its lock
 # file, is named in one warning, and re-arms the sweep. Each case counts entries, descriptors or
 # calls, and times nothing. On POSIX the deep cases run in a child with three free descriptors;
@@ -582,10 +582,10 @@ CHAIN = 8  # throwaway levels above the tree: more than the walk's deepest stack
 
 
 def tree_with_canary(tmp_path) -> tuple[Path, Path]:
-    """The review's shape: tree/ six levels deep, a file at each, and outside/keep beside it,
+    """A deep shape: tree/ six levels deep, a file at each, and outside/keep beside it,
     both under CHAIN throwaway levels inside tmp_path, each holding a file `chain`. A walk that
     climbed out (the identity check missing) then fails `chain_intact` and stays inside tmp_path,
-    never reaching the session's other folders (the build review, B1)."""
+    never reaching the session's other folders."""
     base = tmp_path
     for i in range(CHAIN):
         base = base / f"c{i}"
@@ -635,7 +635,7 @@ def at_level(tree: Path, level: int):
 
 @pytest.mark.skipif(WINDOWS, reason="a hook on os.open with dir_fd: the POSIX walk")
 def test_a_folder_swapped_for_a_link_mid_walk_is_left(tmp_path, monkeypatch) -> None:
-    """Criterion 6, the swap (the review's attack B): level 3 moved aside and a link to the
+    """Criterion 6, the swap: level 3 moved aside and a link to the
     canary put in its place as the walk is about to open it. The link is left and the removal
     returns False; the canary is kept."""
     tree, outside = tree_with_canary(tmp_path)
@@ -658,7 +658,7 @@ def test_a_folder_swapped_for_a_link_mid_walk_is_left(tmp_path, monkeypatch) -> 
 @pytest.mark.skipif(WINDOWS, reason="the climb by `..` and its identity check: the POSIX walk")
 @pytest.mark.parametrize("attack", ["moved-out", "renamed-up", "parent-moved-out"])
 def test_the_walk_never_climbs_out_of_a_moved_folder(tmp_path, monkeypatch, attack) -> None:
-    """Criterion 7 (the review's F2): a folder moved during the walk, by a hook at an exact step.
+    """Criterion 7: a folder moved during the walk, by a hook at an exact step.
     The climb's identity check stops the walk: it returns False and the canary is kept. Without
     the check the walk climbs out and empties it."""
     tree, outside = tree_with_canary(tmp_path)
@@ -686,7 +686,7 @@ def test_the_walk_never_climbs_out_of_a_moved_folder(tmp_path, monkeypatch, atta
 @pytest.mark.skipif(POSIX and os.geteuid() == 0, reason="modes refuse nothing to root")
 def test_read_only_content_is_left_and_named(temp, recwarn) -> None:
     """Criterion 8: the removal changes no mode or attribute. Read-only content is left with its
-    modes, and the folder named; an empty folder it cannot open goes by rmdir (N1)."""
+    modes, and the folder named; an empty folder it cannot open goes by rmdir."""
     private = _private_dirs._Private("wasi-python-root-")
     top = private.path
     if WINDOWS:
@@ -739,7 +739,7 @@ def fresh_home(tmp_path: Path) -> tuple[str, Path, int | None]:
 
 
 def test_a_writer_cannot_keep_a_home_removal_going(temp, tmp_path, monkeypatch, recwarn) -> None:
-    """Criterion 9 (the review's F3 and C1): a HOME's removal has a budget of calls, so a
+    """Criterion 9: a HOME's removal has a budget of calls, so a
     concurrent writer cannot keep it going; a private folder has none."""
     with monkeypatch.context() as m:
         m.setattr(_private_dirs, "_REMOVE_BUDGET", 10_000, raising=False)
@@ -799,7 +799,7 @@ def test_what_a_removal_leaves_is_retried_by_the_next_calls_sweep(temp, monkeypa
 
 
 def test_the_name_is_dropped_before_the_sweep_is_re_armed(temp, monkeypatch) -> None:
-    """Criterion 10 (the review's F6): a sweep that runs between the drop and the re-arm cannot
+    """Criterion 10: a sweep that runs between the drop and the re-arm cannot
     spend the retry; one run just before the drop (another thread's, say) skips the held name,
     and the next sweep still removes the folder."""
     failing_once(monkeypatch)
@@ -884,7 +884,7 @@ def test_a_warning_filter_never_makes_the_call_raise(temp, monkeypatch) -> None:
 
 
 def test_the_warning_is_given_outside_every_runner_lock(temp, monkeypatch) -> None:
-    """Criterion 14 (the review's F6): a removal under the zip folder's lock queues its warning;
+    """Criterion 14: a removal under the zip folder's lock queues its warning;
     the flush gives it with no runner lock held, so an embedder's handler may call stats()."""
     import warnings
 

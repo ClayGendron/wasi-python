@@ -1,4 +1,4 @@
-"""v1.3: regex, built in (spec 047): native regex's answers in the guest, the five callbacks its
+"""v1.3: regex, built in: native regex's answers in the guest, the five callbacks its
 carried patch fixed among them, and a compiled pattern that pickles under its import name."""
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ BINARY = pytest.mark.parametrize("which", ["plain", "snapshot"])
 def test_regex_features_job_matches_native(guest, which) -> None:
     """Fuzzy matching, Unicode properties from regex's own tables, graphemes, full case folding
     and the rest print native regex's output, then the five patched calls and a pickle round trip
-    with the pickle's length and SHA-256 (spec 047, Decision 7)."""
+    with the pickle's length and SHA-256."""
     job = "regex_features"
     files = {f"/jobs/{job}.py": jobs.script(job).read_bytes(), "/out/.keep": b""}
     files.update({f"/data/{n}": src.read_bytes() for n, src in jobs.DATA.items()})
@@ -50,7 +50,7 @@ def test_the_five_patched_callbacks_answer(guest, which) -> None:
     """The two getters and three no-argument methods carried patch 0001 gives the parameter
     CPython passes return native's values; without it each trapped the guest ("indirect call
     type mismatch"), and so did `regex.sub` with a named-group template, which reads
-    `groupindex` (spec 047, Decision 3). Nothing writable is granted."""
+    `groupindex`. Nothing writable is granted."""
     r = guest(which, ["-c", FIVE])
     assert (r.exit_code, r.trapped) == (0, None), r.describe()
     want = {
@@ -120,8 +120,8 @@ print(json.dumps(out))
 def test_a_timeout_past_2_147_seconds_fires(guest, which) -> None:
     """`timeout=3` raises `TimeoutError` after 3 s of the guest's clock. regex kept its clock ticks
     in a 32-bit `Py_ssize_t` on wasm32, at wasi-libc's 10**9 ticks a second, so any timeout above
-    2.147 s saturated and never fired; carried patch 0002 keeps them in 64 bits (spec 087,
-    Decision 2). The driver's clock steps 2 ms per read, so a guest second is 500 reads and the
+    2.147 s saturated and never fired; carried patch 0002 keeps them in 64 bits.
+    The driver's clock steps 2 ms per read, so a guest second is 500 reads and the
     check times nothing: the search takes 4.658 s of guest clock to fail. `timeout=inf` and other
     timeouts too large for the ticks mean no timeout."""
     r = guest(which, ["-c", TIMEOUTS], clock_step_ns=2_000_000, fuel=5 * 10**9)

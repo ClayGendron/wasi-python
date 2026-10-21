@@ -84,14 +84,14 @@ def test_the_clock_starts_at_a_fixed_time_and_ticks_per_call(work) -> None:
 
 
 def test_the_clock_steps_by_the_runs_clock_step(work) -> None:
-    # spec 087, Decision 3: a check can make a guest second a count of clock reads.
+    # a check can make a guest second a count of clock reads.
     assert _run(work, "step.wasm", wat.CLOCK_STEP_PROBE).exit_code == 1
     assert _run(work, "step.wasm", wat.CLOCK_STEP_PROBE, clock_step_ns=2_000_000).exit_code == 2_000
 
 
 def test_a_changed_clock_step_is_the_stated_resolution(work) -> None:
-    # At the default step the resolution is spec 065's, held by its own guard; a changed step
-    # states itself, so time.get_clock_info tells that run the truth (spec 087, Decision 3).
+    # At the default step the resolution is the one CPython's tests were judged with, held by its
+    # own guard; a changed step states itself, so time.get_clock_info tells that run the truth.
     r = _run(work, "res.wasm", wat.CLOCK_RES_PROBE, clock_step_ns=2_000_000)
     assert r.exit_code == 2_000
 
@@ -151,7 +151,7 @@ def test_cpython_fuel_repeats_without_a_seed(cpython) -> None:
 
 
 def test_fuel_counts_no_memory_image_copy(work) -> None:
-    """The driver meters from after instantiation, so a page of data costs no fuel (spec 008)."""
+    """The driver meters from after instantiation, so a page of data costs no fuel."""
     with_data = guest.run(wat.build(work, "d.wasm", wat.command_with_data(True)), [], workdir=work)
     without = guest.run(wat.build(work, "n.wasm", wat.command_with_data(False)), [], workdir=work)
     assert (with_data.exit_code, without.exit_code) == (0, 0)
@@ -159,7 +159,7 @@ def test_fuel_counts_no_memory_image_copy(work) -> None:
 
 
 def test_initialize_is_metered(work) -> None:
-    """_initialize runs guest code (the reactor's constructors), so it counts (spec 008)."""
+    """_initialize runs guest code (the reactor's constructors), so it counts."""
     light = guest.run(wat.build(work, "l.wasm", wat.reactor_with_init(0)), [], workdir=work)
     heavy = guest.run(wat.build(work, "h.wasm", wat.reactor_with_init(1000)), [], workdir=work)
     assert (light.exit_code, heavy.exit_code) == (0, 0)
@@ -186,7 +186,7 @@ INDIRECT_MISMATCH = """
 
 
 def test_a_trap_keeps_its_first_line_and_its_cause(work) -> None:
-    """spec 050, Decision 14: every such trap's first line is alike; the cause tells them apart."""
+    """every such trap's first line is alike; the cause tells them apart."""
     r = _run(work, "mismatch.wasm", INDIRECT_MISMATCH)
     assert r.exit_code is None and r.trapped and "indirect call" not in r.trapped
     assert r.trap_cause == "wasm trap: indirect call type mismatch"
@@ -203,7 +203,7 @@ def test_the_cause_is_the_line_after_caused_by() -> None:
 
 
 def test_turns_drives_one_instance_across_calls(work) -> None:
-    """Spec 055: the raw turn driver writes each turn's code through host_alloc into one kept
+    """The raw turn driver writes each turn's code through host_alloc into one kept
     instance, and calls the exports as they are."""
     stdlib = work / "stdlib.zip"
     stdlib.write_bytes(b"")
@@ -224,7 +224,7 @@ def test_turns_drives_one_instance_across_calls(work) -> None:
         t.close()
 
 
-# Spec 081: a measured run's inputs name no host path, so its fuel does not depend on where the
+# A measured run's inputs name no host path, so its fuel does not depend on where the
 # checkout is. The driver refuses one before it runs.
 
 
@@ -313,7 +313,7 @@ def test_a_measured_run_with_a_host_path_is_refused_before_it_runs(work) -> None
     assert guest.run(wasm, [str(work / "f")], workdir=work, measured=False).exit_code == 101
 
 
-# Spec 083: the driver answers a file's times and inode number itself, never the host's.
+# The driver answers a file's times and inode number itself, never the host's.
 
 STAT = struct.Struct("<QQB7xQQQQQ")  # dev, ino, filetype, nlink, size, atim, mtim, ctim
 DIRENT = struct.Struct("<QQIB3x")  # d_next, d_ino, d_namlen, d_type
@@ -367,9 +367,9 @@ def _listing(data: bytes) -> dict[bytes, tuple[int, bytes]]:
 
 @pytest.mark.parametrize("step_ns", [guest.CLOCK_STEP_NS, 2_000_000])
 def test_a_files_times_follow_the_runs_clock_step(work, step_ns) -> None:
-    """Spec 087's build review, F3: a file first seen after two clock reads is dated one step
+    """A file first seen after two clock reads is dated one step
     after the second, at the default step and at a changed one, since its times come from the
-    same stepped clock (spec 083)."""
+    same stepped clock."""
     grant = work / "grant"
     grant.mkdir()
     (grant / "f").write_bytes(b"x")
@@ -379,11 +379,11 @@ def test_a_files_times_follow_the_runs_clock_step(work, step_ns) -> None:
 
 
 def test_a_files_times_and_inode_are_the_drivers(work) -> None:
-    """Spec 083, Decisions 2 and 3: two runs over a file made afresh with other host times send
+    """Two runs over a file made afresh with other host times send
     the same answers (but `ctim`, which hosts move by their own rules) and spend the same fuel.
     The inode is a count from 1, the times the clock's values, a time set exactly comes back as
-    set, a time set "now" is a later clock value, and a stream's zeros pass through (F4). A stat
-    writes only its inode and times: its padding keeps the guest's bytes (the review's N1)."""
+    set, a time set "now" is a later clock value, and a stream's zeros pass through. A stat
+    writes only its inode and times: its padding keeps the guest's bytes."""
     grant = work / "grant"
     first, fuel_1 = _file_facts(work, grant, 10 * YEAR)
     second, fuel_2 = _file_facts(work, grant, 40 * YEAR)
@@ -410,7 +410,7 @@ def test_a_files_times_and_inode_are_the_drivers(work) -> None:
 
 
 def test_a_read_alone_moves_no_answered_time(work) -> None:
-    """Spec 083, Decision 2 (the review's F1): a host moves a file's atime when it is read,
+    """A host moves a file's atime when it is read,
     depending on the file's past, so an atime move alone never gives a new answer; a move of
     mtim or ctim gives atim and the moved times one new clock value together."""
     frames, _ = _file_facts(work, work / "grant", 10 * YEAR)
@@ -427,7 +427,7 @@ def test_a_read_alone_moves_no_answered_time(work) -> None:
 
 
 def test_a_shadowed_file_call_costs_the_guest_only_its_own_instructions(work) -> None:
-    """Spec 083, Decision 1: the forward through the driver's trampoline is fuel-neutral, so a
+    """The forward through the driver's trampoline is fuel-neutral, so a
     loop over a shadowed call costs what the same loop over a call it leaves alone costs."""
     shadowed = guest.run(
         wat.build(work, "s.wasm", wat.stat_loop("fd_filestat_get", 50)), [], workdir=work
@@ -440,7 +440,7 @@ def test_a_shadowed_file_call_costs_the_guest_only_its_own_instructions(work) ->
 
 
 def test_the_forward_never_runs_a_guest_out_of_fuel_early(work) -> None:
-    """Spec 083, Decision 1 (the review's F2): at the budget's edge a shadowed call ends a run
+    """At the budget's edge a shadowed call ends a run
     exactly as a call the driver leaves alone does, and an out-of-fuel run spends its cap."""
     stat = wat.build(work, "s.wasm", wat.stat_loop("fd_filestat_get", 50))
     plain = wat.build(work, "p.wasm", wat.stat_loop("fd_fdstat_get", 50))
@@ -454,7 +454,7 @@ def test_the_forward_never_runs_a_guest_out_of_fuel_early(work) -> None:
 
 
 def test_a_cut_listing_entry_keeps_no_host_byte(work) -> None:
-    """Spec 083, Decision 3 (the review's F8): whole entries get counted inode numbers and zero
+    """Whole entries get counted inode numbers and zero
     padding; of an entry cut at the buffer's end, only the d_ino and padding bytes present are
     zeroed, and every other byte is left as wasmtime wrote it."""
     names = [b"alpha", b"be", b"gamma"]

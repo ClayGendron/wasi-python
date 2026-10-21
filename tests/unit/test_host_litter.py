@@ -1,4 +1,4 @@
-"""Host litter (spec 089): a sealed stage refuses a writer, a removal unseals it, and a watched run
+"""Host litter: a sealed stage refuses a writer, a removal unseals it, and a watched run
 names any litter, or any change in a read-only grant. Nothing here needs the artifact set; nothing
 measures time."""
 
@@ -133,8 +133,8 @@ def test_a_kit_wheel_with_a_litter_member_is_refused(tmp_path: Path) -> None:
 
 
 def test_a_runs_stdlib_folder_is_unsealed_after_a_voided_run(work: Path) -> None:
-    """Build review F1: a run's sealed stdlib folder never outlives the run sealed, here a run
-    the watch voids (a host callback drops litter into the root mid-run). With 083 (the batch)
+    """A run's sealed stdlib folder never outlives the run sealed, here a run
+    the watch voids (a host callback drops litter into the root mid-run). With the batch,
     `_release` removes it through `litter.remove`, in the `finally` after the watch."""
     from harness import guest, wat
 

@@ -1,5 +1,5 @@
-"""Two checks on python.wasm's static link that wasm-ld's own warnings cannot make (spec 044,
-Decision 6). Step 60 runs the first before the link and the second after it.
+"""Two checks on python.wasm's static link that wasm-ld's own warnings cannot make.
+Step 60 runs the first before the link and the second after it.
 
     weak_duplicates.py archives <llvm-nm> <llvm-cxxfilt> <allowed list> <archive>...
     weak_duplicates.py link-map <python.map> --require <name>... --forbid <name>...
@@ -15,7 +15,7 @@ link's archives whose name another archive also defines, weak or strong, and sto
 review has allowed. Allowed by rule, not listed: the C++ standard library (a mangled name whose
 outermost scope is `std::`: its vtables, type information, guard variables and the lambdas inside
 its functions included), the C++ runtime's
-`__cxa_*` and `__cxxabiv1::`, and clang's `__clang_call_terminate`. Allowed by review:
+`__cxa_*` and `__cxxabiv1::`, and clang's `__clang_call_terminate`. Allowed by review: the list
 recipes/weak-duplicates-allowed.txt, one fnmatch pattern per line, matched against the name and
 its demangled form, or, written `scope:<pattern>`, against a C++ name's outermost scope (its
 namespace or class); each with `# <reason>` on its line, or the build stops. A pattern that
@@ -98,7 +98,7 @@ def allows(pattern: str, name: str, demangled: str) -> bool:
 def read_allowed(path: Path) -> list[str]:
     """The reviewed patterns: one per line, each followed on its line by `# <its reason>`; a line
     that starts with `#` is a comment, and blank lines are ignored. A pattern with no reason stops
-    the build (the confirmation's N3)."""
+    the build."""
     out = []
     for n, line in enumerate(path.read_text().splitlines(), 1):
         pattern, _, reason = line.partition("#")

@@ -1,4 +1,4 @@
-"""A cancel during a door call is named (spec 030): the shared host function's except branch and
+"""A cancel during a door call is named: the shared host function's except branch and
 its entry guard, with a fake call and a fake caller. No artifacts; nothing here measures time."""
 
 from __future__ import annotations
@@ -87,8 +87,7 @@ def test_ctrl_c_after_the_callback_ended_the_call_is_recorded(shared) -> None:
 
 
 def test_a_wasmtime_error_before_the_call_ended_is_recorded(shared) -> None:
-    """With `ended` unset, a trap or exit inside host_alloc is the call's stop, as before (spec
-    011)."""
+    """With `ended` unset, a trap or exit inside host_alloc is the call's stop, as before."""
     cause = wasmtime.WasmtimeError("x")
     call = FakeCall(raises=cause)
     assert shared(call) == STOPPED
@@ -106,9 +105,9 @@ def test_an_ended_call_is_not_served(shared) -> None:
 
 
 def test_a_ctrl_c_pending_at_an_ended_call_is_recorded(shared, monkeypatch) -> None:
-    """The entry guard sits after the Ctrl-C check (spec 015's order; the pre-build review's
-    third builder note): a call with `ended` set and a Ctrl-C pending records KeyboardInterrupt
-    and is not served (spec 030's build review, finding 3)."""
+    """The entry guard sits after the Ctrl-C check:
+    a call with `ended` set and a Ctrl-C pending records KeyboardInterrupt
+    and is not served."""
     monkeypatch.setattr(_home, "_ctrl_c_watched", lambda: True)
     monkeypatch.setattr(process(), "ctrl_c_pending", True)
     call = FakeCall()

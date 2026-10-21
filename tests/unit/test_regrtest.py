@@ -1,4 +1,4 @@
-"""CPython's own tests in the guest, on fixed inputs (spec 065): the stream, the verdict, the
+"""CPython's own tests in the guest, on fixed inputs: the stream, the verdict, the
 classes, the trap entries, the deselection, environment and host entries, the guard, the universe,
 the rules, the stage from the tarball, and the driver's source. No guest runs here."""
 
@@ -147,7 +147,7 @@ def test_protocol_faults_are_group_findings(change, finding) -> None:
         ("D test_a PASSED kept", "D test_a SKIPPED kept"),
         ("D test_a PASSED kept", "D test_a RESOURCE_DENIED kept"),
         ("D test_a PASSED kept", "D test_a DID_NOT_RUN kept"),
-        # the review's F3 case: a test's helper, half made, from the grant
+        # a test's helper, half made, from the grant
         (
             "E 2",
             "M generate_build_details /cpython/Tools/build/generate-build-details.py test\nE 2",
@@ -180,16 +180,16 @@ def test_a_trap_names_where_it_surfaced_at_or_after() -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# Environment entries (C1, D1, D2, D4)
+# Environment entries
 
 
 @pytest.mark.parametrize(
     ("warnings", "admitted"),
     [
         ("sys.path was modified by test_b", True),
-        ("sys.path_hooks was modified by test_b", False),  # D1: the resource named exactly
-        ("sys.path was modified by test_b|Unraisable exception", False),  # D4: the bare line
-        ("", False),  # D2: altered, and no warning line
+        ("sys.path_hooks was modified by test_b", False),  # The resource named exactly
+        ("sys.path was modified by test_b|Unraisable exception", False),  # The bare line
+        ("", False),  # Altered, and no warning line
     ],
 )
 def test_an_environment_entry_admits_only_its_kinds(warnings, admitted) -> None:
@@ -215,7 +215,7 @@ def test_an_environment_entry_is_exact_like_a_class() -> None:
 
 
 def test_stand_in_an_entry_by_module_alone_admits_an_unraisable_exception() -> None:
-    """The confirmation's C1 stand-in: matching the module without its kinds lets a new cause
+    """A stand-in: matching the module without its kinds lets a new cause
     through; the real entry does not."""
     text = CLEAN.replace(
         "D test_b FAILED kept",
@@ -231,7 +231,7 @@ def test_stand_in_an_entry_by_module_alone_admits_an_unraisable_exception() -> N
 
 
 # ---------------------------------------------------------------------------------------------
-# Trap entries (Decision 1, F5, C2)
+# Trap entries (Decision 1)
 
 
 def _trap(cfg, tid):
@@ -283,7 +283,7 @@ def test_a_trap_entry_is_red_for_another_ending(text, run, finding) -> None:
 
 
 def test_a_whole_module_entry_that_runs_to_its_end_is_open_with_its_counts() -> None:
-    """C2: where test_traceback does not trap, its failures (for want of _testcapi) are not judged
+    """Where test_traceback does not trap, its failures (for want of _testcapi) are not judged
     while the entry is open; its counts are a fact. Without its D line it is red."""
     w = _trap(_cfg(), "w")
     lines = ["C test_d"] + [
@@ -303,7 +303,7 @@ def test_a_whole_module_entry_that_runs_to_its_end_is_open_with_its_counts() -> 
 
 
 def test_stand_in_a_whole_module_check_that_judges_its_failures_is_red() -> None:
-    """C2's stand-in: judging test_traceback's failures as a group would turn a host with more
+    """A stand-in: judging test_traceback's failures as a group would turn a host with more
     stack headroom red."""
     text = (
         "C test_d\nS test.test_d.T.t\nR error test.test_d.T.t -- ModuleNotFoundError: _testcapi\n"
@@ -319,7 +319,7 @@ def test_stand_in_a_whole_module_check_that_judges_its_failures_is_red() -> None
 
 
 # ---------------------------------------------------------------------------------------------
-# Deselection and host entries (Decision 21, C3)
+# Deselection and host entries (Decision 21)
 
 
 def test_a_deselected_id_that_ran_is_reported() -> None:
@@ -394,7 +394,7 @@ def test_a_module_host_entry_admits_a_load_error_only_where_recorded() -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# The rules (criterion 1, C5)
+# The rules (criterion 1)
 
 
 def _gaps(cfg) -> set[str]:
@@ -522,9 +522,9 @@ def test_the_judges_own_cpython_files_load_and_pass_the_rules_without_the_tarbal
         "cpython-b",
         "cpython-c",
     }
-    # 542, and test_traceback since spec 078 closed its trap entry
+    # 542, and test_traceback since the 8 MiB guest stack closed its trap entry
     assert sum(len(g.modules) for g in PY.groups.values()) == 543
-    # spec 078 closed the nine trap entries (an 8 MiB stack); its test_traceback added one class
+    # the 8 MiB guest stack closed the nine trap entries; its test_traceback added one class
     assert len(PY.traps) == 0 and len(PY.expected) == 26
     from harness import plugin, shards
 
@@ -568,7 +568,7 @@ def test_the_stage_is_the_tarballs_bytes_and_lists_what_the_tree_adds(work) -> N
     left = regrtest.stage(tar, tree, dest)
     assert (dest / "lib/test/test_a.py").read_bytes() == b"good\n"
     assert not (dest / "lib/os.py").exists()
-    # Spec 090, Decision 5: neither a host Python's bytecode nor litter is a fact; a real extra is.
+    # Neither a host Python's bytecode nor litter is a fact; a real extra is.
     assert left == ["Lib/test/extra.py"]
 
 
@@ -615,7 +615,7 @@ def test_the_tie_names_the_cpython_tarball_and_its_patch_folder(work) -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# The driver's source (Decision 4, C1's hazard)
+# The driver's source (Decision 4)
 
 
 def test_the_driver_wraps_single_clear_caches_and_never_imports_ctypes() -> None:
@@ -653,7 +653,7 @@ def test_the_print_warning_wrapper_keeps_what_the_original_reads() -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# "No trap" asks to be seen (C4)
+# "No trap" asks to be seen
 
 
 def test_the_scoreboard_names_open_entries_with_no_trap_here() -> None:
@@ -689,7 +689,7 @@ def test_the_gather_names_entries_with_no_trap_on_any_system() -> None:
 def test_the_stated_clock_resolutions_are_the_ones_darwin_answered() -> None:
     """Realtime and monotonic at the step, the CPU-time clocks at a nanosecond (though every clock
     steps 1 µs): the values a darwin host answered before the judge stated them, so no accepted
-    darwin result moved (spec 065; spec 002's dated line)."""
+    darwin result moved."""
     from harness import guest
 
     assert guest.CLOCK_RESOLUTION_NS == {0: guest.CLOCK_STEP_NS, 1: guest.CLOCK_STEP_NS, 2: 1, 3: 1}

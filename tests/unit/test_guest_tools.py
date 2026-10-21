@@ -1,4 +1,4 @@
-"""The tool protocol's guest half (spec 031): the recipe package `recipes/guest/host/`, loaded on
+"""The tool protocol's guest half: the recipe package `recipes/guest/host/`, loaded on
 the host's Python under a private name, with a fake `_host` whose `call` routes each frame to a
 frame host (or to a stand-in that is not one). Nothing here measures time."""
 
@@ -321,7 +321,7 @@ def test_an_answer_that_does_not_match_is_a_protocol_error(load) -> None:
 
 
 def test_the_guest_refuses_what_the_host_would_refuse_as_protocol(load) -> None:
-    """Review F4: arguments the frame rules would refuse (nested past 62 levels inside args, an
+    """Arguments the frame rules would refuse (nested past 62 levels inside args, an
     integer literal over 64 characters) are a ToolArgumentError with no frame sent; at the bound
     they reach the tool."""
     host = T._ToolHost([tool(describe)])
@@ -348,7 +348,7 @@ def test_the_guest_refuses_what_the_host_would_refuse_as_protocol(load) -> None:
 
 
 def test_a_loose_bytes_answer_is_a_protocol_error(load) -> None:
-    """Review F6: the guest decodes $bytes strictly, as the host does."""
+    """The guest decodes $bytes strictly, as the host does."""
     host = T._ToolHost([tool(describe)])
     replies: list[bytes] = []
 

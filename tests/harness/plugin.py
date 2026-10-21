@@ -1,12 +1,12 @@
-"""The pytest plugin that turns the test run into the progress scoreboard (spec 002).
+"""The pytest plugin that turns the test run into the progress scoreboard.
 
 Loaded by tests/conftest.py. All state lives on `config.stash`, so the plugin's own end-to-end
 self-tests (pytester, in-process) never mix their records with the outer run's.
 
-On several cores (`-n N`, pytest-xdist; spec 052) the workers collect and run, and make each
+On several cores (`-n N`, pytest-xdist) the workers collect and run, and make each
 record exactly as a serial run does; the record rides to the controller on its report, and each
 worker's collection in its `workeroutput`. Workers write nothing and guard nothing: the controller
-alone runs spec 029's guards, writes the run record and accepts.
+alone runs the landing lane's guards, writes the run record and accepts.
 """
 
 from __future__ import annotations
@@ -53,9 +53,9 @@ class State:
     lines: list[str] = field(default_factory=list)
     facts: dict[str, dict] = field(default_factory=dict)  # node id -> the check's `fact` values
     crashed: dict[str, str] = field(default_factory=dict)  # failed reports carrying no record
-    collections: int = 0  # workers that handed their collection over (the build review, F7)
-    worker_foreign: list[str] = field(default_factory=list)  # what steered a worker (F2)
-    shard_items: int | None = None  # under --shard: the items it selected (spec 063, Decision 1)
+    collections: int = 0  # workers that handed their collection over
+    worker_foreign: list[str] = field(default_factory=list)  # what steered a worker
+    shard_items: int | None = None  # under --shard: the items it selected
     shard_units: list[str] = field(default_factory=list)  # under --shard: its unit tests
 
 
@@ -64,17 +64,17 @@ HEAD_AT_START = pytest.StashKey[str]()
 METRICS = pytest.StashKey[dict]()
 NOTE = pytest.StashKey[str]()
 FACTS = pytest.StashKey[dict]()
-METRIC_NAMES = ("fuel", "bytes", "passes")  # passes: spec 050, Decision 12
+METRIC_NAMES = ("fuel", "bytes", "passes")  # passes: an upstream suite's count
 WORKERS = pytest.StashKey[int]()
 RECORD_PROPERTY = "wasi_python.record"  # a goal check's record, on a worker's report
 SUITE_PROPERTY = "wasi_python.suite"  # a unit test's tally, on a worker's report
-AREA_PROPERTY = "wasi_python.area"  # a goal check's area, on its setup report (review F7)
+AREA_PROPERTY = "wasi_python.area"  # a goal check's area, on its setup report
 WORKER_OUTPUT = "wasi_python.collection"  # a worker's collection, in its workeroutput
 COLLECTION_KEYS = ("areas", "deselected", "collected_files", "narrowed_files")
 
 
 def is_worker(config) -> bool:
-    """An xdist worker (spec 052, Decision 3). Never `PYTEST_XDIST_WORKER`: a pytest that a check
+    """An xdist worker. Never `PYTEST_XDIST_WORKER`: a pytest that a check
     starts inherits it."""
     return hasattr(config, "workerinput")
 
@@ -155,20 +155,20 @@ WORKTREE_REFUSAL = (
 
 def _same_folder(a: Path, b: Path) -> bool:
     """`os.path.samefile` when both exist, so case and links cannot slip past; otherwise the
-    resolved paths (spec 029, condition A)."""
+    resolved paths."""
     if a.exists() and b.exists():
         return os.path.samefile(a, b)
     return a.resolve() == b.resolve()
 
 
 def writes_accepted_state(progress: Path, repo: Path | None = None) -> bool:
-    """Whether `progress` is the context/progress folder of any worktree of this repository, the
+    """Whether `progress` is the progress folder of any worktree of this repository, the
     main tree's included. Any other folder (the self-tests' own) holds no accepted state."""
     return any(_same_folder(progress, w / "context" / "progress") for w in paths.worktrees(repo))
 
 
 def accept_refusal(reason: str | None, progress: Path, repo: Path | None = None) -> str | None:
-    """Why `--accept` is refused before collection, or None (spec 029, Decisions 2 and 4). Only
+    """Why `--accept` is refused before collection, or None. Only
     `--accept` writes; --accept-judge, --accept-growth and --partial write nothing without it.
     Where git is absent no folder is the repository's, and `--accept` proceeds."""
     if not reason or not writes_accepted_state(progress, repo):
@@ -195,7 +195,7 @@ def head_moved(config: pytest.Config) -> str | None:
 
 def pytest_configure(config: pytest.Config) -> None:
     reason, progress = _opt(config, "--accept"), progress_dir(config)
-    if not is_worker(config):  # spec 029's guards run once, in the controller (spec 052, D4)
+    if not is_worker(config):  # the lane's guards run once, in the controller
         refusal = accept_refusal(reason, progress, paths.REPO)
         if refusal:
             pytest.exit(refusal, returncode=1)  # before collection; nothing is written
@@ -209,10 +209,10 @@ def pytest_configure(config: pytest.Config) -> None:
     if not is_worker(config):
         refusal = shard_refusal(config)
         if refusal:
-            pytest.exit(refusal, returncode=4)  # before collection (spec 063, Decision 1)
+            pytest.exit(refusal, returncode=4)  # before collection
     config.stash[WORKERS] = len(config.option.tx) if distributing(config) else 0
     if not is_worker(config) and (left := litter.sealed_leftovers(paths.HARNESS_TMP)):
-        sys.stderr.write(  # what a killed judge left sealed, and the recovery (spec 089)
+        sys.stderr.write(  # what a killed judge left sealed, and the recovery
             f"host litter: {len(left)} sealed folder(s) under {paths.HARNESS_TMP} (first:"
             f" {left[0]}): a judge running in this checkout now, or one killed earlier; this run"
             " never reads them; once no judge runs here, `chmod -R u+w build/harness` then"
@@ -278,7 +278,7 @@ def shard_plan(config: pytest.Config) -> Path:
 
 def shard_refusal(config: pytest.Config) -> str | None:
     """Why `--shard` is refused before anything runs: a shard is one serial, unaccepted,
-    whole-plan selection of a name the plan holds (spec 063, Decision 1)."""
+    whole-plan selection of a name the plan holds."""
     name = _opt(config, "--shard")
     if not name:
         return None
@@ -320,8 +320,8 @@ def metric(request: pytest.FixtureRequest):
 
 @pytest.fixture
 def note(request: pytest.FixtureRequest):
-    """Record one line a passing check says of itself, kept as its reason in latest.json (spec
-    051: the callback scan's coverage). It is never compared, so it is no metric."""
+    """Record one line a passing check says of itself, kept as its reason in latest.json (the
+    callback scan's coverage, say). It is never compared, so it is no metric."""
 
     def record(text: str) -> None:
         request.node.stash[NOTE] = _first_line(text)
@@ -332,7 +332,7 @@ def note(request: pytest.FixtureRequest):
 @pytest.fixture
 def fact(request: pytest.FixtureRequest):
     """Attach a named fact to the current check's record in latest.json, under `facts`:
-    reported, never ratcheted (spec 050: a group's `passed_digest`, its outcome counts, the files
+    reported, never ratcheted (a group's `passed_digest`, its outcome counts, the files
     left out of its staging)."""
 
     def record(name: str, value) -> None:
@@ -386,14 +386,14 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
 
 def _carry(item: pytest.Item, rep: pytest.TestReport) -> None:
     """On a worker, the node's current record (or a unit test's tally) rides on its report to the
-    controller, which keeps the last one per node (spec 052, Decision 3)."""
+    controller, which keeps the last one per node."""
     state = item.config.stash[STATE]
     area = area_of(item)
     if area is None:
         if rep.when == "call" or (rep.when == "setup" and not rep.passed):
             rep.user_properties.append((SUITE_PROPERTY, [bool(rep.passed), bool(rep.skipped)]))
         return
-    if rep.when == "setup":  # known to the controller even if no worker finishes cleanly (F7)
+    if rep.when == "setup":  # known to the controller even if no worker finishes cleanly
         rep.user_properties.append((AREA_PROPERTY, [item.nodeid, area]))
     if item.nodeid in state.records:
         record = json.loads(json.dumps(state.records[item.nodeid]))  # plain values, a snapshot
@@ -401,7 +401,7 @@ def _carry(item: pytest.Item, rep: pytest.TestReport) -> None:
 
 
 class Controller:
-    """The xdist controller's half (spec 052, Decisions 3, 4 and 14). Workers collect and run;
+    """The xdist controller's half. Workers collect and run;
     this takes each goal check's record and each unit tally from the reports, and each worker's
     collection when it goes down. Registered only while xdist distributes."""
 
@@ -511,7 +511,7 @@ def _judge(item: pytest.Item, call: pytest.CallInfo, rep: pytest.TestReport):
 
 
 # ---------------------------------------------------------------------------------------------
-# Several cores (spec 052): one way to run in parallel, and the judge's scheduler
+# Several cores: one way to run in parallel, and the judge's scheduler
 
 REFUSAL = "refused: {} ({}; spec 052, Decision 7)"
 
@@ -558,8 +558,8 @@ def pytest_cmdline_main_raw_options(config: pytest.Config):
     if not is_worker(config):
         config.stash[RAW_REFUSAL] = xdist_refusal(config.option)
         if hasattr(config.option, "maxworkerrestart") and config.option.maxworkerrestart is None:
-            # No replacement worker: xdist would deal a dead worker's check again, and could hang
-            # (the build review, F1). Set before xdist's DSession reads it in its configure.
+            # No replacement worker: xdist would deal a dead worker's check again, and could hang.
+            # Set before xdist's DSession reads it in its configure.
             config.option.maxworkerrestart = "0"
     return (yield)
 
@@ -592,7 +592,7 @@ def upstream_scopes(configs: dict | None = None) -> dict[str, str]:
             scopes[f"{UPSTREAM_FILE}::test_upstream_class[{k.group}-{k.id}]"] = (
                 f"upstream {k.group}"
             )
-        # CPython's named entries read their group's run, as a class does (spec 065)
+        # CPython's named entries read their group's run, as a class does
         for kind, entries in (
             ("deselected", c.deselected),
             ("environment", c.environment),
@@ -659,8 +659,8 @@ def xdist_versions() -> dict[str, str | None]:
 
 
 def xdist_folder() -> Path | None:
-    """xdist's package folder, when every installed version is the one uv.lock pins (Decision 5,
-    C1: `locate_file("xdist")`, never `locate_file("")`, which is all of site-packages)."""
+    """xdist's package folder, when every installed version is the one uv.lock pins (Decision 5:
+    `locate_file("xdist")`, never `locate_file("")`, which is all of site-packages)."""
     have, pins = xdist_versions(), locked_versions()
     if not (
         pins["pytest-xdist"] is not None
@@ -704,12 +704,12 @@ def run_meta() -> dict:
     return {
         "at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "commit": _git("rev-parse", "HEAD"),
-        "dirty": paths.dirty_path() is not None,  # a change the judge could see (spec 029)
+        "dirty": paths.dirty_path() is not None,  # a change the judge could see
         "platform": f"{sys.platform}-{platform.machine().lower()}",
         "host": paths.sha256_bytes(socket.gethostname().encode())[:12],
         "wasmtime": wasmtime_version,
         "artifact": paths.sha256_file(wasm) if wasm and wasm.is_file() else None,
-        # The whole set, by its own SHA256SUMS (spec 085, Decision 4); the set check holds every
+        # The whole set, by its own SHA256SUMS; the set check holds every
         # file to it.
         "set_sums": paths.sha256_file(sums) if sums and sums.is_file() else None,
         "judge": {"hash": paths.judge_hash(files), "files": files},
@@ -732,7 +732,7 @@ def foreign_steering(config: pytest.Config) -> list[str]:
         found.append(f"pytest is configured from {inipath or 'no file'}, not pyproject.toml")
     pytest_dir = Path(pytest.__file__).resolve().parents[1] / "_pytest"
     judged = {(paths.REPO / f).resolve() for f in paths.judge_files()}
-    xdist_dir = xdist_folder()  # None unless every version is uv.lock's (spec 052, Decision 5)
+    xdist_dir = xdist_folder()  # None unless every version is uv.lock's
 
     def allowed(f: Path) -> bool:
         return f in judged or (xdist_dir is not None and f.is_relative_to(xdist_dir))
@@ -745,11 +745,11 @@ def foreign_steering(config: pytest.Config) -> list[str]:
                 continue
             if module == "__channelexec__" and is_worker(config) and xdist_dir is not None:
                 # xdist's worker loop: xdist/remote.py, sent to the worker and run by execnet
-                # under this name, so its class has no file (spec 052, the build review, F2).
+                # under this name, so its class has no file.
                 code = getattr(getattr(type(plugin), "__init__", None), "__code__", None)
                 made_in = Path(code.co_filename).resolve() if code is not None else None
                 # The class's code must come from xdist's own remote.py (execnet compiles it under
-                # its real file name), never from a class that only takes the name (review F8).
+                # its real file name), never from a class that only takes the name.
                 if (
                     type(plugin).__qualname__ == "WorkerInteractor"
                     and made_in is not None
@@ -778,18 +778,18 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     state = config.stash.get(STATE, None)
     if state is None or config.getoption("collectonly"):
         return
-    if is_worker(config):  # hand the collection over; write nothing, accept nothing (D4)
+    if is_worker(config):  # hand the collection over; write nothing, accept nothing
         config.workeroutput[WORKER_OUTPUT] = {
             "areas": dict(state.areas),
             "deselected": list(state.deselected),
             "collected_files": sorted(state.collected_files),
             "narrowed_files": sorted(state.narrowed_files),
             # A conftest loaded only during collection, and what it registers, is seen only by
-            # the workers: each judges what steers it (the build review, F2).
+            # the workers: each judges what steers it.
             "foreign": foreign_steering(config) if _this_repo(config) else [],
         }
         return
-    for node, why in state.crashed.items():  # spec 052, Decision 14: a crash outranks any record
+    for node, why in state.crashed.items():  # a crash outranks any record
         if node in state.areas:
             state.records[node] = {
                 "area": state.areas[node],
@@ -820,7 +820,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     ]
     shard = _opt(config, "--shard")
     meta["shard"] = shard or None
-    if shard:  # spec 063, Decision 1: what a gather compares with the plan's share
+    if shard:  # what a gather compares with the plan's share
         from harness import shards
 
         meta["units"] = {
@@ -851,7 +851,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     root = Path(str(config.rootpath))
     ratchet = scoreboard.compare(run, accepted, root)
     red = ratchet.red(partial=bool(partial)) if accepted else []
-    if config.stash.get(WORKERS, 0) and not state.collections:  # spec 052, the build review F7
+    if config.stash.get(WORKERS, 0) and not state.collections:
         red.append("no worker handed its collection over: the record is incomplete")
     unknown = sorted(n for n in state.crashed if n not in state.areas)
     if unknown:
@@ -873,8 +873,8 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     green = exitstatus == 0 and not state.gap_errors and not foreign and not addopts
     reason = _opt(config, "--accept")
     accept_line = None
-    # The tree and HEAD as the acceptance is written, not only as the run began (029's build
-    # review, finding 2): an edit or a commit made meanwhile refuses it.
+    # The tree and HEAD as the acceptance is written, not only as the run began:
+    # an edit or a commit made meanwhile refuses it.
     late = (accept_refusal(reason, pdir, paths.REPO) or head_moved(config)) if reason else None
     if late:
         red.append(f"--accept refused: {late}")
@@ -898,7 +898,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
         else:
             pdir.mkdir(parents=True, exist_ok=True)
             (pdir / "accepted.json").write_text(scoreboard.dumps(new))
-            where = history.target(pdir, line)  # spec 062: the newest volume, or a new one
+            where = history.target(pdir, line)  # the newest volume, or a new one
             with where.open("a", encoding="utf-8", newline="\n") as f:
                 f.write(line + "\n")
             accept_line = f"accepted: {where} line {json.loads(line)['n']}"

@@ -1,5 +1,5 @@
 """Write one C file that calls, directly, every routine f2py's generated modules call through a
-function pointer (spec 037, Decision 6: the direct-call gate).
+function pointer (the direct-call gate).
 
     f2py_direct_calls.py <out.c> <module.c>...
 
