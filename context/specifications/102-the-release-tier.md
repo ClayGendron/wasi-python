@@ -780,13 +780,14 @@ All four answered 2026-10-20, night (`decisions.md`, main `4161ef9`), and writte
   ]
   passes = []
   grows = [
+      "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-fs]",
       "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-a]",
       "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-b]",
       "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-c]",
       "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-1]",
       "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-rest]",
   ]
-  growth = "102: CPython's stage gains the release groups' JSONs and the driver's Z line (+1.2e-4 to +5.3e-4); contourpy's normal groups run -m 'not slow' (contourpy-1 +0.28%, contourpy-rest +3.7e-4)"
+  growth = "102: CPython's stage gains the release groups' JSONs and the driver's Z line (cpython-fs +6.9e-4 on the branch runs' macOS leg, cpython-a, -b, -c +1.2e-4 to +5.3e-4 in the survey); contourpy's normal groups run -m 'not slow' (contourpy-1 +0.28%, contourpy-rest +3.7e-4)"
   retired = []
   units = 83
   ```
@@ -798,7 +799,7 @@ All four answered 2026-10-20, night (`decisions.md`, main `4161ef9`), and writte
   ```
   --accept "102: the release tier: slow tests run before a publication, nothing left out; numpy's and pandas' slow cases, contourpy's slow and random_big cases, CPython's cpu-gated tests and four inline-cpu modules in full, in 36 release groups, 8.37 T on darwin; the normal tier sheds about 4 T"
   --accept-judge "102: tiers.py (the truth table, the closed exclusion list, keyword selections, release groups of named kinds, splits per tier, the guard key); the argv by tier in upstream.py and packages.py; CPython's release lists, their partition and the inline reader in regrtest.py, the driver's Z line; --tier and release_checks (plugin.py); the ratchet's release_tier and moved, each entry's tier, the passed set carried forward, the history's tier and tier_move_reason (scoreboard.py); the release pseudo-system and rule (i) (shards.py); G1, G2, G3, G5, G7 by tier (gather.py); --tier-rows (sameness.py); budgets by tier; the TOMLs, release lists, classes, gaps and shards; the retired plot shards out of judge-linux's matrix; unit rows"
-  --accept-growth "102: CPython's stage gains the release groups' JSONs and the driver's Z line (cpython-a, -b, -c, +1.2e-4 to +5.3e-4); contourpy's normal groups run -m 'not slow' (contourpy-1 +0.28%, contourpy-rest +3.7e-4)"
+  --accept-growth "102: CPython's stage gains the release groups' JSONs and the driver's Z line (cpython-fs +6.9e-4 on the branch runs' macOS leg, cpython-a, -b, -c +1.2e-4 to +5.3e-4 in the survey); contourpy's normal groups run -m 'not slow' (contourpy-1 +0.28%, contourpy-rest +3.7e-4)"
   --accept-tier-move "102: contourpy's slow and random_big cases move to the release tier, seventeen groups (the owner, 2026-10-20)"
   ```
 - **The acceptance's message** (a normal tier, from 102's landing on): the area counts a normal
@@ -808,20 +809,20 @@ All four answered 2026-10-20, night (`decisions.md`, main `4161ef9`), and writte
 
 ## The builder's self-check
 
-As far as it goes before the workflow half (2026-10-21); the items marked **waits** wait for
-101's `inputs` job on main.
+As built (2026-10-21); an item marked **waits** says what it waits for.
 
-- **Rebased** onto wave 09's tip `a68efbb` (no conflict hunk); main moves to it at wave 09's
-  landing, when the branch rebases again and names any hunk. **waits** for that rebase.
-- **CI run** on the exact commit: **waits** (the workflow half: the tier step, the
-  `release-tier` input, `judge-release`, the gather's `needs` and `TIER`). Until then a branch
-  run's gather is red at G1 on the missing `TIER`, by design.
+- **Rebased and stacked**: on 101's confirmed tip `1ebb992f` (main `1875d4c` beneath it, waves
+  09 and 10), the hunks of the first restack named (landing notes, item 7), none the second.
+- **CI runs** on the exact code commit `63a42630`, read back (item 11): run 5 normal
+  `39610466007`, run 6 release `39610491729`; every red line a growth line (`cpython-fs` on the
+  macOS leg, claimed), the release legs green; the Windows legs green in both.
 - **Every number measured on this base, EXECUTED**: the survey on wave 09's set `142bdd38`
   (`../research/2026-10-21-the-release-tier-survey.md`), compared with the lane's own wave 09
   record on that set; the growth list is the survey's.
 - **"For the lane"**: the claim block (new, changed, grows with its reason, units 83, retired
   none, passes none) and the four flags, each beginning "102:"; the wave kind **build-class**;
-  dry-run needs: criteria 5 and 6 on the branch (**waits**).
+  dry-run needs: criteria 5 and 6 on the branch (done, item 11), the wave's dry run in the normal
+  tier.
 - **Every new check seen failing first**: the unit rows, each with its failure in the landing
   notes (items 1 to 3), and the moved-collected row (item 5's fast tier, then
   `build/102/fail-7-moved-collected.log`). The guard key's rule row was written beside its code,
@@ -833,9 +834,9 @@ As far as it goes before the workflow half (2026-10-21); the items marked **wait
 - **packages.toml**: unchanged (no package added). **README**: the Releasing section's tier
   paragraph and its shard counts. **CHANGELOG**: one entry under the unreleased section.
   **Questions**: none.
-- **ruff check, ruff format --check, the fast tier**: ruff clean; the fast tier after the survey
-  2,714 passed and 2 failed (the landing lane's self-tests, fixed and green by node id after);
-  **waits**: one more fast tier on the rebased tip, when `build/lane.lock` is gone.
+- **ruff check, ruff format --check, the fast tier**: ruff clean; the fast tier on the stacked
+  tip 2,826 passed, the 16 failures all wave 10's set checks run on a copy of wave 09's set, and
+  green by node id on wave 10's set (item 9); output in `build/102/`.
 - **Criterion 3's baseline** (each release group by node id with `--tier release`, twice,
   restaging between): **waits** for the rebase and the slot (about 8.4 T a pass, two passes).
 - **The survey's delta review**: passed (`979d178`), its two Lows written in (`084c5eb`).
@@ -1089,6 +1090,19 @@ The build, below, as it goes.
     the gather would never run. A shard never accepts; the gather names each move once (G5), and
     the lane's acceptance needs `--accept-tier-move`. So a shard run's ratchet lists no move. A
     unit row, seen failing first (`build/102/fail-10-shard-moves.log`).
+
+11. **Both branch runs** on `63a42630` (criteria 5, 6, 7), read back:
+    - **Run 5, normal** (`39610466007`, default inputs): `tier=normal` from the tier step;
+      `judge-release` skipped; every leg green but one, `judge (macos-15, upstream-macos)`, red
+      on one growth line, `GREW test_upstream_suite[cpython-fs]: fuel 63478190051 ->
+      63521999127` (+6.9e-4, claimed). So the gather was skipped, as `!failure()` means: the
+      failed-leg half of criterion 7 is now EXECUTED, the skipped-`judge-release` half waits for a
+      run with no red leg (the wave's dry run after the lane accepts the growth, or the dry run on
+      main). Every red line a growth line.
+    - **Run 6, release** (`39610491729`, `release-tier: true`): `tier=release`; all twelve release
+      legs green on Linux (job times 131 to 284 s, `upstream-release-d` the longest); the same one
+      macOS growth line, the same skipped gather. Every red line a growth line.
+    - The claim block gains `cpython-fs` under `grows` with the measured figure.
 
 **What waits for wave 09** (the lane's ruling): the rebase onto main; the survey (Decision 11)
 on main's set after 100 (done, item 5, on wave 09's tip before it landed); the TOML groups,
