@@ -2,7 +2,12 @@
 
 - **Status:** EXECUTED 2026-10-21, darwin-arm64; spec 067's Decision 1 survey. Its delta to
   Decisions 2, 5, 6, 8, 9, 10 and 11 is in the specification ("Delta from the survey") for a
-  context-only delta review; nothing is built on it before that verdict.
+  context-only delta review; nothing is built on it before that verdict. **Delta-reviewed
+  2026-10-21** (`../reviews/067-the-pure-python-packages-own-tests-delta-2026-10-21.md`); two
+  corrections to this memo from it: cloudpickle's `psutil` import is in `tests/testutils.py:13`
+  (used once), not in `cloudpickle_test.py`; and the release tier's "at least 66.3 T" is the 22
+  families' whole suites with their smoke files (release groups proper at least 65.8 T; about 77 T
+  at the review's upper estimate for sympy's capped areas).
 - **Owner:** Clay Gendron
 - **Set:** the main tree's `build/artifacts`, `SHA256SUMS` `d0d91cef…` (main after wave 09 plus
   wave 10's statsmodels, so 045's formulaic, interface-meta and wrapt are in the zip), copied with

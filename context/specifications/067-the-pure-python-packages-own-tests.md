@@ -23,13 +23,26 @@
   delta is "Delta from the survey" below, for a context-only delta review before anything is built
   (Decision 1). It pins 39 test sources in `downloads/SHA256SUMS` and `scripts/00_download.sh`, so
   it is build-class, and `MANIFEST` gains their pin lines: it changes the artifact set, so
-  constitution §5.6 requires its pre-build review (done) and the delta's confirmation.
+  constitution §5.6 requires its pre-build review (done) and the delta's confirmation. **The
+  delta review** (`../reviews/067-the-pure-python-packages-own-tests-delta-2026-10-21.md`, "fit
+  once the named findings are answered") **is answered in writing**, every finding, H1 and H2
+  included ("Disposition of the delta review"), on this branch **rebased onto main `1875d4cd`**
+  (no conflict) with the review cherry-picked. Built only after 102's build review, stacked on
+  102's reviewed tip.
 - **Owner:** Clay Gendron
 - **Kind:** the build recipe's pins (39 lines in `downloads/SHA256SUMS`, 39 `tests` lines in
-  `scripts/00_download.sh`), the judge, and the release workflow. No line of `src/` or `recipes/`
-  changes; `python.wasm`, the snapshot and the stdlib zip do not change; `MANIFEST` gains 39
-  `pin` lines and its `recipe` line for `scripts/00_download.sh` changes (Decision 3).
+  `scripts/00_download.sh`), the judge, and the release workflow. No line of `src/` changes;
+  **`recipes/patches/` gains four test-source patches** (pypdf's, cloudpickle's, formulaic's and
+  jinja2's, Decisions 4 and 8; the delta review's M1 and M2), each touching only the test source's
+  test files, never a byte the zip ships; `python.wasm`, the snapshot and the stdlib zip do not
+  change; `MANIFEST` gains 39 `pin` lines, one `recipe` line per carried test-source patch, and
+  its `recipe` line for `scripts/00_download.sh` changes (Decision 3, criterion 9).
   - **New:**
+    - `recipes/patches/pypdf-6.21.1/0001-tests-import-ssl-where-it-is-used.patch`,
+      `recipes/patches/cloudpickle-3.1.2/0001-…`, `recipes/patches/formulaic-1.2.2/0001-…`,
+      `recipes/patches/jinja2-3.1.6/0001-…` (Decision 8's rule), each with its upstream pull
+      request draft under `context/upstream/patches/<folder>/` (pypdf's written with this
+      revision; the other three written by the build, as the build writes the patches);
     - `tests/upstream/<package>.toml` and `.ini` for each of the 42 packages of Decision 2;
     - `tests/upstream/kit-extra.txt`: the test-only pure wheels some suites import (Decision 6);
     - `tests/upstream/expected/<group>/<class>.txt` and their gaps in `tests/known_gaps.toml`;
@@ -67,23 +80,28 @@
     packages it adds are 067's (the owner, 2026-10-20). 067 is built after 045 lands, so the three
     are in the set it surveys; 045 names spec 067 as their closer in `packages.toml`, as 042 did for
     seaborn and reportlab. statsmodels' own suite closes with 095.
-  - **102** (the release tier; `spec/102-the-release-tier`, tip `8fb3df7`: its machinery built,
-    surveyed and delta-reviewed, its workflow half waiting for 101; **not yet landed or
-    build-reviewed**): `tier`, `release_by`, the node-id group it leaves to 067, `release_checks`,
-    the release shards (the pseudo-system `release`), the `release-tier` dispatch input, the
-    ratchet's `release_tier` rows and `context/release-tier-claims.toml`. 067 needs all of it: with
-    the owner's rule nearly every 067 group is release-tier. **So 067 is built after 102 lands**
-    (102's Decision 15 says so), on main's tip then. **If 102 is build-reviewed and waiting in a
-    wave** when 067's build is due, 067 is a stacked build on 102's reviewed tip (§4.14), its Status
-    naming the base, rebasing onto main or the wave's tip when 102 lands. Neither the survey nor
-    this revision needs anything of 102: both are context only. 067 adds one kind to 102's
-    Decision 3, the path release group (Decision 10), which 095 needs as well.
+  - **102** (the release tier; `spec/102-the-release-tier`, tip `492b4586`: built, its smoke kind
+    and its workflow half included, its branch runs and baseline read; **its build review not yet
+    done**): `tier`, `release_by`, the smoke kind (`smoke`, `release_by = "path"`, Decision 2(d),
+    built in `tests/harness/tiers.py`), the node-id group it leaves to 067, `release_checks`, the
+    release shards (the pseudo-system `release`), the ratchet's `release_tier` rows and
+    `context/release-tier-claims.toml` (its Decision 6, widened for local `--tier release` runs by
+    node id). 067 needs all of it: with the owner's rule nearly every 067 group is release-tier.
+    **So 067 waits for 102's build review.** It is then a stacked build on 102's reviewed tip
+    (§4.14), its Status naming the base, rebasing onto main or the wave's tip when 102 lands; if 102
+    has landed first, it is built on main's tip. **102 owns the path release kind**; 067 uses it as
+    built and widens it in three named ways, built in 067's branch on 102's tip and reviewed with
+    067, never in 102's branch ("For 102's path kind: 067's widening", below; the delta review's
+    H2). Neither the survey nor this revision needs anything of 102: both are context only.
   - **039** (tier A), **041** (networkx from its sdist), **042** (seaborn and reportlab): what the
     zip carries, from which pin. **023** and **033**: the four plot wheels and `METADATA`.
   - **063**, **065**, **050**, **051**, **089**, **091**, **052**, **002**, as 066 lists them.
   - **In flight:** **095** (scipy's, scikit-learn's and statsmodels' own tests) shares
     `kit-extra.txt` and the `kit_extra` key: whichever of 067 and 095 lands second rebases onto the
-    first's file and rules, and no family's extras stage into another's. **101**: 067 rebases onto
+    first's file and rules, and no family's extras stage into another's. 095 is ordered before
+    067; its family `env` key (its Decision 7, a per-family list of allowed names) is the key
+    reportlab's `RL_TEST_OUTDIR` uses: 067 adds reportlab's name to 095's list, a rebase, not a
+    second key. 095 builds nothing of 102's path kind and needs none of 067's widening. **101**: 067 rebases onto
     it (textual conflicts in `release_shards.toml`, `release.yml` and gather's `env:`); 067's pins
     change 101's set key once (Decision 3).
 - **Research it stands on:**
@@ -271,9 +289,26 @@ branch run and at every landing.
      the family's TOML with its reason (`tie_skips`), never skipped silently. `fetch.py --shard`
      fetches the wheel beside the test source, verified by its `SHA256SUMS` line.
    - **For pyyaml, markupsafe, networkx and seaborn**, the zip's code is the sdist's: 050's tie
-     (tarball and patches against `MANIFEST`) covers them. Only networkx carries a patch
+     (tarball and patches against `MANIFEST`) covers them. Of these, only networkx carries a patch
      (`recipes/patches/networkx-3.7/0001-graph-atlas-from-a-zip.patch`, which also patches
      `test_atlas.py`); its stage is built after the patch is applied, as 066's `stage()` does.
+   - **For a patched test source** (pypdf, cloudpickle, formulaic and jinja2; Decision 8's rule,
+     the delta review's M1 and M2). networkx and pypdf (and the other three) carry patches;
+     **pypdf's touches only `tests/`**, and each of the four touches only its source's test files,
+     never a file the wheel tie compares (READ for pypdf by the delta review: no module of the
+     shipped `pypdf/` imports `ssl`). §4.1's guarantee, "the release fails on any difference from a
+     pinned tarball other than exactly the recorded patches", reaches the test sources this way:
+     - the judge unpacks the test source and applies its patches with
+       `scripts/steps/apply_patches.sh`, the same applier the build uses, before staging;
+     - `pins.tree_drift` and `tie_errors` (with `repo_patches`) check the staged tree against the
+       pinned tarball plus exactly its recorded patches, as for numpy's;
+     - each patch is a `recipe` line in `MANIFEST` (criterion 9), named in the CHANGELOG, counted in
+       the README's "upstream patches carried", and drafted as an upstream pull request under
+       `context/upstream/patches/<folder>/`;
+     - each patch's folder is its source's top folder (`pypdf-6.21.1/`, `cloudpickle-3.1.2/`,
+       `formulaic-1.2.2/`, `jinja2-3.1.6/`), which `scan.patch_errors` requires to be a pinned
+       tarball's top; the build confirms 067's test pins are in the set `patch_errors` reads, and
+       names the change if they are not.
 
 5. **The driver and the guest: 066's, with three kinds of item added.** `package_drive.py`: the
    kit appended after the product's zip (so the product's `packaging`, a pin identical to the
@@ -289,6 +324,32 @@ branch run and at every landing.
      imported, the survey's finding); networkx's and narwhals' `--runslow` tests; packaging's
      `property` tests. With the owner's rule every such test is in a release group with its
      opt-in on, and no smoke file holds one, so no group needs a marker expression for the tiers.
+   - **sympy's flag, a declared family key** (the delta review's M3). sympy's own
+     `sympy/conftest.py` sets `sys._running_pytest = True` as its first statement, and only
+     `sympy/testing/pytest.py` reads it (`USE_PYTEST`: then `XFAIL = pytest.mark.xfail`, `slow =
+     pytest.mark.slow`, `tooslow = pytest.mark.tooslow`; EXECUTED by the delta review on the pinned
+     wheel). The driver's `package_paths` imports sympy before any conftest loads, so without the
+     flag sympy's helpers believe they are not under pytest. So:
+     - **`sys_flags`, a new family key**, a list of names the driver sets to `True` on `sys` before
+       it imports anything of the package: `sympy.toml` has `sys_flags = ["_running_pytest"]`, with
+       its reason in words ("sympy's conftest sets it first; the driver imports sympy earlier, for
+       `package_paths`"). The allowed names are a constant in `packages.py`, today only
+       `_running_pytest`; a rules row refuses any other name, and a unit row covers the driver
+       setting it. **No package name appears in the driver.**
+     - sympy's `.ini` registers `slow` beside upstream's `nocache_fail` and `tooslow` (upstream's
+       `pyproject.toml` registers only those two; with the flag set, `@slow` is the mark `slow`, and
+       the driver's `--strict-markers` would refuse every module that uses it).
+     - **The driver loads the `judge` hypothesis profile again after the conftests load**, before
+       it writes the `P` line: sympy's conftest loads its own `sympy_hypothesis_profile`
+       (`deadline=None`), and `upstream.py` refuses a stream whose `P` line is not derandomized
+       with no database. The README says so; its only cost against upstream's profile is
+       determinism. The build greps every other conftest it stages for `load_profile` and treats it
+       the same way, naming each.
+     - upstream sets no `xfail_strict`, so an XFAIL that passes is an xpass: **each sympy group's
+       `counts` carries `xfailed` and `xpassed`**, and its lists and gaps are written from runs
+       with the flag, never from the survey's (which ran without it, its XFAILs failures there).
+     - It is not a weakening (rule 4): no check, golden output or allowance changes; the session
+       becomes upstream's own.
    - **Doctests run as 066's lxml docstring items**: the stdlib's `DocTestRunner` over the
      product's modules, found by import (the zip's bytecode; EXECUTED by the pre-build review for
      `more_itertools.recipes` and `tabulate`), with each upstream's own option flags. For
@@ -342,7 +403,7 @@ branch run and at every landing.
    | pytest-asyncio | tqdm | `tests/tests_asyncio.py` |
    | pytest-doctestplus | sympy | `FLOAT_CMP` in its doctest flags |
    | pympler | attrs | its tests guard it; a test-only module |
-   | ~~trio~~ (tried; **not added**) | jinja2 | the survey: trio 0.34.0 raises `NotImplementedError: unsupported platform` at import under WASI (`trio/_core/_run.py`), and, as a hypothesis entry point, it is imported by hypothesis itself, so staging it ends any session at start. `tests/test_async.py` and `tests/test_async_filters.py` are not selected with that reason (Decision 8) |
+   | ~~trio~~ (tried; **not added**) | jinja2 | the survey: trio 0.34.0 raises `NotImplementedError: unsupported platform` at import under WASI (`trio/_core/_run.py`), and, as a hypothesis entry point, it is imported by hypothesis itself, so staging it ends any session at start. `tests/test_async.py` and `tests/test_async_filters.py` run their asyncio half with a recorded patch that makes trio optional, the trio cases `D` lines with that reason (Decision 8) |
 
    freezegun requires python-dateutil, which the product carries (the product's is used). The
    survey confirms each version and each import: every row above but trio imports and runs in the
@@ -358,8 +419,30 @@ branch run and at every landing.
    named `HostLitter` guard, as for lxml: a voided run is a host failure, re-run once. reportlab
    uses the same folder for the files its tests write.
 
-8. **What is not selected, each with its true reason and closer.** A file is not selected only when
-   it cannot load, or every test in it needs what the product does not have (066's Decision 8).
+8. **What is not selected, each with its true reason and closer.** **A file is not selected only
+   when every test in it needs what the product does not have** (066's Decision 8, tightened by the
+   delta review's M1). **A file that cannot load only because of a module-level import that some
+   of its tests use gets a recorded test-source patch** (Decision 4's form, §4.1) that makes that
+   import lazy or optional; the tests that need the module are then a class, or `D` lines with that
+   reason, and every other test in the file runs. It applies to four sources today, each patch and
+   its count of tests recovered in the landing notes:
+   - **pypdf**: `tests/__init__.py` imports `ssl` at module level and uses it only in
+     `_get_data_from_url` (lines 46 to 48, which download); the patch moves the import into that
+     function (`0001-tests-import-ssl-where-it-is-used.patch`; the survey's edit, which let 1,689
+     tests pass; upstream's main still has the import, READ by the delta review);
+   - **cloudpickle**: `tests/testutils.py` imports `psutil` at line 13 and uses it once, at line 166;
+     `tests/cloudpickle_test.py` (139 `def test_`) fails only through `from .testutils import …`.
+     The patch makes the import lazy at its one use;
+   - **formulaic**: `tests/materializers/test_base.py` imports `pyarrow` at module level, used by one
+     of its eight tests (line 51); the patch imports it inside that test, which then skips or fails
+     as a class ("no pyarrow");
+   - **jinja2**: `tests/test_async.py` (60) and `tests/test_async_filters.py` (25) import `trio` only
+     to parametrize a fixture over `[_asyncio_run, trio.run]`; the patch makes trio optional, so the
+     asyncio half runs (as tqdm's `tests_asyncio.py` does in the guest) and the trio cases are `D`
+     lines with the reason "trio cannot import under WASI" (Decision 6).
+   - **narwhals**: the build reads each of its 13 pyarrow and polars modules against the same rule
+     and names, per file, a patch or a true not-selected reason.
+
    READ from imports and configs (`collection-risks.txt`); the survey confirms each line or moves
    it to a class:
 
@@ -374,14 +457,16 @@ branch run and at every landing.
    | toolz | `toolz/sandbox/tests/test_parallel.py` | it uses `multiprocessing` pools | `README.md` |
    | pypdf | the `enable_socket` tests, by `D` line | they fetch PDFs over the network; the guest has none | `README.md` |
    | wrapt | `tests/mypy/` (if pytest collects it) and `tests/stress/` | the first runs mypy in a subprocess (`conftest.py`); the second are scripts run by hand with threads, not pytest tests | `README.md` |
-   | jinja2 (the survey) | `tests/test_async.py`, `tests/test_async_filters.py` | they import trio at module level, and trio raises `NotImplementedError: unsupported platform` at import under WASI (Decision 6) | `README.md` |
-   | cloudpickle (the survey) | `tests/cloudpickle_test.py` | it imports psutil at module level; psutil is a compiled package the product does not carry. It is most of cloudpickle's suite: the survey ran 14 of its other tests | `README.md` |
-   | formulaic (the survey) | `tests/materializers/test_base.py` | it imports pyarrow at module level; the product has no pyarrow | `README.md` |
    | reportlab (the survey) | `tests/charts-out/` | generated chart scripts the sdist carries from an earlier run, not tests: upstream's `runAll.py` excludes `*/charts-out/*.py`; nine do not parse | `README.md` |
 
+   pyparsing's `test_diagram.py` and narwhals' pyarrow and polars modules stay rows only if the
+   build reads that every test in each needs the missing module; otherwise the rule above gives the
+   file a patch. jinja2's two async files, cloudpickle's `cloudpickle_test.py` and formulaic's
+   `test_base.py` are no longer rows: the rule above recovers them (the survey had listed them).
+
    Selected now, against the draft (the review, H1): tqdm's `tests_perf.py` (a file that loads is
-   selected, and its failures are a class) and `tests_asyncio.py`; jinja2's `test_async*.py` (with
-   trio from kit-extra, or the survey's reason); html5lib's conftest and its data-driven suite
+   selected, and its failures are a class) and `tests_asyncio.py`; jinja2's `test_async*.py` (their
+   asyncio half, with the patch above); html5lib's conftest and its data-driven suite
    (1,617 tree-construction cases alone, per tree builder) and `test_meta.py`; pyparsing's
    `examples/tiny/tests`; dateutil's `docs/exercises/solutions/`; every doctest and doc file of
    Decision 5; patsy's inline tests; pypdf's `samples` tests.
@@ -417,8 +502,9 @@ branch run and at every landing.
       errors, otherwise we should only run the tests needed to confirm our new edits are
       working." Tier placement and fuel thresholds are not questions for the owner.
     - **So:** each of the 42 suites runs in the **release tier, whole**, its upstream opt-ins
-      included (102's machinery: the tag run, the dry run on main before a tag, a branch run with
-      `release-tier: true`, and the lane's release acceptance before a tag). Each package keeps
+      included (102's machinery: the tag run, the dry run on main before a tag, and the lane's
+      release acceptance before a tag; **no branch run runs release groups**, `decisions.md`,
+      2026-10-21). Each package keeps
       **one smoke group in the normal tier**: a few files that prove the package imports from the
       zip and its core paths work, so a landing that breaks a package is still caught at every
       landing and on every branch run. Nothing leaves the full suite: every collected test is in
@@ -440,16 +526,17 @@ branch run and at every landing.
       nothing, and a one-module suite (six, cycler, defusedxml, typing-extensions) cannot be split
       by path. pyyaml's suite is one generated module (`tests/legacy_tests/test_yaml.py`, 1,283
       items, 60.3 G): the one suite past 30 G kept whole in the normal tier, since no path can
-      split it; the delta review may instead ask for a keyword split, which the path rule does not
-      express. This is a named choice under the owner's rule: these twenty suites run on every
+      split it, and a keyword split is what 102's smoke kind refuses (the delta review: "pyyaml
+      stays whole"). This is a named choice under the owner's rule: these twenty suites run on every
       landing because running fewer of their tests would cost about as much.
-    - **A new kind for 102: the path release group.** 102's Decision 3 refuses a release group of
-      no named kind. 067 adds the kind its suites need, beside the node-id group 102 leaves to
-      067: `release_by = "path"`. Its rules: in a family with path release groups, the smoke
-      group's paths and the path release groups' paths are disjoint and together are every staged
-      test module; a normal group in such a family is its smoke group (Decision 13). 095 needs the
-      same kind for scipy, scikit-learn and statsmodels: whichever of 067 and 095 is built first
-      adds it to `tests/harness/tiers.py`, and the second rebases onto it, as for `kit-extra.txt`.
+    - **102's path release kind, as built** (102's Decision 2(d), `tests/harness/tiers.py` at
+      `492b4586`). 067 uses it unchanged: `smoke` (its reason in words) on each normal group,
+      `release_by = "path"` on each release group over test files, `--ignore` of each smoke path
+      under a path group's folder, no `[[release_select]]` in a smoke family, `tiers.SMOKE_BUDGET`
+      (500 G per family). **The twenty whole-as-smoke families carry `smoke` too**, with the reason
+      "the whole suite: a smaller smoke group would cost as much", so the record names every normal
+      group of a package as its smoke. What 102's kind cannot yet hold, 067 widens in its own
+      branch: "For 102's path kind: 067's widening", below.
     - **The smoke groups** (normal tier; each measured on `d0d91cef`, EXECUTED; the memo's item 6):
 
       | package | smoke group | fuel |
@@ -487,7 +574,9 @@ branch run and at every landing.
       `sympy-slow-17141`, in a release shard of its own allowed past the 360 s bound. The survey
       found more sympy cost of the same shape: its `solvers/ode` and `solvers` sessions stopped at
       the survey's 4 T caps after 70 and 244 outcomes, so each heavy test the build measures past
-      480 G gets the same treatment, named in the build's landing notes (Delta, item 1).
+      480 G gets the same treatment, named in the build's landing notes (Delta, item 1). Each
+      node-id group's ids are `--deselect`ed by the one path group whose paths hold them (the
+      widening's (iii)), so no test runs twice.
     - **Caps and splits**, unchanged in kind: each group carries `measured` from the build's own
       run, its cap at most `rule_cap(measured)`, each family's budget the sum of its caps; a release
       group past 480 G is split by file in the test source's order, a file past 480 G by
@@ -507,17 +596,27 @@ branch run and at every landing.
       macOS's last).
     - **Release tier:** every other group of the 22 families with release groups, in release
       shards of 102's kind (the pseudo-system `release`, Linux only), at most 725 G each, run only
-      where 102 runs them: about **95 to 110 shards** for the measured at least 66.3 T (the price), plus
-      `sympy-slow-17141` alone and any single sympy test the build finds past 725 G. A 725 G shard
-      is 116 to 225 s of guest time plus about 60 s of setup.
+      where 102 runs them: **at least 95 to 110 shards** for release groups of at least 65.8 T
+      (the price), plus `sympy-slow-17141` alone and any single sympy test the build finds past
+      725 G; **about 110 to 125**, the INFERRED upper estimate, if sympy's four capped areas hold
+      what their counts suggest (the delta review's L1). A 725 G shard is 116 to 225 s of guest time
+      plus about 60 s of setup.
     - **The job count.** On a normal run the Linux matrix gains two jobs. On a release-tier run
-      `judge-release` gains about 95 to 110, which at 101's 20 parallel jobs is about five more waves of
-      four to five minutes, beside 102's twelve and 095's about 75 (INFERRED from the packing; the
-      branch run with `release-tier: true` measures it). That run, not a landing, pays it.
-    - **The lane's release acceptance before a tag** (102, Decision 5) grows by about 2.6 to 3.1 hours of
-      guest time on darwin, about 0.9 to 1.1 hours of wall clock at `-n 3` (INFERRED at 0.14 to 0.17 s
-      per G): with 095's at least 53 T it is the largest single cost of a publication. The lane
-      books its slot by it.
+      `judge-release` gains at least about 95 to 110 (up to about 110 to 125), which at 101's 20
+      parallel jobs is about five to six more waves of four to five minutes, beside 102's twelve and
+      095's about 75 (INFERRED from the packing). Only the tag run and the dry run on main before a
+      tag pay it, never a landing or a branch run.
+    - **The first CI run of 067's release shards is the dry run on main before 0.1.0's tag** (no
+      branch run runs release groups, `decisions.md`, 2026-10-21; as 095). Each release group is
+      measured once locally on darwin by node id with `--tier release` (criterion 7), and the
+      packing uses that fuel. **A release shard past 360 s on that dry run is re-packed from the
+      darwin fuel before the tag** (a judge change, reviewed; `sympy-slow-17141` and any other
+      single-test shard allowed past it).
+    - **The lane's release acceptance before a tag** (102, Decision 5) grows by at least about 2.6
+      to 3.1 hours of guest time on darwin, about 0.9 to 1.1 hours of wall clock at `-n 3`; the
+      INFERRED upper estimate, which the lane books its slot from, is about 3 to 3.6 hours of guest
+      time, about 1 to 1.2 hours of wall clock (at 0.14 to 0.17 s per G). With 095's at least 53 T
+      it is the largest single cost of a publication.
     - **Linux only in the release**, as 066's: fuel is ratcheted on the lane's darwin judge; G5
       compares `passes` and `passed_digest` between the Linux record and the lane's. No group
       probes the host's file system.
@@ -534,14 +633,19 @@ branch run and at every landing.
     `cwd = "/tmp/work"`; a group path may be a staged support file; every `docstring_packages`
     entry is a package the product ships; every `module_functions` module is a product module;
     `tie_skips` names files the wheel ships; each family's test source names the version of the
-    product's pin; in a family with path release groups (Decision 10), the smoke group's paths and
-    the release groups' paths are disjoint and together are every staged test module; each family
-    has exactly one normal group, its smoke group, unless its whole suite is its smoke group; each
-    smoke group's `measured` is under 100 G and the smoke groups' together under 1 T; a smoke group
-    names no marker expression of its own (a family exclusion with a true reason, pypdf's
-    `enable_socket`, applies to every group alike), and its run deselecting or skipping a test for
-    an opt-in is red; every group
-    has `measured`, and every cap is at most `rule_cap(measured)` (066's rule, unchanged).
+    product's pin; `sys_flags` names only allowed names (Decision 5); every test-source patch is
+    under its source's top folder and applies cleanly (Decision 4). **The tier rules are 102's,
+    as built** (its Decision 2(d): `smoke` on every normal group of a smoke family, path groups
+    only in a smoke family and never over a smoke path, every staged test file in exactly one
+    tier, `SMOKE_BUDGET` per family), with **067's widening** ("For 102's path kind", below), and
+    **067's own bounds, scoped to the 42 families of this specification in `packages.py`** (the
+    delta review's L2; 095's families are not counted): each of the 42 has exactly one normal group,
+    its smoke group; each smoke group's `measured` is under 100 G, and the 42 smoke groups'
+    together under 1 T. A smoke group names no marker expression of its own (a family exclusion
+    with a true reason, pypdf's `enable_socket`, applies to every group alike), and **its run
+    deselecting or skipping a test for an opt-in is red** (a verdict row on the stream: a skip
+    whose reason is the family's opt-in, networkx's "need --runslow option to run", say). Every
+    group has `measured`, and every cap is at most `rule_cap(measured)` (066's rule, unchanged).
 
 14. **The README and the CHANGELOG.** The README's testing section names the 42 suites in one
     paragraph, the two tiers (each whole suite before a publication, a smoke group per package on
@@ -549,15 +653,48 @@ branch run and at every landing.
     sample-files commit; each class closed by `README.md` has its fact there. The CHANGELOG: "The
     release runs the pure-Python packages' own tests (spec 067): each whole suite before a
     publication, a smoke group per package on every run; 39 test sources are pinned and named in
-    `MANIFEST`."
+    `MANIFEST`; four test-source patches are carried (pypdf, cloudpickle, formulaic, jinja2), each
+    making one test-only import lazy or optional." The README's "upstream patches carried" count
+    rises by four.
+
+## For 102's path kind: 067's widening
+
+102 owns `release_by = "path"` and its rules, as built (its Decision 2(d), `tests/harness/tiers.py`
+at `492b4586`, ten unit rows; asked by 095). 067 uses them unchanged and **widens three things**,
+built in **067's branch, stacked on 102's reviewed tip**, reviewed with 067, never in 102's branch
+(so 102's wave is not reopened). 095 needs none of them: its three suites use `test_*.py`, and
+its doctests and modes stay unrun for 0.1.0.
+
+- **(i) A smoke family's staged-test pattern is its upstream `python_files`**, read from the
+  family's `.ini`, where it differs from 102's `TEST_FILE` (`test_*.py` or `*_test.py`). tqdm's
+  `tests/tests_*.py`, dateutil's `docs/exercises/solutions/*_solution.py`, defusedxml's `tests.py`
+  and patsy's `*.py` are then staged test files the partition sees; without it, a tqdm smoke group
+  over `tests/` fails 102's "holds no staged test file", and dateutil's solutions would be in no
+  tier unseen.
+- **(ii) A release group of a smoke family may be an item group**: its unit is a module or a file,
+  not a test path. Four forms: `docstring_modules`, `docstring_packages`, `doctest_files` and
+  `module_functions` (sympy's doctests 3.45 T and doc files 2.79 T, mpmath's doctests 2.05 T,
+  networkx's, fonttools', joblib's, tabulate's, patsy's inline tests; more-itertools' smoke group
+  is the item group `more_itertools.recipes`, normal). The "exactly one tier" rule covers those
+  units as it covers test files: each shipped module of a `docstring_packages` entry, less its
+  `docstring_not_selected`, each `docstring_modules` module, each doctest file and each
+  `module_functions` module is in exactly one group, normal or release. 102's Decision 3 would
+  otherwise refuse these release groups as "of no named kind".
+- **(iii) A node-id group's ids lie in exactly one path group's paths, and that path group
+  `--deselect`s exactly them** (`sympy-slow-17141`, and any sympy test the build finds past 480 G).
+  So no test runs twice and none runs in neither.
+
+Each of the three gets a unit row, written first and seen failing, on 102's synthetic smoke family
+(criterion 2). Rows 102 already has (a path group over a smoke file, a staged file in no tier, a
+smoke family with `[[release_select]]`) are 102's and are not repeated here.
 
 ## Intent
 
 The judge runs the own test suites of the 42 pure-Python packages inside the guest, from sources
 pinned by hash and tied to the bytes the product ships, doctests and opt-ins included. It counts
 every pass and names every known failure and every test it does not run. Each whole suite is
-release-tier: it runs on Linux in release shards before a publication (102's tag run, the dry
-run on main before a tag, a branch run that asks for it) and in the lane's release acceptance.
+release-tier: it runs on Linux in release shards before a publication (102's tag run and the dry
+run on main before a tag; no branch run runs release groups) and in the lane's release acceptance.
 One small smoke group per package is normal-tier: it runs on every release run in one or two
 Linux shards and in the lane's darwin judge at every landing. It turns red when a pass is lost, a test
 traps, an unknown failure appears, a test runs against a copy of the product's code, or a test
@@ -568,6 +705,11 @@ source is not the shipped code's.
 ```
 downloads/SHA256SUMS                 39 lines (30 sdists, 9 *-tag.tar.gz, pypdf's sample files among them)
 scripts/00_download.sh               tests(): 39 lines; --tests fetches them
+recipes/patches/<source>/0001-*.patch four test-source patches (pypdf, cloudpickle, formulaic, jinja2),
+                                       applied by scripts/steps/apply_patches.sh when the judge
+                                       unpacks the test source; checked by pins.tree_drift and
+                                       tie_errors (repo_patches)
+context/upstream/patches/<source>/   each patch's upstream pull request draft
 tests/upstream/<package>.toml, .ini  42 families (Decision 2); grant /upstream-<package>; kit_extra;
                                        cwd_folders (xlsxwriter, reportlab); docstring_packages;
                                        module_functions (patsy); tie_skips; one smoke group (normal)
@@ -578,15 +720,18 @@ tests/harness/pins.py                SOURCE_PATTERNS for each test source
 tests/harness/packages.py            the wheel tie; kit_extra; cwd_folders; docstring_packages;
                                        module_functions; support-file group paths; marker D lines;
                                        the path release kind and the smoke rules (Decision 13)
-tests/harness/tiers.py               (102's) release_by = "path": the path partition rule
-tests/upstream/package_drive.py      docstring packages, doc files, module functions, marker D lines
+tests/harness/tiers.py               102's path kind as built, and 067's widening (i) to (iii),
+                                       built in 067's branch on 102's reviewed tip
+tests/upstream/package_drive.py      docstring packages, doc files, module functions, marker D lines;
+                                       the family's sys_flags before any import of the package; the
+                                       judge hypothesis profile loaded again after the conftests
 tests/harness/upstream.py            PACKAGE_SUITES += 42
 tests/upstream/fetch.py              tests lines, with retries; the pinned wheel beside each test source
 tests/upstream/packages.toml         42 suites
 tests/release_shards.toml            upstream-pure-smoke-* (linux, normal), upstream-pure-r-* and
                                        sympy-slow-17141 (release pseudo-system, 102)
 .github/workflows/release.yml        judge-linux's and judge-release's matrices (102's job); gather's inputs
-context/release-tier-claims.toml     067's claim block (102, Decision 6)
+context/release-tier-claims.toml     067's claim block (102, Decision 6), from local --tier release runs
 tests/known_gaps.toml                one entry per class and trap
 tests/unit/test_packages.py, test_upstream.py, test_shards.py, test_fetch_trees.py, test_pins.py
 README.md, CHANGELOG.md, context/progress/README.md, spec 063 (one dated line), context/roadmap.md
@@ -629,22 +774,37 @@ code or a stand-in, recorded in the landing notes; a stand-in is never committed
    files and 066's unchanged; each new rule has a unit variant that fails with its own line: a
    `kit_extra` name not in the file; a `cwd_folders` entry that is not a folder of the source, or
    with `cwd = "tree"`; a support-file group path that is not staged; a `docstring_packages` entry
-   the product does not ship; a path release group over a smoke group's file; a staged test
-   module in neither tier; a second normal group in a family; a smoke group past 100 G, or smoke
-   groups past 1 T together; a smoke group with a marker expression; a group without `measured`;
-   a cap above `rule_cap(measured)`. **A unit check, written first**, collects a synthetic family
-   with a smoke group over two of its files and path release groups over the rest, and shows every
-   collected test in exactly one tier: none in both, none in neither (the owner's rule).
+   the product does not ship; among this specification's 42 families only, a second normal group
+   in a family, a smoke group past 100 G, or smoke groups past 1 T together (a 095 family is not
+   counted: the delta review's L2); a smoke group with a marker expression; a `sys_flags` name
+   outside the allowed list; a test-source patch outside its source's top folder; a group without
+   `measured`; a cap above `rule_cap(measured)`. **067's widening** (each on 102's synthetic smoke
+   family, written first and seen failing on 102's tip): (i) a smoke family whose `.ini` names
+   `python_files = tests_*.py` holds a `tests_x.py` in no group, and is red; (ii) a
+   `docstring_packages` release group and a smoke group that both hold one shipped module are red,
+   as is a shipped module of the entry in no group (less `docstring_not_selected`), and a
+   `module_functions` or `doctest_files` release group is accepted, not refused as "of no named
+   kind"; (iii) a node-id group whose id its path group does not `--deselect`, or whose id lies in
+   no path group's paths, is red. **A verdict row on a fixed stream:** a smoke group whose stream
+   holds a skip with the family's opt-in reason (networkx's "need --runslow option to run") is red
+   (the delta review's L4). Rows 102 already has (a path group over a smoke file, a staged file in
+   no tier) are 102's, not repeated.
 3. **The tie.** Unit checks with synthetic archives: a wheel whose `fonttools/ttLib/ttFont.py`
    differs from the test source's fails the family, naming the file; so does a differing data file
    (a zone file, say); a file the wheel ships that the source lacks fails unless `tie_skips` names
    it; a test source whose version is not the product pin's fails; a `MANIFEST` pin that differs
-   from the source's hash fails (not blocked).
+   from the source's hash fails (not blocked); **a pypdf stage with its patch unapplied, or applied
+   at an offset, fails the tie and names the file** (`tree_drift` with `repo_patches`; the delta
+   review's M2), and so does a patch file whose hash differs from its `MANIFEST` `recipe` line.
 4. **The items.** Unit checks on fixed streams and synthetic modules: a `docstring_packages` entry
    walks every shipped module in sorted order, minus `docstring_not_selected`; a `module_functions`
    module's `test_*` functions become `::functions:` items; a marker deselection writes one `D`
    line per item and the record counts them with their reason; `cwd_folders` are copied into
-   `/tmp/work` before the session.
+   `/tmp/work` before the session; **a family's `sys_flags` are set on `sys` before the driver
+   imports the package** (a synthetic module that reads the flag at import sees it); **on a fixed
+   stream, a sympy XFAIL is reported `xfailed`** and the group's `counts` carry `xfailed` and
+   `xpassed`; **a conftest that loads its own hypothesis profile leaves the `P` line derandomized
+   with no database** (the driver loads `judge` again after the conftests; the delta review's M3).
 5. **The survey, then the baseline** (EXECUTED on `d0d91cef`, Decision 1): the memo exists; its
    delta has the delta review's verdict (no owner question: the owner's standing rule); each group
    check fails before its lists and gaps exist.
@@ -654,14 +814,18 @@ code or a stand-in, recorded in the landing notes; a stand-in is never committed
    sum of its caps.
 7. **Fuel repeats** (066's criterion 5). The builder runs each smoke group twice, **restaging
    between the runs**: equal outcomes and `passed_digest`, and on darwin equal fuel within
-   `sameness.py`'s tolerance. Each release group once, on darwin, by node id with `--tier
-   release` (102); its outcomes and fuel in the landing notes.
+   `sameness.py`'s tolerance. **Each release group once, locally on darwin, by node id with
+   `--tier release`** (102), the builder pausing while `build/lane.lock` exists; its outcomes and
+   fuel in the landing notes. **067's `[[claim]]` block in `context/release-tier-claims.toml` and
+   the release tier's measured total come from those runs** (102, Decision 6 as widened for local
+   runs by node id), and the release shards are packed from that fuel.
 8. **Nothing else moves.** The full judge's ratchet against the base: every existing row lost 0,
    grew 0; the `/upstream`, `/cpython` and 066 stages' manifests are byte-for-byte the base's.
 9. **The artifact set.** The set rebuilt on the branch equals the base's in `python.wasm`, the
-   snapshot, the zip and every `LICENSES` file; `MANIFEST` differs in exactly 39 added `pin` lines
-   and the `recipe` line of `scripts/00_download.sh`; the set's `SHA256SUMS` only in `MANIFEST`'s
-   line; 101's key changes once, for these pins.
+   snapshot, the zip and every `LICENSES` file; `MANIFEST` differs in exactly 39 added `pin`
+   lines, the `recipe` line of `scripts/00_download.sh`, and one added `recipe` line per carried
+   test-source patch (four: pypdf, cloudpickle, formulaic, jinja2); the set's `SHA256SUMS` only in
+   `MANIFEST`'s line; 101's key changes once, for these pins and patches.
 10. **`packages.toml`.** The 42 are `suite`; a unit check fails if any entry names `spec 067`.
 11. **The shards and the fetch** (as 066's criteria 7 and 8): each smoke group in exactly one
     normal Linux shard, each release group in exactly one release shard (102's rule); the workflow scan
@@ -672,28 +836,36 @@ code or a stand-in, recorded in the landing notes; a stand-in is never committed
 12. **The full judge** green (`ruff check`, `ruff format --check`, the fast tier, and the full judge
     on CI) apart from the gaps this specification adds, each named.
 13. **The branch's dry run, before landing**, and **the lane's after landing**, as 066's criteria
-    12 and 13: every job green but growth lines and G7; every normal shard within 360 s. **One
-    branch dispatch with 102's `release-tier` input true** runs every release shard once before
-    review, each within 360 s but `sympy-slow-17141` (allowed past it); its run id, the release
-    tier's measured total and the release shards' job times are in the landing notes, and 067's
-    claim block in `context/release-tier-claims.toml` is written from it (102, Decision 6).
+    12 and 13: every job green but growth lines and G7; every normal shard within 360 s. **No
+    dispatch with `release-tier` true** (the owner's rule: no branch run runs release groups;
+    `decisions.md`, 2026-10-21; as 095's criterion 12). The release groups are measured locally by
+    node id (criterion 7). **The first CI run of 067's release shards is the dry run on main before
+    0.1.0's tag**; a release shard past 360 s there is re-packed from the darwin fuel before the
+    tag, `sympy-slow-17141` and any other single-test shard allowed past it.
 
 ## The price (measured by the survey, 2026-10-21; the owner's rule)
 
 - **Normal tier: 879 G** per full judge, the 42 smoke groups (EXECUTED): 7.8 % of today's about
   11.2 T of upstream fuel. Two Linux shards on every release run; the lane's darwin judge at every
   landing grows by about 2 to 2.5 minutes of guest time, under a minute of wall clock at `-n 3`.
-- **Release tier: at least 66.3 T** (EXECUTED; a lower bound: four sympy sessions stopped at the
-  survey's caps, and openpyxl's conftests did not load), sympy at least 52.2 T of it. About 95 to
-  110 release shards of at most 725 G, plus `sympy-slow-17141` alone (INFERRED from the packing),
-  on 102's release-tier runs only: about 20 to 25 more minutes of wall clock on those runs at 20
+- **Release groups: at least 65.8 T** (EXECUTED: the 22 families' whole suites, 66.3 T, less
+  their 496.5 G of smoke files); **a release-tier run, both tiers: at least 66.7 T**. A lower
+  bound: four sympy sessions stopped at the survey's caps (after 70 of 144, 244 of 441, 144 of 225
+  and 30 of 47 test functions), and openpyxl's conftests did not load. sympy at least 52.2 T.
+- **The INFERRED upper estimate** (the delta review's L1, extrapolated by count): the capped
+  areas hold about 26 T, not 15 T, so **sympy about 63 T and the release tier "at least" about
+  77 T**. The lane books from this.
+- **Release shards:** at least about 95 to 110 of at most 725 G, **about 110 to 125** at the upper
+  estimate, plus `sympy-slow-17141` alone (INFERRED from the packing), on the tag run and the dry
+  run on main before a tag only: about 20 to 30 more minutes of wall clock on those runs at 20
   parallel jobs, beside 095's about 75 shards and 102's twelve; on those runs Linux becomes the
-  critical path (INFERRED).
-- **The lane's release acceptance before a tag** grows by about 2.6 to 3.1 hours of guest time on
-  darwin, about 0.9 to 1.1 hours of wall clock at `-n 3` (INFERRED at 0.14 to 0.17 s per G): the
-  largest single cost of a publication, with 095's at least 53 T beside it.
-- **Caps** by the rule, 1.5 times: about 1.3 T for the smoke groups; at least about 100 T for the
-  release groups.
+  critical path (INFERRED). No branch run pays it.
+- **The lane's release acceptance before a tag** grows by at least about 2.6 to 3.1 hours of
+  guest time on darwin (0.9 to 1.1 hours of wall clock at `-n 3`), about 3 to 3.6 hours (1 to 1.2
+  hours of wall clock) at the upper estimate (INFERRED at 0.14 to 0.17 s per G): the largest
+  single cost of a publication, with 095's at least 53 T beside it.
+- **Caps** by the rule, 1.5 times: about 1.3 T for the smoke groups; at least about 99 T (about
+  115 T at the upper estimate) for the release groups.
 - **The survey:** done, about 3.7 hours of guest time for 85.4 T in one process.
 
 ## The owner's choices
@@ -766,15 +938,22 @@ code or a stand-in, recorded in the landing notes; a stand-in is never committed
 ## For the lane
 
 - **Wave kind: build-class**, and it changes the artifact set (`MANIFEST`): the pre-build review
-  was required (§5.6) and is done; the survey is done; **its delta review comes next** (a fresh,
-  context-only reviewer; no owner question). A package wave's entry in kind (pins), with no
-  rebuilt binary: the lane's rebuild must show criterion 9. **Dry-run needs:** the branch dry run
-  (normal), one branch dispatch with `release-tier: true`, then the wave's.
-- **Order.** After 045 and **after 102 lands** (or stacked on 102's reviewed tip, Depends on). 095
-  shares `kit-extra.txt` and the path release kind (Decision 10): the second of 067 and 095 to be
+  was required (§5.6) and is done; the survey is done; its delta review is done
+  (`../reviews/067-the-pure-python-packages-own-tests-delta-2026-10-21.md`, "fit once the named
+  findings are answered"; answered here, "Disposition of the delta review"). A package wave's
+  entry in kind (pins and test-source patches), with no rebuilt binary: the lane's rebuild must
+  show criterion 9. **Dry-run needs:** the branch dry run (normal tier only; **no dispatch with
+  `release-tier` true**), then the wave's.
+- **The pre-tag dry run on main is the first time 067's release shards run on Linux.** A shard
+  past 360 s there is re-packed from the darwin fuel before the tag. The lane books the release
+  acceptance from the upper estimate (about 77 T; the price).
+- **Order.** After 045, and **after 102's build review**: stacked on 102's reviewed tip (or on
+  main once 102 lands). 067's widening of 102's path kind is built in 067's branch, never in
+  102's. 095 shares `kit-extra.txt` and the family `env` key: the second of 067 and 095 to be
   built rebases onto the first's.
-- **Next:** the delta review of "Delta from the survey"; then the build (pins first, the survey's
-  stage findings of the delta's item 4 in the harness, each group measured as built).
+- **Next:** the build, when the lane says 102 is reviewed (pins first; the delta's item 4 and the
+  delta review's findings in the harness; each smoke group measured as built and each release
+  group measured locally by node id).
 - **The claim list skeleton** (the builder fills each value):
   - **Gained rows, normal tier:** `test_upstream_suite[<family>-smoke]` for the 42 smoke groups,
     with metrics `fuel` and `passes` and facts `counts`, `passed_digest`, `left_out`; the classes
@@ -782,17 +961,19 @@ code or a stand-in, recorded in the landing notes; a stand-in is never committed
   - **Gained rows, release tier:** every release group's `test_upstream_suite[<group>]`, its
     classes and traps: new rows in 102's `release_tier` list on a normal accept, accepted only at
     the release acceptance before a tag (102, Decision 5); **their claim block** in
-    `context/release-tier-claims.toml`, written from the branch run with `release-tier: true`.
+    `context/release-tier-claims.toml`, written from the builder's local `--tier release` runs by
+    node id (criterion 7; 102, Decision 6 as widened).
   - **Gaps added:** their count and ids, each with its closer.
   - **Moved rows:** none (criterion 8).
-  - **The artifact set:** `MANIFEST` +39 `pin` lines and one `recipe` line; the set's
-    `SHA256SUMS` line for `MANIFEST`; nothing else (criterion 9).
+  - **The artifact set:** `MANIFEST` +39 `pin` lines, +4 `recipe` lines for the test-source
+    patches, and the changed `recipe` line of `scripts/00_download.sh`; the set's `SHA256SUMS`
+    line for `MANIFEST`; nothing else (criterion 9).
   - **The judge hash changes**; **packages.toml**: 39 `later` become `suite`, three added.
 - **The flags** (skeleton; each reason begins with "067:"):
 
   ```
-  --accept "067: the pure-Python packages' own tests: 42 packages, 42 smoke groups in the normal tier (<p> passes, <s> G), each whole suite in <r> release-tier groups; <c> classes, <t> traps; 39 test sources pinned and named in MANIFEST"
-  --accept-judge "067: tests/upstream/<package>.toml and .ini for 42 families; kit-extra.txt; the wheel tie, kit_extra, cwd_folders, docstring_packages, module_functions, support-file group paths, marker D lines, the smoke rules and the path release kind in packages.py, tiers.py and package_drive.py; SOURCE_PATTERNS; fetch.py's tests lines, retries and wheels; packages.toml (42 suites); the normal and release shards in release_shards.toml and release.yml; the unit checks"
+  --accept "067: the pure-Python packages' own tests: 42 packages, 42 smoke groups in the normal tier (<p> passes, <s> G), each whole suite in <r> release-tier groups; <c> classes, <t> traps; 39 test sources pinned and four test-source patches carried, named in MANIFEST"
+  --accept-judge "067: tests/upstream/<package>.toml and .ini for 42 families; kit-extra.txt; the wheel tie over patched test sources, kit_extra, cwd_folders, docstring_packages, module_functions, sys_flags, support-file group paths, marker D lines, the judge profile reloaded after conftests, the smoke bounds, and the widening of 102's path kind in packages.py, tiers.py and package_drive.py; SOURCE_PATTERNS; fetch.py's tests lines, retries, wheels and patches; packages.toml (42 suites); the normal and release shards in release_shards.toml and release.yml; the unit checks"
   ```
 
   No `--accept-growth` and no `--accept-fewer-passes`.
@@ -811,11 +992,12 @@ item is a question for the owner (the standing rule of 2026-10-21).
    doctests 3.45 T and its doc files 2.79 T. The drafted 25 to 35 T normal tier is gone: under the
    owner's rule a landing pays 879 G.
 2. **Decision 10 rewritten for the owner's rule** (each suite in the release tier whole, a smoke
-   group per package, the path partition, the path release kind for 102, twenty whole suites as
-   their own smoke groups). The marker complement of the reviewed text is gone: no group carries a
+   group per package, the path partition, twenty whole suites as their own smoke groups; the path
+   kind is 102's as built, with 067's widening: the delta review's H2). The marker complement of the reviewed text is gone: no group carries a
    marker expression to split the tiers.
-3. **Decision 11 rewritten**: two normal Linux shards, about 95 to 110 release shards; the lane's release
-   acceptance grows by about 2.6 to 3.1 hours of guest time.
+3. **Decision 11 rewritten**: two normal Linux shards, at least about 95 to 110 release shards
+   (about 110 to 125 at the upper estimate); the lane's release acceptance grows by at least about
+   2.6 to 3.1 hours of guest time (about 3 to 3.6 at the upper estimate; the delta review's L1).
 4. **What the stage needs** (the memo's item 4; each a build task, none a new decision but
    pypdf's):
    - every `.ini` with an `error` filter ignores pytest's assert-rewrite warning;
@@ -830,16 +1012,15 @@ item is a question for the owner (the standing rule of 2026-10-21).
      its XFAILs are failures there, its slow tests ran in every session);
    - joblib's root conftest left out of the stage with its reason (it arms a watchdog thread),
      and upstream's own doctest skip without multiprocessing stated in the README;
-   - reportlab with `RL_TEST_OUTDIR=/tmp/work/rl-out` in its family's `env` (095's Decision 7 adds
-     the family `env` key with a per-family list of allowed names; whichever of 067 and 095 is
-     built first adds the key, and reportlab's name joins the list) and `tests/charts-out/` not
-     selected;
+   - reportlab with `RL_TEST_OUTDIR=/tmp/work/rl-out` in its family's `env` (095's Decision 7 key,
+     a per-family list of allowed names; 095 is ordered first, so reportlab's name joins 095's
+     list, a rebase, not a second key) and `tests/charts-out/` not selected;
    - the guard held in every session: no module of the product's top-level names was loaded from
      outside the zip (the streams' `M` lines, EXECUTED); the only tree modules are tests, their
      helpers and pyparsing's `examples`;
    - html5lib with setuptools 66.1.1, pytest-expect from its sdist, and `-W
      ignore::pytest.PytestRemovedIn9Warning` in its family args.
-5. **pypdf's `import ssl` (a decision for the review).** pypdf's `tests/__init__.py` imports `ssl`
+5. **pypdf's `import ssl` (decided by the delta review: (a); Decisions 4 and 8).** pypdf's `tests/__init__.py` imports `ssl`
    at module level; the product has no `_ssl`; every pypdf test module imports `tests`. Options:
    (a) **a recorded patch to the test source** (constitution §4.1: under `recipes/patches/`,
    hashed in `MANIFEST`, named in the CHANGELOG, its upstream pull request drafted, "tests: import
@@ -849,9 +1030,10 @@ item is a question for the owner (the standing rule of 2026-10-21).
    product ships.
 6. **Decision 6's kit-extra**: setuptools 66.1.1 (not a current release; the reason above);
    pytest-expect 1.1.0 has no wheel, so `kit-extra.txt` admits one pure sdist; trio is not added.
-7. **Decision 8's new rows**: jinja2's two async files (trio), cloudpickle's
-   `cloudpickle_test.py` (psutil), formulaic's `test_base.py` (pyarrow), reportlab's
-   `tests/charts-out/` (generated files).
+7. **Decision 8's new rows**: reportlab's `tests/charts-out/` (generated files). The survey had
+   also listed jinja2's two async files (trio), cloudpickle's `cloudpickle_test.py` (psutil, in
+   fact imported by `tests/testutils.py`) and formulaic's `test_base.py` (pyarrow); the delta
+   review's M1 recovers them with recorded test-source patches (Decision 8's rule).
 8. **Decision 9's classes, confirmed or added**: `no-processes`, `no-threads`, `shallow-recursion`
    and `reportlab-fonts-not-shipped` seen as predicted; **`no-mmap`** added (xlrd's 65, the drafted
    classes had no row for it), and **`errno-58`** for wrapt's 37 and tqdm's 9 `OSError: [Errno 58]
@@ -860,9 +1042,61 @@ item is a question for the owner (the standing rule of 2026-10-21).
    build runs each with upstream's flags (Decision 5) and measures again. Their fuel is real:
    sympy's 3.45 T, mpmath's 2.05 T, networkx's 0.11 T; sympy's doc files 2.79 T.
 
-**What remains:** this delta's review; then the build (after 102 lands, or stacked on its reviewed
-tip), with each group measured as built, sympy's capped areas measured to the end, and the single
-failures read.
+**What remained:** this delta's review, now done and answered ("Disposition of the delta review",
+below); then the build (after 102's build review, stacked on its reviewed tip), with each group
+measured as built, sympy's capped areas measured to the end, and the single failures read.
+
+## Disposition of the delta review (2026-10-21)
+
+The review: `../reviews/067-the-pure-python-packages-own-tests-delta-2026-10-21.md` ("fit once the
+named findings are answered"), reviewing `a5c4fb5b`; cherry-picked onto this branch after its
+rebase onto main `1875d4cd` (no conflict). Every finding is written in, before any build:
+
+- **H1 — written in.** No dispatch with `release-tier` true anywhere: Decision 10 ("no branch run
+  runs release groups"), Decision 11 (the job count; the first CI run of the release shards is the
+  dry run on main before 0.1.0's tag, a shard past 360 s there re-packed from darwin fuel),
+  criterion 7 (each release group measured locally by node id with `--tier release`, the claim
+  block and the release total from those runs), criterion 13 (no such dispatch), the Intent, and
+  For the lane (dry-run needs, the claim block, the pre-tag line).
+- **H2 — written in.** 102 owns the path kind as built (`492b4586`); "whichever of 067 and 095 is
+  built first adds it" is deleted (Decision 10, For the lane, Depends on). The new section "For
+  102's path kind: 067's widening" names (i) `python_files` patterns, (ii) item groups
+  (`docstring_modules`, `docstring_packages`, `doctest_files`, `module_functions`) and (iii)
+  node-id groups `--deselect`ed by their path group, each with a unit row on 102's synthetic smoke
+  family (criterion 2), built in 067's branch on 102's reviewed tip, never in 102's. The twenty
+  whole-as-smoke families carry `smoke`, with their reason (Decision 10). 102's own rows are not
+  repeated.
+- **M1 — written in.** Decision 8's rule: a file that cannot load only because of a module-level
+  import some of its tests use gets a recorded test-source patch; a file is not selected only when
+  every test in it needs what the product lacks. Applied to cloudpickle (the import is in
+  `tests/testutils.py:13`, corrected), formulaic and jinja2's asyncio half; narwhals' 13 modules
+  and pyparsing's `test_diagram.py` read against it by the build; each patch's recovered count in
+  the landing notes.
+- **M2 — written in.** pypdf takes (a): `recipes/patches/pypdf-6.21.1/0001-tests-import-ssl-where-it-is-used.patch`
+  (Kind, Decision 4, Design), applied by `scripts/steps/apply_patches.sh` when the judge unpacks
+  the test source, checked by `pins.tree_drift` and `tie_errors` with `repo_patches` (Decision 4),
+  a `recipe` line in `MANIFEST` (criterion 9), a tie row for an unapplied or offset patch
+  (criterion 3), the CHANGELOG line and the README's count (Decision 14). Its upstream pull request
+  draft is `../upstream/patches/pypdf-6.21.1/0001-tests-import-ssl-where-it-is-used.md`, written
+  with this revision; the patch file itself is the build's (no file under `recipes/` changes in a
+  context-only revision).
+- **M3 — written in.** Decision 5: `sys_flags = ["_running_pytest"]`, a declared key in
+  `sympy.toml` with its reason, an allowed-names constant in `packages.py`, no package name in the
+  driver; sympy's `.ini` registers `slow`; the driver loads the `judge` profile again after the
+  conftests (README); `xfailed` and `xpassed` kept in each sympy group's `counts`, its lists
+  written from runs with the flag; other conftests grepped for `load_profile`. Criterion 4's rows.
+- **L1 — written in.** The price, Decision 11 and the delta: release groups at least 65.8 T, a
+  release-tier run at least 66.7 T; the INFERRED upper estimate, release tier "at least" about
+  77 T, sympy about 63 T, 110 to 125 shards, the lane's acceptance about 3 to 3.6 hours of guest
+  time, which the lane books from.
+- **L2 — written in.** Decision 13 and criterion 2: 067's bounds (one normal group, 100 G a smoke
+  group, 1 T together) are scoped to the 42 families of this specification in `packages.py`.
+- **L3 — written in.** Depends on: 102's tip `492b4586`, built, its build review not yet done; 067
+  waits for that build review (or 102's landing).
+- **L4 — written in.** Decision 13 and criterion 2: a verdict row on a fixed stream, a smoke group
+  whose stream holds a skip with the family's opt-in reason is red.
+- **Notes for the lane** (102's Decision 1 and 15 wording; the family `env` key): 102's text is
+  102's to reword; 067 adds reportlab's name to 095's `env` list (Depends on).
 
 ## Landing notes
 
