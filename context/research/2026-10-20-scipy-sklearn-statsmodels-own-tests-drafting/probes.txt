@@ -1,0 +1,74 @@
+Spec 095's drafting probes (EXECUTED 2026-10-20, darwin-arm64, one guest process at a time).
+Command, from the worktree, with the main tree's freshly rebuilt set (build.log ended exit=0):
+  WASI_PYTHON_ARTIFACTS=<main tree>/build/artifacts uv run python scripts/probe095.py \
+      <package> <label> <fuel cap> [pytest args]
+Each run: the snapshot binary, tests/harness/guest.py's run(), measured=False (the stage is under
+the worktree's build/), the stage read-only at /upstream-<package>, a fresh writable root, env
+TMPDIR=/tmp HOME=/tmp (plus PROBE_ENV), mpl_data=True, tests/upstream/package_drive.py unchanged.
+The stage: every top-level <pkg>/**/tests folder of the sdist (scipy's odr/tests left out), each
+one's ancestor __init__.py (from the third scipy probe on), <pkg>/conftest.py (and
+sklearn/externals/conftest.py), the kit's seven wheels unpacked.
+
+1. scipy-co, before ancestor inits were staged: --co scipy
+   fuel 263,637,310,229; 64,614 collected, 31 collection errors (20 of them pytest naming two
+   different `tests` packages alike, or relative imports beyond `tests`).
+2. scipy-co, before the .ini's ignore line: pytest stopped at configure on
+   "PytestAssertRewriteWarning: Module already imported so cannot be rewritten; _hypothesis_globals"
+   under scipy's filterwarnings = error. fuel 19,250,181,783.
+3. scipy-co, inits staged, ignore line added: --co scipy
+   fuel 286,533,142,560; "96100 tests collected, 11 errors"; the eleven:
+     _lib/tests/test_ccallback.py          cannot import name '_test_ccallback'
+     integrate/tests/test_quadpack.py      No module named 'scipy.integrate._test_multivariate'
+     linalg/tests/_cython_examples/ilp64_test_package/tests/test_direct.py, test_wrappers.py
+                                           No module named 'ilp64_test_package'
+     linalg/tests/test_cython_abi.py, optimize/..., special/... module 'ctypes' has no attribute 'pythonapi'
+     ndimage/tests/test_c_api.py           cannot import name '_ctest'
+     special/tests/test_data.py            No such file or directory: .../special/tests/data/boost.npz
+     special/tests/test_dd.py              No module named 'scipy.special._test_internal'
+     special/tests/test_round.py           cannot import name '_test_internal'
+   M lines outside tests folders: only scipy.conftest (the staged conftest).
+   Tests per subpackage: sparse 22,320; signal 15,907; stats 14,232; linalg 11,603; special 8,728;
+   fft 5,811; ndimage 5,401; optimize 3,915; _lib 2,057; spatial 1,781; interpolate 1,580;
+   integrate 1,057; io 711; fftpack 554; cluster 225; differentiate 202; constants 16.
+   Largest files: signal/tests/test_signaltools.py 12,370; sparse/tests/test_64bit.py 10,512;
+   sparse/tests/test_base.py 3,698; linalg/tests/test_basic.py 3,649;
+   fft/tests/test_real_transforms.py 3,056; special/tests/test_basic.py 2,886.
+4. scipy-co-slow: --co "-mslow or xslow" scipy
+   fuel 293,339,716,549; "15174/96100 tests collected (80926 deselected), 11 errors".
+   Largest: test_signaltools.py 10,347; test_64bit.py 2,919; stats/tests/test_fit.py 400;
+   sparse/linalg/_dsolve/tests/test_linsolve.py 291; stats/tests/test_continuous_basic.py 248;
+   stats/tests/test_sampling.py 240; special/tests/test_mpmath.py 148.
+5. scipy-sample: "-mnot slow and not xslow" and ten files:
+     linalg/tests/test_decomp_cholesky.py, optimize/tests/test_zeros.py, special/tests/test_basic.py,
+     stats/tests/test_morestats.py, signal/tests/test_windows.py, interpolate/tests/test_bsplines.py,
+     sparse/tests/test_csr.py, spatial/tests/test_kdtree.py, integrate/tests/test_quadrature.py,
+     ndimage/tests/test_measurements.py
+   fuel 326,625,095,330 (about 60 s of wall clock on the drafting host: a benchmark fact);
+   "10 failed, 4861 passed, 301 skipped, 11 deselected, 9 xfailed, 1 xpassed";
+   failures: 9 "RuntimeError: can't start new thread" (test_kdtree.py's multithreaded queries and
+   test_ckdtree_parallel, test_bsplines.py's test_concurrency), 1 "AttributeError: module
+   'threading' has no attribute 'get_native_id'" (TestBSpline::test_memmap); the xpass:
+   TestEllipCarlson::test_elliprj_hard ("Insufficient accuracy on 32-bit"). No trap.
+6. sklearn-co, before the marker was registered: --co sklearn
+   fuel 182,602,715,301; 33,213 collected, 6 errors: test_hierarchical.py and
+   test_dist_metrics.py ("OSError: mmap is unavailable on wasm32-wasi"), and four files on
+   "'no_check_spmatrix' not found in `markers` configuration option" (tests/test_common.py,
+   utils/tests/test_estimator_checks.py, cluster/tests/test_spectral.py, linear_model/tests/test_sgd.py).
+7. sklearn-co, the marker registered in the .ini: --co sklearn
+   fuel 240,177,183,653; "46955 tests collected, 2 errors" (the two mmap files).
+   Largest files: tests/test_common.py 13,387; metrics/tests/test_common.py 3,615;
+   _loss/tests/test_loss.py 2,213; utils/tests/test_array_api.py 1,931;
+   linear_model/tests/test_ridge.py 1,490; neighbors/tests/test_neighbors.py 1,029.
+8. sklearn-sample with neighbors/tests/test_neighbors.py: one collection error,
+   "OSError: mmap is unavailable on wasm32-wasi": the file imports BOOL_METRICS from
+   metrics/tests/test_dist_metrics.py, which cannot load; in probe 7 it loaded only because the
+   half-imported module from the earlier file was kept. fuel 47,639,784,993.
+9. sklearn-sample, SKLEARN_RUN_FLOAT32_TESTS=1, seven files:
+     linear_model/tests/test_ridge.py, tree/tests/test_tree.py, ensemble/tests/test_forest.py,
+     preprocessing/tests/test_data.py, metrics/tests/test_classification.py,
+     model_selection/tests/test_split.py, decomposition/tests/test_pca.py
+   fuel 1,876,146,498,521 (about 330 s of wall clock on the drafting host: a benchmark fact);
+   "41 failed, 3249 passed, 877 skipped, 55 xfailed"; every failure
+   "OSError: mmap is unavailable on wasm32-wasi"; 292 float32 cases ran; the commonest skips are
+   upstream's array-API backends (torch 320, dpnp 181, array_api_strict 91, SCIPY_ARRAY_API not
+   set 47). No trap. 4,222 outcomes: 444 M a test.

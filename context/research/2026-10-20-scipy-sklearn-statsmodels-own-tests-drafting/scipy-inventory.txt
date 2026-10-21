@@ -1,0 +1,100 @@
+scipy: 340 test files, 11522 test functions (def test*, before parametrization)
+non-.py files under tests/ or testing/: 477, 22640142 bytes
+conftest.py files: 1
+  conftest.py
+
+by subpackage: files, test functions
+  _lib/tests: 14 files, 90 defs
+  cluster/hierarchy: 2 files, 109 defs
+  cluster/vq: 1 files, 32 defs
+  constants/tests: 2 files, 16 defs
+  datasets/tests: 1 files, 6 defs
+  differentiate/tests: 1 files, 25 defs
+  fft/_duccfft: 2 files, 73 defs
+  fft/tests: 6 files, 96 defs
+  fftpack/tests: 5 files, 104 defs
+  integrate/_ivp: 2 files, 38 defs
+  integrate/tests: 8 files, 182 defs
+  interpolate/tests: 13 files, 711 defs
+  io/_harwell_boeing: 2 files, 14 defs
+  io/arff: 1 files, 27 defs
+  io/matlab: 8 files, 97 defs
+  io/tests: 6 files, 195 defs
+  linalg/tests: 28 files, 1103 defs
+  ndimage/tests: 9 files, 589 defs
+  odr/tests: 1 files, 25 defs
+  optimize/_trustregion_constr: 5 files, 42 defs
+  optimize/tests: 44 files, 1123 defs
+  signal/tests: 21 files, 1082 defs
+  sparse/csgraph: 11 files, 108 defs
+  sparse/linalg: 20 files, 337 defs
+  sparse/tests: 17 files, 652 defs
+  spatial/tests: 8 files, 380 defs
+  spatial/transform: 4 files, 256 defs
+  special/tests: 59 files, 1186 defs
+  stats/tests: 39 files, 2824 defs
+
+top-level imports across test files (count of files)
+  scipy: 337
+  numpy: 321
+  pytest: 289
+  warnings: 76
+  itertools: 51
+  os: 39
+  math: 38
+  sys: 37
+  threading: 30
+  platform: 18
+  functools: 17
+  pickle: 16
+  copy: 14
+  re: 13
+  io: 12
+  multiprocessing: 10
+  tempfile: 9
+  contextlib: 9
+  matplotlib: 7
+  importlib: 6
+  types: 6
+  collections: 6
+  mpmath: 6
+  ctypes: 5
+  pathlib: 5
+  hypothesis: 5
+  operator: 5
+  shutil: 5
+  sysconfig: 5
+  time: 4
+  json: 4
+  typing: 4
+  glob: 3
+  random: 3
+  sympy: 3
+  gc: 2
+  unittest: 2
+  tokenize: 2
+  cmath: 2
+  datetime: 2
+  gzip: 2
+  zlib: 2
+  ilp64_test_package: 2
+  inspect: 2
+  sksparse: 2
+  scikits: 2
+  concurrent: 2
+  sparse: 2
+  fractions: 1
+  subprocess: 1
+  pkgutil: 1
+  ast: 1
+  string: 1
+  queue: 1
+  threadpoolctl: 1
+  bz2: 1
+  textwrap: 1
+  logging: 1
+  weakref: 1
+  psutil: 1
+  resource: 1
+  packaging: 1
+  dataclasses: 1

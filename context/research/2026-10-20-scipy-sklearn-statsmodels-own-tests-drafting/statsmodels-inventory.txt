@@ -1,0 +1,102 @@
+statsmodels: 291 test files, 5035 test functions (def test*, before parametrization)
+non-.py files under tests/ or testing/: 482, 9573141 bytes
+conftest.py files: 1
+  conftest.py
+
+by subpackage: files, test functions
+  base/tests: 12 files, 163 defs
+  compat/tests: 3 files, 11 defs
+  datasets/tests: 2 files, 7 defs
+  discrete/tests: 9 files, 381 defs
+  distributions/copula: 2 files, 38 defs
+  distributions/tests: 6 files, 77 defs
+  duration/tests: 2 files, 38 defs
+  emplike/tests: 5 files, 52 defs
+  formula/tests: 2 files, 47 defs
+  gam/tests: 3 files, 58 defs
+  genmod/families: 2 files, 16 defs
+  genmod/tests: 8 files, 227 defs
+  graphics/tests: 12 files, 166 defs
+  imputation/tests: 3 files, 41 defs
+  iolib/tests: 7 files, 40 defs
+  miscmodels/tests: 4 files, 44 defs
+  multivariate/factor_rotation: 1 files, 10 defs
+  multivariate/tests: 6 files, 57 defs
+  nonparametric/tests: 7 files, 111 defs
+  othermod/tests: 1 files, 18 defs
+  regression/tests: 14 files, 295 defs
+  robust/tests: 7 files, 104 defs
+  sandbox/distributions: 5 files, 78 defs
+  sandbox/nonparametric: 2 files, 45 defs
+  sandbox/panel: 2 files, 23 defs
+  sandbox/regression: 3 files, 53 defs
+  sandbox/stats: 2 files, 30 defs
+  sandbox/tests: 1 files, 2 defs
+  sandbox/tools: 1 files, 20 defs
+  sandbox/tsa: 2 files, 44 defs
+  stats/libqsturng: 1 files, 14 defs
+  stats/tests: 45 files, 563 defs
+  tests: 3 files, 14 defs
+  tools/tests: 19 files, 131 defs
+  tools/validation: 1 files, 27 defs
+  treatment/tests: 1 files, 3 defs
+  tsa/ardl: 1 files, 52 defs
+  tsa/arima: 12 files, 120 defs
+  tsa/base: 4 files, 29 defs
+  tsa/filters: 2 files, 48 defs
+  tsa/forecasting: 2 files, 14 defs
+  tsa/holtwinters: 1 files, 58 defs
+  tsa/innovations: 2 files, 8 defs
+  tsa/interp: 1 files, 6 defs
+  tsa/regime_switching: 3 files, 62 defs
+  tsa/statespace: 37 files, 937 defs
+  tsa/stl: 2 files, 28 defs
+  tsa/tests: 12 files, 438 defs
+  tsa/vector_ar: 6 files, 187 defs
+
+top-level imports across test files (count of files)
+  statsmodels: 291
+  numpy: 281
+  pytest: 242
+  pandas: 149
+  scipy: 83
+  pathlib: 66
+  warnings: 63
+  matplotlib: 29
+  io: 16
+  itertools: 13
+  copy: 8
+  re: 6
+  os: 6
+  datetime: 6
+  pickle: 5
+  contextlib: 5
+  cvxopt: 3
+  unittest: 3
+  string: 3
+  tempfile: 3
+  collections: 3
+  __future__: 2
+  patsy: 2
+  threading: 2
+  csv: 2
+  json: 2
+  typing: 2
+  importlib: 1
+  urllib: 1
+  socket: 1
+  ssl: 1
+  formulaic: 1
+  functools: 1
+  locale: 1
+  calendar: 1
+  textwrap: 1
+  time: 1
+  jinja2: 1
+  dataclasses: 1
+  packaging: 1
+  subprocess: 1
+  sys: 1
+  math: 1
+  types: 1
+  rpy2: 1
