@@ -253,9 +253,18 @@ must show:
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. M1 —
-2. M2 —
-3. L1 to L6, N1 to N3 —
+1. M1 — open. It needs the container session criterion 3 needs, and Docker did not answer on
+   2026-10-20 at night (`docker info` and `docker version` hung over four minutes; stopped, the
+   slot never taken). The session, its command and where its output goes are in the
+   specification's *Disposition of the build review*.
+2. M2 — closed on the rebased tip. The citation rule failed with 74 findings after the rebase
+   onto `dbecd2d` and passes after a comment-and-docstring-only reword, its own commit; the
+   reword is checked as such by AST (Python) and comment-stripped lines (YAML, TOML). Every
+   rebase hunk is named in the specification's *Landing notes*. The fast tier is L1.
+3. L1 open (`build/lane.lock` held the session); L2, L3 and L5 written in with the review's
+   text; L4 fixed as rule C10, its two mutants seen failing first, its own commit; L6 left to the
+   lane, as the review asks; N1 to N3 acknowledged. Each in the specification's *Disposition of
+   the build review*.
 
 ## Verdict
 

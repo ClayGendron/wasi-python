@@ -10,8 +10,12 @@
   (39468404589) and two reuse runs (39475482749, 39481889333), every red line a growth line but
   one Linux timeout answered in Decision 9 (*Landing notes*); **rebased onto main `faa9c93`**
   (wave 08 landed: 042, 066, 099) as `6992fc0`, whose run 39488829008 built from source and
-  passed every job on all three systems, the gather included; criteria 3 and 7 wait on the
-  lane's container slot and on landing. It changes the release workflow, so it is
+  passed every job on all three systems, the gather included; **build-reviewed** the same day
+  (`../reviews/101-faster-release-run-build-2026-10-20.md`, verdict "lands once M1 and M2 are
+  closed and criterion 3's trace is in the notes"); **rebased onto the 103–109 chain** (`dbecd2d`)
+  with M2's reword and L4's rule (*Disposition of the build review*); criterion 3 and M1 wait on
+  a container session (Docker did not answer, 2026-10-20 night), criterion 7 on landing. It
+  changes the release workflow, so it is
   build-class (§5.7). It changes neither the guest's imports nor its exports, nor a byte of the
   artifact set: `scripts/` and `recipes/` do not change, so `MANIFEST` and `SHA256SUMS` stay the
   base's. A different agent reviews the build.
@@ -439,8 +443,9 @@ comes from wave 07's macOS log instead: the file's first 36 tests took 3.45 minu
 took 6.06, the last 70 took 2.32, so the halfway point (5.92 minutes) falls at about the 65th test
 in collection order. `own-embedding-a` names the 41 functions whose checks come before it (fewer
 names than the 86 after; a function added at the file's end goes to `own-embedding`). The
-builder's runs measure both halves (the *Landing notes*); a boundary that leaves the halves more
-than 20% apart moves. Shards are chosen by job times, as spec 065's Decision 7 chose them; no test
+builder's runs measure both halves (the *Landing notes*). The halves came out 25% apart in three
+runs of four (the *Landing notes*). The boundary stays, because the longest macOS job is within a
+minute of `own-hostile` and `own-guest`, and a move would gain less than a run costs. Shards are chosen by job times, as spec 065's Decision 7 chose them; no test
 asserts a time.
 
 **Width stays under 40** (the review's L1 counted 41 at once on a reuse run with 066). The three
@@ -609,7 +614,9 @@ is retired and no node id changes.
 7. **The seed.** GitHub dispatches only a workflow the default branch holds (the builder's
    dispatch on the branch: `HTTP 404: workflow set-cache.yml not found on the default branch`), so
    `set-cache.yml` first runs at the push to main that lands it: with no entry for main's key, its
-   `seed` job builds and saves. The lane records that run's id and the entry. Until then its rules
+   `seed` job builds and saves. The lane records that run's id and the entry, and the next branch
+   dispatch on main's key logs `cached 'true'` in `inputs` and `Cache restored` in `build`; the
+   lane records that run's id too. Until then its rules
    (check 2) and its shared steps (the key, the verify, the save, exercised in `release.yml`'s
    `inputs` and `save-set` on the branch) are the evidence.
 8. **The judge.** The fast tier green in the worktree; the lane accepts with `--accept-judge` and
@@ -665,6 +672,45 @@ finding went:
 - **N1, answered.** Decision 6: kept, with its price stated.
 - **N2, written in.** Decision 4.
 
+## Disposition of the build review
+
+The review (`../reviews/101-faster-release-run-build-2026-10-20.md`) read run 39488829008 on the
+reviewed code and found the design sound. Where each finding went:
+
+- **M1 (Medium), open.** The seven build-record checks' `read:` lines from a Linux tree need the
+  container session that criterion 3 needs. Docker did not answer this night: `docker info` and
+  `docker version` hung over four minutes each, and were stopped. Nothing was started. The
+  session, when the lane grants it: build on arm64 Linux, then `uv run pytest -s -p
+  no:cacheprovider` on the seven checks by node id, the output in `build/101/`, the counts here
+  beside the lane's darwin counts.
+- **M2 (Medium), closed.** At the rebase onto `dbecd2d`, every comment and docstring 101 adds
+  says its reason in words. EXECUTED: `test_code_outside_src_names_no_context_document` failed
+  with 74 findings after the rebase (`build/101/m2-before.txt`), and passes after the reword
+  (`build/101/m2-after.txt`). The reword is comments and docstrings only. Each Python file's AST,
+  docstrings blanked, is the same before and after; each YAML or TOML file's comment-stripped
+  lines are the same. The two `Decision 3, layer 1` docstrings the rule does not catch were
+  reworded too. One consequence: `release/set_key.py` is in its own key, so its reworded
+  docstring gives a new key; the next run builds from source.
+- **L1, open.** The fast tier was not run: `build/lane.lock` existed in the main tree for this
+  whole session. It runs on the rebased tip when the lane grants the fast slot, or the lane's
+  integration fast tier covers it; the notes will name which.
+- **L2, written in.** Decision 9 carries the review's text: the boundary stays.
+- **L3, written in.** *What was built* says check 4 is a unit row calling `verify()`, its step's
+  text held by R3.
+- **L4, fixed (code).** Rule C10 in `set_cache_errors`: a job of `set-cache.yml` that builds
+  carries no job-level `env:`, and its download and build steps none. Seen failing first: the two
+  rows `a job-level env on seed` and `an env on seed's build step` failed before the rule
+  (`build/101/l4-before.txt`), and `tests/unit/test_set_key.py` passes after it, 35 rows
+  (`build/101/l4-after.txt`). Its own commit, apart from the reword.
+- **L5, written in.** Criterion 7 asks for the first branch dispatch on main's key: `cached
+  'true'` in `inputs` and `Cache restored` in `build`, its run id recorded.
+- **L6, the lane's.** The two roadmap lines (the macOS exit tail's follow-up; the width, about
+  38 jobs a run) go in before the fast-forward. This builder does not edit the roadmap.
+- **N1, acknowledged.** The first CI reuse run whose gather passes is the lane's to name.
+- **N2, acknowledged.** The gather's `needs` on `same-bytes` stays: rule 7 and R6 hold it.
+- **N3, acknowledged.** The pre-build review file stays as it was copied; its disposition is this
+  specification's *Disposition of the pre-build review*.
+
 ## For the lane
 
 - **Kind:** build-class (the release workflow, a new workflow), with judge changes. It changes no
@@ -674,7 +720,9 @@ finding went:
   `72bc5ed`, with 099 and on main `5805af0`): it rebases onto wave 08's landed tip at wave 09's
   entry. **Done:** the branch is on main `faa9c93` (wave 08's acceptance) since `6992fc0`; main
   has since gained only `context/` commits (`e56b387`, `4161ef9`, `dda6075`). The rebase's one
-  stop and its two hunks are in *Landing notes*.
+  stop and its two hunks are in *Landing notes*. **Then, at the lane's word,** rebased onto the
+  103–109 chain's tip `dbecd2d` (`claude/gallant-ride-9nxxmn`): two stops, nine hunks, each named
+  in *Landing notes*; the M2 reword and the L4 rule are two commits after the rebase.
 - **Conflicts to expect at that rebase:** `tests/release_shards.toml` and `release.yml`'s judge
   matrices, `outputs:` and the gather's lists (all derived from the plan by rule 2 of spec 063),
   `tests/unit/test_scan.py`'s mutation rows, `CHANGELOG.md`'s unreleased section. 099 touches none
@@ -689,6 +737,10 @@ finding went:
   specification's own. The judge hash changes in `tests/release_shards.toml`,
   `tests/harness/{shards,gather,sameness,scan}.py`, `tests/checks/test_rules.py` and
   `tests/unit/test_{shards,gather,sameness,scan,set_key}.py`.
+- **A run on the code after the build review:** not dispatched yet. Rule C10 (L4) is code, so a
+  run is owed. It waits for the container session, because criterion 3's trace may add a closure
+  entry or a rule; one run then covers both. The set key is new (`release/set_key.py`'s
+  docstring changed), so that run builds from source.
 - **The claim list block** (sameness, spec 092):
 
   ```toml
@@ -699,11 +751,11 @@ finding went:
     "tests/checks/test_rules.py::test_the_release_reuses_a_set_only_on_a_branch",
     "tests/checks/test_rules.py::test_the_reuse_decision_refuses_tags_and_main*",
   ]
-  units = 51
+  units = 53
   ```
 
-  (`units`: the unit rows this specification adds, by the builder's count: 33 in
-  `test_set_key.py`, 7 in `test_gather.py`, 3 in `test_sameness.py`, 5 net in `test_shards.py`
+  (`units`: the unit rows this specification adds, by the builder's count: 35 in
+  `test_set_key.py` (two of them L4's), 7 in `test_gather.py`, 3 in `test_sameness.py`, 5 net in `test_shards.py`
   (one row replaced), 3 in `test_scan.py`; the lane's suite line is the check.)
 - **The flag:**
 
@@ -718,7 +770,8 @@ finding went:
 - [x] `release/set_key.py` gave one key for one commit in the `inputs` job and `save-set` (run
       39468404589: `wasi-python-set-v1-ad003ce1…`, both); the build job's reuse check took the same
       key in runs 39475482749 and 39481889333. `set-cache.yml` has not run (criterion 7).
-- [ ] The traced build (criterion 3): **not done**; it needs the lane's container slot.
+- [ ] The traced build (criterion 3): **not done**. It needs a container session, and Docker
+      did not answer this night (*Disposition of the build review*, M1).
 - [x] The source run and two reuse runs named by id; every red line a growth line (042's, against
       the last acceptance `e9a76ce`) but one: run 39475482749's Linux `own-guest` timeout, answered
       by restoring `own-runner` (Decision 9) and cleared by run 39481889333.
@@ -727,12 +780,17 @@ finding went:
       line, not even a growth line (the set is wave 08's accepted one). Read back with
       `gh run view 39488829008 --json jobs` and `gh run download 39488829008 -n
       release-record-1` (*Landing notes*).
-- [ ] The rebase onto `faa9c93`: its stop and hunks are named below, but the fast tier on
-      `6992fc0` is not recorded in `build/` (rule 2's "the fast tier green" for a rebase).
+- [ ] The rebases onto `faa9c93` and then `dbecd2d`: every stop and hunk named below. The fast
+      tier on the rebased tip is not recorded: `build/lane.lock` held the whole session (L1).
+- [x] M2 closed: `test_code_outside_src_names_no_context_document` red with 74 findings after
+      the rebase, green after the reword (`build/101/m2-before.txt`, `m2-after.txt`); the reword
+      is comments and docstrings only, by AST and comment-stripped lines.
+- [x] L4 fixed: rule C10, its two mutant rows seen failing first (`build/101/l4-before.txt`).
+- [ ] CI on the tip after the build review: owed (C10 is code), held for the container session.
 - [x] The reuse runs' build job ran on `ubuntu-24.04` (1.7 minutes); no macOS job built.
 - [x] `build-shard`'s record: platform `linux-aarch64`, 51 goal checks run, all passing, none
       blocked; 10 unit tests; the zero-patch step `27 passed`.
-- [ ] L6's `read:` comparison with the lane's darwin lines: **not done**. Those lines go to
+- [ ] L6's `read:` comparison with the lane's darwin lines (the build review's M1): **not done**. Those lines go to
       pytest's captured output and show only on a failure; the record keeps no reason for a pass.
       The lane can print them with `uv run pytest -s` on the six checks in its darwin tree, and a
       reviewer from `build-shard`'s tree only by a diagnostic dispatch.
@@ -762,7 +820,10 @@ The *Design* table, as written, but for two departures: `own-runner` stays a sha
 would have allowed 40 jobs at once). The split shard is `own-embedding-a` (the file's first 41
 functions), not `own-embedding-b` (the last 86): fewer names to keep. `AGENTS.md` is left to the
 lane (*For the lane*). `set-cache.yml` is two jobs (`lookup`, `seed`), so `seed`'s steps carry no
-`if:`.
+`if:`. Check 4 is a unit row of `test_set_key.py`, calling `verify()` directly; the step's text is
+held by `release_reuse_errors` (R3). After the build review: rule C10 (`seed` builds under the
+workflow's env alone, L4), and every comment and docstring 101 adds gives its reason in words
+(M2).
 
 ### The checks, seen failing first (EXECUTED)
 
@@ -876,6 +937,39 @@ Run 39488829008, dispatched on `6992fc0` with `from-source` true, read back with
   cause is the tail (5.6 of it). The tails sum to 16.7 minutes, inside the 13 to 17 above.
 - **The embedding halves:** 546 s and 409 s, 25% apart. Within 20% in one run of four.
 
+### The rebase onto the 103–109 chain, `dbecd2d` (EXECUTED)
+
+At the lane's word, after the build review (`34e0593`), the branch was rebased onto `dbecd2d`.
+The chain rewords the base's comments to give reasons in words; 101 adds and changes code in the
+same places. Every hunk was comment against code, and every one kept both sides: 101's code,
+the chain's wording. The rebase stopped twice.
+
+- **Rebase: stop 1, the plan commit** (`03b6b9e` became `a7f53e1`), two hunks:
+  - `tests/harness/shards.py`, rule (h)'s comment: the chain reworded the node-id comment; 101
+    widens it to functions and to their file's systems. 101's meaning, without the citations.
+  - `tests/release_shards.toml`, the build shard's node comment: the chain reworded it; 101 moves
+    the hostile-guest file to `own-hostile`. Both kept.
+- **Rebase: stop 2, the workflow commit** (`6e5233b` became `9438101`), seven hunks:
+  - `release.yml`, the header comment: the chain dropped its citations; 101 adds the reuse
+    paragraph. Both kept, the paragraph without its citation.
+  - `release.yml`, the build job's `outputs:` comment: 101 removes `record-id` and
+    `record-sha256` (they moved to `build-shard`); the chain reworded the comment. 101's lines,
+    the chain's wording.
+  - `release.yml`, the zero-patch step: 101 adds its `if:` and comment; the chain dropped a
+    citation. Both kept.
+  - `release.yml`, the build job's old build-shard steps: 101 removes them; the chain reworded
+    their comment. Removed, as 101 has it.
+  - `release.yml`, the gather's comment and `needs:`: 101's `needs` and its added sentence, the
+    chain's wording.
+  - `tests/harness/scan.py`, rule 6's `sha_step` line and its comment: 101's line (it reads
+    `shard_steps`), the chain's comment.
+  - `tests/harness/scan.py`, the file's end, and `tests/checks/test_rules.py` near line 832: both
+    sides append. Both kept, the chain's first.
+- **Merged cleanly:** the other eight commits, and in the two stopped commits `CHANGELOG.md`,
+  `gather.py`, `sameness.py` and the unit files.
+- **After the rebase:** ruff check and format green; the citation rule red with 74 findings, all
+  in 101's lines, closed by the reword commit (M2). Then the L4 rule as its own commit.
+
 ### The Linux `own-guest` timeout (run 39475482749)
 
 The leg ran "The shard" from 18:33:43 until the 30-minute limit cancelled the job; GitHub kept no
@@ -897,9 +991,11 @@ the judge. Not confirmed; the follow-up is the lane's to number.
 
 ### Not done
 
-- Criterion 3 (the traced build): needs the lane's container slot.
+- Criterion 3 (the traced build) and the build review's M1 (the Linux `read:` counts): one
+  container session. Docker did not answer on 2026-10-20 at night, so neither ran. The slot was
+  never taken.
+- A release run on the tip after the build review: owed for C10, held for that session.
 - Criterion 7 (the seed): after landing.
 - L6's `read:` comparison: see the self-check.
 - Criterion 8's sameness line: the lane's, at wave 09.
-- The fast tier on `6992fc0`, after the rebase: not recorded (this reader ran no tier; the lane
-  was judging).
+- The fast tier on the rebased tip: not run (`build/lane.lock` held the whole session; L1).
