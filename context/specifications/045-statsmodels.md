@@ -3,7 +3,9 @@
 - **Status:** **Built** (2026-10-21): rebased onto `dbecd2d` (main plus the structural chain 103
   to 109), rebuilt from an empty `build/`, set `SHA256SUMS` `14adfa5f`; the fast tier 0 fail
   (growth only); release run 39533679276 on `7be1837`, red on growth on macOS and on two Windows
-  failures the base has too (*For the lane*). Awaiting its build review. Two findings against
+  failures the base has too (*For the lane*). Build review
+  `../reviews/045-statsmodels-build-2026-10-20.md`: "lands once Finding 1 is written in"; its
+  Disposition answers all three findings. Lands after wave 09, the wheel re-measured there. Two findings against
   Decision 14 are measured and explained there: `python.wasm` +6.87 MB (the bound's ratio was
   numpy's) and seaborn's job +38.8 M (metadata walks). The confirming pre-build review
   (`../reviews/045-statsmodels-prebuild-confirm-2026-10-20.md`) said "build once M1 is answered";
@@ -784,7 +786,8 @@ written down further below; its numbers are that build's.
   (`build/045/unit-seen-failing.txt`), and the notice check on a notice without `_stl.pyx`
   lines 3-13 (the confirming review's L5; below). Windows and Linux: the guest checks run on all
   three systems in the release workflow; the notice and source-tree checks run in the build
-  shard (Linux), none is excluded;
+  shard, on arm64 macOS; Linux and Windows run the zip's left-out check and every guest check;
+  none is excluded;
 - [x] no gap added or closed; statsmodels' own suite is reserved to spec 095 (the roadmap's line,
   `tests/upstream/packages.toml`'s `later` entry);
 - [x] `packages.toml` has its reason lines (statsmodels `later`, closer spec 095; formulaic,
@@ -906,6 +909,7 @@ statsmodels/tsa/stl/_stl.pyx, lines 3-13"; on the intact notice, nothing
 | the golden, plain / snapshot (macOS, the run) | — | 19,847,024,185 / 19,453,687,062 | new | — |
 | `import statsmodels.api`, plain / snapshot | — | 17,386,095,372 / 16,900,084,275 | new | — |
 | `import statsmodels`, plain | — | 273,772,417 | +2.3 M over `pass` | — |
+| the wheel (`rebuild-wheel-ubuntu-24.04`, run 39533679276; the build review's reading) | about 91.6 MB (run 39530569266's artifact on `dbecd2d`, 91,470,969 bytes zipped) | 99,010,212 | about +7.4 MB | question 64: under 100 MB by 0.99 MB; the next package crosses it |
 
 **The seaborn row is a second finding against Decision 14**, smaller and of a known kind. The
 table expected the plain start plus `import statsmodels`. Measured on both sets with the same
@@ -916,6 +920,16 @@ distributions (842.2 M against 820.0 M), and the job's four `version()` reads +3
 matplotlib, scipy.stats, pandas and seaborn pays +24.4 M over the start, most of it, INFERRED,
 such walks inside those imports. Decision 14 counted the metadata cost for 033's and 035's checks
 but not for a job that imports matplotlib.
+
+**Decision 14's last row is outside too, for the same causes and one more** (the build review's
+Finding 2, its probes EXECUTED): every import lookup costs about 8.2 k fuel more in this binary,
+whose inittab is 26 entries longer (3,000 failed imports +24.7 M on 045's set against main's,
++24.4 M with 045's `python.wasm` and main's zip, so the cost is the binary's, not the zip's).
+So a job that imports pandas pays +4.9 M over the start, and the golden jobs grow past the
+plain-start row: `sqlite` +23.4 M, `callbacks` +20.7 M, `markup` +25.0 M, `excel` +27.3 M,
+`modelling` +63.5 M and `files_from_the_zip` +63.1 M against the start's +15.1 M, by that cost,
+their `version()` reads and their metadata walks. 0.64 M of the start's +15.1 M is the binary's
+too (the mixed set at `pass`).
 
 **The claim list** (against main's accepted record `72bc5ed6b5`; the chain's rows are its own):
 
@@ -955,8 +969,11 @@ but not for a job that imports matplotlib.
   should know both before the wave's dry run (AGENTS.md rule 6b: a check can pass the lane and
   still fail on Windows).
 
-**The wave:** a package (§5.7: the wave's one package). It lands after the chain, on main's tip
-once main fast-forwards to `dbecd2d`. **Dry-run needs:** the wave's dry run on all three systems,
+**The wave:** a package (§5.7: the wave's one package). **045 lands after wave 09** (100, 101,
+097), rebased onto its tip. Wave 09's numpy-on-OpenBLAS change (spec 100) may grow the wheel,
+and 045 leaves it 0.99 MB under the owner's 100 MB line (question 64). So **the lane
+re-measures the wheel on 045's rebase onto wave 09 before accepting**, and brings question 64
+back to the owner first if that wheel passes 100,000,000 bytes. **Dry-run needs:** the wave's dry run on all three systems,
 its zero-patch job expecting 28 trees; the build review's own run (§5.6) unless it reviews
 `7be1837`'s code exactly, where run 39533679276 is on it.
 
@@ -965,14 +982,15 @@ its zero-patch job expecting 28 trees; the build review's own run (§5.6) unless
 ```
 --accept "045: statsmodels 0.15.0 built in with formulaic 1.2.2, interface-meta 2.0.1 and wrapt 2.5.1: 26 modules as builtins, four renamed per file, 588 zip members, the golden equal to native on both binaries, sixteen public-domain datasets read from the zip by one carried patch, the thirteen not approved left out and raising FileNotFoundError; the owner approved the six components (decisions.md, 2026-10-20)"
 --accept-judge "045: the statistical_models golden with the oracle's statsmodels pins; four statsmodels behaviour checks on both binaries and three that say what it lacks; the notice check (build shard) and the left-out check; statsmodels, formulaic, interface-meta and wrapt in the package, licence, source-tree, pin and metadata lists, MESON_BUILDS, JOBS, PLATFORM_BOUND and packages.toml, its suite later with spec 095 as its closer; statsmodels' own dotted-builtin run; the release tree count 28"
---accept-growth "045: python.wasm +6.87 MB and the snapshot +7.08 MB by statsmodels' 26 modules, whole, 4.50 MB of them the four-dtype state-space modules, no other archive grown (the bound's 0.92 ratio is numpy's; Cython packages give 1.5 to 1.6); the zip +4.14 MB by 588 members; every plain start +15.1 M fuel (25,668 per member) and every snapshot start +1.47 M by those members' directory entries; the zip-directory checks walk them, and macOS's cpython-fs suite +258 M (0.41 percent) by rebuilding the zip's directory; four more distributions' metadata, which every metadata walk reads, seaborn's job +38.8 M with it"
+--accept-growth "045: python.wasm +6.87 MB and the snapshot +7.08 MB by statsmodels' 26 modules, whole, 4.50 MB of them the four-dtype state-space modules, no other archive grown (the bound's 0.92 ratio is numpy's; Cython packages give 1.5 to 1.6); the zip +4.14 MB by 588 members; every plain start +15.1 M fuel (25,668 per member) and every snapshot start +1.47 M by those members' directory entries; the zip-directory checks walk them, and macOS's cpython-fs suite +258 M (0.41 percent) by rebuilding the zip's directory; four more distributions' metadata, which every metadata walk reads, seaborn's job +38.8 M with it; and each import lookup about 8 k fuel more in the binary's longer inittab (26 entries; EXECUTED, 045's python.wasm with main's zip), so a job importing pandas pays +4.9 M over the start, and the golden jobs grow past Decision 14's plain-start row by that and by their version() reads and metadata walks"
 ```
 
-**Remaining:** the build review (fresh agent; it explains or confirms both findings against
-Decision 14 above); the lane's acceptance in the wave. Criterion 2's "full build in a clean
+**Remaining:** the build review is written (`../reviews/045-statsmodels-build-2026-10-20.md`,
+"lands once Finding 1 is written in"; its Disposition answers each finding); the lane's
+acceptance in the wave, after wave 09, with the wheel re-measured. Criterion 2's "full build in a clean
 clone" is met by the release workflow's build job (run 39533679276, green, from pins on a clean
-runner) and the two rebuild jobs, not by a local clone; the wheel's bytes are the run's
-`release-assets` (not read here).
+runner) and the two rebuild jobs, not by a local clone. The wheel's bytes, 99,010,212, are in the table above (the build
+review's M1).
 
 ### The first build, on main `faa9c93` (superseded by the rebuild above)
 
