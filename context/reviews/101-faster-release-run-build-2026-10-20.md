@@ -280,3 +280,96 @@ with their fix text.
 One line: the design holds and its run is green on all three systems; what is left is evidence
 (a traced build and a Linux-tree read count, in one container slot) and a comment-only reword
 after the 103–109 chain.
+
+## Confirmation (2026-10-21)
+
+I am the same reviewer, and I wrote none of 101's code. I read the answers at
+`origin/spec/101-faster-release-run` `55e3ad2b`. Its code is `55af64cc`, rebased onto main
+`1875d4c`. Everything below is EXECUTED unless marked.
+
+**The run on the code: 39596359529 on `55af64cc`.** Its conclusion is `success`. Of 52 jobs, 49
+passed and 3 were skipped (`attest` and the two `publish` jobs). In `build-shard`, the zero-patch
+step logged `28 passed`, and the build shard logged `65 passed`. The release record's scoreboard
+reads 806/898 pass, 85 gap, 7 blocked, 0 fail, with `set: built` and set `d0d91cef…`.
+
+**M1: confirmed closed.** I downloaded `trace-101-findings` from run 39578321541 myself. Its
+`m1-linux.txt` shows all seven build-record checks `PASSED` (7 passed in 61.68 s), none blocked.
+The builder's copy is byte-equal to it. I diffed its `read:` lines against the builder's
+`m1-darwin.txt`, with host names and the root path normalised:
+
+- Every darwin line has a Linux twin. That is 93 lines once pytest's own lines are left out.
+- The only differences are `build.ninja` command counts: numpy 107 against 105, and freetype,
+  harfbuzz and matplotlib 16, 24 and 16 against 14, 22 and 14.
+- Linux reads more there, never fewer. So no loop passes empty on Linux.
+
+**Criterion 3: confirmed met.** I checked the trace's `touched.tsv` (487 paths) against
+`48a2176c`'s closure, which has 140 files:
+
+- 136 paths are in the closure.
+- 30 are tracked folders, listed.
+- Two tracked files are outside the closure. One is `pyproject.toml`, which `uv` reads in step
+  10; K11 answers it. The other is `.gitignore`, which `git ls-files --others` reads in step 90;
+  in CI it decides nothing, because the clone is fresh.
+- 24 untracked paths were found. 11 are `.git`, read by `git` in step 20 (CPython's
+  `SOURCE_DATE_EPOCH` fallback, which the environment's value overrides) and in step 90 (the
+  index). 13 are `a.out` and `a.out.tmp*`, from the linker probe in step 37.
+- 295 failed lookups, every one untracked: 160 under `recipes/` and 3 under `scripts/`, 9 under
+  `tests/harness/` (`.so` and `__pycache__` import probes), 17 under `.git`, and the top-level
+  names that K10 lists.
+
+These match the landing notes' accounting, count for count. One more piece of evidence that
+`.git` reaches no byte of the set: the trace's set hashes to `142bdd38…`, which is the main
+tree's darwin set on another commit.
+
+**K10 and K11: confirmed, with one Low.**
+
+- **The code.** It is in `scan.set_key_errors`, the rows are in `tests/unit/test_set_key.py`,
+  and `set_key_inputs` passes `root_names` and `pyproject_text`.
+- **Seen failing first.** `build/101/k10-before.txt` shows the three new mutant rows failed;
+  `k10-after.txt` shows 38 passed.
+- **My probes.** A tracked `lib/x` gives K10, and a `[tool.uv.pip]` table gives K11.
+- **Low C1, K11 misses two TOML spellings.** A dotted key under `[tool]`
+  (`uv.index-url = …`) and an inline table (`uv = {…}`) give no error. They cost speed, not a
+  verdict: the rebuilds still decide. Fix text: in `set_key_errors`, test
+  `"uv" in tomllib.loads(pyproject_text).get("tool", {})` instead of the regular expression, and
+  add the dotted-key row as a mutant.
+
+**The R4 fix: confirmed.** In `55af64cc`, `build-shard`'s copy of the zero-patch step now counts
+28 trees and matches main's text after 045. Run 39596359529 logged `28 passed` in that job. The
+reuse rules check passes here.
+
+**The rebase against the reviewed diff: confirmed.** I compared the net diff
+`faa9c93..6992fc0` (the code I reviewed) with `1875d4c..55af64cc`, outside `context/` and
+`CHANGELOG.md`, with `#` comments left out. They differ in 122 lines, and every one is one of
+these:
+
+- the 27 to 28 fix;
+- docstrings reworded with no citations (M2);
+- rule C10 and its two rows (L4);
+- K10, K11 and their three rows, with the inputs they read.
+
+No other line of code moved. The citation rule, the three reuse checks, the two shard rules and
+`tests/unit/test_set_key.py` pass at the tip by node id: 50 passed
+(`build/101-review/confirm-probes.txt`).
+
+**The temporary workflow: confirmed safe and gone.** I read `trace-101.yml` at `48a2176c`:
+
+- It ran on push to this branch only, with `permissions: {}` and the job holding
+  `contents: read`. The run's log shows the token as `Contents: read` and `Metadata: read`.
+- It holds no secret. `actions/checkout`, `setup-uv` and `upload-artifact` are pinned to
+  `release.yml`'s commits.
+- `strace` 6.8 was already on the runner image (`/usr/bin/strace`), so `apt-get` never ran and
+  nothing unpinned was fetched.
+- `1dac9ff6` deletes both `trace-101.yml` and `.github/trace-101/paths.py`. The net diff against
+  main holds only `release.yml` and `set-cache.yml` under `.github/`.
+
+**Note C2.** The trace ran on wave 09's recipes. 045's statsmodels step (wave 10) was not
+traced. Under Decision 3, an input the key misses costs speed, never a verdict, so a new trace is
+not needed for this landing. It would be worth one when a later package step adds new tools.
+
+**Still the lane's, as the specification says:** L6 (the two roadmap lines); criterion 7 (the
+seed, with a reader's hit on main's key); criterion 8's acceptance and sameness line; and N1 (the
+first CI reuse run whose gather passes).
+
+**Verdict:** lands. M1, M2 and criterion 3 are closed by evidence I read myself. C1 is a Low
+with its fix text, and C2 is a note.
