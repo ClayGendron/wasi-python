@@ -138,7 +138,7 @@ newest acceptance judged both.
   |---|---|
   | a pushed tag `v*` (the publishing run) | release, always |
   | a dispatch on `main` (AGENTS.md rule 6b's dry run before a tag) | release, always |
-  | a dispatch on any other branch (`spec/*`, `wave/*`) | normal; release only for a specification that changes the release-tier CI job itself, which says so in its Kind line (the owner, 2026-10-21) |
+  | a dispatch on any other branch (`spec/*`, `wave/*`) | normal; release only for a specification that changes the release-tier CI job itself (the `judge-release` job, the release pseudo-system's rules in `tests/harness/shards.py`, the gather's release half); adding or re-packing release shards for a package's groups is not such a change, which says so in its Kind line (the owner, 2026-10-21) |
   | the lane's acceptance | normal at every landing; release only at the release acceptance before a tag (Decision 5) |
   | a builder's or reviewer's local run | normal; release with `--tier release` (single node ids, AGENTS.md rule 3a) |
 
@@ -147,8 +147,8 @@ newest acceptance judged both.
   has been a pre-tag dry run (EXECUTED, the run list); landings dry-run on `wave/NN`.
 - **Why the input exists, and its one use.** No branch run runs release groups (the owner,
   2026-10-21, `decisions.md` "Fast tests and slow tests"), with one case allowed: a specification
-  that changes the release-tier CI job itself (the `judge-release` job, the release shards' plan,
-  the gather's release half) dispatches its branch run with `release-tier: true`, says so in its
+  that changes the release-tier CI job itself (the `judge-release` job, the release pseudo-system's rules in `tests/harness/shards.py`, the gather's release half); adding or re-packing release shards for a package's groups is not such a change, dispatches its branch run with
+  `release-tier: true`, says so in its
   Kind line, and nobody else sets it. The owner: "Allow it for that case only." This
   specification is that case; its run 6 is the proof of `judge-release`. A specification that adds
   or changes release-tier groups (067, 095) proves them by its builder's local `--tier release`
@@ -803,7 +803,7 @@ All four answered 2026-10-20, night (`decisions.md`, main `4161ef9`), and writte
       "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-1]",
       "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-rest]",
   ]
-  growth = "102: the regrtest driver's Z line (it names a module's denied resource) moves every CPython group's fuel on this set, EXECUTED on d0d91cef: cpython-fs +43.8 M (+6.9e-4), cpython-a +43.3 M (+1.56e-4), cpython-b +53.0 M (+1.79e-4), cpython-c +73.8 M (+1.77e-4); the thirteen staged release JSONs cost nothing (cpython-fs and cpython-b equal to the instruction with them staged and the base's driver); contourpy's normal groups run -m 'not slow' (contourpy-1 +0.28%, contourpy-rest +3.7e-4)"
+  growth = "102: the regrtest driver's Z line (it names a module's denied resource) moves every CPython group's fuel on this set, EXECUTED on d0d91cef: cpython-fs +43.8 M (+6.9e-4), cpython-a +43.3 M (+1.56e-4), cpython-b +53.0 M (+1.79e-4), cpython-c +73.8 M (+1.77e-4); the thirteen staged release JSONs cost nothing (cpython-fs and cpython-b equal to the instruction with them staged and the base's driver); contourpy's normal groups run -m 'not slow' (contourpy-1 +0.28%, contourpy-rest +3.7e-4; the survey, on 142bdd38)"
   retired = []
   units = 112
   ```
@@ -813,9 +813,9 @@ All four answered 2026-10-20, night (`decisions.md`, main `4161ef9`), and writte
 - **The flags** (each reason begins with "102:"):
 
   ```
-  --accept "102: the release tier: slow tests run before a publication, nothing left out; numpy's and pandas' slow cases, contourpy's slow and random_big cases, CPython's cpu-gated tests and four inline-cpu modules in full, in 36 release groups, 8.37 T on darwin; the normal tier sheds about 4 T"
+  --accept "102: the release tier: slow tests run before a publication, nothing left out; numpy's and pandas' slow cases, contourpy's slow and random_big cases, CPython's cpu-gated tests and four inline-cpu modules in full, in 36 release groups, 8.36 T on d0d91cef; the normal tier sheds about 4 T"
   --accept-judge "102: tiers.py (the truth table, the closed exclusion list, keyword selections, release groups of named kinds, splits per tier, the guard key); the argv by tier in upstream.py and packages.py; CPython's release lists, their partition and the inline reader in regrtest.py, the driver's Z line; --tier and release_checks (plugin.py); the ratchet's release_tier and moved, each entry's tier, the passed set carried forward, the history's tier and tier_move_reason (scoreboard.py); the release pseudo-system and rule (i) (shards.py); G1, G2, G3, G5, G7 by tier (gather.py); --tier-rows (sameness.py); budgets by tier; the TOMLs, release lists, classes, gaps and shards; the retired plot shards out of judge-linux's matrix; unit rows"
-  --accept-growth "102: the regrtest driver's Z line (it names a module's denied resource) moves every CPython group's fuel on this set, EXECUTED on d0d91cef: cpython-fs +43.8 M (+6.9e-4), cpython-a +43.3 M (+1.56e-4), cpython-b +53.0 M (+1.79e-4), cpython-c +73.8 M (+1.77e-4); the thirteen staged release JSONs cost nothing (cpython-fs and cpython-b equal to the instruction with them staged and the base's driver); contourpy's normal groups run -m 'not slow' (contourpy-1 +0.28%, contourpy-rest +3.7e-4)"
+  --accept-growth "102: the regrtest driver's Z line (it names a module's denied resource) moves every CPython group's fuel on this set, EXECUTED on d0d91cef: cpython-fs +43.8 M (+6.9e-4), cpython-a +43.3 M (+1.56e-4), cpython-b +53.0 M (+1.79e-4), cpython-c +73.8 M (+1.77e-4); the thirteen staged release JSONs cost nothing (cpython-fs and cpython-b equal to the instruction with them staged and the base's driver); contourpy's normal groups run -m 'not slow' (contourpy-1 +0.28%, contourpy-rest +3.7e-4; the survey, on 142bdd38)"
   --accept-tier-move "102: contourpy's slow and random_big cases move to the release tier, seventeen groups (the owner, 2026-10-20)"
   ```
 - **The acceptance's message** (a normal tier, from 102's landing on): the area counts a normal

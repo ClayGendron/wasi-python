@@ -616,6 +616,27 @@ class _Collector:
                 self.may_block[item.nodeid] = frozenset(got)
 
 
+# The gather's collection. Both tiers: every shard record holds every goal check, the release
+# tier's too (deselected in a normal shard, run in a release one), so the gather's collection must,
+# or every run is red at G3 and no move between tiers reaches G5. The plugin is named, since it
+# takes --tier and its conftest is read after the arguments. faulthandler is left alone: called
+# inside a judge run (its own unit rows), a nested session that enabled and then disabled it would
+# put back the default handlers and drop wasmtime's, and the next guest trap on Linux would kill
+# the run (SIGILL); darwin traps another way and never shows it.
+COLLECT_ARGV = (
+    "--collect-only",
+    "-qq",
+    "-p",
+    "no:cacheprovider",
+    "-p",
+    "harness.plugin",
+    "-p",
+    "no:faulthandler",
+    "--tier",
+    "release",
+)
+
+
 def collect(
     repo: Path = paths.REPO,
 ) -> tuple[list[str], list[str], dict[str, frozenset[str]]]:
@@ -631,16 +652,7 @@ def collect(
     os.chdir(repo)
     try:
         with contextlib.redirect_stdout(io.StringIO()):  # the per-file counts, not the verdict
-            # Both tiers: every shard record holds every goal check, the release tier's too
-            # (deselected in a normal shard, run in a release one), so the gather's collection
-            # must, or every run is red at G3 and no move between tiers reaches G5. The plugin
-            # is named, since it takes --tier and its conftest is read after the arguments.
-            # faulthandler is left alone: called inside a judge run (its own unit rows), a nested
-            # session that enabled and then disabled it would put back the default handlers and
-            # drop wasmtime's, and the next guest trap on Linux would kill the run (SIGILL).
-            argv = ["--collect-only", "-qq", "-p", "no:cacheprovider", "-p", "harness.plugin"]
-            argv += ["-p", "no:faulthandler", "--tier", "release"]
-            code = pytest.main(argv, plugins=[c])
+            code = pytest.main(list(COLLECT_ARGV), plugins=[c])
     finally:
         os.chdir(here)
     if code != 0:

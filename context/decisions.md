@@ -26,7 +26,7 @@ confirm our new edits are working. I do not understand why this questions keeps 
 - **Applied to** spec 095 (its rule (8) struck) and spec 067.
 - **The one branch-run exception** (2026-10-21, asked on spec 102's build review, M2): a branch
   run may run the release tier only when a specification changes the release-tier CI job itself
-  (the `judge-release` job, the release shards' plan, the gather's release half). The owner:
+  (the `judge-release` job, the release pseudo-system's rules in `tests/harness/shards.py`, the gather's release half); adding or re-packing release shards for a package's groups is not such a change. The owner:
   "Allow it for that case only." The workflow keeps its `release-tier` input for that one use; the
   specification says so in its Kind line. Spec 102's run 6 stands as its proof of `judge-release`.
 

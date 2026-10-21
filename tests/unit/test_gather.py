@@ -1003,3 +1003,12 @@ def test_the_gather_replayed_over_records_the_plugin_writes(pytester, monkeypatc
     assert [r for r in v.red if r.startswith("G3")] == [], v.red
     moves = [r for r in v.red if "release-tier now" in r]
     assert moves == [f"G5 {slow}: accepted in the normal tier, release-tier now"], v.red
+
+
+def test_the_gathers_collection_leaves_faulthandler_alone() -> None:
+    """Called inside a judge run, a nested session that toggles faulthandler drops wasmtime's
+    signal handlers on Linux, and the next guest trap kills the run; darwin cannot show it, so
+    the argument is held here."""
+    argv = list(gather.COLLECT_ARGV)
+    assert any(argv[i : i + 2] == ["-p", "no:faulthandler"] for i in range(len(argv)))
+    assert any(argv[i : i + 2] == ["--tier", "release"] for i in range(len(argv)))
