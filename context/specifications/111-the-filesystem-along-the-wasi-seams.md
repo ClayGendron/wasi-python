@@ -758,6 +758,40 @@ no conflict; the code commit is `46ddf0b` there. A different agent reviews the b
   gap, 7 blocked, 0 fail (unit suite 4,644/4,674, 30 skipped); no GREW line. This is the run
   the build review reads.
 
+**Rebased for wave 10** (2026-10-21, at the lane's word) onto 110's `842e32e4`
+(`spec/110-tools-behind-its-facade`, on 045's `3b7f6abf`, on main `265607bd`). Every conflict
+hunk, by file:
+
+- `src/wasi_python/_call.py`, the `TYPE_CHECKING` imports: 110's `from ._tool_host import
+  _ToolHost` and `from .tools import Tool, ToolCall, ToolRecord`, with 111's `from ._fs_table
+  import _Files`; both kept.
+- `src/wasi_python/_sessions.py`, the `TYPE_CHECKING` imports: 110's `from ._tool_host import
+  _Bounded, _ToolHost, _ToolLoop` with 111's `from ._fs_table import _Files`; both kept.
+- `tests/checks/test_rules.py`, two hunks: `ALLOWED` (110 removed `tools.py`, 111 `mounts.py`),
+  now `ALLOWED: dict[str, int] = {}`, typed because it is empty, kept for the stale-entry rule
+  as Decision 8 says, with 111's comment; and the ceiling's docstring, 111's wording.
+- `tests/harness/api.py`, the module lists: 110's `TOOL_FILES` and 111's `FILESYSTEM_FILES` are
+  both in `INTERNAL_FILES` and `INTERNAL_MODULES`.
+- `tests/unit/test_runner_package.py`, three hunks. The constants: 110's `TOOLS` and
+  `BY_NAME_MODULES` with 111's `FILESYSTEM`. `BESIDE` is gone: 110 took `tools` out of it and
+  111 took `mounts`, so it was empty, and its branch in `_order_errors` went with it (two
+  lines). The `LATE` rows: 110's `_tool_host` rows with 111's `_fs_table` and `_fs_memory` rows.
+  The order check's docstring names both orders. Both specs' new modules are in the rule.
+- `tests/unit/test_scan.py`: 110's rows and 111's `TYPE_CHECKING` row both appended at the end.
+  The two sides shared a closing `]`, which git matched as common, so it was written back once
+  on each side.
+- `CHANGELOG.md`: 100's and 110's entries with 111's; all kept.
+
+The fast tier ran against 045's set (clone-copied), holding the fast slot: 2,654 passed, 51
+skipped, 0 failed; 642/888 pass, 0 gap, 42 blocked; rules 60/61 (1 blocked) (EXECUTED,
+`build/111/fast.log`). The ratchet against `a3bb585` is red on two kinds of line, neither one
+111's. It shows 211 grown metrics: the bytes and fuel of 045's set, which this worktree judges
+and 111 does not change. It shows one absent check, the retired
+`test_mounts_imports_only_the_engine_seam`, which the claim list names. Ruff, `mypy --strict`
+(24 files), `test_rules.py` and the touched unit files by node id all pass: 386 passed, 1
+skipped. Two hunks needed a little code beyond keeping both sides: `BESIDE`'s removal and
+`ALLOWED`'s annotation. So one release run is dispatched on the rebased tip, read back below.
+
 ### Re-measured on the base (EXECUTED, `build/111/measure.py`, `build/111/measure-base.txt`)
 
 Every number The problem states holds on `727bd4c` as it did on `b14b68c`: `mounts.py` 2,206
