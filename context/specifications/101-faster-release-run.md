@@ -13,9 +13,10 @@
   passed every job on all three systems, the gather included; **build-reviewed** the same day
   (`../reviews/101-faster-release-run-build-2026-10-20.md`, verdict "lands once M1 and M2 are
   closed and criterion 3's trace is in the notes"); **rebased onto the 103–109 chain** (`dbecd2d`)
-  with M2's reword and L4's rule (*Disposition of the build review*); criterion 3 and M1 wait on
-  a container session (Docker did not answer, 2026-10-20 night), criterion 7 on landing. It
-  changes the release workflow, so it is
+  with M2's reword and L4's rule (*Disposition of the build review*); criterion 3 and M1 done on
+  GitHub's arm64 Linux runner with Docker down (run 39578321541; rules K10 and K11 from it);
+  **rebased onto main** after wave 09 (`265607b`); criterion 7 waits on landing. It changes the
+  release workflow, so it is
   build-class (§5.7). It changes neither the guest's imports nor its exports, nor a byte of the
   artifact set: `scripts/` and `recipes/` do not change, so `MANIFEST` and `SHA256SUMS` stay the
   base's. A different agent reviews the build.
@@ -677,12 +678,15 @@ finding went:
 The review (`../reviews/101-faster-release-run-build-2026-10-20.md`) read run 39488829008 on the
 reviewed code and found the design sound. Where each finding went:
 
-- **M1 (Medium), open.** The seven build-record checks' `read:` lines from a Linux tree need the
-  container session that criterion 3 needs. Docker did not answer this night: `docker info` and
-  `docker version` hung over four minutes each, and were stopped. Nothing was started. The
-  session, when the lane grants it: build on arm64 Linux, then `uv run pytest -s -p
-  no:cacheprovider` on the seven checks by node id, the output in `build/101/`, the counts here
-  beside the lane's darwin counts.
+- **M1 (Medium), closed.** Docker stayed down (question 109), so the Linux tree came from a
+  temporary workflow on GitHub's arm64 Linux runner (run 39578321541). All seven build-record
+  checks passed there, and their `read:` lines match the darwin tree's line for line: the same
+  compile records and counts, the same meson logs and `config.log`s, the same PATH folders; the
+  differences are host names and two more `build.ninja` lines on Linux in four builds
+  (*Landing notes*, "The traced build and the Linux read lines").
+- **Criterion 3, done.** The same run traced the build. Every repository path it touched is in
+  the closure or answered in writing, and two answers are new rules, K10 and K11 (*Landing
+  notes*).
 - **M2 (Medium), closed.** At the rebase onto `dbecd2d`, every comment and docstring 101 adds
   says its reason in words. EXECUTED: `test_code_outside_src_names_no_context_document` failed
   with 74 findings after the rebase (`build/101/m2-before.txt`), and passes after the reword
@@ -721,7 +725,9 @@ reviewed code and found the design sound. Where each finding went:
   has since gained only `context/` commits (`e56b387`, `4161ef9`, `dda6075`). The rebase's one
   stop and its two hunks are in *Landing notes*. **Then, at the lane's word,** rebased onto the
   103–109 chain's tip `dbecd2d` (`claude/gallant-ride-9nxxmn`): two stops, nine hunks, each named
-  in *Landing notes*; the M2 reword and the L4 rule are two commits after the rebase.
+  in *Landing notes*; the M2 reword and the L4 rule are two commits after the rebase. **Then
+  onto main `265607b`** after wave 09 landed: one stop, one hunk (`scan.py`'s end), named in
+  *Landing notes*.
 - **Conflicts to expect at that rebase:** `tests/release_shards.toml` and `release.yml`'s judge
   matrices, `outputs:` and the gather's lists (all derived from the plan by rule 2 of spec 063),
   `tests/unit/test_scan.py`'s mutation rows, `CHANGELOG.md`'s unreleased section. 099 touches none
@@ -739,8 +745,8 @@ reviewed code and found the design sound. Where each finding went:
 - **A run on the code after the build review:** run 39537732021 on `2190443`, at the lane's
   word, without waiting for the trace. One red line, Windows `own-embedding`'s
   `test_a_forked_child_is_refused`, the same as the chain's own run 39530569266 on `dbecd2d`, and
-  fixed on the chain at `727bd4c`; every other job passed (*Landing notes*). If criterion 3's
-  trace changes the closure or a rule, that is code, and a run on it is owed.
+  fixed on the chain at `727bd4c`; every other job passed (*Landing notes*). The trace added K10
+  and K11, which is code, so a run on the final tip is owed and dispatched (*Landing notes*).
 - **The claim list block** (sameness, spec 092):
 
   ```toml
@@ -751,11 +757,11 @@ reviewed code and found the design sound. Where each finding went:
     "tests/checks/test_rules.py::test_the_release_reuses_a_set_only_on_a_branch",
     "tests/checks/test_rules.py::test_the_reuse_decision_refuses_tags_and_main*",
   ]
-  units = 53
+  units = 56
   ```
 
-  (`units`: the unit rows this specification adds, by the builder's count: 35 in
-  `test_set_key.py` (two of them L4's), 7 in `test_gather.py`, 3 in `test_sameness.py`, 5 net in `test_shards.py`
+  (`units`: the unit rows this specification adds, by the builder's count: 38 in
+  `test_set_key.py` (two of them L4's, three K10's and K11's), 7 in `test_gather.py`, 3 in `test_sameness.py`, 5 net in `test_shards.py`
   (one row replaced), 3 in `test_scan.py`; the lane's suite line is the check.)
 - **The flag:**
 
@@ -770,8 +776,8 @@ reviewed code and found the design sound. Where each finding went:
 - [x] `release/set_key.py` gave one key for one commit in the `inputs` job and `save-set` (run
       39468404589: `wasi-python-set-v1-ad003ce1…`, both); the build job's reuse check took the same
       key in runs 39475482749 and 39481889333. `set-cache.yml` has not run (criterion 7).
-- [ ] The traced build (criterion 3): **not done**. It needs a container session, and Docker
-      did not answer this night (*Disposition of the build review*, M1).
+- [x] The traced build (criterion 3): run 39578321541 on GitHub's arm64 Linux runner, Docker
+      being down; every path touched in the closure or answered; K10 and K11 from it.
 - [x] The source run and two reuse runs named by id; every red line a growth line (042's, against
       the last acceptance `e9a76ce`) but one: run 39475482749's Linux `own-guest` timeout, answered
       by restoring `own-runner` (Decision 9) and cleared by run 39481889333.
@@ -793,10 +799,8 @@ reviewed code and found the design sound. Where each finding went:
 - [x] The reuse runs' build job ran on `ubuntu-24.04` (1.7 minutes); no macOS job built.
 - [x] `build-shard`'s record: platform `linux-aarch64`, 51 goal checks run, all passing, none
       blocked; 10 unit tests; the zero-patch step `27 passed`.
-- [ ] L6's `read:` comparison with the lane's darwin lines (the build review's M1): **not done**. Those lines go to
-      pytest's captured output and show only on a failure; the record keeps no reason for a pass.
-      The lane can print them with `uv run pytest -s` on the six checks in its darwin tree, and a
-      reviewer from `build-shard`'s tree only by a diagnostic dispatch.
+- [x] L6's `read:` comparison with the darwin lines (the build review's M1): the seven checks
+      passed on the Linux tree of run 39578321541; 95 read lines on each side, twin for twin.
 - [x] No `scripts/`, `recipes/`, `downloads/` or `src/` change.
 - [x] `same-bytes` passed in every run; the gather did not run in CI on `66cc120` (the macOS
       shards were red on growth, as every branch run on an unaccepted set is), so it was run by
@@ -1008,6 +1012,114 @@ lane's wave dry run to show (AGENTS.md rule 2: a rebase onto a wave's tip dispat
 is `537 accepted pass(es) blocked`: the worktree holds no artifact set (blocked by "artifact
 dir" 538), as every worktree without a build does. No check failed.
 
+### The rebase onto main after wave 09 (EXECUTED)
+
+Wave 09 (100, 097) landed while the trace ran, and the chain is on main. The branch was rebased
+from `dbecd2d` onto main `265607b`, 18 commits, the temporary trace commits among them.
+
+- **Rebase: one stop, the workflow commit** (it became `3474604`), one
+  hunk: `tests/harness/scan.py`, the file's end, where 100's numpy-on-OpenBLAS rules and 101's reuse
+  rules both append. Both kept, main's first, each function's own `return errors`.
+- **Merged cleanly:** the other 17 commits, `CHANGELOG.md` (101's line stays under the unreleased
+  section, after wave 09's) and `release.yml` (wave 09 does not touch it).
+- **After the rebase:** ruff check and format green; the four unit files 101 touches, the set-key
+  rules, the reuse rules, the citation rule and the two shard rules by node id: 483 passed
+  (`build/101/rebase-main-probes.txt`). The traced run 39578321541 is on this rebased code.
+
+### The traced build and the Linux read lines, on GitHub's runner (EXECUTED)
+
+**The method, and why.** Docker Desktop's engine VM on the owner's machine died at 22:01 on
+2026-10-20 and stays down until the owner restarts the app (question 109). Criterion 3 and M1
+need a Linux build tree and a trace of the build, not Docker as such. So, at the lane's word, a
+temporary workflow, `.github/workflows/trace-101.yml`, ran on GitHub's `ubuntu-24.04-arm`: on push
+to this branch only, `permissions: {}` with `contents: read` for the checkout, actions pinned as
+`release.yml` pins them, no secret, the workflow's env equal to `release.yml`'s. It is arm64 Linux,
+as Decision 3 and `build-shard` are. It installed `strace` from the runner's own distribution
+(6.8), then ran
+
+    scripts/00_download.sh
+    strace -f -y -qq -s 65535 -e trace=%file,%process,chdir,fchdir \
+      -o "|zstd -q -T0 -3 -o $RUNNER_TEMP/trace/trace.zst" scripts/build.sh
+
+then a filter (`.github/trace-101/paths.py`) over the trace, then the seven build-record checks
+with `uv run pytest -s -rA -p no:cacheprovider` by node id. The filter follows each process's
+working folder (a child takes its parent's at clone; chdir and fchdir change it), reads the path
+`-y` prints for `AT_FDCWD` and each dirfd, and keeps every path under the checkout outside `build/`
+and `downloads/`, failed lookups included, with its syscalls, results and step. The workflow and
+the filter were removed in the next commit (`46656d0`); the branch's net diff holds neither.
+
+**The runs.** 39571994426 on `047e099` built (31 minutes traced) and then failed in the filter
+(it changed a map it was walking); its raw trace was kept and read locally with the fixed filter.
+39576406271 on `f14ce7d` passed. **39578321541 on `48a2176c`**, the branch rebased onto main
+after wave 09 with K10 and K11 in, passed every step: the traced build 31.1 minutes, 11,154,959
+trace lines, 487 repository paths. It is the record below. Its set's `SHA256SUMS` hashes to
+`142bdd38…`, the same as the darwin set in the main tree (wave 09's). The findings are in
+`build/101/` (`trace-touched.tsv`, `trace-outside-found.tsv`, `trace-outside-failed.tsv`,
+`trace-stats.json`, `m1-linux.txt`, `m1-darwin.txt`).
+
+**Criterion 3: every path touched, against the closure** (`set_key.closure()`, 140 files).
+136 of the 487 are in the closure. Of the 140, four were not touched: `downloads/SHA256SUMS`
+(under `downloads/`, which the filter leaves out), `release/set_key.py`, and the two
+`scripts/bench_*.py` (held, never run). The other 351 paths, each answered:
+
+- **`pyproject.toml`, read** by step 10's `uv` (6 opens, 12 stats), and **`uv.toml`, looked up and
+  absent**: uv reads its settings from the checkout's root. The reviewer predicted it. The answer
+  is a rule, not the file in the key: **K11**, pyproject.toml has no `[tool.uv]` table, and
+  **K10** below holds `uv.toml`. Today neither exists. pyproject.toml's other tables do not reach
+  `uv pip install`.
+- **`.git` (HEAD, config, refs, the pack), read** by three tools. CPython's
+  `Platforms/WASI/_build.py` runs `git log -1 --pretty=%ct` as a fallback for
+  `SOURCE_DATE_EPOCH`, and the environment's value wins (it is in the key). numpy's
+  `_build_utils/gitversion.py` runs `git log -1`, and appends a hash only to a `dev` version; 2.5.2
+  is not one, and its sdist's `version.py` is used as shipped (`git_revision` is numpy's own
+  commit in the set). Step 90's `git ls-files` lists `recipes` and `scripts`: the tracked list is
+  the closure's, and `--others` refuses any untracked file. So the commit is read, and no byte of
+  the set carries it, which the reuse runs on two commits showed (`same-bytes` passed).
+- **`.gitignore` and `.git/info/exclude`, read** by that `--others` listing. In CI the checkout
+  is a fresh clone with no untracked file, so they decide nothing there.
+- **`a.out` and twelve `a.out.tmp*`, written and removed** by `wasm-ld` under a `clang -Wl,-v`
+  probe in step 37, run in the checkout's root. An output, cleaned up; **K10** holds that no
+  tracked `a.out` can be there.
+- **295 failed lookups.** 160 under `recipes/` and 3 under `scripts/` (precompiled-header probes
+  `*.h.gch`, `*.h.pch`, include-path probes in `recipes/openblas-include/`, extension-module probes
+  in the stand-ins, `.gitignore`s, `recipes/patches/<component>` for components with no patch):
+  a tracked file there is in the closure, and an untracked one is refused by step 90. 9 under
+  `tests/harness/` (`__init__*.so`, `__pycache__/*.pyc`): the gate's own import probes; nothing
+  of the kind is tracked, and `__pycache__` is ignored. 17 under `.git` (git's own probes). And
+  the top-level names: `Modules`, `Objects`, `Include`, `Lib`, `Tools`, `Python`, `Programs`,
+  `Parser`, `Misc`, `RCS` and `SCCS` (CPython's make, whose VPATH reaches one level above its
+  source tree), `.mailmap` (git), `lib/python315.zip` (the host Python's prefix probe), `-` and
+  `<stdin>`. None is tracked; **K10** holds that none ever is.
+- **30 tracked folders, listed** (the root, `recipes/…`, `scripts`, `tests`, `tests/harness`):
+  a folder's listing changes only when a file in it does. Under `scripts/` and `recipes/` that file
+  is in the closure; under `tests/` K7 holds the top-level names the gate could import.
+
+**The code this changed** (one commit, `48a2176c` after the rebase): rules **K10** (no tracked
+file at a name the build looks up at the checkout's root, 17 names) and **K11** (no `[tool.uv]`
+table), with three mutant rows seen failing first (`build/101/k10-before.txt`: 3 failed; after:
+38 passed). The closure itself did not change. The run before (39571994426, on the code before
+wave 09) gave the same profile: the same top-level names, the same three tools reading `.git`.
+
+**M1: the seven build-record checks on a Linux tree.** All seven **passed** in run 39578321541
+(`m1-linux.txt`: 7 passed in 61.68 s), none blocked. The two that print their `read:` lines,
+beside the same two over the main tree's darwin build (`m1-darwin.txt`, read-only, wave 09's set):
+
+| | darwin (main tree) | Linux (run 39578321541) |
+|---|---|---|
+| compile records read | 10 `compile_commands.json`, 8 Makefiles, 2 link files | the same 20 |
+| compile commands per record | numpy 184, scipy 893, pandas 99, sklearn 73, … | the same, record for record |
+| trees grepped for pragmas | 38 | 38 |
+| SDKs probed with `-###` | `wasi-sdk-34.0-arm64-macos` | `wasi-sdk-34.0-arm64-linux` |
+| meson logs read | 10 | 10 |
+| `build.ninja` commands | numpy 105, freetype 14, harfbuzz 22, matplotlib 14, the rest equal | numpy 107, freetype 16, harfbuzz 24, matplotlib 16, the rest equal |
+| `config.log`s read | 5 (CPython's build host `aarch64-apple-darwin`) | 5 (`aarch64-unknown-linux-gnu`) |
+| PATH folders | 47, the wasmtime folder `…-aarch64-macos` | 47, `…-aarch64-linux` |
+| the gate line | read | read |
+
+Every line has its twin: 95 lines on each side. The differences are the host's names, and two
+more `build.ninja` command lines on Linux in four meson builds, which the check reads too (it
+reads more there, never fewer). So no loop passes empty on Linux: M1 is closed.
+
 ### The Linux `own-guest` timeout (run 39475482749)
 
 The leg ran "The shard" from 18:33:43 until the 30-minute limit cancelled the job; GitHub kept no
@@ -1029,12 +1141,8 @@ the judge. Not confirmed; the follow-up is the lane's to number.
 
 ### Not done
 
-- Criterion 3 (the traced build) and the build review's M1 (the Linux `read:` counts): one
-  container session. Docker did not answer on 2026-10-20 at night, so neither ran. The slot was
-  never taken.
 - The Windows red line of run 39537732021: the chain's, fixed at `727bd4c`; it clears when 101
   is rebased onto the chain's fixed tip.
 - Criterion 7 (the seed): after landing.
-- L6's `read:` comparison: see the self-check.
-- Criterion 8's sameness line: the lane's, at wave 09.
+- Criterion 8's sameness line: the lane's, at 101's wave.
 - The fast tier on the rebased tip: run, 0 fail (L1 closed).

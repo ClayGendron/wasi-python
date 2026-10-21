@@ -253,10 +253,12 @@ must show:
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. M1 — open. It needs the container session criterion 3 needs, and Docker did not answer on
-   2026-10-20 at night (`docker info` and `docker version` hung over four minutes; stopped, the
-   slot never taken). The session, its command and where its output goes are in the
-   specification's *Disposition of the build review*.
+1. M1 — closed. Docker stayed down (question 109), so a temporary workflow on GitHub's arm64
+   Linux runner built from the pins (run 39578321541, removed after). The seven build-record
+   checks passed there, and their `read:` lines match the darwin tree's twin for twin (95 a
+   side); the differences are host names and two more `build.ninja` lines on Linux in four
+   builds. Criterion 3's trace came from the same run: every path in the closure or answered,
+   and rules K10 and K11 from it. Both in the specification's *Landing notes*.
 2. M2 — closed on the rebased tip. The citation rule failed with 74 findings after the rebase
    onto `dbecd2d` and passes after a comment-and-docstring-only reword, its own commit; the
    reword is checked as such by AST (Python) and comment-stripped lines (YAML, TOML). Every
