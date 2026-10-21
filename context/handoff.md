@@ -5,62 +5,66 @@ the next one. It points at the records that matter: the roadmap for the order,
 `decisions.md` for the owner's answers, each specification's landing notes for its state. The
 lane never tags; the 0.1.0 tag is the owner's.
 
-## 2026-10-20, end of day (main `4161ef9`)
+## 2026-10-21, evening (main `1875d4cd`; wave 11 accepted on `wave/11`, not yet on main)
 
-### Landed today
+### Paused at the owner's word
 
-- **Wave 07** (038, 044) at main `1cd25e2`, history line 88; dry run 39442080658 green on all
-  three systems.
-- **Wave 08** (042, 066, 099) at main `faa9c93`, history line 89: 763/850 pass, 0 fail, on the set
-  `SHA256SUMS` `b5a66245`. The first attempt in the main tree was void (spec 089): macOS host
-  litter from an open Storage pane and Finder windows while the owner was away. The lane accepted
-  from a clone of the wave outside the home folder, rebuilt from the same pins to the same bytes;
-  all 358 metrics measured in both checkouts were equal. Records in the main tree's
-  `build/wave-08/` (git-ignored): the flags, every attempt's log and record, the sameness output.
-  **Its dry run 39488145764 on `faa9c93` was still running at the end of the day: read it back
-  first** (`gh run view 39488145764 --json jobs`; every red line a growth line or G7), then
-  `uv run python tests/harness/sameness.py <its release-record-1/record.json>
-  build/wave-08/latest-accepted.json`.
+The owner paused new work at the end of the day: current work finished, nothing new started.
+New CI runs were also held for an hour or two after GNU Savannah (freetype's pinned host) was
+down from about 20:10 to 20:25 UTC: never probe or poll an upstream host; on an outage, hold
+runs that fetch from it and tell the owner.
 
-### The owner's standing rules added today (all in `decisions.md`)
+### Wave 11: accepted, dry run green, main not yet fast-forwarded
 
-- **CI:** a reviewer reads the builder's run when it is on the exact commit reviewed; a builder
-  that only rebased onto a wave's tip (hunks named, fast tier green) dispatches no run.
-- **Disk:** the lane may delete a landed spec's worktree `build/` (regenerable output only) and
-  logs each deletion; anything else is asked first.
-- **Two tiers of tests (spec 102):** upstream's opt-in slow tests, and tests the project chooses
-  as slow, run only on the publishing run and the dry run on main before a tag; the lane runs them
-  locally only before a tag. Nothing is ever left out of the full suite.
-- **Host litter:** never close or kill the owner's apps; when they are open and the owner is away,
-  accept from a clone outside the home folder (rebuild there; a moved build tree fails two v1.5
-  checks on absolute paths). Spec 097 removes the need.
+- **Entries:** 101 (the faster release run), 102 (the release tier), 112 (strings speak for
+  themselves), 114 (HOME is never the root; the security review's H2), 113 (every module cache
+  is guarded; its H1). Branch `wave/11`, pushed.
+- **Acceptance** `da665abe`, history line 93: 810/935 pass, 0 fail, on the set rebuilt in the
+  main tree, `SHA256SUMS` `1556bbd5` (python.wasm byte for byte main's). Sameness against wave 10's
+  record: exit 0 with the combined claims (`build/wave-11/lane/claims.toml`, git-ignored; the
+  integration review's Appendix A is its source).
+- **Integration review** `context/reviews/wave-11-integration-2026-10-21.md`: lands. Landing
+  edits `25983899` (102's constitution and AGENTS.md text, the release-tier ledger, 101's roadmap
+  lines, 112's CHANGELOG line).
+- **Dry run** 39667712127 on `wave/11` at `da665abe`: attempt 1 failed only at the downloads
+  (Savannah's outage); attempt 2 (failed jobs re-run, nothing changed) green on three systems;
+  the gather concluded success (102's criteria 5 and 7), set `1556bbd5` on every host, 805/935 on
+  CI, the wheel 98,264,488 bytes.
+- **Next, in order:** (1) fast-forward main to `wave/11` and push. The push starts
+  `set-cache.yml` for the first time, which builds and so fetches from Savannah: do it once the
+  owner lifts the hold. (2) Record that run (101's criterion 7) and the next cache hit. (3) The
+  landing notes: each entry's Status, 112's roadmap line, the review addendum, as wave 10's
+  `1875d4cd` did.
 
-### In flight (every branch pushed; no agent running)
+### Wave 12: building, paused
 
-| Spec | Branch tip | State | Next |
+| Spec | Tip | State | Next |
 |---|---|---|---|
-| 100, numpy on OpenBLAS | `b2d9e7a` | build reviewed (lands); restacked onto main; 099's L1 carried | rebuild from empty (native slot), re-measure on main's set, flags, CI, Disposition |
-| 101, the faster release run | `6992fc0` | built and rebased onto main; source run 46.0 min (wave 07: 59.7), reuse runs about 22.5 to 35 | read run 39488829008 (on `6992fc0`), update its notes, build review (reads that run); criterion 3, the traced build, needs a container slot, after the build review if the reviewer agrees in writing |
-| 097, host litter outside the home folder | `5d5204d` | pre-build reviewed; half-built: checks seen failing, fix in, fuel equal across locations on four legs | rebase onto main, a new CI run, criterion 4 from its assets, fast tier against a copy of main's set, criterion 7, self-check, build review |
-| 045, statsmodels | `27205a5` | pre-build confirmed; rebased onto main (22 hunks named); built natively, set `f2a3e87d`, not yet judged | fast tier and node ids, README, CI, flags, build review; `python.wasm` grew 6.87 MB, past the spec's own bound of 2.5 to 5.5 MB, cause not measured: the build review must explain it |
-| 102, the release tier | `9460d14` | drafted and revised for the owner's four answers | pre-build review |
-| 067, the pure-Python packages' own tests | `0eb887d` | pre-build reviewed; revised (42 packages, 39 pins; normal tier about 25 to 35 T, inferred) | survey on main's set after wave 09 and 045, a confirmation round, the measured price to the owner |
+| 067, the pure-Python packages' own tests | `79d865b1` (on 102's `861d5e4b`) | spec confirmed; built in part: 39 pins, four test-source patches, 42 families (285 groups), classes for all but sympy; release about 56 T measured (lower bound) | its landing notes list ten steps: sympy's 54 groups, splits of its capped groups, classes, smoke twice, shards, fast tier, claim block, one normal-tier branch run. Note: its builder ran two guests at once once (named in its notes); its unit checks were written beside the code, not seen failing first (the self-check must say so) |
+| 095, scipy's, scikit-learn's and statsmodels' own tests | `8694fc4c` (on `861d5e4b`) | spec confirmed; harness keys and units built (seen failing first), files written; release about 60.5 T over 133 groups, 48 unmeasured | its landing notes list seven steps; tools under `context/research/2026-10-21-scipy-sklearn-statsmodels-own-tests-under-the-runtime/the-build/` |
+
+The release tier will be large: about 117 T measured so far between the two, more to come. The
+lane's release acceptance before the tag runs it whole.
+
+### The release reviews (0.1.0)
+
+- **Structural** `context/reviews/0.1.0-structural-review-2026-10-21.md` (branch
+  `worktree-agent-a97a92fcefa153822`, `ed8a2983`): no High; M1 is reserved as 115, M2 as 116.
+- **Security** `context/reviews/0.1.0-security-review-2026-10-21.md` (branch
+  `worktree-agent-a1f1b668360a6db50`, `d1db05e2`): H1 and H2, now closed by 113 and 114 in wave 11.
+- Both are committed with the version bump. Before it, each reviewer reads the delta in `src/`,
+  `release/`, `scripts/`, `recipes/` and the workflows since `b2d4ccd0` (waves 11 and 12).
 
 ### The order to 0.1.0
 
-1. Wave 09: 100, 101, 097.
-2. Then 045, 102, 095 (scipy's, scikit-learn's and statsmodels' own tests) and 067.
-3. Then the version bump to 0.1.0 (`release/version.py`), a green dry run on main's exact commit,
-   and the owner's tag.
+1. Wave 11 onto main (above).
+2. Wave 12: 067 and 095 finished, built, reviewed, landed.
+3. The two delta reads, the version bump (`release/version.py`), the release acceptance with the
+   release tier, a green dry run on main's exact commit, and the owner's tag.
 
-### Loose ends
+### The owner's answers today (all in `decisions.md`)
 
-- The `build/` folders of the landed 042 and 099 worktrees were only partly removed (the removal
-  hit folders being written to); finish them under the disk rule.
-- Probe folders left by 097's builder and reviewer: `~/Git/Repos/wasi_python-097-review-probe`
-  (under the owner's home folder: ask before removing), and two under the per-user temp folder
-  (`judge-097-review-probe`, `wasi-python-097-probe`).
-- Disk was about 40 GiB free at the end of the day; a Time Machine local snapshot from 12:46
-  holds purgeable blocks. Check `df -h ~` before any rebuild or accept.
-- The local `main` ref in the main tree is stale; the main tree's checkout is on `wave/08`, equal
-  to `origin/main`. Work from `origin/main`.
+- A branch run may set `release-tier` only for a spec that changes the release-tier job itself;
+  adding release shards for a package's groups is not such a change (102).
+- Never probe upstream hosts; hold runs during an outage.
+- A flaky unit test seen once, unchanged as asked: `tests/unit/test_async_tools.py::test_close_ends_the_calls_loop` (a ResourceWarning from a sqlite3 connection another test left on the same worker).

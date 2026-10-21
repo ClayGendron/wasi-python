@@ -8,6 +8,18 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### Upstream hosts are not probed (2026-10-21, evening)
+
+GNU Savannah, freetype's pinned host, was down from about 20:10 to 20:25 UTC, and the lane polled
+it every seven minutes to learn when it was back. The owner: "let's not probe the URL and pause
+work related to it for now. Don't want to be a part of something that overloads their servers."
+Then: let the run in progress finish, and hold new dispatches for an hour or two.
+
+What follows: no agent polls or probes an upstream project's server in a loop. On a download
+outage, the lane holds runs that fetch from that host, tells the owner, and retries once, later,
+by hand. A second mirror URL with the same SHA-256 is a recipe change of its own, made only if
+the owner asks.
+
 ### Fast tests and slow tests (2026-10-21, morning)
 
 Asked again, with spec 095's measured price, whether a 15 T fuel threshold should decide which of
