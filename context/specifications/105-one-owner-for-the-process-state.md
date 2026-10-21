@@ -1035,3 +1035,30 @@ attributes of `process()`: `ticker_count`, `ctrl_c_pending`, `sweep_claimed`, `s
   the lane adds it under the unreleased section at the landing (the build review's finding 2).
 - ruff check, ruff format --check, the fast tier: green (the baseline's 83), output in
   `build/105/`: checked.
+- Fixed at the lane (2026-10-20 night): the release dry run 39530569266 on `dbecd2d`, job
+  "judge (windows-2025, own-embedding)", had one red line,
+  `tests/checks/test_v1_4_embedding.py::test_a_forked_child_is_refused`. Its no-fork branch
+  (taken only where `os` has no fork, so no darwin or Linux run saw it) still expected the old
+  `runner._fork` dict, `{'used': True, 'forked': False}`, while the rewritten child program
+  `NO_FORK` printed `process().fork_used, process().forked` as `True False`. The fix is in the
+  child program, not the expectation: it prints the two fields labelled,
+  `{"used": process().fork_used, "forked": process().forked}`. The expected line stays
+  byte-identical to the one accepted before the chain, so the check means what it meant: on a
+  system without fork, a call runs and the fork state reads used, not forked. On darwin the
+  check takes its fork branch and passes; the child program run there prints the labelled line
+  as expected. The scan: every Windows-only or no-fork-only branch in `git diff dda6075 dbecd2d
+  -- tests/` was read against the dry run. Every product check and runner unit file runs on
+  Windows there (own-embedding, own-guest, own-runner), and this was its only failure (176
+  passed, 2 blocked by "read-only files", whose chain change is a docstring). The other sites
+  were all clean: the sessions fork check (`test_fork_exit_and_the_collector`); the hostile
+  guest's `NO_RLIMIT`, `CAP_CHILD`, case-folding and `os.name` branches; lxml's Windows entity
+  row; the embedding's deep-root, read-only, cache and zip-folder (`NO_FORK_ZIP`) branches;
+  `_locks_free` and `ONE_CALL`; the grants' junction, walked-folder and `_WinFake` checks; the
+  sweep's `WINDOWS` and `POSIX` branches; `test_runner_calls`' and `test_runner_threads`'
+  `_Windows()` rows; the mounts' `NATIVE_RENAME_END`; and `test_runner_tools`' fork skip. Each
+  passed on Windows, or the chain changed only its comments. The own-rest files never run on
+  Windows (`test_inline_sessions`, `test_host_litter`, `test_build_scripts`, `test_gather`,
+  `test_scoreboard`), and their Windows branches changed only in comments, apart from
+  `trap_handlers_ready`, which `_Windows` defines. `_Windows` has every member of the
+  `_Platform` protocol that the tests read or patch (`walk`, `open_handle`, `close_held`,
+  `try_lock`, `unlock_close`, `trap_handlers_ready`). No further defect was found.

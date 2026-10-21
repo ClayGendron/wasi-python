@@ -1461,7 +1461,8 @@ import wasi_python
 from wasi_python._process import process
 
 print(hasattr(os, "register_at_fork"), wasi_python.run(["-c", "print('ran')"]).stdout)
-print(process().fork_used, process().forked)
+# Labelled, so the line names each field of the fork state it shows.
+print({"used": process().fork_used, "forked": process().forked})
 """
 
 
