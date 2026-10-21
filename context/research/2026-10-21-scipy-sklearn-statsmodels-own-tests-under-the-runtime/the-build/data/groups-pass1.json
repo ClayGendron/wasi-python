@@ -1,0 +1,564 @@
+{
+ "scipy": [
+  {
+   "name": "scipy-lib-to-fft",
+   "paths": [
+    "scipy/_lib/tests",
+    "scipy/constants/tests",
+    "scipy/datasets/tests",
+    "scipy/differentiate/tests",
+    "scipy/fft/_duccfft/tests",
+    "scipy/fft/tests"
+   ],
+   "est": 320.7,
+   "cap": 801750000000
+  },
+  {
+   "name": "scipy-fftpack-to-integrate-ivp",
+   "paths": [
+    "scipy/fftpack/tests",
+    "scipy/integrate/_ivp/tests"
+   ],
+   "est": 67.3,
+   "cap": 500000000000
+  },
+  {
+   "name": "scipy-integrate",
+   "paths": [
+    "scipy/integrate/tests"
+   ],
+   "est": 672.0,
+   "cap": 1680000000000
+  },
+  {
+   "name": "scipy-interpolate",
+   "paths": [
+    "scipy/interpolate/tests"
+   ],
+   "est": 1998.2,
+   "cap": 4995500000000
+  },
+  {
+   "name": "scipy-io-harwell_boeing-to-io",
+   "paths": [
+    "scipy/io/_harwell_boeing/tests",
+    "scipy/io/arff/tests",
+    "scipy/io/tests"
+   ],
+   "est": 44.3,
+   "cap": 500000000000
+  },
+  {
+   "name": "scipy-linalg",
+   "paths": [
+    "scipy/linalg/tests"
+   ],
+   "est": 553.0,
+   "cap": 1382500000000
+  },
+  {
+   "name": "scipy-ndimage-to-optimize-trustregion_constr",
+   "paths": [
+    "scipy/ndimage/tests",
+    "scipy/optimize/_trustregion_constr/tests"
+   ],
+   "est": 188.2,
+   "cap": 500000000000
+  },
+  {
+   "name": "scipy-optimize",
+   "paths": [
+    "scipy/optimize/tests"
+   ],
+   "est": 1244.9,
+   "cap": 3112250000000
+  },
+  {
+   "name": "scipy-signal",
+   "paths": [
+    "scipy/signal/tests/test_array_tools.py",
+    "scipy/signal/tests/test_cont2discrete.py",
+    "scipy/signal/tests/test_czt.py",
+    "scipy/signal/tests/test_dltisys.py",
+    "scipy/signal/tests/test_filter_design.py",
+    "scipy/signal/tests/test_fir_filter_design.py",
+    "scipy/signal/tests/test_ltisys.py",
+    "scipy/signal/tests/test_peak_finding.py",
+    "scipy/signal/tests/test_result_type.py",
+    "scipy/signal/tests/test_savitzky_golay.py",
+    "scipy/signal/tests/test_short_time_fft.py",
+    "scipy/signal/tests/test_spectral.py",
+    "scipy/signal/tests/test_waveforms.py",
+    "scipy/signal/tests/test_wavelets.py",
+    "scipy/signal/tests/test_whittaker.py",
+    "scipy/signal/tests/test_windows.py"
+   ],
+   "est": 452.7,
+   "cap": 1131750000000
+  },
+  {
+   "name": "scipy-signal-conv-method",
+   "paths": [
+    "scipy/signal/tests/test_signaltools.py"
+   ],
+   "cap": 60000000000,
+   "clock": 1000000,
+   "est": 37.9
+  },
+  {
+   "name": "scipy-signal-signaltools",
+   "paths": [
+    "scipy/signal/tests/test_signaltools.py"
+   ],
+   "cap": 1500000000000,
+   "est": 400
+  },
+  {
+   "name": "scipy-sparse-csgraph-to-sparse-linalg-eigen",
+   "paths": [
+    "scipy/sparse/csgraph/tests",
+    "scipy/sparse/linalg/_eigen/arpack/tests",
+    "scipy/sparse/linalg/_eigen/lobpcg/tests",
+    "scipy/sparse/linalg/_eigen/tests"
+   ],
+   "est": 262.7,
+   "cap": 656750000000
+  },
+  {
+   "name": "scipy-sparse-linalg-isolve",
+   "paths": [
+    "scipy/sparse/linalg/_isolve/tests"
+   ],
+   "est": 488.2,
+   "cap": 1220500000000
+  },
+  {
+   "name": "scipy-sparse-linalg",
+   "paths": [
+    "scipy/sparse/linalg/tests"
+   ],
+   "est": 2822.7,
+   "cap": 7056750000000
+  },
+  {
+   "name": "scipy-sparse",
+   "paths": [
+    "scipy/sparse/tests"
+   ],
+   "est": 1273.5,
+   "cap": 3183750000000
+  },
+  {
+   "name": "scipy-spatial",
+   "paths": [
+    "scipy/spatial/tests"
+   ],
+   "est": 348.8,
+   "cap": 872000000000
+  },
+  {
+   "name": "scipy-special",
+   "paths": [
+    "scipy/special/tests"
+   ],
+   "est": 6260.7,
+   "cap": 20000000000000
+  },
+  {
+   "name": "scipy-stats",
+   "paths": [
+    "scipy/stats/tests"
+   ],
+   "est": 8128.8,
+   "cap": 20000000000000
+  }
+ ],
+ "scikit-learn": [
+  {
+   "name": "scikit-learn-loss-to-cross_decomposition",
+   "paths": [
+    "sklearn/_loss/tests",
+    "sklearn/callback/tests",
+    "sklearn/cluster/tests",
+    "sklearn/compose/tests",
+    "sklearn/covariance/tests",
+    "sklearn/cross_decomposition/tests"
+   ],
+   "est": 323.0,
+   "cap": 807500000000
+  },
+  {
+   "name": "scikit-learn-datasets",
+   "paths": [
+    "sklearn/datasets/tests"
+   ],
+   "est": 70.0,
+   "cap": 500000000000
+  },
+  {
+   "name": "scikit-learn-decomposition",
+   "paths": [
+    "sklearn/decomposition/tests"
+   ],
+   "est": 762.7,
+   "cap": 1906750000000
+  },
+  {
+   "name": "scikit-learn-ensemble-hist_gradient_boosting",
+   "paths": [
+    "sklearn/ensemble/_hist_gradient_boosting/tests"
+   ],
+   "est": 225.7,
+   "cap": 564250000000
+  },
+  {
+   "name": "scikit-learn-ensemble",
+   "paths": [
+    "sklearn/ensemble/tests"
+   ],
+   "est": 1075.5,
+   "cap": 2688750000000
+  },
+  {
+   "name": "scikit-learn-experimental-to-gaussian_process",
+   "paths": [
+    "sklearn/experimental/tests",
+    "sklearn/feature_extraction/tests",
+    "sklearn/feature_selection/tests",
+    "sklearn/frozen/tests",
+    "sklearn/gaussian_process/tests"
+   ],
+   "est": 284.6,
+   "cap": 711500000000
+  },
+  {
+   "name": "scikit-learn-impute-to-inspection-plot",
+   "paths": [
+    "sklearn/impute/tests",
+    "sklearn/inspection/_plot/tests"
+   ],
+   "est": 250.6,
+   "cap": 626500000000
+  },
+  {
+   "name": "scikit-learn-inspection",
+   "paths": [
+    "sklearn/inspection/tests"
+   ],
+   "est": 348.8,
+   "cap": 872000000000
+  },
+  {
+   "name": "scikit-learn-linear_model-glm",
+   "paths": [
+    "sklearn/linear_model/_glm/tests"
+   ],
+   "est": 273.1,
+   "cap": 682750000000
+  },
+  {
+   "name": "scikit-learn-linear_model",
+   "paths": [
+    "sklearn/linear_model/tests"
+   ],
+   "est": 875.7,
+   "cap": 2189250000000
+  },
+  {
+   "name": "scikit-learn-manifold",
+   "paths": [
+    "sklearn/manifold/tests"
+   ],
+   "est": 288.8,
+   "cap": 722000000000
+  },
+  {
+   "name": "scikit-learn-metrics-plot",
+   "paths": [
+    "sklearn/metrics/_plot/tests"
+   ],
+   "est": 120.0,
+   "cap": 500000000000
+  },
+  {
+   "name": "scikit-learn-metrics",
+   "paths": [
+    "sklearn/metrics/tests"
+   ],
+   "est": 374.4,
+   "cap": 936000000000
+  },
+  {
+   "name": "scikit-learn-mixture",
+   "paths": [
+    "sklearn/mixture/tests"
+   ],
+   "est": 63.8,
+   "cap": 500000000000
+  },
+  {
+   "name": "scikit-learn-model_selection",
+   "paths": [
+    "sklearn/model_selection/tests"
+   ],
+   "est": 669.3,
+   "cap": 1673250000000
+  },
+  {
+   "name": "scikit-learn-neighbors-to-neural_network",
+   "paths": [
+    "sklearn/neighbors/tests",
+    "sklearn/neural_network/tests"
+   ],
+   "est": 207.0,
+   "cap": 517500000000
+  },
+  {
+   "name": "scikit-learn-preprocessing-to-semi_supervised",
+   "paths": [
+    "sklearn/preprocessing/tests",
+    "sklearn/semi_supervised/tests"
+   ],
+   "est": 277.7,
+   "cap": 694250000000
+  },
+  {
+   "name": "scikit-learn-tests",
+   "paths": [
+    "sklearn/tests"
+   ],
+   "est": 2161.4,
+   "cap": 5403500000000
+  },
+  {
+   "name": "scikit-learn-tree",
+   "paths": [
+    "sklearn/tree/tests"
+   ],
+   "est": 152.9,
+   "cap": 500000000000
+  },
+  {
+   "name": "scikit-learn-utils",
+   "paths": [
+    "sklearn/utils/tests"
+   ],
+   "est": 336.0,
+   "cap": 840000000000
+  }
+ ],
+ "statsmodels": [
+  {
+   "name": "statsmodels-base-to-datasets",
+   "paths": [
+    "statsmodels/base/tests",
+    "statsmodels/compat/tests",
+    "statsmodels/datasets/tests"
+   ],
+   "est": 205.8,
+   "cap": 514500000000
+  },
+  {
+   "name": "statsmodels-discrete",
+   "paths": [
+    "statsmodels/discrete/tests"
+   ],
+   "est": 1567.8,
+   "cap": 3919500000000
+  },
+  {
+   "name": "statsmodels-distributions-copula-to-duration",
+   "paths": [
+    "statsmodels/distributions/copula/tests",
+    "statsmodels/distributions/tests",
+    "statsmodels/duration/tests"
+   ],
+   "est": 202.5,
+   "cap": 506250000000
+  },
+  {
+   "name": "statsmodels-emplike",
+   "paths": [
+    "statsmodels/emplike/tests"
+   ],
+   "est": 465.7,
+   "cap": 1164250000000
+  },
+  {
+   "name": "statsmodels-gam",
+   "paths": [
+    "statsmodels/gam/tests"
+   ],
+   "est": 302.4,
+   "cap": 756000000000
+  },
+  {
+   "name": "statsmodels-genmod",
+   "paths": [
+    "statsmodels/genmod/tests"
+   ],
+   "est": 439.2,
+   "cap": 1098000000000
+  },
+  {
+   "name": "statsmodels-graphics-to-multivariate-factor_rotation",
+   "paths": [
+    "statsmodels/graphics/tests",
+    "statsmodels/imputation/tests",
+    "statsmodels/miscmodels/tests",
+    "statsmodels/multivariate/factor_rotation/tests"
+   ],
+   "est": 297.6,
+   "cap": 744000000000
+  },
+  {
+   "name": "statsmodels-multivariate",
+   "paths": [
+    "statsmodels/multivariate/tests"
+   ],
+   "est": 209.1,
+   "cap": 522750000000
+  },
+  {
+   "name": "statsmodels-nonparametric",
+   "paths": [
+    "statsmodels/nonparametric/tests"
+   ],
+   "est": 637.2,
+   "cap": 1593000000000
+  },
+  {
+   "name": "statsmodels-othermod",
+   "paths": [
+    "statsmodels/othermod/tests"
+   ],
+   "est": 35.9,
+   "cap": 500000000000
+  },
+  {
+   "name": "statsmodels-regression",
+   "paths": [
+    "statsmodels/regression/tests"
+   ],
+   "est": 1357.4,
+   "cap": 3393500000000
+  },
+  {
+   "name": "statsmodels-robust",
+   "paths": [
+    "statsmodels/robust/tests"
+   ],
+   "est": 423.5,
+   "cap": 1058750000000
+  },
+  {
+   "name": "statsmodels-sandbox-distributions-to-stats-libqsturng",
+   "paths": [
+    "statsmodels/sandbox/distributions/tests",
+    "statsmodels/sandbox/nonparametric/tests",
+    "statsmodels/sandbox/panel/tests",
+    "statsmodels/sandbox/regression/tests",
+    "statsmodels/sandbox/stats/tests",
+    "statsmodels/sandbox/tests",
+    "statsmodels/sandbox/tools/tests",
+    "statsmodels/sandbox/tsa/tests",
+    "statsmodels/stats/libqsturng/tests"
+   ],
+   "est": 157.4,
+   "cap": 500000000000
+  },
+  {
+   "name": "statsmodels-stats",
+   "paths": [
+    "statsmodels/stats/tests"
+   ],
+   "est": 2528.9,
+   "cap": 6322250000000
+  },
+  {
+   "name": "statsmodels-tests-to-treatment",
+   "paths": [
+    "statsmodels/tests",
+    "statsmodels/tools/tests",
+    "statsmodels/tools/validation/tests",
+    "statsmodels/treatment/tests"
+   ],
+   "est": 321.3,
+   "cap": 803250000000
+  },
+  {
+   "name": "statsmodels-tsa-ardl",
+   "paths": [
+    "statsmodels/tsa/ardl/tests"
+   ],
+   "est": 438.8,
+   "cap": 1097000000000
+  },
+  {
+   "name": "statsmodels-tsa-arima-estimators-to-tsa-base",
+   "paths": [
+    "statsmodels/tsa/arima/estimators/tests",
+    "statsmodels/tsa/base/tests"
+   ],
+   "est": 57.2,
+   "cap": 500000000000
+  },
+  {
+   "name": "statsmodels-tsa-forecasting",
+   "paths": [
+    "statsmodels/tsa/forecasting/tests"
+   ],
+   "est": 363.2,
+   "cap": 908000000000
+  },
+  {
+   "name": "statsmodels-tsa-holtwinters",
+   "paths": [
+    "statsmodels/tsa/holtwinters/tests"
+   ],
+   "est": 334.3,
+   "cap": 835750000000
+  },
+  {
+   "name": "statsmodels-tsa-interp-to-tsa-regime_switching",
+   "paths": [
+    "statsmodels/tsa/interp/tests",
+    "statsmodels/tsa/regime_switching/tests"
+   ],
+   "est": 114.2,
+   "cap": 500000000000
+  },
+  {
+   "name": "statsmodels-tsa-statespace",
+   "paths": [
+    "statsmodels/tsa/statespace/tests"
+   ],
+   "est": 1135.2,
+   "cap": 2838000000000
+  },
+  {
+   "name": "statsmodels-tsa-stl",
+   "paths": [
+    "statsmodels/tsa/stl/tests"
+   ],
+   "est": 127.4,
+   "cap": 500000000000
+  },
+  {
+   "name": "statsmodels-tsa",
+   "paths": [
+    "statsmodels/tsa/tests"
+   ],
+   "est": 1485.3,
+   "cap": 3713250000000
+  },
+  {
+   "name": "statsmodels-tsa-vector_ar",
+   "paths": [
+    "statsmodels/tsa/vector_ar/tests"
+   ],
+   "est": 269.4,
+   "cap": 673500000000
+  }
+ ]
+}

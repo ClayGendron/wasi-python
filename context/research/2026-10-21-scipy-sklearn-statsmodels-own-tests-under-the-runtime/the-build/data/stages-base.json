@@ -1,0 +1,38 @@
+{
+ "contourpy": {
+  "json": "fb6d0dbf8814a64bb8161f1cfd1be778b5d44e57a8cd96cdb276579668b850b0",
+  "staged": "f5d2b17232463ab1cb4dd6c98d617565d3946e172ac41b41d383ca4e779104c3"
+ },
+ "kiwisolver": {
+  "json": "89b683860ad2f0891781e52ea3d2c594cede03971b11bc4ed286d4e293fdf16d",
+  "staged": "2643b81a78902ae7d7fa9db8b943956bd8703429c66df1fa2691b9d47acc05ea"
+ },
+ "lxml": {
+  "json": "b439e1371aa0595379b8a9dc790659a63e16974f4dce80afc2df28a0c527cf1f",
+  "staged": "8fbe9936b162b99a2017fdf9bd2524bd8cbc5c9aa2ef07f6c837016600da6493"
+ },
+ "matplotlib": {
+  "json": "cdba5e93f93162b73fe5a331f2f85a646e24254c97304e5bfe2adecd92e4e319",
+  "staged": "d41bc0c08b3c726aec9f6f2e69a5e6d4dfcc3383d20fddc9a2759265a87725a1"
+ },
+ "numpy": {
+  "json": "ea5cd6f16601373bf430c1b17c009e5aa548561a3f9db485e62cbbaacb36d440",
+  "staged": "2692389314be5406ae75d5be94be453c5ec13514e8c9dd0ed3fbea70cb2e6003"
+ },
+ "pandas": {
+  "json": "7655c01ef9588b8baa007a334753321a3c7a2ec703f3b64c44f07f1ddbe6046a",
+  "staged": "666e98f302be428d5390b5abcc5cb6db3653dc748b68d3a4b28b3e4d51cd16bf"
+ },
+ "pillow": {
+  "json": "7240e62de526d034624a70f162ba0f178666ff5d63481c2821a2a6936fbce5ac",
+  "staged": "fc9ae2bee776b966e64ccdb8cdcc28e850ae2c03c4918e7c1528c0ac5d0659b8"
+ },
+ "python": {
+  "json": "0ede91c68a8ad9b9f536eb55bf1cee4cf1bace01b376556ffddf7fe6b2d46acf",
+  "staged": "016c92b27ff80b2ba527dd0154e4e2491eb3125f6433d5f9b539ba1fa30f21cf"
+ },
+ "regex": {
+  "json": "4a257b37397ce6155d1303718d80ae354f488d294a232fcae56612106314c076",
+  "staged": "8d026f9ec9546d62e016f7ef51a653dd5d00a307f9d7854114552b909201170c"
+ }
+}

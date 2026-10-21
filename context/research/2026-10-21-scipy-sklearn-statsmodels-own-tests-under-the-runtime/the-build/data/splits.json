@@ -1,0 +1,340 @@
+{
+ "scipy": [
+  {
+   "file": "scipy/signal/tests/test_signaltools.py",
+   "groups": [
+    "scipy-signal-conv-method",
+    "scipy-signal-signaltools"
+   ],
+   "keywords": [
+    "test_choose_conv_method and not _2"
+   ]
+  },
+  {
+   "file": "scipy/sparse/linalg/tests/test_propack.py",
+   "groups": [
+    "scipy-smoke-slow-propack-1",
+    "scipy-smoke-slow-propack-2",
+    "scipy-smoke-slow-propack-3",
+    "scipy-smoke-slow-propack-4",
+    "scipy-smoke-slow-propack-5"
+   ],
+   "keywords": [
+    "test_examples[False-f",
+    "test_examples[False-c",
+    "test_examples[True-f",
+    "test_examples[True-complex6"
+   ]
+  },
+  {
+   "file": "scipy/stats/tests/test_sampling.py",
+   "groups": [
+    "scipy-smoke-slow-sampling-1",
+    "scipy-smoke-slow-sampling-2"
+   ],
+   "keywords": [
+    "TestNumericalInversePolynomial"
+   ]
+  },
+  {
+   "file": "scipy/integrate/tests/test_cubature.py",
+   "groups": [
+    "scipy-integrate-cubature-1",
+    "scipy-integrate-cubature-2"
+   ],
+   "keywords": [
+    "TestCubature or test_scalar_output or test_array_output or test_break_points or test_infinite_limits[numpy-problem0 or test_infinite_limits[numpy-problem1 or test_infinite_limits[numpy-problem2 or test_infinite_limits[numpy-problem3 or test_infinite_limits[numpy-problem4 or test_infinite_limits[numpy-problem5 or test_infinite_limits[numpy-problem6 or test_infinite_limits[numpy-problem7 or test_infinite_limits[numpy-problem8 or test_infinite_limits[numpy-problem9-gk1"
+   ]
+  },
+  {
+   "file": "scipy/interpolate/tests/test_fitpack2.py",
+   "groups": [
+    "scipy-interpolate-fitpack2-1",
+    "scipy-interpolate-fitpack2-2",
+    "scipy-interpolate-fitpack2-3"
+   ],
+   "keywords": [
+    "TestUnivariateSpline or TestLSQBivariateSpline or TestSmoothBivariateSpline or test_bivariate_spline_noncontiguous_input or TestLSQSphereBivariateSpline or TestSmoothSphereBivariateSpline or test_defaults or test_interpolated_offgrid_points or test_midpoints or test_custom_matches_reference or test_evaluate or test_derivatives_grid or test_derivatives or test_partial_derivative_method_grid or test_partial_derivative_method or test_partial_derivative_order_too_large or test_broadcast or test_invalid_input or test_array_like_input or test_not_increasing_input or test_grid_sparse_meshgrid or test_grid_sparse_meshgrid_values or test_not_increasing_input_2d or test_spline_large_2d[spl_apis0 or test_spline_large_2d[spl_apis1-s_tols0 or test_spline_large_2d[spl_apis1-s_tols1-shape0]",
+    "test_spline_large_2d[spl_apis1-s_tols1-shape1]"
+   ]
+  },
+  {
+   "file": "scipy/sparse/linalg/_isolve/tests/test_iterative.py",
+   "groups": [
+    "scipy-sparse-linalg-isolve-iterative-1",
+    "scipy-sparse-linalg-isolve-iterative-2"
+   ],
+   "keywords": [
+    "test_maxiter or test_convergence or test_precond_dummy or test_precond_inverse or test_atol or test_zero_rhs or test_maxiter_worsening or test_x0_working or test_x0_solves_problem_exactly or test_positional_error or test_invalid_atol or test_nD"
+   ]
+  },
+  {
+   "file": "scipy/sparse/tests/test_64bit.py",
+   "groups": [
+    "scipy-sparse-64bit-1",
+    "scipy-sparse-64bit-2",
+    "scipy-sparse-64bit-3"
+   ],
+   "keywords": [
+    "Test64BitArray or Test64BitMatrix",
+    "Test64BitMatrixSameAsArray"
+   ]
+  },
+  {
+   "file": "scipy/sparse/tests/test_base.py",
+   "groups": [
+    "scipy-sparse-base-1",
+    "scipy-sparse-base-2"
+   ],
+   "keywords": [
+    "TestCSR or TestCSRMatrix or test_spmatrix_subscriptable or TestCSC or TestCSCMatrix or TestDOK or TestDOKMatrix or TestLIL or TestLILMatrix or TestCOO or TestCOOMatrix or test_sparray_subscriptable or TestDIA or TestDIAMatrix or TestBSR or TestBSRMatrix or TestCSRNonCanonical or TestCSRNonCanonicalMatrix or TestCSCNonCanonical or TestCSCNonCanonicalMatrix or TestBSRNonCanonical or TestBSRNonCanonicalMatrix"
+   ]
+  },
+  {
+   "file": "scipy/special/tests/test_cdflib.py",
+   "groups": [
+    "scipy-special-cdflib-1",
+    "scipy-special-cdflib-2",
+    "scipy-special-cdflib-3"
+   ],
+   "keywords": [
+    "test_bdtrin or test_btdtria or test_btdtrib or test_fdtridfd or test_gdtria or test_gdtrib or test_gdtrix or test_nrdtrimn or test_nrdtrisd",
+    "test_stdtr or test_stdtridf or test_stdtrit or test_chdtriv or test_chndtridf or test_chndtrinc or test_chndtrix"
+   ]
+  },
+  {
+   "file": "scipy/special/tests/test_mpmath.py",
+   "groups": [
+    "scipy-special-mpmath-1",
+    "scipy-special-mpmath-2",
+    "scipy-special-mpmath-3",
+    "scipy-special-mpmath-4",
+    "scipy-special-mpmath-5",
+    "scipy-special-mpmath-6",
+    "scipy-special-mpmath-7",
+    "scipy-special-mpmath-betainc",
+    "scipy-special-mpmath-betaincc",
+    "scipy-special-mpmath-8"
+   ],
+   "keywords": [
+    "test_expi_complex or test_expn_large_n or test_hyp0f1_gh5764 or test_hyp0f1_gh_1609 or test_hyperu_around_0 or test_hyp2f1_strange_points or test_hyp2f1_real_some_points or test_hyp2f1_some_points_2 or test_hyp2f1_real_some or test_hyp2f1_real_random or test_erf_complex or test_lpmv or test_beta or test_loggamma_taylor_transition or test_loggamma_taylor or test_rgamma_zeros or test_digamma_roots or test_digamma_negreal or test_digamma_boundary or test_gammainc_boundary or test_spence_circle or test_sinpi_zeros or test_cospi_zeros or test_dn_quarter_period or test_wrightomega_branch or test_wrightomega_region1",
+    "test_wrightomega_region2 or test_lambertw_smallz or test_airyai or test_airyai_complex or test_airyai_prime or test_airyai_prime_complex or test_airybi or test_airybi_complex or test_airybi_prime",
+    "test_airybi_prime_complex or test_bei or test_ber or test_bernoulli or test_besseli or test_besseli_complex or test_besselj or test_besselj_complex",
+    "test_besselk",
+    "test_besselk_int",
+    "test_besselk_complex or test_bessely or test_bessely_complex or test_bessely_int",
+    "test_beta",
+    "test_betainc and not test_betaincc",
+    "test_betaincc"
+   ]
+  },
+  {
+   "file": "scipy/stats/tests/test_axis_nan_policy.py",
+   "groups": [
+    "scipy-stats-axis-nan-policy-1",
+    "scipy-stats-axis-nan-policy-2",
+    "scipy-stats-axis-nan-policy-3",
+    "scipy-stats-axis-nan-policy-4",
+    "scipy-stats-axis-nan-policy-5",
+    "scipy-stats-axis-nan-policy-6"
+   ],
+   "keywords": [
+    "test_axis_nan_policy_fast",
+    "test_axis_nan_policy_full[a",
+    "test_axis_nan_policy_full[mixed--",
+    "test_axis_nan_policy_full[mixed-0 or test_axis_nan_policy_full[mixed-1 or test_axis_nan_policy_full[mixed-2 or test_axis_nan_policy_axis_is_None",
+    "test_keepdims or test_hypotest_back_compat_no_axis or test_axis_nan_policy_decorated_positional_axis or test_axis_nan_policy_decorated_positional_args or test_axis_nan_policy_decorated_keyword_samples or test_axis_nan_policy_decorated_pickled or test_check_empty_inputs or test_empty[k or test_empty[r or test_empty[m or test_empty[w or test_empty[g or test_empty[h or test_empty[p or test_empty[t or test_empty[s or test_empty[i or test_empty[j or test_empty[d or test_empty[v"
+   ]
+  },
+  {
+   "file": "scipy/stats/tests/test_continuous.py",
+   "groups": [
+    "scipy-stats-continuous-1",
+    "scipy-stats-continuous-2",
+    "scipy-stats-continuous-3",
+    "scipy-stats-continuous-4",
+    "scipy-stats-continuous-5",
+    "scipy-stats-continuous-6",
+    "scipy-stats-continuous-7",
+    "scipy-stats-continuous-8"
+   ],
+   "keywords": [
+    "Test_RealInterval or test_support_moments_sample",
+    "test_funcs or test_plot or test_complement_safe or test_icomplement_safe or test_subtraction_safe or test_logentropy_safe or test_logcdf2_safe or test_logexp_safe or test_sample_against_cdf or test_input_validation or test_rng_deepcopy_pickle or TestAttributes or test_rv_generic[0 or test_rv_generic[1- or test_rv_generic[10-",
+    "test_rv_generic[100",
+    "test_rv_generic[101 or test_rv_generic[102 or test_rv_generic[103 or test_rv_generic[104 or test_rv_generic[105 or test_rv_generic[106 or test_rv_generic[107 or test_rv_generic[108 or test_rv_generic[109 or test_rv_generic[11 or test_rv_generic[12 or test_rv_generic[13 or test_rv_generic[14 or test_rv_generic[15 or test_rv_generic[16 or test_rv_generic[17 or test_rv_generic[18 or test_rv_generic[19 or test_rv_generic[2 or test_rv_generic[3 or test_rv_generic[4",
+    "test_rv_generic[5 or test_rv_generic[6-",
+    "test_rv_generic[60",
+    "test_rv_generic[61 or test_rv_generic[62 or test_rv_generic[63 or test_rv_generic[64 or test_rv_generic[65 or test_rv_generic[66 or test_rv_generic[67 or test_rv_generic[68 or test_rv_generic[69 or test_rv_generic[7 or test_rv_generic[8"
+   ]
+  },
+  {
+   "file": "scipy/stats/tests/test_continuous_basic.py",
+   "groups": [
+    "scipy-stats-continuous-basic-1",
+    "scipy-stats-continuous-basic-2",
+    "scipy-stats-continuous-basic-3",
+    "scipy-stats-continuous-basic-4",
+    "scipy-stats-continuous-basic-5",
+    "scipy-stats-continuous-basic-6",
+    "scipy-stats-continuous-basic-7",
+    "scipy-stats-continuous-basic-8",
+    "scipy-stats-continuous-basic-9",
+    "scipy-stats-continuous-basic-10",
+    "scipy-stats-continuous-basic-11",
+    "scipy-stats-continuous-basic-12",
+    "scipy-stats-continuous-basic-13",
+    "scipy-stats-continuous-basic-14",
+    "scipy-stats-continuous-basic-15",
+    "scipy-stats-continuous-basic-16",
+    "scipy-stats-continuous-basic-17",
+    "scipy-stats-continuous-basic-18",
+    "scipy-stats-continuous-basic-19",
+    "scipy-stats-continuous-basic-20",
+    "scipy-stats-continuous-basic-21"
+   ],
+   "keywords": [
+    "test_cont_basic[500-a or test_cont_basic[500-b or test_cont_basic[500-c or test_cont_basic[500-d or test_cont_basic[500-e or test_cont_basic[500-f or test_cont_basic[500-g or test_cont_basic[500-h or test_cont_basic[500-i or test_cont_basic[500-j",
+    "test_cont_basic[500-k or test_cont_basic[500-l or test_cont_basic[500-m or test_cont_basic[500-n or test_cont_basic[500-p or test_cont_basic[500-r or test_cont_basic[500-se or test_cont_basic[500-sk",
+    "test_cont_basic[500-st",
+    "test_cont_basic[500-t or test_cont_basic[500-u or test_cont_basic[500-v or test_cont_basic[500-w or test_cont_basic_fit_cases or test_cont_basic_fit[200-al or test_cont_basic_fit[200-an or test_cont_basic_fit[200-arc or test_cont_basic_fit[200-argus-arg12 or test_cont_basic_fit[200-argus-arg13 or test_cont_basic_fit[200-argus-arg14",
+    "test_cont_basic_fit[200-argus-arg15",
+    "test_cont_basic_fit[200-b or test_cont_basic_fit[200-c or test_cont_basic_fit[200-d or test_cont_basic_fit[200-er or test_cont_basic_fit[200-expon- or test_cont_basic_fit[200-exponn or test_cont_basic_fit[200-exponpow-arg80 or test_cont_basic_fit[200-exponpow-arg81",
+    "test_cont_basic_fit[200-exponpow-arg82",
+    "test_cont_basic_fit[200-exponpow-arg83",
+    "test_cont_basic_fit[200-exponw or test_cont_basic_fit[200-f or test_cont_basic_fit[200-ga or test_cont_basic_fit[200-gene or test_cont_basic_fit[200-geng or test_cont_basic_fit[200-genhalflogistic-arg132 or test_cont_basic_fit[200-genhalflogistic-arg133 or test_cont_basic_fit[200-genhalflogistic-arg134",
+    "test_cont_basic_fit[200-genhalflogistic-arg135",
+    "test_cont_basic_fit[200-genhy or test_cont_basic_fit[200-geni or test_cont_basic_fit[200-genl or test_cont_basic_fit[200-genn or test_cont_basic_fit[200-genp or test_cont_basic_fit[200-gi or test_cont_basic_fit[200-gompertz-arg164 or test_cont_basic_fit[200-gompertz-arg165 or test_cont_basic_fit[200-gompertz-arg166",
+    "test_cont_basic_fit[200-gompertz-arg167",
+    "test_cont_basic_fit[200-gu or test_cont_basic_fit[200-h or test_cont_basic_fit[200-i or test_cont_basic_fit[200-jf or test_cont_basic_fit[200-johnsonsb-arg212 or test_cont_basic_fit[200-johnsonsb-arg213",
+    "test_cont_basic_fit[200-johnsonsb-arg214",
+    "test_cont_basic_fit[200-johnsonsb-arg215",
+    "test_cont_basic_fit[200-johnsonsu or test_cont_basic_fit[200-k or test_cont_basic_fit[200-l or test_cont_basic_fit[200-m or test_cont_basic_fit[200-n or test_cont_basic_fit[200-p",
+    "test_cont_basic_fit[200-r or test_cont_basic_fit[200-s or test_cont_basic_fit[200-t or test_cont_basic_fit[200-u or test_cont_basic_fit[200-v",
+    "test_cont_basic_fit[200-w or test_rvs_scalar or test_levy_stable_random_state_property or test_moments[a or test_moments[b or test_moments[c or test_moments[d or test_moments[e or test_moments[f or test_moments[g or test_moments[h or test_moments[i or test_moments[j",
+    "test_moments[k or test_moments[l or test_moments[m or test_moments[n or test_moments[p or test_moments[r",
+    "test_moments[s or test_moments[t or test_moments[u"
+   ]
+  },
+  {
+   "file": "scipy/stats/tests/test_distributions.py",
+   "groups": [
+    "scipy-stats-distributions-1",
+    "scipy-stats-distributions-2",
+    "scipy-stats-distributions-3"
+   ],
+   "keywords": [
+    "test_api_regression or test_distributions_submodule or TestVonMises or test_support or TestRandInt or TestBinom or TestArcsine or TestBernoulli or TestBradford or TestCauchy or TestChi or TestCrystalBall or TestNBinom or TestGenInvGauss or TestGenHyperbolic or TestHypSecant or TestNormInvGauss or TestGeom or TestPlanck or TestGennorm or TestGibrat or TestGompertz or TestFoldNorm or TestHalfNorm or TestHalfCauchy or TestHalfLogistic or TestHalfgennorm or TestLaplaceasymmetric or TestTruncnorm or TestGenLogistic or TestHypergeom or TestLoggamma or TestJohnsonsu or TestJohnsonb or TestLogistic or TestLogser or TestGumbel_r_l or TestPareto or TestGenpareto or TestPearson3 or TestKappa4 or TestPoisson or TestKSTwo or TestZipf or TestDLaplace or TestInvgauss or TestLandau or TestLaplace or TestLogLaplace or TestPowerlaw or TestPowerLogNorm or TestPowerNorm or TestInvGamma or TestF or TestStudentT or TestRvDiscrete or TestSkewCauchy or TestJFSkewT or TestSkewNorm or TestExpon or TestNorm or TestUniform or TestExponNorm or TestGenExpon or TestTruncexpon or TestExponpow or TestSkellam or TestLognorm or TestBeta or TestBetaPrime or TestGamma or test_pdf_overflow_gh19616 or TestDgamma or TestChi2 or TestGumbelL or TestGumbelR",
+    "TestLevyStable or TestArrayArgument or TestDocstring or test_args_reduce or TestFitMethod or TestFrozen or TestExpect or TestNct or TestRecipInvGauss or TestRice or TestErlang or TestRayleigh or TestExponWeib or TestFatigueLife or TestWeibull or TestDweibull or TestTruncWeibull or TestRdist or TestTrapezoid or TestTriang or TestMaxwell or TestMielke or TestBurr or TestBurr12"
+   ]
+  },
+  {
+   "file": "scipy/stats/tests/test_fit.py",
+   "groups": [
+    "scipy-stats-fit-1",
+    "scipy-stats-fit-2",
+    "scipy-stats-fit-3",
+    "scipy-stats-fit-4",
+    "scipy-stats-fit-5"
+   ],
+   "keywords": [
+    "test_cont_fit[MLE-a or test_cont_fit[MLE-b or test_cont_fit[MLE-c or test_cont_fit[MLE-d or test_cont_fit[MLE-e or test_cont_fit[MLE-f or test_cont_fit[MLE-g or test_cont_fit[MLE-h or test_cont_fit[MLE-i or test_cont_fit[MLE-j or test_cont_fit[MLE-k or test_cont_fit[MLE-l or test_cont_fit[MLE-m",
+    "test_cont_fit[MLE-n or test_cont_fit[MLE-p or test_cont_fit[MLE-r or test_cont_fit[MLE-s or test_cont_fit[MLE-t or test_cont_fit[MLE-u or test_cont_fit[MLE-v or test_cont_fit[MLE-w or test_cont_fit[MM or test_non_default_loc_scale_mle_fit or test_expon_fit or test_fit_error or test_nnlf_and_related_methods or test_fitstart or test_dist_iv or test_data_iv or test_bounds_iv or test_guess_iv",
+    "test_basic_fit_mle[b or test_basic_fit_mle[d or test_basic_fit_mle[g or test_basic_fit_mle[h",
+    "test_basic_fit_mle[nchypergeom_f"
+   ]
+  }
+ ],
+ "scikit-learn": [
+  {
+   "file": "sklearn/decomposition/tests/test_pca.py",
+   "groups": [
+    "scikit-learn-decomposition-pca-1",
+    "scikit-learn-decomposition-pca-2"
+   ],
+   "keywords": [
+    "test_pca or test_pca_sparse or test_pca_sparse_fit_transform or test_sparse_pca_solver_error or test_sparse_pca_auto_arpack_singular_values_consistency or test_no_empty_slice_warning or test_whitening or test_pca_solver_equivalence or test_pca_explained_variance_empirical or test_pca_singular_values_consistency or test_pca_singular_values or test_pca_check_projection or test_pca_check_projection_list or test_pca_inverse or test_pca_validation or test_n_components_none or test_n_components_mle or test_n_components_mle_error or test_pca_dim or test_infer_dim_1 or test_infer_dim_2 or test_infer_dim_3 or test_infer_dim_by_explained_variance or test_pca_score or test_pca_score3 or test_pca_sanity_noise_variance or test_pca_score_consistency_solvers or test_pca_zero_noise_variance_edge_cases or test_pca_svd_solver_auto or test_pca_deterministic_output or test_pca_dtype_preservation or test_pca_n_components_mostly_explained_variance_ratio or test_assess_dimension_bad_rank or test_small_eigenvalues_mle or test_mle_redundant_data or test_fit_mle_too_few_samples or test_mle_simple_case or test_assess_dimension_rank_one or test_pca_randomized_svd_n_oversamples or test_feature_names_out"
+   ]
+  },
+  {
+   "file": "sklearn/ensemble/tests/test_forest.py",
+   "groups": [
+    "scikit-learn-ensemble-forest-1",
+    "scikit-learn-ensemble-forest-2"
+   ],
+   "keywords": [
+    "test_classification_toy or test_iris_criterion or test_regression_criterion or test_poisson_vs_mse or test_balance_property_random_forest or test_regressor_attributes or test_probability or test_importances or test_importances_asymptotic or test_unfitted_feature_importances or test_forest_classifier_oob or test_forest_regressor_oob or test_forest_oob_warning or test_forest_oob_score_requires_bootstrap or test_classifier_error_oob_score_multiclass_multioutput or test_forest_multioutput_integral_regression_target or test_random_trees_embedding_raise_error_oob or test_gridsearch or test_parallel or test_pickle or test_multioutput or test_multioutput_string or test_classes_shape or test_random_trees_dense_type or test_random_trees_dense_equal or test_random_hasher or test_random_hasher_sparse_data or test_parallel_train or test_distribution or test_max_leaf_nodes_max_depth or test_min_samples_split or test_min_samples_leaf or test_min_weight_fraction_leaf or test_sparse_input or test_memory_layout or test_1d_input or test_validate_y_class_weight"
+   ]
+  },
+  {
+   "file": "sklearn/tests/test_common.py",
+   "groups": [
+    "scikit-learn-tests-common-1",
+    "scikit-learn-tests-common-2",
+    "scikit-learn-tests-common-3",
+    "scikit-learn-tests-common-4",
+    "scikit-learn-tests-common-5"
+   ],
+   "keywords": [
+    "test_all_estimator_no_base_class or test_get_check_estimator_ids or test_estimators[A or test_estimators[B or test_estimators[C or test_estimators[D or test_estimators[E or test_estimators[F or test_estimators[G or test_estimators[H",
+    "test_estimators[I or test_estimators[K or test_estimators[L or test_estimators[M or test_estimators[N",
+    "test_estimators[O or test_estimators[P or test_estimators[Q or test_estimators[R or test_estimators[S",
+    "test_estimators[T or test_estimators[V or test_import_all_consistency or test_root_import_all_completeness or test_all_tests_are_importable or test_class_support_removed or test_pandas_column_name_consistency or test_transformers_get_feature_names_out or test_estimators_get_feature_names_out_error or test_check_param_validation or test_set_output_transform"
+   ]
+  },
+  {
+   "file": "sklearn/tests/test_metaestimators_metadata_routing.py",
+   "groups": [
+    "scikit-learn-tests-metaestimators-metadata-routing-1",
+    "scikit-learn-tests-metaestimators-metadata-routing-2"
+   ],
+   "keywords": [
+    "test_unsupported_estimators_get_metadata_routing or test_unsupported_estimators_fit_with_metadata or test_registry_copy or test_default_request or test_error_on_missing_requests_for_sub_estimator or test_setting_request_on_sub_estimator_removes_error or test_non_consuming_estimator_works or test_metadata_is_routed_correctly_to_scorer or test_metadata_is_routed_correctly_to_splitter or test_metadata_routed_to_sub_estimator_in_pipeline"
+   ]
+  }
+ ],
+ "statsmodels": [
+  {
+   "file": "statsmodels/discrete/tests/test_count_model.py",
+   "groups": [
+    "statsmodels-discrete-count-model-1",
+    "statsmodels-discrete-count-model-2"
+   ],
+   "keywords": [
+    "TestZeroInflatedModel_logit or TestZeroInflatedModel_probit or TestZeroInflatedModel_offset or TestZeroInflatedModelPandas or TestZeroInflatedPoisson_predict or TestZeroInflatedGeneralizedPoisson or TestZeroInflatedGeneralizedPoisson_predict"
+   ]
+  },
+  {
+   "file": "statsmodels/discrete/tests/test_discrete.py",
+   "groups": [
+    "statsmodels-discrete-discrete-1",
+    "statsmodels-discrete-discrete-2"
+   ],
+   "keywords": [
+    "TestProbitNewton or TestProbitBFGS or TestProbitNM or TestProbitPowell or TestProbitCG or TestProbitNCG or TestProbitBasinhopping or TestProbitMinimizeDefault or TestProbitMinimizeDogleg or TestProbitMinimizeAdditionalOptions or TestProbitL1 or TestMNLogitL1 or TestLogitL1 or TestCVXOPT or TestSweepAlphaL1 or TestPoissonL1Compatability or TestNegativeBinomialL1Compatability or TestNegativeBinomialGeoL1Compatability or TestLogitL1Compatability or TestMNLogitL1Compatability or TestProbitL1Compatability or TestL1AlphaZeroLogit or TestL1AlphaZeroProbit or TestL1AlphaZeroMNLogit or TestLogitNewton or TestLogitNewtonPrepend or TestLogitBFGS or TestPoissonNewton or TestNegativeBinomialNB2Newton or TestNegativeBinomialNB1Newton or TestNegativeBinomialNB2BFGS or TestNegativeBinomialNB1BFGS or TestNegativeBinomialGeometricBFGS or TestMNLogitNewtonBaseZero or TestMNLogitLBFGSBaseZero or test_mnlogit_basinhopping or test_perfect_prediction or test_poisson_predict or test_poisson_newton or test_l1_regularized_respects_warning_filters or test_issue_339 or test_issue_341 or test_issue_8943 or test_negative_binomial_default_alpha_param or test_iscount or test_isdummy or test_non_binary or test_mnlogit_factor or test_mnlogit_factor_categorical or test_formula_missing_exposure or test_predict_with_exposure or test_binary_pred_table_zeros or TestGeneralizedPoisson_p2 or TestGeneralizedPoisson_transparams or TestGeneralizedPoisson_p1 or TestGeneralizedPoisson_underdispersion or TestNegativeBinomialPNB2Newton or TestNegativeBinomialPNB1Newton or TestNegativeBinomialPNB2BFGS"
+   ]
+  },
+  {
+   "file": "statsmodels/regression/tests/test_lme.py",
+   "groups": [
+    "statsmodels-regression-lme-1",
+    "statsmodels-regression-lme-2"
+   ],
+   "keywords": [
+    "test_compare_numdiff or test_default_re or test_history or test_profile_inference or test_vcomp_1 or test_vcomp_2 or test_vcomp_3 or test_sparse or test_dietox or test_dietox_slopes or test_pastes_vcomp or test_vcomp_formula or test_formulas"
+   ]
+  },
+  {
+   "file": "statsmodels/stats/tests/test_proportion.py",
+   "groups": [
+    "statsmodels-stats-proportion-1",
+    "statsmodels-stats-proportion-2",
+    "statsmodels-stats-proportion-3"
+   ],
+   "keywords": [
+    "test_confint_proportion or test_confint_proportion_ndim or test_confint_proportion_wilson_clip or test_samplesize_confidenceinterval_prop or test_proportion_effect_size or test_confint_multinomial_proportions or test_multinomial_proportions_errors or test_confint_multinomial_proportions_zeros or test_confint_multinomial_proportions_sison_glaz_sparse or test_confint_multinomial_proportions_sison_glaz_sparse_r_reference or TestProportion or test_binom_test or test_binom_rejection_interval or test_binom_tost or test_power_binom_tost or test_power_ztost_prop or test_ztost or test_power_ztost_prop_norm or test_proportion_ztests or test_confint_2indep or test_confint_2indep_propcis or test_score_test_2indep or test_test_2indep or test_equivalence_2indep or test_score_confint_koopman_nam or test_power_2indep or test_ci_symmetry or test_ci_symmetry_binom_test[F or test_ci_symmetry_binom_test[True-count0 or test_ci_symmetry_binom_test[True-count1",
+    "test_ci_symmetry_binom_test[True-count2 or test_ci_symmetry_binom_test[True-count3 or test_ci_symmetry_binom_test[True-count4 or test_ci_symmetry_binom_test[True-count5 or test_ci_symmetry_binom_test[True-count6 or test_ci_symmetry_binom_test[True-count7"
+   ]
+  }
+ ]
+}
