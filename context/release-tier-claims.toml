@@ -3,3 +3,34 @@
 # (context/progress/README.md, "The release tier"). The lane appends each block at its landing
 # and nobody edits an earlier one. At the release acceptance the blocks move under
 # "## <version>" in context/release-tier-claims-history.md, and this file starts empty again.
+
+[[claim]]
+spec = "102"
+new = [
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-slow-*",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-slow-*",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-release-*",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-slow-rest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-no-threads]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-release-a-stdlib-zip-error]",
+]
+changed = [
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-filled-*",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-lines-*",
+]
+passes = []
+grows = [
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-fs]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-a]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-b]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-c]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-1]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-rest]",
+]
+growth = "102: the regrtest driver's Z line (it names a module's denied resource) moves every CPython group's fuel on this set, EXECUTED on d0d91cef: cpython-fs +43.8 M (+6.9e-4), cpython-a +43.3 M (+1.56e-4), cpython-b +53.0 M (+1.79e-4), cpython-c +73.8 M (+1.77e-4); the thirteen staged release JSONs cost nothing (cpython-fs and cpython-b equal to the instruction with them staged and the base's driver); contourpy's normal groups run -m 'not slow' (contourpy-1 +0.28%, contourpy-rest +3.7e-4; the survey, on 142bdd38)"
+retired = []
+units = 113  # 112 before wave 11's integration review, L1, counted 113 per file
+
+[[claim]]
+spec = "114"
+growth = "114: the zip's two members move every release-tier group's fuel both ways; passes unchanged"

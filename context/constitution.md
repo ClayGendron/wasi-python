@@ -55,6 +55,9 @@
   Amended 2026-10-21 by the owner's answer to question 108: a
   structural change is reviewed before it is built, and a structural
   review of `src/` precedes each release beside the security review (§5.6).
+  Amended 2026-10-20 by the owner's answers to spec 102's four
+  questions: the landing judge is the normal tier; the release tier
+  runs before a release (§5.5, §5.7).
 - **Owner:** Clay Gendron
 - **Scope:** every document, script, recipe and line of code in this
   repository, and every agent or person working on it. The other
@@ -278,7 +281,13 @@ works.
    constraint 1 exists. Cadence is a scope decision the owner makes
    per release, never a schedule the project is bound to. A security
    fix in a pinned component is a reason to release: the agent
-   prepares one and asks (owner, 2026-10-17).
+   prepares one and asks (owner, 2026-10-17). **The release rule**
+   (owner, 2026-10-20): the judge has two tiers, normal and release,
+   which together are every test of every package built; nothing is
+   left out of both. Before a tag, the lane accepts both tiers on
+   main's tip (the release acceptance), and the release workflow judges
+   both on main's exact commit and on the tag itself; a release-tier
+   failure, or a release-tier change no claim explains, stops the tag.
 6. **Review is a stage, not a courtesy.** Every built change is
    reviewed before it lands, by a reviewer who did not write it (a
    fresh agent or a person), who is given the specification and the
@@ -316,7 +325,7 @@ works.
 7. **One landing lane.** Builders and reviewers may work in parallel,
    each in its own worktree. Main changes in one place only: the lane
    rebases one reviewed branch onto main, compares it with what was
-   reviewed, runs the full judge on that exact commit in the main
+   reviewed, runs the judge's normal tier on that exact commit in the main
    tree, accepts there, and fast-forwards main. Only the lane accepts.
    Up to three changes to the build recipe (six from 2026-10-19, the owner;
    four earlier that day while the packages come first) may be built and reviewed at once, each in its own worktree, and each lands alone or in a wave (below). At its
@@ -335,7 +344,7 @@ works.
    in the order the lane set and resolves its own conflicts, naming
    each; the fast tier runs after each entry; the lane rebuilds the
    artifact set from the pins in the main tree once, compares it with
-   the release workflow's build of the same tip, judges the tip once,
+   the release workflow's build of the same tip, judges the tip's normal tier once,
    accepts once with each specification's reasons, and fast-forwards.
    A fresh reviewer reads the integration (each rebase against its
    reviewed tip, the named conflicts, and the claim lists against the

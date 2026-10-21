@@ -483,6 +483,13 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   rewrites in place: the refusal is the guard. On Windows the cache refuses links and second
   names; it cannot tell who wrote a file, and the README says so. No public name, artifact
   byte or guest-visible errno changes.
+- **Strings speak for themselves** (spec 112). The judge's messages, help texts and titles, the
+  `goal` marker, the build's refusal, the release workflow's step names and the comment in the
+  generated inittab source give their reasons in words, with no specification number, review or
+  constitution section; a rules check over string literals holds it, with a rule's own name, a
+  scanner's fixture, a gap's closer and one fuel-recording guest program named as the
+  exceptions. No behaviour, fuel or binary byte changes; `MANIFEST`'s recipe hashes of two
+  `scripts/` files move.
 
 ## 0.1.0a7 — 2026-10-19
 

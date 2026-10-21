@@ -130,6 +130,10 @@ Reserved: 100 (numpy's linear algebra links the set's OpenBLAS in place of its b
 
 Reserved: 101 (a faster release run: the workflow reuses the native build when the hash of its pins and recipes is unchanged, and splits the macOS own-guest and own-embedding shards; build-class, the release workflow; about 60 minutes to about 30 by the lane's estimate, not measured; before 0.1.0, the owner, 2026-10-20, `decisions.md`, "Fewer CI runs per specification").
 
+Reserved (the lane numbers it): the macOS exit tail (101's Decision 10 and the owner's choice 4): 3.5 to 5 minutes after pytest's summary line on every macOS shard that starts many guests, 0.01 minute on Linux and Windows, not shrunk by a split; it points at the process's exit on macOS (the runner's `atexit` handler dropping cached wasmtime engines and modules), not confirmed (101's landing notes, "The tail"); a runner change, so its own specification with its own pre-build review.
+
+Noted (101's Decision 11 and the owner's choice 5): a release run is about 38 jobs wide on the plan's 40 (`max-parallel: 18` keeps it at 38 at most), so a second live run queues nearly whole; the rule of three live runs stays.
+
 Reserved: 102 (the release tier: upstream's opt-in slow tests, sympy's slow and tooslow, networkx's and narwhals' `--runslow`, numpy's and pandas' `slow`, contourpy's `--runslow` cases, run only on the publishing run and the dry run on main before a tag; sympy's one 2.6 T test in a shard of its own past the 360 s bound; drafted on `spec/102-the-release-tier`; before 0.1.0, the owner, 2026-10-20, `decisions.md`, "two tiers of tests").
 
 Reserved: 103 to 108, the runner's structural chain (the design review of 2026-10-20, section 8): 103 the engine seam, 104 the runner as a package of one module per concern, 105 one owner for process state and the test seams off module globals, 106 typed call state and a type checker, 107 `mounts.py` behind a protocol and one platform module, 108 a structural review as a stage; parallel-safe, stacked, one wave, one dispatch on the chain's tip, the `v0.1.0a7` set as the baseline; the owner, 2026-10-20.

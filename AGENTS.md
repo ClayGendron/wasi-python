@@ -133,9 +133,21 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    dispatch on the reviewed commit before its verdict, or the builder's
    run when it is on that exact commit (constitution §5.6; the owner,
    2026-10-20), each reading the run back (`gh run view <id> --json jobs`,
-   `gh run download <id> -n release-record-1`). Locally, builders and
+   `gh run download <id> -n release-record-1`). A branch run may reuse
+   a set the cache holds under its commit's key (spec 101); its verdict
+   is the same verdict, and a release record's `meta.set_source` says
+   which. Locally, builders and
    reviewers run the fast tier and single node ids only. The one local
    full judge is the lane's `uv run pytest -n 3` on the wave's tip.
+   That is the judge's normal tier. The release tier (spec 102) runs on
+   a tag, on the dry run on main, and in the lane's release acceptance
+   before a tag, never at a landing; a builder whose specification
+   changes a release-tier row writes its block in
+   `context/release-tier-claims.toml` from its local `--tier release`
+   runs by node id, and the first CI run of its release groups is the
+   dry run on main. Only a specification that changes the release-tier
+   CI job itself dispatches a branch run with `release-tier: true`, and
+   says so in its Kind line (the owner, 2026-10-21).
    Until spec 092 (the judge reads a release record) lands, one
    reviewer per wave also keeps a local `-n 3` record for the lane's
    sameness line, at a time the lane grants. At most three release
@@ -180,9 +192,14 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    replaces the local serial acceptance every fifth landing (the owner,
    2026-10-19). Progress files are never merged: take main's and accept
    again.
-6b. **Tag only what a dry run passed.** Before a release tag, dispatch
-   the release workflow on main's exact commit and wait for every job
-   to pass on all three systems. Only Windows runs there; a landing
+6b. **Tag only what a dry run passed.** Before a release tag, the lane
+   makes the release acceptance on main's tip (`uv run pytest -n 3
+   --tier release --accept "Release <version>: the release tier"`),
+   checks every release-tier difference against
+   `context/release-tier-claims.toml` (spec 102, Decision 6), then
+   dispatches the release workflow on main's exact commit, which runs
+   the release tier itself, and waits for every job to pass on all
+   three systems. Only Windows runs there; a landing
    never runs it, so a check can pass the lane and still fail the
    release (0.1.0a4's tag run failed on Windows, 2026-10-18). Commits
    that touch only `context/`, `CHANGELOG.md` or `README.md` may follow

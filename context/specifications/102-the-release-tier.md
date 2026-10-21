@@ -805,7 +805,7 @@ All four answered 2026-10-20, night (`decisions.md`, main `4161ef9`), and writte
   ]
   growth = "102: the regrtest driver's Z line (it names a module's denied resource) moves every CPython group's fuel on this set, EXECUTED on d0d91cef: cpython-fs +43.8 M (+6.9e-4), cpython-a +43.3 M (+1.56e-4), cpython-b +53.0 M (+1.79e-4), cpython-c +73.8 M (+1.77e-4); the thirteen staged release JSONs cost nothing (cpython-fs and cpython-b equal to the instruction with them staged and the base's driver); contourpy's normal groups run -m 'not slow' (contourpy-1 +0.28%, contourpy-rest +3.7e-4; the survey, on 142bdd38)"
   retired = []
-  units = 112
+  units = 113  # 112 before wave 11's integration review, L1: the re-review's COLLECT_ARGV row makes 113, counted per file
   ```
 
   The `changed` prefixes take contourpy's normal `filled-8`, `-12` and `lines-8` too, whose rows
