@@ -1112,6 +1112,12 @@ rewrapped (its 118-column line).
   - The lane fixed both on the chain after this run: `727bd4c` (105's no-fork child) and
     `2a878f0` (107's digest cache, which names this run), both reviewed at `5af0a42`. A rebase
     onto that tip touches no file of this branch.
+- **Rebase onto main `58f108f`** (2026-10-21, wave 09's base: `dbecd2d` and the lane's three
+  reviewed fixes in `tests/checks/test_v1_4_embedding.py`, `src/wasi_python/_artifacts.py` and
+  `tests/harness/scoreboard.py`, and `context/`): `git rebase 58f108f`, **no conflict hunk**.
+  `ruff check`, `ruff format --check`, `tests/checks/test_rules.py` (57 passed, 1 skipped) and
+  `tests/unit/test_scan.py` (249 passed): green. No new release run (a rebase onto a wave's tip);
+  run 39535794638 stands.
 
 ### The builder's self-check, on the restacked build (`../reviews/README.md`)
 
