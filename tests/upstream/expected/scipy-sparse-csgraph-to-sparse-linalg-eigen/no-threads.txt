@@ -1,0 +1,1 @@
+scipy/sparse/linalg/_eigen/arpack/tests/test_arpack.py::test_parallel_threads

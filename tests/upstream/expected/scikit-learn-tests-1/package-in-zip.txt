@@ -1,0 +1,1 @@
+sklearn/tests/test_check_build.py::test_raise_build_error

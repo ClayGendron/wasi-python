@@ -1,0 +1,12 @@
+scipy/fft/tests/test_basic.py::test_multiprocess[fft]
+scipy/fft/tests/test_basic.py::test_multiprocess[ifft]
+scipy/fft/tests/test_basic.py::test_multiprocess[irfft]
+scipy/fft/tests/test_basic.py::test_multiprocess[rfft]
+scipy/optimize/tests/test__numdiff.py::TestApproxDerivativeSparse::test_all
+scipy/optimize/tests/test__numdiff.py::TestApproxDerivativesDense::test_scalar_vector
+scipy/optimize/tests/test__numdiff.py::TestApproxDerivativesDense::test_vector_vector
+scipy/optimize/tests/test__numdiff.py::TestApproxDerivativesDense::test_workers_evaluations_and_nfev
+scipy/optimize/tests/test_minpack.py::TestFSolve::test_concurrent_no_gradient
+scipy/optimize/tests/test_minpack.py::TestFSolve::test_concurrent_with_gradient
+scipy/optimize/tests/test_minpack.py::TestLeastSq::test_concurrent_no_gradient
+scipy/optimize/tests/test_minpack.py::TestLeastSq::test_concurrent_with_gradient

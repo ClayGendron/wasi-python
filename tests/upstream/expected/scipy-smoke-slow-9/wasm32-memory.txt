@@ -1,0 +1,1 @@
+scipy/linalg/tests/test_decomp_cholesky.py::TestCholesky::test_int_overflow

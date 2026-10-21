@@ -271,6 +271,43 @@ nothing writable.
   initializes; on the snapshot that ran at build time, so they do nothing there. OpenBLAS runs on
   one thread either way, and maps a 16 MiB buffer at its first level-3 call; numpy's linear
   algebra, `dot` and `matmul` share it (spec 100).
+- **Switching `scipy.fft`'s backend**: `scipy.fft.set_backend` and `scipy.fft.skip_backend` (and
+  every uarray `set_backend`/`skip_backend` in scipy) raise `AttributeError: module 'threading'
+  has no attribute 'get_native_id'` in this build: the runtime's `threading` names no native
+  thread id on WASI. Calling `scipy.fft`'s functions directly is unaffected; only switching
+  backends fails.
+- **`scipy.io.FortranFile` and `scipy.io.wavfile`**: `numpy.fromfile` and `ndarray.tofile` fail
+  with `ENOTSUP`, given a path or a file: WASI has no `dup`. Write `a.tobytes()` to the file, and
+  read with `numpy.frombuffer(f.read(), dtype)`. `scipy.io.FortranFile` and `scipy.io.wavfile`
+  fail the same way, since they call them; a `FortranFile` whose read failed stays open until it
+  is collected.
+- **Where its own tests find the guest's arithmetic differs**: wasm has no floating-point
+  exception flags, so an `errstate` that should raise or warn sees nothing (`splder` of a spline
+  with a kink returns where native raises `ValueError`; a few `RuntimeWarning`s of division by
+  zero do not come); and wasm's libm and its lack of fused multiply-add round differently, so at
+  one point of 4,647 `airy`'s Ai' differs from mpmath's by 1.2e-4 relative (the test allows
+  1e-5), as Bi does at one point of 4,290; `yv` of order -5.6e25 is finite where mpmath gives
+  `-inf` (14 points of 1,736); two of 483 float32 values of a
+  minimum-phase filter miss a 1e-5 tolerance by one float32 step; and fitting the f distribution
+  to interval-censored data stops at a first shape parameter of 341.2 where native's stops at
+  290.5 (a parameter the likelihood barely depends on).
+- **Its own tests** (spec 095): scipy's whole suite runs in the release tier, in @@SCIPY_GROUPS@@
+  groups; two smoke groups run in the normal tier at every check, chosen so that every
+  subpackage with compiled modules and every carried patch is touched (`smoke_cover` in
+  `tests/upstream/scipy.toml` names the file or golden job line for each). Not run, each named
+  there with its reason: the five files that import scipy's seven test-only C modules (and the
+  deprecation test that calls one), which the product leaves out on purpose; the three
+  `test_cython_abi.py` files, which read capsule names through `ctypes.pythonapi`; scipy.odr's
+  tests (it is not in the build); and the `ilp64_test_package` example, which a test would build
+  with meson in a subprocess. Modes upstream offers that add no test are not run in 0.1.0:
+  `SCIPY_ARRAY_API=1` (the array-API backends; the build carries none but numpy; 73 tests skip
+  for want of it) and `SCIPY_XFAIL`. scipy's docstring examples are checked by a separate tool,
+  `scipy-doctest`, not by its suite, and are not run. Its very slow cases run
+  (`SCIPY_XSLOW=1`); two of them, the mpmath comparisons of `betainc` and `betaincc`, limit each
+  reference value by the clock read on every trace event, so they run with the guest's clock
+  advancing 100 µs a read (at the judge's 1 µs, `betainc` alone passes 17 T of fuel); one,
+  `choose_conv_method` with `measure=True`, times a call until 0.5 ms has passed and runs with
+  1 ms a read.
 
 ### scikit-learn in the guest
 
@@ -301,6 +338,23 @@ it `import sklearn` fails). What differs from native:
 - **A pipeline's `memory=` cache and `joblib.Memory`** need a writable folder, as joblib does.
 - **Index arrays are 32-bit**: `np.intp` is 32 bits on wasm32, so the `int64` index arrays a
   native build makes are `int32` here. Results do not depend on it; a printed dtype does.
+- **No memory maps, no `/dev/null`, no duplicated descriptors**: code that memory-maps its data
+  (`joblib`'s `mmap_mode`, `create_memmap_backed_data`) raises `OSError: mmap is unavailable`; a
+  verbose `LinearSVC` fit redirects standard output with `os.dup`, which raises `ENOTSUP`; and a
+  verbose `TheilSenRegressor` writes to `/dev/null`, which WASI does not have. The compiler's
+  128-bit integer is there on wasm32 (`_get_sizeof_LARGEST_INT_t()` is 16).
+- **Its own tests** (spec 095): scikit-learn's whole suite runs in the release tier, in
+  @@SKLEARN_GROUPS@@ groups, with its float32 cases (`SKLEARN_RUN_FLOAT32_TESTS=1`) and a fixed
+  global seed (`SKLEARN_SEED=0`); one smoke group runs in the normal tier at every check, chosen
+  so that every subpackage with compiled modules and the carried patch is touched
+  (`tests/upstream/scikit-learn.toml`). Not run: the three files that build memory-mapped arrays
+  at import (`cluster/tests/test_hierarchical.py`, `metrics/tests/test_dist_metrics.py`) or import
+  from one (`neighbors/tests/test_neighbors.py`); its doctests, which its own conftest skips on a
+  32-bit platform (and whose sources are not in the zip); and `callback/tests/`, which its
+  conftest leaves out on wasm. Modes upstream offers that add no test are not run in 0.1.0:
+  `SKLEARN_TESTS_GLOBAL_RANDOM_SEED=all`, `--check-spmatrix` and `SKLEARN_WARNINGS_AS_ERRORS`.
+  1,077 tests skip because `SCIPY_ARRAY_API` is unset, 7,011 because no array-API backend is
+  installed, and 211 because `numpydoc`, a test-only package, is not in the test kit.
 
 **The bundled datasets, their sources and terms** (the attribution is also in
 `LICENSES/scikit-learn.txt`): `load_digits` (Optical Recognition of Handwritten Digits, E.
@@ -346,6 +400,18 @@ every dataset raises `NotADirectoryError`). What differs from native:
   download fails as before.
 - **X-13ARIMA-SEATS is a separate program** that `statsmodels.tsa.x13.x13_arima_analysis` runs in a
   subprocess; the guest neither carries it nor starts processes, so it raises `X13NotFoundError`.
+- **Its own tests** (spec 095): statsmodels' whole suite runs in the release tier, slow tests
+  included, in @@SM_GROUPS@@ groups; one smoke group runs in the normal tier at every check,
+  touching every subpackage with compiled modules, ordinary least squares and the carried
+  datasets patch (`tests/upstream/statsmodels.toml`). Not run: six files that load one of the
+  thirteen left-out datasets at import (`discrete/tests/test_constrained.py` and `test_margins.py`,
+  `emplike/tests/test_anova.py`, `genmod/tests/test_glm_weights.py`, `stats/tests/test_oaxaca.py`,
+  `tsa/vector_ar/tests/test_vecm.py`); the tests elsewhere that load one fail with
+  `FileNotFoundError`, a known class. upstream special-cases wasm by `sys.platform ==
+  "emscripten"` (Pyodide); the guest is wasm on WASI, so those cases do not apply, and two
+  collinear-design tests see a different warning than upstream expects of wasm; and the one
+  power solve upstream marks as failing on Windows and macOS fails here, unmarked. The mode
+  `SM_FORMULA_ENGINE=formulaic` (the formula tests again with formulaic) is not run in 0.1.0.
 - **`statsmodels.graphics.functional.hdrboxplot`** maps its band search over
   `multiprocessing.Pool()`, which needs a pipe, so it raises `AttributeError` where native draws.
 

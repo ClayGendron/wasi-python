@@ -1,0 +1,10 @@
+scipy/fft/tests/test_basic.py::TestFFTThreadSafe::test_fft[numpy]
+scipy/fft/tests/test_basic.py::TestFFTThreadSafe::test_hfft[numpy]
+scipy/fft/tests/test_basic.py::TestFFTThreadSafe::test_ifft[numpy]
+scipy/fft/tests/test_basic.py::TestFFTThreadSafe::test_ihfft[numpy]
+scipy/fft/tests/test_basic.py::TestFFTThreadSafe::test_irfft[numpy]
+scipy/fft/tests/test_basic.py::TestFFTThreadSafe::test_rfft[numpy]
+scipy/stats/tests/test_qmc.py::TestHalton::test_workers
+scipy/stats/tests/test_qmc.py::TestVDC::test_van_der_corput
+scipy/stats/tests/test_qmc.py::TestVDC::test_van_der_corput_scramble
+scipy/stats/tests/test_sampling.py::test_threading_behaviour

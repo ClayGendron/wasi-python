@@ -195,3 +195,33 @@ def test_a_cpython_hash_mismatch_deletes_the_part_file(tmp_path, monkeypatch) ->
     errors = w.go(monkeypatch, packages=("cpython",))
     assert errors and "Python-3.15.0.tar.xz" in errors[0]
     assert not list(w.downloads.glob("*.part"))
+
+
+# ---------------------------------------------------------------------------------------------
+# scipy's, scikit-learn's and statsmodels' families: a tree each, fetched only by their shards
+
+
+def test_a_shard_with_a_scipy_group_fetches_the_kit_and_scipys_tarball_only() -> None:
+    assert fetch.shard_packages("upstream-sci-smoke-a") == ["scipy"]
+    assert fetch.shard_packages("upstream-sci-smoke-b") == ["scikit_learn", "statsmodels"]
+    assert fetch.needs_kit(["scipy"])
+    assert "scipy" not in fetch.shard_packages("upstream-plot-a")
+
+
+SCIPY = {"scipy-1.18.1.tar.gz": _tarball("scipy-1.18.1", {"scipy/linalg/tests/test_a.py": b"s"})}
+
+
+def test_the_scipy_tree_is_fetched_verified_unpacked_and_patched(tmp_path, monkeypatch) -> None:
+    w = World(tmp_path, SCIPY)
+    assert w.go(monkeypatch, packages=("scipy",)) == []
+    assert w.fetched == ["scipy-1.18.1.tar.gz"]
+    assert (w.build / "scipy-1.18.1/scipy/linalg/tests/test_a.py").read_bytes() == b"s"
+
+
+def test_a_scipy_hash_mismatch_deletes_the_part_file_and_names_it(tmp_path, monkeypatch) -> None:
+    w = World(tmp_path, SCIPY)
+    w.served["scipy-1.18.1.tar.gz"] = b"other bytes"
+    errors = w.go(monkeypatch, packages=("scipy",))
+    assert errors and errors[0].startswith("scipy-1.18.1.tar.gz: SHA-256"), errors
+    assert not list(w.downloads.glob("*.part"))
+    assert not w.applied

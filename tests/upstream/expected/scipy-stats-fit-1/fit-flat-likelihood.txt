@@ -1,0 +1,1 @@
+scipy/stats/tests/test_fit.py::test_cont_fit[MLE-f-arg21]

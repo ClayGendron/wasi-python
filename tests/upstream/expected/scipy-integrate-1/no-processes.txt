@@ -1,0 +1,5 @@
+scipy/integrate/tests/test__quad_vec.py::TestQuadVec::test_quad_vec_pool
+scipy/integrate/tests/test__quad_vec.py::TestQuadVec::test_quad_vec_pool_args[1-2]
+scipy/integrate/tests/test__quad_vec.py::TestQuadVec::test_quad_vec_pool_args[1-extra_args1]
+scipy/integrate/tests/test__quad_vec.py::TestQuadVec::test_quad_vec_pool_args[10-2]
+scipy/integrate/tests/test__quad_vec.py::TestQuadVec::test_quad_vec_pool_args[10-extra_args1]

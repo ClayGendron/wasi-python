@@ -1,0 +1,3 @@
+scipy/signal/tests/test_signaltools.py::TestMedFilt::test_medfilt2d_parallel[numpy-float32]
+scipy/signal/tests/test_signaltools.py::TestMedFilt::test_medfilt2d_parallel[numpy-float64]
+scipy/signal/tests/test_signaltools.py::TestMedFilt::test_medfilt2d_parallel[numpy-uint8]

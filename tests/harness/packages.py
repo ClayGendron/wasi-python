@@ -9,13 +9,36 @@ not run, and `K <n>`, the file's collected count before a split's `-k` deselects
 
 numpy's and pandas' configurations, `drive.py` and their guard are untouched: this module reads
 only `driver = "package"` configurations.
+
+Four keys serve the packages whose tests live in one `tests` folder per subpackage (scipy,
+scikit-learn, statsmodels):
+
+- `package_inits`: the stage also holds each staged folder's ancestor `__init__.py`, so pytest
+  names `scipy/linalg/tests/test_basic.py` `scipy.linalg.tests.test_basic` and never confuses two
+  `tests.test_basic` modules. `package_paths` is generated from the folders. The staged inits are
+  never run: the driver imports every ancestor from the product's zip before pytest starts, and a
+  module loaded from a staged `__init__.py` is a finding of the guard.
+- `derived`: test data the package's build makes from its own sdist (scipy's `.npz` tables), made
+  in the guest from staged members before the stage is sealed, each output checked on the host as
+  data before it is staged. Its facts are recorded on the one group `derived_row` names.
+- `env`: variables the harness adds to the guest's environment for every run of the family, each
+  allowed by name per family (`ENV_ALLOWED`) and with its reason in the TOML.
+- `smoke_cover`: for a smoke family, the cover of each compiled subpackage of the package: a smoke
+  path, a golden job line that calls it, or `release-only` with the reason.
+
+A release group may carry `clock_step_ns` (with `clock_reason`): its guest's clock advances that
+much per read, for a test that repeats a call until a fixed time has passed. Such a group must
+run exactly one test, so a changed clock never reaches ordinary tests unnoticed.
 """
 
 from __future__ import annotations
 
 import ast
 import json
+import os
+import re
 import shutil
+import stat
 import tempfile
 import zipfile
 from dataclasses import dataclass, field
@@ -27,6 +50,53 @@ DRIVER = "package_drive.py"
 # numpy's and pandas' keys, with their meaning there: never in a package TOML (Decision 14)
 REFUSED = ("path_packages", "support")
 WORK = "/tmp/work"  # the writable working folder, in the guest's root
+# The variables a family's `env` may set, by family: each joins only by a judge change with its
+# reason. scipy's runs its very slow cases in whichever tier their file is in; scikit-learn's runs
+# its float32 cases and fixes the global seed its package setup would otherwise draw.
+ENV_ALLOWED = {
+    "scipy": ("SCIPY_XSLOW",),
+    "scikit-learn": ("SKLEARN_RUN_FLOAT32_TESTS", "SKLEARN_SEED"),
+}
+# Never set by a family: the judge's own environment, the interpreter's (any PYTHON* name),
+# scipy's hypothesis profile (its conftest loads its own derandomized one), and scikit-learn's
+# seed sweep and network switch (a mode, and the sandbox's network).
+ENV_FORBIDDEN = (
+    "TMPDIR",
+    "HOME",
+    "SCIPY_HYPOTHESIS_PROFILE",
+    "SKLEARN_TESTS_GLOBAL_RANDOM_SEED",
+    "SKLEARN_SKIP_NETWORK_TESTS",
+)
+CLOCK_STEP_RANGE = (1_000, 1_000_000)  # 1 us to 1 ms per clock read
+# A derived output's largest size: twice the largest one measured (scipy's boost.npz, 1,270,643
+# bytes), so a run that writes something else entirely is refused before it is staged.
+DERIVED_MAX_BYTES = 2_541_286
+DERIVED_DIR = "/tmp/derived"  # where a derived script writes, in its own fresh root
+# The compiled subpackages (and the patched pure paths) whose smoke cover must be a smoke path,
+# never a golden line alone and never release-only: what an edit to the package's build or its
+# carried patches most often breaks.
+SMOKE_ONLY = {
+    "scipy": (
+        "scipy.special",
+        "scipy.sparse",
+        "scipy.spatial",
+        "scipy.optimize._highspy",
+        "scipy.linalg",
+        "scipy._lib._uarray",
+        "scipy.io._fast_matrix_market",
+        "scipy.stats",
+    ),
+    "scikit-learn": ("sklearn.tree", "sklearn.utils._repr_html"),
+    "statsmodels": (
+        "statsmodels.regression",
+        "statsmodels.datasets",
+        "statsmodels.nonparametric",
+        "statsmodels.tsa.stl",
+    ),
+}
+RELEASE_ONLY = "release-only: "
+# A golden job line that stands in for a smoke file: the job, the line, and a word on that line
+JOB_COVER = re.compile(r"job (tests/jobs/[\w.]+\.py):(\d+) (\S+)")
 
 
 @dataclass(frozen=True)
@@ -48,11 +118,38 @@ class Split:
 
 
 @dataclass(frozen=True)
+class Derived:
+    """One file the package's build makes for its tests: `script args... -o DERIVED_DIR` writes
+    `output`'s name there, from the staged `inputs` folder."""
+
+    script: str
+    args: tuple[str, ...]
+    inputs: str
+    output: str
+    measured: int | None
+    fuel: int
+
+    @property
+    def name(self) -> str:
+        return PurePosixPath(self.output).name
+
+
+@dataclass(frozen=True)
 class PackageKeys:
     budget: int
     stage_folders: tuple[str, ...]
     support_files: tuple[str, ...] = ()
     package_paths: dict[str, str] = field(default_factory=dict)
+    package_inits: object = False  # a boolean in a well-formed TOML
+    init_files: tuple[str, ...] = ()  # the staged ancestors' __init__.py, never run
+    listed_paths: bool = False  # the TOML lists package_paths beside package_inits
+    derived: tuple[Derived, ...] = ()
+    derived_row: str = ""
+    env: dict[str, str] = field(default_factory=dict)
+    env_reasons: dict[str, str] = field(default_factory=dict)
+    group_env: tuple[str, ...] = ()  # groups that carry `env`, which only a family may
+    clock_steps: dict[str, tuple[int, str]] = field(default_factory=dict)
+    smoke_cover: dict[str, str] = field(default_factory=dict)
     extra_sys_path: tuple[str, ...] = ()
     support_packages: tuple[str, ...] = ()
     cwd: str = WORK
@@ -70,12 +167,63 @@ class PackageKeys:
         return next((s for s in self.splits if group in s.groups), None)
 
 
+def ancestors(folders: tuple[str, ...]) -> dict[str, str]:
+    """Every proper ancestor folder of each staged folder, by its dotted package name."""
+    out: dict[str, str] = {}
+    for f in folders:
+        parts = PurePosixPath(f).parts
+        for i in range(1, len(parts)):
+            out[".".join(parts[:i])] = "/".join(parts[:i])
+    return dict(sorted(out.items()))
+
+
+def _derived(raw: dict) -> tuple[Derived, ...]:
+    return tuple(
+        Derived(
+            d["script"],
+            tuple(d.get("args", [])),
+            d["inputs"],
+            d["output"],
+            None if d.get("measured") is None else int(d["measured"]),
+            int(d["fuel"]),
+        )
+        for d in raw.get("derived", [])
+    )
+
+
+def _env(raw: dict) -> tuple[dict[str, str], dict[str, str]]:
+    """A family's variables and their reasons: `[env.NAME]` with `value` and `reason`."""
+    env = raw.get("env", {})
+    value = {k: str(v.get("value", "")) if isinstance(v, dict) else str(v) for k, v in env.items()}
+    reason = {k: str(v.get("reason", "")) if isinstance(v, dict) else "" for k, v in env.items()}
+    return value, reason
+
+
 def load(raw: dict) -> upstream.Config:
+    inits = raw.get("package_inits", False)
+    folders = tuple(raw["stage_folders"])
+    generated = ancestors(folders) if inits is True else {}
+    env, env_reasons = _env(raw)
+    groups = raw.get("groups", {})
     keys = PackageKeys(
         budget=int(raw["budget"]),
-        stage_folders=tuple(raw["stage_folders"]),
+        stage_folders=folders,
         support_files=tuple(raw.get("support_files", [])),
-        package_paths=dict(raw.get("package_paths", {})),
+        package_paths={**generated, **dict(raw.get("package_paths", {}))},
+        package_inits=inits,
+        init_files=tuple(f"{folder}/__init__.py" for folder in generated.values()),
+        listed_paths=bool(raw.get("package_paths")) and inits is True,
+        derived=_derived(raw),
+        derived_row=raw.get("derived_row", ""),
+        env=env,
+        env_reasons=env_reasons,
+        group_env=tuple(n for n, g in groups.items() if "env" in g),
+        clock_steps={
+            n: (int(g["clock_step_ns"]), str(g.get("clock_reason", "")))
+            for n, g in groups.items()
+            if "clock_step_ns" in g
+        },
+        smoke_cover=dict(raw.get("smoke_cover", {})),
         extra_sys_path=tuple(raw.get("extra_sys_path", [])),
         support_packages=tuple(raw.get("support_packages", [])),
         cwd=raw.get("cwd", WORK),
@@ -117,6 +265,7 @@ def load(raw: dict) -> upstream.Config:
         ],
         grant=raw["grant"],
         driver="package",
+        component=raw.get("component", ""),
         keys=keys,
         **upstream.tier_fields(raw),
     )
@@ -204,6 +353,7 @@ def stage(cfg: upstream.Config, tree: Path, allowed: set[str], dest: Path) -> li
     """Copy the stage folders and the support files from `tree` to `dest/tree`, members (and
     files a recorded patch creates) only. Returns what was left out."""
     wanted: set[str] = set(cfg.keys.support_files) | {f for f, _ in cfg.keys.doctest_files}
+    wanted |= set(cfg.keys.init_files)
     left_out: list[str] = []
     for folder in cfg.keys.stage_folders:
         for p in sorted((tree / folder).rglob("*")):
@@ -365,6 +515,17 @@ def judge(
     return outcome, extra
 
 
+def clock_findings(cfg: upstream.Config, group: str, outcome: upstream.GroupOutcome) -> list[str]:
+    """A group run with its own clock step runs one test: more outcomes than one mean the changed
+    clock reaches other tests."""
+    if group not in cfg.keys.clock_steps:
+        return []
+    n = sum(outcome.counts.values())
+    if n == 1:
+        return []
+    return [f"a changed clock step reaches other tests: {n} outcomes in {group}, not one"]
+
+
 # ---------------------------------------------------------------------------------------------
 # The session: one stage per family, one guest session per group
 
@@ -375,6 +536,39 @@ class PackageRun:
     fuel: int
     left_out: list[str]
     collected: int | None
+    derived: dict | None = None  # the derived run's facts, on the family's derived_row alone
+
+
+def derived_output_errors(path: Path, name: str) -> list[str]:
+    """Why a derived output may not be staged: read with lstat, never through a link, and opened
+    as a zip on the host, as data; it holds at least one array (`.npy` member)."""
+    try:
+        st = os.lstat(path)
+    except FileNotFoundError:
+        return [f"derived {name}: the script wrote no file"]
+    if not stat.S_ISREG(st.st_mode):
+        return [f"derived {name}: the output is not a regular file (a link is never followed)"]
+    if st.st_size > DERIVED_MAX_BYTES:
+        return [f"derived {name}: {st.st_size:,} bytes, past the {DERIVED_MAX_BYTES:,} bound"]
+    try:
+        with zipfile.ZipFile(path) as z:
+            arrays = [n for n in z.namelist() if n.endswith(".npy")]
+    except (zipfile.BadZipFile, OSError) as e:
+        return [f"derived {name}: not a zip archive ({e})"]
+    if not arrays:
+        return [f"derived {name}: the archive holds no array"]
+    return []
+
+
+def derived_findings(name: str, run) -> list[str]:
+    """How a derived script's guest run ended, when it did not end well."""
+    if run.trapped == "out of fuel":
+        return [f"derived {name}: out of fuel at its cap"]
+    if run.trapped:
+        return [f"derived {name}: trap: {run.trap_cause or run.trapped}"]
+    if run.exit_code != 0:
+        return [f"derived {name}: the script exited {run.exit_code}"]
+    return []
 
 
 class Session:
@@ -386,6 +580,7 @@ class Session:
         self.roots: dict[str, Path] = {}
         self.prepared: dict[str, str | tuple[list[str], dict]] = {}
         self.groups: dict[str, PackageRun] = {}
+        self.derived: dict[str, dict] = {}  # each family's derived facts, by output
 
     def close(self) -> None:
         for root in self.roots.values():
@@ -403,7 +598,7 @@ class Session:
         from harness import pins
 
         cfg = self.configs[package]
-        pair = pins.source_pair(package)
+        pair = pins.source_pair(cfg.component or package)
         if pair is None:
             return f"no source tree for {package}"
         tarball, tree = pair
@@ -436,8 +631,45 @@ class Session:
             spec = {**group_spec(cfg, cfg.groups[next(iter(cfg.groups))], keep, top)}
             spec["args"], spec["split"] = [*cfg.args, t.node], False
             (judge_dir / f"{t.id}.json").write_text(json.dumps(spec, indent=1))
+        errors = self._make_derived(package, root)
+        if errors:
+            return "the derived test data was not made: " + "; ".join(errors)
         litter.seal(root)  # read-only, once staged
         return left_out, keep
+
+    def _make_derived(self, package: str, root: Path) -> list[str]:
+        """Each derived output, made in the guest from the staged members (the grant read-only, a
+        fresh writable root each), checked on the host as data, then copied into the stage."""
+        from harness import guest
+
+        cfg = self.configs[package]
+        d = paths.artifact_dir()
+        m = paths.parse_manifest((d / "MANIFEST").read_text())
+        facts: dict[str, dict] = {}
+        for entry in cfg.keys.derived:
+            script = f"{tree_root(cfg)}/{entry.script}"
+            r = guest.run(
+                d / "python-snapshot.wasm",
+                ["-u", script, *entry.args, "-o", DERIVED_DIR],
+                workdir=self.workdir,
+                python_version=m.python,
+                stdlib=d / "python-stdlib.zip",
+                files={f"{DERIVED_DIR}/.made-here": b""},
+                env=upstream.ENV | cfg.keys.env,
+                fuel=entry.fuel,
+                preopens=[(cfg.grant, root, False)],
+            )
+            made = r.root / DERIVED_DIR.lstrip("/") / entry.name
+            errors = derived_findings(entry.name, r) or derived_output_errors(made, entry.name)
+            if not errors:
+                target = root / "tree" / entry.output
+                shutil.copyfile(made, target)
+                facts[entry.output] = {"sha256": paths.sha256_file(target), "fuel": r.fuel}
+            litter.remove(r.root.parent)
+            if errors:
+                return errors
+        self.derived[package] = facts
+        return []
 
     def _files(self, package: str) -> dict[str, bytes] | None:
         from harness import pins
@@ -445,7 +677,7 @@ class Session:
         cfg = self.configs[package]
         if not cfg.keys.cwd_files:
             return None
-        pair = pins.source_pair(package)
+        pair = pins.source_pair(cfg.component or package)
         assert pair is not None
         tree = pair[1]
         return {f"{WORK}/{rel}": (tree / rel).read_bytes() for rel in cfg.keys.cwd_files}
@@ -463,10 +695,11 @@ class Session:
             python_version=m.python,
             stdlib=d / "python-stdlib.zip",
             files=self._files(package),
-            env=upstream.ENV,
+            env=upstream.ENV | cfg.keys.env,
             fuel=fuel,
             preopens=[(cfg.grant, self.roots[package], False)],
             mpl_data=upstream._has_mpl_data(d / "python-stdlib.zip"),
+            clock_step_ns=cfg.keys.clock_steps.get(name, (guest.CLOCK_STEP_NS, ""))[0],
         )
         stream_file = r.root / upstream.STREAM
         text = stream_file.read_text(errors="replace") if stream_file.is_file() else ""
@@ -487,7 +720,9 @@ class Session:
             if cfg.groups[group].selects_nothing:  # a guard: pytest's "no tests ran" is its pass
                 outcome.findings = [f for f in outcome.findings if f != "pytest exit code 5"]
             outcome.findings += self._split_findings(cfg, group, extra.collected)
-            self.groups[group] = PackageRun(outcome, run.fuel, left_out, extra.collected)
+            outcome.findings += clock_findings(cfg, group, outcome)
+            derived = self.derived.get(package) if group == cfg.keys.derived_row else None
+            self.groups[group] = PackageRun(outcome, run.fuel, left_out, extra.collected, derived)
         return self.groups[group]
 
     def _split_findings(self, cfg: upstream.Config, group: str, collected: int | None) -> list[str]:
@@ -561,9 +796,208 @@ def rule_cap(measured: int) -> int:
     return -(-x // step) * step
 
 
-def rule_errors(pkg: str, cfg: upstream.Config, members: set[str] | None) -> list[str]:
+def _under(folder: str, path: str) -> bool:
+    return path == folder or path.startswith(folder.rstrip("/") + "/")
+
+
+def product_packages(stdlib: Path) -> set[str]:
+    """The packages the product's zip holds, by dotted name (each folder with an `__init__`)."""
+    with zipfile.ZipFile(stdlib) as z:
+        names = z.namelist()
+    return {
+        n.rsplit("/", 1)[0].replace("/", ".")
+        for n in names
+        if n.endswith(("/__init__.pyc", "/__init__.py"))
+    }
+
+
+def inits_errors(
+    pkg: str, cfg: upstream.Config, members: set[str] | None, product: set[str] | None
+) -> list[str]:
+    """`package_inits`: a boolean; its generated entries are tarball packages; every ancestor of
+    a staged folder is a package the product has, so the product's own module always wins."""
+    k = cfg.keys
+    if not isinstance(k.package_inits, bool):
+        return [f"{pkg}: package_inits {k.package_inits!r} is not a boolean"]
+    if not k.package_inits:
+        return []
+    errors = []
+    if k.listed_paths:
+        errors.append(f"{pkg}: package_inits generates package_paths; the TOML lists none")
+    if members is not None:
+        errors += [
+            f"{pkg}: the generated package_paths entry {name} names {folder}, which holds no "
+            "__init__.py member"
+            for name, folder in k.package_paths.items()
+            if f"{folder}/__init__.py" not in members
+        ]
+    if product is not None:
+        for f in k.stage_folders:
+            lacking = [n for n in ancestors((f,)) if n not in product]
+            if lacking:
+                errors.append(
+                    f"{pkg}: stage folder {f} lies under {lacking[0]}, a package the product lacks"
+                )
+    return errors
+
+
+def derived_errors(pkg: str, cfg: upstream.Config, members: set[str] | None) -> list[str]:
+    """Each derived entry: a staged member script, an inputs folder of members, an output inside
+    a staged folder that no member is, a cap by the rule; and one derived_row for the family."""
+    k = cfg.keys
+    errors = []
+    if k.derived and not k.derived_row:
+        errors.append(f"{pkg}: a family with derived names no derived_row")
+    if k.derived_row and k.derived_row not in cfg.groups:
+        errors.append(f"{pkg}: derived_row {k.derived_row} names no group of its family")
+    if k.derived_row and not k.derived:
+        errors.append(f"{pkg}: derived_row without derived")
+    staged = lambda f: any(_under(s, f) for s in k.stage_folders)  # noqa: E731
+    for e in k.derived:
+        where = f"{pkg}: derived {e.output}"
+        if e.script not in k.support_files and not staged(e.script):
+            errors.append(f"{where}: its script {e.script} is neither staged nor a support file")
+        if not staged(e.output):
+            errors.append(f"{where}: the output lies outside the staged folders")
+        if e.measured is None:
+            errors.append(f"{where} records no measured fuel")
+        elif e.fuel > rule_cap(e.measured):
+            errors.append(
+                f"{where}: its cap {e.fuel:,} is above 1.5 times its measured {e.measured:,} "
+                f"({rule_cap(e.measured):,})"
+            )
+        if members is None:
+            continue
+        if e.script not in members:
+            errors.append(f"{where}: its script {e.script} is not a tarball member")
+        if not any(_under(e.inputs, m) and m != e.inputs for m in members):
+            errors.append(f"{where}: its inputs folder {e.inputs} holds no tarball member")
+        if e.output in members:
+            errors.append(f"{where}: the output is a tarball member")
+    return errors
+
+
+def env_errors(pkg: str, cfg: upstream.Config) -> list[str]:
+    """`env` is a family's key only, names only the family's allowed variables, each with its
+    reason, and never one of the forbidden ones."""
+    k = cfg.keys
+    errors = [f"{pkg}: group {g} carries env; only a family may" for g in k.group_env]
+    allowed = ENV_ALLOWED.get(pkg, ())
+    for name in k.env:
+        if name in ENV_FORBIDDEN or name.startswith("PYTHON"):
+            errors.append(f"{pkg}: env sets {name}, which no family may")
+        elif name not in allowed:
+            errors.append(f"{pkg}: env sets {name}, not one of the family's {allowed}")
+        if not k.env_reasons.get(name, "").strip():
+            errors.append(f"{pkg}: env {name} gives no reason")
+    return errors
+
+
+def clock_errors(pkg: str, cfg: upstream.Config) -> list[str]:
+    """`clock_step_ns`: on a release group only, with its reason, from 1 us to 1 ms."""
+    lo, hi = CLOCK_STEP_RANGE
+    errors = []
+    for g, (ns, reason) in cfg.keys.clock_steps.items():
+        group = cfg.groups.get(g)
+        if group is None or group.tier != "release":
+            errors.append(f"{pkg}: group {g}: clock_step_ns on a group not in the release tier")
+        if not reason.strip():
+            errors.append(f"{pkg}: group {g}: clock_step_ns without clock_reason")
+        if not lo <= ns <= hi:
+            errors.append(f"{pkg}: group {g}: clock_step_ns {ns:,} is outside {lo:,} to {hi:,}")
+    return errors
+
+
+def compiled_families(builtins: list[str], top: str) -> set[str]:
+    """The subpackages that hold the package's compiled modules: each builtin module's parent."""
+    return {n.rsplit(".", 1)[0] for n in builtins if n.startswith(top + ".")}
+
+
+def top_name(cfg: upstream.Config) -> str:
+    return PurePosixPath(cfg.keys.stage_folders[0]).parts[0] if cfg.keys.stage_folders else ""
+
+
+def cover_errors(
+    pkg: str, cfg: upstream.Config, families: set[str] | None, repo: Path = paths.REPO
+) -> list[str]:
+    """A smoke family's `smoke_cover`: each entry a smoke path of a smoke group, a golden job line
+    that holds its word, or `release-only: <reason>`; the families SMOKE_ONLY names by a smoke
+    path; and, with the product's builtin names, every compiled family has an entry and every
+    entry is a compiled family or one SMOKE_ONLY names."""
+    from harness import tiers
+
+    k = cfg.keys
+    if not tiers.is_smoke_family(cfg):
+        return [f"{pkg}: smoke_cover in a family with no smoke group"] if k.smoke_cover else []
+    must = SMOKE_ONLY.get(pkg, ())
+    errors = [
+        f"{pkg}: smoke_cover names nothing for {fam}, which a smoke path must cover"
+        for fam in must
+        if fam not in k.smoke_cover
+    ]
+    smoke = tiers.smoke_paths(cfg)
+    for fam, cover in k.smoke_cover.items():
+        where = f"{pkg}: smoke_cover {fam}"
+        job = JOB_COVER.fullmatch(cover)
+        if cover.startswith(RELEASE_ONLY) or cover == RELEASE_ONLY.strip():
+            if fam in must:
+                errors.append(f"{where} is release-only, but a smoke path must cover it")
+            elif not cover[len(RELEASE_ONLY) :].strip():
+                errors.append(f"{where} is release-only without its reason")
+        elif job is not None:
+            if fam in must:
+                errors.append(f"{where} is a golden line alone, but a smoke path must cover it")
+            f = repo / job[1]
+            lines = f.read_text(encoding="utf-8").splitlines() if f.is_file() else []
+            n = int(job[2])
+            if not 0 < n <= len(lines) or job[3] not in lines[n - 1]:
+                errors.append(f"{where}: {job[1]}:{n} does not hold {job[3]}")
+        elif not any(tiers._covers(s, cover) for s in smoke):
+            errors.append(f"{where}: {cover} is in no smoke group")
+    if families is not None:
+        errors += [
+            f"{pkg}: the compiled family {fam} has no smoke_cover entry"
+            for fam in sorted(families - set(k.smoke_cover))
+        ]
+        errors += [
+            f"{pkg}: smoke_cover {fam} is no compiled family of the product"
+            for fam in sorted(set(k.smoke_cover) - families - set(must))
+        ]
+    return errors
+
+
+def builtin_names(workdir: Path) -> list[str]:
+    """The product's builtin module names, as the guest lists them."""
+    from harness import guest
+
+    d = paths.artifact_dir()
+    m = paths.parse_manifest((d / "MANIFEST").read_text())
+    r = guest.run(
+        d / "python-snapshot.wasm",
+        ["-c", "import sys; print('\\n'.join(sys.builtin_module_names))"],
+        workdir=workdir,
+        python_version=m.python,
+        stdlib=d / "python-stdlib.zip",
+        env=upstream.ENV,
+        measured=False,
+    )
+    names = r.stdout.decode().split()
+    litter.remove(r.root.parent)
+    if r.exit_code != 0 or not names:
+        raise AssertionError(f"the guest listed no builtin modules (exit {r.exit_code})")
+    return names
+
+
+def rule_errors(
+    pkg: str, cfg: upstream.Config, members: set[str] | None, product: set[str] | None = None
+) -> list[str]:
     k = cfg.keys
     errors = [f"{pkg}: a package TOML may not carry {key}" for key in k.refused]
+    errors += inits_errors(pkg, cfg, members, product)
+    errors += derived_errors(pkg, cfg, members)
+    errors += env_errors(pkg, cfg)
+    errors += clock_errors(pkg, cfg)
+    errors += cover_errors(pkg, cfg, None)
     for g in cfg.groups.values():
         m = k.measured.get(g.name)
         if m is None:
@@ -588,6 +1022,7 @@ def rule_errors(pkg: str, cfg: upstream.Config, members: set[str] | None) -> lis
                 errors.append(f"{pkg}: group {g.name} path {p} is not under a stage folder")
     errors += split_errors(pkg, cfg)
     caps = sum(g.fuel for g in cfg.groups.values()) + upstream.TRAP_FUEL * len(cfg.traps)
+    caps += sum(e.fuel for e in k.derived)
     if caps > k.budget:
         errors.append(f"{pkg}: caps {caps:.3g} over the family's budget {k.budget:.3g}")
     if members is not None:

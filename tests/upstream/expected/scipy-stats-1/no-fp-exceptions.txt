@@ -1,0 +1,4 @@
+scipy/stats/tests/test_stats.py::TestBrunnerMunzel::test_brunnermunzel_normal_dist[numpy]
+scipy/stats/tests/test_stats.py::TestEnergyDistance::test_inf_values
+scipy/stats/tests/test_stats.py::TestKSTwoSamples::test_some_code_paths
+scipy/stats/tests/test_stats.py::TestWassersteinDistance::test_inf_values

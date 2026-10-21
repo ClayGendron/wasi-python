@@ -1,0 +1,8 @@
+scipy/interpolate/tests/test_bsplines.py::TestBSpline::test_concurrency[numpy]
+scipy/interpolate/tests/test_bsplines.py::TestNdBSpline::test_concurrency
+scipy/interpolate/tests/test_interpolate.py::TestNdPPoly::test_concurrency
+scipy/interpolate/tests/test_interpolate.py::TestPPolyCommon::test_concurrency[numpy]
+scipy/interpolate/tests/test_ndgriddata.py::TestNearestNDInterpolator::test_concurrency
+scipy/interpolate/tests/test_polyint.py::TestBarycentric::test_concurrency
+scipy/interpolate/tests/test_polyint.py::TestKrogh::test_concurrency
+scipy/interpolate/tests/test_rbf.py::test_rbf_concurrency

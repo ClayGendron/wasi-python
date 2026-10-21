@@ -13,6 +13,15 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   4 T lighter. A row a run's tier did not run keeps what was accepted, a check that moves between
   tiers needs `--accept-tier-move`, and `context/release-tier-claims.toml` holds the claims
   between two releases.
+- **The release runs scipy's, scikit-learn's and statsmodels' own tests** (spec 095). Each suite
+  runs whole in the release tier, @@REL_GROUPS@@ groups in @@REL_SHARDS@@ Linux release shards,
+  about @@REL_T@@ T of guest fuel; a smoke group per package (two for scipy) runs in the normal
+  tier at every check, @@SMOKE_G@@ G in two Linux shards, chosen so every subpackage with compiled
+  modules and every carried patch is touched, a rule the judge holds against the product's
+  builtin modules. Every known failure is a class by test id with its closer; every file not run
+  is named with its reason. The judge gains three keys for these families (the ancestors'
+  `__init__.py` staged, test data scipy's build makes from its sdist made in the guest, a
+  family's environment) and a clock step for a release group whose one test times a call.
 
 - **One module touches wasmtime-py's private API** (spec 103).
   `src/wasi_python/_wasmtime_ffi.py` is the engine seam: the runner and the mounts drive the

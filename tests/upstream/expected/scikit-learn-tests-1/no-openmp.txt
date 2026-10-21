@@ -1,0 +1,1 @@
+sklearn/tests/test_build.py::test_openmp_parallelism_enabled

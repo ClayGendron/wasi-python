@@ -1,0 +1,2 @@
+sklearn/decomposition/tests/test_dict_learning.py::test_dict_learning_lassocd_readonly_data
+sklearn/decomposition/tests/test_dict_learning.py::test_sparse_coder_common_transformer

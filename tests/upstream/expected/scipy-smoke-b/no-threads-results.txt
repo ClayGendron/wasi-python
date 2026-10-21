@@ -1,0 +1,3 @@
+scipy/io/tests/test_mmio.py::test_threadpoolctl[scipy.io._fast_matrix_market]
+scipy/io/tests/test_mmio.py::test_threadpoolctl[scipy.io._mmio]
+scipy/stats/tests/test_qmc.py::TestUtils::test_discrepancy_parallel

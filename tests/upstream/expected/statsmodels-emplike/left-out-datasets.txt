@@ -1,0 +1,7 @@
+statsmodels/emplike/tests/test_descriptive.py::test_multivariate_namedtuple[mv_test_mean-args0]
+statsmodels/emplike/tests/test_descriptive.py::test_multivariate_namedtuple[test_corr-args1]
+statsmodels/emplike/tests/test_descriptive.py::test_univariate_namedtuple[test_joint_skew_kurt-args4]
+statsmodels/emplike/tests/test_descriptive.py::test_univariate_namedtuple[test_kurt-args3]
+statsmodels/emplike/tests/test_descriptive.py::test_univariate_namedtuple[test_mean-args0]
+statsmodels/emplike/tests/test_descriptive.py::test_univariate_namedtuple[test_skew-args2]
+statsmodels/emplike/tests/test_descriptive.py::test_univariate_namedtuple[test_var-args1]

@@ -1,0 +1,3 @@
+statsmodels/base/tests/test_generic_methods.py::TestGenericGLM::test_zero_collinear
+statsmodels/base/tests/test_generic_methods.py::TestGenericGLMPoissonOffset::test_zero_collinear
+statsmodels/base/tests/test_generic_methods.py::TestGenericOLSOneExog::test_zero_collinear

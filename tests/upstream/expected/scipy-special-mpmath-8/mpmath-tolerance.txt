@@ -1,0 +1,2 @@
+scipy/special/tests/test_mpmath.py::TestSystematic::test_ci_complex
+scipy/special/tests/test_mpmath.py::TestSystematic::test_spherical_in
