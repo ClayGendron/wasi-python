@@ -323,7 +323,12 @@ records (`seen-failing.txt`, `hits-before.txt`, `hits-after.txt`, `regex-job-*.j
   allowance tuple grew by 42 rows in the allowance commit. Criterion 6: `git diff --stat
   d92307f -- tests/known_gaps.toml 'tests/upstream/*.toml' tests/upstream/expected
   tests/upstream/python context/progress src` is empty, and so is the diff of the 25 golden
-  jobs (`tests/jobs/*.py` but `regen.py`) and the two guest drivers.
+  jobs (`tests/jobs/*.py` but `regen.py`) and the two guest drivers. One reading the build
+  review adds (its finding 1, EXECUTED with pyyaml): a `#` line inside a `run: |` block of the
+  workflow is part of that step's script in the parsed document, so the parsed YAML at
+  `d92307f` and at the built commit differ in exactly three values, the `verify` job's step 5
+  and the two rebuild jobs' step 2, each by the shell comments inside the script and in no
+  command; every other key and value is equal.
 - **The sources the guest runs** (Decision 8): untouched, by `clean.py`'s own rule and
   `hand.py`'s skip, so there is no commit that puts their bytes back; the 24 that cite (22 jobs,
   `drive.py`, `regrtest_drive.py`) are in the allowance with the reason the first build
@@ -553,7 +558,16 @@ records (`seen-failing.txt`, `hits-before.txt`, `hits-after.txt`, `regex-job-*.j
   with the judge's allowance files, the guest's own sources and the `src/` check's own
   documentation of its shapes named as the exceptions. No code, behaviour, fuel or artifact
   byte changes; `MANIFEST`'s recipe hashes of `scripts/` move with their comments.*
-- **Roadmap:** untouched; no line to add (no gap, no follow-up reserved).
+- **Roadmap:** untouched by this build. The build review (finding 2) asks the lane for one
+  line, since the owner's rule's leftovers have no specification that owns them: the 78
+  string-literal lines above, several of them read by a user (`--shard`'s help text, the
+  progress group's title, the scoreboard's not-machine-checked line, the C comment
+  `gen_inittab.py` writes into the inittab source), the 31 citations in the judge's allowance
+  files and the 36 in the guest's own sources (cleared only by a judge change that re-measures
+  their fuel). Proposed: *Reserved: NNN (code speaks for itself, the leftovers: the citing
+  string literals outside `src/`, held by one regex over string tokens for `spec NNN`; the
+  judge's allowance files' comments; the guest's own sources, their fuel re-measured; whether
+  a message a user reads falls under the rule is the owner's to say).*
 
 ### The builder's self-check
 
