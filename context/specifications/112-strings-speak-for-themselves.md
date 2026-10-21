@@ -387,6 +387,61 @@ and `disposition.py` (the review's fix text written in).
   hashes below are from before the rebase: `3496fadb` → `29fa05b1`, `6d98601c` → `556ae670`,
   `68512820` → `7f0e9509`, `b976dcdf` → `049e0ef1`, `5005ccbd` → `81decaca`, `65bb8e27` →
   `02596f31`. The CI run 39589394200 is `5005ccbd`'s.
+- **Rebased onto wave 11** (2026-10-21): rebased from `f3ea5114` onto the wave's tip
+  `861d5e4b` (spec 102, the release tier, stacked on 101, the faster release run). The first
+  four commits and the last four applied on their own; the rewording commit stopped twice.
+  - `.github/workflows/release.yml`, the build job's zero-patch step: 101 had added the comment
+    on a reuse run and `if: steps.compile.outcome == 'success'` under the name, with the name
+    still ending "(spec 020)"; this specification had the name without it. Kept: this name, 101's
+    comment and `if:`.
+  - `tests/harness/plugin.py`, `pytest_addoption`: 102 had added `--accept-tier-move` and
+    `--tier` above `--shard`, whose help still ended "(spec 063)"; this specification had that
+    help without it. Kept: 102's two options as built, and this help.
+
+  Every other file merged on its own (`packages.py`, `sameness.py`, `scan.py`, `scoreboard.py`,
+  `test_gather.py`, `test_sameness.py`, `test_scan.py`, and `test_rules.py` in the check's
+  commit). **Three strings the stack added were reworded**, each a finding of
+  `test_no_string_names_a_context_document` on the rebased tree (3 findings, digest
+  `c181d9f1ed31`), by rule (a), in one commit on top:
+  - `.github/workflows/release.yml`, build-shard's zero-patch step (101): "… the recorded patches
+    (spec 020)" → "… the recorded patches";
+  - `tests/harness/scan.py`, `ZERO_PATCH_STEP` (101), the same text, the step name the reuse
+    rule finds;
+  - `.github/workflows/release.yml`, judge-release's kit step (102): "What the shard needs (the
+    upstream kit and source trees, verified; spec 063, Decision 5)" → "… verified)", the three
+    judge jobs' name.
+
+  **For the lane: the merged text alone was red in two of the stack's rules checks**, a semantic
+  conflict the rewording closes. The reuse rule (`test_the_release_reuses_a_set_only_on_a_branch`)
+  finds the zero-patch step by `ZERO_PATCH_STEP` in both build and build-shard and compares them;
+  with only the build job's name reworded it said "R3: build's step '…' has if:" and "R4:
+  build-shard's zero-patch step is not the build job's, text for text". The shard rule
+  (`test_release_judges_in_shards`) compares judge-release's steps with the judge jobs' text for
+  text; with only the judge jobs' kit step reworded it said "rule 3: judge-release differs from
+  judge-linux …" and "rule 3: the three judge jobs differ …". With the three strings reworded the
+  names agree again, so each rule pairs the same steps it paired on `861d5e4b`: no rule's
+  behaviour changes, only the words both sides compare. No other 101 or 102 string is touched.
+  On the rebased tip (EXECUTED, outputs under `build/112r/` in the worktree
+  `.claude/worktrees/agent-ae752539886fe72dc`): the string rule's findings 0, its 24 admitted hits
+  on all fifteen rows (102 adds no citing string outside the allowance files it leaves alone);
+  `tests/checks/test_rules.py` 69 passed, 2 skipped; the units of `test_gather.py`,
+  `test_sameness.py`, `test_scan.py`, `test_set_key.py`, `test_plugin.py`, `test_scoreboard.py`,
+  `test_packages.py`, `test_several_cores.py` and `test_landing_lane.py` 709 passed
+  (`units.log`); `ruff check` and `ruff format --check` clean. The fast tier on `8a92d836`
+  (`uv run pytest -m "not slow" -n 3` against the main tree's frozen set, SHA256SUMS
+  `d0d91cef`; `fast.log`): 2,857 passed, 2 failed, 51 skipped; the scoreboard 652/920, 0 gap,
+  42 blocked (a worktree without source trees), 1 fail. The fail is
+  `test_manifest_recipes_match_the_tree`, naming exactly `scripts/gen_inittab.py` and
+  `scripts/refuse-python` (criterion 10's one expected difference against a set built on the
+  base). The other is the unit `test_async_tools.py::test_close_ends_the_calls_loop`: a
+  `ResourceWarning` for an unclosed `sqlite3` connection that another test left on the same
+  worker; it passed alone three times, and neither specification touches `src/` or that file.
+  The ratchet: lost 1 (that manifest check), moved 17 (102's contourpy rows, its claim), grew 0
+  (102's `cpython-fs` growth is a slow-tier row, not run here). No CI run: a
+  rebase-only entry dispatches none; the wave's dry run is the check. The hashes are now:
+  `29fa05b1` → `7adb3d58`, `556ae670` → `9c62da1d`, `7f0e9509` → `e754b9bb`, `049e0ef1` →
+  `12ac6330`, `81decaca` → `0b4ea79e`, `02596f31` → `10420627`, `d2234e8d` → `58b0dbe3`,
+  `0f033a17` → `abe9fd13`, `f3ea5114` → `ab296e9e`; the three strings `8a92d836`.
 - **Commits, in the order built** (`git log --oneline d8fc73f..`): `3496fadb` (the draft),
   `6d98601c` (the pre-build review), `68512820` (its findings written in, its Disposition),
   `b976dcdf` (the check, its scanner, its fourteen unit rows and its allowance; seen failing),
