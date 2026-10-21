@@ -3903,6 +3903,17 @@ def set_cache_errors(cache_text: str, release_text: str, key_env: Iterable[str])
             if f.get("uses", "").startswith(CACHE_SAVE) and name != "seed":
                 errors.append(f"C5: set-cache.yml's {name} saves to the cache")
         errors += [f"C6: set-cache.yml's {e}" for e in _build_step_errors(name, js)]
+        # A build here saves under main's key, so it runs under the workflow's env alone, as
+        # release.yml's builds do: a variable the key does not hold would make every reader red.
+        if any("scripts/build.sh" in r for r in _step_runs(js)):
+            if _job_map(lines, "env"):
+                errors.append(f"C10: set-cache.yml's {name} builds under a job-level env")
+            for f in js:
+                if str(f.get("run", "")).strip() in (
+                    "scripts/build.sh",
+                    "scripts/00_download.sh",
+                ) and f.get("env"):
+                    errors.append(f"C10: set-cache.yml's {name}'s build step sets env")
     env, release_env = top_env(cache_text), top_env(release_text)
     keyed = {n: release_env.get(n) for n in key_env}
     if env != keyed:

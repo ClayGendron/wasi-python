@@ -347,6 +347,24 @@ REUSE_MUTANTS = {
         lambda: _reuse(cache=_c("      contents: read\n", "      contents: write\n")),
         "C3:",
     ),
+    "a job-level env on seed": (
+        lambda: _reuse(
+            cache=_c(
+                "    timeout-minutes: 120\n",
+                "    timeout-minutes: 120\n    env:\n      CC: gcc\n",
+            )
+        ),
+        "C10: set-cache.yml's seed builds under a job-level env",
+    ),
+    "an env on seed's build step": (
+        lambda: _reuse(
+            cache=_c(
+                "        run: scripts/build.sh\n",
+                "        run: scripts/build.sh\n        env:\n          CC: gcc\n",
+            )
+        ),
+        "C10: set-cache.yml's seed's build step sets env",
+    ),
 }
 
 
