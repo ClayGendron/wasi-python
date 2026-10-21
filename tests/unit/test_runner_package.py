@@ -1,8 +1,9 @@
 """The runner is a package of one module per concern.
 
-Three checks hold the package's shape: the modules import in one written order with no cycle,
-a module imports by `from` only what never changes, so a patched seam, a re-made lock or a
-cleared cache is seen by every caller, and every runner name is defined in exactly one module.
+Four checks hold the package's shape: the modules import in one written order with no cycle,
+and the tool protocol's three in an order of their own beside it; a module imports by `from`
+only what never changes, so a patched seam, a re-made lock or a cleared cache is seen by every
+caller; and every runner name is defined in exactly one module.
 The fork reset is the process state's owner's, and tests/unit/test_process.py holds it.
 """
 
@@ -38,7 +39,14 @@ ORDER = (
 RUNNER_MODULES = tuple(m for m in ORDER if m != "_wasmtime_ffi")  # the runner's text, by concern
 MAY_IMPORT_MOUNTS = ("_places", "_call", "_sessions", "runner")
 ABOVE = ("__init__", "__main__", "cli")  # above `runner`: they import what they like
-BESIDE = ("mounts", "tools")  # beside the list: no package module at module level
+BESIDE = ("mounts",)  # beside the list: no package module at module level
+# The tool protocol stands beside the runner in an order of its own: the schema rules, then the
+# public facade, then the host side of a call. Each imports at module level only those before
+# it, and no other module imports any of them at module level, so `import wasi_python` loads
+# none of them; the runner reaches them late, inside the functions that run only when a call
+# is given tools.
+TOOLS = ("_tool_schema", "tools", "_tool_host")
+BY_NAME_MODULES = (*RUNNER_MODULES, "_tool_schema", "_tool_host")  # the two forms hold over these
 LATE_ANYWHERE = ("_wasmtime_ffi",)  # the seam's form: `from . import _wasmtime_ffi as ffi` in a def
 
 # The late imports allowed, (file, function, module); any other is a finding.
@@ -49,10 +57,10 @@ LATE = (
     ("_call.py", "_guard_linker", "mounts"),
     ("_call.py", "_stat_trampoline_module", "mounts"),
     ("_call.py", "_trampoline_module", "mounts"),
-    ("_call.py", "_tool_host", "tools"),
-    ("_sessions.py", "_session_tool_host", "tools"),
+    ("_call.py", "_tool_host", "_tool_host"),
+    ("_sessions.py", "_session_tool_host", "_tool_host"),
     ("_sessions.py", "_open_session", "mounts"),
-    ("_sessions.py", "_open_session", "tools"),
+    ("_sessions.py", "_open_session", "_tool_host"),
     ("cli.py", "_grants", "runner"),
     ("cli.py", "_main", "runner"),
 )
@@ -96,7 +104,9 @@ def _named_modules(node: ast.ImportFrom, package: Path) -> list[str]:
     return [a.name if (package / f"{a.name}.py").is_file() else "__init__" for a in node.names]
 
 
-def _order_errors(package: Path) -> list[str]:
+def _order_errors(package: Path, tools: bool = False) -> list[str]:
+    """The written order's findings: the runner's, or with `tools` the tool protocol's, which
+    are every import made by one of its modules or naming one."""
     rank = {m: i for i, m in enumerate(ORDER)}
     errors = []
     for path in sorted(package.glob("*.py")):
@@ -107,8 +117,12 @@ def _order_errors(package: Path) -> list[str]:
                 continue
             for module in _named_modules(node, package):
                 where = f"{path.name}:{node.lineno}"
-                if function is None:
-                    if module == "tools" or module in LATE_ANYWHERE:
+                if (me in TOOLS or module in TOOLS) != tools:
+                    continue
+                if tools:
+                    errors += _tool_order_error(where, path.name, me, function, module)
+                elif function is None:
+                    if module in LATE_ANYWHERE:
                         errors.append(f"{where} imports {module} at module level")
                     elif me in ABOVE:
                         continue
@@ -126,12 +140,60 @@ def _order_errors(package: Path) -> list[str]:
     return errors
 
 
+def _tool_order_error(
+    where: str, filename: str, me: str, function: str | None, module: str
+) -> list[str]:
+    if function is not None:
+        if (filename, function, module) in LATE:
+            return []
+        return [f"{where} ({function} imports {module} late, not in LATE)"]
+    if me not in TOOLS:
+        return [f"{where} imports {module} at module level"]
+    if module not in TOOLS or TOOLS.index(module) >= TOOLS.index(me):
+        return [f"{where} ({me} imports {module}, not before it in TOOLS)"]
+    return []
+
+
 def test_the_runner_modules_import_in_the_written_order() -> None:
     """Every module-level relative import names a module earlier in ORDER (or
-    `mounts` from the four that may); `__init__.py` and `cli.py` stand above; `mounts.py` and
-    `tools.py` import no package module at module level; no module imports `tools` or
-    `_wasmtime_ffi` at module level; a late import is one of LATE, or of `_wasmtime_ffi`."""
+    `mounts` from the four that may); `__init__.py` and `cli.py` stand above; `mounts.py`
+    imports no package module at module level; no module imports `_wasmtime_ffi` at module
+    level; a late import is one of LATE, or of `_wasmtime_ffi`. The tool protocol's modules
+    have their own order, below."""
     errors = _order_errors(PACKAGE)
+    assert not errors, scan.report(errors)
+
+
+def _tool_shape_errors(package: Path) -> list[str]:
+    """Each of the three exists and begins with a docstring, and no top-level name is bound in
+    two of them. A name bound twice in one module, such as an overloaded function's stubs and
+    its body, is one binding: it is counted once per module."""
+    where: dict[str, list[str]] = {}
+    errors = []
+    for module in TOOLS:
+        path = package / f"{module}.py"
+        if not path.is_file():
+            errors.append(f"{path.name} does not exist")
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        if ast.get_docstring(tree) is None:
+            errors.append(f"{path.name} does not begin with a docstring")
+        for name in dict.fromkeys(_bound_names(tree)):
+            where.setdefault(name, []).append(path.name)
+    errors += [
+        f"{name} is bound in {' and '.join(files)}"
+        for name, files in where.items()
+        if len(files) > 1
+    ]
+    return errors
+
+
+def test_the_tool_modules_import_in_their_written_order() -> None:
+    """The tool protocol's three modules import in the order TOOLS writes: each imports at
+    module level only those before it and nothing else of the package; no other module imports
+    any of them at module level; a late import of one is one of LATE. Each begins with a
+    docstring, and no top-level name is bound in two of them."""
+    errors = _order_errors(PACKAGE, tools=True) + _tool_shape_errors(PACKAGE)
     assert not errors, scan.report(errors)
 
 
@@ -147,21 +209,25 @@ def _is_unchanging(name: str, obj: typing.Any) -> bool:
 
 
 def _from_imports(package: Path) -> list[tuple[str, int, str, str]]:
-    """Every `from ._x import name` of a runner module, from any file but `__init__.py` (the
-    public facade re-exports `run` and `artifacts` by name): (file, line, module, name)."""
+    """Every `from ._x import name` of a runner module or of the tool protocol's two private
+    ones, from any file but `__init__.py` (the public facade re-exports `run` and `artifacts`
+    by name): (file, line, module, name)."""
     out = []
     for path in sorted(package.glob("*.py")):
         if path.name == "__init__.py":
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node, _, _ in _imports(tree):
-            if node.module and node.module.split(".")[0] in RUNNER_MODULES:
+            if node.module and node.module.split(".")[0] in BY_NAME_MODULES:
                 out += [(path.name, node.lineno, node.module, a.name) for a in node.names]
     return out
 
 
 def _by_name_errors(package: Path) -> list[str]:
     errors = []
+    for module in BY_NAME_MODULES:  # a module the rule names and the package lacks is stale
+        if not (package / f"{module}.py").is_file():
+            errors.append(f"{module}.py does not exist")
     for filename, line, module, name in _from_imports(package):
         obj = getattr(importlib.import_module(f"wasi_python.{module}"), name)
         if not _is_unchanging(name, obj):
@@ -173,7 +239,8 @@ def _by_name_errors(package: Path) -> list[str]:
 
 def _patched(tests: Path) -> set[tuple[str, str]]:
     """Every `monkeypatch.setattr(<module>, "NAME", …)` under tests/ whose first argument names
-    a runner module or the package, under the name the file imports it by: (module, NAME)."""
+    a module of BY_NAME_MODULES or the package, under the name the file imports it by:
+    (module, NAME)."""
     out = set()
     for path in scan.files_under(tests, "."):
         if path.suffix != ".py":
@@ -187,7 +254,7 @@ def _patched(tests: Path) -> set[tuple[str, str]]:
                         known[a.asname or a.name] = "wasi_python"
             elif isinstance(node, ast.ImportFrom) and node.module == "wasi_python":
                 for a in node.names:
-                    if a.name in RUNNER_MODULES:
+                    if a.name in BY_NAME_MODULES:
                         known[a.asname or a.name] = f"wasi_python.{a.name}"
         for node in ast.walk(tree):
             if (
