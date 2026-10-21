@@ -13,7 +13,7 @@ import os
 import re
 import sys
 
-ROOT = os.path.realpath(sys.argv[1])
+ROOT = os.path.normpath(sys.argv[1])
 OUT = sys.argv[2]
 SKIP = (os.path.join(ROOT, "build"), os.path.join(ROOT, "downloads"))
 LINE = re.compile(r"^(\d+)\s+(.*)$")
@@ -22,11 +22,14 @@ RESUMED = re.compile(r"^<\.\.\. ([a-z0-9_]+) resumed>(.*)$")
 STRING = re.compile(r'"((?:[^"\\]|\\.)*)"(\.\.\.)?')
 FD = re.compile(r"^(-?\d+|AT_FDCWD)<([^>]*)>")
 RESULT = re.compile(r"\)\s+=\s+(-?\d+|\?)(?:<([^>]*)>)?(?:\s+(E[A-Z0-9]+))?")
+EQUALS = re.compile(r"\)\s+=\s+")
 TWO_PATHS = {"rename", "renameat", "renameat2", "link", "linkat"}
 FORKS = {"clone", "clone3", "fork", "vfork"}
 
 cwd = {}
 prog = {}
+parent = {}
+argv = {}
 pending = {}
 unfinished = {}
 touched = {}
@@ -57,7 +60,7 @@ def note(path, call, result, pid):
     if any(path == s or path.startswith(s + os.sep) for s in SKIP):
         return
     rel = os.path.relpath(path, ROOT)
-    e = touched.setdefault(rel, {"calls": {}, "count": 0, "first": prog.get(pid, "?")})
+    e = touched.setdefault(rel, {"calls": {}, "count": 0, "first": prog.get(pid, "?"), "pid": pid})
     key = f"{call}:{result}"
     e["calls"][key] = e["calls"].get(key, 0) + 1
     e["count"] += 1
@@ -65,14 +68,15 @@ def note(path, call, result, pid):
 
 def handle(pid, call, args_and_result):
     base = cwd.get(pid)
-    at = args_and_result.rfind(") = ")
-    m = RESULT.match(args_and_result[at:]) if at >= 0 else None
+    ends = [e.start() for e in EQUALS.finditer(args_and_result)]
+    m = RESULT.match(args_and_result[ends[-1] :]) if ends else None
     ret, retpath, err = (m.group(1), m.group(2), m.group(3)) if m else ("?", None, None)
     result = err or "ok"
     if call in FORKS and ret not in ("?",) and not ret.startswith("-"):
         child = int(ret)
         cwd[child] = base
         prog[child] = prog.get(pid, "?")
+        parent[child] = pid
         for c, a in pending.pop(child, []):
             handle(child, c, a)
         return
@@ -91,6 +95,8 @@ def handle(pid, call, args_and_result):
         s = STRING.search(args_and_result)
         if s and result == "ok":
             prog[pid] = os.path.basename(unescape(s.group(1)))
+            words = [unescape(w.group(1)) for w in STRING.finditer(args_and_result)][1:4]
+            argv[pid] = " ".join(words)[:120]
     dirbase = base
     f = FD.match(args_and_result)
     if f:
@@ -102,6 +108,12 @@ def handle(pid, call, args_and_result):
         note(os.path.normpath(retpath), call, result, pid)
         if call not in TWO_PATHS:
             return
+    if call in ("symlink", "symlinkat"):
+        # The target is text, not a lookup; the link is made at the last path, against the fd
+        # before it (symlinkat) or the working folder.
+        mid = re.search(r', (-?\d+|AT_FDCWD)<([^>]*)>, "', args_and_result)
+        note(resolve(mid.group(2) if mid else base, strings[-1]), call, result, pid)
+        return
     names = strings[:2] if call in TWO_PATHS else strings[:1]
     for n in names:
         note(dirbase if n == "" else resolve(dirbase, n), call, result, pid)
@@ -152,6 +164,13 @@ with open(OUT, "w") as out:
     for rel in sorted(touched):
         e = touched[rel]
         calls = ",".join(f"{k}x{v}" for k, v in sorted(e["calls"].items()))
-        out.write(f"{rel}\t{calls}\t{e['count']}\t{e['first']}\n")
+        chain, p, seen = [], e["pid"], set()
+        while p is not None and p not in seen:
+            seen.add(p)
+            chain.append(argv.get(p) or prog.get(p, "?"))
+            p = parent.get(p)
+        steps = [c for c in chain if "scripts/" in c]
+        where = steps[0] if steps else chain[-1]
+        out.write(f"{rel}\t{calls}\t{e['count']}\t{e['first']}\t{where}\n")
 json.dump(stats, sys.stdout)
 print()
