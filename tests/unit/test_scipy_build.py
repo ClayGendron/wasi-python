@@ -366,7 +366,7 @@ def test_the_openblas_patch_script_counts_no_host_litter(tmp_path) -> None:
     assert not any("DS_Store" in p.read_text() for p in out.glob("*.patch"))
 
 
-# A `git` first on PATH that plays macOS's folder-size cache around each `add` (spec 097): the
+# A `git` first on PATH that plays macOS's folder-size cache around each `add`: the
 # script's `env -i` keeps PATH, so every git call it makes goes through this wrapper, which runs the
 # git the row would otherwise find. The writer always lands between the add and what follows it,
 # so the race is simulated deterministically.
@@ -404,9 +404,10 @@ exit $status
 
 
 def _openblas_script_with_a_writer(tmp_path, mode: str) -> None:
-    """Spec 090's stand-in layout (a made tarball, a stand-in convention script, the real
-    make_openblas_void_patch.sh and its helpers), run with GIT_WRAPPER in `mode` first on PATH;
-    the script must succeed and its patches name the three changed files and no litter."""
+    """The stand-in layout of the litter row above (a made tarball, a stand-in convention
+    script, the real make_openblas_void_patch.sh and its helpers), run with GIT_WRAPPER in
+    `mode` first on PATH; the script must succeed and its patches name the three changed files
+    and no litter."""
     import hashlib
     import tarfile
 
@@ -462,7 +463,7 @@ def _openblas_script_with_a_writer(tmp_path, mode: str) -> None:
 
 
 def test_the_openblas_patch_script_survives_litter_rewritten_after_its_add(tmp_path) -> None:
-    """Guards a change (spec 097): macOS rewrote a `.DS_Store` between the script's `git add` and
+    """Guards a change: macOS rewrote a `.DS_Store` between the script's `git add` and
     its `git rm --cached`, which then refused ("staged content different from both the file and
     the HEAD") and failed the OpenBLAS check. Litter is now excluded from the add."""
     _openblas_script_with_a_writer(tmp_path, "rewrite")
@@ -472,14 +473,14 @@ def test_the_openblas_patch_script_survives_litter_rewritten_after_its_add(tmp_p
     sys.platform == "win32" or os.geteuid() == 0, reason="a mode does not stop a read here"
 )
 def test_the_openblas_patch_script_never_reads_host_litter(tmp_path) -> None:
-    """Guards a change (spec 097): `git add` opens every file it stages, so a litter file the
+    """Guards a change: `git add` opens every file it stages, so a litter file the
     writer truncates, removes or holds unreadable mid-add failed it ("Permission denied"). The
     add excludes litter by pathspec, so git never opens one."""
     _openblas_script_with_a_writer(tmp_path, "unreadable")
 
 
 def test_the_openblas_patch_script_unstages_litter_its_add_staged(tmp_path) -> None:
-    """Guards a change (spec 097, its pre-build review F2): if the excludes ever miss a litter
+    """Guards a change: if the excludes ever miss a litter
     path, the add stages it; the unstage removes it with `git update-index --force-remove`, which
     asks nothing of the work tree, so a rewrite after the add cannot make it refuse."""
     _openblas_script_with_a_writer(tmp_path, "no-excludes")

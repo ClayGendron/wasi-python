@@ -31,7 +31,7 @@ def has_litter(rel: str) -> bool:
 
 
 def git_excludes() -> list[str]:
-    """The pathspecs that keep every path `has_litter` names out of a `git add` (spec 097): each
+    """The pathspecs that keep every path `has_litter` names out of a `git add`: each
     name, and anything inside it, at any depth, and the same for AppleDouble `._*`. git then never
     opens a litter file, which a desktop writer may rewrite or remove mid-add. No name in
     OS_LITTER holds a glob character, so each matches only itself."""

@@ -186,7 +186,7 @@ def test_the_scripts_litter_is_the_judges() -> None:
 
 
 def test_the_git_excludes_keep_out_exactly_the_litter(tmp_path) -> None:
-    """Spec 097, Decision 7: the pathspecs make_openblas_void_patch.sh adds with leave out of the
+    """The pathspecs make_openblas_void_patch.sh adds with leave out of the
     index exactly the paths `has_litter` names, through real git, so git never opens a litter
     file and the unstage (by `has_litter`) has nothing left to do."""
     assert not any(set(n) & set("*?[]\\") for n in litter.OS_LITTER), "a glob character"

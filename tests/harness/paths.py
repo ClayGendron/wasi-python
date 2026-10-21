@@ -36,7 +36,7 @@ HARNESS_TMP = BUILD / "harness"
 
 
 def _guest_tmp_for(repo: Path, temp: str, platform: str) -> Path:
-    """Where the judge's guest folders go (spec 097, Decision 1). On darwin, outside the home
+    """Where the judge's guest folders go. On darwin, outside the home
     folder, where macOS's folder-size cache writes `.DS_Store` into every folder it sizes: the
     per-user temporary folder by its real path (no link anywhere: the runner refuses a link in a
     folder the user can write), in a folder keyed by the checkout, so two worktrees never share
@@ -50,7 +50,8 @@ def _guest_tmp_for(repo: Path, temp: str, platform: str) -> Path:
 
 # Every folder the judge's driver grants a guest unsealed lives under GUEST_TMP: the
 # `guest_workdir` fixture's folder, and so each run's root, io, stdlib folder and matplotlib's
-# data. The sealed stages, the zips and every unpacked tarball stay under HARNESS_TMP (§4.8).
+# data. The sealed stages, the zips and every unpacked tarball stay under HARNESS_TMP
+# (downloads unpack only under `build/`).
 GUEST_TMP = (
     HARNESS_TMP
     if sys.platform != "darwin"
@@ -60,7 +61,7 @@ GUEST_TMP = (
 
 def _make_guest_tmp(path: Path) -> Path:
     """Make `path` (mode 0700) if it is not there, then use it only if it is a real folder of
-    this user's that no one else can enter; anything else is refused by name (spec 097)."""
+    this user's that no one else can enter; anything else is refused by name."""
     try:
         path.mkdir(mode=0o700)
     except FileExistsError:

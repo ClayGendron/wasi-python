@@ -5405,8 +5405,8 @@ def test_excel_output_needs_a_writable_folder_or_xlsxwriter_in_memory(guest_work
 
 
 def test_the_judges_writable_roots_are_outside_the_home_folder(guest_workdir) -> None:
-    """Guards a change (spec 097): macOS's folder-size cache writes `.DS_Store` into folders under
-    the home folder, and a writable root cannot be sealed against it (spec 089's residual), so a
+    """Guards a change: macOS's folder-size cache writes `.DS_Store` into folders under the home
+    folder, and a writable root cannot be sealed against it (it is watched, not sealed), so a
     long run there was voided by `HostLitter`. On darwin every folder the judge's driver grants a
     guest unsealed lives under `paths.GUEST_TMP`, in the per-user temporary folder: a real path
     with no link in it (the runner refuses a link in a folder the user can write), outside the

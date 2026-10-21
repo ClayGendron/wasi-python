@@ -165,7 +165,7 @@ def test_sealed_leftovers_are_named(tmp_path: Path) -> None:
 
 
 def test_the_guest_folders_leave_the_home_folder_on_darwin(tmp_path: Path) -> None:
-    """Spec 097, Decision 1: on darwin the judge's guest folders go under the per-user temporary
+    """On darwin the judge's guest folders go under the per-user temporary
     folder, by its real path, in a folder keyed by the checkout (two worktrees never share one,
     and the runner's `wasi-python-` names are never used); elsewhere they stay in build/harness."""
     from harness import paths
@@ -191,7 +191,7 @@ def test_the_guest_folders_leave_the_home_folder_on_darwin(tmp_path: Path) -> No
 
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX links and modes")
 def test_the_guest_folders_root_is_real_and_private(tmp_path: Path) -> None:
-    """Spec 097, Decision 1: the temporary folder is taken by its real path (no link), and the
+    """The temporary folder is taken by its real path (no link), and the
     keyed folder is used only when it is a real folder of this user's with no group or other
     bits; anything else is refused by name."""
     from harness import paths
@@ -214,8 +214,9 @@ def test_the_guest_folders_root_is_real_and_private(tmp_path: Path) -> None:
 
 
 def test_a_measured_run_may_not_name_the_guest_folders(tmp_path: Path, monkeypatch) -> None:
-    """Spec 097, Decision 5 (spec 081 kept): `host_roots_always` holds `GUEST_TMP`, so a measured
-    run whose input names a host path there is refused, wherever the temporary folder is."""
+    """A host path in a measured run's input stays refused: `host_roots_always` holds
+    `GUEST_TMP`, so a measured run whose input names a host path there is refused, wherever the
+    temporary folder is."""
     from harness import guest, paths
 
     g = tmp_path / "judge-wasi_python-0123456789ab"

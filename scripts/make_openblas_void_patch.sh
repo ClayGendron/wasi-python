@@ -77,7 +77,7 @@ with open(sys.argv[2], "w", encoding="utf-8", errors="surrogateescape") as f:
 litter_in() { # the litter paths among the NUL-separated paths on stdin, one per line, into $1
   py -c "$LITTER_IN" "$HERE/scripts" "$1"
 }
-# A desktop writer rewrites or removes litter at any moment (spec 097). So each add leaves litter
+# A desktop writer rewrites or removes litter at any moment. So each add leaves litter
 # out by pathspec (scripts/litter.py's git_excludes), and git never opens a litter file; and the
 # unstage, by has_litter, removes a staged one with update-index --force-remove, which compares
 # nothing with the work tree, so a rewrite after the add cannot make it refuse.

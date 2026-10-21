@@ -58,7 +58,7 @@ def artifacts() -> ArtifactSet:
 @pytest.fixture(scope="session")
 def guest_workdir():
     # Outside the home folder on darwin, where macOS writes .DS_Store into a writable root the
-    # seal cannot close (spec 097); build/harness elsewhere.
+    # seal cannot close; build/harness elsewhere.
     d = Path(tempfile.mkdtemp(prefix="guest-", dir=paths.guest_tmp()))
     yield d
     litter.remove(d)  # its matplotlib data is sealed
