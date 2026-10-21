@@ -374,6 +374,19 @@ command; the outputs are kept under `build/112/` in that worktree (git-ignored):
 `fast-base.log`, `built.json`, `base.json`, `failed-built.txt`, `failed-base.txt`; `edit_spec.py`
 and `disposition.py` (the review's fix text written in).
 
+- **Rebase onto main** (the lane, 2026-10-21): rebased onto `1875d4cd` (wave 10 landed). One
+  conflict, `.github/workflows/release.yml` line 79, in the rewording commit: main reworded the
+  step's comment (twenty-eight trees, statsmodels' the twenty-eighth) and this specification
+  the step's name; resolved with both, this name and main's comment. No code changed in the
+  hunk, so no new CI run. The other files merged on their own (`gen_inittab.py`,
+  `test_rules.py`, `test_v1_3_data_stack.py`, `test_v1_4_embedding.py`, `paths.py`, `pins.py`,
+  `scan.py`, `test_build_progress.py`, `test_scan.py`). On the rebased tip (EXECUTED): the
+  string rule's findings 0, its 24 admitted hits on all fifteen rows (`hits-rebased.txt`; wave
+  10 adds no citing string); `tests/checks/test_rules.py` and `tests/unit/test_scan.py` 334
+  passed, 1 skipped (`rebased-rules.log`); `ruff check` and `ruff format --check` clean. The
+  hashes below are from before the rebase: `3496fadb` → `29fa05b1`, `6d98601c` → `556ae670`,
+  `68512820` → `7f0e9509`, `b976dcdf` → `049e0ef1`, `5005ccbd` → `81decaca`, `65bb8e27` →
+  `02596f31`. The CI run 39589394200 is `5005ccbd`'s.
 - **Commits, in the order built** (`git log --oneline d8fc73f..`): `3496fadb` (the draft),
   `6d98601c` (the pre-build review), `68512820` (its findings written in, its Disposition),
   `b976dcdf` (the check, its scanner, its fourteen unit rows and its allowance; seen failing),
