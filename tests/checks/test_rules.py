@@ -216,11 +216,59 @@ JUDGE_FILE = (
     "the known gaps and the upstream suites' allowances change only by a judge change of their "
     "own, which clears these comments then; a cleanup of comments never edits them"
 )
+GUEST_INPUT = (
+    "a source the guest runs: its bytes are the guest's input, and a shorter docstring moved the "
+    "regex job's fuel past the ratchet's tolerance, so it changes with a judge change that "
+    "re-measures its fuel"
+)
+SHAPE_SHOWN = (
+    "the src/ citation check documents its regexes by showing the shapes they match and refuse; "
+    "the token is the rule's own vocabulary, not a citation of a document"
+)
 CONTEXT_CITATION_ALLOWED: tuple[tuple[str, str, str], ...] = (
+    ("tests/checks/test_rules.py", "C6", SHAPE_SHOWN),
+    ("tests/checks/test_rules.py", "C99", SHAPE_SHOWN),
+    ("tests/checks/test_rules.py", "D3", SHAPE_SHOWN),
+    ("tests/checks/test_rules.py", "F1", SHAPE_SHOWN),
+    ("tests/checks/test_rules.py", "F3", SHAPE_SHOWN),
+    ("tests/checks/test_rules.py", "F4.2", SHAPE_SHOWN),
+    ("tests/checks/test_rules.py", "L1", SHAPE_SHOWN),
+    ("tests/checks/test_rules.py", "N12", SHAPE_SHOWN),
+    ("tests/checks/test_rules.py", "S3", SHAPE_SHOWN),
+    ("tests/checks/test_rules.py", "memo", SHAPE_SHOWN),
+    ("tests/jobs/callbacks.py", "spec 051", GUEST_INPUT),
+    ("tests/jobs/compress.py", "spec 007", GUEST_INPUT),
+    ("tests/jobs/excel.py", "spec 039", GUEST_INPUT),
+    ("tests/jobs/files_from_the_zip.py", "041's", GUEST_INPUT),
+    ("tests/jobs/files_from_the_zip.py", "spec 041", GUEST_INPUT),
+    ("tests/jobs/lxml_xml.py", "spec 046", GUEST_INPUT),
+    ("tests/jobs/machine_learning.py", "037's", GUEST_INPUT),
+    ("tests/jobs/machine_learning.py", "spec 044", GUEST_INPUT),
+    ("tests/jobs/markup.py", "spec 039", GUEST_INPUT),
+    ("tests/jobs/markup.py", "spec 046", GUEST_INPUT),
+    ("tests/jobs/modelling.py", "spec 037", GUEST_INPUT),
+    ("tests/jobs/modelling.py", "spec 039", GUEST_INPUT),
+    ("tests/jobs/pandas_tz.py", "spec 035", GUEST_INPUT),
+    ("tests/jobs/pdf.py", "spec 039", GUEST_INPUT),
+    ("tests/jobs/plot_callbacks.py", "023's", GUEST_INPUT),
+    ("tests/jobs/plot_callbacks.py", "spec 023", GUEST_INPUT),
+    ("tests/jobs/plot_contour.py", "spec 043", GUEST_INPUT),
+    ("tests/jobs/plot_line.py", "spec 023", GUEST_INPUT),
+    ("tests/jobs/regex_features.py", "spec 047", GUEST_INPUT),
+    ("tests/jobs/scipy_edges.py", "spec 038", GUEST_INPUT),
+    ("tests/jobs/scipy_lapack.py", "spec 037", GUEST_INPUT),
+    ("tests/jobs/scipy_numeric.py", "spec 037", GUEST_INPUT),
+    ("tests/jobs/scipy_solvers.py", "spec 037", GUEST_INPUT),
+    ("tests/jobs/sqlite.py", "spec 007", GUEST_INPUT),
+    ("tests/jobs/symbolic.py", "spec 037", GUEST_INPUT),
+    ("tests/jobs/symbolic.py", "spec 039", GUEST_INPUT),
+    ("tests/jobs/text_formats.py", "spec 039", GUEST_INPUT),
+    ("tests/jobs/utilities.py", "spec 039", GUEST_INPUT),
     ("tests/known_gaps.toml", "C1", JUDGE_FILE),
     ("tests/known_gaps.toml", "spec 002", JUDGE_FILE),
     ("tests/known_gaps.toml", "spec 050", JUDGE_FILE),
     ("tests/known_gaps.toml", "spec 065", JUDGE_FILE),
+    ("tests/upstream/drive.py", "spec 050", GUEST_INPUT),
     ("tests/upstream/numpy.toml", "051's", JUDGE_FILE),
     ("tests/upstream/numpy.toml", "C1", JUDGE_FILE),
     ("tests/upstream/numpy.toml", "spec 050", JUDGE_FILE),
@@ -247,6 +295,9 @@ CONTEXT_CITATION_ALLOWED: tuple[tuple[str, str, str], ...] = (
     ("tests/upstream/python.toml", "spec 065", JUDGE_FILE),
     ("tests/upstream/python.toml", "spec 074", JUDGE_FILE),
     ("tests/upstream/python.toml", "spec 078", JUDGE_FILE),
+    ("tests/upstream/regrtest_drive.py", "C1", GUEST_INPUT),
+    ("tests/upstream/regrtest_drive.py", "confirmation's", GUEST_INPUT),
+    ("tests/upstream/regrtest_drive.py", "spec 065", GUEST_INPUT),
 )
 
 
