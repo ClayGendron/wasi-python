@@ -220,6 +220,28 @@ def test_the_ratchet_and_red_lines_survive_the_line_cap() -> None:
     assert any(line.startswith("GREW x") for line in lines)
 
 
+@pytest.mark.parametrize("n_worktrees", [0, 1, 2, 10, 40])
+def test_worktree_notes_take_one_line_and_leave_the_lost_line(n_worktrees) -> None:
+    """However many worktrees sit inside the repository, their notes take at most one line, so
+    the scoreboard still names the pass it lost; the record keeps every one."""
+    names = [f".claude/worktrees/w{i:02}" for i in range(n_worktrees)]
+    notes = [paths.WORKTREE_NOTE.format(w) for w in names]
+    lost = "test_inner.py::test_failing"
+    checks = {A: check("pass"), lost: check("fail", area="rules")}
+    ratchet = scoreboard.Ratchet(lost=[lost])
+    lines = scoreboard.render(run(checks, notes=notes), ratchet, {}, ["lost 1"])
+    assert len(lines) <= scoreboard.MAX_LINES
+    assert f"LOST {lost}" in lines
+    shown = [line for line in lines if line.startswith("note: ")]
+    assert len(shown) == min(1, n_worktrees)
+    if n_worktrees == 1:
+        assert shown == notes
+    elif n_worktrees > 1:
+        assert f"{n_worktrees} worktrees inside the repository" in shown[0]
+        assert names[0] in shown[0]
+        assert (names[-1] in shown[0]) == (n_worktrees <= scoreboard.WORKTREES_NAMED)
+
+
 def test_history_lines_chain_and_name_what_they_wrote() -> None:
     first_acc, first = _accept(run({A: check("pass")}), None)
     text = first + "\n"

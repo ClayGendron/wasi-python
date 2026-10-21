@@ -324,6 +324,26 @@ def no_trap_here(checks: dict) -> list[str]:
     return out
 
 
+WORKTREES_NAMED = 3
+
+
+def folded_notes(notes: list[str]) -> list[str]:
+    """The run's notes for the scoreboard: the worktrees inside the repository fold into one
+    line naming how many and the first few, so a host with many cannot push the LOST lines off;
+    the record keeps every note."""
+    before, after = paths.WORKTREE_NOTE.split("{}")
+    trees = [n[len(before) : len(n) - len(after)] for n in notes if n.startswith(before)]
+    rest = [n for n in notes if not n.startswith(before)]
+    if len(trees) < 2:
+        return notes
+    named = ", ".join(trees[:WORKTREES_NAMED])
+    more = len(trees) - WORKTREES_NAMED
+    if more > 0:
+        named += f" and {more} more (all in latest.json)"
+    line = f"note: {len(trees)} worktrees inside the repository: {named}{after}"
+    return [line, *rest]
+
+
 def render(
     run: dict, ratchet: Ratchet | None, providers: dict[str, str], red: list[str]
 ) -> list[str]:
@@ -347,7 +367,7 @@ def render(
     if run["meta"].get("overrides"):
         names = ", ".join(o.split(" ", 1)[0] for o in run["meta"]["overrides"])
         lines.append(f"JUDGE INPUTS OVERRIDDEN: {names} (see latest.json)")
-    lines += run["meta"].get("notes", [])  # e.g. a worktree inside the repository
+    lines += folded_notes(run["meta"].get("notes", []))
     for area, (n_pass, n_all) in area_counts(checks).items():
         mine = Counter(c["status"] for c in checks.values() if c["area"] == area)
         rest = " ".join(f"{k} {mine[k]}" for k in ("gap", "blocked", "fail") if mine[k])
