@@ -727,7 +727,11 @@ reviewed code and found the design sound. Where each finding went:
   103–109 chain's tip `dbecd2d` (`claude/gallant-ride-9nxxmn`): two stops, nine hunks, each named
   in *Landing notes*; the M2 reword and the L4 rule are two commits after the rebase. **Then
   onto main `265607b`** after wave 09 landed: one stop, one hunk (`scan.py`'s end), named in
-  *Landing notes*.
+  *Landing notes*. **Then onto main `1875d4c`** after wave 10 landed (by a second builder, the
+  first having stopped): three stops, six hunks, and one commit after the rebase for a semantic
+  conflict rule R4 caught (build-shard's zero-patch step counts 28 trees, as the build job's does
+  since statsmodels), each named in *Landing notes*, "The rebase onto main after wave 10". Tip
+  `55af64c` for the code.
 - **Conflicts to expect at that rebase:** `tests/release_shards.toml` and `release.yml`'s judge
   matrices, `outputs:` and the gather's lists (all derived from the plan by rule 2 of spec 063),
   `tests/unit/test_scan.py`'s mutation rows, `CHANGELOG.md`'s unreleased section. 099 touches none
@@ -747,6 +751,17 @@ reviewed code and found the design sound. Where each finding went:
   `test_a_forked_child_is_refused`, the same as the chain's own run 39530569266 on `dbecd2d`, and
   fixed on the chain at `727bd4c`; every other job passed (*Landing notes*). The trace added K10
   and K11, which is code, so a run on the final tip is owed and dispatched (*Landing notes*).
+  **Done twice:** run 39582961881 on `46656d0` (K10 and K11 in, on main `265607b`) passed every
+  job on all three systems, the gather included; and, after the rebase onto wave 10 and its R4
+  fix, run **39596359529 on `55af64c`** passed every job on all three systems, the gather
+  included: 806/898, 0 fail, `meta.set_source` `built`, the set's `SHA256SUMS` `d0d91cef`
+  (wave 10's accepted set). No red line, not even a growth line or G7. The commits after
+  `55af64c` touch only `context/`.
+- **What the build review still confirms** (an addendum by a fresh reviewer, on `55af64c` and
+  run 39596359529): M1 closed by the Linux tree of run 39578321541 (the seven build-record
+  checks passed there, and their `read:` lines are twin for twin with darwin's); criterion 3's
+  answer for every path the traced build touched; K10 and K11, the code added after the review,
+  with their three mutant rows; and the R4 fix of `55af64c`.
 - **The claim list block** (sameness, spec 092):
 
   ```toml
@@ -766,8 +781,11 @@ reviewed code and found the design sound. Where each finding went:
 - **The flag:**
 
   ```
-  --accept-judge "101: a branch dispatch reuses a set the cache holds under its commit's key (release/set_key.py: every pin, every tracked file under scripts/ and recipes/, the constructor gate and its imports, the build's env); a tag or main always builds; a reused set is checked against its SHA256SUMS and MANIFEST, matched by two rebuilds and a third fresh build in the same run, and the gather needs same-bytes; the build shard runs on build-shard's fresh arm64 Linux build on every run, tags included, and sameness counts its unit tests on the darwin side (H1); own-hostile and own-embedding-a split from own-guest and own-embedding, nodes may name functions on their file's systems, G3 names a stale entry, G7 refuses a tag whose set was not built; set-cache.yml's rules; no check retired, no node id changed"
+  --accept-judge "101: a branch dispatch reuses a set the cache holds under its commit's key (release/set_key.py: every pin, every tracked file under scripts/ and recipes/, the constructor gate and its imports, the build's env); a tag or main always builds; a reused set is checked against its SHA256SUMS and MANIFEST, matched by two rebuilds and a third fresh build in the same run, and the gather needs same-bytes; the build shard runs on build-shard's fresh arm64 Linux build on every run, tags included, and sameness counts its unit tests on the darwin side (H1); own-hostile and own-embedding-a split from own-guest and own-embedding, nodes may name functions on their file's systems, G3 names a stale entry, G7 refuses a tag whose set was not built; set-cache.yml's rules; the key's rules from the traced build: no tracked file at a name the build looks up at the checkout's root, and no [tool.uv] table in pyproject.toml; no check retired, no node id changed"
   ```
+
+  After the rebase onto main `1875d4c` (wave 10) the claim block, the unit count and the flag
+  stand as written: the rebase added no row, and the R4 fix is a line of the workflow.
 
 ## The builder's self-check
 
@@ -811,6 +829,13 @@ reviewed code and found the design sound. Where each finding went:
 - [ ] The embedding halves within 20% on macOS: in run 39468404589 only, one of four (below).
 - [x] Decision 11's estimates beside the measured numbers (below).
 - [x] CHANGELOG line under the unreleased section.
+- [x] The rebase onto main `1875d4c` (wave 10): three stops, six hunks, each named in *Landing
+      notes*. The two file-end appends were checked as main's file plus 101's own `-U0` lines.
+      R4's semantic conflict was fixed in `55af64c`, and R4 was seen red first. The branch's net
+      diff holds no trace workflow or filter.
+- [x] CI on the code tip `55af64c`: run 39596359529. Every job passed on all three systems, the
+      gather included (806/898, 0 fail, `set_source` `built`, `SHA256SUMS` `d0d91cef`). The fast
+      tier on it, holding the fast slot: 0 fail (`build/101b/fast-tier.txt`).
 
 ## One line
 
@@ -1120,6 +1145,73 @@ Every line has its twin: 95 lines on each side. The differences are the host's n
 more `build.ninja` command lines on Linux in four meson builds, which the check reads too (it
 reads more there, never fewer). So no loop passes empty on Linux: M1 is closed.
 
+### Run 39582961881 on `46656d0` (EXECUTED)
+
+This is the run owed for K10 and K11, on main `265607b` (wave 09). The first builder dispatched
+it. Its `conclusion` is success. Of its 52 jobs, every one passed but the three publishing jobs,
+which a branch run skips. The gather passed. It was a source run (`reuse=false`): the key was new
+after the M2 reword and 099's recipe. It ran from 10:13 to 10:56, 44 minutes.
+
+### The rebase onto main after wave 10 (EXECUTED)
+
+Wave 10 (045, 110, 111, the lane's oracle-lock check) landed. The first builder was stopped. A
+second builder rebased its tip `f2eaeb7` onto main `1875d4c`, 20 commits, on the local branch
+`spec/101-b`. It pushed that as `spec/101-faster-release-run`, with a lease on `f2eaeb7`.
+
+- **Rebase: stop 1, the shards commit** (it became `99c742e`), one hunk:
+  `tests/release_shards.toml`, the build shard's comment. Kept: main's wording for the two notice
+  checks ("scikit-learn's and statsmodels' notice checks read the pinned sdists"), and 101's
+  `own-hostile` as the recursion check's file. Main's statsmodels node merged cleanly beside it.
+- **Stop 2, the workflow commit** (it became `e6d9fc8`), four hunks:
+  - `release.yml`, the build job's zero-patch step header: 101's `if: steps.compile.outcome ==
+    'success'` and its comment, with main's "twenty-eight trees" comment.
+  - `release.yml`, the same step's `grep`: main's `^28 passed`, and 101's removal of the build
+    job's build-shard and record steps (they live in the `build-shard` job).
+  - `tests/checks/test_rules.py`, the file's end: main's three checks (the API module lists, the
+    table handlers, `test_the_oracles_lock_is_its_projects`), then 101's block.
+  - `tests/harness/scan.py`, the file's end: main's lock section (`lock_errors`), then 101's
+    reuse section. Each is closed by its own `return errors`; the rule line opens the next.
+
+  For these three files, `git diff -U0 origin/main` of the merged file gives exactly the lines of
+  `git diff -U0` of 101's own commit. Nothing of either side was lost.
+- **Stop 3, the M2 reword** (it became `2aca220`), one hunk: `tests/harness/scan.py`. 101's
+  section header loses "(spec 101)", as the reword does, now after main's lock section.
+- **Merged cleanly:** the other 17 commits; `CHANGELOG.md` (101's entry stays under the one
+  unreleased section); `tests/unit/test_scan.py`; the trace commits, which add the trace workflow
+  and then remove it again.
+- **A semantic conflict, fixed after the rebase** (`55af64c`). Main's 045 raised the build job's
+  zero-patch count to 28 trees (statsmodels' sdist). `build-shard`'s copy of the step still said
+  27, and git saw no conflict there. Rule R4 holds the two steps equal, text for text. It failed
+  on the rebased tip (`build/101b/r4-before.txt`: "R4: build-shard's zero-patch step is not the
+  build job's, text for text") and passes after the fix (`r4-after.txt`). Without the fix,
+  `build-shard` would have failed on every run.
+- **After the rebase:** ruff check and format are green on `src`, `tests` and `release`.
+  `tests/checks/test_rules.py` and the five unit files 101 touches: 556 passed, 2 skipped
+  (`build/101b/probes.txt`). The fast tier with `-n 3`, holding the fast slot, after
+  `build/lane.lock` was gone: 2171 passed, 0 fail, the rules 69/71 (2 blocked). Its one red line
+  is the 554 rows blocked because a worktree has no artifact set (`build/101b/fast-tier.txt`).
+  The branch's net diff against main holds no `trace-101.yml` and no `.github/trace-101/`.
+
+### Run 39596359529 on `55af64c` (EXECUTED)
+
+Dispatched on the rebased tip. Read back with `gh run view 39596359529 --json jobs` and `gh run
+download 39596359529 -n release-record-1`.
+
+- **Every job passed** on all three systems: 52 jobs, the three publishing jobs skipped. The
+  gather passed: 806/898 pass, 85 gap, 7 blocked, **0 fail**; three systems on `python.wasm`
+  `d4192605…`.
+- **The set:** `meta.set_source` `built`; its `SHA256SUMS` `d0d91cef…`, which is wave 10's
+  accepted set. So the branch changes no byte of the set (criterion 2).
+- **No red line,** not even a growth line or G7.
+- **A source run:** `reuse=false`, the key `wasi-python-set-v1-9b0a43fe…`, new with 045's
+  recipes. `build-shard` took 23.7 minutes and passed, with R4's fix in. `same-bytes` and
+  `save-set` passed, and the entry was saved.
+- **The wall clock:** 59.2 minutes (12:01:39 to 13:00:51), over Decision 11's 50 for a source
+  run. The macOS build took 34 minutes. Then the macOS shards waited for runners while wave 10's
+  run 39595555875 was live beside it: `own-hostile` started 10.5 minutes after the build ended,
+  and `own-guest` ended last, at 13:00:29. The cause is the queue, in criterion 6's terms, not
+  the judge.
+
 ### The Linux `own-guest` timeout (run 39475482749)
 
 The leg ran "The shard" from 18:33:43 until the 30-minute limit cancelled the job; GitHub kept no
@@ -1141,8 +1233,8 @@ the judge. Not confirmed; the follow-up is the lane's to number.
 
 ### Not done
 
-- The Windows red line of run 39537732021: the chain's, fixed at `727bd4c`; it clears when 101
-  is rebased onto the chain's fixed tip.
+- The Windows red line of run 39537732021: the chain's, fixed at `727bd4c`. Cleared: runs
+  39582961881 and 39596359529 pass every Windows job.
 - Criterion 7 (the seed): after landing.
 - Criterion 8's sameness line: the lane's, at 101's wave.
 - The fast tier on the rebased tip: run, 0 fail (L1 closed).
