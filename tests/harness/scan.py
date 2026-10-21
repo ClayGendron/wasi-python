@@ -2135,6 +2135,73 @@ def long_function_hits(files: Iterable[Path], root: Path, allowed: dict[str, int
 
 
 # ---------------------------------------------------------------------------------------------
+# One owner for a table's state. A handler module receives the table as a parameter of one
+# name and changes it only by calling the table's methods, so every invariant of the state (a
+# count that is the sum of the rows, a set that holds only the engine's numbers) is kept in the
+# table's own file. A write is any of five forms rooted at that name: a plain, annotated or
+# augmented assignment, a subscript store, a `del`, or a mutator method of one of its fields.
+# A read is not a write, and neither is a call of the table's own method.
+
+TABLE_MUTATORS = frozenset(
+    {"add", "discard", "pop", "clear", "append", "update", "remove", "extend", "setdefault"}
+)
+
+
+def _rooted_field(node: ast.expr, root: str) -> str | None:
+    """The table's field a target chain stores into (`files.held`, `files.table[n]`,
+    `files.table[n].held`), or None when the chain is not rooted at the name `root`."""
+    while isinstance(node, (ast.Attribute, ast.Subscript)):
+        inner = node.value
+        if isinstance(node, ast.Attribute) and isinstance(inner, ast.Name) and inner.id == root:
+            return node.attr
+        node = inner
+    return None
+
+
+def table_write_hits(files: Iterable[Path], root: Path, name: str = "files") -> list[str]:
+    """Every write to the table a handler module makes by hand, as `file:line: <name>.<field>
+    <form>`: an assignment, annotated or augmented assignment or `del` whose target chain is
+    rooted at the name `name`, or a call of `<name>.<field>.<mutator>(…)`."""
+    hits: list[tuple[str, int, str]] = []
+    for p in sorted(files):
+        tree = _parsed(p)
+        if tree is None:
+            continue
+        for node in ast.walk(tree):
+            found: list[tuple[str, str]] = []
+            if isinstance(node, ast.Assign):
+                targets = [e for t in node.targets for e in _unpacked(t)]
+                found = [(f, "assigned") for t in targets if (f := _rooted_field(t, name))]
+            elif isinstance(node, ast.AnnAssign) and (f := _rooted_field(node.target, name)):
+                found = [(f, "assigned")]
+            elif isinstance(node, ast.AugAssign) and (f := _rooted_field(node.target, name)):
+                found = [(f, "augmented")]
+            elif isinstance(node, ast.Delete):
+                found = [(f, "deleted") for t in node.targets if (f := _rooted_field(t, name))]
+            elif (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr in TABLE_MUTATORS
+                and isinstance(node.func.value, ast.Attribute)
+                and isinstance(node.func.value.value, ast.Name)
+                and node.func.value.value.id == name
+            ):
+                found = [(node.func.value.attr, f"mutated by {node.func.attr}")]
+            for field_name, form in found:
+                hits.append((rel(p, root), node.lineno, f"{name}.{field_name} {form}"))
+    return [f"{path}:{line}: {what}" for path, line, what in sorted(hits)]
+
+
+def _unpacked(target: ast.expr) -> list[ast.expr]:
+    """A target and, for a tuple or list target, each of its elements, at any depth."""
+    if isinstance(target, (ast.Tuple, ast.List)):
+        return [e for elt in target.elts for e in _unpacked(elt)]
+    if isinstance(target, ast.Starred):
+        return _unpacked(target.value)
+    return [target]
+
+
+# ---------------------------------------------------------------------------------------------
 # The process's state has one owner: no lock and no mutable container is bound at module or
 # class level in a runner module. A lock made at module level is inherited across a fork, held
 # by a thread the child does not have; a cache or registry at module level is one more list the

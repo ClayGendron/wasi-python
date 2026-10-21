@@ -156,17 +156,17 @@ def test_specifications_have_no_open_question() -> None:
     assert not hits, scan.report(hits)
 
 
-# No module under src/ over 1,500 lines. The one over it today is not yet split; its entry
-# equals its count and can only shrink (a stale entry is a finding too), and an entry is
+# No module under src/ over 1,500 lines. A module over it that is not yet split has an entry
+# equal to its count, which can only shrink (a stale entry is a finding too), and an entry is
 # deleted the day its file is at or under the ceiling.
 LINE_CEILING = 1500
-ALLOWED = {"mounts.py": 2206}
+ALLOWED: dict[str, int] = {}
 
 
 def test_no_module_under_src_is_over_the_line_ceiling() -> None:
     """A module a person can hold in their head: every `.py` under src/ is at most 1,500
     physical lines (code, comments, docstrings and blanks alike, as `wc -l` counts a file that
-    ends in a newline), but the files ALLOWED holds at exactly today's count."""
+    ends in a newline), but a file ALLOWED holds, at exactly today's count."""
     files = [p for p in scan.files_under(paths.REPO, "src") if p.suffix == ".py"]
     counts = {p: len(p.read_text(encoding="utf-8").splitlines()) for p in files}
     findings = []
@@ -734,7 +734,8 @@ def test_the_rename_and_readdir_guard_match_the_floor() -> None:
         listed = {v["patched_versions"] for v in record["vulnerabilities"]}
         assert listed == {", ".join(patched)}, (advisory, listed)
     requirement = _wasmtime_requirement()
-    source = (paths.REPO / "src" / "wasi_python" / "mounts.py").read_text()
+    package = paths.REPO / "src" / "wasi_python"
+    source = "\n".join((package / name).read_text() for name in FILESYSTEM_IMPORTS)
     this = Path(__file__).resolve()
     tests = [p for p in scan.files_under(paths.REPO, "tests") if p.suffix == ".py" and p != this]
     errors = []
@@ -742,7 +743,7 @@ def test_the_rename_and_readdir_guard_match_the_floor() -> None:
         where = f"{advisory}: wasmtime{requirement} admits"
         if not _guard_may_go(requirement, patched):
             if advisory not in source:
-                errors.append(f"{where} a vulnerable wasmtime, and mounts.py names no guard")
+                errors.append(f"{where} a vulnerable wasmtime, and the filesystem names no guard")
         else:
             left = [str(p.relative_to(paths.REPO)) for p in tests if advisory in p.read_text()]
             if advisory in source or left:
@@ -829,48 +830,81 @@ def test_release_judges_in_shards() -> None:
     assert not errors, scan.report(errors)
 
 
-# The wasi-libc emulation layer, `src/wasi_python/mounts.py`, reads alone: it asks its host nine
-# questions through a protocol it declares (`_CallContext`), and imports no sibling module but
-# the engine seam, which its forward uses for the fuel-neutral call. The runner imports from
-# `mounts`; never the other way, so the dependency graph stays acyclic and the unit checks drive
+# The wasi-libc emulation layer reads alone: five modules, which ask their host nine questions
+# through a protocol `mounts.py` declares (`_CallContext`) and import nothing of the runner but
+# the engine seam, which the table's forward uses for the fuel-neutral call. Among themselves
+# they form a chain with `mounts.py`, the vocabulary, at the bottom: the bytes that cross the
+# WASI boundary, then the descriptor and path calls, then the table that dispatches to them.
+# The two handler modules name the table for a type checker only. The runner imports from the
+# group, never the other way, so the dependency graph stays acyclic and the unit checks drive
 # the table with a fake context instead of patching another module's names.
-MOUNTS = "mounts.py"
-MOUNTS_MAY_IMPORT = (scan.ENGINE_SEAM.rsplit("/", 1)[-1].removesuffix(".py"),)
+ENGINE_SEAM_MODULE = scan.ENGINE_SEAM.rsplit("/", 1)[-1].removesuffix(".py")
+FILESYSTEM_IMPORTS = {  # module: (at runtime, under TYPE_CHECKING only)
+    "mounts.py": ((), ()),
+    "_fs_memory.py": (("mounts",), ()),
+    "_fs_descriptors.py": (("mounts", "_fs_memory"), ("_fs_table",)),
+    "_fs_paths.py": (("mounts", "_fs_memory"), ("_fs_table",)),
+    "_fs_table.py": (
+        ("mounts", "_fs_memory", "_fs_descriptors", "_fs_paths", ENGINE_SEAM_MODULE),
+        (),
+    ),
+}
 
 
-def _sibling_imports(path: Path, allowed: tuple[str, ...]) -> list[str]:
-    """Every import of a package module in `path`, at any depth, whose module is not allowed:
-    a relative import (`from . import x`, `from .x import y`) or an absolute one of this
-    package, `TYPE_CHECKING` blocks included."""
+def _sibling_imports(path: Path) -> list[tuple[int, str, bool]]:
+    """Every import of a package module in `path`, at any depth, as (line, module, typing_only):
+    a relative import (`from . import x`, `from .x import y`) or an absolute one of this package;
+    typing_only says it sits under `if TYPE_CHECKING:`."""
     import ast
 
     package = path.parent.name
-    hits = []
-    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
-        named: list[str] = []
+
+    def named(node: ast.AST) -> list[str]:
         if isinstance(node, ast.ImportFrom):
             if node.level:
-                named = [node.module.split(".")[0]] if node.module else [a.name for a in node.names]
-            elif node.module and node.module.split(".")[0] == package:
-                parts = node.module.split(".")
-                named = parts[1:2] or [a.name for a in node.names]
+                return [node.module.split(".")[0]] if node.module else [a.name for a in node.names]
+            if node.module and node.module.split(".")[0] == package:
+                return node.module.split(".")[1:2] or [a.name for a in node.names]
         elif isinstance(node, ast.Import):
-            named = [
+            return [
                 a.name.split(".")[1]
                 for a in node.names
                 if a.name.split(".")[0] == package and "." in a.name
             ]
-        for module in named:
-            if module not in allowed:
-                hits.append(f"{path.name}:{node.lineno}: imports {module}")
-    return hits
+        return []
+
+    found: list[tuple[int, str, bool]] = []
+    todo: list[tuple[ast.AST, bool]] = [(ast.parse(path.read_text(encoding="utf-8")), False)]
+    while todo:
+        node, typing_only = todo.pop()
+        found += [(getattr(node, "lineno", 0), module, typing_only) for module in named(node)]
+        if isinstance(node, ast.If) and isinstance(node.test, ast.Name):
+            typing_only = typing_only or node.test.id == "TYPE_CHECKING"
+        todo += [(child, typing_only) for child in ast.iter_child_nodes(node)]
+    return sorted(found)
 
 
-def test_mounts_imports_only_the_engine_seam() -> None:
-    """`mounts.py` imports no sibling module, at module level, inside a function or under
-    `TYPE_CHECKING`, except the engine seam; what it needs of the runner it asks of the
-    `_CallContext` it is given."""
-    hits = _sibling_imports(paths.REPO / "src" / "wasi_python" / MOUNTS, MOUNTS_MAY_IMPORT)
+def test_the_filesystem_imports_only_itself_and_the_engine_seam() -> None:
+    """Each module of the filesystem imports, at module level, inside a function or under
+    `TYPE_CHECKING`, only what its row of FILESYSTEM_IMPORTS names: at runtime the first column,
+    for a type checker the first or the second; and every module the table names is one file
+    under the package. What the group needs of the runner it asks of the `_CallContext` it is
+    given."""
+    package = paths.REPO / "src" / "wasi_python"
+    hits = []
+    for name, (runtime, typing_only) in FILESYSTEM_IMPORTS.items():
+        path = package / name
+        if not path.is_file():
+            hits.append(f"FILESYSTEM_IMPORTS names {name}, which is not one file under the package")
+            continue
+        for line, module, typing in _sibling_imports(path):
+            if module in runtime or (typing and module in typing_only):
+                continue
+            hits.append(f"{name}:{line}: imports {module}{' for a type checker' if typing else ''}")
+    named = {m for runtime, typing in FILESYSTEM_IMPORTS.values() for m in runtime + typing}
+    for module in sorted(named - {ENGINE_SEAM_MODULE}):
+        if f"{module}.py" not in FILESYSTEM_IMPORTS:
+            hits.append(f"FILESYSTEM_IMPORTS lets the group import {module}, which is not in it")
     assert not hits, scan.report(hits)
 
 
@@ -1059,4 +1093,37 @@ def test_no_function_is_over_eighty_lines() -> None:
     scan.FUNCTION_CEILING lines but for LONG_FUNCTIONS, which only shrinks."""
     files = [p for p in scan.files_under(paths.REPO, "src") if p.suffix == ".py"]
     hits = scan.long_function_hits(files, paths.REPO, LONG_FUNCTIONS)
+    assert not hits, scan.report(hits)
+
+
+def test_api_lists_every_module_of_the_package() -> None:
+    """Every `.py` under src/wasi_python is in the API harness's lists, as a module that defines
+    public names or as an internal one, and every name those lists hold is one file there: a
+    module the lists do not know is one whose private names could reach a public docstring or
+    the README unseen."""
+    from harness import api
+
+    package = paths.REPO / "src" / "wasi_python"
+    files = {p.name for p in package.glob("*.py")}
+    listed = set(api.DEFINING) | set(api.INTERNAL_FILES)
+    hits = [f"src/wasi_python/{name}: in no list of api.py" for name in sorted(files - listed)]
+    hits += [f"api.py lists {name}, not one file under the package" for name in listed - files]
+    assert not hits, scan.report(hits)
+
+
+# The table owns its state. The descriptor and path calls receive the table as `files` and
+# change it only through its methods, so each invariant of the state (`staged` is the sum of the
+# rows' `held`, `opened` counts the table and the owed rows, `held` holds only wasmtime's
+# numbers) is kept in one file. No allowance: there is no list to grow.
+TABLE_HANDLERS = ("_fs_descriptors.py", "_fs_paths.py")
+
+
+def test_the_handlers_change_the_table_only_through_its_methods() -> None:
+    """No handler module writes a field of the table by hand, in any of the five forms: a plain,
+    annotated or augmented assignment, a subscript store or a `del` whose target is rooted at
+    `files`, or a mutator call `files.<field>.<add, discard, pop, …>(…)`; a read is not a write."""
+    package = paths.REPO / "src" / "wasi_python"
+    handlers = [package / name for name in TABLE_HANDLERS]
+    hits = [f"{p.name}: not found" for p in handlers if not p.is_file()]
+    hits += scan.table_write_hits([p for p in handlers if p.is_file()], paths.REPO)
     assert not hits, scan.report(hits)

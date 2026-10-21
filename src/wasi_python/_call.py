@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, Protocol
 from . import _artifacts, _engines, _home, _places, _platform, _private_dirs, _zip
 from ._artifacts import GUEST_PACKAGE, Artifacts, ArtifactsMissing
 from ._engines import _epoch_ticker
+from ._fs_memory import STAGING_CEILING
 from ._home import _Home, _Stopped
 from ._limits import CANCEL_TICKS, NO_DEADLINE, TICK_S
 from ._places import ZIP_GUEST, Grant, _Preopen
@@ -28,15 +29,15 @@ from ._platform import _TRAP_HANDLERS_REPLACED, _Walked
 from ._private_dirs import _Private
 from ._process import process
 from ._zip import MPL_DATA_GUEST
-from .mounts import STAGING_CEILING, FileRecord, Mount
+from .mounts import FileRecord, Mount
 
 if TYPE_CHECKING:
     import asyncio
 
     import wasmtime
 
+    from ._fs_table import _Files
     from ._tool_host import _ToolHost
-    from .mounts import _Files
     from .tools import Tool, ToolCall, ToolRecord
 
 ARGV0 = "/usr/local/bin/python.wasm"
@@ -422,7 +423,7 @@ def _instance(
         wasi.stdin_file = str(stdin_path)
         store.set_wasi(wasi)
         linker = _linker(wt, engine)  # held for the whole call: clearing the cache cannot free it
-        from .mounts import _Files
+        from ._fs_table import _Files
 
         staging = STAGING_CEILING if memory_bytes is None else memory_bytes
         others = [p.guest for p in preopens]
@@ -893,10 +894,10 @@ def _runner_linker(wt: Any, engine: wasmtime.Engine) -> Any:
 
 def _mount_linker(wt: Any, engine: wasmtime.Engine) -> Any:
     """The engine's second linker, used only by calls with mounts:
-    today's, plus a shadow over each of the 29 calls in `mounts.SHADOWED`, each in the shared
+    today's, plus a shadow over each of the 29 calls in `_fs_memory.SHADOWED`, each in the shared
     form, answering EBADF to a caller that is not its call's store and EIO once its call has
     stopped. Defined once per engine, like the first."""
-    from .mounts import SIGNATURES
+    from ._fs_memory import SIGNATURES
 
     p = process()
     with p.cache_lock:
@@ -914,12 +915,12 @@ def _mount_linker(wt: Any, engine: wasmtime.Engine) -> Any:
 
 def _guard_linker(wt: Any, engine: wasmtime.Engine) -> Any:
     """The engine's third linker, used by every call without mounts:
-    today's, plus a shadow over the two calls in `mounts.GUARDED` (fd_readdir and path_rename)
-    and the three in `mounts.COUNTED` (path_open, fd_close and fd_renumber, which the table
+    today's, plus a shadow over the two calls in `_fs_memory.GUARDED` (fd_readdir and path_rename)
+    and the three in `_fs_memory.COUNTED` (path_open, fd_close and fd_renumber, which the table
     forwards and counts against the call's cap on open files), in the shared form, as
     the mount linker's. Every other call stays wasmtime's own. Defined once per engine, like the
     others."""
-    from .mounts import COUNTED, GUARDED, SIGNATURES
+    from ._fs_memory import COUNTED, GUARDED, SIGNATURES
 
     p = process()
     with p.cache_lock:
@@ -938,7 +939,7 @@ def _guard_linker(wt: Any, engine: wasmtime.Engine) -> Any:
 def _stat_trampoline_module(wt: Any, engine: wasmtime.Engine) -> Any:
     """The rename rule's stat trampoline, with its own one-page memory, compiled once per engine
     and instantiated per call."""
-    from .mounts import stat_trampoline_wat
+    from ._fs_memory import stat_trampoline_wat
 
     p = process()
     with p.cache_lock:
@@ -950,7 +951,7 @@ def _stat_trampoline_module(wt: Any, engine: wasmtime.Engine) -> Any:
 
 def _trampoline_module(wt: Any, engine: wasmtime.Engine) -> Any:
     """The forwarders, compiled once per engine and instantiated per call."""
-    from .mounts import trampoline_wat
+    from ._fs_memory import trampoline_wat
 
     p = process()
     with p.cache_lock:

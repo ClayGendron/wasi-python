@@ -33,21 +33,21 @@ from ._call import (
     _Waits,
 )
 from ._engines import _epoch_ticker
+from ._fs_memory import STAGING_CEILING
 from ._home import _Home
 from ._limits import CANCEL_TICKS, NO_DEADLINE, TICK_S
 from ._places import _Preopen
 from ._platform import _TRAP_HANDLERS_REPLACED, _Walked
 from ._private_dirs import _Private
 from ._process import process
-from .mounts import STAGING_CEILING
 
 if TYPE_CHECKING:
     import asyncio
 
     import wasmtime
 
+    from ._fs_table import _Files
     from ._tool_host import _Bounded, _ToolHost, _ToolLoop
-    from .mounts import _Files
 
 # ---------------------------------------------------------------------------------------------
 # Sessions: one instance of the guest kept across turns, with an idle bound and a
@@ -1039,7 +1039,7 @@ def _open_session(
         wasi.stdin_file = str(stdin_path)
         store.set_wasi(wasi)
         linker = _call._linker(wt, engine)
-        from .mounts import _Files
+        from ._fs_table import _Files
 
         staging = STAGING_CEILING if c.memory_bytes is None else c.memory_bytes
         others = [p.guest for p in preopens]

@@ -651,7 +651,7 @@ class Mounted(_OnStack):
         import wasmtime
 
         from wasi_python import Mount, _call, _home
-        from wasi_python.mounts import _Files
+        from wasi_python._fs_table import _Files
 
         config = wasmtime.Config()
         config.epoch_interruption = True
@@ -710,7 +710,7 @@ class Guarded(_OnStack):
         import wasmtime
 
         from wasi_python import _call, _home
-        from wasi_python.mounts import _Files
+        from wasi_python._fs_table import _Files
 
         config = wasmtime.Config()
         config.epoch_interruption = True

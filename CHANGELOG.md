@@ -75,6 +75,14 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   each under the 1,500-line ceiling, importing in one written direction; `tools.py` leaves the
   size allowance and its two functions leave the long-function allowance, split at a seam each.
   No public name, message, artifact byte or fuel count changes.
+- **The runner's filesystem reads along the WASI interface's seams** (spec 111; the design
+  review's section 5 and R3, R7). `mounts.py` keeps the public types, their two private rows
+  and the call-context protocol; the preview1 bytes (`_fs_memory.py`), the call's table and its
+  provider bridge (`_fs_table.py`) and the descriptor and path calls (`_fs_descriptors.py`,
+  `_fs_paths.py`, free functions over the table, dispatched by a table equal to the shadowed
+  signatures) are one concern each, every module under the size ceiling and every function under
+  80 lines; the ceiling's allowance loses `mounts.py` and the filesystem's import rule holds all
+  five modules in a chain. No public name, artifact byte or guest-visible errno changes.
 - **A singular matrix raises `LinAlgError`** (spec 099; spec 066's survey). wasm has no
   floating-point status flags, and numpy reports a failed LAPACK call by one, so
   `numpy.linalg.inv`, `solve`, `tensorinv`, `tensorsolve` and `matrix_power(a, -1)` of a singular
