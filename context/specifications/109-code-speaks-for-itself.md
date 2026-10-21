@@ -264,6 +264,50 @@ the worktree (git-ignored): `renumber-plan.txt`, `seen-failing-B.log`, `hits-bef
 `measure.py`, `same-code.py`, `literals.py`, `with-sigint.py`, `fast-B.sh`, and the first build's
 records (`seen-failing.txt`, `hits-before.txt`, `hits-after.txt`, `regex-job-*.json`).
 
+- **Rebase onto main** (the coordinator, 2026-10-21): rebased onto main's `dda6075` with the
+  chain, by regeneration. The coordinator replayed this specification's commits onto 108's new tip
+  `ab84933`: one append conflict, `tests/unit/test_scan.py` (main's spec 099 block, the
+  `npy_fenv` rows, kept first, then the citation rows); the cleanup commit `26dde7b` could not
+  replay (`tests/harness/upstream.py` and `tests/unit/test_upstream.py` changed on main) and was
+  skipped; the allowance commit replayed. The hashes of the bullet below, rebased: `ef0d06b` →
+  `a024dcc`, `5af9484` → `dd55973`, `f0b7083` → `4eb1185`, `aa483e2` → `6c50390`, `b42e653` →
+  `617d49c`, `1cf9762` → `13c9dc3`, `8fe2a8a` → `f2edb1c`, `f17a67a` → `0c812c0`, `bacf7a9` →
+  `037bd32`, `b14b68c` → `3a4a75f`; `26dde7b` → regenerated as `9793964`, and the allowance
+  reconciled in `9b5a3f5`, both on `3a4a75f`. The cleanup, run again on main's tree (EXECUTED,
+  the outputs under `build/integration/` in the integration worktree, the scripts and the
+  batches copied to `build/integration/109/`): before, on `3a4a75f`, **2,372** citations
+  (`tests/` 2,029, `scripts/` 285, `release/` 6, the workflow 52; specification 1,695, finding
+  328, review 256, named finding 24, context path 23, constitution 22, memo 17, question 7),
+  main's nine commits of 2026-10-20 (specs 042, 066 and 099) having added 133: new files
+  `tests/harness/packages.py` (22), `tests/upstream/package_drive.py` (6, a guest driver),
+  `tests/unit/test_packages.py` (4), the golden jobs `pdf_reports.py` (1) and
+  `statistical_plots.py` (3), six upstream allowance files (`contourpy.toml` 9, `pillow.toml` 2,
+  `kiwisolver`, `lxml`, `matplotlib` and `regex.toml` 1 each), and more lines in 25 files
+  (`scripts/assemble_artifacts.py` +10, `tests/harness/upstream.py` +9,
+  `tests/checks/test_v1_3_default_profile.py` +8, `tests/upstream/packages.toml` +7, …).
+  `clean.py` changed 1,293 lines; `hand.py` with the seventeen recorded batches and an
+  eighteenth, `18_main_dda6075.py` (22 edits for main's sentences: 11 under rule (a), 11 under
+  rule (b), each with its document), applied 489, missed 0, skipped 10; batch 10's entry for
+  `test_upstream.py`'s `# python: spec 065` was removed, main having reworded the line, and
+  batch 18 rewrites the new line. The guest rule now also keeps `tests/upstream/package_drive.py`
+  (it runs inside the guest only). `same-code.py 3a4a75f` prints nothing; the pass run again from
+  `3a4a75f` in a scratch worktree gives `9793964`'s files byte for byte. After: **114**, all in
+  the allowance (the `src/` check's shapes 14; the judge's allowance files 54:
+  `known_gaps.toml` 5, the upstream suites' ten files 49; the guest's sources 46: 24 golden
+  jobs 34, the three drivers 12). The allowance is 92 rows: `JUDGE_FILE` 41 (eleven new, for
+  the six compiled packages' suites, `packages.toml`'s and the known gaps' new lines),
+  `GUEST_INPUT` 41 (nine new: the two golden jobs, the package driver), `SHAPE_SHOWN` 10; one
+  row removed, `packages.toml`'s "spec 043", a phrase main's file no longer carries; every row
+  used. `tests/checks/test_rules.py`'s debt-sheet path reads
+  `34-wasmtime-py-public-api-for-the-runner` (main took 30, 32 and 33; 31 is spec 100's). On
+  `9b5a3f5`: `test_rules.py` alone 54 passed, 3 skipped, 1 failed
+  (`test_version_states_the_platform_semantics`, the older set's); `test_scan.py` 239 passed;
+  `ruff check src tests` and `ruff format --check src tests` clean; `mypy --strict` no issues;
+  the workflow parsed with pyyaml at `dda6075` and on the tip differs in the three `run:`
+  scalars of the build review's finding 1 and, with the shell comments inside them removed, in
+  nothing (`build/integration/109-yaml-compare.txt`). The fast tier on the final tip and
+  sameness against main's own baseline record are run after this commit, so that the tip is
+  what ran; their outputs are `build/integration/fast.log`, `built.json`, `sameness.txt`.
 - **Commits, in the order built** (`git log --oneline d92307f..`): `ef0d06b` (this specification
   and the AGENTS.md parenthesis), `5af9484` (the check, its scanner, its first unit rows, seen
   failing), `f0b7083` (the check widened: split citations, bare numbers, named reviews, numbered
