@@ -1,0 +1,19 @@
+== scikit-learn-smoke
+     1 failed OSError: [Errno 58] Not supported
+     1 failed OSError: mmap is unavailable on wasm32-wasi
+== scipy-smoke-a
+     1 failed RuntimeError: can't start new thread
+== scipy-smoke-b
+   146 error AttributeError: module 'threading' has no attribute 'get_native_id'
+    12 failed AttributeError: module 'os' has no attribute 'pipe'. Did you mean '.pipe2' instead of '.pipe'?
+     7 failed RuntimeError: can't start new thread
+     3 failed AssertionError:
+     3 failed RuntimeError: thread constructor failed: Not supported
+     2 failed AttributeError: module 'threading' has no attribute 'get_native_id'
+     1 failed Failed: DID NOT RAISE <class 'ValueError'>
+     1 error pytest.PytestUnraisableExceptionWarning: Exception ignored in: 'scipy.stats._qmc_cy.threaded_loops'
+== statsmodels-smoke
+    40 error FileNotFoundError: /usr/local/lib/python315.zip/statsmodels/datasets/ccard/ccard.csv
+     2 failed FileNotFoundError: /usr/local/lib/python315.zip/statsmodels/datasets/cpunish/cpunish.csv
+     1 failed FileNotFoundError: /usr/local/lib/python315.zip/statsmodels/datasets/ccard/ccard.csv
+     1 failed FileNotFoundError: /usr/local/lib/python315.zip/statsmodels/datasets/fair/fair.csv

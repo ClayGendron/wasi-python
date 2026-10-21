@@ -18,7 +18,11 @@
   (`../research/2026-10-21-scipy-sklearn-statsmodels-own-tests-under-the-runtime.md`, EXECUTED:
   scipy and scikit-learn on wave 09's set `142bdd38`, statsmodels on 045's set `14adfa5f`); its
   dated delta is the section "Delta from the survey", for a context-only delta review before any
-  build. The drafting probes below were calibration, not the survey.
+  build. The drafting probes below were calibration, not the survey. **Delta reviewed** the same
+  day (the review's *Delta review*: three Mediums, two Lows, rule (8)); **answered 2026-10-21** by
+  the builder who took over from the drafter (the review's *Disposition of the delta review*; the
+  smoke groups re-measured on the main tree's set `d0d91cef`); awaiting the reviewer's
+  confirmation, and 102's builder's answer to *For 102*.
 - **Owner:** Clay Gendron
 - **Kind:** the judge and the release workflow. No line of `src/`, `scripts/`, `recipes/` or
   `downloads/SHA256SUMS` changes: scipy's and scikit-learn's sdists are main's pins (037, 044),
@@ -31,8 +35,9 @@
     - the survey memo, `context/research/2026-10-2x-scipy-sklearn-statsmodels-own-tests-under-the-runtime.md`
       (Decision 1).
   - **Changed:**
-    - `tests/harness/packages.py`: three keys, `package_inits`, `derived` and `env` (Decisions 4, 5,
-      7), their rules, and the stage-time guest run of Decision 5;
+    - `tests/harness/packages.py`: four keys, `package_inits`, `derived` and `env` (Decisions 4, 5,
+      7) and the group key `clock_step_ns` with its `clock_reason` (Decision 10), their rules, and
+      the stage-time guest run of Decision 5;
     - `tests/harness/upstream.py`: `PACKAGES` (or `PACKAGE_SUITES`, as main names it then) gains the
       three names;
     - `tests/checks/test_v1_3_upstream_suites.py`: the needs per family;
@@ -59,7 +64,11 @@
     `release_marker`, `[[release_select]]` and release shards. 102's Decision 15 says 095 "applies
     Decision 2 to scipy, scikit-learn and statsmodels and packs its release groups into release
     shards". 095 is built after 102 lands, or stacked on 102's reviewed tip (§4.14) if 102 is
-    reviewed and waiting for a wave. 095 adds no tier mechanism of its own.
+    reviewed and waiting for a wave. **095 needs one more kind in 102's list, the smoke kind**,
+    which the owner's rule of 2026-10-21 makes necessary: whole paths in the release tier that no
+    normal group holds, which 102's paths rule refuses today (the delta review, D-M1). The exact
+    change is the section *For 102: the smoke kind* below, a request the lane routes to 102's
+    builder; 095 does not edit 102's branch. 095 adds no other tier mechanism.
   - **045** (statsmodels; built natively on `spec/045-statsmodels` at `27205a5`, set `f2a3e87d`,
     not yet judged or build-reviewed): statsmodels' family needs 045's set and pin. The roadmap
     orders 045 before 095 (wave 09, then 045, 102, 095, 067). So:
@@ -377,25 +386,97 @@ where 102 runs it.
      folders or files that prove the package imports and its core compiled paths work, so a
      landing that breaks a package is still caught at every landing and on every branch run.
      Nothing leaves the full suite: every test runs in exactly one tier.
-   - **The smoke groups** (chosen from the survey; each measured, EXECUTED 2026-10-21 on the
-     survey's sets, each well under 100 G, 277.6 G in all):
+   - **The smoke selection follows a stated rule** (the delta review, D-M2; it replaces the
+     survey's hand-picked groups). The smoke groups are what confirms an edit to a package's build
+     at every landing, so they must touch what such an edit can break:
+     1. **Every compiled family of the package.** A family is a subpackage holding compiled
+        modules, from the build's own list: the product's `sys.builtin_module_names` (EXECUTED
+        2026-10-21 on set `d0d91cef`: 95 scipy modules in 31 families, 69 scikit-learn modules in
+        19, 26 statsmodels modules in 11). Each family is touched by a **smoke test file from its
+        own tests folder**, the cheapest that calls into it, unless a **named golden-job line**
+        (`tests/jobs/`, which runs at every landing too) touches it and the cheapest file costs
+        more than about 15 G net: then the golden line stands in for it (so `cKDTree`, `cdist`,
+        `csgraph`, ARPACK's `eigsh`, `quad`, `least_squares`, `qr_update`, `RBFInterpolator`,
+        `lfilter`, `KMeans`, RandomForest, HGB's binning, `_loss`, the distance metrics; each
+        line named in the table).
+     2. **Always by a smoke file, never by a golden line alone:** the families the review names
+        (scipy.special; `sparsetools`; qhull; HiGHS; scikit-learn's trees; statsmodels' OLS) and
+        **every carried patch's path**: scipy's four (uarray's callbacks, `sqrtm`'s error, Matrix
+        Market without threads, Sobol without a temporary file), OpenBLAS's void C LAPACK (any
+        LAPACK call through scipy.linalg), qhull's format strings, scikit-learn's html repr from
+        the zip, and statsmodels' datasets from the zip.
+     3. **Each package's most-used public entry points**, by a smoke file or a golden line:
+        scipy's `linalg.solve`/`cholesky`/`lu`, `optimize.minimize`'s L-BFGS-B, SLSQP and TNC,
+        `root_scalar`, `linear_sum_assignment`, `milp`, `fft.fft`, `integrate.odeint`/`ode`,
+        `solve_ivp` (golden), `interpolate.splrep`/`griddata`, `CubicSpline` (golden),
+        `spatial.Delaunay`/`ConvexHull`, `cKDTree` (golden), `cdist` (golden), `stats.qmc`,
+        `stats` distributions (golden); scikit-learn's `DecisionTree*`, `SVC`/`LinearSVC`,
+        `LinearRegression`, `DBSCAN`, `HDBSCAN`, `KMeans`, `PCA`, `RandomForest*`,
+        `HistGradientBoosting*`, `LogisticRegression`, `KNeighbors*` (golden, `machine_learning.py`);
+        statsmodels' `OLS`/`WLS`/`GLS`, `smf.ols`, `GLM` families, `ARIMA`, `lowess`, `STL`,
+        `summary()` (and `Logit`, `GLM` Poisson, `SimpleExpSmoothing` in 045's golden
+        `statistical_models.py`).
+     4. **Whole files or folders only** (the smoke kind moves whole paths, *For 102*), each
+        package's smoke groups at most 500 G together (*For 102* item 5), each group under the
+        480 G bound.
+     5. **Named exceptions**, release tier only, because every file of the family costs past the
+        bound's reach for a smoke file (more than 100 G net in the probes) and no golden line
+        touches it: scipy `stats._levy_stable` (its tests live in `test_distributions.py`, 680
+        test functions); statsmodels `nonparametric.linbin` (`test_kde.py`, past 123 G net) and
+        `tsa.exponential_smoothing` (`test_exponential_smoothing.py`, past 124 G net); and scipy
+        `_lib`'s three, imported by every session, whose compiled-path tests are Decision 8's
+        not-selected files. A later golden line or a cheaper upstream file closes an exception.
+   - **How it was measured** (EXECUTED 2026-10-21, darwin-arm64, the main tree's frozen set
+     `SHA256SUMS d0d91cef` copied with `cp -c -Rp` and checked, one guest at a time, never while
+     `build/lane.lock` existed; the memo's *Smoke selection* section): 117 candidate files or
+     folders probed one per session, and three draft groups, for their net fuel (each session less its start: 20.1 G scipy, 26.4 G
+     scikit-learn, 26.4 G statsmodels), the cheapest cover chosen by the rule, then **each final
+     group measured once as a whole**.
+   - **The smoke groups, re-measured:**
 
-     | group | paths | what it proves | fuel | outcomes |
+     | group | paths (whole files or folders) | covers | fuel | outcomes |
      |---|---|---|---|---|
-     | `scipy-smoke-a` | `sparse/linalg/_dsolve/tests` (SuperLU), `sparse/linalg/_eigen/arpack/tests` (ARPACK), `optimize/_trustregion_constr/tests`, `integrate/_ivp/tests`, `cluster/vq/tests` | the C solvers, sparse eigenvalues, constrained optimisation, ODEs, k-means | 80.2 G | 895 passed, 7 skipped, 1 failed (`no-threads`) |
-     | `scipy-smoke-b` | `fftpack/tests` (ducc0 and pocketfft paths), `io/matlab/tests`, `linalg/tests/test_decomp_cholesky.py` and `test_solve_toeplitz.py` (OpenBLAS's LAPACK through the f2py and Cython wrappers) | the FFTs, file reading, the void-convention LAPACK | 67.6 G | 920 passed, 1 xfailed, 1 xpassed |
-     | `scikit-learn-smoke` | `svm/tests` (libsvm and liblinear), `covariance/tests`, `cross_decomposition/tests`, `cluster/_hdbscan/tests` | the compiled estimators, scipy's BLAS through Cython | 69.4 G | 284 passed, 134 skipped, 1 xfailed, 1 failed (`enotsup-io`) |
-     | `statsmodels-smoke` | `formula/tests` (patsy and formulaic), `tsa/arima/tests`, `genmod/families/tests`, `tsa/filters/tests`, `iolib/tests` | formulas, ARIMA, GLM families, filters, summaries | 60.4 G | 365 passed, 3 skipped, 1 xfailed, 3 failed (`left-out-datasets`) |
+     | `scipy-smoke-a` | special: `test_cython_special.py`, `test_boost_ufuncs.py`, `test_ellip_harm.py`, `test_sph_harm.py`, `test_specfun.py`; sparse: `test_sparsetools.py`, `test_csr.py`, `test_construct.py`, `linalg/_dsolve/tests`, `linalg/tests/test_propack.py`; spatial: `test_qhull.py`, `test_hausdorff.py`, `test_spherical_voronoi.py`, `transform/tests`; linalg: `test_decomp_cholesky.py`, `test_solve_toeplitz.py`, `test_matfuncs.py`, `test_cython_blas.py`, `test_cython_lapack.py`, `test_cythonized_array_utils.py`, `test_decomp_lu.py` | xsf, Boost.Math, `cython_special`, `_specfun`, `_ellip_harm_2`, `_gufuncs`; `sparsetools` (its 64-bit `slow` cases in the release tier), `_csparsetools`, SuperLU, PROPACK; qhull and its patch, `_hausdorff`, `_voronoi`, the rotation modules; f2py `_flapack`/`_fblas` on OpenBLAS's void LAPACK, `cython_blas`, `cython_lapack`, `_solve_toeplitz`, `_matfuncs_sqrtm_triu` and its patch (imported only by this group's `test_matfuncs.py` among the probes, EXECUTED) | **207.4 G** | 2,033 passed, 10 skipped, 30 xfailed, 2 xpassed, 1 failed (`no-threads`) |
+     | `scipy-smoke-b` | `cluster/hierarchy/tests`, `cluster/vq/tests`, `fft/tests/test_basic.py`, `fftpack/tests/test_pseudo_diffs.py`, `integrate/tests/test_integrate.py`, `interpolate/tests/test_fitpack.py`, `test_interpnd.py`, `io/tests/test_mmio.py`, `io/matlab/tests`, `ndimage/tests/test_measurements.py`; optimize: `test_minpack.py`, `test_lbfgsb_setulb.py`, `test_lbfgsb_hessinv.py`, `test_slsqp.py`, `test_zeros.py`, `test_linear_assignment.py`, `test_tnc.py`, `test_direct.py`, `test_isotonic_regression.py`, `test__numdiff.py`, `test_milp.py`, `test_trustregion_krylov.py`, `test_cython_optimize.py`; signal: `test_max_len_seq.py`, `test_upfirdn.py`, `test_splines.py`, `test_bsplines.py`; stats: `test_qmc.py`, `test_contingency.py`, `test_discrete_distns.py`, `test_sampling.py` | `_hierarchy`, `_vq`; uarray and its patch with ducc0 (`scipy.fft`'s backend); `fftpack.convolve`; `_odepack`, `_vode`, `_dop`; FITPACK, `_dierckx`, `_interpnd`; `_fmm_core` and its patch (three passes through it; the rest of `test_mmio.py` is `no-native-id-test-names`; scipy_edges' Matrix Market line too); the MATLAB readers; `_nd_image`, `_ni_label`; MINPACK, L-BFGS-B, SLSQP, `_zeros`, `_lsap`, TNC, DIRECT, `_pava`, `_group_columns`, **HiGHS** (`milp`), `_trlib`, `cython_optimize`; `_max_len_seq_inner`, `_upfirdn_apply`, `_spline`; `_sobol` and its patch, `_qmc_cy`, `_rcont` (`random_table`), the Boost discrete distributions, UNU.RAN | **221.8 G** | 2,322 passed, 43 skipped, 8 xfailed, 2 xpassed, 28 failed and 147 errors, every one a measured class: 148 `no-native-id-test-names`, 12 `no-processes`, 10 `no-threads`, 1 `DID NOT RAISE` and 3 bare asserts (two `test_threadpoolctl`, one `test_qmc`) and 1 unraisable warning from `_qmc_cy`'s threads, which are among the survey's eleven read one by one (each a class with its closer before the build review) |
+     | `scikit-learn-smoke` | `tree/tests/test_split.py`; `ensemble/_hist_gradient_boosting/tests/test_splitting.py`, `test_histogram.py`, `test_predictor.py`; `cluster/tests/test_dbscan.py`, `cluster/_hdbscan/tests`; `svm/tests`; `linear_model/tests/test_base.py`, `test_sag.py`, `test_perceptron.py`; `feature_extraction/tests/test_feature_hasher.py`; `datasets/tests/test_svmlight_format.py`; `metrics/cluster/tests`; `neighbors/tests/test_kd_tree.py`, `test_ball_tree.py`, `test_quad_tree.py`; `preprocessing/tests/test_target_encoder.py`; utils: `test_sparsefuncs.py`, `test_murmurhash.py`, `test_fast_dict.py`, `test_seq_dataset.py`, `test_arrayfuncs.py`, `test_random.py`, `test_typedefs.py`, `test_weight_vector.py`, `_repr_html/tests`; `decomposition/tests/test_online_lda.py`; `tests/test_isotonic.py` | **the trees** (`_tree`, `_splitter`, `_criterion`, `_partitioner`), HGB's splitter, histograms and predictor, `_dbscan_inner`, HDBSCAN's three, libsvm and liblinear, `_sag_fast`, `_sgd_fast`, `_hashing_fast`, `_svmlight_format_fast`, `_expected_mutual_info_fast`, KD, ball and quad trees, `_target_encoder_fast`, `sparsefuncs_fast`, `murmurhash`, `_fast_dict`, `_seq_dataset`, `arrayfuncs`, `_random`, `_typedefs`, `_weight_vector`, the html-repr patch, `_online_lda_fast`, `_isotonic`; golden (`machine_learning.py`): KMeans, PCA, RandomForest, HGB's binning, LogisticRegression (`_loss`), KNeighbors (the distance metrics and pairwise reductions) | **205.5 G** | 1,467 passed, 189 skipped, 5 xfailed, 8 xpassed, 2 failed (`no-mmap` 1, `enotsup-io` 1) |
+     | `statsmodels-smoke` | `regression/tests/test_regression.py`; `nonparametric/tests/test_lowess.py`; `robust/tests/test_scale.py`; `tsa/innovations/tests`; `tsa/arima/tests`; `tsa/statespace/tests/test_tools.py`, `test_simulation_smoothing.py`; `tsa/regime_switching/tests/test_markov_regression.py`; `tsa/stl/tests/test_stl.py`; `genmod/families/tests`; `formula/tests`; `iolib/tests`; `tsa/filters/tests` | **OLS, WLS, GLS** on `longley` through the datasets patch; `_smoothers_lowess`; `_qn`; `_arma_innovations`, `_innovations`; the Kalman filter, smoother and representation (ARIMA through SARIMAX), `_tools`, the simulation smoothers; `_hamilton_filter`, `_kim_smoother`; `_stl`; GLM families; formulas; summaries; filters; golden (`statistical_models.py`): `SimpleExpSmoothing` (`_exponential_smoothers`), Logit, GLM Poisson | **136.0 G** | 939 passed, 5 skipped, 1 xfailed, 4 failed and 40 errors, all `left-out-datasets` (`ccard` 41, `cpunish` 2, `fair` 1) |
 
-     Every failure there is a member of a measured class, so each smoke group is green with its
-     gaps. scipy's smoke groups run with scipy's normal marker, `-m "not slow and not xslow"`, and
-     without the three `SCIPY_XSLOW` keyword cases (none is in their files); their few slow tests
-     stay in the release tier.
-   - **The release tier is everything else**, by 102's kinds: each family's release groups cover
-     every staged path; a release group over a smoke group's path adds `-k "not (S)"` or, for a
-     scipy smoke file, takes only its `slow or xslow` tests, so no test runs in both tiers (102's
-     partition, by construction). The release groups are packed by the 480 G bound and the cap
-     rule from the survey's folders, split by `[[split]]` where a folder passes the bound.
+     **The golden lines that stand in** (READ): `scipy_numeric.py:75` (`eigsh`, ARPACK), `:89`
+     (`csgraph.shortest_path`), `:151-153` (`CubicSpline`, `make_interp_spline`), `:162`
+     (`RBFInterpolator`), `:170-172` (`lfilter`, `convolve`, `_sigtools`), `:190` (`cdist`),
+     `:192-194` (`cKDTree`); `scipy_solvers.py:120` (`least_squares`, `_lsq`), `:188` (`quad`,
+     `_quadpack`), `:226` (`solve_ivp`); `scipy_lapack.py:102-110` (`qr_update`,
+     `_decomp_update`); `scipy_edges.py`'s Matrix Market and Sobol lines (beside the patches'
+     smoke files); `machine_learning.py:19-31` (KMeans, PCA, RandomForest, HGB, LogisticRegression,
+     KNeighbors); 045's `statistical_models.py:26, 74, 83` (`SimpleExpSmoothing`, Logit, GLM
+     Poisson). A family is counted once, at family level: a family's every module need not be
+     called (scipy's `_rgi_cython`, `_decomp_interpolative` and `_batched_linalg` are reached only
+     in the release tier; the reviewer may ask for one more file where that matters).
+
+     **In all 770.6 G** (scipy 429.1 G, scikit-learn 205.5 G, statsmodels 136.0 G), each family
+     within the 500 G budget, each group under the 480 G bound. Against the survey's hand-picked
+     277.6 G it costs about 493 G more on every landing, about 90 s of guest time at the
+     survey's 0.18 s per G, under 35 s of wall clock at `-n 3`: the price of D-M2's cover. No trap,
+     no unknown failure, no collection error. The build measures each group again as built
+     (criterion 5). Probes ran with a module-list hook (one `pytest_unconfigure` writing
+     `sys.modules`); its cost is a few M per session, inside the repeat tolerance.
+   - **Markers in the smoke groups.** scipy's smoke groups run with scipy's normal marker, `-m
+     "not slow and not xslow"`; their `slow` and `xslow` tests run in the release tier in a marker
+     release group over exactly the smoke paths (102's rule as written, `release_marker = "slow or
+     xslow"`). scikit-learn has no `slow` marker, and none of statsmodels' smoke files carries
+     one (READ, `grep mark.slow`), so those two families have no `marker`, no `release_marker`,
+     and their smoke files run whole in the normal tier.
+   - **The release tier is everything else, by the smoke kind** (*For 102*). Every staged tests
+     folder that is not itself a smoke path is a path release group's path; a path release group
+     runs with no `-m` and ignores, by construction, each smoke file under its folder. No `-k
+     "not (S)"` is needed or used. **Proved on the real stage** (EXECUTED, `smoke/split.py` on
+     the three pinned tarballs): scipy's 329 staged test files are 63 in smoke paths and 266 in 28
+     path release groups; scikit-learn's 256 are 37 and 219 in 32; statsmodels' 285 are 26 and 259
+     in 44; no file in neither tier and none in two; and each of six mutants per family (a path
+     release group dropped, one over a smoke file, an empty smoke reason, path groups without a
+     smoke group, a `[[release_select]]`, the budget passed) is refused with its own line. The
+     build packs the path release groups by the 480 G bound and the cap rule, splitting by
+     `[[split]]` where a folder passes it.
    - **scipy keeps `SCIPY_XSLOW=1` family-wide** (H1's answer stands): every scipy group, in both
      tiers, runs with it. The three keyword entries of the reviewed text are no longer needed to
      keep the gated cases out of the normal tier, since only the smoke groups are normal and none
@@ -404,10 +485,17 @@ where 102 runs it.
    - **scikit-learn's float32 cases** run, with `SKLEARN_RUN_FLOAT32_TESTS=1` in the family's
      `env`, in whichever tier their file is in. **statsmodels' `slow` tests** run in the release
      tier with the rest.
-   - **A landing that changes a package's own build** (its pin, its recipe, a carried patch) runs
-     that package's release groups on its branch run (102's `release-tier` input true), so the
-     whole suite sees the change before review; any other landing runs the smoke groups only.
-     This follows the owner's "only run the tests needed to confirm our new edits are working".
+   - **No branch run runs release groups; the smoke groups confirm an edit** (the delta's rule (8)
+     struck, 2026-10-21; the delta review, D-N1). The draft had a landing that changes a package's
+     own build run that package's release groups on its branch run. The owner's words decide it
+     against that: "We only run slow tests when we are trying to publish to pypi". So the three
+     suites' release groups run only where 102 rehearses or does a publication (the tag run, the
+     dry run on main before a tag, the lane's release acceptance), and every branch run, wave dry
+     run and landing runs the smoke groups. That is why the smoke selection follows a stated rule
+     (below): the smoke groups are what confirms an edit to a package's build, so they must touch
+     each compiled family and each carried patch. 095's own builder measures its release groups
+     locally by node id (criterion 5), and dispatches no branch run with `release-tier: true`
+     (criterion 12).
 
    - **`env`, a new family key**, a map of variables the harness adds to the judge's `ENV` for
      every guest run of that family, never per group (H1). **The allowed names are a constant in
@@ -472,7 +560,8 @@ where 102 runs it.
    | class (per group) | match | evidence | closes with |
    |---|---|---|---|
    | `no-threads` | `can't start new thread` | 9 in scipy's sample (EXECUTED); 31 scipy, 10 scikit-learn and 3 statsmodels files name threads (READ) | `README.md` |
-   | `no-native-id` | `has no attribute 'get_native_id'` | 1 in scipy's sample (EXECUTED) | `README.md` |
+   | `no-native-id` | `has no attribute 'get_native_id'` | 335 in scipy's normal folders (the survey, EXECUTED). **Split by where the call is** (the delta review, D-L2): the 288 in `io`'s tests, whose temporary file names the tests make from `threading.get_native_id()`, are `no-native-id-test-names`; the members whose call is the library's own, in uarray's `set_backend` and `skip_backend` (`scipy/_lib/_uarray/_backend.py:270,299`, READ by the review; `fft/tests/test_backend.py::test_backend_call[…]` among them), are `no-native-id-uarray` | both `README.md`. **The README text under the class says, in words:** "`scipy.fft.set_backend` and `scipy.fft.skip_backend` (and every uarray `set_backend`/`skip_backend` in scipy) raise `AttributeError: module 'threading' has no attribute 'get_native_id'` in this build: the runtime's `threading` names no native thread id on WASI. Calling `scipy.fft`'s functions directly is unaffected; only switching backends fails." The library's call is a product finding as well: the lane gives it a number (its likely fix is the runtime's `threading` naming the one thread's native id on WASI, not a scipy patch), and that number becomes `no-native-id-uarray`'s closer when it is reserved |
+   | `enotsup-io` | `OSError: [Errno 58] Not supported` | 21 in `io` (`test_fortran.py`, `test_wavfile.py`, `test_paths.py`; the survey, EXECUTED). **The call** (the delta review's D-L2): numpy's `fromfile` and `tofile` duplicate the file's descriptor (`os.dup`), which WASI preview1 refuses with `ENOTSUP` (the product's `fcntl` refusal, `recipes/fcntl_dup_refusal.c`, answers as wasi-libc's own `dup` does); `scipy.io.FortranFile` (`_fortran.py:165-168, 270`) and `wavfile` (`wavfile.py:516, 923`) call them (READ). **EXECUTED 2026-10-21** in the guest on set `d0d91cef`: `np.arange(4.0).tofile("/tmp/w/p.bin")` raises `OSError: [Errno 58] Not supported` with a path too, so it is numpy's call, not scipy's. The build confirms each member from its traceback | `README.md` ("`numpy.fromfile` and `ndarray.tofile` fail with `ENOTSUP`, given a path or a file: WASI has no `dup`. Write `a.tobytes()` to the file, and read with `numpy.frombuffer(f.read(), dtype)`. `scipy.io.FortranFile` and `scipy.io.wavfile` fail the same way, since they call them") |
    | `no-processes` | `does not support processes` and the `multiprocessing` messages the survey records | `MapWrapper` pools, `differential_evolution(workers=2)`, statsmodels' `test_package.py`, scikit-learn's `experimental` tests that start `sys.executable` (READ) | `README.md` |
    | `no-mmap` | `mmap is unavailable` | 41 in scikit-learn's sample (EXECUTED); scipy's `io` tests with `mmap=True` (READ) | `README.md` |
    | `no-fp-exceptions` | the `DID NOT WARN` and `DID NOT RAISE` lines of floating-point warnings | wasm has no floating-point exception flags; 099 keeps numpy's own software flags, not the hardware's, so a float division by zero in a ufunc loop warns nothing (READ: 099's Decision text) | `README.md` |
@@ -489,6 +578,31 @@ where 102 runs it.
     gets its own specification. None was seen in the probes. The survey hunts them in every group;
     scipy's f2py and OpenBLAS paths, called through function pointers, are where 037 and 051
     looked hardest.
+    - **A test the judge's counted clock never lets end runs with a clock step of its own** (the
+      delta review, D-M3). `signal/tests/test_signaltools.py::test_choose_conv_method[numpy]`
+      calls `choose_conv_method(..., measure=True)`, whose `_timeit_fast` raises `number` by
+      powers of ten until one `timeit` interval reaches 0.5 ms, up to 10⁹ calls
+      (`signal/_signaltools.py:1231-1250`, READ). Under the judge's clock each read advances
+      1 µs, and `timeit` reads twice per interval, so the interval never reaches 0.5 ms and the
+      loop never ends (the survey: more than 600 G alone, no outcome). `guest.run` already takes
+      `clock_step_ns`; at 1 ms the first interval passes at `number = 1`.
+      **EXECUTED 2026-10-21** (main tree's set `d0d91cef`, the stage of Decision 4, `-k
+      "test_choose_conv_method and not _2"` on the file, no `-m`, `clock_step_ns = 1_000_000`):
+      **passed, 37.92 G for the session** (the start and the collection of the file's 12,370
+      tests included), one outcome, exit 0.
+    - **So it runs in the release tier, in its own group.** `signal/tests/test_signaltools.py`
+      is split by `[[split]]` anyway (Decision 11); the split's first group is
+      `scipy-signal-conv-method` with expression `test_choose_conv_method and not _2`, and it
+      carries a new group key, **`clock_step_ns = 1_000_000`**, with `clock_reason = "the test
+      repeats a call until the clock has advanced 0.5 ms; the judge's clock advances only when
+      read"`. Its cap is the rule's from its measured fuel (37.92 G measured here; 57 G by the
+      rule; the build measures the group as built). The harness passes the key to `guest.run`
+      for that group's run only.
+    - **The key's rules** (Decision 14): allowed only on a release-tier group, only with a
+      non-empty `clock_reason`, only with a value from 1 µs to 1 ms; and **a group with the key
+      whose stream holds more than one outcome is red** ("a changed clock step reaches other
+      tests"), so the step can never widen to a group of ordinary tests unnoticed. The default
+      step is unchanged for every other run of every family.
 
 11. **The groups, their caps and the budget** (066, Decision 11, unchanged).
     - **The bound:** no group's measured fuel passes 480 G; a group past it is split by file, in
@@ -504,16 +618,28 @@ where 102 runs it.
       `metrics/tests/test_common.py` (3,615). The survey measures each and writes its split.
     - **Groups follow the package's subpackages** (one group per subpackage or a run of small
       ones, by sdist order), so a class's members and a regression read by subpackage.
+    - **scipy's `special` and `stats` release sessions, measured to the end under a 20 T cap
+      each** (the delta review, D-L1). The survey stopped both at its 6 T session caps. The build
+      runs each once, locally by node id with `--tier release`, capped at 20 T. A session that
+      ends under it is packed into groups by the bound. A session that reaches 20 T is split by
+      `[[split]]` at the file where it stopped, each part measured again under the same cap, and
+      the split recorded in the landing notes. The memo then states the release tier's measured
+      total and its darwin minutes at `-n 3`, so the lane can book the release acceptance. **A
+      lead for it:** `special/_mptestutils.py:385-400` enforces mpmath's time limits with
+      `sys.settrace` and `time.time()` where there is no `SIGALRM`, as in WASI, reading the clock
+      on every trace event; the build says whether that is where `special`'s fuel goes, and
+      whether a clock step (the `clock_step_ns` key, Decision 10) belongs there too.
 
-12. **The release: one normal-tier shard for the smoke groups, and release-tier shards for the
-    rest** (revised 2026-10-21 for Decision 7's owner rule).
-    - **Normal tier:** the four smoke groups (277.6 G measured) in one Linux shard,
-      `upstream-sci-smoke`, about 45 to 85 s of guest time plus about 60 s of setup, on every
-      release run; the lane's darwin judge runs them at every landing (about 50 s of guest time at
-      0.18 s per G).
+12. **The release: two normal-tier shards for the smoke groups, and release-tier shards for the
+    rest** (revised 2026-10-21 for Decision 7's owner rule and D-M2's cover).
+    - **Normal tier:** the four smoke groups (770.6 G measured) in two Linux shards by 066's 725 G
+      packing: `upstream-sci-smoke-a` (`scipy-smoke-a` and `-b`, 429.1 G plus the derived run's
+      8.6 G) and `upstream-sci-smoke-b` (`scikit-learn-smoke` and `statsmodels-smoke`, 341.5 G);
+      each about 55 to 140 s of guest time plus about 60 s of setup, on every release run; the
+      lane's darwin judge runs them at every landing (about 140 s of guest time at 0.18 s per G).
     - **Release tier:** every other group of the three families in release shards of 102's kind,
       Linux only, at most about 725 G each, run only where 102 runs them (the tag run, the dry run
-      on main before a tag, a branch run with `release-tier: true`): about **74 to 80 shards**
+      on main before a tag; no branch run, Decision 7): about **74 to 80 shards**
       for the measured at least 53 T (the price below). A 725 G shard is 116 to 225 s of guest
       time plus about 60 s of setup.
     - **The derived run counts in every scipy shard** (Decision 5): 8.59 G measured, added once to
@@ -542,6 +668,9 @@ where 102 runs it.
       `inputs` folder holds members; its output's folder is a staged folder and the output is not
       a member; its `fuel` is at most the cap rule's 1.5 times its `measured`; the family names one
       `derived_row`, a group of the family (the review, M1);
+    - `clock_step_ns` is a release-tier group key only, with a non-empty `clock_reason` and a
+      value from 1,000 to 1,000,000 ns; a run of such a group with more than one outcome is red
+      (Decision 10; the delta review, D-M3);
     - `env` is a family key only (no group carries one) and names only the variables
       `packages.py`'s per-family constant allows (Decision 7), each with a reason line in the TOML;
       the forbidden names of Decision 7 are refused in every family (the review, L6);
@@ -578,16 +707,20 @@ tests/upstream/scipy.toml            package "scipy", driver "package", grant /u
                                        support_files [scipy/conftest.py, scipy/special/utils/...],
                                        derived (makenpz.py: boost, gsl, local; inputs, caps,
                                        derived_row), env {SCIPY_XSLOW} for every group,
-                                       marker / release_marker and three [[release_select]]
-                                       entries (102), cwd /tmp/work, groups by
-                                       subpackage, [[split]]s, [[not_selected]], [[expected]]
+                                       marker / release_marker (102), cwd /tmp/work, two smoke
+                                       groups (normal, `smoke = "…"`), a marker release group
+                                       over their paths, path release groups by subpackage
+                                       (`release_by = "path"`), [[split]]s (the clock-stepped
+                                       conv-method group), [smoke_cover], [[not_selected]],
+                                       [[expected]]
 tests/upstream/scikit-learn.toml     grant /upstream-scikit-learn, stage_folders (sklearn/**/tests),
                                        package_inits, support_files [the two conftests],
-                                       env {SKLEARN_RUN_FLOAT32_TESTS, SKLEARN_SEED}, groups,
-                                       [[split]] for tests/test_common.py, the smoke group
-                                       (normal) and the release groups (Decision 7)
+                                       env {SKLEARN_RUN_FLOAT32_TESTS, SKLEARN_SEED}, the smoke
+                                       group, path release groups, [[split]] for
+                                       tests/test_common.py, [smoke_cover] (Decision 7)
 tests/upstream/statsmodels.toml      grant /upstream-statsmodels, stage_folders, package_inits,
-                                       support_files [statsmodels/conftest.py], groups
+                                       support_files [statsmodels/conftest.py], the smoke group,
+                                       path release groups, [smoke_cover]
 tests/upstream/<package>.ini         Decision 6
 tests/upstream/expected/<group>/<class>.txt
 tests/harness/packages.py            package_inits (package_paths generated), derived (the
@@ -644,7 +777,15 @@ code or a stand-in; the builder records each failing assertion in the landing no
    `derived` `inputs` folder with no member; a `derived` output that is a member, or outside a
    staged folder; a `derived` cap above 1.5 times its `measured`; a family with `derived` and no
    `derived_row`; a group carrying `env`; an `env` variable not in the family's constant; `env`
-   setting `HOME`, `PYTHONPATH`, `SCIPY_HYPOTHESIS_PROFILE` or `SKLEARN_SKIP_NETWORK_TESTS`.
+   setting `HOME`, `PYTHONPATH`, `SCIPY_HYPOTHESIS_PROFILE` or `SKLEARN_SKIP_NETWORK_TESTS`;
+   `clock_step_ns` on a normal group, without `clock_reason`, or at 2 ms; and a stand-in stream
+   of two outcomes for a group with the key, red. **The cover, held:** each family TOML
+   carries `[smoke_cover]`, one entry per compiled family of Decision 7's rule (the subpackages
+   of the product's builtin module names under the package, read from the artifact set when
+   present), each naming a smoke path, a golden job line, or `release-only` with its reason; a
+   compiled family with no entry, a named smoke path that is in no smoke group, or a
+   `release-only` entry for a family of Decision 7's item 2 is refused (a rules row over the real
+   TOMLs, so a re-pin that adds a compiled family, or an edit that drops a cover, is red).
 2. **The derived run, on a synthetic tarball** (no real scipy): a script that writes a valid
    output stages it, and its SHA-256 and fuel are facts of the `derived_row` group and of no other
    row, whichever group the session runs first; one that exits 1 fails every group of the family,
@@ -672,8 +813,11 @@ code or a stand-in; the builder records each failing assertion in the landing no
    release group in one release shard (102's rule). **A unit check, written first**, collects a
    synthetic family with a smoke group over two of its files and release groups over all of them,
    and shows every collected test in exactly one tier: none in both, none in neither (the owner's
-   rule, Decision 7). Each smoke group's measured fuel is under 100 G, and the four together under
-   1 T (a rules check on their `measured` values).
+   rule, Decision 7). Each family's smoke groups' measured fuel is at most 500 G together (102's
+   `SMOKE_BUDGET`, *For 102* item 5), each group under the 480 G bound, and the four together under
+   1 T (a rules check on their `measured` values). The smoke kind's rows of *For 102* are 102's;
+   095 adds the same rules run on its three real TOMLs (`test_upstream_files_are_well_formed`), as
+   `smoke/split.py` ran them on the plan (Decision 7).
 8. **The fetch.** `tests/unit/test_fetch_trees.py`, with a fake `urlopen`: a shard with a scipy
    group fetches the kit and scipy's tarball only; a hash mismatch deletes the `.part` file and
    exits 1 naming it.
@@ -687,26 +831,34 @@ code or a stand-in; the builder records each failing assertion in the landing no
     from the gaps this specification adds, each named.
 12. **The branch's dry run, before landing** (not a check): every job passes on all three systems,
     every red line a growth line or G7; the new shards' job times in the landing notes, each
-    within 360 s, or Decision 12's move made and recorded. One dispatch with 102's `release-tier`
-    input true runs the release shards once, before review; its run id and the release tier's
-    measured total are in the landing notes.
+    within 360 s, or Decision 12's move made and recorded. **No dispatch with `release-tier`
+    true** (Decision 7: no branch run runs release groups). The release groups are measured once
+    each locally by node id with `--tier release` (criterion 5); the release tier's measured total
+    and 095's `[[claim]]` block in `context/release-tier-claims.toml` are written from those runs
+    (102's Decision 6 as *For 102* item 6 widens it). The first CI run of the release shards is
+    the dry run on main before 0.1.0's tag.
 13. **The lane's dry run after landing**, on main's exact commit, as 063's criterion 13.
 
 ## The price (measured by the survey, 2026-10-21; Decision 7 as the owner ruled)
 
-- **Normal tier: 277.6 G** per full judge, the four smoke groups (EXECUTED, each measured on the
-  survey's sets): 2.5 % of today's about 11.2 T of upstream fuel. The lane's darwin accept grows
-  by about 50 s of guest time, under 20 s of wall clock at `-n 3`; a release run by one Linux job.
+- **Normal tier: 770.6 G** per full judge, the four smoke groups chosen by Decision 7's rule
+  (EXECUTED 2026-10-21, each group measured whole on set `d0d91cef`), plus the derived run's
+  8.6 G per scipy stage: about 7 % of today's about 11.2 T of upstream fuel. The lane's darwin
+  accept grows by about 140 s of guest time, under 60 s of wall clock at `-n 3`; a release run by
+  two Linux jobs. (The survey's hand-picked smoke groups were 277.6 G; D-M2's cover costs the
+  difference.)
 - **Release tier: at least 53 T** (the survey, EXECUTED: scipy's normal-marker tests 7.35 T and its
   slow, xslow and keyword cases at least 22.02 T; scikit-learn 9.61 T; statsmodels 14.23 T; less
   the smoke groups' share). A lower bound: scipy's `special` and `stats` slow sessions stopped at
-  the survey's 6 T caps, and the build measures them to the end.
+  the survey's 6 T caps, and the build measures them to the end under a 20 T cap each (Decision
+  11, D-L1): so the release tier is at most about 81 T by that bound (53 T plus 14 T more for
+  each), and the memo states the measured total before the lane books the release acceptance.
 - **The release acceptance before a tag** (102, Decision 5) grows by about 160 minutes of guest
   time on darwin, about 55 minutes of wall clock at `-n 3`, or more by the bound above (INFERRED
   at the survey's 0.18 s per G).
-- **Caps** by the rule, 1.5 times: about 0.42 T for the smoke groups; at least about 80 T for the
+- **Caps** by the rule, 1.5 times: about 1.16 T for the smoke groups; at least about 80 T for the
   release groups.
-- **Linux shards:** one normal-tier shard (`upstream-sci-smoke`), and about 74 to 80 release-tier
+- **Linux shards:** two normal-tier shards (`upstream-sci-smoke-a`, `-b`), and about 74 to 80 release-tier
   shards of at most 725 G, adding about 15 to 25 minutes of wall clock to the tag run and the dry
   run on main (Decision 12; INFERRED from the packing).
 - **The survey:** done, about 3 hours of guest time in one process (the memo).
@@ -721,10 +873,11 @@ code or a stand-in; the builder records each failing assertion in the landing no
   `test_upstream_class[<group>-<class>]` for each class with members, and
   `test_upstream_trap[<id>]` for each trap: new rows in 102's `release_tier` list on a normal
   accept, accepted only at the release acceptance before a tag (102, Decision 5). **Their claim
-  block** goes in `context/release-tier-claims.toml` (102, Decision 6), written from a branch run
-  with 102's `release-tier` input true (the review, L8).
-- **The deselected clock-timed test** (`test_choose_conv_method[numpy]`) is its own row with its
-  closer (the delta, item 3), in the release tier with its file.
+  block** goes in `context/release-tier-claims.toml` (102, Decision 6), written from the builder's
+  local `--tier release` runs by node id (the review, L8; no branch run runs release groups,
+  Decision 7).
+- **The clock-timed test** (`test_choose_conv_method[numpy]`) runs in its own release-tier split
+  group with `clock_step_ns` (Decision 10): a release-tier row like any other, no gap.
 - **Moved rows: none.** numpy's, pandas', CPython's and 066's rows: lost 0, grew 0.
 - **Retired: none. Passes moved: none.**
 - **The judge hash changes**: the accept-judge text names the three TOMLs, `.ini`s, the expected
@@ -740,16 +893,96 @@ code or a stand-in; the builder records each failing assertion in the landing no
 - **Base.** Rebased onto the structural chain's tip `727bd4c` on 2026-10-20 (context only, no
   conflict). The builder rebases onto main after the chain lands, before writing code, since the
   citation rule exists only there (the review, N4).
-- **Release-tier claims:** the builder's branch run with `release-tier: true` writes 095's block
-  in `context/release-tier-claims.toml` (102, Decision 6).
+- **Release-tier claims:** the builder's local `--tier release` runs by node id write 095's block
+  in `context/release-tier-claims.toml` (102, Decision 6, widened by *For 102* item 6); no branch
+  run with `release-tier: true`.
+- **Route *For 102* to 102's builder** (the smoke kind, its rules, its unit rows, the ledger's
+  widened sentence). 095 is built on 102's tip once 102 carries it and is reviewed.
 - **The owner's answers** (question 110, then the standing rule of 2026-10-21): 088 widened to
   scipy's seven test modules and five files (Decision 8); the modes README-only for 0.1.0,
   copy-on-write dropped, `SCIPY_XFAIL` added, mode-gated skips counted (Decision 7); each suite
   in the release tier whole with a smoke group per package in the normal tier, in place of the
   15 T threshold (Decision 7); statsmodels' left-out datasets a README class, with import failures
   under Decision 8 (Decisions 8 and 9).
-- **Reserve** a judge follow-up for the clock-timed test (the delta, item 3): its closer.
+- **No reservation for the clock-timed test**: it runs, with the existing clock step (Decision
+  10). **Do reserve** a number for the uarray `get_native_id` product finding
+  (`no-native-id-uarray`'s closer, Decision 9).
 - **074's line:** the lane may name scikit-learn's three `mmap` files there (Decision 8).
+
+## For 102: the smoke kind (a request; the delta review, D-M1)
+
+The owner's rule of 2026-10-21 puts each of the three suites in the release tier whole, less a
+small normal-tier smoke selection. 102 at `8fb3df7a` cannot hold that: a release group must be a
+marker, keyword or regrtest-list group (067 adds node-id groups), and "the marker release groups'
+paths taken together are exactly the normal groups' paths taken together" (`tiers.rule_errors`).
+A release group of whole paths that no normal group holds is refused. 095 asks 102's builder for
+the change below, in 102's own branch, reviewed with 102. 095 is then built on it. Nothing in it
+changes a family that names no smoke group: numpy's, pandas', contourpy's and CPython's TOMLs, JSON
+and checks stay byte for byte what 102 makes them.
+
+**The change, in 102's terms** (Decision 2 gains a kind (d); Decision 3 gains it in its list; check
+1 gains the rows below):
+
+1. **A group key `smoke`** (a string): on a normal group of a pytest family, the reason in words
+   that this group is the family's smoke selection. A family is a **smoke family** when any of its
+   groups carries it. In a smoke family every normal group carries a non-empty `smoke`; elsewhere
+   no group carries it.
+2. **A fourth kind, `release_by = "path"`**: a release group of a smoke family that runs its paths
+   whole. `tiers.KINDS` becomes `("marker", "keyword", "path")`. In a smoke family with no
+   `release_marker`, `kind_of` returns `"path"` for a release group without `release_by`; with
+   one, `release_by` is required (as for a family with two kinds today). A `release_by = "path"`
+   group outside a smoke family is refused ("of no named kind").
+3. **The argv, by construction.** A path release group runs with no `-m` (`marker_of` returns
+   `""` for it: it runs every test of its paths, whatever upstream's markers say) and no tier `-k`
+   (`tier_filter` returns `None`); its `[[split]]`'s expression only, as for any group. **It
+   ignores each smoke path its paths hold**: `--ignore=<path>` for every smoke path under one of its
+   paths, beside the family's `not_selected`. So a folder can be a release path while two of its
+   files are smoke files, and those two files run in the normal tier only.
+4. **The paths rules of a smoke family** (in place of nothing; 102's marker rule still holds over
+   the smoke groups, unchanged):
+   - a path release group's path is never a smoke path or inside one;
+   - no path is in two path release groups, except a file split by `[[split]]` (102's rule, for
+     the new kind);
+   - **when the tarball is present** (as 066's member rules read it): every test file the family
+     stages (a member matching `test_*.py` or `*_test.py` under a `stage_folders` entry, less
+     `not_selected`) is under exactly one smoke path, or else under exactly one path release
+     group's path. A file in neither is refused, named ("in no tier");
+   - each smoke path holds at least one such test file;
+   - a smoke family has no `[[release_select]]` (it moves whole paths; a keyword split inside a
+     smoke file is not needed by 095 and stays refused until a specification asks for it);
+   - with a `release_marker`, the marker release groups' paths are exactly the smoke paths (102's
+     rule as written, since the smoke groups are the normal groups), so a smoke file's marked
+     slow tests run in the release tier and the truth table keeps them out of the normal tier.
+     Without one, the smoke files run whole in the normal tier and no marker release group exists.
+5. **A budget.** A smoke family's smoke groups' `measured` sum to at most 500 G (`tiers.
+   SMOKE_BUDGET`, about 4.5 % of the upstream normal tier's 11.2 T today), so "smoke" cannot grow
+   into a second normal tier unnoticed. A larger selection is a judge change with its reason.
+6. **Decision 6's ledger.** "writes its block from its branch run with `release-tier: true`
+   (required for it)" gains "or from its builder's local `--tier release` runs by node id, when no
+   branch run runs release groups" (the owner's rule of 2026-10-21: "We only run slow tests when we
+   are trying to publish to pypi"). 095 writes its block that way (criterion 12).
+
+**The unit rows** (102's check 1, each failing with its own line; and check 2 for the argv), on a
+synthetic smoke family of a three-file tarball (`pkg/a/tests/test_x.py`, `test_y.py`,
+`pkg/b/tests/test_z.py`), smoke group over `pkg/a/tests/test_x.py`, path release groups over
+`pkg/a/tests` and `pkg/b/tests`:
+- clean as given; its path release group over `pkg/a/tests` carries
+  `--ignore=<grant>/tree/pkg/a/tests/test_x.py` and no `-m`, with or without a family `marker`;
+- the `pkg/b/tests` group removed: refused, "pkg/b/tests/test_z.py is in no tier";
+- a path release group over `pkg/a/tests/test_x.py`: refused, "lies in a smoke path";
+- `smoke = " "`, or a second normal group without `smoke`: refused;
+- `release_by = "path"` in a family with no smoke group: refused, "of no named kind";
+- a `[[release_select]]` in the smoke family: refused;
+- a smoke group whose `measured` takes the family past 500 G: refused;
+- with `release_marker = "slow"` and `marker = "not slow"`: clean only with a marker release group
+  over exactly `pkg/a/tests/test_x.py`.
+
+**Proved on the real stage** (EXECUTED 2026-10-21; `../research/2026-10-21-scipy-sklearn-statsmodels-own-tests-under-the-runtime/smoke/split.py`
+and its `plan.toml`, run on the three pinned tarballs, each SHA-256 checked first). The script
+carries these rules as written above and runs them on the smoke groups of Decision 7 and one path
+release group per staged tests folder (the survey's sessions; the build packs them by the bound),
+then on six mutants of each family's plan. Its output is `split.txt` beside it; the numbers are in
+Decision 7.
 
 ## Delta from the survey (2026-10-21, for the delta review)
 
@@ -839,3 +1072,33 @@ Decision; a fresh reviewer rules on each before anything is built (Decision 1).
 defaults); then the build, from main after wave 09 and the chain, with each group measured as
 built (the survey measured folders, not the final groups), the release tier's `special` and
 `stats` measured to the end, and the about 25 single failures read.
+
+### The delta review answered (2026-10-21, the builder taking over from the drafter)
+
+Each finding is written into the Decisions; the review's Disposition of the delta says where.
+In short, and superseding items 2 and 3 above where they differ:
+- **D-M1:** *For 102: the smoke kind* asks 102 for a fourth kind (`smoke` on normal groups,
+  `release_by = "path"` release groups that run their paths whole and ignore the smoke files under
+  them, the paths rules, a 500 G smoke budget, and Decision 6's ledger widened), with its unit
+  rows; `smoke/split.py` proves the split on the three pinned tarballs and refuses six mutants per
+  family (EXECUTED). Item 2's `-k "not (S)"` is dropped.
+- **D-M2:** Decision 7's smoke selection follows a stated rule (every compiled family from the
+  product's builtin module names, by a smoke file or a named golden line; the review's named
+  families and every carried patch by a smoke file; the main entry points; named exceptions), and
+  its four groups are re-measured: **770.6 G** (scipy 207.4 + 221.8, scikit-learn 205.5,
+  statsmodels 136.0), in place of item 2's 277.6 G.
+- **D-M3:** item 3 is reversed. `test_choose_conv_method[numpy]` **passed** in 37.92 G with a
+  1 ms clock step (EXECUTED); it runs in the release tier in its own split group with the new
+  `clock_step_ns` key (Decision 10). No test is left out of both tiers, and no reservation is
+  needed.
+- **D-L1:** `special` and `stats` are measured to the end under 20 T each (Decision 11).
+- **D-L2:** `no-native-id` is split by where the call is, the README names `scipy.fft.set_backend`
+  and `skip_backend` raising, and `enotsup-io` names numpy's `tofile`/`fromfile` (EXECUTED: a path
+  fails too) (Decision 9).
+- **D-N1 (rule (8)):** struck by the owner's words; no branch run runs release groups (Decision
+  7); 095's own release groups are measured locally (criteria 5 and 12).
+
+## Landing notes
+
+Not built yet. The build writes here, as it goes, once the delta review's confirmation is in and
+102 carries the smoke kind.

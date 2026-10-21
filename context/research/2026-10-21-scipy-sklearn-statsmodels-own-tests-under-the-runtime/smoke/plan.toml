@@ -1,0 +1,118 @@
+# The smoke split as spec 095's Decision 7 draws it, for split.py. Paths are the sdists' own.
+# Smoke groups are the normal tier; every other staged tests folder is a path release group
+# (one per folder here; the build packs them by the 480 G bound); with a release_marker, the
+# smoke paths' marked tests are a marker release group.
+
+[scipy]
+pkg = "scipy"
+marker = "not slow and not xslow"
+release_marker = "slow or xslow"
+not_staged = ["scipy/odr/tests"]
+not_selected = [
+    "scipy/_lib/tests/test_ccallback.py",
+    "scipy/integrate/tests/test_quadpack.py",
+    "scipy/ndimage/tests/test_c_api.py",
+    "scipy/special/tests/test_dd.py",
+    "scipy/special/tests/test_round.py",
+    "scipy/linalg/tests/test_cython_abi.py",
+    "scipy/optimize/tests/test_cython_abi.py",
+    "scipy/special/tests/test_cython_abi.py",
+    "scipy/linalg/tests/_cython_examples/ilp64_test_package",
+]
+
+[scipy.smoke.scipy-smoke-a]
+reason = "scipy.special, sparse, spatial and linalg: each compiled family touched, qhull's and sqrtm's patches"
+measured = 207361269653
+paths = [
+    "scipy/special/tests/test_cython_special.py", "scipy/special/tests/test_boost_ufuncs.py",
+    "scipy/special/tests/test_ellip_harm.py", "scipy/special/tests/test_sph_harm.py",
+    "scipy/special/tests/test_specfun.py",
+    "scipy/sparse/tests/test_sparsetools.py", "scipy/sparse/tests/test_csr.py",
+    "scipy/sparse/tests/test_construct.py", "scipy/sparse/linalg/_dsolve/tests",
+    "scipy/sparse/linalg/tests/test_propack.py",
+    "scipy/spatial/tests/test_qhull.py", "scipy/spatial/tests/test_hausdorff.py",
+    "scipy/spatial/tests/test_spherical_voronoi.py", "scipy/spatial/transform/tests",
+    "scipy/linalg/tests/test_decomp_cholesky.py", "scipy/linalg/tests/test_solve_toeplitz.py",
+    "scipy/linalg/tests/test_matfuncs.py", "scipy/linalg/tests/test_cython_blas.py",
+    "scipy/linalg/tests/test_cython_lapack.py",
+    "scipy/linalg/tests/test_cythonized_array_utils.py", "scipy/linalg/tests/test_decomp_lu.py",
+]
+
+[scipy.smoke.scipy-smoke-b]
+reason = "the other compiled families of scipy, HiGHS, and the uarray, Matrix Market and Sobol patches"
+measured = 221784341839
+paths = [
+    "scipy/cluster/hierarchy/tests", "scipy/cluster/vq/tests", "scipy/fft/tests/test_basic.py",
+    "scipy/fftpack/tests/test_pseudo_diffs.py", "scipy/integrate/tests/test_integrate.py",
+    "scipy/interpolate/tests/test_fitpack.py", "scipy/interpolate/tests/test_interpnd.py",
+    "scipy/io/tests/test_mmio.py", "scipy/io/matlab/tests",
+    "scipy/ndimage/tests/test_measurements.py",
+    "scipy/optimize/tests/test_minpack.py", "scipy/optimize/tests/test_lbfgsb_setulb.py",
+    "scipy/optimize/tests/test_lbfgsb_hessinv.py", "scipy/optimize/tests/test_slsqp.py",
+    "scipy/optimize/tests/test_zeros.py", "scipy/optimize/tests/test_linear_assignment.py",
+    "scipy/optimize/tests/test_tnc.py", "scipy/optimize/tests/test_direct.py",
+    "scipy/optimize/tests/test_isotonic_regression.py", "scipy/optimize/tests/test__numdiff.py",
+    "scipy/optimize/tests/test_milp.py", "scipy/optimize/tests/test_trustregion_krylov.py",
+    "scipy/optimize/tests/test_cython_optimize.py",
+    "scipy/signal/tests/test_max_len_seq.py", "scipy/signal/tests/test_upfirdn.py",
+    "scipy/signal/tests/test_splines.py", "scipy/signal/tests/test_bsplines.py",
+    "scipy/stats/tests/test_qmc.py", "scipy/stats/tests/test_contingency.py",
+    "scipy/stats/tests/test_discrete_distns.py", "scipy/stats/tests/test_sampling.py",
+]
+
+[scikit-learn]
+pkg = "sklearn"
+not_selected = [
+    "sklearn/cluster/tests/test_hierarchical.py",
+    "sklearn/metrics/tests/test_dist_metrics.py",
+    "sklearn/neighbors/tests/test_neighbors.py",
+]
+
+[scikit-learn.smoke.scikit-learn-smoke]
+reason = "each compiled family of scikit-learn touched (trees first) and its html-repr patch"
+measured = 205480322146
+paths = [
+    "sklearn/tree/tests/test_split.py",
+    "sklearn/ensemble/_hist_gradient_boosting/tests/test_splitting.py",
+    "sklearn/ensemble/_hist_gradient_boosting/tests/test_histogram.py",
+    "sklearn/ensemble/_hist_gradient_boosting/tests/test_predictor.py",
+    "sklearn/cluster/tests/test_dbscan.py", "sklearn/cluster/_hdbscan/tests",
+    "sklearn/svm/tests", "sklearn/linear_model/tests/test_base.py",
+    "sklearn/linear_model/tests/test_sag.py", "sklearn/linear_model/tests/test_perceptron.py",
+    "sklearn/feature_extraction/tests/test_feature_hasher.py",
+    "sklearn/datasets/tests/test_svmlight_format.py", "sklearn/metrics/cluster/tests",
+    "sklearn/neighbors/tests/test_kd_tree.py", "sklearn/neighbors/tests/test_ball_tree.py",
+    "sklearn/neighbors/tests/test_quad_tree.py",
+    "sklearn/preprocessing/tests/test_target_encoder.py",
+    "sklearn/utils/tests/test_sparsefuncs.py", "sklearn/utils/tests/test_murmurhash.py",
+    "sklearn/utils/tests/test_fast_dict.py", "sklearn/utils/tests/test_seq_dataset.py",
+    "sklearn/utils/tests/test_arrayfuncs.py", "sklearn/utils/tests/test_random.py",
+    "sklearn/utils/tests/test_typedefs.py", "sklearn/utils/tests/test_weight_vector.py",
+    "sklearn/utils/_repr_html/tests", "sklearn/decomposition/tests/test_online_lda.py",
+    "sklearn/tests/test_isotonic.py",
+]
+
+[statsmodels]
+pkg = "statsmodels"
+not_selected = [
+    "statsmodels/discrete/tests/test_constrained.py",
+    "statsmodels/discrete/tests/test_margins.py",
+    "statsmodels/emplike/tests/test_anova.py",
+    "statsmodels/genmod/tests/test_glm_weights.py",
+    "statsmodels/stats/tests/test_oaxaca.py",
+    "statsmodels/tsa/vector_ar/tests/test_vecm.py",
+]
+
+[statsmodels.smoke.statsmodels-smoke]
+reason = "OLS and the datasets patch, and each compiled family of statsmodels' time series and smoothers"
+measured = 135964541182
+paths = [
+    "statsmodels/regression/tests/test_regression.py",
+    "statsmodels/nonparametric/tests/test_lowess.py",
+    "statsmodels/robust/tests/test_scale.py", "statsmodels/tsa/innovations/tests",
+    "statsmodels/tsa/arima/tests", "statsmodels/tsa/statespace/tests/test_tools.py",
+    "statsmodels/tsa/statespace/tests/test_simulation_smoothing.py",
+    "statsmodels/tsa/regime_switching/tests/test_markov_regression.py",
+    "statsmodels/tsa/stl/tests/test_stl.py", "statsmodels/genmod/families/tests",
+    "statsmodels/formula/tests", "statsmodels/iolib/tests", "statsmodels/tsa/filters/tests",
+]

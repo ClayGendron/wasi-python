@@ -115,3 +115,57 @@
     four ids), and `test_axis_nan_policy_full or (test_axis_nan_policy_fast and kruskal)`. Each is
     prefixed by its class (`TestMakeDistribution and (…)`, `TestTanhSinh and (…)`) so it matches
     no other file in the same group.
+
+## Smoke selection, the clock-stepped test and the split (EXECUTED 2026-10-21, after the delta review)
+
+By the builder who took over spec 095 from the drafter, answering the delta review's D-M1 to
+D-M3 and D-L2. The folder `smoke/` holds the scripts, the job lists and the records.
+
+- **Set:** the main tree's frozen `build/artifacts` (wave 10's, statsmodels included),
+  `SHA256SUMS d0d91cef…`, copied with `cp -c -Rp` into the builder's worktree and checked with
+  `shasum -a 256 -c` (all OK). The three sdists copied and their SHA-256 checked against their
+  pins (scipy's and scikit-learn's in `downloads/SHA256SUMS`, statsmodels' in the set's
+  `MANIFEST`).
+- **How:** the survey's stand-in (`smoke/scripts/survey.py`, repointed, with a `clock_step_ns`
+  switch and a one-hook plugin that writes `sys.modules` at the end of a session), the judge's
+  embedder, one guest at a time, never while `build/lane.lock` existed. Stopping another process
+  is not permitted in this sandbox, so a session the lane's lock found running was ended and run
+  again after (`runjobs.py`); the lock held twice (06:45 to 07:08 and 07:33 to 07:54, EDT); no
+  record was kept from an ended session. The machine was loaded (load average up to 97 from other agents'
+  work), so wall clock is not a fact here; fuel is.
+- **The derived files repeat:** `boost.npz`, `gsl.npz`, `local.npz` made in the guest again with
+  the same SHA-256 as the survey's (`57b5c2b6…`, `cbf1afdd…`, `6c29e58c…`) on another set (fuel
+  5.78, 1.24, 1.57 G).
+- **The build's own list of compiled modules** (`smoke/builtins.txt`, from the guest's
+  `sys.builtin_module_names`): scipy 95 in 31 subpackages, scikit-learn 69 in 19, statsmodels 26
+  in 11.
+- **Import is not evidence of a touch.** Every scipy session imported 91 of the 95 compiled
+  modules before any test ran, because the driver imports every `package_paths` key first. The
+  four it does not are imported lazily: `_fmm_core` (only `test_mmio.py` imported it),
+  `_matfuncs_sqrtm_triu` (`test_matfuncs.py`, `test_batch.py`), `cython_optimize._zeros`,
+  `_unuran.unuran_wrapper`. So the cover is read from the files (READ), with the four lazy ones
+  confirmed by import (EXECUTED).
+- **Per-file probes** (`smoke/probes.tsv`: label, session fuel in G, exit, trap, outcomes; less
+  20.1 G for a scipy start, 26.4 G for scikit-learn's and statsmodels'): 117 candidate files or
+  folders and three draft groups. Five ran out of their 150 G probe caps and were left to the
+  release tier: scipy `interpolate/tests/test_rbfinterp.py`, scikit-learn
+  `ensemble/tests/test_gradient_boosting.py` and `manifold/tests/test_t_sne.py`, statsmodels
+  `tsa/holtwinters/tests/test_holtwinters.py` and `tsa/tests/test_exponential_smoothing.py`;
+  `nonparametric/tests/test_kde.py` ended at 149.5 G. scikit-learn's
+  `utils/tests/test_cython_blas.py` skips whole ("could not import 'cython'") and was dropped.
+- **The final groups, each measured whole once** (`smoke/jobs-final.tsv`; failures by reason in
+  `smoke/smoke-failures.txt`): `scipy-smoke-a` 207.36 G (2,033 passed), `scipy-smoke-b` 221.78 G
+  (2,322 passed, 28 failed, 147 errors, all of measured reasons), `scikit-learn-smoke` 205.48 G
+  (1,467 passed, 2 failed), `statsmodels-smoke` 135.96 G (939 passed, 4 failed, 40 errors, all
+  `left-out-datasets`): **770.6 G**. No trap, no collection error. The specification's Decision 7
+  gives the rule, the paths and the cover.
+- **The clock-timed test runs with a 1 ms clock step:** `scipy/signal/tests/test_signaltools.py::
+  test_choose_conv_method[numpy]` passed, one outcome, 37.92 G for the session (start and the
+  file's collection included), with `clock_step_ns = 1_000_000` and `-k "test_choose_conv_method
+  and not _2"`, no `-m`.
+- **numpy's `tofile` refuses even with a path:** in the guest, `np.arange(4.0).tofile(
+  "/tmp/w/p.bin")` raised `OSError: [Errno 58] Not supported` (0.89 G). It is `enotsup-io`'s call.
+- **The split, proved** (`smoke/split.py` over the three pinned tarballs and `smoke/plan.toml`,
+  output `smoke/split.txt`): every staged test file is in exactly one tier under the smoke kind's
+  rules (scipy 329 files, 63 in smoke paths; scikit-learn 256, 37; statsmodels 285, 26); six
+  mutants per family are each refused with their own line.
