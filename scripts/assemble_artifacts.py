@@ -97,7 +97,7 @@ PACKAGES = {
     # seaborn and reportlab: pure Python, seaborn from its sdist, reportlab its wheel
     "seaborn": "0.13.2",
     "reportlab": "5.0.1",
-    # statsmodels (spec 045): the package, its bundled code and its public-domain datasets, under
+    # statsmodels: the package, its bundled code and its public-domain datasets, under
     # its notice; its formula engine formulaic and formulaic's two requirements, pure wheels.
     "statsmodels": "0.15.0",
     "formulaic": "1.2.2",
@@ -330,7 +330,7 @@ Diabetes (load_diabetes; B. Efron, T. Hastie, I. Johnstone and R. Tibshirani, 20
 
 The two sample photographs of sklearn/datasets/images/ (CC BY 2.0) are not in this release.
 """
-# statsmodels' terms (spec 045, Decision 13), as scikit-learn's: its licence, COPYRIGHTS.txt (the
+# statsmodels' terms (Decision 13), as scikit-learn's: its licence, COPYRIGHTS.txt (the
 # numpy, scipy, pandas, matplotlib, scikit-learn and qsturng-py code it carries), the licences of
 # its two folders that have their own, each bundled component the build's notice sweep found, the
 # pinned licence texts of the two projects whose adapted code carries none, and its datasets'
@@ -362,7 +362,7 @@ STATSMODELS_PINNED = (
     ("numpydoc-894c8c47-LICENSE.txt", "numpydoc, for statsmodels/tools/docstring.py"),
 )
 # The datasets that ship (each module's COPYRIGHT says public domain) and those whose files stay
-# out (spec 045, Decision 9), each named with its module's own statement.
+# out (Decision 9), each named with its module's own statement.
 STATSMODELS_DATASETS = (
     "anes96", "co2", "danish_data", "elec_equip", "elnino", "engel", "grunfeld", "longley",
     "macrodata", "modechoice", "nile", "randhie", "stackloss", "statecrime", "strikes", "sunspots",
@@ -678,7 +678,7 @@ def dataset_copyright(tree: Path, name: str) -> str:
 
 
 def statsmodels_parts(tree: Path, d: Path) -> list[tuple[str, bytes]]:
-    """LICENSES/statsmodels.txt's parts, in order (spec 045, Decision 13)."""
+    """LICENSES/statsmodels.txt's parts, in order (Decision 13)."""
     parts = [(f"statsmodels {n}", (tree / n).read_bytes()) for n in STATSMODELS_FILES]
     parts += [
         (f"statsmodels {n}, lines {a}-{b}", lines_notice(tree / n, a, b, words))

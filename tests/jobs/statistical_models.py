@@ -1,15 +1,15 @@
 """Golden job: statsmodels fits regressions, discrete and generalised linear models, runs tests and
-models time series on the public-domain datasets it ships, with both formula engines (spec 045,
-Decision 12). Usage: statistical_models.py <data dir> <out dir> (both unused). Runs natively (the
+models time series on the public-domain datasets it ships, with both formula engines
+(Decision 12). Usage: statistical_models.py <data dir> <out dir> (both unused). Runs natively (the
 oracle) and in the guest; its output must be byte-identical in both. Named so as not to shadow the
 standard library's statistics module on the job's path.
 
 The datasets load from the zip through the carried patch's package-resource fallback; natively from
-disk, unpatched, with the same values. Values print with significant digits, 037's rules: 9 for
-direct results, 6 for iterative ones, whose solvers get tolerances far tighter than the digits
-printed (1e-12 for Newton, IRLS and ARIMA's optimiser); the regression summary's coefficient table
-as its text, never the whole summary, whose first table holds the date; no dtype, no timing and no
-iteration count; every input fixed or seeded.
+disk, unpatched, with the same values. Values print with significant digits, as scipy's jobs do:
+9 for direct results, 6 for iterative ones, whose solvers get tolerances far tighter than the
+digits printed (1e-12 for Newton, IRLS and ARIMA's optimiser); the regression summary's
+coefficient table as its text, never the whole summary, whose first table holds the date; no dtype,
+no timing and no iteration count; every input fixed or seeded.
 """
 
 import warnings

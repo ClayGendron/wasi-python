@@ -79,7 +79,7 @@ dependencies = [
     # holds, byte for byte; reportlab's keeps its fonts natively, which neither job uses.
     "seaborn==0.13.2",
     "reportlab==5.0.1",
-    # statsmodels and its formula engine at the guest's pins (spec 045, Decision 12); wrapt as the
+    # statsmodels and its formula engine at the guest's pins (Decision 12); wrapt as the
     # guest's own pure wheel (below), so both run the same wrapt code.
     "statsmodels==0.15.0",
     "formulaic==1.2.2",

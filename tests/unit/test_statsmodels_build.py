@@ -1,4 +1,4 @@
-"""statsmodels' build scripts on the host (spec 045, Decision 12's unit checks): the configure-time
+"""statsmodels' build scripts on the host (Decision 12's unit checks): the configure-time
 setuptools_scm stand-in's get_version, the zip's --drop of one file by its exact name, its --keep
 of a dataset folder's code alone, and gen_inittab's four statsmodels renames. No artifact."""
 
@@ -51,7 +51,7 @@ def test_the_stand_in_reads_the_version_from_pkg_info(tmp_path) -> None:
 
 def test_the_stand_in_still_prints_the_version_for_matplotlib(tmp_path) -> None:
     """`python -m setuptools_scm` in an sdist's top folder prints its version, as matplotlib's
-    meson.build asks (spec 023), and stops without one."""
+    meson.build asks, and stops without one."""
     (tmp_path / "PKG-INFO").write_text(PKG_INFO)
     env = {**os.environ, "PYTHONPATH": str(STAND_IN)}
     run = [sys.executable, "-m", "setuptools_scm"]
@@ -63,7 +63,7 @@ def test_the_stand_in_still_prints_the_version_for_matplotlib(tmp_path) -> None:
 
 
 def test_a_drop_takes_one_file_by_its_exact_name() -> None:
-    """--drop names a folder or one member (spec 045, Decision 9: sandbox/rlsdata.txt): the member
+    """--drop names a folder or one member (Decision 9: sandbox/rlsdata.txt): the member
     whose name, before .py becomes .pyc, is the argument goes, and nothing else, not even a member
     whose name merely starts with it; a folder's drop is unchanged; a drop that matches nothing,
     such as x.pyc for the member that comes from x.py, stops the build, named."""

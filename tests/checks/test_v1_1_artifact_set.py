@@ -194,7 +194,7 @@ def test_statsmodels_notice_carries_its_bundled_parts(artifacts) -> None:
     the pinned sdist holds it (mne-python's parallel_func, numpydoc's docstring parser, Acklam's
     inverse normal, the NETLIB STL port, the boxplot code, the IRLS translation); then mne-python's
     and numpydoc's pinned licences; and the datasets part: each of the sixteen shipped with its
-    public-domain statement, the thirteen named as left out (spec 045, Decision 13). It reads the
+    public-domain statement, the thirteen named as left out (Decision 13). It reads the
     sdist, so it runs in the build shard (tests/release_shards.toml)."""
     needs.need("source tree statsmodels")
     tarball, _ = pins.source_pair("statsmodels")
@@ -202,7 +202,7 @@ def test_statsmodels_notice_carries_its_bundled_parts(artifacts) -> None:
     assert not errors, scan.report(errors)
 
 
-# What stays out of statsmodels (spec 045, Decision 9): the data files of the thirteen datasets
+# What stays out of statsmodels (Decision 9): the data files of the thirteen datasets
 # whose stated terms are not approved (each folder keeps __init__.py and data.py), every
 # datasets/*/src/ folder, and sandbox/rlsdata.txt.
 STATSMODELS_LEFT_OUT_FILES = (

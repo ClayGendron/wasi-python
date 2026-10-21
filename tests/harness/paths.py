@@ -174,7 +174,7 @@ LICENCE_COMPONENTS = (
     # licences, reportlab's its three third-party parts (their own checks hold both)
     "seaborn",
     "reportlab",
-    # statsmodels and its formula engine (spec 045, Decision 13)
+    # statsmodels and its formula engine (Decision 13)
     "statsmodels",
     "formulaic",
     "interface-meta",
