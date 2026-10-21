@@ -613,3 +613,33 @@ records (`seen-failing.txt`, `hits-before.txt`, `hits-after.txt`, `regex-job-*.j
    claim list.
 7. **The four review mentions** of the first build's `cecceed` are made by the batches now, so
    there is no separate commit for them.
+
+### Disposition of the build review
+
+The build review (`../reviews/109-code-speaks-for-itself-2026-10-21.md`, commit `bacf7a9`;
+verdict "lands", two Lows in `context/` only, two Notes; its own fast tier on `8fe2a8a` read 83
+failed, 2,459 passed, 52 skipped, the baseline's 83 exactly, both sameness lines the same as the
+builder's, and the cleanup reproduced byte for byte):
+
+1. **Three `run:` scalars of the workflow changed** (Low) — confirmed as written in by the
+   reviewer, commit `f17a67a`, the sentence in the "Comments only" bullet above: a `#` line
+   inside a `run: |` block is part of the step's script string in the parsed document, so the
+   parsed YAML differs at `d92307f` and at the built commit in exactly those three values, each
+   by the shell comments inside the script and in no command (EXECUTED by the reviewer with
+   pyyaml; every other key and value equal). By Decision 3 those lines are comments, so the Kind
+   line's "no string literal changes" holds as this specification means it. No code change; no
+   round.
+2. **The rule's leftovers have no owner** (Low) — confirmed as written in by the reviewer,
+   commit `f17a67a`, the "Roadmap" bullet above: the 78 string-literal lines (several read by a
+   user: `--shard`'s help, the progress group's title, the scoreboard's not-machine-checked line,
+   the C comment `gen_inittab.py` writes), the 31 citations in the judge's allowance files and the
+   36 in the guest's own sources. Carried to the integration's roadmap commit: the lane writes the
+   proposed "Reserved" line into `context/roadmap.md` at the wave; and carried to the owner:
+   whether a message a user reads falls under the rule is the owner's to say, not this
+   specification's. No code change; no round.
+3. **The allowance's grain is a phrase per file** (Note) — acknowledged: a second occurrence of an
+   admitted phrase in the same file is admitted by its row; any other phrase is caught and a
+   removed phrase turns the row red; named here for the next reader.
+4. **Bare `Decision N` and `criterion N` remain** (Note) — acknowledged: scoped out by Decision 6's
+   reason (a numbered part of no named document); the specification that takes finding 2's
+   leftovers may take them.
