@@ -1043,6 +1043,46 @@ The build, below, as it goes.
    release group over exactly the smoke path. No family on main names a smoke group, so no JSON
    and no check changes (the judge's own files' rows unchanged and green).
 
+7. **Stacked on 101** (the lane: wave 11 is 101, 102, 112). First onto 101's rebased tip
+   `55af64cc`, then onto its confirmed tip `1ebb992f` (no conflict the second time). The first
+   restack's hunks, each named: `shards.py` `SYSTEMS` and `PLATFORM` (101's build shard on Linux,
+   102's release pseudo-system: both); `gather.py` `JOB` (101's `build-shard`, 102's
+   `judge-release`: both), G7 (101's tag-built-its-set line, 102's release-acceptance line: both),
+   the merged record's `meta` (101's `set_source`, 102's `tier`: both) and `main`'s inputs (101's
+   `SET_SOURCE`, 102's `TIER`, release run and release checks: both); `sameness.py` `SYSTEMS`
+   (101's build run on Linux with `BUILD_RUN`, 102's release on Linux: both); the ends of
+   `test_gather.py` and `test_sameness.py` (each side's new rows: both); the release workflow
+   (101's taken whole, 102's retired plot shards removed from it again).
+8. **The workflow half** (Decisions 10, 12, 13; checks 9 and 10), on 101's `inputs` job: the
+   `release-tier` dispatch input; the `tier` step and output (Decision 12's script);
+   `judge-release`, judge-linux's legs over the twelve release shards with `needs: [inputs,
+   build]` and `if: needs.inputs.outputs.tier == 'release'`; the gather needing `inputs` and
+   `judge-release` with exactly `if: ${{ !cancelled() && !failure() }}`, `TIER` and every
+   `RECORD_RELEASE_<SHARD>` in its step's `env:`, and a guard and a download of the release
+   records' ids that run only on a release run. The scan: `judge-release` held to judge-linux's
+   text beyond its needs, its `if:` and its lists (rule 3), its matrix to the plan's release
+   shards (rule 2), its outputs (rule 5), its permission row (rule 14); rule 11 (its exact
+   `if:`, the gather's exact `if:`, the release ids read only under the release condition);
+   rule 12 (a job after the gather that a branch run reaches carries a status function: only the
+   tag-only jobs do today); R2 (the `tier` output). Sixteen unit rows in `tests/unit/test_scan.py`
+   seen failing first (`build/102/fail-9-workflow.log`: 16 failed, no `judge-release`, no tier
+   step): eight mutants of the real workflow, the guard-loop row, seven runs of the tier step in
+   bash (a tag, a dispatch on main, a branch with and without the input, an empty value, `True`,
+   `refs/heads/mainline`).
+   - **Two more differences.** Rule 15 refuses a guard or download step with an `if:`; the
+     release records exist only on a release run, so the gather's guard and download of
+     judge-release's ids carry exactly the release condition, the one exemption, held by rule 11
+     (gather.py is red at G1 when a release run lacks those records, so the condition hides
+     nothing). And a new binding row: a guard whose `for` loop names a variable its `env:` does
+     not set is red. It found a bug of this branch's own: the survey commit's workflow edit had
+     left the five retired plot shards' ids in the gather's guard loop, which would have failed
+     every run's gather; removed.
+9. **The fast tier on the stacked tip** (the fast slot held, no `build/lane.lock`): 2,826 passed,
+   16 failed, every one a statsmodels-or-set check failing because the worktree's copied set was
+   wave 09's (`142bdd38`) while main's acceptance is wave 10's; on wave 10's set (`d0d91cef`,
+   copied from the main tree) the sixteen pass by node id. The ratchet's other red line is
+   `moved 17`, the move to claim.
+
 **What waits for wave 09** (the lane's ruling): the rebase onto main; the survey (Decision 11)
 on main's set after 100 (done, item 5, on wave 09's tip before it landed); the TOML groups,
 release lists and shard entries from it (done); the context-only delta review the survey asks
