@@ -448,3 +448,30 @@ new = ["tests/unit/test_runner_module_caches.py"]
 units = 36
 ```
 
+
+## The lane's addendum (2026-10-21)
+
+- **The conditions met.** The acceptance on `25983899` (the landing edits on `11ce98a0` and this
+  review) ran with M1's clause in 114's `--accept-growth`: history line 93, 810/935 pass, 0 fail,
+  85 gap, 2 blocked, lost 0; sameness against wave 10's record with Appendix A's claims exits 0.
+  The acceptance commit `da665abe`; the lane's handoff `6411d4d5` (context only); main
+  fast-forwarded `1875d4cd..6411d4d5`.
+- **M2.** The step-7 dry run is 39667712127 on `wave/11` at `da665abe`. Attempt 1 failed only at
+  "Download the pinned inputs" (`curl: (22) … 504` from freetype's pinned Savannah URL, the host
+  down from about 20:10 to 20:25 UTC); attempt 2, the failed jobs re-run with nothing changed,
+  is green on three systems. `inputs` said `tier=normal`, `judge-release` skipped, the gather ran
+  and concluded success (102's criterion 5 and the first half of 7); the set `1556bbd5` on every
+  host; 805/935 on CI, 7 blocked; the wheel 98,264,488 bytes.
+- **L1 to L4** are in the landing edits `25983899`: 102's block in the ledger with `units = 113`,
+  the three unit files in Appendix A's `new` lists, 112's CHANGELOG line, 102's constitution and
+  AGENTS.md text, 101's roadmap lines, and 114's one-line ledger block. That block carries the
+  growth reason alone, without Appendix A's wildcard `grows` for 114: in the ledger it would
+  excuse every release-tier group's fuel at the release acceptance, which is wider than M1's
+  landing-time reason.
+- **Note 8** written in by the lane with this addendum: the blank line between the CHANGELOG's
+  114 and 113 bullets.
+- **101's criterion 7.** The fast-forward's push started `set-cache.yml`'s first run, 39684360599
+  on `6411d4d5`: the key `wasi-python-set-v1-28075ae2…` missed in main's cache, `seed` built the
+  set from the pins on arm64 Linux (22:09 to 22:28 UTC, one fetch from Savannah after its outage)
+  and saved it, 90,718,147 bytes, the same key the wave's dry run had cached on `wave/11`. The
+  push of these landing notes is the next run (context only, so the same key): the first hit.

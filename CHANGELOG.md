@@ -469,6 +469,7 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   `RL_*` variables. The README names what an `env=` HOME in a reused root still carries (pdb's
   `.pdbrc`, scikit-learn's pickled caches), matplotlib's `./matplotlibrc` and a planted
   `/etc/xml/catalog`.
+
 - **Every module cache is guarded, whatever a call's own `cache_dir`** (spec 113; the 0.1.0
   security review's H1). A call with `cache_dir=False` or a cache of its own no longer passes
   a writable grant or `root` over the cache other calls and processes use: the judge now

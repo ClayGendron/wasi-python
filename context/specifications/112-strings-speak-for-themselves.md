@@ -1,6 +1,6 @@
 # 112 — Strings speak for themselves: no document cited in a string literal
 
-- **Status:** **built 2026-10-21 on `5005ccbd`** (the release workflow's run 39589394200 on
+- **Status:** **landed 2026-10-21 in wave 11** (101, 102, 112, 114, 113) on main `6411d4d5`: accepted on `25983899` (`da665abe`), history line 93, 810/935 pass, 0 fail, on a set rebuilt from the same pins in the main tree (`SHA256SUMS` `1556bbd5`; `python.wasm` byte for byte wave 10's); the wave's dry run 39667712127 on `wave/11` at `da665abe` green on three systems (attempt 2; attempt 1 failed only at freetype's download, Savannah's outage); the integration review `../reviews/wave-11-integration-2026-10-21.md` and the lane's addendum. Before: **built 2026-10-21 on `5005ccbd`** (the release workflow's run 39589394200 on
   that commit: green on three systems but the gather's G7; the landing notes). Before:
   **drafted 2026-10-21** on `spec/112-strings-speak-for-themselves` from main's
   `d8fc73f`; **reviewed before build 2026-10-21**

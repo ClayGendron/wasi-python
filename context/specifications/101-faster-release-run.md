@@ -1,6 +1,6 @@
 # 101 — a faster release run: reuse a proven set on branches, and macOS shards that finish together
 
-- **Status:** **drafted 2026-10-20** on `spec/101-faster-release-run` from main `30e9b41` (the
+- **Status:** **landed 2026-10-21 in wave 11** (101, 102, 112, 114, 113) on main `6411d4d5`: accepted on `25983899` (`da665abe`), history line 93, 810/935 pass, 0 fail, on a set rebuilt from the same pins in the main tree (`SHA256SUMS` `1556bbd5`; `python.wasm` byte for byte wave 10's); the wave's dry run 39667712127 on `wave/11` at `da665abe` green on three systems (attempt 2; attempt 1 failed only at freetype's download, Savannah's outage); the integration review `../reviews/wave-11-integration-2026-10-21.md` and the lane's addendum. Before: **drafted 2026-10-20** on `spec/101-faster-release-run` from main `30e9b41` (the
   owner's answer on CI); **reviewed before build** the same day
   (`../reviews/101-faster-release-run-prebuild-2026-10-20.md`, verdict "build once H1, M1 and M2
   are answered"); the owner answered choice 2 (main `5feb7e9`, `decisions.md`: the build shard

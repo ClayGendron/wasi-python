@@ -1,6 +1,6 @@
 # 113: every module cache is guarded
 
-- **Status:** **built 2026-10-21 on `21cc7296`** (the code, after the build review; the commits
+- **Status:** **landed 2026-10-21 in wave 11** (101, 102, 112, 114, 113) on main `6411d4d5`: accepted on `25983899` (`da665abe`), history line 93, 810/935 pass, 0 fail, on a set rebuilt from the same pins in the main tree (`SHA256SUMS` `1556bbd5`; `python.wasm` byte for byte wave 10's); the wave's dry run 39667712127 on `wave/11` at `da665abe` green on three systems (attempt 2; attempt 1 failed only at freetype's download, Savannah's outage); the integration review `../reviews/wave-11-integration-2026-10-21.md` and the lane's addendum. Before: **built 2026-10-21 on `21cc7296`** (the code, after the build review; the commits
   after it are `README.md` and `context/` only) on `spec/113-every-module-cache-is-guarded`,
   from main `1875d4cd`; the release workflow's run **39644201639** on `21cc7296` green on three
   systems on its first attempt (*Landing notes*). **Build-reviewed**
