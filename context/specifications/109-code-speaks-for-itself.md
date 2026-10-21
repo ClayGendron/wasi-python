@@ -1,8 +1,8 @@
-# 108 — Code speaks for itself: no document cited in a comment outside `src/`
+# 109 — Code speaks for itself: no document cited in a comment outside `src/`
 
-- **Status:** **drafted 2026-10-20; built on `cecceed`** in worktree `spec/108-code-speaks-for-itself`
+- **Status:** **drafted 2026-10-20; built on `cecceed`** in worktree `spec/109-code-speaks-for-itself`
   from `b7a1250` (branch `claude/gallant-ride-9nxxmn`: main plus the chain's specifications and
-  102's build and review); **reviewed before build: none required** (judge-only and
+  103's build and review); **reviewed before build: none required** (judge-only and
   comments-only; AGENTS.md rule 8), the build review follows. A different agent reviews the build.
 - **Date:** 2026-10-20
 - **Owner:** Clay Gendron
@@ -15,9 +15,9 @@
   parenthesis), `tests/harness/scan.py`, `tests/checks/test_rules.py`, `tests/unit/test_scan.py`,
   the comments and docstrings of 98 files under `tests/`, 47 under `scripts/`, 2 under `release/`
   and `.github/workflows/release.yml`, this specification.
-- **Depends on:** nothing landed beyond main. It **lands last in the stacked chain 102 to 107**
+- **Depends on:** nothing landed beyond main. It **lands last in the stacked chain 103 to 108**
   (the memo of Research, section 8): built on `b7a1250`, it is re-applied on the chain's tip
-  before the wave (Decision 7), since every link edits comments in `tests/`. Spec 106's
+  before the wave (Decision 7), since every link edits comments in `tests/`. Spec 107's
   Decision 4 does the same job for `src/`; this specification covers `tests/`, `scripts/`,
   `release/` and the workflows only, and touches no file under `src/`.
 - **Research it stands on:** `../research/2026-10-20-a-design-review-of-the-runner.md`, section
@@ -34,7 +34,7 @@ specification, memo, review, finding ID or `context/` path; the reason is writte
 document under `context/` may cite and link the code, so the trace runs from the documents to the
 code and never back.
 
-Measured on the base content (EXECUTED, `uv run python build/108/measure.py`, the scanner of
+Measured on the base content (EXECUTED, `uv run python build/109/measure.py`, the scanner of
 Decision 2 over the files of Decision 3, comments and docstrings only, on `b7a1250` plus the
 check): **2,225 citations**: `tests/` 1,896, `scripts/` 272, `release/` 6, `.github/workflows/`
 51. By kind: a specification 1,592, a review named or dated 242, a finding identifier 309, a
@@ -68,7 +68,7 @@ The forms (`CITATION_RULES`):
 | `review` | `\breviews?\b` followed by a date `YYYY-MM-DD` or a path; and a review named by its kind: `build review`, `pre-build review`, `delta review`, `follow-up review`, `security review`, `integration review`, `re-review`, `confirmation's` |
 | `question` | `\bquestion\s+\d+\b`, any case |
 | `context path` | `\bcontext/[a-z_]+` |
-| `finding` | `(?<![A-Za-z0-9_])[CDFLNS]\d{1,2}(?:\.\d+)?(?![A-Za-z0-9_])`, spec 106's |
+| `finding` | `(?<![A-Za-z0-9_])[CDFLNS]\d{1,2}(?:\.\d+)?(?![A-Za-z0-9_])`, spec 107's |
 | `named finding` | a finding of another letter (`M5`, `B1`, `R1`, `P6`, a mutation's `M18`) where `review`, `re-review` or `confirmation` names it |
 
 The brief's forms are the first of each row. Three widen it, each found by the build's read
@@ -91,11 +91,11 @@ each hit as `path:line: rule: phrase`.
 Every `.py`, `.sh`, `.toml`, `.yml` and `.yaml` file under `tests/` and `.github/workflows/`, and
 every text file under `scripts/` and `release/` (the shell launchers there have no suffix; the
 release's `.in` and `.txt` files are read as `#` comments). The workflow is included because its
-comments cite specifications 51 times (EXECUTED); `src/` is spec 106's and is not read here.
+comments cite specifications 51 times (EXECUTED); `src/` is spec 107's and is not read here.
 Fixtures with other suffixes (`.ll`, `.expected`, `.platform`, `.txt`) and the upstream suites'
 `.ini` files are not code and are not read.
 
-### 4. Three rewriting rules, spec 106's
+### 4. Three rewriting rules, spec 107's
 
 - **(a)** Delete only the citation and its connector: `(spec 052)`, `, spec 052,`, `per spec
   052`, `the review's F4.2`, `Spec 055, criterion 26: ` at a sentence's head (the next word then
@@ -108,7 +108,7 @@ Fixtures with other suffixes (`.ll`, `.expected`, `.platform`, `.txt`) and the u
   file, `tests/known_gaps.toml`, `tests/upstream/*.toml` or `context/progress/`. A string literal
   that cites a document (an assertion message, a message the runner or the judge emits and a test
   matches, a guest program held as a string, a generated file's text) is listed in the landing
-  notes for spec 106 or its owner, not changed.
+  notes for spec 107 or its owner, not changed.
 
 Only lines move where a rewritten sentence passed 100 columns: the paragraph is re-filled, its
 words unchanged.
@@ -135,19 +135,19 @@ Rule (c) keeps every string literal. The literals that cite a document fall in f
 the landing notes list by file and line: guest programs held as strings (their bytes are the
 guest's input, and so its fuel), messages the judge or a build step prints and a check matches,
 a generated C comment (`scripts/gen_inittab.py`), and fixtures that a scanner's unit rows read
-(their text is the scanner's input). The first two are spec 106's or the owner's to reword with
+(their text is the scanner's input). The first two are spec 107's or the owner's to reword with
 the code that matches them.
 
 ### 7. A reproducible pass: a script, then a recorded hand pass
 
-The mechanical cases are rewritten by a scratch script, `build/108/clean.py` (git-ignored, run
+The mechanical cases are rewritten by a scratch script, `build/109/clean.py` (git-ignored, run
 with `uv run python`), which edits only prose spans (the same reading as the check) one line at a
 time, by rule (a) alone: a parenthesis that holds only citations, a citation at the head of a
 parenthesis or a sentence, a citation after a `;` or `,` that closes a parenthesis, and `per
 <citation>`. It never edits the files of Decision 5, never leaves a comment empty, and prints
 each line it changes. Everything it leaves is read by hand, line by line, under rules (a) and (b),
 and **the hand pass is recorded** as exact `(path, old, new[, document])` edits in
-`build/108/hand/NN_*.py`, applied by `build/108/hand.py` (`--list-b` prints the rule (b) list),
+`build/109/hand/NN_*.py`, applied by `build/109/hand.py` (`--list-b` prints the rule (b) list),
 with the re-fills of Decision 4 recorded beside them. Re-applied on the chain's tip, the cleanup
 commits are dropped, `clean.py` and `hand.py` run on the new base, every edit that misses is
 named, and the leftovers the check reports are read again; the check and its unit rows are
@@ -168,14 +168,14 @@ judge change that re-measures their fuel.
 ### 9. No verdict moves
 
 The fast tier runs on the built commit with the frozen `v0.1.0a7` set, and `sameness.py`
-compares its record with spec 102's built record (the chain's previous record on this base). The
+compares its record with spec 103's built record (the chain's previous record on this base). The
 only differences allowed are this specification's claims: the new check's node and the scanner's
 unit rows.
 
 ## Intent
 
 Every comment and docstring under `tests/`, `scripts/`, `release/` and the workflows gives its
-reason in words. A rules check holds it, beside spec 106's for `src/`, and the only citations left
+reason in words. A rules check holds it, beside spec 107's for `src/`, and the only citations left
 are in the judge's own allowance files and the guest's own sources, named one by one.
 
 ## Design
@@ -194,16 +194,16 @@ are in the judge's own allowance files and the guest's own sources, named one by
   hit, while a lone `C99` in a comment does); one row for the files read; one row for a citation
   split across docstring lines and across comment lines, and a code line ending a block. Their
   fixtures are assembled from parts, so the unit file's own prose is never a hit.
-- **The cleanup:** `build/108/clean.py`, then the recorded hand pass.
+- **The cleanup:** `build/109/clean.py`, then the recorded hand pass.
 
 ## Scope
 
 In: the comments and docstrings of `tests/`, `scripts/`, `release/` and `.github/workflows/`;
-the check, its scanner, its unit rows; the AGENTS.md parenthesis. Out: `src/` (spec 106);
+the check, its scanner, its unit rows; the AGENTS.md parenthesis. Out: `src/` (spec 107);
 `recipes/` and `pyproject.toml`'s comments (no rule reads them yet); `context/`; every string
 literal (Decision 6); the judge's allowance files and the guest's own sources (Decision 5); a bare
 `Decision N` or `criterion N` with no specification beside it (206 and 28 left, EXECUTED,
-`build/108/residue.py`): they name a numbered part of no named document, the rule's forms do not
+`build/109/residue.py`): they name a numbered part of no named document, the rule's forms do not
 include them, and where this pass removed a specification it removed its decision with it;
 `CHANGELOG.md` and the roadmap (the line is proposed in the landing notes).
 
@@ -211,15 +211,15 @@ include them, and where this pass removed a specification it removed its decisio
 
 1. **Seen failing first:** the check fails on `b7a1250` with the check, its scanner and its
    allowance in place and nothing else changed, and so does the widened check on the same content;
-   both counts are kept in `build/108/seen-failing.txt`.
+   both counts are kept in `build/109/seen-failing.txt`.
 2. **Passes on the built commit**, with `CONTEXT_CITATION_ALLOWED` holding only the entries of
    Decision 5, every one used.
-3. **Counts before and after** by tree, from the same scanner, in `build/108/hits-before.txt` and
-   `build/108/hits-after.txt`, sorted by file and rule; after: 67, all in the files of Decision 5.
+3. **Counts before and after** by tree, from the same scanner, in `build/109/hits-before.txt` and
+   `build/109/hits-after.txt`, sorted by file and rule; after: 67, all in the files of Decision 5.
 4. **The unit rows** (eighteen) pass; `tests/unit/test_scan.py` passes whole.
 5. **Comments only:** for every file the cleanup commits change, the Python token stream with
    comments removed and docstrings blanked is the same before and after, and for every other file
-   the lines that are not `#` comments are the same (`build/108/same-code.py`, EXECUTED, prints
+   the lines that are not `#` comments are the same (`build/109/same-code.py`, EXECUTED, prints
    nothing).
 6. **No protected file changes:** `git diff --stat b7a1250 -- tests/known_gaps.toml
    'tests/upstream/*.toml' tests/upstream/expected tests/upstream/python context/progress src` is
@@ -230,7 +230,7 @@ include them, and where this pass removed a specification it removed its decisio
 9. **Reproducible:** `clean.py` then `hand.py` on a copy of the base content give the built files,
    byte for byte, for every file but the check's own.
 10. **The fast tier** on the built commit fails exactly the baseline's 83 nodes, and `sameness.py`
-    against spec 102's built record prints nothing outside this specification's claims.
+    against spec 103's built record prints nothing outside this specification's claims.
 11. **Ruff:** `ruff check` and `ruff format --check` are green on `src/` and `tests/`.
 12. **AGENTS.md** carries the parenthesis of Decision 1 and no other change.
 
@@ -248,9 +248,9 @@ code prose, the judge's allowance files and the guest's own sources named as the
 
 ## Landing notes
 
-Built 2026-10-20 in the worktree `/home/user/wt/108`, branch `spec/108-code-speaks-for-itself`,
+Built 2026-10-20 in the worktree `/home/user/wt/109`, branch `spec/109-code-speaks-for-itself`,
 from the base `b7a1250`. Every number here is EXECUTED on that base or on the built commit, with
-its command; the outputs are kept under `build/108/` in the worktree (git-ignored):
+its command; the outputs are kept under `build/109/` in the worktree (git-ignored):
 `seen-failing.txt`, `hits-before.txt`, `hits-after.txt`, `fast.log`, `built.json`, `claims.toml`,
 `sameness.txt`, the scripts `clean.py`, `hand.py` with `hand/01_*.py` to `hand/16_*.py`,
 `refill.py`, `measure.py`, `same-code.py`, `literals.py`, `residue.py`, and the regex job's
@@ -262,11 +262,11 @@ records `regex-job-*.json`.
   (the guest's own sources back to their bytes, allowed), `cecceed` (four review mentions the check
   does not hold), and the commit that carries this Status line and these notes. The built commit
   is `cecceed`; the last commit touches only this file.
-- **Seen failing first** (`build/108/seen-failing.txt`, criterion 1): the first check on `b7a1250`
+- **Seen failing first** (`build/109/seen-failing.txt`, criterion 1): the first check on `b7a1250`
   plus the check: **1,758 findings**, digest `53ee1ed83786`; the widened check on the same content
   (a copy of `0e0e609` with the widened check's three files): **2,194 findings**, digest
   `079ebe958e74`. On `cecceed` it passes (criterion 2).
-- **Counts before and after** (`uv run python build/108/measure.py`, the final scanner; criterion
+- **Counts before and after** (`uv run python build/109/measure.py`, the final scanner; criterion
   3): before **2,225** (`tests/` 1,896, `scripts/` 272, `release/` 6, `.github/workflows/` 51);
   after **67**, all in the files of Decision 5: 31 in the judge's allowance files
   (`tests/known_gaps.toml` 4, `tests/upstream/*.toml` 27) and 36 in the guest's own sources
@@ -279,7 +279,7 @@ records `regex-job-*.json`.
   two (criterion 9): 438 edits apply, 10 are skipped as guest sources, and 26 miss, each
   explained: 25 in `tests/harness/scan.py`, already in the copied scanner, and one in
   `scripts/steps/35_stdlib_libs.sh` that the script's final form makes itself.
-- **Comments only** (criterion 5): `uv run python build/108/same-code.py 8d1658e` prints only
+- **Comments only** (criterion 5): `uv run python build/109/same-code.py 8d1658e` prints only
   `tests/checks/test_rules.py`, whose allowance grew by the guest entries in `039cbc4`;
   `same-code.py 0e0e609` before that commit printed only the scanner's and the unit file's widening.
   Criterion 6: the protected diff is empty.
@@ -288,40 +288,40 @@ records `regex-job-*.json`.
   text on the new tree gives the old numbers back. So the 24 guest sources keep their bytes.
 - **The fast tier** (criterion 10; `uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider` on
   `cecceed` with `WASI_PYTHON_ARTIFACTS` the frozen `v0.1.0a7` set, under the machine's lock, taken
-  at 19:51:28Z and freed at 19:59:02Z; `build/108/fast.log`): **83 failed, 2,382 passed, 52
+  at 19:51:28Z and freed at 19:59:02Z; `build/109/fast.log`): **83 failed, 2,382 passed, 52
   skipped** in 453 s; the 83 are exactly the baseline's (`build/baseline-a7/failing-nodes.txt`, a
   `diff` of the sorted node ids is empty). Unit suite 1,882 (1,868 passed, 13 skipped), 18 more
-  than spec 102's built record (1,864).
-- **Sameness** (`uv run python tests/harness/sameness.py /home/user/wt/102/build/102/built.json
-  build/108/built.json --claims build/108/claims.toml`), verbatim, exit 0:
+  than spec 103's built record (1,864).
+- **Sameness** (`uv run python tests/harness/sameness.py /home/user/wt/103/build/103/built.json
+  build/109/built.json --claims build/109/claims.toml`), verbatim, exit 0:
 
   ```
-  note: explained by claims: 108 2
+  note: explained by claims: 109 2
   ```
 
   0 fuel rows, 0 bytes rows, no verdict moved.
-- **The claim list** (`build/108/claims.toml`, as run):
+- **The claim list** (`build/109/claims.toml`, as run):
 
   ```toml
   [[claim]]
-  spec = "108"
+  spec = "109"
   new = [
     "tests/checks/test_rules.py::test_code_outside_src_names_no_context_document",
   ]
   units = 18
   ```
 
-  108: **retired checks:** none. **Lost passes:** none. **Rows that grow:** none. **The judge
+  109: **retired checks:** none. **Lost passes:** none. **Rows that grow:** none. **The judge
   hash changes** in `tests/harness/scan.py`, `tests/checks/test_rules.py`,
   `tests/unit/test_scan.py` and the comments of every changed file under `tests/`.
 - **The flags for the lane** (paste-safe; no `--accept-growth`):
 
   ```
-  --accept "108: comments and docstrings under tests/, scripts/, release/ and the release workflow give their reasons in words: no specification, constitution section, research write-up, review, numbered question, context/ path or finding identifier; comments only, no code, literal, golden or allowance file changed; the frozen set's verdicts the same"
-  --accept-judge "108: a rules check that no comment or docstring under tests/, scripts/, release/ or .github/workflows/ cites a project document, read through tokenize and ast for Python and through # comments elsewhere, a citation split across lines read whole; an allowance of 62 entries, each with its reason, for the judge's allowance files (known_gaps.toml, tests/upstream/*.toml) and the guest's own sources (tests/jobs/*.py, tests/upstream/drive.py, regrtest_drive.py), a stale entry failing; eighteen unit rows for the scanner; comments across tests/ rewritten; no existing expectation edited"
+  --accept "109: comments and docstrings under tests/, scripts/, release/ and the release workflow give their reasons in words: no specification, constitution section, research write-up, review, numbered question, context/ path or finding identifier; comments only, no code, literal, golden or allowance file changed; the frozen set's verdicts the same"
+  --accept-judge "109: a rules check that no comment or docstring under tests/, scripts/, release/ or .github/workflows/ cites a project document, read through tokenize and ast for Python and through # comments elsewhere, a citation split across lines read whole; an allowance of 62 entries, each with its reason, for the judge's allowance files (known_gaps.toml, tests/upstream/*.toml) and the guest's own sources (tests/jobs/*.py, tests/upstream/drive.py, regrtest_drive.py), a stale entry failing; eighteen unit rows for the scanner; comments across tests/ rewritten; no existing expectation edited"
   ```
 
-- **Rule (b) sentences** (criterion 7; `uv run python build/108/hand.py --list-b`), each with the
+- **Rule (b) sentences** (criterion 7; `uv run python build/109/hand.py --list-b`), each with the
   document its words were drawn from (120):
 
   - `tests/checks/test_v1_4_embedding.py`: never freed; run now runs every program in a fresh __main__ ← spec 073 (run gives every program a fresh __main__ and unfreezes the heap)
@@ -445,7 +445,7 @@ records `regex-job-*.json`.
   - `tests/unit/test_shards.py`: Criterion 6's stand-in: the shard plan's path rule alone ← spec 063 (the release judges in parallel shards)
   - `scripts/assemble_artifacts.py`: # tier A: thirty pure-Python distributions, in the order they were chosen in ← spec 039, Decision 1 (tier A's list and its order)
 
-- **String literals left** (criterion 8; rule (c); for spec 106 or the owner): `scripts/gen_inittab.py:137` (spec 047); `tests/checks/test_v1_2_hostile_guest.py:75` (spec 017); `tests/checks/test_v1_2_hostile_guest.py:560` (spec 023); `tests/checks/test_v1_2_hostile_guest.py:1612` (spec 015); `tests/checks/test_v1_2_hostile_guest.py:2621` (055's, spec 055, spec 078); `tests/checks/test_v1_3_data_stack.py:232` (spec 069); `tests/checks/test_v1_3_data_stack.py:237` (spec 069); `tests/checks/test_v1_4_embedding.py:1171` (spec 017); `tests/checks/test_v1_4_embedding.py:1235` (032's, spec 030, spec 032, spec 052); `tests/checks/test_v1_4_embedding.py:2267` (017's, spec 017, spec 078); `tests/checks/test_v1_4_embedding.py:3072` (spec 052); `tests/checks/test_v1_5_rebuild_from_pins.py:306` (memo); `tests/checks/test_v1_5_rebuild_from_pins.py:376` (spec 086); `tests/harness/guest.py:584` (spec 081); `tests/harness/history.py:258` (spec 062); `tests/harness/litter.py:55` (spec 089); `tests/harness/litter.py:164` (spec 089); `tests/harness/litter.py:213` (spec 089); `tests/harness/paths.py:343` (constitution §); `tests/harness/pins.py:98` (spec 090); `tests/harness/plugin.py:94` (spec 002); `tests/harness/plugin.py:108` (spec 063); `tests/harness/plugin.py:151` (constitution §); `tests/harness/plugin.py:182` (spec 029); `tests/harness/plugin.py:193` (spec 029); `tests/harness/plugin.py:204` (spec 002); `tests/harness/plugin.py:294` (spec 063); `tests/harness/plugin.py:516` (spec 052); `tests/harness/plugin.py:542` (build review); `tests/harness/sameness.py:114` (092's, build review); `tests/harness/sameness.py:117` (spec 092); `tests/harness/sameness.py:118` (spec 092); `tests/harness/sameness.py:423` (spec 092); `tests/harness/scan.py:1479` (057's, spec 057); `tests/harness/scan.py:1728` (spec 085); `tests/harness/scan.py:1976` (spec 026); `tests/harness/scoreboard.py:35` (spec 091); `tests/harness/scoreboard.py:232` (spec 062); `tests/harness/scoreboard.py:301` (spec 062); `tests/unit/test_build_progress.py:1087` (spec 079); `tests/unit/test_landing_lane.py:353` (memo); `tests/unit/test_landing_lane.py:372` (reviews/); `tests/unit/test_landing_lane.py:395` (constitution §); `tests/unit/test_landing_lane.py:626` (build review); `tests/unit/test_landing_lane.py:677` (constitution §); `tests/unit/test_patches.py:267` (spec 090); `tests/unit/test_pins.py:87` (spec 090); `tests/unit/test_pins.py:89` (spec 090); `tests/unit/test_sameness.py:221` (spec 092); `tests/unit/test_sameness.py:227` (spec 092); `tests/unit/test_scan.py:203` (memo); `tests/unit/test_scan.py:244` (reviews/); `tests/unit/test_scan.py:247` (reviews/); `tests/unit/test_scan.py:254` (reviews/); `tests/unit/test_scan.py:1844` (spec 085); `tests/unit/test_scipy_build.py:306` (090's, spec 090); `tests/unit/test_several_cores.py:434` (spec 052); `tests/unit/test_shards.py:210` (spec 001, spec 065); `tests/unit/test_shards.py:282` (spec 065); `tests/unit/test_shards.py:283` (spec 065, spec 099); `tests/unit/test_upstream.py:745` (reviews/); `tests/unit/test_upstream.py:911` (reviews/). They are
+- **String literals left** (criterion 8; rule (c); for spec 107 or the owner): `scripts/gen_inittab.py:137` (spec 047); `tests/checks/test_v1_2_hostile_guest.py:75` (spec 017); `tests/checks/test_v1_2_hostile_guest.py:560` (spec 023); `tests/checks/test_v1_2_hostile_guest.py:1612` (spec 015); `tests/checks/test_v1_2_hostile_guest.py:2621` (055's, spec 055, spec 078); `tests/checks/test_v1_3_data_stack.py:232` (spec 069); `tests/checks/test_v1_3_data_stack.py:237` (spec 069); `tests/checks/test_v1_4_embedding.py:1171` (spec 017); `tests/checks/test_v1_4_embedding.py:1235` (032's, spec 030, spec 032, spec 052); `tests/checks/test_v1_4_embedding.py:2267` (017's, spec 017, spec 078); `tests/checks/test_v1_4_embedding.py:3072` (spec 052); `tests/checks/test_v1_5_rebuild_from_pins.py:306` (memo); `tests/checks/test_v1_5_rebuild_from_pins.py:376` (spec 086); `tests/harness/guest.py:584` (spec 081); `tests/harness/history.py:258` (spec 062); `tests/harness/litter.py:55` (spec 089); `tests/harness/litter.py:164` (spec 089); `tests/harness/litter.py:213` (spec 089); `tests/harness/paths.py:343` (constitution §); `tests/harness/pins.py:98` (spec 090); `tests/harness/plugin.py:94` (spec 002); `tests/harness/plugin.py:108` (spec 063); `tests/harness/plugin.py:151` (constitution §); `tests/harness/plugin.py:182` (spec 029); `tests/harness/plugin.py:193` (spec 029); `tests/harness/plugin.py:204` (spec 002); `tests/harness/plugin.py:294` (spec 063); `tests/harness/plugin.py:516` (spec 052); `tests/harness/plugin.py:542` (build review); `tests/harness/sameness.py:114` (092's, build review); `tests/harness/sameness.py:117` (spec 092); `tests/harness/sameness.py:118` (spec 092); `tests/harness/sameness.py:423` (spec 092); `tests/harness/scan.py:1479` (057's, spec 057); `tests/harness/scan.py:1728` (spec 085); `tests/harness/scan.py:1976` (spec 026); `tests/harness/scoreboard.py:35` (spec 091); `tests/harness/scoreboard.py:232` (spec 062); `tests/harness/scoreboard.py:301` (spec 062); `tests/unit/test_build_progress.py:1087` (spec 079); `tests/unit/test_landing_lane.py:353` (memo); `tests/unit/test_landing_lane.py:372` (reviews/); `tests/unit/test_landing_lane.py:395` (constitution §); `tests/unit/test_landing_lane.py:626` (build review); `tests/unit/test_landing_lane.py:677` (constitution §); `tests/unit/test_patches.py:267` (spec 090); `tests/unit/test_pins.py:87` (spec 090); `tests/unit/test_pins.py:89` (spec 090); `tests/unit/test_sameness.py:221` (spec 092); `tests/unit/test_sameness.py:227` (spec 092); `tests/unit/test_scan.py:203` (memo); `tests/unit/test_scan.py:244` (reviews/); `tests/unit/test_scan.py:247` (reviews/); `tests/unit/test_scan.py:254` (reviews/); `tests/unit/test_scan.py:1844` (spec 085); `tests/unit/test_scipy_build.py:306` (090's, spec 090); `tests/unit/test_several_cores.py:434` (spec 052); `tests/unit/test_shards.py:210` (spec 001, spec 065); `tests/unit/test_shards.py:282` (spec 065); `tests/unit/test_shards.py:283` (spec 065, spec 099); `tests/unit/test_upstream.py:745` (reviews/); `tests/unit/test_upstream.py:911` (reviews/). They are
   guest programs held as strings (`test_v1_2_hostile_guest.py`, `test_v1_4_embedding.py`), messages
   the judge prints and a check matches (`plugin.py`, `sameness.py`, `scoreboard.py`, `litter.py`,
   `pins.py`, `history.py`, `guest.py`, `paths.py`, `scan.py`), a generated C comment
@@ -459,15 +459,15 @@ records `regex-job-*.json`.
   `test_specifications_have_no_open_question` pass with this file.
 - **CI:** none of its own; the chain's one dispatch on the final tip (the memo's section 8).
 - **CHANGELOG and roadmap:** not touched. **CHANGELOG line (for the integrator)**, under the one
-  unreleased section: "**Code speaks for itself outside `src/`** (spec 108). Comments and
+  unreleased section: "**Code speaks for itself outside `src/`** (spec 109). Comments and
   docstrings under `tests/`, `scripts/`, `release/` and the release workflow give their reasons in
   words, with no specification number, review, finding identifier or `context/` path; a rules
   check holds it, the judge's allowance files and the guest's own sources named as exceptions. No
   code, behaviour, fuel or artifact byte changes; `MANIFEST`'s recipe hashes of `scripts/` move
   with their comments."
 - **Re-applying on the chain's tip** (Decision 7): drop `b0d5482`, `039cbc4` and `cecceed`;
-  rebase the rest; run `uv run python build/108/clean.py`, then `uv run python
-  build/108/hand.py`, read each miss it names and every hit the check reports, record each new
+  rebase the rest; run `uv run python build/109/clean.py`, then `uv run python
+  build/109/hand.py`, read each miss it names and every hit the check reports, record each new
   hand edit in a new batch, regenerate `CONTEXT_CITATION_ALLOWED` only if the allowed files' text
   changed, and re-run the fast tier and sameness.
 - **The builder's self-check** (`../reviews/README.md`):
@@ -488,4 +488,4 @@ records `regex-job-*.json`.
   - CHANGELOG under the one unreleased section: proposed above for the integrator; no owner
     question raised.
   - ruff check, ruff format --check, the fast tier: green apart from the baseline's 83, output in
-    `build/108/`.
+    `build/109/`.
