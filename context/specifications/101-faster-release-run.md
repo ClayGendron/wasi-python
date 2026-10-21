@@ -8,8 +8,10 @@
   the pre-build review*) and **rebased onto `origin/wave/08`** (`66cc120`: 042, then 066, on main
   `2516875`) for a stacked build in wave 09; **built 2026-10-20** at `25fcd1a`: a source run
   (39468404589) and two reuse runs (39475482749, 39481889333), every red line a growth line but
-  one Linux timeout answered in Decision 9 (*Landing notes*); criteria 3 and 7 wait on the lane's
-  container slot and on landing. It changes the release workflow, so it is
+  one Linux timeout answered in Decision 9 (*Landing notes*); **rebased onto main `faa9c93`**
+  (wave 08 landed: 042, 066, 099) as `6992fc0`, whose run 39488829008 built from source and
+  passed every job on all three systems, the gather included; criteria 3 and 7 wait on the
+  lane's container slot and on landing. It changes the release workflow, so it is
   build-class (§5.7). It changes neither the guest's imports nor its exports, nor a byte of the
   artifact set: `scripts/` and `recipes/` do not change, so `MANIFEST` and `SHA256SUMS` stay the
   base's. A different agent reviews the build.
@@ -670,7 +672,9 @@ finding went:
   rebuild gives the base's `SHA256SUMS`. A wave may hold it as one of the two other build-class
   entries. Stacked on wave 08 (built on `66cc120`; the lane has since rebuilt wave 08 as
   `72bc5ed`, with 099 and on main `5805af0`): it rebases onto wave 08's landed tip at wave 09's
-  entry.
+  entry. **Done:** the branch is on main `faa9c93` (wave 08's acceptance) since `6992fc0`; main
+  has since gained only `context/` commits (`e56b387`, `4161ef9`, `dda6075`). The rebase's one
+  stop and its two hunks are in *Landing notes*.
 - **Conflicts to expect at that rebase:** `tests/release_shards.toml` and `release.yml`'s judge
   matrices, `outputs:` and the gather's lists (all derived from the plan by rule 2 of spec 063),
   `tests/unit/test_scan.py`'s mutation rows, `CHANGELOG.md`'s unreleased section. 099 touches none
@@ -718,6 +722,13 @@ finding went:
 - [x] The source run and two reuse runs named by id; every red line a growth line (042's, against
       the last acceptance `e9a76ce`) but one: run 39475482749's Linux `own-guest` timeout, answered
       by restoring `own-runner` (Decision 9) and cleared by run 39481889333.
+- [x] CI on this exact commit: run 39488829008 on `6992fc0` (main `faa9c93`), a source run.
+      Every job passed on all three systems, the Windows legs and the gather included; no red
+      line, not even a growth line (the set is wave 08's accepted one). Read back with
+      `gh run view 39488829008 --json jobs` and `gh run download 39488829008 -n
+      release-record-1` (*Landing notes*).
+- [ ] The rebase onto `faa9c93`: its stop and hunks are named below, but the fast tier on
+      `6992fc0` is not recorded in `build/` (rule 2's "the fast tier green" for a rebase).
 - [x] The reuse runs' build job ran on `ubuntu-24.04` (1.7 minutes); no macOS job built.
 - [x] `build-shard`'s record: platform `linux-aarch64`, 51 goal checks run, all passing, none
       blocked; 10 unit tests; the zero-patch step `27 passed`.
@@ -726,12 +737,13 @@ finding went:
       The lane can print them with `uv run pytest -s` on the six checks in its darwin tree, and a
       reviewer from `build-shard`'s tree only by a diagnostic dispatch.
 - [x] No `scripts/`, `recipes/`, `downloads/` or `src/` change.
-- [x] `same-bytes` passed in every run; the gather never ran in CI (the macOS shards were red on
-      growth, as every branch run on an unaccepted set is), so it was run by the builder on run
-      39481889333's real records (*Landing notes*).
+- [x] `same-bytes` passed in every run; the gather did not run in CI on `66cc120` (the macOS
+      shards were red on growth, as every branch run on an unaccepted set is), so it was run by
+      the builder on run 39481889333's real records (*Landing notes*). On `faa9c93` it ran in CI
+      and passed (run 39488829008, `meta.set_source` `built`).
 - [x] Every new `uses:` pinned by a 40-hex commit with its release named
       (`actions/cache/restore` and `actions/cache/save` at v6.1.0, `55cc8345…`).
-- [ ] The embedding halves within 20% on macOS: in run 39468404589 only (below).
+- [ ] The embedding halves within 20% on macOS: in run 39468404589 only, one of four (below).
 - [x] Decision 11's estimates beside the measured numbers (below).
 - [x] CHANGELOG line under the unreleased section.
 
@@ -743,7 +755,7 @@ split so none sets the run's length.
 
 ## Landing notes
 
-### What was built (on `spec/101-faster-release-run`, base `66cc120`, tip `25fcd1a`)
+### What was built (on `spec/101-faster-release-run`, base `66cc120`, tip `25fcd1a`; rebased onto main `faa9c93` as `6992fc0`)
 
 The *Design* table, as written, but for two departures: `own-runner` stays a shard of its own
 (Decision 9, after run 39475482749), and `max-parallel` is 18, not 20 (with `own-runner` back, 20
@@ -772,19 +784,19 @@ lane (*For the lane*). `set-cache.yml` is two jobs (`lookup`, `seed`), so `seed`
 
 ### The runs (EXECUTED, `gh run view <id> --json jobs`, minutes from the run's creation)
 
-| | run 39468404589 (source) | run 39475482749 (reuse) | run 39481889333 (reuse) |
-|---|---|---|---|
-| commit | `827f826` | `827f826` | `25fcd1a` |
-| `inputs` | 0.2, `reuse=false` (no entry) | 0.2, `reuse=true` | 0.1, `reuse=true` |
-| build job | macOS, 29.2 (compile 24.9) | `ubuntu-24.04`, 1.7 | `ubuntu-24.04`, 1.7 |
-| `build-shard` | 21.6 (compile 19.1, shard 1.7) | 20.5 | 21.9 |
-| x86-64 / arm64 rebuild | 18.9 / 19.5 | 18.8 / 19.9 | **34.3** / 19.9 |
-| `same-bytes` | +30.0, passed | +20.6, passed | +34.9, passed |
-| `save-set` | +30.3, saved (85,904,392 bytes stored) | skipped (reused) | skipped |
-| macOS shards end | +46.0 | +20.9 | +20.9 |
-| last job | +46.0 | +37.0 (Linux `own-guest` timeout) | +34.9 |
-| peak jobs at once | 33 | 35 | 34 |
-| red lines | macOS growth only | macOS growth; Linux `own-guest` cancelled at 30 min | macOS growth only |
+| | run 39468404589 (source) | run 39475482749 (reuse) | run 39481889333 (reuse) | run 39488829008 (source) |
+|---|---|---|---|---|
+| commit | `827f826` | `827f826` | `25fcd1a` | `6992fc0` (on `faa9c93`) |
+| `inputs` | 0.2, `reuse=false` (no entry) | 0.2, `reuse=true` | 0.1, `reuse=true` | 0.2, `reuse=false` (`from-source` true; no entry) |
+| build job | macOS, 29.2 (compile 24.9) | `ubuntu-24.04`, 1.7 | `ubuntu-24.04`, 1.7 | macOS, 30.4 (compile 25.3) |
+| `build-shard` | 21.6 (compile 19.1, shard 1.7) | 20.5 | 21.9 | 23.4 (compile 20.8, shard 1.7) |
+| x86-64 / arm64 rebuild | 18.9 / 19.5 | 18.8 / 19.9 | **34.3** / 19.9 | 20.4 / 18.8 |
+| `same-bytes` | +30.0, passed | +20.6, passed | +34.9, passed | +31.1, passed |
+| `save-set` | +30.3, saved (85,904,392 bytes stored) | skipped (reused) | skipped | +34.6, saved (85,926,949 bytes stored) |
+| macOS shards end | +46.0 | +20.9 | +20.9 | +65.2 (queued, below) |
+| last job | +46.0 | +37.0 (Linux `own-guest` timeout) | +34.9 | +65.7 (the gather) |
+| peak jobs at once | 33 | 35 | 34 | 26 |
+| red lines | macOS growth only | macOS growth; Linux `own-guest` cancelled at 30 min | macOS growth only | none; the gather passed |
 
 The gather was skipped in all three: the macOS shards are red on growth (042's rows: 41, 152, 6,
 26 and 2 grown metrics, no lost pass, no failure), as on any branch run of an unaccepted set.
@@ -819,6 +831,51 @@ record's `meta.set_source` is the reused key and its `runs["build/build"]` is
 - **Queue:** the reuse runs' macOS shards waited 0 to 3.3 minutes for a slot (seven macOS jobs on
   five; no other run was live).
 
+### The rebase onto main `faa9c93`, and run 39488829008 (EXECUTED)
+
+The notes above were written on `66cc120`. Before the last push the builder rebased the branch
+onto main `faa9c93` (wave 08's acceptance: 042, 066, 099); the reflog shows it, and the notes
+did not say so until now. The rebase stopped once, at the workflow commit (`083a32a` became
+`6e5233b`). `git range-diff 66cc120..b8f14b0 faa9c93..6992fc0` shows every other commit
+unchanged (`=`), and that one differing only in the context of two hunks:
+
+- `CHANGELOG.md`: 101's line now follows 099's `numpy.linalg.lstsq` lines in the unreleased
+  section, where it followed the section's heading.
+- `tests/harness/scan.py`: 101's rules now follow 099's `npy_fenv_records_file_errors`, where
+  they followed `host_python_record_errors`.
+
+No line of 101's own changed. The fast tier after the rebase is not recorded.
+
+Run 39488829008, dispatched on `6992fc0` with `from-source` true, read back with `gh run view
+39488829008 --json jobs` and `gh run download 39488829008 -n release-record-1`:
+
+- **Verdict:** `success`. 52 jobs: 49 passed, `attest` and both `publish` jobs skipped (not a
+  tag). Every judge leg passed on macOS, Linux and Windows: no growth line and no G7 line, since
+  the set is the one wave 08 accepted. Linux `own-guest` passed in 6.0 minutes, the second clean
+  run since its timeout.
+- **The set (criteria 2 and 4).** `inputs` logged `from-source 'true', cached '': reuse=false`;
+  the key `wasi-python-set-v1-4e9c54d5…` had no entry anyway, because 099 changed `recipes/`. The
+  set's `SHA256SUMS` hashes to `b5a66245…`, the one wave 08 accepted: the base's set, unchanged.
+  `same-bytes` logged "the same SHA256SUMS" for both rebuilds. `save-set` logged the key and
+  "Cache saved", 85,926,949 bytes. That entry belongs to this branch's ref; GitHub lets a run
+  read only its own branch's entries and main's, so another branch of wave 09 builds from source
+  until `set-cache.yml` seeds main (criterion 7).
+- **The gather ran in CI** for the first time on this branch, and passed. `meta.set_source`
+  `built`, `set_sums` `b5a66245…`, `artifact` `ee45b241…`, 39 records. `runs["build/build"]` is
+  `linux-aarch64`, 10 of 10 units. Its scoreboard: 767/859 pass, 85 gap, 7 blocked, 0 fail.
+- **Wall clock: 65.7 minutes**, over Decision 11's 35 to 50 for a source run. The cause is the
+  queue. Three release runs were live (wave/08's dry run 39488145764, spec 097's 39487633271,
+  and this one), sharing the macOS slots. The build ended at +30.8. Then the macOS shards waited
+  for a slot: `own-embedding-a` 2.1 minutes, `own-rest` 12.5, `own-runner` 12.9, `own-guest`
+  14.3, `own-hostile` 16.5, `own-embedding` 19.2, `upstream-macos` 24.6. Every Linux and Windows
+  leg had ended by +45.1. Without the queue, the longest macOS job (15.2) starting at +31 would
+  have ended the run at about +46.5, as run 39468404589 did (INFERRED).
+- **macOS shards** (test minutes / tail): `own-hostile` 9.6/2.6, `own-guest` 8.8/5.3,
+  `own-embedding` 9.1/5.6, `own-embedding-a` 6.8/3.2; `upstream-macos`, `own-rest` and
+  `own-runner` 0.1 or less. `own-embedding`'s job took 15.2 minutes, over criterion 6's 15; its
+  cause is the tail (5.6 of it). The tails sum to 16.7 minutes, inside the 13 to 17 above.
+- **The embedding halves:** 546 s and 409 s, 25% apart. Within 20% in one run of four.
+
 ### The Linux `own-guest` timeout (run 39475482749)
 
 The leg ran "The shard" from 18:33:43 until the 30-minute limit cancelled the job; GitHub kept no
@@ -844,3 +901,5 @@ the judge. Not confirmed; the follow-up is the lane's to number.
 - Criterion 7 (the seed): after landing.
 - L6's `read:` comparison: see the self-check.
 - Criterion 8's sameness line: the lane's, at wave 09.
+- The fast tier on `6992fc0`, after the rebase: not recorded (this reader ran no tier; the lane
+  was judging).
