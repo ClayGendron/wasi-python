@@ -1,12 +1,17 @@
 # 095 — scipy's, scikit-learn's and statsmodels' own tests in the release
 
 - **Status:** **drafted 2026-10-20** on `spec/095-scipy-sklearn-statsmodels-own-tests` from main
-  `dda6075` (the lane's handoff; the structural chain 103 to 111, tip `dbecd2d`, is not under it:
-  the branch was made from main, and moving it onto the chain's tip was refused by the session's
-  permissions; this draft touches only `context/`, so the rebase is the lane's or the builder's,
-  with no conflict expected). **Not yet surveyed** (Decision 1): the drafting probes below are
-  calibration, not the survey. **Awaiting its pre-build review**: it changes what the release
-  judges and adds a stage-time guest run (Decision 5), so the lane asks for one, as it did for 066.
+  `dda6075`; **rebased 2026-10-20 onto the structural chain's tip `727bd4c`**
+  (`claude/gallant-ride-9nxxmn`, landing on main that night; context only, no conflict).
+  **Reviewed before build** the same day
+  (`../reviews/095-scipy-sklearn-statsmodels-own-tests-spec-2026-10-20.md`: "fit to build once H1
+  and M1 are written in and confirmed, the Lows answered in writing"). **Revised against every
+  finding** (the review's Disposition says where); awaiting the reviewer's confirmation. Four
+  choices the owner may make are written in as **defaults pending the owner's answer** (the
+  lane files the questions): 088 widened to scipy's seven test modules (Decision 8); the modes
+  README-only for 0.1.0 (Decision 7); a 15 T threshold for scikit-learn's release tier (Decision
+  7); statsmodels' left-out datasets as a README class (Decisions 8 and 9). **Not yet surveyed**
+  (Decision 1): the drafting probes below are calibration, not the survey.
 - **Owner:** Clay Gendron
 - **Kind:** the judge and the release workflow. No line of `src/`, `scripts/`, `recipes/` or
   `downloads/SHA256SUMS` changes: scipy's and scikit-learn's sdists are main's pins (037, 044),
@@ -30,6 +35,11 @@
     - `tests/release_shards.toml`, `.github/workflows/release.yml`: the new Linux shards, normal and
       release tier (Decision 12);
     - `tests/unit/test_packages.py`, `test_shards.py`, `test_fetch_trees.py`;
+    - `tests/checks/test_rules.py`: the citation rule's allowance entries this change retires
+      (`CONTEXT_CITATION_ALLOWED`: `packages.toml`'s "spec 095" and whatever else its rewritten
+      scipy and scikit-learn comments held), in the same change, as 102 does (the review, L4);
+    - `context/release-tier-claims.toml`: 095's `[[claim]]` block for scipy's release groups
+      (102, Decision 6; the review, L8);
     - `README.md`, `CHANGELOG.md`, `context/progress/README.md`, `context/roadmap.md`.
   - **Not changed:** `tests/upstream/package_drive.py` (Decision 3), `drive.py`, every TOML of 066,
     numpy's, pandas' and CPython's configurations.
@@ -69,9 +79,14 @@
     finds one, whichever of 067 and 095 lands second rebases onto the first's file and rules.
   - **074** (reserved: the `ctypes` and `mmap` stand-ins' names at import): it may turn three of
     scipy's not-selected files into loaded files with a class each (Decision 8).
-  - **109** (the structural chain: comments outside `src/` give their reasons in words, no
-    document cited): every comment 095 writes in `tests/` follows it; `closes_with` values are
-    data and keep their form.
+  - **109** (the structural chain, under this branch since its rebase onto `727bd4c`: comments
+    and docstrings outside `src/` give their reasons in words; the rule
+    `test_code_outside_src_names_no_context_document` reads every comment and docstring in the
+    Python, TOML, shell and YAML files under `tests/` and `.github/workflows/`). No comment or
+    docstring 095 writes there names a specification number, a section sign, a research or review
+    document, a question number, a `context/` path or a finding identifier; each `env` and
+    `not_selected` reason is written in words; `closes_with` and `reason = "…"` values are data and
+    keep their form; the `.ini` files are not scanned but follow the same rule (the review, L4).
   - **063**, **065**, **050**, **051**, **089**, **091**, **052**, **002**, as 066 lists them.
 - **Research it stands on:**
   - 066's survey and build (`../research/2026-10-20-the-compiled-packages-own-tests-under-the-runtime.md`
@@ -123,8 +138,8 @@ where 102 runs it.
 
 | probe | selection | fuel | outcome |
 |---|---|---|---|
-| scipy, collect only | the whole staged suite | 286.5 G | 96,100 collected; 11 files fail to load (Decision 8) |
-| scipy, collect only | `-m "slow or xslow"` | 293.3 G | 15,174 selected, 80,926 deselected |
+| scipy, collect only, without `SCIPY_XSLOW` | the whole staged suite | 286.5 G | 96,100 collected; 11 files fail to load (Decision 8) |
+| scipy, collect only, without `SCIPY_XSLOW` | `-m "slow or xslow"` | 293.3 G | 15,174 selected, 80,926 deselected |
 | scipy, sample run | ten files, `-m "not slow and not xslow"` | 326.6 G | 5,182 outcomes: 4,861 passed, 301 skipped, 9 xfailed, 1 xpassed, 10 failed; 63.0 M a test |
 | scikit-learn, collect only | the whole staged suite | 240.2 G | 46,955 collected; 2 files fail to load |
 | scikit-learn, sample run | seven files, `SKLEARN_RUN_FLOAT32_TESTS=1` | 1,876.1 G | 4,222 outcomes: 3,249 passed, 877 skipped, 55 xfailed, 41 failed; 444 M a test, seven times scipy's |
@@ -165,7 +180,12 @@ where 102 runs it.
      after 045 lands, or on 045's reviewed set if Depends on's stacked path applies.
    - **It records** each group's outcomes by node id, its fuel, every trap and every collection
      error, both tiers (the release tier once, on darwin), and sorts the failures into classes by
-     their one-line reasons.
+     their one-line reasons. It also records, for the review's findings: both of scipy's tiers
+     collected with `SCIPY_XSLOW=1`, and every direct read of each `env` variable in each sdist
+     (H1); the derived run's fuel and each output's size (M1); every `setup_module` and
+     `teardown_module` in the staged ancestor inits (L2); each not-selected file's collected count
+     (L3); the tests that skip only because a mode's variable is unset (L7); and which step of
+     Decision 7's threshold the measured total took.
    - **It is written up** as the memo, labelled EXECUTED, with the scripts and raw streams beside
      it; its dated delta to Decisions 8, 9, 11 and 12 goes to a fresh reviewer as a context-only
      delta review. Building starts on that verdict, never before.
@@ -188,8 +208,9 @@ where 102 runs it.
 3. **The driver is 066's, byte for byte.** `package_drive.py` is not edited: an edit would change
    the bytes every 066 family stages and could move their fuel. What 095 needs beyond it is done
    on the host: the environment of Decision 7 is passed to `guest.run` by the harness, the files of
-   Decision 5 are staged by the harness. A rules check hashes the staged driver against main's
-   (criterion 6).
+   Decision 5 are staged by the harness. That the driver is not edited is a fact of the diff,
+   which the review reads; criterion 6's unit check proves that 066's families stage what they
+   staged before (the review, L5).
 
 4. **Where the tests come from: the pinned sdists, members only, tied to the artifact; and each
    test folder's ancestor `__init__.py`.**
@@ -213,17 +234,33 @@ where 102 runs it.
      lacks one, so pytest names `scipy/linalg/tests/test_basic.py` `tests.test_basic`, the same
      name as `scipy/fft/_duccfft/tests/test_basic.py`'s. The drafting probe saw 20 files fail on
      that clash and on relative imports beyond `tests` (EXECUTED). With the inits staged, pytest
-     names it `scipy.linalg.tests.test_basic` and imports it through the standard machinery:
-     `scipy` and `scipy.linalg` come from the zip (first on each `__path__`), and `tests` from the
-     grant through `package_paths`. **They are never imported:** the product's package is found
-     first. The guard proves it on every run: a module loaded from a staged `__init__.py` is an
-     (a) `M` line outside a test folder, a finding (066, Decision 5). The probes saw none.
+     names it `scipy.linalg.tests.test_basic`.
+   - **Why the staged inits are never run** (corrected by the review, L1). In the kit's pytest
+     9.0.3, importlib mode returns `sys.modules[name]` when the name is there; otherwise it runs
+     the parent's `__init__.py` from the file it finds (`_pytest/pathlib.py:535-553`, READ by the
+     review). The product's packages win only because `package_drive.py` imports every
+     `package_paths` key before pytest starts, from the zip. So **every ancestor package of every
+     staged folder must be a package the product has, and a generated `package_paths` entry**; a
+     staged folder under a package the product lacks is refused by the rules and never staged
+     (Decision 14). The guard proves the rest on every run: a module loaded from a staged
+     `__init__.py` is an (a) `M` line outside a test folder, a finding (066, Decision 5). The
+     probes saw none.
+   - **Staged inits make pytest call a package's `setup_module`** (the review, L2). With
+     `sklearn/__init__.py` staged, pytest collects `sklearn/` as a `Package`, whose setup calls
+     the product's `sklearn.setup_module`. It seeds `numpy.random` and `random` from
+     `np.random.uniform()` unless `SKLEARN_SEED` is set (`sklearn/__init__.py:139-151`, READ by the
+     review), so the global seed would depend on how many random bytes the product drew before the
+     tests: a product change elsewhere would move every test on the global generator.
+     scikit-learn's `env` therefore sets `SKLEARN_SEED` to a fixed value (`"0"`), upstream's own
+     switch for a fixed global seed. The survey lists every `setup_module` and `teardown_module`
+     in the
+     staged ancestor inits of the three packages; scipy's define none (READ by the review).
    - **`package_paths`** maps the package and every ancestor of a staged folder to its folder
      (`{"scipy" = "scipy", "scipy.linalg" = "scipy/linalg", …}`), generated by the harness from
      `stage_folders` when `package_inits` is true and checked by the rules against the tarball, so
      the TOML does not list some 35 entries by hand (EXECUTED: the probe staged 35 ancestor
      `__init__.py` files for scipy's 33 folders). A package the product lacks (`scipy.odr`, a
-     stand-in module, not a package) is never in it.
+     stand-in module, not a package) is never in it, and no folder under one is staged.
    - **The tie** (`tie_errors`) fails a group, never blocks it, when the tarball or a patch is not
      what `MANIFEST` records. scipy carries four patches (`recipes/patches/scipy-1.18.1/0001` to
      `0004`: uarray's callbacks, `sqrtm`'s import, matrix market without threads, Sobol without a
@@ -242,18 +279,39 @@ where 102 runs it.
    `tests` file, and the sdist carries only the text. Without them `special/tests/test_data.py`
    fails to load (EXECUTED: `FileNotFoundError` for `boost.npz`).
    - **Made in the guest, never on the host.** A download runs only as a build tool under the
-     build's control or as a guest (§4.8). So before the family's first group, the harness runs
+     build's control or as a guest (§4.8). So when it makes the stage, before any group of the
+     family runs, the harness runs
      `makenpz.py` from the stage in the snapshot binary (`python -u
      /upstream-scipy/tree/scipy/special/utils/makenpz.py <name> -o /tmp/derived`, once per
      name), with the stage read-only and a fresh writable root, and copies the three files it
      writes into the stage at `scipy/special/tests/data/` before sealing it (089).
-   - **The key:** `derived = [{ script = "scipy/special/utils/makenpz.py", args = ["boost"],
-     output = "scipy/special/tests/data/boost.npz" }, …]`. The rules check: the script and the
-     inputs it reads are tarball members; each output's folder is a staged folder; no output is a
-     member.
-   - **Its record:** each output's SHA-256 and the run's fuel are facts of the family's first
-     group (`derived`), not ratcheted metrics. A derived run that exits non-zero or traps fails
-     every group of the family, named; it never blocks them.
+   - **The key** (revised for the review, M1): `derived = [{ script =
+     "scipy/special/utils/makenpz.py", args = ["boost"], inputs = "scipy/special/tests/data/boost",
+     output = "scipy/special/tests/data/boost.npz", measured = <fuel>, fuel = <cap> }, …]`, one
+     entry per output. The rules check: the script is a tarball member; `inputs` names a tarball
+     folder that holds members (makenpz finds its inputs from its own path, `makenpz.py:43-45`, so
+     the folder is the one beside its output; READ by the review: boost 111 files, 14,188,680
+     bytes; gsl 3, 400,255; local 8, 1,325,932); each output's folder is a staged folder; no
+     output is a member; `fuel` is at most the cap rule's 1.5 times `measured`.
+   - **Its fuel is capped**, by the cap rule like a group's: the survey measures each entry, and
+     the run stops at its cap as a group does.
+   - **The output is checked before it is staged.** makenpz's real failure is not "writes
+     nothing": with an empty or missing input folder it calls `np.savez_compressed` with no arrays,
+     writes an empty `.npz` and exits 0 (`makenpz.py:52-80`, READ by the review). So the host reads
+     each output with `lstat`, never through a link, and refuses it unless it is a regular file, at
+     most 16 MiB (about ten times boost's inputs compressed; INFERRED, the survey records each
+     size), and a zip archive holding at least one `.npy` member (read with `zipfile` on the host
+     as data, never loaded as numpy). A refused output, a non-zero exit or a trap fails every group
+     of the family, each naming the entry; it never blocks them.
+   - **Its record, on one fixed row** (the review, M1). The stage is made once per judge session:
+     once per xdist worker on darwin at `-n 3`, and once per Linux shard, so "the first group"
+     differs between runs. The facts (each output's SHA-256 and the run's fuel, `derived`) are
+     recorded on the group that holds `scipy/special/tests/test_data.py`, named in the TOML as
+     `derived_row`, and on no other row. They are facts, not ratcheted metrics.
+   - **It runs in every stage that holds the family**, whatever the tier or the shard (102,
+     Decision 4: the stage never depends on the tier). The survey measures its fuel; the price and
+     the shard packing count it once per scipy shard and once per darwin worker that runs a scipy
+     group.
    - **`makenpz.py` is staged** as a support file (with `scipy/special/utils/`), never imported by
      a test.
    - **Not in the product.** The three files exist only in the stage; the zip is unchanged.
@@ -299,43 +357,86 @@ where 102 runs it.
      `gmpy2`, `array_api_strict`, `polars`, `pyarrow`, `pytest_run_parallel`, `scipy_doctest`).
      The survey confirms it; a needed wheel would be a `kit_extra` line shared with 067.
 
-7. **The two tiers (102): what upstream's own default command runs is the normal tier; what it
-   runs only when asked is the release tier.** The rule is the project's choice (the owner,
-   2026-10-20: "we can decide what is slow tier"), written per family with its evidence:
-   - **scipy: release tier `slow or xslow`, by marker** (102's kind (a)). scipy's default test task
-     is `spin test`; its separate task `test-xslow` runs `spin test -m full` with `SCIPY_XSLOW=1`
-     ("Test SciPy (full and x-slow)"; READ: `pixi.toml:276-290`), so the default leaves both out
-     (INFERRED from the task pair; `.spin/cmds.py` is not in the sdist). Normal groups:
-     `marker = "not slow and not xslow"`; release groups: `release_marker = "slow or xslow"`, with
-     `SCIPY_XSLOW=1` in the family's `env`. The variable changes only `xslow` tests' skip
-     (`conftest.py:108-117`, READ), which normal groups deselect, so normal rows are the same with
-     it or without it. EXECUTED counts: 80,926 normal, 15,174 release (10,347 of them in
-     `signal/tests/test_signaltools.py`, 2,919 in `sparse/tests/test_64bit.py`).
-   - **scikit-learn: everything normal.** It has no slow marker (READ). Its float32 cases are
-     opt-in (`SKLEARN_RUN_FLOAT32_TESTS=1`, `conftest.py:88-91`): they run here, in the normal
-     tier, with `env = { SKLEARN_RUN_FLOAT32_TESTS = "1" }`, because they are tests of the
-     product's float32 paths and nothing marks them slow. If the survey finds their cost past the
-     shard plan, the confirmation round may move them to the release tier with a
-     `[[release_select]]` keyword entry (102's kind (b), `float32`), a reviewed judge change,
-     never out.
+7. **The two tiers (102): the rule, with these named choices** (revised for the review, H1 and
+   N3). The starting rule is that what upstream's own default command runs is the normal tier and
+   what it runs only when asked is the release tier. The owner's "we can decide what is slow tier"
+   (2026-10-20) allows named choices against it; each is written here with its evidence, and none
+   leaves a test out of both tiers.
+   - **scipy: `SCIPY_XSLOW=1` for every group, and two kinds of release selection.** scipy's
+     default test task is `spin test`; its separate task `test-xslow` runs `spin test -m full`
+     with `SCIPY_XSLOW=1` ("Test SciPy (full and x-slow)"; READ: `pixi.toml:276-290`), so the
+     default leaves out the `slow` and `xslow` tests and everything the variable gates (INFERRED
+     from the task pair; `.spin/cmds.py` is not in the sdist).
+     - **The variable is read outside the marker** (the review, H1, READ in the pinned sdist):
+       `stats/tests/test_axis_nan_policy.py:26,390` defines a block of tests only when it is set
+       (its comment: ">3,000 tests"), and `:384,907` skips the `kruskal` and `friedmanchisquare`
+       cases without it; `stats/tests/test_continuous.py:1142` skips sixteen distributions of
+       `test_rv_generic` without it; `integrate/tests/test_tanhsinh.py:265` skips two cases of
+       `test_accuracy` without it; `special/_mptestutils.py:193` uses 5,000 points in place of 500
+       for every mpmath comparison when it is set; `stats/tests/test_fit.py:113` gates the very
+       slow fits inside a `slow`-marked test. So the variable cannot be set for release groups
+       alone (the gated cases inside unmarked tests would then run in neither tier), and setting it
+       family-wide without more would put upstream's very slow cases in the normal tier.
+     - **So: `env` is a family key only.** Every scipy group, in both tiers, runs with
+       `SCIPY_XSLOW=1`; no group sets its own variables (Decision 14). A normal group's argv and
+       environment are the same on a normal run and on a release run (102, Decision 4).
+     - **Release by marker** (102's kind (a)): `marker = "not slow and not xslow"`,
+       `release_marker = "slow or xslow"`.
+     - **Release by keyword** (102's kind (b)), one `[[release_select]]` entry per file for the
+       cases upstream runs only with `SCIPY_XSLOW` inside tests that carry no `slow` or `xslow`
+       marker, each with the reason "upstream runs it only with SCIPY_XSLOW set":
+       `stats/tests/test_axis_nan_policy.py` (the functions defined under `if SCIPY_XSLOW:`, and
+       the `kruskal` and `friedmanchisquare` cases), `stats/tests/test_continuous.py`
+       (`test_rv_generic`'s sixteen distributions), `integrate/tests/test_tanhsinh.py`
+       (`studentized_range` and `levy_stable` in `test_accuracy`). The survey writes each keyword
+       from the collected ids and confirms, by collecting both tiers, that every case the variable
+       adds or unskips is in exactly one of them.
+     - **The mpmath point count cannot be split by keyword.** The normal tier runs scipy's mpmath
+       comparisons at 5,000 points, upstream's `SCIPY_XSLOW` setting, and the README says so.
+     - **Counts.** The drafting counts, 80,926 normal and 15,174 release (10,347 in
+       `signal/tests/test_signaltools.py`, 2,919 in `sparse/tests/test_64bit.py`), were collected
+       without `SCIPY_XSLOW` (EXECUTED); with it the suite collects the 3,000-odd hidden tests more.
+       The survey re-collects both tiers with the variable set, and its memo lists every direct
+       read of each `env` variable in each sdist (a grep, READ), so the delta review sees what each
+       variable changes.
+   - **scikit-learn: normal, with a threshold** (*default pending the owner's answer*). It has no
+     slow marker (READ). Its float32 cases are opt-in (`SKLEARN_RUN_FLOAT32_TESTS=1`,
+     `conftest.py:88-91`): they run, with the variable in the family's `env`, because they are
+     tests of the product's float32 paths. **The threshold:** if the survey measures more than
+     15 T for the normal tiers of the three packages together (about 2.3 times today's 11.2 T of
+     upstream fuel), scikit-learn's tests move to the release tier by 102's kind (b) keyword or
+     path entries until the total is under it, in this order: first `sklearn/tests/test_common.py`
+     (the estimator checks, 13,387 tests), then the float32 cases (keyword `float32`). Nothing is
+     left out. The rule follows the owner's reading ("for normal checks, we don't run the slow
+     tests"; "we can decide what is slow tier") and bounds the lane's darwin accept at every
+     landing. The memo states which step the measured total took.
    - **statsmodels: everything normal.** Its `slow` tests run by default (`--skip-slow` is an
-     opt-out; READ), so they are normal by the rule. The same allowance as scikit-learn's float32
-     applies to `slow` if the survey prices it past the plan.
-   - **`env`, a new family key**, a map of variables the harness adds to the judge's `ENV` for that
-     family's guest runs. The rules allow only listed names, each with its reason in the TOML:
-     `SCIPY_XSLOW` (scipy), `SKLEARN_RUN_FLOAT32_TESTS` (scikit-learn). `TMPDIR` and `HOME` stay
-     the judge's. A release group may carry the variable its tier needs; a normal group's argv and
-     environment are the same on a normal run and on a release run (102, Decision 4).
-   - **Modes, not tests: not run, and stated in the README.** Each runs the same tests again under
-     another setting, adds no test, and has no default in upstream's own command:
-     scikit-learn's `SKLEARN_TESTS_GLOBAL_RANDOM_SEED=all` (each seeded test on 100 seeds; the
-     default seed 42 runs), `--check-spmatrix` (patches scipy.sparse to raise on old-style matrix
-     use) and `SKLEARN_WARNINGS_AS_ERRORS`; scipy's `SCIPY_ARRAY_API=1` (the array-API backends:
-     the product carries none but numpy, and the variable changes scipy's own import-time
-     behaviour); statsmodels' `SM_TEST_COPY_ON_WRITE` and `SM_FORMULA_ENGINE=formulaic` (the
-     formula tests with formulaic in place of patsy, the default). The owner may rule any of them
-     a tier's (the report that carries this draft says so); each would be one more family or
-     group with its `env`, no new mechanism.
+     opt-out; READ), so they are normal by the rule.
+   - **`env`, a new family key**, a map of variables the harness adds to the judge's `ENV` for
+     every guest run of that family, never per group (H1). **The allowed names are a constant in
+     `packages.py`, per family** (the review, L6), as 102's `EXCLUDABLE` is: today `SCIPY_XSLOW`
+     for scipy, and `SKLEARN_RUN_FLOAT32_TESTS` and `SKLEARN_SEED` (Decision 4) for scikit-learn.
+     A name joins only by a judge change with its reason. Each TOML entry carries its reason in
+     words. **Forbidden in every family:** `TMPDIR`, `HOME`, any `PYTHON*`,
+     `SCIPY_HYPOTHESIS_PROFILE` (scipy's conftest loads its own `deterministic` profile over the
+     driver's, with the same `derandomize=True, database=None`; the review, N1),
+     `SKLEARN_TESTS_GLOBAL_RANDOM_SEED` and `SKLEARN_SKIP_NETWORK_TESTS`.
+   - **Modes, not tests: README-only for 0.1.0** (*default pending the owner's answer*; the
+     review, L7). Each runs the same tests again under another setting, adds no test, and has no
+     default in upstream's own command: scikit-learn's `SKLEARN_TESTS_GLOBAL_RANDOM_SEED=all`
+     (each seeded test on 100 seeds; the default seed 42 runs), `--check-spmatrix` (patches
+     scipy.sparse to raise on old-style matrix use) and `SKLEARN_WARNINGS_AS_ERRORS`; scipy's
+     `SCIPY_ARRAY_API=1` (the array-API backends: the product carries none but numpy, and the
+     variable changes scipy's own import-time behaviour) and `SCIPY_XFAIL` (it xfails the
+     known-failing fits of `stats/tests/test_fit.py:112-118` without running them); statsmodels'
+     `SM_FORMULA_ENGINE=formulaic` (the formula tests with formulaic in place of patsy, the
+     default). statsmodels' `SM_TEST_COPY_ON_WRITE` is not a mode here: it applies only to pandas
+     before 3, and the product's pandas is 3.0.6 (`statsmodels/conftest.py:23-27`, READ by the
+     review). **The survey counts the tests that skip only because a mode's variable is unset**
+     (scikit-learn's "SCIPY_ARRAY_API is not set": 47 in the seven-file sample, EXECUTED), and the
+     README states each number. A mode run as a separate normal-tier family would need only its
+     `env`; a mode in the release tier is none of 102's named kinds, so it would need a change to
+     102: a follow-up after 0.1.0, if the owner asks.
    - **Doctests.** scikit-learn's conftest skips every doctest when the default numpy integer is 32
      bits (`conftest.py:197-199`, READ): collected, they would be counted skips only, and their
      source is not staged (the modules are the zip's bytecode), so they are not collected; the
@@ -350,14 +451,19 @@ where 102 runs it.
 
    | package | files | reason | closes with |
    |---|---|---|---|
-   | scipy | `_lib/tests/test_ccallback.py`, `integrate/tests/test_quadpack.py`, `ndimage/tests/test_c_api.py`, `special/tests/test_dd.py`, `special/tests/test_round.py` (EXECUTED: each fails to load) | each imports one of scipy's seven `tests`-tagged C modules (`_test_ccallback`, `_test_multivariate`, `_ctest`, `_cytest`, `_test_internal`), which 037 links out of the product on purpose (its Decision 8) | spec 088 (the judge-only binary; the lane widens its line to name scipy's seven) |
+   | scipy | `_lib/tests/test_ccallback.py`, `integrate/tests/test_quadpack.py`, `ndimage/tests/test_c_api.py`, `special/tests/test_dd.py`, `special/tests/test_round.py` (EXECUTED: each fails to load) | each imports one of scipy's seven `tests`-tagged C modules (`_test_ccallback`, `_test_multivariate`, `_ctest`, `_cytest`, `_test_internal`), which 037 links out of the product on purpose (its Decision 8) | spec 088 (the judge-only binary, never published; *default pending the owner's answer*: the lane widens 088's roadmap line to name scipy's seven modules and these five files; 088 is "after the packages", so in 0.1.0 they stay not selected) |
    | scipy | `_lib/tests/test_deprecation.py`'s tests that call `_test_deprecation_call` and `_test_deprecation_def` | the same, at call time: a class, not a file (it loads) | spec 088 |
    | scipy | `linalg/tests/test_cython_abi.py`, `optimize/tests/test_cython_abi.py`, `special/tests/test_cython_abi.py` (EXECUTED) | they read capsule names through `ctypes.pythonapi`, which the `ctypes` stand-in lacks, at import | spec 074 (the stand-ins' names at import); after it, each loads and its tests are a `no-ctypes` class |
    | scipy | `odr/tests/` (not staged) | `scipy.odr` is out of this line for good (037, Decision 9: ODRPACK is Fortran; scipy removes it in 1.19) | `context/specifications/037-scipy.md` |
    | scipy | `linalg/tests/_cython_examples/ilp64_test_package/tests/` (EXECUTED: fails to load) | an example package `test_extending.py` would build with meson in a subprocess; scipy installs only `extending.pyx` and `meson.build` of `_cython_examples` (READ: `linalg/tests/meson.build:39-43`), so it is not part of the installed suite | `README.md` |
    | scikit-learn | `cluster/tests/test_hierarchical.py`, `metrics/tests/test_dist_metrics.py` (EXECUTED) | they build memory-mapped arrays at import (`create_memmap_backed_data`), and the `mmap` stand-in raises | `README.md` (no `mmap`); spec 074 if it changes the stand-in |
    | scikit-learn | `neighbors/tests/test_neighbors.py` (EXECUTED, the sample) | it imports a constant from `metrics/tests/test_dist_metrics.py`, which cannot load. The whole-suite collection loaded it only because pytest had kept the half-imported module from an earlier file: an order the judge does not rely on | `README.md`; spec 074 as above |
-   | statsmodels | none known (READ); the survey's first run says | | |
+   | statsmodels | `discrete/tests/test_constrained.py` (loads `spector` at import, line 29), `emplike/tests/test_anova.py` (loads `star98` at import, line 12) (READ by the review; INFERRED to fail to load until the survey) | a dataset 045 leaves out for its terms is loaded at import, so the file cannot load and every test in it is lost, not only the dataset's | `README.md` (045's list of the thirteen) and the owner's answer to question 83: approving a dataset ships it and the file loads (*default pending the owner's answer*) |
+
+   **Each not-selected file gives its collected count from the survey** (the review, L3): what a
+   row costs is stated in tests, not only in files (`neighbors/tests/test_neighbors.py` alone holds
+   1,029, EXECUTED by the drafting probe). The lane may name scikit-learn's three `mmap` files in
+   074's roadmap line, so they have a numbered closer.
 
    Selected although they may skip whole: scipy's `datasets/tests/test_data.py` (`importorskip
    pooch`), scikit-learn's dataset fetcher tests (skipped without the network variable),
@@ -373,7 +479,7 @@ where 102 runs it.
    | `no-processes` | `does not support processes` and the `multiprocessing` messages the survey records | `MapWrapper` pools, `differential_evolution(workers=2)`, statsmodels' `test_package.py`, scikit-learn's `experimental` tests that start `sys.executable` (READ) | `README.md` |
    | `no-mmap` | `mmap is unavailable` | 41 in scikit-learn's sample (EXECUTED); scipy's `io` tests with `mmap=True` (READ) | `README.md` |
    | `no-fp-exceptions` | the `DID NOT WARN` and `DID NOT RAISE` lines of floating-point warnings | wasm has no floating-point exception flags; 099 keeps numpy's own software flags, not the hardware's, so a float division by zero in a ufunc loop warns nothing (READ: 099's Decision text) | `README.md` |
-   | `left-out-datasets` | `FileNotFoundError` naming `statsmodels/datasets/<name>/` | 19 statsmodels test files load one of the thirteen datasets 045 leaves out for their terms (EXECUTED: `sm_datasets.py`), `test_glm.py` and `test_discrete.py` among them | `README.md` (045's list of the thirteen) |
+   | `left-out-datasets` | `FileNotFoundError` naming `statsmodels/datasets/<name>/` | 19 statsmodels test files load one of the thirteen datasets 045 leaves out for their terms (EXECUTED: `sm_datasets.py`), `test_glm.py` and `test_discrete.py` among them. **Run-time failures only:** a file that fails at import is a Decision 8 row, never a member (the review, L3). The suite judges the product as shipped; staging the CSVs would not reach the tests, since 045's patch reads package resources from the zip (*default pending the owner's answer*) | `README.md` (045's list of the thirteen) and the owner's answer to question 83: approving a dataset ships it and empties its part of the class |
    | `no-network` | the `URLError` of an `https` URL | statsmodels' `get_rdataset` and `webuse` tests (3 files, READ), if they are not skipped | `README.md` |
    | `wasi-errno-values`, `zip-no-source`, `open-empty-path`, `builtin-no-file` | 066's matches | 066 met each in another package | `README.md` |
 
@@ -407,8 +513,11 @@ where 102 runs it.
       `upstream-sci-*` (scipy), `upstream-skl-*` (scikit-learn) and `upstream-sm-*` (statsmodels),
       each within 360 s of job time on the branch's dry run (066's criterion 12). The lane's darwin
       judge runs every normal group at every landing.
-    - **Release tier:** scipy's release groups in release shards of 102's kind, run only where 102
-      runs them (the tag run and the dry run on main before a tag).
+    - **Release tier:** scipy's release groups (marker and keyword), and scikit-learn's if
+      Decision 7's threshold moves any, in release shards of 102's kind, run only where 102 runs
+      them (the tag run and the dry run on main before a tag).
+    - **The derived run counts in every scipy shard** (Decision 5): its measured fuel is added once
+      to each scipy shard's packing and to its 360 s bound.
     - **The job count.** 101 sets the Linux matrix's `max-parallel` (20 in 067's reading of it);
       the new shards queue behind it. Decision 12's price below states the wall-clock cost as an
       estimate; the branch's dry run measures it.
@@ -423,14 +532,21 @@ where 102 runs it.
     - **The check of it:** after 095, no entry names `spec 095` as its closer (criterion 10).
 
 14. **The rules check, widened** (066's Decision 14, plus):
-    - `package_inits` is a boolean; when true, each generated `package_paths` entry is a tarball
-      folder holding an `__init__.py` member, and no generated entry names a package the product
-      lacks (the zip's names and the builtins, from the artifact set's lists);
-    - each `derived` entry's script is a tarball member under a staged or support folder, its
-      output's folder is a staged folder, and the output is not a member;
-    - `env` names only the variables listed for that family (Decision 7), each with a reason line
-      in the TOML; no family sets `TMPDIR` or `HOME`;
-    - the staged `package_drive.py` hashes equal to `tests/upstream/package_drive.py` (Decision 3);
+    - `package_inits` is a boolean; when true, every ancestor package of every staged folder is a
+      package the product has (the zip's names and the builtins, from the artifact set's lists)
+      and a generated `package_paths` entry, each a tarball folder holding an `__init__.py`
+      member; a staged folder under a package the product lacks is refused, never staged (the
+      review, L1);
+    - each `derived` entry's script is a tarball member under a staged or support folder; its
+      `inputs` folder holds members; its output's folder is a staged folder and the output is not
+      a member; its `fuel` is at most the cap rule's 1.5 times its `measured`; the family names one
+      `derived_row`, a group of the family (the review, M1);
+    - `env` is a family key only (no group carries one) and names only the variables
+      `packages.py`'s per-family constant allows (Decision 7), each with a reason line in the TOML;
+      the forbidden names of Decision 7 are refused in every family (the review, L6);
+    - (the draft's rule that the staged `package_drive.py` hashes equal to the repository's is
+      dropped: `Session._prepare` copies that file, so it holds by construction, and "the driver is
+      not edited" is a fact of the diff, which the review reads; the review, L5);
     - 066's rules, 102's rules (tiers, truth table, release caps) and 063's shard rule hold for
       the three families.
 
@@ -459,13 +575,16 @@ runs against a copy of the product's code, or the tests are not the artifact's o
 tests/upstream/scipy.toml            package "scipy", driver "package", grant /upstream-scipy,
                                        stage_folders (scipy/**/tests, but odr), package_inits,
                                        support_files [scipy/conftest.py, scipy/special/utils/...],
-                                       derived (makenpz.py: boost, gsl, local), env {SCIPY_XSLOW},
-                                       marker / release_marker (102), cwd /tmp/work, groups by
+                                       derived (makenpz.py: boost, gsl, local; inputs, caps,
+                                       derived_row), env {SCIPY_XSLOW} for every group,
+                                       marker / release_marker and three [[release_select]]
+                                       entries (102), cwd /tmp/work, groups by
                                        subpackage, [[split]]s, [[not_selected]], [[expected]]
 tests/upstream/scikit-learn.toml     grant /upstream-scikit-learn, stage_folders (sklearn/**/tests),
                                        package_inits, support_files [the two conftests],
-                                       env {SKLEARN_RUN_FLOAT32_TESTS}, groups, [[split]] for
-                                       tests/test_common.py
+                                       env {SKLEARN_RUN_FLOAT32_TESTS, SKLEARN_SEED}, groups,
+                                       [[split]] for tests/test_common.py, [[release_select]]
+                                       entries if Decision 7's threshold moves any
 tests/upstream/statsmodels.toml      grant /upstream-statsmodels, stage_folders, package_inits,
                                        support_files [statsmodels/conftest.py], groups
 tests/upstream/<package>.ini         Decision 6
@@ -484,10 +603,13 @@ README.md, CHANGELOG.md, context/progress/README.md, context/roadmap.md
 1. Stage `/upstream-<package>` once per judge run, after the tie, from the patched tree: the
    staged folders, the ancestor inits, the support files, the kit, the driver, the `.ini`, each
    group's JSON.
-2. scipy only: the derived runs (Decision 5), each in a fresh root with the stage read-only; their
-   outputs copied into the stage; the stage sealed read-only (089).
+2. scipy only: the derived runs (Decision 5), each in a fresh root with the stage read-only and
+   its own cap; each output read with `lstat` and checked (a regular file, under the bound, a zip
+   with at least one `.npy` member) before it is copied into the stage; the stage sealed read-only
+   (089); the facts kept for the `derived_row` group.
 3. Each group: `guest.run(snapshot, ["-u", "/upstream-<package>/judge/package_drive.py",
-   "<package>", "<group>"], …, env=ENV | family env, fuel=<cap>, preopens=[(grant, stage, False)],
+   "<package>", "<group>"], …, env=ENV | the family's env (never a group's), fuel=<cap>,
+   preopens=[(grant, stage, False)],
    mpl_data=True)`; the stream read, classes sorted, the guard checked, `fuel` and `passes`
    recorded with 066's facts.
 
@@ -502,7 +624,11 @@ README.md, CHANGELOG.md, context/progress/README.md, context/roadmap.md
   published); the files that need them are named (Decision 8).
 - **The modes of Decision 7**, unless the owner rules otherwise.
 - **formulaic's, interface-meta's and wrapt's suites:** 067's.
-- **The plain binary, and macOS and Windows release shards** (066, Decisions 11 and 12).
+- **The plain binary, and macOS and Windows release shards** (066, Decisions 11 and 12). The
+  reason, in words (the review, N2): the guest's fuel and outcomes do not depend on the host,
+  the lane's darwin judge runs every normal group at every landing, and the Windows own-guest
+  shards already cover the host's WASI file semantics; no system runs these suites on Windows,
+  as with 066's.
 - **Wall-clock.** No check reads a clock (§4.9); every time below is an estimate.
 
 ## Acceptance criteria
@@ -512,13 +638,19 @@ code or a stand-in; the builder records each failing assertion in the landing no
 
 1. **The rules.** `test_upstream_files_are_well_formed` passes with Decision 14's rules on the three
    new TOMLs. `tests/unit/test_packages.py` variants each fail with their own line: a
-   `package_inits` family whose generated entry names a folder with no `__init__.py` member; one
-   naming a package the product lacks; a `derived` script that is not a member; a `derived`
-   output that is a member, or outside a staged folder; an `env` variable not listed for the
-   family; `env` setting `HOME`; a staged driver whose hash differs from main's.
-2. **The derived run, on a synthetic tarball** (no real scipy): a script that writes its output
-   stages it; one that exits 1 fails every group of the family, named; one that writes nothing
-   fails them, named; the output's SHA-256 is a fact of the first group.
+   `package_inits` family whose generated entry names a folder with no `__init__.py` member; a
+   staged folder under a package the product lacks; a `derived` script that is not a member; a
+   `derived` `inputs` folder with no member; a `derived` output that is a member, or outside a
+   staged folder; a `derived` cap above 1.5 times its `measured`; a family with `derived` and no
+   `derived_row`; a group carrying `env`; an `env` variable not in the family's constant; `env`
+   setting `HOME`, `PYTHONPATH`, `SCIPY_HYPOTHESIS_PROFILE` or `SKLEARN_SKIP_NETWORK_TESTS`.
+2. **The derived run, on a synthetic tarball** (no real scipy): a script that writes a valid
+   output stages it, and its SHA-256 and fuel are facts of the `derived_row` group and of no other
+   row, whichever group the session runs first; one that exits 1 fails every group of the family,
+   named; one that writes nothing fails them, named; one that writes an `.npz` with no arrays (as
+   makenpz does with an empty input folder) fails them, named; one whose output is a symbolic link
+   or past the size bound fails them, named, and the link is never followed; one that passes its
+   cap stops there and fails them, named.
 3. **The survey, then the baseline.** The memo exists, labelled EXECUTED, written before any
    check, TOML or harness line, with each group's outcomes by id, fuel, traps and collection
    errors, both tiers; its delta has a confirmation verdict. Each group check, run before its
@@ -530,8 +662,9 @@ code or a stand-in; the builder records each failing assertion in the landing no
    and `passed_digest`; on darwin equal fuel within `sameness.py`'s tolerance. The release groups
    once each, on darwin.
 6. **Nothing else moves.** The ratchet against the base: every numpy, pandas, CPython and 066 row
-   lost 0, grew 0; their stages' file lists are byte for byte the base's (066's stage-manifest
-   unit check, extended to the six 066 families).
+   lost 0, grew 0. **A new unit check, written first** (the review, L5: 066 has no such check),
+   compares each of 066's six families' staged file list and group JSON with the base's, byte for
+   byte, and numpy's, pandas' and CPython's stage manifests too.
 7. **The shards.** 063's `test_release_shards_cover_the_judge` and the workflow scan pass with the
    new shards; each new normal group is in exactly one Linux shard and each release group in one
    release shard (102's rule).
@@ -554,46 +687,60 @@ code or a stand-in; the builder records each failing assertion in the landing no
 
 ## The price (estimates, labelled; the survey replaces them)
 
-- **Normal-tier fuel per full judge** (INFERRED from the probes): scipy about 5 to 9 T (80,926
-  tests at the sample's 63 M a test is 5.1 T, before each group's start and its heavier files);
-  scikit-learn about 8 to 20 T (46,955 tests; the sample's 444 M a test gives 20.8 T, but the
-  sample holds forests, trees and ridge paths, likely heavier than the median file); statsmodels
-  about 2 to 6 T (21,412 tests natively in 468 s by 045's builder, EXECUTED there; 045 inferred
-  about 3 T). **In all about 15 to 35 T** of upstream fuel added to every full judge, on top of
-  today's about 11.2 T: 2.3 to 4.1 times today's upstream fuel. scikit-learn is the largest part
-  and the least certain.
-- **The lane's darwin accept** (INFERRED, at the samples' 0.18 s per G): about 45 to 105 more
-  minutes of guest time, so about 15 to 35 more minutes of wall clock at `-n 3`, on every landing.
-- **Release-tier fuel** (scipy's slow and xslow, 15,174 tests): about 4 to 12 T, run only before a
-  tag (INFERRED: slow tests are slower per test by construction; the survey measures it once).
-- **Caps** by the rule, 1.5 times: about **23 to 53 T** for the normal tier.
-- **Linux shards**: about **21 to 48 normal-tier shards** of at most 725 G (today 23 Linux
-  shards; 066 added fourteen), and about 6 to 17 release-tier shards. At 0.16 to 0.31 s per G
-  (066's reading of run `39371419248`), each shard 120 to 290 s of guest time plus about 60 s of
-  setup. With the Linux matrix capped at 20 parallel jobs (101), 44 to 71 Linux jobs run in three
-  or four waves of twenty where today's run in two, so the new shards add about **5 to 15
-  minutes** of wall clock to a release run, and they hold Pro's 40 concurrent jobs longer when
-  another run is live (INFERRED).
+- **Normal-tier fuel per full judge, before Decision 7's threshold** (INFERRED from the probes):
+  scipy about 5 to 9 T (80,926 tests collected without `SCIPY_XSLOW` at the sample's 63 M a test
+  is 5.1 T, before each group's start, its heavier files and the mpmath comparisons at 5,000
+  points); scikit-learn about 8 to 20 T (46,955 tests; the sample's 444 M a test gives 20.8 T, but
+  the sample holds forests, trees and ridge paths, likely heavier than the median file);
+  statsmodels about 2 to 6 T (21,412 tests natively in 468 s by 045's builder, EXECUTED there; 045
+  inferred about 3 T). In all about 15 to 35 T, 2.3 to 4.1 times today's about 11.2 T of upstream
+  fuel. scikit-learn is the largest part and the least certain.
+- **After the threshold** (*default pending the owner's answer*): the three normal tiers together
+  are held under about 15 T by moving scikit-learn's `tests/test_common.py`, then its float32
+  cases, to the release tier; the rest of any excess goes to the release tier with them.
+- **The lane's darwin accept at every landing** (INFERRED, at the samples' 0.18 s per G): about
+  15 T more is about 45 more minutes of guest time, about 15 more minutes of wall clock at `-n 3`
+  (up to about 35 minutes if the owner declines the threshold).
+- **Release-tier fuel**: scipy's slow, xslow and `SCIPY_XSLOW`-gated cases about 4 to 12 T, plus
+  whatever the threshold moves (0 to about 20 T of scikit-learn's), run only before a tag
+  (INFERRED: slow tests are slower per test by construction; the survey measures it once). The
+  release acceptance before a tag pays it on darwin: about 4 to 12 minutes at `-n 3` for scipy's
+  part, more with scikit-learn's (INFERRED; the review, L8).
+- **The derived run**: once per scipy stage, so once per scipy shard and once per darwin worker
+  that runs a scipy group; about 15.9 MB of text tables through `np.loadtxt`, tens of G
+  (INFERRED; the survey measures it, and the packing counts it).
+- **Caps** by the rule, 1.5 times: about 23 T for a 15 T normal tier (up to about 53 T without the
+  threshold).
+- **Linux shards**: about 21 to 32 normal-tier shards of at most 725 G (up to 48 without the
+  threshold; today 23 Linux shards, 066 added fourteen), and about 6 to 17 release-tier shards
+  for scipy, more with what the threshold moves. At 0.16 to 0.31 s per G (066's reading of run
+  `39371419248`), a 725 G shard is 116 to 225 s of guest time plus about 60 s of setup (corrected
+  by the review, L8). With the Linux matrix capped at 20 parallel jobs (101), 44 to 55 Linux jobs
+  run in three waves of twenty where today's run in two, so the new shards add about **5 to 10
+  minutes** of wall clock to a release run (up to 15 without the threshold), and they hold Pro's
+  40 concurrent jobs longer when another run is live (INFERRED).
 - **The survey:** about 2 to 4.5 CPU hours on darwin-arm64 (Decision 1), on main's set after wave
   09 for scipy and scikit-learn, and on statsmodels' set (main after 045, or 045's reviewed set).
-- **What would lower it, not chosen here:** a release tier for scikit-learn's float32 cases or for
-  statsmodels' `slow` (Decision 7's allowance), or for the heaviest files (scikit-learn's
-  `tests/test_common.py`, the estimator checks, is the likeliest; the owner's "we can decide what
-  is slow tier" allows it, by a reviewed keyword or path selection, never out); spec 092 (the judge
-  reads CI's record) shortens the lane's own accept.
+- **What else would lower it, not chosen here:** a release tier for statsmodels' `slow`, or for
+  scipy's heaviest normal files, by the same reviewed keyword or path entries, never out; spec 092
+  (the judge reads CI's record) shortens the lane's own accept.
 
 ## The claim list's shape (for the lane, filled in by the build)
 
 - **Gained rows:** `test_upstream_suite[<group>]` for each new group, with metrics `fuel` and
   `passes` and 066's facts (`counts`, `passed_digest`, `left_out`, `collected` for split groups),
-  plus `derived` for scipy's first group; `test_upstream_class[<group>-<class>]` for each class
-  with members, each a gap; `test_upstream_trap[<id>]` for each trap.
-- **Release-tier rows** (scipy's release groups) are new rows in 102's `release_tier` list on a
-  normal accept, accepted only at the release acceptance before a tag (102, Decision 5).
+  plus `derived` on scipy's `derived_row` group only; `test_upstream_class[<group>-<class>]` for
+  each class with members, each a gap; `test_upstream_trap[<id>]` for each trap.
+- **Release-tier rows** (scipy's release groups, and scikit-learn's if the threshold moves any)
+  are new rows in 102's `release_tier` list on a normal accept, accepted only at the release
+  acceptance before a tag (102, Decision 5). **Their claim block** goes in
+  `context/release-tier-claims.toml` (102, Decision 6), written from a branch run with 102's
+  `release-tier` input true (the review, L8).
 - **Moved rows: none.** numpy's, pandas', CPython's and 066's rows: lost 0, grew 0.
 - **Retired: none. Passes moved: none.**
 - **The judge hash changes**: the accept-judge text names the three TOMLs, `.ini`s, the expected
-  lists, the harness keys, the gaps, `packages.toml`, the shards and the workflow.
+  lists, the harness keys, the gaps, `packages.toml`, the citation rule's retired allowances, the
+  shards and the workflow.
 - **No `--accept-growth`**, unless the base brings one.
 
 ## For the lane
@@ -601,8 +748,16 @@ code or a stand-in; the builder records each failing assertion in the landing no
 - **Wave kind: build-class** (the release workflow; no artifact byte, no `scripts/`, `recipes/` or
   `downloads/` line). It may ride as one of a wave's two other build-class entries, after 045 and
   102.
-- **Base.** This draft is on main `dda6075`; the structural chain (`dbecd2d`) was not under it at
-  drafting (the session could not move the branch). The draft touches only `context/`.
-- **Decisions the owner may want to see** (drafted as decided; the report carries them):
-  088's widening to scipy's seven test modules; the modes not run (Decision 7); statsmodels'
-  left-out datasets as a class, not staged data (Decision 9); the price.
+- **Base.** Rebased onto the structural chain's tip `727bd4c` on 2026-10-20 (context only, no
+  conflict). The builder rebases onto main after the chain lands, before writing code, since the
+  citation rule exists only there (the review, N4).
+- **Release-tier claims:** the builder's branch run with `release-tier: true` writes 095's block
+  in `context/release-tier-claims.toml` (102, Decision 6).
+- **Defaults pending the owner's answer** (the lane files the four questions; each answer other
+  than the default is a revision of the named Decision before the build): 088 widened to scipy's
+  seven test modules and five files (Decision 8); the modes README-only for 0.1.0, copy-on-write
+  dropped, `SCIPY_XFAIL` added, mode-gated skips counted (Decision 7); the 15 T threshold, moving
+  scikit-learn's `tests/test_common.py` then its float32 cases to the release tier (Decision 7);
+  statsmodels' left-out datasets a README class, with import failures under Decision 8
+  (Decisions 8 and 9).
+- **074's line:** the lane may name scikit-learn's three `mmap` files there (Decision 8).

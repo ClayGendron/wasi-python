@@ -295,10 +295,70 @@ is met.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. H1 —
-2. M1 —
-3. L1 to L8 —
-4. N1 to N4 —
+By the author, 2026-10-20, on the branch rebased onto the chain's tip `727bd4c` (context only, no
+conflict). Every finding is written into the specification; none is declined. The four owner
+questions are written in as the reviewer recommended, each marked "default pending the owner's
+answer" (the lane files them).
+
+1. **H1 — fixed, as the fix text says.** Decision 7 is rewritten. `env` is a family key only:
+   every scipy group, in both tiers, runs with `SCIPY_XSLOW=1`, and no group may carry `env`
+   (Decision 14's rule; criterion 1's variant). The cases upstream runs only with the variable,
+   inside tests with no `slow`/`xslow` marker, go to the release tier by three 102 kind (b)
+   `[[release_select]]` entries, one per file (`test_axis_nan_policy.py`, `test_continuous.py`,
+   `test_tanhsinh.py`), each with the reason "upstream runs it only with SCIPY_XSLOW set"; the
+   survey writes the keywords from the collected ids and confirms each gated case is in exactly
+   one tier. The mpmath point count runs at 5,000 points in the normal tier, stated in the README.
+   The survey re-collects both tiers with the variable set and lists every direct read of each
+   `env` variable in each sdist (Decision 1). The drafting counts are relabelled "collected
+   without `SCIPY_XSLOW`" (the probe table and Decision 7). Decision 7's headline is now "the rule,
+   with these named choices" (N3).
+2. **M1 — fixed, as the fix text says.** Decision 5: each `derived` entry names its `inputs`
+   folder (checked to hold members), carries `measured` and a `fuel` cap by the cap rule, and the
+   family names one `derived_row` (the group holding `special/tests/test_data.py`), the only row
+   its facts land on. The run happens in every stage that holds the family, whatever the tier or
+   shard; Decision 12 and the price count it once per scipy shard and darwin worker. Each output is
+   read with `lstat`, never through a link, and refused unless a regular file, at most 16 MiB, and
+   a zip with at least one `.npy` member (makenpz's empty `.npz` is refused, named). Criterion 2
+   gains the variants: the fixed row whatever group runs first, the empty `.npz`, a link, past the
+   bound, past the cap. Design step 2 says the same.
+3. **L1 to L8 — answered in writing.**
+   - L1: Decision 4's account is corrected (the driver imports each package first; pytest 9.0.3
+     returns `sys.modules[name]`); the rule is now "every ancestor package of every staged folder
+     is a package the product has and a generated entry; a folder under a package the product
+     lacks is refused, never staged" (Decision 14, criterion 1).
+   - L2: Decision 4 gains the `setup_module` paragraph; scikit-learn's `env` sets `SKLEARN_SEED` to
+     `"0"`; the survey lists every `setup_module`/`teardown_module` in the staged inits.
+   - L3: Decision 8 gains `discrete/tests/test_constrained.py` (`spector`) and
+     `emplike/tests/test_anova.py` (`star98`), closed by the README and the owner's answer to
+     question 83; each not-selected file gives its collected count from the survey; the
+     `left-out-datasets` class holds run-time failures only (Decision 9). For the lane names 074's
+     line for scikit-learn's three `mmap` files.
+   - L4: the Changed list gains `tests/checks/test_rules.py` (the retired allowance entries, in the
+     same change); Depends on (109) states what 095's comments and docstrings must obey.
+   - L5: criterion 6 is a new unit check, written first, over each 066 family's staged file list
+     and group JSON; the driver-hash rule is dropped (it holds by construction) and Decision 3 says
+     why.
+   - L6: the allowed names are a per-family constant in `packages.py` (`SCIPY_XSLOW`;
+     `SKLEARN_RUN_FLOAT32_TESTS`, `SKLEARN_SEED`), joining only by a judge change; the forbidden
+     names are listed (`TMPDIR`, `HOME`, `PYTHON*`, `SCIPY_HYPOTHESIS_PROFILE`,
+     `SKLEARN_TESTS_GLOBAL_RANDOM_SEED`, `SKLEARN_SKIP_NETWORK_TESTS`), "never per group".
+   - L7: copy-on-write dropped (no effect on pandas 3.0.6), `SCIPY_XFAIL` added, "no new mechanism"
+     corrected (a separate normal-tier family needs only its `env`; a release-tier mode would need a
+     102 change, a follow-up after 0.1.0), and the survey counts mode-gated skips for the README.
+   - L8: the claim list and For the lane name the `[[claim]]` block in
+     `context/release-tier-claims.toml` from a `release-tier: true` branch run; the release
+     acceptance's darwin cost is stated (about 4 to 12 minutes at `-n 3` for scipy's part); a 725 G
+     shard is 116 to 225 s of guest time.
+4. **N1 to N4 — acknowledged.** N1: `SCIPY_HYPOTHESIS_PROFILE` is on L6's forbidden list, with the
+   reason. N2: the Out line gives the Windows and macOS reason in words. N3: written in with H1.
+   N4: For the lane says the builder rebases onto main after the chain lands before writing code;
+   the split path for statsmodels stands as drafted.
+5. **The owner's four questions, as defaults pending the owner's answer:** 088 widened to scipy's
+   seven test modules and five files (Decision 8); the modes README-only for 0.1.0 with your three
+   corrections and the mode-gated skips counted (Decision 7); the 15 T threshold, moving
+   scikit-learn's `tests/test_common.py` then its float32 cases to the release tier, nothing left
+   out (Decision 7, the price); the left-out datasets as a README class, import failures under
+   Decision 8 (Decisions 8 and 9).
 
 ## Verdict
 
