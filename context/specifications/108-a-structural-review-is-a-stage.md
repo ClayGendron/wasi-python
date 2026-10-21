@@ -1286,14 +1286,26 @@ sameness exit 0
   released version; and two rules checks hold that the judge patches the runner only through
   its process object and that no function is over 80 lines, each with an allowance list that
   only shrinks. Nothing in the artifact set or the wheel changes.*
-- **Roadmap lines proposed** (not written): E1, the paragraph "Reserved: 108 (a structural
-  review is a stage; …)" verbatim from the specification, placed after "Reserved: 101" and
-  before "Reserved: 109", which the roadmap already carries; and E2, the "Release rule"
-  paragraph's "Before 0.1.0: a security review of the whole surface (milestone 6)," becoming
-  "Before 0.1.0: a security review of the whole surface (milestone 6), a structural review of
-  `src/` against the design review's rubric (spec 108; `reviews/0.1.0-structural-review-<date>.md`,
-  written by a fresh agent on the commit before the bump and committed with it, the dry run on
-  that commit),".
+- **Roadmap lines proposed** (not written; the file is the lane's at the wave), three:
+  - E1, the paragraph "Reserved: 108 (a structural review is a stage; …)" verbatim from the
+    specification, placed after "Reserved: 101" and before "Reserved: 109", which the roadmap
+    already carries.
+  - E2, the "Release rule" paragraph's "Before 0.1.0: a security review of the whole surface
+    (milestone 6)," becoming "Before 0.1.0: a security review of the whole surface (milestone
+    6), a structural review of `src/` against the design review's rubric (spec 108;
+    `reviews/0.1.0-structural-review-<date>.md`, written by a fresh agent on the commit before
+    the bump and committed with it, the dry run on that commit),".
+  - The build review's finding 1 (Low, context only; its exact text), one paragraph after E1's
+    "Reserved: 108" paragraph: "Reserved: a closer for spec 108's two allowances (the eighteen
+    private runner names the judge still patches, `SEAM_ALLOWED` in
+    `tests/checks/test_rules.py`, each with the field or parameter its comment names; the nine
+    functions over 80 lines, `LONG_FUNCTIONS`): parallel-safe, `src/` and the tests that patch,
+    one specification or two; before the first structural review scores R6 and R7, or named in
+    that review as the Medium's reserved specification." The eighteen include the four names
+    outside the specification's twenty-four, `_ARTIFACT_DIR`, `_CHECKOUT_ARTIFACT_DIR`,
+    `_REMOVE_BUDGET` and `_drive_turn` (named above for the integration review as 105's or 107's
+    to close); the closer reserved here owns them with the other fourteen and the nine
+    functions.
 
 ### The builder's self-check
 
@@ -1359,3 +1371,25 @@ sameness exit 0
 11. **The version loader's helper is annotated `-> types.ModuleType`** (the Design leaves the
     helper's shape to the builder); a first commit carried a `noqa` for a rule ruff does not
     enable, removed in `3942323` before the fast tier's run on the final code commit.
+
+### Disposition of the build review
+
+The build review (`../reviews/108-a-structural-review-is-a-stage-2026-10-21.md`, commit
+`64de806`; verdict "lands", one Low in `context/` only, three Notes; its own fast tier on
+`3dc9f1f` read 83 failed, 2440 passed, 52 skipped, the baseline's 83 exactly, and both sameness
+lines the same as the builder's):
+
+1. **The two allowances have design closers but no numbered closer** (Low) — carried to the
+   integration: the review's fix text is a "Reserved:" paragraph for the lane's roadmap commit
+   at the wave, copied verbatim into "Roadmap lines proposed" above beside E1 and E2, with the
+   four names outside the twenty-four named there too, so the integrator has the roadmap's three
+   lines in one place. No code changes; no round.
+2. **The seam walk does not see `unittest.mock`, the builtin `setattr`, keyword arguments or a
+   non-parsing string's own imports** (Note) — acknowledged: the tree uses none of those forms
+   (EXECUTED by the reviewer, its greps over `tests/`); the specification that next touches the
+   scanner, or the first that reaches for one of them, adds the form and its unit row.
+3. **A docstring that mentions `runner._x = 1` in prose is a hit** (Note) — acknowledged: the
+   check is conservative, the red names its line, and the fix is wording; none on the tree.
+4. **`test_rules.py` alone under the frozen set reads 1 failed** (Note) — acknowledged: the
+   counts differ by the artifact set; `test_version_states_the_platform_semantics` fails under
+   the a7 set (in the baseline's 83) and skips without one; the 53 agree.

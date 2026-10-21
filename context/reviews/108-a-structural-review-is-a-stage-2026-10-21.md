@@ -203,9 +203,13 @@ conservative, a red that is visible and fixed by wording (finding 3).
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. Finding 1 (Low, context only) — the fix text is for the lane's roadmap commit at the wave;
-   no round.
-2. Findings 2 to 4 (Notes) — no action.
+1. Finding 1 (Low, context only) — carried to the integration: the fix text is for the lane's
+   roadmap commit at the wave, and the builder copied it verbatim into the landing notes'
+   "Roadmap lines proposed", naming the four names outside the twenty-four there too (the
+   commit after `64de806`, "Disposition of the build review"); no round.
+2. Findings 2 to 4 (Notes) — acknowledged in the same section, one line each: the missed forms
+   are unused on the tree and a later specification adds them if the tree ever uses them; the
+   prose hit is conservative and fixed by wording; the counts differ by the artifact set.
 
 ## Verdict
 
