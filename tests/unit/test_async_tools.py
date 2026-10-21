@@ -26,6 +26,7 @@ import pytest
 
 from harness.calls import checked_call
 from wasi_python import _artifacts, _call, _home, runner
+from wasi_python import _tool_host as H
 from wasi_python import tools as T
 from wasi_python._process import process
 from wasi_python.tools import ToolDenied, ToolError, tool
@@ -114,10 +115,10 @@ def _host(tools: list, *, gate=None, loop=None, start=None, **kw) -> Any:
     """A frame host with its bound and its async tool loop, both counting their threads
     into `host.counted`."""
     counted: list = []
-    bound = T._Bounded(tick_s=0.001, count=counted.append, **kw)
+    bound = H._Bounded(tick_s=0.001, count=counted.append, **kw)
     extra = {} if start is None else {"start": start}
-    tool_loop = T._ToolLoop(loop, count=counted.append, **extra)
-    host = T._ToolHost(tools, gate=gate, invoke=bound, tool_loop=tool_loop)
+    tool_loop = H._ToolLoop(loop, count=counted.append, **extra)
+    host = H._ToolHost(tools, gate=gate, invoke=bound, tool_loop=tool_loop)
     host.counted, host.bound = counted, bound
     return host
 
@@ -415,7 +416,7 @@ def posted(monkeypatch) -> threading.Event:
         event.set()
         return future
 
-    monkeypatch.setattr(T.asyncio, "run_coroutine_threadsafe", post)
+    monkeypatch.setattr(H.asyncio, "run_coroutine_threadsafe", post)
     return event
 
 
@@ -549,7 +550,7 @@ def test_a_tool_that_ran_is_never_reported_as_not_started(caller, monkeypatch) -
             return self.future.done()
 
     monkeypatch.setattr(
-        T.asyncio, "run_coroutine_threadsafe", lambda coro, loop: Released(real_post(coro, loop))
+        H.asyncio, "run_coroutine_threadsafe", lambda coro, loop: Released(real_post(coro, loop))
     )
 
     @tool
@@ -571,17 +572,17 @@ def test_the_first_step_takes_the_lock_once() -> None:
     unanswered, marks the start and records the task. Built from the sync tools' self-locking
     `_proceed` it would deadlock; built from two acquisitions, an abandon could fall between
     them."""
-    bound = T._Bounded(tick_s=0.001)
+    bound = H._Bounded(tick_s=0.001)
     bound._lock = CountingLock()
     task = object()
 
-    slot = T._Slot()
-    slot.post = T._Post(None)
+    slot = H._Slot()
+    slot.post = H._Post(None)
     assert bound._begin(slot, task) is True
     assert (bound._lock.acquired, slot.post.started, slot.post.task) == (1, True, task)
 
-    slot = T._Slot()
-    slot.post = T._Post(None)
+    slot = H._Slot()
+    slot.post = H._Post(None)
     assert bound._abandon(slot) is True
     bound._lock.acquired = 0
     assert bound._begin(slot, task) is False
@@ -804,12 +805,12 @@ def test_close_ends_the_calls_loop(caller) -> None:
             warnings.simplefilter("always")
             closed = asyncio.new_event_loop()
             closed.close()
-            tool_loop = T._ToolLoop(closed)
+            tool_loop = H._ToolLoop(closed)
             tool_loop.close()
-            post = T._Post(None)
+            post = H._Post(None)
             post.loop, post.started = closed, True
             post.task = asyncio.Future(loop=closed)
-            T._cancel_post(post)
+            H._cancel_post(post)
 
             # A loop that closes between the check and the call.
             class Closing:
@@ -820,7 +821,7 @@ def test_close_ends_the_calls_loop(caller) -> None:
                     raise RuntimeError("Event loop is closed")
 
             post.loop = Closing()
-            T._cancel_post(post)
+            H._cancel_post(post)
             gc.collect()
     finally:
         logging.getLogger().removeHandler(handler)
@@ -1072,7 +1073,7 @@ def test_the_tool_loop_gives_a_value_only_when_the_awaitable_returned(
         warnings.simplefilter("always")
         # The cleanups are in `finally`: a failing assertion must not leave the private loop's
         # thread running, or every later check's `joined` fail-safe waits 60 s on it.
-        loop = T._ToolLoop(given)
+        loop = H._ToolLoop(given)
         try:
             # The wrapper's first step raises GeneratorExit: neither a return nor an error.
             coro = body()
@@ -1082,7 +1083,7 @@ def test_the_tool_loop_gives_a_value_only_when_the_awaitable_returned(
 
             # A skipped post: `_NotStarted`, not the RuntimeError above (Decision 1's order).
             coro = body()
-            with pytest.raises(T._NotStarted):
+            with pytest.raises(H._NotStarted):
                 loop.run(coro, _FirstStep(False))
             assert inspect.getcoroutinestate(coro) == inspect.CORO_CLOSED
         finally:
@@ -1100,7 +1101,7 @@ def test_the_tool_loop_gives_a_value_only_when_the_awaitable_returned(
         def begin(self: Any, slot: Any, task: Any) -> bool:
             raise GeneratorExit
 
-        monkeypatch.setattr(T._Bounded, "_begin", begin)
+        monkeypatch.setattr(H._Bounded, "_begin", begin)
         host = _host([effect], gate=async_gate, loop=given)
         try:
             assert answer(host(call_frame("effect"))) == ("denied", "effect was refused")
@@ -1119,11 +1120,11 @@ def test_a_generatorexit_thrown_into_the_wrapper_is_raised_on(monkeypatch) -> No
     """A `GeneratorExit` met at the wrapper's
     `await` is recorded and raised on, so the wrapper never ends as though its awaitable had
     returned (the reviewer's X2, recorded but not re-raised, ends it with `StopIteration`)."""
-    monkeypatch.setattr(T.asyncio, "current_task", lambda: object())  # no loop needed
+    monkeypatch.setattr(H.asyncio, "current_task", lambda: object())  # no loop needed
     loop = asyncio.new_event_loop()
     try:
-        post = T._Post(loop.create_future())
-        wrapper = T._ToolLoop()._wrapper(post, None)
+        post = H._Post(loop.create_future())
+        wrapper = H._ToolLoop()._wrapper(post, None)
         assert wrapper.send(None) is post.awaitable  # the wrapper waits at its `await`
         thrown = GeneratorExit()
         with pytest.raises(GeneratorExit) as raised:

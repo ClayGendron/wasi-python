@@ -2833,7 +2833,7 @@ def _region_tools() -> list:
 def test_the_guest_package_round_trips_through_the_door(guest, which) -> None:
     """Criterion 11: `from host import tools`, two calls, one result fed to pandas, bytes both
     ways; the record lists the discovery and both calls."""
-    from wasi_python.tools import _ToolHost
+    from wasi_python._tool_host import _ToolHost
 
     host = _ToolHost(_region_tools())
     r = guest(which, ["-c", TOOL_PROGRAM], host=host)
@@ -2860,7 +2860,8 @@ for args in ({"n": "seven"}, {"n": 7, "extra": 1}):
 def test_a_forged_frame_is_validated_first(guest) -> None:
     """Criterion 12: frames the guest writes itself, past the package, are checked against the
     schema before the gate or the tool sees them."""
-    from wasi_python.tools import _ToolHost, tool
+    from wasi_python._tool_host import _ToolHost
+    from wasi_python.tools import tool
 
     calls = []
 
@@ -3520,7 +3521,8 @@ def test_bound_keywords_are_fixed_however_the_partial_is_reached() -> None:
     is refused; a plain function's and a bound method's own defaults are still published."""
     import functools
 
-    from wasi_python.tools import _ToolHost, tool
+    from wasi_python._tool_host import _ToolHost
+    from wasi_python.tools import tool
 
     calls, orders = _orders_log()
 
@@ -5026,7 +5028,7 @@ def test_the_request_byte_budget_holds(guest_workdir, monkeypatch) -> None:
     call (a 400,071-byte frame: bytes cross as base64) would pass the budget, so it is refused
     unread and the guest runs on; a small call after it fits. The frames the host reads are
     counted: 4 under the budget, 5 under the default, which a 1.2 MB call does not meet."""
-    from wasi_python import tools as T
+    from wasi_python import _tool_host as H
     from wasi_python.tools import tool
 
     run = _runner()
@@ -5039,13 +5041,13 @@ def test_the_request_byte_budget_holds(guest_workdir, monkeypatch) -> None:
         return len(data)
 
     read: list[int] = []
-    real = T._ToolHost.__call__
+    real = H._ToolHost.__call__
 
     def reading(self, frame: bytes) -> bytes:
         read.append(len(frame))
         return real(self, frame)
 
-    monkeypatch.setattr(T._ToolHost, "__call__", reading)
+    monkeypatch.setattr(H._ToolHost, "__call__", reading)
     done = run(["-c", BYTES_BUDGET], tools=[store], max_tool_request_bytes=1_000_000)
     assert done.exit_code == 0, done
     assert done.stdout == b"[300000, 300000, 'budget', 2]\n", done
@@ -5141,6 +5143,7 @@ def test_a_call_chain_of_any_depth_hides_bound_keywords() -> None:
     import functools
     import operator
 
+    from wasi_python import _tool_host as H
     from wasi_python import tools as T
     from wasi_python.tools import stubs, tool
 
@@ -5164,7 +5167,7 @@ def test_a_call_chain_of_any_depth_hides_bound_keywords() -> None:
         assert SECRET not in json.dumps(made.descriptor()), label
         assert SECRET not in stubs([made]) and "user_id" not in stubs([made]), label
         calls.clear()
-        host = T._ToolHost([made])
+        host = H._ToolHost([made])
         for args, outcome in (({"user_id": 7}, False), ({"limit": 3}, True)):
             frame = {"v": 1, "id": 1, "op": "call", "tool": "orders", "args": args}
             answer = json.loads(host(json.dumps(frame).encode()))
