@@ -450,11 +450,11 @@ def test_reportlab_start_up_hooks_are_the_zips_empty_modules(snapshot) -> None:
     run = _run()
     code = (
         "import json, reportlab_mods, reportlab_settings\n"
-        "from reportlab import rl_config\n"
+        "from reportlab import rl_config, rl_settings\n"
         "print(json.dumps({m.__name__: ['.zip/' in m.__spec__.origin,"
         " [n for n in vars(m) if not n.startswith('_')]]"
         " for m in (reportlab_mods, reportlab_settings)}, sort_keys=True))\n"
-        "print(rl_config.defaultPageSize == rl_config._DEFAULTS['defaultPageSize'])\n"
+        "print(all(v == getattr(rl_settings, k) for k, v in rl_config._DEFAULTS.items()))\n"
     )
     done = run(["-c", code], snapshot=snapshot)
     assert done.exit_code == 0, done

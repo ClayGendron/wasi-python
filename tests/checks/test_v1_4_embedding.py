@@ -1800,15 +1800,16 @@ def test_grants_reach_the_guest_in_any_order(guest_workdir, snapshot) -> None:
 
 def test_no_root_and_no_grants_runs() -> None:
     """Guards a change: `root=False` with no grants still runs a program, on the zip
-    alone; there is no `/`, and no HOME, since there is no /tmp to make it in."""
+    alone; there is no `/`, and no fresh HOME, since there is no /tmp to make it in: the HOME is
+    the runner's empty, read-only folder."""
     run = _runner()
     code = (
         "import os, json\n"
         "try:\n    os.listdir('/')\n    print('root')\nexcept OSError:\n    print('no root')\n"
-        "print(os.environ.get('HOME'), json.dumps([1]))\n"
+        "print(os.environ.get('HOME', '')[:11], json.dumps([1]))\n"
     )
     done = run(["-c", code], root=False)
-    assert (done.exit_code, done.stdout) == (0, b"no root\nNone [1]\n"), done
+    assert (done.exit_code, done.stdout) == (0, b"no root\n/tmp/.home- [1]\n"), done
 
 
 @pytest.mark.parametrize("with_root", [False, True], ids=["no root", "a root"])
@@ -2209,7 +2210,7 @@ try:
     rows["nested"] = "opened"
 except OSError as e:
     rows["nested"] = e.errno
-rows["home"] = os.environ.get("HOME")
+rows["home"] = os.environ.get("HOME", "")[:11]
 rows["numpy"] = numpy.__name__ in __import__("sys").modules
 print(json.dumps(rows))
 """
@@ -2223,8 +2224,8 @@ def test_a_mount_at_the_root(guest_workdir, which) -> None:
     """A mount at / is the guest's whole filesystem but for what more
     specific preopens own: an absolute and a relative path read the provider's file, numpy and
     pandas import from the zip, a path the zip owns spelled past wasi-libc is EPERM with no
-    call, and there is no HOME. Start-up makes at most a bound of provider calls; root= with a
-    mount at / is refused."""
+    call, and the HOME is the runner's empty, read-only folder, not the provider's. Start-up
+    makes at most a bound of provider calls; root= with a mount at / is refused."""
     from harness.files import MemoryProvider
     from wasi_python import Mount
 
@@ -2236,7 +2237,7 @@ def test_a_mount_at_the_root(guest_workdir, which) -> None:
         "abs": "hello, mount\n",
         "rel": "hello, mount\n",
         "nested": 63,
-        "home": None,
+        "home": "/tmp/.home-",
         "numpy": True,
     }
     assert not any(p.startswith("/usr/local/lib") for _, p in provider.paths), provider.paths

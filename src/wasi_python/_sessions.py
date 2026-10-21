@@ -10,12 +10,10 @@ import functools
 import math
 import os
 import queue
-import secrets
 import threading
 import time
 import types
 from collections.abc import Callable, Mapping
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from . import _artifacts, _call, _engines, _home, _places, _platform, _private_dirs
@@ -247,7 +245,7 @@ class _State:
         self.scratch: _Private | None = None
         self.private: _Private | None = None
         self.walked: list[_Walked] = []
-        self.home: tuple[str, Path | None, int | None] | None = None
+        self.home: _call._GuestHome | None = None  # made after the preopens are listed
         self.context: contextvars.Context | None = None  # taken at the opening, for a closer
         self.ending_home: _Home | None = None  # the ending's home thread, while it runs
 
@@ -606,7 +604,7 @@ def _release_session(state: _State) -> None:
     if state.scratch is not None:
         steps.append(state.scratch.remove)
     if (home := state.home) is not None:
-        steps.append(lambda: _remove_home(home))
+        steps.append(lambda: _call._release_home(home))
     if state.private is not None:
         steps.append(state.private.remove)
     for step in steps:
@@ -628,14 +626,6 @@ def _drop_keys(keys: tuple[int, int]) -> None:
     with p.outputs_lock:
         for key in keys:
             p.outputs.pop(key, None)
-
-
-def _remove_home(home: tuple[str, Path | None, int | None]) -> None:
-    name, tmp, tmp_fd = home
-    try:
-        _private_dirs._remove_fresh_home(name, tmp, tmp_fd)
-    finally:
-        _platform._close(tmp_fd)
 
 
 def _arm(
@@ -997,20 +987,7 @@ def _open_session(
         )
         state.walked += [p.walked for p in preopens]
         mounts = c.mounts
-        tmp, tmp_fd = _call._home_folder(root_path, preopens, tuple(m.guest for m in mounts))
-        home_guest = None
-        if tmp is not None:
-            name = f".home-{secrets.token_hex(16)}"
-            try:
-                if tmp_fd is not None:
-                    os.mkdir(name, dir_fd=tmp_fd)
-                else:
-                    (tmp / name).mkdir()
-            except BaseException:
-                _platform._close(tmp_fd)
-                raise
-            state.home = (name, tmp, tmp_fd)
-            home_guest = f"/tmp/{name}"
+        state.home = _call._guest_home(root_path, preopens, tuple(m.guest for m in mounts))
         store = state.store = wt.Store(engine)
         if metered:
             store.set_fuel(UNMETERED)  # instantiation's own memory fill
@@ -1019,8 +996,7 @@ def _open_session(
         wasi = wt.WasiConfig()
         state.origin_ns = time.perf_counter_ns()  # the session's clock base
         wasi.argv = [ARGV0, *entries]
-        fresh = {} if home_guest is None else {"HOME": home_guest}
-        wasi.env = sorted({**_call.BASE_ENV, **fresh, **(c.env or {})}.items())
+        wasi.env = sorted({**_call.BASE_ENV, "HOME": state.home.guest, **(c.env or {})}.items())
         state.keys = _call._send_outputs(wasi, _Stream("stdout", 0), _Stream("stderr", 0))
         scratch = state.scratch = _Private("wasi-python-")
         mounted: list[_Preopen] = []

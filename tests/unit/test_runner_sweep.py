@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from wasi_python import _call, _platform, _private_dirs, _sessions
+from wasi_python import _call, _platform, _private_dirs
 from wasi_python._process import process
 
 IDENTITY = _platform.PLATFORM.kernel_identity()
@@ -746,7 +746,7 @@ def test_a_writer_cannot_keep_a_home_removal_going(temp, tmp_path, monkeypatch, 
         home = fresh_home(tmp_path)
         added = writer(m, home[1] / home[0] / "d", 50_000)
         counts = counting(m)
-        _sessions._remove_home(home)
+        _call._remove_home(home)
     assert os.path.lexists(home[1] / home[0]), added
     assert sum(counts[n] for n in COUNTED) <= 10_000, counts
     seen = flushed(recwarn)
@@ -757,7 +757,7 @@ def test_a_writer_cannot_keep_a_home_removal_going(temp, tmp_path, monkeypatch, 
     with monkeypatch.context() as m:
         home = fresh_home(tmp_path)
         writer(m, home[1] / home[0] / "d", 2_000)
-        _sessions._remove_home(home)
+        _call._remove_home(home)
     assert not os.path.lexists(home[1] / home[0])
     # a private folder has no budget: 12,000 files, the budget patched to 10,000, no writer
     with monkeypatch.context() as m:

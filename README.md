@@ -290,8 +290,9 @@ it `import sklearn` fails). What differs from native:
   pool to limit.
 - **The datasets that download are absent with the network.** `sklearn.datasets.fetch_*`
   (OpenML, California housing, 20 newsgroups and the rest) fail, in one of two ways. With no
-  root (the default) there is no `HOME`, so the cache folder `~/scikit_learn_data` cannot be made
-  and they raise `FileNotFoundError` on `'~'` before any network call. With a root
+  root (the default) the `HOME` is the runner's empty, read-only folder, so the cache folder
+  `~/scikit_learn_data` cannot be made and they raise `PermissionError` on it before any network
+  call. With a root
   (`root=True`), the folder is made under the runner's `HOME` and the download raises
   `URLError: unknown url type: https`.
 - **The two sample photographs are left out**: `load_sample_image` and `load_sample_images`
@@ -340,8 +341,9 @@ every dataset raises `NotADirectoryError`). What differs from native:
 - **The datasets that download are absent with the network.** `sm.datasets.get_rdataset` and
   `sm.datasets.webuse`, with their default `cache=False`, go straight to the download and raise
   `URLError: unknown url type: https`. With `cache=True` they first make `~/statsmodels_data`:
-  with no root (the default) there is no `HOME`, so that raises `FileNotFoundError` on `'~'`; with
-  a root the folder is made under the runner's `HOME` and the download fails as before.
+  with no root (the default) the `HOME` is the runner's empty, read-only folder, so that raises
+  `PermissionError` on it; with a root the folder is made under the runner's fresh `HOME` and the
+  download fails as before.
 - **X-13ARIMA-SEATS is a separate program** that `statsmodels.tsa.x13.x13_arima_analysis` runs in a
   subprocess; the guest neither carries it nor starts processes, so it raises `X13NotFoundError`.
 - **`statsmodels.graphics.functional.hdrboxplot`** maps its band search over
@@ -394,7 +396,9 @@ sandbox:
 - **No writable `/tmp`, no matplotlib**: with no root and no writable grant at `/tmp` (the default
   since 0.1.0a3) and no `MPLCONFIGDIR`, `import matplotlib` raises `OSError` ("Matplotlib requires
   access to a writable cache directory"). Give the call `root=True`, a writable grant at `/tmp`,
-  or `MPLCONFIGDIR` in a writable grant.
+  or `MPLCONFIGDIR` in a writable grant. A program that goes on past that error (seaborn's import
+  does) also sees one `mkdir -p failed` warning on stderr naming `<HOME>/.matplotlib`, the
+  read-only `HOME` the runner gives where `/tmp` is not writable.
 - **No threads**: starting one (a `threading.Timer`, say) raises `RuntimeError`; matplotlib's
   drawing and saving never start one. contourpy's `threaded` algorithm runs one thread:
   `contourpy.max_threads()` is 1, and any `thread_count` gives `serial`'s lines.
@@ -565,8 +569,10 @@ Left out, or different, on purpose:
 - **No zlib in libxml2**: `XMLParser(decompress=True)` on a gzip file raises `XMLSyntaxError`;
   decompress with Python's `gzip` first. Writing compressed (`write(…, compression=6)`) works:
   lxml compresses through Python's `gzip`.
-- **Catalogs**: libxml2's default catalog is `/etc/xml/catalog`, read only if the embedder grants
-  a folder at `/etc/xml` (or sets `XML_CATALOG_FILES` in the guest's environment).
+- **Catalogs**: libxml2's default catalog is `/etc/xml/catalog`, read if the embedder grants a
+  folder at `/etc/xml`, if the root holds one, or if `XML_CATALOG_FILES` is set in the guest's
+  environment. A catalog one call plants in a reused root steers a later call's parses (see
+  *Not protected*).
 - **Not shipped**: `cssselect` and `lxml_html_clean`, so `lxml.cssselect` and `lxml.html.clean`
   raise lxml's own `ImportError`, as natively without them.
 - lxml's `LICENSES.txt` (in `LICENSES/lxml.txt`) describes its wheels, which bundle GNU libiconv
@@ -901,8 +907,8 @@ for matplotlib, extracts the zip's member `matplotlib/mpl-data.zip` (an archive 
 into a folder of its own and preopens it read-only at
 `/usr/local/lib/python315.zip/matplotlib/mpl-data`.
 
-By default the guest has nothing writable: no `/`, no `/tmp` and no
-`HOME`, only the read-only stdlib and whatever the embedder grants (since
+By default the guest has nothing writable: no `/`, no `/tmp`, and a `HOME`
+it cannot write, only the read-only stdlib and whatever the embedder grants (since
 0.1.0a3; the owner's rule, constitution §4.15). It can import, compute,
 print, read the stdlib and call the door; `open('x', 'w')`, `tempfile`,
 `np.save` or `df.to_csv('x.csv')` fail with `OSError`. `root=True` gives the
@@ -1010,8 +1016,9 @@ refuses every write-type call with `EPERM` (`PermissionError` in Python). Grants
 may be nested (`/data` read-only with `/data/out` writable), in any order: the
 guest's C library picks the longest matching guest path. `HOME` is made fresh
 in the folder the guest sees at `/tmp`: a writable grant there, else the root's
-own `tmp`; with neither, there is no `HOME`. With no root (the default) there
-is no `/`, and a relative path fails.
+own `tmp`; with neither, `HOME` is an empty, read-only folder the runner owns, so
+`~` never names a folder of the root. With no root (the default) there is no `/`,
+and a relative path fails.
 
 State that must outlive a call (an agent's notes between turns, say) lives in
 a writable grant the embedder keeps: each call reads it at the start and
@@ -1258,8 +1265,9 @@ what more specific preopens own (the stdlib zip at `/usr/local/lib`, every
 grant, every other mount); relative paths then reach it. A mount at `/` is
 refused with `root=`. Mounts and grants nest either way, and no two share a
 guest path. The runner adds nothing to your listings (list `/usr` yourself if
-you want it seen) and makes no `HOME` in a mount: a mount at `/tmp` means no
-`HOME`, as a read-only grant there does; pass `HOME` in `env=` if you need one.
+you want it seen) and makes no writable `HOME` in a mount: a mount at `/tmp` gives
+the empty, read-only `HOME` a read-only grant there gives; pass `HOME` in `env=` if
+you need a writable one, at a folder no untrusted call writes (see *Not protected*).
 A path a more specific preopen owns, spelled past the guest's C library
 (`/usr/./local/lib` under a mount at `/`), is refused with `EPERM`.
 
@@ -1482,9 +1490,10 @@ files that change a later run's answers (`/etc/mime.types`,
 namespace, or check what it left. The runtime's own files stay the stdlib
 zip's: a write, a create or a rename at or under `/usr/local/lib` (however it
 is spelled) is `EPERM`, and a read-only grant inside a writable mount stays
-read-only. The runner makes no `HOME` in a mount, writable or not; a writable
-mount at `/tmp` holds `tempfile`'s files; pass `HOME` in `env=` if you need
-one. sqlite3 over a mount is not supported (it needs ranged writes and
+read-only. The runner makes no writable `HOME` in a mount, writable or not (the
+guest's `HOME` is then an empty, read-only folder of the runner's); a writable
+mount at `/tmp` holds `tempfile`'s files; pass `HOME` in `env=` if you need a
+writable one, at a folder no untrusted call writes. sqlite3 over a mount is not supported (it needs ranged writes and
 locking).
 
 ### From any language
@@ -2356,13 +2365,12 @@ Both are pure Python. seaborn draws through matplotlib; reportlab writes PDFs (s
   call a writable grant and point `MPLCONFIGDIR` at it, as for matplotlib. With nothing
   writable, `import seaborn` raises matplotlib's `OSError`.
 - `sns.load_dataset` cannot fetch (there is no network), and how it fails depends on what is
-  writable, because seaborn first makes its cache folder under `~`, which the guest expands only
-  when it has a `HOME`: with nothing writable, `import seaborn` itself fails (above); with only
-  the `MPLCONFIGDIR` grant and no root, `load_dataset` raises `FileNotFoundError` naming `'~'`
-  (with a read-only root, `PermissionError`); with a writable root (where the runner also gives a
-  fresh `HOME` under `/tmp`), it makes its cache folder under that `HOME`, removed after the call,
-  and then raises `URLError` (`unknown url type: https`); an embedder that gives a writable root
-  and no `HOME` gets a folder `/~/.cache/seaborn` in that root. Put the CSV in a granted folder
+  writable, because seaborn first makes its cache folder under `~/.cache`: with nothing writable,
+  `import seaborn` itself fails (above); with only the `MPLCONFIGDIR` grant and no root, the
+  `HOME` is the runner's empty, read-only folder and `load_dataset` raises `PermissionError`
+  naming `<HOME>/.cache`; with a writable root (where the runner gives a fresh `HOME` under
+  `/tmp`), it makes its cache folder under that `HOME`, removed after the call, and then raises
+  `URLError` (`unknown url type: https`). Put the CSV in a granted folder
   and read it with `pd.read_csv`.
 - seaborn uses scipy, which is compiled in: its kernel densities are `scipy.stats.gaussian_kde`
   and `clustermap` clusters with `scipy.cluster.hierarchy`, so `import seaborn` also pays
@@ -2391,6 +2399,12 @@ Both are pure Python. seaborn draws through matplotlib; reportlab writes PDFs (s
 - reportlab's barcode and QR code modules (`reportlab.graphics.barcode`) are not in the zip yet:
   `from reportlab.graphics.barcode import qr` raises `ModuleNotFoundError`. A later change ships
   them; their licence notices already ship in `LICENSES/reportlab.txt`.
+- reportlab reads neither of its start-up files, `~/.reportlab_mods` and `~/.reportlab_settings`,
+  which it would run as code. The zip carries empty `reportlab_mods` and `reportlab_settings`
+  modules, which reportlab imports first, so a file planted in a `HOME` never runs, whoever chose
+  that `HOME`. A `reportlab_mods` or `reportlab_settings` of your own on `import_path` is shadowed
+  by them: set reportlab's options with `RL_*` variables in `env=` (`RL_defaultPageSize`, say), or
+  through `reportlab.rl_config` in the program.
 - Pillow has no JPEG decoder here: `drawImage("photo.jpg", …)` by path embeds the JPEG
   undecoded and works, while a JPEG through `ImageReader` or a PIL image raises
   `OSError: decoder jpeg not available`. PNG works both ways.
@@ -2742,7 +2756,7 @@ One instance of the runtime kept across several calls, each a turn: variables, f
   - `grants`: Host folders the guest sees at their guest paths, each a `Grant`, read-only unless it says `writable=True`. The stdlib zip is always granted, read-only, at /usr/local/lib.
   - `mounts`: Providers whose files the guest sees at their guest paths, each a `Mount`, served from your code, read-only unless it says `writable=True`.
   - `import_path`: Guest paths put on the guest's `sys.path` after the stdlib zip, in order: each a folder or a zip file inside a read-only grant. The root, a writable grant or a mount may not serve one, no writable grant or mount may lie under one, and no writable grant or root may lie inside the grant serving one.
-  - `env`: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH= empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the session where /tmp is writable.
+  - `env`: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH= empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the session where /tmp is writable, else an empty one the guest cannot write.
   - `host`: The door's host function: called with each request's bytes, it returns the response's. It must answer synchronously: an async one raises `TypeError`. Excludes `tools`.
   - `snapshot`: `True` runs the snapshot binary, with the stdlib's bootstrap imported (no package); `False` the plain reactor.
   - `fuel`: Each turn's cap on the guest's executed instructions, unless the turn passes its own; past it the turn ends "out of fuel", which ends the session. A session given a number is metered; `None` (the default) is unmetered, and its turns report no fuel.
@@ -2913,7 +2927,7 @@ Run one program in a fresh instance of the runtime and return how it ended.
 - `grants`: Host folders the guest sees at their guest paths, each a `Grant`, read-only unless it says `writable=True`. The stdlib zip is always granted, read-only, at /usr/local/lib.
 - `mounts`: Providers whose files the guest sees at their guest paths, each a `Mount`, served from your code, read-only unless it says `writable=True`.
 - `import_path`: Guest paths put on the guest's `sys.path` after the stdlib zip, in order: each a folder or a zip file inside a read-only grant. The root, a writable grant or a mount may not serve one, no writable grant or mount may lie under one, and no writable grant or root may lie inside the grant serving one.
-- `env`: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH= empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the call where /tmp is writable.
+- `env`: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH= empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the call where /tmp is writable, else an empty one the guest cannot write.
 - `stdin`: The guest's standard input, whole; `None` is empty.
 - `host`: The door's host function: called with each request's bytes, on the thread that made the call, it returns the response's. It must answer synchronously: an async one raises `TypeError`. Excludes `tools`.
 - `snapshot`: `True` runs the snapshot binary, with the stdlib's bootstrap imported (no package); `False` the plain reactor.
@@ -3317,8 +3331,9 @@ has one.
   guest's environment starts from `TMPDIR=/tmp`, `PYTHONTZPATH=`
   (`zoneinfo` on the zip's tzdata) and
   a `HOME` made fresh and empty for each call in the folder the guest sees at
-  `/tmp` and removed after it (no `HOME` where there is none); `env=` is laid
-  over them;
+  `/tmp` and removed after it (where the guest sees no writable `/tmp`, an empty,
+  read-only `HOME` in a private folder of the call's own, so `~` never falls back to
+  the working folder); `env=` is laid over them;
 - **a call's folders go with it, whatever the guest built in them:** the
   private root, the stdin folder and the fresh `HOME` are removed by a walk
   that holds two descriptors at any depth, creates nothing, never follows a
@@ -3456,9 +3471,13 @@ that call's or session's dict and set work quadratic until its deadline (load un
 `snapshot=False`, whose key is fresh in every plain call and every plain session);
 data planted in a
 reused root (dateutil's zone files, `mimetypes`' tables, any user file, the
-plain reactor's `sys.prefix` after a planted `pyvenv.cfg`); pdb's `./.pdbrc`
+plain reactor's `sys.prefix` after a planted `pyvenv.cfg`, matplotlib's
+`./matplotlibrc` in the current directory, `/`, which can name a callable from the
+zip (`figure.hooks`), libxml2's `/etc/xml/catalog`, which redirects a later lxml
+parse); pdb's `./.pdbrc`
 in the current directory, `/`, which pdb runs as code when a program starts
-pdb, as native pdb does (a fresh root closes it); a script or module the caller names to run
+pdb, as native pdb does (a fresh root closes it); a writable mount at `/` whose
+provider keeps its state, which is a reused root for each of these; a script or module the caller names to run
 from a reused root; an lxml XSLT stylesheet given no `access_control`, or a document it loads,
 which can read any file in the call's grants, external entities included, and write into its
 writable grants (use `XSLTAccessControl.DENY_ALL`; see *lxml in the guest*); concurrent calls on one root, or a guest that can write a folder above
@@ -3473,8 +3492,12 @@ stopped: the thread stops at its next epoch check, and the call's store and
 folders are released by it once it has, never while it runs; other code in the
 same process using wasmtime-py directly, whose exceptions can reach a
 trapping `run` through wasmtime-py's shared exception slot; an `env=` that
-overrides `HOME` or `PYTHONTZPATH` on a reused root (pdb then reads a
-`.pdbrc`, and `zoneinfo` a zone file, that a guest may have planted there);
+overrides `HOME` (an empty one included, which sends `~` to `/`) or
+`PYTHONTZPATH` on a reused root, or into a writable grant or mount a later call
+reuses (pdb then reads a `.pdbrc`, scikit-learn's `fetch_*` unpickle what they
+find in `~/scikit_learn_data`, matplotlib reads `~/.matplotlib/matplotlibrc`
+unless `MPLCONFIGDIR` is set, and `zoneinfo` a zone file, that a guest may have
+planted there; reportlab reads neither of its start-up files);
 `stdin`, which is written to a host temporary file of its size; SQLite's own
 randomness (`random()`, `randomblob()`, its temporary names), which is seeded
 from the clock's whole second because the guest has no `/dev/urandom`, so two

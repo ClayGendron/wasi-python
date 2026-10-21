@@ -35,7 +35,10 @@
 # staged beside tier A's, its METADATA its PKG-INFO; reportlab's wheel, without its fonts (their
 # licences are not approved, and reportlab cannot read them from a zip; Decision 4) and, until a
 # later change ships it with Tyler C. Sarna's acknowledgement, without its barcode folder
-# (Decision 4a), both by the same --drop. statsmodels: its package as step 59 staged it from the
+# (Decision 4a), both by the same --drop; and one empty stand-in packed twice at the zip's top, as
+# reportlab_mods.py and reportlab_settings.py, which reportlab imports before it would run
+# ~/.reportlab_mods or ~/.reportlab_settings from the home folder as code, so it runs neither.
+# statsmodels: its package as step 59 staged it from the
 # patched sdist, its METADATA from the sdist, and three pure wheels, formulaic, interface-meta and
 # wrapt (wrapt's own py3-none-any wheel: its C file is source and stays out); left out, each by a
 # line written here so a reader sees it: the data files of the thirteen datasets whose stated
@@ -193,6 +196,8 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --file "$HERE/recipes/mmap_stub.py=mmap.py" \
   --file "$HERE/recipes/lxml_isoschematron_stand_in.py=lxml/isoschematron.py" \
   --file "$HERE/recipes/scipy_odr_stand_in.py=scipy/odr.py" \
+  --file "$HERE/recipes/reportlab_start_up_stand_in.py=reportlab_mods.py" \
+  --file "$HERE/recipes/reportlab_start_up_stand_in.py=reportlab_settings.py" \
   --file "$HERE/recipes/guest/host/__init__.py=host/__init__.py" \
   --file "$HERE/recipes/guest/host/tools.py=host/tools.py" \
   --replace "cross-build/$TRIPLE/$(basename "$BUILD_PYTHON")=cross-build/build/python" \

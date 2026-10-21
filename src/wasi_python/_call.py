@@ -48,7 +48,8 @@ UNMETERED = 2**63 - 1  # the budget instantiation runs on, before the cap is set
 MAX_RESPONSE = 0x7FFFFFFF  # the largest door response: its length must fit a signed i32
 # The guest's environment before the caller's `env`. HOME is added per call: a fresh, empty
 # directory under /tmp that the runner removes afterwards, so nothing a call leaves in its HOME
-# (pdb's .pdbrc, for one) is read by the next.
+# (pdb's .pdbrc, for one) is read by the next; where /tmp is not writable, an empty folder the
+# guest cannot write, so `~` never falls back to the working folder, which may be a reused root.
 BASE_ENV = {"TMPDIR": "/tmp", "PYTHONTZPATH": ""}
 
 Host = Callable[[bytes], "bytes | bytearray | memoryview"]  # the door's host function
@@ -259,44 +260,92 @@ def _call_deferred(
 ) -> Completed:
     """The call's fresh HOME folder and its store, released once the guest thread has ended.
     `ht` is the home thread; `home` below is the guest's HOME."""
-    tmp, tmp_fd = _home_folder(root, preopens, tuple(m.guest for m in c.mounts))
-    home = None
-    if tmp is not None:
-        # The fresh HOME is made, and removed, through a handle on /tmp opened without following a
-        # link, so a guest running concurrently on the same folder cannot turn /tmp into a link
-        # between the check and the mkdir (Windows has no dir_fd; its guests can make links only
-        # where the user holds the symbolic-link privilege).
-        name = f".home-{secrets.token_hex(16)}"
-        try:
-            if tmp_fd is not None:
-                os.mkdir(name, dir_fd=tmp_fd)
-            else:
-                (tmp / name).mkdir()
-        except BaseException:
-            _platform._close(tmp_fd)
-            raise
-        home = (name, f"/tmp/{name}")
+    home = _guest_home(root, preopens, tuple(m.guest for m in c.mounts))
     store = wt.Store(engine)
     try:
-        guest_home = None if home is None else home[1]
-        return _instance(wt, engine, module, store, preopens, guest_home, c, host, loop, ht)
+        return _instance(wt, engine, module, store, preopens, home.guest, c, host, loop, ht)
     finally:
 
         def release() -> None:
             store.close()
-            if home is not None:
-                _private_dirs._remove_fresh_home(home[0], tmp, tmp_fd)
-            _platform._close(tmp_fd)
+            _release_home(home)
 
         ht.finish(release)  # never while a guest thread runs
+
+
+class _GuestHome(NamedTuple):
+    """The guest's HOME: `guest`, its path, always set; and either `fresh`, the folder made for
+    the call (its name, the folder it is in, a handle on that folder), or `empty`, the private
+    folder preopened read-only there instead, with its walk."""
+
+    guest: str
+    fresh: tuple[str, Path | None, int | None] | None
+    empty: tuple[_Private, _Walked] | None
+
+
+def _guest_home(
+    root: Path | None, preopens: list[_Preopen], mounted: tuple[str, ...]
+) -> _GuestHome:
+    """The guest's HOME, shared by a call and a session's opening, made after `preopens` is
+    listed. A fresh folder where the guest sees a writable /tmp; else an empty private folder,
+    appended to `preopens` read-only, so the mounts' numbers and the identity check count it.
+    Without a HOME, `~` stays `~`, a path relative to the working folder, which a root or a mount
+    at / serves: a file one call left there would be read, or run, by the next (reportlab runs
+    `~/.reportlab_mods` on import)."""
+    tmp, tmp_fd = _home_folder(root, preopens, mounted)
+    name = f".home-{secrets.token_hex(16)}"
+    if tmp is None:
+        empty = _Private("wasi-python-")  # 0700, this user's own, locked; its lock file beside it
+        try:
+            walked = _platform.PLATFORM.walk("", str(empty.path), judge=False)
+        except BaseException:
+            empty.remove()
+            raise
+        preopens.append(_Preopen("the empty HOME", walked, f"/tmp/{name}", False))
+        return _GuestHome(f"/tmp/{name}", None, (empty, walked))
+    # The fresh HOME is made, and removed, through a handle on /tmp opened without following a
+    # link, so a guest running concurrently on the same folder cannot turn /tmp into a link
+    # between the check and the mkdir (Windows has no dir_fd; its guests can make links only
+    # where the user holds the symbolic-link privilege).
+    try:
+        if tmp_fd is not None:
+            os.mkdir(name, dir_fd=tmp_fd)
+        else:
+            (tmp / name).mkdir()
+    except BaseException:
+        _platform._close(tmp_fd)
+        raise
+    return _GuestHome(f"/tmp/{name}", (name, tmp, tmp_fd), None)
+
+
+def _remove_home(fresh: tuple[str, Path | None, int | None]) -> None:
+    """A fresh HOME's budgeted removal, and its folder's handle closed."""
+    name, tmp, tmp_fd = fresh
+    try:
+        _private_dirs._remove_fresh_home(name, tmp, tmp_fd)
+    finally:
+        _platform._close(tmp_fd)
+
+
+def _release_home(home: _GuestHome) -> None:
+    """Remove the guest's HOME once no guest runs: the fresh one by its budgeted removal, the
+    empty one after its walk is closed, since Windows refuses to remove a folder a handle holds
+    (closing a walk twice does nothing, so a later close of every preopen is harmless)."""
+    if home.fresh is not None:
+        _remove_home(home.fresh)
+    if home.empty is not None:
+        empty, walked = home.empty
+        walked.close()
+        empty.remove()
 
 
 def _home_folder(
     root: Path | None, preopens: list[_Preopen], mounted: tuple[str, ...] = ()
 ) -> tuple[Path | None, int | None]:
-    """Where HOME is made: a writable grant at /tmp, else the root's tmp, else
-    nowhere. A read-only grant at /tmp hides the root's tmp, so then there is no HOME either, and
-    a mount at /tmp counts as one: the runner makes nothing in a mount."""
+    """Where a fresh HOME is made: a writable grant at /tmp, else the root's tmp, else
+    nowhere. A read-only grant at /tmp hides the root's tmp, so then there is no fresh HOME
+    either, and a mount at /tmp counts as one: the runner makes nothing in a mount. Where there is
+    none, `_guest_home` gives the guest an empty, read-only one."""
     if "/tmp" in mounted:
         return None, None
     at_tmp = [p for p in preopens if p.guest == "/tmp"]
@@ -342,7 +391,7 @@ def _instance(
     module: wasmtime.Module,
     store: wasmtime.Store,
     preopens: list[_Preopen],
-    home: str | None,
+    home: str,
     c: _CheckedCall,
     host: Host | None,
     loop: asyncio.AbstractEventLoop | None,
@@ -394,8 +443,7 @@ def _instance(
     wasi = wt.WasiConfig()
     origin_ns = time.perf_counter_ns()  # wasmtime's monotonic clock counts from here
     wasi.argv = [ARGV0, *_import_prelude(c.import_path), *argv]
-    fresh = {} if home is None else {"HOME": home}  # no HOME where there is no /tmp to make it
-    wasi.env = sorted({**BASE_ENV, **fresh, **(env or {})}.items())
+    wasi.env = sorted({**BASE_ENV, "HOME": home, **(env or {})}.items())
     check = _engines._check_module(wt, engine, fuel is not None)
     keys = _send_outputs(wasi, out, err)
     scratch = None

@@ -351,10 +351,9 @@ def test_seaborn_takes_its_scipy_paths(guest, guest_workdir, which) -> None:
     `_statistics`, and its kernel density is scipy's `gaussian_kde`; it catches only ImportError,
     so a scipy that failed to import would leave it on its copies silently.
     And `load_dataset` through the runner, with only a writable cache grant
-    (the README's set-up), raises FileNotFoundError naming '~' before any fetch, and makes no `~`
-    folder in the grant: seaborn makes its cache folder under a `~` the guest cannot expand, a
-    relative path under a root the call does not have (as amended at build: the review's
-    PermissionError was its driver's read-only root)."""
+    (the README's set-up), raises PermissionError naming its cache folder under the HOME before
+    any fetch, and makes no `~` folder in the grant: with no writable /tmp the guest's HOME is
+    the runner's empty, read-only folder, so seaborn cannot make its cache folder there."""
     needs.need("runner")
     import wasi_python
 
@@ -373,7 +372,9 @@ def test_seaborn_takes_its_scipy_paths(guest, guest_workdir, which) -> None:
     )
     # The folder first: litter in the caller's grant is the worse failure.
     assert not (cfg / "~").exists(), sorted(p.name for p in cfg.iterdir())
-    assert (done.exit_code, done.stdout) == (0, b"FileNotFoundError '~'\n"), done
+    assert done.exit_code == 0, done
+    assert done.stdout.startswith(b"PermissionError '/tmp/.home-"), done
+    assert done.stdout.endswith(b"/.cache'\n"), done
 
 
 @BINARY
@@ -518,20 +519,19 @@ def test_scikit_learn_says_what_it_lacks() -> None:
     """Through `wasi_python.run` itself, with no root and no grant (the runner's defaults), on the
     plain binary: the sample photographs are left out, so load_sample_images() raises
     ModuleNotFoundError naming sklearn.datasets.images; a fetcher's cache folder is under `~`,
-    which no HOME expands, so fetch_california_housing() raises FileNotFoundError on `~` before
-    any network call (Decision 9). With a root the folder is made and the download fails instead,
-    as the README says."""
+    the runner's empty, read-only HOME where /tmp is not writable, so fetch_california_housing()
+    raises PermissionError on that folder before any network call (Decision 9). With a root the
+    folder is made and the download fails instead, as the README says."""
     needs.need("runner", "artifact dir")
     import wasi_python
 
     done = wasi_python.run(["-c", SKLEARN_LACKS], snapshot=False, fuel=SKLEARN_FUEL)
     assert done.exit_code == 0, done
     got = json.loads(done.stdout.decode().strip().splitlines()[-1])
-    want = {
-        "images": ["ModuleNotFoundError", "sklearn.datasets.images"],
-        "fetch": ["FileNotFoundError", "~"],
-    }
-    assert got == want
+    fetch = got.pop("fetch")
+    assert got == {"images": ["ModuleNotFoundError", "sklearn.datasets.images"]}, got
+    assert fetch[0] == "PermissionError", fetch
+    assert fetch[1].startswith("/tmp/.home-") and fetch[1].endswith("/scikit_learn_data"), fetch
 
 
 SKLEARN_BUILTINS = """

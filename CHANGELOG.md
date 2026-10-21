@@ -458,6 +458,17 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   zip by 19 members; `import matplotlib.pyplot` costs what it did. The notices gain contourpy's
   licence with matplotlib's `LICENSE_YORICK` (GIST's notice, for contourpy's `mpl2005` code;
   question 81) and qhull's `COPYING.txt`.
+- **HOME is never the root** (spec 114; the 0.1.0 security review's H2, L1, L2 and L3). Where
+  the runner makes no fresh HOME (no root, a read-only grant or a mount at `/tmp`, a mount at
+  `/`), the guest's `HOME` is now an empty, read-only folder of the call's own, so `~` never
+  falls back to the working folder, a writable root. Before, a reused root let one call plant
+  `~/.reportlab_mods` or `~/.reportlab_settings` and a later call's bare `import reportlab` ran
+  it. The stdlib zip also carries empty `reportlab_mods` and `reportlab_settings` modules, which
+  reportlab imports before it would read either file, so it reads neither, whatever HOME the
+  embedder passes. A `reportlab_mods` of the embedder's own on `import_path` is now shadowed; use
+  `RL_*` variables. The README names what an `env=` HOME in a reused root still carries (pdb's
+  `.pdbrc`, scikit-learn's pickled caches), matplotlib's `./matplotlibrc` and a planted
+  `/etc/xml/catalog`.
 
 ## 0.1.0a7 — 2026-10-19
 
