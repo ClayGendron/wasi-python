@@ -250,7 +250,7 @@ row: a rule's own name, a scanner's fixture, a gap's closer.
 ## Design
 
 - **The scanner** (`tests/harness/scan.py`, after 109's block): `STRING_CITATION_RULES`
-  (Decision 2), `_python_strings(text)` and `_code_lines(text)` (Decision 3),
+  (Decision 2), `_python_strings(text)` and `_uncommented_lines(text)` (Decision 3),
   `string_citation_hits(path)` returning `(line, rule, phrase)`, and
   `string_citation_files(root)`: 109's files plus `src/**/*.py` and `pyproject.toml`, less the judge's allowance
   files.

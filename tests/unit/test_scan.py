@@ -2476,6 +2476,104 @@ def test_a_citation_split_across_lines_is_one_hit(work) -> None:
     assert scan.context_citation_hits(sh) == [(2, "specification", f"{SPEC_WORD} 063")]
 
 
+# The string rule's fixtures are assembled from parts too: each string of this file is read by
+# that rule, so a citation it needs is written in two strings.
+REVIEW_WORD = "re" + "view"
+
+
+@pytest.mark.parametrize(
+    ("text", "rule", "phrase"),
+    [
+        (f"see {SPEC_WORD} 052 here", "specification", f"{SPEC_WORD} 052"),
+        ("as 0" + "37's build found", "specification", "0" + "37's"),
+        ("as the constitution" + " §" + "4.1 says", "constitution", "constitution" + " §"),
+        ("nothing writable (§4" + ".15) here", "constitution", "§4" + ".15"),
+        ("the clock-and-random m" + "emo says so", "memo", "m" + "emo"),
+        (f"the {REVIEW_WORD} 2026-10-19 found it", "review", f"{REVIEW_WORD} 2026-10-19"),
+        (f"as {REVIEW_WORD} 033 found", "review", f"{REVIEW_WORD} 033"),
+        (f"as the pre-build {REVIEW_WORD} said", "review", f"pre-build {REVIEW_WORD}"),
+        ("the owner's quest" + "ion 95", "question", "quest" + "ion 95"),
+        (f"the {REVIEW_WORD}'s C2 again", "named finding", f"{REVIEW_WORD}'s C2"),
+    ],
+)
+def test_a_citation_in_a_string_is_a_hit(work, text, rule, phrase) -> None:
+    py = write(work, "t/a.py", f'"""Module."""\n\nMESSAGE = "{text}"\n')
+    assert (3, rule, phrase) in scan.string_citation_hits(py)
+    sh = write(work, "s/a.sh", f'#!/bin/sh\n# {text}\necho "{text}"  # {text}\n')
+    assert [h[0] for h in scan.string_citation_hits(sh) if h[1] == rule] == [3]
+
+
+def test_every_kind_of_string_is_read(work) -> None:
+    """A plain string, an implicit concatenation split inside a citation, an f-string's literal
+    part, a bytes literal, a string statement after the docstring, an f-string where a
+    docstring would be, the text given to `re.escape`, an allowance row's reason, a shell
+    command and a workflow step's name."""
+    cite = f"{SPEC_WORD} 052"
+    py = write(
+        work,
+        "t/kinds.py",
+        f'"""Module."""\nimport re\n\nA = "{cite}"\nB = ("see {SPEC_WORD} " "052 here")\n'
+        f'C = f"{{A}} {cite}"\nD = b"{cite}"\n"{cite}"\n\n\ndef f():\n    f"""{cite}"""\n\n\n'
+        f'E = re.escape("{cite}")\nROWS_ALLOWED = (("t/x.py", "x", "{cite}"),)\n',
+    )
+    assert [h[0] for h in scan.string_citation_hits(py)] == [4, 5, 6, 7, 8, 12, 15, 16]
+    sh = write(work, "s/kinds.sh", f'#!/bin/sh\necho "{cite}" >&2\n')
+    assert scan.string_citation_hits(sh) == [(2, "specification", cite)]
+    yml = write(work, "w/kinds.yml", f"steps:\n  # a comment\n  - name: A step ({cite})\n")
+    assert scan.string_citation_hits(yml) == [(3, "specification", cite)]
+
+
+def test_what_the_string_rule_leaves_to_others_is_no_hit(work) -> None:
+    """Docstrings and comments (the comment rule's), a pattern given to `re`, an allowance
+    row's phrase, a path, a bare label, a phrase assembled from two strings, and a file that
+    does not parse."""
+    cite = f"{SPEC_WORD} 052"
+    py = write(
+        work,
+        "t/none.py",
+        f'"""{cite}."""\nimport re\n\n\nclass K:\n    """{cite}."""\n\n\n'
+        f'def f(s):\n    """{cite}."""\n'
+        f'    return re.sub(pattern="{cite}", repl="x", string=s)\n\n\n'
+        f'P = re.compile(r"{cite}")  # {cite}\nQ = re.search(rf"{{P}}{cite}", "x")\n'
+        f'ROWS_ALLOWED = (("t/x.py", "{cite}", "why"),)\n'
+        f'R = ("{DOC_TREE}reviews/x.md", "{REVIEW_WORD}s/009-a.md", "S1", "D0", "@S12@")\n'
+        f'S = "{SPEC_WORD}" + " 052"\n',
+    )
+    assert scan.string_citation_hits(py) == []
+    assert scan.string_citation_hits(write(work, "t/broken.py", "def broken(:\n")) == []
+
+
+def test_the_string_rule_reads_src_and_pyproject(work) -> None:
+    for rel_path in (
+        "tests/a.py",
+        "tests/known_gaps.toml",
+        "tests/upstream/x.toml",
+        "scripts/d",
+        "src/g.py",
+        "recipes/h.py",
+        "pyproject.toml",
+    ):
+        write(work, rel_path, "x = 1\n")
+    later = ("tests/known_gaps.toml", "tests/upstream/*.toml")
+    picked = [scan.rel(p, work) for p in scan.string_citation_files(work, later)]
+    assert picked == ["tests/a.py", "scripts/d", "src/g.py", "pyproject.toml"]
+
+
+def test_a_string_hit_is_on_the_line_it_starts(work) -> None:
+    """In a triple-quoted string the newlines before the phrase count; in an implicitly
+    concatenated literal each token keeps its own line."""
+    py = write(
+        work,
+        "t/lines.py",
+        f'A = """first\nsecond\nsee {SPEC_WORD} 052"""\nB = ("first part, "\n     '
+        f'"then {SPEC_WORD} 063")\n',
+    )
+    assert scan.string_citation_hits(py) == [
+        (3, "specification", f"{SPEC_WORD} 052"),
+        (5, "specification", f"{SPEC_WORD} 063"),
+    ]
+
+
 # The one-LAPACK check: one OpenBLAS, no lapack_lite, and the shim set (scan.one_lapack_errors).
 _OB = "/b/build/openblas-wasi/lib/libopenblas.a"
 _SHIMS = "/b/build/numpy-shims/libnumpy_lapack_shims.a"

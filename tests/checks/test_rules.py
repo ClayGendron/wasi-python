@@ -323,6 +323,65 @@ def test_code_outside_src_names_no_context_document() -> None:
     assert not hits, scan.report(hits)
 
 
+# The string rule leaves the judge's allowance files to a judge change of their own: a known
+# gap's `closes_with` names its closer by number in the judge's own format, and their reasons
+# are reworded with the comments of those files, by the change that clears them.
+STRING_RULE_LATER = ("tests/known_gaps.toml", "tests/upstream/*.toml")
+# (path, the exact phrase, why it stays), as for comments: each entry admits that phrase in that
+# file's strings; an entry that admits nothing fails, so the tuple only ever shrinks.
+RULE_NAME = "the name a rule table gives the form it refuses, the rule's own vocabulary"
+FIXTURE = (
+    "a scanner's input in a unit row: the text is what the scanner reads, so rewording it would "
+    "change the row"
+)
+GAP_DATA = (
+    "a known gap's closes_with names the specification that closes it by number, the format the "
+    "judge parses"
+)
+GUEST_FUEL = (
+    "a guest program in a check that records fuel: its bytes are the guest's input, so it changes "
+    "with the change that re-measures the guest's fuel"
+)
+STRING_CITATION_ALLOWED: tuple[tuple[str, str, str], ...] = (
+    ("tests/checks/test_rules.py", "memo", RULE_NAME),
+    ("tests/harness/scan.py", "memo", RULE_NAME),
+    ("tests/unit/test_scan.py", "constitution §", FIXTURE),
+    ("tests/unit/test_scan.py", "memo", FIXTURE),
+    ("tests/unit/test_scan.py", "review 2026-10-19", FIXTURE),
+    ("tests/unit/test_scan.py", "question 95", FIXTURE),
+    ("tests/unit/test_scan.py", "review's F4.2", FIXTURE),
+    ("tests/unit/test_scan.py", "build review", FIXTURE),
+    ("tests/unit/test_scan.py", "Confirmation's M5", FIXTURE),
+    ("tests/unit/test_scan.py", "Confirmation's", FIXTURE),
+    ("tests/unit/test_landing_lane.py", "memo", FIXTURE),
+    ("tests/unit/test_shards.py", "spec 001", GAP_DATA),
+    ("tests/unit/test_shards.py", "spec 065", GAP_DATA),
+    ("tests/unit/test_shards.py", "spec 099", GAP_DATA),
+    ("tests/checks/test_v1_3_data_stack.py", "review 033", GUEST_FUEL),
+)
+
+
+def test_no_string_names_a_context_document() -> None:
+    """Strings speak for themselves: no string literal under `tests/`, `scripts/`, `release/`,
+    the workflows or `src/`, nor in `pyproject.toml`, names a specification, the constitution's
+    sections, a research write-up, a dated, numbered or named review, an owner's numbered
+    question or a finding a review names. A message, a help text, a title, a step's name and a
+    program a check holds give their reasons in words. A path and a bare label are data in a
+    string, so they are not held here."""
+    allowed = {(path, phrase) for path, phrase, _ in STRING_CITATION_ALLOWED}
+    used: set[tuple[str, str]] = set()
+    hits = []
+    for p in scan.string_citation_files(paths.REPO, STRING_RULE_LATER):
+        where = scan.rel(p, paths.REPO)
+        for line, rule, phrase in scan.string_citation_hits(p):
+            if (where, phrase) in allowed:
+                used.add((where, phrase))
+            else:
+                hits.append(f"{where}:{line}: {rule}: {phrase}")
+    hits += [f"{path}: allowed '{phrase}' is no longer there" for path, phrase in allowed - used]
+    assert not hits, scan.report(hits)
+
+
 def test_only_the_engine_seam_touches_wasmtimes_private_api() -> None:
     """One module, `src/wasi_python/_wasmtime_ffi.py`, and its unit file
     reach wasmtime-py's private API (its underscore modules, the store context, the raw function

@@ -4,6 +4,7 @@ one line each; an empty list means the rule holds."""
 from __future__ import annotations
 
 import ast
+import bisect
 import fnmatch
 import io
 import json
@@ -3452,6 +3453,200 @@ def context_citation_files(root: Path) -> list[Path]:
         p for p in files_under(root, "tests", ".github/workflows") if p.suffix in CITATION_SUFFIXES
     ]
     return picked + [p for p in files_under(root, "scripts", "release") if _text(p) is not None]
+
+
+# ---------------------------------------------------------------------------------------------
+# Strings speak for themselves too: a message, a help text, a title or a program a check holds
+# gives its reason in words. The forms are the comment rule's but two. In a string a path is
+# what the code opens or the file a message asks a person to fix, and a letter with a digit is
+# a label (a case, a test id, a placeholder), so neither is refused; a finding a review names is,
+# whatever its letter.
+
+_SAME_IN_STRINGS = {"specification", "constitution", "memo", "question"}
+STRING_CITATION_RULES = (
+    *((rule, pattern) for rule, pattern in CITATION_RULES if rule in _SAME_IN_STRINGS),
+    ("review", re.compile(r"\breviews?\b[\s,:(`'\"]*\d{4}-\d{2}-\d{2}", re.I)),
+    # A review by the number of the specification it reviewed.
+    ("review", re.compile(r"\breviews?\s+0\d{2}\b", re.I)),
+    *(
+        (rule, pattern)
+        for rule, pattern in CITATION_RULES
+        if rule == "review" and "pre-build" in pattern.pattern
+    ),
+    (
+        "named finding",
+        re.compile(
+            r"(?i:\b(?:re-review|review|confirmation)(?:'s)?),?\s+(?i:(?:finding|mutation)\s+)?"
+            r"[A-Z]\d{1,2}(?:\.\d+)?\b"
+        ),
+    ),
+)
+# The functions of `re` whose first argument is a pattern, the rule's own vocabulary.
+PATTERN_FUNCTIONS = {
+    "compile",
+    "search",
+    "match",
+    "fullmatch",
+    "findall",
+    "finditer",
+    "sub",
+    "subn",
+    "split",
+}
+# The literal text inside an f-string or a t-string, between its replacement fields.
+_MIDDLE_TOKENS = {
+    getattr(tokenize, name)
+    for name in ("FSTRING_MIDDLE", "TSTRING_MIDDLE")
+    if hasattr(tokenize, name)
+}
+
+
+def _not_read(tree: ast.AST) -> tuple[set[tuple[int, int]], set[int]]:
+    """What the string rule leaves to others: the start of every token the comment rule reads as
+    a docstring (the first token of a plain string constant that opens a module, a class or a
+    function), and the nodes that are a pattern given to a function of `re` or the phrase of an
+    allowance row (the second item of a three-item row assigned to a name ending in
+    `_ALLOWED`)."""
+    docs: set[tuple[int, int]] = set()
+    nodes: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+            first = node.body[0] if node.body else None
+            if (
+                isinstance(first, ast.Expr)
+                and isinstance(first.value, ast.Constant)
+                and isinstance(first.value.value, str)
+            ):
+                docs.add((first.value.lineno, first.value.col_offset))
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "re"
+            and node.func.attr in PATTERN_FUNCTIONS
+        ):
+            given = node.args[:1] + [k.value for k in node.keywords if k.arg == "pattern"]
+            nodes.update(id(sub) for arg in given for sub in ast.walk(arg))
+        elif isinstance(node, ast.Assign | ast.AnnAssign) and node.value is not None:
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            if any(isinstance(t, ast.Name) and t.id.endswith("_ALLOWED") for t in targets):
+                rows = node.value.elts if isinstance(node.value, ast.Tuple | ast.List) else []
+                nodes.update(
+                    id(row.elts[1])
+                    for row in rows
+                    if isinstance(row, ast.Tuple) and len(row.elts) == 3
+                )
+    return docs, nodes
+
+
+def _literal_pieces(
+    tokens: list[tokenize.TokenInfo], skip: set[tuple[int, int]]
+) -> list[tuple[int, str, bool]]:
+    """(line, text, spans lines) for each literal part of one string literal's tokens, in order:
+    a plain string token's value, an f-string's (or a t-string's) literal parts, and `{…}` for
+    each replacement field; the strings inside a field are their own literals."""
+    pieces: list[tuple[int, str, bool]] = []
+    depth = 0
+    for tok in tokens:
+        if tok.type == tokenize.OP and tok.string == "{":
+            depth += 1
+        elif tok.type == tokenize.OP and tok.string == "}":
+            depth -= 1
+            if depth == 0:
+                pieces.append((tok.start[0], "{…}", False))
+        elif depth == 0 and tok.type == tokenize.STRING and tok.start not in skip:
+            value = ast.literal_eval(tok.string)
+            text = value.decode("latin-1") if isinstance(value, bytes) else str(value)
+            pieces.append((tok.start[0], text, tok.end[0] > tok.start[0]))
+        elif depth == 0 and tok.type in _MIDDLE_TOKENS:
+            pieces.append((tok.start[0], tok.string, tok.end[0] > tok.start[0]))
+    return pieces
+
+
+def _python_strings(text: str) -> list[list[tuple[int, str, bool]]]:
+    """The literal parts of every string literal of a Python source that the string rule reads:
+    each `str` or `bytes` constant (its implicitly concatenated tokens together) and each
+    f-string or t-string, less what `_not_read` leaves to others. A source that does not parse
+    gives none."""
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))
+        tree = ast.parse(text)
+    except (tokenize.TokenError, SyntaxError, ValueError):
+        return []
+    docs, skipped = _not_read(tree)
+    joined = (ast.JoinedStr, getattr(ast, "TemplateStr", ast.JoinedStr))
+    parts: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, joined):
+            parts.update(id(v) for v in node.values)
+        spec = getattr(node, "format_spec", None)  # a field's format spec is part of its field
+        if isinstance(spec, ast.AST):
+            parts.add(id(spec))
+    starts = [t.start for t in tokens]
+    literals = []
+    for node in ast.walk(tree):
+        is_text = isinstance(node, ast.Constant) and isinstance(node.value, str | bytes)
+        if not (is_text or isinstance(node, joined)) or id(node) in parts or id(node) in skipped:
+            continue
+        begin = (node.lineno, node.col_offset)
+        end = (node.end_lineno or node.lineno, node.end_col_offset or 0)
+        i = bisect.bisect_left(starts, begin)
+        span = []
+        while i < len(tokens) and tokens[i].start < end:
+            span.append(tokens[i])
+            i += 1
+        literals.append(_literal_pieces(span, docs))
+    return literals
+
+
+def _uncommented_lines(text: str) -> list[list[tuple[int, str, bool]]]:
+    """Every line of a shell, TOML or YAML file, or any other text file, that is not a `#`
+    comment, without its trailing ` # ` comment: the complement of the comment rule's reading,
+    so a command's words, a step's name and a value are read."""
+    out = []
+    for n, line in enumerate(text.splitlines(), 1):
+        if line.lstrip().startswith("#"):
+            continue
+        m = TRAILING_COMMENT.search(line)
+        out.append([(n, line[: m.start()] if m else line, False)])
+    return out
+
+
+def string_citation_hits(path: Path) -> list[tuple[int, str, str]]:
+    """(line, rule, phrase) for each citation of a project document in the string literals of
+    one file: a specification's number, the constitution's sections, the word for a research
+    write-up, a review dated, numbered or named by its kind, a numbered question of the owner's,
+    or a finding a review names. A Python file is read through `ast` and its tokens; any other
+    file through its lines that are not comments. Each part of a literal keeps its own line, and
+    a part that spans lines adds the newlines before the phrase."""
+    text = _text(path)
+    if text is None:
+        return []
+    literals = _python_strings(text) if path.suffix == ".py" else _uncommented_lines(text)
+    hits = []
+    for pieces in literals:
+        joined = "".join(t for _, t, _ in pieces)
+        bounds = []
+        at = 0
+        for line, part, spans in pieces:
+            bounds.append((at, line, part, spans))
+            at += len(part)
+        for rule, pattern in STRING_CITATION_RULES:
+            for m in pattern.finditer(joined):
+                offset, line, part, spans = next(b for b in reversed(bounds) if b[0] <= m.start())
+                if spans:
+                    line += part[: m.start() - offset].count("\n")
+                hits.append((line, rule, " ".join(m[0].split())))
+    return sorted(hits)
+
+
+def string_citation_files(root: Path, later: Iterable[str] = ()) -> list[Path]:
+    """The files the string rule reads: the comment rule's, every `.py` under `src/`, and
+    `pyproject.toml`, less those whose path from the root matches a pattern of `later`."""
+    files = context_citation_files(root)
+    files += [p for p in files_under(root, "src") if p.suffix == ".py"]
+    files += files_under(root, "pyproject.toml")
+    return [p for p in files if not any(fnmatch.fnmatch(rel(p, root), g) for g in later)]
 
 
 # numpy on the set's OpenBLAS: numpy's meson finds step 38's OpenBLAS, a per-file header
