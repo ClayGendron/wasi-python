@@ -699,3 +699,64 @@ clock-stepped test and the split* and its folder `smoke/` hold the records.
    (criterion 5), its claim block written from those runs (*For 102* item 6).
 
 **Not changed:** items 1 and 4 to 12 of the delta, which the review found sound.
+
+## Confirmation (delta)
+
+- **By:** the reviewer, on 2026-10-21, against `439e3545`. I read the builder's Disposition, the
+  revised Decisions 7, 10, 11, 12 and 14, criteria 7 and 12, and *For 102: the smoke kind*.
+- **Re-read, no guest run:** `smoke/split.txt` and the pyproject test settings in the pinned
+  sdists. statsmodels sets only `testpaths`. scikit-learn sets no `python_files`. So the split
+  rule's `test_*.py` / `*_test.py` file test is the collector's own.
+
+### Each answer, ruled
+
+- **D-M1 — confirmed. The request to 102 is complete and sound, with one unit row to add.** Each
+  point holds the partition by construction:
+  - a path release group runs with no `-m` and no tier `-k`, and passes `--ignore` for each smoke
+    path under it;
+  - over smoke paths the marker release groups are exactly the smoke paths, so 102's truth table
+    still keeps a smoke file's slow tests out of the normal tier;
+  - every staged test file, less `not_selected`, is in exactly one smoke path or one path group;
+  - no `[[release_select]]` is allowed in a smoke family;
+  - families without a smoke group are unchanged byte for byte.
+
+  `split.txt` shows the rules clean on the three pinned tarballs (329, 256 and 285 files). Each
+  family's six mutants are refused, each with its own line (EXECUTED by the builder, READ by me).
+
+  **Add one unit row** for item 4's second rule: a file under two path release groups is refused.
+  An example is a folder group plus a file group inside it, without a `[[split]]`. Today only the
+  "in 0 groups" direction is tested.
+
+  Item 6, the ledger written from local `--tier release` runs by node id, is consistent with 102's
+  Decision 1 table (a builder's local runs) and with the owner's answer 2 (the lane's runs). It
+  has one stated consequence: the first CI run of 095's release shards is the dry run on main
+  before the tag (criterion 12). The release machinery itself is exercised by 102's own branch
+  runs, so only 095's shard data is first seen there. A failure there delays the tag; that is the
+  price of the owner's words, and it is stated.
+- **D-M2 — confirmed.**
+  - The selection rule is mechanical: compiled families from the product's
+    `sys.builtin_module_names`, the cheapest own test file or a named golden line, whole paths, at
+    most 500 G a package.
+  - Every family I named and every carried patch has a smoke file: `test_cython_special.py`,
+    `test_sparsetools.py`, `test_qhull.py`, `test_milp.py` (HiGHS), `fft/tests/test_basic.py`
+    (uarray, patch 0001), `test_matfuncs.py` (patch 0002), `test_mmio.py` (patch 0003),
+    `test_qmc.py` (patch 0004), the trees, `test_regression.py`, lowess and STL.
+  - The four release-only exceptions carry their reasons.
+  - `[smoke_cover]` and criterion 1 hold the rule against drift.
+  - 770.6 G is about 2.3 minutes of guest time at the lane's 0.18 s per G, under a minute at
+    `-n 3`.
+- **D-M3 — confirmed.** The test passed at a 1 ms clock step, 37.92 G (EXECUTED by the builder).
+  The `clock_step_ns` key is confined in three ways: release groups only, 1 µs to 1 ms, and red
+  past one outcome. Nothing leaves the full suite.
+- **D-L1, D-L2 — confirmed** as written:
+  - the 20 T measurement bound and the stated upper bound of about 81 T;
+  - the class split into `no-native-id-test-names` and `no-native-id-uarray`, with its README
+    words and a product number asked of the lane;
+  - `enotsup-io` naming its call, numpy's `tofile` and `fromfile`.
+- **D-N1 — confirmed struck.** The owner's words, "We only run slow tests when we are trying to
+  publish to pypi", rule it out, and D-M2's wider smoke cover is the answer to its failure case.
+
+### Verdict, confirmed
+
+Fit to build on 102 once 102's builder carries *For 102*, with the one unit row above. Nothing in
+this confirmation needs another round.
