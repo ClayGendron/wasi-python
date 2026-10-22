@@ -26,5 +26,5 @@ group = "tabulate-smoke"
 outcome = "failed"
 match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

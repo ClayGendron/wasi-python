@@ -32,5 +32,5 @@ group = "soupsieve-r"
 outcome = "failed"
 match = "has no attribute 'alarm'"
 reason = "WASI has no signal.alarm (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

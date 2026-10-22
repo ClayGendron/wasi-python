@@ -3665,49 +3665,49 @@ id = "sympy-slow-function-range1"
 node = "sympy/calculus/tests/test_util.py::test_function_range1"
 group = "sympy-r-calculus-5-util-1"
 reason = "it does not end within 4.5 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[trap]]
 id = "sympy-slow-issue-3880"
 node = "sympy/integrals/tests/test_failing_integrals.py::test_issue_3880"
 group = "sympy-r-integrals-2-1a"
 reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[trap]]
 id = "sympy-slow-issue-15227"
 node = "sympy/integrals/tests/test_failing_integrals.py::test_issue_15227"
 group = "sympy-r-integrals-2-1a"
 reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[trap]]
 id = "sympy-slow-linear-new-order1-type2-de-lorentz-slow-check"
 node = "sympy/solvers/ode/tests/test_systems.py::test_linear_new_order1_type2_de_lorentz_slow_check"
 group = "sympy-r-solvers-7-1a"
 reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[trap]]
 id = "sympy-slow-nonlinear-3eq-order1-type1"
 node = "sympy/solvers/ode/tests/test_systems.py::test_nonlinear_3eq_order1_type1"
 group = "sympy-r-solvers-7-1a"
 reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[trap]]
 id = "sympy-slow-nonlinear-3eq-order1-type3"
 node = "sympy/solvers/ode/tests/test_systems.py::test_nonlinear_3eq_order1_type3"
 group = "sympy-r-solvers-7-1a"
 reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[trap]]
 id = "sympy-slow-W25"
 node = "sympy/utilities/tests/test_wester.py::test_W25"
 group = "sympy-r-utilities-5-wester-1"
 reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "matplotlib-testing-not-shipped"
@@ -3723,7 +3723,7 @@ group = "sympy-r-polys-2-s11-1"
 outcome = "failed"
 match = "CoercionFailed: CRootOf"
 reason = "a test upstream marks @tooslow, which its own runners never run (its runner skips it as too slow; its pytest settings deselect it), raises CoercionFailed in the guest after about 2.5 T of fuel; the cause is not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-tooslow-fails"
@@ -3731,7 +3731,7 @@ group = "sympy-r-polys-4-s1-1"
 outcome = "failed"
 match = "CoercionFailed: CRootOf"
 reason = "a test upstream marks @tooslow, which its own runners never run (its runner skips it as too slow; its pytest settings deselect it), raises CoercionFailed in the guest after about 2.5 T of fuel; the cause is not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-solution-form"
@@ -3739,7 +3739,7 @@ group = "sympy-r-solvers-7-5a"
 outcome = "failed"
 match = "^AssertionError: assert \\[Eq\\(x\\(t\\), \\(-C"
 reason = "dsolve returns an equal solution in another form, its arbitrary constants signed otherwise; sympy's choices follow set and dict order, which the guest's 32-bit hash() changes (INFERRED; README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-solution-form"
@@ -3747,7 +3747,7 @@ group = "sympy-r-solvers-7-5b"
 outcome = "failed"
 match = "^AssertionError: assert \\[Eq\\(x\\(t\\), \\(-C"
 reason = "dsolve returns an equal solution in another form, its arbitrary constants signed otherwise; sympy's choices follow set and dict order, which the guest's 32-bit hash() changes (INFERRED; README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-source-tree"
@@ -3755,7 +3755,7 @@ group = "sympy-r-testing-1"
 outcome = "failed"
 match = "^AssertionError: assert (\\[\\] == \\['/usr/local/|0 == \\d+$)"
 reason = "sympy's own test-runner helpers look for its test files beside the installed package; the product's sympy is bytecode in a zip with no source tree (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-path-variable"
@@ -3763,7 +3763,7 @@ group = "sympy-r-utilities-4"
 outcome = "failed"
 match = "KeyError: 'PATH'"
 reason = "the guest's environment has no PATH, which sympy's deprecated find_executable reads (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3771,7 +3771,7 @@ group = "sympy-r-doc-1"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3779,7 +3779,7 @@ group = "sympy-r-doc-2"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3787,7 +3787,7 @@ group = "sympy-r-doc-3"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3795,7 +3795,7 @@ group = "sympy-r-doc-6"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3803,7 +3803,7 @@ group = "sympy-r-doc-7"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3811,7 +3811,7 @@ group = "sympy-r-doc-8"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3819,7 +3819,7 @@ group = "sympy-r-doc-10"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3827,7 +3827,7 @@ group = "sympy-r-doc-11"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3835,7 +3835,7 @@ group = "sympy-r-doc-15"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3843,7 +3843,7 @@ group = "sympy-r-docfiles-1"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3851,7 +3851,7 @@ group = "sympy-r-docfiles-2"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3859,7 +3859,7 @@ group = "sympy-r-docfiles-3"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3867,7 +3867,7 @@ group = "sympy-r-docfiles-4"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3875,7 +3875,7 @@ group = "sympy-r-docfiles-5"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3883,7 +3883,7 @@ group = "sympy-r-docfiles-6"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3891,7 +3891,7 @@ group = "sympy-r-docfiles-7"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3899,7 +3899,7 @@ group = "sympy-r-docfiles-8"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3907,7 +3907,7 @@ group = "sympy-r-docfiles-8b"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sympy-doctest"
@@ -3915,5 +3915,5 @@ group = "sympy-r-docfiles-9"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

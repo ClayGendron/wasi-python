@@ -6,6 +6,27 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0 — unreleased
 
+- **A short README and a clean tree** (spec 122): the README is cut to about 170 lines (what it
+  is, a five-minute quickstart, what is safe by default, what runs, hosts, the stability
+  promise, verifying a download, building, licences), every link absolute for PyPI. The
+  generated API reference moves to `docs/reference/python-api.md`
+  (`uv run python tests/harness/api.py --write` writes it, `--page` names another); the
+  command's options are generated from its parser into `docs/reference/cli.md` by
+  `tests/harness/cli_doc.py`, and `test_generated_pages_are_current` holds both pages current.
+  The 560 known gaps and suite entries whose closer was the README, and pandas' excluded marker,
+  now name `docs/reference/limitations.md`, a new page of the platform's limits with a reason
+  for each; six that named the questions file name the roadmap. The scans for document
+  citations and embedder names read the README and every page under `docs/`. `pyproject.toml`
+  says "Development Status :: 4 - Beta", names all seven compiled packages, gains a
+  Documentation URL and a `docs` dependency group (MkDocs 1.6.1, Material 9.7.7); `mkdocs.yml`
+  and `.github/workflows/docs.yml` build the site strictly on every pull request and push to
+  main, and deploy it from a release tag. `context/questions-for-the-owner.md` is deleted; its
+  last paragraph moves to `context/decisions.md`.
+
+- **The documentation site** (spec 123): a Diátaxis tree under `docs/` (get started, how-to
+  guides, reference, explanation, contributing), built with MkDocs and served at
+  `https://claygendron.github.io/wasi_python/` from each release tag.
+
 - **The release runs the pure-Python packages' own tests** (spec 067): each whole suite before
   a publication, a smoke group per package on every run, for the 42 pure-Python packages the
   product ships; 39 test sources (each package's sdist, or its release tag's archive where the

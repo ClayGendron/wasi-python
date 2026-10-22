@@ -26,7 +26,7 @@ group = "wrapt-smoke"
 outcome = "failed"
 match = "'Tests\\.misc\\.l.*gTools_test\\.A' == 'loggingTools_test\\.A'|'tests\\.test_utils\\.X object' == 'test_utils\\.X object'|<FunctionWrapper at \\w+ for function at \\w+> is not None|No module named 'test_platypus_xref'"
 reason = "the driver imports test modules with pytest's importlib mode, so no test folder goes on sys.path and a test module is named by its package path; a test that checks its own module's name, or imports itself by that name, sees the longer one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-asyncio-loop"
@@ -34,7 +34,7 @@ group = "wrapt-smoke"
 outcome = "failed"
 match = "\\[Errno 58\\] Not supported|unraisable exception warnings|Exception ignored while calling deallocator"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-threads"
@@ -42,7 +42,7 @@ group = "wrapt-smoke"
 outcome = "failed"
 match = "can't start new thread|thread constructor failed|start_new_thread|unable to start watchdog thread|TqdmMonitorWarning|instances still in existence|'NoneType' object does not support the context manager protocol"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "zip-importer"
@@ -50,5 +50,5 @@ group = "wrapt-smoke"
 outcome = "failed"
 match = "zipimporter object"
 reason = "the product's modules come from the stdlib zip, loaded by zipimport, not by a file finder (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

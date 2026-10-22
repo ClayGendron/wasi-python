@@ -98,12 +98,12 @@ files = [
     "sklearn/metrics/tests/test_dist_metrics.py",
 ]
 reason = "each builds memory-mapped arrays at import (create_memmap_backed_data), and the mmap stand-in raises, so the file cannot load"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[not_selected]]
 files = ["sklearn/neighbors/tests/test_neighbors.py"]
 reason = "it imports a constant from metrics/tests/test_dist_metrics.py, which cannot load without mmap"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [groups.scikit-learn-smoke]
 paths = [
@@ -513,7 +513,7 @@ group = "scikit-learn-datasets"
 outcome = "error"
 match = "(en|de)coder jpeg not available"
 reason = "Pillow is built with zlib only, so the faces dataset's JPEG fixtures cannot be written, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap"
@@ -521,7 +521,7 @@ group = "scikit-learn-decomposition-1"
 outcome = "failed"
 match = "mmap is unavailable"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap"
@@ -529,7 +529,7 @@ group = "scikit-learn-linear_model-1"
 outcome = "failed"
 match = "mmap is unavailable"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-dev-null"
@@ -537,7 +537,7 @@ group = "scikit-learn-linear_model-3"
 outcome = "failed"
 match = "No such file or directory: '/dev/null'"
 reason = "WASI has no /dev/null, so a test that sends verbose output there fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap"
@@ -545,7 +545,7 @@ group = "scikit-learn-linear_model-3"
 outcome = "failed"
 match = "mmap is unavailable"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap"
@@ -553,7 +553,7 @@ group = "scikit-learn-loss-to-cross_decomposition"
 outcome = "failed"
 match = "mmap is unavailable"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap-at-setup"
@@ -561,7 +561,7 @@ group = "scikit-learn-metrics"
 outcome = "error"
 match = "mmap is unavailable"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap"
@@ -569,7 +569,7 @@ group = "scikit-learn-model_selection-3"
 outcome = "failed"
 match = "mmap is unavailable"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap"
@@ -577,7 +577,7 @@ group = "scikit-learn-neighbors-to-neural_network"
 outcome = "failed"
 match = "mmap is unavailable"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "wasm32-int128"
@@ -585,7 +585,7 @@ group = "scikit-learn-preprocessing-to-semi_supervised"
 outcome = "failed"
 match = "^assert 16 == 8$"
 reason = "wasm32's compiler has a 128-bit integer, which upstream's test expects only on 64-bit platforms and on emscripten's wasm32; the guest's platform is wasi (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-dup"
@@ -593,7 +593,7 @@ group = "scikit-learn-smoke"
 outcome = "failed"
 match = "OSError: \\[Errno 58\\] Not supported"
 reason = "a verbose fit redirects the process's standard output with a duplicated descriptor, which WASI preview1 refuses (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap"
@@ -601,7 +601,7 @@ group = "scikit-learn-smoke"
 outcome = "failed"
 match = "mmap is unavailable"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-openmp"
@@ -609,7 +609,7 @@ group = "scikit-learn-tests-1-1"
 outcome = "failed"
 match = "^AssertionError:$"
 reason = "there is no OpenMP in the build (wasi-sdk has no runtime, and the guest no threads), so _openmp_parallelism_enabled() is False (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "package-in-zip"
@@ -617,7 +617,7 @@ group = "scikit-learn-tests-1-1"
 outcome = "failed"
 match = "Not a directory: '/usr/local/lib/python\\d+\\.zip/sklearn/"
 reason = "the package's files are in the stdlib zip, not in folders, so a test that lists the package's folder fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap"
@@ -625,7 +625,7 @@ group = "scikit-learn-tests-common-1"
 outcome = "failed"
 match = "mmap is unavailable"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap"
@@ -633,7 +633,7 @@ group = "scikit-learn-tests-common-2"
 outcome = "failed"
 match = "mmap is unavailable"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap"
@@ -641,7 +641,7 @@ group = "scikit-learn-tests-common-3"
 outcome = "failed"
 match = "mmap is unavailable"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap"
@@ -649,7 +649,7 @@ group = "scikit-learn-tests-common-4"
 outcome = "failed"
 match = "mmap is unavailable"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap"
@@ -657,7 +657,7 @@ group = "scikit-learn-tree"
 outcome = "failed"
 match = "mmap is unavailable"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap"
@@ -665,7 +665,7 @@ group = "scikit-learn-utils"
 outcome = "failed"
 match = "mmap is unavailable"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap-estimator-checks"
@@ -673,4 +673,4 @@ group = "scikit-learn-utils"
 outcome = "failed"
 match = "assert 8 == 4$|^assert 4 == 0$"
 reason = "check_estimator finds four more failing checks for NuSVC than upstream expects: the checks that copy the data into memory maps fail without mmap (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"

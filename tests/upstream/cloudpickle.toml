@@ -32,7 +32,7 @@ group = "cloudpickle-smoke"
 outcome = "failed"
 match = "cannot pickle 'CaptureIO' instances"
 reason = "the driver captures sys.stdout for its stream (cloudpickle's own configuration runs pytest -s), and these tests pickle sys.stdout (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "captured-stdout"
@@ -40,7 +40,7 @@ group = "cloudpickle-r"
 outcome = "failed"
 match = "cannot pickle 'CaptureIO' instances"
 reason = "the driver captures sys.stdout for its stream (cloudpickle's own configuration runs pytest -s), and these tests pickle sys.stdout (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-processes"
@@ -48,5 +48,5 @@ group = "cloudpickle-r"
 outcome = "failed"
 match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

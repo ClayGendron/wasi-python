@@ -23,12 +23,12 @@ measured = 11_284_836_084
 [[not_selected]]
 files = ["tests.py::BaseTests"]
 reason = "defusedxml's abstract base class, which its own runner (tests.py) never runs: pytest collects it by its name, and its tests call parse methods only its subclasses define"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[not_selected]]
 files = ["tests.py::test_main"]
 reason = "defusedxml's own runner's suite builder, which pytest collects by its name; it calls unittest.makeSuite, which Python 3.13 removed; its tests run as collected"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "warning-filter-reset"
@@ -36,5 +36,5 @@ group = "defusedxml-smoke"
 outcome = "failed"
 match = "DeprecationWarning not raised"
 reason = "tests.py makes defusedxml's DeprecationWarnings errors at import; pytest's per-test warning capture undoes that filter, which its own runner keeps (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

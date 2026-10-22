@@ -21,7 +21,7 @@ context/
   reviews/             # REVIEW — one record per review of a built change (or of a spec before build)
   progress/            # the harness's accepted state: accepted.json and an append-only history in volumes
   embedders.txt        # names no code may use (constitution §4.5); data the harness reads
-  questions-for-the-owner.md  # decisions only the owner can make, asked while the owner is away
+  decisions.md         # the owner's decisions, newest first
   handoff.md           # the lane's state between sessions, replaced at each session's end
 ```
 
@@ -40,12 +40,8 @@ marked *placeholder* that names the question, what would answer it and
 what it blocks; the memo is filled in when the research is done, and
 the specification that needs it waits until then.
 
-The one exception is `questions-for-the-owner.md`, by the owner's
-instruction (2026-10-16): a decision only the owner can make (a change
-to the constitution, a release, an outward-facing action, the order of
-the work) is written there when the owner is away, with what waits on
-it and what the agent does meanwhile. It is never a place for a
-question the agent can answer by research.
+A decision only the owner can make is asked through the owner's
+channel and recorded, once answered, in `decisions.md`.
 
 ## Lifecycle rules
 
@@ -69,7 +65,9 @@ question the agent can answer by research.
   commits us to nothing. A **placeholder** memo (status line says so)
   is the one exception to "never edited": it holds a question, the
   experiment that answers it and what it blocks, and is completed in
-  place when the work is done.
+  place when the work is done. Evidence folders (a memo's outputs and
+  logs) from before 2026-10-23 are in git history at `bb2235f2`; only
+  `2026-10-18-wasmtime-49-advisories/`, which the judge reads, stays.
 - **`specifications/`** are numbered (`NNN-slug.md`), born from
   research, small enough for one developer, and **retired on
   landing**. Each has a header (status, date, owner, kind, depends on,

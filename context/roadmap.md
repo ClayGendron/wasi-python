@@ -296,5 +296,15 @@ per-run request-byte budget) and N8 (both spec 060), and the wheel's size agains
 
 ## After 0.1.0
 
+The documentation's follow-ups, reserved for 0.1.1 (specs 122 and 123; the owner, 2026-10-22):
+the quickstart and how-to snippets as files under `docs/examples/`, run as a slow-tier guest job;
+`help=` strings on the command's options in `src/wasi_python/cli.py`, which empties
+`tests/harness/cli_doc.py`'s `DESCRIBED`; the six stale README pointers in `src/`
+(`__init__.py`, `tools.py`, `runner.py`, `_artifacts.py`, `_tool_schema.py`); the known gaps'
+and suites' reasons that still say "README"; versioned docs; this roadmap's trim; archiving
+landed specifications with their reviews, and teaching the scans the archive path; the
+included-packages table generated from `MANIFEST` and `tests/upstream/packages.toml`; a
+scheduled external link check, upstream download hosts excluded.
+
 Build-time profiles beyond the default (constitution §2's principle;
 `research/2026-10-16-build-time-profiles-of-the-core-c-libraries.md`).

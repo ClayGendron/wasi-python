@@ -22,12 +22,12 @@ measured = 432_950_151_677
 [[not_selected]]
 files = ["Tests/test_main.py"]
 reason = "every case runs python -m PIL in a subprocess (no processes on WASI)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[not_selected]]
 files = ["checks/check_release_notes.py"]
 reason = "it reads docs/releasenotes/*.rst for a leftover TODO: Pillow's documentation, not staged and not the product"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "pillow-zlib-only"
@@ -43,7 +43,7 @@ group = "pillow"
 outcome = "failed"
 match = 'mmap is unavailable'
 reason = "no mmap: the stand-in raises OSError (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap-silent"
@@ -51,7 +51,7 @@ group = "pillow"
 outcome = "failed"
 match = '^assert None is not None$|^assert 0$'
 reason = "Pillow falls back from mmap silently, so a test that checks for a mapped buffer or readonly == 1 fails on the fallback (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "builtin-no-file"
@@ -59,7 +59,7 @@ group = "pillow"
 outcome = "failed"
 match = "has no attribute '__file__'"
 reason = "PIL._imaging is a builtin module, without __file__ (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "wasm32-memory"
@@ -67,7 +67,7 @@ group = "pillow"
 outcome = "failed"
 match = 'Out of memory|MemoryError'
 reason = "python.wasm declares no maximum memory, so wasm32's 4 GiB bounds it; these decompression samples ask for more (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "open-empty-path"
@@ -75,12 +75,12 @@ group = "pillow"
 outcome = "failed"
 match = "Is a directory: ''"
 reason = "in the guest open('') answers IsADirectoryError (EISDIR), where the test expects FileNotFoundError (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[not_selected]]
 files = ["checks/32bit_segfault_check.py"]
 reason = "a script, not a test: on a 32-bit Python it asks for a 999,999-square image so that a native build raises MemoryError instead of crashing; pytest reports that expected MemoryError as a collection error. In the guest it raises MemoryError, as the script means (EXECUTED, the build)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[not_selected]]
 files = ["checks/check_icns_dos.py", "checks/check_j2k_dos.py"]
@@ -90,7 +90,7 @@ closes_with = "context/specifications/023-matplotlib-first-milestone.md"
 [[not_selected]]
 files = ["checks/check_fli_oob.py", "checks/check_jp2_overflow.py"]
 reason = "valgrind reproductions run by hand, not tests: each opens its crash samples by a path relative to the folder it is run from (images/fli_oob/... from Tests/, 00r0_gray_l.jp2 and 00r1_graya_la.jp2 from Tests/images/) and prints each exception, so at the tree root its first open raises FileNotFoundError at import, a collection error (EXECUTED, the build); every one of those samples is loaded by Tests/oss-fuzz/test_fuzzers.py::test_fuzz_images, which runs and passes"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-resource-module"
@@ -98,7 +98,7 @@ group = "pillow"
 outcome = "failed"
 match = "Unsupported platform for standard library module 'resource'"
 reason = "WASI has no resource module (getrusage), which checks/check_imaging_leaks.py measures memory with (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "not-pillows-wheel"

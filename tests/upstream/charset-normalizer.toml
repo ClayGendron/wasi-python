@@ -32,7 +32,7 @@ group = "charset-normalizer-r"
 outcome = "failed"
 match = "AssertionError: 0 != 2"
 reason = "charset-normalizer's CLI writes the normalized file beside its input, in the read-only test source (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-threads"
@@ -40,5 +40,5 @@ group = "charset-normalizer-r"
 outcome = "failed"
 match = "can't start new thread|thread constructor failed|start_new_thread|unable to start watchdog thread|TqdmMonitorWarning|instances still in existence|'NoneType' object does not support the context manager protocol"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

@@ -69,14 +69,18 @@ the hard constraints, and it governs this file. Then `README.md` and
   docstrings give the reason in words, and the number lives in the
   specification that cites the file. A `context/` document may cite and
   link code files. `src/` is cleared by spec 107 and held by its check;
-  `tests/`, `scripts/` and `release/` by spec 109.
+  `tests/`, `scripts/` and `release/` by spec 109. A page under `docs/`
+  and the README name no specification, question, decision, wave or
+  review number, no `context/` path and no name from
+  `context/embedders.txt`; the judge's scans read them whole (spec 122).
 - **Commit or push only when asked.** A specification may be built in
   its own worktree outside the repository, on a local `spec/NNN-<slug>`
   branch (constitution §4.14); no other branch or worktree unless
   asked. Never `git checkout`, `git restore` or `git stash` a file that
   carries uncommitted work.
-- **All project knowledge lives in this repo** under `context/`; no
-  out-of-repo memory.
+- **All project knowledge lives in this repo** under `context/` (the
+  agents' memory) and `docs/` (what we tell users); no out-of-repo
+  memory.
 - **Every package runs its own tests in the release** (spec 063). A
   specification that adds a package adds its suite's groups under
   `tests/upstream/` and to a shard in `tests/release_shards.toml`, or

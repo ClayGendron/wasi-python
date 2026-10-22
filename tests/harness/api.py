@@ -1,6 +1,6 @@
-"""The public API, rendered as plain text and as the README's reference.
+"""The public API, rendered as plain text and as the documentation's reference page.
 
-    uv run python tests/harness/api.py --write   # rewrite tests/public_api.txt and the README block
+    uv run python tests/harness/api.py --write   # rewrite tests/public_api.txt and the page's block
     uv run python tests/harness/api.py --check   # exit 1 if either differs from the live surface
 
 The live surface is read in a child interpreter (`--package PATH`, default `src/wasi_python`), so
@@ -32,7 +32,7 @@ from typing import Any
 REPO = Path(__file__).resolve().parents[2]
 PACKAGE = REPO / "src" / "wasi_python"
 SNAPSHOT = REPO / "tests" / "public_api.txt"
-README = REPO / "README.md"
+PAGE = REPO / "docs" / "reference" / "python-api.md"
 PUBLIC = ("wasi_python", "wasi_python.tools")
 PUBLIC_FILES = {"wasi_python": "__init__.py", "wasi_python.tools": "tools.py"}
 # The runner's modules (one per concern), the engine seam, and the rest.
@@ -656,19 +656,20 @@ def _holds(text: str, names: set[str]) -> list[str]:
     return found + sorted(words & names)
 
 
-def readme_hits(text: str, constants: set[str]) -> list[str]:
-    """Criterion 6's README rule: spans and fenced lines that name an internal module or an
-    internal module's upper-case constant. Fences are blanked first, then searched."""
+def readme_hits(text: str, constants: set[str], name: str = "README.md") -> list[str]:
+    """Criterion 6's rule for a public page (`name`, the README by default): spans and fenced
+    lines that name an internal module or an internal module's upper-case constant. Fences are
+    blanked first, then searched."""
     plain, blocks = fenced(text)
     hits = []
     for line, span in code_spans(plain):
         names = _holds(span, constants)
         if names:
-            hits.append(f"README.md:{line} `{' '.join(span.split())}` ({', '.join(names)})")
+            hits.append(f"{name}:{line} `{' '.join(span.split())}` ({', '.join(names)})")
     for line, code in blocks:
         names = _holds(code, constants)
         if names:
-            hits.append(f"README.md:{line} (fenced) {code.strip()} ({', '.join(names)})")
+            hits.append(f"{name}:{line} (fenced) {code.strip()} ({', '.join(names)})")
     return hits
 
 
@@ -826,7 +827,7 @@ def command_facts(cli: Any, runner: Any) -> dict[str, Any]:
 
 
 # -------------------------------------------------------------------------------------------------
-# The two outputs: the snapshot and the README block.
+# The two outputs: the snapshot and the reference page's block.
 
 
 def _param_line(p: dict[str, Any], depth: int) -> str:
@@ -1131,7 +1132,8 @@ def facts(package: Path = PACKAGE) -> dict[str, Any]:
 
 
 def render(package: Path = PACKAGE) -> tuple[str, str]:
-    """(the snapshot, the README block), or AssertionError naming what stopped the render."""
+    """(the snapshot, the reference page's block), or AssertionError naming what stopped the
+    render."""
     errors = future_errors(package)
     f = facts(package)
     errors += [f"{k}: {v}" for k, v in f.get("errors", {}).items()]
@@ -1161,24 +1163,24 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--child", action="store_true", help=argparse.SUPPRESS)
     p.add_argument("--package", type=Path, default=PACKAGE)
     p.add_argument("--snapshot", type=Path, default=SNAPSHOT)
-    p.add_argument("--readme", type=Path, default=README)
+    p.add_argument("--page", type=Path, default=PAGE)
     ns = p.parse_args(argv)
     if ns.child:
         sys.path[:] = [x for x in sys.path if Path(x or ".").resolve() != Path(__file__).parent]
         sys.stdout.write(json.dumps(child(ns.package), ensure_ascii=True))
         return 0
     snapshot, block = render(ns.package)
-    readme = ns.readme.read_text(encoding="utf-8")
-    count, current = readme_block(readme)
+    page = ns.page.read_text(encoding="utf-8") if ns.page.is_file() else ""
+    count, current = readme_block(page)
     if ns.write:
         _write_text(ns.snapshot, snapshot)
         if count != 1:
-            print(f"{ns.readme}: needs exactly one pair of markers ({BEGIN} … {END})")
+            print(f"{ns.page}: needs exactly one pair of markers ({BEGIN} … {END})")
             return 1
-        before, rest = readme.split(BEGIN, 1)
+        before, rest = page.split(BEGIN, 1)
         _, after = rest.split(END, 1)
         body = "\n\n" + block.strip("\n") + "\n\n"
-        _write_text(ns.readme, before + BEGIN + body + END + after)
+        _write_text(ns.page, before + BEGIN + body + END + after)
         return 0
     status = 0
     old = ns.snapshot.read_text(encoding="utf-8") if ns.snapshot.is_file() else ""
@@ -1186,12 +1188,10 @@ def main(argv: list[str] | None = None) -> int:
         print(diff(old, snapshot, str(ns.snapshot), "the live surface"), end="")
         status = 1
     if current is None or current.strip("\n") != block.strip("\n"):
-        print(
-            diff(current or "", block, f"{ns.readme} (api reference)", "the live surface"), end=""
-        )
+        print(diff(current or "", block, f"{ns.page} (api reference)", "the live surface"), end="")
         status = 1
     if status:
-        print(f"the public API differs from its snapshot or the README; if intended: {WRITE}")
+        print(f"the public API differs from its snapshot or its page; if intended: {WRITE}")
     return status
 
 

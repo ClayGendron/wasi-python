@@ -195,7 +195,7 @@ measured = 336_355_437_127
 [[not_selected]]
 files = ["lib/matplotlib/tests/test_backend_webagg.py"]
 reason = "it imports backend_webagg_core, which step 70 leaves out of the zip: it cannot load"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[not_selected]]
 files = [
@@ -203,7 +203,7 @@ files = [
     "lib/matplotlib/tests/test_determinism.py",
 ]
 reason = "every test starts a subprocess (no processes on WASI)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-processes"
@@ -211,7 +211,7 @@ group = "matplotlib-mathtext"
 outcome = "failed"
 match = 'does not support processes'
 reason = "no processes: subprocess is unavailable on WASI"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-threads"
@@ -219,7 +219,7 @@ group = "matplotlib-render-2a"
 outcome = "failed"
 match = "can't start new thread"
 reason = "no threads: starting one raises RuntimeError (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "pillow-zlib-only"
@@ -243,7 +243,7 @@ group = "matplotlib-rest-a"
 outcome = "failed"
 match = 'does not support processes|^AssertionError: assert False$'
 reason = "no processes: subprocess is unavailable on WASI; test_movie_writer_registry needs an executable on PATH"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "wasi-errno-values"
@@ -251,7 +251,7 @@ group = "matplotlib-rest-a"
 outcome = "failed"
 match = 'Regex pattern did not match'
 reason = "a WASI errno is WASI's number: a missing path is [Errno 44], where test_movie_writer_invalid_path expects Linux's [Errno 2] off emscripten"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "stage-layout"
@@ -267,7 +267,7 @@ group = "matplotlib-rest-b1"
 outcome = "failed"
 match = 'does not support processes'
 reason = "no processes: subprocess is unavailable on WASI"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-fp-exceptions"
@@ -283,4 +283,4 @@ group = "matplotlib-rest-b2"
 outcome = "failed"
 match = 'does not support processes'
 reason = "no processes: subprocess is unavailable on WASI"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"

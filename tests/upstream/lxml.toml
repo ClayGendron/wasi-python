@@ -62,7 +62,7 @@ measured = 103_449_823_065
 [[not_selected]]
 files = ["src/lxml/tests/test_threading.py"]
 reason = "every test starts threads (no threads on WASI)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[not_selected]]
 files = ["src/lxml/tests/test_isoschematron.py"]
@@ -72,7 +72,7 @@ closes_with = "context/specifications/046-lxml.md"
 [[not_selected]]
 files = ["src/lxml/html/tests/test_feedparser_data.py"]
 reason = "its test_suite() builds cases only when lxml.html.clean imports; lxml_html_clean is not shipped, so lxml's own runner runs none"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[not_selected]]
 files = ["src/lxml/html/tests/test_elementsoup.py"]
@@ -85,7 +85,7 @@ group = "lxml"
 outcome = "failed"
 match = "Not a directory: '/usr/local/lib/python315.zip/lxml/include"
 reason = "lxml.get_include() names folders inside the zip, which are not folders (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "isoschematron-stand-in"

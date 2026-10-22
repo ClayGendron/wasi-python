@@ -36,7 +36,7 @@ measured = 126_518_618_276
 [[not_selected]]
 files = ["tests/charts-out"]
 reason = "generated chart scripts the sdist carries from an earlier run, no tests: reportlab's own tests/runAll.py excludes */charts-out/*.py, and nine of them do not parse"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[not_selected]]
 files = ["tests/test_graphics_barcode.py"]
@@ -46,7 +46,7 @@ closes_with = "context/specifications/042-seaborn-and-reportlab.md"
 [[not_selected]]
 files = ["tests/test_platypus_general.py"]
 reason = "it reads reportlab's tests folder at import, which testutils finds beside the installed package; the product's reportlab is in the zip, so the folder is None and the module cannot load"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "reportlab-data-folder"
@@ -54,7 +54,7 @@ group = "reportlab-smoke"
 outcome = "failed"
 match = "expected str, bytes or os\\.PathLike object, not NoneType|^OSError:$|chdir: path should be string|is not a directory|Cannot open resource 'test-rgba\\.png'|Could not import 'unimportable'"
 reason = "reportlab's tests find their data folder beside the installed package (testutils sets testsFolder from reportlab.__path__); the product's reportlab is in the zip, so it is None, and a test that walks reportlab's own folder finds a zip (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "importlib-module-names"
@@ -62,7 +62,7 @@ group = "reportlab-r"
 outcome = "failed"
 match = "'Tests\\.misc\\.l.*gTools_test\\.A' == 'loggingTools_test\\.A'|'tests\\.test_utils\\.X object' == 'test_utils\\.X object'|<FunctionWrapper at \\w+ for function at \\w+> is not None|No module named 'test_platypus_xref'"
 reason = "the driver imports test modules with pytest's importlib mode, so no test folder goes on sys.path and a test module is named by its package path; a test that checks its own module's name, or imports itself by that name, sees the longer one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "pytest-collects-helper-error"
@@ -70,7 +70,7 @@ group = "reportlab-r"
 outcome = "error"
 match = "test_lib_pdfencrypt\\.py, line \\d+"
 reason = "pytest collects testStdEnc, a helper reportlab's runAll.py never runs as a test: it takes arguments no fixture supplies (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "reportlab-data-folder"
@@ -78,7 +78,7 @@ group = "reportlab-r"
 outcome = "failed"
 match = "expected str, bytes or os\\.PathLike object, not NoneType|^OSError:$|chdir: path should be string|is not a directory|Cannot open resource 'test-rgba\\.png'|Could not import 'unimportable'"
 reason = "reportlab's tests find their data folder beside the installed package (testutils sets testsFolder from reportlab.__path__); the product's reportlab is in the zip, so it is None, and a test that walks reportlab's own folder finds a zip (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "reportlab-fonts-not-shipped-error"
@@ -102,7 +102,7 @@ group = "reportlab-r"
 outcome = "failed"
 match = "name '_c_funcs' is not defined"
 reason = "reportlab's C accelerators (_rl_accel) are not in the product; the test compares them with the Python versions (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "reportlab-reference-attributes"
@@ -110,7 +110,7 @@ group = "reportlab-r"
 outcome = "failed"
 match = "Missing attribute strokeOverprint"
 reason = "reportlab's chart tests compare a drawing's attributes with a reference that lacks strokeOverprint (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "reportlab-tools-not-shipped"
@@ -118,5 +118,5 @@ group = "reportlab-r"
 outcome = "failed"
 match = "No module named 'tools'"
 reason = "the test imports reportlab's tools folder (pythonpoint), which neither the wheel nor the product carries (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

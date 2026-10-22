@@ -1,0 +1,101 @@
+# The documentation site, built with `uv run --group docs mkdocs build --strict` and deployed to
+# GitHub Pages from each release tag by .github/workflows/docs.yml. Only settings that Zensical
+# also reads are used, so the site can move to it without a rewrite.
+site_name: wasi-python
+site_description: A statically linked CPython for WebAssembly hosts, with the scientific Python stack compiled in.
+site_url: https://claygendron.github.io/wasi_python/
+repo_url: https://github.com/ClayGendron/wasi_python
+repo_name: ClayGendron/wasi_python
+
+strict: true
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+
+nav:
+  - Home: index.md
+  - Get started:
+      - get-started/install.md
+      - get-started/first-run.md
+      - get-started/csv-through-a-grant.md
+      - get-started/embed-python-wasm.md
+  - How-to guides:
+      - how-to/grants.md
+      - how-to/mounts.md
+      - how-to/sessions.md
+      - how-to/limits.md
+      - how-to/async.md
+      - how-to/tools.md
+      - how-to/matplotlib.md
+      - how-to/excel-pdf-xml.md
+      - how-to/embed-from-other-languages.md
+      - how-to/verify-a-download.md
+      - how-to/troubleshooting.md
+  - Reference:
+      - reference/python-api.md
+      - reference/cli.md
+      - reference/results-and-errors.md
+      - reference/defaults-and-limits.md
+      - reference/guest-filesystem.md
+      - reference/tool-protocol.md
+      - reference/packages.md
+      - reference/limitations.md
+      - reference/support-and-versioning.md
+      - reference/artifacts.md
+      - reference/glossary.md
+      - reference/changelog.md
+  - Explanation:
+      - explanation/why-wasi.md
+      - explanation/how-it-works.md
+      - explanation/security-model.md
+      - explanation/fuel.md
+      - explanation/sessions.md
+      - explanation/pinned-releases-and-patches.md
+      - explanation/performance-and-size.md
+      - explanation/design-decisions.md
+  - Contributing:
+      - contributing/first-change.md
+      - contributing/building.md
+      - contributing/adding-a-package.md
+      - contributing/carrying-a-patch.md
+      - contributing/review-and-landing.md
+      - contributing/release-process.md
+      - contributing/principles.md

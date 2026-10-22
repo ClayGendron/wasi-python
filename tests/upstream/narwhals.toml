@@ -52,7 +52,7 @@ group = "narwhals-r"
 outcome = "failed"
 match = "ctypes is unavailable|dlopen|CDLL"
 reason = "the ctypes stand-in loads no library (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap"
@@ -60,7 +60,7 @@ group = "narwhals-r"
 outcome = "failed"
 match = "mmap is unavailable|No module named 'mmap'|^AssertionError: False is not true$"
 reason = "no mmap: the stand-in raises OSError (README); xlrd opens a workbook with mmap, so a test that checks the error a bad workbook raises sees mmap's"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-terminal-size"
@@ -68,7 +68,7 @@ group = "narwhals-r"
 outcome = "failed"
 match = "has no attribute 'get_terminal_size'"
 reason = "WASI has no os.get_terminal_size (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "wasm32-int32"
@@ -76,5 +76,5 @@ group = "narwhals-r"
 outcome = "failed"
 match = "Mismatch at index \\d+, key a: -?\\d+ != \\d+"
 reason = "numpy's default integer is 32 bits on wasm32, so a cumulative sum narwhals expects in 64 bits wraps (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

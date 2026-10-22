@@ -248,7 +248,7 @@ id = "networkx-r-trap-asadpour-integral-held-karp"
 node = "networkx/algorithms/approximation/tests/test_traveling_salesman.py::test_asadpour_integral_held_karp"
 group = "networkx-r-approximation-1"
 reason = "on Linux x86_64 it did not end within its group's 710 G cap (past about 610 G in the test, dry run 39741960669), against about 442 to 470 G on darwin-arm64, two runs equal; the same artifact set and wasmtime, so the guest takes a different path on Linux, which may be the product's (the held-Karp ascent loops until a HiGHS interior-point solve reports success); the cause is not read; run alone to its 50 G cap, so its verdict is the same on every host"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "counted-clock"
@@ -256,7 +256,7 @@ group = "networkx-r-root-1"
 outcome = "failed"
 match = "assert \\d\\.\\d+e-0\\d > \\d\\.\\d+e-0\\d|assert 3850070400 > 3850070400|Lists differ: \\[1, 2, 3\\] != \\[1, 2\\]|^assert 8\\.0 is None$"
 reason = "the guest's clock is the judge's counted clock (each read advances it one microsecond), so a test that times a sleep or a timeout, or expects two timestamps a second apart, sees other times than a wall clock gives (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-threads"
@@ -264,7 +264,7 @@ group = "networkx-r-other"
 outcome = "failed"
 match = "can't start new thread|thread constructor failed|start_new_thread|unable to start watchdog thread|TqdmMonitorWarning|instances still in existence|'NoneType' object does not support the context manager protocol"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "doctest-output"
@@ -272,5 +272,5 @@ group = "networkx-r-doc"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring example whose printed output differs in the guest under the stdlib's doctest runner with upstream's flags (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

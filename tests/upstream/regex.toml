@@ -20,4 +20,4 @@ measured = 16_001_941_028
 [[not_selected]]
 files = ["regex/tests/test_regex.py::test_main"]
 reason = "regex's own unittest.main() entry point, which pytest collects by its name; inside pytest it parses the driver's argv and exits 1; its tests run as collected"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"

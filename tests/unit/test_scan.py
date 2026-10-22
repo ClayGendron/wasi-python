@@ -2459,6 +2459,21 @@ def test_the_citation_rule_reads_its_four_trees(work) -> None:
     ]
 
 
+def test_the_citation_rule_reads_the_public_pages_whole(work) -> None:
+    """The README and every Markdown page under `docs/` are read: a page has no comment to set
+    apart, since every word of it is what a user reads. The string rule leaves them to it."""
+    for rel_path in ("README.md", "docs/a.md", "docs/sub/b.md", "docs/c.css", "notes.md"):
+        write(work, rel_path, "x\n")
+    picked = [scan.rel(p, work) for p in scan.context_citation_files(work)]
+    assert picked == ["README.md", "docs/a.md", "docs/sub/b.md"]
+    assert scan.string_citation_files(work) == []
+    page = write(work, "docs/d.md", f"# A page\n\nAs `{SPEC_WORD} 025` says, see {DOC_TREE}x.\n")
+    assert scan.context_citation_hits(page) == [
+        (3, "context path", f"{DOC_TREE}x"),
+        (3, "specification", f"{SPEC_WORD} 025"),
+    ]
+
+
 def test_a_citation_split_across_lines_is_one_hit(work) -> None:
     """A citation whose number falls on the next line of a docstring or a comment block is found
     on the line it starts; a code line between two comments ends the block."""

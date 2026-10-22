@@ -114,22 +114,22 @@ files = [
     "numpy/lib/tests/test_stride_tricks.py",
 ]
 reason = "imports numpy's C test modules (_multiarray_tests, _umath_tests, _rational_tests, _operand_flag_tests), which the product does not link (scripts/gen_inittab.py)"
-closes_with = "context/questions-for-the-owner.md"
+closes_with = "context/roadmap.md"
 
 [[not_selected]]
 files = ["numpy/_core/tests/test_simd.py", "numpy/_core/tests/test_simd_module.py"]
 reason = "imports _simd, which the product does not link"
-closes_with = "context/questions-for-the-owner.md"
+closes_with = "context/roadmap.md"
 
 [[not_selected]]
 files = ["numpy/_core/tests/test_memmap.py"]
 reason = "every test needs mmap, which WASI lacks"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[not_selected]]
 files = ["numpy/tests/test_ctypeslib.py"]
 reason = "it reads _multiarray_umath.__file__, which a builtin module has not"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 # The tests that trap the guest (Decision 9) would be [[trap]] entries here: id, node, reason,
 # closes_with; each deselected from its group and run alone by test_upstream_trap[<id>], a gap
@@ -165,7 +165,7 @@ group = "numpy-core"
 outcome = "failed"
 match = 'OSError: \[Errno 58\] Not supported'
 reason = "no dup: tofile and fromfile on a real file need a duplicated descriptor, which WASI lacks (README: the platform's facts)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-dup-file-left-open"
@@ -173,7 +173,7 @@ group = "numpy-core"
 outcome = "error"
 match = 'PytestUnraisableExceptionWarning: Exception ignored while finalizing file'
 reason = 'no dup: the file a failed fromfile left open is reported when it is finalized, on whichever test runs then'
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-processes"
@@ -181,7 +181,7 @@ group = "numpy-core"
 outcome = "failed"
 match = 'wasi does not support processes'
 reason = 'no processes: subprocess is unavailable on WASI'
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-ctypes"
@@ -189,7 +189,7 @@ group = "numpy-core"
 outcome = "failed"
 match = 'ctypes is unavailable'
 reason = "no ctypes calls: the stand-in raises OSError (test_object_casts_NULL_None_equivalence, which runs since spec 051)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "test-only-modules"
@@ -197,7 +197,7 @@ group = "numpy-core"
 outcome = "failed"
 match = "No module named 'numpy\\._core\\._rational_tests'"
 reason = "numpy's C test modules are not linked into the product (question 89)"
-closes_with = "context/questions-for-the-owner.md"
+closes_with = "context/roadmap.md"
 
 [[expected]]
 id = "no-mmap"
@@ -205,7 +205,7 @@ group = "numpy-lib"
 outcome = "failed"
 match = 'mmap is unavailable'
 reason = 'no mmap on WASI'
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-dev-null"
@@ -213,7 +213,7 @@ group = "numpy-lib"
 outcome = "failed"
 match = "No such file or directory: '/dev/null'"
 reason = 'no /dev/null on WASI: os.devnull names a path that does not exist'
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "patch-0001-truncated-message"
@@ -245,7 +245,7 @@ group = "numpy-others"
 outcome = "failed"
 match = "looked public and can not be imported: \\['numpy\\.conftest'\\]$"
 reason = "the product's zip carries no tests and no conftest.py, so numpy.conftest, listed in numpy's module list, does not import (README; the build review's F5)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "test-only-modules"
@@ -253,7 +253,7 @@ group = "numpy-others"
 outcome = "failed"
 match = "has no attribute '_multiarray_tests'"
 reason = '_multiarray_tests, a numpy C test module, is not in the product (question 89)'
-closes_with = "context/questions-for-the-owner.md"
+closes_with = "context/roadmap.md"
 
 [[expected]]
 id = "zip-code-names"

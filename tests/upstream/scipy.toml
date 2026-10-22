@@ -152,28 +152,28 @@ files = [
     "scipy/linalg/tests/_cython_examples/ilp64_test_package/tests/test_wrappers.py",
 ]
 reason = "an example package test_extending.py would build with meson in a subprocess; scipy installs only its extending.pyx and meson.build, so it is not part of the installed suite"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[trap]]
 id = "scipy-hypothesis-hyp1f1"
 node = "scipy/special/tests/test_support_alternative_backends.py::test_support_alternative_backends_hypothesis[numpy-hyp1f1]"
 group = "scipy-special-3"
 reason = "the hypothesis case for hyp1f1 does not finish in the guest: a derandomized example draws intp (32-bit on wasm32) values near plus or minus 2**31 as the function's integer parameters, and the call runs past the trap's 50 G cap; no example fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[trap]]
 id = "scipy-hypothesis-lpmv"
 node = "scipy/special/tests/test_support_alternative_backends.py::test_support_alternative_backends_hypothesis[numpy-lpmv]"
 group = "scipy-special-3"
 reason = "the hypothesis case for lpmv does not finish in the guest: in its group it ran to the group's 2 T cap, and alone it runs out of the trap's 50 G; it was not probed further, and yn's and hyp1f1's cases end this way on intp parameters near plus or minus 2**31 (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[trap]]
 id = "scipy-hypothesis-yn"
 node = "scipy/special/tests/test_support_alternative_backends.py::test_support_alternative_backends_hypothesis[numpy-yn]"
 group = "scipy-special-3"
 reason = "the hypothesis case for yn does not finish in the guest: a derandomized example draws intp (32-bit on wasm32) values near plus or minus 2**31 as the function's integer parameters, and the call runs past the trap's 50 G cap; no example fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [groups.scipy-smoke-a]
 paths = [
@@ -2123,7 +2123,7 @@ group = "scipy-integrate-1"
 outcome = "failed"
 match = "has no attribute 'pipe'|does not support processes|No module named '_multiprocessing'|_posixsubprocess"
 reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-native-id-test-names"
@@ -2131,7 +2131,7 @@ group = "scipy-interpolate-1"
 outcome = "failed"
 match = "has no attribute 'get_native_id'"
 reason = "the runtime's threading names no native thread id on WASI, and these tests make their temporary file names from it (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-threads"
@@ -2139,7 +2139,7 @@ group = "scipy-interpolate-1"
 outcome = "failed"
 match = "can't start new thread|thread constructor failed"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-threads"
@@ -2147,7 +2147,7 @@ group = "scipy-interpolate-2"
 outcome = "failed"
 match = "can't start new thread|thread constructor failed"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-threads"
@@ -2155,7 +2155,7 @@ group = "scipy-interpolate-fitpack2-1"
 outcome = "failed"
 match = "can't start new thread|thread constructor failed"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "enotsup-io"
@@ -2163,7 +2163,7 @@ group = "scipy-io-harwell_boeing-to-io"
 outcome = "failed"
 match = "OSError: \\[Errno 58\\] Not supported"
 reason = "numpy's fromfile and tofile duplicate the file's descriptor, which WASI preview1 refuses, so scipy.io's FortranFile and wavfile fail (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "enotsup-io-file-left-open-at-setup"
@@ -2171,7 +2171,7 @@ group = "scipy-io-harwell_boeing-to-io"
 outcome = "error"
 match = "Exception ignored while finalizing file <_io\\.FileIO name='/upstream-scipy/tree/scipy/io/tests/data/"
 reason = "a file that a failed FortranFile read left open (numpy's fromfile cannot duplicate its descriptor on WASI) is reported when it is finalized, during whichever test runs then, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "enotsup-io-no-warning"
@@ -2179,7 +2179,7 @@ group = "scipy-io-harwell_boeing-to-io"
 outcome = "failed"
 match = "DID NOT WARN\\. No warnings of type \\(<class 'scipy\\.io\\.wavfile\\.WavFileWarning'>"
 reason = "wavfile's read fails with ENOTSUP inside the test's warning block (numpy's fromfile cannot duplicate the descriptor on WASI), so the warning the test expects never comes (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap"
@@ -2187,7 +2187,7 @@ group = "scipy-io-harwell_boeing-to-io"
 outcome = "failed"
 match = "mmap is unavailable"
 reason = "no mmap: the stand-in raises OSError (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-native-id-test-names"
@@ -2195,7 +2195,7 @@ group = "scipy-io-harwell_boeing-to-io"
 outcome = "failed"
 match = "has no attribute 'get_native_id'"
 reason = "the runtime's threading names no native thread id on WASI, and these tests make their temporary file names from it (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "wasm32-memory"
@@ -2203,7 +2203,7 @@ group = "scipy-io-harwell_boeing-to-io"
 outcome = "failed"
 match = "array is too big|MemoryError|Unable to allocate"
 reason = "wasm32's 4 GiB address space bounds the guest; these tests ask for more (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-native-id-uarray"
@@ -2211,7 +2211,7 @@ group = "scipy-lib-to-fft"
 outcome = "failed"
 match = "has no attribute 'get_native_id'"
 reason = "uarray's set_backend and skip_backend read threading.get_native_id(), which the runtime's threading lacks on WASI, so switching scipy.fft's backend fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-processes"
@@ -2219,7 +2219,7 @@ group = "scipy-lib-to-fft"
 outcome = "failed"
 match = "has no attribute 'pipe'|does not support processes|No module named '_multiprocessing'|_posixsubprocess"
 reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "odr-stand-in-visible"
@@ -2243,7 +2243,7 @@ group = "scipy-ndimage-to-optimize-trustregion_constr"
 outcome = "failed"
 match = "can't start new thread|thread constructor failed"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-processes"
@@ -2251,7 +2251,7 @@ group = "scipy-optimize-1-1"
 outcome = "failed"
 match = "has no attribute 'pipe'|does not support processes|No module named '_multiprocessing'|_posixsubprocess"
 reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-processes"
@@ -2259,7 +2259,7 @@ group = "scipy-optimize-1-2"
 outcome = "failed"
 match = "has no attribute 'pipe'|does not support processes|No module named '_multiprocessing'|_posixsubprocess"
 reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-fp-exceptions"
@@ -2267,7 +2267,7 @@ group = "scipy-optimize-2"
 outcome = "failed"
 match = "DID NOT WARN\\. No warnings of type \\(<class 'RuntimeWarning'>|DID NOT RAISE <class '(ValueError|FloatingPointError|scipy\\.special\\._sf_error\\.SpecialFunctionError)'>"
 reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-processes"
@@ -2275,7 +2275,7 @@ group = "scipy-optimize-3"
 outcome = "failed"
 match = "has no attribute 'pipe'|does not support processes|No module named '_multiprocessing'|_posixsubprocess"
 reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-threads"
@@ -2283,7 +2283,7 @@ group = "scipy-optimize-3"
 outcome = "failed"
 match = "can't start new thread|thread constructor failed"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "float32-rounding"
@@ -2291,7 +2291,7 @@ group = "scipy-signal"
 outcome = "failed"
 match = "^AssertionError:$"
 reason = "two of 483 float32 values miss the test's 1e-5 absolute tolerance by about one float32 step (1.19e-5): wasm's float rounding differs from native's (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-threads"
@@ -2299,7 +2299,7 @@ group = "scipy-signal-signaltools"
 outcome = "failed"
 match = "can't start new thread|thread constructor failed"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-threads"
@@ -2307,7 +2307,7 @@ group = "scipy-smoke-a"
 outcome = "failed"
 match = "can't start new thread|thread constructor failed"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-fp-exceptions"
@@ -2315,7 +2315,7 @@ group = "scipy-smoke-b"
 outcome = "failed"
 match = "DID NOT WARN\\. No warnings of type \\(<class 'RuntimeWarning'>|DID NOT RAISE <class '(ValueError|FloatingPointError|scipy\\.special\\._sf_error\\.SpecialFunctionError)'>"
 reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-native-id-test-names"
@@ -2323,7 +2323,7 @@ group = "scipy-smoke-b"
 outcome = "failed"
 match = "has no attribute 'get_native_id'"
 reason = "the runtime's threading names no native thread id on WASI, and these tests make their temporary file names from it (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-native-id-test-names-at-setup"
@@ -2331,7 +2331,7 @@ group = "scipy-smoke-b"
 outcome = "error"
 match = "has no attribute 'get_native_id'"
 reason = "the runtime's threading names no native thread id on WASI, and these tests make their temporary file names from it, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-processes"
@@ -2339,7 +2339,7 @@ group = "scipy-smoke-b"
 outcome = "failed"
 match = "has no attribute 'pipe'|does not support processes|No module named '_multiprocessing'|_posixsubprocess"
 reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-threads"
@@ -2347,7 +2347,7 @@ group = "scipy-smoke-b"
 outcome = "failed"
 match = "can't start new thread|thread constructor failed"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-threads-results"
@@ -2355,7 +2355,7 @@ group = "scipy-smoke-b"
 outcome = "failed"
 match = "^AssertionError:$"
 reason = "a check of work that would run on threads: Matrix Market's parallelism stays 1 (the carried patch reads and writes serially) and qmc's C++ workers cannot start, so their result is unset (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-threads-unraisable-at-setup"
@@ -2363,7 +2363,7 @@ group = "scipy-smoke-b"
 outcome = "error"
 match = "PytestUnraisableExceptionWarning: Exception ignored in: 'scipy\\.stats\\._qmc_cy\\.threaded_loops'"
 reason = "no threads: qmc's C++ workers fail to start and the exception they leave is reported when pytest collects it, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-threads"
@@ -2371,7 +2371,7 @@ group = "scipy-smoke-slow-9"
 outcome = "failed"
 match = "can't start new thread|thread constructor failed"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "wasm32-memory"
@@ -2379,7 +2379,7 @@ group = "scipy-smoke-slow-9"
 outcome = "failed"
 match = "array is too big|MemoryError|Unable to allocate"
 reason = "wasm32's 4 GiB address space bounds the guest; these tests ask for more (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-fp-exceptions"
@@ -2387,7 +2387,7 @@ group = "scipy-sparse-1"
 outcome = "failed"
 match = "DID NOT WARN\\. No warnings of type \\(<class 'RuntimeWarning'>|DID NOT RAISE <class '(ValueError|FloatingPointError|scipy\\.special\\._sf_error\\.SpecialFunctionError)'>"
 reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-threads"
@@ -2395,7 +2395,7 @@ group = "scipy-sparse-csgraph-to-sparse-linalg-eigen"
 outcome = "failed"
 match = "can't start new thread|thread constructor failed"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-threads"
@@ -2403,7 +2403,7 @@ group = "scipy-spatial"
 outcome = "failed"
 match = "can't start new thread|thread constructor failed"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-fp-exceptions"
@@ -2411,7 +2411,7 @@ group = "scipy-special-2"
 outcome = "failed"
 match = "DID NOT WARN\\. No warnings of type \\(<class 'RuntimeWarning'>|DID NOT RAISE <class '(ValueError|FloatingPointError|scipy\\.special\\._sf_error\\.SpecialFunctionError)'>"
 reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "mpmath-tolerance"
@@ -2419,7 +2419,7 @@ group = "scipy-special-mpmath-10"
 outcome = "failed"
 match = "^AssertionError:$"
 reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "mpmath-tolerance"
@@ -2427,7 +2427,7 @@ group = "scipy-special-mpmath-2"
 outcome = "failed"
 match = "^AssertionError:$"
 reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "mpmath-tolerance"
@@ -2435,7 +2435,7 @@ group = "scipy-special-mpmath-37"
 outcome = "failed"
 match = "^AssertionError:$"
 reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "mpmath-tolerance"
@@ -2443,7 +2443,7 @@ group = "scipy-special-mpmath-6"
 outcome = "failed"
 match = "^AssertionError:$"
 reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-processes"
@@ -2451,7 +2451,7 @@ group = "scipy-stats-1-mgc-3"
 outcome = "failed"
 match = "has no attribute 'pipe'|does not support processes|No module named '_multiprocessing'|_posixsubprocess"
 reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-fp-exceptions"
@@ -2459,7 +2459,7 @@ group = "scipy-stats-1-stats-5"
 outcome = "failed"
 match = "DID NOT WARN\\. No warnings of type \\(<class 'RuntimeWarning'>|DID NOT RAISE <class '(ValueError|FloatingPointError|scipy\\.special\\._sf_error\\.SpecialFunctionError)'>"
 reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "fit-flat-likelihood"
@@ -2467,7 +2467,7 @@ group = "scipy-stats-fit-1"
 outcome = "failed"
 match = "^AssertionError:$"
 reason = "fitting the f distribution to interval-censored data, the first shape parameter barely moves the likelihood: the guest's optimizer stops at 341.2 where native's stops at 290.5 (the other three within 3%), since wasm rounds differently (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-fp-exceptions"
@@ -2475,4 +2475,4 @@ group = "scipy-stats-fit-2"
 outcome = "failed"
 match = "DID NOT WARN\\. No warnings of type \\(<class 'RuntimeWarning'>|DID NOT RAISE <class '(ValueError|FloatingPointError|scipy\\.special\\._sf_error\\.SpecialFunctionError)'>"
 reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"

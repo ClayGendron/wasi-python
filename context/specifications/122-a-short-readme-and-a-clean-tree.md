@@ -1,6 +1,7 @@
 # 122: A short README and a clean tree
 
-- **Status:** **drafted 2026-10-22; no pre-build review** (neither touches `src/` or the build
+- **Status:** **built 2026-10-22 on main `fb8343cd`, but the evidence folders' deletion, left to
+  the lane (Landing notes); not reviewed.** Drafted 2026-10-22; no pre-build review (neither touches `src/` or the build
   recipe; AGENTS.md rule 8). Built in parallel with 123 (the documentation site), on disjoint
   files, for the one wave before the 0.1.0 tag (`decisions.md`, "The documentation before the
   0.1.0 tag, within a day"). No builder dispatches a branch run or loops on the fast tier: the
@@ -423,4 +424,100 @@ with `src/` untouched and the judge run once.
 
 ## Landing notes
 
-Not yet built.
+**Built 2026-10-22** on branch `spec/122-a-short-readme-and-a-clean-tree`, based on main
+`fb8343cd`. No branch run, by the owner's rule for this work (`decisions.md`, 2026-10-22); no
+fast tier. One step is not done: the 54 research evidence folders' deletion (Decision 8) was
+refused by the builder's permission system as an irreversible local deletion; the lane or the
+owner runs it (below). Everything else in Decisions 1 to 10 is in the branch.
+
+**The builder's self-check** (`reviews/README.md`):
+
+- Rebased: built on main `fb8343cd` (today's tip); 123 has not landed, so the rebase onto 123's
+  tip is the lane's (For the lane). No conflict expected: no file here is one of 123's pages.
+- CI run: none, by the owner's rule for this work (`decisions.md`, 2026-10-22). The judge runs
+  once, as the lane's release acceptance on the wave's tip.
+- Numbers, EXECUTED on this branch: the README is 169 lines (`wc -l`); the closers retargeted
+  are 266 in `tests/known_gaps.toml`, 293 `closes_with` and 1 `excluded_closes_with` across 40
+  files under `tests/upstream/` (560 in all; `grep -rc docs/reference/limitations.md` sums to
+  560), and 6 questions-file closers now name `context/roadmap.md` (2 in `known_gaps.toml`, 4
+  in `numpy.toml`); `grep -c 'closes_with = "README.md"'` is 0 in every file. The draft's 561
+  counted pandas' `excluded_closes_with` twice: the 294 of The problem already holds it (`grep
+  -c` matches the substring), so the true sum is 560, and the `closer` field changes for 566
+  rows, not 567. `cli._parser()` has 14 options, 6 of them without `help=` (`--env`,
+  `--deadline-s`, `--memory-bytes`, `--output-bytes`, `--fuel`, `--no-snapshot`), not 12: the
+  draft's count was from before the grant and root options gained their help; `DESCRIBED` holds
+  those 6.
+- For the lane: the claim list is the draft's (changed: `test_the_readme_reference_matches_the_api`,
+  `test_public_docs_name_nothing_internal` (now also reads the API page),
+  `test_known_gaps_are_well_formed`, `test_code_outside_src_names_no_context_document`,
+  `test_no_embedder_name_in_code`, `test_no_string_names_a_context_document` (its files are
+  the comment rule's less the public pages, so unchanged in reach); new:
+  `test_generated_pages_are_current`, the six rows of `tests/unit/test_cli_doc.py`, and
+  `tests/unit/test_scan.py::test_the_citation_rule_reads_the_public_pages_whole`). Flags:
+  `--accept-judge`, reasons beginning "122:". Wave kind: judge change, parallel-safe in files
+  with 123. No fuel or bytes change.
+- New checks seen failing first: `tests/unit/test_cli_doc.py` failed at import before
+  `tests/harness/cli_doc.py` existed (`build/122/test_cli_doc-before-generator.log`), then passed
+  (`build/122/test_cli_doc-after-generator.log`). The widened scans fail on a page that says
+  "spec 025" (`docs/probe-citation.md`, written and removed: `build/122/scan-probe.log`, one
+  finding, `specification: spec 025`) and on a page naming an embedder (`build/122/embedder-probe.log`).
+  No platform branch: the generators and scans are text only.
+- Gaps: none added, removed or re-reasoned; every retargeted closer exists on this tip.
+  Reserved follow-ups have a roadmap line (`roadmap.md`, "After 0.1.0", the documentation's
+  follow-ups).
+- packages.toml: not touched (no package added). README rows: the README is rewritten whole
+  (Decision 1); the facts it no longer carries are on 123's pages and the limitations page.
+- CHANGELOG: two entries under "0.1.0 — unreleased", this one and 123's (Decision 10). No
+  question asked.
+- ruff check and ruff format --check: green on every Python file touched. Node ids, EXECUTED
+  (`build/122/node-ids.log`; the two guest checks with `WASI_PYTHON_ARTIFACTS` set to the main
+  tree's `build/artifacts/`): `test_rules.py::test_the_readme_carries_the_licences_credit_lines`,
+  `test_carried_patches_follow_the_rules`, `test_version_states_the_platform_semantics`,
+  `test_specifications_have_no_open_question`, `test_generated_pages_are_current`,
+  `test_known_gaps_are_well_formed`, `test_code_outside_src_names_no_context_document`,
+  `test_no_embedder_name_in_code`, `test_no_string_names_a_context_document`,
+  `test_every_action_is_pinned_by_commit`;
+  `test_v1_3_data_stack.py::test_default_integer_width_is_documented`;
+  `test_v1_4_public_api.py::test_the_readme_reference_matches_the_api`,
+  `test_public_docs_name_nothing_internal`;
+  `test_v1_3_upstream_suites.py::test_upstream_files_are_well_formed`; the whole of
+  `tests/unit/test_scan.py` and `tests/unit/test_cli_doc.py`: 312 passed. `uv run python
+  tests/harness/api.py --check` and `uv run python tests/harness/cli_doc.py --check`: exit 0;
+  `tests/public_api.txt` unchanged.
+- `uv run --group docs mkdocs build --strict`: green, run on a scratch copy holding 123's
+  in-progress pages from its worktree, this branch's three pages, `mkdocs.yml` and
+  `CHANGELOG.md`; one nav page absent there (`get-started/embed-python-wasm.md`, on 123's
+  may-omit list) had a stand-in. The two scans and the internal-name rule were run over the same
+  copy: no citation and no embedder hit on 123's pages; the internal-name rule, which the judge
+  runs only on the README and the API page, would flag three code spans on 123's
+  `reference/support-and-versioning.md` (`wasi_python.runner`, `.mounts`, `.cli`), told to the
+  lane, not a check.
+- The action pins in `docs.yml` were re-read with `gh api repos/<owner>/<repo>/git/ref/tags/<tag>`:
+  `upload-pages-artifact` v5.0.0, `configure-pages` v6.0.0 and `deploy-pages` v5.0.1 are commits
+  equal to the draft's SHAs; `checkout` and `setup-uv` are `set-cache.yml`'s.
+
+**Deviations from the draft, with reasons:**
+
+- 560 closers, not 561, and 566 changed `closer` rows, not 567 (above).
+- `docs.yml` runs the drift checks as `api.py --check` and `cli_doc.py --check`: `api.py` has no
+  default mode (its `--write` and `--check` are a required pair), and `cli_doc.py` mirrors it.
+  `docs.yml` also sets `timeout-minutes`, `persist-credentials: false` and the deploy job's
+  `environment.url`, as `set-cache.yml` does.
+- `cli_doc.py` also fails on an option described twice (help and `DESCRIBED`), so the mapping
+  empties as help strings arrive; the help option `-h` is left out of the table.
+- `api.readme_hits` takes the page's name (default `README.md`) so a hit names its file.
+- `scan.string_citation_files` leaves out the public pages: the comment rule already reads them
+  whole, and the string rule's line reader would treat a Markdown heading as a comment.
+- `recipes/numpy_lapack_shims.c:13` names the generator in the evidence folder
+  `2026-10-20-numpy-on-openblas/`, which this specification deletes; the generator stays in git
+  history at `bb2235f2`. `recipes/` is build-class and out of this specification's files, so
+  the comment is left for 0.1.1.
+
+**For the lane, the step not done.** From the branch's worktree, before the release acceptance:
+delete every folder under `context/research/` except `2026-10-18-wasmtime-49-advisories/` (54
+folders, 1,746 files less the advisories folder's; the list is
+`build/122/evidence-folders.txt` in the builder's worktree), commit "Spec 122: the research
+evidence folders before 2026-10-23 deleted (in git history at bb2235f2). Context only", and
+check `git ls-files context/research | grep /` lists only the advisories folder (criterion 8).
+`context/README.md` already says the folders are in history. The advisory draft
+(`upstream/advisories/GHSA-draft-0.1.0a3.md`) is untouched, for the lane at landing.

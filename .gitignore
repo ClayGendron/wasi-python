@@ -30,3 +30,6 @@ context/prior_art/*
 .DS_Store
 ._*
 Icon
+
+# The documentation site mkdocs builds; the workflow uploads it, git never holds it.
+site/

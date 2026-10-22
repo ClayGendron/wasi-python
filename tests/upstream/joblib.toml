@@ -40,7 +40,7 @@ measured = 16_097_655_151
 [[not_selected]]
 files = ["joblib/test/test_memmapping.py"]
 reason = "it imports joblib's memmapping reducer, which needs _multiprocessing at import, and every test in it maps arrays into worker processes: the guest has neither"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "disk-usage-zero"
@@ -48,7 +48,7 @@ group = "joblib-smoke"
 outcome = "failed"
 match = "assert 0 >= 1024"
 reason = "WASI's stat reports no allocated blocks, so joblib's disk_used sums to 0 (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "joblib-cache-clock"
@@ -56,7 +56,7 @@ group = "joblib-smoke"
 outcome = "failed"
 match = "assert 12 == 2$|^assert not True$|^assert False$|^assert 0\\.3 < 0\\.3$"
 reason = "joblib's cache and hashing tests compare ages and times; under the judge's counted clock (a microsecond a read) they are not the wall clock's (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap"
@@ -64,7 +64,7 @@ group = "joblib-smoke"
 outcome = "failed"
 match = "mmap is unavailable|No module named 'mmap'|^AssertionError: False is not true$"
 reason = "no mmap: the stand-in raises OSError (README); xlrd opens a workbook with mmap, so a test that checks the error a bad workbook raises sees mmap's"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-processes"
@@ -72,7 +72,7 @@ group = "joblib-smoke"
 outcome = "failed"
 match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "wasi-mkdir"
@@ -80,7 +80,7 @@ group = "joblib-smoke"
 outcome = "failed"
 match = "DID NOT RAISE <class 'OSError'>"
 reason = "joblib's mkdirp test expects OSError where WASI's file system answers otherwise (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "joblib-cache-clock"
@@ -88,7 +88,7 @@ group = "joblib-r"
 outcome = "failed"
 match = "assert 12 == 2$|^assert not True$|^assert False$|^assert 0\\.3 < 0\\.3$"
 reason = "joblib's cache and hashing tests compare ages and times; under the judge's counted clock (a microsecond a read) they are not the wall clock's (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-asyncio-loop-error"
@@ -96,7 +96,7 @@ group = "joblib-r"
 outcome = "error"
 match = "\\[Errno 58\\] Not supported|unraisable exception warnings|Exception ignored while calling deallocator"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-asyncio-loop"
@@ -104,7 +104,7 @@ group = "joblib-r"
 outcome = "failed"
 match = "\\[Errno 58\\] Not supported|unraisable exception warnings|Exception ignored while calling deallocator"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 # test_joblib_pickle_across_python_versions_with_mmap loads every pickle in its data folder in
@@ -117,7 +117,7 @@ group = "joblib-r"
 outcome = "failed"
 match = "mmap is unavailable|No module named 'mmap'|^AssertionError: False is not true$|^AssertionError: assert False$"
 reason = "no mmap: the stand-in raises OSError (README); xlrd opens a workbook with mmap, so a test that checks the error a bad workbook raises sees mmap's"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-processes"
@@ -125,7 +125,7 @@ group = "joblib-r"
 outcome = "failed"
 match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "doctest-output"
@@ -133,5 +133,5 @@ group = "joblib-r-doc"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring example whose printed output differs in the guest under the stdlib's doctest runner with upstream's flags (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

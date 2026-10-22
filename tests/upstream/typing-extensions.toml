@@ -27,7 +27,7 @@ group = "typing-extensions-smoke"
 outcome = "failed"
 match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "python-3-15"
@@ -35,5 +35,5 @@ group = "typing-extensions-smoke"
 outcome = "failed"
 match = "Tuples differ: \\(\\[\\],\\) != \\(\\[\\], \\[\\]\\)|anonymous_sentinel|frozendict|list\\.remove\\(x\\): x not in l|has no attribute 'makeSuite'|ResourceWarnin"
 reason = "the test expects an older CPython's behaviour or message (typing, ElementTree, unittest), and the product is CPython 3.15 (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

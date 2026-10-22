@@ -134,7 +134,7 @@ tier = "release"
 [[not_selected]]
 modules = ["test_ctypes"]
 reason = "the ctypes stand-in imports, then every use raises OSError (README: no ctypes)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[not_selected]]
 modules = ["test_code", "test_genericalias"]
@@ -149,12 +149,12 @@ closes_with = "context/roadmap.md"
 [[not_selected]]
 modules = ["test_ensurepip", "test_venv", "test_sysconfig"]
 reason = "ensurepip and venv are not in the zip (no pip, no venv: constitution section 3); test_sysconfig imports test.support.venv"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[not_selected]]
 modules = ["test_ast"]
 reason = "one module-level line lists the stdlib's folder (test_ast/test_ast.py:41), which is a zip"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[not_selected]]
 modules = ["test_time", "test_calendar", "test_strptime", "test_os.test_posix"]
@@ -184,7 +184,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a name with a colon (E:abspath) cannot be made on a Windows host (the branch dry run 39194284100)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-copy-copyfile-copy-dir"
@@ -194,7 +194,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "opening a folder for reading gives EINVAL on a Windows host, IsADirectoryError elsewhere (the branch dry run 39194284100)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-spooledtemporaryfile-bound-methods"
@@ -204,7 +204,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/oue5b76l')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-spooledtemporaryfile-context-manager-after-rollover"
@@ -214,7 +214,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmpgmr7pzr4')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-spooledtemporaryfile-context-manager-during-rollover"
@@ -224,7 +224,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp6bf4_6fg')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-spooledtemporaryfile-del-on-close"
@@ -234,7 +234,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: OSError: [Errno 55] Directory not empty: '/tmp/tmp7l8om7v_')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-spooledtemporaryfile-del-rolled-file"
@@ -244,7 +244,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/lh637mqu')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-spooledtemporaryfile-fileno"
@@ -254,7 +254,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/g6vd57m0')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-spooledtemporaryfile-multiple-close-after-rollover"
@@ -264,7 +264,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp7u1c7f72')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-spooledtemporaryfile-properties"
@@ -274,7 +274,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp39yiz35h')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-spooledtemporaryfile-sparse"
@@ -284,7 +284,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/6ueog67p')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-spooledtemporaryfile-text-mode"
@@ -294,7 +294,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp_aa0h8p_')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-spooledtemporaryfile-text-newline-and-encoding"
@@ -304,7 +304,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp8qrds_7u')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-spooledtemporaryfile-truncate-with-size-parameter"
@@ -314,7 +314,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp__aiv4j_')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-spooledtemporaryfile-write-sequential"
@@ -324,7 +324,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/inwat6g_')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-spooledtemporaryfile-writelines-fast-path"
@@ -334,7 +334,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/235dm5z6')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-spooledtemporaryfile-writelines-rollover"
@@ -344,7 +344,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/kac503sg')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-spooledtemporaryfile-writelines-sequential"
@@ -354,7 +354,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/va_2yxov')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-temporarydirectory-del-on-collection-ignore-errors"
@@ -364,7 +364,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "failed"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: AssertionError: 1 != 0 : Unexpected number of files in TemporaryDirectory /tmp/tmpbnr_pimg)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-temporarydirectory-explicit-cleanup-ignore-errors"
@@ -374,7 +374,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "failed"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: AssertionError: 1 != 0 : Unexpected number of files in TemporaryDirectory /tmp/tmpg5frae1o)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-temporaryfile-bad-encoding"
@@ -384,7 +384,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmps02v_l5g/tmpjt13i26r')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-temporaryfile-basic"
@@ -394,7 +394,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmpmrbb3nbh')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-temporaryfile-has-no-name"
@@ -404,7 +404,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp08rtbuwh/tmp4ld_6k_r')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-temporaryfile-mode-and-encoding"
@@ -414,7 +414,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmpexgygbqq')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
 id = "win-temporaryfile-multiple-close"
@@ -424,7 +424,7 @@ darwin = "passed"
 linux = "passed"
 win32 = "error"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp30k2i62_')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[deselected]]
 id = "capi-event-generation"
@@ -472,7 +472,7 @@ group = "cpython-fs"
 outcome = "error"
 match = 'ctypes is unavailable'
 reason = "no ctypes calls: the stand-in imports, so the tests run, and every call raises OSError (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap"
@@ -480,7 +480,7 @@ group = "cpython-fs"
 outcome = "error"
 match = "mmap is unavailable|cannot access local variable 'm'"
 reason = "no mmap: pandas imports mmap unconditionally, so the stand-in imports, and every map raises OSError (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "mmap-stand-in-surface"
@@ -496,7 +496,7 @@ group = "cpython-fs"
 outcome = "error"
 match = 'database is locked'
 reason = "SQLite's lock directory gives a second connection 'database is locked' (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-file-modes"
@@ -504,7 +504,7 @@ group = "cpython-fs"
 outcome = "failed"
 match = 'error not raised'
 reason = "WASI has no permission bits: os.chmod succeeds and changes nothing (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "stdlib-zip"
@@ -512,7 +512,7 @@ group = "cpython-fs"
 outcome = "failed"
 match = "Lists differ: \\['/usr/local/lib/python315\\.zip/|0 not greater than 0|TypeError not raised by getline|\\[\\] is not true"
 reason = "the stdlib is bytecode in a zip: linecache has no source for it (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "stdlib-zip-error"
@@ -520,7 +520,7 @@ group = "cpython-fs"
 outcome = "error"
 match = "No module named 'c_resources'"
 reason = "the stdlib is bytecode in a zip: importlib.resources' compiled-package test finds no source package (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "stepped-clock"
@@ -568,7 +568,7 @@ group = "cpython-a"
 outcome = "failed"
 match = "Lists differ: \\[\\('te|pyc'>\" != |raise self\\.failureException\\(msg\\)' not found"
 reason = "the stdlib is bytecode in a zip: tracebacks into it have no source lines (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "stdlib-zip-error"
@@ -576,7 +576,7 @@ group = "cpython-a"
 outcome = "error"
 match = '_path_normpath: path should be string'
 reason = "the stdlib is bytecode in a zip: os.path.exists of os.__file__ is false, so test_stdlib_dir expects None (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-missing-stdlib-info"
@@ -600,7 +600,7 @@ group = "cpython-b"
 outcome = "error"
 match = 'ctypes is unavailable'
 reason = "no ctypes calls: the stand-in raises OSError (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-test-modules"
@@ -624,7 +624,7 @@ group = "cpython-b"
 outcome = "failed"
 match = "Lists differ: \\[\\('te|Items in the first set but not the second"
 reason = "the stdlib is bytecode in a zip: tracebacks and inspect's CLI have no source for it (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "stdlib-zip-error"
@@ -632,7 +632,7 @@ group = "cpython-b"
 outcome = "error"
 match = 'could not get source code'
 reason = "the stdlib is bytecode in a zip: inspect.getsource has no source for it (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-ctypes"
@@ -664,7 +664,7 @@ group = "cpython-c"
 outcome = "failed"
 match = 'Failed example:|Pydoc: Error|^AssertionError: 1 != 0$'
 reason = "the stdlib is bytecode in a zip: pdb and pydoc have no source for it (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "stdlib-zip-error"
@@ -672,7 +672,7 @@ group = "cpython-c"
 outcome = "error"
 match = "NotADirectoryError: \\[Errno 54\\]|argument of type 'NoneType' is not a container"
 reason = "the stdlib is bytecode in a zip: pydoc's sourceless paths are not folders (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "stdlib-zip-error"
@@ -680,4 +680,4 @@ group = "cpython-release-a"
 outcome = "error"
 match = 'NotADirectoryError: \[Errno 54\]'
 reason = "the stdlib is bytecode in a zip: trace's coverage report opens a stdlib module's source by its path inside the zip (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"

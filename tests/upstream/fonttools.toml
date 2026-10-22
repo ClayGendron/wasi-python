@@ -86,7 +86,7 @@ measured = 32_736_123_101
 [[not_selected]]
 files = ["Tests/metaTools/check_table_coverage_test.py"]
 reason = "it runs MetaTools/check_table_coverage.py, which puts the source tree's Lib/ first on sys.path and checks the repository's own files: it would import a copy of fontTools, not the product's, and check the repository, not the product"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-processes"
@@ -94,7 +94,7 @@ group = "fonttools-r-ttlib"
 outcome = "failed"
 match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "counted-clock"
@@ -102,7 +102,7 @@ group = "fonttools-r-rest"
 outcome = "failed"
 match = "assert \\d\\.\\d+e-0\\d > \\d\\.\\d+e-0\\d|assert 3850070400 > 3850070400|Lists differ: \\[1, 2, 3\\] != \\[1, 2\\]|^assert 8\\.0 is None$"
 reason = "the guest's clock is the judge's counted clock (each read advances it one microsecond), so a test that times a sleep or a timeout, or expects two timestamps a second apart, sees other times than a wall clock gives (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "importlib-module-names"
@@ -110,7 +110,7 @@ group = "fonttools-r-rest"
 outcome = "failed"
 match = "'Tests\\.misc\\.l.*gTools_test\\.A' == 'loggingTools_test\\.A'|'tests\\.test_utils\\.X object' == 'test_utils\\.X object'|<FunctionWrapper at \\w+ for function at \\w+> is not None|No module named 'test_platypus_xref'"
 reason = "the driver imports test modules with pytest's importlib mode, so no test folder goes on sys.path and a test module is named by its package path; a test that checks its own module's name, or imports itself by that name, sees the longer one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-processes"
@@ -118,7 +118,7 @@ group = "fonttools-r-rest"
 outcome = "failed"
 match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "read-only-source"
@@ -126,7 +126,7 @@ group = "fonttools-r-rest"
 outcome = "failed"
 match = "PermissionError: \\[Errno \\d+\\] Operation not permitted: '/upstream-|Read-only file system|Operation not permitted: 'empty_with_no_properties-copy\\.xlsx'"
 reason = "the test writes beside its own files in the test source, a read-only grant (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "sdist-lacks-data"
@@ -134,7 +134,7 @@ group = "fonttools-r-rest"
 outcome = "failed"
 match = "No such file or directory: '/upstream-fonttools/tree/Tests/(cffLib|tfmLib|voltLib)/data"
 reason = "the fontTools sdist does not carry this test's data file (its MANIFEST.in leaves it out); only a git checkout has it (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "zip-no-source"
@@ -142,7 +142,7 @@ group = "fonttools-r-rest"
 outcome = "failed"
 match = "could not get source code|source code not available|could not find class definition"
 reason = "the product's modules are bytecode in a zip: inspect finds no source (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "doctest-output"
@@ -150,5 +150,5 @@ group = "fonttools-r-doc"
 outcome = "failed"
 match = "doctest failed"
 reason = "a docstring example whose printed output differs in the guest under the stdlib's doctest runner with upstream's flags (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

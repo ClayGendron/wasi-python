@@ -14,67 +14,67 @@
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-core-no-dup]"
 match = "8 finding(s), digest a66345b57917"
 reason = "no dup: tofile and fromfile on a real file need a duplicated descriptor, which WASI lacks (README: the platform's facts)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-core-no-dup-file-left-open]"
 match = "3 finding(s), digest 4a761c850989"
 reason = "no dup: the file a failed fromfile left open is reported when it is finalized, on whichever test runs then"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-core-no-processes]"
 match = "3 finding(s), digest 6879d1dd691a"
 reason = "no processes: subprocess is unavailable on WASI"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-core-no-ctypes]"
 match = "28 finding(s), digest f8e85109dc85"
 reason = "no ctypes calls: the stand-in raises OSError (test_object_casts_NULL_None_equivalence, which runs since spec 051)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-core-test-only-modules]"
 match = "1 finding(s), digest ce3e2cd03bf8"
 reason = "numpy's C test modules are not linked into the product (question 89)"
-closes_with = "context/questions-for-the-owner.md"
+closes_with = "context/roadmap.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-lib-no-mmap]"
 match = "5 finding(s), digest f954b0fbeaa7"
 reason = "no mmap on WASI"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-lib-no-dev-null]"
 match = "1 finding(s), digest bca1a7535ead"
 reason = "no /dev/null on WASI: os.devnull names a path that does not exist"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-others-no-conftest]"
 match = "1 finding(s), digest de31d83c1d93"
 reason = "the product's zip carries no tests and no conftest.py, so numpy.conftest, listed in numpy's module list, does not import (README; the build review's F5)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-others-test-only-modules]"
 match = "1 finding(s), digest 676791284b94"
 reason = "_multiarray_tests, a numpy C test module, is not in the product (question 89)"
-closes_with = "context/questions-for-the-owner.md"
+closes_with = "context/roadmap.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-io-parser-no-mmap]"
 match = "40 finding(s), digest bb867a100101"
 reason = "no mmap on WASI"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-tslibs-no-processes]"
 match = "1 finding(s), digest 9d47cafba98d"
 reason = "no processes: subprocess is unavailable on WASI"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 # CPython's own tests (spec 065): each class of known failures, listed by test id in
 # tests/upstream/expected/cpython-*/<class>.txt; each open trap entry (one constant finding on
@@ -84,13 +84,13 @@ closes_with = "README.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-fs-no-ctypes]"
 match = "14 finding(s), digest e5305896a0bd"
 reason = "no ctypes calls: the stand-in imports, so the tests run, and every call raises OSError (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-fs-no-mmap]"
 match = "31 finding(s), digest afbce22c68fd"
 reason = "no mmap: pandas imports mmap unconditionally, so the stand-in imports, and every map raises OSError (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-fs-mmap-stand-in-surface]"
@@ -102,25 +102,25 @@ closes_with = "context/research/2026-10-18-cpythons-own-tests-under-the-runtime.
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-fs-sqlite-lock]"
 match = "7 finding(s), digest 74d4534c4da7"
 reason = "SQLite's lock directory gives a second connection 'database is locked' (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-fs-no-file-modes]"
 match = "1 finding(s), digest 01e36a39fff2"
 reason = "WASI has no permission bits: os.chmod succeeds and changes nothing (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-fs-stdlib-zip]"
 match = "4 finding(s), digest 37525fa585e5"
 reason = "the stdlib is bytecode in a zip: linecache has no source for it (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-fs-stdlib-zip-error]"
 match = "2 finding(s), digest 0ffb2138513d"
 reason = "the stdlib is bytecode in a zip: importlib.resources' compiled-package test finds no source package (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-fs-stepped-clock]"
@@ -144,13 +144,13 @@ closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-stdlib-zip]"
 match = "4 finding(s), digest 2cce9388750f"
 reason = "the stdlib is bytecode in a zip: tracebacks into it have no source lines (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-stdlib-zip-error]"
 match = "1 finding(s), digest 4e1870ead74a"
 reason = "the stdlib is bytecode in a zip: os.path.exists of os.__file__ is false, so test_stdlib_dir expects None (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-no-executable-file]"
@@ -162,7 +162,7 @@ closes_with = "context/research/2026-10-18-cpythons-own-tests-under-the-runtime.
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-b-no-ctypes]"
 match = "1 finding(s), digest a8c8a399a33c"
 reason = "no ctypes calls: the stand-in raises OSError (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-b-no-test-modules]"
@@ -180,13 +180,13 @@ closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-b-stdlib-zip]"
 match = "4 finding(s), digest 16571b632b27"
 reason = "the stdlib is bytecode in a zip: tracebacks and inspect's CLI have no source for it (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-b-stdlib-zip-error]"
 match = "2 finding(s), digest 064d87490e5a"
 reason = "the stdlib is bytecode in a zip: inspect.getsource has no source for it (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-c-ctypes-stand-in-surface]"
@@ -204,13 +204,13 @@ closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-c-stdlib-zip]"
 match = "5 finding(s), digest da46aa233df7"
 reason = "the stdlib is bytecode in a zip: pdb and pydoc have no source for it (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-c-stdlib-zip-error]"
 match = "3 finding(s), digest 0978e2289c82"
 reason = "the stdlib is bytecode in a zip: pydoc's sourceless paths are not folders (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_deselected[cpython-b-capi-event-generation]"
@@ -246,151 +246,151 @@ closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-archives-unpack-archive-zip-badpaths]"
 match = "1 finding(s), digest 7ae15a1f7741"
 reason = "a name with a colon (E:abspath) cannot be made on a Windows host (the branch dry run 39194284100)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-copy-copyfile-copy-dir]"
 match = "1 finding(s), digest 2d010d1302e2"
 reason = "opening a folder for reading gives EINVAL on a Windows host, IsADirectoryError elsewhere (the branch dry run 39194284100)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-bound-methods]"
 match = "1 finding(s), digest 8a3df4ad74be"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/oue5b76l')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-context-manager-after-rollover]"
 match = "1 finding(s), digest fc2789f8a4d4"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmpgmr7pzr4')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-context-manager-during-rollover]"
 match = "1 finding(s), digest 066eb4b99968"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp6bf4_6fg')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-del-on-close]"
 match = "1 finding(s), digest 0dcee3587495"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: OSError: [Errno 55] Directory not empty: '/tmp/tmp7l8om7v_')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-del-rolled-file]"
 match = "1 finding(s), digest 0e299c286852"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/lh637mqu')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-fileno]"
 match = "1 finding(s), digest a73e0bbf6ad3"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/g6vd57m0')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-multiple-close-after-rollover]"
 match = "1 finding(s), digest 25537bd1e950"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp7u1c7f72')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-properties]"
 match = "1 finding(s), digest c90dd44362be"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp39yiz35h')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-sparse]"
 match = "1 finding(s), digest 24a5d3226175"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/6ueog67p')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-text-mode]"
 match = "1 finding(s), digest 5702cc318358"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp_aa0h8p_')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-text-newline-and-encoding]"
 match = "1 finding(s), digest bbd0172af835"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp8qrds_7u')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-truncate-with-size-parameter]"
 match = "1 finding(s), digest 0908b84e0ebc"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp__aiv4j_')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-write-sequential]"
 match = "1 finding(s), digest 4d9d2aeda8bf"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/inwat6g_')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-writelines-fast-path]"
 match = "1 finding(s), digest 7dcccde87eb2"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/235dm5z6')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-writelines-rollover]"
 match = "1 finding(s), digest 1ea89b6df0e4"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/kac503sg')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-writelines-sequential]"
 match = "1 finding(s), digest ff9579648bb2"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/va_2yxov')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-temporarydirectory-del-on-collection-ignore-errors]"
 match = "1 finding(s), digest acc541c92f2d"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: AssertionError: 1 != 0 : Unexpected number of files in TemporaryDirectory /tmp/tmpbnr_pimg)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-temporarydirectory-explicit-cleanup-ignore-errors]"
 match = "1 finding(s), digest 925b22b776dd"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: AssertionError: 1 != 0 : Unexpected number of files in TemporaryDirectory /tmp/tmpg5frae1o)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-temporaryfile-bad-encoding]"
 match = "1 finding(s), digest e91a87d40541"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmps02v_l5g/tmpjt13i26r')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-temporaryfile-basic]"
 match = "1 finding(s), digest b55d98a05cfa"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmpmrbb3nbh')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-temporaryfile-has-no-name]"
 match = "1 finding(s), digest c02cbedc5078"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp08rtbuwh/tmp4ld_6k_r')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-temporaryfile-mode-and-encoding]"
 match = "1 finding(s), digest 30a93b9813fc"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmpexgygbqq')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-temporaryfile-multiple-close]"
 match = "1 finding(s), digest d884ec604262"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp30k2i62_')"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 # Spec 066: the compiled packages' own tests, one gap per class with members.
 
@@ -398,13 +398,13 @@ closes_with = "README.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-mathtext-no-processes]"
 match = "2 finding(s), digest d47b2d12794f"
 reason = "no processes: subprocess is unavailable on WASI"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-render-2a-no-threads]"
 match = "2 finding(s), digest 209674db2cbe"
 reason = "no threads: starting one raises RuntimeError (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-render-2b-pillow-zlib-only]"
@@ -422,13 +422,13 @@ closes_with = "context/specifications/023-matplotlib-first-milestone.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-rest-a-no-processes]"
 match = "2 finding(s), digest f61cc4b5052a"
 reason = "no processes: subprocess is unavailable on WASI; test_movie_writer_registry needs an executable on PATH"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-rest-a-wasi-errno-values]"
 match = "1 finding(s), digest 7929d44d7a3d"
 reason = "a WASI errno is WASI's number: a missing path is [Errno 44], where test_movie_writer_invalid_path expects Linux's [Errno 2] off emscripten"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-rest-a-stage-layout]"
@@ -440,13 +440,13 @@ closes_with = "context/roadmap.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-rest-b1-no-processes]"
 match = "12 finding(s), digest f80d3722a2b8"
 reason = "no processes: subprocess is unavailable on WASI"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-rest-b2-no-processes]"
 match = "1 finding(s), digest 4b96703f619d"
 reason = "no processes: subprocess is unavailable on WASI"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-pillow-zlib-only]"
@@ -458,37 +458,37 @@ closes_with = "context/specifications/023-matplotlib-first-milestone.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-no-mmap]"
 match = "17 finding(s), digest c44f18415018"
 reason = "no mmap: the stand-in raises OSError (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-no-mmap-silent]"
 match = "5 finding(s), digest 6f800b80fead"
 reason = "Pillow falls back from mmap silently, so a test that checks for a mapped buffer or readonly == 1 fails on the fallback (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-builtin-no-file]"
 match = "2 finding(s), digest adc98700065d"
 reason = "PIL._imaging is a builtin module, without __file__ (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-wasm32-memory]"
 match = "2 finding(s), digest b54b35d63994"
 reason = "python.wasm declares no maximum memory, so wasm32's 4 GiB bounds it; these decompression samples ask for more (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-open-empty-path]"
 match = "1 finding(s), digest eab8b2f6adb5"
 reason = "in the guest open('') answers IsADirectoryError (EISDIR), where the test expects FileNotFoundError (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[lxml-include-dir-in-zip]"
 match = "1 finding(s), digest a036d83a51b5"
 reason = "lxml.get_include() names folders inside the zip, which are not folders (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[lxml-isoschematron-stand-in]"
@@ -500,7 +500,7 @@ closes_with = "context/specifications/046-lxml.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-no-resource-module]"
 match = "2 finding(s), digest 7a1015f9b72e"
 reason = "WASI has no resource module (getrusage), which checks/check_imaging_leaks.py measures memory with (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-not-pillows-wheel]"
@@ -524,19 +524,19 @@ closes_with = "context/upstream/33-contourpy-text-baselines-freetype/notes.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[contourpy-rest-no-processes]"
 match = "2 finding(s), digest 376c9949dc25"
 reason = "no processes: test_cppcheck and test_mypy run their tools through subprocess, which WASI lacks (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-no-threads]"
 match = "6 finding(s), digest 010a91a8c398"
 reason = "no threads"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-release-a-stdlib-zip-error]"
 match = "1 finding(s), digest 9f28f1a1fbc4"
 reason = "the stdlib is bytecode in a zip"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 # scipy's, scikit-learn's and statsmodels' own tests: each class of known failures
 # with members, by group (each listed in tests/upstream/expected/<group>/<class>.txt).
@@ -545,79 +545,79 @@ closes_with = "README.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-integrate-1-no-processes]"
 match = "5 finding(s), digest 68b7323537df"
 reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-interpolate-1-no-native-id-test-names]"
 match = "1 finding(s), digest 0f6357cfbd66"
 reason = "the runtime's threading names no native thread id on WASI, and these tests make their temporary file names from it (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-interpolate-1-no-threads]"
 match = "8 finding(s), digest 0eb0a81ed1e3"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-interpolate-2-no-threads]"
 match = "2 finding(s), digest 821a9b378f02"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-interpolate-fitpack2-1-no-threads]"
 match = "1 finding(s), digest 1bca3f3e764c"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-io-harwell_boeing-to-io-enotsup-io]"
 match = "21 finding(s), digest a54935c31550"
 reason = "numpy's fromfile and tofile duplicate the file's descriptor, which WASI preview1 refuses, so scipy.io's FortranFile and wavfile fail (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-io-harwell_boeing-to-io-enotsup-io-file-left-open-at-setup]"
 match = "1 finding(s), digest bb4024a918ec"
 reason = "a file that a failed FortranFile read left open (numpy's fromfile cannot duplicate its descriptor on WASI) is reported when it is finalized, during whichever test runs then, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-io-harwell_boeing-to-io-enotsup-io-no-warning]"
 match = "1 finding(s), digest aed77624c467"
 reason = "wavfile's read fails with ENOTSUP inside the test's warning block (numpy's fromfile cannot duplicate the descriptor on WASI), so the warning the test expects never comes (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-io-harwell_boeing-to-io-no-mmap]"
 match = "16 finding(s), digest 5d427f52caf2"
 reason = "no mmap: the stand-in raises OSError (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-io-harwell_boeing-to-io-no-native-id-test-names]"
 match = "140 finding(s), digest db59f865e916"
 reason = "the runtime's threading names no native thread id on WASI, and these tests make their temporary file names from it (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-io-harwell_boeing-to-io-wasm32-memory]"
 match = "1 finding(s), digest 4b29b7c9465b"
 reason = "wasm32's 4 GiB address space bounds the guest; these tests ask for more (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-lib-to-fft-no-native-id-uarray]"
 match = "46 finding(s), digest d0fe71233641"
 reason = "uarray's set_backend and skip_backend read threading.get_native_id(), which the runtime's threading lacks on WASI, so switching scipy.fft's backend fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-lib-to-fft-no-processes]"
 match = "5 finding(s), digest b9573ac01566"
 reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-lib-to-fft-odr-stand-in-visible]"
@@ -635,415 +635,415 @@ closes_with = "context/roadmap.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-ndimage-to-optimize-trustregion_constr-no-threads]"
 match = "5 finding(s), digest 8bd70d4941aa"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-optimize-1-1-no-processes]"
 match = "4 finding(s), digest 7f396512b148"
 reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-optimize-1-2-no-processes]"
 match = "5 finding(s), digest 8dc3fd9487ad"
 reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-optimize-2-no-fp-exceptions]"
 match = "1 finding(s), digest 5de6d7a931ca"
 reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-optimize-3-no-processes]"
 match = "15 finding(s), digest 5881655688e0"
 reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-optimize-3-no-threads]"
 match = "1 finding(s), digest 29551e41d605"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-signal-float32-rounding]"
 match = "1 finding(s), digest b5286818005a"
 reason = "two of 483 float32 values miss the test's 1e-5 absolute tolerance by about one float32 step (1.19e-5): wasm's float rounding differs from native's (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-signal-signaltools-no-threads]"
 match = "3 finding(s), digest 27cd4eff19ff"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-smoke-a-no-threads]"
 match = "1 finding(s), digest b181d049ba48"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-smoke-b-no-fp-exceptions]"
 match = "1 finding(s), digest 6e5fd51e2d0b"
 reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-smoke-b-no-native-id-test-names]"
 match = "2 finding(s), digest aa0bb6934c0a"
 reason = "the runtime's threading names no native thread id on WASI, and these tests make their temporary file names from it (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-smoke-b-no-native-id-test-names-at-setup]"
 match = "146 finding(s), digest ac9e37650b72"
 reason = "the runtime's threading names no native thread id on WASI, and these tests make their temporary file names from it, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-smoke-b-no-processes]"
 match = "12 finding(s), digest d49f93887a75"
 reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-smoke-b-no-threads]"
 match = "10 finding(s), digest d725edd30410"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-smoke-b-no-threads-results]"
 match = "3 finding(s), digest 99fc6864ff72"
 reason = "a check of work that would run on threads: Matrix Market's parallelism stays 1 (the carried patch reads and writes serially) and qmc's C++ workers cannot start, so their result is unset (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-smoke-b-no-threads-unraisable-at-setup]"
 match = "1 finding(s), digest e846caf9221c"
 reason = "no threads: qmc's C++ workers fail to start and the exception they leave is reported when pytest collects it, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-smoke-slow-9-no-threads]"
 match = "1 finding(s), digest 7483f895fbee"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-smoke-slow-9-wasm32-memory]"
 match = "1 finding(s), digest 07e5648d6200"
 reason = "wasm32's 4 GiB address space bounds the guest; these tests ask for more (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-sparse-1-no-fp-exceptions]"
 match = "7 finding(s), digest e7acef64e95a"
 reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-sparse-csgraph-to-sparse-linalg-eigen-no-threads]"
 match = "1 finding(s), digest e9403fdae9c8"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-spatial-no-threads]"
 match = "7 finding(s), digest 398b19f5fde8"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-special-2-no-fp-exceptions]"
 match = "1 finding(s), digest e1c6e1ec8c59"
 reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-special-mpmath-10-mpmath-tolerance]"
 match = "1 finding(s), digest 6da96cddb1ab"
 reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-special-mpmath-2-mpmath-tolerance]"
 match = "2 finding(s), digest 615c91f531d6"
 reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-special-mpmath-37-mpmath-tolerance]"
 match = "1 finding(s), digest 25b47ea6ea43"
 reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-special-mpmath-6-mpmath-tolerance]"
 match = "1 finding(s), digest 7404f2875bfd"
 reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-stats-1-mgc-3-no-processes]"
 match = "1 finding(s), digest 89a81f77a03c"
 reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-stats-1-stats-5-no-fp-exceptions]"
 match = "4 finding(s), digest f937173791ce"
 reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-stats-fit-1-fit-flat-likelihood]"
 match = "1 finding(s), digest 005143832911"
 reason = "fitting the f distribution to interval-censored data, the first shape parameter barely moves the likelihood: the guest's optimizer stops at 341.2 where native's stops at 290.5 (the other three within 3%), since wasm rounds differently (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-stats-fit-2-no-fp-exceptions]"
 match = "1 finding(s), digest 1822c188dcda"
 reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-datasets-pillow-zlib-only-at-setup]"
 match = "4 finding(s), digest 982e18ee86a1"
 reason = "Pillow is built with zlib only, so the faces dataset's JPEG fixtures cannot be written, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-decomposition-1-no-mmap]"
 match = "2 finding(s), digest 17ff6e6a8b6c"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-linear_model-1-no-mmap]"
 match = "3 finding(s), digest 3d67211f0962"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-linear_model-3-no-dev-null]"
 match = "1 finding(s), digest 81184fa3f9a2"
 reason = "WASI has no /dev/null, so a test that sends verbose output there fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-linear_model-3-no-mmap]"
 match = "2 finding(s), digest c78eaafd33a5"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-loss-to-cross_decomposition-no-mmap]"
 match = "643 finding(s), digest 0e946b6ef954"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-metrics-no-mmap-at-setup]"
 match = "58 finding(s), digest 09f35a944026"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-model_selection-3-no-mmap]"
 match = "1 finding(s), digest 8af468f8a4a5"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-neighbors-to-neural_network-no-mmap]"
 match = "4 finding(s), digest 0a8eaa14dfbc"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-preprocessing-to-semi_supervised-wasm32-int128]"
 match = "1 finding(s), digest a163d143fe0b"
 reason = "wasm32's compiler has a 128-bit integer, which upstream's test expects only on 64-bit platforms and on emscripten's wasm32; the guest's platform is wasi (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-smoke-no-dup]"
 match = "1 finding(s), digest 55b6e74186ec"
 reason = "a verbose fit redirects the process's standard output with a duplicated descriptor, which WASI preview1 refuses (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-smoke-no-mmap]"
 match = "9 finding(s), digest 9a71890abb3c"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tests-1-1-no-openmp]"
 match = "1 finding(s), digest f4be1a0e120d"
 reason = "there is no OpenMP in the build (wasi-sdk has no runtime, and the guest no threads), so _openmp_parallelism_enabled() is False (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tests-1-1-package-in-zip]"
 match = "1 finding(s), digest 3880f74c556f"
 reason = "the package's files are in the stdlib zip, not in folders, so a test that lists the package's folder fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tests-common-1-no-mmap]"
 match = "244 finding(s), digest 54e1d23e3163"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tests-common-2-no-mmap]"
 match = "211 finding(s), digest 11c60f1c3624"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tests-common-3-no-mmap]"
 match = "270 finding(s), digest 5846d5da9154"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tests-common-4-no-mmap]"
 match = "38 finding(s), digest 9fae7a59d096"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tree-no-mmap]"
 match = "41 finding(s), digest 2d6cc4727a45"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-utils-no-mmap]"
 match = "10 finding(s), digest 841856988a41"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-utils-no-mmap-estimator-checks]"
 match = "2 finding(s), digest 216572cfe08c"
 reason = "check_estimator finds four more failing checks for NuSVC than upstream expects: the checks that copy the data into memory maps fail without mmap (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-base-to-datasets-left-out-datasets]"
 match = "13 finding(s), digest 14e9ca610be8"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-base-to-datasets-wasm-is-not-emscripten]"
 match = "3 finding(s), digest 15a4f8369ef1"
 reason = "upstream special-cases wasm by sys.platform 'emscripten' (Pyodide); the guest is wasm on WASI, so the case does not apply and the warning upstream expects of wasm (no floating-point exception flags) differs (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-discrete-discrete-1-left-out-datasets]"
 match = "1 finding(s), digest b3861d584f97"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-discrete-discrete-1-left-out-datasets-at-setup]"
 match = "421 finding(s), digest a6321aaf4697"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-discrete-discrete-2-left-out-datasets]"
 match = "3 finding(s), digest dfbe231d4a26"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-emplike-left-out-datasets]"
 match = "7 finding(s), digest 43b91c7c9a7a"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-emplike-left-out-datasets-at-setup]"
 match = "31 finding(s), digest b424cd65a11b"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-genmod-left-out-datasets]"
 match = "4 finding(s), digest 14aebce04e8b"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-genmod-left-out-datasets-at-setup]"
 match = "304 finding(s), digest 9c8fc98638d4"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-graphics-to-multivariate-factor_rotation-left-out-datasets]"
 match = "1 finding(s), digest 2acf643c9879"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-graphics-to-multivariate-factor_rotation-no-processes]"
 match = "1 finding(s), digest 219979b91488"
 reason = "no processes: os has no pipe on WASI, so a multiprocessing pool fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-smoke-left-out-datasets]"
 match = "4 finding(s), digest 501e6e93a06e"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-smoke-left-out-datasets-at-setup]"
 match = "40 finding(s), digest b25468339767"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-stats-4-upstream-xfail-platform]"
 match = "1 finding(s), digest 8bc2f1cbe7ef"
 reason = "upstream xfails this alpha solve on Windows and macOS with recent scipy; the guest is neither, so it fails here as it does there unmarked"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-tests-to-treatment-left-out-datasets-at-setup]"
 match = "2 finding(s), digest 6834ec768dc0"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[scipy-hypothesis-hyp1f1]"
 match = "1 finding(s), digest ce82f31378f5"
 reason = "the hypothesis case for hyp1f1 does not finish in the guest: a derandomized example draws intp (32-bit on wasm32) values near plus or minus 2**31 as the function's integer parameters, and the call runs past the trap's 50 G cap; no example fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[scipy-hypothesis-lpmv]"
 match = "1 finding(s), digest fbbad3e9fbdf"
 reason = "the hypothesis case for lpmv does not finish in the guest: in its group it ran to the group's 2 T cap, and alone it runs out of the trap's 50 G; it was not probed further, and yn's and hyp1f1's cases end this way on intp parameters near plus or minus 2**31 (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[scipy-hypothesis-yn]"
 match = "1 finding(s), digest 4061fc84c61b"
 reason = "the hypothesis case for yn does not finish in the guest: a derandomized example draws intp (32-bit on wasm32) values near plus or minus 2**31 as the function's integer parameters, and the call runs past the trap's 50 G cap; no example fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 # The pure-Python packages' own tests: each class of known failures, by test id. (begin)
 
@@ -1051,283 +1051,283 @@ closes_with = "README.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[charset-normalizer-r-cli-writes-beside-input]"
 match = "3 finding(s), digest 3d5958e348e3"
 reason = "charset-normalizer's CLI writes the normalized file beside its input, in the read-only test source (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[charset-normalizer-r-no-threads]"
 match = "2 finding(s), digest 5dbd55b10f56"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cloudpickle-r-captured-stdout]"
 match = "2 finding(s), digest 3662792b9e47"
 reason = "the driver captures sys.stdout for its stream (cloudpickle's own configuration runs pytest -s), and these tests pickle sys.stdout (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cloudpickle-r-no-processes]"
 match = "64 finding(s), digest b068ca1fe75d"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cloudpickle-smoke-captured-stdout]"
 match = "1 finding(s), digest cba93369c07d"
 reason = "the driver captures sys.stdout for its stream (cloudpickle's own configuration runs pytest -s), and these tests pickle sys.stdout (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[defusedxml-smoke-warning-filter-reset]"
 match = "2 finding(s), digest 040dcaa1ea5a"
 reason = "tests.py makes defusedxml's DeprecationWarnings errors at import; pytest's per-test warning capture undoes that filter, which its own runner keeps (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[et-xmlfile-smoke-python-3-15]"
 match = "3 finding(s), digest 17f4e06ad9bf"
 reason = "the test expects an older CPython's behaviour or message (typing, ElementTree, unittest), and the product is CPython 3.15 (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-doc-doctest-output]"
 match = "1 finding(s), digest bd023b7e26e2"
 reason = "a docstring example whose printed output differs in the guest under the stdlib's doctest runner with upstream's flags (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-rest-counted-clock]"
 match = "3 finding(s), digest 5f05fa61a255"
 reason = "the guest's clock is the judge's counted clock (each read advances it one microsecond), so a test that times a sleep or a timeout, or expects two timestamps a second apart, sees other times than a wall clock gives (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-rest-importlib-module-names]"
 match = "1 finding(s), digest 0f415f31ac68"
 reason = "the driver imports test modules with pytest's importlib mode, so no test folder goes on sys.path and a test module is named by its package path; a test that checks its own module's name, or imports itself by that name, sees the longer one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-rest-no-processes]"
 match = "3 finding(s), digest e84c235cd063"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-rest-read-only-source]"
 match = "6 finding(s), digest 9d586578eb2b"
 reason = "the test writes beside its own files in the test source, a read-only grant (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-rest-sdist-lacks-data]"
 match = "7 finding(s), digest 9dd17bf1fd77"
 reason = "the fontTools sdist does not carry this test's data file (its MANIFEST.in leaves it out); only a git checkout has it (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-rest-zip-no-source]"
 match = "1 finding(s), digest 2df1d197b15a"
 reason = "the product's modules are bytecode in a zip: inspect finds no source (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-ttlib-no-processes]"
 match = "1 finding(s), digest 41f5c64af511"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-importlib-module-names]"
 match = "1 finding(s), digest 0a04637988e6"
 reason = "the driver imports test modules with pytest's importlib mode, so no test folder goes on sys.path and a test module is named by its package path; a test that checks its own module's name, or imports itself by that name, sees the longer one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop-error]"
 match = "13 finding(s), digest ba56b641f579"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop]"
 match = "104 finding(s), digest 959d6ba605ec"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-read-only-source]"
 match = "1 finding(s), digest 915a8b8cfccd"
 reason = "the test writes beside its own files in the test source, a read-only grant (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-zip-package-loader]"
 match = "1 finding(s), digest f754971f919e"
 reason = "jinja2's PackageLoader finds the product's package in the zip, where the test expects a package with no folder to be refused (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-smoke-shallow-recursion]"
 match = "1 finding(s), digest c4cf008e28e7"
 reason = "recursion through Python stops at 40 to 250 levels in the guest (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[joblib-r-doc-doctest-output]"
 match = "3 finding(s), digest 9bc9ad5bbd17"
 reason = "a docstring example whose printed output differs in the guest under the stdlib's doctest runner with upstream's flags (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[joblib-r-joblib-cache-clock]"
 match = "3 finding(s), digest f20e655a3cea"
 reason = "joblib's cache and hashing tests compare ages and times; under the judge's counted clock (a microsecond a read) they are not the wall clock's (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[joblib-r-no-asyncio-loop-error]"
 match = "5 finding(s), digest 425e395fa9b9"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[joblib-r-no-asyncio-loop]"
 match = "1 finding(s), digest f8078ac9509b"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[joblib-r-no-mmap]"
 match = "14 finding(s), digest c86ab2e9c452"
 reason = "no mmap: the stand-in raises OSError (README); xlrd opens a workbook with mmap, so a test that checks the error a bad workbook raises sees mmap's"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[joblib-r-no-processes]"
 match = "6 finding(s), digest 456fae5bc8e1"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[joblib-smoke-disk-usage-zero]"
 match = "1 finding(s), digest 1da567d7593c"
 reason = "WASI's stat reports no allocated blocks, so joblib's disk_used sums to 0 (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[joblib-smoke-joblib-cache-clock]"
 match = "1 finding(s), digest ccbc069569a6"
 reason = "joblib's cache and hashing tests compare ages and times; under the judge's counted clock (a microsecond a read) they are not the wall clock's (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[joblib-smoke-no-mmap]"
 match = "2 finding(s), digest 1c463f098552"
 reason = "no mmap: the stand-in raises OSError (README); xlrd opens a workbook with mmap, so a test that checks the error a bad workbook raises sees mmap's"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[joblib-smoke-no-processes]"
 match = "1 finding(s), digest 82643e6ec973"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[joblib-smoke-wasi-mkdir]"
 match = "1 finding(s), digest 908c0c2611a5"
 reason = "joblib's mkdirp test expects OSError where WASI's file system answers otherwise (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[more-itertools-r-counted-clock]"
 match = "1 finding(s), digest be88e5ff3a58"
 reason = "the guest's clock is the judge's counted clock (each read advances it one microsecond), so a test that times a sleep or a timeout, or expects two timestamps a second apart, sees other times than a wall clock gives (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[more-itertools-r-doc-doctest-output]"
 match = "2 finding(s), digest f47922abed48"
 reason = "a docstring example whose printed output differs in the guest under the stdlib's doctest runner with upstream's flags (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[more-itertools-r-no-threads]"
 match = "9 finding(s), digest 1e878bbd90e3"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[mpmath-r-doc-functions-2-doctest-output]"
 match = "1 finding(s), digest acb20a1118d3"
 reason = "a docstring example whose printed output differs in the guest under the stdlib's doctest runner with upstream's flags (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[mpmath-r-doc-libmp-doctest-output]"
 match = "2 finding(s), digest 94e00b84641f"
 reason = "a docstring example whose printed output differs in the guest under the stdlib's doctest runner with upstream's flags (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[mpmath-r-doc-matrices-doctest-output]"
 match = "1 finding(s), digest 3cead9403be1"
 reason = "a docstring example whose printed output differs in the guest under the stdlib's doctest runner with upstream's flags (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[mpmath-smoke-numpy-2-promotion]"
 match = "1 finding(s), digest cb6189f005fe"
 reason = "mpmath 1.3.0's test predates numpy 2's promotion rules (NEP 50): the Python float bound is cast to float16 and underflows to 0 (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[narwhals-r-no-ctypes]"
 match = "1 finding(s), digest 04baa62a20d6"
 reason = "the ctypes stand-in loads no library (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[narwhals-r-no-mmap]"
 match = "1 finding(s), digest cf870057d4ba"
 reason = "no mmap: the stand-in raises OSError (README); xlrd opens a workbook with mmap, so a test that checks the error a bad workbook raises sees mmap's"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[narwhals-r-no-terminal-size]"
 match = "4 finding(s), digest 380d8e1d037b"
 reason = "WASI has no os.get_terminal_size (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[narwhals-r-wasm32-int32]"
 match = "8 finding(s), digest ef48ae9c7b8c"
 reason = "numpy's default integer is 32 bits on wasm32, so a cumulative sum narwhals expects in 64 bits wraps (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[networkx-r-doc-doctest-output]"
 match = "8 finding(s), digest ae65b4d62c17"
 reason = "a docstring example whose printed output differs in the guest under the stdlib's doctest runner with upstream's flags (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[networkx-r-other-no-threads]"
 match = "1 finding(s), digest 240e11008d98"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[networkx-r-root-1-counted-clock]"
 match = "1 finding(s), digest 7ae5cfc3bc46"
 reason = "the guest's clock is the judge's counted clock (each read advances it one microsecond), so a test that times a sleep or a timeout, or expects two timestamps a second apart, sees other times than a wall clock gives (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[openpyxl-r-openpyxl-lxml-only]"
 match = "4 finding(s), digest c0d46306ed0f"
 reason = "the test is marked lxml_required and the product has no lxml; openpyxl's conftest does not skip it, and the stdlib's fromstring refuses a BytesIO (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[openpyxl-r-pillow-zlib-only]"
@@ -1339,25 +1339,25 @@ closes_with = "context/specifications/023-matplotlib-first-milestone.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[openpyxl-r-read-only-source]"
 match = "1 finding(s), digest 5fc54815e190"
 reason = "the test writes beside its own files in the test source, a read-only grant (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pyparsing-r-pyparsing-no-railroad]"
 match = "1 finding(s), digest aea95c87c535"
 reason = "the example draws a railroad diagram, and railroad is not in the product (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pyparsing-r-unit-6-no-processes]"
 match = "1 finding(s), digest 236d0919a5b2"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pypdf-r-no-processes]"
 match = "4 finding(s), digest df03f627173f"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pypdf-r-pillow-zlib-only]"
@@ -1369,31 +1369,31 @@ closes_with = "context/specifications/023-matplotlib-first-milestone.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-dateutil-r-no-tzset]"
 match = "51 finding(s), digest 74ace6e03be5"
 reason = "WASI has no time.tzset, and the guest no host zoneinfo; zones come from tzdata in the zip (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-dateutil-r-tz-cache]"
 match = "5 finding(s), digest 7c5e57bbd929"
 reason = "dateutil's gettz cache tests expect a zone rebuilt, or collected, once its cache is cleared or its last reference dropped; in the guest the same object comes back (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[reportlab-r-importlib-module-names]"
 match = "1 finding(s), digest 2ab2f9a88cce"
 reason = "the driver imports test modules with pytest's importlib mode, so no test folder goes on sys.path and a test module is named by its package path; a test that checks its own module's name, or imports itself by that name, sees the longer one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[reportlab-r-pytest-collects-helper-error]"
 match = "1 finding(s), digest 56f156aef77a"
 reason = "pytest collects testStdEnc, a helper reportlab's runAll.py never runs as a test: it takes arguments no fixture supplies (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[reportlab-r-reportlab-data-folder]"
 match = "20 finding(s), digest 9a71aac57598"
 reason = "reportlab's tests find their data folder beside the installed package (testutils sets testsFolder from reportlab.__path__); the product's reportlab is in the zip, so it is None, and a test that walks reportlab's own folder finds a zip (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[reportlab-r-reportlab-fonts-not-shipped-error]"
@@ -1411,211 +1411,211 @@ closes_with = "context/specifications/042-seaborn-and-reportlab.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[reportlab-r-reportlab-no-accel]"
 match = "7 finding(s), digest 75862fa3fd17"
 reason = "reportlab's C accelerators (_rl_accel) are not in the product; the test compares them with the Python versions (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[reportlab-r-reportlab-reference-attributes]"
 match = "5 finding(s), digest 0b59fec5ad33"
 reason = "reportlab's chart tests compare a drawing's attributes with a reference that lacks strokeOverprint (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[reportlab-r-reportlab-tools-not-shipped]"
 match = "1 finding(s), digest a245e34e2677"
 reason = "the test imports reportlab's tools folder (pythonpoint), which neither the wheel nor the product carries (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[reportlab-smoke-reportlab-data-folder]"
 match = "5 finding(s), digest a99b3c467dda"
 reason = "reportlab's tests find their data folder beside the installed package (testutils sets testsFolder from reportlab.__path__); the product's reportlab is in the zip, so it is None, and a test that walks reportlab's own folder finds a zip (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[seaborn-r-1-newer-dependencies]"
 match = "3 finding(s), digest 47132d89d45b"
 reason = "seaborn 0.13.2's tests predate the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships: an API they call is gone, or a value they compare changed (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[seaborn-r-1-no-pyarrow-interchange]"
 match = "1 finding(s), digest f7cbb03d5f49"
 reason = "the dataframe interchange protocol's conversion to pandas needs pyarrow, which the product does not carry (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[seaborn-r-3-no-pyarrow-interchange]"
 match = "2 finding(s), digest d58415ae78a5"
 reason = "the dataframe interchange protocol's conversion to pandas needs pyarrow, which the product does not carry (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[seaborn-r-5-newer-dependencies]"
 match = "2 finding(s), digest 696a4e4789d2"
 reason = "seaborn 0.13.2's tests predate the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships: an API they call is gone, or a value they compare changed (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[seaborn-r-5c-newer-dependencies]"
 match = "12 finding(s), digest 8066989d81fa"
 reason = "seaborn 0.13.2's tests predate the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships: an API they call is gone, or a value they compare changed (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[seaborn-r-6-newer-dependencies]"
 match = "2 finding(s), digest a0b3a687a5a2"
 reason = "seaborn 0.13.2's tests predate the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships: an API they call is gone, or a value they compare changed (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[seaborn-r-8-newer-dependencies]"
 match = "1 finding(s), digest 24ee11f4fd74"
 reason = "seaborn 0.13.2's tests predate the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships: an API they call is gone, or a value they compare changed (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[seaborn-smoke-newer-dependencies]"
 match = "1 finding(s), digest 6e849b670125"
 reason = "seaborn 0.13.2's tests predate the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships: an API they call is gone, or a value they compare changed (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[seaborn-smoke-no-pyarrow-interchange]"
 match = "1 finding(s), digest 86bd81526c62"
 reason = "the dataframe interchange protocol's conversion to pandas needs pyarrow, which the product does not carry (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[six-smoke-no-network]"
 match = "1 finding(s), digest acdfe6802acd"
 reason = "no network and no ssl in the guest (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[six-smoke-no-processes]"
 match = "1 finding(s), digest 33db05454d70"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[soupsieve-r-no-alarm]"
 match = "1 finding(s), digest a9a479a820a2"
 reason = "WASI has no signal.alarm (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-1-sympy-doctest]"
 match = "1 finding(s), digest 07d0c4175c27"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-10-sympy-doctest]"
 match = "13 finding(s), digest 1d06ee062d8f"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-11-sympy-doctest]"
 match = "3 finding(s), digest d53a2ad75c47"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-15-sympy-doctest]"
 match = "2 finding(s), digest 3fab517716a3"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-2-sympy-doctest]"
 match = "13 finding(s), digest d7d033a8a89d"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-3-sympy-doctest]"
 match = "1 finding(s), digest c1a083e0cf1f"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-6-sympy-doctest]"
 match = "174 finding(s), digest 8df9e90cfe15"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-7-sympy-doctest]"
 match = "1 finding(s), digest 32e9418c2852"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-8-sympy-doctest]"
 match = "22 finding(s), digest c9c164bf590f"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-1-sympy-doctest]"
 match = "2 finding(s), digest da36d70de720"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-2-sympy-doctest]"
 match = "4 finding(s), digest c839c72bcb71"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-3-sympy-doctest]"
 match = "7 finding(s), digest 18145dd319c9"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-4-sympy-doctest]"
 match = "5 finding(s), digest db33b3bb753e"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-5-sympy-doctest]"
 match = "5 finding(s), digest 116df0daf216"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-6-sympy-doctest]"
 match = "6 finding(s), digest c94c4554d348"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-7-sympy-doctest]"
 match = "1 finding(s), digest 9d8f0e86213d"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-8-sympy-doctest]"
 match = "2 finding(s), digest 85b9c32b6181"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-8b-sympy-doctest]"
 match = "3 finding(s), digest df5ff6a93fb9"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-9-sympy-doctest]"
 match = "1 finding(s), digest b6eddf34cb8c"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-plotting-1-p2-plot-implicit-3-matplotlib-testing-not-shipped]"
@@ -1627,180 +1627,180 @@ closes_with = "context/specifications/023-matplotlib-first-milestone.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-polys-2-s11-1-sympy-tooslow-fails]"
 match = "1 finding(s), digest 575270aedbe9"
 reason = "a test upstream marks @tooslow, which its own runners never run (its runner skips it as too slow; its pytest settings deselect it), raises CoercionFailed in the guest after about 2.5 T of fuel; the cause is not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-polys-4-s1-1-sympy-tooslow-fails]"
 match = "1 finding(s), digest 284d69e47513"
 reason = "a test upstream marks @tooslow, which its own runners never run (its runner skips it as too slow; its pytest settings deselect it), raises CoercionFailed in the guest after about 2.5 T of fuel; the cause is not read (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-solvers-7-5a-sympy-solution-form]"
 match = "1 finding(s), digest e706ad029f95"
 reason = "dsolve returns an equal solution in another form, its arbitrary constants signed otherwise; sympy's choices follow set and dict order, which the guest's 32-bit hash() changes (INFERRED; README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-solvers-7-5b-sympy-solution-form]"
 match = "1 finding(s), digest 684b3804128c"
 reason = "dsolve returns an equal solution in another form, its arbitrary constants signed otherwise; sympy's choices follow set and dict order, which the guest's 32-bit hash() changes (INFERRED; README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-testing-1-sympy-source-tree]"
 match = "14 finding(s), digest 242c8e8ec0d3"
 reason = "sympy's own test-runner helpers look for its test files beside the installed package; the product's sympy is bytecode in a zip with no source tree (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-utilities-4-no-path-variable]"
 match = "1 finding(s), digest 55050ad04006"
 reason = "the guest's environment has no PATH, which sympy's deprecated find_executable reads (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tabulate-smoke-no-processes]"
 match = "7 finding(s), digest 6feaecdb7b1d"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[threadpoolctl-smoke-no-processes]"
 match = "3 finding(s), digest 8238288221c4"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[threadpoolctl-smoke-no-threads]"
 match = "3 finding(s), digest 72412131688c"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[toolz-smoke-no-processes]"
 match = "1 finding(s), digest 6f83cb08b6dd"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-asyncio-loop-error]"
 match = "11 finding(s), digest ca9d96e202af"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-processes-error]"
 match = "1 finding(s), digest 2a3734cc3a0b"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-processes]"
 match = "5 finding(s), digest f594084a45de"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-threads-error]"
 match = "99 finding(s), digest 10c256abd391"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-threads]"
 match = "117 finding(s), digest c5948e42a741"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[typing-extensions-smoke-no-processes]"
 match = "4 finding(s), digest 7eacc5e68fd1"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[typing-extensions-smoke-python-3-15]"
 match = "2 finding(s), digest fc4325715176"
 reason = "the test expects an older CPython's behaviour or message (typing, ElementTree, unittest), and the product is CPython 3.15 (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[wrapt-smoke-importlib-module-names]"
 match = "1 finding(s), digest cd840340a5d8"
 reason = "the driver imports test modules with pytest's importlib mode, so no test folder goes on sys.path and a test module is named by its package path; a test that checks its own module's name, or imports itself by that name, sees the longer one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[wrapt-smoke-no-asyncio-loop]"
 match = "37 finding(s), digest 1c86b1a05c2d"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[wrapt-smoke-no-threads]"
 match = "4 finding(s), digest 998b9fd3faf8"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[wrapt-smoke-zip-importer]"
 match = "1 finding(s), digest 9a6b66688234"
 reason = "the product's modules come from the stdlib zip, loaded by zipimport, not by a file finder (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xlrd-smoke-no-mmap]"
 match = "66 finding(s), digest 4c87e051effa"
 reason = "no mmap: the stand-in raises OSError (README); xlrd opens a workbook with mmap, so a test that checks the error a bad workbook raises sees mmap's"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[networkx-r-trap-asadpour-integral-held-karp]"
 match = "1 finding(s), digest 9176e2e5af8c"
 reason = "on Linux x86_64 it did not end within its group's 710 G cap (past about 610 G in the test, dry run 39741960669), against about 442 to 470 G on darwin-arm64, two runs equal; the same artifact set and wasmtime, so the guest takes a different path on Linux, which may be the product's (the held-Karp ascent loops until a HiGHS interior-point solve reports success); the cause is not read; run alone to its 50 G cap, so its verdict is the same on every host"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-W25]"
 match = "1 finding(s), digest a09fd547f82d"
 reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-function-range1]"
 match = "1 finding(s), digest 9365871e570b"
 reason = "it does not end within 4.5 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-issue-15227]"
 match = "1 finding(s), digest ac73574961e5"
 reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-issue-3880]"
 match = "1 finding(s), digest f1dfc1bcbe3f"
 reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-linear-new-order1-type2-de-lorentz-slow-check]"
 match = "1 finding(s), digest e6540d2043c4"
 reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-nonlinear-3eq-order1-type1]"
 match = "1 finding(s), digest 40b580612678"
 reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-nonlinear-3eq-order1-type3]"
 match = "1 finding(s), digest 860f19e090fc"
 reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 # The pure-Python packages' own tests. (end)

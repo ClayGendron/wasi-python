@@ -95,7 +95,7 @@ files = [
     "statsmodels/tsa/vector_ar/tests/test_vecm.py",
 ]
 reason = "each loads, at import, one of the thirteen datasets the product leaves out for their terms, so the file cannot load and every test in it is lost"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [groups.statsmodels-smoke]
 paths = [
@@ -657,7 +657,7 @@ group = "statsmodels-base-to-datasets"
 outcome = "failed"
 match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "wasm-is-not-emscripten"
@@ -665,7 +665,7 @@ group = "statsmodels-base-to-datasets"
 outcome = "failed"
 match = "SingularMatrixWarning: The design matrix is rank-deficient|Function is marked as not warning but the following warnings were found"
 reason = "upstream special-cases wasm by sys.platform 'emscripten' (Pyodide); the guest is wasm on WASI, so the case does not apply and the warning upstream expects of wasm (no floating-point exception flags) differs (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "left-out-datasets"
@@ -673,7 +673,7 @@ group = "statsmodels-discrete-discrete-1"
 outcome = "failed"
 match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "left-out-datasets-at-setup"
@@ -681,7 +681,7 @@ group = "statsmodels-discrete-discrete-1"
 outcome = "error"
 match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "left-out-datasets"
@@ -689,7 +689,7 @@ group = "statsmodels-discrete-discrete-2"
 outcome = "failed"
 match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "left-out-datasets"
@@ -697,7 +697,7 @@ group = "statsmodels-emplike"
 outcome = "failed"
 match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "left-out-datasets-at-setup"
@@ -705,7 +705,7 @@ group = "statsmodels-emplike"
 outcome = "error"
 match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "left-out-datasets"
@@ -713,7 +713,7 @@ group = "statsmodels-genmod"
 outcome = "failed"
 match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "left-out-datasets-at-setup"
@@ -721,7 +721,7 @@ group = "statsmodels-genmod"
 outcome = "error"
 match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "left-out-datasets"
@@ -729,7 +729,7 @@ group = "statsmodels-graphics-to-multivariate-factor_rotation"
 outcome = "failed"
 match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-processes"
@@ -737,7 +737,7 @@ group = "statsmodels-graphics-to-multivariate-factor_rotation"
 outcome = "failed"
 match = "has no attribute 'pipe'|does not support processes"
 reason = "no processes: os has no pipe on WASI, so a multiprocessing pool fails (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "left-out-datasets"
@@ -745,7 +745,7 @@ group = "statsmodels-smoke"
 outcome = "failed"
 match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "left-out-datasets-at-setup"
@@ -753,7 +753,7 @@ group = "statsmodels-smoke"
 outcome = "error"
 match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "upstream-xfail-platform"
@@ -761,7 +761,7 @@ group = "statsmodels-stats-4"
 outcome = "failed"
 match = "class: TestTTPowerOneS1, key: alpha"
 reason = "upstream xfails this alpha solve on Windows and macOS with recent scipy; the guest is neither, so it fails here as it does there unmarked"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "left-out-datasets-at-setup"
@@ -769,4 +769,4 @@ group = "statsmodels-tests-to-treatment"
 outcome = "error"
 match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms, at setup or teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"

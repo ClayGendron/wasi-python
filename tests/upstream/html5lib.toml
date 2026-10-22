@@ -25,5 +25,5 @@ measured = 21_842_794_343
 [[not_selected]]
 files = ["html5lib/tests/testdata"]
 reason = "html5lib 1.1's conftest builds its data-driven collectors (the tokenizer and tree-construction files) with Node(...), which pytest 6 deprecated and the kit's pytest 9 refuses: they cannot be collected"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

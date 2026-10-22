@@ -73,7 +73,7 @@ group = "openpyxl-r"
 outcome = "failed"
 match = "memoryview: a bytes-like object is required, not '_io\\.BytesIO'"
 reason = "the test is marked lxml_required and the product has no lxml; openpyxl's conftest does not skip it, and the stdlib's fromstring refuses a BytesIO (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "pillow-zlib-only"
@@ -89,5 +89,5 @@ group = "openpyxl-r"
 outcome = "failed"
 match = "PermissionError: \\[Errno \\d+\\] Operation not permitted: '/upstream-|Read-only file system|Operation not permitted: 'empty_with_no_properties-copy\\.xlsx'"
 reason = "the test writes beside its own files in the test source, a read-only grant (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

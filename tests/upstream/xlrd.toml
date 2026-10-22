@@ -25,5 +25,5 @@ group = "xlrd-smoke"
 outcome = "failed"
 match = "mmap is unavailable|No module named 'mmap'|^AssertionError: False is not true$"
 reason = "no mmap: the stand-in raises OSError (README); xlrd opens a workbook with mmap, so a test that checks the error a bad workbook raises sees mmap's"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

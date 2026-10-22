@@ -1,12 +1,28 @@
 # The owner's decisions
 
-Answers to the questions in `questions-for-the-owner.md`, moved here once answered, newest first.
-Each keeps its question number, the date, the owner's answer, and what follows from it. A
-decision that changes the constitution is also recorded there (`constitution.md`, its Status
-line); this file is the record for the rest.
+The owner's answers and decisions, newest first. Until 2026-10-22 questions were asked in
+`questions-for-the-owner.md`, which is in git history (deleted by spec 122); a decision only the
+owner can make is now asked through the owner's channel and recorded here once answered. Each
+entry keeps its question number where it had one, the date, the owner's answer, and what follows
+from it. A decision that changes the constitution is also recorded there (`constitution.md`, its
+Status line); this file is the record for the rest.
 
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
+
+### The owner's direction for the product (2026-10-17; moved here 2026-10-22)
+
+Kept in `questions-for-the-owner.md` until that file was deleted (spec 122). The owner, in
+paraphrase, without the private path the original named: "I am thinking of this more as a safe
+runtime for agent code. The use case is much more powerful web agents that can access code and
+interact with their data and tools (either through a file system, tools in the host program, api
+calls, mcp, etc.)"; its main use case is to work with a filesystem layer that manages the
+permissions and governance.
+
+The code stays embedder-neutral (§4.5). The capabilities that agent use needs are built as
+general features; `research/2026-10-17-the-runtime-for-agent-code.md` studies which. State
+across turns is researched before any specification
+(`research/2026-10-17-state-across-agent-turns.md`).
 
 ### The documentation before the 0.1.0 tag, within a day (2026-10-22)
 

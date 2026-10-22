@@ -3462,12 +3462,18 @@ def context_citation_hits(path: Path) -> list[tuple[int, str, str]]:
     docstrings of one file: a specification's number, the constitution's sections, the word for
     a research write-up, a review named by its kind or followed by a date or a path, a numbered
     question of the owner's, a path under the knowledge tree, or a review finding's identifier.
-    A Python file is read through its tokens; any other file through its `#` comments. A
-    citation broken across lines is found whole, on the line it starts, its spaces made one."""
+    A Python file is read through its tokens; a Markdown page whole, since all of it is prose a
+    reader sees; any other file through its `#` comments. A citation broken across lines is found
+    whole, on the line it starts, its spaces made one."""
     text = _text(path)
     if text is None:
         return []
-    prose = _python_prose(text) if path.suffix == ".py" else _hash_comments(text)
+    if path.suffix == ".py":
+        prose = _python_prose(text)
+    elif path.suffix == ".md":
+        prose = [(1, text)]
+    else:
+        prose = _hash_comments(text)
     return sorted(
         (n + block[: m.start()].count("\n"), rule, " ".join(m[0].split()))
         for n, block in prose
@@ -3478,11 +3484,21 @@ def context_citation_hits(path: Path) -> list[tuple[int, str, str]]:
 
 def context_citation_files(root: Path) -> list[Path]:
     """The files the citation rule reads: every Python, shell, TOML and YAML file under `tests/`
-    and `.github/workflows/`, and every text file under `scripts/` and `release/`."""
+    and `.github/workflows/`, every text file under `scripts/` and `release/`, and the public
+    pages: the README and every Markdown page under `docs/`."""
     picked = [
         p for p in files_under(root, "tests", ".github/workflows") if p.suffix in CITATION_SUFFIXES
     ]
-    return picked + [p for p in files_under(root, "scripts", "release") if _text(p) is not None]
+    picked += [p for p in files_under(root, "scripts", "release") if _text(p) is not None]
+    return picked + public_pages(root)
+
+
+def public_pages(root: Path) -> list[Path]:
+    """The pages a user reads: the README, which is also the wheel's description, and the
+    documentation site's Markdown pages."""
+    return files_under(root, "README.md") + [
+        p for p in files_under(root, "docs") if p.suffix == ".md"
+    ]
 
 
 # ---------------------------------------------------------------------------------------------
@@ -3682,9 +3698,11 @@ def string_citation_hits(path: Path) -> list[tuple[int, str, str]]:
 
 
 def string_citation_files(root: Path, later: Iterable[str] = ()) -> list[Path]:
-    """The files the string rule reads: the comment rule's, every `.py` under `src/`, and
-    `pyproject.toml`, less those whose path from the root matches a pattern of `later`."""
-    files = context_citation_files(root)
+    """The files the string rule reads: the comment rule's code files (a public page is read
+    whole by that rule already), every `.py` under `src/`, and `pyproject.toml`, less those
+    whose path from the root matches a pattern of `later`."""
+    pages = set(public_pages(root))
+    files = [p for p in context_citation_files(root) if p not in pages]
     files += [p for p in files_under(root, "src") if p.suffix == ".py"]
     files += files_under(root, "pyproject.toml")
     return [p for p in files if not any(fnmatch.fnmatch(rel(p, root), g) for g in later)]

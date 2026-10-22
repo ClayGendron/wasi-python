@@ -33,7 +33,7 @@ group = "python-dateutil-r"
 outcome = "failed"
 match = "has no attribute 'tzset'"
 reason = "WASI has no time.tzset, and the guest no host zoneinfo; zones come from tzdata in the zip (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "tz-cache"
@@ -41,5 +41,5 @@ group = "python-dateutil-r"
 outcome = "failed"
 match = "tzstr\\('JST-\\d+'\\) is not tzstr|tzfile\\('[\\w/]+'\\) is not tzfile|tzfile\\('[\\w/]+'\\) is None"
 reason = "dateutil's gettz cache tests expect a zone rebuilt, or collected, once its cache is cleared or its last reference dropped; in the guest the same object comes back (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

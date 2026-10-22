@@ -14,8 +14,8 @@ soon as it is ready, and the advisory credits you unless you ask otherwise.
 
 ## Supported versions
 
-Only the newest release is supported. While the project is in alpha, fixes go into the next
-alpha; older alphas are not patched.
+Only the newest release is supported; a fix goes into the next release, and older releases are
+not patched.
 
 ## In scope
 
@@ -47,8 +47,9 @@ only fixed versions (spec 048):
 
 ## Out of scope
 
-- What the README lists under "Not protected", such as disk use in a granted folder, timing
-  side channels, or a guest planting files in a root that is reused.
+- What the [security model](https://claygendron.github.io/wasi_python/explanation/security-model/)
+  lists as not protected, such as disk use in a granted folder, timing side channels, or a guest
+  planting files in a root that is reused.
 - A bug in an upstream component (CPython, numpy, pandas, wasmtime) that does not cross the
   sandbox boundary. Please report it upstream; we will move our pin when a fix ships.
 - What an embedder's own host function does with the frames it receives.

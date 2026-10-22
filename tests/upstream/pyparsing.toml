@@ -97,7 +97,7 @@ keywords = [
 [[not_selected]]
 files = ["tests/test_diagram.py"]
 reason = "it imports railroad (railroad-diagrams) at module level, and every test in it draws a diagram with it: the product lacks pyparsing's diagram feature"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-processes"
@@ -105,7 +105,7 @@ group = "pyparsing-r-unit-6"
 outcome = "failed"
 match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "pyparsing-no-railroad"
@@ -113,5 +113,5 @@ group = "pyparsing-r"
 outcome = "failed"
 match = "pyparsing\\[diagrams\\]"
 reason = "the example draws a railroad diagram, and railroad is not in the product (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

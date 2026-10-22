@@ -15,7 +15,7 @@ from harness import history, needs, paths, scan
 
 pytestmark = pytest.mark.goal("rules")
 
-CODE_DIRS = ("recipes", "scripts", "src", "tests", "fixtures")
+CODE_DIRS = ("recipes", "scripts", "src", "tests", "fixtures", "docs")
 SPECS = paths.CONTEXT / "specifications"
 RESEARCH = paths.CONTEXT / "research"
 
@@ -55,7 +55,10 @@ def test_carried_patches_follow_the_rules() -> None:
 
 
 def test_no_embedder_name_in_code() -> None:
-    hits = scan.embedder_hits(paths.REPO, CODE_DIRS, scan.read_names(paths.EMBEDDERS))
+    """The code and the public pages (the README and the site) name no embedder."""
+    hits = scan.embedder_hits(
+        paths.REPO, (*CODE_DIRS, "README.md"), scan.read_names(paths.EMBEDDERS)
+    )
     assert not hits, scan.report(hits)
 
 
@@ -439,6 +442,28 @@ def test_built_structural_specifications_cite_their_pre_build_review() -> None:
     assert not errors, scan.report(errors)
 
 
+def test_generated_pages_are_current() -> None:
+    """The documentation's two generated pages, the Python API and the command line, each hold
+    exactly one block, equal to what the live package renders, so neither page can fall behind
+    the code it describes."""
+    from harness import api, cli_doc
+
+    _, api_block = api.render()
+    pages = [
+        (api.PAGE, api.readme_block, api_block, api.WRITE),
+        (cli_doc.PAGE, cli_doc.page_block, cli_doc.render(cli_doc.live_parser()), cli_doc.WRITE),
+    ]
+    errors = []
+    for page, read_block, live, write in pages:
+        where = scan.rel(page, paths.REPO)
+        count, block = read_block(page.read_text(encoding="utf-8") if page.is_file() else "")
+        if count != 1 or block is None:
+            errors.append(f"{where}: {count} generated blocks, not one; run {write}")
+        elif block.strip("\n") != live.strip("\n"):
+            errors.append(f"{where}: differs from the live render; run {write}")
+    assert not errors, scan.report(errors)
+
+
 def test_executed_memos_label_their_claims() -> None:
     errors = [e for m in sorted(RESEARCH.glob("*.md")) for e in scan.memo_label_errors(m)]
     assert not errors, scan.report(errors)
@@ -459,9 +484,11 @@ def test_known_gaps_are_well_formed() -> None:
             errors.append(f"{gap.check}: no such check")
         closer = gap.closes_with.split(" ", 1)[0]
         if not (paths.REPO / closer).is_file() or not (
-            closer == "README.md" or closer.startswith("context/")
+            closer == "README.md" or closer.startswith(("context/", "docs/"))
         ):
-            errors.append(f"{gap.check}: closer {gap.closes_with} is not a file under context/")
+            errors.append(
+                f"{gap.check}: closer {gap.closes_with} is not a file under context/ or docs/"
+            )
         if not gap.reason.strip():
             errors.append(f"{gap.check}: empty reason")
         if "finding(s), digest " not in gap.match:

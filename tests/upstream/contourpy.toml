@@ -357,7 +357,7 @@ group = "contourpy-rest"
 outcome = "failed"
 match = "does not support processes"
 reason = "no processes: test_cppcheck and test_mypy run their tools through subprocess, which WASI lacks (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "text-rendering"

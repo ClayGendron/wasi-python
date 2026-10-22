@@ -11,7 +11,7 @@ marker = "not slow and not network and not db"
 release_marker = "slow and not network and not db"
 excluded_marker = "network or db"
 excluded_reason = "no tier runs pandas' network and database tests: the guest has no network and no database server (README.md)"
-excluded_closes_with = "README.md"
+excluded_closes_with = "docs/reference/limitations.md"
 args = ["--no-strict-data-files"]
 path_packages = ["pandas"]
 markers = []
@@ -125,7 +125,7 @@ group = "pandas-io-parser"
 outcome = "failed"
 match = 'mmap is unavailable'
 reason = 'no mmap on WASI'
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "zip-code-names"
@@ -141,7 +141,7 @@ group = "pandas-tslibs"
 outcome = "failed"
 match = 'wasi does not support processes'
 reason = 'no processes: subprocess is unavailable on WASI'
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 # pandas' Styler, and `to_latex`, which renders through it: the tests that import jinja2 ran as
 # skips before it was in the zip, and failed where the Styler loaded its templates by path from
@@ -170,4 +170,4 @@ group = "pandas-slow-b"
 outcome = "failed"
 match = "module 'os' has no attribute 'pipe'"
 reason = "no threads: pandas' multi-thread reader starts a thread pool, which needs os.pipe (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"

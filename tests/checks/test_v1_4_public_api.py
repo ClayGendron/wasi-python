@@ -229,9 +229,12 @@ def test_public_docs_name_nothing_internal() -> None:
     inv = api.facts()["inventory"]
     in_docstrings = api.docstring_hits(inv, api.internal_names())
     constants = api.internal_constants()
+    # Both public pages that carry code: the README and the generated API reference.
     in_readme = api.readme_hits(paths.README.read_text(encoding="utf-8"), constants)
+    page = api.PAGE.relative_to(paths.REPO).as_posix()
+    in_readme += api.readme_hits(api.PAGE.read_text(encoding="utf-8"), constants, page)
     assert not in_docstrings and not in_readme, (
-        f"public docstrings: {len(in_docstrings)}, README: {len(in_readme)}; "
+        f"public docstrings: {len(in_docstrings)}, pages: {len(in_readme)}; "
         + scan.report(in_docstrings + in_readme)
     )
     # Stand-ins: fences are blanked first, indented ones included.
@@ -279,12 +282,15 @@ def test_the_package_is_typed() -> None:
 
 
 def test_the_readme_reference_matches_the_api() -> None:
-    count, block = api.readme_block(paths.README.read_text(encoding="utf-8"))
-    assert count == 1 and block is not None, f"README.md has {count} api reference blocks"
+    """The API reference page carries exactly one generated block, equal to the live surface."""
+    page = api.PAGE.relative_to(paths.REPO).as_posix()
+    text = api.PAGE.read_text(encoding="utf-8") if api.PAGE.is_file() else ""
+    count, block = api.readme_block(text)
+    assert count == 1 and block is not None, f"{page} has {count} api reference blocks"
     _, reference = api.render()
     assert block.strip("\n") == reference.strip("\n"), (
-        f"the README's reference differs from the API; run {api.WRITE}:\n"
-        + api.diff(block, reference, "README", "live")
+        f"{page} differs from the API; run {api.WRITE}:\n"
+        + api.diff(block, reference, page, "live")
     )
     # A marker inside a fence is an example, never the block.
     inside = f"```\n{api.BEGIN}\nx\n{api.END}\n```\n"

@@ -118,7 +118,7 @@ keywords = [
 [[not_selected]]
 files = ["tests/test_base.py"]
 reason = "it applies a mark to a fixture function, which pytest 8 deprecated and the kit's pytest 9 refuses: the module cannot be collected"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "newer-dependencies"
@@ -126,7 +126,7 @@ group = "seaborn-smoke"
 outcome = "failed"
 match = "has no attribute 'in1d'|has no attribute 'VisibleDeprecationWarning'|KeyError: 'labelleft'|Series\\.index are different|Regex pattern did not match|^AssertionError:$"
 reason = "seaborn 0.13.2's tests predate the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships: an API they call is gone, or a value they compare changed (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-pyarrow-interchange"
@@ -134,7 +134,7 @@ group = "seaborn-smoke"
 outcome = "failed"
 match = "converting data source to a pandas DataFrame"
 reason = "the dataframe interchange protocol's conversion to pandas needs pyarrow, which the product does not carry (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "newer-dependencies"
@@ -142,7 +142,7 @@ group = "seaborn-r-1"
 outcome = "failed"
 match = "has no attribute 'in1d'|has no attribute 'VisibleDeprecationWarning'|KeyError: 'labelleft'|Series\\.index are different|Regex pattern did not match|^AssertionError:$"
 reason = "seaborn 0.13.2's tests predate the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships: an API they call is gone, or a value they compare changed (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-pyarrow-interchange"
@@ -150,7 +150,7 @@ group = "seaborn-r-1"
 outcome = "failed"
 match = "converting data source to a pandas DataFrame"
 reason = "the dataframe interchange protocol's conversion to pandas needs pyarrow, which the product does not carry (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-pyarrow-interchange"
@@ -158,7 +158,7 @@ group = "seaborn-r-3"
 outcome = "failed"
 match = "converting data source to a pandas DataFrame"
 reason = "the dataframe interchange protocol's conversion to pandas needs pyarrow, which the product does not carry (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "newer-dependencies"
@@ -166,7 +166,7 @@ group = "seaborn-r-5"
 outcome = "failed"
 match = "has no attribute 'in1d'|has no attribute 'VisibleDeprecationWarning'|KeyError: 'labelleft'|Series\\.index are different|Regex pattern did not match|^AssertionError:$"
 reason = "seaborn 0.13.2's tests predate the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships: an API they call is gone, or a value they compare changed (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "newer-dependencies"
@@ -174,7 +174,7 @@ group = "seaborn-r-5c"
 outcome = "failed"
 match = "has no attribute 'in1d'|has no attribute 'VisibleDeprecationWarning'|KeyError: 'labelleft'|Series\\.index are different|Regex pattern did not match|^AssertionError:$"
 reason = "seaborn 0.13.2's tests predate the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships: an API they call is gone, or a value they compare changed (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "newer-dependencies"
@@ -182,7 +182,7 @@ group = "seaborn-r-6"
 outcome = "failed"
 match = "has no attribute 'in1d'|has no attribute 'VisibleDeprecationWarning'|KeyError: 'labelleft'|Series\\.index are different|Regex pattern did not match|^AssertionError:$"
 reason = "seaborn 0.13.2's tests predate the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships: an API they call is gone, or a value they compare changed (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "newer-dependencies"
@@ -190,5 +190,5 @@ group = "seaborn-r-8"
 outcome = "failed"
 match = "has no attribute 'in1d'|has no attribute 'VisibleDeprecationWarning'|KeyError: 'labelleft'|Series\\.index are different|Regex pattern did not match|^AssertionError:$"
 reason = "seaborn 0.13.2's tests predate the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships: an API they call is gone, or a value they compare changed (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 

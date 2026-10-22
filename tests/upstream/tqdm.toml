@@ -26,7 +26,7 @@ group = "tqdm-smoke"
 outcome = "error"
 match = "\\[Errno 58\\] Not supported|unraisable exception warnings|Exception ignored while calling deallocator"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-processes-error"
@@ -34,7 +34,7 @@ group = "tqdm-smoke"
 outcome = "error"
 match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-processes"
@@ -42,7 +42,7 @@ group = "tqdm-smoke"
 outcome = "failed"
 match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
 reason = "no processes: the guest cannot start one (README)"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-threads-error"
@@ -50,7 +50,7 @@ group = "tqdm-smoke"
 outcome = "error"
 match = "can't start new thread|thread constructor failed|start_new_thread|unable to start watchdog thread|TqdmMonitorWarning|instances still in existence|'NoneType' object does not support the context manager protocol"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-threads"
@@ -58,5 +58,5 @@ group = "tqdm-smoke"
 outcome = "failed"
 match = "can't start new thread|thread constructor failed|start_new_thread|unable to start watchdog thread|TqdmMonitorWarning|instances still in existence|'NoneType' object does not support the context manager protocol"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
-closes_with = "README.md"
+closes_with = "docs/reference/limitations.md"
 
