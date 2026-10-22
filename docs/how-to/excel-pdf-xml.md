@@ -14,7 +14,7 @@ or from bytes. xlrd reads old `.xls` files.
 
 Writing needs a temporary folder, because openpyxl always writes through `tempfile`, and
 xlsxwriter does too unless it is told to work in memory. So with nothing writable, write `.xlsx`
-through xlsxwriter in memory:
+through xlsxwriter in memory. Inside the guest program, with `buf = io.BytesIO()`:
 
 ```python
 pd.ExcelWriter(buf, engine="xlsxwriter", engine_kwargs={"options": {"in_memory": True}})

@@ -23,7 +23,7 @@ such as a bad argument or a missing artifact set, raises an exception from `run`
 | `files` | `FileRecord` or `None` | For a call with mounts: its provider calls, faults and refused writes. Else `None`. |
 | `tools` | `ToolRecord` or `None` | For a call with tools: every tool-protocol frame counted and the first 1,000 listed. Else `None`. |
 
-For example, the pandas call from the README returns exit code 0 and the sum on standard output:
+For example, this call returns exit code 0 and the sum on standard output:
 
 ```python
 from wasi_python import run

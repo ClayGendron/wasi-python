@@ -68,7 +68,7 @@ the files stay there after the call.
 On the command line, `--private-root` is `root=True` and `--root HOST` names a folder.
 
 To hand the guest only some folders, use grants. The next tutorial,
-[Read a CSV through a grant](csv-through-a-grant.md), shows how.
+[Read and write files through a grant](csv-through-a-grant.md), shows how.
 
 ## Read the result
 

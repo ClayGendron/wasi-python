@@ -29,7 +29,7 @@ library and every package's Python code as bytecode.
 | one call on the snapshot, `-c pass` | 16 ms | 43.8 million |
 | one call on the plain reactor, `-c pass` | 21 ms | 218 million |
 | `import numpy` on the snapshot | | 0.81 billion |
-| `import pandas` on the snapshot | about 0.8 s | 4.66 billion |
+| `import pandas` on the snapshot | | 4.66 billion |
 | `import pandas` on the plain reactor | 620 ms | 4.92 billion |
 
 Most of a bare snapshot call is the interpreter finalizing after the program ends.

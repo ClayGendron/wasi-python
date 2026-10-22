@@ -21,6 +21,17 @@ Calls with mounts or tools have more limits: `max_file_calls`, `max_tool_calls` 
 `max_tool_request_bytes`. See [Defaults and limits](../reference/defaults-and-limits.md) for each
 one.
 
+In Python, pass each limit as a keyword argument to `run`:
+
+```python
+from wasi_python import run
+
+code = "print(1)"
+done = run(["-c", code], deadline_s=10, memory_bytes=256 << 20, fuel=5_000_000_000)
+```
+
+This call has a 10-second deadline, 256 MiB of memory and a cap of five billion instructions.
+
 On the command line, the options are `--memory-bytes`, `--deadline-s`, `--output-bytes`, `--fuel`
 and `--max-open-files`. This is how a program in another language starts a call with a 10-second
 deadline:
@@ -31,8 +42,8 @@ const child = spawn("wasi-python", ["run", "--deadline-s", "10", "--", "-c", cod
 
 ## Remove a limit
 
-Pass `None` for no limit. On the command line, `--deadline-s`, `--memory-bytes` and
-`--output-bytes` take `none`.
+Pass `None` for no limit. On the command line, every limit option (`--deadline-s`,
+`--memory-bytes`, `--output-bytes`, `--fuel`, `--max-open-files`) takes the word `none`.
 
 No value can quietly remove a limit. A limit of the wrong type or out of range raises `TypeError`
 or `ValueError` before any work: a negative cap, `True`, or a deadline of 0. Integer limits take
@@ -46,7 +57,11 @@ and returns the previous ones. Change one field with `dataclasses.replace`, as h
 of `run_async`'s worker pool:
 
 ```python
-set_defaults(dataclasses.replace(defaults(), async_workers=n))
+import dataclasses
+
+from wasi_python import defaults, set_defaults
+
+set_defaults(dataclasses.replace(defaults(), async_workers=4))
 ```
 
 ## Cap the instructions with fuel
@@ -84,6 +99,8 @@ every call and session open at once. macOS starts a process at 256, and many Lin
 1,024. Raise the soft limit when your program starts:
 
 ```python
+import resource  # Linux and macOS; Windows has no resource module
+
 soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
 resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
 ```

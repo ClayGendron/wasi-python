@@ -74,7 +74,7 @@ Every embedder gets the same thing.
 - The guest's interface to the host is the same for a Python program, a Rust program or a
   command-line caller.
 
-## The snapshot pre-imports nothing
+## The snapshot pre-imports no package
 
 **Context.** The snapshot starts each call from a saved, already-started interpreter. Saving
 numpy and pandas in it made a pandas call cheap. But it made every other call pay to tear that

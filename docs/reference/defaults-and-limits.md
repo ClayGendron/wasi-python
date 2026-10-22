@@ -29,8 +29,8 @@ tool traffic. The *defaults* are the values a call reads for each limit it does 
 ## What `None` means
 
 Pass `None` for no limit. For the deadline in a session, `None` means no limit but the session's
-lifetime. On the command, `--deadline-s`, `--memory-bytes` and `--output-bytes` take the word
-`none`.
+lifetime. On the command line, every limit option (`--deadline-s`, `--memory-bytes`, `--output-bytes`,
+`--fuel`, `--max-open-files`) takes the word `none`.
 
 Two exceptions:
 
@@ -98,7 +98,11 @@ replaces them for calls made afterwards, and returns the previous ones. To chang
 replace it on a copy, as for the size of the `run_async` pool:
 
 ```python
-set_defaults(dataclasses.replace(defaults(), async_workers=n))
+import dataclasses
+
+from wasi_python import defaults, set_defaults
+
+set_defaults(dataclasses.replace(defaults(), async_workers=4))
 ```
 
 The `Defaults` fields are `memory_bytes`, `deadline_s`, `output_bytes`, `async_workers`,
@@ -113,6 +117,8 @@ already holds, for every call and session open at once. macOS starts a process a
 Linux setups at 1,024. Raise the soft limit at start, or set `max_open_files` below it:
 
 ```python
+import resource  # Linux and macOS; Windows has no resource module
+
 soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
 resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
 ```

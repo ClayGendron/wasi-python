@@ -36,19 +36,22 @@ uv run pytest -m "not slow"
 
 ## Read the scoreboard
 
-Read the last lines of the run. They look like this:
+Read the last lines of the run, the *scoreboard*. It has this shape; the angle brackets stand
+for the numbers and names your run prints:
 
 ```
-wasi_python v1: 14/67 pass · 8 gap · 45 blocked · 0 fail   (unit suite 115/115)
-  v1.1  artifact set         0/15  blocked 15
+wasi_python v1: <pass>/<checks> pass · <n> gap · <n> blocked · <n> fail   (unit suite <passed>/<total>)
+  <area> <area name>  <pass>/<checks> gap <n> blocked <n>
   …
-blocked by: artifact dir 37 · runner 3 · …
-gaps close with: …
-next: …
-ratchet vs 2828f2cced: lost 0 · absent 0 · unrun 0 · gained 0 · grew 0
+blocked by: <prerequisite> <n> · …
+gaps close with: <document> <n> · …
+next: <document> (unblocks <n>, closes <n>)
+ratchet vs <commit>: lost 0 · absent 0 · unrun 0 · gained 0 · grew 0
+not machine-checked: …
 ```
 
-The numbers on your machine differ. Each check ends in one of four states:
+The first line counts every check. One line per area follows. Each check ends in one of four
+states:
 
 - **pass**: the check ran and held.
 - **gap**: the check fails exactly as a *known gap* says. A known gap is an entry in

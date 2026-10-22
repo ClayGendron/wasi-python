@@ -1,7 +1,7 @@
-# Read a CSV through a grant
+# Read and write files through a grant
 
-In this tutorial you hand the guest a folder of data to read and a folder to write into, then read
-what it wrote from the host. You do it from Python and then from the command line. Start with
+In this tutorial you hand the guest a folder to read and a folder to write into, then read what
+it wrote from the host. You do it from Python and then from the command line. Start with
 [Your first run](first-run.md) if you have not run the guest yet.
 
 A *grant* gives the guest one host folder at a path of the guest's choosing. A grant is read-only
@@ -12,8 +12,17 @@ unless you say `writable=True`. The guest sees no host folder except through a g
 The guest reads from one folder and writes to another. Both must exist on the host before the
 call:
 
-- a data folder, `~/project/data`, holding your CSV files;
+- a data folder, `~/project/data`, holding the files the guest reads;
 - an output folder, `/tmp/job-17`, empty.
+
+Make them from Python on the host:
+
+```python
+from pathlib import Path
+
+(Path.home() / "project" / "data").mkdir(parents=True, exist_ok=True)
+Path("/tmp/job-17").mkdir(exist_ok=True)
+```
 
 The runner checks every granted folder before the guest starts, and a grant whose folder is
 missing is refused.
@@ -41,7 +50,7 @@ The result is on the host: `/tmp/job-17/n.txt` now holds the number of entries i
 Try writing to `/data` from the guest. A read-only grant refuses every write with `EPERM`, which
 the guest sees as `PermissionError`.
 
-## Step 3: Write and read a CSV with pandas
+## Step 3: Write a CSV with pandas and read it back
 
 pandas reads and writes through grants as through any folder. This example uses a `Session`, which
 runs several pieces of code one after another in one interpreter, so the second piece sees the

@@ -19,7 +19,7 @@ installs nothing at run time.
 
 ## Where to start
 
-- **Use it.** Install the wheel and run your first sandboxed program.
+- **Use it.** `pip install wasi-python`, then run your first sandboxed program.
   Start with [Your first run](get-started/first-run.md).
 - **Embed it.** Run `python.wasm` from another language or another WASI host.
   Start with [Embed from other languages](how-to/embed-from-other-languages.md).

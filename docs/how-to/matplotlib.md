@@ -10,6 +10,8 @@ matplotlib needs two things the default sandbox does not give: a folder to save 
 writable folder for its font cache. One writable grant serves both:
 
 ```python
+from wasi_python import Grant, run
+
 done = run(["-c", "import matplotlib; matplotlib.use('agg'); import matplotlib.pyplot as plt;"
             " plt.plot([1, 3, 2]); plt.savefig('/out/plot.png')"],
            grants=[Grant("/tmp/job-17", "/out", writable=True)],

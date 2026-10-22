@@ -54,7 +54,11 @@ times that.
 A container's CPU quota is not seen. Set the size yourself:
 
 ```python
-set_defaults(dataclasses.replace(defaults(), async_workers=n))
+import dataclasses
+
+from wasi_python import defaults, set_defaults
+
+set_defaults(dataclasses.replace(defaults(), async_workers=4))
 ```
 
 A new size applies to calls submitted afterwards. Calls already running or queued on the old pool

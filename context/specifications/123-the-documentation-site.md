@@ -365,3 +365,52 @@ a reviewer who reads criterion 2 strictly may ask for it to be dropped, which is
   issue, what to include, the advisory's credit, only the newest release supported).
 - `git status` before the commit: only `docs/` pages and this file. CHANGELOG and roadmap lines
   are 122's (Scope). ruff does not read `docs/`.
+
+### Disposition of the build review
+
+The build review (`../reviews/123-the-documentation-site-build-2026-10-22.md`, on `92a134d3`;
+verdict "lands after fixes", no High, two Medium, seven Low; no run, by the owner's rule for this
+work). Every finding is fixed in the commit after `92a134d3`, with the review's text where it gave
+one:
+
+1. **M1, the CSV tutorial never reads the reader's CSV and does not make its folders** — fixed.
+   `get-started/csv-through-a-grant.md` is retitled "Read and write files through a grant" (the
+   path stays), its opening says "a folder to read and a folder to write into", Step 1 gains the
+   review's host-side `mkdir` block (no guest output claimed), Step 3 is "Write a CSV with pandas
+   and read it back", and the link in `get-started/first-run.md` takes the new title. **For the
+   lane:** if 122's `mkdocs.yml` names a title for this path, change it to "Read and write files
+   through a grant" on the rebase; a nav entry without a title takes the H1.
+2. **M2, seven code blocks cannot run as copied** — fixed. The three `set_defaults` blocks
+   (`how-to/limits.md`, `how-to/async.md`, `reference/defaults-and-limits.md`) now import
+   `dataclasses`, `defaults` and `set_defaults` and pass `async_workers=4`; the three `resource`
+   blocks (`how-to/limits.md`, `how-to/troubleshooting.md`, `reference/defaults-and-limits.md`)
+   import `resource` with the comment "Linux and macOS; Windows has no resource module"; the
+   matplotlib block imports `Grant` and `run`. The two guest-side xlsxwriter fragments
+   (`how-to/troubleshooting.md`, `how-to/excel-pdf-xml.md`) gain the line "Inside the guest
+   program, with `buf = io.BytesIO()`". `how-to/limits.md` shows one `run(["-c", code],
+   deadline_s=10, memory_bytes=256 << 20, fuel=5_000_000_000)` call, every keyword `run`'s own
+   (`src/wasi_python/runner.py`, the signature), with its limits in words and no output claimed.
+3. **L1, the `SHA256SUMS` check fails on a single download** — fixed with the review's text:
+   `shasum -a 256 -c --ignore-missing SHA256SUMS` (`sha256sum` on Linux); the asset prints `OK`.
+4. **L2, a heading contradicts its entry** — fixed: "The snapshot pre-imports no package" (no
+   page linked the old anchor).
+5. **L3, a time on the wrong measurement** — fixed: the `import pandas` on the snapshot row's time
+   cell is empty, as `import numpy`'s is.
+6. **L4, the command's `none` understated** — fixed on both pages: every limit option
+   (`--deadline-s`, `--memory-bytes`, `--output-bytes`, `--fuel`, `--max-open-files`) takes `none`.
+7. **L5, a reference page leans on the README** — fixed: "For example, this call returns exit code
+   0 and the sum on standard output:".
+8. **L6, the 5-minute path skips install from Home** — fixed: "**Use it.** `pip install
+   wasi-python`, then run your first sandboxed program." The door's target is unchanged
+   (criterion 7).
+9. **L7, small wording** — fixed. `get-started/install.md` says "the files that make up the
+   runtime". `contributing/first-change.md`'s early scoreboard sample is replaced by the
+   scoreboard's shape, with placeholders, taken from `tests/harness/scoreboard.py`'s line formats
+   (first line, one line per area, `blocked by:`, `gaps close with:`, `next:`, the ratchet line,
+   `not machine-checked:`); the judge was not run for a new sample.
+
+After the fixes (EXECUTED, the same way as the build): `mkdocs build --strict` with 122's
+`mkdocs.yml` text less the omitted page and three uncommitted stand-ins, since deleted: **exit 0,
+no warning**. Criterion 3's grep and the home-path grep: nothing. `scan.CITATION_RULES` and
+`context/embedders.txt`'s names over every `docs/*.md`: **0 hits**. Finding-like tokens, a review
+by date or path, dates outside the performance page: none. No pytest, no workflow, no branch run.

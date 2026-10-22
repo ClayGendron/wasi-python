@@ -51,7 +51,8 @@ directory"). `df.to_excel(…)` raises `xlsxwriter.exceptions.FileCreateError`.
 
 **Fix:** give the call a writable folder at `/tmp` (`Grant(folder, "/tmp", writable=True)`, or
 `root=True`). For matplotlib, you can instead set `MPLCONFIGDIR` in `env=` to a folder inside a
-writable grant. To write `.xlsx` with nothing writable, use xlsxwriter in memory:
+writable grant. To write `.xlsx` with nothing writable, use xlsxwriter in memory. Inside the guest program,
+with `buf = io.BytesIO()`:
 
 ```python
 pd.ExcelWriter(buf, engine="xlsxwriter", engine_kwargs={"options": {"in_memory": True}})
@@ -114,6 +115,8 @@ soft descriptor limit: a guest's descriptors share your process's table, and mac
 process at 256. Raise the soft limit at start:
 
 ```python
+import resource  # Linux and macOS; Windows has no resource module
+
 soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
 resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
 ```

@@ -42,8 +42,9 @@ The first alpha, `0.1.0a1`, has no attestation. Every release after it carries o
 
 ## Check an asset without `gh`
 
-Without `gh`, check the asset against the release's `SHA256SUMS`: download both into one folder
-and run `shasum -a 256 -c SHA256SUMS` there. Each listed file should print `OK`.
+Without `gh`, check the asset against the release's `SHA256SUMS`: download the asset and
+`SHA256SUMS` into one folder and run `shasum -a 256 -c --ignore-missing SHA256SUMS` there
+(`sha256sum -c --ignore-missing SHA256SUMS` on Linux). The asset should print `OK`.
 
 A matching hash shows that the file is the one the list names, so it catches a damaged or
 partial download. The list comes from the same release page, so it does not show who built the

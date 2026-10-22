@@ -22,7 +22,7 @@ Go on to [Your first run](first-run.md).
 
 ## What comes with it
 
-The wheel carries the whole *artifact set*: the four files that make up the runtime.
+The wheel carries the whole *artifact set*: the files that make up the runtime.
 
 | file | what it is |
 |---|---|
