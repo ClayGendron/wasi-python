@@ -164,16 +164,23 @@ def test_sealed_leftovers_are_named(tmp_path: Path) -> None:
     assert litter.sealed_leftovers(tmp_path) == []
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="the scan names nothing on Windows")
+@pytest.mark.skipif(not BINDS, reason="a folder's mode does not stop a write on Windows or as root")
 def test_a_folder_removed_during_the_scan_is_not_an_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Another worker's guest removes its run folder while a starting judge walks the scratch
     root: the folder the walk listed is gone by the time it is looked at, and is simply not
-    named."""
+    named, while a sealed folder beside it still is."""
     gone = tmp_path / "run-gone"
-    monkeypatch.setattr(litter.os, "walk", lambda root: iter([(str(gone), [], [])]))
-    assert litter.sealed_leftovers(tmp_path) == []
+    sealed = _stage(tmp_path / "run-sealed")
+    litter.seal(sealed)
+    walk = [(str(gone), [], []), (str(sealed), [], [])]
+    monkeypatch.setattr(litter.os, "walk", lambda root: iter(walk))
+    try:
+        assert litter.sealed_leftovers(tmp_path) == [str(sealed)]
+    finally:
+        monkeypatch.undo()  # the removal walks the folder for real
+        litter.remove(sealed)
 
 
 def test_the_guest_folders_leave_the_home_folder_on_darwin(tmp_path: Path) -> None:
