@@ -1291,7 +1291,7 @@ measurements* holds the detail.
     harness (`f01719f3…`, equal to the branch's and to the CI jobs' value). The row compares it
     on a host without the tree. This run's two red jobs are the row seen failing. Locally the row
     passes with the trees and with `pins.source_pair` stubbed to none.
-- **39708064741** on `ab5cde5b`, this build's run: 42 jobs passed, Windows included. One job
+- **39708064741** on `ab5cde5b`, this build's run: 43 jobs passed, Windows included. One job
   failed: `judge (ubuntu-24.04, upstream-plot-g)`, in its `tests/upstream/fetch.py` step, on
   `ssl.SSLEOFError: UNEXPECTED_EOF_WHILE_READING`. That was a download of matplotlib's shard's
   inputs, and the same job passed in 39705963592. Not a growth line and not G7. Not re-run, by
