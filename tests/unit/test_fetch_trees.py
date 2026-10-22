@@ -86,6 +86,22 @@ GOOD = {
 }
 
 
+def test_a_source_is_saved_under_its_pinned_name_not_its_urls(tmp_path, monkeypatch) -> None:
+    """A forge's archive URL ends in the tag (`v0.12.1.tar.gz`), not the pinned name the tree is
+    unpacked from: the download is saved under the pinned name, so a shard that starts with an
+    empty downloads folder finds it."""
+    w = World(tmp_path, GOOD)
+    w.served = {"v2.5.2.tar.gz": GOOD["numpy-2.5.2.tar.gz"], **w.served}
+    w.script.write_text(
+        "tests https://example.org/archive/v2.5.2.tar.gz numpy-2.5.2.tar.gz\n"
+        "get https://example.org/pandas-3.0.6.tar.gz pandas-3.0.6.tar.gz\n"
+    )
+    assert w.go(monkeypatch) == []
+    assert (w.downloads / "numpy-2.5.2.tar.gz").is_file()
+    assert not (w.downloads / "v2.5.2.tar.gz").exists()
+    assert (w.build / "numpy-2.5.2" / "numpy" / "tests" / "test_a.py").read_bytes() == b"x"
+
+
 def test_a_shard_without_groups_fetches_nothing(capsys) -> None:
     assert fetch.main(["--shard", "own-rest"]) == 0
     assert "nothing to fetch" in capsys.readouterr().out

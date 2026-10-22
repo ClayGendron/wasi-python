@@ -1236,6 +1236,24 @@ review starts on the diff while it runs (the owner's compressed path, `decisions
     markupsafe's, networkx's and seaborn's sdists are their components' sources, so they are
     not affected.
   - sympy's `budget` now counts its six traps' 50 G caps, as the well-formed check sums them.
+- **The first branch run's High, fixed** (run 39715865231, found by wave 12's integration
+  review): `upstream-pure-smoke-a` and `-b` were red at "What the shard needs". `fetch.py`'s
+  `fetch` saved each download under its URL's last part, but `fetch_trees` unpacks
+  `downloads/<pinned name>`. Nine `tests` lines have a URL ending otherwise: the eight
+  release-tag archives (`v0.12.1.tar.gz`, `RELEASE_3.2.9.tar.gz`, ...) and pypdf's sample
+  files (`818dc013....tar.gz`). Locally `00_download.sh` had saved them under the pinned
+  names, which hid it; CI's judge legs start with an empty `downloads/`.
+  - **The fix:** `fetch` takes the name to save as. `fetch_trees` and `fetch_files` pass the
+    pinned name. The kit's and kit-extra's files keep their URL names, which is what their
+    readers use.
+  - **Its check, written first and seen failing on the code before the fix**
+    (`build/067/logs/fetch-name-red.log`):
+    `tests/unit/test_fetch_trees.py::test_a_source_is_saved_under_its_pinned_name_not_its_urls`.
+  - **Every line read** (EXECUTED, a script over `scripts/00_download.sh`): 33 of 155
+    `get`/`tests` lines have a URL name other than the pinned name. The nine above; four
+    `get` lines fetch.py can reach (`SheenBidi-3.0.0.tar.gz`'s URL is lowercase, and three
+    `+` names whose URLs spell `%2B`), now right too; and the licence files and `.deb`
+    packages, which only `00_download.sh` fetches, and it saves by the pinned name.
 
 ### The numbers (EXECUTED, darwin-arm64)
 
@@ -1260,13 +1278,18 @@ review starts on the diff while it runs (the owner's compressed path, `decisions
   and zip, with `MANIFEST` rewritten the way this branch's assemble step writes it. That is 44
   lines added and 1 removed: 39 `pin` lines, four patch `recipe` lines, and the changed
   `scripts/00_download.sh` line. No rebuild was done; the lane's rebuild shows criterion 9.
-- **The fast tier:** green on this base, `-n 3` (`build/067/logs/fast-tier-2.log`): 2,996 passed, 47 skipped; the ratchet lost 0, grew 0, gained 2; the blocked rows are the build host's (source trees, compile records, the prior-art clones). (Its first run found the two faults above.)
-- **The branch run:** dispatched on this commit; its id and verdict are in the next commit (context only).
+- **The fast tier:** green on this base, `-n 3` (`build/067/logs/fast-tier-2.log`): 2,996 passed, 47 skipped; the ratchet lost 0, grew 0, gained 2; the blocked rows are the build host's (source trees, compile records, the prior-art clones). (Its first run found the two faults above.) After the fetch fix (`fast-tier-3.log`): 2,996
+  passed, 1 failed. The failure was `test_gather.py::test_the_gathers_collection_holds_every_release_tier_check`:
+  its inner collection's `litter.sealed_leftovers` walked `build/harness` while another `-n 3`
+  worker removed its `unit-*` folder (`FileNotFoundError`). That is a race in the judge's own
+  tooling, not this change. The check passes by node id, and it passed in `fast-tier-2.log`.
+  It is named for the lane.
+- **The branch run:** the first, 39715865231 on `55d475fb`, was red at the two smoke shards' fetch (above, fixed); the second is named in the commit after the fix.
 
 ### The earlier builder's notes, carried
 
 - Its unit checks (`tests/unit/test_pure_suites.py`'s first 30) were written beside the code,
-  not seen failing first. This builder's four new rows (the doctest setup, runner and checker
+  not seen failing first. This builder's five new rows (the fetch-name row, the doctest setup, runner and checker
   rules, and their spec row) were seen failing first.
 - While sympy's measuring ran, it ran three short re-measuring passes of other families beside
   it: two guest processes at once, against the one-at-a-time rule. darwin fuel is deterministic,
@@ -1287,7 +1310,7 @@ Before you ask for a review:
 - [x] "For the lane": the claim block in context/release-tier-claims.toml (spec "067"; 420
       release groups, their classes, six traps; units 34), the flags below, wave kind
       build-class (pins, patches, the artifact set's MANIFEST), dry-run needs: the wave's.
-- [ ] every new check seen failing first: this builder's four rows yes; the earlier builder's 30
+- [ ] every new check seen failing first: this builder's five rows yes; the earlier builder's 30
       written beside the code, not seen failing first (said plainly above).
 - [x] every gap names its closer: README.md facts, spec 023's file for matplotlib.testing.
 - [x] packages.toml: the 42 are suites, none names spec 067.

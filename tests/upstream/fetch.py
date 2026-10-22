@@ -65,9 +65,11 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def fetch(sha: str, url: str, wheels: Path) -> str | None:
-    """Download one wheel; None when it is in place with its hash, else why it is not."""
-    dest = wheels / url.rsplit("/", 1)[1]
+def fetch(sha: str, url: str, wheels: Path, name: str = "") -> str | None:
+    """Download one file into `wheels`, saved as `name` (a pinned file's name, which a forge's
+    archive URL does not end in) or else as the URL's last part; None when it is in place with
+    its hash, else why it is not."""
+    dest = wheels / (name or url.rsplit("/", 1)[1])
     if dest.is_file() and sha256_file(dest) == sha:
         return None
     part = dest.with_name(dest.name + ".part")
@@ -164,7 +166,7 @@ def fetch_trees(
     if errors:
         return errors
     for name in names:
-        e = fetch(pinned[name], urls[name], downloads)
+        e = fetch(pinned[name], urls[name], downloads, name)
         if e:
             return [e]
     for name in names:
@@ -229,7 +231,7 @@ def fetch_files(wheels: list[str], extras: list[str]) -> list[str]:
     for w in wheels:
         if w not in urls or w not in pinned:
             errors.append(f"{w}: no get line or no pin")
-        elif e := fetch(pinned[w], urls[w], DOWNLOADS):
+        elif e := fetch(pinned[w], urls[w], DOWNLOADS, w):
             errors.append(e)
     entries = {
         packages.extra_name(f): (sha, url)
