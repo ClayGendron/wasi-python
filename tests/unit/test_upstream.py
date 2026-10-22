@@ -343,6 +343,17 @@ def test_failures_sort_into_the_first_class_that_fits_and_the_rest_are_findings(
     ]
 
 
+def test_joblibs_cross_version_pickle_test_is_no_mmap_in_either_listing_order() -> None:
+    """The test loads every pickle in its data folder in the host's listing order, and each load
+    meets mmap's error: a Python 3 pickle first re-raises it, a Python 2 one first fails the
+    test's ValueError assertion. Either way it is one member of the same class."""
+    node = "joblib/test/test_numpy_pickle.py::test_joblib_pickle_across_python_versions_with_mmap"
+    classes = [k for k in CONFIGS["joblib"].expected if k.group == "joblib-r"]
+    for reason in ("OSError: mmap is unavailable on wasm32-wasi", "AssertionError: assert False"):
+        g = _group(_stream(f"S {node}", f"R failed {node} -- {reason}"), classes=classes)
+        assert g.findings == [] and g.members["no-mmap"] == [node], (reason, g)
+
+
 def test_a_node_id_with_the_separator_inside_is_read_whole() -> None:
     node = "numpy/tests/test_a.py::test_1[a -- b]"
     text = _stream(f"S {node}", f"R failed {node} -- x -- OSError: [Errno 58] y")

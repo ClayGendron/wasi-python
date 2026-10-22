@@ -107,10 +107,15 @@ reason = "an operation WASI does not support answers ENOTSUP: asyncio's event lo
 closes_with = "README.md"
 
 [[expected]]
+# test_joblib_pickle_across_python_versions_with_mmap loads every pickle in its data folder in
+# the order the host lists it, and each load meets mmap's OSError. A Python 3 pickle re-raises it;
+# a Python 2 pickle, which the test expects to raise ValueError, fails on `assert isinstance(exc,
+# ValueError)` instead. Which comes first is the host file system's order (APFS keeps one; ext4's
+# differs between machines), so either message is this class's.
 id = "no-mmap"
 group = "joblib-r"
 outcome = "failed"
-match = "mmap is unavailable|No module named 'mmap'|^AssertionError: False is not true$"
+match = "mmap is unavailable|No module named 'mmap'|^AssertionError: False is not true$|^AssertionError: assert False$"
 reason = "no mmap: the stand-in raises OSError (README); xlrd opens a workbook with mmap, so a test that checks the error a bad workbook raises sees mmap's"
 closes_with = "README.md"
 
