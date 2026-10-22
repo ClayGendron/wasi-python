@@ -56,7 +56,6 @@ nav:
       - get-started/install.md
       - get-started/first-run.md
       - get-started/csv-through-a-grant.md
-      - get-started/embed-python-wasm.md
   - How-to guides:
       - how-to/grants.md
       - how-to/mounts.md

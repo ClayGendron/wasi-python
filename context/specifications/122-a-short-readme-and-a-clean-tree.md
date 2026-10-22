@@ -1,7 +1,8 @@
 # 122: A short README and a clean tree
 
 - **Status:** **built 2026-10-22 on main `fb8343cd`, but the evidence folders' deletion, left to
-  the lane (Landing notes); not reviewed.** Drafted 2026-10-22; no pre-build review (neither touches `src/` or the build
+  the owner (Landing notes); build-reviewed 2026-10-22, "lands once M1 and M2", both fixed
+  (Disposition of the build review).** Drafted 2026-10-22; no pre-build review (neither touches `src/` or the build
   recipe; AGENTS.md rule 8). Built in parallel with 123 (the documentation site), on disjoint
   files, for the one wave before the 0.1.0 tag (`decisions.md`, "The documentation before the
   0.1.0 tag, within a day"). No builder dispatches a branch run or loops on the fast tier: the
@@ -287,7 +288,8 @@ Order of work for the builder (each step checkable alone, seconds each):
    branch's `docs/` into the worktree for the run, uncommitted) so 123's builder hears of a hit
    before the rebase.
 6. `pyproject.toml`, `uv lock`, `mkdocs.yml`, `docs.yml`, `.gitignore` (Decision 7);
-   `uv run --group docs mkdocs build --strict` with 123's pages copied in, uncommitted.
+   `UV_PROJECT_ENVIRONMENT=build/docs-venv uv run --group docs mkdocs build --strict` (its own
+   environment, never the judge's: For the lane) with 123's pages copied in, uncommitted.
 7. The deletions and the pointers (Decision 8); `git status` shows the deletions and nothing
    untracked under `context/`.
 8. `uv run ruff check` and `uv run ruff format --check`; the CHANGELOG and roadmap lines
@@ -390,10 +392,20 @@ A reviewer checks each by reading the diff, or by one of the commands this work 
   builder rebases onto 123's tip and names every conflict (none expected: the files are disjoint).
 - **No builder judge runs.** Builders run `uv run ruff check`, `uv run ruff format --check`, the
   node ids named in the criteria, `uv run python tests/harness/api.py --write`, `uv run python
-  tests/harness/cli_doc.py --write` and `uv run --group docs mkdocs build --strict`. No branch run
-  is dispatched; no fast tier loops. The reviewer reads the diff and the self-check list without
-  re-running the judge.
-- **The lane, on the wave's tip**: `uv run --group docs mkdocs build --strict` (seconds) and the
+  tests/harness/cli_doc.py --write` and `UV_PROJECT_ENVIRONMENT=build/docs-venv uv run --group
+  docs mkdocs build --strict`. No branch run is dispatched; no fast tier loops. The reviewer reads
+  the diff and the self-check list without re-running the judge.
+- **The site builds in its own environment, never the judge's.** The `docs` group brings
+  platformdirs, which registers a pytest plugin; installed into a tree's `.venv`, it stays there
+  (a plain `uv run` syncs inexactly) and the judge reports `RED: steered from outside the judge:
+  plugin platformdirs`. So every local site build is `UV_PROJECT_ENVIRONMENT=build/docs-venv uv
+  run --group docs mkdocs build --strict` (`build/` is git-ignored). If the docs group was ever
+  installed into a tree's `.venv`, run `uv sync --locked` there first (an exact sync, without the
+  group, removes it); **the main tree's `.venv` is `uv sync --locked` before the release
+  acceptance**. CI is unaffected: `docs.yml` builds on its own runner, and `release.yml` never
+  installs the group.
+- **The lane, on the wave's tip**: `UV_PROJECT_ENVIRONMENT=build/docs-venv uv run --group docs
+  mkdocs build --strict` (seconds), `uv sync --locked`, and the
   two scans by node id before the release acceptance, so a nav path or a page's phrase fails here
   and not on `docs.yml`'s first run on main; then the normal-tier run without `--accept`, green;
   then `uv run pytest -n 6 --tier release --accept "Release 0.1.0: the release tier; 122: a short
@@ -412,8 +424,11 @@ A reviewer checks each by reading the diff, or by one of the commands this work 
   its one class of difference.
 - **The advisory draft**: deleted at landing on the owner's word (Decision 8), else kept and
   noted.
-- **Pages**: the owner sets Settings → Pages → Source to GitHub Actions before the tag; the
-  README's documentation links point at a site that serves only after the tag's `docs.yml` run.
+- **Pages**: the owner sets Settings → Pages → Source to GitHub Actions before the tag, and adds
+  a tag rule `v*` to the `github-pages` environment (Settings → Environments → github-pages →
+  Deployment branches and tags), whose default allows only the default branch (INFERRED from
+  GitHub's documented default; a `workflow_dispatch` on main deploys either way); the README's
+  documentation links point at a site that serves only after the tag's `docs.yml` run.
 
 ## One line
 
@@ -427,8 +442,9 @@ with `src/` untouched and the judge run once.
 **Built 2026-10-22** on branch `spec/122-a-short-readme-and-a-clean-tree`, based on main
 `fb8343cd`. No branch run, by the owner's rule for this work (`decisions.md`, 2026-10-22); no
 fast tier. One step is not done: the 54 research evidence folders' deletion (Decision 8) was
-refused by the builder's permission system as an irreversible local deletion; the lane or the
-owner runs it (below). Everything else in Decisions 1 to 10 is in the branch.
+refused by the builder's permission system as an irreversible local deletion; the owner runs it
+later (below). Everything else in Decisions 1 to 10 is in the branch. The build review's
+findings are fixed on this branch (Disposition of the build review).
 
 **The builder's self-check** (`reviews/README.md`):
 
@@ -484,7 +500,9 @@ owner runs it (below). Everything else in Decisions 1 to 10 is in the branch.
   `tests/unit/test_scan.py` and `tests/unit/test_cli_doc.py`: 312 passed. `uv run python
   tests/harness/api.py --check` and `uv run python tests/harness/cli_doc.py --check`: exit 0;
   `tests/public_api.txt` unchanged.
-- `uv run --group docs mkdocs build --strict`: green, run on a scratch copy holding 123's
+- `UV_PROJECT_ENVIRONMENT=…/build/docs-venv uv run --group docs mkdocs build --strict` (the
+  first run, before the review, used the worktree's own `.venv`: finding M1): green, run on a
+  scratch copy holding 123's
   in-progress pages from its worktree, this branch's three pages, `mkdocs.yml` and
   `CHANGELOG.md`; one nav page absent there (`get-started/embed-python-wasm.md`, on 123's
   may-omit list) had a stand-in. The two scans and the internal-name rule were run over the same
@@ -513,11 +531,56 @@ owner runs it (below). Everything else in Decisions 1 to 10 is in the branch.
   history at `bb2235f2`. `recipes/` is build-class and out of this specification's files, so
   the comment is left for 0.1.1.
 
-**For the lane, the step not done.** From the branch's worktree, before the release acceptance:
-delete every folder under `context/research/` except `2026-10-18-wasmtime-49-advisories/` (54
-folders, 1,746 files less the advisories folder's; the list is
-`build/122/evidence-folders.txt` in the builder's worktree), commit "Spec 122: the research
-evidence folders before 2026-10-23 deleted (in git history at bb2235f2). Context only", and
-check `git ls-files context/research | grep /` lists only the advisories folder (criterion 8).
-`context/README.md` already says the folders are in history. The advisory draft
-(`upstream/advisories/GHSA-draft-0.1.0a3.md`) is untouched, for the lane at landing.
+**The step not done: the owner's.** The owner deletes the evidence folders later, themselves
+(the lane, 2026-10-22): every folder under `context/research/` except
+`2026-10-18-wasmtime-49-advisories/`, which the judge reads. The 54 folders are listed one per
+line in `build/122/evidence-folders.txt` in the builder's worktree; the advisories folder is not
+on the list. With the deletion comes the sentence in `context/README.md`'s `research/` rule that
+the folders before 2026-10-23 are in git history at `bb2235f2` and that only the advisories
+folder stays; this branch no longer carries it, since it is false until then. Criterion 8's
+first clause waits on that commit (`git ls-files context/research | grep /` lists only the
+advisories folder). The advisory draft (`upstream/advisories/GHSA-draft-0.1.0a3.md`) is
+untouched, for the lane at landing.
+
+## Disposition of the build review
+
+The build review (`../reviews/122-a-short-readme-and-a-clean-tree-build-2026-10-22.md`, at
+`396a8495`) said "lands once M1 and M2 are fixed". Each finding, and what was done, on this
+branch (EXECUTED where a command is named):
+
+- **M1, the docs group's pytest plugin in the judge's environment: fixed.** For the lane now
+  builds the site with `UV_PROJECT_ENVIRONMENT=build/docs-venv uv run --group docs mkdocs build
+  --strict`, says that a `.venv` the group ever reached is `uv sync --locked` first, and that the
+  main tree's `.venv` is synced so before the release acceptance; Design step 6's and the
+  builders' command are the same. The builder's worktree was `uv sync --locked` (the group's
+  packages removed; `mkdocs` and `platformdirs` absent from `.venv`); the node ids since run
+  there show no RED line (`build/122/colour-after-fix.log`, `build/122/node-ids-2.log`). The
+  strict build ran with `UV_PROJECT_ENVIRONMENT` set to `build/docs-venv`: green. CI is
+  unaffected: `docs.yml` builds on its own runner, and `release.yml` never installs the group.
+  The self-check's earlier node-id run (`build/122/node-ids.log`) did carry the RED line the
+  review names; it was missed then.
+- **M2, the CLI page's render under colour: fixed.** `cli_doc.render()` sets `parser.color =
+  False` when the parser has the attribute (Python 3.14 and later). A unit row,
+  `test_the_render_has_no_colour_whatever_the_terminal`, sets `FORCE_COLOR=1` and asserts no
+  escape code and equality with the committed page; seen failing first
+  (`build/122/colour-before-fix.log`: `assert '\x1b' not in …`), then passing.
+  `cli_doc.py --write` left `docs/reference/cli.md` unchanged; `FORCE_COLOR=1 … cli_doc.py
+  --check` exit 0; `FORCE_COLOR=1 uv run pytest tests/checks/test_rules.py::
+  test_generated_pages_are_current` passes.
+- **L1, the hosts caveat: fixed.** The README's Hosts section says this project runs wasmtime 49
+  itself and reads the rest of the list from each runtime's release notes and source.
+- **L2, the pure-Python count: fixed.** "About 40 pure-Python packages" (the CHANGELOG's 42).
+- **L3, the deletion list: fixed.** `build/122/evidence-folders.txt` holds the 54 folders only,
+  without `2026-10-18-wasmtime-49-advisories`; the deletion is the owner's (above), and the
+  `context/README.md` sentence that it has happened is removed until then.
+- **L4, the roadmap lines and the order of decisions.md: fixed.** The roadmap's documentation
+  follow-ups name `recipes/numpy_lapack_shims.c:13`'s pointer into the evidence folder and the
+  scans taught to read `SECURITY.md`; `SECURITY.md`'s "(spec 048)" is gone, the sentence says
+  it in words already. The 2026-10-17 entry in `decisions.md` now sits at its date's place,
+  after the last entry dated 2026-10-18 and before "43–48".
+- **Notes:** the nav line for `get-started/embed-python-wasm.md` is deleted from `mkdocs.yml`
+  (123 omitted the page); no nav entry carries an explicit title, so 123's retitling of
+  `get-started/csv-through-a-grant.md` needs no change here. `docs.yml`'s `concurrency` block
+  moved from the workflow onto the `deploy` job (group `pages`, `cancel-in-progress: false`), so
+  a pull request's build never queues in, or cancels, a release's deployment. For the lane's
+  Pages line names the `github-pages` environment's tag rule `v*`.

@@ -10,20 +10,6 @@ Status line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
-### The owner's direction for the product (2026-10-17; moved here 2026-10-22)
-
-Kept in `questions-for-the-owner.md` until that file was deleted (spec 122). The owner, in
-paraphrase, without the private path the original named: "I am thinking of this more as a safe
-runtime for agent code. The use case is much more powerful web agents that can access code and
-interact with their data and tools (either through a file system, tools in the host program, api
-calls, mcp, etc.)"; its main use case is to work with a filesystem layer that manages the
-permissions and governance.
-
-The code stays embedder-neutral (§4.5). The capabilities that agent use needs are built as
-general features; `research/2026-10-17-the-runtime-for-agent-code.md` studies which. State
-across turns is researched before any specification
-(`research/2026-10-17-state-across-agent-turns.md`).
-
 ### The documentation before the 0.1.0 tag, within a day (2026-10-22)
 
 With 0.1.0's third dry run green, the owner asked for the README to be "cut down to a clear
@@ -733,6 +719,20 @@ agent's recommendation beside each. The full questions, with their facts, are in
   say so before it is built.
 - **89, answered:** (a), a judge-only binary linked with numpy's test modules, never shipped:
   a later build-class specification.
+
+### The owner's direction for the product (2026-10-17; moved here 2026-10-22)
+
+Kept in `questions-for-the-owner.md` until that file was deleted (spec 122). The owner, in
+paraphrase, without the private path the original named: "I am thinking of this more as a safe
+runtime for agent code. The use case is much more powerful web agents that can access code and
+interact with their data and tools (either through a file system, tools in the host program, api
+calls, mcp, etc.)"; its main use case is to work with a filesystem layer that manages the
+permissions and governance.
+
+The code stays embedder-neutral (§4.5). The capabilities that agent use needs are built as
+general features; `research/2026-10-17-the-runtime-for-agent-code.md` studies which. State
+across turns is researched before any specification
+(`research/2026-10-17-state-across-agent-turns.md`).
 
 ### 43–48. What else the default profile carries
 

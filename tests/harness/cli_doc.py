@@ -65,6 +65,10 @@ def render(parser: argparse.ArgumentParser, described: dict[str, str] | None = N
     parser's order (the help option left out), and a line per group of options that exclude
     each other. ValueError names every option that has no description, two, or no option."""
     described = DESCRIBED if described is None else described
+    # From Python 3.14 argparse colours its usage line under a terminal or FORCE_COLOR; the page
+    # must be the same text wherever it is rendered, so colour is off (older parsers have none).
+    if hasattr(parser, "color"):
+        parser.color = False
     actions = [a for a in parser._actions if a.option_strings and a.dest != "help"]
     names = {a.option_strings[-1] for a in actions}
     errors = [f"{n}: described, but the parser has no such option" for n in described]

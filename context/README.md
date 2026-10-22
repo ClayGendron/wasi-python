@@ -65,9 +65,7 @@ channel and recorded, once answered, in `decisions.md`.
   commits us to nothing. A **placeholder** memo (status line says so)
   is the one exception to "never edited": it holds a question, the
   experiment that answers it and what it blocks, and is completed in
-  place when the work is done. Evidence folders (a memo's outputs and
-  logs) from before 2026-10-23 are in git history at `bb2235f2`; only
-  `2026-10-18-wasmtime-49-advisories/`, which the judge reads, stays.
+  place when the work is done.
 - **`specifications/`** are numbered (`NNN-slug.md`), born from
   research, small enough for one developer, and **retired on
   landing**. Each has a header (status, date, owner, kind, depends on,

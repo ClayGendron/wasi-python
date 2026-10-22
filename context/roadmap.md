@@ -304,7 +304,12 @@ the quickstart and how-to snippets as files under `docs/examples/`, run as a slo
 and suites' reasons that still say "README"; versioned docs; this roadmap's trim; archiving
 landed specifications with their reviews, and teaching the scans the archive path; the
 included-packages table generated from `MANIFEST` and `tests/upstream/packages.toml`; a
-scheduled external link check, upstream download hosts excluded.
+scheduled external link check, upstream download hosts excluded;
+`recipes/numpy_lapack_shims.c:13`'s pointer to its generator in the evidence folder
+`research/2026-10-20-numpy-on-openblas/`, which goes with the evidence folders' deletion (the
+generator stays in git history at `bb2235f2`; a build-class change); and the public-page scans
+taught to read `SECURITY.md` too (its specification number was written out in words by 122's
+build review fixes).
 
 Build-time profiles beyond the default (constitution §2's principle;
 `research/2026-10-16-build-time-profiles-of-the-core-c-libraries.md`).

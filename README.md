@@ -81,7 +81,7 @@ says what is and what is not.
 ## What runs, and what does not
 
 numpy 2.5.2, pandas 3.0.6, scipy 1.18.1, scikit-learn 1.9.1, statsmodels 0.15.0,
-matplotlib 3.11.2, lxml 6.1.3 and regex are compiled in. About 30 pure-Python packages ride in
+matplotlib 3.11.2, lxml 6.1.3 and regex are compiled in. About 40 pure-Python packages ride in
 the zip: Excel, PDF, HTML and XML, YAML, templates, graphs, sympy and more
 ([the full list](https://claygendron.github.io/wasi_python/reference/packages/)). Each package's
 own test suite runs in the guest before a release.
@@ -96,7 +96,9 @@ from native Python, each with its reason.
 
 ## Hosts
 
-The binaries use WebAssembly's exception-handling proposal, so a host must support it.
+The binaries use WebAssembly's exception-handling proposal, so a host must support it. This
+project runs wasmtime 49 itself; the rest of this list is read from each runtime's release notes
+and source.
 
 - **Runs by default:** wasmtime 47 or later (CLI, Rust, wasmtime-py); WasmEdge 0.16 or later.
 - **Runs with a switch:** wasmer 6 or later on LLVM, V8 or Cranelift; wazero 1.12 or later;

@@ -13,11 +13,6 @@ on:
 
 permissions: {}
 
-# One deployment at a time, and a running one is never cut short.
-concurrency:
-  group: pages
-  cancel-in-progress: false
-
 env:
   UV_VERSION: "0.9.22"
   UV_LOCKED: "1"
@@ -53,6 +48,11 @@ jobs:
     name: deploy to GitHub Pages
     needs: build
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    # One deployment at a time, and a running one is never cut short. Only this job queues, so
+    # a pull request's build never waits in, or cancels, a release's deployment.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:

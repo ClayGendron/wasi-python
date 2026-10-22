@@ -73,6 +73,16 @@ def test_a_page_holds_exactly_one_block() -> None:
     )
 
 
+def test_the_render_has_no_colour_whatever_the_terminal(monkeypatch) -> None:
+    """argparse colours its usage line when asked to by the environment or a terminal; the page
+    is the same text everywhere, so the render turns colour off."""
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    text = cli_doc.render(cli_doc.live_parser())
+    assert "\x1b" not in text
+    assert cli_doc.page_block(cli_doc.PAGE.read_text(encoding="utf-8")) == (1, text)
+
+
 def test_every_option_of_the_command_is_described() -> None:
     text = cli_doc.render(cli_doc.live_parser())
     for option in ("--env", "--deadline-s", "--grant-writable", "--no-root"):

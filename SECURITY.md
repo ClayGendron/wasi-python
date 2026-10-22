@@ -35,7 +35,7 @@ not patched.
 The runner uses wasmtime-py 49.0.0, which bundles wasmtime 49.0.0; no wasmtime-py release yet
 carries a wasmtime past it. Two wasmtime advisories fixed since then reach a guest, and the
 runner carries each fix itself, on every call, until the published `wasmtime` requirement admits
-only fixed versions (spec 048):
+only fixed versions:
 
 - **GHSA-m9f7-9w4p-gv38** (high, fixed in wasmtime 49.0.3): on macOS and FreeBSD, a guest with a
   writable grant or root could rename a symbolic link that points out with a trailing slash and
