@@ -8,6 +8,34 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### The documentation before the 0.1.0 tag, within a day (2026-10-22)
+
+With 0.1.0's third dry run green, the owner asked for the README to be "cut down to a clear
+explanation of what it is, a quick 5 min setup and run guide, and other important details a dev
+would want to see", everything else on a documentation site on GitHub, unneeded files removed
+("like the questions to owner and such"), and other repositories studied for what they do well
+and for systems such as Diátaxis. Five agents researched; a sixth wrote the plan
+(`research/2026-10-22-a-plan-for-the-documentation.md`). The owner then decided:
+
+- **Everything before the tag**: the README, the cleanup and the site, "but … we can't spend days
+  on this. We need to get this done within a day". Git history is not rewritten: "we don't need
+  to clean up git history, just the repo before we do the 0.1.0 release."
+- **`context/` stays mostly as it is**; only files no longer needed are deleted (git history keeps
+  them).
+- **The advisory draft** (`upstream/advisories/GHSA-draft-0.1.0a3.md`): the owner files it in
+  GitHub's advisory form, yanks 0.1.0a3 on PyPI and publishes; then the draft file is deleted.
+- **The site** is served at the GitHub Pages default address; the owner sets Settings → Pages →
+  Source to "GitHub Actions".
+
+The lane's defaults for the plan's other questions: MkDocs 1.6.1 with Material 9.7.7 in the
+subset Zensical reads; the known gaps' `README.md` closers move to the site's limitations page;
+the private consumer's name stays in dated records, and a scan keeps it off every public page.
+To fit a day: two specifications built side by side with disjoint files (122, the README, the
+cleanup and the judge's changes; 123, the site's pages), no pre-build review (neither touches
+`src/` or the build recipe), one wave, one release acceptance, one dry run, then the tag. Tested
+snippets as guest jobs, help strings for the CLI's options (runner code), versioned docs, the
+roadmap's trim and the specifications' archive wait for 0.1.1.
+
 ### The process advice, instituted (2026-10-22, night)
 
 The owner felt the work "significantly limited by code running to test our code" and asked for
