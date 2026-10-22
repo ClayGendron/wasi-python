@@ -8,6 +8,25 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### The path to 0.1.0 is compressed (2026-10-21, night)
+
+The owner asked whether the rest could be "finish up the specs, review them, and then do the
+full CI checks before creating a release", and chose the compressed plan the lane offered. For
+wave 12 (095 and 067) and the release only:
+
+- Each specification still dispatches its one branch run, and its build reviewer starts on the
+  diff while that run goes, reading the run back before its verdict (rule 8's order, relaxed).
+- Wave 12 has no dry run of its own on `wave/12`. The lane rebuilds, judges and accepts the
+  wave's tip as usual, its fresh integration review included, and fast-forwards main. The one
+  CI check after that is the pre-tag dry run on main's exact commit (rule 6b), which runs every
+  job the wave's dry run would and the release tier as well.
+- The release reviewers' delta reads run beside the lane's release acceptance. Their files
+  touch only `context/`, which may follow the dry run (rule 6b).
+
+Unchanged: the fresh build and integration reviews, the lane's release acceptance (the
+release run's gather compares against it, G7), the dry run on main before the tag, and the
+owner's tag.
+
 ### Upstream hosts are not probed (2026-10-21, evening)
 
 GNU Savannah, freetype's pinned host, was down from about 20:10 to 20:25 UTC, and the lane polled
