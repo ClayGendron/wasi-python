@@ -4,7 +4,7 @@ One section per release of the `wasi-python` artifact set and wheel, newest firs
 body is the release's notes on GitHub. `release/version.py bump` adds a section; `release/version.py
 release` dates it and tags the release (context/specifications/004-alpha-releases.md).
 
-## 0.1.0a8 — unreleased
+## 0.1.0 — unreleased
 
 - **The release runs the pure-Python packages' own tests** (spec 067): each whole suite before
   a publication, a smoke group per package on every run, for the 42 pure-Python packages the

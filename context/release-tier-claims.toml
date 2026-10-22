@@ -115,6 +115,10 @@ new = [
 ]
 changed = []
 passes = []
-grows = []
+grows = [
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-filled-*",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-lines-*",
+]
+growth = "067: the package driver moves every package-driver group's fuel both ways; passes unchanged (the wave 12 integration review's M1 and L3)"
 retired = []
 units = 34  # tests/unit/test_pure_suites.py, a new file: 34 collected
