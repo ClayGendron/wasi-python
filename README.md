@@ -922,7 +922,12 @@ data-driven tokenizer and tree-construction files (its conftest builds them in a
 refuses), seaborn's `test_base.py` (a mark on a fixture, likewise), pyparsing's diagram tests
 (railroad is not in the product), joblib's memmapping tests (processes and `mmap`), reportlab's
 barcode tests and `test_platypus_general.py`, fontTools' table-coverage script, defusedxml's
-abstract base class and runner, and pypdf's tests that download their files.
+abstract base class and runner, pypdf's tests that download their files, and the modules and
+doc files sympy's own doctest runner leaves out (its doctest blacklist: shims, generated code,
+and what needs antlr4, pyglet, aesara or lfortran). sympy's doctests run under sympy's own
+doctest runner, output checker and printer setup, as its `bin/doctest` runs them. Six sympy
+tests that upstream marks `@slow` or `@tooslow` do not end within 2.9 to 4.5 T of fuel in the
+guest, past the bound for one test; each is a trap entry, run alone to its 50 G cap.
 
 The pure-Python suites' known failures, each a class by test id with this fact:
 `no-threads`, `no-processes`, `no-mmap`, `shallow-recursion`, `no-network`, `no-resource-module`,
@@ -946,7 +951,16 @@ pytest's per-test warning capture undoes a filter the module sets at import;
 `reportlab-data-folder`: reportlab's tests find their data beside the installed package, in the
 zip; `tz-cache`: dateutil's gettz cache tests see the same zone object come back;
 `doctest-output`: a docstring example's output differs under the stdlib's doctest runner with
-upstream's flags.
+upstream's flags; `sympy-doctest`: the same under sympy's own runner and checker, or an example
+sympy's runner skips when a dependency its `doctest_depends_on` mark names is absent (a mark the
+stdlib's finder does not read); `sympy-source-tree`: sympy's test-runner helpers look for its
+test files beside the installed package, which is bytecode in a zip; `no-path-variable`: the
+guest's environment has no `PATH`; `sympy-solution-form`: dsolve returns an equal solution
+with its constants signed otherwise (sympy's choices follow set and dict order, which the
+guest's 32-bit `hash()` changes; inferred); `sympy-tooslow-fails`: two `@tooslow` tests, which
+upstream's own runners never run, raise `CoercionFailed` in the guest;
+`matplotlib-testing-not-shipped`:
+the product's matplotlib leaves out `matplotlib.testing`.
 
 A job named `gather` reads
 every shard's record by its id and hash, and nothing is signed or published unless every shard ran

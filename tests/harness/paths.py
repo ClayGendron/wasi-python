@@ -705,6 +705,12 @@ def licence_source(component: str, m: Manifest | None) -> Path | None:
         pinned = read_pin_list(DOWNLOADS / "SHA256SUMS")
     except (OSError, ValueError):
         return None
+    from harness import needs, pins
+
+    # a test source (an sdist or a release tag's archive the judge stages for a package's own
+    # tests) is never what the product ships, so it never stands for a component's notice
+    tests = [pins.SOURCE_PATTERNS[c] for c in needs.TEST_SOURCES]
+    pinned = {f: h for f, h in pinned.items() if not any(t.fullmatch(f) for t in tests)}
     if component == "cpython":
         names = [cpython_pin_name(m.python)] if m.python else []
     else:

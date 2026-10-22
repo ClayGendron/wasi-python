@@ -28,7 +28,7 @@
   once the named findings are answered") **is answered in writing**, every finding, H1 and H2
   included ("Disposition of the delta review"), on this branch **rebased onto main `1875d4cd`**
   (no conflict) with the review cherry-picked. Built only after 102's build review, stacked on
-  102's reviewed tip.
+  102's reviewed tip. **Built 2026-10-22, in wave 12, rebased onto `origin/wave/12` `99dcd257`** (Landing notes): every family measured by node id, sympy whole, its doctests under its own runner.
 - **Owner:** Clay Gendron
 - **Kind:** the build recipe's pins (39 lines in `downloads/SHA256SUMS`, 39 `tests` lines in
   `scripts/00_download.sh`), the judge, and the release workflow. No line of `src/` changes;
@@ -1106,31 +1106,206 @@ rebase onto main `1875d4cd` (no conflict). Every finding is written in, before a
 
 ## Landing notes
 
-Not built yet: **the build is in progress, paused 2026-10-21 at the owner's word** (the lane's
-message: finish the local step, commit, push, start nothing new). The resume point:
+**Built 2026-10-22, in wave 12: rebased onto `origin/wave/12` `99dcd257`** (main `c0d3a212` plus
+095, reviewed). The run is the normal tier only (no `release-tier`), run id below; the build
+review starts on the diff while it runs (the owner's compressed path, `decisions.md`).
 
-- **Base:** stacked on 102's final tip `861d5e4b`, rebased clean (no hunk resolved).
-- **Done locally (in this branch):** the 39 pins and `--tests` (criterion 1); the four test-source
-  patches with their drafts (criterion 9's patch lines); the harness keys, rules and drive
-  changes (criteria 2 to 4), with `tests/unit/test_pure_suites.py` (30 checks; written beside the
-  code, not seen failing first, which the self-check will say); `packages.toml` (42 `suite`); the
-  42 families' TOMLs and `.ini`s, 285 groups (42 smoke, 243 release); 70 class lists under
-  `tests/upstream/expected/` and 91 class gaps in `tests/known_gaps.toml` for every family but
-  sympy; the README facts paragraph; a trial shard packing (2 normal shards, 876.4 G; 123 release
-  shards, from fuel that is partly sympy's estimates) in `release_shards.toml` and `release.yml`.
-  By node id: the rules, the well-formed check, the pin check and the unit files pass (295 passed,
-  2 skipped); ruff check and format clean. The fast tier has not run (its slot was taken).
-- **Measured (EXECUTED, darwin, by node id with `--tier release`):** every group of the 41
-  families but sympy, the fixed and split ones again: smoke 0.876 T together, release about 13 T.
-  sympy: 113 of its 167 groups, 43.2 T so far, many past 480 G and fifteen stopped at their caps
-  (calculus-5 at 4.5 T, solvers-5, solvers-7, integrals-2, polys-2, polys-4, simplify-4 and
-  others): these need splitting by file or by node id, as Decision 10 says.
-- **Left:** sympy's other 54 groups (`build/067/sympy-left.txt` in the worktree); splitting its
-  heavy and capped groups and measuring them; its classes, lists and gaps; renaming
-  `sympy-r-17141` to `sympy-slow-17141`; each smoke group twice (criterion 7); the final packing;
-  the fast tier; the claim block; these notes in full with the self-check; the branch run.
-- **Note for the lane:** while sympy's measuring ran, three short re-measuring passes of other
-  families ran beside it, two guest processes at once, against the one-at-a-time rule. darwin fuel
-  is deterministic, so the numbers stand, but it is named here.
-- **The artifact set:** `MANIFEST` only (39 `pin` lines, four patch `recipe` lines, the changed
-  `scripts/00_download.sh` line); no rebuild was done.
+### Rebases and every conflict resolved
+
+1. **The earlier builder's tip `79d865b1` (on 102's `861d5e4b`) onto main `6411d4d5`** (wave 11):
+   no conflict. Nine files changed on both sides and merged without a hunk to resolve:
+   `.github/workflows/release.yml`, `CHANGELOG.md`, `README.md`, `tests/checks/test_rules.py`,
+   `tests/checks/test_v1_5_rebuild_from_pins.py`, `tests/harness/packages.py`,
+   `tests/harness/pins.py`, `tests/harness/scan.py`, `tests/release_shards.toml`. The rules and
+   the unit files passed by node id after it (341 passed, 2 skipped; the one blocked row is the
+   prior-art clones, absent in a worktree).
+2. **The branch onto `origin/wave/12` `99dcd257`.** Before this, the three build commits (the
+   earlier builder's two and this builder's sympy commit `aaf8a962`) were folded into one, so the
+   same hunks are resolved once; the context commits before them are unchanged. Seven files had
+   hunks, and every hunk keeps both sides:
+   - `tests/harness/upstream.py`: 095's three suites join `COMPILED_SUITES`
+     (`PACKAGE_SUITES = COMPILED_SUITES + PURE_SUITES`).
+   - `tests/checks/test_v1_3_upstream_suites.py`: the `derived` fact (095) and the `deselected`
+     fact (067), both kept.
+   - `tests/harness/packages.py`, eight hunks: 095's `os` import, its env, clock, derived and
+     smoke-cover constants and functions, and its `load()` header (`ancestors`, `_derived`,
+     `_env`), merged with 067's `ini_python_files`, `load(raw, directory)`, kit-extra, items,
+     `SYS_FLAGS`, the doctest constants, `smoke_findings` and `clock_findings` both, and
+     `PackageRun` with both `derived` and `deselected` (passed by keyword).
+     **Two keys meant the same thing on both sides, and 095's meaning is kept.**
+     - **`package_inits`**: 095's generates `package_paths` from the stage folders and refuses a
+       TOML that also lists them. 067's (staging the ancestors' `__init__.py`) duplicated it, so
+       067's field, its load line and its staging lines are gone. Nine 067 families
+       (beautifulsoup4, et-xmlfile, html5lib, joblib, mpmath, openpyxl, networkx, toolz,
+       xlsxwriter) lose their `[package_paths]` tables. For each, the generated table equals the
+       listed one and every ancestor is a product package (EXECUTED by a comparison script), so
+       the stage is the same files.
+     - **`env`**: 095's form, `[env.NAME]` with `value` and `reason`, checked by its
+       `env_errors`. reportlab's `RL_TEST_OUTDIR` and narwhals' three variables are now in that
+       form, each with its reason. They join 095's `ENV_ALLOWED`, and its comment names why.
+       067's own env rule is dropped, and its unit row's expected message is now 095's.
+   - `tests/checks/test_rules.py`: the citation allowances for `packages.toml`, `"spec 067"`
+     (wave 12's side) and `"spec 095"` (067's side), are both dropped. After the merge,
+     `packages.toml` names neither, since all 45 entries are suites.
+   - `tests/known_gaps.toml`: 095's block and 067's block, both kept.
+   - `tests/release_shards.toml` and `.github/workflows/release.yml`: wave 12's side was taken
+     whole. 067's shards were then generated again from the final fuel onto those files
+     (`build/067/scratch/shards.py`, base `origin/wave/12`, after 095's last shards
+     `upstream-sci-smoke-b` and `upstream-sci-release-104`).
+   - Merged with no hunk: `CHANGELOG.md` (095's entry and 067's both under the one unreleased
+     section), `tests/upstream/packages.toml` (095's three suites and 067's 42),
+     `tests/upstream/kit-extra.txt` (067's nine lines; 095 adds none) and
+     `context/release-tier-claims.toml`.
+
+### What this build did after the earlier builder's resume point
+
+- **sympy measured whole** (EXECUTED, darwin-arm64, by node id with `--tier release`, one guest
+  at a time). Round 1: 198 groups, 2 h 18 min. Round 2: 116 groups, 1 h 33 min. Round 3: 2 groups
+  and the six traps.
+  - The groups past 480 G or stopped at their caps were split by file (packed by test count)
+    and by `[[split]]` of constructed `-k` expressions. Each `-k` term is checked against the
+    names pytest matches (the test's, its module's, its folders'). A test whose name is part of
+    its file's name cannot be named by `-k`, so it sits in the split's last part.
+  - A host-side watcher of the guest's stream (`build/067/scratch/watch.py`, a measuring aid,
+    never a check) ranked each test's share of its group's fuel, and round 2 cut the splits from
+    those shares.
+  - sympy now has 344 groups: the smoke group, 343 release groups (17141's node-id group
+    renamed `sympy-slow-17141`) and 36 splits.
+  - **A split part whose tests did not change kept its round-1 fuel even where its `-k` string
+    changed** (an earlier part was cut finer, so its `and not (...)` list names the new parts).
+    Its membership is the same (simulated), so its fuel is the same up to `-k` parsing.
+    `sympy-r-solvers-7-9`, the rest part, is the one whose simulated list changed: three of its
+    tests were removed as traps and are deselected by node id, so its run is the same.
+- **Six sympy tests past the bound for one test are proposed as `[[trap]]` entries, for the
+  reviewer to rule on.** Each does not end within 2.9 to 4.5 T of fuel in the guest: 3 T is the
+  bound used, about the 17141 test the owner gave a shard of its own. Each is run alone to its
+  50 G cap by its trap check, and is a gap with that reason, closed by the README:
+  - `test_function_range1` (`@slow`; past 4.5 T);
+  - `test_issue_3880` and `test_issue_15227` (`@tooslow`);
+  - three of `solvers/ode/tests/test_systems.py`'s `@tooslow` tests.
+
+  **Upstream's own runners never run `@tooslow` tests.** sympy's runner skips them as "Too slow"
+  (`sympy/testing/pytest.py`), and its pytest settings deselect them (`addopts`). Decision 5
+  runs them anyway, so the guest is where they are tried.
+- **Twelve single sympy tests (and the doc file `bicycle_example.rst`) cost 725 G to 2.9 T
+  each.** Each is a group of its own in a release shard of its own, allowed past 360 s as
+  Decision 10 allows a single-test shard: 17141 (2.2 T), stats `test_uniform_P` (2.87 T),
+  polys' two `@tooslow` tests that fail (2.56 T and 2.58 T), simplify's hyperexpand test
+  (2.29 T), test_bicycle (1.26 T) and six others of 0.82 to 1.97 T.
+- **A deviation for the reviewer to rule on: groups of 480 to 725 G with more than one test are
+  kept, not split.** Each fits one 725 G release shard alone. Decision 10's text splits at
+  480 G. Splitting them would cost a further round of about 10 T of measuring for no change in
+  the shard count.
+- **sympy's doctests now run under sympy's own runner** (a judge change; new behaviour, each
+  check written first and seen failing, logs `build/067/logs/doctest-setup-red.log` and
+  `doctest-runner-red.log`).
+  - **The cause, found:** the stdlib's `DocTestRunner.run` resets `sys.displayhook`, which
+    undoes sympy's printer. sympy's `SymPyDocTestRunner` is "modified from the doctest version
+    to not reset the sys.displayhook".
+  - **Three family keys, each with an allowed list in `packages.py` and a rules row:**
+    `doctest_setup` (`sympy.testing.runtests:setup_pprint`, run once before the first example),
+    `doctest_runner` (`SymPyDocTestRunner`) and `doctest_checker` (`SymPyOutputChecker`).
+  - **The effect:** on `sympy-r-doc-1`, the failures went from 18 to 1 and the fuel from 97 G
+    to 76 G; over all of sympy's doctest groups, from about 480 to 266.
+  - **What remains:** the stdlib's `DocTestFinder` does not read sympy's `doctest_depends_on`
+    mark (about 40 docstrings: flint, matchpy, f2py and others), so those examples run and fail
+    into the class `sympy-doctest`, which says so. A follow-up could use sympy's finder too.
+- **sympy's doctest blacklist** (`_get_doctest_blacklist` in `sympy/testing/runtests.py`) is
+  upstream's selection: the 16 modules and 2 doc files it leaves out that the product ships are
+  `docstring_not_selected` or dropped from `doctest_files`, each with upstream's reason in a
+  comment in `sympy.toml`.
+- **sympy's classes** (the catalog in `build/067/scratch/catalog.py`, each fact in the README):
+  `sympy-doctest` (19 groups, 266 examples), `sympy-source-tree` (14),
+  `sympy-tooslow-fails` (2), `sympy-solution-form` (2; its cause INFERRED: a 32-bit `hash()`
+  changes sympy's set order), `no-path-variable` (1), `matplotlib-testing-not-shipped` (1,
+  closed by spec 023's file). There are 26 class entries and 6 trap gaps. No sympy XFAIL is a
+  failure: with `sys_flags`, `@XFAIL` is pytest's mark.
+- **narwhals and pyparsing read against Decision 8's rule** (the delta review's M1).
+  - narwhals: all 15 modules that import pyarrow or polars guard the import with upstream's own
+    module-level `pytest.importorskip` (READ, a script over the tree), so they collect as
+    counted skips. No patch and no not-selected row.
+  - pyparsing: `tests/test_diagram.py` stays not selected. Every test in it draws with railroad.
+  - So the patch count stays at four.
+
+- **Two finds of the first fast tier on this base, fixed** (each was an existing check that
+  failed):
+  - `paths.licence_source` prefers a pinned tarball to a wheel, so it took 067's test-only
+    pins as components' sources. reportlab's notice was then read from its sdist (a
+    `BadZipFile`), and pypdf's notice had to carry the sample files' licence. A test source
+    (`needs.TEST_SOURCES`' patterns) now never stands for a component's notice. pyyaml's,
+    markupsafe's, networkx's and seaborn's sdists are their components' sources, so they are
+    not affected.
+  - sympy's `budget` now counts its six traps' 50 G caps, as the well-formed check sums them.
+
+### The numbers (EXECUTED, darwin-arm64)
+
+- **Normal tier:** 42 smoke groups, **853.3 G**, 12,564 passes, the largest `pyyaml-smoke`
+  60.4 G; 31 of their classes are gaps. They go in two Linux shards, `upstream-pure-smoke-a` and
+  `-b`.
+- **Release tier: 92.84 T measured** in 420 groups of 23 families: sympy 78.53 T in 343 groups,
+  the other 22 families 14.31 T. Add the six trap checks at 50 G each. Outcomes: 137,835
+  passed, 707 failed and 25 errors (each a class member), 1,815 skipped, 1,098 xfailed and 5
+  xpassed. They go in **110 release shards** (`upstream-pure-r-001` to `-110`), packed at
+  725 G each, with each group past that in a shard of its own; the largest is 2,865 G.
+- **Against the price** (the spec's "at least 65.8 T", upper estimate about 77 T): **92.8 T is
+  past the upper estimate.** sympy alone is 78.5 T against its estimated 63 T. The lane's
+  release acceptance before a tag grows by about 3.6 to 4.4 hours of guest time on darwin
+  (INFERRED at 0.14 to 0.17 s per G), about 1.2 to 1.5 hours of wall clock at `-n 3`.
+- **Smoke groups twice, restaging between** (criterion 7): pass 1 `build/067/logs/smoke-1.log`
+  (42 passed, 31 xfailed), pass 2 `smoke-2.log`; 42 passed, 31 xfailed, the same outcomes and `passed_digest` in every group, and fuel equal to the unit (EXECUTED).
+- **The other 41 families' groups were measured by the earlier builder** on set `d0d91cef`'s
+  derived copy. Wave 11's zip (set `1556bbd5`) differs in two members. Their release groups
+  were not measured again, and their smoke groups were (both passes above, on `1556bbd5`).
+- **The artifact set** (criterion 9): the judging set is `1556bbd5`'s `python.wasm`, snapshot
+  and zip, with `MANIFEST` rewritten the way this branch's assemble step writes it. That is 44
+  lines added and 1 removed: 39 `pin` lines, four patch `recipe` lines, and the changed
+  `scripts/00_download.sh` line. No rebuild was done; the lane's rebuild shows criterion 9.
+- **The fast tier:** green on this base, `-n 3` (`build/067/logs/fast-tier-2.log`): 2,996 passed, 47 skipped; the ratchet lost 0, grew 0, gained 2; the blocked rows are the build host's (source trees, compile records, the prior-art clones). (Its first run found the two faults above.)
+- **The branch run:** dispatched on this commit; its id and verdict are in the next commit (context only).
+
+### The earlier builder's notes, carried
+
+- Its unit checks (`tests/unit/test_pure_suites.py`'s first 30) were written beside the code,
+  not seen failing first. This builder's four new rows (the doctest setup, runner and checker
+  rules, and their spec row) were seen failing first.
+- While sympy's measuring ran, it ran three short re-measuring passes of other families beside
+  it: two guest processes at once, against the one-at-a-time rule. darwin fuel is deterministic,
+  so the numbers stand. This builder ran one guest at a time throughout.
+- Criterion 4's driver rows (`sys_flags` set before import on a synthetic module, a sympy XFAIL
+  on a fixed stream, a conftest's own hypothesis profile) have no unit check. The driver runs
+  only in the guest, and the guest runs show each: no sympy XFAIL fails, every `P` line is
+  derandomized with no database. **This is an open Low.**
+
+### The self-check (`context/reviews/README.md`)
+
+```
+Before you ask for a review:
+- [x] rebased onto the wave's tip today: origin/wave/12 99dcd257; every conflict named above.
+- [ ] CI run dispatched on this exact commit and read: the next commit names it and its red lines.
+- [x] every number from a measured run on this base, labelled EXECUTED; sympy's on 1556bbd5,
+      the other families' release groups on d0d91cef's derived copy (named above).
+- [x] "For the lane": the claim block in context/release-tier-claims.toml (spec "067"; 420
+      release groups, their classes, six traps; units 34), the flags below, wave kind
+      build-class (pins, patches, the artifact set's MANIFEST), dry-run needs: the wave's.
+- [ ] every new check seen failing first: this builder's four rows yes; the earlier builder's 30
+      written beside the code, not seen failing first (said plainly above).
+- [x] every gap names its closer: README.md facts, spec 023's file for matplotlib.testing.
+- [x] packages.toml: the 42 are suites, none names spec 067.
+- [x] CHANGELOG under the one unreleased section.
+- [x] ruff check and ruff format --check clean; the fast tier: 2,996 passed,
+      lost 0, grew 0 (build/067/logs/fast-tier-2.log).
+```
+
+Open for the reviewer:
+1. the six traps;
+2. the 480-725 G groups kept whole;
+3. the round-1 fuel kept for parts whose `-k` text changed;
+4. the 266 `sympy-doctest` members, and `doctest_depends_on` not read;
+5. criterion 4's driver rows;
+6. the price past the upper estimate.
+
+**The flags**, the skeleton filled: `--accept "067: the pure-Python packages' own tests: 42
+packages, 42 smoke groups in the normal tier (12,564 passes, 853 G), each whole suite in 420
+release-tier groups (92.8 T); 117 classes, 6 traps; 39 test sources pinned and 4 test-source
+patches carried, named in MANIFEST"` and the reviewed text's `--accept-judge`, plus "the doctest
+setup, runner and checker keys; package_inits and env merged onto 095's meaning".

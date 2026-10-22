@@ -7,7 +7,7 @@ driver = "package"
 grant = "/upstream-sympy"
 test_source = true
 wheel = "sympy-1.14.0-py3-none-any.whl"
-budget = 119_827_000_000_000
+budget = 120_127_000_000_000
 stage_folders = [
     "sympy/algebras/tests",
     "sympy/assumptions/tests",
