@@ -629,7 +629,8 @@ class Session:
             (judge_dir / f"{g.name}.json").write_text(json.dumps(spec, indent=1))
         for t in cfg.traps:
             spec = {**group_spec(cfg, cfg.groups[next(iter(cfg.groups))], keep, top)}
-            spec["args"], spec["split"] = [*cfg.args, t.node], False
+            # the node by the path the guest sees, as group_args names every group's paths
+            spec["args"], spec["split"] = [*cfg.args, f"{tree_root(cfg)}/{t.node}"], False
             (judge_dir / f"{t.id}.json").write_text(json.dumps(spec, indent=1))
         errors = self._make_derived(package, root)
         if errors:

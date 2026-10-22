@@ -1,0 +1,15 @@
+scipy/optimize/tests/test_optimize.py::TestBrute::test_workers
+scipy/optimize/tests/test_optimize.py::TestWorkers::test_equal_bounds[l-bfgs-b-2]
+scipy/optimize/tests/test_optimize.py::TestWorkers::test_equal_bounds[slsqp-2]
+scipy/optimize/tests/test_optimize.py::TestWorkers::test_equal_bounds[tnc-2]
+scipy/optimize/tests/test_optimize.py::TestWorkers::test_equal_bounds[trust-constr-2]
+scipy/optimize/tests/test_optimize.py::TestWorkers::test_smoke[CG-2]
+scipy/optimize/tests/test_optimize.py::TestWorkers::test_smoke[Newton-CG-2]
+scipy/optimize/tests/test_optimize.py::TestWorkers::test_smoke[bfgs-2]
+scipy/optimize/tests/test_optimize.py::TestWorkers::test_smoke[l-bfgs-b-2]
+scipy/optimize/tests/test_optimize.py::TestWorkers::test_smoke[slsqp-2]
+scipy/optimize/tests/test_optimize.py::TestWorkers::test_smoke[tnc-2]
+scipy/optimize/tests/test_optimize.py::TestWorkers::test_smoke[trust-constr-2]
+scipy/optimize/tests/test_optimize.py::TestWorkers::test_smoke[trust-krylov-2]
+scipy/optimize/tests/test_optimize.py::TestWorkers::test_smoke[trust-ncg-2]
+scipy/optimize/tests/test_optimize.py::test_multiprocessing_too_many_open_files_23080

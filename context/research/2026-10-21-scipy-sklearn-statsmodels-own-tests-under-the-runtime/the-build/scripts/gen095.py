@@ -199,6 +199,7 @@ def write() -> None:
     classes = load_json("classes.json", {})
     extra = load_json("extra.json", {})  # per family: not_selected, smoke_cover, derived, ...
     gaps = []
+    trap_gaps: list[dict] = []
     expected_dir = W / "tests/upstream/expected"
     for fam in TOP:
         plan = PLAN[fam]
@@ -222,6 +223,8 @@ def write() -> None:
             if "clock" in g:
                 d["clock"] = g["clock"]
             d["cap"] = g.get("cap")
+            if "comment" in g:
+                d["comment"] = g["comment"]
             all_groups.append((g["name"], d))
         for name, d in all_groups:
             m = measured.get(name)
@@ -248,7 +251,7 @@ def write() -> None:
             group_lines.append("\n".join(gl))
         derived = e.get("derived", [])
         caps += sum(packages.rule_cap(dv["measured"]) for dv in derived)
-        budget = caps
+        budget = caps + 5 * 10**10 * len(e.get("traps", []))  # each trap's session cap
         lines.append(f"budget = {budget:_}")
         lines.append(f"stage_folders = {arr(INV[fam]['folders'])}")
         lines.append("package_inits = true")
@@ -290,6 +293,17 @@ def write() -> None:
                 f"closes_with = {q(n['closes_with'])}",
                 "",
             ]
+        for t in e.get("traps", []):
+            lines += [
+                "[[trap]]",
+                f"id = {q(t['id'])}",
+                f"node = {q(t['node'])}",
+                f"group = {q(t['group'])}",
+                f"reason = {q(t['reason'])}",
+                f"closes_with = {q(t['closes_with'])}",
+                "",
+            ]
+            trap_gaps.append(t)
         lines += [g + "\n" for g in group_lines]
         for s in splits.get(fam, []):
             lines += [
@@ -321,13 +335,13 @@ def write() -> None:
                 if members:
                     gaps.append((gname, k, members))
         (W / f"tests/upstream/{fam}.toml").write_text("\n".join(lines).rstrip() + "\n")
-    write_gaps(gaps)
+    write_gaps(gaps, trap_gaps)
 
 
 GAP_START = "# scipy's, scikit-learn's and statsmodels' own tests: each class of known failures"
 
 
-def write_gaps(gaps) -> None:
+def write_gaps(gaps, trap_gaps=()) -> None:
     f = W / "tests/known_gaps.toml"
     text = f.read_text()
     if GAP_START in text:
@@ -346,6 +360,16 @@ def write_gaps(gaps) -> None:
             f'match = "{len(members)} finding(s), digest {scan.digest(members)}"',
             f"reason = {q(k['reason'])}",
             f"closes_with = {q(k['closes_with'])}",
+        ]
+    for t in trap_gaps:
+        node = f"tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[{t['id']}]"
+        out += [
+            "",
+            "[[gap]]",
+            f"check = {q(node)}",
+            f'match = "1 finding(s), digest {scan.digest([f"out of fuel at {t["node"]}"])}"',
+            f"reason = {q(t['reason'])}",
+            f"closes_with = {q(t['closes_with'])}",
         ]
     f.write_text(text + "\n".join(out) + "\n")
 

@@ -1,0 +1,7 @@
+scipy/sparse/tests/test_array_api.py::test_sparse_dense_divide[bsr]
+scipy/sparse/tests/test_array_api.py::test_sparse_dense_divide[coo]
+scipy/sparse/tests/test_array_api.py::test_sparse_dense_divide[csc]
+scipy/sparse/tests/test_array_api.py::test_sparse_dense_divide[csr]
+scipy/sparse/tests/test_array_api.py::test_sparse_dense_divide[dia]
+scipy/sparse/tests/test_array_api.py::test_sparse_dense_divide[dok]
+scipy/sparse/tests/test_array_api.py::test_sparse_dense_divide[lil]

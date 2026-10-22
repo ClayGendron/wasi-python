@@ -180,50 +180,55 @@ def smoke_slow() -> list[dict]:
     return out
 
 
-new: dict[str, list[dict]] = {}
-for fam, gs in groups.items():
-    out = smoke_slow() if fam == "scipy" and "scipy-smoke-slow" in ff and not any(
-        g.get("release_by") == "marker" for g in gs
-    ) else []
-    for g in gs:
-        name = g["name"]
-        m = measured.get(name)
-        if name in ff and ff[name]["fuel"] > BOUND and not any(name in s["groups"] for s in splits.get(fam, [])):
-            info = ff[name]
-            files = []
-            for p in g["paths"]:
-                files += [
-                    f
-                    for f in inv[fam]["files"]
-                    if (f == p or f.startswith(p.rstrip("/") + "/")) and not left_out(fam, f)
-                ]
-            est = {f: info["files"].get(f, 0.0) for f in files}
-            seen = set(info["files"])
-            pack, pack_g, k = [], 0.0, 0
-            for f in files:
-                capped = info["fuel"] >= 19_900 and f == list(info["files"])[-1]
-                if (est[f] + START[fam] > TARGET or capped) and f in info.get("tests", {}):
-                    tests = [(n, x) for n, x in info["tests"][f]]
-                    out += make_split(fam, f, tests, f"{name}-{short(f)}")
-                    if info["fuel"] >= 19_900 and f == list(info["files"])[-1]:
-                        out[-1]["cap"] = int(20e12)  # the file where the capped session stopped
-                    continue
-                if pack and pack_g + est[f] > TARGET - START[fam]:
+def main() -> None:
+    new: dict[str, list[dict]] = {}
+    for fam, gs in groups.items():
+        out = smoke_slow() if fam == "scipy" and "scipy-smoke-slow" in ff and not any(
+            g.get("release_by") == "marker" for g in gs
+        ) else []
+        for g in gs:
+            name = g["name"]
+            m = measured.get(name)
+            if name in ff and ff[name]["fuel"] > BOUND and not any(name in s["groups"] for s in splits.get(fam, [])):
+                info = ff[name]
+                files = []
+                for p in g["paths"]:
+                    files += [
+                        f
+                        for f in inv[fam]["files"]
+                        if (f == p or f.startswith(p.rstrip("/") + "/")) and not left_out(fam, f)
+                    ]
+                est = {f: info["files"].get(f, 0.0) for f in files}
+                seen = set(info["files"])
+                pack, pack_g, k = [], 0.0, 0
+                for f in files:
+                    capped = info["fuel"] >= 19_900 and f == list(info["files"])[-1]
+                    if (est[f] + START[fam] > TARGET or capped) and f in info.get("tests", {}):
+                        tests = [(n, x) for n, x in info["tests"][f]]
+                        out += make_split(fam, f, tests, f"{name}-{short(f)}")
+                        if info["fuel"] >= 19_900 and f == list(info["files"])[-1]:
+                            out[-1]["cap"] = int(20e12)  # the file where the capped session stopped
+                        continue
+                    if pack and pack_g + est[f] > TARGET - START[fam]:
+                        k += 1
+                        out.append({"name": f"{name}-{k}", "paths": pack, "est": round(pack_g + START[fam], 1), "cap": int(max(3 * (pack_g + START[fam]), 300) * 1e9)})
+                        pack, pack_g = [], 0.0
+                    pack.append(f)
+                    pack_g += est[f]
+                if pack:
                     k += 1
-                    out.append({"name": f"{name}-{k}", "paths": pack, "est": round(pack_g + START[fam], 1), "cap": int(max(3 * (pack_g + START[fam]), 300) * 1e9)})
-                    pack, pack_g = [], 0.0
-                pack.append(f)
-                pack_g += est[f]
-            if pack:
-                k += 1
-                unseen = [f for f in pack if f not in seen]
-                cap = 20e12 if unseen and name in ("scipy-special", "scipy-stats") else max(3 * (pack_g + START[fam]), 300) * 1e9
-                out.append({"name": f"{name}-{k}", "paths": pack, "est": round(pack_g + START[fam], 1), "cap": int(cap)})
-            print(f"{name}: {info['fuel']:.0f} G -> {len([o for o in out if o['name'].startswith(name + '-')])} groups")
-        else:
-            out.append(g)
-    new[fam] = out
-(SP / "groups.json").write_text(json.dumps(new, indent=1))
-(SP / "splits.json").write_text(json.dumps(splits, indent=1))
-for fam, gs in new.items():
-    print(fam, len(gs), "groups")
+                    unseen = [f for f in pack if f not in seen]
+                    cap = 20e12 if unseen and name in ("scipy-special", "scipy-stats") else max(3 * (pack_g + START[fam]), 300) * 1e9
+                    out.append({"name": f"{name}-{k}", "paths": pack, "est": round(pack_g + START[fam], 1), "cap": int(cap)})
+                print(f"{name}: {info['fuel']:.0f} G -> {len([o for o in out if o['name'].startswith(name + '-')])} groups")
+            else:
+                out.append(g)
+        new[fam] = out
+    (SP / "groups.json").write_text(json.dumps(new, indent=1))
+    (SP / "splits.json").write_text(json.dumps(splits, indent=1))
+    for fam, gs in new.items():
+        print(fam, len(gs), "groups")
+
+
+if __name__ == "__main__":
+    main()

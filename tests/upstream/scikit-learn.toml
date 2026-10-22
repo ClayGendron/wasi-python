@@ -14,7 +14,7 @@ package = "scikit-learn"
 driver = "package"
 grant = "/upstream-scikit-learn"
 component = "scikit_learn"
-budget = 16_745_911_922_408
+budget = 15_171_000_000_000
 stage_folders = [
     "sklearn/_loss/tests",
     "sklearn/callback/tests",
@@ -139,7 +139,7 @@ paths = [
 ]
 smoke = "each compiled family of scikit-learn touched (trees first) and its html-repr patch"
 fuel = 390_000_000_000
-measured = 260_000_000_000
+measured = 257_308_549_728
 
 [groups.scikit-learn-loss-to-cross_decomposition]
 paths = [
@@ -163,14 +163,14 @@ measured = 65_566_937_060
 [groups.scikit-learn-decomposition-pca-1]
 paths = ["sklearn/decomposition/tests/test_pca.py"]
 tier = "release"
-fuel = 770_000_000_000
-measured = 513_072_780_379
+fuel = 340_000_000_000
+measured = 223_894_477_014
 
 [groups.scikit-learn-decomposition-pca-2]
 paths = ["sklearn/decomposition/tests/test_pca.py"]
 tier = "release"
-fuel = 43_000_000_000
-measured = 28_580_418_044
+fuel = 480_000_000_000
+measured = 318_439_241_724
 
 [groups.scikit-learn-decomposition-1]
 paths = [
@@ -221,8 +221,8 @@ paths = [
     "sklearn/ensemble/tests/test_gradient_boosting.py",
 ]
 tier = "release"
-fuel = 934_253_371_023
-measured = 622_835_580_682
+fuel = 430_000_000_000
+measured = 281_310_087_149
 
 [groups.scikit-learn-ensemble-2]
 paths = [
@@ -350,8 +350,8 @@ measured = 254_114_367_846
 [groups.scikit-learn-model_selection-3]
 paths = ["sklearn/model_selection/tests/test_validation.py"]
 tier = "release"
-fuel = 544_623_505_101
-measured = 363_082_336_734
+fuel = 280_000_000_000
+measured = 186_029_284_453
 
 [groups.scikit-learn-neighbors-to-neural_network]
 paths = [
@@ -380,8 +380,8 @@ measured = 452_271_427_733
 [groups.scikit-learn-tests-common-2]
 paths = ["sklearn/tests/test_common.py"]
 tier = "release"
-fuel = 1_104_249_696_850
-measured = 736_166_464_566
+fuel = 640_000_000_000
+measured = 425_417_262_953
 
 [groups.scikit-learn-tests-common-3]
 paths = ["sklearn/tests/test_common.py"]
@@ -392,14 +392,14 @@ measured = 373_834_185_124
 [groups.scikit-learn-tests-common-4]
 paths = ["sklearn/tests/test_common.py"]
 tier = "release"
-fuel = 850_000_000_000
-measured = 565_283_110_901
+fuel = 660_000_000_000
+measured = 434_514_224_627
 
 [groups.scikit-learn-tests-common-5]
 paths = ["sklearn/tests/test_common.py"]
 tier = "release"
-fuel = 365_637_551_579
-measured = 243_758_367_719
+fuel = 350_000_000_000
+measured = 229_771_994_025
 
 [groups.scikit-learn-tests-metaestimators-metadata-routing-1]
 paths = ["sklearn/tests/test_metaestimators_metadata_routing.py"]
@@ -410,10 +410,10 @@ measured = 126_671_797_681
 [groups.scikit-learn-tests-metaestimators-metadata-routing-2]
 paths = ["sklearn/tests/test_metaestimators_metadata_routing.py"]
 tier = "release"
-fuel = 278_147_797_855
-measured = 185_431_865_236
+fuel = 85_000_000_000
+measured = 56_317_958_017
 
-[groups.scikit-learn-tests-1]
+[groups.scikit-learn-tests-1-1]
 paths = [
     "sklearn/tests/test_base.py",
     "sklearn/tests/test_build.py",
@@ -432,6 +432,13 @@ paths = [
     "sklearn/tests/test_metaestimators.py",
     "sklearn/tests/test_min_dependencies_consistency.py",
     "sklearn/tests/test_multiclass.py",
+]
+tier = "release"
+fuel = 570_000_000_000
+measured = 378_605_460_463
+
+[groups.scikit-learn-tests-1-2]
+paths = [
     "sklearn/tests/test_multioutput.py",
     "sklearn/tests/test_naive_bayes.py",
     "sklearn/tests/test_pipeline.py",
@@ -439,8 +446,8 @@ paths = [
     "sklearn/tests/test_random_projection.py",
 ]
 tier = "release"
-fuel = 780_000_000_000
-measured = 518_787_835_638
+fuel = 260_000_000_000
+measured = 167_663_188_403
 
 [groups.scikit-learn-tree]
 paths = ["sklearn/tree/tests"]
@@ -461,7 +468,7 @@ groups = [
     "scikit-learn-decomposition-pca-2",
 ]
 keywords = [
-    "test_pca or test_pca_sparse or test_pca_sparse_fit_transform or test_sparse_pca_solver_error or test_sparse_pca_auto_arpack_singular_values_consistency or test_no_empty_slice_warning or test_whitening or test_pca_solver_equivalence or test_pca_explained_variance_empirical or test_pca_singular_values_consistency or test_pca_singular_values or test_pca_check_projection or test_pca_check_projection_list or test_pca_inverse or test_pca_validation or test_n_components_none or test_n_components_mle or test_n_components_mle_error or test_pca_dim or test_infer_dim_1 or test_infer_dim_2 or test_infer_dim_3 or test_infer_dim_by_explained_variance or test_pca_score or test_pca_score3 or test_pca_sanity_noise_variance or test_pca_score_consistency_solvers or test_pca_zero_noise_variance_edge_cases or test_pca_svd_solver_auto or test_pca_deterministic_output or test_pca_dtype_preservation or test_pca_n_components_mostly_explained_variance_ratio or test_assess_dimension_bad_rank or test_small_eigenvalues_mle or test_mle_redundant_data or test_fit_mle_too_few_samples or test_mle_simple_case or test_assess_dimension_rank_one or test_pca_randomized_svd_n_oversamples or test_feature_names_out",
+    "test_pca and not (test_pca_array_api_compliance or test_pca_check_projection or test_pca_check_projection_list or test_pca_deterministic_output or test_pca_dim or test_pca_dtype_preservation or test_pca_explained_variance_empirical or test_pca_inverse or test_pca_mle_array_api_compliance or test_pca_n_components_mostly_explained_variance_ratio or test_pca_randomized_svd_n_oversamples or test_pca_sanity_noise_variance or test_pca_score or test_pca_score3 or test_pca_score_consistency_solvers or test_pca_singular_values or test_pca_singular_values_consistency or test_pca_solver_equivalence or test_pca_sparse or test_pca_sparse_fit_transform or test_pca_svd_solver_auto or test_pca_validation or test_pca_zero_noise_variance_edge_cases) or test_pca_sparse[42-1-a or test_pca_sparse[42-1-c or test_pca_sparse[42-10-a",
 ]
 
 [[split]]
@@ -487,7 +494,7 @@ keywords = [
     "test_all_estimator_no_base_class or test_get_check_estimator_ids or test_estimators[A or test_estimators[B or test_estimators[C or test_estimators[D or test_estimators[E or test_estimators[F or test_estimators[G or test_estimators[H",
     "test_estimators[I or test_estimators[K or test_estimators[L or test_estimators[M or test_estimators[N",
     "test_estimators[O or test_estimators[P or test_estimators[Q or test_estimators[R or test_estimators[S",
-    "test_estimators[T or test_estimators[V or test_import_all_consistency or test_root_import_all_completeness or test_all_tests_are_importable or test_class_support_removed or test_pandas_column_name_consistency or test_transformers_get_feature_names_out or test_estimators_get_feature_names_out_error or test_check_param_validation or test_set_output_transform",
+    "test_estimators and not (test_estimators_get_feature_names_out_error) or test_import_all_consistency or test_root_import_all_completeness or test_all_tests_are_importable or test_class_support_removed or test_pandas_column_name_consistency or test_transformers_get_feature_names_out or test_estimators_get_feature_names_out_error or test_check_param_validation",
 ]
 
 [[split]]
@@ -558,6 +565,14 @@ closes_with = "README.md"
 
 [[expected]]
 id = "no-mmap"
+group = "scikit-learn-model_selection-3"
+outcome = "failed"
+match = "mmap is unavailable"
+reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap"
 group = "scikit-learn-neighbors-to-neural_network"
 outcome = "failed"
 match = "mmap is unavailable"
@@ -590,7 +605,7 @@ closes_with = "README.md"
 
 [[expected]]
 id = "no-openmp"
-group = "scikit-learn-tests-1"
+group = "scikit-learn-tests-1-1"
 outcome = "failed"
 match = "^AssertionError:$"
 reason = "there is no OpenMP in the build (wasi-sdk has no runtime, and the guest no threads), so _openmp_parallelism_enabled() is False (README)"
@@ -598,7 +613,7 @@ closes_with = "README.md"
 
 [[expected]]
 id = "package-in-zip"
-group = "scikit-learn-tests-1"
+group = "scikit-learn-tests-1-1"
 outcome = "failed"
 match = "Not a directory: '/usr/local/lib/python\\d+\\.zip/sklearn/"
 reason = "the package's files are in the stdlib zip, not in folders, so a test that lists the package's folder fails (README)"
@@ -607,6 +622,14 @@ closes_with = "README.md"
 [[expected]]
 id = "no-mmap"
 group = "scikit-learn-tests-common-1"
+outcome = "failed"
+match = "mmap is unavailable"
+reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap"
+group = "scikit-learn-tests-common-2"
 outcome = "failed"
 match = "mmap is unavailable"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"

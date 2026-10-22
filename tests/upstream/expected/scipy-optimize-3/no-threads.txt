@@ -1,0 +1,1 @@
+scipy/optimize/tests/test_optimize.py::test_cobyla_threadsafe

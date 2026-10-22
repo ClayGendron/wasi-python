@@ -169,3 +169,66 @@ D-M3 and D-L2. The folder `smoke/` holds the scripts, the job lists and the reco
   output `smoke/split.txt`): every staged test file is in exactly one tier under the smoke kind's
   rules (scipy 329 files, 63 in smoke paths; scikit-learn 256, 37; statsmodels 285, 26); six
   mutants per family are each refused with their own line.
+
+## The build's measurements (EXECUTED 2026-10-21 to 22, by the builder who resumed the paused build)
+
+The judge by node id, `--tier release`, with the measurement plugin of
+`2026-10-21-scipy-sklearn-statsmodels-own-tests-under-the-runtime/the-build/` (it records each
+check's fuel whatever its verdict). darwin-arm64. One guest at a time.
+
+- **Sets.** Pass 1 and pass 2 ran on the main tree's set `d0d91cef` (the paused build). Passes 3
+  and 4 and the smoke repeats ran on the main tree's set after wave 11, `SHA256SUMS` `1556bbd5`
+  (114's zip members; no scipy, scikit-learn or statsmodels byte changes). Every group's
+  `measured` is the run that ended under its cap; no group was measured on both.
+- **The release tier, measured whole: 86.22 T over 261 groups** (scipy 172 groups, 63.66 T;
+  scikit-learn 38, 9.72 T; statsmodels 51, 12.84 T), plus three traps run alone to 50 G each. One
+  process ran about 8.7 G per second (pass 3a: 48 sessions), so the release acceptance is about
+  165 minutes of guest time on darwin, about 55 to 60 minutes of wall clock at `-n 3` (INFERRED
+  from that rate; the largest group, 3.02 T, is about 6 minutes alone).
+- **The normal tier: 855.0 G**, the four smoke groups, each run twice with the family restaged
+  between (two judge processes): equal outcomes, equal `passed_digest`, equal fuel to the
+  instruction (`scipy-smoke-a` 207,472,112,051; `scipy-smoke-b` 254,434,448,969;
+  `scikit-learn-smoke` 257,308,549,728; `statsmodels-smoke` 135,824,937,463);
+  `sameness.py` between the two records exits 0. scipy's two smoke groups are 461.9 G together,
+  under the 500 G smoke budget.
+- **pytest's `-k` matches substrings, so a split's keyword can take tests meant for a later
+  group.** Pass 2's splits named functions by bare name: `test_beta` took `test_betainc` and
+  `test_betaincc` (so the two clock-stepped groups selected nothing and failed, and
+  `scipy-special-mpmath-1` ran `test_betainc` at the default clock to its 2 T cap),
+  `test_besselk` took `test_besselk_int` and `test_besselk_complex`, and seven split groups in
+  all selected no test. The build now plans every split by simulating pytest's matching over the
+  file's known tests (every test the polls saw, against each file's `K` count): a planned
+  group is exactly the set pytest selects, none is empty, a bare function name excludes every
+  longer name that holds it (`test_gamma and not (test_gamma_complex or test_gammainc or ...)`),
+  and the two clock-stepped groups come first in their split with one test each. Each split's
+  deepest `-k` expression is at most 81 levels of pytest's parse tree (the guest's compile
+  fails past about 300).
+- **Three traps:** `test_support_alternative_backends_hypothesis[numpy-hyp1f1]`, `[numpy-lpmv]`
+  and `[numpy-yn]`. `hyp1f1`'s ran past about 10 T in its group (about 20 minutes) and was
+  stopped; `lpmv`'s ran to its group's 2 T cap; alone, at 80 G each, all three ran out of fuel
+  while the other 32 cases probed each ended within 36.3 G (about 16 G of it the
+  file's collection). Why the drawn arrays keep the three functions computing is not read.
+  Running a package family's trap showed that the harness passed the trap's node id relative to
+  the tree (pytest exit 4); it now names the node under the tree, as group paths are named.
+- **Single tests past the 480 G bound, each a group of its own (19 in scipy, 1 in statsmodels):**
+  `test_stats.py::TestKSTwoSamples::testLargeBoth[numpy]` 3.02 T and `test_gh12999[numpy]`
+  1.48 T; `test_precompute_gammainc.py::test_d` 2.85 T and `test_gammaincc` 1.54 T;
+  `test_continuous_basic.py`'s `test_cont_basic_fit` of johnsonsb (2.06 T and 1.60 T), gompertz
+  1.62 T, exponpow 1.00 T, argus 0.71 T, genhalflogistic 0.54 T and `test_cont_basic` of
+  studentized_range 1.04 T; `test_fit.py`'s `test_basic_fit_mle` of nchypergeom_fisher 1.68 T and
+  nchypergeom_wallenius 1.48 T; `test_continuous.py`'s `test_rv_generic[100-distdata100]` 1.29 T;
+  `test_mpmath.py`'s `test_gamma_complex` 0.71 T, `test_rgamma_complex` 0.63 T and
+  `test_e1_complex` 0.54 T; propack's `test_examples[True-complex64]` 0.84 T; fitpack2's
+  `test_spline_large_2d` case 0.49 T; statsmodels' knockoff `test_sim[tester3-3000-200-3.5-equi]`
+  0.51 T. Each is named in its TOML.
+- **One more failure read** (in `scipy-special-2`): `test_sf_error.py::test_check_overflow_message`
+  expects `SpecialFunctionError` from `yn(3, 1e-105)` under `errstate(all='raise')`; in the
+  guest `yn` returns `-inf` without it while `yv(3, 1e-105)` and `kv(3, 1e-310)` raise it (a
+  guest probe, 2026-10-22). It joins `no-fp-exceptions`.
+- **`test_marray.py` collects no test** (its module skips without the marray backend); alone it
+  made a group that selects nothing (pytest exit 5), so it rides in the next group of
+  `scipy/stats/tests` by sdist order.
+- **The release shards:** 104, packed from these numbers by the 725 G bound (scipy's derived run
+  counted in each shard that stages scipy); the 13 groups past 725 G are each a shard alone, and
+  the largest are past Decision 12's 360 s at the survey's Linux rate (not measured on Linux: no
+  branch run runs release groups).

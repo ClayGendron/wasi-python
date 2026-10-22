@@ -1,0 +1,5 @@
+scipy/optimize/tests/test_differentiable_functions.py::TestScalarFunction::test_workers
+scipy/optimize/tests/test_differentiable_functions.py::TestVectorialFunction::test_workers
+scipy/optimize/tests/test_least_squares.py::TestDogbox::test_workers
+scipy/optimize/tests/test_least_squares.py::TestLM::test_workers
+scipy/optimize/tests/test_least_squares.py::TestTRF::test_workers

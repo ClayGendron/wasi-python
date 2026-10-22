@@ -10,40 +10,59 @@
    "release_by": "marker"
   },
   {
+   "paths": [
+    "scipy/sparse/linalg/tests/test_propack.py"
+   ],
+   "release_by": "marker",
    "name": "scipy-smoke-slow-propack-2",
+   "est": 253.2,
+   "cap": 759505129678
+  },
+  {
    "paths": [
     "scipy/sparse/linalg/tests/test_propack.py"
    ],
-   "est": 277.0,
-   "cap": 831069742696,
-   "release_by": "marker"
-  },
-  {
+   "release_by": "marker",
    "name": "scipy-smoke-slow-propack-3",
+   "est": 324.0,
+   "cap": 972111564850
+  },
+  {
    "paths": [
     "scipy/sparse/linalg/tests/test_propack.py"
    ],
-   "est": 145.8,
-   "cap": 437260145139,
-   "release_by": "marker"
-  },
-  {
+   "release_by": "marker",
    "name": "scipy-smoke-slow-propack-4",
-   "paths": [
-    "scipy/sparse/linalg/tests/test_propack.py"
-   ],
-   "est": 488.8,
-   "cap": 1466366364004,
-   "release_by": "marker"
+   "est": 209.2,
+   "cap": 627516525258
   },
   {
-   "name": "scipy-smoke-slow-propack-5",
    "paths": [
     "scipy/sparse/linalg/tests/test_propack.py"
    ],
-   "est": 288.3,
-   "cap": 864844159214,
-   "release_by": "marker"
+   "release_by": "marker",
+   "name": "scipy-smoke-slow-propack-5",
+   "est": 854.0,
+   "cap": 2561960431166,
+   "comment": "One test past the 480 G bound (841.6 G measured), kept a group of its own: test_examples[True-complex64]"
+  },
+  {
+   "paths": [
+    "scipy/sparse/linalg/tests/test_propack.py"
+   ],
+   "release_by": "marker",
+   "name": "scipy-smoke-slow-propack-6",
+   "est": 420.3,
+   "cap": 1260995912345
+  },
+  {
+   "paths": [
+    "scipy/sparse/linalg/tests/test_propack.py"
+   ],
+   "release_by": "marker",
+   "name": "scipy-smoke-slow-propack-7",
+   "est": 113.2,
+   "cap": 339646342791
   },
   {
    "name": "scipy-smoke-slow-sampling-1",
@@ -51,7 +70,7 @@
     "scipy/stats/tests/test_sampling.py"
    ],
    "est": 300.9,
-   "cap": 902671492831,
+   "cap": 2000000000000,
    "release_by": "marker"
   },
   {
@@ -153,20 +172,20 @@
    "cap": 500000000000
   },
   {
-   "name": "scipy-integrate-cubature-1",
    "paths": [
     "scipy/integrate/tests/test_cubature.py"
    ],
-   "est": 360.4,
-   "cap": 1081100008203
+   "name": "scipy-integrate-cubature-1",
+   "est": 343.9,
+   "cap": 1031709103283
   },
   {
-   "name": "scipy-integrate-cubature-2",
    "paths": [
     "scipy/integrate/tests/test_cubature.py"
    ],
-   "est": 219.8,
-   "cap": 659370437496
+   "name": "scipy-integrate-cubature-2",
+   "est": 283.0,
+   "cap": 849130260858
   },
   {
    "name": "scipy-integrate-1",
@@ -186,7 +205,7 @@
     "scipy/interpolate/tests/test_fitpack2.py"
    ],
    "est": 300.2,
-   "cap": 900701780090
+   "cap": 2000000000000
   },
   {
    "name": "scipy-interpolate-fitpack2-2",
@@ -194,15 +213,32 @@
     "scipy/interpolate/tests/test_fitpack2.py"
    ],
    "est": 470.8,
-   "cap": 1412384564888
+   "cap": 2000000000000,
+   "comment": "One test past the 480 G bound (488.8 G measured), kept a group of its own: TestRectBivariateSpline::test_spline_large_2d[spl_apis1-s_tols1-shape1]"
   },
   {
-   "name": "scipy-interpolate-fitpack2-3",
    "paths": [
     "scipy/interpolate/tests/test_fitpack2.py"
    ],
-   "est": 301.1,
-   "cap": 903391300654
+   "name": "scipy-interpolate-fitpack2-3",
+   "est": 162.2,
+   "cap": 486597030955
+  },
+  {
+   "paths": [
+    "scipy/interpolate/tests/test_fitpack2.py"
+   ],
+   "name": "scipy-interpolate-fitpack2-4",
+   "est": 470.4,
+   "cap": 1411240858265
+  },
+  {
+   "paths": [
+    "scipy/interpolate/tests/test_fitpack2.py"
+   ],
+   "name": "scipy-interpolate-fitpack2-5",
+   "est": 20.0,
+   "cap": 300000000000
   },
   {
    "name": "scipy-interpolate-gil",
@@ -263,7 +299,6 @@
    "cap": 500000000000
   },
   {
-   "name": "scipy-optimize-1",
    "paths": [
     "scipy/optimize/tests/test__basinhopping.py",
     "scipy/optimize/tests/test__differential_evolution.py",
@@ -276,7 +311,14 @@
     "scipy/optimize/tests/test_bracket.py",
     "scipy/optimize/tests/test_chandrupatla.py",
     "scipy/optimize/tests/test_cobyla.py",
-    "scipy/optimize/tests/test_cobyqa.py",
+    "scipy/optimize/tests/test_cobyqa.py"
+   ],
+   "name": "scipy-optimize-1-1",
+   "est": 348.5,
+   "cap": 1045402722066
+  },
+  {
+   "paths": [
     "scipy/optimize/tests/test_constraint_conversion.py",
     "scipy/optimize/tests/test_constraints.py",
     "scipy/optimize/tests/test_differentiable_functions.py",
@@ -285,8 +327,9 @@
     "scipy/optimize/tests/test_least_squares.py",
     "scipy/optimize/tests/test_linesearch.py"
    ],
-   "est": 372.4,
-   "cap": 1117212528252
+   "name": "scipy-optimize-1-2",
+   "est": 164.1,
+   "cap": 492372436960
   },
   {
    "name": "scipy-optimize-2",
@@ -298,7 +341,7 @@
     "scipy/optimize/tests/test_nonlin.py"
    ],
    "est": 369.0,
-   "cap": 1107074192576
+   "cap": 2000000000000
   },
   {
    "name": "scipy-optimize-3",
@@ -310,7 +353,7 @@
     "scipy/optimize/tests/test_trustregion_exact.py"
    ],
    "est": 233.9,
-   "cap": 701706900240
+   "cap": 2000000000000
   },
   {
    "name": "scipy-signal",
@@ -393,36 +436,57 @@
    "cap": 300000000000
   },
   {
-   "name": "scipy-sparse-linalg",
    "paths": [
-    "scipy/sparse/linalg/tests"
+    "scipy/sparse/linalg/tests/test_expm_multiply.py",
+    "scipy/sparse/linalg/tests/test_funm_multiply_krylov.py",
+    "scipy/sparse/linalg/tests/test_interface.py",
+    "scipy/sparse/linalg/tests/test_matfuncs.py",
+    "scipy/sparse/linalg/tests/test_norm.py"
    ],
-   "est": 2822.7,
-   "cap": 7056750000000
+   "name": "scipy-sparse-linalg-1",
+   "est": 325.0,
+   "cap": 974990070726
   },
   {
+   "paths": [
+    "scipy/sparse/linalg/tests/test_onenormest.py",
+    "scipy/sparse/linalg/tests/test_pydata_sparse.py"
+   ],
+   "name": "scipy-sparse-linalg-2",
+   "est": 359.2,
+   "cap": 1077680765716
+  },
+  {
+   "paths": [
+    "scipy/sparse/linalg/tests/test_special_sparse_arrays.py"
+   ],
+   "name": "scipy-sparse-linalg-3",
+   "est": 47.1,
+   "cap": 300000000000
+  },
+  {
+   "paths": [
+    "scipy/sparse/tests/test_64bit.py"
+   ],
    "name": "scipy-sparse-64bit-1",
+   "est": 370.2,
+   "cap": 1110521381072
+  },
+  {
    "paths": [
     "scipy/sparse/tests/test_64bit.py"
    ],
-   "est": 276.2,
-   "cap": 828621000026
-  },
-  {
    "name": "scipy-sparse-64bit-2",
-   "paths": [
-    "scipy/sparse/tests/test_64bit.py"
-   ],
-   "est": 303.7,
-   "cap": 911138236258
+   "est": 238.3,
+   "cap": 714821201440
   },
   {
-   "name": "scipy-sparse-64bit-3",
    "paths": [
     "scipy/sparse/tests/test_64bit.py"
    ],
-   "est": 254.9,
-   "cap": 764741824839
+   "name": "scipy-sparse-64bit-3",
+   "est": 305.0,
+   "cap": 915059542358
   },
   {
    "name": "scipy-sparse-base-1",
@@ -438,7 +502,7 @@
     "scipy/sparse/tests/test_base.py"
    ],
    "est": 71.2,
-   "cap": 213724197726
+   "cap": 2000000000000
   },
   {
    "name": "scipy-sparse-1",
@@ -457,7 +521,7 @@
     "scipy/sparse/tests/test_sputils.py"
    ],
    "est": 55.0,
-   "cap": 300000000000
+   "cap": 2000000000000
   },
   {
    "name": "scipy-spatial",
@@ -473,7 +537,7 @@
     "scipy/special/tests/test_cdflib.py"
    ],
    "est": 287.4,
-   "cap": 862094815969
+   "cap": 2000000000000
   },
   {
    "name": "scipy-special-cdflib-2",
@@ -492,86 +556,329 @@
    "cap": 352291831963
   },
   {
-   "name": "scipy-special-mpmath-1",
    "paths": [
     "scipy/special/tests/test_mpmath.py"
    ],
-   "est": 373.2,
-   "cap": 1119512967736
-  },
-  {
-   "name": "scipy-special-mpmath-2",
-   "paths": [
-    "scipy/special/tests/test_mpmath.py"
-   ],
-   "est": 360.7,
-   "cap": 1082122623489
-  },
-  {
-   "name": "scipy-special-mpmath-3",
-   "paths": [
-    "scipy/special/tests/test_mpmath.py"
-   ],
-   "est": 330.7,
-   "cap": 992241976411
-  },
-  {
-   "name": "scipy-special-mpmath-4",
-   "paths": [
-    "scipy/special/tests/test_mpmath.py"
-   ],
-   "est": 415.1,
-   "cap": 1245345861644
-  },
-  {
-   "name": "scipy-special-mpmath-5",
-   "paths": [
-    "scipy/special/tests/test_mpmath.py"
-   ],
-   "est": 268.9,
-   "cap": 806728344021
-  },
-  {
-   "name": "scipy-special-mpmath-6",
-   "paths": [
-    "scipy/special/tests/test_mpmath.py"
-   ],
-   "est": 354.4,
-   "cap": 1063067929154
-  },
-  {
-   "name": "scipy-special-mpmath-7",
-   "paths": [
-    "scipy/special/tests/test_mpmath.py"
-   ],
-   "est": 165.7,
-   "cap": 497179420206
-  },
-  {
    "name": "scipy-special-mpmath-betainc",
-   "paths": [
-    "scipy/special/tests/test_mpmath.py"
-   ],
-   "est": 63.3,
+   "est": 63.2,
    "cap": 200000000000,
    "clock": 100000
   },
   {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
    "name": "scipy-special-mpmath-betaincc",
-   "paths": [
-    "scipy/special/tests/test_mpmath.py"
-   ],
-   "est": 26.8,
+   "est": 26.7,
    "cap": 200000000000,
    "clock": 100000
   },
   {
-   "name": "scipy-special-mpmath-8",
    "paths": [
     "scipy/special/tests/test_mpmath.py"
    ],
-   "est": 16760.1,
-   "cap": 20000000000000
+   "name": "scipy-special-mpmath-1-a",
+   "est": 220.2,
+   "cap": 660500335037
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-1-b",
+   "est": 298.5,
+   "cap": 895515692990
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-2",
+   "est": 370.5,
+   "cap": 1111574657432
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-3",
+   "est": 342.8,
+   "cap": 1028532964634
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-4",
+   "est": 380.5,
+   "cap": 1141550902714
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-5",
+   "est": 260.4,
+   "cap": 781298722530
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-6",
+   "est": 326.5,
+   "cap": 979419649177
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-7",
+   "est": 315.8,
+   "cap": 947534532442
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-8",
+   "est": 492.7,
+   "cap": 1478139421872
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-9",
+   "est": 26.9,
+   "cap": 300000000000
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-10",
+   "est": 485.6,
+   "cap": 1456898557681
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-11",
+   "est": 337.2,
+   "cap": 1011673582174
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-12",
+   "est": 161.5,
+   "cap": 484400608196
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-13",
+   "est": 612.2,
+   "cap": 1836735012681,
+   "comment": "One test past the 480 G bound (539.5 G measured), kept a group of its own: TestSystematic::test_e1_complex"
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-14",
+   "est": 323.2,
+   "cap": 969608370531
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-15",
+   "est": 182.7,
+   "cap": 548123170978
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-16",
+   "est": 295.6,
+   "cap": 886727378303
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-17",
+   "est": 146.9,
+   "cap": 440669438827
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-18",
+   "est": 309.2,
+   "cap": 927543139029
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-19",
+   "est": 260.3,
+   "cap": 780939593948
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-20",
+   "est": 408.4,
+   "cap": 1225331595558
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-21",
+   "est": 316.7,
+   "cap": 950033464066
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-22",
+   "est": 309.5,
+   "cap": 928376112927
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-23",
+   "est": 295.4,
+   "cap": 886310891354
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-24",
+   "est": 104.7,
+   "cap": 314057287160
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-25",
+   "est": 577.5,
+   "cap": 1732613176122,
+   "comment": "One test past the 480 G bound (714.3 G measured), kept a group of its own: TestSystematic::test_gamma_complex"
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-26",
+   "est": 379.8,
+   "cap": 1139535204617
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-27",
+   "est": 344.2,
+   "cap": 1032497959415
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-28",
+   "est": 520.8,
+   "cap": 1562269855087,
+   "comment": "One test past the 480 G bound (634.0 G measured), kept a group of its own: TestSystematic::test_rgamma_complex"
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-29",
+   "est": 189.4,
+   "cap": 568114564392
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-30",
+   "est": 316.8,
+   "cap": 950449941085
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-31",
+   "est": 189.4,
+   "cap": 568114564392
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-32",
+   "est": 364.9,
+   "cap": 1094554564471
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-33",
+   "est": 449.5,
+   "cap": 1348611851632
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-34",
+   "est": 245.7,
+   "cap": 737208424580
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-35",
+   "est": 302.0,
+   "cap": 905885797819
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-36",
+   "est": 372.5,
+   "cap": 1117461376458
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_mpmath.py"
+   ],
+   "name": "scipy-special-mpmath-37",
+   "est": 281.0,
+   "cap": 842996208934
   },
   {
    "name": "scipy-special-1",
@@ -610,15 +917,69 @@
     "scipy/special/tests/test_pcf.py",
     "scipy/special/tests/test_pdtr.py",
     "scipy/special/tests/test_powm1.py",
-    "scipy/special/tests/test_precompute_expn_asy.py",
-    "scipy/special/tests/test_precompute_gammainc.py",
+    "scipy/special/tests/test_precompute_expn_asy.py"
+   ],
+   "est": 261.3,
+   "cap": 1000000000000
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_precompute_gammainc.py"
+   ],
+   "name": "scipy-special-precompute-gammainc-1",
+   "est": 20.0,
+   "cap": 300000000000
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_precompute_gammainc.py"
+   ],
+   "name": "scipy-special-precompute-gammainc-2",
+   "est": 2127.4,
+   "cap": 6382325574181,
+   "comment": "One test past the 480 G bound (2847.6 G measured), kept a group of its own: test_d"
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_precompute_gammainc.py"
+   ],
+   "name": "scipy-special-precompute-gammainc-3",
+   "est": 20.0,
+   "cap": 300000000000
+  },
+  {
+   "paths": [
+    "scipy/special/tests/test_precompute_gammainc.py"
+   ],
+   "name": "scipy-special-precompute-gammainc-4",
+   "est": 816.6,
+   "cap": 2449700985306,
+   "comment": "One test past the 480 G bound (1537.7 G measured), kept a group of its own: test_gammaincc"
+  },
+  {
+   "name": "scipy-special-2",
+   "paths": [
     "scipy/special/tests/test_precompute_utils.py",
     "scipy/special/tests/test_sf_error.py",
     "scipy/special/tests/test_sici.py",
     "scipy/special/tests/test_spence.py",
     "scipy/special/tests/test_spfun_stats.py",
-    "scipy/special/tests/test_spherical_bessel.py",
-    "scipy/special/tests/test_support_alternative_backends.py",
+    "scipy/special/tests/test_spherical_bessel.py"
+   ],
+   "est": 20.0,
+   "cap": 600000000000
+  },
+  {
+   "name": "scipy-special-3",
+   "paths": [
+    "scipy/special/tests/test_support_alternative_backends.py"
+   ],
+   "est": 188.2,
+   "cap": 2000000000000
+  },
+  {
+   "name": "scipy-special-4",
+   "paths": [
     "scipy/special/tests/test_trig.py",
     "scipy/special/tests/test_ufunc_infra.py",
     "scipy/special/tests/test_ufunc_signatures.py",
@@ -626,8 +987,8 @@
     "scipy/special/tests/test_wrightomega.py",
     "scipy/special/tests/test_zeta.py"
    ],
-   "est": 317.9,
-   "cap": 20000000000000
+   "est": 300.0,
+   "cap": 5000000000000
   },
   {
    "name": "scipy-stats-axis-nan-policy-1",
@@ -643,7 +1004,7 @@
     "scipy/stats/tests/test_axis_nan_policy.py"
    ],
    "est": 303.9,
-   "cap": 911562768401
+   "cap": 2000000000000
   },
   {
    "name": "scipy-stats-axis-nan-policy-3",
@@ -651,7 +1012,7 @@
     "scipy/stats/tests/test_axis_nan_policy.py"
    ],
    "est": 327.9,
-   "cap": 983753362481
+   "cap": 2000000000000
   },
   {
    "name": "scipy-stats-axis-nan-policy-4",
@@ -659,7 +1020,7 @@
     "scipy/stats/tests/test_axis_nan_policy.py"
    ],
    "est": 355.9,
-   "cap": 1067805314595
+   "cap": 2000000000000
   },
   {
    "name": "scipy-stats-axis-nan-policy-5",
@@ -691,7 +1052,7 @@
     "scipy/stats/tests/test_continuous.py"
    ],
    "est": 172.2,
-   "cap": 516457278794
+   "cap": 2000000000000
   },
   {
    "name": "scipy-stats-continuous-3",
@@ -699,7 +1060,8 @@
     "scipy/stats/tests/test_continuous.py"
    ],
    "est": 868.1,
-   "cap": 2604258497190
+   "cap": 2604300000000,
+   "comment": "One test past the 480 G bound (1287.4 G measured), kept a group of its own: TestMakeDistribution::test_rv_generic[100-distdata100]"
   },
   {
    "name": "scipy-stats-continuous-4",
@@ -723,7 +1085,7 @@
     "scipy/stats/tests/test_continuous.py"
    ],
    "est": 248.5,
-   "cap": 745503936327
+   "cap": 2000000000000
   },
   {
    "name": "scipy-stats-continuous-7",
@@ -739,7 +1101,7 @@
     "scipy/stats/tests/test_continuous.py"
    ],
    "est": 217.3,
-   "cap": 651840208961
+   "cap": 2000000000000
   },
   {
    "name": "scipy-stats-continuous-basic-1",
@@ -763,7 +1125,8 @@
     "scipy/stats/tests/test_continuous_basic.py"
    ],
    "est": 1407.2,
-   "cap": 4221491530105
+   "cap": 4221600000000,
+   "comment": "One test past the 480 G bound (1035.5 G measured), kept a group of its own: test_cont_basic[500-studentized_range-arg99]"
   },
   {
    "name": "scipy-stats-continuous-basic-4",
@@ -771,7 +1134,7 @@
     "scipy/stats/tests/test_continuous_basic.py"
    ],
    "est": 162.1,
-   "cap": 486394899020
+   "cap": 2000000000000
   },
   {
    "name": "scipy-stats-continuous-basic-5",
@@ -779,7 +1142,8 @@
     "scipy/stats/tests/test_continuous_basic.py"
    ],
    "est": 847.9,
-   "cap": 2543724735888
+   "cap": 2543724735888,
+   "comment": "One test past the 480 G bound (709.4 G measured), kept a group of its own: test_cont_basic_fit[200-argus-arg15-MM-False]"
   },
   {
    "name": "scipy-stats-continuous-basic-6",
@@ -803,7 +1167,8 @@
     "scipy/stats/tests/test_continuous_basic.py"
    ],
    "est": 969.7,
-   "cap": 2909176866978
+   "cap": 2909176866978,
+   "comment": "One test past the 480 G bound (996.6 G measured), kept a group of its own: test_cont_basic_fit[200-exponpow-arg83-MM-False]"
   },
   {
    "name": "scipy-stats-continuous-basic-9",
@@ -811,7 +1176,7 @@
     "scipy/stats/tests/test_continuous_basic.py"
    ],
    "est": 207.1,
-   "cap": 621164321680
+   "cap": 2000000000000
   },
   {
    "name": "scipy-stats-continuous-basic-10",
@@ -819,7 +1184,8 @@
     "scipy/stats/tests/test_continuous_basic.py"
    ],
    "est": 490.5,
-   "cap": 1471500050690
+   "cap": 2000000000000,
+   "comment": "One test past the 480 G bound (536.4 G measured), kept a group of its own: test_cont_basic_fit[200-genhalflogistic-arg135-MM-False]"
   },
   {
    "name": "scipy-stats-continuous-basic-11",
@@ -835,7 +1201,8 @@
     "scipy/stats/tests/test_continuous_basic.py"
    ],
    "est": 1586.2,
-   "cap": 4758728654343
+   "cap": 4758728654343,
+   "comment": "One test past the 480 G bound (1615.1 G measured), kept a group of its own: test_cont_basic_fit[200-gompertz-arg167-MM-False]"
   },
   {
    "name": "scipy-stats-continuous-basic-13",
@@ -843,7 +1210,7 @@
     "scipy/stats/tests/test_continuous_basic.py"
    ],
    "est": 37.2,
-   "cap": 200000000000
+   "cap": 2000000000000
   },
   {
    "name": "scipy-stats-continuous-basic-14",
@@ -851,7 +1218,8 @@
     "scipy/stats/tests/test_continuous_basic.py"
    ],
    "est": 2345.2,
-   "cap": 7035697879245
+   "cap": 7035697879245,
+   "comment": "One test past the 480 G bound (2055.8 G measured), kept a group of its own: test_cont_basic_fit[200-johnsonsb-arg214-MM-True]"
   },
   {
    "name": "scipy-stats-continuous-basic-15",
@@ -859,7 +1227,8 @@
     "scipy/stats/tests/test_continuous_basic.py"
    ],
    "est": 1786.3,
-   "cap": 5358953608916
+   "cap": 5358953608916,
+   "comment": "One test past the 480 G bound (1596.0 G measured), kept a group of its own: test_cont_basic_fit[200-johnsonsb-arg215-MM-False]"
   },
   {
    "name": "scipy-stats-continuous-basic-16",
@@ -875,7 +1244,7 @@
     "scipy/stats/tests/test_continuous_basic.py"
    ],
    "est": 359.9,
-   "cap": 1079666653126
+   "cap": 2000000000000
   },
   {
    "name": "scipy-stats-continuous-basic-18",
@@ -899,7 +1268,7 @@
     "scipy/stats/tests/test_continuous_basic.py"
    ],
    "est": 273.1,
-   "cap": 819330581304
+   "cap": 2000000000000
   },
   {
    "name": "scipy-stats-continuous-basic-21",
@@ -926,12 +1295,20 @@
    "cap": 694581955152
   },
   {
-   "name": "scipy-stats-distributions-3",
    "paths": [
     "scipy/stats/tests/test_distributions.py"
    ],
-   "est": 341.7,
-   "cap": 1025063568404
+   "name": "scipy-stats-distributions-3",
+   "est": 277.6,
+   "cap": 832822104083
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_distributions.py"
+   ],
+   "name": "scipy-stats-distributions-4",
+   "est": 258.4,
+   "cap": 775054448995
   },
   {
    "name": "scipy-stats-fit-1",
@@ -950,31 +1327,136 @@
    "cap": 1087028869974
   },
   {
+   "paths": [
+    "scipy/stats/tests/test_fit.py"
+   ],
    "name": "scipy-stats-fit-3",
+   "est": 231.2,
+   "cap": 693736171001
+  },
+  {
    "paths": [
     "scipy/stats/tests/test_fit.py"
    ],
-   "est": 96.2,
-   "cap": 288637650902
-  },
-  {
    "name": "scipy-stats-fit-4",
+   "est": 1664.5,
+   "cap": 4993362594892,
+   "comment": "One test past the 480 G bound (1677.6 G measured), kept a group of its own: TestFit::test_basic_fit_mle[nchypergeom_fisher]"
+  },
+  {
    "paths": [
     "scipy/stats/tests/test_fit.py"
    ],
-   "est": 1390.3,
-   "cap": 4170774054683
-  },
-  {
    "name": "scipy-stats-fit-5",
+   "est": 1558.5,
+   "cap": 4675623859086,
+   "comment": "One test past the 480 G bound (1479.7 G measured), kept a group of its own: TestFit::test_basic_fit_mle[nchypergeom_wallenius]"
+  },
+  {
    "paths": [
     "scipy/stats/tests/test_fit.py"
    ],
-   "est": 380.1,
-   "cap": 20000000000000
+   "name": "scipy-stats-fit-6",
+   "est": 267.4,
+   "cap": 802328439857
   },
   {
-   "name": "scipy-stats-1",
+   "paths": [
+    "scipy/stats/tests/test_fit.py"
+   ],
+   "name": "scipy-stats-fit-7",
+   "est": 375.2,
+   "cap": 1125634814538
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_fit.py"
+   ],
+   "name": "scipy-stats-fit-8",
+   "est": 133.3,
+   "cap": 400018638675
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_fit.py"
+   ],
+   "name": "scipy-stats-fit-9",
+   "est": 375.0,
+   "cap": 1125027103619
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_fit.py"
+   ],
+   "name": "scipy-stats-fit-10",
+   "est": 303.6,
+   "cap": 910806240772
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_fit.py"
+   ],
+   "name": "scipy-stats-fit-11",
+   "est": 349.8,
+   "cap": 1049366112530
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_fit.py"
+   ],
+   "name": "scipy-stats-fit-12",
+   "est": 370.3,
+   "cap": 1111049571361
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_fit.py"
+   ],
+   "name": "scipy-stats-fit-13",
+   "est": 354.8,
+   "cap": 1064255222033
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_fit.py"
+   ],
+   "name": "scipy-stats-fit-14",
+   "est": 272.3,
+   "cap": 816913690278
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_fit.py"
+   ],
+   "name": "scipy-stats-fit-15",
+   "est": 323.8,
+   "cap": 971274256031
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_fit.py"
+   ],
+   "name": "scipy-stats-fit-16",
+   "est": 286.9,
+   "cap": 860669441543
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_fit.py"
+   ],
+   "name": "scipy-stats-fit-17",
+   "est": 368.8,
+   "cap": 1106440811351
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_fit.py"
+   ],
+   "name": "scipy-stats-fit-18",
+   "est": 374.3,
+   "cap": 1122975993798
+  },
+  {
    "paths": [
     "scipy/stats/tests/test_binned_statistic.py",
     "scipy/stats/tests/test_censored_data.py",
@@ -986,29 +1468,146 @@
     "scipy/stats/tests/test_discrete_basic.py",
     "scipy/stats/tests/test_entropy.py",
     "scipy/stats/tests/test_fast_gen_inversion.py",
-    "scipy/stats/tests/test_hypotests.py",
-    "scipy/stats/tests/test_kdeoth.py",
+    "scipy/stats/tests/test_hypotests.py"
+   ],
+   "name": "scipy-stats-1-1",
+   "est": 237.9,
+   "cap": 713689328292
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_mgc.py"
+   ],
+   "name": "scipy-stats-1-mgc-1",
+   "est": 337.5,
+   "cap": 1012525188993
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_mgc.py"
+   ],
+   "name": "scipy-stats-1-mgc-2",
+   "est": 383.2,
+   "cap": 1149632796846
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_mgc.py"
+   ],
+   "name": "scipy-stats-1-mgc-3",
+   "est": 288.0,
+   "cap": 864123703485
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_kdeoth.py"
+   ],
+   "name": "scipy-stats-1-2-kdeoth-1",
+   "est": 221.5,
+   "cap": 664537536966
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_kdeoth.py"
+   ],
+   "name": "scipy-stats-1-2-kdeoth-2",
+   "est": 384.7,
+   "cap": 1154198588068
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_kdeoth.py"
+   ],
+   "name": "scipy-stats-1-2-kdeoth-3",
+   "est": 20.0,
+   "cap": 300000000000
+  },
+  {
+   "paths": [
     "scipy/stats/tests/test_marray.py",
-    "scipy/stats/tests/test_mgc.py",
     "scipy/stats/tests/test_morestats.py",
     "scipy/stats/tests/test_mstats_basic.py",
     "scipy/stats/tests/test_mstats_extras.py",
-    "scipy/stats/tests/test_multicomp.py",
+    "scipy/stats/tests/test_multicomp.py"
+   ],
+   "name": "scipy-stats-1-3",
+   "est": 368.2,
+   "cap": 1311843148002
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_resampling.py"
+   ],
+   "name": "scipy-stats-1-resampling-1",
+   "est": 253.6,
+   "cap": 760671840599
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_resampling.py"
+   ],
+   "name": "scipy-stats-1-resampling-2",
+   "est": 203.8,
+   "cap": 611366840785
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_stats.py"
+   ],
+   "name": "scipy-stats-1-stats-1",
+   "est": 276.3,
+   "cap": 828886823294
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_stats.py"
+   ],
+   "name": "scipy-stats-1-stats-2",
+   "est": 157.9,
+   "cap": 473581606628
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_stats.py"
+   ],
+   "name": "scipy-stats-1-stats-3",
+   "est": 1349.0,
+   "cap": 4046962788617,
+   "comment": "One test past the 480 G bound (1480.9 G measured), kept a group of its own: TestKSTwoSamples::test_gh12999[numpy]"
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_stats.py"
+   ],
+   "name": "scipy-stats-1-stats-4",
+   "est": 3313.7,
+   "cap": 9941008844907,
+   "comment": "One test past the 480 G bound (3023.3 G measured), kept a group of its own: TestKSTwoSamples::testLargeBoth[numpy]"
+  },
+  {
+   "paths": [
+    "scipy/stats/tests/test_stats.py"
+   ],
+   "name": "scipy-stats-1-stats-5",
+   "est": 188.1,
+   "cap": 564384339250
+  },
+  {
+   "paths": [
     "scipy/stats/tests/test_multivariate.py",
     "scipy/stats/tests/test_new_distributions.py",
     "scipy/stats/tests/test_odds_ratio.py",
     "scipy/stats/tests/test_quantile.py",
     "scipy/stats/tests/test_rank.py",
     "scipy/stats/tests/test_relative_risk.py",
-    "scipy/stats/tests/test_resampling.py",
     "scipy/stats/tests/test_sensitivity_analysis.py",
-    "scipy/stats/tests/test_stats.py",
     "scipy/stats/tests/test_survival.py",
     "scipy/stats/tests/test_tukeylambda_stats.py",
     "scipy/stats/tests/test_variation.py"
    ],
-   "est": 113.7,
-   "cap": 20000000000000
+   "name": "scipy-stats-1-4",
+   "est": 265.3,
+   "cap": 795908715404
   }
  ],
  "scikit-learn": [
@@ -1034,20 +1633,20 @@
    "cap": 500000000000
   },
   {
-   "name": "scikit-learn-decomposition-pca-1",
    "paths": [
     "sklearn/decomposition/tests/test_pca.py"
    ],
-   "est": 376.3,
-   "cap": 1128754334335
+   "name": "scikit-learn-decomposition-pca-1",
+   "est": 251.3,
+   "cap": 753754392026
   },
   {
-   "name": "scikit-learn-decomposition-pca-2",
    "paths": [
     "sklearn/decomposition/tests/test_pca.py"
    ],
-   "est": 33.9,
-   "cap": 200000000000
+   "name": "scikit-learn-decomposition-pca-2",
+   "est": 307.0,
+   "cap": 920876450108
   },
   {
    "name": "scikit-learn-decomposition-1",
@@ -1105,7 +1704,7 @@
     "sklearn/ensemble/tests/test_gradient_boosting.py"
    ],
    "est": 311.4,
-   "cap": 934253371023
+   "cap": 2000000000000
   },
   {
    "name": "scikit-learn-ensemble-2",
@@ -1248,7 +1847,7 @@
     "sklearn/model_selection/tests/test_validation.py"
    ],
    "est": 181.5,
-   "cap": 544623505101
+   "cap": 2000000000000
   },
   {
    "name": "scikit-learn-neighbors-to-neural_network",
@@ -1282,7 +1881,7 @@
     "sklearn/tests/test_common.py"
    ],
    "est": 368.1,
-   "cap": 1104249696850
+   "cap": 2000000000000
   },
   {
    "name": "scikit-learn-tests-common-3",
@@ -1293,20 +1892,20 @@
    "cap": 825686424707
   },
   {
-   "name": "scikit-learn-tests-common-4",
    "paths": [
     "sklearn/tests/test_common.py"
    ],
-   "est": 306.9,
-   "cap": 920709543879
+   "name": "scikit-learn-tests-common-4",
+   "est": 369.4,
+   "cap": 1108286035129
   },
   {
-   "name": "scikit-learn-tests-common-5",
    "paths": [
     "sklearn/tests/test_common.py"
    ],
-   "est": 121.9,
-   "cap": 365637551579
+   "name": "scikit-learn-tests-common-5",
+   "est": 204.7,
+   "cap": 614112299140
   },
   {
    "name": "scikit-learn-tests-metaestimators-metadata-routing-1",
@@ -1322,10 +1921,9 @@
     "sklearn/tests/test_metaestimators_metadata_routing.py"
    ],
    "est": 92.7,
-   "cap": 278147797855
+   "cap": 2000000000000
   },
   {
-   "name": "scikit-learn-tests-1",
    "paths": [
     "sklearn/tests/test_base.py",
     "sklearn/tests/test_build.py",
@@ -1343,15 +1941,23 @@
     "sklearn/tests/test_metadata_routing.py",
     "sklearn/tests/test_metaestimators.py",
     "sklearn/tests/test_min_dependencies_consistency.py",
-    "sklearn/tests/test_multiclass.py",
+    "sklearn/tests/test_multiclass.py"
+   ],
+   "name": "scikit-learn-tests-1-1",
+   "est": 349.0,
+   "cap": 1046985961439
+  },
+  {
+   "paths": [
     "sklearn/tests/test_multioutput.py",
     "sklearn/tests/test_naive_bayes.py",
     "sklearn/tests/test_pipeline.py",
     "sklearn/tests/test_public_functions.py",
     "sklearn/tests/test_random_projection.py"
    ],
-   "est": 379.7,
-   "cap": 1139005904690
+   "name": "scikit-learn-tests-1-2",
+   "est": 202.7,
+   "cap": 608033120977
   },
   {
    "name": "scikit-learn-tree",
@@ -1382,20 +1988,28 @@
    "cap": 514500000000
   },
   {
-   "name": "statsmodels-discrete-count-model-1",
    "paths": [
     "statsmodels/discrete/tests/test_count_model.py"
    ],
-   "est": 358.2,
-   "cap": 1074709765233
+   "name": "statsmodels-discrete-count-model-1",
+   "est": 295.8,
+   "cap": 887399893182
   },
   {
-   "name": "statsmodels-discrete-count-model-2",
    "paths": [
     "statsmodels/discrete/tests/test_count_model.py"
    ],
-   "est": 372.2,
-   "cap": 1116638353746
+   "name": "statsmodels-discrete-count-model-2",
+   "est": 296.2,
+   "cap": 888718246921
+  },
+  {
+   "paths": [
+    "statsmodels/discrete/tests/test_count_model.py"
+   ],
+   "name": "statsmodels-discrete-count-model-3",
+   "est": 315.3,
+   "cap": 945948533645
   },
   {
    "name": "statsmodels-discrete-discrete-1",
@@ -1403,7 +2017,7 @@
     "statsmodels/discrete/tests/test_discrete.py"
    ],
    "est": 378.1,
-   "cap": 1134238002394
+   "cap": 2000000000000
   },
   {
    "name": "statsmodels-discrete-discrete-2",
@@ -1430,7 +2044,7 @@
     "statsmodels/discrete/tests/test_truncated_model.py"
    ],
    "est": 240.7,
-   "cap": 722199069523
+   "cap": 2000000000000
   },
   {
    "name": "statsmodels-distributions-copula-to-duration",
@@ -1494,7 +2108,7 @@
     "statsmodels/nonparametric/tests/test_kernel_density.py"
    ],
    "est": 314.9,
-   "cap": 944739834663
+   "cap": 2000000000000
   },
   {
    "name": "statsmodels-nonparametric-2",
@@ -1503,7 +2117,7 @@
     "statsmodels/nonparametric/tests/test_kernels.py"
    ],
    "est": 370.5,
-   "cap": 1111616461351
+   "cap": 2000000000000
   },
   {
    "name": "statsmodels-othermod",
@@ -1527,7 +2141,7 @@
     "statsmodels/regression/tests/test_lme.py"
    ],
    "est": 264.9,
-   "cap": 794818732085
+   "cap": 2000000000000
   },
   {
    "name": "statsmodels-regression-1",
@@ -1549,7 +2163,7 @@
     "statsmodels/regression/tests/test_recursive_ls.py"
    ],
    "est": 379.2,
-   "cap": 1137537880919
+   "cap": 2000000000000
   },
   {
    "name": "statsmodels-regression-3",
@@ -1587,7 +2201,22 @@
    "cap": 500000000000
   },
   {
-   "name": "statsmodels-stats-1",
+   "paths": [
+    "statsmodels/stats/tests/test_corrpsd.py"
+   ],
+   "name": "statsmodels-stats-1-corrpsd-1",
+   "est": 347.2,
+   "cap": 1041683235490
+  },
+  {
+   "paths": [
+    "statsmodels/stats/tests/test_corrpsd.py"
+   ],
+   "name": "statsmodels-stats-1-corrpsd-2",
+   "est": 87.4,
+   "cap": 300000000000
+  },
+  {
    "paths": [
     "statsmodels/stats/tests/test_anova.py",
     "statsmodels/stats/tests/test_anova_rm.py",
@@ -1595,7 +2224,6 @@
     "statsmodels/stats/tests/test_contingency_tables.py",
     "statsmodels/stats/tests/test_contrast.py",
     "statsmodels/stats/tests/test_correlation.py",
-    "statsmodels/stats/tests/test_corrpsd.py",
     "statsmodels/stats/tests/test_covariance.py",
     "statsmodels/stats/tests/test_deltacov.py",
     "statsmodels/stats/tests/test_descriptivestats.py",
@@ -1609,18 +2237,43 @@
     "statsmodels/stats/tests/test_influence.py",
     "statsmodels/stats/tests/test_inter_rater.py"
    ],
-   "est": 362.9,
-   "cap": 1088826273791
+   "name": "statsmodels-stats-1-1",
+   "est": 118.0,
+   "cap": 353984393988
   },
   {
-   "name": "statsmodels-stats-2",
    "paths": [
-    "statsmodels/stats/tests/test_knockoff.py",
+    "statsmodels/stats/tests/test_knockoff.py"
+   ],
+   "name": "statsmodels-stats-2-knockoff-1",
+   "est": 90.2,
+   "cap": 300000000000
+  },
+  {
+   "paths": [
+    "statsmodels/stats/tests/test_knockoff.py"
+   ],
+   "name": "statsmodels-stats-2-knockoff-2",
+   "est": 496.6,
+   "cap": 1489926075167,
+   "comment": "One test past the 480 G bound (510.3 G measured), kept a group of its own: test_sim[tester3-3000-200-3.5-equi]"
+  },
+  {
+   "paths": [
+    "statsmodels/stats/tests/test_knockoff.py"
+   ],
+   "name": "statsmodels-stats-2-knockoff-3",
+   "est": 26.0,
+   "cap": 300000000000
+  },
+  {
+   "paths": [
     "statsmodels/stats/tests/test_lilliefors.py",
     "statsmodels/stats/tests/test_limited_iteration_mixin.py"
    ],
-   "est": 350.3,
-   "cap": 1051001170880
+   "name": "statsmodels-stats-2-1",
+   "est": 34.0,
+   "cap": 300000000000
   },
   {
    "name": "statsmodels-stats-3",
@@ -1633,28 +2286,28 @@
    "cap": 1051001164947
   },
   {
+   "paths": [
+    "statsmodels/stats/tests/test_proportion.py"
+   ],
    "name": "statsmodels-stats-proportion-1",
+   "est": 299.8,
+   "cap": 899432433165
+  },
+  {
    "paths": [
     "statsmodels/stats/tests/test_proportion.py"
    ],
-   "est": 354.0,
-   "cap": 1061950540121
-  },
-  {
    "name": "statsmodels-stats-proportion-2",
-   "paths": [
-    "statsmodels/stats/tests/test_proportion.py"
-   ],
-   "est": 366.7,
-   "cap": 1100024498130
+   "est": 340.7,
+   "cap": 1022222382787
   },
   {
-   "name": "statsmodels-stats-proportion-3",
    "paths": [
     "statsmodels/stats/tests/test_proportion.py"
    ],
-   "est": 114.7,
-   "cap": 344020013665
+   "name": "statsmodels-stats-proportion-3",
+   "est": 87.7,
+   "cap": 300000000000
   },
   {
    "name": "statsmodels-stats-4",
@@ -1752,7 +2405,7 @@
     "statsmodels/tsa/statespace/tests/test_exponential_smoothing.py"
    ],
    "est": 364.0,
-   "cap": 1092141122988
+   "cap": 2000000000000
   },
   {
    "name": "statsmodels-tsa-statespace-2",
