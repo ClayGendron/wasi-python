@@ -5,66 +5,60 @@ the next one. It points at the records that matter: the roadmap for the order,
 `decisions.md` for the owner's answers, each specification's landing notes for its state. The
 lane never tags; the 0.1.0 tag is the owner's.
 
-## 2026-10-21, evening (main `1875d4cd`; wave 11 accepted on `wave/11`, not yet on main)
+## 2026-10-22, morning (main `deb18923`; 0.1.0 accepted, its second dry run running)
 
-### Paused at the owner's word
+### Where 0.1.0 stands
 
-The owner paused new work at the end of the day: current work finished, nothing new started.
-New CI runs were also held for an hour or two after GNU Savannah (freetype's pinned host) was
-down from about 20:10 to 20:25 UTC: never probe or poll an upstream host; on an outage, hold
-runs that fetch from it and tell the owner.
+- **Waves 11 and 12 are on main.** Wave 11 (101, 102, 112, 114, 113) at `6411d4d5`, history
+  line 93. Wave 12 (095, 067, the version bump to 0.1.0, and the lane's sealed-leftovers fix) at
+  `148529ae`, history line 94; its acceptance was 0.1.0's first release acceptance.
+- **The release acceptance, again,** on `0d5ab383`, accepted in `deb18923`, history line 95:
+  1574/1873 pass, 0 fail, 297 gap, 2 blocked (the wheel, the three systems), `-n 6 --tier
+  release`, 1 h 23 min. Its record is `build/releases/0.1.0/record.json` (SHA-256 in the
+  commit).
+- **The first dry run on main**, 39741960669 on `454f8b3c`: 275 jobs green, 4 skipped, Windows
+  7/7 green, and one red release leg on Linux: networkx's `test_asadpour_integral_held_karp`
+  did not end within its cap. On Linux the guest takes a different path on the same set and
+  wasmtime (darwin: about 470 G), which may be the product's. 067 made it a trap with that
+  reason (`1a0761a0`, `0d5ab383`; reviewed in `067-…-trap-2026-10-22.md`), and the lane accepted
+  again.
+- **The second dry run on main**, 39764234616 on `deb18923`, running. When every job is green
+  on three systems and the gather concludes success (`meta.tier` `release`, the set
+  `3339091f`), 0.1.0 is ready for the owner's tag.
 
-### Wave 11: accepted, dry run green, main not yet fast-forwarded
+### For the owner before the tag
 
-- **Entries:** 101 (the faster release run), 102 (the release tier), 112 (strings speak for
-  themselves), 114 (HOME is never the root; the security review's H2), 113 (every module cache
-  is guarded; its H1). Branch `wave/11`, pushed.
-- **Acceptance** `da665abe`, history line 93: 810/935 pass, 0 fail, on the set rebuilt in the
-  main tree, `SHA256SUMS` `1556bbd5` (python.wasm byte for byte main's). Sameness against wave 10's
-  record: exit 0 with the combined claims (`build/wave-11/lane/claims.toml`, git-ignored; the
-  integration review's Appendix A is its source).
-- **Integration review** `context/reviews/wave-11-integration-2026-10-21.md`: lands. Landing
-  edits `25983899` (102's constitution and AGENTS.md text, the release-tier ledger, 101's roadmap
-  lines, 112's CHANGELOG line).
-- **Dry run** 39667712127 on `wave/11` at `da665abe`: attempt 1 failed only at the downloads
-  (Savannah's outage); attempt 2 (failed jobs re-run, nothing changed) green on three systems;
-  the gather concluded success (102's criteria 5 and 7), set `1556bbd5` on every host, 805/935 on
-  CI, the wheel 98,264,488 bytes.
-- **Next, in order:** (1) fast-forward main to `wave/11` and push. The push starts
-  `set-cache.yml` for the first time, which builds and so fetches from Savannah: do it once the
-  owner lifts the hold. (2) Record that run (101's criterion 7) and the next cache hit. (3) The
-  landing notes: each entry's Status, 112's roadmap line, the review addendum, as wave 10's
-  `1875d4cd` did.
+1. **The security review's D2:** a required reviewer on the `pypi` environment, admin bypass
+   off. Tonight's pushes to main printed "Bypassed rule violations"; the bypass is in use.
+2. **The README's status line** still says "alpha" (wave 12's integration review, L4); the
+   wording is the owner's. 0.1.0 becomes GitHub's "Latest" release and `pip install
+   wasi-python` takes it without `--pre`.
+3. **Sealed scratch folders** under `build/harness` from a release acceptance the lane stopped
+   at 6% (to take a review's text fix). The judge never reads them. A safety check refused the
+   lane's removal; once no judge runs, `chmod -R u+w build/harness` then remove its `run-*`
+   folders.
 
-### Wave 12: building, paused
+### What the night found (each fixed and reviewed by a fresh agent)
 
-| Spec | Tip | State | Next |
-|---|---|---|---|
-| 067, the pure-Python packages' own tests | `79d865b1` (on 102's `861d5e4b`) | spec confirmed; built in part: 39 pins, four test-source patches, 42 families (285 groups), classes for all but sympy; release about 56 T measured (lower bound) | its landing notes list ten steps: sympy's 54 groups, splits of its capped groups, classes, smoke twice, shards, fast tier, claim block, one normal-tier branch run. Note: its builder ran two guests at once once (named in its notes); its unit checks were written beside the code, not seen failing first (the self-check must say so) |
-| 095, scipy's, scikit-learn's and statsmodels' own tests | `8694fc4c` (on `861d5e4b`) | spec confirmed; harness keys and units built (seen failing first), files written; release about 60.5 T over 133 groups, 48 unmeasured | its landing notes list seven steps; tools under `context/research/2026-10-21-scipy-sklearn-statsmodels-own-tests-under-the-runtime/the-build/` |
+- 067's `fetch.py` saved nine test sources under their URL names on CI (the integration
+  review's H1).
+- 11 of 067's release groups had never passed: its measuring read fuel and exit codes, not
+  each group's verdict. Found by the first release acceptance; fixed in `254fd3e5`.
+- The judge's sealed-leftovers scan raised on a folder another worker's guest removed: the
+  lane's fix `618f891e` and `459e7f35`, reviewed in `lane-sealed-leftovers-race-2026-10-22.md`.
+- networkx's held-Karp test on Linux (above).
 
-The release tier will be large: about 117 T measured so far between the two, more to come. The
-lane's release acceptance before the tag runs it whole.
+### The process, changed tonight (`decisions.md`, 2026-10-22)
 
-### The release reviews (0.1.0)
+The owner's compressed path, then the process advice instituted: the release acceptance at
+`-n 6` on an otherwise idle machine; the last wave's acceptance may be the release acceptance;
+the dry run dispatched before the notes. 117 to 121 reserved after 0.1.0, with the structural
+review's M-a and M-b (the long-function allowance by length; `_platform.py`'s split).
 
-- **Structural** `context/reviews/0.1.0-structural-review-2026-10-21.md` (branch
-  `worktree-agent-a97a92fcefa153822`, `ed8a2983`): no High; M1 is reserved as 115, M2 as 116.
-- **Security** `context/reviews/0.1.0-security-review-2026-10-21.md` (branch
-  `worktree-agent-a1f1b668360a6db50`, `d1db05e2`): H1 and H2, now closed by 113 and 114 in wave 11.
-- Both are committed with the version bump. Before it, each reviewer reads the delta in `src/`,
-  `release/`, `scripts/`, `recipes/` and the workflows since `b2d4ccd0` (waves 11 and 12).
+### After the tag
 
-### The order to 0.1.0
+The follow-ups the reviews reserved, in the roadmap: the Linux cause of the held-Karp test;
+067's docstring rules (M1 of its build review); networkx's item-group warning filters; a
+repository check that every group passes before the release tier; 115, 116, 117 to 121.
 
-1. Wave 11 onto main (above).
-2. Wave 12: 067 and 095 finished, built, reviewed, landed.
-3. The two delta reads, the version bump (`release/version.py`), the release acceptance with the
-   release tier, a green dry run on main's exact commit, and the owner's tag.
-
-### The owner's answers today (all in `decisions.md`)
-
-- A branch run may set `release-tier` only for a spec that changes the release-tier job itself;
-  adding release shards for a package's groups is not such a change (102).
-- Never probe upstream hosts; hold runs during an outage.
-- A flaky unit test seen once, unchanged as asked: `tests/unit/test_async_tools.py::test_close_ends_the_calls_loop` (a ResourceWarning from a sqlite3 connection another test left on the same worker).
+The night's log is `build/lane-log-2026-10-21-night.md`.
