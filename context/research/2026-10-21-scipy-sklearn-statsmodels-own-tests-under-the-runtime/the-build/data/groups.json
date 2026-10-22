@@ -562,7 +562,8 @@
    "name": "scipy-special-mpmath-betainc",
    "est": 63.2,
    "cap": 200000000000,
-   "clock": 100000
+   "clock": 100000,
+   "clock_reason": "mpmath's reference value for each point is limited to 0.5 s by a clock read on every trace event; at the judge's 1 us step the test runs past 16 T; at 100 us a read it ends, comparing 114 of the 240 points where scipy's value is not nan (16 raise in mpmath, 110 time out, each dropped as nan, as the test allows); natively a SIGALRM limit over untraced time drops far fewer"
   },
   {
    "paths": [
@@ -571,7 +572,8 @@
    "name": "scipy-special-mpmath-betaincc",
    "est": 26.7,
    "cap": 200000000000,
-   "clock": 100000
+   "clock": 100000,
+   "clock_reason": "mpmath's reference value for each point is limited to 0.5 s by a clock read on every trace event; at the judge's 1 us step the test runs past 16 T; at 100 us a read it ends, comparing 91 of the 240 points where scipy's value is not nan (149 time out, each dropped as nan, as the test allows); natively a SIGALRM limit over untraced time drops far fewer"
   },
   {
    "paths": [

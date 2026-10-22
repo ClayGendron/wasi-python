@@ -305,13 +305,17 @@ nothing writable.
   `scipy-doctest`, not by its suite, and are not run. Its very slow cases run
   (`SCIPY_XSLOW=1`); two of them, the mpmath comparisons of `betainc` and `betaincc`, limit each
   reference value by the clock read on every trace event, so they run with the guest's clock
-  advancing 100 µs a read (at the judge's 1 µs, `betainc` alone passes 17 T of fuel); one,
+  advancing 100 µs a read (at the judge's 1 µs, `betainc` alone passes 17 T of fuel). At that
+  step they compare fewer points than native: of the 240 points where scipy's value is not `nan`,
+  `betainc` compares 114 (110 reference values time out, 16 raise in mpmath) and `betaincc` 91
+  (149 time out); a timed-out point becomes `nan` and is dropped, as the test allows. One,
   `choose_conv_method` with `measure=True`, times a call until 0.5 ms has passed and runs with
   1 ms a read. Three cases of `test_support_alternative_backends_hypothesis`, for `hyp1f1`,
   `lpmv` and `yn`, do not finish in the guest (`hyp1f1`'s ran past about 10 T of fuel, about 20
   minutes, where every other case ends within about 3 G); each is a trap, run alone to a 50 G cap
-  and recorded as a known gap, and why their drawn arrays keep the function computing is not read
-  yet. `yn(3, 1e-105)` under `errstate(all='raise')` returns `-inf` without the overflow error
+  and recorded as a known gap. For `yn` and `hyp1f1` a derandomized example draws `intp` values
+  near ±2³¹ as the integer parameters (`intp` is 32 bits on wasm32), and the call runs that long;
+  no example fails. `lpmv`'s case was not probed further. `yn(3, 1e-105)` under `errstate(all='raise')` returns `-inf` without the overflow error
   (`yv` raises it): the same missing floating-point flags.
 
 ### scikit-learn in the guest

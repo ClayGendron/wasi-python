@@ -225,6 +225,8 @@ def write() -> None:
             d["cap"] = g.get("cap")
             if "comment" in g:
                 d["comment"] = g["comment"]
+            if "clock_reason" in g:
+                d["clock_reason"] = g["clock_reason"]
             all_groups.append((g["name"], d))
         for name, d in all_groups:
             m = measured.get(name)
@@ -244,10 +246,11 @@ def write() -> None:
             gl.append(f"measured = {(m or cap * 2 // 3):_}")
             if "clock" in d:
                 gl.append(f"clock_step_ns = {d['clock']:_}")
-                gl.append(
-                    'clock_reason = "the test repeats a call until the clock has advanced 0.5 ms; '
-                    "the judge's clock advances only when read\""
+                why = d.get("clock_reason") or (
+                    "the test repeats a call until the clock has advanced 0.5 ms; "
+                    "the judge's clock advances only when read"
                 )
+                gl.append(f"clock_reason = {q(why)}")
             group_lines.append("\n".join(gl))
         derived = e.get("derived", [])
         caps += sum(packages.rule_cap(dv["measured"]) for dv in derived)

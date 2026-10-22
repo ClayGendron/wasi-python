@@ -56,7 +56,7 @@
       scipy and scikit-learn comments held), in the same change, as 102 does (the review, L4);
     - `context/release-tier-claims.toml`: 095's `[[claim]]` block for scipy's release groups
       (102, Decision 6; the review, L8);
-    - `README.md`, `CHANGELOG.md`, `context/progress/README.md`, `context/roadmap.md`.
+    - `README.md`, `CHANGELOG.md`, `context/release-tier-claims.toml`. (As built: `context/progress/README.md` does not change, and `context/roadmap.md`'s lines are the lane's, *For the lane, as built*; the build review, L4.)
   - **Not changed:** `tests/upstream/package_drive.py` (Decision 3), `drive.py`, every TOML of 066,
     numpy's, pandas' and CPython's configurations.
 - **Depends on:**
@@ -1306,16 +1306,50 @@ measurements* holds the detail.
   release-tier row is in 095's block of `context/release-tier-claims.toml` (261 groups, their
   classes, three traps; `units = 46`). Changed: none of another family (criterion 6's stage
   digests hold). Grown: none. Retired: none. Passes moved: none.
+- **The lane's roadmap and closer items** (from *For the lane*, kept; the build review, L3):
+  - The lane widens 088's roadmap line to name scipy's seven test-only C modules and
+    `_test_deprecation_call` (the gaps `scipy-lib-to-fft-test-only-modules` and the
+    `[[not_selected]]` entry cite it; the line names numpy's and CPython's only).
+  - The lane reserves a number for the uarray `get_native_id` product finding; it becomes
+    `scipy-lib-to-fft-no-native-id-uarray`'s closer in place of `README.md`.
+  - 074's line may name scikit-learn's three `mmap` files and scipy's three
+    `test_cython_abi.py` files.
+- **The release shards' time** (the lane's question and the build review's N1): 13 release
+  shards are one group past 725 G each, every one of them a single test (none can be split
+  further). The largest, 3.02 T, is about 940 s at 102's slow Linux rate (0.31 s per G) plus
+  setup: past Decision 12's 360 s, which is a packing target (no check holds it), and well under
+  the `judge-release` job's 30-minute timeout. No group is estimated past 20 minutes, so none
+  is split. INFERRED until the dry run on main, the first CI run of the release tier.
 - **Flags:** `--accept "095: scipy's, scikit-learn's and statsmodels' own tests"` and
   `--accept-judge "095: the three families' TOMLs, lists and gaps, their harness keys, the trap
   argv named under the tree, the shards and the workflow"`. No `--accept-growth`.
+
+### The build review answered (2026-10-22; `context/reviews/095-scipy-sklearn-statsmodels-own-tests-build-2026-10-22.md`, "lands once M1 is written in")
+
+- **H1** (the stage row without lxml's tree): fixed in `ab5cde5b`, before the review's verdict.
+- **M1** (the clock-stepped tests compare about half their points): written in. Each group's
+  `clock_reason` says that at 100 µs `test_betainc` compares 114 of its 240 points (110 time out,
+  16 raise in mpmath) and `test_betaincc` 91 (149 time out), each dropped as `nan`; so do the
+  README and the memo's build section. No cheap fix: a smaller step times out fewer points at more
+  fuel (past 2 T at 10 µs, past 16 T at 1 µs). 0.1.0 keeps 100 µs.
+- **L1:** the two groups' `clock_reason` is now their own (above); the conv-method group keeps
+  its text.
+- **L2:** the traps' cause written in, in the `[[trap]]` reasons, their gaps, the README and the
+  memo: `yn`'s and `hyp1f1`'s derandomized examples draw `intp` (32-bit on wasm32) values near
+  ±2³¹ as the integer parameters; no example fails; `lpmv` not probed. The gaps' `match` lines
+  are unchanged.
+- **L3:** the three lane items are back in *For the lane, as built*.
+- **L4:** the runs `39705963592` and `39708064741` are in *The branch's release runs*, plot-g's
+  download failure named as not 095's; the Kind line's file list corrected.
+- **N1:** answered in *For the lane, as built* (the release shards' time): nothing to split.
+- **N2:** accepted by the review; no change.
 
 ### The builder's self-check
 
 ```
 Before you ask for a review:
 - [x] rebased onto main's tip today: 2a8091d7 (the Status line says so); conflicts named above;
-- [ ] CI run dispatched and read (normal tier, no release-tier input): 39708064741 on ab5cde5b,
+- [x] CI run dispatched and read (normal tier, no release-tier input): 39708064741 on ab5cde5b,
       red only at upstream-plot-g's fetch, a download that failed (SSL EOF), not a growth line or
       G7, and not 095's shard; not re-dispatched, by the rule on downloads (the lane's call);
       Windows green;
