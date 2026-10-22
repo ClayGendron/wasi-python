@@ -1451,3 +1451,50 @@ it named exactly these 11, and no other of the 462 groups. After the fixes, **ev
 These three commits were then rebased onto `origin/wave/12` `459e7f35` (the 0.1.0 bump and the
 lane's sealed-leftovers fix after 067 at `84c5955c`), with no conflict. The fast tier there:
 3,000 passed, 47 skipped, lost 0, grew 0 (`build/067/logs/fast-tier-4.log`).
+
+### The delta-2 review's M1: `networkx-r-doc`'s eight failures (answered in writing, 2026-10-22)
+
+`networkx-r-doc`'s new class `doctest-output` gives one reason for its eight members: "a
+docstring example whose printed output differs in the guest". **For three of them that reason
+is wrong.**
+
+- **The cause:** networkx's `conftest.py` has an autouse `set_warnings` fixture that silences
+  named warnings. An item group loads no conftest (above). `networkx.ini` sets
+  `filterwarnings = error`. So an example whose call emits one of those warnings raises in the
+  judge. That is the judge's staging, not the guest's output.
+- **Staging, three** (READ: each example's call against `set_warnings`' filters, and each
+  stream line ends in a traceback, not an expected output):
+  - `networkx.algorithms.graph_hashing.weisfeiler_lehman_graph_hash` (the `UserWarning`
+    "The hashes produced for ");
+  - `networkx.algorithms.graph_hashing.weisfeiler_lehman_subgraph_hashes` (the same);
+  - `networkx.algorithms.traversal.breadth_first_search.bfs_predecessors` (the
+    `DeprecationWarning` "\n\nbfs_predecessors").
+- **Output, five, each READ only so far as this: its example calls nothing a `set_warnings`
+  filter names, so the missing filters are not its cause. Its own cause is not read:**
+  - `networkx.algorithms.approximation.dominating_set.min_edge_dominating_set`: cause not read;
+  - `networkx.algorithms.bipartite` (the package docstring): cause not read;
+  - `networkx.algorithms.community.local.greedy_source_expansion`: cause not read (its example
+    prints a set);
+  - `networkx.algorithms.cycles.minimum_cycle_basis`: cause not read;
+  - `networkx.utils.configs.NetworkXConfig`: cause not read.
+
+  The stream does not keep their causes, nor any docstring item's: the driver's `R` line holds
+  only the first line of the report's last 400 characters (the review's L3).
+- **For 0.1.0, nothing under `tests/` changes**, since the lane's release acceptance is running
+  on `eac93d0f`.
+- **What holds meanwhile:**
+  - The group is new in this specification, so no accepted pass is lost: its 763 passes are
+    gained rows.
+  - The eight are counted and named by node id in
+    `tests/upstream/expected/networkx-r-doc/doctest-output.txt`, and their gap matches exactly
+    those eight. A ninth failure, or one of them passing, turns the check red.
+  - No pass is hidden: the 763 passes are counted and digested, and the three staging failures
+    are failures, never passes.
+- **The follow-up after 0.1.0** (its roadmap line in `context/roadmap.md`):
+  - the class's reason text corrected, with the three staging members in a class of their own;
+  - the staging cause fixed, either by staging networkx's `set_warnings` filters for its item
+    group or by running that group with networkx's conftest loaded;
+  - the eight measured again then, the three expected to pass;
+  - the review's L3: a docstring item's `R` line keeps the doctest's cause (the failing
+    example's expected and actual output, or its exception), not only the first line of the
+    report's tail, so each member's cause is read.

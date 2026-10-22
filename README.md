@@ -952,7 +952,9 @@ pytest's per-test warning capture undoes a filter the module sets at import;
 `reportlab-data-folder`: reportlab's tests find their data beside the installed package, in the
 zip; `tz-cache`: dateutil's gettz cache tests see the same zone object come back;
 `doctest-output`: a docstring example's output differs under the stdlib's doctest runner with
-upstream's flags; `sympy-doctest`: the same under sympy's own runner and checker, or an example
+upstream's flags (three of networkx's eight are not the guest's output but the judge's: its
+docstring group does not load networkx's conftest, whose warning filters those examples need
+under `filterwarnings = error`; a follow-up stages them); `sympy-doctest`: the same under sympy's own runner and checker, or an example
 sympy's runner skips when a dependency its `doctest_depends_on` mark names is absent (a mark the
 stdlib's finder does not read); `sympy-source-tree`: sympy's test-runner helpers look for its
 test files beside the installed package, which is bytecode in a zip; `no-path-variable`: the
