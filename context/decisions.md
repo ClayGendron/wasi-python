@@ -32,7 +32,7 @@ subset Zensical reads; the known gaps' `README.md` closers move to the site's li
 the private consumer's name stays in dated records, and a scan keeps it off every public page.
 To fit a day: two specifications built side by side with disjoint files (122, the README, the
 cleanup and the judge's changes; 123, the site's pages), no pre-build review (neither touches
-`src/` or the build recipe), one wave, one release acceptance, one dry run, then the tag. Tested
+`src/` or the build recipe), one wave, one release acceptance, one dry run, then the tag. The owner, the same afternoon: "Because these are docs changes, we don't need to constantly be running the judge. We'll make all the changes need and then run the judge once at the end of our work." So for this work no builder dispatches a branch run or loops on the fast tier, and reviewers read the diff without re-running the judge; the judge runs once, as the lane's release acceptance on the wave's tip, followed by the dry run on main that rule 6b asks before a tag. Tested
 snippets as guest jobs, help strings for the CLI's options (runner code), versioned docs, the
 roadmap's trim and the specifications' archive wait for 0.1.1.
 
