@@ -1,6 +1,7 @@
 # 123: The documentation site
 
-- **Status:** **drafted 2026-10-22; no pre-build review** (neither touches `src/` or the build
+- **Status:** **built 2026-10-22 on `spec/123-the-documentation-site`, base main `fb8343cd`;
+  awaiting review** (Landing notes). Drafted 2026-10-22; no pre-build review (neither touches `src/` or the build
   recipe; AGENTS.md rule 8). Built in parallel with 122 (a short README and a clean tree), on
   disjoint files, for the one wave before the 0.1.0 tag (`decisions.md`, "The documentation before
   the 0.1.0 tag, within a day"). No builder dispatches a branch run or loops on the fast tier: the
@@ -297,4 +298,70 @@ tag.
 
 ## Landing notes
 
-Not yet built.
+### Built 2026-10-22 (the builder)
+
+On `spec/123-the-documentation-site`, base main `fb8343cd`. The builder wrote `docs/index.md`,
+the glossary, the changelog page and five contributing pages, and three helper agents in the
+same worktree wrote the rest by page group from this specification and one shared brief (the
+public-page rule, the style, the facts rule); the builder checked every page against the rules
+and made the links consistent.
+
+**Pages: 39 of the contract's 40.** Written: every page in Scope's shared contract except
+`get-started/embed-python-wasm.md`, **omitted** (Decision 4's list): the README gives no host
+command for the bare binary that works with its output (it says only that a plain `wasmtime run`
+cannot bind the door's import), so the tutorial would have had to invent its example. **The
+lane deletes its nav line** in 122's `mkdocs.yml` on the rebase. The five other "may omit" pages
+are written and real, and linked from the pages around them: `how-to/excel-pdf-xml.md` (its code
+blocks are the README's fragments, each with the result the prose states, not a printed output;
+a reviewer who reads criterion 2 strictly may ask for it to be dropped, which is one nav line),
+`reference/glossary.md`, `explanation/design-decisions.md`, `contributing/adding-a-package.md`,
+`contributing/carrying-a-patch.md`. Thin pages: none is a stub; `how-to/matplotlib.md` is full.
+
+**Deviations, each with its reason:**
+
+- `docs/reference/changelog.md` is the snippet line alone, without its own heading: the included
+  `CHANGELOG.md` brings `# Changelog`, and a second H1 rendered the title twice. The page's
+  title is "Changelog" (checked in the built HTML).
+- Where the README contradicts itself, the pages take the newer statement or leave the claim out:
+  27 carried patches (the Measured table, as acceptance criterion 4 names; "How it is built"
+  still says twenty-three); 16 ms and 43.8M instructions per snapshot call (not the older 14 ms,
+  20 to 25 ms or 82 million); 53.9 MB for the zip; the release set as one `.tar.xz`; no version
+  for cycler, pyparsing, packaging, python-dateutil, tzdata or six (none given).
+- `get-started/csv-through-a-grant.md` uses three README examples as they stand (the grant
+  example writing `n.txt`, the session example writing and reading `df.csv` and `df.pkl` with its
+  `b'6\n'`, the `--grant`/`--grant-writable` command line); the README has no single `run()`
+  example that reads and writes a CSV through grants, and none was invented.
+- `how-to/limits.md` shows the README's own lines that set limits (the command's `--deadline-s`,
+  `set_defaults(dataclasses.replace(...))`, the `resource` lines, the `print(1)` JSON line); the
+  README has no `run()` example passing a limit with its output.
+- `explanation/security-model.md` names the two wasmtime advisories the runner carries fixes for
+  (GHSA-m9f7-9w4p-gv38, GHSA-96f6-r43r-8c24), as `SECURITY.md` already publishes them; nothing
+  from `upstream/advisories/` (the project's own draft) is on any page.
+- `contributing/review-and-landing.md` names "the lane" and "waves" in words, defined there, as
+  this specification's Design row asks; no wave number, review name or path.
+- Instruction counts for finalization (about 28M; 45M to 60M after pandas) are on
+  `explanation/fuel.md` too, as product facts for sizing a budget, not benchmarks; times and
+  sizes appear only on the dated performance page.
+
+**Self-check** (`reviews/README.md`, the items that apply to a context-only specification):
+
+- Base: main `fb8343cd`, today; the branch carries this specification only.
+- **No branch run, by the owner's rule for this work (decisions.md, 2026-10-22)**; no fast tier,
+  no `uv run pytest` at all. No number here is a measured run's: the pages' numbers are the
+  README's at the Design's line ranges.
+- `uv run --with mkdocs==1.6.1 --with mkdocs-material==9.7.7 mkdocs build --strict` with 122's
+  `mkdocs.yml` text (Decision 7, the nav less the omitted page) and three one-line stand-ins for
+  122's pages (headings "On Windows" and "The platform's facts" included), all uncommitted and
+  deleted before the commit: **passes, no warning**; the changelog page renders `CHANGELOG.md`.
+  No page links to an anchor in 122's three pages.
+- Criterion 3's grep (`spec(ification)?s? [0-9]{3}|question …|context/`) and the home-path grep:
+  **nothing** on the 39 pages. `scan.CITATION_RULES` applied line by line to every `docs/*.md`,
+  read whole, and `context/embedders.txt`'s names: **0 hits**. Also clean: finding-like tokens, a
+  review by date or path, dates outside the performance page.
+- Criterion 7: Home's three doors resolve to `get-started/first-run.md`,
+  `how-to/embed-from-other-languages.md`, `contributing/building.md`.
+- Criterion 8: `explanation/security-model.md` has "What is not protected" and a reporting
+  section that agrees with `SECURITY.md` (private report through the Security tab, no public
+  issue, what to include, the advisory's credit, only the newest release supported).
+- `git status` before the commit: only `docs/` pages and this file. CHANGELOG and roadmap lines
+  are 122's (Scope). ruff does not read `docs/`.
