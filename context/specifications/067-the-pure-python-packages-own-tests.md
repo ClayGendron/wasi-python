@@ -1447,3 +1447,7 @@ it named exactly these 11, and no other of the 462 groups. After the fixes, **ev
 - wester-9's `-k` text changed when W25 left the parts while its tests did not, and its fuel moved from 293.2 G to 293.0 G. That bears out keeping round-1 fuel where only the text changed.
 
 **The totals now:** release tier **95.32 T** in 419 groups (sympy 80.92 T in 342, the other 22 families 14.40 T), plus seven trap checks; **113 release shards**. The normal tier is unchanged at 853.3 G. **The lesson, kept as a tool:** `verify.py` judges every kept stream the way the group check does, and a measuring pass is complete only when it names no finding.
+
+These three commits were then rebased onto `origin/wave/12` `459e7f35` (the 0.1.0 bump and the
+lane's sealed-leftovers fix after 067 at `84c5955c`), with no conflict. The fast tier there:
+3,000 passed, 47 skipped, lost 0, grew 0 (`build/067/logs/fast-tier-4.log`).
