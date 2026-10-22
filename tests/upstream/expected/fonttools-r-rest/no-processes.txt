@@ -1,0 +1,3 @@
+Tests/ttx/ttx_test.py::test_main_ttf_dump_stdin_to_stdout
+Tests/ttx/ttx_test.py::test_main_ttx_compile_stdin_to_stdout
+Tests/ttx/ttx_test.py::test_roundtrip_DSIG_split_at_XML_parse_buffer_size

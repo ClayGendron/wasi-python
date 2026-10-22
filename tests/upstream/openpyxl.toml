@@ -1,0 +1,93 @@
+# openpyxl's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "openpyxl"
+driver = "package"
+grant = "/upstream-openpyxl"
+test_source = true
+wheel = "openpyxl-3.1.5-py2.py3-none-any.whl"
+budget = 127_000_000_000
+stage_folders = [
+    "openpyxl/cell/tests",
+    "openpyxl/chart/tests",
+    "openpyxl/chartsheet/tests",
+    "openpyxl/comments/tests",
+    "openpyxl/compat/tests",
+    "openpyxl/descriptors/tests",
+    "openpyxl/drawing/tests",
+    "openpyxl/formatting/tests",
+    "openpyxl/formula/tests",
+    "openpyxl/packaging/tests",
+    "openpyxl/pivot/tests",
+    "openpyxl/reader/tests",
+    "openpyxl/styles/tests",
+    "openpyxl/tests",
+    "openpyxl/utils/tests",
+    "openpyxl/workbook/external_link/tests",
+    "openpyxl/workbook/tests",
+    "openpyxl/worksheet/tests",
+    "openpyxl/writer/tests",
+    "openpyxl/xml/tests",
+]
+support_files = ["conftest.py"]
+cwd = "/tmp/work"
+markers = []
+package_inits = true
+
+[groups.openpyxl-smoke]
+paths = ["openpyxl/cell/tests", "openpyxl/utils/tests"]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 32_000_000_000
+measured = 21_065_669_352
+
+[groups.openpyxl-r]
+paths = [
+    "openpyxl/chart/tests",
+    "openpyxl/chartsheet/tests",
+    "openpyxl/comments/tests",
+    "openpyxl/compat/tests",
+    "openpyxl/descriptors/tests",
+    "openpyxl/drawing/tests",
+    "openpyxl/formatting/tests",
+    "openpyxl/formula/tests",
+    "openpyxl/packaging/tests",
+    "openpyxl/pivot/tests",
+    "openpyxl/reader/tests",
+    "openpyxl/styles/tests",
+    "openpyxl/tests",
+    "openpyxl/workbook/external_link/tests",
+    "openpyxl/workbook/tests",
+    "openpyxl/worksheet/tests",
+    "openpyxl/writer/tests",
+    "openpyxl/xml/tests",
+]
+tier = "release"
+release_by = "path"
+fuel = 95_000_000_000
+measured = 63_158_891_330
+
+[[expected]]
+id = "openpyxl-lxml-only"
+group = "openpyxl-r"
+outcome = "failed"
+match = "memoryview: a bytes-like object is required, not '_io\\.BytesIO'"
+reason = "the test is marked lxml_required and the product has no lxml; openpyxl's conftest does not skip it, and the stdlib's fromstring refuses a BytesIO (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "pillow-zlib-only"
+group = "openpyxl-r"
+outcome = "failed"
+match = "(en|de)coder (jpeg|jpeg2k|libtiff) not available"
+reason = "Pillow is built with zlib only (spec 023): a test that encodes or decodes JPEG, JPEG 2000 or TIFF without its own feature guard"
+closes_with = "context/specifications/023-matplotlib-first-milestone.md"
+
+[[expected]]
+id = "read-only-source"
+group = "openpyxl-r"
+outcome = "failed"
+match = "PermissionError: \\[Errno \\d+\\] Operation not permitted: '/upstream-|Read-only file system|Operation not permitted: 'empty_with_no_properties-copy\\.xlsx'"
+reason = "the test writes beside its own files in the test source, a read-only grant (README)"
+closes_with = "README.md"
+

@@ -1,0 +1,38 @@
+# threadpoolctl's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "threadpoolctl"
+driver = "package"
+grant = "/upstream-threadpoolctl"
+test_source = true
+wheel = "threadpoolctl-3.7.0-py3-none-any.whl"
+budget = 21_000_000_000
+stage_folders = ["tests"]
+support_files = ["conftest.py"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.threadpoolctl-smoke]
+paths = ["tests"]
+smoke = "the whole suite: a smaller smoke group would cost as much, a session's start being most of it"
+fuel = 21_000_000_000
+measured = 13_873_875_367
+
+[[expected]]
+id = "no-processes"
+group = "threadpoolctl-smoke"
+outcome = "failed"
+match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
+reason = "no processes: the guest cannot start one (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-threads"
+group = "threadpoolctl-smoke"
+outcome = "failed"
+match = "can't start new thread|thread constructor failed|start_new_thread|unable to start watchdog thread|TqdmMonitorWarning|instances still in existence|'NoneType' object does not support the context manager protocol"
+reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
+closes_with = "README.md"
+

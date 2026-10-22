@@ -1,0 +1,1 @@
+tests/core/test_post_import_hooks.py::TestPostImportHooks::test_loader

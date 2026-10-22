@@ -1,0 +1,49 @@
+# pypdf's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "pypdf"
+driver = "package"
+grant = "/upstream-pypdf"
+test_source = true
+wheel = "pypdf-6.21.1-py3-none-any.whl"
+budget = 582_000_000_000
+stage_folders = ["tests", "resources"]
+extra_sys_path = ["."]
+cwd = "/tmp/work"
+markers = []
+args = ["-m", "not enable_socket"]
+deselect_reason = "the enable_socket tests download their files; the guest has no network"
+
+[extra_sources]
+"sample-files" = "pypdf-samples"
+
+[groups.pypdf-smoke]
+paths = ["tests/test_generic.py", "tests/test_pagerange.py"]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 42_000_000_000
+measured = 27_950_075_501
+
+[groups.pypdf-r]
+paths = ["tests"]
+tier = "release"
+release_by = "path"
+fuel = 540_000_000_000
+measured = 356_434_775_725
+
+[[expected]]
+id = "no-processes"
+group = "pypdf-r"
+outcome = "failed"
+match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
+reason = "no processes: the guest cannot start one (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "pillow-zlib-only"
+group = "pypdf-r"
+outcome = "failed"
+match = "(en|de)coder (jpeg|jpeg2k|libtiff) not available"
+reason = "Pillow is built with zlib only (spec 023): a test that encodes or decodes JPEG, JPEG 2000 or TIFF without its own feature guard"
+closes_with = "context/specifications/023-matplotlib-first-milestone.md"
+

@@ -1,0 +1,3 @@
+joblib/test/test_memory.py::TestCacheValidationCallback::test_memory_expires_after
+joblib/test/test_memory.py::TestCacheValidationCallback::test_memory_only_cache_long_run
+joblib/test/test_memory.py::test_memory_reduce_size_age_limit

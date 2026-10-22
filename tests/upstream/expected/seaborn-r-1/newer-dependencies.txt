@@ -1,0 +1,3 @@
+tests/_core/test_plot.py::TestLabelVisibility::test_1d_column_wrapped
+tests/_core/test_plot.py::TestLabelVisibility::test_1d_row_wrapped
+tests/_core/test_plot.py::TestPlotting::test_theme_validation

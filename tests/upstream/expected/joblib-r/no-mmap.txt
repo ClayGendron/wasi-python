@@ -1,0 +1,14 @@
+joblib/test/test_backports.py::test_memmap
+joblib/test/test_memory.py::test_memorized_result_forwards_mmap_mode
+joblib/test/test_memory.py::test_memory_numpy[r]
+joblib/test/test_memory.py::test_memory_numpy_check_mmap_mode
+joblib/test/test_numpy_pickle.py::test_joblib_pickle_across_python_versions_with_mmap
+joblib/test/test_numpy_pickle.py::test_load_memmap_with_big_offset
+joblib/test/test_numpy_pickle.py::test_memmap_alignment_padding[5]
+joblib/test/test_numpy_pickle.py::test_memmap_persistence
+joblib/test/test_numpy_pickle.py::test_memmap_persistence_mixed_dtypes
+joblib/test/test_numpy_pickle.py::test_numpy_persistence[0]
+joblib/test/test_numpy_pickle.py::test_numpy_persistence[3]
+joblib/test/test_numpy_pickle.py::test_numpy_persistence[False]
+joblib/test/test_numpy_pickle.py::test_numpy_persistence[True]
+joblib/test/test_numpy_pickle.py::test_numpy_persistence[zlib]

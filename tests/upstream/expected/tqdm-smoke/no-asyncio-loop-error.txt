@@ -1,0 +1,11 @@
+tests/tests_asyncio.py::test_as_completed[0.1]
+tests/tests_asyncio.py::test_async_iterable
+tests/tests_asyncio.py::test_break
+tests/tests_asyncio.py::test_coroutine_send
+tests/tests_asyncio.py::test_gather
+tests/tests_asyncio.py::test_gather_exceptions
+tests/tests_asyncio.py::test_generators
+tests/tests_asyncio.py::test_nested
+tests/tests_asyncio.py::test_range
+tests/tests_pandas.py::test_pandas_rolling_expanding
+tests/tests_perf.py::test_iter_basic_overhead

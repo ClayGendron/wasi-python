@@ -13,6 +13,13 @@ one driver serves every family. `judge/<name>.json` holds everything the run nee
 `M` lines name every module loaded from the tree, and every module of the product's top-level
 names (the zip's, from the JSON) loaded from outside the zip and not builtin. `drive.py`, which
 numpy's and pandas' sessions run, is not changed by any of this.
+
+A test-source family's JSON may also name flags to set on `sys` before the package is imported,
+docstring flags, a step of upstream's own doctest runner to run once before the first example
+and that runner and its output checker,
+modules whose own `test_*` functions are items, that every item a marker
+expression deselects gets its `D` line, and that the `judge` hypothesis profile is loaded again
+once the conftests have loaded (a conftest may load its own).
 """
 
 import doctest
@@ -31,6 +38,8 @@ with open(f"{GRANT}/judge/{name}.json") as f:
     spec = json.load(f)
 
 sys.dont_write_bytecode = True
+for flag in spec.get("sys_flags", []):  # before anything of the package is imported
+    setattr(sys, flag, True)
 # The kit after the product's zip, so every module the product carries comes from the product
 # (its packaging is the kit's own pin, so pytest runs on the product's copy).
 sys.path.append(GRANT + "/kit")
@@ -73,6 +82,28 @@ hypothesis.settings.load_profile("judge")
 import pytest  # noqa: E402
 
 
+class FunctionItem(pytest.Item):
+    """One `test_*` function of a module the product ships, called as its runner calls it."""
+
+    def __init__(self, *, function, **kw):
+        super().__init__(**kw)
+        self.function = function
+
+    def runtest(self):
+        self.function()
+
+    def reportinfo(self):
+        return self.path, None, self.name
+
+
+def _named(target: str, default):
+    """`module:attribute` from the product, or the default when none is named."""
+    if not target:
+        return default
+    mod_name, _, attr = target.partition(":")
+    return getattr(importlib.import_module(mod_name), attr)
+
+
 class DoctestItem(pytest.Item):
     """One doctest run by the stdlib's runner with the flags lxml's own runner gives it
     (`DocFileSuite`, `DocTestSuite`): pytest's doctest checker breaks `lxml.usedoctest`."""
@@ -83,7 +114,10 @@ class DoctestItem(pytest.Item):
         self.flags = flags
 
     def runtest(self):
-        runner = doctest.DocTestRunner(optionflags=self.flags, verbose=False)
+        checker = _named(spec.get("doctest_checker", ""), None)
+        runner = _named(spec.get("doctest_runner", ""), doctest.DocTestRunner)(
+            checker=checker() if checker else None, optionflags=self.flags, verbose=False
+        )
         report: list[str] = []
         runner.run(self.dtest, out=report.append)
         if runner.failures:
@@ -120,6 +154,9 @@ def _keep(items, config) -> None:
 def _doctests(session, items) -> None:
     for mod_name in spec["doctest_preimport"]:  # registers lxml's option flags
         importlib.import_module(mod_name)
+    if spec["doctest_files"] or spec["docstring_modules"]:
+        for target in spec.get("doctest_setup", []):  # as upstream's own doctest runner does
+            _named(target, None)()
     for rel, flags in spec["doctest_files"]:
         path = TREE + rel
         with open(path, encoding="utf-8") as fh:
@@ -136,10 +173,27 @@ def _doctests(session, items) -> None:
         except Exception as e:  # noqa: BLE001 (any import failure is a collection error)
             emit(f"X docstrings:{mod_name} -- {type(e).__name__}: {first_line(e)}")
             continue
+        flags = spec.get("docstring_flags", 0)  # 0, as DocTestSuite gives them, unless named
         for test in doctest.DocTestFinder().find(mod, mod_name):
-            if test.examples:  # flags 0, as DocTestSuite gives them
+            if test.examples:
                 items.append(
-                    DoctestItem.from_parent(session, name=f"docstrings:{test.name}", test=test)
+                    DoctestItem.from_parent(
+                        session, name=f"docstrings:{test.name}", test=test, flags=flags
+                    )
+                )
+    for mod_name in spec.get("module_functions", []):
+        try:
+            mod = importlib.import_module(mod_name)
+        except Exception as e:  # noqa: BLE001 (any import failure is a collection error)
+            emit(f"X functions:{mod_name} -- {type(e).__name__}: {first_line(e)}")
+            continue
+        for attr in sorted(vars(mod)):
+            fn = getattr(mod, attr)
+            if attr.startswith("test_") and callable(fn) and fn.__module__ == mod_name:
+                items.append(
+                    FunctionItem.from_parent(
+                        session, name=f"functions:{mod_name}.{attr}", function=fn
+                    )
                 )
 
 
@@ -166,7 +220,14 @@ class Stream:
             reason = report.longrepr[2] if isinstance(report.longrepr, tuple) else report.longrepr
             emit(f"R skipped {report.nodeid} -- {first_line(reason)}")
 
+    def pytest_deselected(self, items):
+        if spec.get("mark_deselected"):  # what a marker expression leaves out, named
+            for it in items:
+                emit(f"D {it.nodeid}")
+
     def pytest_collection_finish(self, session):
+        if spec.get("reload_profile"):  # a conftest may have loaded its own profile
+            hypothesis.settings.load_profile("judge")
         s = hypothesis.settings.default
         emit(f"P derandomize={s.derandomize} database={s.database!r} max_examples={s.max_examples}")
 

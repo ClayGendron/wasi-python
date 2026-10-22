@@ -1,0 +1,28 @@
+# formulaic's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "formulaic"
+driver = "package"
+grant = "/upstream-formulaic"
+test_source = true
+wheel = "formulaic-1.2.2-py3-none-any.whl"
+budget = 101_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.formulaic-smoke]
+paths = ["tests/test_formula.py", "tests/parser", "tests/test_model_spec.py"]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 46_000_000_000
+measured = 30_391_522_562
+
+[groups.formulaic-r]
+paths = ["tests"]
+tier = "release"
+release_by = "path"
+fuel = 55_000_000_000
+measured = 36_365_137_568
+

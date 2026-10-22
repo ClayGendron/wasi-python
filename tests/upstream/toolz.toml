@@ -1,0 +1,29 @@
+# toolz's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "toolz"
+driver = "package"
+grant = "/upstream-toolz"
+test_source = true
+wheel = "toolz-1.2.0-py3-none-any.whl"
+budget = 33_000_000_000
+stage_folders = ["toolz/tests", "toolz/sandbox/tests"]
+cwd = "tree"
+markers = []
+package_inits = true
+
+[groups.toolz-smoke]
+paths = ["toolz/tests", "toolz/sandbox/tests"]
+smoke = "the whole suite: a smaller smoke group would cost as much, a session's start being most of it"
+fuel = 33_000_000_000
+measured = 21_816_093_464
+
+[[expected]]
+id = "no-processes"
+group = "toolz-smoke"
+outcome = "failed"
+match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
+reason = "no processes: the guest cannot start one (README)"
+closes_with = "README.md"
+

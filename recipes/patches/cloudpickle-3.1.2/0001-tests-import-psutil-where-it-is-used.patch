@@ -1,0 +1,20 @@
+diff --git a/tests/testutils.py b/tests/testutils.py
+--- a/tests/testutils.py
++++ b/tests/testutils.py
+@@ -10,7 +10,6 @@
+ from contextlib import contextmanager
+ from concurrent.futures import ProcessPoolExecutor
+ 
+-import psutil
+ from cloudpickle import dumps
+ from subprocess import TimeoutExpired
+ 
+@@ -163,6 +162,8 @@
+             return 0
+         elif num_workers > 1:
+             raise RuntimeError("Unexpected number of workers: %d" % num_workers)
++        import psutil
++
+         return psutil.Process(workers_pids[0]).memory_info().rss
+ 
+     def close(self):

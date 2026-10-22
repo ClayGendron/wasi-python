@@ -1,0 +1,4 @@
+tests/core/test_entry_points.py::TestEntryPoints::test_threading_safety_with_entry_points
+tests/core/test_post_import_hooks.py::TestPostImportHooks::test_import_deadlock_1
+tests/core/test_post_import_hooks.py::TestPostImportHooks::test_import_deadlock_2
+tests/core/test_post_import_hooks.py::TestPostImportHooks::test_import_deadlock_3

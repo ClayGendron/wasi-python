@@ -1,0 +1,2 @@
+src/test_typing_extensions.py::LiteralTests::test_args
+src/test_typing_extensions.py::TestSentinels::test_sentinel_picklable_anonymous

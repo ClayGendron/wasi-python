@@ -1,0 +1,28 @@
+# beautifulsoup4's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "beautifulsoup4"
+driver = "package"
+grant = "/upstream-beautifulsoup4"
+test_source = true
+wheel = "beautifulsoup4-4.15.0-py3-none-any.whl"
+budget = 75_000_000_000
+stage_folders = ["bs4/tests"]
+cwd = "tree"
+markers = []
+package_inits = true
+
+[groups.beautifulsoup4-smoke]
+paths = ["bs4/tests/test_soup.py", "bs4/tests/test_htmlparser.py", "bs4/tests/test_css.py"]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 24_000_000_000
+measured = 15_671_721_790
+
+[groups.beautifulsoup4-r]
+paths = ["bs4/tests"]
+tier = "release"
+release_by = "path"
+fuel = 51_000_000_000
+measured = 33_857_386_494
+

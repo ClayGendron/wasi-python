@@ -1,0 +1,2 @@
+::docstrings:more_itertools.more.callback_iter
+::docstrings:more_itertools.more.time_limited

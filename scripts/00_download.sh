@@ -2,7 +2,8 @@
 # Fetch the pinned inputs into downloads/ and verify every one against downloads/SHA256SUMS.
 #
 #   scripts/00_download.sh          the build's inputs
-#   scripts/00_download.sh --all    also the research input (Brett's 3.14.7 build)
+#   scripts/00_download.sh --tests  also the test sources (the pure-Python packages' own tests)
+#   scripts/00_download.sh --all    also those and the research input (Brett's 3.14.7 build)
 #
 # Each pin is one `get <url> <name>` line: a literal URL and the file's name in downloads/.
 # Downloads are untrusted data: they land in downloads/ only, and nothing here runs
@@ -15,8 +16,9 @@
 set -eu
 HERE=$(CDPATH= cd "$(dirname "$0")/.." && pwd -P)
 D="$HERE/downloads"
-ALL=0
-[ "${1:-}" = "--all" ] && ALL=1
+ALL=0 TESTS=0
+[ "${1:-}" = "--all" ] && ALL=1 && TESTS=1
+[ "${1:-}" = "--tests" ] && TESTS=1
 
 PINS=0 FETCHED=0 NAMES=" "
 get() { # url name
@@ -37,6 +39,9 @@ get() { # url name
 }
 research() { # url name: fetched only with --all
   if [ "$ALL" = 1 ]; then get "$1" "$2"; fi
+}
+tests() { # url name: a test source, data the judge stages and never builds; fetched with --tests
+  if [ "$TESTS" = 1 ]; then get "$1" "$2"; fi
 }
 
 # The running build host's own inputs: its toolchain, host Python and native build-tool wheels, in
@@ -212,6 +217,49 @@ get https://raw.githubusercontent.com/pytest-dev/pytest/0d90a31d4a647fa7ba0d53a0
 # The notice of the project statsmodels' parallel_func is copied from, which carries no full notice
 # of its own (Decision 13): MNE-Python's licence at the last commit that touched it
 get https://raw.githubusercontent.com/mne-tools/mne-python/2c4a3b03968a29570f87c3d741d2adc53b35f1dc/LICENSE.txt mne-python-2c4a3b03-LICENSE.txt
+
+# The pure-Python packages' own tests: each sdist, or its release tag's archive where the
+# sdist carries none (named -tag.tar.gz), and pypdf's sample files at the commit its 6.21.1
+# tag records for its sample-files submodule. Data only: the judge unpacks and stages them.
+tests https://files.pythonhosted.org/packages/94/36/102e180f8f5dbaee88b26595b01ca8aa80bf4e62128d9aa94265b3996c96/fonttools-4.67.0.tar.gz fonttools-4.67.0.tar.gz
+tests https://files.pythonhosted.org/packages/e4/11/b213bebff182584360cb8d17c72c1677fec5c5c228de439e63bcf8ab1c8f/pyparsing-3.3.3.tar.gz pyparsing-3.3.3.tar.gz
+tests https://files.pythonhosted.org/packages/7d/fa/3944b40b07da9ce895c0e6303a5ab7d53da063554f534556b134a54d6093/packaging-26.3.tar.gz packaging-26.3.tar.gz
+tests https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz python-dateutil-2.9.0.post0.tar.gz
+tests https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz six-1.17.0.tar.gz
+tests https://files.pythonhosted.org/packages/d9/68/f1b440335057bfce71b6e50a9d09445aa2ecbd08359a337976627b8409e7/tzdata-2026.5.tar.gz tzdata-2026.5.tar.gz
+tests https://files.pythonhosted.org/packages/51/e1/32a9c4dbd94618145f8bab5c623bdb0a528f23fc8719afd77ba0278fd377/pypdf-6.21.1.tar.gz pypdf-6.21.1.tar.gz
+tests https://files.pythonhosted.org/packages/43/65/318323f98dbee45d42dff61d8f047181bc6f2268a9068cfad035a46be5af/beautifulsoup4-4.15.0.tar.gz beautifulsoup4-4.15.0.tar.gz
+tests https://files.pythonhosted.org/packages/5e/77/2dcfa996b01702ab8fd0763d84098f6a640d6162a328f1c04c2697579a1a/soupsieve-3.0.3.tar.gz soupsieve-3.0.3.tar.gz
+tests https://files.pythonhosted.org/packages/ac/b6/b55c3f49042f1df3dcd422b7f224f939892ee94f22abcf503a9b7339eaf2/html5lib-1.1.tar.gz html5lib-1.1.tar.gz
+tests https://files.pythonhosted.org/packages/d5/a0/8fd707bcb776a7be556bad06a2ea5fb9bd519df78ef8e26f70ccf0f38bff/webencodings-0.6.1.tar.gz webencodings-0.6.1.tar.gz
+tests https://files.pythonhosted.org/packages/0f/d5/c66da9b79e5bdb124974bfe172b4daf3c984ebd9c2a06e2b8a4dc7331c72/defusedxml-0.7.1.tar.gz defusedxml-0.7.1.tar.gz
+tests https://files.pythonhosted.org/packages/19/70/80f3b7c10d2630aa66414bf23d210386700aa390547278c789afa994fd7e/xmltodict-1.0.4.tar.gz xmltodict-1.0.4.tar.gz
+tests https://files.pythonhosted.org/packages/df/bf/f7da0350254c0ed7c72f3e33cef02e048281fec7ecec5f032d4aac52226b/jinja2-3.1.6.tar.gz jinja2-3.1.6.tar.gz
+tests https://files.pythonhosted.org/packages/46/58/8c37dea7bbf769b20d58e7ace7e5edfe65b849442b00ffcdd56be88697c6/tabulate-0.10.0.tar.gz tabulate-0.10.0.tar.gz
+tests https://files.pythonhosted.org/packages/33/1c/f41d4e74c28ab327ff3acd36053f7ea506c55872d7a90b0fa71aa3ab0c89/charset_normalizer-3.5.2.tar.gz charset_normalizer-3.5.2.tar.gz
+tests https://files.pythonhosted.org/packages/08/e3/950e513affdfe1c1864397b4f40d6ed06ec1b54f608e462c27f151dd72df/patsy-1.0.3.tar.gz patsy-1.0.3.tar.gz
+tests https://files.pythonhosted.org/packages/83/d3/803453b36afefb7c2bb238361cd4ae6125a569b4db67cd9e79846ba2d68c/sympy-1.14.0.tar.gz sympy-1.14.0.tar.gz
+tests https://files.pythonhosted.org/packages/e0/47/dd32fa426cc72114383ac549964eecb20ecfd886d1e5ccf5340b55b02f57/mpmath-1.3.0.tar.gz mpmath-1.3.0.tar.gz
+tests https://files.pythonhosted.org/packages/9a/8e/82a0fe20a541c03148528be8cac2408564a6c9a0cc7e9171802bc1d26985/attrs-26.1.0.tar.gz attrs-26.1.0.tar.gz
+tests https://files.pythonhosted.org/packages/52/b8/c63995bebbb9ac9c059350e0fb8c82c2420c85aeca7d34e40aecf3df9281/more_itertools-11.2.1.tar.gz more_itertools-11.2.1.tar.gz
+tests https://files.pythonhosted.org/packages/31/6f/ae20c212a07aa2d156c787383d8088a5e045ee39628661edb190c97e1659/toolz-1.2.0.tar.gz toolz-1.2.0.tar.gz
+tests https://files.pythonhosted.org/packages/0d/ea/b2a5bd54b28a324dae8211928b2d730b6547500342c7e6c6dea08bd0a485/tqdm-4.70.1.tar.gz tqdm-4.70.1.tar.gz
+tests https://files.pythonhosted.org/packages/f6/cc/6253133b5bb138fc3306cebfbda2c520f545d36b5be2c7255cc528bb45d6/typing_extensions-4.16.0.tar.gz typing_extensions-4.16.0.tar.gz
+tests https://files.pythonhosted.org/packages/d5/1d/537ab090f302b838943a1b56497dd53059b9a9b46a074936470173a2e207/joblib-1.6.0.tar.gz joblib-1.6.0.tar.gz
+tests https://files.pythonhosted.org/packages/bf/21/f64d6b2dbea7bf3f8c38cdc786dcc6ef012ca3d173ad208c782c9a7bedf6/narwhals-2.27.1.tar.gz narwhals-2.27.1.tar.gz
+tests https://files.pythonhosted.org/packages/f1/87/e7b9b39d218793f159d7425e264c0ac196da07f1decc333001502fac02fb/formulaic-1.2.2.tar.gz formulaic-1.2.2.tar.gz
+tests https://files.pythonhosted.org/packages/28/5b/202a48a1ccdef721a95357fbe263c54ef87c18c4972df1ab5c22fe0f33d5/interface_meta-2.0.1.tar.gz interface_meta-2.0.1.tar.gz
+tests https://files.pythonhosted.org/packages/4a/51/dbe28534ae12c852f61be91f039f343305fd1f34f1c66b8de75afae7a525/reportlab-5.0.1.tar.gz reportlab-5.0.1.tar.gz
+tests https://files.pythonhosted.org/packages/04/22/89e2f3bdae5cb34e0cab0cd86d7172dbf418de4b46c9b17b9c7a560dfa44/wrapt-2.5.1.tar.gz wrapt-2.5.1.tar.gz
+tests https://github.com/matplotlib/cycler/archive/refs/tags/v0.12.1.tar.gz cycler-0.12.1-tag.tar.gz
+tests https://github.com/cloudpipe/cloudpickle/archive/refs/tags/v3.1.2.tar.gz cloudpickle-3.1.2-tag.tar.gz
+tests https://github.com/joblib/threadpoolctl/archive/refs/tags/3.7.0.tar.gz threadpoolctl-3.7.0-tag.tar.gz
+tests https://github.com/hukkin/tomli-w/archive/refs/tags/1.2.0.tar.gz tomli_w-1.2.0-tag.tar.gz
+tests https://github.com/python-excel/xlrd/archive/refs/tags/2.0.2.tar.gz xlrd-2.0.2-tag.tar.gz
+tests https://github.com/jmcnamara/XlsxWriter/archive/refs/tags/RELEASE_3.2.9.tar.gz xlsxwriter-3.2.9-tag.tar.gz
+tests https://foss.heptapod.net/openpyxl/openpyxl/-/archive/3.1.5/openpyxl-3.1.5.tar.gz openpyxl-3.1.5-tag.tar.gz
+tests https://foss.heptapod.net/openpyxl/et_xmlfile/-/archive/2.0.0/et_xmlfile-2.0.0.tar.gz et_xmlfile-2.0.0-tag.tar.gz
+tests https://github.com/py-pdf/sample-files/archive/818dc013ad1f537198e9fcfae8a6b0dffe25ffa3.tar.gz pypdf-6.21.1-sample-files-tag.tar.gz
 
 # Research inputs: the reference build the harness self-tests use
 research https://github.com/brettcannon/cpython-wasi-build/releases/download/v3.14.7/python-3.14.7-wasi_sdk-24.zip python-3.14.7-wasi_sdk-24.zip

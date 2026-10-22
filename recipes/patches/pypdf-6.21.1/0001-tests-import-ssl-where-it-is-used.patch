@@ -1,0 +1,20 @@
+diff --git a/tests/__init__.py b/tests/__init__.py
+--- a/tests/__init__.py
++++ b/tests/__init__.py
+@@ -2,7 +2,6 @@
+ import functools
+ import os
+ import random
+-import ssl
+ import sys
+ import tempfile
+ import time
+@@ -43,6 +42,8 @@
+ 
+ 
+ def _get_data_from_url(url: str) -> bytes:
++    import ssl
++
+     ssl._create_default_https_context = cast(
+         Callable[..., ssl.SSLContext],
+         ssl._create_unverified_context,

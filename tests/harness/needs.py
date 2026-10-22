@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from harness import paths
+from harness import paths, pins
 
 PREFIX = "needs: "
 
@@ -177,6 +177,11 @@ SOURCE_COMPONENTS = (
     "statsmodels",
 )
 
+# The test sources: every other pinned source the judge stages but never builds (the pure-Python
+# packages' tests), each unpacked by tests/upstream/fetch.py.
+TEST_SOURCES = tuple(c for c in pins.SOURCE_PATTERNS if c not in SOURCE_COMPONENTS)
+FETCH_TREES = "tests/upstream/fetch.py"
+
 VOCABULARY: dict[str, Need] = {
     n.name: n
     for n in [
@@ -200,6 +205,7 @@ VOCABULARY: dict[str, Need] = {
         Need("descriptor limit", _descriptor_limit, SPEC_032),  # RLIMIT_NOFILE
         Need("read-only files", _read_only_files, SPEC_094),  # not on Windows
         *[Need(f"source tree {c}", _source_tree(c), REPRO_MEMO) for c in SOURCE_COMPONENTS],
+        *[Need(f"source tree {c}", _source_tree(c), FETCH_TREES) for c in TEST_SOURCES],
     ]
 }
 

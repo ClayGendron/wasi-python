@@ -37,7 +37,7 @@ WHEELS = paths.BUILD / "upstream" / "wheels"
 CHECKS_FILE = "tests/checks/test_v1_3_upstream_suites.py"
 PACKAGES = ("numpy", "pandas", "python")
 # The compiled packages' own suites, one family (grant, stage, budget) each.
-PACKAGE_SUITES = (
+COMPILED_SUITES = (
     "matplotlib",
     "contourpy",
     "pillow",
@@ -48,6 +48,16 @@ PACKAGE_SUITES = (
     "scikit-learn",
     "statsmodels",
 )
+# The pure-Python packages' own suites, from their test sources (harness.packages), one family each.
+PURE_SUITES = (
+    "fonttools", "pyparsing", "cycler", "packaging", "python-dateutil", "six", "tzdata",
+    "openpyxl", "et-xmlfile", "xlsxwriter", "xlrd", "pypdf", "beautifulsoup4", "soupsieve",
+    "html5lib", "webencodings", "defusedxml", "xmltodict", "pyyaml", "tomli-w", "jinja2",
+    "markupsafe", "tabulate", "charset-normalizer", "networkx", "patsy", "sympy", "mpmath",
+    "attrs", "more-itertools", "toolz", "tqdm", "typing-extensions", "joblib", "cloudpickle",
+    "threadpoolctl", "narwhals", "seaborn", "reportlab", "formulaic", "interface-meta", "wrapt",
+)  # fmt: skip
+PACKAGE_SUITES = COMPILED_SUITES + PURE_SUITES
 GRANT = "/upstream"
 STREAM = "tmp/upstream/outcomes.txt"  # in the guest's root
 TIER = "normal"  # a group without `tier` is in the normal tier
@@ -201,7 +211,7 @@ def load(package: str, directory: Path = HERE) -> Config:
     if raw.get("driver") == "package":
         from harness import packages
 
-        return packages.load(raw)
+        return packages.load(raw, directory)
     return from_raw(raw, directory)
 
 
@@ -210,7 +220,7 @@ def group_of(name: str, g: dict) -> Group:
     measured = g.get("measured")
     return Group(
         name,
-        tuple(g["paths"]),
+        tuple(g.get("paths", [])),  # an item group (a package family's) names none
         int(g["fuel"]),
         tier=g.get("tier", TIER),
         release_by=g.get("release_by", ""),

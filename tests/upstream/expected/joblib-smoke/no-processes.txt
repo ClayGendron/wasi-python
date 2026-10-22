@@ -1,0 +1,1 @@
+joblib/test/test_hashing.py::test_hashes_stay_the_same_with_numpy_objects

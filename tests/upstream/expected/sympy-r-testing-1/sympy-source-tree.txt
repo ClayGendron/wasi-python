@@ -1,0 +1,14 @@
+sympy/testing/tests/test_runtests_pytest.py::TestUpdateArgsWithPaths::test_integer_as_keyword[paths0]
+sympy/testing/tests/test_runtests_pytest.py::TestUpdateArgsWithPaths::test_integer_as_keyword[paths1]
+sympy/testing/tests/test_runtests_pytest.py::TestUpdateArgsWithPaths::test_integer_as_keyword[paths2]
+sympy/testing/tests/test_runtests_pytest.py::TestUpdateArgsWithPaths::test_integer_as_keyword[paths3]
+sympy/testing/tests/test_runtests_pytest.py::TestUpdateArgsWithPaths::test_keyword_match_in_multiple_files
+sympy/testing/tests/test_runtests_pytest.py::TestUpdateArgsWithPaths::test_multiple_keywords
+sympy/testing/tests/test_runtests_pytest.py::TestUpdateArgsWithPaths::test_multiple_paths_from_non_root[paths0-expected_paths0]
+sympy/testing/tests/test_runtests_pytest.py::TestUpdateArgsWithPaths::test_no_paths
+sympy/testing/tests/test_runtests_pytest.py::TestUpdateArgsWithPaths::test_one_file[_basic]
+sympy/testing/tests/test_runtests_pytest.py::TestUpdateArgsWithPaths::test_string_as_keyword[paths0]
+sympy/testing/tests/test_runtests_pytest.py::TestUpdateArgsWithPaths::test_string_as_keyword[paths1]
+sympy/testing/tests/test_runtests_pytest.py::TestUpdateArgsWithPaths::test_string_as_keyword[paths2]
+sympy/testing/tests/test_runtests_pytest.py::TestUpdateArgsWithPaths::test_string_as_keyword[paths3]
+sympy/testing/tests/test_runtests_pytest.py::TestUpdateArgsWithPaths::test_string_as_keyword[paths4]

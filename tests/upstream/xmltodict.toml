@@ -1,0 +1,21 @@
+# xmltodict's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "xmltodict"
+driver = "package"
+grant = "/upstream-xmltodict"
+test_source = true
+wheel = "xmltodict-1.0.4-py3-none-any.whl"
+budget = 29_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.xmltodict-smoke]
+paths = ["tests"]
+smoke = "the whole suite: a smaller smoke group would cost as much, a session's start being most of it"
+fuel = 29_000_000_000
+measured = 19_310_919_918
+

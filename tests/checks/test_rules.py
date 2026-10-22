@@ -41,8 +41,9 @@ def test_carried_patches_follow_the_rules() -> None:
     line and a safe shape, and the README counts them."""
     from harness import pins
 
+    # a release tag's archive (`-tag.tar.gz`) unpacks to its tag's folder, the name less `-tag`
     tops = {
-        re.sub(r"\.tar\.\w+$", "", name)
+        re.sub(r"(-tag)?\.tar\.\w+$", "", name)
         for name in paths.read_pin_list()
         if any(p.fullmatch(name) for p in pins.SOURCE_PATTERNS.values())
     }
@@ -284,12 +285,9 @@ CONTEXT_CITATION_ALLOWED: tuple[tuple[str, str, str], ...] = (
     ("tests/upstream/package_drive.py", "spec 066", GUEST_INPUT),
     ("tests/upstream/packages.toml", "context/roadmap", JUDGE_FILE),
     ("tests/upstream/packages.toml", "spec 037", JUDGE_FILE),
-    ("tests/upstream/packages.toml", "spec 039", JUDGE_FILE),
-    ("tests/upstream/packages.toml", "spec 042", JUDGE_FILE),
     ("tests/upstream/packages.toml", "spec 063", JUDGE_FILE),
     ("tests/upstream/packages.toml", "spec 065", JUDGE_FILE),
     ("tests/upstream/packages.toml", "spec 066", JUDGE_FILE),
-    ("tests/upstream/packages.toml", "spec 067", JUDGE_FILE),
     ("tests/upstream/pillow.toml", "review, H2", JUDGE_FILE),
     ("tests/upstream/pillow.toml", "spec 066", JUDGE_FILE),
     ("tests/upstream/regex.toml", "spec 066", JUDGE_FILE),

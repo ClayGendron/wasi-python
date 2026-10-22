@@ -1,0 +1,2 @@
+tests/test_distributions.py::TestKDEPlotBivariate::test_log_scale
+tests/test_distributions.py::TestKDEPlotBivariate::test_weights

@@ -1,0 +1,1 @@
+tests/frame/interchange_to_pandas_test.py::test_interchange_to_pandas

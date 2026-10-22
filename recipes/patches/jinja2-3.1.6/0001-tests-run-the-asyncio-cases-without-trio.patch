@@ -1,0 +1,68 @@
+diff --git a/tests/test_async.py b/tests/test_async.py
+--- a/tests/test_async.py
++++ b/tests/test_async.py
+@@ -1,7 +1,11 @@
+ import asyncio
+ 
+ import pytest
+-import trio
++
++try:
++    import trio
++except ImportError:
++    trio = None
+ 
+ from jinja2 import ChainableUndefined
+ from jinja2 import DictLoader
+@@ -18,7 +22,16 @@
+     return asyncio.run(async_fn(*args))
+ 
+ 
+-@pytest.fixture(params=[_asyncio_run, trio.run], ids=["asyncio", "trio"])
++@pytest.fixture(
++    params=[
++        _asyncio_run,
++        pytest.param(
++            trio and trio.run,
++            marks=pytest.mark.skipif(trio is None, reason="trio is not installed"),
++        ),
++    ],
++    ids=["asyncio", "trio"],
++)
+ def run_async_fn(request):
+     return request.param
+ 
+diff --git a/tests/test_async_filters.py b/tests/test_async_filters.py
+--- a/tests/test_async_filters.py
++++ b/tests/test_async_filters.py
+@@ -3,7 +3,11 @@
+ from collections import namedtuple
+ 
+ import pytest
+-import trio
++
++try:
++    import trio
++except ImportError:
++    trio = None
+ from markupsafe import Markup
+ 
+ from jinja2 import Environment
+@@ -33,7 +37,16 @@
+     return asyncio.run(async_fn(*args))
+ 
+ 
+-@pytest.fixture(params=[_asyncio_run, trio.run], ids=["asyncio", "trio"])
++@pytest.fixture(
++    params=[
++        _asyncio_run,
++        pytest.param(
++            trio and trio.run,
++            marks=pytest.mark.skipif(trio is None, reason="trio is not installed"),
++        ),
++    ],
++    ids=["asyncio", "trio"],
++)
+ def run_async_fn(request):
+     return request.param
+ 

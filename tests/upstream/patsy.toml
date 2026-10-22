@@ -1,0 +1,69 @@
+# patsy's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "patsy"
+driver = "package"
+grant = "/upstream-patsy"
+test_source = true
+wheel = "patsy-1.0.3-py2.py3-none-any.whl"
+budget = 463_000_000_000
+stage_folders = []
+support_files = [
+    "patsy/test_build.py",
+    "patsy/test_highlevel.py",
+    "patsy/test_regressions.py",
+    "patsy/test_splines_bs_data.py",
+    "patsy/test_splines_crs_data.py",
+    "patsy/test_state.py",
+]
+cwd = "tree"
+markers = []
+
+[package_paths]
+"patsy" = "patsy"
+
+[groups.patsy-smoke]
+paths = ["patsy/test_state.py", "patsy/test_regressions.py"]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 29_000_000_000
+measured = 19_206_552_799
+
+[groups.patsy-r]
+paths = [
+    "patsy/test_build.py",
+    "patsy/test_highlevel.py",
+    "patsy/test_splines_bs_data.py",
+    "patsy/test_splines_crs_data.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 360_000_000_000
+measured = 237_216_511_940
+
+[groups.patsy-r-inline]
+module_functions = [
+    "patsy.build",
+    "patsy.builtins",
+    "patsy.categorical",
+    "patsy.constraint",
+    "patsy.contrasts",
+    "patsy.desc",
+    "patsy.design_info",
+    "patsy.eval",
+    "patsy.infix_parser",
+    "patsy.mgcv_cubic_splines",
+    "patsy.missing",
+    "patsy.origin",
+    "patsy.parse_formula",
+    "patsy.redundancy",
+    "patsy.splines",
+    "patsy.tokens",
+    "patsy.user_util",
+    "patsy.util",
+]
+tier = "release"
+release_by = "path"
+fuel = 74_000_000_000
+measured = 49_062_426_065
+

@@ -1,0 +1,5 @@
+::docfile:doc/src/modules/logic.rst
+::docfile:doc/src/modules/matrices/expressions.rst
+::docfile:doc/src/modules/matrices/immutablematrices.rst
+::docfile:doc/src/modules/physics/units/examples.rst
+::docfile:doc/src/modules/physics/units/index.rst

@@ -1,0 +1,119 @@
+# packaging's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "packaging"
+driver = "package"
+grant = "/upstream-packaging"
+test_source = true
+wheel = "packaging-26.3-py3-none-any.whl"
+budget = 3_969_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+kit_extra = ["pretend"]
+
+[groups.packaging-smoke]
+paths = [
+    "tests/test_tags.py",
+    "tests/test_utils.py",
+    "tests/test_licenses.py",
+    "tests/test_metadata.py",
+]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 29_000_000_000
+measured = 19_219_356_067
+
+[groups.packaging-r-version]
+paths = ["tests/test_version.py"]
+tier = "release"
+release_by = "path"
+fuel = 550_000_000_000
+measured = 360_071_558_155
+
+[groups.packaging-r-rest]
+paths = [
+    "tests/test_dependency_groups.py",
+    "tests/test_direct_url.py",
+    "tests/test_elffile.py",
+    "tests/test_errors.py",
+    "tests/test_manylinux.py",
+    "tests/test_markers.py",
+    "tests/test_musllinux.py",
+    "tests/test_pylock.py",
+    "tests/test_pylock_select.py",
+    "tests/test_ranges.py",
+    "tests/test_requirements.py",
+    "tests/test_specifiers.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 190_000_000_000
+measured = 120_456_088_416
+
+[groups.packaging-r-property-1]
+paths = [
+    "tests/property/test_ranges_cross_epoch.py",
+    "tests/property/test_ranges_pep440_extended.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 430_000_000_000
+measured = 284_579_599_464
+
+[groups.packaging-r-property-2]
+paths = ["tests/property/test_ranges_pubgrub.py", "tests/property/test_ranges_set_algebra.py"]
+tier = "release"
+release_by = "path"
+fuel = 440_000_000_000
+measured = 293_035_124_748
+
+[groups.packaging-r-property-3]
+paths = [
+    "tests/property/test_ranges_set_relations.py",
+    "tests/property/test_ranges_to_specifier_set.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 200_000_000_000
+measured = 132_263_194_321
+
+[groups.packaging-r-property-4]
+paths = [
+    "tests/property/test_specifier_comparison.py",
+    "tests/property/test_specifier_extended.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 380_000_000_000
+measured = 251_901_354_481
+
+[groups.packaging-r-property-5]
+paths = ["tests/property/test_specifier_implied.py"]
+tier = "release"
+release_by = "path"
+fuel = 510_000_000_000
+measured = 339_546_363_177
+
+[groups.packaging-r-property-5b]
+paths = ["tests/property/test_specifier_matching.py"]
+tier = "release"
+release_by = "path"
+fuel = 310_000_000_000
+measured = 203_635_447_047
+
+[groups.packaging-r-property-6]
+paths = ["tests/property/test_version_format.py", "tests/property/test_version_normalization.py"]
+tier = "release"
+release_by = "path"
+fuel = 470_000_000_000
+measured = 306_843_401_746
+
+[groups.packaging-r-property-7]
+paths = ["tests/property/test_version_ordering.py", "tests/property/test_version_releases.py"]
+tier = "release"
+release_by = "path"
+fuel = 460_000_000_000
+measured = 301_367_655_231
+

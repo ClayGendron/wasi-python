@@ -1,0 +1,2 @@
+tests/test_axisgrid.py::TestFacetGrid::test_data_interchange
+tests/test_axisgrid.py::TestPairGrid::test_data_interchange

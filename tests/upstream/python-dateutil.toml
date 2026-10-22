@@ -1,0 +1,45 @@
+# python-dateutil's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "python-dateutil"
+driver = "package"
+grant = "/upstream-python-dateutil"
+test_source = true
+wheel = "python_dateutil-2.9.0.post0-py2.py3-none-any.whl"
+budget = 100_000_000_000
+stage_folders = ["tests", "docs/exercises/solutions"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+kit_extra = ["freezegun"]
+
+[groups.python-dateutil-smoke]
+paths = ["tests/test_easter.py", "tests/test_relativedelta.py", "tests/test_isoparser.py"]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 24_000_000_000
+measured = 15_804_238_640
+
+[groups.python-dateutil-r]
+paths = ["tests", "docs/exercises/solutions"]
+tier = "release"
+release_by = "path"
+fuel = 76_000_000_000
+measured = 50_177_271_625
+
+[[expected]]
+id = "no-tzset"
+group = "python-dateutil-r"
+outcome = "failed"
+match = "has no attribute 'tzset'"
+reason = "WASI has no time.tzset, and the guest no host zoneinfo; zones come from tzdata in the zip (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "tz-cache"
+group = "python-dateutil-r"
+outcome = "failed"
+match = "tzstr\\('JST-\\d+'\\) is not tzstr|tzfile\\('[\\w/]+'\\) is not tzfile|tzfile\\('[\\w/]+'\\) is None"
+reason = "dateutil's gettz cache tests expect a zone rebuilt, or collected, once its cache is cleared or its last reference dropped; in the guest the same object comes back (README)"
+closes_with = "README.md"
+

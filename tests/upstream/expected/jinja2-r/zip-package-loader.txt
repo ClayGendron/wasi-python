@@ -1,0 +1,1 @@
+tests/test_loader.py::test_package_loader_no_dir

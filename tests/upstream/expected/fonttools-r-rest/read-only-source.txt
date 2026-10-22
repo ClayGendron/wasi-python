@@ -1,0 +1,6 @@
+Tests/afmLib/afmLib_test.py::AFMTest::test_write_afm
+Tests/t1Lib/t1Lib_test.py::EditTest::test_edit_pfa
+Tests/t1Lib/t1Lib_test.py::ReadWriteTest::test_read_and_parse_pfa_write_pfb
+Tests/t1Lib/t1Lib_test.py::ReadWriteTest::test_read_and_parse_pfb_write_pfa
+Tests/t1Lib/t1Lib_test.py::ReadWriteTest::test_read_pfa_write_pfb
+Tests/t1Lib/t1Lib_test.py::ReadWriteTest::test_read_pfb_write_pfa

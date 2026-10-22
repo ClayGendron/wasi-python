@@ -1,0 +1,59 @@
+# more-itertools's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "more-itertools"
+driver = "package"
+grant = "/upstream-more-itertools"
+test_source = true
+wheel = "more_itertools-11.2.1-py3-none-any.whl"
+budget = 439_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.more-itertools-smoke]
+docstring_modules = ["more_itertools.recipes"]
+smoke = "the docstrings of more_itertools.recipes, which its load_tests adds: the recipes run from the zip, quickly"
+fuel = 18_000_000_000
+measured = 11_962_175_279
+
+[groups.more-itertools-r]
+paths = ["tests"]
+tier = "release"
+release_by = "path"
+fuel = 400_000_000_000
+measured = 265_144_494_795
+
+[groups.more-itertools-r-doc]
+docstring_modules = ["more_itertools.more"]
+tier = "release"
+release_by = "path"
+fuel = 21_000_000_000
+measured = 13_632_213_255
+
+[[expected]]
+id = "counted-clock"
+group = "more-itertools-r"
+outcome = "failed"
+match = "assert \\d\\.\\d+e-0\\d > \\d\\.\\d+e-0\\d|assert 3850070400 > 3850070400|Lists differ: \\[1, 2, 3\\] != \\[1, 2\\]|^assert 8\\.0 is None$"
+reason = "the guest's clock is the judge's counted clock (each read advances it one microsecond), so a test that times a sleep or a timeout, or expects two timestamps a second apart, sees other times than a wall clock gives (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-threads"
+group = "more-itertools-r"
+outcome = "failed"
+match = "can't start new thread|thread constructor failed|start_new_thread|unable to start watchdog thread|TqdmMonitorWarning|instances still in existence|'NoneType' object does not support the context manager protocol"
+reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
+closes_with = "README.md"
+
+[[expected]]
+id = "doctest-output"
+group = "more-itertools-r-doc"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring example whose printed output differs in the guest under the stdlib's doctest runner with upstream's flags (README)"
+closes_with = "README.md"
+

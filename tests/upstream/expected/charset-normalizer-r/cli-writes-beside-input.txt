@@ -1,0 +1,3 @@
+tests/test_cli.py::TestCommandLineInterface::test_multiple_file_normalize
+tests/test_cli.py::TestCommandLineInterface::test_multiple_file_normalize_with_alternatives
+tests/test_cli.py::TestCommandLineInterface::test_single_file_normalize

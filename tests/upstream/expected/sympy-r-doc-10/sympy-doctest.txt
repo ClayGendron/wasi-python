@@ -1,0 +1,13 @@
+::docstrings:sympy.polys.matrices._dfm.DFM
+::docstrings:sympy.polys.matrices._dfm.DFM.charpoly
+::docstrings:sympy.polys.matrices._dfm.DFM.det
+::docstrings:sympy.polys.matrices._dfm.DFM.inv
+::docstrings:sympy.polys.matrices._dfm.DFM.lll
+::docstrings:sympy.polys.matrices._dfm.DFM.lll_transform
+::docstrings:sympy.polys.matrices._dfm.DFM.lu_solve
+::docstrings:sympy.polys.matrices.ddm.DDM.to_dfm
+::docstrings:sympy.polys.matrices.ddm.DDM.to_dfm_or_ddm
+::docstrings:sympy.polys.matrices.domainmatrix.DomainMatrix.to_dfm
+::docstrings:sympy.polys.matrices.domainmatrix.DomainMatrix.to_dfm_or_ddm
+::docstrings:sympy.polys.matrices.sdm.SDM.to_dfm
+::docstrings:sympy.polys.matrices.sdm.SDM.to_dfm_or_ddm

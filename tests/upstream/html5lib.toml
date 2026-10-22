@@ -1,0 +1,29 @@
+# html5lib's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "html5lib"
+driver = "package"
+grant = "/upstream-html5lib"
+test_source = true
+wheel = "html5lib-1.1-py2.py3-none-any.whl"
+budget = 33_000_000_000
+stage_folders = ["html5lib/tests"]
+support_files = [".pytest.expect"]
+cwd = "tree"
+markers = []
+args = ["-p", "pytest_expect.expect", "-W", "ignore::pytest.PytestRemovedIn9Warning"]
+kit_extra = ["setuptools", "pytest-expect", "u-msgpack-python", "mock"]
+package_inits = true
+
+[groups.html5lib-smoke]
+paths = ["html5lib/tests"]
+smoke = "the whole suite: a smaller smoke group would cost as much, a session's start being most of it"
+fuel = 33_000_000_000
+measured = 21_842_794_343
+
+[[not_selected]]
+files = ["html5lib/tests/testdata"]
+reason = "html5lib 1.1's conftest builds its data-driven collectors (the tokenizer and tree-construction files) with Node(...), which pytest 6 deprecated and the kit's pytest 9 refuses: they cannot be collected"
+closes_with = "README.md"
+

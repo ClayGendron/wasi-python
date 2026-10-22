@@ -1,0 +1,194 @@
+# seaborn's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "seaborn"
+driver = "package"
+grant = "/upstream-seaborn"
+test_source = true
+budget = 3_317_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.seaborn-smoke]
+paths = ["tests/test_utils.py", "tests/_core/test_data.py"]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 56_000_000_000
+measured = 36_965_127_265
+
+[groups.seaborn-r-1]
+paths = ["tests/_core/test_groupby.py", "tests/_core/test_moves.py", "tests/_core/test_plot.py"]
+tier = "release"
+release_by = "path"
+fuel = 180_000_000_000
+measured = 115_553_534_201
+
+[groups.seaborn-r-2]
+paths = [
+    "tests/_core/test_properties.py",
+    "tests/_core/test_rules.py",
+    "tests/_core/test_scales.py",
+    "tests/_core/test_subplots.py",
+    "tests/_marks/test_area.py",
+    "tests/_marks/test_bar.py",
+    "tests/_marks/test_base.py",
+    "tests/_marks/test_dot.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 81_000_000_000
+measured = 53_699_791_478
+
+[groups.seaborn-r-3]
+paths = [
+    "tests/_marks/test_line.py",
+    "tests/_marks/test_text.py",
+    "tests/_stats/test_aggregation.py",
+    "tests/_stats/test_counting.py",
+    "tests/_stats/test_density.py",
+    "tests/_stats/test_order.py",
+    "tests/_stats/test_regression.py",
+    "tests/test_algorithms.py",
+    "tests/test_axisgrid.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 620_000_000_000
+measured = 411_607_406_373
+
+[groups.seaborn-r-5]
+paths = ["tests/test_categorical.py"]
+tier = "release"
+release_by = "path"
+fuel = 240_000_000_000
+measured = 155_950_941_633
+
+[groups.seaborn-r-5b]
+paths = ["tests/test_categorical.py"]
+tier = "release"
+release_by = "path"
+fuel = 290_000_000_000
+measured = 192_530_123_245
+
+[groups.seaborn-r-5c]
+paths = ["tests/test_categorical.py"]
+tier = "release"
+release_by = "path"
+fuel = 460_000_000_000
+measured = 301_758_147_112
+
+[groups.seaborn-r-6]
+paths = ["tests/test_distributions.py", "tests/test_docstrings.py"]
+tier = "release"
+release_by = "path"
+fuel = 430_000_000_000
+measured = 281_068_389_635
+
+[groups.seaborn-r-7]
+paths = [
+    "tests/test_matrix.py",
+    "tests/test_miscplot.py",
+    "tests/test_objects.py",
+    "tests/test_palettes.py",
+    "tests/test_rcmod.py",
+    "tests/test_regression.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 260_000_000_000
+measured = 173_239_103_035
+
+[groups.seaborn-r-8]
+paths = ["tests/test_relational.py", "tests/test_statistics.py"]
+tier = "release"
+release_by = "path"
+fuel = 700_000_000_000
+measured = 461_636_987_920
+
+[[split]]
+file = "tests/test_categorical.py"
+groups = ["seaborn-r-5", "seaborn-r-5b", "seaborn-r-5c"]
+keywords = [
+    "TestStripPlot or TestSwarmPlot or TestBeeswarm",
+    "TestBarPlot or TestPointPlot or TestCountPlot",
+]
+
+[[not_selected]]
+files = ["tests/test_base.py"]
+reason = "it applies a mark to a fixture function, which pytest 8 deprecated and the kit's pytest 9 refuses: the module cannot be collected"
+closes_with = "README.md"
+
+[[expected]]
+id = "newer-dependencies"
+group = "seaborn-smoke"
+outcome = "failed"
+match = "has no attribute 'in1d'|has no attribute 'VisibleDeprecationWarning'|KeyError: 'labelleft'|Series\\.index are different|Regex pattern did not match|^AssertionError:$"
+reason = "seaborn 0.13.2's tests predate the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships: an API they call is gone, or a value they compare changed (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-pyarrow-interchange"
+group = "seaborn-smoke"
+outcome = "failed"
+match = "converting data source to a pandas DataFrame"
+reason = "the dataframe interchange protocol's conversion to pandas needs pyarrow, which the product does not carry (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "newer-dependencies"
+group = "seaborn-r-1"
+outcome = "failed"
+match = "has no attribute 'in1d'|has no attribute 'VisibleDeprecationWarning'|KeyError: 'labelleft'|Series\\.index are different|Regex pattern did not match|^AssertionError:$"
+reason = "seaborn 0.13.2's tests predate the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships: an API they call is gone, or a value they compare changed (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-pyarrow-interchange"
+group = "seaborn-r-1"
+outcome = "failed"
+match = "converting data source to a pandas DataFrame"
+reason = "the dataframe interchange protocol's conversion to pandas needs pyarrow, which the product does not carry (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-pyarrow-interchange"
+group = "seaborn-r-3"
+outcome = "failed"
+match = "converting data source to a pandas DataFrame"
+reason = "the dataframe interchange protocol's conversion to pandas needs pyarrow, which the product does not carry (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "newer-dependencies"
+group = "seaborn-r-5"
+outcome = "failed"
+match = "has no attribute 'in1d'|has no attribute 'VisibleDeprecationWarning'|KeyError: 'labelleft'|Series\\.index are different|Regex pattern did not match|^AssertionError:$"
+reason = "seaborn 0.13.2's tests predate the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships: an API they call is gone, or a value they compare changed (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "newer-dependencies"
+group = "seaborn-r-5c"
+outcome = "failed"
+match = "has no attribute 'in1d'|has no attribute 'VisibleDeprecationWarning'|KeyError: 'labelleft'|Series\\.index are different|Regex pattern did not match|^AssertionError:$"
+reason = "seaborn 0.13.2's tests predate the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships: an API they call is gone, or a value they compare changed (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "newer-dependencies"
+group = "seaborn-r-6"
+outcome = "failed"
+match = "has no attribute 'in1d'|has no attribute 'VisibleDeprecationWarning'|KeyError: 'labelleft'|Series\\.index are different|Regex pattern did not match|^AssertionError:$"
+reason = "seaborn 0.13.2's tests predate the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships: an API they call is gone, or a value they compare changed (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "newer-dependencies"
+group = "seaborn-r-8"
+outcome = "failed"
+match = "has no attribute 'in1d'|has no attribute 'VisibleDeprecationWarning'|KeyError: 'labelleft'|Series\\.index are different|Regex pattern did not match|^AssertionError:$"
+reason = "seaborn 0.13.2's tests predate the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships: an API they call is gone, or a value they compare changed (README)"
+closes_with = "README.md"
+

@@ -178,7 +178,7 @@ def bare_python_hits(scripts: list[Path], root: Path) -> list[str]:
 
 
 URL = re.compile(r"https?://[^\s\"')]+")
-GET = re.compile(r"^\s*(?:get|research)\s+(https?://\S+)(?:\s+(\S+))?", re.M)
+GET = re.compile(r"^\s*(?:get|research|tests)\s+(https?://\S+)(?:\s+(\S+))?", re.M)
 
 
 # `rm` as a word anywhere (after `if`, `!`, `xargs`, `command`, an assignment...), or `\rm`,
@@ -2001,6 +2001,36 @@ def unpinned_fetch_errors(download_script: Path, pinned: Iterable[str]) -> list[
         for name in names
         if name not in pinned
     ]
+
+
+TESTS_LINE = re.compile(r"^\s*tests\s+(https?://\S+)\s+(\S+)", re.M)
+
+
+def test_source_errors(download_script: Path, pinned: Iterable[str]) -> list[str]:
+    """Every `tests` line (a test source, never built) has its pin, and every pinned test source
+    its `tests` line; each name is one source pattern's, so no pin is two sources; a forge's
+    archive (a release tag's, or a commit's) is named `-tag.tar.gz`, so no pattern meets an sdist
+    by mistake."""
+    from harness import needs, pins
+
+    pinned = set(pinned)
+    text = "\n".join(line for _, line in _code_lines(download_script))
+    lines = TESTS_LINE.findall(text)
+    named = {name for _, name in lines}
+    errors = [
+        f"{n}: a tests line, but not pinned in downloads/SHA256SUMS" for n in sorted(named - pinned)
+    ]
+    test_patterns = {c: pins.SOURCE_PATTERNS[c] for c in needs.TEST_SOURCES}
+    for name in sorted(pinned):
+        if any(p.fullmatch(name) for p in test_patterns.values()) and name not in named:
+            errors.append(f"{name}: a pinned test source with no tests line")
+    for url, name in lines:
+        hits = [c for c, p in pins.SOURCE_PATTERNS.items() if p.fullmatch(name)]
+        if len(hits) != 1:
+            errors.append(f"{name}: matches {len(hits)} source patterns, not one")
+        if "/archive/" in url and not name.endswith("-tag.tar.gz"):
+            errors.append(f"{name}: a forge's archive, not named -tag.tar.gz")
+    return errors
 
 
 # ---------------------------------------------------------------------------------------------

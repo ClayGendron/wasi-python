@@ -588,6 +588,8 @@ acceptance is on the same `python.wasm`. Every package now names its own suite, 
   pull request's workflow can run the same judge jobs and gather against its own build.
 - **The other packages' suites.** Specs 066 and 067 (reserved, Decision 15); the pure-Python
   ones need their sdists pinned as data, since their wheels carry no tests.
+  (2026-10-21: 067 built, 42 `later` or new entries now `suite`, their test sources pinned as
+  `tests` lines; branch `spec/067-the-pure-python-packages-own-tests`.)
 - **The oracle in CI.** Its check stays blocked there, as today; it is local tooling, not a
   protected need. Running it in a shard would add a native numpy and pandas to CI's inputs for
   22 s of checking that the lane runs at every landing.

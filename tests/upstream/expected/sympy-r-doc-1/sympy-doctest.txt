@@ -1,0 +1,1 @@
+::docstrings:sympy.categories.diagram_drawing.preview_diagram

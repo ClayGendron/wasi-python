@@ -14,6 +14,11 @@ applier the build runs. Every tree of each family whose group the shard runs, no
 group's own: the guest's fuel depends on the whole stage. numpy and pandas
 share the `/upstream` stage, so a shard with either fetches both and the kit; CPython's tests have
 their own stage, so a shard with a CPython group fetches the CPython tarball.
+
+A test-source family (a pure-Python package's tests) is fetched the same way, by its `tests` line,
+with its other sources (pypdf's sample files), the product's pinned wheel its tie compares, and
+the test-only wheels it names from `kit-extra.txt`; each by its hash, nothing unpacked but the
+test sources.
 """
 
 from __future__ import annotations
@@ -23,19 +28,23 @@ import re
 import subprocess
 import sys
 import tarfile
+import time
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlsplit
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 KIT = HERE / "kit.txt"
+KIT_EXTRA = HERE / "kit-extra.txt"
 WHEELS = REPO / "build" / "upstream" / "wheels"
 DOWNLOADS = REPO / "downloads"
 BUILD = REPO / "build"
 DOWNLOAD_SCRIPT = REPO / "scripts" / "00_download.sh"
 APPLIER = REPO / "scripts" / "steps" / "apply_patches.sh"
 PATCHES = REPO / "recipes" / "patches"
-GET_LINE = re.compile(r"^\s*get (https://\S+) (\S+)\s*$", re.M)
+ATTEMPTS, PAUSE = 3, 10  # tries per file, and seconds between them
+GET_LINE = re.compile(r"^\s*(?:get|tests) (https://\S+) (\S+)\s*$", re.M)
 
 
 def kit_lines(text: str) -> list[tuple[str, str]]:
@@ -62,9 +71,18 @@ def fetch(sha: str, url: str, wheels: Path) -> str | None:
     if dest.is_file() and sha256_file(dest) == sha:
         return None
     part = dest.with_name(dest.name + ".part")
-    with urllib.request.urlopen(url, timeout=120) as r, part.open("wb") as f:
-        while chunk := r.read(1 << 20):
-            f.write(chunk)
+    for attempt in range(1, ATTEMPTS + 1):  # a forge's moment of trouble is not a red run
+        try:
+            with urllib.request.urlopen(url, timeout=120) as r, part.open("wb") as f:
+                while chunk := r.read(1 << 20):
+                    f.write(chunk)
+            break
+        except OSError as e:  # URLError and timeouts are OSErrors
+            part.unlink(missing_ok=True)
+            if attempt == ATTEMPTS:
+                host = urlsplit(url).netloc
+                return f"{dest.name}: {host} failed {ATTEMPTS} times: {e}"
+            time.sleep(PAUSE)
     got = sha256_file(part)
     if got != sha:
         part.unlink()
@@ -174,7 +192,56 @@ def shard_packages(name: str) -> list[str] | None:
     configs = upstream.load_all()
     wanted = set(plan[name].groups)
     families = {c.grant for c in configs.values() if wanted & set(c.groups)}
-    return [c.component or p for p, c in configs.items() if c.grant in families]
+    out = [c.component or p for p, c in configs.items() if c.grant in families]
+    for c in configs.values():
+        if c.grant in families and c.driver == "package":
+            out += [s for s in c.keys.extra_sources.values() if s not in out]
+    return out
+
+
+def shard_files(name: str) -> tuple[list[str], list[str]]:
+    """The product's wheels the shard's test-source families tie to, and the test-only extras
+    they name."""
+    sys.path.insert(0, str(HERE.parent))
+    from harness import shards, upstream
+
+    plan = shards.load()
+    configs = upstream.load_all()
+    wanted = set(plan[name].groups) if name in plan else set()
+    wheels, extras = [], []
+    for c in configs.values():
+        if c.driver != "package" or not wanted & set(c.groups) or not c.keys.test_source:
+            continue
+        if c.keys.wheel and c.keys.wheel not in wheels:
+            wheels.append(c.keys.wheel)
+        extras += [e for e in c.keys.kit_extra if e not in extras]
+    return wheels, extras
+
+
+def fetch_files(wheels: list[str], extras: list[str]) -> list[str]:
+    """The pinned wheels into downloads/ (their `get` lines and pins), the named extras into the
+    kit's folder (their kit-extra.txt lines); the errors, or none."""
+    from harness import packages
+
+    pinned = pins((DOWNLOADS / "SHA256SUMS").read_text())
+    urls = get_urls(DOWNLOAD_SCRIPT.read_text())
+    errors = []
+    for w in wheels:
+        if w not in urls or w not in pinned:
+            errors.append(f"{w}: no get line or no pin")
+        elif e := fetch(pinned[w], urls[w], DOWNLOADS):
+            errors.append(e)
+    entries = {
+        packages.extra_name(f): (sha, url)
+        for sha, url, f in packages.extra_entries(KIT_EXTRA.read_text())
+    }
+    WHEELS.mkdir(parents=True, exist_ok=True)
+    for x in extras:
+        if x not in entries:
+            errors.append(f"{x}: not in kit-extra.txt")
+        elif e := fetch(*entries[x], WHEELS):
+            errors.append(e)
+    return errors
 
 
 def needs_kit(packages: list[str]) -> bool:
@@ -204,6 +271,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"the kit is in {WHEELS}")
     if not errors and packages:
         errors = fetch_trees(packages)
+    if not errors and argv:
+        errors = fetch_files(*shard_files(argv[1]))
     for e in errors:
         print(e, file=sys.stderr)
     return 1 if errors else 0

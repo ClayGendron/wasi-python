@@ -1,0 +1,12 @@
+tests/test_categorical.py::TestBoxenPlot::test_dodge_native_scale
+tests/test_categorical.py::TestBoxenPlot::test_grouped[x]
+tests/test_categorical.py::TestBoxenPlot::test_grouped[y]
+tests/test_categorical.py::TestBoxenPlot::test_hue_grouped[x]
+tests/test_categorical.py::TestBoxenPlot::test_hue_grouped[y]
+tests/test_categorical.py::TestBoxenPlot::test_single_var[x-y]
+tests/test_categorical.py::TestBoxenPlot::test_single_var[y-z]
+tests/test_categorical.py::TestBoxenPlot::test_vector_data[None-x]
+tests/test_categorical.py::TestBoxenPlot::test_vector_data[x-y]
+tests/test_categorical.py::TestBoxenPlot::test_vector_data[y-z]
+tests/test_categorical.py::TestBoxenPlot::test_wide_data[h]
+tests/test_categorical.py::TestBoxenPlot::test_wide_data[v]

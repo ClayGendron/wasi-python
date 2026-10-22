@@ -1,0 +1,5 @@
+tests/tests_concurrent.py::test_concurrent_map[process_map]
+tests/tests_concurrent.py::test_concurrent_map_unknown_len[process_map]
+tests/tests_main.py::test_pipes
+tests/tests_rlock.py::test_rlock_creation
+tests/tests_synchronisation.py::test_imap

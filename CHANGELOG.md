@@ -6,6 +6,17 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a8 — unreleased
 
+- **The release runs the pure-Python packages' own tests** (spec 067): each whole suite before
+  a publication, a smoke group per package on every run, for the 42 pure-Python packages the
+  product ships; 39 test sources (each package's sdist, or its release tag's archive where the
+  sdist carries no tests, and pypdf's sample files) are pinned and named in `MANIFEST`, and the
+  judge ties each to the bytes that ship. Four test-source patches are carried, each making one
+  test-only import lazy or optional so the rest of its file runs:
+  `recipes/patches/pypdf-6.21.1/0001-tests-import-ssl-where-it-is-used.patch`,
+  `recipes/patches/cloudpickle-3.1.2/0001-tests-import-psutil-where-it-is-used.patch`,
+  `recipes/patches/formulaic-1.2.2/0001-tests-skip-the-pyarrow-check-without-pyarrow.patch`,
+  `recipes/patches/jinja2-3.1.6/0001-tests-run-the-asyncio-cases-without-trio.patch`.
+
 - **Two tiers of tests** (spec 102). The slow tests run before a publication, never left out:
   numpy's and pandas' `slow` cases, contourpy's slow and `random_big` cases and CPython's
   `cpu`-gated tests form a release tier, judged on the tag, on the dry run on main and in the

@@ -1,0 +1,1 @@
+openpyxl/drawing/tests/test_image.py::TestImage::test_convert

@@ -1,0 +1,36 @@
+# soupsieve's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "soupsieve"
+driver = "package"
+grant = "/upstream-soupsieve"
+test_source = true
+wheel = "soupsieve-3.0.3-py3-none-any.whl"
+budget = 83_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.soupsieve-smoke]
+paths = ["tests/test_api.py", "tests/test_level1"]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 35_000_000_000
+measured = 23_162_936_298
+
+[groups.soupsieve-r]
+paths = ["tests"]
+tier = "release"
+release_by = "path"
+fuel = 48_000_000_000
+measured = 31_357_696_081
+
+[[expected]]
+id = "no-alarm"
+group = "soupsieve-r"
+outcome = "failed"
+match = "has no attribute 'alarm'"
+reason = "WASI has no signal.alarm (README)"
+closes_with = "README.md"
+

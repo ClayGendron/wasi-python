@@ -1,0 +1,20 @@
+# pyyaml's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "pyyaml"
+driver = "package"
+grant = "/upstream-pyyaml"
+test_source = true
+budget = 91_000_000_000
+stage_folders = ["tests/legacy_tests"]
+extra_sys_path = ["tests/legacy_tests"]
+cwd = "tree"
+markers = []
+
+[groups.pyyaml-smoke]
+paths = ["tests/legacy_tests"]
+smoke = "the whole suite: a smaller smoke group would cost as much, a session's start being most of it"
+fuel = 91_000_000_000
+measured = 60_406_541_799
+

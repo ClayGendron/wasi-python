@@ -1,0 +1,22 @@
+# tzdata's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "tzdata"
+driver = "package"
+grant = "/upstream-tzdata"
+test_source = true
+wheel = "tzdata-2026.5-py2.py3-none-any.whl"
+budget = 18_000_000_000
+stage_folders = ["tests"]
+support_files = ["VERSION"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.tzdata-smoke]
+paths = ["tests"]
+smoke = "the whole suite: a smaller smoke group would cost as much, a session's start being most of it"
+fuel = 18_000_000_000
+measured = 11_349_293_741
+

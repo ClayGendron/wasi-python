@@ -1,0 +1,154 @@
+# fonttools's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "fonttools"
+driver = "package"
+grant = "/upstream-fonttools"
+test_source = true
+wheel = "fonttools-4.67.0-py3-none-any.whl"
+budget = 960_000_000_000
+stage_folders = ["Tests"]
+extra_sys_path = [".", "Tests/ttLib", "Tests/ttLib/tables"]
+cwd = "tree"
+markers = []
+docstring_flags = 8
+
+[groups.fonttools-smoke]
+paths = [
+    "Tests/ttLib/ttFont_test.py",
+    "Tests/misc/arrayTools_test.py",
+    "Tests/misc/transform_test.py",
+]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 30_000_000_000
+measured = 19_457_978_210
+
+[groups.fonttools-r-ttlib]
+paths = ["Tests/ttLib"]
+tier = "release"
+release_by = "path"
+fuel = 210_000_000_000
+measured = 139_785_522_984
+
+[groups.fonttools-r-varlib]
+paths = ["Tests/varLib"]
+tier = "release"
+release_by = "path"
+fuel = 370_000_000_000
+measured = 241_612_993_523
+
+[groups.fonttools-r-rest]
+paths = [
+    "Tests/afmLib",
+    "Tests/cffLib",
+    "Tests/colorLib",
+    "Tests/cu2qu",
+    "Tests/designspaceLib",
+    "Tests/encodings",
+    "Tests/feaLib",
+    "Tests/fontBuilder",
+    "Tests/merge",
+    "Tests/misc",
+    "Tests/mtiLib",
+    "Tests/otlLib",
+    "Tests/pens",
+    "Tests/qu2cu",
+    "Tests/subset",
+    "Tests/svgLib",
+    "Tests/t1Lib",
+    "Tests/tfmLib",
+    "Tests/ttx",
+    "Tests/ufoLib",
+    "Tests/voltLib",
+    "Tests/agl_test.py",
+    "Tests/config_test.py",
+    "Tests/unicodedata_test.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 300_000_000_000
+measured = 197_512_984_005
+
+[groups.fonttools-r-doc]
+docstring_packages = ["fontTools"]
+docstring_not_selected = [
+    "fontTools.pens.freetypePen",
+    "fontTools.pens.quartzPen",
+    "fontTools.ttLib.removeOverlaps",
+    "fontTools.varLib.interpolatablePlot",
+]
+tier = "release"
+release_by = "path"
+fuel = 50_000_000_000
+measured = 32_736_123_101
+
+[[not_selected]]
+files = ["Tests/metaTools/check_table_coverage_test.py"]
+reason = "it runs MetaTools/check_table_coverage.py, which puts the source tree's Lib/ first on sys.path and checks the repository's own files: it would import a copy of fontTools, not the product's, and check the repository, not the product"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-processes"
+group = "fonttools-r-ttlib"
+outcome = "failed"
+match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
+reason = "no processes: the guest cannot start one (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "counted-clock"
+group = "fonttools-r-rest"
+outcome = "failed"
+match = "assert \\d\\.\\d+e-0\\d > \\d\\.\\d+e-0\\d|assert 3850070400 > 3850070400|Lists differ: \\[1, 2, 3\\] != \\[1, 2\\]|^assert 8\\.0 is None$"
+reason = "the guest's clock is the judge's counted clock (each read advances it one microsecond), so a test that times a sleep or a timeout, or expects two timestamps a second apart, sees other times than a wall clock gives (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "importlib-module-names"
+group = "fonttools-r-rest"
+outcome = "failed"
+match = "'Tests\\.misc\\.l.*gTools_test\\.A' == 'loggingTools_test\\.A'|'tests\\.test_utils\\.X object' == 'test_utils\\.X object'|<FunctionWrapper at \\w+ for function at \\w+> is not None|No module named 'test_platypus_xref'"
+reason = "the driver imports test modules with pytest's importlib mode, so no test folder goes on sys.path and a test module is named by its package path; a test that checks its own module's name, or imports itself by that name, sees the longer one (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-processes"
+group = "fonttools-r-rest"
+outcome = "failed"
+match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
+reason = "no processes: the guest cannot start one (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "read-only-source"
+group = "fonttools-r-rest"
+outcome = "failed"
+match = "PermissionError: \\[Errno \\d+\\] Operation not permitted: '/upstream-|Read-only file system|Operation not permitted: 'empty_with_no_properties-copy\\.xlsx'"
+reason = "the test writes beside its own files in the test source, a read-only grant (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sdist-lacks-data"
+group = "fonttools-r-rest"
+outcome = "failed"
+match = "No such file or directory: '/upstream-fonttools/tree/Tests/(cffLib|tfmLib|voltLib)/data"
+reason = "the fontTools sdist does not carry this test's data file (its MANIFEST.in leaves it out); only a git checkout has it (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "zip-no-source"
+group = "fonttools-r-rest"
+outcome = "failed"
+match = "could not get source code|source code not available|could not find class definition"
+reason = "the product's modules are bytecode in a zip: inspect finds no source (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "doctest-output"
+group = "fonttools-r-doc"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring example whose printed output differs in the guest under the stdlib's doctest runner with upstream's flags (README)"
+closes_with = "README.md"
+

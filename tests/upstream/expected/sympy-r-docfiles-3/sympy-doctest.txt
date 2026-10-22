@@ -1,0 +1,7 @@
+::docfile:doc/src/guides/solving/reduce-inequalities-algebraically.md
+::docfile:doc/src/guides/solving/solve-diophantine-equation.md
+::docfile:doc/src/guides/solving/solve-equation-algebraically.md
+::docfile:doc/src/guides/solving/solve-numerically.md
+::docfile:doc/src/guides/solving/solve-ode.md
+::docfile:doc/src/guides/solving/solve-system-of-equations-algebraically.md
+::docfile:doc/src/guides/solving/solving-guidance.md

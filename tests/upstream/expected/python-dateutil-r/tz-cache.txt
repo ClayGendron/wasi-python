@@ -1,0 +1,5 @@
+tests/test_tz.py::GettzTest::testGettzCacheTzLocal
+tests/test_tz.py::ZoneInfoGettzTest::testGettzCacheTzLocal
+tests/test_tz.py::test_gettz_cache_clear
+tests/test_tz.py::test_gettz_set_cache_size
+tests/test_tz.py::test_gettz_weakref

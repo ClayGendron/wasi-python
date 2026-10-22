@@ -1,0 +1,1 @@
+tests/test_relational.py::TestLinePlotter::test_log_scale

@@ -100,39 +100,39 @@ kind = "suite"
 kind = "suite"
 
 [package.fonttools]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/fonttools.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.pyparsing]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/pyparsing.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.cycler]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/cycler.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.packaging]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/packaging.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.python-dateutil]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/python-dateutil.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.six]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/six.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.tzdata]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/tzdata.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.lxml]
 # spec 066: its own suite, groups in tests/upstream/lxml.toml, in the upstream-plot shards.
@@ -157,169 +157,167 @@ via = "scipy"
 # the whole suite in the release tier.
 kind = "suite"
 
-# Tier A (spec 039): thirty pure-Python distributions. Their own suites run with spec 067.
+# Tier A: thirty pure-Python distributions, each its own suite from its test source.
 
 [package.openpyxl]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/openpyxl.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.et-xmlfile]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/et-xmlfile.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.xlsxwriter]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/xlsxwriter.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.xlrd]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/xlrd.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.pypdf]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/pypdf.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.beautifulsoup4]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/beautifulsoup4.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.soupsieve]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/soupsieve.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.html5lib]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/html5lib.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.webencodings]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/webencodings.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.defusedxml]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/defusedxml.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.xmltodict]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/xmltodict.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.pyyaml]
-kind = "later"
-reason = "its own suite is not run yet (its sdist is pinned; the zip takes only its pure package)"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/pyyaml.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.tomli-w]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/tomli-w.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.jinja2]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/jinja2.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.markupsafe]
-kind = "later"
-reason = "its own suite is not run yet (its sdist is pinned; the zip takes only its pure package)"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/markupsafe.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.tabulate]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/tabulate.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.charset-normalizer]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/charset-normalizer.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.networkx]
-kind = "later"
-reason = "pinned as its sdist since spec 041, which carries its tests; staging and running them is spec 067's"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/networkx.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.patsy]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/patsy.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.sympy]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/sympy.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.mpmath]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/mpmath.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.attrs]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/attrs.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.more-itertools]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/more-itertools.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.toolz]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/toolz.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.tqdm]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/tqdm.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.typing-extensions]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/typing-extensions.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.joblib]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/joblib.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.cloudpickle]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/cloudpickle.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.threadpoolctl]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/threadpoolctl.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.narwhals]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/narwhals.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.seaborn]
-# spec 042: pinned as its sdist, which carries its tests/ folder; step 70 takes only its package.
-kind = "later"
-reason = "its own suite is not run yet (its sdist is pinned and carries tests/; the zip takes only its package)"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/seaborn.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.reportlab]
-# spec 042: its sdist carries tests/ but is not pinned (the wheel is the package the zip holds).
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/reportlab.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.statsmodels]
 # Its own suite: groups in tests/upstream/statsmodels.toml, a smoke group in the normal tier and
@@ -329,16 +327,16 @@ kind = "suite"
 # statsmodels' formula engine and its two requirements: pure wheels, as tier A's.
 
 [package.formulaic]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/formulaic.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.interface-meta]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/interface-meta.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
 
 [package.wrapt]
-kind = "later"
-reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
-closes_with = "spec 067"
+# its own suite from its test source, groups in tests/upstream/wrapt.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"

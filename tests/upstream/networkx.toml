@@ -1,0 +1,261 @@
+# networkx's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "networkx"
+driver = "package"
+grant = "/upstream-networkx"
+test_source = true
+budget = 4_566_000_000_000
+stage_folders = [
+    "networkx/algorithms/approximation/tests",
+    "networkx/algorithms/assortativity/tests",
+    "networkx/algorithms/bipartite/tests",
+    "networkx/algorithms/centrality/tests",
+    "networkx/algorithms/coloring/tests",
+    "networkx/algorithms/community/tests",
+    "networkx/algorithms/components/tests",
+    "networkx/algorithms/connectivity/tests",
+    "networkx/algorithms/flow/tests",
+    "networkx/algorithms/isomorphism/tests",
+    "networkx/algorithms/link_analysis/tests",
+    "networkx/algorithms/minors/tests",
+    "networkx/algorithms/operators/tests",
+    "networkx/algorithms/shortest_paths/tests",
+    "networkx/algorithms/tests",
+    "networkx/algorithms/traversal/tests",
+    "networkx/algorithms/tree/tests",
+    "networkx/classes/tests",
+    "networkx/drawing/tests",
+    "networkx/generators/tests",
+    "networkx/linalg/tests",
+    "networkx/readwrite/json_graph/tests",
+    "networkx/readwrite/tests",
+    "networkx/tests",
+    "networkx/utils/tests",
+]
+support_files = ["networkx/conftest.py"]
+cwd = "tree"
+markers = []
+args = ["--runslow"]
+opt_in_skips = ["need --runslow option to run"]
+package_inits = true
+
+[groups.networkx-smoke]
+paths = [
+    "networkx/classes/tests/test_graph.py",
+    "networkx/algorithms/shortest_paths/tests/test_generic.py",
+]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 44_000_000_000
+measured = 29_254_697_709
+
+[groups.networkx-r-approximation-1]
+paths = ["networkx/algorithms/approximation/tests/test_traveling_salesman.py"]
+tier = "release"
+release_by = "path"
+fuel = 710_000_000_000
+measured = 470_833_843_307
+
+[groups.networkx-r-approximation-2]
+paths = ["networkx/algorithms/approximation/tests/test_kcomponents.py"]
+tier = "release"
+release_by = "path"
+fuel = 160_000_000_000
+measured = 103_969_337_180
+
+[groups.networkx-r-approximation-3]
+paths = [
+    "networkx/algorithms/approximation/tests/test_approx_clust_coeff.py",
+    "networkx/algorithms/approximation/tests/test_clique.py",
+    "networkx/algorithms/approximation/tests/test_connectivity.py",
+    "networkx/algorithms/approximation/tests/test_density.py",
+    "networkx/algorithms/approximation/tests/test_distance_measures.py",
+    "networkx/algorithms/approximation/tests/test_dominating_set.py",
+    "networkx/algorithms/approximation/tests/test_matching.py",
+    "networkx/algorithms/approximation/tests/test_maxcut.py",
+    "networkx/algorithms/approximation/tests/test_ramsey.py",
+    "networkx/algorithms/approximation/tests/test_steinertree.py",
+    "networkx/algorithms/approximation/tests/test_treewidth.py",
+    "networkx/algorithms/approximation/tests/test_vertex_cover.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 75_000_000_000
+measured = 49_935_372_916
+
+[groups.networkx-r-flow-1]
+paths = ["networkx/algorithms/flow/tests/test_maxflow_large_graph.py"]
+tier = "release"
+release_by = "path"
+fuel = 96_000_000_000
+measured = 63_518_089_585
+
+[groups.networkx-r-flow-2]
+paths = [
+    "networkx/algorithms/flow/tests/test_gomory_hu.py",
+    "networkx/algorithms/flow/tests/test_maxflow.py",
+    "networkx/algorithms/flow/tests/test_mincost.py",
+    "networkx/algorithms/flow/tests/test_networksimplex.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 800_000_000_000
+measured = 530_039_978_031
+
+[groups.networkx-r-tree]
+paths = ["networkx/algorithms/tree/tests"]
+tier = "release"
+release_by = "path"
+fuel = 480_000_000_000
+measured = 315_170_477_283
+
+[groups.networkx-r-alg-1]
+paths = [
+    "networkx/algorithms/assortativity/tests",
+    "networkx/algorithms/bipartite/tests",
+    "networkx/algorithms/centrality/tests",
+    "networkx/algorithms/coloring/tests",
+    "networkx/algorithms/community/tests",
+    "networkx/algorithms/components/tests",
+    "networkx/algorithms/connectivity/tests",
+    "networkx/algorithms/isomorphism/tests",
+    "networkx/algorithms/link_analysis/tests",
+    "networkx/algorithms/minors/tests",
+    "networkx/algorithms/operators/tests",
+]
+tier = "release"
+release_by = "path"
+fuel = 810_000_000_000
+measured = 534_018_557_025
+
+[groups.networkx-r-alg-2]
+paths = ["networkx/algorithms/shortest_paths/tests", "networkx/algorithms/traversal/tests"]
+tier = "release"
+release_by = "path"
+fuel = 96_000_000_000
+measured = 63_631_806_783
+
+[groups.networkx-r-root-1]
+paths = [
+    "networkx/algorithms/tests/test_asteroidal.py",
+    "networkx/algorithms/tests/test_boundary.py",
+    "networkx/algorithms/tests/test_bridges.py",
+    "networkx/algorithms/tests/test_broadcasting.py",
+    "networkx/algorithms/tests/test_chains.py",
+    "networkx/algorithms/tests/test_chordal.py",
+    "networkx/algorithms/tests/test_clique.py",
+    "networkx/algorithms/tests/test_cluster.py",
+    "networkx/algorithms/tests/test_communicability.py",
+    "networkx/algorithms/tests/test_core.py",
+    "networkx/algorithms/tests/test_covering.py",
+    "networkx/algorithms/tests/test_cuts.py",
+    "networkx/algorithms/tests/test_cycles.py",
+    "networkx/algorithms/tests/test_d_separation.py",
+    "networkx/algorithms/tests/test_dag.py",
+    "networkx/algorithms/tests/test_distance_measures.py",
+    "networkx/algorithms/tests/test_distance_regular.py",
+    "networkx/algorithms/tests/test_dominance.py",
+    "networkx/algorithms/tests/test_dominating.py",
+    "networkx/algorithms/tests/test_efficiency.py",
+    "networkx/algorithms/tests/test_euler.py",
+    "networkx/algorithms/tests/test_graph_hashing.py",
+    "networkx/algorithms/tests/test_graphical.py",
+    "networkx/algorithms/tests/test_hierarchy.py",
+    "networkx/algorithms/tests/test_hybrid.py",
+    "networkx/algorithms/tests/test_isolate.py",
+    "networkx/algorithms/tests/test_link_prediction.py",
+    "networkx/algorithms/tests/test_lowest_common_ancestors.py",
+    "networkx/algorithms/tests/test_matching.py",
+    "networkx/algorithms/tests/test_max_weight_clique.py",
+    "networkx/algorithms/tests/test_mis.py",
+    "networkx/algorithms/tests/test_moral.py",
+    "networkx/algorithms/tests/test_node_classification.py",
+    "networkx/algorithms/tests/test_non_randomness.py",
+    "networkx/algorithms/tests/test_perfect_graph.py",
+    "networkx/algorithms/tests/test_planar_drawing.py",
+    "networkx/algorithms/tests/test_planarity.py",
+    "networkx/algorithms/tests/test_polynomials.py",
+    "networkx/algorithms/tests/test_reciprocity.py",
+    "networkx/algorithms/tests/test_regular.py",
+    "networkx/algorithms/tests/test_richclub.py",
+    "networkx/algorithms/tests/test_similarity.py",
+    "networkx/algorithms/tests/test_simple_paths.py",
+    "networkx/algorithms/tests/test_smallworld.py",
+    "networkx/algorithms/tests/test_smetric.py",
+    "networkx/algorithms/tests/test_sparsifiers.py",
+    "networkx/algorithms/tests/test_structuralholes.py",
+    "networkx/algorithms/tests/test_summarization.py",
+    "networkx/algorithms/tests/test_swap.py",
+    "networkx/algorithms/tests/test_threshold.py",
+    "networkx/algorithms/tests/test_time_dependent.py",
+    "networkx/algorithms/tests/test_tournament.py",
+    "networkx/algorithms/tests/test_triads.py",
+    "networkx/algorithms/tests/test_vitality.py",
+    "networkx/algorithms/tests/test_voronoi.py",
+    "networkx/algorithms/tests/test_walks.py",
+    "networkx/algorithms/tests/test_wiener.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 530_000_000_000
+measured = 349_666_903_865
+
+[groups.networkx-r-classes]
+paths = ["networkx/classes/tests"]
+tier = "release"
+release_by = "path"
+fuel = 140_000_000_000
+measured = 86_870_022_669
+
+[groups.networkx-r-generators]
+paths = ["networkx/generators/tests"]
+tier = "release"
+release_by = "path"
+fuel = 190_000_000_000
+measured = 126_450_880_435
+
+[groups.networkx-r-other]
+paths = [
+    "networkx/drawing/tests",
+    "networkx/linalg/tests",
+    "networkx/readwrite/json_graph/tests",
+    "networkx/readwrite/tests",
+    "networkx/utils/tests",
+]
+tier = "release"
+release_by = "path"
+fuel = 340_000_000_000
+measured = 224_084_489_884
+
+[groups.networkx-r-tests]
+paths = ["networkx/tests"]
+tier = "release"
+release_by = "path"
+fuel = 77_000_000_000
+measured = 51_252_486_015
+
+[groups.networkx-r-doc]
+docstring_packages = ["networkx"]
+docstring_not_selected = ["networkx.readwrite.p2g", "networkx.drawing.nx_agraph", "networkx.drawing.nx_pydot"]
+tier = "release"
+release_by = "path"
+fuel = 18_000_000_000
+measured = 11_843_299_771
+
+[[expected]]
+id = "counted-clock"
+group = "networkx-r-root-1"
+outcome = "failed"
+match = "assert \\d\\.\\d+e-0\\d > \\d\\.\\d+e-0\\d|assert 3850070400 > 3850070400|Lists differ: \\[1, 2, 3\\] != \\[1, 2\\]|^assert 8\\.0 is None$"
+reason = "the guest's clock is the judge's counted clock (each read advances it one microsecond), so a test that times a sleep or a timeout, or expects two timestamps a second apart, sees other times than a wall clock gives (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-threads"
+group = "networkx-r-other"
+outcome = "failed"
+match = "can't start new thread|thread constructor failed|start_new_thread|unable to start watchdog thread|TqdmMonitorWarning|instances still in existence|'NoneType' object does not support the context manager protocol"
+reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
+closes_with = "README.md"
+

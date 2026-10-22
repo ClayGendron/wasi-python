@@ -1,0 +1,1 @@
+tests/core/test_find_wrapper.py::TestFindWrapper::test_wholesale_replacement

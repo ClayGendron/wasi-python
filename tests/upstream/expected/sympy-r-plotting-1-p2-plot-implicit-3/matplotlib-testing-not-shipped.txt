@@ -1,0 +1,1 @@
+sympy/plotting/tests/test_plot_implicit.py::test_region_and

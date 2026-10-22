@@ -1,0 +1,80 @@
+# narwhals's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "narwhals"
+driver = "package"
+grant = "/upstream-narwhals"
+test_source = true
+wheel = "narwhals-2.27.1-py3-none-any.whl"
+budget = 267_000_000_000
+stage_folders = ["tests"]
+support_files = ["pyproject.toml"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+args = ["--runslow", "--constructors=pandas,pandas[nullable]"]
+opt_in_skips = ["need --runslow option to run"]
+
+[env.MODIN_ENGINE]
+value = "python"
+reason = "narwhals' own pytest configuration sets it (pytest-env, its pyproject.toml's env list)"
+
+[env.PYARROW_IGNORE_TIMEZONE]
+value = "1"
+reason = "narwhals' own pytest configuration sets it (pytest-env, its pyproject.toml's env list)"
+
+[env.TZ]
+value = "UTC"
+reason = "narwhals' own pytest configuration sets it (pytest-env, its pyproject.toml's env list)"
+
+[groups.narwhals-smoke]
+paths = [
+    "tests/frame/select_test.py",
+    "tests/frame/filter_test.py",
+    "tests/frame/group_by_test.py",
+    "tests/frame/join_test.py",
+]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 37_000_000_000
+measured = 24_229_796_642
+
+[groups.narwhals-r]
+paths = ["tests"]
+tier = "release"
+release_by = "path"
+fuel = 230_000_000_000
+measured = 148_671_925_474
+
+[[expected]]
+id = "no-ctypes"
+group = "narwhals-r"
+outcome = "failed"
+match = "ctypes is unavailable|dlopen|CDLL"
+reason = "the ctypes stand-in loads no library (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap"
+group = "narwhals-r"
+outcome = "failed"
+match = "mmap is unavailable|No module named 'mmap'|^AssertionError: False is not true$"
+reason = "no mmap: the stand-in raises OSError (README); xlrd opens a workbook with mmap, so a test that checks the error a bad workbook raises sees mmap's"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-terminal-size"
+group = "narwhals-r"
+outcome = "failed"
+match = "has no attribute 'get_terminal_size'"
+reason = "WASI has no os.get_terminal_size (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "wasm32-int32"
+group = "narwhals-r"
+outcome = "failed"
+match = "Mismatch at index \\d+, key a: -?\\d+ != \\d+"
+reason = "numpy's default integer is 32 bits on wasm32, so a cumulative sum narwhals expects in 64 bits wraps (README)"
+closes_with = "README.md"
+

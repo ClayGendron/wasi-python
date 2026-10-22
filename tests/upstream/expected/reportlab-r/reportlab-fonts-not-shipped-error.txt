@@ -1,0 +1,6 @@
+tests/test_graphics_render.py::RenderTestCase::test0
+tests/test_graphics_render.py::RenderTestCase::test1
+tests/test_graphics_render.py::RenderTestCase::test2
+tests/test_graphics_render.py::RenderTestCase::test3
+tests/test_graphics_render.py::RenderTestCase::test4
+tests/test_graphics_render.py::RenderTestCase::testSVGLibIssues

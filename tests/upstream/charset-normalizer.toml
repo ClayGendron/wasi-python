@@ -1,0 +1,44 @@
+# charset-normalizer's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "charset-normalizer"
+driver = "package"
+grant = "/upstream-charset-normalizer"
+test_source = true
+wheel = "charset_normalizer-3.5.2-py3-none-any.whl"
+budget = 67_000_000_000
+stage_folders = ["tests", "data"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.charset-normalizer-smoke]
+paths = ["tests/test_base_detection.py", "tests/test_utils.py", "tests/test_mess_detection.py"]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 20_000_000_000
+measured = 12_821_197_021
+
+[groups.charset-normalizer-r]
+paths = ["tests"]
+tier = "release"
+release_by = "path"
+fuel = 47_000_000_000
+measured = 30_823_732_814
+
+[[expected]]
+id = "cli-writes-beside-input"
+group = "charset-normalizer-r"
+outcome = "failed"
+match = "AssertionError: 0 != 2"
+reason = "charset-normalizer's CLI writes the normalized file beside its input, in the read-only test source (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-threads"
+group = "charset-normalizer-r"
+outcome = "failed"
+match = "can't start new thread|thread constructor failed|start_new_thread|unable to start watchdog thread|TqdmMonitorWarning|instances still in existence|'NoneType' object does not support the context manager protocol"
+reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
+closes_with = "README.md"
+

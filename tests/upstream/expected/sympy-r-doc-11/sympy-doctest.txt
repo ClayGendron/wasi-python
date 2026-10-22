@@ -1,0 +1,3 @@
+::docstrings:sympy.printing.llvmjitcode.llvm_callable
+::docstrings:sympy.printing.preview.preview
+::docstrings:sympy.printing.theanocode.theano_function

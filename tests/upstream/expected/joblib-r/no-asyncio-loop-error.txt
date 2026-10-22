@@ -1,0 +1,5 @@
+joblib/test/test_memory_async.py::test_call_and_shelve_async
+joblib/test/test_memory_async.py::test_memorized_func_call_async
+joblib/test/test_memory_async.py::test_memory_integration_async
+joblib/test/test_memory_async.py::test_memory_numpy_check_mmap_mode_async
+joblib/test/test_memory_async.py::test_no_memory_async

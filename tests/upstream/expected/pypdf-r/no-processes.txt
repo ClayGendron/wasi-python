@@ -1,0 +1,4 @@
+tests/generic/test_appearance_stream.py::test_appearance_stream__no_rtl_support[arabic_reshaper]
+tests/generic/test_appearance_stream.py::test_appearance_stream__no_rtl_support[bidi]
+tests/generic/test_font.py::test_font_from_font_file_no_fonttools
+tests/test_utils.py::test_rename_kwargs__stacklevel

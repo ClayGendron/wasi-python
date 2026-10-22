@@ -159,6 +159,41 @@ def marker_of(cfg, group) -> str:
     return cfg.marker
 
 
+def is_node(path: str) -> bool:
+    """A node-id group's path: a file and one test in it (`file.py::test`)."""
+    return "::" in path
+
+
+def node_deselects(cfg, group) -> list[str]:
+    """The node ids other groups run alone (a test too big for any group) that lie under this path
+    release group's paths: it deselects them, so each runs once."""
+    if group.tier != "release" or kind_of(cfg, group) != "path":
+        return []
+    return [
+        p
+        for g in cfg.groups.values()
+        if g.name != group.name
+        for p in g.paths
+        if is_node(p)
+        and not any(is_node(q) for q in group.paths)
+        and any(_covers(q, p.split("::", 1)[0]) for q in group.paths)
+    ]
+
+
+def is_test_file(cfg, member: str) -> bool:
+    """A staged test file: upstream's own `python_files` patterns where the family's .ini names
+    them, else pytest's default (`test_*.py`, `*_test.py`)."""
+    import fnmatch
+
+    patterns = getattr(getattr(cfg, "keys", None), "python_files", ())
+    if not patterns:
+        return bool(TEST_FILE.fullmatch(member))
+    name = member.rsplit("/", 1)[-1]
+    if name in ("conftest.py", "__init__.py"):
+        return False  # pytest collects neither as a test module, whatever the patterns
+    return any(fnmatch.fnmatch(name, p) for p in patterns if p.endswith(".py"))
+
+
 def smoke_ignores(cfg, group) -> list[str]:
     """The smoke paths under a path release group's paths, which it leaves to the normal tier."""
     if group.tier != "release" or kind_of(cfg, group) != "path":
@@ -194,6 +229,8 @@ def keyword_arg(cfg, group, split_keyword: str | None) -> str | None:
 def rule_errors(pkg: str, cfg, members: set[str] | None = None) -> list[str]:
     errors: list[str] = []
     errors += smoke_errors(pkg, cfg, members)
+    errors += item_errors(pkg, cfg)
+    errors += node_errors(pkg, cfg)
     groups = list(cfg.groups.values())
     release = [g for g in groups if g.tier == "release"]
     for g in groups:
@@ -313,12 +350,15 @@ def smoke_errors(pkg: str, cfg, members: set[str] | None) -> list[str]:
                 errors.append(f"{pkg}: path release group {g.name}: {p} lies in a smoke path")
     if members is None:
         return errors
-    out = {f.split("::", 1)[0] for n in cfg.not_selected for f in n.files}
-    folders = getattr(getattr(cfg, "keys", None), "stage_folders", ())
+    out = {
+        f for n in cfg.not_selected for f in n.files if "::" not in f
+    }  # a test alone leaves its file
+    keys = getattr(cfg, "keys", None)
+    folders = (*getattr(keys, "stage_folders", ()), *getattr(keys, "support_files", ()))
     staged = sorted(
         m
         for m in members
-        if TEST_FILE.fullmatch(m)
+        if is_test_file(cfg, m)
         and any(_covers(f, m) for f in folders)
         and not any(_covers(o, m) for o in out)
     )
@@ -400,4 +440,64 @@ def split_tier_errors(pkg: str, cfg) -> list[str]:
             if (s.file, tier, kind) in seen:
                 errors.append(f"{pkg}: {s.file} carries two splits of one tier and kind")
             seen.add((s.file, tier, kind))
+    return errors
+
+
+def item_errors(pkg: str, cfg) -> list[str]:
+    """An item group's units are in exactly one group: no doctest file, module of
+    `module_functions` or docstring module (a named module, or one a named package covers) is
+    run by two groups."""
+    items = getattr(getattr(cfg, "keys", None), "items", {})
+    errors = []
+    seen: dict[tuple[str, str], str] = {}
+    for name, it in items.items():
+        units = [("file", f) for f, _ in it.doctest_files]
+        units += [("functions", m) for m in it.module_functions]
+        for kind, u in units:
+            other = seen.get((kind, u))
+            if other is not None:
+                errors.append(f"{pkg}: {u} is in two item groups: {other}, {name}")
+            seen[(kind, u)] = name
+    docs = [(name, m, False) for name, it in items.items() for m in it.docstring_modules]
+    docs += [(name, m, True) for name, it in items.items() for m in it.docstring_packages]
+
+    def covers(entry: str, is_package: bool, other: str) -> bool:
+        return other == entry or (is_package and other.startswith(entry + "."))
+
+    for i, (a, ea, pa) in enumerate(docs):
+        for b, eb, pb in docs[i + 1 :]:
+            if a != b and (covers(ea, pa, eb) or covers(eb, pb, ea)):
+                errors.append(f"{pkg}: the docstrings of {ea} and {eb} are in two groups: {a}, {b}")
+    for name in items:
+        g = cfg.groups.get(name)
+        if g is not None and g.tier == "release" and kind_of(cfg, g) != "path":
+            errors.append(f"{pkg}: item group {name} is a release group of no named kind")
+    return errors
+
+
+def node_errors(pkg: str, cfg) -> list[str]:
+    """A node-id group runs one test too big for any group: its file lies in exactly one path
+    release group's paths, and that group deselects exactly it."""
+    errors = []
+    path_groups = [
+        g
+        for g in cfg.groups.values()
+        if g.tier == "release"
+        and kind_of(cfg, g) == "path"
+        and not any(is_node(p) for p in g.paths)
+    ]
+    for g in cfg.groups.values():
+        for p in g.paths:
+            if not is_node(p):
+                continue
+            if g.tier != "release" or any(not is_node(q) for q in g.paths):
+                errors.append(
+                    f"{pkg}: group {g.name}: a node id runs in a release group of node ids"
+                )
+            file = p.split("::", 1)[0]
+            holders = [h.name for h in path_groups if any(_covers(q, file) for q in h.paths)]
+            if len(holders) != 1:
+                errors.append(
+                    f"{pkg}: node id {p} lies in {len(holders)} path release groups' paths, not one"
+                )
     return errors

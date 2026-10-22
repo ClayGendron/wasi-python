@@ -1,0 +1,76 @@
+# jinja2's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "jinja2"
+driver = "package"
+grant = "/upstream-jinja2"
+test_source = true
+wheel = "jinja2-3.1.6-py3-none-any.whl"
+budget = 77_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = [".", "tests"]
+cwd = "tree"
+markers = []
+
+[groups.jinja2-smoke]
+paths = ["tests/test_api.py", "tests/test_filters.py", "tests/test_core_tags.py"]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 30_000_000_000
+measured = 19_842_601_464
+
+[groups.jinja2-r]
+paths = ["tests"]
+tier = "release"
+release_by = "path"
+fuel = 47_000_000_000
+measured = 31_283_794_005
+
+[[expected]]
+id = "shallow-recursion"
+group = "jinja2-smoke"
+outcome = "failed"
+match = "RecursionError|maximum recursion depth|Stack overflow"
+reason = "recursion through Python stops at 40 to 250 levels in the guest (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "importlib-module-names"
+group = "jinja2-r"
+outcome = "failed"
+match = "'Tests\\.misc\\.l.*gTools_test\\.A' == 'loggingTools_test\\.A'|'tests\\.test_utils\\.X object' == 'test_utils\\.X object'|<FunctionWrapper at \\w+ for function at \\w+> is not None|No module named 'test_platypus_xref'"
+reason = "the driver imports test modules with pytest's importlib mode, so no test folder goes on sys.path and a test module is named by its package path; a test that checks its own module's name, or imports itself by that name, sees the longer one (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-asyncio-loop-error"
+group = "jinja2-r"
+outcome = "error"
+match = "\\[Errno 58\\] Not supported|unraisable exception warnings|Exception ignored while calling deallocator"
+reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-asyncio-loop"
+group = "jinja2-r"
+outcome = "failed"
+match = "\\[Errno 58\\] Not supported|unraisable exception warnings|Exception ignored while calling deallocator"
+reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "read-only-source"
+group = "jinja2-r"
+outcome = "failed"
+match = "PermissionError: \\[Errno \\d+\\] Operation not permitted: '/upstream-|Read-only file system|Operation not permitted: 'empty_with_no_properties-copy\\.xlsx'"
+reason = "the test writes beside its own files in the test source, a read-only grant (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "zip-package-loader"
+group = "jinja2-r"
+outcome = "failed"
+match = "DID NOT RAISE <class 'ValueError'>"
+reason = "jinja2's PackageLoader finds the product's package in the zip, where the test expects a package with no folder to be refused (README)"
+closes_with = "README.md"
+

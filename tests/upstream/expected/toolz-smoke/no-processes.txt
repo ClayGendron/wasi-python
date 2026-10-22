@@ -1,0 +1,1 @@
+toolz/sandbox/tests/test_parallel.py::test_fold

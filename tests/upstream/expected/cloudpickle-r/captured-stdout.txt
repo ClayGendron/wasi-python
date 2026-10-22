@@ -1,0 +1,2 @@
+tests/cloudpickle_test.py::CloudPickleTest::test_pickling_file_handles
+tests/cloudpickle_test.py::Protocol2CloudPickleTest::test_pickling_file_handles

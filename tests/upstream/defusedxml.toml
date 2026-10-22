@@ -1,0 +1,40 @@
+# defusedxml's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "defusedxml"
+driver = "package"
+grant = "/upstream-defusedxml"
+test_source = true
+wheel = "defusedxml-0.7.1-py2.py3-none-any.whl"
+budget = 17_000_000_000
+stage_folders = ["xmltestdata"]
+support_files = ["tests.py"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.defusedxml-smoke]
+paths = ["tests.py"]
+smoke = "the whole suite: a smaller smoke group would cost as much, a session's start being most of it"
+fuel = 17_000_000_000
+measured = 11_284_836_084
+
+[[not_selected]]
+files = ["tests.py::BaseTests"]
+reason = "defusedxml's abstract base class, which its own runner (tests.py) never runs: pytest collects it by its name, and its tests call parse methods only its subclasses define"
+closes_with = "README.md"
+
+[[not_selected]]
+files = ["tests.py::test_main"]
+reason = "defusedxml's own runner's suite builder, which pytest collects by its name; it calls unittest.makeSuite, which Python 3.13 removed; its tests run as collected"
+closes_with = "README.md"
+
+[[expected]]
+id = "warning-filter-reset"
+group = "defusedxml-smoke"
+outcome = "failed"
+match = "DeprecationWarning not raised"
+reason = "tests.py makes defusedxml's DeprecationWarnings errors at import; pytest's per-test warning capture undoes that filter, which its own runner keeps (README)"
+closes_with = "README.md"
+

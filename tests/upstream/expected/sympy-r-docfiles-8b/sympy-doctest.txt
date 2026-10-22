@@ -1,0 +1,3 @@
+::docfile:doc/src/tutorials/physics/control/control_problems.rst
+::docfile:doc/src/tutorials/physics/control/electrical_problems.rst
+::docfile:doc/src/tutorials/physics/control/mechanics_problems.rst

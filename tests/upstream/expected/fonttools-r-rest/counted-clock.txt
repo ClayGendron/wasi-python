@@ -1,0 +1,3 @@
+Tests/misc/loggingTools_test.py::TimerTest::test_split
+Tests/ttx/ttx_test.py::test_ttcompile_timestamp_calcs[TestOTF.ttx-TestOTF1.otf-TestOTF2.otf]
+Tests/ttx/ttx_test.py::test_ttcompile_timestamp_calcs[TestTTF.ttx-TestTTF1.ttf-TestTTF2.ttf]

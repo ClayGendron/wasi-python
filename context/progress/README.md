@@ -96,7 +96,13 @@ modules allowed one named kind of environment change, and results recorded per h
 compiled packages' own tests (spec 066) are upstream checks too, each package a family with its
 own grant (`/upstream-<package>`), stage and budget; a file too big for one group is split by a
 `[[split]]` of ordered `-k` expressions, each split group recording its file's collected count as
-the fact `collected`.
+the fact `collected`. The pure-Python packages' own tests (spec 067) are families of the same
+kind whose tests come from a pinned test source (`test_source = true`), tied to the package's
+pinned wheel file by file; each has one smoke group in the normal tier and its whole suite in
+the release tier, and a group may run docstring examples (`docstring_packages`,
+`docstring_modules`), doc files (`doctest_files`) or a module's own test functions
+(`module_functions`) as well as paths. A marker deselection is the fact `deselected`, with its
+reason.
 
 A class or trap that is fixed: its check passes and its gap says "remove the gap". A fixed class
 stays, with an empty list file, as a passing check. A fixed trap's `[[trap]]` entry is removed in

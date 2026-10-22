@@ -1,0 +1,13 @@
+::docstrings:sympy.combinatorics.permutations.Permutation.__xor__
+::docstrings:sympy.combinatorics.permutations.Permutation.from_sequence
+::docstrings:sympy.combinatorics.permutations.Permutation.resize
+::docstrings:sympy.combinatorics.tensor_can.bsgs_direct_product
+::docstrings:sympy.combinatorics.tensor_can.gens_products
+::docstrings:sympy.combinatorics.tensor_can.get_minimal_bsgs
+::docstrings:sympy.combinatorics.tensor_can.get_symmetric_group_sgs
+::docstrings:sympy.combinatorics.tensor_can.tensor_gens
+::docstrings:sympy.combinatorics.util._distribute_gens_by_base
+::docstrings:sympy.combinatorics.util._handle_precomputed_bsgs
+::docstrings:sympy.combinatorics.util._orbits_transversals_from_bsgs
+::docstrings:sympy.combinatorics.util._strip
+::docstrings:sympy.combinatorics.util._strong_gens_from_distr

@@ -104,6 +104,8 @@ def test_upstream_suite(
             fact("collected", run.collected)
         if run.derived is not None:  # the family's derived test data: each output's hash, fuel
             fact("derived", run.derived)
+        if CONFIGS[package].keys.deselect_reason:  # what its marker leaves out, and why
+            fact("deselected", {CONFIGS[package].keys.deselect_reason: run.deselected})
     elif run.fuel_facts:  # recorded, never ratcheted
         fact("fuel_facts", run.fuel_facts)
     metric("fuel", run.fuel)
@@ -245,6 +247,8 @@ def test_upstream_files_are_well_formed() -> None:
         product=product,
     )
     errors += packages.lxml_errors(CONFIGS, members.get("lxml"))
+    errors += packages.smoke_total_errors(CONFIGS)
+    errors += packages.extra_errors(packages.KIT_EXTRA.read_text())
     assert not errors, scan.report(errors, "upstream files")
 
 

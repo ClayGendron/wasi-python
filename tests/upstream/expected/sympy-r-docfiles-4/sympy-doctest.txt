@@ -1,0 +1,5 @@
+::docfile:doc/src/modules/combinatorics/pc_groups.rst
+::docfile:doc/src/modules/concrete.rst
+::docfile:doc/src/modules/evalf.rst
+::docfile:doc/src/modules/geometry/index.rst
+::docfile:doc/src/modules/holonomic/uses.rst

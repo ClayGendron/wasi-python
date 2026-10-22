@@ -1,0 +1,2 @@
+tests/test_categorical.py::TestStripPlot::test_log_scale
+tests/test_categorical.py::TestSwarmPlot::test_log_scale

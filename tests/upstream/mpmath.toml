@@ -1,0 +1,215 @@
+# mpmath's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "mpmath"
+driver = "package"
+grant = "/upstream-mpmath"
+test_source = true
+wheel = "mpmath-1.3.0-py3-none-any.whl"
+budget = 5_259_000_000_000
+stage_folders = ["mpmath/tests"]
+cwd = "tree"
+markers = []
+docstring_flags = 32
+package_inits = true
+
+[groups.mpmath-smoke]
+paths = [
+    "mpmath/tests/test_convert.py",
+    "mpmath/tests/test_division.py",
+    "mpmath/tests/test_str.py",
+    "mpmath/tests/test_bitwise.py",
+]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 72_000_000_000
+measured = 47_958_393_650
+
+[groups.mpmath-r-1]
+paths = [
+    "mpmath/tests/test_basic_ops.py",
+    "mpmath/tests/test_calculus.py",
+    "mpmath/tests/test_compatibility.py",
+    "mpmath/tests/test_diff.py",
+    "mpmath/tests/test_eigen.py",
+    "mpmath/tests/test_eigen_symmetric.py",
+    "mpmath/tests/test_elliptic.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 600_000_000_000
+measured = 398_384_216_412
+
+[groups.mpmath-r-2]
+paths = ["mpmath/tests/test_fp.py", "mpmath/tests/test_functions.py"]
+tier = "release"
+release_by = "path"
+fuel = 61_000_000_000
+measured = 40_075_571_540
+
+[groups.mpmath-r-3]
+paths = ["mpmath/tests/test_functions2.py"]
+tier = "release"
+release_by = "path"
+fuel = 110_000_000_000
+measured = 71_056_942_789
+
+[groups.mpmath-r-4]
+paths = [
+    "mpmath/tests/test_gammazeta.py",
+    "mpmath/tests/test_hp.py",
+    "mpmath/tests/test_identify.py",
+    "mpmath/tests/test_interval.py",
+    "mpmath/tests/test_levin.py",
+    "mpmath/tests/test_linalg.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 86_000_000_000
+measured = 57_177_329_286
+
+[groups.mpmath-r-5]
+paths = [
+    "mpmath/tests/test_matrices.py",
+    "mpmath/tests/test_mpmath.py",
+    "mpmath/tests/test_ode.py",
+    "mpmath/tests/test_pickle.py",
+    "mpmath/tests/test_power.py",
+    "mpmath/tests/test_quad.py",
+    "mpmath/tests/test_rootfinding.py",
+    "mpmath/tests/test_special.py",
+    "mpmath/tests/test_summation.py",
+    "mpmath/tests/test_trig.py",
+    "mpmath/tests/test_visualization.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 130_000_000_000
+measured = 85_512_293_843
+
+[groups.mpmath-r-doc-functions-1]
+docstring_modules = [
+    "mpmath.functions",
+    "mpmath.functions.bessel",
+    "mpmath.functions.elliptic",
+    "mpmath.functions.expintegrals",
+    "mpmath.functions.factorials",
+]
+tier = "release"
+release_by = "path"
+fuel = 240_000_000_000
+measured = 155_763_312_384
+
+[groups.mpmath-r-doc-functions-2]
+docstring_modules = [
+    "mpmath.functions.functions",
+    "mpmath.functions.hypergeometric",
+    "mpmath.functions.orthogonal",
+    "mpmath.functions.qfunctions",
+]
+tier = "release"
+release_by = "path"
+fuel = 910_000_000_000
+measured = 601_265_525_982
+
+[groups.mpmath-r-doc-functions-3]
+docstring_modules = [
+    "mpmath.functions.rszeta",
+    "mpmath.functions.signals",
+    "mpmath.functions.theta",
+    "mpmath.functions.zeta",
+    "mpmath.functions.zetazeros",
+]
+tier = "release"
+release_by = "path"
+fuel = 480_000_000_000
+measured = 315_049_407_054
+
+[groups.mpmath-r-doc-calculus]
+docstring_packages = ["mpmath.calculus"]
+tier = "release"
+release_by = "path"
+fuel = 630_000_000_000
+measured = 413_630_293_601
+
+[groups.mpmath-r-doc-libmp]
+docstring_packages = ["mpmath.libmp"]
+tier = "release"
+release_by = "path"
+fuel = 40_000_000_000
+measured = 26_610_713_388
+
+[groups.mpmath-r-doc-matrices]
+docstring_packages = ["mpmath.matrices"]
+tier = "release"
+release_by = "path"
+fuel = 44_000_000_000
+measured = 28_964_463_100
+
+[groups.mpmath-r-doc-rest]
+docstring_modules = [
+    "mpmath",
+    "mpmath.function_docs",
+    "mpmath.identification",
+    "mpmath.math2",
+    "mpmath.rational",
+    "mpmath.usertools",
+    "mpmath.visualization",
+]
+tier = "release"
+release_by = "path"
+fuel = 56_000_000_000
+measured = 37_186_963_054
+
+[groups.mpmath-r-doc-ctx]
+docstring_modules = [
+    "mpmath.ctx_base",
+    "mpmath.ctx_fp",
+    "mpmath.ctx_iv",
+    "mpmath.ctx_mp",
+    "mpmath.ctx_mp_python",
+]
+tier = "release"
+release_by = "path"
+fuel = 900_000_000_000
+measured = 598_712_450_476
+
+[groups.mpmath-r-bessel-zeros]
+paths = ["mpmath/tests/test_functions2.py::test_bessel_zeros_extra"]
+tier = "release"
+release_by = "path"
+fuel = 900_000_000_000
+measured = 593_498_986_728
+
+[[expected]]
+id = "numpy-2-promotion"
+group = "mpmath-smoke"
+outcome = "failed"
+match = "assert np\\.float16\\(0\\.0\\) < \\(2\\.0 \\*\\* -53\\)"
+reason = "mpmath 1.3.0's test predates numpy 2's promotion rules (NEP 50): the Python float bound is cast to float16 and underflows to 0 (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "doctest-output"
+group = "mpmath-r-doc-functions-2"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring example whose printed output differs in the guest under the stdlib's doctest runner with upstream's flags (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "doctest-output"
+group = "mpmath-r-doc-libmp"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring example whose printed output differs in the guest under the stdlib's doctest runner with upstream's flags (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "doctest-output"
+group = "mpmath-r-doc-matrices"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring example whose printed output differs in the guest under the stdlib's doctest runner with upstream's flags (README)"
+closes_with = "README.md"
+

@@ -1,0 +1,122 @@
+# reportlab's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "reportlab"
+driver = "package"
+grant = "/upstream-reportlab"
+test_source = true
+wheel = "reportlab-5.0.1-py3-none-any.whl"
+budget = 232_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "/tmp/work"
+markers = []
+
+[env.RL_TEST_OUTDIR]
+value = "/tmp/work/rl-out"
+reason = "reportlab's own runner sets its output folder; its tests otherwise write their PDFs beside themselves, in the read-only test source"
+
+[tie_skips]
+"reportlab/lib/extformat.py" = "the wheel's build writes it; the sdist has no copy"
+
+[groups.reportlab-smoke]
+paths = ["tests/test_pdfgen_general.py", "tests/test_platypus_paragraphs.py"]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 42_000_000_000
+measured = 27_387_392_770
+
+[groups.reportlab-r]
+paths = ["tests"]
+tier = "release"
+release_by = "path"
+fuel = 190_000_000_000
+measured = 126_518_618_276
+
+[[not_selected]]
+files = ["tests/charts-out"]
+reason = "generated chart scripts the sdist carries from an earlier run, no tests: reportlab's own tests/runAll.py excludes */charts-out/*.py, and nine of them do not parse"
+closes_with = "README.md"
+
+[[not_selected]]
+files = ["tests/test_graphics_barcode.py"]
+reason = "it imports reportlab.graphics.barcode, which the product's zip leaves out with reportlab's fonts"
+closes_with = "context/specifications/042-seaborn-and-reportlab.md"
+
+[[not_selected]]
+files = ["tests/test_platypus_general.py"]
+reason = "it reads reportlab's tests folder at import, which testutils finds beside the installed package; the product's reportlab is in the zip, so the folder is None and the module cannot load"
+closes_with = "README.md"
+
+[[expected]]
+id = "reportlab-data-folder"
+group = "reportlab-smoke"
+outcome = "failed"
+match = "expected str, bytes or os\\.PathLike object, not NoneType|^OSError:$|chdir: path should be string|is not a directory|Cannot open resource 'test-rgba\\.png'|Could not import 'unimportable'"
+reason = "reportlab's tests find their data folder beside the installed package (testutils sets testsFolder from reportlab.__path__); the product's reportlab is in the zip, so it is None, and a test that walks reportlab's own folder finds a zip (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "importlib-module-names"
+group = "reportlab-r"
+outcome = "failed"
+match = "'Tests\\.misc\\.l.*gTools_test\\.A' == 'loggingTools_test\\.A'|'tests\\.test_utils\\.X object' == 'test_utils\\.X object'|<FunctionWrapper at \\w+ for function at \\w+> is not None|No module named 'test_platypus_xref'"
+reason = "the driver imports test modules with pytest's importlib mode, so no test folder goes on sys.path and a test module is named by its package path; a test that checks its own module's name, or imports itself by that name, sees the longer one (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "pytest-collects-helper-error"
+group = "reportlab-r"
+outcome = "error"
+match = "test_lib_pdfencrypt\\.py, line \\d+"
+reason = "pytest collects testStdEnc, a helper reportlab's runAll.py never runs as a test: it takes arguments no fixture supplies (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "reportlab-data-folder"
+group = "reportlab-r"
+outcome = "failed"
+match = "expected str, bytes or os\\.PathLike object, not NoneType|^OSError:$|chdir: path should be string|is not a directory|Cannot open resource 'test-rgba\\.png'|Could not import 'unimportable'"
+reason = "reportlab's tests find their data folder beside the installed package (testutils sets testsFolder from reportlab.__path__); the product's reportlab is in the zip, so it is None, and a test that walks reportlab's own folder finds a zip (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "reportlab-fonts-not-shipped-error"
+group = "reportlab-r"
+outcome = "error"
+match = "Can't open file \\\"Vera\\.ttf\\\"|KeyError: 'DarkGardenMK'|unknown encoding: EncodingWithoutVowels"
+reason = "the product's zip leaves reportlab's fonts out (spec 042), and the test opens one of them (Vera, DarkGardenMK, or the encoding its font file defines)"
+closes_with = "context/specifications/042-seaborn-and-reportlab.md"
+
+[[expected]]
+id = "reportlab-fonts-not-shipped"
+group = "reportlab-r"
+outcome = "failed"
+match = "Can't open file \\\"Vera\\.ttf\\\"|KeyError: 'DarkGardenMK'|unknown encoding: EncodingWithoutVowels"
+reason = "the product's zip leaves reportlab's fonts out (spec 042), and the test opens one of them (Vera, DarkGardenMK, or the encoding its font file defines)"
+closes_with = "context/specifications/042-seaborn-and-reportlab.md"
+
+[[expected]]
+id = "reportlab-no-accel"
+group = "reportlab-r"
+outcome = "failed"
+match = "name '_c_funcs' is not defined"
+reason = "reportlab's C accelerators (_rl_accel) are not in the product; the test compares them with the Python versions (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "reportlab-reference-attributes"
+group = "reportlab-r"
+outcome = "failed"
+match = "Missing attribute strokeOverprint"
+reason = "reportlab's chart tests compare a drawing's attributes with a reference that lacks strokeOverprint (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "reportlab-tools-not-shipped"
+group = "reportlab-r"
+outcome = "failed"
+match = "No module named 'tools'"
+reason = "the test imports reportlab's tools folder (pythonpoint), which neither the wheel nor the product carries (README)"
+closes_with = "README.md"
+

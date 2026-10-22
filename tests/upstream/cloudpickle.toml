@@ -1,0 +1,52 @@
+# cloudpickle's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "cloudpickle"
+driver = "package"
+grant = "/upstream-cloudpickle"
+test_source = true
+wheel = "cloudpickle-3.1.2-py3-none-any.whl"
+budget = 136_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = [".", "tests/cloudpickle_testpkg"]
+cwd = "tree"
+markers = []
+
+[groups.cloudpickle-smoke]
+paths = ["tests/cloudpickle_file_test.py", "tests/test_backward_compat.py"]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 16_000_000_000
+measured = 10_518_392_970
+
+[groups.cloudpickle-r]
+paths = ["tests"]
+tier = "release"
+release_by = "path"
+fuel = 120_000_000_000
+measured = 78_910_257_968
+
+[[expected]]
+id = "captured-stdout"
+group = "cloudpickle-smoke"
+outcome = "failed"
+match = "cannot pickle 'CaptureIO' instances"
+reason = "the driver captures sys.stdout for its stream (cloudpickle's own configuration runs pytest -s), and these tests pickle sys.stdout (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "captured-stdout"
+group = "cloudpickle-r"
+outcome = "failed"
+match = "cannot pickle 'CaptureIO' instances"
+reason = "the driver captures sys.stdout for its stream (cloudpickle's own configuration runs pytest -s), and these tests pickle sys.stdout (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-processes"
+group = "cloudpickle-r"
+outcome = "failed"
+match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
+reason = "no processes: the guest cannot start one (README)"
+closes_with = "README.md"
+

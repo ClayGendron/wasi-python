@@ -1,0 +1,5 @@
+tests/test_charts_textlabels.py::test
+tests/test_graphics_charts.py::test
+tests/test_graphics_speed.py::test
+tests/test_renderPS.py::test
+tests/test_renderSVG.py::test

@@ -1,0 +1,7 @@
+test/test_cli.py::test_script_floatfmt_option
+test/test_cli.py::test_script_format_option
+test/test_cli.py::test_script_from_file_to_file
+test/test_cli.py::test_script_from_file_to_stdout
+test/test_cli.py::test_script_from_stdin_to_stdout
+test/test_cli.py::test_script_header_option
+test/test_cli.py::test_script_sep_option

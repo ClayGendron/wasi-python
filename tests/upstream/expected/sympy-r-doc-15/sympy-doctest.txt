@@ -1,0 +1,2 @@
+::docstrings:sympy.utilities.lambdify.lambdify
+::docstrings:sympy.utilities.matchpy_connector.Replacer

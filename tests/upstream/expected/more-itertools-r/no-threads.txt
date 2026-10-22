@@ -1,0 +1,9 @@
+tests/test_more.py::CallbackIterTests::test_abort
+tests/test_more.py::CallbackIterTests::test_basic
+tests/test_more.py::CallbackIterTests::test_callback_kwd
+tests/test_more.py::CallbackIterTests::test_exception
+tests/test_more.py::CallbackIterTests::test_no_result_while_running
+tests/test_more.py::CallbackIterTests::test_partial_consumption
+tests/test_more.py::TestConcurrentTee::test_concurrent_consumers
+tests/test_more.py::TestSerialize::test_concurrent_calls
+tests/test_more.py::TestSynchronized::test_concurrent_calls

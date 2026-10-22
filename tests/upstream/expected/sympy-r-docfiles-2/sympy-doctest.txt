@@ -1,0 +1,4 @@
+::docfile:doc/src/explanation/modules/physics/mechanics/linearize.rst
+::docfile:doc/src/explanation/modules/physics/vector/advanced.rst
+::docfile:doc/src/explanation/modules/physics/vector/fields.rst
+::docfile:doc/src/explanation/modules/physics/vector/vectors/vectors.rst

@@ -1,0 +1,8 @@
+tests/expr_and_series/cum_sum_test.py::test_cum_sum_does_not_overflow[pandas-False-Int32-2147483647]
+tests/expr_and_series/cum_sum_test.py::test_cum_sum_does_not_overflow[pandas-False-UInt32-4294967295]
+tests/expr_and_series/cum_sum_test.py::test_cum_sum_does_not_overflow[pandas-True-Int32-2147483647]
+tests/expr_and_series/cum_sum_test.py::test_cum_sum_does_not_overflow[pandas-True-UInt32-4294967295]
+tests/expr_and_series/cum_sum_test.py::test_cum_sum_does_not_overflow[pandas[nullable]-False-Int32-2147483647]
+tests/expr_and_series/cum_sum_test.py::test_cum_sum_does_not_overflow[pandas[nullable]-False-UInt32-4294967295]
+tests/expr_and_series/cum_sum_test.py::test_cum_sum_does_not_overflow[pandas[nullable]-True-Int32-2147483647]
+tests/expr_and_series/cum_sum_test.py::test_cum_sum_does_not_overflow[pandas[nullable]-True-UInt32-4294967295]

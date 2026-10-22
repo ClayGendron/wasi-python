@@ -1,0 +1,6 @@
+::docfile:doc/src/modules/printing.rst
+::docfile:doc/src/modules/rewriting.rst
+::docfile:doc/src/modules/series/series.rst
+::docfile:doc/src/modules/simplify/fu.rst
+::docfile:doc/src/modules/simplify/hyperexpand.rst
+::docfile:doc/src/modules/solvers/diophantine.rst

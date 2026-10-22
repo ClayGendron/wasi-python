@@ -1106,4 +1106,31 @@ rebase onto main `1875d4cd` (no conflict). Every finding is written in, before a
 
 ## Landing notes
 
-Not built yet.
+Not built yet: **the build is in progress, paused 2026-10-21 at the owner's word** (the lane's
+message: finish the local step, commit, push, start nothing new). The resume point:
+
+- **Base:** stacked on 102's final tip `861d5e4b`, rebased clean (no hunk resolved).
+- **Done locally (in this branch):** the 39 pins and `--tests` (criterion 1); the four test-source
+  patches with their drafts (criterion 9's patch lines); the harness keys, rules and drive
+  changes (criteria 2 to 4), with `tests/unit/test_pure_suites.py` (30 checks; written beside the
+  code, not seen failing first, which the self-check will say); `packages.toml` (42 `suite`); the
+  42 families' TOMLs and `.ini`s, 285 groups (42 smoke, 243 release); 70 class lists under
+  `tests/upstream/expected/` and 91 class gaps in `tests/known_gaps.toml` for every family but
+  sympy; the README facts paragraph; a trial shard packing (2 normal shards, 876.4 G; 123 release
+  shards, from fuel that is partly sympy's estimates) in `release_shards.toml` and `release.yml`.
+  By node id: the rules, the well-formed check, the pin check and the unit files pass (295 passed,
+  2 skipped); ruff check and format clean. The fast tier has not run (its slot was taken).
+- **Measured (EXECUTED, darwin, by node id with `--tier release`):** every group of the 41
+  families but sympy, the fixed and split ones again: smoke 0.876 T together, release about 13 T.
+  sympy: 113 of its 167 groups, 43.2 T so far, many past 480 G and fifteen stopped at their caps
+  (calculus-5 at 4.5 T, solvers-5, solvers-7, integrals-2, polys-2, polys-4, simplify-4 and
+  others): these need splitting by file or by node id, as Decision 10 says.
+- **Left:** sympy's other 54 groups (`build/067/sympy-left.txt` in the worktree); splitting its
+  heavy and capped groups and measuring them; its classes, lists and gaps; renaming
+  `sympy-r-17141` to `sympy-slow-17141`; each smoke group twice (criterion 7); the final packing;
+  the fast tier; the claim block; these notes in full with the self-check; the branch run.
+- **Note for the lane:** while sympy's measuring ran, three short re-measuring passes of other
+  families ran beside it, two guest processes at once, against the one-at-a-time rule. darwin fuel
+  is deterministic, so the numbers stand, but it is named here.
+- **The artifact set:** `MANIFEST` only (39 `pin` lines, four patch `recipe` lines, the changed
+  `scripts/00_download.sh` line); no rebuild was done.

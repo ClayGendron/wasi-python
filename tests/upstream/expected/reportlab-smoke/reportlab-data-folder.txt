@@ -1,0 +1,5 @@
+tests/test_pdfgen_general.py::PdfgenTestCase::test0
+tests/test_platypus_paragraphs.py::AutoLeadingTestCase::testAutoLeading
+tests/test_platypus_paragraphs.py::ParagraphCorners::test_lele_img
+tests/test_platypus_paragraphs.py::ParagraphSplitTestCase::test0
+tests/test_platypus_paragraphs.py::ParagraphSplitTestCase::test1

@@ -1,0 +1,13 @@
+tests/test_async.py::TestAsyncForLoop::test_changed
+tests/test_async.py::TestAsyncForLoop::test_else
+tests/test_async.py::TestAsyncForLoop::test_looploop
+tests/test_async.py::TestAsyncForLoop::test_scoping_bug
+tests/test_async.py::TestAsyncImports::test_import_with_globals_override
+tests/test_async.py::test_async_extend[asyncio]
+tests/test_async.py::test_await_and_macros[asyncio]
+tests/test_async.py::test_native_async[asyncio]
+tests/test_async_filters.py::test_custom_async_iteratable_filter[asyncio-<lambda>0]
+tests/test_async_filters.py::test_groupby_tuple_index[<lambda>1]
+tests/test_async_filters.py::test_join_attribute[<lambda>1]
+tests/test_async_filters.py::test_simple_select_attr[<lambda>0]
+tests/test_async_filters.py::test_sum[<lambda>1]

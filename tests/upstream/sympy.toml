@@ -1,0 +1,3918 @@
+# sympy's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "sympy"
+driver = "package"
+grant = "/upstream-sympy"
+test_source = true
+wheel = "sympy-1.14.0-py3-none-any.whl"
+budget = 119_827_000_000_000
+stage_folders = [
+    "sympy/algebras/tests",
+    "sympy/assumptions/tests",
+    "sympy/calculus/tests",
+    "sympy/categories/tests",
+    "sympy/codegen/tests",
+    "sympy/combinatorics/tests",
+    "sympy/concrete/tests",
+    "sympy/core/tests",
+    "sympy/crypto/tests",
+    "sympy/diffgeom/tests",
+    "sympy/discrete/tests",
+    "sympy/external/tests",
+    "sympy/functions/combinatorial/tests",
+    "sympy/functions/elementary/tests",
+    "sympy/functions/special/tests",
+    "sympy/geometry/tests",
+    "sympy/holonomic/tests",
+    "sympy/integrals/tests",
+    "sympy/interactive/tests",
+    "sympy/liealgebras/tests",
+    "sympy/logic/tests",
+    "sympy/matrices/expressions/tests",
+    "sympy/matrices/tests",
+    "sympy/multipledispatch/tests",
+    "sympy/ntheory/tests",
+    "sympy/parsing/tests",
+    "sympy/physics/biomechanics/tests",
+    "sympy/physics/continuum_mechanics/tests",
+    "sympy/physics/control/tests",
+    "sympy/physics/hep/tests",
+    "sympy/physics/mechanics/tests",
+    "sympy/physics/optics/tests",
+    "sympy/physics/quantum/tests",
+    "sympy/physics/tests",
+    "sympy/physics/units/tests",
+    "sympy/physics/vector/tests",
+    "sympy/plotting/intervalmath/tests",
+    "sympy/plotting/pygletplot/tests",
+    "sympy/plotting/tests",
+    "sympy/polys/agca/tests",
+    "sympy/polys/domains/tests",
+    "sympy/polys/matrices/tests",
+    "sympy/polys/numberfields/tests",
+    "sympy/polys/tests",
+    "sympy/printing/pretty/tests",
+    "sympy/printing/tests",
+    "sympy/sandbox/tests",
+    "sympy/series/tests",
+    "sympy/sets/tests",
+    "sympy/simplify/tests",
+    "sympy/solvers/diophantine/tests",
+    "sympy/solvers/ode/tests",
+    "sympy/solvers/tests",
+    "sympy/stats/sampling/tests",
+    "sympy/stats/tests",
+    "sympy/strategies/branch/tests",
+    "sympy/strategies/tests",
+    "sympy/tensor/array/expressions/tests",
+    "sympy/tensor/array/tests",
+    "sympy/tensor/tests",
+    "sympy/testing/tests",
+    "sympy/unify/tests",
+    "sympy/utilities/_compilation/tests",
+    "sympy/utilities/tests",
+    "sympy/vector/tests",
+    "doc/src",
+]
+support_files = ["sympy/conftest.py"]
+cwd = "tree"
+markers = []
+sys_flags = ["_running_pytest"]
+doctest_setup = ["sympy.testing.runtests:setup_pprint"]
+doctest_runner = "sympy.testing.runtests:SymPyDocTestRunner"
+doctest_checker = "sympy.testing.runtests:SymPyOutputChecker"
+docstring_flags = 44
+# Not doctested, as sympy's own doctest runner leaves them out (its doctest blacklist):
+#   sympy.core.compatibility: a backwards-compatibility shim: importing it warns
+#   sympy.core.trace: a backwards-compatibility shim: importing it warns
+#   sympy.galgebra: no longer part of SymPy: importing it raises
+#   sympy.this: it prints text
+#   sympy.parsing.autolev: it needs antlr4, which the product lacks; the rest is generated code
+#   sympy.parsing.latex._antlr: generated code, and it needs antlr4
+#   sympy.parsing.latex._parse_latex_antlr: it needs antlr4
+#   sympy.parsing.sym_expr: it needs lfortran
+#   sympy.plotting.pygletplot: it needs pyglet, and upstream leaves it out on CI
+#   sympy.printing.aesaracode: it needs aesara
+#   sympy.testing.randtest: a deprecated stub: importing it warns
+#   sympy.utilities.autowrap: upstream disabled it for doctest failures on its bot
+#   sympy.utilities.tmpfiles: a deprecated stub to be removed
+#   sympy.utilities.pytest: a deprecated stub to be removed
+#   sympy.utilities.runtests: a deprecated stub to be removed
+#   sympy.utilities.randtest: a deprecated stub to be removed
+#   doc/src/modules/plotting.rst: it draws live plots
+#   doc/src/modules/numeric-computation.rst: it needs aesara, cupy and jax
+
+[package_paths]
+"sympy" = "sympy"
+"sympy.algebras" = "sympy/algebras"
+"sympy.assumptions" = "sympy/assumptions"
+"sympy.calculus" = "sympy/calculus"
+"sympy.categories" = "sympy/categories"
+"sympy.codegen" = "sympy/codegen"
+"sympy.combinatorics" = "sympy/combinatorics"
+"sympy.concrete" = "sympy/concrete"
+"sympy.core" = "sympy/core"
+"sympy.crypto" = "sympy/crypto"
+"sympy.diffgeom" = "sympy/diffgeom"
+"sympy.discrete" = "sympy/discrete"
+"sympy.external" = "sympy/external"
+"sympy.functions" = "sympy/functions"
+"sympy.functions.combinatorial" = "sympy/functions/combinatorial"
+"sympy.functions.elementary" = "sympy/functions/elementary"
+"sympy.functions.special" = "sympy/functions/special"
+"sympy.geometry" = "sympy/geometry"
+"sympy.holonomic" = "sympy/holonomic"
+"sympy.integrals" = "sympy/integrals"
+"sympy.interactive" = "sympy/interactive"
+"sympy.liealgebras" = "sympy/liealgebras"
+"sympy.logic" = "sympy/logic"
+"sympy.matrices" = "sympy/matrices"
+"sympy.matrices.expressions" = "sympy/matrices/expressions"
+"sympy.multipledispatch" = "sympy/multipledispatch"
+"sympy.ntheory" = "sympy/ntheory"
+"sympy.parsing" = "sympy/parsing"
+"sympy.physics" = "sympy/physics"
+"sympy.physics.biomechanics" = "sympy/physics/biomechanics"
+"sympy.physics.continuum_mechanics" = "sympy/physics/continuum_mechanics"
+"sympy.physics.control" = "sympy/physics/control"
+"sympy.physics.hep" = "sympy/physics/hep"
+"sympy.physics.mechanics" = "sympy/physics/mechanics"
+"sympy.physics.optics" = "sympy/physics/optics"
+"sympy.physics.quantum" = "sympy/physics/quantum"
+"sympy.physics.units" = "sympy/physics/units"
+"sympy.physics.vector" = "sympy/physics/vector"
+"sympy.plotting" = "sympy/plotting"
+"sympy.plotting.intervalmath" = "sympy/plotting/intervalmath"
+"sympy.plotting.pygletplot" = "sympy/plotting/pygletplot"
+"sympy.polys" = "sympy/polys"
+"sympy.polys.agca" = "sympy/polys/agca"
+"sympy.polys.domains" = "sympy/polys/domains"
+"sympy.polys.matrices" = "sympy/polys/matrices"
+"sympy.polys.numberfields" = "sympy/polys/numberfields"
+"sympy.printing" = "sympy/printing"
+"sympy.printing.pretty" = "sympy/printing/pretty"
+"sympy.sandbox" = "sympy/sandbox"
+"sympy.series" = "sympy/series"
+"sympy.sets" = "sympy/sets"
+"sympy.simplify" = "sympy/simplify"
+"sympy.solvers" = "sympy/solvers"
+"sympy.solvers.diophantine" = "sympy/solvers/diophantine"
+"sympy.solvers.ode" = "sympy/solvers/ode"
+"sympy.stats" = "sympy/stats"
+"sympy.stats.sampling" = "sympy/stats/sampling"
+"sympy.strategies" = "sympy/strategies"
+"sympy.strategies.branch" = "sympy/strategies/branch"
+"sympy.tensor" = "sympy/tensor"
+"sympy.tensor.array" = "sympy/tensor/array"
+"sympy.tensor.array.expressions" = "sympy/tensor/array/expressions"
+"sympy.testing" = "sympy/testing"
+"sympy.unify" = "sympy/unify"
+"sympy.utilities" = "sympy/utilities"
+"sympy.utilities._compilation" = "sympy/utilities/_compilation"
+"sympy.vector" = "sympy/vector"
+
+[groups.sympy-smoke]
+paths = ["sympy/core/tests/test_basic.py", "sympy/core/tests/test_sympify.py"]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 51_000_000_000
+measured = 33_512_786_523
+
+[groups.sympy-r-algebras-1]
+paths = ["sympy/algebras/tests/test_quaternion.py"]
+tier = "release"
+release_by = "path"
+fuel = 350_000_000_000
+measured = 233_097_990_944
+
+[groups.sympy-r-assumptions-1]
+paths = [
+    "sympy/assumptions/tests/test_assumptions_2.py",
+    "sympy/assumptions/tests/test_context.py",
+    "sympy/assumptions/tests/test_matrices.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 51_000_000_000
+measured = 33_669_515_368
+
+[groups.sympy-r-assumptions-2-1]
+paths = ["sympy/assumptions/tests/test_query.py"]
+tier = "release"
+release_by = "path"
+fuel = 890_000_000_000
+measured = 587_531_951_596
+
+[groups.sympy-r-assumptions-2-2]
+paths = ["sympy/assumptions/tests/test_query.py"]
+tier = "release"
+release_by = "path"
+fuel = 310_000_000_000
+measured = 200_771_265_036
+
+[groups.sympy-r-assumptions-2-3]
+paths = ["sympy/assumptions/tests/test_query.py"]
+tier = "release"
+release_by = "path"
+fuel = 280_000_000_000
+measured = 183_793_312_635
+
+[groups.sympy-r-assumptions-2-4]
+paths = ["sympy/assumptions/tests/test_query.py"]
+tier = "release"
+release_by = "path"
+fuel = 89_000_000_000
+measured = 58_694_851_724
+
+[groups.sympy-r-assumptions-3]
+paths = [
+    "sympy/assumptions/tests/test_refine.py",
+    "sympy/assumptions/tests/test_rel_queries.py",
+    "sympy/assumptions/tests/test_satask.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 180_000_000_000
+measured = 118_719_231_773
+
+[groups.sympy-r-assumptions-4]
+paths = [
+    "sympy/assumptions/tests/test_sathandlers.py",
+    "sympy/assumptions/tests/test_wrapper.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 41_000_000_000
+measured = 27_269_757_334
+
+[groups.sympy-r-calculus-1]
+paths = ["sympy/calculus/tests/test_accumulationbounds.py"]
+tier = "release"
+release_by = "path"
+fuel = 46_000_000_000
+measured = 30_364_570_199
+
+[groups.sympy-r-calculus-2]
+paths = ["sympy/calculus/tests/test_euler.py"]
+tier = "release"
+release_by = "path"
+fuel = 41_000_000_000
+measured = 27_127_476_920
+
+[groups.sympy-r-calculus-3]
+paths = ["sympy/calculus/tests/test_finite_diff.py"]
+tier = "release"
+release_by = "path"
+fuel = 41_000_000_000
+measured = 27_139_167_847
+
+[groups.sympy-r-calculus-4]
+paths = ["sympy/calculus/tests/test_singularities.py"]
+tier = "release"
+release_by = "path"
+fuel = 69_000_000_000
+measured = 45_699_769_732
+
+[groups.sympy-r-calculus-5-util-1]
+paths = ["sympy/calculus/tests/test_util.py"]
+tier = "release"
+release_by = "path"
+fuel = 200_000_000_000
+measured = 133_105_041_298
+
+[groups.sympy-r-calculus-5-util-2]
+paths = ["sympy/calculus/tests/test_util.py"]
+tier = "release"
+release_by = "path"
+fuel = 52_000_000_000
+measured = 34_581_816_251
+
+[groups.sympy-r-categories-1]
+paths = ["sympy/categories/tests/test_baseclasses.py", "sympy/categories/tests/test_drawing.py"]
+tier = "release"
+release_by = "path"
+fuel = 62_000_000_000
+measured = 40_674_184_224
+
+[groups.sympy-r-codegen-1]
+paths = [
+    "sympy/codegen/tests/test_abstract_nodes.py",
+    "sympy/codegen/tests/test_algorithms.py",
+    "sympy/codegen/tests/test_applications.py",
+    "sympy/codegen/tests/test_approximations.py",
+    "sympy/codegen/tests/test_ast.py",
+    "sympy/codegen/tests/test_cfunctions.py",
+    "sympy/codegen/tests/test_cnodes.py",
+    "sympy/codegen/tests/test_cxxnodes.py",
+    "sympy/codegen/tests/test_fnodes.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 82_000_000_000
+measured = 54_219_684_467
+
+[groups.sympy-r-codegen-2]
+paths = [
+    "sympy/codegen/tests/test_matrix_nodes.py",
+    "sympy/codegen/tests/test_numpy_nodes.py",
+    "sympy/codegen/tests/test_pynodes.py",
+    "sympy/codegen/tests/test_pyutils.py",
+    "sympy/codegen/tests/test_rewriting.py",
+    "sympy/codegen/tests/test_scipy_nodes.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 69_000_000_000
+measured = 45_477_819_563
+
+[groups.sympy-r-combinatorics-1-s1-1]
+paths = ["sympy/combinatorics/tests/test_coset_table.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_100_000_000_000
+measured = 699_728_927_388
+
+[groups.sympy-r-combinatorics-1-s1-2]
+paths = ["sympy/combinatorics/tests/test_coset_table.py"]
+tier = "release"
+release_by = "path"
+fuel = 140_000_000_000
+measured = 91_488_214_728
+
+[groups.sympy-r-combinatorics-1-s2-1]
+paths = ["sympy/combinatorics/tests/test_fp_groups.py"]
+tier = "release"
+release_by = "path"
+fuel = 160_000_000_000
+measured = 101_005_575_808
+
+[groups.sympy-r-combinatorics-1-s2-2]
+paths = ["sympy/combinatorics/tests/test_fp_groups.py"]
+tier = "release"
+release_by = "path"
+fuel = 120_000_000_000
+measured = 77_296_354_428
+
+[groups.sympy-r-combinatorics-1-p1]
+paths = [
+    "sympy/combinatorics/tests/test_free_groups.py",
+    "sympy/combinatorics/tests/test_galois.py",
+    "sympy/combinatorics/tests/test_generators.py",
+    "sympy/combinatorics/tests/test_graycode.py",
+    "sympy/combinatorics/tests/test_group_constructs.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 48_000_000_000
+measured = 31_848_702_168
+
+[groups.sympy-r-combinatorics-1-p2]
+paths = [
+    "sympy/combinatorics/tests/test_group_numbers.py",
+    "sympy/combinatorics/tests/test_homomorphisms.py",
+    "sympy/combinatorics/tests/test_named_groups.py",
+    "sympy/combinatorics/tests/test_partitions.py",
+    "sympy/combinatorics/tests/test_pc_groups.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 220_000_000_000
+measured = 144_947_500_307
+
+[groups.sympy-r-combinatorics-2]
+paths = ["sympy/combinatorics/tests/test_perm_groups.py"]
+tier = "release"
+release_by = "path"
+fuel = 220_000_000_000
+measured = 146_478_240_042
+
+[groups.sympy-r-combinatorics-3]
+paths = [
+    "sympy/combinatorics/tests/test_permutations.py",
+    "sympy/combinatorics/tests/test_polyhedron.py",
+    "sympy/combinatorics/tests/test_prufer.py",
+    "sympy/combinatorics/tests/test_rewriting.py",
+    "sympy/combinatorics/tests/test_schur_number.py",
+    "sympy/combinatorics/tests/test_subsets.py",
+    "sympy/combinatorics/tests/test_tensor_can.py",
+    "sympy/combinatorics/tests/test_testutil.py",
+    "sympy/combinatorics/tests/test_util.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 180_000_000_000
+measured = 117_896_817_465
+
+[groups.sympy-r-concrete-1]
+paths = [
+    "sympy/concrete/tests/test_delta.py",
+    "sympy/concrete/tests/test_gosper.py",
+    "sympy/concrete/tests/test_guess.py",
+    "sympy/concrete/tests/test_products.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 190_000_000_000
+measured = 122_818_500_748
+
+[groups.sympy-r-concrete-2-1]
+paths = ["sympy/concrete/tests/test_sums_products.py"]
+tier = "release"
+release_by = "path"
+fuel = 580_000_000_000
+measured = 385_342_869_005
+
+[groups.sympy-r-concrete-2-2]
+paths = ["sympy/concrete/tests/test_sums_products.py"]
+tier = "release"
+release_by = "path"
+fuel = 320_000_000_000
+measured = 210_177_028_560
+
+[groups.sympy-r-concrete-2-3]
+paths = ["sympy/concrete/tests/test_sums_products.py"]
+tier = "release"
+release_by = "path"
+fuel = 330_000_000_000
+measured = 215_593_146_732
+
+[groups.sympy-r-core-1]
+paths = ["sympy/core/tests/test_args.py"]
+tier = "release"
+release_by = "path"
+fuel = 81_000_000_000
+measured = 53_658_549_539
+
+[groups.sympy-r-core-2-p1]
+paths = [
+    "sympy/core/tests/test_arit.py",
+    "sympy/core/tests/test_assumptions.py",
+    "sympy/core/tests/test_cache.py",
+    "sympy/core/tests/test_compatibility.py",
+    "sympy/core/tests/test_complex.py",
+    "sympy/core/tests/test_constructor_postprocessor.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 320_000_000_000
+measured = 212_831_751_560
+
+[groups.sympy-r-core-2-p2]
+paths = [
+    "sympy/core/tests/test_containers.py",
+    "sympy/core/tests/test_count_ops.py",
+    "sympy/core/tests/test_diff.py",
+    "sympy/core/tests/test_equal.py",
+    "sympy/core/tests/test_eval.py",
+    "sympy/core/tests/test_evalf.py",
+    "sympy/core/tests/test_expand.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 230_000_000_000
+measured = 148_542_218_654
+
+[groups.sympy-r-core-2-p3]
+paths = [
+    "sympy/core/tests/test_expr.py",
+    "sympy/core/tests/test_exprtools.py",
+    "sympy/core/tests/test_facts.py",
+    "sympy/core/tests/test_function.py",
+    "sympy/core/tests/test_kind.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 390_000_000_000
+measured = 255_072_872_805
+
+[groups.sympy-r-core-2-p4]
+paths = [
+    "sympy/core/tests/test_logic.py",
+    "sympy/core/tests/test_match.py",
+    "sympy/core/tests/test_multidimensional.py",
+    "sympy/core/tests/test_noncommutative.py",
+    "sympy/core/tests/test_numbers.py",
+    "sympy/core/tests/test_operations.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 130_000_000_000
+measured = 80_303_856_793
+
+[groups.sympy-r-core-2-p5]
+paths = [
+    "sympy/core/tests/test_parameters.py",
+    "sympy/core/tests/test_power.py",
+    "sympy/core/tests/test_priority.py",
+    "sympy/core/tests/test_random.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 73_000_000_000
+measured = 48_027_699_249
+
+[groups.sympy-r-core-3]
+paths = [
+    "sympy/core/tests/test_relational.py",
+    "sympy/core/tests/test_rules.py",
+    "sympy/core/tests/test_singleton.py",
+    "sympy/core/tests/test_sorting.py",
+    "sympy/core/tests/test_subs.py",
+    "sympy/core/tests/test_symbol.py",
+    "sympy/core/tests/test_traversal.py",
+    "sympy/core/tests/test_truediv.py",
+    "sympy/core/tests/test_var.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 140_000_000_000
+measured = 91_074_091_311
+
+[groups.sympy-r-crypto-1]
+paths = ["sympy/crypto/tests/test_crypto.py"]
+tier = "release"
+release_by = "path"
+fuel = 65_000_000_000
+measured = 43_280_253_295
+
+[groups.sympy-r-diffgeom-1]
+paths = [
+    "sympy/diffgeom/tests/test_class_structure.py",
+    "sympy/diffgeom/tests/test_diffgeom.py",
+    "sympy/diffgeom/tests/test_function_diffgeom_book.py",
+    "sympy/diffgeom/tests/test_hyperbolic_space.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 77_000_000_000
+measured = 51_331_860_320
+
+[groups.sympy-r-discrete-1]
+paths = [
+    "sympy/discrete/tests/test_convolutions.py",
+    "sympy/discrete/tests/test_recurrences.py",
+    "sympy/discrete/tests/test_transforms.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 68_000_000_000
+measured = 45_061_502_247
+
+[groups.sympy-r-external-1]
+paths = [
+    "sympy/external/tests/test_autowrap.py",
+    "sympy/external/tests/test_codegen.py",
+    "sympy/external/tests/test_gmpy.py",
+    "sympy/external/tests/test_importtools.py",
+    "sympy/external/tests/test_ntheory.py",
+    "sympy/external/tests/test_numpy.py",
+    "sympy/external/tests/test_pythonmpq.py",
+    "sympy/external/tests/test_scipy.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 75_000_000_000
+measured = 49_341_791_618
+
+[groups.sympy-r-functions-1]
+paths = [
+    "sympy/functions/combinatorial/tests/test_comb_factorials.py",
+    "sympy/functions/combinatorial/tests/test_comb_numbers.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 550_000_000_000
+measured = 361_027_898_889
+
+[groups.sympy-r-functions-2]
+paths = ["sympy/functions/elementary/tests/test_complexes.py"]
+tier = "release"
+release_by = "path"
+fuel = 67_000_000_000
+measured = 44_656_290_320
+
+[groups.sympy-r-functions-3]
+paths = ["sympy/functions/elementary/tests/test_exponential.py"]
+tier = "release"
+release_by = "path"
+fuel = 97_000_000_000
+measured = 64_139_574_328
+
+[groups.sympy-r-functions-4]
+paths = ["sympy/functions/elementary/tests/test_hyperbolic.py"]
+tier = "release"
+release_by = "path"
+fuel = 300_000_000_000
+measured = 194_753_303_057
+
+[groups.sympy-r-functions-5]
+paths = [
+    "sympy/functions/elementary/tests/test_integers.py",
+    "sympy/functions/elementary/tests/test_interface.py",
+    "sympy/functions/elementary/tests/test_miscellaneous.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 120_000_000_000
+measured = 73_915_372_066
+
+[groups.sympy-r-functions-6]
+paths = ["sympy/functions/elementary/tests/test_piecewise.py"]
+tier = "release"
+release_by = "path"
+fuel = 300_000_000_000
+measured = 196_808_400_636
+
+[groups.sympy-r-functions-7-1]
+paths = ["sympy/functions/elementary/tests/test_trigonometric.py"]
+tier = "release"
+release_by = "path"
+fuel = 140_000_000_000
+measured = 92_692_547_777
+
+[groups.sympy-r-functions-7-2]
+paths = ["sympy/functions/elementary/tests/test_trigonometric.py"]
+tier = "release"
+release_by = "path"
+fuel = 660_000_000_000
+measured = 436_202_878_752
+
+[groups.sympy-r-functions-7-3]
+paths = ["sympy/functions/elementary/tests/test_trigonometric.py"]
+tier = "release"
+release_by = "path"
+fuel = 200_000_000_000
+measured = 128_101_722_882
+
+[groups.sympy-r-functions-7-4]
+paths = ["sympy/functions/elementary/tests/test_trigonometric.py"]
+tier = "release"
+release_by = "path"
+fuel = 210_000_000_000
+measured = 135_676_537_982
+
+[groups.sympy-r-functions-8]
+paths = [
+    "sympy/functions/special/tests/test_bessel.py",
+    "sympy/functions/special/tests/test_beta_functions.py",
+    "sympy/functions/special/tests/test_bsplines.py",
+    "sympy/functions/special/tests/test_delta_functions.py",
+    "sympy/functions/special/tests/test_elliptic_integrals.py",
+    "sympy/functions/special/tests/test_error_functions.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 500_000_000_000
+measured = 329_738_796_836
+
+[groups.sympy-r-functions-9]
+paths = [
+    "sympy/functions/special/tests/test_gamma_functions.py",
+    "sympy/functions/special/tests/test_hyper.py",
+    "sympy/functions/special/tests/test_mathieu.py",
+    "sympy/functions/special/tests/test_singularity_functions.py",
+    "sympy/functions/special/tests/test_spec_polynomials.py",
+    "sympy/functions/special/tests/test_spherical_harmonics.py",
+    "sympy/functions/special/tests/test_tensor_functions.py",
+    "sympy/functions/special/tests/test_zeta_functions.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 720_000_000_000
+measured = 474_813_585_144
+
+[groups.sympy-r-geometry-1]
+paths = [
+    "sympy/geometry/tests/test_curve.py",
+    "sympy/geometry/tests/test_ellipse.py",
+    "sympy/geometry/tests/test_entity.py",
+    "sympy/geometry/tests/test_geometrysets.py",
+    "sympy/geometry/tests/test_line.py",
+    "sympy/geometry/tests/test_parabola.py",
+    "sympy/geometry/tests/test_plane.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 600_000_000_000
+measured = 398_471_195_472
+
+[groups.sympy-r-geometry-2]
+paths = [
+    "sympy/geometry/tests/test_point.py",
+    "sympy/geometry/tests/test_polygon.py",
+    "sympy/geometry/tests/test_util.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 570_000_000_000
+measured = 379_330_955_027
+
+[groups.sympy-r-holonomic-1]
+paths = ["sympy/holonomic/tests/test_holonomic.py", "sympy/holonomic/tests/test_recurrence.py"]
+tier = "release"
+release_by = "path"
+fuel = 300_000_000_000
+measured = 198_816_339_484
+
+[groups.sympy-r-integrals-1]
+paths = ["sympy/integrals/tests/test_deltafunctions.py"]
+tier = "release"
+release_by = "path"
+fuel = 43_000_000_000
+measured = 28_444_379_112
+
+[groups.sympy-r-integrals-2-1a]
+paths = ["sympy/integrals/tests/test_failing_integrals.py"]
+tier = "release"
+release_by = "path"
+fuel = 430_000_000_000
+measured = 285_094_915_827
+
+[groups.sympy-r-integrals-2-1b]
+paths = ["sympy/integrals/tests/test_failing_integrals.py"]
+tier = "release"
+release_by = "path"
+fuel = 310_000_000_000
+measured = 204_811_363_511
+
+[groups.sympy-r-integrals-2-2]
+paths = ["sympy/integrals/tests/test_failing_integrals.py"]
+tier = "release"
+release_by = "path"
+fuel = 150_000_000_000
+measured = 94_254_878_550
+
+[groups.sympy-r-integrals-2-3a]
+paths = ["sympy/integrals/tests/test_failing_integrals.py"]
+tier = "release"
+release_by = "path"
+fuel = 250_000_000_000
+measured = 163_614_191_015
+
+[groups.sympy-r-integrals-2-3b]
+paths = ["sympy/integrals/tests/test_failing_integrals.py"]
+tier = "release"
+release_by = "path"
+fuel = 78_000_000_000
+measured = 51_364_248_657
+
+[groups.sympy-r-integrals-2-4]
+paths = ["sympy/integrals/tests/test_failing_integrals.py"]
+tier = "release"
+release_by = "path"
+fuel = 180_000_000_000
+measured = 116_776_003_721
+
+[groups.sympy-r-integrals-2-5]
+paths = ["sympy/integrals/tests/test_failing_integrals.py"]
+tier = "release"
+release_by = "path"
+fuel = 870_000_000_000
+measured = 578_438_311_417
+
+[groups.sympy-r-integrals-2-6]
+paths = ["sympy/integrals/tests/test_failing_integrals.py"]
+tier = "release"
+release_by = "path"
+fuel = 200_000_000_000
+measured = 129_571_358_286
+
+[groups.sympy-r-integrals-3]
+paths = ["sympy/integrals/tests/test_heurisch.py"]
+tier = "release"
+release_by = "path"
+fuel = 600_000_000_000
+measured = 399_708_647_999
+
+[groups.sympy-r-integrals-4-1]
+paths = ["sympy/integrals/tests/test_integrals.py"]
+tier = "release"
+release_by = "path"
+fuel = 310_000_000_000
+measured = 201_562_711_468
+
+[groups.sympy-r-integrals-4-2]
+paths = ["sympy/integrals/tests/test_integrals.py"]
+tier = "release"
+release_by = "path"
+fuel = 250_000_000_000
+measured = 166_223_206_812
+
+[groups.sympy-r-integrals-4-3]
+paths = ["sympy/integrals/tests/test_integrals.py"]
+tier = "release"
+release_by = "path"
+fuel = 92_000_000_000
+measured = 61_052_366_447
+
+[groups.sympy-r-integrals-4-4]
+paths = ["sympy/integrals/tests/test_integrals.py"]
+tier = "release"
+release_by = "path"
+fuel = 200_000_000_000
+measured = 132_232_610_870
+
+[groups.sympy-r-integrals-4-5]
+paths = ["sympy/integrals/tests/test_integrals.py"]
+tier = "release"
+release_by = "path"
+fuel = 270_000_000_000
+measured = 175_371_622_027
+
+[groups.sympy-r-integrals-4-6]
+paths = ["sympy/integrals/tests/test_integrals.py"]
+tier = "release"
+release_by = "path"
+fuel = 280_000_000_000
+measured = 184_946_189_654
+
+[groups.sympy-r-integrals-4-7]
+paths = ["sympy/integrals/tests/test_integrals.py"]
+tier = "release"
+release_by = "path"
+fuel = 860_000_000_000
+measured = 566_863_821_558
+
+[groups.sympy-r-integrals-4-8]
+paths = ["sympy/integrals/tests/test_integrals.py"]
+tier = "release"
+release_by = "path"
+fuel = 440_000_000_000
+measured = 292_533_277_824
+
+[groups.sympy-r-integrals-5]
+paths = [
+    "sympy/integrals/tests/test_intpoly.py",
+    "sympy/integrals/tests/test_laplace.py",
+    "sympy/integrals/tests/test_lineintegrals.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 410_000_000_000
+measured = 271_521_266_934
+
+[groups.sympy-r-integrals-6-1]
+paths = ["sympy/integrals/tests/test_manual.py"]
+tier = "release"
+release_by = "path"
+fuel = 280_000_000_000
+measured = 181_359_945_955
+
+[groups.sympy-r-integrals-6-2]
+paths = ["sympy/integrals/tests/test_manual.py"]
+tier = "release"
+release_by = "path"
+fuel = 540_000_000_000
+measured = 353_905_345_940
+
+[groups.sympy-r-integrals-6-3]
+paths = ["sympy/integrals/tests/test_manual.py"]
+tier = "release"
+release_by = "path"
+fuel = 320_000_000_000
+measured = 213_048_914_314
+
+[groups.sympy-r-integrals-6-4]
+paths = ["sympy/integrals/tests/test_manual.py"]
+tier = "release"
+release_by = "path"
+fuel = 370_000_000_000
+measured = 244_914_008_499
+
+[groups.sympy-r-integrals-6-5]
+paths = ["sympy/integrals/tests/test_manual.py"]
+tier = "release"
+release_by = "path"
+fuel = 190_000_000_000
+measured = 124_243_224_031
+
+[groups.sympy-r-integrals-7-1]
+paths = ["sympy/integrals/tests/test_meijerint.py"]
+tier = "release"
+release_by = "path"
+fuel = 150_000_000_000
+measured = 99_563_382_775
+
+[groups.sympy-r-integrals-7-2]
+paths = ["sympy/integrals/tests/test_meijerint.py"]
+tier = "release"
+release_by = "path"
+fuel = 310_000_000_000
+measured = 202_450_867_814
+
+[groups.sympy-r-integrals-7-3]
+paths = ["sympy/integrals/tests/test_meijerint.py"]
+tier = "release"
+release_by = "path"
+fuel = 890_000_000_000
+measured = 590_401_253_379
+
+[groups.sympy-r-integrals-8]
+paths = ["sympy/integrals/tests/test_prde.py"]
+tier = "release"
+release_by = "path"
+fuel = 53_000_000_000
+measured = 34_757_851_853
+
+[groups.sympy-r-integrals-9]
+paths = ["sympy/integrals/tests/test_quadrature.py"]
+tier = "release"
+release_by = "path"
+fuel = 48_000_000_000
+measured = 31_409_938_650
+
+[groups.sympy-r-integrals-10]
+paths = ["sympy/integrals/tests/test_rationaltools.py", "sympy/integrals/tests/test_rde.py"]
+tier = "release"
+release_by = "path"
+fuel = 73_000_000_000
+measured = 48_176_264_029
+
+[groups.sympy-r-integrals-11]
+paths = ["sympy/integrals/tests/test_risch.py"]
+tier = "release"
+release_by = "path"
+fuel = 150_000_000_000
+measured = 95_242_013_193
+
+[groups.sympy-r-integrals-12-s2-1]
+paths = ["sympy/integrals/tests/test_transforms.py"]
+tier = "release"
+release_by = "path"
+fuel = 210_000_000_000
+measured = 135_016_849_284
+
+[groups.sympy-r-integrals-12-s2-2a]
+paths = ["sympy/integrals/tests/test_transforms.py"]
+tier = "release"
+release_by = "path"
+fuel = 340_000_000_000
+measured = 225_432_372_564
+
+[groups.sympy-r-integrals-12-s2-3a]
+paths = ["sympy/integrals/tests/test_transforms.py"]
+tier = "release"
+release_by = "path"
+fuel = 180_000_000_000
+measured = 115_525_640_791
+
+[groups.sympy-r-integrals-12-s2-3b]
+paths = ["sympy/integrals/tests/test_transforms.py"]
+tier = "release"
+release_by = "path"
+fuel = 72_000_000_000
+measured = 47_731_367_186
+
+[groups.sympy-r-integrals-12-s2-3c]
+paths = ["sympy/integrals/tests/test_transforms.py"]
+tier = "release"
+release_by = "path"
+fuel = 170_000_000_000
+measured = 107_961_086_040
+
+[groups.sympy-r-integrals-12-p1]
+paths = [
+    "sympy/integrals/tests/test_singularityfunctions.py",
+    "sympy/integrals/tests/test_trigonometry.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 44_000_000_000
+measured = 28_994_746_938
+
+[groups.sympy-r-interactive-1]
+paths = [
+    "sympy/interactive/tests/test_interactive.py",
+    "sympy/interactive/tests/test_ipython.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 40_000_000_000
+measured = 26_045_123_467
+
+[groups.sympy-r-liealgebras-1]
+paths = [
+    "sympy/liealgebras/tests/test_cartan_matrix.py",
+    "sympy/liealgebras/tests/test_cartan_type.py",
+    "sympy/liealgebras/tests/test_dynkin_diagram.py",
+    "sympy/liealgebras/tests/test_root_system.py",
+    "sympy/liealgebras/tests/test_type_A.py",
+    "sympy/liealgebras/tests/test_type_B.py",
+    "sympy/liealgebras/tests/test_type_C.py",
+    "sympy/liealgebras/tests/test_type_D.py",
+    "sympy/liealgebras/tests/test_type_E.py",
+    "sympy/liealgebras/tests/test_type_F.py",
+    "sympy/liealgebras/tests/test_type_G.py",
+    "sympy/liealgebras/tests/test_weyl_group.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 41_000_000_000
+measured = 26_990_315_034
+
+[groups.sympy-r-logic-1]
+paths = ["sympy/logic/tests/test_boolalg.py"]
+tier = "release"
+release_by = "path"
+fuel = 320_000_000_000
+measured = 212_706_991_999
+
+[groups.sympy-r-logic-2]
+paths = [
+    "sympy/logic/tests/test_dimacs.py",
+    "sympy/logic/tests/test_inference.py",
+    "sympy/logic/tests/test_lra_theory.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 52_000_000_000
+measured = 34_293_787_782
+
+[groups.sympy-r-matrices-1]
+paths = [
+    "sympy/matrices/expressions/tests/test_adjoint.py",
+    "sympy/matrices/expressions/tests/test_applyfunc.py",
+    "sympy/matrices/expressions/tests/test_blockmatrix.py",
+    "sympy/matrices/expressions/tests/test_companion.py",
+    "sympy/matrices/expressions/tests/test_derivatives.py",
+    "sympy/matrices/expressions/tests/test_determinant.py",
+    "sympy/matrices/expressions/tests/test_diagonal.py",
+    "sympy/matrices/expressions/tests/test_dotproduct.py",
+    "sympy/matrices/expressions/tests/test_factorizations.py",
+    "sympy/matrices/expressions/tests/test_fourier.py",
+    "sympy/matrices/expressions/tests/test_funcmatrix.py",
+    "sympy/matrices/expressions/tests/test_hadamard.py",
+    "sympy/matrices/expressions/tests/test_indexing.py",
+    "sympy/matrices/expressions/tests/test_inverse.py",
+    "sympy/matrices/expressions/tests/test_kronecker.py",
+    "sympy/matrices/expressions/tests/test_matadd.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 200_000_000_000
+measured = 132_661_543_931
+
+[groups.sympy-r-matrices-2]
+paths = [
+    "sympy/matrices/expressions/tests/test_matexpr.py",
+    "sympy/matrices/expressions/tests/test_matmul.py",
+    "sympy/matrices/expressions/tests/test_matpow.py",
+    "sympy/matrices/expressions/tests/test_permutation.py",
+    "sympy/matrices/expressions/tests/test_sets.py",
+    "sympy/matrices/expressions/tests/test_slice.py",
+    "sympy/matrices/expressions/tests/test_special.py",
+    "sympy/matrices/expressions/tests/test_trace.py",
+    "sympy/matrices/expressions/tests/test_transpose.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 240_000_000_000
+measured = 157_669_911_983
+
+[groups.sympy-r-matrices-3-s2-1]
+paths = ["sympy/matrices/tests/test_decompositions.py"]
+tier = "release"
+release_by = "path"
+fuel = 420_000_000_000
+measured = 279_466_316_129
+
+[groups.sympy-r-matrices-3-s2-2]
+paths = ["sympy/matrices/tests/test_decompositions.py"]
+tier = "release"
+release_by = "path"
+fuel = 54_000_000_000
+measured = 35_367_841_903
+
+[groups.sympy-r-matrices-3-s5-1]
+paths = ["sympy/matrices/tests/test_eigen.py"]
+tier = "release"
+release_by = "path"
+fuel = 370_000_000_000
+measured = 242_647_818_995
+
+[groups.sympy-r-matrices-3-s5-2]
+paths = ["sympy/matrices/tests/test_eigen.py"]
+tier = "release"
+release_by = "path"
+fuel = 80_000_000_000
+measured = 52_806_900_136
+
+[groups.sympy-r-matrices-3-p1]
+paths = ["sympy/matrices/tests/test_commonmatrix.py"]
+tier = "release"
+release_by = "path"
+fuel = 55_000_000_000
+measured = 36_147_626_121
+
+[groups.sympy-r-matrices-3-p2]
+paths = [
+    "sympy/matrices/tests/test_determinant.py",
+    "sympy/matrices/tests/test_domains.py",
+    "sympy/matrices/tests/test_graph.py",
+    "sympy/matrices/tests/test_immutable.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 90_000_000_000
+measured = 59_478_896_807
+
+[groups.sympy-r-matrices-4]
+paths = ["sympy/matrices/tests/test_interactions.py"]
+tier = "release"
+release_by = "path"
+fuel = 40_000_000_000
+measured = 26_088_764_064
+
+[groups.sympy-r-matrices-5]
+paths = ["sympy/matrices/tests/test_matrices.py"]
+tier = "release"
+release_by = "path"
+fuel = 410_000_000_000
+measured = 269_686_072_742
+
+[groups.sympy-r-matrices-6-1]
+paths = ["sympy/matrices/tests/test_matrixbase.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_100_000_000_000
+measured = 675_822_504_795
+
+[groups.sympy-r-matrices-6-2]
+paths = ["sympy/matrices/tests/test_matrixbase.py"]
+tier = "release"
+release_by = "path"
+fuel = 160_000_000_000
+measured = 101_640_102_657
+
+[groups.sympy-r-matrices-6-3]
+paths = ["sympy/matrices/tests/test_matrixbase.py"]
+tier = "release"
+release_by = "path"
+fuel = 240_000_000_000
+measured = 159_358_875_388
+
+[groups.sympy-r-matrices-7]
+paths = [
+    "sympy/matrices/tests/test_normalforms.py",
+    "sympy/matrices/tests/test_reductions.py",
+    "sympy/matrices/tests/test_repmatrix.py",
+    "sympy/matrices/tests/test_solvers.py",
+    "sympy/matrices/tests/test_sparse.py",
+    "sympy/matrices/tests/test_sparsetools.py",
+    "sympy/matrices/tests/test_subspaces.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 89_000_000_000
+measured = 59_009_751_131
+
+[groups.sympy-r-multipledispatch-1]
+paths = [
+    "sympy/multipledispatch/tests/test_conflict.py",
+    "sympy/multipledispatch/tests/test_core.py",
+    "sympy/multipledispatch/tests/test_dispatcher.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 41_000_000_000
+measured = 26_863_407_679
+
+[groups.sympy-r-ntheory-1]
+paths = [
+    "sympy/ntheory/tests/test_bbp_pi.py",
+    "sympy/ntheory/tests/test_continued_fraction.py",
+    "sympy/ntheory/tests/test_digits.py",
+    "sympy/ntheory/tests/test_ecm.py",
+    "sympy/ntheory/tests/test_egyptian_fraction.py",
+    "sympy/ntheory/tests/test_elliptic_curve.py",
+    "sympy/ntheory/tests/test_factor_.py",
+    "sympy/ntheory/tests/test_generate.py",
+    "sympy/ntheory/tests/test_hypothesis.py",
+    "sympy/ntheory/tests/test_modular.py",
+    "sympy/ntheory/tests/test_multinomial.py",
+    "sympy/ntheory/tests/test_partitions.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 600_000_000_000
+measured = 399_938_350_984
+
+[groups.sympy-r-ntheory-2-s1-1]
+paths = ["sympy/ntheory/tests/test_primetest.py"]
+tier = "release"
+release_by = "path"
+fuel = 67_000_000_000
+measured = 44_255_032_836
+
+[groups.sympy-r-ntheory-2-s1-2]
+paths = ["sympy/ntheory/tests/test_primetest.py"]
+tier = "release"
+release_by = "path"
+fuel = 130_000_000_000
+measured = 81_769_555_524
+
+[groups.sympy-r-ntheory-2-s2-1]
+paths = ["sympy/ntheory/tests/test_qs.py"]
+tier = "release"
+release_by = "path"
+fuel = 94_000_000_000
+measured = 62_588_174_599
+
+[groups.sympy-r-ntheory-2-s2-2]
+paths = ["sympy/ntheory/tests/test_qs.py"]
+tier = "release"
+release_by = "path"
+fuel = 97_000_000_000
+measured = 64_517_256_596
+
+[groups.sympy-r-ntheory-2-p1-residue-2]
+paths = ["sympy/ntheory/tests/test_residue.py"]
+tier = "release"
+release_by = "path"
+fuel = 140_000_000_000
+measured = 88_090_276_684
+
+[groups.sympy-r-ntheory-2-p1-residue-1]
+paths = ["sympy/ntheory/tests/test_residue.py"]
+tier = "release"
+release_by = "path"
+fuel = 450_000_000_000
+measured = 295_757_409_362
+
+[groups.sympy-r-parsing-1]
+paths = [
+    "sympy/parsing/tests/test_ast_parser.py",
+    "sympy/parsing/tests/test_autolev.py",
+    "sympy/parsing/tests/test_c_parser.py",
+    "sympy/parsing/tests/test_custom_latex.py",
+    "sympy/parsing/tests/test_fortran_parser.py",
+    "sympy/parsing/tests/test_implicit_multiplication_application.py",
+    "sympy/parsing/tests/test_latex.py",
+    "sympy/parsing/tests/test_latex_deps.py",
+    "sympy/parsing/tests/test_latex_lark.py",
+    "sympy/parsing/tests/test_mathematica.py",
+    "sympy/parsing/tests/test_maxima.py",
+    "sympy/parsing/tests/test_sym_expr.py",
+    "sympy/parsing/tests/test_sympy_parser.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 72_000_000_000
+measured = 47_877_852_365
+
+[groups.sympy-r-physics-1]
+paths = ["sympy/physics/biomechanics/tests/test_activation.py"]
+tier = "release"
+release_by = "path"
+fuel = 46_000_000_000
+measured = 30_246_160_452
+
+[groups.sympy-r-physics-2]
+paths = ["sympy/physics/biomechanics/tests/test_curve.py"]
+tier = "release"
+release_by = "path"
+fuel = 52_000_000_000
+measured = 34_019_841_357
+
+[groups.sympy-r-physics-3-p1]
+paths = [
+    "sympy/physics/biomechanics/tests/test_mixin.py",
+    "sympy/physics/biomechanics/tests/test_musculotendon.py",
+    "sympy/physics/continuum_mechanics/tests/test_arch.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 49_000_000_000
+measured = 32_063_753_828
+
+[groups.sympy-r-physics-3-p2]
+paths = [
+    "sympy/physics/continuum_mechanics/tests/test_beam.py",
+    "sympy/physics/continuum_mechanics/tests/test_cable.py",
+    "sympy/physics/continuum_mechanics/tests/test_truss.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 540_000_000_000
+measured = 354_055_151_285
+
+[groups.sympy-r-physics-3-p3]
+paths = ["sympy/physics/control/tests/test_control_plots.py"]
+tier = "release"
+release_by = "path"
+fuel = 110_000_000_000
+measured = 71_291_726_622
+
+[groups.sympy-r-physics-3-p4]
+paths = ["sympy/physics/control/tests/test_lti.py"]
+tier = "release"
+release_by = "path"
+fuel = 340_000_000_000
+measured = 225_571_256_370
+
+[groups.sympy-r-physics-4]
+paths = [
+    "sympy/physics/hep/tests/test_gamma_matrices.py",
+    "sympy/physics/mechanics/tests/test_actuator.py",
+    "sympy/physics/mechanics/tests/test_body.py",
+    "sympy/physics/mechanics/tests/test_functions.py",
+    "sympy/physics/mechanics/tests/test_inertia.py",
+    "sympy/physics/mechanics/tests/test_joint.py",
+    "sympy/physics/mechanics/tests/test_jointsmethod.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 350_000_000_000
+measured = 231_176_662_564
+
+[groups.sympy-r-physics-5-s9-1]
+paths = ["sympy/physics/mechanics/tests/test_linearize.py"]
+tier = "release"
+release_by = "path"
+fuel = 160_000_000_000
+measured = 102_747_633_211
+
+[groups.sympy-r-physics-5-s9-2]
+paths = ["sympy/physics/mechanics/tests/test_linearize.py"]
+tier = "release"
+release_by = "path"
+fuel = 90_000_000_000
+measured = 59_610_789_093
+
+[groups.sympy-r-physics-5-p1]
+paths = [
+    "sympy/physics/mechanics/tests/test_kane.py",
+    "sympy/physics/mechanics/tests/test_kane2.py",
+    "sympy/physics/mechanics/tests/test_kane4.py",
+    "sympy/physics/mechanics/tests/test_kane5.py",
+    "sympy/physics/mechanics/tests/test_lagrange.py",
+    "sympy/physics/mechanics/tests/test_lagrange2.py",
+    "sympy/physics/mechanics/tests/test_linearity_of_velocity_constraints.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 320_000_000_000
+measured = 209_964_461_863
+
+[groups.sympy-r-physics-5-bicycle]
+paths = ["sympy/physics/mechanics/tests/test_kane3.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_900_000_000_000
+measured = 1_259_865_617_445
+
+[groups.sympy-r-physics-5-p2]
+paths = [
+    "sympy/physics/mechanics/tests/test_loads.py",
+    "sympy/physics/mechanics/tests/test_method.py",
+    "sympy/physics/mechanics/tests/test_models.py",
+    "sympy/physics/mechanics/tests/test_particle.py",
+    "sympy/physics/mechanics/tests/test_pathway.py",
+    "sympy/physics/mechanics/tests/test_rigidbody.py",
+    "sympy/physics/mechanics/tests/test_system.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 82_000_000_000
+measured = 54_280_625_744
+
+[groups.sympy-r-physics-6]
+paths = [
+    "sympy/physics/mechanics/tests/test_system_class.py",
+    "sympy/physics/mechanics/tests/test_wrapping_geometry.py",
+    "sympy/physics/optics/tests/test_gaussopt.py",
+    "sympy/physics/optics/tests/test_medium.py",
+    "sympy/physics/optics/tests/test_polarization.py",
+    "sympy/physics/optics/tests/test_utils.py",
+    "sympy/physics/optics/tests/test_waves.py",
+    "sympy/physics/quantum/tests/test_anticommutator.py",
+    "sympy/physics/quantum/tests/test_boson.py",
+    "sympy/physics/quantum/tests/test_cartesian.py",
+    "sympy/physics/quantum/tests/test_cg.py",
+    "sympy/physics/quantum/tests/test_circuitplot.py",
+    "sympy/physics/quantum/tests/test_circuitutils.py",
+    "sympy/physics/quantum/tests/test_commutator.py",
+    "sympy/physics/quantum/tests/test_constants.py",
+    "sympy/physics/quantum/tests/test_dagger.py",
+    "sympy/physics/quantum/tests/test_density.py",
+    "sympy/physics/quantum/tests/test_fermion.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 480_000_000_000
+measured = 317_480_733_165
+
+[groups.sympy-r-physics-7]
+paths = [
+    "sympy/physics/quantum/tests/test_gate.py",
+    "sympy/physics/quantum/tests/test_grover.py",
+    "sympy/physics/quantum/tests/test_hilbert.py",
+    "sympy/physics/quantum/tests/test_identitysearch.py",
+    "sympy/physics/quantum/tests/test_innerproduct.py",
+    "sympy/physics/quantum/tests/test_kind.py",
+    "sympy/physics/quantum/tests/test_matrixutils.py",
+    "sympy/physics/quantum/tests/test_operator.py",
+    "sympy/physics/quantum/tests/test_operatorordering.py",
+    "sympy/physics/quantum/tests/test_operatorset.py",
+    "sympy/physics/quantum/tests/test_pauli.py",
+    "sympy/physics/quantum/tests/test_piab.py",
+    "sympy/physics/quantum/tests/test_printing.py",
+    "sympy/physics/quantum/tests/test_qapply.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 93_000_000_000
+measured = 61_615_011_829
+
+[groups.sympy-r-physics-8]
+paths = [
+    "sympy/physics/quantum/tests/test_qasm.py",
+    "sympy/physics/quantum/tests/test_qexpr.py",
+    "sympy/physics/quantum/tests/test_qft.py",
+    "sympy/physics/quantum/tests/test_qubit.py",
+    "sympy/physics/quantum/tests/test_represent.py",
+    "sympy/physics/quantum/tests/test_sho1d.py",
+    "sympy/physics/quantum/tests/test_shor.py",
+    "sympy/physics/quantum/tests/test_spin.py",
+    "sympy/physics/quantum/tests/test_state.py",
+    "sympy/physics/quantum/tests/test_tensorproduct.py",
+    "sympy/physics/quantum/tests/test_trace.py",
+    "sympy/physics/quantum/tests/test_transforms.py",
+    "sympy/physics/tests/test_clebsch_gordan.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 650_000_000_000
+measured = 431_714_652_751
+
+[groups.sympy-r-physics-9]
+paths = [
+    "sympy/physics/tests/test_hydrogen.py",
+    "sympy/physics/tests/test_paulialgebra.py",
+    "sympy/physics/tests/test_physics_matrices.py",
+    "sympy/physics/tests/test_pring.py",
+    "sympy/physics/tests/test_qho_1d.py",
+    "sympy/physics/tests/test_secondquant.py",
+    "sympy/physics/tests/test_sho.py",
+    "sympy/physics/units/tests/test_dimensions.py",
+    "sympy/physics/units/tests/test_dimensionsystem.py",
+    "sympy/physics/units/tests/test_prefixes.py",
+    "sympy/physics/units/tests/test_quantities.py",
+    "sympy/physics/units/tests/test_unit_system_cgs_gauss.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 440_000_000_000
+measured = 292_634_869_699
+
+[groups.sympy-r-physics-10]
+paths = [
+    "sympy/physics/units/tests/test_unitsystem.py",
+    "sympy/physics/units/tests/test_util.py",
+    "sympy/physics/vector/tests/test_dyadic.py",
+    "sympy/physics/vector/tests/test_fieldfunctions.py",
+    "sympy/physics/vector/tests/test_frame.py",
+    "sympy/physics/vector/tests/test_functions.py",
+    "sympy/physics/vector/tests/test_output.py",
+    "sympy/physics/vector/tests/test_point.py",
+    "sympy/physics/vector/tests/test_printing.py",
+    "sympy/physics/vector/tests/test_vector.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 180_000_000_000
+measured = 115_057_003_241
+
+[groups.sympy-r-plotting-1-p2-plot-implicit-1]
+paths = ["sympy/plotting/tests/test_plot_implicit.py"]
+tier = "release"
+release_by = "path"
+fuel = 53_000_000_000
+measured = 34_732_216_329
+
+[groups.sympy-r-plotting-1-p2-plot-implicit-2]
+paths = ["sympy/plotting/tests/test_plot_implicit.py"]
+tier = "release"
+release_by = "path"
+fuel = 400_000_000_000
+measured = 262_382_022_440
+
+[groups.sympy-r-plotting-1-p2-plot-implicit-3]
+paths = ["sympy/plotting/tests/test_plot_implicit.py"]
+tier = "release"
+release_by = "path"
+fuel = 39_000_000_000
+measured = 25_771_477_881
+
+[groups.sympy-r-plotting-1-p1]
+paths = [
+    "sympy/plotting/intervalmath/tests/test_interval_functions.py",
+    "sympy/plotting/intervalmath/tests/test_interval_membership.py",
+    "sympy/plotting/intervalmath/tests/test_intervalmath.py",
+    "sympy/plotting/pygletplot/tests/test_plotting.py",
+    "sympy/plotting/tests/test_experimental_lambdify.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 45_000_000_000
+measured = 29_794_175_008
+
+[groups.sympy-r-plotting-1-p2]
+paths = ["sympy/plotting/tests/test_plot.py"]
+tier = "release"
+release_by = "path"
+fuel = 360_000_000_000
+measured = 235_305_558_497
+
+[groups.sympy-r-plotting-1-p3]
+paths = [
+    "sympy/plotting/tests/test_series.py",
+    "sympy/plotting/tests/test_textplot.py",
+    "sympy/plotting/tests/test_utils.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 92_000_000_000
+measured = 61_079_629_547
+
+[groups.sympy-r-polys-1]
+paths = [
+    "sympy/polys/agca/tests/test_extensions.py",
+    "sympy/polys/agca/tests/test_homomorphisms.py",
+    "sympy/polys/agca/tests/test_ideals.py",
+    "sympy/polys/agca/tests/test_modules.py",
+    "sympy/polys/domains/tests/test_domains.py",
+    "sympy/polys/domains/tests/test_polynomialring.py",
+    "sympy/polys/domains/tests/test_quotientring.py",
+    "sympy/polys/matrices/tests/test_ddm.py",
+    "sympy/polys/matrices/tests/test_dense.py",
+    "sympy/polys/matrices/tests/test_domainmatrix.py",
+    "sympy/polys/matrices/tests/test_domainscalar.py",
+    "sympy/polys/matrices/tests/test_eigen.py",
+    "sympy/polys/matrices/tests/test_fflu.py",
+    "sympy/polys/matrices/tests/test_inverse.py",
+    "sympy/polys/matrices/tests/test_linsolve.py",
+    "sympy/polys/matrices/tests/test_lll.py",
+    "sympy/polys/matrices/tests/test_normalforms.py",
+    "sympy/polys/matrices/tests/test_nullspace.py",
+    "sympy/polys/matrices/tests/test_rref.py",
+    "sympy/polys/matrices/tests/test_sdm.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 180_000_000_000
+measured = 119_064_458_360
+
+[groups.sympy-r-polys-2-s4-1]
+paths = ["sympy/polys/numberfields/tests/test_minpoly.py"]
+tier = "release"
+release_by = "path"
+fuel = 110_000_000_000
+measured = 67_725_196_583
+
+[groups.sympy-r-polys-2-s4-2a]
+paths = ["sympy/polys/numberfields/tests/test_minpoly.py"]
+tier = "release"
+release_by = "path"
+fuel = 130_000_000_000
+measured = 83_685_404_053
+
+[groups.sympy-r-polys-2-s4-2b]
+paths = ["sympy/polys/numberfields/tests/test_minpoly.py"]
+tier = "release"
+release_by = "path"
+fuel = 500_000_000_000
+measured = 332_120_565_307
+
+[groups.sympy-r-polys-2-s4-2c]
+paths = ["sympy/polys/numberfields/tests/test_minpoly.py"]
+tier = "release"
+release_by = "path"
+fuel = 62_000_000_000
+measured = 41_140_124_975
+
+[groups.sympy-r-polys-2-s11-1]
+paths = ["sympy/polys/tests/test_constructor.py"]
+tier = "release"
+release_by = "path"
+fuel = 3_900_000_000_000
+measured = 2_561_909_924_070
+
+[groups.sympy-r-polys-2-s11-2]
+paths = ["sympy/polys/tests/test_constructor.py"]
+tier = "release"
+release_by = "path"
+fuel = 42_000_000_000
+measured = 27_843_025_635
+
+[groups.sympy-r-polys-2-p1]
+paths = [
+    "sympy/polys/matrices/tests/test_xxm.py",
+    "sympy/polys/numberfields/tests/test_basis.py",
+    "sympy/polys/numberfields/tests/test_galoisgroups.py",
+    "sympy/polys/numberfields/tests/test_modules.py",
+    "sympy/polys/numberfields/tests/test_numbers.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 130_000_000_000
+measured = 82_573_628_949
+
+[groups.sympy-r-polys-2-p2]
+paths = [
+    "sympy/polys/numberfields/tests/test_primes.py",
+    "sympy/polys/numberfields/tests/test_subfield.py",
+    "sympy/polys/numberfields/tests/test_utilities.py",
+    "sympy/polys/tests/test_appellseqs.py",
+    "sympy/polys/tests/test_densearith.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 110_000_000_000
+measured = 69_044_536_384
+
+[groups.sympy-r-polys-2-p3]
+paths = [
+    "sympy/polys/tests/test_densebasic.py",
+    "sympy/polys/tests/test_densetools.py",
+    "sympy/polys/tests/test_dispersion.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 55_000_000_000
+measured = 36_534_811_058
+
+[groups.sympy-r-polys-3-s6-1]
+paths = ["sympy/polys/tests/test_groebnertools.py"]
+tier = "release"
+release_by = "path"
+fuel = 150_000_000_000
+measured = 96_887_809_972
+
+[groups.sympy-r-polys-3-s6-2]
+paths = ["sympy/polys/tests/test_groebnertools.py"]
+tier = "release"
+release_by = "path"
+fuel = 61_000_000_000
+measured = 40_323_931_947
+
+[groups.sympy-r-polys-3-s20-1]
+paths = ["sympy/polys/tests/test_polyroots.py"]
+tier = "release"
+release_by = "path"
+fuel = 240_000_000_000
+measured = 154_103_587_613
+
+[groups.sympy-r-polys-3-s20-2a]
+paths = ["sympy/polys/tests/test_polyroots.py"]
+tier = "release"
+release_by = "path"
+fuel = 150_000_000_000
+measured = 97_547_050_884
+
+[groups.sympy-r-polys-3-s20-2b]
+paths = ["sympy/polys/tests/test_polyroots.py"]
+tier = "release"
+release_by = "path"
+fuel = 110_000_000_000
+measured = 72_181_127_811
+
+[groups.sympy-r-polys-3-s20-2c]
+paths = ["sympy/polys/tests/test_polyroots.py"]
+tier = "release"
+release_by = "path"
+fuel = 44_000_000_000
+measured = 29_121_297_602
+
+[groups.sympy-r-polys-3-p1]
+paths = [
+    "sympy/polys/tests/test_distributedmodules.py",
+    "sympy/polys/tests/test_euclidtools.py",
+    "sympy/polys/tests/test_factortools.py",
+    "sympy/polys/tests/test_fields.py",
+    "sympy/polys/tests/test_galoistools.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 87_000_000_000
+measured = 57_518_151_884
+
+[groups.sympy-r-polys-3-p2]
+paths = [
+    "sympy/polys/tests/test_heuristicgcd.py",
+    "sympy/polys/tests/test_hypothesis.py",
+    "sympy/polys/tests/test_injections.py",
+    "sympy/polys/tests/test_modulargcd.py",
+    "sympy/polys/tests/test_monomials.py",
+    "sympy/polys/tests/test_multivariate_resultants.py",
+    "sympy/polys/tests/test_orderings.py",
+    "sympy/polys/tests/test_orthopolys.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 160_000_000_000
+measured = 105_673_242_970
+
+[groups.sympy-r-polys-3-p3]
+paths = [
+    "sympy/polys/tests/test_partfrac.py",
+    "sympy/polys/tests/test_polyclasses.py",
+    "sympy/polys/tests/test_polyfuncs.py",
+    "sympy/polys/tests/test_polymatrix.py",
+    "sympy/polys/tests/test_polyoptions.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 68_000_000_000
+measured = 44_758_299_059
+
+[groups.sympy-r-polys-4-s1-1]
+paths = ["sympy/polys/tests/test_polytools.py"]
+tier = "release"
+release_by = "path"
+fuel = 3_900_000_000_000
+measured = 2_575_848_088_913
+
+[groups.sympy-r-polys-4-s1-2]
+paths = ["sympy/polys/tests/test_polytools.py"]
+tier = "release"
+release_by = "path"
+fuel = 410_000_000_000
+measured = 272_077_845_266
+
+[groups.sympy-r-polys-4-s6-1]
+paths = ["sympy/polys/tests/test_ring_series.py"]
+tier = "release"
+release_by = "path"
+fuel = 200_000_000_000
+measured = 127_532_994_824
+
+[groups.sympy-r-polys-4-s6-2]
+paths = ["sympy/polys/tests/test_ring_series.py"]
+tier = "release"
+release_by = "path"
+fuel = 76_000_000_000
+measured = 50_578_825_495
+
+[groups.sympy-r-polys-4-p1]
+paths = [
+    "sympy/polys/tests/test_polyutils.py",
+    "sympy/polys/tests/test_puiseux.py",
+    "sympy/polys/tests/test_pythonrational.py",
+    "sympy/polys/tests/test_rationaltools.py",
+    "sympy/polys/tests/test_rings.py",
+    "sympy/polys/tests/test_rootisolation.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 86_000_000_000
+measured = 57_302_542_526
+
+[groups.sympy-r-polys-5-s1-1]
+paths = ["sympy/polys/tests/test_rootoftools.py"]
+tier = "release"
+release_by = "path"
+fuel = 400_000_000_000
+measured = 266_510_453_000
+
+[groups.sympy-r-polys-5-s1-2a]
+paths = ["sympy/polys/tests/test_rootoftools.py"]
+tier = "release"
+release_by = "path"
+fuel = 69_000_000_000
+measured = 45_346_817_304
+
+[groups.sympy-r-polys-5-s1-2b]
+paths = ["sympy/polys/tests/test_rootoftools.py"]
+tier = "release"
+release_by = "path"
+fuel = 180_000_000_000
+measured = 116_332_904_560
+
+[groups.sympy-r-polys-5-s1-2c]
+paths = ["sympy/polys/tests/test_rootoftools.py"]
+tier = "release"
+release_by = "path"
+fuel = 70_000_000_000
+measured = 46_098_121_171
+
+[groups.sympy-r-polys-5-p1]
+paths = [
+    "sympy/polys/tests/test_solvers.py",
+    "sympy/polys/tests/test_specialpolys.py",
+    "sympy/polys/tests/test_sqfreetools.py",
+    "sympy/polys/tests/test_subresultants_qq_zz.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 120_000_000_000
+measured = 78_036_600_168
+
+[groups.sympy-r-printing-1]
+paths = [
+    "sympy/printing/pretty/tests/test_pretty.py",
+    "sympy/printing/tests/test_aesaracode.py",
+    "sympy/printing/tests/test_c.py",
+    "sympy/printing/tests/test_codeprinter.py",
+    "sympy/printing/tests/test_conventions.py",
+    "sympy/printing/tests/test_cupy.py",
+    "sympy/printing/tests/test_cxx.py",
+    "sympy/printing/tests/test_dot.py",
+    "sympy/printing/tests/test_fortran.py",
+    "sympy/printing/tests/test_glsl.py",
+    "sympy/printing/tests/test_gtk.py",
+    "sympy/printing/tests/test_jax.py",
+    "sympy/printing/tests/test_jscode.py",
+    "sympy/printing/tests/test_julia.py",
+    "sympy/printing/tests/test_lambdarepr.py",
+    "sympy/printing/tests/test_latex.py",
+    "sympy/printing/tests/test_llvmjit.py",
+    "sympy/printing/tests/test_maple.py",
+    "sympy/printing/tests/test_mathematica.py",
+    "sympy/printing/tests/test_mathml.py",
+    "sympy/printing/tests/test_numpy.py",
+    "sympy/printing/tests/test_octave.py",
+    "sympy/printing/tests/test_precedence.py",
+    "sympy/printing/tests/test_preview.py",
+    "sympy/printing/tests/test_pycode.py",
+    "sympy/printing/tests/test_python.py",
+    "sympy/printing/tests/test_rcode.py",
+    "sympy/printing/tests/test_repr.py",
+    "sympy/printing/tests/test_rust.py",
+    "sympy/printing/tests/test_smtlib.py",
+    "sympy/printing/tests/test_str.py",
+    "sympy/printing/tests/test_tableform.py",
+    "sympy/printing/tests/test_tensorflow.py",
+    "sympy/printing/tests/test_theanocode.py",
+    "sympy/printing/tests/test_torch.py",
+    "sympy/printing/tests/test_tree.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 280_000_000_000
+measured = 182_182_893_291
+
+[groups.sympy-r-sandbox-1]
+paths = ["sympy/sandbox/tests/test_indexed_integrals.py"]
+tier = "release"
+release_by = "path"
+fuel = 40_000_000_000
+measured = 26_283_767_743
+
+[groups.sympy-r-series-1]
+paths = [
+    "sympy/series/tests/test_approximants.py",
+    "sympy/series/tests/test_aseries.py",
+    "sympy/series/tests/test_demidovich.py",
+    "sympy/series/tests/test_formal.py",
+    "sympy/series/tests/test_fourier.py",
+    "sympy/series/tests/test_gruntz.py",
+    "sympy/series/tests/test_kauers.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 680_000_000_000
+measured = 451_774_993_775
+
+[groups.sympy-r-series-2-1]
+paths = ["sympy/series/tests/test_limits.py"]
+tier = "release"
+release_by = "path"
+fuel = 620_000_000_000
+measured = 409_318_375_076
+
+[groups.sympy-r-series-2-2]
+paths = ["sympy/series/tests/test_limits.py"]
+tier = "release"
+release_by = "path"
+fuel = 690_000_000_000
+measured = 454_127_607_307
+
+[groups.sympy-r-series-3]
+paths = [
+    "sympy/series/tests/test_limitseq.py",
+    "sympy/series/tests/test_lseries.py",
+    "sympy/series/tests/test_nseries.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 230_000_000_000
+measured = 152_965_065_289
+
+[groups.sympy-r-series-4]
+paths = [
+    "sympy/series/tests/test_order.py",
+    "sympy/series/tests/test_residues.py",
+    "sympy/series/tests/test_sequences.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 300_000_000_000
+measured = 199_023_805_844
+
+[groups.sympy-r-series-5]
+paths = ["sympy/series/tests/test_series.py"]
+tier = "release"
+release_by = "path"
+fuel = 160_000_000_000
+measured = 100_676_720_894
+
+[groups.sympy-r-sets-1]
+paths = [
+    "sympy/sets/tests/test_conditionset.py",
+    "sympy/sets/tests/test_contains.py",
+    "sympy/sets/tests/test_fancysets.py",
+    "sympy/sets/tests/test_ordinals.py",
+    "sympy/sets/tests/test_powerset.py",
+    "sympy/sets/tests/test_setexpr.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 130_000_000_000
+measured = 84_431_245_226
+
+[groups.sympy-r-sets-2]
+paths = ["sympy/sets/tests/test_sets.py"]
+tier = "release"
+release_by = "path"
+fuel = 99_000_000_000
+measured = 65_552_548_641
+
+[groups.sympy-r-simplify-1]
+paths = ["sympy/simplify/tests/test_combsimp.py"]
+tier = "release"
+release_by = "path"
+fuel = 43_000_000_000
+measured = 28_177_384_626
+
+[groups.sympy-r-simplify-2]
+paths = ["sympy/simplify/tests/test_cse.py"]
+tier = "release"
+release_by = "path"
+fuel = 48_000_000_000
+measured = 31_843_631_506
+
+[groups.sympy-r-simplify-3]
+paths = [
+    "sympy/simplify/tests/test_cse_diff.py",
+    "sympy/simplify/tests/test_epathtools.py",
+    "sympy/simplify/tests/test_fu.py",
+    "sympy/simplify/tests/test_function.py",
+    "sympy/simplify/tests/test_gammasimp.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 84_000_000_000
+measured = 55_642_449_093
+
+[groups.sympy-r-simplify-4-1]
+paths = ["sympy/simplify/tests/test_hyperexpand.py"]
+tier = "release"
+release_by = "path"
+fuel = 510_000_000_000
+measured = 335_929_837_494
+
+[groups.sympy-r-simplify-4-2]
+paths = ["sympy/simplify/tests/test_hyperexpand.py"]
+tier = "release"
+release_by = "path"
+fuel = 470_000_000_000
+measured = 310_130_413_703
+
+[groups.sympy-r-simplify-4-3a]
+paths = ["sympy/simplify/tests/test_hyperexpand.py"]
+tier = "release"
+release_by = "path"
+fuel = 3_500_000_000_000
+measured = 2_290_362_901_348
+
+[groups.sympy-r-simplify-4-3b]
+paths = ["sympy/simplify/tests/test_hyperexpand.py"]
+tier = "release"
+release_by = "path"
+fuel = 540_000_000_000
+measured = 354_866_235_869
+
+[groups.sympy-r-simplify-4-4]
+paths = ["sympy/simplify/tests/test_hyperexpand.py"]
+tier = "release"
+release_by = "path"
+fuel = 570_000_000_000
+measured = 374_134_190_849
+
+[groups.sympy-r-simplify-4-5]
+paths = ["sympy/simplify/tests/test_hyperexpand.py"]
+tier = "release"
+release_by = "path"
+fuel = 280_000_000_000
+measured = 185_893_351_485
+
+[groups.sympy-r-simplify-4-6]
+paths = ["sympy/simplify/tests/test_hyperexpand.py"]
+tier = "release"
+release_by = "path"
+fuel = 370_000_000_000
+measured = 245_649_590_551
+
+[groups.sympy-r-simplify-5]
+paths = [
+    "sympy/simplify/tests/test_powsimp.py",
+    "sympy/simplify/tests/test_radsimp.py",
+    "sympy/simplify/tests/test_ratsimp.py",
+    "sympy/simplify/tests/test_rewrite.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 110_000_000_000
+measured = 68_012_975_821
+
+[groups.sympy-r-simplify-6]
+paths = ["sympy/simplify/tests/test_simplify.py"]
+tier = "release"
+release_by = "path"
+fuel = 280_000_000_000
+measured = 180_253_282_862
+
+[groups.sympy-r-simplify-7]
+paths = ["sympy/simplify/tests/test_sqrtdenest.py", "sympy/simplify/tests/test_trigsimp.py"]
+tier = "release"
+release_by = "path"
+fuel = 200_000_000_000
+measured = 130_490_177_999
+
+[groups.sympy-r-solvers-1]
+paths = ["sympy/solvers/diophantine/tests/test_diophantine.py"]
+tier = "release"
+release_by = "path"
+fuel = 370_000_000_000
+measured = 241_611_306_931
+
+[groups.sympy-r-solvers-2]
+paths = ["sympy/solvers/ode/tests/test_lie_group.py"]
+tier = "release"
+release_by = "path"
+fuel = 190_000_000_000
+measured = 120_062_882_064
+
+[groups.sympy-r-solvers-3]
+paths = ["sympy/solvers/ode/tests/test_ode.py"]
+tier = "release"
+release_by = "path"
+fuel = 710_000_000_000
+measured = 470_444_317_085
+
+[groups.sympy-r-solvers-4-1]
+paths = ["sympy/solvers/ode/tests/test_riccati.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_500_000_000_000
+measured = 943_019_214_339
+
+[groups.sympy-r-solvers-4-2]
+paths = ["sympy/solvers/ode/tests/test_riccati.py"]
+tier = "release"
+release_by = "path"
+fuel = 48_000_000_000
+measured = 31_899_701_159
+
+[groups.sympy-r-solvers-4-3]
+paths = ["sympy/solvers/ode/tests/test_riccati.py"]
+tier = "release"
+release_by = "path"
+fuel = 43_000_000_000
+measured = 28_401_857_293
+
+[groups.sympy-r-solvers-4-4]
+paths = ["sympy/solvers/ode/tests/test_riccati.py"]
+tier = "release"
+release_by = "path"
+fuel = 120_000_000_000
+measured = 73_798_564_627
+
+[groups.sympy-r-solvers-5-1a]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 540_000_000_000
+measured = 353_674_091_427
+
+[groups.sympy-r-solvers-5-1b]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 660_000_000_000
+measured = 437_453_607_881
+
+[groups.sympy-r-solvers-5-1c]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 300_000_000_000
+measured = 196_874_427_539
+
+[groups.sympy-r-solvers-5-2a]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 330_000_000_000
+measured = 216_034_947_002
+
+[groups.sympy-r-solvers-5-2b]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 830_000_000_000
+measured = 547_298_472_384
+
+[groups.sympy-r-solvers-5-2c]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 330_000_000_000
+measured = 218_702_496_856
+
+[groups.sympy-r-solvers-5-3a]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 2_700_000_000_000
+measured = 1_767_286_016_523
+
+[groups.sympy-r-solvers-5-3b]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 570_000_000_000
+measured = 377_666_666_338
+
+[groups.sympy-r-solvers-5-3c]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 700_000_000_000
+measured = 460_611_792_852
+
+[groups.sympy-r-solvers-5-4]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_100_000_000_000
+measured = 673_902_674_874
+
+[groups.sympy-r-solvers-5-5]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_100_000_000_000
+measured = 688_306_196_563
+
+[groups.sympy-r-solvers-5-6]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 890_000_000_000
+measured = 586_900_328_853
+
+[groups.sympy-r-solvers-5-7a]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 250_000_000_000
+measured = 160_048_775_783
+
+[groups.sympy-r-solvers-5-7b]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 830_000_000_000
+measured = 546_771_443_017
+
+[groups.sympy-r-solvers-5-7c]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 500_000_000_000
+measured = 330_953_638_696
+
+[groups.sympy-r-solvers-5-8a]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_000_000_000_000
+measured = 666_516_397_231
+
+[groups.sympy-r-solvers-5-8b]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 630_000_000_000
+measured = 415_083_215_280
+
+[groups.sympy-r-solvers-5-9a]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 270_000_000_000
+measured = 179_651_592_529
+
+[groups.sympy-r-solvers-5-10]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 370_000_000_000
+measured = 245_036_299_727
+
+[groups.sympy-r-solvers-5-11]
+paths = ["sympy/solvers/ode/tests/test_single.py"]
+tier = "release"
+release_by = "path"
+fuel = 480_000_000_000
+measured = 315_444_161_016
+
+[groups.sympy-r-solvers-6-1]
+paths = ["sympy/solvers/ode/tests/test_subscheck.py"]
+tier = "release"
+release_by = "path"
+fuel = 220_000_000_000
+measured = 140_130_758_940
+
+[groups.sympy-r-solvers-6-2]
+paths = ["sympy/solvers/ode/tests/test_subscheck.py"]
+tier = "release"
+release_by = "path"
+fuel = 90_000_000_000
+measured = 59_542_429_314
+
+[groups.sympy-r-solvers-7-1a]
+paths = ["sympy/solvers/ode/tests/test_systems.py"]
+tier = "release"
+release_by = "path"
+fuel = 240_000_000_000
+measured = 153_654_237_476
+
+[groups.sympy-r-solvers-7-1b]
+paths = ["sympy/solvers/ode/tests/test_systems.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_300_000_000_000
+measured = 817_344_416_844
+
+[groups.sympy-r-solvers-7-1c]
+paths = ["sympy/solvers/ode/tests/test_systems.py"]
+tier = "release"
+release_by = "path"
+fuel = 72_000_000_000
+measured = 47_455_305_041
+
+[groups.sympy-r-solvers-7-2a]
+paths = ["sympy/solvers/ode/tests/test_systems.py"]
+tier = "release"
+release_by = "path"
+fuel = 150_000_000_000
+measured = 93_942_830_672
+
+[groups.sympy-r-solvers-7-2b]
+paths = ["sympy/solvers/ode/tests/test_systems.py"]
+tier = "release"
+release_by = "path"
+fuel = 320_000_000_000
+measured = 213_190_192_358
+
+[groups.sympy-r-solvers-7-2c]
+paths = ["sympy/solvers/ode/tests/test_systems.py"]
+tier = "release"
+release_by = "path"
+fuel = 220_000_000_000
+measured = 140_234_540_805
+
+[groups.sympy-r-solvers-7-3b]
+paths = ["sympy/solvers/ode/tests/test_systems.py"]
+tier = "release"
+release_by = "path"
+fuel = 880_000_000_000
+measured = 586_173_386_069
+
+[groups.sympy-r-solvers-7-3c]
+paths = ["sympy/solvers/ode/tests/test_systems.py"]
+tier = "release"
+release_by = "path"
+fuel = 150_000_000_000
+measured = 97_414_161_155
+
+[groups.sympy-r-solvers-7-4a]
+paths = ["sympy/solvers/ode/tests/test_systems.py"]
+tier = "release"
+release_by = "path"
+fuel = 200_000_000_000
+measured = 133_238_036_181
+
+[groups.sympy-r-solvers-7-4b]
+paths = ["sympy/solvers/ode/tests/test_systems.py"]
+tier = "release"
+release_by = "path"
+fuel = 280_000_000_000
+measured = 184_575_044_111
+
+[groups.sympy-r-solvers-7-4c]
+paths = ["sympy/solvers/ode/tests/test_systems.py"]
+tier = "release"
+release_by = "path"
+fuel = 410_000_000_000
+measured = 271_163_367_311
+
+[groups.sympy-r-solvers-7-5a]
+paths = ["sympy/solvers/ode/tests/test_systems.py"]
+tier = "release"
+release_by = "path"
+fuel = 410_000_000_000
+measured = 271_018_285_450
+
+[groups.sympy-r-solvers-7-5b]
+paths = ["sympy/solvers/ode/tests/test_systems.py"]
+tier = "release"
+release_by = "path"
+fuel = 410_000_000_000
+measured = 270_995_665_099
+
+[groups.sympy-r-solvers-7-5c]
+paths = ["sympy/solvers/ode/tests/test_systems.py"]
+tier = "release"
+release_by = "path"
+fuel = 260_000_000_000
+measured = 171_098_964_506
+
+[groups.sympy-r-solvers-7-6c]
+paths = ["sympy/solvers/ode/tests/test_systems.py"]
+tier = "release"
+release_by = "path"
+fuel = 260_000_000_000
+measured = 172_455_979_681
+
+[groups.sympy-r-solvers-7-7]
+paths = ["sympy/solvers/ode/tests/test_systems.py"]
+tier = "release"
+release_by = "path"
+fuel = 300_000_000_000
+measured = 199_021_075_053
+
+[groups.sympy-r-solvers-7-8]
+paths = ["sympy/solvers/ode/tests/test_systems.py"]
+tier = "release"
+release_by = "path"
+fuel = 470_000_000_000
+measured = 311_004_254_475
+
+[groups.sympy-r-solvers-7-9]
+paths = ["sympy/solvers/ode/tests/test_systems.py"]
+tier = "release"
+release_by = "path"
+fuel = 140_000_000_000
+measured = 90_160_112_689
+
+[groups.sympy-r-solvers-8]
+paths = ["sympy/solvers/tests/test_constantsimp.py"]
+tier = "release"
+release_by = "path"
+fuel = 47_000_000_000
+measured = 30_986_653_168
+
+[groups.sympy-r-solvers-9]
+paths = ["sympy/solvers/tests/test_decompogen.py"]
+tier = "release"
+release_by = "path"
+fuel = 41_000_000_000
+measured = 26_930_792_629
+
+[groups.sympy-r-solvers-10]
+paths = ["sympy/solvers/tests/test_inequalities.py"]
+tier = "release"
+release_by = "path"
+fuel = 120_000_000_000
+measured = 78_162_433_609
+
+[groups.sympy-r-solvers-11]
+paths = ["sympy/solvers/tests/test_numeric.py"]
+tier = "release"
+release_by = "path"
+fuel = 42_000_000_000
+measured = 27_490_025_469
+
+[groups.sympy-r-solvers-12]
+paths = ["sympy/solvers/tests/test_pde.py"]
+tier = "release"
+release_by = "path"
+fuel = 170_000_000_000
+measured = 112_195_303_429
+
+[groups.sympy-r-solvers-13]
+paths = ["sympy/solvers/tests/test_polysys.py"]
+tier = "release"
+release_by = "path"
+fuel = 57_000_000_000
+measured = 37_567_851_744
+
+[groups.sympy-r-solvers-14]
+paths = ["sympy/solvers/tests/test_recurr.py"]
+tier = "release"
+release_by = "path"
+fuel = 650_000_000_000
+measured = 429_262_943_666
+
+[groups.sympy-r-solvers-15]
+paths = ["sympy/solvers/tests/test_simplex.py"]
+tier = "release"
+release_by = "path"
+fuel = 56_000_000_000
+measured = 36_708_149_113
+
+[groups.sympy-r-solvers-16-1a]
+paths = ["sympy/solvers/tests/test_solvers.py"]
+tier = "release"
+release_by = "path"
+fuel = 360_000_000_000
+measured = 239_031_737_485
+
+[groups.sympy-r-solvers-16-1b]
+paths = ["sympy/solvers/tests/test_solvers.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_100_000_000_000
+measured = 671_564_583_729
+
+[groups.sympy-r-solvers-16-2a]
+paths = ["sympy/solvers/tests/test_solvers.py"]
+tier = "release"
+release_by = "path"
+fuel = 2_000_000_000_000
+measured = 1_295_911_440_069
+
+[groups.sympy-r-solvers-16-2b]
+paths = ["sympy/solvers/tests/test_solvers.py"]
+tier = "release"
+release_by = "path"
+fuel = 250_000_000_000
+measured = 160_476_083_788
+
+[groups.sympy-r-solvers-16-2c]
+paths = ["sympy/solvers/tests/test_solvers.py"]
+tier = "release"
+release_by = "path"
+fuel = 2_200_000_000_000
+measured = 1_445_562_578_930
+
+[groups.sympy-r-solvers-16-3]
+paths = ["sympy/solvers/tests/test_solvers.py"]
+tier = "release"
+release_by = "path"
+fuel = 400_000_000_000
+measured = 263_114_965_404
+
+[groups.sympy-r-solvers-16-4]
+paths = ["sympy/solvers/tests/test_solvers.py"]
+tier = "release"
+release_by = "path"
+fuel = 240_000_000_000
+measured = 155_445_325_637
+
+[groups.sympy-r-solvers-16-5]
+paths = ["sympy/solvers/tests/test_solvers.py"]
+tier = "release"
+release_by = "path"
+fuel = 120_000_000_000
+measured = 74_375_019_443
+
+[groups.sympy-r-solvers-16-6]
+paths = ["sympy/solvers/tests/test_solvers.py"]
+tier = "release"
+release_by = "path"
+fuel = 230_000_000_000
+measured = 152_332_077_614
+
+[groups.sympy-r-solvers-16-7]
+paths = ["sympy/solvers/tests/test_solvers.py"]
+tier = "release"
+release_by = "path"
+fuel = 150_000_000_000
+measured = 99_369_989_706
+
+[groups.sympy-r-solvers-16-8]
+paths = ["sympy/solvers/tests/test_solvers.py"]
+tier = "release"
+release_by = "path"
+fuel = 110_000_000_000
+measured = 73_156_197_810
+
+[groups.sympy-r-solvers-16-9]
+paths = ["sympy/solvers/tests/test_solvers.py"]
+tier = "release"
+release_by = "path"
+fuel = 220_000_000_000
+measured = 143_788_348_341
+
+[groups.sympy-r-solvers-16-10]
+paths = ["sympy/solvers/tests/test_solvers.py"]
+tier = "release"
+release_by = "path"
+fuel = 190_000_000_000
+measured = 121_527_603_248
+
+[groups.sympy-r-solvers-16-11]
+paths = ["sympy/solvers/tests/test_solvers.py"]
+tier = "release"
+release_by = "path"
+fuel = 76_000_000_000
+measured = 50_180_879_990
+
+[groups.sympy-r-solvers-16-12]
+paths = ["sympy/solvers/tests/test_solvers.py"]
+tier = "release"
+release_by = "path"
+fuel = 99_000_000_000
+measured = 65_422_458_651
+
+[groups.sympy-r-solvers-16-13]
+paths = ["sympy/solvers/tests/test_solvers.py"]
+tier = "release"
+release_by = "path"
+fuel = 120_000_000_000
+measured = 75_182_060_304
+
+[groups.sympy-r-solvers-16-14]
+paths = ["sympy/solvers/tests/test_solvers.py"]
+tier = "release"
+release_by = "path"
+fuel = 150_000_000_000
+measured = 99_550_018_997
+
+[groups.sympy-r-solvers-16-15]
+paths = ["sympy/solvers/tests/test_solvers.py"]
+tier = "release"
+release_by = "path"
+fuel = 110_000_000_000
+measured = 66_776_046_842
+
+[groups.sympy-r-solvers-17-solveset-1]
+paths = ["sympy/solvers/tests/test_solveset.py"]
+tier = "release"
+release_by = "path"
+fuel = 170_000_000_000
+measured = 108_710_582_139
+
+[groups.sympy-r-solvers-17-solveset-2]
+paths = ["sympy/solvers/tests/test_solveset.py"]
+tier = "release"
+release_by = "path"
+fuel = 3_000_000_000_000
+measured = 1_968_323_219_340
+
+[groups.sympy-r-solvers-17-solveset-3]
+paths = ["sympy/solvers/tests/test_solveset.py"]
+tier = "release"
+release_by = "path"
+fuel = 96_000_000_000
+measured = 63_813_076_279
+
+[groups.sympy-r-solvers-17-solveset-4]
+paths = ["sympy/solvers/tests/test_solveset.py"]
+tier = "release"
+release_by = "path"
+fuel = 640_000_000_000
+measured = 425_036_582_105
+
+[groups.sympy-r-solvers-17-solveset-6]
+paths = ["sympy/solvers/tests/test_solveset.py"]
+tier = "release"
+release_by = "path"
+fuel = 370_000_000_000
+measured = 242_301_751_846
+
+[groups.sympy-r-solvers-17-solveset-7]
+paths = ["sympy/solvers/tests/test_solveset.py"]
+tier = "release"
+release_by = "path"
+fuel = 540_000_000_000
+measured = 356_420_459_310
+
+[groups.sympy-r-solvers-17-solveset-5]
+paths = ["sympy/solvers/tests/test_solveset.py"]
+tier = "release"
+release_by = "path"
+fuel = 460_000_000_000
+measured = 301_133_709_560
+
+[groups.sympy-r-stats-1]
+paths = ["sympy/stats/sampling/tests/test_sample_continuous_rv.py"]
+tier = "release"
+release_by = "path"
+fuel = 61_000_000_000
+measured = 40_049_466_101
+
+[groups.sympy-r-stats-2]
+paths = [
+    "sympy/stats/sampling/tests/test_sample_discrete_rv.py",
+    "sympy/stats/sampling/tests/test_sample_finite_rv.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 50_000_000_000
+measured = 32_956_174_980
+
+[groups.sympy-r-stats-3]
+paths = ["sympy/stats/tests/test_compound_rv.py"]
+tier = "release"
+release_by = "path"
+fuel = 200_000_000_000
+measured = 127_226_447_835
+
+[groups.sympy-r-stats-4-continuous-rv-1]
+paths = ["sympy/stats/tests/test_continuous_rv.py"]
+tier = "release"
+release_by = "path"
+fuel = 600_000_000_000
+measured = 397_058_305_732
+
+[groups.sympy-r-stats-4-continuous-rv-2]
+paths = ["sympy/stats/tests/test_continuous_rv.py"]
+tier = "release"
+release_by = "path"
+fuel = 4_300_000_000_000
+measured = 2_865_017_063_969
+
+[groups.sympy-r-stats-4-continuous-rv-3]
+paths = ["sympy/stats/tests/test_continuous_rv.py"]
+tier = "release"
+release_by = "path"
+fuel = 300_000_000_000
+measured = 197_996_125_846
+
+[groups.sympy-r-stats-5]
+paths = ["sympy/stats/tests/test_discrete_rv.py"]
+tier = "release"
+release_by = "path"
+fuel = 420_000_000_000
+measured = 278_437_720_989
+
+[groups.sympy-r-stats-6]
+paths = ["sympy/stats/tests/test_error_prop.py"]
+tier = "release"
+release_by = "path"
+fuel = 41_000_000_000
+measured = 27_186_221_000
+
+[groups.sympy-r-stats-7]
+paths = ["sympy/stats/tests/test_finite_rv.py"]
+tier = "release"
+release_by = "path"
+fuel = 440_000_000_000
+measured = 292_982_225_208
+
+[groups.sympy-r-stats-8]
+paths = ["sympy/stats/tests/test_joint_rv.py"]
+tier = "release"
+release_by = "path"
+fuel = 340_000_000_000
+measured = 226_662_581_981
+
+[groups.sympy-r-stats-9]
+paths = ["sympy/stats/tests/test_matrix_distributions.py"]
+tier = "release"
+release_by = "path"
+fuel = 51_000_000_000
+measured = 33_636_402_739
+
+[groups.sympy-r-stats-10]
+paths = ["sympy/stats/tests/test_mix.py"]
+tier = "release"
+release_by = "path"
+fuel = 57_000_000_000
+measured = 37_509_989_794
+
+[groups.sympy-r-stats-11]
+paths = ["sympy/stats/tests/test_random_matrix.py"]
+tier = "release"
+release_by = "path"
+fuel = 45_000_000_000
+measured = 29_367_934_335
+
+[groups.sympy-r-stats-12]
+paths = ["sympy/stats/tests/test_rv.py"]
+tier = "release"
+release_by = "path"
+fuel = 340_000_000_000
+measured = 222_863_805_868
+
+[groups.sympy-r-stats-13]
+paths = ["sympy/stats/tests/test_stochastic_process.py"]
+tier = "release"
+release_by = "path"
+fuel = 210_000_000_000
+measured = 133_429_033_323
+
+[groups.sympy-r-stats-14]
+paths = [
+    "sympy/stats/tests/test_symbolic_multivariate.py",
+    "sympy/stats/tests/test_symbolic_probability.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 120_000_000_000
+measured = 76_951_041_514
+
+[groups.sympy-r-strategies-1]
+paths = [
+    "sympy/strategies/branch/tests/test_core.py",
+    "sympy/strategies/branch/tests/test_tools.py",
+    "sympy/strategies/branch/tests/test_traverse.py",
+    "sympy/strategies/tests/test_core.py",
+    "sympy/strategies/tests/test_rl.py",
+    "sympy/strategies/tests/test_tools.py",
+    "sympy/strategies/tests/test_traverse.py",
+    "sympy/strategies/tests/test_tree.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 41_000_000_000
+measured = 27_092_485_978
+
+[groups.sympy-r-tensor-1]
+paths = [
+    "sympy/tensor/array/expressions/tests/test_array_expressions.py",
+    "sympy/tensor/array/expressions/tests/test_arrayexpr_derivatives.py",
+    "sympy/tensor/array/expressions/tests/test_as_explicit.py",
+    "sympy/tensor/array/expressions/tests/test_convert_array_to_indexed.py",
+    "sympy/tensor/array/expressions/tests/test_convert_array_to_matrix.py",
+    "sympy/tensor/array/expressions/tests/test_convert_indexed_to_array.py",
+    "sympy/tensor/array/expressions/tests/test_convert_matrix_to_array.py",
+    "sympy/tensor/array/expressions/tests/test_deprecated_conv_modules.py",
+    "sympy/tensor/array/tests/test_array_comprehension.py",
+    "sympy/tensor/array/tests/test_array_derivatives.py",
+    "sympy/tensor/array/tests/test_arrayop.py",
+    "sympy/tensor/array/tests/test_immutable_ndim_array.py",
+    "sympy/tensor/array/tests/test_mutable_ndim_array.py",
+    "sympy/tensor/array/tests/test_ndim_array.py",
+    "sympy/tensor/array/tests/test_ndim_array_conversions.py",
+    "sympy/tensor/tests/test_functions.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 110_000_000_000
+measured = 67_819_318_076
+
+[groups.sympy-r-tensor-2]
+paths = [
+    "sympy/tensor/tests/test_index_methods.py",
+    "sympy/tensor/tests/test_indexed.py",
+    "sympy/tensor/tests/test_printing.py",
+    "sympy/tensor/tests/test_tensor.py",
+    "sympy/tensor/tests/test_tensor_element.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 220_000_000_000
+measured = 141_002_876_294
+
+[groups.sympy-r-tensor-3]
+paths = ["sympy/tensor/tests/test_tensor_operators.py"]
+tier = "release"
+release_by = "path"
+fuel = 50_000_000_000
+measured = 32_957_995_472
+
+[groups.sympy-r-testing-1]
+paths = [
+    "sympy/testing/tests/test_code_quality.py",
+    "sympy/testing/tests/test_deprecated.py",
+    "sympy/testing/tests/test_module_imports.py",
+    "sympy/testing/tests/test_pytest.py",
+    "sympy/testing/tests/test_runtests_pytest.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 220_000_000_000
+measured = 145_836_951_149
+
+[groups.sympy-r-unify-1]
+paths = [
+    "sympy/unify/tests/test_rewrite.py",
+    "sympy/unify/tests/test_sympy.py",
+    "sympy/unify/tests/test_unify.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 42_000_000_000
+measured = 27_857_517_426
+
+[groups.sympy-r-utilities-1]
+paths = [
+    "sympy/utilities/_compilation/tests/test_compilation.py",
+    "sympy/utilities/tests/test_autowrap.py",
+    "sympy/utilities/tests/test_codegen.py",
+    "sympy/utilities/tests/test_codegen_julia.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 48_000_000_000
+measured = 31_428_415_474
+
+[groups.sympy-r-utilities-2]
+paths = [
+    "sympy/utilities/tests/test_codegen_octave.py",
+    "sympy/utilities/tests/test_codegen_rust.py",
+    "sympy/utilities/tests/test_decorator.py",
+    "sympy/utilities/tests/test_deprecated.py",
+    "sympy/utilities/tests/test_enumerative.py",
+    "sympy/utilities/tests/test_exceptions.py",
+    "sympy/utilities/tests/test_iterables.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 60_000_000_000
+measured = 39_351_724_526
+
+[groups.sympy-r-utilities-3]
+paths = ["sympy/utilities/tests/test_lambdify.py"]
+tier = "release"
+release_by = "path"
+fuel = 110_000_000_000
+measured = 69_580_116_340
+
+[groups.sympy-r-utilities-4]
+paths = [
+    "sympy/utilities/tests/test_matchpy_connector.py",
+    "sympy/utilities/tests/test_mathml.py",
+    "sympy/utilities/tests/test_misc.py",
+    "sympy/utilities/tests/test_pickling.py",
+    "sympy/utilities/tests/test_source.py",
+    "sympy/utilities/tests/test_timeutils.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 67_000_000_000
+measured = 44_070_021_005
+
+[groups.sympy-r-utilities-5-wester-1]
+paths = ["sympy/utilities/tests/test_wester.py"]
+tier = "release"
+release_by = "path"
+fuel = 55_000_000_000
+measured = 36_445_023_752
+
+[groups.sympy-r-utilities-5-wester-2]
+paths = ["sympy/utilities/tests/test_wester.py"]
+tier = "release"
+release_by = "path"
+fuel = 55_000_000_000
+measured = 36_459_207_973
+
+[groups.sympy-r-utilities-5-wester-3]
+paths = ["sympy/utilities/tests/test_wester.py"]
+tier = "release"
+release_by = "path"
+fuel = 55_000_000_000
+measured = 36_462_882_798
+
+[groups.sympy-r-utilities-5-wester-4]
+paths = ["sympy/utilities/tests/test_wester.py"]
+tier = "release"
+release_by = "path"
+fuel = 55_000_000_000
+measured = 36_463_716_729
+
+[groups.sympy-r-utilities-5-wester-5]
+paths = ["sympy/utilities/tests/test_wester.py"]
+tier = "release"
+release_by = "path"
+fuel = 55_000_000_000
+measured = 36_464_179_269
+
+[groups.sympy-r-utilities-5-wester-6]
+paths = ["sympy/utilities/tests/test_wester.py"]
+tier = "release"
+release_by = "path"
+fuel = 55_000_000_000
+measured = 36_466_824_505
+
+[groups.sympy-r-utilities-5-wester-7]
+paths = ["sympy/utilities/tests/test_wester.py"]
+tier = "release"
+release_by = "path"
+fuel = 55_000_000_000
+measured = 36_473_412_602
+
+[groups.sympy-r-utilities-5-wester-8]
+paths = ["sympy/utilities/tests/test_wester.py"]
+tier = "release"
+release_by = "path"
+fuel = 55_000_000_000
+measured = 36_470_586_663
+
+[groups.sympy-r-utilities-5-wester-9]
+paths = ["sympy/utilities/tests/test_wester.py"]
+tier = "release"
+release_by = "path"
+fuel = 55_000_000_000
+measured = 36_470_301_987
+
+[groups.sympy-r-utilities-6]
+paths = ["sympy/utilities/tests/test_xxe.py"]
+tier = "release"
+release_by = "path"
+fuel = 39_000_000_000
+measured = 25_729_061_090
+
+[groups.sympy-r-vector-1]
+paths = [
+    "sympy/vector/tests/test_coordsysrect.py",
+    "sympy/vector/tests/test_dyadic.py",
+    "sympy/vector/tests/test_field_functions.py",
+    "sympy/vector/tests/test_functions.py",
+    "sympy/vector/tests/test_implicitregion.py",
+    "sympy/vector/tests/test_integrals.py",
+    "sympy/vector/tests/test_operators.py",
+    "sympy/vector/tests/test_parametricregion.py",
+    "sympy/vector/tests/test_printing.py",
+    "sympy/vector/tests/test_vector.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 340_000_000_000
+measured = 220_616_400_083
+
+[groups.sympy-slow-17141]
+paths = ["sympy/simplify/tests/test_simplify.py::test_issue_17141_slow"]
+tier = "release"
+release_by = "path"
+fuel = 3_300_000_000_000
+measured = 2_199_258_300_808
+
+[groups.sympy-r-doc-1]
+docstring_packages = [
+    "sympy.algebras",
+    "sympy.assumptions",
+    "sympy.benchmarks",
+    "sympy.calculus",
+    "sympy.categories",
+    "sympy.codegen",
+]
+tier = "release"
+release_by = "path"
+fuel = 120_000_000_000
+measured = 76_081_909_752
+
+[groups.sympy-r-doc-2]
+docstring_packages = ["sympy.combinatorics"]
+tier = "release"
+release_by = "path"
+fuel = 320_000_000_000
+measured = 210_513_286_404
+
+[groups.sympy-r-doc-2b]
+docstring_packages = ["sympy.concrete"]
+tier = "release"
+release_by = "path"
+fuel = 190_000_000_000
+measured = 122_176_743_612
+
+[groups.sympy-r-doc-3]
+docstring_packages = ["sympy.core", "sympy.crypto", "sympy.diffgeom", "sympy.discrete", "sympy.external"]
+docstring_not_selected = ["sympy.core.compatibility", "sympy.core.trace"]
+tier = "release"
+release_by = "path"
+fuel = 170_000_000_000
+measured = 108_899_956_769
+
+[groups.sympy-r-doc-4]
+docstring_packages = ["sympy.functions", "sympy.geometry", "sympy.holonomic"]
+tier = "release"
+release_by = "path"
+fuel = 250_000_000_000
+measured = 165_677_920_565
+
+[groups.sympy-r-doc-5]
+docstring_packages = ["sympy.integrals", "sympy.interactive", "sympy.liealgebras", "sympy.logic"]
+tier = "release"
+release_by = "path"
+fuel = 150_000_000_000
+measured = 99_809_306_311
+
+[groups.sympy-r-doc-6]
+docstring_packages = ["sympy.matrices", "sympy.multipledispatch"]
+tier = "release"
+release_by = "path"
+fuel = 470_000_000_000
+measured = 308_579_957_477
+
+[groups.sympy-r-doc-7]
+docstring_packages = ["sympy.ntheory", "sympy.parsing"]
+docstring_not_selected = [
+    "sympy.parsing.autolev",
+    "sympy.parsing.latex._antlr",
+    "sympy.parsing.latex._parse_latex_antlr",
+    "sympy.parsing.sym_expr",
+]
+tier = "release"
+release_by = "path"
+fuel = 82_000_000_000
+measured = 54_218_810_286
+
+[groups.sympy-r-doc-8]
+docstring_packages = ["sympy.physics"]
+tier = "release"
+release_by = "path"
+fuel = 830_000_000_000
+measured = 551_323_349_838
+
+[groups.sympy-r-doc-9]
+docstring_packages = ["sympy.plotting"]
+docstring_not_selected = ["sympy.plotting.pygletplot"]
+tier = "release"
+release_by = "path"
+fuel = 110_000_000_000
+measured = 71_444_145_133
+
+[groups.sympy-r-doc-10]
+docstring_packages = ["sympy.polys"]
+tier = "release"
+release_by = "path"
+fuel = 290_000_000_000
+measured = 189_066_621_548
+
+[groups.sympy-r-doc-11]
+docstring_packages = ["sympy.printing", "sympy.sandbox", "sympy.series"]
+docstring_not_selected = ["sympy.printing.aesaracode"]
+tier = "release"
+release_by = "path"
+fuel = 130_000_000_000
+measured = 83_783_414_577
+
+[groups.sympy-r-doc-12]
+docstring_packages = ["sympy.sets"]
+tier = "release"
+release_by = "path"
+fuel = 44_000_000_000
+measured = 28_826_508_591
+
+[groups.sympy-r-doc-12b]
+docstring_packages = ["sympy.simplify"]
+tier = "release"
+release_by = "path"
+fuel = 94_000_000_000
+measured = 62_258_887_787
+
+[groups.sympy-r-doc-12c]
+docstring_packages = ["sympy.solvers"]
+tier = "release"
+release_by = "path"
+fuel = 870_000_000_000
+measured = 576_747_421_807
+
+[groups.sympy-r-doc-13]
+docstring_packages = ["sympy.stats"]
+tier = "release"
+release_by = "path"
+fuel = 610_000_000_000
+measured = 404_443_957_919
+
+[groups.sympy-r-doc-13b]
+docstring_packages = ["sympy.strategies"]
+tier = "release"
+release_by = "path"
+fuel = 39_000_000_000
+measured = 25_980_862_098
+
+[groups.sympy-r-doc-14]
+docstring_packages = ["sympy.tensor", "sympy.testing", "sympy.unify"]
+docstring_not_selected = ["sympy.testing.randtest"]
+tier = "release"
+release_by = "path"
+fuel = 52_000_000_000
+measured = 34_179_451_448
+
+[groups.sympy-r-doc-15]
+docstring_packages = ["sympy.utilities", "sympy.vector"]
+docstring_not_selected = [
+    "sympy.utilities.autowrap",
+    "sympy.utilities.tmpfiles",
+    "sympy.utilities.pytest",
+    "sympy.utilities.runtests",
+    "sympy.utilities.randtest",
+]
+tier = "release"
+release_by = "path"
+fuel = 210_000_000_000
+measured = 139_186_017_013
+
+[groups.sympy-r-doc-top]
+docstring_modules = ["sympy", "sympy.abc", "sympy.release"]
+docstring_not_selected = ["sympy.galgebra", "sympy.this"]
+tier = "release"
+release_by = "path"
+fuel = 39_000_000_000
+measured = 25_937_841_480
+
+[groups.sympy-r-docfiles-1]
+doctest_files = [["doc/src/contributing/dependencies.md", 44], ["doc/src/contributing/docstring.rst", 44], ["doc/src/contributing/new-contributors-guide/workflow-process.md", 44], ["doc/src/contributing/new-contributors-guide/writing-tests.md", 44], ["doc/src/explanation/active-deprecations.md", 44], ["doc/src/explanation/best-practices.md", 44], ["doc/src/explanation/gotchas.rst", 44], ["doc/src/explanation/modules/physics/biomechanics/biomechanics.rst", 44], ["doc/src/explanation/modules/physics/mechanics/advanced.rst", 44], ["doc/src/explanation/modules/physics/mechanics/autolev_parser.rst", 44], ["doc/src/explanation/modules/physics/mechanics/joints.rst", 44], ["doc/src/explanation/modules/physics/mechanics/kane.rst", 44]]
+tier = "release"
+release_by = "path"
+fuel = 84_000_000_000
+measured = 55_379_777_606
+
+[groups.sympy-r-docfiles-2]
+doctest_files = [["doc/src/explanation/modules/physics/mechanics/lagrange.rst", 44], ["doc/src/explanation/modules/physics/mechanics/linearize.rst", 44], ["doc/src/explanation/modules/physics/mechanics/masses.rst", 44], ["doc/src/explanation/modules/physics/mechanics/symsystem.rst", 44], ["doc/src/explanation/modules/physics/vector/advanced.rst", 44], ["doc/src/explanation/modules/physics/vector/fields.rst", 44], ["doc/src/explanation/modules/physics/vector/kinematics/kinematics.rst", 44], ["doc/src/explanation/modules/physics/vector/vectors/vectors.rst", 44], ["doc/src/explanation/solve_output.rst", 44], ["doc/src/explanation/special_topics/classification.rst", 44], ["doc/src/explanation/special_topics/finite_diff_derivatives.rst", 44], ["doc/src/guides/assumptions.rst", 44]]
+tier = "release"
+release_by = "path"
+fuel = 65_000_000_000
+measured = 43_218_541_617
+
+[groups.sympy-r-docfiles-3]
+doctest_files = [["doc/src/guides/booleans.rst", 44], ["doc/src/guides/custom-functions.md", 44], ["doc/src/guides/solving/find-roots-polynomial.md", 44], ["doc/src/guides/solving/reduce-inequalities-algebraically.md", 44], ["doc/src/guides/solving/solve-diophantine-equation.md", 44], ["doc/src/guides/solving/solve-equation-algebraically.md", 44], ["doc/src/guides/solving/solve-matrix-equation.md", 44], ["doc/src/guides/solving/solve-numerically.md", 44], ["doc/src/guides/solving/solve-ode.md", 44], ["doc/src/guides/solving/solve-system-of-equations-algebraically.md", 44], ["doc/src/guides/solving/solving-guidance.md", 44], ["doc/src/install.md", 44]]
+tier = "release"
+release_by = "path"
+fuel = 180_000_000_000
+measured = 113_820_089_857
+
+[groups.sympy-r-docfiles-4]
+doctest_files = [["doc/src/modules/assumptions/index.rst", 44], ["doc/src/modules/codegen.rst", 44], ["doc/src/modules/combinatorics/fp_groups.rst", 44], ["doc/src/modules/combinatorics/pc_groups.rst", 44], ["doc/src/modules/concrete.rst", 44], ["doc/src/modules/core.rst", 44], ["doc/src/modules/evalf.rst", 44], ["doc/src/modules/functions/combinatorial.rst", 44], ["doc/src/modules/geometry/index.rst", 44], ["doc/src/modules/holonomic/operations.rst", 44], ["doc/src/modules/holonomic/represent.rst", 44], ["doc/src/modules/holonomic/uses.rst", 44]]
+tier = "release"
+release_by = "path"
+fuel = 190_000_000_000
+measured = 126_552_968_037
+
+[groups.sympy-r-docfiles-5]
+doctest_files = [["doc/src/modules/integrals/integrals.rst", 44], ["doc/src/modules/logic.rst", 44], ["doc/src/modules/matrices/expressions.rst", 44], ["doc/src/modules/matrices/immutablematrices.rst", 44], ["doc/src/modules/matrices/matrices.rst", 44], ["doc/src/modules/ntheory.rst", 44], ["doc/src/modules/physics/units/examples.rst", 44], ["doc/src/modules/physics/units/index.rst", 44], ["doc/src/modules/polys/agca.rst", 44], ["doc/src/modules/polys/basics.rst", 44]]
+tier = "release"
+release_by = "path"
+fuel = 740_000_000_000
+measured = 493_254_984_342
+
+[groups.sympy-r-docfiles-6]
+doctest_files = [["doc/src/modules/polys/domainmatrix.rst", 44], ["doc/src/modules/polys/domainsintro.rst", 44], ["doc/src/modules/polys/domainsref.rst", 44], ["doc/src/modules/polys/ringseries.rst", 44], ["doc/src/modules/polys/wester.rst", 44], ["doc/src/modules/printing.rst", 44], ["doc/src/modules/rewriting.rst", 44], ["doc/src/modules/series/series.rst", 44], ["doc/src/modules/simplify/fu.rst", 44], ["doc/src/modules/simplify/hyperexpand.rst", 44], ["doc/src/modules/solvers/diophantine.rst", 44], ["doc/src/modules/solvers/solvers.rst", 44]]
+tier = "release"
+release_by = "path"
+fuel = 330_000_000_000
+measured = 217_016_909_736
+
+[groups.sympy-r-docfiles-7]
+doctest_files = [["doc/src/modules/solvers/solveset.rst", 44], ["doc/src/modules/utilities/autowrap.rst", 44], ["doc/src/modules/utilities/codegen.rst", 44], ["doc/src/modules/utilities/iterables.rst", 44], ["doc/src/modules/vector/basics.rst", 44], ["doc/src/modules/vector/coordsys.rst", 44], ["doc/src/modules/vector/examples.rst", 44], ["doc/src/modules/vector/fields.rst", 44], ["doc/src/modules/vector/vector_integration.rst", 44], ["doc/src/tutorials/intro-tutorial/basic_operations.rst", 44], ["doc/src/tutorials/intro-tutorial/calculus.rst", 44], ["doc/src/tutorials/intro-tutorial/gotchas.rst", 44]]
+tier = "release"
+release_by = "path"
+fuel = 110_000_000_000
+measured = 72_832_831_932
+
+[groups.sympy-r-docfiles-8]
+doctest_files = [["doc/src/tutorials/intro-tutorial/intro.rst", 44], ["doc/src/tutorials/intro-tutorial/manipulation.rst", 44], ["doc/src/tutorials/intro-tutorial/matrices.rst", 44], ["doc/src/tutorials/intro-tutorial/printing.rst", 44], ["doc/src/tutorials/intro-tutorial/simplification.rst", 44], ["doc/src/tutorials/intro-tutorial/solvers.rst", 44]]
+tier = "release"
+release_by = "path"
+fuel = 89_000_000_000
+measured = 59_300_749_119
+
+[groups.sympy-r-docfiles-8b]
+doctest_files = [["doc/src/tutorials/physics/biomechanics/biomechanical-model-example.rst", 44], ["doc/src/tutorials/physics/continuum_mechanics/beam_problems.rst", 44], ["doc/src/tutorials/physics/control/control_problems.rst", 44], ["doc/src/tutorials/physics/control/electrical_problems.rst", 44], ["doc/src/tutorials/physics/control/mechanics_problems.rst", 44]]
+tier = "release"
+release_by = "path"
+fuel = 210_000_000_000
+measured = 136_119_155_542
+
+[groups.sympy-r-docfiles-8c]
+doctest_files = [["doc/src/tutorials/physics/mechanics/bicycle_example.rst", 44]]
+tier = "release"
+release_by = "path"
+fuel = 1_900_000_000_000
+measured = 1_261_492_255_028
+
+[groups.sympy-r-docfiles-9]
+doctest_files = [["doc/src/tutorials/physics/mechanics/duffing-example.rst", 44], ["doc/src/tutorials/physics/mechanics/four_bar_linkage_example.rst", 44], ["doc/src/tutorials/physics/mechanics/lin_pend_nonmin_example.rst", 44], ["doc/src/tutorials/physics/mechanics/multi_degree_freedom_holonomic_system.rst", 44], ["doc/src/tutorials/physics/mechanics/rollingdisc_example_kane.rst", 44], ["doc/src/tutorials/physics/mechanics/rollingdisc_example_kane_constraints.rst", 44], ["doc/src/tutorials/physics/mechanics/rollingdisc_example_lagrange.rst", 44]]
+tier = "release"
+release_by = "path"
+fuel = 710_000_000_000
+measured = 472_230_700_249
+
+[[split]]
+file = "sympy/assumptions/tests/test_query.py"
+groups = [
+    "sympy-r-assumptions-2-1",
+    "sympy-r-assumptions-2-2",
+    "sympy-r-assumptions-2-3",
+    "sympy-r-assumptions-2-4",
+]
+keywords = [
+    "(test_known_facts_consistent)",
+    "(test_int_1 or test_int_11 or test_int_12 or test_float_1 or test_zero_0 or test_negativeone or test_infinity or test_neg_infinity or test_complex_infinity or test_nan or test_Rational_number or test_sqrt_2 or test_pi or test_E or test_GoldenRatio or test_TribonacciConstant or test_I or test_bounded or test_unbounded or test_issue_27441 or test_issue_27447 or test_issue_27662_xfail or test_bounded_xfail or test_commutative or test_complex or test_even_query or test_evenness_in_ternary_integer_product_with_odd or test_evenness_in_ternary_integer_product_with_even or test_extended_real or test_rational or test_hermitian or test_imaginary or test_integer or test_negative or test_nonzero) and not (test_issue_25221 or test_issue_27440 or test_issue_3906 or test_issue_5421 or test_issue_5833 or test_issue_6732 or test_issue_7246 or test_issue_7246_failing or test_issue_9636)",
+    "(test_zero or test_odd_query or test_oddness_in_ternary_integer_product_with_odd or test_oddness_in_ternary_integer_product_with_even or test_prime or test_positive or test_nonpositive or test_nonnegative or test_real_basic or test_real_pow or test_real_functions or test_matrix or test_algebraic or test_global or test_custom_context or test_functions_in_assumptions or test_composite_ask or test_composite_proposition or test_tautology or test_composite_assumptions or test_key_extensibility or test_type_extensibility or test_single_fact_lookup or test_generate_known_facts_dict or test_Add_queries or test_positive_assuming or test_issue_5421 or test_issue_3906 or test_issue_5833 or test_issue_6732 or test_issue_7246 or test_issue_7246_failing or test_check_old_assumption or test_issue_9636 or test_autosimp_used_to_fail) and not (test_zero_0)",
+]
+
+[[split]]
+file = "sympy/combinatorics/tests/test_coset_table.py"
+groups = ["sympy-r-combinatorics-1-s1-1", "sympy-r-combinatorics-1-s1-2"]
+keywords = ["(test_coset_enumeration)"]
+
+[[split]]
+file = "sympy/combinatorics/tests/test_fp_groups.py"
+groups = ["sympy-r-combinatorics-1-s2-1", "sympy-r-combinatorics-1-s2-2"]
+keywords = ["(test_order)"]
+
+[[split]]
+file = "sympy/concrete/tests/test_sums_products.py"
+groups = ["sympy-r-concrete-2-1", "sympy-r-concrete-2-2", "sympy-r-concrete-2-3"]
+keywords = [
+    "(test_evalf_euler_maclaurin or test_is_convergent or test_summation_by_residues_failing)",
+    "(test_karr_convention or test_karr_proposition_2a or test_karr_proposition_2b or test_arithmetic_sums or test_polynomial_sums or test_geometric_sums or test_harmonic_sums or test_composite_sums or test_hypergeometric_sums or test_other_sums or test_evalf_fast_series or test_evalf_fast_series_issue_4021 or test_evalf_slow_series or test_evalf_oo_to_oo or test_euler_maclaurin or test_evalf_symbolic or test_evalf_issue_3273 or test_simple_products or test_rational_products or test_wallis_product or test_telescopic_sums or test_sum_reconstruct or test_limit_subs or test_function_subs or test_equality or test_Sum_doit or test_Product_doit or test_Sum_interface or test_diff or test_hypersum or test_issue_4170 or test_is_commutative or test_is_zero or test_is_number or test_free_symbols or test_conjugate_transpose or test_noncommutativity_honoured or test_issue_4171 or test_issue_6273 or test_issue_6274 or test_simplify_sum or test_change_index or test_reorder or test_reverse_order or test_issue_7097 or test_factor_expand_subs or test_distribution_over_equality or test_issue_2787 or test_issue_4668 or test_matrix_sum or test_failing_matrix_sum)",
+]
+
+[[split]]
+file = "sympy/functions/elementary/tests/test_trigonometric.py"
+groups = [
+    "sympy-r-functions-7-1",
+    "sympy-r-functions-7-2",
+    "sympy-r-functions-7-3",
+    "sympy-r-functions-7-4",
+]
+keywords = [
+    "(test_tan_rewrite_slow or test_cot_rewrite_slow or test_sincos_rewrite_sqrt) and not (test_sincos_rewrite_sqrt_257)",
+    "(test_sincos_rewrite_sqrt_257 or test_tancot_rewrite_sqrt)",
+    "(test_sin or test_sin_cos or test_sin_series or test_sin_rewrite or test_sin_expansion or test_sin_AccumBounds or test_sin_fdiff or test_trig_symmetry or test_cos or test_issue_6190 or test_cos_series or test_cos_rewrite or test_cos_expansion or test_cos_AccumBounds or test_cos_fdiff or test_tan or test_tan_series or test_tan_rewrite or test_tan_subs or test_tan_expansion or test_tan_AccumBounds or test_tan_fdiff or test_cot or test_tan_cot_sin_cos_evalf or test_tan_cot_sin_cos_ratsimp or test_cot_series or test_cot_rewrite or test_cot_subs or test_cot_expansion or test_cot_AccumBounds or test_cot_fdiff or test_sinc or test_asin or test_asin_series or test_asin_leading_term or test_asin_rewrite or test_asin_fdiff or test_acos or test_acos_leading_term or test_acos_series or test_acos_rewrite or test_acos_fdiff or test_atan or test_atan_rewrite or test_atan_fdiff or test_atan_leading_term or test_atan2 or test_issue_17461 or test_acot or test_acot_rewrite or test_acot_fdiff or test_acot_leading_term or test_attributes or test_sincos_rewrite or test_evenodd_rewrite or test_as_leading_term_issue_5272 or test_leading_terms or test_atan2_expansion or test_aseries or test_issue_4420 or test_inverses or test_real_imag or test_sec or test_sec_rewrite) and not (test_acos_nseries or test_acot_nseries or test_asin_nseries or test_atan_nseries or test_cot_rewrite_slow or test_sec_fdiff or test_sincos_rewrite_sqrt or test_sincos_rewrite_sqrt_257 or test_tan_rewrite_slow or test_tancot_rewrite_sqrt)",
+]
+
+[[split]]
+file = "sympy/integrals/tests/test_failing_integrals.py"
+groups = [
+    "sympy-r-integrals-2-1a",
+    "sympy-r-integrals-2-1b",
+    "sympy-r-integrals-2-2",
+    "sympy-r-integrals-2-3a",
+    "sympy-r-integrals-2-3b",
+    "sympy-r-integrals-2-4",
+    "sympy-r-integrals-2-5",
+    "sympy-r-integrals-2-6",
+]
+keywords = [
+    "(test_issue_4525)",
+    "(test_issue_4540)",
+    "(test_issue_4891 or test_issue_1796a or test_issue_4941)",
+    "(test_issue_14716)",
+    "(test_issue_14398)",
+    "(test_issue_14078b)",
+    "(test_issue_4212_real or test_issue_4212 or test_issue_4511 or test_integrate_DiracDelta_no_meijerg or test_integrate_DiracDelta_fails or test_issue_4895b or test_issue_4895c or test_issue_4895d or test_issue_4992 or test_issue_16396a or test_issue_16396b or test_issue_16046 or test_issue_15925a or test_issue_15925b or test_issue_15925b_manual or test_issue_14709a or test_issue_14074 or test_issue_13792 or test_issue_11845a or test_issue_11845b or test_issue_11813 or test_issue_11254c)",
+]
+
+[[split]]
+file = "sympy/integrals/tests/test_integrals.py"
+groups = [
+    "sympy-r-integrals-4-1",
+    "sympy-r-integrals-4-2",
+    "sympy-r-integrals-4-3",
+    "sympy-r-integrals-4-4",
+    "sympy-r-integrals-4-5",
+    "sympy-r-integrals-4-6",
+    "sympy-r-integrals-4-7",
+    "sympy-r-integrals-4-8",
+]
+keywords = [
+    "(test_principal_value or test_evalf_integrals or test_heurisch_option)",
+    "(test_issue_8945 or test_issue_7130 or test_issue_11876)",
+    "(test_issue_14782_slow or test_issue_15494 or test_issue_22033_integral)",
+    "(test_issue_21671 or test_issue_19427)",
+    "(test_poly_deprecated or test_improper_integral or test_constructor or test_basics or test_diff_wrt or test_basics_multiple or test_conjugate_transpose or test_integration or test_multiple_integration or test_issue_3532 or test_issue_3560 or test_issue_18038 or test_integrate_poly or test_integrate_poly_definite or test_integrate_omit_var or test_integrate_poly_accurately or test_issue_3635 or test_integrate_linearterm_pow or test_issue_3618 or test_issue_3623 or test_issue_3664 or test_issue_3679 or test_issue_3686 or test_integrate_units or test_transcendental_functions or test_log_polylog or test_issue_3740 or test_issue_3788 or test_issue_3952 or test_issue_4516 or test_issue_7450 or test_issue_8623 or test_issue_9569 or test_issue_13733 or test_issue_13749 or test_issue_18133 or test_issue_21741 or test_matrices or test_integrate_functions or test_integrate_derivatives or test_transform or test_issue_4052 or test_evalf_issue_939 or test_double_previously_failing_integrals or test_integrate_SingularityFunction or test_integrate_DiracDelta or test_integrate_returns_piecewise or test_integrate_max_min or test_integrate_Abs_sign or test_subs1 or test_subs2 or test_subs3 or test_subs4 or test_subs5 or test_subs6) and not (test_integration_variable)",
+    "(test_subs7 or test_expand or test_integration_variable or test_expand_integral or test_as_sum_midpoint1 or test_as_sum_midpoint2 or test_as_sum_left or test_as_sum_right or test_as_sum_trapezoid or test_as_sum_raises or test_nested_doit or test_issue_4665 or test_integral_reconstruct or test_doit_integrals or test_issue_4884 or test_issue_18153 or test_is_number or test_free_symbols or test_is_zero or test_series or test_trig_nonelementary_integrals or test_issue_4403 or test_issue_4403_2 or test_issue_4100 or test_issue_5167 or test_issue_4890 or test_issue_4551 or test_issue_4376 or test_issue_4517 or test_issue_4527 or test_issue_4199 or test_issue_3940 or test_issue_5413 or test_issue_4892a or test_issue_4892b or test_issue_5178 or test_integrate_series or test_atom_bug or test_limit_bug or test_issue_4703 or test_issue_1888 or test_issue_3558 or test_issue_4422 or test_issue_4493 or test_issue_4737 or test_issue_4992 or test_issue_4487 or test_issue_4215 or test_issue_4400 or test_issue_6253 or test_issue_4153 or test_issue_4326 or test_powers or test_manual_option or test_meijerg_option)",
+    "(test_risch_option or test_issue_6828 or test_issue_4803 or test_issue_4234 or test_issue_4492 or test_issue_2708 or test_issue_2884 or test_issue_8368i or test_issue_8901 or test_issue_10567 or test_issue_11742 or test_issue_11856 or test_issue_4950 or test_issue_4968 or test_singularities or test_issue_12645 or test_issue_12677 or test_issue_14078 or test_issue_14064 or test_issue_14027 or test_issue_8170 or test_issue_8440_14040 or test_issue_14096 or test_issue_14144 or test_issue_14375 or test_issue_14437 or test_issue_14470 or test_issue_14877 or test_issue_14782 or test_issue_12081 or test_issue_15285 or test_issue_15432 or test_issue_15124 or test_issue_15218 or test_issue_15292 or test_issue_4514 or test_issue_15457 or test_issue_15431 or test_issue_15640_log_substitutions or test_issue_15509 or test_issue_4311_fast or test_integrate_with_complex_constants or test_issue_14241 or test_issue_13112 or test_issue_14709b or test_issue_8614 or test_li_integral or test_issue_17473 or test_issue_17671 or test_issue_2975 or test_issue_7827 or test_issue_4231 or test_issue_17841 or test_issue_21034 or test_issue_4187) and not (test_issue_14782_slow)",
+]
+
+[[split]]
+file = "sympy/integrals/tests/test_manual.py"
+groups = [
+    "sympy-r-integrals-6-1",
+    "sympy-r-integrals-6-2",
+    "sympy-r-integrals-6-3",
+    "sympy-r-integrals-6-4",
+    "sympy-r-integrals-6-5",
+]
+keywords = [
+    "(test_manualintegrate_trigpowers or test_manualintegrate_inversetrig or test_issue_6799)",
+    "(test_issue_2850 or test_issue_10847_slow or test_issue_10847)",
+    "(test_issue_13297 or test_issue_9858 or test_issue_15471)",
+    "(test_find_substitutions or test_manualintegrate_polynomials or test_manualintegrate_exponentials or test_manualintegrate_parts or test_manualintegrate_trigonometry or test_manualintegrate_trig_substitution or test_manualintegrate_trivial_substitution or test_manualintegrate_rational or test_manualintegrate_special or test_manualintegrate_derivative or test_manualintegrate_Heaviside or test_manualintegrate_orthogonal_poly or test_issue_12251 or test_issue_3796 or test_manual_true or test_issue_6746 or test_issue_9462)",
+]
+
+[[split]]
+file = "sympy/integrals/tests/test_meijerint.py"
+groups = ["sympy-r-integrals-7-1", "sympy-r-integrals-7-2", "sympy-r-integrals-7-3"]
+keywords = [
+    "(test_expint)",
+    "(test_rewrite_single or test_rewrite1 or test_meijerint_indefinite_numerically or test_meijerint_definite or test_inflate or test_recursive or test_bessel or test_inversion or test_inversion_conditional_output or test_inversion_exp_real_nonreal_shift or test_branch_bug or test_linear_subs or test_messy or test_issue_6122 or test_issue_6252 or test_issue_6348)",
+]
+
+[[split]]
+file = "sympy/integrals/tests/test_transforms.py"
+groups = [
+    "sympy-r-integrals-12-s2-1",
+    "sympy-r-integrals-12-s2-2a",
+    "sympy-r-integrals-12-s2-3a",
+    "sympy-r-integrals-12-s2-3b",
+    "sympy-r-integrals-12-s2-3c",
+]
+keywords = [
+    "(test_mellin_transform_fail or test_mellin_transform_bessel or test_expint)",
+    "(test_inverse_mellin_transform)",
+    "(test_undefined_function or test_free_symbols or test_as_integral or test_mellin_transform or test_mellin_transform2 or test_fourier_transform) and not (test_mellin_transform_bessel or test_mellin_transform_fail)",
+    "(test_sine_transform)",
+]
+
+[[split]]
+file = "sympy/matrices/tests/test_decompositions.py"
+groups = ["sympy-r-matrices-3-s2-1", "sympy-r-matrices-3-s2-2"]
+keywords = ["(test_upper_hessenberg_decomposition)"]
+
+[[split]]
+file = "sympy/matrices/tests/test_eigen.py"
+groups = ["sympy-r-matrices-3-s5-1", "sympy-r-matrices-3-s5-2"]
+keywords = ["(test_bidiagonalize)"]
+
+[[split]]
+file = "sympy/matrices/tests/test_matrixbase.py"
+groups = ["sympy-r-matrices-6-1", "sympy-r-matrices-6-2", "sympy-r-matrices-6-3"]
+keywords = [
+    "(test_matrix_exponential_issue_26821 or test_pinv_rank_deficient_when_diagonalization_fails)",
+    "(test__MinimalMatrix or test_kind or test_todok or test_tolist or test_todod or test_row_col_del or test_get_diag_blocks1 or test_get_diag_blocks2 or test_row_col or test_row_join or test_col_join or test_row_insert or test_col_insert or test_extract or test_hstack or test_vstack or test_has or test_is_anti_symmetric or test_is_hermitian or test_is_symbolic or test_is_square or test_is_symmetric or test_is_hessenberg or test_values or test_conjugate or test_doit or test_evalf or test_replace or test_replace_map or test_numpy_conversion or test_rot90 or test_subs or test_permute or test_upper_triangular or test_lower_triangular or test_add or test_matmul or test_non_matmul or test_neg or test_sub or test_div or test_eye or test_ones or test_zeros or test_diag_make or test_diagonal or test_jordan_block or test_orthogonalize or test_wilkinson or test_limit or test_issue_13774 or test_companion or test_issue_10589 or test_rmul_pr19860 or test_issue_18956 or test__eq__ or test_args or test_deprecated_mat_smat or test_division or test_sum or test_abs or test_addition or test_fancy_index_matrix or test_multiplication or test_power or test_issue_17247_expression_blowup_1 or test_issue_17247_expression_blowup_2 or test_issue_17247_expression_blowup_3 or test_issue_17247_expression_blowup_4 or test_issue_17247_expression_blowup_5 or test_issue_17247_expression_blowup_6 or test_issue_17247_expression_blowup_7 or test_issue_17247_expression_blowup_8 or test_issue_17247_expression_blowup_9 or test_issue_17247_expression_blowup_10 or test_issue_17247_expression_blowup_11 or test_issue_17247_expression_blowup_12 or test_issue_17247_expression_blowup_13 or test_issue_17247_expression_blowup_14 or test_issue_17247_expression_blowup_15 or test_issue_17247_expression_blowup_16 or test_issue_17247_expression_blowup_17 or test_issue_17247_expression_blowup_18 or test_issue_17247_expression_blowup_19 or test_issue_17247_expression_blowup_20 or test_issue_17247_expression_blowup_21 or test_issue_17247_expression_blowup_22 or test_issue_17247_expression_blowup_23 or test_issue_17247_expression_blowup_24 or test_issue_17247_expression_blowup_25 or test_issue_17247_expression_blowup_26 or test_issue_17247_expression_blowup_27 or test_issue_17247_expression_blowup_28 or test_issue_16823 or test_issue_18531 or test_creation or test_irregular_block or test_slicing or test_submatrix_assignment or test_reshape or test_applyfunc or test_expand or test_refine) and not (test_creation_args or test_diagonal_symmetrical or test_diagonalization or test_hash or test_zeros_eye or test_zeros_ones_fill)",
+]
+
+[[split]]
+file = "sympy/ntheory/tests/test_primetest.py"
+groups = ["sympy-r-ntheory-2-s1-1", "sympy-r-ntheory-2-s1-2"]
+keywords = ["(test_prps)"]
+
+[[split]]
+file = "sympy/ntheory/tests/test_qs.py"
+groups = ["sympy-r-ntheory-2-s2-1", "sympy-r-ntheory-2-s2-2"]
+keywords = ["(test_qs_1)"]
+
+[[split]]
+file = "sympy/ntheory/tests/test_residue.py"
+groups = ["sympy-r-ntheory-2-p1-residue-2", "sympy-r-ntheory-2-p1-residue-1"]
+keywords = ["(test_binomial_p_pow or test_deprecated_ntheory_symbolic_functions)"]
+
+[[split]]
+file = "sympy/physics/mechanics/tests/test_linearize.py"
+groups = ["sympy-r-physics-5-s9-1", "sympy-r-physics-5-s9-2"]
+keywords = ["(test_linearize_rolling_disc_kane)"]
+
+[[split]]
+file = "sympy/plotting/tests/test_plot_implicit.py"
+groups = [
+    "sympy-r-plotting-1-p2-plot-implicit-1",
+    "sympy-r-plotting-1-p2-plot-implicit-2",
+    "sympy-r-plotting-1-p2-plot-implicit-3",
+]
+keywords = ["(test_no_adaptive_meshing or test_line_color)", "(test_matplotlib)"]
+
+[[split]]
+file = "sympy/polys/numberfields/tests/test_minpoly.py"
+groups = [
+    "sympy-r-polys-2-s4-1",
+    "sympy-r-polys-2-s4-2a",
+    "sympy-r-polys-2-s4-2b",
+    "sympy-r-polys-2-s4-2c",
+]
+keywords = [
+    "(test_minpoly_fraction_field_slow)",
+    "(test_minimal_polynomial or test_issue_26903 or test_issue_8353 or test_minimal_polynomial_issue_19732 or test_minimal_polynomial_hi_prec or test_minimal_polynomial_sq or test_minpoly_compose or test_minpoly_issue_7113)",
+    "(test_minpoly_issue_23677)",
+]
+
+[[split]]
+file = "sympy/polys/tests/test_constructor.py"
+groups = ["sympy-r-polys-2-s11-1", "sympy-r-polys-2-s11-2"]
+keywords = ["(test_rootof_primitive_element)"]
+
+[[split]]
+file = "sympy/polys/tests/test_groebnertools.py"
+groups = ["sympy-r-polys-3-s6-1", "sympy-r-polys-3-s6-2"]
+keywords = ["(test_benchmark_czichowski_buchberger)"]
+
+[[split]]
+file = "sympy/polys/tests/test_polyroots.py"
+groups = [
+    "sympy-r-polys-3-s20-1",
+    "sympy-r-polys-3-s20-2a",
+    "sympy-r-polys-3-s20-2b",
+    "sympy-r-polys-3-s20-2c",
+]
+keywords = [
+    "(test_nroots1)",
+    "(test_roots_linear or test_roots_quadratic or test_issue_7724 or test_issue_8438 or test_issue_8285 or test_issue_8289 or test_issue_14291 or test_issue_13340 or test_issue_14522 or test_issue_15076 or test_issue_16589 or test_roots_cubic or test_roots_quartic)",
+    "(test_issue_21287 or test_roots_quintic or test_roots_cyclotomic or test_roots_binomial or test_roots_preprocessing or test_roots0 or test_roots_slow or test_roots_inexact or test_roots_preprocessed or test_roots_strict or test_roots_mixed or test_root_factors or test_nroots2)",
+]
+
+[[split]]
+file = "sympy/polys/tests/test_polytools.py"
+groups = ["sympy-r-polys-4-s1-1", "sympy-r-polys-4-s1-2"]
+keywords = ["(test_Poly_rootof_extension_primitive_element)"]
+
+[[split]]
+file = "sympy/polys/tests/test_ring_series.py"
+groups = ["sympy-r-polys-4-s6-1", "sympy-r-polys-4-s6-2"]
+keywords = ["(test_rs_series) and not (test_rs_series_ConstantInExpr)"]
+
+[[split]]
+file = "sympy/polys/tests/test_rootoftools.py"
+groups = [
+    "sympy-r-polys-5-s1-1",
+    "sympy-r-polys-5-s1-2a",
+    "sympy-r-polys-5-s1-2b",
+    "sympy-r-polys-5-s1-2c",
+]
+keywords = [
+    "(test_CRootOf_evalf or test_eval_approx_relative) and not (test_CRootOf_evalf_caching_bug)",
+    "(test_CRootOf___new__ or test_CRootOf_attributes or test_CRootOf___eq__ or test_CRootOf___eval_Eq__ or test_CRootOf_is_real or test_CRootOf_is_complex or test_CRootOf_is_algebraic or test_CRootOf_subs or test_CRootOf_diff or test_issue_24978 or test_CRootOf_evalf_caching_bug or test_CRootOf_real_roots)",
+    "(test_CRootOf_all_roots)",
+]
+
+[[split]]
+file = "sympy/series/tests/test_limits.py"
+groups = ["sympy-r-series-2-1", "sympy-r-series-2-2"]
+keywords = [
+    "(test_issue_12564 or test_issue_14456 or test_issue_14411 or test_issue_13382 or test_issue_13403 or test_issue_13416 or test_issue_13462 or test_issue_13750 or test_issue_14276 or test_issue_14514 or test_issues_14525 or test_issue_14574 or test_issue_10102 or test_issue_14377 or test_issue_15146 or test_issue_15202 or test_issue_15282 or test_issue_15984 or test_issue_13571 or test_issue_13575 or test_issue_17325 or test_issue_10978 or test_issue_14313_comment or test_issue_15323 or test_issue_12571 or test_issue_14590 or test_issue_14393 or test_issue_14556 or test_issue_14811 or test_issue_16222 or test_issue_16714 or test_issue_16722 or test_issue_17431 or test_issue_17671 or test_issue_17751 or test_issue_17792 or test_issue_18118 or test_issue_18306 or test_issue_18378 or test_issue_18399 or test_issue_18442 or test_issue_18452 or test_issue_18473 or test_issue_18482 or test_issue_18508 or test_issue_18521 or test_issue_18969 or test_issue_18992 or test_issue_19067 or test_issue_19586 or test_issue_13715 or test_issue_15055 or test_issue_16708 or test_issue_19154 or test_issue_19453 or test_issue_19739 or test_issue_19766 or test_issue_19770 or test_issue_7535 or test_issue_20365 or test_issue_21031 or test_issue_21038 or test_issue_20578 or test_issue_21227 or test_issue_21415 or test_issue_21530 or test_issue_21550 or test_issue_21661 or test_issue_21701 or test_issue_21721 or test_issue_21756 or test_issue_21785 or test_issue_22181 or test_issue_22220 or test_issue_22334 or test_issue_22836_limit or test_sympyissue_22986 or test_issue_23231 or test_issue_23596 or test_issue_23752 or test_issue_24276 or test_issue_25230 or test_issue_25582 or test_issue_25847 or test_issue_26040)",
+]
+
+[[split]]
+file = "sympy/simplify/tests/test_hyperexpand.py"
+groups = [
+    "sympy-r-simplify-4-1",
+    "sympy-r-simplify-4-2",
+    "sympy-r-simplify-4-3a",
+    "sympy-r-simplify-4-3b",
+    "sympy-r-simplify-4-4",
+    "sympy-r-simplify-4-5",
+    "sympy-r-simplify-4-6",
+]
+keywords = [
+    "(test_formulae or test_meijerg_expand or test_meijerg) and not (test_meijerg_confluence or test_meijerg_expand_fail or test_meijerg_formulae or test_meijerg_lookup or test_meijerg_shift_operators or test_meijerg_with_Floats)",
+    "(test_meijerg_confluence or test_prudnikov_misc or test_prudnikov_2) and not (test_prudnikov_2F1)",
+    "(test_prudnikov_3_slow)",
+    "(test_prudnikov_4 or test_prudnikov_5)",
+    "(test_prudnikov_6 or test_prudnikov_7 or test_prudnikov_8)",
+    "(test_prudnikov_10 or test_prudnikov_2F1)",
+]
+
+[[split]]
+file = "sympy/solvers/ode/tests/test_riccati.py"
+groups = [
+    "sympy-r-solvers-4-1",
+    "sympy-r-solvers-4-2",
+    "sympy-r-solvers-4-3",
+    "sympy-r-solvers-4-4",
+]
+keywords = [
+    "(test_solve_riccati_slow)",
+    "(test_riccati_transformation or test_riccati_reduced or test_match_riccati or test_val_at_inf or test_necessary_conds or test_inverse_transform_poly)",
+    "(test_limit_at_inf or test_construct_c_case_1 or test_construct_c_case_2 or test_construct_c_case_3 or test_construct_d_case_4 or test_construct_d_case_5)",
+]
+
+[[split]]
+file = "sympy/solvers/ode/tests/test_single.py"
+groups = [
+    "sympy-r-solvers-5-1a",
+    "sympy-r-solvers-5-1b",
+    "sympy-r-solvers-5-1c",
+    "sympy-r-solvers-5-2a",
+    "sympy-r-solvers-5-2b",
+    "sympy-r-solvers-5-2c",
+    "sympy-r-solvers-5-3a",
+    "sympy-r-solvers-5-3b",
+    "sympy-r-solvers-5-3c",
+    "sympy-r-solvers-5-4",
+    "sympy-r-solvers-5-5",
+    "sympy-r-solvers-5-6",
+    "sympy-r-solvers-5-7a",
+    "sympy-r-solvers-5-7b",
+    "sympy-r-solvers-5-7c",
+    "sympy-r-solvers-5-8a",
+    "sympy-r-solvers-5-8b",
+    "sympy-r-solvers-5-9a",
+    "sympy-r-solvers-5-10",
+    "sympy-r-solvers-5-11",
+]
+keywords = [
+    "(test_1st_homogeneous_coeff_ode)",
+    "(test_slow_examples_1st_homogeneous_coeff_ode)",
+    "(test_nth_linear_constant_coeff_homogeneous)",
+    "(test_slow_examples_nth_linear_constant_coeff_homogeneous)",
+    "(test_lie_group)",
+    "(test_separable_reduced)",
+    "(test_slow_examples_separable_reduced)",
+    "(test_2nd_2F1_hypergeometric) and not (test_2nd_2F1_hypergeometric_integral)",
+    "(test_2nd_nonlinear_autonomous_conserved) and not (test_2nd_nonlinear_autonomous_conserved_integral)",
+    "(test_2nd_linear_bessel_equation or test_nth_algebraic or test_slow_examples_nth_linear_constant_coeff_var_of_parameters)",
+    "(test_nth_linear_constant_coeff_variation_of_parameters__integral or test_slow_examples_1st_exact or test_1st_exact) and not (test_1st_exact_integral)",
+    "(test_slow_examples_nth_order_reducible or test_slow_examples_nth_linear_constant_coeff_undetermined_coefficients or test_slow_examples_separable) and not (test_slow_examples_separable_reduced)",
+    "(test_nth_linear_constant_coeff_undetermined_coefficients)",
+    "(test_separable) and not (test_separable_reduced)",
+    "(test_factorable)",
+    "(test_slow_examples_factorable)",
+    "(test_1st_rational_riccati or test_Liouville_ODE)",
+    "(test_nth_order_linear_euler_eq_nonhomogeneous_variation_of_parameters)",
+    "(test_SingleODESolver or test_linear_coefficients or test_Airy_equation or test_2nd_2F1_hypergeometric_integral or test_2nd_nonlinear_autonomous_conserved_integral or test_nth_linear_constant_coeff_var_of_parameters or test_1st_exact_integral or test_nth_order_reducible)",
+]
+
+[[split]]
+file = "sympy/solvers/ode/tests/test_subscheck.py"
+groups = ["sympy-r-solvers-6-1", "sympy-r-solvers-6-2"]
+keywords = ["(test_checkodesol)"]
+
+[[split]]
+file = "sympy/solvers/ode/tests/test_systems.py"
+groups = [
+    "sympy-r-solvers-7-1a",
+    "sympy-r-solvers-7-1b",
+    "sympy-r-solvers-7-1c",
+    "sympy-r-solvers-7-2a",
+    "sympy-r-solvers-7-2b",
+    "sympy-r-solvers-7-2c",
+    "sympy-r-solvers-7-3b",
+    "sympy-r-solvers-7-3c",
+    "sympy-r-solvers-7-4a",
+    "sympy-r-solvers-7-4b",
+    "sympy-r-solvers-7-4c",
+    "sympy-r-solvers-7-5a",
+    "sympy-r-solvers-7-5b",
+    "sympy-r-solvers-7-5c",
+    "sympy-r-solvers-7-6c",
+    "sympy-r-solvers-7-7",
+    "sympy-r-solvers-7-8",
+    "sympy-r-solvers-7-9",
+]
+keywords = [
+    "(test_sysode_linear_neq_order1_type1_slow)",
+    "(test_sysode_linear_neq_order1_type4)",
+    "(test_higher_order_to_first_order_9)",
+    "(test_second_order_to_first_order_slow1)",
+    "(test_linear_3eq_order1_type4_slow)",
+    "(test_linear_neq_order1_type2_slow1)",
+    "(test_linear_neq_order1_type2_slow_check)",
+    "(test_neq_order1_type4_slow_check1)",
+    "(test_neq_order1_type4_slow_check2)",
+    "(test_neq_order1_type4_slow_check3)",
+    "(test_linear_3eq_order1_type4_long_dsolve_slow_xfail)",
+    "(test_linear_3eq_order1_type4_long_dsolve_dotprodsimp)",
+    "(test_linear_3eq_order1_type4_long_check)",
+    "(test_higher_order1_slow1)",
+    "(test_nonlinear_3eq_order1) and not (test_nonlinear_3eq_order1_type1 or test_nonlinear_3eq_order1_type3 or test_nonlinear_3eq_order1_type4 or test_nonlinear_3eq_order1_type5)",
+    "(test_linear_ode_to_matrix or test__classify_linear_system or test_matrix_exp or test_canonical_odes or test_sysode_linear_neq_order1_type1 or test_sysode_linear_neq_order1_type2 or test_sysode_linear_neq_order1_type3 or test_sysode_linear_neq_order1_type5_type6) and not (test_sysode_linear_neq_order1_type1_slow)",
+    "(test_higher_order_to_first_order or test_higher_order_to_first_order_12 or test_second_order_to_first_order_2 or test_second_order_to_first_order_slow4 or test_component_division or test_linodesolve or test_neq_order1_type4_slow3 or test_dsolve_system) and not (test_higher_order_to_first_order_9)",
+]
+
+[[split]]
+file = "sympy/solvers/tests/test_solvers.py"
+groups = [
+    "sympy-r-solvers-16-1a",
+    "sympy-r-solvers-16-1b",
+    "sympy-r-solvers-16-2a",
+    "sympy-r-solvers-16-2b",
+    "sympy-r-solvers-16-2c",
+    "sympy-r-solvers-16-3",
+    "sympy-r-solvers-16-4",
+    "sympy-r-solvers-16-5",
+    "sympy-r-solvers-16-6",
+    "sympy-r-solvers-16-7",
+    "sympy-r-solvers-16-8",
+    "sympy-r-solvers-16-9",
+    "sympy-r-solvers-16-10",
+    "sympy-r-solvers-16-11",
+    "sympy-r-solvers-16-12",
+    "sympy-r-solvers-16-13",
+    "sympy-r-solvers-16-14",
+    "sympy-r-solvers-16-15",
+]
+keywords = [
+    "(test_solve_transcendental or test_unrad1)",
+    "(test_unrad_slow)",
+    "(test_issue_5114_solvers)",
+    "(test_lambert_bivariate)",
+    "(test_high_order_multivariate)",
+    "(test_issue_8828 or test_issue_12114 or test_issue_15731)",
+    "(test_swap_back or test_guess_poly or test_guess_poly_cv or test_guess_rational_cv or test_guess_transcendental or test_solve_args or test_solve_polynomial1 or test_solve_polynomial2 or test_solve_polynomial_cv_1a or test_solve_polynomial_cv_1b or test_solve_polynomial_cv_2 or test_quintics_1)",
+    "(test_quintics_2 or test_quintics_3 or test_highorder_poly or test_solve_rational or test_solve_conjugate or test_solve_nonlinear or test_issue_8666 or test_issue_7228 or test_issue_7190 or test_issue_21004 or test_issue_24650 or test_linear_system) and not (test_linear_systemLU or test_linear_system_function or test_linear_system_symbols_doesnt_hang_1 or test_linear_system_symbols_doesnt_hang_2 or test_linear_system_xfail)",
+    "(test_linear_system_xfail or test_linear_system_function or test_linear_system_symbols_doesnt_hang_1 or test_linear_system_symbols_doesnt_hang_2 or test_linear_systemLU or test_solve_for_functions_derivatives or test_issue_3725 or test_solve_Matrix or test_solve_linear or test_solve_undetermined_coeffs or test_solve_inequalities or test_issue_4793) and not (test_solve_undetermined_coeffs_issue_23927)",
+    "(test_PR1964 or test_issue_5197 or test_checking or test_issue_4671_4463_4467 or test_issue_5132 or test_issue_5335 or test_issue_5767 or test_issue_24609 or test_issue_24609_xfail or test_polysys or test_unrad_fail or test_checksol)",
+    "(test__invert or test_issue_4463 or test_issue_5849 or test_issue_5849_matrix or test_issue_21882 or test_issue_5901 or test_issue_5912 or test_float_handling or test_check_assumptions or test_issue_6056 or test_issue_5673 or test_exclude)",
+    "(test_high_order_roots or test_minsolve_linear_system or test_real_roots or test_issue_6528 or test_overdetermined or test_issue_6605 or test__ispow or test_issue_6644 or test_issue_6752 or test_issue_6792 or test_issues_6819_6820_6821_6248_8692_25777_25779 or test_issue_17638)",
+    "(test_issue_14607 or test_lambert_multivariate or test_other_lambert or test_rewrite_trig or test_rewrite_trigh or test_uselogcombine or test_atan2 or test_errorinverses or test_issue_2725 or test_issue_5114_6611 or test_det_quick or test_real_imag_splitting)",
+    "(test_issue_7110 or test_units or test_issue_7547 or test_issue_7895 or test_issue_2777 or test_issue_7322 or test_nsolve or test_base_0_exp_0 or test__simple_dens or test_issue_8755 or test_issue_2840_8155 or test_issue_9567)",
+    "(test_issue_11538 or test_inf or test_issue_12448 or test_denoms or test_issue_12476 or test_issue_13849 or test_issue_14860 or test_issue_14721 or test_issue_14779 or test_issue_15307 or test_issue_15415 or test_issue_10933)",
+    "(test_Abs_handling or test_issue_7982 or test_issue_14645 or test_issue_12024 or test_issue_17452 or test_issue_17799 or test_issue_17650 or test_issue_17882 or test_issue_17949 or test_issue_10993 or test_issue_11553 or test_issue_19113_19102)",
+    "(test_issue_19509 or test_issue_20747 or test_issue_27001 or test_issue_20902 or test_issue_21034 or test_issue_4886 or test_issue_6819 or test_issue_17454 or test_issue_21852 or test_issue_21942 or test_solver_flags or test_issue_22768)",
+]
+
+[[split]]
+file = "sympy/calculus/tests/test_util.py"
+groups = ["sympy-r-calculus-5-util-1", "sympy-r-calculus-5-util-2"]
+keywords = [
+    "(test_function_range or test_continuous_domain or test_continuous_domain_acot or test_continuous_domain_gamma or test_continuous_domain_neg_power or test_not_empty_in or test_periodicity or test_periodicity_check or test_lcim or test_is_convex or test_stationary_points or test_maximum or test_minimum) and not (test_function_range1)",
+]
+
+[[split]]
+file = "sympy/solvers/tests/test_solveset.py"
+groups = [
+    "sympy-r-solvers-17-solveset-1",
+    "sympy-r-solvers-17-solveset-2",
+    "sympy-r-solvers-17-solveset-3",
+    "sympy-r-solvers-17-solveset-4",
+    "sympy-r-solvers-17-solveset-6",
+    "sympy-r-solvers-17-solveset-7",
+    "sympy-r-solvers-17-solveset-5",
+]
+keywords = [
+    "(test_invert_real or test_invert_trig_hyp_real or test_invert_complex or test_domain_check or test_issue_11536 or test_issue_17479 or test_issue_18449 or test_issue_21047 or test_is_function_class_equation or test_garbage_input or test_solve_mul or test_solve_invert or test_issue_25768 or test_errorinverses)",
+    "(test_solve_polynomial) and not (test_solve_polynomial_cv_1a or test_solve_polynomial_symbolic_param)",
+    "(test_return_root_of or test_solveset_sqrt_1 or test_solveset_sqrt_2 or test_solve_sqrt_fail)",
+    "(test_solve_sqrt_3)",
+    "(test_substitution_incorrect or test_substitution_redundant or test_issue_5132_substitution or test_raises_substitution or test_issue_21022 or test_issue_17940 or test_issue_17906 or test_issue_17933 or test_issue_17933_bis or test_issue_14565 or test_issue_9556 or test_issue_9611 or test_issue_9557 or test_issue_9778 or test_issue_10214 or test_issue_9849 or test_issue_9953 or test_issue_9913 or test_issue_10397 or test_issue_14987 or test_simplification or test_integer_domain_relational or test_issue_10555 or test_issue_8715 or test_issue_11174 or test_issue_11534 or test_issue_10477 or test_issue_10671 or test_issue_11064 or test_issue_12478 or test_issue_12429 or test_issue_19506 or test_solveset_arg or test__is_finite_with_finite_vars or test_issue_13550 or test_issue_13849 or test_issue_14223 or test_issue_10158 or test_issue_14300 or test_issue_14454 or test_issue_17882 or test_term_factors or test_transolve or test_issue_21276 or test_exponential_real or test_exponential_complex or test_expo_conditionset or test_exponential_symbols or test_ignore_assumptions or test_issue_10864 or test_solve_only_exp_2 or test_is_exponential or test_solve_exponential or test_logarithmic or test_uselogcombine_2 or test_is_logarithmic or test_solve_logarithm or test_is_lambert or test_linear_coeffs or test_is_modular or test_invert_modular or test_solve_modular)",
+    "(test_issue_17276 or test_issue_10426 or test_solveset_conjugate or test_issue_18208 or test_substitution_with_infeasible_solution or test_issue_20097 or test_issue_15350 or test_issue_18359 or test_issue_17604 or test_issue_17580 or test_issue_17566_actual or test_issue_17565 or test_issue_15024 or test_issue_16877 or test_issue_16876 or test_issue_21236 or test_issue_21908 or test_issue_19144 or test_issue_22413 or test_issue_23318 or test_issue_19814 or test_issue_22058 or test_issue_11184 or test_issue_21890 or test_issue_22628 or test_issue_25781 or test_issue_26077)",
+]
+
+[[split]]
+file = "sympy/stats/tests/test_continuous_rv.py"
+groups = [
+    "sympy-r-stats-4-continuous-rv-1",
+    "sympy-r-stats-4-continuous-rv-2",
+    "sympy-r-stats-4-continuous-rv-3",
+]
+keywords = [
+    "(test_single_normal or test_conditional_1d or test_ContinuousDomain or test_multiple_normal or test_symbolic or test_cdf or test_characteristic_function or test_moment_generating_function or test_ContinuousRV or test_arcsin or test_benini or test_beta or test_beta_noncentral or test_betaprime or test_BoundedPareto or test_cauchy or test_chi or test_chi_noncentral or test_chi_squared or test_dagum or test_davis or test_erlang or test_exgaussian or test_exponential or test_exponential_power or test_f_distribution or test_fisher_z or test_frechet or test_gamma or test_gamma_inverse or test_gompertz or test_gumbel or test_kumaraswamy or test_laplace or test_levy or test_logcauchy or test_logistic or test_loglogistic or test_logitnormal or test_lognormal or test_Lomax or test_maxwell or test_Moyal or test_nakagami or test_gaussian_inverse or test_pareto or test_pareto_numeric or test_PowerFunction or test_raised_cosine or test_rayleigh or test_reciprocal or test_shiftedgompertz or test_studentt or test_trapezoidal or test_triangular or test_quadratic_u or test_uniform) and not (test_uniform_P or test_uniformsum)",
+    "(test_uniform_P)",
+]
+
+[[split]]
+file = "sympy/utilities/tests/test_wester.py"
+groups = [
+    "sympy-r-utilities-5-wester-1",
+    "sympy-r-utilities-5-wester-2",
+    "sympy-r-utilities-5-wester-3",
+    "sympy-r-utilities-5-wester-4",
+    "sympy-r-utilities-5-wester-5",
+    "sympy-r-utilities-5-wester-6",
+    "sympy-r-utilities-5-wester-7",
+    "sympy-r-utilities-5-wester-8",
+    "sympy-r-utilities-5-wester-9",
+]
+keywords = [
+    "(test_B1 or test_B2 or test_B3 or test_B4 or test_C1 or test_C2 or test_C3 or test_C4 or test_C5 or test_C6 or test_C7 or test_C8 or test_C9 or test_C10 or test_C11 or test_C12 or test_C13 or test_C14 or test_C15 or test_C16 or test_C17 or test_C18 or test_C19 or test_C20 or test_C21 or test_C22 or test_C23 or test_C24 or test_D1 or test_D2 or test_D3 or test_D4 or test_D5 or test_D6 or test_D7 or test_D8 or test_D9 or test_D10 or test_D11 or test_D12 or test_D13 or test_F1 or test_F2 or test_F3 or test_F4 or test_F5 or test_F6 or test_F7 or test_F8 or test_F9 or test_G1 or test_G2 or test_G3 or test_G15 or test_G16 or test_G17 or test_G18 or test_G19 or test_G20 or test_G20b or test_H1 or test_H2 or test_H3 or test_H4 or test_H5 or test_H6 or test_H7 or test_H8 or test_H9 or test_H10 or test_H11 or test_H12 or test_H13 or test_H14 or test_H15 or test_H16 or test_H17 or test_H18 or test_H19 or test_H20 or test_H21 or test_H22 or test_H23 or test_H24 or test_H25 or test_H26 or test_H27 or test_H28 or test_H29 or test_H30 or test_H31 or test_H32 or test_H33 or test_I1 or test_I2 or test_I3 or test_I4 or test_I5 or test_I6 or test_I7 or test_I8 or test_I9 or test_I10 or test_I11 or test_I12 or test_J1 or test_J2 or test_J3 or test_J4 or test_J5 or test_J6 or test_J7 or test_J8 or test_J9 or test_J10 or test_J11 or test_J12 or test_J13 or test_J14 or test_J15 or test_J16 or test_J17 or test_J18 or test_K1 or test_K2 or test_K3 or test_K4 or test_K5 or test_K6 or test_K7 or test_K8 or test_K9 or test_K10 or test_L1 or test_L2 or test_L3 or test_L4 or test_L5 or test_L6 or test_L7 or test_L8 or test_L9 or test_M1 or test_M2 or test_M5 or test_M6 or test_M7 or test_M8 or test_M9 or test_M10 or test_M11 or test_M12 or test_M13 or test_M14 or test_M15 or test_M16 or test_M17 or test_M18 or test_M19 or test_M20 or test_M21 or test_M22 or test_M23 or test_M24 or test_M25 or test_M26 or test_M27 or test_M28 or test_M29 or test_M30 or test_M31 or test_M32 or test_M33 or test_M34 or test_M35 or test_M36 or test_M37 or test_M38 or test_M39 or test_N1 or test_N2 or test_N3 or test_N4 or test_N5 or test_N6 or test_N7 or test_N8 or test_N9 or test_N10 or test_N11 or test_N12 or test_N13 or test_N14 or test_N15 or test_N16 or test_N17 or test_O1 or test_O2 or test_O3 or test_O4 or test_O5 or test_O10 or test_P1 or test_P2 or test_P3 or test_P4 or test_P5 or test_P6 or test_P7 or test_P8 or test_P9 or test_P10 or test_P11 or test_P11_workaround or test_P12 or test_P13 or test_P14 or test_P15 or test_P16 or test_P17 or test_P18 or test_P19 or test_P20 or test_P21 or test_P22 or test_P23 or test_P24 or test_P25 or test_P26 or test_P27 or test_P28 or test_P29 or test_P30 or test_P31 or test_P32 or test_P33 or test_P34 or test_P35 or test_P36 or test_P37 or test_P38 or test_P39 or test_P40 or test_P41 or test_P42 or test_P43 or test_P44 or test_P45 or test_R1 or test_R2 or test_R3 or test_R4 or test_R5 or test_R6 or test_R7 or test_R8 or test_R9 or test_R10 or test_R11 or test_R12 or test_R13 or test_R14 or test_R15 or test_R16 or test_R17 or test_R18 or test_R19 or test_R20 or test_R21 or test_R23 or test_R24 or test_S1 or test_S2 or test_S3 or test_S4) and not (test_S10)",
+    "(test_S5 or test_S6 or test_S7 or test_S8 or test_S9 or test_S10 or test_T1 or test_T2 or test_T3 or test_T4 or test_T5 or test_T6 or test_T7 or test_T8 or test_T9 or test_T10 or test_T11 or test_T12 or test_T13 or test_T14 or test_U1 or test_U2 or test_U3 or test_U4 or test_U5 or test_U6 or test_U7 or test_U8 or test_U9 or test_U10 or test_U11 or test_U12 or test_U13 or test_U14 or test_U15 or test_U16 or test_U17 or test_V1 or test_V2 or test_V3 or test_V4 or test_V5 or test_V6 or test_V7 or test_V8_V9 or test_V10 or test_V11 or test_V12 or test_V13 or test_V14 or test_V15 or test_V16 or test_V17 or test_W1 or test_W2 or test_W3 or test_W4 or test_W5 or test_W6 or test_W7 or test_W8) and not (test_W10 or test_W11 or test_W12 or test_W13 or test_W14 or test_W15 or test_W16 or test_W17 or test_W18 or test_W19 or test_W20 or test_W21 or test_W22 or test_W23 or test_W23b or test_W24 or test_W25 or test_W26 or test_W27)",
+    "(test_W9 or test_W10 or test_W11 or test_W12 or test_W13 or test_W14 or test_W15 or test_W16 or test_W17 or test_W18)",
+    "(test_W19 or test_W20 or test_W21 or test_W22 or test_W23 or test_W23b)",
+    "(test_W24)",
+    "(test_W25)",
+    "(test_W26 or test_W27 or test_X1 or test_X2 or test_X3 or test_X4 or test_X5 or test_X6 or test_X7 or test_X8 or test_X9 or test_X10 or test_X11 or test_X12 or test_X13 or test_X14 or test_X15 or test_X16 or test_X17 or test_X18 or test_X19 or test_X20 or test_X21 or test_X22 or test_Y1 or test_Y2 or test_Y3 or test_Y4 or test_Y5_Y6 or test_Y7 or test_Y8 or test_Y9 or test_Y10) and not (test_Y11 or test_Y12 or test_Y13 or test_Y14)",
+    "(test_Y11)",
+]
+
+[[trap]]
+id = "sympy-slow-function-range1"
+node = "sympy/calculus/tests/test_util.py::test_function_range1"
+group = "sympy-r-calculus-5-util-1"
+reason = "it does not end within 4.5 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow"
+closes_with = "README.md"
+
+[[trap]]
+id = "sympy-slow-issue-3880"
+node = "sympy/integrals/tests/test_failing_integrals.py::test_issue_3880"
+group = "sympy-r-integrals-2-1a"
+reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
+closes_with = "README.md"
+
+[[trap]]
+id = "sympy-slow-issue-15227"
+node = "sympy/integrals/tests/test_failing_integrals.py::test_issue_15227"
+group = "sympy-r-integrals-2-1a"
+reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
+closes_with = "README.md"
+
+[[trap]]
+id = "sympy-slow-linear-new-order1-type2-de-lorentz-slow-check"
+node = "sympy/solvers/ode/tests/test_systems.py::test_linear_new_order1_type2_de_lorentz_slow_check"
+group = "sympy-r-solvers-7-1a"
+reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
+closes_with = "README.md"
+
+[[trap]]
+id = "sympy-slow-nonlinear-3eq-order1-type1"
+node = "sympy/solvers/ode/tests/test_systems.py::test_nonlinear_3eq_order1_type1"
+group = "sympy-r-solvers-7-1a"
+reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
+closes_with = "README.md"
+
+[[trap]]
+id = "sympy-slow-nonlinear-3eq-order1-type3"
+node = "sympy/solvers/ode/tests/test_systems.py::test_nonlinear_3eq_order1_type3"
+group = "sympy-r-solvers-7-1a"
+reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
+closes_with = "README.md"
+
+[[expected]]
+id = "matplotlib-testing-not-shipped"
+group = "sympy-r-plotting-1-p2-plot-implicit-3"
+outcome = "failed"
+match = "No module named 'matplotlib\\.testing'"
+reason = "the product's matplotlib leaves out matplotlib.testing (spec 023), which this test imports to compare images"
+closes_with = "context/specifications/023-matplotlib-first-milestone.md"
+
+[[expected]]
+id = "sympy-tooslow-fails"
+group = "sympy-r-polys-2-s11-1"
+outcome = "failed"
+match = "CoercionFailed: CRootOf"
+reason = "a test upstream marks @tooslow, which its own runners never run (its runner skips it as too slow; its pytest settings deselect it), raises CoercionFailed in the guest after about 2.5 T of fuel; the cause is not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-tooslow-fails"
+group = "sympy-r-polys-4-s1-1"
+outcome = "failed"
+match = "CoercionFailed: CRootOf"
+reason = "a test upstream marks @tooslow, which its own runners never run (its runner skips it as too slow; its pytest settings deselect it), raises CoercionFailed in the guest after about 2.5 T of fuel; the cause is not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-solution-form"
+group = "sympy-r-solvers-7-5a"
+outcome = "failed"
+match = "^AssertionError: assert \\[Eq\\(x\\(t\\), \\(-C"
+reason = "dsolve returns an equal solution in another form, its arbitrary constants signed otherwise; sympy's choices follow set and dict order, which the guest's 32-bit hash() changes (INFERRED; README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-solution-form"
+group = "sympy-r-solvers-7-5b"
+outcome = "failed"
+match = "^AssertionError: assert \\[Eq\\(x\\(t\\), \\(-C"
+reason = "dsolve returns an equal solution in another form, its arbitrary constants signed otherwise; sympy's choices follow set and dict order, which the guest's 32-bit hash() changes (INFERRED; README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-source-tree"
+group = "sympy-r-testing-1"
+outcome = "failed"
+match = "^AssertionError: assert (\\[\\] == \\['/usr/local/|0 == \\d+$)"
+reason = "sympy's own test-runner helpers look for its test files beside the installed package; the product's sympy is bytecode in a zip with no source tree (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-path-variable"
+group = "sympy-r-utilities-4"
+outcome = "failed"
+match = "KeyError: 'PATH'"
+reason = "the guest's environment has no PATH, which sympy's deprecated find_executable reads (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-doc-1"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-doc-2"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-doc-3"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-doc-6"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-doc-7"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-doc-8"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-doc-10"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-doc-11"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-doc-15"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-docfiles-1"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-docfiles-2"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-docfiles-3"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-docfiles-4"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-docfiles-5"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-docfiles-6"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-docfiles-7"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-docfiles-8"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-docfiles-8b"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "sympy-doctest"
+group = "sympy-r-docfiles-9"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"
+closes_with = "README.md"
+

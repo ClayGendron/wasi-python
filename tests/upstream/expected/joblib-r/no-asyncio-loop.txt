@@ -1,0 +1,1 @@
+joblib/test/test_numpy_pickle.py::test_pickle_in_socket

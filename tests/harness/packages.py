@@ -1,11 +1,22 @@
-"""The compiled packages' own tests, each package its own family.
+"""The packages' own tests, each package its own family.
 
 A `driver = "package"` configuration (`tests/upstream/<package>.toml`) has its own grant
 (`/upstream-<package>`), its own stage, its own copy of the kit and its own fuel budget, so no
 package's tests can move another's fuel. Its groups run through
 `tests/upstream/package_drive.py`, which keeps `drive.py`'s stream and adds three lines: `R skipped
 <collector>` for a file that skips itself whole, `D <node id>` for an item lxml's own runner would
-not run, and `K <n>`, the file's collected count before a split's `-k` deselects.
+not run (or that a family's marker expression deselects, where it names a reason), and `K <n>`,
+the file's collected count before a split's `-k` deselects.
+
+A family whose tests come from a test source (`test_source = true`: a pure-Python package, whose
+pinned wheel or sdist the zip takes, and whose tests come from its sdist or its release tag's
+archive) is tied to the bytes that ship at staging: the test source's pin equals the artifact's
+MANIFEST, its tree is the pinned archive with exactly its recorded patches, and every file of the
+package's pinned wheel is the same file in the test source (`tie_skips` names any it lacks, with a
+reason). Such a family may name test-only wheels (`kit_extra`), folders copied into the working
+folder (`cwd_folders`), environment variables (`env`, from a per-family list), flags set on `sys`
+before the package is imported (`sys_flags`), and groups that run items rather than paths: the
+docstrings of modules or of whole packages, doctest files, and a module's own `test_*` functions.
 
 numpy's and pandas' configurations, `drive.py` and their guard are untouched: this module reads
 only `driver = "package"` configurations.
@@ -52,10 +63,14 @@ REFUSED = ("path_packages", "support")
 WORK = "/tmp/work"  # the writable working folder, in the guest's root
 # The variables a family's `env` may set, by family: each joins only by a judge change with its
 # reason. scipy's runs its very slow cases in whichever tier their file is in; scikit-learn's runs
-# its float32 cases and fixes the global seed its package setup would otherwise draw.
+# its float32 cases and fixes the global seed its package setup would otherwise draw;
+# reportlab's tests write their output where RL_TEST_OUTDIR says (its runAll.py otherwise
+# writes beside them), and narwhals' configuration sets three through pytest-env.
 ENV_ALLOWED = {
     "scipy": ("SCIPY_XSLOW",),
     "scikit-learn": ("SKLEARN_RUN_FLOAT32_TESTS", "SKLEARN_SEED"),
+    "reportlab": ("RL_TEST_OUTDIR",),
+    "narwhals": ("MODIN_ENGINE", "PYARROW_IGNORE_TIMEZONE", "TZ"),
 }
 # Never set by a family: the judge's own environment, the interpreter's (any PYTHON* name),
 # scipy's hypothesis profile (its conftest loads its own derandomized one), and scikit-learn's
@@ -97,6 +112,54 @@ SMOKE_ONLY = {
 RELEASE_ONLY = "release-only: "
 # A golden job line that stands in for a smoke file: the job, the line, and a word on that line
 JOB_COVER = re.compile(r"job (tests/jobs/[\w.]+\.py):(\d+) (\S+)")
+KIT_EXTRA = paths.REPO / "tests" / "upstream" / "kit-extra.txt"
+NONE = "none"  # an empty folder of the stage's judge folder: what an item group collects
+# The flags a family may set on `sys` before its package is imported: sympy's conftest sets
+# `_running_pytest` as its first statement, so its test helpers turn its decorators into pytest's
+# marks; the driver imports sympy earlier (its package paths), so it sets the flag first.
+SYS_FLAGS = ("_running_pytest",)
+# The steps a family may run once before its first doctest, and the doctest runner and output
+# checker it may run its examples with, each upstream's own: sympy's runner prints with ASCII
+# pretty forms, no line wrapping and its hash-stable printer as the display hook (which the
+# stdlib's runner would reset for each example), compares numbers its own way, and its examples
+# are written for that.
+DOCTEST_SETUPS = ("sympy.testing.runtests:setup_pprint",)
+DOCTEST_RUNNERS = ("sympy.testing.runtests:SymPyDocTestRunner",)
+DOCTEST_CHECKERS = ("sympy.testing.runtests:SymPyOutputChecker",)
+ITEM_KEYS = ("docstring_modules", "docstring_packages", "doctest_files", "module_functions")
+# The wheel tie's places for a wheel's file in a source tree: as is, or under a source folder.
+SOURCE_ROOTS = ("", "src/", "lib/", "Lib/")
+
+
+@dataclass(frozen=True)
+class Items:
+    """What an item group runs instead of test paths: the docstrings of modules (or of every
+    module a package ships, less those named not selected), doctest files with their flags, and
+    the `test_*` functions of modules the product ships."""
+
+    docstring_modules: tuple[str, ...] = ()
+    docstring_packages: tuple[str, ...] = ()
+    docstring_not_selected: tuple[str, ...] = ()
+    doctest_files: tuple[tuple[str, int], ...] = ()
+    module_functions: tuple[str, ...] = ()
+
+    def __bool__(self) -> bool:
+        return bool(
+            self.docstring_modules
+            or self.docstring_packages
+            or self.doctest_files
+            or self.module_functions
+        )
+
+
+def items_of(g: dict) -> Items:
+    return Items(
+        docstring_modules=tuple(g.get("docstring_modules", [])),
+        docstring_packages=tuple(g.get("docstring_packages", [])),
+        docstring_not_selected=tuple(g.get("docstring_not_selected", [])),
+        doctest_files=tuple((f, int(flags)) for f, flags in g.get("doctest_files", [])),
+        module_functions=tuple(g.get("module_functions", [])),
+    )
 
 
 @dataclass(frozen=True)
@@ -162,6 +225,22 @@ class PackageKeys:
     docstring_not_selected: tuple[str, ...] = ()  # e.g. lxml.cssselect: cssselect is not shipped
     measured: dict[str, int] = field(default_factory=dict)  # each group's recorded fuel
     refused: tuple[str, ...] = ()  # keys a package TOML may not carry (path_packages, support)
+    # A test-source family (see the module's docstring)
+    test_source: bool = False
+    wheel: str = ""  # the product's pinned wheel, which the tie compares with the test source
+    tie_skips: dict[str, str] = field(default_factory=dict)  # a wheel file the source lacks: why
+    extra_sources: dict[str, str] = field(default_factory=dict)  # stage folder -> component
+    kit_extra: tuple[str, ...] = ()
+    cwd_folders: tuple[str, ...] = ()
+    sys_flags: tuple[str, ...] = ()
+    doctest_setup: tuple[str, ...] = ()  # module:function, run once before the first example
+    doctest_runner: str = ""  # module:class, upstream's doctest runner; the stdlib's if empty
+    doctest_checker: str = ""  # module:class, upstream's output checker; the stdlib's if empty
+    docstring_flags: int = 0  # the doctest option flags upstream's runner gives docstrings
+    python_files: tuple[str, ...] = ()  # upstream's test-file patterns, from the family's .ini
+    deselect_reason: str = ""  # why the family's marker deselects what it does (D lines)
+    opt_in_skips: tuple[str, ...] = ()  # the skip reasons of upstream's opt-ins: never in a smoke
+    items: dict[str, Items] = field(default_factory=dict)  # an item group's items
 
     def split_of(self, group: str) -> Split | None:
         return next((s for s in self.splits if group in s.groups), None)
@@ -199,7 +278,19 @@ def _env(raw: dict) -> tuple[dict[str, str], dict[str, str]]:
     return value, reason
 
 
-def load(raw: dict) -> upstream.Config:
+def ini_python_files(text: str) -> tuple[str, ...]:
+    """The `python_files` patterns of a pytest `.ini`, or none."""
+    import configparser
+
+    c = configparser.ConfigParser(interpolation=None)
+    c.read_string(text)
+    if not c.has_option("pytest", "python_files"):
+        return ()
+    return tuple(c.get("pytest", "python_files").split())
+
+
+def load(raw: dict, directory: Path | None = None) -> upstream.Config:
+    ini = (directory or upstream.HERE) / f"{raw['package']}.ini"
     inits = raw.get("package_inits", False)
     folders = tuple(raw["stage_folders"])
     generated = ancestors(folders) if inits is True else {}
@@ -240,6 +331,21 @@ def load(raw: dict) -> upstream.Config:
             n: int(g["measured"]) for n, g in raw.get("groups", {}).items() if "measured" in g
         },
         refused=tuple(k for k in REFUSED if k in raw),
+        test_source=bool(raw.get("test_source", False)),
+        wheel=raw.get("wheel", ""),
+        tie_skips=dict(raw.get("tie_skips", {})),
+        extra_sources=dict(raw.get("extra_sources", {})),
+        kit_extra=tuple(raw.get("kit_extra", [])),
+        cwd_folders=tuple(raw.get("cwd_folders", [])),
+        sys_flags=tuple(raw.get("sys_flags", [])),
+        doctest_setup=tuple(raw.get("doctest_setup", [])),
+        doctest_runner=raw.get("doctest_runner", ""),
+        doctest_checker=raw.get("doctest_checker", ""),
+        docstring_flags=int(raw.get("docstring_flags", 0)),
+        python_files=ini_python_files(ini.read_text()) if ini.is_file() else (),
+        deselect_reason=raw.get("deselect_reason", ""),
+        opt_in_skips=tuple(raw.get("opt_in_skips", [])),
+        items={n: items_of(g) for n, g in raw.get("groups", {}).items() if items_of(g)},
     )
     return upstream.Config(
         package=raw["package"],
@@ -354,6 +460,7 @@ def stage(cfg: upstream.Config, tree: Path, allowed: set[str], dest: Path) -> li
     files a recorded patch creates) only. Returns what was left out."""
     wanted: set[str] = set(cfg.keys.support_files) | {f for f, _ in cfg.keys.doctest_files}
     wanted |= set(cfg.keys.init_files)
+    wanted |= {f for it in cfg.keys.items.values() for f, _ in it.doctest_files}
     left_out: list[str] = []
     for folder in cfg.keys.stage_folders:
         for p in sorted((tree / folder).rglob("*")):
@@ -388,10 +495,14 @@ def group_args(cfg: upstream.Config, group: upstream.Group) -> list[str]:
     from harness import tiers
 
     ignores += tiers.smoke_ignores(cfg, group)
+    deselects += tiers.node_deselects(cfg, group)
 
     marker = tiers.marker_of(cfg, group)
     args = ["-m", marker] if marker else []
-    args += [*cfg.args, *(root + p for p in group.paths)]
+    # an item group collects no path: the stage's empty folder, so no conftest is loaded and
+    # pytest collects nothing but the items the driver adds
+    shown = [root + p for p in group.paths] or [f"{cfg.grant}/judge/{NONE}"]
+    args += [*cfg.args, *shown]
     args += [f"--ignore={root}{f}" for f in dict.fromkeys(ignores)]
     args += [f"--deselect={d}" for d in deselects]
     split = cfg.keys.split_of(group.name)
@@ -402,10 +513,14 @@ def group_args(cfg: upstream.Config, group: upstream.Group) -> list[str]:
 
 
 def group_spec(
-    cfg: upstream.Config, group: upstream.Group, keep: dict, top_names: list[str]
+    cfg: upstream.Config,
+    group: upstream.Group,
+    keep: dict,
+    top_names: list[str],
+    modules: list[str] | None = None,
 ) -> dict:
     k = cfg.keys
-    return {
+    spec = {
         "markers": cfg.markers,
         "args": group_args(cfg, group),
         "package_paths": k.package_paths,
@@ -418,11 +533,242 @@ def group_spec(
         "top_names": top_names,
         "split": cfg.keys.split_of(group.name) is not None,
     }
+    if not k.test_source:
+        return spec  # the compiled packages' groups: their JSON byte for byte as before
+    items = k.items.get(group.name, Items())
+    spec.update(
+        doctest_files=[[f, flags] for f, flags in items.doctest_files],
+        docstring_modules=docstring_list(items, modules or []),
+        docstring_flags=k.docstring_flags,
+        module_functions=list(items.module_functions),
+        sys_flags=list(k.sys_flags),
+        doctest_setup=list(k.doctest_setup),
+        doctest_runner=k.doctest_runner,
+        doctest_checker=k.doctest_checker,
+        reload_profile=True,
+        mark_deselected=True,
+    )
+    return spec
+
+
+def docstring_list(items: Items, modules: list[str]) -> list[str]:
+    """An item group's docstring modules: those it names, then every module the product ships of
+    each package it names, in sorted order, less its not-selected entries and any tests folder
+    (a package's tests run from the test source, by path)."""
+    out = list(items.docstring_modules)
+    for pkg in items.docstring_packages:
+        for m in modules:
+            if (m == pkg or m.startswith(pkg + ".")) and m not in out:
+                parts = m.split(".")
+                if "tests" in parts or "conftest" in parts:
+                    continue
+                if any(m == n or m.startswith(n + ".") for n in items.docstring_not_selected):
+                    continue
+                out.append(m)
+    return out
+
+
+def zip_modules(stdlib: Path) -> list[str]:
+    """Every module the zip holds, by its dotted name, sorted."""
+    out = set()
+    with zipfile.ZipFile(stdlib) as z:
+        for n in z.namelist():
+            if not n.endswith((".pyc", ".py")):
+                continue
+            parts = n.rsplit(".", 1)[0].split("/")
+            if parts[-1] == "__init__":
+                parts = parts[:-1]
+            if parts and all(p.isidentifier() for p in parts):
+                out.add(".".join(parts))
+    return sorted(out)
 
 
 def zip_top_names(stdlib: Path) -> list[str]:
     with zipfile.ZipFile(stdlib) as z:
         return sorted({n.split("/")[0].removesuffix(".pyc") for n in z.namelist() if n.strip("/")})
+
+
+# ---------------------------------------------------------------------------------------------
+# A test source: the tie to the bytes that ship, the test-only extras, the stage's extras
+
+EXTRA_LINE = re.compile(r"([0-9a-f]{64})  (https://files\.pythonhosted\.org/\S+/([^/\s]+))")
+EXTRA_FILE = re.compile(
+    r"([A-Za-z0-9_.-]+?)-(\d[\w.!+]*)(?:-(?:py3|py2\.py3)-none-any\.whl|\.tar\.gz)"
+)
+
+
+def extra_name(file: str) -> str:
+    """A test-only distribution's name, as a family's `kit_extra` names it (normalized)."""
+    m = EXTRA_FILE.fullmatch(file)
+    return re.sub(r"[-_.]+", "-", m[1]).lower() if m else ""
+
+
+def extra_entries(text: str) -> list[tuple[str, str, str]]:
+    """(sha256, url, file) per line of kit-extra.txt; a line that does not parse is left out
+    (extra_errors names it)."""
+    out = []
+    for line in text.splitlines():
+        m = EXTRA_LINE.fullmatch(line.strip())
+        if m:
+            out.append((m[1], m[2], m[3]))
+    return out
+
+
+def extra_errors(text: str) -> list[str]:
+    """kit-extra.txt's rules, as kit.txt's: each line a SHA-256 and a files.pythonhosted.org URL
+    of a pure wheel, or of a pure sdist (a test-only plugin PyPI has no wheel for), one per name."""
+    errors, seen = [], set()
+    for n, line in enumerate(text.splitlines(), 1):
+        if not line.strip():
+            continue
+        m = EXTRA_LINE.fullmatch(line.strip())
+        if m is None or not extra_name(m[3]):
+            errors.append(f"kit-extra.txt:{n}: not a SHA-256 and a pure wheel's or sdist's URL")
+            continue
+        if extra_name(m[3]) in seen:
+            errors.append(f"kit-extra.txt:{n}: {extra_name(m[3])} is listed twice")
+        seen.add(extra_name(m[3]))
+    return errors
+
+
+def unpack_extra(path: Path, dest: Path) -> None:
+    """A test-only wheel unzipped into the kit, as the kit's own are; a pure sdist's package
+    folders copied there (its top folder's subfolders with an __init__.py)."""
+    if path.name.endswith(".whl"):
+        upstream.safe_unzip(path, dest)
+        return
+    import tarfile
+
+    with tarfile.open(path) as t:
+        tmp = Path(tempfile.mkdtemp(prefix="extra-", dir=paths.HARNESS_TMP))
+        try:
+            t.extractall(tmp, filter="data")
+            for top in tmp.iterdir():
+                for p in sorted(top.iterdir()):
+                    if p.is_dir() and (p / "__init__.py").is_file():
+                        shutil.copytree(p, dest / p.name)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+def source_top(tarball: Path) -> str:
+    from harness import pins
+
+    return pins.top_dir(tarball)
+
+
+def source_tie_errors(
+    cfg: upstream.Config, manifest: paths.Manifest, tarball: Path, tree: Path
+) -> list[str]:
+    """Why a test source is not the one the artifact names: its pin is not MANIFEST's, its
+    recorded patches are not MANIFEST's, or its tree is not the pinned archive with exactly
+    those patches applied."""
+    from harness import pins
+
+    errors = []
+    sha = paths.sha256_file(tarball)
+    if manifest.pins.get(tarball.name) != sha:
+        theirs = (manifest.pins.get(tarball.name) or "absent")[:12]
+        errors.append(f"tests from {tarball.name} SHA-256 {sha[:12]}, MANIFEST's pin {theirs}")
+    top = tree.name
+    mine = upstream.repo_patches(top)
+    prefix = f"recipes/patches/{top}/"
+    recorded = {p: s for p, s in manifest.recipes.items() if p.startswith(prefix)}
+    for p in sorted(set(recorded) | set(mine)):
+        if recorded.get(p) != mine.get(p):
+            errors.append(
+                f"tests carry patch {p} {(mine.get(p) or 'absent')[:12]}, MANIFEST records "
+                f"{(recorded.get(p) or 'absent')[:12]}"
+            )
+    twins = case_twins(upstream.tarball_members(tarball))
+    errors += [
+        f"{tree.name}: {d}"
+        for d in pins.tree_drift(tarball, tree)
+        if d.split(": ", 1)[0] not in twins
+    ]
+    return errors
+
+
+def case_twins(members: set[str]) -> set[str]:
+    """Members whose names differ only in case (reportlab's generated chart scripts): a
+    case-insensitive file system holds each pair as one file, so the drift of either is the
+    file system's, and the stage leaves them out (they are no test)."""
+    seen: dict[str, list[str]] = {}
+    for m in members:
+        seen.setdefault(m.lower(), []).append(m)
+    return {m for group in seen.values() if len(group) > 1 for m in group}
+
+
+def wheel_tie_errors(
+    cfg: upstream.Config, manifest: paths.Manifest, wheel: Path, tree: Path
+) -> list[str]:
+    """Every file the product's pinned wheel holds (less its metadata) is the same file in the
+    test source, as is or under a source folder; a file the source lacks is named by `tie_skips`
+    with its reason. The wheel's pin is MANIFEST's, and its version the test source's."""
+    errors = []
+    sha = paths.sha256_file(wheel)
+    if manifest.pins.get(wheel.name) != sha:
+        errors.append(f"the tie's wheel {wheel.name} is not MANIFEST's pin")
+    version = wheel.name.split("-")[1]
+    if version not in tree.name:
+        errors.append(f"the test source {tree.name} is not version {version} of {wheel.name}")
+    import hashlib
+
+    with zipfile.ZipFile(wheel) as z:
+        for info in z.infolist():
+            name = info.filename
+            first = name.split("/", 1)[0]
+            if info.is_dir() or first.endswith((".dist-info", ".data")):
+                continue
+            want = hashlib.sha256(z.read(info)).hexdigest()
+            found = [tree / (r + name) for r in SOURCE_ROOTS if (tree / (r + name)).is_file()]
+            if not found:
+                if name not in cfg.keys.tie_skips:
+                    errors.append(f"{name}: the wheel ships it, the test source lacks it")
+            elif not any(paths.sha256_file(f) == want for f in found):
+                errors.append(f"{name}: the wheel's differs from the test source's")
+    errors += [
+        f"tie_skips names {n}, which the wheel does not ship"
+        for n in cfg.keys.tie_skips
+        if n not in z.namelist()
+    ]
+    return errors
+
+
+def stage_extras(cfg: upstream.Config, root: Path) -> list[str]:
+    """The family's other sources into the stage's tree (each checked as its own), its test-only
+    extras into its kit, and the item groups' empty folder. The errors, or none."""
+    from harness import pins
+
+    errors = []
+    d = paths.artifact_dir()
+    manifest = paths.parse_manifest((d / "MANIFEST").read_text())
+    for folder, component in cfg.keys.extra_sources.items():
+        pair = pins.source_pair(component)
+        if pair is None:
+            errors.append(f"no source tree for {component}")
+            continue
+        errors += source_tie_errors(cfg, manifest, *pair)
+        shutil.copytree(pair[1], root / "tree" / folder)
+    entries = {extra_name(f): f for _, _, f in extra_entries(KIT_EXTRA.read_text())}
+    for name in cfg.keys.kit_extra:
+        if name not in entries:
+            errors.append(f"kit_extra {name} is not in kit-extra.txt")
+            continue
+        unpack_extra(upstream.WHEELS / entries[name], root / "kit")
+    (root / "judge" / NONE).mkdir(exist_ok=True)
+    return errors
+
+
+def cwd_folder_files(cfg: upstream.Config, tree: Path) -> dict[str, bytes]:
+    """The test source's folders the tests read and write by relative paths, copied into the
+    working folder before the session."""
+    out = {}
+    for folder in cfg.keys.cwd_folders:
+        for p in sorted((tree / folder).rglob("*")):
+            if p.is_file():
+                out[f"{WORK}/{p.relative_to(tree).as_posix()}"] = p.read_bytes()
+    return out
 
 
 # ---------------------------------------------------------------------------------------------
@@ -512,6 +858,7 @@ def judge(
     outcome.findings += keep_findings(extra, stream, keep)
     if cfg.keys.split_of(group) is not None and extra.collected is None:
         outcome.findings.append("no K line: the split group's file was not collected")
+    outcome.findings += smoke_findings(cfg, group, stream, extra)
     return outcome, extra
 
 
@@ -526,6 +873,28 @@ def clock_findings(cfg: upstream.Config, group: str, outcome: upstream.GroupOutc
     return [f"a changed clock step reaches other tests: {n} outcomes in {group}, not one"]
 
 
+def smoke_findings(cfg: upstream.Config, group: str, stream: upstream.Stream, extra: Extra) -> list:
+    """A smoke group runs no test upstream runs only on request: none of its tests skips for the
+    family's opt-in, and its marker deselects nothing unless the family names why (a capability
+    the guest lacks, for every group alike)."""
+    g = cfg.groups.get(group)
+    if g is None or g.smoke is None or not cfg.keys.test_source:
+        return []
+    out = [
+        f"a smoke test skips for an opt-in: {node} ({reason})"
+        for outcome, node, reason in stream.outcomes
+        if outcome == "skipped" and any(o in reason for o in cfg.keys.opt_in_skips)
+    ]
+    if not cfg.keys.deselect_reason:
+        named = tuple(f for n in cfg.not_selected for f in n.files if "::" in f)  # by its reason
+        out += [
+            f"a smoke group deselected {node}"
+            for node in extra.deselected
+            if not node.startswith(named)
+        ]
+    return out
+
+
 # ---------------------------------------------------------------------------------------------
 # The session: one stage per family, one guest session per group
 
@@ -537,6 +906,7 @@ class PackageRun:
     left_out: list[str]
     collected: int | None
     derived: dict | None = None  # the derived run's facts, on the family's derived_row alone
+    deselected: int = 0  # D lines: items the family's marker leaves out, for its named reason
 
 
 def derived_output_errors(path: Path, name: str) -> list[str]:
@@ -605,7 +975,16 @@ class Session:
         d = paths.artifact_dir()
         manifest = paths.parse_manifest((d / "MANIFEST").read_text())
         patches = upstream.repo_patches(tree.name)
-        errors = upstream.tie_errors(package, manifest, tarball, patches)
+        if cfg.keys.test_source:
+            errors = source_tie_errors(cfg, manifest, tarball, tree)
+            if cfg.keys.wheel:
+                wheel = paths.DOWNLOADS / cfg.keys.wheel
+                if not wheel.is_file():
+                    errors.append(f"no wheel {cfg.keys.wheel} in downloads/ for the tie")
+                else:
+                    errors += wheel_tie_errors(cfg, manifest, wheel, tree)
+        else:
+            errors = upstream.tie_errors(package, manifest, tarball, patches)
         if errors:
             return "the tests are not the artifact's: " + "; ".join(errors)
         allowed = upstream.tarball_members(tarball)
@@ -622,10 +1001,15 @@ class Session:
         shutil.copyfile(upstream.HERE / DRIVER, judge_dir / DRIVER)
         shutil.copyfile(upstream.HERE / f"{package}.ini", judge_dir / f"{package}.ini")
         left_out = stage(cfg, tree, allowed, root)
+        if cfg.keys.test_source:
+            errors = stage_extras(cfg, root)
+            if errors:
+                return "the stage is not complete: " + "; ".join(errors)
         keep = keep_classes(cfg, root / "tree")
         top = zip_top_names(d / "python-stdlib.zip")
+        modules = zip_modules(d / "python-stdlib.zip") if cfg.keys.test_source else None
         for g in cfg.groups.values():
-            spec = group_spec(cfg, g, keep, top)
+            spec = group_spec(cfg, g, keep, top, modules)
             (judge_dir / f"{g.name}.json").write_text(json.dumps(spec, indent=1))
         for t in cfg.traps:
             spec = {**group_spec(cfg, cfg.groups[next(iter(cfg.groups))], keep, top)}
@@ -676,12 +1060,13 @@ class Session:
         from harness import pins
 
         cfg = self.configs[package]
-        if not cfg.keys.cwd_files:
+        if not cfg.keys.cwd_files and not cfg.keys.cwd_folders:
             return None
         pair = pins.source_pair(cfg.component or package)
         assert pair is not None
         tree = pair[1]
-        return {f"{WORK}/{rel}": (tree / rel).read_bytes() for rel in cfg.keys.cwd_files}
+        files = {f"{WORK}/{rel}": (tree / rel).read_bytes() for rel in cfg.keys.cwd_files}
+        return {**files, **cwd_folder_files(cfg, tree)}
 
     def _run(self, package: str, name: str, fuel: int) -> tuple[str, upstream.GuestRun]:
         from harness import guest
@@ -709,6 +1094,8 @@ class Session:
         (kept / f"{package}-{name}.txt").write_text(text)
         tail = r.stderr.decode(errors="replace").strip().splitlines()[-1:] or [""]
         run = upstream.GuestRun(r.exit_code, r.trapped, r.trap_cause, r.fuel, r.text, tail[0][:200])
+        about = {"fuel": r.fuel, "exit": r.exit_code, "trapped": r.trapped, "tail": run.stderr_tail}
+        (kept / f"{package}-{name}.json").write_text(json.dumps(about))  # beside its stream
         litter.remove(r.root.parent)  # the run's root and its sealed stdlib folder
         return text, run
 
@@ -723,7 +1110,14 @@ class Session:
             outcome.findings += self._split_findings(cfg, group, extra.collected)
             outcome.findings += clock_findings(cfg, group, outcome)
             derived = self.derived.get(package) if group == cfg.keys.derived_row else None
-            self.groups[group] = PackageRun(outcome, run.fuel, left_out, extra.collected, derived)
+            self.groups[group] = PackageRun(
+                outcome,
+                run.fuel,
+                left_out,
+                extra.collected,
+                derived=derived,
+                deselected=len(extra.deselected),
+            )
         return self.groups[group]
 
     def _split_findings(self, cfg: upstream.Config, group: str, collected: int | None) -> list[str]:
@@ -1019,13 +1413,18 @@ def rule_errors(
             errors.append(f"{pkg}: support package {folder} is not a stage folder")
     for g in cfg.groups.values():
         for p in g.paths:
-            if not any(p == f or p.startswith(f.rstrip("/") + "/") for f in k.stage_folders):
+            file = p.split("::", 1)[0]  # a node-id group's path is its file and the test
+            if file in k.support_files:
+                continue  # a staged support file may be a group's path (a one-file suite)
+            if not any(file == f or file.startswith(f.rstrip("/") + "/") for f in k.stage_folders):
                 errors.append(f"{pkg}: group {g.name} path {p} is not under a stage folder")
     errors += split_errors(pkg, cfg)
     caps = sum(g.fuel for g in cfg.groups.values()) + upstream.TRAP_FUEL * len(cfg.traps)
     caps += sum(e.fuel for e in k.derived)
     if caps > k.budget:
         errors.append(f"{pkg}: caps {caps:.3g} over the family's budget {k.budget:.3g}")
+    if k.test_source:
+        errors += source_rule_errors(pkg, cfg, members)
     if members is not None:
 
         def folder_ok(f: str) -> bool:
@@ -1035,10 +1434,88 @@ def rule_errors(
             if f != "." and not folder_ok(f):
                 errors.append(f"{pkg}: {f} is not a folder of the tarball")
         files = [*k.support_files, *k.cwd_files, *(f for f, _ in k.doctest_files)]
-        files += [f.split("::", 1)[0] for n in cfg.not_selected for f in n.files]
-        files += [p for g in cfg.groups.values() for p in g.paths if p.endswith(".py")]
+        files += [
+            f.split("::", 1)[0]
+            for n in cfg.not_selected
+            for f in n.files
+            if not folder_ok(f.split("::", 1)[0])  # a not-selected folder is a folder of it
+        ]
+        files += [f for it in k.items.values() for f, _ in it.doctest_files]
+        files += [
+            p.split("::", 1)[0]
+            for g in cfg.groups.values()
+            for p in g.paths
+            if p.split("::", 1)[0].endswith(".py")
+        ]
         errors += [f"{pkg}: {f} is not a tarball member" for f in files if f not in members]
     return errors
+
+
+# A test-source family's smoke group is small, and all of them together are: the normal tier runs
+# them at every landing, so it cannot grow a second suite unnoticed. Moving either is a judge
+# change. They bound the test-source families only.
+SMOKE_GROUP_BOUND = 100 * 10**9
+SMOKE_TOTAL_BOUND = 10**12
+
+
+def source_rule_errors(pkg: str, cfg: upstream.Config, members: set[str] | None) -> list[str]:
+    """A test-source family's own keys: its extras are listed, its folders are the source's, its
+    environment and flags are allowed, each group runs paths or items (never both), and it has
+    exactly one normal group, its smoke group."""
+    k = cfg.keys
+    errors = []
+    listed = {extra_name(f) for _, _, f in extra_entries(KIT_EXTRA.read_text())}
+    errors += [
+        f"{pkg}: kit_extra {n} is not in kit-extra.txt" for n in k.kit_extra if n not in listed
+    ]
+    if k.cwd_folders and k.cwd != WORK:
+        errors.append(f"{pkg}: cwd_folders need cwd = {WORK!r}")
+    errors += [
+        f"{pkg}: sys_flags {n} is not one of {SYS_FLAGS}" for n in k.sys_flags if n not in SYS_FLAGS
+    ]
+    errors += [
+        f"{pkg}: doctest_setup {n} is not one of {DOCTEST_SETUPS}"
+        for n in k.doctest_setup
+        if n not in DOCTEST_SETUPS
+    ]
+    if k.doctest_runner and k.doctest_runner not in DOCTEST_RUNNERS:
+        errors.append(f"{pkg}: doctest_runner {k.doctest_runner} is not one of {DOCTEST_RUNNERS}")
+    if k.doctest_checker and k.doctest_checker not in DOCTEST_CHECKERS:
+        errors.append(
+            f"{pkg}: doctest_checker {k.doctest_checker} is not one of {DOCTEST_CHECKERS}"
+        )
+    for g in cfg.groups.values():
+        if not g.paths and g.name not in k.items:
+            errors.append(f"{pkg}: group {g.name} runs nothing: no paths and no items")
+    normal = [g.name for g in cfg.groups.values() if g.tier == "normal"]
+    if len(normal) != 1:
+        errors.append(
+            f"{pkg}: {len(normal)} normal groups; a test-source family has its smoke alone"
+        )
+    for g in cfg.groups.values():
+        if g.smoke is not None and (g.measured or 0) > SMOKE_GROUP_BOUND:
+            errors.append(
+                f"{pkg}: smoke group {g.name} measures {g.measured / 1e9:.1f} G, past 100 G"
+            )
+    if members is not None:
+        for f in k.cwd_folders:
+            if not any(m.startswith(f.rstrip("/") + "/") for m in members):
+                errors.append(f"{pkg}: cwd_folders {f} is not a folder of the test source")
+    return errors
+
+
+def smoke_total_errors(configs: dict[str, upstream.Config]) -> list[str]:
+    """The test-source families' smoke groups together stay under their bound."""
+    total = sum(
+        g.measured or 0
+        for c in configs.values()
+        if c.driver == "package" and c.keys.test_source
+        for g in c.groups.values()
+        if g.smoke is not None
+    )
+    if total > SMOKE_TOTAL_BOUND:
+        return [f"the test-source smoke groups measure {total / 1e9:.1f} G together, past 1 T"]
+    return []
 
 
 def lxml_errors(configs: dict[str, upstream.Config], members: set[str] | None) -> list[str]:

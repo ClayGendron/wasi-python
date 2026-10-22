@@ -1,0 +1,6 @@
+joblib/test/test_memory.py::test_cached_jupyter_function_persists_across_sessions
+joblib/test/test_missing_multiprocessing.py::test_missing_multiprocessing
+joblib/test/test_testing.py::test_check_subprocess_call
+joblib/test/test_testing.py::test_check_subprocess_call_non_matching_regex
+joblib/test/test_testing.py::test_check_subprocess_call_non_zero_return_code
+joblib/test/test_testing.py::test_check_subprocess_call_timeout

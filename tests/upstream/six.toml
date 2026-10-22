@@ -1,0 +1,38 @@
+# six's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "six"
+driver = "package"
+grant = "/upstream-six"
+test_source = true
+wheel = "six-1.17.0-py2.py3-none-any.whl"
+budget = 21_000_000_000
+stage_folders = []
+support_files = ["test_six.py"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.six-smoke]
+paths = ["test_six.py"]
+smoke = "the whole suite: a smaller smoke group would cost as much, a session's start being most of it"
+fuel = 21_000_000_000
+measured = 13_543_356_822
+
+[[expected]]
+id = "no-network"
+group = "six-smoke"
+outcome = "failed"
+match = "HTTPSHandler|_ssl|No module named 'ssl'|getaddrinfo|Network is unreachable"
+reason = "no network and no ssl in the guest (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-processes"
+group = "six-smoke"
+outcome = "failed"
+match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
+reason = "no processes: the guest cannot start one (README)"
+closes_with = "README.md"
+

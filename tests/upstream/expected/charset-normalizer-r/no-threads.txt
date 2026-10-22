@@ -1,0 +1,2 @@
+tests/test_thread_safety.py::TestThreadSafety::test_concurrent_detection
+tests/test_thread_safety.py::TestThreadSafety::test_concurrent_detection_repeated

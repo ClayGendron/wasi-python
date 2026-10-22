@@ -1,0 +1,3 @@
+::docfile:doc/user_guide/memory.rst
+::docfile:doc/user_guide/parallel_numpy.rst
+::docfile:doc/user_guide/persistence.rst

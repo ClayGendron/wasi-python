@@ -38,7 +38,7 @@ promises.
 
 | fact | value |
 |---|---|
-| upstream patches | upstream patches carried: 23, each with an upstream pull request drafted for the owner to send, or, for matplotlib's enum fix, qhull's format strings, two of OpenBLAS's, kiwisolver's `tp_clear` fix and lxml's `fake_cython` line, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
+| upstream patches | upstream patches carried: 27, each with an upstream pull request drafted for the owner to send, or, for matplotlib's enum fix, qhull's format strings, two of OpenBLAS's, kiwisolver's `tp_clear` fix and lxml's `fake_cython` line, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 8 min 35 s (macOS arm64, 10 cores, with matplotlib's and lxml's steps; spec 046's landing notes, 2026-10-18) |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 99.4 MB / 104.5 MB / 53.9 MB; the wheel 98.3 MB (3.15 line, with statsmodels and formulaic (spec 045), numpy and scipy on one OpenBLAS (specs 037 and 100), scikit-learn (spec 044), matplotlib (contourpy and `_qhull` since spec 043), lxml, regex and tier A's thirty pure-Python packages, no package pre-imported, wasi-sdk 34; spec 045's landing notes; 92.6 MB / 97.4 MB / 49.8 MB before statsmodels, 93.8 MB / 98.7 MB / 49.8 MB before numpy moved to OpenBLAS, 84.8 MB / 89.5 MB / 44.4 MB before scikit-learn, 42.3 MB / 46.5 MB / 38.8 MB before scipy) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
@@ -905,6 +905,48 @@ without it). It runs only before a publication: on the pushed tag, on the dry ru
 it, and in the lane's release acceptance, about 8.4 T of guest fuel, 21 to 24 minutes on darwin
 serially, in twelve Linux shards in the release. Together the tiers are every test of every
 package built; the rules prove each test lands in one, and nothing is left out of both.
+
+The 42 pure-Python packages the product ships run their own suites too (spec 067): each package's
+tests come from its pinned sdist, or, where the sdist carries none, from its release tag's archive
+(cycler, cloudpickle, threadpoolctl, tomli-w, xlrd, XlsxWriter, openpyxl, et-xmlfile), and pypdf's
+sample files from the commit its release tag records; 39 test sources in all, pinned and named in
+`MANIFEST` (`scripts/00_download.sh --tests` fetches them; a plain build does not). The judge ties
+each to the bytes that ship: the test source's pin is the artifact's, its tree is the archive
+with exactly its recorded patches, and every file of the package's pinned wheel is the same file
+in it. By the owner's rule, each **whole suite is in the release tier** (doctests, doc files and
+upstream's opt-ins, sympy's `slow` and `too slow` tests, networkx's and narwhals' `--runslow`
+tests, packaging's property tests, all included), and each package keeps **one smoke group in
+the normal tier**, a few files that import it from the zip and run its core paths; twenty small
+suites are their own smoke group. Not run, each with its reason in its TOML: html5lib's
+data-driven tokenizer and tree-construction files (its conftest builds them in a way pytest 9
+refuses), seaborn's `test_base.py` (a mark on a fixture, likewise), pyparsing's diagram tests
+(railroad is not in the product), joblib's memmapping tests (processes and `mmap`), reportlab's
+barcode tests and `test_platypus_general.py`, fontTools' table-coverage script, defusedxml's
+abstract base class and runner, and pypdf's tests that download their files.
+
+The pure-Python suites' known failures, each a class by test id with this fact:
+`no-threads`, `no-processes`, `no-mmap`, `shallow-recursion`, `no-network`, `no-resource-module`,
+`wasm32`, `no-fp-exceptions` and `no-ctypes` are the platform's facts above; `no-asyncio-loop`:
+asyncio's event loop opens a socket pair WASI does not support (ENOTSUP), and what a failed loop
+leaves is reported at teardown; `no-tzset`: WASI has no `time.tzset` and the guest no host
+zoneinfo; `no-terminal-size`, `no-alarm`: WASI has no `os.get_terminal_size` and no
+`signal.alarm`; `zip-no-source`, `zip-importer`, `zip-package-loader`: the product's modules are
+bytecode in a zip, loaded by zipimport, with no source; `read-only-source`,
+`cli-writes-beside-input`: a test writes beside its own files in the test source, a read-only
+grant; `importlib-module-names`: the driver imports test modules with pytest's importlib mode,
+so a test that checks or imports its own module by name sees its package path; `counted-clock`:
+the guest's clock advances a microsecond a read, so a timed sleep, a timeout or two timestamps a
+second apart come out otherwise; `disk-usage-zero`: WASI's stat reports no blocks;
+`captured-stdout`: the driver captures `sys.stdout` for its stream; `python-3-15`: the test
+expects an older CPython's behaviour or message; `wasm32-int32`: numpy's default integer is 32
+bits on wasm32; `numpy-2-promotion`, `newer-dependencies`, `no-pyarrow-interchange`: a test
+older than the numpy 2.5, pandas 3 and matplotlib 3.11 the product ships, or one that needs
+pyarrow; `sdist-lacks-data`: the sdist leaves the test's data file out; `warning-filter-reset`:
+pytest's per-test warning capture undoes a filter the module sets at import;
+`reportlab-data-folder`: reportlab's tests find their data beside the installed package, in the
+zip; `tz-cache`: dateutil's gettz cache tests see the same zone object come back;
+`doctest-output`: a docstring example's output differs under the stdlib's doctest runner with
+upstream's flags.
 
 A job named `gather` reads
 every shard's record by its id and hash, and nothing is signed or published unless every shard ran

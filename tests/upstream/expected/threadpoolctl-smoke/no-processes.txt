@@ -1,0 +1,3 @@
+tests/test_threadpoolctl.py::test_command_line_command_flag
+tests/test_threadpoolctl.py::test_command_line_empty_or_system_openmp
+tests/test_threadpoolctl.py::test_command_line_import_flag

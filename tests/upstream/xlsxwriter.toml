@@ -1,0 +1,33 @@
+# xlsxwriter's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "xlsxwriter"
+driver = "package"
+grant = "/upstream-xlsxwriter"
+test_source = true
+wheel = "xlsxwriter-3.2.9-py3-none-any.whl"
+budget = 192_000_000_000
+stage_folders = ["xlsxwriter/test"]
+cwd = "/tmp/work"
+markers = []
+cwd_folders = ["xlsxwriter/test/comparison/xlsx_files", "xlsxwriter/test/comparison/images"]
+package_inits = true
+
+[groups.xlsxwriter-smoke]
+paths = [
+    "xlsxwriter/test/comparison/test_simple01.py",
+    "xlsxwriter/test/comparison/test_chart_bar01.py",
+    "xlsxwriter/test/workbook",
+]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 22_000_000_000
+measured = 14_465_904_560
+
+[groups.xlsxwriter-r]
+paths = ["xlsxwriter/test"]
+tier = "release"
+release_by = "path"
+fuel = 170_000_000_000
+measured = 112_907_530_498
+

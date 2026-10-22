@@ -1,0 +1,7 @@
+tests/test_rl_accel.py::RlAccelTestCase::testAsciiBase85Decode
+tests/test_rl_accel.py::RlAccelTestCase::testAsciiBase85Encode
+tests/test_rl_accel.py::RlAccelTestCase::testAsciiBase85RoundTrip
+tests/test_rl_accel.py::RlAccelTestCase::testCalcChecksum
+tests/test_rl_accel.py::RlAccelTestCase::testEscapePDF
+tests/test_rl_accel.py::RlAccelTestCase::testFpStr
+tests/test_rl_accel.py::RlAccelTestCase::test_sameFrag

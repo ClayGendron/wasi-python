@@ -1,0 +1,29 @@
+# attrs's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "attrs"
+driver = "package"
+grant = "/upstream-attrs"
+test_source = true
+wheel = "attrs-26.1.0-py3-none-any.whl"
+budget = 260_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+kit_extra = ["pympler"]
+
+[groups.attrs-smoke]
+paths = ["tests/test_validators.py", "tests/test_converters.py", "tests/test_filters.py"]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 20_000_000_000
+measured = 13_318_934_673
+
+[groups.attrs-r]
+paths = ["tests"]
+tier = "release"
+release_by = "path"
+fuel = 240_000_000_000
+measured = 159_204_770_881
+

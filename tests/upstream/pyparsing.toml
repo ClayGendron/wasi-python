@@ -1,0 +1,117 @@
+# pyparsing's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "pyparsing"
+driver = "package"
+grant = "/upstream-pyparsing"
+test_source = true
+wheel = "pyparsing-3.3.3-py3-none-any.whl"
+budget = 1_092_000_000_000
+stage_folders = ["tests", "examples"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.pyparsing-smoke]
+paths = ["tests/test_simple_unit.py", "examples/tiny/tests"]
+smoke = "a few files that import the package from the zip and run its core paths"
+fuel = 22_000_000_000
+measured = 14_078_557_904
+
+[groups.pyparsing-r-unit-1]
+paths = ["tests/test_unit.py"]
+tier = "release"
+release_by = "path"
+fuel = 120_000_000_000
+measured = 79_535_447_260
+
+[groups.pyparsing-r-unit-2]
+paths = ["tests/test_unit.py"]
+tier = "release"
+release_by = "path"
+fuel = 150_000_000_000
+measured = 94_870_386_414
+
+[groups.pyparsing-r-unit-3]
+paths = ["tests/test_unit.py"]
+tier = "release"
+release_by = "path"
+fuel = 150_000_000_000
+measured = 94_975_456_694
+
+[groups.pyparsing-r-unit-4]
+paths = ["tests/test_unit.py"]
+tier = "release"
+release_by = "path"
+fuel = 150_000_000_000
+measured = 93_777_842_395
+
+[groups.pyparsing-r-unit-5]
+paths = ["tests/test_unit.py"]
+tier = "release"
+release_by = "path"
+fuel = 140_000_000_000
+measured = 89_824_136_464
+
+[groups.pyparsing-r-unit-6]
+paths = ["tests/test_unit.py"]
+tier = "release"
+release_by = "path"
+fuel = 150_000_000_000
+measured = 96_550_518_944
+
+[groups.pyparsing-r]
+paths = [
+    "tests/test_examples.py",
+    "tests/test_matplotlib_cases.py",
+    "tests/test_pep8_converter.py",
+    "tests/test_pre_pep8_deprecation_warnings.py",
+    "tests/test_testing.py",
+    "tests/test_util.py",
+    "examples/test_bibparse.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 210_000_000_000
+measured = 135_886_394_007
+
+[[split]]
+file = "tests/test_unit.py"
+groups = [
+    "pyparsing-r-unit-1",
+    "pyparsing-r-unit-2",
+    "pyparsing-r-unit-3",
+    "pyparsing-r-unit-4",
+    "pyparsing-r-unit-5",
+    "pyparsing-r-unit-6",
+]
+keywords = [
+    "Test02_WithoutPackrat",
+    "Test03_EnablePackratParsing or Test04_WithPackrat",
+    "Test05_EnableBoundedPackratParsing or Test06_WithBoundedPackrat",
+    "Test07_EnableUnboundedPackratParsing or Test08_WithUnboundedPackrat",
+    "Test09_WithLeftRecursionParsing",
+]
+
+[[not_selected]]
+files = ["tests/test_diagram.py"]
+reason = "it imports railroad (railroad-diagrams) at module level, and every test in it draws a diagram with it: the product lacks pyparsing's diagram feature"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-processes"
+group = "pyparsing-r-unit-6"
+outcome = "failed"
+match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
+reason = "no processes: the guest cannot start one (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "pyparsing-no-railroad"
+group = "pyparsing-r"
+outcome = "failed"
+match = "pyparsing\\[diagrams\\]"
+reason = "the example draws a railroad diagram, and railroad is not in the product (README)"
+closes_with = "README.md"
+

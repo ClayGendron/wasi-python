@@ -1,0 +1,1 @@
+openpyxl/reader/tests/test_excel.py::test_file_closes

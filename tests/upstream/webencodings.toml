@@ -1,0 +1,21 @@
+# webencodings's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite runs in the release tier, a smoke group in the normal
+# tier: each test in exactly one tier.
+
+package = "webencodings"
+driver = "package"
+grant = "/upstream-webencodings"
+test_source = true
+wheel = "webencodings-0.6.1-py3-none-any.whl"
+budget = 17_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.webencodings-smoke]
+paths = ["tests"]
+smoke = "the whole suite: a smaller smoke group would cost as much, a session's start being most of it"
+fuel = 17_000_000_000
+measured = 11_265_587_087
+

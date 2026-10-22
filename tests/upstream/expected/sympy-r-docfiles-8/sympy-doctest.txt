@@ -1,0 +1,2 @@
+::docfile:doc/src/tutorials/intro-tutorial/manipulation.rst
+::docfile:doc/src/tutorials/intro-tutorial/printing.rst

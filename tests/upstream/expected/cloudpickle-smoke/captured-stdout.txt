@@ -1,0 +1,1 @@
+tests/cloudpickle_file_test.py::CloudPickleFileTests::test_pickling_special_file_handles

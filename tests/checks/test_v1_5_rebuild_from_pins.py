@@ -47,6 +47,13 @@ def test_every_fetched_file_is_pinned() -> None:
     assert not errors, scan.report(errors)
 
 
+def test_every_test_source_is_pinned_and_named() -> None:
+    """Every test source (data the judge stages, never built) has a `tests` line and its pin,
+    both ways; each is one source pattern's; a forge's archive is named `-tag.tar.gz`."""
+    errors = scan.test_source_errors(DOWNLOAD_SCRIPT, paths.read_pin_list())
+    assert not errors, scan.report(errors)
+
+
 FAKE_UNAME = """#!/bin/sh
 case "$1" in -s) echo "$FAKE_S";; -m) echo "$FAKE_M";; *) echo "$FAKE_S";; esac
 """
