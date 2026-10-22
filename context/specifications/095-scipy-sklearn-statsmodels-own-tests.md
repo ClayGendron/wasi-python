@@ -24,7 +24,9 @@
   smoke groups re-measured on the main tree's set `d0d91cef`); awaiting the reviewer's
   confirmation, and 102's builder's answer to *For 102*. **Build begun 2026-10-21** on 102's final
   tip `861d5e4b`, **stopped part-way at the owner's pause** (the Landing notes give the resume
-  point); no CI run dispatched.
+  point); no CI run dispatched. **Resumed and built 2026-10-22** by a second builder, rebased onto
+  main `2a8091d7` (wave 11 landed): every release group measured, its normal-tier branch run
+  dispatched (the Landing notes, *The build, completed*); awaiting the build review.
 - **Owner:** Clay Gendron
 - **Kind:** the judge and the release workflow. No line of `src/`, `scripts/`, `recipes/` or
   `downloads/SHA256SUMS` changes: scipy's and scikit-learn's sdists are main's pins (037, 044),
@@ -1175,7 +1177,7 @@ step, commit, push, start nothing new"). No CI run was dispatched (the owner pau
   `no-mmap-estimator-checks`; statsmodels `no-processes`, `wasm-is-not-emscripten` (upstream's
   `PYTHON_IMPL_WASM` is Pyodide's only), `upstream-xfail-platform`. No trap anywhere.
 
-**What is left, in order:**
+**What was left, in order** (done: *The build, completed*, below):
 
 1. Pass 2's lane 2 (`build/095/pass2-lane2.txt`, 47 groups) and the groups capped in pass 2;
    then pass 3: repack every group still past 480 G that is not one test (`scipy-stats-1`,
@@ -1190,3 +1192,125 @@ step, commit, push, start nothing new"). No CI run was dispatched (the owner pau
    `context/release-tier-claims.toml` from the local `--tier release` records.
 5. The fast tier through the slot; push; one normal-tier branch run when the owner resumes runs,
    read back; the self-check list; then the build review.
+
+### The build, completed (2026-10-22, the second builder)
+
+Every number here is EXECUTED on darwin-arm64 unless marked; the memo's section *The build's
+measurements* holds the detail.
+
+- **Rebases and the conflicts resolved.**
+  - Onto main `6411d4d5` (wave 11 landed; the base `861d5e4b`, 102, is in it): **one conflict**,
+    `tests/harness/packages.py`'s `rule_errors`. Main (112, strings speak for themselves) dropped
+    "(Decision 14)" from the refused-key line; 095 added five rule calls after it. Resolved by
+    taking main's line and keeping 095's five calls. `.github/workflows/release.yml`,
+    `CHANGELOG.md`, `README.md`, `tests/checks/test_rules.py` and `tests/release_shards.toml`
+    merged as text. No string of 095's names a context document (112's rule passes).
+  - Onto main `2a8091d7` (two context and CHANGELOG commits after wave 11): no conflict.
+  - Progress files: none changed on this branch (`git diff main -- context/progress` is empty).
+- **Set.** The main tree's set after wave 11, `SHA256SUMS` `1556bbd5`, cloned into the worktree
+  (every file checked). Passes 1 and 2 (the first builder) ran on `d0d91cef`; 114's two zip
+  members are the only difference, and no group was measured on both.
+- **Measured.** Pass 3a (the 48 groups the pause left, 1 h 02 min, one process), pass 3b (118
+  checks after the replanning, 1 h 16 min), pass 4 (10 checks), pass 4b (1): **the release tier
+  is 86.22 T over 261 groups** (scipy 172, 63.66 T; scikit-learn 38, 9.72 T; statsmodels 51,
+  12.84 T), plus three traps of 50 G; about 165 minutes of darwin guest time, about 55 to 60
+  minutes at `-n 3` (INFERRED at the measured 8.7 G/s per process). No release group is
+  unmeasured; every group past the 480 G bound is one test, named in its TOML (19 in scipy, one
+  in statsmodels).
+- **Found and fixed in the plan: pytest's `-k` is a substring match.** The paused build's
+  splits named functions bare, so `test_beta` took `test_betainc` and `test_betaincc` (both
+  clock-stepped groups selected nothing; `scipy-special-mpmath-1` hit its 2 T cap in
+  `test_betainc`), and seven split groups selected no test. Every split is now planned against a
+  simulation of pytest's matching over the file's known tests (`ksim.py`, `pass3.py`): each
+  planned group is exactly what pytest selects, none is empty, and the two clock-stepped groups
+  come first in `test_mpmath.py`'s split with one test each. Deepest `-k` parse: 81 levels.
+- **Found: three tests that do not finish** (`test_support_alternative_backends_hypothesis`
+  for `hyp1f1`, `lpmv`, `yn`). Each is a `[[trap]]` of `scipy-special-3`, deselected from it and
+  run alone to 50 G; each is a gap (`tests/known_gaps.toml`, closer `README.md`). The three traps
+  xfail as their gaps say (pass 4).
+- **Found and fixed in the judge: a package family's trap ran its node relative to the tree**
+  (pytest exit 4, "the entry ran nothing"). `Session._prepare` now writes the trap's node under
+  the tree root, as `group_args` names group paths. **Its check, written first and seen
+  failing:** `tests/unit/test_packages.py::test_a_trap_runs_its_node_under_the_tree_and_leaves_its_group`
+  failed on the unfixed harness (`assert 'pkg/a/tests/test_x.py::t' ==
+  '/upstream-scipy/tree/pkg/a/tests/test_x.py::t'`), then passed. No other family has a trap.
+- **One failure read and classed:** `test_sf_error.py::test_check_overflow_message` (in
+  `scipy-special-2`): `yn(3, 1e-105)` returns `-inf` without the overflow error in the guest,
+  where `yv` and `kv` raise it (a guest probe): `no-fp-exceptions` now also admits `DID NOT RAISE
+  SpecialFunctionError`, its reason naming an overflow.
+- **`test_marray.py`** collects no test; alone it made a group that selected nothing (exit 5), so
+  it rides at the head of `scipy-stats-1-3` by sdist order.
+- **Criterion 5, fuel repeats:** the four smoke groups run twice in two judge processes (each
+  restages): equal outcomes, `passed_digest` and fuel to the instruction; `sameness.py` between
+  the two records exits 0. Normal tier **855.0 G** (scipy 461.9 G, under the 500 G smoke budget;
+  scikit-learn 257.3 G; statsmodels 135.8 G); their `measured` values are these runs'.
+- **Shards:** two normal Linux shards (`upstream-sci-smoke-a` 470.5 G with the derived run,
+  `upstream-sci-smoke-b` 393.1 G) and **104 release shards** by the 725 G packing; 13 groups past
+  725 G are each a shard alone, and the largest (3.02 T, 2.85 T) are past Decision 12's 360 s at
+  the survey's Linux rate (INFERRED; no branch run runs release groups, so the first CI run of
+  them is the dry run on main before the tag).
+- **Judge files this build changes against the paused tip** (AGENTS.md rule 4; none of these
+  files is on main, all are 095's own):
+  - six class lists deleted, because their groups were regrouped and their members moved to the
+    new groups' lists: `expected/scikit-learn-tests-1/{no-openmp,package-in-zip}.txt` (the group
+    became `scikit-learn-tests-1-1` and `-2`), `expected/scipy-optimize-1/no-processes.txt`
+    (`scipy-optimize-1-1`, `-2`), `expected/scipy-stats-1/{no-fp-exceptions,no-processes}.txt`
+    (`scipy-stats-1` became fourteen groups), and
+    `expected/scipy-special-mpmath-8/mpmath-tolerance.txt` (the name now holds other tests, none
+    of that class);
+  - `tests/known_gaps.toml`: only 095's own section, regenerated for the regrouped classes (81
+    class gaps) and the three trap gaps; no gap of another family changed;
+  - the three TOMLs, the new groups' class lists, `tests/release_shards.toml`, the workflow's
+    lists, and `tests/harness/packages.py`'s trap line with its unit row.
+- **The fast tier** (`-n 3`, the fast slot, on `6411d4d5`'s rebase; `build/095/fast.log`): 2,969
+  passed, 2 failed, 37 skipped; the ratchet lost 2, gained 1, grew 0. The two lost,
+  `test_scikit_learn_notice_carries_its_bundled_parts` and
+  `test_statsmodels_notice_carries_its_bundled_parts`, were five pinned licence files this
+  worktree's `downloads/` lacked; copied from the main tree (each SHA-256 checked equal to
+  `downloads/SHA256SUMS`), both pass by node id (`build/095/notice.log`). Not 095's. The rebase
+  onto `2a8091d7` changed only `context/` and `CHANGELOG.md`.
+- **Units, rules, lint:** `tests/unit` and `tests/checks/test_rules.py` 2,351 passed, 10 skipped;
+  `ruff check`, `ruff format --check` green.
+- **For the build review, by name:** `scipy-special-mpmath-betainc` and `-betaincc` run with
+  `clock_step_ns = 100_000` (a release group's key; mpmath's reference values are timed by the
+  clock read on every trace event); and the guest's pytest fails to compile a `-k` expression past
+  about 300 levels (`RecursionError`; `kdepth.py`), so every split's depth is held at 150 or less
+  by the planner (the deepest is 81). Also: the trap harness fix above, and that the planner's
+  correctness rests on `ksim.py`'s model of pytest's keyword matching (the node's path parts,
+  classes and name; markers are not modelled), checked against each measured group's own
+  collected tests.
+
+### For the lane, as built
+
+- **Wave kind:** build-class (the release workflow), with one harness line (`packages.py`).
+- **The claim list:** new: the four smoke groups' rows and their classes (normal tier); every
+  release-tier row is in 095's block of `context/release-tier-claims.toml` (261 groups, their
+  classes, three traps; `units = 46`). Changed: none of another family (criterion 6's stage
+  digests hold). Grown: none. Retired: none. Passes moved: none.
+- **Flags:** `--accept "095: scipy's, scikit-learn's and statsmodels' own tests"` and
+  `--accept-judge "095: the three families' TOMLs, lists and gaps, their harness keys, the trap
+  argv named under the tree, the shards and the workflow"`. No `--accept-growth`.
+
+### The builder's self-check
+
+```
+Before you ask for a review:
+- [x] rebased onto main's tip today: 2a8091d7 (the Status line says so); conflicts named above;
+- [x] CI run dispatched on this exact commit (normal tier, no release-tier input): its id and
+      red lines are in the next context-only commit's line below, read with gh run view;
+- [x] every number from a measured run on this base, labelled EXECUTED; passes 1 and 2 on
+      d0d91cef, 3 and 4 on 1556bbd5, said where each is used;
+- [x] "For the lane": the claim list, the flags, each reason beginning with 095, the wave kind
+      (build-class), dry-run needs (the release shards run first on the dry run on main);
+- [x] every new check seen failing first: the trap row (above); the first builder's 39 unit rows
+      (the-build/data/base-unit-run.txt); Linux and Windows run in the branch run's normal tier;
+- [x] every gap names its closer (README.md, 037's spec for odr, the roadmap's 088 for the
+      test-only modules); no new reserved follow-up;
+- [x] packages.toml: scipy, scikit-learn and statsmodels are suites; README rows written (the
+      three "Its own tests" paragraphs, the traps, yn's overflow);
+- [x] CHANGELOG under the one unreleased section; no question asked;
+- [x] ruff check, ruff format --check, the fast tier: green but for the two licence files named;
+      output in build/095/;
+- [x] judge files changed against the paused tip named with their reasons (six class lists
+      deleted, 095's gap section regenerated).
+```
