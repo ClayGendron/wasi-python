@@ -98,21 +98,21 @@
     "id": "scipy-hypothesis-hyp1f1",
     "node": "scipy/special/tests/test_support_alternative_backends.py::test_support_alternative_backends_hypothesis[numpy-hyp1f1]",
     "group": "scipy-special-3",
-    "reason": "the hypothesis case for hyp1f1 does not finish in the guest: in its group it ran past about 10 T of fuel, about 20 minutes, and was stopped; alone it runs out of the trap's 50 G. Why its drawn arrays keep hyp1f1 computing is not read yet (README)",
+    "reason": "the hypothesis case for hyp1f1 does not finish in the guest: a derandomized example draws intp (32-bit on wasm32) values near plus or minus 2**31 as the function's integer parameters, and the call runs past the trap's 50 G cap; no example fails (README)",
     "closes_with": "README.md"
    },
    {
     "id": "scipy-hypothesis-lpmv",
     "node": "scipy/special/tests/test_support_alternative_backends.py::test_support_alternative_backends_hypothesis[numpy-lpmv]",
     "group": "scipy-special-3",
-    "reason": "the hypothesis case for lpmv does not finish in the guest: in its group it ran to the group's 2 T cap; alone it runs out of the trap's 50 G. Why its drawn arrays keep lpmv computing is not read yet (README)",
+    "reason": "the hypothesis case for lpmv does not finish in the guest: in its group it ran to the group's 2 T cap, and alone it runs out of the trap's 50 G; it was not probed further, and yn's and hyp1f1's cases end this way on intp parameters near plus or minus 2**31 (README)",
     "closes_with": "README.md"
    },
    {
     "id": "scipy-hypothesis-yn",
     "node": "scipy/special/tests/test_support_alternative_backends.py::test_support_alternative_backends_hypothesis[numpy-yn]",
     "group": "scipy-special-3",
-    "reason": "the hypothesis case for yn does not finish in the guest: alone it passed 80 G without ending, where every other case of the test ends within about 3 G; alone it runs out of the trap's 50 G. Why its drawn arrays keep yn computing is not read yet (README)",
+    "reason": "the hypothesis case for yn does not finish in the guest: a derandomized example draws intp (32-bit on wasm32) values near plus or minus 2**31 as the function's integer parameters, and the call runs past the trap's 50 G cap; no example fails (README)",
     "closes_with": "README.md"
    }
   ]

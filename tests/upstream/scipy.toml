@@ -158,21 +158,21 @@ closes_with = "README.md"
 id = "scipy-hypothesis-hyp1f1"
 node = "scipy/special/tests/test_support_alternative_backends.py::test_support_alternative_backends_hypothesis[numpy-hyp1f1]"
 group = "scipy-special-3"
-reason = "the hypothesis case for hyp1f1 does not finish in the guest: in its group it ran past about 10 T of fuel, about 20 minutes, and was stopped; alone it runs out of the trap's 50 G. Why its drawn arrays keep hyp1f1 computing is not read yet (README)"
+reason = "the hypothesis case for hyp1f1 does not finish in the guest: a derandomized example draws intp (32-bit on wasm32) values near plus or minus 2**31 as the function's integer parameters, and the call runs past the trap's 50 G cap; no example fails (README)"
 closes_with = "README.md"
 
 [[trap]]
 id = "scipy-hypothesis-lpmv"
 node = "scipy/special/tests/test_support_alternative_backends.py::test_support_alternative_backends_hypothesis[numpy-lpmv]"
 group = "scipy-special-3"
-reason = "the hypothesis case for lpmv does not finish in the guest: in its group it ran to the group's 2 T cap; alone it runs out of the trap's 50 G. Why its drawn arrays keep lpmv computing is not read yet (README)"
+reason = "the hypothesis case for lpmv does not finish in the guest: in its group it ran to the group's 2 T cap, and alone it runs out of the trap's 50 G; it was not probed further, and yn's and hyp1f1's cases end this way on intp parameters near plus or minus 2**31 (README)"
 closes_with = "README.md"
 
 [[trap]]
 id = "scipy-hypothesis-yn"
 node = "scipy/special/tests/test_support_alternative_backends.py::test_support_alternative_backends_hypothesis[numpy-yn]"
 group = "scipy-special-3"
-reason = "the hypothesis case for yn does not finish in the guest: alone it passed 80 G without ending, where every other case of the test ends within about 3 G; alone it runs out of the trap's 50 G. Why its drawn arrays keep yn computing is not read yet (README)"
+reason = "the hypothesis case for yn does not finish in the guest: a derandomized example draws intp (32-bit on wasm32) values near plus or minus 2**31 as the function's integer parameters, and the call runs past the trap's 50 G cap; no example fails (README)"
 closes_with = "README.md"
 
 [groups.scipy-smoke-a]
@@ -779,7 +779,7 @@ release_by = "path"
 fuel = 96_000_000_000
 measured = 63_415_988_782
 clock_step_ns = 100_000
-clock_reason = "the test repeats a call until the clock has advanced 0.5 ms; the judge's clock advances only when read"
+clock_reason = "mpmath's reference value for each point is limited to 0.5 s by a clock read on every trace event; at the judge's 1 us step the test runs past 16 T; at 100 us a read it ends, comparing 114 of the 240 points where scipy's value is not nan (16 raise in mpmath, 110 time out, each dropped as nan, as the test allows); natively a SIGALRM limit over untraced time drops far fewer"
 
 [groups.scipy-special-mpmath-betaincc]
 paths = ["scipy/special/tests/test_mpmath.py"]
@@ -788,7 +788,7 @@ release_by = "path"
 fuel = 41_000_000_000
 measured = 26_916_232_553
 clock_step_ns = 100_000
-clock_reason = "the test repeats a call until the clock has advanced 0.5 ms; the judge's clock advances only when read"
+clock_reason = "mpmath's reference value for each point is limited to 0.5 s by a clock read on every trace event; at the judge's 1 us step the test runs past 16 T; at 100 us a read it ends, comparing 91 of the 240 points where scipy's value is not nan (149 time out, each dropped as nan, as the test allows); natively a SIGALRM limit over untraced time drops far fewer"
 
 [groups.scipy-special-mpmath-1-a]
 paths = ["scipy/special/tests/test_mpmath.py"]

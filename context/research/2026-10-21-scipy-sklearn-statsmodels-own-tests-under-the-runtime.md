@@ -207,7 +207,19 @@ check's fuel whatever its verdict). darwin-arm64. One guest at a time.
   and `[numpy-yn]`. `hyp1f1`'s ran past about 10 T in its group (about 20 minutes) and was
   stopped; `lpmv`'s ran to its group's 2 T cap; alone, at 80 G each, all three ran out of fuel
   while the other 32 cases probed each ended within 36.3 G (about 16 G of it the
-  file's collection). Why the drawn arrays keep the three functions computing is not read.
+  file's collection). The build review's probes (no shrinking, verbose) read the cause for two:
+  a derandomized example draws `intp` values near ±2³¹ (`intp` is 32 bits on wasm32), `yn` with
+  orders from -2,147,425,343 and `hyp1f1(-2,147,446,720, 669,248,800, -2,147,474,440)`, and the
+  call runs past the cap (INFERRED: Cephes' `yn` recurs over |n| steps; `hyp1f1`'s series runs
+  long at such parameters); no example failed. `lpmv` was not probed.
+- **The two clock-stepped tests compare about half their points** (the build review's probes,
+  EXECUTED): at 100 µs a read, of the 240 points where scipy's value is not `nan`,
+  `test_betainc` compares 114 (110 reference values time out, 16 raise in mpmath) and
+  `test_betaincc` 91 (149 time out). A timed-out reference becomes `nan` and the comparison drops
+  it (`nan_ok=True`); natively the limit is a `SIGALRM` over 0.5 s of untraced time, so far fewer
+  drop (INFERRED). No cheap step compares all 240: a smaller step times out fewer points at more
+  fuel (`test_betainc` ran past 2 T without ending at 10 µs, and past 16 T at the default 1 µs;
+  the paused build's probes), so 0.1.0 keeps 100 µs and says what it compares. Each group's `clock_reason` says so.
   Running a package family's trap showed that the harness passed the trap's node id relative to
   the tree (pytest exit 4); it now names the node under the tree, as group paths are named.
 - **Single tests past the 480 G bound, each a group of its own (19 in scipy, 1 in statsmodels):**
