@@ -7,10 +7,11 @@
 [[claim]]
 spec = "067"
 # After 0.1.0's release acceptance: networkx's test_asadpour_integral_held_karp leaves
-# networkx-r-approximation-1 for a trap of its own, because its fuel is not the same on every host
-# (470 G on darwin-arm64, two runs equal; past 638 G on Linux in the dry run 39741960669, where the
-# group ran out at its 710 G cap). The group runs its other 44 tests in 100.2 G (EXECUTED): one
-# accepted pass fewer, by this reason, and less fuel.
+# networkx-r-approximation-1 for a trap of its own: on Linux x86_64 it did not end within its
+# group's 710 G cap (dry run 39741960669), against about 442 to 470 G on darwin-arm64, on the
+# same artifact set and wasmtime, so the guest takes a different path on Linux, which may be the
+# product's. The group runs its other 44 tests in 100,156,534,716 fuel (EXECUTED): one accepted
+# pass fewer, by this reason, and less fuel.
 new = [
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[networkx-r-trap-asadpour-integral-held-karp]",
 ]

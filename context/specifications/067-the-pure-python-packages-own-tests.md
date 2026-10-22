@@ -1537,48 +1537,80 @@ writing"; the lane takes the file).
 `upstream-pure-r-040` was red. `test_upstream_suite[networkx-r-approximation-1]` ran out of fuel
 at its 710 G cap, in `test_traveling_salesman.py::test_asadpour_integral_held_karp`.
 
-**What was found** (EXECUTED, darwin-arm64):
+**What is known** (EXECUTED on darwin-arm64 unless named):
 - **darwin is deterministic.** The group, run twice on this set, costs 542.2 G both times, the
-  lane's acceptance figure.
-- **The "+15%" is not a variance.** The 470.8 G was the earlier builder's measurement, before the
-  rebase onto wave 11's set and 095's driver; the cap, 710 G, is 1.5 times it.
-- **One test is most of the group:** the watcher's clock puts `test_asadpour_integral_held_karp`
-  at about 470 G of its 542 G.
-- **Linux cost more:** on the dry run, that test reached past 638 G before the cap.
-- **The test is seeded where seeds apply, and upstream calls its path deterministic.** Its
-  held-Karp ascent repeats HiGHS interior-point solves (`linprog(method="highs-ipm")`) until a
-  float test settles. Upstream's own docstring says it skips the unseeded sampling only because
-  the solution is integral.
-- **The build has no host-dependent float path in wasm:** `simd128` only, and no relaxed SIMD.
-- **The Linux cause is not read:** it cannot be reproduced on this host within the hour.
+  lane's acceptance figure. The earlier 470.8 G was the earlier builder's measurement on the older
+  set and driver, and the 710 G cap is 1.5 times it.
+- **The test's cost on darwin is about 442 to 470 G.** The watcher's clock gives about 470 G.
+  The group's other 44 tests alone cost 100.2 G, which leaves 442 G.
+- **On Linux x86_64 it did not end within its group's 710 G cap.** It was past about 610 G in the
+  test alone (dry run 39741960669).
+- **Both hosts ran the same artifact set and the same wasmtime.** The set sums are `3339091f`,
+  the artifact `d4192605`, and wasmtime 49.0.0 (the trap review, EXECUTED from both records'
+  `meta`). Fuel counts wasm operations, so a different count means **the guest takes a different
+  path on Linux.**
+- **That may be the product's.** The test's held-Karp ascent loops (`direction_of_ascent`'s
+  `while True`) until `linprog(method="highs-ipm")` reports success. If HiGHS answers otherwise
+  on Linux, the loop goes on and may never end.
+- **The cause is not read.** The build has `simd128` only and no relaxed SIMD. One hypothesis is
+  NaN bit patterns, which wasm leaves to the host and which the engine does not canonicalize;
+  that is INFERRED only. It cannot be run on this host within the hour.
 
 **What changed, `tests/` data only (no harness code):**
 - `test_asadpour_integral_held_karp` is a trap, `networkx-r-trap-asadpour-integral-held-karp`. It
-  is deselected from its group and run alone by its trap check to the 50 G cap, which it reaches
-  on every host. So its verdict is the same everywhere. Its gap gives the reason above.
-  - **The cost, plainly:** the judge no longer shows that this one test passes. It did pass on
-    darwin, in 470 G.
-  - **No accepted pass is lost:** the group is new, and its rows are not yet accepted.
-- The group's other 44 tests pass in **100.2 G** (cap 150 G).
-- The release tier is now **94.95 T** in 113 shards, with eight traps.
-- `verify.py` judges every kept stream clean: 461 groups, 0 findings.
+  is deselected from its group and run alone by its trap check to its 50 G cap, so its verdict is
+  the same on every host.
+  - **The trap's and the gap's reason** are the trap review's M1 fix text: the guest takes a
+    different path on Linux, which may be the product's, and the cause is not read.
+  - **The cost, plainly:** the judge no longer shows that this test passes on any host. It
+    passed on darwin.
+- **The trap's run** (EXECUTED, darwin-arm64, its node id with `--tier release`,
+  `build/067/logs/fix-tsp.log`): out of fuel at its 50,000,000,000 cap in the test, 1 finding,
+  digest `9176e2e5af8c`. That is its gap's match.
+- **The group's other 44 tests pass in 100,156,534,716 fuel** (100.2 G, its `measured`; cap
+  150 G, under `rule_cap`'s 160 G).
+- The release tier is now **94.95 T** in 113 shards, with eight traps. `verify.py` judges every
+  kept stream clean: 461 groups, 0 findings.
 
 **The same code elsewhere:**
-- `networkx/tests/test_all_random_functions.py` calls `simulated_annealing_tsp` and
-  `threshold_accepting_tsp` with seeds. Its fuel is within 2% between the lane's acceptance and
-  this build (`build/wave-12/fuel-variance.txt`).
-- No other test of the product's packages calls `held_karp_ascent` or `asadpour_atsp` (READ, a
-  search of networkx's tree). The lane's comparison of 785 groups finds no other group past
-  about 2%, `sympy-r-utilities-4`'s regroup apart.
+- No test outside `test_traveling_salesman.py` calls `held_karp_ascent` or `asadpour_atsp` (READ).
+- **Inside it, the group's other 44 tests do,** under the new 150 G cap: `test_held_karp_ascent`,
+  the `test_ascent_*` and `test_held_karp_ascent_*` tests, `test_spanning_tree_distribution` and
+  the `test_asadpour_*` tests, among others.
+  - On Linux, 43 of them passed in the dry run, each asserting the ascent's exact output.
+  - Their Linux fuel is not measured, so the next dry run is the check.
+- `networkx/tests/test_all_random_functions.py` calls the seeded `simulated_annealing_tsp` and
+  `threshold_accepting_tsp`. Its fuel is within 2% between the lane's acceptance and this build
+  (`build/wave-12/fuel-variance.txt`).
 
-**The follow-up** (with the networkx line in `context/roadmap.md`): read why Linux costs more.
-Then bring the test back into a group, if its fuel can be made the same on every host.
+**The follow-up** (its roadmap line in `context/roadmap.md`): the guest's path on Linux, which
+may be the product's.
+- The first probe: run the test alone on Linux with a large cap and HiGHS's `success` flags
+  traced.
+- Then the same run with NaN canonicalization on.
+- Then bring the test back into a group.
 
 **For the lane:**
-- **It costs an accepted pass.** The release acceptance accepted `networkx-r-approximation-1`
+- **It costs an accepted pass.** 0.1.0's release acceptance accepted `networkx-r-approximation-1`
   at 45 passes and 542.2 G. It now runs 44 passes in 100.2 G, because the 45th is the trap.
-- **The ratchet calls that red**, as it should. It needs the lane's
-  `--accept-fewer-passes "067: networkx's test_asadpour_integral_held_karp leaves its group for a trap: its fuel is not the same on every host (470 G on darwin, past 638 G on Linux in dry run 39741960669)"`.
+- **The ratchet calls that red,** as it should. It needs the lane's
+  `--accept-fewer-passes "067: networkx's test_asadpour_integral_held_karp leaves its group for a trap: on Linux the guest takes a different path and the test did not end within its cap (dry run 39741960669), which may be the product's"`.
 - **Its claim block** is in `context/release-tier-claims.toml`: the new trap check, and the
   group's passes.
 - **No `--accept-growth`:** the group's fuel falls.
+
+**The self-check for this change** (`context/reviews/README.md`):
+
+```
+- [x] on main's tip: origin/main 148529ae (wave 12 landed); this change is one commit on it.
+- [ ] CI run on this exact commit: none. The change is release-tier rows only, which no branch
+      run judges (a branch run is the normal tier); the lane's release acceptance and the next
+      dry run on main are their run.
+- [x] every number EXECUTED or named: the group's 100,156,534,716 fuel and 44 passes, and the
+      trap's run (50 G, digest 9176e2e5af8c), on darwin-arm64; Linux's figures from the dry run
+      39741960669, as the trap review read them.
+- [x] the claim block: the trap row new, the group's passes; the flag above.
+- [x] the gap names its closer (README.md), and the follow-up has its roadmap line.
+- [x] CHANGELOG: the trap count corrected (six sympy tests, test_W25 and this one).
+- [x] the rules and the well-formed check by node id: below.
+```

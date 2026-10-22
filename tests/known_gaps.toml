@@ -1758,7 +1758,7 @@ closes_with = "README.md"
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[networkx-r-trap-asadpour-integral-held-karp]"
 match = "1 finding(s), digest 9176e2e5af8c"
-reason = "its fuel is not the same on every host: 470 G on darwin-arm64 (two runs, equal), past 638 G on Linux in the dry run 39741960669, where its group ran out at its 710 G cap; the cause is not read (the test's held-Karp ascent repeats HiGHS interior-point solves until a float test settles, and upstream notes it reaches unseeded sampling if the solution is not integral); run alone to its 50 G cap, so its verdict is the same on every host"
+reason = "on Linux x86_64 it did not end within its group's 710 G cap (past about 610 G in the test, dry run 39741960669), against about 442 to 470 G on darwin-arm64, two runs equal; the same artifact set and wasmtime, so the guest takes a different path on Linux, which may be the product's (the held-Karp ascent loops until a HiGHS interior-point solve reports success); the cause is not read; run alone to its 50 G cap, so its verdict is the same on every host"
 closes_with = "README.md"
 
 [[gap]]

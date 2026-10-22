@@ -18,8 +18,9 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   `recipes/patches/jinja2-3.1.6/0001-tests-run-the-asyncio-cases-without-trio.patch`.
   sympy's doctests run under sympy's own doctest runner, output checker and printer setup (the
   setup once per session, with the stdlib's finder: module globals, and `doctest_depends_on` not
-  read); six sympy tests that do not end within 2.9 to 4.5 T of fuel are
-  traps, named with their reason.
+  read); six sympy tests that do not end within 2.9 to 4.5 T of fuel, sympy's `test_W25`, and
+  networkx's `test_asadpour_integral_held_karp`, whose path is not the same on Linux, are traps,
+  named with their reason.
 
 - **Two tiers of tests** (spec 102). The slow tests run before a publication, never left out:
   numpy's and pandas' `slow` cases, contourpy's slow and `random_big` cases and CPython's
