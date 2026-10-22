@@ -5,7 +5,7 @@ the next one. It points at the records that matter: the roadmap for the order,
 `decisions.md` for the owner's answers, each specification's landing notes for its state. The
 lane never tags; the 0.1.0 tag is the owner's.
 
-## 2026-10-22, morning (main `deb18923`; 0.1.0 accepted, its second dry run running)
+## 2026-10-22, midday (main `edb88a1b`; 0.1.0 accepted, its third dry run running)
 
 ### Where 0.1.0 stands
 
@@ -22,9 +22,20 @@ lane never tags; the 0.1.0 tag is the owner's.
   wasmtime (darwin: about 470 G), which may be the product's. 067 made it a trap with that
   reason (`1a0761a0`, `0d5ab383`; reviewed in `067-…-trap-2026-10-22.md`), and the lane accepted
   again.
-- **The second dry run on main**, 39764234616 on `deb18923`, running. When every job is green
-  on three systems and the gather concludes success (`meta.tier` `release`, the set
-  `3339091f`), 0.1.0 is ready for the owner's tag.
+- **The second dry run on main**, 39764234616 on `deb18923`: 275 jobs green, Windows 7/7, and
+  one red release leg on ubuntu-24.04: joblib's
+  `test_joblib_pickle_across_python_versions_with_mmap` failed as `AssertionError: assert False`,
+  not its no-mmap class's message. Every pickle it loads meets mmap's error; which message the test
+  ends on depends on the order the host lists its data folder. The lane's fix `42798898` lets the
+  class take both messages (its 14 members and digest unchanged), reviewed: lands
+  (`reviews/lane-joblib-listing-order-2026-10-22.md`, `8a26e68c`).
+- **The release acceptance, a third time,** on `8a26e68c`, accepted in `edb88a1b`, history line
+  96: 1574/1873 pass, 0 fail, 297 gap, 2 blocked, `-n 6 --tier release --accept-judge`, 1 h
+  32 min; the record replaced at `build/releases/0.1.0/record.json`.
+- **The third dry run on main**, 39790261668 on `edb88a1b`, running. When every job is green on
+  three systems and the gather concludes success (`meta.tier` `release`, the set `3339091f`),
+  0.1.0 is ready for the owner's tag, on `edb88a1b` or a later context-only commit whose fast tier
+  is green.
 
 ### For the owner before the tag
 
@@ -47,6 +58,7 @@ lane never tags; the 0.1.0 tag is the owner's.
 - The judge's sealed-leftovers scan raised on a folder another worker's guest removed: the
   lane's fix `618f891e` and `459e7f35`, reviewed in `lane-sealed-leftovers-race-2026-10-22.md`.
 - networkx's held-Karp test on Linux (above).
+- joblib's cross-version pickle test, whose message follows the host's listing order (above; the morning).
 
 ### The process, changed tonight (`decisions.md`, 2026-10-22)
 
