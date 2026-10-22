@@ -8,9 +8,14 @@
   Landing notes: *The build, completed*, *For the lane, as built*, *The builder's self-check*),
   its pre-build and delta review (`095-…-spec-2026-10-20.md`), and 102's ledger rules
   (`context/progress/README.md`, "The release tier").
-- **Reviewed:** `git diff 2a8091d7 ab5cde5b` (main to the builder's tip). I began on `b86f847c`.
-  The lane then told me the builder had pushed `ab5cde5b`, the fix for this review's first
-  finding (H1). `git diff b86f847c ab5cde5b` is one unit row and one fixture line, read in full.
+- **Reviewed:** `git diff 2a8091d7 fec1661b`, main to the builder's final tip.
+  - I began on `b86f847c`.
+  - The lane then sent `ab5cde5b`, the fix for this review's first finding (H1). `git diff
+    b86f847c ab5cde5b` is one unit row and one fixture line, read in full.
+  - Then `fec1661b`. `git diff ab5cde5b fec1661b` touches only the specification: it reads both
+    runs back and corrects the self-check's CI line. I read it in full.
+  - The lane expects one more commit that changes only test groups. It is not reviewed here;
+    see N1.
 - **Run:** none of my own. The builder's runs are on the exact commits (AGENTS.md rule 3a; the
   compressed plan). I read both back:
   - `39705963592` on `b86f847c`: 42 success, 2 failure, 6 skipped. It is the run H1 is from.
@@ -226,19 +231,40 @@ Both smoke jobs are within the 360 s bound. Their ratchet line: lost 0, gained 2
    - "074's line may name scikit-learn's three `mmap` files and scipy's three
      `test_cython_abi.py` files."
 6. **L4 — Two self-check items.**
-   - The run id is not in the Landing notes. The self-check says it is "in the next
-     context-only commit's line below", but no such commit exists.
-   - The Kind line lists `context/progress/README.md` and `context/roadmap.md` as changed;
-     neither changes.
-   - Fix: name runs `39705963592` (red, H1) and `39708064741` in *The build, completed*. Strike
-     the two Kind entries, or say they are the lane's (L3).
-7. **N1 — The release-tier legs are first run on the dry run on main.**
-   - 13 shards hold one group past 725 G. The largest, 3.02 T, is about 940 s at 102's slow
-     Linux rate (0.31 s per G) plus setup. That is past Decision 12's 360 s, but under the
-     `judge-release` job's 30-minute timeout.
-   - 116 release legs run at `max-parallel: 18`.
-   - The `artifact-ids` expression is 7,160 characters.
-   - All of this is INFERRED until that run.
+   - The run ids were not in the Landing notes. **Answered in `8736dd71`:** *The branch's release
+     runs* now names both runs, and the self-check's CI line is open and honest.
+   - Still open: the Kind line lists `context/progress/README.md` and `context/roadmap.md` as
+     changed, but neither changes. Fix: strike the two entries, or say they are the lane's (L3).
+7. **N1 — The largest release groups cannot be split smaller; record the exception instead.**
+   The builder's open item says the two largest release groups (3.02 T and 2.85 T) are probably
+   past the 360 s shard bound on Linux. That is right, and they are not the only ones.
+   - **Each is one test.** The TOML comments say so:
+     - `scipy-stats-1-stats-4` is `TestKSTwoSamples::testLargeBoth[numpy]`, 3,023 G;
+     - `scipy-special-precompute-gammainc-2` is `test_d`, 2,848 G;
+     - `scipy-stats-continuous-basic-14` is one `test_cont_basic_fit[…johnsonsb…]`, 2,056 G.
+
+     A `-k` split cannot cut a single test node. Splitting these groups further gives an empty
+     group (red, exit 5) and the same test alone.
+   - **At 102's Linux rates (0.16 to 0.31 s per G, plus about 60 s of setup):**
+     - the 3,023 G shard runs about 540 to 1,000 s, and the 2,848 G one about 520 to 940 s;
+     - the 2,056 G shard is past 360 s even at the fast rate (about 390 s);
+     - at the slow rate, every one of the 13 single-group shards past 725 G is past 360 s.
+
+     So splitting the two largest would not bring every shard within the bound.
+   - **The real limit is the `judge-release` job's 30-minute timeout.** The largest shard is
+     about 17 minutes at the slow rate, so every shard is under it.
+   - **What I recommend.** Make Decision 12's move: write in the Landing notes that the
+     single-test shards past 725 G are exempt from the 360 s bound and are bounded by the job
+     timeout, naming them. The dry run on main then measures them.
+   - **If the builder does regroup**, that commit needs a short delta read:
+     - each new group measured by node id;
+     - its class lists' members kept, as this review checked for the six renamed lists (rule 4);
+     - the shards and the claim block's counts regenerated.
+
+     It changes the judge's TOMLs and shards, so it is not context-only.
+   - **Two more notes for that run** (INFERRED until it happens):
+     - 116 release legs run at `max-parallel: 18`;
+     - the `artifact-ids` expression is 7,160 characters.
 8. **N2 — The two release-only covers (`sklearn.ensemble`, `sklearn.manifold`)** follow the
    cover rule's item 5: no golden line, and every file past a smoke file's reach (READ). I
    accept them.
@@ -262,22 +288,30 @@ Both smoke jobs are within the 360 s bound. Their ratchet line: lost 0, gained 2
 
 ## The run
 
+The lane asked me to read the two runs together: the first for `upstream-plot-g`, the second for
+every other job. Neither run dispatches anything new.
+
 Run `39708064741` on `ab5cde5b` (head SHA checked), read back with `gh run view --json jobs`:
-43 success, 1 failure, 6 skipped.
+43 success, 1 failure, 6 skipped. The code at `fec1661b` is the same; the two commits after
+`ab5cde5b` touch only `context/`.
 
 - **The one red job is `judge (ubuntu-24.04, upstream-plot-g)`** (job 119593308520), one of
   066's shards, not 095's. It failed in `tests/upstream/fetch.py --shard` while fetching the test
   kit's wheels from the package index: `urllib.error.URLError: [SSL:
   UNEXPECTED_EOF_WHILE_READING]` (`build/095-review/ci2-plot-g.log`). It is a download outage. It
-  is not a judge verdict, not a growth line and not G7. No check ran in that job.
+  is not a judge verdict, not a growth line and not G7, and **it is not 095's**: 095 changes
+  neither that shard nor its inputs. No check ran in that job. The same job passed in the first
+  run, `39705963592` (EXECUTED, `gh run view`). So, read together, every job of the normal run
+  has a green result on 095's code.
 - Because of it the gather was skipped, so this run has **no `release-record-1`**:
   `gh run download -n release-record-1` finds no artifact. The release legs, attest and publish
   were skipped as on any branch run.
 - **H1's fix holds on CI.** `own-rest` is green on Linux and macOS. Every Windows leg is green.
 - **095's normal-tier shards are green:** `upstream-sci-smoke-a` in 189 s and
   `upstream-sci-smoke-b` in 178 s, both within 360 s.
-- Following the owner's rule on upstream hosts, I did not re-run the job. Re-running it once,
-  later, by hand is the lane's or the builder's call (`gh run rerun 39708064741 --failed`).
+- **No G line was read for 095.** The gather was skipped behind a red job in both runs. The
+  first place the gather reads 095's records is the dry run on main before the tag.
+- The lane will not re-run the job, and I dispatched nothing.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
@@ -287,11 +321,15 @@ Run `39708064741` on `ab5cde5b` (head SHA checked), read back with `gh run view 
 3. L1 — open (the builder's, with M1).
 4. L2 — open (the builder's; text given).
 5. L3 — open (context only; the text above, for the builder or the lane).
-6. L4 — open (context only).
+6. L4 — the run ids answered in `8736dd71`; the Kind line still open (context only).
 
 ## Verdict
 
-Lands once M1 is written in (the two clock-stepped tests' compared-point counts, in their
-`clock_reason`, the README and the memo). Before the lane accepts, `upstream-plot-g` of run
-`39708064741` is re-run once and read green, so that the gather runs and its `release-record-1`
-is read. H1 is fixed in `ab5cde5b`, and the Lows need no further round.
+Lands once M1 is written in: the two clock-stepped tests' compared-point counts, in their
+`clock_reason`, the README and the memo. H1 is fixed in `ab5cde5b`, and the Lows need no further
+round.
+
+The runs: every job is green on 095's code when the two are read together. The one red job is a
+download outage in a shard that is not 095's. No G line was read, so the dry run on main is where
+the gather reads 095's records. A regrouping commit, if the builder makes one, gets a short delta
+read (N1). By N1 it would not bring every shard within 360 s.
