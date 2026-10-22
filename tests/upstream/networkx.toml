@@ -6,7 +6,7 @@ package = "networkx"
 driver = "package"
 grant = "/upstream-networkx"
 test_source = true
-budget = 4_566_000_000_000
+budget = 4_708_000_000_000
 stage_folders = [
     "networkx/algorithms/approximation/tests",
     "networkx/algorithms/assortativity/tests",
@@ -48,7 +48,7 @@ paths = [
 ]
 smoke = "a few files that import the package from the zip and run its core paths"
 fuel = 44_000_000_000
-measured = 29_254_697_709
+measured = 29_254_528_676
 
 [groups.networkx-r-approximation-1]
 paths = ["networkx/algorithms/approximation/tests/test_traveling_salesman.py"]
@@ -240,8 +240,8 @@ docstring_packages = ["networkx"]
 docstring_not_selected = ["networkx.readwrite.p2g", "networkx.drawing.nx_agraph", "networkx.drawing.nx_pydot"]
 tier = "release"
 release_by = "path"
-fuel = 18_000_000_000
-measured = 11_843_299_771
+fuel = 160_000_000_000
+measured = 102_574_476_805
 
 [[expected]]
 id = "counted-clock"
@@ -257,5 +257,13 @@ group = "networkx-r-other"
 outcome = "failed"
 match = "can't start new thread|thread constructor failed|start_new_thread|unable to start watchdog thread|TqdmMonitorWarning|instances still in existence|'NoneType' object does not support the context manager protocol"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
+closes_with = "README.md"
+
+[[expected]]
+id = "doctest-output"
+group = "networkx-r-doc"
+outcome = "failed"
+match = "doctest failed"
+reason = "a docstring example whose printed output differs in the guest under the stdlib's doctest runner with upstream's flags (README)"
 closes_with = "README.md"
 

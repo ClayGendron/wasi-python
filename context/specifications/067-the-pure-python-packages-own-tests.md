@@ -1398,3 +1398,52 @@ so every answer below is text only. This commit changes `context/`, `CHANGELOG.m
     job timeout, and the release matrix is at 226 of 256.
   - N4: the price is 92.8 T, against the upper estimate of about 77 T.
   - N6: the `-n 3` race in `litter.sealed_leftovers`.
+
+### The release acceptance's 11 red groups (2026-10-22), found and fixed
+
+The lane's release acceptance on `855c7530` (`84c5955c` plus the bump;
+`build/wave-12/release-accept.log` in the main tree) was refused. Eleven of 067's 420 release
+groups failed there; the other 409 passed after the merge with 095 and the doctest keys. **They
+never passed in this build either.** Each guest session ended without a trap but with no outcome,
+and this builder's measuring scripts (`build/067/scratch/measure.py`, `table.py`, `fill.py`)
+read a run's fuel and exit, not its group check's verdict, so each was taken as measured. Three
+causes:
+
+- **`networkx-r-doc`** ("pytest exit code 4; no P line"). An item group collects the stage's
+  empty folder, so no conftest loads. The family's `args = ["--runslow"]`, an option only
+  networkx's conftest registers, was still passed, and pytest refused it before collecting.
+  - **The fix:** `packages.group_args` passes a family's arguments to path groups only.
+  - **Its check:** `tests/unit/test_pure_suites.py::test_an_item_group_gets_no_option_of_upstreams_conftest`,
+    seen failing first (`build/067/logs/item-args-red.log`).
+  - **Who else it touches:** no other family has both `args` and an item group (EXECUTED: a
+    script over every package family).
+- **`sympy-r-utilities-5-wester-1` to `-9`** ("INTERNALERROR (pytest exit code 3)", a
+  `RecursionError: Stack overflow` in pytest's `-k` compiler).
+  - **The cause:** the split's first keyword named 275 tests in one `or`. pytest nests `or` and
+    `and` as pairs, so it compiled to about 277 levels, and the guest's stack ran out. Every
+    later part repeats it inside its `and not (...)`.
+  - **The fix:** `test_wester.py`'s split is rebuilt by its tests' section prefixes
+    (`test_B` ... `test_Z`), with the W section, which holds the heavy tests, last. `test_W`
+    cannot be a term, because `-k` ignores case and the module is `test_wester.py`. W9, W23 and
+    W25 are parts of their own. Every part's expression is now at most about 20 terms, and a
+    simulation puts each of the 397 tests in exactly one part.
+  - **A new rule, `packages.SPLIT_DEPTH`:** a split refuses a group whose nesting (its longest
+    keyword's terms plus the parts before it) passes 150. The deepest that ran in the guest is
+    108 (`sympy-r-matrices-6-3`). Its unit row,
+    `test_a_split_expression_too_long_for_the_guest_is_refused`, was seen failing first
+    (`build/067/logs/split-terms-red.log`). It refuses exactly the nine old wester parts, and no
+    current split of any family, 095's included.
+- **`sympy-r-utilities-6`** ("pytest exit code 5"). Its one file, `test_xxe.py`, holds no test:
+  it is XXE test data named `test_*`. It now sits in `sympy-r-utilities-4`'s paths, so no group
+  of its own collects nothing.
+
+**Every group is judged again from its kept stream** (`build/067/scratch/verify.py`, the judge's
+own `judge()` with the empty-selection rule and the split counts, no guest run). Before the fix
+it named exactly these 11, and no other of the 462 groups. After the fixes, **every group of the 42 families judges clean from its stream: 461 groups, 0 with findings** (`build/067/logs/verify-2.txt`). **The groups re-run** (EXECUTED, darwin-arm64, `--tier release`, one guest at a time):
+- `networkx-r-doc`: 102.6 G; 763 passed and 8 failed, and the 8 are a new `doctest-output` class (its gap in `tests/known_gaps.toml`). The earlier builder's 11.8 G was the refused session's.
+- `sympy-r-utilities-4`, with `test_xxe.py`: 44.1 G; 50 passed, 1 failed (`no-path-variable`, as before), 5 xfailed, 4 skipped, 1 xpassed.
+- `sympy-r-utilities-5-wester-1` to `-9`: 219.2, 295.8, 288.6, 192.9, 90.3, 503.8 (`test_W9`), 38.9 (`test_W23b`), 817.6 (`test_W23`, one test, in a shard of its own) and 293.0 G (the rest of the W section). In all: 341 passed, 177 xfailed, 2 xpassed, 3 skipped, and no failure.
+- **`test_W25`** (`@tooslow`, `@XFAIL`) does not end within 3 T. **It is a seventh trap proposal**, `sympy-slow-W25`, with its gap.
+- wester-9's `-k` text changed when W25 left the parts while its tests did not, and its fuel moved from 293.2 G to 293.0 G. That bears out keeping round-1 fuel where only the text changed.
+
+**The totals now:** release tier **95.32 T** in 419 groups (sympy 80.92 T in 342, the other 22 families 14.40 T), plus seven trap checks; **113 release shards**. The normal tier is unchanged at 853.3 G. **The lesson, kept as a tool:** `verify.py` judges every kept stream the way the group check does, and a measuring pass is complete only when it names no finding.

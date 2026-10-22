@@ -1,0 +1,8 @@
+::docstrings:networkx.algorithms.approximation.dominating_set.min_edge_dominating_set
+::docstrings:networkx.algorithms.bipartite
+::docstrings:networkx.algorithms.community.local.greedy_source_expansion
+::docstrings:networkx.algorithms.cycles.minimum_cycle_basis
+::docstrings:networkx.algorithms.graph_hashing.weisfeiler_lehman_graph_hash
+::docstrings:networkx.algorithms.graph_hashing.weisfeiler_lehman_subgraph_hashes
+::docstrings:networkx.algorithms.traversal.breadth_first_search.bfs_predecessors
+::docstrings:networkx.utils.configs.NetworkXConfig

@@ -500,9 +500,11 @@ def group_args(cfg: upstream.Config, group: upstream.Group) -> list[str]:
     marker = tiers.marker_of(cfg, group)
     args = ["-m", marker] if marker else []
     # an item group collects no path: the stage's empty folder, so no conftest is loaded and
-    # pytest collects nothing but the items the driver adds
+    # pytest collects nothing but the items the driver adds; the family's arguments shape what
+    # pytest collects from test files, and an option only a conftest registers (networkx's
+    # --runslow) is refused where none loads, so they go to path groups only
     shown = [root + p for p in group.paths] or [f"{cfg.grant}/judge/{NONE}"]
-    args += [*cfg.args, *shown]
+    args += [*(cfg.args if group.paths else []), *shown]
     args += [f"--ignore={root}{f}" for f in dict.fromkeys(ignores)]
     args += [f"--deselect={d}" for d in deselects]
     split = cfg.keys.split_of(group.name)
@@ -1158,11 +1160,30 @@ def _keyword_errors(expr: str) -> str | None:
     return None
 
 
+# pytest builds a -k expression's `or` and `and` as nested pairs and compiles them as one
+# expression; the guest's stack overflows in that compile past some 270 levels (a 275-term `or`
+# did), and splits that ran have nested to 108. A split group's nesting is about its longest
+# keyword's terms plus the parts before it.
+SPLIT_DEPTH = 150
+
+
+def _terms(keyword: str) -> int:
+    return len([w for w in re.findall(r"[\w\[\]-]+", keyword) if w not in ("or", "and", "not")])
+
+
 def split_errors(pkg: str, cfg: upstream.Config) -> list[str]:
     errors = []
     seen: set[str] = set()
     for s in cfg.keys.splits:
         where = f"{pkg}: split of {s.file}"
+        for i, g in enumerate(s.groups):
+            nest = i + max((_terms(k) for k in s.keywords[: i + 1]), default=0)
+            if nest > SPLIT_DEPTH:
+                errors.append(
+                    f"{where}: group {g}'s -k expression nests about {nest} deep (its keywords' "
+                    f"terms and the parts before it), past {SPLIT_DEPTH}: the guest cannot "
+                    "compile it"
+                )
         if len(s.groups) < 2:
             errors.append(f"{where}: fewer than two groups")
         if len(s.keywords) != len(s.groups) - 1:

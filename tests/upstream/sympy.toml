@@ -7,7 +7,7 @@ driver = "package"
 grant = "/upstream-sympy"
 test_source = true
 wheel = "sympy-1.14.0-py3-none-any.whl"
-budget = 120_127_000_000_000
+budget = 124_005_638_664_050
 stage_folders = [
     "sympy/algebras/tests",
     "sympy/assumptions/tests",
@@ -177,7 +177,7 @@ docstring_flags = 44
 paths = ["sympy/core/tests/test_basic.py", "sympy/core/tests/test_sympify.py"]
 smoke = "a few files that import the package from the zip and run its core paths"
 fuel = 51_000_000_000
-measured = 33_512_786_523
+measured = 33_517_160_256
 
 [groups.sympy-r-algebras-1]
 paths = ["sympy/algebras/tests/test_quaternion.py"]
@@ -2845,81 +2845,75 @@ paths = [
     "sympy/utilities/tests/test_pickling.py",
     "sympy/utilities/tests/test_source.py",
     "sympy/utilities/tests/test_timeutils.py",
+    "sympy/utilities/tests/test_xxe.py",
 ]
 tier = "release"
 release_by = "path"
-fuel = 67_000_000_000
-measured = 44_070_021_005
+fuel = 220_638_664_050
+measured = 147_092_442_700
 
 [groups.sympy-r-utilities-5-wester-1]
 paths = ["sympy/utilities/tests/test_wester.py"]
 tier = "release"
 release_by = "path"
-fuel = 55_000_000_000
-measured = 36_445_023_752
+fuel = 330_000_000_000
+measured = 219_172_910_260
 
 [groups.sympy-r-utilities-5-wester-2]
 paths = ["sympy/utilities/tests/test_wester.py"]
 tier = "release"
 release_by = "path"
-fuel = 55_000_000_000
-measured = 36_459_207_973
+fuel = 450_000_000_000
+measured = 295_824_647_837
 
 [groups.sympy-r-utilities-5-wester-3]
 paths = ["sympy/utilities/tests/test_wester.py"]
 tier = "release"
 release_by = "path"
-fuel = 55_000_000_000
-measured = 36_462_882_798
+fuel = 440_000_000_000
+measured = 288_628_666_942
 
 [groups.sympy-r-utilities-5-wester-4]
 paths = ["sympy/utilities/tests/test_wester.py"]
 tier = "release"
 release_by = "path"
-fuel = 55_000_000_000
-measured = 36_463_716_729
+fuel = 290_000_000_000
+measured = 192_864_577_639
 
 [groups.sympy-r-utilities-5-wester-5]
 paths = ["sympy/utilities/tests/test_wester.py"]
 tier = "release"
 release_by = "path"
-fuel = 55_000_000_000
-measured = 36_464_179_269
+fuel = 140_000_000_000
+measured = 90_316_533_220
 
 [groups.sympy-r-utilities-5-wester-6]
 paths = ["sympy/utilities/tests/test_wester.py"]
 tier = "release"
 release_by = "path"
-fuel = 55_000_000_000
-measured = 36_466_824_505
+fuel = 760_000_000_000
+measured = 503_800_405_980
 
 [groups.sympy-r-utilities-5-wester-7]
 paths = ["sympy/utilities/tests/test_wester.py"]
 tier = "release"
 release_by = "path"
-fuel = 55_000_000_000
-measured = 36_473_412_602
+fuel = 59_000_000_000
+measured = 38_856_811_068
 
 [groups.sympy-r-utilities-5-wester-8]
 paths = ["sympy/utilities/tests/test_wester.py"]
 tier = "release"
 release_by = "path"
-fuel = 55_000_000_000
-measured = 36_470_586_663
+fuel = 1_300_000_000_000
+measured = 817_567_516_730
 
 [groups.sympy-r-utilities-5-wester-9]
 paths = ["sympy/utilities/tests/test_wester.py"]
 tier = "release"
 release_by = "path"
-fuel = 55_000_000_000
-measured = 36_470_301_987
-
-[groups.sympy-r-utilities-6]
-paths = ["sympy/utilities/tests/test_xxe.py"]
-tier = "release"
-release_by = "path"
-fuel = 39_000_000_000
-measured = 25_729_061_090
+fuel = 440_000_000_000
+measured = 293_024_169_026
 
 [groups.sympy-r-vector-1]
 paths = [
@@ -3656,14 +3650,14 @@ groups = [
     "sympy-r-utilities-5-wester-9",
 ]
 keywords = [
-    "(test_B1 or test_B2 or test_B3 or test_B4 or test_C1 or test_C2 or test_C3 or test_C4 or test_C5 or test_C6 or test_C7 or test_C8 or test_C9 or test_C10 or test_C11 or test_C12 or test_C13 or test_C14 or test_C15 or test_C16 or test_C17 or test_C18 or test_C19 or test_C20 or test_C21 or test_C22 or test_C23 or test_C24 or test_D1 or test_D2 or test_D3 or test_D4 or test_D5 or test_D6 or test_D7 or test_D8 or test_D9 or test_D10 or test_D11 or test_D12 or test_D13 or test_F1 or test_F2 or test_F3 or test_F4 or test_F5 or test_F6 or test_F7 or test_F8 or test_F9 or test_G1 or test_G2 or test_G3 or test_G15 or test_G16 or test_G17 or test_G18 or test_G19 or test_G20 or test_G20b or test_H1 or test_H2 or test_H3 or test_H4 or test_H5 or test_H6 or test_H7 or test_H8 or test_H9 or test_H10 or test_H11 or test_H12 or test_H13 or test_H14 or test_H15 or test_H16 or test_H17 or test_H18 or test_H19 or test_H20 or test_H21 or test_H22 or test_H23 or test_H24 or test_H25 or test_H26 or test_H27 or test_H28 or test_H29 or test_H30 or test_H31 or test_H32 or test_H33 or test_I1 or test_I2 or test_I3 or test_I4 or test_I5 or test_I6 or test_I7 or test_I8 or test_I9 or test_I10 or test_I11 or test_I12 or test_J1 or test_J2 or test_J3 or test_J4 or test_J5 or test_J6 or test_J7 or test_J8 or test_J9 or test_J10 or test_J11 or test_J12 or test_J13 or test_J14 or test_J15 or test_J16 or test_J17 or test_J18 or test_K1 or test_K2 or test_K3 or test_K4 or test_K5 or test_K6 or test_K7 or test_K8 or test_K9 or test_K10 or test_L1 or test_L2 or test_L3 or test_L4 or test_L5 or test_L6 or test_L7 or test_L8 or test_L9 or test_M1 or test_M2 or test_M5 or test_M6 or test_M7 or test_M8 or test_M9 or test_M10 or test_M11 or test_M12 or test_M13 or test_M14 or test_M15 or test_M16 or test_M17 or test_M18 or test_M19 or test_M20 or test_M21 or test_M22 or test_M23 or test_M24 or test_M25 or test_M26 or test_M27 or test_M28 or test_M29 or test_M30 or test_M31 or test_M32 or test_M33 or test_M34 or test_M35 or test_M36 or test_M37 or test_M38 or test_M39 or test_N1 or test_N2 or test_N3 or test_N4 or test_N5 or test_N6 or test_N7 or test_N8 or test_N9 or test_N10 or test_N11 or test_N12 or test_N13 or test_N14 or test_N15 or test_N16 or test_N17 or test_O1 or test_O2 or test_O3 or test_O4 or test_O5 or test_O10 or test_P1 or test_P2 or test_P3 or test_P4 or test_P5 or test_P6 or test_P7 or test_P8 or test_P9 or test_P10 or test_P11 or test_P11_workaround or test_P12 or test_P13 or test_P14 or test_P15 or test_P16 or test_P17 or test_P18 or test_P19 or test_P20 or test_P21 or test_P22 or test_P23 or test_P24 or test_P25 or test_P26 or test_P27 or test_P28 or test_P29 or test_P30 or test_P31 or test_P32 or test_P33 or test_P34 or test_P35 or test_P36 or test_P37 or test_P38 or test_P39 or test_P40 or test_P41 or test_P42 or test_P43 or test_P44 or test_P45 or test_R1 or test_R2 or test_R3 or test_R4 or test_R5 or test_R6 or test_R7 or test_R8 or test_R9 or test_R10 or test_R11 or test_R12 or test_R13 or test_R14 or test_R15 or test_R16 or test_R17 or test_R18 or test_R19 or test_R20 or test_R21 or test_R23 or test_R24 or test_S1 or test_S2 or test_S3 or test_S4) and not (test_S10)",
-    "(test_S5 or test_S6 or test_S7 or test_S8 or test_S9 or test_S10 or test_T1 or test_T2 or test_T3 or test_T4 or test_T5 or test_T6 or test_T7 or test_T8 or test_T9 or test_T10 or test_T11 or test_T12 or test_T13 or test_T14 or test_U1 or test_U2 or test_U3 or test_U4 or test_U5 or test_U6 or test_U7 or test_U8 or test_U9 or test_U10 or test_U11 or test_U12 or test_U13 or test_U14 or test_U15 or test_U16 or test_U17 or test_V1 or test_V2 or test_V3 or test_V4 or test_V5 or test_V6 or test_V7 or test_V8_V9 or test_V10 or test_V11 or test_V12 or test_V13 or test_V14 or test_V15 or test_V16 or test_V17 or test_W1 or test_W2 or test_W3 or test_W4 or test_W5 or test_W6 or test_W7 or test_W8) and not (test_W10 or test_W11 or test_W12 or test_W13 or test_W14 or test_W15 or test_W16 or test_W17 or test_W18 or test_W19 or test_W20 or test_W21 or test_W22 or test_W23 or test_W23b or test_W24 or test_W25 or test_W26 or test_W27)",
-    "(test_W9 or test_W10 or test_W11 or test_W12 or test_W13 or test_W14 or test_W15 or test_W16 or test_W17 or test_W18)",
-    "(test_W19 or test_W20 or test_W21 or test_W22 or test_W23 or test_W23b)",
-    "(test_W24)",
-    "(test_W25)",
-    "(test_W26 or test_W27 or test_X1 or test_X2 or test_X3 or test_X4 or test_X5 or test_X6 or test_X7 or test_X8 or test_X9 or test_X10 or test_X11 or test_X12 or test_X13 or test_X14 or test_X15 or test_X16 or test_X17 or test_X18 or test_X19 or test_X20 or test_X21 or test_X22 or test_Y1 or test_Y2 or test_Y3 or test_Y4 or test_Y5_Y6 or test_Y7 or test_Y8 or test_Y9 or test_Y10) and not (test_Y11 or test_Y12 or test_Y13 or test_Y14)",
-    "(test_Y11)",
+    "(test_B or test_C or test_D or test_F or test_G or test_H or test_I)",
+    "(test_J or test_K or test_L or test_M or test_N or test_O)",
+    "(test_P or test_R or test_S or test_T)",
+    "(test_U or test_V)",
+    "(test_X or test_Y or test_Z)",
+    "(test_W9)",
+    "(test_W23b)",
+    "(test_W23)",
 ]
 
 [[trap]]
@@ -3705,6 +3699,13 @@ closes_with = "README.md"
 id = "sympy-slow-nonlinear-3eq-order1-type3"
 node = "sympy/solvers/ode/tests/test_systems.py::test_nonlinear_3eq_order1_type3"
 group = "sympy-r-solvers-7-1a"
+reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
+closes_with = "README.md"
+
+[[trap]]
+id = "sympy-slow-W25"
+node = "sympy/utilities/tests/test_wester.py::test_W25"
+group = "sympy-r-utilities-5-wester-1"
 reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
 closes_with = "README.md"
 

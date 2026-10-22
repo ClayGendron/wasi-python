@@ -479,3 +479,29 @@ def test_a_shard_fetches_its_familys_source_wheel_and_extras(
     package = group.removesuffix("-smoke")
     assert fetch.shard_packages("s") == [package]
     assert fetch.shard_files("s") == ([wheel], extras)
+
+
+def test_an_item_group_gets_no_option_of_upstreams_conftest() -> None:
+    """An item group collects the stage's empty folder, so no conftest loads, and pytest refuses
+    an option only a conftest registers (networkx's --runslow): the family's arguments, which
+    shape what pytest collects from the test files, go to its path groups only."""
+    text = BASE.replace('cwd = "tree"', 'cwd = "tree"\nargs = ["--runslow"]')
+    text += '\n[groups.demo-doc]\ndocstring_modules = ["demo.core"]' + RELEASE
+    cfg = _cfg(text)
+    assert "--runslow" in packages.group_args(cfg, cfg.groups["demo-r"])
+    assert "--runslow" not in packages.group_args(cfg, cfg.groups["demo-doc"])
+
+
+def test_a_split_expression_too_long_for_the_guest_is_refused() -> None:
+    """pytest builds a -k expression's `or` and `and` as nested pairs, and the guest's stack holds
+    only so deep a one when it compiles it: a split whose expression would nest past the bound
+    (one keyword's terms and the parts before it) is refused before any run, naming the group."""
+    names = " or ".join(f"test_{i}" for i in range(packages.SPLIT_DEPTH + 1))
+    text = BASE.replace(
+        '[groups.demo-r]\npaths = ["tests"]', '[groups.demo-r]\npaths = ["tests/test_b.py"]'
+    )
+    text += '\n[groups.demo-r2]\npaths = ["tests/test_b.py"]' + RELEASE
+    text += '\n[[split]]\nfile = "tests/test_b.py"\ngroups = ["demo-r", "demo-r2"]\n'
+    text += f'keywords = ["{names}"]\n'
+    errors = packages.split_errors("demo", _cfg(text))
+    assert any("demo-r" in e and "terms" in e for e in errors), errors

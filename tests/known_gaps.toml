@@ -1306,6 +1306,12 @@ reason = "numpy's default integer is 32 bits on wasm32, so a cumulative sum narw
 closes_with = "README.md"
 
 [[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[networkx-r-doc-doctest-output]"
+match = "8 finding(s), digest ae65b4d62c17"
+reason = "a docstring example whose printed output differs in the guest under the stdlib's doctest runner with upstream's flags (README)"
+closes_with = "README.md"
+
+[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[networkx-r-other-no-threads]"
 match = "1 finding(s), digest 240e11008d98"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
@@ -1747,6 +1753,12 @@ closes_with = "README.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xlrd-smoke-no-mmap]"
 match = "66 finding(s), digest 4c87e051effa"
 reason = "no mmap: the stand-in raises OSError (README); xlrd opens a workbook with mmap, so a test that checks the error a bad workbook raises sees mmap's"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-W25]"
+match = "1 finding(s), digest a09fd547f82d"
+reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
 closes_with = "README.md"
 
 [[gap]]

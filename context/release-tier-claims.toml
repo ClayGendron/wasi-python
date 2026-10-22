@@ -58,10 +58,10 @@ units = 46  # tests/unit: 2,290 collected against main's 2,244
 
 [[claim]]
 spec = "067"
-# 420 release groups of 23 families, their 86 classes (in 17 families) and six traps, all new: 92.84 T measured
-# on darwin-arm64 by node id with --tier release (sympy 78.53 T in 343 groups, the other 22
-# families 14.31 T; sets d0d91cef and 1556bbd5, the judging set's MANIFEST with this
-# specification's pins and patches), and the six traps at 50 G each; the 42 smoke groups are
+# 419 release groups of 23 families, their classes and seven traps, all new: 95.32 T measured
+# on darwin-arm64 by node id with --tier release (sympy 80.92 T in 342 groups, the other 22
+# families 14.40 T; sets d0d91cef and 1556bbd5, the judging set's MANIFEST with this
+# specification's pins and patches), and the seven traps at 50 G each; the 42 smoke groups are
 # normal-tier rows, not claimed here
 new = [
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[fonttools-r*",
@@ -115,4 +115,4 @@ grows = [
 ]
 growth = "067: the package driver moves every package-driver group's fuel both ways; passes unchanged (the wave 12 integration review's M1 and L3)"
 retired = []
-units = 34  # tests/unit/test_pure_suites.py, a new file: 34 collected
+units = 37  # tests/unit/test_pure_suites.py, a new file: 36 collected; tests/unit/test_fetch_trees.py: 1 more
