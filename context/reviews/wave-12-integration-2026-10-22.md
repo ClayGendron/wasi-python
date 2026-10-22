@@ -546,3 +546,33 @@ units = 34  # tests/unit/test_pure_suites.py, a new file
 ```
 
 The version bump adds no block: it adds, changes and moves no row.
+
+## The lane's addendum (2026-10-22)
+
+- **H1** fixed by 067's builder in `84c5955c`, with a unit row seen failing first. Run 39720564953
+  on that commit had both pure-smoke shards green, and its set's `SHA256SUMS` was `3339091f`, the
+  lane's; 067's build review (`0f681db0`) read the fix as a delta.
+- **The first release acceptance** on `855c7530` (the bump on `84c5955c`), `-n 6 --tier release`,
+  1 h 25 min, was refused: 12 failures. Eleven were 067's release groups that had never passed in
+  its build, because its measuring read fuel and exit codes, not each group's verdict:
+  networkx-r-doc (a family argument given to a docstring-only group) and sympy's wester split
+  (a 275-term `-k` that overflowed the guest's stack) plus utilities-6 (no test). 067 fixed them
+  in `254fd3e5`, and a fresh delta review (`fce3c76b`) passed them once its M1 was answered in
+  writing. The twelfth was the judge's own race: the sealed-leftovers scan raised on a folder
+  another worker's guest removed. The lane fixed it in `618f891e` and `459e7f35`, each with a
+  unit row seen failing first, reviewed fresh
+  (`lane-sealed-leftovers-race-2026-10-22.md`: lands).
+- **The release acceptance** on `eac93d0f`: history line 94, accepted in `1aa0eff7`, 1574/1872
+  pass, 0 fail, 296 gap, 2 blocked (the wheel and the three systems), ratchet lost 0, grew 0;
+  1 h 24 min at `-n 6`, peak memory under 5 GiB. M1's clause is in the `--accept-growth`, M3's
+  bump in `855c7530`, L3's lines in 067's ledger block. The record is
+  `build/releases/0.1.0/record.json`, SHA-256 `61386a46f4a03b2f583812493b4aa05ec8ad20cebf85207d67f293c660406029`.
+  It is the first release acceptance, so there is no previous release record to compare with.
+- **M2** (blocked rows did not turn the gate red): the lane fetched 067's sources into the main
+  tree before the acceptance, and the 67 rows ran there (0 blocked by a source tree). That the
+  ratchet has no count for them stays a follow-up for the lane to number.
+- **After the acceptance**: the ledger's four blocks moved under `## 0.1.0` in
+  `release-tier-claims-history.md`, and the ledger is empty. Main fast-forwarded
+  `c0d3a212..454f8b3c`. The dry run on main is 39741960669, dispatched at once.
+- **Still the owner's:** L4's README wording (the status says "alpha"); the security review's D2
+  (a required reviewer on the `pypi` environment, admin bypass off) before the tag.

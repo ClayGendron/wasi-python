@@ -1,6 +1,6 @@
 # 067 — the pure-Python packages' own tests in the release
 
-- **Status:** drafted 2026-10-20 from main `1ce7381`; on its own branch,
+- **Status:** **landed 2026-10-22 in wave 12** (095, 067) on main `454f8b3c`, whose acceptance is 0.1.0's release acceptance: accepted on `eac93d0f` in `1aa0eff7`, history line 94, 1574/1872 pass, 0 fail, `-n 6 --tier release`, on a set rebuilt from the same pins in the main tree (set_sums `3339091f`; `python.wasm`, the snapshot and the zip byte for byte wave 11's); no wave dry run (the compressed path), the dry run on main 39741960669 its CI check; the integration review `../reviews/wave-12-integration-2026-10-22.md` and the lane's addendum. Before: drafted 2026-10-20 from main `1ce7381`; on its own branch,
   `spec/067-the-pure-python-packages-own-tests`, rebased onto main `5805af0` (the owner's answer
   on 0.1.0's scope: 045 and 067 both in 0.1.0, after wave 09). **Revised 2026-10-20 against its
   pre-build review** (`../reviews/067-the-pure-python-packages-own-tests-prebuild-2026-10-20.md`:

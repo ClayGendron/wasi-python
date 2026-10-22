@@ -1,6 +1,6 @@
 # 095 — scipy's, scikit-learn's and statsmodels' own tests in the release
 
-- **Status:** **drafted 2026-10-20** on `spec/095-scipy-sklearn-statsmodels-own-tests` from main
+- **Status:** **landed 2026-10-22 in wave 12** (095, 067) on main `454f8b3c`, whose acceptance is 0.1.0's release acceptance: accepted on `eac93d0f` in `1aa0eff7`, history line 94, 1574/1872 pass, 0 fail, `-n 6 --tier release`, on a set rebuilt from the same pins in the main tree (set_sums `3339091f`; `python.wasm`, the snapshot and the zip byte for byte wave 11's); no wave dry run (the compressed path), the dry run on main 39741960669 its CI check; the integration review `../reviews/wave-12-integration-2026-10-22.md` and the lane's addendum. Before: **drafted 2026-10-20** on `spec/095-scipy-sklearn-statsmodels-own-tests` from main
   `dda6075`; **rebased 2026-10-20 onto the structural chain's tip `727bd4c`**
   (`claude/gallant-ride-9nxxmn`, landing on main that night; context only, no conflict).
   **Reviewed before build** the same day
