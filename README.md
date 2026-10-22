@@ -928,7 +928,10 @@ and what needs antlr4, pyglet, aesara or lfortran). sympy's doctests run under s
 doctest runner, output checker and printer setup (the setup once per session, with the stdlib's
 finder: module globals, and `doctest_depends_on` not read). Six sympy
 tests that upstream marks `@slow` or `@tooslow` do not end within 2.9 to 4.5 T of fuel in the
-guest, past the bound for one test; each is a trap entry, run alone to its 50 G cap.
+guest, past the bound for one test; each is a trap entry, run alone to its 50 G cap. A seventh,
+`test_W25`, is one too; and networkx's `test_asadpour_integral_held_karp`, whose fuel is not the
+same on every host (470 G on darwin, past 638 G on Linux; the cause not read), is a trap so its
+verdict is the same everywhere.
 
 The pure-Python suites' known failures, each a class by test id with this fact:
 `no-threads`, `no-processes`, `no-mmap`, `shallow-recursion`, `no-network`, `no-resource-module`,

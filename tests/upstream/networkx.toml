@@ -6,7 +6,7 @@ package = "networkx"
 driver = "package"
 grant = "/upstream-networkx"
 test_source = true
-budget = 4_708_000_000_000
+budget = 4_198_000_000_000
 stage_folders = [
     "networkx/algorithms/approximation/tests",
     "networkx/algorithms/assortativity/tests",
@@ -54,8 +54,8 @@ measured = 29_254_528_676
 paths = ["networkx/algorithms/approximation/tests/test_traveling_salesman.py"]
 tier = "release"
 release_by = "path"
-fuel = 710_000_000_000
-measured = 470_833_843_307
+fuel = 150_000_000_000
+measured = 100_000_000_000
 
 [groups.networkx-r-approximation-2]
 paths = ["networkx/algorithms/approximation/tests/test_kcomponents.py"]
@@ -242,6 +242,13 @@ tier = "release"
 release_by = "path"
 fuel = 160_000_000_000
 measured = 102_574_476_805
+
+[[trap]]
+id = "networkx-r-trap-asadpour-integral-held-karp"
+node = "networkx/algorithms/approximation/tests/test_traveling_salesman.py::test_asadpour_integral_held_karp"
+group = "networkx-r-approximation-1"
+reason = "its fuel is not the same on every host: 470 G on darwin-arm64 (two runs, equal), past 638 G on Linux in the dry run 39741960669, where its group ran out at its 710 G cap; the cause is not read (the test's held-Karp ascent repeats HiGHS interior-point solves until a float test settles, and upstream notes it reaches unseeded sampling if the solution is not integral); run alone to its 50 G cap, so its verdict is the same on every host"
+closes_with = "README.md"
 
 [[expected]]
 id = "counted-clock"

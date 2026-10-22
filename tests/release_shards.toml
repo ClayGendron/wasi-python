@@ -1035,372 +1035,372 @@ groups = ["sympy-r-docfiles-9", "packaging-r-property-4"]
 systems = ["release"]
 
 [shard.upstream-pure-r-040]
-# 715.9 G measured
-groups = ["networkx-r-approximation-1", "sympy-r-solvers-5-10"]
+# 715.5 G measured
+groups = ["sympy-r-solvers-3", "sympy-r-solvers-5-10"]
 systems = ["release"]
 
 [shard.upstream-pure-r-041]
-# 715.4 G measured
-groups = ["sympy-r-solvers-3", "sympy-r-integrals-6-4"]
-systems = ["release"]
-
-[shard.upstream-pure-r-042]
 # 724.8 G measured
 groups = ["seaborn-r-8", "sympy-r-solvers-16-3"]
 systems = ["release"]
 
-[shard.upstream-pure-r-043]
+[shard.upstream-pure-r-042]
 # 723.0 G measured
 groups = ["sympy-r-solvers-5-3c", "sympy-r-plotting-1-p2-plot-implicit-2"]
 systems = ["release"]
 
-[shard.upstream-pure-r-044]
+[shard.upstream-pure-r-043]
 # 723.8 G measured
 groups = ["sympy-r-series-2-2", "sympy-r-matrices-5"]
 systems = ["release"]
 
-[shard.upstream-pure-r-045]
+[shard.upstream-pure-r-044]
 # 723.9 G measured
 groups = ["sympy-r-series-1", "sympy-r-polys-4-s1-2"]
 systems = ["release"]
 
-[shard.upstream-pure-r-046]
+[shard.upstream-pure-r-045]
 # 722.5 G measured
 groups = ["sympy-r-solvers-5-1b", "sympy-r-integrals-2-1a"]
 systems = ["release"]
 
-[shard.upstream-pure-r-047]
+[shard.upstream-pure-r-046]
 # 724.8 G measured
 groups = ["sympy-r-functions-7-2", "sympy-r-utilities-5-wester-3"]
 systems = ["release"]
 
-[shard.upstream-pure-r-048]
+[shard.upstream-pure-r-047]
 # 724.7 G measured
 groups = ["sympy-r-physics-8", "packaging-r-property-2"]
 systems = ["release"]
 
-[shard.upstream-pure-r-049]
+[shard.upstream-pure-r-048]
 # 722.3 G measured
 groups = ["sympy-r-solvers-14", "sympy-r-utilities-5-wester-9"]
 systems = ["release"]
 
-[shard.upstream-pure-r-050]
+[shard.upstream-pure-r-049]
 # 720.9 G measured
 groups = ["sympy-r-solvers-17-solveset-4", "sympy-r-utilities-5-wester-2"]
 systems = ["release"]
 
-[shard.upstream-pure-r-051]
+[shard.upstream-pure-r-050]
 # 723.7 G measured
 groups = ["sympy-r-solvers-5-8b", "sympy-r-doc-6"]
 systems = ["release"]
 
-[shard.upstream-pure-r-052]
+[shard.upstream-pure-r-051]
 # 724.6 G measured
 groups = ["mpmath-r-doc-calculus", "sympy-r-solvers-7-8"]
 systems = ["release"]
 
-[shard.upstream-pure-r-053]
+[shard.upstream-pure-r-052]
 # 721.7 G measured
 groups = ["seaborn-r-3", "sympy-r-simplify-4-2"]
 systems = ["release"]
 
-[shard.upstream-pure-r-054]
+[shard.upstream-pure-r-053]
 # 724.8 G measured
 groups = ["sympy-r-series-2-1", "sympy-r-solvers-5-11"]
 systems = ["release"]
 
-[shard.upstream-pure-r-055]
+[shard.upstream-pure-r-054]
 # 721.9 G measured
 groups = ["sympy-r-doc-13", "sympy-r-physics-6"]
 systems = ["release"]
 
-[shard.upstream-pure-r-056]
+[shard.upstream-pure-r-055]
 # 715.1 G measured
 groups = ["sympy-r-ntheory-1", "networkx-r-tree"]
 systems = ["release"]
 
-[shard.upstream-pure-r-057]
+[shard.upstream-pure-r-056]
 # 714.8 G measured
 groups = ["sympy-r-integrals-3", "mpmath-r-doc-functions-3"]
 systems = ["release"]
 
-[shard.upstream-pure-r-058]
+[shard.upstream-pure-r-057]
 # 718.9 G measured
 groups = ["sympy-r-geometry-1", "packaging-r-property-6", "more-itertools-r-doc"]
 systems = ["release"]
 
-[shard.upstream-pure-r-059]
+[shard.upstream-pure-r-058]
 # 700.1 G measured
 groups = ["mpmath-r-1", "seaborn-r-5c"]
 systems = ["release"]
 
-[shard.upstream-pure-r-060]
+[shard.upstream-pure-r-059]
 # 724.7 G measured
 groups = ["sympy-r-stats-4-continuous-rv-1", "packaging-r-property-7", "sympy-r-sandbox-1"]
 systems = ["release"]
 
-[shard.upstream-pure-r-061]
+[shard.upstream-pure-r-060]
 # 724.9 G measured
 groups = ["sympy-r-concrete-2-1", "packaging-r-property-5"]
 systems = ["release"]
 
-[shard.upstream-pure-r-062]
+[shard.upstream-pure-r-061]
 # 715.3 G measured
 groups = ["sympy-r-geometry-2", "sympy-r-simplify-4-1"]
 systems = ["release"]
 
-[shard.upstream-pure-r-063]
+[shard.upstream-pure-r-062]
 # 709.8 G measured
 groups = ["sympy-r-solvers-5-3b", "sympy-r-polys-2-s4-2b"]
 systems = ["release"]
 
-[shard.upstream-pure-r-064]
+[shard.upstream-pure-r-063]
 # 723.8 G measured
 groups = ["sympy-r-simplify-4-4", "networkx-r-root-1"]
 systems = ["release"]
 
-[shard.upstream-pure-r-065]
+[shard.upstream-pure-r-064]
 # 721.1 G measured
 groups = ["sympy-r-functions-1", "packaging-r-version"]
 systems = ["release"]
 
-[shard.upstream-pure-r-066]
+[shard.upstream-pure-r-065]
 # 712.9 G measured
 groups = ["pypdf-r", "sympy-r-solvers-17-solveset-7"]
 systems = ["release"]
 
-[shard.upstream-pure-r-067]
+[shard.upstream-pure-r-066]
 # 708.9 G measured
 groups = ["sympy-r-simplify-4-3b", "sympy-r-physics-3-p2"]
 systems = ["release"]
 
-[shard.upstream-pure-r-068]
+[shard.upstream-pure-r-067]
 # 707.6 G measured
 groups = ["sympy-r-integrals-6-2", "sympy-r-solvers-5-1a"]
 systems = ["release"]
 
-[shard.upstream-pure-r-069]
+[shard.upstream-pure-r-068]
 # 724.8 G measured
 groups = ["sympy-r-solvers-5-7c", "sympy-r-functions-8", "sympy-r-functions-3"]
 systems = ["release"]
 
-[shard.upstream-pure-r-070]
+[shard.upstream-pure-r-069]
 # 725.0 G measured
 groups = ["sympy-r-solvers-17-solveset-5", "sympy-r-ntheory-2-p1-residue-1", "sympy-r-functions-7-3"]
 systems = ["release"]
 
-[shard.upstream-pure-r-071]
+[shard.upstream-pure-r-070]
 # 724.8 G measured
 groups = ["sympy-r-stats-7", "sympy-r-physics-9", "sympy-r-doc-15"]
 systems = ["release"]
 
-[shard.upstream-pure-r-072]
+[shard.upstream-pure-r-071]
 # 722.1 G measured
 groups = ["sympy-r-integrals-4-8", "packaging-r-property-1", "sympy-r-combinatorics-1-p2"]
 systems = ["release"]
 
-[shard.upstream-pure-r-073]
+[shard.upstream-pure-r-072]
 # 724.1 G measured
 groups = ["seaborn-r-6", "sympy-r-matrices-3-s2-1", "sympy-r-integrals-2-3a"]
 systems = ["release"]
 
-[shard.upstream-pure-r-074]
+[shard.upstream-pure-r-073]
 # 721.1 G measured
 groups = ["sympy-r-stats-5", "sympy-r-integrals-5", "sympy-r-solvers-7-5c"]
 systems = ["release"]
 
-[shard.upstream-pure-r-075]
+[shard.upstream-pure-r-074]
 # 724.4 G measured
 groups = ["sympy-r-solvers-7-4c", "sympy-r-solvers-7-5a", "sympy-r-printing-1"]
 systems = ["release"]
 
-[shard.upstream-pure-r-076]
+[shard.upstream-pure-r-075]
 # 723.4 G measured
 groups = ["sympy-r-solvers-7-5b", "sympy-r-polys-5-s1-1", "sympy-r-simplify-4-5"]
 systems = ["release"]
 
-[shard.upstream-pure-r-077]
+[shard.upstream-pure-r-076]
 # 723.9 G measured
 groups = ["more-itertools-r", "sympy-r-core-2-p3", "packaging-r-property-5b"]
 systems = ["release"]
 
+[shard.upstream-pure-r-077]
+# 724.8 G measured
+groups = ["sympy-r-integrals-6-4", "sympy-r-matrices-3-s5-1", "patsy-r"]
+systems = ["release"]
+
 [shard.upstream-pure-r-078]
-# 724.0 G measured
-groups = ["sympy-r-matrices-3-s5-1", "sympy-r-solvers-17-solveset-6", "sympy-r-solvers-16-1a"]
+# 722.9 G measured
+groups = ["sympy-r-solvers-17-solveset-6", "fonttools-r-varlib", "sympy-r-solvers-16-1a"]
 systems = ["release"]
 
 [shard.upstream-pure-r-079]
-# 720.4 G measured
-groups = ["fonttools-r-varlib", "sympy-r-solvers-1", "patsy-r"]
+# 710.0 G measured
+groups = ["sympy-r-solvers-1", "sympy-r-plotting-1-p2", "sympy-r-algebras-1"]
 systems = ["release"]
 
 [shard.upstream-pure-r-080]
-# 724.9 G measured
-groups = ["sympy-r-plotting-1-p2", "sympy-r-algebras-1", "sympy-r-stats-8", "sympy-r-plotting-1-p1"]
+# 723.8 G measured
+groups = ["sympy-r-stats-8", "sympy-r-physics-3-p4", "sympy-r-integrals-12-s2-2a", "sympy-r-polys-5-s1-2c"]
 systems = ["release"]
 
 [shard.upstream-pure-r-081]
-# 724.4 G measured
-groups = ["sympy-r-physics-3-p4", "sympy-r-integrals-12-s2-2a", "networkx-r-other", "sympy-r-external-1"]
+# 724.8 G measured
+groups = ["networkx-r-other", "sympy-r-stats-12", "sympy-r-utilities-5-wester-1", "sympy-r-assumptions-2-4"]
 systems = ["release"]
 
 [shard.upstream-pure-r-082]
-# 724.6 G measured
-groups = ["sympy-r-stats-12", "sympy-r-utilities-5-wester-1", "sympy-r-solvers-5-2c", "sympy-r-solvers-17-solveset-3"]
+# 724.9 G measured
+groups = ["sympy-r-solvers-5-2c", "sympy-r-docfiles-6", "sympy-r-solvers-5-2a", "sympy-r-solvers-16-8"]
 systems = ["release"]
 
 [shard.upstream-pure-r-083]
-# 724.7 G measured
-groups = ["sympy-r-docfiles-6", "sympy-r-solvers-5-2a", "sympy-r-concrete-2-3", "sympy-r-doc-1"]
+# 724.4 G measured
+groups = ["sympy-r-concrete-2-3", "sympy-r-solvers-7-2b", "sympy-r-integrals-6-3", "sympy-r-polys-2-p1"]
 systems = ["release"]
 
 [shard.upstream-pure-r-084]
-# 724.6 G measured
-groups = ["sympy-r-solvers-7-2b", "sympy-r-integrals-6-3", "sympy-r-core-2-p1", "mpmath-r-5"]
+# 724.1 G measured
+groups = ["sympy-r-core-2-p1", "sympy-r-logic-1", "sympy-r-doc-2", "sympy-r-ntheory-2-p1-residue-2"]
 systems = ["release"]
 
 [shard.upstream-pure-r-085]
-# 724.9 G measured
-groups = ["sympy-r-logic-1", "sympy-r-doc-2", "sympy-r-concrete-2-2", "sympy-r-combinatorics-1-s1-2"]
+# 724.8 G measured
+groups = ["sympy-r-concrete-2-2", "sympy-r-physics-5-p1", "sympy-r-integrals-2-1b", "sympy-r-doc-5"]
 systems = ["release"]
 
 [shard.upstream-pure-r-086]
-# 722.9 G measured
-groups = ["sympy-r-physics-5-p1", "sympy-r-integrals-2-1b", "sympy-r-integrals-7-2", "sympy-r-polys-3-p2"]
+# 724.8 G measured
+groups = ["sympy-r-integrals-7-2", "sympy-r-integrals-4-1", "sympy-r-assumptions-2-2", "sympy-r-solvers-2"]
 systems = ["release"]
 
 [shard.upstream-pure-r-087]
-# 723.5 G measured
-groups = ["sympy-r-integrals-4-1", "sympy-r-assumptions-2-2", "sympy-r-series-4", "sympy-r-doc-2b"]
+# 724.4 G measured
+groups = ["sympy-r-series-4", "sympy-r-solvers-7-7", "sympy-r-holonomic-1", "sympy-r-polys-4-s6-1"]
 systems = ["release"]
 
 [shard.upstream-pure-r-088]
-# 723.4 G measured
-groups = ["sympy-r-solvers-7-7", "sympy-r-holonomic-1", "sympy-r-stats-4-continuous-rv-3", "sympy-r-polys-4-s6-1"]
+# 724.6 G measured
+groups = ["sympy-r-stats-4-continuous-rv-3", "fonttools-r-rest", "sympy-r-solvers-5-1c", "packaging-r-property-3"]
 systems = ["release"]
 
 [shard.upstream-pure-r-089]
-# 724.4 G measured
-groups = ["fonttools-r-rest", "sympy-r-solvers-5-1c", "sympy-r-functions-6", "sympy-r-solvers-7-4a"]
+# 723.2 G measured
+groups = ["sympy-r-functions-6", "sympy-r-utilities-5-wester-4", "seaborn-r-5b", "sympy-r-tensor-2"]
 systems = ["release"]
 
 [shard.upstream-pure-r-090]
-# 724.4 G measured
-groups = ["sympy-r-utilities-5-wester-4", "seaborn-r-5b", "sympy-r-integrals-4-6", "sympy-r-polys-3-s20-1"]
+# 719.5 G measured
+groups = ["sympy-r-integrals-4-6", "sympy-r-solvers-7-4b", "sympy-r-assumptions-2-3", "sympy-r-integrals-4-2"]
 systems = ["release"]
 
 [shard.upstream-pure-r-091]
-# 716.0 G measured
-groups = ["sympy-r-solvers-7-4b", "sympy-r-assumptions-2-3", "sympy-r-integrals-6-1", "sympy-r-integrals-4-2"]
+# 706.9 G measured
+groups = ["sympy-r-integrals-6-1", "sympy-r-simplify-6", "sympy-r-solvers-5-9a", "sympy-r-doc-4"]
 systems = ["release"]
 
 [shard.upstream-pure-r-092]
-# 724.9 G measured
-groups = ["sympy-r-simplify-6", "sympy-r-solvers-5-9a", "sympy-r-doc-4", "sympy-r-solvers-16-2b", "sympy-r-utilities-5-wester-7"]
+# 724.6 G measured
+groups = ["sympy-r-solvers-16-2b", "sympy-r-solvers-5-7a", "sympy-r-matrices-6-3", "attrs-r", "mpmath-r-5"]
 systems = ["release"]
 
 [shard.upstream-pure-r-093]
-# 724.9 G measured
-groups = ["sympy-r-solvers-5-7a", "sympy-r-matrices-6-3", "attrs-r", "seaborn-r-5", "sympy-r-utilities-5-wester-5"]
+# 724.0 G measured
+groups = ["seaborn-r-5", "mpmath-r-doc-functions-1", "sympy-r-solvers-16-4", "sympy-r-polys-3-s20-1", "sympy-r-physics-5-s9-1"]
 systems = ["release"]
 
 [shard.upstream-pure-r-094]
-# 721.8 G measured
-groups = ["mpmath-r-doc-functions-1", "sympy-r-solvers-16-4", "sympy-r-solvers-7-1a", "sympy-r-series-3", "networkx-r-approximation-2"]
+# 724.4 G measured
+groups = ["sympy-r-solvers-7-1a", "sympy-r-series-3", "sympy-r-solvers-16-6", "narwhals-r", "sympy-r-integrals-2-4"]
 systems = ["release"]
 
 [shard.upstream-pure-r-095]
-# 722.9 G measured
-groups = ["sympy-r-solvers-16-6", "narwhals-r", "sympy-r-core-2-p2", "sympy-r-solvers-16-9", "sympy-r-integrals-2-6"]
+# 712.5 G measured
+groups = ["sympy-r-core-2-p2", "sympy-r-solvers-16-9", "sympy-r-solvers-7-2c", "sympy-r-solvers-6-1", "fonttools-r-ttlib"]
 systems = ["release"]
 
 [shard.upstream-pure-r-096]
-# 725.0 G measured
-groups = ["sympy-r-tensor-2", "sympy-r-solvers-7-2c", "sympy-r-solvers-6-1", "fonttools-r-ttlib", "sympy-r-integrals-12-s2-1", "sympy-r-doc-12"]
+# 723.6 G measured
+groups = ["sympy-r-integrals-12-s2-1", "sympy-r-solvers-7-4a", "sympy-r-calculus-5-util-1", "sympy-r-matrices-1", "sympy-r-integrals-4-4", "sympy-r-polys-4-p1"]
 systems = ["release"]
 
 [shard.upstream-pure-r-097]
-# 724.3 G measured
-groups = ["sympy-r-calculus-5-util-1", "sympy-r-matrices-1", "packaging-r-property-3", "sympy-r-integrals-4-4", "sympy-r-stats-3", "sympy-r-solvers-16-15"]
+# 723.2 G measured
+groups = ["sympy-r-integrals-2-6", "sympy-r-stats-3", "sympy-r-docfiles-4", "reportlab-r", "networkx-r-generators", "networkx-r-classes"]
 systems = ["release"]
 
 [shard.upstream-pure-r-098]
-# 724.3 G measured
-groups = ["sympy-r-docfiles-4", "reportlab-r", "networkx-r-generators", "sympy-r-solvers-16-10", "packaging-r-rest", "sympy-r-physics-5-s9-1"]
+# 719.8 G measured
+groups = ["sympy-r-doc-2b", "sympy-r-solvers-16-10", "packaging-r-rest", "sympy-r-polys-1", "sympy-r-assumptions-3", "sympy-r-combinatorics-3"]
 systems = ["release"]
 
 [shard.upstream-pure-r-099]
-# 708.9 G measured
-groups = ["sympy-r-solvers-2", "sympy-r-polys-1", "sympy-r-assumptions-3", "sympy-r-combinatorics-3", "sympy-r-integrals-2-4", "sympy-r-polys-5-s1-2b"]
+# 724.6 G measured
+groups = ["sympy-r-polys-5-s1-2b", "seaborn-r-1", "sympy-r-integrals-12-s2-3a", "sympy-r-physics-10", "sympy-r-docfiles-3", "xlsxwriter-r", "sympy-r-matrices-3-s2-2"]
 systems = ["release"]
 
 [shard.upstream-pure-r-100]
-# 724.4 G measured
-groups = ["seaborn-r-1", "sympy-r-integrals-12-s2-3a", "sympy-r-physics-10", "sympy-r-docfiles-3", "xlsxwriter-r", "sympy-r-solvers-12", "sympy-r-utilities-2"]
+# 724.7 G measured
+groups = ["sympy-r-solvers-12", "sympy-r-doc-3", "sympy-r-solvers-17-solveset-1", "sympy-r-integrals-12-s2-3c", "sympy-r-polys-3-p2", "networkx-r-approximation-2", "sympy-r-combinatorics-1-s2-2"]
 systems = ["release"]
 
 [shard.upstream-pure-r-101]
-# 724.7 G measured
-groups = ["sympy-r-doc-3", "sympy-r-solvers-17-solveset-1", "sympy-r-integrals-12-s2-3c", "networkx-r-doc", "sympy-r-matrices-6-2", "sympy-r-combinatorics-1-s2-1", "sympy-r-solvers-7-2a"]
+# 705.2 G measured
+groups = ["networkx-r-doc", "sympy-r-matrices-6-2", "sympy-r-combinatorics-1-s2-1", "sympy-r-series-5", "networkx-r-approximation-1", "sympy-r-integrals-7-1", "sympy-r-solvers-16-14"]
 systems = ["release"]
 
 [shard.upstream-pure-r-102]
-# 724.9 G measured
-groups = ["sympy-r-series-5", "sympy-r-doc-5", "sympy-r-integrals-7-1", "sympy-r-solvers-16-14", "sympy-r-solvers-16-7", "sympy-r-polys-3-s20-2a", "sympy-r-solvers-7-3c", "sympy-r-solvers-8"]
+# 723.7 G measured
+groups = ["sympy-r-solvers-16-7", "sympy-r-polys-3-s20-2a", "sympy-r-solvers-7-3c", "sympy-r-polys-3-s6-1", "pyparsing-r-unit-6", "sympy-r-integrals-11", "pyparsing-r-unit-3", "sympy-r-calculus-4"]
 systems = ["release"]
 
 [shard.upstream-pure-r-103]
-# 723.9 G measured
-groups = ["sympy-r-polys-3-s6-1", "pyparsing-r-unit-6", "sympy-r-integrals-11", "pyparsing-r-unit-3", "pyparsing-r-unit-2", "sympy-r-integrals-2-2", "pyparsing-r-unit-4", "sympy-r-polys-4-p1"]
+# 724.9 G measured
+groups = ["pyparsing-r-unit-2", "sympy-r-integrals-2-2", "sympy-r-solvers-7-2a", "pyparsing-r-unit-4", "sympy-r-functions-7-1", "sympy-r-combinatorics-1-s1-2", "sympy-r-core-3", "sympy-r-docfiles-7"]
 systems = ["release"]
 
 [shard.upstream-pure-r-104]
-# 706.9 G measured
-groups = ["sympy-r-functions-7-1", "sympy-r-core-3", "sympy-r-solvers-7-9", "pyparsing-r-unit-5", "sympy-r-ntheory-2-p1-residue-2", "networkx-r-classes", "sympy-r-sets-1", "sympy-r-doc-11"]
+# 724.9 G measured
+groups = ["sympy-r-utilities-5-wester-5", "sympy-r-solvers-7-9", "pyparsing-r-unit-5", "sympy-r-sets-1", "sympy-r-doc-11", "sympy-r-polys-2-s4-2a", "sympy-r-ntheory-2-s1-2", "sympy-r-core-2-p4", "sympy-r-categories-1"]
 systems = ["release"]
 
 [shard.upstream-pure-r-105]
-# 720.3 G measured
-groups = ["sympy-r-polys-2-s4-2a", "sympy-r-polys-2-p1", "sympy-r-ntheory-2-s1-2", "sympy-r-core-2-p4", "pyparsing-r-unit-1", "cloudpickle-r", "sympy-r-solvers-10", "sympy-r-polys-5-p1", "sympy-r-combinatorics-1-s2-2"]
+# 724.8 G measured
+groups = ["pyparsing-r-unit-1", "cloudpickle-r", "sympy-r-solvers-10", "sympy-r-polys-5-p1", "sympy-r-stats-14", "sympy-r-doc-1", "sympy-r-solvers-16-13", "sympy-r-solvers-16-5", "sympy-r-functions-5", "sympy-r-assumptions-1"]
 systems = ["release"]
 
 [shard.upstream-pure-r-106]
-# 724.9 G measured
-groups = ["sympy-r-stats-14", "sympy-r-solvers-16-13", "sympy-r-solvers-16-5", "sympy-r-functions-5", "sympy-r-solvers-4-4", "sympy-r-solvers-16-8", "sympy-r-docfiles-7", "sympy-r-polys-3-s20-2b", "sympy-r-doc-9", "sympy-r-plotting-1-p3"]
+# 702.0 G measured
+groups = ["sympy-r-solvers-4-4", "sympy-r-polys-3-s20-2b", "sympy-r-doc-9", "sympy-r-physics-3-p3", "mpmath-r-3", "sympy-r-utilities-3", "sympy-r-polys-2-p2", "sympy-r-simplify-5", "sympy-r-tensor-1", "sympy-r-polys-2-s4-1"]
 systems = ["release"]
 
 [shard.upstream-pure-r-107]
-# 724.8 G measured
-groups = ["sympy-r-physics-3-p3", "mpmath-r-3", "sympy-r-utilities-3", "sympy-r-polys-2-p2", "sympy-r-simplify-5", "sympy-r-tensor-1", "sympy-r-polys-2-s4-1", "sympy-r-sets-2", "sympy-r-solvers-16-12", "sympy-r-ntheory-2-s2-2", "sympy-r-polys-3-p3"]
+# 702.9 G measured
+groups = ["sympy-r-solvers-16-15", "sympy-r-sets-2", "sympy-r-solvers-16-12", "sympy-r-ntheory-2-s2-2", "sympy-r-solvers-17-solveset-3", "networkx-r-alg-2", "networkx-r-flow-1", "openpyxl-r", "sympy-r-ntheory-2-s2-1", "sympy-r-doc-12b", "sympy-r-physics-7"]
 systems = ["release"]
 
 [shard.upstream-pure-r-108]
-# 723.9 G measured
-groups = ["networkx-r-alg-2", "networkx-r-flow-1", "openpyxl-r", "sympy-r-ntheory-2-s2-1", "sympy-r-doc-12b", "sympy-r-physics-7", "sympy-r-integrals-4-3", "sympy-r-physics-5-s9-2", "sympy-r-solvers-6-2", "sympy-r-matrices-3-p2", "sympy-r-docfiles-8", "sympy-r-integrals-10"]
+# 724.9 G measured
+groups = ["sympy-r-plotting-1-p3", "sympy-r-integrals-4-3", "sympy-r-physics-5-s9-2", "sympy-r-solvers-6-2", "sympy-r-matrices-3-p2", "sympy-r-docfiles-8", "sympy-r-matrices-7", "mpmath-r-4", "sympy-r-simplify-3", "sympy-r-docfiles-1", "sympy-r-physics-5-p2", "sympy-r-codegen-1", "sympy-r-polys-3-s20-2c"]
 systems = ["release"]
 
 [shard.upstream-pure-r-109]
-# 709.9 G measured
-groups = ["sympy-r-matrices-7", "sympy-r-assumptions-2-4", "mpmath-r-4", "sympy-r-simplify-3", "sympy-r-docfiles-1", "sympy-r-physics-5-p2", "sympy-r-codegen-1", "sympy-r-doc-7", "seaborn-r-2", "sympy-r-core-1", "sympy-r-integrals-2-3b", "sympy-r-diffgeom-1", "networkx-r-tests"]
+# 707.0 G measured
+groups = ["sympy-r-doc-7", "seaborn-r-2", "sympy-r-core-1", "sympy-r-integrals-2-3b", "sympy-r-diffgeom-1", "networkx-r-tests", "sympy-r-solvers-16-11", "python-dateutil-r", "networkx-r-approximation-3", "sympy-r-external-1", "sympy-r-integrals-10", "sympy-r-core-2-p5", "sympy-r-parsing-1", "sympy-r-integrals-12-s2-3b"]
 systems = ["release"]
 
 [shard.upstream-pure-r-110]
-# 702.1 G measured
-groups = ["sympy-r-solvers-16-11", "python-dateutil-r", "networkx-r-approximation-3", "sympy-r-core-2-p5", "sympy-r-parsing-1", "sympy-r-integrals-12-s2-3b", "sympy-r-solvers-7-1c", "sympy-r-polys-5-s1-2c", "sympy-r-calculus-4", "sympy-r-codegen-2", "sympy-r-polys-5-s1-2a", "sympy-r-discrete-1", "sympy-r-functions-2", "sympy-r-ntheory-2-s1-1", "sympy-r-utilities-4"]
+# 724.9 G measured
+groups = ["sympy-r-solvers-7-1c", "sympy-r-codegen-2", "sympy-r-polys-5-s1-2a", "sympy-r-discrete-1", "sympy-r-polys-3-p3", "sympy-r-functions-2", "sympy-r-ntheory-2-s1-1", "sympy-r-utilities-4", "sympy-r-crypto-1", "sympy-r-docfiles-2", "sympy-r-polys-2-s4-2c", "sympy-r-polys-3-s6-2", "mpmath-r-2", "sympy-r-stats-1", "sympy-r-utilities-2", "sympy-r-utilities-5-wester-7", "sympy-r-stats-10"]
 systems = ["release"]
 
 [shard.upstream-pure-r-111]
-# 718.2 G measured
-groups = ["sympy-r-crypto-1", "sympy-r-docfiles-2", "sympy-r-polys-2-s4-2c", "sympy-r-categories-1", "sympy-r-polys-3-s6-2", "mpmath-r-2", "sympy-r-stats-1", "sympy-r-solvers-13", "sympy-r-stats-10", "mpmath-r-doc-rest", "sympy-r-solvers-15", "formulaic-r", "sympy-r-matrices-3-p1", "sympy-r-matrices-3-s2-2", "sympy-r-integrals-8", "sympy-r-plotting-1-p2-plot-implicit-1", "sympy-r-calculus-5-util-2", "sympy-r-logic-2", "sympy-r-doc-14"]
+# 715.8 G measured
+groups = ["sympy-r-solvers-13", "mpmath-r-doc-rest", "sympy-r-solvers-15", "formulaic-r", "sympy-r-matrices-3-p1", "sympy-r-integrals-8", "sympy-r-plotting-1-p2-plot-implicit-1", "sympy-r-calculus-5-util-2", "sympy-r-logic-2", "sympy-r-doc-14", "sympy-r-physics-2", "beautifulsoup4-r", "sympy-r-stats-9", "sympy-r-tensor-3", "sympy-r-stats-2", "fonttools-r-doc", "sympy-r-physics-3-p1", "sympy-r-solvers-4-2", "sympy-r-combinatorics-1-p1", "sympy-r-simplify-2", "sympy-r-utilities-1"]
 systems = ["release"]
 
 [shard.upstream-pure-r-112]
-# 723.3 G measured
-groups = ["sympy-r-physics-2", "beautifulsoup4-r", "sympy-r-assumptions-1", "sympy-r-stats-9", "sympy-r-tensor-3", "sympy-r-stats-2", "fonttools-r-doc", "sympy-r-physics-3-p1", "sympy-r-solvers-4-2", "sympy-r-combinatorics-1-p1", "sympy-r-simplify-2", "sympy-r-utilities-1", "sympy-r-integrals-9", "soupsieve-r", "jinja2-r", "charset-normalizer-r", "sympy-r-calculus-1", "sympy-r-physics-1", "sympy-r-stats-11", "sympy-r-polys-3-s20-2c", "sympy-r-integrals-12-p1", "mpmath-r-doc-matrices", "sympy-r-integrals-1"]
+# 721.2 G measured
+groups = ["sympy-r-integrals-9", "soupsieve-r", "jinja2-r", "sympy-r-solvers-8", "charset-normalizer-r", "sympy-r-calculus-1", "sympy-r-physics-1", "sympy-r-plotting-1-p1", "sympy-r-stats-11", "sympy-r-integrals-12-p1", "mpmath-r-doc-matrices", "sympy-r-doc-12", "sympy-r-integrals-1", "sympy-r-solvers-4-3", "sympy-r-simplify-1", "sympy-r-unify-1", "sympy-r-polys-2-s11-2", "joblib-r", "sympy-r-solvers-11", "sympy-r-assumptions-4", "sympy-r-stats-6", "sympy-r-calculus-3", "sympy-r-calculus-2", "sympy-r-strategies-1", "sympy-r-liealgebras-1"]
 systems = ["release"]
 
 [shard.upstream-pure-r-113]
-# 540.6 G measured
-groups = ["sympy-r-solvers-4-3", "sympy-r-simplify-1", "sympy-r-unify-1", "sympy-r-polys-2-s11-2", "joblib-r", "sympy-r-solvers-11", "sympy-r-assumptions-4", "sympy-r-stats-6", "sympy-r-calculus-3", "sympy-r-calculus-2", "sympy-r-strategies-1", "sympy-r-liealgebras-1", "sympy-r-solvers-9", "sympy-r-multipledispatch-1", "mpmath-r-doc-libmp", "sympy-r-matrices-4", "sympy-r-interactive-1", "sympy-r-doc-13b", "sympy-r-doc-top", "sympy-r-plotting-1-p2-plot-implicit-3"]
+# 210.2 G measured
+groups = ["sympy-r-solvers-9", "sympy-r-multipledispatch-1", "mpmath-r-doc-libmp", "sympy-r-matrices-4", "sympy-r-interactive-1", "sympy-r-doc-13b", "sympy-r-doc-top", "sympy-r-plotting-1-p2-plot-implicit-3"]
 systems = ["release"]
 # --- the pure-Python packages' own tests: end

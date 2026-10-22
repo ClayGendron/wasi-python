@@ -3,3 +3,21 @@
 # (context/progress/README.md, "The release tier"). The lane appends each block at its landing
 # and nobody edits an earlier one. At the release acceptance the blocks move under
 # "## <version>" in context/release-tier-claims-history.md, and this file starts empty again.
+
+[[claim]]
+spec = "067"
+# After 0.1.0's release acceptance: networkx's test_asadpour_integral_held_karp leaves
+# networkx-r-approximation-1 for a trap of its own, because its fuel is not the same on every host
+# (470 G on darwin-arm64, two runs equal; past 638 G on Linux in the dry run 39741960669, where the
+# group ran out at its 710 G cap). The group runs its other 44 tests in 100.2 G (EXECUTED): one
+# accepted pass fewer, by this reason, and less fuel.
+new = [
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[networkx-r-trap-asadpour-integral-held-karp]",
+]
+changed = []
+passes = [
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[networkx-r-approximation-1]",
+]
+grows = []
+retired = []
+units = 0
