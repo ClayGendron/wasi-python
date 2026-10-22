@@ -8,6 +8,34 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### The process advice, instituted (2026-10-22, night)
+
+The owner felt the work "significantly limited by code running to test our code" and asked for
+research and an advisor's view. A research agent compared seven projects
+(`research/2026-10-22-how-other-projects-test-and-release.md`); a separate advisor ranked the
+changes (`research/2026-10-22-process-advice.md`). Going to sleep, the owner said: "work on
+instituting the changes and do what you can to get 0.1.0 ready for when I wake up by 6:00AM".
+The lane took the advisor's section 1 for tonight and reserved its section 2 for after 0.1.0:
+
+- **The release acceptance runs at `-n 6`** while `build/lane.lock` is held and nothing else runs
+  on the machine, else `-n 3` (AGENTS.md rule 6b; the progress README). Fuel is an instruction
+  count and spec 052 showed the parallel verdict is the serial one. Memory is the risk: the lane
+  watches the workers for ten minutes and restarts at `-n 4` past 24 GiB. A wave's acceptance may
+  also run at `-n 6` when the machine is otherwise idle.
+- **The last wave's acceptance may be the release acceptance**, when the wave's tip carries the
+  version bump: a normal-tier run without `--accept` first, green, then one `--tier release
+  --accept` run with every entry's reasons, which judges both tiers. The integration review reads
+  during that run; the lane commits the acceptance only once it says the wave lands. This is the
+  lane's reading of §5.5's "on main's tip" (the acceptance commit's first parent is the tip main
+  fast-forwards to); if the owner reads it otherwise, the cost is a repeat, not a weaker release.
+- **Dispatch first, write second.** The dry run on main is dispatched the moment the acceptance is
+  on main; notes, delta reads and the CHANGELOG follow while it runs (rule 6b already allows
+  context-only commits after it). No other dispatch starts until its jobs have.
+- **Reserved after 0.1.0**: 117 to 121 and the later options, in the roadmap.
+
+Unchanged: 067's own branch run, the fresh build and integration reviews, the release tier whole,
+the dry run on main's exact commit before the tag, and the owner's tag.
+
 ### The path to 0.1.0 is compressed (2026-10-21, night)
 
 The owner asked whether the rest could be "finish up the specs, review them, and then do the

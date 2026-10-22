@@ -42,6 +42,9 @@ the commit in the memo that cites it.
 | `smolagents` (huggingface/smolagents, cloned 2026-10-17, sparse: `src/smolagents`) | `@tool` and `Tool`, how the code agent's tools reach generated code, the remote executors that ship tool source into the sandbox | Apache-2.0 | 96f33faa |
 | `pydantic-ai` (pydantic/pydantic-ai, cloned 2026-10-17, sparse: `pydantic_ai_slim/pydantic_ai`, `src/pydantic_ai_harness/pydantic_ai_harness`) | schemas from type hints and docstrings, `ModelRetry`, approval and deferred tools, the harness's code mode on Monty | MIT | 1640d152 |
 | `boomslang` (HubSpot/boomslang, cloned 2026-10-18) | lxml for `wasm32-wasip1`: `cpython/lxml-wasi/` (libxml2 and libxslt configured static with no threads, modules or zlib; the sdist's generated `etree.c` and `objectify.c` compiled directly; a libxml2 change for WASI's missing `dup()`), and how its builtins table names `lxml.etree` and `lxml.objectify` | Apache-2.0 (`LICENSE`) | f1de75a |
+| `rust` (rust-lang/rust, cloned 2026-10-21, sparse: `.github`, `src/ci`, `src/doc/rustc-dev-guide/src/{tests,building}`) | CI tiers: `src/ci/github-actions/jobs.yml` (`pr`, `try`, `optional`, `auto`), the dev guide's `tests/ci.md` (bors, rollups, try builds, Docker caching), `tests/perf.md`, `tests/crater.md` | MIT OR Apache-2.0 (`LICENSE-MIT`, `LICENSE-APACHE`) | 1a2c479 |
+| `scipy` (scipy/scipy, cloned 2026-10-21, sparse: `.github`, `ci`, `tools`, `benchmarks`) | which tests run where: `-m full` jobs, `--fail-slow=1.0` (`pixi.toml`), `commit_message.yml` skip tags | BSD-3-Clause (`LICENSE.txt`) | 3f3cfc3 |
+| `emscripten-forge-recipes` (emscripten-forge/recipes, cloned 2026-10-21, sparse: `.github`, `emci`, `docs`) | building only changed recipes: `emci/find_recipes_with_changes.py`, `--skip-existing` | BSD-3-Clause (`LICENSE`) | 2c44545 |
 
 Removed: `bashkit` (everruns/bashkit; no licence file in the clone).
 Its Wizer snapshot of CPython 3.14 and its HTTP door are studied

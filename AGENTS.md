@@ -193,8 +193,12 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    2026-10-19). Progress files are never merged: take main's and accept
    again.
 6b. **Tag only what a dry run passed.** Before a release tag, the lane
-   makes the release acceptance on main's tip (`uv run pytest -n 3
-   --tier release --accept "Release <version>: the release tier"`),
+   makes the release acceptance on main's tip (`uv run pytest -n 6
+   --tier release --accept "Release <version>: the release tier"`,
+   at `-n 6` only while `build/lane.lock` is held and nothing else runs
+   on the machine, else `-n 3`; it may be the last wave's own acceptance
+   when the wave's tip carries the version bump, after a normal-tier run
+   without `--accept` is green; decisions.md, 2026-10-22),
    checks every release-tier difference against
    `context/release-tier-claims.toml` (spec 102, Decision 6), then
    dispatches the release workflow on main's exact commit, which runs

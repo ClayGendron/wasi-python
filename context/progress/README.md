@@ -245,8 +245,13 @@ The plain `uv run pytest` stays serial.
   rewrites its tier; the reason is in the history line. A test that leaves a normal group for a
   release group lowers that group's `passes`: `fewer`, as ever.
 - **The release acceptance**, before a tag, on main's tip, after the last wave and before the
-  dry run on main: `uv run pytest -n 3 --tier release --accept "Release <version>: the release
-  tier"`, then compare the release-tier rows with the previous release acceptance's record,
+  dry run on main: `uv run pytest -n 6 --tier release --accept "Release <version>: the release
+  tier"` (`-n 6` only while `build/lane.lock` is held and nothing else runs on the machine, else
+  `-n 3`; watch the workers' memory for the first ten minutes and restart at `-n 4` past 24 GiB).
+  It may be the last wave's own acceptance, when the wave's tip carries the version bump: first a
+  normal-tier run without `--accept`, green, so a lost pass cannot cost the long run; then the one
+  `--tier release --accept` run with every entry's reasons, which judges both tiers (`decisions.md`,
+  2026-10-22). Then compare the release-tier rows with the previous release acceptance's record,
   `uv run python tests/harness/sameness.py build/releases/<previous>/record.json
   build/progress/latest.json --tier-rows release --claims context/release-tier-claims.toml`.
   Every difference no claim explains is a release-tier regression and the tag waits. Keep the
@@ -285,7 +290,8 @@ The steps, in order:
    reviews here first, on the detached HEAD, and for a change built in the main tree, the change
    and its specification too.
 3. **Accept.** Create `build/lane.lock` (no other tier of the judge runs while it exists, the fast
-   tier included, AGENTS.md rule 3a), run `uv run pytest -n 3 --accept "Wave NN: <specs>"`, with
+   tier included, AGENTS.md rule 3a), run `uv run pytest -n 3 --accept "Wave NN: <specs>"` (`-n 6`
+   when nothing else runs on the machine; `decisions.md`, 2026-10-22), with
    `--accept-judge`, `--accept-growth`, `--accept-fewer-passes` and `--retire` as each entry's
    "For the lane" names them, every reason beginning with its specification's number; then remove
    the lock. The serial confirmation spec 052's Decision 11 asks for is the wave's dry run (step
