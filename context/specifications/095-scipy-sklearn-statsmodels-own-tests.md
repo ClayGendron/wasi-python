@@ -1280,6 +1280,25 @@ measurements* holds the detail.
   classes and name; markers are not modelled), checked against each measured group's own
   collected tests.
 
+### The branch's release runs (READ, `gh run view --json jobs`; normal tier, no `release-tier`)
+
+- **39705963592** on `b86f847c`: red in `judge (ubuntu-24.04, own-rest)` and `judge (macos-15,
+  own-rest)`, one line each, `test_every_other_family_stages_what_it_staged_before`: "lxml's
+  group JSON changed". lxml's group JSON names classes read from its tree, and those unit jobs
+  have no trees. Not a growth line. Every other job passed, the Windows legs and both
+  `upstream-sci-smoke` shards included. The gather was skipped behind the red jobs.
+  - The fix (`ab5cde5b`): the fixture gains lxml's tree-free digest, recorded with main's
+    harness (`f01719f3…`, equal to the branch's and to the CI jobs' value). The row compares it
+    on a host without the tree. This run's two red jobs are the row seen failing. Locally the row
+    passes with the trees and with `pins.source_pair` stubbed to none.
+- **39708064741** on `ab5cde5b`, this build's run: 42 jobs passed, Windows included. One job
+  failed: `judge (ubuntu-24.04, upstream-plot-g)`, in its `tests/upstream/fetch.py` step, on
+  `ssl.SSLEOFError: UNEXPECTED_EOF_WHILE_READING`. That was a download of matplotlib's shard's
+  inputs, and the same job passed in 39705963592. Not a growth line and not G7. Not re-run, by
+  the rule on downloads; the lane decides. The gather was skipped behind it.
+- **The new normal shards' job times** (39708064741): `upstream-sci-smoke-a` 189 s and
+  `upstream-sci-smoke-b` 178 s, each within 360 s.
+
 ### For the lane, as built
 
 - **Wave kind:** build-class (the release workflow), with one harness line (`packages.py`).
@@ -1296,8 +1315,10 @@ measurements* holds the detail.
 ```
 Before you ask for a review:
 - [x] rebased onto main's tip today: 2a8091d7 (the Status line says so); conflicts named above;
-- [x] CI run dispatched on this exact commit (normal tier, no release-tier input): its id and
-      red lines are in the next context-only commit's line below, read with gh run view;
+- [ ] CI run dispatched and read (normal tier, no release-tier input): 39708064741 on ab5cde5b,
+      red only at upstream-plot-g's fetch, a download that failed (SSL EOF), not a growth line or
+      G7, and not 095's shard; not re-dispatched, by the rule on downloads (the lane's call);
+      Windows green;
 - [x] every number from a measured run on this base, labelled EXECUTED; passes 1 and 2 on
       d0d91cef, 3 and 4 on 1556bbd5, said where each is used;
 - [x] "For the lane": the claim list, the flags, each reason beginning with 095, the wave kind
