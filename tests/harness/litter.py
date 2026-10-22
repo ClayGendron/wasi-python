@@ -177,7 +177,16 @@ def sealed_leftovers(root: Path) -> list[str]:
     Only named, never unsealed here (no sweep)."""
     if sys.platform == "win32" or not root.is_dir():
         return []
-    return [d for d, _dirs, _files in os.walk(root) if not os.lstat(d).st_mode & stat.S_IWUSR]
+    return [d for d, _dirs, _files in os.walk(root) if not _writable(d)]
+
+
+def _writable(folder: str) -> bool:
+    """Whether a folder has its owner's write bit. One another worker's guest removed after the
+    walk listed it is gone, not sealed, so it counts as writable."""
+    try:
+        return bool(os.lstat(folder).st_mode & stat.S_IWUSR)
+    except FileNotFoundError:
+        return True
 
 
 class Watch:

@@ -164,6 +164,18 @@ def test_sealed_leftovers_are_named(tmp_path: Path) -> None:
     assert litter.sealed_leftovers(tmp_path) == []
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="the scan names nothing on Windows")
+def test_a_folder_removed_during_the_scan_is_not_an_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Another worker's guest removes its run folder while a starting judge walks the scratch
+    root: the folder the walk listed is gone by the time it is looked at, and is simply not
+    named."""
+    gone = tmp_path / "run-gone"
+    monkeypatch.setattr(litter.os, "walk", lambda root: iter([(str(gone), [], [])]))
+    assert litter.sealed_leftovers(tmp_path) == []
+
+
 def test_the_guest_folders_leave_the_home_folder_on_darwin(tmp_path: Path) -> None:
     """On darwin the judge's guest folders go under the per-user temporary
     folder, by its real path, in a folder keyed by the checkout (two worktrees never share one,
