@@ -293,468 +293,533 @@ systems = ["release"]
 # once in each shard that stages scipy.
 
 [shard.upstream-sci-smoke-a]
-# 476.0 G measured
+# 470.5 G measured
 groups = ["scipy-smoke-a", "scipy-smoke-b"]
 systems = ["linux"]
 
 [shard.upstream-sci-smoke-b]
-# 396.0 G measured
+# 393.1 G measured
 groups = ["scikit-learn-smoke", "statsmodels-smoke"]
 systems = ["linux"]
 
 [shard.upstream-sci-release-01]
-# 13341.9 G measured
-groups = ["scipy-special-1"]
+# 3031.9 G measured
+groups = ["scipy-stats-1-stats-4"]
 systems = ["release"]
 
 [shard.upstream-sci-release-02]
-# 9313.8 G measured
-groups = ["scipy-special-mpmath-8"]
+# 2856.2 G measured
+groups = ["scipy-special-precompute-gammainc-2"]
 systems = ["release"]
 
 [shard.upstream-sci-release-03]
-# 7727.1 G measured
-groups = ["scipy-stats-1"]
-systems = ["release"]
-
-[shard.upstream-sci-release-04]
-# 4744.7 G measured
-groups = ["scipy-stats-fit-5"]
-systems = ["release"]
-
-[shard.upstream-sci-release-05]
-# 4699.1 G measured
+# 2064.4 G measured
 groups = ["scipy-stats-continuous-basic-14"]
 systems = ["release"]
 
-[shard.upstream-sci-release-06]
-# 2822.9 G measured
-groups = ["scipy-stats-continuous-basic-3"]
-systems = ["release"]
-
-[shard.upstream-sci-release-07]
-# 1948.0 G measured
-groups = ["scipy-stats-continuous-basic-8"]
-systems = ["release"]
-
-[shard.upstream-sci-release-08]
-# 1744.8 G measured
-groups = ["scipy-stats-continuous-3"]
-systems = ["release"]
-
-[shard.upstream-sci-release-09]
-# 1657.6 G measured
+[shard.upstream-sci-release-04]
+# 1686.2 G measured
 groups = ["scipy-stats-fit-4"]
 systems = ["release"]
 
-[shard.upstream-sci-release-10]
+[shard.upstream-sci-release-05]
 # 1623.7 G measured
 groups = ["scipy-stats-continuous-basic-12"]
 systems = ["release"]
 
-[shard.upstream-sci-release-11]
+[shard.upstream-sci-release-06]
 # 1604.6 G measured
 groups = ["scipy-stats-continuous-basic-15"]
 systems = ["release"]
 
+[shard.upstream-sci-release-07]
+# 1546.3 G measured
+groups = ["scipy-special-precompute-gammainc-4"]
+systems = ["release"]
+
+[shard.upstream-sci-release-08]
+# 1489.5 G measured
+groups = ["scipy-stats-1-stats-3"]
+systems = ["release"]
+
+[shard.upstream-sci-release-09]
+# 1488.3 G measured
+groups = ["scipy-stats-fit-5"]
+systems = ["release"]
+
+[shard.upstream-sci-release-10]
+# 1296.0 G measured
+groups = ["scipy-stats-continuous-3"]
+systems = ["release"]
+
+[shard.upstream-sci-release-11]
+# 1044.0 G measured
+groups = ["scipy-stats-continuous-basic-3"]
+systems = ["release"]
+
 [shard.upstream-sci-release-12]
-# 989.6 G measured
-groups = ["scipy-stats-continuous-basic-10"]
+# 1005.2 G measured
+groups = ["scipy-stats-continuous-basic-8"]
 systems = ["release"]
 
 [shard.upstream-sci-release-13]
-# 950.2 G measured
-groups = ["scipy-interpolate-fitpack2-2"]
+# 850.2 G measured
+groups = ["scipy-smoke-slow-propack-5"]
 systems = ["release"]
 
 [shard.upstream-sci-release-14]
-# 850.2 G measured
-groups = ["scipy-smoke-slow-propack-4"]
+# 725.0 G measured
+groups = ["scipy-stats-1-stats-1", "scipy-sparse-64bit-3", "scipy-special-mpmath-24"]
 systems = ["release"]
 
 [shard.upstream-sci-release-15]
-# 838.8 G measured
-groups = ["scipy-special-mpmath-4"]
+# 725.0 G measured
+groups = ["scipy-optimize-1-1", "scipy-special-mpmath-2"]
 systems = ["release"]
 
 [shard.upstream-sci-release-16]
-# 758.4 G measured
-groups = ["statsmodels-regression-2"]
+# 725.0 G measured
+groups = ["scipy-stats-continuous-basic-16", "scipy-stats-fit-11"]
 systems = ["release"]
 
 [shard.upstream-sci-release-17]
-# 756.2 G measured
-groups = ["statsmodels-discrete-discrete-1"]
+# 725.0 G measured
+groups = ["scikit-learn-decomposition-pca-1", "scikit-learn-ensemble-hist_gradient_boosting", "scipy-stats-distributions-4", "scikit-learn-decomposition-2"]
 systems = ["release"]
 
 [shard.upstream-sci-release-18]
-# 754.9 G measured
-groups = ["scipy-special-mpmath-1"]
+# 725.0 G measured
+groups = ["scipy-smoke-slow-propack-3", "statsmodels-discrete-count-model-1", "scipy-special-mpmath-12"]
 systems = ["release"]
 
 [shard.upstream-sci-release-19]
-# 746.6 G measured
-groups = ["scipy-optimize-2"]
+# 724.9 G measured
+groups = ["statsmodels-stats-1-corrpsd-1", "scipy-stats-fit-14"]
 systems = ["release"]
 
 [shard.upstream-sci-release-20]
-# 744.4 G measured
-groups = ["statsmodels-discrete-count-model-2"]
-systems = ["release"]
-
-[shard.upstream-sci-release-21]
-# 741.1 G measured
-groups = ["statsmodels-nonparametric-2"]
-systems = ["release"]
-
-[shard.upstream-sci-release-22]
-# 736.2 G measured
-groups = ["scikit-learn-tests-common-2"]
-systems = ["release"]
-
-[shard.upstream-sci-release-23]
-# 730.0 G measured
-groups = ["scipy-special-mpmath-2"]
-systems = ["release"]
-
-[shard.upstream-sci-release-24]
-# 728.4 G measured
-groups = ["scipy-stats-continuous-basic-17"]
-systems = ["release"]
-
-[shard.upstream-sci-release-25]
-# 728.1 G measured
-groups = ["statsmodels-tsa-statespace-1"]
-systems = ["release"]
-
-[shard.upstream-sci-release-26]
-# 725.9 G measured
-groups = ["statsmodels-stats-1"]
-systems = ["release"]
-
-[shard.upstream-sci-release-27]
-# 725.0 G measured
-groups = ["scipy-interpolate-fitpack2-1", "scikit-learn-mixture", "statsmodels-tsa-arima-estimators-to-tsa-base"]
-systems = ["release"]
-
-[shard.upstream-sci-release-28]
 # 724.9 G measured
 groups = ["statsmodels-emplike", "scipy-stats-continuous-5"]
 systems = ["release"]
 
-[shard.upstream-sci-release-29]
-# 724.8 G measured
-groups = ["scipy-stats-axis-nan-policy-3", "statsmodels-regression-1"]
+[shard.upstream-sci-release-21]
+# 724.9 G measured
+groups = ["scikit-learn-impute-to-inspection-plot", "scipy-special-mpmath-18", "scipy-stats-1-stats-5"]
 systems = ["release"]
 
-[shard.upstream-sci-release-30]
+[shard.upstream-sci-release-22]
+# 724.9 G measured
+groups = ["scipy-stats-continuous-basic-20", "scikit-learn-linear_model-2"]
+systems = ["release"]
+
+[shard.upstream-sci-release-23]
+# 724.9 G measured
+groups = ["statsmodels-discrete-discrete-1", "scipy-sparse-64bit-2", "scipy-special-cdflib-2"]
+systems = ["release"]
+
+[shard.upstream-sci-release-24]
 # 724.8 G measured
 groups = ["statsmodels-robust", "scipy-lib-to-fft"]
 systems = ["release"]
 
-[shard.upstream-sci-release-31]
+[shard.upstream-sci-release-25]
 # 724.8 G measured
 groups = ["scipy-stats-continuous-basic-19", "statsmodels-tsa-2"]
 systems = ["release"]
 
-[shard.upstream-sci-release-32]
-# 724.8 G measured
-groups = ["scikit-learn-model_selection-3", "statsmodels-tsa-forecasting"]
+[shard.upstream-sci-release-26]
+# 724.7 G measured
+groups = ["scipy-special-mpmath-5", "scipy-smoke-slow-propack-2", "statsmodels-multivariate"]
 systems = ["release"]
 
-[shard.upstream-sci-release-33]
+[shard.upstream-sci-release-27]
+# 724.7 G measured
+groups = ["scipy-special-mpmath-33", "scikit-learn-ensemble-1"]
+systems = ["release"]
+
+[shard.upstream-sci-release-28]
 # 724.6 G measured
 groups = ["scikit-learn-linear_model-1", "statsmodels-tsa-holtwinters"]
 systems = ["release"]
 
-[shard.upstream-sci-release-34]
+[shard.upstream-sci-release-29]
 # 724.6 G measured
-groups = ["statsmodels-genmod", "scipy-stats-continuous-basic-4"]
+groups = ["scipy-stats-fit-16", "scipy-integrate-cubature-2", "scipy-stats-continuous-basic-18"]
 systems = ["release"]
 
-[shard.upstream-sci-release-35]
+[shard.upstream-sci-release-30]
 # 724.6 G measured
-groups = ["scikit-learn-tests-1", "scikit-learn-linear_model-3"]
+groups = ["scikit-learn-ensemble-forest-1", "statsmodels-tsa-statespace-1"]
 systems = ["release"]
 
-[shard.upstream-sci-release-36]
+[shard.upstream-sci-release-31]
 # 724.5 G measured
-groups = ["scipy-sparse-linalg", "scipy-signal-conv-method"]
+groups = ["statsmodels-tsa-forecasting", "scipy-stats-distributions-1"]
 systems = ["release"]
 
-[shard.upstream-sci-release-37]
+[shard.upstream-sci-release-32]
 # 724.4 G measured
-groups = ["scipy-stats-axis-nan-policy-2", "scipy-stats-axis-nan-policy-1"]
+groups = ["scipy-interpolate-fitpack2-3", "scipy-stats-fit-8", "scipy-special-mpmath-34", "scipy-ndimage-to-optimize-trustregion_constr", "scikit-learn-mixture"]
 systems = ["release"]
 
-[shard.upstream-sci-release-38]
+[shard.upstream-sci-release-33]
+# 724.3 G measured
+groups = ["scipy-stats-continuous-7", "scipy-stats-1-4", "scikit-learn-metrics-plot"]
+systems = ["release"]
+
+[shard.upstream-sci-release-34]
 # 724.3 G measured
 groups = ["statsmodels-tsa-3", "statsmodels-stats-3"]
 systems = ["release"]
 
+[shard.upstream-sci-release-35]
+# 724.2 G measured
+groups = ["scipy-optimize-2", "scipy-stats-continuous-basic-21", "scipy-stats-1-2-kdeoth-3"]
+systems = ["release"]
+
+[shard.upstream-sci-release-36]
+# 724.1 G measured
+groups = ["scipy-smoke-slow-propack-6", "statsmodels-tsa-1"]
+systems = ["release"]
+
+[shard.upstream-sci-release-37]
+# 724.1 G measured
+groups = ["scipy-special-mpmath-14", "scipy-integrate-cubature-1"]
+systems = ["release"]
+
+[shard.upstream-sci-release-38]
+# 724.1 G measured
+groups = ["scipy-special-mpmath-4", "scipy-spatial"]
+systems = ["release"]
+
 [shard.upstream-sci-release-39]
-# 724.3 G measured
-groups = ["scipy-interpolate-2", "statsmodels-regression-3", "scipy-stats-fit-3"]
+# 724.1 G measured
+groups = ["statsmodels-genmod", "scipy-stats-continuous-6"]
 systems = ["release"]
 
 [shard.upstream-sci-release-40]
-# 723.9 G measured
-groups = ["scipy-smoke-slow-propack-2", "scipy-smoke-slow-propack-1"]
+# 724.1 G measured
+groups = ["scipy-special-mpmath-27", "scipy-special-mpmath-21"]
 systems = ["release"]
 
 [shard.upstream-sci-release-41]
-# 723.5 G measured
-groups = ["scipy-smoke-slow-propack-5", "scipy-stats-continuous-basic-11"]
+# 724.1 G measured
+groups = ["scipy-stats-axis-nan-policy-4", "scipy-special-mpmath-36", "scipy-stats-continuous-2"]
 systems = ["release"]
 
 [shard.upstream-sci-release-42]
-# 723.4 G measured
-groups = ["scipy-integrate-cubature-1", "scipy-interpolate-1"]
+# 724.0 G measured
+groups = ["scipy-stats-fit-1", "scipy-stats-continuous-basic-17"]
 systems = ["release"]
 
 [shard.upstream-sci-release-43]
-# 723.3 G measured
-groups = ["scipy-optimize-1", "scikit-learn-decomposition-1"]
+# 724.0 G measured
+groups = ["scipy-special-mpmath-7", "scipy-stats-continuous-basic-7"]
 systems = ["release"]
 
 [shard.upstream-sci-release-44]
-# 723.3 G measured
-groups = ["scipy-stats-continuous-basic-9", "scipy-stats-continuous-7"]
+# 724.0 G measured
+groups = ["scipy-stats-distributions-2", "scipy-special-mpmath-23"]
 systems = ["release"]
 
 [shard.upstream-sci-release-45]
-# 723.2 G measured
-groups = ["scikit-learn-ensemble-2", "scipy-stats-fit-2", "scipy-special-cdflib-3"]
+# 723.9 G measured
+groups = ["scikit-learn-tests-metaestimators-metadata-routing-1", "scipy-special-mpmath-35", "statsmodels-tsa-stl", "scipy-integrate-1", "scipy-stats-axis-nan-policy-1", "statsmodels-sandbox-distributions-to-stats-libqsturng"]
 systems = ["release"]
 
 [shard.upstream-sci-release-46]
-# 723.0 G measured
-groups = ["scipy-optimize-3", "scipy-stats-continuous-4"]
+# 723.7 G measured
+groups = ["scipy-stats-continuous-basic-11", "scipy-stats-axis-nan-policy-2", "scipy-special-cdflib-1", "scikit-learn-tests-metaestimators-metadata-routing-2"]
 systems = ["release"]
 
 [shard.upstream-sci-release-47]
+# 723.7 G measured
+groups = ["scipy-interpolate-fitpack2-4", "scipy-sparse-csgraph-to-sparse-linalg-eigen"]
+systems = ["release"]
+
+[shard.upstream-sci-release-48]
+# 723.6 G measured
+groups = ["scipy-smoke-slow-propack-4", "scikit-learn-model_selection-3", "statsmodels-base-to-datasets", "statsmodels-discrete-1"]
+systems = ["release"]
+
+[shard.upstream-sci-release-49]
+# 723.6 G measured
+groups = ["scipy-special-mpmath-8", "scikit-learn-linear_model-glm"]
+systems = ["release"]
+
+[shard.upstream-sci-release-50]
+# 723.5 G measured
+groups = ["statsmodels-regression-lme-1", "statsmodels-discrete-count-model-3"]
+systems = ["release"]
+
+[shard.upstream-sci-release-51]
+# 723.5 G measured
+groups = ["scikit-learn-tests-common-5", "scipy-special-3", "scipy-special-mpmath-15", "scipy-special-4"]
+systems = ["release"]
+
+[shard.upstream-sci-release-52]
+# 723.4 G measured
+groups = ["scipy-stats-1-2-kdeoth-2", "scipy-stats-fit-7"]
+systems = ["release"]
+
+[shard.upstream-sci-release-53]
+# 723.4 G measured
+groups = ["scikit-learn-tests-common-3", "statsmodels-nonparametric-2"]
+systems = ["release"]
+
+[shard.upstream-sci-release-54]
+# 723.4 G measured
+groups = ["statsmodels-tsa-statespace-4", "scikit-learn-model_selection-2", "scikit-learn-ensemble-forest-2"]
+systems = ["release"]
+
+[shard.upstream-sci-release-55]
+# 723.3 G measured
+groups = ["scikit-learn-tests-common-4", "scikit-learn-manifold"]
+systems = ["release"]
+
+[shard.upstream-sci-release-56]
+# 723.2 G measured
+groups = ["scipy-stats-1-3", "statsmodels-graphics-to-multivariate-factor_rotation"]
+systems = ["release"]
+
+[shard.upstream-sci-release-57]
+# 723.1 G measured
+groups = ["scipy-stats-fit-9", "scipy-stats-1-resampling-1"]
+systems = ["release"]
+
+[shard.upstream-sci-release-58]
+# 723.1 G measured
+groups = ["scipy-stats-continuous-basic-10", "scipy-smoke-slow-propack-1"]
+systems = ["release"]
+
+[shard.upstream-sci-release-59]
 # 723.0 G measured
 groups = ["statsmodels-tsa-ardl", "scikit-learn-experimental-to-gaussian_process"]
 systems = ["release"]
 
-[shard.upstream-sci-release-48]
-# 723.0 G measured
-groups = ["scikit-learn-tests-common-3", "scikit-learn-inspection"]
-systems = ["release"]
-
-[shard.upstream-sci-release-49]
-# 722.9 G measured
-groups = ["scipy-smoke-slow-sampling-1", "scikit-learn-datasets", "scikit-learn-decomposition-2"]
-systems = ["release"]
-
-[shard.upstream-sci-release-50]
-# 722.9 G measured
-groups = ["scikit-learn-ensemble-forest-1", "scipy-stats-continuous-basic-21"]
-systems = ["release"]
-
-[shard.upstream-sci-release-51]
-# 722.9 G measured
-groups = ["scipy-linalg", "scikit-learn-tests-common-5"]
-systems = ["release"]
-
-[shard.upstream-sci-release-52]
-# 722.8 G measured
-groups = ["scipy-special-cdflib-1", "scipy-special-mpmath-6"]
-systems = ["release"]
-
-[shard.upstream-sci-release-53]
-# 722.8 G measured
-groups = ["statsmodels-regression-lme-2", "statsmodels-distributions-copula-to-duration"]
-systems = ["release"]
-
-[shard.upstream-sci-release-54]
-# 722.6 G measured
-groups = ["statsmodels-nonparametric-1", "statsmodels-discrete-discrete-2"]
-systems = ["release"]
-
-[shard.upstream-sci-release-55]
-# 722.6 G measured
-groups = ["statsmodels-discrete-2", "statsmodels-tsa-1"]
-systems = ["release"]
-
-[shard.upstream-sci-release-56]
-# 722.5 G measured
-groups = ["scipy-stats-fit-1", "scikit-learn-linear_model-2"]
-systems = ["release"]
-
-[shard.upstream-sci-release-57]
-# 722.1 G measured
-groups = ["scipy-stats-continuous-8", "scipy-signal-signaltools"]
-systems = ["release"]
-
-[shard.upstream-sci-release-58]
-# 722.0 G measured
-groups = ["statsmodels-tsa-statespace-3", "statsmodels-tsa-statespace-4"]
-systems = ["release"]
-
-[shard.upstream-sci-release-59]
-# 721.7 G measured
-groups = ["scikit-learn-decomposition-pca-1", "scipy-sparse-1"]
-systems = ["release"]
-
 [shard.upstream-sci-release-60]
-# 721.5 G measured
-groups = ["scipy-stats-continuous-basic-16", "scipy-stats-continuous-basic-7"]
+# 723.0 G measured
+groups = ["scipy-interpolate-fitpack2-2", "scipy-special-1"]
 systems = ["release"]
 
 [shard.upstream-sci-release-61]
-# 721.4 G measured
-groups = ["scipy-smoke-slow-9", "scikit-learn-manifold", "scipy-stats-continuous-basic-13"]
+# 722.9 G measured
+groups = ["statsmodels-regression-3", "statsmodels-tsa-vector_ar", "scikit-learn-neighbors-to-neural_network"]
 systems = ["release"]
 
 [shard.upstream-sci-release-62]
-# 721.1 G measured
-groups = ["scikit-learn-model_selection-1", "scipy-special-mpmath-3", "scipy-smoke-slow-8"]
+# 722.9 G measured
+groups = ["scipy-special-mpmath-25"]
 systems = ["release"]
 
 [shard.upstream-sci-release-63]
-# 721.0 G measured
-groups = ["scipy-stats-distributions-2", "scikit-learn-loss-to-cross_decomposition"]
+# 722.9 G measured
+groups = ["scipy-stats-fit-2", "scipy-smoke-slow-9", "scikit-learn-tree"]
 systems = ["release"]
 
 [shard.upstream-sci-release-64]
-# 720.9 G measured
-groups = ["scipy-stats-continuous-6", "scipy-stats-axis-nan-policy-6"]
+# 722.8 G measured
+groups = ["statsmodels-tsa-statespace-3", "statsmodels-regression-lme-2"]
 systems = ["release"]
 
 [shard.upstream-sci-release-65]
-# 720.5 G measured
-groups = ["scipy-stats-distributions-3", "scikit-learn-decomposition-pca-2"]
+# 722.7 G measured
+groups = ["scipy-signal-signaltools", "scipy-stats-1-mgc-2", "scipy-stats-1-2-kdeoth-1"]
 systems = ["release"]
 
 [shard.upstream-sci-release-66]
-# 720.5 G measured
-groups = ["scipy-sparse-64bit-1", "scipy-ndimage-to-optimize-trustregion_constr"]
+# 722.6 G measured
+groups = ["scipy-sparse-linalg-2", "scipy-stats-axis-nan-policy-3"]
 systems = ["release"]
 
 [shard.upstream-sci-release-67]
-# 720.5 G measured
-groups = ["scipy-stats-axis-nan-policy-4"]
+# 722.4 G measured
+groups = ["scipy-stats-fit-13", "scipy-stats-continuous-1"]
 systems = ["release"]
 
 [shard.upstream-sci-release-68]
-# 720.4 G measured
-groups = ["scikit-learn-tests-common-4", "statsmodels-discrete-1"]
+# 722.3 G measured
+groups = ["scipy-special-mpmath-10", "scipy-special-mpmath-37"]
 systems = ["release"]
 
 [shard.upstream-sci-release-69]
-# 720.2 G measured
-groups = ["scikit-learn-linear_model-glm", "scipy-spatial", "scipy-smoke-slow-sampling-2"]
+# 722.3 G measured
+groups = ["scipy-special-mpmath-32", "scipy-stats-1-mgc-3"]
 systems = ["release"]
 
 [shard.upstream-sci-release-70]
-# 720.0 G measured
-groups = ["scipy-interpolate-fitpack2-3", "statsmodels-sandbox-distributions-to-stats-libqsturng"]
+# 722.2 G measured
+groups = ["scipy-linalg", "scipy-sparse-linalg-1"]
 systems = ["release"]
 
 [shard.upstream-sci-release-71]
-# 719.7 G measured
-groups = ["scikit-learn-model_selection-2", "scikit-learn-impute-to-inspection-plot", "scikit-learn-ensemble-forest-2"]
+# 722.1 G measured
+groups = ["scipy-stats-fit-12", "scipy-special-mpmath-20"]
 systems = ["release"]
 
 [shard.upstream-sci-release-72]
-# 719.6 G measured
-groups = ["scipy-stats-continuous-1", "scipy-stats-continuous-basic-2"]
+# 722.0 G measured
+groups = ["scipy-special-mpmath-11", "scipy-special-mpmath-3"]
 systems = ["release"]
 
 [shard.upstream-sci-release-73]
-# 719.3 G measured
-groups = ["scipy-sparse-linalg-isolve-iterative-1", "scikit-learn-preprocessing-to-semi_supervised"]
+# 721.6 G measured
+groups = ["scikit-learn-model_selection-1", "scipy-special-mpmath-26", "scipy-optimize-3"]
 systems = ["release"]
 
 [shard.upstream-sci-release-74]
-# 718.9 G measured
-groups = ["statsmodels-stats-proportion-1", "statsmodels-tsa-interp-to-tsa-regime_switching", "statsmodels-stats-proportion-2"]
+# 721.2 G measured
+groups = ["scipy-stats-continuous-4", "scikit-learn-preprocessing-to-semi_supervised", "scipy-special-mpmath-31"]
 systems = ["release"]
 
 [shard.upstream-sci-release-75]
+# 721.2 G measured
+groups = ["statsmodels-regression-2", "scikit-learn-ensemble-2"]
+systems = ["release"]
+
+[shard.upstream-sci-release-76]
+# 721.1 G measured
+groups = ["scipy-sparse-linalg-isolve-iterative-1", "scipy-interpolate-fitpack2-1"]
+systems = ["release"]
+
+[shard.upstream-sci-release-77]
+# 721.1 G measured
+groups = ["scipy-special-mpmath-28", "statsmodels-stats-proportion-3"]
+systems = ["release"]
+
+[shard.upstream-sci-release-78]
+# 720.4 G measured
+groups = ["scipy-special-mpmath-30", "scipy-special-mpmath-1-b"]
+systems = ["release"]
+
+[shard.upstream-sci-release-79]
+# 719.5 G measured
+groups = ["scipy-stats-1-1", "scipy-stats-axis-nan-policy-6", "scipy-stats-continuous-8", "scikit-learn-datasets"]
+systems = ["release"]
+
+[shard.upstream-sci-release-80]
+# 719.2 G measured
+groups = ["scipy-stats-distributions-3", "scipy-stats-fit-6", "scipy-stats-continuous-basic-6"]
+systems = ["release"]
+
+[shard.upstream-sci-release-81]
+# 719.1 G measured
+groups = ["scikit-learn-tests-common-2", "statsmodels-stats-proportion-1"]
+systems = ["release"]
+
+[shard.upstream-sci-release-82]
+# 718.6 G measured
+groups = ["scipy-stats-continuous-basic-2", "scipy-stats-axis-nan-policy-5"]
+systems = ["release"]
+
+[shard.upstream-sci-release-83]
+# 718.4 G measured
+groups = ["scipy-special-mpmath-13", "scipy-smoke-slow-sampling-2"]
+systems = ["release"]
+
+[shard.upstream-sci-release-84]
 # 718.0 G measured
 groups = ["scipy-stats-continuous-basic-5"]
 systems = ["release"]
 
-[shard.upstream-sci-release-76]
+[shard.upstream-sci-release-85]
 # 717.6 G measured
-groups = ["scipy-stats-axis-nan-policy-5", "scipy-stats-distributions-1"]
+groups = ["scipy-stats-continuous-basic-1", "statsmodels-tsa-statespace-2", "scipy-signal", "scipy-smoke-slow-8", "scipy-special-cdflib-3"]
 systems = ["release"]
 
-[shard.upstream-sci-release-77]
-# 717.4 G measured
-groups = ["scipy-smoke-slow-propack-3", "scikit-learn-tests-metaestimators-metadata-routing-2", "statsmodels-base-to-datasets", "statsmodels-tsa-statespace-2"]
-systems = ["release"]
-
-[shard.upstream-sci-release-78]
+[shard.upstream-sci-release-86]
 # 717.3 G measured
-groups = ["statsmodels-regression-lme-1", "scikit-learn-utils"]
+groups = ["scipy-stats-fit-17", "scikit-learn-utils"]
 systems = ["release"]
 
-[shard.upstream-sci-release-79]
+[shard.upstream-sci-release-87]
+# 716.8 G measured
+groups = ["scipy-special-mpmath-19", "scipy-special-mpmath-6", "scipy-stats-1-resampling-2", "statsmodels-discrete-discrete-2"]
+systems = ["release"]
+
+[shard.upstream-sci-release-88]
 # 716.7 G measured
-groups = ["statsmodels-tsa-vector_ar", "scipy-sparse-csgraph-to-sparse-linalg-eigen", "scipy-stats-continuous-basic-18"]
+groups = ["scipy-stats-fit-3", "statsmodels-distributions-copula-to-duration", "scipy-stats-1-stats-2", "scipy-interpolate-1"]
 systems = ["release"]
 
-[shard.upstream-sci-release-80]
-# 716.5 G measured
-groups = ["scikit-learn-ensemble-1", "scipy-stats-continuous-basic-6"]
+[shard.upstream-sci-release-89]
+# 716.1 G measured
+groups = ["statsmodels-stats-2-knockoff-2", "scikit-learn-linear_model-3"]
 systems = ["release"]
 
-[shard.upstream-sci-release-81]
-# 716.3 G measured
-groups = ["statsmodels-discrete-count-model-1", "scikit-learn-neighbors-to-neural_network"]
+[shard.upstream-sci-release-90]
+# 716.0 G measured
+groups = ["scipy-interpolate-gil", "scipy-special-mpmath-16"]
 systems = ["release"]
 
-[shard.upstream-sci-release-82]
+[shard.upstream-sci-release-91]
 # 715.7 G measured
 groups = ["scikit-learn-tests-common-1", "statsmodels-gam"]
 systems = ["release"]
 
-[shard.upstream-sci-release-83]
-# 715.0 G measured
-groups = ["scipy-sparse-64bit-3", "statsmodels-stats-4"]
+[shard.upstream-sci-release-92]
+# 715.6 G measured
+groups = ["scipy-smoke-slow-sampling-1", "scipy-special-mpmath-1-a", "statsmodels-stats-4", "scipy-optimize-1-2"]
 systems = ["release"]
 
-[shard.upstream-sci-release-84]
-# 714.4 G measured
-groups = ["scipy-signal", "scipy-sparse-base-2", "scikit-learn-tree", "scikit-learn-tests-metaestimators-metadata-routing-1", "statsmodels-tsa-stl", "statsmodels-othermod"]
+[shard.upstream-sci-release-93]
+# 714.0 G measured
+groups = ["statsmodels-tests-to-treatment", "scipy-interpolate-2", "scikit-learn-tests-1-2"]
 systems = ["release"]
 
-[shard.upstream-sci-release-85]
-# 711.2 G measured
-groups = ["scipy-sparse-base-1", "scikit-learn-metrics"]
+[shard.upstream-sci-release-94]
+# 712.1 G measured
+groups = ["scipy-sparse-base-1", "statsmodels-nonparametric-1"]
 systems = ["release"]
 
-[shard.upstream-sci-release-86]
-# 709.5 G measured
-groups = ["statsmodels-graphics-to-multivariate-factor_rotation", "statsmodels-tests-to-treatment", "scipy-stats-continuous-basic-1"]
+[shard.upstream-sci-release-95]
+# 712.0 G measured
+groups = ["scikit-learn-decomposition-pca-2", "statsmodels-discrete-2", "statsmodels-stats-1-1"]
 systems = ["release"]
 
-[shard.upstream-sci-release-87]
-# 708.1 G measured
-groups = ["statsmodels-stats-proportion-3", "scikit-learn-ensemble-hist_gradient_boosting", "scipy-special-cdflib-2", "scipy-io-harwell_boeing-to-io"]
+[shard.upstream-sci-release-96]
+# 710.1 G measured
+groups = ["scipy-sparse-64bit-1", "scikit-learn-loss-to-cross_decomposition"]
 systems = ["release"]
 
-[shard.upstream-sci-release-88]
-# 707.0 G measured
-groups = ["scipy-interpolate-gil", "scipy-stats-continuous-2"]
+[shard.upstream-sci-release-97]
+# 709.8 G measured
+groups = ["scipy-stats-fit-18", "scipy-stats-1-mgc-1"]
 systems = ["release"]
 
-[shard.upstream-sci-release-89]
-# 705.6 G measured
-groups = ["scipy-stats-continuous-basic-20", "statsmodels-multivariate"]
+[shard.upstream-sci-release-98]
+# 708.7 G measured
+groups = ["scipy-special-mpmath-22", "scipy-stats-fit-15"]
 systems = ["release"]
 
-[shard.upstream-sci-release-90]
-# 700.7 G measured
-groups = ["statsmodels-stats-2"]
+[shard.upstream-sci-release-99]
+# 707.4 G measured
+groups = ["scipy-stats-fit-10", "scikit-learn-inspection"]
 systems = ["release"]
 
-[shard.upstream-sci-release-91]
-# 515.1 G measured
-groups = ["scipy-integrate-1", "scikit-learn-metrics-plot", "scipy-fftpack-to-integrate-ivp", "scipy-sparse-64bit-2", "scipy-sparse-linalg-isolve-iterative-2", "scipy-sparse-linalg-isolve-1", "scipy-special-mpmath-betainc", "scipy-special-mpmath-betaincc", "scipy-special-mpmath-7", "scipy-special-mpmath-5", "scipy-integrate-cubature-2"]
+[shard.upstream-sci-release-100]
+# 702.9 G measured
+groups = ["scipy-special-mpmath-17", "scipy-stats-continuous-basic-4", "statsmodels-stats-2-knockoff-1", "statsmodels-tsa-interp-to-tsa-regime_switching", "statsmodels-stats-1-corrpsd-2", "scipy-fftpack-to-integrate-ivp", "scipy-special-mpmath-betainc", "statsmodels-regression-1", "statsmodels-tsa-arima-estimators-to-tsa-base", "scipy-sparse-1"]
+systems = ["release"]
+
+[shard.upstream-sci-release-101]
+# 702.6 G measured
+groups = ["scipy-stats-continuous-basic-9", "scipy-special-mpmath-29", "scikit-learn-decomposition-1"]
+systems = ["release"]
+
+[shard.upstream-sci-release-102]
+# 700.6 G measured
+groups = ["scikit-learn-tests-1-1", "scikit-learn-metrics"]
+systems = ["release"]
+
+[shard.upstream-sci-release-103]
+# 697.3 G measured
+groups = ["statsmodels-discrete-count-model-2", "statsmodels-stats-proportion-2"]
+systems = ["release"]
+
+[shard.upstream-sci-release-104]
+# 532.8 G measured
+groups = ["scipy-stats-continuous-basic-13", "scipy-smoke-slow-propack-7", "scipy-signal-conv-method", "scipy-io-harwell_boeing-to-io", "statsmodels-othermod", "scipy-sparse-linalg-isolve-iterative-2", "statsmodels-stats-2-knockoff-3", "statsmodels-stats-2-1", "scipy-sparse-base-2", "scipy-special-mpmath-betaincc", "scipy-sparse-linalg-3", "scipy-special-2", "scipy-special-precompute-gammainc-3", "scipy-special-mpmath-9", "scipy-special-precompute-gammainc-1", "scipy-sparse-linalg-isolve-1", "scipy-interpolate-fitpack2-5"]
 systems = ["release"]
 
 # end of scipy's, scikit-learn's and statsmodels' shards

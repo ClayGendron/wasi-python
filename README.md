@@ -291,7 +291,7 @@ nothing writable.
   minimum-phase filter miss a 1e-5 tolerance by one float32 step; and fitting the f distribution
   to interval-censored data stops at a first shape parameter of 341.2 where native's stops at
   290.5 (a parameter the likelihood barely depends on).
-- **Its own tests** (spec 095): scipy's whole suite runs in the release tier, in @@SCIPY_GROUPS@@
+- **Its own tests** (spec 095): scipy's whole suite runs in the release tier, in 172
   groups; two smoke groups run in the normal tier at every check, chosen so that every
   subpackage with compiled modules and every carried patch is touched (`smoke_cover` in
   `tests/upstream/scipy.toml` names the file or golden job line for each). Not run, each named
@@ -307,7 +307,12 @@ nothing writable.
   reference value by the clock read on every trace event, so they run with the guest's clock
   advancing 100 µs a read (at the judge's 1 µs, `betainc` alone passes 17 T of fuel); one,
   `choose_conv_method` with `measure=True`, times a call until 0.5 ms has passed and runs with
-  1 ms a read.
+  1 ms a read. Three cases of `test_support_alternative_backends_hypothesis`, for `hyp1f1`,
+  `lpmv` and `yn`, do not finish in the guest (`hyp1f1`'s ran past about 10 T of fuel, about 20
+  minutes, where every other case ends within about 3 G); each is a trap, run alone to a 50 G cap
+  and recorded as a known gap, and why their drawn arrays keep the function computing is not read
+  yet. `yn(3, 1e-105)` under `errstate(all='raise')` returns `-inf` without the overflow error
+  (`yv` raises it): the same missing floating-point flags.
 
 ### scikit-learn in the guest
 
@@ -344,7 +349,7 @@ it `import sklearn` fails). What differs from native:
   verbose `TheilSenRegressor` writes to `/dev/null`, which WASI does not have. The compiler's
   128-bit integer is there on wasm32 (`_get_sizeof_LARGEST_INT_t()` is 16).
 - **Its own tests** (spec 095): scikit-learn's whole suite runs in the release tier, in
-  @@SKLEARN_GROUPS@@ groups, with its float32 cases (`SKLEARN_RUN_FLOAT32_TESTS=1`) and a fixed
+  38 groups, with its float32 cases (`SKLEARN_RUN_FLOAT32_TESTS=1`) and a fixed
   global seed (`SKLEARN_SEED=0`); one smoke group runs in the normal tier at every check, chosen
   so that every subpackage with compiled modules and the carried patch is touched
   (`tests/upstream/scikit-learn.toml`). Not run: the three files that build memory-mapped arrays
@@ -401,7 +406,7 @@ every dataset raises `NotADirectoryError`). What differs from native:
 - **X-13ARIMA-SEATS is a separate program** that `statsmodels.tsa.x13.x13_arima_analysis` runs in a
   subprocess; the guest neither carries it nor starts processes, so it raises `X13NotFoundError`.
 - **Its own tests** (spec 095): statsmodels' whole suite runs in the release tier, slow tests
-  included, in @@SM_GROUPS@@ groups; one smoke group runs in the normal tier at every check,
+  included, in 51 groups; one smoke group runs in the normal tier at every check,
   touching every subpackage with compiled modules, ordinary least squares and the carried
   datasets patch (`tests/upstream/statsmodels.toml`). Not run: six files that load one of the
   thirteen left-out datasets at import (`discrete/tests/test_constrained.py` and `test_margins.py`,

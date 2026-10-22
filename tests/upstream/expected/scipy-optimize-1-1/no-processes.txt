@@ -2,8 +2,3 @@ scipy/optimize/tests/test__differential_evolution.py::TestDifferentialEvolutionS
 scipy/optimize/tests/test__differential_evolution.py::TestDifferentialEvolutionSolver::test_parallel_processes
 scipy/optimize/tests/test__differential_evolution.py::TestDifferentialEvolutionSolver::test_parallel_threads
 scipy/optimize/tests/test__shgo.py::TestShgoArguments::test_19_parallelization
-scipy/optimize/tests/test_differentiable_functions.py::TestScalarFunction::test_workers
-scipy/optimize/tests/test_differentiable_functions.py::TestVectorialFunction::test_workers
-scipy/optimize/tests/test_least_squares.py::TestDogbox::test_workers
-scipy/optimize/tests/test_least_squares.py::TestLM::test_workers
-scipy/optimize/tests/test_least_squares.py::TestTRF::test_workers

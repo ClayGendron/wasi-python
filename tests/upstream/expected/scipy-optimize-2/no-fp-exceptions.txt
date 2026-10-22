@@ -1,0 +1,1 @@
+scipy/optimize/tests/test_linprog.py::TestLinprogSimplexNoPresolve::test_bounds_infeasible_2

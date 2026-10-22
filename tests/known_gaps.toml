@@ -566,6 +566,12 @@ reason = "no threads: the runtime starts none on WASI, so a test that starts one
 closes_with = "README.md"
 
 [[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-interpolate-fitpack2-1-no-threads]"
+match = "1 finding(s), digest 1bca3f3e764c"
+reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
+closes_with = "README.md"
+
+[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-io-harwell_boeing-to-io-enotsup-io]"
 match = "21 finding(s), digest a54935c31550"
 reason = "numpy's fromfile and tofile duplicate the file's descriptor, which WASI preview1 refuses, so scipy.io's FortranFile and wavfile fail (README)"
@@ -632,9 +638,33 @@ reason = "no threads: the runtime starts none on WASI, so a test that starts one
 closes_with = "README.md"
 
 [[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-optimize-1-no-processes]"
-match = "9 finding(s), digest 6fd8b5a75f10"
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-optimize-1-1-no-processes]"
+match = "4 finding(s), digest 7f396512b148"
 reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-optimize-1-2-no-processes]"
+match = "5 finding(s), digest 8dc3fd9487ad"
+reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-optimize-2-no-fp-exceptions]"
+match = "1 finding(s), digest 5de6d7a931ca"
+reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-optimize-3-no-processes]"
+match = "15 finding(s), digest 5881655688e0"
+reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-optimize-3-no-threads]"
+match = "1 finding(s), digest 29551e41d605"
+reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
 closes_with = "README.md"
 
 [[gap]]
@@ -658,7 +688,7 @@ closes_with = "README.md"
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-smoke-b-no-fp-exceptions]"
 match = "1 finding(s), digest 6e5fd51e2d0b"
-reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero or an invalid value sees nothing (README)"
+reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
 closes_with = "README.md"
 
 [[gap]]
@@ -710,6 +740,12 @@ reason = "wasm32's 4 GiB address space bounds the guest; these tests ask for mor
 closes_with = "README.md"
 
 [[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-sparse-1-no-fp-exceptions]"
+match = "7 finding(s), digest e7acef64e95a"
+reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
+closes_with = "README.md"
+
+[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-sparse-csgraph-to-sparse-linalg-eigen-no-threads]"
 match = "1 finding(s), digest e9403fdae9c8"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
@@ -722,27 +758,45 @@ reason = "no threads: the runtime starts none on WASI, so a test that starts one
 closes_with = "README.md"
 
 [[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-special-2-no-fp-exceptions]"
+match = "1 finding(s), digest e1c6e1ec8c59"
+reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-special-mpmath-10-mpmath-tolerance]"
+match = "1 finding(s), digest 6da96cddb1ab"
+reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-special-mpmath-2-mpmath-tolerance]"
+match = "2 finding(s), digest 615c91f531d6"
+reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-special-mpmath-37-mpmath-tolerance]"
+match = "1 finding(s), digest 25b47ea6ea43"
+reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
+closes_with = "README.md"
+
+[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-special-mpmath-6-mpmath-tolerance]"
 match = "1 finding(s), digest 7404f2875bfd"
 reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
 closes_with = "README.md"
 
 [[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-special-mpmath-8-mpmath-tolerance]"
-match = "2 finding(s), digest 0893c2acc44e"
-reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
-closes_with = "README.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-stats-1-no-fp-exceptions]"
-match = "4 finding(s), digest f937173791ce"
-reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero or an invalid value sees nothing (README)"
-closes_with = "README.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-stats-1-no-processes]"
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-stats-1-mgc-3-no-processes]"
 match = "1 finding(s), digest 89a81f77a03c"
 reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-stats-1-stats-5-no-fp-exceptions]"
+match = "4 finding(s), digest f937173791ce"
+reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
 closes_with = "README.md"
 
 [[gap]]
@@ -754,7 +808,7 @@ closes_with = "README.md"
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-stats-fit-2-no-fp-exceptions]"
 match = "1 finding(s), digest 1822c188dcda"
-reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero or an invalid value sees nothing (README)"
+reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
 closes_with = "README.md"
 
 [[gap]]
@@ -800,6 +854,12 @@ reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data 
 closes_with = "README.md"
 
 [[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-model_selection-3-no-mmap]"
+match = "1 finding(s), digest 8af468f8a4a5"
+reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
+closes_with = "README.md"
+
+[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-neighbors-to-neural_network-no-mmap]"
 match = "4 finding(s), digest 0a8eaa14dfbc"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
@@ -824,13 +884,13 @@ reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data 
 closes_with = "README.md"
 
 [[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tests-1-no-openmp]"
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tests-1-1-no-openmp]"
 match = "1 finding(s), digest f4be1a0e120d"
 reason = "there is no OpenMP in the build (wasi-sdk has no runtime, and the guest no threads), so _openmp_parallelism_enabled() is False (README)"
 closes_with = "README.md"
 
 [[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tests-1-package-in-zip]"
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tests-1-1-package-in-zip]"
 match = "1 finding(s), digest 3880f74c556f"
 reason = "the package's files are in the stdlib zip, not in folders, so a test that lists the package's folder fails (README)"
 closes_with = "README.md"
@@ -838,6 +898,12 @@ closes_with = "README.md"
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tests-common-1-no-mmap]"
 match = "244 finding(s), digest 54e1d23e3163"
+reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tests-common-2-no-mmap]"
+match = "211 finding(s), digest 11c60f1c3624"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
 closes_with = "README.md"
 
@@ -881,6 +947,18 @@ closes_with = "README.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-base-to-datasets-wasm-is-not-emscripten]"
 match = "3 finding(s), digest 15a4f8369ef1"
 reason = "upstream special-cases wasm by sys.platform 'emscripten' (Pyodide); the guest is wasm on WASI, so the case does not apply and the warning upstream expects of wasm (no floating-point exception flags) differs (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-discrete-discrete-1-left-out-datasets]"
+match = "1 finding(s), digest b3861d584f97"
+reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-discrete-discrete-1-left-out-datasets-at-setup]"
+match = "421 finding(s), digest a6321aaf4697"
+reason = "the test loads one of the thirteen datasets the product leaves out for their terms, at setup or teardown (README)"
 closes_with = "README.md"
 
 [[gap]]
@@ -947,4 +1025,22 @@ closes_with = "README.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-tests-to-treatment-left-out-datasets-at-setup]"
 match = "2 finding(s), digest 6834ec768dc0"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms, at setup or teardown (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[scipy-hypothesis-hyp1f1]"
+match = "1 finding(s), digest ce82f31378f5"
+reason = "the hypothesis case for hyp1f1 does not finish in the guest: in its group it ran past about 10 T of fuel, about 20 minutes, and was stopped; alone it runs out of the trap's 50 G. Why its drawn arrays keep hyp1f1 computing is not read yet (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[scipy-hypothesis-lpmv]"
+match = "1 finding(s), digest fbbad3e9fbdf"
+reason = "the hypothesis case for lpmv does not finish in the guest: in its group it ran to the group's 2 T cap; alone it runs out of the trap's 50 G. Why its drawn arrays keep lpmv computing is not read yet (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[scipy-hypothesis-yn]"
+match = "1 finding(s), digest 4061fc84c61b"
+reason = "the hypothesis case for yn does not finish in the guest: alone it passed 80 G without ending, where every other case of the test ends within about 3 G; alone it runs out of the trap's 50 G. Why its drawn arrays keep yn computing is not read yet (README)"
 closes_with = "README.md"

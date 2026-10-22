@@ -34,3 +34,24 @@ units = 113  # 112 before wave 11's integration review, L1, counted 113 per file
 [[claim]]
 spec = "114"
 growth = "114: the zip's two members move every release-tier group's fuel both ways; passes unchanged"
+
+[[claim]]
+spec = "095"
+# 261 release groups, their classes and three traps, all new: scipy 172 groups (63.66 T),
+# scikit-learn 38 (9.72 T), statsmodels 51 (12.84 T), 86.22 T measured on darwin-arm64 by node id
+# with --tier release (the build's passes 1 to 4, sets d0d91cef and 1556bbd5); the four smoke
+# groups are normal-tier rows, not claimed here
+new = [
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[scipy-*",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[scikit-learn-*",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[statsmodels-*",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-*",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-*",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-*",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[scipy-hypothesis-*",
+]
+changed = []
+passes = []
+grows = []
+retired = []
+units = 46  # tests/unit: 2,290 collected against main's 2,244

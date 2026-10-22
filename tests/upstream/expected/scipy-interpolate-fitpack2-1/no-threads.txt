@@ -1,0 +1,1 @@
+scipy/interpolate/tests/test_fitpack2.py::TestUnivariateSpline::test_concurrency

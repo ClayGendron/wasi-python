@@ -14,9 +14,9 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   tiers needs `--accept-tier-move`, and `context/release-tier-claims.toml` holds the claims
   between two releases.
 - **The release runs scipy's, scikit-learn's and statsmodels' own tests** (spec 095). Each suite
-  runs whole in the release tier, @@REL_GROUPS@@ groups in @@REL_SHARDS@@ Linux release shards,
-  about @@REL_T@@ T of guest fuel; a smoke group per package (two for scipy) runs in the normal
-  tier at every check, @@SMOKE_G@@ G in two Linux shards, chosen so every subpackage with compiled
+  runs whole in the release tier, 261 groups in 104 Linux release shards,
+  about 86 T of guest fuel; a smoke group per package (two for scipy) runs in the normal
+  tier at every check, 855 G in two Linux shards, chosen so every subpackage with compiled
   modules and every carried patch is touched, a rule the judge holds against the product's
   builtin modules. Every known failure is a class by test id with its closer; every file not run
   is named with its reason. The judge gains three keys for these families (the ancestors'

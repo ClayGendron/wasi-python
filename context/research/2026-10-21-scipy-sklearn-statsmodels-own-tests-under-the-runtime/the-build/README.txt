@@ -38,3 +38,26 @@ data/
   classes.json                           each group's classes with their members
   status.txt                             unmeasured and over-bound groups at the stop
   base-unit-run.txt                      the new unit rows run on the base harness (failing)
+
+Added when the build resumed (2026-10-21 to 22, the second builder; its scratch folder held the
+scripts and the data together, so SP is the script's own folder):
+
+scripts/
+  run1.sh          one serial lane (one guest at a time) with the poller and the plugin
+  pertest.py       per-test fuel estimates for a lane's sessions, matched to groups by execution
+                   order (the plugin's lines) -> filefuel.json (13 MB, not kept: remade from the
+                   polls and the plugin's files under the worktree's build/095/)
+  verify_ff.py     each estimated session's first test lies under its group's paths
+  ksim.py          pytest's -k simulated over a split file's known tests (substring matching on
+                   the node's names): which tests each split group actually takes
+  kdepth_host.py   the parse-tree depth of each split group's -k expression
+  pass3.py         passes 3 and 4: rebuild each split whose groups -k does not give the tests
+                   they were meant to have, subdivide a split group past the bound, repack a
+                   whole-file group past it; every plan checked by ksim before it is written
+  special1.py      scipy-special-1 split at the file where it stopped (the hyp1f1 trap)
+  probe_many.py    stage once, run each case of one parametrized test alone at a cap
+  yn.py            yn, yv, gamma and kv under errstate(all='raise') in the guest
+  gen095.py        now also writes [[trap]] entries and their gaps, and group comments
+  classify.py      no-fp-exceptions also admits SpecialFunctionError's DID NOT RAISE
+data/              groups, splits, measured, facts, classes, extra and status as the TOMLs on the
+                   branch hold them after pass 4 and the smoke repeats

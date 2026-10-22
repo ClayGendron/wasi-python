@@ -12,7 +12,7 @@
 package = "statsmodels"
 driver = "package"
 grant = "/upstream-statsmodels"
-budget = 24_153_776_916_005
+budget = 19_716_000_000_000
 stage_folders = [
     "statsmodels/base/tests",
     "statsmodels/compat/tests",
@@ -115,7 +115,7 @@ paths = [
 ]
 smoke = "OLS and the datasets patch, and each compiled family of statsmodels' time series and smoothers"
 fuel = 210_000_000_000
-measured = 135_964_541_182
+measured = 135_824_937_463
 
 [groups.statsmodels-base-to-datasets]
 paths = [
@@ -130,20 +130,26 @@ measured = 184_739_499_232
 [groups.statsmodels-discrete-count-model-1]
 paths = ["statsmodels/discrete/tests/test_count_model.py"]
 tier = "release"
-fuel = 770_000_000_000
-measured = 513_242_312_524
+fuel = 420_000_000_000
+measured = 275_181_250_938
 
 [groups.statsmodels-discrete-count-model-2]
 paths = ["statsmodels/discrete/tests/test_count_model.py"]
 tier = "release"
-fuel = 1_116_638_353_746
-measured = 744_425_569_164
+fuel = 570_000_000_000
+measured = 378_065_107_548
+
+[groups.statsmodels-discrete-count-model-3]
+paths = ["statsmodels/discrete/tests/test_count_model.py"]
+tier = "release"
+fuel = 500_000_000_000
+measured = 329_571_552_443
 
 [groups.statsmodels-discrete-discrete-1]
 paths = ["statsmodels/discrete/tests/test_discrete.py"]
 tier = "release"
-fuel = 1_134_238_002_394
-measured = 756_158_668_262
+fuel = 390_000_000_000
+measured = 253_593_992_130
 
 [groups.statsmodels-discrete-discrete-2]
 paths = ["statsmodels/discrete/tests/test_discrete.py"]
@@ -165,8 +171,8 @@ measured = 155_094_050_171
 [groups.statsmodels-discrete-2]
 paths = ["statsmodels/discrete/tests/test_truncated_model.py"]
 tier = "release"
-fuel = 722_199_069_523
-measured = 481_466_046_348
+fuel = 480_000_000_000
+measured = 318_286_896_959
 
 [groups.statsmodels-distributions-copula-to-duration]
 paths = [
@@ -221,8 +227,8 @@ paths = [
     "statsmodels/nonparametric/tests/test_kernel_density.py",
 ]
 tier = "release"
-fuel = 944_739_834_663
-measured = 629_826_556_442
+fuel = 490_000_000_000
+measured = 322_891_233_572
 
 [groups.statsmodels-nonparametric-2]
 paths = [
@@ -230,8 +236,8 @@ paths = [
     "statsmodels/nonparametric/tests/test_kernels.py",
 ]
 tier = "release"
-fuel = 1_111_616_461_351
-measured = 741_077_640_900
+fuel = 530_000_000_000
+measured = 349_529_116_946
 
 [groups.statsmodels-othermod]
 paths = ["statsmodels/othermod/tests"]
@@ -248,8 +254,8 @@ measured = 393_895_105_487
 [groups.statsmodels-regression-lme-2]
 paths = ["statsmodels/regression/tests/test_lme.py"]
 tier = "release"
-fuel = 794_818_732_085
-measured = 529_879_154_723
+fuel = 390_000_000_000
+measured = 255_016_645_660
 
 [groups.statsmodels-regression-1]
 paths = [
@@ -270,8 +276,8 @@ paths = [
     "statsmodels/regression/tests/test_recursive_ls.py",
 ]
 tier = "release"
-fuel = 1_137_537_880_919
-measured = 758_358_587_279
+fuel = 640_000_000_000
+measured = 426_317_496_294
 
 [groups.statsmodels-regression-3]
 paths = [
@@ -306,7 +312,19 @@ tier = "release"
 fuel = 170_000_000_000
 measured = 106_910_024_021
 
-[groups.statsmodels-stats-1]
+[groups.statsmodels-stats-1-corrpsd-1]
+paths = ["statsmodels/stats/tests/test_corrpsd.py"]
+tier = "release"
+fuel = 630_000_000_000
+measured = 413_681_558_191
+
+[groups.statsmodels-stats-1-corrpsd-2]
+paths = ["statsmodels/stats/tests/test_corrpsd.py"]
+tier = "release"
+fuel = 110_000_000_000
+measured = 72_543_760_121
+
+[groups.statsmodels-stats-1-1]
 paths = [
     "statsmodels/stats/tests/test_anova.py",
     "statsmodels/stats/tests/test_anova_rm.py",
@@ -314,7 +332,6 @@ paths = [
     "statsmodels/stats/tests/test_contingency_tables.py",
     "statsmodels/stats/tests/test_contrast.py",
     "statsmodels/stats/tests/test_correlation.py",
-    "statsmodels/stats/tests/test_corrpsd.py",
     "statsmodels/stats/tests/test_covariance.py",
     "statsmodels/stats/tests/test_deltacov.py",
     "statsmodels/stats/tests/test_descriptivestats.py",
@@ -329,18 +346,36 @@ paths = [
     "statsmodels/stats/tests/test_inter_rater.py",
 ]
 tier = "release"
-fuel = 1_088_826_273_791
-measured = 725_884_182_527
+fuel = 120_000_000_000
+measured = 75_259_772_722
 
-[groups.statsmodels-stats-2]
+[groups.statsmodels-stats-2-knockoff-1]
+paths = ["statsmodels/stats/tests/test_knockoff.py"]
+tier = "release"
+fuel = 110_000_000_000
+measured = 72_827_167_282
+
+[groups.statsmodels-stats-2-knockoff-2]
+# One test past the 480 G bound (510.3 G measured), kept a group of its own: test_sim[tester3-3000-200-3.5-equi]
+paths = ["statsmodels/stats/tests/test_knockoff.py"]
+tier = "release"
+fuel = 770_000_000_000
+measured = 510_348_224_021
+
+[groups.statsmodels-stats-2-knockoff-3]
+paths = ["statsmodels/stats/tests/test_knockoff.py"]
+tier = "release"
+fuel = 51_000_000_000
+measured = 33_516_910_770
+
+[groups.statsmodels-stats-2-1]
 paths = [
-    "statsmodels/stats/tests/test_knockoff.py",
     "statsmodels/stats/tests/test_lilliefors.py",
     "statsmodels/stats/tests/test_limited_iteration_mixin.py",
 ]
 tier = "release"
-fuel = 1_051_001_170_880
-measured = 700_667_447_253
+fuel = 51_000_000_000
+measured = 33_334_846_702
 
 [groups.statsmodels-stats-3]
 paths = [
@@ -355,20 +390,20 @@ measured = 261_017_329_938
 [groups.statsmodels-stats-proportion-1]
 paths = ["statsmodels/stats/tests/test_proportion.py"]
 tier = "release"
-fuel = 930_000_000_000
-measured = 618_609_608_717
+fuel = 450_000_000_000
+measured = 293_715_834_089
 
 [groups.statsmodels-stats-proportion-2]
 paths = ["statsmodels/stats/tests/test_proportion.py"]
 tier = "release"
-fuel = 42_000_000_000
-measured = 27_552_835_505
+fuel = 480_000_000_000
+measured = 319_284_455_798
 
 [groups.statsmodels-stats-proportion-3]
 paths = ["statsmodels/stats/tests/test_proportion.py"]
 tier = "release"
-fuel = 344_020_013_665
-measured = 229_346_675_776
+fuel = 120_000_000_000
+measured = 78_451_853_504
 
 [groups.statsmodels-stats-4]
 paths = [
@@ -459,8 +494,8 @@ paths = [
     "statsmodels/tsa/statespace/tests/test_exponential_smoothing.py",
 ]
 tier = "release"
-fuel = 1_092_141_122_988
-measured = 728_094_081_992
+fuel = 540_000_000_000
+measured = 356_246_383_894
 
 [groups.statsmodels-tsa-statespace-2]
 paths = [
@@ -555,9 +590,11 @@ file = "statsmodels/discrete/tests/test_count_model.py"
 groups = [
     "statsmodels-discrete-count-model-1",
     "statsmodels-discrete-count-model-2",
+    "statsmodels-discrete-count-model-3",
 ]
 keywords = [
-    "TestZeroInflatedModel_logit or TestZeroInflatedModel_probit or TestZeroInflatedModel_offset or TestZeroInflatedModelPandas or TestZeroInflatedPoisson_predict or TestZeroInflatedGeneralizedPoisson or TestZeroInflatedGeneralizedPoisson_predict",
+    "TestZeroInflatedModel_logit or TestZeroInflatedModel_probit or TestZeroInflatedModel_offset or TestZeroInflatedModelPandas or TestZeroInflatedPoisson_predict or test_fit_regularized_invalid_method",
+    "TestZeroInflatedGeneralizedPoisson",
 ]
 
 [[split]]
@@ -588,8 +625,30 @@ groups = [
     "statsmodels-stats-proportion-3",
 ]
 keywords = [
-    "test_confint_proportion or test_confint_proportion_ndim or test_confint_proportion_wilson_clip or test_samplesize_confidenceinterval_prop or test_proportion_effect_size or test_confint_multinomial_proportions or test_multinomial_proportions_errors or test_confint_multinomial_proportions_zeros or test_confint_multinomial_proportions_sison_glaz_sparse or test_confint_multinomial_proportions_sison_glaz_sparse_r_reference or TestProportion or test_binom_test or test_binom_rejection_interval or test_binom_tost or test_power_binom_tost or test_power_ztost_prop or test_ztost or test_power_ztost_prop_norm or test_proportion_ztests or test_confint_2indep or test_confint_2indep_propcis or test_score_test_2indep or test_test_2indep or test_equivalence_2indep or test_score_confint_koopman_nam or test_power_2indep or test_ci_symmetry or test_ci_symmetry_binom_test[F or test_ci_symmetry_binom_test[True-count0 or test_ci_symmetry_binom_test[True-count1",
-    "test_ci_symmetry_binom_test[True-count2 or test_ci_symmetry_binom_test[True-count3 or test_ci_symmetry_binom_test[True-count4 or test_ci_symmetry_binom_test[True-count5 or test_ci_symmetry_binom_test[True-count6 or test_ci_symmetry_binom_test[True-count7",
+    "test_confint_proportion and not (test_confint_proportion_ndim or test_confint_proportion_wilson_clip) or test_confint_proportion_ndim or test_confint_proportion_wilson_clip or test_samplesize_confidenceinterval_prop or test_proportion_effect_size or test_confint_multinomial_proportions and not (test_confint_multinomial_proportions_sison_glaz_sparse or test_confint_multinomial_proportions_sison_glaz_sparse_r_reference or test_confint_multinomial_proportions_zeros) or test_multinomial_proportions_errors or test_confint_multinomial_proportions_zeros or test_confint_multinomial_proportions_sison_glaz_sparse and not (test_confint_multinomial_proportions_sison_glaz_sparse_r_reference) or test_confint_multinomial_proportions_sison_glaz_sparse_r_reference or TestProportion or test_binom_test and not (test_binom_test_alternative_deprecated_alias or test_binom_test_reject_interval_alternative) or test_binom_rejection_interval or test_binom_tost or test_power_binom_tost or test_power_ztost_prop and not (test_power_ztost_prop_norm) or test_ztost or test_power_ztost_prop_norm or test_proportion_ztests or test_confint_2indep and not (test_confint_2indep_propcis) or test_confint_2indep_propcis or test_score_test_2indep or test_test_2indep or test_equivalence_2indep or test_score_confint_koopman_nam or test_power_2indep or test_ci_symmetry and not (test_ci_symmetry_array or test_ci_symmetry_binom_test) or test_ci_symmetry_binom_test[F or test_ci_symmetry_binom_test[True-count0 or test_ci_symmetry_binom_test[True-count1",
+    "test_ci_symmetry_binom_test or test_int_check",
+]
+
+[[split]]
+file = "statsmodels/stats/tests/test_corrpsd.py"
+groups = [
+    "statsmodels-stats-1-corrpsd-1",
+    "statsmodels-stats-1-corrpsd-2",
+]
+keywords = [
+    "test_corr_psd or test_cov_nearest_min_diag or TestCovPSD or TestCorrPSD1 or test_corrpsd_threshold or test_corr_nearest_factor_arrpack or test_corr_nearest_factor and not (test_corr_nearest_factor_arrpack or test_corr_nearest_factor_sparse) or test_corr_nearest_factor_sparse",
+]
+
+[[split]]
+file = "statsmodels/stats/tests/test_knockoff.py"
+groups = [
+    "statsmodels-stats-2-knockoff-1",
+    "statsmodels-stats-2-knockoff-2",
+    "statsmodels-stats-2-knockoff-3",
+]
+keywords = [
+    "test_equi or test_sdp or test_threshold or test_testers or test_sim[tester0 or test_sim[tester1 or test_sim[tester2",
+    "test_sim[tester3-3000-200-3.5-equi]",
 ]
 
 [[expected]]
@@ -606,6 +665,22 @@ group = "statsmodels-base-to-datasets"
 outcome = "failed"
 match = "SingularMatrixWarning: The design matrix is rank-deficient|Function is marked as not warning but the following warnings were found"
 reason = "upstream special-cases wasm by sys.platform 'emscripten' (Pyodide); the guest is wasm on WASI, so the case does not apply and the warning upstream expects of wasm (no floating-point exception flags) differs (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "left-out-datasets"
+group = "statsmodels-discrete-discrete-1"
+outcome = "failed"
+match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
+reason = "the test loads one of the thirteen datasets the product leaves out for their terms (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "left-out-datasets-at-setup"
+group = "statsmodels-discrete-discrete-1"
+outcome = "error"
+match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
+reason = "the test loads one of the thirteen datasets the product leaves out for their terms, at setup or teardown (README)"
 closes_with = "README.md"
 
 [[expected]]

@@ -502,7 +502,9 @@ class _Guest:
         return r
 
 
-def _family(tmp_path, monkeypatch, how: str, pin: str | None = None) -> packages.Session:
+def _family(
+    tmp_path, monkeypatch, how: str, pin: str | None = None, text: str = INITS
+) -> packages.Session:
     import io
     import tarfile
 
@@ -537,7 +539,7 @@ def _family(tmp_path, monkeypatch, how: str, pin: str | None = None) -> packages
     monkeypatch.setattr(guest, "run", _Guest(how))
     work = tmp_path / "work"
     work.mkdir()
-    return packages.Session(work, {"scipy": _cfg(INITS)})
+    return packages.Session(work, {"scipy": _cfg(text)})
 
 
 @pytest.mark.parametrize("first", ["demo-a", "demo-b"])
@@ -586,6 +588,34 @@ def test_a_differing_pin_fails_the_group_and_never_blocks_it(tmp_path, monkeypat
     try:
         with pytest.raises(AssertionError, match="the tests are not the artifact's: tests from"):
             s.group("scipy", "demo-a")
+    finally:
+        s.close()
+
+
+TRAP = """
+[[trap]]
+id = "demo-trap"
+node = "pkg/a/tests/test_x.py::t"
+group = "demo-a"
+reason = "the case does not finish"
+closes_with = "README.md"
+"""
+
+
+def test_a_trap_runs_its_node_under_the_tree_and_leaves_its_group(tmp_path, monkeypatch) -> None:
+    """A trap's session names its test by the path the guest sees, as every group's paths are
+    named, and the group that holds the test deselects it."""
+    import json
+
+    s = _family(tmp_path, monkeypatch, "valid", text=INITS + TRAP)
+    try:
+        s.prepare("scipy")
+        judge = s.roots["scipy"] / "judge"
+        trap = json.loads((judge / "demo-trap.json").read_text())
+        group = json.loads((judge / "demo-a.json").read_text())
+        assert trap["args"][-1] == "/upstream-scipy/tree/pkg/a/tests/test_x.py::t"
+        assert not trap["split"]
+        assert "--deselect=pkg/a/tests/test_x.py::t" in group["args"]
     finally:
         s.close()
 

@@ -18,7 +18,7 @@
 package = "scipy"
 driver = "package"
 grant = "/upstream-scipy"
-budget = 125_357_007_590_257
+budget = 97_807_000_000_000
 stage_folders = [
     "scipy/_lib/tests",
     "scipy/cluster/hierarchy/tests",
@@ -154,6 +154,27 @@ files = [
 reason = "an example package test_extending.py would build with meson in a subprocess; scipy installs only its extending.pyx and meson.build, so it is not part of the installed suite"
 closes_with = "README.md"
 
+[[trap]]
+id = "scipy-hypothesis-hyp1f1"
+node = "scipy/special/tests/test_support_alternative_backends.py::test_support_alternative_backends_hypothesis[numpy-hyp1f1]"
+group = "scipy-special-3"
+reason = "the hypothesis case for hyp1f1 does not finish in the guest: in its group it ran past about 10 T of fuel, about 20 minutes, and was stopped; alone it runs out of the trap's 50 G. Why its drawn arrays keep hyp1f1 computing is not read yet (README)"
+closes_with = "README.md"
+
+[[trap]]
+id = "scipy-hypothesis-lpmv"
+node = "scipy/special/tests/test_support_alternative_backends.py::test_support_alternative_backends_hypothesis[numpy-lpmv]"
+group = "scipy-special-3"
+reason = "the hypothesis case for lpmv does not finish in the guest: in its group it ran to the group's 2 T cap; alone it runs out of the trap's 50 G. Why its drawn arrays keep lpmv computing is not read yet (README)"
+closes_with = "README.md"
+
+[[trap]]
+id = "scipy-hypothesis-yn"
+node = "scipy/special/tests/test_support_alternative_backends.py::test_support_alternative_backends_hypothesis[numpy-yn]"
+group = "scipy-special-3"
+reason = "the hypothesis case for yn does not finish in the guest: alone it passed 80 G without ending, where every other case of the test ends within about 3 G; alone it runs out of the trap's 50 G. Why its drawn arrays keep yn computing is not read yet (README)"
+closes_with = "README.md"
+
 [groups.scipy-smoke-a]
 paths = [
     "scipy/special/tests/test_cython_special.py",
@@ -180,7 +201,7 @@ paths = [
 ]
 smoke = "scipy.special, sparse, spatial and linalg: each compiled family touched, qhull's and sqrtm's patches"
 fuel = 320_000_000_000
-measured = 207_361_269_653
+measured = 207_472_112_051
 
 [groups.scipy-smoke-b]
 paths = [
@@ -219,7 +240,7 @@ paths = [
 ]
 smoke = "the other compiled families of scipy, HiGHS, and the uarray, Matrix Market and Sobol patches"
 fuel = 390_000_000_000
-measured = 260_000_000_000
+measured = 254_434_448_969
 
 [groups.scipy-smoke-slow-propack-1]
 paths = ["scipy/sparse/linalg/tests/test_propack.py"]
@@ -232,36 +253,51 @@ measured = 178_062_401_056
 paths = ["scipy/sparse/linalg/tests/test_propack.py"]
 tier = "release"
 release_by = "marker"
-fuel = 810_000_000_000
-measured = 537_205_564_843
+fuel = 430_000_000_000
+measured = 282_175_257_018
 
 [groups.scipy-smoke-slow-propack-3]
 paths = ["scipy/sparse/linalg/tests/test_propack.py"]
 tier = "release"
 release_by = "marker"
-fuel = 290_000_000_000
-measured = 189_172_175_086
+fuel = 420_000_000_000
+measured = 275_223_799_245
 
 [groups.scipy-smoke-slow-propack-4]
 paths = ["scipy/sparse/linalg/tests/test_propack.py"]
 tier = "release"
 release_by = "marker"
-fuel = 1_300_000_000_000
-measured = 841_603_810_138
+fuel = 290_000_000_000
+measured = 189_173_671_798
 
 [groups.scipy-smoke-slow-propack-5]
+# One test past the 480 G bound (841.6 G measured), kept a group of its own: test_examples[True-complex64]
 paths = ["scipy/sparse/linalg/tests/test_propack.py"]
 tier = "release"
 release_by = "marker"
-fuel = 750_000_000_000
-measured = 493_547_418_379
+fuel = 1_300_000_000_000
+measured = 841_600_207_298
+
+[groups.scipy-smoke-slow-propack-6]
+paths = ["scipy/sparse/linalg/tests/test_propack.py"]
+tier = "release"
+release_by = "marker"
+fuel = 720_000_000_000
+measured = 474_435_386_094
+
+[groups.scipy-smoke-slow-propack-7]
+paths = ["scipy/sparse/linalg/tests/test_propack.py"]
+tier = "release"
+release_by = "marker"
+fuel = 59_000_000_000
+measured = 39_306_088_859
 
 [groups.scipy-smoke-slow-sampling-1]
 paths = ["scipy/stats/tests/test_sampling.py"]
 tier = "release"
 release_by = "marker"
-fuel = 902_671_492_831
-measured = 601_780_995_220
+fuel = 310_000_000_000
+measured = 200_216_334_341
 
 [groups.scipy-smoke-slow-sampling-2]
 paths = ["scipy/stats/tests/test_sampling.py"]
@@ -363,15 +399,15 @@ measured = 63_699_503_021
 paths = ["scipy/integrate/tests/test_cubature.py"]
 tier = "release"
 release_by = "path"
-fuel = 890_000_000_000
-measured = 586_946_454_714
+fuel = 530_000_000_000
+measured = 347_662_257_575
 
 [groups.scipy-integrate-cubature-2]
 paths = ["scipy/integrate/tests/test_cubature.py"]
 tier = "release"
 release_by = "path"
-fuel = 32_000_000_000
-measured = 21_006_266_727
+fuel = 400_000_000_000
+measured = 260_780_085_198
 
 [groups.scipy-integrate-1]
 paths = [
@@ -390,22 +426,37 @@ measured = 122_716_580_125
 paths = ["scipy/interpolate/tests/test_fitpack2.py"]
 tier = "release"
 release_by = "path"
-fuel = 900_701_780_090
-measured = 600_467_853_393
+fuel = 370_000_000_000
+measured = 242_478_279_482
 
 [groups.scipy-interpolate-fitpack2-2]
+# One test past the 480 G bound (488.8 G measured), kept a group of its own: TestRectBivariateSpline::test_spline_large_2d[spl_apis1-s_tols1-shape1]
 paths = ["scipy/interpolate/tests/test_fitpack2.py"]
 tier = "release"
 release_by = "path"
-fuel = 1_412_384_564_888
-measured = 941_589_709_925
+fuel = 740_000_000_000
+measured = 488_848_102_531
 
 [groups.scipy-interpolate-fitpack2-3]
 paths = ["scipy/interpolate/tests/test_fitpack2.py"]
 tier = "release"
 release_by = "path"
-fuel = 910_000_000_000
-measured = 604_520_921_190
+fuel = 250_000_000_000
+measured = 165_520_732_319
+
+[groups.scipy-interpolate-fitpack2-4]
+paths = ["scipy/interpolate/tests/test_fitpack2.py"]
+tier = "release"
+release_by = "path"
+fuel = 690_000_000_000
+measured = 459_963_260_162
+
+[groups.scipy-interpolate-fitpack2-5]
+paths = ["scipy/interpolate/tests/test_fitpack2.py"]
+tier = "release"
+release_by = "path"
+fuel = 35_000_000_000
+measured = 23_056_684_514
 
 [groups.scipy-interpolate-gil]
 paths = ["scipy/interpolate/tests/test_gil.py"]
@@ -467,7 +518,7 @@ release_by = "path"
 fuel = 240_000_000_000
 measured = 159_467_129_733
 
-[groups.scipy-optimize-1]
+[groups.scipy-optimize-1-1]
 paths = [
     "scipy/optimize/tests/test__basinhopping.py",
     "scipy/optimize/tests/test__differential_evolution.py",
@@ -481,6 +532,14 @@ paths = [
     "scipy/optimize/tests/test_chandrupatla.py",
     "scipy/optimize/tests/test_cobyla.py",
     "scipy/optimize/tests/test_cobyqa.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 590_000_000_000
+measured = 392_103_110_557
+
+[groups.scipy-optimize-1-2]
+paths = [
     "scipy/optimize/tests/test_constraint_conversion.py",
     "scipy/optimize/tests/test_constraints.py",
     "scipy/optimize/tests/test_differentiable_functions.py",
@@ -491,8 +550,8 @@ paths = [
 ]
 tier = "release"
 release_by = "path"
-fuel = 730_000_000_000
-measured = 484_929_665_527
+fuel = 170_000_000_000
+measured = 113_161_220_991
 
 [groups.scipy-optimize-2]
 paths = [
@@ -504,8 +563,8 @@ paths = [
 ]
 tier = "release"
 release_by = "path"
-fuel = 1_107_074_192_576
-measured = 738_049_461_717
+fuel = 530_000_000_000
+measured = 348_990_548_541
 
 [groups.scipy-optimize-3]
 paths = [
@@ -517,8 +576,8 @@ paths = [
 ]
 tier = "release"
 release_by = "path"
-fuel = 701_706_900_240
-measured = 467_804_600_160
+fuel = 210_000_000_000
+measured = 138_249_888_965
 
 [groups.scipy-signal]
 paths = [
@@ -600,33 +659,56 @@ release_by = "path"
 fuel = 36_000_000_000
 measured = 23_977_801_446
 
-[groups.scipy-sparse-linalg]
-paths = ["scipy/sparse/linalg/tests"]
+[groups.scipy-sparse-linalg-1]
+paths = [
+    "scipy/sparse/linalg/tests/test_expm_multiply.py",
+    "scipy/sparse/linalg/tests/test_funm_multiply_krylov.py",
+    "scipy/sparse/linalg/tests/test_interface.py",
+    "scipy/sparse/linalg/tests/test_matfuncs.py",
+    "scipy/sparse/linalg/tests/test_norm.py",
+]
 tier = "release"
 release_by = "path"
-fuel = 1_100_000_000_000
-measured = 678_052_705_507
+fuel = 370_000_000_000
+measured = 243_085_351_820
+
+[groups.scipy-sparse-linalg-2]
+paths = [
+    "scipy/sparse/linalg/tests/test_onenormest.py",
+    "scipy/sparse/linalg/tests/test_pydata_sparse.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 680_000_000_000
+measured = 448_496_177_375
+
+[groups.scipy-sparse-linalg-3]
+paths = ["scipy/sparse/linalg/tests/test_special_sparse_arrays.py"]
+tier = "release"
+release_by = "path"
+fuel = 40_000_000_000
+measured = 26_547_536_271
 
 [groups.scipy-sparse-64bit-1]
 paths = ["scipy/sparse/tests/test_64bit.py"]
 tier = "release"
 release_by = "path"
-fuel = 828_621_000_026
-measured = 552_414_000_017
+fuel = 570_000_000_000
+measured = 378_992_205_031
 
 [groups.scipy-sparse-64bit-2]
 paths = ["scipy/sparse/tests/test_64bit.py"]
 tier = "release"
 release_by = "path"
-fuel = 54_000_000_000
-measured = 35_356_112_483
+fuel = 380_000_000_000
+measured = 252_095_404_878
 
 [groups.scipy-sparse-64bit-3]
 paths = ["scipy/sparse/tests/test_64bit.py"]
 tier = "release"
 release_by = "path"
-fuel = 764_741_824_839
-measured = 509_827_883_226
+fuel = 450_000_000_000
+measured = 294_254_149_768
 
 [groups.scipy-sparse-base-1]
 paths = ["scipy/sparse/tests/test_base.py"]
@@ -639,8 +721,8 @@ measured = 380_619_596_565
 paths = ["scipy/sparse/tests/test_base.py"]
 tier = "release"
 release_by = "path"
-fuel = 213_724_197_726
-measured = 142_482_798_484
+fuel = 46_000_000_000
+measured = 30_475_287_195
 
 [groups.scipy-sparse-1]
 paths = [
@@ -659,8 +741,8 @@ paths = [
 ]
 tier = "release"
 release_by = "path"
-fuel = 300_000_000_000
-measured = 200_000_000_000
+fuel = 68_000_000_000
+measured = 45_071_066_898
 
 [groups.scipy-spatial]
 paths = ["scipy/spatial/tests"]
@@ -673,8 +755,8 @@ measured = 268_237_679_491
 paths = ["scipy/special/tests/test_cdflib.py"]
 tier = "release"
 release_by = "path"
-fuel = 862_094_815_969
-measured = 574_729_877_312
+fuel = 330_000_000_000
+measured = 216_335_137_963
 
 [groups.scipy-special-cdflib-2]
 paths = ["scipy/special/tests/test_cdflib.py"]
@@ -690,61 +772,12 @@ release_by = "path"
 fuel = 200_000_000_000
 measured = 127_398_157_401
 
-[groups.scipy-special-mpmath-1]
-paths = ["scipy/special/tests/test_mpmath.py"]
-tier = "release"
-release_by = "path"
-fuel = 1_119_512_967_736
-measured = 746_341_978_490
-
-[groups.scipy-special-mpmath-2]
-paths = ["scipy/special/tests/test_mpmath.py"]
-tier = "release"
-release_by = "path"
-fuel = 1_082_122_623_489
-measured = 721_415_082_326
-
-[groups.scipy-special-mpmath-3]
-paths = ["scipy/special/tests/test_mpmath.py"]
-tier = "release"
-release_by = "path"
-fuel = 430_000_000_000
-measured = 286_449_517_088
-
-[groups.scipy-special-mpmath-4]
-paths = ["scipy/special/tests/test_mpmath.py"]
-tier = "release"
-release_by = "path"
-fuel = 1_245_345_861_644
-measured = 830_230_574_429
-
-[groups.scipy-special-mpmath-5]
-paths = ["scipy/special/tests/test_mpmath.py"]
-tier = "release"
-release_by = "path"
-fuel = 33_000_000_000
-measured = 21_387_043_603
-
-[groups.scipy-special-mpmath-6]
-paths = ["scipy/special/tests/test_mpmath.py"]
-tier = "release"
-release_by = "path"
-fuel = 210_000_000_000
-measured = 139_520_627_115
-
-[groups.scipy-special-mpmath-7]
-paths = ["scipy/special/tests/test_mpmath.py"]
-tier = "release"
-release_by = "path"
-fuel = 33_000_000_000
-measured = 21_389_434_921
-
 [groups.scipy-special-mpmath-betainc]
 paths = ["scipy/special/tests/test_mpmath.py"]
 tier = "release"
 release_by = "path"
-fuel = 33_000_000_000
-measured = 21_390_727_035
+fuel = 96_000_000_000
+measured = 63_415_988_782
 clock_step_ns = 100_000
 clock_reason = "the test repeats a call until the clock has advanced 0.5 ms; the judge's clock advances only when read"
 
@@ -752,17 +785,279 @@ clock_reason = "the test repeats a call until the clock has advanced 0.5 ms; the
 paths = ["scipy/special/tests/test_mpmath.py"]
 tier = "release"
 release_by = "path"
-fuel = 33_000_000_000
-measured = 21_390_720_284
+fuel = 41_000_000_000
+measured = 26_916_232_553
 clock_step_ns = 100_000
 clock_reason = "the test repeats a call until the clock has advanced 0.5 ms; the judge's clock advances only when read"
+
+[groups.scipy-special-mpmath-1-a]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 300_000_000_000
+measured = 196_981_630_098
+
+[groups.scipy-special-mpmath-1-b]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 470_000_000_000
+measured = 309_782_744_282
+
+[groups.scipy-special-mpmath-2]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 490_000_000_000
+measured = 324_294_335_398
+
+[groups.scipy-special-mpmath-3]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 460_000_000_000
+measured = 302_826_083_087
+
+[groups.scipy-special-mpmath-4]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 680_000_000_000
+measured = 447_275_085_989
+
+[groups.scipy-special-mpmath-5]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 430_000_000_000
+measured = 283_192_282_660
+
+[groups.scipy-special-mpmath-6]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 310_000_000_000
+measured = 205_211_064_125
+
+[groups.scipy-special-mpmath-7]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 570_000_000_000
+measured = 375_664_600_685
 
 [groups.scipy-special-mpmath-8]
 paths = ["scipy/special/tests/test_mpmath.py"]
 tier = "release"
 release_by = "path"
-fuel = 14_000_000_000_000
-measured = 9_305_160_289_440
+fuel = 670_000_000_000
+measured = 441_876_311_251
+
+[groups.scipy-special-mpmath-9]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 37_000_000_000
+measured = 24_489_457_630
+
+[groups.scipy-special-mpmath-10]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 660_000_000_000
+measured = 434_374_501_642
+
+[groups.scipy-special-mpmath-11]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 620_000_000_000
+measured = 410_566_747_794
+
+[groups.scipy-special-mpmath-12]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 250_000_000_000
+measured = 165_962_984_222
+
+[groups.scipy-special-mpmath-13]
+# One test past the 480 G bound (539.5 G measured), kept a group of its own: TestSystematic::test_e1_complex
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 810_000_000_000
+measured = 539_482_977_362
+
+[groups.scipy-special-mpmath-14]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 560_000_000_000
+measured = 367_870_340_443
+
+[groups.scipy-special-mpmath-15]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 340_000_000_000
+measured = 224_722_726_711
+
+[groups.scipy-special-mpmath-16]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 540_000_000_000
+measured = 353_339_493_305
+
+[groups.scipy-special-mpmath-17]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 170_000_000_000
+measured = 106_907_632_420
+
+[groups.scipy-special-mpmath-18]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 380_000_000_000
+measured = 248_262_322_275
+
+[groups.scipy-special-mpmath-19]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 310_000_000_000
+measured = 205_329_203_859
+
+[groups.scipy-special-mpmath-20]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 500_000_000_000
+measured = 327_001_946_562
+
+[groups.scipy-special-mpmath-21]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 530_000_000_000
+measured = 351_560_114_206
+
+[groups.scipy-special-mpmath-22]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 530_000_000_000
+measured = 350_252_004_712
+
+[groups.scipy-special-mpmath-23]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 490_000_000_000
+measured = 325_548_997_413
+
+[groups.scipy-special-mpmath-24]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 200_000_000_000
+measured = 127_119_530_595
+
+[groups.scipy-special-mpmath-25]
+# One test past the 480 G bound (714.3 G measured), kept a group of its own: TestSystematic::test_gamma_complex
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 1_100_000_000_000
+measured = 714_322_175_864
+
+[groups.scipy-special-mpmath-26]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 430_000_000_000
+measured = 286_399_160_292
+
+[groups.scipy-special-mpmath-27]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 550_000_000_000
+measured = 363_927_652_960
+
+[groups.scipy-special-mpmath-28]
+# One test past the 480 G bound (634.0 G measured), kept a group of its own: TestSystematic::test_rgamma_complex
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 960_000_000_000
+measured = 634_014_453_900
+
+[groups.scipy-special-mpmath-29]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 350_000_000_000
+measured = 231_944_849_673
+
+[groups.scipy-special-mpmath-30]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 610_000_000_000
+measured = 402_018_929_985
+
+[groups.scipy-special-mpmath-31]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 340_000_000_000
+measured = 225_253_957_884
+
+[groups.scipy-special-mpmath-32]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 670_000_000_000
+measured = 444_262_026_007
+
+[groups.scipy-special-mpmath-33]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 660_000_000_000
+measured = 434_794_567_100
+
+[groups.scipy-special-mpmath-34]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 250_000_000_000
+measured = 162_638_831_375
+
+[groups.scipy-special-mpmath-35]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 190_000_000_000
+measured = 126_419_742_114
+
+[groups.scipy-special-mpmath-36]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 430_000_000_000
+measured = 284_118_844_355
+
+[groups.scipy-special-mpmath-37]
+paths = ["scipy/special/tests/test_mpmath.py"]
+tier = "release"
+release_by = "path"
+fuel = 420_000_000_000
+measured = 279_354_428_247
 
 [groups.scipy-special-1]
 paths = [
@@ -801,14 +1096,65 @@ paths = [
     "scipy/special/tests/test_pdtr.py",
     "scipy/special/tests/test_powm1.py",
     "scipy/special/tests/test_precompute_expn_asy.py",
-    "scipy/special/tests/test_precompute_gammainc.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 340_000_000_000
+measured = 225_542_154_488
+
+[groups.scipy-special-precompute-gammainc-1]
+paths = ["scipy/special/tests/test_precompute_gammainc.py"]
+tier = "release"
+release_by = "path"
+fuel = 37_000_000_000
+measured = 24_201_639_910
+
+[groups.scipy-special-precompute-gammainc-2]
+# One test past the 480 G bound (2847.6 G measured), kept a group of its own: test_d
+paths = ["scipy/special/tests/test_precompute_gammainc.py"]
+tier = "release"
+release_by = "path"
+fuel = 4_300_000_000_000
+measured = 2_847_645_536_878
+
+[groups.scipy-special-precompute-gammainc-3]
+paths = ["scipy/special/tests/test_precompute_gammainc.py"]
+tier = "release"
+release_by = "path"
+fuel = 37_000_000_000
+measured = 24_615_587_442
+
+[groups.scipy-special-precompute-gammainc-4]
+# One test past the 480 G bound (1537.7 G measured), kept a group of its own: test_gammaincc
+paths = ["scipy/special/tests/test_precompute_gammainc.py"]
+tier = "release"
+release_by = "path"
+fuel = 2_400_000_000_000
+measured = 1_537_726_230_388
+
+[groups.scipy-special-2]
+paths = [
     "scipy/special/tests/test_precompute_utils.py",
     "scipy/special/tests/test_sf_error.py",
     "scipy/special/tests/test_sici.py",
     "scipy/special/tests/test_spence.py",
     "scipy/special/tests/test_spfun_stats.py",
     "scipy/special/tests/test_spherical_bessel.py",
-    "scipy/special/tests/test_support_alternative_backends.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 39_000_000_000
+measured = 25_617_525_487
+
+[groups.scipy-special-3]
+paths = ["scipy/special/tests/test_support_alternative_backends.py"]
+tier = "release"
+release_by = "path"
+fuel = 350_000_000_000
+measured = 229_739_478_290
+
+[groups.scipy-special-4]
+paths = [
     "scipy/special/tests/test_trig.py",
     "scipy/special/tests/test_ufunc_infra.py",
     "scipy/special/tests/test_ufunc_signatures.py",
@@ -818,8 +1164,8 @@ paths = [
 ]
 tier = "release"
 release_by = "path"
-fuel = 20_000_000_000_000
-measured = 13_333_333_333_333
+fuel = 46_000_000_000
+measured = 30_635_098_389
 
 [groups.scipy-stats-axis-nan-policy-1]
 paths = ["scipy/stats/tests/test_axis_nan_policy.py"]
@@ -832,22 +1178,22 @@ measured = 108_151_459_131
 paths = ["scipy/stats/tests/test_axis_nan_policy.py"]
 tier = "release"
 release_by = "path"
-fuel = 911_562_768_401
-measured = 607_708_512_267
+fuel = 340_000_000_000
+measured = 221_136_602_963
 
 [groups.scipy-stats-axis-nan-policy-3]
 paths = ["scipy/stats/tests/test_axis_nan_policy.py"]
 tier = "release"
 release_by = "path"
-fuel = 983_753_362_481
-measured = 655_835_574_987
+fuel = 400_000_000_000
+measured = 265_555_250_798
 
 [groups.scipy-stats-axis-nan-policy-4]
 paths = ["scipy/stats/tests/test_axis_nan_policy.py"]
 tier = "release"
 release_by = "path"
-fuel = 1_067_805_314_595
-measured = 711_870_209_730
+fuel = 430_000_000_000
+measured = 284_621_752_256
 
 [groups.scipy-stats-axis-nan-policy-5]
 paths = ["scipy/stats/tests/test_axis_nan_policy.py"]
@@ -874,15 +1220,16 @@ measured = 355_784_921_938
 paths = ["scipy/stats/tests/test_continuous.py"]
 tier = "release"
 release_by = "path"
-fuel = 516_457_278_794
-measured = 344_304_852_529
+fuel = 230_000_000_000
+measured = 146_720_613_208
 
 [groups.scipy-stats-continuous-3]
+# One test past the 480 G bound (1287.4 G measured), kept a group of its own: TestMakeDistribution::test_rv_generic[100-distdata100]
 paths = ["scipy/stats/tests/test_continuous.py"]
 tier = "release"
 release_by = "path"
-fuel = 2_604_258_497_190
-measured = 1_736_172_331_460
+fuel = 2_000_000_000_000
+measured = 1_287_423_568_988
 
 [groups.scipy-stats-continuous-4]
 paths = ["scipy/stats/tests/test_continuous.py"]
@@ -902,8 +1249,8 @@ measured = 263_954_388_341
 paths = ["scipy/stats/tests/test_continuous.py"]
 tier = "release"
 release_by = "path"
-fuel = 745_503_936_327
-measured = 497_002_624_218
+fuel = 490_000_000_000
+measured = 323_713_264_404
 
 [groups.scipy-stats-continuous-7]
 paths = ["scipy/stats/tests/test_continuous.py"]
@@ -916,8 +1263,8 @@ measured = 300_567_655_116
 paths = ["scipy/stats/tests/test_continuous.py"]
 tier = "release"
 release_by = "path"
-fuel = 651_840_208_961
-measured = 434_560_139_307
+fuel = 330_000_000_000
+measured = 214_239_057_563
 
 [groups.scipy-stats-continuous-basic-1]
 paths = ["scipy/stats/tests/test_continuous_basic.py"]
@@ -934,20 +1281,22 @@ fuel = 540_000_000_000
 measured = 355_236_634_984
 
 [groups.scipy-stats-continuous-basic-3]
+# One test past the 480 G bound (1035.5 G measured), kept a group of its own: test_cont_basic[500-studentized_range-arg99]
 paths = ["scipy/stats/tests/test_continuous_basic.py"]
 tier = "release"
 release_by = "path"
-fuel = 4_221_491_530_105
-measured = 2_814_327_686_736
+fuel = 1_600_000_000_000
+measured = 1_035_454_878_378
 
 [groups.scipy-stats-continuous-basic-4]
 paths = ["scipy/stats/tests/test_continuous_basic.py"]
 tier = "release"
 release_by = "path"
-fuel = 486_394_899_020
-measured = 324_263_266_013
+fuel = 130_000_000_000
+measured = 84_771_261_843
 
 [groups.scipy-stats-continuous-basic-5]
+# One test past the 480 G bound (709.4 G measured), kept a group of its own: test_cont_basic_fit[200-argus-arg15-MM-False]
 paths = ["scipy/stats/tests/test_continuous_basic.py"]
 tier = "release"
 release_by = "path"
@@ -969,25 +1318,27 @@ fuel = 510_000_000_000
 measured = 339_776_152_262
 
 [groups.scipy-stats-continuous-basic-8]
+# One test past the 480 G bound (996.6 G measured), kept a group of its own: test_cont_basic_fit[200-exponpow-arg83-MM-False]
 paths = ["scipy/stats/tests/test_continuous_basic.py"]
 tier = "release"
 release_by = "path"
-fuel = 2_909_176_866_978
-measured = 1_939_451_244_652
+fuel = 1_500_000_000_000
+measured = 996_581_058_655
 
 [groups.scipy-stats-continuous-basic-9]
 paths = ["scipy/stats/tests/test_continuous_basic.py"]
 tier = "release"
 release_by = "path"
-fuel = 621_164_321_680
-measured = 414_109_547_786
+fuel = 350_000_000_000
+measured = 232_300_163_385
 
 [groups.scipy-stats-continuous-basic-10]
+# One test past the 480 G bound (536.4 G measured), kept a group of its own: test_cont_basic_fit[200-genhalflogistic-arg135-MM-False]
 paths = ["scipy/stats/tests/test_continuous_basic.py"]
 tier = "release"
 release_by = "path"
-fuel = 1_471_500_050_690
-measured = 981_000_033_793
+fuel = 810_000_000_000
+measured = 536_431_044_050
 
 [groups.scipy-stats-continuous-basic-11]
 paths = ["scipy/stats/tests/test_continuous_basic.py"]
@@ -997,6 +1348,7 @@ fuel = 340_000_000_000
 measured = 221_320_308_859
 
 [groups.scipy-stats-continuous-basic-12]
+# One test past the 480 G bound (1615.1 G measured), kept a group of its own: test_cont_basic_fit[200-gompertz-arg167-MM-False]
 paths = ["scipy/stats/tests/test_continuous_basic.py"]
 tier = "release"
 release_by = "path"
@@ -1007,17 +1359,19 @@ measured = 1_615_121_164_558
 paths = ["scipy/stats/tests/test_continuous_basic.py"]
 tier = "release"
 release_by = "path"
-fuel = 200_000_000_000
-measured = 133_333_333_333
+fuel = 66_000_000_000
+measured = 43_874_257_699
 
 [groups.scipy-stats-continuous-basic-14]
+# One test past the 480 G bound (2055.8 G measured), kept a group of its own: test_cont_basic_fit[200-johnsonsb-arg214-MM-True]
 paths = ["scipy/stats/tests/test_continuous_basic.py"]
 tier = "release"
 release_by = "path"
-fuel = 7_035_697_879_245
-measured = 4_690_465_252_830
+fuel = 3_100_000_000_000
+measured = 2_055_816_942_548
 
 [groups.scipy-stats-continuous-basic-15]
+# One test past the 480 G bound (1596.0 G measured), kept a group of its own: test_cont_basic_fit[200-johnsonsb-arg215-MM-False]
 paths = ["scipy/stats/tests/test_continuous_basic.py"]
 tier = "release"
 release_by = "path"
@@ -1035,8 +1389,8 @@ measured = 373_092_904_371
 paths = ["scipy/stats/tests/test_continuous_basic.py"]
 tier = "release"
 release_by = "path"
-fuel = 1_079_666_653_126
-measured = 719_777_768_750
+fuel = 480_000_000_000
+measured = 315_620_070_296
 
 [groups.scipy-stats-continuous-basic-18]
 paths = ["scipy/stats/tests/test_continuous_basic.py"]
@@ -1056,8 +1410,8 @@ measured = 429_147_587_461
 paths = ["scipy/stats/tests/test_continuous_basic.py"]
 tier = "release"
 release_by = "path"
-fuel = 819_330_581_304
-measured = 546_220_387_536
+fuel = 610_000_000_000
+measured = 402_267_537_929
 
 [groups.scipy-stats-continuous-basic-21]
 paths = ["scipy/stats/tests/test_continuous_basic.py"]
@@ -1084,8 +1438,15 @@ measured = 389_831_547_883
 paths = ["scipy/stats/tests/test_distributions.py"]
 tier = "release"
 release_by = "path"
-fuel = 1_025_063_568_404
-measured = 683_375_712_269
+fuel = 480_000_000_000
+measured = 318_230_556_255
+
+[groups.scipy-stats-distributions-4]
+paths = ["scipy/stats/tests/test_distributions.py"]
+tier = "release"
+release_by = "path"
+fuel = 340_000_000_000
+measured = 222_466_748_583
 
 [groups.scipy-stats-fit-1]
 paths = ["scipy/stats/tests/test_fit.py"]
@@ -1105,24 +1466,117 @@ measured = 292_321_611_762
 paths = ["scipy/stats/tests/test_fit.py"]
 tier = "release"
 release_by = "path"
-fuel = 288_637_650_902
-measured = 192_425_100_601
+fuel = 300_000_000_000
+measured = 196_130_237_341
 
 [groups.scipy-stats-fit-4]
+# One test past the 480 G bound (1677.6 G measured), kept a group of its own: TestFit::test_basic_fit_mle[nchypergeom_fisher]
 paths = ["scipy/stats/tests/test_fit.py"]
 tier = "release"
 release_by = "path"
-fuel = 2_500_000_000_000
-measured = 1_648_973_633_684
+fuel = 2_600_000_000_000
+measured = 1_677_582_858_303
 
 [groups.scipy-stats-fit-5]
+# One test past the 480 G bound (1479.7 G measured), kept a group of its own: TestFit::test_basic_fit_mle[nchypergeom_wallenius]
 paths = ["scipy/stats/tests/test_fit.py"]
 tier = "release"
 release_by = "path"
-fuel = 7_200_000_000_000
-measured = 4_736_154_739_332
+fuel = 2_300_000_000_000
+measured = 1_479_725_552_781
 
-[groups.scipy-stats-1]
+[groups.scipy-stats-fit-6]
+paths = ["scipy/stats/tests/test_fit.py"]
+tier = "release"
+release_by = "path"
+fuel = 470_000_000_000
+measured = 307_276_933_806
+
+[groups.scipy-stats-fit-7]
+paths = ["scipy/stats/tests/test_fit.py"]
+tier = "release"
+release_by = "path"
+fuel = 420_000_000_000
+measured = 276_829_019_186
+
+[groups.scipy-stats-fit-8]
+paths = ["scipy/stats/tests/test_fit.py"]
+tier = "release"
+release_by = "path"
+fuel = 250_000_000_000
+measured = 164_297_878_529
+
+[groups.scipy-stats-fit-9]
+paths = ["scipy/stats/tests/test_fit.py"]
+tier = "release"
+release_by = "path"
+fuel = 600_000_000_000
+measured = 399_066_843_229
+
+[groups.scipy-stats-fit-10]
+paths = ["scipy/stats/tests/test_fit.py"]
+tier = "release"
+release_by = "path"
+fuel = 530_000_000_000
+measured = 349_637_286_378
+
+[groups.scipy-stats-fit-11]
+paths = ["scipy/stats/tests/test_fit.py"]
+tier = "release"
+release_by = "path"
+fuel = 520_000_000_000
+measured = 343_298_355_138
+
+[groups.scipy-stats-fit-12]
+paths = ["scipy/stats/tests/test_fit.py"]
+tier = "release"
+release_by = "path"
+fuel = 580_000_000_000
+measured = 386_473_778_537
+
+[groups.scipy-stats-fit-13]
+paths = ["scipy/stats/tests/test_fit.py"]
+tier = "release"
+release_by = "path"
+fuel = 540_000_000_000
+measured = 358_044_325_034
+
+[groups.scipy-stats-fit-14]
+paths = ["scipy/stats/tests/test_fit.py"]
+tier = "release"
+release_by = "path"
+fuel = 460_000_000_000
+measured = 302_656_583_397
+
+[groups.scipy-stats-fit-15]
+paths = ["scipy/stats/tests/test_fit.py"]
+tier = "release"
+release_by = "path"
+fuel = 530_000_000_000
+measured = 349_837_137_411
+
+[groups.scipy-stats-fit-16]
+paths = ["scipy/stats/tests/test_fit.py"]
+tier = "release"
+release_by = "path"
+fuel = 400_000_000_000
+measured = 261_882_705_527
+
+[groups.scipy-stats-fit-17]
+paths = ["scipy/stats/tests/test_fit.py"]
+tier = "release"
+release_by = "path"
+fuel = 580_000_000_000
+measured = 385_281_985_971
+
+[groups.scipy-stats-fit-18]
+paths = ["scipy/stats/tests/test_fit.py"]
+tier = "release"
+release_by = "path"
+fuel = 570_000_000_000
+measured = 378_909_065_423
+
+[groups.scipy-stats-1-1]
 paths = [
     "scipy/stats/tests/test_binned_statistic.py",
     "scipy/stats/tests/test_censored_data.py",
@@ -1135,30 +1589,135 @@ paths = [
     "scipy/stats/tests/test_entropy.py",
     "scipy/stats/tests/test_fast_gen_inversion.py",
     "scipy/stats/tests/test_hypotests.py",
-    "scipy/stats/tests/test_kdeoth.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 330_000_000_000
+measured = 215_735_243_419
+
+[groups.scipy-stats-1-mgc-1]
+paths = ["scipy/stats/tests/test_mgc.py"]
+tier = "release"
+release_by = "path"
+fuel = 490_000_000_000
+measured = 322_266_001_675
+
+[groups.scipy-stats-1-mgc-2]
+paths = ["scipy/stats/tests/test_mgc.py"]
+tier = "release"
+release_by = "path"
+fuel = 420_000_000_000
+measured = 278_741_505_463
+
+[groups.scipy-stats-1-mgc-3]
+paths = ["scipy/stats/tests/test_mgc.py"]
+tier = "release"
+release_by = "path"
+fuel = 410_000_000_000
+measured = 269_452_991_964
+
+[groups.scipy-stats-1-2-kdeoth-1]
+paths = ["scipy/stats/tests/test_kdeoth.py"]
+tier = "release"
+release_by = "path"
+fuel = 240_000_000_000
+measured = 156_368_680_375
+
+[groups.scipy-stats-1-2-kdeoth-2]
+paths = ["scipy/stats/tests/test_kdeoth.py"]
+tier = "release"
+release_by = "path"
+fuel = 660_000_000_000
+measured = 437_946_547_991
+
+[groups.scipy-stats-1-2-kdeoth-3]
+paths = ["scipy/stats/tests/test_kdeoth.py"]
+tier = "release"
+release_by = "path"
+fuel = 31_000_000_000
+measured = 20_666_484_243
+
+[groups.scipy-stats-1-3]
+paths = [
     "scipy/stats/tests/test_marray.py",
-    "scipy/stats/tests/test_mgc.py",
     "scipy/stats/tests/test_morestats.py",
     "scipy/stats/tests/test_mstats_basic.py",
     "scipy/stats/tests/test_mstats_extras.py",
     "scipy/stats/tests/test_multicomp.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 660_000_000_000
+measured = 437_939_668_130
+
+[groups.scipy-stats-1-resampling-1]
+paths = ["scipy/stats/tests/test_resampling.py"]
+tier = "release"
+release_by = "path"
+fuel = 480_000_000_000
+measured = 315_464_975_424
+
+[groups.scipy-stats-1-resampling-2]
+paths = ["scipy/stats/tests/test_resampling.py"]
+tier = "release"
+release_by = "path"
+fuel = 310_000_000_000
+measured = 204_902_589_368
+
+[groups.scipy-stats-1-stats-1]
+paths = ["scipy/stats/tests/test_stats.py"]
+tier = "release"
+release_by = "path"
+fuel = 450_000_000_000
+measured = 295_036_085_453
+
+[groups.scipy-stats-1-stats-2]
+paths = ["scipy/stats/tests/test_stats.py"]
+tier = "release"
+release_by = "path"
+fuel = 290_000_000_000
+measured = 191_257_953_714
+
+[groups.scipy-stats-1-stats-3]
+# One test past the 480 G bound (1480.9 G measured), kept a group of its own: TestKSTwoSamples::test_gh12999[numpy]
+paths = ["scipy/stats/tests/test_stats.py"]
+tier = "release"
+release_by = "path"
+fuel = 2_300_000_000_000
+measured = 1_480_891_597_817
+
+[groups.scipy-stats-1-stats-4]
+# One test past the 480 G bound (3023.3 G measured), kept a group of its own: TestKSTwoSamples::testLargeBoth[numpy]
+paths = ["scipy/stats/tests/test_stats.py"]
+tier = "release"
+release_by = "path"
+fuel = 4_600_000_000_000
+measured = 3_023_332_151_749
+
+[groups.scipy-stats-1-stats-5]
+paths = ["scipy/stats/tests/test_stats.py"]
+tier = "release"
+release_by = "path"
+fuel = 330_000_000_000
+measured = 217_447_914_253
+
+[groups.scipy-stats-1-4]
+paths = [
     "scipy/stats/tests/test_multivariate.py",
     "scipy/stats/tests/test_new_distributions.py",
     "scipy/stats/tests/test_odds_ratio.py",
     "scipy/stats/tests/test_quantile.py",
     "scipy/stats/tests/test_rank.py",
     "scipy/stats/tests/test_relative_risk.py",
-    "scipy/stats/tests/test_resampling.py",
     "scipy/stats/tests/test_sensitivity_analysis.py",
-    "scipy/stats/tests/test_stats.py",
     "scipy/stats/tests/test_survival.py",
     "scipy/stats/tests/test_tukeylambda_stats.py",
     "scipy/stats/tests/test_variation.py",
 ]
 tier = "release"
 release_by = "path"
-fuel = 12_000_000_000_000
-measured = 7_718_533_480_186
+fuel = 450_000_000_000
+measured = 295_151_861_864
 
 [[split]]
 file = "scipy/signal/tests/test_signaltools.py"
@@ -1176,12 +1735,16 @@ groups = [
     "scipy-smoke-slow-propack-3",
     "scipy-smoke-slow-propack-4",
     "scipy-smoke-slow-propack-5",
+    "scipy-smoke-slow-propack-6",
+    "scipy-smoke-slow-propack-7",
 ]
 keywords = [
     "test_examples[False-f",
-    "test_examples[False-c",
+    "test_examples[False-complex6",
+    "test_examples[F",
     "test_examples[True-f",
-    "test_examples[True-complex6",
+    "test_examples[True-complex64]",
+    "test_examples[True-complex128]",
 ]
 
 [[split]]
@@ -1199,7 +1762,7 @@ groups = [
     "scipy-integrate-cubature-2",
 ]
 keywords = [
-    "TestCubature or test_scalar_output or test_array_output or test_break_points or test_infinite_limits[numpy-problem0 or test_infinite_limits[numpy-problem1 or test_infinite_limits[numpy-problem2 or test_infinite_limits[numpy-problem3 or test_infinite_limits[numpy-problem4 or test_infinite_limits[numpy-problem5 or test_infinite_limits[numpy-problem6 or test_infinite_limits[numpy-problem7 or test_infinite_limits[numpy-problem8 or test_infinite_limits[numpy-problem9-gk1",
+    "test_pass_str or test_pass_array_like_not_array or test_stops_after_max_subdivisions or test_a_and_b_must_be_1d or test_a_and_b_must_be_nonempty or test_zero_width_limits or test_limits_other_way_around or test_result_dtype_promoted_correctly or test_scalar_output or test_array_output or test_break_points or test_infinite_limits[numpy-problem0 or test_infinite_limits[numpy-problem1 or test_infinite_limits[numpy-problem2 or test_infinite_limits[numpy-problem3 or test_infinite_limits[numpy-problem4 or test_infinite_limits[numpy-problem5 or test_infinite_limits[numpy-problem6 or test_infinite_limits[numpy-problem7 or test_infinite_limits[numpy-problem8 or test_infinite_limits[numpy-problem9-gk1",
 ]
 
 [[split]]
@@ -1208,10 +1771,14 @@ groups = [
     "scipy-interpolate-fitpack2-1",
     "scipy-interpolate-fitpack2-2",
     "scipy-interpolate-fitpack2-3",
+    "scipy-interpolate-fitpack2-4",
+    "scipy-interpolate-fitpack2-5",
 ]
 keywords = [
     "TestUnivariateSpline or TestLSQBivariateSpline or TestSmoothBivariateSpline or test_bivariate_spline_noncontiguous_input or TestLSQSphereBivariateSpline or TestSmoothSphereBivariateSpline or test_defaults or test_interpolated_offgrid_points or test_midpoints or test_custom_matches_reference or test_evaluate or test_derivatives_grid or test_derivatives or test_partial_derivative_method_grid or test_partial_derivative_method or test_partial_derivative_order_too_large or test_broadcast or test_invalid_input or test_array_like_input or test_not_increasing_input or test_grid_sparse_meshgrid or test_grid_sparse_meshgrid_values or test_not_increasing_input_2d or test_spline_large_2d[spl_apis0 or test_spline_large_2d[spl_apis1-s_tols0 or test_spline_large_2d[spl_apis1-s_tols1-shape0]",
     "test_spline_large_2d[spl_apis1-s_tols1-shape1]",
+    "test_spline_large_2d[spl_apis1-s_tols2-shape0]",
+    "test_spline_large_2d[spl_apis1-s_tols2-shape1]",
 ]
 
 [[split]]
@@ -1232,8 +1799,8 @@ groups = [
     "scipy-sparse-64bit-3",
 ]
 keywords = [
-    "Test64BitArray or Test64BitMatrix",
-    "Test64BitMatrixSameAsArray",
+    "Test64BitArray",
+    "test_no_64 or test_resiliency_limit_10",
 ]
 
 [[split]]
@@ -1261,27 +1828,87 @@ keywords = [
 [[split]]
 file = "scipy/special/tests/test_mpmath.py"
 groups = [
-    "scipy-special-mpmath-1",
+    "scipy-special-mpmath-betainc",
+    "scipy-special-mpmath-betaincc",
+    "scipy-special-mpmath-1-a",
+    "scipy-special-mpmath-1-b",
     "scipy-special-mpmath-2",
     "scipy-special-mpmath-3",
     "scipy-special-mpmath-4",
     "scipy-special-mpmath-5",
     "scipy-special-mpmath-6",
     "scipy-special-mpmath-7",
-    "scipy-special-mpmath-betainc",
-    "scipy-special-mpmath-betaincc",
     "scipy-special-mpmath-8",
+    "scipy-special-mpmath-9",
+    "scipy-special-mpmath-10",
+    "scipy-special-mpmath-11",
+    "scipy-special-mpmath-12",
+    "scipy-special-mpmath-13",
+    "scipy-special-mpmath-14",
+    "scipy-special-mpmath-15",
+    "scipy-special-mpmath-16",
+    "scipy-special-mpmath-17",
+    "scipy-special-mpmath-18",
+    "scipy-special-mpmath-19",
+    "scipy-special-mpmath-20",
+    "scipy-special-mpmath-21",
+    "scipy-special-mpmath-22",
+    "scipy-special-mpmath-23",
+    "scipy-special-mpmath-24",
+    "scipy-special-mpmath-25",
+    "scipy-special-mpmath-26",
+    "scipy-special-mpmath-27",
+    "scipy-special-mpmath-28",
+    "scipy-special-mpmath-29",
+    "scipy-special-mpmath-30",
+    "scipy-special-mpmath-31",
+    "scipy-special-mpmath-32",
+    "scipy-special-mpmath-33",
+    "scipy-special-mpmath-34",
+    "scipy-special-mpmath-35",
+    "scipy-special-mpmath-36",
+    "scipy-special-mpmath-37",
 ]
 keywords = [
-    "test_expi_complex or test_expn_large_n or test_hyp0f1_gh5764 or test_hyp0f1_gh_1609 or test_hyperu_around_0 or test_hyp2f1_strange_points or test_hyp2f1_real_some_points or test_hyp2f1_some_points_2 or test_hyp2f1_real_some or test_hyp2f1_real_random or test_erf_complex or test_lpmv or test_beta or test_loggamma_taylor_transition or test_loggamma_taylor or test_rgamma_zeros or test_digamma_roots or test_digamma_negreal or test_digamma_boundary or test_gammainc_boundary or test_spence_circle or test_sinpi_zeros or test_cospi_zeros or test_dn_quarter_period or test_wrightomega_branch or test_wrightomega_region1",
-    "test_wrightomega_region2 or test_lambertw_smallz or test_airyai or test_airyai_complex or test_airyai_prime or test_airyai_prime_complex or test_airybi or test_airybi_complex or test_airybi_prime",
-    "test_airybi_prime_complex or test_bei or test_ber or test_bernoulli or test_besseli or test_besseli_complex or test_besselj or test_besselj_complex",
-    "test_besselk",
+    "TestSystematic and test_betainc and not test_betaincc",
+    "TestSystematic and test_betaincc",
+    "(test_expi_complex or test_expn_large_n or test_hyp0f1_gh5764 or test_hyp0f1_gh_1609 or test_hyperu_around_0 or test_hyp2f1_strange_points or test_hyp2f1_real_some_points or test_hyp2f1_some_points_2 or test_hyp2f1_real_some and not (test_hyp2f1_real_some_points) or test_hyp2f1_real_random or test_erf_complex or test_lpmv or test_beta and not (test_betainc or test_betaincc) or test_loggamma_taylor_transition or test_loggamma_taylor and not (test_loggamma_taylor_transition) or test_rgamma_zeros or test_digamma_roots or test_digamma_negreal or test_digamma_boundary) and (test_expi_complex or test_expn_large_n or test_hyp0f1_gh5764 or test_hyp0f1_gh_1609 or test_hyperu_around_0 or test_hyp2f1_strange_points or test_hyp2f1_real_some_points or test_hyp2f1_some_points_2 or test_hyp2f1_real_some and not (test_hyp2f1_real_some_points) or test_hyp2f1_real_random or test_erf_complex or test_lpmv)",
+    "test_expi_complex or test_expn_large_n or test_hyp0f1_gh5764 or test_hyp0f1_gh_1609 or test_hyperu_around_0 or test_hyp2f1_strange_points or test_hyp2f1_real_some_points or test_hyp2f1_some_points_2 or test_hyp2f1_real_some and not (test_hyp2f1_real_some_points) or test_hyp2f1_real_random or test_erf_complex or test_lpmv or test_beta and not (test_betainc or test_betaincc) or test_loggamma_taylor_transition or test_loggamma_taylor and not (test_loggamma_taylor_transition) or test_rgamma_zeros or test_digamma_roots or test_digamma_negreal or test_digamma_boundary",
+    "test_gammainc_boundary or test_spence_circle or test_sinpi_zeros or test_cospi_zeros or test_dn_quarter_period or test_wrightomega_branch or test_wrightomega_region1 or test_wrightomega_region2 or test_lambertw_smallz or test_airyai and not (test_airyai_complex or test_airyai_prime or test_airyai_prime_complex) or test_airyai_complex or test_airyai_prime and not (test_airyai_prime_complex) or test_airyai_prime_complex or test_airybi and not (test_airybi_complex or test_airybi_prime or test_airybi_prime_complex) or test_airybi_complex or test_airybi_prime and not (test_airybi_prime_complex)",
+    "test_airybi_prime_complex or test_bei or test_ber and not (test_bernoulli) or test_bernoulli or test_besseli and not (test_besseli_complex) or test_besseli_complex or test_besselj and not (test_besselj_complex) or test_besselj_complex",
+    "TestSystematic and (test_besselk and not (test_besselk_complex or test_besselk_int))",
     "test_besselk_int",
-    "test_besselk_complex or test_bessely or test_bessely_complex or test_bessely_int",
-    "test_beta",
-    "test_betainc and not test_betaincc",
-    "test_betaincc",
+    "test_besselk_complex or test_bessely and not (test_bessely_complex or test_bessely_int) or test_bessely_complex or test_bessely_int",
+    "test_binom or test_chebyt_int or test_chebyt and not (test_chebyt_int) or test_chebyu_int or test_chebyu and not (test_chebyu_int) or test_chi and not (test_chi_complex)",
+    "TestSystematic and (test_chi_complex)",
+    "test_ci and not (test_ci_complex)",
+    "TestSystematic and (test_ci_complex)",
+    "test_cospi and not (test_cospi_complex or test_cospi_zeros) or test_cospi_complex or test_digamma and not (test_digamma_boundary or test_digamma_complex or test_digamma_negreal or test_digamma_roots)",
+    "test_digamma_complex or test_e1 and not (test_e1_complex)",
+    "TestSystematic and (test_e1_complex)",
+    "test_exprel or test_expm1_complex or test_log1p_complex or test_log1pmx",
+    "test_ei and not (test_ei_complex)",
+    "test_ei_complex or test_ellipe and not (test_ellipeinc or test_ellipeinc_largephi)",
+    "test_ellipeinc and not (test_ellipeinc_largephi)",
+    "test_ellipeinc_largephi or test_ellipf and not (test_ellipf_largephi or test_ellipfun_cn or test_ellipfun_dn or test_ellipfun_sn)",
+    "test_ellipf_largephi or test_ellipk and not (test_ellipkinc or test_ellipkinc_largephi) or test_ellipkinc and not (test_ellipkinc_largephi)",
+    "TestSystematic and (test_ellipkinc_largephi)",
+    "test_ellipfun_sn or test_ellipfun_cn or test_ellipfun_dn or test_erf and not (test_erf_complex or test_erfc or test_erfc_complex or test_erfi or test_erfi_complex) or test_erfc and not (test_erfc_complex) or test_erfc_complex",
+    "test_erfi and not (test_erfi_complex) or test_erfi_complex or test_ndtr and not (test_ndtr_complex) or test_ndtr_complex or test_log_ndtr and not (test_log_ndtr_complex) or test_log_ndtr_complex or test_eulernum",
+    "test_expint or test_fresnels or test_fresnelc",
+    "test_gamma and not (test_gamma_complex or test_gammainc or test_gammainc_boundary or test_gammaincc or test_gammaln)",
+    "TestSystematic and (test_gamma_complex)",
+    "test_gammainc and not (test_gammainc_boundary or test_gammaincc) or test_gammaincc or test_gammaln or test_gegenbauer and not (test_gegenbauer_complex or test_gegenbauer_complex_general or test_gegenbauer_int) or test_gegenbauer_int or test_gegenbauer_complex and not (test_gegenbauer_complex_general) or test_gegenbauer_complex_general or test_hankel1 or test_hankel2 or test_hermite or test_hyp0f1 and not (test_hyp0f1_complex or test_hyp0f1_gh5764 or test_hyp0f1_gh_1609) or test_hyp0f1_complex or test_hyp1f1 and not (test_hyp1f1_complex) or test_hyp1f1_complex or test_hyp2f1_complex or test_hyperu and not (test_hyperu_around_0) or test_igam_fac or test_j0 or test_j1 or test_jacobi and not (test_jacobi_int) or test_jacobi_int or test_kei or test_ker or test_laguerre and not (test_laguerre_int) or test_laguerre_int or test_lambertw_real",
+    "test_lanczos_sum_expg_scaled or test_legendre and not (test_legendre_int) or test_legendre_int or test_legenq and not (test_legenq_complex) or test_legenq_complex or test_lgam1p or test_loggamma and not (test_loggamma_taylor or test_loggamma_taylor_transition) or test_pcfd or test_pcfv or test_pcfw or test_polygamma or test_rgamma and not (test_rgamma_complex or test_rgamma_zeros)",
+    "TestSystematic and (test_rgamma_complex)",
+    "test_rf or test_sinpi and not (test_sinpi_complex or test_sinpi_zeros)",
+    "test_sinpi_complex",
+    "test_shi and not (test_shi_complex)",
+    "test_shi_complex or test_si and not (test_si_complex or test_sinpi or test_sinpi_complex or test_sinpi_zeros)",
+    "TestSystematic and (test_si_complex)",
+    "test_spence and not (test_spence_circle or test_spence_complex) or test_spence_complex or test_struveh",
+    "test_struvel or test_wrightomega_real",
+    "test_wrightomega and not (test_wrightomega_branch or test_wrightomega_real or test_wrightomega_region1 or test_wrightomega_region2) or test_hurwitz_zeta or test_riemann_zeta or test_zetac",
 ]
 
 [[split]]
@@ -1378,10 +2005,12 @@ groups = [
     "scipy-stats-distributions-1",
     "scipy-stats-distributions-2",
     "scipy-stats-distributions-3",
+    "scipy-stats-distributions-4",
 ]
 keywords = [
     "test_api_regression or test_distributions_submodule or TestVonMises or test_support or TestRandInt or TestBinom or TestArcsine or TestBernoulli or TestBradford or TestCauchy or TestChi or TestCrystalBall or TestNBinom or TestGenInvGauss or TestGenHyperbolic or TestHypSecant or TestNormInvGauss or TestGeom or TestPlanck or TestGennorm or TestGibrat or TestGompertz or TestFoldNorm or TestHalfNorm or TestHalfCauchy or TestHalfLogistic or TestHalfgennorm or TestLaplaceasymmetric or TestTruncnorm or TestGenLogistic or TestHypergeom or TestLoggamma or TestJohnsonsu or TestJohnsonb or TestLogistic or TestLogser or TestGumbel_r_l or TestPareto or TestGenpareto or TestPearson3 or TestKappa4 or TestPoisson or TestKSTwo or TestZipf or TestDLaplace or TestInvgauss or TestLandau or TestLaplace or TestLogLaplace or TestPowerlaw or TestPowerLogNorm or TestPowerNorm or TestInvGamma or TestF or TestStudentT or TestRvDiscrete or TestSkewCauchy or TestJFSkewT or TestSkewNorm or TestExpon or TestNorm or TestUniform or TestExponNorm or TestGenExpon or TestTruncexpon or TestExponpow or TestSkellam or TestLognorm or TestBeta or TestBetaPrime or TestGamma or test_pdf_overflow_gh19616 or TestDgamma or TestChi2 or TestGumbelL or TestGumbelR",
     "TestLevyStable or TestArrayArgument or TestDocstring or test_args_reduce or TestFitMethod or TestFrozen or TestExpect or TestNct or TestRecipInvGauss or TestRice or TestErlang or TestRayleigh or TestExponWeib or TestFatigueLife or TestWeibull or TestDweibull or TestTruncWeibull or TestRdist or TestTrapezoid or TestTriang or TestMaxwell or TestMielke or TestBurr or TestBurr12",
+    "test_cdf_against_tables or test_ppf_against_tables or test_cdf_against_mp or test_pdf_against_mp or test_moment_against_mp or test_pdf_integration or test_pdf_against_cdf",
 ]
 
 [[split]]
@@ -1392,12 +2021,100 @@ groups = [
     "scipy-stats-fit-3",
     "scipy-stats-fit-4",
     "scipy-stats-fit-5",
+    "scipy-stats-fit-6",
+    "scipy-stats-fit-7",
+    "scipy-stats-fit-8",
+    "scipy-stats-fit-9",
+    "scipy-stats-fit-10",
+    "scipy-stats-fit-11",
+    "scipy-stats-fit-12",
+    "scipy-stats-fit-13",
+    "scipy-stats-fit-14",
+    "scipy-stats-fit-15",
+    "scipy-stats-fit-16",
+    "scipy-stats-fit-17",
+    "scipy-stats-fit-18",
 ]
 keywords = [
     "test_cont_fit[MLE-a or test_cont_fit[MLE-b or test_cont_fit[MLE-c or test_cont_fit[MLE-d or test_cont_fit[MLE-e or test_cont_fit[MLE-f or test_cont_fit[MLE-g or test_cont_fit[MLE-h or test_cont_fit[MLE-i or test_cont_fit[MLE-j or test_cont_fit[MLE-k or test_cont_fit[MLE-l or test_cont_fit[MLE-m",
     "test_cont_fit[MLE-n or test_cont_fit[MLE-p or test_cont_fit[MLE-r or test_cont_fit[MLE-s or test_cont_fit[MLE-t or test_cont_fit[MLE-u or test_cont_fit[MLE-v or test_cont_fit[MLE-w or test_cont_fit[MM or test_non_default_loc_scale_mle_fit or test_expon_fit or test_fit_error or test_nnlf_and_related_methods or test_fitstart or test_dist_iv or test_data_iv or test_bounds_iv or test_guess_iv",
-    "test_basic_fit_mle[b or test_basic_fit_mle[d or test_basic_fit_mle[g or test_basic_fit_mle[h",
-    "test_basic_fit_mle[nchypergeom_f",
+    "test_basic_fit_mle[b or test_basic_fit_mle[d or test_basic_fit_mle[geo or test_basic_fit_mle[h",
+    "test_basic_fit_mle[nchypergeom_fisher]",
+    "test_basic_fit_mle[nchypergeom_wallenius]",
+    "test_basic_fit_mle[l or test_basic_fit_mle[n or test_basic_fit_mle[p",
+    "test_basic_fit_mle[r or test_basic_fit_mle[s or test_basic_fit_mle[z or test_basic_fit_mle[y or test_basic_fit_mle[a or test_basic_fit_mle[c or test_basic_fit_mle[e or test_basic_fit_mle[f]",
+    "test_basic_fit_mle[f or test_basic_fit_mle[i or test_basic_fit_mle[j or test_basic_fit_mle[k or test_basic_fit_mle[m or test_basic_fit_mle[t] or test_basic_fit_mle[tr",
+    "test_basic_fit_mle[t",
+    "test_basic_fit_mle[u or test_basic_fit_mle[v or test_basic_fit_mle[w or test_basic_fit_mse[b or test_basic_fit_mse[d",
+    "test_basic_fit_mse[g or test_basic_fit_mse[h or test_basic_fit_mse[nchypergeom_f",
+    "test_basic_fit_mse[n",
+    "test_basic_fit_mse[l or test_basic_fit_mse[p or test_basic_fit_mse[r or test_basic_fit_mse[s or test_basic_fit_mse[z or test_basic_fit_mse[y or test_basic_fit_mse[a",
+    "test_basic_fit_mse[c or test_basic_fit_mse[e or test_basic_fit_mse[f] or test_basic_fit_mse[f or test_basic_fit_mse[i or test_basic_fit_mse[j",
+    "test_basic_fit_mse or test_arcsine or test_argus or test_beta or test_foldnorm or test_nakagami or test_powerlaw or test_truncpareto or test_truncweibull_min or test_missing_shape_bounds or test_fit_only_loc_scale or test_everything_fixed or test_failure",
+    "test_guess and not (test_guess_iv) or test_mse_accuracy_1 or test_mse_accuracy_2 or TestGoodnessOfFit or TestFitResult",
+    "test_basic_fit_mle[ga",
+]
+
+[[split]]
+file = "scipy/stats/tests/test_mgc.py"
+groups = [
+    "scipy-stats-1-mgc-1",
+    "scipy-stats-1-mgc-2",
+    "scipy-stats-1-mgc-3",
+]
+keywords = [
+    "TestMGCErrorWarnings or test_oned or test_fived",
+    "TestMGCStat and (test_twosamp)",
+]
+
+[[split]]
+file = "scipy/stats/tests/test_resampling.py"
+groups = [
+    "scipy-stats-1-resampling-1",
+    "scipy-stats-1-resampling-2",
+]
+keywords = ["TestBootstrap or TestMonteCarloHypothesisTest or TestPower"]
+
+[[split]]
+file = "scipy/stats/tests/test_stats.py"
+groups = [
+    "scipy-stats-1-stats-1",
+    "scipy-stats-1-stats-2",
+    "scipy-stats-1-stats-3",
+    "scipy-stats-1-stats-4",
+    "scipy-stats-1-stats-5",
+]
+keywords = [
+    "TestTrimmedStats or TestPearsonrWilkinson or TestPearsonr or TestFisherExact or TestCorrSpearmanr or TestKendallTau or TestWeightedTau or TestRegression or TestCumfreq or TestRelfreq or TestScoreatpercentile or TestMode or TestSEM or TestZmap or TestZscore or TestGZscore or TestMedianAbsDeviation or TestIQR or TestMoments or TestSkew or TestKurtosis or TestTTest_1samp or TestPercentileOfScore or TestPowerDivergence or TestChisquare or TestFriedmanChiSquare or TestKSTest or TestKSOneSample or testSmall or testTwoVsThree or testTwoVsFour or test100_100 or test100_110 or testRepeatedValues or testEqualSizes or testMiddlingBoth or testMediumBoth or testLarge and not (testLargeBoth) or test_gh11184 and not (test_gh11184_bigger)",
+    "test_gh11184_bigger",
+    "test_gh12999[numpy]",
+    "testLargeBoth[numpy]",
+]
+
+[[split]]
+file = "scipy/special/tests/test_precompute_gammainc.py"
+groups = [
+    "scipy-special-precompute-gammainc-1",
+    "scipy-special-precompute-gammainc-2",
+    "scipy-special-precompute-gammainc-3",
+    "scipy-special-precompute-gammainc-4",
+]
+keywords = [
+    "test_g and not (test_gammainc or test_gammaincc) or test_alpha",
+    "test_d",
+    "test_gammainc and not (test_gammaincc)",
+]
+
+[[split]]
+file = "scipy/stats/tests/test_kdeoth.py"
+groups = [
+    "scipy-stats-1-2-kdeoth-1",
+    "scipy-stats-1-2-kdeoth-2",
+    "scipy-stats-1-2-kdeoth-3",
+]
+keywords = [
+    "test_kde_1d and not (test_kde_1d_weighted) or test_kde_1d_weighted or test_kde_2d and not (test_kde_2d_weighted) or test_kde_2d_weighted or test_kde_bandwidth_method and not (test_kde_bandwidth_method_weighted) or test_kde_bandwidth_method_weighted or test_gaussian_kde_subclassing or test_gaussian_kde_covariance_caching or test_gaussian_kde_monkeypatch or test_kde_integer_input or test_kde_output_dtype or test_pdf_logpdf_validation or test_pdf_logpdf and not (test_pdf_logpdf_validation or test_pdf_logpdf_weighted) or test_pdf_logpdf_weighted or test_marginal_1_axis or test_marginal_2_axis or test_marginal_iv",
+    "test_logpdf_overflow",
 ]
 
 [[expected]]
@@ -1427,6 +2144,14 @@ closes_with = "README.md"
 [[expected]]
 id = "no-threads"
 group = "scipy-interpolate-2"
+outcome = "failed"
+match = "can't start new thread|thread constructor failed"
+reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-threads"
+group = "scipy-interpolate-fitpack2-1"
 outcome = "failed"
 match = "can't start new thread|thread constructor failed"
 reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
@@ -1522,10 +2247,42 @@ closes_with = "README.md"
 
 [[expected]]
 id = "no-processes"
-group = "scipy-optimize-1"
+group = "scipy-optimize-1-1"
 outcome = "failed"
 match = "has no attribute 'pipe'|does not support processes|No module named '_multiprocessing'|_posixsubprocess"
 reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-processes"
+group = "scipy-optimize-1-2"
+outcome = "failed"
+match = "has no attribute 'pipe'|does not support processes|No module named '_multiprocessing'|_posixsubprocess"
+reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-fp-exceptions"
+group = "scipy-optimize-2"
+outcome = "failed"
+match = "DID NOT WARN\\. No warnings of type \\(<class 'RuntimeWarning'>|DID NOT RAISE <class '(ValueError|FloatingPointError|scipy\\.special\\._sf_error\\.SpecialFunctionError)'>"
+reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-processes"
+group = "scipy-optimize-3"
+outcome = "failed"
+match = "has no attribute 'pipe'|does not support processes|No module named '_multiprocessing'|_posixsubprocess"
+reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-threads"
+group = "scipy-optimize-3"
+outcome = "failed"
+match = "can't start new thread|thread constructor failed"
+reason = "no threads: the runtime starts none on WASI, so a test that starts one fails (README)"
 closes_with = "README.md"
 
 [[expected]]
@@ -1556,8 +2313,8 @@ closes_with = "README.md"
 id = "no-fp-exceptions"
 group = "scipy-smoke-b"
 outcome = "failed"
-match = "DID NOT WARN\\. No warnings of type \\(<class 'RuntimeWarning'>|DID NOT RAISE <class '(ValueError|FloatingPointError)'>"
-reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero or an invalid value sees nothing (README)"
+match = "DID NOT WARN\\. No warnings of type \\(<class 'RuntimeWarning'>|DID NOT RAISE <class '(ValueError|FloatingPointError|scipy\\.special\\._sf_error\\.SpecialFunctionError)'>"
+reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
 closes_with = "README.md"
 
 [[expected]]
@@ -1625,6 +2382,14 @@ reason = "wasm32's 4 GiB address space bounds the guest; these tests ask for mor
 closes_with = "README.md"
 
 [[expected]]
+id = "no-fp-exceptions"
+group = "scipy-sparse-1"
+outcome = "failed"
+match = "DID NOT WARN\\. No warnings of type \\(<class 'RuntimeWarning'>|DID NOT RAISE <class '(ValueError|FloatingPointError|scipy\\.special\\._sf_error\\.SpecialFunctionError)'>"
+reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
+closes_with = "README.md"
+
+[[expected]]
 id = "no-threads"
 group = "scipy-sparse-csgraph-to-sparse-linalg-eigen"
 outcome = "failed"
@@ -1641,6 +2406,38 @@ reason = "no threads: the runtime starts none on WASI, so a test that starts one
 closes_with = "README.md"
 
 [[expected]]
+id = "no-fp-exceptions"
+group = "scipy-special-2"
+outcome = "failed"
+match = "DID NOT WARN\\. No warnings of type \\(<class 'RuntimeWarning'>|DID NOT RAISE <class '(ValueError|FloatingPointError|scipy\\.special\\._sf_error\\.SpecialFunctionError)'>"
+reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "mpmath-tolerance"
+group = "scipy-special-mpmath-10"
+outcome = "failed"
+match = "^AssertionError:$"
+reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "mpmath-tolerance"
+group = "scipy-special-mpmath-2"
+outcome = "failed"
+match = "^AssertionError:$"
+reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "mpmath-tolerance"
+group = "scipy-special-mpmath-37"
+outcome = "failed"
+match = "^AssertionError:$"
+reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
+closes_with = "README.md"
+
+[[expected]]
 id = "mpmath-tolerance"
 group = "scipy-special-mpmath-6"
 outcome = "failed"
@@ -1649,27 +2446,19 @@ reason = "at a few of thousands of points the guest's value differs from mpmath'
 closes_with = "README.md"
 
 [[expected]]
-id = "mpmath-tolerance"
-group = "scipy-special-mpmath-8"
+id = "no-processes"
+group = "scipy-stats-1-mgc-3"
 outcome = "failed"
-match = "^AssertionError:$"
-reason = "at a few of thousands of points the guest's value differs from mpmath's: Airy Ai' and Bi at one point each by 1.2e-4 relative (the test allows 1e-5), and Bessel Y of order -5.6e25 finite where mpmath gives -inf, since wasm's libm differs from native's (README)"
+match = "has no attribute 'pipe'|does not support processes|No module named '_multiprocessing'|_posixsubprocess"
+reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
 closes_with = "README.md"
 
 [[expected]]
 id = "no-fp-exceptions"
-group = "scipy-stats-1"
+group = "scipy-stats-1-stats-5"
 outcome = "failed"
-match = "DID NOT WARN\\. No warnings of type \\(<class 'RuntimeWarning'>|DID NOT RAISE <class '(ValueError|FloatingPointError)'>"
-reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero or an invalid value sees nothing (README)"
-closes_with = "README.md"
-
-[[expected]]
-id = "no-processes"
-group = "scipy-stats-1"
-outcome = "failed"
-match = "has no attribute 'pipe'|does not support processes|No module named '_multiprocessing'|_posixsubprocess"
-reason = "no processes: os has no pipe and subprocess is unavailable on WASI, so a process pool or a child interpreter fails (README)"
+match = "DID NOT WARN\\. No warnings of type \\(<class 'RuntimeWarning'>|DID NOT RAISE <class '(ValueError|FloatingPointError|scipy\\.special\\._sf_error\\.SpecialFunctionError)'>"
+reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
 closes_with = "README.md"
 
 [[expected]]
@@ -1684,6 +2473,6 @@ closes_with = "README.md"
 id = "no-fp-exceptions"
 group = "scipy-stats-fit-2"
 outcome = "failed"
-match = "DID NOT WARN\\. No warnings of type \\(<class 'RuntimeWarning'>|DID NOT RAISE <class '(ValueError|FloatingPointError)'>"
-reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero or an invalid value sees nothing (README)"
+match = "DID NOT WARN\\. No warnings of type \\(<class 'RuntimeWarning'>|DID NOT RAISE <class '(ValueError|FloatingPointError|scipy\\.special\\._sf_error\\.SpecialFunctionError)'>"
+reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
 closes_with = "README.md"

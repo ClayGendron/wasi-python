@@ -1,0 +1,2 @@
+scipy/special/tests/test_mpmath.py::TestSystematic::test_airyai_prime
+scipy/special/tests/test_mpmath.py::TestSystematic::test_airybi
