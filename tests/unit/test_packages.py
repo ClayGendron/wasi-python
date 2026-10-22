@@ -753,10 +753,13 @@ def stage_digests(work) -> dict[str, dict[str, str]]:
 def test_every_other_family_stages_what_it_staged_before(tmp_path) -> None:
     """numpy's, pandas', CPython's and the six plot and XML families' group JSON, and their staged
     file lists when their trees are here, equal the digests recorded before the keys of the
-    subpackage-folder families existed."""
+    subpackage-folder families existed. A family whose group JSON names classes read from its
+    tree (lxml's) has a second digest, the JSON a host without the tree writes."""
     want = json.loads(STAGES.read_text())
     got = stage_digests(tmp_path)
     for name in OTHER_FAMILIES:
-        assert got[name]["json"] == want[name]["json"], f"{name}'s group JSON changed"
+        bare = "staged" not in got[name] and "json_without_tree" in want[name]
+        key = "json_without_tree" if bare else "json"
+        assert got[name]["json"] == want[name][key], f"{name}'s group JSON changed"
         if "staged" in got[name]:
             assert got[name]["staged"] == want[name]["staged"], f"{name}'s staged files changed"
