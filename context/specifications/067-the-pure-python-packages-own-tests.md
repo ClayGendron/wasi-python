@@ -1284,7 +1284,15 @@ review starts on the diff while it runs (the owner's compressed path, `decisions
   worker removed its `unit-*` folder (`FileNotFoundError`). That is a race in the judge's own
   tooling, not this change. The check passes by node id, and it passed in `fast-tier-2.log`.
   It is named for the lane.
-- **The branch run:** the first, 39715865231 on `55d475fb`, was red at the two smoke shards' fetch (above, fixed); the second is named in the commit after the fix.
+- **The branch run: 39720564953 on `84c5955c`** (normal tier, no `release-tier`; READ with
+  `gh run view --json jobs` and the gather's log). Of 52 jobs, 46 succeeded, 5 were skipped and
+  1 failed: the gather, whose **one red line is G7** ("the newest acceptance is not on the
+  release's set"), a branch run's. Its tally: 853/1,871 pass, 128 gap, 7 blocked, **0 fail**.
+  The set was reused from the cache under this commit's key, with `SHA256SUMS` `3339091f`, the
+  local judging set's. `upstream-pure-smoke-a` and `-b` passed, in jobs of 262 s and 194 s
+  (the shard steps 191 s and 95 s), within the 360 s bound. It judges 095 and 067 together.
+  The first run, 39715865231 on `55d475fb`, was red only at the two smoke shards' "What the
+  shard needs" (the fetch fault above, fixed); every other job was green or skipped.
 
 ### The earlier builder's notes, carried
 
@@ -1304,7 +1312,8 @@ review starts on the diff while it runs (the owner's compressed path, `decisions
 ```
 Before you ask for a review:
 - [x] rebased onto the wave's tip today: origin/wave/12 99dcd257; every conflict named above.
-- [ ] CI run dispatched on this exact commit and read: the next commit names it and its red lines.
+- [x] CI run dispatched on the code's exact commit and read: 39720564953 on 84c5955c, its one red
+      line G7 (a branch run's), 0 fail; this commit after it touches context/ only.
 - [x] every number from a measured run on this base, labelled EXECUTED; sympy's on 1556bbd5,
       the other families' release groups on d0d91cef's derived copy (named above).
 - [x] "For the lane": the claim block in context/release-tier-claims.toml (spec "067"; 420
