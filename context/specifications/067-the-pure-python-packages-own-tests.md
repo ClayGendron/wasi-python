@@ -1311,25 +1311,34 @@ review starts on the diff while it runs (the owner's compressed path, `decisions
 
 ```
 Before you ask for a review:
-- [x] rebased onto the wave's tip today: origin/wave/12 99dcd257; every conflict named above.
-- [x] CI run dispatched on the code's exact commit and read: 39720564953 on 84c5955c, its one red
-      line G7 (a branch run's), 0 fail; this commit after it touches context/ only.
+- [x] rebased onto the wave's tip today: the tip eac93d0f (code 254fd3e5) on origin/wave/12
+      459e7f35 (067 at 84c5955c, the 0.1.0 bump, the lane's sealed-leftovers fix); no conflict
+      there; every conflict of the earlier rebase onto 99dcd257 named above.
+- [x] CI run dispatched on the exact commit and read: 39732496724 on eac93d0f, 52 jobs (46
+      green, 5 skipped), its one red line the gather's G7 (a branch run's), 0 fail, 853/1,872
+      pass; the earlier runs 39715865231 (the fetch fault) and 39720564953 (G7 only) named above.
 - [x] every number from a measured run on this base, labelled EXECUTED; sympy's on 1556bbd5,
       the other families' release groups on d0d91cef's derived copy (named above).
-- [x] "For the lane": the claim block in context/release-tier-claims.toml (spec "067"; 420
-      release groups, their classes, six traps; units 34), the flags below, wave kind
+- [x] "For the lane": the claim block in context/release-tier-claims.toml (spec "067"; 419
+      release groups, their classes, seven traps; units 37), the flags below, wave kind
       build-class (pins, patches, the artifact set's MANIFEST), dry-run needs: the wave's.
-- [ ] every new check seen failing first: this builder's five rows yes; the earlier builder's 30
-      written beside the code, not seen failing first (said plainly above).
+- [ ] every new check seen failing first: this builder's seven rows yes (the doctest setup,
+      runner and checker rules and their spec row, the fetch-name row, the item-args row, the
+      split-depth row); the earlier builder's 30 written beside the code, not seen failing first.
+- [ ] every release group measured passing: NO, until the lane's release acceptance. This
+      builder's measuring read each run's fuel and exit code, not its group check's verdict, so
+      11 release groups that never passed (networkx-r-doc, sympy's nine wester parts and
+      utilities-6) went unseen until the lane's release acceptance refused them. They are fixed
+      and judged again (above), and every kept stream now judges clean (verify.py, 0 findings).
 - [x] every gap names its closer: README.md facts, spec 023's file for matplotlib.testing.
 - [x] packages.toml: the 42 are suites, none names spec 067.
-- [x] CHANGELOG under the one unreleased section.
-- [x] ruff check and ruff format --check clean; the fast tier: 2,996 passed,
-      lost 0, grew 0 (build/067/logs/fast-tier-2.log).
+- [x] CHANGELOG under the one section (0.1.0 since the bump).
+- [x] ruff check and ruff format --check clean; the fast tier on eac93d0f's code: 3,000 passed,
+      lost 0, grew 0 (build/067/logs/fast-tier-4.log).
 ```
 
 Open for the reviewer:
-1. the six traps;
+1. the seven traps;
 2. the 480-725 G groups kept whole;
 3. the round-1 fuel kept for parts whose `-k` text changed;
 4. the 266 `sympy-doctest` members, and `doctest_depends_on` not read;
@@ -1424,8 +1433,8 @@ causes:
     later part repeats it inside its `and not (...)`.
   - **The fix:** `test_wester.py`'s split is rebuilt by its tests' section prefixes
     (`test_B` ... `test_Z`), with the W section, which holds the heavy tests, last. `test_W`
-    cannot be a term, because `-k` ignores case and the module is `test_wester.py`. W9, W23 and
-    W25 are parts of their own. Every part's expression is now at most about 20 terms, and a
+    cannot be a term, because `-k` ignores case and the module is `test_wester.py`. W9, W23b and
+    W23 are parts of their own; W25 is a trap (below). Every part's expression is now at most about 20 terms, and a
     simulation puts each of the 397 tests in exactly one part.
   - **A new rule, `packages.SPLIT_DEPTH`:** a split refuses a group whose nesting (its longest
     keyword's terms plus the parts before it) passes 150. The deepest that ran in the guest is
@@ -1498,3 +1507,26 @@ is wrong.**
   - the review's L3: a docstring item's `R` line keeps the doctest's cause (the failing
     example's expected and actual output, or its exception), not only the first line of the
     report's tail, so each member's cause is read.
+
+### The delta-2 review's Lows and notes (2026-10-22, context only)
+
+The review: `../reviews/` on `review/067-delta-2`, `fce3c76b` ("lands with M1 answered in
+writing"; the lane takes the file).
+
+- **L1 — fixed:** the self-check above now names the tip, the base, run 39732496724, 419 groups
+  and seven traps, and it names the slip: the measuring read fuel and exit codes, not each
+  group's verdict.
+- **L2 — a follow-up, its roadmap line in `context/roadmap.md`:** `build/067/scratch/verify.py`,
+  which judges every kept stream as its group check does, sits under the git-ignored `build/`.
+  So nothing in the repository catches a release group that never passes before the release
+  tier runs it. The follow-up makes that a judge tool or check in `tests/`.
+- **L3 — in the follow-up above:** a docstring item's `R` line keeps only the first line of the
+  report's tail, which drops the doctest's cause.
+- **The notes' slips:**
+  - **`sympy-slow-W25`'s trap names `sympy-r-utilities-5-wester-1` as its group, but its test
+    falls in `wester-9`'s selection** (the W section's rest). The plan gives a trap the first
+    group whose paths hold its file, and all nine parts hold `test_wester.py`. The trap
+    deselects the test by node id from every part, so no part runs it. The group field names a
+    part of the same file, not the part.
+  - **"W9, W23 and W25 are parts of their own" was written before W25 became a trap.** W25 is
+    not a part: the parts are W9, W23b and W23, and W25 is the trap.
