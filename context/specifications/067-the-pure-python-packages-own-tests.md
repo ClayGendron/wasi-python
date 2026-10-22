@@ -1341,3 +1341,60 @@ packages, 42 smoke groups in the normal tier (12,564 passes, 853 G), each whole 
 release-tier groups (92.8 T); 117 classes, 6 traps; 39 test sources pinned and 4 test-source
 patches carried, named in MANIFEST"` and the reviewed text's `--accept-judge`, plus "the doctest
 setup, runner and checker keys; package_inits and env merged onto 095's meaning".
+
+### Disposition of the build review (2026-10-22)
+
+The review: `../reviews/067-the-pure-python-packages-own-tests-build-2026-10-22.md` (on
+`review/067-build`, `0f681db0`; the lane takes the file). Its verdict: it lands at `a338f6bf`
+once M1 is answered in writing. The lane's release acceptance was already running on `84c5955c`,
+so every answer below is text only. This commit changes `context/`, `CHANGELOG.md` and
+`README.md` and nothing else.
+
+- **H1 — fixed in `84c5955c`**, confirmed by the reviewer: run 39720564953 has both pure smoke
+  shards green.
+- **M1 — descoped to a follow-up, for the lane to number and reserve, with its roadmap line**
+  (`context/roadmap.md`, "Follow-ups noted").
+  - **What is not built:** criterion 2's two docstring rules, each with its unit variant: (a) a
+    `docstring_packages` entry the product does not ship; (b) a shipped module of an entry, or of
+    the family's package, in no docstring group and not named not selected.
+    `tiers.item_errors` holds "at most one group" for a module, not "at least one".
+  - **Why not now:** the lane's release acceptance is running on `84c5955c`. A rule added to
+    `packages.py` is a judge change, and it would move the judge hash under that acceptance.
+  - **What holds meanwhile:**
+    - (1) Today's data is whole. The reviewer's `doccover.py` (EXECUTED) found every shipped
+      module of every family's docstring entries in a group, less its not-selected entries. The
+      one exception is `more_itertools`' `__init__`, in a `docstring_modules` family, and its
+      docstring has no example.
+    - (2) A docstring group that runs nothing is red at run time: the empty session's
+      "pytest exit code 5" is a finding of its group check (`packages.py`).
+    - (3) Every later edit to a family TOML is a judge change, which a review reads.
+  - **The cost of the gap:** a module dropped from a group by mistake is not caught by a static
+    rule. Its group check still passes, because the other modules still run. Only the first
+    error of kind (a), an unshipped entry, is caught, and only at run time in the release tier.
+  - **The follow-up's closer:** the two rules in `source_rule_errors`, (a) an entry not in the
+    zip's packages and (b) a shipped submodule in no group and not named not selected, each with
+    a unit row seen failing first.
+- **L1 — recorded, no change.** The earlier builder's 30 rows in
+  `tests/unit/test_pure_suites.py` were written beside the code, not seen failing first (the
+  notes above say so). The lane's `--accept-judge` reason may name it.
+- **L2 — fixed** in `CHANGELOG.md` and `README.md` with the review's text. sympy's doctests run
+  under sympy's own doctest runner, output checker and printer setup, with three differences
+  from upstream: the setup runs once per session, the finder is the stdlib's, so module globals
+  are kept, and `doctest_depends_on` is not read. "As its `bin/doctest` runs them" is gone.
+  `sympy.toml`'s comment is a test file and is not changed here, because only text outside
+  `tests/` may change now.
+- **L3 — open Low, as the notes above say.** Criterion 4's three driver rows (`sys_flags` set
+  before the import, a sympy XFAIL on a fixed stream, a conftest's own hypothesis profile) have
+  no unit check. Each is held at run time: a `P` line not derandomized with no database is a
+  finding (`_profile_ok`), and a sympy `@XFAIL` that were not pytest's mark would fail unlisted.
+  The same follow-up may carry the rows.
+- **L4 — fixed** in `README.md`'s patch row: pypdf's test-import patch has a facts sheet, not a
+  drafted pull request, since pypdf asks that a person write its issues.
+- **L5 — fixed** in `context/release-tier-claims.toml`: the six class patterns that meet no row
+  (`packaging-r`, `xlsxwriter-r`, `beautifulsoup4-r`, `patsy-r`, `attrs-r`, `formulaic-r`) are
+  dropped. 067's 86 release-tier classes are in the other 17 families.
+- **N1 to N6 — noted.** For the lane:
+  - N1: the largest release group is about 15 minutes of Linux guest time, against a 30-minute
+    job timeout, and the release matrix is at 226 of 256.
+  - N4: the price is 92.8 T, against the upper estimate of about 77 T.
+  - N6: the `-n 3` race in `litter.sealed_leftovers`.

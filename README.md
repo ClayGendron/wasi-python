@@ -38,7 +38,7 @@ promises.
 
 | fact | value |
 |---|---|
-| upstream patches | upstream patches carried: 27, each with an upstream pull request drafted for the owner to send, or, for matplotlib's enum fix, qhull's format strings, two of OpenBLAS's, kiwisolver's `tp_clear` fix and lxml's `fake_cython` line, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
+| upstream patches | upstream patches carried: 27, each with an upstream pull request drafted for the owner to send, or, for matplotlib's enum fix, qhull's format strings, two of OpenBLAS's, kiwisolver's `tp_clear` fix and lxml's `fake_cython` line, already merged upstream, or, for pypdf's test import, a facts sheet, since pypdf asks that a person write its issues (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 8 min 35 s (macOS arm64, 10 cores, with matplotlib's and lxml's steps; spec 046's landing notes, 2026-10-18) |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 99.4 MB / 104.5 MB / 53.9 MB; the wheel 98.3 MB (3.15 line, with statsmodels and formulaic (spec 045), numpy and scipy on one OpenBLAS (specs 037 and 100), scikit-learn (spec 044), matplotlib (contourpy and `_qhull` since spec 043), lxml, regex and tier A's thirty pure-Python packages, no package pre-imported, wasi-sdk 34; spec 045's landing notes; 92.6 MB / 97.4 MB / 49.8 MB before statsmodels, 93.8 MB / 98.7 MB / 49.8 MB before numpy moved to OpenBLAS, 84.8 MB / 89.5 MB / 44.4 MB before scikit-learn, 42.3 MB / 46.5 MB / 38.8 MB before scipy) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
@@ -925,7 +925,8 @@ barcode tests and `test_platypus_general.py`, fontTools' table-coverage script, 
 abstract base class and runner, pypdf's tests that download their files, and the modules and
 doc files sympy's own doctest runner leaves out (its doctest blacklist: shims, generated code,
 and what needs antlr4, pyglet, aesara or lfortran). sympy's doctests run under sympy's own
-doctest runner, output checker and printer setup, as its `bin/doctest` runs them. Six sympy
+doctest runner, output checker and printer setup (the setup once per session, with the stdlib's
+finder: module globals, and `doctest_depends_on` not read). Six sympy
 tests that upstream marks `@slow` or `@tooslow` do not end within 2.9 to 4.5 T of fuel in the
 guest, past the bound for one test; each is a trap entry, run alone to its 50 G cap.
 

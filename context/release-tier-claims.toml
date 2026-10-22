@@ -58,7 +58,7 @@ units = 46  # tests/unit: 2,290 collected against main's 2,244
 
 [[claim]]
 spec = "067"
-# 420 release groups of 23 families, their 86 classes and six traps, all new: 92.84 T measured
+# 420 release groups of 23 families, their 86 classes (in 17 families) and six traps, all new: 92.84 T measured
 # on darwin-arm64 by node id with --tier release (sympy 78.53 T in 343 groups, the other 22
 # families 14.31 T; sets d0d91cef and 1556bbd5, the judging set's MANIFEST with this
 # specification's pins and patches), and the six traps at 50 G each; the 42 smoke groups are
@@ -90,27 +90,21 @@ new = [
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[sympy-slow-17141]",
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r*",
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pyparsing-r*",
-    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[packaging-r*",
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-dateutil-r*",
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[openpyxl-r*",
-    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xlsxwriter-r*",
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pypdf-r*",
-    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[beautifulsoup4-r*",
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[soupsieve-r*",
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r*",
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[charset-normalizer-r*",
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[networkx-r*",
-    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[patsy-r*",
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r*",
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[mpmath-r*",
-    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[attrs-r*",
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[more-itertools-r*",
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[joblib-r*",
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cloudpickle-r*",
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[narwhals-r*",
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[seaborn-r*",
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[reportlab-r*",
-    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[formulaic-r*",
     "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-*",
 ]
 changed = []
