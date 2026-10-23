@@ -120,3 +120,203 @@ growth = "067: the package driver moves every package-driver group's fuel both w
 retired = []
 units = 37  # tests/unit/test_pure_suites.py, a new file: 36 collected; tests/unit/test_fetch_trees.py: 1 more
 ```
+
+Moved at the second release acceptance of 0.1.0, on `d33f0383` (history line 97; the record's SHA-256 `bed3e5f204f4a8dc0fe3aef361621bfa607c3665ba1f9575d5ee9f7bc64fd9ec`), compared with the record of the first (`8a26e68c`, SHA-256 `ecb68db9acfc5ca5c298cf461c65779ac4e00e8f6041a34f17459ac8692850b3`): 067 and 122. 122's 162 closer changes explained every difference; 067's two entries were already in the first record.
+
+```toml
+[[claim]]
+spec = "067"
+# After 0.1.0's release acceptance: networkx's test_asadpour_integral_held_karp leaves
+# networkx-r-approximation-1 for a trap of its own: on Linux x86_64 it did not end within its
+# group's 710 G cap (dry run 39741960669), against about 442 to 470 G on darwin-arm64, on the
+# same artifact set and wasmtime, so the guest takes a different path on Linux, which may be the
+# product's. The group runs its other 44 tests in 100,156,534,716 fuel (EXECUTED): one accepted
+# pass fewer, by this reason, and less fuel.
+new = [
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[networkx-r-trap-asadpour-integral-held-karp]",
+]
+changed = []
+passes = [
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[networkx-r-approximation-1]",
+]
+grows = []
+retired = []
+units = 0
+
+[[claim]]
+spec = "122"
+# The short README: the limitations it listed moved to docs/reference/limitations.md, and every
+# known gap that named README.md as its closer names that page instead. A release-tier row changes
+# its closer only; its status, need, area, facts and metrics are the same. Written by the lane at
+# the release acceptance on d33f0383, where the comparison found these 162 rows and no other
+# difference; 122 landed without its block.
+new = []
+changed = [
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[charset-normalizer-r-cli-writes-beside-input]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[charset-normalizer-r-no-threads]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cloudpickle-r-captured-stdout]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cloudpickle-r-no-processes]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-release-a-stdlib-zip-error]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-doc-doctest-output]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-rest-counted-clock]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-rest-importlib-module-names]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-rest-no-processes]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-rest-read-only-source]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-rest-sdist-lacks-data]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-rest-zip-no-source]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-ttlib-no-processes]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-importlib-module-names]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop-error]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-read-only-source]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-zip-package-loader]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[joblib-r-doc-doctest-output]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[joblib-r-joblib-cache-clock]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[joblib-r-no-asyncio-loop-error]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[joblib-r-no-asyncio-loop]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[joblib-r-no-mmap]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[joblib-r-no-processes]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[more-itertools-r-counted-clock]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[more-itertools-r-doc-doctest-output]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[more-itertools-r-no-threads]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[mpmath-r-doc-functions-2-doctest-output]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[mpmath-r-doc-libmp-doctest-output]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[mpmath-r-doc-matrices-doctest-output]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[narwhals-r-no-ctypes]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[narwhals-r-no-mmap]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[narwhals-r-no-terminal-size]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[narwhals-r-wasm32-int32]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[networkx-r-doc-doctest-output]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[networkx-r-other-no-threads]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[networkx-r-root-1-counted-clock]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[openpyxl-r-openpyxl-lxml-only]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[openpyxl-r-read-only-source]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-no-threads]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pyparsing-r-pyparsing-no-railroad]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pyparsing-r-unit-6-no-processes]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pypdf-r-no-processes]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-dateutil-r-no-tzset]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-dateutil-r-tz-cache]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[reportlab-r-importlib-module-names]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[reportlab-r-pytest-collects-helper-error]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[reportlab-r-reportlab-data-folder]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[reportlab-r-reportlab-no-accel]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[reportlab-r-reportlab-reference-attributes]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[reportlab-r-reportlab-tools-not-shipped]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-datasets-pillow-zlib-only-at-setup]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-decomposition-1-no-mmap]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-linear_model-1-no-mmap]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-linear_model-3-no-dev-null]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-linear_model-3-no-mmap]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-loss-to-cross_decomposition-no-mmap]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-metrics-no-mmap-at-setup]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-model_selection-3-no-mmap]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-neighbors-to-neural_network-no-mmap]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-preprocessing-to-semi_supervised-wasm32-int128]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tests-1-1-no-openmp]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tests-1-1-package-in-zip]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tests-common-1-no-mmap]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tests-common-2-no-mmap]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tests-common-3-no-mmap]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tests-common-4-no-mmap]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-tree-no-mmap]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-utils-no-mmap-estimator-checks]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-utils-no-mmap]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-integrate-1-no-processes]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-interpolate-1-no-native-id-test-names]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-interpolate-1-no-threads]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-interpolate-2-no-threads]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-interpolate-fitpack2-1-no-threads]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-io-harwell_boeing-to-io-enotsup-io-file-left-open-at-setup]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-io-harwell_boeing-to-io-enotsup-io-no-warning]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-io-harwell_boeing-to-io-enotsup-io]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-io-harwell_boeing-to-io-no-mmap]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-io-harwell_boeing-to-io-no-native-id-test-names]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-io-harwell_boeing-to-io-wasm32-memory]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-lib-to-fft-no-native-id-uarray]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-lib-to-fft-no-processes]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-ndimage-to-optimize-trustregion_constr-no-threads]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-optimize-1-1-no-processes]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-optimize-1-2-no-processes]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-optimize-2-no-fp-exceptions]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-optimize-3-no-processes]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-optimize-3-no-threads]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-signal-float32-rounding]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-signal-signaltools-no-threads]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-smoke-slow-9-no-threads]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-smoke-slow-9-wasm32-memory]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-sparse-1-no-fp-exceptions]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-sparse-csgraph-to-sparse-linalg-eigen-no-threads]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-spatial-no-threads]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-special-2-no-fp-exceptions]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-special-mpmath-10-mpmath-tolerance]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-special-mpmath-2-mpmath-tolerance]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-special-mpmath-37-mpmath-tolerance]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-special-mpmath-6-mpmath-tolerance]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-stats-1-mgc-3-no-processes]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-stats-1-stats-5-no-fp-exceptions]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-stats-fit-1-fit-flat-likelihood]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-stats-fit-2-no-fp-exceptions]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[seaborn-r-1-newer-dependencies]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[seaborn-r-1-no-pyarrow-interchange]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[seaborn-r-3-no-pyarrow-interchange]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[seaborn-r-5-newer-dependencies]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[seaborn-r-5c-newer-dependencies]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[seaborn-r-6-newer-dependencies]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[seaborn-r-8-newer-dependencies]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[soupsieve-r-no-alarm]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-base-to-datasets-left-out-datasets]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-base-to-datasets-wasm-is-not-emscripten]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-discrete-discrete-1-left-out-datasets-at-setup]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-discrete-discrete-1-left-out-datasets]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-discrete-discrete-2-left-out-datasets]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-emplike-left-out-datasets-at-setup]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-emplike-left-out-datasets]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-genmod-left-out-datasets-at-setup]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-genmod-left-out-datasets]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-graphics-to-multivariate-factor_rotation-left-out-datasets]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-graphics-to-multivariate-factor_rotation-no-processes]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-stats-4-upstream-xfail-platform]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-tests-to-treatment-left-out-datasets-at-setup]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-1-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-10-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-11-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-15-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-2-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-3-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-6-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-7-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-8-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-1-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-2-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-3-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-4-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-5-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-6-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-7-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-8-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-8b-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-docfiles-9-sympy-doctest]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-polys-2-s11-1-sympy-tooslow-fails]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-polys-4-s1-1-sympy-tooslow-fails]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-solvers-7-5a-sympy-solution-form]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-solvers-7-5b-sympy-solution-form]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-testing-1-sympy-source-tree]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-utilities-4-no-path-variable]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[networkx-r-trap-asadpour-integral-held-karp]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[scipy-hypothesis-hyp1f1]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[scipy-hypothesis-lpmv]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[scipy-hypothesis-yn]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-W25]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-function-range1]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-issue-15227]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-issue-3880]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-linear-new-order1-type2-de-lorentz-slow-check]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-nonlinear-3eq-order1-type1]",
+    "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-nonlinear-3eq-order1-type3]",
+]
+passes = []
+grows = []
+retired = []
+units = 0
+```
