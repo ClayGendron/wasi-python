@@ -2,7 +2,7 @@
 
 One section per release of the `wasi-python` artifact set and wheel, newest first. A section's body is the release's notes on GitHub. `release/version.py bump` adds a section; `release/version.py release` dates it and tags the release (context/specifications/004-alpha-releases.md).
 
-## 0.1.0 — unreleased
+## 0.1.0 — 2026-10-23
 
 - **A coverage badge from CI** (spec 124): the release workflow's new `coverage` job runs the fast tier serially under coverage.py (7.17.0, pinned in the `dev` group) against the set the build job made, and uploads the Cobertura report to Codecov with the repository's `CODECOV_TOKEN`; the README carries Codecov's badge, and `test_readme_carries_the_codecov_badge` holds that it is this repository's. `uv run python tests/harness/coverage.py --measure` takes the same measurement locally into `build/coverage/`. The `-V` sentence and numpy's integer width are now held on `docs/reference/limitations.md`, not the README.
 - **The wheel's LICENSE carries every component licence** (spec 125): before each wheel build the release workflow runs `release/licences.py append`, which rewrites the checkout's LICENSE as the Apache-2.0 text followed by every `LICENSES/*.txt` of the set in name order, as Pillow's wheels do; the build job checks the wheel it built, and the judge's wheel check compares `.dist-info/licenses/LICENSE` with the same text. FreeType's licence ships there, and the combined LICENSE's introduction gives FreeType's credit in words, so the README no longer carries it; `release/licences.py restore` puts LICENSE back after a wheel built by hand; `test_the_wheel_carries_every_component_licence` replaces the README credit check.
