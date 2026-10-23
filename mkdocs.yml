@@ -90,6 +90,7 @@ nav:
       - explanation/pinned-releases-and-patches.md
       - explanation/performance-and-size.md
       - explanation/design-decisions.md
+      - explanation/how-it-was-built.md
   - Contributing:
       - contributing/first-change.md
       - contributing/building.md

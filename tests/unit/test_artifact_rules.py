@@ -518,10 +518,20 @@ def test_an_empty_licence_file_fails(good, work, monkeypatch) -> None:
     assert paths.licence_errors(good, None)[0] == ["LICENSES/numpy.txt is missing or empty"]
 
 
+LICENCE_MEMBER = "wasi_python-0.dist-info/licenses/LICENSE"
+
+
+def _combined(good) -> str:
+    """The LICENSE the release workflow writes before it builds the wheel."""
+    lic = rules._licences()
+    return lic.combined((paths.REPO / "LICENSE").read_text(encoding="utf-8"), good)
+
+
 def test_a_wheel_must_carry_the_same_bytes(good, work) -> None:
     wheel = work / "wasi_python-0-py3-none-any.whl"
     with zipfile.ZipFile(wheel, "w") as w:
         w.writestr(rules.TYPED, b"")
+        w.writestr(LICENCE_MEMBER, _combined(good))
         for p in good.rglob("*"):
             if p.is_file():
                 w.writestr(
@@ -542,6 +552,7 @@ def test_a_wheel_carries_the_list_and_nothing_else(good, work) -> None:
     def build(extra: dict[str, bytes]) -> None:
         with zipfile.ZipFile(wheel, "w") as w:
             w.writestr(rules.TYPED, b"")
+            w.writestr(LICENCE_MEMBER, _combined(good))
             for p in good.rglob("*"):
                 if p.is_file() and not paths.has_litter(p.relative_to(good).as_posix()):
                     w.writestr(
@@ -565,6 +576,7 @@ def test_a_wheel_must_carry_py_typed(good, work) -> None:
     """Without `py.typed` a type checker treats the package as untyped."""
     wheel = work / "wasi_python-0-py3-none-any.whl"
     with zipfile.ZipFile(wheel, "w") as w:
+        w.writestr(LICENCE_MEMBER, _combined(good))
         for p in good.rglob("*"):
             if p.is_file():
                 w.writestr(
@@ -865,3 +877,29 @@ def test_reportlab_notice_carries_its_third_party_parts(work) -> None:
     no_mit = [f"LICENSES/reportlab.txt does not hold the MIT text of {assemble.MIT_TEXT}"]
     assert rules.reportlab_notice_errors(d, wheel) == no_mit
     assert rules.reportlab_notice_errors(d, None) == no_mit
+
+
+def test_a_wheel_must_carry_every_component_licence(good, work) -> None:
+    """The wheel's LICENSE is the project's licence and then each of the set's, in name order; a
+    LICENSE without them, or without one, is named."""
+    wheel = work / "wasi_python-0-py3-none-any.whl"
+
+    def build(licence: str) -> None:
+        with zipfile.ZipFile(wheel, "w") as w:
+            w.writestr(rules.TYPED, b"")
+            w.writestr(LICENCE_MEMBER, licence)
+            for p in good.rglob("*"):
+                if p.is_file():
+                    rel = p.relative_to(good).as_posix()
+                    w.writestr(f"wasi_python/artifacts/{rel}", p.read_bytes())
+
+    build(_combined(good))
+    assert rules.wheel_errors(wheel, good) == []
+    build((paths.REPO / "LICENSE").read_text(encoding="utf-8"))
+    errors = rules.wheel_errors(wheel, good)
+    assert len(errors) == 1 and "is not the combined licence (missing " in errors[0], errors
+    first = rules._licences().parts(good)[0].name
+    build(_combined(good).replace(first, "renamed.txt"))
+    assert rules.wheel_errors(wheel, good) == [
+        f"{wheel.name}: .dist-info/licenses/LICENSE is not the combined licence (missing {first})"
+    ]

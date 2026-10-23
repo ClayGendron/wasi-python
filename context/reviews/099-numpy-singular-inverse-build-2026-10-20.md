@@ -88,25 +88,11 @@ Every item is present and checked. The CHANGELOG sits under main's one unrelease
 
 The builder's answers, on `spec/099-numpy-singular-inverse` rebased onto main `2516875`.
 
-1. M1 — **closed by the allow-list.** The rebase replayed every commit with no conflict hunk.
-   `recipes/weak-duplicates-allowed.txt` gains `wasi_python_fe_flags` with its reason: every copy
-   is the same zero-filled 4-byte int, and sharing one object across files is the point, not state
-   of one file. It touches `recipes/` only, not step 60, which spec 100 also edits. The rebuild
-   from empty on `4fac7e2` passed step 60's gate (`270 archives, 21964 weak names, 0 unreviewed,
-   0 stale patterns`), and `python.map` names the word once (4 bytes of `.bss`, `dragon4.c.o`). The
-   claim list and the three flags are re-derived on wave 07's set (`dc6ba3a5` → `5f203242`) from
-   the fast tier and dry run 39454475153 on `6866dd1` (the spec's *Landing notes* and *For the
-   lane*).
-2. L1 — **fixed.** *Design*, check 5 and *The judge's changes* name `npy_fenv_recipe_errors`,
-   `npy_fenv_record_errors` and `npy_fenv_records_file_errors`; *Design* also lists the allow-list
-   file.
-3. L2 — **fixed.** `--accept-growth` names every `MANIFEST` line: the header's new `recipe` line,
-   the two changed `recipe` lines (`recipes/wasi-numpy.cross`, `recipes/weak-duplicates-allowed.txt`)
-   and the snapshot's `x-snapshot-zip`.
-4. N1 — written into *For the lane*: wave 08's integration run is the evidence that 044's goldens
-   re-run with 099; a lost scikit-learn golden is a finding, never an allowance.
-5. B1 — answered by the review; nothing to change. The README and CHANGELOG keep naming it, and
-   spec 100 carries its check.
+1. M1 — **closed by the allow-list.** The rebase replayed every commit with no conflict hunk. `recipes/weak-duplicates-allowed.txt` gains `wasi_python_fe_flags` with its reason: every copy is the same zero-filled 4-byte int, and sharing one object across files is the point, not state of one file. It touches `recipes/` only, not step 60, which spec 100 also edits. The rebuild from empty on `4fac7e2` passed step 60's gate (`270 archives, 21964 weak names, 0 unreviewed, 0 stale patterns`), and `python.map` names the word once (4 bytes of `.bss`, `dragon4.c.o`). The claim list and the three flags are re-derived on wave 07's set (`dc6ba3a5` → `5f203242`) from the fast tier and dry run 39454475153 on `6866dd1` (the spec's *Landing notes* and *For the lane*).
+2. L1 — **fixed.** *Design*, check 5 and *The judge's changes* name `npy_fenv_recipe_errors`, `npy_fenv_record_errors` and `npy_fenv_records_file_errors`; *Design* also lists the allow-list file.
+3. L2 — **fixed.** `--accept-growth` names every `MANIFEST` line: the header's new `recipe` line, the two changed `recipe` lines (`recipes/wasi-numpy.cross`, `recipes/weak-duplicates-allowed.txt`) and the snapshot's `x-snapshot-zip`.
+4. N1 — written into *For the lane*: wave 08's integration run is the evidence that 044's goldens re-run with 099; a lost scikit-learn golden is a finding, never an allowance.
+5. B1 — answered by the review; nothing to change. The README and CHANGELOG keep naming it, and spec 100 carries its check.
 
 ## Verdict
 

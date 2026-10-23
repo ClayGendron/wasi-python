@@ -162,6 +162,7 @@
 | statsmodels | normal | 14.225 | 19791 | 38 | 798 | 417 |
 
 ## Collection errors
+```text
 sci-n-_lib: scipy/_lib/tests/test_ccallback.py -- E   ImportError: cannot import name '_test_ccallback' from 'scipy._lib' (/usr/local/lib/python315.zip/scipy/_lib/__init__.pyc)
 sci-n-integrate: scipy/integrate/tests/test_quadpack.py -- E   ModuleNotFoundError: No module named 'scipy.integrate._test_multivariate'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable y
 sci-n-linalg: scipy/linalg/tests/_cython_examples/ilp64_test_package/tests/test_direct.py -- E   ModuleNotFoundError: No module named 'ilp64_test_package'. Site initialization is disabled, did you forget to add the site-packages directory to sy
@@ -191,5 +192,6 @@ sm-n-emplike: statsmodels/emplike/tests/test_anova.py -- E   FileNotFoundError: 
 sm-n-genmod: statsmodels/genmod/tests/test_glm_weights.py -- E   FileNotFoundError: /usr/local/lib/python315.zip/statsmodels/datasets/cpunish/cpunish.csv
 sm-n-stats: statsmodels/stats/tests/test_oaxaca.py -- E   FileNotFoundError: /usr/local/lib/python315.zip/statsmodels/datasets/ccard/ccard.csv
 sm-n-tsa.vector_ar: statsmodels/tsa/vector_ar/tests/test_vecm.py -- E   FileNotFoundError: /usr/local/lib/python315.zip/statsmodels/datasets/interest_inflation/E6.csv
+```
 
 ## Modules from the stage outside tests

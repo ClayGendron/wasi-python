@@ -1,107 +1,29 @@
 # Review of 042 — seaborn and reportlab (the specification, before build)
 
 - **Date:** 2026-10-17 (finished after midnight, 2026-10-18)
-- **Reviewer:** a fresh agent (Claude Opus 5.5), not the author. I read `AGENTS.md`, the
-  constitution (§4.1, §4.2, §4.8, §4.10, §4.12, §4.13, §4.15, §5.6, §5.7), the
-  specification, question 73 in `../questions-for-the-owner.md`, the owner's decision 43 in
-  `../decisions.md`, specs 023 (Decisions 4 to 9), 037 (Decisions 1, 11 and 15), 039
-  (Decisions 1 to 4, 8, 13 to 15), 041 (Decisions 4 and 9) and 043 (its line on 042), and
-  the memo's seaborn and reportlab rows
-  (`../research/2026-10-17-what-else-the-default-profile-carries.md`). I read the code the
-  specification leans on: `scripts/make_stdlib_zip.py` (`walk`, `wheel_members`,
-  `sdist_metadata`, `pyc`, `member`, `main`, `--skip`), `scripts/steps/70_zip.sh`,
-  `scripts/steps/common.sh`, `tests/harness/paths.py` (`licence_source`),
-  `tests/harness/jobs.py` (`DATA`), `tests/harness/guest.py` (`run`, `DEFAULT_FUEL`). Upstream I
-  read every licence file and every non-Python file of both archives, the third-party headers
-  in reportlab's Python files, and the seaborn and reportlab code paths named below. Each claim
-  is labelled EXECUTED, READ or INFERRED.
-- **Reviewed:** `context/specifications/042-seaborn-and-reportlab.md` as drafted (committed in
-  `fc3007e`), and question 73.
-- **Ran (EXECUTED, darwin-arm64).** Nothing in `src/`, `tests/`, `scripts/`, `recipes/`,
-  `downloads/` or the specification was edited; `scripts/build.sh` and the judge were not run.
-  The project's scripts and harness were imported read-only. Host runs used the line's CPython
-  3.15.0 (`build/tools/python`) and a scratch venv on the oracle's CPython 3.15.0, all under
-  `uv run`, with `HOME`, `XDG_CACHE_HOME` and `MPLCONFIGDIR` in scratch. Guest runs used the
-  research matplotlib binary (`python-mplp-stripped.wasm`, plain) through the harness's
-  `guest.run`, on a copy of the drafting's zip after I proved its 215 new members equal my own.
-  Nothing fetched a dataset; `load_dataset` ran only in the guest, which has no network. Files
-  are under
-  `/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/042-review/`:
-  - `json/`: PyPI's JSON for seaborn 0.13.2, reportlab 5.0.1 and both projects' latest;
-    `dl/`: all four files of the two releases, from PyPI's URLs, hashed with `shasum -a 256`;
-    `x/`: each unpacked into its own folder.
-  - `tools/members.py` → `added.zip`: step 70's own `walk`, `wheel_members`,
-    `sdist_metadata`, `pyc` and `member` over the pins, with `reportlab/fonts/` left out.
-    `tools/cmpzip.py`: those members against the drafting zip `z4.zip`.
-  - `venv-ob/`: numpy 2.5.2's **`macosx_11_0_arm64` wheel (OpenBLAS)** and scipy 1.18.1's
-    **`macosx_12_0_arm64` wheel (spec 037's oracle pin, scipy-openblas)**, with pandas,
-    matplotlib, seaborn, Pillow, reportlab, pypdf and charset-normalizer at the pinned versions.
-    `tools/statistical_plots.py` and `tools/pdf_reports.py` are copies of the drafting jobs;
-    `out/sp-ob-{0,1,tz}.txt` and `out/pdf-{0,1}.txt` are their native runs.
-  - `tools/rung.py` → `out/g-sp/`: the seaborn job in the guest.
-    `tools/rung_ro.py` with `progs/ld.py` → `out/ld.txt`: `import seaborn`, `get_data_home`
-    and `load_dataset` with `/` read-only and nothing writable, with only a writable
-    `MPLCONFIGDIR`, and with a writable root.
-  - `tools/count_imports.py`: the modules `import seaborn` adds natively, with scipy and with
-    scipy blocked. `tools/notices_in_pyc.py`: which notices survive compilation.
+- **Reviewer:** a fresh agent (Claude Opus 5.5), not the author. I read `AGENTS.md`, the constitution (§4.1, §4.2, §4.8, §4.10, §4.12, §4.13, §4.15, §5.6, §5.7), the specification, question 73 in `../questions-for-the-owner.md`, the owner's decision 43 in `../decisions.md`, specs 023 (Decisions 4 to 9), 037 (Decisions 1, 11 and 15), 039 (Decisions 1 to 4, 8, 13 to 15), 041 (Decisions 4 and 9) and 043 (its line on 042), and the memo's seaborn and reportlab rows (`../research/2026-10-17-what-else-the-default-profile-carries.md`). I read the code the specification leans on: `scripts/make_stdlib_zip.py` (`walk`, `wheel_members`, `sdist_metadata`, `pyc`, `member`, `main`, `--skip`), `scripts/steps/70_zip.sh`, `scripts/steps/common.sh`, `tests/harness/paths.py` (`licence_source`), `tests/harness/jobs.py` (`DATA`), `tests/harness/guest.py` (`run`, `DEFAULT_FUEL`). Upstream I read every licence file and every non-Python file of both archives, the third-party headers in reportlab's Python files, and the seaborn and reportlab code paths named below. Each claim is labelled EXECUTED, READ or INFERRED.
+- **Reviewed:** `context/specifications/042-seaborn-and-reportlab.md` as drafted (committed in `fc3007e`), and question 73.
+- **Ran (EXECUTED, darwin-arm64).** Nothing in `src/`, `tests/`, `scripts/`, `recipes/`, `downloads/` or the specification was edited; `scripts/build.sh` and the judge were not run. The project's scripts and harness were imported read-only. Host runs used the line's CPython 3.15.0 (`build/tools/python`) and a scratch venv on the oracle's CPython 3.15.0, all under `uv run`, with `HOME`, `XDG_CACHE_HOME` and `MPLCONFIGDIR` in scratch. Guest runs used the research matplotlib binary (`python-mplp-stripped.wasm`, plain) through the harness's `guest.run`, on a copy of the drafting's zip after I proved its 215 new members equal my own. Nothing fetched a dataset; `load_dataset` ran only in the guest, which has no network. Files are under `/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/042-review/`:
+  - `json/`: PyPI's JSON for seaborn 0.13.2, reportlab 5.0.1 and both projects' latest; `dl/`: all four files of the two releases, from PyPI's URLs, hashed with `shasum -a 256`; `x/`: each unpacked into its own folder.
+  - `tools/members.py` → `added.zip`: step 70's own `walk`, `wheel_members`, `sdist_metadata`, `pyc` and `member` over the pins, with `reportlab/fonts/` left out. `tools/cmpzip.py`: those members against the drafting zip `z4.zip`.
+  - `venv-ob/`: numpy 2.5.2's **`macosx_11_0_arm64` wheel (OpenBLAS)** and scipy 1.18.1's **`macosx_12_0_arm64` wheel (spec 037's oracle pin, scipy-openblas)**, with pandas, matplotlib, seaborn, Pillow, reportlab, pypdf and charset-normalizer at the pinned versions. `tools/statistical_plots.py` and `tools/pdf_reports.py` are copies of the drafting jobs; `out/sp-ob-{0,1,tz}.txt` and `out/pdf-{0,1}.txt` are their native runs.
+  - `tools/rung.py` → `out/g-sp/`: the seaborn job in the guest. `tools/rung_ro.py` with `progs/ld.py` → `out/ld.txt`: `import seaborn`, `get_data_home` and `load_dataset` with `/` read-only and nothing writable, with only a writable `MPLCONFIGDIR`, and with a writable root.
+  - `tools/count_imports.py`: the modules `import seaborn` adds natively, with scipy and with scipy blocked. `tools/notices_in_pyc.py`: which notices survive compilation.
 
 ## What holds
 
-- **The pins (EXECUTED).** PyPI's JSON lists seaborn 0.13.2's sdist at the spec's URL with
-  SHA-256 `93e60a40…eff7`, 1,457,696 bytes, and reportlab 5.0.1's wheel at the spec's URL with
-  `1c36e6bb…91e8`, 1,957,258 bytes. My downloads hash to the same. Both are the current
-  release. seaborn's wheel is `636f8336…1987`, as 039 recorded.
-- **The sdist equals the wheel for seaborn (spec 041, Decision 4's rule; EXECUTED).** `diff -r`
-  of the sdist's `seaborn/` and the wheel's is empty. Step 70's `walk` gives 54 members, and
-  `wheel_members` gives the same 54 names and bytes outside `.dist-info`. `PKG-INFO` equals
-  `METADATA` (`cmp`), and `sdist_metadata` names it `seaborn-0.13.2.dist-info/METADATA`. The
-  wheel has no `entry_points.txt`. `LICENSE.md` equals the wheel's. The tarball holds 322
-  regular files, no links, under one top folder, `seaborn-0.13.2`. seaborn's package has no
-  non-Python file.
-- **Members and bytes (EXECUTED).** seaborn 55 members, 541,099 bytes. reportlab 192 wheel
-  members, 160 after the leave-out, 1,619,735 bytes. The fonts are 32 members, 1,151,758
-  bytes. The 215 members equal the drafting zip's, name for name and byte for byte, and that
-  zip has no `reportlab/fonts/` member. The only non-Python file reportlab keeps is its
-  `METADATA`: every data file of the wheel is under `fonts/`.
-- **The fonts' licences (READ).** The facts in Decision 4 and question 73 are right. Eight
-  `.pfb` files carry Adobe's "All Rights Reserved" notice with Monotype's copyright (Arial,
-  Times New Roman), and eight carry Adobe's alone. Dark Garden is GPL-2.0-or-later with a font
-  exception. `callig15` has its own free-use terms. `hb-test.ttf` has no notice. Leaving the
-  folder out removes all of them, and nothing outside it reads them.
-- **The zip-loader bug (READ).** `reportlab/lib/utils.py:150` tests `len(ldr._files)` inside a
-  bare `except`, so on 3.13 and later reportlab decides it is not zip-imported. The
-  specification's account is right.
-- **seaborn's golden is honest about regplot, and robust to the native BLAS (EXECUTED).** The
-  job prints regplot's line and band as text at nine and six significant digits, never as
-  pixels. I ran the final job natively with numpy's OpenBLAS wheel and 037's scipy pin. All 17
-  lines equal the drafting's run (whose numpy and scipy used Accelerate; finding 4), under
-  `PYTHONHASHSEED` 0 and 1, and with `TZ=Asia/Tokyo LC_ALL=de_DE.UTF-8`. In the guest, without
-  scipy, the first 16 lines equal that native run. The 17th raised `RuntimeError: clustermap
-  requires scipy to be available`, as the specification says. So both native BLAS builds the
-  oracle might pick on darwin-arm64 give the same golden.
-- **scipy's arrival does not move regplot (READ).** seaborn fits with `np.linalg.pinv` and
-  bootstraps with numpy (`regression.py`, `algorithms.py`). 037 leaves the guest's numpy on its
-  own `lapack_lite` (037, Decision 15: "The oracle's numpy wheel is unchanged"). So the line
-  and band take the same path before and after 037.
-- **The PDF golden (EXECUTED).** `pdf_reports` with the repository's `fixtures/sales.csv` gives
-  the drafting's 13 lines byte for byte under both seeds, in Tokyo time and a German locale.
-  Every PDF whose bytes are printed is built with `invariant=1` and `pageCompression=0`. The
-  TrueType line embeds an uncompressed subset (READ: `ttfonts.py` compresses font streams only
-  when the document compresses).
-- **With nothing writable, `import seaborn` prints matplotlib's error (EXECUTED).** With `/`
-  read-only and no writable folder it raises `OSError: Matplotlib requires access to a
-  writable cache directory, but there was an issue with resolving the home directory, and a
-  temporary directory could not be created; set the MPLCONFIGDIR environment variable to a
-  writable …`. That is 023's Decision 7, unchanged. With a writable `MPLCONFIGDIR` grant it
-  imports.
-- **`--leave-out` duplicates nothing yet (READ).** Today's `make_stdlib_zip.py` has `--skip`,
-  which drops top-level names of `--lib` only. 023 lists what step 70 leaves out of
-  matplotlib, but names no mechanism. 039 trims nothing (its Scope). 041 adds `--entry-points`
-  to the same file, which is a merge, not a duplicate (Decision 13 handles it).
-- **The growth account** uses 039's measured slopes and caps per member, applied to 215
-  members (READ against 039, Decision 13). The plain binary does not change.
-- **The checks count operations.** No check reads a clock. Fuel and bytes go to the judge's
-  metrics and the landing notes.
+- **The pins (EXECUTED).** PyPI's JSON lists seaborn 0.13.2's sdist at the spec's URL with SHA-256 `93e60a40…eff7`, 1,457,696 bytes, and reportlab 5.0.1's wheel at the spec's URL with `1c36e6bb…91e8`, 1,957,258 bytes. My downloads hash to the same. Both are the current release. seaborn's wheel is `636f8336…1987`, as 039 recorded.
+- **The sdist equals the wheel for seaborn (spec 041, Decision 4's rule; EXECUTED).** `diff -r` of the sdist's `seaborn/` and the wheel's is empty. Step 70's `walk` gives 54 members, and `wheel_members` gives the same 54 names and bytes outside `.dist-info`. `PKG-INFO` equals `METADATA` (`cmp`), and `sdist_metadata` names it `seaborn-0.13.2.dist-info/METADATA`. The wheel has no `entry_points.txt`. `LICENSE.md` equals the wheel's. The tarball holds 322 regular files, no links, under one top folder, `seaborn-0.13.2`. seaborn's package has no non-Python file.
+- **Members and bytes (EXECUTED).** seaborn 55 members, 541,099 bytes. reportlab 192 wheel members, 160 after the leave-out, 1,619,735 bytes. The fonts are 32 members, 1,151,758 bytes. The 215 members equal the drafting zip's, name for name and byte for byte, and that zip has no `reportlab/fonts/` member. The only non-Python file reportlab keeps is its `METADATA`: every data file of the wheel is under `fonts/`.
+- **The fonts' licences (READ).** The facts in Decision 4 and question 73 are right. Eight `.pfb` files carry Adobe's "All Rights Reserved" notice with Monotype's copyright (Arial, Times New Roman), and eight carry Adobe's alone. Dark Garden is GPL-2.0-or-later with a font exception. `callig15` has its own free-use terms. `hb-test.ttf` has no notice. Leaving the folder out removes all of them, and nothing outside it reads them.
+- **The zip-loader bug (READ).** `reportlab/lib/utils.py:150` tests `len(ldr._files)` inside a bare `except`, so on 3.13 and later reportlab decides it is not zip-imported. The specification's account is right.
+- **seaborn's golden is honest about regplot, and robust to the native BLAS (EXECUTED).** The job prints regplot's line and band as text at nine and six significant digits, never as pixels. I ran the final job natively with numpy's OpenBLAS wheel and 037's scipy pin. All 17 lines equal the drafting's run (whose numpy and scipy used Accelerate; finding 4), under `PYTHONHASHSEED` 0 and 1, and with `TZ=Asia/Tokyo LC_ALL=de_DE.UTF-8`. In the guest, without scipy, the first 16 lines equal that native run. The 17th raised `RuntimeError: clustermap requires scipy to be available`, as the specification says. So both native BLAS builds the oracle might pick on darwin-arm64 give the same golden.
+- **scipy's arrival does not move regplot (READ).** seaborn fits with `np.linalg.pinv` and bootstraps with numpy (`regression.py`, `algorithms.py`). 037 leaves the guest's numpy on its own `lapack_lite` (037, Decision 15: "The oracle's numpy wheel is unchanged"). So the line and band take the same path before and after 037.
+- **The PDF golden (EXECUTED).** `pdf_reports` with the repository's `fixtures/sales.csv` gives the drafting's 13 lines byte for byte under both seeds, in Tokyo time and a German locale. Every PDF whose bytes are printed is built with `invariant=1` and `pageCompression=0`. The TrueType line embeds an uncompressed subset (READ: `ttfonts.py` compresses font streams only when the document compresses).
+- **With nothing writable, `import seaborn` prints matplotlib's error (EXECUTED).** With `/` read-only and no writable folder it raises `OSError: Matplotlib requires access to a writable cache directory, but there was an issue with resolving the home directory, and a temporary directory could not be created; set the MPLCONFIGDIR environment variable to a writable …`. That is 023's Decision 7, unchanged. With a writable `MPLCONFIGDIR` grant it imports.
+- **`--leave-out` duplicates nothing yet (READ).** Today's `make_stdlib_zip.py` has `--skip`, which drops top-level names of `--lib` only. 023 lists what step 70 leaves out of matplotlib, but names no mechanism. 039 trims nothing (its Scope). 041 adds `--entry-points` to the same file, which is a merge, not a duplicate (Decision 13 handles it).
+- **The growth account** uses 039's measured slopes and caps per member, applied to 215 members (READ against 039, Decision 13). The plain binary does not change.
+- **The checks count operations.** No check reads a clock. Fuel and bytes go to the judge's metrics and the landing notes.
 
 ## Acceptance criteria against evidence
 
@@ -116,378 +38,134 @@
 
 ## Findings, most severe first
 
-1. **reportlab's own code carries third-party notices that the zip drops. One is BSD-4-Clause,
-   which §4.12 does not list.** High. §4.12 says nothing with an unapproved licence is linked
-   in, and that each component ships with its notice. The specification's Intent says "No file
-   with an unapproved licence ships". Decision 7 gives reportlab one notice, its `LICENSE`. It
-   checked the fonts with care and did not check the code.
-   - READ (the wheel's files): seven modules under `reportlab/graphics/barcode/`
-     (`__init__.py`, `code128.py`, `code39.py`, `code93.py`, `common.py`, `fourstate.py`,
-     `usps.py`) say "Copyright (c) 1996-2000 Tyler C. Sarna" under the four-clause BSD
-     licence. Its clause 2 asks that a binary redistribution reproduce the notice. Its clause
-     3 is the advertising clause: "All advertising materials mentioning features or use of
-     this software must display the following acknowledgement: This product includes software
-     developed by Tyler C. Sarna." `reportlab/pdfbase/_glyphlist.py` is Adobe's Glyph List,
-     "Copyright 2002-2019 Adobe", under BSD-3-Clause. `reportlab/graphics/barcode/qrencoder.py`
-     is "Copyright (c) 2014 Open End AB" and "Copyright (c) 2009 Kazuhiko Arase", "Licensed
-     under the MIT license", with no MIT text in the file.
-   - READ: the sdist holds no other licence file (`LICENSE` and three font notices only). So
-     these notices exist only as comments.
-   - EXECUTED (`notices_in_pyc.py`): comments do not survive compilation. "Sarna" is in
-     neither `barcode/__init__.pyc` nor `code128.pyc`; "Adobe" is not in `_glyphlist.pyc`;
-     "Arase" is not in `qrencoder.pyc`. So the zip ships this code with no notice at all.
-   - INFERRED: the owner approved "reportlab (BSD)" from the memo's row, which read only
-     reportlab's top-level licence. BSD-4-Clause is a different licence with an extra
-     obligation, so it is not covered by that approval as written. The pdf_reports golden
-     draws a Code 128 barcode and a QR code, so the job itself runs this code.
-   - READ: nothing outside `reportlab/graphics/barcode/` imports it. Every module there imports
-     the package's `__init__.py`, which is one of Sarna's files. So the clean fallback is to
-     leave out the whole folder (16 members), with `--leave-out reportlab/graphics/barcode/`.
-   - READ (lesser items, for the owner's facts, not for a notice): `graphics/svgpath.py` says
-     "this code is derived from that used by svglib" (svglib is LGPL-3.0; INFERRED that its
-     author contributed it under reportlab's licence, since the file carries no other terms);
-     `lib/normalDate.py` is "derived from an original version created by Jeff Bauer … used
-     with his kind permission"; `ecc200datamatrix.py` has a method "basically verbatim from
-     huBarcode which is BSD licensed", with no huBarcode notice anywhere in the wheel;
-     `platypus/paragraph.py` has a URI regex "derived from Django validator".
+1. **reportlab's own code carries third-party notices that the zip drops. One is BSD-4-Clause, which §4.12 does not list.** High. §4.12 says nothing with an unapproved licence is linked in, and that each component ships with its notice. The specification's Intent says "No file with an unapproved licence ships". Decision 7 gives reportlab one notice, its `LICENSE`. It checked the fonts with care and did not check the code.
+   - READ (the wheel's files): seven modules under `reportlab/graphics/barcode/` (`__init__.py`, `code128.py`, `code39.py`, `code93.py`, `common.py`, `fourstate.py`, `usps.py`) say "Copyright (c) 1996-2000 Tyler C. Sarna" under the four-clause BSD licence. Its clause 2 asks that a binary redistribution reproduce the notice. Its clause 3 is the advertising clause: "All advertising materials mentioning features or use of this software must display the following acknowledgement: This product includes software developed by Tyler C. Sarna." `reportlab/pdfbase/_glyphlist.py` is Adobe's Glyph List, "Copyright 2002-2019 Adobe", under BSD-3-Clause. `reportlab/graphics/barcode/qrencoder.py` is "Copyright (c) 2014 Open End AB" and "Copyright (c) 2009 Kazuhiko Arase", "Licensed under the MIT license", with no MIT text in the file.
+   - READ: the sdist holds no other licence file (`LICENSE` and three font notices only). So these notices exist only as comments.
+   - EXECUTED (`notices_in_pyc.py`): comments do not survive compilation. "Sarna" is in neither `barcode/__init__.pyc` nor `code128.pyc`; "Adobe" is not in `_glyphlist.pyc`; "Arase" is not in `qrencoder.pyc`. So the zip ships this code with no notice at all.
+   - INFERRED: the owner approved "reportlab (BSD)" from the memo's row, which read only reportlab's top-level licence. BSD-4-Clause is a different licence with an extra obligation, so it is not covered by that approval as written. The pdf_reports golden draws a Code 128 barcode and a QR code, so the job itself runs this code.
+   - READ: nothing outside `reportlab/graphics/barcode/` imports it. Every module there imports the package's `__init__.py`, which is one of Sarna's files. So the clean fallback is to leave out the whole folder (16 members), with `--leave-out reportlab/graphics/barcode/`.
+   - READ (lesser items, for the owner's facts, not for a notice): `graphics/svgpath.py` says "this code is derived from that used by svglib" (svglib is LGPL-3.0; INFERRED that its author contributed it under reportlab's licence, since the file carries no other terms); `lib/normalDate.py` is "derived from an original version created by Jeff Bauer … used with his kind permission"; `ecc200datamatrix.py` has a method "basically verbatim from huBarcode which is BSD licensed", with no huBarcode notice anywhere in the wheel; `platypus/paragraph.py` has a URI regex "derived from Django validator".
    - Fix:
-     - (a) `LICENSES/reportlab.txt` gains three parts after the wheel's `LICENSE`, each headed
-       by its path in the wheel and taken byte for byte from that file's header: Sarna's notice
-       (from `graphics/barcode/__init__.py`, naming all seven files), Adobe's from
-       `pdfbase/_glyphlist.py`, and the QR encoder's from `graphics/barcode/qrencoder.py` with
-       the MIT text it names. Pin the MIT text as 039 pinned MPL-2.0's (SPDX, by URL and
-       SHA-256), or use the MIT text already shipped for another component. This is 039's
-       pattern for sympy's nested notice.
-     - (b) Add a v1.1 check beside `test_seaborn_notice_carries_its_vendored_licences`:
-       `LICENSES/reportlab.txt` holds those three header blocks of the pinned wheel, byte for
-       byte. See it fail on a notice that lacks one.
-     - (c) Ask the owner to approve BSD-4-Clause for Sarna's barcode modules, with the
-       acknowledgement. Add it to question 73 or give it a new number. If approved, the README
-       line that names barcodes, and the CHANGELOG entry, carry "This product includes
-       software developed by Tyler C. Sarna.", and §4.12 records it. Until answered, either
-       the build waits, or it leaves out `reportlab/graphics/barcode/` and drops the job's QR
-       and Code 128 lines, and says so. The specification picks one now.
-     - (d) Put the lesser items in question 73's facts, so the owner sees the whole picture.
-       None needs a notice the wheel can supply.
+     - (a) `LICENSES/reportlab.txt` gains three parts after the wheel's `LICENSE`, each headed by its path in the wheel and taken byte for byte from that file's header: Sarna's notice (from `graphics/barcode/__init__.py`, naming all seven files), Adobe's from `pdfbase/_glyphlist.py`, and the QR encoder's from `graphics/barcode/qrencoder.py` with the MIT text it names. Pin the MIT text as 039 pinned MPL-2.0's (SPDX, by URL and SHA-256), or use the MIT text already shipped for another component. This is 039's pattern for sympy's nested notice.
+     - (b) Add a v1.1 check beside `test_seaborn_notice_carries_its_vendored_licences`: `LICENSES/reportlab.txt` holds those three header blocks of the pinned wheel, byte for byte. See it fail on a notice that lacks one.
+     - (c) Ask the owner to approve BSD-4-Clause for Sarna's barcode modules, with the acknowledgement. Add it to question 73 or give it a new number. If approved, the README line that names barcodes, and the CHANGELOG entry, carry "This product includes software developed by Tyler C. Sarna.", and §4.12 records it. Until answered, either the build waits, or it leaves out `reportlab/graphics/barcode/` and drops the job's QR and Code 128 lines, and says so. The specification picks one now.
+     - (d) Put the lesser items in question 73's facts, so the owner sees the whole picture. None needs a notice the wheel can supply.
 
-2. **Once scipy is in the set, `import seaborn` imports `scipy.stats` and
-   `scipy.cluster.hierarchy`. The drafting never ran that in a guest.** Medium.
-   - READ: seaborn's `_statistics.py:32`, `_stats/density.py:10` and `matrix.py:11` import
-     scipy at module level, inside `try … except ImportError`. `regression.py:11` tries
-     `import statsmodels` the same way.
-   - EXECUTED (`count_imports.py`, natively): `import seaborn` after `matplotlib.pyplot` adds
-     **971 modules with scipy, 502 of them scipy's, and 407 without**. Decision 9's fuel
-     (10,205,012,918 for `import seaborn`) and Decision 10's job fuel were measured with no
-     scipy. Decision 13 says scipy is in the set when this is built. So every seaborn number
-     the builder sees will be higher, by scipy's import. Tier B's statsmodels will add more
-     later.
-   - INFERRED: in the built guest, `kdeplot` and `violinplot` move from seaborn's own
-     `external/kde.py` to `scipy.stats.gaussian_kde`. Natively both give the same nine digits
-     (the drafting's earlier job; my scipy run). In the guest only seaborn's copy has run. So
-     those two lines are INFERRED in the built guest, like `clustermap`, and the specification
-     labels only `clustermap`.
-   - INFERRED, and the reason for a check: seaborn catches only `ImportError`. If scipy's
-     import failed in the guest with an `ImportError`, seaborn would fall back quietly. The
-     `kdeplot` and `violinplot` lines would still match, since both paths give the same
-     digits, and the golden could not tell which path ran. Only the `clustermap` line would
-     fail. If it failed with any other exception, `import seaborn` would fail outright.
-   - Fix: say this in Decisions 8, 9 and 10. Add a v1.3 guest assertion (a small seaborn
-     check beside `test_reportlab_runs_its_pure_paths`, or a line in the job) that the scipy
-     paths are live:
-     `seaborn.matrix._no_scipy is False`, and `seaborn._statistics.gaussian_kde.__module__`
-     starts with `scipy.`. See it fail on a zip without scipy. Mark the kde and violin lines
-     INFERRED-in-guest beside `clustermap`, under the same rule-7 handling. Say in the growth
-     section that both jobs' fuel and the `import seaborn` number include scipy's import, so
-     the build review does not read it as a regression.
+2. **Once scipy is in the set, `import seaborn` imports `scipy.stats` and `scipy.cluster.hierarchy`. The drafting never ran that in a guest.** Medium.
+   - READ: seaborn's `_statistics.py:32`, `_stats/density.py:10` and `matrix.py:11` import scipy at module level, inside `try … except ImportError`. `regression.py:11` tries `import statsmodels` the same way.
+   - EXECUTED (`count_imports.py`, natively): `import seaborn` after `matplotlib.pyplot` adds **971 modules with scipy, 502 of them scipy's, and 407 without**. Decision 9's fuel (10,205,012,918 for `import seaborn`) and Decision 10's job fuel were measured with no scipy. Decision 13 says scipy is in the set when this is built. So every seaborn number the builder sees will be higher, by scipy's import. Tier B's statsmodels will add more later.
+   - INFERRED: in the built guest, `kdeplot` and `violinplot` move from seaborn's own `external/kde.py` to `scipy.stats.gaussian_kde`. Natively both give the same nine digits (the drafting's earlier job; my scipy run). In the guest only seaborn's copy has run. So those two lines are INFERRED in the built guest, like `clustermap`, and the specification labels only `clustermap`.
+   - INFERRED, and the reason for a check: seaborn catches only `ImportError`. If scipy's import failed in the guest with an `ImportError`, seaborn would fall back quietly. The `kdeplot` and `violinplot` lines would still match, since both paths give the same digits, and the golden could not tell which path ran. Only the `clustermap` line would fail. If it failed with any other exception, `import seaborn` would fail outright.
+   - Fix: say this in Decisions 8, 9 and 10. Add a v1.3 guest assertion (a small seaborn check beside `test_reportlab_runs_its_pure_paths`, or a line in the job) that the scipy paths are live: `seaborn.matrix._no_scipy is False`, and `seaborn._statistics.gaussian_kde.__module__` starts with `scipy.`. See it fail on a zip without scipy. Mark the kde and violin lines INFERRED-in-guest beside `clustermap`, under the same rule-7 handling. Say in the growth section that both jobs' fuel and the `import seaborn` number include scipy's import, so the build review does not read it as a regression.
 
-3. **Decision 8's `load_dataset` edge is wrong in the README's own setup, and it can leave a
-   folder named `~` in the caller's root.** Medium. A README line that is wrong in the common
-   case misleads the reader §4.11 is written for.
-   - READ (`seaborn/utils.py:516-520`): `get_data_home()` takes `user_cache_dir("seaborn")`,
-     calls `os.path.expanduser`, which leaves `~` as it is in the guest (no `HOME`), and then
-     `os.makedirs` on that relative path. `load_dataset(cache=True)`, the default, calls it
-     before it fetches.
+3. **Decision 8's `load_dataset` edge is wrong in the README's own setup, and it can leave a folder named `~` in the caller's root.** Medium. A README line that is wrong in the common case misleads the reader §4.11 is written for.
+   - READ (`seaborn/utils.py:516-520`): `get_data_home()` takes `user_cache_dir("seaborn")`, calls `os.path.expanduser`, which leaves `~` as it is in the guest (no `HOME`), and then `os.makedirs` on that relative path. `load_dataset(cache=True)`, the default, calls it before it fetches.
    - EXECUTED (`out/ld.txt`, guest, cwd `/`):
      - nothing writable: `import seaborn` raises matplotlib's `OSError` (as above);
-     - only a writable `MPLCONFIGDIR` grant (the README's route): `get_data_home` and
-       `load_dataset("tips")` both raise `PermissionError [Errno 63] Operation not permitted:
-       '~'`, not `URLError`;
-     - a writable root: `get_data_home` returns `~/.cache/seaborn` and **creates the folder
-       `/~/.cache/seaborn` in the caller's root**, then `load_dataset` raises `URLError:
-       <urlopen error unknown url type: https>`.
+     - only a writable `MPLCONFIGDIR` grant (the README's route): `get_data_home` and `load_dataset("tips")` both raise `PermissionError [Errno 63] Operation not permitted: '~'`, not `URLError`;
+     - a writable root: `get_data_home` returns `~/.cache/seaborn` and **creates the folder `/~/.cache/seaborn` in the caller's root**, then `load_dataset` raises `URLError: <urlopen error unknown url type: https>`.
    - The drafting's probe ran with the harness's writable root, so it saw only the third case.
-   - Fix: Decision 8 and the README state all three outcomes, and that `pd.read_csv` on a
-     granted file is the route. Add one line to a v1.3 check: with only `MPLCONFIGDIR`
-     writable, `load_dataset("tips")` raises `PermissionError` naming `'~'`. Optionally,
-     record in the CHANGELOG that a writable root gets a `~` folder from it.
+   - Fix: Decision 8 and the README state all three outcomes, and that `pd.read_csv` on a granted file is the route. Add one line to a v1.3 check: with only `MPLCONFIGDIR` writable, `load_dataset("tips")` raises `PermissionError` naming `'~'`. Optionally, record in the CHANGELOG that a writable root gets a `~` folder from it.
 
-4. **"Natively OpenBLAS" is wrong: the drafting's numpy and scipy used Apple's Accelerate.**
-   Low for the design, since the golden holds either way (What holds), but a mislabelled fact
-   under §4.10.
-   - READ (the drafting venv): numpy's `WHEEL` is `cp315-cp315-macosx_14_0_arm64` and its
-     `__config__` says `"blas": {"name": "accelerate"}`. scipy is also the `macosx_14_0_arm64`
-     wheel, not 037's pinned `macosx_12_0_arm64` one.
-   - READ (`tests/jobs/oracle/uv.lock`): numpy 2.5.2 has both a `macosx_11_0_arm64` wheel
-     (OpenBLAS) and a `macosx_14_0_arm64` one (Accelerate). uv picks by the host's macOS
-     version, so the oracle's BLAS depends on the machine. 037 avoided this for scipy, not for
-     numpy.
-   - EXECUTED: with numpy's OpenBLAS wheel and 037's scipy pin, all 17 lines equal the
-     Accelerate run, under both seeds and in another zone and locale.
-   - Fix: Decision 10 says the native side was Accelerate's LAPACK (macOS 14 wheels), and that
-     the golden was reproduced with numpy's OpenBLAS wheel and 037's scipy pin too (this
-     review). Name the guest's last-bit difference as `lapack_lite` against the host's LAPACK.
-     `regen.py` runs this job under 037's `oracle_env` (`OPENBLAS_NUM_THREADS=1`,
-     `VECLIB_MAXIMUM_THREADS=1`).
+4. **"Natively OpenBLAS" is wrong: the drafting's numpy and scipy used Apple's Accelerate.** Low for the design, since the golden holds either way (What holds), but a mislabelled fact under §4.10.
+   - READ (the drafting venv): numpy's `WHEEL` is `cp315-cp315-macosx_14_0_arm64` and its `__config__` says `"blas": {"name": "accelerate"}`. scipy is also the `macosx_14_0_arm64` wheel, not 037's pinned `macosx_12_0_arm64` one.
+   - READ (`tests/jobs/oracle/uv.lock`): numpy 2.5.2 has both a `macosx_11_0_arm64` wheel (OpenBLAS) and a `macosx_14_0_arm64` one (Accelerate). uv picks by the host's macOS version, so the oracle's BLAS depends on the machine. 037 avoided this for scipy, not for numpy.
+   - EXECUTED: with numpy's OpenBLAS wheel and 037's scipy pin, all 17 lines equal the Accelerate run, under both seeds and in another zone and locale.
+   - Fix: Decision 10 says the native side was Accelerate's LAPACK (macOS 14 wheels), and that the golden was reproduced with numpy's OpenBLAS wheel and 037's scipy pin too (this review). Name the guest's last-bit difference as `lapack_lite` against the host's LAPACK. `regen.py` runs this job under 037's `oracle_env` (`OPENBLAS_NUM_THREADS=1`, `VECLIB_MAXIMUM_THREADS=1`).
 
 5. **Some of the "all equal" evidence was run on an earlier job.** Low (§4.10).
-   - EXECUTED (the drafting's `out/`): the time-zone and locale run (`job-tz.txt`) and the
-     runs without scipy (`job-venv-*.txt`) end with a `lowess: … requires statsmodels` line.
-     The final job ends with `clustermap`. Only `job-sp-0.txt` and `job-sp-1.txt`, with
-     scipy and two seeds, ran the final job. The evidence file
-     `statistical_plots.native-noscipy.txt` is that earlier job too.
+   - EXECUTED (the drafting's `out/`): the time-zone and locale run (`job-tz.txt`) and the runs without scipy (`job-venv-*.txt`) end with a `lowess: … requires statsmodels` line. The final job ends with `clustermap`. Only `job-sp-0.txt` and `job-sp-1.txt`, with scipy and two seeds, ran the final job. The evidence file `statistical_plots.native-noscipy.txt` is that earlier job too.
    - My runs cover the final job in another zone and locale (What holds).
    - Fix: say which runs used which version of the job, or re-run, and cite this review's runs.
 
-6. **The new notice checks should say what they do without `downloads/`.** Low.
-   `licence_source` returns `None` when the pin is absent, so `test_licence_notices_…`
-   checks presence only on a machine without downloads (READ, `paths.py:430-451`). Decision
-   11's `test_seaborn_notice_carries_its_vendored_licences` reads "the pinned sdist". Fix:
-   it compares content when the pinned sdist is present and passes the hash check, and checks
-   that the five headings are present otherwise, as `licence_errors` does. The same applies to
-   finding 1's reportlab check.
+6. **The new notice checks should say what they do without `downloads/`.** Low. `licence_source` returns `None` when the pin is absent, so `test_licence_notices_…` checks presence only on a machine without downloads (READ, `paths.py:430-451`). Decision 11's `test_seaborn_notice_carries_its_vendored_licences` reads "the pinned sdist". Fix: it compares content when the pinned sdist is present and passes the hash check, and checks that the five headings are present otherwise, as `licence_errors` does. The same applies to finding 1's reportlab check.
 
-7. **seaborn's vendored licences: §4.12 holds, by 039's precedent. Say so instead of
-   INFERRED.** Low.
-   - READ: `APPDIRS_LICENSE` and `HUSL_LICENSE` are MIT. `NUMPYDOC_LICENSE` is a two-clause
-     BSD. `PACKAGING_LICENSE` is the BSD-2-Clause side of packaging's dual licence.
-     `SCIPY_LICENSE` is BSD-3-Clause. Each asks that a binary redistribution reproduce the
-     notice. scipy (question 25) and packaging (question 35) are approved by name. MIT and the
-     BSD family are approved for tier A.
-   - READ (039, Decision 8): sympy's nested `latex2sympy` notice (MIT, a third party's code
-     inside an approved package) was shipped as a second part of sympy's notice, "MIT is
-     approved by decision 43 for most of tier A". 039's review confirmed it.
-   - EXECUTED: notices in docstrings survive compilation (appdirs, kde, docscrape), those in
-     comments do not (husl, version). So `LICENSES/seaborn.txt` is needed, as the
-     specification plans.
-   - Fix: Decision 7 cites 039's sympy precedent, and question 73's facts name appdirs, husl
-     and numpydoc, so the owner sees them.
+7. **seaborn's vendored licences: §4.12 holds, by 039's precedent. Say so instead of INFERRED.** Low.
+   - READ: `APPDIRS_LICENSE` and `HUSL_LICENSE` are MIT. `NUMPYDOC_LICENSE` is a two-clause BSD. `PACKAGING_LICENSE` is the BSD-2-Clause side of packaging's dual licence. `SCIPY_LICENSE` is BSD-3-Clause. Each asks that a binary redistribution reproduce the notice. scipy (question 25) and packaging (question 35) are approved by name. MIT and the BSD family are approved for tier A.
+   - READ (039, Decision 8): sympy's nested `latex2sympy` notice (MIT, a third party's code inside an approved package) was shipped as a second part of sympy's notice, "MIT is approved by decision 43 for most of tier A". 039's review confirmed it.
+   - EXECUTED: notices in docstrings survive compilation (appdirs, kde, docscrape), those in comments do not (husl, version). So `LICENSES/seaborn.txt` is needed, as the specification plans.
+   - Fix: Decision 7 cites 039's sympy precedent, and question 73's facts name appdirs, husl and numpydoc, so the owner sees them.
 
-8. **`--leave-out`: name the rule for 023's exclusions, not only a wheel option.** Low.
-   023's step 70 must drop `matplotlib/testing/`, `matplotlib/sphinxext/` and most of
-   `matplotlib/backends/` from an install tree (READ, 023, Decision 4). If 023 lands those as a
-   prefix option on trees, Decision 5's "if it lands an option that does the same for a wheel"
-   would not trigger, and two mechanisms would exist. Fix: "if 023 lands any member-exclusion
-   option in `make_stdlib_zip.py`, for trees or wheels, this specification extends it to every
-   input and adds none." Say also that `--leave-out` is matched against the name before `.py`
-   becomes `.pyc`. With a trailing `/` this changes nothing, but the unit check should pin it.
+8. **`--leave-out`: name the rule for 023's exclusions, not only a wheel option.** Low. 023's step 70 must drop `matplotlib/testing/`, `matplotlib/sphinxext/` and most of `matplotlib/backends/` from an install tree (READ, 023, Decision 4). If 023 lands those as a prefix option on trees, Decision 5's "if it lands an option that does the same for a wheel" would not trigger, and two mechanisms would exist. Fix: "if 023 lands any member-exclusion option in `make_stdlib_zip.py`, for trees or wheels, this specification extends it to every input and adds none." Say also that `--leave-out` is matched against the name before `.py` becomes `.pyc`. With a trailing `/` this changes nothing, but the unit check should pin it.
 
-9. **`seaborn.objects` is untested and unmentioned.** Low, optional. It is seaborn's newer
-   interface. The drafting probe's `AttributeError: 'FigureCanvasBase' object has no attribute
-   'buffer_rgba'` is the probe's own mistake: natively it gives the same error, so it is not a
-   guest gap (READ, both probe outputs). Fix: either one RGBA line from
-   `so.Plot(...).on(fig).plot()` in the job, or one README sentence that it was not checked.
+9. **`seaborn.objects` is untested and unmentioned.** Low, optional. It is seaborn's newer interface. The drafting probe's `AttributeError: 'FigureCanvasBase' object has no attribute 'buffer_rgba'` is the probe's own mistake: natively it gives the same error, so it is not a guest gap (READ, both probe outputs). Fix: either one RGBA line from `so.Plot(...).on(fig).plot()` in the job, or one README sentence that it was not checked.
 
 ## On the order
 
-Decision 13 holds. 042 builds after 023 and 039. 039 waits for 038 when 037 is confirmed for
-build (READ, 039, Decision 14). So scipy is in the set, which is why finding 2 matters. 043
-does not block: only the README's bivariate line depends on it. 041 and 042 touch the same
-four files and rebase in either order. Finding 1(c) may add an owner answer to the
-prerequisites; the specification should say whether the build waits for it or takes the
-fallback.
+Decision 13 holds. 042 builds after 023 and 039. 039 waits for 038 when 037 is confirmed for build (READ, 039, Decision 14). So scipy is in the set, which is why finding 2 matters. 043 does not block: only the README's bivariate line depends on it. 041 and 042 touch the same four files and rebase in either order. Finding 1(c) may add an owner answer to the prerequisites; the specification should say whether the build waits for it or takes the fallback.
 
 ## Constitution checks
 
 - **§4.1, patches:** holds. No patch. Decision 4 rightly declines a patch for four Vera files.
 - **§4.2, every input pinned:** holds (EXECUTED: both hashes against PyPI and the downloads).
-- **§4.6, the artifact set:** holds. `python.wasm` does not change. The zip gains 215 members
-  (EXECUTED), fewer if finding 1's fallback is taken.
+- **§4.6, the artifact set:** holds. `python.wasm` does not change. The zip gains 215 members (EXECUTED), fewer if finding 1's fallback is taken.
 - **§4.7, prior art:** n/a. Both are built from their released archives.
 - **§4.8, downloads untrusted:** holds. Both are unpacked under `build/` and only compiled.
-- **§4.10, claims carry evidence:** holds after findings 4 and 5. The two jobs reproduce
-  (EXECUTED).
-- **§4.12, licences:** **not yet**. Finding 1 (reportlab's barcode, glyph-list and QR
-  notices; BSD-4-Clause unapproved). seaborn's notices hold (finding 7). Leaving out the fonts
-  is enough for the fonts (READ).
+- **§4.10, claims carry evidence:** holds after findings 4 and 5. The two jobs reproduce (EXECUTED).
+- **§4.12, licences:** **not yet**. Finding 1 (reportlab's barcode, glyph-list and QR notices; BSD-4-Clause unapproved). seaborn's notices hold (finding 7). Leaving out the fonts is enough for the fonts (READ).
 - **§4.13, uv only:** holds. Both jobs are new repository code under ruff.
-- **§4.15, safe by default:** holds. reportlab writes PDFs with nothing writable (the
-  drafting's run). seaborn needs a writable `MPLCONFIGDIR`, as matplotlib does (EXECUTED).
-  Finding 3 is a README accuracy point, not a new channel.
+- **§4.15, safe by default:** holds. reportlab writes PDFs with nothing writable (the drafting's run). seaborn needs a writable `MPLCONFIGDIR`, as matplotlib does (EXECUTED). Finding 3 is a README accuracy point, not a new channel.
 - **§5.6, reviewed before build:** this review.
 - **§5.7, build-class, one in flight:** holds (Decision 13).
 - **Tests count operations:** holds. No wall-clock assertion. Fuel and bytes are metrics.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. **Fixed.** New Decision 4a: the eight Sarna files (the review's seven plus
-   `graphics/barcode/test.py`, which also carries the notice; READ), the QR encoder and
-   Adobe's glyph list, with the folder's 16 members and 124,642 bytes (EXECUTED). (a) Decision
-   7: `LICENSES/reportlab.txt` gains the three parts, each the file's leading comment block
-   (31, 45 and 22 lines) byte for byte from the pinned wheel, the QR part followed by the MIT
-   text already pinned as `wasi-libc-161b3195-LICENSE-MIT` (generic, no holder named), so no
-   new pin. (b) Decision 11: `test_reportlab_notice_carries_its_third_party_parts`, seen
-   failing against 039's builder and against altered notices (criterion 1). (c) Question 73
-   gains part (c), asking approval of the four-clause BSD with the advertising clause quoted
-   and explained plainly. **Decided now, so nothing waits:** step 70 also passes `--leave-out
-   reportlab/graphics/barcode/` until the owner approves; `pdf_reports` draws no barcode or
-   QR code (eleven lines; a later change adds them, with Sarna's acknowledgement, once
-   approved); `test_reportlab_runs_its_pure_paths` asserts the `qr` import fails and
-   `test_reportlab_fonts_are_not_in_the_zip` that no barcode member ships, while the leave-out
-   stands. All three notices ship now. Counts re-derived: 199 members, 2,036,192 bytes
-   (EXECUTED), Decisions 1 and 12, criterion 2. The revised `pdf_reports` equals native in the
-   guest on a zip without the folder (EXECUTED). (d) The lesser items are in Decision 4a and
-   question 73's facts.
-2. **Fixed.** Decision 3 says seaborn imports scipy at import once 037 is in (the review's 971
-   against 407 modules) and catches only `ImportError`; Decision 8 states it as an edge;
-   Decision 9 says its fuel was taken without scipy; Decision 12 says the jobs' fuel includes
-   scipy's import. New check `test_seaborn_takes_its_scipy_paths[plain, snapshot]` asserts
-   `seaborn.matrix._no_scipy is False`, `seaborn._statistics._no_scipy is False` and
-   `gaussian_kde.__module__` starting with `scipy.` (EXECUTED natively with and without scipy:
-   `False False scipy.stats._kde` and `True True seaborn.external.kde`), seen failing on a zip
-   without scipy. Decision 10 now names `kdeplot`, `violinplot` and `clustermap` as not yet run
-   in a guest with scipy, all three under rule 7, and criterion 4 asks their guest result.
-3. **Fixed.** Decision 8 states the three outcomes as the review ran them (matplotlib's
-   `OSError`; `PermissionError … '~'` with only `MPLCONFIGDIR` writable; a `/~/.cache/seaborn`
-   folder and then `URLError` with a writable root) and `pd.read_csv` on a granted file as the
-   route. `test_seaborn_takes_its_scipy_paths` also asserts the `PermissionError` naming `'~'`
-   through `wasi_python.run` with only `/cfg` writable. The README line and the CHANGELOG (the
-   `~` folder) say so.
-4. **Fixed.** Decision 10 says the drafting's native numpy and scipy were the
-   `macosx_14_0_arm64` wheels linking Accelerate, cites this review's reproduction with numpy's
-   OpenBLAS wheel and 037's scipy pin, and names the guest's difference as `lapack_lite`
-   against the host's LAPACK (also The problem). `regen.py` runs both jobs under 037's
-   `oracle_env` (`OPENBLAS_NUM_THREADS=1`, `VECLIB_MAXIMUM_THREADS=1`); Design's `jobs.py` row.
-5. **Fixed.** Decision 10 lists which runs used which version of each job: the first versions
-   (with `lowess:` and the barcodes), the `clustermap` version (the review's runs), and the
-   versions the specification now describes, re-run natively without and with scipy, under
-   both seeds and in another zone and locale, and in the guest (EXECUTED, the revision's runs,
-   named in "Research it stands on").
-6. **Fixed.** Decision 11: both notice checks compare content byte for byte when the pinned
-   archive (and, for reportlab, the MIT pin) is in `downloads/` and passes its hash check, and
-   check the headings (and Sarna's acknowledgement line) otherwise, as `licence_errors` does;
-   criterion 1 sees each fail both ways.
-7. **Fixed.** Decision 7 cites 039's sympy precedent (Decision 8, confirmed by 039's review)
-   in place of INFERRED, names `NUMPYDOC_LICENSE` BSD-2-Clause, and records which notices
-   survive compilation (the review's run). Question 73's facts name appdirs, husl and numpydoc.
-8. **Fixed.** Decision 5: if 023 lands any member-exclusion option in `make_stdlib_zip.py`, for
-   trees or wheels, this specification extends it to every input and adds none; a prefix is
-   matched against the name before `.py` becomes `.pyc`, and the unit check pins it (and a
-   mutant that matches compiled names is seen failing).
-9. **Fixed, with a golden line.** `statistical_plots` gains one `seaborn.objects` plot's RGBA
-   and SVG (eighteen lines). A first try with `so.PolyFit` differed from native in the guest by
-   its least-squares pixels, as `regplot` does, so the line uses `so.Agg` and the plain line;
-   with it the guest equals native (EXECUTED, the revision's runs). The probe's
-   `buffer_rgba` error is noted as the probe's own.
+1. **Fixed.** New Decision 4a: the eight Sarna files (the review's seven plus `graphics/barcode/test.py`, which also carries the notice; READ), the QR encoder and Adobe's glyph list, with the folder's 16 members and 124,642 bytes (EXECUTED). (a) Decision 7: `LICENSES/reportlab.txt` gains the three parts, each the file's leading comment block (31, 45 and 22 lines) byte for byte from the pinned wheel, the QR part followed by the MIT text already pinned as `wasi-libc-161b3195-LICENSE-MIT` (generic, no holder named), so no new pin. (b) Decision 11: `test_reportlab_notice_carries_its_third_party_parts`, seen failing against 039's builder and against altered notices (criterion 1). (c) Question 73 gains part (c), asking approval of the four-clause BSD with the advertising clause quoted and explained plainly. **Decided now, so nothing waits:** step 70 also passes `--leave-out reportlab/graphics/barcode/` until the owner approves; `pdf_reports` draws no barcode or QR code (eleven lines; a later change adds them, with Sarna's acknowledgement, once approved); `test_reportlab_runs_its_pure_paths` asserts the `qr` import fails and `test_reportlab_fonts_are_not_in_the_zip` that no barcode member ships, while the leave-out stands. All three notices ship now. Counts re-derived: 199 members, 2,036,192 bytes (EXECUTED), Decisions 1 and 12, criterion 2. The revised `pdf_reports` equals native in the guest on a zip without the folder (EXECUTED). (d) The lesser items are in Decision 4a and question 73's facts.
+2. **Fixed.** Decision 3 says seaborn imports scipy at import once 037 is in (the review's 971 against 407 modules) and catches only `ImportError`; Decision 8 states it as an edge; Decision 9 says its fuel was taken without scipy; Decision 12 says the jobs' fuel includes scipy's import. New check `test_seaborn_takes_its_scipy_paths[plain, snapshot]` asserts `seaborn.matrix._no_scipy is False`, `seaborn._statistics._no_scipy is False` and `gaussian_kde.__module__` starting with `scipy.` (EXECUTED natively with and without scipy: `False False scipy.stats._kde` and `True True seaborn.external.kde`), seen failing on a zip without scipy. Decision 10 now names `kdeplot`, `violinplot` and `clustermap` as not yet run in a guest with scipy, all three under rule 7, and criterion 4 asks their guest result.
+3. **Fixed.** Decision 8 states the three outcomes as the review ran them (matplotlib's `OSError`; `PermissionError … '~'` with only `MPLCONFIGDIR` writable; a `/~/.cache/seaborn` folder and then `URLError` with a writable root) and `pd.read_csv` on a granted file as the route. `test_seaborn_takes_its_scipy_paths` also asserts the `PermissionError` naming `'~'` through `wasi_python.run` with only `/cfg` writable. The README line and the CHANGELOG (the `~` folder) say so.
+4. **Fixed.** Decision 10 says the drafting's native numpy and scipy were the `macosx_14_0_arm64` wheels linking Accelerate, cites this review's reproduction with numpy's OpenBLAS wheel and 037's scipy pin, and names the guest's difference as `lapack_lite` against the host's LAPACK (also The problem). `regen.py` runs both jobs under 037's `oracle_env` (`OPENBLAS_NUM_THREADS=1`, `VECLIB_MAXIMUM_THREADS=1`); Design's `jobs.py` row.
+5. **Fixed.** Decision 10 lists which runs used which version of each job: the first versions (with `lowess:` and the barcodes), the `clustermap` version (the review's runs), and the versions the specification now describes, re-run natively without and with scipy, under both seeds and in another zone and locale, and in the guest (EXECUTED, the revision's runs, named in "Research it stands on").
+6. **Fixed.** Decision 11: both notice checks compare content byte for byte when the pinned archive (and, for reportlab, the MIT pin) is in `downloads/` and passes its hash check, and check the headings (and Sarna's acknowledgement line) otherwise, as `licence_errors` does; criterion 1 sees each fail both ways.
+7. **Fixed.** Decision 7 cites 039's sympy precedent (Decision 8, confirmed by 039's review) in place of INFERRED, names `NUMPYDOC_LICENSE` BSD-2-Clause, and records which notices survive compilation (the review's run). Question 73's facts name appdirs, husl and numpydoc.
+8. **Fixed.** Decision 5: if 023 lands any member-exclusion option in `make_stdlib_zip.py`, for trees or wheels, this specification extends it to every input and adds none; a prefix is matched against the name before `.py` becomes `.pyc`, and the unit check pins it (and a mutant that matches compiled names is seen failing).
+9. **Fixed, with a golden line.** `statistical_plots` gains one `seaborn.objects` plot's RGBA and SVG (eighteen lines). A first try with `so.PolyFit` differed from native in the guest by its least-squares pixels, as `regplot` does, so the line uses `so.Agg` and the plain line; with it the guest equals native (EXECUTED, the revision's runs). The probe's `buffer_rgba` error is noted as the probe's own.
 
 ## Verdict
 
-Not yet: revise, then confirm. The design is sound and reproduces. The pins are right. The
-seaborn sdist is the wheel's package byte for byte. Step 70's rules give exactly the 215
-members claimed. Both goldens reproduce natively under two BLAS builds, two seeds and another
-zone and locale, and the seaborn job's guest lines equal native. Leaving out reportlab's fonts
-does dispose of the fonts. The blocker is finding 1. reportlab's code carries three
-third-party notices that compilation strips, and one of them, Sarna's four-clause BSD with its
-advertising clause, is not on §4.12's list. The specification must ship those notices, add a
-check, and either get the owner's approval or leave the barcode folder out. Findings 2 and 3
-are Medium: seaborn's import and its kernel-density path change once scipy is present, and
-`load_dataset` fails differently, and can litter, in the README's own setup. The rest are text.
+Not yet: revise, then confirm. The design is sound and reproduces. The pins are right. The seaborn sdist is the wheel's package byte for byte. Step 70's rules give exactly the 215 members claimed. Both goldens reproduce natively under two BLAS builds, two seeds and another zone and locale, and the seaborn job's guest lines equal native. Leaving out reportlab's fonts does dispose of the fonts. The blocker is finding 1. reportlab's code carries three third-party notices that compilation strips, and one of them, Sarna's four-clause BSD with its advertising clause, is not on §4.12's list. The specification must ship those notices, add a check, and either get the owner's approval or leave the barcode folder out. Findings 2 and 3 are Medium: seaborn's import and its kernel-density path change once scipy is present, and `load_dataset` fails differently, and can litter, in the README's own setup. The rest are text.
 
 ## One line
 
-The pins, the sdist-equals-wheel proof, the font leave-out and both goldens all hold up, but
-reportlab's barcode, glyph-list and QR code carry notices the zip drops, one of them an
-unapproved four-clause BSD, so this needs those notices, a check and an owner answer (or the
-barcode folder left out) before it is built.
+The pins, the sdist-equals-wheel proof, the font leave-out and both goldens all hold up, but reportlab's barcode, glyph-list and QR code carry notices the zip drops, one of them an unapproved four-clause BSD, so this needs those notices, a check and an owner answer (or the barcode folder left out) before it is built.
 
 ## Confirmation (2026-10-18)
 
-By the reviewer, against the revision committed in `b831693` (the specification, question 73
-and the Disposition). Runs are in the same scratch folder (`042-review/`):
-- `tools/members2.py` → `added199.zip`: the members and bytes, and the notices' leading
-  comment blocks.
+By the reviewer, against the revision committed in `b831693` (the specification, question 73 and the Disposition). Runs are in the same scratch folder (`042-review/`):
+- `tools/members2.py` → `added199.zip`: the members and bytes, and the notices' leading comment blocks.
 - `tools/scipy_paths.py`: seaborn's scipy-path attributes.
-- `tools2/`: the revised jobs, copied from the drafting folder and equal to its
-  `evidence-v2/`. Their native runs are `out/v2-*`. Their guest runs, on the revision's `z5.zip`
-  after I proved its 199 new members equal mine, are `out/g2-*`.
+- `tools2/`: the revised jobs, copied from the drafting folder and equal to its `evidence-v2/`. Their native runs are `out/v2-*`. Their guest runs, on the revision's `z5.zip` after I proved its 199 new members equal mine, are `out/g2-*`.
 
 ### The nine dispositions
 
 1. **Confirmed, with one correction (condition C1).**
-   - EXECUTED: with `reportlab/fonts/` and `reportlab/graphics/barcode/` left out, step 70's
-     rules give **199 members**: seaborn 55 (541,099 bytes) and reportlab 144 (1,495,093).
-     That is **2,036,192 bytes** as two standalone zips. The 199 equal `z5.zip`'s, name for
-     name and byte for byte, and `z5.zip` has no barcode member. The barcode folder is 16
-     members. Its 124,642 bytes is the difference of the two sums; as a standalone zip it is
-     124,664. Either figure is fine.
-   - EXECUTED: the leading `#` blocks are 31 lines (`barcode/__init__.py`, holding Sarna's
-     acknowledgement sentence), 45 (`_glyphlist.py`) and 22 (`qrencoder.py`, ending at a blank
-     line), as Decision 7 says.
-   - READ: the MIT text is `downloads/wasi-libc-161b3195-LICENSE-MIT`. It is pinned in
-     `SHA256SUMS` and `00_download.sh`, hashes to `23f18e03…cca3` and is 1,023 bytes. It is a
-     generic MIT text with no holder named, so it fits the QR encoder's "Licensed under the MIT
-     license".
-   - **But `test.py` does not carry Sarna's notice.** Sarna's copyright and licence appear in
-     exactly **seven** files: `__init__`, `code128`, `code39`, `code93`, `common`, `fourstate`
-     and `usps` (EXECUTED: a search for "Tyler C. Sarna" in the wheel's `.py` files). In
-     `graphics/barcode/test.py`, Sarna appears only in prose at line 192: "Several years ago
-     Ty Sarna contributed a barcode module…" (READ). It has no copyright line and no licence.
-   - The fallback is right: the barcode folder stays out until the owner answers question 73
-     (c), the PDF golden has no barcode or QR line, and the checks hold both. Question 73 (c)
-     asks the question plainly and quotes the clause.
+   - EXECUTED: with `reportlab/fonts/` and `reportlab/graphics/barcode/` left out, step 70's rules give **199 members**: seaborn 55 (541,099 bytes) and reportlab 144 (1,495,093). That is **2,036,192 bytes** as two standalone zips. The 199 equal `z5.zip`'s, name for name and byte for byte, and `z5.zip` has no barcode member. The barcode folder is 16 members. Its 124,642 bytes is the difference of the two sums; as a standalone zip it is 124,664. Either figure is fine.
+   - EXECUTED: the leading `#` blocks are 31 lines (`barcode/__init__.py`, holding Sarna's acknowledgement sentence), 45 (`_glyphlist.py`) and 22 (`qrencoder.py`, ending at a blank line), as Decision 7 says.
+   - READ: the MIT text is `downloads/wasi-libc-161b3195-LICENSE-MIT`. It is pinned in `SHA256SUMS` and `00_download.sh`, hashes to `23f18e03…cca3` and is 1,023 bytes. It is a generic MIT text with no holder named, so it fits the QR encoder's "Licensed under the MIT license".
+   - **But `test.py` does not carry Sarna's notice.** Sarna's copyright and licence appear in exactly **seven** files: `__init__`, `code128`, `code39`, `code93`, `common`, `fourstate` and `usps` (EXECUTED: a search for "Tyler C. Sarna" in the wheel's `.py` files). In `graphics/barcode/test.py`, Sarna appears only in prose at line 192: "Several years ago Ty Sarna contributed a barcode module…" (READ). It has no copyright line and no licence.
+   - The fallback is right: the barcode folder stays out until the owner answers question 73 (c), the PDF golden has no barcode or QR line, and the checks hold both. Question 73 (c) asks the question plainly and quotes the clause.
 2. **Confirmed.**
-   - EXECUTED natively (oracle's CPython 3.15.0, numpy's OpenBLAS wheel, 037's scipy pin):
-     with scipy, `seaborn.matrix._no_scipy`, `seaborn._statistics._no_scipy` and
-     `gaussian_kde.__module__` give `False False scipy.stats._kde`. With scipy blocked they
-     give `True True seaborn.external.kde`. So `test_seaborn_takes_its_scipy_paths`
-     distinguishes the two paths.
-   - The kde, violin and clustermap lines are now labelled as not run in a guest with scipy,
-     under rule 7. Decisions 3, 8, 9 and 12 say scipy's import is in seaborn's numbers.
-3. **Confirmed.** Decision 8 states the three outcomes as I ran them. The new check asserts
-   the `PermissionError` naming `'~'` with only `/cfg` writable. The guest has no network
-   (`unknown url type: https`), and in that setup the error comes from `os.makedirs` before
-   any fetch. The README and CHANGELOG rows say so.
-4. **Confirmed.** Decision 10 names Accelerate, cites the OpenBLAS reproduction, and `regen.py`
-   runs under 037's `oracle_env`.
+   - EXECUTED natively (oracle's CPython 3.15.0, numpy's OpenBLAS wheel, 037's scipy pin): with scipy, `seaborn.matrix._no_scipy`, `seaborn._statistics._no_scipy` and `gaussian_kde.__module__` give `False False scipy.stats._kde`. With scipy blocked they give `True True seaborn.external.kde`. So `test_seaborn_takes_its_scipy_paths` distinguishes the two paths.
+   - The kde, violin and clustermap lines are now labelled as not run in a guest with scipy, under rule 7. Decisions 3, 8, 9 and 12 say scipy's import is in seaborn's numbers.
+3. **Confirmed.** Decision 8 states the three outcomes as I ran them. The new check asserts the `PermissionError` naming `'~'` with only `/cfg` writable. The guest has no network (`unknown url type: https`), and in that setup the error comes from `os.makedirs` before any fetch. The README and CHANGELOG rows say so.
+4. **Confirmed.** Decision 10 names Accelerate, cites the OpenBLAS reproduction, and `regen.py` runs under 037's `oracle_env`.
 5. **Confirmed.**
    - The three job versions are listed.
-   - EXECUTED: I re-ran the versions now described natively, with OpenBLAS numpy, 037's scipy
-     and the single-thread settings, under `PYTHONHASHSEED` 0 and 1 and with
-     `TZ=Asia/Tokyo LC_ALL=de_DE.UTF-8`. `statistical_plots` gave 18 identical lines, equal to
-     the revision's `statistical_plots.native-scipy.txt`. `pdf_reports` gave 11 identical
-     lines, equal to the revision's native file.
-   - EXECUTED in the guest on `z5.zip`: `pdf_reports`' 11 lines equal native (15,852,565,377
-     fuel). `statistical_plots`' first 17 lines, including the new `objects` line, equal
-     native, and the 18th raises `RuntimeError: clustermap requires scipy to be available`
-     (27,284,234,515 fuel). Both fuel numbers are the revision's, exactly.
-6. **Confirmed.** Both notice checks compare bytes when the pins are present and check the
-   headings otherwise. The reportlab check also checks the acknowledgement line. Each is seen
-   failing both ways.
-7. **Confirmed.** Decision 7 cites 039's sympy precedent. Question 73 names appdirs, husl and
-   numpydoc.
-8. **Confirmed.** Decision 5 has one mechanism whichever way 023 lands, and matches names
-   before the `.pyc` rename, with a mutant in the unit check.
-9. **Confirmed.** The `seaborn.objects` line uses `so.Agg`, not `so.PolyFit`, and equals
-   native in the guest (EXECUTED above).
+   - EXECUTED: I re-ran the versions now described natively, with OpenBLAS numpy, 037's scipy and the single-thread settings, under `PYTHONHASHSEED` 0 and 1 and with `TZ=Asia/Tokyo LC_ALL=de_DE.UTF-8`. `statistical_plots` gave 18 identical lines, equal to the revision's `statistical_plots.native-scipy.txt`. `pdf_reports` gave 11 identical lines, equal to the revision's native file.
+   - EXECUTED in the guest on `z5.zip`: `pdf_reports`' 11 lines equal native (15,852,565,377 fuel). `statistical_plots`' first 17 lines, including the new `objects` line, equal native, and the 18th raises `RuntimeError: clustermap requires scipy to be available` (27,284,234,515 fuel). Both fuel numbers are the revision's, exactly.
+6. **Confirmed.** Both notice checks compare bytes when the pins are present and check the headings otherwise. The reportlab check also checks the acknowledgement line. Each is seen failing both ways.
+7. **Confirmed.** Decision 7 cites 039's sympy precedent. Question 73 names appdirs, husl and numpydoc.
+8. **Confirmed.** Decision 5 has one mechanism whichever way 023 lands, and matches names before the `.pyc` rename, with a mutant in the unit check.
+9. **Confirmed.** The `seaborn.objects` line uses `so.Agg`, not `so.PolyFit`, and equals native in the guest (EXECUTED above).
 
 ### Conditions
 
-- **C1.** Correct "eight" to "seven" Sarna files in Decision 4a (the list drops `test.py`),
-  Decision 7 ("a line naming the eight files") and question 73's barcode fact. It is a licence
-  fact the notice will state, so it must be exact. The builder may make this text-only fix at
-  the start of the build and say so in the landing notes; no re-review is needed.
-- **C2.** The line naming Sarna's seven files goes in the part's heading, outside the bytes
-  that `test_reportlab_notice_carries_its_third_party_parts` compares with the wheel's
-  31-line block. Otherwise the check's "byte for byte" cannot hold.
-- **C3.** The barcode folder ships only through the later change that follows a "yes" to
-  question 73 (c), with Sarna's acknowledgement wherever barcodes are named. Until then the
-  leave-out and its two assertions stand, as Decision 4a says.
+- **C1.** Correct "eight" to "seven" Sarna files in Decision 4a (the list drops `test.py`), Decision 7 ("a line naming the eight files") and question 73's barcode fact. It is a licence fact the notice will state, so it must be exact. The builder may make this text-only fix at the start of the build and say so in the landing notes; no re-review is needed.
+- **C2.** The line naming Sarna's seven files goes in the part's heading, outside the bytes that `test_reportlab_notice_carries_its_third_party_parts` compares with the wheel's 31-line block. Otherwise the check's "byte for byte" cannot hold.
+- **C3.** The barcode folder ships only through the later change that follows a "yes" to question 73 (c), with Sarna's acknowledgement wherever barcodes are named. Until then the leave-out and its two assertions stand, as Decision 4a says.
 
 ### Result
 
-**Confirmed for build**, under C1 to C3. It builds after 023 and 039, with scipy in the set,
-as Decision 13 says. Nothing here waits on the owner: the barcode folder stays out until
-question 73 (c) is answered.
+**Confirmed for build**, under C1 to C3. It builds after 023 and 039, with scipy in the set, as Decision 13 says. Nothing here waits on the owner: the barcode folder stays out until question 73 (c) is answered.
 
-One line: every finding is fixed and re-runs clean (199 members, the notice blocks, the scipy
-paths, both goldens natively and in the guest), so 042 is confirmed for build, once "eight"
-Sarna files becomes "seven" and the naming line sits outside the compared bytes.
+One line: every finding is fixed and re-runs clean (199 members, the notice blocks, the scipy paths, both goldens natively and in the guest), so 042 is confirmed for build, once "eight" Sarna files becomes "seven" and the naming line sits outside the compared bytes.

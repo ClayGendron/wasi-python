@@ -1,620 +1,200 @@
 # Review of 034 — Writable mounts (the specification, before build; also a security review)
 
 - **Date:** 2026-10-17
-- **Reviewer:** a fresh agent (Claude Opus 5.5), not the author. I read `AGENTS.md`, the
-  constitution (§4.3, §4.9, §4.10, §4.15, §5.6, §5.7), the threat model
-  (`../research/2026-10-16-a-principal-engineers-direction.md` §2), the 032 pre-build review and
-  its confirmation (for format and for what 032 already decided), `decisions.md` (13, 17, 24, 37,
-  41, 42), `questions-for-the-owner.md` (71 and 72), the specification, spec 032 as confirmed,
-  the research memo and its model (`shadow.py`), and vfs's spec 169 §b2 to §b8 and spec 172 §3
-  and its acceptance (read only, never edited). I read the 032 build in its worktree
-  (`/Users/claygendron/Git/Repos/wasi_python-032`, read only): `src/wasi_python/mounts.py`
-  (`_Files`, `_ask`, `_take`, `_drop`, `_resolve`, `_fd_close`, the write-shaped refusals,
-  `_across`) and `runner.py` (`run_async`, `_stop_async_calls`, `_instance`, `_fuel_used`,
-  `_drive`, `_Call`, `_shared`, `_epoch_answer`, `_deferred_ctrl_c`), and its checks' record
-  assertions. I read wasmtime 49's `p1.rs` (`path_open`, `fd_fdstat_get`) and `filesystem.rs`
-  (`open_at`, lines 940-1060), and CPython 3.15's `Lib/tempfile.py` from the build tree. Each
-  claim is labelled EXECUTED, READ or INFERRED.
-- **Reviewed:** `context/specifications/034-writable-mounts.md` as drafted (committed in
-  `6835144`), against 032 as built so far in its worktree (uncommitted, on `27b3aef`). Its line
-  numbers are as read on 2026-10-17; they move while 032 is in build, so each citation also
-  names the function.
-- **Ran (EXECUTED, darwin-arm64, `uv run python -I`, wasmtime-py 49, copies of
-  `build/sets/4befe9de64edc783/` artifacts; `scripts/build.sh` and the judge not run).** Nothing
-  in `src/`, `tests/`, `scripts/`, `recipes/`, the spec or the 032 worktree was edited. Scripts
-  and outputs are under
-  `/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/034-review/`:
-  - `grant_writes.py` → `grant_writes.txt`: today's runner, a **writable** `Grant`, both
-    binaries: CPython's `tempfile.TemporaryFile` call order, and what a writable grant answers
-    for the rows Decisions 2, 3 and 6 name.
-  - `grant_across.py` → `grant_across.txt`: rename and link across read-only and writable
-    grants, and `rmdir` or `rename` of a nested grant's folder through its parent grant.
-  - `preopen_rw.py` → `preopen_rw.txt`: set-times and sync on a preopen, read-only grant against
-    writable grant.
-  - `unflushed.py` → `unflushed.txt`: does a buffered write left open at the guest's exit reach
-    a writable grant, for exit 0, `sys.exit`, `os._exit` and an uncaught exception.
-  - `memo_shadow.py` (an unchanged copy of the memo's model) with `tempfile_prog.py` →
-    `tempfile_model.txt`; and `memo_shadow_create.py` (the same model with one change, a create
-    is a `write(path, b"")` at open) → `tempfile_model_create.txt`. Both binaries. The memo's
-    model stages exactly as Decision 3 does: a file created at open exists only from its first
-    write-back.
+- **Reviewer:** a fresh agent (Claude Opus 5.5), not the author. I read `AGENTS.md`, the constitution (§4.3, §4.9, §4.10, §4.15, §5.6, §5.7), the threat model (`../research/2026-10-16-a-principal-engineers-direction.md` §2), the 032 pre-build review and its confirmation (for format and for what 032 already decided), `decisions.md` (13, 17, 24, 37, 41, 42), `questions-for-the-owner.md` (71 and 72), the specification, spec 032 as confirmed, the research memo and its model (`shadow.py`), and vfs's spec 169 §b2 to §b8 and spec 172 §3 and its acceptance (read only, never edited). I read the 032 build in its worktree (`/Users/claygendron/Git/Repos/wasi_python-032`, read only): `src/wasi_python/mounts.py` (`_Files`, `_ask`, `_take`, `_drop`, `_resolve`, `_fd_close`, the write-shaped refusals, `_across`) and `runner.py` (`run_async`, `_stop_async_calls`, `_instance`, `_fuel_used`, `_drive`, `_Call`, `_shared`, `_epoch_answer`, `_deferred_ctrl_c`), and its checks' record assertions. I read wasmtime 49's `p1.rs` (`path_open`, `fd_fdstat_get`) and `filesystem.rs` (`open_at`, lines 940-1060), and CPython 3.15's `Lib/tempfile.py` from the build tree. Each claim is labelled EXECUTED, READ or INFERRED.
+- **Reviewed:** `context/specifications/034-writable-mounts.md` as drafted (committed in `6835144`), against 032 as built so far in its worktree (uncommitted, on `27b3aef`). Its line numbers are as read on 2026-10-17; they move while 032 is in build, so each citation also names the function.
+- **Ran (EXECUTED, darwin-arm64, `uv run python -I`, wasmtime-py 49, copies of `build/sets/4befe9de64edc783/` artifacts; `scripts/build.sh` and the judge not run).** Nothing in `src/`, `tests/`, `scripts/`, `recipes/`, the spec or the 032 worktree was edited. Scripts and outputs are under `/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/034-review/`:
+  - `grant_writes.py` → `grant_writes.txt`: today's runner, a **writable** `Grant`, both binaries: CPython's `tempfile.TemporaryFile` call order, and what a writable grant answers for the rows Decisions 2, 3 and 6 name.
+  - `grant_across.py` → `grant_across.txt`: rename and link across read-only and writable grants, and `rmdir` or `rename` of a nested grant's folder through its parent grant.
+  - `preopen_rw.py` → `preopen_rw.txt`: set-times and sync on a preopen, read-only grant against writable grant.
+  - `unflushed.py` → `unflushed.txt`: does a buffered write left open at the guest's exit reach a writable grant, for exit 0, `sys.exit`, `os._exit` and an uncaught exception.
+  - `memo_shadow.py` (an unchanged copy of the memo's model) with `tempfile_prog.py` → `tempfile_model.txt`; and `memo_shadow_create.py` (the same model with one change, a create is a `write(path, b"")` at open) → `tempfile_model_create.txt`. Both binaries. The memo's model stages exactly as Decision 3 does: a file created at open exists only from its first write-back.
 
 ## What holds
 
-- **The wall stays whole (§4.4).** READ: no import, no shadow and no forward is added. Every
-  write is served from a runner buffer or one provider call, and the placeholder stays a
-  read-only preopen, so a mistaken forward meets wasmtime's `EPERM` on an empty folder the
-  runner owns (`filesystem.rs:1003-1008`, READ). No host path is opened for a mount.
-- **Nothing is writable unless asked (§4.15, decision 24).** READ: `writable` is keyword-only,
-  a real `bool`, `False` by default, and a read-only mount never calls the write half. The
-  command line gains nothing. Acceptance 8 has the right guard (a read-only mount over a
-  provider that has the write half).
-- **The runtime's files stay out of reach.** READ: 032's `_resolve` already answers `EPERM` for
-  any normalized path at or under a more specific preopen, the zip's included
-  (`mounts.py:612-614` in the 032 worktree). 034 adds `EBUSY` for a rename or `rmdir` above
-  one, which a writable grant does not have: EXECUTED (`grant_across.txt`), a writable grant at
-  `/w1` lets the guest `rmdir("/w1/./inner")` remove the empty host folder of a nested writable
-  grant at `/w1/inner`. The mount's rule is stricter than wasmtime's, which is right.
-- **Paths reach the provider normalized, and only those.** READ: every write-half call goes
-  through 032 Decision 5. A descriptor's path changes only by a rename whose `dst` passed the
-  same checks.
-- **Whole-file, value-not-exception protocol.** READ: `write`, `mkdir`, `remove`, `rmdir`,
-  `rename` answering `None` or an `Errno` matches 032's read half and vfs's verbs (169 §b6:
-  `write`, `mkdir`, `delete`, `move(overwrite=True)`). Every `Errno` the write half needs
-  (`EBUSY`, `ENOTEMPTY`, `EXDEV`, `EDQUOT`, `ESTALE`) is already in 032's closed set.
-- **The runner-answered namespace rows match a writable grant.** EXECUTED
-  (`grant_writes.txt`, both binaries): `dst` inside `src` is 28 (`EINVAL`), also onto an
-  existing own subfolder; a file or folder renamed onto itself succeeds, a missing one is 44;
-  `rmdir` of a file 54, of a non-empty folder 55; file over folder 31, folder over file 54,
-  folder over non-empty folder 55; `"x"` on an existing file 20; `"w"` under a file 54, under a
-  missing parent 44, on a folder 31. Decision 2's contract and Decision 6's own rows hold.
-- **Unflushed Python buffers.** EXECUTED (`unflushed.txt`): on a writable grant, a file left
-  open by the guest holds its bytes after exit 0, `sys.exit(3)` and an uncaught exception (the
-  guest's own finalization closes it), and is empty after `os._exit(3)`. Decision 8's model
-  gives the same: the guest's own closes write back during its life, and the `os._exit` case
-  leaves the empty dirty buffer, which the ending writes as `b""`.
-- **`run_async`'s cancellation waits for the worker.** READ (`runner.py:344-353`,
-  `run_async`, in the 032 worktree): on `CancelledError` the coroutine sets the event and awaits the future until it is
-  done. So Decision 8's claim, that the ending's write-backs finish before `CancelledError` is
-  raised, is true of the code it builds on.
-- **The ending naturally skips a raise.** READ: `_drive` re-raises a non-wasmtime cause after
-  popping the call (`runner.py:1858-1873`, `_drive`), and `_deferred_ctrl_c` raises a pending
-  Ctrl-C on exit. A walk placed after `_drive` returns, inside `_call`, is skipped when the call raises,
-  and a Ctrl-C during it is deferred and raised after it, as Decision 8 wants.
-- **Not build-class.** READ: it touches no `scripts/`, `recipes/`, `downloads/SHA256SUMS` or
-  workflow. The checks' placement follows 032's (v1.4 and the raw table on three systems; the
-  guard checks on the judge's machine).
+- **The wall stays whole (§4.4).** READ: no import, no shadow and no forward is added. Every write is served from a runner buffer or one provider call, and the placeholder stays a read-only preopen, so a mistaken forward meets wasmtime's `EPERM` on an empty folder the runner owns (`filesystem.rs:1003-1008`, READ). No host path is opened for a mount.
+- **Nothing is writable unless asked (§4.15, decision 24).** READ: `writable` is keyword-only, a real `bool`, `False` by default, and a read-only mount never calls the write half. The command line gains nothing. Acceptance 8 has the right guard (a read-only mount over a provider that has the write half).
+- **The runtime's files stay out of reach.** READ: 032's `_resolve` already answers `EPERM` for any normalized path at or under a more specific preopen, the zip's included (`mounts.py:612-614` in the 032 worktree). 034 adds `EBUSY` for a rename or `rmdir` above one, which a writable grant does not have: EXECUTED (`grant_across.txt`), a writable grant at `/w1` lets the guest `rmdir("/w1/./inner")` remove the empty host folder of a nested writable grant at `/w1/inner`. The mount's rule is stricter than wasmtime's, which is right.
+- **Paths reach the provider normalized, and only those.** READ: every write-half call goes through 032 Decision 5. A descriptor's path changes only by a rename whose `dst` passed the same checks.
+- **Whole-file, value-not-exception protocol.** READ: `write`, `mkdir`, `remove`, `rmdir`, `rename` answering `None` or an `Errno` matches 032's read half and vfs's verbs (169 §b6: `write`, `mkdir`, `delete`, `move(overwrite=True)`). Every `Errno` the write half needs (`EBUSY`, `ENOTEMPTY`, `EXDEV`, `EDQUOT`, `ESTALE`) is already in 032's closed set.
+- **The runner-answered namespace rows match a writable grant.** EXECUTED (`grant_writes.txt`, both binaries): `dst` inside `src` is 28 (`EINVAL`), also onto an existing own subfolder; a file or folder renamed onto itself succeeds, a missing one is 44; `rmdir` of a file 54, of a non-empty folder 55; file over folder 31, folder over file 54, folder over non-empty folder 55; `"x"` on an existing file 20; `"w"` under a file 54, under a missing parent 44, on a folder 31. Decision 2's contract and Decision 6's own rows hold.
+- **Unflushed Python buffers.** EXECUTED (`unflushed.txt`): on a writable grant, a file left open by the guest holds its bytes after exit 0, `sys.exit(3)` and an uncaught exception (the guest's own finalization closes it), and is empty after `os._exit(3)`. Decision 8's model gives the same: the guest's own closes write back during its life, and the `os._exit` case leaves the empty dirty buffer, which the ending writes as `b""`.
+- **`run_async`'s cancellation waits for the worker.** READ (`runner.py:344-353`, `run_async`, in the 032 worktree): on `CancelledError` the coroutine sets the event and awaits the future until it is done. So Decision 8's claim, that the ending's write-backs finish before `CancelledError` is raised, is true of the code it builds on.
+- **The ending naturally skips a raise.** READ: `_drive` re-raises a non-wasmtime cause after popping the call (`runner.py:1858-1873`, `_drive`), and `_deferred_ctrl_c` raises a pending Ctrl-C on exit. A walk placed after `_drive` returns, inside `_call`, is skipped when the call raises, and a Ctrl-C during it is deferred and raised after it, as Decision 8 wants.
+- **Not build-class.** READ: it touches no `scripts/`, `recipes/`, `downloads/SHA256SUMS` or workflow. The checks' placement follows 032's (v1.4 and the raw table on three systems; the guard checks on the judge's machine).
 
 ## Acceptance criteria against evidence
 
-1. `test_a_writable_mount_serves_writes`: well formed, counts only. Its call counts change if
-   finding 1 is fixed by creating at open.
-2. `test_a_writable_mount_answers_as_a_writable_grant_does`: the rows match what I executed on
-   macOS, except the per-system rows (finding 9). The "a file made by `CREAT`" row hides
-   finding 1.
-3. `test_raw_write_calls_answer_as_a_writable_grant_does`: right shape. It misses
-   `fd_fdstat_get` on a write-opened file and set-times on the preopen (finding 9).
+1. `test_a_writable_mount_serves_writes`: well formed, counts only. Its call counts change if finding 1 is fixed by creating at open.
+2. `test_a_writable_mount_answers_as_a_writable_grant_does`: the rows match what I executed on macOS, except the per-system rows (finding 9). The "a file made by `CREAT`" row hides finding 1.
+3. `test_raw_write_calls_answer_as_a_writable_grant_does`: right shape. It misses `fd_fdstat_get` on a write-opened file and set-times on the preopen (finding 9).
 4. `test_refused_writes_are_recorded_on_exit_0`: sound; it is vfs 172's acceptance 7.
-5. `test_writes_land_at_every_ending`: sound for six endings. The cancel row exercises 030's
-   guard only, not the path where the close's own write-back is refused by the cancel check
-   (finding 2).
+5. `test_writes_land_at_every_ending`: sound for six endings. The cancel row exercises 030's guard only, not the path where the close's own write-back is refused by the cancel check (finding 2).
 6. `test_a_failed_write_back_at_the_ending_is_recorded`: sound.
 7. `test_a_call_that_raises_writes_nothing_back`: sound. Add the exit hook (finding 3).
 8. `test_a_writable_mount_is_asked_for`: sound.
-9. `test_open_files_follow_the_guests_renames_and_removals`: **cannot pass as written.** Its
-   first row (`TemporaryFile` with one `remove` and no `write`) fails against any provider that
-   keeps Decision 2's `remove` contract (finding 1). Its last row (a relative open under a
-   removed folder answers `ENOENT` with no call) asks for more than Decision 6 states
-   (finding 5).
-10. `test_a_writable_root_mount_keeps_the_runtime_and_other_grants`: sound in content; "removing
-    `/usr`" must mean `rmdir` (finding 8).
-11. `test_links_and_times_in_a_writable_mount`: sound; add `os.utime` on the mount's own path
-    (finding 9).
-12. `test_writes_are_bounded`: sound. Add the orphan rule and the record's count (findings 2
-    and 7).
+9. `test_open_files_follow_the_guests_renames_and_removals`: **cannot pass as written.** Its first row (`TemporaryFile` with one `remove` and no `write`) fails against any provider that keeps Decision 2's `remove` contract (finding 1). Its last row (a relative open under a removed folder answers `ENOENT` with no call) asks for more than Decision 6 states (finding 5).
+10. `test_a_writable_root_mount_keeps_the_runtime_and_other_grants`: sound in content; "removing `/usr`" must mean `rmdir` (finding 8).
+11. `test_links_and_times_in_a_writable_mount`: sound; add `os.utime` on the mount's own path (finding 9).
+12. `test_writes_are_bounded`: sound. Add the orphan rule and the record's count (findings 2 and 7).
 13. "032's checks pass unchanged": **false as drafted** (finding 6).
 14. and 15.: right.
 
 ## Findings, most severe first
 
-1. **A file created at open does not exist in the provider until its first write-back, so
-   `tempfile.TemporaryFile`, the atomic-save pattern and `O_EXCL` break.** High. This is the
-   common path for real programs, and acceptance 9 cannot pass.
-   - READ (`build/Python-3.15.0/Lib/tempfile.py:674-751`): on WASI `os.name` is `"posix"` and
-     there is no `O_TMPFILE`, so `TemporaryFile` opens a new name with
-     `O_RDWR | O_CREAT | O_EXCL` (`_mkstemp_inner`) and then calls `os.unlink(name)` while the
-     descriptor is open. EXECUTED (`grant_writes.txt`, both binaries): the guest's trace is
-     `open(tmp…, CREAT|EXCL) → unlink(tmp…)`, with no write and no close between.
-   - READ (Decision 3): that open is `stat` → `ENOENT` → a new, empty, dirty buffer. Nothing is
-     in the provider. The unlink is then one `remove`, and Decision 2's contract makes the
-     provider answer `ENOENT` ("when it is missing"). The guest's `TemporaryFile` raises
-     `FileNotFoundError`, closes the descriptor, and that close writes the empty buffer back,
-     leaving a stray file.
-   - EXECUTED (`tempfile_model.txt`, the memo's model, which stages exactly so, both binaries):
-     `TemporaryFile(dir="/work")` → 44 `ENOENT`; `NamedTemporaryFile` with `os.replace` before
-     its close → 44, and the temp name is left in the store holding the bytes; `os.path.exists`
-     of a just-created open file → `False`; a second `O_EXCL` open of the same new name →
-     **succeeds**; the provider is left with an empty `tmp…` file from the failed
-     `TemporaryFile`. On a writable grant the same rows succeed, `True` and `EEXIST`
-     (`grant_writes.txt`).
-   - Decision 12's table lists "appears at its first write-back" and "two `"x"` opens both
-     succeed" as deliberate differences. It does not say that the guest's own `unlink`,
-     `rename` and `stat` of a file it holds open fail. `O_EXCL` is how `mkstemp` and lock files
-     get a name no one else holds; losing it inside one run is a correctness gap, not a
-     visibility one. vfs's 169 §b4 has the same staging model, so vfs would meet the same
-     failure (INFERRED).
-   - Fix (recommended, A): **a create is one `write(path, b"")` at open.** When the target is
-     missing and the open may create it, the runner calls `write(path, b"")` in place of the
-     parent check. Decision 2's `write` contract already answers `ENOENT` for a missing parent
-     and `ENOTDIR` for a file parent, so the parent `stat` goes away and an open still makes at
-     most two calls (`stat` or `read`, then `write`). The buffer then starts clean. The file
-     exists from its open, as on a grant: `TemporaryFile`, `mkstemp` then `rename`,
-     `os.path.exists`, and `O_EXCL` all behave as on a grant, and a provider that refuses the
-     create fails the open (`EACCES` at open, as a grant does). Two rows leave Decision 12's
-     table. EXECUTED (`tempfile_model_create.txt`, the same model with only that change, both
-     binaries): `TemporaryFile` → `b'hello'`, the second `O_EXCL` open → 20 `EEXIST`,
-     `os.path.exists` → `True`. The model has no Decision 7, so its stray `tmp…` files and
-     `final.bin`'s empty bytes are what Decision 7's unlinking and following remove; the two
-     together give a grant's result. Cost: a new file's session is `stat`, `write(b"")`,
-     `write(data)`, one call more than drafted, and a versioning provider sees an empty first
-     version. A refused create is a `RefusedWrite` with `at == "open"`.
-     - A refinement worth a sentence: for `CREAT | TRUNC` (`"w"`), one `write(path, b"")` with
-       no `stat` creates or truncates and answers `EISDIR`, `ENOENT` or `ENOTDIR` by contract,
-       so `"w"` costs one call at open on new and existing files alike.
-   - Alternative (B), if the owner wants no write at open (vfs's 169b model): the runner answers
-     `unlink`, `rename` and `stat` of a path that exists only as this call's own unwritten
-     creation, with no provider call. It keeps the drafted counts but needs per-path state
-     close to question 72's out-of-scope shared buffers, and leaves `O_EXCL` within a run
-     broken. I do not recommend it.
-   - Either way, add checks that fail today: `TemporaryFile` in a writable mount at `/tmp`
-     (write, seek, read back, close, and the provider is left with nothing); `NamedTemporaryFile`
-     with `os.replace` inside its `with` lands the bytes at the final name and nothing at the
-     temp name; a second `O_EXCL` open of a name just created is `EEXIST`. Rewrite acceptance
-     9's first row to the counts the chosen fix gives (under A: one `write(b"")` at open, one
-     `remove`, no write at close).
+1. **A file created at open does not exist in the provider until its first write-back, so `tempfile.TemporaryFile`, the atomic-save pattern and `O_EXCL` break.** High. This is the common path for real programs, and acceptance 9 cannot pass.
+   - READ (`build/Python-3.15.0/Lib/tempfile.py:674-751`): on WASI `os.name` is `"posix"` and there is no `O_TMPFILE`, so `TemporaryFile` opens a new name with `O_RDWR | O_CREAT | O_EXCL` (`_mkstemp_inner`) and then calls `os.unlink(name)` while the descriptor is open. EXECUTED (`grant_writes.txt`, both binaries): the guest's trace is `open(tmp…, CREAT|EXCL) → unlink(tmp…)`, with no write and no close between.
+   - READ (Decision 3): that open is `stat` → `ENOENT` → a new, empty, dirty buffer. Nothing is in the provider. The unlink is then one `remove`, and Decision 2's contract makes the provider answer `ENOENT` ("when it is missing"). The guest's `TemporaryFile` raises `FileNotFoundError`, closes the descriptor, and that close writes the empty buffer back, leaving a stray file.
+   - EXECUTED (`tempfile_model.txt`, the memo's model, which stages exactly so, both binaries): `TemporaryFile(dir="/work")` → 44 `ENOENT`; `NamedTemporaryFile` with `os.replace` before its close → 44, and the temp name is left in the store holding the bytes; `os.path.exists` of a just-created open file → `False`; a second `O_EXCL` open of the same new name → **succeeds**; the provider is left with an empty `tmp…` file from the failed `TemporaryFile`. On a writable grant the same rows succeed, `True` and `EEXIST` (`grant_writes.txt`).
+   - Decision 12's table lists "appears at its first write-back" and "two `"x"` opens both succeed" as deliberate differences. It does not say that the guest's own `unlink`, `rename` and `stat` of a file it holds open fail. `O_EXCL` is how `mkstemp` and lock files get a name no one else holds; losing it inside one run is a correctness gap, not a visibility one. vfs's 169 §b4 has the same staging model, so vfs would meet the same failure (INFERRED).
+   - Fix (recommended, A): **a create is one `write(path, b"")` at open.** When the target is missing and the open may create it, the runner calls `write(path, b"")` in place of the parent check. Decision 2's `write` contract already answers `ENOENT` for a missing parent and `ENOTDIR` for a file parent, so the parent `stat` goes away and an open still makes at most two calls (`stat` or `read`, then `write`). The buffer then starts clean. The file exists from its open, as on a grant: `TemporaryFile`, `mkstemp` then `rename`, `os.path.exists`, and `O_EXCL` all behave as on a grant, and a provider that refuses the create fails the open (`EACCES` at open, as a grant does). Two rows leave Decision 12's table. EXECUTED (`tempfile_model_create.txt`, the same model with only that change, both binaries): `TemporaryFile` → `b'hello'`, the second `O_EXCL` open → 20 `EEXIST`, `os.path.exists` → `True`. The model has no Decision 7, so its stray `tmp…` files and `final.bin`'s empty bytes are what Decision 7's unlinking and following remove; the two together give a grant's result. Cost: a new file's session is `stat`, `write(b"")`, `write(data)`, one call more than drafted, and a versioning provider sees an empty first version. A refused create is a `RefusedWrite` with `at == "open"`.
+     - A refinement worth a sentence: for `CREAT | TRUNC` (`"w"`), one `write(path, b"")` with no `stat` creates or truncates and answers `EISDIR`, `ENOENT` or `ENOTDIR` by contract, so `"w"` costs one call at open on new and existing files alike.
+   - Alternative (B), if the owner wants no write at open (vfs's 169b model): the runner answers `unlink`, `rename` and `stat` of a path that exists only as this call's own unwritten creation, with no provider call. It keeps the drafted counts but needs per-path state close to question 72's out-of-scope shared buffers, and leaves `O_EXCL` within a run broken. I do not recommend it.
+   - Either way, add checks that fail today: `TemporaryFile` in a writable mount at `/tmp` (write, seek, read back, close, and the provider is left with nothing); `NamedTemporaryFile` with `os.replace` inside its `with` lands the bytes at the final name and nothing at the temp name; a second `O_EXCL` open of a name just created is `EEXIST`. Rewrite acceptance 9's first row to the counts the chosen fix gives (under A: one `write(b"")` at open, one `remove`, no write at close).
 
-2. **The ending's seams with 032's code are underspecified: closed-but-owed buffers, the close
-   under the file-call limit, and a walk that must not go through `_ask`.** Medium-high. Each
-   is a place a builder can make the bound or the record wrong.
-   - **Owed buffers and freed numbers.** READ (Decision 5): a close refused by the cancel or
-     deadline check "frees the number" but keeps the buffer "in the call's table", and the walk
-     goes "in ascending provider number". READ (032 worktree, `mounts.py:555-569`): `_drop`
-     pushes a freed number onto the `free` heap and `_take` reuses the lowest freed number. A
-     buffer kept at a freed number collides with the next open that reuses it, and if it is
-     kept elsewhere it counts toward neither `MAX_MOUNT_FILES` nor, unless stated, the staging
-     bound. Then Decision 8's bound ("at most one `write` per open number, 1,024") holds only by
-     the argument that no open can succeed after a cancel (every open needs a provider call,
-     which `_ask` refuses), and that argument fails if an embedder clears its own `cancel`
-     event. Fix: an owed buffer **keeps its number reserved** (out of the `free` heap, counted in
-     `MAX_MOUNT_FILES` and in the staged bytes) until the walk. The bound then holds by
-     construction, and ascending order is well defined.
-   - **The close under the limit.** READ: Decision 5 covers a cancel or deadline before a
-     write-back, Decision 8 covers the limit at the ending, and Decision 5's last bullet says
-     every "unmade" write-back is recorded. A close refused by the limit is then recorded at
-     `"close"` and again at `"exit"`, or only once; the text allows both. Acceptance 5's cancel
-     row wants `refused` empty, so an unmade close under a cancel is *not* recorded. Fix: one
-     rule. "A write-back the runner does not make at close or sync (cancel, deadline, limit) is
-     not recorded there; its buffer is owed, and the ending records it once, at `"exit"`, if it
-     is not then written." Name what the guest's close answers in each case: `ECANCELED`,
-     `ETIMEDOUT`, `EIO` (from `_ask`), or `stopped` (`EIO`) from 030's guard.
-   - **The walk is not `_ask`.** READ (`mounts.py:437-459`): `_ask` calls `_epoch_now(caller)`,
-     and its limit branch sets `call.ended = "out of file calls"`. At the ending there is no
-     caller, and READ (`runner.py:1785-1802`) `_fuel_used` returns `None` whenever `call.ended`
-     is set. A walk built on `_ask` would crash, or turn an exit-0 run's `fuel_used` into
-     `None` when its write-backs meet the limit. Fix, a builder note in Decision 8: the walk
-     uses its own counted call path, which checks only the limit and the deferred Ctrl-C, never
-     sets `call.ended`, never touches the epoch, and runs after `_fuel_used` has been read.
-   - **The orphan path needs its own check.** READ: acceptance 5's cancel row closes "after
-     `cancel` was set (its close answered by 030's guard)". Under 030's guard the shadow's body
-     never runs, so the number is never freed and no owed buffer is made. The owed-buffer path
-     runs only when the close is the first host call after the cancel, before the epoch
-     callback has fired. Fix: a raw WAT row in `test_runner_mounts.py`: a provider whose `stat`
-     sets `cancel`, then `path_filestat_get` and `fd_close` back to back (no function entry
-     between): the close answers `ECANCELED`, a later `path_open` makes no call, the walk makes
-     exactly one `write` for that buffer, and `refused` is empty.
+2. **The ending's seams with 032's code are underspecified: closed-but-owed buffers, the close under the file-call limit, and a walk that must not go through `_ask`.** Medium-high. Each is a place a builder can make the bound or the record wrong.
+   - **Owed buffers and freed numbers.** READ (Decision 5): a close refused by the cancel or deadline check "frees the number" but keeps the buffer "in the call's table", and the walk goes "in ascending provider number". READ (032 worktree, `mounts.py:555-569`): `_drop` pushes a freed number onto the `free` heap and `_take` reuses the lowest freed number. A buffer kept at a freed number collides with the next open that reuses it, and if it is kept elsewhere it counts toward neither `MAX_MOUNT_FILES` nor, unless stated, the staging bound. Then Decision 8's bound ("at most one `write` per open number, 1,024") holds only by the argument that no open can succeed after a cancel (every open needs a provider call, which `_ask` refuses), and that argument fails if an embedder clears its own `cancel` event. Fix: an owed buffer **keeps its number reserved** (out of the `free` heap, counted in `MAX_MOUNT_FILES` and in the staged bytes) until the walk. The bound then holds by construction, and ascending order is well defined.
+   - **The close under the limit.** READ: Decision 5 covers a cancel or deadline before a write-back, Decision 8 covers the limit at the ending, and Decision 5's last bullet says every "unmade" write-back is recorded. A close refused by the limit is then recorded at `"close"` and again at `"exit"`, or only once; the text allows both. Acceptance 5's cancel row wants `refused` empty, so an unmade close under a cancel is *not* recorded. Fix: one rule. "A write-back the runner does not make at close or sync (cancel, deadline, limit) is not recorded there; its buffer is owed, and the ending records it once, at `"exit"`, if it is not then written." Name what the guest's close answers in each case: `ECANCELED`, `ETIMEDOUT`, `EIO` (from `_ask`), or `stopped` (`EIO`) from 030's guard.
+   - **The walk is not `_ask`.** READ (`mounts.py:437-459`): `_ask` calls `_epoch_now(caller)`, and its limit branch sets `call.ended = "out of file calls"`. At the ending there is no caller, and READ (`runner.py:1785-1802`) `_fuel_used` returns `None` whenever `call.ended` is set. A walk built on `_ask` would crash, or turn an exit-0 run's `fuel_used` into `None` when its write-backs meet the limit. Fix, a builder note in Decision 8: the walk uses its own counted call path, which checks only the limit and the deferred Ctrl-C, never sets `call.ended`, never touches the epoch, and runs after `_fuel_used` has been read.
+   - **The orphan path needs its own check.** READ: acceptance 5's cancel row closes "after `cancel` was set (its close answered by 030's guard)". Under 030's guard the shadow's body never runs, so the number is never freed and no owed buffer is made. The owed-buffer path runs only when the close is the first host call after the cancel, before the epoch callback has fired. Fix: a raw WAT row in `test_runner_mounts.py`: a provider whose `stat` sets `cancel`, then `path_filestat_get` and `fd_close` back to back (no function entry between): the close answers `ECANCELED`, a later `path_open` makes no call, the walk makes exactly one `write` for that buffer, and `refused` is empty.
 
-3. **After a stop, the walk is bounded in calls and bytes but not in time, and one stop is the
-   interpreter exiting.** Medium. It bears on question 71 and on spec 015's exit guarantee.
-   - The bound. INFERRED from Decisions 8 and 10, with finding 2's reservation: after the
-     guest stops, the runner makes at most min(1,024, the file calls left) `write`s, handing
-     over at most the staging bound in bytes (`memory_bytes`, 1 GiB by default; 4 GiB when it
-     is `None`), with one transient copy of one buffer at a time. Each call's time is the
-     provider's. So no hostile guest can make the host do unbounded *work* after its deadline;
-     it can make the embedder's provider take up to 1,024 calls' time, with up to 1 GiB to
-     store, after the deadline has passed. The spec says this in words; the README should say
-     it in these numbers.
-   - The exit hook. READ (`runner.py:422-438`): at interpreter exit `_stop_async_calls` sets the
-     event of every running `run_async` call, and `concurrent.futures` then joins the workers.
-     Under 032 no provider call follows a set event (`_ask` refuses it). Under 034 each such
-     worker runs the ending walk during interpreter shutdown: embedder code at exit, against
-     loops and stores that may be closing. A provider that bridges with
-     `run_coroutine_threadsafe(...).result()` (the README's own advice, 032 Decision 10) on a
-     loop that is stopped but not closed blocks forever, and exit hangs (INFERRED). Fix: when
-     the stop came from the exit hook (`_hook["exiting"]`), make no ending write-back, as for an
-     ending that raises; the README says unclosed files are not written back at interpreter
-     exit. Acceptance 7 gains that row (the hook's function called directly, as spec 015's
-     checks do; the provider's `write` count stays 0).
-   - vfs and question 71. READ (169 §b8): vfs posts each verb with
-     `future.result(timeout=remaining)` against the line's deadline. So in vfs's own design a
-     flush after its timeout gets no time and is recorded as a `timeout`; it is not "writes
-     after the deadline". That supports 034's split rather than contradicting it: the runner
-     hands the write over, and a provider that must honour the deadline answers `ETIMEDOUT`,
-     which `refused` records. Fix: the README says exactly that, and question 71's text drops
-     "vfs's own design flushes on every exit, its timeout included" or qualifies it.
-   - §4.15. A mounted run now returns later than its deadline by up to 1,024 provider calls.
-     No existing default changes (writable mounts are new), so this is not a loosening the
-     owner must approve under §4.15's last sentence. But it defines what `deadline_s` means for
-     a mounted run, which is the owner's kind of choice. I recommend the owner answers 71
-     before the lane lands 034 (not before build), and I agree with the drafter's answer, with
-     the exit-hook exception above.
+3. **After a stop, the walk is bounded in calls and bytes but not in time, and one stop is the interpreter exiting.** Medium. It bears on question 71 and on spec 015's exit guarantee.
+   - The bound. INFERRED from Decisions 8 and 10, with finding 2's reservation: after the guest stops, the runner makes at most min(1,024, the file calls left) `write`s, handing over at most the staging bound in bytes (`memory_bytes`, 1 GiB by default; 4 GiB when it is `None`), with one transient copy of one buffer at a time. Each call's time is the provider's. So no hostile guest can make the host do unbounded *work* after its deadline; it can make the embedder's provider take up to 1,024 calls' time, with up to 1 GiB to store, after the deadline has passed. The spec says this in words; the README should say it in these numbers.
+   - The exit hook. READ (`runner.py:422-438`): at interpreter exit `_stop_async_calls` sets the event of every running `run_async` call, and `concurrent.futures` then joins the workers. Under 032 no provider call follows a set event (`_ask` refuses it). Under 034 each such worker runs the ending walk during interpreter shutdown: embedder code at exit, against loops and stores that may be closing. A provider that bridges with `run_coroutine_threadsafe(...).result()` (the README's own advice, 032 Decision 10) on a loop that is stopped but not closed blocks forever, and exit hangs (INFERRED). Fix: when the stop came from the exit hook (`_hook["exiting"]`), make no ending write-back, as for an ending that raises; the README says unclosed files are not written back at interpreter exit. Acceptance 7 gains that row (the hook's function called directly, as spec 015's checks do; the provider's `write` count stays 0).
+   - vfs and question 71. READ (169 §b8): vfs posts each verb with `future.result(timeout=remaining)` against the line's deadline. So in vfs's own design a flush after its timeout gets no time and is recorded as a `timeout`; it is not "writes after the deadline". That supports 034's split rather than contradicting it: the runner hands the write over, and a provider that must honour the deadline answers `ETIMEDOUT`, which `refused` records. Fix: the README says exactly that, and question 71's text drops "vfs's own design flushes on every exit, its timeout included" or qualifies it.
+   - §4.15. A mounted run now returns later than its deadline by up to 1,024 provider calls. No existing default changes (writable mounts are new), so this is not a loosening the owner must approve under §4.15's last sentence. But it defines what `deadline_s` means for a mounted run, which is the owner's kind of choice. I recommend the owner answers 71 before the lane lands 034 (not before build), and I agree with the drafter's answer, with the exit-hook exception above.
 
-4. **Whole-file write-back multiplies a one-byte change into the file's size, up to
-   `max_file_calls` times.** Medium. Asset 5 of the threat model (the embedder's resources:
-   disk, and any versioned store).
-   - INFERRED from Decisions 4, 5 and 10: a guest can grow a buffer to the staging bound with one
-     `fd_filestat_set_size` (zeros, no provider call), then loop "write one byte, `fsync`". Each
-     `fsync` is one counted `write` handing over the whole buffer. Within one run that is up to
-     `max_file_calls` × the staging bound: 10,000 × 1 GiB with the defaults, limited in practice
-     by the deadline and the host's copy speed. On a writable grant the same loop writes one
-     byte per sync. A provider that persists or versions every write (vfs keeps a replaced row
-     recoverable, 169 §b6) can be made to store far more than the guest ever held.
-   - The same holds for the buffer calls themselves: each grow is a host `memset` of up to the
-     bound, served with no provider call and no fuel, so it is bounded per call by the staging
-     bound and over the run by the deadline, not by fuel. That is the class every host function
-     is in (a grant's `fd_read` copies up to the guest's buffer per call), not a new one.
-   - Fix: no new limit (the drafted "no new `Defaults` field" stands, and `EDQUOT`/`ENOSPC`
-     already pass through). The README's *Writable mounts* part says it: each close or `fsync`
-     hands over the whole file; a guest may make up to `max_file_calls` write-backs of up to the
-     staging bound each; a provider that persists should quota or rate-limit writes and answer
-     `EDQUOT`. Decision 10 gains one bullet saying the same. A byte budget on write-backs is a
-     later specification if a consumer asks for it.
+4. **Whole-file write-back multiplies a one-byte change into the file's size, up to `max_file_calls` times.** Medium. Asset 5 of the threat model (the embedder's resources: disk, and any versioned store).
+   - INFERRED from Decisions 4, 5 and 10: a guest can grow a buffer to the staging bound with one `fd_filestat_set_size` (zeros, no provider call), then loop "write one byte, `fsync`". Each `fsync` is one counted `write` handing over the whole buffer. Within one run that is up to `max_file_calls` × the staging bound: 10,000 × 1 GiB with the defaults, limited in practice by the deadline and the host's copy speed. On a writable grant the same loop writes one byte per sync. A provider that persists or versions every write (vfs keeps a replaced row recoverable, 169 §b6) can be made to store far more than the guest ever held.
+   - The same holds for the buffer calls themselves: each grow is a host `memset` of up to the bound, served with no provider call and no fuel, so it is bounded per call by the staging bound and over the run by the deadline, not by fuel. That is the class every host function is in (a grant's `fd_read` copies up to the guest's buffer per call), not a new one.
+   - Fix: no new limit (the drafted "no new `Defaults` field" stands, and `EDQUOT`/`ENOSPC` already pass through). The README's *Writable mounts* part says it: each close or `fsync` hands over the whole file; a guest may make up to `max_file_calls` write-backs of up to the staging bound each; a provider that persists should quota or rate-limit writes and answer `EDQUOT`. Decision 10 gains one bullet saying the same. A byte budget on write-backs is a later specification if a consumer asks for it.
 
-5. **"Unlinked" is defined for files, but folder descriptors are refused only for namespace
-   calls.** Medium-low. Correctness within the mount, not an escape.
-   - READ: Decision 6's last bullet makes a *namespace* call relative to an unlinked folder
-     descriptor `ENOENT` with no call. Acceptance 9's last row also expects a relative *open*
-     to answer so. Nothing says what `path_open`, `path_filestat_get`, `path_readlink` and a
-     re-list from cookie 0 (`fd_readdir`, which calls `list` again, `mounts.py:870-878` in the
-     032 worktree) do. As drafted they would call the provider on the old path, which may now
-     name a different folder (one the guest made after the `rmdir`, or the folder renamed over
-     it), so the descriptor would read another folder's contents.
-   - Fix: Decision 7 says "a folder descriptor that is unlinked answers every path call relative
-     to it with `ENOENT`, and lists only `.` and `..` from cookie 0, with no provider call", as
-     POSIX treats an open, removed directory. Acceptance 9 asserts a relative open, a stat and a
-     re-list, each with no call.
+5. **"Unlinked" is defined for files, but folder descriptors are refused only for namespace calls.** Medium-low. Correctness within the mount, not an escape.
+   - READ: Decision 6's last bullet makes a *namespace* call relative to an unlinked folder descriptor `ENOENT` with no call. Acceptance 9's last row also expects a relative *open* to answer so. Nothing says what `path_open`, `path_filestat_get`, `path_readlink` and a re-list from cookie 0 (`fd_readdir`, which calls `list` again, `mounts.py:870-878` in the 032 worktree) do. As drafted they would call the provider on the old path, which may now name a different folder (one the guest made after the `rmdir`, or the folder renamed over it), so the descriptor would read another folder's contents.
+   - Fix: Decision 7 says "a folder descriptor that is unlinked answers every path call relative to it with `ENOENT`, and lists only `.` and `..` from cookie 0, with no provider call", as POSIX treats an open, removed directory. Acceptance 9 asserts a relative open, a stat and a re-list, each with no call.
 
-6. **Eight keys in `FileRecord.calls` for read-only mounts break 032's checks, which acceptance
-   13 says pass unchanged.** Medium-low.
-   - READ (032 worktree): `tests/checks/test_v1_4_embedding.py:1470` asserts
-     `dict(done.files.calls) == provider.calls == {"stat": 2, "list": 2, "read": 2}`, and
-     `tests/unit/test_runner_mounts.py:151` asserts
-     `m.table.record().calls == {"stat": 2, "list": 0, "read": 0}`. With Decision 11's eight
-     keys, both fail.
-   - Fix: keep Decision 11 (one shape is right), and say that 034 edits those 032 checks to the
-     eight-key shape: a judge change, named for the `--accept-judge` reason and the judge-hash
-     line. Correct acceptance 13 to "pass, with only their record shape updated".
+6. **Eight keys in `FileRecord.calls` for read-only mounts break 032's checks, which acceptance 13 says pass unchanged.** Medium-low.
+   - READ (032 worktree): `tests/checks/test_v1_4_embedding.py:1470` asserts `dict(done.files.calls) == provider.calls == {"stat": 2, "list": 2, "read": 2}`, and `tests/unit/test_runner_mounts.py:151` asserts `m.table.record().calls == {"stat": 2, "list": 0, "read": 0}`. With Decision 11's eight keys, both fail.
+   - Fix: keep Decision 11 (one shape is right), and say that 034 edits those 032 checks to the eight-key shape: a judge change, named for the `--accept-judge` reason and the judge-hash line. Correct acceptance 13 to "pass, with only their record shape updated".
 
-7. **`refused` keeps the first 1,000 and says nothing of the rest, so a refused write-back can
-   be silent.** Low-medium. vfs's rule is "a refused write-back is never silent" (169 §b5).
-   - INFERRED from Decision 11: a guest that makes 1,000 refused `mkdir`s (cheap; each is one
-     counted call) fills `refused`. Every later refusal, including the ending's unmade
-     write-backs of real data, is then dropped from the result with no sign. An embedder that
-     reads `refused` to learn which files failed cannot tell it is incomplete.
-   - Fix: add `refused_total: int` (every refusal counted, kept or not), so `len(refused) <
-     refused_total` says the list was cut. Or reserve room: write-back entries (`"close"`,
-     `"sync"`, `"exit"`, `"open"`) are kept before `"call"` entries. The count is the smaller
-     change. Acceptance 12 asserts it with 1,001 refused `mkdir`s and one owed file.
+7. **`refused` keeps the first 1,000 and says nothing of the rest, so a refused write-back can be silent.** Low-medium. vfs's rule is "a refused write-back is never silent" (169 §b5).
+   - INFERRED from Decision 11: a guest that makes 1,000 refused `mkdir`s (cheap; each is one counted call) fills `refused`. Every later refusal, including the ending's unmade write-backs of real data, is then dropped from the result with no sign. An embedder that reads `refused` to learn which files failed cannot tell it is incomplete.
+   - Fix: add `refused_total: int` (every refusal counted, kept or not), so `len(refused) < refused_total` says the list was cut. Or reserve room: write-back entries (`"close"`, `"sync"`, `"exit"`, `"open"`) are kept before `"call"` entries. The count is the smaller change. Acceptance 12 asserts it with 1,001 refused `mkdir`s and one owed file.
 
-8. **The guard rows need exact wording: `EPERM` at a nested preopen, `EBUSY` only above it,
-   and `EPERM` before `EXDEV` when the other side is read-only.** Low.
-   - READ: Decision 6 says `EBUSY` for a rename or `rmdir` "at or above" a more specific
-     preopen. 032's `_resolve` answers `EPERM` for a path *at* or under one before any rule of
-     034 runs. Acceptance 10's rows are all strictly above, and its "removing `/usr`" must mean
-     `rmdir` (an unlink of a folder is a provider call answering `EISDIR`, not "no call").
-     Fix: "at or under: `EPERM` (032 Decision 5); strictly above: `EBUSY`"; acceptance 10 says
-     `rmdir`.
-   - EXECUTED (`grant_across.txt`): between two writable grants, `rename` and `link` succeed;
-     between a writable grant and a read-only one, both directions are 63 (`EPERM`). Decision 6
-     answers `EXDEV` "between this mount and any other descriptor (a grant, the zip, another
-     mount…)", including read-only ones and the zip. Both are refusals, so nothing escapes, but
-     the parity rows will disagree. Fix: `EPERM` when the other side is read-only (a read-only
-     grant, the zip, a read-only mount), `EXDEV` only when both sides may write; the same for
-     `path_link`.
-   - Add the grant's `rmdir("/w1/./inner")` success (above) to Decision 12's table as a
-     deliberate difference: the mount refuses (`EPERM`), the grant removes the nested
-     preopen's host folder.
+8. **The guard rows need exact wording: `EPERM` at a nested preopen, `EBUSY` only above it, and `EPERM` before `EXDEV` when the other side is read-only.** Low.
+   - READ: Decision 6 says `EBUSY` for a rename or `rmdir` "at or above" a more specific preopen. 032's `_resolve` answers `EPERM` for a path *at* or under one before any rule of 034 runs. Acceptance 10's rows are all strictly above, and its "removing `/usr`" must mean `rmdir` (an unlink of a folder is a provider call answering `EISDIR`, not "no call"). Fix: "at or under: `EPERM` (032 Decision 5); strictly above: `EBUSY`"; acceptance 10 says `rmdir`.
+   - EXECUTED (`grant_across.txt`): between two writable grants, `rename` and `link` succeed; between a writable grant and a read-only one, both directions are 63 (`EPERM`). Decision 6 answers `EXDEV` "between this mount and any other descriptor (a grant, the zip, another mount…)", including read-only ones and the zip. Both are refusals, so nothing escapes, but the parity rows will disagree. Fix: `EPERM` when the other side is read-only (a read-only grant, the zip, a read-only mount), `EXDEV` only when both sides may write; the same for `path_link`.
+   - Add the grant's `rmdir("/w1/./inner")` success (above) to Decision 12's table as a deliberate difference: the mount refuses (`EPERM`), the grant removes the nested preopen's host folder.
 
-9. **Parity seams the builder will meet in 032's code.** Low. Each is caught by acceptance 2
-   or 3 if the row is in the table; listing them saves a round trip.
-   - **Set-times on the mount's own preopen.** EXECUTED (`preopen_rw.txt`): `os.utime` of a
-     preopen, by path and by descriptor, is 63 on a read-only grant and succeeds on a writable
-     one. READ (032 worktree, `mounts.py:753-756`): `fd_filestat_set_times` on a mount's
-     preopen is *forwarded*, so it reaches the read-only placeholder and answers 63. Decision 9
-     needs the preopen's set-times *served* (success, no change) on a writable mount. `fsync`
-     and `fdatasync` of a preopen are 8 on both grants, so forwarding stays right for them.
-   - **Rights of a write-opened file.** READ (`mounts.py:707-709`): 032's `fd_fdstat_get`
-     reports `FILE_RIGHTS`, all rights but `FD_WRITE`, for every provider file. A descriptor that
-     may write must report `FD_WRITE`. Add `fd_fdstat_get` on a write-opened file to
-     acceptance 3.
-   - **Which opens may write.** READ (`filesystem.rs:950-972`): wasmtime adds `WRITE` to the
-     open mode for `CREATE` or `TRUNCATE`, whatever the rights. EXECUTED (`grant_writes.txt`):
-     on a writable grant, `os.open(p, O_CREAT | O_RDONLY)` returns a descriptor that `os.write`
-     writes through. Decision 3's "whether it may write (by wasmtime 49's rule above)" should
-     say it outright: may write = `CREAT` or `TRUNC` in `oflags`, or `FD_WRITE` in the rights.
-   - **Rows that differ on macOS.** EXECUTED (`grant_writes.txt`): `os.remove` of a folder is 63
-     on a macOS grant (Decision 2 expects Linux's 31), and `os.unlink` of the preopen is 63. The
-     mount answers the provider's 31 everywhere, so these rows are per-system from the start.
-     The builder works on darwin, and Linux and Windows answers arrive only through a release
-     dry run; the build order should plan one dry run after step 4 to fill the per-system
-     rows.
-   - **Small orders to state:** the open table is read top to bottom, first row wins (`CREAT |
-     EXCL | TRUNC` is the `"x"` row); `EXCL` without `CREAT` is ignored, as wasmtime does; a
-     `fd_pwrite` offset or a seek position at or above `2**63` answers what wasmtime answers
-     (032 answers `EINVAL` for reads, `mounts.py:788-789`) before the growth bound is judged.
+9. **Parity seams the builder will meet in 032's code.** Low. Each is caught by acceptance 2 or 3 if the row is in the table; listing them saves a round trip.
+   - **Set-times on the mount's own preopen.** EXECUTED (`preopen_rw.txt`): `os.utime` of a preopen, by path and by descriptor, is 63 on a read-only grant and succeeds on a writable one. READ (032 worktree, `mounts.py:753-756`): `fd_filestat_set_times` on a mount's preopen is *forwarded*, so it reaches the read-only placeholder and answers 63. Decision 9 needs the preopen's set-times *served* (success, no change) on a writable mount. `fsync` and `fdatasync` of a preopen are 8 on both grants, so forwarding stays right for them.
+   - **Rights of a write-opened file.** READ (`mounts.py:707-709`): 032's `fd_fdstat_get` reports `FILE_RIGHTS`, all rights but `FD_WRITE`, for every provider file. A descriptor that may write must report `FD_WRITE`. Add `fd_fdstat_get` on a write-opened file to acceptance 3.
+   - **Which opens may write.** READ (`filesystem.rs:950-972`): wasmtime adds `WRITE` to the open mode for `CREATE` or `TRUNCATE`, whatever the rights. EXECUTED (`grant_writes.txt`): on a writable grant, `os.open(p, O_CREAT | O_RDONLY)` returns a descriptor that `os.write` writes through. Decision 3's "whether it may write (by wasmtime 49's rule above)" should say it outright: may write = `CREAT` or `TRUNC` in `oflags`, or `FD_WRITE` in the rights.
+   - **Rows that differ on macOS.** EXECUTED (`grant_writes.txt`): `os.remove` of a folder is 63 on a macOS grant (Decision 2 expects Linux's 31), and `os.unlink` of the preopen is 63. The mount answers the provider's 31 everywhere, so these rows are per-system from the start. The builder works on darwin, and Linux and Windows answers arrive only through a release dry run; the build order should plan one dry run after step 4 to fill the per-system rows.
+   - **Small orders to state:** the open table is read top to bottom, first row wins (`CREAT | EXCL | TRUNC` is the `"x"` row); `EXCL` without `CREAT` is ignored, as wasmtime does; a `fd_pwrite` offset or a seek position at or above `2**63` answers what wasmtime answers (032 answers `EINVAL` for reads, `mounts.py:788-789`) before the growth bound is judged.
 
 10. **Two texts and the guard list.** Low.
-    - Decision 13's cross-run hazard names modules. The threat model also names planted data
-      files (`/etc/mime.types`, `/usr/share/zoneinfo`) that change a later run's answers. With
-      a writable mount at `/`, the README should name both.
-    - The preamble's one-guard-removed list should add the guards this review asks for: the
-      create at open (or B's answers), the owed buffer's reserved number, the unlinked folder
-      rule, the exit-hook skip and the refused count. Each named check fails on its own
-      guard's removal.
+    - Decision 13's cross-run hazard names modules. The threat model also names planted data files (`/etc/mime.types`, `/usr/share/zoneinfo`) that change a later run's answers. With a writable mount at `/`, the README should name both.
+    - The preamble's one-guard-removed list should add the guards this review asks for: the create at open (or B's answers), the owed buffer's reserved number, the unlinked folder rule, the exit-hook skip and the refused count. Each named check fails on its own guard's removal.
 
 ## Is it one builder's work?
 
-Yes, after 032 lands. INFERRED: the write half is about 500 to 800 lines on 032's ~1,200-line
-`mounts.py` (the open table, a mutable buffer, five namespace calls, the table's following, the
-walk, the record), plus the raw table's write rows and about ten guard demonstrations. The
-drafted four steps are right. Two risks: 032 is still in build, so 034 should start from what
-lands, not from the worktree; and the three-system parity rows need a dry run to fill, so plan
-it after step 4 rather than at the end.
+Yes, after 032 lands. INFERRED: the write half is about 500 to 800 lines on 032's ~1,200-line `mounts.py` (the open table, a mutable buffer, five namespace calls, the table's following, the walk, the record), plus the raw table's write rows and about ten guard demonstrations. The drafted four steps are right. Two risks: 032 is still in build, so 034 should start from what lands, not from the worktree; and the three-system parity rows need a dry run to fill, so plan it after step 4 rather than at the end.
 
 ## On questions 71 and 72
 
-- **71 (write back after a cancel or a deadline):** agree, with finding 3's exception (no
-  write-back when the interpreter is exiting) and the README's numbers. The "vfs flushes on its
-  timeout" reason should be qualified: in vfs's own design a flush after the deadline gets no
-  time and is recorded as a timeout, which a provider under 034 can do by answering `ETIMEDOUT`.
-  Recommend the owner answers it before the landing.
-- **72 (one buffer per open):** agree. With finding 1's fix the deliberate differences shrink to
-  what it is really about: unflushed bytes are seen only through their own descriptor, and the
-  later write-back wins.
+- **71 (write back after a cancel or a deadline):** agree, with finding 3's exception (no write-back when the interpreter is exiting) and the README's numbers. The "vfs flushes on its timeout" reason should be qualified: in vfs's own design a flush after the deadline gets no time and is recorded as a timeout, which a provider under 034 can do by answering `ETIMEDOUT`. Recommend the owner answers it before the landing.
+- **72 (one buffer per open):** agree. With finding 1's fix the deliberate differences shrink to what it is really about: unflushed bytes are seen only through their own descriptor, and the later write-back wins.
 
 ## Constitution checks
 
 - **§4.4, two channels:** holds. No import, no new shadow, no forward. READ.
-- **§4.3, one target, no host-specific branch:** holds for the runner's answers. The parity rows
-  compare with host-dependent grant answers; macOS already differs on two rows (finding 9).
+- **§4.3, one target, no host-specific branch:** holds for the runner's answers. The parity rows compare with host-dependent grant answers; macOS already differs on two rows (finding 9).
 - **§4.5, embedder-neutral:** holds. No vfs name in the API; vfs is cited as prior design only.
-- **§4.9, tests count:** holds. Every criterion counts calls, bytes, fuel or errnos; deadlines
-  and cancels are reached by the ticker's count.
-- **§4.10, claims carry evidence:** holds in the spec (wasmtime claims READ, runner claims left
-  to the builder to EXECUTE). Question 71's vfs reason is weaker than stated (finding 3).
-- **§4.15, safe by default:** holds for "nothing writable without an argument" and for the
-  runtime's files. No new limit, and every existing limit applies to the write half. The
-  deadline's meaning for a mounted run is the owner's to confirm (finding 3).
-- **§5.6, review before build:** this review. The spec rightly treats it as recommended, not
-  required.
-- **§5.7, one landing lane:** not build-class. The judge changes (finding 6) go through
-  `--accept-judge`, which acceptance 14 already names.
+- **§4.9, tests count:** holds. Every criterion counts calls, bytes, fuel or errnos; deadlines and cancels are reached by the ticker's count.
+- **§4.10, claims carry evidence:** holds in the spec (wasmtime claims READ, runner claims left to the builder to EXECUTE). Question 71's vfs reason is weaker than stated (finding 3).
+- **§4.15, safe by default:** holds for "nothing writable without an argument" and for the runtime's files. No new limit, and every existing limit applies to the write half. The deadline's meaning for a mounted run is the owner's to confirm (finding 3).
+- **§5.6, review before build:** this review. The spec rightly treats it as recommended, not required.
+- **§5.7, one landing lane:** not build-class. The judge changes (finding 6) go through `--accept-judge`, which acceptance 14 already names.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-By the author, 2026-10-17. Each finding is fixed in the specification; the decision or criterion
-that carries it is named. I read 032's build (`spec/032-a-filesystem-provider`, commit `c69cb31`,
-read only) to name the seams: `_Files`, `_ask`, `_take`, `_drop` and `free`, `_across`,
-`_fd_filestat_set_times`, `_fd_fdstat_get`'s `FILE_RIGHTS`, `METHODS`, `FileRecord.calls`, and
-`_call_deferred`'s `_fuel_used` then `table.record()`.
+By the author, 2026-10-17. Each finding is fixed in the specification; the decision or criterion that carries it is named. I read 032's build (`spec/032-a-filesystem-provider`, commit `c69cb31`, read only) to name the seams: `_Files`, `_ask`, `_take`, `_drop` and `free`, `_across`, `_fd_filestat_set_times`, `_fd_fdstat_get`'s `FILE_RIGHTS`, `METHODS`, `FileRecord.calls`, and `_call_deferred`'s `_fuel_used` then `table.record()`.
 
-1. **Fixed by A (Decisions 2, 3 and 12; acceptance 1, 2, 4 and 9).** A create is one
-   `write(path, b"")` at open, in place of the parent `stat`. `"w"` is that one call, which
-   creates or truncates; `"x"` is `stat` then the create; `"a"` is `read` then the create if
-   missing; `TRUNC` alone is `stat` then `write(b"")`. Every buffer starts clean. A refused
-   create fails at open and is a `RefusedWrite` with `at == "open"`. The two rows ("appears at
-   its first write-back", "two `"x"` opens both succeed") left Decision 12's table; the "refused
-   write" row now says a create or truncation still fails at open. Decision 3 says why, citing
-   your `tempfile_model.txt` and `tempfile_model_create.txt`, and that `O_EXCL` is exact within a
-   call and as atomic as the provider's `stat` then `write` across writers. Acceptance 2 gains a
-   second `"x"`, `TemporaryFile`, `NamedTemporaryFile` with `os.replace` and `O_CREAT | O_RDONLY`
-   rows; acceptance 9's first row now counts one `write(b"")`, one `remove` and no other
-   `write`, with the provider left empty. B is not taken.
+1. **Fixed by A (Decisions 2, 3 and 12; acceptance 1, 2, 4 and 9).** A create is one `write(path, b"")` at open, in place of the parent `stat`. `"w"` is that one call, which creates or truncates; `"x"` is `stat` then the create; `"a"` is `read` then the create if missing; `TRUNC` alone is `stat` then `write(b"")`. Every buffer starts clean. A refused create fails at open and is a `RefusedWrite` with `at == "open"`. The two rows ("appears at its first write-back", "two `"x"` opens both succeed") left Decision 12's table; the "refused write" row now says a create or truncation still fails at open. Decision 3 says why, citing your `tempfile_model.txt` and `tempfile_model_create.txt`, and that `O_EXCL` is exact within a call and as atomic as the provider's `stat` then `write` across writers. Acceptance 2 gains a second `"x"`, `TemporaryFile`, `NamedTemporaryFile` with `os.replace` and `O_CREAT | O_RDONLY` rows; acceptance 9's first row now counts one `write(b"")`, one `remove` and no other `write`, with the provider left empty. B is not taken.
 2. **Fixed (Decisions 5 and 8; Terms; acceptance 5, 12 and the new 16).**
-   - Owed buffers: a close the runner could not write back frees the number for the guest
-     (later calls on it are `EBADF`) but keeps it **reserved**: not pushed onto `_Files.free`,
-     counted in `MAX_MOUNT_FILES` and in the staged bytes, until the walk. The walk's bound then
-     holds by construction, whatever an embedder does with its `cancel`.
-   - One rule for unmade write-backs: not recorded at the close or sync; owed; recorded once, at
-     `"exit"`, if the walk does not write it. The guest's answer is named for each case:
-     `ECANCELED`, `ETIMEDOUT`, `EIO` from `_ask`, or `EIO` (`stopped`) from 030's guard, under
-     which the number simply stays open.
-   - The walk never goes through `_ask`: it has its own counted call path (counts in
-     `_Files.total` and `calls`; checks only the limit, the deferred Ctrl-C and the exit hook;
-     keeps the fault boundary; never sets `call.ended` or `call.stopped`; never touches the
-     epoch or the fuel), placed in `_call_deferred` after `_fuel_used` and before
-     `table.record()`. Acceptance 5 and 12 assert an exit-0 run's `fuel_used` is unchanged.
-   - The orphan path has its own raw WAT check, acceptance 16: a provider `stat` that sets
-     `cancel`, then `fd_close` at once; `ECANCELED`, no call from a later open, the number
-     reserved, one walk `write`, `refused` empty; and the same under the limit, recorded once.
-3. **Fixed (Decision 8, Decision 12's table, acceptance 7; question 71 updated).** No walk when
-   spec 015's exit hook has run (`_hook["exiting"]`), and the walk stops before its next call if
-   the hook runs during it; acceptance 7 gains that row in a child process. Decision 8 states the
-   bound in your numbers (min(1,024, calls left) `write`s, at most the staging bound in bytes,
-   1 GiB by default or 4 GiB, one transient copy at a time) and that a mounted run may return
-   after its deadline by the provider's time for those calls; the README says it. The vfs reason
-   is qualified in Decision 8 and in question 71: vfs's flush waits only for the line's remaining
-   time (169 §b8), and a provider under 034 does the same by answering `ETIMEDOUT`, which
-   `refused` records. "The owner's choices" and question 71 say the owner should answer before
-   the landing lane lands 034. I also corrected one clause of question 72, which finding 1 made
-   false ("a new file … seen only after its close").
-4. **Fixed (Decision 10, Decision 14).** A new bullet states the amplification in numbers
-   (`max_file_calls` × the staging bound, 10,000 × 1 GiB by default, against one byte per sync
-   on a grant), keeps "no new limit", and has the README advise a persisting provider to quota
-   or rate-limit and answer `EDQUOT`. A byte budget on write-backs is listed in Scope as a later
-   specification. The buffer calls' host fills are named as the class every host function is in.
-5. **Fixed (Decision 7, acceptance 9).** An unlinked folder answers every relative path call
-   (`path_open`, `path_filestat_get`, `path_readlink`, set-times, the namespace calls) with
-   `ENOENT`, and `fd_readdir` from cookie 0 lists only `.` and `..`, with no provider call; its
-   kept listing is dropped when it is unlinked. Acceptance 9 asserts a relative open, a stat and
-   a re-list, each with no call, after an `rmdir` and a `mkdir` of the same name.
-6. **Fixed (Decision 11, acceptance 13 and 14, Kind, Design).** Decision 11 keeps eight keys and
-   says it is a judge change: every 032 assertion comparing a `calls` mapping or the harness
-   provider's count with a three-key literal, in `test_v1_4_embedding.py` and
-   `test_runner_mounts.py` (four named, from `c69cb31`; the builder lists every one found by
-   `calls ==`), gains the five zero keys. Each check then asserts more, never less. It is named
-   in the `--accept-judge` reason. Acceptance 13 now reads "pass, with only their record shape
-   changed".
-7. **Fixed by the count (Decision 11, acceptance 4 and 12).** `FileRecord.refused_total` counts
-   every refusal, kept or not; acceptance 12 asserts 1,001 refused `mkdir`s and one refused walk
-   write-back give `len(refused) == 1000` and `refused_total == 1002`.
-8. **Fixed (Decisions 6, 9, 12 and 13; acceptance 10 and 11).** At or under a nested preopen is
-   032's `EPERM`; strictly above is `EBUSY`. Across: `EPERM` when the other side is read-only
-   (a read-only grant, the zip, a read-only mount), `EXDEV` only when both may be written; the
-   same for `path_link`. That extends 032's `_across`, which says `EPERM` for every side.
-   Acceptance 10 says `rmdir`, and adds a rename to a read-only grant (`EPERM`). The grant's
-   `rmdir("/w1/./inner")` is a row of Decision 12's table.
-9. **Fixed (Terms, Decisions 3, 4, 5, 6, 9 and 12; acceptance 2, 3 and 11; the build order).**
-   The preopen's set-times is served on a writable mount (success, no change), by path and by
-   descriptor; its sync stays forwarded (`EBADF`). A descriptor that may write reports
-   `FD_WRITE`. "May write" is a term: `CREAT` or `TRUNC`, or `FD_WRITE`. The two macOS rows are
-   named as per system from the start. The table is read top to bottom, first row wins; `EXCL`
-   without `CREAT` is ignored; an offset, position or size at or above `2**63` answers
-   wasmtime's errno before the growth bound. Acceptance 3 gains `fd_fdstat_get` on a
-   write-opened file, the preopen's set-times and sync, `EXCL` without `CREAT` and the `2**63`
-   offset. The build order ends step 4 with one release dry run to fill the per-system rows
-   before the build review.
-10. **Fixed (Decision 13, acceptance preamble).** The cross-run hazard names planted data files
-    (`/etc/mime.types`, `/usr/share/zoneinfo/…`) beside modules. The preamble's guard list adds
-    the create at open, the reserved number, the unlinked-folder rule, the exit-hook skip, the
-    rule across and `refused_total`, each tied to a named check.
+   - Owed buffers: a close the runner could not write back frees the number for the guest (later calls on it are `EBADF`) but keeps it **reserved**: not pushed onto `_Files.free`, counted in `MAX_MOUNT_FILES` and in the staged bytes, until the walk. The walk's bound then holds by construction, whatever an embedder does with its `cancel`.
+   - One rule for unmade write-backs: not recorded at the close or sync; owed; recorded once, at `"exit"`, if the walk does not write it. The guest's answer is named for each case: `ECANCELED`, `ETIMEDOUT`, `EIO` from `_ask`, or `EIO` (`stopped`) from 030's guard, under which the number simply stays open.
+   - The walk never goes through `_ask`: it has its own counted call path (counts in `_Files.total` and `calls`; checks only the limit, the deferred Ctrl-C and the exit hook; keeps the fault boundary; never sets `call.ended` or `call.stopped`; never touches the epoch or the fuel), placed in `_call_deferred` after `_fuel_used` and before `table.record()`. Acceptance 5 and 12 assert an exit-0 run's `fuel_used` is unchanged.
+   - The orphan path has its own raw WAT check, acceptance 16: a provider `stat` that sets `cancel`, then `fd_close` at once; `ECANCELED`, no call from a later open, the number reserved, one walk `write`, `refused` empty; and the same under the limit, recorded once.
+3. **Fixed (Decision 8, Decision 12's table, acceptance 7; question 71 updated).** No walk when spec 015's exit hook has run (`_hook["exiting"]`), and the walk stops before its next call if the hook runs during it; acceptance 7 gains that row in a child process. Decision 8 states the bound in your numbers (min(1,024, calls left) `write`s, at most the staging bound in bytes, 1 GiB by default or 4 GiB, one transient copy at a time) and that a mounted run may return after its deadline by the provider's time for those calls; the README says it. The vfs reason is qualified in Decision 8 and in question 71: vfs's flush waits only for the line's remaining time (169 §b8), and a provider under 034 does the same by answering `ETIMEDOUT`, which `refused` records. "The owner's choices" and question 71 say the owner should answer before the landing lane lands 034. I also corrected one clause of question 72, which finding 1 made false ("a new file … seen only after its close").
+4. **Fixed (Decision 10, Decision 14).** A new bullet states the amplification in numbers (`max_file_calls` × the staging bound, 10,000 × 1 GiB by default, against one byte per sync on a grant), keeps "no new limit", and has the README advise a persisting provider to quota or rate-limit and answer `EDQUOT`. A byte budget on write-backs is listed in Scope as a later specification. The buffer calls' host fills are named as the class every host function is in.
+5. **Fixed (Decision 7, acceptance 9).** An unlinked folder answers every relative path call (`path_open`, `path_filestat_get`, `path_readlink`, set-times, the namespace calls) with `ENOENT`, and `fd_readdir` from cookie 0 lists only `.` and `..`, with no provider call; its kept listing is dropped when it is unlinked. Acceptance 9 asserts a relative open, a stat and a re-list, each with no call, after an `rmdir` and a `mkdir` of the same name.
+6. **Fixed (Decision 11, acceptance 13 and 14, Kind, Design).** Decision 11 keeps eight keys and says it is a judge change: every 032 assertion comparing a `calls` mapping or the harness provider's count with a three-key literal, in `test_v1_4_embedding.py` and `test_runner_mounts.py` (four named, from `c69cb31`; the builder lists every one found by `calls ==`), gains the five zero keys. Each check then asserts more, never less. It is named in the `--accept-judge` reason. Acceptance 13 now reads "pass, with only their record shape changed".
+7. **Fixed by the count (Decision 11, acceptance 4 and 12).** `FileRecord.refused_total` counts every refusal, kept or not; acceptance 12 asserts 1,001 refused `mkdir`s and one refused walk write-back give `len(refused) == 1000` and `refused_total == 1002`.
+8. **Fixed (Decisions 6, 9, 12 and 13; acceptance 10 and 11).** At or under a nested preopen is 032's `EPERM`; strictly above is `EBUSY`. Across: `EPERM` when the other side is read-only (a read-only grant, the zip, a read-only mount), `EXDEV` only when both may be written; the same for `path_link`. That extends 032's `_across`, which says `EPERM` for every side. Acceptance 10 says `rmdir`, and adds a rename to a read-only grant (`EPERM`). The grant's `rmdir("/w1/./inner")` is a row of Decision 12's table.
+9. **Fixed (Terms, Decisions 3, 4, 5, 6, 9 and 12; acceptance 2, 3 and 11; the build order).** The preopen's set-times is served on a writable mount (success, no change), by path and by descriptor; its sync stays forwarded (`EBADF`). A descriptor that may write reports `FD_WRITE`. "May write" is a term: `CREAT` or `TRUNC`, or `FD_WRITE`. The two macOS rows are named as per system from the start. The table is read top to bottom, first row wins; `EXCL` without `CREAT` is ignored; an offset, position or size at or above `2**63` answers wasmtime's errno before the growth bound. Acceptance 3 gains `fd_fdstat_get` on a write-opened file, the preopen's set-times and sync, `EXCL` without `CREAT` and the `2**63` offset. The build order ends step 4 with one release dry run to fill the per-system rows before the build review.
+10. **Fixed (Decision 13, acceptance preamble).** The cross-run hazard names planted data files (`/etc/mime.types`, `/usr/share/zoneinfo/…`) beside modules. The preamble's guard list adds the create at open, the reserved number, the unlinked-folder rule, the exit-hook skip, the rule across and `refused_total`, each tied to a named check.
 
 The Status line records this review and that the revision waits on your confirmation.
 
 ## Verdict
 
-Not ready to build as written, but close. The design keeps the wall whole and adds the write
-half on 032's mechanism with the right guards. Finding 1 is a real gap: the staging model makes
-a newly created file invisible to the guest's own unlink, rename and stat, so `TemporaryFile`
-fails and `O_EXCL` is lost, and acceptance 9 cannot pass. Fix 1 in Decision 3 (create at open is
-the smallest fix), write 2 and 3 into Decisions 5 and 8, answer 4 to 10, and send the revision
-back for a short confirmation.
+Not ready to build as written, but close. The design keeps the wall whole and adds the write half on 032's mechanism with the right guards. Finding 1 is a real gap: the staging model makes a newly created file invisible to the guest's own unlink, rename and stat, so `TemporaryFile` fails and `O_EXCL` is lost, and acceptance 9 cannot pass. Fix 1 in Decision 3 (create at open is the smallest fix), write 2 and 3 into Decisions 5 and 8, answer 4 to 10, and send the revision back for a short confirmation.
 
 ## One line
 
-A sound write half on 032's boundary, with one design gap (a file created at open is not in the
-provider, so `TemporaryFile` and `O_EXCL` break) and an ending whose owed buffers, limit and exit
-path need exact rules; create at open, reserve owed numbers, skip the walk at interpreter exit,
-and it can be built.
+A sound write half on 032's boundary, with one design gap (a file created at open is not in the provider, so `TemporaryFile` and `O_EXCL` break) and an ending whose owed buffers, limit and exit path need exact rules; create at open, reserve owed numbers, skip the walk at interpreter exit, and it can be built.
 
 ## Confirmation (2026-10-17)
 
-By the reviewer. I read the revised specification (commit `21ba601`), the Disposition above and
-questions 71 and 72 as updated, and checked each answer against its finding. I checked the
-ending's seams against 032 as committed for its build review (`c69cb31`, read only, through
-`git show`; the worktree also holds uncommitted build-review edits to `mounts.py`, which I did
-not rely on). I re-ran the tempfile model with Decision 3 as now worded. New files are in the
-same scratch folder: `memo_shadow_034rev.py` (the memo's model with Decision 3's revised table,
-Decision 7's unlinking and following, and Decision 2's `write` contract, `EISDIR` for a folder),
-`tempfile_prog2.py`, `tempfile_model_034rev.txt` and `runner_c69cb31.py.txt`. They ran under
-`uv run python -I` on darwin-arm64 against the artifact copy. Nothing in `src/`, `tests/`,
-`scripts/`, `recipes/`, the spec or the 032 worktree was edited.
+By the reviewer. I read the revised specification (commit `21ba601`), the Disposition above and questions 71 and 72 as updated, and checked each answer against its finding. I checked the ending's seams against 032 as committed for its build review (`c69cb31`, read only, through `git show`; the worktree also holds uncommitted build-review edits to `mounts.py`, which I did not rely on). I re-ran the tempfile model with Decision 3 as now worded. New files are in the same scratch folder: `memo_shadow_034rev.py` (the memo's model with Decision 3's revised table, Decision 7's unlinking and following, and Decision 2's `write` contract, `EISDIR` for a folder), `tempfile_prog2.py`, `tempfile_model_034rev.txt` and `runner_c69cb31.py.txt`. They ran under `uv run python -I` on darwin-arm64 against the artifact copy. Nothing in `src/`, `tests/`, `scripts/`, `recipes/`, the spec or the 032 worktree was edited.
 
 ### The ten dispositions
 
-1. **Confirmed (EXECUTED, `tempfile_model_034rev.txt`, both binaries).** With the open table
-   read top to bottom as written (`"x"` is `stat` then `write(b"")`; `"w"` is one `write(b"")`;
-   `TRUNC` alone is `stat` then `write(b"")`; `"a"` is `read` then `write(b"")` if missing; every
-   buffer clean), and Decision 7, the model gives a writable grant's results:
+1. **Confirmed (EXECUTED, `tempfile_model_034rev.txt`, both binaries).** With the open table read top to bottom as written (`"x"` is `stat` then `write(b"")`; `"w"` is one `write(b"")`; `TRUNC` alone is `stat` then `write(b"")`; `"a"` is `read` then `write(b"")` if missing; every buffer clean), and Decision 7, the model gives a writable grant's results:
    - `TemporaryFile` gives `b'hello'` and leaves nothing in the store;
-   - `NamedTemporaryFile` with `os.replace` inside its `with` gives `b'x'` at the final name and
-     nothing at the temp name;
-   - `mkstemp`, then a rename while open, then a write and a close gives `b'm'` at the new name,
-     and the old name is gone;
+   - `NamedTemporaryFile` with `os.replace` inside its `with` gives `b'x'` at the final name and nothing at the temp name;
+   - `mkstemp`, then a rename while open, then a write and a close gives `b'm'` at the new name, and the old name is gone;
    - a just-created open file exists, and a second `O_EXCL` open is 20 (`EEXIST`);
    - `"w"` under a missing parent is 44 and on a folder is 31, both at open;
    - `"a"` on a missing file creates it;
-   - a `"w"` truncation is visible to `os.stat` before the close.
-   The final store is `a.txt`, `final.bin`, `moved.txt`, `new.txt`, `seed.txt`, with no stray
-   temp file. The model has no owed buffers or walk; those are confirmed by reading below.
+   - a `"w"` truncation is visible to `os.stat` before the close. The final store is `a.txt`, `final.bin`, `moved.txt`, `new.txt`, `seed.txt`, with no stray temp file. The model has no owed buffers or walk; those are confirmed by reading below.
 2. **Confirmed (READ, `c69cb31`), with notes N1 and N2.**
-   - Owed buffers keep their numbers out of `_Files.free` and count toward `MAX_MOUNT_FILES`
-     and staging, so the walk's bound holds by construction.
+   - Owed buffers keep their numbers out of `_Files.free` and count toward `MAX_MOUNT_FILES` and staging, so the walk's bound holds by construction.
    - One rule: not recorded at the close or sync, recorded once at `"exit"`.
    - The guest's answers are named.
-   - The walk has its own path. It never sets `call.ended` or `call.stopped` and runs after
-     `_fuel_used` (`runner.py:1765`) and before `table.record()` (`runner.py:1779`). `_fuel_used`
-     reads only those two fields (`runner.py:1799`), so an exit-0 run keeps its `fuel_used`.
-   - Acceptance 16 reaches the owed path through raw WAT with no function entry between the
-     `stat` and the close. That is the only way to reach it before the epoch callback, so it is
-     the right check.
-3. **Confirmed (READ).** `_hook["exiting"]` exists and is set first in `_stop_async_calls`
-   (`runner.py:379, 426`). Checking it before each walk call covers a hook that runs during the
-   walk. The bound in numbers, the README sentence and question 71's qualified vfs reason are
-   right.
-4. **Confirmed (READ).** The numbers, no new limit, `EDQUOT` advice, and a byte budget in
-   Scope.
-5. **Confirmed (READ).** Every relative path call and the re-list are covered, with the kept
-   listing dropped. Acceptance 9 asserts it after an `rmdir` and a `mkdir` of the same name,
-   which is the case that matters.
-6. **Confirmed (READ).** The four literals the Disposition names are the ones in `c69cb31`
-   (`test_v1_4_embedding.py:1536, 1732`, `test_runner_mounts.py:151, 437`). Each rewrite only
-   adds zero keys, so each check asserts more. It is named as a judge change.
+   - The walk has its own path. It never sets `call.ended` or `call.stopped` and runs after `_fuel_used` (`runner.py:1765`) and before `table.record()` (`runner.py:1779`). `_fuel_used` reads only those two fields (`runner.py:1799`), so an exit-0 run keeps its `fuel_used`.
+   - Acceptance 16 reaches the owed path through raw WAT with no function entry between the `stat` and the close. That is the only way to reach it before the epoch callback, so it is the right check.
+3. **Confirmed (READ).** `_hook["exiting"]` exists and is set first in `_stop_async_calls` (`runner.py:379, 426`). Checking it before each walk call covers a hook that runs during the walk. The bound in numbers, the README sentence and question 71's qualified vfs reason are right.
+4. **Confirmed (READ).** The numbers, no new limit, `EDQUOT` advice, and a byte budget in Scope.
+5. **Confirmed (READ).** Every relative path call and the re-list are covered, with the kept listing dropped. Acceptance 9 asserts it after an `rmdir` and a `mkdir` of the same name, which is the case that matters.
+6. **Confirmed (READ).** The four literals the Disposition names are the ones in `c69cb31` (`test_v1_4_embedding.py:1536, 1732`, `test_runner_mounts.py:151, 437`). Each rewrite only adds zero keys, so each check asserts more. It is named as a judge change.
 7. **Confirmed (READ).** `refused_total`, and acceptance 12's 1,002.
-8. **Confirmed (READ).** `EPERM` at or under a nested preopen, `EBUSY` strictly above it.
-   `EPERM` across to a read-only side, `EXDEV` only between writable sides, and the same for
-   `path_link`. The grant's `rmdir("/w1/./inner")` row is in Decision 12's table.
-9. **Confirmed (READ).** The preopen's set-times is served and its sync forwarded, as
-   `preopen_rw.txt` shows. `FD_WRITE` is reported, "may write" is a term, both macOS rows are
-   per system, the open table's order is stated, the `2**63` order is stated, and a dry run
-   closes step 4.
+8. **Confirmed (READ).** `EPERM` at or under a nested preopen, `EBUSY` strictly above it. `EPERM` across to a read-only side, `EXDEV` only between writable sides, and the same for `path_link`. The grant's `rmdir("/w1/./inner")` row is in Decision 12's table.
+9. **Confirmed (READ).** The preopen's set-times is served and its sync forwarded, as `preopen_rw.txt` shows. `FD_WRITE` is reported, "may write" is a term, both macOS rows are per system, the open table's order is stated, the `2**63` order is stated, and a dry run closes step 4.
 10. **Confirmed (READ).**
 
 ### Notes for the builder
 
 The first is a one-word text fix; the rest need no change to the specification.
 
-- **N1. The walk's seam is in `_instance`, not `_call_deferred`.** EXECUTED (grep of
-  `runner_c69cb31.py.txt`): `done = _drive(...)` (1764), `fuel_used = _fuel_used(...)` (1765)
-  and `files = ... table.record()` (1779) are in `_instance` (from line 1680).
-  `_call_deferred` (1599) only makes `HOME` and the store. Both run inside `_call`'s
-  `_deferred_ctrl_c` scope (1595), so the design holds; Decision 8's "In 032's
-  `_call_deferred`" should read `_instance`.
-- **N2. An owed buffer must not be found by `_entry`.** READ (`mounts.py:432-433` at `c69cb31`):
-  `_entry` is `self.table.get(fd)`. If an owed buffer stays in `table` at its reserved number, a
-  later call on that number is served from it rather than answering `EBADF`. Hold owed buffers
-  in their own map, keyed by number, that the walk reads and `_entry` does not. A forward of
-  the number then answers `EBADF` (wasmtime never holds it), and `fd_renumber` already refuses
-  it.
-- **N3. An unmade call at open owes nothing.** If `_ask` refuses an open's `stat`, `read` or
-  create `write` (cancel, deadline or limit), no buffer exists and nothing is lost. The open
-  answers that errno, and nothing is recorded. Decision 11's "every write-half call that did not
-  succeed" means calls the provider answered, and Decision 5's rule covers the rest. Write it so
-  in the code's comment, which keeps "each once" exact.
-- **N4. Acceptance 9's exact counts need `dir=`.** A `TemporaryFile()` with no `dir` first runs
-  `tempfile._get_default_tempdir`'s probe (an `"x"` open, a write of `b'blat'`, a close and an
-  unlink: READ, `Lib/tempfile.py:195-210`), which adds its own create and content write. Pass
-  `dir="/tmp"` or set `tempfile.tempdir`, or count only the temp file's own name.
+- **N1. The walk's seam is in `_instance`, not `_call_deferred`.** EXECUTED (grep of `runner_c69cb31.py.txt`): `done = _drive(...)` (1764), `fuel_used = _fuel_used(...)` (1765) and `files = ... table.record()` (1779) are in `_instance` (from line 1680). `_call_deferred` (1599) only makes `HOME` and the store. Both run inside `_call`'s `_deferred_ctrl_c` scope (1595), so the design holds; Decision 8's "In 032's `_call_deferred`" should read `_instance`.
+- **N2. An owed buffer must not be found by `_entry`.** READ (`mounts.py:432-433` at `c69cb31`): `_entry` is `self.table.get(fd)`. If an owed buffer stays in `table` at its reserved number, a later call on that number is served from it rather than answering `EBADF`. Hold owed buffers in their own map, keyed by number, that the walk reads and `_entry` does not. A forward of the number then answers `EBADF` (wasmtime never holds it), and `fd_renumber` already refuses it.
+- **N3. An unmade call at open owes nothing.** If `_ask` refuses an open's `stat`, `read` or create `write` (cancel, deadline or limit), no buffer exists and nothing is lost. The open answers that errno, and nothing is recorded. Decision 11's "every write-half call that did not succeed" means calls the provider answered, and Decision 5's rule covers the rest. Write it so in the code's comment, which keeps "each once" exact.
+- **N4. Acceptance 9's exact counts need `dir=`.** A `TemporaryFile()` with no `dir` first runs `tempfile._get_default_tempdir`'s probe (an `"x"` open, a write of `b'blat'`, a close and an unlink: READ, `Lib/tempfile.py:195-210`), which adds its own create and content write. Pass `dir="/tmp"` or set `tempfile.tempdir`, or count only the temp file's own name.
 
 ### Questions 71 and 72
 
-As updated, both read correctly. I agree with each. The owner's answer to 71 is wanted before
-the landing lane lands 034, as the specification now says, not before the build.
+As updated, both read correctly. I agree with each. The owner's answer to 71 is wanted before the landing lane lands 034, as the specification now says, not before the build.
 
 ### Result
 
-**Confirmed for build, on one condition:** N1's word fix in Decision 8 (`_instance` for
-`_call_deferred`), which the author makes before the builder starts. N2 to N4 are builder notes.
-No further pre-build review is needed. The build review is also a security review
-(acceptance 15). It re-runs the guards one at a time, including the new ones (the create at
-open, the reserved number, the unlinked-folder rule, the exit-hook skip, the rule across,
-`refused_total`).
+**Confirmed for build, on one condition:** N1's word fix in Decision 8 (`_instance` for `_call_deferred`), which the author makes before the builder starts. N2 to N4 are builder notes. No further pre-build review is needed. The build review is also a security review (acceptance 15). It re-runs the guards one at a time, including the new ones (the create at open, the reserved number, the unlinked-folder rule, the exit-hook skip, the rule across, `refused_total`).
 
-One line: the revision closes all ten findings. The create at open gives a grant's
-`TemporaryFile`, `O_EXCL` and atomic-save results when run, and the walk's seams match 032's
-committed code. Fix one function name, and 034 can be built.
+One line: the revision closes all ten findings. The create at open gives a grant's `TemporaryFile`, `O_EXCL` and atomic-save results when run, and the walk's seams match 032's committed code. Fix one function name, and 034 can be built.
 
 ### The lane's note on the condition (2026-10-17)
 
-- N1: Decision 8 and the Design table now place the walk in 032's `_instance`, inside
-  `_call_deferred`'s deferred-Ctrl-C scope, after `_fuel_used` and before `table.record()`.
+- N1: Decision 8 and the Design table now place the walk in 032's `_instance`, inside `_call_deferred`'s deferred-Ctrl-C scope, after `_fuel_used` and before `table.record()`.
 - N2 to N4 stay builder notes, as the confirmation says.

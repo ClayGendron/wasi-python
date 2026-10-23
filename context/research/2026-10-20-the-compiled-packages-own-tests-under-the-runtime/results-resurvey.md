@@ -20,17 +20,9 @@
 | `regex` | 16.0 G | 2.50e+10 | 147 | 0 | 0 |  |
 | `kiwisolver` | 13.0 G | 2.00e+10 | 50 | 0 | 0 |  |
 
-matplotlib: budget 5.044e+12
-contourpy: budget 6.270e+12
-pillow: budget 6.500e+11
-lxml: budget 1.600e+11
-regex: budget 2.500e+10
-kiwisolver: budget 2.000e+10
-total caps 1.217e+13; total fuel 8.026 T
+matplotlib: budget 5.044e+12 contourpy: budget 6.270e+12 pillow: budget 6.500e+11 lxml: budget 1.600e+11 regex: budget 2.500e+10 kiwisolver: budget 2.000e+10 total caps 1.217e+13; total fuel 8.026 T
 
-matplotlib-mathtext was voided twice by host litter on this set; its provisional cap is 1.5 times
-wave 05's 296.2 G, 4.5e+11, which brings matplotlib's family to about 5.49e+12 and the total caps to
-about 1.262e+13 on about 8.32 T.
+matplotlib-mathtext was voided twice by host litter on this set; its provisional cap is 1.5 times wave 05's 296.2 G, 4.5e+11, which brings matplotlib's family to about 5.49e+12 and the total caps to about 1.262e+13 on about 8.32 T.
 
 ## Four further runs (EXECUTED on the same set; the survey's bisection argv, `survey.py <group> <args>`)
 

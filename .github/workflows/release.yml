@@ -174,7 +174,9 @@ jobs:
       - name: The wheel
         run: |
           cp -R build/artifacts src/wasi_python/artifacts
+          uv run --no-project python -I release/licences.py append build/artifacts
           uv build --wheel --build-constraints release/build-constraints.txt --require-hashes
+          uv run --no-project python -I release/licences.py check dist/wasi_python-*.whl build/artifacts
       - name: The source trees are their tarballs plus the recorded patches
         # On a source run only: a reuse run has no tree here. build-shard runs the same step on
         # every run, with no if:.
@@ -279,6 +281,7 @@ jobs:
       - name: The wheel, as the build job makes it
         run: |
           cp -R build/artifacts src/wasi_python/artifacts
+          uv run --no-project python -I release/licences.py append build/artifacts
           uv build --wheel --build-constraints release/build-constraints.txt --require-hashes
       - id: wheel
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -345,6 +348,7 @@ jobs:
       - name: The wheel, as the build job makes it
         run: |
           cp -R build/artifacts src/wasi_python/artifacts
+          uv run --no-project python -I release/licences.py append build/artifacts
           uv build --wheel --build-constraints release/build-constraints.txt --require-hashes
       - id: wheel
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -900,6 +904,93 @@ jobs:
           name: record-linux-${{ matrix.shard }}-failed-${{ github.run_attempt }}
           path: ${{ runner.temp }}/record/
           if-no-files-found: ignore
+
+  coverage:
+    name: the runner's coverage (ubuntu-24.04)
+    # The fast tier, serially under coverage.py, against the set the build job made: the share of
+    # src/wasi_python's statements it ran. The Cobertura report goes to Codecov, which serves the
+    # README's badge; the upload carries the repository's CODECOV_TOKEN secret and nothing else.
+    # Nothing needs this job: a failed upload never holds up a release, and shows red in the run.
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    env:
+      PYTHONUTF8: "1"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the rules read the git history
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - name: The build job handed on an artifact id
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run.
+        env:
+          ASSETS_ID: ${{ needs.build.outputs.assets-id }}
+        run: |
+          case "$ASSETS_ID" in
+            "" | *[!0-9]*) echo "the build job handed on no artifact id"; exit 1 ;;
+          esac
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.assets-id }}
+          path: release-assets
+          digest-mismatch: error
+      - name: These are the bytes the build job made
+        # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
+        # handed on, every file against SHA256SUMS, and no other file.
+        env:
+          SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
+        run: |
+          set -eu
+          case "$SUMS_SHA256" in
+            "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of SHA256SUMS"; exit 1 ;;
+          esac
+          if [ "${#SUMS_SHA256}" -ne 64 ]; then
+            echo "the build job handed on no SHA-256 of SHA256SUMS"
+            exit 1
+          fi
+          if command -v sha256sum > /dev/null; then sum="sha256sum"; else sum="shasum -a 256"; fi
+          printf '%s  SHA256SUMS\n' "$SUMS_SHA256" > SHA256SUMS.sha256
+          ( cd release-assets && $sum -c ../SHA256SUMS.sha256 && $sum -c SHA256SUMS )
+          want=$( { awk '{print $2}' release-assets/SHA256SUMS; echo SHA256SUMS; } | LC_ALL=C sort)
+          have=$(cd release-assets && find . -mindepth 1 | sed 's#^\./##' | LC_ALL=C sort)
+          if [ "$want" != "$have" ]; then
+            echo "release-assets holds other files than the build job's"
+            exit 1
+          fi
+      - name: Unpack the artifact set; the wheel into dist/
+        run: |
+          uv run python -c "import sys, tarfile, glob; tarfile.open(glob.glob('release-assets/*.tar.xz')[0]).extractall(sys.argv[1], filter='data')" "$RUNNER_TEMP/set"
+          echo "WASI_PYTHON_ARTIFACTS=$(uv run python -c "import glob, sys; print(glob.glob(sys.argv[1] + '/wasi-python-*')[0])" "$RUNNER_TEMP/set")" >> "$GITHUB_ENV"
+          mkdir -p dist
+          cp release-assets/wasi_python-*.whl dist/
+      - name: The fast tier under coverage.py
+        run: uv run python tests/harness/coverage.py --measure
+      - name: The reports and the run's log
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-${{ github.run_attempt }}
+          path: |
+            build/coverage/pytest.log
+            build/coverage/coverage.json
+            build/coverage/coverage.xml
+          if-no-files-found: ignore
+      - name: The report to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          files: build/coverage/coverage.xml
+          disable_search: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
 
   judge-release:
     name: judge the release tier (ubuntu-24.04, ${{ matrix.shard }})

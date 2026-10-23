@@ -155,12 +155,14 @@ def test_gzip_round_trips(guest) -> None:
 
 
 def test_default_integer_width_is_documented(guest) -> None:
+    """The limitations page states numpy's default integer width, and the guest agrees."""
     r = guest("plain", ["-c", "import numpy as np; print(np.dtype(np.int_).itemsize * 8)"])
     assert r.exit_code == 0, r.describe()
     bits = r.text.strip()
-    stated = re.findall(r"default\s+integer\s+is\s+(\d+)-bit", paths.README.read_text("utf-8"))
+    page = paths.REPO / "docs" / "reference" / "limitations.md"
+    stated = re.findall(r"default\s+integer\s+is\s+(\d+)-bit", page.read_text("utf-8"))
     assert stated and set(stated) == {bits}, (
-        f"the guest's default integer is {bits}-bit; README says {stated}"
+        f"the guest's default integer is {bits}-bit; {page.name} says {stated}"
     )
 
 

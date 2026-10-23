@@ -1,7 +1,6 @@
 # Results: one snapshot per pre-import rule (EXECUTED, darwin-arm64, 2026-10-18)
 
-Fuel is wasmtime's guest instruction count through tests/harness/guest.py; the stdlib zip is the frozen set's
-(16ee747c…). Resident memory is ps RSS growth per live instance after `-c pass`, 8 instances (instances.py).
+Fuel is wasmtime's guest instruction count through tests/harness/guest.py; the stdlib zip is the frozen set's (16ee747c…). Resident memory is ps RSS growth per live instance after `-c pass`, 8 instances (instances.py).
 
 | variant | pre-imported modules at start | snapshot bytes | deflated (level 6, as the wheel) | data section (heap+static) | memory min (pages / MiB) | resident per live instance (MiB) |
 |---|---|---|---|---|---|---|

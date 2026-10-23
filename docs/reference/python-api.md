@@ -1,29 +1,12 @@
 # Python API
 
-This page is generated from the package's docstrings and signatures by
-`uv run python tests/harness/api.py --write`, and a check fails when it differs from the live
-surface. Edit the docstrings, not this page.
+This page is generated from the package's docstrings and signatures by `uv run python tests/harness/api.py --write`, and a check fails when it differs from the live surface. Edit the docstrings, not this page.
 
 ## What is promised
 
-The public API is the names below: what `wasi_python` and `wasi_python.tools` export (each
-module's `__all__`), the `wasi-python` command (see [Command line](cli.md)), and the environment
-variables `WASI_PYTHON_ARTIFACTS` and `WASI_PYTHON_CACHE`. Everything else is internal and may
-change in any release: every other name, and the modules `runner`, `mounts` and `cli`. The
-project's tests record this surface and fail on any change to it that was not made on purpose.
+The public API is the names below: what `wasi_python` and `wasi_python.tools` export (each module's `__all__`), the `wasi-python` command (see [Command line](cli.md)), and the environment variables `WASI_PYTHON_ARTIFACTS` and `WASI_PYTHON_CACHE`. Everything else is internal and may change in any release: every other name, and the modules `runner`, `mounts` and `cli`. The project's tests record this surface and fail on any change to it that was not made on purpose.
 
-The promise starts at 0.1.0. Versions are `0.MINOR.PATCH`. A patch release changes no public
-name, signature, field, default or command option. A minor release may add names, keyword-only
-arguments whose default keeps today's behaviour, dataclass fields placed last with a default (or
-keyword-only), `Errno` members, `stats()` keys, command options and JSON keys. It removes or
-changes something only after a deprecation: a `DeprecationWarning`, a docstring that begins
-"Deprecated since 0.N: use X instead." and a CHANGELOG line, all at once. A thing deprecated in
-0.N still works in 0.N and 0.N+1; 0.N+2 is the first release that may remove it. Two exceptions
-need no deprecation: a tighter default limit, in a minor release, and a security fix, in any
-release; each is named in the CHANGELOG. Exceptions are promised by type, never by message. Not
-promised: messages, `repr`s, help text, wasmtime's trap names and error types, timings, fuel
-counts, the `.cwasm` cache, and the guest's package versions. The tool protocol is versioned by
-`PROTOCOL`. At 1.0 the same rules hold with "major" in place of "minor".
+The promise starts at 0.1.0. Versions are `0.MINOR.PATCH`. A patch release changes no public name, signature, field, default or command option. A minor release may add names, keyword-only arguments whose default keeps today's behaviour, dataclass fields placed last with a default (or keyword-only), `Errno` members, `stats()` keys, command options and JSON keys. It removes or changes something only after a deprecation: a `DeprecationWarning`, a docstring that begins "Deprecated since 0.N: use X instead." and a CHANGELOG line, all at once. A thing deprecated in 0.N still works in 0.N and 0.N+1; 0.N+2 is the first release that may remove it. Two exceptions need no deprecation: a tighter default limit, in a minor release, and a security fix, in any release; each is named in the CHANGELOG. Exceptions are promised by type, never by message. Not promised: messages, `repr`s, help text, wasmtime's trap names and error types, timings, fuel counts, the `.cwasm` cache, and the guest's package versions. The tool protocol is versioned by `PROTOCOL`. At 1.0 the same rules hold with "major" in place of "minor".
 
 ## Reference
 

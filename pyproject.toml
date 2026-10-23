@@ -39,7 +39,10 @@ Repository = "https://github.com/claygendron/wasi_python"
 # mypy type-checks `src/wasi_python` in the judge (spec 106, Decision 5); pinned exactly, as
 # pytest-xdist is, since a mypy release changes which lines are errors and the check must give the
 # same verdict on every machine and on CI.
+# coverage measures the runner's line coverage for the README's badge; pinned exactly, since a
+# coverage release can change which lines count and the record must be reproducible.
 dev = [
+    "coverage==7.17.0",
     "mypy==1.19.1",
     "pytest>=8",
     "pytest-xdist==3.8.0",

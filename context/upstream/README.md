@@ -1,8 +1,6 @@
 # Upstream fixes, waiting for the owner
 
-Drafts of changes this project needs from its dependencies. Nothing here is posted: the owner
-reviews each text and posts it (constitution §4.1, a needed source change goes upstream first).
-The issue texts and a reading guide are in the owner's "Upstream issue drafts" doc.
+Drafts of changes this project needs from its dependencies. Nothing here is posted: the owner reviews each text and posts it (constitution §4.1, a needed source change goes upstream first). The issue texts and a reading guide are in the owner's "Upstream issue drafts" doc.
 
 | folder | where | what | state |
 |---|---|---|---|
@@ -42,15 +40,11 @@ The issue texts and a reading guide are in the owner's "Upstream issue drafts" d
 | `33-contourpy-text-baselines-freetype/` | contourpy | the `--runtext` baselines of `test_config.py` fail at FreeType 2.14.3 on native matplotlib 3.11.2 as in the guest (max 255, mean 4.8 to 6.5; without text, max at most 52, mean at most 0.0005) | facts only (`notes.md`, spec 066's `text-rendering`); the owner decides whether to report |
 | `34-wasmtime-py-public-api-for-the-runner/` | wasmtime-py | the public API the runner would use in place of the thirty-one private bindings its engine seam (`src/wasi_python/_wasmtime_ffi.py`, spec 103) still calls: `Caller.get_fuel`, `set_fuel` and `set_epoch_deadline`, `Config.async_stack_size` (sheet 21), a locked custom-output table, a reusable `Func` call, a public epoch callback; one row per binding, held in step with the adapter by a rules check | facts only; the Bytecode Alliance policy requires the owner to ask |
 
-Each patch is against the base named in its `pr.md`. `notes.md` in each folder records how the
-fix was found and checked. When a fix lands upstream and a pin moves past it, record that here
-and in the CHANGELOG, and drop any workaround in the runner.
+Each patch is against the base named in its `pr.md`. `notes.md` in each folder records how the fix was found and checked. When a fix lands upstream and a pin moves past it, record that here and in the CHANGELOG, and drop any workaround in the runner.
 
 ## Pull requests for carried patches
 
-Since §4.1's amendment (question 32), a fix the project cannot wait for is carried as a patch
-under `recipes/patches/<top>/` (specification 020). Its pull request lives here, at
-`patches/<top>/NNNN-<slug>.md`, the same name as the patch, starting with six header lines:
+Since §4.1's amendment (question 32), a fix the project cannot wait for is carried as a patch under `recipes/patches/<top>/` (specification 020). Its pull request lives here, at `patches/<top>/NNNN-<slug>.md`, the same name as the patch, starting with six header lines:
 
 ```
 - **Project:** <name> (<repository URL>)
@@ -61,6 +55,4 @@ under `recipes/patches/<top>/` (specification 020). Its pull request lives here,
 - **Why we carry it:** <what fails without it, in this project>
 ```
 
-The body is the text for the upstream maintainers, and says whether the project needs a
-contributor licence agreement, which the owner signs. The owner sends it; then the status records
-the link. Where a project forbids AI-written pull request descriptions (numpy does), the draft's body is the facts for the owner to write from, not the text. A draft is not a build input, so recording the status changes no `MANIFEST` line.
+The body is the text for the upstream maintainers, and says whether the project needs a contributor licence agreement, which the owner signs. The owner sends it; then the status records the link. Where a project forbids AI-written pull request descriptions (numpy does), the draft's body is the facts for the owner to write from, not the text. A draft is not a build input, so recording the status changes no `MANIFEST` line.

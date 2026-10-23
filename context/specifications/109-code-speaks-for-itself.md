@@ -1,66 +1,27 @@
 # 109 — Code speaks for itself: no document cited in a comment outside `src/`
 
-- **Status:** **landed 2026-10-21 with the structural chain** (103 to 109, PR #1) on main `5495b46`: accepted on `7a22103`, history line 90, 777/864 pass, 0 fail, on a set rebuilt from the same pins in the main tree (`SHA256SUMS` `83789790`; the three binaries byte-identical to wave 08's); the dry run 39540823534 on `5af0a42` green on three systems but G7; the integration review `../reviews/wave-structural-chain-103-109-integration-2026-10-21.md` and the lane's addendum to it (three fixes found by the dry run and the acceptance, each reviewed by a fresh agent). Before: **drafted 2026-10-20; re-applied and built 2026-10-21 on `1cf9762`** in worktree
-  `spec/109-code-speaks-for-itself` from `d92307f` (branch `claude/gallant-ride-9nxxmn`: main plus
-  the chain 103 to 108 landed, 108's build review and its disposition written in); first built
-  2026-10-20 on `cecceed` from `b7a1250`, then re-applied on the chain's final tip (Decision 7);
-  **reviewed before build: none required** (judge-only and comments-only; AGENTS.md rule 8), the
-  build review follows. A different agent reviews the build.
+- **Status:** **landed 2026-10-21 with the structural chain** (103 to 109, PR #1) on main `5495b46`: accepted on `7a22103`, history line 90, 777/864 pass, 0 fail, on a set rebuilt from the same pins in the main tree (`SHA256SUMS` `83789790`; the three binaries byte-identical to wave 08's); the dry run 39540823534 on `5af0a42` green on three systems but G7; the integration review `../reviews/wave-structural-chain-103-109-integration-2026-10-21.md` and the lane's addendum to it (three fixes found by the dry run and the acceptance, each reviewed by a fresh agent). Before: **drafted 2026-10-20; re-applied and built 2026-10-21 on `1cf9762`** in worktree `spec/109-code-speaks-for-itself` from `d92307f` (branch `claude/gallant-ride-9nxxmn`: main plus the chain 103 to 108 landed, 108's build review and its disposition written in); first built 2026-10-20 on `cecceed` from `b7a1250`, then re-applied on the chain's final tip (Decision 7); **reviewed before build: none required** (judge-only and comments-only; AGENTS.md rule 8), the build review follows. A different agent reviews the build.
 - **Date:** 2026-10-20
 - **Owner:** Clay Gendron
-- **Kind:** **parallel-safe by effect, build-class by the letter** (§5.7): comments in `scripts/`
-  and in `.github/workflows/release.yml` change, so the files are build-class, and no code,
-  string literal, artifact byte or recipe step changes. `MANIFEST` records every tracked file
-  under `scripts/` by hash, so the next build's `MANIFEST` differs in those `recipe` lines and in
-  nothing else. **A judge change** (a rules check, its scanner, its unit rows, an allowance, and
-  comments across `tests/`): the lane accepts it with `--accept-judge`. Files: `AGENTS.md` (one
-  parenthesis), `tests/harness/scan.py`, `tests/checks/test_rules.py`, `tests/unit/test_scan.py`,
-  the comments and docstrings of 98 files under `tests/`, 47 under `scripts/`, 2 under `release/`
-  and `.github/workflows/release.yml`, this specification.
-- **Depends on:** nothing landed beyond main. It **lands last in the stacked chain 103 to 108**
-  (the memo of Research, section 8): built on `b7a1250`, it is re-applied on the chain's tip
-  before the wave (Decision 7), since every link edits comments in `tests/`. Spec 107's
-  Decision 4 does the same job for `src/`; this specification covers `tests/`, `scripts/`,
-  `release/` and the workflows only, and touches no file under `src/`.
-- **Research it stands on:** `../research/2026-10-20-a-design-review-of-the-runner.md`, section
-  8, its last paragraph: the owner's rule "code speaks for itself" (2026-10-20) and its counts
-  (1,143 under `tests/`, 213 under `scripts/`, 4 under `release/`, a `grep` of `spec NNN` over
-  every line). Its own measurements below, each labelled, on `b7a1250`.
+- **Kind:** **parallel-safe by effect, build-class by the letter** (§5.7): comments in `scripts/` and in `.github/workflows/release.yml` change, so the files are build-class, and no code, string literal, artifact byte or recipe step changes. `MANIFEST` records every tracked file under `scripts/` by hash, so the next build's `MANIFEST` differs in those `recipe` lines and in nothing else. **A judge change** (a rules check, its scanner, its unit rows, an allowance, and comments across `tests/`): the lane accepts it with `--accept-judge`. Files: `AGENTS.md` (one parenthesis), `tests/harness/scan.py`, `tests/checks/test_rules.py`, `tests/unit/test_scan.py`, the comments and docstrings of 98 files under `tests/`, 47 under `scripts/`, 2 under `release/` and `.github/workflows/release.yml`, this specification.
+- **Depends on:** nothing landed beyond main. It **lands last in the stacked chain 103 to 108** (the memo of Research, section 8): built on `b7a1250`, it is re-applied on the chain's tip before the wave (Decision 7), since every link edits comments in `tests/`. Spec 107's Decision 4 does the same job for `src/`; this specification covers `tests/`, `scripts/`, `release/` and the workflows only, and touches no file under `src/`.
+- **Research it stands on:** `../research/2026-10-20-a-design-review-of-the-runner.md`, section 8, its last paragraph: the owner's rule "code speaks for itself" (2026-10-20) and its counts (1,143 under `tests/`, 213 under `scripts/`, 4 under `release/`, a `grep` of `spec NNN` over every line). Its own measurements below, each labelled, on `b7a1250`.
 
 ## The problem
 
-A comment that says `(spec 052, Decision 7)` tells a reader where a reason was once written and
-not what it is. The reader leaves the file, finds the document, and hopes the decision was not
-amended since. The owner's rule (AGENTS.md, "Code speaks for itself"): a code file names no
-specification, memo, review, finding ID or `context/` path; the reason is written in words; a
-document under `context/` may cite and link the code, so the trace runs from the documents to the
-code and never back.
+A comment that says `(spec 052, Decision 7)` tells a reader where a reason was once written and not what it is. The reader leaves the file, finds the document, and hopes the decision was not amended since. The owner's rule (AGENTS.md, "Code speaks for itself"): a code file names no specification, memo, review, finding ID or `context/` path; the reason is written in words; a document under `context/` may cite and link the code, so the trace runs from the documents to the code and never back.
 
-Measured on the base content (EXECUTED, `uv run python build/109/measure.py`, the scanner of
-Decision 2 over the files of Decision 3, comments and docstrings only, on `b7a1250` plus the
-check): **2,225 citations**: `tests/` 1,896, `scripts/` 272, `release/` 6, `.github/workflows/`
-51. By kind: a specification 1,592, a review named or dated 242, a finding identifier 309, a
-named finding of another letter 20, a `context/` path 22, the constitution's sections 21, the
-word for a research write-up 13, a numbered question 6. The memo's `grep` counts every line,
-string literals included, and one form only, so its numbers differ; this specification counts
-what the rule reads.
+Measured on the base content (EXECUTED, `uv run python build/109/measure.py`, the scanner of Decision 2 over the files of Decision 3, comments and docstrings only, on `b7a1250` plus the check): **2,225 citations**: `tests/` 1,896, `scripts/` 272, `release/` 6, `.github/workflows/` 51. By kind: a specification 1,592, a review named or dated 242, a finding identifier 309, a named finding of another letter 20, a `context/` path 22, the constitution's sections 21, the word for a research write-up 13, a numbered question 6. The memo's `grep` counts every line, string literals included, and one form only, so its numbers differ; this specification counts what the rule reads.
 
 ## Decisions
 
 ### 1. The rule reads comments and docstrings; the judge reads `context/` as data
 
-The rule is about what a reader is told, so it reads prose only: a Python file's comments and
-docstrings, and the `#` comments of every other file. Code that reads a document as data (the
-rules checks reading `context/specifications/`, the progress harness writing `context/progress/`,
-the release's reads) is not a citation and stays. AGENTS.md's bullet gains one parenthesis, "(in
-comments and docstrings; the judge reads `context/` as data)", so that it cannot be read as
-forbidding those paths in code.
+The rule is about what a reader is told, so it reads prose only: a Python file's comments and docstrings, and the `#` comments of every other file. Code that reads a document as data (the rules checks reading `context/specifications/`, the progress harness writing `context/progress/`, the release's reads) is not a citation and stays. AGENTS.md's bullet gains one parenthesis, "(in comments and docstrings; the judge reads `context/` as data)", so that it cannot be read as forbidding those paths in code.
 
 ### 2. The check refuses these forms
 
-`tests/harness/scan.py` gains `context_citation_hits(path)`, which returns `(line, rule, phrase)`
-for each match in a file's prose, and `context_citation_files(root)`, the files of Decision 3.
-The forms (`CITATION_RULES`):
+`tests/harness/scan.py` gains `context_citation_hits(path)`, which returns `(line, rule, phrase)` for each match in a file's prose, and `context_citation_files(root)`, the files of Decision 3. The forms (`CITATION_RULES`):
 
 | rule | refuses |
 |---|---|
@@ -73,349 +34,115 @@ The forms (`CITATION_RULES`):
 | `finding` | `(?<![A-Za-z0-9_])[CDFLNS]\d{1,2}(?:\.\d+)?(?![A-Za-z0-9_])`, spec 107's |
 | `named finding` | a finding of another letter (`M5`, `B1`, `R1`, `P6`, a mutation's `M18`) where `review`, `re-review` or `confirmation` names it |
 
-The brief's forms are the first of each row. Three widen it, each found by the build's read
-(EXECUTED, on the base content): the bare possessive (164 hits, `037's build`; a `spec 037's`
-counts once for each form), a section sign with a numbered section (8, `§4.15`), and a review
-named by its kind (239, `the build review`).
-High, Medium and other letters are left out of the bare `finding` row because alone they are also
-a milestone's or a chip's name (`M2`, `M1`). Python prose is read through `tokenize` (comment
-tokens) and `ast` (the string token that opens a module, a class or a function); no other string
-is prose. Other files: a line whose first non-blank character is `#`, and the part of a line
-after a ` # `. **A citation broken across lines is read whole**: consecutive whole-line comments
-are joined (their `#`s dropped), a docstring is read as one string, and a hit is reported on the
-line it starts, its spaces made one. 35 citations on the base were broken that way (EXECUTED).
+The brief's forms are the first of each row. Three widen it, each found by the build's read (EXECUTED, on the base content): the bare possessive (164 hits, `037's build`; a `spec 037's` counts once for each form), a section sign with a numbered section (8, `§4.15`), and a review named by its kind (239, `the build review`). High, Medium and other letters are left out of the bare `finding` row because alone they are also a milestone's or a chip's name (`M2`, `M1`). Python prose is read through `tokenize` (comment tokens) and `ast` (the string token that opens a module, a class or a function); no other string is prose. Other files: a line whose first non-blank character is `#`, and the part of a line after a ` # `. **A citation broken across lines is read whole**: consecutive whole-line comments are joined (their `#`s dropped), a docstring is read as one string, and a hit is reported on the line it starts, its spaces made one. 35 citations on the base were broken that way (EXECUTED).
 
-The check, `tests/checks/test_rules.py::test_code_outside_src_names_no_context_document`, reports
-each hit as `path:line: rule: phrase`.
+The check, `tests/checks/test_rules.py::test_code_outside_src_names_no_context_document`, reports each hit as `path:line: rule: phrase`.
 
 ### 3. The files it reads
 
-Every `.py`, `.sh`, `.toml`, `.yml` and `.yaml` file under `tests/` and `.github/workflows/`, and
-every text file under `scripts/` and `release/` (the shell launchers there have no suffix; the
-release's `.in` and `.txt` files are read as `#` comments). The workflow is included because its
-comments cite specifications 51 times (EXECUTED); `src/` is spec 107's and is not read here.
-Fixtures with other suffixes (`.ll`, `.expected`, `.platform`, `.txt`) and the upstream suites'
-`.ini` files are not code and are not read.
+Every `.py`, `.sh`, `.toml`, `.yml` and `.yaml` file under `tests/` and `.github/workflows/`, and every text file under `scripts/` and `release/` (the shell launchers there have no suffix; the release's `.in` and `.txt` files are read as `#` comments). The workflow is included because its comments cite specifications 51 times (EXECUTED); `src/` is spec 107's and is not read here. Fixtures with other suffixes (`.ll`, `.expected`, `.platform`, `.txt`) and the upstream suites' `.ini` files are not code and are not read.
 
 ### 4. Three rewriting rules, spec 107's
 
-- **(a)** Delete only the citation and its connector: `(spec 052)`, `, spec 052,`, `per spec
-  052`, `the review's F4.2`, `Spec 055, criterion 26: ` at a sentence's head (the next word then
-  takes the capital the citation had). The sentence stays.
-- **(b)** Where the citation was the whole explanation, or the actor of the sentence (`spec 078
-  polls every call`), write the reason in words, drawn from the document it cited, which the
-  builder reads. The landing notes list every such sentence with the document it stood on, so the
-  trace moves into this specification.
-- **(c)** Delete no sentence. Change no code, string literal, identifier, marker, golden, expected
-  file, `tests/known_gaps.toml`, `tests/upstream/*.toml` or `context/progress/`. A string literal
-  that cites a document (an assertion message, a message the runner or the judge emits and a test
-  matches, a guest program held as a string, a generated file's text) is listed in the landing
-  notes for spec 107 or its owner, not changed.
+- **(a)** Delete only the citation and its connector: `(spec 052)`, `, spec 052,`, `per spec 052`, `the review's F4.2`, `Spec 055, criterion 26: ` at a sentence's head (the next word then takes the capital the citation had). The sentence stays.
+- **(b)** Where the citation was the whole explanation, or the actor of the sentence (`spec 078 polls every call`), write the reason in words, drawn from the document it cited, which the builder reads. The landing notes list every such sentence with the document it stood on, so the trace moves into this specification.
+- **(c)** Delete no sentence. Change no code, string literal, identifier, marker, golden, expected file, `tests/known_gaps.toml`, `tests/upstream/*.toml` or `context/progress/`. A string literal that cites a document (an assertion message, a message the runner or the judge emits and a test matches, a guest program held as a string, a generated file's text) is listed in the landing notes for spec 107 or its owner, not changed.
 
-Only lines move where a rewritten sentence passed 100 columns: the paragraph is re-filled, its
-words unchanged.
+Only lines move where a rewritten sentence passed 100 columns: the paragraph is re-filled, its words unchanged.
 
 ### 5. One allowance tuple: the judge's allowance files and the guest's own sources
 
-`CONTEXT_CITATION_ALLOWED` in `tests/checks/test_rules.py` holds `(path, phrase, reason)`
-entries; an entry admits that exact phrase in that file's prose. An entry that admits nothing
-fails the check, so the tuple only shrinks. Its 62 entries are of two kinds, each with its reason
-as a named constant:
+`CONTEXT_CITATION_ALLOWED` in `tests/checks/test_rules.py` holds `(path, phrase, reason)` entries; an entry admits that exact phrase in that file's prose. An entry that admits nothing fails the check, so the tuple only shrinks. Its 62 entries are of two kinds, each with its reason as a named constant:
 
-- **`JUDGE_FILE`** (30 entries, 31 hits): the comments of `tests/known_gaps.toml` and
-  `tests/upstream/*.toml`. Rule (c) and AGENTS.md rule 4 make those files' edits a judge change of
-  their own, so a comment cleanup does not touch them.
-- **`GUEST_INPUT`** (32 entries, 36 hits): the golden jobs `tests/jobs/*.py` (not `regen.py`) and
-  the upstream suites' guest drivers `tests/upstream/drive.py` and `regrtest_drive.py`. Their
-  bytes are the guest's input (Decision 8).
+- **`JUDGE_FILE`** (30 entries, 31 hits): the comments of `tests/known_gaps.toml` and `tests/upstream/*.toml`. Rule (c) and AGENTS.md rule 4 make those files' edits a judge change of their own, so a comment cleanup does not touch them.
+- **`GUEST_INPUT`** (32 entries, 36 hits): the golden jobs `tests/jobs/*.py` (not `regen.py`) and the upstream suites' guest drivers `tests/upstream/drive.py` and `regrtest_drive.py`. Their bytes are the guest's input (Decision 8).
 
 No other entry is added; a reviewer reads any addition.
 
 ### 6. String literals stay
 
-Rule (c) keeps every string literal. The literals that cite a document fall in four kinds, which
-the landing notes list by file and line: guest programs held as strings (their bytes are the
-guest's input, and so its fuel), messages the judge or a build step prints and a check matches,
-a generated C comment (`scripts/gen_inittab.py`), and fixtures that a scanner's unit rows read
-(their text is the scanner's input). The first two are spec 107's or the owner's to reword with
-the code that matches them.
+Rule (c) keeps every string literal. The literals that cite a document fall in four kinds, which the landing notes list by file and line: guest programs held as strings (their bytes are the guest's input, and so its fuel), messages the judge or a build step prints and a check matches, a generated C comment (`scripts/gen_inittab.py`), and fixtures that a scanner's unit rows read (their text is the scanner's input). The first two are spec 107's or the owner's to reword with the code that matches them.
 
 ### 7. A reproducible pass: a script, then a recorded hand pass
 
-The mechanical cases are rewritten by a scratch script, `build/109/clean.py` (git-ignored, run
-with `uv run python`), which edits only prose spans (the same reading as the check) one line at a
-time, by rule (a) alone: a parenthesis that holds only citations, a citation at the head of a
-parenthesis or a sentence, a citation after a `;` or `,` that closes a parenthesis, and `per
-<citation>`. It never edits the files of Decision 5, never leaves a comment empty, and prints
-each line it changes. Everything it leaves is read by hand, line by line, under rules (a) and (b),
-and **the hand pass is recorded** as exact `(path, old, new[, document])` edits in
-`build/109/hand/NN_*.py`, applied by `build/109/hand.py` (`--list-b` prints the rule (b) list),
-with the re-fills of Decision 4 recorded beside them. Re-applied on the chain's tip, the cleanup
-commits are dropped, `clean.py` and `hand.py` run on the new base, every edit that misses is
-named, and the leftovers the check reports are read again; the check and its unit rows are
-re-applied as they are.
+The mechanical cases are rewritten by a scratch script, `build/109/clean.py` (git-ignored, run with `uv run python`), which edits only prose spans (the same reading as the check) one line at a time, by rule (a) alone: a parenthesis that holds only citations, a citation at the head of a parenthesis or a sentence, a citation after a `;` or `,` that closes a parenthesis, and `per <citation>`. It never edits the files of Decision 5, never leaves a comment empty, and prints each line it changes. Everything it leaves is read by hand, line by line, under rules (a) and (b), and **the hand pass is recorded** as exact `(path, old, new[, document])` edits in `build/109/hand/NN_*.py`, applied by `build/109/hand.py` (`--list-b` prints the rule (b) list), with the re-fills of Decision 4 recorded beside them. Re-applied on the chain's tip, the cleanup commits are dropped, `clean.py` and `hand.py` run on the new base, every edit that misses is named, and the leftovers the check reports are read again; the check and its unit rows are re-applied as they are.
 
 ### 8. The sources the guest runs keep their bytes
 
-`tests/jobs/*.py` and the upstream suites' drivers run inside the guest. The draft expected a
-shorter docstring to lower the guest's fuel by a little; the build measured otherwise (EXECUTED,
-by node id, `tests/checks/test_v1_3_regex.py::test_regex_features_job_matches_native`, with the
-frozen `v0.1.0a7` set): with the docstring 25 bytes shorter the job's fuel **rose** from
-603,112,332 to 603,150,802 (plain, +6.4e-5) and from 373,260,750 to 373,334,247 (snapshot,
-+1.97e-4, past the ratchet's 1e-4); the old job text on the new tree gives the old numbers back,
-so the job's own bytes move it. A fuel row would move with no verdict to show for it, so these 24
-files keep their base bytes and their citations are allowed (Decision 5). They are cleared by a
-judge change that re-measures their fuel.
+`tests/jobs/*.py` and the upstream suites' drivers run inside the guest. The draft expected a shorter docstring to lower the guest's fuel by a little; the build measured otherwise (EXECUTED, by node id, `tests/checks/test_v1_3_regex.py::test_regex_features_job_matches_native`, with the frozen `v0.1.0a7` set): with the docstring 25 bytes shorter the job's fuel **rose** from 603,112,332 to 603,150,802 (plain, +6.4e-5) and from 373,260,750 to 373,334,247 (snapshot, +1.97e-4, past the ratchet's 1e-4); the old job text on the new tree gives the old numbers back, so the job's own bytes move it. A fuel row would move with no verdict to show for it, so these 24 files keep their base bytes and their citations are allowed (Decision 5). They are cleared by a judge change that re-measures their fuel.
 
 ### 9. No verdict moves
 
-The fast tier runs on the built commit with the frozen `v0.1.0a7` set, and `sameness.py`
-compares its record with spec 103's built record (the chain's previous record on this base). The
-only differences allowed are this specification's claims: the new check's node and the scanner's
-unit rows.
+The fast tier runs on the built commit with the frozen `v0.1.0a7` set, and `sameness.py` compares its record with spec 103's built record (the chain's previous record on this base). The only differences allowed are this specification's claims: the new check's node and the scanner's unit rows.
 
 ## Intent
 
-Every comment and docstring under `tests/`, `scripts/`, `release/` and the workflows gives its
-reason in words. A rules check holds it, beside spec 107's for `src/`, and the only citations left
-are in the judge's own allowance files and the guest's own sources, named one by one.
+Every comment and docstring under `tests/`, `scripts/`, `release/` and the workflows gives its reason in words. A rules check holds it, beside spec 107's for `src/`, and the only citations left are in the judge's own allowance files and the guest's own sources, named one by one.
 
 ## Design
 
-- **The scanner:** `CITATION_RULES` (Decision 2's table), `CITATION_SUFFIXES`,
-  `_comment_blocks`, `_python_prose(text)`, `_hash_comments(text)`, `context_citation_hits(path)`,
-  `context_citation_files(root)`, at the end of `tests/harness/scan.py`.
-- **The check:** `test_code_outside_src_names_no_context_document`, `JUDGE_FILE`, `GUEST_INPUT`
-  and `CONTEXT_CITATION_ALLOWED` in `tests/checks/test_rules.py`, after the specifications'
-  shape checks.
-- **The unit rows** (`tests/unit/test_scan.py`, eighteen): one parametrized row per form
-  (fifteen cases), each seen in a Python docstring, a Python trailing comment, a shell comment
-  line and a shell trailing comment; one negative row (a `context/` path and a citing literal in
-  code, a `noqa` code and words with digits in a comment, a citing string in a shell command, a
-  licence's section, a graph's number, a reviewed list, and a file that does not parse give no
-  hit, while a lone `C99` in a comment does); one row for the files read; one row for a citation
-  split across docstring lines and across comment lines, and a code line ending a block. Their
-  fixtures are assembled from parts, so the unit file's own prose is never a hit.
+- **The scanner:** `CITATION_RULES` (Decision 2's table), `CITATION_SUFFIXES`, `_comment_blocks`, `_python_prose(text)`, `_hash_comments(text)`, `context_citation_hits(path)`, `context_citation_files(root)`, at the end of `tests/harness/scan.py`.
+- **The check:** `test_code_outside_src_names_no_context_document`, `JUDGE_FILE`, `GUEST_INPUT` and `CONTEXT_CITATION_ALLOWED` in `tests/checks/test_rules.py`, after the specifications' shape checks.
+- **The unit rows** (`tests/unit/test_scan.py`, eighteen): one parametrized row per form (fifteen cases), each seen in a Python docstring, a Python trailing comment, a shell comment line and a shell trailing comment; one negative row (a `context/` path and a citing literal in code, a `noqa` code and words with digits in a comment, a citing string in a shell command, a licence's section, a graph's number, a reviewed list, and a file that does not parse give no hit, while a lone `C99` in a comment does); one row for the files read; one row for a citation split across docstring lines and across comment lines, and a code line ending a block. Their fixtures are assembled from parts, so the unit file's own prose is never a hit.
 - **The cleanup:** `build/109/clean.py`, then the recorded hand pass.
 
 ## Scope
 
-In: the comments and docstrings of `tests/`, `scripts/`, `release/` and `.github/workflows/`;
-the check, its scanner, its unit rows; the AGENTS.md parenthesis. Out: `src/` (spec 107);
-`recipes/` and `pyproject.toml`'s comments (no rule reads them yet); `context/`; every string
-literal (Decision 6); the judge's allowance files and the guest's own sources (Decision 5); a bare
-`Decision N` or `criterion N` with no specification beside it (206 and 28 left, EXECUTED,
-`build/109/residue.py`): they name a numbered part of no named document, the rule's forms do not
-include them, and where this pass removed a specification it removed its decision with it;
-`CHANGELOG.md` and the roadmap (the line is proposed in the landing notes).
+In: the comments and docstrings of `tests/`, `scripts/`, `release/` and `.github/workflows/`; the check, its scanner, its unit rows; the AGENTS.md parenthesis. Out: `src/` (spec 107); `recipes/` and `pyproject.toml`'s comments (no rule reads them yet); `context/`; every string literal (Decision 6); the judge's allowance files and the guest's own sources (Decision 5); a bare `Decision N` or `criterion N` with no specification beside it (206 and 28 left, EXECUTED, `build/109/residue.py`): they name a numbered part of no named document, the rule's forms do not include them, and where this pass removed a specification it removed its decision with it; `CHANGELOG.md` and the roadmap (the line is proposed in the landing notes).
 
 ## Acceptance criteria
 
-1. **Seen failing first:** the check fails on `b7a1250` with the check, its scanner and its
-   allowance in place and nothing else changed, and so does the widened check on the same content;
-   both counts are kept in `build/109/seen-failing.txt`.
-2. **Passes on the built commit**, with `CONTEXT_CITATION_ALLOWED` holding only the entries of
-   Decision 5, every one used.
-3. **Counts before and after** by tree, from the same scanner, in `build/109/hits-before.txt` and
-   `build/109/hits-after.txt`, sorted by file and rule; after: 67, all in the files of Decision 5.
+1. **Seen failing first:** the check fails on `b7a1250` with the check, its scanner and its allowance in place and nothing else changed, and so does the widened check on the same content; both counts are kept in `build/109/seen-failing.txt`.
+2. **Passes on the built commit**, with `CONTEXT_CITATION_ALLOWED` holding only the entries of Decision 5, every one used.
+3. **Counts before and after** by tree, from the same scanner, in `build/109/hits-before.txt` and `build/109/hits-after.txt`, sorted by file and rule; after: 67, all in the files of Decision 5.
 4. **The unit rows** (eighteen) pass; `tests/unit/test_scan.py` passes whole.
-5. **Comments only:** for every file the cleanup commits change, the Python token stream with
-   comments removed and docstrings blanked is the same before and after, and for every other file
-   the lines that are not `#` comments are the same (`build/109/same-code.py`, EXECUTED, prints
-   nothing).
-6. **No protected file changes:** `git diff --stat b7a1250 -- tests/known_gaps.toml
-   'tests/upstream/*.toml' tests/upstream/expected tests/upstream/python context/progress src` is
-   empty, and so is the diff of the 24 guest sources of Decision 8.
-7. **Rule (b) traced:** the landing notes list every sentence written under rule (b) with the
-   document it stood on.
+5. **Comments only:** for every file the cleanup commits change, the Python token stream with comments removed and docstrings blanked is the same before and after, and for every other file the lines that are not `#` comments are the same (`build/109/same-code.py`, EXECUTED, prints nothing).
+6. **No protected file changes:** `git diff --stat b7a1250 -- tests/known_gaps.toml 'tests/upstream/*.toml' tests/upstream/expected tests/upstream/python context/progress src` is empty, and so is the diff of the 24 guest sources of Decision 8.
+7. **Rule (b) traced:** the landing notes list every sentence written under rule (b) with the document it stood on.
 8. **The literals reported:** the landing notes list the citing string literals by file and line.
-9. **Reproducible:** `clean.py` then `hand.py` on a copy of the base content give the built files,
-   byte for byte, for every file but the check's own.
-10. **The fast tier** on the built commit fails exactly the baseline's 83 nodes, and `sameness.py`
-    against spec 103's built record prints nothing outside this specification's claims.
+9. **Reproducible:** `clean.py` then `hand.py` on a copy of the base content give the built files, byte for byte, for every file but the check's own.
+10. **The fast tier** on the built commit fails exactly the baseline's 83 nodes, and `sameness.py` against spec 103's built record prints nothing outside this specification's claims.
 11. **Ruff:** `ruff check` and `ruff format --check` are green on `src/` and `tests/`.
 12. **AGENTS.md** carries the parenthesis of Decision 1 and no other change.
 
 ## For the lane
 
-- **Kind:** parallel-safe by effect, build-class by the letter; a judge change. The chain's last
-  entry: re-applied on the chain's tip before the wave (Decision 7).
+- **Kind:** parallel-safe by effect, build-class by the letter; a judge change. The chain's last entry: re-applied on the chain's tip before the wave (Decision 7).
 - **The dispatch:** none of its own; the chain's one dispatch on its final tip.
 - **The claim list** and **the flags**: the landing notes, as the build ran them.
 
 ## One line
 
-Every comment outside `src/` now says why in words, and a check keeps document numbers out of
-code prose, the judge's allowance files and the guest's own sources named as the exceptions.
+Every comment outside `src/` now says why in words, and a check keeps document numbers out of code prose, the judge's allowance files and the guest's own sources named as the exceptions.
 
 ## Landing notes
 
-Re-applied and built 2026-10-21 in the worktree `/home/user/wt/109`, branch
-`spec/109-code-speaks-for-itself`, from the base `d92307f` (the PR branch
-`claude/gallant-ride-9nxxmn`'s tip: 103 to 108 landed and renumbered, 108's build review and its
-disposition written in). The first build (2026-10-20 on `cecceed` from `b7a1250`) was dropped to
-its check commits and redone on this base, as Decision 7 asks. Every number here is EXECUTED on
-this base or on the built commit, with its command; the outputs are kept under `build/109/` in
-the worktree (git-ignored): `renumber-plan.txt`, `seen-failing-B.log`, `hits-before-B.txt`,
-`hits-after-B.txt`, `clean-applied-B.txt`, `hand-applied-B.err`, `check-green-B.log`,
-`scan-rules-B.log`, `fast.log`, `fast-lock-B.txt`, `built.json`, `claims.toml`,
-`claims-chain.toml`, `sameness-108.txt`, `sameness-baseline-chain.txt`, `rule-b-B.txt`,
-`literals-B.txt`, the scripts `clean.py`, `hand.py` with `hand/01_*.py` to `hand/17_*.py`,
-`measure.py`, `same-code.py`, `literals.py`, `with-sigint.py`, `fast-B.sh`, and the first build's
-records (`seen-failing.txt`, `hits-before.txt`, `hits-after.txt`, `regex-job-*.json`).
+Re-applied and built 2026-10-21 in the worktree `/home/user/wt/109`, branch `spec/109-code-speaks-for-itself`, from the base `d92307f` (the PR branch `claude/gallant-ride-9nxxmn`'s tip: 103 to 108 landed and renumbered, 108's build review and its disposition written in). The first build (2026-10-20 on `cecceed` from `b7a1250`) was dropped to its check commits and redone on this base, as Decision 7 asks. Every number here is EXECUTED on this base or on the built commit, with its command; the outputs are kept under `build/109/` in the worktree (git-ignored): `renumber-plan.txt`, `seen-failing-B.log`, `hits-before-B.txt`, `hits-after-B.txt`, `clean-applied-B.txt`, `hand-applied-B.err`, `check-green-B.log`, `scan-rules-B.log`, `fast.log`, `fast-lock-B.txt`, `built.json`, `claims.toml`, `claims-chain.toml`, `sameness-108.txt`, `sameness-baseline-chain.txt`, `rule-b-B.txt`, `literals-B.txt`, the scripts `clean.py`, `hand.py` with `hand/01_*.py` to `hand/17_*.py`, `measure.py`, `same-code.py`, `literals.py`, `with-sigint.py`, `fast-B.sh`, and the first build's records (`seen-failing.txt`, `hits-before.txt`, `hits-after.txt`, `regex-job-*.json`).
 
-- **Rebase onto main** (the coordinator, 2026-10-21): rebased onto main's `dda6075` with the
-  chain, by regeneration. The coordinator replayed this specification's commits onto 108's new tip
-  `ab84933`: one append conflict, `tests/unit/test_scan.py` (main's spec 099 block, the
-  `npy_fenv` rows, kept first, then the citation rows); the cleanup commit `26dde7b` could not
-  replay (`tests/harness/upstream.py` and `tests/unit/test_upstream.py` changed on main) and was
-  skipped; the allowance commit replayed. The hashes of the bullet below, rebased: `ef0d06b` →
-  `a024dcc`, `5af9484` → `dd55973`, `f0b7083` → `4eb1185`, `aa483e2` → `6c50390`, `b42e653` →
-  `617d49c`, `1cf9762` → `13c9dc3`, `8fe2a8a` → `f2edb1c`, `f17a67a` → `0c812c0`, `bacf7a9` →
-  `037bd32`, `b14b68c` → `3a4a75f`; `26dde7b` → regenerated as `9793964`, and the allowance
-  reconciled in `9b5a3f5`, both on `3a4a75f`. The cleanup, run again on main's tree (EXECUTED,
-  the outputs under `build/integration/` in the integration worktree, the scripts and the
-  batches copied to `build/integration/109/`): before, on `3a4a75f`, **2,372** citations
-  (`tests/` 2,029, `scripts/` 285, `release/` 6, the workflow 52; specification 1,695, finding
-  328, review 256, named finding 24, context path 23, constitution 22, memo 17, question 7),
-  main's nine commits of 2026-10-20 (specs 042, 066 and 099) having added 133: new files
-  `tests/harness/packages.py` (22), `tests/upstream/package_drive.py` (6, a guest driver),
-  `tests/unit/test_packages.py` (4), the golden jobs `pdf_reports.py` (1) and
-  `statistical_plots.py` (3), six upstream allowance files (`contourpy.toml` 9, `pillow.toml` 2,
-  `kiwisolver`, `lxml`, `matplotlib` and `regex.toml` 1 each), and more lines in 25 files
-  (`scripts/assemble_artifacts.py` +10, `tests/harness/upstream.py` +9,
-  `tests/checks/test_v1_3_default_profile.py` +8, `tests/upstream/packages.toml` +7, …).
-  `clean.py` changed 1,293 lines; `hand.py` with the seventeen recorded batches and an
-  eighteenth, `18_main_dda6075.py` (22 edits for main's sentences: 11 under rule (a), 11 under
-  rule (b), each with its document), applied 489, missed 0, skipped 10; batch 10's entry for
-  `test_upstream.py`'s `# python: spec 065` was removed, main having reworded the line, and
-  batch 18 rewrites the new line. The guest rule now also keeps `tests/upstream/package_drive.py`
-  (it runs inside the guest only). `same-code.py 3a4a75f` prints nothing; the pass run again from
-  `3a4a75f` in a scratch worktree gives `9793964`'s files byte for byte. After: **114**, all in
-  the allowance (the `src/` check's shapes 14; the judge's allowance files 54:
-  `known_gaps.toml` 5, the upstream suites' ten files 49; the guest's sources 46: 24 golden
-  jobs 34, the three drivers 12). The allowance is 92 rows: `JUDGE_FILE` 41 (twelve new, one removed, net eleven, for
-  the six compiled packages' suites, `packages.toml`'s and the known gaps' new lines),
-  `GUEST_INPUT` 41 (nine new: the two golden jobs, the package driver), `SHAPE_SHOWN` 10; one
-  row removed, `packages.toml`'s "spec 043", a phrase main's file no longer carries; every row
-  used. `tests/checks/test_rules.py`'s debt-sheet path reads
-  `34-wasmtime-py-public-api-for-the-runner` (main took 30, 32 and 33; 31 is spec 100's). On
-  `9b5a3f5`: `test_rules.py` alone 54 passed, 3 skipped, 1 failed
-  (`test_version_states_the_platform_semantics`, the older set's); `test_scan.py` 239 passed;
-  `ruff check src tests` and `ruff format --check src tests` clean; `mypy --strict` no issues;
-  the workflow parsed with pyyaml at `dda6075` and on the tip differs in the three `run:`
-  scalars of the build review's finding 1 and, with the shell comments inside them removed, in
-  nothing (`build/integration/109-yaml-compare.txt`). The fast tier on the final tip and
-  sameness against main's own baseline record are run after this commit, so that the tip is
-  what ran; their outputs are `build/integration/fast.log`, `built.json`, `sameness.txt`.
-- **Commits, in the order built** (`git log --oneline d92307f..`): `ef0d06b` (this specification
-  and the AGENTS.md parenthesis), `5af9484` (the check, its scanner, its first unit rows, seen
-  failing), `f0b7083` (the check widened: split citations, bare numbers, named reviews, numbered
-  sections), `b42e653` (this file renamed from 108 to 109 and its citations moved, since main
-  reserved 102 for the release tier; the plan in `renumber-plan.txt`), `26dde7b` (the cleanup:
-  comments and docstrings outside `src/` give their reasons in words), `1cf9762` (the allowance
-  for the sources the guest runs and the `src/` check's own shapes), and the commit that carries
-  this Status line and these notes. The built commit is `1cf9762`; the last commit touches only
-  this file. `git diff --stat d92307f 1cf9762`: 150 files changed, 2,609 insertions, 1,806
-  deletions (`tests/` 99 files, `scripts/` 47, `release/` 2, the workflow, `AGENTS.md`, this
-  file). The first build's three text commits (`b0d5482`, `039cbc4`, `cecceed`) were dropped at
-  the rebase and regenerated here; the two rebases (onto `0e145b7`, 107's landed tip, then
-  onto `d92307f`) resolved one append hunk each, both sides kept: `tests/checks/test_rules.py`
-  (107's line-ceiling and process-owner checks before this check's allowance and function) and
-  `tests/harness/scan.py` (`import tokenize` beside 108's `import warnings`);
-  `tests/unit/test_scan.py` merged on its own both times.
-- **CI: none of its own; the chain's one dispatch on this tip** (the owner, 2026-10-20). This
-  specification is the chain's last link, so that dispatch is its run; its id is the lane's to
-  write here. The fast tier below is the build's judge.
-- **Seen failing first** (`seen-failing-B.log`, criterion 1): the check on the base's content
-  (`b42e653`: `d92307f` plus the check, its scanner, its unit rows and the allowance of the
-  judge's thirty files' rows, nothing else changed): **2,208 findings**, digest `4c73c13fd534`.
-  On `1cf9762` it passes with every allowance row used (`check-green-B.log`: 2 passed, the
-  `src/` check beside it; criterion 2). The first build's two counts on `b7a1250` (1,758 and
-  2,194) stay in `seen-failing.txt`.
-- **Counts before and after** (`uv run python build/109/measure.py`, the final scanner;
-  criterion 3): before, on `b42e653`, **2,239** (`tests/` 1,910, `scripts/` 272, `release/` 6,
-  `.github/workflows/` 51; by rule: specification 1,590, finding 319, review 243, context path
-  23, constitution 21, named finding 20, memo 17, question 6). The chain added 14 of them in
-  `tests/checks/test_rules.py` (107's `src/` citation check documents its regexes with the
-  shapes they match: nine finding-shaped tokens and the word "memo", four times) and 2 in 108's
-  review scanners (`context/reviews/` and `reviews/…` named as paths); the four files 103 to
-  108 added (`tests/harness/calls.py`, `tests/unit/test_lifecycles.py`, `test_process.py`,
-  `test_runner_package.py`) carry none. After, on `1cf9762`, **81**, all under `tests/` and all
-  in the allowance: 31 in the judge's allowance files (`tests/known_gaps.toml` 4,
-  `tests/upstream/*.toml` 27), 36 in the guest's own sources (`tests/jobs/` 30,
-  `tests/upstream/drive.py` 3, `regrtest_drive.py` 3), 14 in the `src/` check's documentation
-  (`tests/checks/test_rules.py`); by rule: specification 61, finding 14, memo 4, context path 1,
-  review 1. `scripts/`, `release/` and the workflow: 0. Files the cleanup changed: 98 under
-  `tests/`, 47 under `scripts/`, 2 under `release/`, the workflow (148 files, 1,778 insertions,
-  1,805 deletions).
-- **The pass** (Decision 7; criterion 9): `clean.py` changed 1,230 lines in 143 files; the hand
-  pass is 478 recorded edits in seventeen batches: 468 applied, 10 skipped as guest sources, 0
-  missed. Run again from a scratch worktree at `b42e653`, the two give the cleanup commit's
-  files byte for byte (`git diff --cached --stat 26dde7b` on the reproduced tree: empty). The
-  first run on this base named four misses, each read and handled: two olds followed the chain
-  (`test_rules.py`'s "Spec 102, Design" is "Spec 103" since the renumbering;
-  `test_runner_sweep.py`'s "the removal is `_remove_tree`" is "the platform's `remove_tree`"
-  since 107), and two entries were stale and removed (`test_runner_calls.py`'s "spec 015's epoch
-  callback": 107 reworded the line itself, no citation left; `scripts/steps/35_stdlib_libs.sh`'s
-  "(and its confirmation)": the final `clean.py` removes it itself). Two sentences the chain
-  added are reworded by hand in batch 17: 108's release check named `context/reviews/` and its
-  scanner named `reviews/NNN-<slug>-spec-YYYY-MM-DD.md`; each now says "among the reviews".
-  The four review mentions the first build fixed in `cecceed` are in the batches now.
-- **Comments only** (criterion 5): `uv run python build/109/same-code.py b42e653` after the
-  cleanup commit prints nothing; on `1cf9762` it prints only `tests/checks/test_rules.py`, whose
-  allowance tuple grew by 42 rows in the allowance commit. Criterion 6: `git diff --stat
-  d92307f -- tests/known_gaps.toml 'tests/upstream/*.toml' tests/upstream/expected
-  tests/upstream/python context/progress src` is empty, and so is the diff of the 25 golden
-  jobs (`tests/jobs/*.py` but `regen.py`) and the two guest drivers. One reading the build
-  review adds (its finding 1, EXECUTED with pyyaml): a `#` line inside a `run: |` block of the
-  workflow is part of that step's script in the parsed document, so the parsed YAML at
-  `d92307f` and at the built commit differ in exactly three values, the `verify` job's step 5
-  and the two rebuild jobs' step 2, each by the shell comments inside the script and in no
-  command; every other key and value is equal.
-- **The sources the guest runs** (Decision 8): untouched, by `clean.py`'s own rule and
-  `hand.py`'s skip, so there is no commit that puts their bytes back; the 24 that cite (22 jobs,
-  `drive.py`, `regrtest_drive.py`) are in the allowance with the reason the first build
-  measured (the regex job's fuel moved by +38,470 plain and +73,497 snapshot with a shorter
-  docstring, `regex-job-*.json`). No fuel row may move, and none does (the sameness lines
-  below: 0 fuel rows).
-- **The allowance** (Decision 5, extended; `CONTEXT_CITATION_ALLOWED`, 72 rows, each with its
-  reason, a stale row failing): 30 rows `JUDGE_FILE` (the known gaps and the upstream suites'
-  allowances change only by a judge change of their own); 32 rows `GUEST_INPUT` (a source the
-  guest runs: its bytes are the guest's input); 10 rows `SHAPE_SHOWN` for
-  `tests/checks/test_rules.py` (`C6`, `C99`, `D3`, `F1`, `F3`, `F4.2`, `L1`, `N12`, `S3`,
-  `memo`: the `src/` citation check documents its regexes by showing the shapes they match and
-  refuse; the token is the rule's own vocabulary, not a citation of a document). The third
-  reason is new to this build: 107's check landed after the first build, and its documentation
-  must show the shapes (the AGENTS.md bullet: the judge reads `context/` as data). Every row is
-  used (`measure.py`'s 81 hits are the rows' hits: 72 pairs, 0 unadmitted, 0 unused).
-- **The fast tier** (criterion 10; `uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider` on
-  `1cf9762` with `WASI_PYTHON_ARTIFACTS` the frozen `v0.1.0a7` set, through `with-sigint.py`,
-  under the machine's lock `build/fast-tier.lock`, taken at 00:38:49Z and freed at 00:43:26Z;
-  `fast.log`): **83 failed, 2,459 passed, 52 skipped** in 276 s; the failed nodes are exactly
-  the baseline's 83 (`build/baseline-a7/failing-nodes.txt`, a `diff` of the sorted node ids is
-  empty). Unit suite: 1,948 rows (1,934 passed, 13 skipped, 1 failed:
-  `test_the_walk_judges_links`, in the baseline's 83), 18 more than 108's reviewer record's
-  1,930 (the eighteen scanner rows).
-- **Sameness** (criterion 10, as the chain reads it), both verbatim, exit 0. Against 108's
-  reviewer record (`uv run python tests/harness/sameness.py /home/user/wt/108/build/108/review.json
-  build/109/built.json --claims build/109/claims.toml`):
+- **Rebase onto main** (the coordinator, 2026-10-21): rebased onto main's `dda6075` with the chain, by regeneration. The coordinator replayed this specification's commits onto 108's new tip `ab84933`: one append conflict, `tests/unit/test_scan.py` (main's spec 099 block, the `npy_fenv` rows, kept first, then the citation rows); the cleanup commit `26dde7b` could not replay (`tests/harness/upstream.py` and `tests/unit/test_upstream.py` changed on main) and was skipped; the allowance commit replayed. The hashes of the bullet below, rebased: `ef0d06b` → `a024dcc`, `5af9484` → `dd55973`, `f0b7083` → `4eb1185`, `aa483e2` → `6c50390`, `b42e653` → `617d49c`, `1cf9762` → `13c9dc3`, `8fe2a8a` → `f2edb1c`, `f17a67a` → `0c812c0`, `bacf7a9` → `037bd32`, `b14b68c` → `3a4a75f`; `26dde7b` → regenerated as `9793964`, and the allowance reconciled in `9b5a3f5`, both on `3a4a75f`. The cleanup, run again on main's tree (EXECUTED, the outputs under `build/integration/` in the integration worktree, the scripts and the batches copied to `build/integration/109/`): before, on `3a4a75f`, **2,372** citations (`tests/` 2,029, `scripts/` 285, `release/` 6, the workflow 52; specification 1,695, finding 328, review 256, named finding 24, context path 23, constitution 22, memo 17, question 7), main's nine commits of 2026-10-20 (specs 042, 066 and 099) having added 133: new files `tests/harness/packages.py` (22), `tests/upstream/package_drive.py` (6, a guest driver), `tests/unit/test_packages.py` (4), the golden jobs `pdf_reports.py` (1) and `statistical_plots.py` (3), six upstream allowance files (`contourpy.toml` 9, `pillow.toml` 2, `kiwisolver`, `lxml`, `matplotlib` and `regex.toml` 1 each), and more lines in 25 files (`scripts/assemble_artifacts.py` +10, `tests/harness/upstream.py` +9, `tests/checks/test_v1_3_default_profile.py` +8, `tests/upstream/packages.toml` +7, …). `clean.py` changed 1,293 lines; `hand.py` with the seventeen recorded batches and an eighteenth, `18_main_dda6075.py` (22 edits for main's sentences: 11 under rule (a), 11 under rule (b), each with its document), applied 489, missed 0, skipped 10; batch 10's entry for `test_upstream.py`'s `# python: spec 065` was removed, main having reworded the line, and batch 18 rewrites the new line. The guest rule now also keeps `tests/upstream/package_drive.py` (it runs inside the guest only). `same-code.py 3a4a75f` prints nothing; the pass run again from `3a4a75f` in a scratch worktree gives `9793964`'s files byte for byte. After: **114**, all in the allowance (the `src/` check's shapes 14; the judge's allowance files 54: `known_gaps.toml` 5, the upstream suites' ten files 49; the guest's sources 46: 24 golden jobs 34, the three drivers 12). The allowance is 92 rows: `JUDGE_FILE` 41 (twelve new, one removed, net eleven, for the six compiled packages' suites, `packages.toml`'s and the known gaps' new lines), `GUEST_INPUT` 41 (nine new: the two golden jobs, the package driver), `SHAPE_SHOWN` 10; one row removed, `packages.toml`'s "spec 043", a phrase main's file no longer carries; every row used. `tests/checks/test_rules.py`'s debt-sheet path reads `34-wasmtime-py-public-api-for-the-runner` (main took 30, 32 and 33; 31 is spec 100's). On `9b5a3f5`: `test_rules.py` alone 54 passed, 3 skipped, 1 failed (`test_version_states_the_platform_semantics`, the older set's); `test_scan.py` 239 passed; `ruff check src tests` and `ruff format --check src tests` clean; `mypy --strict` no issues; the workflow parsed with pyyaml at `dda6075` and on the tip differs in the three `run:` scalars of the build review's finding 1 and, with the shell comments inside them removed, in nothing (`build/integration/109-yaml-compare.txt`). The fast tier on the final tip and sameness against main's own baseline record are run after this commit, so that the tip is what ran; their outputs are `build/integration/fast.log`, `built.json`, `sameness.txt`.
+- **Commits, in the order built** (`git log --oneline d92307f..`): `ef0d06b` (this specification and the AGENTS.md parenthesis), `5af9484` (the check, its scanner, its first unit rows, seen failing), `f0b7083` (the check widened: split citations, bare numbers, named reviews, numbered sections), `b42e653` (this file renamed from 108 to 109 and its citations moved, since main reserved 102 for the release tier; the plan in `renumber-plan.txt`), `26dde7b` (the cleanup: comments and docstrings outside `src/` give their reasons in words), `1cf9762` (the allowance for the sources the guest runs and the `src/` check's own shapes), and the commit that carries this Status line and these notes. The built commit is `1cf9762`; the last commit touches only this file. `git diff --stat d92307f 1cf9762`: 150 files changed, 2,609 insertions, 1,806 deletions (`tests/` 99 files, `scripts/` 47, `release/` 2, the workflow, `AGENTS.md`, this file). The first build's three text commits (`b0d5482`, `039cbc4`, `cecceed`) were dropped at the rebase and regenerated here; the two rebases (onto `0e145b7`, 107's landed tip, then onto `d92307f`) resolved one append hunk each, both sides kept: `tests/checks/test_rules.py` (107's line-ceiling and process-owner checks before this check's allowance and function) and `tests/harness/scan.py` (`import tokenize` beside 108's `import warnings`); `tests/unit/test_scan.py` merged on its own both times.
+- **CI: none of its own; the chain's one dispatch on this tip** (the owner, 2026-10-20). This specification is the chain's last link, so that dispatch is its run; its id is the lane's to write here. The fast tier below is the build's judge.
+- **Seen failing first** (`seen-failing-B.log`, criterion 1): the check on the base's content (`b42e653`: `d92307f` plus the check, its scanner, its unit rows and the allowance of the judge's thirty files' rows, nothing else changed): **2,208 findings**, digest `4c73c13fd534`. On `1cf9762` it passes with every allowance row used (`check-green-B.log`: 2 passed, the `src/` check beside it; criterion 2). The first build's two counts on `b7a1250` (1,758 and 2,194) stay in `seen-failing.txt`.
+- **Counts before and after** (`uv run python build/109/measure.py`, the final scanner; criterion 3): before, on `b42e653`, **2,239** (`tests/` 1,910, `scripts/` 272, `release/` 6, `.github/workflows/` 51; by rule: specification 1,590, finding 319, review 243, context path 23, constitution 21, named finding 20, memo 17, question 6). The chain added 14 of them in `tests/checks/test_rules.py` (107's `src/` citation check documents its regexes with the shapes they match: nine finding-shaped tokens and the word "memo", four times) and 2 in 108's review scanners (`context/reviews/` and `reviews/…` named as paths); the four files 103 to 108 added (`tests/harness/calls.py`, `tests/unit/test_lifecycles.py`, `test_process.py`, `test_runner_package.py`) carry none. After, on `1cf9762`, **81**, all under `tests/` and all in the allowance: 31 in the judge's allowance files (`tests/known_gaps.toml` 4, `tests/upstream/*.toml` 27), 36 in the guest's own sources (`tests/jobs/` 30, `tests/upstream/drive.py` 3, `regrtest_drive.py` 3), 14 in the `src/` check's documentation (`tests/checks/test_rules.py`); by rule: specification 61, finding 14, memo 4, context path 1, review 1. `scripts/`, `release/` and the workflow: 0. Files the cleanup changed: 98 under `tests/`, 47 under `scripts/`, 2 under `release/`, the workflow (148 files, 1,778 insertions, 1,805 deletions).
+- **The pass** (Decision 7; criterion 9): `clean.py` changed 1,230 lines in 143 files; the hand pass is 478 recorded edits in seventeen batches: 468 applied, 10 skipped as guest sources, 0 missed. Run again from a scratch worktree at `b42e653`, the two give the cleanup commit's files byte for byte (`git diff --cached --stat 26dde7b` on the reproduced tree: empty). The first run on this base named four misses, each read and handled: two olds followed the chain (`test_rules.py`'s "Spec 102, Design" is "Spec 103" since the renumbering; `test_runner_sweep.py`'s "the removal is `_remove_tree`" is "the platform's `remove_tree`" since 107), and two entries were stale and removed (`test_runner_calls.py`'s "spec 015's epoch callback": 107 reworded the line itself, no citation left; `scripts/steps/35_stdlib_libs.sh`'s "(and its confirmation)": the final `clean.py` removes it itself). Two sentences the chain added are reworded by hand in batch 17: 108's release check named `context/reviews/` and its scanner named `reviews/NNN-<slug>-spec-YYYY-MM-DD.md`; each now says "among the reviews". The four review mentions the first build fixed in `cecceed` are in the batches now.
+- **Comments only** (criterion 5): `uv run python build/109/same-code.py b42e653` after the cleanup commit prints nothing; on `1cf9762` it prints only `tests/checks/test_rules.py`, whose allowance tuple grew by 42 rows in the allowance commit. Criterion 6: `git diff --stat d92307f -- tests/known_gaps.toml 'tests/upstream/*.toml' tests/upstream/expected tests/upstream/python context/progress src` is empty, and so is the diff of the 25 golden jobs (`tests/jobs/*.py` but `regen.py`) and the two guest drivers. One reading the build review adds (its finding 1, EXECUTED with pyyaml): a `#` line inside a `run: |` block of the workflow is part of that step's script in the parsed document, so the parsed YAML at `d92307f` and at the built commit differ in exactly three values, the `verify` job's step 5 and the two rebuild jobs' step 2, each by the shell comments inside the script and in no command; every other key and value is equal.
+- **The sources the guest runs** (Decision 8): untouched, by `clean.py`'s own rule and `hand.py`'s skip, so there is no commit that puts their bytes back; the 24 that cite (22 jobs, `drive.py`, `regrtest_drive.py`) are in the allowance with the reason the first build measured (the regex job's fuel moved by +38,470 plain and +73,497 snapshot with a shorter docstring, `regex-job-*.json`). No fuel row may move, and none does (the sameness lines below: 0 fuel rows).
+- **The allowance** (Decision 5, extended; `CONTEXT_CITATION_ALLOWED`, 72 rows, each with its reason, a stale row failing): 30 rows `JUDGE_FILE` (the known gaps and the upstream suites' allowances change only by a judge change of their own); 32 rows `GUEST_INPUT` (a source the guest runs: its bytes are the guest's input); 10 rows `SHAPE_SHOWN` for `tests/checks/test_rules.py` (`C6`, `C99`, `D3`, `F1`, `F3`, `F4.2`, `L1`, `N12`, `S3`, `memo`: the `src/` citation check documents its regexes by showing the shapes they match and refuse; the token is the rule's own vocabulary, not a citation of a document). The third reason is new to this build: 107's check landed after the first build, and its documentation must show the shapes (the AGENTS.md bullet: the judge reads `context/` as data). Every row is used (`measure.py`'s 81 hits are the rows' hits: 72 pairs, 0 unadmitted, 0 unused).
+- **The fast tier** (criterion 10; `uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider` on `1cf9762` with `WASI_PYTHON_ARTIFACTS` the frozen `v0.1.0a7` set, through `with-sigint.py`, under the machine's lock `build/fast-tier.lock`, taken at 00:38:49Z and freed at 00:43:26Z; `fast.log`): **83 failed, 2,459 passed, 52 skipped** in 276 s; the failed nodes are exactly the baseline's 83 (`build/baseline-a7/failing-nodes.txt`, a `diff` of the sorted node ids is empty). Unit suite: 1,948 rows (1,934 passed, 13 skipped, 1 failed: `test_the_walk_judges_links`, in the baseline's 83), 18 more than 108's reviewer record's 1,930 (the eighteen scanner rows).
+- **Sameness** (criterion 10, as the chain reads it), both verbatim, exit 0. Against 108's reviewer record (`uv run python tests/harness/sameness.py /home/user/wt/108/build/108/review.json build/109/built.json --claims build/109/claims.toml`):
 
   ```
   note: explained by claims: 109 2
   ```
 
-  Against the chain's baseline (`uv run python tests/harness/sameness.py
-  /home/user/wasi_python/build/baseline-a7/baseline.json build/109/built.json --claims
-  build/109/claims-chain.toml`, the chain's claim list of 108 plus this specification's):
+  Against the chain's baseline (`uv run python tests/harness/sameness.py /home/user/wasi_python/build/baseline-a7/baseline.json build/109/built.json --claims build/109/claims-chain.toml`, the chain's claim list of 108 plus this specification's):
 
   ```
   note: explained by claims: 103 4 · 104 3 · 105 4 · 106 3 · 107 4 · 108 5 · 109 2
   ```
 
   0 fuel rows, 0 bytes rows, no verdict moved.
-- **The claim list** (`build/109/claims.toml`, as run; `claims-chain.toml` is 108's chain list
-  plus this one):
+- **The claim list** (`build/109/claims.toml`, as run; `claims-chain.toml` is 108's chain list plus this one):
 
   ```toml
   [[claim]]
@@ -426,12 +153,8 @@ records (`seen-failing.txt`, `hits-before.txt`, `hits-after.txt`, `regex-job-*.j
   units = 18
   ```
 
-  109: **retired checks:** none. **Lost passes:** none. **Rows that grow:** none. **The judge
-  hash changes** in `tests/harness/scan.py`, `tests/checks/test_rules.py`,
-  `tests/unit/test_scan.py` and the comments of every changed file under `tests/`.
-- **Rule (b) sentences** (criterion 7; `uv run python build/109/hand.py --list-b`), each with
-  the document its words were drawn from (121; five more on the guest's sources are
-  recorded in the batches and skipped):
+  109: **retired checks:** none. **Lost passes:** none. **Rows that grow:** none. **The judge hash changes** in `tests/harness/scan.py`, `tests/checks/test_rules.py`, `tests/unit/test_scan.py` and the comments of every changed file under `tests/`.
+- **Rule (b) sentences** (criterion 7; `uv run python build/109/hand.py --list-b`), each with the document its words were drawn from (121; five more on the guest's sources are recorded in the batches and skipped):
 
   - `tests/checks/test_v1_4_embedding.py`: never freed; run now runs every program in a fresh __main__ ← spec 073 (run gives every program a fresh __main__ and unfreezes the heap)
   - `tests/checks/test_v1_4_embedding.py`: a call that has a `cancel` (the runner's stop from inside a host function), though the guest catches the door's error and computes on with no deadline. ← spec 011 (a host function stops its call without raising through wasmtime-py)
@@ -555,37 +278,17 @@ records (`seen-failing.txt`, `hits-before.txt`, `hits-after.txt`, `regex-job-*.j
   - `tests/checks/test_rules.py`: has its structural review of `src/` on file among the reviews, scoring the rubric's eight ← none: the reviews folder the check reads, named in words
   - `tests/harness/scan.py`: Status begins with built or landed, its own review before build, a file named `NNN-<slug>-spec-YYYY-MM-DD.md` among the reviews, and the file exists: the mirror of ← none: the reviews folder the scanner reads, named in words
 
-- **String literals left** (criterion 8; rule (c); for spec 107 or the owner; 78 lines,
-  the allowance tuple's own rows and the data paths under `context/` that code reads not
-  listed): `scripts/gen_inittab.py:137` (spec 047); `tests/checks/test_rules.py:922` (memo); `tests/checks/test_v1_2_hostile_guest.py:75` (spec 017); `tests/checks/test_v1_2_hostile_guest.py:560` (spec 023); `tests/checks/test_v1_2_hostile_guest.py:1613` (spec 015); `tests/checks/test_v1_2_hostile_guest.py:2622` (055's, spec 055, spec 078); `tests/checks/test_v1_3_data_stack.py:232` (spec 069); `tests/checks/test_v1_3_data_stack.py:237` (spec 069); `tests/checks/test_v1_4_embedding.py:1172` (spec 017); `tests/checks/test_v1_4_embedding.py:1236` (032's, spec 030, spec 032, spec 052); `tests/checks/test_v1_4_embedding.py:2270` (017's, spec 017, spec 078); `tests/checks/test_v1_4_embedding.py:3076` (spec 052); `tests/checks/test_v1_5_rebuild_from_pins.py:306` (memo); `tests/checks/test_v1_5_rebuild_from_pins.py:376` (spec 086); `tests/harness/guest.py:584` (spec 081); `tests/harness/history.py:258` (spec 062); `tests/harness/litter.py:55` (spec 089); `tests/harness/litter.py:164` (spec 089); `tests/harness/litter.py:213` (spec 089); `tests/harness/paths.py:344` (constitution §); `tests/harness/pins.py:98` (spec 090); `tests/harness/plugin.py:94` (spec 002); `tests/harness/plugin.py:108` (spec 063); `tests/harness/plugin.py:151` (constitution §); `tests/harness/plugin.py:182` (spec 029); `tests/harness/plugin.py:193` (spec 029); `tests/harness/plugin.py:204` (spec 002); `tests/harness/plugin.py:294` (spec 063); `tests/harness/plugin.py:516` (spec 052); `tests/harness/plugin.py:542` (build review); `tests/harness/sameness.py:114` (092's, build review); `tests/harness/sameness.py:117` (spec 092); `tests/harness/sameness.py:118` (spec 092); `tests/harness/sameness.py:423` (spec 092); `tests/harness/scan.py:1545` (057's, spec 057); `tests/harness/scan.py:1794` (spec 085); `tests/harness/scan.py:2338` (spec 026); `tests/harness/scan.py:3004` (memo); `tests/harness/scan.py:3027` (re-review); `tests/harness/scoreboard.py:35` (spec 091); `tests/harness/scoreboard.py:232` (spec 062); `tests/harness/scoreboard.py:301` (spec 062); `tests/unit/test_build_progress.py:1087` (spec 079); `tests/unit/test_landing_lane.py:353` (memo); `tests/unit/test_landing_lane.py:372` (reviews/); `tests/unit/test_landing_lane.py:395` (constitution §); `tests/unit/test_landing_lane.py:626` (build review); `tests/unit/test_landing_lane.py:677` (constitution §); `tests/unit/test_patches.py:267` (spec 090); `tests/unit/test_pins.py:87` (spec 090); `tests/unit/test_pins.py:89` (spec 090); `tests/unit/test_sameness.py:221` (spec 092); `tests/unit/test_sameness.py:227` (spec 092); `tests/unit/test_scan.py:203` (memo); `tests/unit/test_scan.py:244` (reviews/); `tests/unit/test_scan.py:247` (reviews/); `tests/unit/test_scan.py:254` (reviews/); `tests/unit/test_scan.py:304` (reviews/); `tests/unit/test_scan.py:309` (reviews/); `tests/unit/test_scan.py:311` (reviews/); `tests/unit/test_scan.py:319` (reviews/); `tests/unit/test_scan.py:322` (reviews/); `tests/unit/test_scan.py:325` (reviews/); `tests/unit/test_scan.py:2102` (spec 085); `tests/unit/test_scan.py:2274` (constitution §); `tests/unit/test_scan.py:2275` (memo); `tests/unit/test_scan.py:2276` (review 2026-10-19); `tests/unit/test_scan.py:2277` (review reviews/); `tests/unit/test_scan.py:2278` (question 95); `tests/unit/test_scan.py:2280` (build review); `tests/unit/test_scan.py:2282` (Confirmation's, Confirmation's M5); `tests/unit/test_scipy_build.py:306` (090's, spec 090); `tests/unit/test_several_cores.py:434` (spec 052); `tests/unit/test_shards.py:210` (spec 001, spec 065); `tests/unit/test_shards.py:282` (spec 065); `tests/unit/test_shards.py:283` (spec 065, spec 099); `tests/unit/test_upstream.py:745` (reviews/); `tests/unit/test_upstream.py:911` (reviews/). They are guest programs held as strings (`test_v1_2_hostile_guest.py`,
-  `test_v1_4_embedding.py`), messages the judge prints and a check matches (`plugin.py`,
-  `sameness.py`, `scoreboard.py`, `litter.py`, `pins.py`, `history.py`, `guest.py`, `paths.py`,
-  `scan.py`), a generated C comment (`gen_inittab.py`), and fixtures a scanner's unit rows read
-  (`test_scan.py`, `test_landing_lane.py`, `test_upstream.py`, `test_shards.py`,
-  `test_sameness.py`, `test_pins.py`, `test_patches.py`, `test_scipy_build.py`,
-  `test_several_cores.py`, `test_build_progress.py`).
-- **Other criteria:** `uv run ruff check src tests` and `uv run ruff format --check src tests`
-  green (criterion 11); `uv run mypy --strict src/wasi_python`: no issues in 18 files; `uv run
-  pytest tests/unit/test_scan.py tests/checks/test_rules.py -q -p no:cacheprovider` under the
-  frozen set: 287 passed, 3 skipped, 1 failed (`test_version_states_the_platform_semantics`,
-  the older set's, in the baseline's 83; `scan-rules-B.log`); `git diff d92307f -- AGENTS.md`
-  is the one parenthesis (criterion 12); `test_specifications_have_their_header_and_sections`
-  and `test_specifications_have_no_open_question` pass with this file.
+- **String literals left** (criterion 8; rule (c); for spec 107 or the owner; 78 lines, the allowance tuple's own rows and the data paths under `context/` that code reads not listed): `scripts/gen_inittab.py:137` (spec 047); `tests/checks/test_rules.py:922` (memo); `tests/checks/test_v1_2_hostile_guest.py:75` (spec 017); `tests/checks/test_v1_2_hostile_guest.py:560` (spec 023); `tests/checks/test_v1_2_hostile_guest.py:1613` (spec 015); `tests/checks/test_v1_2_hostile_guest.py:2622` (055's, spec 055, spec 078); `tests/checks/test_v1_3_data_stack.py:232` (spec 069); `tests/checks/test_v1_3_data_stack.py:237` (spec 069); `tests/checks/test_v1_4_embedding.py:1172` (spec 017); `tests/checks/test_v1_4_embedding.py:1236` (032's, spec 030, spec 032, spec 052); `tests/checks/test_v1_4_embedding.py:2270` (017's, spec 017, spec 078); `tests/checks/test_v1_4_embedding.py:3076` (spec 052); `tests/checks/test_v1_5_rebuild_from_pins.py:306` (memo); `tests/checks/test_v1_5_rebuild_from_pins.py:376` (spec 086); `tests/harness/guest.py:584` (spec 081); `tests/harness/history.py:258` (spec 062); `tests/harness/litter.py:55` (spec 089); `tests/harness/litter.py:164` (spec 089); `tests/harness/litter.py:213` (spec 089); `tests/harness/paths.py:344` (constitution §); `tests/harness/pins.py:98` (spec 090); `tests/harness/plugin.py:94` (spec 002); `tests/harness/plugin.py:108` (spec 063); `tests/harness/plugin.py:151` (constitution §); `tests/harness/plugin.py:182` (spec 029); `tests/harness/plugin.py:193` (spec 029); `tests/harness/plugin.py:204` (spec 002); `tests/harness/plugin.py:294` (spec 063); `tests/harness/plugin.py:516` (spec 052); `tests/harness/plugin.py:542` (build review); `tests/harness/sameness.py:114` (092's, build review); `tests/harness/sameness.py:117` (spec 092); `tests/harness/sameness.py:118` (spec 092); `tests/harness/sameness.py:423` (spec 092); `tests/harness/scan.py:1545` (057's, spec 057); `tests/harness/scan.py:1794` (spec 085); `tests/harness/scan.py:2338` (spec 026); `tests/harness/scan.py:3004` (memo); `tests/harness/scan.py:3027` (re-review); `tests/harness/scoreboard.py:35` (spec 091); `tests/harness/scoreboard.py:232` (spec 062); `tests/harness/scoreboard.py:301` (spec 062); `tests/unit/test_build_progress.py:1087` (spec 079); `tests/unit/test_landing_lane.py:353` (memo); `tests/unit/test_landing_lane.py:372` (reviews/); `tests/unit/test_landing_lane.py:395` (constitution §); `tests/unit/test_landing_lane.py:626` (build review); `tests/unit/test_landing_lane.py:677` (constitution §); `tests/unit/test_patches.py:267` (spec 090); `tests/unit/test_pins.py:87` (spec 090); `tests/unit/test_pins.py:89` (spec 090); `tests/unit/test_sameness.py:221` (spec 092); `tests/unit/test_sameness.py:227` (spec 092); `tests/unit/test_scan.py:203` (memo); `tests/unit/test_scan.py:244` (reviews/); `tests/unit/test_scan.py:247` (reviews/); `tests/unit/test_scan.py:254` (reviews/); `tests/unit/test_scan.py:304` (reviews/); `tests/unit/test_scan.py:309` (reviews/); `tests/unit/test_scan.py:311` (reviews/); `tests/unit/test_scan.py:319` (reviews/); `tests/unit/test_scan.py:322` (reviews/); `tests/unit/test_scan.py:325` (reviews/); `tests/unit/test_scan.py:2102` (spec 085); `tests/unit/test_scan.py:2274` (constitution §); `tests/unit/test_scan.py:2275` (memo); `tests/unit/test_scan.py:2276` (review 2026-10-19); `tests/unit/test_scan.py:2277` (review reviews/); `tests/unit/test_scan.py:2278` (question 95); `tests/unit/test_scan.py:2280` (build review); `tests/unit/test_scan.py:2282` (Confirmation's, Confirmation's M5); `tests/unit/test_scipy_build.py:306` (090's, spec 090); `tests/unit/test_several_cores.py:434` (spec 052); `tests/unit/test_shards.py:210` (spec 001, spec 065); `tests/unit/test_shards.py:282` (spec 065); `tests/unit/test_shards.py:283` (spec 065, spec 099); `tests/unit/test_upstream.py:745` (reviews/); `tests/unit/test_upstream.py:911` (reviews/). They are guest programs held as strings (`test_v1_2_hostile_guest.py`, `test_v1_4_embedding.py`), messages the judge prints and a check matches (`plugin.py`, `sameness.py`, `scoreboard.py`, `litter.py`, `pins.py`, `history.py`, `guest.py`, `paths.py`, `scan.py`), a generated C comment (`gen_inittab.py`), and fixtures a scanner's unit rows read (`test_scan.py`, `test_landing_lane.py`, `test_upstream.py`, `test_shards.py`, `test_sameness.py`, `test_pins.py`, `test_patches.py`, `test_scipy_build.py`, `test_several_cores.py`, `test_build_progress.py`).
+- **Other criteria:** `uv run ruff check src tests` and `uv run ruff format --check src tests` green (criterion 11); `uv run mypy --strict src/wasi_python`: no issues in 18 files; `uv run pytest tests/unit/test_scan.py tests/checks/test_rules.py -q -p no:cacheprovider` under the frozen set: 287 passed, 3 skipped, 1 failed (`test_version_states_the_platform_semantics`, the older set's, in the baseline's 83; `scan-rules-B.log`); `git diff d92307f -- AGENTS.md` is the one parenthesis (criterion 12); `test_specifications_have_their_header_and_sections` and `test_specifications_have_no_open_question` pass with this file.
 
 ### For the lane, as built
 
-- **Kind:** parallel-safe by effect, build-class by the letter (comments in `scripts/` and the
-  workflow change; `MANIFEST`'s recipe lines move with them); a judge change. The chain's last
-  link, re-applied on 108's reviewed tip; it touches no file under `src/`, no allowance file,
-  no golden or expected file, no guest-run source.
+- **Kind:** parallel-safe by effect, build-class by the letter (comments in `scripts/` and the workflow change; `MANIFEST`'s recipe lines move with them); a judge change. The chain's last link, re-applied on 108's reviewed tip; it touches no file under `src/`, no allowance file, no golden or expected file, no guest-run source.
 - **The claim list** (each line starts "109:"):
-  - 109: **new checks (1 node), passing, no fuel, no bytes:**
-    `tests/checks/test_rules.py::test_code_outside_src_names_no_context_document`.
-  - 109: **unit rows:** `tests/unit/test_scan.py` gains eighteen rows (the citation scanner):
-    the suite's count rises by eighteen.
+  - 109: **new checks (1 node), passing, no fuel, no bytes:** `tests/checks/test_rules.py::test_code_outside_src_names_no_context_document`.
+  - 109: **unit rows:** `tests/unit/test_scan.py` gains eighteen rows (the citation scanner): the suite's count rises by eighteen.
   - 109: **retired checks:** none. **Lost passes:** none. **Grown rows:** none.
-  - 109: **the judge hash changes** in `tests/harness/scan.py`, `tests/checks/test_rules.py`,
-    `tests/unit/test_scan.py` and every file under `tests/` whose comments changed.
+  - 109: **the judge hash changes** in `tests/harness/scan.py`, `tests/checks/test_rules.py`, `tests/unit/test_scan.py` and every file under `tests/` whose comments changed.
 - **The flags** (paste-safe; no `--accept-growth`):
 
   ```
@@ -593,97 +296,37 @@ records (`seen-failing.txt`, `hits-before.txt`, `hits-after.txt`, `regex-job-*.j
   --accept-judge "109: a rules check that no comment or docstring under tests/, scripts/, release/ or .github/workflows/ cites a project document, read through tokenize and ast for Python and through # comments elsewhere, a citation split across lines read whole; an allowance of 72 entries, each with its reason: the judge's allowance files (known_gaps.toml, tests/upstream/*.toml; 30), the guest's own sources (tests/jobs/*.py, tests/upstream/drive.py, regrtest_drive.py; 32) and the src/ citation check's own documentation of the shapes its regexes match (10), a stale entry failing; eighteen unit rows for the scanner; comments across tests/ rewritten; no existing expectation edited"
   ```
 
-- **Dry-run needs:** none beyond the chain's one dispatch on this tip. The check runs where
-  `test_rules.py` runs (macOS and Linux, the `own-rest` shard); it reads files only.
-- **CHANGELOG line proposed** (not written; the file is the lane's), under the one unreleased
-  section: *Code speaks for itself outside `src/` (spec 109). Comments and docstrings under
-  `tests/`, `scripts/`, `release/` and the release workflow give their reasons in words, with no
-  specification number, review, finding identifier or `context/` path; a rules check holds it,
-  with the judge's allowance files, the guest's own sources and the `src/` check's own
-  documentation of its shapes named as the exceptions. No code, behaviour, fuel or artifact
-  byte changes; `MANIFEST`'s recipe hashes of `scripts/` move with their comments.*
-- **Roadmap:** untouched by this build. The build review (finding 2) asks the lane for one
-  line, since the owner's rule's leftovers have no specification that owns them: the 78
-  string-literal lines above, several of them read by a user (`--shard`'s help text, the
-  progress group's title, the scoreboard's not-machine-checked line, the C comment
-  `gen_inittab.py` writes into the inittab source), the 31 citations in the judge's allowance
-  files and the 36 in the guest's own sources (cleared only by a judge change that re-measures
-  their fuel). Proposed: *Reserved: NNN (code speaks for itself, the leftovers: the citing
-  string literals outside `src/`, held by one regex over string tokens for `spec NNN`; the
-  judge's allowance files' comments; the guest's own sources, their fuel re-measured; whether
-  a message a user reads falls under the rule is the owner's to say).*
+- **Dry-run needs:** none beyond the chain's one dispatch on this tip. The check runs where `test_rules.py` runs (macOS and Linux, the `own-rest` shard); it reads files only.
+- **CHANGELOG line proposed** (not written; the file is the lane's), under the one unreleased section: *Code speaks for itself outside `src/` (spec 109). Comments and docstrings under `tests/`, `scripts/`, `release/` and the release workflow give their reasons in words, with no specification number, review, finding identifier or `context/` path; a rules check holds it, with the judge's allowance files, the guest's own sources and the `src/` check's own documentation of its shapes named as the exceptions. No code, behaviour, fuel or artifact byte changes; `MANIFEST`'s recipe hashes of `scripts/` move with their comments.*
+- **Roadmap:** untouched by this build. The build review (finding 2) asks the lane for one line, since the owner's rule's leftovers have no specification that owns them: the 78 string-literal lines above, several of them read by a user (`--shard`'s help text, the progress group's title, the scoreboard's not-machine-checked line, the C comment `gen_inittab.py` writes into the inittab source), the 31 citations in the judge's allowance files and the 36 in the guest's own sources (cleared only by a judge change that re-measures their fuel). Proposed: *Reserved: NNN (code speaks for itself, the leftovers: the citing string literals outside `src/`, held by one regex over string tokens for `spec NNN`; the judge's allowance files' comments; the guest's own sources, their fuel re-measured; whether a message a user reads falls under the rule is the owner's to say).*
 
 ### The builder's self-check
 
-- rebased onto the named stacked base today: re-applied on `d92307f`, the base commit in the
-  Status line; the PR branch has not moved since.
-- CI run: none of its own, by the chain's rule (the owner, 2026-10-20); the Windows criterion is
-  named: the check runs only on macOS and Linux (`own-rest`); it reads files.
-- every number from a measured run on this base, labelled EXECUTED; no growth list (no
-  artifact byte, no guest fuel: the guest-run sources keep their bytes).
-- "For the lane": the claim list, the exact flags, each reason beginning with the spec number,
-  the wave kind (parallel-safe by effect, build-class by the letter, a judge change), dry-run
-  needs (none of its own).
-- every new check seen failing first (2,208 findings on the base's content); no Windows or
-  Linux branch in the check (it reads text; `scan.rel`'s `\\` is shared).
+- rebased onto the named stacked base today: re-applied on `d92307f`, the base commit in the Status line; the PR branch has not moved since.
+- CI run: none of its own, by the chain's rule (the owner, 2026-10-20); the Windows criterion is named: the check runs only on macOS and Linux (`own-rest`); it reads files.
+- every number from a measured run on this base, labelled EXECUTED; no growth list (no artifact byte, no guest fuel: the guest-run sources keep their bytes).
+- "For the lane": the claim list, the exact flags, each reason beginning with the spec number, the wave kind (parallel-safe by effect, build-class by the letter, a judge change), dry-run needs (none of its own).
+- every new check seen failing first (2,208 findings on the base's content); no Windows or Linux branch in the check (it reads text; `scan.rel`'s `\\` is shared).
 - gaps: none; reserved follow-ups: none.
 - `packages.toml`: untouched (no package); README rows: none change.
 - CHANGELOG: proposed above, not written (the lane's); no owner question raised.
-- `ruff check`, `ruff format --check`, mypy, the fast tier: green but for the baseline's 83,
-  output in `build/109/`.
+- `ruff check`, `ruff format --check`, mypy, the fast tier: green but for the baseline's 83, output in `build/109/`.
 
 ### Differences from the specification's text, each with its reason
 
-1. **The base is `d92307f`, not `b7a1250`**, and the chain is 103 to 108, not 102 to 107:
-   Decision 7 asked for the re-application on the chain's final tip, and main reserved 102 for
-   the release tier on 2026-10-20, so the chain and this file moved up by one (`b42e653`).
-2. **The allowance has a third reason**, `SHAPE_SHOWN`, ten rows for
-   `tests/checks/test_rules.py`: 107's `src/` citation check, which landed after the first
-   build, documents its regexes with the shapes they match (`F3`, `N12`, `F4.2`, …, "memo");
-   words cannot show a shape, and the AGENTS.md bullet says the judge reads `context/` as
-   data. Decision 5 named two reasons; the count after is 81, not 67, by these 14 hits.
-3. **No commit puts the guest's sources back to their bytes**: `clean.py` never edits them and
-   `hand.py` skips them, so they never change; their allowance rows went into the allowance
-   commit (`1cf9762`) with the `src/` check's rows. The first build's `039cbc4` had both the
-   restore and the rows.
-4. **Seen failing is one count**, the final check on the base's content, not the first and the
-   widened check in turn: the two check commits were rebased whole; the first build's two counts
-   stay recorded.
-5. **Two sentences were reworded by hand**, batch 17, both 108's: a path to the reviews folder
-   in prose became "among the reviews". The rest of the pass is the first build's batches, with
-   two olds moved to the chain's text and two stale entries removed (above).
-6. **Sameness runs against 108's reviewer record and the chain's baseline**, not 103's built
-   record: the chain landed, and the lane's instruction names these two records and the chain's
-   claim list.
-7. **The four review mentions** of the first build's `cecceed` are made by the batches now, so
-   there is no separate commit for them.
+1. **The base is `d92307f`, not `b7a1250`**, and the chain is 103 to 108, not 102 to 107: Decision 7 asked for the re-application on the chain's final tip, and main reserved 102 for the release tier on 2026-10-20, so the chain and this file moved up by one (`b42e653`).
+2. **The allowance has a third reason**, `SHAPE_SHOWN`, ten rows for `tests/checks/test_rules.py`: 107's `src/` citation check, which landed after the first build, documents its regexes with the shapes they match (`F3`, `N12`, `F4.2`, …, "memo"); words cannot show a shape, and the AGENTS.md bullet says the judge reads `context/` as data. Decision 5 named two reasons; the count after is 81, not 67, by these 14 hits.
+3. **No commit puts the guest's sources back to their bytes**: `clean.py` never edits them and `hand.py` skips them, so they never change; their allowance rows went into the allowance commit (`1cf9762`) with the `src/` check's rows. The first build's `039cbc4` had both the restore and the rows.
+4. **Seen failing is one count**, the final check on the base's content, not the first and the widened check in turn: the two check commits were rebased whole; the first build's two counts stay recorded.
+5. **Two sentences were reworded by hand**, batch 17, both 108's: a path to the reviews folder in prose became "among the reviews". The rest of the pass is the first build's batches, with two olds moved to the chain's text and two stale entries removed (above).
+6. **Sameness runs against 108's reviewer record and the chain's baseline**, not 103's built record: the chain landed, and the lane's instruction names these two records and the chain's claim list.
+7. **The four review mentions** of the first build's `cecceed` are made by the batches now, so there is no separate commit for them.
 
 ### Disposition of the build review
 
-The build review (`../reviews/109-code-speaks-for-itself-2026-10-21.md`, commit `bacf7a9`;
-verdict "lands", two Lows in `context/` only, two Notes; its own fast tier on `8fe2a8a` read 83
-failed, 2,459 passed, 52 skipped, the baseline's 83 exactly, both sameness lines the same as the
-builder's, and the cleanup reproduced byte for byte):
+The build review (`../reviews/109-code-speaks-for-itself-2026-10-21.md`, commit `bacf7a9`; verdict "lands", two Lows in `context/` only, two Notes; its own fast tier on `8fe2a8a` read 83 failed, 2,459 passed, 52 skipped, the baseline's 83 exactly, both sameness lines the same as the builder's, and the cleanup reproduced byte for byte):
 
-1. **Three `run:` scalars of the workflow changed** (Low) — confirmed as written in by the
-   reviewer, commit `f17a67a`, the sentence in the "Comments only" bullet above: a `#` line
-   inside a `run: |` block is part of the step's script string in the parsed document, so the
-   parsed YAML differs at `d92307f` and at the built commit in exactly those three values, each
-   by the shell comments inside the script and in no command (EXECUTED by the reviewer with
-   pyyaml; every other key and value equal). By Decision 3 those lines are comments, so the Kind
-   line's "no string literal changes" holds as this specification means it. No code change; no
-   round.
-2. **The rule's leftovers have no owner** (Low) — confirmed as written in by the reviewer,
-   commit `f17a67a`, the "Roadmap" bullet above: the 78 string-literal lines (several read by a
-   user: `--shard`'s help, the progress group's title, the scoreboard's not-machine-checked line,
-   the C comment `gen_inittab.py` writes), the 31 citations in the judge's allowance files and the
-   36 in the guest's own sources. Carried to the integration's roadmap commit: the lane writes the
-   proposed "Reserved" line into `context/roadmap.md` at the wave; and carried to the owner:
-   whether a message a user reads falls under the rule is the owner's to say, not this
-   specification's. No code change; no round.
-3. **The allowance's grain is a phrase per file** (Note) — acknowledged: a second occurrence of an
-   admitted phrase in the same file is admitted by its row; any other phrase is caught and a
-   removed phrase turns the row red; named here for the next reader.
-4. **Bare `Decision N` and `criterion N` remain** (Note) — acknowledged: scoped out by Decision 6's
-   reason (a numbered part of no named document); the specification that takes finding 2's
-   leftovers may take them.
+1. **Three `run:` scalars of the workflow changed** (Low) — confirmed as written in by the reviewer, commit `f17a67a`, the sentence in the "Comments only" bullet above: a `#` line inside a `run: |` block is part of the step's script string in the parsed document, so the parsed YAML differs at `d92307f` and at the built commit in exactly those three values, each by the shell comments inside the script and in no command (EXECUTED by the reviewer with pyyaml; every other key and value equal). By Decision 3 those lines are comments, so the Kind line's "no string literal changes" holds as this specification means it. No code change; no round.
+2. **The rule's leftovers have no owner** (Low) — confirmed as written in by the reviewer, commit `f17a67a`, the "Roadmap" bullet above: the 78 string-literal lines (several read by a user: `--shard`'s help, the progress group's title, the scoreboard's not-machine-checked line, the C comment `gen_inittab.py` writes), the 31 citations in the judge's allowance files and the 36 in the guest's own sources. Carried to the integration's roadmap commit: the lane writes the proposed "Reserved" line into `context/roadmap.md` at the wave; and carried to the owner: whether a message a user reads falls under the rule is the owner's to say, not this specification's. No code change; no round.
+3. **The allowance's grain is a phrase per file** (Note) — acknowledged: a second occurrence of an admitted phrase in the same file is admitted by its row; any other phrase is caught and a removed phrase turns the row red; named here for the next reader.
+4. **Bare `Decision N` and `criterion N` remain** (Note) — acknowledged: scoped out by Decision 6's reason (a numbered part of no named document); the specification that takes finding 2's leftovers may take them.

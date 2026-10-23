@@ -1,65 +1,24 @@
 - **Project:** wasmtime-py (https://github.com/bytecodealliance/wasmtime-py)
 - **Against:** 49.0.0 (the release `uv.lock` pins; EXECUTED, `importlib.metadata.version`)
-- **Status:** drafted (spec 103, Design, "The debt is documented"; held in step with
-  `src/wasi_python/_wasmtime_ffi.py` by the rules check `test_the_private_api_debt_is_documented`)
+- **Status:** drafted (spec 103, Design, "The debt is documented"; held in step with `src/wasi_python/_wasmtime_ffi.py` by the rules check `test_the_private_api_debt_is_documented`)
 - **Title:** the public API the runner would use in place of the private bindings it calls
-- **Files:** wasmtime/_store.py and _func.py (`Caller` methods, a store identity), _config.py
-  (`async_stack_size`), _wasi.py (a locked custom-output table), _func.py (a reusable call, an
-  epoch callback), the package's own `__init__` (what is public)
-- **Why we need it:** the runner drives wasmtime through one module, the engine seam
-  (`src/wasi_python/_wasmtime_ffi.py`, spec 103), which prefers a public form wherever the
-  installed release has one and falls back to a private binding otherwise. Every private binding
-  it still needs is a row of the table below. When a release makes one public, the adapter takes
-  the public path, the name leaves its `NEEDED` or `OPTIONAL` tuple, and the row moves to
-  "Landed" in the same change; the check keeps the two lists equal.
+- **Files:** wasmtime/_store.py and _func.py (`Caller` methods, a store identity), _config.py (`async_stack_size`), _wasi.py (a locked custom-output table), _func.py (a reusable call, an epoch callback), the package's own `__init__` (what is public)
+- **Why we need it:** the runner drives wasmtime through one module, the engine seam (`src/wasi_python/_wasmtime_ffi.py`, spec 103), which prefers a public form wherever the installed release has one and falls back to a private binding otherwise. Every private binding it still needs is a row of the table below. When a release makes one public, the adapter takes the public path, the name leaves its `NEEDED` or `OPTIONAL` tuple, and the row moves to "Landed" in the same change; the check keeps the two lists equal.
 
-**This is a facts sheet, not an issue or a pull request** (question 80). wasmtime-py is a Bytecode
-Alliance project, and the Bytecode Alliance AI Tool Use Policy keeps agents from opening pull
-requests or commenting (as in `12-wasmtime-py-on-wasmtime-49-0-3/facts.md`). Whether to ask, and
-the words, are the owner's. Nothing has been posted.
+**This is a facts sheet, not an issue or a pull request** (question 80). wasmtime-py is a Bytecode Alliance project, and the Bytecode Alliance AI Tool Use Policy keeps agents from opening pull requests or commenting (as in `12-wasmtime-py-on-wasmtime-49-0-3/facts.md`). Whether to ask, and the words, are the owner's. Nothing has been posted.
 
 ## The facts
 
-1. **The runner reaches wasmtime-py's private surface in 25 lines of `src/` today** (EXECUTED,
-   spec 103's regex over `src/wasi_python/*.py` at `a9064a2`: `runner.py` 14, `mounts.py` 11),
-   for six things the public API cannot do: stop a guest from inside a host function without
-   raising through the process-wide exception slot (spec 011), answer the epoch callback (spec
-   015), own the output table without wasmtime-py's unlocked one (spec 011), forward a file call
-   to wasmtime's own WASI fuel-neutrally (specs 032 and 048), set the async stack size (spec 078),
-   and read wasmtime's load base for the trap-handler check (spec 071).
-2. **What 49.0.0 has publicly** (EXECUTED, `dir()` and `inspect` in the venv): `Store` has
-   `get_fuel`, `set_fuel`, `set_epoch_deadline` and `set_limits`; `Caller` has `get` only;
-   `Config` has no `async_stack_size`; `WasiConfig.stdout_custom` and `stderr_custom` are setter
-   properties; `Func.__call__(store, *params)` accepts a `Caller`; `Engine` has
-   `increment_epoch` and no epoch callback; `Store` has no epoch callback; nothing public gives
-   the library's path or a symbol's address; `Trap(message)` and `WasmtimeError(message)` build
-   Python exceptions, not an owned C error.
-3. **The public fuel and deadline methods make the same C calls** (READ, `_store.py:61-90` and
-   `:109-115`):
-   `Store.get_fuel` is `ffi.wasmtime_context_get_fuel(self._context(), byref(remaining))` and
-   raises `WasmtimeError._from_ptr(err)`; `Store.set_fuel` is `ffi.wasmtime_context_set_fuel`
-   the same way; `Store.set_epoch_deadline` is `ffi.wasmtime_context_set_epoch_deadline`. A
-   `Caller` version of each would be three methods on `Caller` calling the same functions on
-   `self._context()`, which `Caller._context()` already gives (READ, `_func.py:171`).
-4. **The custom-output properties keep the callable in an unlocked table** (READ,
-   `_wasi.py:120-126`: `CUSTOM_OUTPUTS.allocate(callback)`; `_slab.py`: a list and a free index,
-   no lock; EXECUTED: no module of wasmtime-py imports `threading`). wasmtime calls the write and
-   free callbacks on its own threads, so the runner keeps a locked table of its own (spec 011)
-   and registers the two C callbacks itself.
-5. **`Func.__call__` allocates per call and hides the trap** (READ, `_func.py:59-116`): it
-   builds the `wasmtime_val_t` arrays on every call and turns the trap and error pointers into
-   exceptions before the caller sees them. The forwarder (spec 032) calls one of 29 functions
-   once per forwarded file call, the hottest path the runner has, and reads fuel before it
-   raises; it keeps its own arrays and reads the pointers (`_ffi.wasmtime_func_call`).
-6. **The epoch callback has no public form** (EXECUTED, fact 2): the runner registers
-   `wasmtime_store_epoch_deadline_callback` with a C callback made from the binding's own
-   `argtypes[1]`, and answers it with a `wasmtime_error_new` error it hands to wasmtime (spec
-   015).
+1. **The runner reaches wasmtime-py's private surface in 25 lines of `src/` today** (EXECUTED, spec 103's regex over `src/wasi_python/*.py` at `a9064a2`: `runner.py` 14, `mounts.py` 11), for six things the public API cannot do: stop a guest from inside a host function without raising through the process-wide exception slot (spec 011), answer the epoch callback (spec 015), own the output table without wasmtime-py's unlocked one (spec 011), forward a file call to wasmtime's own WASI fuel-neutrally (specs 032 and 048), set the async stack size (spec 078), and read wasmtime's load base for the trap-handler check (spec 071).
+2. **What 49.0.0 has publicly** (EXECUTED, `dir()` and `inspect` in the venv): `Store` has `get_fuel`, `set_fuel`, `set_epoch_deadline` and `set_limits`; `Caller` has `get` only; `Config` has no `async_stack_size`; `WasiConfig.stdout_custom` and `stderr_custom` are setter properties; `Func.__call__(store, *params)` accepts a `Caller`; `Engine` has `increment_epoch` and no epoch callback; `Store` has no epoch callback; nothing public gives the library's path or a symbol's address; `Trap(message)` and `WasmtimeError(message)` build Python exceptions, not an owned C error.
+3. **The public fuel and deadline methods make the same C calls** (READ, `_store.py:61-90` and `:109-115`): `Store.get_fuel` is `ffi.wasmtime_context_get_fuel(self._context(), byref(remaining))` and raises `WasmtimeError._from_ptr(err)`; `Store.set_fuel` is `ffi.wasmtime_context_set_fuel` the same way; `Store.set_epoch_deadline` is `ffi.wasmtime_context_set_epoch_deadline`. A `Caller` version of each would be three methods on `Caller` calling the same functions on `self._context()`, which `Caller._context()` already gives (READ, `_func.py:171`).
+4. **The custom-output properties keep the callable in an unlocked table** (READ, `_wasi.py:120-126`: `CUSTOM_OUTPUTS.allocate(callback)`; `_slab.py`: a list and a free index, no lock; EXECUTED: no module of wasmtime-py imports `threading`). wasmtime calls the write and free callbacks on its own threads, so the runner keeps a locked table of its own (spec 011) and registers the two C callbacks itself.
+5. **`Func.__call__` allocates per call and hides the trap** (READ, `_func.py:59-116`): it builds the `wasmtime_val_t` arrays on every call and turns the trap and error pointers into exceptions before the caller sees them. The forwarder (spec 032) calls one of 29 functions once per forwarded file call, the hottest path the runner has, and reads fuel before it raises; it keeps its own arrays and reads the pointers (`_ffi.wasmtime_func_call`).
+6. **The epoch callback has no public form** (EXECUTED, fact 2): the runner registers `wasmtime_store_epoch_deadline_callback` with a C callback made from the binding's own `argtypes[1]`, and answers it with a `wasmtime_error_new` error it hands to wasmtime (spec 015).
 
 ## The bindings
 
-One row per entry of the adapter's `NEEDED` and `OPTIONAL` tuples; the first cell is the dotted
-name as the adapter's holder table spells it. The last column names the sheet the row overlaps.
+One row per entry of the adapter's `NEEDED` and `OPTIONAL` tuples; the first cell is the dotted name as the adapter's holder table spells it. The last column names the sheet the row overlaps.
 
 | binding | C API function | what the runner does with it | public wasmtime-py API that would replace it | in 49.0.0 | overlaps |
 |---|---|---|---|---|---|
@@ -97,26 +56,18 @@ name as the adapter's holder table spells it. The last column names the sheet th
 
 ## Landed
 
-None yet. A row moves here, with the release that made it public, when the adapter drops the
-name (spec 103, Decision 6, step 6).
+None yet. A row moves here, with the release that made it public, when the adapter drops the name (spec 103, Decision 6, step 6).
 
 ## The change, for the owner to write from
 
 Three things, each small, in the order of their worth to the runner:
 
-1. **`Caller.get_fuel`, `Caller.set_fuel`, `Caller.set_epoch_deadline`**, each the `Store`
-   method's body on `self._context()` (fact 3). Then the runner's six host-function sites take
-   the public path with no change of their own (spec 103, Decision 8).
+1. **`Caller.get_fuel`, `Caller.set_fuel`, `Caller.set_epoch_deadline`**, each the `Store` method's body on `self._context()` (fact 3). Then the runner's six host-function sites take the public path with no change of their own (spec 103, Decision 8).
 2. **`Config.async_stack_size`**, as sheet 21 says.
-3. **A locked `CUSTOM_OUTPUTS`** (fact 4), or a documented statement that the table is safe
-   under wasmtime's output threads; then the two properties serve.
+3. **A locked `CUSTOM_OUTPUTS`** (fact 4), or a documented statement that the table is safe under wasmtime's output threads; then the two properties serve.
 
-The epoch callback and a reusable `Func` call are larger designs; this sheet records the need,
-not a shape.
+The epoch callback and a reusable `Func` call are larger designs; this sheet records the need, not a shape.
 
 ## When it lands
 
-For each row a release makes public: the adapter already prefers the public form, so the
-operation changes little or nothing; the name leaves `NEEDED` or `OPTIONAL`; the row moves to
-"Landed" above in the same change, or `test_the_private_api_debt_is_documented` is red; a new
-major widens the pin by spec 103's Decision 6.
+For each row a release makes public: the adapter already prefers the public form, so the operation changes little or nothing; the name leaves `NEEDED` or `OPTIONAL`; the row moves to "Landed" above in the same change, or `test_the_private_api_debt_is_documented` is red; a new major widens the pin by spec 103's Decision 6.

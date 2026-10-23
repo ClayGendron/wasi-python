@@ -2,218 +2,63 @@
 
 - **Date:** 2026-10-22
 - **Reviewer:** a fresh agent (Claude). It wrote none of 122 or 123 and reviewed neither before.
-- **Reviewed:** `spec/122-a-short-readme-and-a-clean-tree` at `396a8495`, one commit on main
-  `fb8343cd`; `git diff fb8343cd..396a8495`, 64 files, +3,049 −4,334. 123's pages read from its
-  branch at `92a134d3` for the site build and the scans only.
+- **Reviewed:** `spec/122-a-short-readme-and-a-clean-tree` at `396a8495`, one commit on main `fb8343cd`; `git diff fb8343cd..396a8495`, 64 files, +3,049 −4,334. 123's pages read from its branch at `92a134d3` for the site build and the scans only.
 - **Run:** none, by the owner's rule for this work (`decisions.md`, 2026-10-22).
 - **Time box:** 50 minutes (the lane's). Kept.
 - **Re-ran (EXECUTED; logs under the builder's worktree, `build/122-review/`):**
-  - 14 node ids and two unit files, in the builder's worktree, the two guest rows with
-    `WASI_PYTHON_ARTIFACTS` set to the main tree's `build/artifacts/`:
-    `test_rules.py::` `test_the_readme_carries_the_licences_credit_lines`,
-    `test_carried_patches_follow_the_rules`, `test_version_states_the_platform_semantics`,
-    `test_specifications_have_no_open_question`, `test_generated_pages_are_current`,
-    `test_known_gaps_are_well_formed`, `test_code_outside_src_names_no_context_document`,
-    `test_no_embedder_name_in_code`, `test_no_string_names_a_context_document`,
-    `test_every_action_is_pinned_by_commit`;
-    `test_v1_3_data_stack.py::test_default_integer_width_is_documented`;
-    `test_v1_4_public_api.py::test_the_readme_reference_matches_the_api`,
-    `test_public_docs_name_nothing_internal`;
-    `test_v1_3_upstream_suites.py::test_upstream_files_are_well_formed`; all of
-    `tests/unit/test_scan.py` and `tests/unit/test_cli_doc.py`. **313 passed**, scoreboard
-    `14/14 pass`, `lost 0 · grew 0`, and one RED line: `steered from outside the judge: plugin
-    platformdirs from …/.venv/…/platformdirs/pytest_plugin.py` (finding M1). The builder's own
-    `build/122/node-ids.log:15` carries the same RED line.
+  - 14 node ids and two unit files, in the builder's worktree, the two guest rows with `WASI_PYTHON_ARTIFACTS` set to the main tree's `build/artifacts/`: `test_rules.py::` `test_the_readme_carries_the_licences_credit_lines`, `test_carried_patches_follow_the_rules`, `test_version_states_the_platform_semantics`, `test_specifications_have_no_open_question`, `test_generated_pages_are_current`, `test_known_gaps_are_well_formed`, `test_code_outside_src_names_no_context_document`, `test_no_embedder_name_in_code`, `test_no_string_names_a_context_document`, `test_every_action_is_pinned_by_commit`; `test_v1_3_data_stack.py::test_default_integer_width_is_documented`; `test_v1_4_public_api.py::test_the_readme_reference_matches_the_api`, `test_public_docs_name_nothing_internal`; `test_v1_3_upstream_suites.py::test_upstream_files_are_well_formed`; all of `tests/unit/test_scan.py` and `tests/unit/test_cli_doc.py`. **313 passed**, scoreboard `14/14 pass`, `lost 0 · grew 0`, and one RED line: `steered from outside the judge: plugin platformdirs from …/.venv/…/platformdirs/pytest_plugin.py` (finding M1). The builder's own `build/122/node-ids.log:15` carries the same RED line.
   - `uv run ruff check tests/ src/` and `uv run ruff format --check tests/ src/`: exit 0.
-  - The retarget, mechanically: each of the 41 changed TOML files equals main's with exactly
-    `closes_with = "README.md"` → `"docs/reference/limitations.md"` and
-    `closes_with = "context/questions-for-the-owner.md"` → `"context/roadmap.md"` substituted
-    (`diff` of a `sed` of main's file against the branch's: 0 differences). 566 lines removed,
-    566 added, every one a `closes_with` or `excluded_closes_with` line. `grep -rc
-    docs/reference/limitations.md` sums to 560.
-  - `uv run --group docs mkdocs build --strict` on a scratch copy (outside the repository; its own
-    `.venv`) of `396a8495` plus 123's `docs/` at `92a134d3`: **exit 1** as is (`'get-started/
-    embed-python-wasm.md' is included in the 'nav' configuration, which is not found`), **exit 0**
-    with that one nav line deleted. Every `claygendron.github.io` link in the README, SECURITY.md
-    and the three 122 pages resolves to a built page.
-  - On the same copy: `test_code_outside_src_names_no_context_document`,
-    `test_no_embedder_name_in_code`, `test_public_docs_name_nothing_internal`: 3 passed (exit 1 from
-    the copy's RED lines only: no git, the docs group's plugin).
-  - Probes of the generator under colour: `FORCE_COLOR=1 uv run python tests/harness/cli_doc.py
-    --check` exit 1 on the committed, correct page; the same under a terminal (`script -q
-    /dev/null …`) exit 1, and `render()` there returns `'\x1b[1;34musage: \x1b[0m\x1b[35mwasi-python
-    run …'`; `FORCE_COLOR=1 uv run pytest tests/checks/test_rules.py::
-    test_generated_pages_are_current` **fails** (`docs/reference/cli.md: differs from the live
-    render`). `api.py --check` is exit 0 in both (finding M2). Setting `parser.color = False`
-    before the render gives a clean block equal to the page (probe, no file changed).
+  - The retarget, mechanically: each of the 41 changed TOML files equals main's with exactly `closes_with = "README.md"` → `"docs/reference/limitations.md"` and `closes_with = "context/questions-for-the-owner.md"` → `"context/roadmap.md"` substituted (`diff` of a `sed` of main's file against the branch's: 0 differences). 566 lines removed, 566 added, every one a `closes_with` or `excluded_closes_with` line. `grep -rc docs/reference/limitations.md` sums to 560.
+  - `uv run --group docs mkdocs build --strict` on a scratch copy (outside the repository; its own `.venv`) of `396a8495` plus 123's `docs/` at `92a134d3`: **exit 1** as is (`'get-started/ embed-python-wasm.md' is included in the 'nav' configuration, which is not found`), **exit 0** with that one nav line deleted. Every `claygendron.github.io` link in the README, SECURITY.md and the three 122 pages resolves to a built page.
+  - On the same copy: `test_code_outside_src_names_no_context_document`, `test_no_embedder_name_in_code`, `test_public_docs_name_nothing_internal`: 3 passed (exit 1 from the copy's RED lines only: no git, the docs group's plugin).
+  - Probes of the generator under colour: `FORCE_COLOR=1 uv run python tests/harness/cli_doc.py --check` exit 1 on the committed, correct page; the same under a terminal (`script -q /dev/null …`) exit 1, and `render()` there returns `'\x1b[1;34musage: \x1b[0m\x1b[35mwasi-python run …'`; `FORCE_COLOR=1 uv run pytest tests/checks/test_rules.py:: test_generated_pages_are_current` **fails** (`docs/reference/cli.md: differs from the live render`). `api.py --check` is exit 0 in both (finding M2). Setting `parser.color = False` before the render gives a clean block equal to the page (probe, no file changed).
 
 ## Acceptance criteria against evidence
 
-1. **The README** — met. 169 lines (EXECUTED, `wc -l`), Decision 1's ten sections in order;
-   FreeType's sentence, `upstream patches carried: 27`, the `-V` sentence, the attestation block
-   (byte-equal to main's README lines 1017-1019) and the CLI's JSON line (equal to
-   `release.yml:2314`'s `want=`) verbatim (READ, and the rows EXECUTED); no relative link (EXECUTED,
-   `grep`); no "spec", "decision", "question", "wave", "alpha" or `context/` (EXECUTED); status
-   0.1.0. Every sample checked against `src/` (READ): `run(argv, *, …, grants=…, tools=…)`,
-   `Grant(host, guest, *, writable=False)`, `root=True`, the defaults (1 GiB, 60 s, 16 MiB,
-   1,024; `None` for no limit), `from host import tools`, `artifacts()`, the two environment
-   variables, `wasi-python = "wasi_python.cli:main"`. Two facts are loose (L1, L2).
+1. **The README** — met. 169 lines (EXECUTED, `wc -l`), Decision 1's ten sections in order; FreeType's sentence, `upstream patches carried: 27`, the `-V` sentence, the attestation block (byte-equal to main's README lines 1017-1019) and the CLI's JSON line (equal to `release.yml:2314`'s `want=`) verbatim (READ, and the rows EXECUTED); no relative link (EXECUTED, `grep`); no "spec", "decision", "question", "wave", "alpha" or `context/` (EXECUTED); status 0.1.0. Every sample checked against `src/` (READ): `run(argv, *, …, grants=…, tools=…)`, `Grant(host, guest, *, writable=False)`, `root=True`, the defaults (1 GiB, 60 s, 16 MiB, 1,024; `None` for no limit), `from host import tools`, `artifacts()`, the two environment variables, `wasi-python = "wasi_python.cli:main"`. Two facts are loose (L1, L2).
 2. **The six README checks** — met, EXECUTED by node id (above).
-3. **The generated pages** — met with M2. One block each, equal to the render; the check and the
-   six unit rows pass (EXECUTED); seen failing first (READ, `build/122/test_cli_doc-before-
-   generator.log`: an import error before the generator existed). Every option has a
-   description (EXECUTED, `test_every_option_of_the_command_is_described`). The `DESCRIBED`
-   sentences agree with `cli.py` (READ: `_limit` takes `none`; `--env KEY` reads this
-   command's environment; "out of fuel" is `_call.py:1202`'s word).
-4. **The closers** — met (EXECUTED, above). No reason, match, digest, list or allowance changed;
-   no gap added, removed or re-reasoned. The six questions-file closers name `context/roadmap.md`,
-   whose line 207 reserves 088, the judge-only binary question 89 asked about (READ). The questions
-   file is gone and nothing in `tests/`, `scripts/`, `release/`, `src/` or the workflows names it
-   (EXECUTED, `grep`); `constitution.md:6` keeps it as a dated record, as Decision 8 says.
+3. **The generated pages** — met with M2. One block each, equal to the render; the check and the six unit rows pass (EXECUTED); seen failing first (READ, `build/122/test_cli_doc-before- generator.log`: an import error before the generator existed). Every option has a description (EXECUTED, `test_every_option_of_the_command_is_described`). The `DESCRIBED` sentences agree with `cli.py` (READ: `_limit` takes `none`; `--env KEY` reads this command's environment; "out of fuel" is `_call.py:1202`'s word).
+4. **The closers** — met (EXECUTED, above). No reason, match, digest, list or allowance changed; no gap added, removed or re-reasoned. The six questions-file closers name `context/roadmap.md`, whose line 207 reserves 088, the judge-only binary question 89 asked about (READ). The questions file is gone and nothing in `tests/`, `scripts/`, `release/`, `src/` or the workflows names it (EXECUTED, `grep`); `constitution.md:6` keeps it as a dated record, as Decision 8 says.
 5. **The limitations page** — met (READ): both headings, the `-V` sentence, no internal names.
-6. **The scans** — met (EXECUTED: on the branch and on the copy with 123's pages; READ: the
-   builder's probe log). Not weaker anywhere: `string_citation_files` drops the public pages, but
-   it never read them before this change, and the comment rule now reads them whole, its
-   `.md` branch taking the page as one block of prose (`scan.py:3471-3474`), which is stricter
-   than a comment reader. `CODE_DIRS`' new `"docs"` is used only by the embedder scan
-   (`test_rules.py:60`). `CONTEXT_CITATION_ALLOWED` and `STRING_RULE_LATER` are unchanged.
-7. **The scaffold** — met on the wave's tip once 123's omitted page leaves the nav (EXECUTED,
-   above). `docs.yml` (READ): `permissions: {}` at the top; `build` has `contents: read` only;
-   `deploy` has `pages: write` and `id-token: write` only; all five `uses:` pinned to 40-hex
-   commits with release comments (the check EXECUTED); no `${{` in any `run:` (the two `${{`
-   are in `with:` and `environment.url`); deploy only when `startsWith(github.ref,
-   'refs/tags/v')` or `workflow_dispatch`; no secrets; `persist-credentials: false`; timeouts.
-   `mkdocs.yml` is Decision 7's text plus `site_description` and `repo_name`. `pyproject.toml`
-   carries the classifier, description, Documentation URL and the exactly pinned `docs` group;
-   `uv.lock` adds 26 packages and the group, removes nothing (EXECUTED, `grep '^-'`).
-8. **The tree** — not met yet, the known gap: the 55 evidence folders (54 to delete) are still
-   tracked (EXECUTED: `git ls-files context/research | grep /` lists 1,818 files). The rest is
-   met (READ): `context/README.md`, `decisions.md`, `AGENTS.md` carry Decision 8's edits;
-   `SECURITY.md` says "alpha" nowhere; the advisory draft is untouched for the lane.
+6. **The scans** — met (EXECUTED: on the branch and on the copy with 123's pages; READ: the builder's probe log). Not weaker anywhere: `string_citation_files` drops the public pages, but it never read them before this change, and the comment rule now reads them whole, its `.md` branch taking the page as one block of prose (`scan.py:3471-3474`), which is stricter than a comment reader. `CODE_DIRS`' new `"docs"` is used only by the embedder scan (`test_rules.py:60`). `CONTEXT_CITATION_ALLOWED` and `STRING_RULE_LATER` are unchanged.
+7. **The scaffold** — met on the wave's tip once 123's omitted page leaves the nav (EXECUTED, above). `docs.yml` (READ): `permissions: {}` at the top; `build` has `contents: read` only; `deploy` has `pages: write` and `id-token: write` only; all five `uses:` pinned to 40-hex commits with release comments (the check EXECUTED); no `${{` in any `run:` (the two `${{` are in `with:` and `environment.url`); deploy only when `startsWith(github.ref, 'refs/tags/v')` or `workflow_dispatch`; no secrets; `persist-credentials: false`; timeouts. `mkdocs.yml` is Decision 7's text plus `site_description` and `repo_name`. `pyproject.toml` carries the classifier, description, Documentation URL and the exactly pinned `docs` group; `uv.lock` adds 26 packages and the group, removes nothing (EXECUTED, `grep '^-'`).
+8. **The tree** — not met yet, the known gap: the 55 evidence folders (54 to delete) are still tracked (EXECUTED: `git ls-files context/research | grep /` lists 1,818 files). The rest is met (READ): `context/README.md`, `decisions.md`, `AGENTS.md` carry Decision 8's edits; `SECURITY.md` says "alpha" nowhere; the advisory draft is untouched for the lane.
 9. **`src/` is unchanged** — met (EXECUTED, `git diff --stat fb8343cd..396a8495 -- src/` empty).
-10. **Code speaks for itself** — met (EXECUTED: the comment and string rules pass; READ:
-    `cli_doc.py`, `test_cli_doc.py` and `docs.yml`'s comments give reasons in words).
+10. **Code speaks for itself** — met (EXECUTED: the comment and string rules pass; READ: `cli_doc.py`, `test_cli_doc.py` and `docs.yml`'s comments give reasons in words).
 11. **ruff** — met (EXECUTED).
 
 Structure (rule 4a): `src/` is untouched; no rubric row moves. Not structural, as the Kind line says.
 
 ## Findings, most severe first
 
-1. **M1 — The `docs` group puts a pytest plugin in the judge's environment, so the lane's own
-   order turns the release acceptance red** (`pyproject.toml:48-53`; `uv.lock`, platformdirs
-   4.13.5; the spec's For the lane, `122-a-short-readme-and-a-clean-tree.md:396-404`).
-   platformdirs 4.13.5, which mkdocs pulls in through mkdocs-get-deps, registers a `pytest11`
-   entry point (`platformdirs = platformdirs.pytest_plugin`, EXECUTED). `uv run --group docs …`
-   installs it into the tree's `.venv`, and a later plain `uv run pytest` does not remove it
-   (`uv run` syncs inexactly), so the judge reports `RED: steered from outside the judge: plugin
-   platformdirs` (`tests/harness/plugin.py:899-900`). Failure: the lane does what For the lane
-   says, `uv run --group docs mkdocs build --strict` on the wave's tip in the main tree, then the
-   normal-tier run and the `--tier release --accept` run → both red, and the acceptance is
-   refused. The builder's worktree is in that state now, and its log shows the line
-   (`build/122/node-ids.log:15`) while the self-check reports the node ids as passing. CI is not
-   affected: `docs.yml` builds on its own runner and `release.yml` never installs the group.
-   Fix (spec text, context only): in For the lane, replace the first command with
-   `UV_PROJECT_ENVIRONMENT=build/docs-venv uv run --group docs mkdocs build --strict` (a
-   separate environment, the judge's untouched), and add: "If the docs group was ever installed
-   into a tree's `.venv`, run `uv sync --locked` there first (an exact sync removes it); the
-   builder's worktree needs this before it is judged." Name the RED line in the self-check. The
-   same sentence belongs on 123's contributing page wherever it tells a contributor to build the
-   site. Closed when the spec carries the command and a node-id run on a re-synced tree shows no
-   RED line.
+1. **M1 — The `docs` group puts a pytest plugin in the judge's environment, so the lane's own order turns the release acceptance red** (`pyproject.toml:48-53`; `uv.lock`, platformdirs 4.13.5; the spec's For the lane, `122-a-short-readme-and-a-clean-tree.md:396-404`). platformdirs 4.13.5, which mkdocs pulls in through mkdocs-get-deps, registers a `pytest11` entry point (`platformdirs = platformdirs.pytest_plugin`, EXECUTED). `uv run --group docs …` installs it into the tree's `.venv`, and a later plain `uv run pytest` does not remove it (`uv run` syncs inexactly), so the judge reports `RED: steered from outside the judge: plugin platformdirs` (`tests/harness/plugin.py:899-900`). Failure: the lane does what For the lane says, `uv run --group docs mkdocs build --strict` on the wave's tip in the main tree, then the normal-tier run and the `--tier release --accept` run → both red, and the acceptance is refused. The builder's worktree is in that state now, and its log shows the line (`build/122/node-ids.log:15`) while the self-check reports the node ids as passing. CI is not affected: `docs.yml` builds on its own runner and `release.yml` never installs the group. Fix (spec text, context only): in For the lane, replace the first command with `UV_PROJECT_ENVIRONMENT=build/docs-venv uv run --group docs mkdocs build --strict` (a separate environment, the judge's untouched), and add: "If the docs group was ever installed into a tree's `.venv`, run `uv sync --locked` there first (an exact sync removes it); the builder's worktree needs this before it is judged." Name the RED line in the self-check. The same sentence belongs on 123's contributing page wherever it tells a contributor to build the site. Closed when the spec carries the command and a node-id run on a re-synced tree shows no RED line.
 
-2. **M2 — The CLI page's render depends on the terminal, so the generator writes escape codes
-   and the check fails a correct page under `FORCE_COLOR`** (`tests/harness/cli_doc.py:90`).
-   Python 3.14's `ArgumentParser` colours `format_usage()` when its stream is a terminal or
-   `FORCE_COLOR` is set, and `removeprefix("usage: ")` then misses the coloured prefix. Failure:
-   a contributor runs the documented `uv run python tests/harness/cli_doc.py --write` in a
-   terminal → `docs/reference/cli.md` gets `\x1b[1;34musage: …` in its fence, the site shows the
-   codes, and `test_generated_pages_are_current` fails; and with `FORCE_COLOR=1` in the
-   environment the judge row fails on the committed, correct page (EXECUTED, both). A verdict
-   that depends on an environment variable. Fix (the builder's code): in `render()`, before line
-   90, `if hasattr(parser, "color"): parser.color = False` (the attribute exists on 3.14's
-   parser; probe EXECUTED: the block is then clean and equal to the page under `FORCE_COLOR=1`),
-   and a unit row in `tests/unit/test_cli_doc.py` that sets `FORCE_COLOR=1` with `monkeypatch`
-   and asserts `"\x1b" not in cli_doc.render(cli_doc.live_parser())`, seen failing first. Closed
-   by that row passing and `FORCE_COLOR=1 uv run pytest
-   tests/checks/test_rules.py::test_generated_pages_are_current` passing.
+2. **M2 — The CLI page's render depends on the terminal, so the generator writes escape codes and the check fails a correct page under `FORCE_COLOR`** (`tests/harness/cli_doc.py:90`). Python 3.14's `ArgumentParser` colours `format_usage()` when its stream is a terminal or `FORCE_COLOR` is set, and `removeprefix("usage: ")` then misses the coloured prefix. Failure: a contributor runs the documented `uv run python tests/harness/cli_doc.py --write` in a terminal → `docs/reference/cli.md` gets `\x1b[1;34musage: …` in its fence, the site shows the codes, and `test_generated_pages_are_current` fails; and with `FORCE_COLOR=1` in the environment the judge row fails on the committed, correct page (EXECUTED, both). A verdict that depends on an environment variable. Fix (the builder's code): in `render()`, before line 90, `if hasattr(parser, "color"): parser.color = False` (the attribute exists on 3.14's parser; probe EXECUTED: the block is then clean and equal to the page under `FORCE_COLOR=1`), and a unit row in `tests/unit/test_cli_doc.py` that sets `FORCE_COLOR=1` with `monkeypatch` and asserts `"\x1b" not in cli_doc.render(cli_doc.live_parser())`, seen failing first. Closed by that row passing and `FORCE_COLOR=1 uv run pytest tests/checks/test_rules.py::test_generated_pages_are_current` passing.
 
-3. **L1 — The README presents untested hosts as running, without the caveat it used to carry**
-   (`README.md:99-103`). Main's README said "Only wasmtime 49 is run by this project; the rest of
-   the list is read from each runtime's release notes and source"; 123's pages keep that sentence
-   (`how-to/embed-from-other-languages.md:89`, `reference/support-and-versioning.md:31`), the
-   README, PyPI's page, drops it. Fix: after line 99 add "This project runs wasmtime 49 itself;
-   the rest of this list is read from each runtime's release notes and source."
+3. **L1 — The README presents untested hosts as running, without the caveat it used to carry** (`README.md:99-103`). Main's README said "Only wasmtime 49 is run by this project; the rest of the list is read from each runtime's release notes and source"; 123's pages keep that sentence (`how-to/embed-from-other-languages.md:89`, `reference/support-and-versioning.md:31`), the README, PyPI's page, drops it. Fix: after line 99 add "This project runs wasmtime 49 itself; the rest of this list is read from each runtime's release notes and source."
 
-4. **L2 — "About 30 pure-Python packages" understates the set** (`README.md:84`). The
-   CHANGELOG's 067 entry says 42 pure-Python packages ship, and the manifest agrees (67
-   `package` lines less 14 libraries and build tools less 11 compiled packages, EXECUTED). Fix:
-   "About 40 pure-Python packages ride in the zip". (123's `reference/packages.md:46, 110` says
-   "thirty … plus" others by name, which is consistent; only the README's round number is off.)
+4. **L2 — "About 30 pure-Python packages" understates the set** (`README.md:84`). The CHANGELOG's 067 entry says 42 pure-Python packages ship, and the manifest agrees (67 `package` lines less 14 libraries and build tools less 11 compiled packages, EXECUTED). Fix: "About 40 pure-Python packages ride in the zip". (123's `reference/packages.md:46, 110` says "thirty … plus" others by name, which is consistent; only the README's round number is off.)
 
-5. **L3 — The deletion list the landing notes hand the lane includes the folder the judge
-   reads** (`build/122/evidence-folders.txt:35`, cited at
-   `122-a-short-readme-and-a-clean-tree.md:516-521`). The list has 55 lines, one of them
-   `2026-10-18-wasmtime-49-advisories`, which `test_rules.py:728` reads; the notes say 54 and
-   "except", but a lane that feeds the list to `git rm -r` deletes it and the advisories' guard
-   check fails. Fix: delete line 35 from the list, or write in the notes "the list less its line
-   35, `2026-10-18-wasmtime-49-advisories`".
+5. **L3 — The deletion list the landing notes hand the lane includes the folder the judge reads** (`build/122/evidence-folders.txt:35`, cited at `122-a-short-readme-and-a-clean-tree.md:516-521`). The list has 55 lines, one of them `2026-10-18-wasmtime-49-advisories`, which `test_rules.py:728` reads; the notes say 54 and "except", but a lane that feeds the list to `git rm -r` deletes it and the advisories' guard check fails. Fix: delete line 35 from the list, or write in the notes "the list less its line 35, `2026-10-18-wasmtime-49-advisories`".
 
-6. **L4 — Two pointers left for 0.1.1 have no roadmap line, and one dated entry breaks
-   decisions.md's order** (`context/roadmap.md:299-306`; `context/decisions.md:13`). The landing
-   notes leave `recipes/numpy_lapack_shims.c:13`'s pointer into the deleted folder
-   `2026-10-20-numpy-on-openblas/` for 0.1.1, and `SECURITY.md:38` still says "(spec 048)" on a
-   page GitHub shows to the public, outside the scans' reach; neither is in the roadmap's
-   follow-up list. Fix: add to that list "`recipes/numpy_lapack_shims.c:13`'s pointer to a deleted
-   evidence folder; `SECURITY.md`'s spec number, and the scans taught to read `SECURITY.md`". The
-   2026-10-17 entry moved to the top of `decisions.md` sits above the 2026-10-22 entries in a
-   file kept newest first; move it below the last entry dated after 2026-10-17, or leave it and
-   say in its heading that it is ordered by the date it moved. Context only.
+6. **L4 — Two pointers left for 0.1.1 have no roadmap line, and one dated entry breaks decisions.md's order** (`context/roadmap.md:299-306`; `context/decisions.md:13`). The landing notes leave `recipes/numpy_lapack_shims.c:13`'s pointer into the deleted folder `2026-10-20-numpy-on-openblas/` for 0.1.1, and `SECURITY.md:38` still says "(spec 048)" on a page GitHub shows to the public, outside the scans' reach; neither is in the roadmap's follow-up list. Fix: add to that list "`recipes/numpy_lapack_shims.c:13`'s pointer to a deleted evidence folder; `SECURITY.md`'s spec number, and the scans taught to read `SECURITY.md`". The 2026-10-17 entry moved to the top of `decisions.md` sits above the 2026-10-22 entries in a file kept newest first; move it below the last entry dated after 2026-10-17, or leave it and say in its heading that it is ordered by the date it moved. Context only.
 
 Notes, no finding:
 
-- **The nav line for 123's omitted page must go.** 123 omitted `get-started/embed-python-wasm.md`
-  (its tip `92a134d3`), so `mkdocs.yml:59` must be deleted on the rebase, as Scope's shared
-  contract says; the strict build fails until it is (EXECUTED, above). Name it as a resolved
-  conflict.
-- **What depends on the evidence folders' deletion:** only criterion 8 and one sentence. No check,
-  closer, harness path or workflow reads any evidence folder but the advisories one, which stays
-  (EXECUTED: `grep` of `tests/`, `scripts/`, `release/`, `.github/`, `src/` and every closer).
-  The sentence is `context/README.md:68-70` ("Evidence folders … from before 2026-10-23 are in git
-  history at `bb2235f2`; only `2026-10-18-wasmtime-49-advisories/` … stays"), which is false
-  until the deletion lands; if the owner declines it, that sentence goes too. Memos that link
-  their own folders keep dangling links, which the owner's decision accepts (history keeps them).
-- **`docs.yml`'s workflow-level `concurrency: pages`** also queues pull-request builds in the
-  deploy's group; GitHub keeps one pending run per group and cancels the older pending one, so a
-  tag's run waiting behind a main push can be cancelled by a third run. Safer: move the
-  `concurrency` block onto the `deploy` job. Not a finding: the spec asked for it at the top.
-- **The first deploy from a tag needs an environment rule.** When Pages' source is set to
-  GitHub Actions, GitHub's `github-pages` environment allows deployment from the default branch
-  only, so the `v0.1.0` tag's deploy job is refused unless the owner also adds a tag rule `v*`
-  (Settings → Environments → github-pages → Deployment branches and tags). INFERRED from
-  GitHub's documented default; add it to For the lane's Pages line. A `workflow_dispatch` on
-  main deploys either way.
-- **123's `reference/support-and-versioning.md`** names `wasi_python.runner`, `.mounts` and
-  `.cli` in code spans, as the builder told the lane; the internal-name rule reads only the
-  README and the API page, so no check sees it.
-- **Builder's deviations — agreed, all six.** 560 not 561 (EXECUTED, the substitution diff);
-  `--check` in `docs.yml` (`api.py` has no default mode); the "described twice" rule (it makes
-  `DESCRIBED` empty itself as help strings arrive); `readme_hits`' page name; the string rule
-  leaving the public pages to the comment rule (no reach lost, criterion 6 above); the
-  `recipes/` comment left for 0.1.1 (build-class file; L4 asks only for its roadmap line).
+- **The nav line for 123's omitted page must go.** 123 omitted `get-started/embed-python-wasm.md` (its tip `92a134d3`), so `mkdocs.yml:59` must be deleted on the rebase, as Scope's shared contract says; the strict build fails until it is (EXECUTED, above). Name it as a resolved conflict.
+- **What depends on the evidence folders' deletion:** only criterion 8 and one sentence. No check, closer, harness path or workflow reads any evidence folder but the advisories one, which stays (EXECUTED: `grep` of `tests/`, `scripts/`, `release/`, `.github/`, `src/` and every closer). The sentence is `context/README.md:68-70` ("Evidence folders … from before 2026-10-23 are in git history at `bb2235f2`; only `2026-10-18-wasmtime-49-advisories/` … stays"), which is false until the deletion lands; if the owner declines it, that sentence goes too. Memos that link their own folders keep dangling links, which the owner's decision accepts (history keeps them).
+- **`docs.yml`'s workflow-level `concurrency: pages`** also queues pull-request builds in the deploy's group; GitHub keeps one pending run per group and cancels the older pending one, so a tag's run waiting behind a main push can be cancelled by a third run. Safer: move the `concurrency` block onto the `deploy` job. Not a finding: the spec asked for it at the top.
+- **The first deploy from a tag needs an environment rule.** When Pages' source is set to GitHub Actions, GitHub's `github-pages` environment allows deployment from the default branch only, so the `v0.1.0` tag's deploy job is refused unless the owner also adds a tag rule `v*` (Settings → Environments → github-pages → Deployment branches and tags). INFERRED from GitHub's documented default; add it to For the lane's Pages line. A `workflow_dispatch` on main deploys either way.
+- **123's `reference/support-and-versioning.md`** names `wasi_python.runner`, `.mounts` and `.cli` in code spans, as the builder told the lane; the internal-name rule reads only the README and the API page, so no check sees it.
+- **Builder's deviations — agreed, all six.** 560 not 561 (EXECUTED, the substitution diff); `--check` in `docs.yml` (`api.py` has no default mode); the "described twice" rule (it makes `DESCRIBED` empty itself as help strings arrive); `readme_hits`' page name; the string rule leaving the public pages to the comment rule (no reach lost, criterion 6 above); the `recipes/` comment left for 0.1.1 (build-class file; L4 asks only for its roadmap line).
 
 ## Constitution checks
 
-- §4.1, §4.2 (patches, pins): untouched; `upstream patches carried: 27` still equals the
-  recorded count (the row EXECUTED).
-- §4.5 (embedder-neutral): the moved product-direction paragraph drops the private path; the
-  embedder scan now reads the README and `docs/` (EXECUTED).
+- §4.1, §4.2 (patches, pins): untouched; `upstream patches carried: 27` still equals the recorded count (the row EXECUTED).
+- §4.5 (embedder-neutral): the moved product-direction paragraph drops the private path; the embedder scan now reads the README and `docs/` (EXECUTED).
 - §5.6 (review): no pre-build review needed (no `src/`, no recipe); this is the build review.
-- §7: nothing tripped. No check, golden output, gap reason, match or allowance was edited to
-  turn a run green (rule 4); the closer retarget is existence-only and exact (EXECUTED).
+- §7: nothing tripped. No check, golden output, gap reason, match or allowance was edited to turn a run green (rule 4); the closer retarget is existence-only and exact (EXECUTED).
 
 ## Verdict
 
-Lands once M1 (the lane's site build in its own environment, or a re-sync before the judge) and
-M2 (the CLI render with colour off, its unit row seen failing first) are fixed, with the nav line
-for `get-started/embed-python-wasm.md` dropped on the rebase and the evidence folders' deletion
-the lane's or the owner's to finish.
+Lands once M1 (the lane's site build in its own environment, or a re-sync before the judge) and M2 (the CLI render with colour off, its unit row seen failing first) are fixed, with the nav line for `get-started/embed-python-wasm.md` dropped on the rebase and the evidence folders' deletion the lane's or the owner's to finish.

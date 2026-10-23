@@ -1,18 +1,13 @@
 # Command line
 
-The `wasi-python` command runs one program in a fresh sandbox and prints its result as one line
-of JSON, so any language can call the runner as a subprocess. It adds no power the Python
-function `run` does not have: each option is one of `run`'s arguments, and an option not given
-keeps `run`'s default.
+The `wasi-python` command runs one program in a fresh sandbox and prints its result as one line of JSON, so any language can call the runner as a subprocess. It adds no power the Python function `run` does not have: each option is one of `run`'s arguments, and an option not given keeps `run`'s default.
 
 ```
 $ wasi-python run -- -c "print(1)"
 {"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "1\n", "trapped": null, "truncated": []}
 ```
 
-Everything after `--` is the guest's own command line: `-c`, `-m`, a script, or `-` for
-standard input. The table below is generated from the command's parser by
-`uv run python tests/harness/cli_doc.py --write`, and a check fails when it differs.
+Everything after `--` is the guest's own command line: `-c`, `-m`, a script, or `-` for standard input. The table below is generated from the command's parser by `uv run python tests/harness/cli_doc.py --write`, and a check fails when it differs.
 
 ## Options
 
@@ -58,6 +53,4 @@ The exit code says whether there is a result, not how the program ended:
 | 2 | a usage error; argparse's message is on standard error |
 | 130 | interrupted by Ctrl-C |
 
-On a result the JSON has `exit_code`, `fuel_used`, `stderr`, `stdout`, `trapped` and
-`truncated`. A stream that is not UTF-8 comes as `stderr_base64` or `stdout_base64` instead.
-See [Python API](python-api.md) for what each field means.
+On a result the JSON has `exit_code`, `fuel_used`, `stderr`, `stdout`, `trapped` and `truncated`. A stream that is not UTF-8 comes as `stderr_base64` or `stdout_base64` instead. See [Python API](python-api.md) for what each field means.

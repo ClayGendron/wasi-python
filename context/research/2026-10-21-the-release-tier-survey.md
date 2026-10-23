@@ -1,28 +1,15 @@
 # The release tier's survey (spec 102, Decision 11)
 
 - **Date:** 2026-10-21, 03:10 to 04:15 (the 90-minute box held: about 65 minutes of guest runs).
-- **By:** spec 102's builder, on `spec/102-the-release-tier` rebased onto wave 09's tip
-  `a68efbb` (100 and 097; main `58f108f` plus wave 09, which lands by fast-forward).
-- **Set:** wave 09's frozen set, `SHA256SUMS` `142bdd38` (built at the wave's code; the lane's
-  record `build/wave-09/lane/judge-1.json` is on the same set), copied into the worktree with
-  `cp -c -Rp`; the four source tarballs cloned from the main tree's `downloads/` and checked
-  against `downloads/SHA256SUMS` (all four OK), their trees and the upstream kit cloned beside.
-- **How (EXECUTED):** the judge's own sessions (`upstream.Session`, `packages.Session`,
-  `regrtest.Session`), driven one group at a time by a stand-in script in the worktree's
-  `build/102/survey/survey.py`, which keeps each group's whole stream and a summary (fuel,
-  passes, counts, findings, class members). One guest process at a time; it waited on
-  `build/lane.lock` (it never existed during the survey). Darwin arm64, wasmtime 49.0.0.
-  Streams and summaries: `build/102/survey/` in the worktree (git-ignored).
+- **By:** spec 102's builder, on `spec/102-the-release-tier` rebased onto wave 09's tip `a68efbb` (100 and 097; main `58f108f` plus wave 09, which lands by fast-forward).
+- **Set:** wave 09's frozen set, `SHA256SUMS` `142bdd38` (built at the wave's code; the lane's record `build/wave-09/lane/judge-1.json` is on the same set), copied into the worktree with `cp -c -Rp`; the four source tarballs cloned from the main tree's `downloads/` and checked against `downloads/SHA256SUMS` (all four OK), their trees and the upstream kit cloned beside.
+- **How (EXECUTED):** the judge's own sessions (`upstream.Session`, `packages.Session`, `regrtest.Session`), driven one group at a time by a stand-in script in the worktree's `build/102/survey/survey.py`, which keeps each group's whole stream and a summary (fuel, passes, counts, findings, class members). One guest process at a time; it waited on `build/lane.lock` (it never existed during the survey). Darwin arm64, wasmtime 49.0.0. Streams and summaries: `build/102/survey/` in the worktree (git-ignored).
 
 ## What it measured
 
 ### The release tier, group by group
 
-Fuel is darwin's, in G (10^9 instructions). "list" is a CPython release list. The two groups
-with findings had them before their classes existed: `pandas-slow-b`'s six (`os.pipe`,
-class `no-threads`) and `cpython-release-a`'s one (`test_trace`'s coverage report opens a
-stdlib module inside the zip, class `stdlib-zip-error`); re-judged from the kept streams with
-the classes, both have none.
+Fuel is darwin's, in G (10^9 instructions). "list" is a CPython release list. The two groups with findings had them before their classes existed: `pandas-slow-b`'s six (`os.pipe`, class `no-threads`) and `cpython-release-a`'s one (`test_trace`'s coverage report opens a stdlib module inside the zip, class `stdlib-zip-error`); re-judged from the kept streams with the classes, both have none.
 
 | family | group | kind | fuel (G) | passes | outcomes | findings |
 |---|---|---|---|---|---|---|
@@ -64,11 +51,7 @@ the classes, both have none.
 | contourpy | `contourpy-lines-7` | keyword | 255.7 | 4 | passed 4, skipped 2 | 0 |
 | | **total** | | **8366.5** | | | |
 
-**The release tier costs 8.37 T of darwin fuel**: contourpy 3.99 T, CPython 3.51 T, numpy
-0.48 T, pandas 0.39 T. At 0.154 to 0.170 s per G (the parallel-shards research) that is 21 to
-24 minutes of guest time serially, about 8 to 9 at `-n 3` with the longest group,
-`cpython-release-hashlib-3` (813 G, about 2.2 minutes), last. On Linux CI it is twelve release
-shards packed at 725 G.
+**The release tier costs 8.37 T of darwin fuel**: contourpy 3.99 T, CPython 3.51 T, numpy 0.48 T, pandas 0.39 T. At 0.154 to 0.170 s per G (the parallel-shards research) that is 21 to 24 minutes of guest time serially, about 8 to 9 at `-n 3` with the longest group, `cpython-release-hashlib-3` (813 G, about 2.2 minutes), last. On Linux CI it is twelve release shards packed at 725 G.
 
 ### The normal tier against the lane's wave 09 record (criterion 4)
 
@@ -117,77 +100,29 @@ pandas-reshape           103.28 ->   103.28  +0.000000  passes 2664 -> 2664
 pandas-tslibs             38.77 ->    38.77  +0.000000  passes 590 -> 590
 ```
 
-- numpy's and pandas' normal groups: **equal to the instruction** (`+0.000000`), though the
-  `/upstream` stage gained five release JSONs. Their fuel does not depend on the stage's files.
-- CPython's normal groups: within 5.3e-4 (`cpython-c` +5.25e-4, `cpython-a` +2.7e-4,
-  `cpython-b` +1.2e-4; `-fs` and `-archives` within 1e-4). The stage gained the release groups'
-  JSONs and the driver its `Z` line; growth to claim. Passes equal in all five.
-- contourpy's normal groups: `contourpy-1` +0.28% (its new `-m "not slow"` filter over 1,196
-  items), the rest within 4.4e-4; passes equal in all seven.
-- contourpy's release groups: `filled-10` and `-11` +0.78% and +0.79% (their `-k` lost the
-  eight earlier expressions of the old single split and gained `-m slow`), the others within
-  4.1e-4. Every group's passes equal the lane's.
-- The partition held on all five CPython normal groups: each group's `cpu` skips are its lists'
-  `gated` entries, each inline module ran (no findings).
+- numpy's and pandas' normal groups: **equal to the instruction** (`+0.000000`), though the `/upstream` stage gained five release JSONs. Their fuel does not depend on the stage's files.
+- CPython's normal groups: within 5.3e-4 (`cpython-c` +5.25e-4, `cpython-a` +2.7e-4, `cpython-b` +1.2e-4; `-fs` and `-archives` within 1e-4). The stage gained the release groups' JSONs and the driver its `Z` line; growth to claim. Passes equal in all five.
+- contourpy's normal groups: `contourpy-1` +0.28% (its new `-m "not slow"` filter over 1,196 items), the rest within 4.4e-4; passes equal in all seven.
+- contourpy's release groups: `filled-10` and `-11` +0.78% and +0.79% (their `-k` lost the eight earlier expressions of the old single split and gained `-m slow`), the others within 4.1e-4. Every group's passes equal the lane's.
+- The partition held on all five CPython normal groups: each group's `cpu` skips are its lists' `gated` entries, each inline module ran (no findings).
 
 ## What it found
 
-1. **numpy's slow tests** (the drafter's 33 `slow` lines in selected files): 65 passes and 15
-   skips over three groups. The skips are the guest's: numpy's `requires_memory` "could not
-   determine available memory" (5), no module building, no `_posixshmem`, no subprocess, no
-   cython, 64-bit-only cases, `memmap`, and the 458 MiB sample array that may not fit a
-   fragmented 32-bit address space. No failure.
-   `numpy-slow-others` measured 656 G as one group, past 480, and was split by path into
-   `numpy-slow-linalg` (251 G) and `numpy-slow-b` (82 G); `numpy-slow-a` holds `_core` and
-   `lib` (144 G). Three `test_openblas_threading` ids (under `ma`, `matrixlib`, `random`)
-   pass in the whole-path group only: linalg's `TestRegression` imported into those modules'
-   namespaces when linalg is collected in the same session. The function runs in
-   `numpy-slow-linalg` under its own id.
-2. **pandas' slow tests**: two groups, 2,287 passes. Six `test_multi_thread` cases fail on the
-   missing `os.pipe` (no threads): a class, `no-threads`, closer the README. Three of the eight
-   paths select no slow test (exit 5 alone); grouped with the others they need no guard.
-3. **contourpy**: the same tests in the same groups as wave 09's acceptance, passes equal in all
-   25; no failure, no trap. The guard group `contourpy-slow-rest` (the marker release tier over
-   every file but `test_filled.py`) selects nothing, 18 G.
-4. **CPython**: the normal groups skip **51 tests** for want of `cpu` (none for `largefile`:
-   the review's L4 holds under WASI) and **one module**, `test_peg_generator`, as a whole. The
-   **inline readers are modules**, not tests: `test_unicodedata` reads `cpu` at module level
-   (`quicktest`, steering several tests), `test_unparse` in a class helper, `test_posixpath` and
-   `test_tokenize` in a test. Under the release resources, every listed test started; some then skip
-   for reasons of their own, among them (`test_pyexpat`'s 8 GiB minimum, `test_support`'s subprocess,
-   `test_peg_generator` whose `Tools/peg_generator` is not staged); one errors
-   (`test_trace`, the class above). Two **single tests are past 480 G and cannot be split**:
-   `test_sha3_256_update_over_4gb` (813 G: SHA3 over 4 GiB in the guest) and
-   `test_sumprod_stress` (621 G). Each is a group of its own; `cpython-release-hashlib-3` fills a shard alone and
-   `cpython-release-math-2` packs with `cpython-release-archives` (721.2 G, inside 725 G).
-   The other heavy ones were split by id to under 480 G: the three `*_update_over_4gb` hashes
-   (222, 331 and 813 G), `test_unicodedata` whole (255 G), the inline `test_tokenize` and
-   `test_unparse` (472 G), `test_math`'s two sumprod tests.
-5. **Module denials need their reason.** `RESOURCE_DENIED` also ends `test_urllib2net`,
-   `test_urllibnet`, `test_socketserver` (network), `test_xpickle` and `test_zipfile64`
-   (`extralargefile`, out of scope): none is the tiers'. The driver now writes a `Z <module> --
-   <reason>` line before such a module's `D` line, and the partition reads only `cpu` and
-   `largefile` denials.
+1. **numpy's slow tests** (the drafter's 33 `slow` lines in selected files): 65 passes and 15 skips over three groups. The skips are the guest's: numpy's `requires_memory` "could not determine available memory" (5), no module building, no `_posixshmem`, no subprocess, no cython, 64-bit-only cases, `memmap`, and the 458 MiB sample array that may not fit a fragmented 32-bit address space. No failure. `numpy-slow-others` measured 656 G as one group, past 480, and was split by path into `numpy-slow-linalg` (251 G) and `numpy-slow-b` (82 G); `numpy-slow-a` holds `_core` and `lib` (144 G). Three `test_openblas_threading` ids (under `ma`, `matrixlib`, `random`) pass in the whole-path group only: linalg's `TestRegression` imported into those modules' namespaces when linalg is collected in the same session. The function runs in `numpy-slow-linalg` under its own id.
+2. **pandas' slow tests**: two groups, 2,287 passes. Six `test_multi_thread` cases fail on the missing `os.pipe` (no threads): a class, `no-threads`, closer the README. Three of the eight paths select no slow test (exit 5 alone); grouped with the others they need no guard.
+3. **contourpy**: the same tests in the same groups as wave 09's acceptance, passes equal in all 25; no failure, no trap. The guard group `contourpy-slow-rest` (the marker release tier over every file but `test_filled.py`) selects nothing, 18 G.
+4. **CPython**: the normal groups skip **51 tests** for want of `cpu` (none for `largefile`: the review's L4 holds under WASI) and **one module**, `test_peg_generator`, as a whole. The **inline readers are modules**, not tests: `test_unicodedata` reads `cpu` at module level (`quicktest`, steering several tests), `test_unparse` in a class helper, `test_posixpath` and `test_tokenize` in a test. Under the release resources, every listed test started; some then skip for reasons of their own, among them (`test_pyexpat`'s 8 GiB minimum, `test_support`'s subprocess, `test_peg_generator` whose `Tools/peg_generator` is not staged); one errors (`test_trace`, the class above). Two **single tests are past 480 G and cannot be split**: `test_sha3_256_update_over_4gb` (813 G: SHA3 over 4 GiB in the guest) and `test_sumprod_stress` (621 G). Each is a group of its own; `cpython-release-hashlib-3` fills a shard alone and `cpython-release-math-2` packs with `cpython-release-archives` (721.2 G, inside 725 G). The other heavy ones were split by id to under 480 G: the three `*_update_over_4gb` hashes (222, 331 and 813 G), `test_unicodedata` whole (255 G), the inline `test_tokenize` and `test_unparse` (472 G), `test_math`'s two sumprod tests.
+5. **Module denials need their reason.** `RESOURCE_DENIED` also ends `test_urllib2net`, `test_urllibnet`, `test_socketserver` (network), `test_xpickle` and `test_zipfile64` (`extralargefile`, out of scope): none is the tiers'. The driver now writes a `Z <module> -- <reason>` line before such a module's `D` line, and the partition reads only `cpu` and `largefile` denials.
 
 ## Its delta (Decision 11's rule)
 
-No trap, and every new class's closer is the README. **Two groups are past 480 G and no split
-can bring them under** (single tests, 813 G and 621 G): by Decision 11 that sends the survey's
-delta to **a context-only delta review before the build continues**. The delta, for it:
+No trap, and every new class's closer is the README. **Two groups are past 480 G and no split can bring them under** (single tests, 813 G and 621 G): by Decision 11 that sends the survey's delta to **a context-only delta review before the build continues**. The delta, for it:
 
-1. CPython's inline entries are modules (the reader is a text search for an inline
-   `is_resource_enabled('cpu')` in a planned module's source; the four found are the drafter's
-   four); the release group runs the whole module with `cpu` on.
-2. The regrtest driver gains a `Z` line (the stage changes; CPython's normal fuel grows by at
-   most 5.3e-4).
-3. contourpy's guard group (`selects_nothing`, a marker release group allowed pytest's exit 5)
-   so the marker release groups cover every normal path, as Decision 3 requires.
-4. Budgets per tier: numpy's, pandas' and CPython's budgets bound each tier; CPython's release
-   tier has its own, 6 T (its caps sum to 5.39 T); a package family's budget stays the sum of all
-   its caps (contourpy's 8.865 T).
-5. The release shards: twelve, packed at 725 G from these numbers, one of them a single test
-   alone; the normal plot shards re-packed into nine (6.01 T).
+1. CPython's inline entries are modules (the reader is a text search for an inline `is_resource_enabled('cpu')` in a planned module's source; the four found are the drafter's four); the release group runs the whole module with `cpu` on.
+2. The regrtest driver gains a `Z` line (the stage changes; CPython's normal fuel grows by at most 5.3e-4).
+3. contourpy's guard group (`selects_nothing`, a marker release group allowed pytest's exit 5) so the marker release groups cover every normal path, as Decision 3 requires.
+4. Budgets per tier: numpy's, pandas' and CPython's budgets bound each tier; CPython's release tier has its own, 6 T (its caps sum to 5.39 T); a package family's budget stays the sum of all its caps (contourpy's 8.865 T).
+5. The release shards: twelve, packed at 725 G from these numbers, one of them a single test alone; the normal plot shards re-packed into nine (6.01 T).
 6. pandas' and numpy's release groups are by path (two and three), not one each.
 
-In one line: the release tier is 8.37 T on darwin, every test lands in a tier, and two single
-CPython tests past 480 G need the delta review's word before the build goes on.
+In one line: the release tier is 8.37 T on darwin, every test lands in a tier, and two single CPython tests past 480 G need the delta review's word before the build goes on.

@@ -179,11 +179,25 @@ TYPED = "wasi_python/py.typed"
 WHEEL_SET = "wasi_python/artifacts/"
 
 
+def _licences():  # type: ignore[no-untyped-def]
+    """release/licences.py, which writes the wheel's LICENSE, loaded by path: release/ is not a
+    package."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("licences", paths.REPO / "release/licences.py")
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def wheel_errors(wheel: Path, d: Path) -> list[str]:
     """The wheel carries every file of the set's folder (litter aside), byte for byte, and under
     `wasi_python/artifacts/` nothing the set's SHA256SUMS does not list, litter or not: the wheel
-    is built from the folder."""
-    errors = []
+    is built from the folder. Its .dist-info/licenses/LICENSE is the project's licence followed by
+    every licence in the set's LICENSES folder."""
+    lic = _licences()
+    errors = lic.check(wheel, d, (paths.REPO / "LICENSE").read_text(encoding="utf-8"))
     try:
         listed = set(paths.read_pin_list(d / "SHA256SUMS")) | {"SHA256SUMS"}
     except (OSError, ValueError):

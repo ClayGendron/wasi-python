@@ -1,65 +1,25 @@
 # 030 — A cancel during a door call is named "cancelled"
 
-- **Status:** drafted 2026-10-17; revised against its pre-build review
-  (`../reviews/030-a-cancel-in-the-door-is-named-spec-2026-10-17.md`), whose confirmation passed
-  it for build with no conditions (its three notes for the builder are in the review). Built
-  2026-10-17 in its worktree (branch `spec/030-a-cancel-in-the-door-is-named`); build-reviewed
-  (`../reviews/030-a-cancel-in-the-door-is-named-2026-10-17.md`, verdict: revise, then land);
-  revised against it the same day and confirmed. Landed 2026-10-17 (accepted on `aac0a98` as
-  `f2429cb`; dry run 39091681324).
+- **Status:** drafted 2026-10-17; revised against its pre-build review (`../reviews/030-a-cancel-in-the-door-is-named-spec-2026-10-17.md`), whose confirmation passed it for build with no conditions (its three notes for the builder are in the review). Built 2026-10-17 in its worktree (branch `spec/030-a-cancel-in-the-door-is-named`); build-reviewed (`../reviews/030-a-cancel-in-the-door-is-named-2026-10-17.md`, verdict: revise, then land); revised against it the same day and confirmed. Landed 2026-10-17 (accepted on `aac0a98` as `f2429cb`; dry run 39091681324).
 - **Owner:** Clay Gendron
-- **Kind:** the runner (`src/wasi_python/runner.py`: the shared host function's except branch
-  and its entry guard), judge checks in `tests/checks/test_v1_4_embedding.py`, `CHANGELOG.md`.
-  Not build-class.
-- **Depends on:** 003 (the door), 011 (a call's recorded stop), 015 (`cancel=`, the epoch
-  callback, `call.ended`).
-- **Research it stands on:** `../research/2026-10-17-a-tool-protocol-over-the-door.md`, finding 5
-  (EXECUTED: `door_timing_probe.py` and its output beside the memo); the owner's decisions of
-  2026-10-17 (`../decisions.md`, "12 and 14": the cancel defect is fixed before the tool protocol).
+- **Kind:** the runner (`src/wasi_python/runner.py`: the shared host function's except branch and its entry guard), judge checks in `tests/checks/test_v1_4_embedding.py`, `CHANGELOG.md`. Not build-class.
+- **Depends on:** 003 (the door), 011 (a call's recorded stop), 015 (`cancel=`, the epoch callback, `call.ended`).
+- **Research it stands on:** `../research/2026-10-17-a-tool-protocol-over-the-door.md`, finding 5 (EXECUTED: `door_timing_probe.py` and its output beside the memo); the owner's decisions of 2026-10-17 (`../decisions.md`, "12 and 14": the cancel defect is fixed before the tool protocol).
 
 ## The problem
 
-A call made with `cancel=` whose event is set while the embedder's `host` blocks in a door call
-ends with `trapped="error while executing at wasm backtrace:"`, not `"cancelled"`
-(EXECUTED, the memo's table). A cancel set while the guest computes is named correctly.
+A call made with `cancel=` whose event is set while the embedder's `host` blocks in a door call ends with `trapped="error while executing at wasm backtrace:"`, not `"cancelled"` (EXECUTED, the memo's table). A cancel set while the guest computes is named correctly.
 
-Why (READ): under `cancel=`, the store's epoch deadline is at most `CANCEL_TICKS` ticks after the
-epoch callback last ran. A host that blocks past that window leaves the deadline overdue. After
-`host` returns, the door calls the guest's exported `host_alloc` to place the answer (`runner.py`,
-`_door`'s `frame`), even for an empty answer. That is guest code, so the overdue epoch check fires
-there; the epoch callback records `call.ended = "cancelled"` and returns
-its error; `_door` re-raises it (`except (wt.Trap, wt.WasmtimeError): raise`); the shared host
-function catches it and records it as the call's stop (`call.stop(caller, cause)`); and `_drive`
-reads `call.stopped` before `call.ended`, so the run is named by the raw wasmtime error. The same
-path is taken by a deadline that passes during a door call made with `cancel=` (EXECUTED by the
-review: the raw error 10 times in 10). A host that sees the cancel and returns within the window
-is named correctly today: its answer is written into the guest's memory, and the guest stops at
-its next function entry before acting on it.
+Why (READ): under `cancel=`, the store's epoch deadline is at most `CANCEL_TICKS` ticks after the epoch callback last ran. A host that blocks past that window leaves the deadline overdue. After `host` returns, the door calls the guest's exported `host_alloc` to place the answer (`runner.py`, `_door`'s `frame`), even for an empty answer. That is guest code, so the overdue epoch check fires there; the epoch callback records `call.ended = "cancelled"` and returns its error; `_door` re-raises it (`except (wt.Trap, wt.WasmtimeError): raise`); the shared host function catches it and records it as the call's stop (`call.stop(caller, cause)`); and `_drive` reads `call.stopped` before `call.ended`, so the run is named by the raw wasmtime error. The same path is taken by a deadline that passes during a door call made with `cancel=` (EXECUTED by the review: the raw error 10 times in 10). A host that sees the cancel and returns within the window is named correctly today: its answer is written into the guest's memory, and the guest stops at its next function entry before acting on it.
 
 The tool protocol makes this common: a blocked tool is the usual place to cancel.
 
 ## Decisions
 
-1. **The callback's own error is not a stop.** When the shared host function catches an
-   exception while `call.ended` is already set, and that exception is a `wasmtime.Trap` or
-   `wasmtime.WasmtimeError` (the error the epoch callback returned, surfacing through
-   `host_alloc`), it does not record it in `call.stopped`. It sets the store's epoch deadline to
-   0 (`_epoch_now(caller)`, the deadline half of `call.stop`), so the guest stops by the runner's
-   own act at its next function entry, and returns its `stopped` code. `_drive` then names the
-   run from `call.ended`, as it does for a cancel while computing. Any other exception (a host's
-   own, a `KeyboardInterrupt`) is recorded as today, and a stop recorded before `call.ended`
-   still holds (spec 015's order is unchanged).
-2. **The entry guard covers an ended call.** The shared host function returns `stopped` before
-   serving a call when `call.stopped` **or** `call.ended` is set, so no host function runs for a
-   call the callback has ended.
-3. **The invariant, written in the code.** `call.ended` is set only by the epoch callback, and
-   only on a path that returns an error. So a `Trap` or `WasmtimeError` that the shared function
-   catches after `ended` is set is that error. `ExitTrap` is a `WasmtimeError`, and it cannot occur
-   there, because the callback's error aborts `host_alloc` first. A comment at the branch says
-   this, so the guard is never widened by mistake.
-4. **Nothing else changes.** When the deadline is overdue the door's answer is not delivered (the
-   run ends inside the door, as today); `fuel_used` stays `None` for a cancelled run, as spec 015
-   says; `exit_code` stays `None`.
+1. **The callback's own error is not a stop.** When the shared host function catches an exception while `call.ended` is already set, and that exception is a `wasmtime.Trap` or `wasmtime.WasmtimeError` (the error the epoch callback returned, surfacing through `host_alloc`), it does not record it in `call.stopped`. It sets the store's epoch deadline to 0 (`_epoch_now(caller)`, the deadline half of `call.stop`), so the guest stops by the runner's own act at its next function entry, and returns its `stopped` code. `_drive` then names the run from `call.ended`, as it does for a cancel while computing. Any other exception (a host's own, a `KeyboardInterrupt`) is recorded as today, and a stop recorded before `call.ended` still holds (spec 015's order is unchanged).
+2. **The entry guard covers an ended call.** The shared host function returns `stopped` before serving a call when `call.stopped` **or** `call.ended` is set, so no host function runs for a call the callback has ended.
+3. **The invariant, written in the code.** `call.ended` is set only by the epoch callback, and only on a path that returns an error. So a `Trap` or `WasmtimeError` that the shared function catches after `ended` is set is that error. `ExitTrap` is a `WasmtimeError`, and it cannot occur there, because the callback's error aborts `host_alloc` first. A comment at the branch says this, so the guard is never widened by mistake.
+4. **Nothing else changes.** When the deadline is overdue the door's answer is not delivered (the run ends inside the door, as today); `fuel_used` stays `None` for a cancelled run, as spec 015 says; `exit_code` stays `None`.
 
 ## Intent
 
@@ -77,175 +37,51 @@ CHANGELOG.md                           0.1.0a4: Fixed
 
 ## Scope
 
-In: the naming of a run whose cancel or deadline (under `cancel=`) lands during a door call. Out:
-delivering the door's answer after a cancel; the tool protocol itself; any change to how a run
-without `cancel=` meets its deadline (wasmtime's interrupt trap, already named `"deadline"`).
+In: the naming of a run whose cancel or deadline (under `cancel=`) lands during a door call. Out: delivering the door's answer after a cancel; the tool protocol itself; any change to how a run without `cancel=` meets its deadline (wasmtime's interrupt trap, already named `"deadline"`).
 
 ## Acceptance criteria
 
-Checks run the guest in a child process like the existing `CANCEL_RUN` checks. Nothing measures
-time: a host that must block past the callback's window polls `runner._epoch_ticker.count()` and
-returns once it has advanced a number of ticks, never after a sleep or a timeout.
+Checks run the guest in a child process like the existing `CANCEL_RUN` checks. Nothing measures time: a host that must block past the callback's window polls `runner._epoch_ticker.count()` and returns once it has advanced a number of ticks, never after a sleep or a timeout.
 
-1. `test_a_cancel_during_a_door_call_is_named`: the host sets a "started" event; the check then
-   sets the call's `cancel`; the host, once it sees the cancel, waits until the ticker has advanced
-   `runner.CANCEL_TICKS + 2` from that moment, then returns. The run ends `trapped ==
-   "cancelled"`, `exit_code is None`, `fuel_used is None`, and the guest's line after the door is
-   not printed. Parametrized over an answer of 2 bytes and of 0 bytes. Seen failing first (the
-   review: the raw error every run with `CANCEL_TICKS + 1`).
-2. `test_a_deadline_during_a_door_call_under_cancel_is_named`: with `cancel=` given and never
-   set, a fuel cap, and `deadline_s=0.05`, the host waits until the ticker has advanced
-   `ceil(deadline_s / TICK_S) + 2` from its own start, then returns. The run ends `trapped ==
-   "deadline"`, `exit_code is None`, `fuel_used is None`. Seen failing first.
-3. `test_ctrl_c_before_a_cancel_in_the_door`: on the main thread, the host sends itself SIGINT,
-   sets the cancel, waits past `CANCEL_TICKS` by count and returns; the call raises
-   `KeyboardInterrupt` (spec 015: Ctrl-C before cancel). A guard: it passes today.
-4. `tests/unit/test_runner_cancel.py`, with a fake call and no artifacts: with `ended` set and a
-   `WasmtimeError` cause, `stopped` stays `None` and the deadline is set to 0; with `ended` set and
-   a `KeyboardInterrupt` cause, it is recorded; with `ended` unset and a `WasmtimeError`, it is
-   recorded; with `ended` set, the entry returns `stopped` and the host function is not called.
-5. `test_a_stop_holds_under_cancel`, `test_a_deadline_under_cancel_is_named` and
-   `test_run_with_cancel` still pass: a stop a host records (spec 011's, as in
-   `test_a_stop_holds_under_cancel`) still wins over a later cancel.
+1. `test_a_cancel_during_a_door_call_is_named`: the host sets a "started" event; the check then sets the call's `cancel`; the host, once it sees the cancel, waits until the ticker has advanced `runner.CANCEL_TICKS + 2` from that moment, then returns. The run ends `trapped == "cancelled"`, `exit_code is None`, `fuel_used is None`, and the guest's line after the door is not printed. Parametrized over an answer of 2 bytes and of 0 bytes. Seen failing first (the review: the raw error every run with `CANCEL_TICKS + 1`).
+2. `test_a_deadline_during_a_door_call_under_cancel_is_named`: with `cancel=` given and never set, a fuel cap, and `deadline_s=0.05`, the host waits until the ticker has advanced `ceil(deadline_s / TICK_S) + 2` from its own start, then returns. The run ends `trapped == "deadline"`, `exit_code is None`, `fuel_used is None`. Seen failing first.
+3. `test_ctrl_c_before_a_cancel_in_the_door`: on the main thread, the host sends itself SIGINT, sets the cancel, waits past `CANCEL_TICKS` by count and returns; the call raises `KeyboardInterrupt` (spec 015: Ctrl-C before cancel). A guard: it passes today.
+4. `tests/unit/test_runner_cancel.py`, with a fake call and no artifacts: with `ended` set and a `WasmtimeError` cause, `stopped` stays `None` and the deadline is set to 0; with `ended` set and a `KeyboardInterrupt` cause, it is recorded; with `ended` unset and a `WasmtimeError`, it is recorded; with `ended` set, the entry returns `stopped` and the host function is not called.
+5. `test_a_stop_holds_under_cancel`, `test_a_deadline_under_cancel_is_named` and `test_run_with_cancel` still pass: a stop a host records (spec 011's, as in `test_a_stop_holds_under_cancel`) still wins over a later cancel.
 6. `uv run pytest` green with `--accept-judge`; lost 0; grew 0.
 
 ## Landing notes
 
-Built 2026-10-17 by the implementer (Claude Opus 5.5), on darwin-arm64, host CPython 3.14.2 from
-`uv run`, wasmtime-py 49.0.0, git 2.51.0, in the worktree `../wasi_python-030` on
-`spec/030-a-cancel-in-the-door-is-named`, against main's frozen artifact set
-(`WASI_PYTHON_ARTIFACTS=<main>/build/sets/4befe9de64edc783`, read only; `scripts/build.sh` not
-run). Not yet reviewed. Each claim is labelled. Logs are under the worktree's `build/030-*.log`;
-today's runner was run from a `git archive HEAD src/wasi_python` copy under
-`/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/030-build/before/`,
-put first on `PYTHONPATH`.
+Built 2026-10-17 by the implementer (Claude Opus 5.5), on darwin-arm64, host CPython 3.14.2 from `uv run`, wasmtime-py 49.0.0, git 2.51.0, in the worktree `../wasi_python-030` on `spec/030-a-cancel-in-the-door-is-named`, against main's frozen artifact set (`WASI_PYTHON_ARTIFACTS=<main>/build/sets/4befe9de64edc783`, read only; `scripts/build.sh` not run). Not yet reviewed. Each claim is labelled. Logs are under the worktree's `build/030-*.log`; today's runner was run from a `git archive HEAD src/wasi_python` copy under `/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/030-build/before/`, put first on `PYTHONPATH`.
 
 **What was built** (READ: the diff).
-- `src/wasi_python/runner.py`, `_shared`: the entry guard returns `stopped` when `call.stopped`
-  or `call.ended` is set (Decision 2), still after the Ctrl-C check, with a comment saying so
-  (the review's third builder note). The except branch, when `call.ended` is set and the cause is
-  a `wasmtime.Trap` or `wasmtime.WasmtimeError`, calls `_epoch_now(caller)` and records nothing;
-  every other cause goes to `call.stop` as before (Decision 1). The tuple of the two types is
-  built once, when `_shared` makes the function, by the same lazy `import wasmtime` `_door`
-  uses. The invariant comment (Decision 3) sits at the branch. It says "while the guest runs":
-  `_drive` also sets `ended` when the cancel is set before the guest runs, but then no guest code
-  and no host function runs, so the invariant holds where the branch can see it.
-- `tests/checks/test_v1_4_embedding.py`: the `CANCEL_RUN` child gains `ticks(n)`, which polls
-  `runner._epoch_ticker.count()` until it has advanced `n` (a 1 ms poll whose outcome depends on
-  the count only), and the cases `door-cancel-2`, `door-cancel-0`, `door-deadline` and
-  `door-ctrl-c`; the guest prints a line after the door. Three checks:
-  `test_a_cancel_during_a_door_call_is_named[2|0]` (criterion 1; the run is made on the child's
-  main thread, and a second thread sets the cancel once the host has set "started"),
-  `test_a_deadline_during_a_door_call_under_cancel_is_named` (criterion 2, a 2-byte answer, as the
-  criterion is worded), `test_ctrl_c_before_a_cancel_in_the_door` (criterion 3).
-- `tests/unit/test_runner_cancel.py` (criterion 4): `_shared("door", 11, 22)` with
-  `_context_address`, `_epoch_now` and `_ctrl_c_watched` monkeypatched (the review's first
-  builder note) and a fake call pushed on `_stack()`. The fake's door sets `ended` while it runs,
-  as the callback does inside `host_alloc`, then raises; "the deadline is set to 0" is a call to
-  the patched `_epoch_now`. Six cases: `WasmtimeError` and `Trap` after `ended` (not recorded,
-  deadline set), `KeyboardInterrupt` after `ended` (recorded), `WasmtimeError` with `ended` unset
-  (recorded), an ended call is not served, and a live call is (the control).
+- `src/wasi_python/runner.py`, `_shared`: the entry guard returns `stopped` when `call.stopped` or `call.ended` is set (Decision 2), still after the Ctrl-C check, with a comment saying so (the review's third builder note). The except branch, when `call.ended` is set and the cause is a `wasmtime.Trap` or `wasmtime.WasmtimeError`, calls `_epoch_now(caller)` and records nothing; every other cause goes to `call.stop` as before (Decision 1). The tuple of the two types is built once, when `_shared` makes the function, by the same lazy `import wasmtime` `_door` uses. The invariant comment (Decision 3) sits at the branch. It says "while the guest runs": `_drive` also sets `ended` when the cancel is set before the guest runs, but then no guest code and no host function runs, so the invariant holds where the branch can see it.
+- `tests/checks/test_v1_4_embedding.py`: the `CANCEL_RUN` child gains `ticks(n)`, which polls `runner._epoch_ticker.count()` until it has advanced `n` (a 1 ms poll whose outcome depends on the count only), and the cases `door-cancel-2`, `door-cancel-0`, `door-deadline` and `door-ctrl-c`; the guest prints a line after the door. Three checks: `test_a_cancel_during_a_door_call_is_named[2|0]` (criterion 1; the run is made on the child's main thread, and a second thread sets the cancel once the host has set "started"), `test_a_deadline_during_a_door_call_under_cancel_is_named` (criterion 2, a 2-byte answer, as the criterion is worded), `test_ctrl_c_before_a_cancel_in_the_door` (criterion 3).
+- `tests/unit/test_runner_cancel.py` (criterion 4): `_shared("door", 11, 22)` with `_context_address`, `_epoch_now` and `_ctrl_c_watched` monkeypatched (the review's first builder note) and a fake call pushed on `_stack()`. The fake's door sets `ended` while it runs, as the callback does inside `host_alloc`, then raises; "the deadline is set to 0" is a call to the patched `_epoch_now`. Six cases: `WasmtimeError` and `Trap` after `ended` (not recorded, deadline set), `KeyboardInterrupt` after `ended` (recorded), `WasmtimeError` with `ended` unset (recorded), an ended call is not served, and a live call is (the control).
 - `CHANGELOG.md`, 0.1.0a4: a "Fixed" entry.
-- `tests/unit/test_runner_async.py`, outside the Design's list: the fake call in
-  `test_a_host_function_returning_under_a_set_event_stops_the_guest` gains `ended=None`. EXECUTED
-  (the first full judge with the fix, `build/030-judge-first.log`): that check failed,
-  `assert -2 == 0` at its first call, because the fake had no `ended`, the new entry guard's
-  read raised `AttributeError`, and `_shared` returned `stopped`. Every real `_Call` has `ended`
-  since spec 015, and every other fake of a call in the unit suite already carries it
-  (`test_runner_calls.py`, the rest of `test_runner_async.py`). The check's assertions are
-  unchanged; the fake now has the shape the runner reads. It is a judge change with this reason,
-  not a weakening; the runner was not bent to the fake (no `getattr`).
+- `tests/unit/test_runner_async.py`, outside the Design's list: the fake call in `test_a_host_function_returning_under_a_set_event_stops_the_guest` gains `ended=None`. EXECUTED (the first full judge with the fix, `build/030-judge-first.log`): that check failed, `assert -2 == 0` at its first call, because the fake had no `ended`, the new entry guard's read raised `AttributeError`, and `_shared` returned `stopped`. Every real `_Call` has `ended` since spec 015, and every other fake of a call in the unit suite already carries it (`test_runner_calls.py`, the rest of `test_runner_async.py`). The check's assertions are unchanged; the fake now has the shape the runner reads. It is a judge change with this reason, not a weakening; the runner was not bent to the fake (no `getattr`).
 
 **Seen failing first** (EXECUTED).
-- Criteria 1 and 2, with the checks written and today's runner: `uv run pytest
-  tests/checks/test_v1_4_embedding.py -k "door_call or ctrl_c_before or cancel"`, three runs
-  (`build/030-checks-before.log`): `3 failed, 7 passed` each time; the three failures are
-  `test_a_cancel_during_a_door_call_is_named[2]`, `[0]` and
-  `test_a_deadline_during_a_door_call_under_cancel_is_named`, each `assert ["error while...one
-  None b''"] == [...]`. The child run directly, 3 times per case (`build/030-cases.log`): today's
-  runner prints `error while executing at wasm backtrace: None None b''` for `door-cancel-2`,
-  `door-cancel-0` and `door-deadline` (9 of 9), and `KeyboardInterrupt` for `door-ctrl-c` (3 of
-  3, the guard passes today, as criterion 3 says).
-- Criterion 4, today's runner (`build/030-unit.log`): `3 failed, 3 passed`;
-  `test_the_callbacks_own_error_is_not_a_stop[error0]` and `[error1]` fail with
-  `assert WasmtimeError('x') is None` / `assert Trap('y') is None` (the cause is recorded), and
-  `test_an_ended_call_is_not_served` with `assert 0 == 22` (the host function answered). The
-  KeyboardInterrupt, ended-unset and control cases pass.
-- One false start, recorded: the unit test first set `ended` before the call. Against the fix,
-  the new entry guard refused that call before its door ran, so three cases failed for the
-  wrong reason (`build/030-unit-before.log` holds the first, pre-fix run). The fake was changed
-  to set `ended` inside its door, which is where the callback sets it; the before-and-after runs
-  above are of that version.
+- Criteria 1 and 2, with the checks written and today's runner: `uv run pytest tests/checks/test_v1_4_embedding.py -k "door_call or ctrl_c_before or cancel"`, three runs (`build/030-checks-before.log`): `3 failed, 7 passed` each time; the three failures are `test_a_cancel_during_a_door_call_is_named[2]`, `[0]` and `test_a_deadline_during_a_door_call_under_cancel_is_named`, each `assert ["error while...one None b''"] == [...]`. The child run directly, 3 times per case (`build/030-cases.log`): today's runner prints `error while executing at wasm backtrace: None None b''` for `door-cancel-2`, `door-cancel-0` and `door-deadline` (9 of 9), and `KeyboardInterrupt` for `door-ctrl-c` (3 of 3, the guard passes today, as criterion 3 says).
+- Criterion 4, today's runner (`build/030-unit.log`): `3 failed, 3 passed`; `test_the_callbacks_own_error_is_not_a_stop[error0]` and `[error1]` fail with `assert WasmtimeError('x') is None` / `assert Trap('y') is None` (the cause is recorded), and `test_an_ended_call_is_not_served` with `assert 0 == 22` (the host function answered). The KeyboardInterrupt, ended-unset and control cases pass.
+- One false start, recorded: the unit test first set `ended` before the call. Against the fix, the new entry guard refused that call before its door ran, so three cases failed for the wrong reason (`build/030-unit-before.log` holds the first, pre-fix run). The fake was changed to set `ended` inside its door, which is where the callback sets it; the before-and-after runs above are of that version.
 
 **Passing with the fix** (EXECUTED).
-- The same `-k` selection, five runs (`build/030-checks-after.log`): `10 passed` each time (the
-  four new cases, the Ctrl-C guard among them; criterion 5's `test_run_with_cancel[busy|sleeping]`,
-  `test_a_stop_holds_under_cancel` and `test_a_deadline_under_cancel_is_named`; and the two async
-  cancel checks).
-- The child directly (`build/030-cases.log`): `cancelled None None b''` for `door-cancel-2` and
-  `door-cancel-0`, `deadline None None b''` for `door-deadline`, `KeyboardInterrupt` for
-  `door-ctrl-c`, 3 of 3 each. The line after the door is never printed.
+- The same `-k` selection, five runs (`build/030-checks-after.log`): `10 passed` each time (the four new cases, the Ctrl-C guard among them; criterion 5's `test_run_with_cancel[busy|sleeping]`, `test_a_stop_holds_under_cancel` and `test_a_deadline_under_cancel_is_named`; and the two async cancel checks).
+- The child directly (`build/030-cases.log`): `cancelled None None b''` for `door-cancel-2` and `door-cancel-0`, `deadline None None b''` for `door-deadline`, `KeyboardInterrupt` for `door-ctrl-c`, 3 of 3 each. The line after the door is never printed.
 - The unit test: `6 passed`.
-- `uv run ruff check src tests`: all checks passed; `uv run ruff format --check src tests`: 56
-  files already formatted.
-- The full judge (`build/030-judge.log`): `WASI_PYTHON_ARTIFACTS=… uv run pytest`, exit 0,
-  `770 passed, 19 skipped`; `wasi_python v1: 186/197 pass · 0 gap · 11 blocked · 0 fail (unit
-  suite 584/592, 8 skipped)`; v1.4 `74/74`; `ratchet vs 567d64204b: lost 0 · absent 0 · unrun 0
-  · unrun locally 9 · gained 4 · grew 0 · judge changed: tests/checks/test_v1_4_embedding.py,
-  tests/unit/test_runner_async.py, tests/unit/test_runner_cancel.py`. The four gained are
-  (READ: main's `context/progress/accepted.json` holds 70 v1.4 checks, none of these) the four
-  new v1.4 cases:
-  `test_a_cancel_during_a_door_call_is_named[2]` and `[0]`, the deadline check, and the Ctrl-C
-  guard (which passed before the fix too, but is new to the judge). Not accepted: only the lane
-  accepts.
+- `uv run ruff check src tests`: all checks passed; `uv run ruff format --check src tests`: 56 files already formatted.
+- The full judge (`build/030-judge.log`): `WASI_PYTHON_ARTIFACTS=… uv run pytest`, exit 0, `770 passed, 19 skipped`; `wasi_python v1: 186/197 pass · 0 gap · 11 blocked · 0 fail (unit suite 584/592, 8 skipped)`; v1.4 `74/74`; `ratchet vs 567d64204b: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 4 · grew 0 · judge changed: tests/checks/test_v1_4_embedding.py, tests/unit/test_runner_async.py, tests/unit/test_runner_cancel.py`. The four gained are (READ: main's `context/progress/accepted.json` holds 70 v1.4 checks, none of these) the four new v1.4 cases: `test_a_cancel_during_a_door_call_is_named[2]` and `[0]`, the deadline check, and the Ctrl-C guard (which passed before the fix too, but is new to the judge). Not accepted: only the lane accepts.
 
-Criterion 6 (`--accept-judge`) is the lane's: the judge changed
-(`tests/checks/test_v1_4_embedding.py`, `tests/unit/test_runner_async.py`,
-`tests/unit/test_runner_cancel.py`), and only the lane accepts.
+Criterion 6 (`--accept-judge`) is the lane's: the judge changed (`tests/checks/test_v1_4_embedding.py`, `tests/unit/test_runner_async.py`, `tests/unit/test_runner_cancel.py`), and only the lane accepts.
 
-**Revised 2026-10-17 against the build review**
-(`../reviews/030-a-cancel-in-the-door-is-named-2026-10-17.md`, verdict: revise, then land), by
-the implementer, after `git rebase main` (clean; main had moved by documents only). The runner is
-unchanged by the revision. Each claim is labelled; the numbers are written here because the
-worktree's logs go with it at landing.
-- **Finding 1 (High): the Ctrl-C check no longer uses `os.kill`.** On Windows `os.kill` with
-  SIGINT terminates the process, and the release's Windows verify job runs this file. The
-  `door-ctrl-c` branch now installs `signal.default_int_handler` before the call and the host
-  raises the signal with `signal.raise_signal(signal.SIGINT)`, as the file's `CTRL_C` script
-  does; `os` left the child's imports. EXECUTED: the child run directly gives
-  `KeyboardInterrupt` 3 of 3. With SIGINT inherited as ignored (a parent sets `SIG_IGN` and
-  starts the child; the child reads its inherited handler as `1`, `SIG_IGN`): the revised text
-  gives `KeyboardInterrupt` 3 of 3, exit 0; the committed text gave `returned cancelled` 3 of 3,
-  so the old check would have failed there. Windows itself was not run (INFERRED: it now behaves
-  as the `CTRL_C` check, which is green on the Windows verify job, per the review).
-- **Finding 2: the deadline check proves the door was reached.** Its host prints `in the door`
-  before it blocks, and the check asserts `["in the door", "deadline None None b''"]`. EXECUTED:
-  that output 3 of 3.
-- **Finding 3: the unit case holding M5.**
-  `test_a_ctrl_c_pending_at_an_ended_call_is_recorded`: `ended` set, `_ctrl_c_watched` patched
-  to `True`, `_ctrl_c["pending"]` set: `_shared` returns `stopped`, records a
-  `KeyboardInterrupt`, does not serve the call and clears the flag. Seen failing first, EXECUTED:
-  against a `git archive HEAD` copy of the built runner with the entry guard moved above the
-  Ctrl-C check (M5), `1 failed, 6 passed`, this case the failure; against the built runner,
-  `7 passed`.
-- **Finding 4: the CHANGELOG sentence** now says a host's own cancellation (an exception such as
-  `asyncio.CancelledError`) or a Ctrl-C still comes first. An ordinary `Exception` becomes
-  `HOST_FAULT` (spec 006) and records nothing, so a cancel set before it is still named
-  `"cancelled"`.
+**Revised 2026-10-17 against the build review** (`../reviews/030-a-cancel-in-the-door-is-named-2026-10-17.md`, verdict: revise, then land), by the implementer, after `git rebase main` (clean; main had moved by documents only). The runner is unchanged by the revision. Each claim is labelled; the numbers are written here because the worktree's logs go with it at landing.
+- **Finding 1 (High): the Ctrl-C check no longer uses `os.kill`.** On Windows `os.kill` with SIGINT terminates the process, and the release's Windows verify job runs this file. The `door-ctrl-c` branch now installs `signal.default_int_handler` before the call and the host raises the signal with `signal.raise_signal(signal.SIGINT)`, as the file's `CTRL_C` script does; `os` left the child's imports. EXECUTED: the child run directly gives `KeyboardInterrupt` 3 of 3. With SIGINT inherited as ignored (a parent sets `SIG_IGN` and starts the child; the child reads its inherited handler as `1`, `SIG_IGN`): the revised text gives `KeyboardInterrupt` 3 of 3, exit 0; the committed text gave `returned cancelled` 3 of 3, so the old check would have failed there. Windows itself was not run (INFERRED: it now behaves as the `CTRL_C` check, which is green on the Windows verify job, per the review).
+- **Finding 2: the deadline check proves the door was reached.** Its host prints `in the door` before it blocks, and the check asserts `["in the door", "deadline None None b''"]`. EXECUTED: that output 3 of 3.
+- **Finding 3: the unit case holding M5.** `test_a_ctrl_c_pending_at_an_ended_call_is_recorded`: `ended` set, `_ctrl_c_watched` patched to `True`, `_ctrl_c["pending"]` set: `_shared` returns `stopped`, records a `KeyboardInterrupt`, does not serve the call and clears the flag. Seen failing first, EXECUTED: against a `git archive HEAD` copy of the built runner with the entry guard moved above the Ctrl-C check (M5), `1 failed, 6 passed`, this case the failure; against the built runner, `7 passed`.
+- **Finding 4: the CHANGELOG sentence** now says a host's own cancellation (an exception such as `asyncio.CancelledError`) or a Ctrl-C still comes first. An ordinary `Exception` becomes `HOST_FAULT` (spec 006) and records nothing, so a cancel set before it is still named `"cancelled"`.
 - **Finding 5:** no change, as the review says.
 - **Flag 1:** the Design list now names `tests/unit/test_runner_async.py`.
-- EXECUTED, after the revision: the other new cases run directly, 3 of 3 each:
-  `cancelled None None b''` for both sizes. `uv run ruff check src tests` and `uv run ruff format
-  --check src tests`: clean. The full judge
-  (`WASI_PYTHON_ARTIFACTS=… uv run pytest`): exit 0, `771 passed, 19 skipped`; `wasi_python v1:
-  186/197 pass · 0 gap · 11 blocked · 0 fail (unit suite 585/593, 8 skipped)`; v1.4 `74/74`;
-  `ratchet vs 567d64204b: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 4 · grew 0 ·
-  judge changed: tests/checks/test_v1_4_embedding.py, tests/unit/test_runner_async.py,
-  tests/unit/test_runner_cancel.py`. Not accepted.
+- EXECUTED, after the revision: the other new cases run directly, 3 of 3 each: `cancelled None None b''` for both sizes. `uv run ruff check src tests` and `uv run ruff format --check src tests`: clean. The full judge (`WASI_PYTHON_ARTIFACTS=… uv run pytest`): exit 0, `771 passed, 19 skipped`; `wasi_python v1: 186/197 pass · 0 gap · 11 blocked · 0 fail (unit suite 585/593, 8 skipped)`; v1.4 `74/74`; `ratchet vs 567d64204b: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 4 · grew 0 · judge changed: tests/checks/test_v1_4_embedding.py, tests/unit/test_runner_async.py, tests/unit/test_runner_cancel.py`. Not accepted.
 
-**Landed 2026-10-17** through the lane: rebased onto main (range-diff: both commits unchanged),
-judged on a detached HEAD, accepted with `--accept-judge` (v1.4 77/77; lost 0, grew 0). The
-first acceptance was refused by spec 029's dirty-tree guard, because a reviewer's file changed
-during the run; the lane committed that review on the detached HEAD (`aac0a98`) and accepted
-again (`f2429cb`, the two progress files alone; the rules tier passed on it). Release dry run
-39091681324 on `f2429cb`: every job passed, the Windows verify job included.
+**Landed 2026-10-17** through the lane: rebased onto main (range-diff: both commits unchanged), judged on a detached HEAD, accepted with `--accept-judge` (v1.4 77/77; lost 0, grew 0). The first acceptance was refused by spec 029's dirty-tree guard, because a reviewer's file changed during the run; the lane committed that review on the detached HEAD (`aac0a98`) and accepted again (`f2429cb`, the two progress files alone; the rules tier passed on it). Release dry run 39091681324 on `f2429cb`: every job passed, the Windows verify job included.

@@ -324,23 +324,30 @@ def cpp_exception_errors(root: Path) -> list[str]:
     return errors
 
 
-# FreeType's licence (docs/FTL.TXT, §2): a binary distribution says this in its documentation.
-FREETYPE_CREDIT = (
-    "Portions of this software are copyright © 2026 The FreeType Project "
-    "(https://freetype.org). All rights reserved."
-)
+# The release workflow's wheel steps: the checkout's LICENSE becomes the project's licence followed
+# by every component licence in the set, before each wheel is built, so the wheel's
+# .dist-info/licenses/LICENSE carries them all. FreeType's licence (§2) asks a binary
+# distribution's documentation for its credit; its text, in the set, carries the sentence.
+LICENCE_APPEND = "uv run --no-project python -I release/licences.py append build/artifacts"
+LICENCE_CHECK = "uv run --no-project python -I release/licences.py check"
+WHEEL_BUILD = "uv build --wheel "
 
 
-def credit_errors(readme: str, pinned: Iterable[str]) -> list[str]:
-    """The credit lines the linked libraries' licences ask of the distribution's documentation:
-    the README, which is also the wheel's description, carries
-    FreeType's while FreeType is pinned. Line breaks and a blockquote's `>` are read as spaces."""
-    text = " ".join(re.sub(r"^\s*>\s?", "", line) for line in readme.splitlines()).split()
-    if any(n.lower().startswith("freetype-") for n in pinned) and FREETYPE_CREDIT not in " ".join(
-        text
-    ):
-        return [f"README.md does not say FreeType's credit line: {FREETYPE_CREDIT!r}"]
-    return []
+def licence_step_errors(workflow: str) -> list[str]:
+    """Every `uv build --wheel` line in the release workflow comes right after the licence append,
+    and at least one wheel build is followed by the licence check."""
+    lines = [line.strip() for line in workflow.splitlines()]
+    builds = [i for i, line in enumerate(lines) if line.startswith(WHEEL_BUILD)]
+    if not builds:
+        return ["release.yml builds no wheel"]
+    errors = [
+        f"release.yml line {i + 1}: a wheel built without the licence append before it"
+        for i in builds
+        if i == 0 or lines[i - 1] != LICENCE_APPEND
+    ]
+    if not any(i + 1 < len(lines) and lines[i + 1].startswith(LICENCE_CHECK) for i in builds):
+        errors.append("release.yml checks no built wheel's LICENSE")
+    return errors
 
 
 def pure_python_errors(pinned: Iterable[str]) -> list[str]:
@@ -1351,6 +1358,8 @@ JOB_PERMISSIONS = {
         for job in ("judge-macos", "judge-linux", "judge-windows", "judge-release")
     },
     "gather": {"contents: read"},
+    # The runner's coverage: it checks out, runs the fast tier and uploads to Codecov by its token.
+    "coverage": {"contents: read"},
     # The key and the decision; the build shard on a fresh build; the cache's writer.
     "inputs": {"contents: read"},
     "build-shard": {"contents: read"},

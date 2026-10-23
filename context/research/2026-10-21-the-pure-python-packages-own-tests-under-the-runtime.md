@@ -1,65 +1,18 @@
 # The pure-Python packages' own tests under the runtime (spec 067's survey)
 
-- **Status:** EXECUTED 2026-10-21, darwin-arm64; spec 067's Decision 1 survey. Its delta to
-  Decisions 2, 5, 6, 8, 9, 10 and 11 is in the specification ("Delta from the survey") for a
-  context-only delta review; nothing is built on it before that verdict. **Delta-reviewed
-  2026-10-21** (`../reviews/067-the-pure-python-packages-own-tests-delta-2026-10-21.md`); two
-  corrections to this memo from it: cloudpickle's `psutil` import is in `tests/testutils.py:13`
-  (used once), not in `cloudpickle_test.py`; and the release tier's "at least 66.3 T" is the 22
-  families' whole suites with their smoke files (release groups proper at least 65.8 T; about 77 T
-  at the review's upper estimate for sympy's capped areas).
+- **Status:** EXECUTED 2026-10-21, darwin-arm64; spec 067's Decision 1 survey. Its delta to Decisions 2, 5, 6, 8, 9, 10 and 11 is in the specification ("Delta from the survey") for a context-only delta review; nothing is built on it before that verdict. **Delta-reviewed 2026-10-21** (`../reviews/067-the-pure-python-packages-own-tests-delta-2026-10-21.md`); two corrections to this memo from it: cloudpickle's `psutil` import is in `tests/testutils.py:13` (used once), not in `cloudpickle_test.py`; and the release tier's "at least 66.3 T" is the 22 families' whole suites with their smoke files (release groups proper at least 65.8 T; about 77 T at the review's upper estimate for sympy's capped areas).
 - **Owner:** Clay Gendron
-- **Set:** the main tree's `build/artifacts`, `SHA256SUMS` `d0d91cef…` (main after wave 09 plus
-  wave 10's statsmodels, so 045's formulaic, interface-meta and wrapt are in the zip), copied with
-  `cp -c -Rp` into the builder's worktree (`build/067/sets/d0d91cef`) and checked with `shasum -a
-  256 -c SHA256SUMS` (every line OK). All 42 distributions are in the zip at the pinned versions
-  (their `.dist-info` names, READ).
-- **Test sources:** the 38 archives of the drafting evidence (`sdists.txt`,
-  `sdists-067-revision.txt`, `tag-archives.txt`), each fetched again into an empty folder of its
-  own and its SHA-256 recomputed equal (38 of 38); pypdf's sample files at the commit pypdf's
-  `6.21.1` tag records for its `sample-files` submodule, `818dc013ad1f537198e9fcfae8a6b0dffe25ffa3`
-  (read with `gh api repos/py-pdf/pypdf/contents/sample-files?ref=6.21.1`), its GitHub archive
-  `https://github.com/py-pdf/sample-files/archive/818dc013ad1f537198e9fcfae8a6b0dffe25ffa3.tar.gz`,
-  SHA-256 `01563c629ac7ef6871f0737507e694ee4226253e7453d87f96069e31331a627d` (11,850,954 bytes);
-  pyyaml's, markupsafe's, networkx's and seaborn's sdists from the main tree's `downloads/`, each
-  equal to its `SHA256SUMS` line. Archives unpacked with `tarfile`'s data filter; networkx's tree
-  given the carried patch (`recipes/patches/networkx-3.7/0001-graph-atlas-from-a-zip.patch`).
-- **How** (the scripts in `2026-10-21-the-pure-python-packages-own-tests-under-the-runtime/scripts/`;
-  `sessions.txt` lists every session): the judge's own embedder (`tests/harness/guest.py`, the
-  snapshot binary, `measured=False` because the stage is under the worktree),
-  `tests/upstream/package_drive.py` with one change (it reads its JSON from the writable root, so
-  the stage could be sealed read-only), one guest session at a time, stopped with `SIGSTOP`
-  whenever the main tree's `build/lane.lock` existed (once, for 21 minutes; another builder's
-  survey ran beside it). Each family's stage is the specification's Decision 2 (its
-  `stage_folders`, `package_paths` or `extra_sys_path`), the kit's seven wheels plus the family's
-  extras (Decision 6), and a transcribed `.ini`; every session ran with
-  `--continue-on-collection-errors`, so a file that cannot load stops only itself. Doctests ran as
-  the driver's docstring items (the stdlib's runner, **flags 0**, not upstream's option flags: the
-  survey's counts of doctest failures are therefore an upper bound) over every module the zip ships
-  of the package (`--docpkg`), and doc files as the driver's doctest files with upstream's flags.
-  patsy's inline tests ran from a small guest script calling each product module's `test_*`
-  functions. Fuel caps were survey caps (2 to 6 T a session), not the rule's.
-- **Wall clock** (a benchmark fact): about 3.7 hours of guest time in one process (07:08 to 11:23,
-  less one 21-minute stop for the lane's lock and the restarts between passes) for 85.4 T of fuel
-  in 133 sessions, the replaced and capped ones included: about 0.15 s per G (networkx's
-  algorithms, 1,150 G in 157 s, 0.14 s per G).
-- **Eight passes** (`jobs.txt`): the whole suites; the big families by folder; re-runs after each
-  configuration finding (item 4); smoke candidates; sympy's capped areas split. A label run twice
-  keeps its last run; four sympy sessions that a split replaced, and `sy-slow` (whose `-m` selected
-  nothing, item 4), are left out of the price (`price.py`'s `SUPERSEDED`).
+- **Set:** the main tree's `build/artifacts`, `SHA256SUMS` `d0d91cef…` (main after wave 09 plus wave 10's statsmodels, so 045's formulaic, interface-meta and wrapt are in the zip), copied with `cp -c -Rp` into the builder's worktree (`build/067/sets/d0d91cef`) and checked with `shasum -a 256 -c SHA256SUMS` (every line OK). All 42 distributions are in the zip at the pinned versions (their `.dist-info` names, READ).
+- **Test sources:** the 38 archives of the drafting evidence (`sdists.txt`, `sdists-067-revision.txt`, `tag-archives.txt`), each fetched again into an empty folder of its own and its SHA-256 recomputed equal (38 of 38); pypdf's sample files at the commit pypdf's `6.21.1` tag records for its `sample-files` submodule, `818dc013ad1f537198e9fcfae8a6b0dffe25ffa3` (read with `gh api repos/py-pdf/pypdf/contents/sample-files?ref=6.21.1`), its GitHub archive `https://github.com/py-pdf/sample-files/archive/818dc013ad1f537198e9fcfae8a6b0dffe25ffa3.tar.gz`, SHA-256 `01563c629ac7ef6871f0737507e694ee4226253e7453d87f96069e31331a627d` (11,850,954 bytes); pyyaml's, markupsafe's, networkx's and seaborn's sdists from the main tree's `downloads/`, each equal to its `SHA256SUMS` line. Archives unpacked with `tarfile`'s data filter; networkx's tree given the carried patch (`recipes/patches/networkx-3.7/0001-graph-atlas-from-a-zip.patch`).
+- **How** (the scripts in `2026-10-21-the-pure-python-packages-own-tests-under-the-runtime/scripts/`; `sessions.txt` lists every session): the judge's own embedder (`tests/harness/guest.py`, the snapshot binary, `measured=False` because the stage is under the worktree), `tests/upstream/package_drive.py` with one change (it reads its JSON from the writable root, so the stage could be sealed read-only), one guest session at a time, stopped with `SIGSTOP` whenever the main tree's `build/lane.lock` existed (once, for 21 minutes; another builder's survey ran beside it). Each family's stage is the specification's Decision 2 (its `stage_folders`, `package_paths` or `extra_sys_path`), the kit's seven wheels plus the family's extras (Decision 6), and a transcribed `.ini`; every session ran with `--continue-on-collection-errors`, so a file that cannot load stops only itself. Doctests ran as the driver's docstring items (the stdlib's runner, **flags 0**, not upstream's option flags: the survey's counts of doctest failures are therefore an upper bound) over every module the zip ships of the package (`--docpkg`), and doc files as the driver's doctest files with upstream's flags. patsy's inline tests ran from a small guest script calling each product module's `test_*` functions. Fuel caps were survey caps (2 to 6 T a session), not the rule's.
+- **Wall clock** (a benchmark fact): about 3.7 hours of guest time in one process (07:08 to 11:23, less one 21-minute stop for the lane's lock and the restarts between passes) for 85.4 T of fuel in 133 sessions, the replaced and capped ones included: about 0.15 s per G (networkx's algorithms, 1,150 G in 157 s, 0.14 s per G).
+- **Eight passes** (`jobs.txt`): the whole suites; the big families by folder; re-runs after each configuration finding (item 4); smoke candidates; sympy's capped areas split. A label run twice keeps its last run; four sympy sessions that a split replaced, and `sy-slow` (whose `-m` selected nothing, item 4), are left out of the price (`price.py`'s `SUPERSEDED`).
 
 ## Findings
 
-1. **No trap.** No session ended in a trap. Four sympy sessions stopped at their survey caps,
-   each after its last split: `solvers/ode` (4 T, 70 outcomes), the rest of `solvers` (4 T, 244),
-   `stats` (4 T, 144) and `calculus` (3 T, 30). Their fuel is a lower bound; every other session
-   ended.
-2. **A session's start costs about 10 G** (cycler, 26 tests: 10.8 G; webencodings, 11 tests:
-   11.3 G; tzdata, 628 tests: 11.3 G), more where the package's import is heavy: sympy's smoke files
-   (81 tests) 34.0 G, seaborn's (85) 37.0 G. So a smoke group cannot cost much less than its
-   start, and the 42 smoke groups' floor is about 0.45 T before any test runs.
-3. **The price, by family** (`price.txt`; each family's whole suite: every session of it, its
-   doctests and doc files included, each session's start and collection included):
+1. **No trap.** No session ended in a trap. Four sympy sessions stopped at their survey caps, each after its last split: `solvers/ode` (4 T, 70 outcomes), the rest of `solvers` (4 T, 244), `stats` (4 T, 144) and `calculus` (3 T, 30). Their fuel is a lower bound; every other session ended.
+2. **A session's start costs about 10 G** (cycler, 26 tests: 10.8 G; webencodings, 11 tests: 11.3 G; tzdata, 628 tests: 11.3 G), more where the package's import is heavy: sympy's smoke files (81 tests) 34.0 G, seaborn's (85) 37.0 G. So a smoke group cannot cost much less than its start, and the 42 smoke groups' floor is about 0.45 T before any test runs.
+3. **The price, by family** (`price.txt`; each family's whole suite: every session of it, its doctests and doc files included, each session's start and collection included):
 
    | package | smoke group (normal tier) | smoke fuel | its outcomes | whole suite (release tier) |
    |---|---|---|---|---|
@@ -106,104 +59,24 @@
    | xlrd | the whole suite | 11.3 G | 18 passed, 66 failed (`mmap`) | none |
    | cycler | the whole suite | 10.8 G | 26 passed | none |
 
-   - **The 42 whole suites: at least 66.7 T.** The **normal tier, the 42 smoke groups: 0.879 T**
-     (each under 61 G; twenty of them the whole suite of a small package, 383 G together). The
-     **release tier, the other 22 families' whole suites: at least 66.3 T**, 5.9 times today's
-     about 11.2 T of upstream fuel.
-   - **sympy is 52.2 T of it, at least**: its tests by area (each session's start and collection
-     included; slow and too-slow tests in them, item 4) core 0.72 T, functions 2.08 T, integrals
-     5.66 T, matrices 1.89 T, physics 3.46 T, polys 1.89 T, printing 0.18 T, series and sets
-     1.72 T, simplify 1.99 T (without `test_issue_17141_slow`), utilities and tensor 2.65 T,
-     algebras and assumptions 1.17 T, the eight from categories to external 2.11 T, the seven from
-     geometry to ntheory 1.98 T, the seven from parsing to vector 0.86 T; at least 4 T each for
-     `solvers/ode`, the rest of `solvers` and `stats`, and 3 T for `calculus`; its doctests 3.45 T
-     (845 modules), its 103 doc files 2.79 T, and `test_issue_17141_slow` 2.61 T (the pre-build
-     review's measure). Its cost a test ranges from 0.35 G (core) to some 57 G (solvers' ODEs).
-   - **The other heavy parts**: mpmath's doctests 2.05 T and its tests 1.21 T; packaging's
-     opt-in `property` tests 2.07 T (427 hypothesis tests) beside its 62,422 others in 0.50 T;
-     networkx's `--runslow` tests 1.36 T for six tests (with the whole package's collection);
-     seaborn 1.93 T; pyparsing 0.79 T.
-   - **Collecting all of sympy costs 1.25 T** (`sy-slow`, whose `-m "slow or tooslow"` selected
-     nothing): each release group that collects a sympy folder pays its share of that.
+   - **The 42 whole suites: at least 66.7 T.** The **normal tier, the 42 smoke groups: 0.879 T** (each under 61 G; twenty of them the whole suite of a small package, 383 G together). The **release tier, the other 22 families' whole suites: at least 66.3 T**, 5.9 times today's about 11.2 T of upstream fuel.
+   - **sympy is 52.2 T of it, at least**: its tests by area (each session's start and collection included; slow and too-slow tests in them, item 4) core 0.72 T, functions 2.08 T, integrals 5.66 T, matrices 1.89 T, physics 3.46 T, polys 1.89 T, printing 0.18 T, series and sets 1.72 T, simplify 1.99 T (without `test_issue_17141_slow`), utilities and tensor 2.65 T, algebras and assumptions 1.17 T, the eight from categories to external 2.11 T, the seven from geometry to ntheory 1.98 T, the seven from parsing to vector 0.86 T; at least 4 T each for `solvers/ode`, the rest of `solvers` and `stats`, and 3 T for `calculus`; its doctests 3.45 T (845 modules), its 103 doc files 2.79 T, and `test_issue_17141_slow` 2.61 T (the pre-build review's measure). Its cost a test ranges from 0.35 G (core) to some 57 G (solvers' ODEs).
+   - **The other heavy parts**: mpmath's doctests 2.05 T and its tests 1.21 T; packaging's opt-in `property` tests 2.07 T (427 hypothesis tests) beside its 62,422 others in 0.50 T; networkx's `--runslow` tests 1.36 T for six tests (with the whole package's collection); seaborn 1.93 T; pyparsing 0.79 T.
+   - **Collecting all of sympy costs 1.25 T** (`sy-slow`, whose `-m "slow or tooslow"` selected nothing): each release group that collects a sympy folder pays its share of that.
 
-4. **What the stage needs that the specification did not say** (each fixed in the survey's stage
-   and named for the build):
-   - **The kit's hypothesis is imported before the session**, so a family whose
-     `filterwarnings` has `error` turns pytest's "Module already imported so cannot be rewritten"
-     warning into a session-ending error (markupsafe, charset-normalizer and every `error`
-     family; 095 found it for scipy). Each such `.ini` adds that one `ignore` line.
-   - **Markers upstream uses but registers only in plugins**, refused by the driver's
-     `--strict-markers`: python-dateutil's `no_cover` (its conftest adds pytest-cov's marker),
-     mpmath's `slow`, joblib's and pypdf's `timeout` (pytest-timeout's; a clock, never run),
-     joblib's `thread_unsafe` (pytest-run-parallel's). Each `.ini` registers them.
-   - **Upstream's `norecursedirs` matters**: et-xmlfile's `et_xmlfile/tests/_vendor` (a vendored
-     copy of CPython's `test_xml_etree`, 198 errors without it).
-   - **Sibling and relative imports under the driver's `--import-mode=importlib`**: wrapt's tests
-     import `compat` from `tests/core` (it needs `extra_sys_path = ["tests/core"]`); fonttools'
-     `Tests/ttLib/tables/_v_m_t_x_test.py` imports `_h_m_t_x_test` and one ttFont test imports
-     `ttFont_test`; "attempted relative import beyond top-level package" in networkx's
-     `bipartite/tests/test_generators.py`, seven XlsxWriter comparison files, several openpyxl
-     and two joblib files. The build stages the parents those relative imports need, or names
-     each file with its reason.
-   - **openpyxl's twelve conftests do not load under the survey's stage** ("plugin already
-     registered" for 24 folders): its numbers are a lower bound (35.4 G for 224 outcomes of some
-     1,900 tests). The build must stage openpyxl so its conftests register once.
-   - **sympy's markers do not work under the driver**: the driver imports `sympy` (for
-     `package_paths`) before sympy's conftest sets `sys._running_pytest`, so
-     `sympy.testing.pytest` decides it is not under pytest: `@slow` and `@tooslow` run their tests
-     directly with no marker, and `@XFAIL` raises `XFail`, reported as a failure (sympy's XFAILs are
-     most of its "failures" here). So no `-m` selected or deselected anything in sympy, and every
-     sympy session ran its slow and too-slow tests. The build sets `sys._running_pytest` before the
-     driver imports sympy, or imports nothing of sympy before the session.
-   - **joblib's root conftest arms faulthandler's watchdog thread** at configure
-     (`faulthandler.dump_traceback_later`): with no threads the session ends before collecting.
-     The survey left the root conftest out. Upstream's same conftest skips every doctest when
-     `joblib.parallel.mp` is None, which it is in the guest: upstream's own runner would skip
-     joblib's doctests here.
-   - **reportlab's tests are written for `tests/runAll.py`**: under pytest, `setOutDir` asserts it
-     runs in the main script unless `RL_TEST_OUTDIR` names an output folder; with
-     `RL_TEST_OUTDIR=/tmp/work/rl-out` they run. `tests/charts-out/` holds generated scripts (nine
-     do not parse) that `runAll.py` excludes.
-   - **pypdf's `tests/__init__.py` imports `ssl` at module level**, and the product has no `_ssl`:
-     every pypdf test module imports `tests`, so none can load (the first run collected nothing).
-     The survey moved the import into the one function that uses it (`_get_data_from_url`, which
-     downloads), a **survey-only edit** of the staged copy. The build needs a decision (the delta).
-   - **html5lib's conftest needs three old things**: `pkg_resources` (setuptools 75.8.0's imports
-     platformdirs, whose `unix.py` imports `os.getuid` at module level, absent under WASI;
-     setuptools 66.1.1's vendored copy falls back, and older releases use `pkgutil.ImpImporter`,
-     gone since 3.12), pytest-expect (sdist only on PyPI; the survey staged its package from the
-     sdist and loaded it with `-p pytest_expect.expect`), and a `pytest_collect_file(path, …)`
-     hook argument pytest 9 removes (`PytestRemovedIn9Warning`, an error unless `-W
-     ignore::pytest.PytestRemovedIn9Warning`).
-   - **trio cannot import under WASI** (`NotImplementedError: unsupported platform`,
-     `trio/_core/_run.py`), and as a hypothesis entry point it is imported by hypothesis itself:
-     staging it ends every session at start. jinja2's two async files are not selected.
-   - **Files that cannot load for a true reason** (new rows for Decision 8): cloudpickle's
-     `tests/cloudpickle_test.py` (psutil, compiled; most of cloudpickle's suite), formulaic's
-     `tests/materializers/test_base.py` (pyarrow), jinja2's `test_async.py` and
-     `test_async_filters.py` (trio), reportlab's `tests/charts-out/`; as drafted, pyparsing's
-     `test_diagram.py` (railroad).
-5. **Failures by reason** (`reasons.txt`, per session; each a class the specification's Decision 9
-   predicts unless marked): no processes (`wasi does not support processes`, `os.pipe`,
-   `_multiprocessing`), no threads (`can't start new thread`, tqdm's monitor thread as
-   `TqdmMonitorWarning` under `-W error`, and its "instances still in existence" teardown that
-   follows), `mmap is unavailable` (xlrd's 65 of 84: a class the draft did not list,
-   `no-mmap`), shallow recursion (`RecursionError: Stack overflow … during compilation`),
-   read-only tree writes (`PermissionError` where a test writes beside itself; the build gives
-   those families `cwd = "/tmp/work"`), `Errno 58 Not supported` (wrapt 37, tqdm 9: a call the
-   build names), reportlab's barcode tests (042's class), sympy's XFAILs (item 4), doctests run
-   without upstream's flags ("How", above), and a few single failures to be read in the build.
-6. **The smoke groups** (item 3's second and third columns; each measured, EXECUTED). Chosen from
-   the whole runs' per-file outcomes (`analyze.py files`) for files that import the package's core
-   and run quickly, and that hold no opt-in test (READ: no `@slow`, `@tooslow`, `slow` mark or
-   `property` folder in any of them). Candidates past about 50 G were replaced and measured again
-   (`*-smoke`, `-smoke2`, `-smoke3` in `sessions.txt`: attrs' first two candidates cost 91 and 88 G
-   for their hypothesis-driven files, the third 13.3 G). A suite under about 30 G (three session
-   starts), or of one module, is its own smoke group. Together **0.879 T**: 42 sessions, of which
-   about 0.45 T is their starts (item 2).
-7. **The shards these numbers give** (INFERRED from the packing, at most 725 G a shard, groups at
-   most 480 G): the normal tier in **two** Linux shards of about 440 G; the release tier in about
-   **95 to 110** release shards for its at least 66.3 T, plus `sympy-slow-17141` alone and any single
-   sympy test the build finds past 725 G. At 0.14 to 0.17 s per G, the lane's release acceptance
-   before a tag grows by about 2.6 to 3.1 hours of guest time, about 0.9 to 1.1 hours of wall clock
-   at `-n 3`; a landing's darwin judge by about 2 minutes of guest time.
+4. **What the stage needs that the specification did not say** (each fixed in the survey's stage and named for the build):
+   - **The kit's hypothesis is imported before the session**, so a family whose `filterwarnings` has `error` turns pytest's "Module already imported so cannot be rewritten" warning into a session-ending error (markupsafe, charset-normalizer and every `error` family; 095 found it for scipy). Each such `.ini` adds that one `ignore` line.
+   - **Markers upstream uses but registers only in plugins**, refused by the driver's `--strict-markers`: python-dateutil's `no_cover` (its conftest adds pytest-cov's marker), mpmath's `slow`, joblib's and pypdf's `timeout` (pytest-timeout's; a clock, never run), joblib's `thread_unsafe` (pytest-run-parallel's). Each `.ini` registers them.
+   - **Upstream's `norecursedirs` matters**: et-xmlfile's `et_xmlfile/tests/_vendor` (a vendored copy of CPython's `test_xml_etree`, 198 errors without it).
+   - **Sibling and relative imports under the driver's `--import-mode=importlib`**: wrapt's tests import `compat` from `tests/core` (it needs `extra_sys_path = ["tests/core"]`); fonttools' `Tests/ttLib/tables/_v_m_t_x_test.py` imports `_h_m_t_x_test` and one ttFont test imports `ttFont_test`; "attempted relative import beyond top-level package" in networkx's `bipartite/tests/test_generators.py`, seven XlsxWriter comparison files, several openpyxl and two joblib files. The build stages the parents those relative imports need, or names each file with its reason.
+   - **openpyxl's twelve conftests do not load under the survey's stage** ("plugin already registered" for 24 folders): its numbers are a lower bound (35.4 G for 224 outcomes of some 1,900 tests). The build must stage openpyxl so its conftests register once.
+   - **sympy's markers do not work under the driver**: the driver imports `sympy` (for `package_paths`) before sympy's conftest sets `sys._running_pytest`, so `sympy.testing.pytest` decides it is not under pytest: `@slow` and `@tooslow` run their tests directly with no marker, and `@XFAIL` raises `XFail`, reported as a failure (sympy's XFAILs are most of its "failures" here). So no `-m` selected or deselected anything in sympy, and every sympy session ran its slow and too-slow tests. The build sets `sys._running_pytest` before the driver imports sympy, or imports nothing of sympy before the session.
+   - **joblib's root conftest arms faulthandler's watchdog thread** at configure (`faulthandler.dump_traceback_later`): with no threads the session ends before collecting. The survey left the root conftest out. Upstream's same conftest skips every doctest when `joblib.parallel.mp` is None, which it is in the guest: upstream's own runner would skip joblib's doctests here.
+   - **reportlab's tests are written for `tests/runAll.py`**: under pytest, `setOutDir` asserts it runs in the main script unless `RL_TEST_OUTDIR` names an output folder; with `RL_TEST_OUTDIR=/tmp/work/rl-out` they run. `tests/charts-out/` holds generated scripts (nine do not parse) that `runAll.py` excludes.
+   - **pypdf's `tests/__init__.py` imports `ssl` at module level**, and the product has no `_ssl`: every pypdf test module imports `tests`, so none can load (the first run collected nothing). The survey moved the import into the one function that uses it (`_get_data_from_url`, which downloads), a **survey-only edit** of the staged copy. The build needs a decision (the delta).
+   - **html5lib's conftest needs three old things**: `pkg_resources` (setuptools 75.8.0's imports platformdirs, whose `unix.py` imports `os.getuid` at module level, absent under WASI; setuptools 66.1.1's vendored copy falls back, and older releases use `pkgutil.ImpImporter`, gone since 3.12), pytest-expect (sdist only on PyPI; the survey staged its package from the sdist and loaded it with `-p pytest_expect.expect`), and a `pytest_collect_file(path, …)` hook argument pytest 9 removes (`PytestRemovedIn9Warning`, an error unless `-W ignore::pytest.PytestRemovedIn9Warning`).
+   - **trio cannot import under WASI** (`NotImplementedError: unsupported platform`, `trio/_core/_run.py`), and as a hypothesis entry point it is imported by hypothesis itself: staging it ends every session at start. jinja2's two async files are not selected.
+   - **Files that cannot load for a true reason** (new rows for Decision 8): cloudpickle's `tests/cloudpickle_test.py` (psutil, compiled; most of cloudpickle's suite), formulaic's `tests/materializers/test_base.py` (pyarrow), jinja2's `test_async.py` and `test_async_filters.py` (trio), reportlab's `tests/charts-out/`; as drafted, pyparsing's `test_diagram.py` (railroad).
+5. **Failures by reason** (`reasons.txt`, per session; each a class the specification's Decision 9 predicts unless marked): no processes (`wasi does not support processes`, `os.pipe`, `_multiprocessing`), no threads (`can't start new thread`, tqdm's monitor thread as `TqdmMonitorWarning` under `-W error`, and its "instances still in existence" teardown that follows), `mmap is unavailable` (xlrd's 65 of 84: a class the draft did not list, `no-mmap`), shallow recursion (`RecursionError: Stack overflow … during compilation`), read-only tree writes (`PermissionError` where a test writes beside itself; the build gives those families `cwd = "/tmp/work"`), `Errno 58 Not supported` (wrapt 37, tqdm 9: a call the build names), reportlab's barcode tests (042's class), sympy's XFAILs (item 4), doctests run without upstream's flags ("How", above), and a few single failures to be read in the build.
+6. **The smoke groups** (item 3's second and third columns; each measured, EXECUTED). Chosen from the whole runs' per-file outcomes (`analyze.py files`) for files that import the package's core and run quickly, and that hold no opt-in test (READ: no `@slow`, `@tooslow`, `slow` mark or `property` folder in any of them). Candidates past about 50 G were replaced and measured again (`*-smoke`, `-smoke2`, `-smoke3` in `sessions.txt`: attrs' first two candidates cost 91 and 88 G for their hypothesis-driven files, the third 13.3 G). A suite under about 30 G (three session starts), or of one module, is its own smoke group. Together **0.879 T**: 42 sessions, of which about 0.45 T is their starts (item 2).
+7. **The shards these numbers give** (INFERRED from the packing, at most 725 G a shard, groups at most 480 G): the normal tier in **two** Linux shards of about 440 G; the release tier in about **95 to 110** release shards for its at least 66.3 T, plus `sympy-slow-17141` alone and any single sympy test the build finds past 725 G. At 0.14 to 0.17 s per G, the lane's release acceptance before a tag grows by about 2.6 to 3.1 hours of guest time, about 0.9 to 1.1 hours of wall clock at `-n 3`; a landing's darwin judge by about 2 minutes of guest time.

@@ -18,6 +18,7 @@ pytestmark = pytest.mark.goal("rules")
 CODE_DIRS = ("recipes", "scripts", "src", "tests", "fixtures", "docs")
 SPECS = paths.CONTEXT / "specifications"
 RESEARCH = paths.CONTEXT / "research"
+LIMITATIONS = paths.REPO / "docs" / "reference" / "limitations.md"
 
 
 def test_no_module_level_name_is_bound_twice() -> None:
@@ -28,11 +29,12 @@ def test_no_module_level_name_is_bound_twice() -> None:
     assert not hits, scan.report(hits)
 
 
-def test_the_readme_carries_the_licences_credit_lines() -> None:
-    """FreeType's licence makes a credit line in the distribution's
-    documentation a condition of binary redistribution; the README, the wheel's description,
-    carries it while FreeType is pinned."""
-    errors = scan.credit_errors(paths.README.read_text(), paths.read_pin_list())
+def test_the_wheel_carries_every_component_licence() -> None:
+    """Some linked components' licences ask for a notice in the distribution's documentation
+    (FreeType's for one), so the wheel's .dist-info/licenses/LICENSE is the project's licence
+    followed by every licence the artifact set carries: the release workflow rewrites LICENSE
+    with release/licences.py before each wheel build and checks one wheel it built."""
+    errors = scan.licence_step_errors(RELEASE_WORKFLOW.read_text(encoding="utf-8"))
     assert not errors, scan.report(errors)
 
 
@@ -400,8 +402,8 @@ def test_the_private_api_debt_is_documented() -> None:
 
 
 def test_version_states_the_platform_semantics(guest) -> None:
-    """The guest's -V states the platform's facts, and the README says the
-    same."""
+    """The guest's -V states the platform's facts, and the limitations page says the same, so
+    a reader of the page and a reader of the binary are told one thing."""
     r = guest("plain", ["-V"], record=False)
     assert r.exit_code == 0, r.describe()
     line = r.text.strip()
@@ -409,8 +411,9 @@ def test_version_states_the_platform_semantics(guest) -> None:
     missing = [f for f in facts if f not in line]
     assert not missing, scan.report(missing, f"-V says {line!r}; it lacks")
     sentence = line.split(" ", 2)[-1]  # after "Python X.Y.Z"
-    readme = " ".join(paths.README.read_text().split())
-    assert sentence in readme, f"README does not carry the version sentence {sentence!r}"
+    page = " ".join(LIMITATIONS.read_text(encoding="utf-8").split())
+    where = scan.rel(LIMITATIONS, paths.REPO)
+    assert sentence in page, f"{where} does not carry the version sentence {sentence!r}"
 
 
 def test_landed_specifications_cite_an_existing_review() -> None:
@@ -461,6 +464,31 @@ def test_generated_pages_are_current() -> None:
             errors.append(f"{where}: {count} generated blocks, not one; run {write}")
         elif block.strip("\n") != live.strip("\n"):
             errors.append(f"{where}: differs from the live render; run {write}")
+    assert not errors, scan.report(errors)
+
+
+def test_markdown_paragraphs_are_one_line_each() -> None:
+    """A Markdown paragraph is written on one line: a renderer joins a paragraph's lines with
+    spaces anyway, so a hard wrap at a column changes nothing a reader sees while every edit
+    re-flows its neighbours and every diff is noisier. The root's Markdown files, the public
+    pages and every document under the knowledge tree are held, the prior-art clones excepted
+    (they are not ours); code, tables, headings and HTML are never joined, and a CRLF file is
+    reported. `uv run python tests/harness/wrap.py --fix PATH` joins what this finds."""
+    from harness import wrap
+
+    roots = [*sorted(paths.REPO.glob("*.md")), paths.REPO / "docs", paths.CONTEXT]
+    hits = wrap.findings(roots, lambda p: scan.rel(p, paths.REPO))
+    assert not hits, scan.report(hits)
+
+
+def test_readme_carries_the_codecov_badge() -> None:
+    """The README carries one coverage badge, this repository's on Codecov, which the release
+    workflow's coverage job feeds from the fast tier run under coverage.py
+    (`uv run python tests/harness/coverage.py --measure`). The number lives at Codecov, so no
+    file in the tree can drift from it."""
+    from harness import coverage
+
+    errors = coverage.badge_errors(paths.README.read_text(encoding="utf-8"))
     assert not errors, scan.report(errors)
 
 

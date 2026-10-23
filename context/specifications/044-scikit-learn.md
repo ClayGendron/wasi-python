@@ -1,471 +1,113 @@
 # 044 — scikit-learn
 
-- **Status:** **landed 2026-10-20 in wave 07** (038, 044) on main `1cd25e2`: accepted on `e9a76ce`, history line 88, 704/769 pass, 0 fail, on the set rebuilt in the main tree (`SHA256SUMS` `dc6ba3a5`); the integration review `../reviews/wave-07-integration-2026-10-20.md` ("lands as merged at e9a76ce", all 221 grown rows inside its prediction); the dry run 39442080658 dispatched as main moved. Before: **Built** (2026-10-20), a stacked build on 038's final tip `5cd171d` (on main `958a22b`; built and judged on `ecc2423`, whose build inputs equal it); release runs in *For the lane*; B1 approved by the owner (`../decisions.md`, 2026-10-20). Build review: `../reviews/044-scikit-learn-build-2026-10-20.md`, "lands once M1 is closed", M1 and L1 to L4 answered in its Disposition. Lands after 038 in one chain. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-18; revised the same day against its pre-build review
-  (`../reviews/044-scikit-learn-and-045-statsmodels-spec-2026-10-18.md`): all fourteen findings
-  that concern it are fixed here, and the review's Disposition says where. It changes the build
-  recipe and the artifact set, so it is reviewed before it is built (constitution §5.6). It is build-class: it touches
-  `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release workflow (§5.7). It carries one
-  upstream patch (§4.1). It is not built until the owner answers question 83 (the licences of
-  what scikit-learn bundles); everything else is decided here.
+- **Status:** **landed 2026-10-20 in wave 07** (038, 044) on main `1cd25e2`: accepted on `e9a76ce`, history line 88, 704/769 pass, 0 fail, on the set rebuilt in the main tree (`SHA256SUMS` `dc6ba3a5`); the integration review `../reviews/wave-07-integration-2026-10-20.md` ("lands as merged at e9a76ce", all 221 grown rows inside its prediction); the dry run 39442080658 dispatched as main moved. Before: **Built** (2026-10-20), a stacked build on 038's final tip `5cd171d` (on main `958a22b`; built and judged on `ecc2423`, whose build inputs equal it); release runs in *For the lane*; B1 approved by the owner (`../decisions.md`, 2026-10-20). Build review: `../reviews/044-scikit-learn-build-2026-10-20.md`, "lands once M1 is closed", M1 and L1 to L4 answered in its Disposition. Lands after 038 in one chain. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-18; revised the same day against its pre-build review (`../reviews/044-scikit-learn-and-045-statsmodels-spec-2026-10-18.md`): all fourteen findings that concern it are fixed here, and the review's Disposition says where. It changes the build recipe and the artifact set, so it is reviewed before it is built (constitution §5.6). It is build-class: it touches `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release workflow (§5.7). It carries one upstream patch (§4.1). It is not built until the owner answers question 83 (the licences of what scikit-learn bundles); everything else is decided here.
 - **Owner:** Clay Gendron
-- **Kind:** the build recipe (one pin; a new step 58; `scripts/wasi-cc`'s per-file include map
-  used for a second package; `scripts/gen_inittab.py`'s rename table; `scripts/steps/60_link.sh`;
-  `scripts/steps/70_zip.sh`; `scripts/assemble_artifacts.py`; `scripts/install_from_plan.py`; a new
-  `scripts/stage_scipy_cimports.sh`), recipe files (a
-  cross file, nine small rename headers (eight drafted, one found at build, B11), a per-file include map), one carried patch to
-  scikit-learn with its facts sheet, judge additions and changes (a golden job and the oracle's
-  pins, a v1.3 check file, the constructor list, the package and licence lists, a source-tree
-  pattern), the release workflow's tree count, `README.md`, `CHANGELOG.md`, `LICENSES/`.
-- **Depends on:** specifications not yet built, each landing first (Decision 14): 037 and 038
-  (scipy whole: `scipy.linalg.cython_blas`, `cython_lapack` and `scipy.special.cython_special`
-  as builtins, the per-file include rule in `scripts/wasi-cc`, `scripts/install_from_plan.py`,
-  the rename table in `scripts/gen_inittab.py`, the pinned oracle's scipy and the recording
-  platform), 039 (joblib, cloudpickle, threadpoolctl with `ctypes.util.dllist`, narwhals,
-  `jobs.run_in_guest`, `tests/checks/test_v1_3_default_profile.py`), 042 (whose `--leave-out` this no longer
-  needs: 023's `--drop` does the work, B2), and through them 023, 033 and 035. Landed: 020 (each source tree equals its
-  tarball plus the recorded patches), 012 (the same bytes from any host). Where one of them lands
-  in another shape than its text, this specification uses what landed and says so in its
-  landing notes.
-- **Research it stands on:** `../research/2026-10-17-what-else-the-default-profile-carries.md`
-  (tier B: scikit-learn is "Cython + C++, OpenMP optional", needs scipy, joblib, threadpoolctl
-  and narwhals; its Python part 415 members; Pyodide's `.so` 6.0 MB; finding 4c, threadpoolctl
-  and `ctypes`; finding 4f, joblib serial); `../research/2026-10-17-what-scipy-needs.md` (the
-  0.92 Pyodide-to-ours size ratio; no threads); spec 037 (the scipy line this rides on); the
-  owner's decisions 43 and 48 (`../decisions.md`: tier B approved, in 0.1.0, after scipy).
-  **The drafting runs** (EXECUTED 2026-10-17 and 18 in the session's scratch folder, outside the
-  repository; nothing in the repository was changed by them; tool outputs quoted are marked):
-  - PyPI's JSON for scikit-learn and its dependencies; the sdist and the oracle's wheel
-    downloaded and hashed (`shasum -a 256`, equal to PyPI's);
-  - the sdist read: `meson.build` files, `pyproject.toml`, the OpenMP helpers, the svm sources,
-    the dataset loaders, the vendored code and its notices;
-  - a meson probe with the line's meson 1.12.1 and wasi-sdk 33's clang for `wasm32-wasip1`:
-    `dependency('OpenMP', required: false)` is not found;
-  - a native build of the sdist on the build host (macOS arm64) with the line's meson 1.12.1,
-    Cython 3.3.0 and Python 3.15.0, against numpy 2.5.2 and scipy 1.18.1: all 257 targets, 69
-    extension modules; then `nm` over its objects for symbols defined in more than one;
-  - the golden job drafted and run natively under two hash seeds, and run again with
-    scikit-learn's Python files imported **from a zip** and its extension modules loaded by
-    name (a model of the guest's import path, `tools/zip_hybrid.py` in the facts sheet's
-    evidence): the stock package fails at import, the patched one gives native's output byte
-    for byte;
-  - the zip members and bytes step 70 would add, computed with step 70's own `walk`, `pyc` and
-    `member` (imported read-only from `scripts/`) under the line's Python 3.15.0.
+- **Kind:** the build recipe (one pin; a new step 58; `scripts/wasi-cc`'s per-file include map used for a second package; `scripts/gen_inittab.py`'s rename table; `scripts/steps/60_link.sh`; `scripts/steps/70_zip.sh`; `scripts/assemble_artifacts.py`; `scripts/install_from_plan.py`; a new `scripts/stage_scipy_cimports.sh`), recipe files (a cross file, nine small rename headers (eight drafted, one found at build, B11), a per-file include map), one carried patch to scikit-learn with its facts sheet, judge additions and changes (a golden job and the oracle's pins, a v1.3 check file, the constructor list, the package and licence lists, a source-tree pattern), the release workflow's tree count, `README.md`, `CHANGELOG.md`, `LICENSES/`.
+- **Depends on:** specifications not yet built, each landing first (Decision 14): 037 and 038 (scipy whole: `scipy.linalg.cython_blas`, `cython_lapack` and `scipy.special.cython_special` as builtins, the per-file include rule in `scripts/wasi-cc`, `scripts/install_from_plan.py`, the rename table in `scripts/gen_inittab.py`, the pinned oracle's scipy and the recording platform), 039 (joblib, cloudpickle, threadpoolctl with `ctypes.util.dllist`, narwhals, `jobs.run_in_guest`, `tests/checks/test_v1_3_default_profile.py`), 042 (whose `--leave-out` this no longer needs: 023's `--drop` does the work, B2), and through them 023, 033 and 035. Landed: 020 (each source tree equals its tarball plus the recorded patches), 012 (the same bytes from any host). Where one of them lands in another shape than its text, this specification uses what landed and says so in its landing notes.
+- **Research it stands on:** `../research/2026-10-17-what-else-the-default-profile-carries.md` (tier B: scikit-learn is "Cython + C++, OpenMP optional", needs scipy, joblib, threadpoolctl and narwhals; its Python part 415 members; Pyodide's `.so` 6.0 MB; finding 4c, threadpoolctl and `ctypes`; finding 4f, joblib serial); `../research/2026-10-17-what-scipy-needs.md` (the 0.92 Pyodide-to-ours size ratio; no threads); spec 037 (the scipy line this rides on); the owner's decisions 43 and 48 (`../decisions.md`: tier B approved, in 0.1.0, after scipy). **The drafting runs** (EXECUTED 2026-10-17 and 18 in the session's scratch folder, outside the repository; nothing in the repository was changed by them; tool outputs quoted are marked):
+  - PyPI's JSON for scikit-learn and its dependencies; the sdist and the oracle's wheel downloaded and hashed (`shasum -a 256`, equal to PyPI's);
+  - the sdist read: `meson.build` files, `pyproject.toml`, the OpenMP helpers, the svm sources, the dataset loaders, the vendored code and its notices;
+  - a meson probe with the line's meson 1.12.1 and wasi-sdk 33's clang for `wasm32-wasip1`: `dependency('OpenMP', required: false)` is not found;
+  - a native build of the sdist on the build host (macOS arm64) with the line's meson 1.12.1, Cython 3.3.0 and Python 3.15.0, against numpy 2.5.2 and scipy 1.18.1: all 257 targets, 69 extension modules; then `nm` over its objects for symbols defined in more than one;
+  - the golden job drafted and run natively under two hash seeds, and run again with scikit-learn's Python files imported **from a zip** and its extension modules loaded by name (a model of the guest's import path, `tools/zip_hybrid.py` in the facts sheet's evidence): the stock package fails at import, the patched one gives native's output byte for byte;
+  - the zip members and bytes step 70 would add, computed with step 70's own `walk`, `pyc` and `member` (imported read-only from `scripts/`) under the line's Python 3.15.0.
 
 ## The problem
 
-scikit-learn is the fourth most used library in both benchmarks the default-profile memo read,
-and on every hosted code sandbox's list (memo findings 1 and 2). The owner put it in 0.1.0
-(decision 48). Today `import sklearn` in the guest is `ModuleNotFoundError`.
+scikit-learn is the fourth most used library in both benchmarks the default-profile memo read, and on every hosted code sandbox's list (memo findings 1 and 2). The owner put it in 0.1.0 (decision 48). Today `import sklearn` in the guest is `ModuleNotFoundError`.
 
-It rides on scipy: it is a meson-python build of Cython, C and C++ like numpy, pandas and scipy,
-and it calls BLAS and LAPACK only through `scipy.linalg.cython_blas` and `cython_lapack`. What is
-new here is small but sharp:
+It rides on scipy: it is a meson-python build of Cython, C and C++ like numpy, pandas and scipy, and it calls BLAS and LAPACK only through `scipy.linalg.cython_blas` and `cython_lapack`. What is new here is small but sharp:
 
-- **Its extension modules collide in a static link.** 69 modules. Three pairs share an init
-  name (`_gradient_boosting`, `_tree`, `_utils`), its `_cyutility` shares one with pandas' and
-  scipy's, and its svm wrappers `#include` helper C files whose functions are not `static`:
-  nineteen C names are defined in two or three modules, eighteen strong and one weak (EXECUTED,
-  the native build's objects).
-  Natively each module is its own shared object, so none of this shows.
-- **It reads its own files by path at import.** `sklearn/utils/_repr_html/estimator.py` reads
-  three CSS files with `Path(__file__).parent / "estimator.css"` when the module is imported, and
-  `sklearn.base` imports it. From the zip that path is not a folder: `import sklearn` raises
-  `NotADirectoryError` (EXECUTED in the model of the guest's import path).
-- **OpenMP, threads and processes do not exist here.** scikit-learn already builds without
-  OpenMP and runs serially (`_openmp_helpers.pxd`); joblib already falls back to serial without
-  `_multiprocessing`. Both need to be shown, not assumed.
+- **Its extension modules collide in a static link.** 69 modules. Three pairs share an init name (`_gradient_boosting`, `_tree`, `_utils`), its `_cyutility` shares one with pandas' and scipy's, and its svm wrappers `#include` helper C files whose functions are not `static`: nineteen C names are defined in two or three modules, eighteen strong and one weak (EXECUTED, the native build's objects). Natively each module is its own shared object, so none of this shows.
+- **It reads its own files by path at import.** `sklearn/utils/_repr_html/estimator.py` reads three CSS files with `Path(__file__).parent / "estimator.css"` when the module is imported, and `sklearn.base` imports it. From the zip that path is not a folder: `import sklearn` raises `NotADirectoryError` (EXECUTED in the model of the guest's import path).
+- **OpenMP, threads and processes do not exist here.** scikit-learn already builds without OpenMP and runs serially (`_openmp_helpers.pxd`); joblib already falls back to serial without `_multiprocessing`. Both need to be shown, not assumed.
 
 ## Decisions
 
-1. **What goes in.** scikit-learn 1.9.1: its 69 extension modules linked into `python.wasm` as
-   builtins, and its Python package (410 members, 3,269,711 bytes as step 70 packs them, plus
-   one `METADATA`; Decision 11). Its requirements are already in the set by then: numpy 2.5.2,
-   scipy 1.18.1 (037), joblib 1.6.0 with cloudpickle 3.1.2, threadpoolctl 3.7.0 and narwhals
-   2.27.1 (039). Each meets its bound (READ, `sklearn/_min_dependencies.py` and `METADATA`:
-   numpy ≥ 1.24.1, scipy ≥ 1.10.0, joblib ≥ 1.4.0, narwhals ≥ 2.0.1, threadpoolctl ≥ 3.5.0). No
-   other distribution is added.
+1. **What goes in.** scikit-learn 1.9.1: its 69 extension modules linked into `python.wasm` as builtins, and its Python package (410 members, 3,269,711 bytes as step 70 packs them, plus one `METADATA`; Decision 11). Its requirements are already in the set by then: numpy 2.5.2, scipy 1.18.1 (037), joblib 1.6.0 with cloudpickle 3.1.2, threadpoolctl 3.7.0 and narwhals 2.27.1 (039). Each meets its bound (READ, `sklearn/_min_dependencies.py` and `METADATA`: numpy ≥ 1.24.1, scipy ≥ 1.10.0, joblib ≥ 1.4.0, narwhals ≥ 2.0.1, threadpoolctl ≥ 3.5.0). No other distribution is added.
 
-2. **The pin.** scikit-learn 1.9.1 is the current release (uploaded 2026-09-10) and the version
-   the memo measured.
-   - `https://files.pythonhosted.org/packages/d2/eb/eaf5e07fcc0da7149b0e084f24e54edd7441b9a89ce7e034032ae97fe3a0/scikit_learn-1.9.1.tar.gz`,
-     SHA-256 `629cada3e33e2b9bf376cdc7614a47a4140b8aedc1d836579e359736fbd82977`, 7,786,908 bytes
-     (EXECUTED: PyPI's digest and the downloaded bytes). It unpacks to `scikit_learn-1.9.1`, the
-     tree rule's name. One `get` line in `scripts/00_download.sh`, one line in
-     `downloads/SHA256SUMS`, one `pin` line in `MANIFEST` through the existing loop; and one
-     more of each for numpydoc's licence text (Decision 11).
-   - **Reused, not re-pinned:** Cython 3.3.0 and meson 1.12.1 (the line's) and the host numpy
-     stand-in (step 40).
-   - **Cython 3.3.0 against scikit-learn's `<3.2.6`.** `pyproject.toml` asks
-     `cython>=3.1.2,<3.2.6`, with the comment that the cap waits for Cython issue 7846 and should
-     become `!=3.2.6,!=3.2.7,!=3.2.8,!=3.2.9` once a release fixes it (READ).
-     - **Why the cap exists, and only that.** scikit-learn's pull request 34533 ("BLD Pin
-       cython<3.2.6 to avoid Cython __annotate__ pickling bug", one file, `pyproject.toml`)
-       names its issue 34525 and nothing else; 34584 extends the exclusion to 3.2.9 because the
-       fix "will be released in 3.2.10", which is not on PyPI (READ by the review, `gh`). Issue
-       7846 is "`cyfunction.__annotate__` objects can't be unpickled": a cyfunction wrapped with
-       `functools.update_wrapper`, seen when loky sends it to a worker process.
-     - **The fix is in the line's pinned Cython.** Cython pull request 7852 closed 7846, merged
-       into `master` on 2026-07-25; 3.3.0b1 followed on 2026-08-14. All 66 lines 7852 adds to
-       `Cython/Utility/CythonFunction.c` are in the pinned wheel,
-       `cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl` from `downloads/` (EXECUTED by the
-       review). So 3.3.0 is the only released Cython that carries the fix.
-     - **The cap is pip's.** scikit-learn's `meson.build` checks only a minimum, and only when not
-       cross-compiling (READ, `sklearn/meson.build:22-59`); this project runs meson directly.
-     - **Tested on 3.3.0** (EXECUTED by the review on the drafting run's native build of all 69
-       modules with the line's Cython): a scikit-learn cyfunction
-       (`murmurhash._murmurhash3_bytes_array_s32`) wrapped with `functools.wraps` pickles and
-       unpickles its `__annotate__`; `KDTree` and `BallTree` round-trip through `pickle`; and
-       6,110 of scikit-learn's own tests pass single-threaded, none failing (`sklearn.svm`,
-       `sklearn.tree`, `sklearn.neighbors`, `test_cython_blas`, `sklearn._loss`,
-       `test_hdbscan`, `test_k_means`, `test_sgd`, `test_coordinate_descent`,
-       `test_pairwise_distances_reduction`, `test_t_sne`, `test_gradient_boosting`,
-       `test_forest`; the review's `out/sk33-g1.txt` to `g6.txt`). The guest cannot reproduce
-       7846's own case, since it starts no worker process.
-     - **The builder repeats that test subset in stage 1** (Decision 14), natively with the
-       line's Cython, single-threaded, since no scikit-learn release was built with 3.3.0, and
-       records the counts in the landing notes.
-     - **No fallback Cython:** 3.2.9, 037's fallback, is one of the releases the cap excludes; a
-       failure with 3.3.0 stops the build and becomes a memo (AGENTS.md rule 7).
+2. **The pin.** scikit-learn 1.9.1 is the current release (uploaded 2026-09-10) and the version the memo measured.
+   - `https://files.pythonhosted.org/packages/d2/eb/eaf5e07fcc0da7149b0e084f24e54edd7441b9a89ce7e034032ae97fe3a0/scikit_learn-1.9.1.tar.gz`, SHA-256 `629cada3e33e2b9bf376cdc7614a47a4140b8aedc1d836579e359736fbd82977`, 7,786,908 bytes (EXECUTED: PyPI's digest and the downloaded bytes). It unpacks to `scikit_learn-1.9.1`, the tree rule's name. One `get` line in `scripts/00_download.sh`, one line in `downloads/SHA256SUMS`, one `pin` line in `MANIFEST` through the existing loop; and one more of each for numpydoc's licence text (Decision 11).
+   - **Reused, not re-pinned:** Cython 3.3.0 and meson 1.12.1 (the line's) and the host numpy stand-in (step 40).
+   - **Cython 3.3.0 against scikit-learn's `<3.2.6`.** `pyproject.toml` asks `cython>=3.1.2,<3.2.6`, with the comment that the cap waits for Cython issue 7846 and should become `!=3.2.6,!=3.2.7,!=3.2.8,!=3.2.9` once a release fixes it (READ).
+     - **Why the cap exists, and only that.** scikit-learn's pull request 34533 ("BLD Pin cython<3.2.6 to avoid Cython __annotate__ pickling bug", one file, `pyproject.toml`) names its issue 34525 and nothing else; 34584 extends the exclusion to 3.2.9 because the fix "will be released in 3.2.10", which is not on PyPI (READ by the review, `gh`). Issue 7846 is "`cyfunction.__annotate__` objects can't be unpickled": a cyfunction wrapped with `functools.update_wrapper`, seen when loky sends it to a worker process.
+     - **The fix is in the line's pinned Cython.** Cython pull request 7852 closed 7846, merged into `master` on 2026-07-25; 3.3.0b1 followed on 2026-08-14. All 66 lines 7852 adds to `Cython/Utility/CythonFunction.c` are in the pinned wheel, `cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl` from `downloads/` (EXECUTED by the review). So 3.3.0 is the only released Cython that carries the fix.
+     - **The cap is pip's.** scikit-learn's `meson.build` checks only a minimum, and only when not cross-compiling (READ, `sklearn/meson.build:22-59`); this project runs meson directly.
+     - **Tested on 3.3.0** (EXECUTED by the review on the drafting run's native build of all 69 modules with the line's Cython): a scikit-learn cyfunction (`murmurhash._murmurhash3_bytes_array_s32`) wrapped with `functools.wraps` pickles and unpickles its `__annotate__`; `KDTree` and `BallTree` round-trip through `pickle`; and 6,110 of scikit-learn's own tests pass single-threaded, none failing (`sklearn.svm`, `sklearn.tree`, `sklearn.neighbors`, `test_cython_blas`, `sklearn._loss`, `test_hdbscan`, `test_k_means`, `test_sgd`, `test_coordinate_descent`, `test_pairwise_distances_reduction`, `test_t_sne`, `test_gradient_boosting`, `test_forest`; the review's `out/sk33-g1.txt` to `g6.txt`). The guest cannot reproduce 7846's own case, since it starts no worker process.
+     - **The builder repeats that test subset in stage 1** (Decision 14), natively with the line's Cython, single-threaded, since no scikit-learn release was built with 3.3.0, and records the counts in the landing notes.
+     - **No fallback Cython:** 3.2.9, 037's fallback, is one of the releases the cap excludes; a failure with 3.3.0 stops the build and becomes a memo (AGENTS.md rule 7).
    - numpy's cap `<2.6.0` holds 2.5.2 and scipy's `<1.19.0` holds 1.18.1 (READ).
 
-3. **No OpenMP, by the SDK, checked at build time.** scikit-learn asks
-   `dependency('OpenMP', language: 'c', required: false)` (`sklearn/meson.build:104`) and, when
-   it is not found, builds every module without `-fopenmp`. Its helpers then define
-   `SKLEARN_OPENMP_PARALLELISM_ENABLED 0`, `omp_get_max_threads()` as 1 and the lock calls as
-   no-ops (`sklearn/utils/_openmp_helpers.pxd`, READ), and Cython's `prange` compiles to a plain
-   loop when `_OPENMP` is undefined.
-   - **Why it is not found.** wasi-sdk 33 ships no `omp.h` and no OpenMP runtime. The probe
-     (EXECUTED, the line's meson 1.12.1, wasi-sdk 33's clang, `wasm32-wasip1`): "Run-time
-     dependency OpenMP for c found: NO", `has_header('omp.h', args: ['-fopenmp'])` false, though
-     clang defines `_OPENMP` (202011) when given `-fopenmp`. The cross file names only the SDK's
-     compilers and sysroot, and `pkg-config` is `false`, so no host library can be found.
-   - **The gate.** Step 58 dies unless its `meson setup` log holds
-     `Run-time dependency OpenMP for c found: NO` and no command in the build's
-     `compile_commands.json` holds `-fopenmp`. So a future SDK that ships an OpenMP runtime
-     cannot change the build silently: it would also need threads, which the guest does not
-     have.
-   - **What a guest sees** (Decision 9): `_openmp_parallelism_enabled()` is `False` and every
-     `n_threads` resolves to 1.
+3. **No OpenMP, by the SDK, checked at build time.** scikit-learn asks `dependency('OpenMP', language: 'c', required: false)` (`sklearn/meson.build:104`) and, when it is not found, builds every module without `-fopenmp`. Its helpers then define `SKLEARN_OPENMP_PARALLELISM_ENABLED 0`, `omp_get_max_threads()` as 1 and the lock calls as no-ops (`sklearn/utils/_openmp_helpers.pxd`, READ), and Cython's `prange` compiles to a plain loop when `_OPENMP` is undefined.
+   - **Why it is not found.** wasi-sdk 33 ships no `omp.h` and no OpenMP runtime. The probe (EXECUTED, the line's meson 1.12.1, wasi-sdk 33's clang, `wasm32-wasip1`): "Run-time dependency OpenMP for c found: NO", `has_header('omp.h', args: ['-fopenmp'])` false, though clang defines `_OPENMP` (202011) when given `-fopenmp`. The cross file names only the SDK's compilers and sysroot, and `pkg-config` is `false`, so no host library can be found.
+   - **The gate.** Step 58 dies unless its `meson setup` log holds `Run-time dependency OpenMP for c found: NO` and no command in the build's `compile_commands.json` holds `-fopenmp`. So a future SDK that ships an OpenMP runtime cannot change the build silently: it would also need threads, which the guest does not have.
+   - **What a guest sees** (Decision 9): `_openmp_parallelism_enabled()` is `False` and every `n_threads` resolves to 1.
 
-4. **scipy's Cython declarations, staged for the build** (`scripts/stage_scipy_cimports.sh`,
-   new, used by this specification and 045). scikit-learn cimports
-   `scipy.linalg.cython_blas` (27 cimports across both packages), `cython_lapack` and
-   `scipy.special.cython_special` (`tree/_criterion.pyx`) (EXECUTED: `grep` over both sdists).
-   Cython finds a cimported module's `.pxd` on `sys.path`, and needs every folder above it to be
-   a package. 037's install of scipy carries none of these: the generated `cython_blas.pxd` and
-   `cython_lapack.pxd` are tagged `devel` (READ: `scipy/linalg/meson.build:10-37`), and 037's
-   `install_from_plan.py` copies only `python-runtime` files.
-   - The script writes `build/scipy-cimport/` fresh each time: an empty `scipy/__init__.py` (a
-     package marker; `scipy/` has no `__init__.pxd`), `scipy/linalg/__init__.pxd`,
-     `cython_blas.pxd` and `cython_lapack.pxd` (the last two from 037's build folder,
-     `build/scipy-build/scipy/linalg/`, the first from the patched sdist), and
-     `scipy/special/__init__.pxd` and `cython_special.pxd` (from the sdist). None of the five
-     `.pxd` files cimports anything outside them (READ). EXECUTED while drafting: the same six
-     files taken from scipy 1.18.1's wheel, with numpy's two `.pxd` files beside them on
-     `PYTHONPATH`, let the line's Cython 3.3.0 cythonize a probe that cimports `blas_int`,
-     `ddot`, `cython_lapack` and `xlogy`, with the empty marker as `scipy/__init__.py`. Six files, named in
-     the script; it dies naming any that is missing.
-   - Step 58 puts `build/scipy-cimport` and `build/numpy-host` (step 40's stand-in, which holds
-     numpy's `__init__.pxd`) on `PYTHONPATH`. The empty marker means a host process that imported
-     `scipy` would get an empty package; nothing in scikit-learn's build imports scipy when
-     cross-compiling (READ: its version checks sit under `if not meson.is_cross_build()`,
-     `sklearn/meson.build:22-59`).
-   - `meson setup` then reports "scipy cython_blas blas_int compiles: YES"
-     (`sklearn/utils/meson.build:1-12`), as it did natively against scipy 1.18.1's own `.pxd`
-     (EXECUTED). With scipy's LP64 build `blas_int` is `int`.
-   - **At run time** a module that cimports `cython_blas` imports `scipy.linalg.cython_blas`
-     and takes its function pointers from the module's `__pyx_capi__` capsule. No BLAS symbol
-     crosses the link, and the call reaches 037's OpenBLAS through scipy, as natively.
+4. **scipy's Cython declarations, staged for the build** (`scripts/stage_scipy_cimports.sh`, new, used by this specification and 045). scikit-learn cimports `scipy.linalg.cython_blas` (27 cimports across both packages), `cython_lapack` and `scipy.special.cython_special` (`tree/_criterion.pyx`) (EXECUTED: `grep` over both sdists). Cython finds a cimported module's `.pxd` on `sys.path`, and needs every folder above it to be a package. 037's install of scipy carries none of these: the generated `cython_blas.pxd` and `cython_lapack.pxd` are tagged `devel` (READ: `scipy/linalg/meson.build:10-37`), and 037's `install_from_plan.py` copies only `python-runtime` files.
+   - The script writes `build/scipy-cimport/` fresh each time: an empty `scipy/__init__.py` (a package marker; `scipy/` has no `__init__.pxd`), `scipy/linalg/__init__.pxd`, `cython_blas.pxd` and `cython_lapack.pxd` (the last two from 037's build folder, `build/scipy-build/scipy/linalg/`, the first from the patched sdist), and `scipy/special/__init__.pxd` and `cython_special.pxd` (from the sdist). None of the five `.pxd` files cimports anything outside them (READ). EXECUTED while drafting: the same six files taken from scipy 1.18.1's wheel, with numpy's two `.pxd` files beside them on `PYTHONPATH`, let the line's Cython 3.3.0 cythonize a probe that cimports `blas_int`, `ddot`, `cython_lapack` and `xlogy`, with the empty marker as `scipy/__init__.py`. Six files, named in the script; it dies naming any that is missing.
+   - Step 58 puts `build/scipy-cimport` and `build/numpy-host` (step 40's stand-in, which holds numpy's `__init__.pxd`) on `PYTHONPATH`. The empty marker means a host process that imported `scipy` would get an empty package; nothing in scikit-learn's build imports scipy when cross-compiling (READ: its version checks sit under `if not meson.is_cross_build()`, `sklearn/meson.build:22-59`).
+   - `meson setup` then reports "scipy cython_blas blas_int compiles: YES" (`sklearn/utils/meson.build:1-12`), as it did natively against scipy 1.18.1's own `.pxd` (EXECUTED). With scipy's LP64 build `blas_int` is `int`.
+   - **At run time** a module that cimports `cython_blas` imports `scipy.linalg.cython_blas` and takes its function pointers from the module's `__pyx_capi__` capsule. No BLAS symbol crosses the link, and the call reaches 037's OpenBLAS through scipy, as natively.
 
-5. **Step 58: scikit-learn** (`scripts/steps/58_sklearn.sh`, after step 57; needing 10, 20, 40,
-   57). The number is free in today's tree; if a specification drafted alongside takes 58 first,
-   the lane renumbers this one and says so in the landing notes.
-   - It unpacks the sdist to `build/scikit_learn-1.9.1`, applies its patch (`patch_tree`,
-     Decision 7) and builds out of tree in `build/sklearn-build`.
-   - **`recipes/wasi-sklearn.cross`**, from the pandas cross file: the same `[binaries]`
-     (compilers through `scripts/wasi-cc` and `scripts/wasi-cxx`, `python` the target Python,
-     `cython` the line's, `pkg-config = 'false'`); `[properties]`
-     `numpy-include-dir` set to step 40's installed `numpy/_core/include` (scikit-learn reads
-     the property instead of running Python, `sklearn/meson.build:75-78`, READ: "This uses the
-     path as is, and avoids running the interpreter"); `c_args` and `cpp_args` the pandas set without
-     `pandas_rename.h`. No setjmp flags: neither package calls `setjmp` (EXECUTED: `grep`).
-     Standard C++ exceptions stay on, as for numpy and pandas: `neighbors/_partition_nodes.pyx`
-     declares a C++ call `except +` (its one use, READ), and the C++ standard library's
-     containers in the tree and neighbour modules throw through them.
-   - **The configure line:** `meson setup --cross-file … --buildtype=release
-     -Db_ndebug=if-release`, then `ninja`. The release build type and asserts off are
-     meson-python's defaults, as scikit-learn's wheels are built.
-   - **The version script** (`sklearn/_build_utils/version.py`, run by `project()`) starts
-     `#!/usr/bin/env python3`; meson runs such a script with its own Python (READ:
-     `mesonbuild/programs.py`, `_shebang_to_cmd`), the pinned host Python. It reads only
-     `sklearn/__init__.py`. The step checks the configured version is `1.9.1`.
+5. **Step 58: scikit-learn** (`scripts/steps/58_sklearn.sh`, after step 57; needing 10, 20, 40, 57). The number is free in today's tree; if a specification drafted alongside takes 58 first, the lane renumbers this one and says so in the landing notes.
+   - It unpacks the sdist to `build/scikit_learn-1.9.1`, applies its patch (`patch_tree`, Decision 7) and builds out of tree in `build/sklearn-build`.
+   - **`recipes/wasi-sklearn.cross`**, from the pandas cross file: the same `[binaries]` (compilers through `scripts/wasi-cc` and `scripts/wasi-cxx`, `python` the target Python, `cython` the line's, `pkg-config = 'false'`); `[properties]` `numpy-include-dir` set to step 40's installed `numpy/_core/include` (scikit-learn reads the property instead of running Python, `sklearn/meson.build:75-78`, READ: "This uses the path as is, and avoids running the interpreter"); `c_args` and `cpp_args` the pandas set without `pandas_rename.h`. No setjmp flags: neither package calls `setjmp` (EXECUTED: `grep`). Standard C++ exceptions stay on, as for numpy and pandas: `neighbors/_partition_nodes.pyx` declares a C++ call `except +` (its one use, READ), and the C++ standard library's containers in the tree and neighbour modules throw through them.
+   - **The configure line:** `meson setup --cross-file … --buildtype=release -Db_ndebug=if-release`, then `ninja`. The release build type and asserts off are meson-python's defaults, as scikit-learn's wheels are built.
+   - **The version script** (`sklearn/_build_utils/version.py`, run by `project()`) starts `#!/usr/bin/env python3`; meson runs such a script with its own Python (READ: `mesonbuild/programs.py`, `_shebang_to_cmd`), the pinned host Python. It reads only `sklearn/__init__.py`. The step checks the configured version is `1.9.1`.
    - **The OpenMP gate** (Decision 3) and **the per-file include log** (Decision 6) are checked.
-   - **The Python package, as an install places it.** scikit-learn installs its whole `sklearn/`
-     folder with `install_subdir` (READ, `meson.build:51`), whose files meson does not tag,
-     and generates no Python file. So the step copies the patched sdist's `sklearn/` to
-     `build/sklearn-install/sklearn`, pandas' pattern. EXECUTED while drafting: the sdist's
-     `sklearn/` and the native wheel's hold the same files once tests, sources, extension
-     modules and `meson.build` are set aside, as step 70 sets them aside.
-   - **The extension-module list.** 037's `scripts/install_from_plan.py` gains `--modules-only`:
-     it writes `extension-modules.txt` from `meson introspect --install-plan` and copies nothing.
-     Step 58 writes `build/sklearn-build/extension-modules.txt` and checks it holds 69 modules,
-     none tagged `tests` (EXECUTED: the native build's 69).
+   - **The Python package, as an install places it.** scikit-learn installs its whole `sklearn/` folder with `install_subdir` (READ, `meson.build:51`), whose files meson does not tag, and generates no Python file. So the step copies the patched sdist's `sklearn/` to `build/sklearn-install/sklearn`, pandas' pattern. EXECUTED while drafting: the sdist's `sklearn/` and the native wheel's hold the same files once tests, sources, extension modules and `meson.build` are set aside, as step 70 sets them aside.
+   - **The extension-module list.** 037's `scripts/install_from_plan.py` gains `--modules-only`: it writes `extension-modules.txt` from `meson introspect --install-plan` and copies nothing. Step 58 writes `build/sklearn-build/extension-modules.txt` and checks it holds 69 modules, none tagged `tests` (EXECUTED: the native build's 69).
 
-6. **The links that would collide, renamed per file by recipe** (§4.1: a recipe first). The
-   drafting run's objects (EXECUTED, `nm -g --defined-only` over the native build) show what a
-   static link would refuse. Each is renamed in the one translation unit that defines it,
-   through 037's `WASI_CC_FILE_INCLUDES` rule, by a small header of `#define`s under
-   `recipes/sklearn-renames/`, listed in `recipes/sklearn_file_includes.txt` (rendered with
-   `@ROOT@` into `build/sklearn-build/file-includes.txt`, as 037 renders its map).
-   - **Init names.** `sklearn._cyutility` → `PyInit_sklearn__cyutility` (pandas and scipy each
-     have a `_cyutility`); `sklearn.ensemble._hist_gradient_boosting._gradient_boosting`,
-     `sklearn.cluster._hdbscan._tree` and `sklearn.manifold._utils` take their dotted names
-     (`PyInit_sklearn_ensemble__hist_gradient_boosting__gradient_boosting` and so on); their
-     partners `sklearn.ensemble._gradient_boosting`, `sklearn.tree._tree` and
-     `sklearn.tree._utils` keep theirs. `scripts/gen_inittab.py`'s rename table gains the four.
-     No other scikit-learn module name clashes with numpy's, pandas', scipy's, matplotlib's,
-     Pillow's, kiwisolver's or contourpy's (EXECUTED: the native module lists compared).
-   - **The svm helpers.** `_libsvm.pyx`, `_libsvm_sparse.pyx` and `_liblinear.pyx` each
-     `#include` a helper C file (`libsvm_helper.c`, `libsvm_sparse_helper.c`,
-     `liblinear_helper.c`) whose functions are global; the static libraries `libsvm-skl` and
-     `liblinear-skl` and the `_newrand` module each define the random generator of
-     `src/newrand/newrand.h` (`mt_rand`, `set_seed`, `bounded_rand_int`). Defined twice or more:
-     `copy_intercept`, `copy_n_iter`, `copy_nSV`, `copy_probA`, `copy_probB`, `copy_support`,
-     `copy_sv_coef`, `free_model`, `free_param`, `get_l`, `get_nr`, `set_parameter`,
-     `set_verbosity`, `set_problem`, `csr_set_problem`, `free_problem`, `mt_rand`, `set_seed`,
-     `bounded_rand_int` (19). The renames: `_libsvm`'s keep their names;
-     `_libsvm_sparse`'s fifteen take `sklearn_libsvm_sparse_`; `_liblinear`'s take
-     `sklearn_liblinear_`, in `_liblinear`'s generated C **and** in `src/liblinear/linear.cpp`,
-     which defines the `set_seed` that `liblinear_helper.c` calls; `libsvm_template.cpp`'s
-     generator takes `sklearn_libsvm_`; `_newrand`'s takes `sklearn_newrand_`.
-   - **Why per file, not merged.** Natively each module holds its own copy of the generator,
-     with its own state. Renaming keeps three generators, as natively. Merging them would make
-     the libsvm and liblinear fits share one state. Every fit seeds its generator first
-     (`svm.cpp:2378`, `:2664`, `liblinear_helper.c:187`, READ), so results would not change, but
-     separate copies need no argument at all.
-   - **Each entry matches exactly one compile.** A Cython module's source is the C file meson
-     generates inside the module's `.p` folder; each entry's suffix is chosen to match one
-     compile command, and step 58 dies unless the include log shows each entry exactly once,
-     as 037's step 57 does.
-   - **Strong clashes: step 60's detector.** The list above is the native build's. The wasm
-     link may show more or fewer strong clashes (a name shared with numpy, pandas or scipy).
-     Step 60's `clashes()` stops on each `duplicate symbol` and `signature mismatch`; each is
-     fixed by a header entry, never ignored, and the landing notes list the final set.
-   - **Weak duplicates: a new gate, because the detector cannot see them.** `bounded_rand_int`
-     is `inline` inside `extern "C"` (`newrand.h:29`, READ), so it is a weak definition in
-     `libsvm_template.cpp`'s and `_newrand`'s objects (EXECUTED by the review, `nm -m`). The
-     linker keeps one weak definition and says nothing (INFERRED from the ELF and wasm linkers'
-     rules), and each copy calls its own translation unit's `mt_rand`: a missed rename would make
-     one module draw silently from another's generator. So step 60 gains a gate, before the
-     link: `scripts/weak_duplicates.py` (new, ours) lists, with the SDK's `llvm-nm`, every weak
-     definition in the archives the link takes whose name is also defined, weak or strong, in
-     another archive's object, and stops on any not in `recipes/weak-duplicates-allowed.txt`
-     (reviewed; names whose demangled form is in `std::` or the C++ runtime, `__cxa_*`,
-     `__clang_call_terminate`, are allowed by rule, not listed). It runs over every package's
-     archives, so 045 and any later package inherit it. **After the link,** a second check reads
-     `build/link/python.map` (step 60 already writes it): it must define each of this decision's
-     renamed generator names (`sklearn_libsvm_mt_rand`, `sklearn_liblinear_set_seed`,
-     `sklearn_newrand_bounded_rand_int` and the rest) and none of the three original generator
-     names, `mt_rand`, `set_seed` and `bounded_rand_int`. A unit check holds the scanner
-     (Decision 13).
+6. **The links that would collide, renamed per file by recipe** (§4.1: a recipe first). The drafting run's objects (EXECUTED, `nm -g --defined-only` over the native build) show what a static link would refuse. Each is renamed in the one translation unit that defines it, through 037's `WASI_CC_FILE_INCLUDES` rule, by a small header of `#define`s under `recipes/sklearn-renames/`, listed in `recipes/sklearn_file_includes.txt` (rendered with `@ROOT@` into `build/sklearn-build/file-includes.txt`, as 037 renders its map).
+   - **Init names.** `sklearn._cyutility` → `PyInit_sklearn__cyutility` (pandas and scipy each have a `_cyutility`); `sklearn.ensemble._hist_gradient_boosting._gradient_boosting`, `sklearn.cluster._hdbscan._tree` and `sklearn.manifold._utils` take their dotted names (`PyInit_sklearn_ensemble__hist_gradient_boosting__gradient_boosting` and so on); their partners `sklearn.ensemble._gradient_boosting`, `sklearn.tree._tree` and `sklearn.tree._utils` keep theirs. `scripts/gen_inittab.py`'s rename table gains the four. No other scikit-learn module name clashes with numpy's, pandas', scipy's, matplotlib's, Pillow's, kiwisolver's or contourpy's (EXECUTED: the native module lists compared).
+   - **The svm helpers.** `_libsvm.pyx`, `_libsvm_sparse.pyx` and `_liblinear.pyx` each `#include` a helper C file (`libsvm_helper.c`, `libsvm_sparse_helper.c`, `liblinear_helper.c`) whose functions are global; the static libraries `libsvm-skl` and `liblinear-skl` and the `_newrand` module each define the random generator of `src/newrand/newrand.h` (`mt_rand`, `set_seed`, `bounded_rand_int`). Defined twice or more: `copy_intercept`, `copy_n_iter`, `copy_nSV`, `copy_probA`, `copy_probB`, `copy_support`, `copy_sv_coef`, `free_model`, `free_param`, `get_l`, `get_nr`, `set_parameter`, `set_verbosity`, `set_problem`, `csr_set_problem`, `free_problem`, `mt_rand`, `set_seed`, `bounded_rand_int` (19). The renames: `_libsvm`'s keep their names; `_libsvm_sparse`'s fifteen take `sklearn_libsvm_sparse_`; `_liblinear`'s take `sklearn_liblinear_`, in `_liblinear`'s generated C **and** in `src/liblinear/linear.cpp`, which defines the `set_seed` that `liblinear_helper.c` calls; `libsvm_template.cpp`'s generator takes `sklearn_libsvm_`; `_newrand`'s takes `sklearn_newrand_`.
+   - **Why per file, not merged.** Natively each module holds its own copy of the generator, with its own state. Renaming keeps three generators, as natively. Merging them would make the libsvm and liblinear fits share one state. Every fit seeds its generator first (`svm.cpp:2378`, `:2664`, `liblinear_helper.c:187`, READ), so results would not change, but separate copies need no argument at all.
+   - **Each entry matches exactly one compile.** A Cython module's source is the C file meson generates inside the module's `.p` folder; each entry's suffix is chosen to match one compile command, and step 58 dies unless the include log shows each entry exactly once, as 037's step 57 does.
+   - **Strong clashes: step 60's detector.** The list above is the native build's. The wasm link may show more or fewer strong clashes (a name shared with numpy, pandas or scipy). Step 60's `clashes()` stops on each `duplicate symbol` and `signature mismatch`; each is fixed by a header entry, never ignored, and the landing notes list the final set.
+   - **Weak duplicates: a new gate, because the detector cannot see them.** `bounded_rand_int` is `inline` inside `extern "C"` (`newrand.h:29`, READ), so it is a weak definition in `libsvm_template.cpp`'s and `_newrand`'s objects (EXECUTED by the review, `nm -m`). The linker keeps one weak definition and says nothing (INFERRED from the ELF and wasm linkers' rules), and each copy calls its own translation unit's `mt_rand`: a missed rename would make one module draw silently from another's generator. So step 60 gains a gate, before the link: `scripts/weak_duplicates.py` (new, ours) lists, with the SDK's `llvm-nm`, every weak definition in the archives the link takes whose name is also defined, weak or strong, in another archive's object, and stops on any not in `recipes/weak-duplicates-allowed.txt` (reviewed; names whose demangled form is in `std::` or the C++ runtime, `__cxa_*`, `__clang_call_terminate`, are allowed by rule, not listed). It runs over every package's archives, so 045 and any later package inherit it. **After the link,** a second check reads `build/link/python.map` (step 60 already writes it): it must define each of this decision's renamed generator names (`sklearn_libsvm_mt_rand`, `sklearn_liblinear_set_seed`, `sklearn_newrand_bounded_rand_int` and the rest) and none of the three original generator names, `mt_rand`, `set_seed` and `bounded_rand_int`. A unit check holds the scanner (Decision 13).
 
-7. **One carried patch: the HTML representation's styles read as package resources.**
-   `recipes/patches/scikit_learn-1.9.1/0001-html-repr-styles-from-a-zip.patch` (§4.1, spec
-   020's mechanism).
-   - **What fails.** `sklearn/utils/_repr_html/estimator.py` sets
-     `_CSS_STYLE = _get_css_style()` at import, reading `estimator.css`, `params.css` and
-     `features.css` through `Path(__file__).parent`; `sklearn/base.py:24` imports it, and so does
-     `sklearn/utils/__init__.py:19`. From a zip the path's parent is not a folder. In the model
-     of the guest's import path (EXECUTED): `import sklearn`, `import sklearn.base` and
-     `from sklearn.linear_model import LinearRegression` each raise
-     `NotADirectoryError: [Errno 20] Not a directory: '…/python315.zip/sklearn/utils/_repr_html/estimator.css'`
-     (tool output, path shortened). `estimator_html_repr` also opens `estimator.js` the same
-     way. Upstream `main` still reads all four by path (READ, 2026-10-18).
-   - **The change** (1 file, +8 −10, 1,850 bytes, SHA-256
-     `35064ebbecb4ef05fe069f572fcd661ead3738b8e58413c7a07b40a8032b5680`, applies to the pinned
-     sdist with `git apply` and no offset, EXECUTED; it passes `ruff check` and
-     `ruff format --check` under scikit-learn's own configuration with ruff 0.12.2, the version
-     `sklearn/_min_dependencies.py` pins, EXECUTED; the first draft, `1aafac38…b12b`, failed that
-     `ruff check` on import order, the review's finding 3): the four reads go through
-     `importlib.resources.files(__package__)`, which reads a file on disk and a member of a zip
-     alike; `pathlib.Path`'s import goes. The JavaScript file, which is UTF-8 (two `✔`), is read as
-     UTF-8 rather than in the locale's encoding, as upstream `main` already reads it.
-   - **Why a patch and not a recipe** (041's reasoning, Decision 1 as revised there). §4.1
-     prefers a recipe, a stand-in module included, and a recipe under `recipes/`, hashed in
-     `MANIFEST` and reviewed, is a recorded change. So a recipe was looked for first, and none
-     fits:
-     - **The style sheets as real files where the module looks.** The path lies inside the zip's
-       own file name; no folder can exist there, and a preopen at that path is refused by the
-       runner as the runtime's own folder (041's review, EXECUTED there).
-     - **A run-time swap cannot work.** The read runs in the module body, at
-       `_CSS_STYLE = _get_css_style()` (line 29), during `import sklearn` itself (EXECUTED in the
-       zip model). The import fails before any swap could run.
-     - **A recipe that would work is wider than the patch:** an import hook that rewrites the
-       module's source, or a replacement module copied from upstream. Spec 020's tree check would
-       not see it, and no upstream release would ever let it be deleted.
+7. **One carried patch: the HTML representation's styles read as package resources.** `recipes/patches/scikit_learn-1.9.1/0001-html-repr-styles-from-a-zip.patch` (§4.1, spec 020's mechanism).
+   - **What fails.** `sklearn/utils/_repr_html/estimator.py` sets `_CSS_STYLE = _get_css_style()` at import, reading `estimator.css`, `params.css` and `features.css` through `Path(__file__).parent`; `sklearn/base.py:24` imports it, and so does `sklearn/utils/__init__.py:19`. From a zip the path's parent is not a folder. In the model of the guest's import path (EXECUTED): `import sklearn`, `import sklearn.base` and `from sklearn.linear_model import LinearRegression` each raise `NotADirectoryError: [Errno 20] Not a directory: '…/python315.zip/sklearn/utils/_repr_html/estimator.css'` (tool output, path shortened). `estimator_html_repr` also opens `estimator.js` the same way. Upstream `main` still reads all four by path (READ, 2026-10-18).
+   - **The change** (1 file, +8 −10, 1,850 bytes, SHA-256 `35064ebbecb4ef05fe069f572fcd661ead3738b8e58413c7a07b40a8032b5680`, applies to the pinned sdist with `git apply` and no offset, EXECUTED; it passes `ruff check` and `ruff format --check` under scikit-learn's own configuration with ruff 0.12.2, the version `sklearn/_min_dependencies.py` pins, EXECUTED; the first draft, `1aafac38…b12b`, failed that `ruff check` on import order, the review's finding 3): the four reads go through `importlib.resources.files(__package__)`, which reads a file on disk and a member of a zip alike; `pathlib.Path`'s import goes. The JavaScript file, which is UTF-8 (two `✔`), is read as UTF-8 rather than in the locale's encoding, as upstream `main` already reads it.
+   - **Why a patch and not a recipe** (041's reasoning, Decision 1 as revised there). §4.1 prefers a recipe, a stand-in module included, and a recipe under `recipes/`, hashed in `MANIFEST` and reviewed, is a recorded change. So a recipe was looked for first, and none fits:
+     - **The style sheets as real files where the module looks.** The path lies inside the zip's own file name; no folder can exist there, and a preopen at that path is refused by the runner as the runtime's own folder (041's review, EXECUTED there).
+     - **A run-time swap cannot work.** The read runs in the module body, at `_CSS_STYLE = _get_css_style()` (line 29), during `import sklearn` itself (EXECUTED in the zip model). The import fails before any swap could run.
+     - **A recipe that would work is wider than the patch:** an import hook that rewrites the module's source, or a replacement module copied from upstream. Spec 020's tree check would not see it, and no upstream release would ever let it be deleted.
 
-     A carried patch is the smallest change: eight lines, checked against the tarball, and
-     deleted once a pinned release carries the fix.
-   - **What it changes, measured** (EXECUTED): with the patch, from the zip model, scikit-learn
-     imports; `estimator_html_repr` of a pipeline gives the same 55,811 characters, SHA-256
-     prefix `e469424e…`, as the stock package on disk (counters normalised); `all_estimators()`
-     finds the same 208; the golden job prints native's output byte for byte.
-   - **Its facts sheet**, `context/upstream/10-scikit-learn-html-repr-from-a-zip/pr.md` with
-     `fix.patch`, `notes.md` and `evidence/` (question 80's form: scikit-learn's policy asks that
-     no AI-written text go into an issue or pull request description, READ,
-     `doc/developers/contributing.rst`, "Automated Contributions Policy", and its `AGENTS.md`
-     requires a disclosure). When this specification is built, `fix.patch` is copied byte for
-     byte to the path above and `pr.md` moves unchanged to
-     `context/upstream/patches/scikit_learn-1.9.1/0001-html-repr-styles-from-a-zip.md`, as 041
-     does for its two. Nothing is sent; the owner decides whether to engage. The sheet ends with
-     the disclosure scikit-learn's `AGENTS.md` asks every agent-written summary to end with,
-     verbatim. **Question 80 is still open:** as 041's condition C1 asks, the landing notes say
-     which answer it had when this specification landed, and the sheet's form follows it.
+     A carried patch is the smallest change: eight lines, checked against the tarball, and deleted once a pinned release carries the fix.
+   - **What it changes, measured** (EXECUTED): with the patch, from the zip model, scikit-learn imports; `estimator_html_repr` of a pipeline gives the same 55,811 characters, SHA-256 prefix `e469424e…`, as the stock package on disk (counters normalised); `all_estimators()` finds the same 208; the golden job prints native's output byte for byte.
+   - **Its facts sheet**, `context/upstream/10-scikit-learn-html-repr-from-a-zip/pr.md` with `fix.patch`, `notes.md` and `evidence/` (question 80's form: scikit-learn's policy asks that no AI-written text go into an issue or pull request description, READ, `doc/developers/contributing.rst`, "Automated Contributions Policy", and its `AGENTS.md` requires a disclosure). When this specification is built, `fix.patch` is copied byte for byte to the path above and `pr.md` moves unchanged to `context/upstream/patches/scikit_learn-1.9.1/0001-html-repr-styles-from-a-zip.md`, as 041 does for its two. Nothing is sent; the owner decides whether to engage. The sheet ends with the disclosure scikit-learn's `AGENTS.md` asks every agent-written summary to end with, verbatim. **Question 80 is still open:** as 041's condition C1 asks, the landing notes say which answer it had when this specification landed, and the sheet's form follows it.
 
-8. **The extension modules become builtins.** Step 60 adds `sklearn` to its package loop
-   (023's install-path inittab names, from `extension-modules.txt`) and to the `_host` line:
-   each module's archive and its `.deps` (the `libsvm-skl` and `liblinear-skl` archives,
-   linked once though two modules list `libsvm-skl`). Nothing new is needed: `-lsetjmp`, the C++
-   runtime libraries and `-lwasi-emulated-mman` are there after 023 and 037.
-   - **Constructors** (023's check). Three are new and known: the C++ dynamic initialisers of
-     `mt_rand` (`std::mt19937 mt_rand(std::mt19937::default_seed)`, `newrand.h:22`) in
-     `libsvm_template.cpp`, `linear.cpp` and `_newrand`'s generated C++. Each seeds a generator
-     and touches no Python (READ). The builder lists every constructor the build shows and reads
-     its source; the reviewed list grows by exactly those names (a judge change).
-   - **No new import reaches the guest** (§4.4): the svm code's two `fopen` calls
-     (`save_model`, `load_model` in `linear.cpp`) are wasi-libc's, already imported; scikit-learn
-     never calls them (READ).
+8. **The extension modules become builtins.** Step 60 adds `sklearn` to its package loop (023's install-path inittab names, from `extension-modules.txt`) and to the `_host` line: each module's archive and its `.deps` (the `libsvm-skl` and `liblinear-skl` archives, linked once though two modules list `libsvm-skl`). Nothing new is needed: `-lsetjmp`, the C++ runtime libraries and `-lwasi-emulated-mman` are there after 023 and 037.
+   - **Constructors** (023's check). Three are new and known: the C++ dynamic initialisers of `mt_rand` (`std::mt19937 mt_rand(std::mt19937::default_seed)`, `newrand.h:22`) in `libsvm_template.cpp`, `linear.cpp` and `_newrand`'s generated C++. Each seeds a generator and touches no Python (READ). The builder lists every constructor the build shows and reads its source; the reviewed list grows by exactly those names (a judge change).
+   - **No new import reaches the guest** (§4.4): the svm code's two `fopen` calls (`save_model`, `load_model` in `linear.cpp`) are wasi-libc's, already imported; scikit-learn never calls them (READ).
 
-9. **What is in, what is out, and how an absence shows.** Each line below is a check or a golden
-   line (Decision 13), and each goes in the README.
-   - **In:** every public submodule. The bundled datasets load from the zip through
-     `importlib.resources`, unchanged (`load_csv_data`, `load_gzip_compressed_csv_data` and
-     `load_descr` open the resource and pass a file object; READ, `datasets/_base.py:377-490`):
-     `load_iris`, `load_digits`, `load_diabetes`, `load_breast_cancer`, `load_wine`,
-     `load_linnerud`, with their descriptions.
-   - **Serial, accepted, same result:** every `n_jobs`. joblib finds no `_multiprocessing`, so
-     its `mp` is `None` (`joblib/_multiprocessing_helpers.py:13-19`, READ), its default backend is
-     `threading`, and with `mp` `None` every backend's `effective_n_jobs` is 1, so `Parallel`
-     runs in the calling thread (`_parallel_backends.py:315-318, 528-529, 653-656`, READ); the
-     memo saw `n_jobs=2` give `n_jobs=1`'s result in the guest (finding 4f, EXECUTED there).
-     scikit-learn's OpenMP `n_threads` is 1 (Decision 3). `threadpoolctl` finds no native pools
-     (039's `dllist`), so `threadpool_limits` is a no-op, as KMeans uses it.
+9. **What is in, what is out, and how an absence shows.** Each line below is a check or a golden line (Decision 13), and each goes in the README.
+   - **In:** every public submodule. The bundled datasets load from the zip through `importlib.resources`, unchanged (`load_csv_data`, `load_gzip_compressed_csv_data` and `load_descr` open the resource and pass a file object; READ, `datasets/_base.py:377-490`): `load_iris`, `load_digits`, `load_diabetes`, `load_breast_cancer`, `load_wine`, `load_linnerud`, with their descriptions.
+   - **Serial, accepted, same result:** every `n_jobs`. joblib finds no `_multiprocessing`, so its `mp` is `None` (`joblib/_multiprocessing_helpers.py:13-19`, READ), its default backend is `threading`, and with `mp` `None` every backend's `effective_n_jobs` is 1, so `Parallel` runs in the calling thread (`_parallel_backends.py:315-318, 528-529, 653-656`, READ); the memo saw `n_jobs=2` give `n_jobs=1`'s result in the guest (finding 4f, EXECUTED there). scikit-learn's OpenMP `n_threads` is 1 (Decision 3). `threadpoolctl` finds no native pools (039's `dllist`), so `threadpool_limits` is a no-op, as KMeans uses it.
    - **Absent by the sandbox, documented, not gaps:**
-     - `sklearn.datasets.fetch_*` (OpenML, California housing, 20 newsgroups, LFW, covtype,
-       KDD, RCV1, species, Olivetti): they download (no network, §4.15) into a cache under
-       `~/scikit_learn_data`. What they raise depends on the grants (EXECUTED by the review in
-       today's guest): **with no root**, `HOME` is unset and `pwd` is missing, so
-       `expanduser("~/scikit_learn_data")` returns the path unchanged and `os.makedirs` raises
-       `FileNotFoundError: [Errno 44] … '~'` before any network call; **with a root**
-       (`--root`, `root=True`), the runner gives a `HOME` under `/tmp`, the folder is made there,
-       and `urlopen` of an `https` URL raises `URLError: unknown url type: https` (EXECUTED for
-       `urlopen`; INFERRED for the fetcher, which was not run against the network). The README
-       states both; the check (Decision 13) runs with no root and asserts the first.
-     - `load_sample_image` and `load_sample_images`: the two JPEGs are left out (Decision 10),
-       so they raise `ModuleNotFoundError: No module named 'sklearn.datasets.images'`. They
-       could not be decoded anyway: 023's Pillow has no JPEG decoder (042, Decision 8).
+     - `sklearn.datasets.fetch_*` (OpenML, California housing, 20 newsgroups, LFW, covtype, KDD, RCV1, species, Olivetti): they download (no network, §4.15) into a cache under `~/scikit_learn_data`. What they raise depends on the grants (EXECUTED by the review in today's guest): **with no root**, `HOME` is unset and `pwd` is missing, so `expanduser("~/scikit_learn_data")` returns the path unchanged and `os.makedirs` raises `FileNotFoundError: [Errno 44] … '~'` before any network call; **with a root** (`--root`, `root=True`), the runner gives a `HOME` under `/tmp`, the folder is made there, and `urlopen` of an `https` URL raises `URLError: unknown url type: https` (EXECUTED for `urlopen`; INFERRED for the fetcher, which was not run against the network). The README states both; the check (Decision 13) runs with no root and asserts the first.
+     - `load_sample_image` and `load_sample_images`: the two JPEGs are left out (Decision 10), so they raise `ModuleNotFoundError: No module named 'sklearn.datasets.images'`. They could not be decoded anyway: 023's Pillow has no JPEG decoder (042, Decision 8).
      - A pipeline's `memory=` cache and `joblib.Memory` need a writable folder (039, Decision 9).
-   - **The 32-bit platform** (§4.11): `np.intp` is 32 bits, so scikit-learn's index arrays are
-     `int32` where native ones are `int64`. Results do not depend on it; a printed dtype would,
-     so the golden prints none.
+   - **The 32-bit platform** (§4.11): `np.intp` is 32 bits, so scikit-learn's index arrays are `int32` where native ones are `int64`. Results do not depend on it; a printed dtype would, so the golden prints none.
 
-10. **The zip.** Step 70 gains `--tree "$B/sklearn-install"`, `--metadata
-    "$B/scikit_learn-1.9.1/PKG-INFO"` (033's option; `Name: scikit-learn`, `Version: 1.9.1`,
-    READ) and `--drop sklearn/datasets/images` (spec 023's option, which applies to every input
-    and stops when it matches nothing; 042's Decision 5 extends it rather than adding one, B2).
-    - **Why the sample photographs are left out, while the datasets stay.** `china.jpg` and
-      `flower.jpg` are under Creative Commons Attribution 2.0 (READ:
-      `sklearn/datasets/images/README.txt`), and three of the datasets are copies of sets their
-      source publishes under CC BY 4.0 (Decision 11). Both are attribution-only licences that
-      §4.12 does not name, so the licence is not what separates them. **Use is:** the guest
-      cannot decode a JPEG (023's Pillow has no JPEG decoder, 042's Decision 8), so the
-      photographs' only loaders could never work here, and their 339,640 bytes would be
-      carried for nothing; the datasets are what the loaders, the golden and agents' code use.
-      So the photographs' folder goes whole, its `__init__.py` and `README.txt` too, and the
-      loaders fail by name rather than return an empty set. Question 83 records this and asks
-      the owner to confirm both.
-    - **What stays that is not code:** the six datasets' CSV files and descriptions, the HTML
-      representation's CSS and JavaScript, and 24 Tempita templates (`*.tp`) and one `.pxi.in`
-      that an install also carries. Members cost fuel on a plain start; trimming them needs an
-      import trace (039's Scope) and is out of scope.
-    - `scripts/make_stdlib_zip.py` is otherwise unchanged: tests, sources, `meson.build` and
-      `.pyi` are skipped by its existing rules.
+10. **The zip.** Step 70 gains `--tree "$B/sklearn-install"`, `--metadata "$B/scikit_learn-1.9.1/PKG-INFO"` (033's option; `Name: scikit-learn`, `Version: 1.9.1`, READ) and `--drop sklearn/datasets/images` (spec 023's option, which applies to every input and stops when it matches nothing; 042's Decision 5 extends it rather than adding one, B2).
+    - **Why the sample photographs are left out, while the datasets stay.** `china.jpg` and `flower.jpg` are under Creative Commons Attribution 2.0 (READ: `sklearn/datasets/images/README.txt`), and three of the datasets are copies of sets their source publishes under CC BY 4.0 (Decision 11). Both are attribution-only licences that §4.12 does not name, so the licence is not what separates them. **Use is:** the guest cannot decode a JPEG (023's Pillow has no JPEG decoder, 042's Decision 8), so the photographs' only loaders could never work here, and their 339,640 bytes would be carried for nothing; the datasets are what the loaders, the golden and agents' code use. So the photographs' folder goes whole, its `__init__.py` and `README.txt` too, and the loaders fail by name rather than return an empty set. Question 83 records this and asks the owner to confirm both.
+    - **What stays that is not code:** the six datasets' CSV files and descriptions, the HTML representation's CSS and JavaScript, and 24 Tempita templates (`*.tp`) and one `.pxi.in` that an install also carries. Members cost fuel on a plain start; trimming them needs an import trace (039's Scope) and is out of scope.
+    - `scripts/make_stdlib_zip.py` is otherwise unchanged: tests, sources, `meson.build` and `.pyi` are skipped by its existing rules.
 
-11. **Licences** (§4.12). scikit-learn is approved (decision 43, BSD-3-Clause). What its source
-    bundles was read while drafting; question 83 asks the owner to approve the bundled
-    components by name, and the build waits for that answer.
-    - `LICENSES/scikit-learn.txt`: `COPYING` (BSD-3-Clause, its `license-files`), then each
-      bundled notice, labelled with its path in the sdist: libsvm's (BSD-3-Clause style, the
-      header of `svm/src/libsvm/svm.cpp`, lines 1-31, cut as `hacl_notice` cuts HACL*'s);
-      liblinear's `svm/src/liblinear/COPYRIGHT` (BSD-3-Clause style); `externals/array_api_compat/LICENSE`
-      and `externals/array_api_extra/LICENSE` (MIT); the MIT header of `externals/_arff.py`
-      (liac-arff); the BSD-2-Clause headers of `externals/_packaging/version.py` and
-      `externals/_packaging/_structures.py` (packaging); the public-domain statement of
-      `utils/src/MurmurHash3.cpp`; **the PSF licence header of `utils/_pprint.py`** (lines 7-67:
-      CPython's `pprint`, adapted, "Copyright (c) 2001, … 2018 Python Software Foundation; All
-      Rights Reserved", the PSF License Version 2 in full and the "brief summary of changes" its
-      clause 3 asks for; every estimator's `repr` imports it, `base.py:452`); and **the pytest
-      attribution of `utils/_testing.py`** (lines 575-577: "derived from pytest, Copyright (c)
-      2004-2017 Holger Krekel and others, Licensed under MIT License"; the module ships, it is
-      not under `tests/`). Comments do not survive compilation to `.pyc`, so these parts are
-      the only place the zip's users meet those notices (the review's finding 2).
-      `externals/_scipy` is scipy's code (BSD-3-Clause, already shipped with scipy's notice);
-      `utils/graph.py`'s "code adapted from networkx" is covered by networkx's notice, which
-      039 ships.
-      `externals/_numpydoc/docscrape.py` is numpydoc's (BSD-2-Clause) and carries no header, so
-      its notice is numpydoc's own `LICENSE.txt`, pinned by an immutable URL in the licence
-      block of `00_download.sh`, as 039 pins the MPL text:
-      `https://raw.githubusercontent.com/numpy/numpydoc/894c8c47646fcbb4eae4fca068c229ae761f7a62/LICENSE.txt`
-      saved as `numpydoc-894c8c47-LICENSE.txt`, SHA-256
-      `0b78243e9446fe949093d69a7656b3d147d6b98bc48c975c9b4c290d8159033d`, 1,298 bytes (EXECUTED:
-      the last commit to touch the file, and its bytes equal `main`'s).
-      `datasets/_base.py:1547`'s `_filter_filename` is "adapted from the `slugify` function of
-      django" (BSD-3-Clause); its notice is django's `LICENSE`, pinned the same way:
-      `https://raw.githubusercontent.com/django/django/1dae4ac1778f04805c0ed62c8debb13b281ba02b/LICENSE`
-      saved as `django-1dae4ac1-LICENSE`, SHA-256
-      `b846415d1b514e9c1dff14a22deb906d794bc546ca6129f950a18cd091e2a669`, 1,552 bytes (EXECUTED:
-      the last commit to touch the file; equal to `main`'s). `feature_extraction/_stop_words.py`
-      holds a list of English stop words "taken from the Glasgow Information Retrieval Group",
-      which states no terms; a list of common words carries no notice to ship, and question 83
-      names it.
-    - **The sweep is concrete.** The builder lists every shipped `.py`, `.pyx`, `.c` and `.cpp`
-      file of the tree whose comments hold "Copyright", "License" or "adapted / derived / copied
-      / taken from", and pairs each with a part of this file or a written reason why none is
-      needed (scikit-learn's own SPDX lines; an attribution covered by a notice already in
-      `LICENSES/`). The list goes in the landing notes; an unpaired line stops the landing.
-      `test_scikit_learn_notice_carries_its_bundled_parts` (Decision 13) holds the parts.
+11. **Licences** (§4.12). scikit-learn is approved (decision 43, BSD-3-Clause). What its source bundles was read while drafting; question 83 asks the owner to approve the bundled components by name, and the build waits for that answer.
+    - `LICENSES/scikit-learn.txt`: `COPYING` (BSD-3-Clause, its `license-files`), then each bundled notice, labelled with its path in the sdist: libsvm's (BSD-3-Clause style, the header of `svm/src/libsvm/svm.cpp`, lines 1-31, cut as `hacl_notice` cuts HACL*'s); liblinear's `svm/src/liblinear/COPYRIGHT` (BSD-3-Clause style); `externals/array_api_compat/LICENSE` and `externals/array_api_extra/LICENSE` (MIT); the MIT header of `externals/_arff.py` (liac-arff); the BSD-2-Clause headers of `externals/_packaging/version.py` and `externals/_packaging/_structures.py` (packaging); the public-domain statement of `utils/src/MurmurHash3.cpp`; **the PSF licence header of `utils/_pprint.py`** (lines 7-67: CPython's `pprint`, adapted, "Copyright (c) 2001, … 2018 Python Software Foundation; All Rights Reserved", the PSF License Version 2 in full and the "brief summary of changes" its clause 3 asks for; every estimator's `repr` imports it, `base.py:452`); and **the pytest attribution of `utils/_testing.py`** (lines 575-577: "derived from pytest, Copyright (c) 2004-2017 Holger Krekel and others, Licensed under MIT License"; the module ships, it is not under `tests/`). Comments do not survive compilation to `.pyc`, so these parts are the only place the zip's users meet those notices (the review's finding 2). `externals/_scipy` is scipy's code (BSD-3-Clause, already shipped with scipy's notice); `utils/graph.py`'s "code adapted from networkx" is covered by networkx's notice, which 039 ships. `externals/_numpydoc/docscrape.py` is numpydoc's (BSD-2-Clause) and carries no header, so its notice is numpydoc's own `LICENSE.txt`, pinned by an immutable URL in the licence block of `00_download.sh`, as 039 pins the MPL text: `https://raw.githubusercontent.com/numpy/numpydoc/894c8c47646fcbb4eae4fca068c229ae761f7a62/LICENSE.txt` saved as `numpydoc-894c8c47-LICENSE.txt`, SHA-256 `0b78243e9446fe949093d69a7656b3d147d6b98bc48c975c9b4c290d8159033d`, 1,298 bytes (EXECUTED: the last commit to touch the file, and its bytes equal `main`'s). `datasets/_base.py:1547`'s `_filter_filename` is "adapted from the `slugify` function of django" (BSD-3-Clause); its notice is django's `LICENSE`, pinned the same way: `https://raw.githubusercontent.com/django/django/1dae4ac1778f04805c0ed62c8debb13b281ba02b/LICENSE` saved as `django-1dae4ac1-LICENSE`, SHA-256 `b846415d1b514e9c1dff14a22deb906d794bc546ca6129f950a18cd091e2a669`, 1,552 bytes (EXECUTED: the last commit to touch the file; equal to `main`'s). `feature_extraction/_stop_words.py` holds a list of English stop words "taken from the Glasgow Information Retrieval Group", which states no terms; a list of common words carries no notice to ship, and question 83 names it.
+    - **The sweep is concrete.** The builder lists every shipped `.py`, `.pyx`, `.c` and `.cpp` file of the tree whose comments hold "Copyright", "License" or "adapted / derived / copied / taken from", and pairs each with a part of this file or a written reason why none is needed (scikit-learn's own SPDX lines; an attribution covered by a notice already in `LICENSES/`). The list goes in the landing notes; an unpaired line stops the landing. `test_scikit_learn_notice_carries_its_bundled_parts` (Decision 13) holds the parts.
     - `scripts/assemble_artifacts.py` builds that file and adds `scikit-learn` to `PACKAGES`.
-    - **Data: the six bundled datasets, their sources and stated terms.** The sdist carries no
-      licence text beside the CSVs or in `datasets/descr/*.rst` (EXECUTED), but three of the six
-      are copies of sets whose source states a licence (the review's finding 1, EXECUTED there on
-      UCI's pages):
-      - **digits, breast cancer, wine:** the descriptions call each "a copy of" the UCI set
-        (`descr/digits.rst`, `breast_cancer.rst`, `wine_data.rst`, READ), and UCI publishes each
-        under **Creative Commons Attribution 4.0 International** (optical recognition of
-        handwritten digits, `https://archive.ics.uci.edu/dataset/80`; breast cancer Wisconsin
-        diagnostic, `/dataset/17`; wine, `/dataset/109`);
-      - **iris:** "taken from Fisher's paper" (1936; `descr/iris.rst`); UCI's own copy
-        (`/dataset/53`) is also CC BY 4.0 but differs from scikit-learn's in two points, so its
-        licence is not plainly this copy's source;
-      - **diabetes** (Efron, Hastie, Johnstone and Tibshirani, 2004) and **Linnerud**
-        (Tenenhaus, 1998): no terms stated anywhere the drafting run or the review found.
+    - **Data: the six bundled datasets, their sources and stated terms.** The sdist carries no licence text beside the CSVs or in `datasets/descr/*.rst` (EXECUTED), but three of the six are copies of sets whose source states a licence (the review's finding 1, EXECUTED there on UCI's pages):
+      - **digits, breast cancer, wine:** the descriptions call each "a copy of" the UCI set (`descr/digits.rst`, `breast_cancer.rst`, `wine_data.rst`, READ), and UCI publishes each under **Creative Commons Attribution 4.0 International** (optical recognition of handwritten digits, `https://archive.ics.uci.edu/dataset/80`; breast cancer Wisconsin diagnostic, `/dataset/17`; wine, `/dataset/109`);
+      - **iris:** "taken from Fisher's paper" (1936; `descr/iris.rst`); UCI's own copy (`/dataset/53`) is also CC BY 4.0 but differs from scikit-learn's in two points, so its licence is not plainly this copy's source;
+      - **diabetes** (Efron, Hastie, Johnstone and Tibshirani, 2004) and **Linnerud** (Tenenhaus, 1998): no terms stated anywhere the drafting run or the review found.
 
-      **Decided, as recommended to the owner in question 83: they ship,** with an attribution
-      part in `LICENSES/scikit-learn.txt` for the three UCI sets (title, creator as the `DESCR`
-      cites them, source URL, "CC BY 4.0", the licence's URL, and "unchanged from scikit-learn
-      1.9.1's copy") and a line for iris naming Fisher's paper and UCI's copy. CC BY 4.0 asks only
-      for that attribution, which this part gives, the `DESCR` texts already carry the
-      citations, and these are the sets the loaders, the golden and agents' code use. **If the
-      owner declines** CC BY 4.0 for these three: before the build, the three CSV files and their
-      descriptions are left out with `--leave-out-file` (spec 045's Decision 9, brought into this
-      specification if 045 has not landed), their loaders then raise `FileNotFoundError`, the
-      golden's digits, breast cancer and wine lines are replaced by lines on iris, diabetes and
-      `make_classification`, and the checks lose those three loaders; the specification is
-      revised to say so before it is confirmed for build.
+      **Decided, as recommended to the owner in question 83: they ship,** with an attribution part in `LICENSES/scikit-learn.txt` for the three UCI sets (title, creator as the `DESCR` cites them, source URL, "CC BY 4.0", the licence's URL, and "unchanged from scikit-learn 1.9.1's copy") and a line for iris naming Fisher's paper and UCI's copy. CC BY 4.0 asks only for that attribution, which this part gives, the `DESCR` texts already carry the citations, and these are the sets the loaders, the golden and agents' code use. **If the owner declines** CC BY 4.0 for these three: before the build, the three CSV files and their descriptions are left out with `--leave-out-file` (spec 045's Decision 9, brought into this specification if 045 has not landed), their loaders then raise `FileNotFoundError`, the golden's digits, breast cancer and wine lines are replaced by lines on iris, diabetes and `make_classification`, and the checks lose those three loaders; the specification is revised to say so before it is confirmed for build.
 
-12. **What the set costs, so growth can be told from regression.** The base is whatever main
-    holds when the builder starts (037, 038, 039, 042 and 043 all move it). This
-    specification's own growth, each measured by the build and recorded in the landing notes:
+12. **What the set costs, so growth can be told from regression.** The base is whatever main holds when the builder starts (037, 038, 039, 042 and 043 all move it). This specification's own growth, each measured by the build and recorded in the landing notes:
 
     | metric | expected | finding if outside |
     |---|---|---|
@@ -478,115 +120,33 @@ new here is small but sharp:
     | 033's metadata check and 035's comparison | one more distribution: ≤ 25 M per read (039's row) | above it |
     | every existing golden job | the plain-start growth above only; none imports scikit-learn | more |
 
-    The wheel grows by about the zip's growth and `python.wasm`'s, deflated; the landing notes
-    record its size against PyPI's 100 MiB file limit (question 64).
+    The wheel grows by about the zip's growth and `python.wasm`'s, deflated; the landing notes record its size against PyPI's 100 MiB file limit (question 64).
 
 13. **The checks**, each seen failing first.
-    - **The oracle.** `tests/jobs/oracle/pyproject.toml` gains `scikit-learn==1.9.1`. On macOS
-      arm64 PyPI has one cp315 wheel, `macosx_12_0_arm64` (SHA-256 `e1b46824…8942`, READ); it
-      calls BLAS only through the oracle's scipy, which 037 pins to one LAPACK. `uv.lock` records
-      it. `oracle_env` gains `OMP_NUM_THREADS=1`: the native wheel has OpenMP, and one thread
-      gives one summation order (EXECUTED: the draft's output was the same with and without it
-      on a 10-core host, so this is a guard, not a fix). The other goldens must still reproduce
-      (`regen.py --check`).
-    - **The recording platform:** darwin-arm64, by 037's rule, since PCA and the linear models
-      reach LAPACK.
-    - **How values are printed:** 037's rules. Floats with significant digits,
-      `format(float(x) + 0.0, ".9g")` for direct results and `".6g"` for iterative ones; solvers
-      given tolerances far tighter than the printed digits (`tol=1e-12` for logistic regression,
-      `tol=1e-10` and `max_iter=100_000` for `LinearSVC`); no dtype, timing or iteration count
-      that depends on the path; every input fixed or seeded.
-    - **Golden job (v1.3), `tests/jobs/machine_learning.py`,** in `JOBS`, its golden written by
-      `regen.py`. As drafted and run (EXECUTED natively under hash seeds 0 and 1, equal; and from
-      the zip model with the patch, equal to native byte for byte): the versions line
-      (`importlib.metadata`, scikit-learn, scipy, numpy, pandas, joblib, threadpoolctl,
-      narwhals); the five datasets' shapes, iris's names and first row, a description's first
-      line; a decision tree (node count, depth, importances, accuracy, confusion matrix); a
-      scaled logistic regression (accuracy, coefficients, one row's probabilities); a random
-      forest with `n_jobs=1` and `n_jobs=2` (accuracy, importances, the two equal); KMeans
-      (inertia, cluster sizes); PCA (explained variance ratio, `|components|`); linear and ridge
-      regression on diabetes; an RBF `SVC` on breast cancer (accuracy, support vector counts,
-      AUC) and a `LinearSVC`; a k-d tree k-NN's five-fold scores on digits; a
-      `HistGradientBoostingClassifier` on wine (its accuracy only: the drafting job also printed
-      `n_iter_`, which 037's rule forbids, and the revised draft drops it); a `ColumnTransformer` with `OneHotEncoder` over a
-      pandas frame; TF-IDF on four sentences; a fitted forest through `joblib.dump` and `load` in
-      memory, predicting the same. The draft is not repository code: the builder writes the job
-      from it, clean under `ruff format` and `ruff check`.
-    - **Behaviour (v1.3, `tests/checks/test_v1_3_default_profile.py`, 039's file), each on both
-      binaries with nothing writable unless named:**
-      - `test_scikit_learn_runs_without_threads[plain, snapshot]`: with warnings as errors,
-        `_openmp_parallelism_enabled()` is `False`; `_openmp_effective_n_threads(-1)` is 1;
-        `joblib.effective_n_jobs(-1)` is 1; a forest fitted with `n_jobs=-1` predicts what
-        `n_jobs=1` predicts; `threadpool_info()` is `[]`; a KMeans fit returns, inside the
-        call's fuel limit.
-      - `test_scikit_learn_reads_its_files_from_the_zip[plain, snapshot]`: the six loaders give
-        native's shapes; `estimator_html_repr(make_pipeline(StandardScaler(),
-        LogisticRegression()))` holds a line of `estimator.css` (the patch's proof); `len(all_estimators())`
-        equals native's 208 (EXECUTED in the zip model).
-      - `test_scikit_learn_says_what_it_lacks[plain]`, with no root and no grant (the runner's
-        default): `load_sample_images()` raises `ModuleNotFoundError` naming
-        `sklearn.datasets.images`; `fetch_california_housing()` raises `FileNotFoundError`
-        before any network call, inside the fuel limit (Decision 9).
-      - `test_scikit_learn_modules_are_builtin[plain, snapshot]`: each of the 69 names in the
-        build's list imports and is built in, by the form 023's and 037's checks use; the four
-        renamed modules among them.
-    - **Rules and artifact checks (judge changes, under `--accept-judge`):** v1.1, 023's
-      constructor list gains the reviewed scikit-learn names (Decision 8); v1.1,
-      `test_the_sample_images_are_not_in_the_zip` (no member under `sklearn/datasets/images/`);
-      v1.5, `SOURCE_PATTERNS` and `needs.SOURCE_COMPONENTS` gain `scikit_learn`, the release
-      workflow's tree count rises by one, the patched-tree check covers the patch; rules, spec
-      020's `patch_errors` passes on the patch and its draft, and `scan.cpp_exception_errors`
-      judges `recipes/wasi-sklearn.cross`; `paths.PACKAGES` and `LICENCE_COMPONENTS` gain
-      scikit-learn; 033's `test_packages_carry_their_metadata` gains it.
-    - **Build-time gates, not judge checks:** the OpenMP gate (Decision 3); the per-file include
-      log (Decision 6); the module count; step 60's clash detector; the staged cimports
-      (Decision 4).
-    - **Unit checks** (no artifacts), each seen failing before its code exists:
-      `install_from_plan.py --modules-only` on a small install plan (the list written, nothing
-      copied); `gen_inittab.py`'s four new renames and its clash check on them;
-      `stage_scipy_cimports.sh` against a fake scipy build folder (the six files placed; a
-      missing one named); `scripts/weak_duplicates.py` on two small wasm objects compiled from
-      two C files that each define the same `inline` function (named), the same pair with one
-      renamed (clean), and a `std::` template (allowed by rule) (Decision 6).
-    - **The notice (v1.1), `test_scikit_learn_notice_carries_its_bundled_parts`:**
-      `LICENSES/scikit-learn.txt` holds each part Decision 11 names, each matched against the
-      bytes of its source in the pinned sdist (or, for numpydoc and django, the pinned licence
-      text). Seen failing against a copy of the built set whose notice lacks the `_pprint.py`
-      part.
+    - **The oracle.** `tests/jobs/oracle/pyproject.toml` gains `scikit-learn==1.9.1`. On macOS arm64 PyPI has one cp315 wheel, `macosx_12_0_arm64` (SHA-256 `e1b46824…8942`, READ); it calls BLAS only through the oracle's scipy, which 037 pins to one LAPACK. `uv.lock` records it. `oracle_env` gains `OMP_NUM_THREADS=1`: the native wheel has OpenMP, and one thread gives one summation order (EXECUTED: the draft's output was the same with and without it on a 10-core host, so this is a guard, not a fix). The other goldens must still reproduce (`regen.py --check`).
+    - **The recording platform:** darwin-arm64, by 037's rule, since PCA and the linear models reach LAPACK.
+    - **How values are printed:** 037's rules. Floats with significant digits, `format(float(x) + 0.0, ".9g")` for direct results and `".6g"` for iterative ones; solvers given tolerances far tighter than the printed digits (`tol=1e-12` for logistic regression, `tol=1e-10` and `max_iter=100_000` for `LinearSVC`); no dtype, timing or iteration count that depends on the path; every input fixed or seeded.
+    - **Golden job (v1.3), `tests/jobs/machine_learning.py`,** in `JOBS`, its golden written by `regen.py`. As drafted and run (EXECUTED natively under hash seeds 0 and 1, equal; and from the zip model with the patch, equal to native byte for byte): the versions line (`importlib.metadata`, scikit-learn, scipy, numpy, pandas, joblib, threadpoolctl, narwhals); the five datasets' shapes, iris's names and first row, a description's first line; a decision tree (node count, depth, importances, accuracy, confusion matrix); a scaled logistic regression (accuracy, coefficients, one row's probabilities); a random forest with `n_jobs=1` and `n_jobs=2` (accuracy, importances, the two equal); KMeans (inertia, cluster sizes); PCA (explained variance ratio, `|components|`); linear and ridge regression on diabetes; an RBF `SVC` on breast cancer (accuracy, support vector counts, AUC) and a `LinearSVC`; a k-d tree k-NN's five-fold scores on digits; a `HistGradientBoostingClassifier` on wine (its accuracy only: the drafting job also printed `n_iter_`, which 037's rule forbids, and the revised draft drops it); a `ColumnTransformer` with `OneHotEncoder` over a pandas frame; TF-IDF on four sentences; a fitted forest through `joblib.dump` and `load` in memory, predicting the same. The draft is not repository code: the builder writes the job from it, clean under `ruff format` and `ruff check`.
+    - **Behaviour (v1.3, `tests/checks/test_v1_3_default_profile.py`, 039's file), each on both binaries with nothing writable unless named:**
+      - `test_scikit_learn_runs_without_threads[plain, snapshot]`: with warnings as errors, `_openmp_parallelism_enabled()` is `False`; `_openmp_effective_n_threads(-1)` is 1; `joblib.effective_n_jobs(-1)` is 1; a forest fitted with `n_jobs=-1` predicts what `n_jobs=1` predicts; `threadpool_info()` is `[]`; a KMeans fit returns, inside the call's fuel limit.
+      - `test_scikit_learn_reads_its_files_from_the_zip[plain, snapshot]`: the six loaders give native's shapes; `estimator_html_repr(make_pipeline(StandardScaler(), LogisticRegression()))` holds a line of `estimator.css` (the patch's proof); `len(all_estimators())` equals native's 208 (EXECUTED in the zip model).
+      - `test_scikit_learn_says_what_it_lacks[plain]`, with no root and no grant (the runner's default): `load_sample_images()` raises `ModuleNotFoundError` naming `sklearn.datasets.images`; `fetch_california_housing()` raises `FileNotFoundError` before any network call, inside the fuel limit (Decision 9).
+      - `test_scikit_learn_modules_are_builtin[plain, snapshot]`: each of the 69 names in the build's list imports and is built in, by the form 023's and 037's checks use; the four renamed modules among them.
+    - **Rules and artifact checks (judge changes, under `--accept-judge`):** v1.1, 023's constructor list gains the reviewed scikit-learn names (Decision 8); v1.1, `test_the_sample_images_are_not_in_the_zip` (no member under `sklearn/datasets/images/`); v1.5, `SOURCE_PATTERNS` and `needs.SOURCE_COMPONENTS` gain `scikit_learn`, the release workflow's tree count rises by one, the patched-tree check covers the patch; rules, spec 020's `patch_errors` passes on the patch and its draft, and `scan.cpp_exception_errors` judges `recipes/wasi-sklearn.cross`; `paths.PACKAGES` and `LICENCE_COMPONENTS` gain scikit-learn; 033's `test_packages_carry_their_metadata` gains it.
+    - **Build-time gates, not judge checks:** the OpenMP gate (Decision 3); the per-file include log (Decision 6); the module count; step 60's clash detector; the staged cimports (Decision 4).
+    - **Unit checks** (no artifacts), each seen failing before its code exists: `install_from_plan.py --modules-only` on a small install plan (the list written, nothing copied); `gen_inittab.py`'s four new renames and its clash check on them; `stage_scipy_cimports.sh` against a fake scipy build folder (the six files placed; a missing one named); `scripts/weak_duplicates.py` on two small wasm objects compiled from two C files that each define the same `inline` function (named), the same pair with one renamed (clean), and a `std::` template (allowed by rule) (Decision 6).
+    - **The notice (v1.1), `test_scikit_learn_notice_carries_its_bundled_parts`:** `LICENSES/scikit-learn.txt` holds each part Decision 11 names, each matched against the bytes of its source in the pinned sdist (or, for numpydoc and django, the pinned licence text). Seen failing against a copy of the built set whose notice lacks the `_pprint.py` part.
 
-14. **Ordering, and one builder** (§5.7: one build-class specification in flight, one landing at
-    a time).
-    - **It builds after 038 and 039.** 037 and 038 bring scipy whole (and the machinery this
-      reuses); 039 brings joblib, threadpoolctl with `dllist`, narwhals and the check file. It
-      does not wait for 042: the photographs leave with 023's `--drop`, which 042's Decision 5
-      itself says to extend rather than double (B2), so no option is added here and 042 can use
-      `--drop` too.
-    - **045 (statsmodels) builds right after this one.** It reuses Decision 4's staging and this
-      step's pattern. If this specification stalls (AGENTS.md rule 7), 045 may build first and
-      brings `stage_scipy_cimports.sh` itself.
-    - **046 (lxml) and 047 (regex)**, drafted alongside: no dependency either way. Question 82
-      asks whether they may build before scipy; if they have not landed when this is
-      confirmed, whichever is confirmed for build first builds first. The second rebases onto
-      the other's step 60, step 70, `gen_inittab.py`, `00_download.sh` and
-      `assemble_artifacts.py`, and re-derives its growth bounds from what it really adds. Their
-      steps (36, 53, 54) do not collide with 58.
-    - **Files shared with others:** steps 60 and 70, `gen_inittab.py`, `install_from_plan.py`,
-      `make_stdlib_zip.py`, `assemble_artifacts.py`, `00_download.sh` (023, 033, 035, 037,
-      039, 041, 042, 043). Each is rebased onto main as it is when this builder starts.
-    - **Not split; built in four stages, each green before the next:** (1) the pin, the patch
-      and its facts sheet, the staged cimports, the cross file and `meson setup` alone, with the
-      OpenMP gate (if meson refuses the cross build, the builder stops and writes a memo);
-      (2) `ninja`, the renames and the include log; (3) step 60 with the clash detector, the
-      weak-duplicate gate, the link-map check and the constructors, step 70; (4) the oracle, the
-      job, the checks, the README and the account. Stage 1 also repeats, natively with the line's
-      Cython and single-threaded, the review's subset of scikit-learn's own tests (Decision 2).
+14. **Ordering, and one builder** (§5.7: one build-class specification in flight, one landing at a time).
+    - **It builds after 038 and 039.** 037 and 038 bring scipy whole (and the machinery this reuses); 039 brings joblib, threadpoolctl with `dllist`, narwhals and the check file. It does not wait for 042: the photographs leave with 023's `--drop`, which 042's Decision 5 itself says to extend rather than double (B2), so no option is added here and 042 can use `--drop` too.
+    - **045 (statsmodels) builds right after this one.** It reuses Decision 4's staging and this step's pattern. If this specification stalls (AGENTS.md rule 7), 045 may build first and brings `stage_scipy_cimports.sh` itself.
+    - **046 (lxml) and 047 (regex)**, drafted alongside: no dependency either way. Question 82 asks whether they may build before scipy; if they have not landed when this is confirmed, whichever is confirmed for build first builds first. The second rebases onto the other's step 60, step 70, `gen_inittab.py`, `00_download.sh` and `assemble_artifacts.py`, and re-derives its growth bounds from what it really adds. Their steps (36, 53, 54) do not collide with 58.
+    - **Files shared with others:** steps 60 and 70, `gen_inittab.py`, `install_from_plan.py`, `make_stdlib_zip.py`, `assemble_artifacts.py`, `00_download.sh` (023, 033, 035, 037, 039, 041, 042, 043). Each is rebased onto main as it is when this builder starts.
+    - **Not split; built in four stages, each green before the next:** (1) the pin, the patch and its facts sheet, the staged cimports, the cross file and `meson setup` alone, with the OpenMP gate (if meson refuses the cross build, the builder stops and writes a memo); (2) `ninja`, the renames and the include log; (3) step 60 with the clash detector, the weak-duplicate gate, the link-map check and the constructors, step 70; (4) the oracle, the job, the checks, the README and the account. Stage 1 also repeats, natively with the line's Cython and single-threaded, the review's subset of scikit-learn's own tests (Decision 2).
 
 ## Intent
 
-An agent's code in the default profile fits, predicts, scores, clusters, decomposes and
-pipelines with scikit-learn, on its bundled datasets or its own data, and gets native
-scikit-learn's answers, serially, inside the same sealed Python. One recorded, temporary patch
-lets scikit-learn read its own style sheets from the zip.
+An agent's code in the default profile fits, predicts, scores, clusters, decomposes and pipelines with scikit-learn, on its bundled datasets or its own data, and gets native scikit-learn's answers, serially, inside the same sealed Python. One recorded, temporary patch lets scikit-learn read its own style sheets from the zip.
 
 ## Design
 
@@ -617,360 +177,115 @@ lets scikit-learn read its own style sheets from the zip.
 In: Decisions 1 to 14. Out:
 
 - **statsmodels**, with formulaic, interface-meta and wrapt: spec 045.
-- **OpenMP or threads.** A later SDK with an OpenMP runtime would still need threads in the
-  guest.
+- **OpenMP or threads.** A later SDK with an OpenMP runtime would still need threads in the guest.
 - **The fetchers' data** as pinned files in the zip, and the sample images.
-- **Pre-importing scikit-learn in the snapshot.** The landing notes record `import sklearn`'s
-  fuel on both binaries and the snapshot's bytes and `pass` fuel if it pre-imported it, so the
-  owner can decide later, as for scipy (question 61).
+- **Pre-importing scikit-learn in the snapshot.** The landing notes record `import sklearn`'s fuel on both binaries and the snapshot's bytes and `pass` fuel if it pre-imported it, so the owner can decide later, as for scipy (question 61).
 - **Trimming** templates, descriptions or `externals/_numpydoc` from the zip.
 - **scikit-learn's own test suite under the runtime** (roadmap milestone 6).
 
 ## Acceptance criteria
 
-1. **The checks exist and were seen failing first** on the set the builder starts from, each
-   recorded in the landing notes: the golden and the four behaviour checks with
-   `ModuleNotFoundError: No module named 'sklearn'`; the notice check against a notice without
-   the `_pprint.py` part; the weak-duplicate gate against a build without `_newrand`'s rename
-   header (it names `bounded_rand_int`); `test_scikit_learn_reads_its_files_from_the_zip`
-   and the golden again on a build without the patch (`NotADirectoryError` at `import sklearn`),
-   which the builder runs once; the images check against a zip built without the `--drop`;
-   the unit checks before their code; the constructor list without the new names.
-2. **The build** went through Decision 14's four stages. A full build from pins in a clean clone
-   applies the patch with no offset, passes the OpenMP gate, the include log, the module count
-   and step 60's detector, and makes a set whose binaries run the golden and the checks.
-   `MANIFEST` names the pin, the recipes, the scripts and the patch.
-3. **The same bytes everywhere:** a manual run of the release workflow on the reviewed commit
-   passes its `rebuild`, `same-bytes` (spec 012, and 040's x86_64 rule if 040 has landed) and
-   zero-patch jobs with the new tree count; its run number goes in the landing notes.
-4. **The judge:** `uv run pytest` is green with `--accept`, `--accept-judge` (the new checks,
-   job and golden, the oracle's pin and environment, the constructor list, the package, licence
-   and source lists) and `--accept-growth` (Decision 12's account, each row measured against
-   its bound), and loses no pass. `regen.py --check` reproduces every golden.
-5. **The numbers recorded:** the three binaries', the zip's and the wheel's bytes; the zip's
-   members; the modules linked; the final rename set; the new constructors by name; plain and
-   snapshot `-c pass`; `import sklearn` and the golden's fuel on both binaries; the snapshot's
-   bytes and `pass` fuel if it pre-imported scikit-learn; the guest's memory after the golden;
-   what `fetch_california_housing()` raises with no root and with a root; the counts of the
-   native Cython 3.3.0 test subset (Decision 2); the notice sweep's list (Decision 11); and
-   **which answer question 80 had** when this landed, as 041's condition C1 asks, with the facts
-   sheet in that answer's form.
+1. **The checks exist and were seen failing first** on the set the builder starts from, each recorded in the landing notes: the golden and the four behaviour checks with `ModuleNotFoundError: No module named 'sklearn'`; the notice check against a notice without the `_pprint.py` part; the weak-duplicate gate against a build without `_newrand`'s rename header (it names `bounded_rand_int`); `test_scikit_learn_reads_its_files_from_the_zip` and the golden again on a build without the patch (`NotADirectoryError` at `import sklearn`), which the builder runs once; the images check against a zip built without the `--drop`; the unit checks before their code; the constructor list without the new names.
+2. **The build** went through Decision 14's four stages. A full build from pins in a clean clone applies the patch with no offset, passes the OpenMP gate, the include log, the module count and step 60's detector, and makes a set whose binaries run the golden and the checks. `MANIFEST` names the pin, the recipes, the scripts and the patch.
+3. **The same bytes everywhere:** a manual run of the release workflow on the reviewed commit passes its `rebuild`, `same-bytes` (spec 012, and 040's x86_64 rule if 040 has landed) and zero-patch jobs with the new tree count; its run number goes in the landing notes.
+4. **The judge:** `uv run pytest` is green with `--accept`, `--accept-judge` (the new checks, job and golden, the oracle's pin and environment, the constructor list, the package, licence and source lists) and `--accept-growth` (Decision 12's account, each row measured against its bound), and loses no pass. `regen.py --check` reproduces every golden.
+5. **The numbers recorded:** the three binaries', the zip's and the wheel's bytes; the zip's members; the modules linked; the final rename set; the new constructors by name; plain and snapshot `-c pass`; `import sklearn` and the golden's fuel on both binaries; the snapshot's bytes and `pass` fuel if it pre-imported scikit-learn; the guest's memory after the golden; what `fetch_california_housing()` raises with no root and with a root; the counts of the native Cython 3.3.0 test subset (Decision 2); the notice sweep's list (Decision 11); and **which answer question 80 had** when this landed, as 041's condition C1 asks, with the facts sheet in that answer's form.
 6. **The release:** a release dry run passes every job (criterion 3's run).
 
 ## The owner's choices
 
-None open here. One is recorded in `../questions-for-the-owner.md` as **83**, each part decided
-here as recommended: the licences of what scikit-learn bundles (libsvm, liblinear,
-array-api-compat, array-api-extra, liac-arff, packaging's modules, numpydoc's docscrape, django's
-`slugify`, CPython's `pprint`, pytest's code, MurmurHash3, the Glasgow stop-word list); its six
-datasets, three of them CC BY 4.0 at UCI (decided: they ship with attribution; Decision 11 says
-what changes if the owner declines); the photographs left out (Decision 10); and what spec
-045's statsmodels bundles. This specification is not built until 83 is answered, as 043 waits
-on 81.
+None open here. One is recorded in `../questions-for-the-owner.md` as **83**, each part decided here as recommended: the licences of what scikit-learn bundles (libsvm, liblinear, array-api-compat, array-api-extra, liac-arff, packaging's modules, numpydoc's docscrape, django's `slugify`, CPython's `pprint`, pytest's code, MurmurHash3, the Glasgow stop-word list); its six datasets, three of them CC BY 4.0 at UCI (decided: they ship with attribution; Decision 11 says what changes if the owner declines); the photographs left out (Decision 10); and what spec 045's statsmodels bundles. This specification is not built until 83 is answered, as 043 waits on 81.
 
 ## The builder's notes before the build (2026-10-20)
 
-The builder (a fresh agent, not the author), on `spec/044-scikit-learn` in its own worktree,
-stacked on 037's trial tip `50a3fe3` (§4.14); it rebases onto 038's built tip when the lane sends
-it, and builds then. Nothing was built here: the pins were fetched and verified, the recipe, the
-step and the checks written, and only the unit files and `tests/checks/test_rules.py` run.
+The builder (a fresh agent, not the author), on `spec/044-scikit-learn` in its own worktree, stacked on 037's trial tip `50a3fe3` (§4.14); it rebases onto 038's built tip when the lane sends it, and builds then. Nothing was built here: the pins were fetched and verified, the recipe, the step and the checks written, and only the unit files and `tests/checks/test_rules.py` run.
 
-**The pre-build review.** Its Disposition answers all fourteen findings in this text, and each
-answer is where it says (checked against Decisions 2, 6, 7, 9, 10, 11 and 13 and question 83).
-The reviewer's confirmation of that Disposition is not recorded in the review file: findings 1,
-2, 3, 4 and 6 are Medium, so a reviewer confirms them before the build review, with B1 below.
-Questions 80 and 83 are answered (`../decisions.md`): the facts sheet keeps question 80's form;
-question 83 approved everything as decided here.
+**The pre-build review.** Its Disposition answers all fourteen findings in this text, and each answer is where it says (checked against Decisions 2, 6, 7, 9, 10, 11 and 13 and question 83). The reviewer's confirmation of that Disposition is not recorded in the review file: findings 1, 2, 3, 4 and 6 are Medium, so a reviewer confirms them before the build review, with B1 below. Questions 80 and 83 are answered (`../decisions.md`): the facts sheet keeps question 80's form; question 83 approved everything as decided here.
 
 **What the builder found or changed, each for the reviewer** (EXECUTED unless marked):
 
-- **B1 (Medium, licences): the notice sweep found two components Decision 11 and question 83 do
-  not name.** HDBSCAN's code, from Leland McInnes' `hdbscan` (BSD-3-Clause, "Copyright (c) 2015,
-  Leland McInnes"): its full notice heads `cluster/_hdbscan/_tree.pxd` and its terms the other
-  four files of `cluster/_hdbscan/`. And `StratifiedGroupKFold._iter_test_indices`
-  (`model_selection/_split.py:1001-1015`), "based on this kaggle kernel … and is a subject to
-  Apache 2.0 License", with its list of changes. Both families are approved elsewhere
-  (BSD-3-Clause throughout; Apache-2.0 for SheenBidi and regex in the constitution's §4.12
-  list; decision 43 names regex's licence as CNRI-Python, as the confirmation corrected), and both are compiled or packed
-  here, so `LICENSES/scikit-learn.txt` gains their parts (`_tree.pxd` lines 1-28; `_split.py`
-  lines 1001-1015 and the plain Apache-2.0 text, wasi-libc's pinned `LICENSE-APACHE`, no new pin)
-  and the judge's notice check holds them. The owner is asked to confirm both are inside question
-  83's approval. **Answered 2026-10-20: approved.** The lane asked the owner through
-  AskUserQuestion, and the owner chose "Approve both" (`../decisions.md`, "Three answers for 0.1.0
-  (2026-10-20)"): HDBSCAN's code and the Kaggle-derived function ship, with pytest's MIT text
-  (L1), their notices in `LICENSES/scikit-learn.txt`. Nothing in the build changed by it. The rest
-  of the sweep pairs as Decision 11 says (scipy-, joblib-, pandas- and
-  networkx-derived lines under their shipped notices; CPython 2.7.5's lines in `_testing.py`
-  under CPython's; ideas and algorithms cited, not code; the landing notes carry the full list).
-- **B2 (Low): `--drop`, not `--leave-out`.** 042 is not on main. 042's own Decision 5 says that if
-  023 landed a member-exclusion option it is extended, not doubled. 023's `--drop` is that
-  option: it applies to every input, matches the name before `.py` becomes `.pyc`, and stops when
-  it matches nothing. So step 70 passes `--drop sklearn/datasets/images` and no option is added;
-  042 can take the same route. Decision 10's effect is unchanged (410 members, EXECUTED with step
-  70's `tree_members` on the patched tree).
-- **B3 (Low): the link-map check requires four names, not every renamed one.** wasm-ld collects
-  unreferenced functions, and a renamed `set_seed` or `bounded_rand_int` whose every call sits in
-  its own file (libsvm's, `_newrand`'s) may be inlined and then dropped, so it can be absent from
-  a correct link. Required: the three renamed `mt_rand` objects and `sklearn_liblinear_set_seed`
-  (called from `_liblinear`'s helper, another file); forbidden: `mt_rand`, `set_seed`,
-  `bounded_rand_int`. The weak-duplicate gate stands behind `bounded_rand_int` before the link.
-- **B4 (Low): libsvm's notice is lines 1-32 of `svm.cpp`;** the comment closes on line 32 (the
-  review's nit put the `*/` on 31).
-- **B5 (Low): the include map's `@SO@`.** Two module pairs share a generated file name
-  (`_gradient_boosting.c`, `_utils.c`), so those entries name the module's private folder,
-  `<module>.cpython-<tag>-wasm32-wasi.so.p/`, written `@SO@` and rendered by step 58 beside
-  `@ROOT@`. Nine entries and eight headers as drafted; ten and nine with B11's.
-- **B6 (Low): judge changes the text did not list.** `scan.MESON_BUILDS` gains `sklearn-build`
-  (spec 059's rule for a new meson build); `shards.COMPONENT_NAMES` maps the source component
-  `scikit_learn` to the package `scikit-learn`; `tests/upstream/packages.toml` names
-  scikit-learn's suite `later` (spec 066 then; spec 095 since the build review's L3; this Scope leaves it out); the notice check reads the
-  pinned sdist, so it joins the release's build shard by node id; `test_v1_1`'s dotted-builtin
-  program gives `sklearn` its own run, as `scipy` has (its 69 modules are
-  `test_scikit_learn_modules_are_builtin`); two unit fixtures gain step 58 and the package.
-- **B7 (Low): the weak-duplicate list.** Each entry is an fnmatch pattern over the name and its
-  demangled form, and a pattern that allows nothing stops the build, so the list never outlives
-  what it allows. It starts with no entry: stage 3's first link lists any weak definition the
-  existing packages already share across archives (none is known; the gate is new for all of
-  them), and each is reviewed into it then. The unit check's compiled-objects case runs where
-  step 10 has unpacked the SDK and is skipped elsewhere; its parsing, rule and list cases always
-  run (EXECUTED against the pinned SDK 34 unpacked for the probe, then removed).
-- **B8 (Low): wasi-sdk 34.** Spec 086 landed; Decision 3's probe was on 33. The gate reads this
-  build's own `meson setup` log and compile records, so it holds on 34; stage 1 records 34's line.
-- **B9 (Low): wine's creator.** `descr/wine_data.rst` says "Creator: R.A. Fisher", an upstream
-  copy of iris's line; the attribution part uses the same file's "Original Owners: Forina, M. et
-  al, PARVUS", whom UCI credits too.
-- **B10 (Note): the constructor list** grows at stage 3, when the build shows the names and their
-  link order (Decision 8).
+- **B1 (Medium, licences): the notice sweep found two components Decision 11 and question 83 do not name.** HDBSCAN's code, from Leland McInnes' `hdbscan` (BSD-3-Clause, "Copyright (c) 2015, Leland McInnes"): its full notice heads `cluster/_hdbscan/_tree.pxd` and its terms the other four files of `cluster/_hdbscan/`. And `StratifiedGroupKFold._iter_test_indices` (`model_selection/_split.py:1001-1015`), "based on this kaggle kernel … and is a subject to Apache 2.0 License", with its list of changes. Both families are approved elsewhere (BSD-3-Clause throughout; Apache-2.0 for SheenBidi and regex in the constitution's §4.12 list; decision 43 names regex's licence as CNRI-Python, as the confirmation corrected), and both are compiled or packed here, so `LICENSES/scikit-learn.txt` gains their parts (`_tree.pxd` lines 1-28; `_split.py` lines 1001-1015 and the plain Apache-2.0 text, wasi-libc's pinned `LICENSE-APACHE`, no new pin) and the judge's notice check holds them. The owner is asked to confirm both are inside question 83's approval. **Answered 2026-10-20: approved.** The lane asked the owner through AskUserQuestion, and the owner chose "Approve both" (`../decisions.md`, "Three answers for 0.1.0 (2026-10-20)"): HDBSCAN's code and the Kaggle-derived function ship, with pytest's MIT text (L1), their notices in `LICENSES/scikit-learn.txt`. Nothing in the build changed by it. The rest of the sweep pairs as Decision 11 says (scipy-, joblib-, pandas- and networkx-derived lines under their shipped notices; CPython 2.7.5's lines in `_testing.py` under CPython's; ideas and algorithms cited, not code; the landing notes carry the full list).
+- **B2 (Low): `--drop`, not `--leave-out`.** 042 is not on main. 042's own Decision 5 says that if 023 landed a member-exclusion option it is extended, not doubled. 023's `--drop` is that option: it applies to every input, matches the name before `.py` becomes `.pyc`, and stops when it matches nothing. So step 70 passes `--drop sklearn/datasets/images` and no option is added; 042 can take the same route. Decision 10's effect is unchanged (410 members, EXECUTED with step 70's `tree_members` on the patched tree).
+- **B3 (Low): the link-map check requires four names, not every renamed one.** wasm-ld collects unreferenced functions, and a renamed `set_seed` or `bounded_rand_int` whose every call sits in its own file (libsvm's, `_newrand`'s) may be inlined and then dropped, so it can be absent from a correct link. Required: the three renamed `mt_rand` objects and `sklearn_liblinear_set_seed` (called from `_liblinear`'s helper, another file); forbidden: `mt_rand`, `set_seed`, `bounded_rand_int`. The weak-duplicate gate stands behind `bounded_rand_int` before the link.
+- **B4 (Low): libsvm's notice is lines 1-32 of `svm.cpp`;** the comment closes on line 32 (the review's nit put the `*/` on 31).
+- **B5 (Low): the include map's `@SO@`.** Two module pairs share a generated file name (`_gradient_boosting.c`, `_utils.c`), so those entries name the module's private folder, `<module>.cpython-<tag>-wasm32-wasi.so.p/`, written `@SO@` and rendered by step 58 beside `@ROOT@`. Nine entries and eight headers as drafted; ten and nine with B11's.
+- **B6 (Low): judge changes the text did not list.** `scan.MESON_BUILDS` gains `sklearn-build` (spec 059's rule for a new meson build); `shards.COMPONENT_NAMES` maps the source component `scikit_learn` to the package `scikit-learn`; `tests/upstream/packages.toml` names scikit-learn's suite `later` (spec 066 then; spec 095 since the build review's L3; this Scope leaves it out); the notice check reads the pinned sdist, so it joins the release's build shard by node id; `test_v1_1`'s dotted-builtin program gives `sklearn` its own run, as `scipy` has (its 69 modules are `test_scikit_learn_modules_are_builtin`); two unit fixtures gain step 58 and the package.
+- **B7 (Low): the weak-duplicate list.** Each entry is an fnmatch pattern over the name and its demangled form, and a pattern that allows nothing stops the build, so the list never outlives what it allows. It starts with no entry: stage 3's first link lists any weak definition the existing packages already share across archives (none is known; the gate is new for all of them), and each is reviewed into it then. The unit check's compiled-objects case runs where step 10 has unpacked the SDK and is skipped elsewhere; its parsing, rule and list cases always run (EXECUTED against the pinned SDK 34 unpacked for the probe, then removed).
+- **B8 (Low): wasi-sdk 34.** Spec 086 landed; Decision 3's probe was on 33. The gate reads this build's own `meson setup` log and compile records, so it holds on 34; stage 1 records 34's line.
+- **B9 (Low): wine's creator.** `descr/wine_data.rst` says "Creator: R.A. Fisher", an upstream copy of iris's line; the attribution part uses the same file's "Original Owners: Forina, M. et al, PARVUS", whom UCI credits too.
+- **B10 (Note): the constructor list** grows at stage 3, when the build shows the names and their link order (Decision 8).
 
 **Found at build (2026-10-20, stacked on 038's `8cf320a`):**
 
-- **B11 (Medium, the link): `sklearn.utils._random`'s init name is CPython's own.** Its
-  `PyInit__random` is also `Modules/_randommodule.c`'s, CPython's builtin `_random`. In the static
-  link the inittab's reference resolved to CPython's function, so scikit-learn's archive member
-  was never pulled in and wasm-ld said nothing: `sklearn.utils._random` was the stdlib's
-  `_random`, and `import sklearn.ensemble` raised `ImportError: cannot import name
-  'sample_without_replacement'` (EXECUTED: the golden and the behaviour checks, run by node on
-  the first set). Decision 6 compared module names with the other packages' but not with
-  CPython's builtins. Fixed by a tenth map entry and a ninth header,
-  `recipes/sklearn-renames/utils_random.h` (`PyInit_sklearn_utils__random`), and the rename table.
-  The failure mode becomes a gate: `gen_inittab.py --against <CPython's config.c>`, which step 60
-  passes, stops on any entry whose init name a CPython builtin already has (a unit check holds it,
-  seen failing on the committed script). Against today's config.c, `_random` was the only one
-  (EXECUTED: the inittab's names against config.c's). `python.wasm` grew 96,934 bytes by it, the
-  module now linked.
-- **The weak-duplicate gate's first link** found 1,186 shared weak names in 270 archives, all but
-  one from packages already on main; the list holds 19 patterns, each with its reason, and the
-  gate's outermost-scope rule reads local entities and qualifiers (commit `df92776`; the build
-  review reads each pattern). The second link: 0 unreviewed, 0 stale.
+- **B11 (Medium, the link): `sklearn.utils._random`'s init name is CPython's own.** Its `PyInit__random` is also `Modules/_randommodule.c`'s, CPython's builtin `_random`. In the static link the inittab's reference resolved to CPython's function, so scikit-learn's archive member was never pulled in and wasm-ld said nothing: `sklearn.utils._random` was the stdlib's `_random`, and `import sklearn.ensemble` raised `ImportError: cannot import name 'sample_without_replacement'` (EXECUTED: the golden and the behaviour checks, run by node on the first set). Decision 6 compared module names with the other packages' but not with CPython's builtins. Fixed by a tenth map entry and a ninth header, `recipes/sklearn-renames/utils_random.h` (`PyInit_sklearn_utils__random`), and the rename table. The failure mode becomes a gate: `gen_inittab.py --against <CPython's config.c>`, which step 60 passes, stops on any entry whose init name a CPython builtin already has (a unit check holds it, seen failing on the committed script). Against today's config.c, `_random` was the only one (EXECUTED: the inittab's names against config.c's). `python.wasm` grew 96,934 bytes by it, the module now linked.
+- **The weak-duplicate gate's first link** found 1,186 shared weak names in 270 archives, all but one from packages already on main; the list holds 19 patterns, each with its reason, and the gate's outermost-scope rule reads local entities and qualifiers (commit `df92776`; the build review reads each pattern). The second link: 0 unreviewed, 0 stale.
 - **The link map:** 4 names required, 3 forbidden, 0 findings.
-- **The constructors:** exactly the three Decision 8 names, `_GLOBAL__sub_I__newrand.cpp` (after
-  scipy's `_qmc_cy`) and `_GLOBAL__sub_I_linear.cpp`, `_GLOBAL__sub_I_libsvm_template.cpp` (last),
-  each `newrand.h:22`'s `std::mt19937` under its renamed name, in link order.
-- **Stage 1's native subset** (`tests/jobs/oracle/sklearn_native_tests.sh`, confined as N1 says): the 7846
-  probe passes (`__annotate__` pickles; KDTree and BallTree round-trip); `sklearn.svm` 308 passed,
-  `sklearn.tree` 804, `sklearn.neighbors` 1,515, the cython_blas, loss, hdbscan and k-means group
-  2,264, the sgd, coordinate-descent, pairwise-reduction and t-SNE group 763 (1 xfailed),
-  `test_gradient_boosting` 129, `test_forest` 332: **6,115 passed, none failed**, single-threaded,
-  with the line's Cython 3.3.0. The outputs were kept outside the tree and `build/sklearn-native`
-  removed.
+- **The constructors:** exactly the three Decision 8 names, `_GLOBAL__sub_I__newrand.cpp` (after scipy's `_qmc_cy`) and `_GLOBAL__sub_I_linear.cpp`, `_GLOBAL__sub_I_libsvm_template.cpp` (last), each `newrand.h:22`'s `std::mt19937` under its renamed name, in link order.
+- **Stage 1's native subset** (`tests/jobs/oracle/sklearn_native_tests.sh`, confined as N1 says): the 7846 probe passes (`__annotate__` pickles; KDTree and BallTree round-trip); `sklearn.svm` 308 passed, `sklearn.tree` 804, `sklearn.neighbors` 1,515, the cython_blas, loss, hdbscan and k-means group 2,264, the sgd, coordinate-descent, pairwise-reduction and t-SNE group 763 (1 xfailed), `test_gradient_boosting` 129, `test_forest` 332: **6,115 passed, none failed**, single-threaded, with the line's Cython 3.3.0. The outputs were kept outside the tree and `build/sklearn-native` removed.
 - **N2:** the compiled-objects unit case passed in the build tree (no skip).
-- **The golden** (`regen.py`, the pinned oracle, hash seeds 0 and 1): SHA-256 `c21ec297…`, the
-  drafting run's byte for byte; every other golden reproduced unchanged with `OMP_NUM_THREADS=1`.
+- **The golden** (`regen.py`, the pinned oracle, hash seeds 0 and 1): SHA-256 `c21ec297…`, the drafting run's byte for byte; every other golden reproduced unchanged with `OMP_NUM_THREADS=1`.
 
-**The confirmation's items** (`../reviews/044-scikit-learn-and-045-statsmodels-spec-2026-10-18.md`,
-"Confirmation (2026-10-20)": confirmed for build; B1 needs the owner's word before landing, and
-the lane asks it; the owner approved both on 2026-10-20, `../decisions.md`, "Three answers for
-0.1.0 (2026-10-20)"):
+**The confirmation's items** (`../reviews/044-scikit-learn-and-045-statsmodels-spec-2026-10-18.md`, "Confirmation (2026-10-20)": confirmed for build; B1 needs the owner's word before landing, and the lane asks it; the owner approved both on 2026-10-20, `../decisions.md`, "Three answers for 0.1.0 (2026-10-20)"):
 
-- **L1, done: pytest's licence is pinned and shipped.** `_testing.py:575-577` attributes MIT
-  code to pytest but carries no permission text, so pytest's `LICENSE` is pinned as django's is:
-  `https://raw.githubusercontent.com/pytest-dev/pytest/0d90a31d4a647fa7ba0d53a05b9266c2d4aaa05a/LICENSE`
-  saved as `pytest-0d90a31d-LICENSE`, SHA-256
-  `ca836a5f9ecca3b2f350230faa20a48fb8b145653b5568d784862df864706b9b`, 1,091 bytes (EXECUTED: the
-  last commit to touch the file, its bytes equal to `main`'s). `LICENSES/scikit-learn.txt` carries
-  it after django's, and the judge's notice check holds it (seen failing without it).
+- **L1, done: pytest's licence is pinned and shipped.** `_testing.py:575-577` attributes MIT code to pytest but carries no permission text, so pytest's `LICENSE` is pinned as django's is: `https://raw.githubusercontent.com/pytest-dev/pytest/0d90a31d4a647fa7ba0d53a05b9266c2d4aaa05a/LICENSE` saved as `pytest-0d90a31d-LICENSE`, SHA-256 `ca836a5f9ecca3b2f350230faa20a48fb8b145653b5568d784862df864706b9b`, 1,091 bytes (EXECUTED: the last commit to touch the file, its bytes equal to `main`'s). `LICENSES/scikit-learn.txt` carries it after django's, and the judge's notice check holds it (seen failing without it).
 - **L2:** the three lines go into the landing notes' sweep list (below).
-- **L3, done:** the Dependencies line, Decisions 10 and 14, acceptance criterion 1 and the Design
-  row say `--drop`.
-- **N1, done in the script:** stage 1's native test subset is `tests/jobs/oracle/sklearn_native_tests.sh`,
-  not a build step. It runs the sdist's code on the host, as the oracle runs native wheels, so it
-  is confined the same way: the venv, the source, the native build, the test site and the
-  outputs under `build/sklearn-native/`; `HOME`, `XDG_CACHE_HOME`, the uv cache and
-  `SCIKIT_LEARN_DATA` there; `SKLEARN_SKIP_NETWORK_TESTS=1`, so no test fetches a dataset; the
-  packages from the oracle's and the project's `uv.lock` with hashes; one thread. The landing
-  notes say so beside the counts.
-- **N2:** the compiled-objects case of `test_sklearn_build.py` runs and passes in the build tree,
-  after step 10, before "built"; the landing notes record it.
-- **N3, enforced:** each pattern in `recipes/weak-duplicates-allowed.txt` must carry `# <reason>`
-  on its line or the build stops (a unit check holds it), and the build review reads each one.
+- **L3, done:** the Dependencies line, Decisions 10 and 14, acceptance criterion 1 and the Design row say `--drop`.
+- **N1, done in the script:** stage 1's native test subset is `tests/jobs/oracle/sklearn_native_tests.sh`, not a build step. It runs the sdist's code on the host, as the oracle runs native wheels, so it is confined the same way: the venv, the source, the native build, the test site and the outputs under `build/sklearn-native/`; `HOME`, `XDG_CACHE_HOME`, the uv cache and `SCIKIT_LEARN_DATA` there; `SKLEARN_SKIP_NETWORK_TESTS=1`, so no test fetches a dataset; the packages from the oracle's and the project's `uv.lock` with hashes; one thread. The landing notes say so beside the counts.
+- **N2:** the compiled-objects case of `test_sklearn_build.py` runs and passes in the build tree, after step 10, before "built"; the landing notes record it.
+- **N3, enforced:** each pattern in `recipes/weak-duplicates-allowed.txt` must carry `# <reason>` on its line or the build stops (a unit check holds it), and the build review reads each one.
 
 ### The first build's account (superseded by the restack below)
 
-**Where it stands (2026-10-20).** Built natively on 038's `8cf320a` (on 037's `28bd08a`, 043's
-`54022dd`, main `41bcc0f`): steps 00 to 57 from an empty `build/`, 58 to 90 again after B11's
-rename (no input of 00 to 57 changed). Branch tip `03a2311`, pushed. The fast tier `-n 3`: 622
-of 762 pass, 0 fail, 3 blocked (the prior-art clones, three systems, the wheel), 137 deselected;
-unit suite 1,816 of 1,823 (7 skipped); the ratchet loses nothing and grows 162 metrics. The
-release workflow on the branch, run **39399546778**: the two Linux rebuilds, macOS's build and
-judge, the same bytes from every host, the three verify jobs, every Windows judge and every
-Linux own-shard pass. Red: macOS own-guest, own-embedding and upstream-macos on growth lines
-only; and four Linux upstream shards on lines that are not 044's (below). **Landing waits for
-the owner's answer to B1.**
+**Where it stands (2026-10-20).** Built natively on 038's `8cf320a` (on 037's `28bd08a`, 043's `54022dd`, main `41bcc0f`): steps 00 to 57 from an empty `build/`, 58 to 90 again after B11's rename (no input of 00 to 57 changed). Branch tip `03a2311`, pushed. The fast tier `-n 3`: 622 of 762 pass, 0 fail, 3 blocked (the prior-art clones, three systems, the wheel), 137 deselected; unit suite 1,816 of 1,823 (7 skipped); the ratchet loses nothing and grows 162 metrics. The release workflow on the branch, run **39399546778**: the two Linux rebuilds, macOS's build and judge, the same bytes from every host, the three verify jobs, every Windows judge and every Linux own-shard pass. Red: macOS own-guest, own-embedding and upstream-macos on growth lines only; and four Linux upstream shards on lines that are not 044's (below). **Landing waits for the owner's answer to B1.**
 
-**Re-derived after the rebase:** the README's carried patches 20 (038's 19 plus this one), its
-prose list and "nineteen steps"; the release tree count 26 (038's 25 plus `scikit_learn`; git
-had merged both branches' 24 to 25 silently); `JOBS` and `PLATFORM_BOUND` hold 038's
-`scipy_edges` and this `machine_learning`; step 60's lists hold 043's contourpy and this
-sklearn.
+**Re-derived after the rebase:** the README's carried patches 20 (038's 19 plus this one), its prose list and "nineteen steps"; the release tree count 26 (038's 25 plus `scikit_learn`; git had merged both branches' 24 to 25 silently); `JOBS` and `PLATFORM_BOUND` hold 038's `scipy_edges` and this `machine_learning`; step 60's lists hold 043's contourpy and this sklearn.
 
 **The claim list.**
 
-- **New checks:** `test_v1_3_default_profile.py::test_machine_learning_job_matches_native[plain]`,
-  `[snapshot]` (slow); `::test_scikit_learn_runs_without_threads[plain]`, `[snapshot]`;
-  `::test_scikit_learn_reads_its_files_from_the_zip[plain]`, `[snapshot]`;
-  `::test_scikit_learn_says_what_it_lacks`; `::test_scikit_learn_modules_are_builtin[plain]`,
-  `[snapshot]`; `test_v1_1_artifact_set.py::test_scikit_learn_notice_carries_its_bundled_parts`
-  (the build shard) and `::test_the_sample_images_are_not_in_the_zip`;
-  `test_v1_5_rebuild_from_pins.py::test_source_tree_matches_its_tarball[scikit_learn]`; the
-  unit suite's `tests/unit/test_sklearn_build.py` (nine rows, one needing step 10's SDK).
-- **Changed checks:** `test_packages_carry_their_metadata` (both binaries, one more
-  distribution); `test_dotted_builtins_keep_their_import_names` (sklearn runs apart, as scipy);
-  `test_static_constructors_are_reviewed` (three constructors); the rules' C++ cross-file and
-  meson-build lists; `test_every_package_names_its_own_suite`'s table and name map; two unit
-  fixtures (the step list, the synthetic set's package).
+- **New checks:** `test_v1_3_default_profile.py::test_machine_learning_job_matches_native[plain]`, `[snapshot]` (slow); `::test_scikit_learn_runs_without_threads[plain]`, `[snapshot]`; `::test_scikit_learn_reads_its_files_from_the_zip[plain]`, `[snapshot]`; `::test_scikit_learn_says_what_it_lacks`; `::test_scikit_learn_modules_are_builtin[plain]`, `[snapshot]`; `test_v1_1_artifact_set.py::test_scikit_learn_notice_carries_its_bundled_parts` (the build shard) and `::test_the_sample_images_are_not_in_the_zip`; `test_v1_5_rebuild_from_pins.py::test_source_tree_matches_its_tarball[scikit_learn]`; the unit suite's `tests/unit/test_sklearn_build.py` (nine rows, one needing step 10's SDK).
+- **Changed checks:** `test_packages_carry_their_metadata` (both binaries, one more distribution); `test_dotted_builtins_keep_their_import_names` (sklearn runs apart, as scipy); `test_static_constructors_are_reviewed` (three constructors); the rules' C++ cross-file and meson-build lists; `test_every_package_names_its_own_suite`'s table and name map; two unit fixtures (the step list, the synthetic set's package).
 - **Gaps:** none added, none closed by 044.
-- **Rows that grow** (measured on this set; the base is 038's set): `python.wasm` 93,793,847
-  bytes, the snapshot 98,620,285, the zip 47,730,084 (scikit-learn's 411 members, 3,219,354
-  bytes as stored); plain `-c pass` 251,787,400 fuel, snapshot `-c pass` 51,472,431; `import
-  sklearn` 13.85 G plain and 13.48 G snapshot (no package is pre-imported); every check that
-  starts the plain binary pays the 411 members' directory entries.
-- **Not 044's:** `test_upstream_class[cpython-a-no-ctypes]`, `[cpython-b-no-ctypes]`,
-  `[cpython-c-no-ctypes]` and `[numpy-others-no-ctypes]` pass while `tests/known_gaps.toml`
-  still lists them, and `test_upstream_suite[cpython-b]` meets an unexpected error in
-  `test.test_memoryview.OtherTest.test_ctypes_cast`. Each comes from 038's `8cf320a` ctypes
-  stand-in, which 044 does not touch; they belong to 038's build and fall away when 044 restacks
-  on 038's built tip or on main.
+- **Rows that grow** (measured on this set; the base is 038's set): `python.wasm` 93,793,847 bytes, the snapshot 98,620,285, the zip 47,730,084 (scikit-learn's 411 members, 3,219,354 bytes as stored); plain `-c pass` 251,787,400 fuel, snapshot `-c pass` 51,472,431; `import sklearn` 13.85 G plain and 13.48 G snapshot (no package is pre-imported); every check that starts the plain binary pays the 411 members' directory entries.
+- **Not 044's:** `test_upstream_class[cpython-a-no-ctypes]`, `[cpython-b-no-ctypes]`, `[cpython-c-no-ctypes]` and `[numpy-others-no-ctypes]` pass while `tests/known_gaps.toml` still lists them, and `test_upstream_suite[cpython-b]` meets an unexpected error in `test.test_memoryview.OtherTest.test_ctypes_cast`. Each comes from 038's `8cf320a` ctypes stand-in, which 044 does not touch; they belong to 038's build and fall away when 044 restacks on 038's built tip or on main.
 
 **The flags** of that build are withdrawn; the current ones are in *For the lane*, below.
 
 ### For the lane
 
-**Where it stands (2026-10-20, the second builder).** Restacked onto 038's `ecc2423` (038's build
-review's fixes, on main `958a22b`), rebuilt from an empty `build/`, judged; then, after the build
-review, onto 038's final tip `5cd171d` (its delta review and answers: `CHANGELOG.md` and
-`context/` only, so the set and the judge's verdicts stand). The first build, on
-038's `8cf320a`, and its run 39399546778 are superseded; its numbers stay in the notes above as
-that build's. **B1 is answered:** the owner approved both components (`../decisions.md`, "Three
-answers for 0.1.0 (2026-10-20)"). The native build slot is released. Every number below is
-EXECUTED on this build unless marked.
+**Where it stands (2026-10-20, the second builder).** Restacked onto 038's `ecc2423` (038's build review's fixes, on main `958a22b`), rebuilt from an empty `build/`, judged; then, after the build review, onto 038's final tip `5cd171d` (its delta review and answers: `CHANGELOG.md` and `context/` only, so the set and the judge's verdicts stand). The first build, on 038's `8cf320a`, and its run 39399546778 are superseded; its numbers stay in the notes above as that build's. **B1 is answered:** the owner approved both components (`../decisions.md`, "Three answers for 0.1.0 (2026-10-20)"). The native build slot is released. Every number below is EXECUTED on this build unless marked.
 
 **The builder's self-check** (`../reviews/README.md`):
 
-- [x] rebased onto the named stacked base today: 038's `5cd171d` (main `958a22b`; built on
-  `ecc2423`); the base is in the Status line;
-- [x] CI run dispatched on this exact commit and read: run 39416371904 on `026ba56` (red: macOS
-  own-guest 180, own-embedding 33 and upstream-macos 1 GREW, 0 lost, no G7, every other job
-  green, the Windows legs included); the reviewer's run 39418201520 on `4a087fa` (the same code)
-  is red on the same three jobs with the same counts, growth only;
-- [x] every number from a measured run on this base, labelled EXECUTED; the growth list is this
-  build's (`build/044/growth-vs-038.txt`, against 038's own fast-tier record on `442493b`, whose
-  build inputs equal `ecc2423`'s);
-- [x] "For the lane" below: the claim list, the exact flags (each reason begins "044"), the wave
-  kind, the dry-run needs;
-- [x] every new check seen failing first (acceptance criterion 1, the notes above); the Windows and
-  Linux legs: the guest checks run on every system in the release workflow, none is excluded;
+- [x] rebased onto the named stacked base today: 038's `5cd171d` (main `958a22b`; built on `ecc2423`); the base is in the Status line;
+- [x] CI run dispatched on this exact commit and read: run 39416371904 on `026ba56` (red: macOS own-guest 180, own-embedding 33 and upstream-macos 1 GREW, 0 lost, no G7, every other job green, the Windows legs included); the reviewer's run 39418201520 on `4a087fa` (the same code) is red on the same three jobs with the same counts, growth only;
+- [x] every number from a measured run on this base, labelled EXECUTED; the growth list is this build's (`build/044/growth-vs-038.txt`, against 038's own fast-tier record on `442493b`, whose build inputs equal `ecc2423`'s);
+- [x] "For the lane" below: the claim list, the exact flags (each reason begins "044"), the wave kind, the dry-run needs;
+- [x] every new check seen failing first (acceptance criterion 1, the notes above); the Windows and Linux legs: the guest checks run on every system in the release workflow, none is excluded;
 - [x] no gap added or closed; no follow-up reserved;
-- [x] `tests/upstream/packages.toml` has scikit-learn's reason line (`later`, closes with spec
-  095, the roadmap's reserved closer; the build review's L3); README rows changed: the carried-patch count (22) in the table, the prose and the build
-  section, the sizes row (93.8 / 98.6 / 47.7 MB, this build), *scikit-learn in the guest* (new),
-  the default profile's list;
+- [x] `tests/upstream/packages.toml` has scikit-learn's reason line (`later`, closes with spec 095, the roadmap's reserved closer; the build review's L3); README rows changed: the carried-patch count (22) in the table, the prose and the build section, the sizes row (93.8 / 98.6 / 47.7 MB, this build), *scikit-learn in the guest* (new), the default profile's list;
 - [x] CHANGELOG under the one unreleased section (heading unchanged, 0.1.0a8); no new question;
-- [x] `ruff check`, `ruff format --check` (src, tests), the rules check and the fast tier: green
-  but for growth, outputs in `build/044/` (`ruff-2.log`, `rules-prepush-2.log`, `fast-tier-2.log`).
+- [x] `ruff check`, `ruff format --check` (src, tests), the rules check and the fast tier: green but for growth, outputs in `build/044/` (`ruff-2.log`, `rules-prepush-2.log`, `fast-tier-2.log`).
 
 **This build** (EXECUTED, darwin-arm64, 2026-10-20):
 
-- `scripts/build.sh --plain` from an empty `build/`: 19 steps in 15 min 40 s, at `1dba792` (038's
-  `442493b` plus 044). The restack onto `ecc2423` changed no build input: 038's two newer commits
-  touch only `tests/`, `README.md` and `context/`, none of which `MANIFEST` hashes, so this set
-  is `026ba56`'s too.
-- **The set:** `SHA256SUMS` hashes to `dc6ba3a5…2471`; `python.wasm` 93,793,855 bytes,
-  `python-snapshot.wasm` 98,620,293, `python-stdlib.zip` 47,730,899. Against 038's set on
-  `442493b` (`SHA256SUMS` `c3a849c0…cb4ac`): +9,002,368, +9,157,787 and +3,281,762 bytes. The zip
-  holds exactly 411 more members (scikit-learn's 410 and its `METADATA`; 3,219,354 bytes stored,
-  8,770,844 raw), and no other member differs; `SHA256SUMS` differs in the three binaries,
-  `MANIFEST` and the new `LICENSES/scikit-learn.txt`.
-- **Step 58:** 69 modules, none tagged `tests`; the OpenMP gate and the include log held.
-  **Step 60:** the weak-duplicate gate read 270 archives and 21,962 weak names, 0 unreviewed,
-  0 stale patterns; the link map, 4 names required and 3 forbidden, 0 findings; the constructor
-  check passed with the three reviewed names; the `--against` gate passed.
-- **Spec 096's slot scan, new since the first build, binds this one too:**
-  `test_type_slots_have_the_types_cpython_calls` passes, 746 types, 468 specs, 315 modules and
-  6,943 functions read (038's set: 554, 461, 246, 5,893), 0 unreferenced type candidates, 1 type
-  named at run time. `test_callbacks_have_the_types_cpython_calls` passes, 5,154 method-array
-  entries, 3,922 single definitions, 1,573 getset entries (038's: 4,140, 3,425, 1,439). So
-  scikit-learn's 69 modules add about 1,050 slot functions and 1,000 method entries, and none
-  has a type CPython would not call it with.
-- **The fast tier** `-n 3` on `026ba56`: 629 of 769 pass, 0 fail, 3 blocked (the prior-art
-  clones, three systems, the wheel), 137 deselected; unit suite 1,840 of 1,847 (7 skipped); the
-  ratchet against main's `d066695e15`: lost 0, gained 20, grew 180 (the RED is growth only). On
-  `1dba792` the same set failed only 038's `test_the_sobol_options_need_nothing_writable` (a numpy
-  bool in its JSON), which 038's `2f52e0b` fixes, hence the second restack.
-- **The golden by node id:** `test_machine_learning_job_matches_native[plain]` and `[snapshot]`
-  pass (fuel 22,927,115,127 and 22,441,474,007).
-- **Fuel** (`wasi-python run`, this set): `-c pass` 251,448,100 plain and 51,508,850 snapshot;
-  `import sklearn` 13,845,624,109 plain and 13,485,151,173 snapshot (no package is
-  pre-imported). The judge's rows: `test_guest_runs_here[plain]` 240,673,079 to 251,868,742
-  (+11,195,663, 27,240 per member, inside Decision 12's 30,000), `[snapshot]` 50,510,465 to
-  51,559,024 (+1,048,559, inside 1.44 M).
+- `scripts/build.sh --plain` from an empty `build/`: 19 steps in 15 min 40 s, at `1dba792` (038's `442493b` plus 044). The restack onto `ecc2423` changed no build input: 038's two newer commits touch only `tests/`, `README.md` and `context/`, none of which `MANIFEST` hashes, so this set is `026ba56`'s too.
+- **The set:** `SHA256SUMS` hashes to `dc6ba3a5…2471`; `python.wasm` 93,793,855 bytes, `python-snapshot.wasm` 98,620,293, `python-stdlib.zip` 47,730,899. Against 038's set on `442493b` (`SHA256SUMS` `c3a849c0…cb4ac`): +9,002,368, +9,157,787 and +3,281,762 bytes. The zip holds exactly 411 more members (scikit-learn's 410 and its `METADATA`; 3,219,354 bytes stored, 8,770,844 raw), and no other member differs; `SHA256SUMS` differs in the three binaries, `MANIFEST` and the new `LICENSES/scikit-learn.txt`.
+- **Step 58:** 69 modules, none tagged `tests`; the OpenMP gate and the include log held. **Step 60:** the weak-duplicate gate read 270 archives and 21,962 weak names, 0 unreviewed, 0 stale patterns; the link map, 4 names required and 3 forbidden, 0 findings; the constructor check passed with the three reviewed names; the `--against` gate passed.
+- **Spec 096's slot scan, new since the first build, binds this one too:** `test_type_slots_have_the_types_cpython_calls` passes, 746 types, 468 specs, 315 modules and 6,943 functions read (038's set: 554, 461, 246, 5,893), 0 unreferenced type candidates, 1 type named at run time. `test_callbacks_have_the_types_cpython_calls` passes, 5,154 method-array entries, 3,922 single definitions, 1,573 getset entries (038's: 4,140, 3,425, 1,439). So scikit-learn's 69 modules add about 1,050 slot functions and 1,000 method entries, and none has a type CPython would not call it with.
+- **The fast tier** `-n 3` on `026ba56`: 629 of 769 pass, 0 fail, 3 blocked (the prior-art clones, three systems, the wheel), 137 deselected; unit suite 1,840 of 1,847 (7 skipped); the ratchet against main's `d066695e15`: lost 0, gained 20, grew 180 (the RED is growth only). On `1dba792` the same set failed only 038's `test_the_sobol_options_need_nothing_writable` (a numpy bool in its JSON), which 038's `2f52e0b` fixes, hence the second restack.
+- **The golden by node id:** `test_machine_learning_job_matches_native[plain]` and `[snapshot]` pass (fuel 22,927,115,127 and 22,441,474,007).
+- **Fuel** (`wasi-python run`, this set): `-c pass` 251,448,100 plain and 51,508,850 snapshot; `import sklearn` 13,845,624,109 plain and 13,485,151,173 snapshot (no package is pre-imported). The judge's rows: `test_guest_runs_here[plain]` 240,673,079 to 251,868,742 (+11,195,663, 27,240 per member, inside Decision 12's 30,000), `[snapshot]` 50,510,465 to 51,559,024 (+1,048,559, inside 1.44 M).
 
-**The claim list** (against 038's set; with 038 in the same chain, the lane's GREW lines against
-main hold 038's rows too, which 038's own list claims).
+**The claim list** (against 038's set; with 038 in the same chain, the lane's GREW lines against main hold 038's rows too, which 038's own list claims).
 
-- **New checks (12):** `test_v1_3_default_profile.py::test_machine_learning_job_matches_native[plain]`,
-  `[snapshot]` (slow); `::test_scikit_learn_runs_without_threads[plain]`, `[snapshot]`;
-  `::test_scikit_learn_reads_its_files_from_the_zip[plain]`, `[snapshot]`;
-  `::test_scikit_learn_says_what_it_lacks`; `::test_scikit_learn_modules_are_builtin[plain]`,
-  `[snapshot]`; `test_v1_1_artifact_set.py::test_scikit_learn_notice_carries_its_bundled_parts`
-  (the build shard) and `::test_the_sample_images_are_not_in_the_zip`;
-  `test_v1_5_rebuild_from_pins.py::test_source_tree_matches_its_tarball[scikit_learn]`; and the
-  unit suite's `tests/unit/test_sklearn_build.py` (ten rows, one needing step 10's SDK).
-- **Changed checks:** `test_packages_carry_their_metadata` (one more distribution);
-  `test_dotted_builtins_keep_their_import_names` (sklearn runs apart, as scipy);
-  `test_static_constructors_are_reviewed` (three constructors); the rules' C++ cross-file and
-  meson-build lists; `test_every_package_names_its_own_suite`'s table and name map; two unit
-  fixtures (the step list, the synthetic set's package); the release workflow's tree count 26.
-- **Gaps:** none added, none closed. **Retired:** none. **Passes moved:** none lost; no group's
-  passes fall.
-- **Rows that grow** (`build/044/growth-vs-038.txt`): the three byte rows above; 185 fuel rows,
-  all up, none down, median +1.86%. The largest are the zip-directory checks (+6.2% to +7.8%: they
-  walk every member), then every check that starts the plain binary (+4.2% to +4.9%: the 411
-  members' directory entries) and its snapshot rows (+0.7% to +2.2%); rows that import scipy or a
-  package rise +0.14% to +1.1% by the same entries; the smallest is
-  `test_pickling_a_deep_list_raises` (+0.024%). Two rows stand out and are the same cause:
-  `test_unbuffered_output_survives_a_hard_exit[snapshot]`, 1,270,242 to 1,289,733 (+1.53%, a
-  small row that pays the snapshot's share of the entries), and
-  `test_metadata_answers_from_the_zips_directory[plain]`, +14.2 M (one more distribution read,
-  inside Decision 12's 25 M).
-- **An upstream row the fast tier does not run** (the build review's M1): macOS's
-  `test_upstream_suite[cpython-fs]`, 63,023,374,266 in 038's run 39415728849 to 63,099,389,920 in
-  044's runs 39416371904 and 39418201520 (+76,015,654, +0.12%), and 62,994,222,641 on main. The
-  cause is the same 411 members, paid where the suite reads the stdlib zip's directory, not at
-  starts: the group runs in one snapshot session (`tests/harness/upstream.py`, one guest session
-  per group, READ), whose start pays +1.05 M; and CPython's `zipimporter.invalidate_caches()`
-  drops the zip's entry in `_zip_directory_cache` (`Lib/zipimport.py:228-230`, READ), so each time
-  the suite calls `importlib.invalidate_caches()` the next import rebuilds the directory over all
-  of its members. One rebuild costs about +36.2 M more with the 411 members (the judge's
-  `test_the_fast_reader_builds_zipimports_dict[snapshot]`, 481,672,302 to 517,853,643, EXECUTED);
-  +76.0 M is about two rebuilds and the start (INFERRED from those records; the number of
-  rebuilds in this group was not counted). This corrects the review's reading of about seven
-  plain starts: the group starts once, on the snapshot binary.
+- **New checks (12):** `test_v1_3_default_profile.py::test_machine_learning_job_matches_native[plain]`, `[snapshot]` (slow); `::test_scikit_learn_runs_without_threads[plain]`, `[snapshot]`; `::test_scikit_learn_reads_its_files_from_the_zip[plain]`, `[snapshot]`; `::test_scikit_learn_says_what_it_lacks`; `::test_scikit_learn_modules_are_builtin[plain]`, `[snapshot]`; `test_v1_1_artifact_set.py::test_scikit_learn_notice_carries_its_bundled_parts` (the build shard) and `::test_the_sample_images_are_not_in_the_zip`; `test_v1_5_rebuild_from_pins.py::test_source_tree_matches_its_tarball[scikit_learn]`; and the unit suite's `tests/unit/test_sklearn_build.py` (ten rows, one needing step 10's SDK).
+- **Changed checks:** `test_packages_carry_their_metadata` (one more distribution); `test_dotted_builtins_keep_their_import_names` (sklearn runs apart, as scipy); `test_static_constructors_are_reviewed` (three constructors); the rules' C++ cross-file and meson-build lists; `test_every_package_names_its_own_suite`'s table and name map; two unit fixtures (the step list, the synthetic set's package); the release workflow's tree count 26.
+- **Gaps:** none added, none closed. **Retired:** none. **Passes moved:** none lost; no group's passes fall.
+- **Rows that grow** (`build/044/growth-vs-038.txt`): the three byte rows above; 185 fuel rows, all up, none down, median +1.86%. The largest are the zip-directory checks (+6.2% to +7.8%: they walk every member), then every check that starts the plain binary (+4.2% to +4.9%: the 411 members' directory entries) and its snapshot rows (+0.7% to +2.2%); rows that import scipy or a package rise +0.14% to +1.1% by the same entries; the smallest is `test_pickling_a_deep_list_raises` (+0.024%). Two rows stand out and are the same cause: `test_unbuffered_output_survives_a_hard_exit[snapshot]`, 1,270,242 to 1,289,733 (+1.53%, a small row that pays the snapshot's share of the entries), and `test_metadata_answers_from_the_zips_directory[plain]`, +14.2 M (one more distribution read, inside Decision 12's 25 M).
+- **An upstream row the fast tier does not run** (the build review's M1): macOS's `test_upstream_suite[cpython-fs]`, 63,023,374,266 in 038's run 39415728849 to 63,099,389,920 in 044's runs 39416371904 and 39418201520 (+76,015,654, +0.12%), and 62,994,222,641 on main. The cause is the same 411 members, paid where the suite reads the stdlib zip's directory, not at starts: the group runs in one snapshot session (`tests/harness/upstream.py`, one guest session per group, READ), whose start pays +1.05 M; and CPython's `zipimporter.invalidate_caches()` drops the zip's entry in `_zip_directory_cache` (`Lib/zipimport.py:228-230`, READ), so each time the suite calls `importlib.invalidate_caches()` the next import rebuilds the directory over all of its members. One rebuild costs about +36.2 M more with the 411 members (the judge's `test_the_fast_reader_builds_zipimports_dict[snapshot]`, 481,672,302 to 517,853,643, EXECUTED); +76.0 M is about two rebuilds and the start (INFERRED from those records; the number of rebuilds in this group was not counted). This corrects the review's reading of about seven plain starts: the group starts once, on the snapshot binary.
 - **Not 044's:** every row 038, 037 and 043 carry against main.
 
-**The wave:** a stacked chain of packages, 038 then 044 (§5.7: the one package or chain of a
-wave). 044 lands after 038, rebased onto the wave's tip, with a delta review of what that rebase
-changes. **Dry-run needs:** the wave's dry run on its tip on all three systems (AGENTS.md rule
-6b), its zero-patch job expecting 26 trees; the build review's own run (§5.6).
+**The wave:** a stacked chain of packages, 038 then 044 (§5.7: the one package or chain of a wave). 044 lands after 038, rebased onto the wave's tip, with a delta review of what that rebase changes. **Dry-run needs:** the wave's dry run on its tip on all three systems (AGENTS.md rule 6b), its zero-patch job expecting 26 trees; the build review's own run (§5.6).
 
 **The flags** (paste-safe):
 
@@ -982,104 +297,37 @@ changes. **Dry-run needs:** the wave's dry run on its tip on all three systems (
 
 ## Landing notes
 
-**Restacked onto 038's built and reviewed tip (2026-10-20, the second builder).** The first
-build sat on 038's `8cf320a`. 038 was then restacked onto main `958a22b` (wave 06: 043, 037 and
-096) and its build review's fixes added. 044's six commits were rebased twice:
+**Restacked onto 038's built and reviewed tip (2026-10-20, the second builder).** The first build sat on 038's `8cf320a`. 038 was then restacked onto main `958a22b` (wave 06: 043, 037 and 096) and its build review's fixes added. 044's six commits were rebased twice:
 
-1. `git rebase --onto 442493b 8cf320a`. **Conflicts, each named and how it was resolved** (all in
-   the first commit, phase 1; the other five applied cleanly, `git range-diff` shows them equal):
-   - `CHANGELOG.md`, one hunk under "0.1.0a8 — unreleased": the base had 096's entry (kiwisolver's
-     `tp_clear`, lxml's `fake_cython`, the slot scan) where 044 inserts its own. Both kept, 096's
-     first, then 044's; the heading unchanged.
-   - `README.md`, the facts table's "upstream patches" row: the base said 21 (038's 19 plus 096's
-     two), 044 said 20. Resolved to **22**, keeping the base's list of fixes already merged
-     upstream (kiwisolver's and lxml's added by 096).
-   - `README.md`, *How it is built*'s list of carried patches: the base said twenty-one, with
-     kiwisolver's `tp_clear` fix and lxml's line; 044 said twenty, with scikit-learn's style
-     sheets. Resolved to twenty-two, the union of both lists.
-   - Not a conflict, found by reading: the platform-facts sentence still said "twenty-one carried
-     patches" (the first build had left it at nineteen); now twenty-two, and it names *scikit-learn
-     in the guest* beside the other sections.
-2. `git rebase --onto ecc2423 442493b`, after the build: 038's two newer commits (its High 1's
-   judge fix, the Sobol check's JSON and its review answers) touch only `tests/`, `README.md` and
-   `context/`; no conflict. Commit `026ba56`'s subject still says `442493b`; its base is `ecc2423`.
-3. `git rebase --onto origin/spec/038-scipy-second-milestone ecc2423` (038's final tip `5cd171d`),
-   after the build review: 038's two newer commits (its delta review, and the answers, which
-   touch `CHANGELOG.md`, its specification and a review). **No conflict hunk:** git merged 038's
-   reworded `ctypes` lines in its own CHANGELOG entry without touching 044's entry; checked by
-   reading, 038's entry reads as on `5cd171d`, 044's entry is unchanged, and the heading stays
-   "0.1.0a8 — unreleased". No build input changed, so no rebuild (the lane's instruction).
+1. `git rebase --onto 442493b 8cf320a`. **Conflicts, each named and how it was resolved** (all in the first commit, phase 1; the other five applied cleanly, `git range-diff` shows them equal):
+   - `CHANGELOG.md`, one hunk under "0.1.0a8 — unreleased": the base had 096's entry (kiwisolver's `tp_clear`, lxml's `fake_cython`, the slot scan) where 044 inserts its own. Both kept, 096's first, then 044's; the heading unchanged.
+   - `README.md`, the facts table's "upstream patches" row: the base said 21 (038's 19 plus 096's two), 044 said 20. Resolved to **22**, keeping the base's list of fixes already merged upstream (kiwisolver's and lxml's added by 096).
+   - `README.md`, *How it is built*'s list of carried patches: the base said twenty-one, with kiwisolver's `tp_clear` fix and lxml's line; 044 said twenty, with scikit-learn's style sheets. Resolved to twenty-two, the union of both lists.
+   - Not a conflict, found by reading: the platform-facts sentence still said "twenty-one carried patches" (the first build had left it at nineteen); now twenty-two, and it names *scikit-learn in the guest* beside the other sections.
+2. `git rebase --onto ecc2423 442493b`, after the build: 038's two newer commits (its High 1's judge fix, the Sobol check's JSON and its review answers) touch only `tests/`, `README.md` and `context/`; no conflict. Commit `026ba56`'s subject still says `442493b`; its base is `ecc2423`.
+3. `git rebase --onto origin/spec/038-scipy-second-milestone ecc2423` (038's final tip `5cd171d`), after the build review: 038's two newer commits (its delta review, and the answers, which touch `CHANGELOG.md`, its specification and a review). **No conflict hunk:** git merged 038's reworded `ctypes` lines in its own CHANGELOG entry without touching 044's entry; checked by reading, 038's entry reads as on `5cd171d`, 044's entry is unchanged, and the heading stays "0.1.0a8 — unreleased". No build input changed, so no rebuild (the lane's instruction).
 
-**Re-derived after the restack** (EXECUTED: `git ls-tree` of the base, the scripts read): the
-carried patches are 22, 038's 21 (OpenBLAS 3, kiwisolver 2, libxml2, lxml, matplotlib 2,
-networkx, numpy 2, pandas, Pillow, qhull, regex 2, scipy 0001 to 0004) plus
-`scikit_learn-1.9.1/0001`, which has its own folder, so no number moves; the release tree count is
-26 (the base's 25 plus `scikit_learn`; no new tree in 038); `build.sh` runs nineteen steps;
-`JOBS` and `PLATFORM_BOUND` hold 038's `scipy_edges` and this `machine_learning`; step 60's lists
-hold contourpy, scipy and sklearn. B1 is answered (the builder's notes, B1). The build, the run
-and the claim list are in *For the lane*, above.
+**Re-derived after the restack** (EXECUTED: `git ls-tree` of the base, the scripts read): the carried patches are 22, 038's 21 (OpenBLAS 3, kiwisolver 2, libxml2, lxml, matplotlib 2, networkx, numpy 2, pandas, Pillow, qhull, regex 2, scipy 0001 to 0004) plus `scikit_learn-1.9.1/0001`, which has its own folder, so no number moves; the release tree count is 26 (the base's 25 plus `scikit_learn`; no new tree in 038); `build.sh` runs nineteen steps; `JOBS` and `PLATFORM_BOUND` hold 038's `scipy_edges` and this `machine_learning`; step 60's lists hold contourpy, scipy and sklearn. B1 is answered (the builder's notes, B1). The build, the run and the claim list are in *For the lane*, above.
 
-**The weak-duplicate gate's seen-failing item** (the build review's L2). Acceptance criterion 1
-asks for the gate against a build without `_newrand`'s rename header, naming `bounded_rand_int`.
-That cannot happen as written: on this build `bounded_rand_int` is inlined in all three copies
-and absent from `llvm-nm` of their archives (EXECUTED by the reviewer), so the gate has nothing to
-name. Criterion 1's gate item is met by the compiled-objects unit case (it names an `inline`
-function defined in two archives and passes with one renamed) and by the first link's 1,186
-findings. What stands behind the renames: `mt_rand` (data) and `set_seed` (a function) are
-strong in each copy, so two un-renamed copies are wasm-ld's `duplicate symbol`, which step 60's
-`clashes()` stops on; one un-renamed copy is the link map's `--forbid mt_rand set_seed
-bounded_rand_int`; the gate covers a weak copy that survives optimisation.
+**The weak-duplicate gate's seen-failing item** (the build review's L2). Acceptance criterion 1 asks for the gate against a build without `_newrand`'s rename header, naming `bounded_rand_int`. That cannot happen as written: on this build `bounded_rand_int` is inlined in all three copies and absent from `llvm-nm` of their archives (EXECUTED by the reviewer), so the gate has nothing to name. Criterion 1's gate item is met by the compiled-objects unit case (it names an `inline` function defined in two archives and passes with one renamed) and by the first link's 1,186 findings. What stands behind the renames: `mt_rand` (data) and `set_seed` (a function) are strong in each copy, so two un-renamed copies are wasm-ld's `duplicate symbol`, which step 60's `clashes()` stops on; one un-renamed copy is the link map's `--forbid mt_rand set_seed bounded_rand_int`; the gate covers a weak copy that survives optimisation.
 
-**For the next touch of `recipes/weak-duplicates-allowed.txt`** (the build review's N3; no change
-now, since the file is hashed in `MANIFEST`): `scope:pybind11_meta_dealloc` is redundant, its one
-name also matching `pybind11_*` through the demangled form; `pybind11_*` could be the thirteen
-exact names; and `scope:pybind11`'s reason says "same flags", which is not literal (scipy
-force-includes `scipy_rename.h` and adds WASI emulation defines, matplotlib adds `-fexceptions`),
-though none of them touches pybind11's code.
+**For the next touch of `recipes/weak-duplicates-allowed.txt`** (the build review's N3; no change now, since the file is hashed in `MANIFEST`): `scope:pybind11_meta_dealloc` is redundant, its one name also matching `pybind11_*` through the demangled form; `pybind11_*` could be the thirteen exact names; and `scope:pybind11`'s reason says "same flags", which is not literal (scipy force-includes `scipy_rename.h` and adds WASI emulation defines, matplotlib adds `-fexceptions`), though none of them touches pybind11's code.
 
-**The native test script** (the build review's L4): `tests/jobs/oracle/sklearn_native_tests.sh`
-now fails a group unless pytest exits 0 and its last line counts passed tests, so a group whose
-interpreter dies counts as failed. Exercised with stubbed groups (passed, failed, a fatal abort,
-no tests run: only the first passes); the recorded 6,115 are unaffected, and the script is not in
-the release.
+**The native test script** (the build review's L4): `tests/jobs/oracle/sklearn_native_tests.sh` now fails a group unless pytest exits 0 and its last line counts passed tests, so a group whose interpreter dies counts as failed. Exercised with stubbed groups (passed, failed, a fatal abort, no tests run: only the first passes); the recorded 6,115 are unaffected, and the script is not in the release.
 
-**Question 80** had the answer "a facts sheet the owner rewrites" when this was built; the sheet
-at `context/upstream/patches/scikit_learn-1.9.1/0001-html-repr-styles-from-a-zip.md` keeps that
-form (acceptance criterion 5).
+**Question 80** had the answer "a facts sheet the owner rewrites" when this was built; the sheet at `context/upstream/patches/scikit_learn-1.9.1/0001-html-repr-styles-from-a-zip.md` keeps that form (acceptance criterion 5).
 
 Drafted before the first build, and completed with it:
 
-**The notice sweep (Decision 11).** Every shipped `.py`, `.pyx`, `.pxd`, `.c`, `.cpp`, `.h` and
-`.tp` file outside `tests/` whose comments say "Copyright", "License" or "adapted / derived /
-copied / taken / borrowed / based on", paired (READ by the builder, 2026-10-20; the build checks
-it again):
+**The notice sweep (Decision 11).** Every shipped `.py`, `.pyx`, `.pxd`, `.c`, `.cpp`, `.h` and `.tp` file outside `tests/` whose comments say "Copyright", "License" or "adapted / derived / copied / taken / borrowed / based on", paired (READ by the builder, 2026-10-20; the build checks it again):
 
-- Parts of `LICENSES/scikit-learn.txt`: `svm/src/libsvm/svm.cpp` (and the "borrowed from
-  original libsvm code" lines of `libsvm_helper.c:410` and `libsvm_sparse_helper.c:457`);
-  `svm/src/liblinear/`; `externals/array_api_compat/`, `externals/array_api_extra/`;
-  `externals/_arff.py`; `externals/_packaging/version.py` and `_structures.py` (with
-  `version.py:235`'s scheme from pkg_resources, inside packaging's file); `utils/src/MurmurHash3.*`;
-  `utils/_pprint.py`; `utils/_testing.py:575` (with pytest's pinned licence, L1);
-  `cluster/_hdbscan/` (B1); `model_selection/_split.py:1001` (B1, with the Apache-2.0 text);
-  `externals/_numpydoc/docscrape.py` (numpydoc's pinned licence); `datasets/_base.py:1547`
-  (django's pinned licence).
-- Under another notice the release ships: scipy's (`utils/fixes.py:117`, `utils/optimize.py:34`,
-  `gaussian_process/kernels.py:2240`); joblib's (`utils/_user_interface.py:24`); pandas'
-  (`utils/_show_versions.py:4`); networkx's (`utils/graph.py:15`); CPython's
-  (`utils/_testing.py:121`, "Copied from Python 2.7.5").
+- Parts of `LICENSES/scikit-learn.txt`: `svm/src/libsvm/svm.cpp` (and the "borrowed from original libsvm code" lines of `libsvm_helper.c:410` and `libsvm_sparse_helper.c:457`); `svm/src/liblinear/`; `externals/array_api_compat/`, `externals/array_api_extra/`; `externals/_arff.py`; `externals/_packaging/version.py` and `_structures.py` (with `version.py:235`'s scheme from pkg_resources, inside packaging's file); `utils/src/MurmurHash3.*`; `utils/_pprint.py`; `utils/_testing.py:575` (with pytest's pinned licence, L1); `cluster/_hdbscan/` (B1); `model_selection/_split.py:1001` (B1, with the Apache-2.0 text); `externals/_numpydoc/docscrape.py` (numpydoc's pinned licence); `datasets/_base.py:1547` (django's pinned licence).
+- Under another notice the release ships: scipy's (`utils/fixes.py:117`, `utils/optimize.py:34`, `gaussian_process/kernels.py:2240`); joblib's (`utils/_user_interface.py:24`); pandas' (`utils/_show_versions.py:4`); networkx's (`utils/graph.py:15`); CPython's (`utils/_testing.py:121`, "Copied from Python 2.7.5").
 - **L2's three, no notice needed, each with its reason:**
-  - `utils/deprecation.py:35`, "Adapted from https://wiki.python.org/moin/PythonDecoratorLibrary,
-    but with many changes": a decorator class rewritten from a recipe on the Python wiki; what
-    the file keeps is the general idiom, not the recipe's text (READ: the class is scikit-learn's
-    own). If the build review reads it otherwise, it pairs with the CPython/PSF family.
-  - `utils/_random.pyx:207`, "based on the one of Robert Kern" (a numpy-discussion post, 2010):
-    an algorithm described in a mailing-list message and reimplemented in Cython, no code copied.
-  - `linear_model/_sag_fast.pyx.tp:545`, "Idea taken from scikit-learn-contrib/lightning": an
-    idea, not code.
-- scikit-learn's own: its SPDX lines; `_cd_fast.pyx:19` and `tree/_criterion.pyx:1513` copy from
-  scikit-learn's own tree code; `feature_extraction/_stop_words.py:4`, the Glasgow list, named in
-  question 83; algorithm citations (`_samples_generator.py:213`, Guyon; `_robust_covariance.py`,
-  Pison and Croux; the `.pyx` proxies "derived from" their formulas).
+  - `utils/deprecation.py:35`, "Adapted from https://wiki.python.org/moin/PythonDecoratorLibrary, but with many changes": a decorator class rewritten from a recipe on the Python wiki; what the file keeps is the general idiom, not the recipe's text (READ: the class is scikit-learn's own). If the build review reads it otherwise, it pairs with the CPython/PSF family.
+  - `utils/_random.pyx:207`, "based on the one of Robert Kern" (a numpy-discussion post, 2010): an algorithm described in a mailing-list message and reimplemented in Cython, no code copied.
+  - `linear_model/_sag_fast.pyx.tp:545`, "Idea taken from scikit-learn-contrib/lightning": an idea, not code.
+- scikit-learn's own: its SPDX lines; `_cd_fast.pyx:19` and `tree/_criterion.pyx:1513` copy from scikit-learn's own tree code; `feature_extraction/_stop_words.py:4`, the Glasgow list, named in question 83; algorithm citations (`_samples_generator.py:213`, Guyon; `_robust_covariance.py`, Pison and Croux; the `.pyx` proxies "derived from" their formulas).
 
 ### Landed in wave 07
 

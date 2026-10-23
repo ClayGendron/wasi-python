@@ -1,24 +1,16 @@
 # Packages
 
-This page lists the packages in the artifact set, with their versions and a line on what works.
-The [limitations page](limitations.md) has what does not.
+This page lists the packages in the artifact set, with their versions and a line on what works. The [limitations page](limitations.md) has what does not.
 
-Every package here is pinned to one version. The set carries one version of each package, built
-from its released source, not a choice of versions. Compiled code is linked into `python.wasm` as
-*builtin modules*: modules compiled into the interpreter itself, so nothing is loaded from a
-shared library at run time. The Python half of each package is in the stdlib zip.
+Every package here is pinned to one version. The set carries one version of each package, built from its released source, not a choice of versions. Compiled code is linked into `python.wasm` as *builtin modules*: modules compiled into the interpreter itself, so nothing is loaded from a shared library at run time. The Python half of each package is in the stdlib zip.
 
 ## The interpreter
 
-CPython 3.15.0, built for `wasm32-wasip1`. `python.wasm -V` prints the version, then a line of
-the platform's facts:
+CPython 3.15.0, built for `wasm32-wasip1`. `python.wasm -V` prints the version, then a line of the platform's facts:
 
 > (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl, zstd or scipy.odr; compute about 1.3 to 2.3 times slower than native)
 
-`zlib`, `bz2`, `lzma` and `sqlite3` are built in, over zlib, bzip2 1.0.8, liblzma from xz 5.8.4
-and SQLite 3.54.1. `bz2`, `lzma` and `tarfile`'s `bz2` and `xz` modes write the same bytes as
-native Python. `sqlite3` has native's feature set: FTS3/4/5, R-tree, Geopoly, math functions,
-dbstat and percentile.
+`zlib`, `bz2`, `lzma` and `sqlite3` are built in, over zlib, bzip2 1.0.8, liblzma from xz 5.8.4 and SQLite 3.54.1. `bz2`, `lzma` and `tarfile`'s `bz2` and `xz` modes write the same bytes as native Python. `sqlite3` has native's feature set: FTS3/4/5, R-tree, Geopoly, math functions, dbstat and percentile.
 
 ## Compiled packages
 
@@ -36,15 +28,11 @@ dbstat and percentile.
 | lxml | 6.1.3 | `lxml.etree` and `lxml.objectify` over libxml2 2.15.4 and libxslt 1.1.45 with libexslt: XPath, XSLT, XInclude, C14N, DTD, XML Schema, RELAX NG and Schematron validation, the HTML parser and `iterparse`. |
 | regex | 2026.9.29 | Fuzzy matching, full Unicode properties, graphemes, variable-length lookbehind, `captures()`, with native regex's answers. |
 
-A *golden job* is a fixed program whose output the project compares with native Python's at the
-same pins. numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex each have
-golden jobs, and each gives native's answers.
+A *golden job* is a fixed program whose output the project compares with native Python's at the same pins. numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex each have golden jobs, and each gives native's answers.
 
 ## Pure-Python packages
 
-matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip also carries
-python-dateutil, tzdata and six. Besides these, the stdlib zip carries thirty pure-Python
-packages, plus seaborn and reportlab:
+matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip also carries python-dateutil, tzdata and six. Besides these, the stdlib zip carries thirty pure-Python packages, plus seaborn and reportlab:
 
 | family | distribution and version | what it is for |
 |---|---|---|
@@ -73,9 +61,7 @@ packages, plus seaborn and reportlab:
 | | threadpoolctl 3.7.0 | thread-pool limits (there are none to limit here) |
 | | narwhals 2.27.1 | dataframe-agnostic code over pandas |
 
-pyyaml and markupsafe come from their source releases and run as pure Python: pyyaml has no
-libyaml, and `yaml.CSafeLoader` is absent. Each package's `importlib.metadata` answers work, so
-`df.to_markdown()` finds tabulate.
+pyyaml and markupsafe come from their source releases and run as pure Python: pyyaml has no libyaml, and `yaml.CSafeLoader` is absent. Each package's `importlib.metadata` answers work, so `df.to_markdown()` finds tabulate.
 
 Each family has a golden job whose output equals native Python's at the same pins.
 
@@ -89,23 +75,16 @@ These are not in the set, so each raises its `ImportError`, as it does natively 
 - `odfpy`, for pandas' `engine="odf"`, and `pyxlsb`, for `.xlsb` files;
 - `cssselect` and `lxml_html_clean`, for `lxml.cssselect` and `lxml.html.clean`.
 
-reportlab's bitmap renderer needs rlPyCairo, which is not carried either; it raises
-`RenderPMError`. Draw reportlab charts to PDF or SVG instead.
+reportlab's bitmap renderer needs rlPyCairo, which is not carried either; it raises `RenderPMError`. Draw reportlab charts to PDF or SVG instead.
 
 ## Adding a package of your own
 
-You cannot add a compiled package: the guest has no `dlopen` and loads no shared library. A
-pure-Python package can come from a read-only grant named in `import_path=`, as on the
-[guest filesystem](guest-filesystem.md#the-import-path) page. It comes after the runtime on the
-import path, so a module the set already has is always the set's.
+You cannot add a compiled package: the guest has no `dlopen` and loads no shared library. A pure-Python package can come from a read-only grant named in `import_path=`, as on the [guest filesystem](guest-filesystem.md#the-import-path) page. It comes after the runtime on the import path, so a module the set already has is always the set's.
 
 There is no `pip` inside the guest.
 
-To build a package into the artifact set itself, see
-[Adding a package](../contributing/adding-a-package.md).
+To build a package into the artifact set itself, see [Adding a package](../contributing/adding-a-package.md).
 
 ## In one line
 
-CPython 3.15.0 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex
-compiled in, and thirty pure-Python packages plus seaborn and reportlab in the zip, each at one
-pinned version.
+CPython 3.15.0 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex compiled in, and thirty pure-Python packages plus seaborn and reportlab in the zip, each at one pinned version.

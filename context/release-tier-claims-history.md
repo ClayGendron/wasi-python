@@ -1,12 +1,10 @@
 # The release-tier claims, by release
 
-Each release acceptance moves the ledger's blocks (`release-tier-claims.toml`) here, under its
-version, and the ledger starts empty again (`progress/README.md`, "The release tier").
+Each release acceptance moves the ledger's blocks (`release-tier-claims.toml`) here, under its version, and the ledger starts empty again (`progress/README.md`, "The release tier").
 
 ## 0.1.0
 
-Moved at the release acceptance on `eac93d0f` (history line 94, accepted in `1aa0eff7`), the first
-release acceptance: 102, 114, 095 and 067.
+Moved at the release acceptance on `eac93d0f` (history line 94, accepted in `1aa0eff7`), the first release acceptance: 102, 114, 095 and 067.
 
 ```toml
 [[claim]]
