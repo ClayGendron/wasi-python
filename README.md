@@ -15,6 +15,7 @@
   <img alt="CPython 3.15" src="https://img.shields.io/badge/CPython-3.15-3776AB">
   <img alt="wasm32-wasip1" src="https://img.shields.io/badge/target-wasm32--wasip1-654FF0">
 </p>
+
 **A secure Python sandbox for agent-generated code with the scientific stack inside.**
 
 wasi-python is CPython 3.15 compiled to WebAssembly as one static binary. It includes numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, and forty plus other packages.
