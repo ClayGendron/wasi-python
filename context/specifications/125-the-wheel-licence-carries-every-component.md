@@ -1,6 +1,6 @@
 # 125: The wheel's LICENSE carries every component licence
 
-- **Status:** **built 2026-10-23 on `wave/13`**; drafted and built the night before the 0.1.0 tag on the owner's instruction (2026-10-22: the FreeType credit out of the README, "follow the Pillow model"). Reviewed with 124 by one fresh agent (Landing notes).
+- **Status:** **built 2026-10-23 on `wave/13` (run 39891594258); build-reviewed 2026-10-23, "lands", its Lows fixed (Disposition)**; drafted and built the night before the 0.1.0 tag on the owner's instruction (2026-10-22: the FreeType credit out of the README, "follow the Pillow model"). Reviewed with 124 by one fresh agent (Landing notes).
 - **Date:** 2026-10-22
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** (the release workflow's wheel steps) and a **judge change** (`tests/`). Not structural: `src/` is unchanged. The artifact set is unchanged: `release/` is outside the set's key except `release/set_key.py` and the build constraints, and nothing under `scripts/` or `recipes/` changes.
@@ -12,7 +12,8 @@
 1. **Pillow's model** (the owner, choosing it over a `NOTICE` file and over keeping the README sentence). The wheel's one `LICENSE` is the project's Apache-2.0 text followed by every component licence the set carries, so whoever reads the package's licence metadata reads FreeType's licence, credit sentence included.
 2. **The README no longer carries the credit.** Its Licences section says the wheel's `LICENSE` holds every licence. The rules check that held the README's sentence (`test_the_readme_carries_the_licences_credit_lines`) is retired, replaced by a check on the workflow and the judge's wheel check.
 3. **Assembled at wheel time, not in the set.** `release/licences.py append <set>` rewrites the checkout's `LICENSE` just before `uv build --wheel`, in every job that builds one (the build job and both rebuilds, so the wheels stay byte-identical). The committed `LICENSE` stays Apache-2.0 alone, so GitHub's licence detection and badge are unchanged.
-4. **Name order, a heading per file, dot files skipped.** The text is the project's licence, a "Third-party licences" heading, one line saying what follows, then each `LICENSES/*.txt` by name under a heading with its file name. A name starting with a dot is a host's litter. Running `append` twice gives the same file: the project's licence is the text before the heading.
+4. **Name order, a heading per file, dot files skipped.** The text is the project's licence, a "Third-party licences" heading, one line saying what follows, the credits a shipped licence asks for, then each `LICENSES/*.txt` by name under a heading with its file name. Order and the `.txt` test go by the file's name exactly, so a case-blind file system picks and orders the same (the build review's L6). A name starting with a dot is a host's litter. Running `append` twice gives the same file: the project's licence is the text before the heading. `restore` puts the committed `LICENSE` back after a wheel built by hand (L5; `docs/contributing/building.md` gives the four commands).
+6. **FreeType's credit in words.** FreeType's licence text carries its suggested sentence with a `<year>` placeholder, which is a template, not a credit (the build review's N1). When `freetype.txt` ships, the introduction says "This software is based in part on the work of the FreeType Team. Portions of this software are copyright © 2026 The FreeType Project (https://freetype.org). All rights reserved.", the wording the README carried before.
 5. **Checked twice.** The build job runs `release/licences.py check` on the wheel it built. The judge's `wheel_errors` compares `.dist-info/licenses/LICENSE` with the same text wherever a wheel is in `dist/` (the CI judge jobs).
 
 ## Intent
@@ -40,4 +41,6 @@ In: the above. Out: a `NOTICE` file; a credits page on the documentation site; t
 
 ## Landing notes
 
-- The review, the branch run and the dry run are recorded here and in 124 once read.
+- Branch run 39891594258 on `50d31b9d` (READ): `build` (a reuse run) appended 70 component licences and passed its check step; the wheel is 98,332,043 bytes, about 139 KB more than before and 1.67 MB under question 64's 100 MB line (the build review's L4); both rebuilds and `same-bytes` green, so all three wheels with the new LICENSE are the same bytes; the judge's wheel check passes on Linux and Windows.
+- The fixes after the review (L1, L2, L3, L5, L6, N1) change `release/licences.py`, `tests/harness/coverage.py`, the coverage job and `docs/contributing/building.md`; the dry run on main is their CI run.
+- Build review: `context/reviews/124-125-build-review-2026-10-23.md`, "lands".

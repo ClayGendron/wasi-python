@@ -114,6 +114,19 @@ Finder and the storage scan in System Settings write `.DS_Store` files into fold
 find build/artifacts -name .DS_Store -delete
 ```
 
+## Building the wheel by hand
+
+The release workflow builds the wheel. To build one from your own set, copy the set in, write the wheel's licence, build, then put `LICENSE` back:
+
+```sh
+cp -R build/artifacts src/wasi_python/artifacts
+uv run --no-project python -I release/licences.py append build/artifacts
+uv build --wheel
+uv run --no-project python -I release/licences.py restore
+```
+
+The wheel's `LICENSE` is the project's licence followed by every licence in the set, as a release's is. The tests compare it with the set whenever a wheel is in `dist/`.
+
 ## Next steps
 
 - Make your first change and run the tests: [Your first change](first-change.md).

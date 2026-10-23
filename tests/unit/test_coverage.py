@@ -65,3 +65,10 @@ def test_another_repositorys_badge_is_an_error() -> None:
 def test_the_badge_links_to_the_repositorys_codecov_page() -> None:
     assert coverage.BADGE_TAG.startswith(f'<a href="{coverage.CODECOV}">')
     assert coverage.BADGE.findall(coverage.BADGE_TAG) == [f"{coverage.CODECOV}/graph/badge.svg"]
+
+
+def test_a_red_ratchet_does_not_hide_the_summary() -> None:
+    """The ratchet's RED line is the acceptance's; the numbers come from the tests that ran."""
+    log = "RED: 1 accepted check(s) absent (retire them with --retire)\n3130 passed in 900.00s\n"
+    assert coverage.summary_of(log) == "3130 passed"
+    assert not coverage.summary_names_failures(coverage.summary_of(log))

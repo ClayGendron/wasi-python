@@ -1,6 +1,6 @@
 # 124: A coverage badge from CI
 
-- **Status:** **built 2026-10-23 on `wave/13`**; drafted and built the night before the 0.1.0 tag on the owner's instruction (2026-10-22, "lets make it CI based please"; Codecov chosen by the owner the same night). Reviewed with 125 by one fresh agent (Landing notes).
+- **Status:** **built 2026-10-23 on `wave/13` (run 39891594258); build-reviewed 2026-10-23, "lands", six Lows fixed or answered (Disposition)**; drafted and built the night before the 0.1.0 tag on the owner's instruction (2026-10-22, "lets make it CI based please"; Codecov chosen by the owner the same night). Reviewed with 125 by one fresh agent (Landing notes).
 - **Date:** 2026-10-22
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** (it adds a job to the release workflow) and a **judge change** (`tests/`, `pyproject.toml`, `uv.lock`). Not structural: `src/` is unchanged.
@@ -14,7 +14,9 @@
 3. **coverage.py 7.17.0, pinned exactly** in the `dev` group, as pytest-xdist and mypy are: a coverage release can change which lines count.
 4. **`COVERAGE_CORE=sysmon` on Python 3.12 and later.** The default tracer ran the fast tier about ten times slower (EXECUTED: 18% of the tests after 35 minutes on darwin-arm64, killed); with sysmon the serial run took 23 min 35 s (EXECUTED, 2026-10-22, 3,196 passed).
 5. **A token, not OIDC.** The owner added `CODECOV_TOKEN` to the repository's secrets (READ, `gh secret list`), so the job keeps `contents: read` alone and needs no `id-token: write`.
-6. **Nothing needs the job.** A Codecov outage or a failed upload shows red in the run and never holds up `attest`, `publish` or `pypi`. A red coverage job is still a red run, which rule 6b's "every job passes" reads.
+6. **Nothing needs the job, and an upload failure is not red.** A failed measurement turns the job red, and rule 6b's "every job passes" reads it. A Codecov outage does not: the action runs with `fail_ci_if_error: false`, so it logs the failed upload and the badge keeps the last number (the build review's L3; rule 17 forbids `continue-on-error`). Nothing `needs` the job, so it never holds up `attest`, `publish` or `pypi`.
+8. **The uploader is named.** The action fetches the Codecov CLI; `version: v11.3.1` names it rather than its latest (READ, `gh api repos/codecov/codecov-cli/releases`, 2026-10-23; the build review's L2).
+9. **The ratchet's verdict is not read.** The number is the tests that ran; a lost or absent accepted check is the acceptance's business (the build review's L1, held by a unit row).
 7. **The `-V` sentence and numpy's integer width move to the limitations page.** 122's README dropped the `-V` blockquote; `test_version_states_the_platform_semantics` and `test_default_integer_width_is_documented` now read `docs/reference/limitations.md`, which states both.
 
 ## Intent
@@ -43,4 +45,6 @@ In: the above. Out: a coverage threshold that fails a run (the number is reporte
 
 - Fast tier, darwin-arm64, before the job's permission row: 2 failed (the permission row, as expected), 3,174 passed (EXECUTED, `build/fast-tier-wave13.log`); both rows pass by node id after it.
 - The first local measurement found four failures, none in the runner: a docstring line over 100 columns, a `context/` path in a code docstring, the old record check judging its own run, and `recipes/patches/README.md` rewrapped by the paragraph rule though `MANIFEST` hashes it (the artifact set read stale). The last was restored to its committed text and `tests/harness/wrap.py` skips `recipes/`.
-- The review, the branch run and the dry run are recorded with 125's.
+- Branch run 39891594258 on `50d31b9d` (READ, `gh run view`): `coverage` green in 18 minutes, **91.1%** (6,854 of 7,520 statements), uploaded for `50d31b9d`; every red leg (38) red only on `ABSENT tests/checks/test_rules.py::test_the_readme_carries_the_licences_credit_lines`, which the acceptance retires (EXECUTED, the failed logs tallied).
+- Build review: `context/reviews/124-125-build-review-2026-10-23.md`, "lands"; the reviewer's fast tier 3,176 passed, 0 fail, the one ABSENT row. Its L1 to L6 are answered in its Disposition.
+- The dry run on main is recorded in 125's landing notes.

@@ -1,7 +1,8 @@
-"""The wheel's LICENSE: the project's licence, then every component licence the artifact set carries.
+"""The wheel's LICENSE: the project's licence, then every component licence the set carries.
 
     uv run --no-project python -I release/licences.py append <set>          # rewrite ./LICENSE
     uv run --no-project python -I release/licences.py check <wheel> <set>   # the wheel's LICENSE
+    uv run --no-project python -I release/licences.py restore               # ./LICENSE as committed
 
 The artifact set holds one licence file per linked component under `LICENSES/`. Some of those
 licences ask for a notice in the distribution's documentation (FreeType's, for one), so the wheel
@@ -9,8 +10,9 @@ carries them where an installer and a reader of the package's metadata look: its
 `.dist-info/licenses/LICENSE`. `append` rewrites the checkout's LICENSE as the project's licence
 followed by each `LICENSES/*.txt` in name order, each under a heading that names it; the release
 workflow runs it before `uv build`. The project's licence is the text before the first heading, so
-running it twice gives the same file. `check` holds a built wheel's LICENSE equal to that text.
-Standard library only.
+running it twice gives the same file, and `restore` puts the project's licence back alone after a
+wheel built by hand. `check` holds a built wheel's LICENSE equal to that text. Standard library
+only.
 """
 
 from __future__ import annotations
@@ -27,6 +29,15 @@ INTRO = (
     "The wheel carries the artifact set, which links the components below. Each one's licence\n"
     "follows as the set's LICENSES folder holds it, in name order.\n"
 )
+# The credit FreeType's licence (section 2) asks of a binary distribution's documentation, in the
+# words its licence suggests, with the year of the release the set links.
+CREDITS = {
+    "freetype.txt": (
+        "\nThis software is based in part on the work of the FreeType Team. Portions of this\n"
+        "software are copyright \u00a9 2026 The FreeType Project (https://freetype.org).\n"
+        "All rights reserved.\n"
+    ),
+}
 # The line every appended part starts with; the project's licence is the text before the first.
 MARK = f"\n\n{RULE}\nThird-party licences\n{RULE}\n"
 
@@ -37,12 +48,19 @@ def own_licence(text: str) -> str:
 
 
 def parts(set_dir: Path) -> list[Path]:
-    """The set's licence files in name order; a dot file is a host's litter, not a licence."""
-    return sorted(p for p in (set_dir / "LICENSES").glob("*.txt") if not p.name.startswith("."))
+    """The set's licence files in name order; a dot file is a host's litter, not a licence. By
+    name and suffix exactly, so a host whose file names ignore case orders and picks the same."""
+    found = [p for p in (set_dir / "LICENSES").iterdir() if p.is_file()]
+    return sorted(
+        (p for p in found if p.suffix == ".txt" and not p.name.startswith(".")),
+        key=lambda p: p.name,
+    )
 
 
 def combined(licence: str, set_dir: Path) -> str:
+    names = [p.name for p in parts(set_dir)]
     out = [own_licence(licence).rstrip("\n"), MARK, "\n", INTRO]
+    out += [CREDITS[n] for n in sorted(CREDITS) if n in names]
     for p in parts(set_dir):
         body = p.read_text(encoding="utf-8").rstrip("\n")
         out += [f"\n{RULE}\n{p.name}\n{RULE}\n\n", body, "\n"]
@@ -74,8 +92,12 @@ def main(argv: list[str] | None = None) -> int:
     c = sub.add_parser("check", help="hold a wheel's LICENSE equal to the combined text")
     c.add_argument("wheel", type=Path)
     c.add_argument("set", type=Path)
+    sub.add_parser("restore", help="put LICENSE back as the project's licence alone")
     args = p.parse_args(argv)
     licence = LICENSE.read_text(encoding="utf-8")
+    if args.cmd == "restore":
+        LICENSE.write_text(own_licence(licence), encoding="utf-8", newline="\n")
+        return 0
     if args.cmd == "append":
         if not parts(args.set):
             print(f"{args.set / 'LICENSES'}: no licence files", file=sys.stderr)

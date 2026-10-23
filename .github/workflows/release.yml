@@ -910,7 +910,8 @@ jobs:
     # The fast tier, serially under coverage.py, against the set the build job made: the share of
     # src/wasi_python's statements it ran. The Cobertura report goes to Codecov, which serves the
     # README's badge; the upload carries the repository's CODECOV_TOKEN secret and nothing else.
-    # Nothing needs this job: a failed upload never holds up a release, and shows red in the run.
+    # Nothing needs this job. A failed measurement is red; a failed upload (Codecov's outage) is
+    # logged by the action and not failed, so it never turns a dry run red or holds up a release.
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 120
@@ -990,7 +991,8 @@ jobs:
           files: build/coverage/coverage.xml
           disable_search: true
           token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: true
+          version: v11.3.1 # the uploader the action fetches, named rather than its latest
+          fail_ci_if_error: false
 
   judge-release:
     name: judge the release tier (ubuntu-24.04, ${{ matrix.shard }})

@@ -4,7 +4,9 @@
 
 It runs `uv run pytest -m "not slow"` serially under coverage.py, measuring `src/wasi_python`,
 and writes the run's log, a JSON report and a Cobertura XML report under build/coverage/. A run
-that is not green exits non-zero and its numbers are not reported. The release workflow's coverage
+whose summary names a failed test or an error exits non-zero and its numbers are not reported.
+The ratchet's verdict is not read: a lost or absent accepted check is the acceptance's business,
+and it changes no line of the runner that ran. The release workflow's coverage
 job runs it on every run and uploads the XML to Codecov, which serves the README's badge, so the
 badge says the coverage of main's latest release run and nothing in the tree holds the number.
 `--check` holds the README's one badge to Codecov's for this repository.
