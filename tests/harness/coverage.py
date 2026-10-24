@@ -28,7 +28,7 @@ REPO = Path(__file__).resolve().parents[2]
 README = REPO / "README.md"
 SOURCE = "src/wasi_python"
 WORK = REPO / "build" / "coverage"
-CODECOV = "https://codecov.io/gh/ClayGendron/wasi_python"
+CODECOV = "https://codecov.io/gh/ClayGendron/wasi-python"
 BADGE_TAG = f'<a href="{CODECOV}"><img alt="Coverage" src="{CODECOV}/graph/badge.svg"></a>'
 BADGE = re.compile(r"https://codecov\.io/gh/[^\"' )]+/graph/badge\.svg")
 SUMMARY = re.compile(r"^(?:=+ )?((?:\d+ \w+(?:, )?)+) in [\d.]+s(?: .*)?$")

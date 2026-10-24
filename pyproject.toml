@@ -28,8 +28,8 @@ run = []
 
 [project.urls]
 Homepage = "https://wasipython.dev"
-Documentation = "https://claygendron.github.io/wasi_python/"
-Repository = "https://github.com/claygendron/wasi_python"
+Documentation = "https://claygendron.github.io/wasi-python/"
+Repository = "https://github.com/ClayGendron/wasi-python"
 
 [dependency-groups]
 # wasmtime, which the harness drives the guest with (spec 002, Decision 10), comes from the

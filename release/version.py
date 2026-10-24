@@ -298,9 +298,9 @@ def verify_note(version: str) -> str:
     return (
         "\n**Verify a download** (`gh` logged in; see the README's *Verifying a download*):\n\n"
         "```\n"
-        "gh attestation verify <asset> --repo ClayGendron/wasi_python \\\n"
+        "gh attestation verify <asset> --repo ClayGendron/wasi-python \\\n"
         "  --signer-workflow "
-        f"ClayGendron/wasi_python/.github/workflows/release.yml@refs/tags/v{version} \\\n"
+        f"ClayGendron/wasi-python/.github/workflows/release.yml@refs/tags/v{version} \\\n"
         f"  --source-ref refs/tags/v{version} --deny-self-hosted-runners\n"
         "```\n"
     )

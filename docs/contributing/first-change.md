@@ -2,7 +2,7 @@
 
 This tutorial takes you from a fresh clone to a test run you can read. At the end you know what the scoreboard says, what a known gap is, and where a change starts.
 
-The rule book for working in the repository is [AGENTS.md](https://github.com/ClayGendron/wasi_python/blob/main/AGENTS.md). It applies to people and coding agents alike. This page explains its first steps in plain words.
+The rule book for working in the repository is [AGENTS.md](https://github.com/ClayGendron/wasi-python/blob/main/AGENTS.md). It applies to people and coding agents alike. This page explains its first steps in plain words.
 
 ## Before you begin
 
@@ -12,8 +12,8 @@ The rule book for working in the repository is [AGENTS.md](https://github.com/Cl
 ## Clone and set up
 
 ```sh
-git clone https://github.com/ClayGendron/wasi_python.git
-cd wasi_python
+git clone https://github.com/ClayGendron/wasi-python.git
+cd wasi-python
 uv sync
 ```
 

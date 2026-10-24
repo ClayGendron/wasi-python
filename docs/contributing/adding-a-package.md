@@ -6,7 +6,7 @@ Adding a package changes the build, so it is a larger change than most. Read [Bu
 
 ## 1. Pin the source
 
-Every input is pinned by URL and SHA-256, and verified before use. Add the package's release source to `downloads/SHA256SUMS` and give it one `get <url> <name>` line in [`scripts/00_download.sh`](https://github.com/ClayGendron/wasi_python/blob/main/scripts/00_download.sh). Then fetch and verify:
+Every input is pinned by URL and SHA-256, and verified before use. Add the package's release source to `downloads/SHA256SUMS` and give it one `get <url> <name>` line in [`scripts/00_download.sh`](https://github.com/ClayGendron/wasi-python/blob/main/scripts/00_download.sh). Then fetch and verify:
 
 ```sh
 scripts/00_download.sh
@@ -18,7 +18,7 @@ Build from the released source, never from a patched wheel. A pure-Python packag
 
 ## 2. Write the recipe
 
-A compiled package gets a build step under [`scripts/steps/`](https://github.com/ClayGendron/wasi_python/tree/main/scripts/steps) and the recipe files it needs under [`recipes/`](https://github.com/ClayGendron/wasi_python/tree/main/recipes). For scipy, that meant:
+A compiled package gets a build step under [`scripts/steps/`](https://github.com/ClayGendron/wasi-python/tree/main/scripts/steps) and the recipe files it needs under [`recipes/`](https://github.com/ClayGendron/wasi-python/tree/main/recipes). For scipy, that meant:
 
 - a meson cross file that describes the WASI target (`recipes/wasi-scipy.cross`);
 - rename headers for symbols that only collide in a static link;

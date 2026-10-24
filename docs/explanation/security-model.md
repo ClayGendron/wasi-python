@@ -129,7 +129,7 @@ Include what you ran, what happened, and what you expected. A reproducer that us
 - A bug in an upstream component (CPython, numpy, pandas, wasmtime) that does not cross the sandbox boundary. Report it upstream; the project moves its pin when a fix ships.
 - What an embedder's own host function does with the frames it receives.
 
-The full policy is in [SECURITY.md](https://github.com/ClayGendron/wasi_python/blob/main/SECURITY.md).
+The full policy is in [SECURITY.md](https://github.com/ClayGendron/wasi-python/blob/main/SECURITY.md).
 
 ## In one line
 

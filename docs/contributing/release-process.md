@@ -4,7 +4,7 @@ This page describes how a release of wasi-python is cut: the version bump, the r
 
 ## Bump the version
 
-The version lives in one place: `__version__` in `src/wasi_python/__init__.py`. `pyproject.toml` reads it from there. The script [`release/version.py`](https://github.com/ClayGendron/wasi_python/blob/main/release/version.py) changes it:
+The version lives in one place: `__version__` in `src/wasi_python/__init__.py`. `pyproject.toml` reads it from there. The script [`release/version.py`](https://github.com/ClayGendron/wasi-python/blob/main/release/version.py) changes it:
 
 ```sh
 uv run python release/version.py bump            # the next version, and a CHANGELOG.md section

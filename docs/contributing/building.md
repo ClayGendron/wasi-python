@@ -61,7 +61,7 @@ Ctrl-C stops the running step at once and exits with code 130. A `kill -TERM` or
 
 ## What the steps do
 
-The steps live in [`scripts/steps/`](https://github.com/ClayGendron/wasi_python/tree/main/scripts/steps). In order, they:
+The steps live in [`scripts/steps/`](https://github.com/ClayGendron/wasi-python/tree/main/scripts/steps). In order, they:
 
 1. Unpack the toolchain and the pinned host Python, and install the build tools from hashed wheels, offline.
 2. Build CPython with its own `Platforms/WASI` driver.
@@ -73,7 +73,7 @@ The steps live in [`scripts/steps/`](https://github.com/ClayGendron/wasi_python/
 8. Snapshot the reactor with the pinned wasmtime's own `wasmtime wizer`. The snapshot pre-imports the stdlib's bootstrap modules and no package.
 9. Assemble `build/artifacts/` with `MANIFEST`, `SHA256SUMS` and the licence notices of everything inside.
 
-The versions that define a release line (CPython, wasi-sdk and the host Python) are named once, in [`scripts/line.conf`](https://github.com/ClayGendron/wasi_python/blob/main/scripts/line.conf).
+The versions that define a release line (CPython, wasi-sdk and the host Python) are named once, in [`scripts/line.conf`](https://github.com/ClayGendron/wasi-python/blob/main/scripts/line.conf).
 
 ## Only the pinned Python runs
 
@@ -96,7 +96,7 @@ One host input is not pinned: the native C compiler and `make` that CPython's dr
 
 Every input is pinned by URL and SHA-256 in `downloads/SHA256SUMS`, and verified before use. `MANIFEST` names every supported build host's pins, not only the ones your build used, so it is the same file from every host.
 
-A *recipe file* is an adaptation the project writes instead of changing upstream source. The files under [`recipes/`](https://github.com/ClayGendron/wasi_python/tree/main/recipes) include:
+A *recipe file* is an adaptation the project writes instead of changing upstream source. The files under [`recipes/`](https://github.com/ClayGendron/wasi-python/tree/main/recipes) include:
 
 - meson cross files that describe the WASI target to each package's build;
 - rename headers for symbols that only collide in a static link;
@@ -104,7 +104,7 @@ A *recipe file* is an adaptation the project writes instead of changing upstream
 - stand-in modules, such as a `ctypes` package that names and sizes wasm32's C types and refuses every foreign call;
 - link-time refusals, which answer a call the platform cannot make with a clear error.
 
-The compiler wrapper [`scripts/wasi-cc`](https://github.com/ClayGendron/wasi_python/blob/main/scripts/wasi-cc) turns every extension module's shared link into a static archive, so no package's `meson.build` changes. When a recipe file is not enough, the project carries a small, recorded source patch; see [Pinned releases and patches](../explanation/pinned-releases-and-patches.md).
+The compiler wrapper [`scripts/wasi-cc`](https://github.com/ClayGendron/wasi-python/blob/main/scripts/wasi-cc) turns every extension module's shared link into a static archive, so no package's `meson.build` changes. When a recipe file is not enough, the project carries a small, recorded source patch; see [Pinned releases and patches](../explanation/pinned-releases-and-patches.md).
 
 ## Building on a Mac with Finder open
 

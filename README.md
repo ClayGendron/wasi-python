@@ -1,17 +1,17 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ClayGendron/wasi_python/main/docs/assets/wasi-python-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/ClayGendron/wasi_python/main/docs/assets/wasi-python-light.svg">
-    <img alt="WASI-PYTHON" width="640" src="https://raw.githubusercontent.com/ClayGendron/wasi_python/main/docs/assets/wasi-python.svg">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ClayGendron/wasi-python/main/docs/assets/wasi-python-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/ClayGendron/wasi-python/main/docs/assets/wasi-python-light.svg">
+    <img alt="WASI-PYTHON" width="640" src="https://raw.githubusercontent.com/ClayGendron/wasi-python/main/docs/assets/wasi-python.svg">
   </picture>
 </p>
 
 <p align="center">
   <a href="https://pypi.org/project/wasi-python/"><img alt="PyPI" src="https://img.shields.io/pypi/v/wasi-python"></a>
   <a href="https://pypi.org/project/wasi-python/"><img alt="Python versions" src="https://img.shields.io/pypi/pyversions/wasi-python"></a>
-  <a href="https://github.com/ClayGendron/wasi_python/actions/workflows/release.yml"><img alt="Release" src="https://github.com/ClayGendron/wasi_python/actions/workflows/release.yml/badge.svg"></a>
-  <a href="https://github.com/ClayGendron/wasi_python/blob/main/LICENSE"><img alt="Licence" src="https://img.shields.io/github/license/ClayGendron/wasi_python"></a>
-  <a href="https://codecov.io/gh/ClayGendron/wasi_python"><img alt="Coverage" src="https://codecov.io/gh/ClayGendron/wasi_python/graph/badge.svg"></a>
+  <a href="https://github.com/ClayGendron/wasi-python/actions/workflows/release.yml"><img alt="Release" src="https://github.com/ClayGendron/wasi-python/actions/workflows/release.yml/badge.svg"></a>
+  <a href="https://github.com/ClayGendron/wasi-python/blob/main/LICENSE"><img alt="Licence" src="https://img.shields.io/github/license/ClayGendron/wasi-python"></a>
+  <a href="https://codecov.io/gh/ClayGendron/wasi-python"><img alt="Coverage" src="https://codecov.io/gh/ClayGendron/wasi-python/graph/badge.svg"></a>
   <img alt="CPython 3.15" src="https://img.shields.io/badge/CPython-3.15-3776AB">
   <img alt="wasm32-wasip1" src="https://img.shields.io/badge/target-wasm32--wasip1-654FF0">
 </p>
@@ -32,7 +32,7 @@ $ wasi-python run -- -c "print('hello, WebAssembly')"
 {"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "hello, WebAssembly\n", "trapped": null, "truncated": []}
 ```
 
-Requires Python 3.11 or later. The wheel carries the runtime, which unpacks to about 250 MB of WebAssembly and bytecode, so nothing else is downloaded. Every release is tested on Linux (x86-64 and arm64), macOS (arm64) and Windows (x86-64). [Install](https://claygendron.github.io/wasi_python/get-started/install/) says more about what comes with the package and where it keeps its cache.
+Requires Python 3.11 or later. The wheel carries the runtime, which unpacks to about 250 MB of WebAssembly and bytecode, so nothing else is downloaded. Every release is tested on Linux (x86-64 and arm64), macOS (arm64) and Windows (x86-64). [Install](https://claygendron.github.io/wasi-python/get-started/install/) says more about what comes with the package and where it keeps its cache.
 
 # Usage
 
@@ -77,7 +77,7 @@ decay fit: a=2.97 k=0.70
 2  1.1  5.0
 ```
 
-`done` also carries `exit_code`, `stderr`, `fuel_used` and `trapped`, which names the limit that stopped a call, such as `"deadline"` or `"out of fuel"`. [Results and errors](https://claygendron.github.io/wasi_python/reference/results-and-errors/) describes every field, and [Packages](https://claygendron.github.io/wasi_python/reference/packages/) lists what each package can do inside the sandbox.
+`done` also carries `exit_code`, `stderr`, `fuel_used` and `trapped`, which names the limit that stopped a call, such as `"deadline"` or `"out of fuel"`. [Results and errors](https://claygendron.github.io/wasi-python/reference/results-and-errors/) describes every field, and [Packages](https://claygendron.github.io/wasi-python/reference/packages/) lists what each package can do inside the sandbox.
 
 ### 2. Safe and Secure by Design
 
@@ -169,7 +169,7 @@ memory -> 1 MemoryError
 output -> 1000000 ('stdout',)
 ```
 
-Everything the guest can reach is something you handed it. It starts with no files, no network and no way to start a process. A folder comes in through a `Grant` and a host function through `tools=`, and nothing else gets in. Instructions, time, memory, output and open files each have a default cap, and when a guest hits one the call ends and the result says which. The guest is a WebAssembly module with its own memory, so it holds no pointer into your process, and its only calls into the host are the WASI functions and the tools you pass. Each release is built reproducibly and signed by the workflow that built it. [Verify a download](https://claygendron.github.io/wasi_python/how-to/verify-a-download/) shows how to check one.
+Everything the guest can reach is something you handed it. It starts with no files, no network and no way to start a process. A folder comes in through a `Grant` and a host function through `tools=`, and nothing else gets in. Instructions, time, memory, output and open files each have a default cap, and when a guest hits one the call ends and the result says which. The guest is a WebAssembly module with its own memory, so it holds no pointer into your process, and its only calls into the host are the WASI functions and the tools you pass. Each release is built reproducibly and signed by the workflow that built it. [Verify a download](https://claygendron.github.io/wasi-python/how-to/verify-a-download/) shows how to check one.
 
 ### 3. Bring Your Own Tools
 
@@ -210,7 +210,7 @@ total 5.4
 plum -> price failed (internal error)
 ```
 
-A tool runs with your program's authority, so hand the guest narrow functions rather than whole services. When a tool raises, the guest learns only that it failed. The traceback and its message stay on your side, in the call record at `done.tools`. A `gate=` function can look at every call before it runs and refuse it. [Tools](https://claygendron.github.io/wasi_python/how-to/tools/) covers schemas, gating, the record, and recipes for LangChain and MCP tools.
+A tool runs with your program's authority, so hand the guest narrow functions rather than whole services. When a tool raises, the guest learns only that it failed. The traceback and its message stay on your side, in the call record at `done.tools`. A `gate=` function can look at every call before it runs and refuse it. [Tools](https://claygendron.github.io/wasi-python/how-to/tools/) covers schemas, gating, the record, and recipes for LangChain and MCP tools.
 
 ### 4. Maintains State Across Turns
 
@@ -230,7 +230,7 @@ with Session() as session:
 216
 ```
 
-A session ends when you close it, when it rests longer than `idle_s`, or when `lifetime_s` passes. Each turn gets its own fuel and deadline. [Sessions](https://claygendron.github.io/wasi_python/how-to/sessions/) covers what carries over, how a session ends, and the shutdown.
+A session ends when you close it, when it rests longer than `idle_s`, or when `lifetime_s` passes. Each turn gets its own fuel and deadline. [Sessions](https://claygendron.github.io/wasi-python/how-to/sessions/) covers what carries over, how a session ends, and the shutdown.
 
 ### 5. And Async Of Course
 
@@ -264,7 +264,7 @@ guest 1 done
 guest 2 done
 ```
 
-Cancel the task to stop the guest. `Session` has `run_async` too. [Async](https://claygendron.github.io/wasi_python/how-to/async/) covers cancellation, pool sizing and forking servers.
+Cancel the task to stop the guest. `Session` has `run_async` too. [Async](https://claygendron.github.io/wasi-python/how-to/async/) covers cancellation, pool sizing and forking servers.
 
 # What's Inside
 
@@ -275,11 +275,11 @@ Cancel the task to stop the guest. `Session` has `run_async` too. [Async](https:
 | `python-stdlib.zip` | the standard library and the packages' Python code, as bytecode in one read-only zip |
 | `MANIFEST` | every pinned source, toolchain and recipe hash the build used |
 
-They are published as release assets on GitHub and inside the `wasi-python` wheel on PyPI. [More on the artifacts](https://claygendron.github.io/wasi_python/reference/artifacts/).
+They are published as release assets on GitHub and inside the `wasi-python` wheel on PyPI. [More on the artifacts](https://claygendron.github.io/wasi-python/reference/artifacts/).
 
-[Packages](https://claygendron.github.io/wasi_python/reference/packages/) lists every package with its version and what works. Each package's own test suite runs inside the sandbox before a release.
+[Packages](https://claygendron.github.io/wasi-python/reference/packages/) lists every package with its version and what works. Each package's own test suite runs inside the sandbox before a release.
 
-There are no processes, no network and no `pip` inside the guest. [Limitations](https://claygendron.github.io/wasi_python/reference/limitations/) lists every difference from native Python, each with its reason.
+There are no processes, no network and no `pip` inside the guest. [Limitations](https://claygendron.github.io/wasi-python/reference/limitations/) lists every difference from native Python, each with its reason.
 
 # Hosts
 
@@ -288,7 +288,7 @@ The binaries use WebAssembly's exception-handling proposal, so a host must suppo
 - **Runs by default:** wasmtime 47 or later (CLI, Rust, wasmtime-py); WasmEdge 0.16 or later.
 - **Runs with a switch:** wasmer 6 or later on LLVM or V8, or 7 or later on Cranelift (not Singlepass); wazero 1.12 or later; Node 24.15 or later.
 
-To bring your own host, install the files without wasmtime-py, `pip install --no-deps wasi-python`, and find them with `wasi_python.artifacts()`. Importing `wasi_python` never loads wasmtime. The `wasi_python` package enforces the limits in section 2. Another host sets its own. [Embedding from other languages](https://claygendron.github.io/wasi_python/how-to/embed-from-other-languages/) shows how.
+To bring your own host, install the files without wasmtime-py, `pip install --no-deps wasi-python`, and find them with `wasi_python.artifacts()`. Importing `wasi_python` never loads wasmtime. The `wasi_python` package enforces the limits in section 2. Another host sets its own. [Embedding from other languages](https://claygendron.github.io/wasi-python/how-to/embed-from-other-languages/) shows how.
 
 # Build From Source
 
@@ -299,17 +299,17 @@ scripts/00_download.sh   # fetch every pin and verify it against downloads/SHA25
 scripts/build.sh         # build the artifact set; logs in build/logs/
 ```
 
-The source trees are the released tarballs plus a few recorded patches (upstream patches carried: 27), each offered upstream and dropped once upstream releases the fix. [Building](https://claygendron.github.io/wasi_python/contributing/building/) gives the full details.
+The source trees are the released tarballs plus a few recorded patches (upstream patches carried: 27), each offered upstream and dropped once upstream releases the fix. [Building](https://claygendron.github.io/wasi-python/contributing/building/) gives the full details.
 
 # Contributing, Security, Changelog
 
-- [Contributing](https://claygendron.github.io/wasi_python/contributing/first-change/): start here. [AGENTS.md](https://github.com/claygendron/wasi_python/blob/main/AGENTS.md) is the rule book every change follows.
-- [Security policy](https://github.com/claygendron/wasi_python/blob/main/SECURITY.md): report a way out of the sandbox privately.
-- [Changelog](https://github.com/claygendron/wasi_python/blob/main/CHANGELOG.md): what each release changed.
+- [Contributing](https://claygendron.github.io/wasi-python/contributing/first-change/): start here. [AGENTS.md](https://github.com/ClayGendron/wasi-python/blob/main/AGENTS.md) is the rule book every change follows.
+- [Security policy](https://github.com/ClayGendron/wasi-python/blob/main/SECURITY.md): report a way out of the sandbox privately.
+- [Changelog](https://github.com/ClayGendron/wasi-python/blob/main/CHANGELOG.md): what each release changed.
 
 # Agentic Development
 
-`v0.1.0` was built by Claude Opus and Fable agents in six days of near-continuous work from October 16th to the 22nd of 2026. The agents made 1,255 commits across 421 sessions, had up to 12 working at once, and read 500 million tokens and generated 9 million. Every change was specified first, built in its own worktree, reviewed by a fresh agent and judged by the test suite before it landed. [How it was built](https://claygendron.github.io/wasi_python/explanation/how-it-was-built/) has the full account, with charts. The rules are in [AGENTS.md](https://github.com/claygendron/wasi_python/blob/main/AGENTS.md) and [the contributing pages](https://claygendron.github.io/wasi_python/contributing/principles/).
+`v0.1.0` was built by Claude Opus and Fable agents in six days of near-continuous work from October 16th to the 22nd of 2026. The agents made 1,255 commits across 421 sessions, had up to 12 working at once, and read 500 million tokens and generated 9 million. Every change was specified first, built in its own worktree, reviewed by a fresh agent and judged by the test suite before it landed. [How it was built](https://claygendron.github.io/wasi-python/explanation/how-it-was-built/) has the full account, with charts. The rules are in [AGENTS.md](https://github.com/ClayGendron/wasi-python/blob/main/AGENTS.md) and [the contributing pages](https://claygendron.github.io/wasi-python/contributing/principles/).
 
 # Licences
 

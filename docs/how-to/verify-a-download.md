@@ -17,8 +17,8 @@ The same wheel is published on PyPI as `wasi-python`. See [Artifacts](../referen
 Every release asset carries *build provenance*: a statement, signed by the release workflow, that names the source and the workflow that built the file. The GitHub CLI, `gh`, checks it. Log `gh` in first, then run this, with `<asset>` the file you downloaded and `<version>` the release's version:
 
 ```
-gh attestation verify <asset> --repo ClayGendron/wasi_python \
-  --signer-workflow ClayGendron/wasi_python/.github/workflows/release.yml@refs/tags/v<version> \
+gh attestation verify <asset> --repo ClayGendron/wasi-python \
+  --signer-workflow ClayGendron/wasi-python/.github/workflows/release.yml@refs/tags/v<version> \
   --source-ref refs/tags/v<version> --deny-self-hosted-runners
 ```
 
@@ -31,6 +31,8 @@ The command fails if any check does not hold. When it passes, it has shown that:
 `--signer-workflow` matches a prefix of the signer's identity. That is why it carries the `@` and the tag: together they pin the workflow file exactly.
 
 The first alpha, `0.1.0a1`, has no attestation. Every release after it carries one.
+
+The repository was named `wasi_python` until after 0.1.0, and an attestation names the repository it was signed in. For 0.1.0 and the alphas before it, write `ClayGendron/wasi_python` in place of `ClayGendron/wasi-python` in both options.
 
 ## Check an asset without `gh`
 

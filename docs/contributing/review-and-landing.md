@@ -1,6 +1,6 @@
 # Review and landing
 
-This page explains how a built change gets onto `main`: who reviews it, what the reviewer checks, and how reviewed changes land together. The binding rules are in [AGENTS.md](https://github.com/ClayGendron/wasi_python/blob/main/AGENTS.md); this page explains them in words.
+This page explains how a built change gets onto `main`: who reviews it, what the reviewer checks, and how reviewed changes land together. The binding rules are in [AGENTS.md](https://github.com/ClayGendron/wasi-python/blob/main/AGENTS.md); this page explains them in words.
 
 ## Every built change is reviewed by someone who did not write it
 
