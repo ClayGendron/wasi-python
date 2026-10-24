@@ -4,13 +4,13 @@ This guide shows you how to carry a change to a pinned project's source, and how
 
 ## Try a recipe file first
 
-Most adaptations to WASI need no change to upstream source. A *recipe file* under [`recipes/`](https://github.com/ClayGendron/wasi_python/tree/main/recipes) does the job from the outside: a meson cross file, a compiler wrapper, a rename header, a stand-in module, or a link-time refusal. Use one whenever you can. See [Building from source](building.md#pins-and-recipe-files).
+Most adaptations to WASI need no change to upstream source. A *recipe file* under [`recipes/`](https://github.com/ClayGendron/wasi-python/tree/main/recipes) does the job from the outside: a meson cross file, a compiler wrapper, a rename header, a stand-in module, or a link-time refusal. Use one whenever you can. See [Building from source](building.md#pins-and-recipe-files).
 
 A *patch* is the last resort. Carry one only when the fix must change the source itself, for example a C callback defined with fewer parameters than CPython passes, which traps on WebAssembly.
 
 ## Write the patch
 
-A patch lives under [`recipes/patches/`](https://github.com/ClayGendron/wasi_python/tree/main/recipes/patches), in a folder named after the pinned tarball's top folder:
+A patch lives under [`recipes/patches/`](https://github.com/ClayGendron/wasi-python/tree/main/recipes/patches), in a folder named after the pinned tarball's top folder:
 
 ```
 recipes/patches/numpy-2.5.2/0001-npy-files-without-dup.patch
@@ -28,7 +28,7 @@ A patch to a project's file carries that project's licence, as the same change u
 
 ## How the build applies it
 
-[`scripts/steps/apply_patches.sh`](https://github.com/ClayGendron/wasi_python/blob/main/scripts/steps/apply_patches.sh) applies a tree's patches right after its step unpacks the tarball. The tests run the same script on a fresh extraction, so the two never apply differently. A release fails on any difference from a pinned tarball other than exactly the recorded patches.
+[`scripts/steps/apply_patches.sh`](https://github.com/ClayGendron/wasi-python/blob/main/scripts/steps/apply_patches.sh) applies a tree's patches right after its step unpacks the tarball. The tests run the same script on a fresh extraction, so the two never apply differently. A release fails on any difference from a pinned tarball other than exactly the recorded patches.
 
 ## Record it
 

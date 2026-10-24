@@ -32,7 +32,7 @@ When a change to upstream source cannot be avoided, the project carries it as a 
 
 The release fails on any difference between a source tree and its pinned tarball other than exactly the recorded patches. So a source tree is always its tarball plus a known list of changes, and nothing else.
 
-Today the project carries 27 patches. Many are small fixes to C callback signatures, which native platforms forgive and WebAssembly does not; others let a package read its own data files from a zip. A few are fixes already merged upstream, carried until a release includes them. Every other adaptation is a recipe file. The patches are listed in [`recipes/patches/`](https://github.com/ClayGendron/wasi_python/tree/main/recipes/patches).
+Today the project carries 27 patches. Many are small fixes to C callback signatures, which native platforms forgive and WebAssembly does not; others let a package read its own data files from a zip. A few are fixes already merged upstream, carried until a release includes them. Every other adaptation is a recipe file. The patches are listed in [`recipes/patches/`](https://github.com/ClayGendron/wasi-python/tree/main/recipes/patches).
 
 ## Why patches stay few
 

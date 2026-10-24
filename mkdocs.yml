@@ -3,9 +3,9 @@
 # also reads are used, so the site can move to it without a rewrite.
 site_name: wasi-python
 site_description: A statically linked CPython for WebAssembly hosts, with the scientific Python stack compiled in.
-site_url: https://claygendron.github.io/wasi_python/
-repo_url: https://github.com/ClayGendron/wasi_python
-repo_name: ClayGendron/wasi_python
+site_url: https://claygendron.github.io/wasi-python/
+repo_url: https://github.com/ClayGendron/wasi-python
+repo_name: ClayGendron/wasi-python
 
 strict: true
 validation:

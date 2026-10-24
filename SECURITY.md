@@ -28,6 +28,6 @@ The runner uses wasmtime-py 49.0.0, which bundles wasmtime 49.0.0; no wasmtime-p
 
 ## Out of scope
 
-- What the [security model](https://claygendron.github.io/wasi_python/explanation/security-model/) lists as not protected, such as disk use in a granted folder, timing side channels, or a guest planting files in a root that is reused.
+- What the [security model](https://claygendron.github.io/wasi-python/explanation/security-model/) lists as not protected, such as disk use in a granted folder, timing side channels, or a guest planting files in a root that is reused.
 - A bug in an upstream component (CPython, numpy, pandas, wasmtime) that does not cross the sandbox boundary. Please report it upstream; we will move our pin when a fix ships.
 - What an embedder's own host function does with the frames it receives.

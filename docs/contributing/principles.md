@@ -1,6 +1,6 @@
 # Principles
 
-This page states what wasi-python is for and the rules every change keeps. It is an abridged version of the project's principles; the full rule book for contributors is [AGENTS.md](https://github.com/ClayGendron/wasi_python/blob/main/AGENTS.md).
+This page states what wasi-python is for and the rules every change keeps. It is an abridged version of the project's principles; the full rule book for contributors is [AGENTS.md](https://github.com/ClayGendron/wasi-python/blob/main/AGENTS.md).
 
 ## The mission
 

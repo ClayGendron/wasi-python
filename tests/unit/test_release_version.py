@@ -174,7 +174,7 @@ def test_bump_writes_both_files_or_neither(tmp_path: Path, monkeypatch) -> None:
 def test_the_release_notes_say_how_to_verify_this_version() -> None:
     note = version.verify_note("0.1.0a2")
     assert "--source-ref refs/tags/v0.1.0a2" in note
-    assert "--signer-workflow ClayGendron/wasi_python/.github/workflows/release.yml" in note
+    assert "--signer-workflow ClayGendron/wasi-python/.github/workflows/release.yml" in note
     assert "--deny-self-hosted-runners" in note
 
 

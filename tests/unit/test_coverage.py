@@ -56,7 +56,7 @@ def test_two_badges_are_an_error() -> None:
 
 
 def test_another_repositorys_badge_is_an_error() -> None:
-    other = GOOD.replace("ClayGendron/wasi_python", "someone/else")
+    other = GOOD.replace("ClayGendron/wasi-python", "someone/else")
     assert coverage.badge_errors(other) == [
         f"README.md: the coverage badge is not {coverage.BADGE_TAG}"
     ]
