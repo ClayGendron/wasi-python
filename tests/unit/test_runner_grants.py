@@ -908,9 +908,8 @@ def _two_sides(tmp_path: Path) -> tuple[files.Raw, files.Mounted]:
         (tmp_path / name).mkdir()
         (tmp_path / name / "w.txt").write_bytes(b"w\n")
         sides.append(tmp_path / name)
-    # A grant as the runner serves it: wasmtime's own calls, but for the two the guard forwards
-    # with wasmtime 49.0.2's and 49.0.3's fixes.
-    grant = files.Guarded([(tree, "/m", False), (sides[0], "/w", True)]).raw
+    # A grant as wasmtime serves it: every call wasmtime's own.
+    grant = files.grant_raw([(tree, "/m", False), (sides[0], "/w", True)])
     mount = files.Mounted(files.MemoryProvider(), placeholder, folders=[(sides[1], "/w", True)])
     return grant, mount
 
@@ -1008,8 +1007,8 @@ def test_the_deliberate_differences_are_as_decided(tmp_path) -> None:
     assert (m.path_filestat(3, "a.txt/")[0], m.path_filestat(3, "a.txt/.")[0]) == (54, 54)
 
 
-# The raw write rows. Each row runs on a fresh tree, as a writable grant (wasmtime behind the
-# runner's guard, as every call without mounts runs) and as a writable mount (the runner's mount
+# The raw write rows. Each row runs on a fresh tree, as a writable grant (plain wasmtime) and as
+# a writable mount (the runner's mount
 # linker over the in-memory provider); preopen 3 is the tree on each side, 4 a writable folder and 5
 # a read-only one. A row's whole result (the errno and every byte written; dev, ino, times and
 # numbers masked) and the tree it leaves, after the call's ending, are compared. Decision 12's
@@ -1271,9 +1270,8 @@ WASMTIME_ROWS = {
         "rename 'a.txt' 'a.txt/'",
     ),
 }
-# A file renamed to a name ending in `/`: ENOTDIR, the source's stat deciding it, on the guarded
-# grant (the guard carries wasmtime 49.0.3's rule; 49.0.0 strips the target's `/` and renames)
-# and on the mount (`RENAME_SLASH_NEEDS_FOLDER`), the same on every host.
+# A file renamed to a name ending in `/`: ENOTDIR, the source's kind deciding it, on the grant
+# (wasmtime's own rule) and on the mount (`RENAME_SLASH_NEEDS_FOLDER`), the same on every host.
 SLASH_ROWS = {
     "rename 'a.txt' 'newname/'": 54,
     "rename 'a.txt' 'b.txt/'": 54,
@@ -1292,7 +1290,7 @@ def _write_sides(root: Path) -> tuple[files.Raw, Path, files.Mounted, files.Memo
         (ro / "r.txt").write_bytes(b"r")
         out.append([(w, "/w", True), (ro, "/ro", False)])
     tree = files.write_tree(root / "tree")
-    grant = files.Guarded([(tree, "/m", True), *out[0]]).raw  # the guarded grant
+    grant = files.grant_raw([(tree, "/m", True), *out[0]])  # plain wasmtime
     placeholder = root / "placeholder"
     placeholder.mkdir()
     provider = files.MemoryProvider()
@@ -1404,7 +1402,7 @@ def test_the_write_differences_are_as_decided(tmp_path) -> None:
     if POSIX:
         inner = tree / "d" / "inner"
         inner.mkdir()
-        nested = files.Guarded([(tree, "/m", True), (inner, "/m/d/inner", True)]).raw
+        nested = files.grant_raw([(tree, "/m", True), (inner, "/m/d/inner", True)])
         assert nested.path_call("path_remove_directory", 3, "d/./inner") == 0
     placeholder = tmp_path / "nested-placeholder"
     placeholder.mkdir()

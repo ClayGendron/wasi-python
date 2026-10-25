@@ -781,7 +781,7 @@ def test_package_imports_without_wasmtime() -> None:
 
 def test_a_plain_install_brings_wasmtime() -> None:
     """`pip install wasi-python` runs programs: wasmtime-py is the one required dependency,
-    `>=49,<50` with no marker; the `run` extra stays, empty; the dev group does not repeat the
+    `>=50,<51` with no marker; the `run` extra stays, empty; the dev group does not repeat the
     bound. Exactly one dependency also makes the rule that each dependency has a written reason
     mechanical: another one turns this red until a specification gives its reason."""
     import tomllib
@@ -796,7 +796,7 @@ def test_a_plain_install_brings_wasmtime() -> None:
     req = Requirement(deps[0])
     assert (req.name, req.specifier, req.marker, req.extras) == (
         "wasmtime",
-        SpecifierSet(">=49,<50"),
+        SpecifierSet(">=50,<51"),
         None,
         set(),
     ), deps
@@ -837,7 +837,7 @@ def test_a_wasmtime_that_cannot_load_is_named(error) -> None:
     assert out.returncode == 0, out.stderr
     got = json.loads(out.stdout)
     assert got[:2] == [error, "wasmtime cannot load: test"], got
-    assert "wasmtime>=49,<50" in got[2], got
+    assert "wasmtime>=50,<51" in got[2], got
 
 
 def test_a_failed_instantiation_reports_no_fuel(guest_workdir) -> None:

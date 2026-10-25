@@ -69,6 +69,7 @@ def real_holders() -> dict[str, object]:
         "wasmtime.WasiConfig": wt.WasiConfig,
         "wasmtime.Func": wt.Func,
         "wasmtime._ffi.dll": getattr(_ffi, "dll", None),
+        "wasmtime._func.FUNCTIONS": getattr(_func, "FUNCTIONS", None),
     }
 
 
@@ -332,18 +333,28 @@ def test_the_judges_three_reads_of_wasmtime_pys_own_tables() -> None:
     store = wt.Store(engine())
     assert export(store, ONE, "one")(store) == 1
     assert ffi.last_exception() is None
-    before = ffi.host_function_count()
-    assert isinstance(before, int)
-    # The count is the table's high-water mark: a definition takes a freed slot first (earlier
-    # rows of this worker freed some), and grows the table once none is free.
-    linker = wt.Linker(store.engine)
-    for n in range(before + 1):
-        linker.define_func("host", f"f{n}", wt.FuncType([], []), lambda: None)
-        assert ffi.host_function_count() in (before, before + 1)
-        if ffi.host_function_count() == before + 1:
-            break
-    assert ffi.host_function_count() == before + 1
+    # The count is the functions the table holds now: a definition adds one at once. The
+    # collector is held off, so no function an earlier row left is freed in between.
+    gc.collect()
+    gc.disable()
+    try:
+        before = ffi.host_function_count()
+        assert isinstance(before, int)
+        linker = wt.Linker(store.engine)
+        linker.define_func("host", "f", wt.FuncType([], []), lambda: None)
+        assert ffi.host_function_count() == before + 1
+    finally:
+        gc.enable()
     assert callable(ffi.custom_output_table().allocate)
+
+
+def test_a_slab_without_handles_is_named_by_the_import_check() -> None:
+    """wasmtime-py's table of host functions keeps them in `handles`; a release that moves them
+    again is named at the first run, by the import check, not at the judge's read."""
+    holders = real_holders()
+    holders["wasmtime._func.FUNCTIONS"] = SimpleNamespace(list=[])  # the shape of an older table
+    assert ffi.missing(holders) == ["wasmtime._func.FUNCTIONS.handles"]
+    assert "wasmtime._func.FUNCTIONS.handles" in dotted(ffi.NEEDED)
 
 
 # U10
@@ -532,7 +543,7 @@ class RefusingStore(PublicStore):
 def test_the_public_api_is_preferred_where_the_object_has_it(monkeypatch) -> None:
     public = {"get_fuel", "set_fuel", "set_epoch_deadline"}
     assert public <= {n for n in dir(wt.Store) if callable(getattr(wt.Store, n))}
-    assert not public & set(dir(wt.Caller))  # on 49.0.0 a Caller takes the private path
+    assert not public & set(dir(wt.Caller))  # on 50.0.1 a Caller takes the private path
     bindings: list[tuple[str, object]] = []
 
     def record(name):

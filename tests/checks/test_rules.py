@@ -744,53 +744,96 @@ def test_every_build_host_has_its_whole_table() -> None:
     assert not errors, scan.report(errors)
 
 
-# The runner carries two guards for wasmtime advisories while the published
-# floor of the `wasmtime` requirement admits a vulnerable wasmtime. Each advisory's patched
-# versions, as its record lists them (`patched_versions` in
-# the advisory's own JSON record). Never "at or past":
-# wasmtime's releases are not one ordered line (v50.0.0-rc.1 came before v49.0.3).
+# The runner carries two guards for wasmtime advisories while the published floor of the
+# `wasmtime` requirement admits a vulnerable wasmtime. Each advisory's vulnerable versions, as
+# its record states them (`vulnerable_version_range` in the advisory's own JSON record): a list
+# of spans, one per release line the advisory knows. A version outside every span is one the
+# advisory does not call vulnerable. That is the advisory's own statement, span by span, not an
+# "at or past" reading (wasmtime's releases are not one ordered line: v50.0.0-rc.1 came before
+# v49.0.3), and the two sandbox checks of the hostile-guest file, which run the attacks against
+# the installed engine, are the standing proof that the engine holds.
 WASMTIME_GUARDS = {
-    "GHSA-96f6-r43r-8c24": ("36.0.17", "48.0.4", "49.0.2"),  # fd_readdir's dirent padding
-    "GHSA-m9f7-9w4p-gv38": ("36.0.18", "48.0.6", "49.0.3"),  # path_rename's trailing slash
+    # fd_readdir's dirent padding
+    "GHSA-96f6-r43r-8c24": "< 36.0.17, >= 37.0.0, < 48.0.4, >= 49.0.0, < 49.0.2",
+    # path_rename's trailing slash
+    "GHSA-m9f7-9w4p-gv38": "<= 36.0.17, >= 37.0.0, <= 48.0.5, >= 49.0.0, <= 49.0.2",
 }
 ADVISORIES = RESEARCH / "2026-10-18-wasmtime-49-advisories" / "advisories"
 
+Version = tuple[int, int, int]
 
-def _version(text: str) -> tuple[int, int, int]:
+
+def _version(text: str) -> Version:
     parts = [int(p) for p in text.strip().split(".")]
     assert 1 <= len(parts) <= 3, text
     return (*parts, 0, 0)[:3]  # type: ignore[return-value]
 
 
-def _guard_may_go(requirement: str, patched: tuple[str, ...]) -> bool:
-    """A guard may go only when, for every release line the requirement admits,
-    the advisory lists a patched version in that line at or below the lowest version the
-    requirement admits in it. wasmtime releases only `M.0.P` (READ, wasmtime's list of releases), so
-    a line is a major version. An open top, a bound with a minor version, or an operator other
-    than >=, <, <= and == admits lines no list can speak for: the guard stays."""
-    low, high = None, None  # inclusive low; (high, inclusive)
-    for clause in requirement.split(","):
+def _after(version: Version) -> Version:
+    """The next version after `version`: versions are integer triples, so the next is one patch
+    on. A bound is written as half-open from here: `> v` and `<= v` both become `after(v)`."""
+    return (version[0], version[1], version[2] + 1)
+
+
+def _clauses(text: str) -> list[tuple[str, Version]] | None:
+    """A comma list of `op version` clauses, or None for an operator outside >=, >, <, <=, ==."""
+    out = []
+    for clause in text.split(","):
         clause = clause.strip()
-        op = next((o for o in (">=", "<=", "==", "<") if clause.startswith(o)), None)
+        op = next((o for o in (">=", "<=", "==", ">", "<") if clause.startswith(o)), None)
         if op is None:
-            return False
-        version = _version(clause[len(op) :])
+            return None
+        out.append((op, _version(clause[len(op) :])))
+    return out
+
+
+def _spans(vulnerable: str) -> list[tuple[Version, Version | None]]:
+    """An advisory's vulnerable range as half-open spans [low, high): a lower bound followed by an
+    upper bound is one span, a lone upper bound opens at 0.0.0, a lone lower bound has no top
+    (None)."""
+    clauses = _clauses(vulnerable)
+    assert clauses is not None, vulnerable
+    spans: list[tuple[Version, Version | None]] = []
+    low: Version | None = None
+    for op, version in clauses:
+        if op in (">=", ">"):
+            assert low is None, vulnerable  # two lower bounds in a row bound nothing
+            low = version if op == ">=" else _after(version)
+        elif op in ("<", "<="):
+            high = version if op == "<" else _after(version)
+            spans.append((low or (0, 0, 0), high))
+            low = None
+        else:  # ==
+            assert low is None, vulnerable
+            spans.append((version, _after(version)))
+    if low is not None:
+        spans.append((low, None))
+    return spans
+
+
+def _guard_may_go(requirement: str, vulnerable: str) -> bool:
+    """A guard may go when no version the requirement admits lies in any of the advisory's
+    vulnerable spans. wasmtime releases only `M.0.P` (READ, wasmtime's list of releases). An open
+    top, a bound with a minor version, or an operator other than >=, <, <= and == keeps the
+    guard: a requirement so written admits versions no reading of the spans should speak for."""
+    clauses = _clauses(requirement)
+    if clauses is None or any(op == ">" for op, _ in clauses):
+        return False
+    low: Version | None = None
+    high: Version | None = None  # exclusive
+    for op, version in clauses:
         if version[1] != 0:
             return False
         if op in (">=", "=="):
             low = version if low is None else max(low, version)
         if op in ("<", "<=", "=="):
-            high = (version, op != "<")
+            top = version if op == "<" else _after(version)
+            high = top if high is None else min(high, top)
     if low is None or high is None:
         return False
-    listed = [_version(v) for v in patched]
-    top, inclusive = high
-    for major in range(low[0], top[0] + 1):
-        lowest = max(low, (major, 0, 0))
-        if lowest > top or (lowest == top and not inclusive):
-            continue  # nothing in this line is admitted
-        if not any(v[0] == major and v <= lowest for v in listed):
-            return False
+    for span_low, span_high in _spans(vulnerable):
+        if max(low, span_low) < (high if span_high is None else min(high, span_high)):
+            return False  # some admitted version is vulnerable
     return True
 
 
@@ -803,14 +846,14 @@ def _wasmtime_requirement() -> str:
 
 def test_the_rename_and_readdir_guard_match_the_floor() -> None:
     """Each guard is in the runner while the published floor (the
-    `wasmtime` requirement in pyproject.toml, not uv.lock) admits a wasmtime its advisory does
-    not list as patched, and is gone, with its checks, once it does not."""
+    `wasmtime` requirement in pyproject.toml, not uv.lock) admits a wasmtime its advisory calls
+    vulnerable, and is gone, with its checks, once it does not."""
     rename, padding = WASMTIME_GUARDS["GHSA-m9f7-9w4p-gv38"], WASMTIME_GUARDS["GHSA-96f6-r43r-8c24"]
     table = {
-        ">=49,<50": False,  # 49.0.0 is below 49.0.2 and 49.0.3
-        ">=49.0.3,<50": True,  # 49.0.2 and 49.0.3 are at or below 49.0.3
-        ">=49.0.3,<51": False,  # the 50 line has no listed patched version
-        ">=49.0.2,<50": None,  # the padding guard may go, the rename guard not
+        ">=49,<50": False,  # 49.0.0 lies in both 49 spans
+        ">=50,<51": True,  # the 50 line lies outside every span
+        ">=49.0.3,<51": True,  # 49.0.3 and the 50 line lie outside every span
+        ">=49.0.2,<50": None,  # 49.0.2 is outside the padding's spans, inside the rename's
         ">=49.0.3": False,  # an open top
     }
     for requirement, both in table.items():
@@ -819,19 +862,19 @@ def test_the_rename_and_readdir_guard_match_the_floor() -> None:
         assert got == want, (requirement, got)
     import json
 
-    for advisory, patched in WASMTIME_GUARDS.items():
+    for advisory, vulnerable in WASMTIME_GUARDS.items():
         record = json.loads((ADVISORIES / f"{advisory}.json").read_text())
-        listed = {v["patched_versions"] for v in record["vulnerabilities"]}
-        assert listed == {", ".join(patched)}, (advisory, listed)
+        listed = {v["vulnerable_version_range"] for v in record["vulnerabilities"]}
+        assert listed == {vulnerable}, (advisory, listed)
     requirement = _wasmtime_requirement()
     package = paths.REPO / "src" / "wasi_python"
     source = "\n".join((package / name).read_text() for name in FILESYSTEM_IMPORTS)
     this = Path(__file__).resolve()
     tests = [p for p in scan.files_under(paths.REPO, "tests") if p.suffix == ".py" and p != this]
     errors = []
-    for advisory, patched in WASMTIME_GUARDS.items():
+    for advisory, vulnerable in WASMTIME_GUARDS.items():
         where = f"{advisory}: wasmtime{requirement} admits"
-        if not _guard_may_go(requirement, patched):
+        if not _guard_may_go(requirement, vulnerable):
             if advisory not in source:
                 errors.append(f"{where} a vulnerable wasmtime, and the filesystem names no guard")
         else:
