@@ -1302,14 +1302,14 @@ jobs:
           NEEDS: ${{ toJSON(needs) }}
           REFUSALS: ${{ needs.plan.outputs.refusals }}
         run: |
-          set -o pipefail
-          printf '%s' "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
-          bad=$(printf '%s' "$NEEDS" | jq -r 'to_entries[] | select(.value.result != "success" and .value.result != "skipped") | .key')
-          if [ -n "$bad" ]; then
-            echo "a job this check needs neither succeeded nor was skipped:" $bad
-            exit 1
-          fi
-          if [ "$REFUSALS" != "[]" ]; then
-            echo "the plan refused this run: $REFUSALS"
-            exit 1
-          fi
+          python3 -I - <<'PY'
+          import json, os, sys
+          needs = json.loads(os.environ["NEEDS"])
+          for job, need in sorted(needs.items()):
+              print(f"{job}: {need.get('result')}")
+          bad = sorted(j for j, n in needs.items() if n.get("result") not in ("success", "skipped"))
+          if bad:
+              sys.exit("a job this check needs neither succeeded nor was skipped: " + " ".join(bad))
+          if os.environ.get("REFUSALS") != "[]":
+              sys.exit("the plan refused this run: " + os.environ.get("REFUSALS", "(no plan)"))
+          PY

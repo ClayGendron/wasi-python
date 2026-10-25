@@ -2169,9 +2169,8 @@ def ci_status_errors(text: str) -> list[str]:
     if (
         len(js) != 1
         or js[0].get("env") != CI_STATUS_ENV
-        or 'select(.value.result != "success" and .value.result != "skipped")' not in run
-        or '[ "$REFUSALS" != "[]" ]' not in run
-        or "set -o pipefail" not in run
+        or 'n.get("result") not in ("success", "skipped")' not in run
+        or 'os.environ.get("REFUSALS") != "[]"' not in run
     ):
         errors.append(
             "ci-status's one step does not fail on a need neither successful nor skipped, or on "

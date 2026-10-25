@@ -3162,7 +3162,13 @@ BAD_CI_STATUS = [
     ("ci-status", "    if: always()\n", "", "ci-status is not named ci-status"),
     ("ci-status", "    name: ci-status\n", "    name: status\n", "ci-status is not named"),
     ("ci-status", ", attest, publish, pypi]", ", attest, publish]", "ci-status does not need"),
-    ("ci-status", '[ "$REFUSALS" != "[]" ]', '[ -z "$REFUSALS" ]', "ci-status's one step"),
+    (
+        "ci-status",
+        'os.environ.get("REFUSALS") != "[]"',
+        'not os.environ.get("REFUSALS")',
+        "ci-status's one step",
+    ),
+    ("ci-status", '("success", "skipped")', '("success", "skipped", "cancelled")', "ci-status's"),
     (
         "ci-status",
         "    permissions: {}\n",

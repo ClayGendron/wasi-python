@@ -642,6 +642,45 @@ def test_every_job_checks_out_the_head_commit() -> None:
     assert not errors, scan.report(errors)
 
 
+CI_STATUS_CASES = {
+    "every job succeeded or was skipped": (
+        {"plan": "success", "quick": "success", "build": "skipped"},
+        "[]",
+        0,
+    ),
+    "a failed job": ({"plan": "success", "quick": "failure"}, "[]", 1),
+    "a cancelled job": ({"plan": "success", "gather": "cancelled"}, "[]", 1),
+    "a refusal": ({"plan": "success"}, '["a pull request may not write accepted state"]', 1),
+    "no plan": ({"plan": "failure"}, "", 1),
+}
+
+
+@pytest.mark.parametrize("case", CI_STATUS_CASES)
+def test_ci_status_fails_on_a_job_that_did_not_pass_or_a_refusal(case, tmp_path) -> None:
+    """ci-status's own step, run in bash with this environment's python3: green only when every
+    job it needs succeeded or was skipped and the plan refused nothing."""
+    import json
+
+    script = scan.workflow_step_script(
+        RELEASE_WORKFLOW.read_text(),
+        "ci-status",
+        "Every job succeeded or was skipped, and the plan refused nothing",
+    )
+    results, refusals, want = CI_STATUS_CASES[case]
+    (tmp_path / "status.sh").write_text(script)
+    r = subprocess.run(
+        ["bash", "-e", str(tmp_path / "status.sh")],
+        env={
+            "PATH": f"{Path(sys.executable).parent}:/usr/bin:/bin",
+            "NEEDS": json.dumps({job: {"result": v, "outputs": {}} for job, v in results.items()}),
+            "REFUSALS": refusals,
+        },
+        capture_output=True,
+        text=True,
+    )
+    assert (r.returncode != 0) == bool(want), (r.returncode, r.stdout + r.stderr)
+
+
 def test_one_required_check_holds_every_job() -> None:
     """ci-status is the one required check: it always runs, needs every other job, and passes
     only when each succeeded or was skipped by the plan and the plan refused nothing; every other
