@@ -97,6 +97,8 @@ def test_env_of_another_type_is_refused(env) -> None:
         ({"": SECRET}, "illegal environment variable name"),
         ({"K": "\udcff" + SECRET}, "UTF-8"),
         ({"\udcff": SECRET}, "UTF-8"),
+        ({"_PYTHON_SYSCONFIGDATA_PATH": SECRET}, "private build settings"),
+        ({"_PYTHON_PROJECT_BASE": SECRET}, "private build settings"),
     ],
     ids=[
         "NUL in a value",
@@ -106,6 +108,8 @@ def test_env_of_another_type_is_refused(env) -> None:
         "empty key",
         "surrogate in a value",
         "surrogate in a key",
+        "the sysconfig data folder",
+        "a private build setting that loads no code",
     ],
 )
 def test_an_env_entry_the_guest_would_see_differently_is_refused(env, words) -> None:

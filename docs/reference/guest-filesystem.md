@@ -82,7 +82,7 @@ The guest has no `/dev/null` and no `/dev/urandom`. Use `os.urandom`, `secrets` 
 
 Python looks for modules on `sys.path`. In the guest it holds one entry by default, the stdlib zip at `/usr/local/lib/python315.zip`.
 
-The interpreter runs in isolated mode with `site` off. So `PYTHONPATH` in `env=` is not read, and no module, `.pth` file or `pyvenv.cfg` in a root runs at start-up. The runner never puts the root, a writable grant or a mount on the import path.
+The interpreter runs in isolated mode with `site` off. So `PYTHONPATH` in `env=` is not read, and no module, `.pth` file or `pyvenv.cfg` in a root runs at start-up. The runner never puts the root, a writable grant or a mount on the import path. An `env=` key that begins with `_PYTHON_` (such as `_PYTHON_SYSCONFIGDATA_PATH`), which isolated mode does not ignore, raises `ValueError`.
 
 To import your own code, put it in a **read-only grant** and name its guest path in `import_path=` (or `--import-path GUEST` on the command line):
 

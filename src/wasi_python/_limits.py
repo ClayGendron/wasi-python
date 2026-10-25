@@ -18,6 +18,13 @@ MAX_WORKERS = 1024
 
 LIMIT_MAX = 2**63 - 1  # wasmtime reads a memory limit as signed: 2**63 and above mean none
 
+# CPython's private build settings. None has a use inside the guest, and `sysconfig` reads them
+# even in isolated mode, where the documented PYTHON* variables are ignored; one of them,
+# _PYTHON_SYSCONFIGDATA_PATH, names a folder whose `_sysconfigdata_*` module it runs, so a module
+# an earlier guest planted in a reused root would run on `import pandas`. The whole prefix is
+# refused, by exact case as the guest reads it, so a setting a later CPython adds is refused too.
+PRIVATE_ENV_PREFIX = "_PYTHON_"
+
 
 def _shown(value: Any) -> str:
     """A value for an error message: an integer too long to print is named by its size."""
@@ -125,7 +132,8 @@ class _Inputs(NamedTuple):
 def _check_inputs(argv: Any, env: Any, stdin: Any) -> _Inputs:
     """argv, env and stdin as plain values, or TypeError for a wrong type and ValueError for a
     value the guest would see differently: a NUL cut an argument or key short, and an = split a
-    key, so {"HOME\\0x": ...} set HOME."""
+    key, so {"HOME\\0x": ...} set HOME. A key that begins with _PYTHON_, a setting CPython reads
+    past isolated mode, is refused too."""
     if isinstance(argv, (str, bytes, bytearray)) or not isinstance(argv, Iterable):
         raise TypeError(f"argv must be an iterable of str, not {type(argv).__name__}")
     args = tuple(_text(f"argv[{i}]", item) for i, item in enumerate(argv))
@@ -139,6 +147,13 @@ def _check_inputs(argv: Any, env: Any, stdin: Any) -> _Inputs:
             if not name or "=" in name:
                 raise ValueError("env key: illegal environment variable name")  # never quoted
             shown = name if len(name) <= 40 else name[:40] + "…"
+            if name.startswith(PRIVATE_ENV_PREFIX):
+                raise ValueError(
+                    f"env: {shown!r} is one of CPython's private build settings (_PYTHON_*), "
+                    "which isolated mode does not ignore; _PYTHON_SYSCONFIGDATA_PATH among them "
+                    "runs code from the folder it names. It is refused; grant a read-only folder "
+                    "with import_path instead."
+                )
             plain_env[name] = _text(f"env value for {shown!r}", value)
     data = None
     if stdin is not None:
