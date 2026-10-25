@@ -3571,6 +3571,198 @@ def test_bound_keywords_are_fixed_however_the_partial_is_reached() -> None:
     assert tool(plain).input_schema["properties"]["limit"] == {"type": "integer", "default": 10}
 
 
+CLASS_SHAPES = [
+    "a partialmethod __init__",
+    "a partial __init__",
+    "a staticmethod over a partial as __new__",
+    "an inherited partialmethod __init__",
+    "a functools.wraps __init__ over a partial",
+    "a partial over the class",
+]
+
+
+def _class_tool(shape: str, made: list) -> object:
+    """A class tool that binds `role="viewer"` on its construction path in one of the shapes,
+    its constructor noting the role it ran with. The instance is a dict, so it crosses as
+    JSON."""
+    import functools
+
+    def init(self, q: str, role: str = "user") -> None:
+        made.append((q, role))
+        dict.__init__(self, q=q, role=role)
+
+    def new(cls, q: str, role: str = "user") -> dict:
+        made.append((q, role))
+        return {"q": q, "role": role}
+
+    class ByPartialmethod(dict):
+        __init__ = functools.partialmethod(init, role="viewer")
+
+    class ByPartial(dict):
+        __init__ = functools.partial(init, role="viewer")
+
+    class ByNew:
+        __new__ = staticmethod(functools.partial(new, role="viewer"))
+
+    class Inherited(ByPartialmethod):
+        pass
+
+    bound_init = functools.partial(init, role="viewer")
+
+    class ByWraps(dict):
+        @functools.wraps(bound_init)
+        def __init__(self, *args, **kwargs):
+            bound_init(self, *args, **kwargs)
+
+    class Meta(type):
+        def __call__(cls, *args, **kwargs):
+            return super().__call__(*args, **kwargs)
+
+    class ByMetaclass(dict, metaclass=Meta):
+        __init__ = functools.partialmethod(init, role="viewer")
+
+    return {
+        "a partialmethod __init__": ByPartialmethod,
+        "a partial __init__": ByPartial,
+        "a staticmethod over a partial as __new__": ByNew,
+        "an inherited partialmethod __init__": Inherited,
+        "a functools.wraps __init__ over a partial": ByWraps,
+        "a partial over the class": functools.partial(ByPartialmethod),
+        "a delegating metaclass": ByMetaclass,
+    }[shape]
+
+
+def _construction_keyword_is_fixed(shape: str) -> None:
+    """A given schema naming the bound keyword is refused at `tool()`; under an open schema a
+    frame naming it is answered `invalid_arguments` with neither the gate nor the constructor
+    called, and a frame without it reaches the gate with no bound keyword and the constructor
+    with the bound value."""
+    from wasi_python._tool_host import _ToolHost
+    from wasi_python.tools import tool
+
+    made: list = []
+    gated: list = []
+    cls = _class_tool(shape, made)
+    naming = {
+        "type": "object",
+        "properties": {"q": {"type": "string"}, "role": {"type": "string"}},
+        "required": ["q"],
+    }
+    with pytest.raises(ValueError, match="'role', which the partial binds"):
+        tool(cls, name="account", input_schema=naming)
+
+    made_tool = tool(cls, name="account", input_schema={"type": "object"})
+    host = _ToolHost([made_tool], gate=lambda call: gated.append(dict(call.arguments)))
+
+    def call(args: dict) -> dict:
+        frame = {"v": 1, "id": 1, "op": "call", "tool": "account", "args": args}
+        return json.loads(host(json.dumps(frame).encode()))
+
+    answer = call({"q": "x", "role": "admin"})
+    assert (answer["ok"], answer["error"]["kind"]) == (False, "invalid_arguments"), answer
+    assert "unknown argument 'role'" in answer["error"]["message"], answer
+    assert (gated, made) == ([], []), (gated, made)
+    answer = call({"q": "x"})
+    assert answer["ok"], answer
+    assert (gated, made) == ([{"q": "x"}], [("x", "viewer")]), (gated, made)
+
+
+@pytest.mark.parametrize("shape", CLASS_SHAPES)
+def test_a_class_tools_construction_keywords_are_fixed(shape) -> None:
+    """A class registered as a tool whose `__init__` or `__new__` binds a keyword with a
+    `functools.partial` or `partialmethod`, however the binding is reached (inherited, behind a
+    `functools.wraps` wrapper, through a partial over the class), has that keyword fixed as a
+    function's is."""
+    _construction_keyword_is_fixed(shape)
+
+
+def test_a_delegating_metaclass_does_not_hide_the_constructor() -> None:
+    """A Python metaclass whose `__call__` delegates to `type.__call__` still runs the class's
+    `__init__` with the guest's keywords, so a keyword a `partialmethod` binds there is fixed
+    whatever the metaclass."""
+    _construction_keyword_is_fixed("a delegating metaclass")
+
+
+def test_a_class_tools_published_schema_is_the_one_given() -> None:
+    """A class tool's published input schema is the schema given, which leaves the fixed
+    keyword out; a class tool with no schema given is still refused for lack of hints."""
+    from wasi_python.tools import tool
+
+    given = {"type": "object", "properties": {"q": {"type": "string"}}, "required": ["q"]}
+    made = tool(_class_tool("a partialmethod __init__", []), name="account", input_schema=given)
+    assert made.input_schema == given, made.input_schema
+    assert "role" not in json.dumps(made.descriptor())
+    with pytest.raises(TypeError, match="type hint"):
+        tool(_class_tool("a partialmethod __init__", []), name="account")
+
+
+def _search_log() -> tuple[list, object]:
+    import functools
+
+    calls: list = []
+
+    def search(q: str = "", filter: dict | None = None, user_id: int = 0) -> list[str]:
+        calls.append((q, filter, user_id))
+        return []
+
+    return calls, functools.partial(search, user_id=42)
+
+
+_USER_ID = {"type": "object", "properties": {"user_id": {"type": "integer"}}}
+_Q = {"type": "object", "properties": {"q": {"type": "string"}}}
+TOP_LEVEL_NAMINGS = {
+    "a root anyOf branch": {"type": "object", "anyOf": [_USER_ID, _Q]},
+    "a root oneOf branch": {"type": "object", "oneOf": [_Q, _USER_ID]},
+    "a $defs target a root anyOf branch points to": {
+        "type": "object",
+        "anyOf": [_Q, {"$ref": "#/$defs/User"}],
+        "$defs": {"User": _USER_ID},
+    },
+}
+
+
+@pytest.mark.parametrize("where", sorted(TOP_LEVEL_NAMINGS))
+def test_a_bound_keyword_named_in_a_root_branch_is_refused(where) -> None:
+    """A given schema that names a bound keyword among the names a frame could send at the
+    arguments' top level, in a root `anyOf` or `oneOf` branch or a `$defs` target such a branch
+    points to, is refused at `tool()`, as one naming it in `properties` is."""
+    from wasi_python.tools import tool
+
+    _, bound = _search_log()
+    with pytest.raises(ValueError, match="which the partial binds"):
+        tool(bound, name="search", input_schema=TOP_LEVEL_NAMINGS[where])
+
+
+NESTED_NAMINGS = {
+    "inline": {
+        "type": "object",
+        "properties": {"filter": _USER_ID},
+    },
+    "through $defs": {
+        "type": "object",
+        "properties": {"filter": {"$ref": "#/$defs/Filter"}},
+        "$defs": {"Filter": _USER_ID},
+    },
+}
+
+
+@pytest.mark.parametrize("where", sorted(NESTED_NAMINGS))
+def test_a_nested_property_named_like_a_bound_keyword_is_accepted(where) -> None:
+    """A key of the bound keyword's name inside a property's own object belongs to that object,
+    not to the arguments: the schema is accepted, and a frame setting it there is answered `ok`
+    with the bound value intact."""
+    from wasi_python._tool_host import _ToolHost
+    from wasi_python.tools import tool
+
+    calls, bound = _search_log()
+    host = _ToolHost([tool(bound, name="search", input_schema=NESTED_NAMINGS[where])])
+    args = {"filter": {"user_id": 7}}
+    frame = {"v": 1, "id": 1, "op": "call", "tool": "search", "args": args}
+    answer = json.loads(host(json.dumps(frame).encode()))
+    assert answer["ok"], answer
+    assert calls == [("", {"user_id": 7}, 42)], calls
+
+
 LATE_GATE = """
 from host import tools
 try:
