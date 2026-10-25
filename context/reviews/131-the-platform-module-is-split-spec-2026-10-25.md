@@ -1,0 +1,108 @@
+# Review of 131 — The platform module is split
+
+- **Date:** 2026-10-25
+- **Reviewer:** an agent (Claude); not the author
+- **Reviewed:** the specification as drafted, `context/specifications/131-the-platform-module-is-split.md`, at commit `6fafb803` on `research/performance-specs-2026-10-24`, whose `src/` is the 0.1.0 release's
+- **Run:** none; nothing built. The specification as drafted. Checklist items 1 and 2 (the CI run, the builder's self-check) do not apply.
+- **Re-ran:**
+  - `uv run pytest tests/checks/test_rules.py -q -p no:cacheprovider -k "specifications_have_their_header or no_open_question or paragraphs_are_one_line or platform_is_chosen_once or line_ceiling or eighty_lines or api_lists_every_module"` → **7 passed, 67 deselected**, exit 0.
+  - `uv run python tests/harness/wrap.py --check context/specifications/131-the-platform-module-is-split.md` → exit 0.
+  - `uv run pytest tests/unit/test_runner_package.py -q -p no:cacheprovider` → **4 passed**, exit 0 (the four shape checks the specification amends, green on main).
+  - `wc -l src/wasi_python/_platform.py` → 1,464. `grep -rc "type: ignore" src/wasi_python` → 25 (14 in `_platform.py`, at lines 1156 to 1392, all inside `_Windows`, 1137 to 1449).
+  - My own `ast` script over `_platform.py` (scratch folder, not the repository): each top-level name's span, the names `_Windows` reads that are top-level in the module, and the closure of what those read, with `_Walked`'s `PLATFORM` fallback taken out as Decision 6 does.
+  - `grep` over `src/` and `tests/` for every moved name, every `_platform.<name>` read and every `setattr` through `_platform`.
+  - No fast tier, no shard, no full judge.
+- **Time box:** 25 minutes (parallel-safe); kept.
+
+Labels: EXECUTED means I ran it; READ means I read the file cited; INFERRED means my reasoning.
+
+## The three-module choice
+
+- **The eleven names hold** (EXECUTED, my `ast` script). The names `_Windows` reads that stay outside the Windows set are exactly `Identity`, `_BUSY`, `_Walked`, `_make_by_path`, `_not_used`, `_one_file`, `_real_dir_by_path`, `_refused`, `_remove_by_path`, `_removing`, `_unlink_quietly`. That is eleven, as the specification says. `_Posix` reads ten of them, and `_Platform` reads `Identity` and `_Walked`.
+- **The closure is sixteen names and 221 lines** (EXECUTED). It is the eleven, plus `_Spent`, `_Removal`, `_REMOVE_BATCH`, `_is_folder` and `_listing`, which `_remove_by_path` and `_removing` need. None of the sixteen reads a POSIX name or `PLATFORM` once `_Walked`'s fallback is gone. With the fallback kept, the closure pulls in `PLATFORM` and through it the whole module. So Decision 6 is necessary, not cosmetic.
+- **The Windows set is 357 lines by `ast`** (EXECUTED): `_Windows` 313, `_ByHandle` 11, the eight handle constants 8, the two name sets 5, the three helpers 20. Outside the set, only `_select` reads any of them, and it reads only `_Windows`. The slices 176–208 and 1098–1450 are 33 + 353 = 386 lines, as claimed.
+- **What each new module imports** (EXECUTED). The sixteen common names read only `errno`, `os`, `stat`, `Callable` and `Path`, plus a late `import warnings`. None reads `process`, so `_platform_common` imports nothing of the package. The Windows names read `process`, `ctypes`, `re`, `os`, `stat`, `Any`, `Callable` and `Path`, plus late imports of `ctypes.wintypes`, `msvcrt`, `ntpath` and `winreg`. So `_platform_windows` imports `_platform_common` and `_process` only.
+- **The graph stays acyclic under `ORDER`** (INFERRED, from READ of `_order_errors` in `tests/unit/test_runner_package.py`). The amended order would be `_process`, `_wasmtime_ffi`, `_limits`, `_platform_common`, `_platform_windows`, `_platform`. Every new edge points to an earlier entry. `_platform`'s late import of `_wasmtime_ffi` stays covered by `LATE_ANYWHERE`. A module missing from `ORDER` is itself a finding (`module not in rank`), so the row fails first, before `ORDER` is amended.
+- **A two-file split really would make a cycle** (INFERRED). `_Windows` needs the eleven names, so `_platform_windows` imports `_platform`, and `_select` needs `_Windows`. The specification says three modules is "the only arrangement" that keeps every edge pointing down. That is a little strong, since other cuts exist (for example a POSIX module that the Windows module imports). But this cut is the one that keeps `_platform.PLATFORM` where every caller reads it. Not a finding.
+
+## Acceptance criteria against evidence
+
+1. **Sizes**, about 830, 410 and 270 — **plausible, not held by a row**. The arithmetic fits: 1,464 − 386 − 247 = 831 before import lines and re-wrapping (INFERRED), against the prototype's 828. 386 + a docstring and imports ≈ 409, and 247 + the same ≈ 267. The ceiling check holds each module under 1,500, and nothing holds the split's own sizes. "About" has no bound. See finding 6.
+2. **The direction** — **a check holds it, and it fails first** (READ, above): `test_the_runner_modules_import_in_the_written_order` refuses a module not in `ORDER` and a back-edge. `LATE` unchanged is right: no late import is added.
+3. **The choice** — **evidenced**. `sys.platform` appears only at lines 1455–1459, inside `_select` (EXECUTED, grep). No line that moves reads `sys.platform`, `os.name` or `platform.`. The one `import platform as platform_module` (line 991) is in `_Linux`, which stays. `_platform_hits` scans every line, comments and docstrings included, so the new words must avoid the two tokens. See finding 3. The new row is sound. ORDER would not catch `_home.py` importing `_platform_windows`, since that edge points down. The row does catch it, so the fault in Design step 4 is a real one.
+4. **A move** — **the method is right**. `ast.dump` after un-qualifying `_platform_common.<name>` will show `_Walked`'s closer and nothing else, if the move is honest. The script lives only in the landing notes, which is enough for a one-off.
+5. **Types** — **evidenced on main**: 25 ignores, and all 14 of `_platform.py`'s sit inside `_Windows` (EXECUTED). So "the 14 move with `_Windows`" is exact.
+6. **No seam, no ceiling** — **evidenced** (READ, EXECUTED grep). Every `setattr` the judge makes on the platform targets `_platform.PLATFORM` or a `_Windows()` instance (`tests/unit/test_runner_grants.py:336–340`: `open_handle`, `close_held` and `process().observers.drive_folder`). No test patches a moved name on a module. The seam rule and `_seam_errors` see nothing new. `_BUSY` is an upper-case set display, which `scan.module_mutable_hits` passes (READ, `tests/harness/scan.py:2491–2503`).
+7. **Nothing public** — **evidenced**: `grep -c _platform tests/public_api.txt` → 0 (EXECUTED). `RUNNER_FILES` and `ORDER` are the only two lists of runner modules in the judge (EXECUTED, grep for `"_limits"`).
+8. **The retargeted tests** — **the list is complete** (EXECUTED, grep). The tests that name a moved name are exactly the specification's list: `test_runner_grants.py:142, 334, 336, 493, 495` (141 and 371 are annotations the re-export keeps working); `test_runner_threads.py:93, 95, 128`; `test_runner_calls.py:345`; `test_runner_module_caches.py:292`. No other test file reads a moved name through `_platform`.
+9. **The same verdicts** and 10. **Windows runs it** — the builder's; criterion 10 is the only place `_Windows` runs, and the specification says so.
+
+## Pure move, or a change of behaviour
+
+- **`_Walked`'s closer becomes required** (READ, `_platform.py:67–91`, `:385`, `:1239`). This is a signature change on a private class, and the specification names it. Both production constructions already pass `closer=self.close_held`, so production never took the fallback. The one construction without a closer is the judge's `_w` (`tests/unit/test_runner_grants.py:142`). Its `held` is empty, so the closer is never called, and passing `closer=os.close` changes no verdict. **It is a test change, and the specification says so in Decision 6 and Design step 1.** No code reads `.closer` but `close()` (EXECUTED, grep).
+- **The `X as X` re-exports change nothing at run time** (INFERRED). `_platform.Identity is _platform_common.Identity`, and `_once_errors` counts only definitions and assignments, so a re-export is not "bound twice" (READ, `_bound_names`). The by-name rule reads the object through `getattr(wasi_python._platform, name)`, which the re-export satisfies. Ruff selects `E, F, I, UP, B` (READ, `pyproject.toml:96`), so no useless-alias rule fires.
+- **`__module__` changes** for the moved classes (INFERRED). Nothing in `src/` or the judge keys on it: no pickling, and `api.py` lists the new files as internal. Not a change an embedder sees.
+- **The warning's `stacklevel=6`** counts frames, and an attribute call adds none (INFERRED). Its text, category and frame are unchanged.
+
+## Findings, most severe first
+
+1. **Medium: 139 edits three of the moved names and is not named; the stale 137 sentence hides it** (`context/specifications/131-the-platform-module-is-split.md:7`, the Depends on line). 131 says "137 may stack on it, though its own header says it does not touch `_platform.py`". At `6fafb803`, 137 was split into 137, 139 and 140. 139 is the half that touches `_platform.py`, and it says it does not stack on 131 (READ, `context/specifications/139-the-runners-folders-are-this-users-and-the-data-guard-refuses-windows-names.md:7`, `:30`, `:58–60`; `context/roadmap.md:98`). 139 changes `_make_by_path`, which 131 moves to `_platform_common`. It adds `_this_users`, which `_make_by_path` calls and which reads `process().observers.owner_of`. And it has `_zip._member_parts` call `_platform._rewritten`, which 131 moves to `_platform_windows`. Failure, either order:
+   - 131 first: 139 as written puts `_this_users` in `_platform.py`. Then `_make_by_path`, now in common, cannot call it without a `_platform_common → _platform` edge, a cycle that `ORDER` refuses. And `_zip`'s `_platform._rewritten` is an `AttributeError` and a mypy `attr-defined` error. Reaching it as `_platform_windows._rewritten` trips 131's own new row.
+   - 139 first: 131's sixteen-name list, its sizes and Design step 5's "no difference but the closer" are all wrong as written. Its builder must decide where `_this_users` and `_rewritten` go, with no written rule but Decision 2's.
+
+   Decision 2's own rule answers both, and the answer should be written. With 139, `_rewritten`, `_WIN_DEVICES` and `_WIN_RESERVED_CHARS` are run on every system (by `_zip`), so they go to `_platform_common`. `_this_users` is run by `_make_by_path`, so it goes there too, and `_platform_common` then imports `_process`, still acyclic since `_process` is first in `ORDER`. What closes it: in the Depends on line, replace the 137 sentence with: "139 (the runner's folders are this user's) shares `_platform.py` and does not stack on 131; whichever lands second rebases. On 131's split, Decision 2's rule places 139's names: `_this_users` and the changed `_make_by_path` in `_platform_common.py`, which then imports `_process` (still first in `ORDER`, so the graph stays acyclic); `_rewritten`, `_WIN_DEVICES` and `_WIN_RESERVED_CHARS` in `_platform_common.py`, since `_zip` runs `_rewritten` on every system, and `_zip` calls `_platform_common._rewritten`. If 139 lands first, the builder re-measures Decision 1's sizes and the sixteen names, and Design step 5 compares against main with 139. 137 and 140 do not touch `_platform.py`." Decision 1's "`_platform_common` imports nothing of the package" then gains "(on main; with 139, `_process`)". The roadmap's 139 line ("no stacking on 131") is the coordinator's.
+
+2. **Low: Decision 10 does not name 116, whose roadmap line still says `_platform.py`** (`context/specifications/131-the-platform-module-is-split.md:111`; `context/roadmap.md:72`). The specification is honest that the Windows half stays unchecked on every system, Windows CI included, since mypy runs with `platform = "linux"` everywhere (READ, `pyproject.toml:100`). But it says only "the roadmap line for it is the coordinator's", and 116's line reads "a second mypy pass with `--platform win32` over `_platform.py`". After the split, that pass over `_platform.py` reads the POSIX code and reports `os.getuid`, `fcntl.flock` and the like, as Decision 10 itself measured. Failure: 116's builder follows its roadmap line and points the pass at the wrong file. **Written-in text:** at the end of Decision 10, "That pass is 116 (`../roadmap.md`, 'the type checker's escapes'); on this split it is over `_platform_windows.py` with `--follow-imports silent`, the exclude and the override above, and 116's line is amended by the coordinator to say so." In Scope's Out, "the second mypy pass and the 14 ignores (Decision 10; 116)".
+
+3. **Low: the new words must not spell the two platform tokens** (Design step 3; `tests/checks/test_rules.py:978`, `:1005–1008`). `_platform_hits` reads every line of every module, comments and docstrings included, for `os.name` and `sys.platform`. The prototype's "no hit" predates step 3's docstrings. A docstring that says "imported whatever `sys.platform` says" would be a hit. **Written-in text**, appended to Design step 3: "The words name neither `sys.platform` nor `os.name`: the platform rule reads comments and docstrings too."
+
+4. **Low: the 127 sentence is not what 127 says** (`context/specifications/131-the-platform-module-is-split.md:7`). "127 touches `_platform.py` only in its Windows constants, if at all". 127 names `_platform` nowhere (EXECUTED, `grep -c _platform` on its specification → 0). The only "wasmtime 49" in `_platform.py` is Linux's trap-signal comment at line 209, which stays in `_platform.py`. **Written-in text:** "127 names no line of `_platform.py`; the one version-dated comment there (Linux's trap signals, line 209) stays in `_platform.py` on this split."
+
+5. **Low: the rubric's R5 still says "one module"** (`context/reviews/README.md`, "The eight rows"). "Does OS-specific behaviour live in one module behind one interface, chosen once?" After the split, Windows behaviour lives in `_platform_windows.py`, POSIX behaviour in `_platform.py`, and what both run in `_platform_common.py`. The release's next structural reviewer, reading R5 literally, scores down a split that the 0.1.0 review asked for. Decision 9 already reads R5 as "each platform's behaviour in one file". **Written-in text:** add `context/reviews/README.md` to Scope's In and the Design's file list, with R5 reading "Does OS-specific behaviour live in the platform modules (`_platform.py` and the two below it, no other) behind one interface, chosen once?" This is a context-only change.
+
+6. **Low: criterion 1's "about" has no bound** (`context/specifications/131-the-platform-module-is-split.md:161`). The ceiling holds 1,500, and nothing holds the split. A build that left `_platform.py` at 1,100 lines would meet criterion 1 as worded, and 129 and 135 would have less room than they plan for (135's criterion 4 is written against the split's number). **Written-in text:** "gives each within 30 lines of the prototype's 828, 409 and 267".
+
+## Structure
+
+Spec 131 is a split of the platform module, which is the rubric's own subject, so this section reads it against the eight rows of `context/reviews/README.md` even though the Kind line says not structural. **The Kind line holds by AGENTS.md's letter** (INFERRED, from READ):
+- no module-level mutable or lock is added (`_BUSY` and the two frozensets move, and the scanner passes upper-case read-only displays);
+- no private-API use moves (no moved line names wasmtime but in comments);
+- no platform branch exists outside `_select`;
+- no seam is added;
+- no module or function crosses a ceiling.
+
+The R5 wording is finding 5.
+
+- **R1 Contract: Strong, unchanged.** No public name moves; `tests/public_api.txt` names no `_platform` (EXECUTED).
+- **R2 Safety: Strong, unchanged.** Each moved node is byte for byte, but for qualified calls and the one unused default (INFERRED; Design step 5 checks it).
+- **R3 Layering: Strong, unchanged.** Two modules and four edges are added, all pointing down `ORDER`, and `LATE` is unchanged (INFERRED, above). The policy leak of L-a (`_not_used` writes the warning's text) moves into `_platform_common` unchanged, as Scope says.
+- **R4 Process state: Strong, unchanged.** No state is added. `_Windows`'s dictionaries stay instance attributes (READ).
+- **R5 Portability: Strong, headroom restored.** One `_Platform` protocol and one chooser, `_select`, unchanged to the byte. OS behaviour is now in a family of three modules, with Windows in one file. The 1,464-line module drops to about 828 (prototype; INFERRED arithmetic agrees).
+- **R6 Testability: Adequate, unchanged.** No seam is added, and tests patch only instances (EXECUTED, grep). One test passes a closer it never uses.
+- **R7 Evolvability: Adequate, moving toward Strong.** The largest platform module goes from 97.6% of the ceiling to about 55%. `type: ignore` stays at 25, and the 14 Windows ones now sit in one file, which makes 116's pass one file wide. The Windows half is still typed only as ignored (finding 2).
+- **R8 Operability: Strong, unchanged.** The warning's text, category and `stacklevel` are the same.
+
+## Stacking: 129 and 135
+
+Coherent (READ). 129's Depends on says "131 lands first or 129 stacks on it, and `_Windows.output_channel` is written in the split module". 135's says it "stacks on its reviewed tip … and its Windows half is written in the split module". It also lists `_platform_windows.py` in its Kind line and Design. 135's criterion 4 says "`_platform.py` near 1,130 lines on 131's split". 131's Decision 1 tells 135's authors to read 830. That change is 135's, and 131 says so. 135's shared half (the cache's kind checks, `_one_file` and `_not_used`) would land in `_platform_common.py` by Decision 2's rule. 135's text says only `_platform.py` and `_platform_windows.py`, which its builder settles on rebase. Not a finding against 131.
+
+## Constitution checks
+
+- §4.15 (no default an embedder sees changes): holds; the one default removed is on a private class and no production path took it.
+- §5.6 / AGENTS.md rule 8: runner code, so the pre-build review is required, and this is it. The guest, the artifact set and the build recipe are untouched (READ, Kind line).
+- AGENTS.md "Never weaken the judge": the judge changes are lists that name the two new modules, one comment, one new refusing row and four retargeted reads. No check's expectation is loosened; the platform rule gains a row (READ, Decision 7).
+- AGENTS.md "Code speaks for itself": the specification holds it for the new docstrings (Design, last paragraph), and `test_src_names_no_context_document` checks it.
+- §7 never-do list: nothing tripped. The prototype lived outside the repository, and no wall-clock number becomes a check (the import time is labelled a benchmark fact).
+
+## Disposition (filled in by the author, then confirmed by the reviewer)
+
+1. Finding 1 (Medium) — fixed by the author, 2026-10-25: the Depends on line names 139 with the review's text (whichever lands second rebases; in either order `_this_users` and the changed `_make_by_path` live in `_platform_common.py`, which then imports `_process`, first in `ORDER`, so the graph stays acyclic; `_rewritten`, `_WIN_DEVICES` and `_WIN_RESERVED_CHARS` live there too, `_zip` calls `_platform_common._rewritten` and `_private_dirs._owned` `_platform_common._this_users`; if 139 lands first the builder re-measures Decision 1's sizes and the sixteen names, and Design step 5 compares against main with 139); Decision 2 states the same placement by its rule (twenty names with 139), Decision 1 reads "imports nothing of the package (on main; with 139, `_process`)", and the stale 137 sentence is replaced by "137 and 140 do not touch `_platform.py`". The problem's list of what adds to the module names 139 in place of 127.
+2. Finding 2 (Low) — applied by the author: Decision 10 ends with the review's text naming 116, and Scope's Out reads "(Decision 10; 116)"; the roadmap's 116 line now says the win32 pass is over `_platform_windows.py` once 131 splits the module, with `--follow-imports silent` and the Linux pass excluding that file.
+3. Finding 3 (Low) — applied: Design step 3 ends "The words name neither `sys.platform` nor `os.name`: the platform rule reads comments and docstrings too."
+4. Finding 4 (Low) — applied: the Depends on line reads "127 names no line of `_platform.py`; the one version-dated comment there (Linux's trap signals, line 209) stays in `_platform.py` on this split.", and Scope's Out no longer names 127's Windows half.
+5. Finding 5 (Low) — accepted; the sentence is applied to `context/reviews/README.md` by the coordinator, not by the builder, since it is context-only and that file was being edited by another agent at the disposition. The R5 line reads: "- **R5 Portability.** Does OS-specific behaviour live in the platform modules (`_platform.py` and the two below it, no other) behind one interface, chosen once?" Scope's Out names the file as amended at this disposition, and Decision 9 says the rubric's sentence names the three modules; it is not in the Design's file list, since the builder has nothing to do there.
+6. Finding 6 (Low) — applied: criterion 1 reads "gives each within 30 lines of the prototype's 828, 409 and 267", and, if 139 lands first, within 30 lines of the sizes re-measured on main with 139.
+
+## Verdict
+
+Fit to build once Medium 1 is answered: name 139 in Depends on and write where its `_this_users`, `_make_by_path` change and `_rewritten` go on this split, in either landing order.
