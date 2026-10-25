@@ -7,6 +7,7 @@ One section per release of the `wasi-python` artifact set and wheel, newest firs
 ### Security
 
 - **An `env=` key that begins with `_PYTHON_` is refused with `ValueError`** (spec 132): CPython's `sysconfig` reads these private build settings in isolated mode, and `_PYTHON_SYSCONFIGDATA_PATH` runs the module it names, so on a reused root a file an earlier guest wrote ran on `import pandas` in a later call. `run`, `run_async` and `Session` refuse the key before any work; the security model now names `SCIKIT_LEARN_DATA` beside `HOME` and `PYTHONTZPATH` as an `env=` that can point a package at a reused root.
+- **The door hands the guest exactly the bytes it checked** (spec 137), a host that raises a wasmtime exception is a host fault like any other, and a nested door call is a fault; the security model says a writable grant over the module cache is refused, names XML parsing beside dict keys under the snapshot's fixed key, and says a process that used wasmtime-py directly must not fork and run a guest.
 
 ## 0.1.0 — 2026-10-23
 
