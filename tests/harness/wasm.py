@@ -56,6 +56,7 @@ class Module:
     exports: dict[str, str] = field(default_factory=dict)  # name -> kind
     export_index: dict[str, int] = field(default_factory=dict)  # name -> its index
     sections: set[int] = field(default_factory=set)  # the ids of the sections present
+    tags: int = 0  # the tags the tag section defines (imported tags are in `imports`)
     funcs: list[int] = field(default_factory=list)  # each defined function's type index
     elements: dict[int, int] = field(default_factory=dict)  # table index -> function index
     data: list[tuple[int, bytes]] = field(default_factory=list)  # active segments: (address, bytes)
@@ -263,6 +264,8 @@ def parse(data: bytes) -> Module:
                 mod.imports.append(Import(module, name, KINDS[kind], ftype))
         elif section == 3:
             mod.funcs = [s.u32() for _ in range(s.u32())]
+        elif section == TAG_SECTION:
+            mod.tags = s.u32()
         elif section == 7:
             for _ in range(s.u32()):
                 name, kind = s.name(), s.byte()
@@ -321,6 +324,11 @@ def call_ctors(mod: Module) -> list[str]:
             calls.append(f"<op 0x{op:02x}>")
             break
     return calls
+
+
+def tag_count(mod: Module) -> int:
+    """The module's tags, imported and defined: the exception tags an engine lays out for it."""
+    return sum(1 for i in mod.imports if i.kind == "tag") + mod.tags
 
 
 def target_features(mod: Module) -> list[str]:

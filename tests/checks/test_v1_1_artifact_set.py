@@ -54,9 +54,26 @@ def test_imports_are_wasi_and_the_door_only(artifacts, which) -> None:
 
 @BINARY
 def test_exceptions_are_the_standard_form(artifacts, which) -> None:
-    """C++ exceptions reach their handlers: the standard exnref form, which hosts must support."""
+    """C++ exceptions reach their handlers: the standard exnref form, which hosts must support.
+    The reader that parses the binary refuses a recursive group, a subtype or any type but a
+    function's, so a module that passes declares no garbage-collected type; wasmtime 49's defects
+    in dropping recursive types and in rooting GC references across a call that may throw need
+    one, and stay out of reach while this holds."""
     errors = rules.exception_errors(_binary(artifacts, which))
     assert not errors, scan.report(errors)
+
+
+@BINARY
+def test_the_tag_count_is_even(artifacts, which) -> None:
+    """The module has an even number of exception tags (two: C++'s and the one `longjmp` uses).
+    wasmtime below 49.0.3 lays out its per-instance data misaligned after an odd number of tags,
+    which is undefined behaviour in the host; a package that adds a tag, or another toolchain,
+    would meet it on such an engine."""
+    from harness import wasm
+
+    count = wasm.tag_count(wasm.parse_file(_binary(artifacts, which)))
+    errors = [] if count % 2 == 0 else [f"{count} exception tags, an odd count"]
+    assert not errors, scan.report(errors, "tags")
 
 
 @BINARY
@@ -441,7 +458,10 @@ def test_static_constructors_are_reviewed(artifacts) -> None:
 @BINARY
 def test_target_features_are_the_lines(artifacts, which) -> None:
     """`target_features` is exactly the line's ten: `+atomics` (which
-    `-pthread` adds), `+simd128` or `+tail-call` would each be a new host requirement."""
+    `-pthread` adds), `+simd128` or `+tail-call` would each be a new host requirement. The line
+    names exception handling and reference types, and no garbage-collection feature: wasmtime
+    49's defects in dropping recursive types and in rooting GC references across a call that may
+    throw need GC types, which this line, with the exceptions check's type reader, keeps out."""
     from harness import constructors, wasm
 
     errors = constructors.feature_errors(wasm.parse_file(_binary(artifacts, which)))

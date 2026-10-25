@@ -1,0 +1,6 @@
+# The largest br_table in each binary of the frozen set (build/artifacts, the main tree), 2026-10-25, arm64 macOS.
+# Command, the pinned wasi-sdk's llvm-objdump (wasi-sdk 34, LLVM 23.1.0), run from the main tree for each binary:
+#   build/tools/wasi-sdk-34.0-arm64-macos/bin/llvm-objdump -d build/artifacts/<binary> | awk -F'\t' '$2 ~ /^br_table/ { n++; k = gsub(/,/, ",", $3) + 1; if (k > max) max = k } END { printf "br_table %d, largest %d targets\n", n, max }'
+# A target list prints as {a, b, ...}: its targets are its commas plus one.
+python.wasm: br_table 20151, largest 3203 targets
+python-snapshot.wasm: br_table 20151, largest 3203 targets

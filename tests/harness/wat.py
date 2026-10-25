@@ -197,6 +197,14 @@ EXCEPTIONS = """
   (func (export "throws") (throw $e (i32.const 1))))
 """
 
+# One imported tag and one defined: the module's tag count is two.
+IMPORTED_AND_DEFINED_TAGS = """
+(module
+  (import "env" "outer" (tag $outer (param i32)))
+  (tag $inner (param i32))
+  (func (export "throws") (throw $inner (i32.const 1))))
+"""
+
 
 def door_probe(ptr: int, length: int) -> str:
     """A snapshot-shaped guest whose run() sends one door frame of `length` bytes at `ptr` and

@@ -101,6 +101,7 @@ The sandbox stops the guest reaching what it was not given. It does not make eve
 - **Real entropy.** `random`, `secrets`, `os.urandom` and `tempfile` use real randomness. SQLite's own randomness is seeded from the clock's whole second, because the guest has no `/dev/urandom`.
 - **Dict and set keys built to collide** under the snapshot's fixed, public string-hash key, and XML parsed by Python's expat parsers (`xml.etree`, `xml.dom.minidom`, `xml.sax`, `plistlib`, `xmlrpc`), whose parser salt is the same fixed key. They make that call's dict, set and XML work quadratic until its deadline. Load untrusted keys and XML with `snapshot=False`, whose key is fresh in every call.
 - **A guest that waits with `deadline_s=None`.** No instruction runs while it sleeps, so fuel does not stop it.
+- **Fuel as the only bound** on wasmtime 49.0.0: work inside a C++ call that ends in a caught exception is not counted, so a guest that relies on such calls runs past its fuel cap. Keep a finite `deadline_s` beside fuel.
 
 ### Other edges
 
