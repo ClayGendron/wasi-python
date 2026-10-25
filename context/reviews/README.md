@@ -76,7 +76,7 @@ Score each Strong, Adequate or Weak, with a one-line reason, as the memo did.
 - **R2 Safety.** Are the defaults safe and read once? Is every channel to the host bounded? Are arguments validated before any side effect? Are check-and-use races closed by identity?
 - **R3 Layering.** Does exactly one module touch the engine's private API? Is policy apart from mechanism? Is the import graph acyclic?
 - **R4 Process state.** Is module-level mutable state owned by one object and reset in one place? Is each lifecycle an enum and a table, not flags? Is the lock order written down?
-- **R5 Portability.** Does OS-specific behaviour live in the platform modules (`_platform.py` and the two below it, no other) behind one interface, chosen once?
+- **R5 Portability.** Does OS-specific behaviour live in the platform modules (`_platform.py`, and the two below it once specification 131 is built; no other) behind one interface, chosen once?
 - **R6 Testability.** Are seams constructor parameters or protocol objects? Do tests drive public behaviour? Does production code carry a branch only the judge takes?
 - **R7 Evolvability.** Can one person hold each module, and each function, in their head? Does the code say why without the archive open? Does the type checker pass? Is the engine upgrade's cost written?
 - **R8 Operability.** Do `stats()`, the records and the trap strings still say what the guest did? Can a warning deadlock an embedder?
