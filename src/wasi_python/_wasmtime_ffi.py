@@ -122,7 +122,7 @@ __all__ = [
     "watch_epochs",
 ]
 
-PIN = "wasmtime>=49,<50"
+PIN = "wasmtime>=50,<51"
 
 # The private names this module reads, as (holder, name) pairs: the holder is the dotted name of
 # the module or class, as the table given to `check` spells it. `OPTIONAL` is not checked.
