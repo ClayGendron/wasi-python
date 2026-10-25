@@ -3,14 +3,19 @@
     uv run python tests/harness/gather.py --records records [--out release-record]
 
 reads `WASM_SHA256` (the build job's `wasm-sha256`), `SET_SUMS_SHA256` (its `set-sums-sha256`, the
-set's own `SHA256SUMS`), one `RECORD_<SYSTEM>_<SHARD>` per shard (the SHA-256 its job
-handed on; `-` as `_`, upper case), `TIER` (the tier the run's inputs job decided), and
-`GITHUB_EVENT_NAME`, `GITHUB_REF_TYPE` and `GITHUB_REF` as the runner sets them (a step cannot
-override a `GITHUB_*` variable). From those it derives again whether this is a release run (a
-pushed tag, or a run on main), which must have judged the release tier. It collects the judge
-once at this commit and is red, one line per reason, unless G1 to G7 hold. It prints the merged
-scoreboard, writes the merged record, and writes nothing to the progress history: only the lane
-accepts. It is the parallel judge's controller merge, across machines.
+set's own `SHA256SUMS`), `TIER` (the tier the decision job decided), `PLAN` on a pull request (the
+(system, shard) pairs the decision job selected, as a JSON list of `system/shard`), and
+`GITHUB_EVENT_NAME`, `GITHUB_REF_TYPE`, `GITHUB_REF` and `GITHUB_BASE_REF` as the runner sets them
+(a step cannot override a `GITHUB_*` variable). Each shard's record is the one file of the artifact
+its leg uploaded under its own name, `record-<system>-<shard>`, downloaded into its job's folder;
+the build shard's, by id, into `build-shard/`. From those it derives again whether this is a
+release run (a pushed tag, a run on main, or a pull request into main), which must have judged the
+release tier. It collects the judge once at this commit and is red, one line per reason, unless G1
+to G7 hold. On a pull request, G1 to G6 hold over the selected pairs, the rows an acceptance needs a
+reason for are listed under GROWTH rather than red, and G7 is not evaluated; after a merge into dev
+G7 is not evaluated either, since that run makes the acceptance it would compare with. It prints
+the merged scoreboard, writes the merged record and the job's summary, and writes nothing to the
+progress history. It is the parallel judge's controller merge, across machines.
 """
 
 from __future__ import annotations
@@ -64,18 +69,26 @@ JOB = {
 BUILT = "built"
 
 
-def env_name(system: str, shard: str) -> str:
-    return f"RECORD_{system}_{shard}".upper().replace("-", "_")
-
-
-def expected_keys(plan: dict[str, shards.Shard], tier: str = "normal") -> list[tuple[str, str]]:
-    """(system, shard) for every record the release hands on: each system's shards, and build;
-    the release shards only when the run judged the release tier."""
+def expected_keys(
+    plan: dict[str, shards.Shard],
+    tier: str = "normal",
+    selected: list[tuple[str, str]] | None = None,
+) -> list[tuple[str, str]]:
+    """(system, shard) for every record the run hands on: each system's shards, and build; the
+    release shards only when the run judged the release tier. On a pull request, exactly the
+    pairs its plan selected (`selected`), each one the plan runs on that system."""
+    if selected is not None:
+        return [k for k in selected if _in_plan(plan, k)]
     keys = [("build", "build")] if "build" in plan else []
     keys += [(s, name) for s in shards.OWN_SYSTEMS for name in shards.on(plan, s)]
     if tier == "release":
         keys += [("release", name) for name in shards.on(plan, "release")]
     return keys
+
+
+def _in_plan(plan: dict[str, shards.Shard], key: tuple[str, str]) -> bool:
+    system, name = key
+    return name in plan and system in plan[name].systems
 
 
 @dataclass
@@ -102,6 +115,11 @@ class Inputs:
     tier: str = "normal"  # the tier the run's inputs job decided
     release_run: bool = False  # a pushed tag, or a run on main: the release tier must have run
     release_checks: set[str] = field(default_factory=set)  # by the upstream files at this commit
+    # The pairs a pull request's plan selected (PLAN); None on a run judged whole.
+    selected: list[tuple[str, str]] | None = None
+    event: str = ""  # GITHUB_EVENT_NAME
+    # G7's form for the event: whole, pull-request, post-merge or release-pull-request.
+    g7: str = "whole"
 
 
 @dataclass
@@ -110,6 +128,8 @@ class Verdict:
     records: dict[tuple[str, str], dict] = field(default_factory=dict)
     merged: dict = field(default_factory=dict)
     lines: list[str] = field(default_factory=list)
+    # On a pull request: the rows an acceptance needs a reason for, listed and not red.
+    growth: list[str] = field(default_factory=list)
 
 
 def allowed(node: str, need, system: str, may_block: dict[str, frozenset[str]]) -> bool:
@@ -141,12 +161,27 @@ def gather(i: Inputs) -> Verdict:
     if i.release_run and i.tier != "release":
         red.append("G1 a tag (or a dispatch on main), and the release tier did not run")
     normal = i.tier != "release"
-    keys = expected_keys(i.plan, i.tier)
+    pull_request = i.event == "pull_request"
+    if pull_request and i.selected is None:
+        red.append(
+            "G1 a pull request, and the decision job's selected pairs (PLAN) were not handed on"
+        )
+    if not pull_request and i.selected is not None:
+        red.append(f"G1 PLAN was handed on to a {i.event or 'local'} run, which is judged whole")
+    for system, name in i.selected or ():
+        if not _in_plan(i.plan, (system, name)):
+            red.append(
+                f"G1 {system}/{name}: selected, and the plan does not run {name} on {system}"
+            )
+    keys = expected_keys(i.plan, i.tier, i.selected)
+    # What this run was asked to judge: the selected shards' goal checks, or the whole judge.
+    selected_shards = {name for _, name in keys}
     # G1: every record, and only those, one to one, each under its own job's folder.
     handed = {k: i.handed.get(k, "") for k in keys}
     for (system, shard), sha in handed.items():
         if not HEX64.fullmatch(sha):
-            red.append(f"G1 {system}/{shard}: no SHA-256 handed on ({env_name(system, shard)})")
+            where = record_path(Path(), system, shard).as_posix()
+            red.append(f"G1 {system}/{shard}: no SHA-256 handed on (no {where})")
     shas = [s for s in handed.values() if s]
     if len(set(shas)) != len(shas):
         red.append("G1 one SHA-256 is handed on for two shards")
@@ -241,6 +276,13 @@ def gather(i: Inputs) -> Verdict:
         if not ran and not units.get("count"):
             red.append(f"{where}: selected nothing")
     unrun = collected - run_somewhere
+    if i.selected is not None:  # a check of a shard the plan left out was not this run's to run
+        unrun &= {n for name in selected_shards for n in goal_share.get(name, [])}
+    in_scope = (
+        collected
+        if i.selected is None
+        else {n for name in selected_shards for n in goal_share.get(name, [])}
+    )
     if normal:  # the normal tier runs no release-tier check, and must not
         unrun -= i.release_checks
         red += [
@@ -314,23 +356,29 @@ def gather(i: Inputs) -> Verdict:
         for what, nodes in (
             ("lost", rt.lost),
             ("absent", rt.absent),
-            ("fewer", rt.fewer),
-            ("grew", rt.growth),
             ("blocked, protected", rt.unrun),
         ):
             red += [f"G5 {system}/{shard}: {what} {n}" for n in nodes[:5]]
-    # A check accepted in one tier and now in the other: shown on every run, so a branch run
-    # names a move before the lane accepts it.
+        for what, nodes in (("fewer", rt.fewer), ("grew", rt.growth)):
+            (v.growth if pull_request else red).extend(
+                f"G5 {system}/{shard}: {what} {n}" for n in nodes[:5]
+            )
+    # A check accepted in one tier and now in the other: shown on every run, so a pull request
+    # names a move before its acceptance needs the reason.
     for node, acc in sorted(i.accepted.get("checks", {}).items()):
         was = acc.get("tier") or "normal"
         now = "release" if node in i.release_checks else "normal"
         if node in collected and was != now:
-            red.append(f"G5 {node}: accepted in the {was} tier, {now}-tier now")
+            (v.growth if pull_request else red).append(
+                f"G5 {node}: accepted in the {was} tier, {now}-tier now"
+            )
     for node, acc in sorted(i.accepted.get("checks", {}).items()):
         if acc.get("status") not in ("pass", "gap"):
             continue
         if normal and node in i.release_checks:
             continue  # its tier did not run here
+        if node not in in_scope and node in collected:
+            continue  # its shard was not selected here
         states = [(s, r.get("checks", {}).get(node, {})) for (s, _), r in v.records.items()]
         if any(c.get("status") in ("pass", "gap") for _, c in states):
             continue
@@ -355,36 +403,22 @@ def gather(i: Inputs) -> Verdict:
             red.append(f"G5 {m[1]}: passes or passed_digest differ between systems")
         acc = i.accepted.get("checks", {}).get(node, {}).get("metrics", {}).get("darwin-arm64", {})
         if runs and "passes" in acc and passes != {acc["passes"]}:
-            red.append(
+            (v.growth if pull_request else red).append(
                 f"G5 {m[1]}: passes {sorted(passes, key=str)} is not accepted {acc['passes']}"
             )
-    # G6: three systems.
+    # G6: three systems, or on a pull request every system among its selected pairs.
     systems = {
         str(r.get("meta", {}).get("platform", "")).split("-")[0]
         for r in v.records.values()
         if r.get("checks", {}).get(history.PROBE, {}).get("status") == "pass"
     }
-    if not {"darwin", "linux", "win32"} <= systems:
-        red.append(f"G6 the probe passed on {sorted(systems)}, not darwin, linux and win32")
-    # G7: python.wasm is the lane's accepted artifact; on a tag, the judge is the accepted one.
-    newest = json.loads(i.history_lines[-1]) if i.history_lines else {}
-    if newest.get("artifact") != i.wasm_sha256:
-        red.append("G7 the newest acceptance is not on the release's python.wasm")
-    if newest.get("set_sums") != i.set_sums_sha256:  # a line older than the set's own sums has none
-        red.append("G7 the newest acceptance is not on the release's set (SHA256SUMS)")
-    if newest.get("dirty") is not False:
-        red.append("G7 the newest acceptance was not made on a clean tree")
-    if newest.get("partial_reason"):
-        red.append("G7 the newest acceptance is partial")
-    if i.tag and i.accepted.get("judge", {}).get("hash") != i.judge_hash:
-        red.append("G7 a tag, and this commit's judge is not the accepted one")
-    if i.tag and i.set_source != BUILT:  # a tag publishes what its own run built
-        red.append("G7 a tag, and the set was not built in this run")
-    if i.release_run and newest.get("tier") != "release":
-        red.append(
-            "G7 a tag (or a dispatch on main), and the newest acceptance did not run the release"
-            " tier"
-        )
+    wanted = ["darwin", "linux", "win32"]
+    if i.selected is not None:
+        wanted = [p for p in wanted if p in {shards.PLATFORM[s] for s, _ in keys}]
+    if not set(wanted) <= systems:
+        names = ", ".join(wanted[:-1]) + " and " + wanted[-1] if len(wanted) > 1 else wanted[0]
+        red.append(f"G6 the probe passed on {sorted(systems)}, not {names}")
+    red += g7(i)
     v.merged = merge(v.records, i)
     providers = {}
     shown = dict(v.merged)
@@ -393,6 +427,13 @@ def gather(i: Inputs) -> Verdict:
         for k in ("passed", "skipped", "total")
     }
     v.lines = scoreboard.render(shown, None, providers, red)
+    at = next((n for n, line in enumerate(v.lines) if line.startswith("not machine-checked")), -1)
+    if i.g7 in G7_SKIPPED:
+        v.lines.insert(at, f"G7: not evaluated {G7_SKIPPED[i.g7]}")
+    if v.growth:
+        listed = ["GROWTH, each needing its reason at the acceptance:"]
+        listed += [f"  {row} · unclaimed" for row in v.growth]
+        v.lines[at:at] = listed
     if not red:
         at = next(
             (n for n, line in enumerate(v.lines) if line.startswith("not machine-checked")), -1
@@ -409,6 +450,42 @@ def gather(i: Inputs) -> Verdict:
         )
         v.lines.insert(at, "trap entries with no trap on any system: " + " · ".join(quiet))
     return v
+
+
+# The events on which G7 is not evaluated, with the reason the summary gives.
+G7_SKIPPED = {
+    "pull-request": "on a pull request into dev",
+    "post-merge": "after a merge into dev",
+}
+
+
+def g7(i: Inputs) -> list[str]:
+    """G7: python.wasm is the accepted artifact; on a tag, the judge is the accepted one. Not
+    evaluated on a pull request into dev or after a merge into dev (that run makes the acceptance
+    it would compare with); a pull request into main holds the newest acceptance to its set, clean
+    and whole, and not to the release tier, which its own record is about to be accepted for."""
+    if i.g7 in G7_SKIPPED:
+        return []
+    red = []
+    newest = json.loads(i.history_lines[-1]) if i.history_lines else {}
+    if newest.get("artifact") != i.wasm_sha256:
+        red.append("G7 the newest acceptance is not on the release's python.wasm")
+    if newest.get("set_sums") != i.set_sums_sha256:  # a line older than the set's own sums has none
+        red.append("G7 the newest acceptance is not on the release's set (SHA256SUMS)")
+    if newest.get("dirty") is not False:
+        red.append("G7 the newest acceptance was not made on a clean tree")
+    if newest.get("partial_reason"):
+        red.append("G7 the newest acceptance is partial")
+    if i.tag and i.accepted.get("judge", {}).get("hash") != i.judge_hash:
+        red.append("G7 a tag, and this commit's judge is not the accepted one")
+    if i.tag and i.set_source != BUILT:  # a tag publishes what its own run built
+        red.append("G7 a tag, and the set was not built in this run")
+    if i.release_run and i.g7 != "release-pull-request" and newest.get("tier") != "release":
+        red.append(
+            "G7 a tag (or a dispatch on main), and the newest acceptance did not run the release"
+            " tier"
+        )
+    return red
 
 
 def no_trap_anywhere(records: dict[tuple[str, str], dict]) -> list[str]:
@@ -490,6 +567,8 @@ def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:
             "set_source": getattr(i, "set_source", BUILT),
             "tier": i.tier,
             "foreign": sorted(foreign),
+            "event": i.event,
+            "selected": None if i.selected is None else sorted(f"{s}/{n}" for s, n in i.selected),
         },
         "checks": checks,
         "deselected": sorted(n for n, c in checks.items() if c.get("status") == "deselected"),
@@ -667,10 +746,67 @@ def is_tag(environ) -> bool:
 
 
 def is_release_run(environ) -> bool:
-    """A pushed tag, or a run on main (the dry run before a tag): it publishes, or rehearses
-    publishing, so it must judge the release tier. Read from the runner's own variables, which
-    no step can set."""
-    return is_tag(environ) or environ.get("GITHUB_REF") == "refs/heads/main"
+    """A pushed tag, a run on main, or a pull request into main (the release pull request): it
+    publishes, or rehearses publishing, so it must judge the release tier. Read from the runner's
+    own variables, which no step can set."""
+    return (
+        is_tag(environ)
+        or environ.get("GITHUB_REF") == "refs/heads/main"
+        or (
+            environ.get("GITHUB_EVENT_NAME") == "pull_request"
+            and environ.get("GITHUB_BASE_REF") == "main"
+        )
+    )
+
+
+def g7_form(environ) -> str:
+    """G7's form for the run's event, from the runner's own variables."""
+    if environ.get("GITHUB_EVENT_NAME") == "pull_request":
+        return (
+            "release-pull-request" if environ.get("GITHUB_BASE_REF") == "main" else "pull-request"
+        )
+    if environ.get("GITHUB_EVENT_NAME") == "push" and environ.get("GITHUB_REF") == "refs/heads/dev":
+        return "post-merge"
+    return "whole"
+
+
+def read_plan(environ) -> list[tuple[str, str]] | None:
+    """The decision job's selected pairs, `PLAN` as a JSON list of `system/shard`; None when no
+    PLAN is handed on. A malformed PLAN stops the gather."""
+    text = environ.get("PLAN", "")
+    if not text:
+        return None
+    try:
+        pairs = [tuple(p.split("/", 1)) for p in json.loads(text)]
+    except (ValueError, AttributeError, TypeError) as e:
+        raise SystemExit(f"gather: PLAN is not a JSON list of system/shard ({e})") from e
+    if any(len(p) != 2 or not all(p) for p in pairs):
+        raise SystemExit(f"gather: PLAN is not a JSON list of system/shard: {text[:200]}")
+    return [(p[0], p[1]) for p in pairs]
+
+
+def record_path(records_dir: Path, system: str, shard: str) -> Path:
+    """Where a shard's record lands: the build shard's, downloaded by id, in its job's folder
+    itself; every other, downloaded by its artifact's name, in a folder of that name under its
+    job's folder."""
+    folder = records_dir / JOB[system]
+    return (
+        folder / "latest.json"
+        if system == "build"
+        else folder / f"record-{system}-{shard}" / "latest.json"
+    )
+
+
+def handed_from(records_dir: Path, keys: list[tuple[str, str]]) -> dict[tuple[str, str], str]:
+    """Each expected record's SHA-256, read where its download put it; empty when it is absent.
+    A leg uploads its record under a name made from its own system and shard, and an artifact's
+    name is unique within a run, so the name binds the record to the leg as an id handed on
+    through the job's outputs did; G1 then holds every file to one expected place."""
+    out = {}
+    for k in keys:
+        p = record_path(records_dir, *k)
+        out[k] = paths.sha256_file(p) if p.is_file() else ""
+    return out
 
 
 def main(argv: list[str]) -> int:
@@ -686,7 +822,8 @@ def main(argv: list[str]) -> int:
 
     plan = shards.load()
     tier = os.environ.get("TIER", "")
-    handed = {k: os.environ.get(env_name(*k), "") for k in expected_keys(plan, tier)}
+    selected = read_plan(os.environ)
+    handed = handed_from(a.records, expected_keys(plan, tier, selected))
     goal, units, may_block = collect()
     gaps, _ = plugin.load_gaps(paths.KNOWN_GAPS)
     head = subprocess.run(
@@ -715,6 +852,9 @@ def main(argv: list[str]) -> int:
             tier=tier,
             release_run=is_release_run(os.environ),
             release_checks=upstream.release_checks(upstream.load_all()),
+            selected=selected,
+            event=os.environ.get("GITHUB_EVENT_NAME", ""),
+            g7=g7_form(os.environ),
         )
     )
     a.out.mkdir(parents=True, exist_ok=True)
@@ -725,9 +865,12 @@ def main(argv: list[str]) -> int:
         print(line)
     print(text, end="")
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
-    if summary:
+    if summary:  # the verdict where a reviewer reads it, without opening the logs
+        head = f"### The gather: {'red' if v.red else 'green'}\n\n"
+        reds = "".join(f"- {line}\n" for line in v.red[:50])
+        more = f"- and {len(v.red) - 50} more\n" if len(v.red) > 50 else ""
         with open(summary, "a", encoding="utf-8") as f:
-            f.write("```\n" + text + "```\n")
+            f.write(head + reds + more + "\n```\n" + text + "```\n")
     return 1 if v.red else 0
 
 
