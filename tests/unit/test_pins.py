@@ -128,3 +128,23 @@ def test_the_real_zlib_tarball_round_trips_and_a_patch_is_caught(work) -> None:
     with (tree / "zconf.h").open("a") as f:
         f.write("/* a patch */\n")
     assert pins.tree_drift(tarball, tree) == ["zconf.h: modified"]
+
+
+def test_a_subproject_folder_the_tarball_did_not_ship_is_drift(work) -> None:
+    """A meson fallback that fetches a subproject leaves its folder under `subprojects/`, and
+    builds it in; the folder is the one added file the tree check judges. A subproject the
+    tarball ships is no drift, and an added folder anywhere else still is not judged."""
+    files = {**FILES, "zlib-9.9/subprojects/shipped/meson.build": b"project('s')\n"}
+    tarball = make_tarball(work / "zlib-9.9.tar.gz", files)
+    with tarfile.open(tarball) as t:
+        t.extractall(work / "build", filter="data")
+    tree = work / "build" / "zlib-9.9"
+    (tree / "elsewhere" / "x").mkdir(parents=True)
+    assert pins.tree_drift(tarball, tree) == []
+    (tree / "subprojects" / "x").mkdir()
+    (tree / "subprojects" / "x" / "meson.build").write_bytes(b"project('x')\n")
+    (tree / "src" / "subprojects" / "y").mkdir(parents=True)
+    assert pins.tree_drift(tarball, tree) == [
+        f"src/subprojects/y/: {pins.ADDED_SUBPROJECT}",
+        f"subprojects/x/: {pins.ADDED_SUBPROJECT}",
+    ]

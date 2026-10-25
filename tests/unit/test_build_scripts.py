@@ -1051,3 +1051,25 @@ def test_a_moved_or_stray_untagged_file_stops(tmp_path) -> None:
     _plan(outside, {"configure": {"lib/c.py": ("{prefix}/share/c.py", None)}})
     with pytest.raises(SystemExit, match="outside site-packages"):
         meson_plan.place_untagged(outside, tmp_path / "s2", ["contourpy/util/_build_config.py"])
+
+
+def test_a_wheels_licences_are_read_through_its_pin(tmp_path) -> None:
+    """Step 90 reads a wheel's licence files only after the wheel's bytes match its pin, so a
+    step run on its own never ships a licence from a download that changed; the failure names
+    the file."""
+    import hashlib
+
+    d = tmp_path / "downloads"
+    d.mkdir()
+    wheel = d / "x-1.0-py3-none-any.whl"
+    with zipfile.ZipFile(wheel, "w") as z:
+        z.writestr("x-1.0.dist-info/licenses/LICENSE", "the licence\n")
+        z.writestr("x/__init__.py", "")
+    good = hashlib.sha256(wheel.read_bytes()).hexdigest()
+    (d / "SHA256SUMS").write_text(f"{good}  {wheel.name}\n")
+    assert assemble_artifacts.wheel_licences(wheel) == [
+        (f"{wheel.name}: x-1.0.dist-info/licenses/LICENSE", b"the licence\n")
+    ]
+    (d / "SHA256SUMS").write_text(f"{'0' * 64}  {wheel.name}\n")
+    with pytest.raises(SystemExit, match=f"downloads/{wheel.name} does not match its pin"):
+        assemble_artifacts.wheel_licences(wheel)
