@@ -241,7 +241,7 @@ class _Windows:
     def make_missing(self, where: str, walked: _Walked) -> _Walked:
         """Make a root's missing components by path, after the rules were decided on its
         existing chain; then walk the made root as any other."""
-        path = _platform_common._make_by_path(walked.path, walked.missing)
+        path = _platform_common._make_by_path(where, walked.path, walked.missing)
         walked.close()
         return self.walk(where, path, judge=True)
 

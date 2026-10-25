@@ -280,26 +280,29 @@ class _Posix:
         return _Walked(text, chain, [last], descriptors=True, closer=self.close_held)
 
     def make_missing(self, where: str, walked: _Walked) -> _Walked:
-        """Make a root's missing components, after the rules were decided on its existing chain,
-        each inside the one before through its descriptor where the system has them, else by
-        path; then walk the made root as any other."""
+        """Make a root's missing components at 0700, after the rules were decided on its existing
+        chain, each inside the one before through its descriptor where the system has them, else by
+        path; a component another user made first is refused. Then walk the made root as any
+        other."""
         path = walked.path
         if self.has_dir_fd and walked.fd is not None:
             fd = os.dup(walked.fd)
             try:
                 for name in walked.missing:
                     try:
-                        os.mkdir(name, dir_fd=fd)
-                    except FileExistsError:  # a concurrent call made it
+                        os.mkdir(name, 0o700, dir_fd=fd)
+                    except FileExistsError:  # a concurrent call made it, if it is this user's
                         pass
                     child = os.open(name, _DIR, dir_fd=fd)  # O_NOFOLLOW: a link put there fails
                     os.close(fd)
                     fd = child
                     path = os.path.join(path, name)
+                    # The folder open is the one the guest will be given: its owner, not the name's.
+                    _platform_common._refuse_another_users(where, path, os.fstat(fd))
             finally:
                 os.close(fd)
         else:
-            path = _platform_common._make_by_path(path, walked.missing)
+            path = _platform_common._make_by_path(where, path, walked.missing)
         walked.close()
         return self.walk(where, path, judge=True)
 

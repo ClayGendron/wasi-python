@@ -2,11 +2,12 @@
 
 The result of a walk (`_Walked`) and the refusal of a walk that cannot be taken, the steps a
 walk takes by path (making a missing tail, making a real folder below a root, a quiet unlink),
-the cache's kind checks, their warning and a checked `.cwasm` held open, and the remover's
-budget and its walk by path. They sit below both platform modules, so the Windows module and
-the POSIX module each import this one and neither imports the other: the package's imports
-point one way, with no cycle. This module imports nothing else of the package, and it reads no
-platform: each name here runs the same on every system, and the choice of platform stays in
+the owner test a made folder must pass, the cache's kind checks, their warning and a checked
+`.cwasm` held open, and the remover's budget and its walk by path. They sit below both platform
+modules, so the Windows module and the POSIX module each import this one and neither imports
+the other: the package's imports point one way, with no cycle. Of the package this module
+imports only the process state, whose observers may stand in for a file's owner, and it reads
+no platform: each name here runs the same on every system, and the choice of platform stays in
 the platform module's one chooser.
 """
 
@@ -17,6 +18,8 @@ import os
 import stat
 from collections.abc import Callable
 from pathlib import Path
+
+from ._process import process
 
 Identity = tuple[int, int]
 
@@ -146,10 +149,35 @@ def _not_used(path: Path, must_be: str) -> None:
     )
 
 
-def _make_by_path(path: str, missing: tuple[str, ...]) -> str:
+def _this_users(st: os.stat_result) -> bool:
+    """Whether the file `st` describes is this user's: owned by the effective uid, the one a file
+    or folder this process makes is owned by. Windows has no uid, so there every file is, and no
+    owner is compared. The observers' `owner_of`, when set, stands in for the owner."""
+    geteuid: Callable[[], int] | None = getattr(os, "geteuid", None)
+    if geteuid is None:
+        return True
+    owner_of = process().observers.owner_of
+    return (st.st_uid if owner_of is None else owner_of(st)) == geteuid()
+
+
+def _refuse_another_users(where: str, path: str, st: os.stat_result) -> None:
+    """A folder on the way to a root, made here or found made, must be this user's: another user
+    who made it first could read and seed every file the guest keeps below it."""
+    if not _this_users(st):
+        raise ValueError(
+            f"{where}: {path!r}: a folder on the way to the root was made by another user"
+        )
+
+
+def _make_by_path(where: str, path: str, missing: tuple[str, ...]) -> str:
+    """Make a root's missing components by path, each for this user alone, and refuse one
+    another user made first, judged by `lstat` so a link put at the name is judged as itself and
+    never followed. Windows applies a mode of exactly 0700 as an access list for this user,
+    SYSTEM and the administrators from Python 3.13, and ignores the mode before."""
     for name in missing:
         path = os.path.join(path, name)
-        Path(path).mkdir(exist_ok=True)
+        Path(path).mkdir(mode=0o700, exist_ok=True)
+        _refuse_another_users(where, path, os.lstat(path))
     return path
 
 

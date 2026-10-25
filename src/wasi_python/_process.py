@@ -85,6 +85,7 @@ class _Observers:
     clock: Callable[[], float] = time.monotonic  # the one clock the session bounds read
     start_ending: Callable[[_State], None] | None = None  # None: the production closer
     drive_folder: Callable[[str], str] | None = None  # None: `ntpath.abspath(drive or ".")`
+    owner_of: Callable[[os.stat_result], int] | None = None  # None: the stat's own `st_uid`
     reaper_enabled: bool = True  # False: sessions open without the reaper thread
     reaper_paused: bool = False  # True: the loop sleeps and the judge drives `_reap` alone
 
