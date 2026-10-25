@@ -1,14 +1,14 @@
 """What both platform families run: the Windows class and the POSIX classes alike.
 
-The result of a walk (`_Walked`) and the refusal of a walk that cannot be taken, the steps a
-walk takes by path (making a missing tail, making a real folder below a root, a quiet unlink),
-the owner test a made folder must pass, the cache's kind checks, their warning and a checked
-`.cwasm` held open, and the remover's budget and its walk by path. They sit below both platform
-modules, so the Windows module and the POSIX module each import this one and neither imports
-the other: the package's imports point one way, with no cycle. Of the package this module
-imports only the process state, whose observers may stand in for a file's owner, and it reads
-no platform: each name here runs the same on every system, and the choice of platform stays in
-the platform module's one chooser.
+The result of a walk (`_Walked`) and the refusal of a walk that cannot be taken, the steps a walk
+takes by path (making a missing tail, making a real folder below a root, a quiet unlink), the owner
+test a made folder must pass, the names Windows rewrites, the cache's kind checks, their warning
+and a checked `.cwasm` held open, and the remover's budget and its walk by path. They sit below
+both platform modules, so the Windows module and the POSIX module each import this one and neither
+imports the other: the package's imports point one way, with no cycle. Of the package this module
+imports only the process state, whose observers may stand in for a file's owner, and it reads no
+platform: each name here runs the same on every system, and the choice of platform stays in the
+platform module's one chooser.
 """
 
 from __future__ import annotations
@@ -22,6 +22,34 @@ from pathlib import Path
 from ._process import process
 
 Identity = tuple[int, int]
+
+
+# Names Win32 rewrites or rejects. A judged Windows walk refuses them, since the path opened and the
+# chain of folders walked could disagree, and a rule that reads the chain could miss a true
+# ancestor; matplotlib's data guard refuses them on every system, since a folder the runner writes
+# should hold no name a system would read as another. A `:` is a drive letter (`C:\\b\\D:x` is drive
+# D's current folder) or a stream; a trailing space or period is trimmed in some positions and not
+# others; a reserved device name, with or without an extension, is the device, and a root still to
+# be made through one would fail after the folders before it were made. The set is exactly Python's
+# own `ntpath.isreserved` for one component, which the runner cannot call on 3.11 and 3.12:
+# Microsoft's reserved names ("Naming Files, Paths, and Namespaces"), with the superscript `COM¹` to
+# `LPT³` it reserves "in every directory"; `CONIN$` and `CONOUT$`, which CPython refuses "on the
+# side of caution"; and the characters Windows rejects in a name.
+_WIN_DEVICES = frozenset(
+    {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
+    | {f"{p}{c}" for p in ("COM", "LPT") for c in "123456789\u00b9\u00b2\u00b3"}
+)
+_WIN_RESERVED_CHARS = frozenset('"*<>?|' + "".join(map(chr, range(32))))
+
+
+def _rewritten(name: str) -> bool:
+    """Whether Windows rewrites or rejects this one path component (never `.` or `..`): the same
+    answer as `ntpath.isreserved` gives for it."""
+    if name in (".", ".."):
+        return False
+    if ":" in name or _WIN_RESERVED_CHARS.intersection(name) or name.endswith((" ", ".")):
+        return True
+    return name.split(".", 1)[0].rstrip(" ").upper() in _WIN_DEVICES
 
 
 class _Walked:

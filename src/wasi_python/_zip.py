@@ -8,12 +8,13 @@ import os
 import shutil
 import stat
 import tempfile
+import unicodedata
 import zipfile
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import _artifacts, _platform
+from . import _artifacts, _platform, _platform_common
 from ._artifacts import Artifacts
 from ._private_dirs import _Private
 from ._process import process
@@ -106,27 +107,45 @@ def _real_folder(path: Path) -> None:
 
 
 def _member_parts(name: str) -> tuple[str, ...]:
-    """A member's path, refused when it could leave the data folder."""
+    """A member's path, refused when it could leave the data folder, or when a component is a
+    name Windows rewrites or rejects (a reserved device, a trailing dot or space, a character it
+    refuses), on every system: a system would read it as another name."""
     parts = tuple(name.rstrip("/").split("/"))
     if (
         not name
         or name.startswith("/")
         or "\\" in name
         or ":" in name
-        or any(p in ("", ".", "..") for p in parts)
+        or any(p in ("", ".", "..") or _platform_common._rewritten(p) for p in parts)
     ):
         raise RuntimeError(f"the stdlib zip's matplotlib data holds the member {name!r}")
     return parts
+
+
+def _refuse_case_equal(paths: set[tuple[str, ...]]) -> None:
+    """Refuse two distinct paths equal under case folding after NFC: a file system that folds
+    case or normalises Unicode would write them as one. `paths` holds every member and every
+    folder on the way to one, so two folders on the way are compared too."""
+    seen: dict[str, str] = {}
+    for parts in sorted(paths):
+        name = "/".join(parts)
+        other = seen.setdefault(unicodedata.normalize("NFC", name).casefold(), name)
+        if other != name:
+            raise RuntimeError(
+                f"the stdlib zip's matplotlib data holds the member {name!r}, which is "
+                f"{other!r} under case folding"
+            )
 
 
 def _extract_data(data: Path, zip_copy: Path) -> dict[str, tuple[int, ...] | None] | None:
     """matplotlib's data, made equal to the inner archive in the private copy of the zip (checked
     by its SHA-256 just before): the outer member is read into memory whole, each file written,
     read back once and compared with its CRC-32 and size, and every path recorded with its type
-    and stamp. A member that is absolute, holds `..`, or is a link or anything but a regular file
-    or folder is refused. What the folder holds and the archive does not is removed. None, and no
-    folder, when the zip carries no data. Windows cannot replace a file a running guest has open:
-    one already right is kept, as `_copy_zip` keeps the zip."""
+    and stamp. A member that is absolute, holds `..`, holds a name Windows rewrites, equals another
+    under case folding, or is a link or anything but a regular file or folder is refused. What the
+    folder holds and the archive does not is removed. None, and no folder, when the zip carries no
+    data. Windows cannot replace a file a running guest has open: one already right is kept, as
+    `_copy_zip` keeps the zip."""
     with zipfile.ZipFile(zip_copy) as outer:
         try:
             inner_bytes = outer.read(MPL_DATA_MEMBER)
@@ -154,6 +173,7 @@ def _extract_data(data: Path, zip_copy: Path) -> dict[str, tuple[int, ...] | Non
         clash = sorted("/".join(p) for p in folders & set(files))
         if clash:
             raise RuntimeError(f"the stdlib zip's matplotlib data holds {clash[0]!r} twice")
+        _refuse_case_equal(folders | set(files))
         _real_folder(data)
         for parts in sorted(folders, key=len):
             _real_folder(data.joinpath(*parts))

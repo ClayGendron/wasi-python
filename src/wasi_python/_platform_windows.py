@@ -47,22 +47,6 @@ _OPEN_REPARSE_POINT = 0x00200000
 _ATTRIBUTE_DIRECTORY = 0x10
 _ATTRIBUTE_REPARSE_POINT = 0x400
 
-# Names a judged Windows walk refuses: Win32 rewrites them, so the path
-# opened and the chain of folders walked could disagree, and a rule that reads the chain could
-# miss a true ancestor. A `:` is a drive letter (`C:\\b\\D:x` is
-# drive D's current folder) or a stream; a trailing space or period is trimmed in some positions
-# and not others; a reserved device name, with or without an extension, is the device, and a
-# root still to be made through one would fail after the folders before it were made. The set is
-# exactly Python's own `ntpath.isreserved` for one component, which the runner cannot
-# call on 3.11 and 3.12: Microsoft's reserved names ("Naming Files, Paths, and Namespaces"), with
-# the superscript `COM¹` to `LPT³` it reserves "in every directory"; `CONIN$` and `CONOUT$`,
-# which CPython refuses "on the side of caution"; and the characters Windows rejects in a name.
-_WIN_DEVICES = frozenset(
-    {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
-    | {f"{p}{c}" for p in ("COM", "LPT") for c in "123456789\u00b9\u00b2\u00b3"}
-)
-_WIN_RESERVED_CHARS = frozenset('"*<>?|' + "".join(map(chr, range(32))))
-
 
 class _ByHandle(ctypes.Structure):
     _fields_ = [
@@ -75,16 +59,6 @@ class _ByHandle(ctypes.Structure):
         ("index_high", ctypes.c_uint32),
         ("index_low", ctypes.c_uint32),
     ]
-
-
-def _rewritten(name: str) -> bool:
-    """Whether Windows rewrites or rejects this one path component (never `.` or `..`): the same
-    answer as `ntpath.isreserved` gives for it."""
-    if name in (".", ".."):
-        return False
-    if ":" in name or _WIN_RESERVED_CHARS.intersection(name) or name.endswith((" ", ".")):
-        return True
-    return name.split(".", 1)[0].rstrip(" ").upper() in _WIN_DEVICES
 
 
 def _default_drive_folder(drive: str) -> str:
@@ -184,7 +158,7 @@ class _Windows:
         names = [n for n in names if n not in ("", ".")]
         if judge:
             for name in names:
-                if _rewritten(name):
+                if _platform_common._rewritten(name):
                     raise ValueError(
                         f"{where}: {path!r} has a name Windows rewrites ({name!r}); name the "
                         "folder plainly"

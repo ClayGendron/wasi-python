@@ -568,9 +568,9 @@ def test_a_rewritten_name_is_one_ntpath_refuses() -> None:
     pieces += [" .x", "con\u0131n$", "\u0131", "K", "s"]
     names = ["".join(c) for k in (1, 2, 3) for c in itertools.product(pieces, repeat=k)]
     names = [n for n in names if n]  # 18,275 spellings (16,175 distinct)
-    differ = [n for n in names if _platform_windows._rewritten(n) != ntpath.isreserved("x\\" + n)]
+    differ = [n for n in names if _platform_common._rewritten(n) != ntpath.isreserved("x\\" + n)]
     assert not differ, sorted(map(ascii, set(differ)))[:8]
-    refused = sum(map(_platform_windows._rewritten, names))
+    refused = sum(map(_platform_common._rewritten, names))
     assert len(names) == 18_275 and 0 < refused < len(names), (len(names), refused)
 
 
