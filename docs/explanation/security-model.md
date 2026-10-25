@@ -32,6 +32,7 @@ A *guest* is the Python program running inside `python.wasm`. The *host* is your
 
 - Only the stdlib zip and the read-only entries you name are on the import path.
 - `site` does not run, so modules, `.pth` files or a `pyvenv.cfg` planted in a root never run. `exit`, `quit`, `help` and `license` still exist, as in native Python.
+- `env=` may not set a key that begins with `_PYTHON_`: CPython's `sysconfig` reads these in isolated mode, and one, `_PYTHON_SYSCONFIGDATA_PATH`, runs the module it names, so a call raises `ValueError` before any work.
 
 ### Every call has limits
 
@@ -79,7 +80,7 @@ The sandbox stops the guest reaching what it was not given. It does not make eve
 ### Reused roots and state across calls
 
 - **Data planted in a reused root.** A later call reads what an earlier call left: any user file, matplotlib's `matplotlibrc` in the working folder, libxml2's `/etc/xml/catalog`, dateutil's zone files, `mimetypes`' tables, a `.pdbrc` that pdb runs when a program starts pdb. A script or module you name to run from a reused root is the same. A fresh root closes all of these.
-- **An `env=` that overrides `HOME` or `PYTHONTZPATH`** on a reused root, or into a writable grant or mount that a later call reuses.
+- **An `env=` that overrides `HOME`, `PYTHONTZPATH` or `SCIKIT_LEARN_DATA`** on a reused root, or into a writable grant or mount that a later call reuses. scikit-learn's cached datasets are pickles, so that folder's contents are code.
 - **Writable grants and imports across calls.** Granting a folder writable in one call and importing from it in another runs whatever the first call left there.
 - **Concurrent calls on one root**, or a guest that can write a folder above another call's root. One can change the files the other uses.
 - **Everything a turn leaves in a session** for the turns after it. A session is one trust domain: never send a more trusted turn after less trusted code in the same session. See [sessions](sessions.md).

@@ -2,6 +2,12 @@
 
 One section per release of the `wasi-python` artifact set and wheel, newest first. A section's body is the release's notes on GitHub. `release/version.py bump` adds a section; `release/version.py release` dates it and tags the release (context/specifications/004-alpha-releases.md).
 
+## 0.1.1 — unreleased
+
+### Security
+
+- **An `env=` key that begins with `_PYTHON_` is refused with `ValueError`** (spec 132): CPython's `sysconfig` reads these private build settings in isolated mode, and `_PYTHON_SYSCONFIGDATA_PATH` runs the module it names, so on a reused root a file an earlier guest wrote ran on `import pandas` in a later call. `run`, `run_async` and `Session` refuse the key before any work; the security model now names `SCIKIT_LEARN_DATA` beside `HOME` and `PYTHONTZPATH` as an `env=` that can point a package at a reused root.
+
 ## 0.1.0 — 2026-10-23
 
 - **A coverage badge from CI** (spec 124): the release workflow's new `coverage` job runs the fast tier serially under coverage.py (7.17.0, pinned in the `dev` group) against the set the build job made, and uploads the Cobertura report to Codecov with the repository's `CODECOV_TOKEN`; the README carries Codecov's badge, and `test_readme_carries_the_codecov_badge` holds that it is this repository's. `uv run python tests/harness/coverage.py --measure` takes the same measurement locally into `build/coverage/`. The `-V` sentence and numpy's integer width are now held on `docs/reference/limitations.md`, not the README.

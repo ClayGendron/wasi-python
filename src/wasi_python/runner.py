@@ -166,7 +166,9 @@ def run(
             writable grant or root may lie inside the grant serving one.
         env: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH=
             empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the call where
-            /tmp is writable, else an empty one the guest cannot write.
+            /tmp is writable, else an empty one the guest cannot write. A key that begins with
+            `_PYTHON_`, which CPython reads past isolated mode (`_PYTHON_SYSCONFIGDATA_PATH`
+            loads code), raises `ValueError`.
         stdin: The guest's standard input, whole; `None` is empty.
         host: The door's host function: called with each request's bytes, on the thread that
             made the call, it returns the response's. It must answer synchronously: an async one
@@ -334,7 +336,9 @@ async def run_async(
             writable grant or root may lie inside the grant serving one.
         env: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH=
             empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the call where
-            /tmp is writable, else an empty one the guest cannot write.
+            /tmp is writable, else an empty one the guest cannot write. A key that begins with
+            `_PYTHON_`, which CPython reads past isolated mode (`_PYTHON_SYSCONFIGDATA_PATH`
+            loads code), raises `ValueError`.
         stdin: The guest's standard input, whole; `None` is empty.
         host: The door's host function: called with each request's bytes, on the thread that
             made the call, it returns the response's. It must answer synchronously: an async one
@@ -803,7 +807,9 @@ class Session:
                 writable grant or root may lie inside the grant serving one.
             env: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH=
                 empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the session
-                where /tmp is writable, else an empty one the guest cannot write.
+                where /tmp is writable, else an empty one the guest cannot write. A key that
+                begins with `_PYTHON_`, which CPython reads past isolated mode
+                (`_PYTHON_SYSCONFIGDATA_PATH` loads code), raises `ValueError`.
             host: The door's host function: called with each request's bytes, it returns the
                 response's. It must answer synchronously: an async one raises `TypeError`.
                 Excludes `tools`.

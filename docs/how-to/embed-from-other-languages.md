@@ -116,6 +116,8 @@ To end the instance as Python ends, call `shutdown() -> i32` once, at rest, afte
 
 The protections the Python runner adds are its own, not the artifacts'. An engine you drive yourself gets none of the runner's limits, folder checks or clean-up. In particular, the runner carries two fixes for wasmtime 49.0.0's file calls (a rename with a trailing `/`, and padding in directory listings). An embedder that drives the artifacts with its own wasmtime before 49.0.3 does not get them.
 
+Do not pass a key that begins with `_PYTHON_` in the guest's environment: CPython's `sysconfig` reads these in isolated mode, and `_PYTHON_SYSCONFIGDATA_PATH` runs the module it names.
+
 ## In one line
 
 Call `wasi-python run` and parse its one JSON line, or load the artifacts in an engine with exception handling, preopen the zip, bind the door, and give the guest 8 MiB of stack.
