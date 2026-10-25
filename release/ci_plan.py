@@ -72,8 +72,8 @@ def classify(path: str) -> frozenset[str]:
         out.add("upstream")
     if path.startswith((".github/", "release/")):
         out.add("workflow")
-    if path.startswith("context/progress/"):
-        out.add("progress")
+    if path == ACCEPTED or HISTORY_VOLUME.fullmatch(path):
+        out.add("progress")  # the accepted state alone: the folder's README is a document
     if NEWS.fullmatch(path):
         out.add("news")
     if not out and (
@@ -152,6 +152,9 @@ def decide(changed: list[str] | None, event: Event, key_moved: bool = False) -> 
         d.tier = "release"
         d.why.append("a release pull request into main: the whole workflow")
     elif event.pull_request:
+        if changed is None:  # fail closed: a change that cannot be read is judged whole
+            d.full = True
+            d.why.append("the pull request's base could not be read: the run is whole")
         if FULL_LABEL in event.labels:
             d.full = True
             d.why.append(f"the label {FULL_LABEL}")

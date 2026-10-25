@@ -283,6 +283,12 @@ def test_anything_more_or_less_than_an_acceptance_is_full(changed) -> None:
     assert not d.quiet and d.full
 
 
+def _progress_refusals(changed: list[str], event) -> list[str]:
+    """The refusals of accepted state alone, among every refusal the plan makes."""
+    d = ci_plan.decide(changed, event)
+    return [r for r in ci_plan.refusals(d, event, changed) if "accepted state" in r]
+
+
 def test_the_acceptance_paths_on_a_pull_request_are_refused() -> None:
     d = ci_plan.decide(ACCEPT, PR_DEV)
     assert d.progress and not d.quiet
@@ -411,3 +417,31 @@ def test_the_key_moves_with_an_env_value_and_not_with_a_test(tmp_path) -> None:
     git("add", "-A")
     git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "an env value")
     assert ci_plan.key_moved(repo, base) is True
+
+
+# Only the accepted state is refused: the progress folder's README is a document.
+
+
+def test_the_progress_readme_alone_is_documentation_and_not_refused() -> None:
+    changed = ["context/progress/README.md"]
+    d = ci_plan.decide(changed, PR_DEV)
+    assert ci_plan.classify(changed[0]) == frozenset({"docs"})
+    assert d.docs_only and not d.progress
+    assert ci_plan.refusals(d, PR_DEV, changed) == []
+
+
+@pytest.mark.parametrize(
+    "path", ["context/progress/accepted.json", "context/progress/history-00060.jsonl",
+             "context/progress/history.jsonl"],
+)  # fmt: skip
+def test_the_accepted_state_alone_is_refused(path) -> None:
+    assert _progress_refusals([path], PR_DEV), path
+
+
+def test_a_pull_request_whose_base_cannot_be_read_is_judged_whole() -> None:
+    """With no change to read, a pull request into dev fails closed: the merge-grade set."""
+    d = ci_plan.decide(None, PR_DEV)
+    assert d.full and d.judge and not d.docs_only
+    assert "the pull request's base could not be read: the run is whole" in d.why
+    sel = ci_plan.select(d, PLAN)
+    assert sel["macos"] == shards.on(shards.load(), "macos") and sel["build"] is True

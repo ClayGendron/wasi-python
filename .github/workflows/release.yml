@@ -42,8 +42,9 @@ on:
 
 permissions: {}
 
-# A pull request's newer push cancels its older run; a tag's run, a push to dev and the weekly
-# run are never cancelled, each queues behind the one before of its own event.
+# A pull request's newer push cancels its older run. A push to dev, a tag's run and the weekly run
+# are never cancelled while running; a newer one of the same event replaces one still waiting to
+# start, so of three quick merges the middle one gets no run, and the newest run judges them all.
 concurrency:
   group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('release-{0}-{1}', github.event_name, github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
