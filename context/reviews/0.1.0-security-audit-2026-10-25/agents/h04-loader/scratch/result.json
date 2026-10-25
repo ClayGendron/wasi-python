@@ -1,0 +1,151 @@
+{
+  "units": [
+    {
+      "coverage_id": "src%2Fwasi_python%2F_engines.py%23deserialize_file::src%2Fwasi_python%2F_platform.py%23private::src%2Fwasi_python::MEMORY-SAFETY-AND-BINARY.md%23Library%2C%20plugin%2C%20and%20executable%20search-order%20trust",
+      "disposition": "candidate",
+      "reviewed_paths": [
+        "src/wasi_python/_engines.py",
+        "src/wasi_python/_platform.py",
+        "src/wasi_python/_places.py",
+        "src/wasi_python/_call.py",
+        "src/wasi_python/_sessions.py",
+        "src/wasi_python/runner.py",
+        "docs/explanation/security-model.md"
+      ],
+      "checks": [
+        {
+          "agent_id": "h04-loader",
+          "reviewed_paths": ["src/wasi_python/_engines.py", "src/wasi_python/_platform.py"],
+          "invariant": "Only a .cwasm the runner made (this user's, 0600, one link, in a 0700 folder of this user's) is deserialized, and the file deserialized is the file checked",
+          "method": "source",
+          "result": "POSIX private() (_platform.py:556-571) lstat-checks only the leaf (the cache folder, then the .cwasm) for owner, kind, link count and group/other mode bits; no ancestor of the cache folder is checked. _load (_engines.py:214-244) lstats, calls private(), then lets wasmtime-py reopen the file by its full path (deserialize_file, line 233) following any link in the ancestry, and afterwards compares only (dev, ino, size, mtime) of a fresh lstat with the first. The check and the open are not bound to one descriptor, so whoever can rename entries in an ancestor of the cache folder can redirect the open and restore the folder before the re-check. The docstring itself says the window is narrowed, not closed.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h04-loader",
+          "reviewed_paths": ["src/wasi_python/_places.py", "src/wasi_python/_engines.py", "src/wasi_python/_call.py", "src/wasi_python/_sessions.py", "src/wasi_python/_platform.py"],
+          "invariant": "No guest grant or root can write any module cache this process knows of",
+          "method": "source",
+          "result": "_walk_grants/_runtime_folders/_judge (_places.py:467-500, 527-575, 330-381) refuse a writable grant or root at, inside or above this call's cache, $WASI_PYTHON_CACHE and every platform default (including the password-database home's, _platform.py:542-554), by identity, with every link component of the written path in the chain (_cache_chain, 297-322) and not-yet-made caches judged from their deepest existing ancestor. Both run (_call.py:146-156) and Session (_sessions.py:961-979) pass others=_caches(cache). No guest path to a known cache found. A cache_dir= used by an earlier call is not remembered (embedder contract, runner.py:185-188 and security-model.md 'The module cache's contents').",
+          "artifact": null
+        },
+        {
+          "agent_id": "h04-loader",
+          "reviewed_paths": ["src/wasi_python/_engines.py"],
+          "invariant": "The runner's own .cwasm writes cannot replace or follow a planted file or link",
+          "method": "source",
+          "result": "_store (_engines.py:254-275) writes via mkstemp(dir=cache) at 0600 and os.replace onto the name, which replaces a link itself; a refused folder at the name is never written over (_load line 229). Holds.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h04-loader",
+          "reviewed_paths": ["src/wasi_python/_engines.py", "src/wasi_python/_platform.py"],
+          "invariant": "The checked .cwasm identity equals the mapped identity under an ancestor swap",
+          "method": "local",
+          "result": "Deterministic schedule (one OS user plays both roles): the runner compiled a.wasm and wrote its 0600 .cwasm; a planted 0644 .cwasm of another module (export planted_image_loaded) is refused by private() when checked directly; with the cache folder renamed aside and replaced by a link to the planted folder only while wasmtime opens the path, and put back before the stamp re-check, _module(engine, False, a.wasm, cache) returned the planted module (exports ['planted_image_loaded'], counts loaded=2) with no warning. macOS arm64, wasmtime-py 49.0.0, sandbox-exec deny network, env -i, ulimit -t 300 -f 4000000 -n 4096; target not read-only mounted; writes under scratch only.",
+          "artifact": "agents/h04-loader/artifacts/evidence/swap_run.log"
+        },
+        {
+          "agent_id": "h04-loader",
+          "reviewed_paths": ["src/wasi_python/_platform.py"],
+          "invariant": "private() refuses a cache another principal can write",
+          "method": "local",
+          "result": "On macOS an extended ACL 'everyone allow add_file,delete_child,...,file_inherit' on a 0700 cache folder is invisible to private(): private(dir) and private(file) both return True, and the mkstemp-made 0600 .cwasm inherits 'everyone allow read,write,append'. Reported as hardening: the ACL must be set by the folder's owner or an administrator, which the documented trusted-input rule for cache folders covers. Linux POSIX ACLs show in the group bits (mask) and are refused. Windows private() checks no owner or access list at all (_platform.py:1436-1448), as its docstring says.",
+          "artifact": "agents/h04-loader/artifacts/evidence/acl_run.log"
+        }
+      ],
+      "candidate_fingerprints": ["src/wasi_python/_engines.py:_load:cwasm-checked-by-lstat-opened-by-path"],
+      "unresolved": []
+    },
+    {
+      "coverage_id": "src%2Fwasi_python%2F_artifacts.py%23find::src%2Fwasi_python%2F_artifacts.py%23_found_and_checked::src%2Fwasi_python::MEMORY-SAFETY-AND-BINARY.md%23Missing%20artifact%20identity%20or%20signature%20binding",
+      "disposition": "covered",
+      "reviewed_paths": [
+        "src/wasi_python/_artifacts.py",
+        "src/wasi_python/_engines.py",
+        "src/wasi_python/_zip.py",
+        "src/wasi_python/_call.py",
+        "src/wasi_python/_sessions.py",
+        "src/wasi_python/_places.py"
+      ],
+      "checks": [
+        {
+          "agent_id": "h04-loader",
+          "reviewed_paths": ["src/wasi_python/_artifacts.py", "src/wasi_python/_engines.py", "src/wasi_python/_call.py", "src/wasi_python/_sessions.py"],
+          "invariant": "For a found set, the binary compiled and the bytes checked against SHA256SUMS are the same bytes",
+          "method": "source",
+          "result": "_found_and_checked (_artifacts.py:181-220) hashes MANIFEST, the binary and the zip with O_NOFOLLOW and compares with the folder's SHA256SUMS; the binary's digest is passed as want to _module, whose miss path reads the bytes once, re-hashes them and compiles exactly those (_engines.py:190-198); the .cwasm under that digest is written only from that module. Both run and Session pass the digest. The SHA256SUMS is the folder's own, so it guards against corruption and torn writes, not a writer of the folder; every writer of the folder is trusted by the documented rule and the judge refuses writable grants over the set's folders (_places.py:546-548).",
+          "artifact": null
+        },
+        {
+          "agent_id": "h04-loader",
+          "reviewed_paths": ["src/wasi_python/_artifacts.py"],
+          "invariant": "Discovery never takes a set from a folder chosen by the working directory or another project",
+          "method": "source",
+          "result": "artifact_dir (_artifacts.py:62-84) uses $WASI_PYTHON_ARTIFACTS (resolved), else <repo>/build/artifacts only when this package's own resolved __file__ is <repo>/src/wasi_python and <repo>/pyproject.toml names wasi-python (lines 19-36), else the wheel's own folder. No cwd or sys.path search. Holds.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h04-loader",
+          "reviewed_paths": ["src/wasi_python/_zip.py", "src/wasi_python/_artifacts.py"],
+          "invariant": "The guest's zip copy and mpl-data are the checked zip's bytes and stay under the private folder",
+          "method": "source",
+          "result": "_copy_zip (_zip.py:253-277) re-hashes the placed copy against the checked digest and records its stamp; reuse re-copies on a stamp change (lines 56-64) and re-extracts on any tree change (_data_intact, 230-250). _member_parts (108-119) refuses empty, absolute, '.', '..', backslash and colon members; non-regular members are refused (147-150); links in the data folder are unlinked, never followed (_real_folder, _remove_extra). MANIFEST is re-read after its check by _version_tag and _has_guest_package (unbound), but the version split on '.' cannot produce '..' and only a trusted writer of the set folder could change it. Holds.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h04-loader",
+          "reviewed_paths": ["src/wasi_python/_engines.py", "src/wasi_python/_artifacts.py"],
+          "invariant": "A module or .cwasm keyed by a digest holds the code of the bytes with that digest, whatever set made it",
+          "method": "local",
+          "result": "For an artifacts= set (want None) _module hashes the file by _digest, then wasmtime compiles from the path again (_engines.py:149, 200). With the file changed between the two (deterministic schedule), the other image was stored under the first digest in the .cwasm cache, and a later call holding a genuine binary to that same checked digest got the other image (exports ['other_image'], loaded=1). Reported as hardening: a writer of an artifacts= folder is trusted input by the documented rule ('a set you pass is used as you give it'), so no lower-trust writer is established.",
+          "artifact": "agents/h04-loader/artifacts/evidence/unheld_run.log"
+        }
+      ],
+      "candidate_fingerprints": [],
+      "unresolved": []
+    }
+  ],
+  "candidates": [
+    {
+      "proposed_verdict": "needs_validation",
+      "fingerprint": "src/wasi_python/_engines.py:_load:cwasm-checked-by-lstat-opened-by-path",
+      "title": "Module cache: the .cwasm checked by lstat is not the file wasmtime deserializes when an ancestor folder belongs to a lower-trust user",
+      "description": "The runner trusts a .cwasm (native code) only when private() finds it this user's, 0600, one link, in a 0700 folder of this user's. It checks only the leaf entries by path, then wasmtime-py reopens the file by its full path, following links in every ancestor, and the runner afterwards compares a fresh lstat stamp with the first. A principal that can rename entries in any ancestor of the cache folder can, during that open, rename the runner's folder aside and put a link to its own folder in its place, then restore it before the re-check. The planted image is then accepted and instantiated as python.wasm. The runner itself chooses such a path when a process runs with another user's $HOME (default_cache_dir is under $HOME; default_cache_dirs names sudo as a case it expects), e.g. root under a sudo that keeps HOME, where ~/.cache or ~/Library/Caches belongs to the invoking user. Under a deterministic schedule on one OS user the planted module was returned by _module with no warning; the cross-user race in a real sudo deployment was not observed.",
+      "claimed_root_cause": "private() and the post-load stamp check bind the trust decision to path names (lstat of the leaf) while the load reopens by path; nothing checks that every ancestor of the cache folder is owned by this user (or root) and not writable by others, and the .cwasm is not opened once with no-follow and deserialized from that verified descriptor.",
+      "trace": [
+        {"kind": "entrypoint", "file": "src/wasi_python/runner.py", "line": 115, "scope": "run", "description": "Embedder call with cache_dir=None: the default module cache is used."},
+        {"kind": "propagation", "file": "src/wasi_python/_call.py", "line": 146, "scope": "_run_checked", "description": "cache = _engines._cache_dir(cache_dir)."},
+        {"kind": "propagation", "file": "src/wasi_python/_engines.py", "line": 85, "scope": "_cache_dir", "description": "Default cache derived from Path.home() ($HOME), which under a sudo that keeps HOME is the invoking user's home."},
+        {"kind": "propagation", "file": "src/wasi_python/_platform.py", "line": 534, "scope": "_Posix.default_cache_dir", "description": "$XDG_CACHE_HOME or $HOME/.cache/wasi_python (Darwin line 1091: $HOME/Library/Caches/wasi_python); its parent belongs to whoever owns that home."},
+        {"kind": "propagation", "file": "src/wasi_python/_engines.py", "line": 178, "scope": "_module_miss", "description": "private(cache, is_dir=True) lstats only the cache folder itself (owner, 0700); ancestors unchecked."},
+        {"kind": "propagation", "file": "src/wasi_python/_engines.py", "line": 228, "scope": "_load", "description": "private(cwasm) lstats the leaf by path: this user's, 0600, one link."},
+        {"kind": "sink", "file": "src/wasi_python/_engines.py", "line": 233, "scope": "_load", "description": "wt.Module.deserialize_file(engine, str(cwasm)) reopens the path, following any link swapped into an ancestor; the stamp re-check at line 237 passes once the folder is restored, and the module is cached and instantiated as the guest binary."}
+      ],
+      "evidence": [
+        {"file": "src/wasi_python/_platform.py", "line": 556, "description": "POSIX private(): one lstat of the given path; no ancestor ownership or writability check."},
+        {"file": "src/wasi_python/_engines.py", "line": 214, "description": "_load docstring: the post-load check 'narrows, not closes, the window between the check and the load'."},
+        {"file": "src/wasi_python/_engines.py", "line": 237, "description": "Re-check compares lstat stamps by name, which an attacker restores before it runs."},
+        {"file": "src/wasi_python/_platform.py", "line": 542, "description": "default_cache_dirs: the runner expects processes with another $HOME (sudo, a container, CI)."},
+        {"file": "docs/explanation/security-model.md", "line": 89, "description": "Not-protected list covers caches 'if anything but the runner can write there' and names cache_dir/$WASI_PYTHON_CACHE as trusted input; the default derived from $HOME is not named there, and the runner's own private() owner check shows the default cache is meant to be refused when another user owns it."}
+      ],
+      "blockers": [
+        "The cross-user part was not observed: this machine offers one OS user and no root, so a lower-trust owner of the cache folder's parent racing a second user's (or root's) runner could not be run.",
+        "Whether a supported deployment runs the runner as another user with the invoking user's $HOME (macOS sudo keeping HOME, a sudo with env_keep HOME, a container or CI step with a mapped home) is a deployment fact outside source.",
+        "Race feasibility without the deterministic hook (blind rename loop by the parent's owner against one deserialize per process) was not measured."
+      ],
+      "validation_plan": {
+        "local": "On a disposable macOS or Linux VM with users alice and root: as alice, keep ~/Library/Caches (or ~/.cache) as is and prepare /Users/alice/planted/<digest32>-wasmtime49.0.0-plain.cwasm (a serialized module of another wasm). As root with HOME=/Users/alice (sudo on macOS keeps HOME), run wasi_python.run('print(1)', snapshot=False) once so root makes its 0700 cache and .cwasm. Then loop as alice: rename wasi_python -> wasi_python.aside, symlink wasi_python -> /Users/alice/planted, rename back; while root starts fresh processes that call run(). Record whether process().counts['loaded'] rises with the planted module's exports (or the call fails with the planted module's missing exports) without a RuntimeWarning. The deterministic one-user schedule is in agents/h04-loader/artifacts/evidence/swap_harness.py.",
+        "deployment": "Owner states whether running the runner as root or another user with a different user's $HOME is supported; if so, confirm on the release platforms that sudo keeps HOME (macOS default) and that the default cache's parent is then owned by the invoking user."
+      }
+    }
+  ],
+  "hardening": [
+    "_engines.py:_load/_platform.py:private: open the .cwasm once with O_NOFOLLOW relative to a descriptor of the checked cache folder, fstat that descriptor for owner/mode/nlink, and deserialize from those bytes (Module.deserialize) or that descriptor, and require every ancestor of the cache folder to be owned by this user or root and not group/other-writable; this closes the check-to-open window the docstring calls narrowed.",
+    "macOS: _Posix/_Darwin private() reads only st_mode, so an extended ACL granting everyone write and file_inherit on the cache folder is invisible and every new .cwasm inherits it (agents/h04-loader/artifacts/evidence/acl_run.log). Refuse a cache folder or file that carries any allow ACL entry (acl_get_link_np or `ls -le` equivalent); Windows private() similarly checks no owner or DACL.",
+    "_engines.py:_module without want (artifacts= sets): hash and compile the same bytes (read once, hash, Module(engine, data)) as the held path does, so a module or .cwasm keyed by a digest always holds that digest's code; today a file changed between _digest and from_file poisons the cache entry that a later SHA256SUMS-checked call loads (agents/h04-loader/artifacts/evidence/unheld_run.log).",
+    "_engines.py:_caches: record every cache folder this process has used (cache_dir= values) in the process object and judge grants against them too, so a later call's writable grant cannot reach an earlier call's custom cache (currently only the embedder's documented duty).",
+    "_engines.py:_cache_dir: cache_dir='' becomes Path('.'), the working directory; reject empty or relative cache_dir values in the argument checks."
+  ],
+  "uncovered": []
+}

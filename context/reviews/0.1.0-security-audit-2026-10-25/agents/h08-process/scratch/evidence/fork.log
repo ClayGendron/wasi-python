@@ -1,0 +1,10 @@
+{"check": "baseline", "exit_code": 0, "trapped": null, "stdout_tail": "ok\n", "stderr_tail": "", "last_exception_none": true, "host_functions": 9}
+{"check": "fork_child", "result": "child_refused: wasi_python was used before this process was forked; use it in the child only, or start pr", "forked": true}
+{"check": "fork_parent", "child_status": 0, "zip_folders_still_there": true}
+{"check": "parent_after_fork", "exit_code": 0, "trapped": null, "stdout_tail": "ok\n", "stderr_tail": "", "last_exception_none": true, "host_functions": 9}
+{"mode": "fork", "seconds": 5.0}
+
+STDERR: context/reviews/0.1.0-security-audit-2026-10-25/agents/h08-process/scratch/evidence/h08_checks.py:72: DeprecationWarning: This process (pid=71675) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+RC: 0

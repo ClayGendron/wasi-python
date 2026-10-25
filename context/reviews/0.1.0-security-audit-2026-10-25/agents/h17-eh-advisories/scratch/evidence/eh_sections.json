@@ -1,0 +1,104 @@
+[
+ {
+  "file": "python.wasm",
+  "size": 99421513,
+  "type_section_entries": 858,
+  "types_total": 858,
+  "composite_kinds": {
+   "func": 858
+  },
+  "explicit_rec_groups": 0,
+  "rec_groups_with_more_than_one_type": 0,
+  "explicit_sub_declarations": 0,
+  "longest_supertype_chain": 0,
+  "valtypes_in_signatures": {
+   "0x7f": 5991,
+   "0x7e": 420,
+   "0x7c": 1145,
+   "0x7d": 419,
+   "0x69": 1
+  },
+  "typed_refs_in_signatures": 0,
+  "import_kinds": {
+   "0": 43
+  },
+  "imported_tags": 0,
+  "tag_section_bytes": 5,
+  "defined_tags": [
+   {
+    "attribute": 0,
+    "type": 6
+   },
+   {
+    "attribute": 0,
+    "type": 6
+   }
+  ],
+  "target_features": [
+   "+bulk-memory",
+   "+bulk-memory-opt",
+   "+call-indirect-overlong",
+   "+exception-handling",
+   "+extended-const",
+   "+multivalue",
+   "+mutable-globals",
+   "+nontrapping-fptoint",
+   "+reference-types",
+   "+sign-ext",
+   "+simd128"
+  ],
+  "total_tags": 2,
+  "total_tags_is_odd": false
+ },
+ {
+  "file": "python-snapshot.wasm",
+  "size": 104517748,
+  "type_section_entries": 858,
+  "types_total": 858,
+  "composite_kinds": {
+   "func": 858
+  },
+  "explicit_rec_groups": 0,
+  "rec_groups_with_more_than_one_type": 0,
+  "explicit_sub_declarations": 0,
+  "longest_supertype_chain": 0,
+  "valtypes_in_signatures": {
+   "0x7f": 5991,
+   "0x7e": 420,
+   "0x7c": 1145,
+   "0x7d": 419,
+   "0x69": 1
+  },
+  "typed_refs_in_signatures": 0,
+  "import_kinds": {
+   "0": 43
+  },
+  "imported_tags": 0,
+  "tag_section_bytes": 5,
+  "defined_tags": [
+   {
+    "attribute": 0,
+    "type": 6
+   },
+   {
+    "attribute": 0,
+    "type": 6
+   }
+  ],
+  "target_features": [
+   "+bulk-memory",
+   "+bulk-memory-opt",
+   "+call-indirect-overlong",
+   "+exception-handling",
+   "+extended-const",
+   "+multivalue",
+   "+mutable-globals",
+   "+nontrapping-fptoint",
+   "+reference-types",
+   "+sign-ext",
+   "+simd128"
+  ],
+  "total_tags": 2,
+  "total_tags_is_odd": false
+ }
+]

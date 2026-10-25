@@ -1,0 +1,74 @@
+mount.open a.txt {'errno': 0, 'fd': 1073741824, 'provider_base': True}
+mount.open d/ {'errno': 0, 'fd': 1073741825}
+mount.fd_fdstat_get out=end-23 {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_fdstat_get out=end-24 {'errno': 0, 'stop': None, 'changed': (131048, 131072, 24), 'changed_outside': 0}
+mount.fd_fdstat_get out=0xFFFFFFF8 {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_fdstat_get out=0x80000000 {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_fdstat_get out=end-20 misaligned {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_filestat_get out=end-63 {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_filestat_get out=end-64 {'errno': 0, 'stop': None, 'changed': (131008, 131068, 49), 'changed_outside': 0}
+mount.fd_read buf=0xFFFFFFF0,len=0x20 (wraps 2**32) {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_write buf=0xFFFFFFF0,len=0x20 (wraps 2**32) {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_read buf=end-4,len=5 {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_write buf=end-4,len=5 {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_read buf=end-4,len=4 {'errno': 0, 'stop': None, 'changed': (1024, 131072, 8), 'changed_outside': 0}
+mount.fd_write buf=end-4,len=4 {'errno': 0, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_read second iovec out of bounds {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_write second iovec out of bounds {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_read iovec array at end-4 {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_write iovec array at end-4 {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_read count=0x7FFFFFFF {'errno': 28, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_write count=0x7FFFFFFF {'errno': 28, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_read count=-1 {'errno': 28, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_write count=-1 {'errno': 28, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_read nread at end-2 {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_write nread at end-2 {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_read nread at 0xFFFFFFFC {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_write nread at 0xFFFFFFFC {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_read iovec array misaligned {'errno': None, 'stop': 'Pointer not aligned to 4', 'changed': None, 'changed_outside': 0}
+mount.fd_write iovec array misaligned {'errno': None, 'stop': 'Pointer not aligned to 4', 'changed': None, 'changed_outside': 0}
+mount.fd_seek off=9223372036854775807 whence=0 {'errno': 0, 'stop': None, 'pos': 9223372036854775807, 'changed_outside': 0}
+mount.fd_seek off=-1 whence=0 {'errno': 28, 'stop': None, 'pos': None, 'changed_outside': 0}
+mount.fd_seek off=-9223372036854775808 whence=1 {'errno': 28, 'stop': None, 'pos': None, 'changed_outside': 0}
+mount.fd_seek off=9223372036854775807 whence=2 {'errno': 0, 'stop': None, 'pos': 9223372036854775820, 'changed_outside': 0}
+mount.fd_tell after seeking to 2**64-2 {'errno': 0, 'pos': 18446744073709551614}
+mount.fd_read at position 2**64-2 {'errno': 28, 'stop': None, 'changed_outside': 0}
+mount.fd_write at position 2**64-2 {'errno': 28, 'stop': None, 'changed_outside': 0}
+mount.fd_pwrite offset 2**63-8 (staging bound) {'errno': 22, 'stop': None, 'changed_outside': 0}
+mount.fd_pwrite offset -1 {'errno': 28, 'stop': None, 'changed_outside': 0}
+mount.fd_filestat_set_size -1 {'errno': 28, 'stop': None, 'changed_outside': 0}
+mount.path_open path at end-1 len 2 {'errno': 21, 'stop': None, 'changed_outside': 0}
+mount.path_filestat_get path at end-1 len 2 {'errno': 21, 'stop': None, 'changed_outside': 0}
+mount.path_open path len 0x7FFFFFFF {'errno': 21, 'stop': None, 'changed_outside': 0}
+mount.path_filestat_get path len 0x7FFFFFFF {'errno': 21, 'stop': None, 'changed_outside': 0}
+mount.path_open path len -1 {'errno': 21, 'stop': None, 'changed_outside': 0}
+mount.path_filestat_get path len -1 {'errno': 21, 'stop': None, 'changed_outside': 0}
+mount.path_open path ptr 0xFFFFFFFF len 1 {'errno': 21, 'stop': None, 'changed_outside': 0}
+mount.path_filestat_get path ptr 0xFFFFFFFF len 1 {'errno': 21, 'stop': None, 'changed_outside': 0}
+mount.path_open path len 4097 in bounds {'errno': 37, 'stop': None, 'changed_outside': 0}
+mount.path_filestat_get path len 4097 in bounds {'errno': 37, 'stop': None, 'changed_outside': 0}
+mount.path_open path ending exactly at memory end {'errno': 0, 'stop': None, 'changed_outside': 0}
+mount.path_open out at end-2 {'errno': 21, 'stop': None, 'changed_outside': 0}
+mount.fd_readdir buf end-10 len 20 {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_readdir buf end-30 len 30 {'errno': 0, 'stop': None, 'changed': (1024, 131072, 34), 'changed_outside': 0}
+mount.fd_readdir buf len 0x7FFFFFFF {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_readdir used inside buf {'errno': 0, 'stop': None, 'changed': (12288, 12368, 79), 'changed_outside': 0}
+mount.fd_readdir used at end-3 {'errno': 21, 'stop': None, 'changed': None, 'changed_outside': 0}
+mount.fd_readdir cookie=9223372036854775808 {'errno': 0, 'stop': None, 'used': 0, 'changed_outside': 0}
+mount.fd_readdir cookie=-1 {'errno': 0, 'stop': None, 'used': 0, 'changed_outside': 0}
+mount.fd_readdir cookie=1000000 {'errno': 0, 'stop': None, 'used': 0, 'changed_outside': 0}
+mount.path_rename old ends at memory end with '/' {'errno': 44, 'stop': None, 'changed_outside': 0}
+mount.path_readlink buf end-4 len 8 {'errno': 21, 'stop': None, 'changed_outside': 0}
+guard.fd_readdir plain listing {'errno': 0, 'stop': None, 'changed_outside': 0, 'used': 258, 'pads': ['000000', '000000', '000000', '000000', '000000', '000000', '000000', '000000', '000000']}
+guard.fd_readdir used over first d_namlen {'errno': 0, 'stop': None, 'changed_outside': 0, 'used': 258, 'pads': ['000000']}
+guard.fd_readdir used over second entry header {'errno': None, 'stop': 'Pointer not aligned to 4', 'changed_outside': 0}
+guard.fd_readdir used just before buf (overlaps 2 bytes) {'errno': None, 'stop': 'Pointer not aligned to 4', 'changed_outside': 0}
+guard.fd_readdir buf at end-300, len 300 {'errno': 0, 'stop': None, 'changed_outside': 0, 'used': 258, 'pads': ['000000', '000000', '000000', '000000', '000000', '000000', '000000', '000000', '000000']}
+guard.fd_readdir buf end-60 len 4096 (crosses memory end) {'errno': None, 'stop': 'Pointer out of bounds', 'changed': (131012, 131063, 51), 'changed_outside': 0, 'first_entries_pads': ['000000', '000000'], 'raw_prefix': '01000000000000004ac81b8594e9d61f01000000030000002e02000000000000004ac81b8594e9d61f02000000030000002e2eaaaaaaaaaa'}
+guard.fd_readdir used at end-2 (trap after listing written) {'errno': None, 'stop': 'Pointer out of bounds', 'changed': (12288, 12546, 258), 'changed_outside': 0, 'pads': ['000000', '000000', '000000', '000000', '000000', '000000']}
+guard.path_rename old 'x/' ends at memory end {'errno': 44, 'stop': None, 'changed_outside': 0}
+guard.path_rename old ptr 0xFFFFFFFF {'errno': None, 'stop': 'Pointer out of bounds', 'changed_outside': 0}
+guard.path_rename 5004-byte slash path {'errno': 37, 'stop': None, 'changed_outside': 0}
+guard.path_rename file with slash {'errno': 54, 'stop': None, 'changed_outside': 0}
+guard.path_open out at end-2 {'errno': None, 'stop': 'Pointer out of bounds', 'changed_outside': 0, 'held': []}
+# conditions: darwin-arm64 (Darwin 25.5.0), wasmtime-py 49.0.0 from .venv, wrapper: ulimit -t 300 -f 4000000 -n 4096; env -i PATH HOME TMPDIR WASI_PYTHON_CACHE (scratch); sandbox-exec (deny network*); driver subprocess timeout 240 s; the target tree was NOT read-only mounted (platform cannot enforce it); no writable grant or root pointed at the target; grants and placeholders lived under scratch/work, deleted afterwards. Memory filled with 0xAA before each call; changed_outside counts bytes changed outside the call's declared result region.

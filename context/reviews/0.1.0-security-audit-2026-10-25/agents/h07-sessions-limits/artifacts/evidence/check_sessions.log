@@ -1,0 +1,40 @@
+[
+ {
+  "case": "lifetime_caps_turn",
+  "wall_s": 1.022,
+  "trapped": "deadline",
+  "ended": "lifetime"
+ },
+ {
+  "case": "idle_then_turn",
+  "result": "SessionEnded:idle",
+  "ended": "idle"
+ },
+ {
+  "case": "trap_then_benign",
+  "first_trapped": "deadline",
+  "second": "SessionEnded:deadline",
+  "ended": "deadline"
+ },
+ {
+  "case": "output_per_turn",
+  "a_len": 1000,
+  "a_trunc": [
+   "stdout"
+  ],
+  "b": "B\n"
+ },
+ {
+  "case": "close_stops_turn",
+  "close_wait_s": 0.052,
+  "trapped": "cancelled",
+  "ended": "closed"
+ },
+ {
+  "case": "queued_turn_after_lifetime",
+  "awaited_s": 2.039,
+  "trapped": "deadline",
+  "stdout_tail": "10000 0.0018\n20000 0.0075\n30000 0.012\n40000 0.0177\n",
+  "ended": "lifetime"
+ }
+]

@@ -1,0 +1,96 @@
+{
+ "units": [
+  {
+   "coverage_id": "src%2Fwasi_python%2F_call.py%23_poll_oneoff::src%2Fwasi_python%2F_call.py%23_poll_plan::src%2Fwasi_python::MEMORY-SAFETY-AND-BINARY.md%23Out-of-bounds%20read%20or%20write",
+   "disposition": "covered",
+   "reviewed_paths": [
+    "src/wasi_python/_call.py",
+    "src/wasi_python/_fs_memory.py",
+    "tests/unit/test_runner_waits.py"
+   ],
+   "checks": [
+    {
+     "agent_id": "h14-poll-oneoff",
+     "reviewed_paths": [
+      "src/wasi_python/_call.py"
+     ],
+     "invariant": "Parser table for the shadowed poll_oneoff: every guest value is masked and bounded before any guest memory is read or written.",
+     "method": "source",
+     "result": "_call.py:1152-1170. Guest values: in_ptr, out_ptr, n, nevents_ptr, each an i32 that wasmtime-py hands over signed, masked with MASK32 (0xFFFFFFFF) at 1154-1155, so each is unsigned in [0, 2**32). n is checked first: 0 gives EINVAL and n > MAX_SUBSCRIPTIONS (4096) gives ENOMEM (1156-1157), before the memory size is read. The memory size is read once, memory.data_len(caller) at 1158, after masking and before any access. The bounds at 1159-1160 are in_ptr + 48*n <= size, out_ptr + 32*n <= size and nevents_ptr + 4 <= size, otherwise EFAULT. They use Python integers, so nothing wraps: the largest sum is 2**32-1 + 48*4096. The read at 1161 is exactly [in_ptr, in_ptr + 48*n). The writes are len(events)*32 bytes at out_ptr (1167-1168) and 4 bytes at nevents_ptr (1169). len(events) <= n holds because _poll_plan returns at most one event per subscription (1092-1137), so both writes stay inside the checked ranges. wasmtime-py's Memory.read and Memory.write (wasmtime/_memory.py) read data_len and data_ptr again on every call, and write raises IndexError past the end, a second independent bound. No raw pointer is kept across the wait at 1165-1166. The guest's memory cannot shrink, and no guest code runs during a host call, so the size read at 1158 is still valid at the writes.",
+     "artifact": null
+    },
+    {
+     "agent_id": "h14-poll-oneoff",
+     "reviewed_paths": [
+      "src/wasi_python/_call.py",
+      "tests/unit/test_runner_waits.py"
+     ],
+     "invariant": "The SUBSCRIPTION and EVENT struct formats match the preview1 layouts. The unit (subscriptions, not bytes) is the same at the check, the read and the parse.",
+     "method": "source",
+     "result": "SUBSCRIPTION '<QB7xIxxxxQQH6x' (_call.py:1057-1059) puts userdata at 0, tag at 8, the clock id or fd (u32) at 16, timeout at 24, precision at 32 and flags (u16) at 40, 48 bytes in all. This is preview1's subscription: userdata u64, then a subscription_u whose union is 8-aligned after its u8 tag, then subscription_clock {id u32 @0, timeout u64 @8, precision u64 @16, flags u16 @24} or fd_readwrite {fd u32}. EVENT '<QHB5xQH6x' (1060) puts userdata at 0, error (u16) at 8, type (u8) at 10, nbytes (u64) at 16 and flags (u16) at 24, 32 bytes in all, which matches preview1's event and event_fd_readwrite. The '<' prefix means little-endian with no implicit padding, and every padding byte is an explicit 'x', which struct.pack writes as zero, so no uninitialised byte reaches the guest. struct.iter_unpack over the 48*n bytes yields exactly n records. The bound, the read and the parse all use the same 48-byte and 32-byte units, and test_subscriptions_and_events_have_wasi_sizes holds the sizes.",
+     "artifact": null
+    },
+    {
+     "agent_id": "h14-poll-oneoff",
+     "reviewed_paths": [
+      "src/wasi_python/_call.py"
+     ],
+     "invariant": "The shadow is the only poll_oneoff on every linker, with or without mounts. It runs only for the store on top of the thread's call stack, and it writes nothing on a refused or stopped path.",
+     "method": "source",
+     "result": "_runner_linker defines the shadow once per engine (_call.py:943-944). _mount_linker (954-972) and _guard_linker (975-998) are both built on _runner_linker, so every call, with or without mounts, gets the same _poll_oneoff. _shared (714-772) returns EINVAL without calling it when the caller's context is not that call's store, or when the call has stopped or ended. _poll_oneoff gets its memory from caller.get('memory'), the calling instance's export. The forwarding trampolines (_fs_memory.py:149-182) do not import poll_oneoff, so the shadow is never reached with a trampoline's own memory. A missing or non-memory export raises AttributeError, which the except at 1171-1172 turns into EINVAL with nothing written.",
+     "artifact": null
+    },
+    {
+     "agent_id": "h14-poll-oneoff",
+     "reviewed_paths": [
+      "src/wasi_python/_call.py"
+     ],
+     "invariant": "The bounded run through wasi_python.run, without mounts: crafted pointers, counts, tags, clock ids, flags and timeouts never change a guest byte outside the event region [out_ptr, out_ptr+32*nevents) and the 4 bytes at nevents_ptr, and change nothing at all on an error.",
+     "method": "local",
+     "result": "A raw WAT guest (13 pages, END=851968) ran through wasi_python.run(artifacts=Artifacts(plain=snapshot=guest), snapshot=False, cache_dir=False, deadline_s=20) in the brief's wrapper (ulimit -t 300 -f 4000000 -n 4096, env -i with an allowlisted PATH/HOME/TMPDIR/WASI_PYTHON_CACHE, sandbox-exec denying the network; the target was not read-only mounted). Around each call the guest filled a 6-page working area with 0xAA and compared every byte against a mirror. Results for all 55 cases: in_ptr=END-48, out_ptr=END-32 and nevents_ptr=END-4 each answered 0. One byte further (END-47, END-31, END-3), in_ptr=END, the wrapping pointers 0xFFFFFFD0, 0xFFFFFFFF, 0x80000000, 0xFFFFFFE0 and 0xFFFFFFFC, n=2 at END-48, n=4096 one byte short of room for its events, and n=3 with room for only 2 events all answered EFAULT (21). n=0 answered EINVAL. n=4097, 0x80000000 and 0xFFFFFFFF answered ENOMEM. n=4096 in bounds answered 0 with nevents=4096 and 131072 event bytes. Unknown tags 3 and 255, clock ids 2, 3, 4 and 0xFFFFFFFF, and a ready fd followed by a bad tag or clock id answered EINVAL with 0 bytes changed. The stdio fd rules answered as the source says. No case changed any byte outside the allowed regions (changed_outside_allowed=0 everywhere), and every error case changed 0 bytes. Event padding bytes read back as zero. The guest exited 0.",
+     "artifact": "agents/h14-poll-oneoff/artifacts/evidence/check_poll_A.json"
+    },
+    {
+     "agent_id": "h14-poll-oneoff",
+     "reviewed_paths": [
+      "src/wasi_python/_call.py",
+      "src/wasi_python/_fs_memory.py"
+     ],
+     "invariant": "The same with mounts: a call with mounts goes through the mount linker and the same shadow.",
+     "method": "local",
+     "result": "The same 55 cases with mounts=[Mount(MemoryProvider(), '/m')] (the provider is the project's own test fixture) gave identical answers, nevents values, changed-byte counts and event bytes. changed_outside_allowed was 0 everywhere and the guest exited 0.",
+     "artifact": "agents/h14-poll-oneoff/artifacts/evidence/check_poll_A-mounts.json"
+    },
+    {
+     "agent_id": "h14-poll-oneoff",
+     "reviewed_paths": [
+      "src/wasi_python/_call.py"
+     ],
+     "invariant": "Huge timeouts (a relative or absolute monotonic timeout of 2**64-1 ns) cause no arithmetic fault under a short deadline, and the call ends at the deadline.",
+     "method": "local",
+     "result": "With deadline_s=0.5, a relative timeout of 2**64-1 and an absolute monotonic timeout of 2**64-1 each ended as trapped='deadline', exit_code None, after 0.8 s of wall time for the whole process. No stop was recorded and no exception was raised into wasmtime-py. _poll_plan's timeout arithmetic uses Python integers (1096-1098) and the wait is a float. A run with deadline_s=None and the same relative timeout did not answer within the 30 s subprocess bound (driver.log). That is the wait having no deadline, which belongs to the deferred limits unit, not to memory handling.",
+     "artifact": "agents/h14-poll-oneoff/artifacts/evidence/driver.log"
+    },
+    {
+     "agent_id": "h14-poll-oneoff",
+     "reviewed_paths": [
+      "src/wasi_python/_call.py"
+     ],
+     "invariant": "How the shadow differs from wasmtime 49.0.0's own poll_oneoff on alignment, flags and descriptors, and whether any difference touches memory.",
+     "method": "local",
+     "result": "The same raw calls were run against wasmtime-py 49.0.0's own WASI poll_oneoff and against the shadow, with a scratch folder preopened at fd 3, in the same wrapper. On a misaligned in_ptr, out_ptr or nevents_ptr, wasmtime ends the run; the shadow answers 0 and writes the event. On flags 0xFFFE, wasmtime answers EINVAL; the shadow answers 0. On fd_read of fd 99, a descriptor that does not exist, wasmtime answers EBADF; the shadow answers 0 with the fd ready and nbytes 1. On an out_ptr with no room, wasmtime ends the run; the shadow answers EFAULT. Unknown tags, CPU-time and unknown clock ids, and fd 3 answered the same on both. In every case, on both, the bytes changed outside the event and nevents regions were 0. The shadow writes the zeroed padding (36 bytes changed) where wasmtime leaves padding untouched (25 bytes changed). These are differences in what the guest is answered, not memory defects.",
+     "artifact": "agents/h14-poll-oneoff/artifacts/evidence/compare_wasmtime.json"
+    }
+   ],
+   "candidate_fingerprints": [],
+   "unresolved": []
+  }
+ ],
+ "candidates": [],
+ "hardening": [
+  "src/wasi_python/_call.py:1082-1137 (_poll_plan) says it answers 'as wasmtime 49 answers it', but it accepts misaligned in_ptr/out_ptr/nevents_ptr, which wasmtime ends the run for, and unknown subclockflags bits, which wasmtime answers EINVAL for. The sibling mount shadows end the run for both through _fs_memory._ends. Checking alignment (in_ptr % 8, out_ptr % 8, nevents_ptr % 4) and flags & ~ABSTIME, and answering as wasmtime does, would remove the difference. It has no memory effect: all writes stay inside the checked ranges.",
+  "src/wasi_python/_call.py:1099-1106: any descriptor other than 0-3 (fd 4 and up, including preopened folders, numbers that do not exist and 0xFFFFFFFF) is reported ready with nbytes 1, where wasmtime answers EBADF for a descriptor that does not exist or a folder. The rule hard-codes fd 3 as 'the preopened root', but a real run preopens more than one folder. This is a difference in answers only: no host resource is touched and nothing outside the event region is written.",
+  "src/wasi_python/_call.py:1159: the out_ptr bound uses 32*n, not 32*len(events), so a call that would write fewer events than subscriptions still needs room for n. That is stricter than wasmtime and safe, and is recorded here only so a later change does not 'fix' it into a weaker bound."
+ ],
+ "uncovered": []
+}

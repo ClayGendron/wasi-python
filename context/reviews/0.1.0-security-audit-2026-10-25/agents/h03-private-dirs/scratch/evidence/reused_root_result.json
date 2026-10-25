@@ -1,0 +1,79 @@
+{
+ "10_dash_m": {
+  "exit_code": 1,
+  "planted_ran": [],
+  "stderr_tail": "Expecting value: line 1 column 1 (char 0)\n",
+  "stdout_tail": "",
+  "trapped": null
+ },
+ "11_session_like_pdb": {
+  "exit_code": 0,
+  "planted_ran": [],
+  "stderr_tail": "",
+  "stdout_tail": "pdb imported\n",
+  "trapped": null
+ },
+ "1_plant": {
+  "exit_code": 0,
+  "planted_ran": [],
+  "stderr_tail": "",
+  "stdout_tail": "planted ['/sitecustomize.py', '/usercustomize.py', '/evil.pth', '/pyvenv.cfg', '/usr/local/pyvenv.cfg', '/usr/local/bin/pyvenv.cfg', '/usr/local/bin/pybuilddir.txt', '/usr/local/lib/python3.15/os.py (via root fd)', '/usr/local/lib/python3.15/site-packages/evil.pth (via root fd)', '/usr/local/lib/python3.15/site-packages/sitecustomize.py (via root fd)', '/usr/local/lib/python315.zip (via root fd)', '/json.py', '/numpy.py', '/platform.py', '/argparse.py', '/__main__.py', '/startup.py', '/.pythonrc.py', '/_sysconfigdata__wasi_wasm32-wasi.py', '/_sysconfigdata_.py', '/planted_backend.py', '/evilhook.py', '/reportlab_mods.py', '/reportlab_settings.py', '/.reportlab_mods', '/.reportlab_settings', '/tmp/.reportlab_mods', '/tmp/.reportlab_settings', '/tmp/sitecustomize.py', '/tmp/json.py', '/matplotlibrc', '/turtle.cfg', '/.pdbrc', '/.local/lib/python3.15/site-packages/usercustomize.py']\nfailed []\n['.local', '.pdbrc', '.pythonrc.py', '.reportlab_mods', '.reportlab_settings', '__main__.py', '_sysconfigdata_.py', '_sysconfigdata__wasi_wasm32-wasi.py', 'argparse.py', 'evil.pth', 'evilhook.py', 'json.py', 'matplotlibrc', 'numpy.py', 'planted_backend.py', 'platform.py', 'pyvenv.cfg', 'reportlab_mods.py', 'reportlab_settings.py', 'sitecustomize.py', 'startup.py', 'tmp', 'turtle.cfg', 'usercustomize.py', 'usr']\n",
+  "trapped": null
+ },
+ "2_defaults_snapshot": {
+  "exit_code": 0,
+  "planted_ran": [],
+  "stderr_tail": "",
+  "stdout_tail": "sys.path ['/usr/local/lib/python315.zip']\nflags 1 1 1 True\nHOME /tmp/.home-43981287ef762e028582f3b0cd674936 cwd / prefix /usr/local /usr/local\nmpl backend module://planted_backend\nprobe-done\n",
+  "trapped": null
+ },
+ "3_defaults_plain": {
+  "exit_code": 0,
+  "planted_ran": [],
+  "stderr_tail": "",
+  "stdout_tail": "sys.path ['/usr/local/lib/python315.zip']\nflags 1 1 1 True\nHOME /tmp/.home-c9256cd36b01bf01f998adea9e071cd8 cwd / prefix /usr/local /usr/local\nmpl backend module://planted_backend\nprobe-done\n",
+  "trapped": null
+ },
+ "4_env_home_tmp_python_snapshot": {
+  "exit_code": 1,
+  "planted_ran": [
+   "pdbrc"
+  ],
+  "stderr_tail": "PLANTED:pdbrc\n",
+  "stdout_tail": "sys.path ['/usr/local/lib/python315.zip']\nflags 1 1 1 True\nHOME / cwd / prefix /usr/local /usr/local\nmpl backend module://planted_backend\nprobe-done\n14\n> <string>(28)<module>()\n(Pdb) \nQuitting pdb will kill the process. Quit anyway? [y/n] \n",
+  "trapped": null
+ },
+ "5_env_home_tmp_python_plain": {
+  "exit_code": 0,
+  "planted_ran": [],
+  "stderr_tail": "",
+  "stdout_tail": "sys.path ['/usr/local/lib/python315.zip']\nflags 1 1 1 True\nHOME / cwd / prefix /usr/local /usr/local\nmpl backend module://planted_backend\nprobe-done\n",
+  "trapped": null
+ },
+ "6_env_sysconfigdata_path": {
+  "exit_code": 0,
+  "planted_ran": [
+   "sysconfigdata_root"
+  ],
+  "stderr_tail": "PLANTED:sysconfigdata_root\n",
+  "stdout_tail": "sys.path ['/usr/local/lib/python315.zip']\nflags 1 1 1 True\nHOME /tmp/.home-151e23abf48543826a360b7aaf738b66 cwd / prefix /usr/local /usr/local\nmpl backend module://planted_backend\nprobe-done\n",
+  "trapped": null
+ },
+ "7_import_path_ro_grant": {
+  "exit_code": 0,
+  "planted_ran": [],
+  "stderr_tail": "",
+  "stdout_tail": "7 /usr/local/lib/python315.zip/json/__init__.pyc ['/usr/local/lib/python315.zip', '/ro']\n",
+  "trapped": null
+ },
+ "8_import_path_served_by_root": {
+  "raised": "ValueError: import_path[0] '/tmp' is served by the root, which is writable; only a read-only grant may serve the import path"
+ },
+ "9_script_mode": {
+  "exit_code": 0,
+  "planted_ran": [],
+  "stderr_tail": "",
+  "stdout_tail": "script ran /usr/local/lib/python315.zip/json/__init__.pyc\n",
+  "trapped": null
+ }
+}

@@ -1,0 +1,5 @@
+{"wasmtime_py": "49.0.0", "func": "returned", "r": 1, "n": 100000, "fuel_used": 800013}
+{"wasmtime_py": "49.0.0", "func": "returned", "r": 100, "n": 100000, "fuel_used": 80001201}
+{"wasmtime_py": "49.0.0", "func": "thrown", "r": 1, "n": 100000, "fuel_used": 12}
+{"wasmtime_py": "49.0.0", "func": "thrown", "r": 100, "n": 100000, "fuel_used": 1101}
+rc 0

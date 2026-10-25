@@ -1,0 +1,310 @@
+{
+ "snapshot=False run=1": {
+  "_exit_code": 0,
+  "base_prefix": "/usr/local",
+  "breakpointhook_env": null,
+  "cwd": "/",
+  "dont_write_bytecode": true,
+  "environ": {
+   "HOME": "/tmp/.home-7d3699dfc4d924fd154e001d9f07e299",
+   "PYTHONHASHSEED": "123",
+   "PYTHONINSPECT": "1",
+   "PYTHONPATH": "/planted",
+   "PYTHONSTARTUP": "/x.py",
+   "PYTHONTZPATH": "",
+   "TMPDIR": "/tmp"
+  },
+  "exec_prefix": "/usr/local",
+  "executable": "/usr/local/bin/python.wasm",
+  "flags": {
+   "bytes_warning": 0,
+   "context_aware_warnings": 0,
+   "debug": 0,
+   "dev_mode": false,
+   "dont_write_bytecode": 1,
+   "gil": 1,
+   "hash_randomization": 1,
+   "ignore_environment": 1,
+   "inspect": 0,
+   "int_max_str_digits": 4300,
+   "interactive": 0,
+   "isolated": 1,
+   "lazy_imports": -1,
+   "no_site": 1,
+   "no_user_site": 1,
+   "optimize": 0,
+   "quiet": 0,
+   "safe_path": true,
+   "thread_inherit_context": 0,
+   "utf8_mode": 1,
+   "verbose": 0,
+   "warn_default_encoding": 0
+  },
+  "hash_abc": -1125248024,
+  "hash_bytes": 1126282980,
+  "hash_info": {
+   "algorithm": "siphash13",
+   "cutoff": 0,
+   "hash_bits": 64,
+   "modulus": 2147483647,
+   "seed_bits": 128,
+   "width": 32
+  },
+  "listdir_root": "FileNotFoundError(44, 'No such file or directory')",
+  "listdir_usr_local_lib": [
+   "python315.zip"
+  ],
+  "meta_path": [
+   "BuiltinImporter",
+   "FrozenImporter",
+   "PathFinder"
+  ],
+  "n_modules": 68,
+  "path": [
+   "/usr/local/lib/python315.zip"
+  ],
+  "path_hooks": [
+   "zipimporter",
+   "path_hook_for_FileFinder"
+  ],
+  "platform": "wasi",
+  "prefix": "/usr/local",
+  "pycache_prefix": null,
+  "random_bits": 16670354668034295706,
+  "random_preimported": false,
+  "site_in_modules": true,
+  "stdlib_dir": "/usr/local/lib/python315.zip",
+  "urandom": "96ea135469abee6d"
+ },
+ "snapshot=False run=2": {
+  "_exit_code": 0,
+  "base_prefix": "/usr/local",
+  "breakpointhook_env": null,
+  "cwd": "/",
+  "dont_write_bytecode": true,
+  "environ": {
+   "HOME": "/tmp/.home-55203c339227aeca1643c65cc0d9fcd0",
+   "PYTHONHASHSEED": "123",
+   "PYTHONINSPECT": "1",
+   "PYTHONPATH": "/planted",
+   "PYTHONSTARTUP": "/x.py",
+   "PYTHONTZPATH": "",
+   "TMPDIR": "/tmp"
+  },
+  "exec_prefix": "/usr/local",
+  "executable": "/usr/local/bin/python.wasm",
+  "flags": {
+   "bytes_warning": 0,
+   "context_aware_warnings": 0,
+   "debug": 0,
+   "dev_mode": false,
+   "dont_write_bytecode": 1,
+   "gil": 1,
+   "hash_randomization": 1,
+   "ignore_environment": 1,
+   "inspect": 0,
+   "int_max_str_digits": 4300,
+   "interactive": 0,
+   "isolated": 1,
+   "lazy_imports": -1,
+   "no_site": 1,
+   "no_user_site": 1,
+   "optimize": 0,
+   "quiet": 0,
+   "safe_path": true,
+   "thread_inherit_context": 0,
+   "utf8_mode": 1,
+   "verbose": 0,
+   "warn_default_encoding": 0
+  },
+  "hash_abc": 561596571,
+  "hash_bytes": -961286956,
+  "hash_info": {
+   "algorithm": "siphash13",
+   "cutoff": 0,
+   "hash_bits": 64,
+   "modulus": 2147483647,
+   "seed_bits": 128,
+   "width": 32
+  },
+  "listdir_root": "FileNotFoundError(44, 'No such file or directory')",
+  "listdir_usr_local_lib": [
+   "python315.zip"
+  ],
+  "meta_path": [
+   "BuiltinImporter",
+   "FrozenImporter",
+   "PathFinder"
+  ],
+  "n_modules": 68,
+  "path": [
+   "/usr/local/lib/python315.zip"
+  ],
+  "path_hooks": [
+   "zipimporter",
+   "path_hook_for_FileFinder"
+  ],
+  "platform": "wasi",
+  "prefix": "/usr/local",
+  "pycache_prefix": null,
+  "random_bits": 2787702385894370624,
+  "random_preimported": false,
+  "site_in_modules": true,
+  "stdlib_dir": "/usr/local/lib/python315.zip",
+  "urandom": "a5e6a849d830c9f1"
+ },
+ "snapshot=True run=1": {
+  "_exit_code": 0,
+  "base_prefix": "/usr/local",
+  "breakpointhook_env": null,
+  "cwd": "/",
+  "dont_write_bytecode": true,
+  "environ": {
+   "HOME": "/tmp/.home-920375c2ab86747978231c195f0499bc",
+   "PYTHONHASHSEED": "123",
+   "PYTHONINSPECT": "1",
+   "PYTHONPATH": "/planted",
+   "PYTHONSTARTUP": "/x.py",
+   "PYTHONTZPATH": "",
+   "TMPDIR": "/tmp"
+  },
+  "exec_prefix": "/usr/local",
+  "executable": "/usr/local/bin/python.wasm",
+  "flags": {
+   "bytes_warning": 0,
+   "context_aware_warnings": 0,
+   "debug": 0,
+   "dev_mode": false,
+   "dont_write_bytecode": 1,
+   "gil": 1,
+   "hash_randomization": 0,
+   "ignore_environment": 1,
+   "inspect": 0,
+   "int_max_str_digits": 4300,
+   "interactive": 0,
+   "isolated": 1,
+   "lazy_imports": -1,
+   "no_site": 1,
+   "no_user_site": 1,
+   "optimize": 0,
+   "quiet": 0,
+   "safe_path": true,
+   "thread_inherit_context": 0,
+   "utf8_mode": 1,
+   "verbose": 0,
+   "warn_default_encoding": 0
+  },
+  "hash_abc": 69611762,
+  "hash_bytes": -1232729172,
+  "hash_info": {
+   "algorithm": "siphash13",
+   "cutoff": 0,
+   "hash_bits": 64,
+   "modulus": 2147483647,
+   "seed_bits": 128,
+   "width": 32
+  },
+  "listdir_root": "FileNotFoundError(44, 'No such file or directory')",
+  "listdir_usr_local_lib": [
+   "python315.zip"
+  ],
+  "meta_path": [
+   "BuiltinImporter",
+   "FrozenImporter",
+   "PathFinder"
+  ],
+  "n_modules": 77,
+  "path": [
+   "/usr/local/lib/python315.zip"
+  ],
+  "path_hooks": [
+   "zipimporter",
+   "path_hook_for_FileFinder"
+  ],
+  "platform": "wasi",
+  "prefix": "/usr/local",
+  "pycache_prefix": null,
+  "random_bits": 6989036838584187660,
+  "random_preimported": false,
+  "site_in_modules": true,
+  "stdlib_dir": "/usr/local/lib/python315.zip",
+  "urandom": "a267eef3439d6a75"
+ },
+ "snapshot=True run=2": {
+  "_exit_code": 0,
+  "base_prefix": "/usr/local",
+  "breakpointhook_env": null,
+  "cwd": "/",
+  "dont_write_bytecode": true,
+  "environ": {
+   "HOME": "/tmp/.home-32f4f3b5c80959f535c3eaa86e210724",
+   "PYTHONHASHSEED": "123",
+   "PYTHONINSPECT": "1",
+   "PYTHONPATH": "/planted",
+   "PYTHONSTARTUP": "/x.py",
+   "PYTHONTZPATH": "",
+   "TMPDIR": "/tmp"
+  },
+  "exec_prefix": "/usr/local",
+  "executable": "/usr/local/bin/python.wasm",
+  "flags": {
+   "bytes_warning": 0,
+   "context_aware_warnings": 0,
+   "debug": 0,
+   "dev_mode": false,
+   "dont_write_bytecode": 1,
+   "gil": 1,
+   "hash_randomization": 0,
+   "ignore_environment": 1,
+   "inspect": 0,
+   "int_max_str_digits": 4300,
+   "interactive": 0,
+   "isolated": 1,
+   "lazy_imports": -1,
+   "no_site": 1,
+   "no_user_site": 1,
+   "optimize": 0,
+   "quiet": 0,
+   "safe_path": true,
+   "thread_inherit_context": 0,
+   "utf8_mode": 1,
+   "verbose": 0,
+   "warn_default_encoding": 0
+  },
+  "hash_abc": 69611762,
+  "hash_bytes": -1232729172,
+  "hash_info": {
+   "algorithm": "siphash13",
+   "cutoff": 0,
+   "hash_bits": 64,
+   "modulus": 2147483647,
+   "seed_bits": 128,
+   "width": 32
+  },
+  "listdir_root": "FileNotFoundError(44, 'No such file or directory')",
+  "listdir_usr_local_lib": [
+   "python315.zip"
+  ],
+  "meta_path": [
+   "BuiltinImporter",
+   "FrozenImporter",
+   "PathFinder"
+  ],
+  "n_modules": 77,
+  "path": [
+   "/usr/local/lib/python315.zip"
+  ],
+  "path_hooks": [
+   "zipimporter",
+   "path_hook_for_FileFinder"
+  ],
+  "platform": "wasi",
+  "prefix": "/usr/local",
+  "pycache_prefix": null,
+  "random_bits": 16884530743927330802,
+  "random_preimported": false,
+  "site_in_modules": true,
+  "stdlib_dir": "/usr/local/lib/python315.zip",
+  "urandom": "c365516b3cd9ba9e"
+ }
+}

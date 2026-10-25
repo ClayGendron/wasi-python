@@ -1,0 +1,32 @@
+== wasi-python-0.1.0-wasm32-wasip1.tar.xz (--repo ClayGendron/wasi_python, --source-ref refs/tags/v0.1.0, --signer-workflow)
+== wasi-python-0.1.0-wasm32-wasip1.tar.xz (--owner, json summary)
+1 [{'name': 'SHA256SUMS', 'digest': {'sha256': '05324c2ebb3b071f7434dc8bdab8286f8760a657b5b963e0d40fe3e1bdb28916'}}, {'name': 'wasi-python-0.1.0-wasm32-wasip1.tar.xz', 'digest': {'sha256': 'a6a4ae7069b663981bd684c882efbdb0fe95658e17d15f38d7d8e8856418b337'}}, {'name': 'wasi_python-0.1.0-py3-none-any.whl', 'digest': {'sha256': '3bfb0dcc48ce1ce9f4741e142a3a73e865b2028b7468179588d52f418dabfafc'}}] https://github.com/ClayGendron/wasi_python 2cd47507ef7c4e04d95aca059c60368417e01d40 https://github.com/ClayGendron/wasi_python/.github/workflows/release.yml@refs/tags/v0.1.0 https://github.com/ClayGendron/wasi_python/actions/runs/39957192055/attempts/1 push
+== wasi_python-0.1.0-py3-none-any.whl (--repo ClayGendron/wasi_python, --source-ref refs/tags/v0.1.0, --signer-workflow)
+== wasi_python-0.1.0-py3-none-any.whl (--owner, json summary)
+1 [{'name': 'SHA256SUMS', 'digest': {'sha256': '05324c2ebb3b071f7434dc8bdab8286f8760a657b5b963e0d40fe3e1bdb28916'}}, {'name': 'wasi-python-0.1.0-wasm32-wasip1.tar.xz', 'digest': {'sha256': 'a6a4ae7069b663981bd684c882efbdb0fe95658e17d15f38d7d8e8856418b337'}}, {'name': 'wasi_python-0.1.0-py3-none-any.whl', 'digest': {'sha256': '3bfb0dcc48ce1ce9f4741e142a3a73e865b2028b7468179588d52f418dabfafc'}}] https://github.com/ClayGendron/wasi_python 2cd47507ef7c4e04d95aca059c60368417e01d40 https://github.com/ClayGendron/wasi_python/.github/workflows/release.yml@refs/tags/v0.1.0 https://github.com/ClayGendron/wasi_python/actions/runs/39957192055/attempts/1 push
+== SHA256SUMS (--repo ClayGendron/wasi_python, --source-ref refs/tags/v0.1.0, --signer-workflow)
+== SHA256SUMS (--owner, json summary)
+1 [{'name': 'SHA256SUMS', 'digest': {'sha256': '05324c2ebb3b071f7434dc8bdab8286f8760a657b5b963e0d40fe3e1bdb28916'}}, {'name': 'wasi-python-0.1.0-wasm32-wasip1.tar.xz', 'digest': {'sha256': 'a6a4ae7069b663981bd684c882efbdb0fe95658e17d15f38d7d8e8856418b337'}}, {'name': 'wasi_python-0.1.0-py3-none-any.whl', 'digest': {'sha256': '3bfb0dcc48ce1ce9f4741e142a3a73e865b2028b7468179588d52f418dabfafc'}}] https://github.com/ClayGendron/wasi_python 2cd47507ef7c4e04d95aca059c60368417e01d40 https://github.com/ClayGendron/wasi_python/.github/workflows/release.yml@refs/tags/v0.1.0 https://github.com/ClayGendron/wasi_python/actions/runs/39957192055/attempts/1 push
+
+Exit codes of: gh attestation verify --repo ClayGendron/wasi_python --source-ref refs/tags/v0.1.0 --signer-workflow ClayGendron/wasi_python/.github/workflows/release.yml <file>
+wasi-python-0.1.0-wasm32-wasip1.tar.xz exit=0
+wasi_python-0.1.0-py3-none-any.whl exit=0
+SHA256SUMS exit=0
+Note: --repo ClayGendron/wasi-python (new name) fails: the certificate SAN names the old repository name ClayGendron/wasi_python.
+
+Downloaded asset hashes (shasum -a 256):
+05324c2ebb3b071f7434dc8bdab8286f8760a657b5b963e0d40fe3e1bdb28916  SHA256SUMS
+3bfb0dcc48ce1ce9f4741e142a3a73e865b2028b7468179588d52f418dabfafc  wasi_python-0.1.0-py3-none-any.whl
+a6a4ae7069b663981bd684c882efbdb0fe95658e17d15f38d7d8e8856418b337  wasi-python-0.1.0-wasm32-wasip1.tar.xz
+
+Published SHA256SUMS asset:
+a6a4ae7069b663981bd684c882efbdb0fe95658e17d15f38d7d8e8856418b337  wasi-python-0.1.0-wasm32-wasip1.tar.xz
+3bfb0dcc48ce1ce9f4741e142a3a73e865b2028b7468179588d52f418dabfafc  wasi_python-0.1.0-py3-none-any.whl
+
+GitHub asset digests (gh release view): SHA256SUMS 05324c2e..., tar.xz a6a4ae70..., whl 3bfb0dcc...
+
+Documented command (release notes, docs/how-to/verify-a-download.md):
+wasi-python-0.1.0-wasm32-wasip1.tar.xz exit=0
+wasi_python-0.1.0-py3-none-any.whl exit=0
+SHA256SUMS exit=0
+tag v0.1.0 commit: 2cd47507ef7c4e04d95aca059c60368417e01d40 (attested sourceRepositoryDigest 2cd47507ef7c4e04d95aca059c60368417e01d40)

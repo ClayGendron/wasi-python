@@ -1,0 +1,1 @@
+{ "h13-sessions-limits": ["src/wasi_python/_sessions.py#Session", "src/wasi_python/runner.py#run"] }

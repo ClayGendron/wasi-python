@@ -1,0 +1,158 @@
+[
+ {
+  "case": "aligned clock",
+  "wasmtime": {
+   "answer": 0,
+   "changed": 25,
+   "changed_outside": 0
+  },
+  "shadow": {
+   "answer": 0,
+   "changed": 36,
+   "changed_outside": 0
+  }
+ },
+ {
+  "case": "misaligned in_ptr",
+  "wasmtime": {
+   "answer": "ends run: error while executing at wasm backtrace:",
+   "changed": 0,
+   "changed_outside": 0
+  },
+  "shadow": {
+   "answer": 0,
+   "changed": 36,
+   "changed_outside": 0
+  }
+ },
+ {
+  "case": "misaligned out_ptr",
+  "wasmtime": {
+   "answer": "ends run: error while executing at wasm backtrace:",
+   "changed": 0,
+   "changed_outside": 0
+  },
+  "shadow": {
+   "answer": 0,
+   "changed": 36,
+   "changed_outside": 0
+  }
+ },
+ {
+  "case": "misaligned nevents_ptr",
+  "wasmtime": {
+   "answer": "ends run: error while executing at wasm backtrace:",
+   "changed": 21,
+   "changed_outside": 0
+  },
+  "shadow": {
+   "answer": 0,
+   "changed": 36,
+   "changed_outside": 0
+  }
+ },
+ {
+  "case": "unknown tag 3",
+  "wasmtime": {
+   "answer": 28,
+   "changed": 0,
+   "changed_outside": 0
+  },
+  "shadow": {
+   "answer": 28,
+   "changed": 0,
+   "changed_outside": 0
+  }
+ },
+ {
+  "case": "clock id 2",
+  "wasmtime": {
+   "answer": 28,
+   "changed": 0,
+   "changed_outside": 0
+  },
+  "shadow": {
+   "answer": 28,
+   "changed": 0,
+   "changed_outside": 0
+  }
+ },
+ {
+  "case": "clock id 9",
+  "wasmtime": {
+   "answer": 28,
+   "changed": 0,
+   "changed_outside": 0
+  },
+  "shadow": {
+   "answer": 28,
+   "changed": 0,
+   "changed_outside": 0
+  }
+ },
+ {
+  "case": "flags 0xFFFE",
+  "wasmtime": {
+   "answer": 28,
+   "changed": 0,
+   "changed_outside": 0
+  },
+  "shadow": {
+   "answer": 0,
+   "changed": 36,
+   "changed_outside": 0
+  }
+ },
+ {
+  "case": "fd_read 3 (preopened dir)",
+  "wasmtime": {
+   "answer": 8,
+   "changed": 0,
+   "changed_outside": 0
+  },
+  "shadow": {
+   "answer": 8,
+   "changed": 0,
+   "changed_outside": 0
+  }
+ },
+ {
+  "case": "fd_read 99 (no such fd)",
+  "wasmtime": {
+   "answer": 8,
+   "changed": 0,
+   "changed_outside": 0
+  },
+  "shadow": {
+   "answer": 0,
+   "changed": 36,
+   "changed_outside": 0
+  }
+ },
+ {
+  "case": "fd_read stdin",
+  "wasmtime": {
+   "answer": 0,
+   "changed": 25,
+   "changed_outside": 0
+  },
+  "shadow": {
+   "answer": 0,
+   "changed": 36,
+   "changed_outside": 0
+  }
+ },
+ {
+  "case": "out_ptr 65535-31 (no room)",
+  "wasmtime": {
+   "answer": "ends run: error while executing at wasm backtrace:",
+   "changed": 0,
+   "changed_outside": 0
+  },
+  "shadow": {
+   "answer": 21,
+   "changed": 0,
+   "changed_outside": 0
+  }
+ }
+]

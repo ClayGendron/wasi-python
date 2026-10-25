@@ -1,0 +1,31 @@
+Which check binds which inner file of the v0.1.0 release assets (release.yml as tagged at 2cd47507; identical to the working tree).
+
+Producer: job `build` (release.yml:107), tag push run 39957192055 (headSha 2cd47507ef7c4e04d95aca059c60368417e01d40, event push, success).
+  B1 release.yml:163-172  release/set_key.py verify build/artifacts (set_key.py:164-208): EVERY file under the set (rglob, incl. LICENSES/*, MANIFEST, both binaries, zip) against the set's own SHA256SUMS, no unlisted file, no symlink; MANIFEST pin/recipe lines vs checkout.
+  B2 release.yml:174-179  cp -R build/artifacts src/wasi_python/artifacts; licences.py append (rewrites ./LICENSE only); uv build; licences.py check (wheel .dist-info/licenses/LICENSE == combined(LICENSE, build/artifacts/LICENSES/*.txt)).
+  B3 release.yml:197-198  release/version.py assets: tarball packs exactly the files the set's SHA256SUMS lists + SHA256SUMS (version.py:155-201), read from build/artifacts AFTER B1/B2 (not re-verified after B2 or the zero-patch pytest step at 180-189).
+  B4 release.yml:199-201  outer SHA256SUMS hash handed on as sums-sha256; uploaded by artifact id (203-207).
+
+Every consumer (same-bytes, save-set, judges, verify, attest, publish, pypi):
+  C0 download by artifact id, digest-mismatch: error; outer SHA256SUMS vs handed-on hash; sha256sum -c of the outer list (tar.xz, whl); no other file. Binds the two outer assets as whole files.
+
+same-bytes (368-488), gate of attest (2426) and publish (2489):
+  S1 448-456  tar -xJf the tarball; cmp its INNER SHA256SUMS with each rebuild's build/artifacts/SHA256SUMS (arm64 + x86_64 Linux). Binds the inner SHA256SUMS only; does NOT sha256sum -c the extracted tarball members.
+  S2 458-472  unzip the wheel; sha256sum --strict -c the tarball's inner SHA256SUMS inside wheel/wasi_python/artifacts (binds the wheel's copy of all 75 listed files incl. LICENSES/*); cmp inner SHA256SUMS; listed == present.
+  S3 473-488  cmp the whole wheel with each host's rebuilt wheel (binds runner .py, METADATA, dist-info LICENSE, RECORD).
+
+Judges (judge-macos/linux/windows/release, all in gather's needs; gather is in attest's and publish's needs):
+  J0 release.yml:704-709  extract the tarball (filter='data'); WASI_PYTHON_ARTIFACTS = the extracted wasi-python-0.1.0/ folder.
+  J1 runner: _found_and_checked (src/wasi_python/_artifacts.py:181-218) checks MANIFEST, the one binary the call runs, and python-stdlib.zip against the inner SHA256SUMS. LICENSES/* not read by the runner.
+  J2 judge check tests/checks/test_v1_1_artifact_set.py::test_sha256sums_match_the_files (tests/harness/artifacts.py:38-54): EVERY member of the extracted folder (rglob, litter excepted) against the inner SHA256SUMS, no unlisted file, no listed file absent. In shard own-guest (tests/release_shards.toml:88-94), systems macos, linux, windows. gather G4 (tests/harness/gather.py:260-272) is red when any check failed; G2 (gather.py:179-193) holds every record's set_sums to the build's set-sums-sha256.
+save-set (547-618): set_key verify of the unpacked tarball (every member) - only when set-source == built AND ref_type == branch (553): never on a tag run.
+
+Inner files of the tarball and their post-packing binding on a TAG run:
+  SHA256SUMS            S1 (== both rebuilds), S2, G2 (records' set_sums)
+  MANIFEST              J1, J2 vs inner SHA256SUMS
+  python.wasm           J1 (plain legs), J2, G2 artifact == build's wasm-sha256
+  python-snapshot.wasm  J1 (snapshot legs), J2
+  python-stdlib.zip     J1, J2
+  LICENSES/* (71 files) J2 on three systems (and B1 before packing; S2 on the wheel's own copy)
+
+Answer: the same-bytes step alone binds only the inner SHA256SUMS (and, through S2, the wheel's copy), and the runner's own check binds only MANIFEST, the run binary and the zip; but the judge's goal check J2, run on the extracted tarball on all three systems and enforced by gather G4 ahead of attest and publish, hashes every inner member including LICENSES/*. A LICENSES/* difference in the tarball, or an extra member, fails J2 and so the gather, before signing and publishing. Residual: J2 is a judge check, not a workflow step; removing it from the plan is a judge change (reviewed per project rules) and G3 requires the plan's collection. Observed v0.1.0: no difference (asset-comparison.txt, repack-check.log).

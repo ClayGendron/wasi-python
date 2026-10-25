@@ -1,0 +1,219 @@
+{
+ "python": "3.14.2",
+ "proposed_fix_fixed": {
+  "AccountPM": [
+   "role"
+  ],
+  "AccountP": [
+   "role"
+  ],
+  "AccountNew": [
+   "role"
+  ],
+  "AccountMeta": []
+ },
+ "registration": {
+  "acct_pm": {
+   "signature": "(q, *, role='viewer')",
+   "fixed": [],
+   "schema_naming_role": "accepted, fixed=[]"
+  },
+  "acct_p": {
+   "signature": "(q, *, role='viewer')",
+   "fixed": [],
+   "schema_naming_role": "accepted, fixed=[]"
+  },
+  "acct_new": {
+   "signature": "(q, *, role='viewer')",
+   "fixed": [],
+   "schema_naming_role": "accepted, fixed=[]"
+  },
+  "orders": {
+   "signature": "(q, *, user_id=42)",
+   "fixed": [
+    "user_id"
+   ],
+   "schema_naming_user_id": "refused: ValueError: orders_named: input_schema names 'user_id', which the partial binds; a bound keyword is fixed, so the guest cannot set it: leave it out"
+  },
+  "callable_instance_call_partialmethod": "refused: TypeError: cpm: a functools.partialmethod is described only through an instance (obj.method); or bind its keywords with a closure or a functools.partial",
+  "metaclass_python_call": {
+   "signature": "(*a, **k)",
+   "fixed": []
+  }
+ },
+ "guest_answers": [
+  {
+   "tool": "acct_pm",
+   "ok": true,
+   "error": null,
+   "value": {
+    "q": "x",
+    "role": "admin"
+   }
+  },
+  {
+   "tool": "acct_p",
+   "ok": true,
+   "error": null,
+   "value": {
+    "q": "x",
+    "role": "admin"
+   }
+  },
+  {
+   "tool": "acct_new",
+   "ok": true,
+   "error": null,
+   "value": {
+    "q": "x",
+    "role": "admin"
+   }
+  },
+  {
+   "tool": "acct_pm",
+   "ok": true,
+   "error": null,
+   "value": {
+    "q": "x",
+    "role": "viewer"
+   }
+  },
+  {
+   "tool": "orders",
+   "ok": false,
+   "error": {
+    "kind": "invalid_arguments",
+    "message": "orders: the arguments: unknown argument 'user_id'"
+   },
+   "value": null
+  },
+  {
+   "tool": "orders",
+   "ok": true,
+   "error": null,
+   "value": {
+    "user_id": 42
+   }
+  }
+ ],
+ "guest_stderr_tail": "",
+ "host_seen": [
+  [
+   "gate",
+   "acct_pm",
+   {
+    "q": "x",
+    "role": "admin"
+   }
+  ],
+  [
+   "AccountPM ctor",
+   {
+    "q": "x",
+    "role": "admin"
+   }
+  ],
+  [
+   "gate",
+   "acct_p",
+   {
+    "q": "x",
+    "role": "admin"
+   }
+  ],
+  [
+   "AccountP ctor",
+   {
+    "q": "x",
+    "role": "admin"
+   }
+  ],
+  [
+   "gate",
+   "acct_new",
+   {
+    "q": "x",
+    "role": "admin"
+   }
+  ],
+  [
+   "AccountNew ctor",
+   {
+    "q": "x",
+    "role": "admin"
+   }
+  ],
+  [
+   "gate",
+   "acct_pm",
+   {
+    "q": "x"
+   }
+  ],
+  [
+   "AccountPM ctor",
+   {
+    "q": "x",
+    "role": "viewer"
+   }
+  ],
+  [
+   "gate",
+   "orders",
+   {
+    "q": "x"
+   }
+  ],
+  [
+   "orders handler",
+   {
+    "q": "x",
+    "user_id": 42
+   }
+  ]
+ ],
+ "record": [
+  [
+   1,
+   "acct_pm",
+   "ok",
+   null,
+   null
+  ],
+  [
+   2,
+   "acct_p",
+   "ok",
+   null,
+   null
+  ],
+  [
+   3,
+   "acct_new",
+   "ok",
+   null,
+   null
+  ],
+  [
+   4,
+   "acct_pm",
+   "ok",
+   null,
+   null
+  ],
+  [
+   5,
+   "orders",
+   "invalid_arguments",
+   "orders: the arguments: unknown argument 'user_id'",
+   null
+  ],
+  [
+   6,
+   "orders",
+   "ok",
+   null,
+   null
+  ]
+ ]
+}

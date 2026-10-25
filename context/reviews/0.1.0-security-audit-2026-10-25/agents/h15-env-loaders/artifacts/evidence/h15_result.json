@@ -1,0 +1,101 @@
+{
+ "mpl_control_noenv": {
+  "env": null,
+  "exit_code": 0,
+  "planted_markers": [],
+  "stderr_tail": "",
+  "stdout_tail": "results {'rc_backend': 'Agg', 'configdir': '/tmp/.home-40e9f4efdf712e3dfa514becc2a61357/.matplotlib', 'matplotlib_fname': '/usr/local/lib/python315.zip/matplotlib/mpl-data/matplotlibrc', 'pyplot': 'ok'}\n",
+  "trapped": null
+ },
+ "mpl_env_MPLBACKEND": {
+  "env": {
+   "MPLBACKEND": "module://mybackend"
+  },
+  "exit_code": 0,
+  "planted_markers": [],
+  "stderr_tail": "",
+  "stdout_tail": "results {'rc_backend': 'module://mybackend', 'configdir': '/tmp/.home-bf9593ebe471493bf716f7bc67873add/.matplotlib', 'matplotlib_fname': '/usr/local/lib/python315.zip/matplotlib/mpl-data/matplotlibrc', 'error': \"ModuleNotFoundError: No module named 'mybackend'\"}\n",
+  "trapped": null
+ },
+ "mpl_env_configdirs": {
+  "env": {
+   "MATPLOTLIBRC": "/data/mpl/matplotlibrc",
+   "MPLCONFIGDIR": "/data/mpl",
+   "XDG_CONFIG_HOME": "/data"
+  },
+  "exit_code": 0,
+  "planted_markers": [],
+  "stderr_tail": "",
+  "stdout_tail": "results {'rc_backend': 'module://mybackend', 'configdir': '/data/mpl', 'matplotlib_fname': '/data/mpl/matplotlibrc', 'error': \"ModuleNotFoundError: No module named 'mybackend'\"}\n",
+  "trapped": null
+ },
+ "mpl_env_entrypoint_name": {
+  "env": {
+   "MPLBACKEND": "fake"
+  },
+  "exit_code": 0,
+  "planted_markers": [],
+  "stderr_tail": "",
+  "stdout_tail": "results {'error': \"ValueError: Key backend: 'fake' is not a valid value for backend; supported values are ['gtk3agg', 'gtk3cairo', 'gtk4agg', 'gtk4cairo', 'macosx', 'nbagg', 'notebook', 'qtagg', 'qtcairo', 'qt5agg', 'qt5cairo', 'tk\"}\n",
+  "trapped": null
+ },
+ "names_control_noenv": {
+  "env": null,
+  "exit_code": 0,
+  "planted_markers": [],
+  "stderr_tail": "",
+  "stdout_tail": "cwd /\npath ['/usr/local/lib/python315.zip']\nresults {'mpmath': 'ok', 'sympy': 'ok', 'networkx': 'ok', 'loky': \"ModuleNotFoundError: No module named '_multiprocessing'\", 'dom': 'ok', 'sax': 'ok', 'scipy': 'ok'}\n",
+  "trapped": null
+ },
+ "names_env": {
+  "env": {
+   "JOBLIB_TEMP_FOLDER": "/data",
+   "LOKY_PICKLER": "mypickler",
+   "MPMATH_SAGE": "1",
+   "NETWORKX_AUTOMATIC_BACKENDS": "fake",
+   "NETWORKX_BACKEND_PRIORITY": "fake",
+   "PYTHONPATH": "/data",
+   "PYTHONSTARTUP": "/data/start.py",
+   "PYTHONUSERBASE": "/data",
+   "PYTHON_DOM": "mydom",
+   "PY_SAX_PARSER": "mysax",
+   "SAGE_ROOT": "/data",
+   "SCIPY_ARRAY_API": "1",
+   "SYMPY_GROUND_TYPES": "flint",
+   "USE_SYMENGINE": "1"
+  },
+  "exit_code": 0,
+  "planted_markers": [],
+  "stderr_tail": "/usr/local/lib/python315.zip/sympy/external/gmpy.py:120: UserWarning: SYMPY_GROUND_TYPES was set to flint but python-flint is not installed. Falling back to other ground types.\n",
+  "stdout_tail": "cwd /\npath ['/usr/local/lib/python315.zip']\nresults {'mpmath': 'ok', 'sympy': 'ok', 'networkx': \"ValueError: Unknown backend when setting 'algos': 'fake'\", 'loky': \"ModuleNotFoundError: No module named '_multiprocessing'\", 'dom': 'ok', 'sax': 'ok', 'scipy': 'ok'}\n",
+  "trapped": null
+ },
+ "plant": {
+  "env": null,
+  "exit_code": 0,
+  "planted_markers": [],
+  "stderr_tail": "",
+  "stdout_tail": "planted ['fakenx-1.0.dist-info', 'flint.py', 'gmpy.py', 'gmpy2.py', 'matplotlib', 'mpl', 'mybackend.py', 'mydom.py', 'mypickler.py', 'mysax.py', 'sage', 'sitecustomize.py', 'sk', 'start.py', 'symengine.py', 'usercustomize.py']\n",
+  "trapped": null
+ },
+ "sklearn_control_noenv": {
+  "env": null,
+  "exit_code": 0,
+  "planted_markers": [],
+  "stderr_tail": "",
+  "stdout_tail": "after-load OSError Data not found and `download_if_missing` is False\n",
+  "trapped": null
+ },
+ "sklearn_env_SCIKIT_LEARN_DATA": {
+  "env": {
+   "SCIKIT_LEARN_DATA": "/data/sk"
+  },
+  "exit_code": 0,
+  "planted_markers": [
+   "PLANT-sklearn-pickle"
+  ],
+  "stderr_tail": "PLANT-sklearn-pickle\n",
+  "stdout_tail": "after-load TypeError 'NoneType' object is not subscriptable\n",
+  "trapped": null
+ }
+}

@@ -1,0 +1,242 @@
+{
+  "units": [
+    {
+      "coverage_id": "src%2Fwasi_python%2F_tool_host.py%23_ToolHost::src%2Fwasi_python%2F_tool_host.py%23admit::src%2Fwasi_python::AI-AND-LLM.md%23Tool-schema%20and%20dispatcher%20disagreement",
+      "disposition": "candidate",
+      "reviewed_paths": [
+        "src/wasi_python/_tool_host.py",
+        "src/wasi_python/_call.py",
+        "src/wasi_python/_tool_schema.py",
+        "src/wasi_python/tools.py",
+        "src/wasi_python/runner.py",
+        "src/wasi_python/_sessions.py",
+        "recipes/guest/host/tools.py",
+        "docs/how-to/tools.md",
+        "docs/reference/tool-protocol.md",
+        "tests/checks/test_v1_4_embedding.py"
+      ],
+      "checks": [
+        {
+          "agent_id": "h06-tools",
+          "reviewed_paths": [
+            "src/wasi_python/_tool_host.py",
+            "src/wasi_python/_call.py"
+          ],
+          "invariant": "A frame is admitted by length (count, 1 MiB cap, byte budget) before its bytes are read, copied out of guest memory once, then parsed strictly (UTF-8, nesting 64 counted outside strings, no NaN/Infinity, integer literals at most 64 characters, no repeated key including escaped duplicates, no lone surrogate, strict $bytes) before the version, op and exact tool-name lookup.",
+          "method": "source",
+          "result": "Holds. admit runs before memory.read (_call.py:1261-1263); the request is a bytes copy, so no double fetch; _parse and _unique_keys see JSON-decoded keys, so \"code\" and \"\\u0063ode\" collide and are refused; version must be type int in (1,); op must equal list or call; the tool is found by exact dict lookup, and the record name is only a 64-character cut used for display.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h06-tools",
+          "reviewed_paths": [
+            "src/wasi_python/_tool_host.py",
+            "src/wasi_python/_tool_schema.py",
+            "src/wasi_python/tools.py"
+          ],
+          "invariant": "For every schema shape tool() accepts (derived, explicit closed, explicit open, with partials, bound method with self, dunder and keyword names, root $ref, additionalProperties true, bytes, async tool and gate), the handler receives exactly the validated object plus Python defaults and nothing a partial binds, and the gate's copy equals what the handler gets.",
+          "method": "local",
+          "result": "Holds for every shape except a class tool (below). Extra keys are refused by a closed schema (properties present, additionalProperties absent closes it); booleans and 1.0 are refused for integer; bytes only where base64 is declared; a plain or nested partial's keyword is refused under an open schema, a root $ref and additionalProperties true; self is refused for a bound method; a keyword property is refused at tool(); the gate's deep copy equals the handler's kwargs and a gate mutating its copy does not reach the handler; sync and async tools and gates give the same verdicts.",
+          "artifact": "agents/h06-tools/artifacts/evidence/host_matrix.out.json"
+        },
+        {
+          "agent_id": "h06-tools",
+          "reviewed_paths": [
+            "src/wasi_python/_tool_host.py",
+            "src/wasi_python/runner.py"
+          ],
+          "invariant": "The gate fails closed: only None or True allow; False, any other value, any exception, a gate that is still deciding when the call is answered, or a failed tool loop refuse; the tool starts only after the gate and only while its call is unanswered.",
+          "method": "local",
+          "result": "Holds. Gates returning 0, 'yes', False or raising ValueError were answered denied and the handler did not run (host_matrix). Source: _Work.__call__ checks verdict identity after awaiting an async verdict (_tool_host.py:231-255), proceed() is taken under the bound's lock (_tool_host.py:716-721), and an awaitable is never started once the slot is abandoned (_Ops.post, _begin).",
+          "artifact": "agents/h06-tools/artifacts/evidence/host_matrix.out.json"
+        },
+        {
+          "agent_id": "h06-tools",
+          "reviewed_paths": [
+            "src/wasi_python/_tool_host.py",
+            "src/wasi_python/_tool_schema.py",
+            "src/wasi_python/_sessions.py"
+          ],
+          "invariant": "Result serialization and the outcome record are bounded and cannot be used to smuggle host text or hide abandoned calls; budgets bound delegated loops.",
+          "method": "source",
+          "result": "Holds. _to_json refuses non-JSON values, depth past 62 and a lone $bytes dict; answers are ASCII JSON capped at 16 MiB; non-ToolError exceptions cross only as '(internal error)'; the record lists 1,000 outcomes but counts every frame and every abandoned call; the frame and byte budgets are per call, per turn in a session (documented), with abandoned threads capped at 4 per call or session.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h06-tools",
+          "reviewed_paths": [
+            "src/wasi_python/tools.py",
+            "src/wasi_python/_tool_host.py",
+            "src/wasi_python/_call.py",
+            "recipes/guest/host/tools.py",
+            "docs/how-to/tools.md",
+            "docs/reference/tool-protocol.md",
+            "tests/checks/test_v1_4_embedding.py"
+          ],
+          "invariant": "A keyword a functools.partial or partialmethod binds is fixed wherever inspect.signature meets it on the way to the function: left out of the schema, refused by tool() when a given schema names it, and refused in a frame.",
+          "method": "local",
+          "result": "Fails for a class used as a tool whose __init__ is a functools.partialmethod (or, on Python 3.14, a functools.partial, now a method descriptor). inspect.signature hides the keyword ('(q, *, role='viewer')'), but _bound_keywords stops at type.__call__ (a C slot) and returns no fixed keywords. tool() accepts a given schema that names role, and a guest frame through _host.call with role='admin' reached the constructor with role='admin' under run(tools=..., gate=...), while a plain partial's keyword was refused in the same run.",
+          "artifact": "agents/h06-tools/artifacts/evidence/guest_frames.out.json"
+        },
+        {
+          "agent_id": "h06-tools",
+          "reviewed_paths": [
+            "src/wasi_python/tools.py"
+          ],
+          "invariant": "The class-binding gap needs an explicit schema: a derived schema cannot reach it.",
+          "method": "local",
+          "result": "tool(A) with no input_schema is refused ('parameter q has no type hint'), because hints are read from type.__call__. So the gap needs an explicit schema that is open, has additionalProperties not false, or names the bound keyword.",
+          "artifact": "agents/h06-tools/artifacts/evidence/class_derived_probe.out.json"
+        }
+      ],
+      "candidate_fingerprints": [
+        "src/wasi_python/tools.py:_bound_keywords:class-construction-partial-unfixed"
+      ],
+      "unresolved": []
+    }
+  ],
+  "candidates": [
+    {
+      "proposed_verdict": "confirmed",
+      "fingerprint": "src/wasi_python/tools.py:_bound_keywords:class-construction-partial-unfixed",
+      "title": "A guest can override a keyword a class tool's constructor binds with a partial or partialmethod",
+      "description": "tool() promises that a keyword a functools.partial binds is fixed: it is left out of the schema, refused when a given schema names it, and refused in a frame. That holds wherever inspect.signature meets the partial, which is how _bound_keywords is documented. But for a class registered as a tool, _bound_keywords goes from the class to type(cls).__call__, which is type.__call__, a C slot, and stops with no fixed keywords. Meanwhile inspect.signature and the runtime both go into cls.__init__ (or __new__). So when __init__ is a functools.partialmethod, or on Python 3.14 a functools.partial (now a method descriptor), the bound keyword is not recorded. The result: tool() accepts a schema that names the keyword, and the per-frame check at _tool_host.py:1003-1009 never fires. Under an explicit schema that is open, has additionalProperties true, or lists the keyword, a guest frame naming it reaches the constructor. Because functools.partial lets the caller override keywords, the guest's value replaces the embedder's bound value. The gate's ToolCall.arguments also carries the keyword, though the docs say arguments never hold a partial-bound keyword.",
+      "root_cause": "_bound_keywords (src/wasi_python/tools.py:439-474) treats a class like any other callable object: it reads type(target).__call__ and returns at the C-slot check (tools.py:466-470). It never walks the class's own __init__ or __new__, where inspect.signature and type.__call__ find the partial. So Tool._fixed is empty. The two checks that rely on it, _given (tools.py:418) and the frame check (_tool_host.py:1003-1009), then let the bound keyword through.",
+      "intended_behavior": "A keyword bound by a partial or partialmethod anywhere inspect.signature meets it, a class's __init__ or __new__ included, is in Tool._fixed. tool() then refuses a given schema that names it, and a frame that names it is answered invalid_arguments without running the tool. Or tool() refuses such a class outright, as it already refuses an unbound partialmethod.",
+      "trace": [
+        {
+          "kind": "entrypoint",
+          "file": "src/wasi_python/_call.py",
+          "line": 1263,
+          "scope": "_door.frame",
+          "description": "The guest's frame bytes are copied out of linear memory after admit and handed to the frame host."
+        },
+        {
+          "kind": "propagation",
+          "file": "src/wasi_python/_tool_host.py",
+          "line": 1000,
+          "scope": "_ToolHost._call_answer",
+          "description": "The args are checked against the tool's explicit schema; an open schema, or one with additionalProperties true or listing the keyword, accepts role."
+        },
+        {
+          "kind": "propagation",
+          "file": "src/wasi_python/_tool_host.py",
+          "line": 1004,
+          "scope": "_ToolHost._call_answer",
+          "description": "The bound-keyword refusal checks t._fixed, which is empty for the class, so role passes."
+        },
+        {
+          "kind": "propagation",
+          "file": "src/wasi_python/tools.py",
+          "line": 469,
+          "scope": "_bound_keywords",
+          "description": "At registration the walk reached type.__call__ (a C slot) and returned with no fixed keywords, never reading cls.__init__."
+        },
+        {
+          "kind": "propagation",
+          "file": "src/wasi_python/_tool_host.py",
+          "line": 232,
+          "scope": "_Work.__call__",
+          "description": "The gate gets a copy of the arguments with role in it, contrary to the documented contract."
+        },
+        {
+          "kind": "sink",
+          "file": "src/wasi_python/_tool_host.py",
+          "line": 258,
+          "scope": "_Work.__call__",
+          "description": "t.fn(**args) calls the class; type.__call__ runs the partialmethod __init__, whose keyword merge lets the guest's role replace the embedder's bound role."
+        }
+      ],
+      "evidence": [
+        {
+          "file": "src/wasi_python/tools.py",
+          "line": 439,
+          "description": "Docstring: keywords a partial binds are found 'wherever inspect.signature may meet one on its way to the function', including 'a class's __call__'; each is fixed and refused in a frame."
+        },
+        {
+          "file": "src/wasi_python/tools.py",
+          "line": 466,
+          "description": "A class target goes to type(target).__call__ and stops at the C-slot check at line 469, so __init__/__new__ partials are never collected."
+        },
+        {
+          "file": "src/wasi_python/tools.py",
+          "line": 418,
+          "description": "_given refuses a schema naming a fixed keyword only through the computed fixed set, so the class case is accepted."
+        },
+        {
+          "file": "src/wasi_python/_tool_host.py",
+          "line": 1004,
+          "description": "The frame-time refusal relies on t._fixed alone."
+        },
+        {
+          "file": "docs/how-to/tools.md",
+          "line": 65,
+          "description": "Promise: 'A keyword the partial binds is fixed. It is not in the schema, so the guest never sees its value, and a frame that names it is refused.'"
+        },
+        {
+          "file": "tests/checks/test_v1_4_embedding.py",
+          "line": 3517,
+          "description": "The regression test covers nested partials, a __wrapped__ chain and a bound partialmethod, but no class whose constructor binds a keyword."
+        }
+      ],
+      "conditions": [
+        {
+          "kind": "system_configuration",
+          "description": "The embedder registers a class (a type object) as a tool, with __init__ or __new__ that is a functools.partialmethod, or on Python 3.14+ a functools.partial, binding the authority keyword (for example a role or user id)."
+        },
+        {
+          "kind": "system_configuration",
+          "description": "The tool's explicit input_schema lets the keyword through: no properties (open), additionalProperties not false, or a properties map that names it. tool() refuses the last for every other binding shape. A derived schema is not possible for a class tool: tool() refuses it for lack of hints."
+        },
+        {
+          "kind": "authentication_level",
+          "description": "The attacker is the untrusted guest code (or the model driving it), which can send any frame through the door."
+        }
+      ],
+      "execution": {
+        "attacker_perspective": "Untrusted guest code in run(tools=[...]) sends a raw tool-protocol frame through the door, naming a keyword the embedder bound in the tool class's constructor.",
+        "payloads": [
+          "class Account:\n    def _init(self, q, role=\"user\"): ...\n    __init__ = functools.partialmethod(_init, role=\"viewer\")\nacct = tool(Account, name=\"account\", input_schema={\"type\": \"object\"})",
+          "import _host; _host.call(b'{\"v\":1,\"id\":1,\"op\":\"call\",\"tool\":\"account\",\"args\":{\"q\":\"x\",\"role\":\"admin\"}}')"
+        ],
+        "instructions": [
+          "Bounded local check, run under ulimit -t 300 -f 4000000 -n 4096, env -i with HOME/TMPDIR/WASI_PYTHON_CACHE in the hunter's scratch, and sandbox-exec denying network. The target was not mounted read-only; no grant or root pointed at it.",
+          "Host side: register the Account class above, a functools.partial(orders, user_id=42) tool and a derived tool, all in one wasi_python.run(['-c', prog], tools=[...], gate=gate) call, with a recording gate.",
+          "Guest side: send the frame above through _host.call, then the same shape against the plain partial (user_id=1).",
+          "Read the host-side log of what the gate and each handler received, and the ToolRecord."
+        ],
+        "observed_result": "The constructor ran with role='admin' (host log: ['Account handler', {'q': 'x', 'role': 'admin'}]), and the gate's arguments held role. The answer was tool_error only because the class returns a non-JSON instance, after the constructor's effect. In the same run the plain partial's user_id=1 was answered invalid_arguments ('unknown argument user_id') and its handler did not run. In-process, inspect.signature(Account) is '(q, *, role='viewer')' and Tool._fixed is []; tool() accepted a schema naming role. The same held for __init__ = functools.partial(...) on Python 3.14.2."
+      },
+      "remediation": {
+        "strategy": "Make _bound_keywords walk a class's construction path as inspect.signature does. When the target is a type whose metaclass __call__ is type.__call__, inspect cls.__new__ and cls.__init__ (via inspect.getattr_static, unwrapping staticmethod and classmethod). Collect the keywords of a functools.partial or partialmethod found there, or refuse the class with the existing partialmethod TypeError. Add a regression case to test_bound_keywords_are_fixed_however_the_partial_is_reached: a class whose __init__ is a partialmethod, under an open schema and a schema naming the keyword. Expect refusal at tool() or invalid_arguments with no constructor call.",
+        "code_changes": [
+          {
+            "file_name": "src/wasi_python/tools.py",
+            "fixed_code": "        elif isinstance(target, type) and isinstance(type(target).__call__, _C_SLOTS):\n            # type.__call__ runs the class's own __new__ and __init__, as inspect.signature reads\n            # them: a partial bound there is fixed too, or the class is refused.\n            for attr in (\"__new__\", \"__init__\"):\n                member = inspect.getattr_static(target, attr, None)\n                member = getattr(member, \"__func__\", member)  # staticmethod, classmethod\n                if isinstance(member, functools.partialmethod):\n                    found.update(member.keywords)\n                elif isinstance(member, functools.partial):\n                    found.update(member.keywords)\n            return frozenset(found)"
+          }
+        ]
+      },
+      "severity": {
+        "likelihood": {
+          "score": "low",
+          "reason": "It needs an uncommon registration shape: a class as a tool, with a partial or partialmethod constructor binding authority, and an explicit schema that leaves the keyword open."
+        },
+        "impact": {
+          "score": "medium",
+          "reason": "Where the shape is used, untrusted guest code replaces an authority value the embedder bound, such as a role or user id, and the constructor acts with it. That is a confused deputy inside the embedder's process, against an explicit documented guarantee."
+        },
+        "overall_severity": "low"
+      },
+      "confidence": {
+        "score": "high",
+        "reason": "Shown end to end through the real door and frame host in a sandboxed run, with the plain-partial control refused in the same run, and the source walk explains it exactly."
+      }
+    }
+  ],
+  "hardening": [
+    "_given (src/wasi_python/tools.py:417-423) checks partial-bound keywords only against the root properties. A schema whose root $ref, anyOf or oneOf names a bound keyword is accepted by tool() and refused only frame by frame (_tool_host.py:1003-1009; seen in host_matrix 'partial+$ref naming fixed'). Checking every reachable properties map at registration would fail early, as the root case does.",
+    "_Bounded.__call__ and _ToolHost.__call__ catch Exception only. On the tools path, a _Stopped (a BaseException) raised by home.call(contextvars.copy_context) in _Bounded._started, when the home stops between _ended() and the thread start, leaves that frame counted but with no outcome listed (it shows only in unlisted). No tool runs, so this is record completeness, not a boundary failure (source only).",
+    "A gate allows by returning None (runner.py:201; docs/how-to/tools.md:73). A gate that falls off its end without a return allows every call it did not refuse explicitly. This is documented, but returning True only for allow, or warning on None, would make a forgotten return fail closed."
+  ],
+  "uncovered": []
+}

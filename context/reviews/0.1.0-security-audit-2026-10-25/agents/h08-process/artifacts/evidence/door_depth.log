@@ -1,0 +1,8 @@
+{"check": "baseline", "exit_code": 0, "trapped": null, "stdout_tail": "ok\n", "stderr_tail": "", "last_exception_none": true, "host_functions": 9}
+{"check": "door_at_every_depth", "exit_code": null, "trapped": "deadline", "stdout_tail": "", "stderr_tail": "", "last_exception_none": true, "host_functions": 9}
+{"host_calls": 3841156}
+{"check": "after_door_depth", "exit_code": 0, "trapped": null, "stdout_tail": "ok\n", "stderr_tail": "", "last_exception_none": true, "host_functions": 9}
+{"mode": "door_depth", "seconds": 240.8}
+
+STDERR: 
+RC: 0

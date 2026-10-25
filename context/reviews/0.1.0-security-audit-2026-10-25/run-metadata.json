@@ -1,0 +1,57 @@
+{
+  "run_id": "wasi_python-run-1-2026-10-24",
+  "repo": "ClayGendron/wasi_python",
+  "target": ".",
+  "source_ref": {
+    "commit": "2c8744fe7274ddb5b0c5ceaac65fc1a05837fdb8",
+    "branch": "research/performance-specs-2026-10-24",
+    "worktree_dirty": true,
+    "dirty_note": "Uncommitted: context/specifications/127 edits (not under review), untracked .agents/ (this skill), skills-lock.json, test_app/. src/, scripts/, release/, recipes/, .github/ and build/artifacts are identical to the 0.1.0 release (2cd47507)."
+  },
+  "profile": "standard",
+  "scope_paths": [
+    "src/wasi_python",
+    "scripts",
+    "scripts/steps",
+    "release",
+    "recipes",
+    "downloads/SHA256SUMS",
+    ".github/workflows",
+    "pyproject.toml",
+    "uv.lock",
+    "build/artifacts (python.wasm, python-snapshot.wasm, python-stdlib.zip, MANIFEST, SHA256SUMS, LICENSES)"
+  ],
+  "out_of_scope_paths": [
+    "context/",
+    "docs/",
+    "tests/ (read only as evidence of existing checks)",
+    "the research branch's own memos and specifications"
+  ],
+  "budget": null,
+  "subagent_model": "opus",
+  "execution_policy": "sandboxed-source-and-local-only",
+  "execution_policy_note": "Target-controlled code (the runner through uv run python -I, and guests inside wasmtime) runs on the owner's machine at the owner's request under the project's own uv environment, writing only under the agents' scratch roots or build/secaudit/ (git-ignored). The guest side is isolated by wasmtime (no network, no host env, only preopened folders). The host-side runner is not additionally confined by an OS sandbox (no empty-env, read-only-target or rlimit wrapper); local checks are recorded as such and the report says so.",
+  "selected_companion_files": [
+    "MEMORY-SAFETY-AND-BINARY.md",
+    "SUPPLY-CHAIN-AND-RELEASE.md",
+    "DATA-ISOLATION-AND-LIFECYCLE.md",
+    "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md",
+    "AI-AND-LLM.md",
+    "DESKTOP-MOBILE-AND-LOCAL-IPC.md"
+  ],
+  "prior_runs": [],
+  "prior_runs_note": "No prior security-audit-skill ledger exists for this repo. The project's own reviews under context/reviews/ (0.1.0-security-review-2026-10-21.md and earlier) are background, not a compatible prior ledger.",
+  "shared_file_owners": {
+    "run-metadata.json": "parent",
+    "architecture.md": "parent",
+    "coverage-ledger.json": "parent",
+    "findings.json": "parent",
+    "REPORT.md": "parent",
+    "FINDINGS-DETAIL.md": "parent",
+    "NEEDS-VALIDATION.md": "parent"
+  },
+  "run_status": "complete",
+  "started": "2026-10-24",
+  "coverage_note": "Complete per the skill's terminal state (every candidate independently decided, every retained record passed Phase 5, final-clean critic returned stop: true). Partial coverage is disclosed: two units are deferred because no structured result could be produced for them in this run; their evidence is retained.",
+  "finished": "2026-10-25"
+}

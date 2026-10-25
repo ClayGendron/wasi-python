@@ -1,0 +1,1 @@
+import os; open('/RAN_pth', 'w').write('x')

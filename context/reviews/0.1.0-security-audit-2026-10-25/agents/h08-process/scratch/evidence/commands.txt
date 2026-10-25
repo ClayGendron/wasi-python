@@ -1,0 +1,18 @@
+h08-process bounded local checks, darwin-arm64, Python 3.14 (.venv), wasmtime-py 49.0.0, artifacts build/artifacts (python-snapshot.wasm sha256 879bdb62...).
+Precondition: ./build/lane.lock absent before every run.
+Each check ran through scratch/evidence/h08_drive.py (system /usr/bin/python3 -I, trusted driver) as:
+  /bin/sh -c "ulimit -t 300 -f 4000000 -n 4096; /usr/bin/env -i PATH=/usr/bin:/bin HOME=<scratch>/home TMPDIR=<scratch>/tmp WASI_PYTHON_CACHE=<scratch>/cache /usr/bin/sandbox-exec -p '(version 1)(allow default)(deny network*)' ./.venv/bin/python -I <scratch>/evidence/<script> <mode>"
+  with subprocess.run(timeout=<120..290 s>).
+Environment: only PATH, HOME, TMPDIR, WASI_PYTHON_CACHE (all scratch paths). No network (sandbox-exec deny network*).
+The target tree was NOT mounted read-only (macOS cannot enforce it); no root, grant or mount pointed at the target; the guest's writes went to private folders under scratch/tmp.
+The module cache under scratch/cache was seeded by copying the owner's two compiled modules for python-snapshot.wasm (plain, fuel; 0600) to avoid a recompile; deleted after the checks.
+Runs and logs:
+  traps        -> traps.log         (h08_checks.py traps)
+  door_depth   -> door_depth.log    (h08_checks.py door_depth, 240 s deadline)
+  depth        -> depth.log         (h08_depth.py)
+  host_raises  -> host_raises.log   (h08_checks.py host_raises)
+  fork         -> fork.log          (h08_checks.py fork)
+  late_output  -> late_output.log   (h08_checks.py late_output)
+  oob          -> oob.log           (h08_oob.py)
+  fork control -> fork_control.log  (h08_fork_foreign_engine.py control)
+  fork foreign -> fork_foreign.log  (h08_fork_foreign_engine.py foreign; driver timed out at 250 s; child sampled, then both processes killed by pid)

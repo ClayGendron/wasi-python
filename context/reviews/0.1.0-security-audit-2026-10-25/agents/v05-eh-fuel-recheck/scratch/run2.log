@@ -1,0 +1,8 @@
+{"case": "2000:0:none", "exit": 0, "trapped": null, "fuel_used": 1635065251, "host_s": 0.48, "stdout": "loop_s=0.0000 caught=0", "stderr": ""}
+{"case": "2000:500:fail", "exit": 0, "trapped": null, "fuel_used": 1644855817, "host_s": 0.185, "stdout": "loop_s=0.0290 caught=500", "stderr": ""}
+{"case": "2000:500:weak", "exit": 0, "trapped": null, "fuel_used": 34621345978, "host_s": 1.299, "stdout": "loop_s=1.1455 caught=0", "stderr": ""}
+{"case": "2000:500:py", "exit": 0, "trapped": null, "fuel_used": 7684093615, "host_s": 0.717, "stdout": "loop_s=0.5748 caught=0", "stderr": ""}
+{"case": "6000:0:none", "exit": 0, "trapped": null, "fuel_used": 15271669312, "host_s": 1.996, "stdout": "loop_s=0.0000 caught=0", "stderr": ""}
+{"case": "6000:500:fail", "exit": 0, "trapped": null, "fuel_used": 15280847929, "host_s": 1.912, "stdout": "loop_s=0.0921 caught=500", "stderr": ""}
+{"case": "6000:500:py", "exit": 0, "trapped": null, "fuel_used": 50484055306, "host_s": 5.773, "stdout": "loop_s=3.8875 caught=0", "stderr": ""}
+rc 0

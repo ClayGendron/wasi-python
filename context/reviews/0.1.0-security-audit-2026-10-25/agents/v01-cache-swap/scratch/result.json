@@ -1,0 +1,117 @@
+{
+ "decision": "needs_validation",
+ "record": {
+  "verdict": "needs_validation",
+  "fingerprint": "src/wasi_python/_engines.py:_load:cwasm-checked-by-lstat-opened-by-path",
+  "title": "Module cache: the .cwasm checked by lstat is not bound to the file wasmtime deserializes, so a lower-trust owner of an ancestor of the default cache folder can swap in its own native code",
+  "description": "The runner loads a .cwasm (native code) only when private() finds the cache folder and the file owned by this user, with no group or other bits and one link. Each check is an lstat of the leaf by its full path. wasmtime-py then reopens the file by the same full path (Module.deserialize_file, which passes the path to the C API), and the runner afterwards compares a fresh lstat stamp (dev, ino, size, mtime) with the first one. No step checks the ancestors of the cache folder, and the check and the load are not bound to one descriptor. A principal that can rename entries in any ancestor can point the path at its own folder only while wasmtime opens it, and restore it before the stamp re-check. The planted module is then cached in the process and used as python.wasm. The default cache is chosen by the runner from $HOME (or $XDG_CACHE_HOME on Linux), so a process whose HOME belongs to another user, such as root under a sudo that keeps HOME, places the default cache under a folder that other user owns. The verifier reproduced the identity mismatch on one OS user: with a deterministic schedule the checked file was inode 222410199 and the opened file was the planted inode 222410200, and _module returned the planted module with no warning. With a blind external swapper (renamex_np RENAME_SWAP in a loop, no hook in the runner), 3 of 5000 in-process load attempts returned the planted module, the first of them with no RuntimeWarning in that attempt; 4367 of the 5000 attempts did raise a 'not using the module cache' warning. The cross-user case and the deployment that creates it were not observed. Context that limits the effect: when the user whose HOME is kept holds unrestricted sudo, that user already has root and no boundary is crossed; the effect matters where that user is lower trust than the runner's user, for example a sudo rule restricted to one command, a container or CI step running as another uid with a mapped home, or HOME set to a shared folder another user can pre-create entries in.",
+  "claimed_root_cause": "private() (src/wasi_python/_platform.py:556-577) and the post-load stamp check (src/wasi_python/_engines.py:237) bind the trust decision to path names, by lstat of the leaf, while the load (src/wasi_python/_engines.py:233) reopens the file by path and follows any link in its ancestors. Nothing checks that every ancestor of the cache folder is owned by this user or root and not writable by others, and the .cwasm is not opened once with no-follow and deserialized from that verified descriptor (for example by reading it from the checked descriptor into Module.deserialize, or by checking the ancestry). The default cache path is derived from $HOME without checking that $HOME belongs to this user.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/wasi_python/runner.py",
+    "line": 115,
+    "scope": "run",
+    "description": "Embedder call with the default cache_dir=None (parameter at line 130): the default module cache is used."
+   },
+   {
+    "kind": "propagation",
+    "file": "src/wasi_python/_call.py",
+    "line": 146,
+    "scope": "_run_checked",
+    "description": "cache = _engines._cache_dir(cache_dir)."
+   },
+   {
+    "kind": "propagation",
+    "file": "src/wasi_python/_engines.py",
+    "line": 85,
+    "scope": "_cache_dir",
+    "description": "With no $WASI_PYTHON_CACHE, the cache is default_cache_dir(Path.home()); Path.home() reads $HOME, which under a sudo that keeps HOME is the invoking user's home."
+   },
+   {
+    "kind": "propagation",
+    "file": "src/wasi_python/_platform.py",
+    "line": 534,
+    "scope": "_Posix.default_cache_dir",
+    "description": "$XDG_CACHE_HOME or $HOME/.cache, then wasi_python (macOS line 1091: $HOME/Library/Caches/wasi_python); the parent folders belong to whoever owns that home."
+   },
+   {
+    "kind": "propagation",
+    "file": "src/wasi_python/_engines.py",
+    "line": 178,
+    "scope": "_module_miss",
+    "description": "private(cache, is_dir=True) makes the folder if absent and lstats only the cache folder itself (owner, kind, no group/other bits); its ancestors are not checked."
+   },
+   {
+    "kind": "propagation",
+    "file": "src/wasi_python/_engines.py",
+    "line": 228,
+    "scope": "_load",
+    "description": "private(cwasm) lstats the leaf by path: this user's regular file, one link, no group/other bits; the stamp 'before' was taken by lstat at line 222."
+   },
+   {
+    "kind": "sink",
+    "file": "src/wasi_python/_engines.py",
+    "line": 233,
+    "scope": "_load",
+    "description": "wt.Module.deserialize_file(engine, str(cwasm)) reopens the full path inside wasmtime's C API, following any link swapped into an ancestor; the stamp re-check at line 237 passes once the ancestor is restored, the load is counted, and the module is kept in process().modules and instantiated as the guest binary."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/wasi_python/_platform.py",
+    "line": 564,
+    "description": "POSIX private(): one os.lstat of the given path, then owner, kind and mode-bit checks; no ancestor ownership or writability check."
+   },
+   {
+    "file": "src/wasi_python/_engines.py",
+    "line": 217,
+    "description": "_load docstring: the post-load check 'narrows, not closes, the window between the check and the load'."
+   },
+   {
+    "file": "src/wasi_python/_engines.py",
+    "line": 237,
+    "description": "The re-check compares lstat stamps by name, which a swap restored before it runs passes."
+   },
+   {
+    "file": "src/wasi_python/_platform.py",
+    "line": 545,
+    "description": "default_cache_dirs docstring: the runner expects processes whose $HOME is not the password database's home (sudo, a container, CI), so the configuration is anticipated by source, not excluded."
+   },
+   {
+    "file": "docs/explanation/security-model.md",
+    "line": 89,
+    "description": "Names cache_dir, $WASI_PYTHON_CACHE and the artifact folder as trusted input; it does not name $HOME or the default cache derived from it, so the documented threat model does not settle a HOME owned by another user either way."
+   },
+   {
+    "file": "docs/get-started/install.md",
+    "line": 60,
+    "description": "States the default 'in your own profile' is a folder only you can write: an assumption about the default, which a process with another user's HOME breaks; not a declaration that HOME is trusted input."
+   },
+   {
+    "file": "agents/v01-cache-swap/artifacts/evidence/v01_swap_run.log",
+    "line": 5,
+    "description": "Verifier's deterministic schedule: the identity checked (inode 222410199) differs from the identity opened (222410200, the planted 0644 file), and the path is back to the checked identity at the re-check."
+   },
+   {
+    "file": "agents/v01-cache-swap/artifacts/evidence/v01_swap_run.log",
+    "line": 6,
+    "description": "_module returned the planted module (exports ['planted_image_loaded']) for a.wasm with no warning, counts loaded=1."
+   },
+   {
+    "file": "agents/v01-cache-swap/artifacts/evidence/v01_swap_run.log",
+    "line": 8,
+    "description": "Blind race with no hook: 3 of 5000 load attempts returned the planted module (first at attempt 1132, with no warning in that attempt); 4367 attempts raised a cache warning; 34044 swaps; the runner's own write replaced the planted file through the link 371 times."
+   }
+  ],
+  "blockers": [
+   "The cross-user case was not observed: this macOS machine offers one OS user (uid 501) and no root, so a lower-trust owner of an ancestor of the cache folder racing another user's or root's runner could not be run; the verifier's evidence uses one user in both roles.",
+   "Whether a supported deployment runs the runner as one user with a $HOME (or $XDG_CACHE_HOME) whose ancestors another, lower-trust user can rename entries in is a deployment fact outside source. /etc/sudoers on this machine is root-only (0440), so whether this host's sudo keeps HOME could not be read. Source anticipates such processes (_platform.py:545) and the documentation names only cache_dir, $WASI_PYTHON_CACHE and the artifact folder as trusted input, so neither settles it.",
+   "The blind race was measured only in-process with a tiny module (3 of 5000 attempts on darwin-arm64); a real runner process loads its module once per process, and the per-process success rate with the real snapshot-sized .cwasm across two users was not measured."
+  ],
+  "validation_plan": {
+   "local": "On a disposable macOS or Linux VM with users alice and root, never on a real cache: (1) as root with HOME=/home/alice (Linux: sudo --preserve-env=HOME, or a sudoers env_keep HOME for one test command; macOS: check sudo -V output for HOME in env_keep) run wasi_python.run(['-c','print(1)'], snapshot=False) once so root makes its 0700 cache and .cwasm under alice's ~/.cache (or ~/Library/Caches). (2) As alice, put a serialized module of another wasm, made by the same wasmtime 49.0.0 engine configuration, at /home/alice/planted/<same .cwasm name>, mode 0644, and a link /home/alice/.cache/swaplink -> /home/alice/planted. (3) As alice, loop an atomic swap of ~/.cache/wasi_python and ~/.cache/swaplink (Linux renameat2 RENAME_EXCHANGE, macOS renamex_np RENAME_SWAP), re-planting the file whenever it changes. (4) As root, start N fresh processes, each calling run() once and printing wasi_python's process().counts and whether the call failed for missing exports or printed the planted module's behaviour, with RuntimeWarnings captured. Record the count of processes that loaded the planted module and whether each raised a warning. The single-user deterministic and blind schedules are in agents/v01-cache-swap/artifacts/evidence/v01_swap_harness.py.",
+   "deployment": "The owner states whether running the runner as root or another user with a different user's $HOME or $XDG_CACHE_HOME (sudo keeping HOME, a container or CI step with a mapped or shared home, HOME in a shared folder) is a supported configuration or is declared trusted input like cache_dir and $WASI_PYTHON_CACHE. If supported, confirm on the release platforms whether sudo keeps HOME by default and that the default cache's ancestors are then owned by the invoking user; if declared trusted, the security model's list at docs/explanation/security-model.md:89 should name $HOME and $XDG_CACHE_HOME, and this becomes hardening."
+  }
+ }
+}

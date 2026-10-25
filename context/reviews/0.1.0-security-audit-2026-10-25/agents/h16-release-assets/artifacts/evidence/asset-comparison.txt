@@ -1,0 +1,542 @@
+# Local build/artifacts
+a36bff7436e11da49a56ef382a3b55ba3af16cb9cb5d54d7f1f1760d070f24b5  1191  LICENSES/attrs.txt
+dc52d4028c768f678a3db173fb8e2fb4b29911ba0e8fb5511a5840b7bd6f76be  1541  LICENSES/beautifulsoup4.txt
+28753c7121ccf73cc69a44ee55ba52d891d3bf1718940d2e3cffa661d225a455  1921  LICENSES/bzip2.txt
+beeb457437b1fa48bfed9a94867e4836c60119bad56b324ed5544c9122b96c43  1177  LICENSES/charset-normalizer.txt
+706ae521ac46d237ec1128c7981f81c829528656cad3e6f7739453518e8e0d23  1846  LICENSES/cloudpickle.txt
+9e1f27e7cb8902c64045082134c4be09914ec23bb86051bc979b52ce2437729d  3967  LICENSES/contourpy.txt
+c358a31e470963ddd6ef4d0ab4a024356837b79ba51934213837c5e74291a2bd  1554  LICENSES/cppy.txt
+e140d8fab8152ead9954dea90595498bf4a86adf2bc69c8f91a5b6dbb7c38150  77045  LICENSES/cpython.txt
+b4401c940e1893e789a73e1a53505eaa1702dc2ade0a6ff900e71f6c9277d186  1573  LICENSES/cycler.txt
+eceaeb7561aa5a5847a465cde63fbdb677de1635309d2c22f4104cb7bf617cb9  2494  LICENSES/defusedxml.txt
+42339047bdc4fe3bdfd87e9e1956e591aaafcb39e581b5867c5d389fce3dab49  15992  LICENSES/et-xmlfile.txt
+64c00203bae41431d32b91065aad9f20a22ccc9d452a1a0d83bb621fa3849e36  21283  LICENSES/fonttools.txt
+fdabeb5e500c88e8626b9c1738dfb81f1f8c473f1f299828f404d6444c96eb10  1160  LICENSES/formulaic.txt
+03e49f09cc3adaf21077607900256446f4b0bb9a25ae2e7f8f036fbe80222678  18310  LICENSES/freetype.txt
+c17f018225df270628cb75d6d8adffde2157dc1ac9cd9a579ebca7f0da239dc0  5276  LICENSES/harfbuzz.txt
+ffcddb543501d05bb8ea1591dc2194a40441b0c92da8fd61e6e0a2208a38c830  1161  LICENSES/html5lib.txt
+83ef95b2b7ce1831330763568a7ed4aac8fb3c19d4e2408e609619d0235f5fd1  1170  LICENSES/interface-meta.txt
+f3f37502178f15620d952a1a1c129138972bbf27e26d8a008b2b26f9909a1dd5  1561  LICENSES/jinja2.txt
+e256e904bc5c0f667700813514094e5ed7e1bafa2989bef7a00a94d9372cf961  1613  LICENSES/joblib.txt
+19567fc61130f3d7c2adcf7e9a38fea5dd2513a277fd8927517727b1462227a7  3319  LICENSES/kiwisolver.txt
+330666d1890874584e7731f6678e4b1af10ec20f38782e99169226598c6fae61  1207  LICENSES/libraqm.txt
+7575e0d3a1d31c1d30ade7e832eae20eef91d925ca4275416c58469f5aed7f97  4078  LICENSES/libxml2.txt
+da40c3542e36bad2bcb53b77271d59a3aec7a612fff4860e12dea8eb0323b81c  2997  LICENSES/libxslt.txt
+ebdbd43e564be09b2e512ba6f781b06afd6acb7169b052a2a4bd5cf15d4862e5  67010  LICENSES/llvm-runtimes.txt
+c493bead1c4f4d45bb6e76b5797f9fb2cad4327db05351eb798fb06c25b37a2d  10631  LICENSES/lxml.txt
+d183ec1dbf00a57f0da43119b2f03cb9cce3a39a04cf49beeee7b1ffa0f6f2c3  1509  LICENSES/markupsafe.txt
+b50895b4cd680ec0daa6f990ce6451986c7abab452d8c64591d1e3caf53c200a  70934  LICENSES/matplotlib.txt
+897086b7340cd5ea864854c550861d707391159a6d3cbb48fd626b4d42a91cd9  1153  LICENSES/more-itertools.txt
+79c3e846fa80a13874d9a2f50dd278fb3b12c8920f71807c6a6576e345ef17e2  1610  LICENSES/mpmath.txt
+54ca5e7e46fd5898f4bfffc69bec2d10dc7020a44b0ca6e17d375c3464cbda08  1173  LICENSES/narwhals.txt
+8155ffb2efd6f950789653fcfee433a79eedc861f272383bbf25e904bed8c093  1795  LICENSES/networkx.txt
+7bd98a031ed230538a1e6457822483bfdc7c0216f9438441b6917366a7f97de8  48162  LICENSES/numpy.txt
+cc87c36b84f354a04b619a93103018ff554db06a6dc7a8820f2731d3346c0f94  3884  LICENSES/openblas.txt
+d4997a6248bbab8e32c9e28d8aa4ac146c1cef4a68a0b47d9e003631d025826d  1216  LICENSES/openpyxl.txt
+75a9ae5c9d6764bc5afaa827d9ad4014dbb735b7d5eaf44c27d2cf79a9e41e53  11984  LICENSES/packaging.txt
+d38f9537c4397ecb97d1b3dc7feaf9bed381780639d126909b120113c9566ab9  52715  LICENSES/pandas.txt
+8cc51f3fba2b764e7b627a3e57a60f5fb92b1ac610eac1d471813d28fc8e680c  4401  LICENSES/patsy.txt
+fad176753c8f6c8b4677ad97772eac56964709b3e11842d1d55b3e4051859bc0  1483  LICENSES/pillow.txt
+1c62544ac8b1c676d81bf26008c8432ddeaaa2c86e68326bb3c553f2d703ccee  1770  LICENSES/pybind11.txt
+693db6ce6bf9dda674ee53872c4d510970c1ba0acfb5a7ed28ddafdf852124d2  1150  LICENSES/pyparsing.txt
+46d4a2c45f68a7478a8465a5050f589b6020b442114f59622882a18608046f54  1687  LICENSES/pypdf.txt
+54c1d04571a9c1a99925fe49ed3092f4c74c8b1b6593e7a8c9633728cc8ecfe2  2997  LICENSES/python-dateutil.txt
+6adf78c64e10cdbf7021ba177d1a43b45959c70b884628d2ee45d3b4fd6da985  1127  LICENSES/pyyaml.txt
+aa16a5c74ed473fac38357c9aa0803bdddfe3e3f4ff6f74032eb79af036c468c  1749  LICENSES/qhull.txt
+87d0dbdf9ddf6bdbfe40476434a7f3b77143354102fa78d2800cbbb766ee31ce  12060  LICENSES/regex.txt
+917df6cd3cde2446a5aac7dabde7914bd771821180b450522fc96e89d63ae7e8  7923  LICENSES/reportlab.txt
+9bc5f55bb8c591bc1e5c6628dda0ffa3b2dbbc33fcd30187d2ef7ff7e4da0715  34833  LICENSES/scikit-learn.txt
+743ae5123279d18e860e81ddc3fe19c5576ca36b0af3ab415fc5342f9f428d6e  75911  LICENSES/scipy.txt
+9348e42ba823387449f9039affa4aae08fd0e837392ace143b06c5647c6de9e8  8347  LICENSES/seaborn.txt
+39c59356f2946fc309f2714f283be3de12aa0bb265c89a5955e79551f6bedbab  11387  LICENSES/sheenbidi.txt
+09ad15735d79a7d10caf307dfba8a8fe8ec52aa5fdea4db1e664d0528ee32cb1  1139  LICENSES/six.txt
+e2375f363e57ac495945008e3bc65140cece0973535a539ffe76fe75c3166dbe  1187  LICENSES/soupsieve.txt
+681f05f7e60baee5e748a22c0e3dfa1fce3fcf16c69078998928bfb3978c70f9  1533  LICENSES/sqlite.txt
+ef75b82762efad7a482046a2e712f64704c96d8cbfdc52cef50e70b38ea90567  25274  LICENSES/statsmodels.txt
+154178953015fecfb695db09abd95c04b025b6a370765a55980cd94d9d1c472f  9116  LICENSES/sympy.txt
+ff13e542f41c2db889817a3a7e032dd0e1c8afae1944be62d4608b44703592ca  1168  LICENSES/tabulate.txt
+621652bdd0320541f8d76cbb0e68d1dc1cb7e50b45ae5b29de27aa39085328b6  1604  LICENSES/threadpoolctl.txt
+67d9011de410b0085eb5bc7be5db9d4319f1292cf864ef5e44c4b55be092f3b5  1147  LICENSES/tomli-w.txt
+13385adf0ac4c6b81e191405da0e3c7cc35aca571e919a8ee9dbd2667c2ffcc3  1576  LICENSES/toolz.txt
+c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73  80199  LICENSES/tqdm-4.70.1-source.whl
+dd84cd56539c912aca7a6e4134439028449e6a70fffd435742c5aedb628a36fa  19571  LICENSES/tqdm.txt
+06b8e3332f85fb011eac49344b7c930aac6fb4d6f7f4682b610eb44c0ff7e50d  14042  LICENSES/typing-extensions.txt
+a28814acc65c4af15aa37fb4b300c035fac36e77ab16967f18b4797dafd29c45  12174  LICENSES/tzdata.txt
+c2a6b2cfd4b0639a535102dd7ef55728ccfcd105ea4a149c88cb3b17fc10b764  32779  LICENSES/wasi-libc.txt
+91f0bbe316a075ed30928ff96cf8a48a733071b630deade4ef281cc1c2b9e392  1613  LICENSES/webencodings.txt
+7c4f963bd9e4b63b0631f252a080b795111be0051c7b0e8a913ced9bb561c414  1384  LICENSES/wrapt.txt
+70bda7fc1f9ef53c638dae181d54fd407ecff2a07e8d92dfc39e96353940603a  3844  LICENSES/xlrd.txt
+e93266ce9d062c0eecdcc7bd102a76532425d428df24ab1be4b321f9b035bf3d  1434  LICENSES/xlsxwriter.txt
+c70bdfac1788ffb0b94d53287b795819992816f4971c549126c521dd5204ccab  1173  LICENSES/xmltodict.txt
+93947eef5170a4e17a3dfed772f23f4fa366beff24358f41764cf60698a053e3  3775  LICENSES/xz.txt
+b629f68f9e92e40953433541cc1e8e20be1c6421770f67486f7db98e270801e5  1026  LICENSES/zlib.txt
+a9ed2a6967c5e915c46fe0440a8c2e3adce99925d484bdc7bc22d19814b5bfcd  33540  MANIFEST
+3339091f49b6cf94aaf90d5a68c281c3f1cc3384450f3cb94b768d8274d0fa20  6584  SHA256SUMS
+879bdb628a1a799dc3a6d1a645fee0f88944bf4cdf5e1628e0e1d2b4b33d28d3  104517748  python-snapshot.wasm
+a7b8f7cbd4799ac8c81223cbc47f8cea503adac934a04826778b66e5a5e9b847  53915154  python-stdlib.zip
+d41926055c3f869715202092a1b8d070ff9ffcd2c82d0dd368786e79f2200f9a  99421513  python.wasm
+local SHA256SUMS hash: 3339091f49b6cf94aaf90d5a68c281c3f1cc3384450f3cb94b768d8274d0fa20
+
+# Tarball members
+dir  mode=0o755  wasi-python-0.1.0
+dir  mode=0o755  wasi-python-0.1.0/LICENSES
+a36bff7436e11da49a56ef382a3b55ba3af16cb9cb5d54d7f1f1760d070f24b5  1191  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/attrs.txt
+dc52d4028c768f678a3db173fb8e2fb4b29911ba0e8fb5511a5840b7bd6f76be  1541  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/beautifulsoup4.txt
+28753c7121ccf73cc69a44ee55ba52d891d3bf1718940d2e3cffa661d225a455  1921  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/bzip2.txt
+beeb457437b1fa48bfed9a94867e4836c60119bad56b324ed5544c9122b96c43  1177  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/charset-normalizer.txt
+706ae521ac46d237ec1128c7981f81c829528656cad3e6f7739453518e8e0d23  1846  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/cloudpickle.txt
+9e1f27e7cb8902c64045082134c4be09914ec23bb86051bc979b52ce2437729d  3967  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/contourpy.txt
+c358a31e470963ddd6ef4d0ab4a024356837b79ba51934213837c5e74291a2bd  1554  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/cppy.txt
+e140d8fab8152ead9954dea90595498bf4a86adf2bc69c8f91a5b6dbb7c38150  77045  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/cpython.txt
+b4401c940e1893e789a73e1a53505eaa1702dc2ade0a6ff900e71f6c9277d186  1573  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/cycler.txt
+eceaeb7561aa5a5847a465cde63fbdb677de1635309d2c22f4104cb7bf617cb9  2494  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/defusedxml.txt
+42339047bdc4fe3bdfd87e9e1956e591aaafcb39e581b5867c5d389fce3dab49  15992  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/et-xmlfile.txt
+64c00203bae41431d32b91065aad9f20a22ccc9d452a1a0d83bb621fa3849e36  21283  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/fonttools.txt
+fdabeb5e500c88e8626b9c1738dfb81f1f8c473f1f299828f404d6444c96eb10  1160  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/formulaic.txt
+03e49f09cc3adaf21077607900256446f4b0bb9a25ae2e7f8f036fbe80222678  18310  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/freetype.txt
+c17f018225df270628cb75d6d8adffde2157dc1ac9cd9a579ebca7f0da239dc0  5276  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/harfbuzz.txt
+ffcddb543501d05bb8ea1591dc2194a40441b0c92da8fd61e6e0a2208a38c830  1161  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/html5lib.txt
+83ef95b2b7ce1831330763568a7ed4aac8fb3c19d4e2408e609619d0235f5fd1  1170  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/interface-meta.txt
+f3f37502178f15620d952a1a1c129138972bbf27e26d8a008b2b26f9909a1dd5  1561  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/jinja2.txt
+e256e904bc5c0f667700813514094e5ed7e1bafa2989bef7a00a94d9372cf961  1613  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/joblib.txt
+19567fc61130f3d7c2adcf7e9a38fea5dd2513a277fd8927517727b1462227a7  3319  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/kiwisolver.txt
+330666d1890874584e7731f6678e4b1af10ec20f38782e99169226598c6fae61  1207  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/libraqm.txt
+7575e0d3a1d31c1d30ade7e832eae20eef91d925ca4275416c58469f5aed7f97  4078  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/libxml2.txt
+da40c3542e36bad2bcb53b77271d59a3aec7a612fff4860e12dea8eb0323b81c  2997  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/libxslt.txt
+ebdbd43e564be09b2e512ba6f781b06afd6acb7169b052a2a4bd5cf15d4862e5  67010  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/llvm-runtimes.txt
+c493bead1c4f4d45bb6e76b5797f9fb2cad4327db05351eb798fb06c25b37a2d  10631  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/lxml.txt
+d183ec1dbf00a57f0da43119b2f03cb9cce3a39a04cf49beeee7b1ffa0f6f2c3  1509  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/markupsafe.txt
+b50895b4cd680ec0daa6f990ce6451986c7abab452d8c64591d1e3caf53c200a  70934  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/matplotlib.txt
+897086b7340cd5ea864854c550861d707391159a6d3cbb48fd626b4d42a91cd9  1153  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/more-itertools.txt
+79c3e846fa80a13874d9a2f50dd278fb3b12c8920f71807c6a6576e345ef17e2  1610  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/mpmath.txt
+54ca5e7e46fd5898f4bfffc69bec2d10dc7020a44b0ca6e17d375c3464cbda08  1173  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/narwhals.txt
+8155ffb2efd6f950789653fcfee433a79eedc861f272383bbf25e904bed8c093  1795  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/networkx.txt
+7bd98a031ed230538a1e6457822483bfdc7c0216f9438441b6917366a7f97de8  48162  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/numpy.txt
+cc87c36b84f354a04b619a93103018ff554db06a6dc7a8820f2731d3346c0f94  3884  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/openblas.txt
+d4997a6248bbab8e32c9e28d8aa4ac146c1cef4a68a0b47d9e003631d025826d  1216  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/openpyxl.txt
+75a9ae5c9d6764bc5afaa827d9ad4014dbb735b7d5eaf44c27d2cf79a9e41e53  11984  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/packaging.txt
+d38f9537c4397ecb97d1b3dc7feaf9bed381780639d126909b120113c9566ab9  52715  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/pandas.txt
+8cc51f3fba2b764e7b627a3e57a60f5fb92b1ac610eac1d471813d28fc8e680c  4401  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/patsy.txt
+fad176753c8f6c8b4677ad97772eac56964709b3e11842d1d55b3e4051859bc0  1483  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/pillow.txt
+1c62544ac8b1c676d81bf26008c8432ddeaaa2c86e68326bb3c553f2d703ccee  1770  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/pybind11.txt
+693db6ce6bf9dda674ee53872c4d510970c1ba0acfb5a7ed28ddafdf852124d2  1150  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/pyparsing.txt
+46d4a2c45f68a7478a8465a5050f589b6020b442114f59622882a18608046f54  1687  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/pypdf.txt
+54c1d04571a9c1a99925fe49ed3092f4c74c8b1b6593e7a8c9633728cc8ecfe2  2997  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/python-dateutil.txt
+6adf78c64e10cdbf7021ba177d1a43b45959c70b884628d2ee45d3b4fd6da985  1127  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/pyyaml.txt
+aa16a5c74ed473fac38357c9aa0803bdddfe3e3f4ff6f74032eb79af036c468c  1749  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/qhull.txt
+87d0dbdf9ddf6bdbfe40476434a7f3b77143354102fa78d2800cbbb766ee31ce  12060  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/regex.txt
+917df6cd3cde2446a5aac7dabde7914bd771821180b450522fc96e89d63ae7e8  7923  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/reportlab.txt
+9bc5f55bb8c591bc1e5c6628dda0ffa3b2dbbc33fcd30187d2ef7ff7e4da0715  34833  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/scikit-learn.txt
+743ae5123279d18e860e81ddc3fe19c5576ca36b0af3ab415fc5342f9f428d6e  75911  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/scipy.txt
+9348e42ba823387449f9039affa4aae08fd0e837392ace143b06c5647c6de9e8  8347  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/seaborn.txt
+39c59356f2946fc309f2714f283be3de12aa0bb265c89a5955e79551f6bedbab  11387  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/sheenbidi.txt
+09ad15735d79a7d10caf307dfba8a8fe8ec52aa5fdea4db1e664d0528ee32cb1  1139  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/six.txt
+e2375f363e57ac495945008e3bc65140cece0973535a539ffe76fe75c3166dbe  1187  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/soupsieve.txt
+681f05f7e60baee5e748a22c0e3dfa1fce3fcf16c69078998928bfb3978c70f9  1533  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/sqlite.txt
+ef75b82762efad7a482046a2e712f64704c96d8cbfdc52cef50e70b38ea90567  25274  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/statsmodels.txt
+154178953015fecfb695db09abd95c04b025b6a370765a55980cd94d9d1c472f  9116  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/sympy.txt
+ff13e542f41c2db889817a3a7e032dd0e1c8afae1944be62d4608b44703592ca  1168  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/tabulate.txt
+621652bdd0320541f8d76cbb0e68d1dc1cb7e50b45ae5b29de27aa39085328b6  1604  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/threadpoolctl.txt
+67d9011de410b0085eb5bc7be5db9d4319f1292cf864ef5e44c4b55be092f3b5  1147  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/tomli-w.txt
+13385adf0ac4c6b81e191405da0e3c7cc35aca571e919a8ee9dbd2667c2ffcc3  1576  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/toolz.txt
+c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73  80199  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/tqdm-4.70.1-source.whl
+dd84cd56539c912aca7a6e4134439028449e6a70fffd435742c5aedb628a36fa  19571  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/tqdm.txt
+06b8e3332f85fb011eac49344b7c930aac6fb4d6f7f4682b610eb44c0ff7e50d  14042  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/typing-extensions.txt
+a28814acc65c4af15aa37fb4b300c035fac36e77ab16967f18b4797dafd29c45  12174  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/tzdata.txt
+c2a6b2cfd4b0639a535102dd7ef55728ccfcd105ea4a149c88cb3b17fc10b764  32779  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/wasi-libc.txt
+91f0bbe316a075ed30928ff96cf8a48a733071b630deade4ef281cc1c2b9e392  1613  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/webencodings.txt
+7c4f963bd9e4b63b0631f252a080b795111be0051c7b0e8a913ced9bb561c414  1384  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/wrapt.txt
+70bda7fc1f9ef53c638dae181d54fd407ecff2a07e8d92dfc39e96353940603a  3844  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/xlrd.txt
+e93266ce9d062c0eecdcc7bd102a76532425d428df24ab1be4b321f9b035bf3d  1434  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/xlsxwriter.txt
+c70bdfac1788ffb0b94d53287b795819992816f4971c549126c521dd5204ccab  1173  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/xmltodict.txt
+93947eef5170a4e17a3dfed772f23f4fa366beff24358f41764cf60698a053e3  3775  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/xz.txt
+b629f68f9e92e40953433541cc1e8e20be1c6421770f67486f7db98e270801e5  1026  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/LICENSES/zlib.txt
+a9ed2a6967c5e915c46fe0440a8c2e3adce99925d484bdc7bc22d19814b5bfcd  33540  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/MANIFEST
+3339091f49b6cf94aaf90d5a68c281c3f1cc3384450f3cb94b768d8274d0fa20  6584  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/SHA256SUMS
+879bdb628a1a799dc3a6d1a645fee0f88944bf4cdf5e1628e0e1d2b4b33d28d3  104517748  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/python-snapshot.wasm
+a7b8f7cbd4799ac8c81223cbc47f8cea503adac934a04826778b66e5a5e9b847  53915154  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/python-stdlib.zip
+d41926055c3f869715202092a1b8d070ff9ffcd2c82d0dd368786e79f2200f9a  99421513  mode=0o644 uid=0 gid=0 / mtime=1767225600  wasi-python-0.1.0/python.wasm
+
+# Tarball vs build/artifacts
+SAME        LICENSES/attrs.txt  tar=a36bff7436e11da49a56ef382a3b55ba3af16cb9cb5d54d7f1f1760d070f24b5  local=a36bff7436e11da49a56ef382a3b55ba3af16cb9cb5d54d7f1f1760d070f24b5
+SAME        LICENSES/beautifulsoup4.txt  tar=dc52d4028c768f678a3db173fb8e2fb4b29911ba0e8fb5511a5840b7bd6f76be  local=dc52d4028c768f678a3db173fb8e2fb4b29911ba0e8fb5511a5840b7bd6f76be
+SAME        LICENSES/bzip2.txt  tar=28753c7121ccf73cc69a44ee55ba52d891d3bf1718940d2e3cffa661d225a455  local=28753c7121ccf73cc69a44ee55ba52d891d3bf1718940d2e3cffa661d225a455
+SAME        LICENSES/charset-normalizer.txt  tar=beeb457437b1fa48bfed9a94867e4836c60119bad56b324ed5544c9122b96c43  local=beeb457437b1fa48bfed9a94867e4836c60119bad56b324ed5544c9122b96c43
+SAME        LICENSES/cloudpickle.txt  tar=706ae521ac46d237ec1128c7981f81c829528656cad3e6f7739453518e8e0d23  local=706ae521ac46d237ec1128c7981f81c829528656cad3e6f7739453518e8e0d23
+SAME        LICENSES/contourpy.txt  tar=9e1f27e7cb8902c64045082134c4be09914ec23bb86051bc979b52ce2437729d  local=9e1f27e7cb8902c64045082134c4be09914ec23bb86051bc979b52ce2437729d
+SAME        LICENSES/cppy.txt  tar=c358a31e470963ddd6ef4d0ab4a024356837b79ba51934213837c5e74291a2bd  local=c358a31e470963ddd6ef4d0ab4a024356837b79ba51934213837c5e74291a2bd
+SAME        LICENSES/cpython.txt  tar=e140d8fab8152ead9954dea90595498bf4a86adf2bc69c8f91a5b6dbb7c38150  local=e140d8fab8152ead9954dea90595498bf4a86adf2bc69c8f91a5b6dbb7c38150
+SAME        LICENSES/cycler.txt  tar=b4401c940e1893e789a73e1a53505eaa1702dc2ade0a6ff900e71f6c9277d186  local=b4401c940e1893e789a73e1a53505eaa1702dc2ade0a6ff900e71f6c9277d186
+SAME        LICENSES/defusedxml.txt  tar=eceaeb7561aa5a5847a465cde63fbdb677de1635309d2c22f4104cb7bf617cb9  local=eceaeb7561aa5a5847a465cde63fbdb677de1635309d2c22f4104cb7bf617cb9
+SAME        LICENSES/et-xmlfile.txt  tar=42339047bdc4fe3bdfd87e9e1956e591aaafcb39e581b5867c5d389fce3dab49  local=42339047bdc4fe3bdfd87e9e1956e591aaafcb39e581b5867c5d389fce3dab49
+SAME        LICENSES/fonttools.txt  tar=64c00203bae41431d32b91065aad9f20a22ccc9d452a1a0d83bb621fa3849e36  local=64c00203bae41431d32b91065aad9f20a22ccc9d452a1a0d83bb621fa3849e36
+SAME        LICENSES/formulaic.txt  tar=fdabeb5e500c88e8626b9c1738dfb81f1f8c473f1f299828f404d6444c96eb10  local=fdabeb5e500c88e8626b9c1738dfb81f1f8c473f1f299828f404d6444c96eb10
+SAME        LICENSES/freetype.txt  tar=03e49f09cc3adaf21077607900256446f4b0bb9a25ae2e7f8f036fbe80222678  local=03e49f09cc3adaf21077607900256446f4b0bb9a25ae2e7f8f036fbe80222678
+SAME        LICENSES/harfbuzz.txt  tar=c17f018225df270628cb75d6d8adffde2157dc1ac9cd9a579ebca7f0da239dc0  local=c17f018225df270628cb75d6d8adffde2157dc1ac9cd9a579ebca7f0da239dc0
+SAME        LICENSES/html5lib.txt  tar=ffcddb543501d05bb8ea1591dc2194a40441b0c92da8fd61e6e0a2208a38c830  local=ffcddb543501d05bb8ea1591dc2194a40441b0c92da8fd61e6e0a2208a38c830
+SAME        LICENSES/interface-meta.txt  tar=83ef95b2b7ce1831330763568a7ed4aac8fb3c19d4e2408e609619d0235f5fd1  local=83ef95b2b7ce1831330763568a7ed4aac8fb3c19d4e2408e609619d0235f5fd1
+SAME        LICENSES/jinja2.txt  tar=f3f37502178f15620d952a1a1c129138972bbf27e26d8a008b2b26f9909a1dd5  local=f3f37502178f15620d952a1a1c129138972bbf27e26d8a008b2b26f9909a1dd5
+SAME        LICENSES/joblib.txt  tar=e256e904bc5c0f667700813514094e5ed7e1bafa2989bef7a00a94d9372cf961  local=e256e904bc5c0f667700813514094e5ed7e1bafa2989bef7a00a94d9372cf961
+SAME        LICENSES/kiwisolver.txt  tar=19567fc61130f3d7c2adcf7e9a38fea5dd2513a277fd8927517727b1462227a7  local=19567fc61130f3d7c2adcf7e9a38fea5dd2513a277fd8927517727b1462227a7
+SAME        LICENSES/libraqm.txt  tar=330666d1890874584e7731f6678e4b1af10ec20f38782e99169226598c6fae61  local=330666d1890874584e7731f6678e4b1af10ec20f38782e99169226598c6fae61
+SAME        LICENSES/libxml2.txt  tar=7575e0d3a1d31c1d30ade7e832eae20eef91d925ca4275416c58469f5aed7f97  local=7575e0d3a1d31c1d30ade7e832eae20eef91d925ca4275416c58469f5aed7f97
+SAME        LICENSES/libxslt.txt  tar=da40c3542e36bad2bcb53b77271d59a3aec7a612fff4860e12dea8eb0323b81c  local=da40c3542e36bad2bcb53b77271d59a3aec7a612fff4860e12dea8eb0323b81c
+SAME        LICENSES/llvm-runtimes.txt  tar=ebdbd43e564be09b2e512ba6f781b06afd6acb7169b052a2a4bd5cf15d4862e5  local=ebdbd43e564be09b2e512ba6f781b06afd6acb7169b052a2a4bd5cf15d4862e5
+SAME        LICENSES/lxml.txt  tar=c493bead1c4f4d45bb6e76b5797f9fb2cad4327db05351eb798fb06c25b37a2d  local=c493bead1c4f4d45bb6e76b5797f9fb2cad4327db05351eb798fb06c25b37a2d
+SAME        LICENSES/markupsafe.txt  tar=d183ec1dbf00a57f0da43119b2f03cb9cce3a39a04cf49beeee7b1ffa0f6f2c3  local=d183ec1dbf00a57f0da43119b2f03cb9cce3a39a04cf49beeee7b1ffa0f6f2c3
+SAME        LICENSES/matplotlib.txt  tar=b50895b4cd680ec0daa6f990ce6451986c7abab452d8c64591d1e3caf53c200a  local=b50895b4cd680ec0daa6f990ce6451986c7abab452d8c64591d1e3caf53c200a
+SAME        LICENSES/more-itertools.txt  tar=897086b7340cd5ea864854c550861d707391159a6d3cbb48fd626b4d42a91cd9  local=897086b7340cd5ea864854c550861d707391159a6d3cbb48fd626b4d42a91cd9
+SAME        LICENSES/mpmath.txt  tar=79c3e846fa80a13874d9a2f50dd278fb3b12c8920f71807c6a6576e345ef17e2  local=79c3e846fa80a13874d9a2f50dd278fb3b12c8920f71807c6a6576e345ef17e2
+SAME        LICENSES/narwhals.txt  tar=54ca5e7e46fd5898f4bfffc69bec2d10dc7020a44b0ca6e17d375c3464cbda08  local=54ca5e7e46fd5898f4bfffc69bec2d10dc7020a44b0ca6e17d375c3464cbda08
+SAME        LICENSES/networkx.txt  tar=8155ffb2efd6f950789653fcfee433a79eedc861f272383bbf25e904bed8c093  local=8155ffb2efd6f950789653fcfee433a79eedc861f272383bbf25e904bed8c093
+SAME        LICENSES/numpy.txt  tar=7bd98a031ed230538a1e6457822483bfdc7c0216f9438441b6917366a7f97de8  local=7bd98a031ed230538a1e6457822483bfdc7c0216f9438441b6917366a7f97de8
+SAME        LICENSES/openblas.txt  tar=cc87c36b84f354a04b619a93103018ff554db06a6dc7a8820f2731d3346c0f94  local=cc87c36b84f354a04b619a93103018ff554db06a6dc7a8820f2731d3346c0f94
+SAME        LICENSES/openpyxl.txt  tar=d4997a6248bbab8e32c9e28d8aa4ac146c1cef4a68a0b47d9e003631d025826d  local=d4997a6248bbab8e32c9e28d8aa4ac146c1cef4a68a0b47d9e003631d025826d
+SAME        LICENSES/packaging.txt  tar=75a9ae5c9d6764bc5afaa827d9ad4014dbb735b7d5eaf44c27d2cf79a9e41e53  local=75a9ae5c9d6764bc5afaa827d9ad4014dbb735b7d5eaf44c27d2cf79a9e41e53
+SAME        LICENSES/pandas.txt  tar=d38f9537c4397ecb97d1b3dc7feaf9bed381780639d126909b120113c9566ab9  local=d38f9537c4397ecb97d1b3dc7feaf9bed381780639d126909b120113c9566ab9
+SAME        LICENSES/patsy.txt  tar=8cc51f3fba2b764e7b627a3e57a60f5fb92b1ac610eac1d471813d28fc8e680c  local=8cc51f3fba2b764e7b627a3e57a60f5fb92b1ac610eac1d471813d28fc8e680c
+SAME        LICENSES/pillow.txt  tar=fad176753c8f6c8b4677ad97772eac56964709b3e11842d1d55b3e4051859bc0  local=fad176753c8f6c8b4677ad97772eac56964709b3e11842d1d55b3e4051859bc0
+SAME        LICENSES/pybind11.txt  tar=1c62544ac8b1c676d81bf26008c8432ddeaaa2c86e68326bb3c553f2d703ccee  local=1c62544ac8b1c676d81bf26008c8432ddeaaa2c86e68326bb3c553f2d703ccee
+SAME        LICENSES/pyparsing.txt  tar=693db6ce6bf9dda674ee53872c4d510970c1ba0acfb5a7ed28ddafdf852124d2  local=693db6ce6bf9dda674ee53872c4d510970c1ba0acfb5a7ed28ddafdf852124d2
+SAME        LICENSES/pypdf.txt  tar=46d4a2c45f68a7478a8465a5050f589b6020b442114f59622882a18608046f54  local=46d4a2c45f68a7478a8465a5050f589b6020b442114f59622882a18608046f54
+SAME        LICENSES/python-dateutil.txt  tar=54c1d04571a9c1a99925fe49ed3092f4c74c8b1b6593e7a8c9633728cc8ecfe2  local=54c1d04571a9c1a99925fe49ed3092f4c74c8b1b6593e7a8c9633728cc8ecfe2
+SAME        LICENSES/pyyaml.txt  tar=6adf78c64e10cdbf7021ba177d1a43b45959c70b884628d2ee45d3b4fd6da985  local=6adf78c64e10cdbf7021ba177d1a43b45959c70b884628d2ee45d3b4fd6da985
+SAME        LICENSES/qhull.txt  tar=aa16a5c74ed473fac38357c9aa0803bdddfe3e3f4ff6f74032eb79af036c468c  local=aa16a5c74ed473fac38357c9aa0803bdddfe3e3f4ff6f74032eb79af036c468c
+SAME        LICENSES/regex.txt  tar=87d0dbdf9ddf6bdbfe40476434a7f3b77143354102fa78d2800cbbb766ee31ce  local=87d0dbdf9ddf6bdbfe40476434a7f3b77143354102fa78d2800cbbb766ee31ce
+SAME        LICENSES/reportlab.txt  tar=917df6cd3cde2446a5aac7dabde7914bd771821180b450522fc96e89d63ae7e8  local=917df6cd3cde2446a5aac7dabde7914bd771821180b450522fc96e89d63ae7e8
+SAME        LICENSES/scikit-learn.txt  tar=9bc5f55bb8c591bc1e5c6628dda0ffa3b2dbbc33fcd30187d2ef7ff7e4da0715  local=9bc5f55bb8c591bc1e5c6628dda0ffa3b2dbbc33fcd30187d2ef7ff7e4da0715
+SAME        LICENSES/scipy.txt  tar=743ae5123279d18e860e81ddc3fe19c5576ca36b0af3ab415fc5342f9f428d6e  local=743ae5123279d18e860e81ddc3fe19c5576ca36b0af3ab415fc5342f9f428d6e
+SAME        LICENSES/seaborn.txt  tar=9348e42ba823387449f9039affa4aae08fd0e837392ace143b06c5647c6de9e8  local=9348e42ba823387449f9039affa4aae08fd0e837392ace143b06c5647c6de9e8
+SAME        LICENSES/sheenbidi.txt  tar=39c59356f2946fc309f2714f283be3de12aa0bb265c89a5955e79551f6bedbab  local=39c59356f2946fc309f2714f283be3de12aa0bb265c89a5955e79551f6bedbab
+SAME        LICENSES/six.txt  tar=09ad15735d79a7d10caf307dfba8a8fe8ec52aa5fdea4db1e664d0528ee32cb1  local=09ad15735d79a7d10caf307dfba8a8fe8ec52aa5fdea4db1e664d0528ee32cb1
+SAME        LICENSES/soupsieve.txt  tar=e2375f363e57ac495945008e3bc65140cece0973535a539ffe76fe75c3166dbe  local=e2375f363e57ac495945008e3bc65140cece0973535a539ffe76fe75c3166dbe
+SAME        LICENSES/sqlite.txt  tar=681f05f7e60baee5e748a22c0e3dfa1fce3fcf16c69078998928bfb3978c70f9  local=681f05f7e60baee5e748a22c0e3dfa1fce3fcf16c69078998928bfb3978c70f9
+SAME        LICENSES/statsmodels.txt  tar=ef75b82762efad7a482046a2e712f64704c96d8cbfdc52cef50e70b38ea90567  local=ef75b82762efad7a482046a2e712f64704c96d8cbfdc52cef50e70b38ea90567
+SAME        LICENSES/sympy.txt  tar=154178953015fecfb695db09abd95c04b025b6a370765a55980cd94d9d1c472f  local=154178953015fecfb695db09abd95c04b025b6a370765a55980cd94d9d1c472f
+SAME        LICENSES/tabulate.txt  tar=ff13e542f41c2db889817a3a7e032dd0e1c8afae1944be62d4608b44703592ca  local=ff13e542f41c2db889817a3a7e032dd0e1c8afae1944be62d4608b44703592ca
+SAME        LICENSES/threadpoolctl.txt  tar=621652bdd0320541f8d76cbb0e68d1dc1cb7e50b45ae5b29de27aa39085328b6  local=621652bdd0320541f8d76cbb0e68d1dc1cb7e50b45ae5b29de27aa39085328b6
+SAME        LICENSES/tomli-w.txt  tar=67d9011de410b0085eb5bc7be5db9d4319f1292cf864ef5e44c4b55be092f3b5  local=67d9011de410b0085eb5bc7be5db9d4319f1292cf864ef5e44c4b55be092f3b5
+SAME        LICENSES/toolz.txt  tar=13385adf0ac4c6b81e191405da0e3c7cc35aca571e919a8ee9dbd2667c2ffcc3  local=13385adf0ac4c6b81e191405da0e3c7cc35aca571e919a8ee9dbd2667c2ffcc3
+SAME        LICENSES/tqdm-4.70.1-source.whl  tar=c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73  local=c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73
+SAME        LICENSES/tqdm.txt  tar=dd84cd56539c912aca7a6e4134439028449e6a70fffd435742c5aedb628a36fa  local=dd84cd56539c912aca7a6e4134439028449e6a70fffd435742c5aedb628a36fa
+SAME        LICENSES/typing-extensions.txt  tar=06b8e3332f85fb011eac49344b7c930aac6fb4d6f7f4682b610eb44c0ff7e50d  local=06b8e3332f85fb011eac49344b7c930aac6fb4d6f7f4682b610eb44c0ff7e50d
+SAME        LICENSES/tzdata.txt  tar=a28814acc65c4af15aa37fb4b300c035fac36e77ab16967f18b4797dafd29c45  local=a28814acc65c4af15aa37fb4b300c035fac36e77ab16967f18b4797dafd29c45
+SAME        LICENSES/wasi-libc.txt  tar=c2a6b2cfd4b0639a535102dd7ef55728ccfcd105ea4a149c88cb3b17fc10b764  local=c2a6b2cfd4b0639a535102dd7ef55728ccfcd105ea4a149c88cb3b17fc10b764
+SAME        LICENSES/webencodings.txt  tar=91f0bbe316a075ed30928ff96cf8a48a733071b630deade4ef281cc1c2b9e392  local=91f0bbe316a075ed30928ff96cf8a48a733071b630deade4ef281cc1c2b9e392
+SAME        LICENSES/wrapt.txt  tar=7c4f963bd9e4b63b0631f252a080b795111be0051c7b0e8a913ced9bb561c414  local=7c4f963bd9e4b63b0631f252a080b795111be0051c7b0e8a913ced9bb561c414
+SAME        LICENSES/xlrd.txt  tar=70bda7fc1f9ef53c638dae181d54fd407ecff2a07e8d92dfc39e96353940603a  local=70bda7fc1f9ef53c638dae181d54fd407ecff2a07e8d92dfc39e96353940603a
+SAME        LICENSES/xlsxwriter.txt  tar=e93266ce9d062c0eecdcc7bd102a76532425d428df24ab1be4b321f9b035bf3d  local=e93266ce9d062c0eecdcc7bd102a76532425d428df24ab1be4b321f9b035bf3d
+SAME        LICENSES/xmltodict.txt  tar=c70bdfac1788ffb0b94d53287b795819992816f4971c549126c521dd5204ccab  local=c70bdfac1788ffb0b94d53287b795819992816f4971c549126c521dd5204ccab
+SAME        LICENSES/xz.txt  tar=93947eef5170a4e17a3dfed772f23f4fa366beff24358f41764cf60698a053e3  local=93947eef5170a4e17a3dfed772f23f4fa366beff24358f41764cf60698a053e3
+SAME        LICENSES/zlib.txt  tar=b629f68f9e92e40953433541cc1e8e20be1c6421770f67486f7db98e270801e5  local=b629f68f9e92e40953433541cc1e8e20be1c6421770f67486f7db98e270801e5
+SAME        MANIFEST  tar=a9ed2a6967c5e915c46fe0440a8c2e3adce99925d484bdc7bc22d19814b5bfcd  local=a9ed2a6967c5e915c46fe0440a8c2e3adce99925d484bdc7bc22d19814b5bfcd
+SAME        SHA256SUMS  tar=3339091f49b6cf94aaf90d5a68c281c3f1cc3384450f3cb94b768d8274d0fa20  local=3339091f49b6cf94aaf90d5a68c281c3f1cc3384450f3cb94b768d8274d0fa20
+SAME        python-snapshot.wasm  tar=879bdb628a1a799dc3a6d1a645fee0f88944bf4cdf5e1628e0e1d2b4b33d28d3  local=879bdb628a1a799dc3a6d1a645fee0f88944bf4cdf5e1628e0e1d2b4b33d28d3
+SAME        python-stdlib.zip  tar=a7b8f7cbd4799ac8c81223cbc47f8cea503adac934a04826778b66e5a5e9b847  local=a7b8f7cbd4799ac8c81223cbc47f8cea503adac934a04826778b66e5a5e9b847
+SAME        python.wasm  tar=d41926055c3f869715202092a1b8d070ff9ffcd2c82d0dd368786e79f2200f9a  local=d41926055c3f869715202092a1b8d070ff9ffcd2c82d0dd368786e79f2200f9a
+tarball differences: 0
+
+# Files named in the tarball's inner SHA256SUMS: LICENSES/attrs.txt, LICENSES/beautifulsoup4.txt, LICENSES/bzip2.txt, LICENSES/charset-normalizer.txt, LICENSES/cloudpickle.txt, LICENSES/contourpy.txt, LICENSES/cppy.txt, LICENSES/cpython.txt, LICENSES/cycler.txt, LICENSES/defusedxml.txt, LICENSES/et-xmlfile.txt, LICENSES/fonttools.txt, LICENSES/formulaic.txt, LICENSES/freetype.txt, LICENSES/harfbuzz.txt, LICENSES/html5lib.txt, LICENSES/interface-meta.txt, LICENSES/jinja2.txt, LICENSES/joblib.txt, LICENSES/kiwisolver.txt, LICENSES/libraqm.txt, LICENSES/libxml2.txt, LICENSES/libxslt.txt, LICENSES/llvm-runtimes.txt, LICENSES/lxml.txt, LICENSES/markupsafe.txt, LICENSES/matplotlib.txt, LICENSES/more-itertools.txt, LICENSES/mpmath.txt, LICENSES/narwhals.txt, LICENSES/networkx.txt, LICENSES/numpy.txt, LICENSES/openblas.txt, LICENSES/openpyxl.txt, LICENSES/packaging.txt, LICENSES/pandas.txt, LICENSES/patsy.txt, LICENSES/pillow.txt, LICENSES/pybind11.txt, LICENSES/pyparsing.txt, LICENSES/pypdf.txt, LICENSES/python-dateutil.txt, LICENSES/pyyaml.txt, LICENSES/qhull.txt, LICENSES/regex.txt, LICENSES/reportlab.txt, LICENSES/scikit-learn.txt, LICENSES/scipy.txt, LICENSES/seaborn.txt, LICENSES/sheenbidi.txt, LICENSES/six.txt, LICENSES/soupsieve.txt, LICENSES/sqlite.txt, LICENSES/statsmodels.txt, LICENSES/sympy.txt, LICENSES/tabulate.txt, LICENSES/threadpoolctl.txt, LICENSES/tomli-w.txt, LICENSES/toolz.txt, LICENSES/tqdm-4.70.1-source.whl, LICENSES/tqdm.txt, LICENSES/typing-extensions.txt, LICENSES/tzdata.txt, LICENSES/wasi-libc.txt, LICENSES/webencodings.txt, LICENSES/wrapt.txt, LICENSES/xlrd.txt, LICENSES/xlsxwriter.txt, LICENSES/xmltodict.txt, LICENSES/xz.txt, LICENSES/zlib.txt, MANIFEST, python-snapshot.wasm, python-stdlib.zip, python.wasm
+# Tarball files NOT named in its inner SHA256SUMS: 
+  inner-sums OK  LICENSES/attrs.txt
+  inner-sums OK  LICENSES/beautifulsoup4.txt
+  inner-sums OK  LICENSES/bzip2.txt
+  inner-sums OK  LICENSES/charset-normalizer.txt
+  inner-sums OK  LICENSES/cloudpickle.txt
+  inner-sums OK  LICENSES/contourpy.txt
+  inner-sums OK  LICENSES/cppy.txt
+  inner-sums OK  LICENSES/cpython.txt
+  inner-sums OK  LICENSES/cycler.txt
+  inner-sums OK  LICENSES/defusedxml.txt
+  inner-sums OK  LICENSES/et-xmlfile.txt
+  inner-sums OK  LICENSES/fonttools.txt
+  inner-sums OK  LICENSES/formulaic.txt
+  inner-sums OK  LICENSES/freetype.txt
+  inner-sums OK  LICENSES/harfbuzz.txt
+  inner-sums OK  LICENSES/html5lib.txt
+  inner-sums OK  LICENSES/interface-meta.txt
+  inner-sums OK  LICENSES/jinja2.txt
+  inner-sums OK  LICENSES/joblib.txt
+  inner-sums OK  LICENSES/kiwisolver.txt
+  inner-sums OK  LICENSES/libraqm.txt
+  inner-sums OK  LICENSES/libxml2.txt
+  inner-sums OK  LICENSES/libxslt.txt
+  inner-sums OK  LICENSES/llvm-runtimes.txt
+  inner-sums OK  LICENSES/lxml.txt
+  inner-sums OK  LICENSES/markupsafe.txt
+  inner-sums OK  LICENSES/matplotlib.txt
+  inner-sums OK  LICENSES/more-itertools.txt
+  inner-sums OK  LICENSES/mpmath.txt
+  inner-sums OK  LICENSES/narwhals.txt
+  inner-sums OK  LICENSES/networkx.txt
+  inner-sums OK  LICENSES/numpy.txt
+  inner-sums OK  LICENSES/openblas.txt
+  inner-sums OK  LICENSES/openpyxl.txt
+  inner-sums OK  LICENSES/packaging.txt
+  inner-sums OK  LICENSES/pandas.txt
+  inner-sums OK  LICENSES/patsy.txt
+  inner-sums OK  LICENSES/pillow.txt
+  inner-sums OK  LICENSES/pybind11.txt
+  inner-sums OK  LICENSES/pyparsing.txt
+  inner-sums OK  LICENSES/pypdf.txt
+  inner-sums OK  LICENSES/python-dateutil.txt
+  inner-sums OK  LICENSES/pyyaml.txt
+  inner-sums OK  LICENSES/qhull.txt
+  inner-sums OK  LICENSES/regex.txt
+  inner-sums OK  LICENSES/reportlab.txt
+  inner-sums OK  LICENSES/scikit-learn.txt
+  inner-sums OK  LICENSES/scipy.txt
+  inner-sums OK  LICENSES/seaborn.txt
+  inner-sums OK  LICENSES/sheenbidi.txt
+  inner-sums OK  LICENSES/six.txt
+  inner-sums OK  LICENSES/soupsieve.txt
+  inner-sums OK  LICENSES/sqlite.txt
+  inner-sums OK  LICENSES/statsmodels.txt
+  inner-sums OK  LICENSES/sympy.txt
+  inner-sums OK  LICENSES/tabulate.txt
+  inner-sums OK  LICENSES/threadpoolctl.txt
+  inner-sums OK  LICENSES/tomli-w.txt
+  inner-sums OK  LICENSES/toolz.txt
+  inner-sums OK  LICENSES/tqdm-4.70.1-source.whl
+  inner-sums OK  LICENSES/tqdm.txt
+  inner-sums OK  LICENSES/typing-extensions.txt
+  inner-sums OK  LICENSES/tzdata.txt
+  inner-sums OK  LICENSES/wasi-libc.txt
+  inner-sums OK  LICENSES/webencodings.txt
+  inner-sums OK  LICENSES/wrapt.txt
+  inner-sums OK  LICENSES/xlrd.txt
+  inner-sums OK  LICENSES/xlsxwriter.txt
+  inner-sums OK  LICENSES/xmltodict.txt
+  inner-sums OK  LICENSES/xz.txt
+  inner-sums OK  LICENSES/zlib.txt
+  inner-sums OK  MANIFEST
+  inner-sums OK  python-snapshot.wasm
+  inner-sums OK  python-stdlib.zip
+  inner-sums OK  python.wasm
+
+# Wheel members
+8579b8fbf499b7c9b0afaa90059557a64667c8b8eab8edfbfa8508a4f100bb00  3751  attr=0o100644  wasi_python/__init__.py
+dd0717a527d8a864a9b2cfcc8ba4ec0563267ec5dabab0a740e3956e4891ff69  113  attr=0o100644  wasi_python/__main__.py
+0f3e11c023d333051ea45cddfac298cc90833f025adbf37104eb104654281ba3  9455  attr=0o100644  wasi_python/_artifacts.py
+7ca6e4a4138f91bb36bfdbfd1e61f14dcb04390232c34303423a364f249e91be  56617  attr=0o100644  wasi_python/_call.py
+4d81a6b9b389dced104fe627045b89c7533ba8c782523c3d0937173779c3b65a  13075  attr=0o100644  wasi_python/_engines.py
+54b1540ec23cd605e9128e45910cfeef053e9d39746df6b59c6354f1f3183f80  19400  attr=0o100644  wasi_python/_fs_descriptors.py
+27b07cba4962cf543bc56825b48bf5b837d7896a5ef6a748262e8ff40a928269  13737  attr=0o100644  wasi_python/_fs_memory.py
+bfa4b9253d0184df1e6e0752b32a75d3fc292992ca6808bfbb9d5ccd40121042  23707  attr=0o100644  wasi_python/_fs_paths.py
+0caffa9d484eb20e4786b03e90737113c55f4e7c5a87260fda4c153e8f9509a8  30317  attr=0o100644  wasi_python/_fs_table.py
+a34c1db00da4e6fb65b94a6593f27758d8dc99f277de8a9a03e0ee628f108eaf  17984  attr=0o100644  wasi_python/_home.py
+fc930e8cec32e6f8ec0d2901c60fe8572ba15b30d42a34d589bad4ab53aa9bd2  7290  attr=0o100644  wasi_python/_limits.py
+62f9a8604a5445673ad497b95a7e650871c81286691c9ec23bddb41d9701791c  26284  attr=0o100644  wasi_python/_places.py
+0ef9dc43fdbcf4e4506c4bd7c3592f5bbffc94e49b3a682f3a09c4d84a68f910  62101  attr=0o100644  wasi_python/_platform.py
+eb3a5c70ca4793390a28679e4dae605f1c4dd819f702c8c8745739ed1b68e1fa  10643  attr=0o100644  wasi_python/_private_dirs.py
+2081ff683308eaf45399f531aa4432a951a6ad18b18e517fad5d915edb9473f0  12593  attr=0o100644  wasi_python/_process.py
+aa3b69b8bdcf4189f830f58f950996c97a968f0b366e30969de57f2e50082efe  43925  attr=0o100644  wasi_python/_sessions.py
+f045aac9901b5b065bc861cae4f62d2248c227259c23ab5ec65614b39e7d11f8  43477  attr=0o100644  wasi_python/_tool_host.py
+9b9325b46a9a8b34540889ce60a96b67ad703c4fd22a951b153144a667dadaa4  32504  attr=0o100644  wasi_python/_tool_schema.py
+28102aad1c4c8e3e87750a94a80003767440ebeb26daae9f9f55a7b00296fe4b  16984  attr=0o100644  wasi_python/_wasmtime_ffi.py
+a0354da55b6d90825bd2c66c1bf57307cf2489c6dffacb9e2d5b56ab3249f7df  12229  attr=0o100644  wasi_python/_zip.py
+e4839152cabc0b6999654b15902251224cd5028360d9dc53c8213215231a69d4  10821  attr=0o100644  wasi_python/cli.py
+84af20cb410d8abe0a26629982f3cc429dd820a3de004b349c38b19dce67040e  13266  attr=0o100644  wasi_python/mounts.py
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  0  attr=0o100644  wasi_python/py.typed
+f848e67df53372ac66d844f35d68734b40d6e9acc50e88ba6fde4f2ddcb9ffcf  60018  attr=0o100644  wasi_python/runner.py
+89c6aa6c1afb551f2326e39debb6f46e107674bf5b343e35bdd59261c5f94ade  27056  attr=0o100644  wasi_python/tools.py
+a9ed2a6967c5e915c46fe0440a8c2e3adce99925d484bdc7bc22d19814b5bfcd  33540  attr=0o100644  wasi_python/artifacts/MANIFEST
+3339091f49b6cf94aaf90d5a68c281c3f1cc3384450f3cb94b768d8274d0fa20  6584  attr=0o100644  wasi_python/artifacts/SHA256SUMS
+879bdb628a1a799dc3a6d1a645fee0f88944bf4cdf5e1628e0e1d2b4b33d28d3  104517748  attr=0o100644  wasi_python/artifacts/python-snapshot.wasm
+a7b8f7cbd4799ac8c81223cbc47f8cea503adac934a04826778b66e5a5e9b847  53915154  attr=0o100644  wasi_python/artifacts/python-stdlib.zip
+d41926055c3f869715202092a1b8d070ff9ffcd2c82d0dd368786e79f2200f9a  99421513  attr=0o100644  wasi_python/artifacts/python.wasm
+a36bff7436e11da49a56ef382a3b55ba3af16cb9cb5d54d7f1f1760d070f24b5  1191  attr=0o100644  wasi_python/artifacts/LICENSES/attrs.txt
+dc52d4028c768f678a3db173fb8e2fb4b29911ba0e8fb5511a5840b7bd6f76be  1541  attr=0o100644  wasi_python/artifacts/LICENSES/beautifulsoup4.txt
+28753c7121ccf73cc69a44ee55ba52d891d3bf1718940d2e3cffa661d225a455  1921  attr=0o100644  wasi_python/artifacts/LICENSES/bzip2.txt
+beeb457437b1fa48bfed9a94867e4836c60119bad56b324ed5544c9122b96c43  1177  attr=0o100644  wasi_python/artifacts/LICENSES/charset-normalizer.txt
+706ae521ac46d237ec1128c7981f81c829528656cad3e6f7739453518e8e0d23  1846  attr=0o100644  wasi_python/artifacts/LICENSES/cloudpickle.txt
+9e1f27e7cb8902c64045082134c4be09914ec23bb86051bc979b52ce2437729d  3967  attr=0o100644  wasi_python/artifacts/LICENSES/contourpy.txt
+c358a31e470963ddd6ef4d0ab4a024356837b79ba51934213837c5e74291a2bd  1554  attr=0o100644  wasi_python/artifacts/LICENSES/cppy.txt
+e140d8fab8152ead9954dea90595498bf4a86adf2bc69c8f91a5b6dbb7c38150  77045  attr=0o100644  wasi_python/artifacts/LICENSES/cpython.txt
+b4401c940e1893e789a73e1a53505eaa1702dc2ade0a6ff900e71f6c9277d186  1573  attr=0o100644  wasi_python/artifacts/LICENSES/cycler.txt
+eceaeb7561aa5a5847a465cde63fbdb677de1635309d2c22f4104cb7bf617cb9  2494  attr=0o100644  wasi_python/artifacts/LICENSES/defusedxml.txt
+42339047bdc4fe3bdfd87e9e1956e591aaafcb39e581b5867c5d389fce3dab49  15992  attr=0o100644  wasi_python/artifacts/LICENSES/et-xmlfile.txt
+64c00203bae41431d32b91065aad9f20a22ccc9d452a1a0d83bb621fa3849e36  21283  attr=0o100644  wasi_python/artifacts/LICENSES/fonttools.txt
+fdabeb5e500c88e8626b9c1738dfb81f1f8c473f1f299828f404d6444c96eb10  1160  attr=0o100644  wasi_python/artifacts/LICENSES/formulaic.txt
+03e49f09cc3adaf21077607900256446f4b0bb9a25ae2e7f8f036fbe80222678  18310  attr=0o100644  wasi_python/artifacts/LICENSES/freetype.txt
+c17f018225df270628cb75d6d8adffde2157dc1ac9cd9a579ebca7f0da239dc0  5276  attr=0o100644  wasi_python/artifacts/LICENSES/harfbuzz.txt
+ffcddb543501d05bb8ea1591dc2194a40441b0c92da8fd61e6e0a2208a38c830  1161  attr=0o100644  wasi_python/artifacts/LICENSES/html5lib.txt
+83ef95b2b7ce1831330763568a7ed4aac8fb3c19d4e2408e609619d0235f5fd1  1170  attr=0o100644  wasi_python/artifacts/LICENSES/interface-meta.txt
+f3f37502178f15620d952a1a1c129138972bbf27e26d8a008b2b26f9909a1dd5  1561  attr=0o100644  wasi_python/artifacts/LICENSES/jinja2.txt
+e256e904bc5c0f667700813514094e5ed7e1bafa2989bef7a00a94d9372cf961  1613  attr=0o100644  wasi_python/artifacts/LICENSES/joblib.txt
+19567fc61130f3d7c2adcf7e9a38fea5dd2513a277fd8927517727b1462227a7  3319  attr=0o100644  wasi_python/artifacts/LICENSES/kiwisolver.txt
+330666d1890874584e7731f6678e4b1af10ec20f38782e99169226598c6fae61  1207  attr=0o100644  wasi_python/artifacts/LICENSES/libraqm.txt
+7575e0d3a1d31c1d30ade7e832eae20eef91d925ca4275416c58469f5aed7f97  4078  attr=0o100644  wasi_python/artifacts/LICENSES/libxml2.txt
+da40c3542e36bad2bcb53b77271d59a3aec7a612fff4860e12dea8eb0323b81c  2997  attr=0o100644  wasi_python/artifacts/LICENSES/libxslt.txt
+ebdbd43e564be09b2e512ba6f781b06afd6acb7169b052a2a4bd5cf15d4862e5  67010  attr=0o100644  wasi_python/artifacts/LICENSES/llvm-runtimes.txt
+c493bead1c4f4d45bb6e76b5797f9fb2cad4327db05351eb798fb06c25b37a2d  10631  attr=0o100644  wasi_python/artifacts/LICENSES/lxml.txt
+d183ec1dbf00a57f0da43119b2f03cb9cce3a39a04cf49beeee7b1ffa0f6f2c3  1509  attr=0o100644  wasi_python/artifacts/LICENSES/markupsafe.txt
+b50895b4cd680ec0daa6f990ce6451986c7abab452d8c64591d1e3caf53c200a  70934  attr=0o100644  wasi_python/artifacts/LICENSES/matplotlib.txt
+897086b7340cd5ea864854c550861d707391159a6d3cbb48fd626b4d42a91cd9  1153  attr=0o100644  wasi_python/artifacts/LICENSES/more-itertools.txt
+79c3e846fa80a13874d9a2f50dd278fb3b12c8920f71807c6a6576e345ef17e2  1610  attr=0o100644  wasi_python/artifacts/LICENSES/mpmath.txt
+54ca5e7e46fd5898f4bfffc69bec2d10dc7020a44b0ca6e17d375c3464cbda08  1173  attr=0o100644  wasi_python/artifacts/LICENSES/narwhals.txt
+8155ffb2efd6f950789653fcfee433a79eedc861f272383bbf25e904bed8c093  1795  attr=0o100644  wasi_python/artifacts/LICENSES/networkx.txt
+7bd98a031ed230538a1e6457822483bfdc7c0216f9438441b6917366a7f97de8  48162  attr=0o100644  wasi_python/artifacts/LICENSES/numpy.txt
+cc87c36b84f354a04b619a93103018ff554db06a6dc7a8820f2731d3346c0f94  3884  attr=0o100644  wasi_python/artifacts/LICENSES/openblas.txt
+d4997a6248bbab8e32c9e28d8aa4ac146c1cef4a68a0b47d9e003631d025826d  1216  attr=0o100644  wasi_python/artifacts/LICENSES/openpyxl.txt
+75a9ae5c9d6764bc5afaa827d9ad4014dbb735b7d5eaf44c27d2cf79a9e41e53  11984  attr=0o100644  wasi_python/artifacts/LICENSES/packaging.txt
+d38f9537c4397ecb97d1b3dc7feaf9bed381780639d126909b120113c9566ab9  52715  attr=0o100644  wasi_python/artifacts/LICENSES/pandas.txt
+8cc51f3fba2b764e7b627a3e57a60f5fb92b1ac610eac1d471813d28fc8e680c  4401  attr=0o100644  wasi_python/artifacts/LICENSES/patsy.txt
+fad176753c8f6c8b4677ad97772eac56964709b3e11842d1d55b3e4051859bc0  1483  attr=0o100644  wasi_python/artifacts/LICENSES/pillow.txt
+1c62544ac8b1c676d81bf26008c8432ddeaaa2c86e68326bb3c553f2d703ccee  1770  attr=0o100644  wasi_python/artifacts/LICENSES/pybind11.txt
+693db6ce6bf9dda674ee53872c4d510970c1ba0acfb5a7ed28ddafdf852124d2  1150  attr=0o100644  wasi_python/artifacts/LICENSES/pyparsing.txt
+46d4a2c45f68a7478a8465a5050f589b6020b442114f59622882a18608046f54  1687  attr=0o100644  wasi_python/artifacts/LICENSES/pypdf.txt
+54c1d04571a9c1a99925fe49ed3092f4c74c8b1b6593e7a8c9633728cc8ecfe2  2997  attr=0o100644  wasi_python/artifacts/LICENSES/python-dateutil.txt
+6adf78c64e10cdbf7021ba177d1a43b45959c70b884628d2ee45d3b4fd6da985  1127  attr=0o100644  wasi_python/artifacts/LICENSES/pyyaml.txt
+aa16a5c74ed473fac38357c9aa0803bdddfe3e3f4ff6f74032eb79af036c468c  1749  attr=0o100644  wasi_python/artifacts/LICENSES/qhull.txt
+87d0dbdf9ddf6bdbfe40476434a7f3b77143354102fa78d2800cbbb766ee31ce  12060  attr=0o100644  wasi_python/artifacts/LICENSES/regex.txt
+917df6cd3cde2446a5aac7dabde7914bd771821180b450522fc96e89d63ae7e8  7923  attr=0o100644  wasi_python/artifacts/LICENSES/reportlab.txt
+9bc5f55bb8c591bc1e5c6628dda0ffa3b2dbbc33fcd30187d2ef7ff7e4da0715  34833  attr=0o100644  wasi_python/artifacts/LICENSES/scikit-learn.txt
+743ae5123279d18e860e81ddc3fe19c5576ca36b0af3ab415fc5342f9f428d6e  75911  attr=0o100644  wasi_python/artifacts/LICENSES/scipy.txt
+9348e42ba823387449f9039affa4aae08fd0e837392ace143b06c5647c6de9e8  8347  attr=0o100644  wasi_python/artifacts/LICENSES/seaborn.txt
+39c59356f2946fc309f2714f283be3de12aa0bb265c89a5955e79551f6bedbab  11387  attr=0o100644  wasi_python/artifacts/LICENSES/sheenbidi.txt
+09ad15735d79a7d10caf307dfba8a8fe8ec52aa5fdea4db1e664d0528ee32cb1  1139  attr=0o100644  wasi_python/artifacts/LICENSES/six.txt
+e2375f363e57ac495945008e3bc65140cece0973535a539ffe76fe75c3166dbe  1187  attr=0o100644  wasi_python/artifacts/LICENSES/soupsieve.txt
+681f05f7e60baee5e748a22c0e3dfa1fce3fcf16c69078998928bfb3978c70f9  1533  attr=0o100644  wasi_python/artifacts/LICENSES/sqlite.txt
+ef75b82762efad7a482046a2e712f64704c96d8cbfdc52cef50e70b38ea90567  25274  attr=0o100644  wasi_python/artifacts/LICENSES/statsmodels.txt
+154178953015fecfb695db09abd95c04b025b6a370765a55980cd94d9d1c472f  9116  attr=0o100644  wasi_python/artifacts/LICENSES/sympy.txt
+ff13e542f41c2db889817a3a7e032dd0e1c8afae1944be62d4608b44703592ca  1168  attr=0o100644  wasi_python/artifacts/LICENSES/tabulate.txt
+621652bdd0320541f8d76cbb0e68d1dc1cb7e50b45ae5b29de27aa39085328b6  1604  attr=0o100644  wasi_python/artifacts/LICENSES/threadpoolctl.txt
+67d9011de410b0085eb5bc7be5db9d4319f1292cf864ef5e44c4b55be092f3b5  1147  attr=0o100644  wasi_python/artifacts/LICENSES/tomli-w.txt
+13385adf0ac4c6b81e191405da0e3c7cc35aca571e919a8ee9dbd2667c2ffcc3  1576  attr=0o100644  wasi_python/artifacts/LICENSES/toolz.txt
+c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73  80199  attr=0o100644  wasi_python/artifacts/LICENSES/tqdm-4.70.1-source.whl
+dd84cd56539c912aca7a6e4134439028449e6a70fffd435742c5aedb628a36fa  19571  attr=0o100644  wasi_python/artifacts/LICENSES/tqdm.txt
+06b8e3332f85fb011eac49344b7c930aac6fb4d6f7f4682b610eb44c0ff7e50d  14042  attr=0o100644  wasi_python/artifacts/LICENSES/typing-extensions.txt
+a28814acc65c4af15aa37fb4b300c035fac36e77ab16967f18b4797dafd29c45  12174  attr=0o100644  wasi_python/artifacts/LICENSES/tzdata.txt
+c2a6b2cfd4b0639a535102dd7ef55728ccfcd105ea4a149c88cb3b17fc10b764  32779  attr=0o100644  wasi_python/artifacts/LICENSES/wasi-libc.txt
+91f0bbe316a075ed30928ff96cf8a48a733071b630deade4ef281cc1c2b9e392  1613  attr=0o100644  wasi_python/artifacts/LICENSES/webencodings.txt
+7c4f963bd9e4b63b0631f252a080b795111be0051c7b0e8a913ced9bb561c414  1384  attr=0o100644  wasi_python/artifacts/LICENSES/wrapt.txt
+70bda7fc1f9ef53c638dae181d54fd407ecff2a07e8d92dfc39e96353940603a  3844  attr=0o100644  wasi_python/artifacts/LICENSES/xlrd.txt
+e93266ce9d062c0eecdcc7bd102a76532425d428df24ab1be4b321f9b035bf3d  1434  attr=0o100644  wasi_python/artifacts/LICENSES/xlsxwriter.txt
+c70bdfac1788ffb0b94d53287b795819992816f4971c549126c521dd5204ccab  1173  attr=0o100644  wasi_python/artifacts/LICENSES/xmltodict.txt
+93947eef5170a4e17a3dfed772f23f4fa366beff24358f41764cf60698a053e3  3775  attr=0o100644  wasi_python/artifacts/LICENSES/xz.txt
+b629f68f9e92e40953433541cc1e8e20be1c6421770f67486f7db98e270801e5  1026  attr=0o100644  wasi_python/artifacts/LICENSES/zlib.txt
+18a3aefb0becca346b44ed3789cbc0123a7495f54d5a08e19bbe46910d095157  15454  attr=0o644  wasi_python-0.1.0.dist-info/METADATA
+5b77e4a649bbfb07fdbc123967eeecd1e5a478cfaca6eefc23c35e6fdf037848  87  attr=0o644  wasi_python-0.1.0.dist-info/WHEEL
+a89e902de42f8a1403891494ec86fcf4104887b948e9047fe69a7635ae72d788  53  attr=0o644  wasi_python-0.1.0.dist-info/entry_points.txt
+d3747dd1009626f468ff056676ca2070abcdaf42396d7c37a6f7c45df7819fbd  773906  attr=0o644  wasi_python-0.1.0.dist-info/licenses/LICENSE
+c17c0f3a3981624631138b291f5e8d8758363b0df2ee37d0ed9ef5461aa94e6a  10048  attr=0o644  wasi_python-0.1.0.dist-info/RECORD
+duplicate names in wheel: []
+suspicious names: []
+
+# Wheel artifacts copy vs build/artifacts
+SAME        LICENSES/attrs.txt  whl=a36bff7436e11da49a56ef382a3b55ba3af16cb9cb5d54d7f1f1760d070f24b5  local=a36bff7436e11da49a56ef382a3b55ba3af16cb9cb5d54d7f1f1760d070f24b5
+SAME        LICENSES/beautifulsoup4.txt  whl=dc52d4028c768f678a3db173fb8e2fb4b29911ba0e8fb5511a5840b7bd6f76be  local=dc52d4028c768f678a3db173fb8e2fb4b29911ba0e8fb5511a5840b7bd6f76be
+SAME        LICENSES/bzip2.txt  whl=28753c7121ccf73cc69a44ee55ba52d891d3bf1718940d2e3cffa661d225a455  local=28753c7121ccf73cc69a44ee55ba52d891d3bf1718940d2e3cffa661d225a455
+SAME        LICENSES/charset-normalizer.txt  whl=beeb457437b1fa48bfed9a94867e4836c60119bad56b324ed5544c9122b96c43  local=beeb457437b1fa48bfed9a94867e4836c60119bad56b324ed5544c9122b96c43
+SAME        LICENSES/cloudpickle.txt  whl=706ae521ac46d237ec1128c7981f81c829528656cad3e6f7739453518e8e0d23  local=706ae521ac46d237ec1128c7981f81c829528656cad3e6f7739453518e8e0d23
+SAME        LICENSES/contourpy.txt  whl=9e1f27e7cb8902c64045082134c4be09914ec23bb86051bc979b52ce2437729d  local=9e1f27e7cb8902c64045082134c4be09914ec23bb86051bc979b52ce2437729d
+SAME        LICENSES/cppy.txt  whl=c358a31e470963ddd6ef4d0ab4a024356837b79ba51934213837c5e74291a2bd  local=c358a31e470963ddd6ef4d0ab4a024356837b79ba51934213837c5e74291a2bd
+SAME        LICENSES/cpython.txt  whl=e140d8fab8152ead9954dea90595498bf4a86adf2bc69c8f91a5b6dbb7c38150  local=e140d8fab8152ead9954dea90595498bf4a86adf2bc69c8f91a5b6dbb7c38150
+SAME        LICENSES/cycler.txt  whl=b4401c940e1893e789a73e1a53505eaa1702dc2ade0a6ff900e71f6c9277d186  local=b4401c940e1893e789a73e1a53505eaa1702dc2ade0a6ff900e71f6c9277d186
+SAME        LICENSES/defusedxml.txt  whl=eceaeb7561aa5a5847a465cde63fbdb677de1635309d2c22f4104cb7bf617cb9  local=eceaeb7561aa5a5847a465cde63fbdb677de1635309d2c22f4104cb7bf617cb9
+SAME        LICENSES/et-xmlfile.txt  whl=42339047bdc4fe3bdfd87e9e1956e591aaafcb39e581b5867c5d389fce3dab49  local=42339047bdc4fe3bdfd87e9e1956e591aaafcb39e581b5867c5d389fce3dab49
+SAME        LICENSES/fonttools.txt  whl=64c00203bae41431d32b91065aad9f20a22ccc9d452a1a0d83bb621fa3849e36  local=64c00203bae41431d32b91065aad9f20a22ccc9d452a1a0d83bb621fa3849e36
+SAME        LICENSES/formulaic.txt  whl=fdabeb5e500c88e8626b9c1738dfb81f1f8c473f1f299828f404d6444c96eb10  local=fdabeb5e500c88e8626b9c1738dfb81f1f8c473f1f299828f404d6444c96eb10
+SAME        LICENSES/freetype.txt  whl=03e49f09cc3adaf21077607900256446f4b0bb9a25ae2e7f8f036fbe80222678  local=03e49f09cc3adaf21077607900256446f4b0bb9a25ae2e7f8f036fbe80222678
+SAME        LICENSES/harfbuzz.txt  whl=c17f018225df270628cb75d6d8adffde2157dc1ac9cd9a579ebca7f0da239dc0  local=c17f018225df270628cb75d6d8adffde2157dc1ac9cd9a579ebca7f0da239dc0
+SAME        LICENSES/html5lib.txt  whl=ffcddb543501d05bb8ea1591dc2194a40441b0c92da8fd61e6e0a2208a38c830  local=ffcddb543501d05bb8ea1591dc2194a40441b0c92da8fd61e6e0a2208a38c830
+SAME        LICENSES/interface-meta.txt  whl=83ef95b2b7ce1831330763568a7ed4aac8fb3c19d4e2408e609619d0235f5fd1  local=83ef95b2b7ce1831330763568a7ed4aac8fb3c19d4e2408e609619d0235f5fd1
+SAME        LICENSES/jinja2.txt  whl=f3f37502178f15620d952a1a1c129138972bbf27e26d8a008b2b26f9909a1dd5  local=f3f37502178f15620d952a1a1c129138972bbf27e26d8a008b2b26f9909a1dd5
+SAME        LICENSES/joblib.txt  whl=e256e904bc5c0f667700813514094e5ed7e1bafa2989bef7a00a94d9372cf961  local=e256e904bc5c0f667700813514094e5ed7e1bafa2989bef7a00a94d9372cf961
+SAME        LICENSES/kiwisolver.txt  whl=19567fc61130f3d7c2adcf7e9a38fea5dd2513a277fd8927517727b1462227a7  local=19567fc61130f3d7c2adcf7e9a38fea5dd2513a277fd8927517727b1462227a7
+SAME        LICENSES/libraqm.txt  whl=330666d1890874584e7731f6678e4b1af10ec20f38782e99169226598c6fae61  local=330666d1890874584e7731f6678e4b1af10ec20f38782e99169226598c6fae61
+SAME        LICENSES/libxml2.txt  whl=7575e0d3a1d31c1d30ade7e832eae20eef91d925ca4275416c58469f5aed7f97  local=7575e0d3a1d31c1d30ade7e832eae20eef91d925ca4275416c58469f5aed7f97
+SAME        LICENSES/libxslt.txt  whl=da40c3542e36bad2bcb53b77271d59a3aec7a612fff4860e12dea8eb0323b81c  local=da40c3542e36bad2bcb53b77271d59a3aec7a612fff4860e12dea8eb0323b81c
+SAME        LICENSES/llvm-runtimes.txt  whl=ebdbd43e564be09b2e512ba6f781b06afd6acb7169b052a2a4bd5cf15d4862e5  local=ebdbd43e564be09b2e512ba6f781b06afd6acb7169b052a2a4bd5cf15d4862e5
+SAME        LICENSES/lxml.txt  whl=c493bead1c4f4d45bb6e76b5797f9fb2cad4327db05351eb798fb06c25b37a2d  local=c493bead1c4f4d45bb6e76b5797f9fb2cad4327db05351eb798fb06c25b37a2d
+SAME        LICENSES/markupsafe.txt  whl=d183ec1dbf00a57f0da43119b2f03cb9cce3a39a04cf49beeee7b1ffa0f6f2c3  local=d183ec1dbf00a57f0da43119b2f03cb9cce3a39a04cf49beeee7b1ffa0f6f2c3
+SAME        LICENSES/matplotlib.txt  whl=b50895b4cd680ec0daa6f990ce6451986c7abab452d8c64591d1e3caf53c200a  local=b50895b4cd680ec0daa6f990ce6451986c7abab452d8c64591d1e3caf53c200a
+SAME        LICENSES/more-itertools.txt  whl=897086b7340cd5ea864854c550861d707391159a6d3cbb48fd626b4d42a91cd9  local=897086b7340cd5ea864854c550861d707391159a6d3cbb48fd626b4d42a91cd9
+SAME        LICENSES/mpmath.txt  whl=79c3e846fa80a13874d9a2f50dd278fb3b12c8920f71807c6a6576e345ef17e2  local=79c3e846fa80a13874d9a2f50dd278fb3b12c8920f71807c6a6576e345ef17e2
+SAME        LICENSES/narwhals.txt  whl=54ca5e7e46fd5898f4bfffc69bec2d10dc7020a44b0ca6e17d375c3464cbda08  local=54ca5e7e46fd5898f4bfffc69bec2d10dc7020a44b0ca6e17d375c3464cbda08
+SAME        LICENSES/networkx.txt  whl=8155ffb2efd6f950789653fcfee433a79eedc861f272383bbf25e904bed8c093  local=8155ffb2efd6f950789653fcfee433a79eedc861f272383bbf25e904bed8c093
+SAME        LICENSES/numpy.txt  whl=7bd98a031ed230538a1e6457822483bfdc7c0216f9438441b6917366a7f97de8  local=7bd98a031ed230538a1e6457822483bfdc7c0216f9438441b6917366a7f97de8
+SAME        LICENSES/openblas.txt  whl=cc87c36b84f354a04b619a93103018ff554db06a6dc7a8820f2731d3346c0f94  local=cc87c36b84f354a04b619a93103018ff554db06a6dc7a8820f2731d3346c0f94
+SAME        LICENSES/openpyxl.txt  whl=d4997a6248bbab8e32c9e28d8aa4ac146c1cef4a68a0b47d9e003631d025826d  local=d4997a6248bbab8e32c9e28d8aa4ac146c1cef4a68a0b47d9e003631d025826d
+SAME        LICENSES/packaging.txt  whl=75a9ae5c9d6764bc5afaa827d9ad4014dbb735b7d5eaf44c27d2cf79a9e41e53  local=75a9ae5c9d6764bc5afaa827d9ad4014dbb735b7d5eaf44c27d2cf79a9e41e53
+SAME        LICENSES/pandas.txt  whl=d38f9537c4397ecb97d1b3dc7feaf9bed381780639d126909b120113c9566ab9  local=d38f9537c4397ecb97d1b3dc7feaf9bed381780639d126909b120113c9566ab9
+SAME        LICENSES/patsy.txt  whl=8cc51f3fba2b764e7b627a3e57a60f5fb92b1ac610eac1d471813d28fc8e680c  local=8cc51f3fba2b764e7b627a3e57a60f5fb92b1ac610eac1d471813d28fc8e680c
+SAME        LICENSES/pillow.txt  whl=fad176753c8f6c8b4677ad97772eac56964709b3e11842d1d55b3e4051859bc0  local=fad176753c8f6c8b4677ad97772eac56964709b3e11842d1d55b3e4051859bc0
+SAME        LICENSES/pybind11.txt  whl=1c62544ac8b1c676d81bf26008c8432ddeaaa2c86e68326bb3c553f2d703ccee  local=1c62544ac8b1c676d81bf26008c8432ddeaaa2c86e68326bb3c553f2d703ccee
+SAME        LICENSES/pyparsing.txt  whl=693db6ce6bf9dda674ee53872c4d510970c1ba0acfb5a7ed28ddafdf852124d2  local=693db6ce6bf9dda674ee53872c4d510970c1ba0acfb5a7ed28ddafdf852124d2
+SAME        LICENSES/pypdf.txt  whl=46d4a2c45f68a7478a8465a5050f589b6020b442114f59622882a18608046f54  local=46d4a2c45f68a7478a8465a5050f589b6020b442114f59622882a18608046f54
+SAME        LICENSES/python-dateutil.txt  whl=54c1d04571a9c1a99925fe49ed3092f4c74c8b1b6593e7a8c9633728cc8ecfe2  local=54c1d04571a9c1a99925fe49ed3092f4c74c8b1b6593e7a8c9633728cc8ecfe2
+SAME        LICENSES/pyyaml.txt  whl=6adf78c64e10cdbf7021ba177d1a43b45959c70b884628d2ee45d3b4fd6da985  local=6adf78c64e10cdbf7021ba177d1a43b45959c70b884628d2ee45d3b4fd6da985
+SAME        LICENSES/qhull.txt  whl=aa16a5c74ed473fac38357c9aa0803bdddfe3e3f4ff6f74032eb79af036c468c  local=aa16a5c74ed473fac38357c9aa0803bdddfe3e3f4ff6f74032eb79af036c468c
+SAME        LICENSES/regex.txt  whl=87d0dbdf9ddf6bdbfe40476434a7f3b77143354102fa78d2800cbbb766ee31ce  local=87d0dbdf9ddf6bdbfe40476434a7f3b77143354102fa78d2800cbbb766ee31ce
+SAME        LICENSES/reportlab.txt  whl=917df6cd3cde2446a5aac7dabde7914bd771821180b450522fc96e89d63ae7e8  local=917df6cd3cde2446a5aac7dabde7914bd771821180b450522fc96e89d63ae7e8
+SAME        LICENSES/scikit-learn.txt  whl=9bc5f55bb8c591bc1e5c6628dda0ffa3b2dbbc33fcd30187d2ef7ff7e4da0715  local=9bc5f55bb8c591bc1e5c6628dda0ffa3b2dbbc33fcd30187d2ef7ff7e4da0715
+SAME        LICENSES/scipy.txt  whl=743ae5123279d18e860e81ddc3fe19c5576ca36b0af3ab415fc5342f9f428d6e  local=743ae5123279d18e860e81ddc3fe19c5576ca36b0af3ab415fc5342f9f428d6e
+SAME        LICENSES/seaborn.txt  whl=9348e42ba823387449f9039affa4aae08fd0e837392ace143b06c5647c6de9e8  local=9348e42ba823387449f9039affa4aae08fd0e837392ace143b06c5647c6de9e8
+SAME        LICENSES/sheenbidi.txt  whl=39c59356f2946fc309f2714f283be3de12aa0bb265c89a5955e79551f6bedbab  local=39c59356f2946fc309f2714f283be3de12aa0bb265c89a5955e79551f6bedbab
+SAME        LICENSES/six.txt  whl=09ad15735d79a7d10caf307dfba8a8fe8ec52aa5fdea4db1e664d0528ee32cb1  local=09ad15735d79a7d10caf307dfba8a8fe8ec52aa5fdea4db1e664d0528ee32cb1
+SAME        LICENSES/soupsieve.txt  whl=e2375f363e57ac495945008e3bc65140cece0973535a539ffe76fe75c3166dbe  local=e2375f363e57ac495945008e3bc65140cece0973535a539ffe76fe75c3166dbe
+SAME        LICENSES/sqlite.txt  whl=681f05f7e60baee5e748a22c0e3dfa1fce3fcf16c69078998928bfb3978c70f9  local=681f05f7e60baee5e748a22c0e3dfa1fce3fcf16c69078998928bfb3978c70f9
+SAME        LICENSES/statsmodels.txt  whl=ef75b82762efad7a482046a2e712f64704c96d8cbfdc52cef50e70b38ea90567  local=ef75b82762efad7a482046a2e712f64704c96d8cbfdc52cef50e70b38ea90567
+SAME        LICENSES/sympy.txt  whl=154178953015fecfb695db09abd95c04b025b6a370765a55980cd94d9d1c472f  local=154178953015fecfb695db09abd95c04b025b6a370765a55980cd94d9d1c472f
+SAME        LICENSES/tabulate.txt  whl=ff13e542f41c2db889817a3a7e032dd0e1c8afae1944be62d4608b44703592ca  local=ff13e542f41c2db889817a3a7e032dd0e1c8afae1944be62d4608b44703592ca
+SAME        LICENSES/threadpoolctl.txt  whl=621652bdd0320541f8d76cbb0e68d1dc1cb7e50b45ae5b29de27aa39085328b6  local=621652bdd0320541f8d76cbb0e68d1dc1cb7e50b45ae5b29de27aa39085328b6
+SAME        LICENSES/tomli-w.txt  whl=67d9011de410b0085eb5bc7be5db9d4319f1292cf864ef5e44c4b55be092f3b5  local=67d9011de410b0085eb5bc7be5db9d4319f1292cf864ef5e44c4b55be092f3b5
+SAME        LICENSES/toolz.txt  whl=13385adf0ac4c6b81e191405da0e3c7cc35aca571e919a8ee9dbd2667c2ffcc3  local=13385adf0ac4c6b81e191405da0e3c7cc35aca571e919a8ee9dbd2667c2ffcc3
+SAME        LICENSES/tqdm-4.70.1-source.whl  whl=c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73  local=c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73
+SAME        LICENSES/tqdm.txt  whl=dd84cd56539c912aca7a6e4134439028449e6a70fffd435742c5aedb628a36fa  local=dd84cd56539c912aca7a6e4134439028449e6a70fffd435742c5aedb628a36fa
+SAME        LICENSES/typing-extensions.txt  whl=06b8e3332f85fb011eac49344b7c930aac6fb4d6f7f4682b610eb44c0ff7e50d  local=06b8e3332f85fb011eac49344b7c930aac6fb4d6f7f4682b610eb44c0ff7e50d
+SAME        LICENSES/tzdata.txt  whl=a28814acc65c4af15aa37fb4b300c035fac36e77ab16967f18b4797dafd29c45  local=a28814acc65c4af15aa37fb4b300c035fac36e77ab16967f18b4797dafd29c45
+SAME        LICENSES/wasi-libc.txt  whl=c2a6b2cfd4b0639a535102dd7ef55728ccfcd105ea4a149c88cb3b17fc10b764  local=c2a6b2cfd4b0639a535102dd7ef55728ccfcd105ea4a149c88cb3b17fc10b764
+SAME        LICENSES/webencodings.txt  whl=91f0bbe316a075ed30928ff96cf8a48a733071b630deade4ef281cc1c2b9e392  local=91f0bbe316a075ed30928ff96cf8a48a733071b630deade4ef281cc1c2b9e392
+SAME        LICENSES/wrapt.txt  whl=7c4f963bd9e4b63b0631f252a080b795111be0051c7b0e8a913ced9bb561c414  local=7c4f963bd9e4b63b0631f252a080b795111be0051c7b0e8a913ced9bb561c414
+SAME        LICENSES/xlrd.txt  whl=70bda7fc1f9ef53c638dae181d54fd407ecff2a07e8d92dfc39e96353940603a  local=70bda7fc1f9ef53c638dae181d54fd407ecff2a07e8d92dfc39e96353940603a
+SAME        LICENSES/xlsxwriter.txt  whl=e93266ce9d062c0eecdcc7bd102a76532425d428df24ab1be4b321f9b035bf3d  local=e93266ce9d062c0eecdcc7bd102a76532425d428df24ab1be4b321f9b035bf3d
+SAME        LICENSES/xmltodict.txt  whl=c70bdfac1788ffb0b94d53287b795819992816f4971c549126c521dd5204ccab  local=c70bdfac1788ffb0b94d53287b795819992816f4971c549126c521dd5204ccab
+SAME        LICENSES/xz.txt  whl=93947eef5170a4e17a3dfed772f23f4fa366beff24358f41764cf60698a053e3  local=93947eef5170a4e17a3dfed772f23f4fa366beff24358f41764cf60698a053e3
+SAME        LICENSES/zlib.txt  whl=b629f68f9e92e40953433541cc1e8e20be1c6421770f67486f7db98e270801e5  local=b629f68f9e92e40953433541cc1e8e20be1c6421770f67486f7db98e270801e5
+SAME        MANIFEST  whl=a9ed2a6967c5e915c46fe0440a8c2e3adce99925d484bdc7bc22d19814b5bfcd  local=a9ed2a6967c5e915c46fe0440a8c2e3adce99925d484bdc7bc22d19814b5bfcd
+SAME        SHA256SUMS  whl=3339091f49b6cf94aaf90d5a68c281c3f1cc3384450f3cb94b768d8274d0fa20  local=3339091f49b6cf94aaf90d5a68c281c3f1cc3384450f3cb94b768d8274d0fa20
+SAME        python-snapshot.wasm  whl=879bdb628a1a799dc3a6d1a645fee0f88944bf4cdf5e1628e0e1d2b4b33d28d3  local=879bdb628a1a799dc3a6d1a645fee0f88944bf4cdf5e1628e0e1d2b4b33d28d3
+SAME        python-stdlib.zip  whl=a7b8f7cbd4799ac8c81223cbc47f8cea503adac934a04826778b66e5a5e9b847  local=a7b8f7cbd4799ac8c81223cbc47f8cea503adac934a04826778b66e5a5e9b847
+SAME        python.wasm  whl=d41926055c3f869715202092a1b8d070ff9ffcd2c82d0dd368786e79f2200f9a  local=d41926055c3f869715202092a1b8d070ff9ffcd2c82d0dd368786e79f2200f9a
+wheel artifacts differences: 0
+
+# Wheel runner files vs git show 2cd47507:src/<file>
+SAME        wasi_python/__init__.py  whl=8579b8fbf499b7c9b0afaa90059557a64667c8b8eab8edfbfa8508a4f100bb00  tag=8579b8fbf499b7c9b0afaa90059557a64667c8b8eab8edfbfa8508a4f100bb00
+SAME        wasi_python/__main__.py  whl=dd0717a527d8a864a9b2cfcc8ba4ec0563267ec5dabab0a740e3956e4891ff69  tag=dd0717a527d8a864a9b2cfcc8ba4ec0563267ec5dabab0a740e3956e4891ff69
+SAME        wasi_python/_artifacts.py  whl=0f3e11c023d333051ea45cddfac298cc90833f025adbf37104eb104654281ba3  tag=0f3e11c023d333051ea45cddfac298cc90833f025adbf37104eb104654281ba3
+SAME        wasi_python/_call.py  whl=7ca6e4a4138f91bb36bfdbfd1e61f14dcb04390232c34303423a364f249e91be  tag=7ca6e4a4138f91bb36bfdbfd1e61f14dcb04390232c34303423a364f249e91be
+SAME        wasi_python/_engines.py  whl=4d81a6b9b389dced104fe627045b89c7533ba8c782523c3d0937173779c3b65a  tag=4d81a6b9b389dced104fe627045b89c7533ba8c782523c3d0937173779c3b65a
+SAME        wasi_python/_fs_descriptors.py  whl=54b1540ec23cd605e9128e45910cfeef053e9d39746df6b59c6354f1f3183f80  tag=54b1540ec23cd605e9128e45910cfeef053e9d39746df6b59c6354f1f3183f80
+SAME        wasi_python/_fs_memory.py  whl=27b07cba4962cf543bc56825b48bf5b837d7896a5ef6a748262e8ff40a928269  tag=27b07cba4962cf543bc56825b48bf5b837d7896a5ef6a748262e8ff40a928269
+SAME        wasi_python/_fs_paths.py  whl=bfa4b9253d0184df1e6e0752b32a75d3fc292992ca6808bfbb9d5ccd40121042  tag=bfa4b9253d0184df1e6e0752b32a75d3fc292992ca6808bfbb9d5ccd40121042
+SAME        wasi_python/_fs_table.py  whl=0caffa9d484eb20e4786b03e90737113c55f4e7c5a87260fda4c153e8f9509a8  tag=0caffa9d484eb20e4786b03e90737113c55f4e7c5a87260fda4c153e8f9509a8
+SAME        wasi_python/_home.py  whl=a34c1db00da4e6fb65b94a6593f27758d8dc99f277de8a9a03e0ee628f108eaf  tag=a34c1db00da4e6fb65b94a6593f27758d8dc99f277de8a9a03e0ee628f108eaf
+SAME        wasi_python/_limits.py  whl=fc930e8cec32e6f8ec0d2901c60fe8572ba15b30d42a34d589bad4ab53aa9bd2  tag=fc930e8cec32e6f8ec0d2901c60fe8572ba15b30d42a34d589bad4ab53aa9bd2
+SAME        wasi_python/_places.py  whl=62f9a8604a5445673ad497b95a7e650871c81286691c9ec23bddb41d9701791c  tag=62f9a8604a5445673ad497b95a7e650871c81286691c9ec23bddb41d9701791c
+SAME        wasi_python/_platform.py  whl=0ef9dc43fdbcf4e4506c4bd7c3592f5bbffc94e49b3a682f3a09c4d84a68f910  tag=0ef9dc43fdbcf4e4506c4bd7c3592f5bbffc94e49b3a682f3a09c4d84a68f910
+SAME        wasi_python/_private_dirs.py  whl=eb3a5c70ca4793390a28679e4dae605f1c4dd819f702c8c8745739ed1b68e1fa  tag=eb3a5c70ca4793390a28679e4dae605f1c4dd819f702c8c8745739ed1b68e1fa
+SAME        wasi_python/_process.py  whl=2081ff683308eaf45399f531aa4432a951a6ad18b18e517fad5d915edb9473f0  tag=2081ff683308eaf45399f531aa4432a951a6ad18b18e517fad5d915edb9473f0
+SAME        wasi_python/_sessions.py  whl=aa3b69b8bdcf4189f830f58f950996c97a968f0b366e30969de57f2e50082efe  tag=aa3b69b8bdcf4189f830f58f950996c97a968f0b366e30969de57f2e50082efe
+SAME        wasi_python/_tool_host.py  whl=f045aac9901b5b065bc861cae4f62d2248c227259c23ab5ec65614b39e7d11f8  tag=f045aac9901b5b065bc861cae4f62d2248c227259c23ab5ec65614b39e7d11f8
+SAME        wasi_python/_tool_schema.py  whl=9b9325b46a9a8b34540889ce60a96b67ad703c4fd22a951b153144a667dadaa4  tag=9b9325b46a9a8b34540889ce60a96b67ad703c4fd22a951b153144a667dadaa4
+SAME        wasi_python/_wasmtime_ffi.py  whl=28102aad1c4c8e3e87750a94a80003767440ebeb26daae9f9f55a7b00296fe4b  tag=28102aad1c4c8e3e87750a94a80003767440ebeb26daae9f9f55a7b00296fe4b
+SAME        wasi_python/_zip.py  whl=a0354da55b6d90825bd2c66c1bf57307cf2489c6dffacb9e2d5b56ab3249f7df  tag=a0354da55b6d90825bd2c66c1bf57307cf2489c6dffacb9e2d5b56ab3249f7df
+SAME        wasi_python/cli.py  whl=e4839152cabc0b6999654b15902251224cd5028360d9dc53c8213215231a69d4  tag=e4839152cabc0b6999654b15902251224cd5028360d9dc53c8213215231a69d4
+SAME        wasi_python/mounts.py  whl=84af20cb410d8abe0a26629982f3cc429dd820a3de004b349c38b19dce67040e  tag=84af20cb410d8abe0a26629982f3cc429dd820a3de004b349c38b19dce67040e
+SAME        wasi_python/py.typed  whl=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  tag=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+SAME        wasi_python/runner.py  whl=f848e67df53372ac66d844f35d68734b40d6e9acc50e88ba6fde4f2ddcb9ffcf  tag=f848e67df53372ac66d844f35d68734b40d6e9acc50e88ba6fde4f2ddcb9ffcf
+SAME        wasi_python/tools.py  whl=89c6aa6c1afb551f2326e39debb6f46e107674bf5b343e35bdd59261c5f94ade  tag=89c6aa6c1afb551f2326e39debb6f46e107674bf5b343e35bdd59261c5f94ade
+wheel runner differences: 0
+
+# Other wheel members (dist-info etc.)
+  wasi_python-0.1.0.dist-info/METADATA
+  wasi_python-0.1.0.dist-info/RECORD
+  wasi_python-0.1.0.dist-info/WHEEL
+  wasi_python-0.1.0.dist-info/entry_points.txt
+  wasi_python-0.1.0.dist-info/licenses/LICENSE
+
+# RECORD vs member hashes
+  RECORD mismatches: 0; members not in RECORD: []

@@ -1,0 +1,16 @@
+plant 0 False
+control_numpy 0 False
+env_numpy 0 False
+control_pandas 0 False
+env_pandas 0 True
+control_scipy 0 False
+env_scipy 0 True
+control_sklearn 0 False
+env_sklearn 0 True
+control_joblib 0 False
+env_joblib 0 True
+control_matplotlib 0 False
+env_matplotlib 0 False
+control_statsmodels.api 0 False
+env_statsmodels.api 0 True
+env_pandas_plain 0 True

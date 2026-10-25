@@ -1,0 +1,233 @@
+charset_normalizer-3.5.2/_build_hook/backend.py:8:USE_CYTHON = os.getenv("CHARSET_NORMALIZER_USE_CYTHON", "0") == "1"
+charset_normalizer-3.5.2/_build_hook/backend.py:12:    if os.getenv("CHARSET_NORMALIZER_CYTHON_ABI3") == "1"
+charset_normalizer-3.5.2/noxfile.py:41:        f"--color={'yes' if 'GITHUB_ACTIONS' in os.environ else 'auto'}",
+charset_normalizer-3.5.2/noxfile.py:189:        f"--color={'yes' if 'GITHUB_ACTIONS' in os.environ else 'auto'}",
+charset_normalizer-3.5.2/noxfile.py:222:        f"--color={'yes' if 'GITHUB_ACTIONS' in os.environ else 'auto'}",
+cycler-0.12.1/.circleci/fetch_doc_logs.py:49:with open(os.environ['GITHUB_OUTPUT'], 'w+') as fd:
+defusedxml-0.7.1/tests.py:59:os.environ["http_proxy"] = "http://127.0.9.1:9"
+defusedxml-0.7.1/tests.py:60:os.environ["https_proxy"] = os.environ["http_proxy"]
+defusedxml-0.7.1/tests.py:61:os.environ["ftp_proxy"] = os.environ["http_proxy"]
+fonttools-4.67.0/Lib/fontTools/misc/timeTools.py:72:    source_date_epoch = os.environ.get("SOURCE_DATE_EPOCH")
+fonttools-4.67.0/Lib/fontTools/diff/__init__.py:23:    pager = os.getenv("PAGER") or shutil.which("less")
+fonttools-4.67.0/Lib/fontTools/mtiLib/__init__.py:1040:        if os.environ.get(LOOKUP_DEBUG_ENV_VAR):
+fonttools-4.67.0/Lib/fontTools/otlLib/optimize/gpos.py:27:    if GPOS_COMPACT_MODE_ENV_KEY in os.environ:
+fonttools-4.67.0/Lib/fontTools/otlLib/optimize/gpos.py:37:        env_level = os.environ[GPOS_COMPACT_MODE_ENV_KEY]
+fonttools-4.67.0/Lib/fontTools/feaLib/builder.py:246:        if debug or os.environ.get(LOOKUP_DEBUG_ENV_VAR):
+joblib-1.6.0/joblib/externals/loky/backend/reduction.py:89:ENV_LOKY_PICKLER = os.environ.get("LOKY_PICKLER", DEFAULT_ENV)
+joblib-1.6.0/joblib/externals/loky/backend/context.py:214:            and os.environ.get("LOKY_MAX_CPU_COUNT") is None
+joblib-1.6.0/joblib/externals/loky/backend/context.py:237:    cpu_count_loky = int(os.environ.get("LOKY_MAX_CPU_COUNT", os_cpu_count))
+joblib-1.6.0/joblib/externals/loky/backend/popen_loky_win32.py:73:        child_env = {**os.environ, **process_obj.env}
+joblib-1.6.0/joblib/externals/loky/backend/fork_exec.py:21:    env = {**os.environ, **env}
+joblib-1.6.0/joblib/externals/loky/process_executor.py:93:MAX_DEPTH = int(os.environ.get("LOKY_MAX_DEPTH", 10))
+joblib-1.6.0/joblib/externals/loky/process_executor.py:382:    if "PYTHONFAULTHANDLER" in os.environ:
+joblib-1.6.0/joblib/externals/loky/process_executor.py:388:            f"PYTHONFAULTHANDLER={os.environ['PYTHONFAULTHANDLER']}."
+joblib-1.6.0/joblib/__init__.py:163:os.environ.setdefault("KMP_INIT_AT_FORK", "FALSE")
+joblib-1.6.0/joblib/_multiprocessing_helpers.py:13:mp = int(os.environ.get("JOBLIB_MULTIPROCESSING", 1)) or None
+joblib-1.6.0/joblib/_memmapping_reducer.py:209:        temp_folder = os.environ.get("JOBLIB_TEMP_FOLDER", None)
+joblib-1.6.0/joblib/parallel.py:581:    method = os.environ.get("JOBLIB_START_METHOD", "").strip() or None
+joblib-1.6.0/joblib/_parallel_backends.py:238:                var_value = os.environ.get(var, default_n_threads)
+joblib-1.6.0/joblib/_parallel_backends.py:244:        if self.TBB_ENABLE_IPC_VAR not in os.environ:
+lxml-6.1.3/setupinfo.py:46:    value = os.getenv(name)
+lxml-6.1.3/setupinfo.py:417:    PKG_CONFIG = os.getenv('PKG_CONFIG', 'pkg-config')
+lxml-6.1.3/setupinfo.py:425:    XML2_CONFIG = os.getenv('XML2_CONFIG', 'xml2-config')
+lxml-6.1.3/setupinfo.py:428:        XSLT_CONFIG = os.getenv('XSLT_CONFIG', 'xslt-config')
+lxml-6.1.3/setupinfo.py:497:    env_val = os.getenv(name.upper().replace('-', '_'), 'false').lower()
+lxml-6.1.3/setupinfo.py:521:    env_val = os.getenv(env_name)
+lxml-6.1.3/setupinfo.py:531:staticbuild = bool(os.environ.get('STATICBUILD', ''))
+lxml-6.1.3/buildlibxml.py:54:    if platform.machine() == 'ARM64' or os.getenv('VSCMD_ARG_TGT_ARCH') == 'arm64':
+lxml-6.1.3/buildlibxml.py:70:            github_api_token=os.environ.get("GITHUB_API_TOKEN"),
+lxml-6.1.3/buildlibxml.py:541:        env_default.update(os.environ)
+lxml-6.1.3/buildlibxml.py:744:    get_env = os.environ.get
+matplotlib-3.11.2/lib/matplotlib/backend_bases.py:2875:        if sys.platform == "linux" and not os.environ.get("DISPLAY"):
+matplotlib-3.11.2/lib/matplotlib/backends/backend_pdf.py:148:    source_date_epoch = os.getenv("SOURCE_DATE_EPOCH")
+matplotlib-3.11.2/lib/matplotlib/backends/qt_compat.py:27:QT_API_ENV = os.environ.get("QT_API")
+matplotlib-3.11.2/lib/matplotlib/backends/qt_compat.py:151:    os.environ.setdefault("QT_MAC_WANTS_LAYER", "1")
+matplotlib-3.11.2/lib/matplotlib/backends/backend_svg.py:411:            date = os.getenv("SOURCE_DATE_EPOCH")
+matplotlib-3.11.2/lib/matplotlib/backends/backend_ps.py:991:        source_date_epoch = os.getenv("SOURCE_DATE_EPOCH")
+matplotlib-3.11.2/lib/matplotlib/font_manager.py:159:    str((Path(os.environ.get('XDG_DATA_HOME') or _HOME / ".local/share"))
+matplotlib-3.11.2/lib/matplotlib/font_manager.py:218:        return os.path.join(os.environ['WINDIR'], 'Fonts')
+matplotlib-3.11.2/lib/matplotlib/font_manager.py:301:        if os.getenv('MPL_IGNORE_SYSTEM_FONTS'):
+matplotlib-3.11.2/lib/matplotlib/font_manager.py:1525:        if directory is None and os.getenv('MPL_IGNORE_SYSTEM_FONTS'):
+matplotlib-3.11.2/lib/matplotlib/__init__.py:432:    if name in os.environ.get("_MPLHIDEEXECUTABLES", "").split(","):
+matplotlib-3.11.2/lib/matplotlib/__init__.py:516:    return os.environ.get('XDG_CONFIG_HOME') or str(Path.home() / ".config")
+matplotlib-3.11.2/lib/matplotlib/__init__.py:525:    return os.environ.get('XDG_CACHE_HOME') or str(Path.home() / ".cache")
+matplotlib-3.11.2/lib/matplotlib/__init__.py:529:    configdir = os.environ.get('MPLCONFIGDIR')
+matplotlib-3.11.2/lib/matplotlib/__init__.py:552:                localappdata = os.environ.get('LOCALAPPDATA')
+matplotlib-3.11.2/lib/matplotlib/__init__.py:558:            localappdata = os.environ.get('LOCALAPPDATA')
+matplotlib-3.11.2/lib/matplotlib/__init__.py:578:        if os.environ.get('MPLCONFIGDIR'):
+matplotlib-3.11.2/lib/matplotlib/__init__.py:594:    os.environ["MPLCONFIGDIR"] = tmpdir
+matplotlib-3.11.2/lib/matplotlib/__init__.py:671:            matplotlibrc = os.environ['MATPLOTLIBRC']
+matplotlib-3.11.2/lib/matplotlib/__init__.py:1291:if os.environ.get('MPLBACKEND'):
+matplotlib-3.11.2/lib/matplotlib/__init__.py:1292:    rcParams['backend'] = os.environ.get('MPLBACKEND')
+matplotlib-3.11.2/lib/matplotlib/dviread.py:1265:                 **os.environ})
+matplotlib-3.11.2/lib/matplotlib/dviread.py:1314:            kwargs = {'env': {**os.environ, 'command_line_encoding': 'utf-8'},
+matplotlib-3.11.2/lib/matplotlib/dviread.py:1317:            kwargs = {'env': {**os.environ},
+matplotlib-3.11.2/.circleci/fetch_doc_logs.py:49:with open(os.environ['GITHUB_OUTPUT'], 'w+') as fd:
+mpmath-1.3.0/mpmath/libmp/backend.py:67:if 'MPMATH_NOGMPY' not in os.environ:
+mpmath-1.3.0/mpmath/libmp/backend.py:82:if ('MPMATH_NOSAGE' not in os.environ and 'SAGE_ROOT' in os.environ or
+mpmath-1.3.0/mpmath/libmp/backend.py:83:        'MPMATH_SAGE' in os.environ):
+mpmath-1.3.0/mpmath/libmp/backend.py:94:if 'MPMATH_STRICT' in os.environ:
+narwhals-2.27.1/src/narwhals/_utils.py:1502:        terminal_width = int(os.getenv("COLUMNS", 80))  # noqa: PLW1508
+networkx-3.7/networkx/utils/backends.py:153:            os.environ.get("NETWORKX_CACHE_CONVERTED_GRAPHS", True)
+networkx-3.7/networkx/utils/backends.py:155:        fallback_to_nx=bool(os.environ.get("NETWORKX_FALLBACK_TO_NX", False)),
+networkx-3.7/networkx/utils/backends.py:157:            _comma_sep_to_list(os.environ.get("NETWORKX_WARNINGS_TO_IGNORE", ""))
+networkx-3.7/networkx/utils/backends.py:167:        for key, val in os.environ.items()
+networkx-3.7/networkx/utils/backends.py:175:            os.environ.get(
+networkx-3.7/networkx/utils/backends.py:177:                os.environ.get("NETWORKX_AUTOMATIC_BACKENDS", ""),
+networkx-3.7/networkx/utils/backends.py:2164:if os.environ.get("_NETWORKX_BUILDING_DOCS_"):
+networkx-3.7/networkx/lazy_imports.py:75:    if os.environ.get("EAGER_IMPORT", ""):
+numpy-2.5.2/.spin/cmds.py:326:    PATH = os.environ['PATH']
+numpy-2.5.2/.spin/cmds.py:331:    env = os.environ
+numpy-2.5.2/.spin/cmds.py:505:    env = os.environ
+numpy-2.5.2/.spin/cmds.py:523:    env = os.environ
+numpy-2.5.2/.spin/cmds.py:547:    env = os.environ
+numpy-2.5.2/numpy/_core/_add_newdocs_scalars.py:60:            machine = os.environ.get('PROCESSOR_ARCHITEW6432', '') \
+numpy-2.5.2/numpy/_core/_add_newdocs_scalars.py:61:                    or os.environ.get('PROCESSOR_ARCHITECTURE', '')
+numpy-2.5.2/numpy/_core/__init__.py:17:    if envkey not in os.environ:
+numpy-2.5.2/numpy/_core/__init__.py:19:        # `os.environ` on purpose to avoid a race condition, see gh-30627.
+numpy-2.5.2/numpy/__init__.py:881:        use_hugepage = os.environ.get("NUMPY_MADVISE_HUGEPAGE", None)
+numpy-2.5.2/numpy/__init__.py:913:    if (os.environ.get("NPY_PROMOTION_STATE", "weak") != "weak"):
+numpy-2.5.2/numpy/f2py/rules.py:161:generationtime = int(os.environ.get('SOURCE_DATE_EPOCH', time.time()))
+openpyxl-3.1.5/openpyxl/xml/__init__.py:23:    return os.environ.get("OPENPYXL_LXML", "True") == "True"
+openpyxl-3.1.5/openpyxl/xml/__init__.py:39:    return os.environ.get("OPENPYXL_DEFUSEDXML", "True") == "True"
+pandas-3.0.6/generate_version.py:25:    if os.environ.get("MESON_DIST_ROOT"):
+pandas-3.0.6/generate_version.py:26:        path = os.path.join(os.environ.get("MESON_DIST_ROOT"), path)
+pandas-3.0.6/pandas/compat/__init__.py:157:    return os.environ.get("PANDAS_CI", "0") == "1"
+pandas-3.0.6/pandas/core/config_init.py:425:        if os.environ.get("PANDAS_COPY_ON_WRITE", "0") == "warn"
+pandas-3.0.6/pandas/core/config_init.py:426:        else os.environ.get("PANDAS_COPY_ON_WRITE", "1") == "1",
+pandas-3.0.6/pandas/core/config_init.py:878:        False if os.environ.get("PANDAS_FUTURE_INFER_STRING", "1") == "0" else True,
+pandas-3.0.6/pandas/core/config_init.py:895:        os.environ.get("PANDAS_FUTURE_DISTINGUISH_NAN_AND_NA", "0") == "1",
+pandas-3.0.6/pandas/core/config_init.py:906:        False if os.environ.get("PANDAS_FUTURE_PYTHON_SCALARS", "0") == "0" else True,
+pandas-3.0.6/pandas/util/_print_versions.py:57:        "LC_ALL": os.environ.get("LC_ALL"),
+pandas-3.0.6/pandas/util/_print_versions.py:58:        "LANG": os.environ.get("LANG"),
+pandas-3.0.6/pandas/_version.py:264:    env = os.environ.copy()
+pandas-3.0.6/pandas/io/clipboard/__init__.py:74:HAS_DISPLAY = os.getenv("DISPLAY")
+pandas-3.0.6/pandas/io/clipboard/__init__.py:569:        if os.environ.get("WAYLAND_DISPLAY") and _executable_exists("wl-copy"):
+pandas-3.0.6/pandas/_testing/contexts.py:76:                    del os.environ["TZ"]
+pandas-3.0.6/pandas/_testing/contexts.py:80:                os.environ["TZ"] = tz
+pandas-3.0.6/pandas/_testing/contexts.py:85:    orig_tz = os.environ.get("TZ")
+patsy-1.0.3/patsy/compat.py:14:optional_dep_ok = not os.environ.get("PATSY_AVOID_OPTIONAL_DEPENDENCIES")
+patsy-1.0.3/patsy/__init__.py:14:if os.environ.get("PATSY_FORCE_NO_WARNINGS"):
+pillow-13.0.0/winbuild/build_prepare.py:400:    root = os.environ.get("ProgramFiles(x86)") or os.environ.get("ProgramFiles")
+pillow-13.0.0/winbuild/build_prepare.py:617:    gha_groups = "GITHUB_ACTIONS" in os.environ
+pillow-13.0.0/winbuild/build_prepare.py:654:        default=os.environ.get("PILLOW_BUILD", os.path.join(winbuild_dir, "build")),
+pillow-13.0.0/winbuild/build_prepare.py:661:        default=os.environ.get("PILLOW_DEPS", os.path.join(winbuild_dir, "depends")),
+pillow-13.0.0/winbuild/build_prepare.py:668:        default=os.environ.get(
+pillow-13.0.0/Tests/helper.py:37:if os.environ.get("SHOW_ERRORS"):
+pillow-13.0.0/Tests/helper.py:39:elif "GITHUB_ACTIONS" in os.environ:
+pillow-13.0.0/Tests/helper.py:165:    if "PILLOW_VALGRIND_TEST" in os.environ:
+pillow-13.0.0/Tests/helper.py:171:    return pytest.mark.skipif("PILLOW_TSAN_TEST" in os.environ, reason=reason)
+pillow-13.0.0/Tests/helper.py:315:        magickhome = os.environ.get("MAGICK_HOME")
+pillow-13.0.0/Tests/helper.py:334:    return "CI" in os.environ
+pillow-13.0.0/Tests/benchmarks.py:34:_save_results = os.environ.get("PILLOW_BENCHMARK_SAVE_RESULTS_PATH")
+pillow-13.0.0/src/PIL/ImageGrab.py:187:        if os.getenv("WAYLAND_DISPLAY"):
+pillow-13.0.0/src/PIL/ImageGrab.py:189:        elif os.getenv("DISPLAY"):
+pillow-13.0.0/src/PIL/Image.py:4014:    env_dict = env if env is not None else os.environ
+pillow-13.0.0/src/PIL/ImageFont.py:901:            # 1.5.2's os.environ.get()
+pillow-13.0.0/src/PIL/ImageFont.py:902:            windir = os.environ.get("WINDIR")
+pillow-13.0.0/src/PIL/ImageFont.py:906:            data_home = os.environ.get("XDG_DATA_HOME")
+pillow-13.0.0/src/PIL/ImageFont.py:914:            data_dirs = os.environ.get("XDG_DATA_DIRS")
+pyparsing-3.3.3/pyparsing/core.py:205:    sys.warnoptions, os.environ.get("PYPARSINGENABLEALLWARNINGS")
+pypdf-6.21.1/pypdf/filters.py:866:            environment = os.environ.copy()
+python-dateutil-2.9.0.post0/src/dateutil/tz/tz.py:1596:                    name = os.environ["TZ"]
+reportlab-5.0.1/demos/odyssey/dodyssey.py:9:_NEW_PARA=os.environ.get('NEW_PARA','0')[0] in ('y','Y','1')
+reportlab-5.0.1/demos/odyssey/dodyssey.py:10:_REDCAP=int(os.environ.get('REDCAP','0'))
+reportlab-5.0.1/demos/odyssey/dodyssey.py:11:_CALLBACK=os.environ.get('CALLBACK','0')[0] in ('y','Y','1')
+reportlab-5.0.1/src/reportlab/rl_config.py:67:        value = environ[ename]
+reportlab-5.0.1/src/reportlab/rl_config.py:102:        'XDG_DATA_HOME': os.environ.get('XDG_DATA_HOME','~/.local/share'),
+reportlab-5.0.1/src/reportlab/lib/testutils.py:66:        D = os.environ.get('RL_TEST_OUTDIR','')
+reportlab-5.0.1/src/reportlab/lib/testutils.py:105:        None if os.environ.get('OFFLINE_MOCK','1')!='1' 
+reportlab-5.0.1/src/reportlab/lib/testutils.py:395:            if cond and os.environ.get('RL_indicateSkips','0')=='1':
+reportlab-5.0.1/src/reportlab/lib/__init__.py:7:RL_DEBUG = 'RL_DEBUG' in os.environ
+reportlab-5.0.1/src/reportlab/lib/utils.py:850:        env = os.environ
+reportlab-5.0.1/src/reportlab/lib/utils.py:1296:        t = os.environ.get('SOURCE_DATE_EPOCH','').strip()
+reportlab-5.0.1/src/reportlab/lib/rl_safe_eval.py:7:eval_debug = int(os.environ.get('EVAL_DEBUG','0'))
+reportlab-5.0.1/src/reportlab/graphics/renderPM.py:803:        if os.environ.get('RL_NOEPSPREVIEW','0')=='1': drawing.__dict__['preview'] = 0
+scikit_learn-1.9.1/sklearn/datasets/_base.py:83:        data_home = environ.get("SCIKIT_LEARN_DATA", join("~", "scikit_learn_data"))
+scikit_learn-1.9.1/sklearn/__init__.py:56:os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "True")
+scikit_learn-1.9.1/sklearn/__init__.py:60:os.environ.setdefault("KMP_INIT_AT_FORK", "FALSE")
+scikit_learn-1.9.1/sklearn/__init__.py:145:    _random_seed = os.environ.get("SKLEARN_SEED", None)
+scikit_learn-1.9.1/sklearn/utils/_array_api.py:182:    if os.environ.get("SCIPY_ARRAY_API") != "1":
+scikit_learn-1.9.1/sklearn/utils/_testing.py:367:    if int(os.environ.get("SKLEARN_SKIP_NETWORK_TESTS", 0)):
+scikit_learn-1.9.1/sklearn/utils/_testing.py:930:        env = os.environ.copy()
+scikit_learn-1.9.1/sklearn/utils/_testing.py:937:        coverage_rc = os.environ.get("COVERAGE_PROCESS_START")
+scikit_learn-1.9.1/sklearn/utils/_testing.py:1337:    if os.environ.get("SCIPY_ARRAY_API") is None:
+scikit_learn-1.9.1/sklearn/utils/_testing.py:1366:        if os.getenv("PYTORCH_ENABLE_MPS_FALLBACK") != "1":
+scikit_learn-1.9.1/sklearn/_config.py:11:    "assume_finite": bool(os.environ.get("SKLEARN_ASSUME_FINITE", False)),
+scikit_learn-1.9.1/sklearn/_config.py:12:    "working_memory": int(os.environ.get("SKLEARN_WORKING_MEMORY", 1024)),
+scikit_learn-1.9.1/sklearn/_config.py:16:        os.environ.get("SKLEARN_PAIRWISE_DIST_CHUNK_SIZE", 256)
+scipy-1.18.1/.spin/cmds.py:115:        if 'CFLAGS' in os.environ.keys():
+scipy-1.18.1/.spin/cmds.py:118:            cflags = os.environ['CFLAGS'].split()
+scipy-1.18.1/.spin/cmds.py:136:        os.environ['PKG_CONFIG_PATH'] = os.pathsep.join([
+scipy-1.18.1/.spin/cmds.py:138:                os.environ.get('PKG_CONFIG_PATH', '')
+scipy-1.18.1/.spin/cmds.py:236:                os.environ['PYTHONPATH'] = os.pathsep.join(
+scipy-1.18.1/.spin/cmds.py:237:                        (site_package_dir, os.environ.get('PYTHONPATH', '')))
+scipy-1.18.1/.spin/cmds.py:274:        os.environ['SCIPY_ARRAY_API'] = json.dumps(list(array_api_backend))
+scipy-1.18.1/.spin/cmds.py:302:    env = os.environ
+scipy-1.18.1/.spin/cmds.py:405:        os.environ['MYPY_FORCE_COLOR'] = '1'
+scipy-1.18.1/.spin/cmds.py:508:    os.environ['PYTHONPATH'] = install_dir
+scipy-1.18.1/.spin/cmds.py:744:    os.environ['PYTHONPATH'] = install_dir
+scipy-1.18.1/.spin/cmds.py:747:        os.environ['SCIPY_ARRAY_API'] = '1'
+scipy-1.18.1/.spin/cmds.py:791:    PATH = os.environ['PATH']
+scipy-1.18.1/.spin/cmds.py:796:    env = os.environ
+scipy-1.18.1/.spin/cmds.py:912:        os.environ['SCIPY_ARRAY_API'] = json.dumps(list(array_api_backend))
+scipy-1.18.1/.spin/cmds.py:1041:            and os.environ.get("LOKY_MAX_CPU_COUNT") is None
+scipy-1.18.1/.spin/cmds.py:1065:    cpu_count_loky = int(os.environ.get("LOKY_MAX_CPU_COUNT", os_cpu_count))
+scipy-1.18.1/scipy/_lib/_testutils.py:227:        mem_free = _parse_size(os.environ['SCIPY_AVAILABLE_MEM'])
+scipy-1.18.1/scipy/_lib/_testutils.py:229:            free_mb, os.environ['SCIPY_AVAILABLE_MEM'])
+scipy-1.18.1/scipy/_lib/_array_api_override.py:27:SCIPY_ARRAY_API: str | bool = os.environ.get("SCIPY_ARRAY_API", False)
+scipy-1.18.1/scipy/_lib/_array_api_override.py:29:SCIPY_DEVICE = os.environ.get("SCIPY_DEVICE", "cpu")
+scipy-1.18.1/scipy/special/_mptestutils.py:193:                is_xslow = int(os.environ.get('SCIPY_XSLOW', '0'))
+seaborn-0.13.2/seaborn/utils.py:517:        data_home = os.environ.get("SEABORN_DATA", user_cache_dir("seaborn"))
+seaborn-0.13.2/seaborn/external/appdirs.py:122:        path = os.getenv('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
+statsmodels-0.15.0/statsmodels/datasets/utils.py:350:        data_home = environ.get(
+statsmodels-0.15.0/statsmodels/_build/git_version.py:81:            outfile = Path(os.environ.get("MESON_DIST_ROOT", "")).joinpath(outfile)
+statsmodels-0.15.0/statsmodels/formula/_manager.py:57:DEFAULT_FORMULA_ENGINE = os.environ.get("SM_FORMULA_ENGINE", None)
+statsmodels-0.15.0/statsmodels/tsa/x13.py:85:            x12path = os.getenv("X12PATH", "")
+statsmodels-0.15.0/statsmodels/tsa/x13.py:87:            x12path = os.getenv("X13PATH", "")
+statsmodels-0.15.0/statsmodels/tsa/x13.py:89:        x12path = os.getenv("X13PATH", "")
+statsmodels-0.15.0/statsmodels/tsa/x13.py:91:            x12path = os.getenv("X12PATH", "")
+statsmodels-0.15.0/statsmodels/tsa/ardl/_pss_critical_values/pss.py:8:PATH = os.environ.get("PSS_PATH", "..")
+statsmodels-0.15.0/statsmodels/tsa/ardl/_pss_critical_values/pss_process.py:17:    PATH = os.environ.get("PSS_PATH", "..")
+sympy-1.14.0/sympy/core/backend.py:2:USE_SYMENGINE = os.getenv('USE_SYMENGINE', '0')
+sympy-1.14.0/sympy/core/cache.py:123:def _getenv(key, default=None):
+sympy-1.14.0/sympy/core/cache.py:124:    from os import getenv
+sympy-1.14.0/sympy/core/cache.py:125:    return getenv(key, default)
+sympy-1.14.0/sympy/core/cache.py:128:USE_CACHE = _getenv('SYMPY_USE_CACHE', 'yes').lower()
+sympy-1.14.0/sympy/core/cache.py:133:scs = _getenv('SYMPY_CACHE_SIZE', '1000')
+sympy-1.14.0/sympy/polys/polyconfig.py:54:    from os import getenv
+sympy-1.14.0/sympy/polys/polyconfig.py:57:        value = getenv('SYMPY_' + key)
+sympy-1.14.0/sympy/__init__.py:45:    debug_str = os.getenv('SYMPY_DEBUG', 'False')
+sympy-1.14.0/sympy/utilities/misc.py:264:    os.environ['PATH']).  Returns the complete filename or None if not
+sympy-1.14.0/sympy/utilities/misc.py:277:        path = os.environ['PATH']
+sympy-1.14.0/sympy/utilities/misc.py:287:        pathext = os.environ['PATHEXT'].lower().split(os.pathsep)
+sympy-1.14.0/sympy/utilities/_compilation/compilation.py:98:    vendor = vendor or os.environ.get('SYMPY_COMPILER_VENDOR', 'gnu')
+sympy-1.14.0/sympy/utilities/_compilation/runners.py:79:        if os.environ.get(self.environ_key_flags):
+sympy-1.14.0/sympy/utilities/_compilation/runners.py:80:            self.flags += os.environ[self.environ_key_flags].split()
+sympy-1.14.0/sympy/utilities/_compilation/runners.py:84:        elif os.environ.get(self.environ_key_compiler):
+sympy-1.14.0/sympy/utilities/_compilation/runners.py:85:            self.compiler_binary = os.environ[self.environ_key_compiler]
+sympy-1.14.0/sympy/utilities/_compilation/runners.py:98:                preferred_vendor = os.environ.get('SYMPY_COMPILER_VENDOR', None)
+sympy-1.14.0/sympy/utilities/_compilation/runners.py:121:            str.strip, os.environ.get(self.environ_key_ldflags, "").split()
+sympy-1.14.0/sympy/utilities/_compilation/runners.py:174:            if os.getenv(envvar) is None:
+sympy-1.14.0/sympy/utilities/_compilation/runners.py:186:        env = os.environ.copy()
+sympy-1.14.0/sympy/utilities/_compilation/availability.py:17:            if os.environ.get('SYMPY_STRICT_COMPILER_CHECKS', '0') == '1':
+sympy-1.14.0/sympy/utilities/_compilation/availability.py:21:                if os.environ.get('SYMPY_STRICT_COMPILER_CHECKS', '0') == '1':
+sympy-1.14.0/sympy/utilities/_compilation/availability.py:43:            if os.environ.get('SYMPY_STRICT_COMPILER_CHECKS', '0') == '1':
+sympy-1.14.0/sympy/utilities/_compilation/availability.py:47:                if os.environ.get('SYMPY_STRICT_COMPILER_CHECKS', '0') == '1':
+sympy-1.14.0/sympy/utilities/_compilation/availability.py:68:            if os.environ.get('SYMPY_STRICT_COMPILER_CHECKS', '0') == '1':
+sympy-1.14.0/sympy/utilities/_compilation/availability.py:72:                if os.environ.get('SYMPY_STRICT_COMPILER_CHECKS', '0') == '1':
+sympy-1.14.0/sympy/utilities/timeutils.py:39:    res = os.getenv('SYMPY_TIMINGS', '')
+sympy-1.14.0/sympy/interactive/session.py:51:    cache = os.getenv('SYMPY_USE_CACHE')
+sympy-1.14.0/sympy/external/importtools.py:19:    debug_str = os.getenv('SYMPY_DEBUG', 'False')
+sympy-1.14.0/sympy/external/gmpy.py:151:_SYMPY_GROUND_TYPES = os.environ.get('SYMPY_GROUND_TYPES', 'auto').lower()
+sympy-1.14.0/isympy.py:290:        os.environ['SYMPY_USE_CACHE'] = 'no'
+sympy-1.14.0/isympy.py:293:        os.environ['SYMPY_GROUND_TYPES'] = options.types
+sympy-1.14.0/isympy.py:296:        os.environ['SYMPY_DEBUG'] = str(options.debug)
+threadpoolctl-3.7.0/threadpoolctl.py:48:os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "True")
+tqdm-4.70.1/tqdm/contrib/bells.py:15:from os import getenv
+tqdm-4.70.1/tqdm/contrib/bells.py:17:if getenv("TQDM_SLACK_TOKEN") and getenv("TQDM_SLACK_CHANNEL"):
+tqdm-4.70.1/tqdm/contrib/bells.py:19:elif getenv("TQDM_TELEGRAM_TOKEN") and getenv("TQDM_TELEGRAM_CHAT_ID"):
+tqdm-4.70.1/tqdm/contrib/bells.py:21:elif getenv("TQDM_DISCORD_TOKEN") and getenv("TQDM_DISCORD_CHANNEL_ID"):
+tqdm-4.70.1/tqdm/utils.py:50:            (k[i:].lower(), v) for k, v in os.environ.items() if k.startswith(prefix))
+tqdm-4.70.1/tqdm/autonotebook.py:15:        if any(i == 'QT_API' or i.startswith('SPYDER') for i in os.environ):
+wrapt-2.5.1/src/wrapt/__wrapt__.py:15:_use_extensions = not os.environ.get("WRAPT_DISABLE_EXTENSIONS")

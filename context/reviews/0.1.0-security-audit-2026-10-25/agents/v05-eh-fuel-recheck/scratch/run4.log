@@ -1,0 +1,4 @@
+{"case": "200:500:ok", "exit": 0, "trapped": null, "fuel_used": 149733038, "host_s": 0.841, "stdout": "loop_s=0.0048 caught=0", "stderr": ""}
+{"case": "2000:500:ok", "exit": 0, "trapped": null, "fuel_used": 2411267399, "host_s": 0.235, "stdout": "loop_s=0.0635 caught=0", "stderr": ""}
+{"case": "2000:20000:ok:2200000000", "exit": null, "trapped": "out of fuel", "fuel_used": 2200000000, "host_s": 0.2, "stdout": "", "stderr": ""}
+rc 0

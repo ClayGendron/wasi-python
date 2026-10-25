@@ -1,0 +1,14 @@
+#!/bin/sh
+# Bounded check of pinned()'s name lookup: the function body is taken verbatim from
+# scripts/steps/common.sh (lines between 'pinned() {' and the closing '}'), and run against a
+# fixture downloads/ whose SHA256SUMS pins only 'fooXtar.gz'. 'foo.tar.gz' is present and unpinned.
+set -eu
+REPO=$1 FIX=$2
+D="$FIX/downloads" B="$FIX/build"
+die() { echo "ERROR: $*" >&2; exit 1; }
+eval "$(sed -n '/^pinned() {/,/^}/p' "$REPO/scripts/steps/common.sh")"
+echo "--- pinned() body under test:"; sed -n '/^pinned() {/,/^}/p' "$REPO/scripts/steps/common.sh"
+echo "--- SHA256SUMS:"; cat "$D/SHA256SUMS"
+echo "--- pinned foo.tar.gz (no line for this name):"
+if out=$(pinned foo.tar.gz); then echo "ACCEPTED -> $out"; else echo "refused (exit $?)"; fi
+echo "--- sha256 of the accepted file vs its non-existent pin:"; shasum -a 256 "$D/foo.tar.gz"

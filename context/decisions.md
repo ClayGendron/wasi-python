@@ -4,6 +4,10 @@ The owner's answers and decisions, newest first. Until 2026-10-22 questions were
 
 The owner went through every open question on 2026-10-17. Decisions that change the constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### Question 112: another user's home is not a supported configuration (2026-10-25)
+
+Asked by the 0.1.0 security audit (`reviews/0.1.0-security-audit-2026-10-25.md`, finding F4, needs validation; `specifications/135-the-module-cache-is-read-through-the-descriptor-it-was-checked-by.md`, Decision 1), with the recommendation "not supported": is running wasi_python as root or as another user with a different user's `$HOME`, `$XDG_CACHE_HOME` or `$WASI_PYTHON_CACHE` (sudo keeping `HOME`, a container or CI step with a mapped home, a home on a shared folder) a configuration the project supports? The owner: "I'll go with your recommendation if it doesn't break any real use cases a dev may want." Recorded as **not supported**, on that condition. It holds: spec 135 never refuses a call; a cache whose path passes through a folder another user can write is not used, the module is compiled in memory, and one warning says to set `$WASI_PYTHON_CACHE`, so a developer under `sudo -E` loses that process's cache, never the run. What follows: spec 135 is defence in depth, after 0.1.0, in a free slot; the security model's cache bullet says the runner trusts every folder on the way to its cache to be this user's.
+
 ### The documentation before the 0.1.0 tag, within a day (2026-10-22)
 
 With 0.1.0's third dry run green, the owner asked for the README to be "cut down to a clear explanation of what it is, a quick 5 min setup and run guide, and other important details a dev would want to see", everything else on a documentation site on GitHub, unneeded files removed ("like the questions to owner and such"), and other repositories studied for what they do well and for systems such as Diátaxis. Five agents researched; a sixth wrote the plan (`research/2026-10-22-a-plan-for-the-documentation.md`). The owner then decided:

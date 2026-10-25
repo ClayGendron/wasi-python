@@ -1,0 +1,398 @@
+{
+ "counts": {
+  "covered": 17,
+  "candidate": 4,
+  "deferred": 2
+ },
+ "units": 23,
+ "checks": 135,
+ "local_checks": 66,
+ "agents_with_checks": [
+  "h01-fs-paths",
+  "h02-fs-memory",
+  "h03-private-dirs",
+  "h04-loader",
+  "h05-door",
+  "h06-tools",
+  "h08-process",
+  "h09-cli",
+  "h10-ci",
+  "h11-build",
+  "h12-binary",
+  "h14-poll-oneoff",
+  "h15-env-loaders",
+  "h16-release-assets",
+  "h17-eh-advisories",
+  "h18-gc-exnref",
+  "v01-cache-swap",
+  "v02-class-partial",
+  "v03-sysconfigdata",
+  "v04-eh-fuel",
+  "v05-eh-fuel-recheck"
+ ],
+ "hardening": [
+  {
+   "unit": "release.yml (tag push, workflow_dispatch; build, rebuilds, same-bytes, judge legs, gather,",
+   "agent": "h10-ci",
+   "note": "Release authorization rests on one identity: both rulesets give the admin role bypass_mode 'always', the only collaborator is that admin, and the release, pypi and github-pages environments have a branch/tag policy but no required reviewer. The tag-on-main check (release.yml:140) lives in the tagged commit's own workflow file, so it binds only an unmodified release.yml. Any process holding the owner's token (local automation included) can create a v* tag on a non-main commit with an edited release.yml and get an attestation, an immutable GitHub release and a PyPI upload with no second check. Fix: add a required reviewer to the release and pypi environments, put attest in the release environment so id-token is issued only after that gate, and limit ruleset bypass for refs/tags/v* creation to an explicit actor, not 'always' for the admin role."
+  },
+  {
+   "unit": "release.yml (tag push, workflow_dispatch; build, rebuilds, same-bytes, judge legs, gather,",
+   "agent": "h10-ci",
+   "note": "Stale signing identity in what users are told to run: release/version.py:301-303 (which writes the GitHub release notes) and docs/how-to/verify-a-download.md:20-21 hard-code --repo/--signer-workflow ClayGendron/wasi_python. The repository is now ClayGendron/wasi-python, so the next release's attestation will carry the new name and every user's documented gh attestation verify will fail, while the attest job's own check (release.yml:2484-2486, using $GITHUB_REPOSITORY) passes. This fails closed but invites users to drop the policy. Fix: build the note from GITHUB_REPOSITORY, and have the attest job run the exact command printed in notes.md."
+  },
+  {
+   "unit": "release.yml (tag push, workflow_dispatch; build, rebuilds, same-bytes, judge legs, gather,",
+   "agent": "h10-ci",
+   "note": "same-bytes (release.yml:448-457) compares only the tarball's inner SHA256SUMS with the rebuilds. It never checks the inner files against that file (local dummy replay: evidence same_bytes_fixture.log). Today the judge legs' runner integrity check closes this for MANIFEST, the binaries and the stdlib zip, but not for the licence files. Fix: add (cd set/wasi-python-* && sha256sum --strict -c SHA256SUMS) and a listed-equals-present check to same-bytes, as the wheel step already does."
+  },
+  {
+   "unit": "release.yml (tag push, workflow_dispatch; build, rebuilds, same-bytes, judge legs, gather,",
+   "agent": "h10-ci",
+   "note": "Main-scope set caches are written by set-cache.yml's seed job (no in-run rebuild proof) and by release.yml's save-set on a main dispatch. actions/cache restore extracts with tar -P, so code running in any main-ref job (for example the Codecov uploader, fetched by version name at run time in the coverage job on a main dispatch) could plant an entry under a predictable key that later runs code in a branch reuse run's build job. Today that ends red: same-bytes, the wheel comparison and the judges' runner check all apply, and branch runs never sign or publish. The worst case is false-red or denial of branch dry runs. Fix: restrict cache writes to set-cache, and consider dropping save-set on main."
+  },
+  {
+   "unit": "release.yml (tag push, workflow_dispatch; build, rebuilds, same-bytes, judge legs, gather,",
+   "agent": "h10-ci",
+   "note": "PyPI trusted-publisher scope cannot be seen from here. Observed: PYPI_PUBLISH=true, and the pypi job published 0.1.0. The pypi environment's v* policy holds only if PyPI's trusted publisher for wasi-python requires environment 'pypi'. Without that, a release.yml run on any ref whose job drops the environment line could mint a PyPI token (only the admin can push today). Owner check: on pypi.org > wasi-python > Publishing, confirm the GitHub publisher names workflow release.yml and environment pypi."
+  },
+  {
+   "unit": "release.yml (tag push, workflow_dispatch; build, rebuilds, same-bytes, judge legs, gather,",
+   "agent": "h10-ci",
+   "note": "The verify job installs the wheel with uv run --isolated --no-project --with, which resolves wasmtime from PyPI at run time with no lock or hashes. That matches what users get, and the job only gates attest; it cannot change the assets."
+  },
+  {
+   "unit": "python-stdlib.zip entries (symlinks, absolute or .. names, duplicates, .pth/sitecustomize/",
+   "agent": "h12-binary",
+   "note": "The snapshot's zeroed _Py_HashSecret also fixes pyexpat's hash salt (build/Python-3.15.0/Python/bootstrap_hash.c:563-566 zeroes the whole secret; Modules/pyexpat.c:1544-1547 salts each parser from _Py_HashSecret.expat), so xml.etree, minidom and plistlib parsers on snapshot=True can be flooded with crafted names as dicts can. Same effect as the documented dict/set item (quadratic CPU until the deadline); docs/explanation/security-model.md:101 could name XML parsing alongside dict and set keys."
+  },
+  {
+   "unit": "python-stdlib.zip entries (symlinks, absolute or .. names, duplicates, .pth/sitecustomize/",
+   "agent": "h12-binary",
+   "note": "_zip._member_parts (src/wasi_python/_zip.py:108-119) does not refuse Windows-reserved names (CON, NUL, COM1...), components ending in a dot or space, or names equal under case folding; the shipped inner archive holds none (checked), and its input is the checked set, so this matters only for a caller-supplied artifacts= set. Refusing them would make the guard hold on its own."
+  },
+  {
+   "unit": "python-stdlib.zip entries (symlinks, absolute or .. names, duplicates, .pth/sitecustomize/",
+   "agent": "h12-binary",
+   "note": "Both binaries keep 31 assert __FILE__ strings and the zip four build-config modules under the fixed container prefix /wasi-python-build/; no user or host identity, but -ffile-prefix-map (and the host_neutral rewrite already used for _sysconfigdata) could drop them."
+  },
+  {
+   "unit": "python-stdlib.zip entries (symlinks, absolute or .. names, duplicates, .pth/sitecustomize/",
+   "agent": "h12-binary",
+   "note": "reactor_main.c starts with pinned=1, so the load-time constructors (mimalloc and wasi-libc state) of the plain binary, not only the snapshot, see zeroed entropy; guest code always sees real entropy (checked). Inside-guest allocator randomness is not a host boundary; note only."
+  },
+  {
+   "unit": "python-stdlib.zip entries (symlinks, absolute or .. names, duplicates, .pth/sitecustomize/",
+   "agent": "h12-binary",
+   "note": "The br_table maximum (3,203 labels against ~256k for GHSA-mghf-wjfp-p5xm) is measured by hand; a per-build check would keep it true until the runner moves to wasmtime-py 49.0.4 or later."
+  },
+  {
+   "unit": "python-stdlib.zip entries (symlinks, absolute or .. names, duplicates, .pth/sitecustomize/",
+   "agent": "h12-binary",
+   "note": "Locally, build/artifacts/python-stdlib.zip has link count 5: research work trees under build/ (output-capture-costs, rust-spike-perf, scratch-wt50, concurrency-probe) hard-link it as lib/python315.zip. Developer environment only; the runner re-hashes the zip before each copy, so a write through one of those links would be refused, not used."
+  },
+  {
+   "unit": "build/artifacts/python-stdlib.zip#third-party packages' environment-driven loaders (numpy,",
+   "agent": "h15-env-loaders",
+   "note": "sklearn SCIKIT_LEARN_DATA (build/scikit_learn-1.9.1/sklearn/datasets/_base.py:83) sets the default data home, and fetch_california_housing (_california_housing.py:195), fetch_covtype, fetch_kddcup99, fetch_olivetti_faces, fetch_rcv1, fetch_species_distributions and fetch_20newsgroups(_vectorized) load cached files with joblib.load/pickle, while fetch_lfw_* use joblib.Memory there: an embedder env naming a reused root, writable grant or mount runs a pickle an earlier guest planted, on that ordinary call (shown locally: h15_result.json, sklearn_env_SCIKIT_LEARN_DATA vs sklearn_control_noenv). It is not at start-up or import, and it is the same shape as the documented HOME override (HOME=/data reaches /data/scikit_learn_data too), so it is judged inside docs/explanation/security-model.md 'Reused roots and state across calls' rather than a finding. A sentence there saying sklearn's cached datasets are pickles (code, not data), and naming SCIKIT_LEARN_DATA beside HOME and PYTHONTZPATH, would close the gap in the documented promise."
+  },
+  {
+   "unit": "build/artifacts/python-stdlib.zip#third-party packages' environment-driven loaders (numpy,",
+   "agent": "h15-env-loaders",
+   "note": "Every env-driven module-NAME selector in the zip (MPLBACKEND module://, QT_API, LOKY_PICKLER, MPMATH_SAGE/SAGE_ROOT, MPMATH_NOGMPY, USE_SYMENGINE, SYMPY_GROUND_TYPES, NETWORKX_* backends via entry points, SCIPY_ARRAY_API, PYTHONBREAKPOINT, PYTHON_DOM, PY_SAX_PARSER, _PYTHON_SYSCONFIGDATA_NAME) is safe only because the import path is the read-only zip plus read-only import_path entries and site is off. A regression test that plants a module and a dist-info in a writable root and runs with these keys (as h15_check.py does) would pin that, so a later change that put a writable folder or a .pth-processing site on sys.path is caught."
+  },
+  {
+   "unit": "build/artifacts/python-stdlib.zip#third-party packages' environment-driven loaders (numpy,",
+   "agent": "h15-env-loaders",
+   "note": "A runner fix for the sysconfig finding that filters only _PYTHON_SYSCONFIGDATA_PATH covers every sysconfig variant (NAME alone reaches only the zip), but does not cover SCIKIT_LEARN_DATA-style folder keys; a runner-level rule (refuse or warn on env values that name a writable root, grant or mount for keys known to select code-bearing folders) would be the general control if the project wants one."
+  },
+  {
+   "unit": "build/artifacts/python.wasm#try_table-with-exnref (and python-snapshot.wasm): catch_ref/ca",
+   "agent": "h18-gc-exnref",
+   "note": "context/research/2026-10-18-wasmtime-49-advisories.md:73 dismisses GHSA-hw8m-q44c-ggrf as 'no - GC proposal'. That reason is wrong: exnref is a GC-managed reference, wasm_gc and exceptions are both on in _engine, and the shipped module holds exnref locals live across 16562 try_calls. The advisory is unreached for a different reason, which the scan above establishes: no exnref local is live into a catch continuation, so no try_call edge carries a GC Value argument. That property belongs to the LLVM 23 / wasi-sdk 34 codegen, not to any control in this repository, and a rebuild with another toolchain could change it. Until the floor is wasmtime>=49.0.2 (pyproject.toml:18 allows 49.0.0, the only 49.x on PyPI), a rebuild-time check that reruns this liveness scan (exnref locals live at try_table catch continuations must be zero) would keep the property from regressing quietly."
+  },
+  {
+   "unit": "build/artifacts/python.wasm#try_table-with-exnref (and python-snapshot.wasm): catch_ref/ca",
+   "agent": "h18-gc-exnref",
+   "note": "The advisory's workaround (wasm_exceptions false) is not usable here, because the module's C++ and setjmp/longjmp code needs exceptions. The fix is the wasmtime-py upgrade."
+  },
+  {
+   "unit": "build/artifacts/python.wasm#try_table, call_ref and tag section (and python-snapshot.wasm)",
+   "agent": "h17-eh-advisories",
+   "note": "context/research/2026-10-18-wasmtime-49-advisories.md says the module enables no exception proposal and rates GHSA-m63x and GHSA-p79w as not reaching the project. The binaries now carry +exception-handling, 44,791 try_table and 2 tags, so that memo's table is out of date and should be corrected."
+  },
+  {
+   "unit": "build/artifacts/python.wasm#try_table, call_ref and tag section (and python-snapshot.wasm)",
+   "agent": "h17-eh-advisories",
+   "note": "GHSA-p79w-pv2r-29qp is avoided only because the tag count happens to be 2 (__cpp_exception and __c_longjmp). A build that adds or imports one more tag would meet the odd-count precondition on 49.0.0 to 49.0.2. Until the pin is at 49.0.3 or later, a release check could assert that the tag count is even."
+  },
+  {
+   "unit": "build/artifacts/python.wasm#try_table, call_ref and tag section (and python-snapshot.wasm)",
+   "agent": "h17-eh-advisories",
+   "note": "GHSA-wjc8-633q-pwxr is not reachable: the guest cannot supply modules and the shipped types are 858 plain func types with no rec groups or typed references. A future build that adds GC or typed function references would need this checked again."
+  },
+  {
+   "unit": "GitHub release v0.1.0#wasi-python-0.1.0-wasm32-wasip1.tar.xz and #wasi_python-0.1.0-py3-no",
+   "agent": "h16-release-assets",
+   "note": "release.yml same-bytes (448-456) unpacks the tarball but never runs sha256sum --strict -c on its members, and save-set's set_key verify of the unpacked tarball runs only on branch runs (553); the post-packing binding of the tarball's LICENSES/* (and of the binary a leg does not run) rests on the judge goal check test_sha256sums_match_the_files and gather G4, not on a workflow step. Adding '( cd set/wasi-python-* && sha256sum --strict -c SHA256SUMS )' plus a listed==present comparison to the same-bytes step would bind every inner member in the workflow itself, independent of the judge's shard plan."
+  },
+  {
+   "unit": "GitHub release v0.1.0#wasi-python-0.1.0-wasm32-wasip1.tar.xz and #wasi_python-0.1.0-py3-no",
+   "agent": "h16-release-assets",
+   "note": "The v0.1.0 attestation's certificate names the pre-rename repository ClayGendron/wasi_python; 'gh attestation verify --repo ClayGendron/wasi-python' (the current name) fails closed, while the documented command with the old name (release notes, docs/how-to/verify-a-download.md:20) passes. Consider documenting that the old name is the one the v0.1.0 signature carries, and updating release/version.py verify_note for future tags if the workflow identity follows the rename."
+  },
+  {
+   "unit": "GitHub release v0.1.0#wasi-python-0.1.0-wasm32-wasip1.tar.xz and #wasi_python-0.1.0-py3-no",
+   "agent": "h16-release-assets",
+   "note": "The build job's wheel step copies build/artifacts into the package (release.yml:176) before the tarball is packed from build/artifacts (198), and the zero-patch pytest step runs in between; neither copy is re-verified against the set's SHA256SUMS in the build job after those steps. The judge check and same-bytes S2 catch a divergence today; re-running release/set_key.py verify build/artifacts immediately before 'Release assets' would make the producer's own handoff tight."
+  },
+  {
+   "unit": "The wheel's runtime dependency bound wasmtime>=49,<50 and uv.lock; the wheel build (hatchl",
+   "agent": "h11-build",
+   "note": "scripts/steps/common.sh pinned() (and the two `grep \"  $wheel\\$\"` hash lookups in scripts/steps/10_tools.sh and the one in scripts/make_openblas_void_patch.sh) matches the name as a basic regular expression. A name with '.' can pass on another pinned name's line: shown on a fixture, where `pinned foo.tar.gz` accepted an unpinned foo.tar.gz because `fooXtar.gz` was pinned. No current pin pair collides, and every literal name has an exact line. Fix: select the line by exact field, e.g. `awk -v n=\"$1\" '$2 == n' \"$D/SHA256SUMS\"`, and require exactly one line. Regression: a fixture table pinning only `fooXtar.gz` must make `pinned foo.tar.gz` fail."
+  },
+  {
+   "unit": "The wheel's runtime dependency bound wasmtime>=49,<50 and uv.lock; the wheel build (hatchl",
+   "agent": "h11-build",
+   "note": "No meson setup in scripts/steps passes --wrap-mode, and no cross file sets wrap_mode, so every meson build but HarfBuzz runs with wrap_mode=default. The pinned libraqm-0.10.5 carries subprojects/sheenbidi.wrap as an unhashed [wrap-git] at revision=master, behind dependency('sheenbidi', fallback: ...). If pkg-config ever failed to find step 37's sheenbidi.pc, meson would git-clone SheenBidi master over the network and build it into the plot libraries. The zero-patch judge (tests/harness/pins.py, 'files the build adds are not judged') would not flag the added subprojects/sheenbidi folder. The recorded build resolved every dependency through pkg-config, so this is hardening. Fix: add `--wrap-mode=nodownload` (or wrap_mode = 'nodownload' under [built-in options] in each recipes/*.cross), and have the judge flag any subprojects/ entry a tree did not ship."
+  },
+  {
+   "unit": "The wheel's runtime dependency bound wasmtime>=49,<50 and uv.lock; the wheel build (hatchl",
+   "agent": "h11-build",
+   "note": "scripts/assemble_artifacts.py checks some downloads it reads with pinned_bytes() (tqdm, reportlab, the MPL and MIT texts). It reads others without that check: wheel_licences(d / wheel) for each WHEELS entry, the sympy wheel's nested licence, the wasi-libc and LLVM notices, and the Unicode terms. All of these become release LICENSES files. 00_download.sh verified them earlier in a full build, but a step run alone (build.sh can run from a named step) skips that. Routing every downloads/ read through pinned_bytes() matches what pinned() promises for shell steps."
+  },
+  {
+   "unit": "The wheel's runtime dependency bound wasmtime>=49,<50 and uv.lock; the wheel build (hatchl",
+   "agent": "h11-build",
+   "note": "scripts/00_download.sh's curl has no --proto '=https' --proto-redir '=https', so a redirect could leave HTTPS. Integrity still holds through the in-repo SHA-256, which is verified before use, so this would only matter if the pin itself were wrong. Also, a present-but-mismatched file is never refetched (the `-s` check) and fails every later run until someone deletes it. That fails closed, but a poisoned downloads cache would cause a lasting red build."
+  },
+  {
+   "unit": "The wheel's runtime dependency bound wasmtime>=49,<50 and uv.lock; the wheel build (hatchl",
+   "agent": "h11-build",
+   "note": "pyproject.toml's [build-system] requires = [\"hatchling\"] is unbounded. The release builds use the hashed release/build-constraints.txt, and no sdist is published. A build without the constraints, local or downstream, resolves the newest hatchling."
+  },
+  {
+   "unit": "The wheel's runtime dependency bound wasmtime>=49,<50 and uv.lock; the wheel build (hatchl",
+   "agent": "h11-build",
+   "note": "release/set_key.py verify binds a set's bytes only to the set's own SHA256SUMS, plus MANIFEST's pin and recipe lines and the key. It proves the set is whole and was built from this checkout's recipes, not who wrote it. A reused set's authenticity rests on the GitHub Actions cache scope and the same run's three rebuilds from the pins. That is left to the peer unit on release.yml cache, artifact and workspace trust mixing, not re-reviewed here."
+  },
+  {
+   "unit": "Artifact set discovery: WASI_PYTHON_ARTIFACTS, the checkout's build/artifacts (pyproject.t",
+   "agent": "h04-loader",
+   "note": "_engines.py:_load/_platform.py:private: open the .cwasm once with O_NOFOLLOW relative to a descriptor of the checked cache folder, fstat that descriptor for owner/mode/nlink, and deserialize from those bytes (Module.deserialize) or that descriptor, and require every ancestor of the cache folder to be owned by this user or root and not group/other-writable; this closes the check-to-open window the docstring calls narrowed."
+  },
+  {
+   "unit": "Artifact set discovery: WASI_PYTHON_ARTIFACTS, the checkout's build/artifacts (pyproject.t",
+   "agent": "h04-loader",
+   "note": "macOS: _Posix/_Darwin private() reads only st_mode, so an extended ACL granting everyone write and file_inherit on the cache folder is invisible and every new .cwasm inherits it (agents/h04-loader/artifacts/evidence/acl_run.log). Refuse a cache folder or file that carries any allow ACL entry (acl_get_link_np or `ls -le` equivalent); Windows private() similarly checks no owner or DACL."
+  },
+  {
+   "unit": "Artifact set discovery: WASI_PYTHON_ARTIFACTS, the checkout's build/artifacts (pyproject.t",
+   "agent": "h04-loader",
+   "note": "_engines.py:_module without want (artifacts= sets): hash and compile the same bytes (read once, hash, Module(engine, data)) as the held path does, so a module or .cwasm keyed by a digest always holds that digest's code; today a file changed between _digest and from_file poisons the cache entry that a later SHA256SUMS-checked call loads (agents/h04-loader/artifacts/evidence/unheld_run.log)."
+  },
+  {
+   "unit": "Artifact set discovery: WASI_PYTHON_ARTIFACTS, the checkout's build/artifacts (pyproject.t",
+   "agent": "h04-loader",
+   "note": "_engines.py:_caches: record every cache folder this process has used (cache_dir= values) in the process object and judge grants against them too, so a later call's writable grant cannot reach an earlier call's custom cache (currently only the embedder's documented duty)."
+  },
+  {
+   "unit": "Artifact set discovery: WASI_PYTHON_ARTIFACTS, the checkout's build/artifacts (pyproject.t",
+   "agent": "h04-loader",
+   "note": "_engines.py:_cache_dir: cache_dir='' becomes Path('.'), the working directory; reject empty or relative cache_dir values in the argument checks."
+  },
+  {
+   "unit": "The door host::call: guest pointers and lengths, admit before read, the answer buffer from",
+   "agent": "h05-door",
+   "note": "src/wasi_python/_call.py:1215-1223 _door_answer checks memoryview(response).nbytes, then calls bytes(response). For a bytes subclass with __bytes__, bytes() returns a different and larger object, so MAX_RESPONSE is not enforced on what is written. Observed: with MAX_RESPONSE patched to 1000, the guest received 5000 bytes (door_probe_output_run2.txt, bytes_subclass_over_max). A real answer of 2 GiB or more would also be truncated to i32 by wasmtime-py's Val.i32 when it is passed to host_alloc, while the bound check uses the full Python length. The effect stays inside guest memory, and only the trusted embedder's own host can cause it. Fix: convert first, then check, by doing data = bytes(response); if type(data) is not bytes: data = bytes(memoryview(data)); then if len(data) > MAX_RESPONSE: return None."
+  },
+  {
+   "unit": "The door host::call: guest pointers and lengths, admit before read, the answer buffer from",
+   "agent": "h05-door",
+   "note": "src/wasi_python/_call.py:1277-1281: when __bytes__ returns a bytes subclass, its __len__ runs on the guest thread, not on the home thread, and can disagree with the buffer that memory.write copies. Observed: the out length was 1 while 3000 bytes were written past a 1-byte allocation (len_lies). The effect stays inside guest memory, and only the embedder can cause it. The same fix closes it: always hand an exact bytes object to the guest thread."
+  },
+  {
+   "unit": "The door host::call: guest pointers and lengths, admit before read, the answer buffer from",
+   "agent": "h05-door",
+   "note": "src/wasi_python/_call.py:1243-1246 re-raises wasmtime.Trap and WasmtimeError from the whole frame, including from the host function itself, not only from host_alloc. A host that raises wasmtime.Trap ends the call as trapped='from the host' instead of the documented outcome, where an Exception becomes a host fault with no text (docs/explanation/security-model.md:28; observed in host_raises_trap). This lets the embedder's text reach Completed.trapped. Narrow the re-raise to the alloc call."
+  },
+  {
+   "unit": "The door host::call: guest pointers and lengths, admit before read, the answer buffer from",
+   "agent": "h05-door",
+   "note": "Unbounded re-entry of the door from a custom host_alloc (a module supplied through artifacts=) aborts the host process, because RecursionError arises inside wasmtime-py's ctypes trampoline before _shared's try (door_probe_output_run1.txt). The shipped guest cannot do this, since its host_alloc is plain malloc. A per-call re-entry depth guard in _door, refusing a nested door call with HOST_FAULT, would remove the shape entirely."
+  },
+  {
+   "unit": "The door host::call: guest pointers and lengths, admit before read, the answer buffer from",
+   "agent": "h05-door",
+   "note": "src/wasi_python/_call.py:1263: bytes(memory.read(...)) copies a raw host= frame twice, as a bytearray and then as bytes, so a frame as large as guest memory costs the embedder's process about twice the guest memory cap for a moment. Read straight into one bytes object."
+  },
+  {
+   "unit": "Guest WASI path calls on grants and the root (guard linker: path_open, path_rename, fd_rea",
+   "agent": "h01-fs-paths",
+   "note": "docs/explanation/security-model.md:20 says the runner refuses 'a grant or root over any module cache it knows of', but _judge (src/wasi_python/_places.py:351-362) checks runtime folders against writable places only; a read-only grant over the module cache is accepted (executed). Either judge every grant against the caches or narrow the sentence to writable grants, as docs/how-to/grants.md:104 already says."
+  },
+  {
+   "unit": "Guest WASI path calls on grants and the root (guard linker: path_open, path_rename, fd_rea",
+   "agent": "h01-fs-paths",
+   "note": "make_missing (src/wasi_python/_platform.py:387-409) treats FileExistsError as 'a concurrent call made it' and adopts the folder, and mkdir uses the umask's mode: a missing root named in a folder another OS user can write (for example /tmp on Linux) can be pre-created and owned by that user, who can then read and plant data in a root the embedder expected to be fresh. Making the missing components 0700 and refusing a made component not owned by this user (fstat st_uid) closes it; today the embedder's choice of path is the only control."
+  },
+  {
+   "unit": "Guest WASI path calls on grants and the root (guard linker: path_open, path_rename, fd_rea",
+   "agent": "h01-fs-paths",
+   "note": "_runtime_folders (src/wasi_python/_places.py:526-573) protects sysconfig's stdlib/purelib/platlib/scripts, the user site, wasi_python and wasmtime-py, but not other host sys.path entries (PYTHONPATH, .pth-added editable sources); a writable grant over those is accepted and a guest could plant modules the host imports later. Embedder-chosen, so not a finding; judging every existing sys.path folder would extend the existing rule."
+  },
+  {
+   "unit": "Guest WASI path calls on grants and the root (guard linker: path_open, path_rename, fd_rea",
+   "agent": "h01-fs-paths",
+   "note": "path_filestat_set_times and fd_filestat_set_times stay wasmtime 49.0.0's own on calls without mounts and are forwarded unchanged with mounts; GHSA-j2g9-4prp-pf6h (host panic on an out-of-range time, fixed in 49.0.1) is in range. The project's own test found CPython's utime never passes a triggering value, so it needs a crafted raw call; the existing guard machinery could clamp or refuse out-of-range times for defence in depth."
+  },
+  {
+   "unit": "Guest WASI path calls on grants and the root (guard linker: path_open, path_rename, fd_rea",
+   "agent": "h01-fs-paths",
+   "note": "A mount's resolved path is built from the descriptor's own path plus up to MAX_PATH bytes, so nested opens through folder descriptors can hand a provider paths longer than 4,096 bytes; harmless to the boundary, but a cap on the resolved length would keep provider work bounded the same way."
+  },
+  {
+   "unit": "src/wasi_python/_call.py#_poll_oneoff",
+   "agent": "h14-poll-oneoff",
+   "note": "src/wasi_python/_call.py:1082-1137 (_poll_plan) says it answers 'as wasmtime 49 answers it', but it accepts misaligned in_ptr/out_ptr/nevents_ptr, which wasmtime ends the run for, and unknown subclockflags bits, which wasmtime answers EINVAL for. The sibling mount shadows end the run for both through _fs_memory._ends. Checking alignment (in_ptr % 8, out_ptr % 8, nevents_ptr % 4) and flags & ~ABSTIME, and answering as wasmtime does, would remove the difference. It has no memory effect: all writes stay inside the checked ranges."
+  },
+  {
+   "unit": "src/wasi_python/_call.py#_poll_oneoff",
+   "agent": "h14-poll-oneoff",
+   "note": "src/wasi_python/_call.py:1099-1106: any descriptor other than 0-3 (fd 4 and up, including preopened folders, numbers that do not exist and 0xFFFFFFFF) is reported ready with nbytes 1, where wasmtime answers EBADF for a descriptor that does not exist or a folder. The rule hard-codes fd 3 as 'the preopened root', but a real run preopens more than one folder. This is a difference in answers only: no host resource is touched and nothing outside the event region is written."
+  },
+  {
+   "unit": "src/wasi_python/_call.py#_poll_oneoff",
+   "agent": "h14-poll-oneoff",
+   "note": "src/wasi_python/_call.py:1159: the out_ptr bound uses 32*n, not 32*len(events), so a call that would write fewer events than subscriptions still needs room for n. That is stricter than wasmtime and safe, and is recorded here only so a later change does not 'fix' it into a weaker bound."
+  },
+  {
+   "unit": "A root, writable grant or mount reused across calls: what an earlier guest leaves (modules",
+   "agent": "h03-private-dirs",
+   "note": "src/wasi_python/_private_dirs.py:190: the sweep checks that the lock file is this user's but not that the folder beside it is; add _owned(folder) so a folder another user made at the name of this user's lone dead lock is never walked (today's effect is limited to deleting entries in that user's own directory, never following links)."
+  },
+  {
+   "unit": "A root, writable grant or mount reused across calls: what an earlier guest leaves (modules",
+   "agent": "h03-private-dirs",
+   "note": "src/wasi_python/_private_dirs.py:47-67: on a shared sticky /tmp another user who watches the folder can mkdir the folder name between the lock's creation and os.mkdir, forcing a redraw; 100 lost races make _Private raise FileExistsError (availability only). Creating private folders inside a per-user 0700 parent in the temp folder would remove the race."
+  },
+  {
+   "unit": "A root, writable grant or mount reused across calls: what an earlier guest leaves (modules",
+   "agent": "h03-private-dirs",
+   "note": "src/wasi_python/_private_dirs.py:36: nothing checks that tempfile.gettempdir() is sticky or owned by this user; the private folders' integrity against other users rests on sticky-bit semantics (a world-writable non-sticky temp folder would let another user rename a 0700 private root away between its mkdir and wasmtime's by-path preopen; the preopen identity check would then refuse, so the effect is availability)."
+  },
+  {
+   "unit": "A root, writable grant or mount reused across calls: what an earlier guest leaves (modules",
+   "agent": "h03-private-dirs",
+   "note": "Reused root: .pdbrc in the working folder or HOME runs when a program starts pdb (observed with breakpoint()); documented, but PYTHONBREAKPOINT being ignored under isolated mode means breakpoint() always reaches pdb and its rc files."
+  },
+  {
+   "unit": "The 29 WASI calls the runner serves itself (mount linker) and the five it shadows (guard l",
+   "agent": "h02-fs-memory",
+   "note": "The trap path of the forwarded fd_readdir is left unzeroed. When a guest buffer crosses the end of memory, or `used` is out of bounds, wasmtime 49.0.0 writes whole entries (their padding from uninitialized host memory) and then traps. The guard runs only on errno 0, so nothing zeroes those entries. _shared then records the stop and returns EIO. The guest stops at its next function entry or loop header, so python.wasm cannot read the bytes. A hand-written wasm guest could read and fd_write them in straight-line code before that check: wasmtime's own fd_write is not shadowed and does not consult call.stopped. A crafted guest is outside the project's stated threat model, and the padding read zero on this host. Optional fix: zero [buf, buf+min(length, memory.size-buf)) in _fd_readdir when the forward raises, before re-raising."
+  },
+  {
+   "unit": "The 29 WASI calls the runner serves itself (mount linker) and the five it shadows (guard l",
+   "agent": "h02-fs-memory",
+   "note": "_zeroed grows the stat trampoline's private page up to the guest memory's size. The store limiter's memory_size applies to each linear memory, so this second memory is bounded by memory_bytes on its own, not jointly with the guest's. Pages are reserved lazily and only the listing's bytes are touched, so resident growth equals the listing, which wasmtime already holds on the host. Joint accounting would make memory_bytes a whole-store bound."
+  },
+  {
+   "unit": "The 29 WASI calls the runner serves itself (mount linker) and the five it shadows (guard l",
+   "agent": "h02-fs-memory",
+   "note": "PreparedCall.call assigns into ctypes c_int32/c_int64 union fields, which truncate out-of-range Python ints silently. Every computed forward argument is below 2**32 today. An explicit range assertion in PreparedCall.call would turn a future unit slip (a 64-bit length forwarded as i32) into an error instead of a wrapped pointer."
+  },
+  {
+   "unit": "The 29 WASI calls the runner serves itself (mount linker) and the five it shadows (guard l",
+   "agent": "h02-fs-memory",
+   "note": "The path_open forward reads the new number at `out` without a fits check. It relies on wiggle having written `out` on errno 0, and wasmtime-py's clamping read would raise struct.error, a stop, otherwise. A fits check would make the invariant local."
+  },
+  {
+   "unit": "Tool frames over the door: admit (count, size, budget), bounded JSON parse, version/op/too",
+   "agent": "h06-tools",
+   "note": "_given (src/wasi_python/tools.py:417-423) checks partial-bound keywords only against the root properties. A schema whose root $ref, anyOf or oneOf names a bound keyword is accepted by tool() and refused only frame by frame (_tool_host.py:1003-1009; seen in host_matrix 'partial+$ref naming fixed'). Checking every reachable properties map at registration would fail early, as the root case does."
+  },
+  {
+   "unit": "Tool frames over the door: admit (count, size, budget), bounded JSON parse, version/op/too",
+   "agent": "h06-tools",
+   "note": "_Bounded.__call__ and _ToolHost.__call__ catch Exception only. On the tools path, a _Stopped (a BaseException) raised by home.call(contextvars.copy_context) in _Bounded._started, when the home stops between _ended() and the thread start, leaves that frame counted but with no outcome listed (it shows only in unlisted). No tool runs, so this is record completeness, not a boundary failure (source only)."
+  },
+  {
+   "unit": "Tool frames over the door: admit (count, size, budget), bounded JSON parse, version/op/too",
+   "agent": "h06-tools",
+   "note": "A gate allows by returning None (runner.py:201; docs/how-to/tools.md:73). A gate that falls off its end without a return allows every call it did not refuse explicitly. This is documented, but returning True only for allow, or warning on None, would make a forgotten return fail closed."
+  },
+  {
+   "unit": "The runner's use of wasmtime-py's private API and ctypes: raw memory pointers, PreparedCal",
+   "agent": "h08-process",
+   "note": "Fork refusal keys off wasi_python's own engine only (_engines._engine sets fork_used). When a parent compiled any module through wasmtime-py directly, a forked child's run() hangs for good inside wasmtime_module_new waiting on the parent's rayon compile pool (observed: fork_foreign.log, fork_foreign_sample.txt). The hang comes before the guest runs, so no deadline or Ctrl-C ends it. The fork is the embedder's own act and no guest can cause it, so this is not a finding. Document it, or refuse a child whenever the parent had made a wasmtime Engine."
+  },
+  {
+   "unit": "The runner's use of wasmtime-py's private API and ctypes: raw memory pointers, PreparedCal",
+   "agent": "h08-process",
+   "note": "_write_output copies the whole write with ctypes.string_at before _Stream.write applies the cap, so a guest past its output limit still costs one host copy per write, as large as the write. Copying only the room left would make the cap bound this work too."
+  },
+  {
+   "unit": "The runner's use of wasmtime-py's private API and ctypes: raw memory pointers, PreparedCal",
+   "agent": "h08-process",
+   "note": "wasmtime-py's LAST_EXCEPTION slot is process-wide. The runner's host functions never raise into it, so a process that runs only wasi_python is unaffected. But if the embedder's own wasmtime-py host function raises at the same time as a wasi_python guest traps, the runner's Func.__call__ paths (the run export, _initialize, host_alloc) can pick up that foreign exception and raise it from run(). This is upstream's design."
+  },
+  {
+   "unit": "The runner's use of wasmtime-py's private API and ctypes: raw memory pointers, PreparedCal",
+   "agent": "h08-process",
+   "note": "The Linux trap-handler check runs before each entry, not during a call. If a tool, host or provider replaces wasmtime's SIGSEGV or SIGILL handler during a call (for example with faulthandler.enable()), a guest trap later in that same call ends the process. The guest can choose when to trap, for example with an out-of-bounds read through numpy as_strided. Re-checking in the epoch callback or after each hand-off home would close the window."
+  },
+  {
+   "unit": "The runner's use of wasmtime-py's private API and ctypes: raw memory pointers, PreparedCal",
+   "agent": "h08-process",
+   "note": "_wasmtime_ffi.check verifies only that the private names exist, plus the arity of two binding records. It does not check behaviour such as Caller invalidation, Func._func layout or trampoline exception handling. The wheel admits any 49.x release while CI pins 49.0.0 through uv.lock. A version-equality warning, or a behavioural self-test at import, would catch a 49.x patch that changes one of these."
+  },
+  {
+   "unit": "The wasi-python CLI (grant parsing at the first '=', --env KEY copying from the host env, ",
+   "agent": "h09-cli",
+   "note": "An explicit root (--root / root=) is neither owner- nor mode-checked, and missing components are made with the process umask (0755 observed under umask 022, _platform.py:387-410 and _real_dir_at for usr/local/lib and tmp; the fresh HOME too). A root named at a predictable path in a world-writable shared folder (e.g. /private/tmp on macOS, which is not the temp folder there) can be pre-created by another OS user, who can then read and seed the guest's files; make_missing also accepts a concurrent FileExistsError. Suggest making missing root components 0700 and refusing a root or writable grant whose final folder is not owned by the effective uid or is group/other-writable, or documenting --private-root for this case."
+  },
+  {
+   "unit": "The wasi-python CLI (grant parsing at the first '=', --env KEY copying from the host env, ",
+   "agent": "h09-cli",
+   "note": ".gitignore lists no .env, *.pem, *.key or .claude/settings.local.json pattern; none is tracked today, but untracked test_app/, .agents/ and skills-lock.json are not ignored either, so a local secret file would show as untracked and could be committed with a broad git add."
+  },
+  {
+   "unit": "The wasi-python CLI (grant parsing at the first '=', --env KEY copying from the host env, ",
+   "agent": "h09-cli",
+   "note": "The CLI's --stdin PATH and --stdin - read the whole input into memory with no size bound before run(); stdin is then written to a host temporary file of its size (documented). Embedder-controlled only."
+  }
+ ],
+ "deferred": [
+  {
+   "surface": "Sessions (turns, idle/lifetime reaper, shutdown, cancel) and concurrent run() calls sharing one process: stores, output ",
+   "reason": "No structured result could be produced for this unit in this run: three attempts to write it (two hunters and the parent) were stopped by a safety classifier. The hunters' evidence files are retained read-only under agents/h07-sessions-limits/artifacts/evidence/ and agents/h13-sessions-limits/artifa"
+  },
+  {
+   "surface": "The limits an embedder relies on: deadline (epoch ticks, poll_oneoff slicing, host-function and provider waits), fuel, m",
+   "reason": "No structured result could be produced for this unit in this run: three attempts to write it (two hunters and the parent) were stopped by a safety classifier. The hunters' evidence files are retained read-only under agents/h07-sessions-limits/artifacts/evidence/ and agents/h13-sessions-limits/artifa"
+  }
+ ],
+ "covered_by_wave": [
+  [
+   [
+    1,
+    "covered"
+   ],
+   17
+  ],
+  [
+   [
+    1,
+    "candidate"
+   ],
+   4
+  ],
+  [
+   [
+    1,
+    "deferred"
+   ],
+   2
+  ]
+ ]
+}

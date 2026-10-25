@@ -1,0 +1,14 @@
+[A] rc=0 wall=0.4s
+{"mode": "A", "exit_code": 0, "trapped": null, "unexpected": [], "any_change_outside_allowed": []}
+
+[A-mounts] rc=0 wall=0.3s
+{"mode": "A-mounts", "exit_code": 0, "trapped": null, "unexpected": [], "any_change_outside_allowed": []}
+
+[B] rc=0 wall=0.8s
+{"mode": "B", "exit_code": null, "trapped": "deadline", "unexpected": [], "any_change_outside_allowed": []}
+
+[B-abs] rc=0 wall=0.8s
+{"mode": "B-abs", "exit_code": null, "trapped": "deadline", "unexpected": [], "any_change_outside_allowed": []}
+
+[C] TIMEOUT after 30s
+[C] relative timeout 2**64-1 with deadline_s=None: no answer within the 30 s subprocess bound; the driver's /bin/sh was killed by the timeout and the leftover check_poll.py C process (pid 78683) was then stopped by hand with kill; no output file was written (out of scope: deadline slicing).

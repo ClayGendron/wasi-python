@@ -1,0 +1,12 @@
+{
+ "kernel_identity_known": true,
+ "dead_folder_exists": false,
+ "dead_lock_exists": false,
+ "live_folder_exists": true,
+ "live_lock_exists": true,
+ "foreign_folder_exists": true,
+ "lone_lock_exists": false,
+ "linkdir_link_exists": true,
+ "outside_file_kept": true,
+ "outside_subdir_file_kept": true
+}

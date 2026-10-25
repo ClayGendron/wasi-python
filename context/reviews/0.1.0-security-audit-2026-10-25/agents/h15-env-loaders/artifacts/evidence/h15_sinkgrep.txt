@@ -1,0 +1,222 @@
+beautifulsoup4-4.15.0/doc.zh/source/conf.py:6:# This file is execfile()d with the current directory set to its containing dir.
+beautifulsoup4-4.15.0/doc.ptbr/source/conf.py:6:# This file is execfile()d with the current directory set to its containing dir.
+beautifulsoup4-4.15.0/doc.ru/source/conf.py:6:# This file is execfile()d with the current directory set to its containing dir.
+charset_normalizer-3.5.2/src/charset_normalizer/utils.py:270:            importlib.import_module(provider).getcodec(name)  # type: ignore[attr-defined]
+charset_normalizer-3.5.2/src/charset_normalizer/utils.py:318:    decoder_a = importlib.import_module(f"encodings.{iana_name_a}").IncrementalDecoder
+charset_normalizer-3.5.2/src/charset_normalizer/utils.py:319:    decoder_b = importlib.import_module(f"encodings.{iana_name_b}").IncrementalDecoder
+charset_normalizer-3.5.2/src/charset_normalizer/cd.py:33:    decoder = importlib.import_module(f"encodings.{iana_name}").IncrementalDecoder
+defusedxml-0.7.1/defusedxml/ElementTree.py:49:        pure_pymod = importlib.import_module(pymodname)
+fonttools-4.67.0/Lib/fontTools/ttLib/ttFont.py:1485:    module = importlib.import_module(moduleName)
+fonttools-4.67.0/Doc/source/conf.py:6:# This file is execfile()d with the current directory set to its
+jinja2-3.1.6/src/jinja2/loaders.py:323:        import_module(package_name)
+joblib-1.6.0/joblib/externals/loky/backend/reduction.py:115:            module_pickle = import_module(loky_pickler)
+joblib-1.6.0/joblib/externals/loky/backend/spawn.py:242:    main_content = runpy.run_path(main_path, run_name="__mp_main__")
+lxml-6.1.3/test.py:193:def import_module(filename, cfg, cov=None):
+lxml-6.1.3/test.py:260:        module = import_module(file, cfg, cov=cov)
+lxml-6.1.3/test.py:297:            module = import_module(filename, cfg, tracer=tracer)
+matplotlib-3.11.2/lib/matplotlib/backend_bases.py:129:        backend_class = importlib.import_module(backend_class).FigureCanvas
+matplotlib-3.11.2/lib/matplotlib/backends/registry.py:116:            entries = self._read_entry_points()
+matplotlib-3.11.2/lib/matplotlib/backends/registry.py:117:            self._validate_and_store_entry_points(entries)
+matplotlib-3.11.2/lib/matplotlib/backends/registry.py:128:    def _read_entry_points(self):
+matplotlib-3.11.2/lib/matplotlib/backends/registry.py:136:        entry_points = im.entry_points(group="matplotlib.backend")
+matplotlib-3.11.2/lib/matplotlib/backends/registry.py:142:        def backward_compatible_entry_points(
+matplotlib-3.11.2/lib/matplotlib/backends/registry.py:155:            backward_compatible_entry_points(
+matplotlib-3.11.2/lib/matplotlib/backends/registry.py:159:            backward_compatible_entry_points(
+matplotlib-3.11.2/lib/matplotlib/backends/registry.py:165:    def _validate_and_store_entry_points(self, entries):
+matplotlib-3.11.2/lib/matplotlib/backends/registry.py:317:        return importlib.import_module(module_name)
+matplotlib-3.11.2/lib/matplotlib/__init__.py:259:        module = importlib.import_module(modname)
+matplotlib-3.11.2/lib/matplotlib/pyplot.py:1106:            obj: Any = importlib.import_module(module_name)
+matplotlib-3.11.2/lib/matplotlib/colors.py:2918:                if cls is getattr(importlib.import_module(cls.__module__),
+narwhals-2.27.1/src/narwhals/_utils.py:662:    return import_module(module_name)
+narwhals-2.27.1/src/narwhals/_spark_like/utils.py:228:    return import_module(f"sqlframe.{dialect}.{submodule}")
+networkx-3.7/networkx/utils/backends.py:69:    items = entry_points(group=group)
+networkx-3.7/networkx/utils/decorators.py:916:        exec(compiled, globl, locl)
+networkx-3.7/networkx/lazy_imports.py:65:            return importlib.import_module(f"{module_name}.{name}")
+networkx-3.7/networkx/lazy_imports.py:67:            submod = importlib.import_module(f"{module_name}.{attr_to_modules[name]}")
+numpy-2.5.2/.spin/cmds.py:24:    spec = importlib.util.spec_from_file_location(filename.stem, filepath)
+numpy-2.5.2/.spin/cmds.py:625:            openblas = importlib.import_module(module_name)
+numpy-2.5.2/numpy/_core/code_generators/genapi.py:26:    spec = importlib.util.spec_from_file_location(
+numpy-2.5.2/numpy/_core/code_generators/numpy_api.py:25:    spec = importlib.util.spec_from_file_location('conv_template', genapi_py)
+pandas-3.0.6/pandas/compat/_optional.py:158:        module = importlib.import_module(name)
+pandas-3.0.6/pandas/plotting/_core.py:2181:            module = importlib.import_module("pandas.plotting._matplotlib")
+pandas-3.0.6/pandas/plotting/_core.py:2191:    eps = entry_points()
+pandas-3.0.6/pandas/plotting/_core.py:2208:            module = importlib.import_module(backend)
+pillow-13.0.0/src/PIL/ImageFont.py:911:                data_home = os.path.expanduser("~/.local/share")
+python-dateutil-2.9.0.post0/src/dateutil/__init__.py:16:        return importlib.import_module("." + name, __name__)
+reportlab-5.0.1/src/reportlab/rl_config.py:13:    from reportlab.lib.utils import rl_exec
+reportlab-5.0.1/src/reportlab/rl_config.py:17:    rl_exec('from reportlab.rl_settings import *',_DEFAULTS)
+reportlab-5.0.1/src/reportlab/rl_config.py:21:        rl_exec('from reportlab.local_rl_settings import *',_overrides)
+reportlab-5.0.1/src/reportlab/rl_config.py:28:        rl_exec('from reportlab_settings import *',_overrides)
+reportlab-5.0.1/src/reportlab/rl_config.py:39:                    rl_exec(f.read(),_overrides)
+reportlab-5.0.1/src/reportlab/__init__.py:22:    from importlib.machinery import SourceFileLoader 
+reportlab-5.0.1/src/reportlab/__init__.py:23:    spec = spec_from_loader(name, SourceFileLoader(name, fn))
+reportlab-5.0.1/src/reportlab/lib/utils.py:132:rl_exec = getattr(builtins,'exec')
+reportlab-5.0.1/src/reportlab/lib/utils.py:375:        return importlib.import_module(modulename)
+reportlab-5.0.1/src/reportlab/lib/utils.py:618:            spec = importlib_util.spec_from_file_location(name,path)
+reportlab-5.0.1/src/reportlab/graphics/utils.py:11:from reportlab.lib.utils import open_and_read, isBytes, rl_exec
+reportlab-5.0.1/src/reportlab/graphics/utils.py:29:    rl_exec(code,dict(RenderPMError=RenderPMError))
+reportlab-5.0.1/src/reportlab/graphics/barcode/widgets.py:22:from reportlab.lib.utils import rl_exec
+reportlab-5.0.1/src/reportlab/graphics/barcode/widgets.py:100:    rl_exec(code,ns)
+reportlab-5.0.1/src/reportlab/graphics/barcode/widgets.py:108:    rl_exec(code,ns)
+scikit_learn-1.9.1/sklearn/externals/array_api_compat/_internal.py:60:    mod = importlib.import_module(mod_name)
+scikit_learn-1.9.1/sklearn/__init__.py:131:        return _importlib.import_module(f"sklearn.{name}")
+scikit_learn-1.9.1/sklearn/utils/discovery.py:102:            module = import_module(module_name)
+scikit_learn-1.9.1/sklearn/utils/discovery.py:184:            module = import_module(module_name)
+scikit_learn-1.9.1/sklearn/utils/discovery.py:243:            module = import_module(module_name)
+scikit_learn-1.9.1/sklearn/utils/_set_output.py:19:        return importlib.import_module(library)
+scikit_learn-1.9.1/sklearn/utils/_testing.py:1331:        array_mod = importlib.import_module(array_namespace)
+scipy-1.18.1/.spin/cmds.py:241:                    config = importlib.import_module(
+scipy-1.18.1/.spin/cmds.py:968:        openblas = importlib.import_module(module_name)
+scipy-1.18.1/scipy/ndimage/_support_alternative_backends.py:47:                cupyx_module = importlib.import_module(f"cupyx.scipy.{module_name}")
+scipy-1.18.1/scipy/linalg/_generate_pyx.py:22:    spec = importlib.util.spec_from_file_location(
+scipy-1.18.1/scipy/__init__.py:137:        return _importlib.import_module(f'scipy.{name}')
+scipy-1.18.1/scipy/_lib/_testutils.py:15:from importlib.util import module_from_spec, spec_from_file_location
+scipy-1.18.1/scipy/_lib/_testutils.py:328:        spec = spec_from_file_location(modname, so)
+scipy-1.18.1/scipy/_lib/_uarray/_backend.py:53:        module = importlib.import_module(mod_name)
+scipy-1.18.1/scipy/_lib/deprecation.py:51:    attr = getattr(import_module(correct_import), attribute, None)
+scipy-1.18.1/scipy/_lib/deprecation.py:72:            return getattr(import_module(f"scipy.{sub_package}.{module}"), attribute)
+scipy-1.18.1/scipy/_lib/_array_api_docs_tables.py:232:        module = import_module(module_name)
+scipy-1.18.1/scipy/sparse/__init__.py:285:        return _importlib.import_module(f'scipy.sparse.{name}')
+scipy-1.18.1/scipy/signal/_support_alternative_backends.py:53:                cupyx_module = importlib.import_module(f"cupyx.scipy.{module_name}")
+seaborn-0.13.2/seaborn/external/appdirs.py:122:        path = os.getenv('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
+six-1.17.0/six.py:85:def _import_module(name):
+six-1.17.0/six.py:120:        return _import_module(self.mod)
+six-1.17.0/six.py:165:        module = _import_module(self.mod)
+soupsieve-3.0.3/hatch_build.py:13:    spec = importlib.util.spec_from_file_location("__meta__", path)
+sympy-1.14.0/sympy/core/cache.py:179:            func = getattr(import_module(module), name)
+sympy-1.14.0/sympy/core/cache.py:195:                func = getattr(import_module(module), name)
+sympy-1.14.0/sympy/polys/matrices/_dfm.py:63:flint = import_module('flint')
+sympy-1.14.0/sympy/printing/aesaracode.py:13:aesara = import_module('aesara')
+sympy-1.14.0/sympy/printing/llvmjitcode.py:15:llvmlite = import_module('llvmlite')
+sympy-1.14.0/sympy/printing/llvmjitcode.py:17:    ll = import_module('llvmlite.ir').ir
+sympy-1.14.0/sympy/printing/llvmjitcode.py:18:    llvm = import_module('llvmlite.binding').binding
+sympy-1.14.0/sympy/printing/tensorflow.py:14:tensorflow = import_module('tensorflow')
+sympy-1.14.0/sympy/printing/pytorch.py:13:torch = import_module('torch')
+sympy-1.14.0/sympy/printing/theanocode.py:26:theano = import_module('theano')
+sympy-1.14.0/sympy/logic/algorithms/z3_wrapper.py:22:    z3 = import_module("z3")
+sympy-1.14.0/sympy/logic/inference.py:83:        pycosat = import_module('pycosat')
+sympy-1.14.0/sympy/logic/inference.py:94:        pysat = import_module('pysat')
+sympy-1.14.0/sympy/logic/inference.py:99:        z3 = import_module('z3')
+sympy-1.14.0/sympy/utilities/lambdify.py:132:                 ("import_module('numexpr')", )),
+sympy-1.14.0/sympy/utilities/matchpy_connector.py:27:matchpy = import_module("matchpy")
+sympy-1.14.0/sympy/utilities/_compilation/util.py:272:        spec = importlib.util.spec_from_file_location(name, filename)
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:24:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:36:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:58:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:79:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:93:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:122:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:158:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:180:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:201:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:224:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:235:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:255:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:266:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:288:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:310:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:331:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:352:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:377:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/intervalmath/lib_interval.py:390:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/plot.py:184:            matplotlib = import_module('matplotlib',
+sympy-1.14.0/sympy/plotting/backends/matplotlibbackend/matplotlib.py:50:        self.matplotlib = import_module('matplotlib',
+sympy-1.14.0/sympy/plotting/backends/matplotlibbackend/matplotlib.py:102:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/backends/matplotlibbackend/matplotlib.py:113:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/backends/matplotlibbackend/matplotlib.py:114:        mpl_toolkits = import_module(
+sympy-1.14.0/sympy/plotting/series.py:50:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:102:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:443:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:464:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:701:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:735:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:764:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:943:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:1047:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:1119:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:1136:        np = import_module("numpy")
+sympy-1.14.0/sympy/plotting/series.py:1209:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:1234:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:1278:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:1393:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:1459:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:1470:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:1545:            np = import_module("numpy")
+sympy-1.14.0/sympy/plotting/series.py:1553:            np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:1567:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:1678:            np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:1791:        np = import_module("numpy")
+sympy-1.14.0/sympy/plotting/series.py:1836:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:1957:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:2085:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:2373:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:2460:        np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:2524:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:2529:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/series.py:2539:    np = import_module('numpy')
+sympy-1.14.0/sympy/plotting/plotgrid.py:127:        self.matplotlib = import_module('matplotlib',
+sympy-1.14.0/sympy/plotting/experimental_lambdify.py:112:        self.np = import_module('numpy')
+sympy-1.14.0/sympy/interactive/session.py:288:                    history = os.path.expanduser('~/.sympy-history')
+sympy-1.14.0/sympy/interactive/printing.py:37:    IPython = import_module("IPython", min_module_version="1.0")
+sympy-1.14.0/sympy/physics/continuum_mechanics/truss.py:27:numpy = import_module('numpy', import_kwargs={'fromlist':['arange']})
+sympy-1.14.0/sympy/physics/continuum_mechanics/arch.py:15:numpy = import_module('numpy', import_kwargs={'fromlist':['arange']})
+sympy-1.14.0/sympy/physics/continuum_mechanics/beam.py:42:numpy = import_module('numpy', import_kwargs={'fromlist':['arange']})
+sympy-1.14.0/sympy/physics/control/control_plots.py:26:matplotlib = import_module(
+sympy-1.14.0/sympy/physics/quantum/matrixutils.py:29:np = import_module('numpy')
+sympy-1.14.0/sympy/physics/quantum/matrixutils.py:36:scipy = import_module('scipy', import_kwargs={'fromlist': ['sparse']})
+sympy-1.14.0/sympy/physics/quantum/identitysearch.py:28:np = import_module('numpy')
+sympy-1.14.0/sympy/physics/quantum/identitysearch.py:29:scipy = import_module('scipy', import_kwargs={'fromlist': ['sparse']})
+sympy-1.14.0/sympy/physics/quantum/circuitplot.py:34:np = import_module('numpy')
+sympy-1.14.0/sympy/physics/quantum/circuitplot.py:35:matplotlib = import_module(
+sympy-1.14.0/sympy/external/__init__.py:4:You should import all external modules using the import_module() function.
+sympy-1.14.0/sympy/external/__init__.py:9:>>> numpy = import_module('numpy')
+sympy-1.14.0/sympy/external/__init__.py:14:import_module() for more information.
+sympy-1.14.0/sympy/external/importtools.py:48:def import_module(module, min_module_version=None, min_python_version=None,
+sympy-1.14.0/sympy/external/importtools.py:101:    >>> numpy = import_module('numpy')
+sympy-1.14.0/sympy/external/importtools.py:103:    >>> numpy = import_module('numpy', min_python_version=(2, 7),
+sympy-1.14.0/sympy/external/importtools.py:106:    >>> numpy = import_module('numpy', min_module_version='1.5',
+sympy-1.14.0/sympy/external/importtools.py:111:    >>> gmpy = import_module('gmpy', min_module_version='1.14',
+sympy-1.14.0/sympy/external/importtools.py:117:    >>> p3 = import_module('mpl_toolkits.mplot3d',
+sympy-1.14.0/sympy/external/importtools.py:121:    >>> matplotlib = import_module('matplotlib',
+sympy-1.14.0/sympy/external/gmpy.py:139:    gmpy = import_module('gmpy2', min_module_version=_GMPY2_MIN_VERSION,
+sympy-1.14.0/sympy/parsing/latex/lark/transformer.py:7:lark = import_module("lark")
+sympy-1.14.0/sympy/parsing/latex/lark/latex_parser.py:9:_lark = import_module("lark")
+sympy-1.14.0/sympy/parsing/latex/__init__.py:194:        _latex = import_module(
+sympy-1.14.0/sympy/parsing/latex/_parse_latex_antlr.py:16:    LaTeXParser = import_module('sympy.parsing.latex._antlr.latexparser',
+sympy-1.14.0/sympy/parsing/latex/_parse_latex_antlr.py:18:    LaTeXLexer = import_module('sympy.parsing.latex._antlr.latexlexer',
+sympy-1.14.0/sympy/parsing/latex/_parse_latex_antlr.py:23:ErrorListener = import_module('antlr4.error.ErrorListener',
+sympy-1.14.0/sympy/parsing/latex/_parse_latex_antlr.py:62:    antlr4 = import_module('antlr4')
+sympy-1.14.0/sympy/parsing/sym_expr.py:5:lfortran = import_module('lfortran')
+sympy-1.14.0/sympy/parsing/sym_expr.py:6:cin = import_module('clang.cindex', import_kwargs = {'fromlist': ['cindex']})
+sympy-1.14.0/sympy/parsing/autolev/__init__.py:92:    _autolev = import_module(
+sympy-1.14.0/sympy/parsing/autolev/_parse_autolev_antlr.py:5:autolevparser = import_module('sympy.parsing.autolev._antlr.autolevparser',
+sympy-1.14.0/sympy/parsing/autolev/_parse_autolev_antlr.py:7:autolevlexer = import_module('sympy.parsing.autolev._antlr.autolevlexer',
+sympy-1.14.0/sympy/parsing/autolev/_parse_autolev_antlr.py:9:autolevlistener = import_module('sympy.parsing.autolev._antlr.autolevlistener',
+sympy-1.14.0/sympy/parsing/autolev/_parse_autolev_antlr.py:18:    antlr4 = import_module('antlr4')
+sympy-1.14.0/sympy/parsing/autolev/_listener_autolev_antlr.py:6:autolevparser = import_module('sympy.parsing.autolev._antlr.autolevparser',
+sympy-1.14.0/sympy/parsing/autolev/_listener_autolev_antlr.py:8:autolevlexer = import_module('sympy.parsing.autolev._antlr.autolevlexer',
+sympy-1.14.0/sympy/parsing/autolev/_listener_autolev_antlr.py:10:autolevlistener = import_module('sympy.parsing.autolev._antlr.autolevlistener',
+sympy-1.14.0/sympy/parsing/fortran/fortran_parser.py:3:lfortran = import_module('lfortran')
+sympy-1.14.0/sympy/parsing/c/c_parser.py:4:cin = import_module('clang.cindex', import_kwargs = {'fromlist': ['cindex']})
+sympy-1.14.0/sympy/stats/sampling/sample_pymc.py:13:    pymc = import_module('pymc3')
+sympy-1.14.0/sympy/stats/sampling/sample_numpy.py:11:numpy = import_module('numpy')
+sympy-1.14.0/sympy/stats/sampling/sample_scipy.py:17:scipy = import_module("scipy", import_kwargs={'fromlist':['stats']})
+sympy-1.14.0/sympy/stats/joint_rv.py:323:        if not import_module(library):
+sympy-1.14.0/sympy/stats/rv.py:1295:    if not import_module(library):
+sympy-1.14.0/sympy/stats/rv.py:1602:        module = import_module(library)
+sympy-1.14.0/sympy/stats/matrix_distributions.py:222:        if not import_module(library):
+threadpoolctl-3.7.0/threadpoolctl.py:1703:            importlib.import_module(module, package=None)
+toolz-1.2.0/toolz/functoolz.py:357:            obj = import_module(modname)
+toolz-1.2.0/toolz/functoolz.py:382:        obj = import_module(modname)
+toolz-1.2.0/toolz/_signatures.py:99:    execfile=[
+toolz-1.2.0/toolz/_signatures.py:667:            module = import_module(module)
+toolz-1.2.0/tlz/_build_tlz.py:21:            rv['cytoolz'] = import_module(module_name)
+toolz-1.2.0/tlz/_build_tlz.py:26:            rv['toolz'] = import_module(module_name)
+toolz-1.2.0/tlz/_build_tlz.py:87:                submodule = import_module(module_name)
+tqdm-4.70.1/tqdm/contrib/concurrent.py:94:        f"tqdm_class = import_module({tqdm_class.__module__!r})\n"
+wrapt-2.5.1/src/wrapt/importer.py:37:        # Use importlib.import_module() rather than __import__() as the
+wrapt-2.5.1/src/wrapt/importer.py:41:        callback = importlib.import_module(module_name)
+wrapt-2.5.1/src/wrapt/importer.py:106:        entrypoints = importlib.metadata.entry_points(group=group)
+wrapt-2.5.1/src/wrapt/importer.py:109:        entrypoints = importlib.metadata.entry_points().get(group, ())
+wrapt-2.5.1/src/wrapt/patches.py:66:        # Use importlib.import_module() rather than __import__() as the
+wrapt-2.5.1/src/wrapt/patches.py:73:            target = importlib.import_module(target)

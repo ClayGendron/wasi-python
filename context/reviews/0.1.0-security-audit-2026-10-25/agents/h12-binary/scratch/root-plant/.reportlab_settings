@@ -1,0 +1,1 @@
+open('/RAN_home_reportlab_settings', 'w').write('x')

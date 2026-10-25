@@ -1,0 +1,6 @@
+fuel=1101 ->     1:     0x75 - <unknown>!<wasm function 2>
+    2: wasm trap: all fuel consumed by WebAssembly
+fuel=80001284 ->     1:     0x75 - <unknown>!<wasm function 2>
+    2: wasm trap: all fuel consumed by WebAssembly
+fuel=80001285 -> wasmtime 49.0.3 (f96eabaa1 2026-10-14)
+warning: using `--invoke` with a function that takes arguments is experimental and may break in the future

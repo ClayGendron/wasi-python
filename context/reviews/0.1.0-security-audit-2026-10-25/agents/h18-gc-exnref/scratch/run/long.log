@@ -1,0 +1,20 @@
+== snapshot=True rounds<=1000000 budget 20s
+returncode 0
+host_elapsed_s 20.6 snapshot True
+exit_code 0 trapped None
+stdout rounds 686457 elapsed_guest_s 20.0
+counts [('A', 686457), ('B', 686457), ('C', 686457), ('wrong', 0)]
+
+stderr 
+
+host-stderr 
+== snapshot=False rounds<=1000000 budget 20s
+returncode 0
+host_elapsed_s 29.5 snapshot False
+exit_code 0 trapped None
+stdout rounds 673546 elapsed_guest_s 20.0
+counts [('A', 673546), ('B', 673546), ('C', 673546), ('wrong', 0)]
+
+stderr 
+
+host-stderr 

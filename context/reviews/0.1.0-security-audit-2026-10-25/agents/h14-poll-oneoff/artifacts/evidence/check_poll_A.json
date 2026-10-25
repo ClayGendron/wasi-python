@@ -1,0 +1,1617 @@
+{
+ "mode": "A",
+ "deadline_s": 20.0,
+ "mounts": false,
+ "exit_code": 0,
+ "trapped": null,
+ "stderr": "",
+ "memory_end": 851968,
+ "cases": [
+  {
+   "case": 0,
+   "label": "baseline: one monotonic clock, timeout 0",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 1,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 1,
+   "label": "in_ptr = END-48 (array ends exactly at memory end)",
+   "in_ptr": 851920,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 1,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 2,
+   "label": "in_ptr = END-47 (one byte past)",
+   "in_ptr": 851921,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 21,
+   "errno": 21,
+   "as_expected": true,
+   "pre": {
+    "errno": 21,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 21,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 3,
+   "label": "out_ptr = END-32 (event ends exactly at memory end)",
+   "in_ptr": 459776,
+   "out_ptr": 851936,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 851967,
+    "events": [
+     {
+      "userdata": 0,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 4,
+   "label": "out_ptr = END-31",
+   "in_ptr": 459776,
+   "out_ptr": 851937,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 21,
+   "errno": 21,
+   "as_expected": true,
+   "pre": {
+    "errno": 21,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 21,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 5,
+   "label": "nevents_ptr = END-4",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 851964,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 475136,
+    "last_changed": 851967,
+    "events": [
+     {
+      "userdata": 1,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 6,
+   "label": "nevents_ptr = END-3",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 851965,
+   "expect_errno": 21,
+   "errno": 21,
+   "as_expected": true,
+   "pre": {
+    "errno": 21,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 21,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 7,
+   "label": "in_ptr = 0xFFFFFFD0 (in+48 wraps to 0 in 32 bits)",
+   "in_ptr": 4294967248,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 21,
+   "errno": 21,
+   "as_expected": true,
+   "pre": {
+    "errno": 21,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 21,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 8,
+   "label": "in_ptr = 0xFFFFFFFF",
+   "in_ptr": 4294967295,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 21,
+   "errno": 21,
+   "as_expected": true,
+   "pre": {
+    "errno": 21,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 21,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 9,
+   "label": "in_ptr = 0x80000000 (negative i32)",
+   "in_ptr": 2147483648,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 21,
+   "errno": 21,
+   "as_expected": true,
+   "pre": {
+    "errno": 21,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 21,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 10,
+   "label": "out_ptr = 0xFFFFFFE0 (out+32 wraps to 0)",
+   "in_ptr": 459776,
+   "out_ptr": 4294967264,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 21,
+   "errno": 21,
+   "as_expected": true,
+   "pre": {
+    "errno": 21,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 21,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 11,
+   "label": "nevents_ptr = 0xFFFFFFFC (nev+4 wraps to 0)",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 4294967292,
+   "expect_errno": 21,
+   "errno": 21,
+   "as_expected": true,
+   "pre": {
+    "errno": 21,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 21,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 12,
+   "label": "in_ptr = END (zero bytes left)",
+   "in_ptr": 851968,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 21,
+   "errno": 21,
+   "as_expected": true,
+   "pre": {
+    "errno": 21,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 21,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 13,
+   "label": "n = 0",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 0,
+   "nevents_ptr": 458816,
+   "expect_errno": 28,
+   "errno": 28,
+   "as_expected": true,
+   "pre": {
+    "errno": 28,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 28,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 14,
+   "label": "n = 4097",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 4097,
+   "nevents_ptr": 458816,
+   "expect_errno": 48,
+   "errno": 48,
+   "as_expected": true,
+   "pre": {
+    "errno": 48,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 48,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 15,
+   "label": "n = 0x80000000 (negative i32)",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 2147483648,
+   "nevents_ptr": 458816,
+   "expect_errno": 48,
+   "errno": 48,
+   "as_expected": true,
+   "pre": {
+    "errno": 48,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 48,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 16,
+   "label": "n = 0xFFFFFFFF (-1)",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 4294967295,
+   "nevents_ptr": 458816,
+   "expect_errno": 48,
+   "errno": 48,
+   "as_expected": true,
+   "pre": {
+    "errno": 48,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 48,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 17,
+   "label": "n = 4096 clocks in bounds (196608-byte array, 131072-byte events)",
+   "in_ptr": 458752,
+   "out_ptr": 655360,
+   "n": 4096,
+   "nevents_ptr": 786432,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 4096
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 4096,
+    "changed": 131060,
+    "changed_outside_allowed": 0,
+    "first_changed": 655360,
+    "last_changed": 786435,
+    "events": [
+     {
+      "userdata": 1,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     },
+     {
+      "userdata": 2,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 18,
+   "label": "n = 4096, out_ptr one byte short of room for 4096 events",
+   "in_ptr": 458752,
+   "out_ptr": 720897,
+   "n": 4096,
+   "nevents_ptr": 655364,
+   "expect_errno": 21,
+   "errno": 21,
+   "as_expected": true,
+   "pre": {
+    "errno": 21,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 21,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 19,
+   "label": "n = 2 with in_ptr = END-48 (count is in subscriptions, not bytes)",
+   "in_ptr": 851920,
+   "out_ptr": 475136,
+   "n": 2,
+   "nevents_ptr": 458816,
+   "expect_errno": 21,
+   "errno": 21,
+   "as_expected": true,
+   "pre": {
+    "errno": 21,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 21,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 20,
+   "label": "n = 3, out_ptr room for 2 events, only 1 clock due",
+   "in_ptr": 459776,
+   "out_ptr": 851904,
+   "n": 3,
+   "nevents_ptr": 458816,
+   "expect_errno": 21,
+   "errno": 21,
+   "as_expected": true,
+   "pre": {
+    "errno": 21,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 21,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 21,
+   "label": "misaligned in_ptr (+1)",
+   "in_ptr": 459777,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 1,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 22,
+   "label": "misaligned out_ptr (+1)",
+   "in_ptr": 459776,
+   "out_ptr": 475137,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475168,
+    "events": [
+     {
+      "userdata": 1,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 23,
+   "label": "misaligned nevents_ptr (+1)",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458817,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458817,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 1,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 24,
+   "label": "out_ptr == in_ptr, n = 2",
+   "in_ptr": 459776,
+   "out_ptr": 459776,
+   "n": 2,
+   "nevents_ptr": 458816,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 2
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 2,
+    "changed": 7,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 459824,
+    "events": [
+     {
+      "userdata": 11,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     },
+     {
+      "userdata": 12,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 25,
+   "label": "nevents_ptr inside the event (out+8)",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 475144,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 32,
+    "changed_outside_allowed": 0,
+    "first_changed": 475136,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 1,
+      "error": 1,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 26,
+   "label": "nevents_ptr == in_ptr",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 459776,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 32,
+    "changed_outside_allowed": 0,
+    "first_changed": 475136,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 1,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 27,
+   "label": "unknown tag 3",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 28,
+   "errno": 28,
+   "as_expected": true,
+   "pre": {
+    "errno": 28,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 28,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 28,
+   "label": "unknown tag 255",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 28,
+   "errno": 28,
+   "as_expected": true,
+   "pre": {
+    "errno": 28,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 28,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 29,
+   "label": "ready fd then unknown tag (no partial write)",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 2,
+   "nevents_ptr": 458816,
+   "expect_errno": 28,
+   "errno": 28,
+   "as_expected": true,
+   "pre": {
+    "errno": 28,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 28,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 30,
+   "label": "ready fd then bad clock id (no partial write)",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 2,
+   "nevents_ptr": 458816,
+   "expect_errno": 28,
+   "errno": 28,
+   "as_expected": true,
+   "pre": {
+    "errno": 28,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 28,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 31,
+   "label": "clock id 0x2",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 28,
+   "errno": 28,
+   "as_expected": true,
+   "pre": {
+    "errno": 28,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 28,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 32,
+   "label": "clock id 0x3",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 28,
+   "errno": 28,
+   "as_expected": true,
+   "pre": {
+    "errno": 28,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 28,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 33,
+   "label": "clock id 0x4",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 28,
+   "errno": 28,
+   "as_expected": true,
+   "pre": {
+    "errno": 28,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 28,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 34,
+   "label": "clock id 0xffffffff",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 28,
+   "errno": 28,
+   "as_expected": true,
+   "pre": {
+    "errno": 28,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 28,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 35,
+   "label": "fd_read stdin",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 5,
+      "error": 0,
+      "type": 1,
+      "nbytes": 1,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 36,
+   "label": "fd_write stdout",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 6,
+      "error": 0,
+      "type": 2,
+      "nbytes": 1,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 37,
+   "label": "fd_write stderr",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 7,
+      "error": 0,
+      "type": 2,
+      "nbytes": 1,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 38,
+   "label": "fd_read stdout",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 8,
+   "errno": 8,
+   "as_expected": true,
+   "pre": {
+    "errno": 8,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 8,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 39,
+   "label": "fd_write stdin",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 8,
+   "errno": 8,
+   "as_expected": true,
+   "pre": {
+    "errno": 8,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 8,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 40,
+   "label": "fd_read fd 3",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 8,
+   "errno": 8,
+   "as_expected": true,
+   "pre": {
+    "errno": 8,
+    "nevents": 0
+   },
+   "full": {
+    "errno": 8,
+    "nevents": 0,
+    "changed": 0,
+    "changed_outside_allowed": 0,
+    "first_changed": null,
+    "last_changed": null,
+    "events": []
+   }
+  },
+  {
+   "case": 41,
+   "label": "fd_read fd 0x4",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": null,
+   "errno": 0,
+   "as_expected": null,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 20,
+      "error": 0,
+      "type": 1,
+      "nbytes": 1,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 42,
+   "label": "fd_read fd 0x5",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": null,
+   "errno": 0,
+   "as_expected": null,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 20,
+      "error": 0,
+      "type": 1,
+      "nbytes": 1,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 43,
+   "label": "fd_read fd 0x6",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": null,
+   "errno": 0,
+   "as_expected": null,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 20,
+      "error": 0,
+      "type": 1,
+      "nbytes": 1,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 44,
+   "label": "fd_read fd 0x63",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": null,
+   "errno": 0,
+   "as_expected": null,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 20,
+      "error": 0,
+      "type": 1,
+      "nbytes": 1,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 45,
+   "label": "fd_read fd 0x7fffffff",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": null,
+   "errno": 0,
+   "as_expected": null,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 20,
+      "error": 0,
+      "type": 1,
+      "nbytes": 1,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 46,
+   "label": "fd_read fd 0xffffffff",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": null,
+   "errno": 0,
+   "as_expected": null,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 20,
+      "error": 0,
+      "type": 1,
+      "nbytes": 1,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 47,
+   "label": "ready fd and a 10 s clock (no wait, fd only)",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 2,
+   "nevents_ptr": 458816,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 8,
+      "error": 0,
+      "type": 1,
+      "nbytes": 1,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 48,
+   "label": "clock flags 0xFFFE (unknown bits, relative)",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 1,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 49,
+   "label": "abstime realtime 0 (past)",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 1,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 50,
+   "label": "abstime monotonic 1 (past)",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 1,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 51,
+   "label": "relative 1 ms",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 1,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 52,
+   "label": "two clocks, timeout 0, same userdata",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 2,
+   "nevents_ptr": 458816,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 2
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 2,
+    "changed": 68,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475199,
+    "events": [
+     {
+      "userdata": 4,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     },
+     {
+      "userdata": 4,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 53,
+   "label": "5 ms, 1 ms, 1 ms: two due",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 3,
+   "nevents_ptr": 458816,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 2
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 2,
+    "changed": 68,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475199,
+    "events": [
+     {
+      "userdata": 2,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     },
+     {
+      "userdata": 3,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "case": 54,
+   "label": "precision 2**64-1 ignored",
+   "in_ptr": 459776,
+   "out_ptr": 475136,
+   "n": 1,
+   "nevents_ptr": 458816,
+   "expect_errno": 0,
+   "errno": 0,
+   "as_expected": true,
+   "pre": {
+    "errno": 0,
+    "nevents": 1
+   },
+   "full": {
+    "errno": 0,
+    "nevents": 1,
+    "changed": 36,
+    "changed_outside_allowed": 0,
+    "first_changed": 458816,
+    "last_changed": 475167,
+    "events": [
+     {
+      "userdata": 1,
+      "error": 0,
+      "type": 0,
+      "nbytes": 0,
+      "flags": 0,
+      "pad_hex": "0000000000000000000000"
+     }
+    ]
+   }
+  }
+ ],
+ "unexpected": [],
+ "any_change_outside_allowed": []
+}

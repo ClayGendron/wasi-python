@@ -1,0 +1,38 @@
+Hung child (pid 72040) sampled with /usr/bin/sample for 2 s, main thread excerpt:
+    1770 Thread_126024101   DispatchQueue_1: com.apple.main-thread  (serial)
+      1770 start  (in dyld) + 6992  [0x18f5f7e00]
+        1770 Py_BytesMain  (in libpython3.14.dylib) + 36  [0x104466128]
+          1770 pymain_main  (in libpython3.14.dylib) + 464  [0x104466304]
+            1770 Py_RunMain  (in libpython3.14.dylib) + 1272  [0x10449e6b0]
+              1770 pymain_run_file  (in libpython3.14.dylib) + 72  [0x1044a1d18]
+                1770 pymain_run_file_obj  (in libpython3.14.dylib) + 164  [0x1044f4830]
+                  1770 _PyRun_AnyFileObject  (in libpython3.14.dylib) + 80  [0x1044f4950]
+                    1770 _PyRun_SimpleFileObject  (in libpython3.14.dylib) + 256  [0x1044f4b64]
+                      1770 pyrun_file  (in libpython3.14.dylib) + 164  [0x1044f519c]
+                        1770 run_mod.llvm.3456716250913208555  (in libpython3.14.dylib) + 240  [0x1043d8758]
+                          1770 PyEval_EvalCode  (in libpython3.14.dylib) + 160  [0x1043d8b8c]
+                            1770 _PyEval_Vector  (in libpython3.14.dylib) + 696  [0x1043452c4]
+                              1770 _TAIL_CALL_CALL.llvm.6063353093342406856  (in libpython3.14.dylib) + 1856  [0x104324768]
+                                1770 type_call  (in libpython3.14.dylib) + 148  [0x10457c1ac]
+                                  1770 slot_tp_init  (in libpython3.14.dylib) + 452  [0x10441f8c4]
+                                    1770 _PyObject_Call_Prepend  (in libpython3.14.dylib) + 152  [0x10441fae4]
+                                      1770 _PyFunction_Vectorcall  (in libpython3.14.dylib) + 740  [0x10451c83c]
+                                        1770 _TAIL_CALL_CALL_NON_PY_GENERAL.llvm.6063353093342406856  (in libpython3.14.dylib) + 1496  [0x1045a8934]
+                                          1770 PyCFuncPtr_call  (in libpython3.14.dylib) + 496  [0x104b99c10]
+                                            1770 _ctypes_callproc  (in libpython3.14.dylib) + 852  [0x104b9c2f4]
+                                              1770 _call_function_pointer  (in libpython3.14.dylib) + 248  [0x104b9c6b0]
+                                                1770 ffi_call_int  (in libpython3.14.dylib) + 1488  [0x10461a710]
+                                                  1770 ffi_call_SYSV  (in libpython3.14.dylib) + 80  [0x10461c050]
+                                                    1770 wasmtime_module_new  (in _libwasmtime.dylib) + 28  [0x10b6c7b44]
+                                                      1770 _RNvMs2_NtNtCs1HAn2BcGeBw_8wasmtime7runtime6moduleNtB5_6Module11from_binary  (in _libwasmtime.dylib) + 500  [0x10b350578]
+                                                        1770 _RNvYNCINvMNtNtCs1HAn2BcGeBw_8wasmtime7compile7runtimeNtNtBa_12code_builder11CodeBuilder14compile_cachedTNtNtCsaoR1BinJBEe_16wasmtime_environ16module_artifacts18CompiledModuleInfoNtB1G_22CompiledFunc
+                                                          1770 _RNvYNCNvMNtNtCs1HAn2BcGeBw_8wasmtime7compile7runtimeNtNtB9_12code_builder11CodeBuilder14compile_module0INtNtNtCslWxY2MhVcag_4core3ops8function6FnOnceTRNtNtBb_6engine6EngineRShINtNtB1K_6option6Opti
+                                                            1770 _RNvMNtCs1HAn2BcGeBw_8wasmtime7compileNtB2_13CompileInputs7compile  (in _libwasmtime.dylib) + 2900  [0x10b34068c]
+                                                              1770 _RINvNvNtNtCs6eJGkpZb5JO_5rayon4iter8plumbing24bridge_producer_consumer6helperINtNtB8_3vec13DrainProducerINtNtCs6KVRSXc8uZF_5alloc5boxed3BoxDG_INtNtNtCslWxY2MhVcag_4core3ops8function6FnOnceTRL0
+                                                                1770 _RINvMs2_NtNtCs7mRY9FNn263_3std6thread5localINtB6_8LocalKeyNtNtCsg1PgtjfvTad_10rayon_core5latch9LockLatchE4withNCINvMs4_NtBY_8registryNtB1T_8Registry14in_worker_coldNCINvNtBY_4join12join_cont
+                                                                  1770 _RNvMs3_NtCsg1PgtjfvTad_10rayon_core5latchNtB5_9LockLatch14wait_and_reset  (in _libwasmtime.dylib) + 164  [0x10af89118]
+                                                                    1770 _pthread_cond_wait  (in libsystem_pthread.dylib) + 980  [0x18f9b6128]
+                                                                      1770 __psynch_cvwait  (in libsystem_kernel.dylib) + 8  [0x18f97550c]
+
+Total number in stack (recursive counted multiple, when >=5):
+

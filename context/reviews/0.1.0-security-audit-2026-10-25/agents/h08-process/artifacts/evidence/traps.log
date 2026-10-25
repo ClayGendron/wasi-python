@@ -1,0 +1,11 @@
+{"check": "baseline", "exit_code": 0, "trapped": null, "stdout_tail": "ok\n", "stderr_tail": "", "last_exception_none": true, "host_functions": 9}
+{"check": "stack_overflow", "exit_code": null, "trapped": "stack overflow", "stdout_tail": "", "stderr_tail": "", "last_exception_none": true, "host_functions": 9}
+{"check": "after_stack_overflow", "exit_code": 0, "trapped": null, "stdout_tail": "ok\n", "stderr_tail": "", "last_exception_none": true, "host_functions": 9}
+{"check": "out_of_fuel", "exit_code": null, "trapped": "out of fuel", "stdout_tail": "", "stderr_tail": "", "last_exception_none": true, "host_functions": 18}
+{"check": "after_fuel", "exit_code": 0, "trapped": null, "stdout_tail": "ok\n", "stderr_tail": "", "last_exception_none": true, "host_functions": 18}
+{"check": "deadline", "exit_code": null, "trapped": "deadline", "stdout_tail": "", "stderr_tail": "", "last_exception_none": true, "host_functions": 18}
+{"check": "after_deadline", "exit_code": 0, "trapped": null, "stdout_tail": "ok\n", "stderr_tail": "", "last_exception_none": true, "host_functions": 18}
+{"mode": "traps", "seconds": 2.1}
+
+STDERR: 
+RC: 0

@@ -1,0 +1,78 @@
+import json
+A = "agents/h08-process/artifacts/evidence/"
+CID = "src%2Fwasi_python%2F_wasmtime_ffi.py%23ffi::src%2Fwasi_python%2F_home.py%23home::src%2Fwasi_python::MEMORY-SAFETY-AND-BINARY.md%23Unwind%2C%20exception%2C%20and%20thread-affinity%20violations"
+def chk(paths, inv, method, result, art=None):
+    return {"agent_id": "h08-process", "reviewed_paths": paths, "invariant": inv, "method": method,
+            "result": result, "artifact": (A + art) if art else None}
+checks = [
+ chk(["src/wasi_python/_wasmtime_ffi.py"],
+     "Every private wasmtime-py name the runner relies on exists in 49.0.0 with the contract assumed (Func._func is a wasmtime_func_t; Caller._context raises after _invalidate; Store._context is None after close; the epoch callback's restype is c_size_t and wasmtime initialises kind to CONTINUE; the custom output write/free types; wasmtime_func_call's argtypes)",
+     "source",
+     "Read wasmtime-py 49.0.0 _func.py, _store.py, _managed.py, _wasi.py and _bindings.py: each assumption holds. check() verifies presence (and arity for the two binding records), not semantics. The uv index cache lists only 49.0.0 in the 49 series, so no other release the bound admits could be compared locally."),
+ chk(["src/wasi_python/_wasmtime_ffi.py", "src/wasi_python/_fs_table.py"],
+     "PreparedCall's reused argument and result arrays cannot be clobbered by re-entrancy or another thread, its func handle is always of the caller's store, and trap/error pointers are owned once",
+     "source",
+     "Slots live per _Files (one call or one session, served by one guest thread at a time); a forward runs only wasmtime's own WASI code (no runner forward is re-entered from inside it); _shared checks the caller's context against the call before files() runs, so the trampoline's handles are of that store; the trap out-pointer is fresh per call and Trap._from_ptr / WasmtimeError._from_ptr take ownership; fuel is restored in finally."),
+ chk(["src/wasi_python/_call.py"],
+     "No runner host function or C callback raises into wasmtime-py (whose exception slot is process-wide) or crosses the C ABI with an exception; the epoch callback always returns 0 with delta >= 1 or an owned error",
+     "source",
+     "_shared wraps all work in try/except BaseException and returns an int; _poll_oneoff and _door return ints; _write_output catches BaseException and returns size; _epoch_answer and _stop_error catch everything and write delta >= 1 on the continue paths; kind is never written. Only an asynchronous exception before the first try line remains, which no guest can deliver."),
+ chk(["src/wasi_python/_call.py", "src/wasi_python/_home.py"],
+     "Store close and per-call teardown never run while a guest thread can still be in wasm, and run on every ending path",
+     "source",
+     "_instance, _call_deferred and _run_checked hand release to _Home.finish, which runs it at once only in IDLE/CANCELLED/DONE and otherwise leaves it to the guest body's finally; _on_guest_thread always joins (_join_guest loops through exceptions, with a liveness backstop). Output keys are popped after store.close and wasmtime's later free is a no-op pop; the C callbacks are module-lifetime objects."),
+ chk(["src/wasi_python/_home.py", "src/wasi_python/_process.py"],
+     "The home thread protocol: guest code never runs on the home thread, embedder code handed home is never run after a stop, Ctrl-C on the main thread never lands in a wasm trampoline",
+     "source",
+     "Every wasm entry (run, _initialize, check module, host_alloc) is on the guest thread; _Box hand-offs are answered with _Stopped once raised is set; serve keeps a BaseException as the stop; _deferred_ctrl_c turns SIGINT into a flag for the whole call including its releases; the phase table refuses START after CANCELLED."),
+ chk(["src/wasi_python/_home.py", "src/wasi_python/_platform.py"],
+     "A guest thread has room for its 8 MiB wasm stack plus host callbacks, or the call is refused",
+     "source",
+     "Threads start at 10 MiB inside a locked stack_size window that restores another thread's value; body refuses below 9 MiB or when bounds are unreadable (Android and unknown POSIX hosts fail closed); a re-entry into host_alloc below wasmtime's limit traps at once; host-side recursion on the guest thread is bounded (tool frames 64 levels)."),
+ chk(["src/wasi_python/_platform.py", "src/wasi_python/_call.py"],
+     "On Linux, a guest entry is refused when wasmtime's SIGSEGV/SIGILL (and SIGFPE on x86_64) handlers have been replaced; macOS and Windows do not use signal handlers for wasm traps",
+     "source",
+     "trap_handlers_ready compares dladdr load bases of each installed handler with wasmtime-py's library base, failing closed on any error or unknown base; it runs before every run entry, session opening, turn and shutdown. It is not re-checked mid-call (see hardening)."),
+ chk(["src/wasi_python/_call.py", "src/wasi_python/_engines.py"],
+     "A stack-overflow, fuel or deadline trap leaves the process usable and the next call normal, with wasmtime-py's exception slot empty and no host function added",
+     "local",
+     "Observed: 'stack overflow', 'out of fuel', 'deadline' each followed by a normal call returning exit 0 'ok'; last_exception None and host_function_count unchanged per engine (9, 18 after the fuel engine).",
+     "traps.log"),
+ chk(["src/wasi_python/_call.py", "src/wasi_python/_home.py"],
+     "A door call at every recursion depth (3.8 million hand-offs to the home thread) neither crashes the host nor leaks state",
+     "local",
+     "Observed: 3,841,156 host calls, the call ended 'deadline' at 240 s, the next call normal, slot empty. Python-level guest recursion reached 10.78 million frames before its trap (depth.log), so it does not exhaust wasmtime's native stack; native-depth host callbacks were checked from source only.",
+     "door_depth.log"),
+ chk(["src/wasi_python/_call.py", "src/wasi_python/_home.py"],
+     "A raw host= raising KeyboardInterrupt or SystemExit stops the guest cleanly and propagates to the caller without touching wasmtime-py's slot",
+     "local",
+     "Observed: run() raised KeyboardInterrupt, then SystemExit; last_exception None; host_function_count unchanged; the next call normal.",
+     "host_raises.log"),
+ chk(["src/wasi_python/_process.py", "src/wasi_python/_platform.py"],
+     "A forked child of a parent that ran a guest is refused and leaves the parent's zip folder; a child of a parent that only imported runs normally",
+     "local",
+     "Observed: the child's run raised the fork RuntimeError (forked True), the child exited 0, the parent's zip folders were still present and the parent's next call was normal; control child (parent only imported) ran a guest and got a clean 'memory out of bounds' trap.",
+     "fork.log"),
+ chk(["src/wasi_python/_call.py"],
+     "A late output write or free for a key whose stream was dropped is harmless",
+     "local",
+     "Observed: _write_output on an unknown key returned the full size and _free_output left the table empty.",
+     "late_output.log"),
+]
+paths = sorted({p for c in checks for p in c["reviewed_paths"]})
+result = {
+ "units": [{"coverage_id": CID, "disposition": "covered", "reviewed_paths": paths, "checks": checks,
+            "candidate_fingerprints": [], "unresolved": []}],
+ "candidates": [],
+ "hardening": [
+  "Fork refusal keys off wasi_python's own engine only (_engines._engine sets fork_used). When a parent compiled any module through wasmtime-py directly, a forked child's run() hangs for good inside wasmtime_module_new waiting on the parent's rayon compile pool (observed: fork_foreign.log, fork_foreign_sample.txt). The hang comes before the guest runs, so no deadline or Ctrl-C ends it. The fork is the embedder's own act and no guest can cause it, so this is not a finding. Document it, or refuse a child whenever the parent had made a wasmtime Engine.",
+  "_write_output copies the whole write with ctypes.string_at before _Stream.write applies the cap, so a guest past its output limit still costs one host copy per write, as large as the write. Copying only the room left would make the cap bound this work too.",
+  "wasmtime-py's LAST_EXCEPTION slot is process-wide. The runner's host functions never raise into it, so a process that runs only wasi_python is unaffected. But if the embedder's own wasmtime-py host function raises at the same time as a wasi_python guest traps, the runner's Func.__call__ paths (the run export, _initialize, host_alloc) can pick up that foreign exception and raise it from run(). This is upstream's design.",
+  "The Linux trap-handler check runs before each entry, not during a call. If a tool, host or provider replaces wasmtime's SIGSEGV or SIGILL handler during a call (for example with faulthandler.enable()), a guest trap later in that same call ends the process. The guest can choose when to trap, for example with an out-of-bounds read through numpy as_strided. Re-checking in the epoch callback or after each hand-off home would close the window.",
+  "_wasmtime_ffi.check verifies only that the private names exist, plus the arity of two binding records. It does not check behaviour such as Caller invalidation, Func._func layout or trampoline exception handling. The wheel admits any 49.x release while CI pins 49.0.0 through uv.lock. A version-equality warning, or a behavioural self-test at import, would catch a 49.x patch that changes one of these."
+ ],
+ "uncovered": []
+}
+s = json.dumps(result, indent=1)
+open("context/reviews/0.1.0-security-audit-2026-10-25/agents/h08-process/scratch/result.json", "w").write(s)
+print(len(s))

@@ -1,0 +1,19 @@
+reentrant_depth3 {"exit_code": 3, "trapped": null, "host_calls": 4, "host_threads": ["MainThread"], "main_thread": "MainThread"}
+alloc_past_end {"exit_code": 20, "trapped": null, "host_calls": 1, "host_threads": ["MainThread"], "main_thread": "MainThread"}
+alloc_exact_end {"exit_code": 3, "trapped": null, "host_calls": 1, "host_threads": ["MainThread"], "main_thread": "MainThread"}
+alloc_after_grow {"exit_code": 99, "trapped": null, "host_calls": 1, "host_threads": ["MainThread"], "main_thread": "MainThread"}
+request_wraps {"exit_code": -2, "trapped": null, "host_calls": 0, "host_threads": [], "main_thread": "MainThread"}
+outptr_past_end {"exit_code": -2, "trapped": null, "host_calls": 0, "host_threads": [], "main_thread": "MainThread"}
+outptr_negative {"exit_code": -2, "trapped": null, "host_calls": 0, "host_threads": [], "main_thread": "MainThread"}
+zero_len_at_end {"exit_code": 3, "trapped": null, "host_calls": 1, "host_threads": ["MainThread"], "main_thread": "MainThread"}
+alloc_null {"exit_code": -2, "trapped": null, "host_calls": 1, "host_threads": ["MainThread"], "main_thread": "MainThread"}
+host_returns_str {"exit_code": -2, "trapped": null, "host_calls": 1, "host_threads": ["MainThread"], "main_thread": "MainThread"}
+host_raises_exception {"exit_code": -2, "trapped": null, "host_calls": 1, "host_threads": ["MainThread"], "main_thread": "MainThread"}
+host_raises_trap {"exit_code": null, "trapped": "from the host", "host_calls": 1, "host_threads": ["MainThread"], "main_thread": "MainThread"}
+bytes_subclass_over_max {"exit_code": 5000, "trapped": null, "host_calls": 1, "host_threads": ["MainThread"], "main_thread": "MainThread"}
+plain_over_max {"exit_code": 102, "trapped": null, "host_calls": 1, "host_threads": ["MainThread"], "main_thread": "MainThread"}
+bytes(Wrap()) type: Liar
+len_lies {"exit_code": 1, "trapped": null, "host_calls": 1, "host_threads": ["MainThread"], "main_thread": "MainThread"}
+host_raises_keyboardinterrupt {"raised": "builtins.KeyboardInterrupt", "msg": "", "host_calls": 1, "host_threads": ["MainThread"], "main_thread": "MainThread"}
+after {'exit_code': 0, 'stdout': 'ok\n'}
+exit=0

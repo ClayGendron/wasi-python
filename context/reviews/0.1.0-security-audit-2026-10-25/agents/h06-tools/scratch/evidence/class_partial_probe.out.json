@@ -1,0 +1,50 @@
+{
+ "python": "3.14.2",
+ "ViaPartialmethod": {
+  "signature": "(q, *, role='viewer')",
+  "schema naming role": "accepted; _fixed=[]",
+  "_fixed (open schema)": [],
+  "frame role=admin answer": {
+   "kind": "tool_error",
+   "message": "t failed (internal error)"
+  },
+  "handler saw": [
+   [
+    "ViaPartialmethod",
+    "x",
+    "admin"
+   ]
+  ],
+  "record fault": "_NotJSON: a ViaPartialmethod has no JSON form"
+ },
+ "ViaPartial": {
+  "signature": "(q, *, role='viewer')",
+  "schema naming role": "accepted; _fixed=[]",
+  "_fixed (open schema)": [],
+  "frame role=admin answer": {
+   "kind": "tool_error",
+   "message": "t failed (internal error)"
+  },
+  "handler saw": [
+   [
+    "ViaPartial",
+    "x",
+    "admin"
+   ]
+  ],
+  "record fault": "_NotJSON: a ViaPartial has no JSON form"
+ },
+ "plain partial": {
+  "signature": "(q, *, role='viewer')",
+  "schema naming role": "refused: ValueError(\"t: input_schema names 'role', which the partial binds; a bound keyword is fixed, so the guest cannot set it: leave it out\")",
+  "_fixed (open schema)": [
+   "role"
+  ],
+  "frame role=admin answer": {
+   "kind": "invalid_arguments",
+   "message": "t: the arguments: unknown argument 'role'"
+  },
+  "handler saw": [],
+  "record fault": null
+ }
+}

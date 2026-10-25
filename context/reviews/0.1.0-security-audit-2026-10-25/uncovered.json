@@ -1,0 +1,91 @@
+[
+  {
+    "surface": "Every Python host function (poll_oneoff, the guard and mount file shadows, the door) entered from deep guest wasm recursion",
+    "boundary": "Python's C-stack recursion check against the bounds tell_interpreter sets, versus _HOST_ROOM, at the first line of wasmtime-py's ctypes trampoline, which is outside _shared's try",
+    "subsystem": "src/wasi_python",
+    "attack_class": "MEMORY-SAFETY-AND-BINARY.md#Unwind, exception, and thread-affinity violations",
+    "starting_paths": [
+      "src/wasi_python/_platform.py",
+      "src/wasi_python/_home.py",
+      "src/wasi_python/_engines.py",
+      "src/wasi_python/_call.py"
+    ],
+    "reason": "Run 1 showed that a RecursionError at the trampoline's first line aborts the process. Whether a shipped guest can reach that state without door re-entry depends on stack sizing across all host functions, not on the door, so it belongs to the peer unit for _wasmtime_ffi.py#ffi and _home.py#home. This hunter did not pursue it.",
+    "_hunter": "h05-door",
+    "resolved_by": "c01-critic",
+    "resolution": "already covered by an existing unit (critic)"
+  },
+  {
+    "surface": "tests/harness/gather.py release verdict (G1-G7: record set, judge hash, accepted history binding, tier, set source)",
+    "boundary": "the gather job's pass is the last content gate before attest and publish on a tag",
+    "subsystem": "tests/harness",
+    "attack_class": "SUPPLY-CHAIN-AND-RELEASE.md#Build-to-promotion substitution",
+    "starting_paths": [
+      "tests/harness/gather.py",
+      "tests/harness/history.py",
+      "tests/harness/shards.py",
+      "context/progress"
+    ],
+    "reason": "Only its G1 tier rule and G7 tag rules were read here, to settle the workflow's gating. The record parsing, merge and history binding that decide a tag's verdict are not in any assigned unit.",
+    "_hunter": "h10-ci",
+    "resolved_by": "c01-critic",
+    "resolution": "already covered by an existing unit (critic)"
+  },
+  {
+    "surface": "wasi-python-0.1.0-wasm32-wasip1.tar.xz and wasi_python-0.1.0-py3-none-any.whl published on the v0.1.0 GitHub release",
+    "boundary": "The release's packaging of the artifact set into the tarball and wheel against the set the release acceptance judged (set_sums 3339091f49b6cf94aaf90d5a68c281c3f1cc3384450f3cb94b768d8274d0fa20)",
+    "subsystem": "release",
+    "attack_class": "SUPPLY-CHAIN-AND-RELEASE.md#Cache, artifact, and workspace trust mixing",
+    "starting_paths": [
+      ".github/workflows/release.yml",
+      "build/artifacts/SHA256SUMS",
+      "release/set_key.py"
+    ],
+    "reason": "The published SHA256SUMS names only the tarball and the wheel; confirming that the tarball's and the wheel's inner SHA256SUMS equal the accepted set needs the 78 MB and 98 MB assets, which this brief does not allow downloading. A unit allowed to fetch the release assets read-only can settle it deterministically.",
+    "_hunter": "h12-binary",
+    "resolved_by": "c01-critic",
+    "resolution": "turned into a wave-2 unit"
+  },
+  {
+    "surface": "The runner's own poll_oneoff shadow: subscription array, event array and nevents pointers read from and written to guest memory",
+    "boundary": "Bounds checks in _poll_oneoff (in_ptr+48n, out_ptr+32n, nevents_ptr+4 against data_len) and the EVENT/SUBSCRIPTION struct formats",
+    "subsystem": "src/wasi_python",
+    "attack_class": "MEMORY-SAFETY-AND-BINARY.md#Out-of-bounds read or write",
+    "starting_paths": [
+      "src/wasi_python/_call.py"
+    ],
+    "reason": "A guest-memory reader and writer that is not one of the 29 shadowed calls or the 5 guard shadows, and no assigned unit names it. A glance showed masked pointers and checks before reading, but no unit owns its alignment, struct layout or wait-slicing review.",
+    "_hunter": "h02-fs-memory",
+    "resolved_by": "c01-critic",
+    "resolution": "turned into a wave-2 unit"
+  },
+  {
+    "surface": "The stdout/stderr custom-output ctypes callback (_write_output) that copies host-side bytes with ctypes.string_at(data, size) into capped buffers",
+    "boundary": "The pointer/size contract between wasmtime's custom output stream and the runner's ctypes callback, and the key lifetime against OUTPUT_FREE",
+    "subsystem": "src/wasi_python",
+    "attack_class": "MEMORY-SAFETY-AND-BINARY.md#Pointer-length and ownership contract mismatch",
+    "starting_paths": [
+      "src/wasi_python/_call.py",
+      "src/wasi_python/_wasmtime_ffi.py"
+    ],
+    "reason": "A raw-pointer FFI boundary reached by every guest write to stdout and stderr, called on wasmtime's threads. It is outside the file-call shadows and the door, and no assigned unit names it.",
+    "_hunter": "h02-fs-memory",
+    "resolved_by": "c01-critic",
+    "resolution": "already covered by an existing unit (critic)"
+  },
+  {
+    "surface": "Environment variables read by the zip's third-party packages (60+ packages) that select files or modules to load, independent of isolated mode",
+    "boundary": "isolated-mode assumption that env= cannot change what code the guest loads",
+    "subsystem": "build/artifacts",
+    "attack_class": "Chained trust: env-driven code loading from guest-writable folders",
+    "starting_paths": [
+      "build/artifacts/python-stdlib.zip",
+      "build/Python-3.15.0/Lib/sysconfig/__init__.py",
+      "src/wasi_python/_limits.py"
+    ],
+    "reason": "This unit scanned the CPython stdlib for env-driven loaders (only sysconfig loads from a path; xml.dom/xml.sax honour ignore_environment) and tested a selected set of package imports; an exhaustive enumeration of the bundled third-party packages' env-driven loaders needs its own deterministic coverage.",
+    "_hunter": "h03-private-dirs",
+    "resolved_by": "c01-critic",
+    "resolution": "turned into a wave-2 unit"
+  }
+]

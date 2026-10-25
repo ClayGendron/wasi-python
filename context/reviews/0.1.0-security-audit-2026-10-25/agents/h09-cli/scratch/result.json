@@ -1,0 +1,138 @@
+{
+ "units": [
+  {
+   "coverage_id": "src%2Fwasi_python%2Fcli.py%23main::src%2Fwasi_python%2Frunner.py%23_checked::src%2Fwasi_python::ATTACK-CLASSES.md%23Obvious%20things",
+   "disposition": "covered",
+   "reviewed_paths": [
+    ".gitignore",
+    "pyproject.toml",
+    "src/wasi_python/__init__.py",
+    "src/wasi_python/__main__.py",
+    "src/wasi_python/_artifacts.py",
+    "src/wasi_python/_call.py",
+    "src/wasi_python/_engines.py",
+    "src/wasi_python/_limits.py",
+    "src/wasi_python/_places.py",
+    "src/wasi_python/_platform.py",
+    "src/wasi_python/_private_dirs.py",
+    "src/wasi_python/_process.py",
+    "src/wasi_python/_tool_host.py",
+    "src/wasi_python/cli.py",
+    "src/wasi_python/runner.py",
+    "src/wasi_python/tools.py",
+    "uv.lock"
+   ],
+   "checks": [
+    {
+     "agent_id": "h09-cli",
+     "reviewed_paths": [
+      "src/wasi_python/cli.py",
+      "src/wasi_python/_places.py",
+      "src/wasi_python/_platform.py",
+      "src/wasi_python/_limits.py"
+     ],
+     "invariant": "CLI grant parsing (split at the first '=') hands run() exactly one guest path and one host path per grant, the mode follows the option typed, and run()'s judge still applies (absolute guest path, no ./.. parts, not /usr/local/lib, no link in a user-writable folder, read-only grants unwritable)",
+     "method": "local",
+     "result": "Bounded run (env -i, sandbox-exec deny network*, ulimit -t/-f/-n; target not mounted read-only on this platform; all grants/roots under scratch/work): --grant /data=a=b served host folder 'a=b' read-only (listing ['f.txt'], write refused with WASI EPERM 63); --grant /data -> usage error rc 2; '=a=b', 'data=a=b', '/data/..=a=b', '/usr/local/lib=a=b' each refused by _guest_path with rc 1; a grant through a symlink in a user-writable folder refused by the walk. No disagreement between the CLI split and run()'s checks.",
+     "artifact": "agents/h09-cli/artifacts/evidence/cli_checks.json"
+    },
+    {
+     "agent_id": "h09-cli",
+     "reviewed_paths": [
+      "src/wasi_python/cli.py",
+      "src/wasi_python/_limits.py",
+      "src/wasi_python/runner.py"
+     ],
+     "invariant": "--env KEY copies only the named key from the CLI's own environment, no other host variable reaches the guest, a missing name is not echoed, and run()'s env checks (non-empty key, no '=', no NUL, valid UTF-8, values never quoted) apply",
+     "method": "local",
+     "result": "With DUMMY_SECRET and NOT_NAMED set in the CLI's env, --env DUMMY_SECRET --env OTHER=x gave the guest exactly DUMMY_SECRET, OTHER, HOME (fresh /tmp/.home-*), PYTHONTZPATH and TMPDIR; NOT_NAMED, PATH and the host HOME absent; without --env only the three base variables. --env <unknown name> -> rc 2 'no such name in this command's environment' without echoing the typed text; --env =v -> rc 1 'env key: illegal environment variable name'.",
+     "artifact": "agents/h09-cli/artifacts/evidence/cli_checks.json"
+    },
+    {
+     "agent_id": "h09-cli",
+     "reviewed_paths": [
+      "src/wasi_python/cli.py",
+      "src/wasi_python/_places.py",
+      "src/wasi_python/_platform.py",
+      "src/wasi_python/_call.py"
+     ],
+     "invariant": "--root HOST is given once, is exclusive with --private-root/--no-root, is walked no-follow with links in user-writable folders refused, is judged against runtime/shared folders on its existing chain before any missing component is made, and missing components are made through descriptors with O_NOFOLLOW reopen",
+     "method": "local",
+     "result": "--root newroot (missing) was made and used (guest wrote /out.txt; listing ['out.txt','tmp','usr']); made root and its tmp are mode 0755 under umask 022, owned by this user; --root through a user-writable symlink refused; --root twice and --root with --private-root are usage errors rc 2. A pre-existing 0777 folder is accepted as root (no owner or mode check on an explicit root) -- recorded as hardening, since the embedder names the root and only another OS user pre-creating a predictable shared path could exploit it. Source: _walk_grants (_places.py:463-497) judges before make_missing (_platform.py:387-410), which tolerates FileExistsError and re-walks with judge=True.",
+     "artifact": "agents/h09-cli/artifacts/evidence/cli_checks.json"
+    },
+    {
+     "agent_id": "h09-cli",
+     "reviewed_paths": [
+      "src/wasi_python/cli.py"
+     ],
+     "invariant": "JSON output cannot be broken or turned into terminal control by guest bytes; error output carries only str(e) and the exception type, never a traceback",
+     "method": "local",
+     "result": "Guest stdout containing OSC/CSI escapes, BEL and U+2028 is emitted as \\u001b/\\u0007/\\u2028 (json.dumps ensure_ascii=True, written as ASCII); non-UTF-8 stderr is emitted as stderr_base64. run() errors are one JSON object {error, kind} (e.g. FileNotFoundError for a missing --stdin file) with no traceback.",
+     "artifact": "agents/h09-cli/artifacts/evidence/cli_checks.json"
+    },
+    {
+     "agent_id": "h09-cli",
+     "reviewed_paths": [
+      "src/wasi_python/cli.py"
+     ],
+     "invariant": "_split never lets the guest's argv be parsed as this command's options, nor this command's options leak into the guest's argv; --stdin reads a named file or this command's own input whole",
+     "method": "local",
+     "result": "'run -c print(1) --root /' is a usage error (rc 2), not a guest call; '--env -- -c ...' is a usage error; after '--' the guest receives ['-c','--root','/'] verbatim. --stdin in.txt and --stdin - delivered exactly the bytes given. _split treats any '-'-prefixed token before the first non-option as this command's and argparse (allow_abbrev=False, no positionals) rejects anything it does not know.",
+     "artifact": "agents/h09-cli/artifacts/evidence/cli_checks.json"
+    },
+    {
+     "agent_id": "h09-cli",
+     "reviewed_paths": [
+      "src/wasi_python/cli.py",
+      "src/wasi_python/__main__.py"
+     ],
+     "invariant": "The descriptor-limit raise only raises the soft RLIMIT_NOFILE toward the hard one, never lowers or changes the hard limit, and only when the command is its own process (argv is None)",
+     "method": "local",
+     "result": "Soft lowered to 256 under hard RLIM_INFINITY; _raise_descriptor_limit() raised soft to the hard value (macOS accepted RLIM_INFINITY here); hard unchanged. main(argv) with arguments skips the raise (source cli.py:214-221); __main__ calls main() with no argument.",
+     "artifact": "agents/h09-cli/artifacts/evidence/rlimit_check.json"
+    },
+    {
+     "agent_id": "h09-cli",
+     "reviewed_paths": [
+      "src/wasi_python/__init__.py",
+      "src/wasi_python/_call.py",
+      "src/wasi_python/_artifacts.py",
+      "src/wasi_python/_engines.py",
+      "src/wasi_python/_platform.py",
+      "src/wasi_python/_process.py",
+      "src/wasi_python/_tool_host.py",
+      "src/wasi_python/tools.py",
+      "src/wasi_python/runner.py",
+      "src/wasi_python/_private_dirs.py"
+     ],
+     "invariant": "Obvious things across src/wasi_python: no hardcoded secrets; no eval/exec/compile/pickle/marshal/yaml/subprocess with dynamic input; no debug or test toggle reachable by environment; no security TODO/FIXME; no HTTP surface (CORS, cookies, redirects, TLS, debug endpoints); errors to the guest carry no host internals",
+     "method": "source",
+     "result": "Grep of the package: no passwords, keys, tokens or PEM blocks (the SipHash constants are the public algorithm's; 'secrets' is the stdlib module for random names). No TODO/FIXME/HACK/XXX at all. The only code built from data is the guest-side import prelude (_call.py:372-389), which embeds str.__str__ copies of checked guest paths via list repr, a valid literal for any str, and runs inside the guest. typing.get_type_hints (tools.py:546) evaluates the embedder's own tool annotations, not guest input. No pickle/marshal/yaml/subprocess/os.system. Environment reads are only WASI_PYTHON_ARTIFACTS, WASI_PYTHON_CACHE, XDG_CACHE_HOME, LOCALAPPDATA (peer-owned artifact/cache units) and the CLI's --env KEY; test seams live on the _Observers object in-process only (_process.py:73-90), not env-gated. No socket/HTTP code, so the web items are not applicable. Tool failures return 'internal error' to the guest with the fault text kept host-side (_tool_host.py:186-303); the door's HOST_FAULT carries no text.",
+     "artifact": null
+    },
+    {
+     "agent_id": "h09-cli",
+     "reviewed_paths": [
+      ".gitignore",
+      "uv.lock",
+      "pyproject.toml"
+     ],
+     "invariant": "No secret files are tracked; artifacts and build trees are ignored; dependency pins are visible",
+     "method": "source",
+     "result": "git ls-files has no .env, *.pem, *.key, credentials or token files; git grep finds no private-key headers or provider token patterns outside context/prior_art. .gitignore covers *.wasm, *.cwasm, *.zip, build/, downloads/*, .venv/, dist/, site/, src/wasi_python/artifacts/; .git/info/exclude covers .claude/worktrees etc. It does not list .env, *.pem, *.key or .claude/settings.local.json (none exist; hardening). The wheel requires wasmtime>=49,<50; uv.lock pins 49.0.0 with sha256, whose two advisories the runner fixes itself (documented); dependency provenance is a peer unit.",
+     "artifact": null
+    }
+   ],
+   "candidate_fingerprints": [],
+   "unresolved": []
+  }
+ ],
+ "candidates": [],
+ "hardening": [
+  "An explicit root (--root / root=) is neither owner- nor mode-checked, and missing components are made with the process umask (0755 observed under umask 022, _platform.py:387-410 and _real_dir_at for usr/local/lib and tmp; the fresh HOME too). A root named at a predictable path in a world-writable shared folder (e.g. /private/tmp on macOS, which is not the temp folder there) can be pre-created by another OS user, who can then read and seed the guest's files; make_missing also accepts a concurrent FileExistsError. Suggest making missing root components 0700 and refusing a root or writable grant whose final folder is not owned by the effective uid or is group/other-writable, or documenting --private-root for this case.",
+  ".gitignore lists no .env, *.pem, *.key or .claude/settings.local.json pattern; none is tracked today, but untracked test_app/, .agents/ and skills-lock.json are not ignored either, so a local secret file would show as untracked and could be committed with a broad git add.",
+  "The CLI's --stdin PATH and --stdin - read the whole input into memory with no size bound before run(); stdin is then written to a host temporary file of its size (documented). Embedder-controlled only."
+ ],
+ "uncovered": []
+}

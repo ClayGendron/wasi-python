@@ -1,0 +1,256 @@
+# release.yml key excerpts (commit 2c8744fe7274ddb5b0c5ceaac65fc1a05837fdb8)
+--- lines 18,32
+   18  on:
+   19    push:
+   20      tags: ["v*"]
+   21    workflow_dispatch:
+   22      inputs:
+   23        from-source:
+   24          description: build the set from the pins even when a set for this commit is cached
+   25          type: boolean
+   26          default: false
+   27        release-tier:
+   28          description: judge the release tier too (a tag and a run on main always do)
+   29          type: boolean
+   30          default: false
+   31  
+   32  permissions: {}
+--- lines 79,105
+   79        - name: Reuse only on a dispatch from a branch other than main
+   80          id: decide
+   81          env:
+   82            FROM_SOURCE: ${{ inputs.from-source }}
+   83            HIT: ${{ steps.lookup.outputs.cache-hit }}
+   84          run: |
+   85            reuse=false
+   86            if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "$GITHUB_REF_TYPE" = branch ] \
+   87              && [ "$GITHUB_REF" != refs/heads/main ] && [ "$FROM_SOURCE" != true ] && [ "$HIT" = true ]; then
+   88              reuse=true
+   89            fi
+   90            echo "reuse=$reuse" >> "$GITHUB_OUTPUT"
+   91            echo "event $GITHUB_EVENT_NAME, $GITHUB_REF ($GITHUB_REF_TYPE), from-source '$FROM_SOURCE', cached '$HIT': reuse=$reuse"
+   92        - name: Which tier this run judges
+   93          # A pushed tag publishes and a run on main rehearses it: both judge the release tier, with
+   94          # no input to turn it off. Any other dispatch judges the normal tier unless it asks.
+   95          # Every consumer compares with == 'release', so an empty output judges the normal tier.
+   96          id: tier
+   97          env:
+   98            RELEASE_TIER: ${{ inputs.release-tier }}
+   99          run: |
+  100            tier=normal
+  101            if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF_TYPE" = tag ]; then tier=release; fi
+  102            if [ "$GITHUB_REF" = refs/heads/main ]; then tier=release; fi
+  103            if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "$RELEASE_TIER" = true ]; then tier=release; fi
+  104            echo "tier=$tier" >> "$GITHUB_OUTPUT"
+  105            echo "event $GITHUB_EVENT_NAME, $GITHUB_REF ($GITHUB_REF_TYPE), release-tier '$RELEASE_TIER': tier=$tier"
+--- lines 135,143
+  135        - name: The version, and the tag it is released under, agree
+  136          run: |
+  137            if [ "$GITHUB_REF_TYPE" = tag ]; then
+  138              uv run python release/version.py check --tag "$GITHUB_REF_NAME"
+  139              # A release is cut from main: the tagged commit must be in main's history.
+  140              git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+  141            else
+  142              uv run python release/version.py check
+  143            fi
+--- lines 151,173
+  151        - name: The set this commit's key names
+  152          if: needs.inputs.outputs.reuse == 'true'
+  153          uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+  154          with:
+  155            path: wasi-python-set
+  156            key: ${{ needs.inputs.outputs.key }}
+  157            fail-on-cache-miss: true
+  158        - name: The reused set in build/artifacts
+  159          if: needs.inputs.outputs.reuse == 'true'
+  160          run: |
+  161            mkdir -p build
+  162            mv wasi-python-set build/artifacts
+  163        - name: The set is this commit's
+  164          # Every run, no if: each file against the set's own SHA256SUMS, no other file, MANIFEST's
+  165          # pin and recipe lines against this checkout; and a reused set's key.
+  166          env:
+  167            REUSED_KEY: ${{ needs.inputs.outputs.reuse == 'true' && needs.inputs.outputs.key || '' }}
+  168          run: |
+  169            if [ -n "$REUSED_KEY" ]; then
+  170              uv run --no-project python -I release/set_key.py verify build/artifacts --key "$REUSED_KEY"
+  171            else
+  172              uv run --no-project python -I release/set_key.py verify build/artifacts
+  173            fi
+--- lines 368,457
+  368    same-bytes:
+  369      name: the same bytes from every host
+  370      # Each rebuild's SHA256SUMS lists the whole set (the three artifacts, MANIFEST and the licences)
+  371      # and must equal the set's, byte for byte, from arm64 Linux and from x86_64 Linux, each with its
+  372      # own pinned clang. The .tar.xz asset is made from the set deterministically but is
+  373      # outside this claim. attest and publish need this job, so a tag never signs or publishes bytes
+  374      # that both hosts did not rebuild.
+  375      needs: [build, rebuild-linux-arm64, rebuild-linux-x86-64]
+  376      runs-on: ubuntu-24.04
+  377      timeout-minutes: 15
+  378      permissions: {}
+  379      steps:
+  380        - name: The build job handed on an artifact id
+  381          # An empty artifact-ids makes download-artifact fetch every artifact of the run.
+  382          env:
+  383            ASSETS_ID: ${{ needs.build.outputs.assets-id }}
+  384          run: |
+  385            case "$ASSETS_ID" in
+  386              "" | *[!0-9]*) echo "the build job handed on no artifact id"; exit 1 ;;
+  387            esac
+  388        - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+  389          with:
+  390            artifact-ids: ${{ needs.build.outputs.assets-id }}
+  391            path: release-assets
+  392            digest-mismatch: error
+  393        - name: These are the bytes the build job made
+  394          # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
+  395          # handed on, every file against SHA256SUMS, and no other file.
+  396          env:
+  397            SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
+  398          run: |
+  399            set -eu
+  400            case "$SUMS_SHA256" in
+  401              "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of SHA256SUMS"; exit 1 ;;
+  402            esac
+  403            if [ "${#SUMS_SHA256}" -ne 64 ]; then
+  404              echo "the build job handed on no SHA-256 of SHA256SUMS"
+  405              exit 1
+  406            fi
+  407            if command -v sha256sum > /dev/null; then sum="sha256sum"; else sum="shasum -a 256"; fi
+  408            printf '%s  SHA256SUMS\n' "$SUMS_SHA256" > SHA256SUMS.sha256
+  409            ( cd release-assets && $sum -c ../SHA256SUMS.sha256 && $sum -c SHA256SUMS )
+  410            want=$( { awk '{print $2}' release-assets/SHA256SUMS; echo SHA256SUMS; } | LC_ALL=C sort)
+  411            have=$(cd release-assets && find . -mindepth 1 | sed 's#^\./##' | LC_ALL=C sort)
+  412            if [ "$want" != "$have" ]; then
+  413              echo "release-assets holds other files than the build job's"
+  414              exit 1
+  415            fi
+  416        - name: The rebuild jobs handed on artifact ids
+  417          env:
+  418            ARM64_SUMS_ID: ${{ needs.rebuild-linux-arm64.outputs.sums-id }}
+  419            ARM64_WHEEL_ID: ${{ needs.rebuild-linux-arm64.outputs.wheel-id }}
+  420            X86_64_SUMS_ID: ${{ needs.rebuild-linux-x86-64.outputs.sums-id }}
+  421            X86_64_WHEEL_ID: ${{ needs.rebuild-linux-x86-64.outputs.wheel-id }}
+  422          run: |
+  423            for id in "$ARM64_SUMS_ID" "$ARM64_WHEEL_ID" "$X86_64_SUMS_ID" "$X86_64_WHEEL_ID"; do
+  424              case "$id" in
+  425                "" | *[!0-9]*) echo "a rebuild job handed on no artifact id"; exit 1 ;;
+  426              esac
+  427            done
+  428        - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+  429          with:
+  430            artifact-ids: ${{ needs.rebuild-linux-arm64.outputs.sums-id }}
+  431            path: rebuilds/ubuntu-24.04-arm
+  432            digest-mismatch: error
+  433        - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+  434          with:
+  435            artifact-ids: ${{ needs.rebuild-linux-arm64.outputs.wheel-id }}
+  436            path: rebuilt-wheels/ubuntu-24.04-arm
+  437            digest-mismatch: error
+  438        - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+  439          with:
+  440            artifact-ids: ${{ needs.rebuild-linux-x86-64.outputs.sums-id }}
+  441            path: rebuilds/ubuntu-24.04
+  442            digest-mismatch: error
+  443        - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+  444          with:
+  445            artifact-ids: ${{ needs.rebuild-linux-x86-64.outputs.wheel-id }}
+  446            path: rebuilt-wheels/ubuntu-24.04
+  447            digest-mismatch: error
+  448        - name: Every rebuild's SHA256SUMS is the set's, byte for byte
+  449          run: |
+  450            mkdir set
+  451            tar -xJf release-assets/*.tar.xz -C set
+  452            sums=$(echo set/wasi-python-*/SHA256SUMS)
+  453            for runner in ubuntu-24.04-arm ubuntu-24.04; do
+  454              cmp "$sums" "rebuilds/$runner/SHA256SUMS"
+  455              echo "$runner: the same SHA256SUMS"
+  456            done
+  457            cat "$sums"
+--- lines 547,553
+  547    save-set:
+  548      name: keep the set this run built and both hosts rebuilt
+  549      # A branch run that built its set writes it to the cache under the key its
+  550      # own checkout gives, once same-bytes has matched it with both rebuilds; a later dispatch on this
+  551      # branch with the same key reuses it.
+  552      needs: [build, same-bytes]
+  553      if: needs.build.outputs.set-source == 'built' && github.ref_type == 'branch'
+--- lines 1697,1708
+ 1697    gather:
+ 1698      name: gather the shards' records
+ 1699      # One verdict from every shard's record, each downloaded by the id its job handed on and
+ 1700      # checked against the SHA-256 it handed on; tied to this commit, its judge, the build's
+ 1701      # python.wasm, the lane's acceptance and three systems. It never holds
+ 1702      # the assets: python.wasm's hash comes from the build job. It writes no history. It waits for
+ 1703      # same-bytes, so no release record exists without the proof that the set judged is the set the
+ 1704      # pins make; the build shard's record comes from build-shard, on its own fresh build.
+ 1705      # On a normal run judge-release is skipped; the gather runs beside it, and after any failed
+ 1706      # or cancelled need it does not run at all.
+ 1707      needs: [inputs, build, build-shard, same-bytes, judge-macos, judge-linux, judge-windows, judge-release]
+ 1708      if: ${{ !cancelled() && !failure() }}
+--- lines 2426,2438
+ 2426    attest:
+ 2427      name: attest the release assets
+ 2428      # Build provenance for every asset, signed through Sigstore's public-good instance and then
+ 2429      # verified strictly, before anything is published, and only once arm64 Linux and
+ 2430      # x86_64 Linux rebuilt the same bytes (same-bytes). Only a pushed tag gets here: a signature is
+ 2431      # permanent in the public transparency log, so dry runs never sign.
+ 2432      if: github.event_name == 'push' && github.ref_type == 'tag'
+ 2433      needs: [build, verify, same-bytes, gather]
+ 2434      runs-on: ubuntu-24.04
+ 2435      permissions:
+ 2436        id-token: write
+ 2437        attestations: write
+ 2438        contents: read
+--- lines 2476,2502
+ 2476        - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+ 2477          with:
+ 2478            subject-path: release-assets/*
+ 2479        - name: Verify each asset as a user will
+ 2480          env:
+ 2481            GH_TOKEN: ${{ github.token }}
+ 2482          run: |
+ 2483            for asset in release-assets/*; do
+ 2484              gh attestation verify "$asset" --repo "$GITHUB_REPOSITORY" \
+ 2485                --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml@$GITHUB_REF" \
+ 2486                --source-ref "$GITHUB_REF" --deny-self-hosted-runners
+ 2487            done
+ 2488  
+ 2489    publish:
+ 2490      name: publish the GitHub release
+ 2491      # Only a pushed tag publishes; a manual run, even started on a tag, never does.
+ 2492      if: github.event_name == 'push' && github.ref_type == 'tag'
+ 2493      needs: [build, verify, same-bytes, attest, gather]
+ 2494      runs-on: ubuntu-24.04
+ 2495      environment: release
+ 2496      permissions:
+ 2497        contents: write
+ 2498      steps:
+ 2499        - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+ 2500          with:
+ 2501            persist-credentials: false
+ 2502        - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+--- lines 2542,2563
+ 2542        - name: Create the release
+ 2543          env:
+ 2544            GH_TOKEN: ${{ github.token }}
+ 2545          run: |
+ 2546            version="${GITHUB_REF_NAME#v}"
+ 2547            uv run --no-project python release/version.py notes "$version" > notes.md
+ 2548            prerelease=""
+ 2549            case "$version" in *a*|*b*|*rc*) prerelease="--prerelease" ;; esac
+ 2550            gh release create "$GITHUB_REF_NAME" release-assets/* \
+ 2551              --title "wasi-python $version" --notes-file notes.md --verify-tag $prerelease
+ 2552  
+ 2553    pypi:
+ 2554      name: publish the wheel on PyPI
+ 2555      # Off until the owner registers this workflow as a trusted publisher on PyPI and sets the
+ 2556      # repository variable PYPI_PUBLISH to true.
+ 2557      if: github.event_name == 'push' && github.ref_type == 'tag' && vars.PYPI_PUBLISH == 'true'
+ 2558      needs: [build, publish]
+ 2559      runs-on: ubuntu-24.04
+ 2560      environment: pypi
+ 2561      permissions:
+ 2562        id-token: write
+ 2563      steps:

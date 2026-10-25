@@ -1,0 +1,9 @@
+returncode 0
+host_elapsed_s 9.7 snapshot True
+exit_code 0 trapped None
+stdout rounds 50 elapsed_guest_s 0.0
+counts [('A', 50), ('B', 50), ('C', 50), ('wrong', 0)]
+
+stderr 
+
+host-stderr 

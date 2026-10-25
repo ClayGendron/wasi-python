@@ -1,0 +1,2 @@
+artifacts= call compiled: ['other_image'] keyed under edac0e0003b42403d9fb1750aa9a1eb3
+checked call (binary on disk is genuine, digest edac0e0003b42403 ) got: ['other_image'] {'compiled': 1, 'loaded': 1, 'written': 1, 'sessions_open': 0}

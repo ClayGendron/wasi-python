@@ -1,0 +1,6 @@
+== github-pages
+{"total_count":2,"branch_policies":[{"id":63992229,"node_id":"MDE2OkdhdGVCcmFuY2hQb2xpY3k2Mzk5MjIyOQ==","name":"main","type":"branch"},{"id":63996764,"node_id":"MDE2OkdhdGVCcmFuY2hQb2xpY3k2Mzk5Njc2NA==","name":"v*","type":"tag"}]}
+== pypi
+{"total_count":1,"branch_policies":[{"id":63641749,"node_id":"MDE2OkdhdGVCcmFuY2hQb2xpY3k2MzY0MTc0OQ==","name":"v*","type":"tag"}]}
+== release
+{"total_count":1,"branch_policies":[{"id":63641751,"node_id":"MDE2OkdhdGVCcmFuY2hQb2xpY3k2MzY0MTc1MQ==","name":"v*","type":"tag"}]}

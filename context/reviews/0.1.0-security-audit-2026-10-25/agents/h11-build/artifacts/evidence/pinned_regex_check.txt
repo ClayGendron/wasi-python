@@ -1,0 +1,17 @@
+--- pinned() body under test:
+pinned() {
+  [ -s "$D/$1" ] || die "downloads/$1 is missing: run scripts/00_download.sh"
+  grep "  $1\$" "$D/SHA256SUMS" > "$B/.pin-check" || die "$1 is not pinned in downloads/SHA256SUMS"
+  (cd "$D" && shasum -a 256 -c "$B/.pin-check" > /dev/null 2>&1) || die "downloads/$1 does not match its pin"
+  rm -f "$B/.pin-check"
+  printf '%s\n' "$D/$1"
+}
+--- SHA256SUMS:
+8db418276eb0887bb8d0e14d03cb1407c7881d0be37331a5e2bc99d5161c25b5  fooXtar.gz
+--- pinned foo.tar.gz (no line for this name):
+ACCEPTED -> context/reviews/0.1.0-security-audit-2026-10-25/agents/h11-build/scratch/fixture/downloads/foo.tar.gz
+--- sha256 of the accepted file vs its non-existent pin:
+3ba96fb72d25bf12a4ea68ddde2597b2d6043bf86308dac2aadc8968b729f3c1  context/reviews/0.1.0-security-audit-2026-10-25/agents/h11-build/scratch/fixture/downloads/foo.tar.gz
+
+# command: ulimit -t 60 -f 100000 -n 256; env -i PATH=/usr/bin:/bin HOME=scratch/home TMPDIR=scratch/tmp sandbox-exec -p "(version 1)(allow default)(deny network*)" /bin/sh pinned_regex_check_script.txt <repo> scratch/fixture
+# fixture: downloads/SHA256SUMS pins only fooXtar.gz; downloads/foo.tar.gz present, unpinned. Target not read-only mounted (not enforceable on this platform); nothing written outside scratch.

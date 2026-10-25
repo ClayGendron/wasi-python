@@ -1,0 +1,6 @@
+{"check": "baseline", "exit_code": 0, "trapped": null, "stdout_tail": "ok\n", "stderr_tail": "", "last_exception_none": true, "host_functions": 9}
+{"check": "late_write_unknown_key", "returned": 5, "outputs_left": 0}
+{"mode": "late_output", "seconds": 0.3}
+
+STDERR: 
+RC: 0

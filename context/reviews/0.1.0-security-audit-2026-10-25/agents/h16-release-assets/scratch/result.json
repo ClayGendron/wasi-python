@@ -1,0 +1,66 @@
+{
+  "units": [
+    {
+      "coverage_id": "github-release%2Fv0.1.0%23assets::.github%2Fworkflows%2Frelease.yml%23same-bytes::release::SUPPLY-CHAIN-AND-RELEASE.md%23Build-to-promotion%20substitution",
+      "disposition": "covered",
+      "reviewed_paths": [
+        ".github/workflows/release.yml",
+        "release/version.py",
+        "release/licences.py",
+        "release/set_key.py",
+        "build/artifacts/SHA256SUMS",
+        "src/wasi_python/_artifacts.py",
+        "tests/harness/artifacts.py",
+        "tests/checks/test_v1_1_artifact_set.py",
+        "tests/release_shards.toml",
+        "tests/harness/gather.py",
+        "pyproject.toml",
+        "LICENSE",
+        "docs/how-to/verify-a-download.md"
+      ],
+      "checks": [
+        {
+          "agent_id": "h16-release-assets",
+          "reviewed_paths": [".github/workflows/release.yml", "docs/how-to/verify-a-download.md", "release/version.py"],
+          "invariant": "The published v0.1.0 assets are the bytes the tag run 39957192055 built and signed: each asset's SHA-256 equals the published SHA256SUMS asset and GitHub's asset digest, and each verifies against a Sigstore build-provenance attestation from release.yml at refs/tags/v0.1.0 on commit 2cd47507.",
+          "method": "local",
+          "result": "Downloaded the three assets read-only (gh release download v0.1.0 --repo ClayGendron/wasi-python). shasum -a 256: tar.xz a6a4ae70...b337, whl 3bfb0dcc...afc, SHA256SUMS 05324c2e...916; the tar.xz and whl lines equal the SHA256SUMS asset and the gh release asset digests. The documented command (gh attestation verify <asset> --repo ClayGendron/wasi_python --signer-workflow ClayGendron/wasi_python/.github/workflows/release.yml@refs/tags/v0.1.0 --source-ref refs/tags/v0.1.0 --deny-self-hosted-runners) exits 0 for all three; the one attestation's subjects are exactly the three assets with these digests; sourceRepositoryDigest 2cd47507ef7c4e04d95aca059c60368417e01d40, buildTrigger push, run 39957192055 (headSha 2cd47507, conclusion success); the annotated tag v0.1.0 points at 2cd47507. With --repo ClayGendron/wasi-python (the new name) verification fails closed, because the certificate names the pre-rename repository. Not sandboxed: gh contacts only GitHub's API for the project's own repository; nothing downloaded was executed.",
+          "artifact": "agents/h16-release-assets/artifacts/evidence/attestation-verify.txt"
+        },
+        {
+          "agent_id": "h16-release-assets",
+          "reviewed_paths": ["build/artifacts/SHA256SUMS", "src/wasi_python/_artifacts.py", "pyproject.toml"],
+          "invariant": "Every inner file of the published tarball and of the wheel's wasi_python/artifacts copy is byte-identical to the set the release acceptance judged (build/artifacts, SHA256SUMS hash 3339091f...0fa20), and the wheel's runner files are byte-identical to src/wasi_python at the tagged commit 2cd47507; no extra, missing, linked or out-of-tree member.",
+          "method": "local",
+          "result": "compare_assets.py (venv python -I, archives read in memory with tarfile/zipfile, nothing extracted or executed) found: tarball wasi-python-0.1.0/ holds 75 regular files (MANIFEST, python.wasm, python-snapshot.wasm, python-stdlib.zip, SHA256SUMS, 71 LICENSES/* incl. tqdm-4.70.1-source.whl) plus two directories, all mode 0644/0755, uid/gid 0, fixed mtime, no links; tarball differences vs build/artifacts: 0; the inner SHA256SUMS hashes to 3339091f49b6cf94aaf90d5a68c281c3f1cc3384450f3cb94b768d8274d0fa20 and lists every member; wheel artifacts differences: 0; wheel runner differences vs git show 2cd47507:src/wasi_python/*: 0; no duplicate or traversal names; RECORD matches every member. The target was not read-only mounted; the script read build/artifacts and git objects only.",
+          "artifact": "agents/h16-release-assets/artifacts/evidence/asset-comparison.txt"
+        },
+        {
+          "agent_id": "h16-release-assets",
+          "reviewed_paths": ["release/version.py", "release/licences.py", "LICENSE"],
+          "invariant": "The published tarball as a whole is the deterministic packing of the judged set by the tagged release/version.py write_assets, and the wheel's .dist-info/licenses/LICENSE is the tagged release/licences.py combined text of the tagged LICENSE and the judged set's LICENSES/*.txt.",
+          "method": "local",
+          "result": "repack_check.py, run under ulimit -t 300 -f 4000000 -n 4096, env -i (PATH, HOME, TMPDIR, WASI_PYTHON_CACHE under scratch), sandbox-exec deny network*, venv python -I, loading version.py and licences.py from git show 2cd47507 into scratch: the repacked tar.xz SHA-256 is a6a4ae7069b663981bd684c882efbdb0fe95658e17d15f38d7d8e8856418b337, byte-identical to the published asset (decompressed tar identical too), and the repacked outer SHA256SUMS equals the published one; the wheel's dist-info LICENSE (sha256 d3747dd1...fbd, 773906 bytes) equals combined(tagged LICENSE, build/artifacts) exactly, 70 .txt parts. Outputs written only under scratch and deleted. The target was not read-only mounted.",
+          "artifact": "agents/h16-release-assets/artifacts/evidence/repack-check.log"
+        },
+        {
+          "agent_id": "h16-release-assets",
+          "reviewed_paths": [".github/workflows/release.yml", "release/set_key.py", "release/version.py", "release/licences.py", "src/wasi_python/_artifacts.py", "tests/harness/artifacts.py", "tests/checks/test_v1_1_artifact_set.py", "tests/release_shards.toml", "tests/harness/gather.py"],
+          "invariant": "On a tag run no inner file of a published asset (LICENSES/* in particular) can differ from the set both Linux hosts rebuilt and the judges judged without failing a gate that attest and publish need.",
+          "method": "source",
+          "result": "Gate map (gate-map.txt): build job release.yml:163-172 set_key verify hashes every file of build/artifacts against its SHA256SUMS before release.yml:197-198 version.py assets packs exactly the listed files (version.py:155-201); every consumer re-binds the two outer assets by artifact id, digest-mismatch error, the handed-on SHA256SUMS hash and sha256sum -c. same-bytes (release.yml:448-456) compares only the tarball's inner SHA256SUMS with each rebuild's; its wheel step (458-488) sha256sum --strict -c's the wheel's artifacts copy (all 75 listed files incl. LICENSES/*) against that inner list and cmp's the whole wheel with both rebuilt wheels. The runner's _found_and_checked (_artifacts.py:181-218) binds only MANIFEST, the run binary and the zip. But every judge leg extracts the tarball and points WASI_PYTHON_ARTIFACTS at it (release.yml:704-709), and the goal check test_sha256sums_match_the_files (tests/checks/test_v1_1_artifact_set.py:31-33, tests/harness/artifacts.py:38-54) hashes every extracted member, no unlisted or missing file, in shard own-guest on macOS, Linux and Windows (tests/release_shards.toml:88-94); gather G4 is red on any failed check and G2 holds every record's set_sums to the build's (gather.py:179-193, 260-272); gather is in attest's and publish's needs (release.yml:2426-2433, 2489-2493). So a LICENSES/* difference in the tarball fails the gather before signing and publishing; one in the wheel fails same-bytes. No lower-trust writer exists between the build job's verify and its packing (the steps between run the tagged commit's own code). The invariant holds by source, and the observed v0.1.0 assets match.",
+          "artifact": null
+        }
+      ],
+      "candidate_fingerprints": [],
+      "unresolved": []
+    }
+  ],
+  "candidates": [],
+  "hardening": [
+    "release.yml same-bytes (448-456) unpacks the tarball but never runs sha256sum --strict -c on its members, and save-set's set_key verify of the unpacked tarball runs only on branch runs (553); the post-packing binding of the tarball's LICENSES/* (and of the binary a leg does not run) rests on the judge goal check test_sha256sums_match_the_files and gather G4, not on a workflow step. Adding '( cd set/wasi-python-* && sha256sum --strict -c SHA256SUMS )' plus a listed==present comparison to the same-bytes step would bind every inner member in the workflow itself, independent of the judge's shard plan.",
+    "The v0.1.0 attestation's certificate names the pre-rename repository ClayGendron/wasi_python; 'gh attestation verify --repo ClayGendron/wasi-python' (the current name) fails closed, while the documented command with the old name (release notes, docs/how-to/verify-a-download.md:20) passes. Consider documenting that the old name is the one the v0.1.0 signature carries, and updating release/version.py verify_note for future tags if the workflow identity follows the rename.",
+    "The build job's wheel step copies build/artifacts into the package (release.yml:176) before the tarball is packed from build/artifacts (198), and the zero-patch pytest step runs in between; neither copy is re-verified against the set's SHA256SUMS in the build job after those steps. The judge check and same-bytes S2 catch a divergence today; re-running release/set_key.py verify build/artifacts immediately before 'Release assets' would make the producer's own handoff tight."
+  ],
+  "uncovered": []
+}

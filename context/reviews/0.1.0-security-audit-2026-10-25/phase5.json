@@ -1,0 +1,42 @@
+[
+  {
+    "verifier": "r02-cache-swap",
+    "fingerprint": "src/wasi_python/_engines.py:_load:cwasm-checked-by-lstat-opened-by-path",
+    "decision": "replace",
+    "material": false,
+    "reason": "Non-material corrections; verdict, fingerprint, root cause, trace, observed results and validation plan unchanged. Source lines re-checked and accurate (_engines.py 85/178/217/222/228/233/237, _platform.py 534/545/556-577/564/1091, runner.py 115/130, _call.py 146). Blocker 1 said the machine offers one OS user; dscl lists a second account (uid 502), so the blocker is restated as no credentials, no non-interactive root, and the boundary forbids acting as another real account; it stays decisive. Blocker 2: sudo -V as non-root prints only versions and /etc/sudoers is 0440 root, so HOME-keeping is not answerable locally, and would not settle the deployment fact anyway. The install.md evidence is in the Windows paragraph, now said so. Added _places.py:297 evidence and one description sentence: guest grants above the cache are refused, so the lower-trust principal must be another OS user. Kept needs_validation rather than confirmed: with one user the swapper already owns the cache, so no boundary is crossed; the identity gap is demonstrated but a security result needs a distinct lower-trust owner of an ancestor, which was not demonstrated."
+  },
+  {
+    "verifier": "r03-class-partial",
+    "fingerprint": "src/wasi_python/tools.py:_bound_keywords:class-construction-partial-unfixed",
+    "decision": "verified"
+  },
+  {
+    "verifier": "r01-sysconfigdata",
+    "fingerprint": "runner-env.sysconfig-PYTHON-SYSCONFIGDATA-PATH.loads-code-outside-import-path-rules",
+    "decision": "verified"
+  },
+  {
+    "verifier": "r04-eh-fuel",
+    "fingerprint": "wasmtime-49.0.0:GHSA-m63x-6p34-q65x:try_table-catch-fuel:src/wasi_python/_engines.py:_engine",
+    "decision": "replace",
+    "material": true,
+    "applied": false,
+    "note": "promotion to confirmed; sent to fresh verifier v05"
+  },
+  {
+    "verifier": "v05-eh-fuel-recheck",
+    "fingerprint": "wasmtime-49.0.0:GHSA-m63x-6p34-q65x:try_table-catch-fuel:src/wasi_python/_engines.py:_engine",
+    "decision": "replace",
+    "material": true,
+    "applied": true,
+    "reason": "Result reproduced independently; the record stands in substance and keeps confirmed, with four corrections. (1) The trace's entrypoint was a build-script line, not a lower-trust entrypoint: it is now wasi_python.run (src/wasi_python/runner.py:115), and scripts/steps/55_matplotlib.sh:102 becomes a propagation step. (2) The cap test's no-throw control (weak add/remove) does about 40x more wall time per call than the failing call (2.29 ms against 58 us at N=2000), so its trap alone did not show equal work runs out of fuel; a same-shape control (add and remove a consistent required equality on the same chain end) is added: 140,067 fuel per call at N=200 at the same 9.6 us wall as the failing call, 1,552,404 at N=2000, and it traps under the 2.2e9 cap. (3) The per-call fuel range widens to about 17,000 to 19,600 to cover the re-run, and the observed result carries both runs. (4) Wording: the '100x' is labelled a wall-time estimate, 'exponential' is attributed to the advisory and not claimed for the guest path, the sjlj extension is marked not demonstrated, run()'s fuel docstring is added as evidence, and the remediation's check is fuel-only and enters as a known gap. Severity (low/medium/low), conditions and fingerprint unchanged. Evidence: v05-eh-fuel-recheck/scratch/evidence/guest_kiwi.py, host_kiwi.py, kiwi_runs.log, wat_py.py, eh_fuel_wat.txt, wat_runs.log, sandbox_wrapper.py."
+  },
+  {
+    "verifier": "r05-eh-fuel-final",
+    "fingerprint": "wasmtime-49.0.0:GHSA-m63x-6p34-q65x:try_table-catch-fuel:src/wasi_python/_engines.py:_engine",
+    "decision": "replace",
+    "material": false,
+    "reason": "Non-material corrections only; verdict, root cause, trace locations, payloads, observed result, impact and severity are unchanged. Every cited path and line (runner.py:115/176, 55_matplotlib.sh:50/102, 60_link.sh:129, uv.lock:1049, _engines.py:122-123, _call.py:511/554/618, pyproject.toml:18, SECURITY.md:18/24, the advisory JSON with range '>= 47.0.0, < 48.0.3, 49.0.0') matches the current tree, kiwisolver 1.5.1 py/src/solver.cpp:52-64 catches kiwi::UnsatisfiableConstraint thrown at kiwi/solverimpl.h:107/118, .venv has wasmtime 49.0.0, and every per-call figure in observed_result recomputes exactly from the second verifier's kiwi_runs.log and wat_runs.log. Three wording fixes: (1) the description's '9 to 15 billion fuel per second' for 'no-throw C++ and pure-Python work' leaves out the weak add/remove loop, which the logs put at about 21 to 29 billion per second, so it now names the two controls it holds for and gives the weak figure (the ~100x under-count estimate stands as a lower bound); (2) trace step 2 said 'the other cross files' set the same flags, but wasi-statsmodels.cross has no -fwasm-exceptions, so it now names the five that do; (3) execution step 3 omitted the 200:500:weak and 2000:500:weak runs whose results observed_result reports, so they are added."
+  }
+]

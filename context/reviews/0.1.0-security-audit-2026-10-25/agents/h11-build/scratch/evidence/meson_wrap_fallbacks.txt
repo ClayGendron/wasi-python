@@ -1,0 +1,75 @@
+# Meson wrap fallbacks in the local build tree (read-only inspection of build/, produced by an earlier owner build; nothing run)
+## wrap_mode each meson build folder was configured with (meson-info/intro-buildoptions.json)
+numpy-build ['default']
+pandas-build ['default']
+scipy-build ['default']
+sklearn-build ['default']
+statsmodels-build ['default']
+matplotlib-build ['default']
+contourpy-build ['default']
+freetype-build ['default']
+harfbuzz-build ['nofallback']
+sheenbidi-build ['default']
+libraqm-build ['default']
+## libraqm-0.10.5/subprojects/sheenbidi.wrap (from the pinned libraqm tarball)
+[wrap-git]
+directory=sheenbidi
+url=https://github.com/Tehreer/SheenBidi.git
+revision=master
+## libraqm-0.10.5/meson.build lines 74-87
+fribidi = dependency('', required: false)
+sheenbidi = dependency('', required: false)
+if get_option('sheenbidi')
+    sheenbidi = dependency(
+        'sheenbidi',
+        fallback: ['sheenbidi', 'sheenbidi_dep'],
+    )
+    if sheenbidi.version().version_compare('>= 2.9')
+        sheenbidi = declare_dependency(
+            compile_args: ['-DRAQM_SHEENBIDI_GT_2_9'],
+            dependencies: sheenbidi
+        )
+    endif
+else
+## libraqm-build meson-log: how each dependency resolved
+252:Run-time dependency freetype2 found: YES 26.6.20
+294:Run-time dependency harfbuzz found: YES 14.1.0
+329:Run-time dependency sheenbidi found: YES 3.0.0
+## plot-libs pkgconfig (step 37 output)
+freetype2.pc
+harfbuzz.pc
+qhull_r.pc
+raqm.pc
+sheenbidi.pc
+## libraqm-0.10.5/subprojects contents now (no fetched subproject)
+total 32
+drwxr-xr-x@  6 claygendron  staff  192 Apr 10  2026 .
+drwxr-xr-x@ 15 claygendron  staff  480 Apr 10  2026 ..
+-rw-r--r--@  1 claygendron  staff  453 Apr 10  2026 freetype2.wrap
+-rw-r--r--@  1 claygendron  staff  432 Apr 10  2026 fribidi.wrap
+-rw-r--r--@  1 claygendron  staff  506 Apr 10  2026 harfbuzz.wrap
+-rw-r--r--@  1 claygendron  staff   92 Apr 10  2026 sheenbidi.wrap
+## harfbuzz-14.1.0/meson.build project default
+project('harfbuzz', ['c', 'cpp'],
+  meson_version: '>= 0.60.0',
+  version: '14.1.0',
+  default_options: [
+    'cpp_eh=none',          # Just to support msvc, we are passing -fno-exceptions also anyway
+    # 'cpp_rtti=false',     # Do NOT enable, wraps inherit it and ICU needs RTTI
+    'cpp_std=c++11',
+    'wrap_mode=nofallback', # Use --wrap-mode=default to revert, https://github.com/harfbuzz/harfbuzz/pull/2548
+    'buildtype=debugoptimized',
+    'b_ndebug=if-release',  # Disable asserts in release builds
+  ],
+)
+## grep for wrap-mode in scripts/ and recipes/
+(none)
+## tests/harness/pins.py docstring
+"""The source trees are their tarballs plus the recorded patches, mechanically.
+
+A source tree under `build/` matches its pinned tarball when every file the tarball holds is
+present and byte-identical in the tree (symlinks: same target). A tree with carried patches under
+`recipes/patches/<top>/` must instead equal its tarball with exactly those applied, by the same
+`scripts/steps/apply_patches.sh` the build runs; a path a patch deletes must be absent. Files the
+build adds are not judged.
+"""

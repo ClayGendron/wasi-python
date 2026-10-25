@@ -1,0 +1,102 @@
+{
+  "units": [
+    {
+      "coverage_id": "src%2Fwasi_python%2F_fs_memory.py%23SIGNATURES::src%2Fwasi_python%2F_fs_memory.py%23bounds::src%2Fwasi_python::MEMORY-SAFETY-AND-BINARY.md%23Out-of-bounds%20read%20or%20write",
+      "disposition": "covered",
+      "reviewed_paths": [
+        "src/wasi_python/_fs_memory.py",
+        "src/wasi_python/_fs_descriptors.py",
+        "src/wasi_python/_fs_paths.py",
+        "src/wasi_python/_fs_table.py",
+        "src/wasi_python/_wasmtime_ffi.py",
+        "src/wasi_python/_call.py",
+        "tests/harness/files.py"
+      ],
+      "checks": [
+        {
+          "agent_id": "h02-fs-memory",
+          "reviewed_paths": ["src/wasi_python/_fs_memory.py"],
+          "invariant": "Every guest pointer and length is taken as unsigned 32-bit and checked against the memory's byte size before a byte is read or written (_Memory.fits/_path/_iovecs/_result), with struct layouts matching preview1 and padding zeroed",
+          "method": "source",
+          "result": "Pointers and lengths are masked with MASK32 before use (_path, _iovecs, _result, every write site), so wasmtime-py's signed i32 never reaches Memory.read/write as a negative (wrap-to-end) index. fits() is ptr+length <= size in Python ints, so no 32-bit wrap. _iovecs bounds the count (<=1024) before 8*count, checks the array and every buffer. _Memory.size is taken at entry; linear memory cannot shrink, so a stale size only under-approximates. FILESTAT '<QQB7xQQQQQ' (64), FDSTAT '<BxH4xQQ' (24) and DIRENT '<QQIB3x' (24) match preview1 offsets, with struct-packed zero padding. Alignment checks (8 for filestat/fdstat/filesize, 4 for counts, fds and iovec arrays) end the run as wiggle does. wasmtime-py's own Memory.read clamps and Memory.write raises IndexError, a second layer under every runner access.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h02-fs-memory",
+          "reviewed_paths": ["src/wasi_python/_fs_descriptors.py", "src/wasi_python/_fs_table.py"],
+          "invariant": "Descriptor calls served from a mount buffer (fd_read/pread/write/pwrite/seek/tell/readdir/filestat/fdstat/set_size) never write outside the checked result region and never grow a buffer past the staging bound from guest-chosen offsets",
+          "method": "source",
+          "result": "_reads/_writes check the iovecs and the count pointer before acting; offsets are masked to u64 and positions at or past 2**63 answer EINVAL; growth goes through _fits(entry, at+size) against the staging bound before _grow allocates. fd_seek bounds the target to [0, 2**64-1]. Mount fd_readdir checks buf+length and used, indexes offsets only when cookie < len(offsets), and writes at most `length` bytes. Listings are built by the runner with zero padding (_list_answer, _dots). No provider call sits between a check and the write except in path_open/readdir, where only growth (never shrink) of guest memory is possible.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h02-fs-memory",
+          "reviewed_paths": ["src/wasi_python/_fs_descriptors.py"],
+          "invariant": "The guard's forwarded fd_readdir (_zeroed) zeroes every entry's three padding bytes on every 0-answer listing and never reads or writes guest memory or its own page out of bounds, including when the guest's `used` pointer lies over the listing",
+          "method": "source",
+          "result": "In wasmtime 49 fd_readdir gathers every entry before writing, then writes entry by entry; the only failure after a partial write is an out-of-bounds or overflow GuestError, which wiggle turns into a trap, never an errno. So an errno-0 answer means the whole listing and the count were written. _zeroed then reads the count at `used`, which wasmtime wrote last, checks buf+count, and walks only inside [0,count) with headers cut short handled. On overlap it re-lists on the stat trampoline's own page with length clamped to memory.size - max(buf,8), so the page never outgrows the guest memory; it checks buf+again before writing and zero-fills the tail of the first listing. Every forwarded argument it computes is below 2**32.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h02-fs-memory",
+          "reviewed_paths": ["src/wasi_python/_fs_paths.py"],
+          "invariant": "Path calls read path bytes only after bounds and MAX_PATH checks; the rename guard forwards the same guest pointers with trimmed lengths, so wasmtime re-reads exactly the bytes judged, and the stat probe stays on the guard's private page",
+          "method": "source",
+          "result": "_path checks fits before ENAMETOOLONG and reads at most MAX_PATH bytes. _rename checks fits on both spans before reading the last byte (only when length >= 1). It re-reads through _path, trims with _plain, and forwards (old, len(source), new, len(target)). The guest has one thread and no host step runs guest code between the guard's read and wasmtime's, so the judged and renamed bytes are the same. _source_type writes the source at STAT_PATH on the private page after checking STAT_PATH+len <= page size (MAX_PATH+64 < 64 KiB), and reads byte 16 only on success. The path_open forward reads the new fd at `out` without its own fits check. That is safe: errno 0 means wiggle wrote `out`; an out-of-bounds `out` traps first.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h02-fs-memory",
+          "reviewed_paths": ["src/wasi_python/_wasmtime_ffi.py", "src/wasi_python/_fs_table.py", "src/wasi_python/_call.py"],
+          "invariant": "ffi.PreparedCall and the trampolines pass each value with its declared wasm type and arity, reuse argument arrays only without re-entrancy, free traps and errors once, and forward only to wasmtime's own WASI (never back into a shadow)",
+          "method": "source",
+          "result": "kinds come from SIGNATURES; zip(strict=True) ties args to kinds and nargs=len(args) equals the array length. The checked wasmtime_func_call verifies types. Trap/WasmtimeError._from_ptr each own their pointer, and a fresh trap out-pointer is made per call. The trampolines import from the runner linker (_linker/_runner_linker: define_wasi plus poll_oneoff and the door), not the mount or guard linker. So a forward cannot re-enter a file shadow, and the PreparedCall arrays are never used re-entrantly; the only Python reached during a forward is the stdout/stderr and epoch callbacks, which do not forward. Slots are per table and bound per store; the shared function refuses a caller whose context is not the call's. The i32 union fields truncate silently, but every computed forward argument (trimmed lengths, clamped readdir length, page offsets) is below 2**32 by construction, and every other argument is the raw i32 or i64 wasmtime-py handed in.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h02-fs-memory",
+          "reviewed_paths": ["src/wasi_python/_fs_descriptors.py", "src/wasi_python/_fs_paths.py", "src/wasi_python/_fs_memory.py", "tests/harness/files.py"],
+          "invariant": "Bounded run: crafted 32-bit pointers, lengths, iovecs, cookies and offsets against the runner's mount linker (mount provider) answer EFAULT/EINVAL/ENAMETOOLONG/EFBIG or end the run on misalignment, and change no guest byte outside the call's result region",
+          "method": "local",
+          "result": "62 mount-linker cases plus guard cases, guest memory pre-filled with 0xAA, on wasmtime-py 49.0.0, darwin-arm64. Cases: fd_fdstat_get/fd_filestat_get at end-23/end-63, 0xFFFFFFF8 and 0x80000000; an iovec buf=0xFFFFFFF0 len=0x20 (wraps 2**32); a second iovec out of bounds; the iovec array at end-4; count 0x7FFFFFFF and -1; nread at end-2 and 0xFFFFFFFC; path ptr 0xFFFFFFFF, len -1 and 0x7FFFFFFF; readdir buf at end-10 with len 20 and len 0x7FFFFFFF; used at end-3; cookies 2**63, -1 and 10**6; seek to 2**64-2 then read and write; pwrite at 2**63-8; set_size -1. Every case answered an errno (21/28/37/22) or 'Pointer not aligned to 4', with changed_outside == 0 in every case. Exact-fit cases (end-24, end-64, buf end-4 len 4, a path ending at the memory end) succeeded inside their region. The target was not read-only mounted.",
+          "artifact": "agents/h02-fs-memory/artifacts/evidence/check_bounds.json"
+        },
+        {
+          "agent_id": "h02-fs-memory",
+          "reviewed_paths": ["src/wasi_python/_fs_descriptors.py", "src/wasi_python/_fs_paths.py", "tests/harness/files.py"],
+          "invariant": "Bounded run: the guard linker's forwarded fd_readdir and path_rename with crafted buffers (used over the listing, buffer crossing memory end, slash paths at memory end, 5004-byte slash path) stay in bounds and leave no listing differing from a clean one outside the count",
+          "method": "local",
+          "result": "Guard fd_readdir: plain, end-300, used over the first and second headers, mid-listing, and a 2-byte overlap before buf all answered 0. Each overlapped listing equals the clean listing outside the 4 count bytes. All padding read 000000, and the sentinel after `used` bytes was intact. A listing crossing the memory end, and used at end-2, end the run with 'Pointer out of bounds'; nothing changed outside the buffer. path_rename: 'x/' ending at the memory end answered ENOENT; ptr 0xFFFFFFFF was forwarded and trapped; a 5004-byte slash path answered ENAMETOOLONG; 'f1.txt/' answered ENOTDIR. path_open with out at end-2 trapped and held no number. On this host plain wasmtime 49.0.0 also wrote zero padding in these runs, so the run shows bounds and structure, not the leak itself.",
+          "artifact": "agents/h02-fs-memory/artifacts/evidence/check_overlap.json"
+        }
+      ],
+      "candidate_fingerprints": [],
+      "unresolved": []
+    }
+  ],
+  "candidates": [],
+  "hardening": [
+    "The trap path of the forwarded fd_readdir is left unzeroed. When a guest buffer crosses the end of memory, or `used` is out of bounds, wasmtime 49.0.0 writes whole entries (their padding from uninitialized host memory) and then traps. The guard runs only on errno 0, so nothing zeroes those entries. _shared then records the stop and returns EIO. The guest stops at its next function entry or loop header, so python.wasm cannot read the bytes. A hand-written wasm guest could read and fd_write them in straight-line code before that check: wasmtime's own fd_write is not shadowed and does not consult call.stopped. A crafted guest is outside the project's stated threat model, and the padding read zero on this host. Optional fix: zero [buf, buf+min(length, memory.size-buf)) in _fd_readdir when the forward raises, before re-raising.",
+    "_zeroed grows the stat trampoline's private page up to the guest memory's size. The store limiter's memory_size applies to each linear memory, so this second memory is bounded by memory_bytes on its own, not jointly with the guest's. Pages are reserved lazily and only the listing's bytes are touched, so resident growth equals the listing, which wasmtime already holds on the host. Joint accounting would make memory_bytes a whole-store bound.",
+    "PreparedCall.call assigns into ctypes c_int32/c_int64 union fields, which truncate out-of-range Python ints silently. Every computed forward argument is below 2**32 today. An explicit range assertion in PreparedCall.call would turn a future unit slip (a 64-bit length forwarded as i32) into an error instead of a wrapped pointer.",
+    "The path_open forward reads the new number at `out` without a fits check. It relies on wiggle having written `out` on errno 0, and wasmtime-py's clamping read would raise struct.error, a stop, otherwise. A fits check would make the invariant local."
+  ],
+  "uncovered": [
+    {
+      "surface": "The runner's own poll_oneoff shadow: subscription array, event array and nevents pointers read from and written to guest memory",
+      "boundary": "Bounds checks in _poll_oneoff (in_ptr+48n, out_ptr+32n, nevents_ptr+4 against data_len) and the EVENT/SUBSCRIPTION struct formats",
+      "subsystem": "src/wasi_python",
+      "attack_class": "MEMORY-SAFETY-AND-BINARY.md#Out-of-bounds read or write",
+      "starting_paths": ["src/wasi_python/_call.py"],
+      "reason": "A guest-memory reader and writer that is not one of the 29 shadowed calls or the 5 guard shadows, and no assigned unit names it. A glance showed masked pointers and checks before reading, but no unit owns its alignment, struct layout or wait-slicing review."
+    },
+    {
+      "surface": "The stdout/stderr custom-output ctypes callback (_write_output) that copies host-side bytes with ctypes.string_at(data, size) into capped buffers",
+      "boundary": "The pointer/size contract between wasmtime's custom output stream and the runner's ctypes callback, and the key lifetime against OUTPUT_FREE",
+      "subsystem": "src/wasi_python",
+      "attack_class": "MEMORY-SAFETY-AND-BINARY.md#Pointer-length and ownership contract mismatch",
+      "starting_paths": ["src/wasi_python/_call.py", "src/wasi_python/_wasmtime_ffi.py"],
+      "reason": "A raw-pointer FFI boundary reached by every guest write to stdout and stderr, called on wasmtime's threads. It is outside the file-call shadows and the door, and no assigned unit names it."
+    }
+  ]
+}

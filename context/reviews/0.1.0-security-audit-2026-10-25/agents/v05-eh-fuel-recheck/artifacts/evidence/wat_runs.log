@@ -1,0 +1,11 @@
+{"wasmtime_py": "49.0.0", "func": "returned", "r": 1, "n": 100000, "fuel_used": 800013}
+{"wasmtime_py": "49.0.0", "func": "returned", "r": 100, "n": 100000, "fuel_used": 80001201}
+{"wasmtime_py": "49.0.0", "func": "thrown", "r": 1, "n": 100000, "fuel_used": 12}
+{"wasmtime_py": "49.0.0", "func": "thrown", "r": 100, "n": 100000, "fuel_used": 1101}
+rc 0
+fuel=1101 ->     1:     0x75 - <unknown>!<wasm function 2>
+    2: wasm trap: all fuel consumed by WebAssembly
+fuel=80001284 ->     1:     0x75 - <unknown>!<wasm function 2>
+    2: wasm trap: all fuel consumed by WebAssembly
+fuel=80001285 -> wasmtime 49.0.3 (f96eabaa1 2026-10-14)
+warning: using `--invoke` with a function that takes arguments is experimental and may break in the future

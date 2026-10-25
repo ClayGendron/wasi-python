@@ -1,0 +1,98 @@
+[
+ {
+  "case": "warm",
+  "wall_s": 10.943,
+  "exit": 0,
+  "trapped": null,
+  "stdout_len": 0,
+  "truncated": [],
+  "stderr_tail": ""
+ },
+ {
+  "case": "sleep5_deadline0.3",
+  "wall_s": 0.331,
+  "exit": null,
+  "trapped": "deadline",
+  "stdout_len": 0,
+  "truncated": [],
+  "stderr_tail": ""
+ },
+ {
+  "case": "select5_deadline0.3",
+  "wall_s": 0.331,
+  "exit": null,
+  "trapped": "deadline",
+  "stdout_len": 0,
+  "truncated": [],
+  "stderr_tail": ""
+ },
+ {
+  "case": "busy_deadline0.3",
+  "wall_s": 0.32,
+  "exit": null,
+  "trapped": "deadline",
+  "stdout_len": 0,
+  "truncated": [],
+  "stderr_tail": ""
+ },
+ {
+  "case": "sleep_loop_deadline0.3",
+  "wall_s": 0.319,
+  "exit": null,
+  "trapped": "deadline",
+  "stdout_len": 0,
+  "truncated": [],
+  "stderr_tail": ""
+ },
+ {
+  "case": "raw_host_blocks1.5_deadline0.3",
+  "wall_s": 1.52,
+  "exit": null,
+  "trapped": "deadline",
+  "stdout_len": 0,
+  "truncated": [],
+  "stderr_tail": ""
+ },
+ {
+  "case": "write_8MiBx50_cap1MiB",
+  "wall_s": 1.927,
+  "exit": 0,
+  "trapped": null,
+  "stdout_len": 1048576,
+  "truncated": [
+   "stdout"
+  ],
+  "stderr_tail": ""
+ },
+ {
+  "case": "single_write_16MiB",
+  "wall_s": 0.085,
+  "exit": 0,
+  "trapped": null,
+  "stdout_len": 1048576,
+  "truncated": [
+   "stdout"
+  ],
+  "stderr_tail": "16777216\n"
+ },
+ {
+  "case": "single_write_64MiB",
+  "wall_s": 0.304,
+  "exit": 0,
+  "trapped": null,
+  "stdout_len": 1048576,
+  "truncated": [
+   "stdout"
+  ],
+  "stderr_tail": "67108864\n"
+ },
+ {
+  "case": "single_write_128MiB",
+  "wall_s": 0.083,
+  "exit": 1,
+  "trapped": null,
+  "stdout_len": 0,
+  "truncated": [],
+  "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 3, in <module>\n    print(os.write(1,b), file=__import__('sys').stderr)\n          ~~~~~~~~^^^^^\nOSError: [Errno 48] Out of memory\n"
+ }
+]
