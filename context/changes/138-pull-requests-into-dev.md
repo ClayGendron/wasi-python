@@ -26,7 +26,7 @@ changed = [
   "tests/checks/test_rules.py::test_one_required_check_holds_every_job",
   "tests/checks/test_rules.py::test_every_job_checks_out_the_head_commit",
 ]
-units = 174
+units = 170
 
 [claim.judge]
 "tests/checks/test_rules.py" = "four new rules: the news files' shape, the accept jobs, the accept push's own script, the weekly run"
