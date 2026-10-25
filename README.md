@@ -288,7 +288,7 @@ There are no processes, no network and no `pip` inside the guest. [Limitations](
 
 # Hosts
 
-The binaries use WebAssembly's exception-handling proposal, so a host must support it. This project runs wasmtime 49 itself. The rest of this list is read from each runtime's release notes and source, not run here.
+The binaries use WebAssembly's exception-handling proposal, so a host must support it. This project runs wasmtime 50 itself. The rest of this list is read from each runtime's release notes and source, not run here.
 
 - **Runs by default:** wasmtime 47 or later (CLI, Rust, wasmtime-py); WasmEdge 0.16 or later.
 - **Runs with a switch:** wasmer 6 or later on LLVM or V8, or 7 or later on Cranelift (not Singlepass); wazero 1.12 or later; Node 24.15 or later.

@@ -29,7 +29,7 @@ The wheel carries the whole *artifact set*: the files that make up the runtime.
 | `python-stdlib.zip` | the standard library and the pure-Python packages |
 | `MANIFEST` and `SHA256SUMS` | every pinned source and recipe hash, and the files' checksums |
 
-Installing the package also installs wasmtime-py (`wasmtime>=49,<50`). wasmtime-py is the WebAssembly runtime that runs the guest. The *guest* is the Python program that runs inside the sandbox; the *host* is your own Python process.
+Installing the package also installs wasmtime-py (`wasmtime>=50,<51`). wasmtime-py is the WebAssembly runtime that runs the guest. The *guest* is the Python program that runs inside the sandbox; the *host* is your own Python process.
 
 You can still write `pip install "wasi-python[run]"`. The `run` extra is empty and is kept so that older instructions keep working.
 

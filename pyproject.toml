@@ -14,8 +14,8 @@ classifiers = [
     "Topic :: Software Development :: Interpreters",
 ]
 # wasmtime-py runs the guest: `run()` and the `wasi-python` command cannot work without it, so
-# `pip install wasi-python` brings it (spec 028). The runner is tested on 49 only (spec 004).
-dependencies = ["wasmtime>=49,<50"]
+# `pip install wasi-python` brings it (spec 028). The runner is tested on 50 only (spec 004).
+dependencies = ["wasmtime>=50,<51"]
 
 [project.scripts]
 # Run one program and print its result as JSON (spec 019).

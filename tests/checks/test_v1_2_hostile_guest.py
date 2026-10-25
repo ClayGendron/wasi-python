@@ -1717,10 +1717,11 @@ def test_mount_descriptors_are_bounded(guest_workdir, snapshot) -> None:
     assert list(scratch.iterdir()) == []
 
 
-# The sandbox holds on wasmtime 49.0.0. wasmtime 49.0.0's path_rename puts a source's
-# trailing slash back before renameat, and on a kernel that follows a symbolic link named with a
-# trailing slash there (macOS, FreeBSD) a guest with a writable place moves a folder from outside
-# its sandbox in (GHSA-m9f7-9w4p-gv38, fixed in wasmtime 49.0.3). The runner carries 49.0.3's rule.
+# A rename named with a trailing slash. On a kernel that follows a symbolic link named with a
+# trailing slash in rename (macOS, FreeBSD), an engine that passed the slash on would let a guest
+# with a writable place move a folder from outside its sandbox in. wasmtime's own path_rename
+# needs a folder source when either path ends in a slash, judged without following the source's
+# own link; these two checks run the attack and the rule against the installed engine.
 
 ESCAPE_GUEST = r"""
 import errno, json, os, sys
@@ -1819,7 +1820,7 @@ def mv(a, b):
     except OSError as e:
         return errno.errorcode.get(e.errno, str(e.errno))
 out = {}
-long = "./" * 2100 + "s/"  # 4,202 bytes, past the 4,096 a slash-named source is read to
+long = "./" * 2100 + "s/"  # 4,202 bytes, past every host's longest path, naming the link s
 for a, b in [("f/", "x"), ("s/", "x"), ("missing/", "x"), ("f", "x/"), ("s", "x/"), (long, "x")]:
     out[("./.../s/" if a == long else a) + " -> " + b] = mv(a, b)
 out["in place"] = [
@@ -1839,9 +1840,10 @@ def test_a_trailing_slash_rename_rule(tmp_path) -> None:
     """Guards a change, on every host: in a writable grant with a folder
     `d`, a file `f` and a link `s` to `d`, a trailing slash on either path of a rename needs a
     source that is a folder, judged without following the source's own link. A slash-named
-    file or link, as source or as target, is refused with ENOTDIR; a missing one answers its
-    stat's ENOENT; an over-long slash-named source is refused unread (ENAMETOOLONG) and never
-    passed on; `d` and `s` stay in place; a folder renames with or without slashes."""
+    file or link, as source or as target, is refused with ENOTDIR; a missing one answers
+    ENOENT; an over-long slash-named source that names the link through `./` parts is refused
+    with ENOTDIR as the short one is, since wasmtime walks the path itself and drops each `.`;
+    `d` and `s` stay in place; a folder renames with or without slashes."""
     run = _run()
     from wasi_python import Grant
 
@@ -1863,7 +1865,7 @@ def test_a_trailing_slash_rename_rule(tmp_path) -> None:
         "missing/ -> x": "ENOENT",
         "f -> x/": "ENOTDIR",
         "s -> x/": "ENOTDIR",
-        "./.../s/ -> x": "ENAMETOOLONG",
+        "./.../s/ -> x": "ENOTDIR",
         "in place": [True, True, True, False],
         "d/ -> d2": "ok",
         "d2 -> d": "ok",

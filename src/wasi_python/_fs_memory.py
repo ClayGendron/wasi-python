@@ -1,6 +1,6 @@
 """The preview1 ABI as bytes: the calls a call's table shadows and their raw parameters, the
-numbers wasi-libc and wasmtime agree on (errnos, flags, rights, limits, struct formats), the two
-trampolines' WAT, the argument checks wasmtime's ABI makes, and the readers of the guest's memory,
+numbers wasi-libc and wasmtime agree on (errnos, flags, rights, limits, struct formats), the
+trampoline's WAT, the argument checks wasmtime's ABI makes, and the readers of the guest's memory,
 each of which checks a pointer and a length before a byte is read.
 
 wasmtime-py is imported only inside functions, so the package imports without the `run` extra.
@@ -62,27 +62,10 @@ FORWARD_SAFE = (
     "poll_oneoff",
 )
 
-# The guard. wasmtime 49.0.0 carries two advisories that reach a guest, and no
-# wasmtime-py on PyPI carries a wasmtime with their fixes yet:
-# - GHSA-96f6-r43r-8c24 (fixed in wasmtime 49.0.2): fd_readdir copies up to three bytes of
-#   uninitialized host memory into each entry's padding. A forwarded listing is zeroed there.
-# - GHSA-m9f7-9w4p-gv38 (fixed in wasmtime 49.0.3): path_rename puts a source's trailing slash
-#   back before renameat, and macOS and FreeBSD then follow a symbolic link out of the sandbox.
-#   A forwarded rename with a trailing slash on either path needs a source that is a folder,
-#   judged without following its own link, and is forwarded by the plain names.
-# A call without mounts shadows these two and the three in `COUNTED`; a call with mounts forwards
-# them the same way.
-# Each guard goes when the published floor admits only patched versions (tests/checks/
-# test_rules.py, test_the_rename_and_readdir_guard_match_the_floor).
-GUARDED = ("fd_readdir", "path_rename")
-# The calls that make or free a descriptor the guest holds: in wasmtime 49's preview1
-# only path_open adds one, fd_close frees one, and fd_renumber frees `to` and moves `from` there.
+# The calls that make or free a descriptor the guest holds: in wasmtime's preview1 only
+# path_open adds one, fd_close frees one, and fd_renumber frees `to` and moves `from` there.
 # Shadowed on calls without mounts too, permanently, so the table counts against the call's cap.
 COUNTED = ("path_open", "fd_close", "fd_renumber")
-# What the guard asks wasmtime on its own page, never in the guest's memory: the rename's source
-# type, and a listing again when the guest's `used` pointer lies over its own listing.
-PRIVATE = ("path_filestat_get", "fd_readdir")
-STAT_PATH = 64  # the source path's offset in the stat trampoline's page; the filestat is at 0
 
 PROVIDER_BASE = 2**30  # provider numbers start here; wasmtime's own never reach it
 MAX_MOUNT_FILES = 1024  # open provider numbers per call
@@ -132,11 +115,11 @@ RIGHTS = (1 << 30) - 1  # wasmtime 49's Rights::all()
 FILE_RIGHTS = RIGHTS & ~FD_WRITE  # a file opened read-only, as wasmtime reports it
 OFFSET_TOP = 2**63  # an offset, a position or a size from here on: the host's EINVAL
 # Which trailing `/` makes a rename served in a writable mount need a folder source: (the
-# source's, the destination's). Either path's counts, as wasmtime 49.0.3's rule, which the guard
-# carries for a grant's rename (GHSA-m9f7-9w4p-gv38): the parity's reference is a guarded grant.
-# The source is judged by one `stat`, after the runner's own
-# answers (the path rules, EBUSY, EINVAL) and before the provider's `rename`: for a slash-named
-# rename that is the guard's order, the stat's errno or ENOTDIR before anything is renamed.
+# source's, the destination's). Either path's counts, as in wasmtime's own rename on a grant,
+# which the parity holds the mount to: the source is a folder, judged without following its own
+# link, or the rename is ENOTDIR. The source is judged by one `stat`, after the runner's own
+# answers (the path rules, EBUSY, EINVAL) and before the provider's `rename`, so nothing is
+# renamed before the stat's errno or ENOTDIR.
 RENAME_SLASH_NEEDS_FOLDER = (True, True)
 ZEROS = bytes(1 << 16)  # the block a buffer grows from
 DIR_RIGHTS = RIGHTS & ~(FD_SEEK | FD_WRITE | PATH_FILESTAT_SET_SIZE | FD_FILESTAT_SET_SIZE)
@@ -163,25 +146,6 @@ def trampoline_wat() -> str:
     return "\n".join(lines)
 
 
-def stat_trampoline_wat() -> str:
-    """The guard's own trampoline: it imports wasmtime's calls in
-    `PRIVATE` and defines and exports its own memory, one page that the host grows when a
-    listing needs it, which wasmtime's WASI reads and writes through, so what the guard asks
-    never touches a byte of the guest's."""
-    lines = ["(module"]
-    for name in PRIVATE:
-        sig = f"(param {' '.join(SIGNATURES[name])}) (result i32)"
-        lines.append(f'  (import "wasi_snapshot_preview1" "{name}" (func ${name} {sig}))')
-    lines.append('  (memory (export "memory") 1)')
-    for name in PRIVATE:
-        params = SIGNATURES[name]
-        sig = f"(param {' '.join(params)}) (result i32)"
-        gets = " ".join(f"(local.get {i})" for i in range(len(params)))
-        lines.append(f'  (func (export "{name}") {sig} (call ${name} {gets}))')
-    lines.append(")")
-    return "\n".join(lines)
-
-
 def _ends(message: str) -> BaseException:
     """What wasmtime gives a guest that passes an argument its ABI cannot carry (a flag or enum
     value it does not define, an integer out of its type's range, a misaligned pointer): an
@@ -195,9 +159,12 @@ def _ends(message: str) -> BaseException:
 
 def _unsigned(value: int, top: int, name: str) -> int:
     """A raw argument as wiggle converts it: the i32 or i64 taken as signed, which must fit the
-    WASI type, or the run ends."""
-    if not 0 <= value <= top:
-        raise _ends("out of range integral type conversion attempted")
+    WASI type, or the run ends, in wasmtime's words, which name the direction: a mount answers
+    as a grant does."""
+    if value < 0:
+        raise _ends("number too small to fit in target type")
+    if value > top:
+        raise _ends("number too large to fit in target type")
     return value
 
 
@@ -226,12 +193,9 @@ def _rights(value: int) -> int:
 @dataclass
 class _Forwards:
     """The trampoline's function handles and argument arrays, for one call's store only: a
-    handle of one store used with another store's context aborts the process. `stat` and
-    `page` are the guard's own trampoline's calls (`PRIVATE`) and its memory."""
+    handle of one store used with another store's context aborts the process."""
 
     funcs: dict[str, Any]
-    stat: dict[str, Any] = field(default_factory=dict)
-    page: Any = None
     slots: dict[str, Any] = field(default_factory=dict)  # the seam's prepared calls
 
 

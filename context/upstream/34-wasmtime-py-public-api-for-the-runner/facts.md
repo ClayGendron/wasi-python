@@ -1,5 +1,5 @@
 - **Project:** wasmtime-py (https://github.com/bytecodealliance/wasmtime-py)
-- **Against:** 49.0.0 (the release `uv.lock` pins; EXECUTED, `importlib.metadata.version`)
+- **Against:** 50.0.1 (the release `uv.lock` pins since spec 127; EXECUTED, `importlib.metadata.version`). Written against 49.0.0; the public API of the classes the runner touches is the same in 50.0.1 (EXECUTED, `../../research/2026-10-24-moving-to-wasmtime-50.md` §2), so the "in 49.0.0" column holds for 50.0.1 too.
 - **Status:** drafted (spec 103, Design, "The debt is documented"; held in step with `src/wasi_python/_wasmtime_ffi.py` by the rules check `test_the_private_api_debt_is_documented`)
 - **Title:** the public API the runner would use in place of the private bindings it calls
 - **Files:** wasmtime/_store.py and _func.py (`Caller` methods, a store identity), _config.py (`async_stack_size`), _wasi.py (a locked custom-output table), _func.py (a reusable call, an epoch callback), the package's own `__init__` (what is public)
@@ -42,6 +42,7 @@ One row per entry of the adapter's `NEEDED` and `OPTIONAL` tuples; the first cel
 | `wasmtime._bindings._wasi_config_set_stdout_custom` | the binding record of `wasi_config_set_stdout_custom` | its `argtypes[1]` and `[3]`: the write's and the free's C types | the public properties with a locked table | no | — |
 | `wasmtime._func.LAST_EXCEPTION` | none (wasmtime-py's own slot) | the judge asserts it is `None` after a clean call (spec 011) | none wanted; the slot per thread is sheet 1's ask | — | 1 |
 | `wasmtime._func.FUNCTIONS` | none (wasmtime-py's own table) | the judge asserts a call defines no host function (spec 011) | none wanted | — | — |
+| `wasmtime._func.FUNCTIONS.handles` | none (the table's own dict of live functions, since 50.0.0; it was a list before) | the judge counts the functions the table holds (spec 011); the import check names it when it moves (spec 127) | none wanted | — | — |
 | `wasmtime._wasi.CUSTOM_OUTPUTS` | none (wasmtime-py's own table) | the judge asserts a call takes no custom output of wasmtime-py's (spec 011) | none wanted; the locked table above | — | — |
 | `wasmtime.Trap._from_ptr` | owns a `wasm_trap_t*` | raises the forward's trap as wasmtime-py's own `Trap` | the same public call | no | — |
 | `wasmtime.WasmtimeError._from_ptr` | owns a `wasmtime_error_t*` | raises or frees the forward's and the fuel calls' errors | the same | no | — |

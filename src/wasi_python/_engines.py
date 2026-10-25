@@ -34,7 +34,7 @@ def _wasmtime() -> Any:
         import wasmtime as wt
     except (ImportError, RuntimeError, OSError) as e:
         raise ImportError(
-            "wasi_python.run needs wasmtime-py (wasmtime>=49,<50), which installs with "
+            "wasi_python.run needs wasmtime-py (wasmtime>=50,<51), which installs with "
             "wasi-python; reinstall it or install wasmtime directly"
         ) from e
     from . import _wasmtime_ffi  # noqa: F401  (its own ImportError names what moved)

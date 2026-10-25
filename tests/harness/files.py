@@ -291,9 +291,8 @@ class Raw:
         return self("path_symlink", a, n, base, b, m)
 
 
-# d_ino only. The padding after d_type (21 to 24) is compared: the runner zeroes it on a grant's
-# forwarded listing as a mount writes it (wasmtime 49.0.0 fills it from uninitialized
-# host memory, GHSA-96f6-r43r-8c24, fixed in wasmtime 49.0.2).
+# d_ino only. The padding after d_type (21 to 24) is compared: wasmtime writes it as zeros on a
+# grant's listing, and a mount writes it as zeros too.
 DIRENT_MASKED = tuple(range(8, 16))
 
 
@@ -691,14 +690,12 @@ class Mounted(_OnStack):
         self.raw = Raw(store, self.instance.exports(store), self.entered)
 
 
-class Guarded(_OnStack):
-    """The raw module on the runner's guard linker, with its call on the thread's
+class Counted(_OnStack):
+    """The raw module on the runner's counted linker, with its call on the thread's
     stack around every export: what a call without mounts answers. Each (host folder, guest
-    path, writable) in `folders` is preopened from 3 up and served by wasmtime, but for the five
-    calls the guard linker shadows: the two guarded ones (`fd_readdir`, `path_rename`), which a
-    guard table (no mounts) forwards with the fixes of wasmtime 49.0.2 and 49.0.3, and the three
-    counted ones (`path_open`, `fd_close`, `fd_renumber`), which it forwards and
-    counts against `table.open_files` (no cap unless a check sets one)."""
+    path, writable) in `folders` is preopened from 3 up and served by wasmtime, but for the three
+    calls the counted linker shadows (`path_open`, `fd_close`, `fd_renumber`), which a table with
+    no mounts forwards and counts against `table.open_files` (no cap unless a check sets one)."""
 
     def __init__(
         self,
@@ -729,7 +726,7 @@ class Guarded(_OnStack):
             [], others, None, 1 << 30, fuel is not None, engine, context=_call._Context()
         )
         self.call = _call._Call(store, None, _NoWaits(), 0, None, None, self.table)
-        self.linker = _call._guard_linker(wasmtime, engine)
+        self.linker = _call._counted_linker(wasmtime, engine)
         self.plain = _call._linker(wasmtime, engine)
         self.instance = self.linker.instantiate(store, wasmtime.Module(engine, wat or raw_wat()))
         stack = _home._stack()
@@ -769,10 +766,10 @@ class FakeContext:
 
         return self.inos[path] if path in self.inos else _places._siphash13(path.encode())
 
-    def trampolines(self, wt: Any, engine: Any) -> tuple[Any, Any]:
+    def trampoline(self, wt: Any, engine: Any) -> Any:
         from wasi_python import _call
 
-        return _call._trampoline_module(wt, engine), _call._stat_trampoline_module(wt, engine)
+        return _call._trampoline_module(wt, engine)
 
     def exiting(self) -> bool:
         return self.interpreter_exiting

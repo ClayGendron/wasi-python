@@ -41,6 +41,7 @@ equal):
 - `wasmtime._func.LAST_EXCEPTION` -> none wanted (the judge reads it; sheet 1 asks for the slot
   per thread)
 - `wasmtime._func.FUNCTIONS` -> none wanted (the judge reads it)
+- `wasmtime._func.FUNCTIONS.handles` -> none wanted (the judge reads it)
 - `wasmtime._wasi.CUSTOM_OUTPUTS` -> none wanted (the judge reads it)
 - `wasmtime.Trap._from_ptr` -> the same reusable call
 - `wasmtime.WasmtimeError._from_ptr` -> the same
@@ -122,7 +123,7 @@ __all__ = [
     "watch_epochs",
 ]
 
-PIN = "wasmtime>=49,<50"
+PIN = "wasmtime>=50,<51"
 
 # The private names this module reads, as (holder, name) pairs: the holder is the dotted name of
 # the module or class, as the table given to `check` spells it. `OPTIONAL` is not checked.
@@ -147,6 +148,7 @@ NEEDED: tuple[tuple[str, str], ...] = (
     ("wasmtime._bindings", "_wasi_config_set_stdout_custom"),
     ("wasmtime._func", "LAST_EXCEPTION"),
     ("wasmtime._func", "FUNCTIONS"),
+    ("wasmtime._func.FUNCTIONS", "handles"),
     ("wasmtime._wasi", "CUSTOM_OUTPUTS"),
     ("wasmtime.Trap", "_from_ptr"),
     ("wasmtime.WasmtimeError", "_from_ptr"),
@@ -215,6 +217,7 @@ check(
         "wasmtime.WasiConfig": WasiConfig,
         "wasmtime.Func": Func,
         "wasmtime._ffi.dll": getattr(_ffi, "dll", None),
+        "wasmtime._func.FUNCTIONS": getattr(_func, "FUNCTIONS", None),
     }
 )
 
@@ -351,7 +354,7 @@ def last_exception() -> BaseException | None:
 def host_function_count() -> int:
     """How many host functions wasmtime-py's own table holds (the judge asserts a call adds
     none)."""
-    return len(_func.FUNCTIONS.list)
+    return len(_func.FUNCTIONS.handles)
 
 
 def custom_output_table() -> Any:

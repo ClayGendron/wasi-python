@@ -46,7 +46,7 @@ On WASI there are only a few ways to do that, and only one keeps the rules above
 
 wasi-python uses the last one, in its standard form (`exnref`, part of WebAssembly 3.0). The binaries also need multi-value and reference types (WebAssembly 2.0). A host without exception handling cannot load them.
 
-Most current hosts support it. wasmtime 47 or later and WasmEdge 0.16 or later run the binaries by default. Some other hosts run them once you turn on a switch, and a few cannot run them. The project runs wasmtime 49 itself; the rest of the list comes from each runtime's release notes and source. [Embed from other languages](../how-to/embed-from-other-languages.md) has the full hosts table.
+Most current hosts support it. wasmtime 47 or later and WasmEdge 0.16 or later run the binaries by default. Some other hosts run them once you turn on a switch, and a few cannot run them. The project runs wasmtime 50 itself; the rest of the list comes from each runtime's release notes and source. [Embed from other languages](../how-to/embed-from-other-languages.md) has the full hosts table.
 
 ## In one line
 
