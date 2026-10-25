@@ -7,7 +7,9 @@ the path opened and the folders walked could disagree; a lock is `msvcrt.locking
 reports a held range by its own errnos, and a lock file is unlinked only after it is closed,
 since an open file cannot be deleted; the kernel's identity is the machine guid; the guest
 thread's stack is read from the thread information block; the cache folders are the profile's
-local application data; and a file a running guest holds open is never replaced. The full list
+local application data; a file a running guest holds open is never replaced; and the guest's
+output stays on wasmtime's custom-output callback, since no path reaches an anonymous pipe and
+`poll` takes no Windows pipe. The full list
 of what differs between the platforms stays in the platform module's docstring.
 
 This module is imported on every system, since the platform module imports the Windows class
@@ -434,3 +436,10 @@ class _Windows:
             os.close(fd)
             return None
         return _Opened(fd, str(cwasm), by_path=True)
+
+    # The guest's output.
+
+    def output_channel(self) -> tuple[str, int, int] | None:
+        """None: an anonymous pipe has no path wasmtime could open, and `poll` takes no Windows
+        pipe, so the guest's output stays on the custom-output callback here."""
+        return None

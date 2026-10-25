@@ -1,6 +1,6 @@
 """One call: `Completed`, the checked run and the instance, the driver and `_Call`, the
-host-function wrapper and the epoch callback, the linkers and trampolines, the output streams,
-`poll_oneoff`, the door and the tool host."""
+host-function wrapper and the epoch callback, the linkers and trampolines, `poll_oneoff`, the
+door and the tool host. The guest's output streams and their capture are `_outputs`'."""
 
 from __future__ import annotations
 
@@ -18,12 +18,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol
 
-from . import _artifacts, _engines, _home, _places, _platform, _private_dirs, _zip
+from . import _artifacts, _engines, _home, _outputs, _places, _platform, _private_dirs, _zip
 from ._artifacts import GUEST_PACKAGE, Artifacts, ArtifactsMissing
 from ._engines import _epoch_ticker
 from ._fs_memory import STAGING_CEILING, _aligned
 from ._home import _Home, _Stopped
 from ._limits import CANCEL_TICKS, NO_DEADLINE, TICK_S
+from ._outputs import _Stream
 from ._places import ZIP_GUEST, Grant, _Preopen
 from ._platform import _TRAP_HANDLERS_REPLACED, _Walked
 from ._private_dirs import _Private
@@ -451,7 +452,7 @@ def _instance(
     wasi.argv = [ARGV0, *_import_prelude(c.import_path), *argv]
     wasi.env = sorted({**BASE_ENV, "HOME": home, **(env or {})}.items())
     check = _engines._check_module(wt, engine, fuel is not None)
-    keys = _send_outputs(wasi, out, err)
+    capture = _outputs._capture(wasi, out, err)  # before any guest code
     scratch = None
     mounts = c.mounts
     mounted: list[_Preopen] = []  # each mount's preopen, on the call's empty placeholder
@@ -524,9 +525,7 @@ def _instance(
             # host refuses. Close it first, so the clean-up below has descriptors to work with,
             # and make that clean-up unable to raise.
             store.close()
-            with process().outputs_lock:  # the guest has ended; wasmtime frees the keys later
-                for key in keys:
-                    process().outputs.pop(key, None)
+            capture.close()  # after the store: nothing more can arrive
             if table is not None:  # the rest dropped now
                 table.release()
                 context.leave()
@@ -1000,43 +999,6 @@ def _trampoline_module(wt: Any, engine: wasmtime.Engine) -> Any:
         return module
 
 
-# The guest's stdout and stderr, by a key that is never reused. wasmtime calls the two functions
-# below on its own threads, and frees a key when it drops the stream; wasmtime-py's own table for
-# custom outputs is not used, since it has no lock.
-
-
-def _write_output(key: int | None, data: Any, size: int) -> int:
-    try:
-        with process().outputs_lock:
-            stream = process().outputs.get(key or 0)
-        return size if stream is None else stream.write(ctypes.string_at(data, size))
-    except BaseException:
-        return size  # never raises, never prints: the bytes are dropped and the write succeeds
-
-
-def _free_output(key: int | None) -> None:
-    with process().outputs_lock:
-        process().outputs.pop(key or 0, None)
-
-
-# The two as C function pointers, made once and kept here for as long as wasmtime may call them.
-_output_write = ctypes.CFUNCTYPE(
-    ctypes.c_ssize_t, ctypes.c_void_p, ctypes.POINTER(ctypes.c_ubyte), ctypes.c_size_t
-)(_write_output)
-_output_free = ctypes.CFUNCTYPE(None, ctypes.c_void_p)(_free_output)
-
-
-def _send_outputs(wasi: Any, out: _Stream, err: _Stream) -> tuple[int, int]:
-    from . import _wasmtime_ffi as ffi
-
-    p = process()
-    with p.outputs_lock:
-        keys = next(p.output_keys), next(p.output_keys)
-        p.outputs[keys[0]], p.outputs[keys[1]] = out, err
-    ffi.set_custom_outputs(wasi, _output_write, _output_free, keys[0], keys[1])
-    return keys
-
-
 EINVAL, ENOMEM, EBADF, EFAULT, EIO = 28, 48, 8, 21, 29  # WASI preview1 errno values
 MAX_SUBSCRIPTIONS = 4096  # one poll_oneoff's host work is bounded
 SUBSCRIPTION = (
@@ -1191,22 +1153,6 @@ def _poll_oneoff(
             return EINVAL  # anything else is recorded by the shared function
 
     return call
-
-
-class _Stream:
-    """A guest's stdout or stderr, kept up to a cap. Bytes past it are dropped, never buffered,
-    and still reported as written, so the guest's write succeeds and is not retried (wasmtime-py
-    takes the callback's return value as the count written)."""
-
-    def __init__(self, name: str, cap: int | None) -> None:
-        self.name, self.cap, self.data, self.dropped = name, cap, bytearray(), False
-
-    def write(self, data: bytes) -> int:
-        room = len(data) if self.cap is None else max(0, self.cap - len(self.data))
-        if room < len(data):
-            self.dropped = True
-        self.data.extend(data[:room])
-        return len(data)
 
 
 def _first_line(text: str) -> str:
