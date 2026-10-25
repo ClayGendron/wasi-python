@@ -17,7 +17,7 @@ A *guest* is the Python program running inside `python.wasm`. The *host* is your
 - The guest sees only its root and its grants. It sees no host path, cannot climb out with `..`, and cannot follow a symbolic link out: such an open is refused.
 - By default the guest has nothing writable: no `/`, no `/tmp`, and a `HOME` it cannot write. It can import, compute, print, read the standard library and call the door. `root=True` gives it a fresh private folder at `/`, removed afterwards.
 - Grants are read-only unless you pass `writable=True`. They are checked before any work, and checked again after wasmtime opens them.
-- The stdlib zip is a read-only grant on every call. The runtime's own files are never in a writable grant, and the runner refuses a grant or root over any module cache it knows of.
+- The stdlib zip is a read-only grant on every call. The runtime's own files are never in a writable grant, and the runner refuses a **writable** grant or root over any module cache it knows of.
 - Mounts are read-only unless you pass `writable=True`. No host path is opened for a mount, so nothing a guest writes reaches a host file through one; every write goes to the runner's buffer or to your provider.
 - The guest does not see your process's environment. It starts from `TMPDIR=/tmp`, `PYTHONTZPATH=` and a fresh `HOME`, and `env=` is laid over them.
 
@@ -91,7 +91,7 @@ The sandbox stops the guest reaching what it was not given. It does not make eve
 - **File descriptors beyond each call's cap.** A guest's descriptors share your process's table. The cap protects your process only while the process's soft descriptor limit is above the cap plus what the process already holds, for every call and session open at once. Raise the soft limit at start, or set `max_open_files` lower.
 - **A session's files and memory**, which it holds for its whole life. Give untrusted code a short `idle_s`.
 - **Host CPU spent on tool frames**, within the request-byte budget and `max_tool_calls`.
-- **Other code in the same process** that uses wasmtime-py directly.
+- **Other code in the same process** that uses wasmtime-py directly. A process that compiled a module through wasmtime-py itself must not fork and run a guest in the child: the child waits for the parent's compile pool for good, before any deadline applies.
 - **What your own host function, provider or tool does** with the requests it receives. That code runs in your process, with your process's power.
 - **On Linux, a signal-handler change made during a call**, by a host function or another thread. The next call is refused.
 
@@ -99,7 +99,7 @@ The sandbox stops the guest reaching what it was not given. It does not make eve
 
 - **Timing.** The guest's clock is real and fine-grained.
 - **Real entropy.** `random`, `secrets`, `os.urandom` and `tempfile` use real randomness. SQLite's own randomness is seeded from the clock's whole second, because the guest has no `/dev/urandom`.
-- **Dict and set keys built to collide** under the snapshot's fixed, public string-hash key. They make that call's dict and set work quadratic until its deadline. Load untrusted keys with `snapshot=False`, whose key is fresh in every call.
+- **Dict and set keys built to collide** under the snapshot's fixed, public string-hash key, and XML parsed by Python's expat parsers (`xml.etree`, `xml.dom.minidom`, `xml.sax`, `plistlib`, `xmlrpc`), whose parser salt is the same fixed key. They make that call's dict, set and XML work quadratic until its deadline. Load untrusted keys and XML with `snapshot=False`, whose key is fresh in every call.
 - **A guest that waits with `deadline_s=None`.** No instruction runs while it sleeps, so fuel does not stop it.
 
 ### Other edges
