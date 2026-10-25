@@ -3,8 +3,9 @@
     uv run python tests/harness/gather.py --records records [--out release-record]
 
 reads `WASM_SHA256` (the build job's `wasm-sha256`), `SET_SUMS_SHA256` (its `set-sums-sha256`, the
-set's own `SHA256SUMS`), `TIER` (the tier the decision job decided), `PLAN` on a pull request (the
-(system, shard) pairs the decision job selected, as a JSON list of `system/shard`), and
+set's own `SHA256SUMS`), `RECORD_BUILD_BUILD` (the SHA-256 build-shard handed on), `TIER` (the tier
+the decision job decided), `PLAN` on a pull request (the (system, shard) pairs the decision job
+selected, as a JSON list of `system/shard`), and
 `GITHUB_EVENT_NAME`, `GITHUB_REF_TYPE`, `GITHUB_REF` and `GITHUB_BASE_REF` as the runner sets them
 (a step cannot override a `GITHUB_*` variable). Each shard's record is the one file of the artifact
 its leg uploaded under its own name, `record-<system>-<shard>`, downloaded into its job's folder;
@@ -511,6 +512,11 @@ def did_run(c: dict) -> bool:
     return status != "deselected" and not blocked_here
 
 
+def _pairs(selected: list[tuple[str, str]] | None) -> list[str] | None:
+    """The selected pairs as the record names them, `system/shard`; None on a run judged whole."""
+    return None if selected is None else sorted(f"{s}/{n}" for s, n in selected)
+
+
 def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:
     """One record of the release (Decision 9): each goal check's worst status across the records;
     its `source`, the entry of the record that ran it (darwin first, then linux, then any) with
@@ -567,8 +573,8 @@ def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:
             "set_source": getattr(i, "set_source", BUILT),
             "tier": i.tier,
             "foreign": sorted(foreign),
-            "event": i.event,
-            "selected": None if i.selected is None else sorted(f"{s}/{n}" for s, n in i.selected),
+            "event": getattr(i, "event", ""),
+            "selected": _pairs(getattr(i, "selected", None)),
         },
         "checks": checks,
         "deselected": sorted(n for n, c in checks.items() if c.get("status") == "deselected"),
@@ -824,6 +830,10 @@ def main(argv: list[str]) -> int:
     tier = os.environ.get("TIER", "")
     selected = read_plan(os.environ)
     handed = handed_from(a.records, expected_keys(plan, tier, selected))
+    # The build shard's record also comes with the SHA-256 its job handed on: G1 holds the file
+    # downloaded by its id to it.
+    if os.environ.get("RECORD_BUILD_BUILD") and ("build", "build") in handed:
+        handed[("build", "build")] = os.environ["RECORD_BUILD_BUILD"]
     goal, units, may_block = collect()
     gaps, _ = plugin.load_gaps(paths.KNOWN_GAPS)
     head = subprocess.run(

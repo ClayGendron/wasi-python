@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -655,37 +654,32 @@ def test_host_table_names_each_breach() -> None:
     ]
 
 
-# One workflow that every release scan reads. Every reader of the build's files guards
-# the id, downloads by it, and checks the files; the rebuilds are two jobs alike.
+# One workflow that every release scan reads. Every reader of the build's files checks this
+# commit out and runs the local action, the one copy of the guard, the download by id and the
+# check; the rebuilds are two jobs whose rebuild steps are alike.
 PIN = "0123456789abcdef0123456789abcdef01234567"
-GUARD = """      - name: The build job handed on an artifact id
-        env:
-          ASSETS_ID: ${{ needs.build.outputs.assets-id }}
-        run: |
-          case "$ASSETS_ID" in
-            "" | *[!0-9]*) echo "the build job handed on no artifact id"; exit 1 ;;
-          esac
-"""
-DOWNLOAD = f"""      - uses: actions/download-artifact@{PIN} # v8.0.2
+HEAD_REF = "${{ github.event.pull_request.head.sha || github.sha }}"
+CHECKOUT = f"""      - uses: actions/checkout@{PIN} # v7.0.1
         with:
-          artifact-ids: ${{{{ needs.build.outputs.assets-id }}}}
-          path: release-assets
-          digest-mismatch: error
+          ref: {HEAD_REF}
+          persist-credentials: false
 """
-CHECK = """      - name: These are the bytes the build job made
-        env:
-          SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
-        run: |
-          printf '%s  SHA256SUMS\\n' "$SUMS_SHA256" > SHA256SUMS.sha256
-          ( cd release-assets && sha256sum -c ../SHA256SUMS.sha256 && sha256sum -c SHA256SUMS )
-          have=$(cd release-assets && find . -mindepth 1 | sort)
+USE_ACTION = """      - name: The build's files
+        uses: ./.github/actions/verify-artifact
+        with:
+          assets-id: ${{ needs.build.outputs.assets-id }}
+          sums-sha256: ${{ needs.build.outputs.sums-sha256 }}
 """
-READ_ASSETS = GUARD + DOWNLOAD + CHECK
+READ_ASSETS = CHECKOUT + USE_ACTION
+# The local action the scans read beside the workflow: the real one.
+ACTION = (paths.REPO / scan.ASSETS_ACTION_FILE).read_text()
 
 
-def _rebuild_job(job: str, runner: str, minutes: int) -> str:
+def _rebuild_job(job: str, runner: str, minutes: int, cond: str) -> str:
     return f"""  {job}:
     name: rebuild from the pins ({runner})
+    needs: plan
+    if: {cond}
     runs-on: {runner}
     timeout-minutes: {minutes}
     permissions:
@@ -731,6 +725,15 @@ RELEASE_WORKFLOW = (
     f"""name: release
 permissions: {{}}
 jobs:
+  plan:
+    permissions:
+      contents: read
+    outputs:
+      build: ${{{{ steps.plan.outputs.build }}}}
+      rebuild: ${{{{ steps.plan.outputs.rebuild }}}}
+    steps:
+      - id: plan
+        run: release/ci_plan.py
   build:
     runs-on: macos-15
     permissions:
@@ -758,19 +761,23 @@ jobs:
           echo "release-assets: artifact $ASSETS_ID, digest $ASSETS_DIGEST"
           cat release-assets/SHA256SUMS
 """
-    + _rebuild_job("rebuild-linux-arm64", "ubuntu-24.04-arm", 120)
-    + _rebuild_job("rebuild-linux-x86-64", "ubuntu-24.04", 120)
+    + _rebuild_job("build-shard", "ubuntu-24.04-arm", 120, "needs.plan.outputs.build == 'true'")
+    + _rebuild_job(
+        "rebuild-linux-x86-64", "ubuntu-24.04", 120, "needs.plan.outputs.rebuild == 'true'"
+    )
     + """  same-bytes:
-    needs: [build, rebuild-linux-arm64, rebuild-linux-x86-64]
+    needs: [plan, build, build-shard, rebuild-linux-x86-64]
+    if: needs.plan.outputs.rebuild == 'true'
     runs-on: ubuntu-24.04
-    permissions: {}
+    permissions:
+      contents: read
     steps:
 """
     + READ_ASSETS
     + """      - name: The rebuild jobs handed on artifact ids
         env:
-          ARM64_SUMS_ID: ${{ needs.rebuild-linux-arm64.outputs.sums-id }}
-          ARM64_WHEEL_ID: ${{ needs.rebuild-linux-arm64.outputs.wheel-id }}
+          ARM64_SUMS_ID: ${{ needs.build-shard.outputs.sums-id }}
+          ARM64_WHEEL_ID: ${{ needs.build-shard.outputs.wheel-id }}
           X86_64_SUMS_ID: ${{ needs.rebuild-linux-x86-64.outputs.sums-id }}
           X86_64_WHEEL_ID: ${{ needs.rebuild-linux-x86-64.outputs.wheel-id }}
         run: |
@@ -780,8 +787,8 @@ jobs:
             esac
           done
 """
-    + _rebuild_download("rebuild-linux-arm64", "sums-id", "rebuilds", "ubuntu-24.04-arm")
-    + _rebuild_download("rebuild-linux-arm64", "wheel-id", "rebuilt-wheels", "ubuntu-24.04-arm")
+    + _rebuild_download("build-shard", "sums-id", "rebuilds", "ubuntu-24.04-arm")
+    + _rebuild_download("build-shard", "wheel-id", "rebuilt-wheels", "ubuntu-24.04-arm")
     + _rebuild_download("rebuild-linux-x86-64", "sums-id", "rebuilds", "ubuntu-24.04")
     + _rebuild_download("rebuild-linux-x86-64", "wheel-id", "rebuilt-wheels", "ubuntu-24.04")
     + """      - name: Every rebuild's SHA256SUMS is the set's
@@ -835,6 +842,7 @@ jobs:
     needs: [build, publish]
     environment: pypi
     permissions:
+      contents: read
       id-token: write
     steps:
 """
@@ -854,15 +862,21 @@ def _in_job(text: str, job: str, old: str, new: str) -> str:
     return text[:start] + section.replace(old, new, 1) + text[end:]
 
 
+def _binding(text: str, action: str = ACTION) -> list[str]:
+    return scan.release_binding_errors(text, action)
+
+
 def test_the_release_workflow_passes_every_release_scan() -> None:
-    assert scan.release_binding_errors(RELEASE_WORKFLOW) == []
+    assert _binding(RELEASE_WORKFLOW) == []
     assert scan.rebuild_gate_errors(RELEASE_WORKFLOW) == []
     assert scan.release_attestation_errors(RELEASE_WORKFLOW) == []
     assert scan.action_pin_errors(RELEASE_WORKFLOW) == []
+    assert scan.checkout_ref_errors(RELEASE_WORKFLOW) == []
 
 
 REBUILD_GUARD_LOOP = '"$ARM64_SUMS_ID" "$ARM64_WHEEL_ID" "$X86_64_SUMS_ID" "$X86_64_WHEEL_ID"'
-ARM_SUMS = "artifact-ids: ${{ needs.rebuild-linux-arm64.outputs.sums-id }}"
+ARM_SUMS = "artifact-ids: ${{ needs.build-shard.outputs.sums-id }}"
+FIRST_REBUILD_PATH = "          path: rebuilds/ubuntu-24.04-arm\n"
 
 # (job, old, new) -> the rules named, one variant per rule and per mutation of the reviews.
 BAD_BINDINGS = [
@@ -871,11 +885,7 @@ BAD_BINDINGS = [
     (("build", "          cat release-assets/SHA256SUMS", "          true"), {3}),
     *[
         (
-            (
-                "verify",
-                "          path: release-assets\n",
-                f"          path: release-assets\n          {key}: x\n",
-            ),
+            ("same-bytes", FIRST_REBUILD_PATH, f"{FIRST_REBUILD_PATH}          {key}: x\n"),
             {4},
         )
         for key in scan.NOT_BY_ID
@@ -889,32 +899,42 @@ BAD_BINDINGS = [
         ),
         {4},
     ),
-    (("verify", "          digest-mismatch: error\n", ""), {5}),
+    (("same-bytes", "          digest-mismatch: error\n", ""), {5}),
     (("pypi", "    needs: [build, publish]\n", "    needs: [publish]\n"), {6}),
-    (("verify", "          path: release-assets\n", "          path: assets\n"), {7}),
-    (("pypi", "These are the bytes the build job made", "Some step"), {8}),
+    # The action run with another hash, and the action run before this commit is checked out.
     (
         (
             "verify",
-            "      - name: These are the bytes the build job made\n",
-            "      - name: These are the bytes the build job made\n        shell: bash\n",
+            "sums-sha256: ${{ needs.build.outputs.sums-sha256 }}",
+            "sums-sha256: ${{ needs.build.outputs.assets-id }}",
+        ),
+        {7},
+    ),
+    (("verify", CHECKOUT, ""), {7}),
+    (("pypi", "uses: ./.github/actions/verify-artifact", "uses: ./.github/actions/other"), {7}),
+    # A copy of the action's check in a job.
+    (
+        (
+            "verify",
+            "      - name: The build's files\n",
+            "      - name: These are the bytes the build job made\n        run: true\n"
+            "      - name: The build's files\n",
         ),
         {9},
     ),
-    (("verify", GUARD, ""), {10}),
     # A rebuild id bound, but no longer tested.
     (
         ("same-bytes", REBUILD_GUARD_LOOP, REBUILD_GUARD_LOOP.replace(' "$X86_64_WHEEL_ID"', "")),
         {10},
     ),
-    (("verify", 'case "$ASSETS_ID" in', 'case "$OTHER" in'), {10}),
+    (("same-bytes", 'case "$id" in', 'case "$other" in'), {10}),
     (("build", 'echo "release-assets: artifact', 'echo "${{ github.ref }}: artifact'), {11}),
     (("publish", "    environment: release\n", ""), {12}),
     (("pypi", "    environment: pypi\n", "    environment: release\n"), {12}),
     (("build", "enable-cache: false", "enable-cache: true"), {13}),
     (("verify", "      contents: read\n", "      contents: write\n"), {14}),
-    (("same-bytes", "    permissions: {}\n", ""), {14}),
-    # The rebuild guard, which has no twin, told to carry on.
+    (("same-bytes", "    permissions:\n      contents: read\n", "    permissions: {}\n"), {14}),
+    # The rebuild guard told to carry on.
     (
         (
             "same-bytes",
@@ -924,40 +944,39 @@ BAD_BINDINGS = [
         ),
         {15, 17},
     ),
-    # publish's check step told to carry on.
+    # publish's reading of the build's files told to carry on.
     (
         (
             "publish",
-            "      - name: These are the bytes the build job made\n",
-            "      - name: These are the bytes the build job made\n"
-            "        continue-on-error: true\n",
+            "        uses: ./.github/actions/verify-artifact\n",
+            "        uses: ./.github/actions/verify-artifact\n        continue-on-error: true\n",
         ),
-        {9, 15, 17},
+        {15, 17},
     ),
     (
         (
             "attest",
-            DOWNLOAD.splitlines()[0] + "\n",
-            DOWNLOAD.splitlines()[0] + "\n        if: always()\n",
+            "        uses: ./.github/actions/verify-artifact\n",
+            "        uses: ./.github/actions/verify-artifact\n        if: always()\n",
         ),
         {15},
     ),
-    # Attest fetches a rebuild's SHA256SUMS into release-assets after its
-    # check, guarded and by id, with that job added to its needs.
+    # Attest fetches a rebuild's SHA256SUMS into release-assets after the action, guarded and by
+    # id, from a job it does not need.
     (
         (
             "attest",
             "      - uses: actions/attest@",
             "      - name: The rebuild handed on an id\n"
             "        env:\n"
-            "          R_ID: ${{ needs.rebuild-linux-arm64.outputs.sums-id }}\n"
+            "          R_ID: ${{ needs.build-shard.outputs.sums-id }}\n"
             "        run: |\n"
             '          case "$R_ID" in\n'
             '            "" | *[!0-9]*) echo "no id"; exit 1 ;;\n'
             "          esac\n"
             f"      - uses: actions/download-artifact@{PIN} # v8.0.2\n"
             "        with:\n"
-            "          artifact-ids: ${{ needs.rebuild-linux-arm64.outputs.sums-id }}\n"
+            "          artifact-ids: ${{ needs.build-shard.outputs.sums-id }}\n"
             "          path: release-assets\n"
             "          digest-mismatch: error\n"
             "      - uses: actions/attest@",
@@ -1004,18 +1023,65 @@ def _rules(errors: list[str]) -> set[int]:
     ("change", "rules"), BAD_BINDINGS, ids=[f"{c[0]}:{c[1][:40]}" for c, _ in BAD_BINDINGS]
 )
 def test_release_binding_scan_names_each_breach(change, rules) -> None:
-    errors = scan.release_binding_errors(_in_job(RELEASE_WORKFLOW, *change))
+    errors = _binding(_in_job(RELEASE_WORKFLOW, *change))
     assert _rules(errors) == rules, errors
+
+
+GUARD_LINE = 'case "$ASSETS_ID" in'
+# The action's mutants: each is rule 8 with its own reason.
+BAD_ACTIONS = [
+    ("  using: composite\n", "  using: node20\n", "the action is not a composite action"),
+    ("    required: true\n", "    required: false\n", "the action has no required input"),
+    (GUARD_LINE, 'case "$OTHER" in', "the action's first step is not the guard"),
+    ("    - name: The build job handed on", "    - name: A guard", "the action's first step"),
+    ("        path: release-assets\n", "        path: assets\n", "the action's second step"),
+    ("        digest-mismatch: error\n", "", "the action's second step"),
+    (
+        "        artifact-ids: ${{ inputs.assets-id }}\n",
+        "        artifact-ids: ${{ inputs.assets-id }}\n        merge-multiple: true\n",
+        "the action's second step",
+    ),
+    (
+        "    - name: These are the bytes the build job made\n",
+        "    - name: Other bytes\n",
+        "the action's third step",
+    ),
+    ("SUMS_SHA256: ${{ inputs.sums-sha256 }}", "SUMS_SHA256: x", "the action's third step"),
+    (
+        "    - uses: actions/download-artifact@",
+        "    - if: always()\n      uses: actions/download-artifact@",
+        "the action's step",
+    ),
+    ("        set -eu\n", "        set +e\n", "the action's step"),
+    (
+        "        printf '%s  SHA256SUMS\\n' \"$SUMS_SHA256\"",
+        "        printf '%s  SHA256SUMS\\n' \"${{ inputs.sums-sha256 }}\"",
+        "the action's step",
+    ),
+    ("      shell: bash\n", "      shell: sh\n", "the action's step"),
+    (
+        "  steps:\n",
+        "  steps:\n    - name: First\n      shell: bash\n      run: true\n",
+        "the action has 4 steps",
+    ),
+]
+
+
+@pytest.mark.parametrize(("old", "new", "error"), BAD_ACTIONS, ids=[b[0][:30] for b in BAD_ACTIONS])
+def test_the_action_scan_names_each_breach(old, new, error) -> None:
+    assert old in ACTION, old
+    errors = _binding(RELEASE_WORKFLOW, ACTION.replace(old, new, 1))
+    assert any(e.startswith(f"rule 8: {error}") for e in errors), errors
 
 
 def test_release_binding_scan_reads_with_not_the_display_name() -> None:
     renamed = _in_job(
         RELEASE_WORKFLOW,
-        "verify",
+        "same-bytes",
         "      - uses: actions/download-artifact@",
         "      - name: release-assets\n        uses: actions/download-artifact@",
     )
-    assert scan.release_binding_errors(renamed) == []
+    assert _binding(renamed) == []
 
 
 # Rule 16 reads `path:` as a
@@ -1038,7 +1104,7 @@ OTHER_SPELLINGS = [
 def test_rule_16_reads_the_download_path_as_a_path(spelling) -> None:
     old = "          path: rebuilt-wheels/ubuntu-24.04-arm\n"
     changed = _in_job(RELEASE_WORKFLOW, "same-bytes", old, f"          path: {spelling}\n")
-    assert _rules(scan.release_binding_errors(changed)) == {16}
+    assert _rules(_binding(changed)) == {16}
 
 
 @pytest.mark.parametrize(
@@ -1052,19 +1118,25 @@ def test_rule_16_reads_the_download_path_as_a_path(spelling) -> None:
 def test_rule_16_lets_another_spelling_of_a_rebuild_folder_through(spelling) -> None:
     old = "          path: rebuilt-wheels/ubuntu-24.04-arm\n"
     changed = _in_job(RELEASE_WORKFLOW, "same-bytes", old, f"          path: {spelling}\n")
-    assert scan.release_binding_errors(changed) == []
+    assert _binding(changed) == []
 
 
 def test_the_workflow_level_permissions_must_be_empty() -> None:
     changed = RELEASE_WORKFLOW.replace(
         "permissions: {}\njobs:", "permissions:\n  contents: read\njobs:", 1
     )
-    assert _rules(scan.release_binding_errors(changed)) == {14}
+    assert _rules(_binding(changed)) == {14}
 
 
 def test_a_step_script_is_read_exactly_and_its_absence_raises() -> None:
-    script = scan.workflow_step_script(RELEASE_WORKFLOW, "attest", scan.CHECK_STEP)
-    assert script.startswith("printf '%s  SHA256SUMS\\n'") and "find . -mindepth 1" in script
+    script = scan.action_step_script(ACTION, scan.CHECK_STEP)
+    assert script.startswith("set -eu\n") and "find . -mindepth 1" in script
+    with pytest.raises(LookupError):
+        scan.action_step_script(ACTION, "No such step")
+    script = scan.workflow_step_script(
+        RELEASE_WORKFLOW, "same-bytes", "The rebuild jobs handed on artifact ids"
+    )
+    assert script.startswith("for id in")
     with pytest.raises(LookupError):
         scan.workflow_step_script(RELEASE_WORKFLOW, "attest", "No such step")
 
@@ -1086,44 +1158,57 @@ def test_every_fetched_name_must_be_pinned(work) -> None:
     ]
 
 
+def test_a_checkout_of_another_ref_is_named() -> None:
+    changed = _in_job(RELEASE_WORKFLOW, "verify", f"ref: {HEAD_REF}", "ref: refs/pull/1/merge")
+    assert scan.checkout_ref_errors(changed) == [f"verify checks out another ref than {HEAD_REF}"]
+    changed = _in_job(RELEASE_WORKFLOW, "attest", f"          ref: {HEAD_REF}\n", "")
+    assert scan.checkout_ref_errors(changed) == [f"attest checks out another ref than {HEAD_REF}"]
+
+
 # (job, old, new) -> the first breach the rebuild gate names.
 BAD_REBUILDS = [
-    (
-        ("rebuild-linux-arm64", "rebuild-linux-arm64:", "rebuild-arm64:"),
-        "no rebuild-linux-arm64 job",
-    ),
+    (("build-shard", "build-shard:", "build-arm64:"), "no build-shard job"),
     (("same-bytes", "same-bytes:", "same-bits:"), "no same-bytes job"),
     (
         ("rebuild-linux-x86-64", "    runs-on: ubuntu-24.04\n", "    runs-on: ubuntu-24.04-arm\n"),
         "rebuild-linux-x86-64 does not run on ubuntu-24.04",
     ),
     (
-        ("rebuild-linux-arm64", "    timeout-minutes: 120\n", "    timeout-minutes: 360\n"),
-        "rebuild-linux-arm64's timeout-minutes is not 120",
+        ("build-shard", "    timeout-minutes: 120\n", "    timeout-minutes: 360\n"),
+        "build-shard's timeout-minutes is not 120",
     ),
     (
         ("rebuild-linux-x86-64", "    timeout-minutes: 120\n", "    timeout-minutes: 360\n"),
         "rebuild-linux-x86-64's timeout-minutes is not 120",
     ),
     (
-        ("rebuild-linux-arm64", "          nproc\n", ""),
-        "rebuild-linux-arm64's tools step does not print nproc",
+        ("build-shard", "    if: needs.plan.outputs.build == 'true'\n", ""),
+        "build-shard's if: is not the plan's",
     ),
+    (
+        (
+            "rebuild-linux-x86-64",
+            "    if: needs.plan.outputs.rebuild == 'true'\n",
+            "    if: github.ref_type == 'tag'\n",
+        ),
+        "rebuild-linux-x86-64's if: is not the plan's",
+    ),
+    (("build-shard", "          nproc\n", ""), "build-shard's tools step does not print nproc"),
     (
         ("rebuild-linux-x86-64", "          ls /proc/sys/fs/binfmt_misc/\n", ""),
         "rebuild-linux-x86-64's tools step does not print binfmt_misc",
     ),
     (
-        ("rebuild-linux-arm64", "run: scripts/build.sh", "run: echo"),
-        "rebuild-linux-arm64 does not run scripts/build.sh",
+        ("build-shard", "run: scripts/build.sh", "run: echo"),
+        "build-shard does not run scripts/build.sh",
     ),
     (
         ("rebuild-linux-x86-64", "name: rebuild-ubuntu-24.04\n", "name: rebuild\n"),
         "rebuild-linux-x86-64 does not upload build/artifacts/SHA256SUMS",
     ),
     (
-        ("rebuild-linux-arm64", "      - id: wheel\n", "      - id: wheels\n"),
-        "rebuild-linux-arm64 does not upload dist/wasi_python-*.whl",
+        ("build-shard", "      - id: wheel\n", "      - id: wheels\n"),
+        "build-shard does not upload dist/wasi_python-*.whl",
     ),
     (
         ("rebuild-linux-x86-64", "wheel-id: ${{ steps.wheel.", "wheel-id: ${{ steps.sums."),
@@ -1135,30 +1220,26 @@ BAD_REBUILDS = [
             "          uname -srm\n",
             "          uname -srm\n          df -h\n",
         ),
-        "the rebuild jobs differ",
+        "the rebuild jobs' rebuild steps differ",
     ),
     (
-        (
-            "rebuild-linux-arm64",
-            "    permissions:\n",
-            "    if: github.ref_type == 'tag'\n    permissions:\n",
-        ),
-        "rebuild-linux-arm64 has a job-level if:",
+        ("same-bytes", "    if: needs.plan.outputs.rebuild == 'true'\n", ""),
+        "same-bytes' if: is not the plan's",
     ),
     (
         (
             "same-bytes",
-            "    permissions: {}\n",
-            "    permissions: {}\n    continue-on-error: true\n",
+            "    permissions:\n      contents: read\n",
+            "    permissions:\n      contents: read\n    continue-on-error: true\n",
         ),
         "same-bytes has a job-level continue-on-error:",
     ),
     (
-        ("same-bytes", "    permissions: {}\n", "    permissions:\n      id-token: write\n"),
+        ("same-bytes", "      contents: read\n", "      id-token: write\n"),
         "same-bytes's permissions are more than",
     ),
     (
-        ("same-bytes", "rebuild-linux-arm64, rebuild-linux-x86-64]", "rebuild-linux-arm64]"),
+        ("same-bytes", "build-shard, rebuild-linux-x86-64]", "build-shard]"),
         "same-bytes does not need build and both",
     ),
     (
@@ -1167,8 +1248,8 @@ BAD_REBUILDS = [
     ),
     # The x86_64 job's id downloaded into the arm64 job's folder.
     (
-        ("same-bytes", ARM_SUMS, ARM_SUMS.replace("arm64", "x86-64")),
-        "same-bytes does not download rebuild-linux-arm64's SHA256SUMS by id into "
+        ("same-bytes", ARM_SUMS, "artifact-ids: ${{ needs.rebuild-linux-x86-64.outputs.sums-id }}"),
+        "same-bytes does not download build-shard's SHA256SUMS by id into "
         "rebuilds/ubuntu-24.04-arm",
     ),
     (
@@ -1190,8 +1271,8 @@ BAD_REBUILDS = [
     (("same-bytes", '/SHA256SUMS"\n', '/SHA256SUMS" || true\n'), "a step of same-bytes swallows"),
     # The runner's own python3 is named in the log.
     (
-        ("rebuild-linux-arm64", "          python3 --version\n", ""),
-        "rebuild-linux-arm64's tools step does not print python3 --version",
+        ("build-shard", "          python3 --version\n", ""),
+        "build-shard's tools step does not print python3 --version",
     ),
     (
         (
@@ -1212,6 +1293,14 @@ BAD_REBUILDS = [
 def test_rebuild_gate_scan_names_each_breach(change, error) -> None:
     errors = scan.rebuild_gate_errors(_in_job(RELEASE_WORKFLOW, *change))
     assert errors and errors[0].startswith(error), errors
+
+
+def test_an_expressions_or_is_no_shells() -> None:
+    """`||` inside `${{ … }}` picks a value; only a shell's `||` carries on past a failure."""
+    assert (
+        scan.without_expressions("ref: ${{ a || b }}\nrun: x || true\n")
+        == "ref: \nrun: x || true\n"
+    )
 
 
 # Every host compiles with its own SDK; X carries the five emulation names, the
@@ -2069,8 +2158,6 @@ def test_step_folder_with_a_command_substitution_is_unresolved(work) -> None:
 # breaks one rule of release_shard_errors, or one of the signing ties' widened rules.
 
 REAL_WORKFLOW = (paths.REPO / ".github" / "workflows" / "release.yml").read_text()
-LINUX_IDS = "${{ needs.judge-linux.outputs.own-embedding-id }}"
-MACOS_IDS = "${{ needs.judge-macos.outputs.own-embedding-id }}"
 WASM_STEP = (
     "      - name: The SHA-256 of python.wasm, handed to the gather\n"
     "        id: wasm\n"
@@ -2089,6 +2176,12 @@ REC_IN_BUILD = (
     "      - name: The build shard\n"
     "        run: uv run pytest -p no:cacheprovider --shard=build --progress-latest x\n"
 )
+LINUX_MATRIX = "        shard: ${{ fromJSON(needs.plan.outputs.linux) }}\n"
+WINDOWS_DOWNLOAD = (
+    "        if: needs.plan.outputs.windows != '[]'\n"
+    "        with:\n"
+    "          pattern: record-windows-*\n"
+)
 
 
 def _shard_errors(text: str) -> list[str]:
@@ -2099,10 +2192,12 @@ def _shard_errors(text: str) -> list[str]:
 
 def test_the_real_workflow_passes_every_release_scan() -> None:
     assert _shard_errors(REAL_WORKFLOW) == []
-    assert scan.release_binding_errors(REAL_WORKFLOW) == []
+    assert _binding(REAL_WORKFLOW) == []
     assert scan.release_attestation_errors(REAL_WORKFLOW) == []
     assert scan.rebuild_gate_errors(REAL_WORKFLOW) == []
     assert scan.action_pin_errors(REAL_WORKFLOW) == []
+    assert scan.checkout_ref_errors(REAL_WORKFLOW) == []
+    assert scan.ci_status_errors(REAL_WORKFLOW) == []
 
 
 def _without_wasm_then_late(text: str) -> str:
@@ -2128,30 +2223,64 @@ def _without_set_sums_then_late(text: str) -> str:
 
 
 BAD_SHARDS = [
-    ("judge-linux", "upstream-frame, ", "", "rule 2: judge-linux"),
-    ("judge-linux", "upstream-frame, ", "upstream-frame, upstream-extra, ", "rule 2: judge-linux"),
-    ("judge-macos", "own-hostile, own-guest", "own-guest, own-hostile", "rule 2: judge-macos"),
+    # A matrix not the plan's output for the job's own system, or written by hand.
+    (
+        "judge-linux",
+        LINUX_MATRIX,
+        "        shard: ${{ fromJSON(needs.plan.outputs.macos) }}\n",
+        "rule 2: judge-linux",
+    ),
+    (
+        "judge-linux",
+        LINUX_MATRIX,
+        "        shard: [own-rest, upstream-frame]\n",
+        "rule 2: judge-linux",
+    ),
+    (
+        "judge-linux",
+        LINUX_MATRIX,
+        "        shard: [own-rest, upstream-frame]\n",
+        "rule 13: the workflow names the shard own-rest",
+    ),
+    (
+        "judge-macos",
+        "    if: needs.plan.outputs.macos != '[]'\n",
+        "    if: needs.plan.outputs.linux != '[]'\n",
+        "rule 11: judge-macos",
+    ),
     (
         "judge-windows",
-        "      - name: These are the bytes the build job made\n",
-        "      - name: Other bytes\n",
+        "        uses: ./.github/actions/verify-artifact\n",
+        "        uses: ./.github/actions/other\n",
         "rule 4: judge-windows",
     ),
     ("judge-linux", "fetch-depth: 0", "fetch-depth: 1", "rule 3:"),
     (
         "judge-linux",
-        "      upstream-frame-sha256: ${{ steps.out.outputs.upstream-frame-sha256 }}\n",
-        "",
-        "rule 5: judge-linux",
+        "    timeout-minutes: 30\n",
+        "    timeout-minutes: 30\n    outputs:\n      own-rest-id: x\n",
+        "rule 5: judge-linux hands on outputs",
     ),
     ("attest", "same-bytes, gather]", "same-bytes]", "rule 8: attest"),
     (
         "gather",
         "artifact-ids: ${{ needs.build-shard.outputs.record-id }}",
-        "name: record-build-build",
+        "pattern: record-build-*",
         "rule 7: gather does not download",
     ),
     ("gather", "      - name: The gather\n", ASSETS_IN_GATHER, "rule 7: gather does not download"),
+    (
+        "gather",
+        WINDOWS_DOWNLOAD,
+        WINDOWS_DOWNLOAD.replace("outputs.windows", "outputs.linux"),
+        "rule 7: gather does not download",
+    ),
+    (
+        "gather",
+        "          pattern: record-windows-*\n",
+        "          pattern: record-*\n",
+        "rule 7: gather does not download",
+    ),
     (
         "judge-linux",
         "    timeout-minutes: 30\n",
@@ -2159,6 +2288,7 @@ BAD_SHARDS = [
         "rule 1: judge-linux",
     ),
     ("judge-macos", "      contents: read\n", "      contents: write\n", "rule 1: judge-macos"),
+    ("judge-macos", "    needs: [plan, build]\n", "    needs: build\n", "rule 1: judge-macos"),
     (
         "build-shard",
         '--shard=build --progress-latest "$RUNNER_TEMP/record/latest.json"',
@@ -2166,23 +2296,36 @@ BAD_SHARDS = [
         "rule 6:",
     ),
     ("build", "      wasm-sha256: ${{ steps.wasm.outputs.sha256 }}\n", "", "rule 6:"),
+    # A leg uploading under another system's name, a written shard's, or another file.
     (
         "judge-macos",
-        "          RECORD_ID: ${{ steps.record.outputs.artifact-id }}\n",
-        "          RECORD_ID: x\n",
+        "name: record-macos-${{ matrix.shard }}",
+        "name: record-linux-${{ matrix.shard }}",
         "rule 4: judge-macos",
     ),
     (
         "judge-macos",
-        'echo "$SHARD-id=$RECORD_ID"',
-        'echo "own-guest-id=$RECORD_ID"',
-        "rule 4: judge-macos",
+        "name: record-macos-${{ matrix.shard }}",
+        "name: record-linux-${{ matrix.shard }}",
+        "rule 5: judge-macos uploads record-linux-",
     ),
     (
         "judge-macos",
-        '.hexdigest())" "$RUNNER_TEMP/record/latest.json" >> "$GITHUB_OUTPUT"',
-        '.hexdigest())" "$RUNNER_TEMP/other.json" >> "$GITHUB_OUTPUT"',
+        "path: ${{ runner.temp }}/record/latest.json\n          if-no-files-found: error",
+        "path: ${{ runner.temp }}/other.json\n          if-no-files-found: error",
         "rule 4: judge-macos",
+    ),
+    (
+        "coverage",
+        "name: coverage-${{ github.run_attempt }}",
+        "name: record-linux-${{ github.run_attempt }}",
+        "rule 5: coverage uploads record-linux-",
+    ),
+    (
+        "judge-linux",
+        "          if-no-files-found: error\n",
+        "          if-no-files-found: error\n          overwrite: true\n",
+        "rule 5: judge-linux uploads with overwrite:",
     ),
     (
         "verify",
@@ -2190,6 +2333,13 @@ BAD_SHARDS = [
         "      - name: A judge\n        run: uv run pytest\n"
         "      - name: The wheel, installed fresh, runs a program in one call\n",
         "rule 9: verify runs pytest",
+    ),
+    (
+        "verify",
+        "      - name: The wheel, installed fresh, runs a program in one call\n",
+        "      - name: Say own-guest\n        run: echo own-guest\n"
+        "      - name: The wheel, installed fresh, runs a program in one call\n",
+        "rule 13: the workflow names the shard own-guest",
     ),
     # The set's own SHA256SUMS, from the build to the gather alone.
     ("build", "      set-sums-sha256: ${{ steps.set-sums.outputs.sha256 }}\n", "", "rule 6:"),
@@ -2215,6 +2365,14 @@ BAD_SHARDS = [
         "",
         "rule 7: gather's step",
     ),
+    # PLAN on every event, or none.
+    (
+        "gather",
+        "          PLAN: ${{ github.event_name == 'pull_request' && "
+        "needs.plan.outputs.selected || '' }}\n",
+        "          PLAN: ${{ needs.plan.outputs.selected }}\n",
+        "rule 7: gather's step",
+    ),
     ("gather", "build-shard, same-bytes, judge-macos", "judge-macos", "rule 7: gather is not"),
     (
         "build",
@@ -2231,8 +2389,8 @@ BAD_SHARDS = [
     ),
     (
         "judge-linux",
-        "    outputs:\n",
-        "    outputs:\n      set-sums-sha256: x\n",
+        "    timeout-minutes: 30\n",
+        "    timeout-minutes: 30\n    outputs:\n      set-sums-sha256: x\n",
         "rule 10: judge-linux sets set-sums-sha256",
     ),
 ]
@@ -2260,37 +2418,57 @@ def test_the_set_sums_hash_must_come_before_the_upload() -> None:
 def test_the_gather_guards_the_set_sums_hash() -> None:
     """The gather's guard step tests SET_SUMS_SHA256 as 64 hex, with WASM_SHA256."""
     guard = scan.workflow_step_script(
-        REAL_WORKFLOW,
-        "gather",
-        "Every job handed on its record's id, and the build python.wasm's SHA-256",
+        REAL_WORKFLOW, "gather", "The build job handed on python.wasm's SHA-256 and its set's"
     )
     assert '"$SET_SUMS_SHA256"' in guard and '"${#SET_SUMS_SHA256}"' in guard
+    assert '"$WASM_SHA256"' in guard and '"${#WASM_SHA256}"' in guard
 
 
 def test_a_gather_holding_the_assets_breaks_rule_16_too() -> None:
     text = _in_job(REAL_WORKFLOW, "gather", "      - name: The gather\n", ASSETS_IN_GATHER)
-    errors = scan.release_binding_errors(text)
+    errors = _binding(text)
     assert any(e.startswith("rule 16: gather holds the build's files") for e in errors), errors
     second = ASSETS_IN_GATHER.replace(
-        "needs.build.outputs.assets-id", "needs.build.outputs.record-id"
+        "needs.build.outputs.assets-id", "needs.build-shard.outputs.record-id"
     )
     second = second.replace("path: release-assets", "path: release-assets/more")
     text = _in_job(REAL_WORKFLOW, "gather", "      - name: The gather\n", second)
-    errors = scan.release_binding_errors(text)
+    errors = _binding(text)
     assert any(e.startswith("rule 16: gather downloads into release-assets") for e in errors), (
         errors
     )
 
 
+ARM64_SUMS_IDS = "artifact-ids: ${{ needs.build-shard.outputs.sums-id }}"
+
+
 def test_a_list_of_ids_from_two_jobs_or_with_one_unguarded_is_refused() -> None:
     mixed = _in_job(
-        REAL_WORKFLOW, "gather", f"artifact-ids: {MACOS_IDS},", f"artifact-ids: {LINUX_IDS},"
+        REAL_WORKFLOW,
+        "same-bytes",
+        ARM64_SUMS_IDS,
+        ARM64_SUMS_IDS + ",${{ needs.rebuild-linux-x86-64.outputs.sums-id }}",
     )
-    errors = scan.release_binding_errors(mixed)
-    assert any(e.startswith("rule 4: gather") for e in errors), errors
-    unguarded = _in_job(REAL_WORKFLOW, "gather", ' "$MACOS_OWN_GUEST_ID"', "")
-    errors = scan.release_binding_errors(unguarded)
-    assert any(e.startswith("rule 10: gather") for e in errors), errors
+    errors = _binding(mixed)
+    assert any(e.startswith("rule 4: same-bytes") for e in errors), errors
+    unguarded = _in_job(REAL_WORKFLOW, "same-bytes", ' "$ARM64_SUMS_ID"', "")
+    errors = _binding(unguarded)
+    assert any(e.startswith("rule 10: same-bytes") for e in errors), errors
+
+
+def test_records_are_read_by_name_in_the_gather_alone() -> None:
+    """A download by name binds the record to the leg that uploaded under it; anywhere else, or
+    by another name, it is a download not by one id."""
+    by_name = _in_job(
+        REAL_WORKFLOW,
+        "same-bytes",
+        ARM64_SUMS_IDS,
+        "pattern: record-linux-*",
+    )
+    errors = _binding(by_name)
+    assert any(e.startswith("rule 4: same-bytes") for e in errors), errors
+    other = _in_job(REAL_WORKFLOW, "gather", "pattern: record-linux-*", "pattern: rebuild-*")
+    assert any(e.startswith("rule 4: gather") for e in _binding(other))
 
 
 # numpy's compile records each force-include the fenv recipe header once.
@@ -2891,24 +3069,30 @@ def test_extras_spaces_and_an_unnormalised_name_are_read_as_uv_writes_them() -> 
 
 
 # ---------------------------------------------------------------------------------------------
-# The release tier in the workflow: the tier step, judge-release, and the gather beside it
+# The release tier in the workflow: judge-release, and the gather beside it
 
-RELEASE_IF = "    if: needs.inputs.outputs.tier == 'release'\n"
-GATHER_IF = "    if: ${{ !cancelled() && !failure() }}\n"
+RELEASE_IF = "    if: needs.plan.outputs.release != '[]'\n"
+GATHER_IF = "    if: ${{ !cancelled() && !failure() && needs.plan.outputs.judge == 'true' }}\n"
 
 BAD_TIER = [
     # judge-release runs on every run without its if:
     ("judge-release", RELEASE_IF, "", "rule 11: judge-release"),
-    # a release shard missing from its matrix
-    ("judge-release", "upstream-release-a, ", "", "rule 2: judge-release"),
+    # its matrix not the plan's release shards
+    (
+        "judge-release",
+        "        shard: ${{ fromJSON(needs.plan.outputs.release) }}\n",
+        "        shard: ${{ fromJSON(needs.plan.outputs.linux) }}\n",
+        "rule 2: judge-release",
+    ),
     # its steps not judge-linux's
     ("judge-release", "fetch-depth: 0", "fetch-depth: 1", "rule 3:"),
-    # the gather's if: lets it run after a failed leg
+    # the gather's if: lets it run after a failed leg, or on a run the plan does not judge
     ("gather", GATHER_IF, "    if: always()\n", "rule 11: gather"),
+    ("gather", GATHER_IF, "    if: ${{ !cancelled() && !failure() }}\n", "rule 11: gather"),
     ("gather", GATHER_IF, "", "rule 11: gather"),
     # the gather does not wait for judge-release, or reads no TIER
     ("gather", ", judge-release]", "]", "rule 7: gather is not"),
-    ("gather", "          TIER: ${{ needs.inputs.outputs.tier }}\n", "", "rule 7: gather's step"),
+    ("gather", "          TIER: ${{ needs.plan.outputs.tier }}\n", "", "rule 7: gather's step"),
     # a job after the gather that a branch run reaches, with no status function in its if:
     (
         "attest",
@@ -2929,50 +3113,91 @@ def test_the_release_tier_scan_names_each_breach(job, old, new, error) -> None:
 
 def test_a_guard_loop_names_only_ids_its_step_binds() -> None:
     """A guard that loops over a variable its env no longer sets tests an empty string, and the
-    gather fails on every run: the scan names it."""
-    extra = '"$WINDOWS_UPSTREAM_WINDOWS_ID"; do'
-    text = _in_job(REAL_WORKFLOW, "gather", extra, '"$WINDOWS_UPSTREAM_WINDOWS_ID" "$GONE_ID"; do')
-    errors = scan.release_binding_errors(text)
-    assert any(e.startswith("rule 10: gather's guard loops over GONE_ID") for e in errors), errors
-
-
-def _tier_step() -> str:
-    """The inputs job's tier step, as the workflow runs it."""
-    lines = scan.workflow_jobs(scan.without_comments(REAL_WORKFLOW))["inputs"]
-    step = next(
-        f
-        for _, f in ((s, scan.step_fields(s)) for s in scan.workflow_steps(lines))
-        if f.get("id") == "tier"
+    job fails on every run: the scan names it."""
+    extra = '"$X86_64_WHEEL_ID"; do'
+    text = _in_job(REAL_WORKFLOW, "same-bytes", extra, '"$X86_64_WHEEL_ID" "$GONE_ID"; do')
+    errors = _binding(text)
+    assert any(e.startswith("rule 10: same-bytes's guard loops over GONE_ID") for e in errors), (
+        errors
     )
-    return str(step["run"])
+
+
+def _ci_plan():
+    import importlib.util
+    import sys
+
+    spec = importlib.util.spec_from_file_location(
+        "release_ci_plan_scan", paths.REPO / "release" / "ci_plan.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod  # dataclasses look their module up here
+    spec.loader.exec_module(mod)
+    return mod
 
 
 @pytest.mark.parametrize(
-    ("event", "ref_type", "ref", "input_", "tier"),
+    ("event", "ref", "input_", "tier"),
     [
-        ("push", "tag", "refs/tags/v0.1.0", "", "release"),
-        ("workflow_dispatch", "branch", "refs/heads/main", "false", "release"),
-        ("workflow_dispatch", "branch", "refs/heads/spec/102", "true", "release"),
-        ("workflow_dispatch", "branch", "refs/heads/spec/102", "false", "normal"),
-        ("workflow_dispatch", "branch", "refs/heads/spec/102", "", "normal"),
-        ("workflow_dispatch", "branch", "refs/heads/spec/102", "True", "normal"),
-        ("workflow_dispatch", "branch", "refs/heads/mainline", "false", "normal"),
+        ("push", "refs/tags/v0.1.0", "", "release"),
+        ("workflow_dispatch", "refs/heads/main", "false", "release"),
+        ("workflow_dispatch", "refs/heads/spec/102", "true", "release"),
+        ("workflow_dispatch", "refs/heads/spec/102", "false", "normal"),
+        ("workflow_dispatch", "refs/heads/spec/102", "", "normal"),
+        ("workflow_dispatch", "refs/heads/spec/102", "True", "normal"),
+        ("workflow_dispatch", "refs/heads/mainline", "false", "normal"),
     ],
 )
-def test_the_tier_step_decides_by_the_runners_own_variables(
-    tmp_path, event, ref_type, ref, input_, tier
-) -> None:
-    out = tmp_path / "out"
-    env = {
-        "PATH": "/usr/bin:/bin",
-        "GITHUB_EVENT_NAME": event,
-        "GITHUB_REF_TYPE": ref_type,
-        "GITHUB_REF": ref,
-        "RELEASE_TIER": input_,
-        "GITHUB_OUTPUT": str(out),
-    }
-    subprocess.run(["bash", "-e", "-c", _tier_step()], env=env, check=True, capture_output=True)
-    assert out.read_text() == f"tier={tier}\n"
+def test_the_tier_is_decided_by_the_runners_own_variables(event, ref, input_, tier) -> None:
+    """The decision job decides the tier from the event, the ref and the dispatch's input as the
+    runner hands them on: a tag and a run on main always judge the release tier, a dispatch only
+    when its input is exactly true."""
+    ci_plan = _ci_plan()
+    environ = {"GITHUB_EVENT_NAME": event, "GITHUB_REF": ref, "PLAN_RELEASE_TIER": input_}
+    e, changed, _ = ci_plan.from_runner(environ)
+    assert ci_plan.decide(changed, e).tier == tier
+
+
+# The required check's mutants: each named by ci_status_errors.
+BAD_CI_STATUS = [
+    ("ci-status", "    if: always()\n", "", "ci-status is not named ci-status"),
+    ("ci-status", "    name: ci-status\n", "    name: status\n", "ci-status is not named"),
+    ("ci-status", ", attest, publish, pypi]", ", attest, publish]", "ci-status does not need"),
+    ("ci-status", '[ "$REFUSALS" != "[]" ]', '[ -z "$REFUSALS" ]', "ci-status's one step"),
+    (
+        "ci-status",
+        "    permissions: {}\n",
+        "    permissions:\n      contents: read\n",
+        "ci-status's",
+    ),
+    (
+        "coverage",
+        "    if: needs.plan.outputs.full == 'true'\n",
+        "",
+        "coverage does not need the plan",
+    ),
+    ("inputs", "    needs: plan\n", "", "inputs does not need the plan"),
+]
+
+
+@pytest.mark.parametrize(
+    ("job", "old", "new", "error"), BAD_CI_STATUS, ids=[b[3] for b in BAD_CI_STATUS]
+)
+def test_the_ci_status_scan_names_each_breach(job, old, new, error) -> None:
+    errors = scan.ci_status_errors(_in_job(REAL_WORKFLOW, job, old, new))
+    assert any(e.startswith(error) for e in errors), errors
+
+
+def test_a_paths_filter_or_another_concurrency_is_named() -> None:
+    filtered = REAL_WORKFLOW.replace(
+        "    branches: [dev, main]\n", "    branches: [dev, main]\n    paths: [src/**]\n", 1
+    )
+    assert "the workflow has a paths: filter on a trigger" in scan.ci_status_errors(filtered)
+    always = REAL_WORKFLOW.replace(
+        "  cancel-in-progress: ${{ github.event_name == 'pull_request' }}\n",
+        "  cancel-in-progress: true\n",
+        1,
+    )
+    assert any(e.startswith("the concurrency is not") for e in scan.ci_status_errors(always))
 
 
 # The build's pins read by exact name, meson that never downloads, curl that keeps HTTPS, every
