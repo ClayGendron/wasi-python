@@ -1067,7 +1067,7 @@ def _stop_at(count: int, ticks: int) -> int:
 def _poll_plan(
     raw: bytes, n: int, realtime_ns: int, monotonic_ns: int, kind: Callable[[int], str | None]
 ) -> _Plan:
-    """poll_oneoff as wasmtime 49 answers it (crates/wasi/src/p1.rs): unknown clock flags are
+    """poll_oneoff as wasmtime answers it (crates/wasi/src/p1.rs): unknown clock flags are
     EINVAL; a descriptor is answered from what `kind` says the call knows of it: a number the
     guest holds and a mount's file are ready at once, a folder and any other number EBADF, and
     stdio as wasmtime answers it (stdin for writing, stdout and stderr for reading EBADF);
