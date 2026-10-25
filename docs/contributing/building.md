@@ -21,7 +21,7 @@ scripts/00_download.sh   # fetch every pin and verify it against downloads/SHA25
 scripts/build.sh         # a preflight, twenty steps with one line each, a summary; logs in build/logs/
 ```
 
-The first command fetches every pinned input into `downloads/` and checks each one against its SHA-256 in `downloads/SHA256SUMS`. A mismatch fails the build. Nothing it downloads is run as a program on your system; downloads are build tools or source trees only.
+The first command fetches every pinned input into `downloads/` over HTTPS and checks each one against its SHA-256 in `downloads/SHA256SUMS`. A mismatch fails the build and names the file; a file that is already present is never fetched again, so delete it and run the command again. Nothing it downloads is run as a program on your system; downloads are build tools or source trees only.
 
 The second command builds everything. The artifacts land in `build/artifacts/`.
 
