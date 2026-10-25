@@ -550,3 +550,12 @@ def test_the_command_needs_the_news_files_folder(pytester, tmp_path, monkeypatch
     result = pytester.runpytest(*args)
     assert result.ret == 1
     result.stdout.fnmatch_lines(["*--accept-from takes its reasons from --claims*"])
+
+
+def test_a_news_folder_outside_the_repository_is_refused(repo, tmp_path) -> None:
+    _commit(repo, "start")
+    since = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, text=True
+    ).stdout.strip()
+    with pytest.raises(accept_from.Refused, match="not a folder of this repository"):
+        accept_from.news_since(repo, since, tmp_path / "elsewhere")

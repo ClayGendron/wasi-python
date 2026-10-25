@@ -362,7 +362,10 @@ def news_since(repo: Path, since: str | None, folder: Path) -> list[news.Claim]:
         raise Refused(
             [f"the last acceptance's commit {since[:12]} is not in this commit's history"]
         )
-    rel = folder.resolve().relative_to(repo.resolve()).as_posix()
+    try:
+        rel = folder.resolve().relative_to(repo.resolve()).as_posix()
+    except ValueError:
+        raise Refused([f"--claims {folder} is not a folder of this repository"]) from None
     out = _git(repo, "diff", "--name-only", "--no-renames", "--diff-filter=AM", since, "HEAD")
     if out.returncode != 0:
         raise Refused([f"git diff {since[:12]} HEAD failed: {out.stderr.strip()[:120]}"])
