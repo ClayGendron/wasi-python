@@ -58,7 +58,7 @@ cd "$SRC"
 # Python, which imports setuptools_scm (the stand-in) and packaging.version (the pinned wheel, a
 # zip on the path; nothing is installed).
 PYTHONPATH="$HERE/recipes/setuptools_scm_stand_in:$PACKAGING:$PYTHONPATH" \
-  meson setup "$BUILD" --cross-file "$B/wasi-statsmodels.cross" --buildtype=release -Db_ndebug=if-release
+  meson setup "$BUILD" $MESON_WRAP --cross-file "$B/wasi-statsmodels.cross" --buildtype=release -Db_ndebug=if-release
 SETUP="$BUILD/meson-logs/meson-log.txt"
 # The version gate (Decision 3): the stand-in's answer is the sdist's own, and the sdist's
 # _version.py, which meson installs as it is, says the same.

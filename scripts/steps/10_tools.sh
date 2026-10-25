@@ -204,7 +204,7 @@ REQS="$B/tools-requirements.txt"
 : > "$REQS"
 for wheel in $WHEELS; do
   cp "$(pinned "$wheel")" "$B/wheelhouse/"
-  sha=$(grep "  $wheel\$" "$D/SHA256SUMS" | cut -c1-64)
+  sha=$(pin_of "$wheel")
   dist=${wheel%%-*}
   rest=${wheel#*-}
   printf '%s==%s --hash=sha256:%s\n' "$dist" "${rest%%-*}" "$sha" >> "$REQS"
@@ -223,7 +223,7 @@ done
 # and scipy's builds import. scripts/f2py-host runs f2py from it, on scipy's .pyf files only.
 F2PY="$T/f2py-numpy"
 cp "$(pinned "$NUMPY_HOST_WHEEL")" "$B/wheelhouse/"
-sha=$(grep "  $NUMPY_HOST_WHEEL\$" "$D/SHA256SUMS" | cut -c1-64)
+sha=$(pin_of "$NUMPY_HOST_WHEEL")
 printf 'numpy==2.5.2 --hash=sha256:%s\n' "$sha" > "$B/f2py-requirements.txt"
 uv pip install --python "$HOSTPY" --target "$F2PY" --offline --no-index --find-links "$B/wheelhouse" --require-hashes -r "$B/f2py-requirements.txt"
 f2py_version=$(PYTHONPATH="$F2PY" "$HOSTPY" -s -c 'import numpy; print(numpy.__version__)')

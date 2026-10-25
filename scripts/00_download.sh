@@ -32,7 +32,9 @@ get() { # url name
     echo "ERROR: no curl on PATH; it fetches $2" >&2
     exit 1
   fi
-  curl -fsSL --retry 3 -o "$D/$2.part" "$1"
+  # HTTPS only, on the first request and on every redirect, at TLS 1.2 or later. The pin's SHA-256
+  # is what makes the bytes trusted; this keeps a wrong pin from fetching over plain HTTP.
+  curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 -o "$D/$2.part" "$1"
   mv "$D/$2.part" "$D/$2"
   FETCHED=$((FETCHED + 1))
   echo "fetched $2"
@@ -273,6 +275,15 @@ if shasum -a 256 --ignore-missing -c SHA256SUMS > "$checked" 2>&1; then
   cat "$checked"
 else
   cat "$checked"
+  # A present file that does not match is never fetched again on its own, since a poisoned cache
+  # must be seen, not silently replaced: each one is named with the fix.
+  while IFS= read -r line; do
+    case "$line" in
+      *": FAILED"*)
+        name=${line%%: FAILED*}
+        echo "ERROR: downloads/$name does not match its pin: delete downloads/$name and run again" >&2;;
+    esac
+  done < "$checked"
   echo "ERROR: a download does not match its pin in downloads/SHA256SUMS" >&2
   exit 1
 fi

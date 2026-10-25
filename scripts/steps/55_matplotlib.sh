@@ -115,7 +115,7 @@ M="$B/matplotlib-3.11.2"
 sed "s#@ROOT@#$HERE#g; s#@SDK@#$WASI_SDK_DIR#g" "$HERE/recipes/wasi-matplotlib.cross" > "$B/wasi-matplotlib.cross"
 export PYTHONPATH="$HERE/recipes/setuptools_scm_stand_in:$PYTHONPATH"
 cd "$M"
-meson setup "$B/matplotlib-build" --cross-file "$B/wasi-matplotlib.cross" --buildtype=release \
+meson setup "$B/matplotlib-build" $MESON_WRAP --cross-file "$B/wasi-matplotlib.cross" --buildtype=release \
   -Db_lto=false -Dsystem-freetype=true -Dsystem-libraqm=true -Dsystem-qhull=true \
   -DrcParams-backend=Agg -Dmacosx=false -Dpython.bytecompile=-1
 ninja -C "$B/matplotlib-build"
@@ -162,6 +162,11 @@ EOF_MPL
 # 0+stand.in, for meson-python never ran. meson installs that file with no tag (meson-python
 # installs every tag), so scripts/meson_plan.py copies it from the build folder to the place
 # meson's install plan gives it, and stops unless that place is util/_build_config.py.
+# Its configure alone does not pass $MESON_WRAP, for two reasons. It has nothing to fetch: its
+# sdist ships no .wrap file and no subprojects folder, and its one dependency() names no fallback,
+# so meson has no subproject to consult. And it writes meson's options into _build_config.py,
+# which ships, so the flag would change the zip by one line for no gain. A new contourpy is
+# checked for wrap files again before it keeps this exemption.
 C="$B/contourpy-1.4.0"
 (
   cd "$C"

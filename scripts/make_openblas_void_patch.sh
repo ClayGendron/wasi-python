@@ -35,8 +35,14 @@ die() {
 
 [ "$#" -eq 1 ] || die "usage: make_openblas_void_patch.sh OUT_DIR"
 [ -s "$TARBALL" ] || die "downloads/$TOP.tar.gz is missing: run scripts/00_download.sh"
-want=$(grep "  $TOP.tar.gz\$" "$HERE/downloads/SHA256SUMS" | cut -c1-64)
-[ -n "$want" ] || die "$TOP.tar.gz is not pinned in downloads/SHA256SUMS"
+# The pin by its exact name field, compared as text and found once, as the build steps' pin_of
+# selects it (this script runs outside a step, so it does not source their helpers): a `.` in the
+# name is a dot, never a pattern.
+want=$(PIN_NAME="$TOP.tar.gz" awk '
+  NF == 2 && $2 "" == ENVIRON["PIN_NAME"] "" { n++; sum = $1 }
+  END { if (n == 1) print sum }
+' "$HERE/downloads/SHA256SUMS")
+[ -n "$want" ] || die "$TOP.tar.gz is not pinned once in downloads/SHA256SUMS"
 got=$(shasum -a 256 "$TARBALL" | cut -c1-64)
 [ "$got" = "$want" ] || die "downloads/$TOP.tar.gz does not match its pin"
 

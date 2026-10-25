@@ -18,7 +18,7 @@ sed "s#@ROOT@#$HERE#g; s#@SDK@#$WASI_SDK_DIR#g" "$HERE/recipes/wasi-pandas.cross
 export PYTHONPATH="$B/numpy-host:$PYTHONPATH"
 cd "$SRC"
 # b_ndebug=if-release: C asserts off, as in pandas' own wheels (meson-python's default).
-meson setup "$BUILD" --cross-file "$B/wasi-pandas.cross" --buildtype=release -Db_ndebug=if-release
+meson setup "$BUILD" $MESON_WRAP --cross-file "$B/wasi-pandas.cross" --buildtype=release -Db_ndebug=if-release
 ninja -C "$BUILD"
 
 # The Python package: the sdist's tree and its meson-time version file, as an install would place it.

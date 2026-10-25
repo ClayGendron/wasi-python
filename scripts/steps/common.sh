@@ -45,12 +45,39 @@ die() {
   exit 1
 }
 
+# The one line of downloads/SHA256SUMS that pins $1, found by its name field compared as text:
+# never as a pattern, where a `.` would match any character and let an unpinned name pass on
+# another name's line, and never as numbers (the empty strings make awk compare strings). The
+# name reaches awk through the environment, which keeps its backslashes as written. No line, or
+# more than one, fails the step.
+pin_line() {
+  PIN_NAME=$1 awk '
+    NF == 2 && $2 "" == ENVIRON["PIN_NAME"] "" { n++; line = $0 }
+    END { if (n == 1) print line; exit n == 1 ? 0 : n == 0 ? 4 : 5 }
+  ' "$D/SHA256SUMS" && return 0
+  case $? in
+    4) die "$1 is not pinned in downloads/SHA256SUMS" ;;
+    5) die "$1 is pinned twice in downloads/SHA256SUMS" ;;
+    *) die "downloads/SHA256SUMS cannot be read" ;;
+  esac
+}
+
 # The pinned file's path, its SHA-256 verified again here, so a step run on its own never uses
 # bytes that changed after scripts/00_download.sh checked them.
 pinned() {
   [ -s "$D/$1" ] || die "downloads/$1 is missing: run scripts/00_download.sh"
-  grep "  $1\$" "$D/SHA256SUMS" > "$B/.pin-check" || die "$1 is not pinned in downloads/SHA256SUMS"
+  pin_line "$1" > "$B/.pin-check"
   (cd "$D" && shasum -a 256 -c "$B/.pin-check" > /dev/null 2>&1) || die "downloads/$1 does not match its pin"
   rm -f "$B/.pin-check"
   printf '%s\n' "$D/$1"
 }
+
+# The SHA-256 that downloads/SHA256SUMS pins for $1, by the same exact selection.
+pin_of() {
+  pin_sum=$(pin_line "$1") || exit 1
+  printf '%s\n' "${pin_sum%% *}"
+}
+
+# Every meson configure passes this, so a wrap that pkg-config does not satisfy fails the build
+# instead of fetching a subproject over the network and building it in.
+MESON_WRAP="--wrap-mode=nodownload"
