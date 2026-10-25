@@ -1,0 +1,176 @@
+"""News files: one per change, its CHANGELOG lines, its package rows and its claim block, read
+by the release's changelog assembly, the gather's growth listing and the acceptance from CI."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from harness import news
+
+GOOD = """# 999: a change
+
+## Changelog
+
+### Changed
+
+- **A thing moved**: it moved.
+
+### Fixed
+
+- **A thing broke**: it is fixed.
+
+## Package rows
+
+| numpy | 2.5.2 | Built in. |
+
+## Claims
+
+```toml
+[[claim]]
+spec = "999"
+new = ["tests/checks/test_rules.py::test_new"]
+grows = ["tests/checks/test_v1_4_x.py::*"]
+growth = "the tool table is larger"
+passes = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[g1]"]
+fewer = "two tests moved to the release tier"
+units = 3
+
+[claim.judge]
+"tests/harness/plugin.py" = "it reads the record"
+
+[claim.moved]
+"tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[g2]" = "slow"
+```
+"""
+
+
+def test_a_news_file_reads_its_three_sections() -> None:
+    n = news.parse("999-a-change.md", GOOD)
+    assert n.name == "999-a-change" and n.spec == "999"
+    assert n.changelog == {
+        "Changed": ["- **A thing moved**: it moved."],
+        "Fixed": ["- **A thing broke**: it is fixed."],
+    }
+    assert n.rows == ["| numpy | 2.5.2 | Built in. |"]
+    (c,) = n.claims
+    assert c.spec == "999" and c.units == 3 and c.growth == "the tool table is larger"
+    assert c.judge == {"tests/harness/plugin.py": "it reads the record"}
+    assert c.moved == {"tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[g2]": "slow"}
+
+
+def test_no_package_rows_and_an_empty_claim_are_allowed() -> None:
+    text = GOOD.split("## Package rows")[0] + (
+        '## Package rows\n\nNone.\n\n## Claims\n\n```toml\n[[claim]]\nspec = "999"\n```\n'
+    )
+    n = news.parse("999-a-change.md", text)
+    assert n.rows == [] and n.claims[0].grows == [] and n.claims[0].judge == {}
+
+
+BROKEN = {
+    "a name that is not NNN-slug": ("999_a_change.md", GOOD, "NNN-<slug>"),
+    "a title of another number": ("998-a-change.md", GOOD, "998"),
+    "no changelog": ("999-a-change.md", GOOD.replace("## Changelog", "## Notes"), "Notes"),
+    "a heading the changelog does not use": (
+        "999-a-change.md",
+        GOOD.replace("### Fixed", "### Improved"),
+        "Improved",
+    ),
+    "a heading with no line": (
+        "999-a-change.md",
+        GOOD.replace("- **A thing broke**: it is fixed.\n", ""),
+        "Fixed",
+    ),
+    "prose under a heading": (
+        "999-a-change.md",
+        GOOD.replace("- **A thing moved**: it moved.", "It moved."),
+        "a line",
+    ),
+    "a row of two cells": (
+        "999-a-change.md",
+        GOOD.replace("| numpy | 2.5.2 | Built in. |", "| numpy | 2.5.2 |"),
+        "three cells",
+    ),
+    "no claim block": (
+        "999-a-change.md",
+        GOOD.split("```toml")[0],
+        "toml",
+    ),
+    "a claim block that is not TOML": (
+        "999-a-change.md",
+        GOOD.replace('spec = "999"', "spec = "),
+        "TOML",
+    ),
+    "a key the shape does not name": (
+        "999-a-change.md",
+        GOOD.replace("units = 3", "units = 3\nwhy = 1"),
+        "why",
+    ),
+    "grows with no growth": (
+        "999-a-change.md",
+        GOOD.replace('growth = "the tool table is larger"\n', ""),
+        "growth",
+    ),
+    "a judge file with no reason": (
+        "999-a-change.md",
+        GOOD.replace('= "it reads the record"', '= ""'),
+        "judge",
+    ),
+    "a claim for another specification": (
+        "999-a-change.md",
+        GOOD.replace('spec = "999"', 'spec = "998"'),
+        "998",
+    ),
+}
+
+
+@pytest.mark.parametrize("case", BROKEN)
+def test_each_broken_news_file_is_refused_with_its_reason(case) -> None:
+    name, text, words = BROKEN[case]
+    with pytest.raises(news.NewsError, match=words.replace("[", r"\[").replace("*", r"\*")):
+        news.parse(name, text)
+
+
+def test_a_folder_holds_news_files_and_its_readme(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text("# the folder\n")
+    (tmp_path / "999-a-change.md").write_text(GOOD)
+    (tmp_path / "001-first.md").write_text(GOOD.replace("999", "001"))
+    assert [n.name for n in news.folder(tmp_path)] == ["001-first", "999-a-change"]
+    assert news.folder(tmp_path / "missing") == []
+
+
+@pytest.mark.parametrize(
+    "rel, want",
+    [
+        ("context/changes/138-pull-requests-into-dev.md", True),
+        ("context/changes/README.md", False),
+        ("context/changes/notes.txt", False),
+        ("context/changes/sub/138-x.md", False),
+        ("context/reviews/138-x-pr-2026-10-25.md", False),
+    ],
+)
+def test_which_paths_are_news_files(rel, want) -> None:
+    assert news.is_news_path(rel) is want
+
+
+def test_a_claim_names_a_check_by_id_by_file_or_by_prefix() -> None:
+    node = "tests/checks/test_v1_4_x.py::test_tools[a]"
+    assert news.names(node, node)
+    assert news.names("tests/checks/test_v1_4_x.py", node)
+    assert news.names("tests/checks/test_v1_4_*", node)
+    assert not news.names("tests/checks/test_v1_4_x.py::test_tools[b]", node)
+    assert not news.names("tests/checks/test_v1_4", node)
+
+
+def test_the_reason_a_claim_gives_for_each_kind_of_row() -> None:
+    claims = news.parse("999-a-change.md", GOOD).claims
+    tools = "tests/checks/test_v1_4_x.py::test_tools"
+    group = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[g1]"
+    moved = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[g2]"
+    assert news.reason(claims, "grows", tools) == "999: the tool table is larger"
+    assert news.reason(claims, "passes", group) == "999: two tests moved to the release tier"
+    assert news.reason(claims, "moved", moved) == "999: slow"
+    assert news.reason(claims, "judge", "tests/harness/plugin.py") == "999: it reads the record"
+    assert news.reason(claims, "grows", group) is None
+    assert news.reason(claims, "judge", "tests/harness/gather.py") is None

@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from harness import gather, history, paths, shards
+from harness import gather, history, news, paths, shards
 
 U = shards.UPSTREAM_FILE
 W = "a" * 64  # python.wasm
@@ -656,7 +656,7 @@ def test_the_merged_record_carries_what_sameness_needs(case) -> None:
     assert "tests/unit/test_mac_only.py" in merged["collected_files"]
     assert set(merged["collected_files"]) >= {n.split("::")[0] for n in GOAL + UNITS}
     assert set(merged["runs"]) == {f"{s}/{n}" for s, n in gather.expected_keys(PLAN)}
-    assert merged["runs"]["linux/up-l"] == {
+    assert {k: merged["runs"]["linux/up-l"][k] for k in ("platform", "suite")} == {
         "platform": "linux-x86_64",
         "suite": case.records[LIN]["suite"],
     }
@@ -1235,3 +1235,69 @@ def test_each_record_is_found_under_its_jobs_folder_by_its_artifact_name(tmp_pat
         ("build", "build"): paths.sha256_file(build),
         ("macos", "own-a"): "",
     }
+
+
+# ---------------------------------------------------------------------------------------------
+# After a merge into dev: what the acceptance needs a reason for is listed, and the merged record
+# carries what the acceptance holds
+
+
+def _post_merge(tmp_path) -> Case:
+    case = Case(tmp_path)
+    orig = case.inputs
+
+    def inputs(records_dir=None, handed=None):
+        i = orig(records_dir, handed)
+        i.event, i.g7, i.ref = "push", "post-merge", "refs/heads/dev"
+        return i
+
+    case.inputs = inputs
+    return case
+
+
+def test_a_growth_after_a_merge_into_dev_is_listed_for_the_acceptance(tmp_path) -> None:
+    """The run after a merge is the one the accept job accepts from: a growth there is the
+    acceptance's to clear with its claim, or to refuse, so the gather lists it and stays green."""
+    case = _post_merge(tmp_path)
+    case.records[("macos", "own-a")]["checks"][PROBE]["metrics"] = {"fuel": 70}
+    v = case.run()
+    assert v.red == [], v.red
+    assert v.growth == [f"G5 macos/own-a: grew {PROBE}: fuel 7 -> 70"], v.growth
+    case = _post_merge(tmp_path / "lost")
+    case.records[("linux", "own-a")]["checks"][DESC].update(status="gap", reason="a gap")
+    case.gaps = {DESC}
+    assert f"G5 linux/own-a: lost {DESC}" in case.run().red
+
+
+def test_a_claimed_growth_is_listed_with_its_news_files_reason(tmp_path) -> None:
+    case = PRCase(tmp_path)
+    case.records[("linux", "own-a")]["checks"][PROBE]["metrics"] = {"fuel": 70}
+    case.accepted["checks"][PROBE]["metrics"]["linux-x86_64"] = {"fuel": 7, "wasmtime": WT}
+    orig = case.inputs
+
+    def inputs(records_dir=None, handed=None):
+        i = orig(records_dir, handed)
+        i.claims = [news.Claim(spec="999", grows=[PROBE], growth="the probe does more")]
+        return i
+
+    case.inputs = inputs
+    v = case.run()
+    assert f"  G5 linux/own-a: grew {PROBE}: fuel 7 -> 70 · 999: the probe does more" in v.lines
+
+
+def test_the_merged_record_carries_the_verdict_the_event_and_each_runs_guards(tmp_path) -> None:
+    """What the acceptance from CI's record holds: the gather's red lines, the event and its refs,
+    and each shard's commit, cleanliness, overrides, outside steering and probe."""
+    v = _post_merge(tmp_path).run()
+    meta = v.merged["meta"]
+    assert meta["red"] == [] and meta["event"] == "push" and meta["ref"] == "refs/heads/dev"
+    assert meta["base_ref"] == ""
+    run = v.merged["runs"]["macos/own-a"]
+    assert run["commit"] == HEAD and run["dirty"] is False and run["foreign"] == []
+    assert run["overrides"] == ["--progress-latest /tmp/r/latest.json"]
+    assert run["probe"] == "pass"
+    case = _post_merge(tmp_path / "red")
+    case.records[("linux", "own-a")]["meta"]["dirty"] = True
+    red = case.run()
+    assert red.merged["meta"]["red"] == red.red and red.red
+    assert red.merged["runs"]["linux/own-a"]["dirty"] is True

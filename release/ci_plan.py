@@ -45,7 +45,8 @@ FULL_LABEL = "ci:full"
 FULL_LINE = "citest:full"
 ACCEPTED = "context/progress/accepted.json"
 HISTORY_VOLUME = re.compile(r"context/progress/history(-\d{5,})?\.jsonl")
-NEWS = re.compile(r"context/changes/[^/]+\.md")
+# A news file, `NNN-<slug>.md` in the changes folder: the folder's README is not one.
+NEWS = re.compile(r"context/changes/(\d{3}-[a-z0-9]+(?:-[a-z0-9]+)*)\.md")
 DOCS_FILES = ("README.md", "CHANGELOG.md", "AGENTS.md", "SECURITY.md", "mkdocs.yml", ".gitignore")
 SET_FILES = ("downloads/SHA256SUMS", "release/set_key.py", "release/build-constraints.txt")
 HARNESS_FILES = (
@@ -81,6 +82,11 @@ def classify(path: str) -> frozenset[str]:
     ):
         out.add("docs")
     return frozenset(out)
+
+
+def docs_only(changed: list[str]) -> bool:
+    """Every changed path is documentation, whatever the label or a commit line asks to run."""
+    return all("docs" in classify(p) for p in changed)
 
 
 def is_acceptance(changed: list[str]) -> bool:
@@ -145,7 +151,7 @@ def decide(changed: list[str] | None, event: Event, key_moved: bool = False) -> 
     d.set = d.set or key_moved
     if key_moved:
         d.why.append("the set's key moves between the merge base and the head")
-    d.docs_only = changed is not None and all("docs" in classify(p) for p in changed)
+    d.docs_only = changed is not None and docs_only(changed)
     lines = {line.strip() for m in event.messages for line in m.splitlines()}
     if event.pull_request and event.base_ref == "main":
         d.full = d.rebuild = True
@@ -236,14 +242,27 @@ def select(d: Decision, plan: dict[str, Shard]) -> dict:
     return sel
 
 
+def into_dev(event: Event) -> bool:
+    """A pull request into dev: the one held to a news file and a review file. The release pull
+    request into main carries every released change's, and its review is the release's."""
+    return event.pull_request and event.base_ref != "main"
+
+
 def refusals(d: Decision, event: Event, changed: list[str] | None) -> list[str]:
-    """What ci-status refuses on its own, whatever the judge says."""
+    """What ci-status refuses on its own, whatever the judge says: accepted state written by a
+    pull request, and a pull request into dev that is not documentation only and carries no news
+    file."""
     out = []
     if event.pull_request and d.progress:
         written = sorted(p for p in changed or () if "progress" in classify(p))
         out.append(
             "a pull request may not write accepted state; only the job that accepts writes "
             "context/progress/: " + ", ".join(written)
+        )
+    if into_dev(event) and changed is not None and not docs_only(changed) and not d.news:
+        out.append(
+            "a pull request that is not documentation only carries its news file, "
+            "context/changes/NNN-<slug>.md: its CHANGELOG line, its package rows and its claims"
         )
     return out
 

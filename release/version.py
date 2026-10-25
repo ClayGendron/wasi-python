@@ -1,7 +1,7 @@
 """The package's version, its changelog and its release tag.
 
     uv run python release/version.py show
-    uv run python release/version.py bump [--to 0.1.0a2]
+    uv run python release/version.py bump [--to 0.1.0a2]   # and the news files into CHANGELOG.md
     uv run python release/version.py check [--tag v0.1.0a1]
     uv run python release/version.py release [--push]
     uv run python release/version.py notes 0.1.0a1 [--repository owner/name]
@@ -11,6 +11,11 @@
 pyproject.toml reads it through hatchling. A release is the annotated tag `v<version>` on a
 pushed commit of main; pushing it starts .github/workflows/release.yml. Pushing a release tag is
 cutting a release, which only the owner decides.
+
+A change's CHANGELOG lines and package rows are written in its news file (`CHANGES`), not into
+CHANGELOG.md by hand. `bump` assembles them into the new version's section (joining an
+unreleased section already written for it), puts each package row into the packages page's table,
+and removes the news files; the reader of their shape is the judge's own, loaded by its path.
 """
 
 from __future__ import annotations
@@ -18,6 +23,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import hashlib
+import importlib.util
 import io
 import lzma
 import os
@@ -32,6 +38,12 @@ REPO = Path(__file__).resolve().parents[1]
 INIT = REPO / "src" / "wasi_python" / "__init__.py"
 PYPROJECT = REPO / "pyproject.toml"
 CHANGELOG = REPO / "CHANGELOG.md"
+CHANGES = REPO / "context" / "changes"
+PACKAGES = REPO / "docs" / "reference" / "packages.md"
+NEWS_READER = REPO / "tests" / "harness" / "news.py"
+# The packages page's table the news files' rows belong to.
+PACKAGE_HEADER = "| package | version | what works |"
+PLACEHOLDER = "- (what changed)"
 VERSION_LINE = re.compile(r'^__version__ = "([^"]+)"$', re.M)
 FORM = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:(a|b|rc)([1-9]\d*))?$")
 STAGES = {"a": 0, "b": 1, "rc": 2, None: 3}
@@ -97,15 +109,100 @@ def sections(changelog: str) -> dict[str, str]:
     return {m.group(1): m.group(2) for m in SECTION.finditer(changelog)}
 
 
-def add_section(changelog: str, version: Version) -> str:
-    """A new `unreleased` section above the newest one."""
-    if str(version) in sections(changelog):
-        raise ReleaseError(f"CHANGELOG.md already has a section for {version}")
-    entry = f"## {version} — unreleased\n\n- (what changed)\n\n"
-    first = SECTION.search(changelog)
-    if first is None:
-        return changelog.rstrip("\n") + "\n\n" + entry
-    return changelog[: first.start()] + entry + changelog[first.start() :]
+def add_section(changelog: str, version: Version, news: list | None = None) -> str:
+    """The new version's `unreleased` section with the news files' lines under their headings:
+    a new section above the newest one, or the unreleased one already written for it, joined.
+    With no news, a new section with a placeholder line, never the one already written."""
+    have = sections(changelog).get(str(version))
+    if have is not None and (have != "unreleased" or not news):
+        dated = f", dated {have}" if have != "unreleased" else " and no news file adds to it"
+        raise ReleaseError(f"CHANGELOG.md already has a section for {version}{dated}")
+    if have is None and not news:
+        entry = f"## {version} — unreleased\n\n{PLACEHOLDER}\n\n"
+        first = SECTION.search(changelog)
+        if first is None:
+            return changelog.rstrip("\n") + "\n\n" + entry
+        return changelog[: first.start()] + entry + changelog[first.start() :]
+    if have is None:
+        entry = f"## {version} — unreleased\n\n"
+        first = SECTION.search(changelog)
+        changelog = (
+            changelog.rstrip("\n") + "\n\n" + entry
+            if first is None
+            else changelog[: first.start()] + entry + changelog[first.start() :]
+        )
+    matches = list(SECTION.finditer(changelog))
+    at = next(i for i, m in enumerate(matches) if m.group(1) == str(version))
+    start = matches[at].end()
+    end = matches[at + 1].start() if at + 1 < len(matches) else len(changelog)
+    body = _joined(changelog[start:end], news or [])
+    tail = "\n\n" if at + 1 < len(matches) else "\n"
+    return changelog[:start] + "\n\n" + body + tail + changelog[end:]
+
+
+def _joined(body: str, news: list) -> str:
+    """A section's body with the news files' lines added under their headings: the text before
+    the first heading kept (the placeholder dropped), the headings in the CHANGELOG's order, each
+    heading's lines as written, then each news file's in name order."""
+    preamble: list[str] = []
+    blocks: dict[str, list[str]] = {}
+    current = None
+    for line in body.strip("\n").splitlines():
+        if line.startswith("### "):
+            current = line[4:].strip()
+            blocks.setdefault(current, [])
+        elif current is None:
+            preamble.append(line)
+        elif line.strip():
+            blocks[current].append(line)
+    preamble = [] if [x for x in preamble if x.strip()] == [PLACEHOLDER] else preamble
+    for n in sorted(news, key=lambda n: n.name):
+        for heading, lines in n.changelog.items():
+            blocks.setdefault(heading, []).extend(lines)
+    order = ["Added", "Changed", "Fixed", "Security"]
+    headings = [h for h in order if h in blocks] + [h for h in blocks if h not in order]
+    parts = ["\n".join(preamble).strip("\n")] if "".join(preamble).strip() else []
+    parts += [f"### {h}\n\n" + "\n".join(blocks[h]) for h in headings]
+    return "\n\n".join(parts)
+
+
+def add_rows(page: str, rows: list[str]) -> str:
+    """The packages page with each row in its table: replacing the row of the same package, or
+    after the table's last row."""
+    if not rows:
+        return page
+    lines = page.split("\n")
+    try:
+        head = lines.index(PACKAGE_HEADER)
+    except ValueError:
+        raise ReleaseError(f"the packages page has no table headed {PACKAGE_HEADER}") from None
+    end = head + 2
+    while end < len(lines) and lines[end].startswith("|"):
+        end += 1
+
+    def package(row: str) -> str:
+        return row.split("|")[1].strip()
+
+    for row in rows:
+        same = [i for i in range(head + 2, end) if package(lines[i]) == package(row)]
+        if same:
+            lines[same[0]] = row
+        else:
+            lines.insert(end, row)
+            end += 1
+    return "\n".join(lines)
+
+
+def read_news(folder: Path) -> list:
+    """Every news file in `folder`, by the judge's reader; a broken one stops the bump."""
+    spec = importlib.util.spec_from_file_location("wasi_python_news", NEWS_READER)
+    reader = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = reader  # dataclasses look their module up here
+    spec.loader.exec_module(reader)
+    try:
+        return reader.folder(folder)
+    except reader.NewsError as e:
+        raise ReleaseError(f"a news file is broken: {e}") from None
 
 
 def date_section(changelog: str, version: Version, day: str) -> str:
@@ -247,10 +344,18 @@ def _bump(a: argparse.Namespace) -> int:
     if new <= current:
         raise ReleaseError(f"{new} is not greater than {current}")
     init_text = write_version(INIT.read_text(), new)
-    changelog = add_section(CHANGELOG.read_text(), new)  # raises before anything is written
+    news = read_news(CHANGES)  # every edit below is made before any is written
+    changelog = add_section(CHANGELOG.read_text(), new, news)
+    rows = [row for n in sorted(news, key=lambda n: n.name) for row in n.rows]
+    page = add_rows(PACKAGES.read_text(), rows) if rows else None
     INIT.write_text(init_text)
     CHANGELOG.write_text(changelog)
-    print(f"{current} -> {new}: edit CHANGELOG.md's section, then commit")
+    if page is not None:
+        PACKAGES.write_text(page)
+    for n in news:
+        (CHANGES / f"{n.name}.md").unlink()
+    told = f"{len(news)} news file(s) assembled and removed" if news else "no news file"
+    print(f"{current} -> {new}: {told}; read CHANGELOG.md's section, then commit")
     return 0
 
 

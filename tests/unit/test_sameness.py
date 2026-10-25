@@ -190,7 +190,7 @@ def test_two_run_records_of_two_platforms_compare_no_fuel() -> None:
 def test_the_darwin_suite_is_the_build_and_macos_runs_together() -> None:
     r = release()
     assert set(r["runs"]) == {"build/build", "macos/own", "linux/own", "linux/up", "windows/own"}
-    assert r["runs"]["macos/own"] == {
+    assert {k: r["runs"]["macos/own"][k] for k in ("platform", "suite")} == {
         "platform": DARWIN,
         "suite": {"passed": 5, "skipped": 1, "total": 6},
     }

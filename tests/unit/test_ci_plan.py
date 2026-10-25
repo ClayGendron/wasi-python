@@ -68,6 +68,7 @@ ROWS = [
     ("context/specifications/138-x.md", {"docs"}),
     ("context/reviews/138-x-pr-2026-10-25.md", {"docs"}),
     ("context/changes/notes/deeper.md", {"docs"}),
+    ("context/changes/README.md", {"docs"}),
     ("README.md", {"docs"}),
     ("CHANGELOG.md", {"docs"}),
     ("AGENTS.md", {"docs"}),
@@ -292,15 +293,56 @@ def _progress_refusals(changed: list[str], event) -> list[str]:
 def test_the_acceptance_paths_on_a_pull_request_are_refused() -> None:
     d = ci_plan.decide(ACCEPT, PR_DEV)
     assert d.progress and not d.quiet
-    refusals = ci_plan.refusals(d, PR_DEV, ACCEPT)
+    refusals = _progress_refusals(ACCEPT, PR_DEV)
     assert len(refusals) == 1 and "context/progress/accepted.json" in refusals[0]
 
 
 def test_progress_is_refused_on_a_pull_request_only() -> None:
     changed = ["context/progress/accepted.json", "src/x.py"]
-    assert ci_plan.refusals(ci_plan.decide(changed, PR_DEV), PR_DEV, changed)
+    assert _progress_refusals(changed, PR_DEV)
     assert ci_plan.refusals(ci_plan.decide(changed, PUSH_DEV), PUSH_DEV, changed) == []
-    assert ci_plan.refusals(ci_plan.decide(["src/x.py"], PR_DEV), PR_DEV, ["src/x.py"]) == []
+    assert _progress_refusals(["src/x.py"], PR_DEV) == []
+
+
+# ---------------------------------------------------------------------------------------------
+# A pull request that is not documentation only carries a news file
+
+NEWS = "context/changes/999-a-change.md"
+
+
+def _news_refusals(changed: list[str], event=PR_DEV) -> list[str]:
+    d = ci_plan.decide(changed, event)
+    return [r for r in ci_plan.refusals(d, event, changed) if "news file" in r]
+
+
+def test_a_code_pull_request_without_a_news_file_is_refused() -> None:
+    (refusal,) = _news_refusals(["src/x.py", "docs/index.md"])
+    assert "context/changes/NNN-<slug>.md" in refusal
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        ["src/x.py", NEWS],
+        [NEWS],
+        ["docs/index.md", "context/reviews/999-a-change-pr-2026-10-25.md"],
+        [],
+    ],
+    ids=["code and its news", "the news alone", "documentation only", "nothing"],
+)
+def test_a_news_file_or_documentation_alone_carries_no_news_refusal(changed) -> None:
+    assert _news_refusals(changed) == []
+
+
+def test_the_folders_readme_is_no_news_file() -> None:
+    assert _news_refusals(["src/x.py", "context/changes/README.md"])
+
+
+def test_only_a_pull_request_into_dev_is_held_to_a_news_file() -> None:
+    """A push to dev is the merge of a pull request already held to it; the release pull request
+    into main carries the news files of every change it releases, assembled by the bump."""
+    for event in (PUSH_DEV, PR_MAIN, TAG, DISPATCH, SCHEDULE):
+        assert _news_refusals(["src/x.py"], event) == [], event
 
 
 # ---------------------------------------------------------------------------------------------

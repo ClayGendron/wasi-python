@@ -26,6 +26,10 @@ PYPROJECT = (
 )
 INIT = '"""x"""\n\n__version__ = "0.1.0a1"\n'
 LOG = "# Changelog\n\n## 0.1.0a1 — unreleased\n\n- first\n"
+PACKAGES = (
+    "# Packages\n\n## Compiled packages\n\n| package | version | what works |\n|---|---|---|\n"
+    "| numpy | 2.5.2 | Built in. |\n| pandas | 3.0.6 | Built in. |\n\nAfter the table.\n"
+)
 
 
 @pytest.mark.parametrize("text", ["0.1.0a1", "0.1.0b2", "0.1.0rc1", "1.2.3", "0.1.0a10"])
@@ -158,18 +162,104 @@ def test_the_assets_refuse_a_listed_file_that_is_missing(tmp_path: Path) -> None
         version.write_assets(art, wheel, tmp_path / "out", "0.1.0a1")
 
 
-def test_bump_writes_both_files_or_neither(tmp_path: Path, monkeypatch) -> None:
+def _bump_files(tmp_path: Path, monkeypatch) -> tuple[Path, Path, Path, Path]:
+    """The files bump writes, in tmp_path: never the repository's own news files."""
     init, log = tmp_path / "__init__.py", tmp_path / "CHANGELOG.md"
-    init.write_text(INIT)
-    log.write_text(LOG.replace("0.1.0a1 —", "0.1.0a2 —"))  # a section for the next version already
+    changes, packages = tmp_path / "changes", tmp_path / "packages.md"
+    changes.mkdir()
+    packages.write_text(PACKAGES)
     monkeypatch.setattr(version, "INIT", init)
     monkeypatch.setattr(version, "CHANGELOG", log)
+    monkeypatch.setattr(version, "CHANGES", changes)
+    monkeypatch.setattr(version, "PACKAGES", packages)
+    return init, log, changes, packages
+
+
+def test_bump_writes_both_files_or_neither(tmp_path: Path, monkeypatch) -> None:
+    init, log, _, _ = _bump_files(tmp_path, monkeypatch)
+    init.write_text(INIT)
+    # A dated section for the next version already: that version was released.
+    log.write_text(LOG.replace("0.1.0a1 — unreleased", "0.1.0a2 — 2026-01-01"))
     assert version.main(["bump"]) == 1  # the changelog edit fails...
     assert version.read_version(init.read_text()) == "0.1.0a1"  # ...and the version did not move
     log.write_text(LOG)
     assert version.main(["bump"]) == 0
     assert version.read_version(init.read_text()) == "0.1.0a2"
     assert list(version.sections(log.read_text())) == ["0.1.0a2", "0.1.0a1"]
+
+
+NEWS = """# {n}: a change
+
+## Changelog
+
+### {heading}
+
+- **Change {n}**: it moved.
+
+## Package rows
+
+{rows}
+
+## Claims
+
+```toml
+[[claim]]
+spec = "{n}"
+```
+"""
+
+
+def test_bump_assembles_the_news_files_into_the_changelog_and_the_rows(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Each news file's lines go under their heading in the new version's section, in the
+    CHANGELOG's heading order and the files' name order; each package row replaces the row of its
+    package or joins the table's end; the news files are removed."""
+    init, log, changes, packages = _bump_files(tmp_path, monkeypatch)
+    init.write_text(INIT)
+    log.write_text(LOG)
+    (changes / "README.md").write_text("# the folder\n")
+    rows = "| numpy | 2.6.0 | Built in, newer. |\n| regex | 2026.9.29 | Fuzzy matching. |"
+    (changes / "201-second.md").write_text(NEWS.format(n="201", heading="Fixed", rows="None."))
+    (changes / "200-first.md").write_text(NEWS.format(n="200", heading="Fixed", rows=rows))
+    (changes / "202-third.md").write_text(NEWS.format(n="202", heading="Added", rows="None."))
+    assert version.main(["bump"]) == 0
+    section = version.notes(log.read_text(), "0.1.0a2")
+    assert section == (
+        "### Added\n\n- **Change 202**: it moved.\n\n"
+        "### Fixed\n\n- **Change 200**: it moved.\n- **Change 201**: it moved.\n"
+    )
+    assert packages.read_text() == PACKAGES.replace(
+        "| numpy | 2.5.2 | Built in. |", "| numpy | 2.6.0 | Built in, newer. |"
+    ).replace(
+        "| pandas | 3.0.6 | Built in. |\n",
+        "| pandas | 3.0.6 | Built in. |\n| regex | 2026.9.29 | Fuzzy matching. |\n",
+    )
+    assert sorted(p.name for p in changes.iterdir()) == ["README.md"]
+
+
+def test_bump_joins_the_news_to_an_unreleased_section_already_written(
+    tmp_path: Path, monkeypatch
+) -> None:
+    init, log, changes, _ = _bump_files(tmp_path, monkeypatch)
+    init.write_text(INIT)
+    written = "## 0.1.0a2 — unreleased\n\n### Fixed\n\n- by hand\n\n## 0.1.0a1 —"
+    log.write_text(LOG.replace("## 0.1.0a1 —", written))
+    (changes / "200-first.md").write_text(NEWS.format(n="200", heading="Fixed", rows="None."))
+    assert version.main(["bump"]) == 0
+    assert version.notes(log.read_text(), "0.1.0a2") == (
+        "### Fixed\n\n- by hand\n- **Change 200**: it moved.\n"
+    )
+
+
+def test_bump_refuses_a_broken_news_file_and_writes_nothing(tmp_path: Path, monkeypatch) -> None:
+    init, log, changes, packages = _bump_files(tmp_path, monkeypatch)
+    init.write_text(INIT)
+    log.write_text(LOG)
+    (changes / "200-first.md").write_text(NEWS.format(n="200", heading="Improved", rows="None."))
+    assert version.main(["bump"]) == 1
+    assert init.read_text() == INIT and log.read_text() == LOG and packages.read_text() == PACKAGES
+    assert (changes / "200-first.md").is_file()
 
 
 def test_the_release_notes_say_how_to_verify_this_version() -> None:

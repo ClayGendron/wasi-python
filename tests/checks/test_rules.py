@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from harness import history, needs, paths, scan
+from harness import history, needs, news, paths, scan
 
 pytestmark = pytest.mark.goal("rules")
 
@@ -599,6 +599,22 @@ def test_the_version_is_released_by_the_book() -> None:
     errors = version.check_errors(
         version.INIT.read_text(), version.PYPROJECT.read_text(), version.CHANGELOG.read_text()
     )
+    assert not errors, scan.report(errors)
+
+
+def test_the_news_files_have_their_shape() -> None:
+    """Every news file in the changes folder reads: its changelog lines under the CHANGELOG's
+    headings, its package rows, and one claim block in the claims' shape; the release assembles
+    them and the acceptance from CI takes its reasons from them."""
+    folder = paths.REPO / news.CHANGES
+    errors = []
+    for f in sorted(folder.glob("*.md")) if folder.is_dir() else []:
+        if f.name == "README.md":
+            continue
+        try:
+            news.load(f)
+        except news.NewsError as e:
+            errors.append(str(e))
     assert not errors, scan.report(errors)
 
 
