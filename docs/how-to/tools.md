@@ -62,7 +62,7 @@ A `functools.partial` binds authority too:
 tool(partial(orders_for, user_id=user.id, api_key=KEY), name="my_orders")
 ```
 
-A keyword the partial binds is fixed. It is not in the schema, so the guest never sees its value, and a frame that names it is refused. A bound value need not be JSON: you can bind a database connection.
+A keyword the partial binds is fixed. It is not in the schema, so the guest never sees its value, and a frame that names it is refused. So is a keyword a `partial` or `partialmethod` binds on the `__init__` or `__new__` of a class registered as a tool. A bound value need not be JSON: you can bind a database connection.
 
 A parameter's own default is not fixed. It is published in the schema, and the guest may pass another value. So never put authority, such as a key or a user id, in a default.
 
