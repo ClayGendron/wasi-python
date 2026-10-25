@@ -6,10 +6,12 @@ from __future__ import annotations
 
 import functools
 import os
+import struct
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any, NamedTuple
 
 import pytest
 
@@ -805,6 +807,381 @@ def test_a_sleeping_guest_ends_at_its_deadline(guest_workdir, how) -> None:
     run = _run()
     done = _returns(lambda: run(["-c", SLEEPERS[how]], root=_root(guest_workdir), deadline_s=0.2))
     assert (done.exit_code, done.trapped, done.stdout) == (None, "deadline", b""), done
+
+
+# A raw guest that calls poll_oneoff once, after its own setup, and reports the answer on
+# stdout (or stderr, when stdout is the guest's to renumber): the setup's last errno, the
+# poll's errno, the events written and the first event's 32 bytes. It finds the folder at /m by
+# its preopen name, so the same module runs on the runner, with a grant or a mount there, and on
+# wasmtime's own WASI with a plain preopen there.
+POLL_GUEST = """(module
+  (import "wasi_snapshot_preview1" "poll_oneoff" (func $poll (param i32 i32 i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_write" (func $write (param i32 i32 i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_close" (func $close (param i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_renumber" (func $renumber (param i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_seek" (func $seek (param i32 i64 i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_prestat_get" (func $prestat (param i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_prestat_dir_name"
+    (func $dir_name (param i32 i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "path_open"
+    (func $path_open (param i32 i32 i32 i32 i32 i64 i64 i32 i32) (result i32)))
+  (memory (export "memory") 8)
+  (data (i32.const 760) "/m")
+  (data (i32.const 780) "a.txt")
+  (data (i32.const 790) "d")
+  (global $bad (mut i32) (i32.const 0))
+  (func $check (param $errno i32)
+    (if (local.get $errno) (then (global.set $bad (local.get $errno)))))
+  (func $find (result i32) (local $fd i32)
+    (local.set $fd (i32.const 3))
+    (block $none (loop $next
+      (br_if $none (i32.ge_u (local.get $fd) (i32.const 64)))
+      (if (i32.eqz (call $prestat (local.get $fd) (i32.const 600)))
+        (then (if (i32.eq (i32.load (i32.const 604)) (i32.const 2))
+          (then
+            (drop (call $dir_name (local.get $fd) (i32.const 640) (i32.const 2)))
+            (if (i32.eq (i32.load16_u (i32.const 640)) (i32.load16_u (i32.const 760)))
+              (then (return (local.get $fd))))))))
+      (local.set $fd (i32.add (local.get $fd) (i32.const 1)))
+      (br $next)))
+    (i32.const -1))
+  (func $open (param $dir i32) (param $folder i32) (result i32)
+    (call $check (call $path_open (local.get $dir) (i32.const 0)
+      (select (i32.const 790) (i32.const 780) (local.get $folder))
+      (select (i32.const 1) (i32.const 5) (local.get $folder))
+      (select (i32.const 2) (i32.const 0) (local.get $folder))
+      (i64.const 0x4002) (i64.const 0) (i32.const 0) (i32.const 800)))
+    (i32.load (i32.const 800)))
+  (func $clock (param $at i32) (param $ud i64) (param $timeout i64) (param $flags i32)
+    (i64.store (local.get $at) (local.get $ud))
+    (i32.store offset=16 (local.get $at) (i32.const 1))
+    (i64.store offset=24 (local.get $at) (local.get $timeout))
+    (i32.store16 offset=40 (local.get $at) (local.get $flags)))
+  (func $fd (param $at i32) (param $ud i64) (param $tag i32) (param $fd i32)
+    (i64.store (local.get $at) (local.get $ud))
+    (i32.store8 offset=8 (local.get $at) (local.get $tag))
+    (i32.store offset=16 (local.get $at) (local.get $fd)))
+  (func $clocks (param $at i32) (param $count i32) (local $i i32)
+    (block $done (loop $next
+      (br_if $done (i32.ge_u (local.get $i) (local.get $count)))
+      (call $clock (i32.add (local.get $at) (i32.mul (local.get $i) (i32.const 48)))
+        (i64.extend_i32_u (local.get $i)) (i64.const 0) (i32.const 0))
+      (local.set $i (i32.add (local.get $i) (i32.const 1)))
+      (br $next))))
+  (func $report (param $to i32) (param $errno i32) (param $nevents i32) (param $out i32)
+    (i32.store (i32.const 1024) (global.get $bad))
+    (i32.store (i32.const 1028) (local.get $errno))
+    (if (i32.eqz (local.get $errno)) (then
+      (i32.store (i32.const 1032) (i32.load (local.get $nevents)))
+      (memory.copy (i32.const 1036) (local.get $out) (i32.const 32))))
+    (i32.store (i32.const 256) (i32.const 1024))
+    (i32.store (i32.const 260) (i32.const 44))
+    (drop (call $write (local.get $to) (i32.const 256) (i32.const 1) (i32.const 384))))
+  (func (export "run") (result i32) (local $d i32) (local $f i32) (local $g i32)
+    (local.set $d (call $find))
+    {setup}
+    {fill}
+    {subs}
+    (call $report (i32.const {to})
+      (call $poll (i32.const {in_ptr}) (i32.const {out_ptr}) (i32.const {n}) (i32.const {nevents}))
+      (i32.const {nevents}) (i32.const {out_ptr}))
+    (i32.const 0)))
+"""
+POLL_END = 8 * 65536  # the guest's memory
+POLL_IN, POLL_OUT, POLL_NEVENTS = 65536, 327680, 2048
+OPEN_FILE = "(local.set $f (call $open (local.get $d) (i32.const 0)))"
+OPEN_FOLDER = "(local.set $f (call $open (local.get $d) (i32.const 1)))"
+OPEN_SECOND = "(local.set $g (call $open (local.get $d) (i32.const 0)))"
+AT_ITS_END = "(call $check (call $seek (local.get $f) (i64.const 0) (i32.const 2) (i32.const 832)))"
+NEVER_GIVEN = (("fd", 1, "(i32.const 99)"),)
+
+
+class Poll(NamedTuple):
+    """One poll_oneoff call: the setup before it (WAT), its subscriptions, each `("clock",
+    timeout, flags)`, `("clocks", count)` or `("fd", tag, number)` with the number a WAT
+    expression, and its arguments; `to` is the descriptor the answer is written to."""
+
+    setup: str = ""
+    subs: tuple[tuple[Any, ...], ...] = (("clock", 0, 0),)
+    in_ptr: int = POLL_IN
+    out_ptr: int = POLL_OUT
+    n: int | None = None
+    nevents: int = POLL_NEVENTS
+    to: int = 1
+
+    def wat(self) -> str:
+        subs, count = [], 0
+        for sub in self.subs:
+            at = self.in_ptr + 48 * count
+            if sub[0] == "clocks":
+                subs.append(f"(call $clocks (i32.const {at}) (i32.const {sub[1]}))")
+                count += sub[1]
+                continue
+            if at + 48 <= POLL_END:  # a pointer past memory is the case, not a setup
+                if sub[0] == "clock":
+                    subs.append(
+                        f"(call $clock (i32.const {at}) (i64.const {count + 1}) "
+                        f"(i64.const {sub[1]}) (i32.const {sub[2]}))"
+                    )
+                else:
+                    subs.append(
+                        f"(call $fd (i32.const {at}) (i64.const {count + 1}) "
+                        f"(i32.const {sub[1]}) {sub[2]})"
+                    )
+            count += 1
+        fill = ""
+        if self.out_ptr + 32 <= POLL_END:
+            fill = f"(memory.fill (i32.const {self.out_ptr}) (i32.const 0xAA) (i32.const 32))"
+        n = count if self.n is None else self.n
+        return POLL_GUEST.format(
+            setup=self.setup,
+            fill=fill,
+            subs="\n    ".join(subs),
+            n=n,
+            to=self.to,
+            in_ptr=self.in_ptr,
+            out_ptr=self.out_ptr,
+            nevents=self.nevents,
+        )
+
+
+def _poll_folder(d: Path) -> Path:
+    """What /m holds, on a grant: the mount stand-in's tree."""
+    folder = d / "m"
+    for name, data in files.TREE.items():
+        if data is None:
+            (folder / name[1:]).mkdir(parents=True)
+        else:
+            (folder / name[1:]).parent.mkdir(parents=True, exist_ok=True)
+            (folder / name[1:]).write_bytes(data)
+    return folder
+
+
+def _poll_answer(output: bytes) -> tuple[Any, ...]:
+    """The setup's errno, the poll's, the events written, the first event's fields and its 11
+    padding bytes."""
+    assert len(output) == 44, output
+    bad, errno, count = struct.unpack_from("<3I", output)
+    event = output[12:]
+    return bad, errno, count, struct.unpack("<QHB5xQH6x", event), event[11:16] + event[26:32]
+
+
+def _poll_on_runner(workdir: Path, poll: Poll, *, mount: bool = False, fuel: int | None = None):
+    """The runner's answer, with /m a read-only grant or a mount: 'ends' when the run ended."""
+    run = _run()
+    import wasi_python
+    from harness import wat
+
+    real = wasi_python.artifacts()
+    d = Path(tempfile.mkdtemp(prefix="poll-", dir=workdir))
+    module = wat.build(d, "poll.wasm", poll.wat())
+    found = wasi_python.Artifacts(module, module, real.stdlib_zip, real.manifest)
+    if mount:
+        place: dict[str, Any] = {"mounts": [wasi_python.Mount(files.MemoryProvider(), "/m")]}
+    else:
+        place = {"grants": [wasi_python.Grant(_poll_folder(d), "/m")]}
+    done = run([], artifacts=found, snapshot=False, cache_dir=False, fuel=fuel, **place)
+    if done.exit_code is None and done.trapped is not None:
+        return done, "ends"
+    assert (done.exit_code, done.trapped) == (0, None), done
+    return done, _poll_answer(done.stdout + done.stderr)
+
+
+def _poll_on_wasmtime(workdir: Path, poll: Poll):
+    """wasmtime's own answer, its WASI unshadowed, with /m a plain read-only preopen."""
+    import wasmtime as wt
+
+    d = Path(tempfile.mkdtemp(prefix="poll-wasmtime-", dir=workdir))
+    config = wt.WasiConfig()
+    config.preopen_dir(str(_poll_folder(d)), "/m", False)
+    config.stdout_file, config.stderr_file = str(d / "stdout"), str(d / "stderr")
+    engine = wt.Engine()
+    store = wt.Store(engine)
+    store.set_wasi(config)
+    linker = wt.Linker(engine)
+    linker.define_wasi()
+    exports = linker.instantiate(store, wt.Module(engine, poll.wat())).exports(store)
+    try:
+        exports["run"](store)
+    except (wt.Trap, wt.WasmtimeError):
+        return "ends"
+    return _poll_answer((d / "stdout").read_bytes() + (d / "stderr").read_bytes())
+
+
+FOR_READING, FOR_WRITING = 1, 2
+# The poll as wasmtime answers it: each case once on a grant (or a mount, where it says so),
+# compared with wasmtime's own answer for a plain grant.
+AS_WASMTIME = {
+    "misaligned in_ptr": (Poll(in_ptr=POLL_IN + 4), False),
+    "misaligned out_ptr": (Poll(out_ptr=POLL_OUT + 4), False),
+    "misaligned nevents_ptr": (Poll(nevents=POLL_NEVENTS + 2), False),
+    "no subscriptions, in_ptr misaligned": (Poll(in_ptr=POLL_IN + 1, n=0), False),
+    # wasmtime checks out_ptr and nevents_ptr only when it writes, so a refused subscription
+    # answers its errno first
+    "misaligned out_ptr, a number never given": (
+        Poll(subs=NEVER_GIVEN, out_ptr=POLL_OUT + 4),
+        False,
+    ),
+    "misaligned nevents_ptr, clock flags 0x2": (
+        Poll(subs=(("clock", 0, 2),), nevents=POLL_NEVENTS + 2),
+        False,
+    ),
+    "misaligned out_ptr past memory, a number never given": (
+        Poll(subs=NEVER_GIVEN, out_ptr=POLL_END - 12),
+        False,
+    ),
+    "out_ptr past memory, a number never given": (
+        Poll(subs=NEVER_GIVEN, out_ptr=POLL_END - 16),
+        False,
+    ),
+    "clock flags 0x2": (Poll(subs=(("clock", 0, 2),)), False),
+    "clock flags 0xFFFE": (Poll(subs=(("clock", 0, 0xFFFE),)), False),
+    "a number never given": (Poll(subs=(("fd", FOR_READING, "(i32.const 99)"),)), False),
+    "the grant's preopen": (Poll(subs=(("fd", FOR_READING, "(local.get $d)"),)), False),
+    "a file on the grant": (Poll(OPEN_FILE, (("fd", FOR_READING, "(local.get $f)"),)), False),
+    "a closed file": (
+        Poll(
+            OPEN_FILE + "(call $check (call $close (local.get $f)))",
+            (("fd", FOR_READING, "(local.get $f)"),),
+        ),
+        False,
+    ),
+    "a file renumbered away": (
+        Poll(
+            OPEN_FILE
+            + OPEN_SECOND
+            + "(call $check (call $renumber (local.get $f) (local.get $g)))",
+            (("fd", FOR_READING, "(local.get $f)"),),
+        ),
+        False,
+    ),
+    "a file renumbered onto the grant's preopen": (
+        Poll(
+            OPEN_FILE + "(call $check (call $renumber (local.get $f) (local.get $d)))",
+            (("fd", FOR_READING, "(local.get $d)"),),
+        ),
+        False,
+    ),
+    "a file renumbered onto 3": (
+        Poll(
+            OPEN_FILE + "(call $check (call $renumber (local.get $f) (i32.const 3)))",
+            (("fd", FOR_READING, "(i32.const 3)"),),
+        ),
+        False,
+    ),
+    "a file renumbered onto stdout, for reading": (
+        Poll(
+            OPEN_FILE + "(call $check (call $renumber (local.get $f) (i32.const 1)))",
+            (("fd", FOR_READING, "(i32.const 1)"),),
+            to=2,
+        ),
+        False,
+    ),
+    "a mount's preopen": (Poll(subs=(("fd", FOR_READING, "(local.get $d)"),)), True),
+    "a mount's file": (Poll(OPEN_FILE, (("fd", FOR_READING, "(local.get $f)"),)), True),
+    "a mount's folder": (Poll(OPEN_FOLDER, (("fd", FOR_READING, "(local.get $f)"),)), True),
+}
+
+
+@pytest.mark.parametrize("case", list(AS_WASMTIME))
+def test_the_poll_answers_as_wasmtime_does(guest_workdir, case) -> None:
+    """Guards a change: the poll the runner answers itself ends the run for a misaligned
+    pointer, answers unknown clock flags EINVAL, and a number the guest does not hold, a
+    preopen or a folder EBADF, as wasmtime's own poll_oneoff answers the same call on a grant;
+    a file the guest opened is ready on both, whatever number it was renumbered onto."""
+    poll, mount = AS_WASMTIME[case]
+    _, answer = _poll_on_runner(guest_workdir, poll, mount=mount)
+    theirs = _poll_on_wasmtime(guest_workdir, poll)
+    if "ends" in (answer, theirs):
+        assert answer == theirs, case
+    else:  # the padding is a kept difference
+        assert answer[:4] == theirs[:4], case
+        assert answer[0] == 0, answer  # every setup call succeeded
+
+
+EVENT_PADDING = b"\0" * 11
+# Where the runner knowingly answers otherwise than wasmtime, each with its own answer: the
+# setup's errno, the poll's, and the events written (wasmtime's is in the comment).
+KEPT = {
+    # wasmtime ends the run for a pointer past memory
+    "an in_ptr past memory": (Poll(in_ptr=POLL_END - 40), (0, 21, 0)),
+    "an out_ptr past memory": (Poll(out_ptr=POLL_END - 16), (0, 21, 0)),
+    # wasmtime bounds the events it writes, 32 bytes each; the runner 32 per subscription
+    "room for the due event only": (
+        Poll(
+            subs=(("clock", 0, 0), ("clock", 10**9, 0), ("clock", 10**9, 0)), out_ptr=POLL_END - 64
+        ),
+        (0, 21, 0),
+    ),
+    # wasmtime has no cap, and answers 0
+    "4097 clocks, with room for every event": (Poll(subs=(("clocks", 4097),)), (0, 48, 0)),
+    # wasmtime answers EBADF for both
+    "a closed stderr, for writing": (
+        Poll("(call $check (call $close (i32.const 2)))", (("fd", 2, "(i32.const 2)"),)),
+        (0, 0, 1),
+    ),
+    "a folder opened on the grant": (
+        Poll(OPEN_FOLDER, (("fd", FOR_READING, "(local.get $f)"),)),
+        (0, 0, 1),
+    ),
+    # wasmtime answers EPERM (63): the grant is read-only
+    "a file on the grant, for writing": (
+        Poll(OPEN_FILE, (("fd", FOR_WRITING, "(local.get $f)"),)),
+        (0, 0, 1),
+    ),
+    "a file renumbered onto stdin, for writing": (
+        Poll(
+            OPEN_FILE + "(call $check (call $renumber (local.get $f) (i32.const 0)))",
+            (("fd", FOR_WRITING, "(i32.const 0)"),),
+        ),
+        (0, 0, 1),
+    ),
+    # wasmtime answers ready: stdout is there now
+    "stdout renumbered onto a file, for writing": (
+        Poll(
+            OPEN_FILE + "(call $check (call $renumber (i32.const 1) (local.get $f)))",
+            (("fd", FOR_WRITING, "(local.get $f)"),),
+            to=2,
+        ),
+        (0, 8, 0),
+    ),
+    # wasmtime sets the hangup flag (1)
+    "a file at its end, for reading": (
+        Poll(OPEN_FILE + AT_ITS_END, (("fd", FOR_READING, "(local.get $f)"),)),
+        (0, 0, 1, (1, 0, FOR_READING, 1, 0)),
+    ),
+    # wasmtime reads one subscription at a time, and answers the first one's EBADF
+    "subscriptions past memory after a refused one": (
+        Poll(subs=NEVER_GIVEN, in_ptr=POLL_END - 240, n=2000),
+        (0, 21, 0),
+    ),
+}
+
+
+@pytest.mark.parametrize("case", list(KEPT))
+def test_the_poll_keeps_its_named_differences(guest_workdir, case) -> None:
+    """Guards a change: where the runner's poll answers otherwise than wasmtime's, it answers an
+    errno where wasmtime ends the run or answers another, ready where wasmtime refuses, EBADF
+    where wasmtime answers ready, or no hangup flag where wasmtime sets it, and writes nothing
+    outside the region it checked; each answer is the runner's own, so none is changed unseen."""
+    poll, want = KEPT[case]
+    _, answer = _poll_on_runner(guest_workdir, poll)
+    assert answer[: len(want)] == want, (case, answer)
+
+
+def test_the_poll_writes_an_events_padding_as_zeros(guest_workdir) -> None:
+    """Guards a change: the event's 11 padding bytes are written as zeros, where wasmtime leaves
+    them as they were; the guest filled them with 0xAA."""
+    _, answer = _poll_on_runner(guest_workdir, Poll())
+    assert (answer[:3], answer[4]) == ((0, 0, 1), EVENT_PADDING), answer
+
+
+def test_a_metered_run_that_polls_misaligned_reports_its_fuel(guest_workdir) -> None:
+    """Guards a change: a metered run that a misaligned poll ends reports the instructions its
+    guest ran, as a run a misaligned mount call ends does."""
+    done, answer = _poll_on_runner(guest_workdir, Poll(in_ptr=POLL_IN + 4), fuel=10**9)
+    assert answer == "ends", done
+    assert isinstance(done.fuel_used, int) and 0 < done.fuel_used < 10**9, done
 
 
 DESCRIPTORS = r"""

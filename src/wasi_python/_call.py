@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, Protocol
 from . import _artifacts, _engines, _home, _places, _platform, _private_dirs, _zip
 from ._artifacts import GUEST_PACKAGE, Artifacts, ArtifactsMissing
 from ._engines import _epoch_ticker
-from ._fs_memory import STAGING_CEILING
+from ._fs_memory import STAGING_CEILING, _aligned
 from ._home import _Home, _Stopped
 from ._limits import CANCEL_TICKS, NO_DEADLINE, TICK_S
 from ._places import ZIP_GUEST, Grant, _Preopen
@@ -679,7 +679,7 @@ class _Call:
         self.home = home
         # admit: the frame host's, under tools=, whose host is the runner's own code
         self.door = _door(host, admit, home if admit is None else None)
-        self.poll = _poll_oneoff(origin_ns, waits)
+        self.poll = _poll_oneoff(origin_ns, waits, files=table)
         self.stopped: BaseException | None = None
         self.cancel = cancel
         self.stop_at = stop_at
@@ -1064,11 +1064,21 @@ def _stop_at(count: int, ticks: int) -> int:
     return count + ticks + 1
 
 
-def _poll_plan(raw: bytes, n: int, realtime_ns: int, monotonic_ns: int) -> _Plan:
-    """poll_oneoff as wasmtime 49 answers it (crates/wasi/src/p1.rs), for the guest's files and
-    stdio: a descriptor subscription is ready at once (stdin for writing, stdout and stderr for
-    reading and the preopened root answer EBADF); otherwise the shortest clock wins, and every
-    clock due by then is reported, with nbytes 0 as wasmtime writes it."""
+def _poll_plan(
+    raw: bytes, n: int, realtime_ns: int, monotonic_ns: int, kind: Callable[[int], str | None]
+) -> _Plan:
+    """poll_oneoff as wasmtime answers it (crates/wasi/src/p1.rs): unknown clock flags are
+    EINVAL; a descriptor is answered from what `kind` says the call knows of it: a number the
+    guest holds and a mount's file are ready at once, a folder and any other number EBADF, and
+    stdio as wasmtime answers it (stdin for writing, stdout and stderr for reading EBADF);
+    otherwise the shortest clock wins, and every clock due by then is reported, with nbytes 0.
+    Every descriptor is ready at once, and a clock is reported only when no descriptor is;
+    wasmtime reports what is ready at its first look, which for a file is often nothing yet.
+    Kept differences, since the runner does not ask wasmtime what a held number is: a folder
+    the guest opened is ready (wasmtime: EBADF); a file on a read-only place, polled for
+    writing, is ready (wasmtime: EPERM); a file at its end has no hangup flag (wasmtime sets
+    it); a closed 0, 1 or 2 is ready, and stdio renumbered onto another number is EBADF there
+    (wasmtime: EBADF, and that stdio's answer); past 4096 subscriptions, ENOMEM (no cap)."""
     if n == 0:
         return _Plan(EINVAL)
     if n > MAX_SUBSCRIPTIONS:
@@ -1076,17 +1086,17 @@ def _poll_plan(raw: bytes, n: int, realtime_ns: int, monotonic_ns: int) -> _Plan
     ready, clocks = [], []
     for userdata, tag, which, timeout, _precision, flags in struct.iter_unpack(SUBSCRIPTION, raw):
         if tag == CLOCK:
-            if which not in (REALTIME, MONOTONIC):
+            if which not in (REALTIME, MONOTONIC) or flags & ~ABSTIME:
                 return _Plan(EINVAL)
             if flags & ABSTIME:
                 timeout -= realtime_ns if which == REALTIME else monotonic_ns
             clocks.append((max(0, timeout), userdata))
         elif tag in (FD_READ, FD_WRITE):
-            if (
-                which == 3
-                or (tag == FD_READ and which in (1, 2))
-                or (tag == FD_WRITE and which == 0)
-            ):
+            known = kind(which)
+            if known is None and which <= 2:
+                if (tag == FD_READ and which in (1, 2)) or (tag == FD_WRITE and which == 0):
+                    return _Plan(EBADF)
+            elif known not in ("held", "file"):
                 return _Plan(EBADF)
             ready.append((userdata, 0, tag, 1, 0))
         else:
@@ -1126,11 +1136,24 @@ def _poll_oneoff(
     waits: _Waits,
     realtime_ns: Callable[[], int] = time.time_ns,
     monotonic_ns: Callable[[], int] = time.perf_counter_ns,
+    *,
+    files: _Files | None,
 ) -> Callable[..., int]:
-    """The shadowed poll_oneoff. It never raises into wasmtime-py (an exception there travels by a
-    process-wide slot another call can take): a wait ended by the deadline answers normally, and
-    the guest traps at its next epoch check. A BaseException goes to the shared function, which
-    records it and stops the guest. The clocks are injectable for the judge."""
+    """The shadowed poll_oneoff, answering descriptors from the call's table `files`. It raises
+    only a wasmtime error, to the shared function, which records it as the stop: a misaligned
+    pointer ends the run, as wasmtime ends it: in_ptr once the count is checked, out_ptr and
+    nevents_ptr once the subscriptions are answered, since wasmtime checks them only when it
+    writes. A wait ended by the deadline answers normally, and the guest traps at its next epoch
+    check; a BaseException goes to the shared function too. Kept differences: a pointer past
+    memory is EFAULT (wasmtime ends the run, or answers the errno of a subscription it refuses
+    before it reaches the end); the events' room is 32 bytes per subscription (wasmtime's, per
+    event written); the padding is written as zeros (wasmtime leaves it). Clocks injectable."""
+    from wasmtime import WasmtimeError
+
+    # With no table, which only the judge's stand-ins build, every number past stdio is ready.
+    kind: Callable[[int], str | None] = (
+        (lambda fd: None if fd <= 2 else "held") if files is None else files.kind
+    )
 
     def call(caller: Any, in_ptr: int, out_ptr: int, n: int, nevents_ptr: int) -> int:
         try:
@@ -1140,19 +1163,30 @@ def _poll_oneoff(
             )
             if n == 0 or n > MAX_SUBSCRIPTIONS:
                 return EINVAL if n == 0 else ENOMEM
+            _aligned(in_ptr, 8)
             size = memory.data_len(caller)
-            if in_ptr + 48 * n > size or out_ptr + 32 * n > size or nevents_ptr + 4 > size:
+            if in_ptr + 48 * n > size:
                 return EFAULT
             raw = bytes(memory.read(caller, in_ptr, in_ptr + 48 * n))
-            plan = _poll_plan(raw, n, realtime_ns(), monotonic_ns() - origin_ns)
+            plan = _poll_plan(raw, n, realtime_ns(), monotonic_ns() - origin_ns, kind)
             if plan.errno is not None:
                 return plan.errno
+            for ptr, align in ((out_ptr, 8), (nevents_ptr, 4)):
+                _aligned(ptr, align)
+            if out_ptr + 32 * n > size or nevents_ptr + 4 > size:
+                return EFAULT
             if plan.wait_ns:
                 waits.wait(plan.wait_ns / 1e9)
             events = b"".join(struct.pack(EVENT, *e) for e in plan.events)
             memory.write(caller, events, out_ptr)
             memory.write(caller, struct.pack("<I", len(plan.events)), nevents_ptr)
             return 0
+        except WasmtimeError as error:
+            if files is not None and files.metered:  # the fuel then is the guest's
+                from . import _wasmtime_ffi as ffi
+
+                files.stop_fuel = (error, ffi.get_fuel(caller))
+            raise
         except Exception:
             return EINVAL  # anything else is recorded by the shared function
 

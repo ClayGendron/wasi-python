@@ -187,7 +187,7 @@ def test_a_turn_waits_on_the_sessions_clock_base() -> None:
 
     hour = 3600 * 10**9
     poll = _call._poll_oneoff(
-        base, Waits(), realtime_ns=lambda: 0, monotonic_ns=lambda: base + hour
+        base, Waits(), realtime_ns=lambda: 0, monotonic_ns=lambda: base + hour, files=None
     )
     sub = struct.pack(_call.SUBSCRIPTION, 7, _call.CLOCK, _call.MONOTONIC, hour + 10**9, 0, 1)
 

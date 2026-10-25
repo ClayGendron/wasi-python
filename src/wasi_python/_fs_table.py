@@ -131,11 +131,24 @@ class _Files:
         self.open_files = open_files
         self.held: set[int] = set()
         self.session = False  # a session's table lives across turns
+        self.preopens = len(others)  # wasmtime's own, numbered from 3, before the mounts'
 
     def open_now(self) -> int:
         """The files and folders the guest holds open: the wasmtime numbers it opened,
         and its open mount files; an owed buffer is a number the guest has closed."""
         return len(self.held) + self.opened - len(self.owed)
+
+    def kind(self, fd: int) -> str | None:
+        """What the call knows of a descriptor, for poll_oneoff: "held" for a number wasmtime
+        gave the guest (its kind is not asked, so a folder it opened is held too), a mount's
+        "file" or "dir", "dir" for wasmtime's own preopens, None for any other, stdio's too."""
+        fd &= MASK32
+        if fd in self.held:
+            return "held"
+        entry = self.table.get(fd)
+        if entry is not None:
+            return entry.kind
+        return "dir" if 3 <= fd < 3 + self.preopens else None
 
     def _at_cap(self) -> bool:
         return self.open_files is not None and self.open_now() >= self.open_files
