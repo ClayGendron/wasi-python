@@ -757,3 +757,38 @@ def test_the_weekly_run_is_the_schedule_or_a_dispatch_asking_for_it() -> None:
         assert out["weekly"] == "true"
     for event in (DISPATCH, PUSH_DEV, PR_DEV, TAG):
         assert not ci_plan.decide(None, event).weekly, event
+
+
+# One specification may land by several pull requests on one day: the review's name is the news
+# file's stem, then an optional infix of lowercase words, then -pr- and the date.
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["999-a-change-step-3-pr-2026-10-26.md", "999-a-change-step-4-pr-2026-10-26.md",
+     "999-a-change-second-look-pr-2026-10-26.md"],
+)  # fmt: skip
+def test_a_review_named_with_an_infix_after_the_news_files_stem_is_accepted(name) -> None:
+    path = f"context/reviews/{name}"
+    pr = _pr(commits=[
+        ci_plan.Commit("a" * 40, ("src/x.py", NEWS), (AUTHOR,)),
+        ci_plan.Commit("b" * 40, (path,), (OTHER,)),
+    ])  # fmt: skip
+    pr.files.clear()
+    pr.files[path] = _review()
+    assert _review_refusals(pr, changed=("src/x.py", NEWS, path)) == []
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["998-another-step-3-pr-2026-10-26.md", "999-a-changed-pr-2026-10-26.md",
+     "999-a-change-step-3-pr.md", "999-a-change-pr-2026-10.md",
+     "999-a-change-Step-3-pr-2026-10-26.md"],
+    ids=["another stem", "a longer word, not an infix", "no date", "half a date", "upper case"],
+)  # fmt: skip
+def test_a_review_of_another_stem_or_without_its_date_is_still_refused(name) -> None:
+    path = f"context/reviews/{name}"
+    pr = _pr()
+    pr.files[path] = _review()
+    (refusal,) = _review_refusals(pr, changed=("src/x.py", NEWS, path))
+    assert "no review file" in refusal

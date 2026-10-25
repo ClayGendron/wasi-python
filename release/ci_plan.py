@@ -52,8 +52,20 @@ ACCEPTED = "context/progress/accepted.json"
 HISTORY_VOLUME = re.compile(r"context/progress/history(-\d{5,})?\.jsonl")
 # A news file, `NNN-<slug>.md` in the changes folder: the folder's README is not one.
 NEWS = re.compile(r"context/changes/(\d{3}-[a-z0-9]+(?:-[a-z0-9]+)*)\.md")
-# A pull request's review file: its NNN-<slug> is one of the pull request's news files'.
+# A pull request's review file: a news file's NNN-<slug>, then an optional infix of lowercase words
+# (`-step-4`), so one specification may land by several pull requests on one day, then the date.
 REVIEW = re.compile(r"context/reviews/(\d{3}-[a-z0-9]+(?:-[a-z0-9]+)*)-pr-(\d{4}-\d{2}-\d{2})\.md")
+
+
+def review_of(name: str, stem: str) -> bool:
+    """Whether a review file's name before `-pr-<date>` is the news file's stem, alone or followed
+    by an infix of one or more lowercase words joined by hyphens."""
+    return name == stem or bool(
+        name.startswith(stem + "-")
+        and re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", name[len(stem) + 1 :])
+    )
+
+
 REVIEWER = re.compile(r"^- \*\*Reviewer:\*\*(.*)$", re.M)
 # The self-check's author line, `Author: …` with or without Markdown's emphasis.
 AUTHOR = re.compile(r"^[\s>*_-]*author[*_]*\s*:[*_\s]*(.*)$", re.I | re.M)
@@ -333,16 +345,20 @@ def _verdict(text: str) -> str:
 
 
 def review_refusals(changed: list[str], pr: PullRequest) -> list[str]:
-    """The review check: among the changed paths, a review file whose NNN-<slug> is one of the
-    pull request's news files' (the newest by date); no commit after the newest one that changed
-    it touches a path that is not documentation only; its Reviewer: line is not empty and is not
-    the author, who is the self-check's author line or any Claude-Session trailer of a code
-    commit; a reviewer that names the author's session must be its fresh sub-agent, so says
-    `sub-agent of <session>`; and its verdict begins "Lands". A process guard, not an identity
-    guard: what it holds is that a session other than the author's signed a review after the last
-    code."""
+    """The review check: among the changed paths, a review file named after one of the pull
+    request's news files, with or without an infix (the newest by date); no commit after the
+    newest one that changed it touches a path that is not documentation only; its Reviewer:
+    line is not empty and is not the author, who is the self-check's author line or any
+    Claude-Session trailer of a code commit; a reviewer that names the author's session must be
+    its fresh sub-agent, so says `sub-agent of <session>`; and its verdict begins "Lands". A
+    process guard, not an identity guard: what it holds is that a session other than the
+    author's signed a review after the last code."""
     stems = sorted({m[1] for p in changed if (m := NEWS.fullmatch(p))})
-    found = sorted((m[2], p) for p in changed if (m := REVIEW.fullmatch(p)) and m[1] in stems)
+    found = sorted(
+        (m[2], p)
+        for p in changed
+        if (m := REVIEW.fullmatch(p)) and any(review_of(m[1], stem) for stem in stems)
+    )
     if not found:
         return [
             "a pull request that is not documentation only has no review file "

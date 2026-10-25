@@ -1,6 +1,6 @@
 # Reviews
 
-One file per review, `NNN-<spec slug>-YYYY-MM-DD.md`, where `NNN` is the specification reviewed. A review of a specification before it is built uses the same name with `-spec` before the date. A pull request's review uses `-pr` before the date, `NNN-<slug>-pr-YYYY-MM-DD.md`, where `NNN-<slug>` is the name of one of the pull request's news files (`../changes/NNN-<slug>.md`).
+One file per review, `NNN-<spec slug>-YYYY-MM-DD.md`, where `NNN` is the specification reviewed. A review of a specification before it is built uses the same name with `-spec` before the date. A pull request's review uses `-pr` before the date, `NNN-<slug>-pr-YYYY-MM-DD.md` or `NNN-<slug>-<infix>-pr-YYYY-MM-DD.md`, where `NNN-<slug>` is the name of one of the pull request's news files (`../changes/NNN-<slug>.md`) and the optional infix is one or more lowercase words joined by hyphens (`-step-4`), so one specification may land by several pull requests on one day.
 
 ## One review per pull request
 
