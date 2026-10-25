@@ -170,7 +170,7 @@ def test_output_arrives_above_descriptor_1024() -> None:
 
 
 FORKED_CHILD = f"""
-import os, warnings
+import os, threading, warnings
 import wasi_python
 assert wasi_python.run(["-c", "pass"]).exit_code == 0
 gate_r, gate_w = os.pipe()
@@ -189,13 +189,16 @@ def host(frame):
 
 
 code = "import _host\\n_host.call(b'fork')\\n" + {WRITE_MIB!r}
+before = set(threading.enumerate())
 done = wasi_python.run(["-c", code], host=host)
+after = set(threading.enumerate())
 (pid,) = children
 alive = os.waitpid(pid, os.WNOHANG) == (0, 0)
 os.write(gate_w, b"x")
 os.waitpid(pid, 0)
 print("call", done.exit_code, len(done.stdout), done.stdout == b"z" * (1 << 20))
 print("child alive at the return", alive)
+print("new threads", len(after - before))
 """
 
 
@@ -203,10 +206,12 @@ print("child alive at the return", alive)
 def test_a_call_returns_while_a_forked_child_holds_its_descriptors() -> None:
     """The door forks a child that waits on a pipe of the check's own; the call then writes a
     mebibyte and returns with every byte while the child still lives, so the call never waited
-    for an end of file the child's copies withhold. The check then releases and reaps it."""
+    for an end of file the child's copies withhold, and leaves no thread behind, so nothing of
+    the call waits for it either. The check then releases and reaps the child."""
     needs.need("runner", "artifact dir")
     lines = _child(FORKED_CHILD)
-    assert lines == ["call 0 1048576 True", "child alive at the return True"], lines
+    want = ["call 0 1048576 True", "child alive at the return True", "new threads 0"]
+    assert lines == want, lines
 
 
 def test_the_stream_keeps_the_cap_to_the_byte() -> None:
