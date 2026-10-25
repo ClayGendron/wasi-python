@@ -63,13 +63,15 @@ One function body, about 22 to 25 lines, in a module of 289 lines; no module-lev
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. H1 — 
-2. L1 — written in by the reviewer (Decision 1, second bullet: the fault is now `p.zip_lock.acquire()` in place of the `with`, released only in `_remove_zips`).
-3. L3 (finding 3) — 
-4. L4 (finding 4) — 
-5. L2 (finding 5) — written in by the reviewer (the CHANGELOG line: the eight-thread wall 14 to 33 % shorter in three filed windows, the ratio 1.9 to 2.0; the Problem's "to **2.02**" kept with its window).
-6. L6 (finding 6) — written in by the reviewer (`_record`'s `os.walk`, called by `_extract_data`).
+Confirmed by the reviewer on `e1461706` (READ, `git diff ee0325ac..e1461706 -- context/specifications/128-…md`; EXECUTED `grep` of the edited specification for `follow_symlinks`, `DirEntry.stat`, "same system calls", "reparse" and "1.77": the first two now appear only in Decision 2's bullet that rejects the `DirEntry`'s stat, the third and fourth nowhere, the last only in the sentence that says the window is not counted; `needs.need("runner", "artifact dir")` exists, `tests/harness/needs.py:213`, used at `tests/unit/test_runner_module_caches.py:68`).
+
+1. H1 — fixed in the specification, confirmed: Decision 2 takes one `os.lstat(entry.path)` per `DirEntry` on every system, which is the record's own source (`_record`, `_zip.py:218-228`), so `seen` and `record` are stamped by the same call and the same five fields everywhere; the mode for the entry's kind comes from that same result, so no `DirEntry` field is read for the comparison. The counting check now asserts the lstat count (seven on the fixture against main's ten), which is the one count that tells the bodies apart (my item 7). Decision 5's Windows sentence is gone; the Problem, the Intent, the CHANGELOG line, criterion 1 and the `--accept-judge` flag say "the same stats" and "one `os.lstat` as the record does". The author's re-measurement (0.94 against 0.95 ms, main 2.28) agrees with mine in direction and size.
+2. L1 — written in by the reviewer, confirmed by the author (Decision 1, second bullet: the fault is `p.zip_lock.acquire()` in place of the `with`, released only in `_remove_zips`).
+3. L3 (finding 3) — fixed in the specification, confirmed: the check stays in `test_runner_calls.py` behind the harness gate the set's other unit files use, with the reason (its subject is the call's threads and locks); the gate skips it on a machine without the set and nowhere else. Accepted.
+4. L4 (finding 4) — fixed in the specification, confirmed: the Problem counts the two filed windows and my re-run and says the third was overwritten. Not fixed in the memo, for the reason given (the run is gone); the memo is the research record and the specification's note stands beside its row. Accepted.
+5. L2 (finding 5) — written in by the reviewer, confirmed by the author (the wall's change is the steadier fact; 2.02 kept with its window, 1.88 beside it).
+6. L6 (finding 6) — written in by the reviewer, confirmed by the author.
 
 ## Verdict
 
-Not fit to build yet: H1, the comparison's stamp must come from `os.lstat` on every system as the record's does, and the counting check and Decision 5 must say so; the rest is three Lows written in and two for the author.
+Fit to build: the comparison now stamps every entry with the record's own `os.lstat` on every system and the counting check holds that, the three Lows written in stand, and the two left to the author are answered in the specification, in one sentence as before: H1 closed, nothing open.

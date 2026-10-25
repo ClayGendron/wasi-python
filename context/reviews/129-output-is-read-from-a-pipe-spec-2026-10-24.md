@@ -103,6 +103,19 @@ No structural rule is bypassed: no module-level mutable or lock outside `_proces
 4. Findings 4 to 8 (Low) — written into the specification by the reviewer, 2026-10-24; confirmed by the author.
 5. Finding 9 (Low) — fixed by the author in the evidence folder's `driver.py` (`REPO = HERE.parents[2]`, its folders under `build/output-capture-costs/`, the stdlib folder made by the driver), run from the repository root as acceptance criterion 6 now says; EXECUTED once from the root after the fix.
 
+## Confirmation of the disposition (the reviewer, 2026-10-24, on `e1461706`)
+
+Read: `git diff ee0325ac..e1461706` over the specification, this file, the driver and the roadmap (READ). Nothing built; nothing re-run beyond reading.
+
+**The promises, as now written.**
+- The live cap with `poll`: the reader drains every ready end past the cap and drops; the bound stays the cap plus 64 KiB plus one read per stream; `poll` has no descriptor ceiling (EXECUTED earlier, finding 1's probe). Holds.
+- Every ending: a normal exit, a trap, a deadline, a cancel, a hard exit and an exception raised into the home (Ctrl-C's path, the home forced out and `release()` run by the guest thread at its end) all reach `release()`, which closes the store and then the capture (Decision 3, "Every ending goes through `release()`"); a session's turn settles (Decision 4); `Session.close` runs `close()` after `_release_session`'s `store.close()` (Decision 8); a fork no longer matters, since `close()` settles and stops without EOF (Decision 3). Covered.
+- `poll` raising: the reader closes the two stream read ends and ends, so a guest still writing gets `EPIPE` instead of blocking (Decision 3). For a call that is right. For a session, one gap remains: a turn's `settle()` after the reader has ended waits on `settled`, which nobody sets. **Low 10 (not written in; the author's):** the reader's exit path sets `settled` (and the capture remembers it has ended, so `settle()` and `close()` return at once and mark the targets `dropped`). The spec says a valid set never makes `poll` raise, so this is a Low, with the fix in one line of Decision 3.
+
+**Rows re-scored.** R2 Safety: Strong (the reader never dies with a pipe open; the bound holds without a live-reader condition). R8 Operability: Strong, with Low 10 noted (a hang only after an exception the design says cannot happen). R5 Portability: Strong, no longer at the edge: with 131 first, `_platform.py` is about 1,130 of 1,500 and the Windows method is written in the split module (Decision 8; `context/roadmap.md`, the 131 paragraph, READ). R4's lifecycle risk is gone with the EOF wait.
+
+**Disposition lines.** 1 (High 1): confirmed; `select.poll`, the two ending rules and the exception rules are in Decision 3, and `test_output_arrives_above_descriptor_1024` is in Decision 1, with the subprocess raising its own limit, as the library never does. 2 (Medium 2): confirmed; `close()` settles then stops, EOF a shortcut, and `test_a_call_returns_while_a_forked_child_holds_its_descriptors` counts the child alive. 3 (Medium 3): confirmed; 131 is reserved with its roadmap paragraph and named in Depends on, Decision 8, Scope and For the lane; 129 is stacked on it. 4 (Lows 4 to 8): confirmed. 5 (Low 9): confirmed by reading `driver.py` (`REPO = HERE.parents[2]`, its folders under `build/output-capture-costs/`); the author's run is the author's, not re-run here.
+
 ## Verdict
 
-Not fit to build yet: the reader's `select.select` fails at or above descriptor 1,024 and leaves the guest blocked in a host call where no deadline reaches it; fit to build once `poll` (or a selector) and a reader that never ends before the store is closed replace it, `close()` settles rather than waits for EOF, and the `_platform.py` split is reserved with a roadmap line.
+Fit to build, stacked on 131, once Decision 3 says the reader's exit sets `settled` so a session's `settle()` cannot wait on a reader that has ended (Low 10); the verdict of the first pass is superseded.

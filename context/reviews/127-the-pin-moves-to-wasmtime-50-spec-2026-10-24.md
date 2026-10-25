@@ -59,11 +59,15 @@ Sound as a separation, with one risk named. The CLI's only job is `wizer` in `sc
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. The slash-named rows per system (Medium) — 
-2. `test_process.py` and `test_runner_package.py` rows — written in by the reviewer (Decision 3h, the Design list, the claim list).
-3. `why-wasi.md` and the `async_stack_size` sentence — written in by the reviewer (Decision 9, the Kind line, the Design list).
-4. The CHANGELOG's cause — written in by the reviewer (the CHANGELOG line).
+The author's answers are in the specification's "Disposition of the pre-build review" section at `e1461706` (READ: `git diff ee0325ac..e1461706 -- context/specifications/127-the-pin-moves-to-wasmtime-50.md`). Confirmed 2026-10-24 by the reviewer.
+
+1. The slash-named rows per system (Medium) — **confirmed**: Decision 3b now lets every slash-named row of the two sandbox checks be recorded per system where wasmtime 50's own answer differs, as `NATIVE_RENAME_END` did for 49, with the builder's Windows and Linux branch run as the evidence and no row skipped; criterion 4 says the same; the safety assertions (nothing moved, the canary untouched, nothing named `stolen`, `d` and `s` in place) stay unconditional on every system, which is what matters. One residual wording, not a finding: 3c still says wasmtime 50 "ends it `ENOTDIR` on every system", which the memo showed on macOS only; it is moot, since the check and its table are deleted by that same row.
+2. `test_process.py` and `test_runner_package.py` rows — written in by the reviewer (Decision 3h, the Design list, the claim list); **confirmed**.
+3. `why-wasi.md` and the `async_stack_size` sentence — written in by the reviewer (Decision 9, the Kind line's five pages, the Design list); **confirmed**.
+4. The CHANGELOG's cause — written in by the reviewer (the release notes named as the attribution); **confirmed**.
+5. The note on the CLI at 49.0.3 beside wasmtime-py at 50 — **confirmed**: Decision 9 decides the content of one `SECURITY.md` sentence (the build's wasmtime command line, 49.0.3, which `MANIFEST`'s `x-wizer` line names, only makes the snapshot and runs no guest); the wording stays the builder's.
+6. The constitution note on the removal rule's reading — **confirmed**: Decision 3a asks the check's comment to say in words that the spans are the advisory's own statement and that the sandbox checks of 3b are the standing proof against the installed engine.
 
 ## Verdict
 
-Fit to build once finding 1 is answered: either one sentence in Decision 3b letting every slash-named row be recorded per system when wasmtime 50's own answer differs, or the builder's branch run green on Windows and Linux before "built" is written.
+Fit to build, at `e1461706`: every finding is answered in the specification, the Medium by the second route, and nothing remains for the builder beyond what the specification now says.
