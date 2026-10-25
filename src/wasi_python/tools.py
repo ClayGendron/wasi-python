@@ -465,13 +465,15 @@ def _is_async_generator(fn: Any) -> bool:
 
 
 def _bound_keywords(name: str, fn: Any) -> frozenset[str]:
-    """The keywords a `functools.partial` binds, wherever `inspect.signature` or a call may
-    meet one on its way to the function: the partial, nested partials, a bound method's
-    function, a `__wrapped__` chain, a callable object's `__call__`, and a class's construction
-    path (its metaclass's `__call__`, its `__new__` and its `__init__`), to any depth. Each is
-    fixed: left out of the derived schema and refused in a frame, so the guest neither reads its
-    value nor sets it. A `functools.partialmethod` met other than through an instance is
-    refused."""
+    """The keywords a `functools.partial` binds, wherever a call may meet one through static
+    lookup on its way to the function: the partial, nested partials, a bound method's function,
+    a `__wrapped__` chain, a callable object's `__call__`, a class's construction path (its
+    metaclass's `__call__`, its `__new__` and its `__init__`), and the class a generic alias
+    constructs, to any depth. Each is fixed: left out of the derived schema and refused in a
+    frame, so the guest neither reads its value nor sets it. A `functools.partialmethod` met
+    other than through an instance is refused. Code is not run to find one: what a body does,
+    what a descriptor's `__get__` on `__init__` or `__new__` returns, and a class dict that a
+    metaclass's own `__dict__` hides are not read."""
     found: set[str] = set()
     todo = [fn]  # one worklist, and one budget of steps across all its branches
     steps = 0
@@ -512,6 +514,11 @@ def _bound_keywords(name: str, fn: Any) -> frozenset[str]:
                 )
                 if part is not None and not isinstance(part, _C_SLOTS)
             )
+        elif isinstance(getattr(target, "__origin__", None), type):
+            # A generic alias (Box[int], Annotated[Box, ...]) is not a class, but calling it
+            # constructs its origin class with the same keywords. Read before __wrapped__,
+            # which a builtin alias would answer from its origin.
+            todo.append(target.__origin__)
         elif getattr(target, "__wrapped__", None) is not None:
             todo.append(target.__wrapped__)
         elif not (inspect.isfunction(target) or inspect.isbuiltin(target)):
