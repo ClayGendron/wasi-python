@@ -5,14 +5,17 @@
         --ref refs/pull/7/merge --base-ref dev [--label ci:full] [--message TEXT] [--key-moved]
 
 In the workflow it reads the event from the runner's variables (`GITHUB_EVENT_NAME`, `GITHUB_REF`,
-`GITHUB_BASE_REF`) and the rest from env (`PLAN_HEAD`, `PLAN_BASE` and `PLAN_BODY`, the description,
-on a pull request, `PLAN_BEFORE` on a push, `PLAN_LABELS` as JSON, `PLAN_RELEASE_TIER`), finds the
-changed paths, a pull request's commits and its review file with git, and
-writes one `name=value` line per output to `$GITHUB_OUTPUT` (stdout without it), and a table to
-`$GITHUB_STEP_SUMMARY`. Every later job gates on these outputs with `if:`, never with a
-workflow-level `paths:` filter, so a skipped job reports success and the required check is always
-reported. The changed paths come from git alone: no third-party changed-files action, since one of
-those was compromised to leak the secrets of every workflow that ran it. Standard library only.
+`GITHUB_BASE_REF`, `GITHUB_REPOSITORY`) and the rest from env (`PLAN_HEAD`; on a pull request
+`PLAN_BASE`, `PLAN_BODY`, its description, and `PLAN_HEAD_REF`, its branch; `PLAN_BEFORE` on a
+push; `PLAN_LABELS` as JSON, `PLAN_RELEASE_TIER`, `PLAN_WEEKLY`; `GH_TOKEN`), finds the changed
+paths, a pull request's commits and its review file with git, and on a pull request into dev that
+adds documentation alone onto a green head finds that head's run with gh (a read of the Actions
+API), which this run then re-uses. It writes one `name=value` line per output to `$GITHUB_OUTPUT`
+(stdout without it), and a table to `$GITHUB_STEP_SUMMARY`, which names a run re-used. Every
+later job gates on these outputs with `if:`, never with a workflow-level `paths:` filter, so a
+skipped job reports success and the required check is always reported. The changed paths come
+from git alone: no third-party changed-files action, since one of those was compromised to leak
+the secrets of every workflow that ran it. Standard library only.
 """
 
 from __future__ import annotations
@@ -27,6 +30,7 @@ import subprocess
 import sys
 import tempfile
 import tomllib
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -111,6 +115,7 @@ class Event:
     labels: tuple[str, ...] = ()
     messages: tuple[str, ...] = ()  # the pull request's commit messages
     release_tier: bool = False  # a dispatch's release-tier input
+    weekly: bool = False  # a dispatch's weekly input: the weekly run's shape
 
     @property
     def pull_request(self) -> bool:
@@ -152,6 +157,7 @@ class Decision:
     rebuild: bool = False  # the release shape: the macOS build, both rebuilds and same-bytes
     tier: str = "normal"
     accept: bool = False  # a merge into dev: the accept jobs follow a green gather
+    weekly: bool = False  # the weekly run: an issue when it is red
     quiet: bool = False  # the acceptance push: every output false
     why: list[str] = field(default_factory=list)
 
@@ -161,9 +167,16 @@ class Decision:
         return not self.quiet and (self.full or not self.docs_only)
 
 
-def decide(changed: list[str] | None, event: Event, key_moved: bool = False) -> Decision:
+def decide(
+    changed: list[str] | None,
+    event: Event,
+    key_moved: bool = False,
+    reused: tuple[int, str] | None = None,
+) -> Decision:
     """The outputs for one run. `changed` is None when the run has no change to read (a tag, a
-    dispatch, a schedule, a push whose earlier tip is unknown): such a run is whole."""
+    dispatch, a schedule, a push whose earlier tip is unknown): such a run is whole. `reused`: a
+    pull request's green run whose head this one adds documentation alone to (its id and why),
+    which this run re-uses: every output false, the refusals still read."""
     d = Decision()
     if event.name == "push" and not event.tag and changed is not None and is_acceptance(changed):
         d.quiet = True
@@ -178,6 +191,10 @@ def decide(changed: list[str] | None, event: Event, key_moved: bool = False) -> 
     if key_moved:
         d.why.append("the set's key moves between the merge base and the head")
     d.docs_only = changed is not None and docs_only(changed)
+    if reused is not None and event.pull_request:
+        d.quiet = True
+        d.why.append(reused[1])
+        return d
     lines = {line.strip() for m in event.messages for line in m.splitlines()}
     if event.pull_request and event.base_ref == "main":
         d.full = d.rebuild = True
@@ -203,10 +220,10 @@ def decide(changed: list[str] | None, event: Event, key_moved: bool = False) -> 
     elif event.name == "push":
         d.full = d.accept = True
         d.why.append("a merge into dev: the merge-grade set, then the acceptance")
-    elif event.name == "schedule":
-        d.full = d.rebuild = True
+    elif event.name == "schedule" or (event.name == "workflow_dispatch" and event.weekly):
+        d.full = d.rebuild = d.weekly = True
         d.tier = "release"
-        d.why.append("the weekly run: the release tier and the rebuilds")
+        d.why.append("the weekly run: the release tier and the rebuilds, an issue when red")
     else:  # workflow_dispatch, or an event the table does not name: whole
         d.full = d.rebuild = True
         if event.release_tier or event.ref == "refs/heads/main":
@@ -386,6 +403,7 @@ def outputs(d: Decision, sel: dict, refused: list[str]) -> dict[str, str]:
         rebuild=_bool(d.rebuild),
         judge=_bool(d.judge),
         accept=_bool(d.accept),
+        weekly=_bool(d.weekly),
         tier=d.tier,
         build=_bool(sel["build"]),
         verify=_json(sel["verify"]),
@@ -395,6 +413,86 @@ def outputs(d: Decision, sel: dict, refused: list[str]) -> dict[str, str]:
     for system in (*OWN_SYSTEMS, "release"):
         out[system] = _json(sel[system])
     return out
+
+
+# ---------------------------------------------------------------------------------------------
+# A push of documentation alone onto a green head re-uses that head's run
+
+GATHER_JOB = "gather the shards' records"  # the gather's display name in a run's jobs
+REQUIRED_JOB = "ci-status"
+LOOKED_AT = 5  # runs whose head is behind this one by documentation alone, at most
+
+
+def find_reusable(
+    head: str,
+    runs: list[dict],
+    *,
+    jobs_of: Callable[[int], dict[str, str] | None],
+    is_ancestor: Callable[[str], bool],
+    changed_since: Callable[[str], list[str]],
+) -> tuple[int | None, str]:
+    """The newest completed run of this pull request whose head is an ancestor of `head` by
+    documentation alone and whose gather passed with every other job but ci-status green or
+    skipped (ci-status waited for the review file); its id and why, or (None, "")."""
+    looked = 0
+    for run in runs:
+        sha, run_id = str(run.get("headSha", "")), run.get("databaseId")
+        if sha == head or run.get("status") != "completed" or not is_ancestor(sha):
+            continue
+        if not docs_only(changed_since(sha)):
+            continue
+        looked += 1
+        if looked > LOOKED_AT:
+            break
+        jobs = jobs_of(int(run_id)) if isinstance(run_id, int) else None
+        if not jobs or jobs.get(GATHER_JOB) != "success":
+            continue
+        if any(c not in ("success", "skipped") for n, c in jobs.items() if n != REQUIRED_JOB):
+            continue
+        return run_id, (
+            f"re-uses run {run_id}, green on {sha[:12]}: every path changed since is documentation"
+        )
+    return None, ""
+
+
+def _gh(environ, *args: str) -> object | None:
+    """One read of GitHub's API through gh, as JSON; None without a token or on any failure."""
+    if not environ.get("GH_TOKEN"):
+        return None
+    try:
+        r = subprocess.run(
+            ["gh", *args, "--repo", environ.get("GITHUB_REPOSITORY", "")],
+            capture_output=True,
+            text=True,
+            env={**os.environ, **environ},
+            timeout=60,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode != 0:
+        return None
+    try:
+        return json.loads(r.stdout)
+    except ValueError:
+        return None
+
+
+def green_runs(environ, head_ref: str) -> list[dict] | None:
+    """This pull request's newest runs of the release workflow, newest first (one API call)."""
+    if not head_ref:
+        return None
+    fields = "databaseId,headSha,status,conclusion"
+    got = _gh(environ, "run", "list", "--workflow", "release.yml", "--branch", head_ref,
+              "--event", "pull_request", "--limit", "20", "--json", fields)  # fmt: skip
+    return got if isinstance(got, list) else None
+
+
+def run_jobs(environ, run_id: int) -> dict[str, str] | None:
+    """A run's jobs by name, each with its conclusion (one API call)."""
+    got = _gh(environ, "run", "view", str(run_id), "--json", "jobs")
+    if not isinstance(got, dict) or not isinstance(got.get("jobs"), list):
+        return None
+    return {str(j.get("name")): str(j.get("conclusion")) for j in got["jobs"]}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -482,6 +580,13 @@ def _is_commit(sha: str) -> bool:
     return r.returncode == 0
 
 
+def _is_ancestor(sha: str, head: str) -> bool:
+    r = subprocess.run(
+        ["git", "-C", str(REPO), "merge-base", "--is-ancestor", sha, head], capture_output=True
+    )
+    return r.returncode == 0
+
+
 def _diff(a: str, b: str) -> list[str]:
     # --no-renames: a moved file counts at both of its paths.
     return [p for p in _git("diff", "--name-only", "--no-renames", a, b).splitlines() if p]
@@ -517,9 +622,11 @@ def read_pull_request(
     return PullRequest(body, commits, files)
 
 
-def from_runner(environ) -> tuple[Event, list[str] | None, bool, PullRequest | None]:
+def from_runner(
+    environ,
+) -> tuple[Event, list[str] | None, bool, PullRequest | None, tuple[int, str] | None]:
     """The event, the changed paths, whether the key moved and, on a pull request, its commits
-    and description, as the workflow's run gives them."""
+    and description and the green run it re-uses, if any, as the workflow's run gives them."""
     labels = tuple(json.loads(environ.get("PLAN_LABELS") or "[]") or ())
     event = Event(
         environ.get("GITHUB_EVENT_NAME", ""),
@@ -528,11 +635,13 @@ def from_runner(environ) -> tuple[Event, list[str] | None, bool, PullRequest | N
         labels,
         (),
         environ.get("PLAN_RELEASE_TIER") == "true",
+        environ.get("PLAN_WEEKLY") == "true",
     )
     head = environ.get("PLAN_HEAD") or "HEAD"
     changed: list[str] | None = None
     moved = False
     pr = None
+    reused = None
     if event.pull_request and _is_commit(environ.get("PLAN_BASE", "")):
         base = _git("merge-base", environ["PLAN_BASE"], head).strip()
         changed = _diff(base, head)
@@ -540,9 +649,23 @@ def from_runner(environ) -> tuple[Event, list[str] | None, bool, PullRequest | N
         event = Event(event.name, event.ref, event.base_ref, labels, tuple(messages))
         moved = key_moved(REPO, base)
         pr = read_pull_request(REPO, base, head, environ.get("PLAN_BODY", ""), changed)
+        runs = (
+            green_runs(environ, environ.get("PLAN_HEAD_REF", ""))
+            if into_dev(event) and not docs_only(changed)
+            else None
+        )
+        if runs:
+            run_id, why = find_reusable(
+                _git("rev-parse", head).strip(),
+                runs,
+                jobs_of=lambda run_id: run_jobs(environ, run_id),
+                is_ancestor=lambda sha: _is_ancestor(sha, head),
+                changed_since=lambda sha: _diff(sha, head),
+            )
+            reused = (run_id, why) if run_id is not None else None
     elif event.name == "push" and not event.tag and _is_commit(environ.get("PLAN_BEFORE", "")):
         changed = _diff(environ["PLAN_BEFORE"], head)
-    return event, changed, moved, pr
+    return event, changed, moved, pr, reused
 
 
 def summary(d: Decision, sel: dict, refused: list[str], changed: list[str] | None) -> str:
@@ -573,9 +696,10 @@ def main(argv: list[str]) -> int:
         event = Event(a.event, a.ref, a.base_ref, tuple(a.label), tuple(a.message), a.release_tier)
         moved = a.key_moved
         pr = None  # the review check reads the pull request's commits, which a list does not give
+        reused = None
     else:
-        event, changed, moved, pr = from_runner(os.environ)
-    d = decide(changed, event, moved)
+        event, changed, moved, pr, reused = from_runner(os.environ)
+    d = decide(changed, event, moved, reused)
     sel = select(d, load_shards())
     refused = refusals(d, event, changed, pr)
     text = "".join(f"{k}={v}\n" for k, v in outputs(d, sel, refused).items())

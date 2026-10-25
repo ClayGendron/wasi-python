@@ -675,3 +675,85 @@ def test_accept_is_set_by_a_merge_into_dev_alone() -> None:
     assert not ci_plan.decide(ACCEPT, PUSH_DEV).accept  # the acceptance's own push
     for event in (PR_DEV, PR_MAIN, TAG, DISPATCH, SCHEDULE):
         assert not ci_plan.decide(["src/x.py"], event).accept, event
+
+
+# ---------------------------------------------------------------------------------------------
+# A push of documentation alone onto a green head re-uses that head's run
+
+GREEN = {"plan": "success", "quick": "success", "gather the shards' records": "success",
+         "verify (ubuntu-24.04)": "success", "ci-status": "failure"}  # fmt: skip
+CODE_HEAD, REVIEW_HEAD, NEW_HEAD = "1" * 40, "2" * 40, "3" * 40
+
+
+def _reuse(runs, jobs, ancestors=(CODE_HEAD, REVIEW_HEAD), diffs=None):
+    diffs = diffs or {
+        CODE_HEAD: [REVIEW, "docs/index.md"],
+        REVIEW_HEAD: ["docs/index.md"],
+    }
+    return ci_plan.find_reusable(
+        NEW_HEAD,
+        runs,
+        jobs_of=lambda run_id: jobs[run_id],
+        is_ancestor=lambda sha: sha in ancestors,
+        changed_since=lambda sha: diffs[sha],
+    )
+
+
+def test_a_docs_only_push_onto_a_green_head_reuses_its_run() -> None:
+    """The code head's run is green but for ci-status, which waited for the review file: its
+    judge and gather passed, so the review's push re-uses them."""
+    run, why = _reuse([{"databaseId": 7, "headSha": CODE_HEAD, "status": "completed"}], {7: GREEN})
+    assert run == 7 and CODE_HEAD[:12] in why
+
+
+def test_a_run_whose_gather_did_not_pass_is_not_reused() -> None:
+    red = {**GREEN, "gather the shards' records": "failure"}
+    skipped = {**GREEN, "gather the shards' records": "skipped"}  # itself a re-use: walk past it
+    runs = [
+        {"databaseId": 9, "headSha": REVIEW_HEAD, "status": "completed"},
+        {"databaseId": 7, "headSha": CODE_HEAD, "status": "completed"},
+    ]
+    assert _reuse(runs, {9: skipped, 7: GREEN})[0] == 7
+    assert _reuse(runs, {9: skipped, 7: red})[0] is None
+    judge_red = {**GREEN, "judge (windows-2025, own-a)": "failure"}
+    assert _reuse(runs[1:], {7: judge_red})[0] is None
+
+
+def test_a_run_behind_code_or_off_this_history_is_not_reused() -> None:
+    runs = [{"databaseId": 7, "headSha": CODE_HEAD, "status": "completed"}]
+    assert _reuse(runs, {7: GREEN}, diffs={CODE_HEAD: ["src/x.py"]})[0] is None
+    assert _reuse(runs, {7: GREEN}, ancestors=())[0] is None  # rebased: the tree moved
+    running = [{"databaseId": 7, "headSha": CODE_HEAD, "status": "in_progress"}]
+    assert _reuse(running, {7: GREEN})[0] is None
+    own = [{"databaseId": 7, "headSha": NEW_HEAD, "status": "completed"}]
+    assert _reuse(own, {7: GREEN})[0] is None
+
+
+def test_a_reused_run_sets_every_output_false_and_keeps_the_refusals() -> None:
+    changed = ["src/x.py", NEWS, REVIEW]
+    d = ci_plan.decide(changed, PR_DEV, reused=(7, "run 7, green on 111111111111"))
+    assert d.quiet and not d.judge
+    out = ci_plan.outputs(d, ci_plan.select(d, PLAN), [])
+    assert {k for k, v in out.items() if v == "true"} == set()
+    assert ci_plan.refusals(d, PR_DEV, changed, _pr()) == []
+    assert ci_plan.refusals(d, PR_DEV, ["src/x.py", NEWS], _pr())  # still no review file
+    assert any("run 7" in w for w in d.why)
+
+
+def test_no_run_is_looked_for_without_a_token() -> None:
+    assert ci_plan.green_runs({}, "spec/999-x") is None
+
+
+# ---------------------------------------------------------------------------------------------
+# The weekly run
+
+
+def test_the_weekly_run_is_the_schedule_or_a_dispatch_asking_for_it() -> None:
+    weekly = ci_plan.Event("workflow_dispatch", "refs/heads/dev", weekly=True)
+    for event in (SCHEDULE, weekly):
+        d = ci_plan.decide(None, event)
+        assert d.weekly and d.rebuild and d.tier == "release" and not d.accept, event
+        out = ci_plan.outputs(d, ci_plan.select(d, PLAN), [])
+        assert out["weekly"] == "true"
+    for event in (DISPATCH, PUSH_DEV, PR_DEV, TAG):
+        assert not ci_plan.decide(None, event).weekly, event

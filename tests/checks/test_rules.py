@@ -721,6 +721,14 @@ def test_the_accept_jobs_accept_a_green_merge_and_only_the_push_holds_the_key() 
     assert not errors, scan.report(errors)
 
 
+def test_the_weekly_run_opens_an_issue_when_red_and_never_accepts() -> None:
+    """The weekly schedule and the dispatch input that selects its shape; one job with issues:
+    write that opens or updates an issue when a job of the run failed or was cancelled; the
+    accept jobs run on a merge into dev alone."""
+    errors = scan.weekly_errors(RELEASE_WORKFLOW.read_text())
+    assert not errors, scan.report(errors)
+
+
 ACCEPT_PUSH_STEP = "Commit the acceptance alone, and push it while dev is the commit judged"
 ACCEPT_PUSH_CASES = {
     "dev is the commit judged": ("judged", (), 0, "pushed"),

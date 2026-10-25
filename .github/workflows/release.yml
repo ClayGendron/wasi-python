@@ -41,6 +41,10 @@ on:
         description: judge the release tier too (a tag and a run on main always do)
         type: boolean
         default: false
+      weekly:
+        description: the weekly run's shape (the release tier, the rebuilds, an issue when red), dispatched on dev
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -69,6 +73,9 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
+      # A push of documentation alone onto a green head re-uses that head's run, found by a read of
+      # this pull request's runs.
+      actions: read
     outputs:
       set: ${{ steps.plan.outputs.set }}
       runner: ${{ steps.plan.outputs.runner }}
@@ -82,6 +89,7 @@ jobs:
       rebuild: ${{ steps.plan.outputs.rebuild }}
       judge: ${{ steps.plan.outputs.judge }}
       accept: ${{ steps.plan.outputs.accept }}
+      weekly: ${{ steps.plan.outputs.weekly }}
       tier: ${{ steps.plan.outputs.tier }}
       build: ${{ steps.plan.outputs.build }}
       verify: ${{ steps.plan.outputs.verify }}
@@ -111,6 +119,9 @@ jobs:
           # The self-check, which names the author the review check holds the reviewer apart from.
           PLAN_BODY: ${{ github.event.pull_request.body }}
           PLAN_RELEASE_TIER: ${{ inputs.release-tier }}
+          PLAN_WEEKLY: ${{ inputs.weekly }}
+          PLAN_HEAD_REF: ${{ github.head_ref }}
+          GH_TOKEN: ${{ github.token }}
         run: uv run --no-project python -I release/ci_plan.py
 
   quick:
@@ -562,13 +573,18 @@ jobs:
           path: rebuilt-wheels/ubuntu-24.04
           digest-mismatch: error
       - name: Every rebuild's SHA256SUMS is the set's, byte for byte
+        # On the weekly run the set is dev's cached set when the cache holds its key, so this cmp
+        # is the one that would catch a stale set or a planted cache entry.
+        env:
+          SET_SOURCE: ${{ needs.build.outputs.set-source }}
         run: |
           mkdir set
           tar -xJf release-assets/*.tar.xz -C set
           sums=$(echo set/wasi-python-*/SHA256SUMS)
+          echo "the set: $SET_SOURCE"
           for runner in ubuntu-24.04-arm ubuntu-24.04; do
             cmp "$sums" "rebuilds/$runner/SHA256SUMS"
-            echo "$runner: the same SHA256SUMS"
+            echo "$runner: the same SHA256SUMS as the set"
           done
           cat "$sums"
           # The index binds the tarball's files only once each is checked against it: every listed
@@ -1248,6 +1264,33 @@ jobs:
           fi
           exit 1
 
+  weekly-issue:
+    name: the weekly run's issue, when it is red
+    # The weekly run never accepts. When a job it judges with failed or was cancelled, this opens
+    # one issue, or comments on the one already open, naming the run.
+    needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, coverage, gather, verify]
+    if: ${{ always() && needs.plan.outputs.weekly == 'true' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open the issue, or comment on the open one
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="The weekly run on dev is red"
+          body="The weekly run $RUN_URL on $GITHUB_SHA is red: the release tier, a rebuild, same-bytes or a judge leg failed or was cancelled. Nothing was accepted; read its jobs."
+          number=$(gh issue list --state open --limit 100 --json number,title \
+            --jq "map(select(.title == \"$title\")) | .[0].number // empty")
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi
+
   verify:
     name: verify (${{ matrix.os }})
     # The wheel installed fresh, as a user installs it: on Linux on a pull request, on the three
@@ -1419,7 +1462,7 @@ jobs:
     # refused nothing: a pull request may not write accepted state, and one into dev that is not
     # documentation only carries its news file and a review file that holds. A failed or
     # cancelled job is red here.
-    needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, coverage, gather, accept-record, accept-push, verify, attest, publish, pypi]
+    needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, coverage, gather, accept-record, accept-push, verify, weekly-issue, attest, publish, pypi]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

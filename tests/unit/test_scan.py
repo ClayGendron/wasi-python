@@ -728,6 +728,7 @@ jobs:
   plan:
     permissions:
       contents: read
+      actions: read
     outputs:
       build: ${{{{ steps.plan.outputs.build }}}}
       rebuild: ${{{{ steps.plan.outputs.rebuild }}}}
@@ -3153,7 +3154,7 @@ def test_the_tier_is_decided_by_the_runners_own_variables(event, ref, input_, ti
     when its input is exactly true."""
     ci_plan = _ci_plan()
     environ = {"GITHUB_EVENT_NAME": event, "GITHUB_REF": ref, "PLAN_RELEASE_TIER": input_}
-    e, changed, _, _ = ci_plan.from_runner(environ)
+    e, changed, _, _, _ = ci_plan.from_runner(environ)
     assert ci_plan.decide(changed, e).tier == tier
 
 
@@ -3581,3 +3582,29 @@ def test_another_job_in_the_accept_environment_is_named() -> None:
     )
     errors = scan.accept_job_errors(text)
     assert "verify names the accept environment, which only accept-push may" in errors, errors
+
+
+def test_the_real_workflows_weekly_run_holds() -> None:
+    assert scan.weekly_errors(REAL_WORKFLOW) == []
+
+
+BAD_WEEKLY = [
+    ("weekly-issue", "    permissions:\n      issues: write\n",
+     "    permissions:\n      issues: write\n      contents: write\n",
+     "weekly-issue's permissions"),
+    ("weekly-issue", "needs.plan.outputs.weekly == 'true' && ", "", "weekly-issue's if:"),
+    ("weekly-issue", "gh issue comment", "echo", "weekly-issue does not comment"),
+    ("accept-record", "needs.plan.outputs.accept == 'true'", "needs.plan.outputs.full == 'true'",
+     "accept-record does not run on the plan's accept output"),
+]  # fmt: skip
+
+
+@pytest.mark.parametrize(("job", "old", "new", "error"), BAD_WEEKLY, ids=[b[3] for b in BAD_WEEKLY])
+def test_the_weekly_scan_names_each_breach(job, old, new, error) -> None:
+    errors = scan.weekly_errors(_in_job(REAL_WORKFLOW, job, old, new))
+    assert any(e.startswith(error) for e in errors), errors
+
+
+def test_a_workflow_without_the_weekly_input_is_named() -> None:
+    text = REAL_WORKFLOW.replace(scan.WEEKLY_INPUT, "", 1)
+    assert "workflow_dispatch has no weekly input" in scan.weekly_errors(text)

@@ -1381,9 +1381,9 @@ OTHER_FETCH = re.compile(r"gh\s+run\s+download|actions/github-script|/actions/ar
 ENVIRONMENTS = {"publish": "release", "pypi": "pypi"}  # accept-push's, by the accept scan
 PYPI_IF = TAG_ONLY + " && vars.PYPI_PUBLISH == 'true'"
 JOB_PERMISSIONS = {
-    # The decision job reads the history; quick runs the tools and the rules; ci-status reads
-    # only its needs' results.
-    "plan": {"contents: read"},
+    # The decision job reads the history, and this pull request's runs to re-use a green one;
+    # quick runs the tools and the rules; ci-status reads only its needs' results.
+    "plan": {"contents: read", "actions: read"},
     "quick": {"contents: read"},
     "ci-status": set(),
     "build": {"contents: read"},
@@ -1401,6 +1401,8 @@ JOB_PERMISSIONS = {
     "accept-record": {"contents: read"},
     # The push of the acceptance: it checks out with the deploy key, which the token never is.
     "accept-push": {"contents: read"},
+    # The weekly run's issue: it opens or comments on one, and checks nothing out.
+    "weekly-issue": {"issues: write"},
     # The runner's coverage: it checks out, runs the fast tier and uploads to Codecov by its token.
     "coverage": {"contents: read"},
     # The key and the decision; the cache's writer.
@@ -2280,6 +2282,50 @@ def accept_job_errors(text: str, others: dict[str, str] | None = None) -> list[s
     for name, other in sorted((others or {}).items()):
         if DEPLOY_KEY in other or "environment: accept" in without_comments(other):
             errors.append(f"the secret {DEPLOY_KEY} or the accept environment is named in {name}")
+    return errors
+
+
+WEEKLY_IF = (
+    "${{ always() && needs.plan.outputs.weekly == 'true' && (contains(needs.*.result, 'failure') "
+    "|| contains(needs.*.result, 'cancelled')) }}"
+)
+WEEKLY_INPUT = (
+    "      weekly:\n        description: the weekly run's shape (the release tier, the rebuilds, "
+    "an issue when red), dispatched on dev\n        type: boolean\n        default: false\n"
+)
+
+
+def weekly_errors(text: str) -> list[str]:
+    """The weekly run: a schedule and a dispatch input that select its shape; one job, with
+    issues: write and nothing else, that opens or updates an issue when a job the run judges with
+    failed or was cancelled, and never on another run; the accept jobs never follow it (they run on
+    the plan's accept output alone, which the weekly shape never sets)."""
+    body = without_comments(text)
+    head = body.split("\njobs:", 1)[0]
+    errors = []
+    if '  schedule:\n    - cron: "0 6 * * 1"' not in head:
+        errors.append("the workflow has no weekly schedule (cron 0 6 * * 1)")
+    if WEEKLY_INPUT not in head:
+        errors.append("workflow_dispatch has no weekly input")
+    jobs = workflow_jobs(body)
+    job = jobs.get("weekly-issue")
+    if job is None:
+        return [*errors, "no weekly-issue job"]
+    if _job_field(job, "if") != WEEKLY_IF:
+        errors.append(f"weekly-issue's if: is not {WEEKLY_IF}")
+    want = set(jobs) - NOT_JUDGED_WITH
+    if _needs(job) != want:
+        errors.append(f"weekly-issue does not need every job the run judges with: {sorted(want)}")
+    if _permission_set(job) != {"issues: write"}:
+        errors.append("weekly-issue's permissions are not issues: write alone")
+    script = "\n".join(str(step_fields(st).get("run", "")) for st in workflow_steps(job))
+    if "gh issue comment" not in script or "gh issue create" not in script:
+        errors.append("weekly-issue does not comment on the open issue or create one")
+    for name in ("accept-record", "accept-push"):
+        if "needs.plan.outputs.accept == 'true'" not in (
+            _job_field(jobs.get(name, []), "if") or ""
+        ):
+            errors.append(f"{name} does not run on the plan's accept output alone")
     return errors
 
 
