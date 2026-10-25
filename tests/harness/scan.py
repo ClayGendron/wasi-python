@@ -4566,8 +4566,14 @@ READ_METHODS = frozenset({"read_bytes", "read_text", "open"})
 READ_FUNCTIONS = frozenset({"open", "ZipFile"})
 
 
-def _names(node: ast.AST, name: str) -> bool:
-    return any(isinstance(n, ast.Name) and n.id == name for n in ast.walk(node))
+def _names(node: ast.AST, name: str, reader: str) -> bool:
+    """Whether `node` uses `name` other than as an argument of a call to `reader` (bytes that
+    call has already checked)."""
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == reader:
+        return False
+    if isinstance(node, ast.Name):
+        return node.id == name
+    return any(_names(child, name, reader) for child in ast.iter_child_nodes(node))
 
 
 def _pin_list(node: ast.AST, folder: str) -> bool:
@@ -4605,7 +4611,11 @@ def downloads_read_hits(
             )
             if isinstance(child, ast.Call) and not now:
                 target = _read_target(child)
-                if target is not None and _names(target, folder) and not _pin_list(target, folder):
+                if (
+                    target is not None
+                    and _names(target, folder, reader)
+                    and not _pin_list(target, folder)
+                ):
                     hits.append(f"{where}:{child.lineno}: {ast.unparse(child)[:90]}")
             visit(child, now)
 

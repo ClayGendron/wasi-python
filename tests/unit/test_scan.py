@@ -3098,6 +3098,7 @@ def main():
     pins = (d / "SHA256SUMS").read_text()
     tree = (b / "zlib" / "LICENSE").read_bytes()
     terms = pinned_bytes(d, "terms.txt")
+    nested = zipfile.ZipFile(io.BytesIO(pinned_bytes(d, "x.whl")))
 """
 
 
@@ -3110,7 +3111,7 @@ def test_a_download_read_without_its_pin_is_named() -> None:
         ("    n = [(d / n).read_text() for n in NAMES]\n", "(d / n).read_text()"),
     ):
         hits = scan.downloads_read_hits(READS_GOOD + line, "a.py")
-        assert hits == [f"a.py:11: {shown}"], hits
+        assert hits == [f"a.py:12: {shown}"], hits
 
 
 SAME_BYTES_GOOD = """jobs:
