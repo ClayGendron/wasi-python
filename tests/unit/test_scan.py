@@ -3608,3 +3608,20 @@ def test_the_weekly_scan_names_each_breach(job, old, new, error) -> None:
 def test_a_workflow_without_the_weekly_input_is_named() -> None:
     text = REAL_WORKFLOW.replace(scan.WEEKLY_INPUT, "", 1)
     assert "workflow_dispatch has no weekly input" in scan.weekly_errors(text)
+
+
+def test_quick_and_the_acceptance_push_are_named_when_they_break_the_quiet_acceptance() -> None:
+    """A push of the accepted state alone runs the plan and nothing that judges: quick gates on
+    the plan's acceptance output; the acceptance's push carries no skip word, which would also
+    skip a release pull request whose head it is."""
+    no_gate = _in_job(
+        REAL_WORKFLOW, "quick", "    if: needs.plan.outputs.acceptance != 'true'\n", ""
+    )
+    assert any(e.startswith("quick does not") for e in scan.accept_job_errors(no_gate))
+    marked = _in_job(
+        REAL_WORKFLOW,
+        "accept-push",
+        ADD,
+        "          echo 'x [skip ci]'\n" + ADD,
+    )
+    assert any("skip word" in e for e in scan.accept_job_errors(marked))

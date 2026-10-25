@@ -169,14 +169,19 @@ def test_a_green_post_merge_record_is_accepted_onto_its_commit(inputs) -> None:
     assert {c["commit"] for c in a.accepted["checks"].values()} == {HEAD}
 
 
-def test_the_commit_message_names_the_merge_and_ends_skip_ci(inputs) -> None:
+SKIP_WORDS = ("[skip ci]", "[ci skip]", "[no ci]", "[skip actions]", "[actions skip]")
+
+
+def test_the_commit_message_names_the_merge_and_carries_no_skip_word(inputs) -> None:
+    """The acceptance commit starts a run whose plan is quiet; a skip word would also skip a
+    release pull request whose head it is."""
     inputs.claims = [claim(grows=[TOOLS], growth="the tool table is larger")]
     inputs.record["checks"][TOOLS]["metrics"] = {"fuel": 120}
     a = accept_from.accept(inputs)
     first, *rest = a.message.splitlines()
-    assert first == "Accepted: A change (#12) [skip ci]"
+    assert first == "Accepted: A change (#12)"
     assert "growth: 999: the tool table is larger" in rest
-    assert a.message.endswith("[skip ci]\n")
+    assert not any(word in a.message.lower() for word in SKIP_WORDS)
 
 
 def test_the_three_systems_need_is_met_by_the_records_platforms(inputs, tmp_path) -> None:
@@ -520,9 +525,7 @@ def test_the_command_writes_the_acceptance_and_its_message(pytester, tmp_path, m
         history.found_in(folder), (folder / "accepted.json").read_text(), None
     )
     message = (tmp_path / "out" / accept_from.MESSAGE_FILE).read_text()
-    assert message.startswith("Accepted: A change (#12) [skip ci]\n") and message.endswith(
-        "[skip ci]\n"
-    )
+    assert message.startswith("Accepted: A change (#12)\n") and "[skip ci]" not in message
 
 
 def test_the_command_refuses_and_writes_nothing(pytester, tmp_path, monkeypatch) -> None:

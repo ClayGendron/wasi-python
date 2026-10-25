@@ -783,7 +783,7 @@ def test_the_accept_push_step_pushes_only_the_acceptance_onto_the_judged_tip(
     (acceptance / "context" / "progress" / "accepted.json").write_text('{"commit": 1}\n')
     (acceptance / "context" / "progress" / "history.jsonl").write_text('{"n": 1}\n')
     (acceptance / "context" / "progress" / "history-00002.jsonl").write_text('{"n": 2}\n')
-    message = "Accepted: the merge (#1) [skip ci]\n\nno row needed a reason\n\n[skip ci]\n"
+    message = "Accepted: the merge (#1)\n\nno row needed a reason\n"
     (acceptance / "build" / "progress" / "acceptance-message.txt").write_text(message)
     for rel in extra:
         (clone / rel).write_text("changed\n")

@@ -30,7 +30,7 @@ from pathlib import Path
 
 import pytest
 
-from harness import history, litter, needs, paths, scoreboard
+from harness import history, litter, needs, news, paths, scoreboard
 
 
 @dataclass
@@ -823,6 +823,19 @@ def _read(path: Path) -> str | None:
     return path.read_text() if path.is_file() else None
 
 
+def retired_by_news(ratchet: scoreboard.Ratchet, root: Path) -> dict[str, str]:
+    """The absent checks a news file at this commit retires, each with its claim's reason: so a
+    change that removes a check, with its claim, keeps its own run and the run after its merge
+    green until the accept job consumes the claim. A broken news file retires nothing (the rules
+    check that holds their shape reports it)."""
+    try:
+        claims = [c for n in news.folder(root / news.CHANGES) for c in n.claims]
+    except news.NewsError:
+        return {}
+    found = {n: news.reason(claims, "retired", n) for n in ratchet.absent}
+    return {n: why for n, why in found.items() if why}
+
+
 @pytest.hookimpl(tryfirst=True)
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     config = session.config
@@ -907,6 +920,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     accepted = json.loads(accepted_text) if accepted_text else None
     root = Path(str(config.rootpath))
     ratchet = scoreboard.compare(run, accepted, root)
+    ratchet.retired = retired_by_news(ratchet, root)
     red = ratchet.red(partial=bool(partial)) if accepted else []
     if config.stash.get(WORKERS, 0) and not state.collections:
         red.append("no worker handed its collection over: the record is incomplete")
@@ -961,6 +975,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
                 f.write(line + "\n")
             accept_line = f"accepted: {where} line {json.loads(line)['n']}"
             ratchet = scoreboard.compare(run, new, root)  # re-judged against what was accepted
+            ratchet.retired = retired_by_news(ratchet, root)
             red = [r for r in red if r.startswith("tests/known_gaps.toml")]
             red += ratchet.red(partial=bool(partial))
     elif _opt(config, "--retire"):

@@ -649,3 +649,39 @@ def test_the_judge_reads_the_release_checks_from_the_upstream_files() -> None:
     from harness import upstream
 
     assert plugin.release_checks() == sorted(upstream.release_checks(upstream.load_all()))
+
+
+RETIRING = """# 999: a check goes
+
+## Changelog
+
+### Changed
+
+- **A check goes**: it is retired.
+
+## Claims
+
+```toml
+[[claim]]
+spec = "999"
+retired = ["test_inner.py::test_failing"]
+```
+"""
+
+
+def test_an_absent_check_a_news_file_retires_is_listed_and_the_run_green(inner, pytester) -> None:
+    """A shard's run and the quick job's rules step read the news files at their commit: an
+    absent check one retires is listed with its reason, and the run stays green; the acceptance
+    still retires it only from the claim or --retire."""
+    _accept_baseline(inner)
+    full = INNER.format(fuel=1_000_000, size=100, fail=False)
+    source = full[: full.index("def test_failing")]
+    changes = pytester.path / "context" / "changes"
+    changes.mkdir(parents=True)
+    (changes / "999-a-check-goes.md").write_text(RETIRING)
+    result, _ = inner(source=source)
+    assert result.ret == 0, result.stdout.str()[-2000:]
+    result.stdout.fnmatch_lines(["*RETIRED test_inner.py::test_failing · 999: retired*"])
+    result, _ = inner("--accept", "drop it", source=source)
+    assert result.ret == 1  # a local acceptance still says --retire
+    result.stdout.fnmatch_lines(["*absent checks not retired*"])

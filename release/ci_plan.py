@@ -71,6 +71,9 @@ REVIEWER = re.compile(r"^- \*\*Reviewer:\*\*(.*)$", re.M)
 AUTHOR = re.compile(r"^[\s>*_-]*author[*_]*\s*:[*_\s]*(.*)$", re.I | re.M)
 SESSION = re.compile(r"https://claude\.ai/code/session_[A-Za-z0-9_-]+")
 SUB_AGENT = "sub-agent of"
+# The words that make GitHub start no push run for a commit whose message carries one; a squash
+# merge's message is its pull request's title and description.
+SKIP_WORDS = ("[skip ci]", "[ci skip]", "[no ci]", "[skip actions]", "[actions skip]")
 DOCS_FILES = ("README.md", "CHANGELOG.md", "AGENTS.md", "SECURITY.md", "mkdocs.yml", ".gitignore")
 SET_FILES = ("downloads/SHA256SUMS", "release/set_key.py", "release/build-constraints.txt")
 HARNESS_FILES = (
@@ -114,9 +117,10 @@ def docs_only(changed: list[str]) -> bool:
 
 
 def is_acceptance(changed: list[str]) -> bool:
-    """The acceptance commit's change: accepted.json and the newest history volume, exactly."""
-    rest = sorted(set(changed) - {ACCEPTED})
-    return ACCEPTED in changed and len(rest) == 1 and bool(HISTORY_VOLUME.fullmatch(rest[0]))
+    """An acceptance's change: the accepted state alone (accepted.json, history volumes), and
+    something of it. Its commit carries no skip word, since GitHub would also skip a release pull
+    request whose head it is; the plan is quiet on it instead, so no judging job runs."""
+    return bool(changed) and all(p == ACCEPTED or HISTORY_VOLUME.fullmatch(p) for p in changed)
 
 
 @dataclass(frozen=True)
@@ -153,6 +157,7 @@ class PullRequest:
     body: str
     commits: list[Commit]
     files: dict[str, str]
+    title: str = ""
 
 
 @dataclass
@@ -169,6 +174,7 @@ class Decision:
     rebuild: bool = False  # the release shape: the macOS build, both rebuilds and same-bytes
     tier: str = "normal"
     accept: bool = False  # a merge into dev: the accept jobs follow a green gather
+    acceptance: bool = False  # the push of an acceptance: only the plan runs
     weekly: bool = False  # the weekly run: an issue when it is red
     quiet: bool = False  # the acceptance push: every output false
     why: list[str] = field(default_factory=list)
@@ -191,8 +197,8 @@ def decide(
     which this run re-uses: every output false, the refusals still read."""
     d = Decision()
     if event.name == "push" and not event.tag and changed is not None and is_acceptance(changed):
-        d.quiet = True
-        d.why.append("the acceptance commit: accepted.json and its history volume alone")
+        d.quiet = d.acceptance = True
+        d.why.append("an acceptance: the accepted state alone, so nothing judges it")
         return d
     flags: set[str] = set()
     for path in changed or ():
@@ -323,6 +329,15 @@ def refusals(
         )
     if into_dev(event) and changed is not None and not docs_only(changed) and pr is not None:
         out += review_refusals(changed, pr)
+    if into_dev(event) and pr is not None:
+        said = f"{pr.title}\n{pr.body or ''}".lower()
+        for word in SKIP_WORDS:
+            if word in said:
+                out.append(
+                    f"the pull request's title or description holds {word}: it would land in the "
+                    "squash merge's message, and GitHub would skip the run that judges and accepts "
+                    "the merge; quote it another way"
+                )
     return out
 
 
@@ -346,8 +361,9 @@ def _verdict(text: str) -> str:
 
 def review_refusals(changed: list[str], pr: PullRequest) -> list[str]:
     """The review check: among the changed paths, a review file named after one of the pull
-    request's news files, with or without an infix (the newest by date); no commit after the
-    newest one that changed it touches a path that is not documentation only; its Reviewer:
+    request's news files, with or without an infix (the newest by date; of two of one date, the
+    one the branch's newest commit changed, and two changed by one commit refuse); no commit after
+    the newest one that changed it touches a path that is not documentation only; its Reviewer:
     line is not empty and is not the author, who is the self-check's author line or any
     Claude-Session trailer of a code commit; a reviewer that names the author's session must be
     its fresh sub-agent, so says `sub-agent of <session>`; and its verdict begins "Lands". A
@@ -365,7 +381,17 @@ def review_refusals(changed: list[str], pr: PullRequest) -> list[str]:
             "context/reviews/NNN-<slug>-pr-YYYY-MM-DD.md among its changed paths for its news "
             "file " + (", ".join(stems) or "(none)")
         ]
-    path = found[-1][1]
+    newest = [p for date, p in found if date == found[-1][0]]
+    path = newest[0]
+    if len(newest) > 1:  # one date: the review the branch's newest commit changed signs the head
+        last = next((c for c in reversed(pr.commits) if set(c.paths) & set(newest)), None)
+        touched = sorted(set(last.paths) & set(newest)) if last else newest
+        if len(touched) > 1:
+            return [
+                "two review files of one date, changed by one commit, so neither is known to "
+                "sign the head: " + ", ".join(touched)
+            ]
+        path = touched[0]
     out = []
     last = max((k for k, c in enumerate(pr.commits) if path in c.paths), default=None)
     for c in pr.commits[last + 1 :] if last is not None else ():
@@ -419,6 +445,7 @@ def outputs(d: Decision, sel: dict, refused: list[str]) -> dict[str, str]:
         rebuild=_bool(d.rebuild),
         judge=_bool(d.judge),
         accept=_bool(d.accept),
+        acceptance=_bool(d.acceptance),
         weekly=_bool(d.weekly),
         tier=d.tier,
         build=_bool(sel["build"]),
@@ -609,7 +636,7 @@ def _diff(a: str, b: str) -> list[str]:
 
 
 def read_pull_request(
-    repo: Path, base: str, head: str, body: str, changed: list[str]
+    repo: Path, base: str, head: str, body: str, changed: list[str], title: str = ""
 ) -> PullRequest:
     """A pull request's commits from `base` (its merge base) to `head`, oldest first, each with
     the paths it changes and its Claude-Session trailers, and the text at the head of each review
@@ -635,7 +662,7 @@ def read_pull_request(
             )
             if r.returncode == 0:
                 files[path] = r.stdout
-    return PullRequest(body, commits, files)
+    return PullRequest(body, commits, files, title)
 
 
 def from_runner(
@@ -664,7 +691,9 @@ def from_runner(
         messages = _git("log", "--format=%B%x00", f"{base}..{head}").split("\0")
         event = Event(event.name, event.ref, event.base_ref, labels, tuple(messages))
         moved = key_moved(REPO, base)
-        pr = read_pull_request(REPO, base, head, environ.get("PLAN_BODY", ""), changed)
+        pr = read_pull_request(
+            REPO, base, head, environ.get("PLAN_BODY", ""), changed, environ.get("PLAN_TITLE", "")
+        )
         runs = (
             green_runs(environ, environ.get("PLAN_HEAD_REF", ""))
             if into_dev(event) and not docs_only(changed)

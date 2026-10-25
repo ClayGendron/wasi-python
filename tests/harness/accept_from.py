@@ -59,7 +59,6 @@ from harness import history, news, paths, scoreboard
 DARWIN = "darwin-arm64"  # the platform the ratchet keys darwin's metrics by
 COUNTS = ("passes", "bytes")  # metrics the gather holds equal on every system
 REFUSED = "--accept-from refused"
-SKIP_CI = "[skip ci]"
 REUSED = re.compile(r"reused \S+")
 MESSAGE_FILE = "acceptance-message.txt"  # beside the run record
 # Every option that gives a reason or narrows the run: the reasons are the news files'.
@@ -299,9 +298,10 @@ def claimed(ratchet: scoreboard.Ratchet, claims: list[news.Claim], judged: bool)
 
 def message(subject: str, reasons: list[str]) -> str:
     """The acceptance commit's message: the merge's own subject (its pull request's title and
-    number), the reasons, and `[skip ci]`, so the push starts no run."""
+    number) and the reasons. No skip word: the plan is quiet on a push of the accepted state, and
+    a skip word would also skip a release pull request whose head this commit is."""
     body = "\n".join(reasons) if reasons else "no row needed a reason"
-    return f"Accepted: {subject} {SKIP_CI}\n\n{body}\n\n{SKIP_CI}\n"
+    return f"Accepted: {subject}\n\n{body}\n"
 
 
 def accept(i: Inputs) -> Acceptance:

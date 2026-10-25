@@ -16,11 +16,13 @@ to G7 hold. On a pull request, G1 to G6 hold over the selected pairs, the rows a
 reason for are listed under GROWTH rather than red, and G7 is not evaluated. After a merge into dev
 G1 to G6 are whole, G7 is not evaluated, since that run makes the acceptance it would compare with,
 and the rows an acceptance needs a reason for are listed too: the accept job clears each with the
-claim of a news file, or refuses it. Each listed row names the reason a news file's claim gives
-(the news files at this commit), or `unclaimed`. It prints the merged
-scoreboard, writes the merged record (with its own red lines, the event, and each shard's commit
-and guards, which the acceptance from CI's record holds) and the job's summary, and writes nothing
-to the progress history. It is the parallel judge's controller merge, across machines.
+claim of a news file, or refuses it. On both, an absent check a news file's claim retires is
+listed beside them; one no claim retires stays red, as a lost pass does. Each listed row names
+the reason a news file's claim gives (the news files at this commit), or `unclaimed`. It prints
+the merged scoreboard, writes the merged record (with its own red lines, the event, and each
+shard's commit and guards, which the acceptance from CI's record holds) and the job's summary,
+and writes nothing to the progress history. It is the parallel judge's controller merge, across
+machines.
 """
 
 from __future__ import annotations
@@ -178,6 +180,12 @@ def gather(i: Inputs) -> Verdict:
     pull_request = i.event == "pull_request"
     # Where an acceptance's reasons are the news files', a row that needs one is listed, not red.
     listed = pull_request or i.g7 == "post-merge"
+
+    def retired(node: str) -> bool:
+        """An absent check a news file's claim retires: the acceptance consumes the claim, so
+        where the acceptance's reasons are the news files' the row is listed, not red."""
+        return listed and news.reason(i.claims, "retired", node) is not None
+
     if pull_request and i.selected is None:
         red.append(
             "G1 a pull request, and the decision job's selected pairs (PLAN) were not handed on"
@@ -371,10 +379,12 @@ def gather(i: Inputs) -> Verdict:
             continue
         for what, nodes in (
             ("lost", rt.lost),
-            ("absent", rt.absent),
+            ("absent", [n for n in rt.absent if not retired(n)]),
             ("blocked, protected", rt.unrun),
         ):
             red += [f"G5 {system}/{shard}: {what} {n}" for n in nodes[:5]]
+        for n in [n for n in rt.absent if retired(n)][:5]:
+            v.list_growth(f"G5 {system}/{shard}: absent {n}", "retired", n)
         for what, kind, nodes in (("fewer", "passes", rt.fewer), ("grew", "grows", rt.growth)):
             for n in nodes[:5]:
                 row = f"G5 {system}/{shard}: {what} {n}"
@@ -400,6 +410,8 @@ def gather(i: Inputs) -> Verdict:
             continue  # its tier did not run here
         if node not in in_scope and node in collected:
             continue  # its shard was not selected here
+        if node not in collected and retired(node):
+            continue  # absent, and a news file retires it: listed above
         states = [(s, r.get("checks", {}).get(node, {})) for (s, _), r in v.records.items()]
         if any(c.get("status") in ("pass", "gap") for _, c in states):
             continue

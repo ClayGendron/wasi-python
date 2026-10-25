@@ -2207,6 +2207,9 @@ ACCEPT_RUN = (
     "uv run pytest -p no:cacheprovider --accept-from=build/ci/record.json --claims=context/changes/"
 )
 DEPLOY_KEY = "ACCEPT_DEPLOY_KEY"
+# A push of the accepted state alone runs the plan and nothing that judges it.
+QUICK_IF = "needs.plan.outputs.acceptance != 'true'"
+SKIP_WORDS = ("[skip ci]", "[ci skip]", "[no ci]", "[skip actions]", "[actions skip]")
 SSH_KEY = "${{ secrets.ACCEPT_DEPLOY_KEY }}"
 # What accept-push's script must do, in this order, each in its own words: hold the change to the
 # two files alone, check dev's tip, commit them alone by the acceptance's pathspec, push.
@@ -2279,6 +2282,11 @@ def accept_job_errors(text: str, others: dict[str, str] | None = None) -> list[s
             errors.append(f"the secret {DEPLOY_KEY} is named outside accept-push, in {name}")
     if "secrets." in "\n".join(record):
         errors.append("accept-record names a secret")
+    quick = jobs.get("quick", [])
+    if "plan" not in _needs(quick) or _job_field(quick, "if") != QUICK_IF:
+        errors.append(f"quick does not need the plan and run on {QUICK_IF}")
+    if any(word in "\n".join(push).lower() for word in SKIP_WORDS):
+        errors.append("accept-push names a skip word, which would skip a release pull request")
     for name, other in sorted((others or {}).items()):
         if DEPLOY_KEY in other or "environment: accept" in without_comments(other):
             errors.append(f"the secret {DEPLOY_KEY} or the accept environment is named in {name}")

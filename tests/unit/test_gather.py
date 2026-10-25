@@ -1301,3 +1301,38 @@ def test_the_merged_record_carries_the_verdict_the_event_and_each_runs_guards(tm
     red = case.run()
     assert red.merged["meta"]["red"] == red.red and red.red
     assert red.merged["runs"]["linux/own-a"]["dirty"] is True
+
+
+# An absent check a news file retires is listed for the acceptance, not red: the accept job
+# consumes the claim; one no news file names stays red.
+
+GONE = "tests/checks/test_rules.py::test_gone"
+
+
+def _with_gone(case: Case, claims: list) -> Case:
+    case.accepted["checks"][GONE] = {"status": "pass", "artifact": W, "commit": HEAD, "metrics": {}}
+    orig = case.inputs
+
+    def inputs(records_dir=None, handed=None):
+        i = orig(records_dir, handed)
+        i.claims = claims
+        return i
+
+    case.inputs = inputs
+    return case
+
+
+@pytest.mark.parametrize("shape", ["post-merge", "pull request"])
+def test_an_absent_check_a_news_file_retires_is_listed_not_red(tmp_path, shape) -> None:
+    base = _post_merge(tmp_path) if shape == "post-merge" else PRCase(tmp_path)
+    v = _with_gone(base, [news.Claim(spec="999", retired=[GONE])]).run()
+    assert v.red == [], v.red
+    assert any(row.endswith(f"absent {GONE}") for row in v.growth), v.growth
+    assert any(line.endswith(f"absent {GONE} · 999: retired") for line in v.lines), v.lines
+
+
+@pytest.mark.parametrize("shape", ["post-merge", "pull request"])
+def test_an_absent_check_no_news_file_retires_is_red(tmp_path, shape) -> None:
+    base = _post_merge(tmp_path) if shape == "post-merge" else PRCase(tmp_path)
+    v = _with_gone(base, [news.Claim(spec="999", retired=["tests/checks/test_other.py"])]).run()
+    assert any(r.endswith(f"absent {GONE}") for r in v.red), v.red

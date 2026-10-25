@@ -10,7 +10,7 @@
 # merge-grade set: every normal-tier shard on its three systems, the build shard and verify on
 # three; when all of it is green, accept-record accepts the gather's record with no secret and
 # accept-push, alone in the accept environment, pushes that acceptance onto dev with the deploy
-# key, the push carrying [skip ci]. A pushed tag v<version> builds the artifact set from its pins on arm64 macOS, judges both
+# key, whose own run is the plan alone. A pushed tag v<version> builds the artifact set from its pins on arm64 macOS, judges both
 # tiers, rebuilds it on arm64 Linux and x86_64 Linux and requires the same bytes, attests and
 # publishes. A pull request into main, a dispatch and the weekly schedule run the same release
 # shape, never signing or publishing. Third-party actions are pinned by commit, their release
@@ -89,6 +89,7 @@ jobs:
       rebuild: ${{ steps.plan.outputs.rebuild }}
       judge: ${{ steps.plan.outputs.judge }}
       accept: ${{ steps.plan.outputs.accept }}
+      acceptance: ${{ steps.plan.outputs.acceptance }}
       weekly: ${{ steps.plan.outputs.weekly }}
       tier: ${{ steps.plan.outputs.tier }}
       build: ${{ steps.plan.outputs.build }}
@@ -118,6 +119,7 @@ jobs:
           PLAN_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
           # The self-check, which names the author the review check holds the reviewer apart from.
           PLAN_BODY: ${{ github.event.pull_request.body }}
+          PLAN_TITLE: ${{ github.event.pull_request.title }}
           PLAN_RELEASE_TIER: ${{ inputs.release-tier }}
           PLAN_WEEKLY: ${{ inputs.weekly }}
           PLAN_HEAD_REF: ${{ github.head_ref }}
@@ -128,6 +130,9 @@ jobs:
     name: quick (ruff, mypy, the unit tests, lint)
     # Everything that needs no artifact set, on every run: the gate the judge's stage waits on.
     # lint is the rules checks, the writing conventions among them.
+    # The push of an acceptance (the accepted state alone) needs nothing judged: the plan says so.
+    needs: plan
+    if: needs.plan.outputs.acceptance != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -1202,7 +1207,8 @@ jobs:
     # pull request's run reaches its secret: the deploy key, dev's one bypass actor. It runs no
     # code of the repository, only git: it puts the two progress files into a checkout of the
     # commit judged, holds the change to them alone, and commits them alone with the message
-    # accept-record wrote, which ends [skip ci] so the push starts no run. It pushes only while
+    # accept-record wrote; the push's own run is the plan alone, which is quiet on a push of the
+    # accepted state, so nothing judges it. It pushes only while
     # dev is the commit judged; when a newer merge landed it pushes nothing and succeeds, and that
     # merge's run accepts everything since the last acceptance.
     needs: [plan, accept-record]

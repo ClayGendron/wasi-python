@@ -26,14 +26,14 @@ changed = [
   "tests/checks/test_rules.py::test_one_required_check_holds_every_job",
   "tests/checks/test_rules.py::test_every_job_checks_out_the_head_commit",
 ]
-units = 133
+units = 171
 
 [claim.judge]
 "tests/checks/test_rules.py" = "four new rules: the news files' shape, the accept jobs, the accept push's own script, the weekly run"
 "tests/harness/accept_from.py" = "new: the acceptance from CI's record"
 "tests/harness/news.py" = "new: the reader of the news files"
-"tests/harness/plugin.py" = "--accept-from and --claims, answered before any session; the worktree refusal no longer names the lane"
-"tests/harness/scoreboard.py" = "an acceptance's line may carry fields of its own (where it came from, the systems whose probe passed)"
+"tests/harness/plugin.py" = "--accept-from and --claims, answered before any session; the news files' retirements read into the ratchet; the worktree refusal no longer names the lane"
+"tests/harness/scoreboard.py" = "an acceptance's line may carry fields of its own; an absent check a news file retires is listed, not red"
 "tests/harness/history.py" = "the three-systems need reads the systems an acceptance from CI's record names"
 "tests/harness/gather.py" = "after a merge into dev the rows an acceptance needs a reason for are listed, each with its news file's reason, and the merged record carries the verdict, the event and each shard's guards"
 "tests/harness/scan.py" = "the accept jobs' and the weekly run's scans; the plan reads runs (actions: read); the new jobs' permissions"
@@ -45,4 +45,6 @@ units = 133
 "tests/unit/test_sameness.py" = "a run's entry in the merged record has more fields"
 "tests/unit/test_scan.py" = "the accept and weekly scans' rows; the fixture's plan reads runs"
 "tests/unit/test_landing_lane.py" = "the worktree refusal's new words"
+"tests/unit/test_plugin.py" = "a run with an absent check a news file retires is green and lists it"
+"tests/unit/test_scoreboard.py" = "the ratchet's colour leaves out an absent check a news file retires"
 ```

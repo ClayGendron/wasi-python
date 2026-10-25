@@ -37,9 +37,9 @@ The verdict covers what ran. A lost pass is red. Fuel or bytes that grow, fewer 
 
 Each merge into `dev` runs the whole normal tier on macOS, Linux and Windows. When it is green, a job records the result in the repository's accepted state and pushes one commit to `dev`. A red run after a merge means `dev` is broken: the author of the merged change fixes it forward the same day or reverts it, and nothing else merges until `dev` is green.
 
-The job takes every reason it needs from the news files merged since the last record: a growth, fewer passes, a changed test file, a test moved between tiers, a test removed. A row no news file explains stops the record, with the row named. The fix is a one-line pull request to the news file, and its merge records both.
+The job takes every reason it needs from the news files merged since the last record: a growth, fewer passes, a changed test file, a test moved between tiers, a test removed. A test a news file removes is listed, not red, on its pull request and after its merge, so the job can record its removal. A row no news file explains stops the record, with the row named. The fix is a one-line pull request to the news file, and its merge records both.
 
-The record is made in two jobs. The first runs the tests' own code with no secret and writes the record. The second holds the one key that may push to `dev` without a pull request, runs nothing but git, commits the two record files alone, and pushes them only while `dev` is still the commit that was tested. When another merge landed meanwhile, it pushes nothing, and the newer merge's run records both. The record's commit starts no run of its own.
+The record is made in two jobs. The first runs the tests' own code with no secret and writes the record. The second holds the one key that may push to `dev` without a pull request, runs nothing but git, commits the two record files alone, and pushes them only while `dev` is still the commit that was tested. When another merge landed meanwhile, it pushes nothing, and the newer merge's run records both. The record's commit runs nothing that tests: the run's first job sees that only the record changed.
 
 ## Every change is reviewed by someone who did not write it
 

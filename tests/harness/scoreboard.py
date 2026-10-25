@@ -84,6 +84,9 @@ class Ratchet:
     moved: list[str] = field(default_factory=list)  # accepted in one tier, now in the other
     fuel_not_compared: list[str] = field(default_factory=list)
     judge_changed: list[str] = field(default_factory=list)
+    # Absent checks a news file's claim retires, each with its reason: listed, not red; the
+    # acceptance retires them only from the claim (CI) or --retire (a local acceptance).
+    retired: dict[str, str] = field(default_factory=dict)
     baseline: str = ""
 
     def red(self, partial: bool) -> list[str]:
@@ -91,8 +94,9 @@ class Ratchet:
         why = []
         if self.lost:
             why.append(f"{len(self.lost)} accepted pass(es) lost")
-        if self.absent:
-            why.append(f"{len(self.absent)} accepted check(s) absent (retire them with --retire)")
+        absent = [n for n in self.absent if n not in self.retired]
+        if absent:
+            why.append(f"{len(absent)} accepted check(s) absent (retire them with --retire)")
         if self.fewer:
             why.append(f"{len(self.fewer)} pass count(s) fell (say --accept-fewer-passes)")
         if self.growth:
@@ -464,7 +468,10 @@ def render(
         head.append(_ratchet_line(ratchet, run["meta"].get("partial")))
         head += [f"FEWER {f}" for f in ratchet.fewer]
         examples += [f"LOST {node}" for node in ratchet.lost[:3]]
-        examples += [f"ABSENT {node}" for node in ratchet.absent[:3]]
+        examples += [
+            f"ABSENT {node}" for node in [n for n in ratchet.absent if n not in ratchet.retired][:3]
+        ]
+        examples += [f"RETIRED {node} · {why}" for node, why in list(ratchet.retired.items())[:3]]
         examples += [f"MOVED {node}" for node in ratchet.moved[:3]]
         examples += [f"GREW {g}" for g in ratchet.growth[:3]]
     if red:

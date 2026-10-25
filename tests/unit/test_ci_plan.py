@@ -266,15 +266,13 @@ def test_the_acceptance_push_sets_every_output_false() -> None:
     sel = ci_plan.select(d, PLAN)
     assert sel["selected"] == [] and sel["verify"] == [] and sel["build"] is False
     out = ci_plan.outputs(d, sel, [])
-    assert {k for k, v in out.items() if v == "true"} == set()
+    assert {k for k, v in out.items() if v == "true"} == {"acceptance"}
 
 
 @pytest.mark.parametrize(
     "changed",
     [
         ACCEPT + ["src/x.py"],
-        ["context/progress/accepted.json"],
-        ["context/progress/history-00060.jsonl"],
         ["context/progress/accepted.json", "context/progress/README.md"],
         ["context/progress/accepted.json", "context/progress/history-00060.jsonl.bak"],
     ],
@@ -792,3 +790,82 @@ def test_a_review_of_another_stem_or_without_its_date_is_still_refused(name) -> 
     pr.files[path] = _review()
     (refusal,) = _review_refusals(pr, changed=("src/x.py", NEWS, path))
     assert "no review file" in refusal
+
+
+# Two review files of one date: the one the branch's newest commit changed is read; when one
+# commit changed both, the check cannot tell which signs the head, and refuses.
+
+OLD_REVIEW = "context/reviews/999-a-change-step-1-pr-2026-10-26.md"
+
+
+def test_on_a_tie_of_dates_the_review_the_newest_commit_changed_is_read() -> None:
+    code = ci_plan.Commit("a" * 40, ("src/x.py", NEWS), (AUTHOR,))
+    stale = ci_plan.Commit("b" * 40, (OLD_REVIEW,), (OTHER,))  # sorts last by path, older
+    signed = ci_plan.Commit("c" * 40, (REVIEW,), (OTHER,))
+    pr = _pr(commits=[code, stale, signed])
+    pr.files[OLD_REVIEW] = _review(verdict="Does not land yet: High 1.")
+    pr.files[REVIEW] = _review()
+    assert _review_refusals(pr, changed=("src/x.py", NEWS, REVIEW, OLD_REVIEW)) == []
+
+
+def test_two_reviews_of_one_date_changed_by_one_commit_are_refused() -> None:
+    code = ci_plan.Commit("a" * 40, ("src/x.py", NEWS), (AUTHOR,))
+    both = ci_plan.Commit("b" * 40, (REVIEW, OLD_REVIEW), (OTHER,))
+    pr = _pr(commits=[code, both])
+    pr.files[OLD_REVIEW] = _review()
+    (refusal,) = _review_refusals(pr, changed=("src/x.py", NEWS, REVIEW, OLD_REVIEW))
+    assert "two review files of one date" in refusal
+
+
+# A skip word in the title or the description lands in the squash merge's message, and GitHub
+# would start no run for the merge, so it would be neither judged nor accepted.
+
+
+@pytest.mark.parametrize(
+    "word", ["[skip ci]", "[ci skip]", "[no ci]", "[skip actions]", "[actions skip]", "[SKIP CI]"]
+)
+@pytest.mark.parametrize("where", ["title", "body"])
+def test_a_skip_word_in_the_title_or_description_is_refused(word, where) -> None:
+    pr = _pr(body=BODY + (f"\nthe message ends {word}\n" if where == "body" else ""))
+    pr.title = f"A change {word}" if where == "title" else "A change"
+    changed = ["src/x.py", NEWS, REVIEW]
+    d = ci_plan.decide(changed, PR_DEV)
+    refused = [r for r in ci_plan.refusals(d, PR_DEV, changed, pr) if "skip" in r]
+    assert len(refused) == 1 and word.lower() in refused[0].lower()
+
+
+def test_a_documentation_pull_request_with_a_skip_word_is_refused_too() -> None:
+    pr = _pr(body="see [skip ci]\n")
+    changed = ["docs/index.md"]
+    assert ci_plan.refusals(ci_plan.decide(changed, PR_DEV), PR_DEV, changed, pr)
+
+
+def test_a_title_and_description_without_a_skip_word_are_not_refused() -> None:
+    pr = _pr()
+    pr.title = "Skip the cache on CI: ci skips nothing"
+    changed = ["src/x.py", NEWS, REVIEW]
+    assert ci_plan.refusals(ci_plan.decide(changed, PR_DEV), PR_DEV, changed, pr) == []
+
+
+# The acceptance commit carries no skip word (GitHub would skip a release pull request whose head
+# it is): the plan is quiet on it instead, and only the plan runs.
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [ACCEPT, ["context/progress/accepted.json"], ["context/progress/history-00060.jsonl"],
+     ["context/progress/accepted.json", "context/progress/history.jsonl",
+      "context/progress/history-00060.jsonl"]],
+    ids=["the acceptance", "accepted.json alone", "a volume alone", "two volumes"],
+)  # fmt: skip
+def test_a_push_of_the_accepted_state_alone_selects_nothing(changed) -> None:
+    d = ci_plan.decide(changed, PUSH_DEV)
+    assert d.quiet and d.acceptance and not d.accept and not d.judge
+    out = ci_plan.outputs(d, ci_plan.select(d, PLAN), [])
+    assert out["acceptance"] == "true" and out["accept"] == "false" and out["judge"] == "false"
+
+
+def test_only_a_push_of_the_accepted_state_is_an_acceptance() -> None:
+    for changed, event in ((ACCEPT, PR_DEV), (["src/x.py"], PUSH_DEV), (None, PUSH_DEV)):
+        d = ci_plan.decide(changed, event)
+        assert ci_plan.outputs(d, ci_plan.select(d, PLAN), [])["acceptance"] == "false"
