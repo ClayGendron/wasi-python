@@ -36,7 +36,7 @@ $ wasi-python run -- -c "print('hello, WebAssembly')"
 {"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "hello, WebAssembly\n", "trapped": null, "truncated": []}
 ```
 
-Requires Python 3.11 or later. The wheel carries the runtime, which unpacks to about 250 MB of WebAssembly and bytecode. Every release is tested on Linux (x86-64 and arm64), macOS (arm64) and Windows (x86-64). [Install](https://claygendron.github.io/wasi-python/get-started/install/) says more about what comes with the package and where it keeps its cache.
+Requires Python 3.11 or later. The wheel carries the runtime, which unpacks to about 250 MB of WebAssembly and bytecode. Every release is tested on Linux (x86-64 and arm64), macOS (arm64) and Windows (x86-64). [Install](https://claygendron.github.io/wasi-python/get-started/install/) says more about what comes with the package and where it keeps its cache. On Linux and macOS a cache under a folder another user can write is not used, and a compiled module is read through the descriptor that was checked.
 
 # Usage
 

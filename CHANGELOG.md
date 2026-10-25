@@ -12,6 +12,7 @@ One section per release of the `wasi-python` artifact set and wheel, newest firs
 ### Changed
 
 - **The platform module is split in three** (spec 131). `_platform.py` held every platform difference at 1,464 of its 1,500 lines. The Windows class, its handle structure, its constants and its three helpers are now `_platform_windows.py`; what the Windows and POSIX classes both run (the walk's result and its refusal, the steps taken by path, the remover's budget and its walk by path, the cache's kind checks) is `_platform_common.py`, below both, so the import graph stays acyclic; `_platform.py` keeps the interface, the POSIX hosts and the one choice, at 828 lines. Nothing an embedder sees changes.
+- **The module cache is read through the descriptor it was checked by** (spec 135). A compiled module is loaded through the descriptor it was checked by, so the file read is the file checked; a cache whose path passes through a folder another user can write is not used, with a warning; a set given through `artifacts=` is hashed and compiled from one read; a cache folder or compiled module with an access list (macOS, Linux) is not used; on Windows the file is held open from its check to its load; `cache_dir=''` is refused, and a relative `cache_dir` is made absolute at the call. Running the runner with another user's home is not supported.
 
 ## 0.1.0 — 2026-10-23
 

@@ -55,9 +55,9 @@ A copy installed with `pip install --target`, or vendored into another project, 
 
 The first call compiles the WebAssembly module to native code. The runner keeps the result as a `.cwasm` file, so later calls skip the compile. The file lives in your user cache folder, or in `$WASI_PYTHON_CACHE` if you set it. Give `$WASI_PYTHON_CACHE` as an absolute path: a relative one names a different folder in each working folder.
 
-A `.cwasm` file is native code, so the runner is strict about it. It loads one only from a folder at mode `0700` holding files at mode `0600`, as the runner itself makes them. A file made any other way is compiled around and never loaded. Pass `cache_dir=False` to keep the compiled module in memory only. A process with no home folder and no `$WASI_PYTHON_CACHE` does the same.
+A `.cwasm` file is native code, so the runner is strict about it. It loads one only from a folder at mode `0700` holding files at mode `0600`, as the runner itself makes them. A file made any other way is compiled around and never loaded. On Linux and macOS every folder on the way to the cache must also be yours or root's, and no one else may write it unless it is sticky, as `/tmp` is; the cache folder and its files must carry no access list. A cache that fails is not used: the module is compiled in memory, and one warning says why. The runner reads a `.cwasm` through the descriptor it checked, so a file put at its name after the check is never the one loaded. Pass `cache_dir=False` to keep the compiled module in memory only. A process with no home folder and no `$WASI_PYTHON_CACHE` does the same.
 
-On Windows the runner can check only that the cache folder and its files are not links. It cannot check who wrote them. So `cache_dir` and `$WASI_PYTHON_CACHE` must name a folder only you can write. The default, in your own profile, is one.
+On Windows the runner can check only that the cache folder and its files are not links. It cannot check who wrote them. So `cache_dir` and `$WASI_PYTHON_CACHE` must name a folder only you can write. The default, in your own profile, is one. The runner holds a `.cwasm` open from its check until it is loaded, so its name cannot be replaced in between.
 
 Never grant a guest the cache folder. See [Grant folders to the guest](../how-to/grants.md) for the folders the runner refuses to grant.
 

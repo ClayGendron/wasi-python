@@ -76,7 +76,7 @@ In Python, `run` and `Session` are the *runner*: they drive the binaries through
 4. calls the guest on a thread of its own, with room for the guest's stack;
 5. collects the output, releases the store, and removes the call's private folders.
 
-Compiling a large wasm binary to native code is slow, so the runner keeps the compiled module as a `.cwasm` file in a cache: the user cache folder, or `$WASI_PYTHON_CACHE`. A `.cwasm` is native code tied to one wasmtime version and one CPU, so it is never published; each host compiles its own. The runner loads only files it made itself, in a folder at mode `0700` holding files at `0600`. `cache_dir=False` keeps the compiled module in memory only.
+Compiling a large wasm binary to native code is slow, so the runner keeps the compiled module as a `.cwasm` file in a cache: the user cache folder, or `$WASI_PYTHON_CACHE`. A `.cwasm` is native code tied to one wasmtime version and one CPU, so it is never published; each host compiles its own. The runner loads only files it made itself, in a folder at mode `0700` holding files at `0600`. On POSIX it reads one through the descriptor it checked, and only when every folder on the way to the cache is yours or root's and closed to other writers. `cache_dir=False` keeps the compiled module in memory only.
 
 Fuel is counted from the end of instantiation, so a call spends the same fuel whether the module was compiled or loaded from the cache. See [fuel](fuel.md).
 
