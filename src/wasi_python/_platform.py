@@ -4,7 +4,8 @@
 any other POSIX host, bound by `_select`, the only place in the package that asks the
 interpreter which system this is. Every caller writes `from . import _platform` and reads
 `_platform.PLATFORM` at the call, so a check that binds another platform for its duration is
-seen by every caller.
+seen by every caller. The Windows class lives in `_platform_windows.py`, and what both families
+run in `_platform_common.py`, below both.
 
 What differs, and why each difference exists:
 
@@ -42,7 +43,6 @@ from __future__ import annotations
 import ctypes
 import errno
 import os
-import re
 import shutil
 import stat
 import sys
@@ -50,66 +50,12 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol
 
+from . import _platform_common
+from ._platform_common import _REMOVE_BATCH, _Removal
+from ._platform_common import Identity as Identity
+from ._platform_common import _Walked as _Walked
+from ._platform_windows import _Windows
 from ._process import process
-
-Identity = tuple[int, int]
-
-
-class _Walked:
-    """A host folder walked component by component: the path wasmtime is given, the identities of
-    the folder and each ancestor (the folder's first), and what keeps it from changing until the
-    identity check: on POSIX the folder's descriptor, on Windows every component's handle. A root
-    still to be made has `missing` components, and its chain is its deepest existing ancestor's.
-    `close` releases the holds through the closer of the walk that made it (the platform's by
-    default), and `fd` is the folder's descriptor on a walk by descriptors, else None."""
-
-    def __init__(
-        self,
-        path: str,
-        chain: tuple[Identity, ...],
-        held: list[int],
-        *,
-        descriptors: bool = False,
-        closer: Callable[[int], None] | None = None,
-    ) -> None:
-        self.path, self.chain, self.held = path, chain, held
-        self.missing: tuple[str, ...] = ()
-        self.descriptors, self.closer = descriptors, closer
-
-    @property
-    def identity(self) -> Identity | None:
-        return None if self.missing else self.chain[0]
-
-    @property
-    def fd(self) -> int | None:
-        return self.held[-1] if self.held and self.descriptors else None
-
-    def close(self) -> None:
-        held, self.held = self.held, []
-        closer = PLATFORM.close_held if self.closer is None else self.closer
-        for h in held:
-            closer(h)
-
-
-class _Spent(Exception):
-    """The removal's budget of calls is spent."""
-
-
-class _Removal:
-    """One removal's count of calls, its budget, and the first error it met."""
-
-    def __init__(self, budget: int | None) -> None:
-        self.calls, self.budget = 0, budget
-        self.error: BaseException | None = None
-
-    def spend(self) -> None:
-        if self.budget is not None and self.calls >= self.budget:
-            raise _Spent(f"the removal's budget of {self.budget} calls is spent")
-        self.calls += 1
-
-    def fail(self, error: BaseException) -> None:
-        if self.error is None:
-            self.error = error
 
 
 def _flags(*names: str) -> int:
@@ -146,13 +92,6 @@ def _close(fd: int | None) -> None:
         os.close(fd)
 
 
-def _unlink_quietly(path: str) -> None:
-    try:
-        os.unlink(path)
-    except OSError:
-        pass
-
-
 # The guest's stack. Every entry into wasm runs on a guest thread the runner makes for
 # it, with _THREAD_STACK bytes of stack, _WASM_STACK of them for wasm. The C-stack
 # window (128 KiB, recipes/reactor_main.c) is unchanged. _HOST_ROOM holds what runs below
@@ -162,49 +101,13 @@ _WASM_STACK = 8 << 20
 _HOST_ROOM = 2 << 20
 _THREAD_STACK = _WASM_STACK + _HOST_ROOM
 
-_BUSY = {errno.EACCES, errno.EDEADLK, getattr(errno, "EDEADLOCK", errno.EDEADLK)}
-
 # Opened for search only where the system allows (Linux O_PATH, macOS O_SEARCH): wasmtime opens a
 # grant below a folder this user may search but not list, so the walk must pass through it too.
 _DIR = (_flags("O_PATH") or _flags("O_SEARCH") or os.O_RDONLY) | _flags(
     "O_DIRECTORY", "O_NOFOLLOW", "O_CLOEXEC"
 )
 _DIR_OPEN = _flags("O_RDONLY", "O_DIRECTORY", "O_NOFOLLOW", "O_CLOEXEC", "O_NONBLOCK")
-_REMOVE_BATCH = 1024  # entries a listing reads before it acts
 MAX_LINKS = 40
-
-# Windows: Python cannot open a folder with os.open, so the walk opens every
-# component through CreateFileW, refuses a reparse point (a link or a junction), and holds each
-# handle without FILE_SHARE_DELETE until the identity check, so no walked folder can be renamed,
-# removed or replaced in between, and no path string is ever compared.
-# Traverse access, not attributes alone: Windows runs share checks only for data, execute or
-# delete access (MS-FSA 2.1.5.1.2.2), so an attribute-only handle held without FILE_SHARE_DELETE
-# stops no rename. FILE_TRAVERSE is FILE_EXECUTE, which is checked, and needs only the permission
-# to pass through a folder, as POSIX's search does, not to list it.
-_WALK_ACCESS = 0x20 | 0x80  # FILE_TRAVERSE | FILE_READ_ATTRIBUTES
-_STAT_ACCESS = 0x80  # FILE_READ_ATTRIBUTES: an identity read that holds nothing
-_SHARE_READ_WRITE = 0x1 | 0x2
-_OPEN_EXISTING = 3
-_BACKUP_SEMANTICS = 0x02000000
-_OPEN_REPARSE_POINT = 0x00200000
-_ATTRIBUTE_DIRECTORY = 0x10
-_ATTRIBUTE_REPARSE_POINT = 0x400
-
-# Names a judged Windows walk refuses: Win32 rewrites them, so the path
-# opened and the chain of folders walked could disagree, and a rule that reads the chain could
-# miss a true ancestor. A `:` is a drive letter (`C:\\b\\D:x` is
-# drive D's current folder) or a stream; a trailing space or period is trimmed in some positions
-# and not others; a reserved device name, with or without an extension, is the device, and a
-# root still to be made through one would fail after the folders before it were made. The set is
-# exactly Python's own `ntpath.isreserved` for one component, which the runner cannot
-# call on 3.11 and 3.12: Microsoft's reserved names ("Naming Files, Paths, and Namespaces"), with
-# the superscript `COM¹` to `LPT³` it reserves "in every directory"; `CONIN$` and `CONOUT$`,
-# which CPython refuses "on the side of caution"; and the characters Windows rejects in a name.
-_WIN_DEVICES = frozenset(
-    {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
-    | {f"{p}{c}" for p in ("COM", "LPT") for c in "123456789\u00b9\u00b2\u00b3"}
-)
-_WIN_RESERVED_CHARS = frozenset('"*<>?|' + "".join(map(chr, range(32))))
 
 # Linux: the fatal signals wasmtime 49 handles to turn a fault in wasm into a trap
 # (crates/wasmtime/src/runtime/vm/sys/unix/signals.rs, foreach_handler): SIGSEGV and SIGILL, and
@@ -264,35 +167,6 @@ class _Platform(Protocol):
     def private(self, path: Path, *, is_dir: bool) -> bool: ...
 
 
-def _refused(where: str, path: str, judge: bool, walk: Callable[[], _Walked]) -> _Walked:
-    """The walk, with a folder that cannot be searched, or vanished mid-walk, refused as the
-    caller's grant when judged; the runtime's own folders raise as they are."""
-    try:
-        return walk()
-    except ValueError:
-        raise
-    except OSError as e:
-        if not judge:
-            raise
-        raise ValueError(f"{where}: {path!r} cannot be walked: {e.strerror or e}") from None
-
-
-def _removing(
-    walk: Callable[[_Removal], bool], budget: int | None, errors: list[BaseException] | None
-) -> bool:
-    """One walk of the remover, budgeted and never raising an `Exception`: True when nothing is
-    left at the name; the first error met is appended to `errors`."""
-    removal = _Removal(budget)
-    try:
-        gone = walk(removal)
-    except Exception as e:  # _Spent included
-        removal.fail(e)
-        gone = False
-    if not gone and errors is not None and removal.error is not None:
-        errors.append(removal.error)
-    return gone
-
-
 class _Posix:
     """Any POSIX host the runner does not know by name: descriptors where the system has them,
     `flock`, no kernel identity, no stack probe, no interpreter hint, no trap-handler check."""
@@ -313,7 +187,9 @@ class _Posix:
         """Walk `path` from the top. With `judge`, a link in a folder this user can write raises
         ValueError; without it (the runtime's own folders), every link is followed. With
         `may_make`, a missing tail is returned as `missing`."""
-        return _refused(where, path, judge, lambda: self._walk(where, path, judge, may_make))
+        return _platform_common._refused(
+            where, path, judge, lambda: self._walk(where, path, judge, may_make)
+        )
 
     def _walk(self, where: str, path: str, judge: bool, may_make: bool) -> _Walked:
         # Joined to the working directory without normalising: `..` is taken on the walked
@@ -404,7 +280,7 @@ class _Posix:
             finally:
                 os.close(fd)
         else:
-            path = _make_by_path(path, walked.missing)
+            path = _platform_common._make_by_path(path, walked.missing)
         walked.close()
         return self.walk(where, path, judge=True)
 
@@ -428,7 +304,7 @@ class _Posix:
         with a descriptor on the result for the caller to close; else by path, with None."""
         if fd is not None and self.has_dir_fd:
             return root.joinpath(*parts), _real_dir_at(fd, parts)
-        return _real_dir_by_path(root, parts), None
+        return _platform_common._real_dir_by_path(root, parts), None
 
     def long_path(self, path: str) -> str:
         return os.path.abspath(path)
@@ -454,7 +330,7 @@ class _Posix:
         that locks the file after fails its same-file check and draws again; then close, which
         releases the lock; quiet."""
         if unlink is not None:
-            _unlink_quietly(unlink)
+            _platform_common._unlink_quietly(unlink)
         try:
             os.close(fd)
         except OSError:
@@ -489,10 +365,12 @@ class _Posix:
         Never raises an `Exception`; the first error it met is appended to `errors`."""
         name = os.fspath(path)
         if self.has_dir_fd:
-            return _removing(lambda r: _remove_at(name, dir_fd, r), budget, errors)
+            return _platform_common._removing(lambda r: _remove_at(name, dir_fd, r), budget, errors)
         if dir_fd is not None:
             raise NotImplementedError("dir_fd unavailable on this platform")
-        return _removing(lambda r: _remove_by_path(self.long_path(name), r), budget, errors)
+        return _platform_common._removing(
+            lambda r: _platform_common._remove_by_path(self.long_path(name), r), budget, errors
+        )
 
     # The guest thread.
 
@@ -562,31 +440,15 @@ class _Posix:
         if is_dir:
             path.mkdir(mode=0o700, parents=True, exist_ok=True)
         st = os.lstat(path)
-        kind_ok = stat.S_ISDIR(st.st_mode) if is_dir else _one_file(st)
+        kind_ok = stat.S_ISDIR(st.st_mode) if is_dir else _platform_common._one_file(st)
         if kind_ok and st.st_uid == os.getuid() and not st.st_mode & 0o077:
             return True
         how = "owned by this user that no one else may read, write or enter"
-        _not_used(
+        _platform_common._not_used(
             path,
             f"a directory {how} (mode 0700)" if is_dir else f"a file {how} (mode 0600), one name",
         )
         return False
-
-
-def _one_file(st: os.stat_result) -> bool:
-    """A regular file with one name, as `mkstemp` and a rename leave the runner's own: a second
-    name is a hard link a guest could make to a file elsewhere without writing a byte."""
-    return stat.S_ISREG(st.st_mode) and st.st_nlink == 1
-
-
-def _not_used(path: Path, must_be: str) -> None:
-    import warnings
-
-    warnings.warn(
-        f"wasi_python: not using the module cache at {path}: it must be {must_be}",
-        RuntimeWarning,
-        stacklevel=6,
-    )
 
 
 def _writable(fd: int, stack: list[tuple[int, Identity, str]]) -> bool:
@@ -597,13 +459,6 @@ def _writable(fd: int, stack: list[tuple[int, Identity, str]]) -> bool:
         return os.access(".", os.W_OK, dir_fd=fd, effective_ids=effective)
     text = "/" + "/".join(name for _, _, name in stack[1:])
     return os.access(text, os.W_OK, effective_ids=effective)
-
-
-def _make_by_path(path: str, missing: tuple[str, ...]) -> str:
-    for name in missing:
-        path = os.path.join(path, name)
-        Path(path).mkdir(exist_ok=True)
-    return path
 
 
 def _real_dir_at(fd: int, parts: tuple[str, ...]) -> int:
@@ -634,65 +489,6 @@ def _real_dir_at(fd: int, parts: tuple[str, ...]) -> int:
     return here
 
 
-def _real_dir_by_path(root: Path, parts: tuple[str, ...]) -> Path:
-    """root/parts…, each a real directory: a link or file a guest left in the way is removed.
-    Windows, where the walk holds every folder of the root's path and
-    guests can make links only where the user holds the symbolic-link privilege, and
-    a POSIX host without directory descriptors. The root is never made again here."""
-    here = root
-    for part in parts:
-        here = here / part
-        try:
-            st = os.lstat(here)
-        except FileNotFoundError:
-            st = None
-        if st is not None and not stat.S_ISDIR(st.st_mode):
-            here.unlink()  # a symbolic link or a file: removed, never followed
-            st = None
-        if st is None:
-            try:
-                here.mkdir()
-            except FileExistsError:  # a concurrent call made it
-                if not stat.S_ISDIR(os.lstat(here).st_mode):
-                    raise
-    return here
-
-
-# The removal. A guest can build a tree one level at a time through dir_fd, deeper
-# than the process's free descriptors, and shutil.rmtree holds one descriptor per level (and on
-# 3.11 one Python frame per level). The remover holds at most two: on POSIX it goes down by
-# name with O_NOFOLLOW and up by "..", checking each parent against the identity it recorded on
-# the way down; elsewhere (Windows) it walks extended-length paths. It creates, renames and
-# chmods nothing: what it may not delete, it leaves. Only a fresh HOME,
-# which another call on the same root may be writing, gets a budget of calls.
-
-
-def _is_folder(entry: os.DirEntry[str]) -> bool:
-    """A folder to enter: never a link, and never a junction (as shutil's `_rmtree_islink`)."""
-    try:
-        if not entry.is_dir(follow_symlinks=False):
-            return False
-        if hasattr(entry, "is_junction"):
-            return not entry.is_junction()
-        tag = getattr(entry.stat(follow_symlinks=False), "st_reparse_tag", 0)
-        return not (tag and tag == getattr(stat, "IO_REPARSE_TAG_MOUNT_POINT", None))
-    except OSError:
-        return False
-
-
-def _listing(where: int | str, failed: set[str], removal: _Removal) -> list[os.DirEntry[str]]:
-    """Up to `_REMOVE_BATCH` entries not yet failed, read and closed before anything is done."""
-    removal.spend()
-    found: list[os.DirEntry[str]] = []
-    with os.scandir(where) as entries:
-        for entry in entries:
-            if entry.name not in failed:
-                found.append(entry)
-                if len(found) == _REMOVE_BATCH:
-                    break
-    return found
-
-
 def _remove_at(name: str, parent: int | None, removal: _Removal) -> bool:
     """POSIX: the walk by descriptors, at most two held at once."""
     try:
@@ -716,10 +512,10 @@ def _remove_at(name: str, parent: int | None, removal: _Removal) -> bool:
         stack: list[tuple[str, tuple[int, int], set[str]]] = []  # name, parent, parent's failed
         failed: set[str] = set()
         while True:
-            entries = _listing(cur, failed, removal)
+            entries = _platform_common._listing(cur, failed, removal)
             down, removed = None, False
             for entry in entries:
-                if _is_folder(entry):
+                if _platform_common._is_folder(entry):
                     down = entry
                     break
                 removal.spend()
@@ -803,84 +599,6 @@ def _enter(
         failed.add(entry.name)
         return None
     return child
-
-
-def _remove_by_path(top: str, removal: _Removal) -> bool:
-    """Windows (and a POSIX host without directory descriptors, or a check that forces it): the
-    same walk on paths, down by joining a name and up by dropping it. Links and junctions are
-    removed, never entered."""
-    try:
-        st = os.lstat(top)
-    except FileNotFoundError:
-        return True
-    attributes = getattr(st, "st_file_attributes", 0)
-    reparse = attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
-    if not stat.S_ISDIR(st.st_mode) or stat.S_ISLNK(st.st_mode) or reparse:
-        removal.spend()
-        try:
-            os.unlink(top)
-        except FileNotFoundError:
-            pass
-        return True
-    dev, here = st.st_dev, top
-    stack: list[tuple[str, set[str]]] = []  # name, parent's failed
-    failed: set[str] = set()
-    while True:
-        try:
-            entries = _listing(here, failed, removal)
-        except _Spent:
-            raise
-        except OSError as e:  # a folder it may not list: climb, and its rmdir decides
-            removal.fail(e)
-            entries = []
-        down, removed = None, False
-        for entry in entries:
-            if _is_folder(entry):
-                down = entry
-                break
-            removal.spend()
-            try:
-                os.unlink(os.path.join(here, entry.name))
-                removed = True
-            except FileNotFoundError:
-                removed = True
-            except OSError as e:
-                removal.fail(e)
-                failed.add(entry.name)
-        if down is not None:
-            below = os.path.join(here, down.name)
-            try:
-                if os.lstat(below).st_dev != dev:
-                    raise OSError(errno.EXDEV, "another device", below)
-            except FileNotFoundError:
-                continue
-            except OSError as e:
-                removal.fail(e)
-                failed.add(down.name)
-                continue
-            stack.append((down.name, failed))
-            here, failed = below, set()
-            continue
-        if removed or len(entries) == _REMOVE_BATCH:
-            continue
-        if not stack:
-            break
-        child_name, failed = stack.pop()
-        child, here = here, here[: -(len(child_name) + 1)]
-        removal.spend()
-        try:
-            os.rmdir(child)
-        except FileNotFoundError:
-            pass
-        except OSError as e:
-            removal.fail(e)
-            failed.add(child_name)
-    removal.spend()
-    try:
-        os.rmdir(top)
-    except FileNotFoundError:
-        pass
-    return True
 
 
 def _pyapi(name: str, restype: Any, *argtypes: Any) -> Any:
@@ -1093,360 +811,6 @@ class _Darwin(_Posix):
 
     def _unset_default(self, home: Path) -> Path:
         return self.default_cache_dir(home)  # macOS reads no override
-
-
-class _ByHandle(ctypes.Structure):
-    _fields_ = [
-        ("attributes", ctypes.c_uint32),
-        ("times", ctypes.c_uint32 * 6),
-        ("volume_serial", ctypes.c_uint32),
-        ("size_high", ctypes.c_uint32),
-        ("size_low", ctypes.c_uint32),
-        ("links", ctypes.c_uint32),
-        ("index_high", ctypes.c_uint32),
-        ("index_low", ctypes.c_uint32),
-    ]
-
-
-def _rewritten(name: str) -> bool:
-    """Whether Windows rewrites or rejects this one path component (never `.` or `..`): the same
-    answer as `ntpath.isreserved` gives for it."""
-    if name in (".", ".."):
-        return False
-    if ":" in name or _WIN_RESERVED_CHARS.intersection(name) or name.endswith((" ", ".")):
-        return True
-    return name.split(".", 1)[0].rstrip(" ").upper() in _WIN_DEVICES
-
-
-def _default_drive_folder(drive: str) -> str:
-    """The current folder of `drive` (the process's own drive when empty), holding no `..`: where
-    a relative Windows path starts, and whose drive a rooted one takes. The
-    observers' `drive_folder` stands in for it when set."""
-    import ntpath
-
-    return ntpath.abspath(drive or ".")
-
-
-def _windows_usable(
-    low: int, high: int, guarantee: int, page: int = 4096
-) -> tuple[int, int] | None:
-    size = high - low - guarantee - page
-    return (low + guarantee + page, size) if size > 0 else None
-
-
-class _Windows:
-    """Windows: handles in place of descriptors, `msvcrt` locks, the machine guid, the thread
-    information block's stack limits, the profile's cache folder, and no file replaced while a
-    guest holds it open."""
-
-    name = "windows"
-    has_dir_fd = False
-    holds_open_files = True
-
-    def __init__(self) -> None:
-        self.identity: dict[str, str | None] = {}  # the kernel's, read once
-        self.stack_api: dict[str, Any] = {}  # kernel32's stack calls, resolved once
-        self.win_api: dict[str, Any] = {}  # kernel32's file calls, resolved once
-
-    def kernel32(self) -> Any:
-        api = self.win_api
-        if "kernel32" not in api:
-            from ctypes import wintypes
-
-            k = ctypes.WinDLL("kernel32", use_last_error=True)  # type: ignore[attr-defined]
-            k.CreateFileW.argtypes = [
-                wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
-                wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
-            ]  # fmt: skip
-            k.CreateFileW.restype = wintypes.HANDLE
-            k.GetFileInformationByHandle.argtypes = [wintypes.HANDLE, ctypes.c_void_p]
-            k.GetFileInformationByHandle.restype = wintypes.BOOL
-            k.CloseHandle.argtypes = [wintypes.HANDLE]
-            k.CloseHandle.restype = wintypes.BOOL
-            api["kernel32"] = k
-        return api["kernel32"]
-
-    def open_handle(
-        self, path: str, follow: bool, access: int = _WALK_ACCESS
-    ) -> tuple[int, int, Identity]:
-        """A held handle on `path`, its attributes and its identity, as wasmtime reads it."""
-        k = self.kernel32()
-        flags = _BACKUP_SEMANTICS | (0 if follow else _OPEN_REPARSE_POINT)
-        h = k.CreateFileW(path, access, _SHARE_READ_WRITE, None, _OPEN_EXISTING, flags, None)
-        if h is None or h == ctypes.c_void_p(-1).value:
-            code = ctypes.get_last_error()  # type: ignore[attr-defined]
-            raise ctypes.WinError(code)  # type: ignore[attr-defined]
-        info = _ByHandle()
-        if not k.GetFileInformationByHandle(h, ctypes.byref(info)):
-            code = ctypes.get_last_error()  # type: ignore[attr-defined]
-            k.CloseHandle(h)
-            raise ctypes.WinError(code)  # type: ignore[attr-defined]
-        index = (info.index_high << 32) | info.index_low
-        return h, info.attributes, (info.volume_serial, index)
-
-    # The walk.
-
-    def walk(self, where: str, path: str, *, judge: bool, may_make: bool = False) -> _Walked:
-        """Walk `path` from the top through handles. With `judge`, any link or junction raises
-        ValueError; without it (the runtime's own folders), every link is followed. With
-        `may_make`, a missing tail is returned as `missing`."""
-        return _refused(where, path, judge, lambda: self._walk(where, path, judge, may_make))
-
-    def _walk(self, where: str, path: str, judge: bool, may_make: bool) -> _Walked:
-        import ntpath
-
-        if judge:
-            # Made absolute without dropping `..`: only the start is ever normalised,
-            # and `..` is taken on the folders walked, as the POSIX walk takes it.
-            drive, tail = ntpath.splitdrive(path)
-            drive_folder = process().observers.drive_folder or _default_drive_folder
-            if tail[:1] in ("\\", "/") or drive[1:2] not in ("", ":"):  # rooted, or a share
-                if not drive:  # rooted with no drive: the current folder's drive, fully qualified
-                    drive = ntpath.splitdrive(drive_folder(""))[0]
-                names = re.split(r"[\\/]", tail)
-            else:
-                drive, start = ntpath.splitdrive(drive_folder(drive))
-                names = re.split(r"[\\/]", start) + re.split(r"[\\/]", tail)
-        else:
-            drive, rest = ntpath.splitdrive(ntpath.realpath(path))
-            names = re.split(r"[\\/]", rest)
-        names = [n for n in names if n not in ("", ".")]
-        if judge:
-            for name in names:
-                if _rewritten(name):
-                    raise ValueError(
-                        f"{where}: {path!r} has a name Windows rewrites ({name!r}); name the "
-                        "folder plainly"
-                    )
-        held: list[int] = []
-        chain: list[Identity] = []
-        heres: list[str] = []
-
-        def enter(here: str) -> None:
-            h, attributes, identity = self.open_handle(here, follow=not judge)
-            held.append(h)
-            if judge and attributes & _ATTRIBUTE_REPARSE_POINT:
-                raise ValueError(
-                    f"{where}: {path!r} passes through a link or junction; on Windows every one "
-                    "is refused"
-                )
-            if not attributes & _ATTRIBUTE_DIRECTORY:
-                raise ValueError(f"{where}: {path!r} is not a folder")
-            chain.append(identity)
-            heres.append(here)
-
-        def walked(missing: tuple[str, ...]) -> _Walked:
-            w = _Walked(heres[-1], tuple(reversed(chain)), held, closer=self.close_held)
-            w.missing = missing
-            return w
-
-        try:
-            try:
-                enter(drive + "\\")  # a drive's root keeps its separator: `C:` alone is relative
-            except FileNotFoundError:
-                raise ValueError(f"{where}: {path!r} does not exist") from None
-            for i, name in enumerate(names):
-                if name == "..":
-                    if len(heres) > 1:  # at the drive's root `..` stays, as POSIX's does at `/`
-                        self.close_held(held.pop())
-                        chain.pop()
-                        heres.pop()
-                    continue
-                try:
-                    enter(
-                        heres[-1].rstrip("\\") + "\\" + name
-                    )  # never ntpath.join: a drive resets it
-                except FileNotFoundError:
-                    left = tuple(names[i + 1 :])
-                    if not may_make or ".." in left:
-                        raise ValueError(f"{where}: {path!r} does not exist") from None
-                    return walked((name, *left))
-            return walked(())
-        except BaseException:
-            for h in held:
-                self.close_held(h)
-            raise
-
-    def make_missing(self, where: str, walked: _Walked) -> _Walked:
-        """Make a root's missing components by path, after the rules were decided on its
-        existing chain; then walk the made root as any other."""
-        path = _make_by_path(walked.path, walked.missing)
-        walked.close()
-        return self.walk(where, path, judge=True)
-
-    def close_held(self, h: int) -> None:
-        try:
-            self.kernel32().CloseHandle(h)
-        except OSError:
-            pass
-
-    def identity_of(self, path: Path) -> Identity:
-        # Attributes only: a runtime folder's chain must not be cut short by a folder one may not
-        # traverse, or by another handle's share mode.
-        h, _, identity = self.open_handle(str(path), follow=True, access=_STAT_ACCESS)
-        self.close_held(h)
-        return identity
-
-    def real_dir(
-        self, root: Path, fd: int | None, parts: tuple[str, ...]
-    ) -> tuple[Path, int | None]:
-        """root/parts…, each a real directory, by path: the walk holds every folder of the root's
-        path, and guests make links only where the user holds the symbolic-link privilege."""
-        return _real_dir_by_path(root, parts), None
-
-    def long_path(self, path: str) -> str:
-        """An extended-length path, so no path is limited to 260 characters."""
-        path = os.path.abspath(path)
-        if path.startswith("\\\\?\\"):
-            return path
-        if path.startswith("\\\\"):
-            return "\\\\?\\UNC\\" + path[2:]
-        return "\\\\?\\" + path
-
-    # Locks.
-
-    def try_lock(self, fd: int) -> bool | None:
-        """Lock the open file without waiting: True when locked, False when another holder has
-        it (`msvcrt.locking` reports a held range by its own errnos), None when this filesystem
-        gives no lock."""
-        import msvcrt
-
-        try:
-            os.lseek(fd, 0, 0)
-            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)  # type: ignore[attr-defined]
-            return True
-        except BlockingIOError:
-            return False
-        except OSError as e:
-            return False if e.errno in _BUSY else None
-
-    def unlock_close(self, fd: int, *, unlink: str | None = None) -> None:
-        """Unlock (a closed handle's lock is freed only after a delay), close, then unlink the
-        lock file at `unlink`, if given: an open file cannot be deleted; quiet."""
-        import msvcrt
-
-        try:
-            os.lseek(fd, 0, 0)
-            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)  # type: ignore[attr-defined]
-        except OSError:
-            pass
-        try:
-            os.close(fd)
-        except OSError:
-            pass
-        if unlink is not None:
-            _unlink_quietly(unlink)
-
-    def kernel_identity(self) -> str | None:
-        """The machine guid from the registry, read once; None when it cannot be read."""
-        if "value" not in self.identity:
-            value = None
-            try:
-                import winreg
-
-                access = winreg.KEY_READ | winreg.KEY_WOW64_64KEY  # type: ignore[attr-defined]
-                where = r"SOFTWARE\Microsoft\Cryptography"
-                with winreg.OpenKey(  # type: ignore[attr-defined]
-                    winreg.HKEY_LOCAL_MACHINE,  # type: ignore[attr-defined]
-                    where,
-                    0,
-                    access,
-                ) as key:
-                    value = str(winreg.QueryValueEx(key, "MachineGuid")[0])  # type: ignore[attr-defined]
-            except Exception:
-                value = None
-            self.identity["value"] = value if value and "\n" not in value else None
-        return self.identity["value"]
-
-    # The remover.
-
-    def remove_tree(
-        self,
-        path: str | os.PathLike[str],
-        *,
-        dir_fd: int | None = None,
-        budget: int | None = None,
-        errors: list[BaseException] | None = None,
-    ) -> bool:
-        """Remove the tree at `path` by extended-length paths, links and junctions never entered;
-        True when nothing is left there. Never raises an `Exception`; the first error it met is
-        appended to `errors`."""
-        if dir_fd is not None:
-            raise NotImplementedError("dir_fd unavailable on this platform")
-        top = self.long_path(os.fspath(path))
-        return _removing(lambda r: _remove_by_path(top, r), budget, errors)
-
-    # The guest thread.
-
-    def stack_bounds(self) -> tuple[int, int] | None:
-        """(the usable bottom, the usable size) of this thread's stack, or None if unreadable.
-        Counted conservatively: high - low - the thread's stack guarantee - one page."""
-        try:
-            api = self.stack_api
-            if "limits" not in api:
-                kernel32 = ctypes.WinDLL("kernel32")  # type: ignore[attr-defined]
-                up = ctypes.POINTER(ctypes.c_size_t)
-                api["limits"] = ctypes.WINFUNCTYPE(None, up, up)(  # type: ignore[attr-defined]
-                    ("GetCurrentThreadStackLimits", kernel32)
-                )
-                api["guarantee"] = ctypes.WINFUNCTYPE(  # type: ignore[attr-defined]
-                    ctypes.c_int, ctypes.POINTER(ctypes.c_ulong)
-                )(("SetThreadStackGuarantee", kernel32))
-            low, high = ctypes.c_size_t(), ctypes.c_size_t()
-            api["limits"](ctypes.byref(low), ctypes.byref(high))
-            guarantee = ctypes.c_ulong(0)
-            if not api["guarantee"](ctypes.byref(guarantee)):  # 0 asks; it changes nothing
-                return None
-            return _windows_usable(low.value, high.value, guarantee.value)
-        except Exception:
-            return None
-
-    def tell_interpreter(
-        self,
-        bottom: int,
-        size: int,
-        *,
-        implementation: str | None = None,
-        version: tuple[int, ...] | None = None,
-        libc: str | None = None,
-        resolve: Callable[..., Any] | None = None,
-    ) -> bool:
-        return False  # CPython reads the thread's real stack from the thread information block
-
-    def trap_handlers_ready(
-        self,
-        machine: str | None = None,
-        handler_base: Callable[[int], int | None] | None = None,
-        wasmtime_base: Callable[[], int | None] | None = None,
-    ) -> str | None:
-        return None  # wasmtime catches traps with a vectored exception handler
-
-    # The cache.
-
-    def default_cache_dir(self, home: Path) -> Path:
-        base = os.environ.get("LOCALAPPDATA")
-        return (Path(base) if base else home / "AppData" / "Local") / "wasi_python" / "cache"
-
-    def default_cache_dirs(self, home: Path) -> tuple[Path, ...]:
-        """This process's default and the one a process without `%LOCALAPPDATA%` computes.
-        `home` is `%USERPROFILE%`, which Windows sets at logon from the profile."""
-        unset = home / "AppData" / "Local" / "wasi_python" / "cache"
-        return tuple(dict.fromkeys([self.default_cache_dir(home), unset]))
-
-    def private(self, path: Path, *, is_dir: bool) -> bool:
-        """Whether a cache path is of the kind the runner makes: a directory, or a file with one
-        name, and no link or junction. Windows has no mode bits, and a guest's file inherits the
-        folder's access list as the runner's own does, so who wrote a file cannot be told here.
-        A directory is made if absent."""
-        if is_dir:
-            path.mkdir(mode=0o700, parents=True, exist_ok=True)
-        st = os.lstat(path)
-        link = getattr(st, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT
-        kind_ok = stat.S_ISDIR(st.st_mode) if is_dir else _one_file(st)
-        if kind_ok and not link:
-            return True
-        _not_used(path, "a directory, no link or junction" if is_dir else "a file with one name")
-        return False
 
 
 def _select() -> _Platform:

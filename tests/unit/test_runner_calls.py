@@ -11,7 +11,7 @@ import struct
 import pytest
 import wasmtime as wt
 
-from wasi_python import _call, _engines, _home, _platform, _wasmtime_ffi
+from wasi_python import _call, _engines, _home, _platform, _platform_windows, _wasmtime_ffi
 from wasi_python._process import process
 
 
@@ -342,5 +342,5 @@ def test_trap_handlers_ready_reads_each_signal_by_load_base() -> None:
         raise OSError("dladdr failed")
 
     assert ready(handler_base=broken) == "SIGSEGV"
-    for host in (_platform._Darwin(), _platform._Windows()):
+    for host in (_platform._Darwin(), _platform_windows._Windows()):
         assert ready(host=host, handler_base=broken) is None

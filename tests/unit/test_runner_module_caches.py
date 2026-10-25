@@ -32,7 +32,7 @@ import wasmtime as wt
 
 import wasi_python
 from harness import needs, paths
-from wasi_python import Grant, _engines, _platform
+from wasi_python import Grant, _engines, _platform, _platform_windows
 from wasi_python import _wasmtime_ffi as ffi
 from wasi_python._process import process
 
@@ -289,7 +289,7 @@ def test_every_default_a_process_of_this_user_could_compute_is_listed(work, monk
     assert {work / "xdg" / "wasi_python", _without_overrides(home, "linux")} <= linux, linux
     darwin = set(_platform._Darwin().default_cache_dirs(home))
     assert _without_overrides(home, "darwin") in darwin, darwin
-    windows = set(_platform._Windows().default_cache_dirs(home))
+    windows = set(_platform_windows._Windows().default_cache_dirs(home))
     want = {work / "local" / "wasi_python" / "cache", _without_overrides(home, "win32")}
     assert want <= windows, windows
     if POSIX:

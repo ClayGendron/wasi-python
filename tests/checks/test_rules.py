@@ -967,15 +967,46 @@ def test_the_filesystem_imports_only_itself_and_the_engine_seam() -> None:
     assert not hits, scan.report(hits)
 
 
-# The platform is chosen once. `src/wasi_python/_platform.py` holds every POSIX, Linux, macOS and
-# Windows difference behind one interface, bound to `PLATFORM` at import by `_select`, the one
-# function in the package that reads `sys.platform` or `os.name`; every caller reads
+# The platform is chosen once. `src/wasi_python/_platform.py` holds the one interface, the POSIX,
+# Linux and macOS hosts and the choice, bound to `PLATFORM` at import by `_select`, the one
+# function in the package that reads `sys.platform` or `os.name`; `_platform_windows.py` holds
+# Windows, and `_platform_common.py` what both families run, below both. Every caller reads
 # `_platform.PLATFORM` through its module at the call, so a check that binds another platform
 # for its duration is seen by every caller. A reader who asks what Windows does differently
-# opens one file.
+# opens `_platform_windows.py`, and `_platform.py`'s docstring lists every difference. Only
+# `_platform.py` imports the Windows module or names the Windows class (by import, as an
+# attribute such as `_platform._Windows`, or bare): a caller that made a Windows platform itself
+# would choose a platform outside `_select`.
 PLATFORM_MODULE = "_platform.py"
 PLATFORM_CHOOSER = "_select"
+PLATFORM_WINDOWS = "_platform_windows"
+WINDOWS_CLASS = "_Windows"
+WINDOWS_HOMES = (PLATFORM_MODULE, f"{PLATFORM_WINDOWS}.py")  # where the class may be named
 PLATFORM_READ = re.compile(r"\bos\.name\b|\bsys\.platform\b")
+
+
+def _imports_windows(node: object) -> bool:
+    """Whether an import statement names the Windows platform module, in any of its forms."""
+    import ast
+
+    if isinstance(node, ast.Import):
+        return any(a.name.split(".")[-1] == PLATFORM_WINDOWS for a in node.names)
+    if isinstance(node, ast.ImportFrom):
+        if node.module and node.module.split(".")[-1] == PLATFORM_WINDOWS:
+            return True
+        return any(a.name == PLATFORM_WINDOWS for a in node.names)
+    return False
+
+
+def _names_windows_class(node: object) -> bool:
+    """Whether a node names the Windows class: imported, read as an attribute, or bare."""
+    import ast
+
+    if isinstance(node, ast.ImportFrom):
+        return any(a.name == WINDOWS_CLASS for a in node.names)
+    if isinstance(node, ast.Attribute):
+        return node.attr == WINDOWS_CLASS
+    return isinstance(node, ast.Name) and node.id == WINDOWS_CLASS
 
 
 def _platform_hits(package: Path) -> list[str]:
@@ -995,6 +1026,15 @@ def _platform_hits(package: Path) -> list[str]:
                 for alias in node.names:
                     if alias.name == "PLATFORM":
                         hits.append(f"{path.name}:{node.lineno}: binds PLATFORM by import")
+            if path.name != PLATFORM_MODULE and _imports_windows(node):
+                hits.append(
+                    f"{path.name}:{node.lineno}: imports the Windows platform outside "
+                    f"{PLATFORM_MODULE}"
+                )
+            if path.name not in WINDOWS_HOMES and _names_windows_class(node):
+                hits.append(
+                    f"{path.name}:{node.lineno}: names the Windows class outside {PLATFORM_MODULE}"
+                )
             if (
                 path.name == PLATFORM_MODULE
                 and isinstance(node, ast.FunctionDef)
@@ -1011,7 +1051,8 @@ def _platform_hits(package: Path) -> list[str]:
 
 def test_the_platform_is_chosen_once() -> None:
     """No `os.name` or `sys.platform` anywhere under `src/wasi_python/` but inside
-    `_platform._select`, and no import that binds `PLATFORM` to a local name."""
+    `_platform._select`, no import that binds `PLATFORM` to a local name, and no import of the
+    Windows platform module, nor any naming of the Windows class, but `_platform.py`'s."""
     hits = _platform_hits(paths.REPO / "src" / "wasi_python")
     assert not hits, scan.report(hits)
 

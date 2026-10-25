@@ -39,6 +39,8 @@ PUBLIC_FILES = {"wasi_python": "__init__.py", "wasi_python.tools": "tools.py"}
 RUNNER_FILES = (
     "_process.py",
     "_limits.py",
+    "_platform_common.py",
+    "_platform_windows.py",
     "_platform.py",
     "_artifacts.py",
     "_engines.py",
