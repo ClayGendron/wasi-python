@@ -21,10 +21,14 @@ Only the newest release is supported; a fix goes into the next release, and olde
 
 ## Upstream advisories the runner handles
 
-The runner uses wasmtime-py 49.0.0, which bundles wasmtime 49.0.0; no wasmtime-py release yet carries a wasmtime past it. Two wasmtime advisories fixed since then reach a guest, and the runner carries each fix itself, on every call, until the published `wasmtime` requirement admits only fixed versions:
+The runner uses wasmtime-py 49.0.0, which bundles wasmtime 49.0.0; wasmtime-py 50.0.1, which bundles wasmtime 50.0.0, is released; the requirement has not yet moved to it. Two wasmtime advisories fixed since then reach a guest, and the runner carries each fix itself, on every call, until the published `wasmtime` requirement admits only fixed versions:
 
 - **GHSA-m9f7-9w4p-gv38** (high, fixed in wasmtime 49.0.3): on macOS and FreeBSD, a guest with a writable grant or root could rename a symbolic link that points out with a trailing slash and so move a host folder into its sandbox. The runner applies 49.0.3's rule to `path_rename`: a trailing slash on either path needs a source that is a folder, judged without following its own link, and a folder is renamed by its plain name.
 - **GHSA-96f6-r43r-8c24** (low, fixed in wasmtime 49.0.2): `fd_readdir` copied up to three bytes of host memory per entry into the guest. The runner zeroes them.
+
+## An upstream advisory the runner does not handle
+
+- **GHSA-m63x-6p34-q65x** (medium, fixed in wasmtime 49.0.1): on wasmtime 49.0.0, the fuel cap and `fuel_used` under-count work a guest does inside a C++ call that ends in a caught exception or a `longjmp`; the compiled-in packages are built with exceptions on, and a guest reaches such a call from plain Python. The runner carries no fix: the exceptions proposal cannot be turned off, because the build depends on it. A finite `deadline_s` (the default, 60 s) bounds wall time through epoch interruption, which the advisory does not affect. The fix is the pin's move to wasmtime 50.
 
 ## Out of scope
 
