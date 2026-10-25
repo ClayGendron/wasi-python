@@ -5,8 +5,9 @@
         --ref refs/pull/7/merge --base-ref dev [--label ci:full] [--message TEXT] [--key-moved]
 
 In the workflow it reads the event from the runner's variables (`GITHUB_EVENT_NAME`, `GITHUB_REF`,
-`GITHUB_BASE_REF`) and the rest from env (`PLAN_HEAD`, `PLAN_BASE` on a pull request, `PLAN_BEFORE`
-on a push, `PLAN_LABELS` as JSON, `PLAN_RELEASE_TIER`), finds the changed paths with git, and
+`GITHUB_BASE_REF`) and the rest from env (`PLAN_HEAD`, `PLAN_BASE` and `PLAN_BODY`, the description,
+on a pull request, `PLAN_BEFORE` on a push, `PLAN_LABELS` as JSON, `PLAN_RELEASE_TIER`), finds the
+changed paths, a pull request's commits and its review file with git, and
 writes one `name=value` line per output to `$GITHUB_OUTPUT` (stdout without it), and a table to
 `$GITHUB_STEP_SUMMARY`. Every later job gates on these outputs with `if:`, never with a
 workflow-level `paths:` filter, so a skipped job reports success and the required check is always
@@ -47,6 +48,13 @@ ACCEPTED = "context/progress/accepted.json"
 HISTORY_VOLUME = re.compile(r"context/progress/history(-\d{5,})?\.jsonl")
 # A news file, `NNN-<slug>.md` in the changes folder: the folder's README is not one.
 NEWS = re.compile(r"context/changes/(\d{3}-[a-z0-9]+(?:-[a-z0-9]+)*)\.md")
+# A pull request's review file: its NNN-<slug> is one of the pull request's news files'.
+REVIEW = re.compile(r"context/reviews/(\d{3}-[a-z0-9]+(?:-[a-z0-9]+)*)-pr-(\d{4}-\d{2}-\d{2})\.md")
+REVIEWER = re.compile(r"^- \*\*Reviewer:\*\*(.*)$", re.M)
+# The self-check's author line, `Author: …` with or without Markdown's emphasis.
+AUTHOR = re.compile(r"^[\s>*_-]*author[*_]*\s*:[*_\s]*(.*)$", re.I | re.M)
+SESSION = re.compile(r"https://claude\.ai/code/session_[A-Za-z0-9_-]+")
+SUB_AGENT = "sub-agent of"
 DOCS_FILES = ("README.md", "CHANGELOG.md", "AGENTS.md", "SECURITY.md", "mkdocs.yml", ".gitignore")
 SET_FILES = ("downloads/SHA256SUMS", "release/set_key.py", "release/build-constraints.txt")
 HARNESS_FILES = (
@@ -111,6 +119,23 @@ class Event:
     @property
     def tag(self) -> bool:
         return self.name == "push" and self.ref.startswith("refs/tags/")
+
+
+@dataclass(frozen=True)
+class Commit:
+    sha: str
+    paths: tuple[str, ...]  # the paths it changes
+    sessions: tuple[str, ...] = ()  # its Claude-Session trailers
+
+
+@dataclass
+class PullRequest:
+    """What the review check reads of a pull request: its description (the self-check), its
+    commits oldest first, and each review file's text at its head (absent when deleted)."""
+
+    body: str
+    commits: list[Commit]
+    files: dict[str, str]
 
 
 @dataclass
@@ -248,10 +273,12 @@ def into_dev(event: Event) -> bool:
     return event.pull_request and event.base_ref != "main"
 
 
-def refusals(d: Decision, event: Event, changed: list[str] | None) -> list[str]:
+def refusals(
+    d: Decision, event: Event, changed: list[str] | None, pr: PullRequest | None = None
+) -> list[str]:
     """What ci-status refuses on its own, whatever the judge says: accepted state written by a
-    pull request, and a pull request into dev that is not documentation only and carries no news
-    file."""
+    pull request; and a pull request into dev that is not documentation only and carries no news
+    file, or (when its commits and description are read, `pr`) no review file that holds."""
     out = []
     if event.pull_request and d.progress:
         written = sorted(p for p in changed or () if "progress" in classify(p))
@@ -264,6 +291,80 @@ def refusals(d: Decision, event: Event, changed: list[str] | None) -> list[str]:
             "a pull request that is not documentation only carries its news file, "
             "context/changes/NNN-<slug>.md: its CHANGELOG line, its package rows and its claims"
         )
+    if into_dev(event) and changed is not None and not docs_only(changed) and pr is not None:
+        out += review_refusals(changed, pr)
+    return out
+
+
+def _identity(text: str) -> str:
+    """A name or a session as written, compared without case, emphasis or a closing stop."""
+    return " ".join(text.strip().strip("`<>*_").rstrip(".;,").strip("`<>*_").split()).lower()
+
+
+def _verdict(text: str) -> str:
+    """The first line of the review's `## Verdict` section that is not blank."""
+    lines = text.splitlines()
+    for k, line in enumerate(lines):
+        if line.strip() == "## Verdict":
+            for after in lines[k + 1 :]:
+                if after.startswith("## "):
+                    break
+                if after.strip():
+                    return after.strip().lstrip("*_ ")
+    return ""
+
+
+def review_refusals(changed: list[str], pr: PullRequest) -> list[str]:
+    """The review check: among the changed paths, a review file whose NNN-<slug> is one of the
+    pull request's news files' (the newest by date); no commit after the newest one that changed
+    it touches a path that is not documentation only; its Reviewer: line is not empty and is not
+    the author, who is the self-check's author line or any Claude-Session trailer of a code
+    commit; a reviewer that names the author's session must be its fresh sub-agent, so says
+    `sub-agent of <session>`; and its verdict begins "Lands". A process guard, not an identity
+    guard: what it holds is that a session other than the author's signed a review after the last
+    code."""
+    stems = sorted({m[1] for p in changed if (m := NEWS.fullmatch(p))})
+    found = sorted((m[2], p) for p in changed if (m := REVIEW.fullmatch(p)) and m[1] in stems)
+    if not found:
+        return [
+            "a pull request that is not documentation only has no review file "
+            "context/reviews/NNN-<slug>-pr-YYYY-MM-DD.md among its changed paths for its news "
+            "file " + (", ".join(stems) or "(none)")
+        ]
+    path = found[-1][1]
+    out = []
+    last = max((k for k, c in enumerate(pr.commits) if path in c.paths), default=None)
+    for c in pr.commits[last + 1 :] if last is not None else ():
+        code = [p for p in c.paths if "docs" not in classify(p)]
+        if code:
+            out.append(
+                f"{path}: the review is followed by {c.sha[:12]}, which changes {code[0]}; the "
+                "review is committed after the last code, and read again after a fix"
+            )
+            break
+    text = pr.files.get(path)
+    if text is None:
+        return [*out, f"{path}: the review file is not in the head's tree"]
+    m = REVIEWER.search(text)
+    reviewer = m[1].strip() if m else ""
+    authors = {_identity(a) for a in AUTHOR.findall(pr.body or "") if a.strip()}
+    sessions = {s for c in pr.commits if any("docs" not in classify(p) for p in c.paths)
+                for s in c.sessions}  # fmt: skip
+    sessions |= {u for a in AUTHOR.findall(pr.body or "") for u in SESSION.findall(a)}
+    authors |= {_identity(s) for s in sessions}
+    if not reviewer or reviewer.startswith("<"):
+        out.append(f"{path}: its Reviewer: line is empty")
+    elif _identity(reviewer) in authors:
+        out.append(f"{path}: its Reviewer: line names the author ({reviewer})")
+    else:
+        for url in sorted(set(SESSION.findall(reviewer)) & sessions):
+            if not re.search(rf"{SUB_AGENT}\s+<?`?{re.escape(url)}", reviewer):
+                out.append(
+                    f"{path}: its Reviewer: line names the author's session {url}; a fresh "
+                    f"sub-agent of it says so ('a fresh {SUB_AGENT} {url}; not the author')"
+                )
+    if not _verdict(text).startswith("Lands"):
+        out.append(f'{path}: the first line of its ## Verdict does not begin "Lands"')
     return out
 
 
@@ -384,8 +485,39 @@ def _diff(a: str, b: str) -> list[str]:
     return [p for p in _git("diff", "--name-only", "--no-renames", a, b).splitlines() if p]
 
 
-def from_runner(environ) -> tuple[Event, list[str] | None, bool]:
-    """The event, the changed paths and whether the key moved, as the workflow's run gives them."""
+def read_pull_request(
+    repo: Path, base: str, head: str, body: str, changed: list[str]
+) -> PullRequest:
+    """A pull request's commits from `base` (its merge base) to `head`, oldest first, each with
+    the paths it changes and its Claude-Session trailers, and the text at the head of each review
+    file among the changed paths."""
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", "-C", str(repo), *args], check=True, capture_output=True, text=True
+        ).stdout
+
+    commits = []
+    for sha in git("rev-list", "--reverse", f"{base}..{head}").split():
+        names = git("diff-tree", "--no-commit-id", "--name-only", "-r", "--no-renames", sha)
+        trailers = git("log", "-1", "--format=%(trailers:key=Claude-Session,valueonly)", sha)
+        commits.append(
+            Commit(sha, tuple(n for n in names.splitlines() if n), tuple(trailers.split()))
+        )
+    files = {}
+    for path in changed:
+        if REVIEW.fullmatch(path):
+            r = subprocess.run(
+                ["git", "-C", str(repo), "show", f"{head}:{path}"], capture_output=True, text=True
+            )
+            if r.returncode == 0:
+                files[path] = r.stdout
+    return PullRequest(body, commits, files)
+
+
+def from_runner(environ) -> tuple[Event, list[str] | None, bool, PullRequest | None]:
+    """The event, the changed paths, whether the key moved and, on a pull request, its commits
+    and description, as the workflow's run gives them."""
     labels = tuple(json.loads(environ.get("PLAN_LABELS") or "[]") or ())
     event = Event(
         environ.get("GITHUB_EVENT_NAME", ""),
@@ -398,15 +530,17 @@ def from_runner(environ) -> tuple[Event, list[str] | None, bool]:
     head = environ.get("PLAN_HEAD") or "HEAD"
     changed: list[str] | None = None
     moved = False
+    pr = None
     if event.pull_request and _is_commit(environ.get("PLAN_BASE", "")):
         base = _git("merge-base", environ["PLAN_BASE"], head).strip()
         changed = _diff(base, head)
         messages = _git("log", "--format=%B%x00", f"{base}..{head}").split("\0")
         event = Event(event.name, event.ref, event.base_ref, labels, tuple(messages))
         moved = key_moved(REPO, base)
+        pr = read_pull_request(REPO, base, head, environ.get("PLAN_BODY", ""), changed)
     elif event.name == "push" and not event.tag and _is_commit(environ.get("PLAN_BEFORE", "")):
         changed = _diff(environ["PLAN_BEFORE"], head)
-    return event, changed, moved
+    return event, changed, moved, pr
 
 
 def summary(d: Decision, sel: dict, refused: list[str], changed: list[str] | None) -> str:
@@ -436,11 +570,12 @@ def main(argv: list[str]) -> int:
         changed: list[str] | None = [p.strip() for p in text.splitlines() if p.strip()]
         event = Event(a.event, a.ref, a.base_ref, tuple(a.label), tuple(a.message), a.release_tier)
         moved = a.key_moved
+        pr = None  # the review check reads the pull request's commits, which a list does not give
     else:
-        event, changed, moved = from_runner(os.environ)
+        event, changed, moved, pr = from_runner(os.environ)
     d = decide(changed, event, moved)
     sel = select(d, load_shards())
-    refused = refusals(d, event, changed)
+    refused = refusals(d, event, changed, pr)
     text = "".join(f"{k}={v}\n" for k, v in outputs(d, sel, refused).items())
     target = os.environ.get("GITHUB_OUTPUT")
     if target:

@@ -105,6 +105,8 @@ jobs:
           PLAN_BASE: ${{ github.event.pull_request.base.sha }}
           PLAN_BEFORE: ${{ github.event.before }}
           PLAN_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          # The self-check, which names the author the review check holds the reviewer apart from.
+          PLAN_BODY: ${{ github.event.pull_request.body }}
           PLAN_RELEASE_TIER: ${{ inputs.release-tier }}
         run: uv run --no-project python -I release/ci_plan.py
 
@@ -1290,8 +1292,9 @@ jobs:
     name: ci-status
     # The one required check. It runs whatever happened before it, so it is always reported, and
     # passes when every other job succeeded or was skipped by the plan, and the decision job
-    # refused nothing (a pull request may not write accepted state). A failed or cancelled job is
-    # red here.
+    # refused nothing: a pull request may not write accepted state, and one into dev that is not
+    # documentation only carries its news file and a review file that holds. A failed or
+    # cancelled job is red here.
     needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, coverage, gather, verify, attest, publish, pypi]
     if: always()
     runs-on: ubuntu-24.04

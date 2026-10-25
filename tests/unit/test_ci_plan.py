@@ -487,3 +487,174 @@ def test_a_pull_request_whose_base_cannot_be_read_is_judged_whole() -> None:
     assert "the pull request's base could not be read: the run is whole" in d.why
     sel = ci_plan.select(d, PLAN)
     assert sel["macos"] == shards.on(shards.load(), "macos") and sel["build"] is True
+
+
+# ---------------------------------------------------------------------------------------------
+# The review file: committed after the last code, signed by someone other than the author, and
+# saying the change lands
+
+REVIEW = "context/reviews/999-a-change-pr-2026-10-26.md"
+AUTHOR = "https://claude.ai/code/session_01AUTHOR"
+OTHER = "https://claude.ai/code/session_01REVIEWER"
+BODY = f"- **Author:** {AUTHOR}\n- every new check seen failing first\n"
+
+
+def _review(reviewer: str = OTHER, verdict: str = "Lands: nothing stands.") -> str:
+    return (
+        "# Review of 999 — a change\n\n- **Date:** 2026-10-26\n"
+        f"- **Reviewer:** {reviewer}\n- **Run:** 1\n\n## Findings, most severe first\n\nNone.\n\n"
+        f"## Verdict\n\n{verdict}\n"
+    )
+
+
+def _pr(review: str | None = None, commits=None, body: str = BODY):
+    code = ci_plan.Commit("a" * 40, ("src/x.py", NEWS), (AUTHOR,))
+    last = ci_plan.Commit("b" * 40, (REVIEW,), (OTHER,))
+    return ci_plan.PullRequest(
+        body=body,
+        commits=[code, last] if commits is None else commits,
+        files={REVIEW: _review() if review is None else review},
+    )
+
+
+def _review_refusals(pr, changed=("src/x.py", NEWS, REVIEW)) -> list[str]:
+    changed = list(changed)
+    d = ci_plan.decide(changed, PR_DEV)
+    return [r for r in ci_plan.refusals(d, PR_DEV, changed, pr) if "review" in r]
+
+
+def test_a_review_committed_last_by_another_session_that_lands_is_accepted() -> None:
+    assert _review_refusals(_pr()) == []
+
+
+def test_a_code_pull_request_with_no_review_file_is_refused() -> None:
+    (refusal,) = _review_refusals(_pr(), changed=("src/x.py", NEWS))
+    assert "no review file" in refusal and "999-a-change" in refusal
+
+
+def test_a_review_of_another_news_files_name_is_no_review_of_this_one() -> None:
+    other = "context/reviews/998-another-pr-2026-10-26.md"
+    assert _review_refusals(_pr(), changed=("src/x.py", NEWS, other))
+
+
+def test_a_code_commit_after_the_review_is_refused() -> None:
+    code = ci_plan.Commit("a" * 40, ("src/x.py", NEWS), (AUTHOR,))
+    review = ci_plan.Commit("b" * 40, (REVIEW,), (OTHER,))
+    fix = ci_plan.Commit("c" * 40, ("src/x.py",), (AUTHOR,))
+    (refusal,) = _review_refusals(_pr(commits=[code, review, fix]))
+    assert "cccccccccccc" in refusal and "src/x.py" in refusal
+
+
+def test_a_documentation_commit_after_the_review_is_allowed() -> None:
+    code = ci_plan.Commit("a" * 40, ("src/x.py", NEWS), (AUTHOR,))
+    review = ci_plan.Commit("b" * 40, (REVIEW,), (OTHER,))
+    low = ci_plan.Commit("c" * 40, ("context/specifications/999-a-change.md",), (OTHER,))
+    assert _review_refusals(_pr(commits=[code, review, low])) == []
+
+
+@pytest.mark.parametrize(
+    "reviewer", ["", "<the reviewer's session URL or a person; not the author>"]
+)
+def test_an_empty_reviewer_line_is_refused(reviewer) -> None:
+    (refusal,) = _review_refusals(_pr(_review(reviewer=reviewer)))
+    assert "Reviewer:" in refusal and "empty" in refusal
+
+
+@pytest.mark.parametrize(
+    "reviewer",
+    [AUTHOR, f"{AUTHOR}.", f"`{AUTHOR}`", f"{AUTHOR}; not the author"],
+    ids=["the url", "with a stop", "in backticks", "with words"],
+)
+def test_a_reviewer_line_that_is_the_authors_session_url_alone_is_refused(reviewer) -> None:
+    (refusal,) = _review_refusals(_pr(_review(reviewer=reviewer)))
+    assert "author" in refusal and AUTHOR in refusal
+
+
+def test_the_author_is_read_from_the_code_commits_trailers_too() -> None:
+    code = ci_plan.Commit(
+        "a" * 40, ("src/x.py", NEWS), ("https://claude.ai/code/session_01TRAILER",)
+    )
+    review = ci_plan.Commit("b" * 40, (REVIEW,), ())
+    pr = _pr(
+        _review(reviewer="https://claude.ai/code/session_01TRAILER"),
+        commits=[code, review],
+        body="no author line\n",
+    )
+    assert _review_refusals(pr)
+
+
+def test_a_person_named_as_the_author_may_not_review() -> None:
+    pr = _pr(_review(reviewer="Clay Gendron"), body="- **Author:** Clay Gendron\n")
+    assert _review_refusals(pr)
+
+
+def test_a_reviewers_own_session_on_a_review_commit_is_not_an_author() -> None:
+    """The review's own commit touches documentation alone: its trailer is the reviewer's."""
+    assert _review_refusals(_pr(_review(reviewer=OTHER))) == []
+
+
+def test_a_fresh_sub_agent_of_the_authors_session_may_review() -> None:
+    reviewer = f"an agent (Claude), a fresh sub-agent of {AUTHOR}; not the author"
+    assert _review_refusals(_pr(_review(reviewer=reviewer))) == []
+
+
+@pytest.mark.parametrize(
+    "verdict",
+    ["Does not land yet: Medium 1.", "", "It lands.", "Landed elsewhere"],
+    ids=["does not land", "no verdict", "not first", "another word"],
+)
+def test_a_verdict_that_does_not_begin_lands_is_refused(verdict) -> None:
+    (refusal,) = _review_refusals(_pr(_review(verdict=verdict)))
+    assert "Verdict" in refusal
+
+
+def test_a_review_file_deleted_at_the_head_is_refused() -> None:
+    pr = _pr()
+    pr.files.clear()
+    assert _review_refusals(pr)
+
+
+def test_the_review_is_not_asked_of_documentation_or_of_main() -> None:
+    docs = ["docs/index.md"]
+    assert ci_plan.refusals(ci_plan.decide(docs, PR_DEV), PR_DEV, docs, _pr()) == []
+    code = ["src/x.py"]
+    assert ci_plan.refusals(ci_plan.decide(code, PR_MAIN), PR_MAIN, code, _pr()) == []
+
+
+def test_the_pull_requests_commits_trailers_and_review_are_read_with_git(
+    tmp_path, monkeypatch
+) -> None:
+    import shutil
+
+    git = shutil.which("git")
+    if git is None:
+        pytest.skip("needs: git")
+    config = tmp_path / "gitconfig"
+    config.write_text("[user]\n\tname = t\n\temail = t@t\n[commit]\n\tgpgsign = false\n")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(config))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    repo = tmp_path / "repo"
+
+    def run(*args: str) -> str:
+        return subprocess.run(
+            [git, "-C", str(repo), *args], check=True, capture_output=True, text=True
+        ).stdout.strip()
+
+    subprocess.run([git, "init", "-q", "-b", "dev", str(repo)], check=True)
+    (repo / "README.md").write_text("x\n")
+    run("add", "-A")
+    run("commit", "-q", "-m", "start")
+    base = run("rev-parse", "HEAD")
+    (repo / "src").mkdir()
+    (repo / "src" / "x.py").write_text("x = 1\n")
+    run("add", "-A")
+    run("commit", "-q", "-m", f"code\n\nClaude-Session: {AUTHOR}")
+    (repo / "context" / "reviews").mkdir(parents=True)
+    (repo / REVIEW).write_text(_review())
+    run("add", "-A")
+    run("commit", "-q", "-m", "review")
+    head = run("rev-parse", "HEAD")
+    pr = ci_plan.read_pull_request(repo, base, head, BODY, ["src/x.py", REVIEW])
+    assert [c.paths for c in pr.commits] == [("src/x.py",), (REVIEW,)]
+    assert [c.sessions for c in pr.commits] == [(AUTHOR,), ()]
+    assert pr.files == {REVIEW: _review()} and pr.body == BODY
