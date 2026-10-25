@@ -1213,14 +1213,32 @@ def _trap_code_name(code: wasmtime.TrapCode) -> str:
 
 
 def _door_answer(host: Host, request: bytes) -> bytes | None:
-    """The host's answer as plain bytes, or None for a fault; on the home thread, so a response's
-    own code (a bytes subclass's `__bytes__`) runs there too."""
+    """The host's answer as exact bytes, or None for a fault; on the home thread, so a response's
+    own code (a bytes subclass's `__bytes__` or `__len__`) runs there too. The cap is checked on
+    the answer's buffer before the copy, so an over-cap buffer is never doubled, and again on the
+    exact bytes, since a subclass's `__bytes__` may return more, or an object whose `len` is not
+    its buffer's. What leaves here is the object the guest thread measures and writes."""
     response = host(request)
     if not isinstance(response, (bytes, bytearray, memoryview)):
         return None
     if memoryview(response).nbytes > MAX_RESPONSE:
         return None  # checked in bytes, before the copy
-    return bytes(response)
+    data = bytes(response)
+    if type(data) is not bytes:  # a `__bytes__` that returned a subclass
+        data = bytes(memoryview(data))
+    if len(data) > MAX_RESPONSE:
+        return None
+    return data
+
+
+class _GuestStop(Exception):
+    """A trap or exit raised inside the guest's host_alloc, carried past the door's own
+    `except Exception` so that it stops the call, where a wasmtime exception the host raised is
+    a fault."""
+
+    def __init__(self, cause: BaseException) -> None:
+        super().__init__()
+        self.cause = cause
 
 
 def _door(
@@ -1237,15 +1255,23 @@ def _door(
 
     import wasmtime as wt
 
+    depth = 0  # door calls in progress on this call: one, unless host_alloc calls the door
+
     def call(caller: Any, ptr: int, length: int, out_ptr_ptr: int, out_len_ptr: int) -> int:
+        nonlocal depth
         if host is None:
             return NO_HOST
+        if depth:  # a door call from inside host_alloc: refused, before its frame is read
+            return HOST_FAULT
+        depth += 1
         try:
             return frame(caller, ptr, length, out_ptr_ptr, out_len_ptr, host)
-        except (wt.Trap, wt.WasmtimeError):
-            raise  # a trap or exit inside host_alloc: the shared function records it
-        except Exception:
+        except _GuestStop as passed:
+            raise passed.cause from None  # the shared function records it as the call's stop
+        except Exception:  # a host's wasmtime exception too: the host's, not the guest's
             return HOST_FAULT  # nothing a frame or a host does escapes run()
+        finally:
+            depth -= 1
 
     def frame(
         caller: Any, ptr: int, length: int, out_ptr_ptr: int, out_len_ptr: int, host: Host
@@ -1271,7 +1297,10 @@ def _door(
             response = _door_answer(lambda _: admitted, b"")
         if response is None:
             return HOST_FAULT
-        p = alloc(caller, len(response)) & MASK32
+        try:
+            p = alloc(caller, len(response)) & MASK32
+        except (wt.Trap, wt.WasmtimeError) as cause:
+            raise _GuestStop(cause) from None  # a trap or exit inside host_alloc is the guest's
         if not p or p + len(response) > memory.data_len(caller):
             return HOST_FAULT
         memory.write(caller, response, p)
