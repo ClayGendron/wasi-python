@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -705,6 +706,100 @@ def test_one_required_check_holds_every_job() -> None:
     cancelled."""
     errors = scan.ci_status_errors(RELEASE_WORKFLOW.read_text())
     assert not errors, scan.report(errors)
+
+
+def test_the_accept_jobs_accept_a_green_merge_and_only_the_push_holds_the_key() -> None:
+    """accept-record runs after a merge into dev only when every job it needs is green, with
+    contents: read and no secret; accept-push alone is in the accept environment and holds the
+    deploy key, runs no code of the repository, commits the two progress files alone and pushes
+    only onto the commit judged; no other job or workflow names the key."""
+    github = paths.REPO / ".github" / "workflows"
+    others = {
+        w.name: w.read_text() for w in sorted(github.glob("*.y*ml")) if w.name != "release.yml"
+    }
+    errors = scan.accept_job_errors(RELEASE_WORKFLOW.read_text(), others)
+    assert not errors, scan.report(errors)
+
+
+ACCEPT_PUSH_STEP = "Commit the acceptance alone, and push it while dev is the commit judged"
+ACCEPT_PUSH_CASES = {
+    "dev is the commit judged": ("judged", (), 0, "pushed"),
+    "dev moved on": ("moved", (), 0, "nothing is pushed"),
+    "a third file changed": ("judged", ("src/x.py",), 1, "accepted.json and one history volume"),
+}
+
+
+def _git_in(repo: Path, *args: str) -> str:
+    r = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
+    assert r.returncode == 0, (args, r.stderr)
+    return r.stdout.strip()
+
+
+@pytest.mark.parametrize("case", ACCEPT_PUSH_CASES)
+def test_the_accept_push_step_pushes_only_the_acceptance_onto_the_judged_tip(
+    case, tmp_path, monkeypatch
+) -> None:
+    """accept-push's own step, run in bash against a clone of a bare remote: it commits
+    accepted.json and the new history volume alone, with the message accept-record wrote, and
+    pushes it onto dev only while dev is the commit judged; when dev moved on it pushes nothing
+    and succeeds; anything else changed refuses."""
+    needs.need("git")
+    tip, extra, want, words = ACCEPT_PUSH_CASES[case]
+    config = tmp_path / "gitconfig"
+    config.write_text("[user]\n\tname = t\n\temail = t@t\n[commit]\n\tgpgsign = false\n")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(config))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    remote, work, clone = tmp_path / "remote.git", tmp_path / "work", tmp_path / "clone"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "dev", str(remote)], check=True)
+    subprocess.run(["git", "init", "-q", "-b", "dev", str(work)], check=True)
+    progress = work / "context" / "progress"
+    progress.mkdir(parents=True)
+    (progress / "accepted.json").write_text("{}\n")
+    (progress / "history.jsonl").write_text('{"n": 1}\n')
+    (work / "src").mkdir()
+    (work / "src" / "x.py").write_text("x = 1\n")
+    _git_in(work, "add", "-A")
+    _git_in(work, "commit", "-q", "-m", "the merge")
+    judged = _git_in(work, "rev-parse", "HEAD")
+    _git_in(work, "remote", "add", "origin", str(remote))
+    _git_in(work, "push", "-q", "origin", "HEAD:refs/heads/dev")
+    if tip == "moved":
+        _git_in(work, "commit", "-q", "--allow-empty", "-m", "a newer merge")
+        _git_in(work, "push", "-q", "origin", "HEAD:refs/heads/dev")
+    before = _git_in(work, "ls-remote", "origin", "refs/heads/dev").split()[0]
+    subprocess.run(["git", "clone", "-q", str(remote), str(clone)], check=True)
+    _git_in(clone, "checkout", "-q", "--detach", judged)
+    acceptance = tmp_path / "acceptance"
+    (acceptance / "context" / "progress").mkdir(parents=True)
+    (acceptance / "build" / "progress").mkdir(parents=True)
+    (acceptance / "context" / "progress" / "accepted.json").write_text('{"commit": 1}\n')
+    (acceptance / "context" / "progress" / "history.jsonl").write_text('{"n": 1}\n')
+    (acceptance / "context" / "progress" / "history-00002.jsonl").write_text('{"n": 2}\n')
+    message = "Accepted: the merge (#1) [skip ci]\n\nno row needed a reason\n\n[skip ci]\n"
+    (acceptance / "build" / "progress" / "acceptance-message.txt").write_text(message)
+    for rel in extra:
+        (clone / rel).write_text("changed\n")
+    script = scan.workflow_step_script(
+        RELEASE_WORKFLOW.read_text(), "accept-push", ACCEPT_PUSH_STEP
+    )
+    (tmp_path / "push.sh").write_text(script)
+    r = subprocess.run(
+        ["bash", "-e", str(tmp_path / "push.sh")],
+        cwd=clone,
+        env={**os.environ, "GITHUB_SHA": judged, "ACCEPTANCE": str(acceptance)},
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == want, r.stdout + r.stderr
+    assert words in r.stdout + r.stderr
+    after = _git_in(work, "ls-remote", "origin", "refs/heads/dev").split()[0]
+    if case != "dev is the commit judged":
+        assert after == before
+        return
+    assert _git_in(clone, "rev-parse", f"{after}^") == judged
+    changed = _git_in(clone, "show", "--name-only", "--format=", after).split()
+    assert changed == ["context/progress/accepted.json", "context/progress/history-00002.jsonl"]
+    assert _git_in(clone, "log", "-1", "--format=%B", after) + "\n" == message
 
 
 def _fake_assets(folder: Path) -> str:

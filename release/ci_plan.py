@@ -151,6 +151,7 @@ class Decision:
     full: bool = False  # the merge-grade set: every normal-tier shard on its systems, build too
     rebuild: bool = False  # the release shape: the macOS build, both rebuilds and same-bytes
     tier: str = "normal"
+    accept: bool = False  # a merge into dev: the accept jobs follow a green gather
     quiet: bool = False  # the acceptance push: every output false
     why: list[str] = field(default_factory=list)
 
@@ -200,8 +201,8 @@ def decide(changed: list[str] | None, event: Event, key_moved: bool = False) -> 
         d.tier = "release"
         d.why.append("a pushed tag: build, judge both tiers, attest, publish")
     elif event.name == "push":
-        d.full = True
-        d.why.append("a merge into dev: the merge-grade set")
+        d.full = d.accept = True
+        d.why.append("a merge into dev: the merge-grade set, then the acceptance")
     elif event.name == "schedule":
         d.full = d.rebuild = True
         d.tier = "release"
@@ -384,6 +385,7 @@ def outputs(d: Decision, sel: dict, refused: list[str]) -> dict[str, str]:
         full=_bool(d.full),
         rebuild=_bool(d.rebuild),
         judge=_bool(d.judge),
+        accept=_bool(d.accept),
         tier=d.tier,
         build=_bool(sel["build"]),
         verify=_json(sel["verify"]),

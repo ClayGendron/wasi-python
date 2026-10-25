@@ -1378,7 +1378,7 @@ NOT_BY_ID = (
     "skip-decompress",
 )
 OTHER_FETCH = re.compile(r"gh\s+run\s+download|actions/github-script|/actions/artifacts")
-ENVIRONMENTS = {"publish": "release", "pypi": "pypi"}
+ENVIRONMENTS = {"publish": "release", "pypi": "pypi"}  # accept-push's, by the accept scan
 PYPI_IF = TAG_ONLY + " && vars.PYPI_PUBLISH == 'true'"
 JOB_PERMISSIONS = {
     # The decision job reads the history; quick runs the tools and the rules; ci-status reads
@@ -1397,6 +1397,10 @@ JOB_PERMISSIONS = {
         for job in ("judge-macos", "judge-linux", "judge-windows", "judge-release")
     },
     "gather": {"contents: read"},
+    # The acceptance from the gather's record: it checks out and runs the judge, with no secret.
+    "accept-record": {"contents: read"},
+    # The push of the acceptance: it checks out with the deploy key, which the token never is.
+    "accept-push": {"contents: read"},
     # The runner's coverage: it checks out, runs the fast tier and uploads to Codecov by its token.
     "coverage": {"contents: read"},
     # The key and the decision; the cache's writer.
@@ -2183,6 +2187,99 @@ def ci_status_errors(text: str) -> list[str]:
             _job_field(lines, "if") or ""
         ):
             errors.append(f"{job} does not need the plan and gate on its outputs with if:")
+    return errors
+
+
+# The accept jobs. accept-record needs every job a merge's run judges with (ci-status, the push
+# and the tag's three aside), so it runs only when each of them is green.
+ACCEPT_RECORD_IF = (
+    "${{ !cancelled() && !failure() && needs.plan.outputs.accept == 'true' "
+    "&& needs.gather.result == 'success' }}"
+)
+ACCEPT_PUSH_IF = (
+    "${{ !cancelled() && needs.plan.outputs.accept == 'true' "
+    "&& needs.accept-record.result == 'success' }}"
+)
+NOT_JUDGED_WITH = {"accept-record", "accept-push", "ci-status", "weekly-issue", *UNGATED[3:]}
+ACCEPT_RUN = (
+    "uv run pytest -p no:cacheprovider --accept-from=build/ci/record.json --claims=context/changes/"
+)
+DEPLOY_KEY = "ACCEPT_DEPLOY_KEY"
+SSH_KEY = "${{ secrets.ACCEPT_DEPLOY_KEY }}"
+# What accept-push's script must do, in this order, each in its own words: hold the change to the
+# two files alone, check dev's tip, commit them alone by the acceptance's pathspec, push.
+ACCEPT_PUSH_WORDS = (
+    "git status --porcelain --untracked-files=all",
+    "tip=$(git ls-remote origin refs/heads/dev | cut -f1)",
+    'if [ "$tip" != "$GITHUB_SHA" ]; then',
+    "git add -- context/progress/accepted.json ':(glob)context/progress/history*.jsonl'",
+    "-- context/progress/accepted.json ':(glob)context/progress/history*.jsonl'",
+    "git push origin HEAD:refs/heads/dev",
+)
+# A program of the repository, or an interpreter that could run one.
+REPO_CODE = re.compile(
+    r"\buv\b|\bpython|\bpytest\b|\bnode\b|(^|\s)\./|\b(scripts|release|tests|src)/"
+)
+
+
+def accept_job_errors(text: str, others: dict[str, str] | None = None) -> list[str]:
+    """The two accept jobs after a merge into dev: accept-record, after every job the run judges
+    with and only when each is green, with contents: read, no environment and no secret, downloads
+    the gather's record and runs --accept-from on it; accept-push, after it alone, is the one job
+    in the accept environment, checks out with the deploy key, uses only checkout and the
+    download, runs no code of the repository, and commits the two progress files alone onto the
+    commit judged and pushes only while dev is that commit. No other job, and no other workflow
+    (`others`, name -> text), names the key."""
+    body = without_comments(text)
+    jobs = workflow_jobs(body)
+    errors = []
+    record, push = jobs.get("accept-record"), jobs.get("accept-push")
+    if record is None or push is None:
+        return ["the workflow has no accept-record or no accept-push job"]
+    want = set(jobs) - NOT_JUDGED_WITH
+    if _needs(record) != want:
+        errors.append(f"accept-record does not need every job the run judges with: {sorted(want)}")
+    if _job_field(record, "if") != ACCEPT_RECORD_IF:
+        errors.append(f"accept-record's if: is not {ACCEPT_RECORD_IF}")
+    if _job_field(record, "environment") is not None:
+        errors.append("accept-record names an environment; it holds no secret")
+    record_steps = [step_fields(st) for st in workflow_steps(record)]
+    if not any(f.get("run", "").strip() == ACCEPT_RUN for f in record_steps):
+        errors.append(f"accept-record does not run {ACCEPT_RUN}")
+    if _needs(push) != {"plan", "accept-record"}:
+        errors.append("accept-push does not need the plan and accept-record alone")
+    if _job_field(push, "if") != ACCEPT_PUSH_IF:
+        errors.append(f"accept-push's if: is not {ACCEPT_PUSH_IF}")
+    if _job_field(push, "environment") != "accept":
+        errors.append("accept-push does not name environment: accept")
+    push_steps = [step_fields(st) for st in workflow_steps(push)]
+    for f in push_steps:
+        uses = f.get("uses", "")
+        if uses and not uses.startswith(("actions/checkout@", "actions/download-artifact@")):
+            errors.append(f"accept-push uses {uses}: only the checkout and the download")
+        if REPO_CODE.search(str(f.get("run", ""))):
+            errors.append("accept-push runs code of the repository or an interpreter")
+    checkouts = [f for f in push_steps if f.get("uses", "").startswith("actions/checkout@")]
+    if len(checkouts) != 1 or checkouts[0].get("with", {}).get("ssh-key") != SSH_KEY:
+        errors.append("accept-push does not check out with the deploy key, once")
+    script = "\n".join(str(f.get("run", "")) for f in push_steps)
+    at = 0  # each in its order: the checks come before the commit and the push
+    for words in ACCEPT_PUSH_WORDS:
+        found = script.find(words, at)
+        if found < 0:
+            errors.append(f"accept-push does not check or do, in its order: {words}")
+        else:
+            at = found + len(words)
+    for name, lines in jobs.items():
+        if name != "accept-push" and _job_field(lines, "environment") == "accept":
+            errors.append(f"{name} names the accept environment, which only accept-push may")
+        if name != "accept-push" and DEPLOY_KEY in "\n".join(lines):
+            errors.append(f"the secret {DEPLOY_KEY} is named outside accept-push, in {name}")
+    if "secrets." in "\n".join(record):
+        errors.append("accept-record names a secret")
+    for name, other in sorted((others or {}).items()):
+        if DEPLOY_KEY in other or "environment: accept" in without_comments(other):
+            errors.append(f"the secret {DEPLOY_KEY} or the accept environment is named in {name}")
     return errors
 
 

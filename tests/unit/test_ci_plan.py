@@ -658,3 +658,20 @@ def test_the_pull_requests_commits_trailers_and_review_are_read_with_git(
     assert [c.paths for c in pr.commits] == [("src/x.py",), (REVIEW,)]
     assert [c.sessions for c in pr.commits] == [(AUTHOR,), ()]
     assert pr.files == {REVIEW: _review()} and pr.body == BODY
+
+
+# ---------------------------------------------------------------------------------------------
+# The accept jobs run after a merge into dev alone
+
+
+def test_accept_is_set_by_a_merge_into_dev_alone() -> None:
+    assert ci_plan.decide(["src/x.py"], PUSH_DEV).accept
+    out = ci_plan.outputs(
+        ci_plan.decide(["src/x.py"], PUSH_DEV),
+        ci_plan.select(ci_plan.decide(["src/x.py"], PUSH_DEV), PLAN),
+        [],
+    )
+    assert out["accept"] == "true"
+    assert not ci_plan.decide(ACCEPT, PUSH_DEV).accept  # the acceptance's own push
+    for event in (PR_DEV, PR_MAIN, TAG, DISPATCH, SCHEDULE):
+        assert not ci_plan.decide(["src/x.py"], event).accept, event

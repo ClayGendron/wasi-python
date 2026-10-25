@@ -3153,7 +3153,7 @@ def test_the_tier_is_decided_by_the_runners_own_variables(event, ref, input_, ti
     when its input is exactly true."""
     ci_plan = _ci_plan()
     environ = {"GITHUB_EVENT_NAME": event, "GITHUB_REF": ref, "PLAN_RELEASE_TIER": input_}
-    e, changed, _ = ci_plan.from_runner(environ)
+    e, changed, _, _ = ci_plan.from_runner(environ)
     assert ci_plan.decide(changed, e).tier == tier
 
 
@@ -3530,3 +3530,54 @@ def test_wget_is_named(work, line) -> None:
     ]
     quiet = write(work, "scripts/ok.sh", '#!/bin/sh\necho "no wget here"\n# wget x\n')
     assert scan.curl_flag_errors([quiet], work) == []
+
+
+# ---------------------------------------------------------------------------------------------
+# The accept jobs: the record accepted with no secret, the push alone holding the key
+
+
+def test_the_real_workflows_accept_jobs_hold() -> None:
+    assert scan.accept_job_errors(REAL_WORKFLOW) == []
+
+
+GUARD_ENV = "          RECORD_ID: ${{ needs.gather.outputs.record-id }}\n"
+ADD = "          git add -- context/progress/accepted.json"
+BAD_ACCEPT = [
+    ("accept-record", "    permissions:\n      contents: read\n",
+     "    environment: accept\n    permissions:\n      contents: read\n",
+     "accept-record names an environment"),
+    ("accept-record", "--claims=context/changes/", "", "accept-record does not run"),
+    ("accept-record", " && needs.gather.result == 'success'", "", "accept-record's if:"),
+    ("accept-record", "    needs: [plan, quick,", "    needs: [plan,",
+     "accept-record does not need"),
+    ("accept-record", GUARD_ENV, GUARD_ENV + "          KEY: ${{ secrets.ACCEPT_DEPLOY_KEY }}\n",
+     "the secret ACCEPT_DEPLOY_KEY is named outside accept-push"),
+    ("accept-push", "    environment: accept\n", "", "accept-push does not name environment"),
+    ("accept-push", "    needs: [plan, accept-record]\n",
+     "    needs: [plan, accept-record, gather]\n", "accept-push does not need"),
+    ("accept-push", ADD, "          uv run python release/version.py show\n" + ADD,
+     "accept-push runs code of the repository"),
+    ("accept-push", "tip=$(git ls-remote origin refs/heads/dev | cut -f1)",
+     'tip="$GITHUB_SHA"', "accept-push does not check"),
+    ("accept-push", "git status --porcelain --untracked-files=all", "git diff --name-only",
+     "accept-push does not check"),
+    ("accept-push", "          ssh-key: ${{ secrets.ACCEPT_DEPLOY_KEY }}\n", "",
+     "accept-push does not check out with the deploy key"),
+]  # fmt: skip
+
+
+@pytest.mark.parametrize(("job", "old", "new", "error"), BAD_ACCEPT, ids=[b[3] for b in BAD_ACCEPT])
+def test_the_accept_scan_names_each_breach(job, old, new, error) -> None:
+    errors = scan.accept_job_errors(_in_job(REAL_WORKFLOW, job, old, new))
+    assert any(e.startswith(error) for e in errors), errors
+
+
+def test_another_job_in_the_accept_environment_is_named() -> None:
+    text = _in_job(
+        REAL_WORKFLOW,
+        "verify",
+        "    permissions:\n",
+        "    environment: accept\n    permissions:\n",
+    )
+    errors = scan.accept_job_errors(text)
+    assert "verify names the accept environment, which only accept-push may" in errors, errors

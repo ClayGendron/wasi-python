@@ -8,7 +8,9 @@
 # harness changed; the upstream groups on Linux when the set, the suites or the harness changed)
 # from the cached set, and the gather narrowed to what ran. A merge into dev (a push) runs the
 # merge-grade set: every normal-tier shard on its three systems, the build shard and verify on
-# three. A pushed tag v<version> builds the artifact set from its pins on arm64 macOS, judges both
+# three; when all of it is green, accept-record accepts the gather's record with no secret and
+# accept-push, alone in the accept environment, pushes that acceptance onto dev with the deploy
+# key, the push carrying [skip ci]. A pushed tag v<version> builds the artifact set from its pins on arm64 macOS, judges both
 # tiers, rebuilds it on arm64 Linux and x86_64 Linux and requires the same bytes, attests and
 # publishes. A pull request into main, a dispatch and the weekly schedule run the same release
 # shape, never signing or publishing. Third-party actions are pinned by commit, their release
@@ -79,6 +81,7 @@ jobs:
       full: ${{ steps.plan.outputs.full }}
       rebuild: ${{ steps.plan.outputs.rebuild }}
       judge: ${{ steps.plan.outputs.judge }}
+      accept: ${{ steps.plan.outputs.accept }}
       tier: ${{ steps.plan.outputs.tier }}
       build: ${{ steps.plan.outputs.build }}
       verify: ${{ steps.plan.outputs.verify }}
@@ -1035,6 +1038,9 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+    outputs:
+      # The merged record's id, which accept-record downloads by.
+      record-id: ${{ steps.keep.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -1115,14 +1121,132 @@ jobs:
         run: |
           uv run python tests/harness/gather.py --records records --out release-record
       - name: Keep the release's record
+        id: keep
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-record-${{ github.run_attempt }}
           path: release-record/
           if-no-files-found: ignore
-      # The accept jobs follow the gather on a push to dev: one writes the acceptance from the
-      # gather's record with no secret, the other pushes it. They arrive with the news files.
+
+  accept-record:
+    name: accept the merge's record
+    # After a merge into dev, once every job the run judges with is green: the gather's merged
+    # record is accepted, in a fresh checkout of the commit judged, with every reason from the news
+    # files merged since the last acceptance. It runs the judge's code, so it holds no secret and
+    # names no environment; it hands the two progress files and the commit's message on as one
+    # artifact, which accept-push commits. A red or a cancelled run never gets here, so the
+    # accepted state never records a red one.
+    needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, coverage, gather, verify]
+    if: ${{ !cancelled() && !failure() && needs.plan.outputs.accept == 'true' && needs.gather.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      acceptance-id: ${{ steps.acceptance.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0 # the news files changed since the last acceptance
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - name: The gather handed on its record's id
+        env:
+          RECORD_ID: ${{ needs.gather.outputs.record-id }}
+        run: |
+          case "$RECORD_ID" in
+            "" | *[!0-9]*) echo "the gather handed on no record id"; exit 1 ;;
+          esac
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.gather.outputs.record-id }}
+          path: build/ci
+          digest-mismatch: error
+      - name: The acceptance, from the record and the news files
+        run: uv run pytest -p no:cacheprovider --accept-from=build/ci/record.json --claims=context/changes/
+      - name: Hand the acceptance on
+        id: acceptance
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: acceptance-${{ github.run_attempt }}
+          path: |
+            context/progress/accepted.json
+            context/progress/history*.jsonl
+            build/progress/acceptance-message.txt
+          if-no-files-found: error
+
+  accept-push:
+    name: push the acceptance onto dev
+    # The one job in the accept environment, whose deployment branch policy is dev alone, so no
+    # pull request's run reaches its secret: the deploy key, dev's one bypass actor. It runs no
+    # code of the repository, only git: it puts the two progress files into a checkout of the
+    # commit judged, holds the change to them alone, and commits them alone with the message
+    # accept-record wrote, which ends [skip ci] so the push starts no run. It pushes only while
+    # dev is the commit judged; when a newer merge landed it pushes nothing and succeeds, and that
+    # merge's run accepts everything since the last acceptance.
+    needs: [plan, accept-record]
+    if: ${{ !cancelled() && needs.plan.outputs.accept == 'true' && needs.accept-record.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: accept
+    permissions:
+      contents: read
+    steps:
+      - name: accept-record handed on the acceptance's id
+        env:
+          ACCEPTANCE_ID: ${{ needs.accept-record.outputs.acceptance-id }}
+        run: |
+          case "$ACCEPTANCE_ID" in
+            "" | *[!0-9]*) echo "accept-record handed on no acceptance id"; exit 1 ;;
+          esac
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ssh-key: ${{ secrets.ACCEPT_DEPLOY_KEY }}
+          persist-credentials: true # the push below is made with the key
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.accept-record.outputs.acceptance-id }}
+          path: ${{ runner.temp }}/acceptance
+          digest-mismatch: error
+      - name: Commit the acceptance alone, and push it while dev is the commit judged
+        env:
+          ACCEPTANCE: ${{ runner.temp }}/acceptance
+        run: |
+          set -eu
+          cp "$ACCEPTANCE/context/progress/accepted.json" context/progress/
+          for f in "$ACCEPTANCE"/context/progress/history*.jsonl; do cp "$f" context/progress/; done
+          set -- $(git status --porcelain --untracked-files=all | cut -c4- | sort)
+          if [ "$#" -ne 2 ] || [ "$1" != context/progress/accepted.json ] \
+            || ! printf '%s\n' "$2" | grep -Eq '^context/progress/history(-[0-9]{5,})?\.jsonl$'; then
+            echo "the acceptance must change accepted.json and one history volume alone, not: $*"
+            exit 1
+          fi
+          tip=$(git ls-remote origin refs/heads/dev | cut -f1)
+          if [ "$tip" != "$GITHUB_SHA" ]; then
+            echo "dev is at ${tip:-nothing}, not $GITHUB_SHA, the commit judged: nothing is pushed; the newer merge's run accepts both"
+            exit 0
+          fi
+          git add -- context/progress/accepted.json ':(glob)context/progress/history*.jsonl'
+          git -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -F "$ACCEPTANCE/build/progress/acceptance-message.txt" \
+            -- context/progress/accepted.json ':(glob)context/progress/history*.jsonl'
+          if git push origin HEAD:refs/heads/dev; then
+            echo "pushed $(git rev-parse HEAD) onto dev, on $GITHUB_SHA"
+            exit 0
+          fi
+          tip=$(git ls-remote origin refs/heads/dev | cut -f1)
+          if [ "$tip" != "$GITHUB_SHA" ]; then
+            echo "dev moved to $tip while this pushed: nothing is pushed; the newer merge's run accepts both"
+            exit 0
+          fi
+          exit 1
 
   verify:
     name: verify (${{ matrix.os }})
@@ -1295,7 +1419,7 @@ jobs:
     # refused nothing: a pull request may not write accepted state, and one into dev that is not
     # documentation only carries its news file and a review file that holds. A failed or
     # cancelled job is red here.
-    needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, coverage, gather, verify, attest, publish, pypi]
+    needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, coverage, gather, accept-record, accept-push, verify, attest, publish, pypi]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
