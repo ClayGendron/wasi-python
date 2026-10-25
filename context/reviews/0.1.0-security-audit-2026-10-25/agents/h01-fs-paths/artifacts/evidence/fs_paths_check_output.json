@@ -1,0 +1,51 @@
+{
+ "wasmtime_py": "49.0.0",
+ "platform": "darwin",
+ "grants": {
+  "exit": 0,
+  "trapped": null,
+  "guest": "{\"open_through_link\": \"err:PermissionError:63\", \"rename_slash\": \"err:NotADirectoryError:54\", \"rename_double_slash\": \"err:NotADirectoryError:54\", \"rename_slash_dot\": \"err:PermissionError:63\", \"rename_target_slash\": \"err:NotADirectoryError:54\", \"rmdir_slash\": \"err:PermissionError:63\", \"unlink_slash\": \"err:PermissionError:63\", \"link_ro_to_rw\": \"err:PermissionError:63\", \"link_through_up\": \"err:PermissionError:63\", \"link_slash\": \"err:PermissionError:63\", \"symlink_at_slash\": \"err:PermissionError:63\", \"mkdir_dangling_slash\": \"err:FileExistsError:20\", \"mkdir_dangling\": \"err:FileExistsError:20\", \"create_through_dangling\": \"err:PermissionError:63\", \"utime_slash\": \"err:PermissionError:63\", \"readlink_slash\": \"err:PermissionError:63\", \"stat_slash\": \"err:PermissionError:63\", \"write_ro_grant\": \"err:PermissionError:63\", \"rename_ro_to_rw\": \"err:PermissionError:63\", \"dotdot_out_of_w\": \"err:PermissionError:63\", \"listdir_w\": \"ok:['dang', 'dangf', 'e', 'up']\"}",
+  "stderr_tail": "",
+  "host_after": {
+   "outside": [
+    "canary"
+   ],
+   "outside_empty_exists": true,
+   "w": [
+    "dang",
+    "dangf",
+    "e",
+    "up"
+   ],
+   "r_secret": "RO",
+   "canary_nlink": 1
+  }
+ },
+ "mounts": {
+  "exit": 0,
+  "trapped": null,
+  "guest": "{\"plain\": \"ok:'A'\", \"climb_abs\": \"err:PermissionError:63\", \"climb_sub\": \"err:PermissionError:63\", \"nested_via_mount\": \"err:PermissionError:63\", \"nested_direct\": \"ok:'GRANT'\", \"backslash\": \"err:FileNotFoundError:44\", \"dirfd_climb\": \"err:PermissionError:63\", \"dirfd_abs\": \"err:FileNotFoundError:44\", \"write_ro_mount\": \"err:PermissionError:63\", \"rename_mount_to_grant\": \"err:PermissionError:63\", \"mkdir_ro_mount\": \"err:PermissionError:63\"}",
+  "stderr_tail": "",
+  "provider_saw": [
+   [
+    "read",
+    "/a.txt"
+   ],
+   [
+    "read",
+    "/..\\..\\x"
+   ],
+   [
+    "list",
+    "/d"
+   ]
+  ]
+ },
+ "cache_grant_readonly": {
+  "exit": 0,
+  "guest": "[]"
+ },
+ "cache_grant_writable": {
+  "refused": "grants[0] at /c is writable and is inside the module cache, which later calls trust; grant a folder apart from it"
+ }
+}

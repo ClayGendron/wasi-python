@@ -1,0 +1,449 @@
+[
+  {
+    "proposed_verdict": "needs_validation",
+    "fingerprint": "src/wasi_python/_engines.py:_load:cwasm-checked-by-lstat-opened-by-path",
+    "title": "Module cache: the .cwasm checked by lstat is not the file wasmtime deserializes when an ancestor folder belongs to a lower-trust user",
+    "description": "The runner trusts a .cwasm (native code) only when private() finds it this user's, 0600, one link, in a 0700 folder of this user's. It checks only the leaf entries by path, then wasmtime-py reopens the file by its full path, following links in every ancestor, and the runner afterwards compares a fresh lstat stamp with the first. A principal that can rename entries in any ancestor of the cache folder can, during that open, rename the runner's folder aside and put a link to its own folder in its place, then restore it before the re-check. The planted image is then accepted and instantiated as python.wasm. The runner itself chooses such a path when a process runs with another user's $HOME (default_cache_dir is under $HOME; default_cache_dirs names sudo as a case it expects), e.g. root under a sudo that keeps HOME, where ~/.cache or ~/Library/Caches belongs to the invoking user. Under a deterministic schedule on one OS user the planted module was returned by _module with no warning; the cross-user race in a real sudo deployment was not observed.",
+    "claimed_root_cause": "private() and the post-load stamp check bind the trust decision to path names (lstat of the leaf) while the load reopens by path; nothing checks that every ancestor of the cache folder is owned by this user (or root) and not writable by others, and the .cwasm is not opened once with no-follow and deserialized from that verified descriptor.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "src/wasi_python/runner.py",
+        "line": 115,
+        "scope": "run",
+        "description": "Embedder call with cache_dir=None: the default module cache is used."
+      },
+      {
+        "kind": "propagation",
+        "file": "src/wasi_python/_call.py",
+        "line": 146,
+        "scope": "_run_checked",
+        "description": "cache = _engines._cache_dir(cache_dir)."
+      },
+      {
+        "kind": "propagation",
+        "file": "src/wasi_python/_engines.py",
+        "line": 85,
+        "scope": "_cache_dir",
+        "description": "Default cache derived from Path.home() ($HOME), which under a sudo that keeps HOME is the invoking user's home."
+      },
+      {
+        "kind": "propagation",
+        "file": "src/wasi_python/_platform.py",
+        "line": 534,
+        "scope": "_Posix.default_cache_dir",
+        "description": "$XDG_CACHE_HOME or $HOME/.cache/wasi_python (Darwin line 1091: $HOME/Library/Caches/wasi_python); its parent belongs to whoever owns that home."
+      },
+      {
+        "kind": "propagation",
+        "file": "src/wasi_python/_engines.py",
+        "line": 178,
+        "scope": "_module_miss",
+        "description": "private(cache, is_dir=True) lstats only the cache folder itself (owner, 0700); ancestors unchecked."
+      },
+      {
+        "kind": "propagation",
+        "file": "src/wasi_python/_engines.py",
+        "line": 228,
+        "scope": "_load",
+        "description": "private(cwasm) lstats the leaf by path: this user's, 0600, one link."
+      },
+      {
+        "kind": "sink",
+        "file": "src/wasi_python/_engines.py",
+        "line": 233,
+        "scope": "_load",
+        "description": "wt.Module.deserialize_file(engine, str(cwasm)) reopens the path, following any link swapped into an ancestor; the stamp re-check at line 237 passes once the folder is restored, and the module is cached and instantiated as the guest binary."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "src/wasi_python/_platform.py",
+        "line": 556,
+        "description": "POSIX private(): one lstat of the given path; no ancestor ownership or writability check."
+      },
+      {
+        "file": "src/wasi_python/_engines.py",
+        "line": 214,
+        "description": "_load docstring: the post-load check 'narrows, not closes, the window between the check and the load'."
+      },
+      {
+        "file": "src/wasi_python/_engines.py",
+        "line": 237,
+        "description": "Re-check compares lstat stamps by name, which an attacker restores before it runs."
+      },
+      {
+        "file": "src/wasi_python/_platform.py",
+        "line": 542,
+        "description": "default_cache_dirs: the runner expects processes with another $HOME (sudo, a container, CI)."
+      },
+      {
+        "file": "docs/explanation/security-model.md",
+        "line": 89,
+        "description": "Not-protected list covers caches 'if anything but the runner can write there' and names cache_dir/$WASI_PYTHON_CACHE as trusted input; the default derived from $HOME is not named there, and the runner's own private() owner check shows the default cache is meant to be refused when another user owns it."
+      }
+    ],
+    "blockers": [
+      "The cross-user part was not observed: this machine offers one OS user and no root, so a lower-trust owner of the cache folder's parent racing a second user's (or root's) runner could not be run.",
+      "Whether a supported deployment runs the runner as another user with the invoking user's $HOME (macOS sudo keeping HOME, a sudo with env_keep HOME, a container or CI step with a mapped home) is a deployment fact outside source.",
+      "Race feasibility without the deterministic hook (blind rename loop by the parent's owner against one deserialize per process) was not measured."
+    ],
+    "validation_plan": {
+      "local": "On a disposable macOS or Linux VM with users alice and root: as alice, keep ~/Library/Caches (or ~/.cache) as is and prepare /Users/alice/planted/<digest32>-wasmtime49.0.0-plain.cwasm (a serialized module of another wasm). As root with HOME=/Users/alice (sudo on macOS keeps HOME), run wasi_python.run('print(1)', snapshot=False) once so root makes its 0700 cache and .cwasm. Then loop as alice: rename wasi_python -> wasi_python.aside, symlink wasi_python -> /Users/alice/planted, rename back; while root starts fresh processes that call run(). Record whether process().counts['loaded'] rises with the planted module's exports (or the call fails with the planted module's missing exports) without a RuntimeWarning. The deterministic one-user schedule is in agents/h04-loader/artifacts/evidence/swap_harness.py.",
+      "deployment": "Owner states whether running the runner as root or another user with a different user's $HOME is supported; if so, confirm on the release platforms that sudo keeps HOME (macOS default) and that the default cache's parent is then owned by the invoking user."
+    },
+    "_hunter": "h04-loader"
+  },
+  {
+    "proposed_verdict": "confirmed",
+    "fingerprint": "src/wasi_python/tools.py:_bound_keywords:class-construction-partial-unfixed",
+    "title": "A guest can override a keyword a class tool's constructor binds with a partial or partialmethod",
+    "description": "tool() promises that a keyword a functools.partial binds is fixed: it is left out of the schema, refused when a given schema names it, and refused in a frame. That holds wherever inspect.signature meets the partial, which is how _bound_keywords is documented. But for a class registered as a tool, _bound_keywords goes from the class to type(cls).__call__, which is type.__call__, a C slot, and stops with no fixed keywords. Meanwhile inspect.signature and the runtime both go into cls.__init__ (or __new__). So when __init__ is a functools.partialmethod, or on Python 3.14 a functools.partial (now a method descriptor), the bound keyword is not recorded. The result: tool() accepts a schema that names the keyword, and the per-frame check at _tool_host.py:1003-1009 never fires. Under an explicit schema that is open, has additionalProperties true, or lists the keyword, a guest frame naming it reaches the constructor. Because functools.partial lets the caller override keywords, the guest's value replaces the embedder's bound value. The gate's ToolCall.arguments also carries the keyword, though the docs say arguments never hold a partial-bound keyword.",
+    "root_cause": "_bound_keywords (src/wasi_python/tools.py:439-474) treats a class like any other callable object: it reads type(target).__call__ and returns at the C-slot check (tools.py:466-470). It never walks the class's own __init__ or __new__, where inspect.signature and type.__call__ find the partial. So Tool._fixed is empty. The two checks that rely on it, _given (tools.py:418) and the frame check (_tool_host.py:1003-1009), then let the bound keyword through.",
+    "intended_behavior": "A keyword bound by a partial or partialmethod anywhere inspect.signature meets it, a class's __init__ or __new__ included, is in Tool._fixed. tool() then refuses a given schema that names it, and a frame that names it is answered invalid_arguments without running the tool. Or tool() refuses such a class outright, as it already refuses an unbound partialmethod.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "src/wasi_python/_call.py",
+        "line": 1263,
+        "scope": "_door.frame",
+        "description": "The guest's frame bytes are copied out of linear memory after admit and handed to the frame host."
+      },
+      {
+        "kind": "propagation",
+        "file": "src/wasi_python/_tool_host.py",
+        "line": 1000,
+        "scope": "_ToolHost._call_answer",
+        "description": "The args are checked against the tool's explicit schema; an open schema, or one with additionalProperties true or listing the keyword, accepts role."
+      },
+      {
+        "kind": "propagation",
+        "file": "src/wasi_python/_tool_host.py",
+        "line": 1004,
+        "scope": "_ToolHost._call_answer",
+        "description": "The bound-keyword refusal checks t._fixed, which is empty for the class, so role passes."
+      },
+      {
+        "kind": "propagation",
+        "file": "src/wasi_python/tools.py",
+        "line": 469,
+        "scope": "_bound_keywords",
+        "description": "At registration the walk reached type.__call__ (a C slot) and returned with no fixed keywords, never reading cls.__init__."
+      },
+      {
+        "kind": "propagation",
+        "file": "src/wasi_python/_tool_host.py",
+        "line": 232,
+        "scope": "_Work.__call__",
+        "description": "The gate gets a copy of the arguments with role in it, contrary to the documented contract."
+      },
+      {
+        "kind": "sink",
+        "file": "src/wasi_python/_tool_host.py",
+        "line": 258,
+        "scope": "_Work.__call__",
+        "description": "t.fn(**args) calls the class; type.__call__ runs the partialmethod __init__, whose keyword merge lets the guest's role replace the embedder's bound role."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "src/wasi_python/tools.py",
+        "line": 439,
+        "description": "Docstring: keywords a partial binds are found 'wherever inspect.signature may meet one on its way to the function', including 'a class's __call__'; each is fixed and refused in a frame."
+      },
+      {
+        "file": "src/wasi_python/tools.py",
+        "line": 466,
+        "description": "A class target goes to type(target).__call__ and stops at the C-slot check at line 469, so __init__/__new__ partials are never collected."
+      },
+      {
+        "file": "src/wasi_python/tools.py",
+        "line": 418,
+        "description": "_given refuses a schema naming a fixed keyword only through the computed fixed set, so the class case is accepted."
+      },
+      {
+        "file": "src/wasi_python/_tool_host.py",
+        "line": 1004,
+        "description": "The frame-time refusal relies on t._fixed alone."
+      },
+      {
+        "file": "docs/how-to/tools.md",
+        "line": 65,
+        "description": "Promise: 'A keyword the partial binds is fixed. It is not in the schema, so the guest never sees its value, and a frame that names it is refused.'"
+      },
+      {
+        "file": "tests/checks/test_v1_4_embedding.py",
+        "line": 3517,
+        "description": "The regression test covers nested partials, a __wrapped__ chain and a bound partialmethod, but no class whose constructor binds a keyword."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "system_configuration",
+        "description": "The embedder registers a class (a type object) as a tool, with __init__ or __new__ that is a functools.partialmethod, or on Python 3.14+ a functools.partial, binding the authority keyword (for example a role or user id)."
+      },
+      {
+        "kind": "system_configuration",
+        "description": "The tool's explicit input_schema lets the keyword through: no properties (open), additionalProperties not false, or a properties map that names it. tool() refuses the last for every other binding shape. A derived schema is not possible for a class tool: tool() refuses it for lack of hints."
+      },
+      {
+        "kind": "authentication_level",
+        "description": "The attacker is the untrusted guest code (or the model driving it), which can send any frame through the door."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "Untrusted guest code in run(tools=[...]) sends a raw tool-protocol frame through the door, naming a keyword the embedder bound in the tool class's constructor.",
+      "payloads": [
+        "class Account:\n    def _init(self, q, role=\"user\"): ...\n    __init__ = functools.partialmethod(_init, role=\"viewer\")\nacct = tool(Account, name=\"account\", input_schema={\"type\": \"object\"})",
+        "import _host; _host.call(b'{\"v\":1,\"id\":1,\"op\":\"call\",\"tool\":\"account\",\"args\":{\"q\":\"x\",\"role\":\"admin\"}}')"
+      ],
+      "instructions": [
+        "Bounded local check, run under ulimit -t 300 -f 4000000 -n 4096, env -i with HOME/TMPDIR/WASI_PYTHON_CACHE in the hunter's scratch, and sandbox-exec denying network. The target was not mounted read-only; no grant or root pointed at it.",
+        "Host side: register the Account class above, a functools.partial(orders, user_id=42) tool and a derived tool, all in one wasi_python.run(['-c', prog], tools=[...], gate=gate) call, with a recording gate.",
+        "Guest side: send the frame above through _host.call, then the same shape against the plain partial (user_id=1).",
+        "Read the host-side log of what the gate and each handler received, and the ToolRecord."
+      ],
+      "observed_result": "The constructor ran with role='admin' (host log: ['Account handler', {'q': 'x', 'role': 'admin'}]), and the gate's arguments held role. The answer was tool_error only because the class returns a non-JSON instance, after the constructor's effect. In the same run the plain partial's user_id=1 was answered invalid_arguments ('unknown argument user_id') and its handler did not run. In-process, inspect.signature(Account) is '(q, *, role='viewer')' and Tool._fixed is []; tool() accepted a schema naming role. The same held for __init__ = functools.partial(...) on Python 3.14.2."
+    },
+    "remediation": {
+      "strategy": "Make _bound_keywords walk a class's construction path as inspect.signature does. When the target is a type whose metaclass __call__ is type.__call__, inspect cls.__new__ and cls.__init__ (via inspect.getattr_static, unwrapping staticmethod and classmethod). Collect the keywords of a functools.partial or partialmethod found there, or refuse the class with the existing partialmethod TypeError. Add a regression case to test_bound_keywords_are_fixed_however_the_partial_is_reached: a class whose __init__ is a partialmethod, under an open schema and a schema naming the keyword. Expect refusal at tool() or invalid_arguments with no constructor call.",
+      "code_changes": [
+        {
+          "file_name": "src/wasi_python/tools.py",
+          "fixed_code": "        elif isinstance(target, type) and isinstance(type(target).__call__, _C_SLOTS):\n            # type.__call__ runs the class's own __new__ and __init__, as inspect.signature reads\n            # them: a partial bound there is fixed too, or the class is refused.\n            for attr in (\"__new__\", \"__init__\"):\n                member = inspect.getattr_static(target, attr, None)\n                member = getattr(member, \"__func__\", member)  # staticmethod, classmethod\n                if isinstance(member, functools.partialmethod):\n                    found.update(member.keywords)\n                elif isinstance(member, functools.partial):\n                    found.update(member.keywords)\n            return frozenset(found)"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "low",
+        "reason": "It needs an uncommon registration shape: a class as a tool, with a partial or partialmethod constructor binding authority, and an explicit schema that leaves the keyword open."
+      },
+      "impact": {
+        "score": "medium",
+        "reason": "Where the shape is used, untrusted guest code replaces an authority value the embedder bound, such as a role or user id, and the constructor acts with it. That is a confused deputy inside the embedder's process, against an explicit documented guarantee."
+      },
+      "overall_severity": "low"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Shown end to end through the real door and frame host in a sandboxed run, with the plain-partial control refused in the same run, and the source walk explains it exactly."
+    },
+    "_hunter": "h06-tools"
+  },
+  {
+    "proposed_verdict": "confirmed",
+    "fingerprint": "runner-env.sysconfig-PYTHON-SYSCONFIGDATA-PATH.loads-code-outside-import-path-rules",
+    "title": "env= _PYTHON_SYSCONFIGDATA_PATH makes a module planted in a reused root run on `import pandas` in a later call",
+    "description": "The runner promises that code planted in a root never runs at start-up or on import in a later call, and enforces it by an isolated interpreter (PYTHON* variables ignored, site off) and by allowing import_path entries only from read-only grants with nothing writable under them. CPython 3.15's sysconfig honours the private variable _PYTHON_SYSCONFIGDATA_PATH without checking sys.flags.ignore_environment and execs `_sysconfigdata_<abi>_<platform>_<multiarch>` from that folder. The runner lays env= over the guest's environment without any key policy, so an embedder that passes this variable (for instance copied from a cross-build host environment with the CLI's --env KEY, or by forwarding its environment) pointing at a folder in a reused root or writable grant turns a file an earlier guest left there into code run in the later call on a plain `import pandas` (also scipy, sklearn, joblib, statsmodels), on both binaries. The security model lists only HOME and PYTHONTZPATH overrides as unprotected.",
+    "root_cause": "sysconfig._get_sysconfigdata reads os.environ['_PYTHON_SYSCONFIGDATA_PATH'] regardless of isolated mode and loads a module from that directory with PathFinder + exec_module; the runner's env check (_limits._check_inputs) rejects only empty keys and '=', and nothing applies the import_path rules (read-only grant, nothing writable under it) to this code-loading variable.",
+    "intended_behavior": "Every folder the guest's interpreter loads code from is subject to the import_path rules: a read-only grant with no writable root, grant or mount under or inside it; an env= entry that would load code from elsewhere is refused before any work (or ignored, as isolated mode ignores PYTHONPATH).",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "src/wasi_python/_limits.py",
+        "line": 139,
+        "scope": "_check_inputs",
+        "description": "env keys are checked only for emptiness and '='; _PYTHON_SYSCONFIGDATA_PATH passes."
+      },
+      {
+        "kind": "propagation",
+        "file": "src/wasi_python/_call.py",
+        "line": 452,
+        "scope": "_instance",
+        "description": "wasi.env = BASE_ENV + HOME + env= laid over them, unfiltered (the session's opening does the same at _sessions.py:999)."
+      },
+      {
+        "kind": "propagation",
+        "file": "recipes/reactor_bootstrap.py",
+        "line": 143,
+        "scope": "run",
+        "description": "The reactor copies the WASI environment into os.environ for the program."
+      },
+      {
+        "kind": "propagation",
+        "file": "build/pandas-3.0.6/pandas/compat/_constants.py",
+        "line": 21,
+        "scope": "module level",
+        "description": "`import pandas` calls sysconfig.get_config_var('HOST_GNU_TYPE') at import."
+      },
+      {
+        "kind": "propagation",
+        "file": "build/Python-3.15.0/Lib/sysconfig/__init__.py",
+        "line": 360,
+        "scope": "_get_sysconfigdata",
+        "description": "Reads _PYTHON_SYSCONFIGDATA_PATH from os.environ with no ignore_environment check."
+      },
+      {
+        "kind": "sink",
+        "file": "build/Python-3.15.0/Lib/sysconfig/__init__.py",
+        "line": 343,
+        "scope": "_import_from_directory",
+        "description": "PathFinder.find_spec(name, [path]) then spec.loader.exec_module(module): the planted file in the reused root runs."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "docs/explanation/security-model.md",
+        "line": 9,
+        "description": "Policy: code planted in a root never runs at start-up or on import in a later call, on either binary."
+      },
+      {
+        "file": "docs/explanation/security-model.md",
+        "line": 82,
+        "description": "Only env= overrides of HOME or PYTHONTZPATH are listed as not protected."
+      },
+      {
+        "file": "recipes/reactor_main.c",
+        "line": 179,
+        "description": "Isolated config: the design relies on the interpreter ignoring environment-driven code paths."
+      },
+      {
+        "file": "src/wasi_python/_places.py",
+        "line": 176,
+        "description": "_check_import_path: the control that confines code-loading folders to read-only grants, which this variable bypasses."
+      },
+      {
+        "file": "build/Python-3.15.0/Lib/sysconfig/__init__.py",
+        "line": 361,
+        "description": "_import_from_directory(path, name) used whenever the variable is set."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "system_configuration",
+        "description": "The embedder passes env containing _PYTHON_SYSCONFIGDATA_PATH naming a guest folder that a previous call could write (a reused root, a writable grant, or a writable mount), e.g. by forwarding a cross-build host environment or with the CLI's --env _PYTHON_SYSCONFIGDATA_PATH."
+      },
+      {
+        "kind": "data_state",
+        "description": "An earlier, less trusted call on the same root or writable folder left `_sysconfigdata__wasi_wasm32-wasi.py` (or .pyc) there."
+      },
+      {
+        "kind": "user_interaction",
+        "description": "The later program imports pandas, scipy, sklearn, joblib or statsmodels, or calls sysconfig.get_config_var(s)."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "A guest in call 1 with a writable root writes one file; the embedder's later call on the same root, with the env entry, runs a program that only imports pandas.",
+      "payloads": [
+        "call 1: wasi_python.run(['-c', \"import os; os.makedirs('/data', exist_ok=True); open('/data/_sysconfigdata__wasi_wasm32-wasi.py','w').write(\\\"import sys\\\\nsys.stderr.write('PLANTED\\\\\\\\n')\\\\nbuild_time_vars={'installed_base':'/usr/local'}\\\\n\\\")\"], root=R)",
+        "call 2: wasi_python.run(['-c', 'import pandas'], root=R, env={'_PYTHON_SYSCONFIGDATA_PATH': '/data'})"
+      ],
+      "instructions": [
+        "Under env -i, sandbox-exec (deny network*), ulimit -t 300 -f 4000000 -n 4096, run .venv/bin/python -I sysconfigdata_path_check.py <scratch> with R under scratch.",
+        "Compare each `import <pkg>` call with and without the env entry for 'PLANTED' on stderr."
+      ],
+      "observed_result": "Without the entry no planted code ran. With it, PLANTED was written to stderr in the later call on import of pandas, scipy, sklearn, joblib and statsmodels.api (snapshot) and pandas (plain binary); numpy and matplotlib imports did not trigger it."
+    },
+    "remediation": {
+      "strategy": "Refuse (or drop) env keys that make the guest interpreter load code from a folder, at least _PYTHON_SYSCONFIGDATA_PATH, in the runner's argument check, with the message pointing to import_path; add a regression check that plants the module in call 1 and asserts call 2 raises ValueError before any work. Alternatively apply the import_path rules to its value (a read-only grant with nothing writable under it). Name the variable in the security model either way.",
+      "code_changes": [
+        {
+          "file_name": "src/wasi_python/_limits.py",
+          "fixed_code": "_CODE_FOLDER_ENV = frozenset({\"_PYTHON_SYSCONFIGDATA_PATH\"})  # sysconfig execs a module from it\n...\n            if not name or \"=\" in name:\n                raise ValueError(\"env key: illegal environment variable name\")  # never quoted\n            if name in _CODE_FOLDER_ENV:\n                raise ValueError(\n                    \"env key: _PYTHON_SYSCONFIGDATA_PATH loads code from a folder; \"\n                    \"name a read-only grant in import_path instead\"\n                )"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "low",
+        "reason": "Requires a trusted embedder to pass a private, underscore-prefixed CPython variable naming a guest-writable folder; plausible only when forwarding a cross-build host environment or by explicit choice."
+      },
+      "impact": {
+        "score": "medium",
+        "reason": "Crosses the call-to-call boundary the policy promises: an earlier guest's code runs in a later call with that call's grants, tools, door and stdin; it stays inside the wasm sandbox and does not reach the host."
+      },
+      "overall_severity": "low"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Source path is complete and the effect was observed in bounded local runs on both binaries, with controls that never ran the planted file."
+    },
+    "_hunter": "h03-private-dirs"
+  },
+  {
+    "proposed_verdict": "needs_validation",
+    "fingerprint": "wasmtime-49.0.0:GHSA-m63x-6p34-q65x:try_table-catch-fuel:src/wasi_python/_engines.py:_engine",
+    "title": "Shipped binaries carry 44,791 try_table sites run on a metered wasmtime 49.0.0 engine affected by GHSA-m63x-6p34-q65x (fuel dropped on the catch path)",
+    "description": "A metered call compiles python.wasm (or the snapshot) on an engine with consume_fuel and wasmtime's default exception support, under the wasmtime 49.0.0 the pin resolves to. GHSA-m63x-6p34-q65x (fixed 49.0.1) says Cranelift's fuel accounting on the catch path of a call inside a try_table can drop the fuel the callee used, resetting to the fuel left before the call. The shipped code has 44,791 try_table instructions in 7,905 functions, from C++ exceptions and setjmp/longjmp built with the new exception-handling proposal, and guest Python reaches them through the compiled-in packages. So the advisory's preconditions are met, and a guest may spend more instructions than its fuel cap counts. SECURITY.md counts running past the fuel cap as in scope. How much fuel a Python-reachable catch path drops, and whether it compounds, was not measured. The default deadline still bounds wall-clock time; a call with fuel and deadline_s=None relies on fuel alone.",
+    "claimed_root_cause": "The runner's dependency pin (pyproject.toml wasmtime>=49,<50, resolved to 49.0.0 in uv.lock) admits a wasmtime whose Cranelift fuel accounting is wrong on try_table catch paths, while the build's -fwasm-exceptions flags put try_table on every caught C++ exception and longjmp path, and _engine leaves exceptions enabled on the metered engine. The runner carries no mitigation for this advisory, unlike its shadows for the filesystem advisories.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "recipes/wasi-scipy.cross",
+        "line": 44,
+        "scope": "C++ and sjlj build flags",
+        "description": "Compiled-in C++ is built with -fwasm-exceptions -fexceptions and -wasm-use-legacy-eh=false (C with -wasm-enable-sjlj at line 39), so guest Python calls that throw and catch in C++, or longjmp, run try_table catch paths."
+      },
+      {
+        "kind": "propagation",
+        "file": "scripts/steps/60_link.sh",
+        "line": 129,
+        "scope": "link",
+        "description": "python.wasm is linked with -fwasm-exceptions; the shipped module has 44,791 try_table, 26,569 throw_ref and 2 throw instructions, and +exception-handling in target_features."
+      },
+      {
+        "kind": "propagation",
+        "file": "uv.lock",
+        "line": 1049,
+        "scope": "wasmtime pin",
+        "description": "wasmtime-py resolves to 49.0.0, inside GHSA-m63x's affected range (fixed in 49.0.1)."
+      },
+      {
+        "kind": "propagation",
+        "file": "src/wasi_python/_engines.py",
+        "line": 122,
+        "scope": "_engine",
+        "description": "The metered engine sets consume_fuel and leaves wasm exceptions and the Cranelift compiler at their defaults, which is the advisory's configuration."
+      },
+      {
+        "kind": "sink",
+        "file": "src/wasi_python/_call.py",
+        "line": 416,
+        "scope": "metered call",
+        "description": "The store's fuel is the instruction cap the runner promises; per the advisory, fuel spent in a callee that unwinds to a try_table catch can be lost, so the cap and fuel_used (line 511) can under-count."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "context/research/2026-10-18-wasmtime-49-advisories/advisories/GHSA-m63x-6p34-q65x.json",
+        "line": 1,
+        "description": "Advisory: Cranelift drops fuel on try_table catch and call_ref; affects 49.0.0, fixed 49.0.1; only guests with try_table or call_ref are affected; needs consume_fuel."
+      },
+      {
+        "file": "src/wasi_python/_engines.py",
+        "line": 122,
+        "description": "cfg.consume_fuel = metered; no wasm_exceptions(False) or other override."
+      },
+      {
+        "file": "pyproject.toml",
+        "line": 18,
+        "description": "dependencies = [\"wasmtime>=49,<50\"]."
+      },
+      {
+        "file": "recipes/wasi-numpy.cross",
+        "line": 37,
+        "description": "numpy C++ built with -fwasm-exceptions -fexceptions on the new EH encoding."
+      },
+      {
+        "file": "scripts/steps/80_snapshot.sh",
+        "line": 18,
+        "description": "The snapshot is made with -W exceptions=y; its code section has the same try_table count."
+      },
+      {
+        "file": "SECURITY.md",
+        "line": 18,
+        "description": "In scope: a guest that runs past its deadline, fuel, memory or output cap."
+      }
+    ],
+    "blockers": [
+      "Not measured: how much fuel one Python-reachable try_table catch path loses under 49.0.0, and whether any compiled-in path nests catches so the loss compounds. I stopped at the binary and configuration preconditions and built no guest program to exercise the defect.",
+      "No wasmtime-py at 49.0.1 or later is installed to diff fuel counts against; only the wasmtime CLI 49.0.3 is under build/tools."
+    ],
+    "validation_plan": {
+      "local": "The owner runs a differential fuel count. Take one fixed guest script that triggers a C++ exception caught inside a compiled-in package N times, for small N (1, 10, 100). Read fuel_used from run(..., fuel=<large>, deadline_s=<short>) under wasmtime-py 49.0.0. Run the same module with the same fuel through the pinned wasmtime CLI 49.0.3 (-W fuel=...), or a wasmtime-py on 49.0.1 or later, and compare. If 49.0.0 reports less fuel per N than the fixed engine, the cap under-counts. Keep N and the deadline small.",
+      "deployment": "The owner confirms whether PyPI now has a wasmtime-py on wasmtime 49.0.1 or later (or 50.x, see the moving-to-wasmtime-50 memo) and moves the pin's floor past the fix. Until then, document that the fuel cap is advisory on 49.0.0 for code paths that throw and catch, and keep a finite deadline_s beside fuel."
+    },
+    "_hunter": "h17-eh-advisories"
+  }
+]

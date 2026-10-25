@@ -1,0 +1,652 @@
+[
+  {
+    "fingerprint": "src/wasi_python/tools.py:_bound_keywords:class-construction-partial-unfixed",
+    "verifier": "v02-class-partial",
+    "decision": "confirmed",
+    "record": {
+      "verdict": "confirmed",
+      "fingerprint": "src/wasi_python/tools.py:_bound_keywords:class-construction-partial-unfixed",
+      "title": "A guest can override a keyword a class tool's constructor binds with a partial or partialmethod",
+      "description": "tool() promises that a keyword a functools.partial binds is fixed: it is left out of the schema, refused when a given schema names it, and refused in a frame. For a class registered as a tool, _bound_keywords goes from the class to type(cls).__call__, which is type.__call__ (a C slot), and returns with no fixed keywords. inspect.signature and the runtime both go into the class's own __new__ and __init__. So when __init__ is a functools.partialmethod, when __init__ is a functools.partial (a method descriptor on Python 3.14), or when __new__ is a staticmethod over a functools.partial, the bound keyword is not recorded in Tool._fixed. tool() then accepts a given schema that names the keyword, and the per-frame refusal in _ToolHost._call_answer never fires. Under an explicit schema that is open, has additionalProperties true, or lists the keyword, a guest frame naming the keyword reaches the constructor, and the guest's value replaces the embedder's bound value, because a partial lets call-time keywords override bound ones. The gate's ToolCall.arguments also carries the keyword, although the documentation says arguments never hold a keyword a partial binds. The same registration path is already refused for a callable instance whose __call__ is a partialmethod, so the class case is a gap in an intended control, not an unhandled design choice.",
+      "root_cause": "_bound_keywords (src/wasi_python/tools.py:439-474) treats a class like any other callable object: it reads type(target).__call__ and returns at the C-slot check (tools.py:466-470). It never reads the class's own __new__ or __init__, where inspect.signature and type.__call__ find the partial. So Tool._fixed is empty. The two checks that rely on it, _given (tools.py:418-423) and the frame refusal (_tool_host.py:1003-1009), let the bound keyword through.",
+      "intended_behavior": "A keyword bound by a partial or partialmethod on a class's construction path (its __new__ or __init__, found through the MRO, through staticmethod or classmethod wrappers, nested partials and __wrapped__ links) is in Tool._fixed, or the class is refused at tool() as an unbound partialmethod already is. tool() then refuses a given schema that names the keyword, and a frame that names it is answered invalid_arguments without the gate or the constructor running.",
+      "trace": [
+        {
+          "kind": "entrypoint",
+          "file": "src/wasi_python/_call.py",
+          "line": 1263,
+          "scope": "_door",
+          "description": "Untrusted guest code calls the imported host::call door; after admit, the frame bytes are copied out of guest linear memory and handed to the tool frame host."
+        },
+        {
+          "kind": "propagation",
+          "file": "src/wasi_python/_tool_host.py",
+          "line": 1000,
+          "scope": "_ToolHost._call_answer",
+          "description": "The args object is checked against the tool's explicit schema; an open schema ({\"type\": \"object\"}), additionalProperties true, or a properties map naming the keyword accepts role."
+        },
+        {
+          "kind": "propagation",
+          "file": "src/wasi_python/_tool_host.py",
+          "line": 1004,
+          "scope": "_ToolHost._call_answer",
+          "description": "The bound-keyword refusal tests each argument against t._fixed, which is empty for the class tool, so role passes."
+        },
+        {
+          "kind": "propagation",
+          "file": "src/wasi_python/tools.py",
+          "line": 469,
+          "scope": "_bound_keywords",
+          "description": "At registration the walk reached type.__call__, a C slot, and returned no fixed keywords without reading the class's __init__ or __new__."
+        },
+        {
+          "kind": "propagation",
+          "file": "src/wasi_python/_tool_host.py",
+          "line": 232,
+          "scope": "_Work.__call__",
+          "description": "The gate receives a deep copy of the arguments with role in it, contrary to the documented contract."
+        },
+        {
+          "kind": "sink",
+          "file": "src/wasi_python/_tool_host.py",
+          "line": 258,
+          "scope": "_Work.__call__",
+          "description": "t.fn(**args) calls the class; type.__call__ runs the partial-bound __init__ or __new__, whose keyword merge lets the guest's role replace the embedder's bound role."
+        }
+      ],
+      "evidence": [
+        {
+          "file": "src/wasi_python/tools.py",
+          "line": 439,
+          "description": "Docstring of _bound_keywords: keywords a partial binds are found wherever inspect.signature may meet one on its way to the function; each is fixed and refused in a frame."
+        },
+        {
+          "file": "src/wasi_python/tools.py",
+          "line": 466,
+          "description": "A class target goes to type(target).__call__ and stops at the C-slot check (line 469), so a partial in __init__ or __new__ is never collected."
+        },
+        {
+          "file": "src/wasi_python/tools.py",
+          "line": 364,
+          "description": "tool() computes fixed = _bound_keywords(name, fn) once; it is the only source of Tool._fixed."
+        },
+        {
+          "file": "src/wasi_python/tools.py",
+          "line": 418,
+          "description": "_given refuses a schema naming a fixed keyword only through the computed fixed set, so a schema naming role is accepted for the class."
+        },
+        {
+          "file": "src/wasi_python/_tool_host.py",
+          "line": 1004,
+          "description": "The frame-time refusal relies on t._fixed alone."
+        },
+        {
+          "file": "docs/how-to/tools.md",
+          "line": 65,
+          "description": "Promise: a keyword the partial binds is fixed, not in the schema, and a frame that names it is refused."
+        },
+        {
+          "file": "docs/how-to/tools.md",
+          "line": 71,
+          "description": "Promise: the gate's arguments hold no keyword a partial binds."
+        },
+        {
+          "file": "tests/checks/test_v1_4_embedding.py",
+          "line": 3517,
+          "description": "The regression test covers nested partials, a __wrapped__ chain, a bound partialmethod and refuses an unbound partialmethod, but has no class whose constructor binds a keyword."
+        }
+      ],
+      "conditions": [
+        {
+          "kind": "system_configuration",
+          "description": "The embedder registers a class (a type whose metaclass __call__ is type.__call__) as a tool, with __init__ that is a functools.partialmethod, __init__ that is a functools.partial (Python 3.14 makes it a method descriptor), or __new__ that is a staticmethod over a functools.partial, binding an authority keyword such as a role or user id."
+        },
+        {
+          "kind": "system_configuration",
+          "description": "The tool's explicit input_schema lets the keyword through: no properties (open), additionalProperties not false, or a properties map naming it, which tool() refuses for every other binding shape. A derived schema is not reachable: tool() refuses a class without an explicit schema for lack of hints."
+        },
+        {
+          "kind": "authentication_level",
+          "description": "The attacker is the untrusted guest code, or the model driving it, which can send any frame through the door."
+        }
+      ],
+      "execution": {
+        "attacker_perspective": "Untrusted guest code in wasi_python.run(tools=[...], gate=...) sends a raw tool-protocol frame through _host.call naming a keyword the embedder bound in the tool class's constructor.",
+        "payloads": [
+          "class AccountPM(dict):\n    def _init(self, q, role=\"user\"): dict.__init__(self, q=q, role=role)\n    __init__ = functools.partialmethod(_init, role=\"viewer\")\ntool(AccountPM, name=\"acct_pm\", input_schema={\"type\": \"object\"})",
+          "class AccountP(dict):\n    __init__ = functools.partial(_initp, role=\"viewer\")  # Python 3.14",
+          "class AccountNew:\n    __new__ = staticmethod(functools.partial(_new, role=\"viewer\"))  # _new returns a dict",
+          "import _host; _host.call(b'{\"v\":1,\"id\":1,\"op\":\"call\",\"tool\":\"acct_pm\",\"args\":{\"q\":\"x\",\"role\":\"admin\"}}')",
+          "Control: tool(functools.partial(orders, user_id=42), name=\"orders\", input_schema={\"type\": \"object\"}) and a frame with args {\"q\":\"x\",\"user_id\":1}"
+        ],
+        "instructions": [
+          "Verifier-owned harness: scratch/evidence/v02_class_ctor_partial.py, output scratch/evidence/v02_class_ctor_partial.out.json (stderr in v02_class_ctor_partial.err.txt), run with the repository's .venv (Python 3.14.2, wasmtime-py 49.0.0) and the checkout's build/artifacts set.",
+          "Run under ulimit -t 300 -f 4000000 -n 4096, env -i with PATH=/usr/bin:/bin and HOME, TMPDIR and WASI_PYTHON_CACHE in the verifier's scratch, sandbox-exec denying network, python -I, and a 240 s subprocess.run timeout from a trusted driver. build/lane.lock was absent. The target was not mounted read-only (the platform cannot enforce it); no grant or root pointed at it, and nothing was written under it.",
+          "Host side: register AccountPM, AccountP and AccountNew each with input_schema={\"type\": \"object\"}, plus the plain-partial control orders, in one wasi_python.run(['-c', prog], tools=[...], gate=gate, deadline_s=60) call with a gate that records call.arguments and allows. Also call tool() on each class with a schema whose properties name role, and on the partial with a schema naming user_id.",
+          "Guest side: send through _host.call a frame naming role='admin' to each class tool, one without role, then user_id=1 and a call without user_id to the control.",
+          "Read the guest's answers, the host log of what the gate and each constructor received, Tool._fixed, and done.tools.outcomes."
+        ],
+        "observed_result": "Each of the three class tools answered ok with value {\"q\": \"x\", \"role\": \"admin\"}; the host log shows the gate received {\"q\": \"x\", \"role\": \"admin\"} and each constructor ran with role='admin'; the record's outcome was ok. Without role the constructor ran with the bound role='viewer'. Tool._fixed was [] for all three, inspect.signature showed '(q, *, role='viewer')', and tool() accepted a schema whose properties name role. In the same run the control's user_id=1 frame was answered invalid_arguments ('unknown argument user_id') with neither the gate nor the handler running, and tool() refused a schema naming user_id. A callable instance whose __call__ is a partialmethod is refused at tool(), so only the class construction path is unguarded."
+      },
+      "remediation": {
+        "strategy": "In _bound_keywords, when the target is a class, read its construction path as type.__call__ runs it: inspect.getattr_static(cls, '__new__') and inspect.getattr_static(cls, '__init__') (MRO included), unwrap staticmethod and classmethod through __func__, and then walk each member with the same loop the function already uses (partial keywords collected, nested partials and __wrapped__ followed), treating a partialmethod as its .func plus .keywords rather than refusing it. Do this whatever the metaclass __call__ is: a Python metaclass __call__ that delegates to super().__call__() still runs __init__ with the guest's keywords, and the hunter's patch skips that case (in the verifier's run it returned [] for such a class, where inspect.signature shows only (*a, **k)). A simpler fail-closed alternative is to refuse at tool() any class whose __new__ or __init__ is a partial or partialmethod, as an unbound partialmethod is refused today. Add to test_bound_keywords_are_fixed_however_the_partial_is_reached a class with a partialmethod __init__, a 3.14 partial __init__ and a staticmethod-partial __new__, under an open schema and under a schema naming the keyword, expecting refusal at tool() or invalid_arguments with neither gate nor constructor called.",
+        "code_changes": [
+          {
+            "file_name": "src/wasi_python/tools.py",
+            "fixed_code": "    if isinstance(fn, type):\n        # type.__call__ (or a metaclass's __call__ that defers to it) runs the class's own\n        # __new__ and __init__: a partial bound there is fixed too.\n        for attr in (\"__new__\", \"__init__\"):\n            member = inspect.getattr_static(fn, attr, None)\n            member = getattr(member, \"__func__\", member)  # staticmethod, classmethod\n            if isinstance(member, functools.partialmethod):\n                found.update(member.keywords)\n                member = member.func\n            if isinstance(member, functools.partial) or getattr(member, \"__wrapped__\", None) is not None:\n                found.update(_bound_keywords(name, member))\n    # ... then the existing walk from fn, adding its keywords to found"
+          }
+        ]
+      },
+      "severity": {
+        "likelihood": {
+          "score": "low",
+          "reason": "It needs an uncommon registration shape the embedder chooses: a class as a tool whose constructor binds authority with a partial or partialmethod, plus an explicit schema that leaves the keyword open or names it."
+        },
+        "impact": {
+          "score": "medium",
+          "reason": "Where that shape is used, untrusted guest code replaces an authority value the embedder bound, such as a role or user id, the constructor acts with it, and the gate is shown arguments the documentation says it never holds. That is a confused deputy inside the embedder's process against an explicit documented guarantee; it does not escape the sandbox or reach other tools."
+        },
+        "overall_severity": "low"
+      },
+      "confidence": {
+        "score": "high",
+        "reason": "Independently reproduced end to end through the real door, frame host and gate for three constructor shapes on Python 3.14.2, with the plain-partial control refused in the same run, and the source walk at tools.py:466-470 explains the result exactly."
+      }
+    }
+  },
+  {
+    "fingerprint": "runner-env.sysconfig-PYTHON-SYSCONFIGDATA-PATH.loads-code-outside-import-path-rules",
+    "verifier": "v03-sysconfigdata",
+    "decision": "confirmed",
+    "record": {
+      "verdict": "confirmed",
+      "fingerprint": "runner-env.sysconfig-PYTHON-SYSCONFIGDATA-PATH.loads-code-outside-import-path-rules",
+      "title": "env= _PYTHON_SYSCONFIGDATA_PATH makes a module planted in a reused root run on `import pandas` in a later call",
+      "description": "The security model promises that code planted in a root never runs at start-up or on import in a later call, on either binary. The runner holds this with an isolated interpreter (PyConfig_InitIsolatedConfig, site off, only the stdlib zip on sys.path, PYTHON* variables ignored) and by allowing import_path entries only from read-only grants with nothing writable under them. CPython 3.15's sysconfig reads the private variable _PYTHON_SYSCONFIGDATA_PATH from os.environ without consulting sys.flags.ignore_environment, and when it is set it finds and execs `_sysconfigdata__wasi_wasm32-wasi` from that folder with PathFinder and exec_module. The runner lays env= over BASE_ENV and HOME with no key policy beyond emptiness and '=', and the reactor copies that environment into os.environ. So when an embedder passes this variable (for example forwarded with the CLI's --env KEY from a shell that sourced the project's own scripts/python-wasi-cross, which exports it) naming a folder in a reused root, a file an earlier guest wrote there runs in the later call on a plain `import pandas`, which calls sysconfig.get_config_var at import. Verified on both the snapshot and the plain binary. The documented not-protected list names only env= overrides of HOME and PYTHONTZPATH; it does not name this code-loading variable, and the 'Writable grants and imports across calls' item covers an import_path the embedder grants writable, which the runner would refuse for a folder served by the root.",
+      "root_cause": "sysconfig._get_sysconfigdata (Lib/sysconfig/__init__.py:356-363, shipped as sysconfig/__init__.pyc in the stdlib zip) loads code from os.environ['_PYTHON_SYSCONFIGDATA_PATH'] regardless of isolated mode, and the runner's env check (_limits._check_inputs, line 139) rejects only empty keys and keys containing '=', so the import_path rules (_places._check_import_path) are never applied to this code-loading folder.",
+      "intended_behavior": "Every folder the guest's interpreter loads code from is subject to the import_path rules (a read-only grant with nothing writable under or above it), or the runner refuses or drops an env= entry that would load code from elsewhere, as isolated mode already ignores PYTHONPATH.",
+      "trace": [
+        {
+          "kind": "entrypoint",
+          "file": "src/wasi_python/_limits.py",
+          "line": 139,
+          "scope": "_check_inputs",
+          "description": "The embedder's env keys are checked only for emptiness and '='; _PYTHON_SYSCONFIGDATA_PATH passes (called from runner.py:581)."
+        },
+        {
+          "kind": "propagation",
+          "file": "src/wasi_python/_call.py",
+          "line": 452,
+          "scope": "_instance",
+          "description": "wasi.env is BASE_ENV, HOME, then env= laid over them, unfiltered; the session opening does the same at _sessions.py:999."
+        },
+        {
+          "kind": "propagation",
+          "file": "recipes/reactor_bootstrap.py",
+          "line": 143,
+          "scope": "run",
+          "description": "The reactor clears os.environ and copies the WASI environment into it for the program (the session setup does the same at line 240)."
+        },
+        {
+          "kind": "propagation",
+          "file": "build/pandas-3.0.6/pandas/compat/_constants.py",
+          "line": 21,
+          "scope": "module level",
+          "description": "`import pandas` calls sysconfig.get_config_var('HOST_GNU_TYPE') at import time."
+        },
+        {
+          "kind": "propagation",
+          "file": "build/Python-3.15.0/Lib/sysconfig/__init__.py",
+          "line": 360,
+          "scope": "_get_sysconfigdata",
+          "description": "Reads _PYTHON_SYSCONFIGDATA_PATH from os.environ with no ignore_environment check (the zip's compiled sysconfig carries the same constant and no ignore_environment reference)."
+        },
+        {
+          "kind": "sink",
+          "file": "build/Python-3.15.0/Lib/sysconfig/__init__.py",
+          "line": 343,
+          "scope": "_import_from_directory",
+          "description": "PathFinder.find_spec(name, [path]) then spec.loader.exec_module(module): the module the earlier guest planted in the reused root runs."
+        }
+      ],
+      "evidence": [
+        {
+          "file": "docs/explanation/security-model.md",
+          "line": 9,
+          "description": "Policy: code planted in a root never runs at start-up or on import in a later call, on either binary."
+        },
+        {
+          "file": "docs/explanation/security-model.md",
+          "line": 82,
+          "description": "The only env= overrides listed as not protected are HOME and PYTHONTZPATH; no code-loading variable is named."
+        },
+        {
+          "file": "recipes/reactor_main.c",
+          "line": 179,
+          "description": "PyConfig_InitIsolatedConfig: the design relies on the interpreter ignoring environment-driven code paths; the guest reports sys.flags.ignore_environment=1 and a PYTHONPATH=/data control does not import the planted module."
+        },
+        {
+          "file": "src/wasi_python/_places.py",
+          "line": 176,
+          "description": "_check_import_path: the control that confines code-loading folders to read-only grants, which this variable bypasses."
+        },
+        {
+          "file": "build/Python-3.15.0/Lib/sysconfig/__init__.py",
+          "line": 361,
+          "description": "_import_from_directory(path, name) is used whenever the variable is set."
+        },
+        {
+          "file": "scripts/python-wasi-cross",
+          "line": 25,
+          "description": "The project's own cross-build wrapper exports _PYTHON_SYSCONFIGDATA_PATH, so a host shell that forwards it with --env is a plausible way the variable reaches a call."
+        }
+      ],
+      "conditions": [
+        {
+          "kind": "system_configuration",
+          "description": "The trusted embedder passes env containing _PYTHON_SYSCONFIGDATA_PATH naming a guest folder that an earlier call could write (a reused root, a writable grant or a writable mount), for example forwarded from a cross-build shell with the CLI's --env _PYTHON_SYSCONFIGDATA_PATH."
+        },
+        {
+          "kind": "data_state",
+          "description": "An earlier, less trusted call on the same root or writable folder left `_sysconfigdata__wasi_wasm32-wasi.py` there."
+        },
+        {
+          "kind": "user_interaction",
+          "description": "The later program imports pandas (or another package that reads sysconfig config vars at import), or calls sysconfig.get_config_var(s)."
+        }
+      ],
+      "execution": {
+        "attacker_perspective": "A guest in call 1 with a writable root writes one file at /data/_sysconfigdata__wasi_wasm32-wasi.py; the embedder's later call on the same root, with env={'_PYTHON_SYSCONFIGDATA_PATH': '/data'}, runs a program that only imports pandas, and the planted module runs.",
+        "payloads": [
+          "call 1: wasi_python.run(['-c', \"import os; os.makedirs('/data', exist_ok=True); open('/data/_sysconfigdata__wasi_wasm32-wasi.py','w').write(\\\"import sys\\\\nsys.stderr.write('PLANTED-V03\\\\\\\\n')\\\\nbuild_time_vars={'installed_base':'/usr/local'}\\\\n\\\")\"], root=R)",
+          "call 2: wasi_python.run(['-c', 'import pandas; print(\"ok\")'], root=R, env={'_PYTHON_SYSCONFIGDATA_PATH': '/data'})"
+        ],
+        "instructions": [
+          "Confirm build/lane.lock is absent. The verifier's script is scratch/evidence/v03_check.py, run by scratch/driver.py with a 600 s subprocess timeout as: ulimit -t 300 -f 4000000 -n 4096; /usr/bin/env -i PATH=/usr/bin:/bin HOME=<scratch>/home TMPDIR=<scratch>/tmp WASI_PYTHON_CACHE=<scratch>/cache /usr/bin/sandbox-exec -p '(version 1)(allow default)(deny network*)' .venv/bin/python -I <scratch>/evidence/v03_check.py <scratch>, with the root R at <scratch>/work/root. The target tree was not mounted read-only (this platform cannot enforce that) and no memory rlimit was applied; no grant or root pointed at the target.",
+          "Calls in order on the same root: plant; flags (sys.flags with the env entry); control_pandas_noenv (import pandas without the entry); env_pandas_snapshot and env_pandas_plain (import pandas with the entry, snapshot True and False); control_pythonpath (env PYTHONPATH=/data, import of a second planted module).",
+          "Read scratch/evidence/v03_result.json and v03_run.log for 'PLANTED-V03' on stderr per call."
+        ],
+        "observed_result": "The guest reports sys.flags.ignore_environment=1 and isolated=1. Without the env entry, import pandas printed ok and the planted module did not run. With env={'_PYTHON_SYSCONFIGDATA_PATH': '/data'}, import pandas printed ok and stderr held 'PLANTED-V03' on both the snapshot and the plain binary. The PYTHONPATH=/data control failed with ModuleNotFoundError, so isolated mode does ignore the documented variable but not this private one. The verifier did not test other packages; the hunter's record also reports scipy, sklearn, joblib and statsmodels.api."
+      },
+      "remediation": {
+        "strategy": "Refuse env keys that make the guest interpreter load code from a folder, at least _PYTHON_SYSCONFIGDATA_PATH, in _limits._check_inputs before any work, with a message pointing to import_path; add a regression check that plants the module in call 1 and asserts that call 2 with the entry raises ValueError. As defence in depth the reactor bootstrap can drop the key from os.environ, as isolated mode drops PYTHONPATH. Name the variable in the security model's not-protected or refused list either way.",
+        "code_changes": [
+          {
+            "file_name": "src/wasi_python/_limits.py",
+            "fixed_code": "_CODE_FOLDER_ENV = frozenset({\"_PYTHON_SYSCONFIGDATA_PATH\"})  # sysconfig execs a module from this folder\n...\n            if not name or \"=\" in name:\n                raise ValueError(\"env key: illegal environment variable name\")  # never quoted\n            if name in _CODE_FOLDER_ENV:\n                raise ValueError(\n                    \"env key: _PYTHON_SYSCONFIGDATA_PATH loads code from a folder; \"\n                    \"name a read-only grant in import_path instead\"\n                )"
+          }
+        ]
+      },
+      "severity": {
+        "likelihood": {
+          "score": "low",
+          "reason": "Requires the trusted embedder to pass a private, underscore-prefixed CPython variable naming a guest-writable folder on a reused root; plausible mainly when forwarding a cross-build shell's environment, which the project's own wrapper sets."
+        },
+        "impact": {
+          "score": "medium",
+          "reason": "Crosses the call-to-call boundary the policy promises: an earlier, lower-trust guest's code runs in the later call with that call's grants, door, tools and stdin. It stays inside the wasm sandbox and does not reach the host."
+        },
+        "overall_severity": "low"
+      },
+      "confidence": {
+        "score": "high",
+        "reason": "The source path is complete in the build tree and the shipped zip, and the verifier reproduced the effect independently on both binaries, with a no-env control and a PYTHONPATH control that did not run the planted code."
+      }
+    }
+  },
+  {
+    "fingerprint": "src/wasi_python/_engines.py:_load:cwasm-checked-by-lstat-opened-by-path",
+    "verifier": "v01-cache-swap",
+    "decision": "needs_validation",
+    "record": {
+      "verdict": "needs_validation",
+      "fingerprint": "src/wasi_python/_engines.py:_load:cwasm-checked-by-lstat-opened-by-path",
+      "title": "Module cache: the .cwasm checked by lstat is not bound to the file wasmtime deserializes, so a lower-trust owner of an ancestor of the default cache folder can swap in its own native code",
+      "description": "The runner loads a .cwasm (native code) only when private() finds the cache folder and the file owned by this user, with no group or other bits and one link. Each check is an lstat of the leaf by its full path. wasmtime-py then reopens the file by the same full path (Module.deserialize_file, which passes the path to the C API), and the runner afterwards compares a fresh lstat stamp (dev, ino, size, mtime) with the first one. No step checks the ancestors of the cache folder, and the check and the load are not bound to one descriptor. A principal that can rename entries in any ancestor can point the path at its own folder only while wasmtime opens it, and restore it before the stamp re-check. The planted module is then cached in the process and used as python.wasm. The default cache is chosen by the runner from $HOME (or $XDG_CACHE_HOME on Linux), so a process whose HOME belongs to another user, such as root under a sudo that keeps HOME, places the default cache under a folder that other user owns. A guest is not the lower-trust principal here: the grant judge refuses a writable grant at, inside or above any module cache folder, ancestors included, so the remaining principal is another OS user (or process identity) that owns or can write an ancestor. The verifier reproduced the identity mismatch on one OS user: with a deterministic schedule the checked file was inode 222410199 and the opened file was the planted inode 222410200, and _module returned the planted module with no warning. With a blind external swapper (renamex_np RENAME_SWAP in a loop, no hook in the runner), 3 of 5000 in-process load attempts returned the planted module, the first of them with no RuntimeWarning in that attempt; 4367 of the 5000 attempts did raise a 'not using the module cache' warning. The cross-user case and the deployment that creates it were not observed. Context that limits the effect: when the user whose HOME is kept holds unrestricted sudo, that user already has root and no boundary is crossed; the effect matters where that user is lower trust than the runner's user, for example a sudo rule restricted to one command, a container or CI step running as another uid with a mapped home, or HOME set to a shared folder another user can pre-create entries in.",
+      "claimed_root_cause": "private() (src/wasi_python/_platform.py:556-577) and the post-load stamp check (src/wasi_python/_engines.py:237) bind the trust decision to path names, by lstat of the leaf, while the load (src/wasi_python/_engines.py:233) reopens the file by path and follows any link in its ancestors. Nothing checks that every ancestor of the cache folder is owned by this user or root and not writable by others, and the .cwasm is not opened once with no-follow and deserialized from that verified descriptor (for example by reading it from the checked descriptor into Module.deserialize, or by checking the ancestry). The default cache path is derived from $HOME without checking that $HOME belongs to this user.",
+      "trace": [
+        {
+          "kind": "entrypoint",
+          "file": "src/wasi_python/runner.py",
+          "line": 115,
+          "scope": "run",
+          "description": "Embedder call with the default cache_dir=None (parameter at line 130): the default module cache is used."
+        },
+        {
+          "kind": "propagation",
+          "file": "src/wasi_python/_call.py",
+          "line": 146,
+          "scope": "_run_checked",
+          "description": "cache = _engines._cache_dir(cache_dir)."
+        },
+        {
+          "kind": "propagation",
+          "file": "src/wasi_python/_engines.py",
+          "line": 85,
+          "scope": "_cache_dir",
+          "description": "With no $WASI_PYTHON_CACHE, the cache is default_cache_dir(Path.home()); Path.home() reads $HOME, which under a sudo that keeps HOME is the invoking user's home."
+        },
+        {
+          "kind": "propagation",
+          "file": "src/wasi_python/_platform.py",
+          "line": 534,
+          "scope": "_Posix.default_cache_dir",
+          "description": "$XDG_CACHE_HOME or $HOME/.cache, then wasi_python (macOS line 1091: $HOME/Library/Caches/wasi_python); the parent folders belong to whoever owns that home."
+        },
+        {
+          "kind": "propagation",
+          "file": "src/wasi_python/_engines.py",
+          "line": 178,
+          "scope": "_module_miss",
+          "description": "private(cache, is_dir=True) makes the folder if absent and lstats only the cache folder itself (owner, kind, no group/other bits); its ancestors are not checked."
+        },
+        {
+          "kind": "propagation",
+          "file": "src/wasi_python/_engines.py",
+          "line": 228,
+          "scope": "_load",
+          "description": "private(cwasm) lstats the leaf by path: this user's regular file, one link, no group/other bits; the stamp 'before' was taken by lstat at line 222."
+        },
+        {
+          "kind": "sink",
+          "file": "src/wasi_python/_engines.py",
+          "line": 233,
+          "scope": "_load",
+          "description": "wt.Module.deserialize_file(engine, str(cwasm)) reopens the full path inside wasmtime's C API, following any link swapped into an ancestor; the stamp re-check at line 237 passes once the ancestor is restored, the load is counted, and the module is kept in process().modules and instantiated as the guest binary."
+        }
+      ],
+      "evidence": [
+        {
+          "file": "src/wasi_python/_platform.py",
+          "line": 564,
+          "description": "POSIX private(): one os.lstat of the given path, then owner, kind and mode-bit checks; no ancestor ownership or writability check."
+        },
+        {
+          "file": "src/wasi_python/_engines.py",
+          "line": 217,
+          "description": "_load docstring: the post-load check 'narrows, not closes, the window between the check and the load'."
+        },
+        {
+          "file": "src/wasi_python/_engines.py",
+          "line": 237,
+          "description": "The re-check compares lstat stamps by name, which a swap restored before it runs passes."
+        },
+        {
+          "file": "src/wasi_python/_places.py",
+          "line": 297,
+          "description": "_cache_chain gives every existing folder on each module cache's path to the grant judge, which refuses a writable grant at, inside or above it: ancestors are guarded against the guest, but their owner and writability by other OS users are never checked."
+        },
+        {
+          "file": "src/wasi_python/_platform.py",
+          "line": 545,
+          "description": "default_cache_dirs docstring: the runner expects processes whose $HOME is not the password database's home (sudo, a container, CI), so the configuration is anticipated by source, not excluded."
+        },
+        {
+          "file": "docs/explanation/security-model.md",
+          "line": 89,
+          "description": "Names cache_dir, $WASI_PYTHON_CACHE and the artifact folder as trusted input; it does not name $HOME or the default cache derived from it, so the documented threat model does not settle a HOME owned by another user either way."
+        },
+        {
+          "file": "docs/get-started/install.md",
+          "line": 60,
+          "description": "In the Windows paragraph, says cache_dir and $WASI_PYTHON_CACHE must name a folder only you can write and that 'the default, in your own profile, is one'; the page's one-line summary (line 64) says the first call caches 'where only you can write'. An assumption about the default that a process with another user's HOME breaks; not a declaration that HOME is trusted input."
+        },
+        {
+          "file": "agents/v01-cache-swap/artifacts/evidence/v01_swap_run.log",
+          "line": 5,
+          "description": "Verifier's deterministic schedule: the identity checked (inode 222410199) differs from the identity opened (222410200, the planted 0644 file), and the path is back to the checked identity at the re-check."
+        },
+        {
+          "file": "agents/v01-cache-swap/artifacts/evidence/v01_swap_run.log",
+          "line": 6,
+          "description": "_module returned the planted module (exports ['planted_image_loaded']) for a.wasm with no warning, counts loaded=1."
+        },
+        {
+          "file": "agents/v01-cache-swap/artifacts/evidence/v01_swap_run.log",
+          "line": 8,
+          "description": "Blind race with no hook: 3 of 5000 load attempts returned the planted module (first at attempt 1132, with no warning in that attempt); 4367 attempts raised a cache warning; 34044 swaps; the runner's own write replaced the planted file through the link 371 times."
+        }
+      ],
+      "blockers": [
+        "The cross-user case was not observed. This macOS machine lists a second local account (uid 502), but the audit holds no credentials for it and no non-interactive root, and running as another account on the owner's real machine is outside the execution boundary; uid 501 is in the admin group, so its own sudo with HOME kept would cross no boundary. The verifier's evidence uses one user in both roles, where the swapper already owns the cache folder and needs no race, so it shows the identity gap but not a crossed boundary.",
+        "Whether a supported deployment runs the runner as one user with a $HOME (or $XDG_CACHE_HOME) whose ancestors another, lower-trust user can rename entries in is a deployment fact outside source. /etc/sudoers on this machine is root-only (0440), and sudo -V run by a non-root user prints only versions (sudo 1.9.17p2), so whether this host's sudo keeps HOME could not be read; it would not settle the deployment question in any case. Source anticipates such processes (_platform.py:545) and the documentation names only cache_dir, $WASI_PYTHON_CACHE and the artifact folder as trusted input, so neither settles it.",
+        "The blind race was measured only in-process with a tiny module (3 of 5000 attempts on darwin-arm64); a real runner process loads its module once per process, and the per-process success rate with the real snapshot-sized .cwasm across two users was not measured."
+      ],
+      "validation_plan": {
+        "local": "On a disposable macOS or Linux VM with users alice and root, never on a real cache: (1) as root with HOME=/home/alice (Linux: sudo --preserve-env=HOME, or a sudoers env_keep HOME for one test command; macOS: check sudo -V output for HOME in env_keep) run wasi_python.run(['-c','print(1)'], snapshot=False) once so root makes its 0700 cache and .cwasm under alice's ~/.cache (or ~/Library/Caches). (2) As alice, put a serialized module of another wasm, made by the same wasmtime 49.0.0 engine configuration, at /home/alice/planted/<same .cwasm name>, mode 0644, and a link /home/alice/.cache/swaplink -> /home/alice/planted. (3) As alice, loop an atomic swap of ~/.cache/wasi_python and ~/.cache/swaplink (Linux renameat2 RENAME_EXCHANGE, macOS renamex_np RENAME_SWAP), re-planting the file whenever it changes. (4) As root, start N fresh processes, each calling run() once and printing wasi_python's process().counts and whether the call failed for missing exports or printed the planted module's behaviour, with RuntimeWarnings captured. Record the count of processes that loaded the planted module and whether each raised a warning. The single-user deterministic and blind schedules are in agents/v01-cache-swap/artifacts/evidence/v01_swap_harness.py.",
+        "deployment": "The owner states whether running the runner as root or another user with a different user's $HOME or $XDG_CACHE_HOME (sudo keeping HOME, a container or CI step with a mapped or shared home, HOME in a shared folder) is a supported configuration or is declared trusted input like cache_dir and $WASI_PYTHON_CACHE. If supported, confirm on the release platforms whether sudo keeps HOME by default and that the default cache's ancestors are then owned by the invoking user; if declared trusted, the security model's list at docs/explanation/security-model.md:89 should name $HOME and $XDG_CACHE_HOME, and this becomes hardening."
+      }
+    },
+    "phase5_replacement_by": "r02-cache-swap",
+    "phase5_reason": "Non-material corrections; verdict, fingerprint, root cause, trace, observed results and validation plan unchanged. Source lines re-checked and accurate (_engines.py 85/178/217/222/228/233/237, _platform.py 534/545/556-577/564/1091, runner.py 115/130, _call.py 146). Blocker 1 said the machine offers one OS user; dscl lists a second account (uid 502), so the blocker is restated as no credentials, no non-interactive root, and the boundary forbids acting as another real account; it stays decisive. Blocker 2: sudo -V as non-root prints only versions and /etc/sudoers is 0440 root, so HOME-keeping is not answerable locally, and would not settle the deployment fact anyway. The install.md evidence is in the Windows paragraph, now said so. Added _places.py:297 evidence and one description sentence: guest grants above the cache are refused, so the lower-trust principal must be another OS user. Kept needs_validation rather than confirmed: with one user the swapper already owns the cache, so no boundary is crossed; the identity gap is demonstrated but a security result needs a distinct lower-trust owner of an ancestor, which was not demonstrated."
+  },
+  {
+    "fingerprint": "wasmtime-49.0.0:GHSA-m63x-6p34-q65x:try_table-catch-fuel:src/wasi_python/_engines.py:_engine",
+    "verifier": "v04-eh-fuel",
+    "decision": "confirmed",
+    "record": {
+      "verdict": "confirmed",
+      "fingerprint": "wasmtime-49.0.0:GHSA-m63x-6p34-q65x:try_table-catch-fuel:src/wasi_python/_engines.py:_engine",
+      "title": "Metered engine on wasmtime-py 49.0.0 drops the fuel of C++ work that ends in a caught exception (GHSA-m63x-6p34-q65x), so guest Python can run far past its fuel cap",
+      "description": "The runner meters calls with fuel on a wasmtime-py 49.0.0 engine. Wasm exceptions and Cranelift are left at their defaults. That is GHSA-m63x-6p34-q65x's affected configuration; the fix is in wasmtime 49.0.1, and no wasmtime-py release carries it yet. On the exceptional edge of a call inside try_table, 49.0.0 resets fuel to what remained before the call, so all the work the callee did before throwing is not counted. The compiled-in C++ packages are built with -fwasm-exceptions, so every C++ catch is such an edge. Guest Python reaches one directly: kiwisolver's Solver.addConstraint (py/src/solver.cpp in the pinned 1.5.1 tarball) calls the C++ solver inside try and catches kiwi::UnsatisfiableConstraint, which the solver throws after building a row whose size grows with the system. Measured twice, independently, through wasi_python.run on the shipped artifact set (fuel given, deadline_s=None): one failing addConstraint is counted as about 17,000 to 19,600 fuel whether the chain has 200, 2,000 or 6,000 variables, while its wall time grows from about 9.6 to 190 microseconds. A same-shape control that adds and removes a consistent required equality on the same chain end (no throw) is counted as 140,067 fuel per call at 200 variables, at the same 9.6 microseconds of wall time as the failing call, and 1,552,404 fuel per call at 2,000 variables. The same-shape no-throw control and the pure-Python control are counted at roughly 9 to 15 billion fuel per second of wall time (the weak add/remove loop at about 21 to 29 billion); the failing calls at 6,000 variables are counted at about 0.9 to 1.0 hundred million per second, so their fuel is under-counted by roughly 100 times, an estimate from wall time since no fixed wasmtime-py exists to count them exactly. Under a cap of 2.2e9 fuel, 20,000 failing calls on a 2,000-variable chain (about 1.2 s of loop) finished with exit 0 and about 2.02e9 fuel used; the same-shape no-throw loop and the weak-strength add/remove loop each ended 'out of fuel' under the same cap, the no-throw one after at most about 364 calls of the 565 million fuel left after setup. The engine defect also reproduces with a standalone WAT module: 100 rounds of a 100,000-iteration callee that throws count as 1,101 fuel on wasmtime-py 49.0.0, but need 80,001,285 under the pinned wasmtime CLI 49.0.3. A finite deadline_s (the default is 60 s) still bounds wall time through epoch interruption, which the advisory does not affect. So the cap is lost only where fuel is the bound an embedder relies on: deadline_s=None with fuel, a fuel cap tighter than the deadline, or fuel_used read as an instruction count. In the guest case observed, the under-count per call grows with the size of the system the guest builds; the advisory's 'exponential' amplification is its own claim for arbitrary wasm and was not shown from guest Python.",
+      "root_cause": "pyproject.toml pins wasmtime>=49,<50 and uv.lock resolves it to 49.0.0, whose Cranelift fuel accounting resets to the pre-call fuel on the exceptional edge of a call inside try_table. _engine sets consume_fuel on the metered engine and leaves wasm exceptions enabled. The build compiles C++ with -fwasm-exceptions and links python.wasm with it, so every caught C++ exception (and, by the same lowering, every longjmp under -wasm-enable-sjlj, not separately demonstrated) takes that edge. The runner carries no mitigation for this advisory, though it carries its own fixes for two later wasmtime filesystem advisories.",
+      "intended_behavior": "A fuel cap bounds the guest's executed instructions, and fuel_used counts them, whatever path the guest's code takes, including C++ exceptions caught inside a compiled-in package. run()'s docstring calls fuel 'a cap on the guest's executed instructions', and SECURITY.md lists a guest that runs past its fuel cap as in scope.",
+      "trace": [
+        {
+          "kind": "entrypoint",
+          "file": "src/wasi_python/runner.py",
+          "line": 115,
+          "scope": "run",
+          "description": "wasi_python.run takes an untrusted guest program (argv) with fuel and deadline_s; deadline_s=None means no wall-clock limit, so fuel is the only CPU bound."
+        },
+        {
+          "kind": "propagation",
+          "file": "scripts/steps/55_matplotlib.sh",
+          "line": 102,
+          "scope": "kiwisolver _cext build",
+          "description": "kiwisolver's seven C++ files are compiled with CXX_EH (line 50: -fwasm-exceptions -mllvm -wasm-use-legacy-eh=false -fexceptions), so the extension's catch of kiwi::UnsatisfiableConstraint around solver.addConstraint is a try_table catch. recipes/wasi-scipy.cross line 44 sets the same flags (plus -wasm-enable-sjlj), and the numpy, pandas, matplotlib, plot-libs and sklearn cross files also pass -fwasm-exceptions for the other C++ packages."
+        },
+        {
+          "kind": "propagation",
+          "file": "scripts/steps/60_link.sh",
+          "line": 129,
+          "scope": "link",
+          "description": "python.wasm is linked with -fwasm-exceptions; the hunter counted 44,791 try_table in 7,905 functions."
+        },
+        {
+          "kind": "propagation",
+          "file": "uv.lock",
+          "line": 1049,
+          "scope": "wasmtime pin",
+          "description": "wasmtime resolves to 49.0.0 (installed in .venv), inside the advisory's affected range."
+        },
+        {
+          "kind": "propagation",
+          "file": "src/wasi_python/_engines.py",
+          "line": 122,
+          "scope": "_engine",
+          "description": "cfg.consume_fuel = metered; wasm exceptions and the compiler are left at their defaults (epoch_interruption is also on, line 123)."
+        },
+        {
+          "kind": "sink",
+          "file": "src/wasi_python/_call.py",
+          "line": 618,
+          "scope": "_drive",
+          "description": "store.set_fuel(fuel) sets the instruction cap; fuel_used is read at line 511 through _fuel_used (line 554). On 49.0.0 both miss callee work that unwinds to a try_table catch."
+        }
+      ],
+      "evidence": [
+        {
+          "file": "context/research/2026-10-18-wasmtime-49-advisories/advisories/GHSA-m63x-6p34-q65x.json",
+          "line": 1,
+          "description": "The advisory: with fuel enabled, the catch path of a call inside try_table can drop the callee's fuel, which it says allows exponential amplification in general. Affects 49.0.0; fixed in 49.0.1. Workaround: epoch interruption."
+        },
+        {
+          "file": "src/wasi_python/_engines.py",
+          "line": 122,
+          "description": "consume_fuel on the metered engine; no override of wasm exceptions."
+        },
+        {
+          "file": "pyproject.toml",
+          "line": 18,
+          "description": "dependencies = [\"wasmtime>=49,<50\"]."
+        },
+        {
+          "file": "src/wasi_python/runner.py",
+          "line": 176,
+          "description": "run()'s fuel parameter: 'A cap on the guest's executed instructions; past it the call ends \"out of fuel\".'"
+        },
+        {
+          "file": "SECURITY.md",
+          "line": 24,
+          "description": "The runner uses wasmtime-py 49.0.0 and no wasmtime-py release yet carries a later wasmtime; the handled-advisories list does not include GHSA-m63x-6p34-q65x."
+        },
+        {
+          "file": "SECURITY.md",
+          "line": 18,
+          "description": "In scope: a guest that runs past its deadline, fuel, memory or output cap."
+        },
+        {
+          "file": "scripts/steps/55_matplotlib.sh",
+          "line": 50,
+          "description": "CXX_EH=\"-fwasm-exceptions -mllvm -wasm-use-legacy-eh=false -fexceptions\" for the kiwisolver, matplotlib and contourpy C++ code."
+        }
+      ],
+      "conditions": [
+        {
+          "kind": "third_party_dependency",
+          "description": "wasmtime-py 49.0.0 (wasmtime 49.0.0, Cranelift), the only version the pin admits today."
+        },
+        {
+          "kind": "system_configuration",
+          "description": "The embedder passes fuel and relies on it as the bound: deadline_s=None, a fuel cap much tighter than the deadline, or fuel_used used for accounting. With the default 60 s deadline, wall time stays bounded."
+        },
+        {
+          "kind": "data_state",
+          "description": "The guest runs code that reaches a caught C++ exception (or longjmp) in a compiled-in package after material work; kiwisolver's unsatisfiable addConstraint is one plain-Python way."
+        }
+      ],
+      "execution": {
+        "attacker_perspective": "An untrusted guest Python program run by an embedder through wasi_python.run with a fuel cap and deadline_s=None.",
+        "payloads": [
+          "# Guest: N-variable equality chain in kiwisolver, then K calls of one mode; prints loop time.\nimport sys, time\nimport kiwisolver as kw\nn, k, mode = int(sys.argv[1]), int(sys.argv[2]), sys.argv[3]\nsolver = kw.Solver()\nv = [kw.Variable(\"v%d\" % i) for i in range(n + 1)]\nsolver.addConstraint(v[0] == 0)\nfor i in range(n):\n    solver.addConstraint(v[i + 1] == v[i] + 1)\ncaught = 0\nt0 = time.perf_counter()\nfor j in range(k):\n    if mode == \"fail\":\n        try:\n            solver.addConstraint(v[n] == -1 - j)\n        except kw.UnsatisfiableConstraint:\n            caught += 1\n    elif mode == \"weak\":\n        c = (v[n] == -1 - j) | \"weak\"\n        solver.addConstraint(c)\n        solver.removeConstraint(c)\n    elif mode == \"ok\":\n        # The same required equality on the chain's end, but consistent with it: no throw.\n        c = v[n] == n\n        solver.addConstraint(c)\n        solver.removeConstraint(c)\n    elif mode == \"py\":\n        sum(range(n * 20))\nprint(\"loop_s=%.4f caught=%d\" % (time.perf_counter() - t0, caught))\n",
+          "import wasi_python; r = wasi_python.run(['-c', GUEST, N, K, MODE], fuel=FUEL, deadline_s=None); print(r.exit_code, r.trapped, r.fuel_used, r.stdout)",
+          "(module\n  (tag $t)\n  (func $burn_throw (param $n i32)\n    (loop $l\n      (local.set $n (i32.sub (local.get $n) (i32.const 1)))\n      (br_if $l (i32.gt_s (local.get $n) (i32.const 0))))\n    (throw $t))\n  (func $burn_ret (param $n i32)\n    (loop $l\n      (local.set $n (i32.sub (local.get $n) (i32.const 1)))\n      (br_if $l (i32.gt_s (local.get $n) (i32.const 0)))))\n  (func (export \"thrown\") (param $r i32) (param $n i32)\n    (loop $outer\n      (block $h\n        (try_table (catch $t $h)\n          (call $burn_throw (local.get $n))))\n      (local.set $r (i32.sub (local.get $r) (i32.const 1)))\n      (br_if $outer (i32.gt_s (local.get $r) (i32.const 0)))))\n  (func (export \"returned\") (param $r i32) (param $n i32)\n    (loop $outer\n      (block $h\n        (try_table (catch $t $h)\n          (call $burn_ret (local.get $n))))\n      (local.set $r (i32.sub (local.get $r) (i32.const 1)))\n      (br_if $outer (i32.gt_s (local.get $r) (i32.const 0)))))\n)\n"
+        ],
+        "instructions": [
+          "Confirm build/lane.lock is absent and build/artifacts holds the shipped set (MANIFEST lists kiwisolver 1.5.1); confirm .venv has wasmtime 49.0.0.",
+          "Write the first payload to a guest file; from a host script under the audit's sandbox wrapper (network denied, empty environment, HOME, TMPDIR and a mode-0700 WASI_PYTHON_CACHE under scratch, CPU and file-size rlimits), call wasi_python.run(['-c', guest, N, K, MODE], fuel=FUEL, deadline_s=None) as in the second payload.",
+          "Run N:K:MODE = 200:0:none, 200:500:fail, 200:500:ok, 200:500:weak, 2000:0:none, 2000:500:fail, 2000:500:ok, 2000:500:weak, 2000:500:py, 6000:0:none, 6000:500:fail, 6000:500:py with fuel=10**13; per-call fuel of a mode is (fuel_used - fuel_used of N:0:none) / K; compare with the loop_s the guest prints.",
+          "Run 2000:20000:fail, 2000:20000:ok and 2000:20000:weak with fuel=2200000000.",
+          "Engine-level control: run the third payload (WAT) on wasmtime-py 49.0.0 with consume_fuel, calling 'thrown' and 'returned' with r=100, n=100000, and under the pinned wasmtime CLI 49.0.3 with -W fuel=N,exceptions=y --invoke thrown, finding the smallest N that completes."
+        ],
+        "observed_result": "Proposer's run, failing addConstraint, fuel per call / wall per call: N=200 18,619 / 9.8 us; N=2000 18,112 / 59 us; N=6000 17,162 / 190 us. Independent re-run (fresh guest and host scripts): N=200 18,744 / 9.6 us; N=2000 19,581 / 58 us; N=6000 18,357 / 184 us. Setup fuel (N:0:none): 79,699,507; 1,635,065,251; 15,271,669,312. Same-shape no-throw control (ok): N=200 140,067 / 9.6 us; N=2000 1,552,404 / 127 us. Weak add/remove: N=200 950,942 / 44 us; N=2000 65,972,562 / 2.29 ms. Pure-Python control: 6,049,028,364 fuel in 0.5748 s (N=2000, 1.05e10 fuel/s) and 35,212,385,994 in 3.8875 s (N=6000, 9.1e9 fuel/s); failing calls at N=6000: 9,178,617 fuel in 0.0921 s, 1.0e8 fuel/s. Cap 2.2e9: 2000:20000:fail exited 0, trapped None, fuel_used 2,017,914,692 (proposer 2,017,052,943), loop 1.1842 s, 20,000 caught; 2000:20000:ok and 2000:20000:weak each trapped 'out of fuel'. WAT: on wasmtime-py 49.0.0 'thrown' r=100 n=100000 used 1,101 fuel and 'returned' 80,001,201; the CLI 49.0.3 trapped 'all fuel consumed' at 80,001,284 and completed at 80,001,285."
+      },
+      "remediation": {
+        "strategy": "Raise the wasmtime floor to a wasmtime-py carrying wasmtime 49.0.1 or later (or move to 50.x) as soon as one is published. Until then, do not let fuel stand alone as the bound: when fuel is given on 49.0.0, require a finite deadline_s (refuse or warn on deadline_s=None), since epoch interruption is the advisory's workaround and is unaffected; this bounds wall time but cannot make fuel count correctly. List GHSA-m63x-6p34-q65x in SECURITY.md as unmitigated, and say that on 49.0.0 fuel and fuel_used under-count work that ends in a caught C++ exception or longjmp. Disabling wasm exceptions is not an option, because the build depends on them. Add a check, counted in fuel only, that runs the kiwisolver loop above and asserts that the failing call's per-call fuel grows with N as the same-shape no-throw call's does; on 49.0.0 it fails, so it enters as a known gap closed by the floor raise, and the defect cannot return unseen."
+      },
+      "severity": {
+        "likelihood": {
+          "score": "low",
+          "reason": "Needs an embedder that relies on fuel as the bound (deadline_s=None, or a cap far below the deadline, or fuel_used for accounting); the default 60 s deadline bounds wall time. The guest side is easy: plain Python reaching a caught C++ exception."
+        },
+        "impact": {
+          "score": "medium",
+          "reason": "The documented fuel limit does not bound CPU: roughly 100x under-count at N=6000 by wall-time calibration, growing with N, and a 2.2e9 cap let a loop of 20,000 failing calls run where the same-shape no-throw loop ran out of fuel within a few hundred calls. Impact is CPU denial of service and wrong instruction accounting; no sandbox escape."
+        },
+        "overall_severity": "low"
+      },
+      "confidence": {
+        "score": "high",
+        "reason": "Reproduced twice, independently, through wasi_python.run on the shipped artifacts: per-call fuel stays flat across a 30x range of N while wall time grows about 19x; a same-shape no-throw control is counted 7.5x to 79x more fuel per call at comparable wall time and runs out of fuel under the cap the failing loop finishes under; and the engine defect matches the advisory in a standalone differential against the fixed CLI. Not run on a fixed wasmtime-py (none exists), so the true per-call cost of the failing call is inferred from wall time."
+      }
+    },
+    "phase3_record": {
+      "verdict": "needs_validation",
+      "fingerprint": "wasmtime-49.0.0:GHSA-m63x-6p34-q65x:try_table-catch-fuel:src/wasi_python/_engines.py:_engine",
+      "title": "Metered engine on wasmtime-py 49.0.0 under-counts fuel on try_table catch paths (GHSA-m63x-6p34-q65x); the defect reproduces at engine level, reachability from guest Python is not shown",
+      "description": "The runner meters calls with fuel on a wasmtime-py 49.0.0 engine with exceptions and Cranelift at their defaults. That is GHSA-m63x-6p34-q65x's affected configuration (fixed in 49.0.1). A standalone WAT differential confirms the engine defect: on 49.0.0, fuel spent in a callee that throws to a try_table catch in the caller is dropped. 100 rounds of a 100,000-iteration callee count as 1,101 fuel. The same module needs 80,001,285 fuel under the pinned CLI 49.0.3. The return-path control agrees across both engines (800,013 against 799,998 for one round). The shipped python.wasm and snapshot contain 44,791 try_table sites from the -fwasm-exceptions builds of C++ and setjmp/longjmp in the compiled-in packages. Whether a guest Python call reaches one of these catch paths with enough callee work to matter was not measured. A finite deadline_s (the default) still bounds wall-clock time through epoch interruption, which the advisory does not affect. Fuel is the only instruction bound only for an embedder that passes fuel with deadline_s=None.",
+      "claimed_root_cause": "pyproject.toml pins wasmtime>=49,<50 and uv.lock resolves it to 49.0.0, whose Cranelift fuel accounting resets to the pre-call fuel on the exceptional edge of a call inside try_table. _engine sets consume_fuel on the metered engine and leaves wasm exceptions enabled. The build puts try_table on every caught C++ exception and longjmp return. The runner carries no mitigation for this advisory, though it does carry its own fixes for the 49.0.2 and 49.0.3 filesystem advisories.",
+      "trace": [
+        {
+          "kind": "entrypoint",
+          "file": "recipes/wasi-scipy.cross",
+          "line": 44,
+          "scope": "C++ build flags",
+          "description": "C++ is compiled with -fwasm-exceptions -fexceptions -wasm-use-legacy-eh=false (C with -wasm-enable-sjlj at line 39); numpy, pandas, matplotlib, plot-libs and sklearn cross files do the same, so caught C++ exceptions and longjmp go through try_table catch paths."
+        },
+        {
+          "kind": "propagation",
+          "file": "scripts/steps/60_link.sh",
+          "line": 129,
+          "scope": "link",
+          "description": "python.wasm is linked with -fwasm-exceptions; the hunter counted 44,791 try_table in 7,905 functions and 0 call_ref."
+        },
+        {
+          "kind": "propagation",
+          "file": "uv.lock",
+          "line": 1049,
+          "scope": "wasmtime pin",
+          "description": "wasmtime resolves to 49.0.0, inside the advisory's affected range."
+        },
+        {
+          "kind": "propagation",
+          "file": "src/wasi_python/_engines.py",
+          "line": 122,
+          "scope": "_engine",
+          "description": "cfg.consume_fuel = metered; exceptions and the compiler are left at their defaults."
+        },
+        {
+          "kind": "sink",
+          "file": "src/wasi_python/_call.py",
+          "line": 618,
+          "scope": "_drive",
+          "description": "store.set_fuel(fuel) sets the instruction cap. Fuel_used is read at line 511 through _fuel_used (line 554). On 49.0.0 both can under-count callee work that unwinds to a try_table catch."
+        }
+      ],
+      "evidence": [
+        {
+          "file": "context/research/2026-10-18-wasmtime-49-advisories/advisories/GHSA-m63x-6p34-q65x.json",
+          "line": 1,
+          "description": "The advisory: with fuel enabled, the catch path of a call inside try_table can drop the callee's fuel. Affects 49.0.0; fixed in 49.0.1. Workaround: epoch interruption."
+        },
+        {
+          "file": "src/wasi_python/_engines.py",
+          "line": 122,
+          "description": "consume_fuel on the metered engine; no wasm_exceptions(False) override."
+        },
+        {
+          "file": "pyproject.toml",
+          "line": 18,
+          "description": "dependencies = [\"wasmtime>=49,<50\"]."
+        },
+        {
+          "file": "src/wasi_python/_call.py",
+          "line": 618,
+          "description": "The guest's fuel cap is set after instantiation; line 416 sets the UNMETERED budget that instantiation runs on."
+        },
+        {
+          "file": "SECURITY.md",
+          "line": 18,
+          "description": "In scope: a guest that runs past its fuel cap. The out-of-scope section excludes upstream bugs that do not cross the sandbox boundary, so the owner must decide which applies."
+        }
+      ],
+      "blockers": [
+        "Not shown: a guest Python call that throws and catches a C++ exception (or longjmps) inside a compiled-in package, with callee work large enough that the dropped fuel matters. The engine defect is confirmed only with a standalone WAT module, not through python.wasm.",
+        "No wasmtime-py at 49.0.1 or later is installed locally, so a same-module comparison through wasi_python.run on a fixed engine is not available. The CLI 49.0.3 comparison used the standalone module only.",
+        "The target was not mounted read-only, and no memory rlimit could be enforced on this platform."
+      ],
+      "validation_plan": {
+        "local": "Verifier evidence: scratch/evidence/eh_fuel.wat, eh_fuel_py.py (wasmtime-py 49.0.0: 'thrown' r=100 n=100000 uses 1,101 fuel; 'returned' uses 80,001,201) and eh_fuel_cli.py (CLI 49.0.3 -W fuel=N,exceptions=y: 'thrown' r=100 n=100000 needs 80,001,285). The owner should run the project's own fuel tests on wasmtime-py 49.0.1 or later once it exists, and compare fuel_used for a package call known to catch a C++ exception internally.",
+        "deployment": "Raise the pin's floor to a wasmtime-py carrying wasmtime 49.0.1 or later, or move to 50.x. Until then, add GHSA-m63x-6p34-q65x to SECURITY.md's handled-advisories list as unmitigated. State that fuel is not a reliable bound on 49.0.0, and keep or require a finite deadline_s beside fuel."
+      }
+    },
+    "promotion": {
+      "proposed_by": "r04-eh-fuel",
+      "independently_rechecked_by": "v05-eh-fuel-recheck",
+      "recheck_reason": "Result reproduced independently; the record stands in substance and keeps confirmed, with four corrections. (1) The trace's entrypoint was a build-script line, not a lower-trust entrypoint: it is now wasi_python.run (src/wasi_python/runner.py:115), and scripts/steps/55_matplotlib.sh:102 becomes a propagation step. (2) The cap test's no-throw control (weak add/remove) does about 40x more wall time per call than the failing call (2.29 ms against 58 us at N=2000), so its trap alone did not show equal work runs out of fuel; a same-shape control (add and remove a consistent required equality on the same chain end) is added: 140,067 fuel per call at N=200 at the same 9.6 us wall as the failing call, 1,552,404 at N=2000, and it traps under the 2.2e9 cap. (3) The per-call fuel range widens to about 17,000 to 19,600 to cover the re-run, and the observed result carries both runs. (4) Wording: the '100x' is labelled a wall-time estimate, 'exponential' is attributed to the advisory and not claimed for the guest path, the sjlj extension is marked not demonstrated, run()'s fuel docstring is added as evidence, and the remediation's check is fuel-only and enters as a known gap. Severity (low/medium/low), conditions and fingerprint unchanged. Evidence: v05-eh-fuel-recheck/scratch/evidence/guest_kiwi.py, host_kiwi.py, kiwi_runs.log, wat_py.py, eh_fuel_wat.txt, wat_runs.log, sandbox_wrapper.py."
+    },
+    "phase5_replacement_by": "r05-eh-fuel-final",
+    "phase5_reason": "Non-material corrections only; verdict, root cause, trace locations, payloads, observed result, impact and severity are unchanged. Every cited path and line (runner.py:115/176, 55_matplotlib.sh:50/102, 60_link.sh:129, uv.lock:1049, _engines.py:122-123, _call.py:511/554/618, pyproject.toml:18, SECURITY.md:18/24, the advisory JSON with range '>= 47.0.0, < 48.0.3, 49.0.0') matches the current tree, kiwisolver 1.5.1 py/src/solver.cpp:52-64 catches kiwi::UnsatisfiableConstraint thrown at kiwi/solverimpl.h:107/118, .venv has wasmtime 49.0.0, and every per-call figure in observed_result recomputes exactly from the second verifier's kiwi_runs.log and wat_runs.log. Three wording fixes: (1) the description's '9 to 15 billion fuel per second' for 'no-throw C++ and pure-Python work' leaves out the weak add/remove loop, which the logs put at about 21 to 29 billion per second, so it now names the two controls it holds for and gives the weak figure (the ~100x under-count estimate stands as a lower bound); (2) trace step 2 said 'the other cross files' set the same flags, but wasi-statsmodels.cross has no -fwasm-exceptions, so it now names the five that do; (3) execution step 3 omitted the 200:500:weak and 2000:500:weak runs whose results observed_result reports, so they are added."
+  }
+]

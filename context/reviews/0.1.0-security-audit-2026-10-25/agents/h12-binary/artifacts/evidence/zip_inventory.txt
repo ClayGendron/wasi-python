@@ -1,0 +1,58 @@
+== python-stdlib.zip
+entries: 6262
+dirs: 0
+unix_type_counts: {'0o100000': 6262}
+symlinks: []
+create_system: {3: 6262}
+duplicate_names: []
+case_insensitive_duplicates: []
+case_insensitive_duplicates_count: 0
+absolute_or_traversal_names: []
+nonascii_names: []
+top_level_count: 299
+top_level_files: ['__future__.pyc', '__hello__.pyc', '_aix_support.pyc', '_android_support.pyc', '_apple_support.pyc', '_ast_unparse.pyc', '_collections_abc.pyc', '_colorize.pyc', '_compat_pickle.pyc', '_ios_support.pyc', '_markupbase.pyc', '_missing_stdlib_info.pyc', '_opcode_metadata.pyc', '_osx_support.pyc', '_py_abc.pyc', '_py_warnings.pyc', '_pydatetime.pyc', '_pydecimal.pyc', '_pyio.pyc', '_pylong.pyc', '_sitebuiltins.pyc', '_strptime.pyc', '_sysconfigdata__wasi_wasm32-wasi.pyc', '_threading_local.pyc', '_weakrefset.pyc', 'abc.pyc', 'annotationlib.pyc', 'antigravity.pyc', 'argparse.pyc', 'ast.pyc', 'base64.pyc', 'bdb.pyc', 'bisect.pyc', 'bz2.pyc', 'cProfile.pyc', 'calendar.pyc', 'cmd.pyc', 'code.pyc', 'codecs.pyc', 'codeop.pyc', 'colorsys.pyc', 'compileall.pyc', 'configparser.pyc', 'contextlib.pyc', 'contextvars.pyc', 'copy.pyc', 'copyreg.pyc', 'csv.pyc', 'dataclasses.pyc', 'datetime.pyc', 'decimal.pyc', 'difflib.pyc', 'dis.pyc', 'doctest.pyc', 'enum.pyc', 'filecmp.pyc', 'fileinput.pyc', 'fnmatch.pyc', 'fractions.pyc', 'ftplib.pyc', 'functools.pyc', 'genericpath.pyc', 'getopt.pyc', 'getpass.pyc', 'gettext.pyc', 'glob.pyc', 'graphlib.pyc', 'gzip.pyc', 'hashlib.pyc', 'heapq.pyc', 'hmac.pyc', 'imaplib.pyc', 'inspect.pyc', 'io.pyc', 'ipaddress.pyc', 'isympy.pyc', 'keyword.pyc', 'linecache.pyc', 'locale.pyc', 'lzma.pyc', 'mailbox.pyc', 'mimetypes.pyc', 'mmap.pyc', 'modulefinder.pyc', 'netrc.pyc', 'ntpath.pyc', 'nturl2path.pyc', 'numbers.pyc', 'opcode.pyc', 'operator.pyc', 'optparse.pyc', 'os.pyc', 'pdb.pyc', 'pickle.pyc', 'pickletools.pyc', 'pkgutil.pyc', 'platform.pyc', 'plistlib.pyc', 'poplib.pyc', 'posixpath.pyc', 'pprint.pyc', 'profile.pyc', 'pstats.pyc', 'pty.pyc', 'py_compile.pyc', 'pyclbr.pyc', 'pydoc.pyc', 'pylab.pyc', 'queue.pyc', 'quopri.pyc', 'random.pyc', 'reportlab_mods.pyc', 'reportlab_settings.pyc', 'reprlib.pyc', 'rlcompleter.pyc', 'runpy.pyc', 'sched.pyc', 'secrets.pyc', 'selectors.pyc', 'shelve.pyc', 'shlex.pyc', 'shutil.pyc', 'signal.pyc', 'site.pyc', 'six.pyc', 'smtplib.pyc', 'socket.pyc', 'socketserver.pyc', 'ssl.pyc', 'stat.pyc', 'statistics.pyc', 'stringprep.pyc', 'struct.pyc', 'subprocess.pyc', 'symtable.pyc', 'tabnanny.pyc', 'tarfile.pyc', 'tempfile.pyc', 'textwrap.pyc', 'this.pyc', 'threading.pyc', 'threadpoolctl.pyc', 'timeit.pyc', 'token.pyc', 'tokenize.pyc', 'trace.pyc', 'traceback.pyc', 'tracemalloc.pyc', 'tty.pyc', 'turtle.pyc', 'types.pyc', 'typing.pyc', 'typing_extensions.pyc', 'uuid.pyc', 'warnings.pyc', 'wave.pyc', 'weakref.pyc', 'webbrowser.pyc', 'xmltodict.pyc', 'zipapp.pyc', 'zipimport.pyc']
+startup_hook_like: ['site.pyc']
+pth_files: []
+pip_ensurepip_setuptools: []
+ensurepip_wheels: []
+credential_shaped_names: ['formulaic/parser/algos/sanitize_tokens.pyc', 'formulaic/parser/algos/tokenize.pyc', 'formulaic/parser/algos/tokens_to_ast.pyc', 'formulaic/parser/types/token.pyc', 'html5lib/_tokenizer.pyc', 'openpyxl/formula/tokenizer.pyc', 'packaging/_tokenizer.pyc', 'patsy/tokens.pyc', 'secrets.pyc', 'token.pyc', 'tokenize.pyc', 'yaml/tokens.pyc']
+test_dirs: ['narwhals/testing', 'numpy/testing', 'sklearn/externals/array_api_extra/testing', 'sympy/testing']
+test_dirs_count: 4
+reportlab: ['fontTools/pens/reportLabPen.pyc', 'reportlab-5.0.1.dist-info/METADATA', 'reportlab/__init__.pyc', 'reportlab/graphics/__init__.pyc', 'reportlab/graphics/charts/__init__.pyc', 'reportlab/graphics/charts/areas.pyc', 'reportlab/graphics/charts/axes.pyc', 'reportlab/graphics/charts/barcharts.pyc', 'reportlab/graphics/charts/dotbox.pyc', 'reportlab/graphics/charts/doughnut.pyc', 'reportlab/graphics/charts/legends.pyc', 'reportlab/graphics/charts/linecharts.pyc', 'reportlab/graphics/charts/lineplots.pyc', 'reportlab/graphics/charts/markers.pyc', 'reportlab/graphics/charts/piecharts.pyc', 'reportlab/graphics/charts/slidebox.pyc', 'reportlab/graphics/charts/spider.pyc', 'reportlab/graphics/charts/textlabels.pyc', 'reportlab/graphics/charts/utils.pyc', 'reportlab/graphics/charts/utils3d.pyc', 'reportlab/graphics/renderPDF.pyc', 'reportlab/graphics/renderPM.pyc', 'reportlab/graphics/renderPS.pyc', 'reportlab/graphics/renderSVG.pyc', 'reportlab/graphics/renderbase.pyc', 'reportlab/graphics/samples/__init__.pyc', 'reportlab/graphics/samples/bubble.pyc', 'reportlab/graphics/samples/clustered_bar.pyc', 'reportlab/graphics/samples/clustered_column.pyc', 'reportlab/graphics/samples/excelcolors.pyc', 'reportlab/graphics/samples/exploded_pie.pyc', 'reportlab/graphics/samples/filled_radar.pyc', 'reportlab/graphics/samples/line_chart.pyc', 'reportlab/graphics/samples/linechart_with_markers.pyc', 'reportlab/graphics/samples/radar.pyc', 'reportlab/graphics/samples/runall.pyc', 'reportlab/graphics/samples/scatter.pyc', 'reportlab/graphics/samples/scatter_lines.pyc', 'reportlab/graphics/samples/scatter_lines_markers.pyc', 'reportlab/graphics/samples/simple_pie.pyc']
+settings_like: ['reportlab/rl_settings.pyc', 'reportlab_mods.pyc']
+native_like: []
+ext_counts: {'.pyc': 5384, '': 661, '.in': 30, '.tp': 24, '.typed': 23, '.csv': 21, '.txt': 18, '.rst': 16, '.al': 16, '.js': 9, '.tpl': 8, '.css': 8, '.gz': 5, '.md': 5, '.s': 4, '.tab': 4, '.html': 3, '.xsl': 3, '.ini': 2, '.png': 2, '.g4': 2, '.lark': 2, '.zip': 1, '.pc': 1, '.template': 1}
+inner_zips: ['matplotlib/mpl-data.zip']
+total_uncompressed: 138568395
+max_ratio: (14.386436180440718, 'statsmodels/datasets/randhie/randhie.csv')
+comment: 
+== matplotlib/mpl-data.zip
+entries: 204
+dirs: 0
+unix_type_counts: {'0o100000': 204}
+symlinks: []
+create_system: {3: 204}
+duplicate_names: []
+case_insensitive_duplicates: []
+case_insensitive_duplicates_count: 0
+absolute_or_traversal_names: []
+nonascii_names: []
+top_level_count: 7
+top_level_files: ['kpsewhich.lua', 'matplotlibrc']
+startup_hook_like: []
+pth_files: []
+pip_ensurepip_setuptools: []
+ensurepip_wheels: []
+credential_shaped_names: []
+test_dirs: []
+test_dirs_count: 0
+reportlab: []
+settings_like: []
+native_like: []
+ext_counts: {'.afm': 61, '.ttf': 40, '.mplstyle': 31, '.png': 23, '.svg': 19, '.pdf': 11, '': 3, '.csv': 3, '.npz': 3, '.txt': 2, '.dat': 2, '.lua': 1, '.css': 1, '.npy': 1, '.xrc': 1, '.jpg': 1, '.gz': 1}
+inner_zips: []
+total_uncompressed: 9647776
+max_ratio: (1.0, 'stylelib/tableau-colorblind10.mplstyle')
+comment: 
+member_parts_refusals: []
+windows_awkward_names: []

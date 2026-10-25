@@ -1,0 +1,4 @@
+pinned names whose pattern matches a line other than their own: []
+literal names passed to pinned(): 60
+literal names with no exact pin line: ['too']
+names built from variables (checked by hand against line.conf): ['$COMPILER_SDK_DIR.tar.gz', '$EMULATOR_DEB', '$HOST_PYTHON_ARCHIVE', '$NUMPY_HOST_WHEEL', '$TOP.tar.gz', '$WASI_SDK_DIR.tar.gz', '$WASMTIME_DIR.tar.xz', '$name', '$sdist.tar.gz', '$wheel', 'Python-$PYTHON_VERSION.tar.xz', 'libclang_rt-$WASI_SDK_VERSION.0.tar.gz', 'wasi-sysroot-$WASI_SDK_VERSION.0.tar.gz']

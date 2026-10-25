@@ -1,0 +1,8 @@
+44f51d6 2026-10-22T02:57:25Z Bump to 50.0.1
+e44ae48 2026-10-21T23:31:46Z Bump Wasmtime to 50.0.0 (#345)
+280ce73 2026-09-24T20:48:15Z Make `Slab` safe to use from multiple threads (#344)
+8b9a093 2026-09-21T18:56:18Z Bump to 49.0.0 (#343)
+2ed8d10 2026-08-20T19:28:58Z Bump to 48.0.0 (#341)
+76edc22 2026-07-20T18:47:48Z Bump to 47.0.1
+6a13008 2026-07-20T17:56:44Z Update to 47.0.0 (#340)
+1988b8d 2026-06-29T13:20:37Z Update to Wasmtime 46.0.1 (#339)

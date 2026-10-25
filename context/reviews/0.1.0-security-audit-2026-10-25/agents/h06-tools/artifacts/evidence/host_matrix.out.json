@@ -1,0 +1,569 @@
+[
+ {
+  "case": "derived: valid",
+  "sent": {
+   "code": "E"
+  },
+  "answer": {
+   "ok": true,
+   "value": {
+    "got": [
+     "code",
+     "year"
+    ]
+   }
+  },
+  "seen": [
+   [
+    "gate",
+    {
+     "code": "E"
+    }
+   ],
+   [
+    "handler",
+    {
+     "code": "E",
+     "year": 2026
+    }
+   ]
+  ]
+ },
+ {
+  "case": "derived: extra key refused",
+  "sent": {
+   "code": "E",
+   "admin": true
+  },
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "invalid_arguments",
+    "message": "derived: the arguments: unknown argument 'admin'"
+   }
+  },
+  "seen": []
+ },
+ {
+  "case": "derived: bool for int refused",
+  "sent": {
+   "code": "E",
+   "year": true
+  },
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "invalid_arguments",
+    "message": "derived: argument year: expected integer, got boolean"
+   }
+  },
+  "seen": []
+ },
+ {
+  "case": "explicit closed: extra refused",
+  "sent": {
+   "q": "x",
+   "role": "admin"
+  },
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "invalid_arguments",
+    "message": "closed: the arguments: unknown argument 'role'"
+   }
+  },
+  "seen": []
+ },
+ {
+  "case": "explicit open: any key passes",
+  "sent": {
+   "anything": 1,
+   "__class__": 2
+  },
+  "answer": {
+   "ok": true,
+   "value": {
+    "got": [
+     "__class__",
+     "anything"
+    ]
+   }
+  },
+  "seen": [
+   [
+    "gate",
+    {
+     "anything": 1,
+     "__class__": 2
+    }
+   ],
+   [
+    "handler",
+    {
+     "anything": 1,
+     "__class__": 2
+    }
+   ]
+  ]
+ },
+ {
+  "case": "partial+open: fixed keyword refused",
+  "sent": {
+   "q": "x",
+   "user_id": 1
+  },
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "invalid_arguments",
+    "message": "part: the arguments: unknown argument 'user_id'"
+   }
+  },
+  "seen": []
+ },
+ {
+  "case": "partial+open: allowed",
+  "sent": {
+   "q": "x"
+  },
+  "answer": {
+   "ok": true,
+   "value": {
+    "user_id": 42
+   }
+  },
+  "seen": [
+   [
+    "gate",
+    {
+     "q": "x"
+    }
+   ],
+   [
+    "handler",
+    {
+     "q": "x",
+     "user_id": 42
+    }
+   ]
+  ]
+ },
+ {
+  "case": "partial+$ref naming fixed: refused at frame",
+  "sent": {
+   "q": "x",
+   "user_id": 1
+  },
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "invalid_arguments",
+    "message": "part_ref: the arguments: unknown argument 'user_id'"
+   }
+  },
+  "seen": []
+ },
+ {
+  "case": "partial+additionalProperties true: fixed refused",
+  "sent": {
+   "q": "x",
+   "user_id": 1
+  },
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "invalid_arguments",
+    "message": "part_ap: the arguments: unknown argument 'user_id'"
+   }
+  },
+  "seen": []
+ },
+ {
+  "case": "bound method: self not in schema",
+  "sent": {
+   "q": "x"
+  },
+  "answer": {
+   "ok": true,
+   "value": {
+    "q": "x"
+   }
+  },
+  "seen": [
+   [
+    "gate",
+    {
+     "q": "x"
+    }
+   ],
+   [
+    "handler",
+    {
+     "q": "x",
+     "self.owner": "embedder"
+    }
+   ]
+  ]
+ },
+ {
+  "case": "bound method: self refused",
+  "sent": {
+   "q": "x",
+   "self": "guest"
+  },
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "invalid_arguments",
+    "message": "m: the arguments: unknown argument 'self'"
+   }
+  },
+  "seen": []
+ },
+ {
+  "case": "bound method + open: self -> TypeError, internal error",
+  "sent": {
+   "q": "x",
+   "self": "guest"
+  },
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "tool_error",
+    "message": "mo failed (internal error)"
+   }
+  },
+  "seen": [
+   [
+    "gate",
+    {
+     "q": "x",
+     "self": "guest"
+    }
+   ]
+  ]
+ },
+ {
+  "case": "class with partialmethod __init__ + open schema: role override",
+  "sent": {
+   "q": "x",
+   "role": "admin"
+  },
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "tool_error",
+    "message": "Acct failed (internal error)"
+   }
+  },
+  "seen": [
+   [
+    "gate",
+    {
+     "q": "x",
+     "role": "admin"
+    }
+   ],
+   [
+    "handler",
+    {
+     "q": "x",
+     "role": "admin"
+    }
+   ]
+  ]
+ },
+ {
+  "case": "class with partialmethod __init__ + open schema: no role",
+  "sent": {
+   "q": "x"
+  },
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "tool_error",
+    "message": "Acct failed (internal error)"
+   }
+  },
+  "seen": [
+   [
+    "gate",
+    {
+     "q": "x"
+    }
+   ],
+   [
+    "handler",
+    {
+     "q": "x",
+     "role": "viewer"
+    }
+   ]
+  ]
+ },
+ {
+  "case": "keyword property",
+  "result": "ValueError(\"kw: input schema: the property 'from' is not a Python identifier, or is a keyword; the guest calls the tool with it as a keyword argument (rename it, as the README shows)\")"
+ },
+ {
+  "case": "dunder property passes as a kwarg",
+  "sent": {
+   "__dict__": 1
+  },
+  "answer": {
+   "ok": true,
+   "value": {
+    "got": [
+     "__dict__"
+    ]
+   }
+  },
+  "seen": [
+   [
+    "gate",
+    {
+     "__dict__": 1
+    }
+   ],
+   [
+    "handler",
+    {
+     "__dict__": 1
+    }
+   ]
+  ]
+ },
+ {
+  "case": "duplicate key refused",
+  "sent": "{\"v\":1,\"id\":1,\"op\":\"call\",\"tool\":\"derived\",\"args\":{\"code\":\"a\",\"code\":\"b\"}}",
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "protocol",
+    "message": "the frame repeats the key 'code'"
+   }
+  },
+  "seen": []
+ },
+ {
+  "case": "escaped duplicate key refused",
+  "sent": "{\"v\":1,\"id\":1,\"op\":\"call\",\"tool\":\"derived\",\"args\":{\"code\":\"a\",\"\\u0063ode\":\"b\"}}",
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "protocol",
+    "message": "the frame repeats the key 'code'"
+   }
+  },
+  "seen": []
+ },
+ {
+  "case": "async tool + async gate: valid",
+  "sent": {
+   "code": "E"
+  },
+  "answer": {
+   "ok": true,
+   "value": {
+    "code": "E"
+   }
+  },
+  "seen": [
+   [
+    "gate",
+    {
+     "code": "E"
+    }
+   ],
+   [
+    "handler",
+    {
+     "code": "E",
+     "year": 2026
+    }
+   ]
+  ]
+ },
+ {
+  "case": "async tool + async gate: extra refused",
+  "sent": {
+   "code": "E",
+   "x": 1
+  },
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "invalid_arguments",
+    "message": "aderived: the arguments: unknown argument 'x'"
+   }
+  },
+  "seen": []
+ },
+ {
+  "case": "sync tool + async gate: valid",
+  "sent": {
+   "code": "E"
+  },
+  "answer": {
+   "ok": true,
+   "value": {
+    "got": [
+     "code",
+     "year"
+    ]
+   }
+  },
+  "seen": [
+   [
+    "gate",
+    {
+     "code": "E"
+    }
+   ],
+   [
+    "handler",
+    {
+     "code": "E",
+     "year": 2026
+    }
+   ]
+  ]
+ },
+ {
+  "case": "gate returns 0",
+  "sent": {
+   "code": "E"
+  },
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "denied",
+    "message": "derived was refused"
+   }
+  },
+  "seen": []
+ },
+ {
+  "case": "gate returns 'yes'",
+  "sent": {
+   "code": "E"
+  },
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "denied",
+    "message": "derived was refused"
+   }
+  },
+  "seen": []
+ },
+ {
+  "case": "gate raises ValueError",
+  "sent": {
+   "code": "E"
+  },
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "denied",
+    "message": "derived was refused"
+   }
+  },
+  "seen": []
+ },
+ {
+  "case": "gate returns False",
+  "sent": {
+   "code": "E"
+  },
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "denied",
+    "message": "derived was refused"
+   }
+  },
+  "seen": []
+ },
+ {
+  "case": "gate mutates its copy",
+  "sent": {
+   "code": "E"
+  },
+  "answer": {
+   "ok": true,
+   "value": {
+    "got": [
+     "code",
+     "year"
+    ]
+   }
+  },
+  "seen": [
+   [
+    "handler",
+    {
+     "code": "E",
+     "year": 2026
+    }
+   ]
+  ]
+ },
+ {
+  "case": "bytes accepted where declared",
+  "sent": {
+   "data": {
+    "$bytes": "AAEC"
+   }
+  },
+  "answer": {
+   "ok": true,
+   "value": 3
+  },
+  "seen": [
+   [
+    "gate",
+    {
+     "data": "b'\\x00\\x01\\x02'"
+    }
+   ],
+   [
+    "handler",
+    {
+     "type": "bytes",
+     "len": 3
+    }
+   ]
+  ]
+ },
+ {
+  "case": "str refused where bytes declared",
+  "sent": {
+   "data": "AAEC"
+  },
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "invalid_arguments",
+    "message": "b: argument data: expected bytes, got string"
+   }
+  },
+  "seen": []
+ },
+ {
+  "case": "bytes refused into an Any (open) schema",
+  "sent": {
+   "x": {
+    "$bytes": "AAEC"
+   }
+  },
+  "answer": {
+   "ok": false,
+   "error": {
+    "kind": "invalid_arguments",
+    "message": "opn: argument 'x': bytes are accepted only where the schema says {\"type\": \"string\", \"contentEncoding\": \"base64\"}"
+   }
+  },
+  "seen": []
+ }
+]

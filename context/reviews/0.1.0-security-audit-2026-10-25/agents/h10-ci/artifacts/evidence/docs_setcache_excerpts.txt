@@ -1,0 +1,168 @@
+# docs.yml
+     1	# The documentation site: built strictly on every pull request and every push to main, so a
+     2	# broken link or a stale generated page fails before it ships; deployed to GitHub Pages only
+     3	# from a release tag, or by hand. It builds a web site and nothing else: it neither builds nor
+     4	# publishes the artifact set.
+     5	name: docs
+     6	
+     7	on:
+     8	  pull_request:
+     9	  push:
+    10	    branches: [main]
+    11	    tags: ["v*"]
+    12	  workflow_dispatch:
+    13	
+    14	permissions: {}
+    15	
+    16	env:
+    17	  UV_VERSION: "0.9.22"
+    18	  UV_LOCKED: "1"
+    19	  UV_PYTHON: "3.14.2"
+    20	
+    21	jobs:
+    22	  build:
+    23	    name: build the site strictly
+    24	    runs-on: ubuntu-24.04
+    25	    timeout-minutes: 15
+    26	    permissions:
+    27	      contents: read
+    28	    steps:
+    29	      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    30	        with:
+    31	          persist-credentials: false
+    32	      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+    33	        with:
+    34	          version: ${{ env.UV_VERSION }}
+    35	          enable-cache: false
+    36	      - name: Build the site (a warning is an error)
+    37	        run: uv run --group docs mkdocs build --strict
+    38	      # The two generated reference pages must equal what the package renders today.
+    39	      - name: The Python API page is current
+    40	        run: uv run python tests/harness/api.py --check
+    41	      - name: The command-line page is current
+    42	        run: uv run python tests/harness/cli_doc.py --check
+    43	      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+    44	        with:
+    45	          path: site
+    46	
+    47	  deploy:
+    48	    name: deploy to GitHub Pages
+    49	    needs: build
+    50	    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    51	    # One deployment at a time, and a running one is never cut short. Only this job queues, so
+    52	    # a pull request's build never waits in, or cancels, a release's deployment.
+    53	    concurrency:
+    54	      group: pages
+    55	      cancel-in-progress: false
+    56	    runs-on: ubuntu-24.04
+    57	    timeout-minutes: 15
+    58	    permissions:
+    59	      pages: write
+    60	      id-token: write
+    61	    environment:
+    62	      name: github-pages
+    63	      url: ${{ steps.deployment.outputs.page_url }}
+    64	    steps:
+    65	      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+    66	      - id: deployment
+    67	        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+# set-cache.yml
+     1	# Main's set cache: the one writer to the cache every branch can read.
+     2	#
+     3	# A release run on a branch may reuse a set the cache holds under its commit's key
+     4	# (release/set_key.py), but a branch reads only its own caches and main's. So on every push to main
+     5	# (the lane's fast-forward), this workflow looks the key up in main's cache, and when it is absent
+     6	# builds the set from the pins on arm64 Linux, checks it, and saves it. Every run that reuses the set
+     7	# still rebuilds it from the pins three times and requires the same bytes.
+     8	# It holds no secret, signs nothing and publishes nothing. Its env is release.yml's, name for name
+     9	# and value for value, as the key holds it (the rules check). Third-party actions are pinned by
+    10	# commit, their release named beside each. Values reach scripts through env:, never as expressions.
+    11	name: set-cache
+    12	
+    13	on:
+    14	  push:
+    15	    branches: [main]
+    16	  workflow_dispatch:
+    17	
+    18	permissions: {}
+    19	
+    20	concurrency:
+    21	  group: set-cache-${{ github.ref }}
+    22	  cancel-in-progress: true
+    23	
+    24	env:
+    25	  SOURCE_DATE_EPOCH: "1767225600"
+    26	  UV_VERSION: "0.9.22"
+    27	  UV_LOCKED: "1"
+    28	  UV_PYTHON: "3.14.2"
+    29	  UV_BUILD_CONSTRAINT: release/build-constraints.txt
+    30	
+    31	jobs:
+    32	  lookup:
+    33	    name: the set's key, and whether this ref's cache holds it
+    34	    runs-on: ubuntu-24.04
+    35	    timeout-minutes: 15
+    36	    permissions:
+    37	      contents: read
+    38	    outputs:
+    39	      key: ${{ steps.key.outputs.key }}
+    40	      hit: ${{ steps.lookup.outputs.cache-hit }}
+    41	    steps:
+    42	      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    43	        with:
+    44	          persist-credentials: false
+    45	      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+    46	        with:
+    47	          version: ${{ env.UV_VERSION }}
+    48	          enable-cache: false
+    49	      - name: The set's key (release/set_key.py prints what it hashes)
+    50	        id: key
+    51	        run: uv run --no-project python -I release/set_key.py key >> "$GITHUB_OUTPUT"
+    52	      - name: Is a set cached under the key
+    53	        id: lookup
+    54	        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+    55	        with:
+    56	          path: wasi-python-set
+    57	          key: ${{ steps.key.outputs.key }}
+    58	          lookup-only: true
+    59	
+    60	  seed:
+    61	    name: build the set from the pins and keep it (ubuntu-24.04-arm)
+    62	    needs: lookup
+    63	    if: needs.lookup.outputs.hit != 'true'
+    64	    runs-on: ubuntu-24.04-arm
+    65	    timeout-minutes: 120
+    66	    permissions:
+    67	      contents: read
+    68	    steps:
+    69	      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    70	        with:
+    71	          persist-credentials: false
+    72	      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+    73	        with:
+    74	          version: ${{ env.UV_VERSION }}
+    75	          enable-cache: false
+    76	      - name: Download the pinned inputs
+    77	        run: scripts/00_download.sh
+    78	      - name: Build from the pins
+    79	        run: scripts/build.sh
+    80	      - name: The set's key from this checkout
+    81	        id: key
+    82	        run: uv run --no-project python -I release/set_key.py key >> "$GITHUB_OUTPUT"
+    83	      - name: The set is this commit's
+    84	        env:
+    85	          KEY: ${{ steps.key.outputs.key }}
+    86	        run: |
+    87	          uv run --no-project python -I release/set_key.py verify build/artifacts --key "$KEY"
+    88	          cp -R build/artifacts wasi-python-set
+    89	      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+    90	        with:
+    91	          path: wasi-python-set
+    92	          key: ${{ steps.key.outputs.key }}
+    93	      - name: Keep the build logs when something fails
+    94	        if: failure()
+    95	        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+    96	        with:
+    97	          name: seed-logs
+    98	          path: build/logs/
+    99	          if-no-files-found: ignore

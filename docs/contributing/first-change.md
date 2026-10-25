@@ -27,6 +27,8 @@ The project's test suite is also its progress harness: it judges every check and
 uv run pytest -m "not slow"
 ```
 
+Last measured on 2026-10-25, on an arm64 Mac with ten cores, at three workers (`uv run pytest -m "not slow" -n 3`): 10 minutes 30 seconds, 3,180 tests passed (executed).
+
 The coverage badge on the README is this tier's measurement: the percent of the runner's statements (`src/wasi_python`) the fast tier runs under coverage.py. Every run of the release workflow measures it on Linux and sends the report to Codecov, which draws the badge. `uv run python tests/harness/coverage.py --measure` takes the same measurement on your machine and writes its reports under `build/coverage/`. The guest's packages are not in it. Their own test suites run inside the sandbox before a release.
 
 ## Read the scoreboard
@@ -61,17 +63,18 @@ Fuel here is the guest's operation count. Tests count operations, never wall-clo
 
 ## Where a change starts
 
-A change starts with a check, before the code:
+A change starts with a check, before the code, on a branch made from `dev`, the default branch:
 
 1. Write the check for the new behaviour, or a known gap that names what will close it.
 2. Make the change.
 3. Run the fast tier again, and run any slow check you changed alone by its node id.
 4. Keep `ruff check`, `ruff format --check` and `pytest` green on `src/` and `tests/`.
+5. Open a pull request into `dev`. Its check runs what your files need, a fresh reviewer reviews it, and it merges when both say so. The full test run happens after the merge, on three systems.
 
 Never weaken a check, a golden output or a known gap to turn a run green. Changing what the tests judge is its own change, with its own reason.
 
 ## Next steps
 
 - Build the artifacts so the guest checks can run: [Building from source](building.md).
-- Learn how a change is reviewed and lands: [Review and landing](review-and-landing.md).
+- Learn how a pull request is checked, reviewed and merged: [Review and landing](review-and-landing.md).
 - Read the rules behind all of this: [Principles](principles.md).

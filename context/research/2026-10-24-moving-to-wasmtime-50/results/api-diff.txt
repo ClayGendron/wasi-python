@@ -1,0 +1,1 @@
+ffi added: ['wasmtime_config_wasm_compact_imports_set', 'wasmtime_config_wasm_component_model_accessors_set', 'wasmtime_config_wasm_component_model_canonical_names_set'] removed: []

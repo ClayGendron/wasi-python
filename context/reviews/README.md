@@ -1,42 +1,34 @@
 # Reviews
 
-One file per review, `NNN-<spec slug>-YYYY-MM-DD.md`, where `NNN` is the specification reviewed. A review of a specification before it is built uses the same name with `-spec` before the date.
+One file per review, `NNN-<spec slug>-YYYY-MM-DD.md`, where `NNN` is the specification reviewed. A review of a specification before it is built uses the same name with `-spec` before the date. A pull request's review uses `-pr` before the date, `NNN-<slug>-pr-YYYY-MM-DD.md`, where `NNN-<slug>` is the name of one of the pull request's news files (`../changes/NNN-<slug>.md`).
 
-## The builder's self-check
+## One review per pull request
 
-The builder writes this list at the top of its review request (AGENTS.md rule 8; the owner, 2026-10-19). The reviewer names any item found unchecked and ranks it Low.
+Every pull request into `dev` that is not documentation only gets one review, by a fresh agent or a person who did not write the change, written as `NNN-<slug>-pr-YYYY-MM-DD.md` in the template below: criteria against evidence, findings ranked, constitution checks, verdict (`../specifications/138-pull-requests-into-dev-and-the-judge-runs-where-it-is-needed.md`, Decision 9).
 
-```
-Before you ask for a review:
-- rebased onto main's tip (or the named stacked base) today; the base commit in the Status line;
-- CI run dispatched on this exact commit and read: run id, red lines (GREW and G7 only), the
-  Windows legs green or the Windows criterion named;
-- every number from a measured run on this base, labelled EXECUTED; the growth list is this
-  build's, not the draft's;
-- "For the lane": the claim list (rows changed, grown with reasons, retired, passes moved), the
-  exact flags, each reason beginning with the spec number, the wave kind (parallel-safe,
-  build-class, package, toolchain), dry-run needs;
-- every new check seen failing first; a Windows and a Linux branch named or excluded with a reason;
-- every gap names its closer; every reserved follow-up has a roadmap line;
-- packages.toml has its reason line; README rows the spec changes listed;
-- CHANGELOG under the one unreleased section; questions numbered from the next free number;
-- ruff check, ruff format --check, the fast tier: green, output in build/<spec>/.
-```
+- **No confirmation round.** The author answers in the pull request. A code fix is a new commit on the same pull request, and the reviewer reads it and signs again.
+- **The reviewer reads the pull request's run** (`ci-status`, the gather's summary) and never dispatches one. A Low that touches only `context/` the reviewer may commit to the pull request's branch.
+- **The review file is committed last**, as the branch's last context-only commit, after the final code commit. `ci-status` runs `quick` on it and re-uses the green run of the head it follows.
+- **`ci-status` holds the review.** It fails the pull request when no such file is among its changed paths; when the newest commit that changed it is followed by a commit touching a path that is not documentation only; when its `Reviewer:` line is empty or names the author (the self-check's author, or any `Claude-Session:` trailer on the pull request's code commits); or when the first line of its `## Verdict` section does not begin with "Lands". The `Reviewer:` line names the reviewer's session (`https://claude.ai/code/session_…`) or a person. This is a process guard, not an identity guard: an agent that writes a false `Reviewer:` line defeats it. The check arrives with step 3 of specification 138 (written 2026-10-25); until then the owner's agent reads the review file before it merges.
+- **The pre-build review stays** for the classes constitution §5.6 names (the guest's imports or exports, the artifact set, the build recipe) and for a structural specification, as a review of the specification before the branch has code (`-spec`). A parallel-safe runner change needs none unless its Kind line says **structural**: its pull request's review reads the code with the specification.
+- **Per release**, the security review and the structural review (below) are the release pull request's review.
+
+## The author's self-check
+
+The self-check is the pull request's description, from the pull request template, `.github/PULL_REQUEST_TEMPLATE.md`, which step 6 of specification 138 adds. It names the author (session or name), every new check seen failing first, the Windows legs read, every gap naming its closer, and the news file. Until the template exists, the author writes those five lines at the top of the pull request's description. The reviewer names any item found unchecked and ranks it Low.
 
 ## The reviewer's checklist
 
 Time box: 25 minutes for a parallel-safe specification, 45 for a build-class one or a package. The review states its box.
 
-1. Dispatch your own run of the release workflow on the reviewed commit first, so it finishes while you read. Its run id is the review's **Run** line; it is your re-run of the counted tests (constitution §5.6). Locally, run the fast tier or single node ids only (AGENTS.md rule 3a).
+1. Read the pull request's run first: `ci-status` and the gather's summary in the job summary (`gh pr checks <n>`, `gh run view <id>`). Its run id is the review's **Run** line; it is your reading of the counted tests (constitution §5.6). Dispatch no run. Locally, run what you need by node id.
 2. Read the self-check; any unchecked item is a Low finding, written as the fix text.
 3. Criteria against evidence, one line each, labelled EXECUTED, READ or INFERRED.
-4. The diff against §4 and §7; the claim list against the diff (a row changed and not claimed is Medium). 4a. Structure, one line (AGENTS.md, "Structure is reviewed"): does the diff add a concern, a lifecycle flag, a module-level mutable, a test seam, a platform branch, a private-API use or a function past 80 lines that the rubric below would score down, whether or not a rules check catches it? Name the row. If it does and the Kind line does not carry **structural**, that is Medium: the specification is structural and was not reviewed as one.
+4. The diff against §4 and §7; the news file's claim block against the diff and the gather's `GROWTH` rows (a row changed and not claimed is Medium). 4a. Structure, one line (AGENTS.md, "Structure is reviewed"): does the diff add a concern, a lifecycle flag, a module-level mutable, a test seam, a platform branch, a private-API use or a function past 80 lines that the rubric below would score down, whether or not a rules check catches it? Name the row. If it does and the Kind line does not carry **structural**, that is Medium: the specification is structural and was not reviewed as one.
 5. One to three probes by node id, locally.
 6. Rank: High (a wrong answer or an unsafe default), Medium (a guarantee not evidenced), Low (a write-in). A Low with its fix text needs no round. One Medium per review is normal; state what evidence would close it.
-7. A Low that touches only `context/` you may write in yourself, as a commit of the exact text on the specification's branch once the builder has handed it over; a code fix stays the builder's (constitution §5.6).
-8. Verdict in one sentence: "lands", "lands once <Mediums>", or "does not land yet: <High>".
-
-A wave's integration review is written by a fresh agent that reviewed none of its entries: each entry's `git range-diff` against its reviewed tip, the conflicts each builder named, the fast tier's output, and the claim lists against the wave's GREW lines. Its verdict is "lands as merged at <tip>", or names the entry to eject.
+7. A Low that touches only `context/` you may write in yourself, as a commit of the exact text on the pull request's branch; a code fix stays the author's (constitution §5.6).
+8. Verdict in one sentence. It begins "Lands" when nothing stands, or "Does not land yet: <the High or the Mediums>". After the author's fix commit, read it and write the verdict again: a verdict that begins "Lands" is your signature on the head.
 
 ## Template
 
@@ -44,10 +36,10 @@ A wave's integration review is written by a fresh agent that reviewed none of it
 # Review of NNN — <spec title>
 
 - **Date:** YYYY-MM-DD
-- **Reviewer:** <agent or person; not the author>
+- **Reviewer:** <the reviewer's session URL or a person; not the author>
 - **Reviewed:** <commit or diff range, or "the specification as drafted">
-- **Run:** <the reviewer's own release-workflow run id>
-- **Re-ran:** <commands> → <counts and exit codes seen>
+- **Run:** <the pull request's run id (`ci-status`)>
+- **Re-ran:** <what the reviewer ran by node id> → <counts and exit codes seen>
 
 ## Acceptance criteria against evidence
 1. <criterion> — met / not met: <the evidence or the gap>
@@ -64,14 +56,14 @@ A wave's integration review is written by a fresh agent that reviewed none of it
 1. <finding 1> — fixed in <commit> / not fixed because <reason>.
 
 ## Verdict
-<lands / does not land yet>, in one sentence.
+<Lands / Does not land yet: …>, in one sentence.
 ```
 
 ## Structural review
 
 A review of `src/` against the eight-row rubric of `../research/2026-10-20-a-design-review-of-the-runner.md` (section 1), which is structural review zero: its scorecard (section 2, at `30e9b41`) is what the first release review compares with, and each later review compares with the last. It is written twice (AGENTS.md, "Structure is reviewed"; spec 108):
 
-- **Before every release**, by a fresh agent that wrote none of the code since the last structural review, on the commit before the version bump, whose `src/` is the one tagged; the review is committed with the bump, the release's dry run runs on that commit, and the tag follows the CHANGELOG-only release commit (AGENTS.md rule 6b), beside the security review. File: `<version>-structural-review-YYYY-MM-DD.md`, the twin of `<version>-security-review-YYYY-MM-DD.md`. The release waits on its High findings; the judge refuses a released version with no such file (`test_a_release_has_its_structural_review`).
+- **Before every release**, by a fresh agent that wrote none of the code since the last structural review, on the commit before the version bump, whose `src/` is the one tagged; the review is committed with the bump, the release pull request's run judges that commit, and the tag follows the merge (constitution §5.5), beside the security review. File: `<version>-structural-review-YYYY-MM-DD.md`, the twin of `<version>-security-review-YYYY-MM-DD.md`. The release waits on its High findings; the judge refuses a released version with no such file (`test_a_release_has_its_structural_review`).
 - **For a structural specification** (its Kind line carries **structural**), as a "Structure" section of its pre-build review (`NNN-<slug>-spec-YYYY-MM-DD.md`): the eight rows, one line each, saying which row the change moves and which way, and the measurements it claims to change, before and after, by the commands below. The judge holds that a built structural specification cites that review (`test_built_structural_specifications_cite_their_pre_build_review`).
 
 Time box: 45 minutes for a release review: the measurements first (one command each), then the diff of `src/` since the last structural review and the modules whose measurements moved; the whole of `src/` only when no structural review precedes it (the first compares with the memo, which read it whole). The "Structure" section fits inside its review's box. The review states its box.
@@ -84,7 +76,7 @@ Score each Strong, Adequate or Weak, with a one-line reason, as the memo did.
 - **R2 Safety.** Are the defaults safe and read once? Is every channel to the host bounded? Are arguments validated before any side effect? Are check-and-use races closed by identity?
 - **R3 Layering.** Does exactly one module touch the engine's private API? Is policy apart from mechanism? Is the import graph acyclic?
 - **R4 Process state.** Is module-level mutable state owned by one object and reset in one place? Is each lifecycle an enum and a table, not flags? Is the lock order written down?
-- **R5 Portability.** Does OS-specific behaviour live in one module behind one interface, chosen once?
+- **R5 Portability.** Does OS-specific behaviour live in the platform modules (`_platform.py`, and the two below it once specification 131 is built; no other) behind one interface, chosen once?
 - **R6 Testability.** Are seams constructor parameters or protocol objects? Do tests drive public behaviour? Does production code carry a branch only the judge takes?
 - **R7 Evolvability.** Can one person hold each module, and each function, in their head? Does the code say why without the archive open? Does the type checker pass? Is the engine upgrade's cost written?
 - **R8 Operability.** Do `stats()`, the records and the trap strings still say what the guest did? Can a warning deadlock an embedder?

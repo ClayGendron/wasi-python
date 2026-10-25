@@ -1,0 +1,11 @@
+# Integrity of build/artifacts (local) and the published v0.1.0 release (read-only gh)
+## shasum -a 256 -c build/artifacts/SHA256SUMS (only non-OK lines would print):
+non_ok ok = 0 75
+## local set SHA256SUMS hash: 3339091f49b6cf94aaf90d5a68c281c3f1cc3384450f3cb94b768d8274d0fa20
+## history-00060.jsonl last release-tier acceptance: commit d33f0383 (ancestor of release commit 2cd47507, no diff under scripts recipes downloads), set_sums 3339091f49b6cf94aaf90d5a68c281c3f1cc3384450f3cb94b768d8274d0fa20, artifact (python.wasm) d41926055c3f869715202092a1b8d070ff9ffcd2c82d0dd368786e79f2200f9a
+## MANIFEST x-snapshot-zip equals the zip hash: x-snapshot-zip a7b8f7cbd4799ac8c81223cbc47f8cea503adac934a04826778b66e5a5e9b847
+## published v0.1.0 SHA256SUMS (gh release download, 206 bytes):
+a6a4ae7069b663981bd684c882efbdb0fe95658e17d15f38d7d8e8856418b337  wasi-python-0.1.0-wasm32-wasip1.tar.xz
+3bfb0dcc48ce1ce9f4741e142a3a73e865b2028b7468179588d52f418dabfafc  wasi_python-0.1.0-py3-none-any.whl
+## The published SHA256SUMS names only the tarball and the wheel; the set's own SHA256SUMS inside the tarball was not downloaded (outside the brief), so per-file equality with the published tarball is not observed here.
+## hard links: python-stdlib.zip nlink=5 (local research work trees under build/ link it as lib/python315.zip); python.wasm and python-snapshot.wasm nlink=1

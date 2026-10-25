@@ -1,0 +1,14 @@
+{
+ "h14-poll-oneoff": [
+  "src/wasi_python/_call.py#_poll_oneoff"
+ ],
+ "h15-env-loaders": [
+  "build/artifacts/python-stdlib.zip#env-driven-loaders"
+ ],
+ "h16-release-assets": [
+  "github-release/v0.1.0#assets"
+ ],
+ "h17-eh-advisories": [
+  "build/artifacts/python.wasm#try_table"
+ ]
+}

@@ -1,0 +1,6 @@
+{"child_normal": [0, null]}
+{"child_oob": [null, "memory out of bounds"]}
+{"mode": "control", "child_wait_status": 0, "signalled": false, "signal": null, "exit": 0}
+
+STDERR: 
+RC: 0

@@ -1,0 +1,4 @@
+>=49,<50 [False, False]
+>=50,<51 [False, False]
+>=49.0.3,<51 [False, False]
+>=50.0.1,<51 [False, False]

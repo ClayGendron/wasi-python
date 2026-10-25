@@ -1,0 +1,14 @@
+{
+  "h01-fs-paths": ["src/wasi_python/_call.py#_guard_linker", "src/wasi_python/mounts.py#FileProvider"],
+  "h02-fs-memory": ["src/wasi_python/_fs_memory.py#SIGNATURES"],
+  "h03-private-dirs": ["src/wasi_python/_private_dirs.py#_Private", "src/wasi_python/_call.py#_preopens"],
+  "h04-loader": ["src/wasi_python/_engines.py#deserialize_file", "src/wasi_python/_artifacts.py#find"],
+  "h05-door": ["src/wasi_python/_call.py#_door"],
+  "h06-tools": ["src/wasi_python/_tool_host.py#_ToolHost"],
+  "h07-sessions-limits": ["src/wasi_python/_sessions.py#Session", "src/wasi_python/runner.py#run"],
+  "h08-process": ["src/wasi_python/_wasmtime_ffi.py#ffi"],
+  "h09-cli": ["src/wasi_python/cli.py#main"],
+  "h10-ci": [".github/workflows/release.yml#on"],
+  "h11-build": ["scripts/00_download.sh#download", "pyproject.toml#dependencies"],
+  "h12-binary": ["build/artifacts/python.wasm#imports", "build/artifacts/python-stdlib.zip#entries"]
+}

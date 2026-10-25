@@ -1,0 +1,298 @@
+{
+ "units": [
+  {
+   "coverage_id": "src%2Fwasi_python%2F_private_dirs.py%23_Private::src%2Fwasi_python%2F_private_dirs.py%23_sweep_once::src%2Fwasi_python::DESKTOP-MOBILE-AND-LOCAL-IPC.md%23Local%20file%20ownership%20and%20TOCTOU",
+   "disposition": "covered",
+   "reviewed_paths": [
+    "src/wasi_python/_private_dirs.py",
+    "src/wasi_python/_platform.py",
+    "src/wasi_python/_call.py",
+    "src/wasi_python/_places.py",
+    "src/wasi_python/_zip.py"
+   ],
+   "checks": [
+    {
+     "agent_id": "h03-private-dirs",
+     "reviewed_paths": [
+      "src/wasi_python/_private_dirs.py",
+      "src/wasi_python/_platform.py"
+     ],
+     "invariant": "A private folder (root, stdin folder, zip folder, empty HOME) is created only after its lock file is made O_CREAT|O_EXCL|O_NOFOLLOW 0600, flocked, re-checked as the same file, stamped with the kernel identity, and the folder made by mkdir 0700 that fails on any pre-existing name; another OS user or a guest can neither pre-create, swap nor link into it.",
+     "method": "source",
+     "result": "_Private.__init__ (_private_dirs.py:35-76) draws a 64-bit secrets name, creates the lock exclusively without following links, locks it, checks _same_file, writes the identity, then os.mkdir(path, 0o700); a name that exists (folder, file or link pre-created by anyone) raises FileExistsError and the call abandons its own lock and redraws. In a sticky shared /tmp another user cannot rename or remove the 0700 folder afterwards; on macOS and Windows the temp folder is per-user. Only an availability effect remains (name squatting after seeing the lock; hardening note).",
+     "artifact": null
+    },
+    {
+     "agent_id": "h03-private-dirs",
+     "reviewed_paths": [
+      "src/wasi_python/_private_dirs.py",
+      "src/wasi_python/_platform.py"
+     ],
+     "invariant": "The sweep removes only folders of dead calls of this user on this kernel: the lock must match the name pattern, be a regular file owned by this uid, be the same inode when opened O_NOFOLLOW|O_NONBLOCK, be lockable (no live holder), and name this kernel; the folder must be a real directory, not a link or junction; the lock is unlinked while still held.",
+     "method": "source",
+     "result": "_sweep_entry (_private_dirs.py:157-213) enforces each condition. The folder's own owner is not compared with getuid (line 190); a hostile user can only get a folder of theirs swept when this user's dead lock is left without its folder, and the remover then deletes only entries in that user's own directory, never following links or crossing devices, so no protected resource is reached (hardening note). Race with a creator: the sweeper unlinks a lone lock while holding it, so a creator that locks after fails _same_file and redraws (lines 56-63, 213; _platform.py:452-461).",
+     "artifact": null
+    },
+    {
+     "agent_id": "h03-private-dirs",
+     "reviewed_paths": [
+      "src/wasi_python/_platform.py"
+     ],
+     "invariant": "remove_tree never follows a link, never leaves the tree, and never crosses a device, so a guest's leftovers or a concurrent swap cannot make the runner delete outside the folder.",
+     "method": "source",
+     "result": "_remove_at (_platform.py:696-771) lstat-then-open with O_NOFOLLOW|O_DIRECTORY and an identity comparison, goes down by name with _enter (774-805: O_NOFOLLOW, st_dev check before and after open), climbs by '..' checked against the recorded parent identity (EBUSY otherwise), and unlinks non-directories without following. _remove_by_path (808-883) is the Windows/no-dir_fd variant that unlinks links and junctions. _real_dir_at (609-634) unlinks a non-directory in the way and opens each component O_NOFOLLOW relative to the previous descriptor.",
+     "artifact": null
+    },
+    {
+     "agent_id": "h03-private-dirs",
+     "reviewed_paths": [
+      "src/wasi_python/_call.py",
+      "src/wasi_python/_places.py",
+      "src/wasi_python/_zip.py"
+     ],
+     "invariant": "No grant or root can reach the temporary folder that holds every call's private folders, and the zip copy and matplotlib data granted to every call stay in a 0700 private folder a guest only reads.",
+     "method": "source",
+     "result": "_shared_folders (_places.py:576-585) makes _judge (330-381) refuse any root or grant, read-only included, at or above tempfile.gettempdir(); _runtime_folders (526-573) refuses a writable root or grant at, inside or above this process's zip folder. _preopens (_call.py:185-243) grants the zip folder's lib and mpl-data read-only; _zip.py keeps them in _Private('wasi-python-zip-') folders, re-copies on a stamp change and re-extracts on a record change. The stdin file and mount placeholder live in a per-call _Private (_call.py:463-476). A guest therefore has no WASI path to any temp-folder entry.",
+     "artifact": null
+    },
+    {
+     "agent_id": "h03-private-dirs",
+     "reviewed_paths": [
+      "src/wasi_python/_private_dirs.py",
+      "src/wasi_python/_platform.py"
+     ],
+     "invariant": "Bounded local check of the sweep against same-user fixtures: dead folder removed without following links, live, foreign-kernel and link folders left, lone lock unlinked.",
+     "method": "local",
+     "result": "sweep_result.json: dead folder and lock removed; files outside reached by a file link and a folder link inside it kept; live (flock-held) folder and lock kept; foreign-kernel folder kept; a folder that is a link kept; lone lock with this identity unlinked. Another OS user cannot be staged here, so behaviour against a hostile sibling is established from source only. Target not read-only mounted (platform limit).",
+     "artifact": "agents/h03-private-dirs/artifacts/evidence/sweep_result.json"
+    }
+   ],
+   "candidate_fingerprints": [],
+   "unresolved": []
+  },
+  {
+   "coverage_id": "src%2Fwasi_python%2F_call.py%23_preopens::src%2Fwasi_python%2F_places.py%23_judge_import_path::src%2Fwasi_python::ATTACK-CLASSES.md%23Chained%20vulnerabilities%20and%20trust%20boundaries::reused-root",
+   "disposition": "candidate",
+   "reviewed_paths": [
+    "recipes/reactor_main.c",
+    "recipes/reactor_bootstrap.py",
+    "recipes/reportlab_start_up_stand_in.py",
+    "src/wasi_python/_places.py",
+    "src/wasi_python/_call.py",
+    "docs/explanation/security-model.md",
+    "src/wasi_python/_limits.py",
+    "src/wasi_python/_sessions.py",
+    "build/Python-3.15.0/Lib/sysconfig/__init__.py",
+    "build/pandas-3.0.6/pandas/compat/_constants.py"
+   ],
+   "checks": [
+    {
+     "agent_id": "h03-private-dirs",
+     "reviewed_paths": [
+      "recipes/reactor_main.c",
+      "recipes/reactor_bootstrap.py",
+      "recipes/reportlab_start_up_stand_in.py"
+     ],
+     "invariant": "The reactor starts isolated: no site, no sys.path[0] for -c, a script or -m, PYTHON* variables ignored, only the zip on sys.path; reportlab's home-folder start-up files are pre-empted by stand-ins.",
+     "method": "source",
+     "result": "init_interpreter uses PyConfig_InitIsolatedConfig (reactor_main.c:179) with module_search_paths_set and site_import=0 (191-197); _reactor.run (reactor_bootstrap.py:140-226) runs a script file without inserting its folder (only a named directory or zip is inserted, documented); the session setup appends only the runner's checked import_path entries (234-245, _sessions.py:976-998). reportlab_mods/reportlab_settings stand-ins are packed in the zip.",
+     "artifact": null
+    },
+    {
+     "agent_id": "h03-private-dirs",
+     "reviewed_paths": [
+      "src/wasi_python/_places.py",
+      "src/wasi_python/_call.py"
+     ],
+     "invariant": "An import_path entry is served only by a read-only grant, with no writable grant, mount or root under it or inside its grant, by guest path and by host identity.",
+     "method": "source",
+     "result": "_check_import_path (_places.py:176-227) and _judge_import_path (503-523) with _judge's read-only-inside-writable rule (374-381) hold this; the fresh HOME is a new 128-bit name under the root's /tmp made through a no-follow descriptor (_call.py:292-325, 348-371), so no earlier call can pre-populate it.",
+     "artifact": null
+    },
+    {
+     "agent_id": "h03-private-dirs",
+     "reviewed_paths": [
+      "src/wasi_python/_call.py",
+      "src/wasi_python/_places.py",
+      "recipes/reactor_main.c",
+      "recipes/reactor_bootstrap.py",
+      "docs/explanation/security-model.md"
+     ],
+     "invariant": "Two consecutive run calls on one writable root: nothing call 1 plants runs at start-up or on import in call 2, with defaults, with env= overrides of HOME, TMPDIR and PYTHON* variables, and with import_path entries, on both binaries.",
+     "method": "local",
+     "result": "reused_root_result.json: 34 planted files (site hooks, .pth, pyvenv.cfg at three levels, files under the root's own usr/local/lib/python3.15 written through the root descriptor, stdlib-name shadows, _sysconfigdata modules, reportlab hooks, matplotlibrc, .pdbrc). Defaults on snapshot and plain: none ran; sys.path is the zip only. HOME/TMPDIR/PYTHONPATH/PYTHONSTARTUP/PYTHONHOME/PYTHONUSERBASE/PYTHONBREAKPOINT/PYTHONINSPECT/MPLCONFIGDIR/MPLBACKEND overrides: only .pdbrc ran, when the program called breakpoint() (documented). import_path served by the root is refused. env _PYTHON_SYSCONFIGDATA_PATH=/ ran the planted /_sysconfigdata__wasi_wasm32-wasi.py (candidate).",
+     "artifact": "agents/h03-private-dirs/artifacts/evidence/reused_root_result.json"
+    },
+    {
+     "agent_id": "h03-private-dirs",
+     "reviewed_paths": [
+      "src/wasi_python/_call.py",
+      "src/wasi_python/_limits.py",
+      "src/wasi_python/_sessions.py",
+      "build/Python-3.15.0/Lib/sysconfig/__init__.py",
+      "build/pandas-3.0.6/pandas/compat/_constants.py"
+     ],
+     "invariant": "No env= entry turns a file planted in a reused root into code that runs on a plain import in a later call (the import path's read-only-grant rule cannot be bypassed through the environment).",
+     "method": "local",
+     "result": "sysconfigdata_path_result.json: with env={'_PYTHON_SYSCONFIGDATA_PATH': '/data'} a module planted by call 1 at /data/_sysconfigdata__wasi_wasm32-wasi.py runs on `import pandas`, `import scipy`, `import sklearn`, `import joblib`, `import statsmodels.api` (snapshot) and `import pandas` (plain); control calls without the entry never run it. sysconfig reads the variable without consulting sys.flags.ignore_environment and execs the module from that folder; the runner passes env keys through unchecked.",
+     "artifact": "agents/h03-private-dirs/artifacts/evidence/sysconfigdata_path_result.json"
+    }
+   ],
+   "candidate_fingerprints": [
+    "runner-env.sysconfig-PYTHON-SYSCONFIGDATA-PATH.loads-code-outside-import-path-rules"
+   ],
+   "unresolved": []
+  }
+ ],
+ "candidates": [
+  {
+   "proposed_verdict": "confirmed",
+   "fingerprint": "runner-env.sysconfig-PYTHON-SYSCONFIGDATA-PATH.loads-code-outside-import-path-rules",
+   "title": "env= _PYTHON_SYSCONFIGDATA_PATH makes a module planted in a reused root run on `import pandas` in a later call",
+   "description": "The runner promises that code planted in a root never runs at start-up or on import in a later call, and enforces it by an isolated interpreter (PYTHON* variables ignored, site off) and by allowing import_path entries only from read-only grants with nothing writable under them. CPython 3.15's sysconfig honours the private variable _PYTHON_SYSCONFIGDATA_PATH without checking sys.flags.ignore_environment and execs `_sysconfigdata_<abi>_<platform>_<multiarch>` from that folder. The runner lays env= over the guest's environment without any key policy, so an embedder that passes this variable (for instance copied from a cross-build host environment with the CLI's --env KEY, or by forwarding its environment) pointing at a folder in a reused root or writable grant turns a file an earlier guest left there into code run in the later call on a plain `import pandas` (also scipy, sklearn, joblib, statsmodels), on both binaries. The security model lists only HOME and PYTHONTZPATH overrides as unprotected.",
+   "root_cause": "sysconfig._get_sysconfigdata reads os.environ['_PYTHON_SYSCONFIGDATA_PATH'] regardless of isolated mode and loads a module from that directory with PathFinder + exec_module; the runner's env check (_limits._check_inputs) rejects only empty keys and '=', and nothing applies the import_path rules (read-only grant, nothing writable under it) to this code-loading variable.",
+   "intended_behavior": "Every folder the guest's interpreter loads code from is subject to the import_path rules: a read-only grant with no writable root, grant or mount under or inside it; an env= entry that would load code from elsewhere is refused before any work (or ignored, as isolated mode ignores PYTHONPATH).",
+   "trace": [
+    {
+     "kind": "entrypoint",
+     "file": "src/wasi_python/_limits.py",
+     "line": 139,
+     "scope": "_check_inputs",
+     "description": "env keys are checked only for emptiness and '='; _PYTHON_SYSCONFIGDATA_PATH passes."
+    },
+    {
+     "kind": "propagation",
+     "file": "src/wasi_python/_call.py",
+     "line": 452,
+     "scope": "_instance",
+     "description": "wasi.env = BASE_ENV + HOME + env= laid over them, unfiltered (the session's opening does the same at _sessions.py:999)."
+    },
+    {
+     "kind": "propagation",
+     "file": "recipes/reactor_bootstrap.py",
+     "line": 143,
+     "scope": "run",
+     "description": "The reactor copies the WASI environment into os.environ for the program."
+    },
+    {
+     "kind": "propagation",
+     "file": "build/pandas-3.0.6/pandas/compat/_constants.py",
+     "line": 21,
+     "scope": "module level",
+     "description": "`import pandas` calls sysconfig.get_config_var('HOST_GNU_TYPE') at import."
+    },
+    {
+     "kind": "propagation",
+     "file": "build/Python-3.15.0/Lib/sysconfig/__init__.py",
+     "line": 360,
+     "scope": "_get_sysconfigdata",
+     "description": "Reads _PYTHON_SYSCONFIGDATA_PATH from os.environ with no ignore_environment check."
+    },
+    {
+     "kind": "sink",
+     "file": "build/Python-3.15.0/Lib/sysconfig/__init__.py",
+     "line": 343,
+     "scope": "_import_from_directory",
+     "description": "PathFinder.find_spec(name, [path]) then spec.loader.exec_module(module): the planted file in the reused root runs."
+    }
+   ],
+   "evidence": [
+    {
+     "file": "docs/explanation/security-model.md",
+     "line": 9,
+     "description": "Policy: code planted in a root never runs at start-up or on import in a later call, on either binary."
+    },
+    {
+     "file": "docs/explanation/security-model.md",
+     "line": 82,
+     "description": "Only env= overrides of HOME or PYTHONTZPATH are listed as not protected."
+    },
+    {
+     "file": "recipes/reactor_main.c",
+     "line": 179,
+     "description": "Isolated config: the design relies on the interpreter ignoring environment-driven code paths."
+    },
+    {
+     "file": "src/wasi_python/_places.py",
+     "line": 176,
+     "description": "_check_import_path: the control that confines code-loading folders to read-only grants, which this variable bypasses."
+    },
+    {
+     "file": "build/Python-3.15.0/Lib/sysconfig/__init__.py",
+     "line": 361,
+     "description": "_import_from_directory(path, name) used whenever the variable is set."
+    }
+   ],
+   "conditions": [
+    {
+     "kind": "system_configuration",
+     "description": "The embedder passes env containing _PYTHON_SYSCONFIGDATA_PATH naming a guest folder that a previous call could write (a reused root, a writable grant, or a writable mount), e.g. by forwarding a cross-build host environment or with the CLI's --env _PYTHON_SYSCONFIGDATA_PATH."
+    },
+    {
+     "kind": "data_state",
+     "description": "An earlier, less trusted call on the same root or writable folder left `_sysconfigdata__wasi_wasm32-wasi.py` (or .pyc) there."
+    },
+    {
+     "kind": "user_interaction",
+     "description": "The later program imports pandas, scipy, sklearn, joblib or statsmodels, or calls sysconfig.get_config_var(s)."
+    }
+   ],
+   "execution": {
+    "attacker_perspective": "A guest in call 1 with a writable root writes one file; the embedder's later call on the same root, with the env entry, runs a program that only imports pandas.",
+    "payloads": [
+     "call 1: wasi_python.run(['-c', \"import os; os.makedirs('/data', exist_ok=True); open('/data/_sysconfigdata__wasi_wasm32-wasi.py','w').write(\\\"import sys\\\\nsys.stderr.write('PLANTED\\\\\\\\n')\\\\nbuild_time_vars={'installed_base':'/usr/local'}\\\\n\\\")\"], root=R)",
+     "call 2: wasi_python.run(['-c', 'import pandas'], root=R, env={'_PYTHON_SYSCONFIGDATA_PATH': '/data'})"
+    ],
+    "instructions": [
+     "Under env -i, sandbox-exec (deny network*), ulimit -t 300 -f 4000000 -n 4096, run .venv/bin/python -I sysconfigdata_path_check.py <scratch> with R under scratch.",
+     "Compare each `import <pkg>` call with and without the env entry for 'PLANTED' on stderr."
+    ],
+    "observed_result": "Without the entry no planted code ran. With it, PLANTED was written to stderr in the later call on import of pandas, scipy, sklearn, joblib and statsmodels.api (snapshot) and pandas (plain binary); numpy and matplotlib imports did not trigger it."
+   },
+   "remediation": {
+    "strategy": "Refuse (or drop) env keys that make the guest interpreter load code from a folder, at least _PYTHON_SYSCONFIGDATA_PATH, in the runner's argument check, with the message pointing to import_path; add a regression check that plants the module in call 1 and asserts call 2 raises ValueError before any work. Alternatively apply the import_path rules to its value (a read-only grant with nothing writable under it). Name the variable in the security model either way.",
+    "code_changes": [
+     {
+      "file_name": "src/wasi_python/_limits.py",
+      "fixed_code": "_CODE_FOLDER_ENV = frozenset({\"_PYTHON_SYSCONFIGDATA_PATH\"})  # sysconfig execs a module from it\n...\n            if not name or \"=\" in name:\n                raise ValueError(\"env key: illegal environment variable name\")  # never quoted\n            if name in _CODE_FOLDER_ENV:\n                raise ValueError(\n                    \"env key: _PYTHON_SYSCONFIGDATA_PATH loads code from a folder; \"\n                    \"name a read-only grant in import_path instead\"\n                )"
+     }
+    ]
+   },
+   "severity": {
+    "likelihood": {
+     "score": "low",
+     "reason": "Requires a trusted embedder to pass a private, underscore-prefixed CPython variable naming a guest-writable folder; plausible only when forwarding a cross-build host environment or by explicit choice."
+    },
+    "impact": {
+     "score": "medium",
+     "reason": "Crosses the call-to-call boundary the policy promises: an earlier guest's code runs in a later call with that call's grants, tools, door and stdin; it stays inside the wasm sandbox and does not reach the host."
+    },
+    "overall_severity": "low"
+   },
+   "confidence": {
+    "score": "high",
+    "reason": "Source path is complete and the effect was observed in bounded local runs on both binaries, with controls that never ran the planted file."
+   }
+  }
+ ],
+ "hardening": [
+  "src/wasi_python/_private_dirs.py:190: the sweep checks that the lock file is this user's but not that the folder beside it is; add _owned(folder) so a folder another user made at the name of this user's lone dead lock is never walked (today's effect is limited to deleting entries in that user's own directory, never following links).",
+  "src/wasi_python/_private_dirs.py:47-67: on a shared sticky /tmp another user who watches the folder can mkdir the folder name between the lock's creation and os.mkdir, forcing a redraw; 100 lost races make _Private raise FileExistsError (availability only). Creating private folders inside a per-user 0700 parent in the temp folder would remove the race.",
+  "src/wasi_python/_private_dirs.py:36: nothing checks that tempfile.gettempdir() is sticky or owned by this user; the private folders' integrity against other users rests on sticky-bit semantics (a world-writable non-sticky temp folder would let another user rename a 0700 private root away between its mkdir and wasmtime's by-path preopen; the preopen identity check would then refuse, so the effect is availability).",
+  "Reused root: .pdbrc in the working folder or HOME runs when a program starts pdb (observed with breakpoint()); documented, but PYTHONBREAKPOINT being ignored under isolated mode means breakpoint() always reaches pdb and its rc files."
+ ],
+ "uncovered": [
+  {
+   "surface": "Environment variables read by the zip's third-party packages (60+ packages) that select files or modules to load, independent of isolated mode",
+   "boundary": "isolated-mode assumption that env= cannot change what code the guest loads",
+   "subsystem": "build/artifacts",
+   "attack_class": "Chained trust: env-driven code loading from guest-writable folders",
+   "starting_paths": [
+    "build/artifacts/python-stdlib.zip",
+    "build/Python-3.15.0/Lib/sysconfig/__init__.py",
+    "src/wasi_python/_limits.py"
+   ],
+   "reason": "This unit scanned the CPython stdlib for env-driven loaders (only sysconfig loads from a path; xml.dom/xml.sax honour ignore_environment) and tested a selected set of package imports; an exhaustive enumeration of the bundled third-party packages' env-driven loaders needs its own deterministic coverage."
+  }
+ ]
+}

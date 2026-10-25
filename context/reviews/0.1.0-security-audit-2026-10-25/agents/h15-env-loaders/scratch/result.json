@@ -1,0 +1,124 @@
+{
+ "units": [
+  {
+   "coverage_id": "build%2Fartifacts%2Fpython-stdlib.zip%23env-driven-loaders::src%2Fwasi_python%2F_limits.py%23_check_inputs::build%2Fartifacts::MEMORY-SAFETY-AND-BINARY.md%23Library%2C%20plugin%2C%20and%20executable%20search-order%20trust",
+   "disposition": "covered",
+   "reviewed_paths": [
+    "src/wasi_python/_limits.py",
+    "src/wasi_python/_call.py",
+    "recipes/reactor_main.c",
+    "recipes/reactor_bootstrap.py",
+    "build/artifacts/python-stdlib.zip",
+    "build/networkx-3.7/networkx/utils/backends.py",
+    "build/mpmath-1.3.0/mpmath/libmp/backend.py",
+    "build/joblib-1.6.0/joblib/externals/loky/backend/fork_exec.py",
+    "build/joblib-1.6.0/joblib/externals/loky/backend/reduction.py",
+    "build/matplotlib-3.11.2/lib/matplotlib/__init__.py",
+    "build/matplotlib-3.11.2/lib/matplotlib/backends/qt_compat.py",
+    "build/matplotlib-3.11.2/lib/matplotlib/rcsetup.py",
+    "build/sympy-1.14.0/sympy/external/gmpy.py",
+    "build/sympy-1.14.0/sympy/core/backend.py",
+    "build/statsmodels-0.15.0/statsmodels/tsa/x13.py",
+    "build/pypdf-6.21.1/pypdf/filters.py",
+    "build/tqdm-4.70.1/tqdm/utils.py",
+    "build/reportlab-5.0.1/src/reportlab/__init__.py",
+    "build/reportlab-5.0.1/src/reportlab/rl_config.py",
+    "build/reportlab-5.0.1/src/reportlab/lib/utils.py",
+    "recipes/reportlab_start_up_stand_in.py",
+    "build/jinja2-3.1.6/src/jinja2/bccache.py",
+    "build/scikit_learn-1.9.1/sklearn/datasets/_base.py",
+    "build/scikit_learn-1.9.1/sklearn/datasets/_california_housing.py",
+    "build/Python-3.15.0/Lib/sysconfig/__init__.py",
+    "build/Python-3.15.0/Lib/xml/dom/domreg.py",
+    "build/Python-3.15.0/Lib/xml/sax/__init__.py",
+    "build/Python-3.15.0/Lib/importlib/_bootstrap_external.py",
+    "build/Python-3.15.0/Lib/gettext.py",
+    "build/Python-3.15.0/Lib/pdb.py",
+    "build/Python-3.15.0/Python/sysmodule.c",
+    "docs/explanation/security-model.md"
+   ],
+   "checks": [
+    {
+     "agent_id": "h15-env-loaders",
+     "reviewed_paths": [
+      "src/wasi_python/_limits.py",
+      "src/wasi_python/_call.py",
+      "recipes/reactor_main.c",
+      "recipes/reactor_bootstrap.py"
+     ],
+     "invariant": "Which env= keys reach the guest and which interpreter controls still bound what they can load: env keys pass with name-syntax checks only; the interpreter is isolated (ignore_environment=1, safe_path, site off) and its import path is the read-only stdlib zip",
+     "method": "source",
+     "result": "_check_inputs (_limits.py:125-154) only rejects empty keys, '=' and NUL/lone surrogates; _call.py:452 merges BASE_ENV, the fresh HOME and the caller's env into WASI environ; reactor_bootstrap.run/_setup copy it into os.environ. PyConfig_InitIsolatedConfig with module_search_paths = the zip only and site_import=0 (reactor_main.c:178-204) means every module-NAME selector an env key can set resolves only on the zip (plus any read-only import_path entries); only selectors that take a FILE or FOLDER path escape that rule. Runner-side root cause (unfiltered env keys) is the same one the sysconfig finding names.",
+     "artifact": null
+    },
+    {
+     "agent_id": "h15-env-loaders",
+     "reviewed_paths": [
+      "build/artifacts/python-stdlib.zip",
+      "build/networkx-3.7/networkx/utils/backends.py",
+      "build/mpmath-1.3.0/mpmath/libmp/backend.py",
+      "build/joblib-1.6.0/joblib/externals/loky/backend/fork_exec.py",
+      "build/joblib-1.6.0/joblib/externals/loky/backend/reduction.py",
+      "build/matplotlib-3.11.2/lib/matplotlib/__init__.py",
+      "build/matplotlib-3.11.2/lib/matplotlib/backends/qt_compat.py",
+      "build/matplotlib-3.11.2/lib/matplotlib/rcsetup.py",
+      "build/sympy-1.14.0/sympy/external/gmpy.py",
+      "build/sympy-1.14.0/sympy/core/backend.py",
+      "build/statsmodels-0.15.0/statsmodels/tsa/x13.py",
+      "build/pypdf-6.21.1/pypdf/filters.py",
+      "build/tqdm-4.70.1/tqdm/utils.py",
+      "build/reportlab-5.0.1/src/reportlab/__init__.py",
+      "build/reportlab-5.0.1/src/reportlab/rl_config.py",
+      "build/reportlab-5.0.1/src/reportlab/lib/utils.py",
+      "recipes/reportlab_start_up_stand_in.py",
+      "build/jinja2-3.1.6/src/jinja2/bccache.py",
+      "build/scikit_learn-1.9.1/sklearn/datasets/_base.py",
+      "build/scikit_learn-1.9.1/sklearn/datasets/_california_housing.py"
+     ],
+     "invariant": "No bundled third-party package lets an env value select a FILE or FOLDER whose contents are executed at import or start-up (exec, spec_from_file_location, SourceFileLoader, runpy, entry points, pickle/marshal), outside the read-only import-path rule",
+     "method": "source",
+     "result": "Swept every env read in the 52 package source trees (h15_envgrep.txt) and every code-loading sink (h15_sinkgrep.txt), and byte-scanned all 5,384 pycs in the zip for environ/getenv (h15_pyc_env_hits.txt; no package without a source tree, e.g. xlsxwriter, reads env). Name-only selectors, bounded by the zip import path: networkx NETWORKX_AUTOMATIC_BACKENDS/BACKEND_PRIORITY (entry_points over sys.path; only nx_loopback is declared and its test module is not shipped), mpmath MPMATH_SAGE/SAGE_ROOT (import sage.all) and MPMATH_NOGMPY (gmpy2), sympy USE_SYMENGINE/SYMPY_GROUND_TYPES, matplotlib MPLBACKEND module:// and QT_API, loky LOKY_PICKLER (import_module; joblib's loky backend cannot even import here: no _multiprocessing), scipy/sklearn SCIPY_ARRAY_API, statsmodels SM_FORMULA_ENGINE. Process sinks unreachable (no processes in WASI): loky fork_exec, statsmodels X13PATH/X12PATH, pypdf jbig2dec, sympy compiler env, pydoc PAGER, webbrowser BROWSER. Folder selectors that read DATA only: MPLCONFIGDIR/MATPLOTLIBRC/XDG_CONFIG_HOME/XDG_CACHE_HOME (matplotlibrc is parsed with ast.literal_eval only in 3.11.2, font cache is JSON), SEABORN_DATA (CSV), STATSMODELS_DATA (zlib CSV), JOBLIB_TEMP_FOLDER (process backends only), XDG_DATA_HOME fonts (Pillow, reportlab), TZ/PYTHONTZPATH (documented), RL_* (typed values; toColorCanUse only selects literal or safe eval). reportlab's ~/.reportlab_mods and ~/.reportlab_settings exec paths are closed by the reportlab_mods/reportlab_settings stand-ins at the zip root. jinja2's default FileSystemBytecodeCache (marshal code from TMPDIR) is opt-in and refuses without os.getuid. The only folder-selecting env key whose contents become code is sklearn SCIKIT_LEARN_DATA, and only on an explicit fetch_* call (see the local check and the hardening note), not at import.",
+     "artifact": null
+    },
+    {
+     "agent_id": "h15-env-loaders",
+     "reviewed_paths": [
+      "build/Python-3.15.0/Lib/sysconfig/__init__.py",
+      "build/Python-3.15.0/Lib/xml/dom/domreg.py",
+      "build/Python-3.15.0/Lib/xml/sax/__init__.py",
+      "build/Python-3.15.0/Lib/importlib/_bootstrap_external.py",
+      "build/Python-3.15.0/Lib/gettext.py",
+      "build/Python-3.15.0/Lib/pdb.py",
+      "build/Python-3.15.0/Python/sysmodule.c",
+      "docs/explanation/security-model.md"
+     ],
+     "invariant": "Re-check of the stdlib list: no stdlib env-driven loader other than the known sysconfig one executes code from an env-named folder",
+     "method": "source",
+     "result": "PYTHON_DOM (domreg.py:60), PY_SAX_PARSER (sax/__init__.py:61), PYTHONCASEOK (_bootstrap_external.py:69) are gated on sys.flags.ignore_environment, which is 1 in the guest; PYTHONBREAKPOINT uses Py_GETENV (sysmodule.c:590), which honours use_environment=0; all four are name-based anyway. sysconfig: _PYTHON_SYSCONFIGDATA_NAME alone resolves via importlib.import_module on the zip; only together with _PYTHON_SYSCONFIGDATA_PATH does it reach _import_from_directory (sysconfig/__init__.py:336-363), so every sysconfig variant is the existing fingerprint; _PYTHON_PROJECT_BASE and _PYTHON_HOST_PLATFORM only change data. gettext's LANGUAGE/LC_* can name a .mo file outside localedir but the plural expression is token-checked before compile: data. pdb's .pdbrc and HOME/PYTHONTZPATH overrides are documented in security-model.md 'What is not protected'.",
+     "artifact": null
+    },
+    {
+     "agent_id": "h15-env-loaders",
+     "reviewed_paths": [
+      "build/artifacts/python-stdlib.zip",
+      "src/wasi_python/_limits.py",
+      "recipes/reactor_main.c"
+     ],
+     "invariant": "Bounded local check: a guest plants modules, a dist-info with networkx/matplotlib entry points, matplotlibrc files and a pickle under /data in a writable reused root; later calls on the same root with env keys naming them (and controls without) show whether any planted code runs",
+     "method": "local",
+     "result": "wasi_python.run on one writable root under scratch, snapshot binary, wrapper ulimit -t 300 -f 4000000 -n 4096, env -i with PATH/HOME/TMPDIR/WASI_PYTHON_CACHE only, sandbox-exec deny network*; the target was not mounted read-only (macOS cannot), and no grant or root pointed at the target. Guest sys.path == ['/usr/local/lib/python315.zip'], cwd '/'. With MPMATH_SAGE, SAGE_ROOT, LOKY_PICKLER, NETWORKX_AUTOMATIC_BACKENDS, NETWORKX_BACKEND_PRIORITY, USE_SYMENGINE, SYMPY_GROUND_TYPES, PYTHON_DOM, PY_SAX_PARSER, PYTHONPATH, PYTHONUSERBASE, PYTHONSTARTUP, JOBLIB_TEMP_FOLDER, SCIPY_ARRAY_API all naming planted items: no planted marker ran (networkx raised 'Unknown backend', loky import failed on _multiprocessing). MPLBACKEND=module://mybackend and MPLCONFIGDIR/MATPLOTLIBRC=/data/mpl (planted 'backend: module://mybackend'): rc read from /data/mpl, then ModuleNotFoundError, no marker. MPLBACKEND=fake (planted entry point): rejected, no marker. SCIKIT_LEARN_DATA=/data/sk + fetch_california_housing(download_if_missing=False): PLANT-sklearn-pickle printed (planted pickle executed on that ordinary call); control without the key: OSError 'Data not found', no marker.",
+     "artifact": "agents/h15-env-loaders/artifacts/evidence/h15_result.json"
+    }
+   ],
+   "candidate_fingerprints": [],
+   "unresolved": []
+  }
+ ],
+ "candidates": [],
+ "hardening": [
+  "sklearn SCIKIT_LEARN_DATA (build/scikit_learn-1.9.1/sklearn/datasets/_base.py:83) sets the default data home, and fetch_california_housing (_california_housing.py:195), fetch_covtype, fetch_kddcup99, fetch_olivetti_faces, fetch_rcv1, fetch_species_distributions and fetch_20newsgroups(_vectorized) load cached files with joblib.load/pickle, while fetch_lfw_* use joblib.Memory there: an embedder env naming a reused root, writable grant or mount runs a pickle an earlier guest planted, on that ordinary call (shown locally: h15_result.json, sklearn_env_SCIKIT_LEARN_DATA vs sklearn_control_noenv). It is not at start-up or import, and it is the same shape as the documented HOME override (HOME=/data reaches /data/scikit_learn_data too), so it is judged inside docs/explanation/security-model.md 'Reused roots and state across calls' rather than a finding. A sentence there saying sklearn's cached datasets are pickles (code, not data), and naming SCIKIT_LEARN_DATA beside HOME and PYTHONTZPATH, would close the gap in the documented promise.",
+  "Every env-driven module-NAME selector in the zip (MPLBACKEND module://, QT_API, LOKY_PICKLER, MPMATH_SAGE/SAGE_ROOT, MPMATH_NOGMPY, USE_SYMENGINE, SYMPY_GROUND_TYPES, NETWORKX_* backends via entry points, SCIPY_ARRAY_API, PYTHONBREAKPOINT, PYTHON_DOM, PY_SAX_PARSER, _PYTHON_SYSCONFIGDATA_NAME) is safe only because the import path is the read-only zip plus read-only import_path entries and site is off. A regression test that plants a module and a dist-info in a writable root and runs with these keys (as h15_check.py does) would pin that, so a later change that put a writable folder or a .pth-processing site on sys.path is caught.",
+  "A runner fix for the sysconfig finding that filters only _PYTHON_SYSCONFIGDATA_PATH covers every sysconfig variant (NAME alone reaches only the zip), but does not cover SCIKIT_LEARN_DATA-style folder keys; a runner-level rule (refuse or warn on env values that name a writable root, grant or mount for keys known to select code-bearing folders) would be the general control if the project wants one."
+ ],
+ "uncovered": []
+}

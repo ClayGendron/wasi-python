@@ -1,0 +1,7 @@
+repacked tarball sha256: a6a4ae7069b663981bd684c882efbdb0fe95658e17d15f38d7d8e8856418b337
+published tarball sha256: a6a4ae7069b663981bd684c882efbdb0fe95658e17d15f38d7d8e8856418b337
+tarball byte-identical: True
+decompressed tar byte-identical: True
+repacked outer SHA256SUMS equals published: True
+wheel dist-info LICENSE == combined(tagged LICENSE, build/artifacts/LICENSES): True d3747dd1009626f468ff056676ca2070abcdaf42396d7c37a6f7c45df7819fbd d3747dd1009626f468ff056676ca2070abcdaf42396d7c37a6f7c45df7819fbd
+licences.parts count: 70 (LICENSES/*.txt only; non-.txt files not appended): ['tqdm-4.70.1-source.whl']

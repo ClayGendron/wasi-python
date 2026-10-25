@@ -1,0 +1,14 @@
+files changed: 1665 distinct: 1665
+counts: {'hunks': 2226, 'pure': 2226}
+meta lines: [] 0
+paths with ..: []
+non-.c/.h: []
+residue hunks: 0
+token-level edit kinds: 7
+2010 ('replace', 'int', 'void')
+294 ('delete', '0', '')
+28 ('insert', '', ', ( ftnlen ) 6')
+20 ('insert', '', ', ftnlen')
+4 ('insert', '', ', ( ftnlen ) 7')
+4 ('insert', '', ', ( ftnlen ) 8')
+2 ('delete', 'return', '')

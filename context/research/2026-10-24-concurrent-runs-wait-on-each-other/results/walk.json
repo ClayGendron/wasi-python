@@ -1,0 +1,16 @@
+{
+ "walk as is": {
+  "per_call_ms": 1.177,
+  "par8_ms": 31.79,
+  "ops_per_call": 289.0,
+  "lstat": 169.0,
+  "stat": 117.0
+ },
+ "walk with the identity memo": {
+  "per_call_ms": 1.095,
+  "par8_ms": 24.68,
+  "ops_per_call": 214.0,
+  "lstat": 169.0,
+  "stat": 42.0
+ }
+}

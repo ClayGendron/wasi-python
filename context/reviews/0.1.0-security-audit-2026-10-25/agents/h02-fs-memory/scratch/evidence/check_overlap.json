@@ -1,0 +1,74 @@
+[
+ {
+  "case": "plain wasmtime: used at RESULT trial 0",
+  "errno": 0,
+  "stop": null,
+  "used": 1366,
+  "entries": 42,
+  "nonzero_pads": [],
+  "tail_after_used_kept_sentinel": "aaaaaaaaaaaaaaaa"
+ },
+ {
+  "case": "plain wasmtime: used=buf+40 (second header) trial 0",
+  "errno": 0,
+  "stop": null,
+  "used": 1366,
+  "entries": 4,
+  "nonzero_pads": [],
+  "tail_after_used_kept_sentinel": "aaaaaaaaaaaaaaaa"
+ },
+ {
+  "case": "plain wasmtime: buf=DIRBUF+2, used=DIRBUF (overlaps 2 bytes) trial 0",
+  "errno": 0,
+  "stop": null,
+  "used": 1366,
+  "entries": 42,
+  "nonzero_pads": [],
+  "tail_after_used_kept_sentinel": "aaaaaaaaaaaaaaaa"
+ },
+ {
+  "case": "plain wasmtime: used=buf+400 (mid listing) trial 0",
+  "errno": 0,
+  "stop": null,
+  "used": 1366,
+  "entries": 13,
+  "nonzero_pads": [],
+  "tail_after_used_kept_sentinel": "aaaaaaaaaaaaaaaa"
+ },
+ {
+  "case": "guard: used at RESULT trial 0",
+  "errno": 0,
+  "stop": null,
+  "used": 1366,
+  "entries": 42,
+  "nonzero_pads": [],
+  "tail_after_used_kept_sentinel": "aaaaaaaaaaaaaaaa"
+ },
+ {
+  "case": "guard: used=buf+40 (second header) trial 0",
+  "errno": 0,
+  "stop": null,
+  "used": 1366,
+  "entries": 4,
+  "nonzero_pads": [],
+  "tail_after_used_kept_sentinel": "aaaaaaaaaaaaaaaa"
+ },
+ {
+  "case": "guard: buf=DIRBUF+2, used=DIRBUF (overlaps 2 bytes) trial 0",
+  "errno": 0,
+  "stop": null,
+  "used": 1366,
+  "entries": 42,
+  "nonzero_pads": [],
+  "tail_after_used_kept_sentinel": "aaaaaaaaaaaaaaaa"
+ },
+ {
+  "case": "guard: used=buf+400 (mid listing) trial 0",
+  "errno": 0,
+  "stop": null,
+  "used": 1366,
+  "entries": 13,
+  "nonzero_pads": [],
+  "tail_after_used_kept_sentinel": "aaaaaaaaaaaaaaaa"
+ }
+]

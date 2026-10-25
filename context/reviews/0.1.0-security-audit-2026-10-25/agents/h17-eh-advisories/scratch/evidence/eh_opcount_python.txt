@@ -1,0 +1,11 @@
+# llvm-objdump -d (wasi-sdk 34, LLVM 23.1.0) of build/artifacts/python.wasm piped to eh_opcount.awk; mnemonics absent from the list counted zero
+count call_indirect 98474
+count throw 2
+count throw_ref 26569
+count try_table 44791
+functions 89061 instructions 31968592
+functions_with_try_table 7905
+functions_with_call_ref 0
+functions_with_return_call_ref 0
+functions_with_throw fn throw __wasm_longjmp 1
+fn throw _Unwind_RaiseException 1

@@ -1,0 +1,4 @@
+{"mode": "pool", "driver_wall_s": 6.61, "killed": false, "rc": 0, "child_lines": ["{\"event\": \"start\", \"mode\": \"pool\", \"t\": 0.0}", "{\"event\": \"after 6 s\", \"other_call_done\": false, \"fifo_call_done\": false, \"t\": 6.5}"]}
+{"mode": "exit_pool", "driver_wall_s": 12.02, "killed": true, "child_lines": ["{\"event\": \"start\", \"mode\": \"exit_pool\", \"t\": 0.0}", "{\"event\": \"future.result timed out; main returning\", \"t\": 2.01}"]}
+{"mode": "session_atexit", "driver_wall_s": 12.02, "killed": true, "child_lines": ["{\"event\": \"start\", \"mode\": \"session_atexit\", \"t\": 0.0}", "{\"event\": \"turn thread alive; main returning\", \"alive\": true, \"t\": 2.31}"]}
+{"mode": "socket", "driver_wall_s": 5.28, "killed": false, "rc": 0, "child_lines": ["{\"event\": \"start\", \"mode\": \"socket\", \"t\": 0.0}", "{\"event\": \"run returned\", \"exit\": 0, \"trapped\": null, \"out\": \"err 58\\n\", \"err\": \"\", \"t\": 0.34}"]}

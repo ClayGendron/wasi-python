@@ -1,0 +1,73 @@
+import json
+S = "context/reviews/0.1.0-security-audit-2026-10-25/agents/v05-eh-fuel-recheck/scratch"
+guest = open(S + "/evidence/guest_kiwi.py").read()
+wat = open(S + "/evidence/eh_fuel_wat.txt").read()
+FP = "wasmtime-49.0.0:GHSA-m63x-6p34-q65x:try_table-catch-fuel:src/wasi_python/_engines.py:_engine"
+rec = {
+ "verdict": "confirmed",
+ "fingerprint": FP,
+ "title": "Metered engine on wasmtime-py 49.0.0 drops the fuel of C++ work that ends in a caught exception (GHSA-m63x-6p34-q65x), so guest Python can run far past its fuel cap",
+ "description": "The runner meters calls with fuel on a wasmtime-py 49.0.0 engine. Wasm exceptions and Cranelift are left at their defaults. That is GHSA-m63x-6p34-q65x's affected configuration; the fix is in wasmtime 49.0.1, and no wasmtime-py release carries it yet. On the exceptional edge of a call inside try_table, 49.0.0 resets fuel to what remained before the call, so all the work the callee did before throwing is not counted. The compiled-in C++ packages are built with -fwasm-exceptions, so every C++ catch is such an edge. Guest Python reaches one directly: kiwisolver's Solver.addConstraint (py/src/solver.cpp in the pinned 1.5.1 tarball) calls the C++ solver inside try and catches kiwi::UnsatisfiableConstraint, which the solver throws after building a row whose size grows with the system. Measured twice, independently, through wasi_python.run on the shipped artifact set (fuel given, deadline_s=None): one failing addConstraint is counted as about 17,000 to 19,600 fuel whether the chain has 200, 2,000 or 6,000 variables, while its wall time grows from about 9.6 to 190 microseconds. A same-shape control that adds and removes a consistent required equality on the same chain end (no throw) is counted as 140,067 fuel per call at 200 variables, at the same 9.6 microseconds of wall time as the failing call, and 1,552,404 fuel per call at 2,000 variables. The no-throw C++ and pure-Python work in these guests is counted at roughly 9 to 15 billion fuel per second of wall time; the failing calls at 6,000 variables are counted at about 0.9 to 1.0 hundred million per second, so their fuel is under-counted by roughly 100 times, an estimate from wall time since no fixed wasmtime-py exists to count them exactly. Under a cap of 2.2e9 fuel, 20,000 failing calls on a 2,000-variable chain (about 1.2 s of loop) finished with exit 0 and about 2.02e9 fuel used; the same-shape no-throw loop and the weak-strength add/remove loop each ended 'out of fuel' under the same cap, the no-throw one after at most about 364 calls of the 565 million fuel left after setup. The engine defect also reproduces with a standalone WAT module: 100 rounds of a 100,000-iteration callee that throws count as 1,101 fuel on wasmtime-py 49.0.0, but need 80,001,285 under the pinned wasmtime CLI 49.0.3. A finite deadline_s (the default is 60 s) still bounds wall time through epoch interruption, which the advisory does not affect. So the cap is lost only where fuel is the bound an embedder relies on: deadline_s=None with fuel, a fuel cap tighter than the deadline, or fuel_used read as an instruction count. In the guest case observed, the under-count per call grows with the size of the system the guest builds; the advisory's 'exponential' amplification is its own claim for arbitrary wasm and was not shown from guest Python.",
+ "root_cause": "pyproject.toml pins wasmtime>=49,<50 and uv.lock resolves it to 49.0.0, whose Cranelift fuel accounting resets to the pre-call fuel on the exceptional edge of a call inside try_table. _engine sets consume_fuel on the metered engine and leaves wasm exceptions enabled. The build compiles C++ with -fwasm-exceptions and links python.wasm with it, so every caught C++ exception (and, by the same lowering, every longjmp under -wasm-enable-sjlj, not separately demonstrated) takes that edge. The runner carries no mitigation for this advisory, though it carries its own fixes for two later wasmtime filesystem advisories.",
+ "intended_behavior": "A fuel cap bounds the guest's executed instructions, and fuel_used counts them, whatever path the guest's code takes, including C++ exceptions caught inside a compiled-in package. run()'s docstring calls fuel 'a cap on the guest's executed instructions', and SECURITY.md lists a guest that runs past its fuel cap as in scope.",
+ "trace": [
+  {"kind": "entrypoint", "file": "src/wasi_python/runner.py", "line": 115, "scope": "run",
+   "description": "wasi_python.run takes an untrusted guest program (argv) with fuel and deadline_s; deadline_s=None means no wall-clock limit, so fuel is the only CPU bound."},
+  {"kind": "propagation", "file": "scripts/steps/55_matplotlib.sh", "line": 102, "scope": "kiwisolver _cext build",
+   "description": "kiwisolver's seven C++ files are compiled with CXX_EH (line 50: -fwasm-exceptions -mllvm -wasm-use-legacy-eh=false -fexceptions), so the extension's catch of kiwi::UnsatisfiableConstraint around solver.addConstraint is a try_table catch. recipes/wasi-scipy.cross line 44 and the other cross files set the same flags for the other C++ packages."},
+  {"kind": "propagation", "file": "scripts/steps/60_link.sh", "line": 129, "scope": "link",
+   "description": "python.wasm is linked with -fwasm-exceptions; the hunter counted 44,791 try_table in 7,905 functions."},
+  {"kind": "propagation", "file": "uv.lock", "line": 1049, "scope": "wasmtime pin",
+   "description": "wasmtime resolves to 49.0.0 (installed in .venv), inside the advisory's affected range."},
+  {"kind": "propagation", "file": "src/wasi_python/_engines.py", "line": 122, "scope": "_engine",
+   "description": "cfg.consume_fuel = metered; wasm exceptions and the compiler are left at their defaults (epoch_interruption is also on, line 123)."},
+  {"kind": "sink", "file": "src/wasi_python/_call.py", "line": 618, "scope": "_drive",
+   "description": "store.set_fuel(fuel) sets the instruction cap; fuel_used is read at line 511 through _fuel_used (line 554). On 49.0.0 both miss callee work that unwinds to a try_table catch."}
+ ],
+ "evidence": [
+  {"file": "context/research/2026-10-18-wasmtime-49-advisories/advisories/GHSA-m63x-6p34-q65x.json", "line": 1,
+   "description": "The advisory: with fuel enabled, the catch path of a call inside try_table can drop the callee's fuel, which it says allows exponential amplification in general. Affects 49.0.0; fixed in 49.0.1. Workaround: epoch interruption."},
+  {"file": "src/wasi_python/_engines.py", "line": 122, "description": "consume_fuel on the metered engine; no override of wasm exceptions."},
+  {"file": "pyproject.toml", "line": 18, "description": "dependencies = [\"wasmtime>=49,<50\"]."},
+  {"file": "src/wasi_python/runner.py", "line": 176, "description": "run()'s fuel parameter: 'A cap on the guest's executed instructions; past it the call ends \"out of fuel\".'"},
+  {"file": "SECURITY.md", "line": 24, "description": "The runner uses wasmtime-py 49.0.0 and no wasmtime-py release yet carries a later wasmtime; the handled-advisories list does not include GHSA-m63x-6p34-q65x."},
+  {"file": "SECURITY.md", "line": 18, "description": "In scope: a guest that runs past its deadline, fuel, memory or output cap."},
+  {"file": "scripts/steps/55_matplotlib.sh", "line": 50, "description": "CXX_EH=\"-fwasm-exceptions -mllvm -wasm-use-legacy-eh=false -fexceptions\" for the kiwisolver, matplotlib and contourpy C++ code."}
+ ],
+ "conditions": [
+  {"kind": "third_party_dependency", "description": "wasmtime-py 49.0.0 (wasmtime 49.0.0, Cranelift), the only version the pin admits today."},
+  {"kind": "system_configuration", "description": "The embedder passes fuel and relies on it as the bound: deadline_s=None, a fuel cap much tighter than the deadline, or fuel_used used for accounting. With the default 60 s deadline, wall time stays bounded."},
+  {"kind": "data_state", "description": "The guest runs code that reaches a caught C++ exception (or longjmp) in a compiled-in package after material work; kiwisolver's unsatisfiable addConstraint is one plain-Python way."}
+ ],
+ "execution": {
+  "attacker_perspective": "An untrusted guest Python program run by an embedder through wasi_python.run with a fuel cap and deadline_s=None.",
+  "payloads": [
+   guest,
+   "import wasi_python; r = wasi_python.run(['-c', GUEST, N, K, MODE], fuel=FUEL, deadline_s=None); print(r.exit_code, r.trapped, r.fuel_used, r.stdout)",
+   wat
+  ],
+  "instructions": [
+   "Confirm build/lane.lock is absent and build/artifacts holds the shipped set (MANIFEST lists kiwisolver 1.5.1); confirm .venv has wasmtime 49.0.0.",
+   "Write the first payload to a guest file; from a host script under the audit's sandbox wrapper (network denied, empty environment, HOME, TMPDIR and a mode-0700 WASI_PYTHON_CACHE under scratch, CPU and file-size rlimits), call wasi_python.run(['-c', guest, N, K, MODE], fuel=FUEL, deadline_s=None) as in the second payload.",
+   "Run N:K:MODE = 200:0:none, 200:500:fail, 200:500:ok, 2000:0:none, 2000:500:fail, 2000:500:ok, 2000:500:py, 6000:0:none, 6000:500:fail, 6000:500:py with fuel=10**13; per-call fuel of a mode is (fuel_used - fuel_used of N:0:none) / K; compare with the loop_s the guest prints.",
+   "Run 2000:20000:fail, 2000:20000:ok and 2000:20000:weak with fuel=2200000000.",
+   "Engine-level control: run the third payload (WAT) on wasmtime-py 49.0.0 with consume_fuel, calling 'thrown' and 'returned' with r=100, n=100000, and under the pinned wasmtime CLI 49.0.3 with -W fuel=N,exceptions=y --invoke thrown, finding the smallest N that completes."
+  ],
+  "observed_result": "Proposer's run, failing addConstraint, fuel per call / wall per call: N=200 18,619 / 9.8 us; N=2000 18,112 / 59 us; N=6000 17,162 / 190 us. Independent re-run (fresh guest and host scripts): N=200 18,744 / 9.6 us; N=2000 19,581 / 58 us; N=6000 18,357 / 184 us. Setup fuel (N:0:none): 79,699,507; 1,635,065,251; 15,271,669,312. Same-shape no-throw control (ok): N=200 140,067 / 9.6 us; N=2000 1,552,404 / 127 us. Weak add/remove: N=200 950,942 / 44 us; N=2000 65,972,562 / 2.29 ms. Pure-Python control: 6,049,028,364 fuel in 0.5748 s (N=2000, 1.05e10 fuel/s) and 35,212,385,994 in 3.8875 s (N=6000, 9.1e9 fuel/s); failing calls at N=6000: 9,178,617 fuel in 0.0921 s, 1.0e8 fuel/s. Cap 2.2e9: 2000:20000:fail exited 0, trapped None, fuel_used 2,017,914,692 (proposer 2,017,052,943), loop 1.1842 s, 20,000 caught; 2000:20000:ok and 2000:20000:weak each trapped 'out of fuel'. WAT: on wasmtime-py 49.0.0 'thrown' r=100 n=100000 used 1,101 fuel and 'returned' 80,001,201; the CLI 49.0.3 trapped 'all fuel consumed' at 80,001,284 and completed at 80,001,285."
+ },
+ "remediation": {
+  "strategy": "Raise the wasmtime floor to a wasmtime-py carrying wasmtime 49.0.1 or later (or move to 50.x) as soon as one is published. Until then, do not let fuel stand alone as the bound: when fuel is given on 49.0.0, require a finite deadline_s (refuse or warn on deadline_s=None), since epoch interruption is the advisory's workaround and is unaffected; this bounds wall time but cannot make fuel count correctly. List GHSA-m63x-6p34-q65x in SECURITY.md as unmitigated, and say that on 49.0.0 fuel and fuel_used under-count work that ends in a caught C++ exception or longjmp. Disabling wasm exceptions is not an option, because the build depends on them. Add a check, counted in fuel only, that runs the kiwisolver loop above and asserts that the failing call's per-call fuel grows with N as the same-shape no-throw call's does; on 49.0.0 it fails, so it enters as a known gap closed by the floor raise, and the defect cannot return unseen."
+ },
+ "severity": {
+  "likelihood": {"score": "low", "reason": "Needs an embedder that relies on fuel as the bound (deadline_s=None, or a cap far below the deadline, or fuel_used for accounting); the default 60 s deadline bounds wall time. The guest side is easy: plain Python reaching a caught C++ exception."},
+  "impact": {"score": "medium", "reason": "The documented fuel limit does not bound CPU: roughly 100x under-count at N=6000 by wall-time calibration, growing with N, and a 2.2e9 cap let a loop of 20,000 failing calls run where the same-shape no-throw loop ran out of fuel within a few hundred calls. Impact is CPU denial of service and wrong instruction accounting; no sandbox escape."},
+  "overall_severity": "low"
+ },
+ "confidence": {"score": "high", "reason": "Reproduced twice, independently, through wasi_python.run on the shipped artifacts: per-call fuel stays flat across a 30x range of N while wall time grows about 19x; a same-shape no-throw control is counted 7.5x to 79x more fuel per call at comparable wall time and runs out of fuel under the cap the failing loop finishes under; and the engine defect matches the advisory in a standalone differential against the fixed CLI. Not run on a fixed wasmtime-py (none exists), so the true per-call cost of the failing call is inferred from wall time."}
+}
+out = {"decision": "replace",
+ "reason": "Result reproduced independently; the record stands in substance and keeps confirmed, with four corrections. (1) The trace's entrypoint was a build-script line, not a lower-trust entrypoint: it is now wasi_python.run (src/wasi_python/runner.py:115), and scripts/steps/55_matplotlib.sh:102 becomes a propagation step. (2) The cap test's no-throw control (weak add/remove) does about 40x more wall time per call than the failing call (2.29 ms against 58 us at N=2000), so its trap alone did not show equal work runs out of fuel; a same-shape control (add and remove a consistent required equality on the same chain end) is added: 140,067 fuel per call at N=200 at the same 9.6 us wall as the failing call, 1,552,404 at N=2000, and it traps under the 2.2e9 cap. (3) The per-call fuel range widens to about 17,000 to 19,600 to cover the re-run, and the observed result carries both runs. (4) Wording: the '100x' is labelled a wall-time estimate, 'exponential' is attributed to the advisory and not claimed for the guest path, the sjlj extension is marked not demonstrated, run()'s fuel docstring is added as evidence, and the remediation's check is fuel-only and enters as a known gap. Severity (low/medium/low), conditions and fingerprint unchanged. Evidence: v05-eh-fuel-recheck/scratch/evidence/guest_kiwi.py, host_kiwi.py, kiwi_runs.log, wat_py.py, eh_fuel_wat.txt, wat_runs.log, sandbox_wrapper.py.",
+ "record": rec}
+s = json.dumps(out, ensure_ascii=False)
+open(S + "/result.json", "w").write(s)
+print(len(s))

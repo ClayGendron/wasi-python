@@ -1,0 +1,33 @@
+h03-private-dirs local checks (darwin-arm64, 2026-10-24)
+
+Wrapper for every run: ulimit -t 300 -f 4000000 -n 4096; env -i PATH=/usr/bin:/bin HOME=<scratch>/home
+TMPDIR=<scratch>/tmp WASI_PYTHON_CACHE=<scratch>/cache; sandbox-exec '(version 1)(allow default)(deny network*)';
+.venv/bin/python -I <script> <scratch>. build/lane.lock absent before each run. The target was NOT
+read-only mounted (this platform cannot enforce it); no writable root or grant pointed at the target;
+roots lived under <scratch>/work (removed after).
+
+1. reused_root_check.py -> reused_root_result.json
+   Call 1 planted 34 files in a writable root (sitecustomize/usercustomize, .pth, pyvenv.cfg at /,
+   /usr/local, /usr/local/bin, files under the root's own usr/local/lib/python3.15 via the root's
+   descriptor, stdlib-name shadows json/numpy/platform/argparse, __main__.py, startup files,
+   _sysconfigdata modules, reportlab hooks in / and /tmp, matplotlibrc, .pdbrc, user site).
+   Later calls on the same root: defaults (snapshot and plain): nothing planted ran; sys.path is the
+   zip alone; flags isolated=1 ignore_environment=1 no_site=1 safe_path=True.
+   env HOME=/ TMPDIR=/ PYTHONPATH=/ PYTHONSTARTUP PYTHONHOME PYTHONUSERBASE PYTHONBREAKPOINT
+   PYTHONINSPECT PYTHONPLATLIBDIR MPLCONFIGDIR MPLBACKEND XDG_CONFIG_HOME: only .pdbrc ran, when the
+   program itself called breakpoint() (documented); sys.path unchanged; PYTHONBREAKPOINT ignored.
+   env _PYTHON_SYSCONFIGDATA_PATH=/ : the planted /_sysconfigdata__wasi_wasm32-wasi.py RAN.
+   import_path served by a read-only grant works; served by the root is refused (ValueError).
+   Script mode: the script's folder is not put on sys.path (planted /json.py not imported).
+
+2. sysconfigdata_path_check.py -> sysconfigdata_path_result.json
+   Call 1 plants /data/_sysconfigdata__wasi_wasm32-wasi.py in a writable root. Later calls run only
+   `import <pkg>`. Control (no env): planted code never runs. With env={"_PYTHON_SYSCONFIGDATA_PATH":
+   "/data"}: runs on import of pandas, scipy, sklearn, joblib, statsmodels.api (snapshot) and pandas
+   (plain); not on numpy or matplotlib.
+
+3. sweep_check.py -> sweep_result.json (same-user fixtures; another OS user cannot be staged)
+   A dead folder (unlocked lock with this kernel's identity) holding links to an outside file and
+   folder, a nested tree and a FIFO is removed and its lock unlinked; the outside file and folder
+   are kept. A live (flock-held) lock and its folder, a foreign-kernel lock's folder, and a folder
+   that is a link are left. A lone lock with this identity is unlinked.

@@ -1,0 +1,30 @@
+{"decision": "needs_validation", "record": {
+ "verdict": "needs_validation",
+ "fingerprint": "wasmtime-49.0.0:GHSA-m63x-6p34-q65x:try_table-catch-fuel:src/wasi_python/_engines.py:_engine",
+ "title": "Metered engine on wasmtime-py 49.0.0 under-counts fuel on try_table catch paths (GHSA-m63x-6p34-q65x); the defect reproduces at engine level, reachability from guest Python is not shown",
+ "description": "The runner meters calls with fuel on a wasmtime-py 49.0.0 engine with exceptions and Cranelift at their defaults. That is GHSA-m63x-6p34-q65x's affected configuration (fixed in 49.0.1). A standalone WAT differential confirms the engine defect: on 49.0.0, fuel spent in a callee that throws to a try_table catch in the caller is dropped. 100 rounds of a 100,000-iteration callee count as 1,101 fuel. The same module needs 80,001,285 fuel under the pinned CLI 49.0.3. The return-path control agrees across both engines (800,013 against 799,998 for one round). The shipped python.wasm and snapshot contain 44,791 try_table sites from the -fwasm-exceptions builds of C++ and setjmp/longjmp in the compiled-in packages. Whether a guest Python call reaches one of these catch paths with enough callee work to matter was not measured. A finite deadline_s (the default) still bounds wall-clock time through epoch interruption, which the advisory does not affect. Fuel is the only instruction bound only for an embedder that passes fuel with deadline_s=None.",
+ "claimed_root_cause": "pyproject.toml pins wasmtime>=49,<50 and uv.lock resolves it to 49.0.0, whose Cranelift fuel accounting resets to the pre-call fuel on the exceptional edge of a call inside try_table. _engine sets consume_fuel on the metered engine and leaves wasm exceptions enabled. The build puts try_table on every caught C++ exception and longjmp return. The runner carries no mitigation for this advisory, though it does carry its own fixes for the 49.0.2 and 49.0.3 filesystem advisories.",
+ "trace": [
+  {"kind": "entrypoint", "file": "recipes/wasi-scipy.cross", "line": 44, "scope": "C++ build flags", "description": "C++ is compiled with -fwasm-exceptions -fexceptions -wasm-use-legacy-eh=false (C with -wasm-enable-sjlj at line 39); numpy, pandas, matplotlib, plot-libs and sklearn cross files do the same, so caught C++ exceptions and longjmp go through try_table catch paths."},
+  {"kind": "propagation", "file": "scripts/steps/60_link.sh", "line": 129, "scope": "link", "description": "python.wasm is linked with -fwasm-exceptions; the hunter counted 44,791 try_table in 7,905 functions and 0 call_ref."},
+  {"kind": "propagation", "file": "uv.lock", "line": 1049, "scope": "wasmtime pin", "description": "wasmtime resolves to 49.0.0, inside the advisory's affected range."},
+  {"kind": "propagation", "file": "src/wasi_python/_engines.py", "line": 122, "scope": "_engine", "description": "cfg.consume_fuel = metered; exceptions and the compiler are left at their defaults."},
+  {"kind": "sink", "file": "src/wasi_python/_call.py", "line": 618, "scope": "_drive", "description": "store.set_fuel(fuel) sets the instruction cap. Fuel_used is read at line 511 through _fuel_used (line 554). On 49.0.0 both can under-count callee work that unwinds to a try_table catch."}
+ ],
+ "evidence": [
+  {"file": "context/research/2026-10-18-wasmtime-49-advisories/advisories/GHSA-m63x-6p34-q65x.json", "line": 1, "description": "The advisory: with fuel enabled, the catch path of a call inside try_table can drop the callee's fuel. Affects 49.0.0; fixed in 49.0.1. Workaround: epoch interruption."},
+  {"file": "src/wasi_python/_engines.py", "line": 122, "description": "consume_fuel on the metered engine; no wasm_exceptions(False) override."},
+  {"file": "pyproject.toml", "line": 18, "description": "dependencies = [\"wasmtime>=49,<50\"]."},
+  {"file": "src/wasi_python/_call.py", "line": 618, "description": "The guest's fuel cap is set after instantiation; line 416 sets the UNMETERED budget that instantiation runs on."},
+  {"file": "SECURITY.md", "line": 18, "description": "In scope: a guest that runs past its fuel cap. The out-of-scope section excludes upstream bugs that do not cross the sandbox boundary, so the owner must decide which applies."}
+ ],
+ "blockers": [
+  "Not shown: a guest Python call that throws and catches a C++ exception (or longjmps) inside a compiled-in package, with callee work large enough that the dropped fuel matters. The engine defect is confirmed only with a standalone WAT module, not through python.wasm.",
+  "No wasmtime-py at 49.0.1 or later is installed locally, so a same-module comparison through wasi_python.run on a fixed engine is not available. The CLI 49.0.3 comparison used the standalone module only.",
+  "The target was not mounted read-only, and no memory rlimit could be enforced on this platform."
+ ],
+ "validation_plan": {
+  "local": "Verifier evidence: scratch/evidence/eh_fuel.wat, eh_fuel_py.py (wasmtime-py 49.0.0: 'thrown' r=100 n=100000 uses 1,101 fuel; 'returned' uses 80,001,201) and eh_fuel_cli.py (CLI 49.0.3 -W fuel=N,exceptions=y: 'thrown' r=100 n=100000 needs 80,001,285). The owner should run the project's own fuel tests on wasmtime-py 49.0.1 or later once it exists, and compare fuel_used for a package call known to catch a C++ exception internally.",
+  "deployment": "Raise the pin's floor to a wasmtime-py carrying wasmtime 49.0.1 or later, or move to 50.x. Until then, add GHSA-m63x-6p34-q65x to SECURITY.md's handled-advisories list as unmitigated. State that fuel is not a reliable bound on 49.0.0, and keep or require a finite deadline_s beside fuel."
+ }
+}}

@@ -1,0 +1,9 @@
+# macOS darwin arm64; wrapper: ulimit -t 300 -f 4000000 -n 4096; /usr/bin/env -i PATH=/usr/bin:/bin HOME=context/reviews/0.1.0-security-audit-2026-10-25/agents/v01-cache-swap/scratch/home TMPDIR=context/reviews/0.1.0-security-audit-2026-10-25/agents/v01-cache-swap/scratch/tmp WASI_PYTHON_CACHE=context/reviews/0.1.0-security-audit-2026-10-25/agents/v01-cache-swap/scratch/cache /usr/bin/sandbox-exec -p '(version 1)(allow default)(deny network*)' ./.venv/bin/python -I context/reviews/0.1.0-security-audit-2026-10-25/agents/v01-cache-swap/scratch/evidence/v01_swap_harness.py context/reviews/0.1.0-security-audit-2026-10-25/agents/v01-cache-swap/scratch/work/swap 5000
+# exit 0
+A1 runner file edac0e0003b42403d9fb1750aa9a1eb3-wasmtime49.0.0-plain.cwasm mode 0o600 private: True exports ['genuine']
+A2 planted file mode 0o644 private on it directly: False
+A3 identity checked (16777230, 222410199) opened (16777230, 222410200) after (16777230, 222410199) planted file (16777230, 222410200)
+A4 exports ['planted_image_loaded'] warnings [] counts {'compiled': 1, 'loaded': 1, 'written': 1, 'sessions_open': 0}
+A RESULT: planted accepted
+B attempts 5000 outcomes {'genuine_loaded': 269, 'planted_loaded': 3, 'compiled_instead': 4728, 'error': 0} attempts with a RuntimeWarning 4367 first planted (attempt, warnings in it) (1132, 0) swapper swaps 34044 replants (runner overwrote the planted file) 371
+B planted loads with no warning in that attempt: yes

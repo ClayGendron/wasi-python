@@ -1,0 +1,76 @@
+{
+ "product": {
+  "stdout_len": 4096,
+  "stdout_ok": true,
+  "stderr": "b'done\\n'",
+  "truncated": [
+   "stdout"
+  ]
+ },
+ "a1-one-copy-grow": {
+  "stdout_len": 4096,
+  "stdout_ok": true,
+  "stderr": "b'done\\n'",
+  "truncated": [
+   "stdout"
+  ]
+ },
+ "a2-one-copy-prealloc": {
+  "stdout_len": 4096,
+  "stdout_ok": true,
+  "stderr": "b'done\\n'",
+  "truncated": [
+   "stdout"
+  ]
+ },
+ "a3-one-copy-no-lock": {
+  "stdout_len": 4096,
+  "stdout_ok": true,
+  "stderr": "b'done\\n'",
+  "truncated": [
+   "stdout"
+  ]
+ },
+ "a4-one-copy-memmove-grow": {
+  "stdout_len": 4096,
+  "stdout_ok": true,
+  "stderr": "b'done\\n'",
+  "truncated": [
+   "stdout"
+  ]
+ },
+ "a5-two-copies-no-lock": {
+  "stdout_len": 4096,
+  "stdout_ok": true,
+  "stderr": "b'done\\n'",
+  "truncated": [
+   "stdout"
+  ]
+ },
+ "product-pipe (design b2)": {
+  "stdout_len": 4096,
+  "stdout_ok": true,
+  "stderr": "b'done\\n'",
+  "truncated": [
+   "stdout"
+  ]
+ },
+ "product-pipe interleaved": {
+  "stdout_ok": true,
+  "stderr_ok": true,
+  "truncated": []
+ },
+ "product-file (design b)": {
+  "file_size_on_disk": 1048576,
+  "note": "the cap is not enforced: the file holds every byte the guest wrote",
+  "truncated": []
+ },
+ "ctypes_array_types_after_2000_sizes": 19920,
+ "_meta": {
+  "suite": "cap",
+  "repeats": 3,
+  "seconds": 0.2,
+  "platform": "darwin",
+  "python": "3.14.2"
+ }
+}

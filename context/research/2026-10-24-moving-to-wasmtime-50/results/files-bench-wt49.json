@@ -1,0 +1,54 @@
+{
+ "label": "wt49",
+ "wasmtime_py": "49.0.0",
+ "arms": {
+  "product/files": {
+   "n": 9,
+   "median_ms": 656.8,
+   "min_ms": 566.0,
+   "max_ms": 837.7
+  },
+  "product-noguard/files": {
+   "n": 9,
+   "median_ms": 731.2,
+   "min_ms": 536.3,
+   "max_ms": 999.2
+  },
+  "product-nocount/files": {
+   "n": 9,
+   "median_ms": 571.8,
+   "min_ms": 485.3,
+   "max_ms": 902.5
+  },
+  "bare/files": {
+   "n": 9,
+   "median_ms": 465.6,
+   "min_ms": 432.0,
+   "max_ms": 543.0
+  },
+  "product/hello": {
+   "n": 9,
+   "median_ms": 18.7,
+   "min_ms": 18.0,
+   "max_ms": 20.3
+  },
+  "product-noguard/hello": {
+   "n": 9,
+   "median_ms": 18.5,
+   "min_ms": 17.3,
+   "max_ms": 19.5
+  },
+  "product-nocount/hello": {
+   "n": 9,
+   "median_ms": 18.9,
+   "min_ms": 17.6,
+   "max_ms": 20.5
+  },
+  "bare/hello": {
+   "n": 9,
+   "median_ms": 11.9,
+   "min_ms": 10.4,
+   "max_ms": 20.7
+  }
+ }
+}

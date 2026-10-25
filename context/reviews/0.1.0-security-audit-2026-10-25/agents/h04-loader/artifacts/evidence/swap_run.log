@@ -1,0 +1,8 @@
+step1 exports: ['genuine'] counts: {'compiled': 1, 'loaded': 0, 'written': 1, 'sessions_open': 0}
+runner file: edac0e0003b42403d9fb1750aa9a1eb3-wasmtime49.0.0-plain.cwasm mode 0o600 nlink 1 private(): True
+planted file mode 0o644 private() on it directly: False
+control exports: ['genuine'] counts: {'compiled': 1, 'loaded': 1, 'written': 1, 'sessions_open': 0}
+  during open: wasmtime opens context/reviews/0.1.0-security-audit-2026-10-25/agents/h04-loader/scratch/work/swap/parent/wasi_python/edac0e0003b42403d9fb1750aa9a1eb3-wasmtime49.0.0-plain.cwasm -> context/reviews/0.1.0-security-audit-2026-10-25/agents/h04-loader/scratch/work/swap/planted/edac0e0003b42403d9fb1750aa9a1eb3-wasmtime49.0.0-plain.cwasm
+warnings during swapped load: []
+swapped exports: ['planted_image_loaded'] counts: {'compiled': 1, 'loaded': 2, 'written': 1, 'sessions_open': 0}
+RESULT: planted image accepted as the cached module for a.wasm

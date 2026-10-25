@@ -1,0 +1,4 @@
+{"case": "2000:20000:fail:2200000000", "exit": 0, "trapped": null, "fuel_used": 2017914692, "host_s": 2.102, "stdout": "loop_s=1.1842 caught=20000", "stderr": ""}
+{"case": "2000:20000:weak:2200000000", "exit": null, "trapped": "out of fuel", "fuel_used": 2200000000, "host_s": 0.162, "stdout": "", "stderr": ""}
+{"case": "2000:20000:py:2200000000", "exit": null, "trapped": "out of fuel", "fuel_used": 2200000000, "host_s": 0.193, "stdout": "", "stderr": ""}
+rc 0

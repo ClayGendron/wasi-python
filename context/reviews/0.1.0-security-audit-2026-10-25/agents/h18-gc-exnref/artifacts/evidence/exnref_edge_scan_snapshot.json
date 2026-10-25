@@ -1,0 +1,22 @@
+{
+ "wasm": "python-snapshot.wasm",
+ "imported_functions": 43,
+ "defined_function_bodies": 89060,
+ "objdump_functions_seen": 89060,
+ "bodies_with_gc_ref_locals_or_params": 7269,
+ "gc_ref_local_slots_by_type": {
+  "exnref": 9697
+ },
+ "functions_analysed_gc_locals_and_try_table": 7269,
+ "totals": {
+  "try_calls": 102646,
+  "p1": 0,
+  "p1p2": 0,
+  "try_calls_with_gc_local_live_on_normal_path": 16562,
+  "instructions_with_gc_local_live_in": 281535,
+  "handler_continuations": 43738
+ },
+ "p1_p2_findings": 0,
+ "p1_p2_p3_findings": 0,
+ "findings_sample": []
+}

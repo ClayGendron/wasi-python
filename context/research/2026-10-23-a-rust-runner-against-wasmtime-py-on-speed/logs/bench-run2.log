@@ -1,0 +1,8 @@
+warm-up (compiles the modules into each arm's cache)
+  bare: module python-snapshot.wasm in 391 ms
+  bare: module python.wasm in 414 ms
+{"bench": "files-mount-20000stat-2000read", "n": 3, "product_mount": {"n": 3, "min": 1209.7, "median": 1226.4, "max": 1232.3}}
+{"bench": "parallel-8-hello", "n": 8, "workers": 8, "product": {"sequential": {"n": 3, "min": 139.6, "median": 140.8, "max": 141.2}, "parallel": {"n": 3, "min": 71.6, "median": 73.3, "max": 74.5}, "speedup": 1.92}, "bare": {"sequential": {"n": 3, "min": 90.8, "median": 92.2, "max": 94.3}, "parallel": {"n": 3, "min": 20.8, "median": 22.1, "max": 22.8}, "speedup": 4.18}, "rust": {"sequential": {"n": 3, "min": 100.3, "median": 112.7, "max": 132.6}, "parallel": {"n": 3, "min": 26.3, "median": 37.8, "max": 38.7}, "speedup": 2.99}}
+{"bench": "cold-process-hello", "n": 5, "uv_python_pass": {"n": 5, "min": 26.8, "median": 28.1, "max": 35.9}, "product_process": {"n": 5, "min": 4850.4, "median": 4937.6, "max": 4999.6}, "product_peak_rss_mib": 288, "rust_process": {"n": 5, "min": 4486.0, "median": 4515.5, "max": 4924.5}, "rust_peak_rss_mib": 219}
+wrote /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/38291ee1-b324-42b1-a57f-e6ac3b4c2105/scratchpad/results-run2.json
+exit 0

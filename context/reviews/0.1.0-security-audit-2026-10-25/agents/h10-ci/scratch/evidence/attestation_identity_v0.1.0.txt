@@ -1,0 +1,21 @@
+attestations: 2
+predicateType: https://in-toto.io/attestation/release/v0.2
+workflow: null
+resolvedDependencies: null
+internal: {}
+runDetails.builder: null
+invocation: null
+predicateType: https://slsa.dev/provenance/v1
+workflow: {"ref": "refs/tags/v0.1.0", "repository": "https://github.com/ClayGendron/wasi_python", "path": ".github/workflows/release.yml"}
+resolvedDependencies: [{"uri": "git+https://github.com/ClayGendron/wasi_python@refs/tags/v0.1.0", "digest": {"gitCommit": "2cd47507ef7c4e04d95aca059c60368417e01d40"}}]
+internal: {"event_name": "push", "repository_id": "1422429597", "repository_owner_id": "46005933", "runner_environment": "github-hosted"}
+runDetails.builder: {"id": "https://github.com/ClayGendron/wasi_python/.github/workflows/release.yml@refs/tags/v0.1.0"}
+invocation: {"invocationId": "https://github.com/ClayGendron/wasi_python/actions/runs/39957192055/attempts/1"}
+cert string: https://github.com/ClayGendron/wasi_python/.github/workflows/release.yml@refs/tags/v0.1.008
+cert string: https://github.com/ClayGendron/wasi_python/.github/workflows/release.yml@refs/tags/v0.1.009
+cert string: https://github.com/ClayGendron/wasi_python/actions/runs/39957192055/attempts/10
+cert string: https://github.com/ClayGendron/wasi_python08
+cert string: https://github.com/ClayGendron0
+cert ref: refs/tags/v0.1.00
+cert ref: refs/tags/v0.1.008
+cert ref: refs/tags/v0.1.009

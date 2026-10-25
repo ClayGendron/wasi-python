@@ -1,0 +1,8 @@
+drwx------@ 3 claygendron  staff  96 Oct 24 23:16 context/reviews/0.1.0-security-audit-2026-10-25/agents/h04-loader/scratch/work/acl/cache
+ 0: group:everyone allow list,add_file,search,add_subdirectory,delete_child,file_inherit,directory_inherit
+
+-rw-------@ 1 claygendron  staff  0 Oct 24 23:16 context/reviews/0.1.0-security-audit-2026-10-25/agents/h04-loader/scratch/work/acl/cache/x-wasmtime49.0.0-plain.cwasm
+ 0: group:everyone inherited allow read,write,execute,append
+
+private(cache dir): True
+private(cwasm file): True

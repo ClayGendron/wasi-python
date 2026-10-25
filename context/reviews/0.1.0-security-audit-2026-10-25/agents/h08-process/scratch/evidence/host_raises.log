@@ -1,0 +1,9 @@
+{"check": "baseline", "exit_code": 0, "trapped": null, "stdout_tail": "ok\n", "stderr_tail": "", "last_exception_none": true, "host_functions": 9}
+{"check": "host_raises_KeyboardInterrupt", "raised": "KeyboardInterrupt", "last_exception_none": true, "host_functions": 9}
+{"check": "after_host_raises_KeyboardInterrupt", "exit_code": 0, "trapped": null, "stdout_tail": "ok\n", "stderr_tail": "", "last_exception_none": true, "host_functions": 9}
+{"check": "host_raises_SystemExit", "raised": "SystemExit", "last_exception_none": true, "host_functions": 9}
+{"check": "after_host_raises_SystemExit", "exit_code": 0, "trapped": null, "stdout_tail": "ok\n", "stderr_tail": "", "last_exception_none": true, "host_functions": 9}
+{"mode": "host_raises", "seconds": 0.7}
+
+STDERR: 
+RC: 0

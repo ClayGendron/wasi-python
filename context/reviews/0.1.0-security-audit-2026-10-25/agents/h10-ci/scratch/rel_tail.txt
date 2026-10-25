@@ -1,0 +1,326 @@
+  1697	  gather:
+  1698	    name: gather the shards' records
+  1699	    # One verdict from every shard's record, each downloaded by the id its job handed on and
+  1700	    # checked against the SHA-256 it handed on; tied to this commit, its judge, the build's
+  1701	    # python.wasm, the lane's acceptance and three systems. It never holds
+  1702	    # the assets: python.wasm's hash comes from the build job. It writes no history. It waits for
+  1703	    # same-bytes, so no release record exists without the proof that the set judged is the set the
+  1704	    # pins make; the build shard's record comes from build-shard, on its own fresh build.
+  1705	    # On a normal run judge-release is skipped; the gather runs beside it, and after any failed
+  1706	    # or cancelled need it does not run at all.
+  1707	    needs: [inputs, build, build-shard, same-bytes, judge-macos, judge-linux, judge-windows, judge-release]
+  1708	    if: ${{ !cancelled() && !failure() }}
+  1709	    runs-on: ubuntu-24.04
+  1710	    timeout-minutes: 15
+  1711	    permissions:
+  1712	      contents: read
+  1713	    steps:
+  1714	      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+  1715	        with:
+  1716	          persist-credentials: false
+  1717	      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+  1718	        with:
+  1719	          version: ${{ env.UV_VERSION }}
+  1720	          enable-cache: false
+  1721	      - name: Every job handed on its record's id, and the build python.wasm's SHA-256
+  1722	        # An empty artifact-ids makes download-artifact fetch every artifact of the run.
+  1723	        # The set's own SHA256SUMS hash too.
+  1724	        env:
+  1765	        run: |
+  1766	          case "$WASM_SHA256" in
+  1767	            "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of python.wasm"; exit 1 ;;
+  1768	          esac
+  1769	          if [ "${#WASM_SHA256}" -ne 64 ]; then
+  1770	            echo "the build job handed on no SHA-256 of python.wasm"
+  1771	            exit 1
+  1772	          fi
+  1773	          case "$SET_SUMS_SHA256" in
+  1774	            "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of the set's SHA256SUMS"; exit 1 ;;
+  1775	          esac
+  1776	          if [ "${#SET_SUMS_SHA256}" -ne 64 ]; then
+  1777	            echo "the build job handed on no SHA-256 of the set's SHA256SUMS"
+  1778	            exit 1
+  1779	          fi
+  1780	          for id in "$BUILD_RECORD_ID" "$MACOS_OWN_EMBEDDING_ID" "$MACOS_OWN_EMBEDDING_A_ID" "$MACOS_OWN_HOSTILE_ID" "$MACOS_OWN_GUEST_ID" "$MACOS_OWN_RUNNER_ID" "$MACOS_OWN_REST_ID" "$MACOS_UPSTREAM_MACOS_ID" "$LINUX_OWN_EMBEDDING_ID" "$LINUX_OWN_EMBEDDING_A_ID" "$LINUX_OWN_HOSTILE_ID" "$LINUX_OWN_GUEST_ID" "$LINUX_OWN_RUNNER_ID" "$LINUX_OWN_REST_ID" "$LINUX_UPSTREAM_GROUPBY_ID" "$LINUX_UPSTREAM_FRAME_ID" "$LINUX_UPSTREAM_NUMPY_A_ID" "$LINUX_UPSTREAM_NUMPY_B_ID" "$LINUX_UPSTREAM_PANDAS_SMALL_ID" "$LINUX_UPSTREAM_PLOT_A_ID" "$LINUX_UPSTREAM_PLOT_B_ID" "$LINUX_UPSTREAM_PLOT_C_ID" "$LINUX_UPSTREAM_PLOT_D_ID" "$LINUX_UPSTREAM_PLOT_E_ID" "$LINUX_UPSTREAM_PLOT_F_ID" "$LINUX_UPSTREAM_PLOT_G_ID" "$LINUX_UPSTREAM_PLOT_H_ID" "$LINUX_UPSTREAM_PLOT_I_ID" "$LINUX_UPSTREAM_SCI_SMOKE_A_ID" "$LINUX_UPSTREAM_SCI_SMOKE_B_ID" "$LINUX_UPSTREAM_PURE_SMOKE_A_ID" "$LINUX_UPSTREAM_PURE_SMOKE_B_ID" "$WINDOWS_OWN_EMBEDDING_ID" "$WINDOWS_OWN_EMBEDDING_A_ID" "$WINDOWS_OWN_HOSTILE_ID" "$WINDOWS_OWN_GUEST_ID" "$WINDOWS_OWN_RUNNER_ID" "$WINDOWS_UPSTREAM_WINDOWS_ID"; do
+  1781	            case "$id" in
+  1782	              "" | *[!0-9]*) echo "a job handed on no record id"; exit 1 ;;
+  1783	            esac
+  1784	          done
+  1786	        with:
+  1791	        with:
+  1796	        with:
+  1801	        with:
+  1805	      - name: The release shards handed on their records' ids
+  1806	        if: needs.inputs.outputs.tier == 'release'
+  1807	        env:
+  2037	        run: |
+  2038	          for id in "$RELEASE_UPSTREAM_RELEASE_A_ID" "$RELEASE_UPSTREAM_RELEASE_B_ID" "$RELEASE_UPSTREAM_RELEASE_C_ID" "$RELEASE_UPSTREAM_RELEASE_D_ID" "$RELEASE_UPSTREAM_RELEASE_E_ID" "$RELEASE_UPSTREAM_RELEASE_F_ID" "$RELEASE_UPSTREAM_RELEASE_G_ID" "$RELEASE_UPSTREAM_RELEASE_H_ID" "$RELEASE_UPSTREAM_RELEASE_I_ID" "$RELEASE_UPSTREAM_RELEASE_J_ID" "$RELEASE_UPSTREAM_RELEASE_K_ID" "$RELEASE_UPSTREAM_RELEASE_L_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_01_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_02_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_03_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_04_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_05_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_06_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_07_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_08_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_09_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_10_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_11_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_12_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_13_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_14_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_15_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_16_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_17_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_18_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_19_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_20_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_21_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_22_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_23_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_24_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_25_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_26_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_27_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_28_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_29_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_30_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_31_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_32_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_33_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_34_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_35_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_36_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_37_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_38_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_39_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_40_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_41_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_42_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_43_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_44_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_45_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_46_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_47_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_48_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_49_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_50_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_51_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_52_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_53_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_54_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_55_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_56_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_57_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_58_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_59_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_60_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_61_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_62_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_63_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_64_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_65_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_66_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_67_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_68_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_69_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_70_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_71_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_72_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_73_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_74_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_75_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_76_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_77_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_78_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_79_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_80_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_81_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_82_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_83_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_84_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_85_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_86_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_87_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_88_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_89_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_90_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_91_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_92_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_93_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_94_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_95_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_96_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_97_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_98_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_99_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_100_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_101_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_102_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_103_ID" "$RELEASE_UPSTREAM_SCI_RELEASE_104_ID" "$RELEASE_UPSTREAM_PURE_R_001_ID" "$RELEASE_UPSTREAM_PURE_R_002_ID" "$RELEASE_UPSTREAM_PURE_R_003_ID" "$RELEASE_UPSTREAM_PURE_R_004_ID" "$RELEASE_UPSTREAM_PURE_R_005_ID" "$RELEASE_UPSTREAM_PURE_R_006_ID" "$RELEASE_UPSTREAM_PURE_R_007_ID" "$RELEASE_UPSTREAM_PURE_R_008_ID" "$RELEASE_UPSTREAM_PURE_R_009_ID" "$RELEASE_UPSTREAM_PURE_R_010_ID" "$RELEASE_UPSTREAM_PURE_R_011_ID" "$RELEASE_UPSTREAM_PURE_R_012_ID" "$RELEASE_UPSTREAM_PURE_R_013_ID" "$RELEASE_UPSTREAM_PURE_R_014_ID" "$RELEASE_UPSTREAM_PURE_R_015_ID" "$RELEASE_UPSTREAM_PURE_R_016_ID" "$RELEASE_UPSTREAM_PURE_R_017_ID" "$RELEASE_UPSTREAM_PURE_R_018_ID" "$RELEASE_UPSTREAM_PURE_R_019_ID" "$RELEASE_UPSTREAM_PURE_R_020_ID" "$RELEASE_UPSTREAM_PURE_R_021_ID" "$RELEASE_UPSTREAM_PURE_R_022_ID" "$RELEASE_UPSTREAM_PURE_R_023_ID" "$RELEASE_UPSTREAM_PURE_R_024_ID" "$RELEASE_UPSTREAM_PURE_R_025_ID" "$RELEASE_UPSTREAM_PURE_R_026_ID" "$RELEASE_UPSTREAM_PURE_R_027_ID" "$RELEASE_UPSTREAM_PURE_R_028_ID" "$RELEASE_UPSTREAM_PURE_R_029_ID" "$RELEASE_UPSTREAM_PURE_R_030_ID" "$RELEASE_UPSTREAM_PURE_R_031_ID" "$RELEASE_UPSTREAM_PURE_R_032_ID" "$RELEASE_UPSTREAM_PURE_R_033_ID" "$RELEASE_UPSTREAM_PURE_R_034_ID" "$RELEASE_UPSTREAM_PURE_R_035_ID" "$RELEASE_UPSTREAM_PURE_R_036_ID" "$RELEASE_UPSTREAM_PURE_R_037_ID" "$RELEASE_UPSTREAM_PURE_R_038_ID" "$RELEASE_UPSTREAM_PURE_R_039_ID" "$RELEASE_UPSTREAM_PURE_R_040_ID" "$RELEASE_UPSTREAM_PURE_R_041_ID" "$RELEASE_UPSTREAM_PURE_R_042_ID" "$RELEASE_UPSTREAM_PURE_R_043_ID" "$RELEASE_UPSTREAM_PURE_R_044_ID" "$RELEASE_UPSTREAM_PURE_R_045_ID" "$RELEASE_UPSTREAM_PURE_R_046_ID" "$RELEASE_UPSTREAM_PURE_R_047_ID" "$RELEASE_UPSTREAM_PURE_R_048_ID" "$RELEASE_UPSTREAM_PURE_R_049_ID" "$RELEASE_UPSTREAM_PURE_R_050_ID" "$RELEASE_UPSTREAM_PURE_R_051_ID" "$RELEASE_UPSTREAM_PURE_R_052_ID" "$RELEASE_UPSTREAM_PURE_R_053_ID" "$RELEASE_UPSTREAM_PURE_R_054_ID" "$RELEASE_UPSTREAM_PURE_R_055_ID" "$RELEASE_UPSTREAM_PURE_R_056_ID" "$RELEASE_UPSTREAM_PURE_R_057_ID" "$RELEASE_UPSTREAM_PURE_R_058_ID" "$RELEASE_UPSTREAM_PURE_R_059_ID" "$RELEASE_UPSTREAM_PURE_R_060_ID" "$RELEASE_UPSTREAM_PURE_R_061_ID" "$RELEASE_UPSTREAM_PURE_R_062_ID" "$RELEASE_UPSTREAM_PURE_R_063_ID" "$RELEASE_UPSTREAM_PURE_R_064_ID" "$RELEASE_UPSTREAM_PURE_R_065_ID" "$RELEASE_UPSTREAM_PURE_R_066_ID" "$RELEASE_UPSTREAM_PURE_R_067_ID" "$RELEASE_UPSTREAM_PURE_R_068_ID" "$RELEASE_UPSTREAM_PURE_R_069_ID" "$RELEASE_UPSTREAM_PURE_R_070_ID" "$RELEASE_UPSTREAM_PURE_R_071_ID" "$RELEASE_UPSTREAM_PURE_R_072_ID" "$RELEASE_UPSTREAM_PURE_R_073_ID" "$RELEASE_UPSTREAM_PURE_R_074_ID" "$RELEASE_UPSTREAM_PURE_R_075_ID" "$RELEASE_UPSTREAM_PURE_R_076_ID" "$RELEASE_UPSTREAM_PURE_R_077_ID" "$RELEASE_UPSTREAM_PURE_R_078_ID" "$RELEASE_UPSTREAM_PURE_R_079_ID" "$RELEASE_UPSTREAM_PURE_R_080_ID" "$RELEASE_UPSTREAM_PURE_R_081_ID" "$RELEASE_UPSTREAM_PURE_R_082_ID" "$RELEASE_UPSTREAM_PURE_R_083_ID" "$RELEASE_UPSTREAM_PURE_R_084_ID" "$RELEASE_UPSTREAM_PURE_R_085_ID" "$RELEASE_UPSTREAM_PURE_R_086_ID" "$RELEASE_UPSTREAM_PURE_R_087_ID" "$RELEASE_UPSTREAM_PURE_R_088_ID" "$RELEASE_UPSTREAM_PURE_R_089_ID" "$RELEASE_UPSTREAM_PURE_R_090_ID" "$RELEASE_UPSTREAM_PURE_R_091_ID" "$RELEASE_UPSTREAM_PURE_R_092_ID" "$RELEASE_UPSTREAM_PURE_R_093_ID" "$RELEASE_UPSTREAM_PURE_R_094_ID" "$RELEASE_UPSTREAM_PURE_R_095_ID" "$RELEASE_UPSTREAM_PURE_R_096_ID" "$RELEASE_UPSTREAM_PURE_R_097_ID" "$RELEASE_UPSTREAM_PURE_R_098_ID" "$RELEASE_UPSTREAM_PURE_R_099_ID" "$RELEASE_UPSTREAM_PURE_R_100_ID" "$RELEASE_UPSTREAM_PURE_R_101_ID" "$RELEASE_UPSTREAM_PURE_R_102_ID" "$RELEASE_UPSTREAM_PURE_R_103_ID" "$RELEASE_UPSTREAM_PURE_R_104_ID" "$RELEASE_UPSTREAM_PURE_R_105_ID" "$RELEASE_UPSTREAM_PURE_R_106_ID" "$RELEASE_UPSTREAM_PURE_R_107_ID" "$RELEASE_UPSTREAM_PURE_R_108_ID" "$RELEASE_UPSTREAM_PURE_R_109_ID" "$RELEASE_UPSTREAM_PURE_R_110_ID" "$RELEASE_UPSTREAM_PURE_R_111_ID" "$RELEASE_UPSTREAM_PURE_R_112_ID" "$RELEASE_UPSTREAM_PURE_R_113_ID"; do
+  2039	            case "$id" in
+  2040	              "" | *[!0-9]*) echo "a job handed on no record id"; exit 1 ;;
+  2041	            esac
+  2042	          done
+  2044	        if: needs.inputs.outputs.tier == 'release'
+  2045	        with:
+  2049	      - name: The gather
+  2050	        # It reads GITHUB_EVENT_NAME and GITHUB_REF_TYPE as the runner sets them: on a pushed tag the
+  2051	        # judge must also be the accepted one, and the set built in this run (G7).
+  2052	        env:
+  2324	        run: |
+  2325	          uv run python tests/harness/gather.py --records records --out release-record
+  2326	      - name: Keep the release's record
+  2327	        if: always()
+  2328	        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+  2329	        with:
+  2330	          name: release-record-${{ github.run_attempt }}
+  2331	          path: release-record/
+  2332	          if-no-files-found: ignore
+  2333	
+  2334	  verify:
+  2335	    name: verify (${{ matrix.os }})
+  2336	    needs: build
+  2337	    strategy:
+  2338	      fail-fast: false
+  2339	      matrix:
+  2340	        os: [ubuntu-24.04, windows-2025, macos-15]
+  2341	    runs-on: ${{ matrix.os }}
+  2342	    timeout-minutes: 60
+  2343	    permissions:
+  2344	      contents: read
+  2345	    defaults:
+  2346	      run:
+  2347	        shell: bash
+  2348	    steps:
+  2349	      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+  2350	        with:
+  2351	          persist-credentials: false
+  2352	      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+  2353	        with:
+  2354	          version: ${{ env.UV_VERSION }}
+  2355	          enable-cache: false
+  2356	      - name: The build job handed on an artifact id
+  2357	        # An empty artifact-ids makes download-artifact fetch every artifact of the run.
+  2358	        env:
+  2360	        run: |
+  2361	          case "$ASSETS_ID" in
+  2362	            "" | *[!0-9]*) echo "the build job handed on no artifact id"; exit 1 ;;
+  2363	          esac
+  2365	        with:
+  2367	          path: release-assets
+  2369	      - name: These are the bytes the build job made
+  2370	        # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
+  2371	        # handed on, every file against SHA256SUMS, and no other file.
+  2372	        env:
+  2374	        run: |
+  2375	          set -eu
+  2376	          case "$SUMS_SHA256" in
+  2377	            "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of SHA256SUMS"; exit 1 ;;
+  2378	          esac
+  2379	          if [ "${#SUMS_SHA256}" -ne 64 ]; then
+  2380	            echo "the build job handed on no SHA-256 of SHA256SUMS"
+  2381	            exit 1
+  2382	          fi
+  2383	          if command -v sha256sum > /dev/null; then sum="sha256sum"; else sum="shasum -a 256"; fi
+  2384	          printf '%s  SHA256SUMS\n' "$SUMS_SHA256" > SHA256SUMS.sha256
+  2385	          ( cd release-assets && $sum -c ../SHA256SUMS.sha256 && $sum -c SHA256SUMS )
+  2386	          want=$( { awk '{print $2}' release-assets/SHA256SUMS; echo SHA256SUMS; } | LC_ALL=C sort)
+  2387	          have=$(cd release-assets && find . -mindepth 1 | sed 's#^\./##' | LC_ALL=C sort)
+  2388	          if [ "$want" != "$have" ]; then
+  2389	            echo "release-assets holds other files than the build job's"
+  2390	            exit 1
+  2391	          fi
+  2392	      - name: The wheel, installed fresh, runs a program in one call
+  2393	        # Installed by its plain name, no extra: `pip install wasi-python` must run programs, so
+  2394	        # a wheel whose plain install could not never publishes.
+  2395	        run: |
+  2396	          wheel="$(ls release-assets/wasi_python-*.whl)"
+  2397	          uv run --isolated --no-project --with "wasi-python @ ./$wheel" python -c "
+  2398	          import tempfile, wasi_python
+  2399	          done = wasi_python.run(['-c', 'import pandas; print(pandas.Series([1, 2, 3]).sum())'], root=tempfile.mkdtemp())
+  2400	          print(done)
+  2401	          assert (done.exit_code, done.stdout) == (0, b'6\n'), done
+  2402	          "
+  2403	          # The wheel's own command prints the one line its README promises.
+  2404	          line=$(uv run --isolated --no-project --with "wasi-python @ ./$wheel" \
+  2405	            wasi-python run -- -c "print(1)")
+  2406	          echo "$line"
+  2407	          want='{"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "1\n", "trapped": null, "truncated": []}'
+  2408	          if [ "$line" != "$want" ]; then
+  2409	            echo "the installed command printed another line"
+  2410	            exit 1
+  2411	          fi
+  2412	          # The empty `run` extra, kept for 0.1.0a3's instructions. `uv run --with` installs an
+  2413	          # unknown extra silently, so an import would prove nothing: assert the metadata.
+  2414	          uv run --isolated --no-project --with "wasi-python[run] @ ./$wheel" python -c "
+  2415	          import importlib.metadata, re
+  2416	          meta = importlib.metadata.metadata('wasi-python')
+  2417	          extras = meta.get_all('Provides-Extra') or []
+  2418	          reqs = meta.get_all('Requires-Dist') or []
+  2419	          print('Provides-Extra:', extras, 'Requires-Dist:', reqs)
+  2420	          assert extras == ['run'], extras
+  2421	          assert not [r for r in reqs if re.search(r'extra\s*==', r)], reqs
+  2422	          "
+  2423	        env:
+  2424	          WASI_PYTHON_ARTIFACTS: ""
+  2425	
+  2426	  attest:
+  2427	    name: attest the release assets
+  2428	    # Build provenance for every asset, signed through Sigstore's public-good instance and then
+  2429	    # verified strictly, before anything is published, and only once arm64 Linux and
+  2430	    # x86_64 Linux rebuilt the same bytes (same-bytes). Only a pushed tag gets here: a signature is
+  2431	    # permanent in the public transparency log, so dry runs never sign.
+  2432	    if: github.event_name == 'push' && github.ref_type == 'tag'
+  2433	    needs: [build, verify, same-bytes, gather]
+  2434	    runs-on: ubuntu-24.04
+  2435	    permissions:
+  2436	      id-token: write
+  2437	      attestations: write
+  2438	      contents: read
+  2439	    steps:
+  2440	      - name: The build job handed on an artifact id
+  2441	        # An empty artifact-ids makes download-artifact fetch every artifact of the run.
+  2442	        env:
+  2444	        run: |
+  2445	          case "$ASSETS_ID" in
+  2446	            "" | *[!0-9]*) echo "the build job handed on no artifact id"; exit 1 ;;
+  2447	          esac
+  2449	        with:
+  2451	          path: release-assets
+  2453	      - name: These are the bytes the build job made
+  2454	        # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
+  2455	        # handed on, every file against SHA256SUMS, and no other file.
+  2456	        env:
+  2458	        run: |
+  2459	          set -eu
+  2460	          case "$SUMS_SHA256" in
+  2461	            "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of SHA256SUMS"; exit 1 ;;
+  2462	          esac
+  2463	          if [ "${#SUMS_SHA256}" -ne 64 ]; then
+  2464	            echo "the build job handed on no SHA-256 of SHA256SUMS"
+  2465	            exit 1
+  2466	          fi
+  2467	          if command -v sha256sum > /dev/null; then sum="sha256sum"; else sum="shasum -a 256"; fi
+  2468	          printf '%s  SHA256SUMS\n' "$SUMS_SHA256" > SHA256SUMS.sha256
+  2469	          ( cd release-assets && $sum -c ../SHA256SUMS.sha256 && $sum -c SHA256SUMS )
+  2470	          want=$( { awk '{print $2}' release-assets/SHA256SUMS; echo SHA256SUMS; } | LC_ALL=C sort)
+  2471	          have=$(cd release-assets && find . -mindepth 1 | sed 's#^\./##' | LC_ALL=C sort)
+  2472	          if [ "$want" != "$have" ]; then
+  2473	            echo "release-assets holds other files than the build job's"
+  2474	            exit 1
+  2475	          fi
+  2476	      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+  2477	        with:
+  2478	          subject-path: release-assets/*
+  2479	      - name: Verify each asset as a user will
+  2480	        env:
+  2481	          GH_TOKEN: ${{ github.token }}
+  2482	        run: |
+  2483	          for asset in release-assets/*; do
+  2484	            gh attestation verify "$asset" --repo "$GITHUB_REPOSITORY" \
+  2485	              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml@$GITHUB_REF" \
+  2486	              --source-ref "$GITHUB_REF" --deny-self-hosted-runners
+  2487	          done
+  2488	
+  2489	  publish:
+  2490	    name: publish the GitHub release
+  2491	    # Only a pushed tag publishes; a manual run, even started on a tag, never does.
+  2492	    if: github.event_name == 'push' && github.ref_type == 'tag'
+  2493	    needs: [build, verify, same-bytes, attest, gather]
+  2494	    runs-on: ubuntu-24.04
+  2495	    environment: release
+  2496	    permissions:
+  2497	      contents: write
+  2498	    steps:
+  2499	      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+  2500	        with:
+  2501	          persist-credentials: false
+  2502	      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+  2503	        with:
+  2504	          version: ${{ env.UV_VERSION }}
+  2505	          enable-cache: false
+  2506	      - name: The build job handed on an artifact id
+  2507	        # An empty artifact-ids makes download-artifact fetch every artifact of the run.
+  2508	        env:
+  2510	        run: |
+  2511	          case "$ASSETS_ID" in
+  2512	            "" | *[!0-9]*) echo "the build job handed on no artifact id"; exit 1 ;;
+  2513	          esac
+  2515	        with:
+  2517	          path: release-assets
+  2519	      - name: These are the bytes the build job made
+  2520	        # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
+  2521	        # handed on, every file against SHA256SUMS, and no other file.
+  2522	        env:
+  2524	        run: |
+  2525	          set -eu
+  2526	          case "$SUMS_SHA256" in
+  2527	            "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of SHA256SUMS"; exit 1 ;;
+  2528	          esac
+  2529	          if [ "${#SUMS_SHA256}" -ne 64 ]; then
+  2530	            echo "the build job handed on no SHA-256 of SHA256SUMS"
+  2531	            exit 1
+  2532	          fi
+  2533	          if command -v sha256sum > /dev/null; then sum="sha256sum"; else sum="shasum -a 256"; fi
+  2534	          printf '%s  SHA256SUMS\n' "$SUMS_SHA256" > SHA256SUMS.sha256
+  2535	          ( cd release-assets && $sum -c ../SHA256SUMS.sha256 && $sum -c SHA256SUMS )
+  2536	          want=$( { awk '{print $2}' release-assets/SHA256SUMS; echo SHA256SUMS; } | LC_ALL=C sort)
+  2537	          have=$(cd release-assets && find . -mindepth 1 | sed 's#^\./##' | LC_ALL=C sort)
+  2538	          if [ "$want" != "$have" ]; then
+  2539	            echo "release-assets holds other files than the build job's"
+  2540	            exit 1
+  2541	          fi
+  2542	      - name: Create the release
+  2543	        env:
+  2544	          GH_TOKEN: ${{ github.token }}
+  2545	        run: |
+  2546	          version="${GITHUB_REF_NAME#v}"
+  2547	          uv run --no-project python release/version.py notes "$version" > notes.md
+  2548	          prerelease=""
+  2549	          case "$version" in *a*|*b*|*rc*) prerelease="--prerelease" ;; esac
+  2550	          gh release create "$GITHUB_REF_NAME" release-assets/* \
+  2551	            --title "wasi-python $version" --notes-file notes.md --verify-tag $prerelease
+  2552	
+  2553	  pypi:
+  2554	    name: publish the wheel on PyPI
+  2555	    # Off until the owner registers this workflow as a trusted publisher on PyPI and sets the
+  2556	    # repository variable PYPI_PUBLISH to true.
+  2557	    if: github.event_name == 'push' && github.ref_type == 'tag' && vars.PYPI_PUBLISH == 'true'
+  2558	    needs: [build, publish]
+  2559	    runs-on: ubuntu-24.04
+  2560	    environment: pypi
+  2561	    permissions:
+  2562	      id-token: write
+  2563	    steps:
+  2564	      - name: The build job handed on an artifact id
+  2565	        # An empty artifact-ids makes download-artifact fetch every artifact of the run.
+  2566	        env:
+  2568	        run: |
+  2569	          case "$ASSETS_ID" in
+  2570	            "" | *[!0-9]*) echo "the build job handed on no artifact id"; exit 1 ;;
+  2571	          esac
+  2573	        with:
+  2575	          path: release-assets
+  2577	      - name: These are the bytes the build job made
+  2578	        # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
+  2579	        # handed on, every file against SHA256SUMS, and no other file.
+  2580	        env:
+  2582	        run: |
+  2583	          set -eu
+  2584	          case "$SUMS_SHA256" in
+  2585	            "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of SHA256SUMS"; exit 1 ;;
+  2586	          esac
+  2587	          if [ "${#SUMS_SHA256}" -ne 64 ]; then
+  2588	            echo "the build job handed on no SHA-256 of SHA256SUMS"
+  2589	            exit 1
+  2590	          fi
+  2591	          if command -v sha256sum > /dev/null; then sum="sha256sum"; else sum="shasum -a 256"; fi
+  2592	          printf '%s  SHA256SUMS\n' "$SUMS_SHA256" > SHA256SUMS.sha256
+  2593	          ( cd release-assets && $sum -c ../SHA256SUMS.sha256 && $sum -c SHA256SUMS )
+  2594	          want=$( { awk '{print $2}' release-assets/SHA256SUMS; echo SHA256SUMS; } | LC_ALL=C sort)
+  2595	          have=$(cd release-assets && find . -mindepth 1 | sed 's#^\./##' | LC_ALL=C sort)
+  2596	          if [ "$want" != "$have" ]; then
+  2597	            echo "release-assets holds other files than the build job's"
+  2598	            exit 1
+  2599	          fi
+  2600	      - name: Only the wheel goes to PyPI
+  2601	        run: mkdir dist && mv release-assets/*.whl dist/
+  2602	      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2

@@ -1,0 +1,229 @@
+{
+ "python": "3.14.2",
+ "registration": {
+  "pm": {
+   "fixed": [],
+   "sig": "(q, *, role='viewer')",
+   "naming": "accepted fixed=[]",
+   "derived": "refused: pm_d: parameter 'q' has no type hint"
+  },
+  "p": {
+   "fixed": [],
+   "sig": "(q, *, role='viewer')",
+   "naming": "accepted fixed=[]",
+   "derived": "refused: p_d: parameter 'q' has no type hint"
+  },
+  "new": {
+   "fixed": [],
+   "sig": "(q, *, role='viewer')",
+   "naming": "accepted fixed=[]",
+   "derived": "refused: new_d: parameter 'q' has no type hint"
+  },
+  "sub": {
+   "fixed": [],
+   "sig": "(q, *, role='viewer')",
+   "naming": "accepted fixed=[]",
+   "derived": "refused: sub_d: parameter 'q' has no type hint"
+  },
+  "meta": {
+   "fixed": [],
+   "sig": "(*a, **k)",
+   "naming": "accepted fixed=[]",
+   "derived": "refused: meta_d: parameter 'a': *args and **kwargs cannot be described; name each one"
+  },
+  "ctrl_naming": "refused ValueError"
+ },
+ "fix_sketch": {
+  "pm": [
+   "role"
+  ],
+  "p": [
+   "role"
+  ],
+  "new": [
+   "role"
+  ],
+  "sub": [
+   "role"
+  ],
+  "meta": [
+   "role"
+  ],
+  "nestpm": [
+   "org",
+   "role"
+  ],
+  "cm": [
+   "role"
+  ]
+ },
+ "guest": [
+  {
+   "tool": "pm",
+   "ok": true,
+   "error": null,
+   "value": {
+    "q": "x",
+    "role": "admin"
+   }
+  },
+  {
+   "tool": "p",
+   "ok": true,
+   "error": null,
+   "value": {
+    "q": "x",
+    "role": "admin"
+   }
+  },
+  {
+   "tool": "new",
+   "ok": true,
+   "error": null,
+   "value": {
+    "q": "x",
+    "role": "admin"
+   }
+  },
+  {
+   "tool": "sub",
+   "ok": true,
+   "error": null,
+   "value": {
+    "q": "x",
+    "role": "admin"
+   }
+  },
+  {
+   "tool": "meta",
+   "ok": true,
+   "error": null,
+   "value": {
+    "q": "x",
+    "role": "admin"
+   }
+  },
+  {
+   "tool": "pm",
+   "ok": true,
+   "error": null,
+   "value": {
+    "q": "x",
+    "role": "viewer"
+   }
+  },
+  {
+   "tool": "ctrl",
+   "ok": false,
+   "error": {
+    "kind": "invalid_arguments",
+    "message": "ctrl: the arguments: unknown argument 'user_id'"
+   },
+   "value": null
+  }
+ ],
+ "stderr_tail": "",
+ "host_seen": [
+  [
+   "gate",
+   "pm",
+   {
+    "q": "x",
+    "role": "admin"
+   }
+  ],
+  [
+   "PM ctor",
+   "admin"
+  ],
+  [
+   "gate",
+   "p",
+   {
+    "q": "x",
+    "role": "admin"
+   }
+  ],
+  [
+   "P ctor",
+   "admin"
+  ],
+  [
+   "gate",
+   "new",
+   {
+    "q": "x",
+    "role": "admin"
+   }
+  ],
+  [
+   "New ctor",
+   "admin"
+  ],
+  [
+   "gate",
+   "sub",
+   {
+    "q": "x",
+    "role": "admin"
+   }
+  ],
+  [
+   "PM ctor",
+   "admin"
+  ],
+  [
+   "gate",
+   "meta",
+   {
+    "q": "x",
+    "role": "admin"
+   }
+  ],
+  [
+   "MetaPM ctor",
+   "admin"
+  ],
+  [
+   "gate",
+   "pm",
+   {
+    "q": "x"
+   }
+  ],
+  [
+   "PM ctor",
+   "viewer"
+  ]
+ ],
+ "outcomes": [
+  [
+   "pm",
+   "ok"
+  ],
+  [
+   "p",
+   "ok"
+  ],
+  [
+   "new",
+   "ok"
+  ],
+  [
+   "sub",
+   "ok"
+  ],
+  [
+   "meta",
+   "ok"
+  ],
+  [
+   "pm",
+   "ok"
+  ],
+  [
+   "ctrl",
+   "invalid_arguments"
+  ]
+ ]
+}

@@ -4,6 +4,30 @@ The owner's answers and decisions, newest first. Until 2026-10-22 questions were
 
 The owner went through every open question on 2026-10-17. Decisions that change the constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### Spec 126 is dropped (2026-10-25)
+
+Asked by the orchestrating agent after 127's research measured the module drop at 22 ms under wasmtime 50 with native unwind information left on. What 126 would still buy is about 10 MB off every cached `.cwasm` and a drop of 2 to 12 ms instead of 22. **Answered 2026-10-25:** drop it. 127 gives the win that mattered; the leftover stays a benchmark fact in `research/2026-10-24-native-unwind-information-and-the-module-drop.md`. 126's file is marked superseded and its roadmap line retired.
+
+### The accept job's identity is a deploy key the agent generates (2026-10-25)
+
+Asked by the orchestrating agent for spec 138's accept job, which pushes one acceptance commit to `dev` past its ruleset. **Answered 2026-10-25:** generate and install it. The agent makes an ed25519 key pair, adds the public half as a write deploy key on the repository, stores the private half as a secret in the `accept` environment, names the deploy key as the bypass actor of `dev`'s ruleset, and records the key's fingerprint in 138's landing notes. The private key never enters the repository. A GitHub App remains a later choice for the owner.
+
+### The one-review rule is held by `ci-status`, not by a GitHub approval (2026-10-25)
+
+Asked by the orchestrating agent from 138's pre-build review (High 2): GitHub never lets a pull request's author approve it, and every agent acts through the owner's one account, so a ruleset cannot require an approving review here. **Answered 2026-10-25:** `ci-status` checks for a review file. `dev`'s ruleset requires `ci-status` alone and no approvals; the decision job fails a pull request that touches more than documentation unless its branch carries `reviews/NNN-<slug>-pr-YYYY-MM-DD.md` whose Reviewer line is not the author's and whose verdict says it lands. This is a process guard, not an identity guard, and the specification says so; a second identity (a reviewer GitHub App) is a later choice for the owner.
+
+### The constitution's amendments for the new process cover §4.13, §4.14, §5.4, §5.5 and §7 as well (2026-10-25)
+
+Asked by the orchestrating agent from 138's pre-build review (Medium 8 and Medium 11): the recorded agreement of 2026-10-25 named §5.6 and §5.7, while the lane and the waves are also written into §4.13 (pytest green before any landing), §4.14 (branches and worktrees), §5.4 (landings one at a time or in waves), §5.5 (the release acceptance by the lane) and §7 (the never-do list's branch bullet). **Answered 2026-10-25:** yes, all of them, with the exact texts in spec 138's Decision 10. The constitution's Status line records this decision when the texts are written in.
+
+### The development process moves to pull requests into `dev` (2026-10-25)
+
+The owner asked for a review of the testing harness and the CI/CD workflows "as a principal engineer, allowed to question everything": the suite is too slow to run on every commit; the owner wants to branch from `dev`, implement one to three specifications per branch, pull-request into `dev`, release from `dev` to `main`, and run the full workflow only before publishing to PyPI. The memo `research/2026-10-25-a-development-process-that-runs-what-it-needs.md` recommended exactly that shape and put three choices to the owner: amend §5.6 and §5.7 so pull requests into `dev` behind one required check and one fresh review replace the landing lane, waves and the integration review; let a job accept from CI's record (the "not yet, after three G5-clean waves" of 2026-10-22, whose condition is met); run the release tier weekly on `dev` against the rule that slow tests run only to publish. The owner: "I agree with the recommendation." Recorded as **yes to all three**. What follows: `specifications/138-pull-requests-into-dev-and-the-judge-runs-where-it-is-needed.md`, drafted the same day, carries the exact constitution and AGENTS.md amendments and supersedes the reserved 117 to 121; it waits on its pre-build review and is built as a sequence of pull requests, the first made under the process it describes.
+
+### Question 112: another user's home is not a supported configuration (2026-10-25)
+
+Asked by the 0.1.0 security audit (`reviews/0.1.0-security-audit-2026-10-25.md`, finding F4, needs validation; `specifications/135-the-module-cache-is-read-through-the-descriptor-it-was-checked-by.md`, Decision 1), with the recommendation "not supported": is running wasi_python as root or as another user with a different user's `$HOME`, `$XDG_CACHE_HOME` or `$WASI_PYTHON_CACHE` (sudo keeping `HOME`, a container or CI step with a mapped home, a home on a shared folder) a configuration the project supports? The owner: "I'll go with your recommendation if it doesn't break any real use cases a dev may want." Recorded as **not supported**, on that condition. It holds: spec 135 never refuses a call; a cache whose path passes through a folder another user can write is not used, the module is compiled in memory, and one warning says to set `$WASI_PYTHON_CACHE`, so a developer under `sudo -E` loses that process's cache, never the run. What follows: spec 135 is defence in depth, after 0.1.0, in a free slot; the security model's cache bullet says the runner trusts every folder on the way to its cache to be this user's.
+
 ### The documentation before the 0.1.0 tag, within a day (2026-10-22)
 
 With 0.1.0's third dry run green, the owner asked for the README to be "cut down to a clear explanation of what it is, a quick 5 min setup and run guide, and other important details a dev would want to see", everything else on a documentation site on GitHub, unneeded files removed ("like the questions to owner and such"), and other repositories studied for what they do well and for systems such as Diátaxis. Five agents researched; a sixth wrote the plan (`research/2026-10-22-a-plan-for-the-documentation.md`). The owner then decided:

@@ -1,0 +1,111 @@
+./src/wasi_python/runner.py:280: RuntimeWarning: wasi_python: not using the module cache at context/reviews/0.1.0-security-audit-2026-10-25/agents/h06-tools/scratch/cache: it must be a directory owned by this user that no one else may read, write or enter (mode 0700)
+  return _call._run_checked(wt, checked, host, snapshot, cache_dir, artifacts, loop)
+{
+ "exit": 0,
+ "guest_stdout": [
+  "{\"sent\": \"{\\\"v\\\":1,\\\"id\\\":1,\\\"op\\\":\\\"call\\\",\\\"tool\\\":\\\"account\\\",\\\"args\\\":{\\\"q\\\":\\\"x\\\",\\\"role\\\":\\\"admin\\\"}}\", \"ok\": false, \"error\": {\"kind\": \"tool_error\", \"message\": \"account failed (internal error)\"}, \"value\": null}",
+  "{\"sent\": \"{\\\"v\\\":1,\\\"id\\\":2,\\\"op\\\":\\\"call\\\",\\\"tool\\\":\\\"orders\\\",\\\"args\\\":{\\\"q\\\":\\\"x\\\",\\\"user_id\\\":1}}\", \"ok\": false, \"error\": {\"kind\": \"invalid_arguments\", \"message\": \"orders: the arguments: unknown argument 'user_id'\"}, \"value\": null}",
+  "{\"sent\": \"{\\\"v\\\":1,\\\"id\\\":3,\\\"op\\\":\\\"call\\\",\\\"tool\\\":\\\"orders\\\",\\\"args\\\":{\\\"q\\\":\\\"x\\\"}}\", \"ok\": true, \"error\": null, \"value\": {\"user_id\": 42}}",
+  "{\"sent\": \"{\\\"v\\\":1,\\\"id\\\":4,\\\"op\\\":\\\"call\\\",\\\"tool\\\":\\\"lookup\\\",\\\"args\\\":{\\\"code\\\":\\\"E\\\",\\\"admin\\\":true}}\", \"ok\": false, \"error\": {\"kind\": \"invalid_arguments\", \"message\": \"lookup: the arguments: unknown argument 'admin'\"}, \"value\": null}",
+  "{\"sent\": \"{\\\"v\\\":1,\\\"id\\\":5,\\\"op\\\":\\\"call\\\",\\\"tool\\\":\\\"lookup\\\",\\\"args\\\":{\\\"code\\\":\\\"a\\\",\\\"code\\\":\\\"b\\\"}}\", \"ok\": false, \"error\": {\"kind\": \"protocol\", \"message\": \"the frame repeats the key 'code'\"}, \"value\": null}",
+  "{\"sent\": \"{\\\"v\\\":1,\\\"id\\\":6,\\\"op\\\":\\\"call\\\",\\\"tool\\\":\\\"lookup\\\",\\\"args\\\":{\\\"code\\\":\\\"E\\\",\\\"year\\\":1.0}}\", \"ok\": false, \"error\": {\"kind\": \"invalid_arguments\", \"message\": \"lookup: argument year: expected integer, got number\"}, \"value\": null}",
+  "{\"sent\": \"{\\\"v\\\":1,\\\"id\\\":7,\\\"op\\\":\\\"call\\\",\\\"tool\\\":\\\"lookup\\\",\\\"args\\\":{\\\"code\\\":\\\"E\\\"}}\", \"ok\": true, \"error\": null, \"value\": {\"code\": \"E\", \"year\": 2026}}"
+ ],
+ "guest_stderr_tail": "",
+ "host_seen": [
+  [
+   "gate",
+   "account",
+   {
+    "q": "x",
+    "role": "admin"
+   }
+  ],
+  [
+   "Account handler",
+   {
+    "q": "x",
+    "role": "admin"
+   }
+  ],
+  [
+   "gate",
+   "orders",
+   {
+    "q": "x"
+   }
+  ],
+  [
+   "orders handler",
+   {
+    "q": "x",
+    "user_id": 42
+   }
+  ],
+  [
+   "gate",
+   "lookup",
+   {
+    "code": "E"
+   }
+  ],
+  [
+   "lookup handler",
+   {
+    "code": "E",
+    "year": 2026
+   }
+  ]
+ ],
+ "record": [
+  [
+   1,
+   "account",
+   "tool_error",
+   "account failed (internal error)",
+   "_NotJSON: a Account has no JSON form"
+  ],
+  [
+   2,
+   "orders",
+   "invalid_arguments",
+   "orders: the arguments: unknown argument 'user_id'",
+   null
+  ],
+  [
+   3,
+   "orders",
+   "ok",
+   null,
+   null
+  ],
+  [
+   4,
+   "lookup",
+   "invalid_arguments",
+   "lookup: the arguments: unknown argument 'admin'",
+   null
+  ],
+  [
+   5,
+   null,
+   "protocol",
+   "the frame repeats the key 'code'",
+   null
+  ],
+  [
+   6,
+   "lookup",
+   "invalid_arguments",
+   "lookup: argument year: expected integer, got number",
+   null
+  ],
+  [
+   7,
+   "lookup",
+   "ok",
+   null,
+   null
+  ]
+ ]
+}

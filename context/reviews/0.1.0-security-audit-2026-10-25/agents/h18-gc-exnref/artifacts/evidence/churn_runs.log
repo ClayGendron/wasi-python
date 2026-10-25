@@ -1,0 +1,54 @@
+# Bounded local checks of exception churn under wasmtime-py 49.0.0 (wasmtime 49.0.0, GC + exceptions at defaults, DRC collector), 2026-10-25, darwin-arm64
+# Wrapper: ulimit -t 300 -f 4000000 -n 4096; env -i PATH=/usr/bin:/bin HOME=scratch/home TMPDIR=scratch/tmp WASI_PYTHON_CACHE=scratch/cache; sandbox-exec (deny network*); .venv/bin/python -I evidence/driver_exn_churn.py ROUNDS BUDGET_S SNAPSHOT [FUEL]; outer subprocess timeout 290 s. root=True (a fresh private root under scratch/tmp); no grant; the target tree was NOT read-only mounted (the platform cannot enforce that); no memory rlimit (the runner's own memory cap bounds the guest).
+
+## first attempt (no root): matplotlib refused to import without a writable cache dir
+
+
+host-stderr ./src/wasi_python/runner.py:280: RuntimeWarning: wasi_python: not using the module cache at context/reviews/0.1.0-security-audit-2026-10-25/agents/h18-gc-exnref/scratch/cache: it must be a directory owned by this user that no one else may read, write or enter (mode 0700)
+  return _call._run_checked(wt, checked, host, snapshot, cache_dir, artifacts, loop)
+
+
+## smoke: 50 rounds
+returncode 0
+host_elapsed_s 9.7 snapshot True
+exit_code 0 trapped None
+stdout rounds 50 elapsed_guest_s 0.0
+counts [('A', 50), ('B', 50), ('C', 50), ('wrong', 0)]
+
+stderr 
+
+host-stderr 
+
+## long runs
+== snapshot=True rounds<=1000000 budget 20s
+returncode 0
+host_elapsed_s 20.6 snapshot True
+exit_code 0 trapped None
+stdout rounds 686457 elapsed_guest_s 20.0
+counts [('A', 686457), ('B', 686457), ('C', 686457), ('wrong', 0)]
+
+stderr 
+
+host-stderr 
+== snapshot=False rounds<=1000000 budget 20s
+returncode 0
+host_elapsed_s 29.5 snapshot False
+exit_code 0 trapped None
+stdout rounds 673546 elapsed_guest_s 20.0
+counts [('A', 673546), ('B', 673546), ('C', 673546), ('wrong', 0)]
+
+stderr 
+
+host-stderr 
+
+## metered engine
+== metered engine snapshot=True budget 15s fuel=10**13
+returncode 0
+host_elapsed_s 27.2 snapshot True fuel 10000000000000
+exit_code 0 trapped None
+stdout rounds 409211 elapsed_guest_s 15.0
+counts [('A', 409211), ('B', 409211), ('C', 409211), ('wrong', 0)]
+
+stderr 
+
+host-stderr 

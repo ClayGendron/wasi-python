@@ -1,0 +1,2 @@
+{"mode": "cancel", "driver_wall_s": 20.02, "killed": true, "stdout": "{\"event\": \"cancel set\", \"t\": 2.01}\n"}
+{"mode": "session", "driver_wall_s": 20.01, "killed": true, "stdout": "{\"event\": \"session open\", \"t\": 0.35}\n{\"event\": \"close() called\", \"t\": 2.35}\n"}

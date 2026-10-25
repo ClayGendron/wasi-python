@@ -1,0 +1,7 @@
+wasi-python 0.1.0	Latest	v0.1.0	2026-10-23T14:21:43Z
+wasi-python 0.1.0a7	Pre-release	v0.1.0a7	2026-10-19T13:21:18Z
+wasi-python 0.1.0a6	Pre-release	v0.1.0a6	2026-10-19T01:49:37Z
+wasi-python 0.1.0a5	Pre-release	v0.1.0a5	2026-10-18T19:38:20Z
+wasi-python 0.1.0a3	Pre-release	v0.1.0a3	2026-10-17T21:19:28Z
+wasi-python 0.1.0a2	Pre-release	v0.1.0a2	2026-10-17T13:13:50Z
+wasi-python 0.1.0a1	Pre-release	v0.1.0a1	2026-10-17T00:43:08Z

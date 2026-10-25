@@ -1,0 +1,47 @@
+{
+ "mode": "ops",
+ "product": {
+  "total_per_call": 707.0,
+  "by_name": {
+   "lstat": 458.0,
+   "stat": 125.0,
+   "open": 30.0,
+   "fstat": 30.0,
+   "close": 30.0,
+   "scandir": 13.0,
+   "readlink": 5.0,
+   "mkdir": 3.0,
+   "getcwd": 3.0,
+   "unlink": 3.0,
+   "lseek": 2.0,
+   "write": 2.0,
+   "rmdir": 2.0,
+   "walk": 1.0
+  }
+ },
+ "bare": {
+  "total_per_call": 5.0,
+  "by_name": {
+   "stat": 3.0,
+   "mkdir": 2.0
+  }
+ },
+ "product_with_scandir_check": {
+  "total_per_call": 484.0,
+  "by_name": {
+   "lstat": 236.0,
+   "stat": 125.0,
+   "open": 30.0,
+   "fstat": 30.0,
+   "close": 30.0,
+   "scandir": 13.0,
+   "readlink": 5.0,
+   "mkdir": 3.0,
+   "getcwd": 3.0,
+   "unlink": 3.0,
+   "lseek": 2.0,
+   "write": 2.0,
+   "rmdir": 2.0
+  }
+ }
+}

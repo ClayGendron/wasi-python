@@ -1,0 +1,10 @@
+== metered engine snapshot=True budget 15s fuel=10**13
+returncode 0
+host_elapsed_s 27.2 snapshot True fuel 10000000000000
+exit_code 0 trapped None
+stdout rounds 409211 elapsed_guest_s 15.0
+counts [('A', 409211), ('B', 409211), ('C', 409211), ('wrong', 0)]
+
+stderr 
+
+host-stderr 

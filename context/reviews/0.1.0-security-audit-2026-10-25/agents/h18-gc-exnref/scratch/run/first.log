@@ -1,0 +1,31 @@
+returncode 0
+host_elapsed_s 9.8 snapshot True
+exit_code 1 trapped None
+stdout 
+stderr mkdir -p failed for path /tmp/.home-341f17b76e38ed37aa06965f9c7b0274/.matplotlib: [Errno 63] Operation not permitted: '/tmp/.home-341f17b76e38ed37aa06965f9c7b0274/.matplotlib'
+Traceback (most recent call last):
+  File "/usr/local/lib/python315.zip/matplotlib/__init__.py", line 587, in _get_config_or_cache_dir
+  File "/usr/local/lib/python315.zip/tempfile.py", line 424, in mkdtemp
+  File "/usr/local/lib/python315.zip/tempfile.py", line 128, in _sanitize_params
+  File "/usr/local/lib/python315.zip/tempfile.py", line 366, in gettempdir
+  File "/usr/local/lib/python315.zip/tempfile.py", line 359, in _gettempdir
+  File "/usr/local/lib/python315.zip/tempfile.py", line 223, in _get_default_tempdir
+FileNotFoundError: [Errno 44] No usable temporary directory found in ['/tmp', '/tmp', '/var/tmp', '/usr/tmp', '/']
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<string>", line 12, in <module>
+    from matplotlib import _path
+  File "/usr/local/lib/python315.zip/matplotlib/__init__.py", line 1002, in <module>
+  File "/usr/local/lib/python315.zip/matplotlib/__init__.py", line 680, in matplotlib_fname
+  File "/usr/local/lib/python315.zip/matplotlib/__init__.py", line 677, in gen_candidates
+  File "/usr/local/lib/python315.zip/matplotlib/__init__.py", line 345, in wrapper
+  File "/usr/local/lib/python315.zip/matplotlib/__init__.py", line 622, in get_configdir
+  File "/usr/local/lib/python315.zip/matplotlib/__init__.py", line 589, in _get_config_or_cache_dir
+OSError: Matplotlib requires access to a writable cache directory, but there was an issue with the default path (/tmp/.home-341f17b76e38ed37aa06965f9c7b0274/.matplotlib), and a temporary directory could not be created; set the MPLCONFIGDIR environment variable to a writable directory
+
+
+host-stderr ./src/wasi_python/runner.py:280: RuntimeWarning: wasi_python: not using the module cache at context/reviews/0.1.0-security-audit-2026-10-25/agents/h18-gc-exnref/scratch/cache: it must be a directory owned by this user that no one else may read, write or enter (mode 0700)
+  return _call._run_checked(wt, checked, host, snapshot, cache_dir, artifacts, loop)
+

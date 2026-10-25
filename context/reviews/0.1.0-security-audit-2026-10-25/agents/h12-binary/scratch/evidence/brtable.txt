@@ -1,0 +1,2 @@
+file=python.wasm br_table_count=20151 max_targets_excl_default=3202 max_at=0x15dfa5 pow2_hist=[(4, 11017), (8, 5104), (16, 2116), (32, 883), (64, 732), (128, 261), (256, 20), (512, 8), (1024, 4), (2048, 4), (4096, 2)]
+file=python-snapshot.wasm br_table_count=20151 max_targets_excl_default=3202 max_at=0x15df84 pow2_hist=[(4, 11017), (8, 5104), (16, 2116), (32, 883), (64, 732), (128, 261), (256, 20), (512, 8), (1024, 4), (2048, 4), (4096, 2)]

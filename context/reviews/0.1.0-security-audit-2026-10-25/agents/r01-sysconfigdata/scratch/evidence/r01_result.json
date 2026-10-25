@@ -1,0 +1,26 @@
+{
+ "plant": {
+  "exit": 0,
+  "ran": false,
+  "out": "",
+  "err": ""
+ },
+ "noenv": {
+  "exit": 0,
+  "ran": false,
+  "out": "ok\n",
+  "err": ""
+ },
+ "env_snap": {
+  "exit": 0,
+  "ran": true,
+  "out": "ok\n",
+  "err": "PLANTED-R01\n"
+ },
+ "env_plain": {
+  "exit": 0,
+  "ran": true,
+  "out": "ok\n",
+  "err": "PLANTED-R01\n"
+ }
+}

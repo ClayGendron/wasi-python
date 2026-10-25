@@ -1,0 +1,64 @@
+1c1,2
+< from typing import Generic, List, Union, cast, TypeVar
+---
+> import itertools
+> from typing import Dict, Generic, Iterator, TypeVar
+8,9c9
+<     list: List[Union[int, T]]
+<     next: int
+---
+>     """Maps integer handles to Python objects, safe to use from many threads.
+11,13c11,15
+<     def __init__(self) -> None:
+<         self.list = []
+<         self.next = 0
+---
+>     Wasmtime objects release their handles from finalizers, and the garbage
+>     collector runs finalizers on whichever thread happens to trigger a
+>     collection. An application that uses wasmtime from one thread can
+>     therefore see `deallocate` run on another thread, concurrently with
+>     `allocate`.
+15,16c17,23
+<     def allocate(self, val: T) -> int:
+<         idx = self.next
+---
+>     Handles come from a monotonically increasing counter and are never reused,
+>     and the values live in a dict, so there is no free list whose invariant
+>     spans several statements for a concurrent call to break. Every step is a
+>     single `next()` or dict operation, which the GIL makes atomic, so no lock
+>     is needed, and a finalizer that frees another handle mid-call cannot
+>     deadlock or see a half-updated slab.
+>     """
+18,22c25,26
+<         if len(self.list) == idx:
+<             self.list.append(0)
+<             self.next += 1
+<         else:
+<             self.next = cast(int, self.list[idx])
+---
+>     handles: Dict[int, T]
+>     counter: Iterator[int]
+24c28,37
+<         self.list[idx] = val
+---
+>     def __init__(self) -> None:
+>         # Counting from 1, never 0: callers round-trip a handle through a C
+>         # `void *` and read a null one back as `idx or 0`, so a handle of 0 is
+>         # indistinguishable from an absent one.
+>         self.handles = {}
+>         self.counter = itertools.count(1)
+> 
+>     def allocate(self, val: T) -> int:
+>         idx = next(self.counter)
+>         self.handles[idx] = val
+28c41
+<         return cast(T, self.list[idx])
+---
+>         return self.handles[idx]
+31,32c44,46
+<         self.list[idx] = self.next
+<         self.next = idx
+---
+>         # Idempotent: freeing a handle twice, or freeing one that was never
+>         # handed out, leaves the live handles alone.
+>         self.handles.pop(idx, None)

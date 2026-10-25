@@ -1,0 +1,22 @@
+READ 2026-10-24 from https://github.com/bytecodealliance/wasmtime/releases/tag/v50.0.0 (one fetch).
+Released 2026-10-20. Items that touch what the runner uses:
+- Changed: "Epoch deadline and call-hook callbacks now receive a StoreHookState" (the Rust API; the
+  C API's wasmtime_store_epoch_deadline_callback keeps its shape: the binding's argtypes are
+  unchanged, api-diff.txt).
+- Changed: "Fuel is now charged for more host allocations made with Val" (component-model values;
+  the guest's own count did not move: hello-fuel-*.json).
+- Changed: "Bulk libunwind section registration is used when available" (drop-timing-*.json).
+- Changed: Rust 1.97.0 is the MSRV; the wasmtime CLI no longer enables WASIp0 by default.
+- Fixed: "Fuel is now correctly saved and restored around call_ref and exception catches in
+  Cranelift" (49.0.1's fix, GHSA-m63x-6p34-q65x).
+- Fixed: "Store::set_epoch_deadline no longer overflows with very large deltas".
+- Fixed: "Native stack-walking on macOS arm64".
+- Fixed: "Cranelift/aarch64: br_table with very large target counts" (49.0.4's fix,
+  GHSA-mghf-wjfp-p5xm).
+- Fixed: "Several wasi:filesystem fixes (set-times on directory descriptors, symlink stat, stat
+  fast path, datetime overflow, directory entry file types)".
+Not named in the notes: fd_readdir, path_rename, the .cwasm format, native_unwind_info, the
+collector, GHSA ids of 49.0.2 and 49.0.3 (the probes show both fixes present:
+native-probes-wasmtime-py-50.0.1.json).
+There is no wasmtime v50.0.1 (wasmtime-releases.txt, HTTP 404 on its tag page): wasmtime-py 50.0.1
+is a wasmtime-py patch on wasmtime 50.0.0 (wasmtime-py-50.0.1-download-wasmtime.py line 15).

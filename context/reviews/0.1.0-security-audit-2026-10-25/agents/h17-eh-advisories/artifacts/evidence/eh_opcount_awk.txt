@@ -1,0 +1,16 @@
+# Reads llvm-objdump -d output of a wasm module; counts the exception-handling and
+# function-reference instructions, and names the functions that carry try_table / call_ref.
+BEGIN { FS="\t" }
+/^[0-9a-f]+ <.*>:$/ { fn=$0; sub(/^[0-9a-f]+ </,"",fn); sub(/>:$/,"",fn); nfn++; next }
+NF>=2 && $1 ~ /^ +[0-9a-f]+:/ {
+  m=$2; sub(/ .*/,"",m); total++
+  if (m ~ /^(try_table|throw|throw_ref|call_ref|return_call_ref|ref\.func|try|catch|catch_all|delegate|rethrow|return_call|return_call_indirect|ref\.as_non_null|br_on_null|br_on_non_null|call_indirect|<unknown>)$/) {
+    c[m]++
+    if (m=="try_table"||m=="call_ref"||m=="return_call_ref"||m=="throw"||m=="throw_ref"||m=="try") f[m SUBSEP fn]++
+  }
+}
+END {
+  printf "functions %d instructions %d\n", nfn, total
+  for (k in c) printf "count %s %d\n", k, c[k]
+  for (k in f) { split(k,a,SUBSEP); printf "fn %s %s %d\n", a[1], a[2], f[k] }
+}

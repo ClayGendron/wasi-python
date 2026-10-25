@@ -1,0 +1,38 @@
+# release/version.py verify_note
+  295  def verify_note(version: str) -> str:
+  296      """How a user checks this release's assets: appended to the release's notes, not to the tag's
+  297      message."""
+  298      return (
+  299          "\n**Verify a download** (`gh` logged in; see the README's *Verifying a download*):\n\n"
+  300          "```\n"
+  301          "gh attestation verify <asset> --repo ClayGendron/wasi_python \\\n"
+  302          "  --signer-workflow "
+  303          f"ClayGendron/wasi_python/.github/workflows/release.yml@refs/tags/v{version} \\\n"
+  304          f"  --source-ref refs/tags/v{version} --deny-self-hosted-runners\n"
+  305          "```\n"
+  306      )
+# docs/how-to/verify-a-download.md
+   15  ## Check an asset's provenance with `gh`
+   16  
+   17  Every release asset carries *build provenance*: a statement, signed by the release workflow, that names the source and the workflow that built the file. The GitHub CLI, `gh`, checks it. Log `gh` in first, then run this, with `<asset>` the file you downloaded and `<version>` the release's version:
+   18  
+   19  ```
+   20  gh attestation verify <asset> --repo ClayGendron/wasi_python \
+   21    --signer-workflow ClayGendron/wasi_python/.github/workflows/release.yml@refs/tags/v<version> \
+   22    --source-ref refs/tags/v<version> --deny-self-hosted-runners
+   23  ```
+   24  
+   25  The command fails if any check does not hold. When it passes, it has shown that:
+# gather.py G1/G7
+    if i.tier not in scoreboard.TIERS:
+        red.append(f"G1 TIER is {i.tier!r}, not normal or release")
+    if i.release_run and i.tier != "release":
+        red.append("G1 a tag (or a dispatch on main), and the release tier did not run")
+    if i.tag and i.accepted.get("judge", {}).get("hash") != i.judge_hash:
+        red.append("G7 a tag, and this commit's judge is not the accepted one")
+    if i.tag and i.set_source != BUILT:  # a tag publishes what its own run built
+        red.append("G7 a tag, and the set was not built in this run")
+    if i.release_run and newest.get("tier") != "release":
+        red.append(
+            "G7 a tag (or a dispatch on main), and the newest acceptance did not run the release"
+            " tier"

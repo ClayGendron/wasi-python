@@ -1,0 +1,38 @@
+{
+ "-c snapshot=True": {
+  "exit": 0,
+  "stdout": "/usr/local/lib/python315.zip/tempfile.pyc /usr/local/lib/python315.zip/reportlab/__init__.pyc /usr/local/lib/python315.zip/matplotlib/__init__.pyc\n[]\n",
+  "stderr": "",
+  "ran": []
+ },
+ "script snapshot=True": {
+  "exit": 0,
+  "stdout": "helper: No module named 'helper'\n['/usr/local/lib/python315.zip']\n",
+  "stderr": "",
+  "ran": []
+ },
+ "-m helper snapshot=True": {
+  "exit": 1,
+  "stdout": "",
+  "stderr": "/usr/local/bin/python.wasm: No module named helper\n",
+  "ran": []
+ },
+ "-c snapshot=False": {
+  "exit": 0,
+  "stdout": "/usr/local/lib/python315.zip/tempfile.pyc /usr/local/lib/python315.zip/reportlab/__init__.pyc /usr/local/lib/python315.zip/matplotlib/__init__.pyc\n[]\n",
+  "stderr": "",
+  "ran": []
+ },
+ "script snapshot=False": {
+  "exit": 0,
+  "stdout": "helper: No module named 'helper'\n['/usr/local/lib/python315.zip']\n",
+  "stderr": "",
+  "ran": []
+ },
+ "-m helper snapshot=False": {
+  "exit": 1,
+  "stdout": "",
+  "stderr": "/usr/local/bin/python.wasm: No module named helper\n",
+  "ran": []
+ }
+}

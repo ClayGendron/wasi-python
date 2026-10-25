@@ -1,0 +1,97 @@
+{
+  "units": [
+    {
+      "coverage_id": "src%2Fwasi_python%2F_call.py%23_door::src%2Fwasi_python%2F_call.py%23_shared::src%2Fwasi_python::MEMORY-SAFETY-AND-BINARY.md%23Pointer-length%20and%20ownership%20contract%20mismatch",
+      "disposition": "covered",
+      "reviewed_paths": [
+        "src/wasi_python/_call.py",
+        "src/wasi_python/_home.py",
+        "src/wasi_python/_wasmtime_ffi.py",
+        "src/wasi_python/_sessions.py",
+        "recipes/hostmodule.c",
+        "recipes/guest/host/__init__.py",
+        "recipes/guest/host/tools.py",
+        "docs/explanation/security-model.md",
+        "SECURITY.md"
+      ],
+      "checks": [
+        {
+          "agent_id": "h05-door",
+          "reviewed_paths": ["src/wasi_python/_call.py", "src/wasi_python/_wasmtime_ffi.py"],
+          "invariant": "Guest pointers and lengths are masked to unsigned 32 bits and checked against the current memory size before any read, any admit and any host call; the answer buffer from host_alloc is checked again against data_len read after the allocation (memory may grow), and the out-addresses are written only after that check",
+          "method": "source",
+          "result": "_door.frame (_call.py:1251-1279) masks all four values, checks ptr+len, out_ptr_ptr+4 and out_len_ptr+4 against data_len before admit/read (Python ints, no overflow), and re-reads data_len after alloc. wasmtime-py 49 Memory.read/write re-derive the data pointer on every call and write() raises IndexError past the end, so no stale view survives a memory.grow inside host_alloc. Memory never shrinks, so the out-address check made before alloc still holds after it.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h05-door",
+          "reviewed_paths": ["src/wasi_python/_call.py"],
+          "invariant": "Crafted door frames never reach the host or write guest memory out of bounds, and run() keeps returning normally",
+          "method": "local",
+          "result": "16 crafted WAT snapshot guests run through wasi_python.run(host=..., artifacts=..., cache_dir=False) under env -i, sandbox-exec deny network*, and ulimit -t/-f/-n. The target was not mounted read-only. ptr=0xFFFFFFFF len=2, out_len_ptr=65533, and out_ptr_ptr=0xFFFFFFFC each got -2 with 0 host calls. host_alloc at 65534 for a 3-byte answer got -2 with the out-addresses untouched. host_alloc at exactly 65533 was answered. host_alloc that grows memory got the answer in the new page. host_alloc returning 0 got -2. A zero-length frame at the end of memory was answered. A non-bytes answer and a RuntimeError each got -2, with no text reaching the guest. A 5000-byte answer with MAX_RESPONSE=1000 got -2. Bounded re-entry (host_alloc calling the door 3 deep) got 4 host calls and exit 3. KeyboardInterrupt propagated, as documented. The host always ran on the main (home) thread, and a later real-guest call printed ok.",
+          "artifact": "agents/h05-door/artifacts/evidence/door_probe_output_run2.txt"
+        },
+        {
+          "agent_id": "h05-door",
+          "reviewed_paths": ["src/wasi_python/_call.py"],
+          "invariant": "The probe script and its structured per-case results",
+          "method": "local",
+          "result": "door_probe.py is the exact script. door_probe_results.json holds the per-case exit_code, trapped, host_calls and host thread recorded in run 2.",
+          "artifact": "agents/h05-door/artifacts/evidence/door_probe_results.json"
+        },
+        {
+          "agent_id": "h05-door",
+          "reviewed_paths": ["src/wasi_python/_call.py"],
+          "invariant": "The exact probe source",
+          "method": "local",
+          "result": "The script used for both runs. Run 2 skipped the unbounded re-entry case (commented out).",
+          "artifact": "agents/h05-door/artifacts/evidence/door_probe.py"
+        },
+        {
+          "agent_id": "h05-door",
+          "reviewed_paths": ["src/wasi_python/_call.py", "recipes/hostmodule.c"],
+          "invariant": "Re-entry of the door from host_alloc is not reachable from the shipped guest",
+          "method": "local",
+          "result": "Run 1 used a custom WAT module, passed through the embedder-trusted artifacts= argument, whose host_alloc calls the door with no depth bound. It aborted the host process (exit 134) after RecursionError was raised inside wasmtime-py's ctypes trampoline, outside _shared's try. Source review of recipes/hostmodule.c:27-30 shows that the shipped python.wasm's host_alloc is malloc only and imports nothing, so a guest running the real artifacts cannot re-enter the door from host_alloc. Recorded as hardening, not as a finding.",
+          "artifact": "agents/h05-door/artifacts/evidence/door_probe_output_run1.txt"
+        },
+        {
+          "agent_id": "h05-door",
+          "reviewed_paths": ["src/wasi_python/_call.py", "src/wasi_python/_home.py"],
+          "invariant": "_shared serves only the call on top of this thread's stack whose store is the caller's; it never raises into wasmtime-py; a host's Exception becomes HOST_FAULT with no text, and a BaseException is recorded as the call's stop; the raw host runs on the home thread",
+          "method": "source",
+          "result": "_shared (_call.py:711-772) compares context_address(caller) with call.context and refuses a mismatch with NO_HOST. Every exception in its body is caught, and the stop is recorded through the epoch deadline. _door.call (_call.py:1238-1248) converts Exception to HOST_FAULT and lets Trap/WasmtimeError and BaseException go to _shared's handler. _Home.call/_Box.run (_home.py:233-247, 105-111) carries only bytes and the exception across threads, and _door_answer converts the answer to plain bytes on the home thread. The guest thread is never the main thread, so asynchronous signal exceptions do not land in the trampoline there. A host that blocks holds the call until it returns, which is documented (docs/how-to/async.md:30).",
+          "artifact": null
+        },
+        {
+          "agent_id": "h05-door",
+          "reviewed_paths": ["recipes/hostmodule.c"],
+          "invariant": "Guest-side ownership: the request buffer is pinned for the whole door call, the response is freed exactly once on every rc, a malformed length is refused, and the casts from Py_ssize_t and uintptr_t to int32 are recovered by the host's unsigned mask",
+          "method": "source",
+          "result": "hostmodule.c:36-74 holds the Py_buffer export across the call, zeroes response and response_len first, refuses a negative length or a NULL pointer with a nonzero length, and frees on every path. The host writes the out-addresses only when the answer is checked. In the one case where they are written and -2 is returned (a Ctrl-C or cancel noticed after the answer), the pointer is a valid malloc result, so freeing it is a single free. A malloc failure in host_alloc becomes -2.",
+          "artifact": null
+        }
+      ],
+      "candidate_fingerprints": [],
+      "unresolved": []
+    }
+  ],
+  "candidates": [],
+  "hardening": [
+    "src/wasi_python/_call.py:1215-1223 _door_answer checks memoryview(response).nbytes, then calls bytes(response). For a bytes subclass with __bytes__, bytes() returns a different and larger object, so MAX_RESPONSE is not enforced on what is written. Observed: with MAX_RESPONSE patched to 1000, the guest received 5000 bytes (door_probe_output_run2.txt, bytes_subclass_over_max). A real answer of 2 GiB or more would also be truncated to i32 by wasmtime-py's Val.i32 when it is passed to host_alloc, while the bound check uses the full Python length. The effect stays inside guest memory, and only the trusted embedder's own host can cause it. Fix: convert first, then check, by doing data = bytes(response); if type(data) is not bytes: data = bytes(memoryview(data)); then if len(data) > MAX_RESPONSE: return None.",
+    "src/wasi_python/_call.py:1277-1281: when __bytes__ returns a bytes subclass, its __len__ runs on the guest thread, not on the home thread, and can disagree with the buffer that memory.write copies. Observed: the out length was 1 while 3000 bytes were written past a 1-byte allocation (len_lies). The effect stays inside guest memory, and only the embedder can cause it. The same fix closes it: always hand an exact bytes object to the guest thread.",
+    "src/wasi_python/_call.py:1243-1246 re-raises wasmtime.Trap and WasmtimeError from the whole frame, including from the host function itself, not only from host_alloc. A host that raises wasmtime.Trap ends the call as trapped='from the host' instead of the documented outcome, where an Exception becomes a host fault with no text (docs/explanation/security-model.md:28; observed in host_raises_trap). This lets the embedder's text reach Completed.trapped. Narrow the re-raise to the alloc call.",
+    "Unbounded re-entry of the door from a custom host_alloc (a module supplied through artifacts=) aborts the host process, because RecursionError arises inside wasmtime-py's ctypes trampoline before _shared's try (door_probe_output_run1.txt). The shipped guest cannot do this, since its host_alloc is plain malloc. A per-call re-entry depth guard in _door, refusing a nested door call with HOST_FAULT, would remove the shape entirely.",
+    "src/wasi_python/_call.py:1263: bytes(memory.read(...)) copies a raw host= frame twice, as a bytearray and then as bytes, so a frame as large as guest memory costs the embedder's process about twice the guest memory cap for a moment. Read straight into one bytes object."
+  ],
+  "uncovered": [
+    {
+      "surface": "Every Python host function (poll_oneoff, the guard and mount file shadows, the door) entered from deep guest wasm recursion",
+      "boundary": "Python's C-stack recursion check against the bounds tell_interpreter sets, versus _HOST_ROOM, at the first line of wasmtime-py's ctypes trampoline, which is outside _shared's try",
+      "subsystem": "src/wasi_python",
+      "attack_class": "MEMORY-SAFETY-AND-BINARY.md#Unwind, exception, and thread-affinity violations",
+      "starting_paths": ["src/wasi_python/_platform.py", "src/wasi_python/_home.py", "src/wasi_python/_engines.py", "src/wasi_python/_call.py"],
+      "reason": "Run 1 showed that a RecursionError at the trampoline's first line aborts the process. Whether a shipped guest can reach that state without door re-entry depends on stack sizing across all host functions, not on the door, so it belongs to the peer unit for _wasmtime_ffi.py#ffi and _home.py#home. This hunter did not pursue it."
+    }
+  ]
+}

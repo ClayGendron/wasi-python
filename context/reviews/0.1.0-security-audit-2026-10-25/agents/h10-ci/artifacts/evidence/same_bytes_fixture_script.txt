@@ -1,0 +1,25 @@
+#!/bin/sh
+# Re-creates, on dummy files, the same-bytes step of release.yml (lines 448-457):
+# the tarball's inner SHA256SUMS is compared with each rebuild's; the inner files are never
+# checked against that SHA256SUMS in this job. Dummy content only; no target code runs.
+set -eu
+W="$1"; cd "$W"
+mkdir -p good/wasi-python-0.0.0 rebuilds/ubuntu-24.04-arm rebuilds/ubuntu-24.04 release-assets
+printf 'genuine wasm\n' > good/wasi-python-0.0.0/python.wasm
+( cd good/wasi-python-0.0.0 && shasum -a 256 python.wasm > SHA256SUMS )
+cp good/wasi-python-0.0.0/SHA256SUMS rebuilds/ubuntu-24.04-arm/SHA256SUMS
+cp good/wasi-python-0.0.0/SHA256SUMS rebuilds/ubuntu-24.04/SHA256SUMS
+# The build host's tarball: the genuine SHA256SUMS, a different python.wasm.
+printf 'substituted wasm\n' > good/wasi-python-0.0.0/python.wasm
+tar -cJf release-assets/wasi-python-0.0.0-wasm32-wasip1.tar.xz -C good wasi-python-0.0.0
+# --- the workflow's step ---
+mkdir set
+tar -xJf release-assets/*.tar.xz -C set
+sums=$(echo set/wasi-python-*/SHA256SUMS)
+for runner in ubuntu-24.04-arm ubuntu-24.04; do
+  cmp "$sums" "rebuilds/$runner/SHA256SUMS"
+  echo "$runner: the same SHA256SUMS"
+done
+echo "same-bytes step exit: 0"
+echo "--- not run by the step: the inner files against the inner SHA256SUMS ---"
+( cd set/wasi-python-0.0.0 && shasum -a 256 -c SHA256SUMS ) || echo "inner check would fail"

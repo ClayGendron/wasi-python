@@ -1,0 +1,54 @@
+{
+ "mode": "fix",
+ "fixes": [
+  "no_walk_judge"
+ ],
+ "n": 8,
+ "workers": 8,
+ "baseline": {
+  "sequential": {
+   "n": 3,
+   "min": 153.5,
+   "median": 157.4,
+   "max": 160.8
+  },
+  "parallel": {
+   "n": 3,
+   "min": 81.3,
+   "median": 82.8,
+   "max": 93.4
+  },
+  "speedup": 1.9
+ },
+ "fixed": {
+  "sequential": {
+   "n": 3,
+   "min": 143.5,
+   "median": 143.7,
+   "max": 148.1
+  },
+  "parallel": {
+   "n": 3,
+   "min": 60.4,
+   "median": 62.5,
+   "max": 62.6
+  },
+  "speedup": 2.3
+ },
+ "bare": {
+  "sequential": {
+   "n": 3,
+   "min": 105.3,
+   "median": 106.6,
+   "max": 106.9
+  },
+  "parallel": {
+   "n": 3,
+   "min": 23.1,
+   "median": 27.1,
+   "max": 29.1
+  },
+  "speedup": 3.93
+ },
+ "load_1m": 10.45654296875
+}

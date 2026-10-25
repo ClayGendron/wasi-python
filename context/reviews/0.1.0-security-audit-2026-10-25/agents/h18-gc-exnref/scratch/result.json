@@ -1,0 +1,87 @@
+{
+  "units": [
+    {
+      "coverage_id": "build%2Fartifacts%2Fpython.wasm%23catch_ref-exnref-live-across-call::src%2Fwasi_python%2F_engines.py%23_engine-gc-exceptions::build%2Fartifacts::MEMORY-SAFETY-AND-BINARY.md%23Use-after-free%2C%20stale%20view%2C%20and%20double%20free",
+      "disposition": "covered",
+      "reviewed_paths": [
+        "context/research/2026-10-18-wasmtime-49-advisories/advisories/GHSA-hw8m-q44c-ggrf.json",
+        "context/research/2026-10-18-wasmtime-49-advisories.md",
+        "context/prior_art/wasmtime-v49/cranelift/frontend/src/frontend/safepoints.rs",
+        "context/prior_art/wasmtime-v49/cranelift/frontend/src/ssa.rs",
+        "context/prior_art/wasmtime-v49/crates/cranelift/src/func_environ.rs",
+        "context/prior_art/wasmtime-v49/crates/cranelift/src/func_environ/gc.rs",
+        "context/prior_art/wasmtime-v49/crates/cranelift/src/translate/code_translator.rs",
+        "context/prior_art/wasmtime-v49/crates/cranelift/src/translate/stack.rs",
+        "context/prior_art/wasmtime-v49/crates/wasmtime/src/runtime/vm/libcalls.rs",
+        "src/wasi_python/_engines.py",
+        "uv.lock",
+        "pyproject.toml",
+        "docs/explanation/security-model.md",
+        "build/artifacts/python.wasm",
+        "build/artifacts/python-snapshot.wasm"
+      ],
+      "checks": [
+        {
+          "agent_id": "h18-gc-exnref",
+          "reviewed_paths": [
+            "context/research/2026-10-18-wasmtime-49-advisories/advisories/GHSA-hw8m-q44c-ggrf.json",
+            "context/prior_art/wasmtime-v49/cranelift/frontend/src/frontend/safepoints.rs"
+          ],
+          "invariant": "Exact defect of GHSA-hw8m-q44c-ggrf: which GC value, live across which call, is left out of the stack map in wasmtime 49.0.0",
+          "method": "source",
+          "result": "Diffing cranelift-frontend 0.136.0 (wasmtime 49.0.0, from the local cargo registry) against 0.136.3 (the v49.0.3 clone, safepoints.rs lines 429-443 and rewrite_safepoint_edges) shows the defect is narrow: in 0.136.0 the liveness pass processed every instruction value, including Value arguments on a try_call's normal and exception edges, as a use before the call, so a needs-stack-map value that stays live after a try_call only as an edge argument was not live across that safepoint and was not in its stack map; the fix moves edge arguments to uses after the call and reloads them on split edges. The ordinary case, a GC value used again after the call, was already handled in 0.136.0 (its test needs_stack_map_across_try_call is present in 0.136.0). The diff is saved as evidence cranelift_frontend_0136_0_to_0136_3_safepoints_diff.txt.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h18-gc-exnref",
+          "reviewed_paths": [
+            "context/prior_art/wasmtime-v49/crates/cranelift/src/func_environ.rs",
+            "context/prior_art/wasmtime-v49/crates/cranelift/src/func_environ/gc.rs",
+            "context/prior_art/wasmtime-v49/crates/cranelift/src/translate/code_translator.rs",
+            "context/prior_art/wasmtime-v49/crates/cranelift/src/translate/stack.rs",
+            "context/prior_art/wasmtime-v49/cranelift/frontend/src/ssa.rs",
+            "context/prior_art/wasmtime-v49/crates/wasmtime/src/runtime/vm/libcalls.rs",
+            "src/wasi_python/_engines.py",
+            "uv.lock",
+            "pyproject.toml"
+          ],
+          "invariant": "When wasmtime 49.0.0 translating the shipped module can produce a GC reference as a Value argument on a try_call edge",
+          "method": "source",
+          "result": "Preconditions on the engine side are met: uv.lock pins wasmtime 49.0.0 (inside >=49.0.0,<49.0.2); _engine (src/wasi_python/_engines.py:110-127) leaves wasm_gc and wasm_exceptions at their defaults, both on; the bundled libwasmtime has the DRC collector and not the copying one, so it does not move objects; and gc_alloc_raw (libcalls.rs) collects when a GC-heap allocation fails, so a callee that throws (each wasm throw allocates an exception object) can trigger a collection. On the translation side, wasmtime-internal-cranelift 49.0.0 (exception_table in func_environ.rs at line 2407, translate_throwing_builtin in gc.rs) builds every try_call with only TryCallRet and TryCallExn edge arguments. The continuation block is new and sealed at once with a single predecessor, so it never gets an SSA parameter. A catch block (create_catch_block, code_translator.rs:4600) has one explicit parameter and jumps to its label with only the unboxed payload and exnref. The only way a Value argument reaches a try_call edge is cranelift-frontend's SSA construction (finish_predecessors_lookup, ssa.rs:538). That happens only when a wasm local is read on the catch path before it is written, and the try_calls that lead into the catch block hold different values for it. Operand-stack values cannot cross a catch edge, and the only GC-typed locals in the module are exnref. So the advisory needs an exnref local that is live at a catch handler's continuation and dead on the normal path after some try_call, with the try_calls disagreeing on its value.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h18-gc-exnref",
+          "reviewed_paths": [
+            "build/artifacts/python.wasm",
+            "build/artifacts/python-snapshot.wasm"
+          ],
+          "invariant": "No exnref local in the shipped binaries is live into a try_table catch continuation, so no try_call edge carries a GC-reference Value argument (the GHSA-hw8m-q44c-ggrf precondition)",
+          "method": "local",
+          "result": "exnref_edge_scan.py (read-only; parses local types from the code section, streams wasi-sdk 34 llvm-objdump -d, builds an instruction-level CFG with exception edges from every call/call_indirect/throw/throw_ref to every enclosing try_table catch target, and computes liveness and reaching definitions; its self-test confirms it flags the bug shape and passes the ordinary shape) over both binaries: 89060 bodies; the only GC-typed locals are 9697 exnref slots in 7269 functions; 102646 try_calls and 43738 catch-handler continuations analysed in those functions; exnref locals live at a handler continuation: 0 (so P1, P2 and P3 have zero instances); try_calls with an exnref local live on the normal path after the call (the ordinary case, correctly rooted in 49.0.0): 16562. Identical counts for python.wasm and python-snapshot.wasm (exnref_edge_scan_snapshot.json). Every C++ and setjmp/longjmp landing pad stores its exnref from the block result into a local before any read, and reads it only on the fall-through path to throw_ref, so the 49.0.0 compiler defect is not reached by the shipped bytecode.",
+          "artifact": "agents/h18-gc-exnref/artifacts/evidence/exnref_edge_scan_python.json"
+        },
+        {
+          "agent_id": "h18-gc-exnref",
+          "reviewed_paths": [
+            "src/wasi_python/_engines.py",
+            "build/artifacts/python.wasm",
+            "build/artifacts/python-snapshot.wasm"
+          ],
+          "invariant": "Guest Python that throws and catches C++ exceptions at a high rate (forcing DRC collections inside callees while exnrefs are live across try_calls) sees no stale exception, trap, panic or wrong result under wasmtime-py 49.0.0",
+          "method": "local",
+          "result": "guest_exn_churn.py run through wasi_python.run (root=True, deadline 120 s, no grant) under the brief's wrapper (ulimit -t 300 -f 4000000 -n 4096, env -i, sandbox-exec deny network, scratch HOME/TMPDIR/cache; the target was not read-only mounted, no memory rlimit). Each round does three things: a kiwisolver unsatisfiable addConstraint (a C++ throw caught in C++); a matplotlib._path.point_in_path call whose path object's vertices property runs that kiwisolver round and then raises, so pybind11 throws error_already_set through C++ frames and converts it back (C++ to Python to C++ to Python); and the same call nested in an outer Python try with raise-from. Every caught exception's type and message is checked. Unmetered engine with snapshot: 686457 rounds in 20 s. Unmetered without snapshot: 673546 rounds. Metered engine (fuel 1e13) with snapshot: 409211 rounds in 15 s. That is at least five C++ throws per round, and so millions of GC-heap exception allocations. Every run exited 0 with trapped None, wrong=0, no other exception, and empty host stderr. This is supporting evidence only: the source check above already settles that the precondition is absent.",
+          "artifact": "agents/h18-gc-exnref/artifacts/evidence/churn_runs.log"
+        }
+      ],
+      "candidate_fingerprints": [],
+      "unresolved": []
+    }
+  ],
+  "candidates": [],
+  "hardening": [
+    "context/research/2026-10-18-wasmtime-49-advisories.md:73 dismisses GHSA-hw8m-q44c-ggrf as 'no - GC proposal'. That reason is wrong: exnref is a GC-managed reference, wasm_gc and exceptions are both on in _engine, and the shipped module holds exnref locals live across 16562 try_calls. The advisory is unreached for a different reason, which the scan above establishes: no exnref local is live into a catch continuation, so no try_call edge carries a GC Value argument. That property belongs to the LLVM 23 / wasi-sdk 34 codegen, not to any control in this repository, and a rebuild with another toolchain could change it. Until the floor is wasmtime>=49.0.2 (pyproject.toml:18 allows 49.0.0, the only 49.x on PyPI), a rebuild-time check that reruns this liveness scan (exnref locals live at try_table catch continuations must be zero) would keep the property from regressing quietly.",
+    "The advisory's workaround (wasm_exceptions false) is not usable here, because the module's C++ and setjmp/longjmp code needs exceptions. The fix is the wasmtime-py upgrade."
+  ],
+  "uncovered": []
+}

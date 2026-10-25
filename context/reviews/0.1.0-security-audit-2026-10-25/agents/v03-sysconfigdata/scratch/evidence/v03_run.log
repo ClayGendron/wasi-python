@@ -1,0 +1,12 @@
+plant {"argv": ["-c", "import os\nos.makedirs('/data', exist_ok=True)\nopen('/data/_sysconfigdata__wasi_wasm32-wasi.py','w').write(\"import sys\\nsys.stderr.write('PLANTED-V03\\\\n')\\nbuild_time_vars={'installed_base':'/usr/local'}\\n\")\nopen('/data/v03probe.py','w').write(\"import sys\\nsys.stderr.writ
+flags {"argv": ["-c", "import sys; print(sys.flags.ignore_environment, sys.flags.isolated)"], "env": {"_PYTHON_SYSCONFIGDATA_PATH": "/data"}, "snapshot": true, "exit_code": 0, "planted_sysconfigdata_ran": false, "planted_pythonpath_ran": false, "stdout": "1 1\n", "stderr_tail": ""}
+control_pandas_noenv {"argv": ["-c", "import pandas; print('ok')"], "env": null, "snapshot": true, "exit_code": 0, "planted_sysconfigdata_ran": false, "planted_pythonpath_ran": false, "stdout": "ok\n", "stderr_tail": ""}
+env_pandas_snapshot {"argv": ["-c", "import pandas; print('ok')"], "env": {"_PYTHON_SYSCONFIGDATA_PATH": "/data"}, "snapshot": true, "exit_code": 0, "planted_sysconfigdata_ran": true, "planted_pythonpath_ran": false, "stdout": "ok\n", "stderr_tail": "PLANTED-V03\n"}
+env_pandas_plain {"argv": ["-c", "import pandas; print('ok')"], "env": {"_PYTHON_SYSCONFIGDATA_PATH": "/data"}, "snapshot": false, "exit_code": 0, "planted_sysconfigdata_ran": true, "planted_pythonpath_ran": false, "stdout": "ok\n", "stderr_tail": "PLANTED-V03\n"}
+control_pythonpath {"argv": ["-c", "import v03probe"], "env": {"PYTHONPATH": "/data"}, "snapshot": true, "exit_code": 1, "planted_sysconfigdata_ran": false, "planted_pythonpath_ran": false, "stdout": "", "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    import v03probe\n
+
+--stderr--
+./src/wasi_python/runner.py:280: RuntimeWarning: wasi_python: not using the module cache at context/reviews/0.1.0-security-audit-2026-10-25/agents/v03-sysconfigdata/scratch/cache: it must be a directory owned by this user that no one else may read, write or enter (mode 0700)
+  return _call._run_checked(wt, checked, host, snapshot, cache_dir, artifacts, loop)
+
+rc=0

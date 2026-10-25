@@ -1,0 +1,27 @@
+reentrant_depth3 {"exit_code": 3, "trapped": null, "host_calls": 4, "host_threads": ["MainThread"], "main_thread": "MainThread"}
+Exception ignored while calling deallocator <function Managed.__del__ at 0x1033e01a0>:
+Traceback (most recent call last):
+  File "./.venv/lib/python3.14/site-packages/wasmtime/_managed.py", line 95, in __del__
+    self.close()
+  File "./.venv/lib/python3.14/site-packages/wasmtime/_managed.py", line 44, in close
+    self._delete(ptr)
+  File "./.venv/lib/python3.14/site-packages/wasmtime/_types.py", line 17, in _delete
+    ffi.wasm_valtype_delete(ptr)
+RecursionError: maximum recursion depth exceeded
+Exception ignored while calling deallocator <function Managed.__del__ at 0x1033e01a0>:
+Traceback (most recent call last):
+  File "./.venv/lib/python3.14/site-packages/wasmtime/_managed.py", line 95, in __del__
+    self.close()
+  File "./.venv/lib/python3.14/site-packages/wasmtime/_managed.py", line 44, in close
+    self._delete(ptr)
+  File "./.venv/lib/python3.14/site-packages/wasmtime/_types.py", line 17, in _delete
+    ffi.wasm_valtype_delete(ptr)
+RecursionError: maximum recursion depth exceeded
+Exception ignored while calling ctypes callback function <function trampoline at 0x1036cf480>:
+Traceback (most recent call last):
+  File "./.venv/lib/python3.14/site-packages/wasmtime/_func.py", line 190, in trampoline
+    caller = Caller(caller)
+  File "./.venv/lib/python3.14/site-packages/wasmtime/_func.py", line 129, in __init__
+    self.__context = ffi.wasmtime_caller_context(ptr)
+RecursionError: maximum recursion depth exceeded
+exit=134

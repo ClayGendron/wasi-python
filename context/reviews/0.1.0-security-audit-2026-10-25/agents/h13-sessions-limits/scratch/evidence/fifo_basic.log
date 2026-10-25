@@ -1,0 +1,4 @@
+{"mode": "plain", "driver_wall_s": 12.08, "killed": true, "child_lines": ["{\"event\": \"start\", \"mode\": \"plain\", \"t\": 0.0}", "{\"event\": \"run returned\", \"exit\": 0, \"trapped\": null, \"out\": \"hello\\n\\n\", \"err\": \"\", \"t\": 10.39}"]}
+{"mode": "stat", "driver_wall_s": 5.13, "killed": false, "rc": 0, "child_lines": ["{\"event\": \"start\", \"mode\": \"stat\", \"t\": 0.0}", "{\"event\": \"run returned\", \"exit\": 0, \"trapped\": null, \"out\": \"0\\n\", \"err\": \"\", \"t\": 0.32}"]}
+{"mode": "open", "driver_wall_s": 12.01, "killed": true, "child_lines": ["{\"event\": \"start\", \"mode\": \"open\", \"t\": 0.0}"]}
+{"mode": "open_nonblock", "driver_wall_s": 12.01, "killed": true, "child_lines": ["{\"event\": \"start\", \"mode\": \"open_nonblock\", \"t\": 0.0}"]}

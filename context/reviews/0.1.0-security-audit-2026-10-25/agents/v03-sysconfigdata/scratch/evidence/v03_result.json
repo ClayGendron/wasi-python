@@ -1,0 +1,88 @@
+{
+ "control_pandas_noenv": {
+  "argv": [
+   "-c",
+   "import pandas; print('ok')"
+  ],
+  "env": null,
+  "exit_code": 0,
+  "planted_pythonpath_ran": false,
+  "planted_sysconfigdata_ran": false,
+  "snapshot": true,
+  "stderr_tail": "",
+  "stdout": "ok\n"
+ },
+ "control_pythonpath": {
+  "argv": [
+   "-c",
+   "import v03probe"
+  ],
+  "env": {
+   "PYTHONPATH": "/data"
+  },
+  "exit_code": 1,
+  "planted_pythonpath_ran": false,
+  "planted_sysconfigdata_ran": false,
+  "snapshot": true,
+  "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    import v03probe\nModuleNotFoundError: No module named 'v03probe'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?\n",
+  "stdout": ""
+ },
+ "env_pandas_plain": {
+  "argv": [
+   "-c",
+   "import pandas; print('ok')"
+  ],
+  "env": {
+   "_PYTHON_SYSCONFIGDATA_PATH": "/data"
+  },
+  "exit_code": 0,
+  "planted_pythonpath_ran": false,
+  "planted_sysconfigdata_ran": true,
+  "snapshot": false,
+  "stderr_tail": "PLANTED-V03\n",
+  "stdout": "ok\n"
+ },
+ "env_pandas_snapshot": {
+  "argv": [
+   "-c",
+   "import pandas; print('ok')"
+  ],
+  "env": {
+   "_PYTHON_SYSCONFIGDATA_PATH": "/data"
+  },
+  "exit_code": 0,
+  "planted_pythonpath_ran": false,
+  "planted_sysconfigdata_ran": true,
+  "snapshot": true,
+  "stderr_tail": "PLANTED-V03\n",
+  "stdout": "ok\n"
+ },
+ "flags": {
+  "argv": [
+   "-c",
+   "import sys; print(sys.flags.ignore_environment, sys.flags.isolated)"
+  ],
+  "env": {
+   "_PYTHON_SYSCONFIGDATA_PATH": "/data"
+  },
+  "exit_code": 0,
+  "planted_pythonpath_ran": false,
+  "planted_sysconfigdata_ran": false,
+  "snapshot": true,
+  "stderr_tail": "",
+  "stdout": "1 1\n"
+ },
+ "plant": {
+  "argv": [
+   "-c",
+   "import os\nos.makedirs('/data', exist_ok=True)\nopen('/data/_sysconfigdata__wasi_wasm32-wasi.py','w').write(\"import sys\\nsys.stderr.write('PLANTED-V03\\\\n')\\nbuild_time_vars={'installed_base':'/usr/local'}\\n\")\nopen('/data/v03probe.py','w').write(\"import sys\\nsys.stderr.write('PLANTED-PYTHONPATH\\\\n')\\n\")\nprint('planted')\n"
+  ],
+  "env": null,
+  "exit_code": 0,
+  "planted_pythonpath_ran": false,
+  "planted_sysconfigdata_ran": false,
+  "snapshot": true,
+  "stderr_tail": "",
+  "stdout": "planted\n"
+ }
+}

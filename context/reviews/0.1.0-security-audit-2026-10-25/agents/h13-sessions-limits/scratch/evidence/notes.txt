@@ -1,0 +1,22 @@
+Bounded local checks for h13-sessions-limits, 2026-10-24, darwin-arm64.
+
+Wrapper for every target-controlled process:
+  ulimit -t 300 -f 4000000 -n 4096; /usr/bin/env -i PATH=/usr/bin:/bin HOME=<scratch>/home
+  TMPDIR=<scratch>/tmp WASI_PYTHON_CACHE=<scratch>/cache /usr/bin/sandbox-exec -p
+  '(version 1)(allow default)(deny network*)' <repo>/.venv/bin/python -I <script>
+fifo_driver.py (trusted, imports nothing of the target) starts each fifo_child.py under that
+wrapper with a 12 s wall-clock bound (Popen.communicate(timeout=12), then kill).
+The target tree was not mounted read-only (macOS cannot enforce that here); no grant or root
+pointed into the target; every grant and root was a folder under <scratch>/work.
+build/lane.lock was absent before each run.
+
+Files:
+  fifo_basic.log   modes plain, stat, open, open_nonblock (first plain run was a cold compile)
+  fifo_modes.log   modes plain, writer_late, writer_holds, fuel, cancel, sigint, session_close,
+                   wait_for, pool (failed: wrong set_defaults call, re-run in fifo_modes2.log),
+                   exit_hang, root, wgrant_write; the socket mode's driver bind failed
+                   (AF_UNIX path too long) and was re-run in fifo_modes2.log
+  fifo_modes2.log  modes pool, exit_pool, session_atexit, socket, after the two fixes above
+  fifo_child.py / fifo_driver.py are the final versions (the pool call and the socket bind fixed,
+  modes exit_pool and session_atexit added after fifo_modes.log).
+  limits_probe.py / limits_probe.log  the other limit and isolation checks.

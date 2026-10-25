@@ -1,0 +1,130 @@
+== attribute: repeats 5, 7.3 s, 3.14.2 on darwin
+  program: os.write(1, 64 KiB) x 512
+  product                        median   241.8  min   231.8  runs [231.8, 233.5, 263.5, 262.9, 241.8]
+  product-stamped                median   232.3  min   201.2  runs [250.2, 286.6, 201.2, 232.3, 210.2]
+      {'callbacks': 8192, 'inside_ms': 31.148478, 'per_callback_us': 3.802304443359375, 'sizes': [4096], 'first_four_thread_names': ['Dummy-2', 'Dummy-3', 'Dummy-4', 'Dummy-5'], 'os_threads': {'6171373568': 563, '6167080960': 4067, '6179958784': 3558}}
+  product-file                   median    41.9  min    41.4  runs [41.4, 41.5, 41.9, 43.1, 46.5]
+  bare-file                      median    35.9  min    35.3  runs [39.0, 35.8, 35.3, 38.2, 35.9]
+  bare-file-on-thread            median    78.5  min    66.2  runs [77.9, 78.5, 98.2, 111.4, 66.2]
+  bare-pipe                      median    35.7  min    33.0  runs [33.0, 38.6, 40.4, 34.0, 35.7]
+  product-pipe                   median    48.3  min    48.3  runs [52.4, 48.3, 48.3, 48.3, 49.5]
+  bare-custom-libc               median    74.1  min    72.0  runs [113.7, 74.1, 72.0, 74.4, 73.5]
+  bare-custom-raw                median   112.1  min    97.7  runs [120.1, 106.8, 119.3, 97.7, 112.1]
+  bare-custom-copy               median   129.9  min   121.6  runs [121.6, 143.1, 129.9, 160.7, 124.5]
+  bare-custom-product-like       median   158.9  min   148.3  runs [167.1, 157.7, 158.9, 179.8, 148.3]
+  bare-custom-pub                median   166.0  min   154.2  runs [154.2, 166.0, 174.2, 204.5, 155.8]
+  [empty]
+    product                        median    18.1  min    17.7  runs [24.0, 17.8, 17.7, 18.1, 18.7]
+    product-pipe                   median    18.1  min    17.3  runs [17.8, 18.2, 18.1, 18.5, 17.3]
+    bare-file                      median    10.8  min    10.7  runs [11.7, 10.7, 10.8, 10.8, 10.7]
+  [crossing-floor]
+    direct_call_us: 0.6091312505304813
+== cap: repeats 3, 0.2 s, 3.14.2 on darwin
+  [product]
+    stdout_len: 4096
+    stdout_ok: True
+    stderr: b'done\n'
+    truncated: ['stdout']
+  [a1-one-copy-grow]
+    stdout_len: 4096
+    stdout_ok: True
+    stderr: b'done\n'
+    truncated: ['stdout']
+  [a2-one-copy-prealloc]
+    stdout_len: 4096
+    stdout_ok: True
+    stderr: b'done\n'
+    truncated: ['stdout']
+  [a3-one-copy-no-lock]
+    stdout_len: 4096
+    stdout_ok: True
+    stderr: b'done\n'
+    truncated: ['stdout']
+  [a4-one-copy-memmove-grow]
+    stdout_len: 4096
+    stdout_ok: True
+    stderr: b'done\n'
+    truncated: ['stdout']
+  [a5-two-copies-no-lock]
+    stdout_len: 4096
+    stdout_ok: True
+    stderr: b'done\n'
+    truncated: ['stdout']
+  [product-pipe (design b2)]
+    stdout_len: 4096
+    stdout_ok: True
+    stderr: b'done\n'
+    truncated: ['stdout']
+  [product-pipe interleaved]
+    stdout_ok: True
+    stderr_ok: True
+    truncated: []
+  [product-file (design b)]
+    file_size_on_disk: 1048576
+    note: the cap is not enforced: the file holds every byte the guest wrote
+    truncated: []
+  ctypes_array_types_after_2000_sizes: 19920
+== protos: repeats 3, 3.0 s, 3.14.2 on darwin
+  program: os.write(1, 64 KiB) x 512
+  product                        median   161.4  min   147.6  runs [161.4, 161.6, 147.6]
+  a1-one-copy-grow               median   148.9  min   140.8  runs [153.7, 148.9, 140.8]
+  a2-one-copy-prealloc           median   153.8  min   137.7  runs [168.6, 153.8, 137.7]
+  a3-one-copy-no-lock            median   150.9  min   143.9  runs [150.9, 159.8, 143.9]
+  a4-one-copy-memmove-grow       median   159.0  min   157.2  runs [159.0, 164.8, 157.2]
+  a5-two-copies-no-lock          median   160.8  min   153.9  runs [153.9, 160.8, 191.1]
+  product-pipe                   median    43.2  min    39.8  runs [43.2, 39.8, 52.9]
+== repro: repeats 3, 1.4 s, 3.14.2 on darwin
+  program: the spike's STDOUT_32M (sys.stdout.buffer, 512 x 64 KiB)
+  product                        median   201.1  min   190.5  runs [325.5, 201.1, 190.5]
+  bare-file                      median    36.0  min    34.0  runs [50.2, 34.0, 36.0]
+  bare-custom-pub                median   179.2  min   166.3  runs [179.9, 179.2, 166.3]
+== sizes: repeats 3, 7.6 s, 3.14.2 on darwin
+  [4096x8192]
+    product                        median   178.5  min   170.8  runs [178.6, 170.8, 178.5]
+    product-stamped                median   179.2  min   175.9  runs [179.6, 175.9, 179.2]
+        {'callbacks': 8192, 'inside_ms': 24.36104, 'per_callback_us': 2.973759765625, 'sizes': [4096], 'first_four_thread_names': ['Dummy-2', 'Dummy-3', 'Dummy-4', 'Dummy-5'], 'os_threads': {'6153285632': 4074, '6151139328': 4114}}
+    product-file                   median    47.2  min    46.5  runs [55.0, 46.5, 47.2]
+    bare-file                      median    39.7  min    39.6  runs [47.7, 39.7, 39.6]
+    bare-custom-libc               median    69.3  min    65.3  runs [69.3, 65.3, 69.7]
+    bare-custom-raw                median   110.7  min   110.4  runs [110.7, 113.4, 110.4]
+    product-pipe                   median    40.2  min    37.7  runs [40.8, 37.7, 40.2]
+    a1-one-copy-grow               median   178.7  min   173.9  runs [188.8, 178.7, 173.9]
+  [65536x512]
+    product                        median   155.6  min   150.5  runs [158.2, 150.5, 155.6]
+    product-stamped                median   154.0  min   148.8  runs [154.0, 159.6, 148.8]
+        {'callbacks': 8192, 'inside_ms': 23.200222, 'per_callback_us': 2.832058349609375, 'sizes': [4096], 'first_four_thread_names': ['Dummy-17', 'Dummy-18', 'Dummy-19', 'Dummy-20'], 'os_threads': {'6153285632': 4121, '6159724544': 4067}}
+    product-file                   median    39.9  min    39.6  runs [39.9, 39.6, 41.0]
+    bare-file                      median    34.9  min    31.9  runs [34.9, 31.9, 38.7]
+    bare-custom-libc               median    62.4  min    60.1  runs [66.5, 62.4, 60.1]
+    bare-custom-raw                median   100.5  min    92.9  runs [92.9, 101.0, 100.5]
+    product-pipe                   median    35.9  min    32.8  runs [35.9, 36.5, 32.8]
+    a1-one-copy-grow               median   147.0  min   134.7  runs [134.7, 147.0, 154.5]
+  [1048576x32]
+    product                        median   176.5  min   168.8  runs [168.8, 176.5, 198.8]
+    product-stamped                median   196.5  min   157.1  runs [218.1, 157.1, 196.5]
+        {'callbacks': 8192, 'inside_ms': 29.271926, 'per_callback_us': 3.573233154296875, 'sizes': [4096], 'first_four_thread_names': ['Dummy-32', 'Dummy-33', 'Dummy-34', 'Dummy-35'], 'os_threads': {'6151139328': 4178, '6159724544': 1923, '6153285632': 2087}}
+    product-file                   median    42.2  min    40.4  runs [49.5, 42.2, 40.4]
+    bare-file                      median    47.9  min    46.7  runs [47.9, 46.7, 54.0]
+    bare-custom-libc               median    82.1  min    71.4  runs [99.1, 82.1, 71.4]
+    bare-custom-raw                median   151.1  min   128.5  runs [157.5, 151.1, 128.5]
+    product-pipe                   median    40.3  min    39.7  runs [46.2, 39.7, 40.3]
+    a1-one-copy-grow               median   209.5  min   177.9  runs [177.9, 209.5, 224.6]
+== small: repeats 3, 3.2 s, 3.14.2 on darwin
+  program: os.write(1, 100 B) x 10,000
+  product                        median   304.5  min   258.1  runs [258.1, 304.7, 304.5]
+  product-stamped                median   284.0  min   277.2  runs [277.2, 284.0, 328.5]
+      {'callbacks': 10000, 'inside_ms': 24.585681, 'per_callback_us': 2.4585681, 'sizes': [100], 'first_four_thread_names': ['Dummy-2', 'Dummy-3', 'Dummy-4', 'Dummy-5'], 'os_threads': {'6172045312': 5309, '6161313792': 4687}}
+  product-file                   median    48.5  min    46.9  runs [51.0, 48.5, 46.9]
+  product-pipe                   median    35.3  min    34.6  runs [38.1, 34.6, 35.3]
+  bare-file                      median    40.6  min    40.3  runs [41.3, 40.3, 40.6]
+  bare-pipe                      median    25.7  min    25.5  runs [26.8, 25.5, 25.7]
+  bare-custom-libc               median    96.5  min    85.5  runs [96.5, 85.5, 130.3]
+  bare-custom-raw                median   236.6  min   229.8  runs [236.6, 229.8, 239.9]
+== stderr: repeats 3, 1.6 s, 3.14.2 on darwin
+  program: os.write(2, 64 KiB) x 512
+  product                        median   138.1  min   137.1  runs [137.1, 138.1, 139.9]
+  product-stamped                median   149.4  min   141.6  runs [141.6, 149.4, 160.5]
+      {'callbacks': 8192, 'inside_ms': 21.609205, 'per_callback_us': 2.6378424072265627, 'sizes': [4096], 'first_four_thread_names': ['Dummy-2', 'Dummy-3', 'Dummy-4', 'Dummy-5'], 'os_threads': {'6198718464': 4026, '6190133248': 4162}}
+  product-file                   median    39.1  min    38.8  runs [45.8, 38.8, 39.1]
+  product-pipe                   median    39.2  min    38.7  runs [39.2, 38.7, 40.7]
+  a1-one-copy-grow               median   162.0  min   150.3  runs [208.6, 162.0, 150.3]

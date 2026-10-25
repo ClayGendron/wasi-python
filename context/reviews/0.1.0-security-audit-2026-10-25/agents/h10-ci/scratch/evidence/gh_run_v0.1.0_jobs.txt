@@ -1,0 +1,15 @@
+the set's key, and whether this run may reuse a set	success
+rebuild from the pins (ubuntu-24.04)	success
+the build shard on a fresh build (ubuntu-24.04-arm)	success
+rebuild from the pins (ubuntu-24.04-arm)	success
+build on arm64 macOS, or reuse a set	success
+the runner's coverage (ubuntu-24.04)	success
+verify (ubuntu-24.04)	success
+verify (windows-2025)	success
+verify (macos-15)	success
+the same bytes from every host	success
+keep the set this run built and both hosts rebuilt	skipped
+gather the shards' records	success
+attest the release assets	success
+publish the GitHub release	success
+publish the wheel on PyPI	success

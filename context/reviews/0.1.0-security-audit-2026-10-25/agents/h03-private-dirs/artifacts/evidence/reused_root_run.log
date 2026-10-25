@@ -1,0 +1,12 @@
+1_plant []
+2_defaults_snapshot []
+3_defaults_plain []
+4_env_home_tmp_python_snapshot ["pdbrc"]
+5_env_home_tmp_python_plain []
+6_env_sysconfigdata_path ["sysconfigdata_root"]
+7_import_path_ro_grant []
+8_import_path_served_by_root "ValueError: import_path[0] '/tmp' is served by the root, which is writable; only a read-only grant may serve the import path"
+9_script_mode []
+10_dash_m []
+11_session_like_pdb []
+written context/reviews/0.1.0-security-audit-2026-10-25/agents/h03-private-dirs/scratch/evidence/reused_root_result.json

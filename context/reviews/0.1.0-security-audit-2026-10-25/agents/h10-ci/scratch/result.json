@@ -1,0 +1,124 @@
+{
+  "units": [
+    {
+      "coverage_id": ".github%2Fworkflows%2Frelease.yml%23on::.github%2Fworkflows%2Frelease.yml%23permissions::.github%2Fworkflows::SUPPLY-CHAIN-AND-RELEASE.md%23Cache%2C%20artifact%2C%20and%20workspace%20trust%20mixing",
+      "disposition": "covered",
+      "reviewed_paths": [
+        ".github/workflows/docs.yml",
+        ".github/workflows/release.yml",
+        ".github/workflows/set-cache.yml",
+        "release/set_key.py",
+        "release/version.py",
+        "tests/harness/gather.py",
+        "tests/upstream/fetch.py"
+      ],
+      "checks": [
+        {
+          "agent_id": "h10-ci",
+          "reviewed_paths": [
+            ".github/workflows/release.yml",
+            ".github/workflows/set-cache.yml",
+            ".github/workflows/docs.yml"
+          ],
+          "invariant": "No attacker-controlled value (branch name, input, matrix value, artifact name, step output) is expanded by ${{ }} inside a run: script; every third-party action is pinned by a 40-hex commit SHA.",
+          "method": "source",
+          "result": "A scan of every run: block in the three workflows found 0 ${{ }} expressions inside scripts; all values reach scripts via env: (inputs.from-source, inputs.release-tier, step outputs, matrix.shard). All uses: are SHA-pinned (checkout, setup-uv, cache restore/save, upload/download-artifact, attest, codecov, gh-action-pypi-publish, configure/deploy/upload-pages). Saved as evidence/expression_scan.txt.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h10-ci",
+          "reviewed_paths": [
+            ".github/workflows/release.yml"
+          ],
+          "invariant": "Every job that reads, judges, signs or publishes the release assets reads exactly the bytes the build job produced, bound by immutable artifact id and digest, never by name.",
+          "method": "source",
+          "result": "same-bytes, save-set, judge-macos/linux/windows/release, coverage, verify, attest, publish and pypi each refuse an empty or non-numeric assets-id (an empty id would fetch every artifact), download by artifact-ids with digest-mismatch: error, check SHA256SUMS against the 64-hex sums-sha256 the build handed on, check every file against SHA256SUMS, and require no other file (release.yml:380-415, 2440-2475, 2506-2541, 2564-2599). attest signs release-assets/* from that verified folder and re-verifies with --signer-workflow release.yml@$GITHUB_REF, --source-ref and --deny-self-hosted-runners (2476-2487); publish uploads the same folder with --verify-tag; pypi takes the wheel from the same folder. Rebuild votes come from separate jobs (not a matrix), so one leg cannot cast both votes.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h10-ci",
+          "reviewed_paths": [
+            ".github/workflows/release.yml",
+            ".github/workflows/set-cache.yml",
+            "release/set_key.py"
+          ],
+          "invariant": "A cached set (written by a branch run, by set-cache on main, or by a release.yml dispatch on main) never reaches a tag's signature or publication, and a reused set cannot yield a green run unless two in-run rebuilds from the pins give the same bytes.",
+          "method": "source",
+          "result": "Reuse is decided only for workflow_dispatch on a branch other than refs/heads/main with from-source false and an exact-key hit (release.yml:79-91); no restore-keys prefix matching. A tag run's only cache contact is lookup-only (no download or extraction). gather.py G7 also refuses a tag whose set-source is not 'built' (gather.py:381-382). On a reuse run, set_key.py verify checks every file against the set's own SHA256SUMS, no extra file, MANIFEST pin/recipe lines against the checkout and the key (set_key.py:164-208); that is self-consistency only, and the independent binding is same-bytes: both rebuild jobs' SHA256SUMS must equal the set's byte for byte and the wheel must equal both rebuilt wheels byte for byte (release.yml:448-488), and gather needs same-bytes. Observed cache scopes (evidence/gh_caches.json) are refs/heads/main and spec/wave branches only; fork pull_request runs (docs.yml only) write only refs/pull/N/merge, which no branch or main run reads.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h10-ci",
+          "reviewed_paths": [
+            ".github/workflows/release.yml"
+          ],
+          "invariant": "same-bytes binds the published .tar.xz's inner files to the two rebuilds.",
+          "method": "local",
+          "result": "Dummy-fixture replay of the same-bytes step (release.yml:448-457): a tarball holding the genuine SHA256SUMS but a substituted python.wasm passes both cmp checks with exit 0; the step never runs the inner files against the inner SHA256SUMS. The gap is closed downstream, not here: the judge legs point WASI_PYTHON_ARTIFACTS at that extracted tarball and the runner checks MANIFEST, the binary and the stdlib zip against the set's SHA256SUMS before use (src/wasi_python/_artifacts.py _found_and_checked), so a mismatched tarball turns the judges and gather red; the wheel's artifacts are checked against the sums and against both rebuilt wheels. Recorded as hardening, not a candidate.",
+          "artifact": "agents/h10-ci/artifacts/evidence/same_bytes_fixture.log"
+        },
+        {
+          "agent_id": "h10-ci",
+          "reviewed_paths": [
+            ".github/workflows/release.yml",
+            ".github/workflows/docs.yml",
+            "release/version.py"
+          ],
+          "invariant": "Only a v* release tag on main's history can sign, publish a GitHub release, publish to PyPI or deploy Pages; dispatches and pull requests never do.",
+          "method": "source",
+          "result": "Top-level permissions: {} in all three workflows; per-job grants are contents: read except attest (id-token, attestations write), publish (contents write, environment release), pypi (id-token, environment pypi, vars.PYPI_PUBLISH) and docs deploy (pages, id-token, environment github-pages). attest/publish/pypi require event push and ref_type tag; build checks version.py check --tag (tag == v<__version__>, changelog dated) and git merge-base --is-ancestor GITHUB_SHA origin/main with fetch-depth 0 under bash -e (release.yml:135-143). Hosted facts observed by read-only gh GET: environments release and pypi allow only tag pattern v*, github-pages allows main and v* (evidence/gh_env_branch_policies.json); ruleset 'release tags are protected' blocks creation/update/deletion of refs/tags/v* and 'main is protected' blocks update/non-fast-forward/deletion of main, bypass only for the admin role (evidence/gh_ruleset_details.json); the only collaborator is the admin owner (evidence/gh_collaborators.json); default workflow token is read; fork PRs need approval for first-time contributors. Releases are immutable (v0.1.0 immutable: true). The v0.1.0 run 39957192055 was a tag push by the owner and every gate job succeeded before attest, publish and pypi. docs.yml deploy on a dispatch from a non-main branch is refused by the github-pages branch policy; pull_request runs build only, with contents: read and no secrets.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h10-ci",
+          "reviewed_paths": [
+            ".github/workflows/release.yml",
+            "release/version.py"
+          ],
+          "invariant": "The attestation identity the workflow signs and the policy users are told to verify agree and pin workflow, ref and runner.",
+          "method": "source",
+          "result": "The v0.1.0 SLSA provenance (read via gh api .../attestations, evidence/attestation_identity_v0.1.0.txt) names https://github.com/ClayGendron/wasi_python/.github/workflows/release.yml@refs/tags/v0.1.0, event push, commit 2cd47507, github-hosted, matching the release notes' command (version.py:295-306). The repository has since been renamed to ClayGendron/wasi-python (evidence/gh_repo.json) while version.py:301-303 and docs/how-to/verify-a-download.md:20-21 still hard-code ClayGendron/wasi_python; the workflow's own check uses $GITHUB_REPOSITORY. This fails closed (the old name is in the owner's own namespace and cannot be claimed by another account), so it is hardening, not a forgery path.",
+          "artifact": null
+        },
+        {
+          "agent_id": "h10-ci",
+          "reviewed_paths": [
+            ".github/workflows/release.yml",
+            "tests/harness/gather.py",
+            "tests/upstream/fetch.py"
+          ],
+          "invariant": "Failure, cancellation, skipped or missing shard outputs never let gather, attest or publish proceed.",
+          "method": "source",
+          "result": "gather runs under !cancelled() && !failure() but refuses any empty or non-numeric record id and any non-64-hex sha (release.yml:1765-1784, 2037-2042; gather.py G1), fails a tag or main run whose TIER is not release (gather.py:141-142), and binds python.wasm and the set's SHA256SUMS to the lane's accepted history (G7). attest and publish have no status function, so they need every need to succeed; pypi needs publish. Upstream kits fetched in judge legs are verified by SHA-256 (fetch.py:73-88).",
+          "artifact": null
+        }
+      ],
+      "candidate_fingerprints": [],
+      "unresolved": []
+    }
+  ],
+  "candidates": [],
+  "hardening": [
+    "Release authorization rests on one identity: both rulesets give the admin role bypass_mode 'always', the only collaborator is that admin, and the release, pypi and github-pages environments have a branch/tag policy but no required reviewer. The tag-on-main check (release.yml:140) lives in the tagged commit's own workflow file, so it binds only an unmodified release.yml. Any process holding the owner's token (local automation included) can create a v* tag on a non-main commit with an edited release.yml and get an attestation, an immutable GitHub release and a PyPI upload with no second check. Fix: add a required reviewer to the release and pypi environments, put attest in the release environment so id-token is issued only after that gate, and limit ruleset bypass for refs/tags/v* creation to an explicit actor, not 'always' for the admin role.",
+    "Stale signing identity in what users are told to run: release/version.py:301-303 (which writes the GitHub release notes) and docs/how-to/verify-a-download.md:20-21 hard-code --repo/--signer-workflow ClayGendron/wasi_python. The repository is now ClayGendron/wasi-python, so the next release's attestation will carry the new name and every user's documented gh attestation verify will fail, while the attest job's own check (release.yml:2484-2486, using $GITHUB_REPOSITORY) passes. This fails closed but invites users to drop the policy. Fix: build the note from GITHUB_REPOSITORY, and have the attest job run the exact command printed in notes.md.",
+    "same-bytes (release.yml:448-457) compares only the tarball's inner SHA256SUMS with the rebuilds. It never checks the inner files against that file (local dummy replay: evidence same_bytes_fixture.log). Today the judge legs' runner integrity check closes this for MANIFEST, the binaries and the stdlib zip, but not for the licence files. Fix: add (cd set/wasi-python-* && sha256sum --strict -c SHA256SUMS) and a listed-equals-present check to same-bytes, as the wheel step already does.",
+    "Main-scope set caches are written by set-cache.yml's seed job (no in-run rebuild proof) and by release.yml's save-set on a main dispatch. actions/cache restore extracts with tar -P, so code running in any main-ref job (for example the Codecov uploader, fetched by version name at run time in the coverage job on a main dispatch) could plant an entry under a predictable key that later runs code in a branch reuse run's build job. Today that ends red: same-bytes, the wheel comparison and the judges' runner check all apply, and branch runs never sign or publish. The worst case is false-red or denial of branch dry runs. Fix: restrict cache writes to set-cache, and consider dropping save-set on main.",
+    "PyPI trusted-publisher scope cannot be seen from here. Observed: PYPI_PUBLISH=true, and the pypi job published 0.1.0. The pypi environment's v* policy holds only if PyPI's trusted publisher for wasi-python requires environment 'pypi'. Without that, a release.yml run on any ref whose job drops the environment line could mint a PyPI token (only the admin can push today). Owner check: on pypi.org > wasi-python > Publishing, confirm the GitHub publisher names workflow release.yml and environment pypi.",
+    "The verify job installs the wheel with uv run --isolated --no-project --with, which resolves wasmtime from PyPI at run time with no lock or hashes. That matches what users get, and the job only gates attest; it cannot change the assets."
+  ],
+  "uncovered": [
+    {
+      "surface": "tests/harness/gather.py release verdict (G1-G7: record set, judge hash, accepted history binding, tier, set source)",
+      "boundary": "the gather job's pass is the last content gate before attest and publish on a tag",
+      "subsystem": "tests/harness",
+      "attack_class": "SUPPLY-CHAIN-AND-RELEASE.md#Build-to-promotion substitution",
+      "starting_paths": [
+        "tests/harness/gather.py",
+        "tests/harness/history.py",
+        "tests/harness/shards.py",
+        "context/progress"
+      ],
+      "reason": "Only its G1 tier rule and G7 tag rules were read here, to settle the workflow's gating. The record parsing, merge and history binding that decide a tag's verdict are not in any assigned unit."
+    }
+  ]
+}

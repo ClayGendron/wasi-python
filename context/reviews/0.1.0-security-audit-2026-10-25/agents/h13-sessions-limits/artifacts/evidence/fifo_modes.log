@@ -1,0 +1,17 @@
+{"mode": "plain", "driver_wall_s": 4.99, "killed": false, "rc": 0, "child_lines": ["{\"event\": \"start\", \"mode\": \"plain\", \"t\": 0.0}", "{\"event\": \"run returned\", \"exit\": 0, \"trapped\": null, \"out\": \"hello\\n\\n\", \"err\": \"\", \"t\": 0.34}"]}
+{"mode": "writer_late", "driver_wall_s": 8.51, "killed": false, "rc": 0, "child_lines": ["{\"event\": \"start\", \"mode\": \"writer_late\", \"t\": 0.0}", "{\"event\": \"run returned\", \"exit\": null, \"trapped\": \"deadline\", \"out\": \"\", \"err\": \"\", \"t\": 3.93}"]}
+{"mode": "writer_holds", "driver_wall_s": 5.27, "killed": false, "rc": 0, "child_lines": ["{\"event\": \"start\", \"mode\": \"writer_holds\", \"t\": 0.0}", "{\"event\": \"run returned\", \"exit\": 1, \"trapped\": null, \"out\": \"opened\\n\", \"err\": \"); print(os.read(fd,1))\\n                                                                                         ~~~~~~~^^^^^^\\nOSError: [Errno 70] Invalid seek\\n\", \"t\": 0.45}"]}
+{"mode": "fuel", "driver_wall_s": 12.1, "killed": true, "child_lines": ["{\"event\": \"start\", \"mode\": \"fuel\", \"t\": 0.0}"]}
+{"mode": "cancel", "driver_wall_s": 12.01, "killed": true, "child_lines": ["{\"event\": \"start\", \"mode\": \"cancel\", \"t\": 0.0}", "{\"event\": \"cancel set\", \"t\": 2.01}"]}
+{"mode": "sigint", "driver_wall_s": 12.02, "killed": true, "child_lines": ["{\"event\": \"start\", \"mode\": \"sigint\", \"t\": 0.0}"]}
+{"mode": "session_close", "driver_wall_s": 12.02, "killed": true, "child_lines": ["{\"event\": \"start\", \"mode\": \"session_close\", \"t\": 0.0}", "{\"event\": \"session open\", \"t\": 0.29}", "{\"event\": \"close() called\", \"t\": 2.3}"]}
+{"mode": "wait_for", "driver_wall_s": 12.01, "killed": true, "child_lines": ["{\"event\": \"start\", \"mode\": \"wait_for\", \"t\": 0.0}"]}
+{"mode": "pool", "driver_wall_s": 0.13, "killed": false, "rc": 1, "child_lines": ["{\"event\": \"start\", \"mode\": \"pool\", \"t\": 0.0}"], "stderr_tail": ["  File \"context/reviews/0.1.0-security-audit-2026-10-25/agents/h13-sessions-limits/scratch/evidence/fifo_child.py\", line 64, in <module>", "    wasi_python.set_defaults(async_workers=1)", "    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^", "TypeError: set_defaults() got an unexpected keyword argument 'async_workers'"]}
+{"mode": "exit_hang", "driver_wall_s": 2.13, "killed": false, "rc": 0, "child_lines": ["{\"event\": \"start\", \"mode\": \"exit_hang\", \"t\": 0.0}", "{\"event\": \"main thread returning; worker alive\", \"alive\": true, \"t\": 2.01}"]}
+{"mode": "root", "driver_wall_s": 12.01, "killed": true, "child_lines": ["{\"event\": \"start\", \"mode\": \"root\", \"t\": 0.0}"]}
+{"mode": "wgrant_write", "driver_wall_s": 12.01, "killed": true, "child_lines": ["{\"event\": \"start\", \"mode\": \"wgrant_write\", \"t\": 0.0}"]}
+Traceback (most recent call last):
+  File "context/reviews/0.1.0-security-audit-2026-10-25/agents/h13-sessions-limits/scratch/evidence/fifo_driver.py", line 28, in <module>
+    sock.bind(p)
+    ~~~~~~~~~^^^
+OSError: AF_UNIX path too long

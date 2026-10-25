@@ -1,0 +1,10 @@
+command: ulimit -t 60 -f 100000; /usr/bin/env -i PATH=/usr/bin:/bin /usr/bin/sandbox-exec -p '(version 1)(allow default)(deny network*)' /bin/sh same_bytes_fixture_script.txt <scratch>/fixture1
+limits: cpu 60s, file size 100000 blocks, network denied, empty env; dummy files only; no target code executed; target not read-only mounted (not needed: nothing reads or writes the target)
+output:
+ubuntu-24.04-arm: the same SHA256SUMS
+ubuntu-24.04: the same SHA256SUMS
+same-bytes step exit: 0
+--- not run by the step: the inner files against the inner SHA256SUMS ---
+python.wasm: FAILED
+shasum: WARNING: 1 computed checksum did NOT match
+inner check would fail

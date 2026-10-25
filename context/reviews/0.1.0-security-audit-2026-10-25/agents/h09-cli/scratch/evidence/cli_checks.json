@@ -1,0 +1,355 @@
+[
+ {
+  "case": "env_key_copy",
+  "argv": [
+   "run",
+   "--env",
+   "DUMMY_SECRET",
+   "--env",
+   "OTHER=x",
+   "--",
+   "-c",
+   "import os,json;print(json.dumps(dict(sorted(os.environ.items()))))"
+  ],
+  "added_env_names": [
+   "DUMMY_SECRET",
+   "NOT_NAMED"
+  ],
+  "rc": 0,
+  "stdout": "{\"exit_code\": 0, \"fuel_used\": null, \"stderr\": \"\", \"stdout\": \"{\\\"DUMMY_SECRET\\\": \\\"dummy-value-123\\\", \\\"HOME\\\": \\\"/tmp/.home-d8ad96f55bd25b29904ea5c72ccb769a\\\", \\\"OTHER\\\": \\\"x\\\", \\\"PYTHONTZPATH\\\": \\\"\\\", \\\"TMPDIR\\\": \\\"/tmp\\\"}\\n\", \"trapped\": null, \"truncated\": []}\n",
+  "stderr": "./src/wasi_python/runner.py:280: RuntimeWarning: wasi_python: not using the module cache at context/reviews/0.1.0-security-audit-2026-10-25/agents/h09-cli/scratch/cache: it must be a directory owned by this user that no one else may read, write or enter (mode 0700)\n  return _call._run_checked(wt, checked, host, snapshot, cache_dir, artifacts, loop)\n"
+ },
+ {
+  "case": "env_no_env_flag",
+  "argv": [
+   "run",
+   "--",
+   "-c",
+   "import os,json;print(json.dumps(dict(sorted(os.environ.items()))))"
+  ],
+  "added_env_names": [
+   "NOT_NAMED"
+  ],
+  "rc": 0,
+  "stdout": "{\"exit_code\": 0, \"fuel_used\": null, \"stderr\": \"\", \"stdout\": \"{\\\"HOME\\\": \\\"/tmp/.home-7f90adbe636783236342702f1f086cc0\\\", \\\"PYTHONTZPATH\\\": \\\"\\\", \\\"TMPDIR\\\": \\\"/tmp\\\"}\\n\", \"trapped\": null, \"truncated\": []}\n",
+  "stderr": "./src/wasi_python/runner.py:280: RuntimeWarning: wasi_python: not using the module cache at context/reviews/0.1.0-security-audit-2026-10-25/agents/h09-cli/scratch/cache: it must be a directory owned by this user that no one else may read, write or enter (mode 0700)\n  return _call._run_checked(wt, checked, host, snapshot, cache_dir, artifacts, loop)\n"
+ },
+ {
+  "case": "env_missing_key",
+  "argv": [
+   "run",
+   "--env",
+   "dummy-value-typed-as-name",
+   "--",
+   "-c",
+   "pass"
+  ],
+  "added_env_names": [],
+  "rc": 2,
+  "stdout": "",
+  "stderr": "usage: wasi-python run [OPTIONS] [--] ARG...\nwasi-python run: error: --env number 1: no such name in this command's environment\n"
+ },
+ {
+  "case": "env_empty_key",
+  "argv": [
+   "run",
+   "--env",
+   "=v",
+   "--",
+   "-c",
+   "pass"
+  ],
+  "added_env_names": [],
+  "rc": 1,
+  "stdout": "{\"error\": \"env key: illegal environment variable name\", \"kind\": \"ValueError\"}\n",
+  "stderr": ""
+ },
+ {
+  "case": "grant_host_with_equals",
+  "argv": [
+   "run",
+   "--grant",
+   "/data=a=b",
+   "--",
+   "-c",
+   "import os\nprint(sorted(os.listdir('/data')))\ntry:\n open('/data/w','w')\n print('WROTE')\nexcept OSError as e:\n print('refused', e.errno)\n"
+  ],
+  "added_env_names": [],
+  "rc": 0,
+  "stdout": "{\"exit_code\": 0, \"fuel_used\": null, \"stderr\": \"\", \"stdout\": \"['f.txt']\\nrefused 63\\n\", \"trapped\": null, \"truncated\": []}\n",
+  "stderr": "./src/wasi_python/runner.py:280: RuntimeWarning: wasi_python: not using the module cache at context/reviews/0.1.0-security-audit-2026-10-25/agents/h09-cli/scratch/cache: it must be a directory owned by this user that no one else may read, write or enter (mode 0700)\n  return _call._run_checked(wt, checked, host, snapshot, cache_dir, artifacts, loop)\n"
+ },
+ {
+  "case": "grant_no_equals",
+  "argv": [
+   "run",
+   "--grant",
+   "/data",
+   "--",
+   "-c",
+   "pass"
+  ],
+  "added_env_names": [],
+  "rc": 2,
+  "stdout": "",
+  "stderr": "usage: wasi-python run [OPTIONS] [--] ARG...\nwasi-python run: error: --grant needs GUEST=HOST\n"
+ },
+ {
+  "case": "grant_empty_guest",
+  "argv": [
+   "run",
+   "--grant",
+   "=a=b",
+   "--",
+   "-c",
+   "pass"
+  ],
+  "added_env_names": [],
+  "rc": 1,
+  "stdout": "{\"error\": \"grants[0]: the guest path must be absolute; got ''\", \"kind\": \"ValueError\"}\n",
+  "stderr": ""
+ },
+ {
+  "case": "grant_relative_guest",
+  "argv": [
+   "run",
+   "--grant",
+   "data=a=b",
+   "--",
+   "-c",
+   "pass"
+  ],
+  "added_env_names": [],
+  "rc": 1,
+  "stdout": "{\"error\": \"grants[0]: the guest path must be absolute; got 'data'\", \"kind\": \"ValueError\"}\n",
+  "stderr": ""
+ },
+ {
+  "case": "grant_dotdot_guest",
+  "argv": [
+   "run",
+   "--grant",
+   "/data/..=a=b",
+   "--",
+   "-c",
+   "pass"
+  ],
+  "added_env_names": [],
+  "rc": 1,
+  "stdout": "{\"error\": \"grants[0]: the guest path '/data/..' has an empty, '.' or '..' part, or ends in '/'\", \"kind\": \"ValueError\"}\n",
+  "stderr": ""
+ },
+ {
+  "case": "grant_runtime_guest",
+  "argv": [
+   "run",
+   "--grant",
+   "/usr/local/lib=a=b",
+   "--",
+   "-c",
+   "pass"
+  ],
+  "added_env_names": [],
+  "rc": 1,
+  "stdout": "{\"error\": \"grants[0]: '/usr/local/lib' is the runtime's own (/usr/local/lib)\", \"kind\": \"ValueError\"}\n",
+  "stderr": ""
+ },
+ {
+  "case": "grant_through_user_link",
+  "argv": [
+   "run",
+   "--grant",
+   "/data=link-to-ab",
+   "--",
+   "-c",
+   "pass"
+  ],
+  "added_env_names": [],
+  "rc": 1,
+  "stdout": "{\"error\": \"grants[0] at /data: 'link-to-ab' passes through the link 'link-to-ab' in a folder this user can write, which a guest could have made; name its target instead\", \"kind\": \"ValueError\"}\n",
+  "stderr": ""
+ },
+ {
+  "case": "root_made_if_missing",
+  "argv": [
+   "run",
+   "--root",
+   "newroot",
+   "--",
+   "-c",
+   "import os\nopen('/out.txt','w').write('x')\nprint(sorted(os.listdir('/')))"
+  ],
+  "added_env_names": [],
+  "rc": 0,
+  "stdout": "{\"exit_code\": 0, \"fuel_used\": null, \"stderr\": \"\", \"stdout\": \"['out.txt', 'tmp', 'usr']\\n\", \"trapped\": null, \"truncated\": []}\n",
+  "stderr": "./src/wasi_python/runner.py:280: RuntimeWarning: wasi_python: not using the module cache at context/reviews/0.1.0-security-audit-2026-10-25/agents/h09-cli/scratch/cache: it must be a directory owned by this user that no one else may read, write or enter (mode 0700)\n  return _call._run_checked(wt, checked, host, snapshot, cache_dir, artifacts, loop)\n",
+  "made_root_mode": "0o755",
+  "made_root_uid_is_self": true,
+  "process_umask": "0o22",
+  "made_root_tmp_mode": "0o755"
+ },
+ {
+  "case": "root_through_user_link",
+  "argv": [
+   "run",
+   "--root",
+   "rootlink",
+   "--",
+   "-c",
+   "pass"
+  ],
+  "added_env_names": [],
+  "rc": 1,
+  "stdout": "{\"error\": \"root: 'rootlink' passes through the link 'rootlink' in a folder this user can write, which a guest could have made; name its target instead\", \"kind\": \"ValueError\"}\n",
+  "stderr": ""
+ },
+ {
+  "case": "root_twice",
+  "argv": [
+   "run",
+   "--root",
+   "newroot",
+   "--root",
+   "newroot",
+   "--",
+   "-c",
+   "pass"
+  ],
+  "added_env_names": [],
+  "rc": 2,
+  "stdout": "",
+  "stderr": "usage: wasi-python run [OPTIONS] [--] ARG...\nwasi-python run: error: argument --root: given twice\n"
+ },
+ {
+  "case": "root_and_private",
+  "argv": [
+   "run",
+   "--root",
+   "newroot",
+   "--private-root",
+   "--",
+   "-c",
+   "pass"
+  ],
+  "added_env_names": [],
+  "rc": 2,
+  "stdout": "",
+  "stderr": "usage: wasi-python run [OPTIONS] [--] ARG...\nwasi-python run: error: argument --private-root: not allowed with argument --root\n"
+ },
+ {
+  "case": "root_preexisting_0777",
+  "argv": [
+   "run",
+   "--root",
+   "shared0777",
+   "--",
+   "-c",
+   "print('ran')"
+  ],
+  "added_env_names": [],
+  "rc": 0,
+  "stdout": "{\"exit_code\": 0, \"fuel_used\": null, \"stderr\": \"\", \"stdout\": \"ran\\n\", \"trapped\": null, \"truncated\": []}\n",
+  "stderr": "./src/wasi_python/runner.py:280: RuntimeWarning: wasi_python: not using the module cache at context/reviews/0.1.0-security-audit-2026-10-25/agents/h09-cli/scratch/cache: it must be a directory owned by this user that no one else may read, write or enter (mode 0700)\n  return _call._run_checked(wt, checked, host, snapshot, cache_dir, artifacts, loop)\n"
+ },
+ {
+  "case": "json_escaping",
+  "argv": [
+   "run",
+   "--",
+   "-c",
+   "import sys\nsys.stdout.write('\\x1b]0;TITLE\\x07\\x1b[31mred\\u2028\\n')\nsys.stderr.buffer.write(b'\\xff\\xfe')"
+  ],
+  "added_env_names": [],
+  "rc": 0,
+  "stdout": "{\"exit_code\": 0, \"fuel_used\": null, \"stderr_base64\": \"//4=\", \"stdout\": \"\\u001b]0;TITLE\\u0007\\u001b[31mred\\u2028\\n\", \"trapped\": null, \"truncated\": []}\n",
+  "stderr": "./src/wasi_python/runner.py:280: RuntimeWarning: wasi_python: not using the module cache at context/reviews/0.1.0-security-audit-2026-10-25/agents/h09-cli/scratch/cache: it must be a directory owned by this user that no one else may read, write or enter (mode 0700)\n  return _call._run_checked(wt, checked, host, snapshot, cache_dir, artifacts, loop)\n"
+ },
+ {
+  "case": "stdin_file",
+  "argv": [
+   "run",
+   "--stdin",
+   "in.txt",
+   "--",
+   "-c",
+   "import sys;print(repr(sys.stdin.buffer.read()))"
+  ],
+  "added_env_names": [],
+  "rc": 0,
+  "stdout": "{\"exit_code\": 0, \"fuel_used\": null, \"stderr\": \"\", \"stdout\": \"b'from-file\\\\n'\\n\", \"trapped\": null, \"truncated\": []}\n",
+  "stderr": "./src/wasi_python/runner.py:280: RuntimeWarning: wasi_python: not using the module cache at context/reviews/0.1.0-security-audit-2026-10-25/agents/h09-cli/scratch/cache: it must be a directory owned by this user that no one else may read, write or enter (mode 0700)\n  return _call._run_checked(wt, checked, host, snapshot, cache_dir, artifacts, loop)\n"
+ },
+ {
+  "case": "stdin_dash",
+  "argv": [
+   "run",
+   "--stdin",
+   "-",
+   "--",
+   "-c",
+   "import sys;print(repr(sys.stdin.buffer.read()))"
+  ],
+  "added_env_names": [],
+  "rc": 0,
+  "stdout": "{\"exit_code\": 0, \"fuel_used\": null, \"stderr\": \"\", \"stdout\": \"b'from-pipe\\\\n'\\n\", \"trapped\": null, \"truncated\": []}\n",
+  "stderr": "./src/wasi_python/runner.py:280: RuntimeWarning: wasi_python: not using the module cache at context/reviews/0.1.0-security-audit-2026-10-25/agents/h09-cli/scratch/cache: it must be a directory owned by this user that no one else may read, write or enter (mode 0700)\n  return _call._run_checked(wt, checked, host, snapshot, cache_dir, artifacts, loop)\n"
+ },
+ {
+  "case": "stdin_missing_file",
+  "argv": [
+   "run",
+   "--stdin",
+   "nope.txt",
+   "--",
+   "-c",
+   "import sys;print(repr(sys.stdin.buffer.read()))"
+  ],
+  "added_env_names": [],
+  "rc": 1,
+  "stdout": "{\"error\": \"[Errno 2] No such file or directory: 'nope.txt'\", \"kind\": \"FileNotFoundError\"}\n",
+  "stderr": ""
+ },
+ {
+  "case": "guest_argv_after_script_name",
+  "argv": [
+   "run",
+   "-c",
+   "print(1)",
+   "--root",
+   "/"
+  ],
+  "added_env_names": [],
+  "rc": 2,
+  "stdout": "",
+  "stderr": "usage: wasi-python run [OPTIONS] [--] ARG...\nwasi-python run: error: unrecognized arguments: -c\n"
+ },
+ {
+  "case": "split_env_consumes_dashdash",
+  "argv": [
+   "run",
+   "--env",
+   "--",
+   "-c",
+   "print(1)"
+  ],
+  "added_env_names": [],
+  "rc": 2,
+  "stdout": "",
+  "stderr": "usage: wasi-python run [OPTIONS] [--] ARG...\nwasi-python run: error: argument --env: expected one argument\n"
+ },
+ {
+  "case": "guest_gets_root_flag_after_dashdash",
+  "argv": [
+   "run",
+   "--",
+   "-c",
+   "import sys;print(sys.argv)",
+   "--root",
+   "/"
+  ],
+  "added_env_names": [],
+  "rc": 0,
+  "stdout": "{\"exit_code\": 0, \"fuel_used\": null, \"stderr\": \"\", \"stdout\": \"['-c', '--root', '/']\\n\", \"trapped\": null, \"truncated\": []}\n",
+  "stderr": "./src/wasi_python/runner.py:280: RuntimeWarning: wasi_python: not using the module cache at context/reviews/0.1.0-security-audit-2026-10-25/agents/h09-cli/scratch/cache: it must be a directory owned by this user that no one else may read, write or enter (mode 0700)\n  return _call._run_checked(wt, checked, host, snapshot, cache_dir, artifacts, loop)\n"
+ }
+]

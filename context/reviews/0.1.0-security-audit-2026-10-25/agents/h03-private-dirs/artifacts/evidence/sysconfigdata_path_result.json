@@ -1,0 +1,210 @@
+{
+ "control_joblib": {
+  "argv": [
+   "-c",
+   "import joblib; print('ok')"
+  ],
+  "env": null,
+  "exit_code": 0,
+  "planted_ran": false,
+  "snapshot": true,
+  "stderr_tail": "",
+  "stdout": "ok\n"
+ },
+ "control_matplotlib": {
+  "argv": [
+   "-c",
+   "import matplotlib; print('ok')"
+  ],
+  "env": null,
+  "exit_code": 0,
+  "planted_ran": false,
+  "snapshot": true,
+  "stderr_tail": "",
+  "stdout": "ok\n"
+ },
+ "control_numpy": {
+  "argv": [
+   "-c",
+   "import numpy; print('ok')"
+  ],
+  "env": null,
+  "exit_code": 0,
+  "planted_ran": false,
+  "snapshot": true,
+  "stderr_tail": "",
+  "stdout": "ok\n"
+ },
+ "control_pandas": {
+  "argv": [
+   "-c",
+   "import pandas; print('ok')"
+  ],
+  "env": null,
+  "exit_code": 0,
+  "planted_ran": false,
+  "snapshot": true,
+  "stderr_tail": "",
+  "stdout": "ok\n"
+ },
+ "control_scipy": {
+  "argv": [
+   "-c",
+   "import scipy; print('ok')"
+  ],
+  "env": null,
+  "exit_code": 0,
+  "planted_ran": false,
+  "snapshot": true,
+  "stderr_tail": "",
+  "stdout": "ok\n"
+ },
+ "control_sklearn": {
+  "argv": [
+   "-c",
+   "import sklearn; print('ok')"
+  ],
+  "env": null,
+  "exit_code": 0,
+  "planted_ran": false,
+  "snapshot": true,
+  "stderr_tail": "",
+  "stdout": "ok\n"
+ },
+ "control_statsmodels.api": {
+  "argv": [
+   "-c",
+   "import statsmodels.api; print('ok')"
+  ],
+  "env": null,
+  "exit_code": 0,
+  "planted_ran": false,
+  "snapshot": true,
+  "stderr_tail": "",
+  "stdout": "ok\n"
+ },
+ "env_joblib": {
+  "argv": [
+   "-c",
+   "import joblib; print('ok')"
+  ],
+  "env": {
+   "_PYTHON_SYSCONFIGDATA_PATH": "/data"
+  },
+  "exit_code": 0,
+  "planted_ran": true,
+  "snapshot": true,
+  "stderr_tail": "PLANTED:sysconfigdata ran in a later call\n",
+  "stdout": "ok\n"
+ },
+ "env_matplotlib": {
+  "argv": [
+   "-c",
+   "import matplotlib; print('ok')"
+  ],
+  "env": {
+   "_PYTHON_SYSCONFIGDATA_PATH": "/data"
+  },
+  "exit_code": 0,
+  "planted_ran": false,
+  "snapshot": true,
+  "stderr_tail": "",
+  "stdout": "ok\n"
+ },
+ "env_numpy": {
+  "argv": [
+   "-c",
+   "import numpy; print('ok')"
+  ],
+  "env": {
+   "_PYTHON_SYSCONFIGDATA_PATH": "/data"
+  },
+  "exit_code": 0,
+  "planted_ran": false,
+  "snapshot": true,
+  "stderr_tail": "",
+  "stdout": "ok\n"
+ },
+ "env_pandas": {
+  "argv": [
+   "-c",
+   "import pandas; print('ok')"
+  ],
+  "env": {
+   "_PYTHON_SYSCONFIGDATA_PATH": "/data"
+  },
+  "exit_code": 0,
+  "planted_ran": true,
+  "snapshot": true,
+  "stderr_tail": "PLANTED:sysconfigdata ran in a later call\n",
+  "stdout": "ok\n"
+ },
+ "env_pandas_plain": {
+  "argv": [
+   "-c",
+   "import pandas; print('ok')"
+  ],
+  "env": {
+   "_PYTHON_SYSCONFIGDATA_PATH": "/data"
+  },
+  "exit_code": 0,
+  "planted_ran": true,
+  "snapshot": false,
+  "stderr_tail": "PLANTED:sysconfigdata ran in a later call\n",
+  "stdout": "ok\n"
+ },
+ "env_scipy": {
+  "argv": [
+   "-c",
+   "import scipy; print('ok')"
+  ],
+  "env": {
+   "_PYTHON_SYSCONFIGDATA_PATH": "/data"
+  },
+  "exit_code": 0,
+  "planted_ran": true,
+  "snapshot": true,
+  "stderr_tail": "PLANTED:sysconfigdata ran in a later call\n",
+  "stdout": "ok\n"
+ },
+ "env_sklearn": {
+  "argv": [
+   "-c",
+   "import sklearn; print('ok')"
+  ],
+  "env": {
+   "_PYTHON_SYSCONFIGDATA_PATH": "/data"
+  },
+  "exit_code": 0,
+  "planted_ran": true,
+  "snapshot": true,
+  "stderr_tail": "PLANTED:sysconfigdata ran in a later call\n",
+  "stdout": "ok\n"
+ },
+ "env_statsmodels.api": {
+  "argv": [
+   "-c",
+   "import statsmodels.api; print('ok')"
+  ],
+  "env": {
+   "_PYTHON_SYSCONFIGDATA_PATH": "/data"
+  },
+  "exit_code": 0,
+  "planted_ran": true,
+  "snapshot": true,
+  "stderr_tail": "PLANTED:sysconfigdata ran in a later call\n",
+  "stdout": "ok\n"
+ },
+ "plant": {
+  "argv": [
+   "-c",
+   "import os\nos.makedirs('/data', exist_ok=True)\nopen('/data/_sysconfigdata__wasi_wasm32-wasi.py', 'w').write(\n    \"import sys\\nsys.stderr.write('PLANTED:sysconfigdata ran in a later call\\\\n')\\n\"\n    \"from _sysconfigdata__wasi_wasm32_wasi_real import *\\n\" if False else\n    \"import sys\\nsys.stderr.write('PLANTED:sysconfigdata ran in a later call\\\\n')\\nbuild_time_vars = {'installed_base': '/usr/local', 'Py_GIL_DISABLED': 0}\\n\")\nprint('planted')\n"
+  ],
+  "env": null,
+  "exit_code": 0,
+  "planted_ran": false,
+  "snapshot": true,
+  "stderr_tail": "",
+  "stdout": "planted\n"
+ }
+}

@@ -1,0 +1,51 @@
+{
+  "missing_units": [
+    {
+      "surface": "build/artifacts/python.wasm#try_table-with-exnref (and python-snapshot.wasm): catch_ref/catch_all_ref landing pads whose exnref stays live across a call inside an enclosing try_table (Cranelift try_call) before throw_ref, reached from guest Python through compiled-in C++ and pybind11 code (matplotlib, scipy, HiGHS) and through setjmp/longjmp carried as wasm exceptions (scipy, matplotlib C code)",
+      "boundary": "src/wasi_python/_engines.py#_engine (both the metered and the unmetered engine leave GC and exceptions at wasmtime 49.0.0's defaults, which enable both) and pyproject.toml#dependencies / uv.lock#wasmtime (49.0.0, inside GHSA-hw8m-q44c-ggrf's affected range >=49.0.0,<49.0.2); docs/explanation/security-model.md#What is protected states that only two later-fixed advisories reach a guest",
+      "subsystem": "build/artifacts",
+      "attack_class": "Upstream compiler defect reached by the shipped binaries' own opcodes: GHSA-hw8m-q44c-ggrf (a GC reference live across try_call is not rooted; a GC in the callee leaves it stale, leading to GC heap corruption, wrong execution or a host panic that aborts the embedder's process), plus the guest-Python reachability of the same try_table catch paths that the m63x fingerprint left as needs_validation",
+      "starting_paths": [
+        "build/artifacts/python.wasm",
+        "build/artifacts/python-snapshot.wasm",
+        "src/wasi_python/_engines.py",
+        "src/wasi_python/_call.py",
+        "scripts/steps/60_link.sh",
+        "scripts/steps/80_snapshot.sh",
+        "recipes/wasi-matplotlib.cross",
+        "recipes/wasi-scipy.cross",
+        "recipes/wasi-numpy.cross",
+        "recipes/wasi-pandas.cross",
+        "uv.lock",
+        "docs/explanation/security-model.md",
+        "context/research/2026-10-18-wasmtime-49-advisories.md",
+        "context/research/2026-10-18-wasmtime-49-advisories/advisories/GHSA-hw8m-q44c-ggrf.json",
+        "context/research/2026-10-18-wasmtime-49-advisories/advisories/GHSA-m63x-6p34-q65x.json"
+      ],
+      "selected_companion_blocks": [
+        "MEMORY-SAFETY-AND-BINARY.md#Core discipline",
+        "MEMORY-SAFETY-AND-BINARY.md#JIT and generated-code consistency",
+        "MEMORY-SAFETY-AND-BINARY.md#Use-after-free, stale view, and double free",
+        "MEMORY-SAFETY-AND-BINARY.md#Universal moves",
+        "MEMORY-SAFETY-AND-BINARY.md#Validation rules",
+        "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+        "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Reachable fatal error or deadlock",
+        "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Quota-accounting scope and reset gaps"
+      ],
+      "excluded_blocks": [
+        {
+          "block": "MEMORY-SAFETY-AND-BINARY.md#Malformed binary metadata and relocation handling",
+          "reason": "the module is the project's own output; the question is which advisory-triggering instruction sequences it carries and whether guest Python reaches them, not wasmtime's parser"
+        },
+        {
+          "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Detached work after cancellation",
+          "reason": "the runner's own deadline and cancellation code is the deferred limits unit's subject; this unit asks only whether shipped bytecode reaches the 49.0.0 compiler defects"
+        }
+      ],
+      "reason": "No unit judged GHSA-hw8m-q44c-ggrf. The only rating is context/research/2026-10-18-wasmtime-49-advisories.md:73 ('no - GC proposal'), the same premise h17 showed false for GHSA-m63x: the binaries carry +exception-handling, 44,791 try_table, 26,569 throw_ref and an exnref in their type section (h17's wjc8 check), and wasmtime keeps exception objects in its GC heap, so exnref is a GC reference. _engines.py#_engine (lines 110-127) sets only consume_fuel, epoch_interruption and the stack sizes, so GC and exceptions are on in both engines; uv.lock resolves wasmtime 49.0.0, inside the advisory's range (fixed 49.0.2). The advisory affects 'every Wasmtime version with GC and exceptions' and its only workaround is disabling exceptions, which _engine does not. h17's unit was scoped to m63x, p79w and wjc8; h12 counted only br_table; docs/explanation/security-model.md:60 tells users only two later-fixed advisories reach a guest. The same reachability question (does ordinary guest Python drive a C++ throw/catch or a longjmp through these try_table pads, e.g. a pybind11 exception conversion in matplotlib or HiGHS in scipy.optimize) is exactly what Phase 3 left open for wasmtime-49.0.0:GHSA-m63x-6p34-q65x:try_table-catch-fuel, so one unit can settle both: count catch_ref/catch_all_ref pads with a call between the landing and throw_ref, name guest-Python entry points that reach them, and compare python.wasm under wasmtime CLI 49.0.3 (fixed) with wasmtime-py 49.0.0 on that path."
+    }
+  ],
+  "reassign_ids": [],
+  "resolved_prior_leads": [],
+  "stop": false
+}
