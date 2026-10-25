@@ -3586,6 +3586,7 @@ def _class_tool(shape: str, made: list) -> object:
     its constructor noting the role it ran with. The instance is a dict, so it crosses as
     JSON."""
     import functools
+    import typing
 
     def init(self, q: str, role: str = "user") -> None:
         made.append((q, role))
@@ -3621,6 +3622,11 @@ def _class_tool(shape: str, made: list) -> object:
     class ByMetaclass(dict, metaclass=Meta):
         __init__ = functools.partialmethod(init, role="viewer")
 
+    item = typing.TypeVar("item")
+
+    class Generic(dict, typing.Generic[item]):
+        __init__ = functools.partialmethod(init, role="viewer")
+
     return {
         "a partialmethod __init__": ByPartialmethod,
         "a partial __init__": ByPartial,
@@ -3629,6 +3635,10 @@ def _class_tool(shape: str, made: list) -> object:
         "a functools.wraps __init__ over a partial": ByWraps,
         "a partial over the class": functools.partial(ByPartialmethod),
         "a delegating metaclass": ByMetaclass,
+        "a typing.Generic class's alias": Generic[int],
+        "a builtin generic alias": ByPartialmethod[int],
+        "an Annotated alias": typing.Annotated[ByPartialmethod, "x"],
+        "a partial over a generic alias": functools.partial(Generic[int]),
     }[shape]
 
 
@@ -3673,6 +3683,22 @@ def test_a_class_tools_construction_keywords_are_fixed(shape) -> None:
     `functools.partial` or `partialmethod`, however the binding is reached (inherited, behind a
     `functools.wraps` wrapper, through a partial over the class), has that keyword fixed as a
     function's is."""
+    _construction_keyword_is_fixed(shape)
+
+
+ALIAS_SHAPES = [
+    "a typing.Generic class's alias",
+    "a builtin generic alias",
+    "an Annotated alias",
+    "a partial over a generic alias",
+]
+
+
+@pytest.mark.parametrize("shape", ALIAS_SHAPES)
+def test_a_generic_alias_of_a_class_tool_has_its_keywords_fixed(shape) -> None:
+    """A generic alias of a class (`Box[int]`, `typing.Annotated[Box, ...]`) is not itself a
+    class, but calling it constructs its origin class with the guest's keywords, so a keyword
+    bound on that class's construction path is fixed through the alias too."""
     _construction_keyword_is_fixed(shape)
 
 
