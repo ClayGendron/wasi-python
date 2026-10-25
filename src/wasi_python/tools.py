@@ -414,14 +414,42 @@ def _given(name: str, input_schema: object, fixed: frozenset[str]) -> _Json:
             f"got {type(input_schema).__name__}"
         )
     schema: _Json = _tool_schema._plain(given, f"{name}: input_schema", 0)
-    props = schema.get("properties")
-    named = sorted(fixed & set(props)) if isinstance(props, dict) else []
+    named = sorted(fixed & _top_level_names(schema))
     if named:
         raise ValueError(
             f"{name}: input_schema names {', '.join(map(repr, named))}, which the partial "
             "binds; a bound keyword is fixed, so the guest cannot set it: leave it out"
         )
     return schema
+
+
+def _top_level_names(schema: _Json) -> set[str]:
+    """The names a frame could send at the arguments' top level: the root's `properties`, and
+    those of each root `anyOf` and `oneOf` branch and of a branch's `$ref` target in the
+    schema's own `$defs` or `definitions`, through branches of branches. A property's own
+    schema, `items` and `additionalProperties` describe another object, whose key of the same
+    name is its own, so none is entered. `allOf`, and what an unchecked schema adds, is left
+    to the frame, which refuses a bound keyword among the top-level keys whatever the schema.
+    Each `$ref` target is entered once, so a cycle, which vetting then refuses, ends."""
+    names: set[str] = set()
+    entered: set[str] = set()
+    todo: list[Any] = [schema]
+    while todo:
+        node = todo.pop()
+        if not isinstance(node, dict):
+            continue
+        props = node.get("properties")
+        if isinstance(props, dict):
+            names.update(props)
+        for key in ("anyOf", "oneOf"):
+            branches = node.get(key)
+            if isinstance(branches, list):
+                todo.extend(branches)
+        ref = node.get("$ref")
+        if isinstance(ref, str) and ref not in entered:
+            entered.add(ref)
+            todo.append(_tool_schema._resolve(schema, ref))
+    return names
 
 
 def _is_async_generator(fn: Any) -> bool:
@@ -437,41 +465,66 @@ def _is_async_generator(fn: Any) -> bool:
 
 
 def _bound_keywords(name: str, fn: Any) -> frozenset[str]:
-    """The keywords a `functools.partial` binds, wherever `inspect.signature` may meet one on
-    its way to the function: the partial, nested partials, a bound method's function, a
-    `__wrapped__` chain, a callable object's or a class's `__call__`, to any depth.
-    Each is fixed:
-    left out of the derived schema and refused in a frame, so the guest neither reads its value
-    nor sets it. A `functools.partialmethod` met other than through an instance is refused."""
+    """The keywords a `functools.partial` binds, wherever `inspect.signature` or a call may
+    meet one on its way to the function: the partial, nested partials, a bound method's
+    function, a `__wrapped__` chain, a callable object's `__call__`, and a class's construction
+    path (its metaclass's `__call__`, its `__new__` and its `__init__`), to any depth. Each is
+    fixed: left out of the derived schema and refused in a frame, so the guest neither reads its
+    value nor sets it. A `functools.partialmethod` met other than through an instance is
+    refused."""
     found: set[str] = set()
-    target = fn
-    for _ in range(_WRAPPER_DEPTH):
-        if any(getattr(target, a, None) is not None for a in _PARTIALMETHOD):
+    todo = [fn]  # one worklist, and one budget of steps across all its branches
+    steps = 0
+    while todo:
+        steps += 1
+        if steps > _WRAPPER_DEPTH:
+            raise TypeError(
+                f"{name}: its wrappers nest deeper than {_WRAPPER_DEPTH}; pass a function"
+            )
+        target = todo.pop()
+        if isinstance(target, functools.partialmethod):
+            # Met only as a class attribute read statically, on the construction path, which
+            # the interpreter reaches through the instance it makes: read as it binds there.
+            found.update(target.keywords)
+            todo.append(target.func)
+        elif any(getattr(target, a, None) is not None for a in _PARTIALMETHOD):
             raise TypeError(
                 f"{name}: a functools.partialmethod is described only through an instance "
                 "(obj.method); or bind its keywords with a closure or a functools.partial"
             )
-        if isinstance(target, functools.partial):
+        elif isinstance(target, functools.partial):
             found.update(target.keywords)
-            target = target.func
-        elif isinstance(target, types.MethodType):
-            target = target.__func__
-        elif not isinstance(target, type) and getattr(target, "__wrapped__", None) is not None:
-            target = target.__wrapped__
+            todo.append(target.func)
+        elif isinstance(target, (types.MethodType, staticmethod, classmethod)):
+            todo.append(target.__func__)
+        elif isinstance(target, type):
+            # A class runs as type.__call__ does: its metaclass's __call__, then the __new__
+            # and __init__ its MRO holds, read statically, whatever that __call__ says, since a
+            # metaclass that delegates to type.__call__ still runs them with the guest's
+            # keywords. C's slots hold no partial and end there.
+            call = type(target).__call__
+            todo.extend(
+                part
+                for part in (
+                    call,
+                    inspect.getattr_static(target, "__new__", None),
+                    inspect.getattr_static(target, "__init__", None),
+                )
+                if part is not None and not isinstance(part, _C_SLOTS)
+            )
+        elif getattr(target, "__wrapped__", None) is not None:
+            todo.append(target.__wrapped__)
         elif not (inspect.isfunction(target) or inspect.isbuiltin(target)):
-            # Any other object, a class included: its type's __call__, as inspect.signature
-            # follows it, to any depth (a metaclass's __call__ included),
-            # but not into C's slots, which hold no partial and where inspect stops too.
+            # Any other object: its type's __call__, as inspect.signature follows it, but not
+            # into C's slots, which hold no partial and where inspect stops too. An object
+            # with no __call__ is not callable: inspect.signature refuses it, as tool() does.
             try:
                 call = type(target).__call__
-            except AttributeError:  # not callable: inspect.signature refuses it, as tool() does
-                return frozenset(found)
-            if isinstance(call, _C_SLOTS):
-                return frozenset(found)
-            target = call
-        else:
-            return frozenset(found)
-    raise TypeError(f"{name}: its wrappers nest deeper than {_WRAPPER_DEPTH}; pass a function")
+            except AttributeError:
+                continue
+            if not isinstance(call, _C_SLOTS):
+                todo.append(call)
+    return frozenset(found)
 
 
 def _timeout(name: str, value: Any) -> float | None:
