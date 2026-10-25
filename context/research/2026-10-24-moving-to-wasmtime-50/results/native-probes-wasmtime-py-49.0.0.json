@@ -1,0 +1,24 @@
+{
+ "wasmtime_py": "49.0.0",
+ "platform": "darwin",
+ "symlink errno": 0,
+ "rename up/ -> stolen errno": 0,
+ "grant after": [
+  "stolen",
+  "up"
+ ],
+ "outside exists": false,
+ "stolen is dir with canary": true,
+ "escaped": true,
+ "rename f.txt/ -> e errno": 54,
+ "grant after 2": [
+  "f.txt",
+  "stolen",
+  "up"
+ ],
+ "readdir entries": 1000,
+ "entries with non-zero padding": 200,
+ "padding samples": [
+  "702f1f"
+ ]
+}

@@ -1,0 +1,16 @@
+.venv run 1 rc=0 wall=5920 ms out={"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "1
+", "trapped": null, "truncated": []}
+.venv run 2 rc=0 wall=5372 ms out={"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "1
+", "trapped": null, "truncated": []}
+.venv run 3 rc=0 wall=5371 ms out={"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "1
+", "trapped": null, "truncated": []}
+.venv run 4 rc=0 wall=5401 ms out={"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "1
+", "trapped": null, "truncated": []}
+venv run 1 rc=0 wall=952 ms out={"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "1
+", "trapped": null, "truncated": []}
+venv run 2 rc=0 wall=429 ms out={"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "1
+", "trapped": null, "truncated": []}
+venv run 3 rc=0 wall=432 ms out={"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "1
+", "trapped": null, "truncated": []}
+venv run 4 rc=0 wall=562 ms out={"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "1
+", "trapped": null, "truncated": []}

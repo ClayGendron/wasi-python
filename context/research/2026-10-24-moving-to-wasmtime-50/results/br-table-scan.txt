@@ -1,0 +1,3 @@
+br_table instructions: 20151 max targets (commas+1): 3203
+format check done
+snapshot: br_table instructions: 20151 max targets: 3203

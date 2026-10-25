@@ -1,0 +1,11 @@
+{
+ "wasmtime_py": "49.0.0",
+ "unwind=True": {
+  "compile_ms": 18208,
+  "drop_ms": 5732.1
+ },
+ "unwind=False": {
+  "compile_ms": 18049,
+  "drop_ms": 19.3
+ }
+}

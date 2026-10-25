@@ -1,0 +1,54 @@
+{
+ "mode": "fix",
+ "fixes": [
+  "no_stack_lock"
+ ],
+ "n": 8,
+ "workers": 8,
+ "baseline": {
+  "sequential": {
+   "n": 3,
+   "min": 146.3,
+   "median": 149.6,
+   "max": 149.6
+  },
+  "parallel": {
+   "n": 3,
+   "min": 78.4,
+   "median": 79.7,
+   "max": 81.2
+  },
+  "speedup": 1.88
+ },
+ "fixed": {
+  "sequential": {
+   "n": 3,
+   "min": 149.2,
+   "median": 149.3,
+   "max": 162.7
+  },
+  "parallel": {
+   "n": 3,
+   "min": 79.3,
+   "median": 82.4,
+   "max": 84.4
+  },
+  "speedup": 1.81
+ },
+ "bare": {
+  "sequential": {
+   "n": 3,
+   "min": 96.9,
+   "median": 100.6,
+   "max": 102.0
+  },
+  "parallel": {
+   "n": 3,
+   "min": 25.8,
+   "median": 26.4,
+   "max": 27.6
+  },
+  "speedup": 3.81
+ },
+ "load_1m": 10.82421875
+}

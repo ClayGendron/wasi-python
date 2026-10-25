@@ -1,0 +1,25 @@
+The fresh-process probe: one hello on the snapshot, the .cwasm cache warm, build/rust-spike-perf/work/cold.json.
+Shell wall (date +%s%N around the process), the spike's own eprintln timings (SPIKE_TIME_DROPS=1).
+
+normal exit:                 wall 5297, 4472, 4475 ms
+SPIKE_FAST_EXIT=1 (no drops): wall 59, 57, 57 ms
+drop modules / drop engine:  4469 / 0 ms; 4453 / 0 ms
+deserialize from bytes (SPIKE_DESER_BYTES=1): drop modules 4445, 4433 ms; module load 117, 111 ms
+memory_init_cow(false), the snapshot recompiled to python-snapshot-nocow.cwasm (291,407,552 B): drop modules 4580, 4491 ms
+
+The product in a fresh process (uv run python; import, one run, print the in-process elapsed):
+  in-process 756 / 350 / 332 ms; process wall 5332 / 4843 / 4799 ms
+  breakdown (3 processes): import wasi_python 49/31/34 ms; first run 723/314/310 ms; second run 18/19/19 ms
+The shipped command line, `wasi-python run -c "print(1)"`, caches warm: wall 14133 (first), 4971, 4911 ms.
+
+The cause (2026-10-24, a stack sample during the drop, `sample <pid> 3`; teardown-sample.txt):
+  all 2,409 samples: main -> drop(modules) -> Arc<ModuleInner>::drop_slow -> CodeMemory::drop -> __deregister_frame (libunwind.dylib)
+  python-snapshot.wasm and python.wasm each define 89,060 functions; wasmtime registers one FDE per function with
+  libunwind on macOS (crates/wasmtime/src/runtime/vm/sys/unix/unwind.rs, "takes a pointer to a single FDE") and
+  deregisters them one by one at drop; libunwind's list makes it quadratic (Config::native_unwind_info's own doc).
+
+The fix, measured:
+  rust, Config::native_unwind_info(false), snapshot recompiled (python-snapshot-nounwind.cwasm):
+    drop modules 7, 2, 2 ms; process wall 69 ms (was 4,472 to 5,297)
+  wasmtime-py, cfg.native_unwind_info = False, snapshot recompiled:
+    module drop 12 ms (5,021 ms with it on); fuel for hello 53,519,933 on both; .cwasm 288,425,040 B (298,943,640 B with it on)

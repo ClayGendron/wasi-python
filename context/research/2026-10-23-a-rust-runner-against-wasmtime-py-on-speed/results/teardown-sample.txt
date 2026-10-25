@@ -1,0 +1,22 @@
+Call graph:
+    2409 Thread_125672126   DispatchQueue_1: com.apple.main-thread  (serial)
+    + 2409 start  (in dyld) + 6992  [0x18f5f7e00]
+    +   2409 main  (in wasi-run-perf) + 52  [0x102190a98]
+    +     2409 _RNvNtCsa9BKTri5B3M_3std2rt19lang_start_internal  (in wasi-run-perf) + 952  [0x102a649f4]
+    +       2409 _RNCINvNtCsa9BKTri5B3M_3std2rt10lang_startINtNtCsgtPOCBgevO_4core6result6ResultuNtNtNtCs3ZmmsgNuZ0G_22wasmtime_internal_core5error5error5ErrorEE0CsejQ7N1ddCW6_13wasi_run_perf  (in wasi-run-perf) + 24  [0x1022129fc]
+    +         2409 _RINvNtNtCsa9BKTri5B3M_3std3sys9backtrace28___rust_begin_short_backtraceFEINtNtCsgtPOCBgevO_4core6result6ResultuNtNtNtCs3ZmmsgNuZ0G_22wasmtime_internal_core5error5error5ErrorEB19_ECsejQ7N1ddCW6_13wasi_run_perf  (in wasi-run-perf) + 12  [0x1021b4624]  backtrace.rs:166
+    +           2409 _RNvCsejQ7N1ddCW6_13wasi_run_perf4main  (in wasi-run-perf) + 2540  [0x10218bafc]  main.rs:472
+    +             2409 _RNvXsg_NtCs9nAj5kJTqSU_9hashbrown3rawINtB5_8RawTableTNtNtCsa9BKTri5B3M_3std4path7PathBufTNtNtNtCsiSV6tnDrlkS_8wasmtime7runtime6module6ModuleRedEEENtNtNtCsgtPOCBgevO_4core3ops4drop4Drop4dropCsejQ7N1ddCW6_13wasi_run_perf  (in wasi-run-perf) + 192  [0x1021e44fc]  raw.rs:3496
+    +               2409 _RNvMsn_NtCslJsSqIQKwiA_5alloc4syncINtB5_3ArcNtNtNtCsiSV6tnDrlkS_8wasmtime7runtime6module11ModuleInnerE9drop_slowBM_  (in wasi-run-perf) + 212  [0x102298d88]
+    +                 2409 _RNvMsn_NtCslJsSqIQKwiA_5alloc4syncINtB5_3ArcNtNtNtNtCsiSV6tnDrlkS_8wasmtime7runtime2vm3cow11MemoryImageE9drop_slowBO_  (in wasi-run-perf) + 76  [0x102298f58]
+    +                   2409 _RNvMsn_NtCslJsSqIQKwiA_5alloc4syncINtB5_3ArcDNtCsbowueEj3ZGS_23wasmtime_internal_fiber24RuntimeFiberStackCreatorEL_E9drop_slowCsiSV6tnDrlkS_8wasmtime  (in wasi-run-perf) + 52  [0x10229754c]
+    +                     2409 _RINvNtCsgtPOCBgevO_4core3ptr9drop_glueNtNtNtCsiSV6tnDrlkS_8wasmtime7runtime11code_memory10CodeMemoryEBG_  (in wasi-run-perf) + 28  [0x1022a2f9c]
+    +                       2409 _RNvXNtNtCsiSV6tnDrlkS_8wasmtime7runtime11code_memoryNtB2_10CodeMemoryNtNtNtCsgtPOCBgevO_4core3ops4drop4Drop4drop  (in wasi-run-perf) + 208  [0x1022b28e0]
+    +                         2409 __deregister_frame  (in libunwind.dylib) + 92,80,...  [0x19f7cff90,0x19f7cff84,...]
+    2409 Thread_125672158
+    + 2409 thread_start  (in libsystem_pthread.dylib) + 8  [0x18f9b0c1c]
+    +   2409 _pthread_start  (in libsystem_pthread.dylib) + 136  [0x18f9b5c58]
+    +     2409 _RNvNvMs0_NtNtNtCsa9BKTri5B3M_3std3sys6thread4unixNtB7_6Thread3new12thread_start  (in wasi-run-perf) + 408  [0x102a6b9ac]
+    +       2409 _RNSNvYNCINvNtNtCsa9BKTri5B3M_3std6thread9lifecycle15spawn_uncheckedNCNvMNtNtNtNtNtCsiSV6tnDrlkS_8wasmtime7runtime2vm3sys4unix9machportsNtB18_11TrapHandler3new0uEs_0INtNtNtCsgtPOCBgevO_4core3ops8function6FnOnceuE9call_once6vtableB1i_  (in wasi-run-perf) + 48  [0x10238b7ac]
+    +         2409 _RINvNtNtCsa9BKTri5B3M_3std3sys9backtrace28___rust_begin_short_backtraceNCNvMNtNtNtNtNtCsiSV6tnDrlkS_8wasmtime7runtime2vm3sys4unix9machportsNtB1c_11TrapHandler3new0uEB1m_  (in wasi-run-perf) + 12  [0x102386b88]
+    +           2409 _RNvNtNtNtNtNtCsiSV6tnDrlkS_8wasmtime7runtime2vm3sys4unix9machports14handler_thread  (in wasi-run-perf) + 116  [0x10226f5ec]

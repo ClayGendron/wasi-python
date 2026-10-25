@@ -1,0 +1,263 @@
+{
+ "machine": "darwin-arm64, Apple M1 Pro, 10 cores, 32 GiB, macOS 26.5.2",
+ "wasmtime_py": "49.0.0 (uv.lock)",
+ "wasmtime_crate": "49.0.0, collector drc",
+ "rustc": "1.97.1",
+ "python": "3.14.2",
+ "artifact_set": "build/artifacts (0.1.0: python 3.15.0, numpy 2.5.2, pandas 3.0.6, ...)",
+ "commit": "2cd47507",
+ "rows": [
+  {
+   "bench": "hello-snapshot",
+   "n": 20,
+   "product": {
+    "n": 20,
+    "min": 18.4,
+    "median": 20.2,
+    "max": 36.7
+   },
+   "bare": {
+    "n": 20,
+    "min": 12.4,
+    "median": 12.5,
+    "max": 20.2
+   },
+   "rust": {
+    "n": 20,
+    "min": 10.1,
+    "median": 10.3,
+    "max": 26.6
+   },
+   "rust_batch_per_job": 14.5,
+   "rust_module_ms": 268.8
+  },
+  {
+   "bench": "hello-plain",
+   "n": 10,
+   "product": {
+    "n": 10,
+    "min": 40.7,
+    "median": 41.7,
+    "max": 48.8
+   },
+   "bare": {
+    "n": 10,
+    "min": 33.3,
+    "median": 34.0,
+    "max": 36.6
+   },
+   "rust": {
+    "n": 10,
+    "min": 32.1,
+    "median": 32.4,
+    "max": 37.5
+   },
+   "rust_batch_per_job": 37.1,
+   "rust_module_ms": 49.9
+  },
+  {
+   "bench": "numpy-sum-snapshot",
+   "n": 5,
+   "product": {
+    "n": 5,
+    "min": 146.3,
+    "median": 147.6,
+    "max": 161.6
+   },
+   "bare": {
+    "n": 5,
+    "min": 123.1,
+    "median": 126.0,
+    "max": 138.3
+   },
+   "rust": {
+    "n": 5,
+    "min": 121.9,
+    "median": 124.1,
+    "max": 139.1
+   },
+   "rust_batch_per_job": 137.2,
+   "rust_module_ms": 34.9
+  },
+  {
+   "bench": "door-echo-20000x64B",
+   "n": 3,
+   "product": {
+    "n": 3,
+    "min": 1007.1,
+    "median": 1009.3,
+    "max": 1015.1
+   },
+   "bare": {
+    "n": 3,
+    "min": 733.8,
+    "median": 735.0,
+    "max": 735.1
+   },
+   "rust": {
+    "n": 3,
+    "min": 21.2,
+    "median": 21.3,
+    "max": 25.1
+   },
+   "rust_batch_per_job": 28.9,
+   "rust_module_ms": 35.4
+  },
+  {
+   "bench": "door-echo-500x1MiB",
+   "n": 3,
+   "product": {
+    "n": 3,
+    "min": 125.2,
+    "median": 125.6,
+    "max": 127.2
+   },
+   "bare": {
+    "n": 3,
+    "min": 106.7,
+    "median": 106.8,
+    "max": 107.0
+   },
+   "rust": {
+    "n": 3,
+    "min": 61.3,
+    "median": 62.0,
+    "max": 63.4
+   },
+   "rust_batch_per_job": 69.3,
+   "rust_module_ms": 36.7
+  },
+  {
+   "bench": "stdout-32MiB",
+   "n": 3,
+   "product": {
+    "n": 3,
+    "min": 133.3,
+    "median": 140.4,
+    "max": 144.9
+   },
+   "bare": {
+    "n": 3,
+    "min": 32.7,
+    "median": 32.9,
+    "max": 33.0
+   },
+   "rust": {
+    "n": 3,
+    "min": 17.7,
+    "median": 18.3,
+    "max": 22.1
+   },
+   "rust_batch_per_job": 33.2,
+   "rust_module_ms": 35.0
+  },
+  {
+   "bench": "files-grant-20000stat-2000read",
+   "n": 3,
+   "product": {
+    "n": 3,
+    "min": 504.0,
+    "median": 504.8,
+    "max": 511.7
+   },
+   "bare": {
+    "n": 3,
+    "min": 383.6,
+    "median": 387.2,
+    "max": 394.3
+   },
+   "rust": {
+    "n": 3,
+    "min": 414.5,
+    "median": 418.3,
+    "max": 420.6
+   },
+   "rust_batch_per_job": 425.9,
+   "rust_module_ms": 35.1
+  },
+  {
+   "bench": "files-mount-20000stat-2000read",
+   "n": 3,
+   "product_mount": {
+    "n": 3,
+    "min": 1209.7,
+    "median": 1226.4,
+    "max": 1232.3
+   }
+  },
+  {
+   "bench": "parallel-8-hello",
+   "n": 8,
+   "workers": 8,
+   "product": {
+    "sequential": {
+     "n": 3,
+     "min": 139.6,
+     "median": 140.8,
+     "max": 141.2
+    },
+    "parallel": {
+     "n": 3,
+     "min": 71.6,
+     "median": 73.3,
+     "max": 74.5
+    },
+    "speedup": 1.92
+   },
+   "bare": {
+    "sequential": {
+     "n": 3,
+     "min": 90.8,
+     "median": 92.2,
+     "max": 94.3
+    },
+    "parallel": {
+     "n": 3,
+     "min": 20.8,
+     "median": 22.1,
+     "max": 22.8
+    },
+    "speedup": 4.18
+   },
+   "rust": {
+    "sequential": {
+     "n": 3,
+     "min": 100.3,
+     "median": 112.7,
+     "max": 132.6
+    },
+    "parallel": {
+     "n": 3,
+     "min": 26.3,
+     "median": 37.8,
+     "max": 38.7
+    },
+    "speedup": 2.99
+   }
+  },
+  {
+   "bench": "cold-process-hello",
+   "n": 5,
+   "uv_python_pass": {
+    "n": 5,
+    "min": 26.8,
+    "median": 28.1,
+    "max": 35.9
+   },
+   "product_process": {
+    "n": 5,
+    "min": 4850.4,
+    "median": 4937.6,
+    "max": 4999.6
+   },
+   "product_peak_rss_mib": 288,
+   "rust_process": {
+    "n": 5,
+    "min": 4486.0,
+    "median": 4515.5,
+    "max": 4924.5
+   },
+   "rust_peak_rss_mib": 219
+  }
+ ]
+}

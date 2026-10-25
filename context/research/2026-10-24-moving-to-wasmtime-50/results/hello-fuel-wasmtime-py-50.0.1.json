@@ -1,0 +1,33 @@
+/Users/claygendron/Git/Repos/wasi_python/src/wasi_python/runner.py:280: RuntimeWarning: wasi_python: not using the module cache at /Users/claygendron/Git/Repos/wasi_python/build/scratch-wt50/cache: it must be a directory owned by this user that no one else may read, write or enter (mode 0700)
+  return _call._run_checked(wt, checked, host, snapshot, cache_dir, artifacts, loop)
+{
+ "wasmtime_py": "50.0.1",
+ "hello-snapshot": {
+  "exit": 0,
+  "trapped": null,
+  "stdout": "1",
+  "fuel_used": 53530298,
+  "wall_ms": 18831
+ },
+ "hello-plain": {
+  "exit": 0,
+  "trapped": null,
+  "stdout": "1",
+  "fuel_used": 271546842,
+  "wall_ms": 28527
+ },
+ "numpy-sum": {
+  "exit": 0,
+  "trapped": null,
+  "stdout": "1783293664",
+  "fuel_used": 840980989,
+  "wall_ms": 351
+ },
+ "files-grant-stat": {
+  "exit": 0,
+  "trapped": null,
+  "stdout": "ok",
+  "fuel_used": 64958655,
+  "wall_ms": 56
+ }
+}

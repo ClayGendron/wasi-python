@@ -1,0 +1,11 @@
+10 rows differ (native wasmtime 50.0.0 grant, then the runner's mount)
+["file fd_advise -1", [["ends", "number too small to fit in target type"], ["ends", "out of range integral type conversion attempted"]]]
+["file set_flags out of range", [["ends", "number too large to fit in target type"], ["ends", "out of range integral type conversion attempted"]]]
+["dir fd_advise -1", [["ends", "number too small to fit in target type"], ["ends", "out of range integral type conversion attempted"]]]
+["dir set_flags out of range", [["ends", "number too large to fit in target type"], ["ends", "out of range integral type conversion attempted"]]]
+["plain dir fd_advise -1", [["ends", "number too small to fit in target type"], ["ends", "out of range integral type conversion attempted"]]]
+["plain dir set_flags out of range", [["ends", "number too large to fit in target type"], ["ends", "out of range integral type conversion attempted"]]]
+["seek 5 256", [["ends", "number too large to fit in target type"], ["ends", "out of range integral type conversion attempted"]]]
+["seek 5 -1", [["ends", "number too small to fit in target type"], ["ends", "out of range integral type conversion attempted"]]]
+["open oflags out of range", [["ends", "number too large to fit in target type"], ["ends", "out of range integral type conversion attempted"]]]
+["open lookup flags out of range", [["ends", "number too small to fit in target type"], ["ends", "out of range integral type conversion attempted"]]]

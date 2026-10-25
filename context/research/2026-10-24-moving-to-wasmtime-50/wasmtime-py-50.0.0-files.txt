@@ -1,0 +1,5 @@
+{"additions":29,"deletions":7,"total":36}
+VERSION +1 -1
+ci/download-wasmtime.py +1 -1
+tests/component/test_func.py +5 -5
+wasmtime/_bindings.py +22 -0

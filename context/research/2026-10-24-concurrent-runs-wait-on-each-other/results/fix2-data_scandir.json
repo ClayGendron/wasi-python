@@ -1,0 +1,54 @@
+{
+ "mode": "fix",
+ "fixes": [
+  "data_scandir"
+ ],
+ "n": 8,
+ "workers": 8,
+ "baseline": {
+  "sequential": {
+   "n": 3,
+   "min": 144.9,
+   "median": 148.0,
+   "max": 170.4
+  },
+  "parallel": {
+   "n": 3,
+   "min": 75.0,
+   "median": 97.9,
+   "max": 99.3
+  },
+  "speedup": 1.51
+ },
+ "fixed": {
+  "sequential": {
+   "n": 3,
+   "min": 133.2,
+   "median": 142.5,
+   "max": 149.1
+  },
+  "parallel": {
+   "n": 3,
+   "min": 70.5,
+   "median": 70.7,
+   "max": 71.4
+  },
+  "speedup": 2.02
+ },
+ "bare": {
+  "sequential": {
+   "n": 3,
+   "min": 92.1,
+   "median": 94.2,
+   "max": 107.5
+  },
+  "parallel": {
+   "n": 3,
+   "min": 24.4,
+   "median": 29.4,
+   "max": 31.4
+  },
+  "speedup": 3.21
+ },
+ "load_1m": 16.8037109375
+}

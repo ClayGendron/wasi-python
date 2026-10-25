@@ -1,0 +1,5967 @@
+{
+ "mode": "timeline",
+ "sequential": [
+  142.8582496009767,
+  163.05108275264502,
+  155.3420410491526
+ ],
+ "parallel": [
+  76.12133305519819,
+  101.92408272996545,
+  83.33895774558187
+ ],
+ "locks_sequential": [
+  {
+   "name": "cache_lock",
+   "count": 97,
+   "wait_ms": 0.01,
+   "hold_ms": 0.15,
+   "max_hold_ms": 0.006
+  },
+  {
+   "name": "held_lock",
+   "count": 32,
+   "wait_ms": 0.01,
+   "hold_ms": 0.04,
+   "max_hold_ms": 0.002
+  },
+  {
+   "name": "zip_lock",
+   "count": 16,
+   "wait_ms": 0.01,
+   "hold_ms": 27.55,
+   "max_hold_ms": 9.31
+  },
+  {
+   "name": "warnings_lock",
+   "count": 8,
+   "wait_ms": 0.0,
+   "hold_ms": 0.01,
+   "max_hold_ms": 0.001
+  },
+  {
+   "name": "stack_size_lock",
+   "count": 8,
+   "wait_ms": 0.0,
+   "hold_ms": 0.83,
+   "max_hold_ms": 0.118
+  },
+  {
+   "name": "outputs_lock",
+   "count": 40,
+   "wait_ms": 0.02,
+   "hold_ms": 0.09,
+   "max_hold_ms": 0.009
+  },
+  {
+   "name": "epoch_callback_lock",
+   "count": 8,
+   "wait_ms": 0.0,
+   "hold_ms": 0.01,
+   "max_hold_ms": 0.001
+  },
+  {
+   "name": "live_lock",
+   "count": 0,
+   "wait_ms": 0.0,
+   "hold_ms": 0.0,
+   "max_hold_ms": 0.0
+  },
+  {
+   "name": "pool_lock",
+   "count": 0,
+   "wait_ms": 0.0,
+   "hold_ms": 0.0,
+   "max_hold_ms": 0.0
+  },
+  {
+   "name": "tool_threads_lock",
+   "count": 0,
+   "wait_ms": 0.0,
+   "hold_ms": 0.0,
+   "max_hold_ms": 0.0
+  }
+ ],
+ "locks_parallel": [
+  {
+   "name": "cache_lock",
+   "count": 81,
+   "wait_ms": 0.01,
+   "hold_ms": 0.11,
+   "max_hold_ms": 0.007
+  },
+  {
+   "name": "held_lock",
+   "count": 32,
+   "wait_ms": 0.01,
+   "hold_ms": 0.06,
+   "max_hold_ms": 0.006
+  },
+  {
+   "name": "zip_lock",
+   "count": 16,
+   "wait_ms": 135.57,
+   "hold_ms": 47.35,
+   "max_hold_ms": 7.336
+  },
+  {
+   "name": "warnings_lock",
+   "count": 8,
+   "wait_ms": 0.0,
+   "hold_ms": 0.03,
+   "max_hold_ms": 0.021
+  },
+  {
+   "name": "stack_size_lock",
+   "count": 8,
+   "wait_ms": 0.0,
+   "hold_ms": 1.5,
+   "max_hold_ms": 0.469
+  },
+  {
+   "name": "outputs_lock",
+   "count": 40,
+   "wait_ms": 0.02,
+   "hold_ms": 0.1,
+   "max_hold_ms": 0.014
+  },
+  {
+   "name": "epoch_callback_lock",
+   "count": 8,
+   "wait_ms": 0.0,
+   "hold_ms": 0.01,
+   "max_hold_ms": 0.001
+  },
+  {
+   "name": "live_lock",
+   "count": 0,
+   "wait_ms": 0.0,
+   "hold_ms": 0.0,
+   "max_hold_ms": 0.0
+  },
+  {
+   "name": "pool_lock",
+   "count": 0,
+   "wait_ms": 0.0,
+   "hold_ms": 0.0,
+   "max_hold_ms": 0.0
+  },
+  {
+   "name": "tool_threads_lock",
+   "count": 0,
+   "wait_ms": 0.0,
+   "hold_ms": 0.0,
+   "max_hold_ms": 0.0
+  }
+ ],
+ "events_parallel": [
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "artifacts",
+   "t0": 0.183,
+   "t1": 3.596,
+   "wall": 3.413,
+   "cpu": 0.955
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "artifacts",
+   "t0": 0.286,
+   "t1": 3.685,
+   "wall": 3.399,
+   "cpu": 0.855
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "artifacts",
+   "t0": 0.474,
+   "t1": 3.859,
+   "wall": 3.386,
+   "cpu": 0.843
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "artifacts",
+   "t0": 0.687,
+   "t1": 3.918,
+   "wall": 3.231,
+   "cpu": 0.843
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "artifacts",
+   "t0": 0.84,
+   "t1": 4.001,
+   "wall": 3.161,
+   "cpu": 0.821
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "artifacts",
+   "t0": 0.578,
+   "t1": 4.154,
+   "wall": 3.575,
+   "cpu": 0.83
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "artifacts",
+   "t0": 1.275,
+   "t1": 4.325,
+   "wall": 3.05,
+   "cpu": 0.742
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "artifacts",
+   "t0": 1.447,
+   "t1": 4.509,
+   "wall": 3.062,
+   "cpu": 0.851
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "walk",
+   "t0": 4.041,
+   "t1": 21.501,
+   "wall": 17.46,
+   "cpu": 5.302
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "engine",
+   "t0": 21.521,
+   "t1": 21.531,
+   "wall": 0.01,
+   "cpu": 0.01
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "module",
+   "t0": 21.535,
+   "t1": 21.538,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "sweep",
+   "t0": 21.541,
+   "t1": 21.543,
+   "wall": 0.002,
+   "cpu": 0.002
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "walk",
+   "t0": 3.761,
+   "t1": 21.67,
+   "wall": 17.909,
+   "cpu": 5.288
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "engine",
+   "t0": 21.676,
+   "t1": 21.679,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "module",
+   "t0": 21.681,
+   "t1": 21.683,
+   "wall": 0.002,
+   "cpu": 0.002
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "sweep",
+   "t0": 21.685,
+   "t1": 21.686,
+   "wall": 0.001,
+   "cpu": 0.001
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "walk",
+   "t0": 3.972,
+   "t1": 21.93,
+   "wall": 17.958,
+   "cpu": 5.298
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "engine",
+   "t0": 21.936,
+   "t1": 21.939,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "module",
+   "t0": 21.941,
+   "t1": 21.943,
+   "wall": 0.002,
+   "cpu": 0.002
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "sweep",
+   "t0": 21.949,
+   "t1": 21.95,
+   "wall": 0.001,
+   "cpu": 0.001
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "walk",
+   "t0": 4.075,
+   "t1": 22.639,
+   "wall": 18.564,
+   "cpu": 5.262
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "engine",
+   "t0": 22.645,
+   "t1": 22.648,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "module",
+   "t0": 22.65,
+   "t1": 22.652,
+   "wall": 0.002,
+   "cpu": 0.001
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "sweep",
+   "t0": 22.654,
+   "t1": 22.655,
+   "wall": 0.001,
+   "cpu": 0.001
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "walk",
+   "t0": 4.184,
+   "t1": 24.812,
+   "wall": 20.628,
+   "cpu": 5.617
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "engine",
+   "t0": 24.825,
+   "t1": 24.83,
+   "wall": 0.005,
+   "cpu": 0.005
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "module",
+   "t0": 24.832,
+   "t1": 24.835,
+   "wall": 0.002,
+   "cpu": 0.002
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "sweep",
+   "t0": 24.837,
+   "t1": 24.838,
+   "wall": 0.001,
+   "cpu": 0.001
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "walk",
+   "t0": 4.355,
+   "t1": 25.362,
+   "wall": 21.007,
+   "cpu": 5.541
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "engine",
+   "t0": 25.371,
+   "t1": 25.376,
+   "wall": 0.005,
+   "cpu": 0.005
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "module",
+   "t0": 25.378,
+   "t1": 25.38,
+   "wall": 0.002,
+   "cpu": 0.002
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "sweep",
+   "t0": 25.383,
+   "t1": 25.384,
+   "wall": 0.001,
+   "cpu": 0.001
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "walk",
+   "t0": 3.655,
+   "t1": 25.422,
+   "wall": 21.768,
+   "cpu": 5.362
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "engine",
+   "t0": 25.433,
+   "t1": 25.436,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "module",
+   "t0": 25.438,
+   "t1": 25.439,
+   "wall": 0.002,
+   "cpu": 0.002
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "sweep",
+   "t0": 25.441,
+   "t1": 25.443,
+   "wall": 0.001,
+   "cpu": 0.001
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "walk",
+   "t0": 4.542,
+   "t1": 25.759,
+   "wall": 21.217,
+   "cpu": 5.556
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "engine",
+   "t0": 25.765,
+   "t1": 25.769,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "module",
+   "t0": 25.771,
+   "t1": 25.773,
+   "wall": 0.002,
+   "cpu": 0.002
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "sweep",
+   "t0": 25.777,
+   "t1": 25.779,
+   "wall": 0.001,
+   "cpu": 0.001
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "zip",
+   "t0": 21.545,
+   "t1": 27.682,
+   "wall": 6.138,
+   "cpu": 3.815
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "preopens",
+   "t0": 21.54,
+   "t1": 28.887,
+   "wall": 7.347,
+   "cpu": 4.205
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "private_make",
+   "t0": 28.918,
+   "t1": 29.282,
+   "wall": 0.365,
+   "cpu": 0.275,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "guest_home",
+   "t0": 28.901,
+   "t1": 30.034,
+   "wall": 1.133,
+   "cpu": 0.468
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "check_module",
+   "t0": 30.185,
+   "t1": 30.188,
+   "wall": 0.004,
+   "cpu": 0.003
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "private_make",
+   "t0": 30.204,
+   "t1": 30.383,
+   "wall": 0.179,
+   "cpu": 0.178,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "zip",
+   "t0": 21.687,
+   "t1": 30.744,
+   "wall": 9.056,
+   "cpu": 2.618
+  },
+  {
+   "run": 47,
+   "tid": 45088,
+   "phase": "instantiate",
+   "t0": 31.122,
+   "t1": 31.168,
+   "wall": 0.046,
+   "cpu": 0.046
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "Thread.start",
+   "t0": 30.874,
+   "t1": 31.334,
+   "wall": 0.459,
+   "cpu": 0.107
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "thread_start",
+   "t0": 30.858,
+   "t1": 31.339,
+   "wall": 0.481,
+   "cpu": 0.129
+  },
+  {
+   "run": 47,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 31.213,
+   "t1": 31.442,
+   "wall": 0.228,
+   "cpu": 0.147
+  },
+  {
+   "run": 47,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 31.457,
+   "t1": 31.619,
+   "wall": 0.162,
+   "cpu": 0.058
+  },
+  {
+   "run": 47,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 31.627,
+   "t1": 31.821,
+   "wall": 0.194,
+   "cpu": 0.107
+  },
+  {
+   "run": 47,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 31.855,
+   "t1": 31.895,
+   "wall": 0.04,
+   "cpu": 0.037
+  },
+  {
+   "run": 47,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 31.904,
+   "t1": 31.934,
+   "wall": 0.03,
+   "cpu": 0.03
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "preopens",
+   "t0": 21.684,
+   "t1": 32.044,
+   "wall": 10.36,
+   "cpu": 3.085
+  },
+  {
+   "run": 47,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 31.942,
+   "t1": 32.081,
+   "wall": 0.139,
+   "cpu": 0.073
+  },
+  {
+   "run": 47,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 32.108,
+   "t1": 32.135,
+   "wall": 0.027,
+   "cpu": 0.028
+  },
+  {
+   "run": 47,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 32.14,
+   "t1": 32.302,
+   "wall": 0.162,
+   "cpu": 0.062
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "private_make",
+   "t0": 32.069,
+   "t1": 32.438,
+   "wall": 0.369,
+   "cpu": 0.248,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 47,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 32.315,
+   "t1": 32.498,
+   "wall": 0.183,
+   "cpu": 0.066
+  },
+  {
+   "run": 47,
+   "tid": 45088,
+   "phase": "identity_check",
+   "t0": 31.121,
+   "t1": 32.53,
+   "wall": 1.409,
+   "cpu": 0.849
+  },
+  {
+   "run": 47,
+   "tid": 45088,
+   "phase": "instantiate",
+   "t0": 32.533,
+   "t1": 32.625,
+   "wall": 0.092,
+   "cpu": 0.081
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "guest_home",
+   "t0": 32.056,
+   "t1": 33.596,
+   "wall": 1.54,
+   "cpu": 0.568
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "check_module",
+   "t0": 33.672,
+   "t1": 33.675,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "private_make",
+   "t0": 33.686,
+   "t1": 34.026,
+   "wall": 0.34,
+   "cpu": 0.248,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "Thread.start",
+   "t0": 34.337,
+   "t1": 34.45,
+   "wall": 0.112,
+   "cpu": 0.039
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "thread_start",
+   "t0": 34.324,
+   "t1": 34.455,
+   "wall": 0.131,
+   "cpu": 0.057
+  },
+  {
+   "run": 43,
+   "tid": 80000,
+   "phase": "instantiate",
+   "t0": 34.432,
+   "t1": 34.53,
+   "wall": 0.098,
+   "cpu": 0.043
+  },
+  {
+   "run": 43,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 34.559,
+   "t1": 34.67,
+   "wall": 0.111,
+   "cpu": 0.104
+  },
+  {
+   "run": 43,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 34.682,
+   "t1": 34.749,
+   "wall": 0.067,
+   "cpu": 0.045
+  },
+  {
+   "run": 43,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 34.761,
+   "t1": 34.865,
+   "wall": 0.105,
+   "cpu": 0.089
+  },
+  {
+   "run": 43,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 34.901,
+   "t1": 34.934,
+   "wall": 0.033,
+   "cpu": 0.033
+  },
+  {
+   "run": 43,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 34.944,
+   "t1": 34.968,
+   "wall": 0.024,
+   "cpu": 0.024
+  },
+  {
+   "run": 43,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 34.974,
+   "t1": 35.104,
+   "wall": 0.13,
+   "cpu": 0.071
+  },
+  {
+   "run": 43,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 35.146,
+   "t1": 35.2,
+   "wall": 0.055,
+   "cpu": 0.054
+  },
+  {
+   "run": 43,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 35.219,
+   "t1": 35.295,
+   "wall": 0.076,
+   "cpu": 0.049
+  },
+  {
+   "run": 43,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 35.305,
+   "t1": 35.38,
+   "wall": 0.075,
+   "cpu": 0.056
+  },
+  {
+   "run": 43,
+   "tid": 80000,
+   "phase": "identity_check",
+   "t0": 34.432,
+   "t1": 35.409,
+   "wall": 0.978,
+   "cpu": 0.763
+  },
+  {
+   "run": 43,
+   "tid": 80000,
+   "phase": "instantiate",
+   "t0": 35.412,
+   "t1": 35.503,
+   "wall": 0.091,
+   "cpu": 0.074
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "zip",
+   "t0": 21.951,
+   "t1": 37.298,
+   "wall": 15.346,
+   "cpu": 3.771
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "preopens",
+   "t0": 21.944,
+   "t1": 38.336,
+   "wall": 16.391,
+   "cpu": 4.335
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "private_make",
+   "t0": 38.362,
+   "t1": 38.675,
+   "wall": 0.314,
+   "cpu": 0.277,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "guest_home",
+   "t0": 38.348,
+   "t1": 39.003,
+   "wall": 0.655,
+   "cpu": 0.486
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "check_module",
+   "t0": 39.077,
+   "t1": 39.08,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "private_make",
+   "t0": 39.093,
+   "t1": 39.339,
+   "wall": 0.246,
+   "cpu": 0.201,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 44,
+   "tid": 14912,
+   "phase": "instantiate",
+   "t0": 39.698,
+   "t1": 39.731,
+   "wall": 0.034,
+   "cpu": 0.034
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "Thread.start",
+   "t0": 39.624,
+   "t1": 39.886,
+   "wall": 0.262,
+   "cpu": 0.083
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "thread_start",
+   "t0": 39.609,
+   "t1": 39.896,
+   "wall": 0.287,
+   "cpu": 0.107
+  },
+  {
+   "run": 44,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 39.784,
+   "t1": 39.959,
+   "wall": 0.175,
+   "cpu": 0.124
+  },
+  {
+   "run": 44,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 39.973,
+   "t1": 40.052,
+   "wall": 0.079,
+   "cpu": 0.05
+  },
+  {
+   "run": 44,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 40.059,
+   "t1": 40.193,
+   "wall": 0.134,
+   "cpu": 0.082
+  },
+  {
+   "run": 44,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 40.219,
+   "t1": 40.247,
+   "wall": 0.027,
+   "cpu": 0.027
+  },
+  {
+   "run": 44,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 40.256,
+   "t1": 40.295,
+   "wall": 0.039,
+   "cpu": 0.036
+  },
+  {
+   "run": 44,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 40.304,
+   "t1": 40.344,
+   "wall": 0.041,
+   "cpu": 0.031
+  },
+  {
+   "run": 44,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 40.364,
+   "t1": 40.417,
+   "wall": 0.052,
+   "cpu": 0.037
+  },
+  {
+   "run": 44,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 40.426,
+   "t1": 40.472,
+   "wall": 0.046,
+   "cpu": 0.04
+  },
+  {
+   "run": 44,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 40.482,
+   "t1": 40.671,
+   "wall": 0.189,
+   "cpu": 0.102
+  },
+  {
+   "run": 44,
+   "tid": 14912,
+   "phase": "identity_check",
+   "t0": 39.697,
+   "t1": 40.698,
+   "wall": 1.001,
+   "cpu": 0.744
+  },
+  {
+   "run": 44,
+   "tid": 14912,
+   "phase": "instantiate",
+   "t0": 40.701,
+   "t1": 40.77,
+   "wall": 0.07,
+   "cpu": 0.07
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "zip",
+   "t0": 22.657,
+   "t1": 42.0,
+   "wall": 19.342,
+   "cpu": 3.463
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "preopens",
+   "t0": 22.654,
+   "t1": 43.446,
+   "wall": 20.793,
+   "cpu": 4.024
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "private_make",
+   "t0": 43.471,
+   "t1": 44.125,
+   "wall": 0.654,
+   "cpu": 0.295,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "guest_home",
+   "t0": 43.459,
+   "t1": 44.475,
+   "wall": 1.015,
+   "cpu": 0.483
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "check_module",
+   "t0": 44.538,
+   "t1": 44.541,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "private_make",
+   "t0": 44.553,
+   "t1": 44.924,
+   "wall": 0.371,
+   "cpu": 0.192,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 47,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 33.363,
+   "t1": 45.173,
+   "wall": 11.81,
+   "cpu": 11.605
+  },
+  {
+   "run": 47,
+   "tid": 45088,
+   "phase": "guest_body",
+   "t0": 30.943,
+   "t1": 45.193,
+   "wall": 14.249,
+   "cpu": 13.056
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "serve",
+   "t0": 31.341,
+   "t1": 45.413,
+   "wall": 14.072,
+   "cpu": 0.028
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "join",
+   "t0": 45.427,
+   "t1": 45.43,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "Thread.start",
+   "t0": 45.327,
+   "t1": 45.471,
+   "wall": 0.144,
+   "cpu": 0.045
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "thread_start",
+   "t0": 45.315,
+   "t1": 45.478,
+   "wall": 0.163,
+   "cpu": 0.063
+  },
+  {
+   "run": 46,
+   "tid": 49824,
+   "phase": "instantiate",
+   "t0": 45.391,
+   "t1": 45.692,
+   "wall": 0.301,
+   "cpu": 0.054
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "store_close",
+   "t0": 45.456,
+   "t1": 45.771,
+   "wall": 0.315,
+   "cpu": 0.315
+  },
+  {
+   "run": 46,
+   "tid": 49824,
+   "phase": "wasm_call",
+   "t0": 45.724,
+   "t1": 45.913,
+   "wall": 0.189,
+   "cpu": 0.097
+  },
+  {
+   "run": 46,
+   "tid": 49824,
+   "phase": "wasm_call",
+   "t0": 45.926,
+   "t1": 45.963,
+   "wall": 0.036,
+   "cpu": 0.036
+  },
+  {
+   "run": 46,
+   "tid": 49824,
+   "phase": "wasm_call",
+   "t0": 45.971,
+   "t1": 46.042,
+   "wall": 0.071,
+   "cpu": 0.043
+  },
+  {
+   "run": 46,
+   "tid": 49824,
+   "phase": "wasm_call",
+   "t0": 46.068,
+   "t1": 46.093,
+   "wall": 0.025,
+   "cpu": 0.025
+  },
+  {
+   "run": 46,
+   "tid": 49824,
+   "phase": "wasm_call",
+   "t0": 46.101,
+   "t1": 46.156,
+   "wall": 0.055,
+   "cpu": 0.046
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "zip",
+   "t0": 24.84,
+   "t1": 46.368,
+   "wall": 21.529,
+   "cpu": 3.256
+  },
+  {
+   "run": 46,
+   "tid": 49824,
+   "phase": "wasm_call",
+   "t0": 46.163,
+   "t1": 46.42,
+   "wall": 0.257,
+   "cpu": 0.063
+  },
+  {
+   "run": 46,
+   "tid": 49824,
+   "phase": "wasm_call",
+   "t0": 46.444,
+   "t1": 46.48,
+   "wall": 0.035,
+   "cpu": 0.035
+  },
+  {
+   "run": 46,
+   "tid": 49824,
+   "phase": "wasm_call",
+   "t0": 46.487,
+   "t1": 46.62,
+   "wall": 0.133,
+   "cpu": 0.122
+  },
+  {
+   "run": 46,
+   "tid": 49824,
+   "phase": "wasm_call",
+   "t0": 46.639,
+   "t1": 46.739,
+   "wall": 0.1,
+   "cpu": 0.058
+  },
+  {
+   "run": 46,
+   "tid": 49824,
+   "phase": "identity_check",
+   "t0": 45.391,
+   "t1": 46.773,
+   "wall": 1.382,
+   "cpu": 0.757
+  },
+  {
+   "run": 46,
+   "tid": 49824,
+   "phase": "instantiate",
+   "t0": 46.776,
+   "t1": 46.842,
+   "wall": 0.066,
+   "cpu": 0.066
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "private_remove",
+   "t0": 45.788,
+   "t1": 47.293,
+   "wall": 1.505,
+   "cpu": 0.635,
+   "prefix": "wasi-python-bdf1f"
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "release_step",
+   "t0": 45.456,
+   "t1": 47.296,
+   "wall": 1.841,
+   "cpu": 0.971
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "store_close",
+   "t0": 47.314,
+   "t1": 47.314,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 43,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 36.08,
+   "t1": 47.5,
+   "wall": 11.42,
+   "cpu": 11.114
+  },
+  {
+   "run": 43,
+   "tid": 80000,
+   "phase": "guest_body",
+   "t0": 34.411,
+   "t1": 47.512,
+   "wall": 13.101,
+   "cpu": 12.474
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "serve",
+   "t0": 34.457,
+   "t1": 47.544,
+   "wall": 13.087,
+   "cpu": 0.007
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "join",
+   "t0": 47.547,
+   "t1": 47.548,
+   "wall": 0.001,
+   "cpu": 0.001
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "store_close",
+   "t0": 47.561,
+   "t1": 47.897,
+   "wall": 0.336,
+   "cpu": 0.261
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "private_remove",
+   "t0": 47.318,
+   "t1": 48.298,
+   "wall": 0.98,
+   "cpu": 0.406,
+   "prefix": "wasi-python-b4aaa"
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "release_step",
+   "t0": 47.313,
+   "t1": 48.303,
+   "wall": 0.99,
+   "cpu": 0.416
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "store_close",
+   "t0": 48.307,
+   "t1": 48.308,
+   "wall": 0.001,
+   "cpu": 0.001
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "release_step",
+   "t0": 48.315,
+   "t1": 48.319,
+   "wall": 0.004,
+   "cpu": 0.004
+  },
+  {
+   "run": 47,
+   "tid": 57440,
+   "phase": "run",
+   "t0": 0.821,
+   "t1": 48.35,
+   "wall": 47.529,
+   "cpu": 13.132
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "private_remove",
+   "t0": 47.909,
+   "t1": 48.7,
+   "wall": 0.791,
+   "cpu": 0.526,
+   "prefix": "wasi-python-50999"
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "release_step",
+   "t0": 47.561,
+   "t1": 48.704,
+   "wall": 1.144,
+   "cpu": 0.804
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "store_close",
+   "t0": 48.721,
+   "t1": 48.721,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "preopens",
+   "t0": 24.837,
+   "t1": 49.163,
+   "wall": 24.327,
+   "cpu": 4.262
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "private_remove",
+   "t0": 48.724,
+   "t1": 49.203,
+   "wall": 0.479,
+   "cpu": 0.312,
+   "prefix": "wasi-python-a0b45"
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "release_step",
+   "t0": 48.721,
+   "t1": 49.206,
+   "wall": 0.485,
+   "cpu": 0.318
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "store_close",
+   "t0": 49.209,
+   "t1": 49.21,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "release_step",
+   "t0": 49.215,
+   "t1": 49.218,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 43,
+   "tid": 51968,
+   "phase": "run",
+   "t0": 0.261,
+   "t1": 49.243,
+   "wall": 48.982,
+   "cpu": 11.731
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "private_make",
+   "t0": 49.26,
+   "t1": 49.497,
+   "wall": 0.237,
+   "cpu": 0.215,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "guest_home",
+   "t0": 49.172,
+   "t1": 49.701,
+   "wall": 0.528,
+   "cpu": 0.381
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "check_module",
+   "t0": 49.79,
+   "t1": 49.793,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "private_make",
+   "t0": 49.806,
+   "t1": 50.011,
+   "wall": 0.205,
+   "cpu": 0.176,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "Thread.start",
+   "t0": 50.329,
+   "t1": 50.417,
+   "wall": 0.088,
+   "cpu": 0.045
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "thread_start",
+   "t0": 50.314,
+   "t1": 50.421,
+   "wall": 0.107,
+   "cpu": 0.063
+  },
+  {
+   "run": 45,
+   "tid": 45088,
+   "phase": "instantiate",
+   "t0": 50.406,
+   "t1": 50.456,
+   "wall": 0.05,
+   "cpu": 0.035
+  },
+  {
+   "run": 45,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 50.491,
+   "t1": 50.586,
+   "wall": 0.096,
+   "cpu": 0.092
+  },
+  {
+   "run": 45,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 50.601,
+   "t1": 50.658,
+   "wall": 0.058,
+   "cpu": 0.047
+  },
+  {
+   "run": 45,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 50.667,
+   "t1": 50.768,
+   "wall": 0.101,
+   "cpu": 0.064
+  },
+  {
+   "run": 45,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 50.793,
+   "t1": 50.829,
+   "wall": 0.036,
+   "cpu": 0.034
+  },
+  {
+   "run": 45,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 50.836,
+   "t1": 50.907,
+   "wall": 0.071,
+   "cpu": 0.052
+  },
+  {
+   "run": 45,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 50.916,
+   "t1": 50.998,
+   "wall": 0.082,
+   "cpu": 0.061
+  },
+  {
+   "run": 45,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 51.032,
+   "t1": 51.113,
+   "wall": 0.081,
+   "cpu": 0.077
+  },
+  {
+   "run": 45,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 51.126,
+   "t1": 51.182,
+   "wall": 0.056,
+   "cpu": 0.056
+  },
+  {
+   "run": 45,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 51.191,
+   "t1": 51.276,
+   "wall": 0.085,
+   "cpu": 0.064
+  },
+  {
+   "run": 45,
+   "tid": 45088,
+   "phase": "identity_check",
+   "t0": 50.405,
+   "t1": 51.353,
+   "wall": 0.947,
+   "cpu": 0.797
+  },
+  {
+   "run": 45,
+   "tid": 45088,
+   "phase": "instantiate",
+   "t0": 51.356,
+   "t1": 51.426,
+   "wall": 0.07,
+   "cpu": 0.07
+  },
+  {
+   "run": 44,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 41.382,
+   "t1": 52.916,
+   "wall": 11.533,
+   "cpu": 11.344
+  },
+  {
+   "run": 44,
+   "tid": 14912,
+   "phase": "guest_body",
+   "t0": 39.679,
+   "t1": 52.935,
+   "wall": 13.256,
+   "cpu": 12.72
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "serve",
+   "t0": 39.898,
+   "t1": 52.997,
+   "wall": 13.099,
+   "cpu": 0.021
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "join",
+   "t0": 53.0,
+   "t1": 53.001,
+   "wall": 0.001,
+   "cpu": 0.001
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "store_close",
+   "t0": 53.015,
+   "t1": 53.294,
+   "wall": 0.279,
+   "cpu": 0.279
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "zip",
+   "t0": 25.39,
+   "t1": 53.418,
+   "wall": 28.029,
+   "cpu": 4.368
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "private_remove",
+   "t0": 53.309,
+   "t1": 54.532,
+   "wall": 1.224,
+   "cpu": 0.643,
+   "prefix": "wasi-python-30cd4"
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "release_step",
+   "t0": 53.014,
+   "t1": 54.539,
+   "wall": 1.525,
+   "cpu": 0.944
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "store_close",
+   "t0": 54.559,
+   "t1": 54.56,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "preopens",
+   "t0": 25.382,
+   "t1": 55.145,
+   "wall": 29.763,
+   "cpu": 5.151
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "private_remove",
+   "t0": 54.563,
+   "t1": 55.343,
+   "wall": 0.78,
+   "cpu": 0.374,
+   "prefix": "wasi-python-6839f"
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "release_step",
+   "t0": 54.559,
+   "t1": 55.347,
+   "wall": 0.788,
+   "cpu": 0.382
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "store_close",
+   "t0": 55.35,
+   "t1": 55.351,
+   "wall": 0.001,
+   "cpu": 0.001
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "release_step",
+   "t0": 55.357,
+   "t1": 55.36,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 44,
+   "tid": 78336,
+   "phase": "run",
+   "t0": 0.451,
+   "t1": 55.39,
+   "wall": 54.939,
+   "cpu": 13.13
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "private_make",
+   "t0": 55.17,
+   "t1": 55.566,
+   "wall": 0.397,
+   "cpu": 0.292,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "guest_home",
+   "t0": 55.158,
+   "t1": 55.878,
+   "wall": 0.72,
+   "cpu": 0.527
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "check_module",
+   "t0": 56.017,
+   "t1": 56.022,
+   "wall": 0.005,
+   "cpu": 0.005
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "private_make",
+   "t0": 56.048,
+   "t1": 56.436,
+   "wall": 0.388,
+   "cpu": 0.256,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "Thread.start",
+   "t0": 57.006,
+   "t1": 57.096,
+   "wall": 0.09,
+   "cpu": 0.048
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "thread_start",
+   "t0": 56.99,
+   "t1": 57.1,
+   "wall": 0.11,
+   "cpu": 0.068
+  },
+  {
+   "run": 48,
+   "tid": 80000,
+   "phase": "instantiate",
+   "t0": 57.08,
+   "t1": 57.159,
+   "wall": 0.079,
+   "cpu": 0.061
+  },
+  {
+   "run": 48,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 57.199,
+   "t1": 57.335,
+   "wall": 0.136,
+   "cpu": 0.106
+  },
+  {
+   "run": 48,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 57.351,
+   "t1": 57.418,
+   "wall": 0.067,
+   "cpu": 0.06
+  },
+  {
+   "run": 48,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 57.428,
+   "t1": 57.507,
+   "wall": 0.079,
+   "cpu": 0.06
+  },
+  {
+   "run": 48,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 57.533,
+   "t1": 57.58,
+   "wall": 0.047,
+   "cpu": 0.033
+  },
+  {
+   "run": 48,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 57.587,
+   "t1": 57.656,
+   "wall": 0.068,
+   "cpu": 0.049
+  },
+  {
+   "run": 48,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 57.666,
+   "t1": 57.75,
+   "wall": 0.083,
+   "cpu": 0.052
+  },
+  {
+   "run": 48,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 57.771,
+   "t1": 57.826,
+   "wall": 0.054,
+   "cpu": 0.037
+  },
+  {
+   "run": 48,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 57.834,
+   "t1": 57.89,
+   "wall": 0.056,
+   "cpu": 0.044
+  },
+  {
+   "run": 48,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 57.902,
+   "t1": 57.993,
+   "wall": 0.091,
+   "cpu": 0.056
+  },
+  {
+   "run": 48,
+   "tid": 80000,
+   "phase": "identity_check",
+   "t0": 57.079,
+   "t1": 58.034,
+   "wall": 0.954,
+   "cpu": 0.74
+  },
+  {
+   "run": 48,
+   "tid": 80000,
+   "phase": "instantiate",
+   "t0": 58.036,
+   "t1": 58.106,
+   "wall": 0.07,
+   "cpu": 0.066
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "zip",
+   "t0": 25.444,
+   "t1": 59.064,
+   "wall": 33.62,
+   "cpu": 4.286
+  },
+  {
+   "run": 46,
+   "tid": 49824,
+   "phase": "wasm_call",
+   "t0": 47.847,
+   "t1": 59.228,
+   "wall": 11.381,
+   "cpu": 11.306
+  },
+  {
+   "run": 46,
+   "tid": 49824,
+   "phase": "guest_body",
+   "t0": 45.377,
+   "t1": 59.248,
+   "wall": 13.871,
+   "cpu": 12.77
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "serve",
+   "t0": 45.48,
+   "t1": 59.335,
+   "wall": 13.856,
+   "cpu": 0.031
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "join",
+   "t0": 59.338,
+   "t1": 59.34,
+   "wall": 0.002,
+   "cpu": 0.001
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "store_close",
+   "t0": 59.355,
+   "t1": 59.739,
+   "wall": 0.384,
+   "cpu": 0.34
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "preopens",
+   "t0": 25.441,
+   "t1": 60.921,
+   "wall": 35.48,
+   "cpu": 4.992
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "private_remove",
+   "t0": 59.756,
+   "t1": 61.11,
+   "wall": 1.355,
+   "cpu": 0.642,
+   "prefix": "wasi-python-09c33"
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "release_step",
+   "t0": 59.355,
+   "t1": 61.117,
+   "wall": 1.762,
+   "cpu": 1.005
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "store_close",
+   "t0": 61.14,
+   "t1": 61.141,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "private_make",
+   "t0": 60.951,
+   "t1": 61.403,
+   "wall": 0.452,
+   "cpu": 0.368,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "private_remove",
+   "t0": 61.145,
+   "t1": 61.543,
+   "wall": 0.398,
+   "cpu": 0.344,
+   "prefix": "wasi-python-81586"
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "release_step",
+   "t0": 61.14,
+   "t1": 61.546,
+   "wall": 0.406,
+   "cpu": 0.352
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "store_close",
+   "t0": 61.549,
+   "t1": 61.549,
+   "wall": 0.001,
+   "cpu": 0.0
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "release_step",
+   "t0": 61.555,
+   "t1": 61.559,
+   "wall": 0.003,
+   "cpu": 0.004
+  },
+  {
+   "run": 46,
+   "tid": 31072,
+   "phase": "run",
+   "t0": 0.669,
+   "t1": 61.597,
+   "wall": 60.928,
+   "cpu": 12.744
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "guest_home",
+   "t0": 60.937,
+   "t1": 61.83,
+   "wall": 0.893,
+   "cpu": 0.63
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "check_module",
+   "t0": 61.948,
+   "t1": 61.951,
+   "wall": 0.004,
+   "cpu": 0.004
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "private_make",
+   "t0": 61.97,
+   "t1": 62.321,
+   "wall": 0.35,
+   "cpu": 0.302,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "Thread.start",
+   "t0": 62.727,
+   "t1": 62.838,
+   "wall": 0.111,
+   "cpu": 0.044
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "thread_start",
+   "t0": 62.71,
+   "t1": 62.842,
+   "wall": 0.132,
+   "cpu": 0.064
+  },
+  {
+   "run": 42,
+   "tid": 14912,
+   "phase": "instantiate",
+   "t0": 62.878,
+   "t1": 62.924,
+   "wall": 0.046,
+   "cpu": 0.046
+  },
+  {
+   "run": 42,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 62.979,
+   "t1": 63.157,
+   "wall": 0.178,
+   "cpu": 0.147
+  },
+  {
+   "run": 42,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 63.177,
+   "t1": 63.297,
+   "wall": 0.12,
+   "cpu": 0.101
+  },
+  {
+   "run": 42,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 63.31,
+   "t1": 63.465,
+   "wall": 0.155,
+   "cpu": 0.112
+  },
+  {
+   "run": 42,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 63.502,
+   "t1": 63.527,
+   "wall": 0.025,
+   "cpu": 0.025
+  },
+  {
+   "run": 42,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 63.535,
+   "t1": 63.574,
+   "wall": 0.038,
+   "cpu": 0.038
+  },
+  {
+   "run": 42,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 63.583,
+   "t1": 63.716,
+   "wall": 0.132,
+   "cpu": 0.108
+  },
+  {
+   "run": 45,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 51.891,
+   "t1": 63.796,
+   "wall": 11.905,
+   "cpu": 11.737
+  },
+  {
+   "run": 45,
+   "tid": 45088,
+   "phase": "guest_body",
+   "t0": 50.379,
+   "t1": 63.816,
+   "wall": 13.437,
+   "cpu": 13.095
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "serve",
+   "t0": 50.423,
+   "t1": 63.878,
+   "wall": 13.455,
+   "cpu": 0.021
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "join",
+   "t0": 63.884,
+   "t1": 63.892,
+   "wall": 0.007,
+   "cpu": 0.004
+  },
+  {
+   "run": 42,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 63.747,
+   "t1": 63.965,
+   "wall": 0.218,
+   "cpu": 0.09
+  },
+  {
+   "run": 42,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 63.976,
+   "t1": 64.042,
+   "wall": 0.066,
+   "cpu": 0.05
+  },
+  {
+   "run": 42,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 64.052,
+   "t1": 64.142,
+   "wall": 0.09,
+   "cpu": 0.054
+  },
+  {
+   "run": 42,
+   "tid": 14912,
+   "phase": "identity_check",
+   "t0": 62.876,
+   "t1": 64.176,
+   "wall": 1.3,
+   "cpu": 1.001
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "store_close",
+   "t0": 63.917,
+   "t1": 64.191,
+   "wall": 0.275,
+   "cpu": 0.269
+  },
+  {
+   "run": 42,
+   "tid": 14912,
+   "phase": "instantiate",
+   "t0": 64.179,
+   "t1": 64.277,
+   "wall": 0.098,
+   "cpu": 0.086
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "private_remove",
+   "t0": 64.207,
+   "t1": 65.612,
+   "wall": 1.405,
+   "cpu": 0.677,
+   "prefix": "wasi-python-f18a0"
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "release_step",
+   "t0": 63.916,
+   "t1": 65.62,
+   "wall": 1.704,
+   "cpu": 0.969
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "store_close",
+   "t0": 65.644,
+   "t1": 65.645,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "private_remove",
+   "t0": 65.649,
+   "t1": 66.169,
+   "wall": 0.52,
+   "cpu": 0.377,
+   "prefix": "wasi-python-6b7a0"
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "release_step",
+   "t0": 65.644,
+   "t1": 66.174,
+   "wall": 0.53,
+   "cpu": 0.387
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "store_close",
+   "t0": 66.178,
+   "t1": 66.178,
+   "wall": 0.001,
+   "cpu": 0.001
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "release_step",
+   "t0": 66.187,
+   "t1": 66.192,
+   "wall": 0.005,
+   "cpu": 0.005
+  },
+  {
+   "run": 45,
+   "tid": 4704,
+   "phase": "run",
+   "t0": 0.551,
+   "t1": 66.247,
+   "wall": 65.697,
+   "cpu": 13.267
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "zip",
+   "t0": 25.78,
+   "t1": 66.429,
+   "wall": 40.649,
+   "cpu": 4.947
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "preopens",
+   "t0": 25.774,
+   "t1": 66.679,
+   "wall": 40.905,
+   "cpu": 5.2
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "private_make",
+   "t0": 66.702,
+   "t1": 66.931,
+   "wall": 0.229,
+   "cpu": 0.229,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "guest_home",
+   "t0": 66.691,
+   "t1": 67.136,
+   "wall": 0.445,
+   "cpu": 0.401
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "check_module",
+   "t0": 67.218,
+   "t1": 67.222,
+   "wall": 0.004,
+   "cpu": 0.004
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "private_make",
+   "t0": 67.236,
+   "t1": 67.423,
+   "wall": 0.187,
+   "cpu": 0.187,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "Thread.start",
+   "t0": 67.696,
+   "t1": 67.826,
+   "wall": 0.13,
+   "cpu": 0.079
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "thread_start",
+   "t0": 67.676,
+   "t1": 67.853,
+   "wall": 0.177,
+   "cpu": 0.111
+  },
+  {
+   "run": 49,
+   "tid": 45088,
+   "phase": "instantiate",
+   "t0": 67.794,
+   "t1": 67.885,
+   "wall": 0.091,
+   "cpu": 0.055
+  },
+  {
+   "run": 49,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 67.917,
+   "t1": 68.017,
+   "wall": 0.1,
+   "cpu": 0.1
+  },
+  {
+   "run": 49,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 68.051,
+   "t1": 68.079,
+   "wall": 0.028,
+   "cpu": 0.028
+  },
+  {
+   "run": 49,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 68.087,
+   "t1": 68.206,
+   "wall": 0.119,
+   "cpu": 0.055
+  },
+  {
+   "run": 49,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 68.239,
+   "t1": 68.258,
+   "wall": 0.019,
+   "cpu": 0.019
+  },
+  {
+   "run": 49,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 68.264,
+   "t1": 68.285,
+   "wall": 0.021,
+   "cpu": 0.021
+  },
+  {
+   "run": 49,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 68.291,
+   "t1": 68.335,
+   "wall": 0.044,
+   "cpu": 0.036
+  },
+  {
+   "run": 49,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 68.358,
+   "t1": 68.383,
+   "wall": 0.025,
+   "cpu": 0.025
+  },
+  {
+   "run": 49,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 68.392,
+   "t1": 68.416,
+   "wall": 0.024,
+   "cpu": 0.024
+  },
+  {
+   "run": 49,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 68.422,
+   "t1": 68.503,
+   "wall": 0.081,
+   "cpu": 0.067
+  },
+  {
+   "run": 49,
+   "tid": 45088,
+   "phase": "identity_check",
+   "t0": 67.793,
+   "t1": 68.549,
+   "wall": 0.756,
+   "cpu": 0.614
+  },
+  {
+   "run": 49,
+   "tid": 45088,
+   "phase": "instantiate",
+   "t0": 68.551,
+   "t1": 68.636,
+   "wall": 0.085,
+   "cpu": 0.085
+  },
+  {
+   "run": 48,
+   "tid": 80000,
+   "phase": "wasm_call",
+   "t0": 58.57,
+   "t1": 70.997,
+   "wall": 12.427,
+   "cpu": 11.816
+  },
+  {
+   "run": 48,
+   "tid": 80000,
+   "phase": "guest_body",
+   "t0": 57.06,
+   "t1": 71.024,
+   "wall": 13.964,
+   "cpu": 13.114
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "serve",
+   "t0": 57.103,
+   "t1": 71.093,
+   "wall": 13.99,
+   "cpu": 0.029
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "join",
+   "t0": 71.096,
+   "t1": 71.098,
+   "wall": 0.002,
+   "cpu": 0.002
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "store_close",
+   "t0": 71.114,
+   "t1": 71.498,
+   "wall": 0.384,
+   "cpu": 0.367
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "private_remove",
+   "t0": 71.532,
+   "t1": 72.171,
+   "wall": 0.64,
+   "cpu": 0.558,
+   "prefix": "wasi-python-1a93f"
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "release_step",
+   "t0": 71.113,
+   "t1": 72.177,
+   "wall": 1.064,
+   "cpu": 0.959
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "store_close",
+   "t0": 72.2,
+   "t1": 72.201,
+   "wall": 0.001,
+   "cpu": 0.001
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "private_remove",
+   "t0": 72.205,
+   "t1": 72.63,
+   "wall": 0.425,
+   "cpu": 0.372,
+   "prefix": "wasi-python-56ddd"
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "release_step",
+   "t0": 72.199,
+   "t1": 72.638,
+   "wall": 0.439,
+   "cpu": 0.385
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "store_close",
+   "t0": 72.644,
+   "t1": 72.645,
+   "wall": 0.001,
+   "cpu": 0.001
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "release_step",
+   "t0": 72.665,
+   "t1": 72.669,
+   "wall": 0.004,
+   "cpu": 0.004
+  },
+  {
+   "run": 48,
+   "tid": 83808,
+   "phase": "run",
+   "t0": 1.224,
+   "t1": 72.715,
+   "wall": 71.491,
+   "cpu": 14.368
+  },
+  {
+   "run": 42,
+   "tid": 14912,
+   "phase": "wasm_call",
+   "t0": 64.994,
+   "t1": 78.659,
+   "wall": 13.665,
+   "cpu": 12.892
+  },
+  {
+   "run": 42,
+   "tid": 14912,
+   "phase": "guest_body",
+   "t0": 62.825,
+   "t1": 78.698,
+   "wall": 15.873,
+   "cpu": 14.678
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "serve",
+   "t0": 62.844,
+   "t1": 78.726,
+   "wall": 15.881,
+   "cpu": 0.024
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "join",
+   "t0": 78.74,
+   "t1": 78.743,
+   "wall": 0.004,
+   "cpu": 0.004
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "store_close",
+   "t0": 78.793,
+   "t1": 79.137,
+   "wall": 0.343,
+   "cpu": 0.331
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "private_remove",
+   "t0": 79.154,
+   "t1": 79.636,
+   "wall": 0.482,
+   "cpu": 0.482,
+   "prefix": "wasi-python-666ea"
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "release_step",
+   "t0": 78.792,
+   "t1": 79.64,
+   "wall": 0.847,
+   "cpu": 0.835
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "store_close",
+   "t0": 79.664,
+   "t1": 79.664,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "private_remove",
+   "t0": 79.668,
+   "t1": 79.857,
+   "wall": 0.189,
+   "cpu": 0.189,
+   "prefix": "wasi-python-7fb27"
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "release_step",
+   "t0": 79.663,
+   "t1": 79.86,
+   "wall": 0.196,
+   "cpu": 0.196
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "store_close",
+   "t0": 79.863,
+   "t1": 79.863,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "release_step",
+   "t0": 79.869,
+   "t1": 79.872,
+   "wall": 0.004,
+   "cpu": 0.004
+  },
+  {
+   "run": 42,
+   "tid": 25600,
+   "phase": "run",
+   "t0": 0.123,
+   "t1": 79.905,
+   "wall": 79.782,
+   "cpu": 14.067
+  },
+  {
+   "run": 49,
+   "tid": 45088,
+   "phase": "wasm_call",
+   "t0": 69.084,
+   "t1": 82.088,
+   "wall": 13.003,
+   "cpu": 12.298
+  },
+  {
+   "run": 49,
+   "tid": 45088,
+   "phase": "guest_body",
+   "t0": 67.777,
+   "t1": 82.106,
+   "wall": 14.328,
+   "cpu": 13.465
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "serve",
+   "t0": 67.856,
+   "t1": 82.132,
+   "wall": 14.276,
+   "cpu": 0.015
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "join",
+   "t0": 82.141,
+   "t1": 82.144,
+   "wall": 0.002,
+   "cpu": 0.002
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "store_close",
+   "t0": 82.162,
+   "t1": 82.43,
+   "wall": 0.268,
+   "cpu": 0.268
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "private_remove",
+   "t0": 82.445,
+   "t1": 82.826,
+   "wall": 0.382,
+   "cpu": 0.382,
+   "prefix": "wasi-python-00027"
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "release_step",
+   "t0": 82.161,
+   "t1": 82.831,
+   "wall": 0.669,
+   "cpu": 0.669
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "store_close",
+   "t0": 82.85,
+   "t1": 82.851,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "private_remove",
+   "t0": 82.854,
+   "t1": 83.018,
+   "wall": 0.164,
+   "cpu": 0.164,
+   "prefix": "wasi-python-f3a95"
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "release_step",
+   "t0": 82.85,
+   "t1": 83.021,
+   "wall": 0.171,
+   "cpu": 0.171
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "store_close",
+   "t0": 83.024,
+   "t1": 83.024,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "release_step",
+   "t0": 83.03,
+   "t1": 83.033,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 49,
+   "tid": 10176,
+   "phase": "run",
+   "t0": 1.429,
+   "t1": 83.061,
+   "wall": 81.633,
+   "cpu": 13.685
+  }
+ ],
+ "events_sequential": [
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "artifacts",
+   "t0": 0.067,
+   "t1": 0.436,
+   "wall": 0.369,
+   "cpu": 0.369
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "walk",
+   "t0": 0.493,
+   "t1": 1.695,
+   "wall": 1.202,
+   "cpu": 1.186
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "engine",
+   "t0": 1.733,
+   "t1": 1.74,
+   "wall": 0.006,
+   "cpu": 0.006
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "module",
+   "t0": 1.743,
+   "t1": 1.747,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "sweep",
+   "t0": 1.75,
+   "t1": 1.751,
+   "wall": 0.002,
+   "cpu": 0.002
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "zip",
+   "t0": 1.753,
+   "t1": 11.084,
+   "wall": 9.331,
+   "cpu": 4.1
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "preopens",
+   "t0": 1.749,
+   "t1": 11.381,
+   "wall": 9.632,
+   "cpu": 4.379
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "private_make",
+   "t0": 11.417,
+   "t1": 11.642,
+   "wall": 0.225,
+   "cpu": 0.225,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "guest_home",
+   "t0": 11.405,
+   "t1": 11.73,
+   "wall": 0.325,
+   "cpu": 0.325
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "check_module",
+   "t0": 11.81,
+   "t1": 11.814,
+   "wall": 0.004,
+   "cpu": 0.003
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "private_make",
+   "t0": 11.829,
+   "t1": 11.987,
+   "wall": 0.159,
+   "cpu": 0.159,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "Thread.start",
+   "t0": 12.227,
+   "t1": 12.333,
+   "wall": 0.105,
+   "cpu": 0.042
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "thread_start",
+   "t0": 12.207,
+   "t1": 12.338,
+   "wall": 0.132,
+   "cpu": 0.068
+  },
+  {
+   "run": 34,
+   "tid": 34144,
+   "phase": "instantiate",
+   "t0": 12.307,
+   "t1": 12.35,
+   "wall": 0.043,
+   "cpu": 0.043
+  },
+  {
+   "run": 34,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 12.389,
+   "t1": 12.481,
+   "wall": 0.092,
+   "cpu": 0.092
+  },
+  {
+   "run": 34,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 12.498,
+   "t1": 12.525,
+   "wall": 0.027,
+   "cpu": 0.027
+  },
+  {
+   "run": 34,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 12.532,
+   "t1": 12.576,
+   "wall": 0.044,
+   "cpu": 0.036
+  },
+  {
+   "run": 34,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 12.6,
+   "t1": 12.617,
+   "wall": 0.017,
+   "cpu": 0.017
+  },
+  {
+   "run": 34,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 12.623,
+   "t1": 12.647,
+   "wall": 0.024,
+   "cpu": 0.024
+  },
+  {
+   "run": 34,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 12.652,
+   "t1": 12.692,
+   "wall": 0.04,
+   "cpu": 0.034
+  },
+  {
+   "run": 34,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 12.717,
+   "t1": 12.745,
+   "wall": 0.028,
+   "cpu": 0.028
+  },
+  {
+   "run": 34,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 12.752,
+   "t1": 12.777,
+   "wall": 0.025,
+   "cpu": 0.025
+  },
+  {
+   "run": 34,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 12.783,
+   "t1": 12.863,
+   "wall": 0.079,
+   "cpu": 0.063
+  },
+  {
+   "run": 34,
+   "tid": 34144,
+   "phase": "identity_check",
+   "t0": 12.305,
+   "t1": 12.92,
+   "wall": 0.615,
+   "cpu": 0.583
+  },
+  {
+   "run": 34,
+   "tid": 34144,
+   "phase": "instantiate",
+   "t0": 12.924,
+   "t1": 13.017,
+   "wall": 0.093,
+   "cpu": 0.093
+  },
+  {
+   "run": 34,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 13.388,
+   "t1": 24.505,
+   "wall": 11.117,
+   "cpu": 11.071
+  },
+  {
+   "run": 34,
+   "tid": 34144,
+   "phase": "guest_body",
+   "t0": 12.276,
+   "t1": 24.548,
+   "wall": 12.272,
+   "cpu": 12.191
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "serve",
+   "t0": 12.341,
+   "t1": 24.611,
+   "wall": 12.27,
+   "cpu": 0.015
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "join",
+   "t0": 24.618,
+   "t1": 24.621,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 24.644,
+   "t1": 24.898,
+   "wall": 0.254,
+   "cpu": 0.254
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "private_remove",
+   "t0": 24.911,
+   "t1": 25.296,
+   "wall": 0.384,
+   "cpu": 0.384,
+   "prefix": "wasi-python-a9087"
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 24.644,
+   "t1": 25.3,
+   "wall": 0.656,
+   "cpu": 0.656
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 25.321,
+   "t1": 25.321,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "private_remove",
+   "t0": 25.325,
+   "t1": 25.476,
+   "wall": 0.152,
+   "cpu": 0.152,
+   "prefix": "wasi-python-3feb4"
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 25.32,
+   "t1": 25.479,
+   "wall": 0.159,
+   "cpu": 0.159
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 25.482,
+   "t1": 25.482,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 25.496,
+   "t1": 25.499,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 34,
+   "tid": 60448,
+   "phase": "run",
+   "t0": 0.004,
+   "t1": 25.527,
+   "wall": 25.523,
+   "cpu": 7.915
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "artifacts",
+   "t0": 25.583,
+   "t1": 25.89,
+   "wall": 0.307,
+   "cpu": 0.307
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "walk",
+   "t0": 25.939,
+   "t1": 27.057,
+   "wall": 1.118,
+   "cpu": 1.118
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "engine",
+   "t0": 27.068,
+   "t1": 27.076,
+   "wall": 0.007,
+   "cpu": 0.007
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "module",
+   "t0": 27.078,
+   "t1": 27.081,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "sweep",
+   "t0": 27.084,
+   "t1": 27.085,
+   "wall": 0.002,
+   "cpu": 0.002
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "zip",
+   "t0": 27.087,
+   "t1": 29.823,
+   "wall": 2.736,
+   "cpu": 2.685
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "preopens",
+   "t0": 27.083,
+   "t1": 30.026,
+   "wall": 2.944,
+   "cpu": 2.892
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "private_make",
+   "t0": 30.061,
+   "t1": 30.27,
+   "wall": 0.21,
+   "cpu": 0.21,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "guest_home",
+   "t0": 30.047,
+   "t1": 30.353,
+   "wall": 0.306,
+   "cpu": 0.306
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "check_module",
+   "t0": 30.42,
+   "t1": 30.423,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "private_make",
+   "t0": 30.435,
+   "t1": 30.577,
+   "wall": 0.143,
+   "cpu": 0.143,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "Thread.start",
+   "t0": 30.8,
+   "t1": 30.876,
+   "wall": 0.076,
+   "cpu": 0.05
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "thread_start",
+   "t0": 30.78,
+   "t1": 30.882,
+   "wall": 0.101,
+   "cpu": 0.075
+  },
+  {
+   "run": 35,
+   "tid": 34144,
+   "phase": "instantiate",
+   "t0": 30.901,
+   "t1": 30.946,
+   "wall": 0.044,
+   "cpu": 0.044
+  },
+  {
+   "run": 35,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 30.983,
+   "t1": 31.077,
+   "wall": 0.094,
+   "cpu": 0.094
+  },
+  {
+   "run": 35,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 31.092,
+   "t1": 31.118,
+   "wall": 0.026,
+   "cpu": 0.026
+  },
+  {
+   "run": 35,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 31.125,
+   "t1": 31.167,
+   "wall": 0.042,
+   "cpu": 0.036
+  },
+  {
+   "run": 35,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 31.19,
+   "t1": 31.206,
+   "wall": 0.017,
+   "cpu": 0.017
+  },
+  {
+   "run": 35,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 31.211,
+   "t1": 31.232,
+   "wall": 0.021,
+   "cpu": 0.021
+  },
+  {
+   "run": 35,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 31.237,
+   "t1": 31.267,
+   "wall": 0.029,
+   "cpu": 0.026
+  },
+  {
+   "run": 35,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 31.282,
+   "t1": 31.299,
+   "wall": 0.017,
+   "cpu": 0.017
+  },
+  {
+   "run": 35,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 31.304,
+   "t1": 31.324,
+   "wall": 0.02,
+   "cpu": 0.021
+  },
+  {
+   "run": 35,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 31.33,
+   "t1": 31.357,
+   "wall": 0.028,
+   "cpu": 0.023
+  },
+  {
+   "run": 35,
+   "tid": 34144,
+   "phase": "identity_check",
+   "t0": 30.9,
+   "t1": 31.379,
+   "wall": 0.479,
+   "cpu": 0.464
+  },
+  {
+   "run": 35,
+   "tid": 34144,
+   "phase": "instantiate",
+   "t0": 31.382,
+   "t1": 31.444,
+   "wall": 0.063,
+   "cpu": 0.065
+  },
+  {
+   "run": 35,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 31.788,
+   "t1": 42.898,
+   "wall": 11.111,
+   "cpu": 11.056
+  },
+  {
+   "run": 35,
+   "tid": 34144,
+   "phase": "guest_body",
+   "t0": 30.862,
+   "t1": 42.924,
+   "wall": 12.063,
+   "cpu": 11.978
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "serve",
+   "t0": 30.884,
+   "t1": 42.989,
+   "wall": 12.106,
+   "cpu": 0.017
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "join",
+   "t0": 42.999,
+   "t1": 43.001,
+   "wall": 0.002,
+   "cpu": 0.003
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 43.029,
+   "t1": 43.324,
+   "wall": 0.294,
+   "cpu": 0.294
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "private_remove",
+   "t0": 43.336,
+   "t1": 43.753,
+   "wall": 0.417,
+   "cpu": 0.418,
+   "prefix": "wasi-python-3f66f"
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 43.028,
+   "t1": 43.761,
+   "wall": 0.733,
+   "cpu": 0.733
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 43.782,
+   "t1": 43.782,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "private_remove",
+   "t0": 43.786,
+   "t1": 43.948,
+   "wall": 0.162,
+   "cpu": 0.163,
+   "prefix": "wasi-python-e423c"
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 43.781,
+   "t1": 43.951,
+   "wall": 0.17,
+   "cpu": 0.17
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 43.954,
+   "t1": 43.954,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 43.971,
+   "t1": 43.974,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 35,
+   "tid": 60448,
+   "phase": "run",
+   "t0": 25.533,
+   "t1": 44.007,
+   "wall": 18.475,
+   "cpu": 6.308
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "artifacts",
+   "t0": 44.07,
+   "t1": 44.383,
+   "wall": 0.313,
+   "cpu": 0.313
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "walk",
+   "t0": 44.434,
+   "t1": 45.633,
+   "wall": 1.199,
+   "cpu": 1.194
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "engine",
+   "t0": 45.654,
+   "t1": 45.66,
+   "wall": 0.006,
+   "cpu": 0.006
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "module",
+   "t0": 45.663,
+   "t1": 45.667,
+   "wall": 0.004,
+   "cpu": 0.004
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "sweep",
+   "t0": 45.67,
+   "t1": 45.672,
+   "wall": 0.002,
+   "cpu": 0.002
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "zip",
+   "t0": 45.674,
+   "t1": 48.328,
+   "wall": 2.653,
+   "cpu": 2.639
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "preopens",
+   "t0": 45.669,
+   "t1": 48.588,
+   "wall": 2.919,
+   "cpu": 2.892
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "private_make",
+   "t0": 48.62,
+   "t1": 48.94,
+   "wall": 0.32,
+   "cpu": 0.255,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "guest_home",
+   "t0": 48.608,
+   "t1": 49.033,
+   "wall": 0.425,
+   "cpu": 0.359
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "check_module",
+   "t0": 49.105,
+   "t1": 49.108,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "private_make",
+   "t0": 49.121,
+   "t1": 49.293,
+   "wall": 0.172,
+   "cpu": 0.172,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "Thread.start",
+   "t0": 49.537,
+   "t1": 49.626,
+   "wall": 0.089,
+   "cpu": 0.043
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "thread_start",
+   "t0": 49.519,
+   "t1": 49.631,
+   "wall": 0.112,
+   "cpu": 0.066
+  },
+  {
+   "run": 36,
+   "tid": 34144,
+   "phase": "instantiate",
+   "t0": 49.611,
+   "t1": 49.652,
+   "wall": 0.041,
+   "cpu": 0.041
+  },
+  {
+   "run": 36,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 49.686,
+   "t1": 49.772,
+   "wall": 0.086,
+   "cpu": 0.086
+  },
+  {
+   "run": 36,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 49.787,
+   "t1": 49.814,
+   "wall": 0.027,
+   "cpu": 0.027
+  },
+  {
+   "run": 36,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 49.821,
+   "t1": 49.866,
+   "wall": 0.045,
+   "cpu": 0.039
+  },
+  {
+   "run": 36,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 49.894,
+   "t1": 49.912,
+   "wall": 0.018,
+   "cpu": 0.018
+  },
+  {
+   "run": 36,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 49.918,
+   "t1": 49.939,
+   "wall": 0.022,
+   "cpu": 0.022
+  },
+  {
+   "run": 36,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 49.944,
+   "t1": 49.974,
+   "wall": 0.029,
+   "cpu": 0.024
+  },
+  {
+   "run": 36,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 49.989,
+   "t1": 50.006,
+   "wall": 0.016,
+   "cpu": 0.016
+  },
+  {
+   "run": 36,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 50.01,
+   "t1": 50.031,
+   "wall": 0.021,
+   "cpu": 0.021
+  },
+  {
+   "run": 36,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 50.037,
+   "t1": 50.077,
+   "wall": 0.04,
+   "cpu": 0.035
+  },
+  {
+   "run": 36,
+   "tid": 34144,
+   "phase": "identity_check",
+   "t0": 49.61,
+   "t1": 50.103,
+   "wall": 0.493,
+   "cpu": 0.477
+  },
+  {
+   "run": 36,
+   "tid": 34144,
+   "phase": "instantiate",
+   "t0": 50.105,
+   "t1": 50.166,
+   "wall": 0.061,
+   "cpu": 0.061
+  },
+  {
+   "run": 36,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 50.499,
+   "t1": 61.494,
+   "wall": 10.995,
+   "cpu": 10.919
+  },
+  {
+   "run": 36,
+   "tid": 34144,
+   "phase": "guest_body",
+   "t0": 49.59,
+   "t1": 61.518,
+   "wall": 11.927,
+   "cpu": 11.835
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "serve",
+   "t0": 49.633,
+   "t1": 61.548,
+   "wall": 11.915,
+   "cpu": 0.022
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "join",
+   "t0": 61.562,
+   "t1": 61.566,
+   "wall": 0.004,
+   "cpu": 0.004
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 61.596,
+   "t1": 61.932,
+   "wall": 0.335,
+   "cpu": 0.315
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "private_remove",
+   "t0": 61.946,
+   "t1": 62.324,
+   "wall": 0.378,
+   "cpu": 0.378,
+   "prefix": "wasi-python-3821c"
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 61.595,
+   "t1": 62.329,
+   "wall": 0.733,
+   "cpu": 0.712
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 62.351,
+   "t1": 62.351,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "private_remove",
+   "t0": 62.357,
+   "t1": 62.51,
+   "wall": 0.153,
+   "cpu": 0.153,
+   "prefix": "wasi-python-624d4"
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 62.351,
+   "t1": 62.512,
+   "wall": 0.162,
+   "cpu": 0.162
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 62.515,
+   "t1": 62.516,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 62.529,
+   "t1": 62.532,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 36,
+   "tid": 60448,
+   "phase": "run",
+   "t0": 44.013,
+   "t1": 62.561,
+   "wall": 18.548,
+   "cpu": 6.488
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "artifacts",
+   "t0": 62.617,
+   "t1": 62.912,
+   "wall": 0.295,
+   "cpu": 0.295
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "walk",
+   "t0": 62.959,
+   "t1": 64.059,
+   "wall": 1.1,
+   "cpu": 1.1
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "engine",
+   "t0": 64.07,
+   "t1": 64.074,
+   "wall": 0.004,
+   "cpu": 0.004
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "module",
+   "t0": 64.077,
+   "t1": 64.079,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "sweep",
+   "t0": 64.082,
+   "t1": 64.084,
+   "wall": 0.002,
+   "cpu": 0.002
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "zip",
+   "t0": 64.085,
+   "t1": 66.52,
+   "wall": 2.435,
+   "cpu": 2.435
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "preopens",
+   "t0": 64.081,
+   "t1": 66.694,
+   "wall": 2.613,
+   "cpu": 2.613
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "private_make",
+   "t0": 66.718,
+   "t1": 66.897,
+   "wall": 0.179,
+   "cpu": 0.179,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "guest_home",
+   "t0": 66.707,
+   "t1": 66.976,
+   "wall": 0.269,
+   "cpu": 0.269
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "check_module",
+   "t0": 67.038,
+   "t1": 67.041,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "private_make",
+   "t0": 67.051,
+   "t1": 67.19,
+   "wall": 0.14,
+   "cpu": 0.14,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "Thread.start",
+   "t0": 67.395,
+   "t1": 67.479,
+   "wall": 0.084,
+   "cpu": 0.047
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "thread_start",
+   "t0": 67.379,
+   "t1": 67.485,
+   "wall": 0.106,
+   "cpu": 0.069
+  },
+  {
+   "run": 37,
+   "tid": 34144,
+   "phase": "instantiate",
+   "t0": 67.466,
+   "t1": 67.506,
+   "wall": 0.04,
+   "cpu": 0.037
+  },
+  {
+   "run": 37,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 67.536,
+   "t1": 67.613,
+   "wall": 0.077,
+   "cpu": 0.077
+  },
+  {
+   "run": 37,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 67.626,
+   "t1": 67.651,
+   "wall": 0.024,
+   "cpu": 0.024
+  },
+  {
+   "run": 37,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 67.656,
+   "t1": 67.695,
+   "wall": 0.039,
+   "cpu": 0.033
+  },
+  {
+   "run": 37,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 67.717,
+   "t1": 67.734,
+   "wall": 0.016,
+   "cpu": 0.017
+  },
+  {
+   "run": 37,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 67.74,
+   "t1": 67.76,
+   "wall": 0.021,
+   "cpu": 0.021
+  },
+  {
+   "run": 37,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 67.765,
+   "t1": 67.803,
+   "wall": 0.038,
+   "cpu": 0.031
+  },
+  {
+   "run": 37,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 67.823,
+   "t1": 67.848,
+   "wall": 0.024,
+   "cpu": 0.025
+  },
+  {
+   "run": 37,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 67.854,
+   "t1": 67.878,
+   "wall": 0.023,
+   "cpu": 0.023
+  },
+  {
+   "run": 37,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 67.884,
+   "t1": 67.914,
+   "wall": 0.031,
+   "cpu": 0.025
+  },
+  {
+   "run": 37,
+   "tid": 34144,
+   "phase": "identity_check",
+   "t0": 67.465,
+   "t1": 67.935,
+   "wall": 0.47,
+   "cpu": 0.448
+  },
+  {
+   "run": 37,
+   "tid": 34144,
+   "phase": "instantiate",
+   "t0": 67.936,
+   "t1": 67.989,
+   "wall": 0.052,
+   "cpu": 0.052
+  },
+  {
+   "run": 37,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 68.303,
+   "t1": 78.83,
+   "wall": 10.527,
+   "cpu": 10.427
+  },
+  {
+   "run": 37,
+   "tid": 34144,
+   "phase": "guest_body",
+   "t0": 67.446,
+   "t1": 78.858,
+   "wall": 11.411,
+   "cpu": 11.287
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "serve",
+   "t0": 67.487,
+   "t1": 78.883,
+   "wall": 11.396,
+   "cpu": 0.014
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "join",
+   "t0": 78.895,
+   "t1": 78.899,
+   "wall": 0.004,
+   "cpu": 0.004
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 78.926,
+   "t1": 79.214,
+   "wall": 0.287,
+   "cpu": 0.288
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "private_remove",
+   "t0": 79.23,
+   "t1": 79.615,
+   "wall": 0.386,
+   "cpu": 0.386,
+   "prefix": "wasi-python-4acf9"
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 78.926,
+   "t1": 79.62,
+   "wall": 0.694,
+   "cpu": 0.694
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 79.642,
+   "t1": 79.642,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "private_remove",
+   "t0": 79.646,
+   "t1": 79.812,
+   "wall": 0.166,
+   "cpu": 0.166,
+   "prefix": "wasi-python-e3bae"
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 79.641,
+   "t1": 79.815,
+   "wall": 0.173,
+   "cpu": 0.173
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 79.823,
+   "t1": 79.823,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 79.837,
+   "t1": 79.841,
+   "wall": 0.004,
+   "cpu": 0.004
+  },
+  {
+   "run": 37,
+   "tid": 60448,
+   "phase": "run",
+   "t0": 62.566,
+   "t1": 79.878,
+   "wall": 17.312,
+   "cpu": 5.892
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "artifacts",
+   "t0": 79.952,
+   "t1": 80.263,
+   "wall": 0.311,
+   "cpu": 0.311
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "walk",
+   "t0": 80.315,
+   "t1": 81.643,
+   "wall": 1.328,
+   "cpu": 1.302
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "engine",
+   "t0": 81.659,
+   "t1": 81.666,
+   "wall": 0.007,
+   "cpu": 0.007
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "module",
+   "t0": 81.668,
+   "t1": 81.671,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "sweep",
+   "t0": 81.675,
+   "t1": 81.676,
+   "wall": 0.002,
+   "cpu": 0.002
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "zip",
+   "t0": 81.678,
+   "t1": 84.276,
+   "wall": 2.598,
+   "cpu": 2.596
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "preopens",
+   "t0": 81.673,
+   "t1": 84.478,
+   "wall": 2.805,
+   "cpu": 2.802
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "private_make",
+   "t0": 84.508,
+   "t1": 84.724,
+   "wall": 0.216,
+   "cpu": 0.216,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "guest_home",
+   "t0": 84.494,
+   "t1": 84.803,
+   "wall": 0.309,
+   "cpu": 0.309
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "check_module",
+   "t0": 84.877,
+   "t1": 84.88,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "private_make",
+   "t0": 84.892,
+   "t1": 85.039,
+   "wall": 0.147,
+   "cpu": 0.148,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "Thread.start",
+   "t0": 85.293,
+   "t1": 85.383,
+   "wall": 0.091,
+   "cpu": 0.043
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "thread_start",
+   "t0": 85.276,
+   "t1": 85.39,
+   "wall": 0.114,
+   "cpu": 0.066
+  },
+  {
+   "run": 38,
+   "tid": 34144,
+   "phase": "instantiate",
+   "t0": 85.372,
+   "t1": 85.409,
+   "wall": 0.038,
+   "cpu": 0.038
+  },
+  {
+   "run": 38,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 85.441,
+   "t1": 85.524,
+   "wall": 0.083,
+   "cpu": 0.083
+  },
+  {
+   "run": 38,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 85.537,
+   "t1": 85.567,
+   "wall": 0.029,
+   "cpu": 0.03
+  },
+  {
+   "run": 38,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 85.573,
+   "t1": 85.622,
+   "wall": 0.049,
+   "cpu": 0.043
+  },
+  {
+   "run": 38,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 85.643,
+   "t1": 85.66,
+   "wall": 0.016,
+   "cpu": 0.016
+  },
+  {
+   "run": 38,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 85.665,
+   "t1": 85.685,
+   "wall": 0.021,
+   "cpu": 0.021
+  },
+  {
+   "run": 38,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 85.69,
+   "t1": 85.732,
+   "wall": 0.041,
+   "cpu": 0.035
+  },
+  {
+   "run": 38,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 85.754,
+   "t1": 85.782,
+   "wall": 0.028,
+   "cpu": 0.028
+  },
+  {
+   "run": 38,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 85.789,
+   "t1": 85.814,
+   "wall": 0.024,
+   "cpu": 0.025
+  },
+  {
+   "run": 38,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 85.821,
+   "t1": 85.864,
+   "wall": 0.043,
+   "cpu": 0.037
+  },
+  {
+   "run": 38,
+   "tid": 34144,
+   "phase": "identity_check",
+   "t0": 85.371,
+   "t1": 85.892,
+   "wall": 0.522,
+   "cpu": 0.503
+  },
+  {
+   "run": 38,
+   "tid": 34144,
+   "phase": "instantiate",
+   "t0": 85.895,
+   "t1": 85.959,
+   "wall": 0.064,
+   "cpu": 0.064
+  },
+  {
+   "run": 38,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 86.301,
+   "t1": 97.311,
+   "wall": 11.009,
+   "cpu": 10.949
+  },
+  {
+   "run": 38,
+   "tid": 34144,
+   "phase": "guest_body",
+   "t0": 85.353,
+   "t1": 97.33,
+   "wall": 11.977,
+   "cpu": 11.897
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "serve",
+   "t0": 85.392,
+   "t1": 97.351,
+   "wall": 11.959,
+   "cpu": 0.02
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "join",
+   "t0": 97.367,
+   "t1": 97.371,
+   "wall": 0.004,
+   "cpu": 0.004
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 97.404,
+   "t1": 97.689,
+   "wall": 0.285,
+   "cpu": 0.285
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "private_remove",
+   "t0": 97.707,
+   "t1": 98.111,
+   "wall": 0.403,
+   "cpu": 0.403,
+   "prefix": "wasi-python-f27e3"
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 97.403,
+   "t1": 98.115,
+   "wall": 0.712,
+   "cpu": 0.711
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 98.139,
+   "t1": 98.14,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "private_remove",
+   "t0": 98.143,
+   "t1": 98.306,
+   "wall": 0.163,
+   "cpu": 0.164,
+   "prefix": "wasi-python-9d248"
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 98.139,
+   "t1": 98.309,
+   "wall": 0.171,
+   "cpu": 0.171
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 98.312,
+   "t1": 98.312,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 98.33,
+   "t1": 98.337,
+   "wall": 0.007,
+   "cpu": 0.007
+  },
+  {
+   "run": 38,
+   "tid": 60448,
+   "phase": "run",
+   "t0": 79.886,
+   "t1": 98.371,
+   "wall": 18.485,
+   "cpu": 6.463
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "artifacts",
+   "t0": 98.43,
+   "t1": 98.749,
+   "wall": 0.318,
+   "cpu": 0.318
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "walk",
+   "t0": 98.8,
+   "t1": 99.951,
+   "wall": 1.151,
+   "cpu": 1.151
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "engine",
+   "t0": 99.962,
+   "t1": 99.967,
+   "wall": 0.005,
+   "cpu": 0.005
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "module",
+   "t0": 99.97,
+   "t1": 99.973,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "sweep",
+   "t0": 99.976,
+   "t1": 99.977,
+   "wall": 0.002,
+   "cpu": 0.002
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "zip",
+   "t0": 99.979,
+   "t1": 102.548,
+   "wall": 2.569,
+   "cpu": 2.562
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "preopens",
+   "t0": 99.975,
+   "t1": 102.739,
+   "wall": 2.764,
+   "cpu": 2.757
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "private_make",
+   "t0": 102.768,
+   "t1": 102.97,
+   "wall": 0.202,
+   "cpu": 0.202,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "guest_home",
+   "t0": 102.754,
+   "t1": 103.072,
+   "wall": 0.318,
+   "cpu": 0.313
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "check_module",
+   "t0": 103.143,
+   "t1": 103.146,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "private_make",
+   "t0": 103.157,
+   "t1": 103.345,
+   "wall": 0.188,
+   "cpu": 0.188,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "Thread.start",
+   "t0": 103.592,
+   "t1": 103.686,
+   "wall": 0.094,
+   "cpu": 0.047
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "thread_start",
+   "t0": 103.576,
+   "t1": 103.69,
+   "wall": 0.115,
+   "cpu": 0.067
+  },
+  {
+   "run": 39,
+   "tid": 34144,
+   "phase": "instantiate",
+   "t0": 103.674,
+   "t1": 103.713,
+   "wall": 0.039,
+   "cpu": 0.039
+  },
+  {
+   "run": 39,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 103.744,
+   "t1": 103.829,
+   "wall": 0.085,
+   "cpu": 0.085
+  },
+  {
+   "run": 39,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 103.843,
+   "t1": 103.869,
+   "wall": 0.026,
+   "cpu": 0.026
+  },
+  {
+   "run": 39,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 103.876,
+   "t1": 103.928,
+   "wall": 0.053,
+   "cpu": 0.047
+  },
+  {
+   "run": 39,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 103.953,
+   "t1": 103.98,
+   "wall": 0.027,
+   "cpu": 0.027
+  },
+  {
+   "run": 39,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 103.986,
+   "t1": 104.01,
+   "wall": 0.024,
+   "cpu": 0.024
+  },
+  {
+   "run": 39,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 104.016,
+   "t1": 104.051,
+   "wall": 0.035,
+   "cpu": 0.029
+  },
+  {
+   "run": 39,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 104.07,
+   "t1": 104.088,
+   "wall": 0.017,
+   "cpu": 0.017
+  },
+  {
+   "run": 39,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 104.093,
+   "t1": 104.114,
+   "wall": 0.021,
+   "cpu": 0.021
+  },
+  {
+   "run": 39,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 104.119,
+   "t1": 104.151,
+   "wall": 0.032,
+   "cpu": 0.027
+  },
+  {
+   "run": 39,
+   "tid": 34144,
+   "phase": "identity_check",
+   "t0": 103.673,
+   "t1": 104.171,
+   "wall": 0.499,
+   "cpu": 0.481
+  },
+  {
+   "run": 39,
+   "tid": 34144,
+   "phase": "instantiate",
+   "t0": 104.174,
+   "t1": 104.242,
+   "wall": 0.068,
+   "cpu": 0.068
+  },
+  {
+   "run": 39,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 104.584,
+   "t1": 115.941,
+   "wall": 11.357,
+   "cpu": 11.295
+  },
+  {
+   "run": 39,
+   "tid": 34144,
+   "phase": "guest_body",
+   "t0": 103.655,
+   "t1": 115.97,
+   "wall": 12.315,
+   "cpu": 12.235
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "serve",
+   "t0": 103.692,
+   "t1": 116.007,
+   "wall": 12.315,
+   "cpu": 0.014
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "join",
+   "t0": 116.013,
+   "t1": 116.015,
+   "wall": 0.002,
+   "cpu": 0.002
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 116.035,
+   "t1": 116.271,
+   "wall": 0.237,
+   "cpu": 0.237
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "private_remove",
+   "t0": 116.284,
+   "t1": 116.668,
+   "wall": 0.384,
+   "cpu": 0.384,
+   "prefix": "wasi-python-7f78e"
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 116.034,
+   "t1": 116.672,
+   "wall": 0.638,
+   "cpu": 0.638
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 116.692,
+   "t1": 116.692,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "private_remove",
+   "t0": 116.696,
+   "t1": 116.862,
+   "wall": 0.166,
+   "cpu": 0.166,
+   "prefix": "wasi-python-dbdf8"
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 116.691,
+   "t1": 116.865,
+   "wall": 0.174,
+   "cpu": 0.174
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 116.868,
+   "t1": 116.868,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 116.88,
+   "t1": 116.883,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 39,
+   "tid": 60448,
+   "phase": "run",
+   "t0": 98.381,
+   "t1": 116.919,
+   "wall": 18.539,
+   "cpu": 6.178
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "artifacts",
+   "t0": 116.975,
+   "t1": 117.269,
+   "wall": 0.294,
+   "cpu": 0.294
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "walk",
+   "t0": 117.318,
+   "t1": 118.433,
+   "wall": 1.115,
+   "cpu": 1.115
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "engine",
+   "t0": 118.444,
+   "t1": 118.449,
+   "wall": 0.005,
+   "cpu": 0.005
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "module",
+   "t0": 118.451,
+   "t1": 118.454,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "sweep",
+   "t0": 118.457,
+   "t1": 118.459,
+   "wall": 0.002,
+   "cpu": 0.002
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "zip",
+   "t0": 118.462,
+   "t1": 120.903,
+   "wall": 2.441,
+   "cpu": 2.442
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "preopens",
+   "t0": 118.456,
+   "t1": 121.099,
+   "wall": 2.643,
+   "cpu": 2.643
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "private_make",
+   "t0": 121.132,
+   "t1": 121.35,
+   "wall": 0.219,
+   "cpu": 0.219,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "guest_home",
+   "t0": 121.116,
+   "t1": 121.43,
+   "wall": 0.314,
+   "cpu": 0.314
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "check_module",
+   "t0": 121.496,
+   "t1": 121.499,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "private_make",
+   "t0": 121.511,
+   "t1": 121.656,
+   "wall": 0.144,
+   "cpu": 0.144,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "Thread.start",
+   "t0": 121.882,
+   "t1": 121.985,
+   "wall": 0.103,
+   "cpu": 0.056
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "thread_start",
+   "t0": 121.864,
+   "t1": 121.991,
+   "wall": 0.127,
+   "cpu": 0.079
+  },
+  {
+   "run": 40,
+   "tid": 34144,
+   "phase": "instantiate",
+   "t0": 121.971,
+   "t1": 122.01,
+   "wall": 0.039,
+   "cpu": 0.039
+  },
+  {
+   "run": 40,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 122.042,
+   "t1": 122.13,
+   "wall": 0.087,
+   "cpu": 0.087
+  },
+  {
+   "run": 40,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 122.144,
+   "t1": 122.17,
+   "wall": 0.026,
+   "cpu": 0.026
+  },
+  {
+   "run": 40,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 122.176,
+   "t1": 122.219,
+   "wall": 0.042,
+   "cpu": 0.036
+  },
+  {
+   "run": 40,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 122.242,
+   "t1": 122.26,
+   "wall": 0.017,
+   "cpu": 0.017
+  },
+  {
+   "run": 40,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 122.265,
+   "t1": 122.286,
+   "wall": 0.021,
+   "cpu": 0.021
+  },
+  {
+   "run": 40,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 122.291,
+   "t1": 122.32,
+   "wall": 0.029,
+   "cpu": 0.024
+  },
+  {
+   "run": 40,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 122.335,
+   "t1": 122.351,
+   "wall": 0.016,
+   "cpu": 0.016
+  },
+  {
+   "run": 40,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 122.356,
+   "t1": 122.377,
+   "wall": 0.021,
+   "cpu": 0.021
+  },
+  {
+   "run": 40,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 122.381,
+   "t1": 122.41,
+   "wall": 0.028,
+   "cpu": 0.023
+  },
+  {
+   "run": 40,
+   "tid": 34144,
+   "phase": "identity_check",
+   "t0": 121.97,
+   "t1": 122.43,
+   "wall": 0.46,
+   "cpu": 0.443
+  },
+  {
+   "run": 40,
+   "tid": 34144,
+   "phase": "instantiate",
+   "t0": 122.432,
+   "t1": 122.492,
+   "wall": 0.059,
+   "cpu": 0.059
+  },
+  {
+   "run": 40,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 122.834,
+   "t1": 134.427,
+   "wall": 11.594,
+   "cpu": 11.474
+  },
+  {
+   "run": 40,
+   "tid": 34144,
+   "phase": "guest_body",
+   "t0": 121.951,
+   "t1": 134.467,
+   "wall": 12.516,
+   "cpu": 12.378
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "serve",
+   "t0": 121.993,
+   "t1": 134.498,
+   "wall": 12.505,
+   "cpu": 0.017
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "join",
+   "t0": 134.505,
+   "t1": 134.508,
+   "wall": 0.003,
+   "cpu": 0.002
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 134.531,
+   "t1": 134.847,
+   "wall": 0.316,
+   "cpu": 0.316
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "private_remove",
+   "t0": 134.865,
+   "t1": 135.365,
+   "wall": 0.501,
+   "cpu": 0.48,
+   "prefix": "wasi-python-dbf8b"
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 134.53,
+   "t1": 135.37,
+   "wall": 0.84,
+   "cpu": 0.819
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 135.4,
+   "t1": 135.4,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "private_remove",
+   "t0": 135.404,
+   "t1": 135.6,
+   "wall": 0.196,
+   "cpu": 0.188,
+   "prefix": "wasi-python-22ac3"
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 135.4,
+   "t1": 135.606,
+   "wall": 0.206,
+   "cpu": 0.198
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 135.638,
+   "t1": 135.638,
+   "wall": 0.001,
+   "cpu": 0.0
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 135.655,
+   "t1": 135.66,
+   "wall": 0.005,
+   "cpu": 0.005
+  },
+  {
+   "run": 40,
+   "tid": 60448,
+   "phase": "run",
+   "t0": 116.925,
+   "t1": 135.699,
+   "wall": 18.774,
+   "cpu": 6.185
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "artifacts",
+   "t0": 135.802,
+   "t1": 136.159,
+   "wall": 0.357,
+   "cpu": 0.344
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "walk",
+   "t0": 136.213,
+   "t1": 137.748,
+   "wall": 1.535,
+   "cpu": 1.354
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "engine",
+   "t0": 137.769,
+   "t1": 137.777,
+   "wall": 0.009,
+   "cpu": 0.009
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "module",
+   "t0": 137.781,
+   "t1": 137.785,
+   "wall": 0.004,
+   "cpu": 0.004
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "sweep",
+   "t0": 137.788,
+   "t1": 137.79,
+   "wall": 0.002,
+   "cpu": 0.002
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "zip",
+   "t0": 137.792,
+   "t1": 140.403,
+   "wall": 2.611,
+   "cpu": 2.607
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "preopens",
+   "t0": 137.787,
+   "t1": 140.602,
+   "wall": 2.814,
+   "cpu": 2.81
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "private_make",
+   "t0": 140.634,
+   "t1": 140.858,
+   "wall": 0.223,
+   "cpu": 0.223,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "guest_home",
+   "t0": 140.62,
+   "t1": 140.942,
+   "wall": 0.322,
+   "cpu": 0.322
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "check_module",
+   "t0": 141.015,
+   "t1": 141.018,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "private_make",
+   "t0": 141.03,
+   "t1": 141.172,
+   "wall": 0.142,
+   "cpu": 0.142,
+   "prefix": "wasi-python-"
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "Thread.start",
+   "t0": 141.4,
+   "t1": 141.507,
+   "wall": 0.107,
+   "cpu": 0.06
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "thread_start",
+   "t0": 141.382,
+   "t1": 141.514,
+   "wall": 0.132,
+   "cpu": 0.084
+  },
+  {
+   "run": 41,
+   "tid": 34144,
+   "phase": "instantiate",
+   "t0": 141.494,
+   "t1": 141.535,
+   "wall": 0.042,
+   "cpu": 0.042
+  },
+  {
+   "run": 41,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 141.568,
+   "t1": 141.666,
+   "wall": 0.098,
+   "cpu": 0.099
+  },
+  {
+   "run": 41,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 141.682,
+   "t1": 141.708,
+   "wall": 0.026,
+   "cpu": 0.026
+  },
+  {
+   "run": 41,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 141.715,
+   "t1": 141.772,
+   "wall": 0.057,
+   "cpu": 0.047
+  },
+  {
+   "run": 41,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 141.801,
+   "t1": 141.828,
+   "wall": 0.028,
+   "cpu": 0.028
+  },
+  {
+   "run": 41,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 141.835,
+   "t1": 141.86,
+   "wall": 0.024,
+   "cpu": 0.025
+  },
+  {
+   "run": 41,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 141.866,
+   "t1": 141.904,
+   "wall": 0.038,
+   "cpu": 0.028
+  },
+  {
+   "run": 41,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 141.92,
+   "t1": 141.937,
+   "wall": 0.017,
+   "cpu": 0.017
+  },
+  {
+   "run": 41,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 141.942,
+   "t1": 141.965,
+   "wall": 0.023,
+   "cpu": 0.023
+  },
+  {
+   "run": 41,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 141.97,
+   "t1": 142.0,
+   "wall": 0.03,
+   "cpu": 0.024
+  },
+  {
+   "run": 41,
+   "tid": 34144,
+   "phase": "identity_check",
+   "t0": 141.493,
+   "t1": 142.02,
+   "wall": 0.528,
+   "cpu": 0.502
+  },
+  {
+   "run": 41,
+   "tid": 34144,
+   "phase": "instantiate",
+   "t0": 142.022,
+   "t1": 142.091,
+   "wall": 0.068,
+   "cpu": 0.068
+  },
+  {
+   "run": 41,
+   "tid": 34144,
+   "phase": "wasm_call",
+   "t0": 142.432,
+   "t1": 153.212,
+   "wall": 10.78,
+   "cpu": 10.743
+  },
+  {
+   "run": 41,
+   "tid": 34144,
+   "phase": "guest_body",
+   "t0": 141.476,
+   "t1": 153.244,
+   "wall": 11.768,
+   "cpu": 11.704
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "serve",
+   "t0": 141.516,
+   "t1": 153.317,
+   "wall": 11.801,
+   "cpu": 0.016
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "join",
+   "t0": 153.327,
+   "t1": 153.33,
+   "wall": 0.003,
+   "cpu": 0.003
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 153.357,
+   "t1": 154.55,
+   "wall": 1.193,
+   "cpu": 0.498
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "private_remove",
+   "t0": 154.568,
+   "t1": 155.032,
+   "wall": 0.464,
+   "cpu": 0.464,
+   "prefix": "wasi-python-cfe2d"
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 153.356,
+   "t1": 155.036,
+   "wall": 1.68,
+   "cpu": 0.984
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 155.059,
+   "t1": 155.063,
+   "wall": 0.004,
+   "cpu": 0.0
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "private_remove",
+   "t0": 155.067,
+   "t1": 155.265,
+   "wall": 0.198,
+   "cpu": 0.194,
+   "prefix": "wasi-python-83982"
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 155.059,
+   "t1": 155.268,
+   "wall": 0.209,
+   "cpu": 0.206
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "store_close",
+   "t0": 155.271,
+   "t1": 155.271,
+   "wall": 0.0,
+   "cpu": 0.0
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "release_step",
+   "t0": 155.287,
+   "t1": 155.291,
+   "wall": 0.004,
+   "cpu": 0.004
+  },
+  {
+   "run": 41,
+   "tid": 60448,
+   "phase": "run",
+   "t0": 135.705,
+   "t1": 155.339,
+   "wall": 19.634,
+   "cpu": 6.871
+  }
+ ],
+ "speedup": 1.86,
+ "summary_parallel": {
+  "Thread.start": {
+   "count": 8,
+   "wall_ms": 1.4,
+   "cpu_ms": 0.5,
+   "mean_wall_ms": 0.17
+  },
+  "artifacts": {
+   "count": 8,
+   "wall_ms": 26.3,
+   "cpu_ms": 6.7,
+   "mean_wall_ms": 3.28
+  },
+  "check_module": {
+   "count": 8,
+   "wall_ms": 0.0,
+   "cpu_ms": 0.0,
+   "mean_wall_ms": 0.0
+  },
+  "engine": {
+   "count": 8,
+   "wall_ms": 0.0,
+   "cpu_ms": 0.0,
+   "mean_wall_ms": 0.0
+  },
+  "guest_body": {
+   "count": 8,
+   "wall_ms": 112.1,
+   "cpu_ms": 105.4,
+   "mean_wall_ms": 14.01
+  },
+  "guest_home": {
+   "count": 8,
+   "wall_ms": 6.9,
+   "cpu_ms": 3.9,
+   "mean_wall_ms": 0.87
+  },
+  "identity_check": {
+   "count": 8,
+   "wall_ms": 8.7,
+   "cpu_ms": 6.3,
+   "mean_wall_ms": 1.09
+  },
+  "instantiate": {
+   "count": 16,
+   "wall_ms": 1.4,
+   "cpu_ms": 1.0,
+   "mean_wall_ms": 0.09
+  },
+  "join": {
+   "count": 8,
+   "wall_ms": 0.0,
+   "cpu_ms": 0.0,
+   "mean_wall_ms": 0.0
+  },
+  "module": {
+   "count": 8,
+   "wall_ms": 0.0,
+   "cpu_ms": 0.0,
+   "mean_wall_ms": 0.0
+  },
+  "preopens": {
+   "count": 8,
+   "wall_ms": 185.4,
+   "cpu_ms": 35.3,
+   "mean_wall_ms": 23.17
+  },
+  "private_make": {
+   "count": 16,
+   "wall_ms": 5.3,
+   "cpu_ms": 3.9,
+   "mean_wall_ms": 0.33
+  },
+  "private_remove": {
+   "count": 16,
+   "wall_ms": 11.7,
+   "cpu_ms": 7.1,
+   "mean_wall_ms": 0.73
+  },
+  "release_step": {
+   "count": 24,
+   "wall_ms": 14.6,
+   "cpu_ms": 9.8,
+   "mean_wall_ms": 0.61
+  },
+  "run": {
+   "count": 8,
+   "wall_ms": 511.0,
+   "cpu_ms": 106.1,
+   "mean_wall_ms": 63.87
+  },
+  "serve": {
+   "count": 8,
+   "wall_ms": 111.7,
+   "cpu_ms": 0.2,
+   "mean_wall_ms": 13.96
+  },
+  "store_close": {
+   "count": 24,
+   "wall_ms": 2.6,
+   "cpu_ms": 2.4,
+   "mean_wall_ms": 0.11
+  },
+  "sweep": {
+   "count": 8,
+   "wall_ms": 0.0,
+   "cpu_ms": 0.0,
+   "mean_wall_ms": 0.0
+  },
+  "thread_start": {
+   "count": 8,
+   "wall_ms": 1.6,
+   "cpu_ms": 0.7,
+   "mean_wall_ms": 0.2
+  },
+  "walk": {
+   "count": 8,
+   "wall_ms": 156.5,
+   "cpu_ms": 43.2,
+   "mean_wall_ms": 19.56
+  },
+  "wasm_call": {
+   "count": 80,
+   "wall_ms": 103.5,
+   "cpu_ms": 98.4,
+   "mean_wall_ms": 1.29
+  },
+  "zip": {
+   "count": 8,
+   "wall_ms": 173.7,
+   "cpu_ms": 30.5,
+   "mean_wall_ms": 21.71
+  }
+ },
+ "summary_sequential": {
+  "Thread.start": {
+   "count": 8,
+   "wall_ms": 0.7,
+   "cpu_ms": 0.4,
+   "mean_wall_ms": 0.09
+  },
+  "artifacts": {
+   "count": 8,
+   "wall_ms": 2.6,
+   "cpu_ms": 2.6,
+   "mean_wall_ms": 0.32
+  },
+  "check_module": {
+   "count": 8,
+   "wall_ms": 0.0,
+   "cpu_ms": 0.0,
+   "mean_wall_ms": 0.0
+  },
+  "engine": {
+   "count": 8,
+   "wall_ms": 0.0,
+   "cpu_ms": 0.0,
+   "mean_wall_ms": 0.01
+  },
+  "guest_body": {
+   "count": 8,
+   "wall_ms": 96.2,
+   "cpu_ms": 95.5,
+   "mean_wall_ms": 12.03
+  },
+  "guest_home": {
+   "count": 8,
+   "wall_ms": 2.6,
+   "cpu_ms": 2.5,
+   "mean_wall_ms": 0.32
+  },
+  "identity_check": {
+   "count": 8,
+   "wall_ms": 4.1,
+   "cpu_ms": 3.9,
+   "mean_wall_ms": 0.51
+  },
+  "instantiate": {
+   "count": 16,
+   "wall_ms": 0.9,
+   "cpu_ms": 0.9,
+   "mean_wall_ms": 0.05
+  },
+  "join": {
+   "count": 8,
+   "wall_ms": 0.0,
+   "cpu_ms": 0.0,
+   "mean_wall_ms": 0.0
+  },
+  "module": {
+   "count": 8,
+   "wall_ms": 0.0,
+   "cpu_ms": 0.0,
+   "mean_wall_ms": 0.0
+  },
+  "preopens": {
+   "count": 8,
+   "wall_ms": 29.1,
+   "cpu_ms": 23.8,
+   "mean_wall_ms": 3.64
+  },
+  "private_make": {
+   "count": 16,
+   "wall_ms": 3.0,
+   "cpu_ms": 3.0,
+   "mean_wall_ms": 0.19
+  },
+  "private_remove": {
+   "count": 16,
+   "wall_ms": 4.7,
+   "cpu_ms": 4.6,
+   "mean_wall_ms": 0.29
+  },
+  "release_step": {
+   "count": 24,
+   "wall_ms": 8.1,
+   "cpu_ms": 7.4,
+   "mean_wall_ms": 0.34
+  },
+  "run": {
+   "count": 8,
+   "wall_ms": 155.3,
+   "cpu_ms": 52.3,
+   "mean_wall_ms": 19.41
+  },
+  "serve": {
+   "count": 8,
+   "wall_ms": 96.3,
+   "cpu_ms": 0.1,
+   "mean_wall_ms": 12.03
+  },
+  "store_close": {
+   "count": 24,
+   "wall_ms": 3.2,
+   "cpu_ms": 2.5,
+   "mean_wall_ms": 0.13
+  },
+  "sweep": {
+   "count": 8,
+   "wall_ms": 0.0,
+   "cpu_ms": 0.0,
+   "mean_wall_ms": 0.0
+  },
+  "thread_start": {
+   "count": 8,
+   "wall_ms": 0.9,
+   "cpu_ms": 0.6,
+   "mean_wall_ms": 0.12
+  },
+  "walk": {
+   "count": 8,
+   "wall_ms": 9.7,
+   "cpu_ms": 9.5,
+   "mean_wall_ms": 1.22
+  },
+  "wasm_call": {
+   "count": 80,
+   "wall_ms": 91.0,
+   "cpu_ms": 90.3,
+   "mean_wall_ms": 1.14
+  },
+  "zip": {
+   "count": 8,
+   "wall_ms": 27.4,
+   "cpu_ms": 22.1,
+   "mean_wall_ms": 3.42
+  }
+ },
+ "load_1m": 16.69970703125
+}
