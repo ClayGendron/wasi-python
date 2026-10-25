@@ -44,6 +44,7 @@ These hold at every step.
 - **Two strikes, then write it down.** After two failed attempts on one hypothesis, stop. Record where you stood and why in the memo or specification, and move to work that does not depend on it.
 - **Commit only what you mean.** Before every commit, read `git diff --cached --stat`: a `git mv` or an earlier `git add` stays staged and rides along. A commit on `main` is green on its own; when two pieces of work share the tree, check the commit in a clean clone. A pull request's branch carries one to three specifications and nothing else.
 - **Keep output short.** Logs go to files under `build/`; a failure is one line with its reason.
+- **GitHub's API budget is one account's.** Every agent acts through the owner's account, whose REST limit (5,000 requests an hour) is shared by every agent and tool running at once; on 2026-10-25 three reviewers each running `gh run watch` spent it and every `gh` call answered 403 for an hour. Never `gh run watch`. Read a run with one `gh run view <id>` at most every ten minutes, or wait for the orchestrator's message with the result; a reviewer waits for the run, it does not poll it. On a 403 "rate limit exceeded", stop every poller, read the reset time from `gh api rate_limit --jq .resources.core`, and do no `gh` work until then; `git push` and `git fetch` are not counted.
 
 ## Explaining things
 
