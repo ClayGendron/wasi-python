@@ -1,11 +1,16 @@
 """A cancel during a door call is named: the shared host function's except branch and
-its entry guard, with a fake call and a fake caller. No artifacts; nothing here measures time."""
+its entry guard, with a fake call and a fake caller; and one call on the artifact set, a deadline
+reached while the guest writes, leaves no thread behind. Nothing here measures time; the
+deadline is a limit the guest reaches, not a timing."""
 
 from __future__ import annotations
+
+import threading
 
 import pytest
 import wasmtime
 
+from harness import needs
 from wasi_python import _call, _home, _wasmtime_ffi
 from wasi_python._process import process
 
@@ -123,3 +128,32 @@ def test_a_live_call_is_served(shared) -> None:
     call = FakeCall()
     assert shared(call) == ANSWER
     assert call.served == 1
+
+
+def test_a_deadline_under_output_leaves_no_thread() -> None:
+    """A guest that writes for ever under a 0.2 s deadline and a 4 KiB cap is stopped by the
+    deadline with stdout named, and the call leaves no thread that was not there after a
+    warm-up call. The deadline also covers start-up, which a loaded host can take past it: the
+    door, called after the first write, tells whether the writes ran, and only then are the
+    4 KiB and the name required."""
+    needs.need("runner", "artifact dir")
+    import wasi_python
+
+    wasi_python.run(["-c", "pass"])  # the epoch ticker's thread, which stays
+    reached: list[int] = []
+    code = (
+        "import os, _host\nos.write(1, b'x' * 8192)\n_host.call(b'w')\n"
+        "while True:\n    os.write(1, b'x' * 65536)\n"
+    )
+    before = set(threading.enumerate())
+    done = wasi_python.run(
+        ["-c", code],
+        host=lambda frame: reached.append(1) or b"",
+        deadline_s=0.2,
+        output_bytes=4096,
+    )
+    after = set(threading.enumerate())
+    assert done.trapped == "deadline", done.trapped
+    if reached:
+        assert (done.stdout, done.truncated) == (b"x" * 4096, ("stdout",)), done.truncated
+    assert [t.name for t in after - before] == []

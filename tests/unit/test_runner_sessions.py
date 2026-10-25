@@ -1,5 +1,7 @@
 """Sessions without artifacts: the argument checks, the reaper's step and loop, and a
-turn's waits on the session's clock base, all with fakes. Nothing here measures time."""
+turn's waits on the session's clock base, all with fakes. Two rows run a session on the artifact
+set: a turn's output is every byte of its own and none of another's, past the cap or not.
+Nothing here measures time."""
 
 from __future__ import annotations
 
@@ -9,7 +11,7 @@ import struct
 import pytest
 
 import wasi_python
-from harness import calls
+from harness import calls, needs
 from wasi_python import Defaults, Session, _artifacts, _call, _engines, _sessions
 from wasi_python._process import process
 
@@ -225,3 +227,32 @@ def test_a_shutdown_budget_is_capped_by_the_lifetime() -> None:
     assert _sessions._ending_seconds(s, 3605.0) == 0.0
     s.lifetime_s = None
     assert _sessions._ending_seconds(s, 10**6) == 5.0
+
+
+def _session() -> type[Session]:
+    needs.need("runner", "artifact dir")
+    return Session
+
+
+def test_a_turn_gets_every_byte_of_its_own() -> None:
+    """Two turns, each writing a distinct 100 KiB and a last line: each turn's stdout is its own
+    bytes exactly and holds none of the other's, so a turn's end gathers every byte it wrote
+    before its result is made."""
+    payload = 100 * 1024
+    with _session()() as s:
+        one = s.run(f"import sys\nsys.stdout.write('a' * {payload})\nprint('one')")
+        two = s.run(f"import sys\nsys.stdout.write('b' * {payload})\nprint('two')")
+    assert (one.exit_code, one.truncated) == (0, ()), one.exit_code
+    assert one.stdout == b"a" * payload + b"one\n"
+    assert (two.exit_code, two.truncated) == (0, ()), two.exit_code
+    assert two.stdout == b"b" * payload + b"two\n"
+
+
+def test_a_turn_past_the_cap_leaves_the_next_turn_whole() -> None:
+    """A turn that writes a mebibyte under a 4 KiB cap keeps 4 KiB and names stdout; the next
+    turn's one line is its whole output, nothing truncated."""
+    with _session()(output_bytes=4096) as s:
+        big = s.run("import os\nfor _ in range(16):\n    os.write(1, b'x' * 65536)")
+        small = s.run("print('next')")
+    assert (big.exit_code, big.stdout, big.truncated) == (0, b"x" * 4096, ("stdout",))
+    assert (small.exit_code, small.stdout, small.truncated) == (0, b"next\n", ())

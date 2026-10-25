@@ -168,8 +168,10 @@ def test_the_bindings_the_runner_calls_exist() -> None:
     """The shapes of the bindings the seam reads its C types from, pinned since a release could
     move them; the runner's two output callbacks are declared with the seam's types (ctypes
     caches a CFUNCTYPE by its signature, so the identity holds)."""
-    assert type(_call._output_write) is ffi.OUTPUT_WRITE
-    assert type(_call._output_free) is ffi.OUTPUT_FREE
+    from wasi_python import _outputs
+
+    assert type(_outputs._output_write) is ffi.OUTPUT_WRITE
+    assert type(_outputs._output_free) is ffi.OUTPUT_FREE
     for name in ("wasi_config_set_stdout_custom", "wasi_config_set_stderr_custom"):
         assert callable(getattr(_ffi, name)), name
         argtypes = getattr(_bindings, "_" + name).argtypes
