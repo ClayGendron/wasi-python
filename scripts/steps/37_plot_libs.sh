@@ -32,26 +32,32 @@ for top in freetype-2.14.3 harfbuzz-14.1.0 SheenBidi-3.0.0 libraqm-0.10.5 qhull-
 done
 sed "s#@ROOT@#$HERE#g; s#@SDK@#$WASI_SDK_DIR#g" "$HERE/recipes/wasi-plot-libs.cross" > "$B/wasi-plot-libs.cross"
 
-# One meson build: source tree, build folder, then its options. Static, release, no LTO.
+# One meson build: source tree, build folder, then its options. Static, release, no LTO. Meson
+# never downloads: $wrap, when a call sets it, names a stricter wrap mode than MESON_WRAP.
 build() {
   src=$1 dir=$2
   shift 2
-  meson setup "$dir" "$src" --cross-file "$B/wasi-plot-libs.cross" --buildtype=release \
-    --prefix="$PREFIX" --libdir=lib -Ddefault_library=static -Db_lto=false "$@"
+  meson setup "$dir" "$src" ${wrap:-$MESON_WRAP} --cross-file "$B/wasi-plot-libs.cross" \
+    --buildtype=release --prefix="$PREFIX" --libdir=lib -Ddefault_library=static -Db_lto=false "$@"
   ninja -C "$dir"
   meson install -C "$dir" --quiet
 }
+unset wrap  # only the call that needs a stricter mode sets it
 
 # FreeType: its BDF and PCF drivers are built (their notices ship); gzip through step 30's zlib.
 build "$B/freetype-2.14.3" "$B/freetype-build" -Dzlib=system -Dpng=disabled -Dharfbuzz=disabled \
   -Dbrotli=disabled -Dbzip2=disabled -Dmmap=disabled -Dtests=disabled
 # HarfBuzz: matplotlib's own option list (extern/meson.build), shaping with FreeType only.
+# nofallback is HarfBuzz's own project default: it refuses every fallback, a local subproject
+# folder too, so it is stricter than nodownload, which would allow one.
+wrap=--wrap-mode=nofallback
 build "$B/harfbuzz-14.1.0" "$B/harfbuzz-build" -Dbenchmark=disabled -Dcairo=disabled \
   -Dchafa=disabled -Dcoretext=disabled -Ddirectwrite=disabled -Ddocs=disabled -Ddoc_tests=false \
   -Dfontations=disabled -Dfreetype=enabled -Dgdi=disabled -Dglib=disabled -Dgobject=disabled \
   -Dgpu=disabled -Dgpu_demo=disabled -Dharfrust=disabled -Dicu=disabled -Dintrospection=disabled \
   -Dkbts=disabled -Dpng=disabled -Draster=disabled -Dsubset=disabled -Dtests=disabled \
   -Dutilities=disabled -Dvector=disabled -Dwasm=disabled -Dzlib=disabled
+unset wrap
 build "$B/SheenBidi-3.0.0" "$B/sheenbidi-build"
 build "$B/libraqm-0.10.5" "$B/libraqm-build" -Dsheenbidi=true -Dtests=false
 

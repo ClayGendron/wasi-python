@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 import tarfile
 from pathlib import Path
@@ -183,3 +184,63 @@ def test_the_notes_command_prints_the_verify_note(capsys) -> None:
     out = capsys.readouterr().out
     assert out.endswith(version.verify_note("0.1.0a1"))
     assert version.notes(version.CHANGELOG.read_text(), "0.1.0a1") in out
+
+
+def test_the_verify_note_names_the_repository_it_is_given() -> None:
+    note = version.verify_note("0.2.0", "ClayGendron/wasi-python")
+    assert "--repo ClayGendron/wasi-python " in note
+    assert "ClayGendron/wasi-python/.github/workflows/release.yml@refs/tags/v0.2.0" in note
+    other = version.verify_note("0.2.0", "someone/fork")
+    assert "--repo someone/fork " in other and "ClayGendron" not in other
+
+
+def test_the_notes_command_takes_the_repository(capsys) -> None:
+    assert version.main(["notes", "0.1.0a1", "--repository", "someone/fork"]) == 0
+    assert capsys.readouterr().out.endswith(version.verify_note("0.1.0a1", "someone/fork"))
+
+
+RELEASE_YML = paths.REPO / ".github" / "workflows" / "release.yml"
+
+
+def _one_line(text: str) -> str:
+    """A command with its `\\`-continued lines joined and its whitespace collapsed."""
+    return " ".join(text.replace("\\\n", " ").split())
+
+
+def _attest_command(workflow: str, tag_version: str, repository: str) -> str:
+    """The attest job's `gh attestation verify` line, read as the command a user runs: the
+    repository and the tag the job reads from its environment written out, the asset named
+    `<asset>`, and the shell's quotes dropped."""
+    from harness import scan
+
+    jobs = scan.workflow_jobs(scan.without_comments(workflow))
+    body = "\n".join(line.strip() for line in jobs["attest"])
+    logical = body.replace("\\\n", " ").splitlines()
+    lines = [line for line in logical if line.startswith("gh attestation verify")]
+    assert len(lines) == 1, lines
+    line = lines[0].replace('"$asset"', "<asset>")
+    line = re.sub(r"\$GITHUB_REPOSITORY\b", repository, line)
+    line = re.sub(r"\$GITHUB_REF\b", f"refs/tags/v{tag_version}", line)
+    return _one_line(line.replace('"', ""))
+
+
+def _note_command(note: str) -> str:
+    block = note.split("```\n", 2)[1]
+    return _one_line(block)
+
+
+def test_the_verify_note_is_the_command_the_attest_job_runs() -> None:
+    """The release notes tell users to run the command the release's attest job runs before it
+    publishes, so an edit to either side, or a rename of the repository, fails here first."""
+    repo = "ClayGendron/wasi-python"
+    want = _attest_command(RELEASE_YML.read_text(), "0.2.0", repo)
+    assert _note_command(version.verify_note("0.2.0", repo)) == want
+
+
+def test_a_changed_flag_in_the_attest_job_breaks_the_equality() -> None:
+    text = RELEASE_YML.read_text()
+    flag = "--deny-self-hosted-runners"
+    assert text.count(flag) == 1
+    planted = text.replace(flag, "--cert-oidc-issuer x")
+    note = _note_command(version.verify_note("0.2.0", "ClayGendron/wasi-python"))
+    assert _attest_command(planted, "0.2.0", "ClayGendron/wasi-python") != note

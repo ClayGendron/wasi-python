@@ -4,7 +4,8 @@ A source tree under `build/` matches its pinned tarball when every file the tarb
 present and byte-identical in the tree (symlinks: same target). A tree with carried patches under
 `recipes/patches/<top>/` must instead equal its tarball with exactly those applied, by the same
 `scripts/steps/apply_patches.sh` the build runs; a path a patch deletes must be absent. Files the
-build adds are not judged.
+build adds are not judged, but for one shape: a folder under any `subprojects/` that the tarball
+did not ship, which is what a meson fallback leaves when it fetches a subproject and builds it in.
 """
 
 from __future__ import annotations
@@ -146,10 +147,37 @@ PINNED_LITTER = "a pinned member with a name only an operating system leaves; th
 
 def tree_drift(tarball: Path, tree: Path, patches: Path | None = None) -> list[str]:
     """Every file that is missing or different in the tree, as 'path: why': against the tarball,
-    or, when the tree has carried patches, against the tarball with them applied."""
+    or, when the tree has carried patches, against the tarball with them applied; and every
+    subproject folder the tarball did not ship."""
     if patch_files(tree.name, patches):
-        return _patched_drift(tarball, tree, (patches or PATCHES) / tree.name)
-    return _tarball_drift(tarball, tree)
+        drift = _patched_drift(tarball, tree, (patches or PATCHES) / tree.name)
+    else:
+        drift = _tarball_drift(tarball, tree)
+    return drift + added_subprojects(tarball, tree)
+
+
+# A subproject folder in the tree that the tarball did not ship: a meson wrap fetched it.
+ADDED_SUBPROJECT = "a subproject folder the tarball did not ship (a meson fallback fetched it)"
+
+
+def added_subprojects(tarball: Path, tree: Path) -> list[str]:
+    """Every folder directly under a `subprojects/` folder of the tree, at any depth, that is no
+    member of the tarball and holds none, as 'path/: why'."""
+    shipped = set()
+    with tarfile.open(tarball) as t:
+        for member in t:
+            parts = member.name.strip("/").split("/")[1:]
+            shipped.update("/".join(parts[:i]) for i in range(1, len(parts) + 1))
+    found = []
+    for folder, dirs, _ in os.walk(tree):
+        if os.path.basename(folder) != "subprojects":
+            continue
+        base = Path(folder).relative_to(tree).as_posix()
+        for name in sorted(dirs):
+            rel = f"{base}/{name}"
+            if rel not in shipped and not paths.has_litter(name):
+                found.append(f"{rel}/: {ADDED_SUBPROJECT}")
+    return sorted(found)
 
 
 def _patched_drift(tarball: Path, tree: Path, patch_dir: Path) -> list[str]:

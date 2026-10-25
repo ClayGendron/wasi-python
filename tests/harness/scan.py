@@ -4451,3 +4451,277 @@ def set_key_errors(
             " checkout's root, and the key does not hold pyproject.toml"
         )
     return errors
+
+
+# ---------------------------------------------------------------------------------------------
+# The build's inputs, read by their pins; the release's tarball, checked file by file
+
+# A pin looked up by a pattern: `grep "  <name>$" …SHA256SUMS`, where a `.` in the name matches any
+# character, so an unpinned name can pass on another name's line. Pins are selected by their exact
+# name field instead (scripts/steps/common.sh's pin_line).
+PIN_GREP = re.compile(r"""\bgrep\b[^|;]*["'] +\$""")
+# The same in awk: the name field matched as a regular expression, not compared as text.
+PIN_AWK_MATCH = re.compile(r"\$2\s*~")
+
+
+def pin_lookup_hits(files: Iterable[Path], root: Path) -> list[str]:
+    """Every shell line that selects a line of SHA256SUMS by a pattern: `grep " $…"` (any number of
+    spaces) on a line naming SHA256SUMS, or an awk `$2 ~` match in a script that reads it (an awk
+    program spans lines, so the file is the unit there)."""
+    hits = []
+    for p in files:
+        if not is_shell(p):
+            continue
+        reads_pins = "SHA256SUMS" in (_text(p) or "")
+        for n, line in _code_lines(p):
+            if (PIN_GREP.search(line) and "SHA256SUMS" in line) or (
+                reads_pins and PIN_AWK_MATCH.search(line)
+            ):
+                hits.append(f"{rel(p, root)}:{n}: {line.strip()[:100]}")
+    return hits
+
+
+# Meson never downloads: a wrap that pkg-config does not satisfy fails the configure instead of
+# cloning. Every configure passes common.sh's MESON_WRAP; step 37's HarfBuzz keeps its own stricter
+# default (nofallback, which refuses a local subproject too). Contourpy's configure is the one
+# exemption: its sdist ships no wrap file and no subprojects folder, so it has nothing to fetch,
+# and it writes meson's options into a file that ships, so the flag would change the zip. The
+# exemption holds only for the sdist that was checked; a new contourpy is checked again first.
+MESON_WRAP_LINE = re.compile(r'^MESON_WRAP="?--wrap-mode=nodownload"?\s*$', re.M)
+MESON_SETUP = re.compile(r'\bmeson\s+setup\b|"\$MESON"\s+setup\b')
+WRAP_ASSIGNMENT = re.compile(r"(?<![\w$-])wrap=(\S*)")
+WRAP_MODES = ("--wrap-mode=nofallback", "--wrap-mode=nodownload")
+CONTOURPY_STEP = "55_matplotlib.sh"
+CONTOURPY_SETUP = "contourpy-build"
+CONTOURPY_CHECKED = "1.4.0"
+CONTOURPY_VERSION = re.compile(r"\bcontourpy-(\d+(?:\.\d+)*)")
+
+
+def meson_wrap_errors(steps: dict[str, str]) -> list[str]:
+    """`steps` maps each file name under scripts/steps/ to its text. One line per configure that
+    could fetch a subproject, per `wrap=` that names another mode, and for common.sh's variable."""
+    errors = []
+    if not MESON_WRAP_LINE.search(steps.get("common.sh", "")):
+        errors.append('common.sh does not set MESON_WRAP="--wrap-mode=nodownload"')
+    setups = 0
+    for name, text in sorted(steps.items()):
+        code = [
+            (n, s) for n, s in enumerate(text.splitlines(), 1) if not s.lstrip().startswith("#")
+        ]
+        for n, line in code:
+            for m in WRAP_ASSIGNMENT.finditer(line):
+                if m[1].strip("\"'") not in WRAP_MODES:
+                    errors.append(f"{name}:{n}: wrap={m[1]} is not nofallback or nodownload")
+            if not MESON_SETUP.search(line):
+                continue
+            setups += 1
+            if "$MESON_WRAP" in line:
+                continue
+            if name == CONTOURPY_STEP and CONTOURPY_SETUP in line:
+                found = set(CONTOURPY_VERSION.findall(text))
+                if found != {CONTOURPY_CHECKED}:
+                    errors.append(
+                        f"{name}:{n}: contourpy's configure is exempt only for contourpy-"
+                        f"{CONTOURPY_CHECKED}, whose sdist was checked for wrap files; this step"
+                        f" unpacks {', '.join(sorted(found)) or 'no contourpy'}"
+                    )
+                continue
+            errors.append(f"{name}:{n}: a meson configure without $MESON_WRAP")
+    if not setups:
+        errors.append("no meson setup line under scripts/steps/")
+    return errors
+
+
+# curl keeps HTTPS: on the first request, on every redirect, and at TLS 1.2 or later.
+# A command word: at the start, after a separator or a keyword, or after a prefix that runs the next
+# word as a command (`!`, `command`, `sudo`, `env`, `timeout N`, a variable assignment).
+COMMAND_START = (
+    r"(?:^|[;&|(`]|\$\(|\bthen\b|\bdo\b|\bexec\b|\brun:|\bif\b|\bwhile\b|\buntil\b|!|"
+    r"\bcommand\b|\bsudo\b|\benv\b|\btimeout\s+\S+|\b[A-Za-z_]\w*=\S*)"
+)
+CURL_COMMAND = re.compile(COMMAND_START + r"\s*curl(?=\s|$)")
+# wget has no way to refuse a redirect off HTTPS, so the fetches use curl alone.
+WGET_COMMAND = re.compile(COMMAND_START + r"\s*wget(?=\s|$)")
+CURL_FLAGS = ("--proto '=https'", "--proto-redir '=https'", "--tlsv1.2")
+
+
+def curl_lines(text: str, command: re.Pattern[str] = CURL_COMMAND) -> list[tuple[int, str]]:
+    """The curl commands (or those `command` matches) of a shell script or a workflow,
+    `\\`-continued lines joined, comments and `curl --version` left out; each with the number of
+    its first line."""
+    out, start, held = [], 0, ""
+    for n, line in enumerate(text.splitlines(), 1):
+        if not held:
+            start = n
+            if line.lstrip().startswith("#"):
+                continue
+        if line.rstrip().endswith("\\"):
+            held += line.rstrip()[:-1] + " "
+            continue
+        logical, held = held + line, ""
+        if command.search(logical) and not re.search(r"\bcurl\s+--version\b", logical):
+            out.append((start, logical))
+    return out
+
+
+def curl_flag_errors(files: Iterable[Path], root: Path) -> list[str]:
+    """Every curl command in `files` that does not keep HTTPS at TLS 1.2, and every wget command."""
+    errors = []
+    for p in files:
+        text = _text(p) or ""
+        for n, line in curl_lines(text):
+            missing = [flag for flag in CURL_FLAGS if flag not in line]
+            if missing:
+                errors.append(f"{rel(p, root)}:{n}: curl without {', '.join(missing)}")
+        for n, _ in curl_lines(text, WGET_COMMAND):
+            errors.append(f"{rel(p, root)}:{n}: wget, which cannot be held to HTTPS on a redirect")
+    return errors
+
+
+# Every read of a download goes through its pin. In scripts/assemble_artifacts.py the downloads
+# folder is `d`; a read of a path built from it is a hit unless it is inside the function that
+# checks the pin first, or it reads the pin list itself.
+READ_METHODS = frozenset({"read_bytes", "read_text", "open"})
+READ_FUNCTIONS = frozenset({"open", "ZipFile"})
+
+
+def _names(node: ast.AST, name: str, reader: str) -> bool:
+    """Whether `node` uses `name` other than as an argument of a call to `reader` (bytes that
+    call has already checked)."""
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == reader:
+        return False
+    if isinstance(node, ast.Name):
+        return node.id == name
+    return any(_names(child, name, reader) for child in ast.iter_child_nodes(node))
+
+
+def _pin_list(node: ast.AST, folder: str) -> bool:
+    return (
+        isinstance(node, ast.BinOp)
+        and isinstance(node.op, ast.Div)
+        and isinstance(node.left, ast.Name)
+        and node.left.id == folder
+        and isinstance(node.right, ast.Constant)
+        and node.right.value == "SHA256SUMS"
+    )
+
+
+def _read_target(call: ast.Call) -> ast.expr | None:
+    f = call.func
+    if isinstance(f, ast.Attribute) and f.attr in READ_METHODS:
+        return f.value
+    named = f.id if isinstance(f, ast.Name) else f.attr if isinstance(f, ast.Attribute) else ""
+    if named in READ_FUNCTIONS and call.args:
+        return call.args[0]
+    return None
+
+
+def downloads_read_hits(
+    text: str, where: str, folder: str = "d", reader: str = "pinned_bytes"
+) -> list[str]:
+    """Every `read_bytes`, `read_text`, `open` or `ZipFile` of a path built from `folder` outside
+    the function `reader`, but the pin list `folder / "SHA256SUMS"`."""
+    hits: list[str] = []
+
+    def visit(node: ast.AST, inside: bool) -> None:
+        for child in ast.iter_child_nodes(node):
+            now = inside or (
+                isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)) and child.name == reader
+            )
+            if isinstance(child, ast.Call) and not now:
+                target = _read_target(child)
+                if (
+                    target is not None
+                    and _names(target, folder, reader)
+                    and not _pin_list(target, folder)
+                ):
+                    hits.append(f"{where}:{child.lineno}: {ast.unparse(child)[:90]}")
+            visit(child, now)
+
+    visit(ast.parse(text), False)
+    return hits
+
+
+# The same-bytes job binds every file inside the set's tarball, not only its index: each file is
+# checked against the inner SHA256SUMS, nothing else is in the tarball (a nested SHA256SUMS or a
+# symlink cannot hide), and every published file is among the listed names.
+SAME_BYTES_JOB = "same-bytes"
+SAME_BYTES_STEP = "Every rebuild's SHA256SUMS is the set's, byte for byte"
+SAME_BYTES_UNPACK = "tar -xJf release-assets/*.tar.xz -C set"
+SAME_BYTES_SHAPES = (
+    ("cd set/wasi-python-*", "does not check inside the unpacked set"),
+    ("sha256sum --strict -c SHA256SUMS", "does not run sha256sum --strict -c SHA256SUMS"),
+    ("awk '{print $2}' SHA256SUMS | LC_ALL=C sort", "does not list SHA256SUMS's names"),
+    (
+        "find . -mindepth 1 ! -type d ! -path ./SHA256SUMS",
+        "does not list every file present but the index",
+    ),
+    ('"$listed" != "$present"', "does not compare the listed names with the files present"),
+    ("find set -type l", "does not refuse a symlink"),
+)
+
+
+def same_bytes_inner_errors(text: str, artifact_files: Iterable[str]) -> list[str]:
+    """The same-bytes step's check of every inner file, one line per missing part."""
+    jobs = workflow_jobs(without_comments(text))
+    step = next(
+        (
+            f
+            for f in (step_fields(s) for s in workflow_steps(jobs.get(SAME_BYTES_JOB, [])))
+            if f.get("name") == SAME_BYTES_STEP
+        ),
+        None,
+    )
+    if step is None or not isinstance(step.get("run"), str):
+        return [f"{SAME_BYTES_JOB} has no step {SAME_BYTES_STEP!r} with a run: script"]
+    run = step["run"]
+    errors = []
+    unpack = run.find(SAME_BYTES_UNPACK)
+    if unpack < 0:
+        errors.append(f"the same-bytes step does not run {SAME_BYTES_UNPACK!r}")
+    for shape, why in SAME_BYTES_SHAPES:
+        at = run.find(shape)
+        if at < 0 or at < unpack:
+            errors.append(f"the same-bytes step {why} (after the unpack)")
+    link, enter = run.find("find set -type l"), run.find("cd set/wasi-python-*")
+    if link >= 0 and enter >= 0 and link > enter:
+        errors.append(
+            "the same-bytes step refuses a symlink only after it enters the set's folder, which"
+            " can itself be a symlink"
+        )
+    for name in [*artifact_files, "LICENSES/"]:
+        if name == "SHA256SUMS":
+            continue
+        if not re.search(rf"(?<![\w.-]){re.escape(name)}(?![\w.-])", run):
+            errors.append(f"the same-bytes step does not require {name} among the listed names")
+    return errors
+
+
+# The build job checks the set again just before it packs the release assets: the wheel's copy
+# and the zero-patch step run in between, and what is packed is what was checked.
+RELEASE_ASSETS_STEP = "Release assets"
+REVERIFY = "release/set_key.py verify build/artifacts"
+PACK = "release/version.py assets build/artifacts"
+
+
+def producer_reverify_errors(text: str) -> list[str]:
+    """The build job's "Release assets" step verifies build/artifacts first, then packs it, and
+    comes after the zero-patch step."""
+    build = [
+        step_fields(s)
+        for s in workflow_steps(workflow_jobs(without_comments(text)).get("build", []))
+    ]
+    names = [f.get("name") for f in build]
+    if RELEASE_ASSETS_STEP not in names:
+        return [f"build has no step {RELEASE_ASSETS_STEP!r}"]
+    at = names.index(RELEASE_ASSETS_STEP)
+    run = str(build[at].get("run", ""))
+    commands = [line.strip() for line in run.splitlines() if line.strip()]
+    errors = []
+    if not commands or REVERIFY not in commands[0]:
+        errors.append(f"{RELEASE_ASSETS_STEP!r} does not run {REVERIFY} first")
+    if not any(PACK in c for c in commands[1:]):
+        errors.append(f"{RELEASE_ASSETS_STEP!r} does not pack the set after verifying it")
+    if ZERO_PATCH_STEP not in names or names.index(ZERO_PATCH_STEP) > at:
+        errors.append(f"{RELEASE_ASSETS_STEP!r} does not come after the zero-patch step")
+    return errors

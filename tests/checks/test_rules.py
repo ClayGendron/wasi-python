@@ -1423,3 +1423,187 @@ def test_the_reuse_decision_refuses_tags_and_main(case, tmp_path) -> None:
     )
     assert r.returncode == 0, r.stdout + r.stderr
     assert out.read_text() == f"reuse={want}\n", (out.read_text(), r.stdout)
+
+
+# The build reads its pins by exact name, and the release checks every inner file.
+
+COMMON_SH = paths.REPO / "scripts" / "steps" / "common.sh"
+PIN_FUNCTIONS = ("die", "pin_line", "pinned", "pin_of")
+
+
+def _shell_functions(text: str, names: tuple[str, ...]) -> str:
+    """The named functions' definitions, taken from a script's text as written, so a row can
+    run them without sourcing the script whole (common.sh finds the repository from $0 and
+    sources the line and the removal helper at load)."""
+    out = []
+    for name in names:
+        m = re.search(rf"^{name}\(\) \{{\n.*?^\}}\n", text, re.M | re.S)
+        if m:
+            out.append(m[0])
+    return "".join(out)
+
+
+def _sha(data: bytes) -> str:
+    import hashlib
+
+    return hashlib.sha256(data).hexdigest()
+
+
+# case -> (the files in downloads/, the SHA256SUMS lines as (file whose bytes are hashed, name),
+# the call, the exit status wanted (0 or not), what the output must hold)
+PIN_CASES = {
+    "an exact pin": (
+        {"foo.tar.gz": b"foo"},
+        [("foo.tar.gz", "foo.tar.gz")],
+        "pinned foo.tar.gz",
+        0,
+        "downloads/foo.tar.gz",
+    ),
+    "a dot is only a dot": (
+        {"foo.tar.gz": b"unpinned", "fooXtar.gz": b"pinned"},
+        [("fooXtar.gz", "fooXtar.gz")],
+        "pinned foo.tar.gz",
+        1,
+        "foo.tar.gz is not pinned",
+    ),
+    "a name pinned twice": (
+        {"foo.tar.gz": b"foo"},
+        [("foo.tar.gz", "foo.tar.gz"), ("foo.tar.gz", "foo.tar.gz")],
+        "pinned foo.tar.gz",
+        1,
+        "foo.tar.gz is pinned twice",
+    ),
+    "a numeric-looking name is text": (
+        {"100": b"a", "1e2": b"b"},
+        [("100", "100")],
+        "pinned 1e2",
+        1,
+        "1e2 is not pinned",
+    ),
+    "a numeric-looking name matches itself": (
+        {"100": b"a"},
+        [("100", "100")],
+        "pinned 100",
+        0,
+        "downloads/100",
+    ),
+    "bytes that changed": (
+        {"foo.tar.gz": b"changed"},
+        [("foo.tar.gz", "foo.tar.gz")],
+        "pinned foo.tar.gz",
+        1,
+        "does not match its pin",
+    ),
+    "pin_of an exact pin": (
+        {},
+        [("foo.tar.gz", "foo.tar.gz")],
+        "pin_of foo.tar.gz",
+        0,
+        _sha(b"foo"),
+    ),
+    "pin_of: a dot is only a dot": (
+        {},
+        [("fooXtar.gz", "fooXtar.gz")],
+        "pin_of foo.tar.gz",
+        1,
+        "foo.tar.gz is not pinned",
+    ),
+    "pin_of a name pinned twice": (
+        {},
+        [("foo.tar.gz", "foo.tar.gz"), ("foo.tar.gz", "foo.tar.gz")],
+        "pin_of foo.tar.gz",
+        1,
+        "foo.tar.gz is pinned twice",
+    ),
+}
+PIN_BYTES = {"foo.tar.gz": b"foo", "fooXtar.gz": b"pinned", "100": b"a"}
+
+
+@pytest.mark.parametrize("shell", ["sh", "bash"])
+@pytest.mark.parametrize("case", PIN_CASES)
+def test_a_pin_is_selected_by_its_exact_name_and_once(case, shell, tmp_path) -> None:
+    """common.sh's own pinned() and pin_of(), taken from its text and run under sh and bash: a
+    pin is found by its exact name, never by a pattern that lets `.` match another character,
+    never by comparing numbers, and exactly once."""
+    import shutil
+
+    found = shutil.which(shell)
+    assert found, f"no {shell} on PATH"
+    text = COMMON_SH.read_text()
+    files, lines, call, want, shows = PIN_CASES[case]
+    needed = ("die", call.split()[0])
+    missing = [n for n in needed if not re.search(rf"^{n}\(\) \{{$", text, re.M)]
+    assert not missing, f"common.sh defines no {', '.join(missing)}()"
+    d, b = tmp_path / "downloads", tmp_path / "build"
+    d.mkdir()
+    b.mkdir()
+    for name, data in files.items():
+        (d / name).write_bytes(data)
+    (d / "SHA256SUMS").write_text("".join(f"{_sha(PIN_BYTES[f])}  {n}\n" for f, n in lines))
+    script = f'set -eu\nD="{d}"\nB="{b}"\n' + _shell_functions(text, PIN_FUNCTIONS) + call + "\n"
+    (tmp_path / "pin.sh").write_text(script)
+    r = subprocess.run([found, str(tmp_path / "pin.sh")], capture_output=True, text=True)
+    out = r.stdout + r.stderr
+    assert (r.returncode != 0) == bool(want), (r.returncode, out[-300:])
+    assert shows in out, out[-300:]
+
+
+def test_no_pin_is_looked_up_by_a_pattern() -> None:
+    """No script selects a line of SHA256SUMS with `grep "  $…"`, where a `.` in the name
+    matches any character; pins are selected by their exact name field."""
+    hits = scan.pin_lookup_hits(scan.files_under(paths.REPO, "scripts"), paths.REPO)
+    assert not hits, scan.report(hits)
+
+
+def test_meson_never_downloads_a_subproject() -> None:
+    """Every meson configure under scripts/steps/ passes --wrap-mode=nodownload through
+    MESON_WRAP (HarfBuzz its own stricter nofallback), so a wrap pkg-config does not satisfy
+    fails the build instead of fetching; contourpy's configure is the one exemption, for the
+    sdist that was checked."""
+    steps = {p.name: p.read_text() for p in sorted((paths.REPO / "scripts" / "steps").glob("*.sh"))}
+    errors = scan.meson_wrap_errors(steps)
+    assert not errors, scan.report(errors)
+
+
+def test_curl_keeps_https_at_tls_1_2() -> None:
+    """Every curl command in scripts/ and the workflows stays on HTTPS, on every redirect too,
+    at TLS 1.2 or later; the download script has one."""
+    files = scan.files_under(paths.REPO, "scripts") + sorted(
+        (paths.REPO / ".github" / "workflows").glob("*.y*ml")
+    )
+    errors = scan.curl_flag_errors(files, paths.REPO)
+    assert not errors, scan.report(errors)
+    assert scan.curl_lines((paths.REPO / "scripts" / "00_download.sh").read_text())
+
+
+def test_every_download_the_licences_read_goes_through_its_pin() -> None:
+    """scripts/assemble_artifacts.py reads no file under downloads/ but through pinned_bytes,
+    which checks it against its pin first; the pin list itself is the one plain read."""
+    writer = paths.REPO / "scripts" / "assemble_artifacts.py"
+    hits = scan.downloads_read_hits(writer.read_text(), "scripts/assemble_artifacts.py")
+    assert not hits, scan.report(hits)
+
+
+def test_the_same_bytes_job_checks_every_inner_file() -> None:
+    """The same-bytes job checks every file inside the set's tarball against its SHA256SUMS,
+    refuses any other file and any symlink, and requires every published file to be listed."""
+    errors = scan.same_bytes_inner_errors(RELEASE_WORKFLOW.read_text(), paths.ARTIFACT_FILES)
+    assert not errors, scan.report(errors)
+
+
+def test_the_build_job_verifies_the_set_again_before_it_packs() -> None:
+    errors = scan.producer_reverify_errors(RELEASE_WORKFLOW.read_text())
+    assert not errors, scan.report(errors)
+
+
+def test_contourpys_exemption_holds_only_for_the_checked_sdist() -> None:
+    """A bump of contourpy's unpacked folder fails the meson rule until the new sdist is checked
+    for wrap files and the exemption is renewed."""
+    steps = {p.name: p.read_text() for p in sorted((paths.REPO / "scripts" / "steps").glob("*.sh"))}
+    steps["55_matplotlib.sh"] = steps["55_matplotlib.sh"].replace(
+        "contourpy-1.4.0", "contourpy-1.5.0"
+    )
+    errors = scan.meson_wrap_errors(steps)
+    assert any("exempt only for contourpy-1.4.0" in e and "unpacks 1.5.0" in e for e in errors), (
+        errors
+    )

@@ -72,7 +72,7 @@ export PYTHONPATH="$TOOLS/numpy-host:$PYTHONPATH"
 
 cd "$SRC"
 # The release build type and asserts off are meson-python's defaults, as scipy's wheels are built.
-meson setup "$BUILD" --cross-file "$B/wasi-scipy.cross" --buildtype=release -Db_ndebug=if-release \
+meson setup "$BUILD" $MESON_WRAP --cross-file "$B/wasi-scipy.cross" --buildtype=release -Db_ndebug=if-release \
   -D_without-fortran=true -Duse-pythran=false -Dblas=openblas -Dlapack=openblas \
   -Duse-system-libraries=qhull
 # Every installed target but the seven test modules (one, special._test_internal, sets the FPU's

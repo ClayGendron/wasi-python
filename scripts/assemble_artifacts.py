@@ -509,7 +509,8 @@ def notice(parts: list[tuple[str, bytes]]) -> bytes:
 
 
 def wheel_licences(wheel: Path) -> list[tuple[str, bytes]]:
-    with zipfile.ZipFile(wheel) as z:
+    """A pinned wheel's licence files, read from its bytes once they match its pin."""
+    with zipfile.ZipFile(io.BytesIO(pinned_bytes(wheel.parent, wheel.name))) as z:
         names = sorted(
             n
             for n in z.namelist()
@@ -787,7 +788,7 @@ def main() -> None:
             (f"HarfBuzz {n}", (b / "harfbuzz-14.1.0" / n).read_bytes())
             for n in ("COPYING", "src/ms-use/COPYING")
         ]
-        + [(f"Unicode's data terms ({UNICODE_TERMS})", (d / UNICODE_TERMS).read_bytes())],
+        + [(f"Unicode's data terms ({UNICODE_TERMS})", pinned_bytes(d, UNICODE_TERMS))],
         "sheenbidi": [("SheenBidi LICENSE", (b / "SheenBidi-3.0.0" / "LICENSE").read_bytes())],
         "libraqm": [("libraqm COPYING", (b / "libraqm-0.10.5" / "COPYING").read_bytes())],
         "matplotlib": [
@@ -841,8 +842,8 @@ def main() -> None:
         "seaborn": [
             (f"seaborn {n}", (b / "seaborn-0.13.2" / n).read_bytes()) for n in SEABORN_NOTICES
         ],
-        "wasi-libc": [(name, (d / name).read_bytes()) for name in WASI_LIBC],
-        "llvm-runtimes": [(name, (d / name).read_bytes()) for name in LLVM],
+        "wasi-libc": [(name, pinned_bytes(d, name)) for name in WASI_LIBC],
+        "llvm-runtimes": [(name, pinned_bytes(d, name)) for name in LLVM],
     }
     tqdm_source = pinned_bytes(d, TQDM_WHEEL)
     (new / "LICENSES" / TQDM_SOURCE).write_bytes(tqdm_source)
@@ -850,7 +851,7 @@ def main() -> None:
         (f"Mozilla Public License 2.0, the full text ({MPL_TEXT})", pinned_bytes(d, MPL_TEXT)),
         ("tqdm source", tqdm_source_part(tqdm_source)),
     ]
-    with zipfile.ZipFile(d / SYMPY_WHEEL) as z:
+    with zipfile.ZipFile(io.BytesIO(pinned_bytes(d, SYMPY_WHEEL))) as z:
         licences["sympy"].append((f"{SYMPY_WHEEL}: {SYMPY_NESTED}", z.read(SYMPY_NESTED)))
     licences["reportlab"] += reportlab_parts(d)
     for component, parts in licences.items():

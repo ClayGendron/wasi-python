@@ -33,3 +33,11 @@ Icon
 
 # The documentation site mkdocs builds; the workflow uploads it, git never holds it.
 site/
+
+# Secrets never live in git: environment files, keys and certificates, and the local Claude
+# settings, which can hold tokens. A broad `git add` must not carry one in.
+.env
+.env.*
+*.pem
+*.key
+.claude/settings.local.json

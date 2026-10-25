@@ -31,7 +31,7 @@ export WASI_CC_FILE_INCLUDES="$BUILD/file-includes.txt" WASI_CC_FILE_INCLUDES_LO
 cd "$SRC"
 MESON="$SRC/vendored-meson/meson/meson.py"  # the meson that configures a build directory installs it
 # -Dallow-noblas=false: a failed detection stops here, never falls back to lapack_lite.
-"$HOSTPY" "$MESON" setup "$BUILD" --cross-file "$B/wasi-numpy.cross" --buildtype=release \
+"$HOSTPY" "$MESON" setup "$BUILD" $MESON_WRAP --cross-file "$B/wasi-numpy.cross" --buildtype=release \
   -Dblas=openblas -Dlapack=openblas -Dallow-noblas=false -Duse-ilp64=false \
   -Ddisable-optimization=true -Ddisable-threading=true \
   -Ddisable-highway=true -Ddisable-intel-sort=true -Ddisable-svml=true -Dtest-simd=BASELINE

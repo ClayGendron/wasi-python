@@ -195,7 +195,11 @@ jobs:
         id: set-sums
         run: echo "sha256=$(shasum -a 256 build/artifacts/SHA256SUMS | cut -c1-64)" >> "$GITHUB_OUTPUT"
       - name: Release assets
-        run: uv run python release/version.py assets build/artifacts dist/wasi_python-*.whl release-assets
+        # The set again, just before it is packed: the wheel's copy and the zero-patch step ran
+        # since it was checked, and what is packed must be what was checked.
+        run: |
+          uv run --no-project python -I release/set_key.py verify build/artifacts
+          uv run python release/version.py assets build/artifacts dist/wasi_python-*.whl release-assets
       - name: The SHA-256 of SHA256SUMS, handed to every job that reads the assets
         id: sums
         run: echo "sha256=$(shasum -a 256 release-assets/SHA256SUMS | cut -c1-64)" >> "$GITHUB_OUTPUT"
@@ -455,6 +459,38 @@ jobs:
             echo "$runner: the same SHA256SUMS"
           done
           cat "$sums"
+          # The index binds the tarball's files only once each is checked against it: every listed
+          # file holds the bytes listed, the tarball holds one folder and nothing else beside the
+          # listed files (a nested SHA256SUMS or a symlink cannot hide), and every published file
+          # and a licence are among the names, so a file dropped from both still fails.
+          if [ "$(find set -mindepth 1 -maxdepth 1 | wc -l)" -ne 1 ]; then
+            echo "the set's tarball holds more than its one folder"
+            exit 1
+          fi
+          # Before entering the folder, so the folder itself cannot be a symlink to another place.
+          if [ -n "$(find set -type l)" ]; then
+            echo "the set's tarball holds a symlink"
+            exit 1
+          fi
+          cd set/wasi-python-*
+          sha256sum --strict -c SHA256SUMS
+          listed=$(awk '{print $2}' SHA256SUMS | LC_ALL=C sort)
+          present=$(find . -mindepth 1 ! -type d ! -path ./SHA256SUMS | sed 's#^\./##' | LC_ALL=C sort)
+          if [ "$listed" != "$present" ]; then
+            echo "the set's tarball holds other files than its SHA256SUMS lists"
+            exit 1
+          fi
+          for name in python.wasm python-snapshot.wasm python-stdlib.zip MANIFEST; do
+            if ! printf '%s\n' "$listed" | grep -qxF "$name"; then
+              echo "the set's SHA256SUMS does not list $name"
+              exit 1
+            fi
+          done
+          if ! printf '%s\n' "$listed" | grep -q '^LICENSES/'; then
+            echo "the set's SHA256SUMS lists no file under LICENSES/"
+            exit 1
+          fi
+          echo "every file in the set's tarball is the bytes its SHA256SUMS lists"
       - name: The wheel carries the set and is the wheel each host rebuilt
         # Three rules name what differs; the last comparison covers everything else in the wheel
         # (runner.py, METADATA), so a wheel built from any other source or set fails.
@@ -2544,7 +2580,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="${GITHUB_REF_NAME#v}"
-          uv run --no-project python release/version.py notes "$version" > notes.md
+          uv run --no-project python release/version.py notes "$version" --repository "$GITHUB_REPOSITORY" > notes.md
           prerelease=""
           case "$version" in *a*|*b*|*rc*) prerelease="--prerelease" ;; esac
           gh release create "$GITHUB_REF_NAME" release-assets/* \

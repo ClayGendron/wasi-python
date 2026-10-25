@@ -31,7 +31,7 @@ The release pull request and the weekly run are being set up. Until they are in 
 The workflow runs these stages, in order:
 
 1. **Build.** It builds the artifact set from the pins on arm64 macOS. It checks that every source tree is its pinned tarball plus exactly the recorded patches.
-2. **Rebuild.** Two more jobs rebuild the set from the pins, one on an arm64 Linux runner and one on an x86_64 Linux runner. Each must produce the same `SHA256SUMS` and the same wheel, byte for byte. Nothing is signed or published until they match.
+2. **Rebuild.** Two more jobs rebuild the set from the pins, one on an arm64 Linux runner and one on an x86_64 Linux runner. Each must produce the same `SHA256SUMS` and the same wheel, byte for byte. The set's `.tar.xz` is then unpacked and every file in it is checked against that `SHA256SUMS`: no other file, no symlink, and every published file listed. Nothing is signed or published until they match.
 3. **Test in shards.** The tests run in parallel *shards* (slices of the test suite, each a job of its own) on macOS, Linux and Windows at once. The packages' own test suites run in the guest on Linux. One group of numpy's and pandas' tests, and CPython's file-system group, also run on macOS and Windows. `tests/release_shards.toml` lists the shards, and `uv run pytest --shard=<name>` runs one.
 4. **Gather.** A job named `gather` reads every shard's record. Nothing is signed or published unless every shard ran exactly its share on the release's bytes and nothing failed.
 5. **Attest.** An `attest` job signs build provenance for every asset and verifies it strictly.

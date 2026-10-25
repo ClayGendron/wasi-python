@@ -52,7 +52,7 @@ export PYTHONPATH="$CIMPORT:$B/numpy-host:$PYTHONPATH"
 cd "$SRC"
 # The release build type and asserts off are meson-python's defaults, as scikit-learn's wheels are
 # built. The version script (sklearn/_build_utils/version.py) runs under meson's own Python.
-meson setup "$BUILD" --cross-file "$B/wasi-sklearn.cross" --buildtype=release -Db_ndebug=if-release
+meson setup "$BUILD" $MESON_WRAP --cross-file "$B/wasi-sklearn.cross" --buildtype=release -Db_ndebug=if-release
 SETUP="$BUILD/meson-logs/meson-log.txt"
 grep -q -x -F "Project version: 1.9.1" "$SETUP" || die "meson configured another version than 1.9.1 ($SETUP)"
 # No OpenMP (Decision 3): wasi-sdk ships no omp.h and no runtime, and the cross file lets meson find

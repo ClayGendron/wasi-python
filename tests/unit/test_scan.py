@@ -2973,3 +2973,329 @@ def test_the_tier_step_decides_by_the_runners_own_variables(
     }
     subprocess.run(["bash", "-e", "-c", _tier_step()], env=env, check=True, capture_output=True)
     assert out.read_text() == f"tier={tier}\n"
+
+
+# The build's pins read by exact name, meson that never downloads, curl that keeps HTTPS, every
+# download read through its pin, and the release's inner-file check and re-verify.
+
+
+def test_a_pin_looked_up_by_a_pattern_is_named(work) -> None:
+    good = write(work, "scripts/a.sh", 'pin_line "$1" > "$B/.pin-check"\n')
+    bad = write(
+        work, "scripts/b.sh", '#!/bin/sh\nsha=$(grep "  $w\\$" "$D/SHA256SUMS" | cut -c1-64)\n'
+    )
+    other = write(
+        work, "scripts/c.sh", 'grep -Fqx "$name: OK" "$checked"\n# grep "  $1\\$" SHA256SUMS\n'
+    )
+    assert scan.pin_lookup_hits([good, other], work) == []
+    assert scan.pin_lookup_hits([bad], work) == [
+        'scripts/b.sh:2: sha=$(grep "  $w\\$" "$D/SHA256SUMS" | cut -c1-64)'
+    ]
+
+
+WRAP_COMMON = 'MESON_WRAP="--wrap-mode=nodownload"\n'
+WRAP_STEPS = {
+    "common.sh": WRAP_COMMON,
+    "37_plot_libs.sh": (
+        "build() {\n"
+        '  meson setup "$dir" "$src" ${wrap:-$MESON_WRAP} --cross-file x\n'
+        "}\n"
+        "wrap=--wrap-mode=nofallback\n"
+        'build "$B/harfbuzz" "$B/harfbuzz-build"\n'
+        "unset wrap\n"
+    ),
+    "40_numpy.sh": '"$HOSTPY" "$MESON" setup "$BUILD" $MESON_WRAP --cross-file x \\\n  -Da=b\n',
+    "55_matplotlib.sh": (
+        "CONTOURPY_TGZ=$(pinned contourpy-1.4.0.tar.gz)\n"
+        'meson setup "$B/matplotlib-build" $MESON_WRAP --cross-file x\n'
+        'C="$B/contourpy-1.4.0"\n'
+        '  meson setup "$B/contourpy-build" --cross-file x\n'
+        "# meson setup in a comment counts for nothing\n"
+    ),
+    "60_link.sh": 'WRAP="-Wl,--wrap=__wasi_clock_time_get -Wl,--wrap=fcntl"\n',
+}
+
+
+def test_meson_wrap_passes_the_steps_that_cannot_download() -> None:
+    assert scan.meson_wrap_errors(WRAP_STEPS) == []
+
+
+BAD_WRAPS = [
+    ("common.sh", WRAP_COMMON, 'MESON_WRAP="--wrap-mode=default"\n', "common.sh does not set"),
+    ("40_numpy.sh", " $MESON_WRAP", "", "40_numpy.sh:1: a meson configure without $MESON_WRAP"),
+    (
+        "37_plot_libs.sh",
+        "wrap=--wrap-mode=nofallback",
+        "wrap=--wrap-mode=forcefallback",
+        "37_plot_libs.sh:4: wrap=--wrap-mode=forcefallback is not",
+    ),
+    (
+        "55_matplotlib.sh",
+        "contourpy-1.4.0",
+        "contourpy-1.5.0",
+        "55_matplotlib.sh:4: contourpy's configure is exempt only for contourpy-1.4.0",
+    ),
+    (
+        "55_matplotlib.sh",
+        'matplotlib-build" $MESON_WRAP',
+        'matplotlib-build"',
+        "55_matplotlib.sh:2: a meson configure without $MESON_WRAP",
+    ),
+]
+
+
+@pytest.mark.parametrize(("name", "old", "new", "error"), BAD_WRAPS)
+def test_meson_wrap_names_each_breach(name, old, new, error) -> None:
+    """Each fixture fails one way: the variable's mode, a configure without it, another mode in
+    `wrap=`, contourpy's exemption once its unpacked folder is bumped, and a configure in the
+    exempt step that is not contourpy's."""
+    steps = dict(WRAP_STEPS)
+    assert old in steps[name], (name, old)
+    steps[name] = steps[name].replace(old, new, 1)
+    errors = scan.meson_wrap_errors(steps)
+    assert len(errors) == 1 and errors[0].startswith(error), errors
+
+
+def test_meson_wrap_needs_a_configure_to_read() -> None:
+    assert scan.meson_wrap_errors({"common.sh": WRAP_COMMON}) == [
+        "no meson setup line under scripts/steps/"
+    ]
+
+
+CURL_GOOD = (
+    "get() {\n"
+    '  if ! command -v curl > /dev/null 2>&1; then echo "no curl on PATH"; fi\n'
+    "  curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 \\\n"
+    '    -o "$D/$2.part" "$1"\n'
+    "}\n"
+    "# curl -fsSL http://example.org in a comment counts for nothing\n"
+    "curl --version | head -n 1\n"
+)
+
+
+def test_curl_keeps_https(work) -> None:
+    good = write(work, "scripts/get.sh", CURL_GOOD)
+    flow = write(work, ".github/workflows/w.yml", "    steps:\n      - run: curl --version\n")
+    assert scan.curl_flag_errors([good, flow], work) == []
+    assert [n for n, _ in scan.curl_lines(CURL_GOOD)] == [3]
+
+
+@pytest.mark.parametrize("flag", scan.CURL_FLAGS)
+def test_curl_without_a_flag_is_named(work, flag) -> None:
+    bad = write(work, "scripts/get.sh", CURL_GOOD.replace(f" {flag}", "", 1))
+    assert scan.curl_flag_errors([bad], work) == [f"scripts/get.sh:3: curl without {flag}"]
+    flow = write(work, "w.yml", "      - run: curl -fsSL https://x -o y\n")
+    assert scan.curl_flag_errors([flow], work)[0].startswith("w.yml:1: curl without --proto")
+
+
+READS_GOOD = """
+import zipfile
+def pinned_bytes(d, name):
+    rows = (d / "SHA256SUMS").read_text().splitlines()
+    return (d / name).read_bytes()
+def main():
+    b, d = root / "build", root / "downloads"
+    pins = (d / "SHA256SUMS").read_text()
+    tree = (b / "zlib" / "LICENSE").read_bytes()
+    terms = pinned_bytes(d, "terms.txt")
+    nested = zipfile.ZipFile(io.BytesIO(pinned_bytes(d, "x.whl")))
+"""
+
+
+def test_a_download_read_without_its_pin_is_named() -> None:
+    assert scan.downloads_read_hits(READS_GOOD, "a.py") == []
+    for line, shown in (
+        ('    t = (d / "terms.txt").read_bytes()\n', "(d / 'terms.txt').read_bytes()"),
+        ("    z = zipfile.ZipFile(d / wheel)\n", "zipfile.ZipFile(d / wheel)"),
+        ('    f = open(d / "x")\n', "open(d / 'x')"),
+        ("    n = [(d / n).read_text() for n in NAMES]\n", "(d / n).read_text()"),
+    ):
+        hits = scan.downloads_read_hits(READS_GOOD + line, "a.py")
+        assert hits == [f"a.py:12: {shown}"], hits
+
+
+SAME_BYTES_GOOD = """jobs:
+  build:
+    steps:
+      - name: The source trees are their tarballs plus the recorded patches
+        run: |
+          uv run pytest -q tests/checks/test_v1_5_rebuild_from_pins.py
+      - name: Release assets
+        run: |
+          uv run --no-project python -I release/set_key.py verify build/artifacts
+          uv run python release/version.py assets build/artifacts dist/wasi_python-*.whl out
+  same-bytes:
+    steps:
+      - name: Every rebuild's SHA256SUMS is the set's, byte for byte
+        run: |
+          mkdir set
+          tar -xJf release-assets/*.tar.xz -C set
+          cmp set/wasi-python-*/SHA256SUMS rebuilds/a/SHA256SUMS
+          if [ -n "$(find set -type l)" ]; then exit 1; fi
+          cd set/wasi-python-*
+          sha256sum --strict -c SHA256SUMS
+          listed=$(awk '{print $2}' SHA256SUMS | LC_ALL=C sort)
+          present=$(find . -mindepth 1 ! -type d ! -path ./SHA256SUMS | sed 's#^\\./##' \\
+            | LC_ALL=C sort)
+          if [ "$listed" != "$present" ]; then exit 1; fi
+          for name in python.wasm python-snapshot.wasm python-stdlib.zip MANIFEST; do
+            echo "$listed" | grep -qxF "$name"
+          done
+          echo "$listed" | grep -q '^LICENSES/'
+"""
+
+
+def test_the_same_bytes_inner_check_passes_a_whole_step() -> None:
+    assert scan.same_bytes_inner_errors(SAME_BYTES_GOOD, paths.ARTIFACT_FILES) == []
+    assert scan.producer_reverify_errors(SAME_BYTES_GOOD) == []
+
+
+BAD_INNER = [
+    ("          sha256sum --strict -c SHA256SUMS\n", "", "does not run sha256sum --strict"),
+    ("          cd set/wasi-python-*\n", "", "does not check inside the unpacked set"),
+    (" ! -type d ! -path ./SHA256SUMS", " -type f ! -name SHA256SUMS", "every file present"),
+    ('"$listed" != "$present"', '"$listed" != ""', "does not compare the listed names"),
+    (
+        '          if [ -n "$(find set -type l)" ]; then exit 1; fi\n',
+        "",
+        "does not refuse a symlink",
+    ),
+    (" python-snapshot.wasm", "", "does not require python-snapshot.wasm"),
+    (" MANIFEST;", ";", "does not require MANIFEST"),
+    ("'^LICENSES/'", "'^x'", "does not require LICENSES/"),
+    ("tar -xJf release-assets/*.tar.xz -C set", "tar -xf x", "does not run 'tar -xJf"),
+]
+
+
+@pytest.mark.parametrize(("old", "new", "error"), BAD_INNER, ids=[e for *_, e in BAD_INNER])
+def test_the_same_bytes_inner_check_names_each_breach(old, new, error) -> None:
+    text = SAME_BYTES_GOOD.replace(old, new, 1)
+    assert text != SAME_BYTES_GOOD
+    errors = scan.same_bytes_inner_errors(text, paths.ARTIFACT_FILES)
+    assert any(error in e for e in errors), errors
+
+
+def test_the_inner_check_reads_the_artifact_names_it_is_given() -> None:
+    """A new artifact name fails the rule until the step names it."""
+    errors = scan.same_bytes_inner_errors(SAME_BYTES_GOOD, (*paths.ARTIFACT_FILES, "python.cwasm"))
+    assert errors == ["the same-bytes step does not require python.cwasm among the listed names"]
+
+
+def test_an_inner_check_before_the_unpack_or_absent_is_refused() -> None:
+    renamed = SAME_BYTES_GOOD.replace("byte for byte", "by name")
+    assert scan.same_bytes_inner_errors(renamed, paths.ARTIFACT_FILES) == [
+        f"same-bytes has no step {scan.SAME_BYTES_STEP!r} with a run: script"
+    ]
+    head = "          mkdir set\n          tar -xJf release-assets/*.tar.xz -C set\n"
+    late = SAME_BYTES_GOOD.replace(head, "          mkdir set\n").replace(
+        "          echo \"$listed\" | grep -q '^LICENSES/'\n",
+        "          echo \"$listed\" | grep -q '^LICENSES/'\n"
+        "          tar -xJf release-assets/*.tar.xz -C set\n",
+    )
+    errors = scan.same_bytes_inner_errors(late, paths.ARTIFACT_FILES)
+    assert (
+        "the same-bytes step does not run sha256sum --strict -c SHA256SUMS (after the unpack)"
+        in errors
+    )
+
+
+VERIFY_LINE = "          uv run --no-project python -I release/set_key.py verify build/artifacts\n"
+PACK_LINE = (
+    "          uv run python release/version.py assets build/artifacts dist/wasi_python-*.whl out\n"
+)
+ZERO_PATCH = (
+    "      - name: The source trees are their tarballs plus the recorded patches\n"
+    "        run: |\n"
+    "          uv run pytest -q tests/checks/test_v1_5_rebuild_from_pins.py\n"
+)
+BAD_REVERIFY = [
+    (VERIFY_LINE, "", "does not run release/set_key.py verify build/artifacts first"),
+    (VERIFY_LINE + PACK_LINE, PACK_LINE + VERIFY_LINE, "verify build/artifacts first"),
+    (PACK_LINE, "", "does not pack the set after verifying it"),
+    (ZERO_PATCH, "", "does not come after the zero-patch step"),
+    ("      - name: Release assets\n", "      - name: The assets\n", "build has no step"),
+]
+
+
+@pytest.mark.parametrize(("old", "new", "error"), BAD_REVERIFY, ids=[e for *_, e in BAD_REVERIFY])
+def test_the_producer_reverify_names_each_breach(old, new, error) -> None:
+    text = SAME_BYTES_GOOD.replace(old, new, 1)
+    assert text != SAME_BYTES_GOOD
+    errors = scan.producer_reverify_errors(text)
+    assert any(error in e for e in errors), errors
+
+
+def test_a_reverify_after_the_zero_patch_step_moves_is_refused() -> None:
+    late = SAME_BYTES_GOOD.replace(ZERO_PATCH, "", 1).replace(
+        "  same-bytes:\n", ZERO_PATCH + "  same-bytes:\n", 1
+    )
+    errors = scan.producer_reverify_errors(late)
+    assert errors == ["'Release assets' does not come after the zero-patch step"], errors
+
+
+def test_a_symlink_check_inside_the_set_misses_the_folder_itself() -> None:
+    """The folder the step enters can itself be a symlink to another place, so the check runs on
+    the unpacked tree before the `cd`, never after it."""
+    link = '          if [ -n "$(find set -type l)" ]; then exit 1; fi\n'
+    late = SAME_BYTES_GOOD.replace(link, "", 1).replace(
+        "          sha256sum --strict -c SHA256SUMS\n",
+        "          sha256sum --strict -c SHA256SUMS\n" + link,
+        1,
+    )
+    assert late != SAME_BYTES_GOOD
+    assert scan.same_bytes_inner_errors(late, paths.ARTIFACT_FILES) == [
+        "the same-bytes step refuses a symlink only after it enters the set's folder, which can"
+        " itself be a symlink"
+    ]
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        'sha=$(grep " $w$" "$D/SHA256SUMS")',
+        "sha=$(grep '   $w$' SHA256SUMS)",
+        'awk -v n="$1" \'$2 ~ n\' "$D/SHA256SUMS"',
+        'awk -v n="$1" \'$2~n { print }\' "$D/SHA256SUMS"',
+    ],
+)
+def test_every_pattern_selection_of_a_pin_is_named(work, line) -> None:
+    bad = write(work, "scripts/b.sh", f"#!/bin/sh\n{line}\n")
+    assert scan.pin_lookup_hits([bad], work) == [f"scripts/b.sh:2: {line}"]
+
+
+def test_an_awk_match_in_a_multi_line_program_is_named_where_the_pins_are_read(work) -> None:
+    text = "#!/bin/sh\nawk '\n  $2 ~ n { print }\n' \"$D/SHA256SUMS\"\n"
+    bad = write(work, "scripts/b.sh", text)
+    assert scan.pin_lookup_hits([bad], work) == ["scripts/b.sh:3: $2 ~ n { print }"]
+    other = write(work, "scripts/c.sh", "#!/bin/sh\nawk '$2 ~ /x/' names.txt\n")
+    assert scan.pin_lookup_hits([other], work) == []
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "if curl -fsSL http://x -o y; then :; fi",
+        "! curl -fsSL http://x -o y",
+        "X=1 curl -fsSL http://x -o y",
+        "sudo curl -fsSL http://x -o y",
+        "timeout 9 curl -fsSL http://x -o y",
+        "command curl -fsSL http://x -o y",
+        "while curl -fsSL http://x -o y; do :; done",
+        "env A=b curl -fsSL http://x -o y",
+    ],
+)
+def test_curl_behind_a_prefix_is_still_a_curl_command(work, line) -> None:
+    bad = write(work, "scripts/get.sh", f"{line}\n")
+    assert scan.curl_flag_errors([bad], work) == [
+        "scripts/get.sh:1: curl without --proto '=https', --proto-redir '=https', --tlsv1.2"
+    ]
+
+
+@pytest.mark.parametrize("line", ["wget -q https://x -O y", "if wget https://x; then :; fi"])
+def test_wget_is_named(work, line) -> None:
+    bad = write(work, "scripts/get.sh", f"#!/bin/sh\n{line}\n")
+    assert scan.curl_flag_errors([bad], work) == [
+        "scripts/get.sh:2: wget, which cannot be held to HTTPS on a redirect"
+    ]
+    quiet = write(work, "scripts/ok.sh", '#!/bin/sh\necho "no wget here"\n# wget x\n')
+    assert scan.curl_flag_errors([quiet], work) == []
