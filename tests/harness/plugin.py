@@ -6,7 +6,11 @@ self-tests (pytester, in-process) never mix their records with the outer run's.
 On several cores (`-n N`, pytest-xdist) the workers collect and run, and make each
 record exactly as a serial run does; the record rides to the controller on its report, and each
 worker's collection in its `workeroutput`. Workers write nothing and guard nothing: the controller
-alone runs the landing lane's guards, writes the run record and accepts.
+alone runs the acceptance's guards, writes the run record and accepts.
+
+`--accept-from <record.json> --claims <folder>` runs no check: it records a green CI run's merged
+record as the accepted state, with the news files' reasons (harness/accept_from.py). The local
+`--accept` stays, for a machine that must accept without CI.
 """
 
 from __future__ import annotations
@@ -113,6 +117,16 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         choices=scoreboard.TIERS,
         help="normal (the default) leaves the release-tier checks unrun; release runs both tiers",
     )
+    g.addoption(
+        "--accept-from",
+        metavar="RECORD",
+        help="record a green CI run's merged record as the accepted state; runs no check",
+    )
+    g.addoption(
+        "--claims",
+        metavar="FOLDER",
+        help="with --accept-from: the news files whose claims give every reason",
+    )
     g.addoption("--shard", metavar="NAME", help="run one shard of the release's plan")
     g.addoption("--shard-plan", metavar="FILE", help="the shard plan (tests/release_shards.toml)")
 
@@ -155,9 +169,7 @@ def load_gaps(path: Path) -> tuple[dict[str, Gap], list[str]]:
     return gaps, errors
 
 
-WORKTREE_REFUSAL = (
-    "accept: only the landing lane accepts, in the main tree; this is a linked worktree"
-)
+WORKTREE_REFUSAL = "accept: a local acceptance is made in the main tree; this is a linked worktree"
 
 
 def _same_folder(a: Path, b: Path) -> bool:
@@ -309,7 +321,7 @@ def shard_refusal(config: pytest.Config) -> str | None:
             "parallelism"
         )
     if _opt(config, "--accept") or _opt(config, "--retire"):
-        return f"refused: --shard {name} with --accept or --retire: only the lane accepts"
+        return f"refused: --shard {name} with --accept or --retire: a shard never accepts"
     if any("::" in arg for arg in config.args):
         return f"refused: --shard {name} with a node id: a shard selects from the whole judge"
     if _opt(config, "--tier"):
@@ -601,11 +613,16 @@ def pytest_cmdline_main_raw_options(config: pytest.Config):
 @pytest.hookimpl(tryfirst=True)
 def pytest_cmdline_main(config: pytest.Config):
     """Refuse before anything runs: before looponfail's loop (under -f the controller's
-    pytest_configure never runs) and before any session (Decision 7)."""
+    pytest_configure never runs) and before any session (Decision 7). `--accept-from` is answered
+    here too, before any session: it runs no check."""
     why = config.stash.get(RAW_REFUSAL, None)
     if why:
         print(why, file=sys.stderr)
         return 1
+    if not is_worker(config) and config.getoption("--accept-from", None):
+        from harness import accept_from
+
+        return accept_from.main(config)
     return None
 
 

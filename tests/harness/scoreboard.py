@@ -220,10 +220,12 @@ def accept(
     retire: list[str] = (),
     fewer_reason: str | None = None,
     tier_move_reason: str | None = None,
+    extra: dict | None = None,
 ) -> tuple[dict, str]:
     """(new accepted.json content, the history line to append), or AcceptRefused. The line is
     in format 2: the change in the passed set since the newest of
-    `history_lines`, and a digest of the whole set."""
+    `history_lines`, and a digest of the whole set. `extra`: fields an acceptance from CI's
+    record adds to its line (where it came from, the systems whose probe passed)."""
     refusals = []
     if not green:
         refusals.append("the run is not green (or PYTEST_ADDOPTS or a foreign plugin is set)")
@@ -341,6 +343,7 @@ def accept(
         "passed_removed": sorted(before - passes),
         "passed_digest": history.digest(passes),
         "accepted": paths.sha256_bytes(dumps(new).encode()),
+        **(extra or {}),
     }
     text = json.dumps(line, sort_keys=True)
     size = len(text.encode()) + 1

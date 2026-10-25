@@ -190,13 +190,16 @@ def target(folder: Path, line: str) -> Path:
 
 
 def systems_that_passed(folder: Path, artifact: str) -> set[str]:
-    """The operating systems whose accepted runs passed the guest on this artifact's bytes. On a
-    history that does not replay, the empty set: the intact check reports why."""
+    """The operating systems whose accepted runs passed the guest on this artifact's bytes: a
+    local acceptance's platform, or each system an acceptance from CI's record names, whose probe
+    passed in that run. On a history that does not replay, the empty set: the intact check
+    reports why."""
     systems = set()
     try:
         for entry, s in _replay(lines(folder), verify=False):
             if entry.get("artifact") == artifact and PROBE in s:
-                systems.add(str(entry.get("platform", "")).split("-")[0])
+                named = entry.get("platforms") or [entry.get("platform", "")]
+                systems |= {str(p).split("-")[0] for p in named}
     except ValueError:
         return set()
     return systems
