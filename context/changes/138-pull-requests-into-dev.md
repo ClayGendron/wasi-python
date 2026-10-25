@@ -15,4 +15,34 @@ None.
 ```toml
 [[claim]]
 spec = "138"
+new = [
+  "tests/checks/test_rules.py::test_the_news_files_have_their_shape",
+  "tests/checks/test_rules.py::test_the_accept_jobs_accept_a_green_merge_and_only_the_push_holds_the_key",
+  "tests/checks/test_rules.py::test_the_accept_push_step_pushes_only_the_acceptance_onto_the_judged_tip",
+  "tests/checks/test_rules.py::test_the_weekly_run_opens_an_issue_when_red_and_never_accepts",
+]
+changed = [
+  "tests/checks/test_rules.py::test_the_release_signs_and_publishes_what_build_made",
+  "tests/checks/test_rules.py::test_one_required_check_holds_every_job",
+  "tests/checks/test_rules.py::test_every_job_checks_out_the_head_commit",
+]
+units = 133
+
+[claim.judge]
+"tests/checks/test_rules.py" = "four new rules: the news files' shape, the accept jobs, the accept push's own script, the weekly run"
+"tests/harness/accept_from.py" = "new: the acceptance from CI's record"
+"tests/harness/news.py" = "new: the reader of the news files"
+"tests/harness/plugin.py" = "--accept-from and --claims, answered before any session; the worktree refusal no longer names the lane"
+"tests/harness/scoreboard.py" = "an acceptance's line may carry fields of its own (where it came from, the systems whose probe passed)"
+"tests/harness/history.py" = "the three-systems need reads the systems an acceptance from CI's record names"
+"tests/harness/gather.py" = "after a merge into dev the rows an acceptance needs a reason for are listed, each with its news file's reason, and the merged record carries the verdict, the event and each shard's guards"
+"tests/harness/scan.py" = "the accept jobs' and the weekly run's scans; the plan reads runs (actions: read); the new jobs' permissions"
+"tests/unit/test_accept_from.py" = "new: the fourteen refusals and the command"
+"tests/unit/test_news.py" = "new: the news files' shape"
+"tests/unit/test_ci_plan.py" = "the news and review refusals, the accept and weekly outputs, the re-use of a green run"
+"tests/unit/test_gather.py" = "the post-merge listing, the claimed reason, the merged record's new fields"
+"tests/unit/test_release_version.py" = "bump assembles the news files"
+"tests/unit/test_sameness.py" = "a run's entry in the merged record has more fields"
+"tests/unit/test_scan.py" = "the accept and weekly scans' rows; the fixture's plan reads runs"
+"tests/unit/test_landing_lane.py" = "the worktree refusal's new words"
 ```

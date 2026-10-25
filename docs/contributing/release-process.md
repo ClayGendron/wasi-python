@@ -7,11 +7,13 @@ This page describes how a release of wasi-python is cut: the version bump, the r
 The version lives in one place: `__version__` in `src/wasi_python/__init__.py`. `pyproject.toml` reads it from there. The script [`release/version.py`](https://github.com/ClayGendron/wasi-python/blob/main/release/version.py) changes it:
 
 ```sh
-uv run python release/version.py bump            # the next version, and a CHANGELOG.md section
+uv run python release/version.py bump            # the next version; the news files into CHANGELOG.md
 uv run python release/version.py release --push  # date the section, tag v<version>, push: the release runs
 ```
 
 A release is the annotated tag `v<version>` on a pushed commit of `main`. Pushing the tag starts the release workflow, `.github/workflows/release.yml`.
+
+`bump` also assembles the changelog. Each change's lines wait in its news file until the release. `bump` puts each line under its heading in the new version's section, puts each package row into the packages page, and removes the news files.
 
 ## The release pull request
 
@@ -24,7 +26,9 @@ Changes collect on `dev`. A release is a pull request from `dev` to `main`, titl
 
 While a release pull request runs, nothing else merges into `dev`. If something does, the release pull request runs again on the new tip.
 
-The release pull request and the weekly run are being set up. Until they are in place, a manual dry run on `main`'s exact commit (below) is the check before a tag, and the release tier runs there and on the tag.
+The release pull request is being set up. Until it is in place, a manual dry run on `main`'s exact commit (below) is the check before a tag, and the release tier runs there, on the tag and in the weekly run.
+
+Once a week, a run on `dev` judges the release tier, rebuilds the set from the pins on two hosts and compares each rebuild with the set the pull requests are tested on, byte for byte. When any part of it is red, it opens an issue, or adds to the one already open. It never records a result.
 
 ## What the release workflow does
 

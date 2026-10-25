@@ -1,6 +1,6 @@
 # /context/progress
 
-The accepted state of the progress harness (`../specifications/002-the-progress-harness.md`). Written only by an acceptance, never by hand: after each green merge into `dev`, by the accept job's `uv run pytest --accept-from <record.json>` (*Acceptance from CI's record*, below); as the fallback, on a machine that must accept without CI, by a local `uv run pytest --accept "<reason>"` (*Local acceptance*). `--accept-from` and the accept job arrive with step 3 of `../specifications/138-pull-requests-into-dev-and-the-judge-runs-where-it-is-needed.md` (written 2026-10-25); until then every acceptance is the local one.
+The accepted state of the progress harness (`../specifications/002-the-progress-harness.md`). Written only by an acceptance, never by hand: after each green merge into `dev`, by the accept job's `uv run pytest --accept-from=<record.json> --claims=context/changes/` (*Acceptance from CI's record*, below); as the fallback, on a machine that must accept without CI, by a local `uv run pytest --accept "<reason>"` (*Local acceptance*).
 
 - `accepted.json`: for each v1 check, its last accepted status, the commit and artifact it was seen on, and its metrics (fuel, bytes) per platform, plus the hash of every judging file.
 - **The history**: one line per acceptance, append-only, in volumes (spec 062). Each line carries the hash of the line before it and of the `accepted.json` it wrote, so `test_progress_history_is_intact` notices a hand edit or a rewritten line.
@@ -67,8 +67,8 @@ A **fuel fact** (spec 091, `[[fuel_fact]]` in `tests/upstream/numpy.toml`) is a 
 | `--accept-growth "<reason>"` | also accept fuel or bytes growth |
 | `--accept-fewer-passes "<reason>"` | also accept a fall in an upstream group's `passes` (spec 050) |
 | `--partial "<reason>"` | allow accepted passes to be blocked here |
-| `--accept-from <record.json>` | record a green CI run's merged record instead of this run (the accept job; from step 3 of spec 138) |
-| `--claims context/changes/` | with `--accept-from`: take every reason from the news files merged since the last acceptance (from step 3 of spec 138) |
+| `--accept-from=<record.json>` | record a green CI run's merged record instead of this run; runs no check (the accept job; spec 138) |
+| `--claims=context/changes/` | with `--accept-from`: take every reason from the news files changed since the last acceptance |
 | `--retire <node id>` | with `--accept`: drop a check from the protected set |
 | `--tier release` | judge both tiers; without it a run judges the normal tier (spec 102) |
 | `--accept-tier-move "<reason>"` | also accept checks that moved between tiers (spec 102) |
@@ -127,16 +127,35 @@ From step 2 of spec 138, a pull request into `dev` runs only what its changed pa
 
 ## Acceptance from CI's record (spec 138, Decisions 4 and 5)
 
-From step 3 of spec 138, every merge into `dev` is accepted by CI, not on a laptop. The push to `dev` runs the full normal tier on three systems from `dev`'s cached set, then the gather with G1 to G6 whole. Two jobs follow a green gather; neither runs on a red one, so `accepted.json` never records a red state.
+Every merge into `dev` is accepted by CI, not on a laptop. The push to `dev` runs the full normal tier on three systems from `dev`'s cached set, then the gather with G1 to G6 whole, G7 not evaluated, and the rows an acceptance needs a reason for (growth, fewer passes, a tier move) listed under `GROWTH`, as on a pull request: the accept job clears each with its claim or refuses it. Two jobs follow, only when every job the run judges with is green, so `accepted.json` never records a red state.
 
-- **`accept-record`** (`contents: read`, no secret): in a fresh checkout of the judged commit, `uv run pytest --accept-from build/ci/record.json --claims context/changes/` writes `accepted.json` and the newest history volume, and uploads the two files.
-- **`accept-push`** (the `accept` environment, reachable from `dev` alone): it runs no code of the repository, checks that exactly those two files changed and that `dev`'s tip is still the judged commit, then commits `Accepted: <pull request title> (#<n>) [skip ci]` with the news files' reasons and pushes. When `dev` has moved on, it pushes nothing, names the newer merge in one line, and succeeds: the newer merge's run accepts everything since the last acceptance.
+- **`accept-record`** (`contents: read`, no secret, no environment): in a fresh checkout of the judged commit, `uv run pytest -p no:cacheprovider --accept-from=build/ci/record.json --claims=context/changes/` writes `accepted.json` and the newest history volume and the commit's message, `build/progress/acceptance-message.txt`, and hands the three on as one artifact. Each option takes `=`: pytest finds the plugin's options in `tests/conftest.py`, which it loads only when no path is named, and a value after a space reads as a path.
+- **`accept-push`** (the `accept` environment, whose deployment branch policy is `dev` alone): it checks the commit judged out with the deploy key (the environment's secret `ACCEPT_DEPLOY_KEY`, `dev`'s one bypass actor), runs no code of the repository, holds the change to `accepted.json` and one history volume, and, while `dev`'s tip is still the commit judged, commits them alone with the pathspec of step 4 below and pushes. The message is `Accepted: <the merge's subject, its pull request's title and number> [skip ci]`, then the reasons, then `[skip ci]`, so the push starts no run. When `dev` has moved on, it pushes nothing, names the newer merge in one line, and succeeds: the newer merge's run accepts everything since the last acceptance.
 
-`--accept-from <record.json>` takes a gather's merged record from a run whose every job was green, for the commit checked out, from a push to `dev` or a release pull request, with `meta.set_source` naming `dev`'s cache key or `built`. It applies the record's statuses and metrics as a local run's would, keyed by each shard's `meta.platform`, never the accept job's host. Its reasons come from the claim blocks of the news files merged since the last acceptance. Its refusals are today's, with these forms: the linked-worktree refusal is dropped (CI's checkout is a fresh clone); a dirty tree, an empty collection, a lost pass and a history that does not replay are refused as now; HEAD moved becomes "the record's commit and every shard's are the checkout's HEAD"; a run that is not green becomes "the gather's verdict has no red line, every record's `foreign` is empty and its only override is `--progress-latest`"; `--shard` is refused; blocked accepted passes are always refused (no `--partial` for CI's record); growth, fewer passes, a verdict-bearing judge change, a tier move and a retired check are cleared only by the claim block's `grows`, `passes`, `judge`, `moved` and `retired` keys. An unclaimed row refuses the acceptance, the run is red, and the fix is a one-line news-file pull request whose merge runs the accept again.
+`--accept-from` runs no check. It takes a gather's merged record from a push to `dev` or a pull request into `main` (`meta.event`, `meta.ref`, `meta.base_ref`), with `meta.set_source` `built` or `reused <key>`, for the commit checked out, and applies it as a local run's would. It is read as the darwin run it contains: each check as the record that ran it saw it, darwin first. A check darwin ran keeps darwin's metrics, keyed `darwin-arm64`, never the job's Linux host. A check only another system ran (the upstream groups run on Linux alone) keeps darwin's accepted fuel, since fuel elsewhere is not ratcheted, and takes the record's `passes` and `bytes`, which the gather holds equal on every system, under the same key. The history line names `source: "ci"`, the record's SHA-256 and the `platforms` whose probe passed, so the `three systems` need is met by the record.
+
+Its reasons are the claim blocks of the news files added or changed between the commit the last acceptance judged and this one (`../changes/README.md`). Its refusals are the local acceptance's, in these forms, each a row of `tests/unit/test_accept_from.py`, and all named at once:
+
+1. A linked worktree is no refusal: CI's checkout is a fresh clone, and the record, not the tree, carries what was judged.
+2. A dirty tree is refused, as the record is read and as the acceptance is written.
+3. "HEAD moved" becomes: the record's `meta.commit` and every shard's are the checkout's HEAD.
+4. The judge's collection at the commit is not empty, and is the record's checks exactly.
+5. `--shard` is refused, and so is every flag that gives a reason (`--accept`, `--partial`, `--retire`, `--accept-judge`, `--accept-growth`, `--accept-fewer-passes`, `--accept-tier-move`, `--tier`).
+6. A run that is not green becomes: the gather's verdict (`meta.red`, which the gather writes into the record) has no red line, no shard was steered from outside the judge, and each shard's only override is `--progress-latest`.
+7. A lost pass is refused; no claim clears it.
+8. An absent check is retired only by a claim's `retired`; a `retired` entry that names no absent check refuses, as `--retire` does.
+9. An accepted pass blocked, or an accepted upstream check not run, is always refused: a merge-grade run that blocks an accepted pass is a broken run, and no claim clears it.
+10. A growth is cleared by `grows` with its `growth`.
+11. A fall in a pass count is cleared by `passes` with its `fewer`.
+12. A changed judge file is cleared by `judge`, which names each file with its reason. Until the verdict-bearing list of the judge's diet is built, that is every judge file the judge-hash line shows changed.
+13. A check moved between tiers is cleared by `moved`.
+14. A history that does not replay, or breaks its chain or its volume rule, is refused.
+
+An unclaimed row refuses the acceptance with the row named, the run is red at `accept-record`, and the fix is a one-line news-file pull request whose merge runs the accept again.
 
 ## Local acceptance (spec 029)
 
-The local `--accept` is the fallback for a machine that must accept without CI. Until step 3 of spec 138 it is also how a merge into `dev` is accepted: by the owner's agent, on `dev`'s merged commit; a merge that touches only `context/` and the documents needs none. It is made in the main tree, on a clean tree, and on a detached HEAD, so `dev` moves only onto an acceptance already checked. The judge enforces three of these things:
+The local `--accept` is the fallback for a machine that must accept without CI; it is not part of the normal flow. It is made in the main tree, on a clean tree, and on a detached HEAD, so `dev` moves only onto an acceptance already checked. The judge enforces three of these things:
 - `--accept` is refused before collection in a linked worktree whose run would write a `context/progress` folder.
 - It is refused on a tree with a change the judge could see: any tracked change outside `context/progress/`, or an untracked file under `src/`, `tests/`, `scripts/`, `recipes/`, `context/specifications/`, `context/reviews/` or `context/upstream/`, or a judging file.
 - It is refused again when the acceptance is written, if the tree changed or HEAD moved during the run.
@@ -155,8 +174,8 @@ The steps, in order:
 
    `git add` comes first because a new volume is untracked, and `git commit -- <path>` refuses a path git does not know. The pathspec leaves out anything else that is staged, and any change to this README. A stray file such as `history-70.jsonl` would match the glob too, but the intact check is red on it ("an unrecognised history file"), so `--accept` has already refused.
 5. **Check it.** Run `uv run pytest tests/checks/test_rules.py`. `test_the_newest_acceptance_sits_on_the_commit_it_judged` reads this commit. Its first parent must be the commit its newest line judged, it must carry nothing else, and its line must say `dirty: false`. If that check fails, run `git reset --soft HEAD^` (a narrowed run can exit 1 only because other checks did not run; read the check's own line). HEAD is still detached and nothing has been pushed, so `dev` has not moved. Then redo step 4.
-6. **Move `dev`.** Push the acceptance commit: `git push origin HEAD:dev`, once `git ls-remote origin refs/heads/dev` still names the commit it judged; otherwise accept again on the new tip. Its message ends `[skip ci]` once `dev` runs on push, so it starts no run. `main` moves only by the owner (constitution §4.14).
-7. **The run on `dev`.** Until `dev` runs on push (step 2 of spec 138), dispatch the release workflow on `dev` at the acceptance commit and read it; keep its `release-record-1` under `build/`. A red line that is not growth is fixed forward: nothing on `dev` is reverted, and the next pull request carries the fix before anything else.
+6. **Move `dev`.** Push the acceptance commit: `git push origin HEAD:dev`, once `git ls-remote origin refs/heads/dev` still names the commit it judged; otherwise accept again on the new tip. Its message ends `[skip ci]`, so it starts no run. `main` moves only by the owner (constitution §4.14).
+7. **The run on `dev`.** The acceptance commit starts no run (`[skip ci]`, and the decision job sets every output false for it); read the merge's own run, and keep its `release-record-1` under `build/`. A red line that is not growth is fixed forward: nothing on `dev` is reverted, and the next pull request carries the fix before anything else.
 
 **The upstream suites in a local acceptance (spec 050).** The acceptor fetches the kit once (`uv run python tests/upstream/fetch.py`) and keeps the source trees under `build/`. The landing notes cite the scoreboard's ratchet line showing no `unrun locally` and no `upstream unrun` count: every upstream check ran on the commit accepted. `--accept` itself refuses otherwise, unless `--partial`.
 

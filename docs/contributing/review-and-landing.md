@@ -11,7 +11,7 @@ This page explains how a change gets onto `dev`, the project's integration branc
 
 1. Branch from `dev`'s tip. A branch carries one to three specifications.
 2. Write the check before the code. Iterate locally on the fast tier and on single tests.
-3. Open a pull request into `dev`. A change that is more than documentation carries a *news file*: its changelog line, the README rows it changes, and the reason for every change in the test results it expects.
+3. Open a pull request into `dev`. A change that is more than documentation carries a *news file*: its changelog line, the rows of the packages page it changes, and the reason for every change in the test results it expects. `ci-status` is red on a pull request that needs one and has none. At a release the news files are assembled into the changelog, so nobody edits the changelog by hand.
 4. The pull request's required check, `ci-status`, runs what the changed files need.
 5. A fresh reviewer reads the change and commits a review file as the branch's last commit.
 6. When `ci-status` is green and the review's verdict begins "Lands", the author merges the pull request.
@@ -37,7 +37,9 @@ The verdict covers what ran. A lost pass is red. Fuel or bytes that grow, fewer 
 
 Each merge into `dev` runs the whole normal tier on macOS, Linux and Windows. When it is green, a job records the result in the repository's accepted state and pushes one commit to `dev`. A red run after a merge means `dev` is broken: the author of the merged change fixes it forward the same day or reverts it, and nothing else merges until `dev` is green.
 
-The pull-request check and the job that records results are being set up. Until they run, a code change is tested by a manual run of the release workflow on its branch, the maintainer records the result after the merge, and a merge of documentation alone needs no record.
+The job takes every reason it needs from the news files merged since the last record: a growth, fewer passes, a changed test file, a test moved between tiers, a test removed. A row no news file explains stops the record, with the row named. The fix is a one-line pull request to the news file, and its merge records both.
+
+The record is made in two jobs. The first runs the tests' own code with no secret and writes the record. The second holds the one key that may push to `dev` without a pull request, runs nothing but git, commits the two record files alone, and pushes them only while `dev` is still the commit that was tested. When another merge landed meanwhile, it pushes nothing, and the newer merge's run records both. The record's commit starts no run of its own.
 
 ## Every change is reviewed by someone who did not write it
 
@@ -47,7 +49,9 @@ The reason is simple. An author reads the change they meant to write. A fresh re
 
 There is one review per pull request and no confirmation round. The author answers each finding in the pull request. A code fix is a new commit on the same branch; the reviewer reads it and signs again. The review file is committed after the last code commit, so the review covers the code that merges.
 
-`ci-status` holds the review. It is red unless the branch carries a review file, committed after the last code, whose reviewer is not the author and whose verdict begins "Lands". This guards the process, not identity: it holds that nothing merges without a review signed after the last code.
+`ci-status` holds the review. It is red unless the branch carries a review file, named after its news file, committed after the last code, whose reviewer is not the author and whose verdict begins "Lands". The author is the one the pull request's description names, and the session on each code commit. A reviewer that the author's session started fresh, given only the specification and the diff, says so on its reviewer line. This guards the process, not identity: it holds that nothing merges without a review signed after the last code.
+
+The review file's own push runs only the `quick` job. Every other job's result is the run of the head it follows, which is re-used, since nothing but documentation changed.
 
 ## Some changes are reviewed before they are built
 
