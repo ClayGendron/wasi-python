@@ -4,7 +4,7 @@
     uv run python release/version.py bump [--to 0.1.0a2]
     uv run python release/version.py check [--tag v0.1.0a1]
     uv run python release/version.py release [--push]
-    uv run python release/version.py notes 0.1.0a1
+    uv run python release/version.py notes 0.1.0a1 [--repository owner/name]
     uv run python release/version.py assets <artifact dir> <wheel> <out dir>
 
 `__version__` in src/wasi_python/__init__.py is the only place the version is written;
@@ -37,6 +37,9 @@ FORM = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:(a|b|rc)([1-9]\d*))?$")
 STAGES = {"a": 0, "b": 1, "rc": 2, None: 3}
 SECTION = re.compile(r"^## (\S+) — (unreleased|\d{4}-\d{2}-\d{2})$", re.M)
 EPOCH = 1767225600  # SOURCE_DATE_EPOCH, as the build
+# The repository a local run names; the release workflow passes the one it runs in, which is the
+# one its attestations are signed in.
+REPOSITORY = "ClayGendron/wasi-python"
 
 
 class ReleaseError(Exception):
@@ -220,6 +223,7 @@ def main(argv: list[str] | None = None) -> int:
     release.add_argument("--push", action="store_true")
     notes_cmd = sub.add_parser("notes")
     notes_cmd.add_argument("version")
+    notes_cmd.add_argument("--repository", default=REPOSITORY)
     assets = sub.add_parser("assets")
     assets.add_argument("artifacts", type=Path)
     assets.add_argument("wheel", type=Path)
@@ -292,22 +296,22 @@ def _release(a: argparse.Namespace) -> int:
     return 0
 
 
-def verify_note(version: str) -> str:
+def verify_note(version: str, repository: str = REPOSITORY) -> str:
     """How a user checks this release's assets: appended to the release's notes, not to the tag's
-    message."""
+    message. The command is the one the release's attest job runs before it publishes."""
     return (
         "\n**Verify a download** (`gh` logged in; see the README's *Verifying a download*):\n\n"
         "```\n"
-        "gh attestation verify <asset> --repo ClayGendron/wasi-python \\\n"
+        f"gh attestation verify <asset> --repo {repository} \\\n"
         "  --signer-workflow "
-        f"ClayGendron/wasi-python/.github/workflows/release.yml@refs/tags/v{version} \\\n"
+        f"{repository}/.github/workflows/release.yml@refs/tags/v{version} \\\n"
         f"  --source-ref refs/tags/v{version} --deny-self-hosted-runners\n"
         "```\n"
     )
 
 
 def _notes(a: argparse.Namespace) -> int:
-    print(notes(CHANGELOG.read_text(), a.version) + verify_note(a.version), end="")
+    print(notes(CHANGELOG.read_text(), a.version) + verify_note(a.version, a.repository), end="")
     return 0
 
 
