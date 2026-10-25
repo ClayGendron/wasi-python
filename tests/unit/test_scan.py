@@ -3131,13 +3131,13 @@ SAME_BYTES_GOOD = """jobs:
           mkdir set
           tar -xJf release-assets/*.tar.xz -C set
           cmp set/wasi-python-*/SHA256SUMS rebuilds/a/SHA256SUMS
+          if [ -n "$(find set -type l)" ]; then exit 1; fi
           cd set/wasi-python-*
           sha256sum --strict -c SHA256SUMS
           listed=$(awk '{print $2}' SHA256SUMS | LC_ALL=C sort)
           present=$(find . -mindepth 1 ! -type d ! -path ./SHA256SUMS | sed 's#^\\./##' \\
             | LC_ALL=C sort)
           if [ "$listed" != "$present" ]; then exit 1; fi
-          if [ -n "$(find . -type l)" ]; then exit 1; fi
           for name in python.wasm python-snapshot.wasm python-stdlib.zip MANIFEST; do
             echo "$listed" | grep -qxF "$name"
           done
@@ -3155,7 +3155,11 @@ BAD_INNER = [
     ("          cd set/wasi-python-*\n", "", "does not check inside the unpacked set"),
     (" ! -type d ! -path ./SHA256SUMS", " -type f ! -name SHA256SUMS", "every file present"),
     ('"$listed" != "$present"', '"$listed" != ""', "does not compare the listed names"),
-    ('          if [ -n "$(find . -type l)" ]; then exit 1; fi\n', "", "does not refuse a symlink"),
+    (
+        '          if [ -n "$(find set -type l)" ]; then exit 1; fi\n',
+        "",
+        "does not refuse a symlink",
+    ),
     (" python-snapshot.wasm", "", "does not require python-snapshot.wasm"),
     (" MANIFEST;", ";", "does not require MANIFEST"),
     ("'^LICENSES/'", "'^x'", "does not require LICENSES/"),
@@ -3227,3 +3231,71 @@ def test_a_reverify_after_the_zero_patch_step_moves_is_refused() -> None:
     )
     errors = scan.producer_reverify_errors(late)
     assert errors == ["'Release assets' does not come after the zero-patch step"], errors
+
+
+def test_a_symlink_check_inside_the_set_misses_the_folder_itself() -> None:
+    """The folder the step enters can itself be a symlink to another place, so the check runs on
+    the unpacked tree before the `cd`, never after it."""
+    link = '          if [ -n "$(find set -type l)" ]; then exit 1; fi\n'
+    late = SAME_BYTES_GOOD.replace(link, "", 1).replace(
+        "          sha256sum --strict -c SHA256SUMS\n",
+        "          sha256sum --strict -c SHA256SUMS\n" + link,
+        1,
+    )
+    assert late != SAME_BYTES_GOOD
+    assert scan.same_bytes_inner_errors(late, paths.ARTIFACT_FILES) == [
+        "the same-bytes step refuses a symlink only after it enters the set's folder, which can"
+        " itself be a symlink"
+    ]
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        'sha=$(grep " $w$" "$D/SHA256SUMS")',
+        "sha=$(grep '   $w$' SHA256SUMS)",
+        'awk -v n="$1" \'$2 ~ n\' "$D/SHA256SUMS"',
+        'awk -v n="$1" \'$2~n { print }\' "$D/SHA256SUMS"',
+    ],
+)
+def test_every_pattern_selection_of_a_pin_is_named(work, line) -> None:
+    bad = write(work, "scripts/b.sh", f"#!/bin/sh\n{line}\n")
+    assert scan.pin_lookup_hits([bad], work) == [f"scripts/b.sh:2: {line}"]
+
+
+def test_an_awk_match_in_a_multi_line_program_is_named_where_the_pins_are_read(work) -> None:
+    text = "#!/bin/sh\nawk '\n  $2 ~ n { print }\n' \"$D/SHA256SUMS\"\n"
+    bad = write(work, "scripts/b.sh", text)
+    assert scan.pin_lookup_hits([bad], work) == ["scripts/b.sh:3: $2 ~ n { print }"]
+    other = write(work, "scripts/c.sh", "#!/bin/sh\nawk '$2 ~ /x/' names.txt\n")
+    assert scan.pin_lookup_hits([other], work) == []
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "if curl -fsSL http://x -o y; then :; fi",
+        "! curl -fsSL http://x -o y",
+        "X=1 curl -fsSL http://x -o y",
+        "sudo curl -fsSL http://x -o y",
+        "timeout 9 curl -fsSL http://x -o y",
+        "command curl -fsSL http://x -o y",
+        "while curl -fsSL http://x -o y; do :; done",
+        "env A=b curl -fsSL http://x -o y",
+    ],
+)
+def test_curl_behind_a_prefix_is_still_a_curl_command(work, line) -> None:
+    bad = write(work, "scripts/get.sh", f"{line}\n")
+    assert scan.curl_flag_errors([bad], work) == [
+        "scripts/get.sh:1: curl without --proto '=https', --proto-redir '=https', --tlsv1.2"
+    ]
+
+
+@pytest.mark.parametrize("line", ["wget -q https://x -O y", "if wget https://x; then :; fi"])
+def test_wget_is_named(work, line) -> None:
+    bad = write(work, "scripts/get.sh", f"#!/bin/sh\n{line}\n")
+    assert scan.curl_flag_errors([bad], work) == [
+        "scripts/get.sh:2: wget, which cannot be held to HTTPS on a redirect"
+    ]
+    quiet = write(work, "scripts/ok.sh", '#!/bin/sh\necho "no wget here"\n# wget x\n')
+    assert scan.curl_flag_errors([quiet], work) == []

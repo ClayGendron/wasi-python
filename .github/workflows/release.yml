@@ -467,16 +467,17 @@ jobs:
             echo "the set's tarball holds more than its one folder"
             exit 1
           fi
+          # Before entering the folder, so the folder itself cannot be a symlink to another place.
+          if [ -n "$(find set -type l)" ]; then
+            echo "the set's tarball holds a symlink"
+            exit 1
+          fi
           cd set/wasi-python-*
           sha256sum --strict -c SHA256SUMS
           listed=$(awk '{print $2}' SHA256SUMS | LC_ALL=C sort)
           present=$(find . -mindepth 1 ! -type d ! -path ./SHA256SUMS | sed 's#^\./##' | LC_ALL=C sort)
           if [ "$listed" != "$present" ]; then
             echo "the set's tarball holds other files than its SHA256SUMS lists"
-            exit 1
-          fi
-          if [ -n "$(find . -type l)" ]; then
-            echo "the set's tarball holds a symlink"
             exit 1
           fi
           for name in python.wasm python-snapshot.wasm python-stdlib.zip MANIFEST; do

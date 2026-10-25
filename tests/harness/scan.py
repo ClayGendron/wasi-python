@@ -4459,17 +4459,24 @@ def set_key_errors(
 # A pin looked up by a pattern: `grep "  <name>$" …SHA256SUMS`, where a `.` in the name matches any
 # character, so an unpinned name can pass on another name's line. Pins are selected by their exact
 # name field instead (scripts/steps/common.sh's pin_line).
-PIN_GREP = re.compile(r"""\bgrep\b[^|;]*["']  \$""")
+PIN_GREP = re.compile(r"""\bgrep\b[^|;]*["'] +\$""")
+# The same in awk: the name field matched as a regular expression, not compared as text.
+PIN_AWK_MATCH = re.compile(r"\$2\s*~")
 
 
 def pin_lookup_hits(files: Iterable[Path], root: Path) -> list[str]:
-    """Every shell line that selects a line of SHA256SUMS with `grep "  $…"`."""
+    """Every shell line that selects a line of SHA256SUMS by a pattern: `grep " $…"` (any number of
+    spaces) on a line naming SHA256SUMS, or an awk `$2 ~` match in a script that reads it (an awk
+    program spans lines, so the file is the unit there)."""
     hits = []
     for p in files:
         if not is_shell(p):
             continue
+        reads_pins = "SHA256SUMS" in (_text(p) or "")
         for n, line in _code_lines(p):
-            if PIN_GREP.search(line) and "SHA256SUMS" in line:
+            if (PIN_GREP.search(line) and "SHA256SUMS" in line) or (
+                reads_pins and PIN_AWK_MATCH.search(line)
+            ):
                 hits.append(f"{rel(p, root)}:{n}: {line.strip()[:100]}")
     return hits
 
@@ -4526,13 +4533,22 @@ def meson_wrap_errors(steps: dict[str, str]) -> list[str]:
 
 
 # curl keeps HTTPS: on the first request, on every redirect, and at TLS 1.2 or later.
-CURL_COMMAND = re.compile(r"(?:^|[;&|(`]|\$\(|\bthen\b|\bdo\b|\bexec\b|\brun:)\s*curl(?=\s|$)")
+# A command word: at the start, after a separator or a keyword, or after a prefix that runs the next
+# word as a command (`!`, `command`, `sudo`, `env`, `timeout N`, a variable assignment).
+COMMAND_START = (
+    r"(?:^|[;&|(`]|\$\(|\bthen\b|\bdo\b|\bexec\b|\brun:|\bif\b|\bwhile\b|\buntil\b|!|"
+    r"\bcommand\b|\bsudo\b|\benv\b|\btimeout\s+\S+|\b[A-Za-z_]\w*=\S*)"
+)
+CURL_COMMAND = re.compile(COMMAND_START + r"\s*curl(?=\s|$)")
+# wget has no way to refuse a redirect off HTTPS, so the fetches use curl alone.
+WGET_COMMAND = re.compile(COMMAND_START + r"\s*wget(?=\s|$)")
 CURL_FLAGS = ("--proto '=https'", "--proto-redir '=https'", "--tlsv1.2")
 
 
-def curl_lines(text: str) -> list[tuple[int, str]]:
-    """The curl commands of a shell script or a workflow, `\\`-continued lines joined, comments
-    and `curl --version` left out; each with the number of its first line."""
+def curl_lines(text: str, command: re.Pattern[str] = CURL_COMMAND) -> list[tuple[int, str]]:
+    """The curl commands (or those `command` matches) of a shell script or a workflow,
+    `\\`-continued lines joined, comments and `curl --version` left out; each with the number of
+    its first line."""
     out, start, held = [], 0, ""
     for n, line in enumerate(text.splitlines(), 1):
         if not held:
@@ -4543,19 +4559,22 @@ def curl_lines(text: str) -> list[tuple[int, str]]:
             held += line.rstrip()[:-1] + " "
             continue
         logical, held = held + line, ""
-        if CURL_COMMAND.search(logical) and not re.search(r"\bcurl\s+--version\b", logical):
+        if command.search(logical) and not re.search(r"\bcurl\s+--version\b", logical):
             out.append((start, logical))
     return out
 
 
 def curl_flag_errors(files: Iterable[Path], root: Path) -> list[str]:
-    """Every curl command in `files` that does not keep HTTPS at TLS 1.2."""
+    """Every curl command in `files` that does not keep HTTPS at TLS 1.2, and every wget command."""
     errors = []
     for p in files:
-        for n, line in curl_lines(_text(p) or ""):
+        text = _text(p) or ""
+        for n, line in curl_lines(text):
             missing = [flag for flag in CURL_FLAGS if flag not in line]
             if missing:
                 errors.append(f"{rel(p, root)}:{n}: curl without {', '.join(missing)}")
+        for n, _ in curl_lines(text, WGET_COMMAND):
+            errors.append(f"{rel(p, root)}:{n}: wget, which cannot be held to HTTPS on a redirect")
     return errors
 
 
@@ -4638,7 +4657,7 @@ SAME_BYTES_SHAPES = (
         "does not list every file present but the index",
     ),
     ('"$listed" != "$present"', "does not compare the listed names with the files present"),
-    ("find . -type l", "does not refuse a symlink"),
+    ("find set -type l", "does not refuse a symlink"),
 )
 
 
@@ -4664,6 +4683,12 @@ def same_bytes_inner_errors(text: str, artifact_files: Iterable[str]) -> list[st
         at = run.find(shape)
         if at < 0 or at < unpack:
             errors.append(f"the same-bytes step {why} (after the unpack)")
+    link, enter = run.find("find set -type l"), run.find("cd set/wasi-python-*")
+    if link >= 0 and enter >= 0 and link > enter:
+        errors.append(
+            "the same-bytes step refuses a symlink only after it enters the set's folder, which"
+            " can itself be a symlink"
+        )
     for name in [*artifact_files, "LICENSES/"]:
         if name == "SHA256SUMS":
             continue
