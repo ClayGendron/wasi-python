@@ -152,7 +152,9 @@ The attest job is unchanged, as Decision 6 says.
 
 ### The fast tier
 
-The fast tier's result follows once it has run.
+Once, at the end (`uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider`, `WASI_PYTHON_ARTIFACTS` set to the main tree's set, `build/136/fast-tier.txt`, EXECUTED), started 17:31:16Z after the other branch's tier ended, at a load average of 16.9, and done in 12 min 30 s: `1 failed, 3194 passed, 51 skipped`; ratchet `lost 1 · absent 0 · unrun 0 · unrun locally 40 · gained 25 · grew 0`, so no growth line. Its last three lines: `FAILED tests/checks/test_v1_1_artifact_set.py::test_manifest_recipes_match_the_tree`, `1 failed, 3194 passed, 51 skipped in 749.54s (0:12:29)`, `exit 1`.
+
+The one loss is `test_manifest_recipes_match_the_tree`, and it is this change's by design, not a regression: the check holds the set's `MANIFEST` `recipe` lines equal to the tree's scripts, and the set the run judged is the main tree's, built from `c409e98b`'s scripts. Its finding is `12 finding(s)`, each `stale artifact: scripts/… changed since the build`; the first six named are `00_download.sh`, `assemble_artifacts.py`, `make_openblas_void_patch.sh`, `steps/10_tools.sh`, `steps/37_plot_libs.sh`, `steps/40_numpy.sh`, and twelve is the count of scripts this branch edits (READ for the six, INFERRED for the other six from the count). Run alone by node id straight after, it fails the same way in 1.6 s (`build/136/manifest-recipes-alone.txt`). It passes again on a set built from this branch, which is what the release run builds: criterion 7's `MANIFEST` is exactly those twelve lines rehashed. No check, golden, known gap or progress file was edited. The 25 gained are goal-counted checks the accepted record does not hold (the unit rows count in the unit suite); the claim list names all 62 new rows.
 
 ### The self-check
 
