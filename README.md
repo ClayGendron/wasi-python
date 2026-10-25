@@ -241,6 +241,7 @@ A session ends when you close it, when it rests longer than `idle_s`, or when `l
 `run_async` is the async version of `run`. The guest runs on a worker thread, and guests run in parallel. Here three guests each sleep for a second while a task on the event loop keeps ticking.
 
 ```python
+# run as python script and not in a jupyter notebook
 import asyncio
 
 from wasi_python import run_async
