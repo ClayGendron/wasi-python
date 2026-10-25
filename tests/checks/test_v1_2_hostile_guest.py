@@ -272,6 +272,214 @@ def test_the_door_bounds_every_frame(guest_workdir, monkeypatch, case) -> None:
     assert (again.exit_code, again.stdout) == (0, b"ok\n"), again
 
 
+def _door_artifacts(workdir: Path, name: str, wat_text: str):
+    """The real zip and MANIFEST, with the WAT module given as the snapshot."""
+    import wasi_python
+    from harness import wat
+
+    real = wasi_python.artifacts()
+    d = Path(tempfile.mkdtemp(prefix="door-", dir=workdir))
+    probe = wat.build(d, name, wat_text)
+    return wasi_python.Artifacts(probe, real.plain, real.stdlib_zip, real.manifest)
+
+
+# A guest that sends one frame and reports what it was handed: the door's code when it is a fault;
+# else the out-length, when the bytes written at the out-pointer (none of them zero, in memory that
+# is zero past them) are exactly that many; else 1,000,000 plus the count actually written.
+EXACT_PROBE = """
+(module
+  (import "host" "call" (func $door (param i32 i32 i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (global $next (mut i32) (i32.const 1024))
+  (func (export "host_alloc") (param $n i32) (result i32) (local $p i32)
+    (local.set $p (global.get $next))
+    (global.set $next (i32.add (global.get $next) (local.get $n)))
+    (local.get $p))
+  (func (export "run") (result i32) (local $rc i32) (local $p i32) (local $i i32)
+    (local.set $rc (call $door (i32.const 16) (i32.const 3) (i32.const 100) (i32.const 104)))
+    (if (i32.lt_s (local.get $rc) (i32.const 0)) (then (return (local.get $rc))))
+    (local.set $p (i32.load (i32.const 100)))
+    (block $end (loop $next
+      (br_if $end (i32.ge_u (i32.add (local.get $p) (local.get $i)) (i32.const 65536)))
+      (br_if $end (i32.eqz (i32.load8_u (i32.add (local.get $p) (local.get $i)))))
+      (local.set $i (i32.add (local.get $i) (i32.const 1)))
+      (br $next)))
+    (if (result i32) (i32.eq (local.get $i) (i32.load (i32.const 104)))
+      (then (i32.load (i32.const 104)))
+      (else (i32.add (i32.const 1000000) (local.get $i))))))
+"""
+
+
+class _Big(bytes):
+    """A bytes answer whose `__bytes__` hands back far more than its own buffer."""
+
+    def __bytes__(self) -> bytes:
+        return b"q" * 5000
+
+
+class _BigArray(bytearray):
+    """A bytearray answer whose `__bytes__` hands back far more than its own buffer."""
+
+    def __bytes__(self) -> bytes:
+        return b"q" * 5000
+
+
+class _Liar(bytes):
+    """Bytes whose `len` is 1 whatever its buffer holds."""
+
+    def __len__(self) -> int:
+        return 1
+
+
+class _Wraps(bytes):
+    """A bytes answer whose `__bytes__` returns a `_Liar` over 3,000 bytes."""
+
+    def __bytes__(self) -> bytes:
+        return _Liar(b"q" * 3000)
+
+
+def _int_view() -> memoryview:
+    import array
+
+    return memoryview(array.array("i", [0x71717171] * 300))  # 300 items, 1,200 bytes
+
+
+ANSWERS = {
+    "a bytes subclass past the cap": (lambda: _Big(b"ok"), -2),
+    "a bytearray subclass past the cap": (lambda: _BigArray(b"ok"), -2),
+    "a len that lies": (lambda: _Wraps(b"x"), 3000),
+    "a bytearray": (lambda: bytearray(b"q" * 3000), 3000),
+    "a memoryview of ints": (_int_view, 1200),
+}
+
+
+@pytest.mark.parametrize("case", list(ANSWERS))
+def test_the_door_writes_exactly_the_bytes_it_checked(guest_workdir, monkeypatch, case) -> None:
+    """Guards a change: the cap held on a bytes or bytearray answer's own buffer, while what the
+    guest was handed was what its `__bytes__` returned, 5,000 bytes past a cap of 4,000; and a
+    `__bytes__` that returned a subclass with a lying `len` sent an out-length of 1 over 3,000
+    bytes written. The cap now holds on the exact bytes written, and the out-length is their
+    count. The plain bytearray and the memoryview of ints guard behaviour that already held: a
+    memoryview's answer is its bytes, not its items."""
+    run = _run()
+    from wasi_python import _call
+
+    monkeypatch.setattr(_call, "MAX_RESPONSE", 4000)
+    make, want = ANSWERS[case]
+    found = _door_artifacts(guest_workdir, "exact.wasm", EXACT_PROBE)
+    done = run(
+        [], root=_root(guest_workdir), host=lambda _: make(), artifacts=found, cache_dir=False
+    )
+    assert (done.exit_code, done.trapped) == (want, None), done
+
+
+def test_the_door_cap_keeps_every_length_a_signed_i32() -> None:
+    """Guards behaviour that already held: the cap is below 2 GiB, so a length the cap admits is
+    never truncated as wasmtime-py passes it to the guest as an i32."""
+    from wasi_python import _call
+
+    assert _call.MAX_RESPONSE < 2**31
+
+
+@pytest.mark.parametrize("error", ["Trap", "WasmtimeError"])
+def test_a_host_that_raises_a_wasmtime_exception_is_a_host_fault(guest_workdir, error) -> None:
+    """Guards a change: a host that raised wasmtime's own exception ended the call as trapped,
+    with the host's text; it is now a host fault with no text, as any other exception a host
+    raises is."""
+    run = _run()
+    import wasmtime
+
+    def host(_: bytes) -> bytes:
+        raise getattr(wasmtime, error)("from the host")
+
+    found = _probe_artifacts(guest_workdir, 16, 3)
+    done = run([], root=_root(guest_workdir), host=host, artifacts=found, cache_dir=False)
+    assert (done.exit_code, done.trapped) == (-2, None), done
+    assert "from the host" not in repr(done)
+
+
+def _nested_door(depth: int | None) -> str:
+    """A guest whose host_alloc calls the door again, up to `depth` deep (None: every time), and
+    keeps the nested call's code; run() returns 1,000 plus the outer call's code when that is a
+    fault, else the last nested code."""
+    guard = (
+        "(i32.const 1)" if depth is None else f"(i32.lt_u (global.get $depth) (i32.const {depth}))"
+    )
+    nest = f"""(if {guard} (then
+      (global.set $depth (i32.add (global.get $depth) (i32.const 1)))
+      (global.set $nested
+        (call $door (i32.const 16) (i32.const 3) (i32.const 200) (i32.const 204)))))"""
+    return f"""
+(module
+  (import "host" "call" (func $door (param i32 i32 i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (global $next (mut i32) (i32.const 1024))
+  (global $depth (mut i32) (i32.const 0))
+  (global $nested (mut i32) (i32.const 7))
+  (func (export "host_alloc") (param $n i32) (result i32) (local $p i32)
+    {nest}
+    (local.set $p (global.get $next))
+    (global.set $next (i32.add (global.get $next) (local.get $n)))
+    (local.get $p))
+  (func (export "run") (result i32) (local $rc i32)
+    (local.set $rc (call $door (i32.const 16) (i32.const 3) (i32.const 100) (i32.const 104)))
+    (if (result i32) (i32.lt_s (local.get $rc) (i32.const 0))
+      (then (i32.add (i32.const 1000) (local.get $rc)))
+      (else (global.get $nested)))))
+"""
+
+
+def test_a_nested_door_call_is_a_host_fault(guest_workdir) -> None:
+    """Guards a change: a door call made from inside host_alloc, while the door is answering,
+    was answered again, three deep; it is now refused as a host fault before its frame is read,
+    and the outer call is answered once."""
+    run = _run()
+    seen: list[bytes] = []
+
+    def host(request: bytes) -> bytes:
+        seen.append(request)
+        return b"cba"
+
+    found = _door_artifacts(guest_workdir, "nested.wasm", _nested_door(3))
+    done = run([], root=_root(guest_workdir), host=host, artifacts=found, cache_dir=False)
+    assert (done.exit_code, done.trapped, len(seen)) == (-2, None, 1), (done, len(seen))
+
+
+UNBOUNDED_DOOR = r"""
+import sys
+from pathlib import Path
+import wasi_python
+real = wasi_python.artifacts()
+found = wasi_python.Artifacts(Path(sys.argv[1]), real.plain, real.stdlib_zip, real.manifest)
+seen = []
+done = wasi_python.run(
+    [], root=Path(sys.argv[2]), host=lambda r: seen.append(r) or b"cba", artifacts=found,
+    cache_dir=False,
+)
+print(done.exit_code, done.trapped, len(seen))
+"""
+
+
+def test_an_unbounded_nested_door_call_leaves_the_process_running(guest_workdir) -> None:
+    """Guards a change: a host_alloc that called the door every time it ran nested until
+    wasmtime-py's callback ran out of Python stack and the process aborted. The nested call is
+    now a host fault, so the call ends normally. In a child process, so an abort is the child's
+    exit, not the judge's."""
+    _run()
+    from harness import wat
+
+    d = Path(tempfile.mkdtemp(prefix="door-", dir=guest_workdir))
+    probe = wat.build(d, "unbounded.wasm", _nested_door(None))
+    out = subprocess.run(
+        [sys.executable, "-c", UNBOUNDED_DOOR, str(probe), str(_root(guest_workdir))],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert out.returncode == 0, (out.returncode, out.stderr[-1500:])
+    assert out.stdout.split("\n")[0] == "-2 None 1", out.stdout
+
+
 @BOTH
 def test_a_large_response_is_a_host_fault(guest_workdir, snapshot) -> None:
     """Guards existing behaviour: a response larger than the guest's free memory is a host fault."""
