@@ -235,17 +235,21 @@ def _session() -> type[Session]:
 
 
 def test_a_turn_gets_every_byte_of_its_own() -> None:
-    """Two turns, each writing a distinct 100 KiB and a last line: each turn's stdout is its own
-    bytes exactly and holds none of the other's, so a turn's end gathers every byte it wrote
-    before its result is made."""
+    """Sixty turns, each writing a distinct 100 KiB and a last line: each turn's stdout is its
+    own bytes exactly and holds none of another's, so a turn's end gathers every byte it wrote
+    before its result is made. Sixty, not two: a turn's end that gathered nothing would still
+    find most turns' bytes already read, so two turns alone could pass it; sixty leave it
+    almost no chance."""
     payload = 100 * 1024
+    wrong = []
     with _session()() as s:
-        one = s.run(f"import sys\nsys.stdout.write('a' * {payload})\nprint('one')")
-        two = s.run(f"import sys\nsys.stdout.write('b' * {payload})\nprint('two')")
-    assert (one.exit_code, one.truncated) == (0, ()), one.exit_code
-    assert one.stdout == b"a" * payload + b"one\n"
-    assert (two.exit_code, two.truncated) == (0, ()), two.exit_code
-    assert two.stdout == b"b" * payload + b"two\n"
+        for i in range(60):
+            letter = "abcdefghijklmnopqrst"[i % 20]  # no two turns in a row alike
+            done = s.run(f"import sys\nsys.stdout.write({letter!r} * {payload})\nprint({i})")
+            own = letter.encode() * payload + f"{i}\n".encode()
+            if (done.exit_code, done.stdout, done.truncated) != (0, own, ()):
+                wrong.append((i, done.exit_code, len(done.stdout), done.truncated))
+    assert wrong == []
 
 
 def test_a_turn_past_the_cap_leaves_the_next_turn_whole() -> None:
