@@ -1072,8 +1072,13 @@ def _poll_plan(
     guest holds and a mount's file are ready at once, a folder and any other number EBADF, and
     stdio as wasmtime answers it (stdin for writing, stdout and stderr for reading EBADF);
     otherwise the shortest clock wins, and every clock due by then is reported, with nbytes 0.
-    Kept differences: a folder the guest opened is held, so ready (wasmtime: EBADF); a closed
-    0, 1 or 2 is ready (wasmtime: EBADF); past 4096 subscriptions, ENOMEM (wasmtime: no cap)."""
+    Every descriptor is ready at once, and a clock is reported only when no descriptor is;
+    wasmtime reports what is ready at its first look, which for a file is often nothing yet.
+    Kept differences, since the runner does not ask wasmtime what a held number is: a folder
+    the guest opened is ready (wasmtime: EBADF); a file on a read-only place, polled for
+    writing, is ready (wasmtime: EPERM); a file at its end has no hangup flag (wasmtime sets
+    it); a closed 0, 1 or 2 is ready, and stdio renumbered onto another number is EBADF there
+    (wasmtime: EBADF, and that stdio's answer); past 4096 subscriptions, ENOMEM (no cap)."""
     if n == 0:
         return _Plan(EINVAL)
     if n > MAX_SUBSCRIPTIONS:
@@ -1136,11 +1141,13 @@ def _poll_oneoff(
 ) -> Callable[..., int]:
     """The shadowed poll_oneoff, answering descriptors from the call's table `files`. It raises
     only a wasmtime error, to the shared function, which records it as the stop: a misaligned
-    pointer ends the run, as wasmtime ends it, once the count is checked. A wait ended by the
-    deadline answers normally, and the guest traps at its next epoch check; a BaseException goes
-    to the shared function too. Kept differences: a pointer past memory is EFAULT (wasmtime ends
-    the run); the events' room is 32 bytes per subscription (wasmtime's, per event written); the
-    events' padding is written as zeros (wasmtime leaves it). The clocks are injectable."""
+    pointer ends the run, as wasmtime ends it: in_ptr once the count is checked, out_ptr and
+    nevents_ptr once the subscriptions are answered, since wasmtime checks them only when it
+    writes. A wait ended by the deadline answers normally, and the guest traps at its next epoch
+    check; a BaseException goes to the shared function too. Kept differences: a pointer past
+    memory is EFAULT (wasmtime ends the run, or answers the errno of a subscription it refuses
+    before it reaches the end); the events' room is 32 bytes per subscription (wasmtime's, per
+    event written); the padding is written as zeros (wasmtime leaves it). Clocks injectable."""
     from wasmtime import WasmtimeError
 
     # With no table, which only the judge's stand-ins build, every number past stdio is ready.
@@ -1156,15 +1163,18 @@ def _poll_oneoff(
             )
             if n == 0 or n > MAX_SUBSCRIPTIONS:
                 return EINVAL if n == 0 else ENOMEM
-            for ptr, align in ((in_ptr, 8), (out_ptr, 8), (nevents_ptr, 4)):
-                _aligned(ptr, align)
+            _aligned(in_ptr, 8)
             size = memory.data_len(caller)
-            if in_ptr + 48 * n > size or out_ptr + 32 * n > size or nevents_ptr + 4 > size:
+            if in_ptr + 48 * n > size:
                 return EFAULT
             raw = bytes(memory.read(caller, in_ptr, in_ptr + 48 * n))
             plan = _poll_plan(raw, n, realtime_ns(), monotonic_ns() - origin_ns, kind)
             if plan.errno is not None:
                 return plan.errno
+            for ptr, align in ((out_ptr, 8), (nevents_ptr, 4)):
+                _aligned(ptr, align)
+            if out_ptr + 32 * n > size or nevents_ptr + 4 > size:
+                return EFAULT
             if plan.wait_ns:
                 waits.wait(plan.wait_ns / 1e9)
             events = b"".join(struct.pack(EVENT, *e) for e in plan.events)
