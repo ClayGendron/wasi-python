@@ -1804,13 +1804,3 @@ reason = "it does not end within 3.0 T of fuel in the guest (measured), past the
 closes_with = "docs/reference/limitations.md"
 
 # The pure-Python packages' own tests. (end)
-
-# The engine's fuel: wasmtime 49.0.0 resets fuel on a caught exception's edge to what remained
-# before the call, so a C++ call that ends in a caught exception is counted flat whatever work it
-# did. Closed when the pin moves to a wasmtime that carries the fix.
-
-[[gap]]
-check = "tests/checks/test_v1_4_embedding.py::test_fuel_counts_the_work_a_caught_exception_ends"
-match = "1 finding(s), digest 6812c837ad00"
-reason = "fuel under-counts C++ work that ends in a caught exception on wasmtime 49.0.0, fixed upstream in 49.0.1"
-closes_with = "context/specifications/127-the-pin-moves-to-wasmtime-50.md"
