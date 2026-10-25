@@ -10,6 +10,7 @@ import stat
 import tempfile
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -74,13 +75,32 @@ def _home() -> Path | None:
         return None
 
 
+def _cache_given(given: str | os.PathLike[str] | None | bool) -> str | bool | None:
+    """`cache_dir` as the call names it, checked when the call is made. An empty string names
+    no folder (an unset variable read as empty, say) and is refused. A folder, and the one
+    `$WASI_PYTHON_CACHE` names when `None` or `True` defers to it, is made absolute against the
+    working folder of this moment, so the folder judged is the folder used whatever a later
+    `chdir` does."""
+    if given is None or given is True:
+        named = os.environ.get(CACHE_ENV)
+        return os.path.abspath(named) if named else given
+    if given is False:
+        return False
+    path = os.fspath(given)
+    if path == "":
+        raise ValueError(
+            "cache_dir must be a folder, True, False or None; an empty string names none"
+        )
+    return os.path.abspath(path)
+
+
 def _cache_dir(given: str | os.PathLike[str] | None | bool) -> Path | None:
     if given is False:
         return None
     if given is not None and given is not True:
         return Path(given)
     if os.environ.get(CACHE_ENV):
-        return Path(os.environ[CACHE_ENV])
+        return Path(os.path.abspath(os.environ[CACHE_ENV]))
     home = _home()
     return None if home is None else _platform.PLATFORM.default_cache_dir(home)
 
@@ -137,13 +157,15 @@ def _module(
     """The compiled module: from this process, else the .cwasm cache, else compiled and cached.
 
     A .cwasm is native code that wasmtime runs as it finds it, so the cache is used only as the
-    runner makes it: on POSIX, a directory at 0700 and files at 0600 with one name, owned by this
-    user; on Windows, no link or junction. Anything else is ignored, with a warning, and the
-    module is compiled in this process; a refused file is replaced by the runner's own. That
-    stops a file a guest makes, not one it rewrites in place: the guard is that the grant judge
-    lets no guest reach any cache. `want` is a found set's checked digest:
-    the module is then compiled from bytes read once and held to it, and the
-    .cwasm under that digest is written only from them."""
+    runner makes it: on POSIX, a directory at 0700 and files at 0600 with one name and no access
+    list, owned by this user, on a way of folders no other user can change, and read through
+    the descriptor that was checked; on Windows, no link or junction, held open from its check
+    to its load. Anything else is ignored, with a warning, and the module is compiled in this
+    process; a refused file is replaced by the runner's own. That stops a file a guest makes,
+    not one it rewrites in place: the guard is that the grant judge lets no guest reach any
+    cache. `want` is a found set's checked digest; else the digest is the binary's as hashed
+    now. Either way the module is compiled from bytes read once and held to it, so the .cwasm
+    under that digest is written only from them."""
     import wasmtime as wt
 
     digest = want if want is not None else _artifacts._digest(binary)
@@ -170,40 +192,57 @@ def _module_miss(
     binary: Path,
     cache: Path | None,
     digest: str,
-    held: bool = False,
+    held: bool | None = None,
+    *,
+    lstat: Callable[[str], os.stat_result] = os.lstat,
+    reopen: Callable[..., int] = os.open,
 ) -> wasmtime.Module:
+    """The module loaded from the cache, else compiled, cached and counted. `held` says what
+    `digest` is: True, the set's checked digest; False, the binary's hash taken for this call;
+    None, a key the caller names itself, for which what is read is compiled as it is. `lstat`
+    is the walk of the way to the cache, `reopen` the open that tries a descriptor's name."""
     flavor = "fuel" if metered else "plain"
     cwasm = None
     try:
-        if cache is not None and _platform.PLATFORM.private(cache, is_dir=True):
+        folder = None if cache is None else _platform.PLATFORM.cache_folder(cache, lstat=lstat)
+        if folder is not None:
             from . import _wasmtime_ffi as ffi
 
-            cwasm = cache / f"{digest[:32]}-wasmtime{ffi.version()}-{flavor}.cwasm"
+            cwasm = folder / f"{digest[:32]}-wasmtime{ffi.version()}-{flavor}.cwasm"
     except OSError as e:
         cwasm = None  # unusable: compiled modules are kept in this process only
         _cache_warning(f"not using the module cache at {cache}", e)
     mod: wasmtime.Module | None = None
     may_write = False
     if cwasm is not None:
-        mod, may_write = _load(wt, engine, cwasm)
+        mod, may_write = _load(wt, engine, cwasm, reopen)
     if mod is None:
-        if held:
-            data = binary.read_bytes()
-            if hashlib.sha256(data).hexdigest() != digest:
-                raise ArtifactsMissing(
-                    f"{binary} changed after it was checked against its set's SHA256SUMS; "
-                    "it is not compiled"
-                )
-            mod = wt.Module(engine, data)
-            del data
-        else:
-            mod = wt.Module.from_file(engine, str(binary))
+        mod = _compile(wt, engine, binary, digest, held)
         with process().cache_lock:
             process().counts["compiled"] += 1
-        if cwasm is not None and cache is not None and may_write:
-            _store(mod, cache, cwasm)
+        if cwasm is not None and may_write:
+            _store(mod, cwasm.parent, cwasm)
     with process().cache_lock:
         process().modules[(metered, digest)] = mod
+    return mod
+
+
+def _compile(
+    wt: Any, engine: wasmtime.Engine, binary: Path, digest: str, held: bool | None
+) -> wasmtime.Module:
+    """The module compiled from one read of `binary`, whose bytes must hash to `digest` unless
+    `held` is None: a file changed between its hash and its compile is never compiled, so it is
+    never cached under a digest it does not have. wasmtime-py's own `from_file` reads the whole
+    file too; the hash is one pass over bytes already in memory."""
+    data = binary.read_bytes()
+    if held is not None and hashlib.sha256(data).hexdigest() != digest:
+        what = (
+            "changed after it was checked against its set's SHA256SUMS"
+            if held
+            else "changed while it was read"
+        )
+        raise ArtifactsMissing(f"{binary} {what}; it is not compiled")
+    mod: wasmtime.Module = wt.Module(engine, data)
     return mod
 
 
@@ -211,13 +250,16 @@ def _file_stamp(st: os.stat_result) -> tuple[int, int, int, int]:
     return st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns
 
 
-def _load(wt: Any, engine: wasmtime.Engine, cwasm: Path) -> tuple[wasmtime.Module | None, bool]:
-    """The module a `.cwasm` holds, if the file is as the runner makes it and the file at that
-    name is still the one checked once wasmtime has read it (wasmtime-py opens the path itself),
-    which narrows, not closes, the window between the check and the load; and whether the runner
-    may put its own file at that name: when there is none, or the one there is refused, stale or
-    swapped, but never over a folder. A file that goes away meanwhile is a miss, never a
-    failure."""
+def _load(
+    wt: Any, engine: wasmtime.Engine, cwasm: Path, reopen: Callable[..., int] = os.open
+) -> tuple[wasmtime.Module | None, bool]:
+    """The module a `.cwasm` holds, if the file is as the runner makes it, read through the open
+    file the runner checked: wasmtime opens the name of the checked descriptor, so a file put at
+    the path after the check is not the file loaded. Where wasmtime is given the path instead
+    (Windows, which holds the file open meanwhile, or a system with no name for a descriptor),
+    the name's stamp is checked again after the load. And whether the runner may put its own
+    file at that name: when there is none, or the one there is refused, stale or swapped, but
+    never over a folder. A file that goes away meanwhile is a miss, never a failure."""
     try:
         before = os.lstat(cwasm)
     except FileNotFoundError:
@@ -225,23 +267,32 @@ def _load(wt: Any, engine: wasmtime.Engine, cwasm: Path) -> tuple[wasmtime.Modul
     except OSError:
         return None, False
     try:
-        if not _platform.PLATFORM.private(cwasm, is_dir=False):
-            return None, not stat.S_ISDIR(before.st_mode)  # never loaded; replaced unless a folder
+        opened = _platform.PLATFORM.open_cached(cwasm, reopen=reopen)
     except OSError:
         return None, False
+    if opened is None:
+        return None, not stat.S_ISDIR(before.st_mode)  # never loaded; replaced unless a folder
     try:
-        mod = wt.Module.deserialize_file(engine, str(cwasm))
-    except (wt.WasmtimeError, OSError):
-        return None, True  # stale or foreign: compiled again and replaced
-    try:
-        same = _file_stamp(os.lstat(cwasm)) == _file_stamp(before)
-    except OSError:
-        same = False
-    if not same:
-        return None, True
+        if _file_stamp(os.fstat(opened.fd)) != _file_stamp(before):
+            return None, True  # another file since its name was read
+        try:
+            mod = wt.Module.deserialize_file(engine, opened.name)
+        except (wt.WasmtimeError, OSError):
+            return None, True  # stale or foreign: compiled again and replaced
+        if opened.by_path and not _same_stamp(cwasm, before):
+            return None, True
+    finally:
+        opened.close()
     with process().cache_lock:
         process().counts["loaded"] += 1
     return mod, False
+
+
+def _same_stamp(path: Path, before: os.stat_result) -> bool:
+    try:
+        return _file_stamp(os.lstat(path)) == _file_stamp(before)
+    except OSError:
+        return False
 
 
 def _cache_warning(what: str, error: OSError) -> None:
