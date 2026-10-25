@@ -25,6 +25,8 @@ ORDER = (
     "_process",
     "_wasmtime_ffi",
     "_limits",
+    "_platform_common",
+    "_platform_windows",
     "_platform",
     "_artifacts",
     "_engines",
@@ -333,7 +335,7 @@ def _once_errors(package: Path) -> list[str]:
 
 
 def test_every_runner_name_is_defined_in_one_module() -> None:
-    """Over the twelve runner modules, no top-level name is bound twice, and each
+    """Over the fourteen runner modules, no top-level name is bound twice, and each
     module begins with a docstring."""
     errors = _once_errors(PACKAGE)
     assert not errors, scan.report(errors)
