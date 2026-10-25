@@ -56,14 +56,15 @@ A *guest* is the Python program running inside `python.wasm`. The *host* is your
 - A *trap* is the guest stopping on an error the wasm engine catches, such as running out of fuel or overflowing its stack. A trap ends the call, not your process.
 - On Linux, a trap could end or hang your process if wasmtime's signal handlers were replaced after the first call (by `faulthandler`, `signal.signal` or a crash reporter). So each entry into the guest is refused with `RuntimeError`, before guest code runs, when that has happened. Install `faulthandler` and crash reporters before your first call.
 
-### Two wasmtime fixes, carried in the runner
+### Three wasmtime fixes, in wasmtime itself
 
-The pinned wasmtime-py bundles wasmtime 49.0.0. Two advisories fixed in later wasmtime releases reach a guest, and the runner applies each fix itself, on every call:
+The pinned wasmtime-py bundles wasmtime 50.0.0. Three advisories fixed in wasmtime 49 releases reach a guest, and wasmtime 50.0.0 carries each fix in its own calls; the runner adds none:
 
-- **GHSA-m9f7-9w4p-gv38** (fixed in wasmtime 49.0.3): on macOS and FreeBSD, a guest with a writable grant or root could rename a link that points out, with a trailing slash, and so move a host folder into its sandbox. The runner applies the fixed rename rule.
-- **GHSA-96f6-r43r-8c24** (fixed in wasmtime 49.0.2): directory listings copied up to three bytes of host memory into the guest. The runner zeroes them.
+- **GHSA-m9f7-9w4p-gv38** (fixed in wasmtime 49.0.3): on macOS and FreeBSD, a guest with a writable grant or root could rename a link that points out, with a trailing slash, and so move a host folder into its sandbox. wasmtime's rename refuses it.
+- **GHSA-96f6-r43r-8c24** (fixed in wasmtime 49.0.2): directory listings copied up to three bytes of host memory into the guest. wasmtime writes zeros.
+- **GHSA-m63x-6p34-q65x** (fixed in wasmtime 49.0.1): fuel did not count work inside a C++ call that ends in a caught exception, so a guest could run past its fuel cap. wasmtime counts it.
 
-These fixes live in the wheel's runner, not in the artifact set. An embedder that drives the artifacts with its own wasmtime before 49.0.3 does not get them.
+These fixes live in the engine, not in the artifact set. An embedder that drives the artifacts with its own wasmtime before 49.0.3 does not get them all.
 
 ## What is not protected
 
@@ -101,7 +102,6 @@ The sandbox stops the guest reaching what it was not given. It does not make eve
 - **Real entropy.** `random`, `secrets`, `os.urandom` and `tempfile` use real randomness. SQLite's own randomness is seeded from the clock's whole second, because the guest has no `/dev/urandom`.
 - **Dict and set keys built to collide** under the snapshot's fixed, public string-hash key, and XML parsed by Python's expat parsers (`xml.etree`, `xml.dom.minidom`, `xml.sax`, `plistlib`, `xmlrpc`), whose parser salt is the same fixed key. They make that call's dict, set and XML work quadratic until its deadline. Load untrusted keys and XML with `snapshot=False`, whose key is fresh in every call.
 - **A guest that waits with `deadline_s=None`.** No instruction runs while it sleeps, so fuel does not stop it.
-- **Fuel as the only bound** on wasmtime 49.0.0: work inside a C++ call that ends in a caught exception is not counted, so a guest that relies on such calls runs past its fuel cap. Keep a finite `deadline_s` beside fuel.
 
 ### Other edges
 

@@ -69,7 +69,7 @@ The artifacts are plain `wasm32-wasip1` modules. Any engine that meets the requi
 
 ### Pick an engine
 
-The binaries use WebAssembly's exception-handling proposal in its standard form (`exnref`, part of WebAssembly 3.0), so C++ exceptions work. They also need multi-value and reference types (WebAssembly 2.0). The project runs only wasmtime 49 itself. The rest of this table is read from each engine's release notes and source:
+The binaries use WebAssembly's exception-handling proposal in its standard form (`exnref`, part of WebAssembly 3.0), so C++ exceptions work. They also need multi-value and reference types (WebAssembly 2.0). The project runs only wasmtime 50 itself. The rest of this table is read from each engine's release notes and source:
 
 | status | engines |
 |---|---|
@@ -90,7 +90,7 @@ The guest's import path holds only the stdlib zip. If you add entries, add read-
 
 ### Give the guest enough stack
 
-Set the engine's `max_wasm_stack` to 8 MiB. Above 2 MiB, wasmtime also needs `async_stack_size` at least as large, or it refuses the engine. wasmtime-py 49's `Config` has no property for it: call its declared binding first, or wasmtime-py's engine aborts the process on the refusal.
+Set the engine's `max_wasm_stack` to 8 MiB. Above 2 MiB, wasmtime also needs `async_stack_size` at least as large, or it refuses the engine. wasmtime-py 50's `Config` has no property for it: call its declared binding first, or wasmtime-py's engine aborts the process on the refusal.
 
 ```python
 wasmtime._ffi.wasmtime_config_async_stack_size_set(config.ptr(), size)
@@ -114,7 +114,7 @@ To end the instance as Python ends, call `shutdown() -> i32` once, at rest, afte
 
 ### What you give up
 
-The protections the Python runner adds are its own, not the artifacts'. An engine you drive yourself gets none of the runner's limits, folder checks or clean-up. In particular, the runner carries two fixes for wasmtime 49.0.0's file calls (a rename with a trailing `/`, and padding in directory listings). An embedder that drives the artifacts with its own wasmtime before 49.0.3 does not get them.
+The protections the Python runner adds are its own, not the artifacts'. An engine you drive yourself gets none of the runner's limits, folder checks or clean-up. The engine the runner pins, wasmtime 50, carries the fixes for a rename with a trailing `/` and for padding in directory listings in its own file calls. An embedder that drives the artifacts with its own wasmtime before 49.0.3 does not get them.
 
 Do not pass a key that begins with `_PYTHON_` in the guest's environment: CPython's `sysconfig` reads these in isolated mode, and `_PYTHON_SYSCONFIGDATA_PATH` runs the module it names.
 

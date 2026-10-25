@@ -7,7 +7,7 @@ This page says what the `wasi-python` wheel runs on, which names are public, and
 | | supported |
 |---|---|
 | Host Python | 3.11 or later. |
-| WebAssembly engine | wasmtime-py 49 (`wasmtime>=49,<50`), installed with the wheel. |
+| WebAssembly engine | wasmtime-py 50 (`wasmtime>=50,<51`), installed with the wheel. |
 | Host systems | macOS, Linux and Windows. The release is tested on all three. |
 | Guest Python | CPython 3.15.0, for `wasm32-wasip1`. |
 
@@ -19,7 +19,7 @@ On Linux, install `faulthandler` and any crash reporter before your first call. 
 
 The artifact set runs on any engine that supports WebAssembly's exception-handling proposal in its standard form (`exnref`, part of WebAssembly 3.0), plus multi-value and reference types (WebAssembly 2.0). Exception handling is what makes C++ exceptions work, and matplotlib needs them. An engine without it cannot load the binaries.
 
-The project runs only wasmtime 49 itself. The list of other engines that run the binaries, and those that do not, is on [Embed from other languages](../how-to/embed-from-other-languages.md).
+The project runs only wasmtime 50 itself. The list of other engines that run the binaries, and those that do not, is on [Embed from other languages](../how-to/embed-from-other-languages.md).
 
 An older alpha, `0.1.0a1`, built on CPython 3.14.8, runs on hosts without exception handling: use the `v0.1.0a1` release's assets. On it a C++ `throw` ends the guest, it has no matplotlib, and the promises on this page do not cover it.
 
@@ -82,4 +82,4 @@ Each release is a GitHub release, with the wheel, the artifact set and their `SH
 
 ## In one line
 
-Python 3.11 or later with wasmtime-py 49 on macOS, Linux or Windows; the names in `__all__`, the command and two environment variables are public, and a minor release removes nothing without two releases of deprecation.
+Python 3.11 or later with wasmtime-py 50 on macOS, Linux or Windows; the names in `__all__`, the command and two environment variables are public, and a minor release removes nothing without two releases of deprecation.

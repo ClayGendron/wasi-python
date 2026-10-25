@@ -19,16 +19,13 @@ Only the newest release is supported; a fix goes into the next release, and olde
 - **The runner.** Anything a guest does that makes `wasi_python.run` raise, crash the host process, or return another call's result. The same for an argument that silently removes a limit or changes what the guest sees.
 - **The release supply chain.** An artifact whose bytes differ from what its pins rebuild, or that fails attestation. The README's "Verifying a download" section shows how to check one.
 
-## Upstream advisories the runner handles
+## Upstream advisories
 
-The runner uses wasmtime-py 49.0.0, which bundles wasmtime 49.0.0; wasmtime-py 50.0.1, which bundles wasmtime 50.0.0, is released; the requirement has not yet moved to it. Two wasmtime advisories fixed since then reach a guest, and the runner carries each fix itself, on every call, until the published `wasmtime` requirement admits only fixed versions:
+The runner uses wasmtime-py 50.0.1, which bundles wasmtime 50.0.0. That wasmtime carries the fixes of the three advisories below in its own calls, and the runner carries no fix of its own. An embedder who drives the artifact set with an older engine lacks them: before wasmtime 49.0.3 (or 48.0.6, or 36.0.18) for the rename, before 49.0.2 (or 48.0.4, or 36.0.17) for the listings, and 49.0.0 (or 47.0.0 to 48.0.2) for fuel. The build's wasmtime command line, 49.0.3, which `MANIFEST`'s `x-wizer` line names, only makes the snapshot from a read-only folder and runs no guest, so it is not the engine the sandbox runs on.
 
-- **GHSA-m9f7-9w4p-gv38** (high, fixed in wasmtime 49.0.3): on macOS and FreeBSD, a guest with a writable grant or root could rename a symbolic link that points out with a trailing slash and so move a host folder into its sandbox. The runner applies 49.0.3's rule to `path_rename`: a trailing slash on either path needs a source that is a folder, judged without following its own link, and a folder is renamed by its plain name.
-- **GHSA-96f6-r43r-8c24** (low, fixed in wasmtime 49.0.2): `fd_readdir` copied up to three bytes of host memory per entry into the guest. The runner zeroes them.
-
-## An upstream advisory the runner does not handle
-
-- **GHSA-m63x-6p34-q65x** (medium, fixed in wasmtime 49.0.1): on wasmtime 49.0.0, the fuel cap and `fuel_used` under-count work a guest does inside a C++ call that ends in a caught exception or a `longjmp`; the compiled-in packages are built with exceptions on, and a guest reaches such a call from plain Python. The runner carries no fix: the exceptions proposal cannot be turned off, because the build depends on it. A finite `deadline_s` (the default, 60 s) bounds wall time through epoch interruption, which the advisory does not affect. The fix is the pin's move to wasmtime 50.
+- **GHSA-m9f7-9w4p-gv38** (high, fixed in wasmtime 49.0.3, carried by wasmtime 50.0.0): on macOS and FreeBSD, a guest with a writable grant or root could rename a symbolic link that points out with a trailing slash and so move a host folder into its sandbox. wasmtime's own `path_rename` now needs a source that is a folder when either path ends in a slash, judged without following its own link.
+- **GHSA-96f6-r43r-8c24** (low, fixed in wasmtime 49.0.2, carried by wasmtime 50.0.0): `fd_readdir` copied up to three bytes of host memory per entry into the guest. wasmtime now writes them as zeros.
+- **GHSA-m63x-6p34-q65x** (medium, fixed in wasmtime 49.0.1, carried by wasmtime 50.0.0): the fuel cap and `fuel_used` under-counted work a guest does inside a C++ call that ends in a caught exception or a `longjmp`. An embedder that runs the artifact set with fuel on wasmtime 49.0.0, or 47.0.0 to 48.0.2, still meets it.
 
 ## Out of scope
 

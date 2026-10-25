@@ -36,7 +36,6 @@ Fuel does not count:
 
 - **Waiting.** While the guest sleeps or waits in `select`, no instruction runs, so fuel does not stop it. The deadline does.
 - **Work on the host.** Your host function, mount providers and tools run in your process, not in the guest. Their cost is bounded by other limits, such as `max_tool_calls`, and by the deadline.
-- **A C++ call that ends in a caught exception, on wasmtime 49.0.0.** That engine does not count the work such a call did before the exception, so a guest that makes such calls runs past its fuel cap; keep a finite deadline beside fuel there.
 
 ## Fuel and the deadline together
 
