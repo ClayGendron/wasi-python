@@ -15,7 +15,7 @@ import pytest
 import wasmtime as wt
 
 from harness import files
-from wasi_python import Grant, _engines, _places, _platform
+from wasi_python import Grant, _engines, _places, _platform, _platform_windows
 from wasi_python._process import process
 
 POSIX = os.name == "posix"
@@ -139,7 +139,7 @@ def test_the_argument_types(tmp_path) -> None:
 
 
 def _w(*chain: tuple[int, int], missing: bool = False) -> _platform._Walked:
-    w = _platform._Walked("/x", tuple(chain), [])
+    w = _platform._Walked("/x", tuple(chain), [], closer=os.close)
     if missing:
         w.missing = ("new",)
     return w
@@ -331,9 +331,9 @@ class _WinFake:
     def close(self, h: int) -> None:
         del self.held[h]
 
-    def install(self, monkeypatch) -> _platform._Windows:
+    def install(self, monkeypatch) -> _platform_windows._Windows:
         """A Windows platform object whose handle calls are this model's."""
-        platform = _platform._Windows()
+        platform = _platform_windows._Windows()
         monkeypatch.setattr(platform, "open_handle", self.open)
         monkeypatch.setattr(platform, "close_held", self.close)
         monkeypatch.setattr(
@@ -490,9 +490,9 @@ def test_a_rewritten_name_is_one_ntpath_refuses() -> None:
     pieces += [" .x", "con\u0131n$", "\u0131", "K", "s"]
     names = ["".join(c) for k in (1, 2, 3) for c in itertools.product(pieces, repeat=k)]
     names = [n for n in names if n]  # 18,275 spellings (16,175 distinct)
-    differ = [n for n in names if _platform._rewritten(n) != ntpath.isreserved("x\\" + n)]
+    differ = [n for n in names if _platform_windows._rewritten(n) != ntpath.isreserved("x\\" + n)]
     assert not differ, sorted(map(ascii, set(differ)))[:8]
-    refused = sum(map(_platform._rewritten, names))
+    refused = sum(map(_platform_windows._rewritten, names))
     assert len(names) == 18_275 and 0 < refused < len(names), (len(names), refused)
 
 

@@ -11,7 +11,7 @@ import threading
 
 import pytest
 
-from wasi_python import _call, _home, _platform, runner
+from wasi_python import _call, _home, _platform, _platform_windows, runner
 from wasi_python._process import process
 
 MIB = 1 << 20
@@ -90,9 +90,9 @@ def test_the_stack_size_is_restored_without_erasing_another(monkeypatch, roomy) 
 def test_windows_counts_its_stack_conservatively() -> None:
     """High - low - guarantee - one page."""
     low, high, guarantee = 0x10000, 0x10000 + 10 * MIB, 64 * 1024
-    bottom, size = _platform._windows_usable(low, high, guarantee)
+    bottom, size = _platform_windows._windows_usable(low, high, guarantee)
     assert size == 10 * MIB - guarantee - 4096 and bottom == low + guarantee + 4096
-    assert _platform._windows_usable(low, low + 4096, 0) is None
+    assert _platform_windows._windows_usable(low, low + 4096, 0) is None
 
 
 def test_an_unknown_platform_cannot_be_read() -> None:
@@ -125,7 +125,7 @@ def test_the_interpreter_is_told_its_stack_where_it_guesses() -> None:
         (linux, dict(implementation="cpython", libc="glibc", version=(3, 14, 2))),
         (_platform._Posix(), dict(implementation="cpython", libc="", version=(3, 14, 2))),
         (_platform._Darwin(), dict(implementation="cpython", libc="", version=(3, 14, 2))),
-        (_platform._Windows(), dict(implementation="cpython", libc="", version=(3, 14, 2))),
+        (_platform_windows._Windows(), dict(implementation="cpython", libc="", version=(3, 14, 2))),
         (linux, dict(implementation="cpython", libc="musl", version=(3, 13, 9))),
     ):
         assert not host.tell_interpreter(4096, 9 * MIB, resolve=resolve, **other), (host, other)

@@ -12,7 +12,7 @@ import tempfile
 import warnings
 from pathlib import Path
 
-from . import _platform
+from . import _platform, _platform_common
 from ._process import process
 
 # Private folders and the sweep. Each private root and stdin folder has a
@@ -91,7 +91,7 @@ class _Private:
             try:
                 gone = not os.path.lexists(self.path)
                 if gone:
-                    _platform._unlink_quietly(self.lock_path)
+                    _platform_common._unlink_quietly(self.lock_path)
             finally:
                 _drop(self.name)
         if not gone:
