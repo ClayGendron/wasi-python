@@ -685,3 +685,37 @@ def test_an_absent_check_a_news_file_retires_is_listed_and_the_run_green(inner, 
     result, _ = inner("--accept", "drop it", source=source)
     assert result.ret == 1  # a local acceptance still says --retire
     result.stdout.fnmatch_lines(["*absent checks not retired*"])
+
+
+GROWING = """# 999: a check grows
+
+## Changelog
+
+### Changed
+
+- **A check grows**: it does more.
+
+## Claims
+
+```toml
+[[claim]]
+spec = "999"
+grows = ["test_inner.py::test_ok"]
+growth = "it does more"
+```
+"""
+
+
+def test_a_growth_a_news_file_claims_is_listed_and_the_run_green(inner, pytester) -> None:
+    """A shard's run reads the news files at its commit: a growth one claims is listed with its
+    reason and the run stays green, so the gather runs and the accept job can consume the claim;
+    a local acceptance still needs --accept-growth."""
+    _accept_baseline(inner)
+    changes = pytester.path / "context" / "changes"
+    changes.mkdir(parents=True)
+    (changes / "999-a-check-grows.md").write_text(GROWING)
+    result, _ = inner(fuel=1_000_101, fail=False)
+    assert result.ret == 0, result.stdout.str()[-2000:]
+    result.stdout.fnmatch_lines(["*CLAIMED test_inner.py::test_ok: fuel 1000000 -> 1000101*"])
+    result, _ = inner("--accept", "more", fuel=1_000_101, fail=False)
+    assert result.ret == 1

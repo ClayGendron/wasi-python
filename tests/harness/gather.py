@@ -181,6 +181,12 @@ def gather(i: Inputs) -> Verdict:
     # Where an acceptance's reasons are the news files', a row that needs one is listed, not red.
     listed = pull_request or i.g7 == "post-merge"
 
+    def claimed(kind: str, key: str) -> bool:
+        """A row a news file's claim gives its reason for: listed on a pull request and after a
+        merge; with no claim, listed on a pull request (named `unclaimed`) and red after a merge,
+        where the accept job would have nothing to consume."""
+        return pull_request or news.reason(i.claims, kind, key) is not None
+
     def retired(node: str) -> bool:
         """An absent check a news file's claim retires: the acceptance consumes the claim, so
         where the acceptance's reasons are the news files' the row is listed, not red."""
@@ -388,7 +394,7 @@ def gather(i: Inputs) -> Verdict:
         for what, kind, nodes in (("fewer", "passes", rt.fewer), ("grew", "grows", rt.growth)):
             for n in nodes[:5]:
                 row = f"G5 {system}/{shard}: {what} {n}"
-                if listed:
+                if listed and claimed(kind, n.split(": ", 1)[0]):
                     v.list_growth(row, kind, n.split(": ", 1)[0])
                 else:
                     red.append(row)
@@ -399,7 +405,7 @@ def gather(i: Inputs) -> Verdict:
         now = "release" if node in i.release_checks else "normal"
         if node in collected and was != now:
             row = f"G5 {node}: accepted in the {was} tier, {now}-tier now"
-            if listed:
+            if listed and claimed("moved", node):
                 v.list_growth(row, "moved", node)
             else:
                 red.append(row)
@@ -437,7 +443,7 @@ def gather(i: Inputs) -> Verdict:
         acc = i.accepted.get("checks", {}).get(node, {}).get("metrics", {}).get("darwin-arm64", {})
         if runs and "passes" in acc and passes != {acc["passes"]}:
             row = f"G5 {m[1]}: passes {sorted(passes, key=str)} is not accepted {acc['passes']}"
-            if listed:
+            if listed and claimed("passes", node):
                 v.list_growth(row, "passes", node)
             else:
                 red.append(row)
