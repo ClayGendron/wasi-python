@@ -228,3 +228,102 @@ def test_the_stream_keeps_the_cap_to_the_byte() -> None:
     free = _Stream("stderr", None)
     assert free.write(b"z" * 100) == 100
     assert (bytes(free.data), free.dropped) == (b"z" * 100, False)
+
+
+def test_a_path_that_does_not_open_falls_back_to_the_callback(monkeypatch) -> None:
+    """A host whose `/dev/fd` does not reach a pipe (Linux without `/proc`: a chroot, a minimal
+    container) still runs every call: the platform's channel is given a path that does not
+    open, the capture closes what it made and takes the callback, and the guest's line arrives.
+    It runs on every system, since the channel is the check's own."""
+    from wasi_python import _platform
+
+    run = _run()
+    run(["-c", "pass"])
+    made: list[int] = []
+
+    def channel() -> tuple[str, int, int]:
+        r, w = os.pipe()
+        made.extend((r, w))
+        return f"/no-such-folder-of-descriptors/{w}", r, w
+
+    monkeypatch.setattr(_platform.PLATFORM, "output_channel", channel)
+    kinds: list[str] = []
+    monkeypatch.setattr(process().observers, "on_capture", kinds.append)
+    open_before = len(os.listdir("/dev/fd")) if POSIX else 0
+    before = set(threading.enumerate())
+    done = run(["-c", "print('x')"])
+    after = set(threading.enumerate())
+    open_after = len(os.listdir("/dev/fd")) if POSIX else 0
+    assert (done.exit_code, done.stdout, done.truncated) == (0, b"x\n", ()), done
+    assert (kinds, len(made) > 0, [t.name for t in after - before]) == (["callback"], True, [])
+    assert open_after == open_before  # every descriptor the failed capture made is closed
+
+
+READER_FAILS = f"""
+import select, signal, sys
+signal.signal(signal.SIGPIPE, signal.SIG_DFL)  # as a command line that wants `| head` quiet
+import wasi_python
+assert wasi_python.run(["-c", "pass"]).exit_code == 0
+real = select.poll
+
+
+class Failing:
+    def __init__(self):
+        self.p = real()
+
+    def register(self, *a):
+        self.p.register(*a)
+
+    def unregister(self, *a):
+        self.p.unregister(*a)
+
+    def poll(self, *a):
+        raise OSError(5, "a wait that fails")
+
+
+select.poll = Failing
+done = wasi_python.run(["-c", {WRITE_MIB!r}])
+print("call", done.exit_code, len(done.stdout), done.stdout == b"z" * (1 << 20), done.truncated)
+with wasi_python.Session() as s:
+    turns = [s.run(f"import sys\\nsys.stdout.write({{c!r}} * 100000)\\nprint(1)") for c in "ab"]
+own = [(t.exit_code, t.stdout == c.encode() * 100000 + b"1\\n") for t, c in zip(turns, "ab")]
+print("turns", own)
+"""
+
+
+@pytest.mark.skipif(not POSIX, reason="Windows keeps the callback: no reader waits there")
+def test_a_reader_whose_wait_fails_still_reads_every_byte() -> None:
+    """In a child that restores SIGPIPE's default action, with every wait of the reader made to
+    fail: a call still gets its mebibyte whole and a session's two turns their own bytes, and
+    the child lives. A reader that closed its ends on such a failure would refuse the guest's
+    next write, and the signal that refusal raises would end the host process."""
+    needs.need("runner", "artifact dir")
+    lines = _child(READER_FAILS)
+    assert lines == ["call 0 1048576 True ()", "turns [(0, True), (0, True)]"], lines
+
+
+def test_each_reader_is_joined_once(monkeypatch) -> None:
+    """Joins are counted, not timed: `threading.Thread.join` wrapped, three calls join three
+    readers and a session of four turns joins one, each dead once joined; Windows has no
+    reader and joins none."""
+    import wasi_python
+
+    run = _run()
+    run(["-c", "pass"])
+    joined: list[threading.Thread] = []
+    join = threading.Thread.join
+
+    def counted(self, *args, **kwargs):
+        if self.name == "wasi-python-output":
+            joined.append(self)
+        return join(self, *args, **kwargs)
+
+    monkeypatch.setattr(threading.Thread, "join", counted)
+    for _ in range(3):
+        assert run(["-c", "print(1)"]).stdout == b"1\n"
+    calls = len(joined)
+    with wasi_python.Session() as s:
+        assert [s.run("print(2)").stdout for _ in range(4)] == [b"2\n"] * 4
+    session = len(joined) - calls
+    assert (calls, session) == ((3, 1) if POSIX else (0, 0))
+    assert [t for t in joined if t.is_alive()] == []
