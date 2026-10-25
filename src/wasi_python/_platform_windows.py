@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from . import _platform_common
-from ._platform_common import Identity, _Walked
+from ._platform_common import Identity, _Opened, _Walked
 from ._process import process
 
 # Windows: Python cannot open a folder with os.open, so the walk opens every
@@ -422,3 +422,41 @@ class _Windows:
             path, "a directory, no link or junction" if is_dir else "a file with one name"
         )
         return False
+
+    def private_fd(self, fd: int, *, is_dir: bool, path: Path) -> bool:
+        """`private` of the file open at `fd`: its kind and its one name. The open followed any
+        link, so the caller compares what is open with what `private` checked by name."""
+        st = os.fstat(fd)
+        if stat.S_ISDIR(st.st_mode) if is_dir else _platform_common._one_file(st):
+            return True
+        _platform_common._not_used(path, "a directory" if is_dir else "a file with one name")
+        return False
+
+    def cache_folder(
+        self, cache: Path, *, lstat: Callable[[str], os.stat_result] = os.lstat
+    ) -> Path | None:
+        """The cache folder, made if absent, or None when it is not of the kind the runner makes
+        (with a warning). No folder on the way is judged: Windows has no mode bits, and the
+        grant rule is the guard. `lstat` is the POSIX walk's, unused here."""
+        return cache if self.private(cache, is_dir=True) else None
+
+    def open_cached(self, cwasm: Path, *, reopen: Callable[..., int] = os.open) -> _Opened | None:
+        """The `.cwasm` open, or None when it is not of the kind the runner makes (with a
+        warning). There is no name for a descriptor that wasmtime could open, so it is given the
+        path; the read descriptor held until the caller closes it shares reading and writing but
+        not deletion, so the name cannot be renamed, replaced or removed from the check until
+        wasmtime has the file, and wasmtime's own open, which reads and shares reading, is
+        compatible with it. `reopen` is the POSIX one's, unused here."""
+        if not self.private(cwasm, is_dir=False):
+            return None
+        flags = os.O_RDONLY | getattr(os, "O_NOINHERIT", 0) | getattr(os, "O_BINARY", 0)
+        fd = os.open(cwasm, flags)
+        try:
+            ok = self.private_fd(fd, is_dir=False, path=cwasm)
+        except BaseException:
+            os.close(fd)
+            raise
+        if not ok:
+            os.close(fd)
+            return None
+        return _Opened(fd, str(cwasm), by_path=True)

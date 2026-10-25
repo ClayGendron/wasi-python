@@ -30,8 +30,11 @@ What differs, and why each difference exists:
   macOS uses Mach ports and Windows a vectored handler.
 - The default cache folders, and whether a cache path is as the runner makes it: every default a
   process of this user could compute, with or without the override variable each platform
-  reads; on POSIX the owner, the mode and the number of names are checked, while on Windows,
-  which has no mode bits, only the kind of file and that it is no link.
+  reads; on POSIX the owner, the mode, the number of names and any access list are checked,
+  through the descriptor wasmtime is then given, and every folder on the way must be this
+  user's or root's and closed to other writers; Windows, which has no mode bits and no name for
+  a descriptor, checks the kind of file and that it is no link, and holds the file open from
+  its check to its load.
 - A file a running guest holds open cannot be replaced on Windows, so a copy of the zip or a
   data file that is already right is left in place there.
 
@@ -51,7 +54,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from . import _platform_common
-from ._platform_common import _REMOVE_BATCH, _Removal
+from ._platform_common import _REMOVE_BATCH, _Opened, _Removal
 from ._platform_common import Identity as Identity
 from ._platform_common import _Walked as _Walked
 from ._platform_windows import _Windows
@@ -109,6 +112,16 @@ _DIR = (_flags("O_PATH") or _flags("O_SEARCH") or os.O_RDONLY) | _flags(
 _DIR_OPEN = _flags("O_RDONLY", "O_DIRECTORY", "O_NOFOLLOW", "O_CLOEXEC", "O_NONBLOCK")
 MAX_LINKS = 40
 
+# The module cache. Its folder and a `.cwasm` are opened without following a link, and the file
+# without waiting, should a pipe stand at its name. wasmtime opens a compiled module by name, so
+# it is given a name of the descriptor the runner checked: `/dev/fd/N`, or `/proc/self/fd/N`
+# where Linux has no `/dev/fd`. macOS's `ACL_TYPE_EXTENDED` (sys/acl.h) is the one kind of
+# access list it keeps.
+_CACHE_DIR_OPEN = _flags("O_RDONLY", "O_DIRECTORY", "O_NOFOLLOW", "O_CLOEXEC")
+_CACHE_FILE_OPEN = _flags("O_RDONLY", "O_NOFOLLOW", "O_CLOEXEC", "O_NONBLOCK")
+_FD_NAMES = ("/dev/fd", "/proc/self/fd")
+_ACL_TYPE_EXTENDED = 0x100
+
 # Linux: the fatal signals wasmtime 49 handles to turn a fault in wasm into a trap
 # (crates/wasmtime/src/runtime/vm/sys/unix/signals.rs, foreach_handler): SIGSEGV and SIGILL, and
 # SIGFPE on x86_64. Its handlers are installed when the first engine is made.
@@ -165,6 +178,12 @@ class _Platform(Protocol):
     def default_cache_dir(self, home: Path) -> Path: ...
     def default_cache_dirs(self, home: Path) -> tuple[Path, ...]: ...
     def private(self, path: Path, *, is_dir: bool) -> bool: ...
+    def cache_folder(
+        self, cache: Path, *, lstat: Callable[[str], os.stat_result] = os.lstat
+    ) -> Path | None: ...
+    def open_cached(
+        self, cwasm: Path, *, reopen: Callable[..., int] = os.open
+    ) -> _Opened | None: ...
 
 
 class _Posix:
@@ -439,16 +458,120 @@ class _Posix:
         absent."""
         if is_dir:
             path.mkdir(mode=0o700, parents=True, exist_ok=True)
-        st = os.lstat(path)
+        return self._as_made(path, os.lstat(path), is_dir=is_dir, listed=False)
+
+    def private_fd(self, fd: int, *, is_dir: bool, path: Path) -> bool:
+        """`private` of the file open at `fd`, which no rename can change, and no access list:
+        the mode bits do not show one, and a list on the folder that its new files inherit would
+        give every `.cwasm` the runner writes there a list. `path` names it in the warning."""
+        listed = self._access_list(fd, is_dir=is_dir)
+        return self._as_made(path, os.fstat(fd), is_dir=is_dir, listed=listed)
+
+    def _as_made(self, path: Path, st: os.stat_result, *, is_dir: bool, listed: bool) -> bool:
         kind_ok = stat.S_ISDIR(st.st_mode) if is_dir else _platform_common._one_file(st)
-        if kind_ok and st.st_uid == os.getuid() and not st.st_mode & 0o077:
+        if kind_ok and st.st_uid == os.getuid() and not st.st_mode & 0o077 and not listed:
             return True
         how = "owned by this user that no one else may read, write or enter"
-        _platform_common._not_used(
-            path,
-            f"a directory {how} (mode 0700)" if is_dir else f"a file {how} (mode 0600), one name",
-        )
+        must = f"a directory {how} (mode 0700)" if is_dir else f"a file {how} (mode 0600), one name"
+        _platform_common._not_used(path, f"{must}, with no access list")
         return False
+
+    def _access_list(self, fd: int, *, is_dir: bool) -> bool:
+        """Whether the file open at `fd` has an access list; a host the runner does not know by
+        name has no way it reads."""
+        return False
+
+    def cache_folder(
+        self, cache: Path, *, lstat: Callable[[str], os.stat_result] = os.lstat
+    ) -> Path | None:
+        """The cache folder to use, its missing folders made at 0700, or None when it is not as
+        the runner makes it (with a warning). The way to it, its links resolved, must hold no
+        folder another user could change: each is this user's or root's, and no one else may
+        write it unless it is sticky, as `/tmp` is, where no one else may rename what is in it.
+        Else whoever could would put another folder at the cache's name between the check and
+        the load. OSError names the folder that fails. `lstat` is the walk's."""
+        folder = Path(os.path.realpath(cache.parent)) / cache.name
+        for missing in _way(folder.parent, lstat):
+            try:
+                os.mkdir(missing, 0o700)
+            except FileExistsError:  # a concurrent call made it
+                pass
+        if not self.private(folder, is_dir=True):
+            return None
+        fd = os.open(folder, _CACHE_DIR_OPEN)
+        try:
+            return folder if self.private_fd(fd, is_dir=True, path=folder) else None
+        finally:
+            os.close(fd)
+
+    def open_cached(self, cwasm: Path, *, reopen: Callable[..., int] = os.open) -> _Opened | None:
+        """The `.cwasm` open, checked through its descriptor, with the name wasmtime is to open it
+        by; None when it is not as the runner makes it (with a warning). The file is opened inside
+        its folder's descriptor, each without following a link and each checked as opened, so
+        what was checked is what is open whatever the names say after. wasmtime is given the
+        descriptor's own name, which on macOS duplicates it and on Linux reopens the same file;
+        where no such name opens (no `/proc` in a sandbox), the path, by `by_path`. `reopen` is
+        the open that tries the name."""
+        if not self.private(cwasm, is_dir=False):
+            return None
+        folder = os.open(cwasm.parent, _CACHE_DIR_OPEN)
+        try:
+            if not self.private_fd(folder, is_dir=True, path=cwasm.parent):
+                raise OSError(errno.EPERM, "the cache folder changed", str(cwasm.parent))
+            at = os.open in os.supports_dir_fd  # else by path, below a folder just checked
+            fd = os.open(
+                cwasm.name if at else cwasm, _CACHE_FILE_OPEN, dir_fd=folder if at else None
+            )
+        finally:
+            os.close(folder)
+        try:
+            ok = self.private_fd(fd, is_dir=False, path=cwasm)
+            name = _fd_name(fd, reopen) if ok else None
+        except BaseException:
+            os.close(fd)
+            raise
+        if not ok:
+            os.close(fd)
+            return None
+        return _Opened(fd, name or str(cwasm), by_path=name is None)
+
+
+def _way(folder: Path, lstat: Callable[[str], os.stat_result]) -> list[Path]:
+    """The folders from `/` down to `folder` that do not exist yet, for the caller to make; each
+    one that exists is a folder of this user's or root's that no one else may write, or that is
+    sticky. PermissionError names the first that is not."""
+    missing = []
+    for here in [*reversed(folder.parents), folder]:
+        try:
+            st = lstat(str(here))
+        except FileNotFoundError:
+            missing.append(here)
+            continue
+        why = None
+        if not stat.S_ISDIR(st.st_mode):
+            why = "is not a folder"
+        elif st.st_uid not in (0, os.getuid()):
+            why = f"is another user's (uid {st.st_uid})"
+        elif st.st_mode & 0o022 and not st.st_mode & stat.S_ISVTX:
+            why = f"may be written by others (mode {stat.S_IMODE(st.st_mode):o}) and is not sticky"
+        if why is not None:
+            raise PermissionError(
+                errno.EACCES,
+                f"{here}, on the way to it, {why}; set $WASI_PYTHON_CACHE to a folder of yours",
+            )
+    return missing
+
+
+def _fd_name(fd: int, reopen: Callable[..., int]) -> str | None:
+    """A name that opens the file open at `fd`, found by opening it, or None where none does."""
+    for base in _FD_NAMES:
+        name = f"{base}/{fd}"
+        try:
+            os.close(reopen(name, os.O_RDONLY | _flags("O_CLOEXEC")))
+        except OSError:
+            continue
+        return name
+    return None
 
 
 def _writable(fd: int, stack: list[tuple[int, Identity, str]]) -> bool:
@@ -648,12 +771,27 @@ def _wasmtime_base() -> int | None:
 
 class _Linux(_Posix):
     """Linux: the kernel's boot id, the `pthread_getattr_np` stack probe, the interpreter told
-    its stack where CPython guesses it, and wasmtime's signal handlers checked."""
+    its stack where CPython guesses it, wasmtime's signal handlers checked, and its access
+    lists."""
 
     name = "linux"
 
     def _kernel_identity(self) -> str | None:
         return Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+
+    def _access_list(self, fd: int, *, is_dir: bool) -> bool:
+        """Whether the file open at `fd` has a POSIX access list, or, on a folder, a default one
+        that what is made inside inherits; a file system without extended attributes has
+        none."""
+        try:
+            names = os.listxattr(fd)
+        except OSError as e:
+            if e.errno in (errno.ENOTSUP, errno.EOPNOTSUPP):
+                return False
+            raise
+        return "system.posix_acl_access" in names or (
+            is_dir and "system.posix_acl_default" in names
+        )
 
     # The guest thread's own stack. Each C function is a private prototype, resolved
     # once; no argtypes are set on a shared ctypes attribute. What is measured is the thread's
@@ -775,9 +913,36 @@ class _Linux(_Posix):
 
 
 class _Darwin(_Posix):
-    """macOS: the boot session uuid, the Mach stack probe, and the Caches folder."""
+    """macOS: the boot session uuid, the Mach stack probe, the Caches folder, and its access
+    lists."""
 
     name = "darwin"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.acl_api: dict[str, Any] = {}  # the C library's access-list calls, resolved once
+
+    def _access_list(self, fd: int, *, is_dir: bool) -> bool:
+        """Whether the file open at `fd` has an extended access list, any entry, allow or deny,
+        read by `acl_get_fd_np`: macOS's `listxattr` lists none. No list is NULL with ENOENT;
+        NULL with another errno is an OSError, so the cache is not used."""
+        import ctypes.util
+
+        api = self.acl_api
+        if "get" not in api:
+            libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
+            vp, i = ctypes.c_void_p, ctypes.c_int
+            api["get"] = ctypes.CFUNCTYPE(vp, i, i, use_errno=True)(("acl_get_fd_np", libc))
+            api["free"] = ctypes.CFUNCTYPE(i, vp)(("acl_free", libc))
+        ctypes.set_errno(0)
+        found = api["get"](fd, _ACL_TYPE_EXTENDED)
+        if found:
+            api["free"](found)
+            return True
+        err = ctypes.get_errno()
+        if err == errno.ENOENT:
+            return False
+        raise OSError(err, os.strerror(err))
 
     def _kernel_identity(self) -> str | None:
         import ctypes.util

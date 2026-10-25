@@ -187,7 +187,8 @@ def run(
         cache_dir: Where compiled modules are kept as .cwasm files, a folder only you and the
             runner write: never one a guest is granted, in this or another call. `None` or
             `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder; `False` keeps them
-            in this process only, never on disk.
+            in this process only, never on disk. A relative folder is made absolute when the
+            call is made; an empty string is refused.
         artifacts: The artifact set to run; `None` finds it with `artifacts()` and checks it
             against its SHA256SUMS first. A set you pass is used as you give it.
         cancel: A `threading.Event`. Once it is set and the guest runs, the guest stops
@@ -265,6 +266,7 @@ def run(
         import_path=import_path,
         max_open_files=max_open_files,
     )
+    cache_dir = _engines._cache_given(cache_dir)
     return _run_checked_flushed(wt, checked, host, snapshot, cache_dir, artifacts, None)
 
 
@@ -357,7 +359,8 @@ async def run_async(
         cache_dir: Where compiled modules are kept as .cwasm files, a folder only you and the
             runner write: never one a guest is granted, in this or another call. `None` or
             `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder; `False` keeps them
-            in this process only, never on disk.
+            in this process only, never on disk. A relative folder is made absolute when the
+            call is made; an empty string is refused.
         artifacts: The artifact set to run; `None` finds it with `artifacts()` and checks it
             against its SHA256SUMS first. A set you pass is used as you give it.
         executor: Where the call runs: a `concurrent.futures.Executor` that runs callables
@@ -435,6 +438,7 @@ async def run_async(
         import_path=import_path,
         max_open_files=max_open_files,
     )
+    cache_dir = _engines._cache_given(cache_dir)
     _check_executor(executor)
     loop = asyncio.get_running_loop()  # async tools await here
     wt = _engines._wasmtime()
@@ -830,7 +834,8 @@ class Session:
             cache_dir: Where compiled modules are kept as .cwasm files, a folder only you and
                 the runner write: never one a guest is granted, in this or another call. `None`
                 or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder; `False` keeps
-                them in this process only, never on disk.
+                them in this process only, never on disk. A relative folder is made absolute
+                when the call is made; an empty string is refused.
             artifacts: The artifact set to run; `None` finds it with `artifacts()` and checks
                 it against its SHA256SUMS first. A set you pass is used as you give it.
             max_file_calls: The most provider calls each turn with mounts makes; then it ends
@@ -906,6 +911,7 @@ class Session:
             max_open_files=max_open_files,
             limits=limits,
         )
+        cache_dir = _engines._cache_given(cache_dir)
         state = _State(c, wt)
         state.idle_s = _limits._seconds_limit(
             "idle_s", limits.session_idle_s if idle_s is _UNSET else idle_s

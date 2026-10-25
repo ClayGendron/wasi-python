@@ -2,11 +2,12 @@
 
 The result of a walk (`_Walked`) and the refusal of a walk that cannot be taken, the steps a
 walk takes by path (making a missing tail, making a real folder below a root, a quiet unlink),
-the cache's kind checks and their warning, and the remover's budget and its walk by path. They
-sit below both platform modules, so the Windows module and the POSIX module each import this
-one and neither imports the other: the package's imports point one way, with no cycle. This
-module imports nothing else of the package, and it reads no platform: each name here runs the
-same on every system, and the choice of platform stays in the platform module's one chooser.
+the cache's kind checks, their warning and a checked `.cwasm` held open, and the remover's
+budget and its walk by path. They sit below both platform modules, so the Windows module and
+the POSIX module each import this one and neither imports the other: the package's imports
+point one way, with no cycle. This module imports nothing else of the package, and it reads no
+platform: each name here runs the same on every system, and the choice of platform stays in
+the platform module's one chooser.
 """
 
 from __future__ import annotations
@@ -120,6 +121,19 @@ def _one_file(st: os.stat_result) -> bool:
     """A regular file with one name, as `mkstemp` and a rename leave the runner's own: a second
     name is a hard link a guest could make to a file elsewhere without writing a byte."""
     return stat.S_ISREG(st.st_mode) and st.st_nlink == 1
+
+
+class _Opened:
+    """A checked `.cwasm`, open: `fd` is the file the runner checked, and `name` the name wasmtime
+    is given to open it by, the descriptor's own where the system has one. Where it is the path
+    instead, `by_path` asks the caller to check the name's stamp again after the load. `close`
+    closes the descriptor once wasmtime has the file."""
+
+    def __init__(self, fd: int, name: str, *, by_path: bool) -> None:
+        self.fd, self.name, self.by_path = fd, name, by_path
+
+    def close(self) -> None:
+        os.close(self.fd)
 
 
 def _not_used(path: Path, must_be: str) -> None:
