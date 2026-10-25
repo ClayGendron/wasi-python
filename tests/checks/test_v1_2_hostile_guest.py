@@ -819,6 +819,7 @@ POLL_GUEST = """(module
   (import "wasi_snapshot_preview1" "fd_write" (func $write (param i32 i32 i32 i32) (result i32)))
   (import "wasi_snapshot_preview1" "fd_close" (func $close (param i32) (result i32)))
   (import "wasi_snapshot_preview1" "fd_renumber" (func $renumber (param i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_seek" (func $seek (param i32 i64 i32 i32) (result i32)))
   (import "wasi_snapshot_preview1" "fd_prestat_get" (func $prestat (param i32 i32) (result i32)))
   (import "wasi_snapshot_preview1" "fd_prestat_dir_name"
     (func $dir_name (param i32 i32 i32) (result i32)))
@@ -891,6 +892,8 @@ POLL_IN, POLL_OUT, POLL_NEVENTS = 65536, 327680, 2048
 OPEN_FILE = "(local.set $f (call $open (local.get $d) (i32.const 0)))"
 OPEN_FOLDER = "(local.set $f (call $open (local.get $d) (i32.const 1)))"
 OPEN_SECOND = "(local.set $g (call $open (local.get $d) (i32.const 0)))"
+AT_ITS_END = "(call $check (call $seek (local.get $f) (i64.const 0) (i32.const 2) (i32.const 832)))"
+NEVER_GIVEN = (("fd", 1, "(i32.const 99)"),)
 
 
 class Poll(NamedTuple):
@@ -1005,7 +1008,7 @@ def _poll_on_wasmtime(workdir: Path, poll: Poll):
     return _poll_answer((d / "stdout").read_bytes() + (d / "stderr").read_bytes())
 
 
-FOR_READING = 1
+FOR_READING, FOR_WRITING = 1, 2
 # The poll as wasmtime answers it: each case once on a grant (or a mount, where it says so),
 # compared with wasmtime's own answer for a plain grant.
 AS_WASMTIME = {
@@ -1013,6 +1016,24 @@ AS_WASMTIME = {
     "misaligned out_ptr": (Poll(out_ptr=POLL_OUT + 4), False),
     "misaligned nevents_ptr": (Poll(nevents=POLL_NEVENTS + 2), False),
     "no subscriptions, in_ptr misaligned": (Poll(in_ptr=POLL_IN + 1, n=0), False),
+    # wasmtime checks out_ptr and nevents_ptr only when it writes, so a refused subscription
+    # answers its errno first
+    "misaligned out_ptr, a number never given": (
+        Poll(subs=NEVER_GIVEN, out_ptr=POLL_OUT + 4),
+        False,
+    ),
+    "misaligned nevents_ptr, clock flags 0x2": (
+        Poll(subs=(("clock", 0, 2),), nevents=POLL_NEVENTS + 2),
+        False,
+    ),
+    "misaligned out_ptr past memory, a number never given": (
+        Poll(subs=NEVER_GIVEN, out_ptr=POLL_END - 12),
+        False,
+    ),
+    "out_ptr past memory, a number never given": (
+        Poll(subs=NEVER_GIVEN, out_ptr=POLL_END - 16),
+        False,
+    ),
     "clock flags 0x2": (Poll(subs=(("clock", 0, 2),)), False),
     "clock flags 0xFFFE": (Poll(subs=(("clock", 0, 0xFFFE),)), False),
     "a number never given": (Poll(subs=(("fd", FOR_READING, "(i32.const 99)"),)), False),
@@ -1103,17 +1124,49 @@ KEPT = {
         Poll(OPEN_FOLDER, (("fd", FOR_READING, "(local.get $f)"),)),
         (0, 0, 1),
     ),
+    # wasmtime answers EPERM (63): the grant is read-only
+    "a file on the grant, for writing": (
+        Poll(OPEN_FILE, (("fd", FOR_WRITING, "(local.get $f)"),)),
+        (0, 0, 1),
+    ),
+    "a file renumbered onto stdin, for writing": (
+        Poll(
+            OPEN_FILE + "(call $check (call $renumber (local.get $f) (i32.const 0)))",
+            (("fd", FOR_WRITING, "(i32.const 0)"),),
+        ),
+        (0, 0, 1),
+    ),
+    # wasmtime answers ready: stdout is there now
+    "stdout renumbered onto a file, for writing": (
+        Poll(
+            OPEN_FILE + "(call $check (call $renumber (i32.const 1) (local.get $f)))",
+            (("fd", FOR_WRITING, "(local.get $f)"),),
+            to=2,
+        ),
+        (0, 8, 0),
+    ),
+    # wasmtime sets the hangup flag (1)
+    "a file at its end, for reading": (
+        Poll(OPEN_FILE + AT_ITS_END, (("fd", FOR_READING, "(local.get $f)"),)),
+        (0, 0, 1, (1, 0, FOR_READING, 1, 0)),
+    ),
+    # wasmtime reads one subscription at a time, and answers the first one's EBADF
+    "subscriptions past memory after a refused one": (
+        Poll(subs=NEVER_GIVEN, in_ptr=POLL_END - 240, n=2000),
+        (0, 21, 0),
+    ),
 }
 
 
 @pytest.mark.parametrize("case", list(KEPT))
 def test_the_poll_keeps_its_named_differences(guest_workdir, case) -> None:
     """Guards a change: where the runner's poll answers otherwise than wasmtime's, it answers an
-    errno where wasmtime ends the run, or ready where wasmtime answers EBADF, and writes nothing
+    errno where wasmtime ends the run or answers another, ready where wasmtime refuses, EBADF
+    where wasmtime answers ready, or no hangup flag where wasmtime sets it, and writes nothing
     outside the region it checked; each answer is the runner's own, so none is changed unseen."""
     poll, want = KEPT[case]
     _, answer = _poll_on_runner(guest_workdir, poll)
-    assert answer[:3] == want, (case, answer)
+    assert answer[: len(want)] == want, (case, answer)
 
 
 def test_the_poll_writes_an_events_padding_as_zeros(guest_workdir) -> None:
