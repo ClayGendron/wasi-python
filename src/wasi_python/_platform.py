@@ -283,8 +283,8 @@ class _Posix:
         """Make a root's missing components at 0700, after the rules were decided on its existing
         chain, each inside the one before through its descriptor where the system has them, else by
         path; a component another user made first is refused. Then walk the made root as any
-        other."""
-        path = walked.path
+        other, and refuse it if the walk by name reached another folder than the one made."""
+        path, made = walked.path, None
         if self.has_dir_fd and walked.fd is not None:
             fd = os.dup(walked.fd)
             try:
@@ -297,14 +297,20 @@ class _Posix:
                     os.close(fd)
                     fd = child
                     path = os.path.join(path, name)
-                    # The folder open is the one the guest will be given: its owner, not the name's.
-                    _platform_common._refuse_another_users(where, path, os.fstat(fd))
+                    # The folder open is the one judged: its owner, not the name's.
+                    st = os.fstat(fd)
+                    _platform_common._refuse_another_users(where, path, st)
+                    made = (st.st_dev, st.st_ino)
             finally:
                 os.close(fd)
         else:
             path = _platform_common._make_by_path(where, path, walked.missing)
         walked.close()
-        return self.walk(where, path, judge=True)
+        again = self.walk(where, path, judge=True)
+        if made is not None and again.chain[0] != made:  # renamed away, another put at its name
+            again.close()
+            raise ValueError(f"{where}: {path!r} changed after it was made")
+        return again
 
     def close_held(self, h: int) -> None:
         try:

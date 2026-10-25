@@ -109,7 +109,9 @@ def _real_folder(path: Path) -> None:
 def _member_parts(name: str) -> tuple[str, ...]:
     """A member's path, refused when it could leave the data folder, or when a component is a
     name Windows rewrites or rejects (a reserved device, a trailing dot or space, a character it
-    refuses), on every system: a system would read it as another name."""
+    refuses) or holds a format character (Unicode's category Cf: the zero-width joiners, the
+    byte-order mark), which HFS+ drops from a name, on every system: a system would read it as
+    another name."""
     parts = tuple(name.rstrip("/").split("/"))
     if (
         not name
@@ -117,6 +119,7 @@ def _member_parts(name: str) -> tuple[str, ...]:
         or "\\" in name
         or ":" in name
         or any(p in ("", ".", "..") or _platform_common._rewritten(p) for p in parts)
+        or any(unicodedata.category(c) == "Cf" for c in name)
     ):
         raise RuntimeError(f"the stdlib zip's matplotlib data holds the member {name!r}")
     return parts

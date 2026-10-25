@@ -70,9 +70,12 @@ def test_a_member_that_could_leave_the_folder_is_refused(tmp_path, name) -> None
 
 # Names a system would rewrite or read as another are refused on every system, whatever the
 # host: a device Windows reserves (with or without an extension, and its superscript digits),
-# a trailing dot or space Windows trims, a character Windows rejects; and two paths, or folders
+# a trailing dot or space Windows trims, a character Windows rejects, a format character (a
+# zero-width joiner, the byte-order mark) that HFS+ drops from a name; and two paths, or folders
 # on their way, that a case-folding file system or one that normalises Unicode reads as one.
-@pytest.mark.parametrize("name", ["CON.txt", "aux", "COM¹", "name.", "name ", "a?b", "a*b"])
+@pytest.mark.parametrize(
+    "name", ["CON.txt", "aux", "COM¹", "name.", "name ", "a?b", "a*b", "a\u200cb", "a\ufeffb"]
+)
 def test_a_name_windows_reserves_or_rewrites_is_refused(tmp_path, name) -> None:
     for member in (f"fonts/{name}", f"{name}/x.ttf"):
         with pytest.raises(RuntimeError, match="holds the member"):

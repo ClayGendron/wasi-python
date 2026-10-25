@@ -317,6 +317,41 @@ def test_a_folder_another_user_made_is_refused_by_path(tmp_path, monkeypatch) ->
     assert not (tmp_path / "new" / "deeper").exists()
 
 
+@pytest.mark.skipif(not POSIX, reason="making a link needs privileges on Windows")
+def test_a_link_at_a_missing_name_is_refused_by_path(tmp_path) -> None:
+    """A link of this user's put at a missing name, to a folder this user may write: the walk by
+    path refuses it as no folder, and nothing is made through it."""
+    (tmp_path / "other").mkdir()
+    (tmp_path / "new").symlink_to(tmp_path / "other")
+    with pytest.raises(ValueError, match=r"root: '.*/new' is not a folder"):
+        _platform_common._make_by_path("root", str(tmp_path), ("new", "deeper"))
+    assert not (tmp_path / "other" / "deeper").exists()
+
+
+@pytest.mark.skipif(
+    not POSIX or not _platform.PLATFORM.has_dir_fd, reason="the walk by descriptors is POSIX's"
+)
+def test_a_made_root_swapped_before_its_walk_is_refused(tmp_path, monkeypatch) -> None:
+    """The made folder renamed away and another put at its name, after its owner was checked and
+    before the root is walked again: the walk's folder is not the one made, and is refused."""
+    platform = _platform.PLATFORM
+    missing = platform.walk("root", str(tmp_path / "new"), judge=True, may_make=True)
+    real_walk = platform.walk
+
+    def walk(where, path, *, judge, may_make=False):
+        if not may_make and os.path.exists(tmp_path / "new"):
+            os.rename(tmp_path / "new", tmp_path / "moved")
+            (tmp_path / "new").mkdir()
+        return real_walk(where, path, judge=judge, may_make=may_make)
+
+    monkeypatch.setattr(platform, "walk", walk)
+    try:
+        with pytest.raises(ValueError, match=r"root: '.*/new' changed after it was made"):
+            platform.make_missing("root", missing)
+    finally:
+        missing.close()
+
+
 # A model of the Win32 path rules the Windows walk meets, as Microsoft's "File path
 # formats on Windows systems" states them (READ; the model is INFERRED
 # from it): `.` and `..` evaluated by text; a drive-relative `D:x` resolved against drive D's

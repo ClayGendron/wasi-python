@@ -115,6 +115,7 @@ def _unlink_quietly(path: str) -> None:
         pass
 
 
+_REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)  # Windows: a link or junction
 _BUSY = {errno.EACCES, errno.EDEADLK, getattr(errno, "EDEADLOCK", errno.EDEADLK)}
 _REMOVE_BATCH = 1024  # entries a listing reads before it acts
 
@@ -198,14 +199,19 @@ def _refuse_another_users(where: str, path: str, st: os.stat_result) -> None:
 
 
 def _make_by_path(where: str, path: str, missing: tuple[str, ...]) -> str:
-    """Make a root's missing components by path, each for this user alone, and refuse one
-    another user made first, judged by `lstat` so a link put at the name is judged as itself and
-    never followed. Windows applies a mode of exactly 0700 as an access list for this user,
-    SYSTEM and the administrators from Python 3.13, and ignores the mode before."""
+    """Make a root's missing components by path, each for this user alone. Each is judged by
+    `lstat` before the next is made in it: one that is not a real folder (a link, or on Windows a
+    junction or any reparse point) is refused, so nothing is made through it, and one another
+    user made first is refused. Windows applies a mode of exactly 0700 as an access list for this
+    user, SYSTEM and the administrators from Python 3.13, and ignores the mode before."""
     for name in missing:
         path = os.path.join(path, name)
         Path(path).mkdir(mode=0o700, exist_ok=True)
-        _refuse_another_users(where, path, os.lstat(path))
+        st = os.lstat(path)
+        attributes = getattr(st, "st_file_attributes", 0)
+        if not stat.S_ISDIR(st.st_mode) or attributes & _REPARSE_POINT:
+            raise ValueError(f"{where}: {path!r} is not a folder, and a link is never followed")
+        _refuse_another_users(where, path, st)
     return path
 
 
