@@ -255,19 +255,25 @@ def _data_intact(data: Path, record: dict[str, tuple[int, ...] | None]) -> bool:
     folder or a regular file as recorded, no link, each file's stamp equal."""
     if os.path.islink(data) or not os.path.isdir(data):
         return False
+    # This runs on every call, so each entry costs one lstat of a plain path string and no path
+    # object is built. The stamp is taken with os.lstat, as the record's is: a listing entry's
+    # own stat does not carry the same device, inode and change time on every system.
     seen: dict[str, tuple[int, ...] | None] = {}
+    todo = [(os.fspath(data), "")]
     try:
-        for dirpath, dirnames, filenames in os.walk(data, followlinks=False):
-            here = Path(dirpath).relative_to(data)
-            for name in [*dirnames, *filenames]:
-                st = os.lstat(Path(dirpath, name))
-                key = (here / name).as_posix()
-                if stat.S_ISDIR(st.st_mode):
-                    seen[key] = None
-                elif stat.S_ISREG(st.st_mode):
-                    seen[key] = _artifacts._stamp(st)
-                else:
-                    return False  # a link, or anything else
+        while todo:
+            folder, here = todo.pop()
+            with os.scandir(folder) as listing:
+                for entry in listing:
+                    st = os.lstat(entry.path)
+                    key = f"{here}/{entry.name}" if here else entry.name
+                    if stat.S_ISDIR(st.st_mode):
+                        seen[key] = None
+                        todo.append((entry.path, key))
+                    elif stat.S_ISREG(st.st_mode):
+                        seen[key] = _artifacts._stamp(st)
+                    else:
+                        return False  # a link, or anything else
     except OSError:
         return False
     return seen == record
