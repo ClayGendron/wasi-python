@@ -18,11 +18,15 @@
 
 **A secure Python sandbox for agent-generated code with the scientific stack inside.**
 
+```
+pip install wasi-python
+```
+
 wasi-python is CPython 3.15 compiled to WebAssembly as one static binary. It includes numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, and forty plus other packages.
 
 It is built to run code that AI agents generate, or any other code that is untrusted and must be kept apart from the host process. By default, the sandbox sees no host files and has no network access.
 
-Run it from Python with one `pip install`, or load the same binary into any WebAssembly host that supports exception handling.
+Run it from Python or load the same binary into any WebAssembly host that supports exception handling.
 
 # Installation and Quick Start
 
@@ -32,7 +36,7 @@ $ wasi-python run -- -c "print('hello, WebAssembly')"
 {"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "hello, WebAssembly\n", "trapped": null, "truncated": []}
 ```
 
-Requires Python 3.11 or later. The wheel carries the runtime, which unpacks to about 250 MB of WebAssembly and bytecode, so nothing else is downloaded. Every release is tested on Linux (x86-64 and arm64), macOS (arm64) and Windows (x86-64). [Install](https://claygendron.github.io/wasi-python/get-started/install/) says more about what comes with the package and where it keeps its cache.
+Requires Python 3.11 or later. The wheel carries the runtime, which unpacks to about 250 MB of WebAssembly and bytecode. Every release is tested on Linux (x86-64 and arm64), macOS (arm64) and Windows (x86-64). [Install](https://claygendron.github.io/wasi-python/get-started/install/) says more about what comes with the package and where it keeps its cache.
 
 # Usage
 
