@@ -1620,9 +1620,9 @@ def _forwards(table) -> list[str]:
     seen: list[str] = []
     real = table.forward
 
-    def forward(caller, name, args, stat=False):
+    def forward(caller, name, args):
         seen.append(name)
-        return real(caller, name, args, stat)
+        return real(caller, name, args)
 
     table.forward = forward
     return seen

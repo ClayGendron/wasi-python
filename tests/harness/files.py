@@ -766,10 +766,10 @@ class FakeContext:
 
         return self.inos[path] if path in self.inos else _places._siphash13(path.encode())
 
-    def trampolines(self, wt: Any, engine: Any) -> tuple[Any, Any]:
+    def trampoline(self, wt: Any, engine: Any) -> Any:
         from wasi_python import _call
 
-        return _call._trampoline_module(wt, engine), _call._stat_trampoline_module(wt, engine)
+        return _call._trampoline_module(wt, engine)
 
     def exiting(self) -> bool:
         return self.interpreter_exiting

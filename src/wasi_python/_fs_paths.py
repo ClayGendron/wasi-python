@@ -1,6 +1,6 @@
 """The path calls (`path_*`) over a call's mount table, one function per call, each taking the
-table as `files`: the path rules, the opens, the namespace calls of a writable mount, and the
-rename guard for two of wasmtime's numbers. A function reads the table's fields and changes its
+table as `files`: the path rules, the opens and the namespace calls of a writable mount. A
+function reads the table's fields and changes its
 state only through the table's methods.
 """
 
@@ -14,7 +14,6 @@ from ._fs_memory import (
     APPEND,
     ATIM,
     ATIM_NOW,
-    DIRECTORY,
     DSYNC,
     EBADF,
     EBUSY,
@@ -43,7 +42,6 @@ from ._fs_memory import (
     O_TRUNC,
     RENAME_SLASH_NEEDS_FOLDER,
     RSYNC,
-    STAT_PATH,
     SYNC,
     _filestat,
     _flags,
@@ -499,8 +497,8 @@ def _path_rename(
     new_length: int,
 ) -> int:
     a, b = files._entry(fd), files._entry(to)
-    if a is None and b is None:  # two of wasmtime's numbers: the guard's rule
-        return _rename(files, caller, fd, old, old_length, to, new, new_length)
+    if a is None and b is None:  # two of wasmtime's numbers: wasmtime's own rename
+        return files.forward(caller, "path_rename", (fd, old, old_length, to, new, new_length))
     paths = ((old, old_length), (new, new_length))
     if a is None or b is None or a.mount is not b.mount or not a.mount.writable:
         return _across(files, caller, fd, to, paths)
@@ -540,64 +538,6 @@ def _path_rename(
     return errno
 
 
-def _rename(
-    files: _Files,
-    caller: Any,
-    fd: int,
-    old: int,
-    old_length: int,
-    to: int,
-    new: int,
-    new_length: int,
-) -> int:
-    """wasmtime 49.0.3's rule (GHSA-m9f7-9w4p-gv38). With no
-    trailing slash on either path, or a path wasmtime could not read either, the rename is
-    forwarded unchanged. Otherwise the source must be a folder, judged without following its
-    own link: the stat's errno, or ENOTDIR for anything else; and a folder is renamed by the
-    plain names, every trailing slash trimmed from both paths (the same pointers, shorter
-    lengths), so the kernel is never handed a slash-named link to follow. Once a slash is
-    seen, the rename is never forwarded with it: a path the guard cannot
-    read whole answers its errno instead."""
-    memory = _Memory(caller)
-    spans = ((old & MASK32, old_length & MASK32), (new & MASK32, new_length & MASK32))
-    readable = all(memory.fits(ptr, length) for ptr, length in spans)
-    if not readable or not any(
-        length and memory.read(ptr + length - 1, 1) == b"/" for ptr, length in spans
-    ):
-        return files.forward(caller, "path_rename", (fd, old, old_length, to, new, new_length))
-    # Either path past MAX_PATH is ENAMETOOLONG, never forwarded, so the host's work stays
-    # bounded; the text is decoded as wasmtime reads both paths before anything else.
-    paths = []
-    for ptr, length in ((old, old_length), (new, new_length)):
-        raw = _path(memory, ptr, length)
-        if isinstance(raw, int):
-            return raw
-        if isinstance(text := _text(raw), int):
-            return text
-        paths.append(raw)
-    source, target = _plain(paths[0]), _plain(paths[1])
-    if errno := _source_type(files, caller, fd, source):
-        return errno
-    return files.forward(caller, "path_rename", (fd, old, len(source), to, new, len(target)))
-
-
-def _source_type(files: _Files, caller: Any, fd: int, source: bytes) -> int:
-    """0 when `source` names a folder under `fd`, judged by wasmtime's own path_filestat_get
-    with the follow flag clear, on the stat trampoline's page: the path at STAT_PATH, the
-    64-byte filestat at 0, its filetype at byte 16. Else the stat's errno, or
-    ENOTDIR for a file or a link."""
-    forwards = files.forwards
-    if forwards is None or forwards.page is None:
-        return EBADF  # no trampoline yet: nothing of wasmtime's can be reached
-    if STAT_PATH + len(source) > forwards.page.data_len(caller):
-        return ENAMETOOLONG
-    forwards.page.write(caller, source, STAT_PATH)
-    args = (fd, 0, STAT_PATH, len(source), 0)
-    if errno := files.forward(caller, "path_filestat_get", args, stat=True):
-        return errno
-    return 0 if forwards.page.read(caller, 16, 17)[0] == DIRECTORY else ENOTDIR
-
-
 def _path_link(
     files: _Files,
     caller: Any,
@@ -622,12 +562,6 @@ def _path_link(
     if errno := _read_paths(files, caller, paths):
         return errno
     return EINVAL if flags & 1 else ENOTSUP  # the protocol has no link
-
-
-def _plain(path: bytes) -> bytes:
-    """A path with its trailing slashes trimmed, but never below one byte, as wasmtime's own
-    `strip_dir_suffix` keeps `/` itself."""
-    return path.rstrip(b"/") or path[:1]
 
 
 HANDLERS: dict[str, Callable[..., int]] = {

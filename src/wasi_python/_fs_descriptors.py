@@ -362,10 +362,7 @@ def _fd_readdir(
 ) -> int:
     entry = files._entry(fd)
     if entry is None:
-        errno = files.forward(caller, "fd_readdir", (fd, buf, length, cookie, used))
-        if errno == 0:
-            errno = _zeroed(files, caller, fd, buf & MASK32, length & MASK32, cookie, used & MASK32)
-        return errno
+        return files.forward(caller, "fd_readdir", (fd, buf, length, cookie, used))
     memory = _Memory(caller)
     buf, length, cookie = buf & MASK32, length & MASK32, cookie & MASK64
     if not memory.fits(buf, length):
@@ -397,62 +394,10 @@ def _fd_readdir(
     return 0
 
 
-def _zeroed(
-    files: _Files, caller: Any, fd: int, buf: int, length: int, cookie: int, used: int
-) -> int:
-    """After a forwarded fd_readdir that answered 0: every entry's three padding bytes
-    zero, as wasmtime 49.0.2 writes them (GHSA-96f6-r43r-8c24). The
-    walk reads each d_namlen from the guest's buffer, which only wasmtime has written,
-    unless the guest's `used` pointer lies over the listing: wasmtime writes the count there
-    last, over whatever field it lands on (a d_namlen the walk would follow included).
-    Then the folder is listed again on the guard's own page, for no more
-    than the guest's memory holds from `buf`, its padding zeroed there, and written out as
-    wasmtime writes a listing, the entries and then the count at `used`; bytes the first
-    listing wrote past the second are zeroed. If the folder
-    cannot be listed again, the first listing is zeroed whole, the count is 0, and the
-    answer is EIO. Answers the errno the guest gets."""
-    memory = _Memory(caller)
-    if not memory.fits(used, 4):
-        return 0
-    count = struct.unpack("<I", memory.read(used, 4))[0]
-    if not memory.fits(buf, count) or not count:
-        return 0
-    if used + 4 <= buf or used >= buf + count:
-        data = bytearray(memory.read(buf, count))
-        if _zero_pads(data):
-            memory.write(buf, bytes(data))
-        return 0
-    forwards = files.forwards
-    assert forwards is not None and forwards.page is not None  # it just forwarded
-    # No more than the guest's memory can hold from `buf`, so the
-    # page, the listing and its count after it, never grows past the guest's own memory.
-    length = min(length, memory.size - max(buf, 8))
-    page, at = forwards.page, (length + 3) & ~3  # the listing at 0, its count after it
-    errno = 0
-    short = at + 4 - page.data_len(caller)
-    if short > 0:
-        try:
-            page.grow(caller, (short + 65535) // 65536)
-        except Exception:
-            errno = EIO  # a page that cannot grow (the memory limit): not served, below
-    if not errno:
-        errno = files.forward(caller, "fd_readdir", (fd, 0, length, cookie, at), stat=True)
-    again = 0 if errno else struct.unpack("<I", page.read(caller, at, at + 4))[0]
-    if errno or not memory.fits(buf, again):  # not listed again: none of the first is left
-        memory.write(buf, bytes(count))
-        memory.write(used, bytes(4))
-        return EIO
-    data = bytearray(page.read(caller, 0, again))
-    _zero_pads(data)
-    memory.write(buf, bytes(data) + bytes(max(0, count - again)))
-    memory.write(used, struct.pack("<I", again))
-    return 0
-
-
 def _fd_renumber(files: _Files, caller: Any, fd: int, to: int) -> int:
     """With mounts, never onto or from a number in the table, or at or above 2**30: wasmtime
-    would silently replace the target (as wasmtime 49 was seen to answer). A guard table has no
-    provider numbers, so it forwards whatever the numbers. A renumber
+    would silently replace the target (as wasmtime 49 was seen to answer). A table without
+    mounts has no provider numbers, so it forwards whatever the numbers. A renumber
     wasmtime makes closes `to` and moves `from` there; the held set follows it, and a number
     renumbered onto itself stays held."""
     a, b = fd & MASK32, to & MASK32
@@ -464,22 +409,6 @@ def _fd_renumber(files: _Files, caller: Any, fd: int, to: int) -> int:
     if errno == 0 and a != b:
         files._renumbered(a, b)
     return errno
-
-
-def _zero_pads(data: bytearray) -> bool:
-    """Zero the three padding bytes after each entry's d_type in a listing as wasmtime wrote
-    it, walking by 24 + d_namlen (d_next is a cookie, not an offset), a header the listing cut
-    short as far as it reaches. True when a byte changed."""
-    changed, pos, count = False, 0, len(data)
-    while pos < count:
-        for at in (pos + 21, pos + 22, pos + 23):
-            if at < count and data[at]:
-                data[at] = 0
-                changed = True
-        if pos + 24 > count:
-            break
-        pos += 24 + struct.unpack_from("<I", data, pos + 16)[0]
-    return changed
 
 
 def _grow(data: bytearray, size: int) -> None:

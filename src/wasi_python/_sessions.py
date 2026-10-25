@@ -1024,7 +1024,7 @@ def _open_session(
             first = 3 + len(preopens)
             numbers = [(mount, first + i) for i, mount in enumerate(mounts)]
         else:
-            guest_linker = _call._guard_linker(wt, engine)
+            guest_linker = _call._counted_linker(wt, engine)
             numbers = []
         table = state.table = _Files(
             numbers,

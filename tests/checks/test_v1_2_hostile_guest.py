@@ -1820,7 +1820,7 @@ def mv(a, b):
     except OSError as e:
         return errno.errorcode.get(e.errno, str(e.errno))
 out = {}
-long = "./" * 2100 + "s/"  # 4,202 bytes, past every host's longest path
+long = "./" * 2100 + "s/"  # 4,202 bytes, past every host's longest path, naming the link s
 for a, b in [("f/", "x"), ("s/", "x"), ("missing/", "x"), ("f", "x/"), ("s", "x/"), (long, "x")]:
     out[("./.../s/" if a == long else a) + " -> " + b] = mv(a, b)
 out["in place"] = [
@@ -1841,8 +1841,9 @@ def test_a_trailing_slash_rename_rule(tmp_path) -> None:
     `d`, a file `f` and a link `s` to `d`, a trailing slash on either path of a rename needs a
     source that is a folder, judged without following the source's own link. A slash-named
     file or link, as source or as target, is refused with ENOTDIR; a missing one answers
-    ENOENT; an over-long slash-named source is refused with wasmtime's own answer; `d` and `s`
-    stay in place; a folder renames with or without slashes."""
+    ENOENT; an over-long slash-named source that names the link through `./` parts is refused
+    with ENOTDIR as the short one is, since wasmtime walks the path itself and drops each `.`;
+    `d` and `s` stay in place; a folder renames with or without slashes."""
     run = _run()
     from wasi_python import Grant
 
@@ -1864,7 +1865,7 @@ def test_a_trailing_slash_rename_rule(tmp_path) -> None:
         "missing/ -> x": "ENOENT",
         "f -> x/": "ENOTDIR",
         "s -> x/": "ENOTDIR",
-        "./.../s/ -> x": "ENAMETOOLONG",
+        "./.../s/ -> x": "ENOTDIR",
         "in place": [True, True, True, False],
         "d/ -> d2": "ok",
         "d2 -> d": "ok",

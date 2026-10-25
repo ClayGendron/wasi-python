@@ -486,10 +486,9 @@ def _instance(
             first = 3 + len(preopens)  # the mounts' preopens come after every other
             numbers = [(mount, first + i) for i, mount in enumerate(mounts)]
         else:
-            # A call without mounts: the guard linker, today's but for fd_readdir and
-            # path_rename, served by a table with no mounts, which forwards both with wasmtime
-            # 49.0.2's and 49.0.3's fixes.
-            guest_linker = _guard_linker(wt, engine)
+            # A call without mounts: the counted linker, today's but for the three calls the cap
+            # on open files counts, served by a table with no mounts, which forwards them.
+            guest_linker = _counted_linker(wt, engine)
             numbers = []
         context = _Context()
         table = _Files(
@@ -511,11 +510,11 @@ def _instance(
         fuel_used = _fuel_used(fuel, done, call, store.get_fuel)
         # What the guest wrote is handed over at every ending that returns a result, after the
         # fuel is read; a call that raises never gets here. Every call has a table, with mounts
-        # or without; a guard table's walk does nothing (no mount, nothing owed).
+        # or without; a table without mounts walks nothing (no mount, nothing owed).
         table.walk()
     finally:
         if ht.done and table is not None:  # the record kept
-            # A guard table is never reported: `files` is None without mounts.
+            # A table without mounts is never reported: `files` is None without mounts.
             files = table.record() if mounts else None
 
         def release() -> None:
@@ -686,14 +685,14 @@ class _Call:
         self.stop_at = stop_at
         # "cancelled" or "deadline", from the epoch callback; "out of file calls"
         self.ended: str | None = None
-        self.table = table  # the call's mount table, or its guard table
+        self.table = table  # the call's mount table, or its table without mounts
         context = _context_of(table)
         if context is not None:
             context.enter(self)
 
     def files(self, caller: Any, name: str, *args: int) -> int:
-        """One of the 29 shadowed calls, for a call with mounts, or one of the two
-        the guard shadows, for a call without."""
+        """One of the 29 shadowed calls, for a call with mounts, or one of the three
+        the counted linker shadows, for a call without."""
         if self.table is None:
             return EBADF
         return self.table(caller, name, *args)
@@ -798,8 +797,8 @@ class _Context:
     def ino_of(self, path: str) -> int:
         return _places._siphash13(path.encode())
 
-    def trampolines(self, wt: Any, engine: wasmtime.Engine) -> tuple[Any, Any]:
-        return _trampoline_module(wt, engine), _stat_trampoline_module(wt, engine)
+    def trampoline(self, wt: Any, engine: wasmtime.Engine) -> Any:
+        return _trampoline_module(wt, engine)
 
     def exiting(self) -> bool:
         return process().exiting
@@ -967,40 +966,26 @@ def _mount_linker(wt: Any, engine: wasmtime.Engine) -> Any:
         return linker
 
 
-def _guard_linker(wt: Any, engine: wasmtime.Engine) -> Any:
+def _counted_linker(wt: Any, engine: wasmtime.Engine) -> Any:
     """The engine's third linker, used by every call without mounts:
-    today's, plus a shadow over the two calls in `_fs_memory.GUARDED` (fd_readdir and path_rename)
-    and the three in `_fs_memory.COUNTED` (path_open, fd_close and fd_renumber, which the table
-    forwards and counts against the call's cap on open files), in the shared form, as
-    the mount linker's. Every other call stays wasmtime's own. Defined once per engine, like the
-    others."""
-    from ._fs_memory import COUNTED, GUARDED, SIGNATURES
+    today's, plus a shadow over the three calls in `_fs_memory.COUNTED` (path_open, fd_close and
+    fd_renumber, which the table forwards and counts against the call's cap on open files), in
+    the shared form, as the mount linker's. Every other call stays wasmtime's own. Defined once
+    per engine, like the others."""
+    from ._fs_memory import COUNTED, SIGNATURES
 
     p = process()
     with p.cache_lock:
-        linker = p.guard_linkers.get(engine)
+        linker = p.counted_linkers.get(engine)
         if linker is None:
             linker = _runner_linker(wt, engine)
             kinds = {"i32": wt.ValType.i32(), "i64": wt.ValType.i64()}
-            for name in GUARDED + COUNTED:
+            for name in COUNTED:
                 ty = wt.FuncType([kinds[p] for p in SIGNATURES[name]], [kinds["i32"]])
                 shadow = _shared("files", EBADF, EIO, name)
                 linker.define_func("wasi_snapshot_preview1", name, ty, shadow, True)
-            p.guard_linkers[engine] = linker
+            p.counted_linkers[engine] = linker
         return linker
-
-
-def _stat_trampoline_module(wt: Any, engine: wasmtime.Engine) -> Any:
-    """The rename rule's stat trampoline, with its own one-page memory, compiled once per engine
-    and instantiated per call."""
-    from ._fs_memory import stat_trampoline_wat
-
-    p = process()
-    with p.cache_lock:
-        module = p.stat_trampolines.get(engine)
-        if module is None:
-            module = p.stat_trampolines[engine] = wt.Module(engine, stat_trampoline_wat())
-        return module
 
 
 def _trampoline_module(wt: Any, engine: wasmtime.Engine) -> Any:

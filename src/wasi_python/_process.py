@@ -138,9 +138,8 @@ class _Process:
         self.epoch_callback_lock = threading.Lock()
         self.linkers: dict[Any, Any] = {}
         self.mount_linkers: dict[Any, Any] = {}
-        self.guard_linkers: dict[Any, Any] = {}
+        self.counted_linkers: dict[Any, Any] = {}
         self.trampolines: dict[Any, Any] = {}
-        self.stat_trampolines: dict[Any, Any] = {}
         self.ticker_cond = threading.Condition()
         self.ticker_thread: threading.Thread | None = None
         self.ticker_active: int = 0
@@ -217,9 +216,8 @@ class _Process:
         self.check_modules.clear()
         self.linkers.clear()
         self.mount_linkers.clear()
-        self.guard_linkers.clear()
+        self.counted_linkers.clear()
         self.trampolines.clear()
-        self.stat_trampolines.clear()
         self.modules.clear()
         self.engines.clear()
 

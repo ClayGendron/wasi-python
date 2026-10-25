@@ -10,10 +10,9 @@ to wasmtime's own WASI through a small trampoline instantiated on the guest's me
 read-only placeholder folder the runner owns, so wasi-libc's preopen scan finds it; a file or
 folder opened in a mount gets a number from 2**30 up, which wasmtime never reaches.
 
-A call without mounts shadows only the two calls in `GUARDED` and the three in
-`COUNTED`, through a table with no mounts, so all five are forwarded: every forward of
-the first two carries wasmtime 49.0.2's and 49.0.3's fixes, which wasmtime 49.0.0, the newest
-wasmtime-py, lacks, and the last three let the table count the files the guest holds open.
+A call without mounts shadows only the three calls in `COUNTED`, through a table with no
+mounts, so all three are forwarded, and the table counts the files the guest holds open; every
+other call is wasmtime's own.
 
 Every table, with mounts or without, keeps the call's cap on files open at once: the
 wasmtime numbers the guest opened and still holds, plus its open mount files, and answers EMFILE
@@ -48,7 +47,6 @@ from ._fs_memory import (
     MASK64,
     MAX_NAME,
     METHODS,
-    PRIVATE,
     PROVIDER_BASE,
     REFUSED_KEPT,
     REGULAR_FILE,
@@ -211,27 +209,19 @@ class _Files:
 
     def bind(self, wt: Any, store: Any, plain: Any, instance: Any) -> None:
         """Instantiate the trampoline on the guest's memory with wasmtime's own calls from
-        `plain` (today's linker), and the stat trampoline on its own page. After
-        the guest, before the fuel cap and `_initialize`."""
-        module, stat_module = self.context.trampolines(wt, self.engine)
+        `plain` (today's linker). After the guest, before the fuel cap and `_initialize`."""
+        module = self.context.trampoline(wt, self.engine)
         imports = [plain.get(store, "wasi_snapshot_preview1", name) for name in SIGNATURES]
         imports.append(instance.exports(store)["memory"])
         exports = wt.Instance(store, module, imports).exports(store)
-        stat_imports = [plain.get(store, "wasi_snapshot_preview1", name) for name in PRIVATE]
-        stat = wt.Instance(store, stat_module, stat_imports).exports(store)
         from . import _wasmtime_ffi as ffi
 
-        self.forwards = _Forwards(
-            {name: ffi.raw_func(exports[name]) for name in SIGNATURES},
-            {name: ffi.raw_func(stat[name]) for name in PRIVATE},
-            stat["memory"],
-        )
+        self.forwards = _Forwards({name: ffi.raw_func(exports[name]) for name in SIGNATURES})
 
-    def forward(self, caller: Any, name: str, args: tuple[int, ...], stat: bool = False) -> int:
+    def forward(self, caller: Any, name: str, args: tuple[int, ...]) -> int:
         """wasmtime's own answer, on the caller's context, never through `Func.__call__` (whose
         exception slot is process-wide). Fuel-neutral on a metered call: read, raised by the
-        allowance, and set back in a `finally` before any trap or error is raised. `stat`
-        forwards one of `PRIVATE` through the guard's own trampoline, on its page.
+        allowance, and set back in a `finally` before any trap or error is raised.
         The engine is reached through the seam: a prepared call per name, made once."""
         from wasmtime import Trap, WasmtimeError
 
@@ -239,12 +229,10 @@ class _Files:
 
         if self.forwards is None:
             return EBADF  # no trampoline yet: nothing of wasmtime's can be reached
-        key = "stat:" + name if stat else name  # the guard trampoline's own slots
-        slot = self.forwards.slots.get(key)
+        slot = self.forwards.slots.get(name)
         if slot is None:
-            func = self.forwards.stat[name] if stat else self.forwards.funcs[name]
-            slot = ffi.PreparedCall(func, SIGNATURES[name])
-            self.forwards.slots[key] = slot
+            slot = ffi.PreparedCall(self.forwards.funcs[name], SIGNATURES[name])
+            self.forwards.slots[name] = slot
         context = ffi.context_of(caller)  # for the call only; fuel goes by the caller
         before = ffi.get_fuel(caller) if self.metered else None
         raised: BaseException | None = None

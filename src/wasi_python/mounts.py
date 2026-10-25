@@ -339,7 +339,7 @@ class _CallContext(Protocol):
     serves, one object for all nine, so the table imports nothing of the runner."""
 
     def ino_of(self, path: str) -> int: ...  # SipHash-1-3 of a guest path, 64 bits
-    def trampolines(self, wt: Any, engine: Any) -> tuple[Any, Any]: ...  # forwarders, stat
+    def trampoline(self, wt: Any, engine: Any) -> Any: ...  # the forwarders' module
     def exiting(self) -> bool: ...  # the interpreter is exiting: no provider code may run
     def ctrl_c_pending(self) -> bool: ...  # a deferred Ctrl-C waits for this call
     def stop_now(self, caller: Any) -> None: ...  # stop, or the epoch callback, at the next entry
