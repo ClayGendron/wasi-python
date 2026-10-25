@@ -68,6 +68,37 @@ def test_a_member_that_could_leave_the_folder_is_refused(tmp_path, name) -> None
         _zip._extract_data(tmp_path / "mpl-data", _stdlib(tmp_path, _inner({name: b"x"})))
 
 
+# Names a system would rewrite or read as another are refused on every system, whatever the
+# host: a device Windows reserves (with or without an extension, and its superscript digits),
+# a trailing dot or space Windows trims, a character Windows rejects; and two paths, or folders
+# on their way, that a case-folding file system or one that normalises Unicode reads as one.
+@pytest.mark.parametrize("name", ["CON.txt", "aux", "COM¹", "name.", "name ", "a?b", "a*b"])
+def test_a_name_windows_reserves_or_rewrites_is_refused(tmp_path, name) -> None:
+    for member in (f"fonts/{name}", f"{name}/x.ttf"):
+        with pytest.raises(RuntimeError, match="holds the member"):
+            _zip._extract_data(tmp_path / "mpl-data", _stdlib(tmp_path, _inner({member: b"x"})))
+        assert not os.path.lexists(tmp_path / "mpl-data")
+
+
+@pytest.mark.parametrize(
+    "names",
+    [("Foo/x", "foo/x"), ("Foo/x", "foo/y"), ("é", "é")],
+    ids=["case", "folder-case", "nfc"],
+)
+def test_names_equal_under_case_folding_are_refused(tmp_path, names) -> None:
+    with pytest.raises(RuntimeError, match="holds the member"):
+        _zip._extract_data(
+            tmp_path / "mpl-data", _stdlib(tmp_path, _inner(dict.fromkeys(names, b"x")))
+        )
+    assert not os.path.lexists(tmp_path / "mpl-data")
+
+
+def test_names_near_the_reserved_ones_pass(tmp_path) -> None:
+    near = {"CONSOLE.txt": b"1", "COM10": b"2", "nul_x": b"3", "auxiliary/x": b"4", "a.b.c": b"5"}
+    record = _zip._extract_data(tmp_path / "mpl-data", _stdlib(tmp_path, _inner(near)))
+    assert record is not None and {k for k, v in record.items() if v is not None} == set(near)
+
+
 def test_a_link_member_is_refused(tmp_path) -> None:
     with pytest.raises(RuntimeError, match="not a regular file"):
         _zip._extract_data(tmp_path / "mpl-data", _stdlib(tmp_path, _inner(FILES, "evil")))
