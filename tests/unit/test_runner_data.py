@@ -154,6 +154,7 @@ def test_the_data_comparison_lists_each_folder_once_and_stats_each_entry_once(
     assert record is not None
     me = threading.get_ident()
     calls: dict[str, list[str]] = {"scandir": [], "lstat": [], "stat": []}
+    given: list[type] = []  # the type of each path os.lstat is given, in order
 
     def counted(name: str):
         real = getattr(os, name)
@@ -161,6 +162,8 @@ def test_the_data_comparison_lists_each_folder_once_and_stats_each_entry_once(
         def wrapper(path, *args, **kwargs):
             if threading.get_ident() == me:
                 calls[name].append(os.fspath(path))
+                if name == "lstat":
+                    given.append(type(path))
             return real(path, *args, **kwargs)
 
         return wrapper
@@ -173,6 +176,7 @@ def test_the_data_comparison_lists_each_folder_once_and_stats_each_entry_once(
     root_tests = {name: Counter(paths) for name, paths in calls.items()}
     for paths in calls.values():
         paths.clear()
+    given.clear()
 
     assert _zip._data_intact(data, record)
 
@@ -184,4 +188,7 @@ def test_the_data_comparison_lists_each_folder_once_and_stats_each_entry_once(
     assert Counter(calls["scandir"]) == Counter([root]) + folders
     assert Counter(calls["lstat"]) == root_tests["lstat"] + entries
     assert Counter(calls["stat"]) == root_tests["stat"]
+    # Each entry is stamped through a plain path string: no path object is built per entry.
+    stamped = [t for p, t in zip(calls["lstat"], given, strict=True) if p in entries]
+    assert stamped == [str] * len(entries)
     assert len(entries) == 6 and (not POSIX or len(calls["lstat"]) == 7)  # six entries, the root
