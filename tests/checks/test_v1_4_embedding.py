@@ -5659,3 +5659,77 @@ def test_the_judges_writable_roots_are_outside_the_home_folder(guest_workdir) ->
         " are on two devices; the fuel proof covers one: set TMPDIR to a folder on the"
         " checkout's volume outside the home folder"
     )
+
+
+# kiwisolver's solver keeps an equality chain of n + 1 variables; each of k calls either adds a
+# required equality the chain contradicts, which the C++ solver throws and the binding catches
+# as UnsatisfiableConstraint ("throw"), or adds and removes one it satisfies ("hold"). Both build
+# a row whose size grows with the chain, so their work grows with it.
+KIWI_CHAIN = """
+import sys
+import kiwisolver as kw
+n, k, mode = int(sys.argv[1]), int(sys.argv[2]), sys.argv[3]
+solver = kw.Solver()
+v = [kw.Variable(f"v{i}") for i in range(n + 1)]
+solver.addConstraint(v[0] == 0)
+for i in range(n):
+    solver.addConstraint(v[i + 1] == v[i] + 1)
+caught = 0
+for j in range(k):
+    if mode == "throw":
+        try:
+            solver.addConstraint(v[n] == -1 - j)
+        except kw.UnsatisfiableConstraint:
+            caught += 1
+    else:
+        c = v[n] == n
+        solver.addConstraint(c)
+        solver.removeConstraint(c)
+print(mode, k, caught)
+"""
+CHAIN_SIZES = (200, 2000)
+CHAIN_CALLS = 50
+CALL_KINDS = {"throw": "failing", "hold": "no-throw"}
+
+
+@pytest.mark.slow
+def test_fuel_counts_the_work_a_caught_exception_ends(fact) -> None:
+    """Fuel counts the work of a C++ call that ends in a caught exception. Each call's fuel is
+    (the chain's run with 50 calls - the same chain's run with none) / 50, on the snapshot,
+    whose fixed hash key repeats a run's fuel exactly (the plain reactor's fresh key moves this
+    chain's by up to about 600,000 a run, more than 50 failing calls cost). A failing call at
+    2,000 variables costs at least 3 times its cost at 200, as the no-throw call does (about 10
+    times): an engine that resets fuel on a caught exception's edge to what remained before the
+    call counts the failing call flat across the sizes. The deadline is a backstop, so a slow
+    runner cannot hang the check; it fails differently from a short count."""
+    needs.need("runner", "artifact dir", "snapshot binary")
+    import wasi_python
+
+    def fuel(n: int, k: int, mode: str) -> int:
+        done = wasi_python.run(
+            ["-c", KIWI_CHAIN, str(n), str(k), mode],
+            fuel=10**12,
+            deadline_s=600,
+        )
+        caught = k if mode == "throw" else 0
+        assert (done.exit_code, done.trapped) == (0, None), done
+        assert done.stdout == f"{mode} {k} {caught}\n".encode(), done
+        assert done.fuel_used is not None, done
+        return done.fuel_used
+
+    per_call: dict[str, dict[int, int]] = {kind: {} for kind in CALL_KINDS}
+    for n in CHAIN_SIZES:
+        none = fuel(n, 0, "hold")
+        for kind in CALL_KINDS:
+            per_call[kind][n] = (fuel(n, CHAIN_CALLS, kind) - none) // CHAIN_CALLS
+    fact(
+        "fuel_per_call", {kind: {str(n): f for n, f in by.items()} for kind, by in per_call.items()}
+    )
+    print(f"fuel per call: {per_call}")
+    small, large = CHAIN_SIZES
+    findings = [
+        f"a {label} call's fuel at {large:,} variables is under 3 times its fuel at {small:,}"
+        for kind, label in CALL_KINDS.items()
+        if per_call[kind][large] < 3 * per_call[kind][small]
+    ]
+    assert not findings, scan.report(findings, "fuel per call")

@@ -71,3 +71,13 @@ def test_reads_exnref_and_the_tag_section(work) -> None:
 def test_a_module_without_exceptions_has_no_tag_section(work) -> None:
     mod = wasm.parse_file(wat.build(work, "plain.wasm", wat.PLAIN_REACTOR))
     assert wasm.TAG_SECTION not in mod.sections
+
+
+def test_counts_defined_and_imported_tags(work) -> None:
+    """The tag count reads the tag section and the tag imports, so an odd count is seen."""
+    defined = wasm.parse_file(wat.build(work, "eh.wasm", wat.EXCEPTIONS))
+    assert (defined.tags, wasm.tag_count(defined)) == (1, 1)
+    both = wasm.parse_file(wat.build(work, "tags.wasm", wat.IMPORTED_AND_DEFINED_TAGS))
+    assert (both.tags, wasm.tag_count(both)) == (1, 2)
+    none = wasm.parse_file(wat.build(work, "plain.wasm", wat.PLAIN_REACTOR))
+    assert wasm.tag_count(none) == 0
