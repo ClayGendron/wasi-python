@@ -38,6 +38,8 @@ On the command line, `--grant GUEST=HOST` gives a folder read-only and `--grant-
 | `True` | `--private-root` | a fresh private folder at `/`, writable, removed after the call |
 | a host path | `--root HOST` | that folder at `/`, writable, made if missing, kept after the call |
 
+On Linux and macOS, a missing root's folders are made for you alone (0700), and a folder another user made on the way is refused. On Windows, from Python 3.13, a made folder gets an access list for you and the administrators alone; a folder that already exists is used as it is.
+
 A grant and a root work together. With a root, the grants still appear at their guest paths.
 
 ## Know where HOME is
