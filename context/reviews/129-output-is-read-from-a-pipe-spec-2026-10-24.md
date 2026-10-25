@@ -97,11 +97,11 @@ No structural rule is bypassed: no module-level mutable or lock outside `_proces
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. Finding 1 (High) —
-2. Finding 2 (Medium) —
-3. Finding 3 (Medium) —
-4. Findings 4 to 8 (Low) — written into the specification by the reviewer, 2026-10-24.
-5. Finding 9 (Low) —
+1. Finding 1 (High) — fixed by the author, 2026-10-24: Decision 3 names `select.poll` and why, the reader's two ending rules (the stop after `store.close()`, EOF a shortcut) and what it does on its own exceptions; Decision 4 drains with `poll`; Decision 1 gains `test_output_arrives_above_descriptor_1024` (a subprocess raising its own soft limit, 1,030 descriptors held, the bytes and the thread set counted).
+2. Finding 2 (Medium) — fixed by the author, 2026-10-24: `close()` settles then stops after `store.close()`, never waiting for EOF; Decision 1 gains `test_a_call_returns_while_a_forked_child_holds_its_descriptors`.
+3. Finding 3 (Medium) — reserved as 131 (the `_platform.py` split, the 0.1.0 structural review's finding 5), named in the specification's Depends on, Decision 8, Scope and For the lane; 129 stacks on it or follows it, and `_Windows.output_channel` is written in the split module. The roadmap line is the coordinator's.
+4. Findings 4 to 8 (Low) — written into the specification by the reviewer, 2026-10-24; confirmed by the author.
+5. Finding 9 (Low) — fixed by the author in the evidence folder's `driver.py` (`REPO = HERE.parents[2]`, its folders under `build/output-capture-costs/`, the stdlib folder made by the driver), run from the repository root as acceptance criterion 6 now says; EXECUTED once from the root after the fix.
 
 ## Verdict
 

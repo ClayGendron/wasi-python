@@ -1,7 +1,7 @@
 """What output capture costs: arms, attribution and prototypes, monkeypatched from here.
 
-Run with the repository's uv environment:
-    uv run --no-sync python build/output-capture-costs/driver.py <suite> [repeats]
+Run from the repository root with its uv environment (the artifact set at build/artifacts):
+    uv run --no-sync python context/research/2026-10-24-what-output-capture-costs/driver.py <suite> [repeats]
 
 Suites: repro, attribute, sizes, stderr, protos, cap, all. Results go to results/<suite>.json.
 Nothing under src/ is edited: every prototype replaces a module global of wasi_python._call for
@@ -20,8 +20,9 @@ import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-REPO = HERE.parents[1]
+REPO = HERE.parents[2]  # context/research/<this folder>/ -> the repository
 SET = REPO / "build/artifacts"
+WORK = REPO / "build/output-capture-costs"  # the driver's own folders, never beside this file
 os.environ["WASI_PYTHON_ARTIFACTS"] = str(SET)
 sys.path.insert(0, str(REPO / "tests"))
 
@@ -33,9 +34,9 @@ from wasi_python import _call  # noqa: E402
 from wasi_python._process import process  # noqa: E402
 from harness import guest  # noqa: E402
 
-CACHE = HERE / "cwasm"
-LIB = HERE / "lib"
-IO = HERE / "io"
+CACHE = WORK / "cwasm"  # the product compiles the snapshot here once, about 30 s, if absent
+LIB = WORK / "lib"  # the stdlib zip under the name the guest expects, for the bare arms
+IO = WORK / "io"
 BARE_CWASM = REPO / "build/rust-spike-perf/work/cwasm-bare/python-snapshot.cwasm"
 SNAPSHOT = SET / "python-snapshot.wasm"
 MEMORY, DEADLINE, FUEL = 1 << 30, 60.0, 10**12
@@ -178,8 +179,20 @@ def bare_on_thread(code: str, *, mode: str = "file") -> tuple[float, int]:
     return box[0]
 
 
+def ensure_lib() -> Path:
+    """The bare arms' stdlib folder: the set's zip linked under the name the guest looks for."""
+    LIB.mkdir(parents=True, exist_ok=True)
+    z = LIB / guest.stdlib_name("3.15.0", SET / "python-stdlib.zip")
+    if not z.exists():
+        try:
+            os.link(SET / "python-stdlib.zip", z)
+        except OSError:
+            z.write_bytes((SET / "python-stdlib.zip").read_bytes())
+    return LIB
+
+
 def bare(code: str, *, mode: str = "file") -> tuple[float, int]:
-    """mode: file | custom-pub | custom-raw | custom-copy | custom-product-like."""
+    """mode: file | custom-pub | custom-raw | custom-copy | custom-product-like | pipe."""
     io = IO / f"bare-{threading.get_ident()}"
     io.mkdir(parents=True, exist_ok=True)
     engine, mod = bare_engine(), bare_module()
@@ -194,7 +207,7 @@ def bare(code: str, *, mode: str = "file") -> tuple[float, int]:
     wasi = wt.WasiConfig()
     wasi.argv = [guest.ARGV0, "-c", code]
     wasi.env = sorted(BASE_ENV.items())
-    wasi.preopen_dir(str(LIB), "/usr/local/lib", False)
+    wasi.preopen_dir(str(ensure_lib()), "/usr/local/lib", False)
     if mode == "file":
         wasi.stdout_file = str(io / "stdout")
     elif mode == "custom-pub":
@@ -674,6 +687,8 @@ def main() -> None:
     n = int(sys.argv[2]) if len(sys.argv) > 2 else 3
     names = list(SUITES) if which == "all" else [which]
     (HERE / "results").mkdir(exist_ok=True)
+    CACHE.mkdir(parents=True, exist_ok=True)
+    CACHE.chmod(0o700)  # the runner reads a module cache only from a private folder
     # Warm: one product run and one bare run, so the module load is outside every timer.
     product("pass")
     bare("pass")

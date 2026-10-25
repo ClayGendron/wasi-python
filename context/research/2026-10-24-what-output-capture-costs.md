@@ -142,6 +142,7 @@ What the host holds under the pipe design: the stream's `bytearray`, at most the
 - **Linux** was not run: no Linux host in this session. CI's Linux runners are the check.
 - **The unattributed quarter** of the gap (§4.2) is reasoned, not measured: a sample of the three threads during the loop would settle it. It does not change the design, since the pipe removes the threads it would have attributed to.
 - **The spawned-thread effect.** `bare-file-on-thread` (the bare arm on a spawned 8 MiB thread, as the product runs its guest) was slower than `bare-file` in both windows (56 against 49; 78 against 36), but the loud windows make it unreliable. Possibly macOS's scheduling of a secondary thread. Not established; a separate question, outside this memo.
+- **The prototype's `select.select`** (`_drain` in `driver.py`) refuses a descriptor at or above `FD_SETSIZE`, 1,024 (the pre-build review of the specification, EXECUTED there: a pipe end at descriptor 1,100 raised `ValueError`; `select.poll` took it). The prototype ran in a process with few descriptors; the specification's reader uses `poll`. The driver's own run instructions are in its docstring: from the repository root, with its folders under `build/output-capture-costs/`.
 - **One rule slip to record:** the first patch of the driver was applied with a bare `python3` heredoc before the rule was remembered; every later edit and every run went through `uv run --no-sync python`.
 
 ## One line
