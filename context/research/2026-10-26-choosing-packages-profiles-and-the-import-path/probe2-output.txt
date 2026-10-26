@@ -1,0 +1,2 @@
+uv --target folder: 0 4,897,969,801 /lib/rich/__init__.py 40.43.0 
+session: turn 1 fuel 207,132,289 turn 2 fuel 46,271,166 x  

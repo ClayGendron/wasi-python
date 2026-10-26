@@ -4,6 +4,7 @@
 - **Owner:** Clay Gendron
 - **Decided already** (the owner, 2026-10-16; constitution §2, "Beyond v1"): profiles come after v1, and they select the core C libraries at build time. The product is a drop-in sealed Python for lightweight loads, not a development environment (constitution §3).
 - **Blocks:** the first specification for profiles; nothing in v1.
+- **Partly answered** by `2026-10-26-choosing-packages-profiles-and-the-import-path.md` (its sections 3 and 6: the share of each package in the released binary and zip, the dependency lattice the profiles would follow, and what the wheel and the judge would need); items 2 and 3 below (a profile built and measured, the judge across sets) still wait on the experiment.
 
 ## The question
 

@@ -1,0 +1,38 @@
+total bytes 99421513
+  section type                                          10,552
+  section import                                         1,636
+  section function                                      94,117
+  section table                                              9
+  section memory                                             4
+  section 13                                                 5
+  section global                                            14
+  section export                                            81
+  section elem                                         130,791
+  section code                                      74,345,066
+  section data                                      10,747,266
+  section custom     name                           14,091,563
+  section custom     producers                             163
+  section custom     target_features                       193
+named functions: 89103
+code bodies: 89060 sum 74,372,940
+  other                                57,599,387   77.4%
+  cpython                               6,418,874    8.6%
+  openblas                              4,487,517    6.0%
+  cython-generated (unattributed)       1,875,137    2.5%
+  libc++                                1,027,959    1.4%
+  libxml2/libxslt                         858,080    1.2%
+  sqlite                                  618,004    0.8%
+  numpy                                   339,283    0.5%
+  qhull                                   304,456    0.4%
+  harfbuzz                                253,148    0.3%
+  contourpy                               160,757    0.2%
+  Pillow                                  148,054    0.2%
+  freetype                                 74,331    0.1%
+  xz                                       71,758    0.1%
+  bzip2                                    53,435    0.1%
+  kiwisolver                               44,638    0.1%
+  sheenbidi                                16,001    0.0%
+  libraqm                                   8,453    0.0%
+  scikit-learn                              5,408    0.0%
+  scipy                                     4,847    0.0%
+  pandas                                    3,413    0.0%

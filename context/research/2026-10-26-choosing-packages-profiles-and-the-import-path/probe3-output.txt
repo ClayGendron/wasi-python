@@ -1,0 +1,1 @@
+plotly from a source folder exit 0 fuel 3,622,795,045 7.1.0 6571 True | 7313 []
