@@ -150,8 +150,9 @@ def _sweep_once() -> None:
 
 
 def _owned(st: os.stat_result) -> bool:
-    getuid = getattr(os, "getuid", None)
-    return getuid is None or st.st_uid == getuid()  # Windows: the user's own temporary folder
+    """This user's, by the platform's one owner test: on Windows, the user's own temporary
+    folder is the owner check."""
+    return _platform_common._this_users(st)
 
 
 def _sweep_entry(temp: str, entry: str, identity: str) -> bool:
@@ -189,8 +190,8 @@ def _sweep_entry(temp: str, entry: str, identity: str) -> bool:
             return False  # another kernel's, or none
         folder = os.lstat(path)
         isjunction = getattr(os.path, "isjunction", lambda p: False)
-        if not stat.S_ISDIR(folder.st_mode) or isjunction(path):
-            return False
+        if not stat.S_ISDIR(folder.st_mode) or isjunction(path) or not _owned(folder):
+            return False  # another user's folder at a dead lock's name is not ours to remove
         errors: list[BaseException] = []
         _platform.PLATFORM.remove_tree(path, errors=errors)
         if not os.path.lexists(path):

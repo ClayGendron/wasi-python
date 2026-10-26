@@ -135,6 +135,23 @@ def test_owned_means_this_users() -> None:
     assert _private_dirs._owned(mine) and not _private_dirs._owned(os.stat_result(fields))
 
 
+@pytest.mark.skipif(not POSIX, reason="Windows: the user's own temporary folder is the owner check")
+def test_a_folder_another_user_owns_beside_a_dead_lock_stays(temp, monkeypatch) -> None:
+    """A dead lock of this user's beside a folder another user owns: the folder is not this
+    user's to remove, so it is never walked and stays where it is. The observers' owner names
+    another uid for the folder's inode alone, so the lock beside it stays this user's."""
+    folder = dead(temp)
+    st = os.lstat(folder)
+    theirs = (st.st_dev, st.st_ino)
+    monkeypatch.setattr(
+        process().observers,
+        "owner_of",
+        lambda s: os.geteuid() + 1 if (s.st_dev, s.st_ino) == theirs else s.st_uid,
+    )
+    assert sweep() == 0
+    assert (folder / "file").exists() and os.path.exists(f"{folder}.lock")
+
+
 @pytest.mark.skipif(not POSIX, reason="making a link needs privileges on Windows")
 def test_links_are_never_followed(temp, tmp_path) -> None:
     canary = tmp_path / "canary"

@@ -1,13 +1,14 @@
 """What both platform families run: the Windows class and the POSIX classes alike.
 
-The result of a walk (`_Walked`) and the refusal of a walk that cannot be taken, the steps a
-walk takes by path (making a missing tail, making a real folder below a root, a quiet unlink),
-the cache's kind checks, their warning and a checked `.cwasm` held open, and the remover's
-budget and its walk by path. They sit below both platform modules, so the Windows module and
-the POSIX module each import this one and neither imports the other: the package's imports
-point one way, with no cycle. This module imports nothing else of the package, and it reads no
-platform: each name here runs the same on every system, and the choice of platform stays in
-the platform module's one chooser.
+The result of a walk (`_Walked`) and the refusal of a walk that cannot be taken, the steps a walk
+takes by path (making a missing tail, making a real folder below a root, a quiet unlink), the owner
+test a made folder must pass, the names Windows rewrites, the cache's kind checks, their warning
+and a checked `.cwasm` held open, and the remover's budget and its walk by path. They sit below
+both platform modules, so the Windows module and the POSIX module each import this one and neither
+imports the other: the package's imports point one way, with no cycle. Of the package this module
+imports only the process state, whose observers may stand in for a file's owner, and it reads no
+platform: each name here runs the same on every system, and the choice of platform stays in the
+platform module's one chooser.
 """
 
 from __future__ import annotations
@@ -18,7 +19,37 @@ import stat
 from collections.abc import Callable
 from pathlib import Path
 
+from ._process import process
+
 Identity = tuple[int, int]
+
+
+# Names Win32 rewrites or rejects. A judged Windows walk refuses them, since the path opened and the
+# chain of folders walked could disagree, and a rule that reads the chain could miss a true
+# ancestor; matplotlib's data guard refuses them on every system, since a folder the runner writes
+# should hold no name a system would read as another. A `:` is a drive letter (`C:\\b\\D:x` is drive
+# D's current folder) or a stream; a trailing space or period is trimmed in some positions and not
+# others; a reserved device name, with or without an extension, is the device, and a root still to
+# be made through one would fail after the folders before it were made. The set is exactly Python's
+# own `ntpath.isreserved` for one component, which the runner cannot call on 3.11 and 3.12:
+# Microsoft's reserved names ("Naming Files, Paths, and Namespaces"), with the superscript `COM¹` to
+# `LPT³` it reserves "in every directory"; `CONIN$` and `CONOUT$`, which CPython refuses "on the
+# side of caution"; and the characters Windows rejects in a name.
+_WIN_DEVICES = frozenset(
+    {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
+    | {f"{p}{c}" for p in ("COM", "LPT") for c in "123456789\u00b9\u00b2\u00b3"}
+)
+_WIN_RESERVED_CHARS = frozenset('"*<>?|' + "".join(map(chr, range(32))))
+
+
+def _rewritten(name: str) -> bool:
+    """Whether Windows rewrites or rejects this one path component (never `.` or `..`): the same
+    answer as `ntpath.isreserved` gives for it."""
+    if name in (".", ".."):
+        return False
+    if ":" in name or _WIN_RESERVED_CHARS.intersection(name) or name.endswith((" ", ".")):
+        return True
+    return name.split(".", 1)[0].rstrip(" ").upper() in _WIN_DEVICES
 
 
 class _Walked:
@@ -84,6 +115,7 @@ def _unlink_quietly(path: str) -> None:
         pass
 
 
+_REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)  # Windows: a link or junction
 _BUSY = {errno.EACCES, errno.EDEADLK, getattr(errno, "EDEADLOCK", errno.EDEADLK)}
 _REMOVE_BATCH = 1024  # entries a listing reads before it acts
 
@@ -146,10 +178,40 @@ def _not_used(path: Path, must_be: str) -> None:
     )
 
 
-def _make_by_path(path: str, missing: tuple[str, ...]) -> str:
+def _this_users(st: os.stat_result) -> bool:
+    """Whether the file `st` describes is this user's: owned by the effective uid, the one a file
+    or folder this process makes is owned by. Windows has no uid, so there every file is, and no
+    owner is compared. The observers' `owner_of`, when set, stands in for the owner."""
+    geteuid: Callable[[], int] | None = getattr(os, "geteuid", None)
+    if geteuid is None:
+        return True
+    owner_of = process().observers.owner_of
+    return (st.st_uid if owner_of is None else owner_of(st)) == geteuid()
+
+
+def _refuse_another_users(where: str, path: str, st: os.stat_result) -> None:
+    """A folder on the way to a root, made here or found made, must be this user's: another user
+    who made it first could read and seed every file the guest keeps below it."""
+    if not _this_users(st):
+        raise ValueError(
+            f"{where}: {path!r}: a folder on the way to the root was made by another user"
+        )
+
+
+def _make_by_path(where: str, path: str, missing: tuple[str, ...]) -> str:
+    """Make a root's missing components by path, each for this user alone. Each is judged by
+    `lstat` before the next is made in it: one that is not a real folder (a link, or on Windows a
+    junction or any reparse point) is refused, so nothing is made through it, and one another
+    user made first is refused. Windows applies a mode of exactly 0700 as an access list for this
+    user, SYSTEM and the administrators from Python 3.13, and ignores the mode before."""
     for name in missing:
         path = os.path.join(path, name)
-        Path(path).mkdir(exist_ok=True)
+        Path(path).mkdir(mode=0o700, exist_ok=True)
+        st = os.lstat(path)
+        attributes = getattr(st, "st_file_attributes", 0)
+        if not stat.S_ISDIR(st.st_mode) or attributes & _REPARSE_POINT:
+            raise ValueError(f"{where}: {path!r} is not a folder, and a link is never followed")
+        _refuse_another_users(where, path, st)
     return path
 
 

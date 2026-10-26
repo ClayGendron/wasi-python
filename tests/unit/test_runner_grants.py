@@ -6,6 +6,7 @@ measures time."""
 from __future__ import annotations
 
 import os
+import stat
 import struct
 import sys
 import tempfile
@@ -15,7 +16,7 @@ import pytest
 import wasmtime as wt
 
 from harness import files
-from wasi_python import Grant, _engines, _places, _platform, _platform_windows
+from wasi_python import Grant, _engines, _places, _platform, _platform_common, _platform_windows
 from wasi_python._process import process
 
 POSIX = os.name == "posix"
@@ -237,6 +238,118 @@ def test_the_walk_takes_dot_dot_on_the_real_file_system(tmp_path) -> None:
         assert walked.chain[1] == _platform.PLATFORM.identity_of(tmp_path)
     finally:
         walked.close()
+
+
+# A missing root's folders. On Linux and macOS each is made at 0700 and must be this user's:
+# a folder another user put at a missing name first could be read and seeded by that user. On
+# Windows there is no uid, and the mode is CPython's own access list, which the judge does not
+# read, so these rows are POSIX-only. No check can make a folder another user owns, so the
+# observers' `owner_of` names another owner for one inode.
+OWNER_SKIP = "Windows has no uid, and a made folder's mode there is CPython's access list"
+
+
+@pytest.fixture
+def umask_022():
+    old = os.umask(0o022)
+    try:
+        yield
+    finally:
+        os.umask(old)
+
+
+def _owned_by_another(monkeypatch, folder: Path) -> None:
+    """The observers' owner for `folder`'s inode is another uid; every other file keeps its own."""
+    st = os.lstat(folder)
+    mine = (st.st_dev, st.st_ino)
+    monkeypatch.setattr(
+        process().observers,
+        "owner_of",
+        lambda s: os.geteuid() + 1 if (s.st_dev, s.st_ino) == mine else s.st_uid,
+    )
+
+
+@pytest.mark.skipif(not POSIX, reason=OWNER_SKIP)
+def test_a_missing_roots_folders_are_made_for_this_user_alone(tmp_path, umask_022) -> None:
+    """Under a umask of 022, which gives a plain `mkdir` 0755, every made component is 0700:
+    through descriptors, and by path."""
+    missing = _platform.PLATFORM.walk(
+        "root", str(tmp_path / "new" / "deeper"), judge=True, may_make=True
+    )
+    try:
+        made = _platform.PLATFORM.make_missing("root", missing)
+        made.close()
+    finally:
+        missing.close()
+    _platform_common._make_by_path("root", str(tmp_path), ("by-path", "deeper"))
+    for folder in ("new", "new/deeper", "by-path", "by-path/deeper"):
+        assert stat.S_IMODE(os.lstat(tmp_path / folder).st_mode) == 0o700, folder
+
+
+@pytest.mark.skipif(not POSIX, reason=OWNER_SKIP)
+def test_a_folder_another_user_made_on_the_way_is_refused(tmp_path, monkeypatch) -> None:
+    """A component that appears between the walk and the making, open to all and owned by
+    another user, is refused by name, and nothing below it is made or walked."""
+    missing = _platform.PLATFORM.walk(
+        "root", str(tmp_path / "new" / "deeper"), judge=True, may_make=True
+    )
+    walks = []
+    try:
+        (tmp_path / "new").mkdir()
+        (tmp_path / "new").chmod(0o777)
+        _owned_by_another(monkeypatch, tmp_path / "new")
+        monkeypatch.setattr(_platform.PLATFORM, "walk", lambda *a, **k: walks.append(a))
+        with pytest.raises(ValueError, match=r"root: '.*/new'.*made by another user"):
+            _platform.PLATFORM.make_missing("root", missing)
+    finally:
+        missing.close()
+    assert walks == [] and not (tmp_path / "new" / "deeper").exists()
+
+
+@pytest.mark.skipif(not POSIX, reason=OWNER_SKIP)
+def test_a_folder_another_user_made_is_refused_by_path(tmp_path, monkeypatch) -> None:
+    """The same through the walk by path, which Windows and a POSIX host without directory
+    descriptors take."""
+    (tmp_path / "new").mkdir()
+    (tmp_path / "new").chmod(0o777)
+    _owned_by_another(monkeypatch, tmp_path / "new")
+    with pytest.raises(ValueError, match=r"root: '.*/new'.*made by another user"):
+        _platform_common._make_by_path("root", str(tmp_path), ("new", "deeper"))
+    assert not (tmp_path / "new" / "deeper").exists()
+
+
+@pytest.mark.skipif(not POSIX, reason="making a link needs privileges on Windows")
+def test_a_link_at_a_missing_name_is_refused_by_path(tmp_path) -> None:
+    """A link of this user's put at a missing name, to a folder this user may write: the walk by
+    path refuses it as no folder, and nothing is made through it."""
+    (tmp_path / "other").mkdir()
+    (tmp_path / "new").symlink_to(tmp_path / "other")
+    with pytest.raises(ValueError, match=r"root: '.*/new' is not a folder"):
+        _platform_common._make_by_path("root", str(tmp_path), ("new", "deeper"))
+    assert not (tmp_path / "other" / "deeper").exists()
+
+
+@pytest.mark.skipif(
+    not POSIX or not _platform.PLATFORM.has_dir_fd, reason="the walk by descriptors is POSIX's"
+)
+def test_a_made_root_swapped_before_its_walk_is_refused(tmp_path, monkeypatch) -> None:
+    """The made folder renamed away and another put at its name, after its owner was checked and
+    before the root is walked again: the walk's folder is not the one made, and is refused."""
+    platform = _platform.PLATFORM
+    missing = platform.walk("root", str(tmp_path / "new"), judge=True, may_make=True)
+    real_walk = platform.walk
+
+    def walk(where, path, *, judge, may_make=False):
+        if not may_make and os.path.exists(tmp_path / "new"):
+            os.rename(tmp_path / "new", tmp_path / "moved")
+            (tmp_path / "new").mkdir()
+        return real_walk(where, path, judge=judge, may_make=may_make)
+
+    monkeypatch.setattr(platform, "walk", walk)
+    try:
+        with pytest.raises(ValueError, match=r"root: '.*/new' changed after it was made"):
+            platform.make_missing("root", missing)
+    finally:
+        missing.close()
 
 
 # A model of the Win32 path rules the Windows walk meets, as Microsoft's "File path
@@ -490,9 +603,9 @@ def test_a_rewritten_name_is_one_ntpath_refuses() -> None:
     pieces += [" .x", "con\u0131n$", "\u0131", "K", "s"]
     names = ["".join(c) for k in (1, 2, 3) for c in itertools.product(pieces, repeat=k)]
     names = [n for n in names if n]  # 18,275 spellings (16,175 distinct)
-    differ = [n for n in names if _platform_windows._rewritten(n) != ntpath.isreserved("x\\" + n)]
+    differ = [n for n in names if _platform_common._rewritten(n) != ntpath.isreserved("x\\" + n)]
     assert not differ, sorted(map(ascii, set(differ)))[:8]
-    refused = sum(map(_platform_windows._rewritten, names))
+    refused = sum(map(_platform_common._rewritten, names))
     assert len(names) == 18_275 and 0 < refused < len(names), (len(names), refused)
 
 

@@ -179,8 +179,10 @@ def test_the_observers_refuse_a_misspelt_field() -> None:
         "clock",
         "start_ending",
         "drive_folder",
+        "owner_of",
         "reaper_enabled",
         "reaper_paused",
     ]
     assert (observers.reaper_enabled, observers.reaper_paused) == (True, False)
     assert observers.start_ending is None and observers.drive_folder is None
+    assert observers.owner_of is None
