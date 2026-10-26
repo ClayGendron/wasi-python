@@ -7,9 +7,11 @@ The key is the SHA-256 of one canonical text: a format line, the build's environ
 workflow sets it (`ENV`), and `file <sha256> <path>` for every file of `closure()`: the pins, every
 tracked file under `scripts/` and `recipes/`, this file, the build constraints an env value names,
 and the gate step 60 runs with `tests/` on PYTHONPATH (`GATES`) with every local module it
-imports. A reused set is never judged alone: the same run rebuilds it from the pins three times
-and requires the same bytes. So a key that missed an input can make a run red, never a stale set
-pass.
+imports. A cached set is judged on pull requests into dev and on dev without a rebuild. It is
+rebuilt from the pins and compared byte for byte at the weekly run, at the release pull request
+into main and at the tag, each of which builds its own set or rebuilds the cached one on two more
+hosts and requires the same bytes. So a key that missed an input, or a planted cache entry, is
+caught before any release and never published.
 
 `verify` checks a set folder: every file against the set's own SHA256SUMS, no other file, and
 MANIFEST's `pin` and `recipe` lines equal to what this checkout gives, by the selection

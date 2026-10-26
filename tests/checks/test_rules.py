@@ -609,24 +609,85 @@ def test_releases_attest_and_verify_their_assets() -> None:
 
 
 RELEASE_WORKFLOW = paths.REPO / ".github" / "workflows" / "release.yml"
+# The local action every reader of the build's files runs.
+ASSETS_ACTION = paths.REPO / scan.ASSETS_ACTION_FILE
 
 
 def test_the_release_signs_and_publishes_what_build_made() -> None:
-    """Every job that checks, signs or publishes downloads the build's files by an id it has
-    guarded, checks them against the SHA-256 of SHA256SUMS the build job handed on, and acts on
-    nothing else; the publish jobs name their environments, setup-uv runs with no cache, and each
-    job holds only the permissions it uses."""
-    errors = scan.release_binding_errors(RELEASE_WORKFLOW.read_text())
+    """Every job that checks, signs or publishes reads the build's files through the one local
+    action, which downloads them by an id it has guarded and checks them against the SHA-256 of
+    SHA256SUMS the build job handed on, and acts on nothing else; the publish jobs name their
+    environments, setup-uv runs with no cache, and each job holds only the permissions it uses."""
+    errors = scan.release_binding_errors(RELEASE_WORKFLOW.read_text(), ASSETS_ACTION.read_text())
     assert not errors, scan.report(errors)
 
 
 def test_every_action_is_pinned_by_commit() -> None:
-    """Every `uses:` in every workflow is local or pinned by a full commit."""
+    """Every `uses:` in every workflow and every local action is local or pinned by a full
+    commit."""
+    github = paths.REPO / ".github"
     errors = [
-        f"{w.name}: {e}"
-        for w in sorted((paths.REPO / ".github" / "workflows").glob("*.y*ml"))
+        f"{w.relative_to(github).as_posix()}: {e}"
+        for w in sorted([*github.glob("workflows/*.y*ml"), *github.glob("actions/*/action.y*ml")])
         for e in scan.action_pin_errors(w.read_text())
     ]
+    assert not errors, scan.report(errors)
+
+
+def test_every_job_checks_out_the_head_commit() -> None:
+    """A pull request's jobs check out its head, never the merge ref: the merge ref is a merge
+    commit nobody will merge, which the history rules refuse, and the up-to-date rule makes the
+    head the tree the squash puts on dev."""
+    errors = scan.checkout_ref_errors(RELEASE_WORKFLOW.read_text())
+    assert not errors, scan.report(errors)
+
+
+CI_STATUS_CASES = {
+    "every job succeeded or was skipped": (
+        {"plan": "success", "quick": "success", "build": "skipped"},
+        "[]",
+        0,
+    ),
+    "a failed job": ({"plan": "success", "quick": "failure"}, "[]", 1),
+    "a cancelled job": ({"plan": "success", "gather": "cancelled"}, "[]", 1),
+    "a refusal": ({"plan": "success"}, '["a pull request may not write accepted state"]', 1),
+    "no plan": ({"plan": "failure"}, "", 1),
+}
+
+
+@pytest.mark.parametrize("case", CI_STATUS_CASES)
+def test_ci_status_fails_on_a_job_that_did_not_pass_or_a_refusal(case, tmp_path) -> None:
+    """ci-status's own step, run in bash with this environment's python3: green only when every
+    job it needs succeeded or was skipped and the plan refused nothing."""
+    import json
+
+    script = scan.workflow_step_script(
+        RELEASE_WORKFLOW.read_text(),
+        "ci-status",
+        "Every job succeeded or was skipped, and the plan refused nothing",
+    )
+    results, refusals, want = CI_STATUS_CASES[case]
+    (tmp_path / "status.sh").write_text(script)
+    r = subprocess.run(
+        ["bash", "-e", str(tmp_path / "status.sh")],
+        env={
+            "PATH": f"{Path(sys.executable).parent}:/usr/bin:/bin",
+            "NEEDS": json.dumps({job: {"result": v, "outputs": {}} for job, v in results.items()}),
+            "REFUSALS": refusals,
+        },
+        capture_output=True,
+        text=True,
+    )
+    assert (r.returncode != 0) == bool(want), (r.returncode, r.stdout + r.stderr)
+
+
+def test_one_required_check_holds_every_job() -> None:
+    """ci-status is the one required check: it always runs, needs every other job, and passes
+    only when each succeeded or was skipped by the plan and the plan refused nothing; every other
+    job gates on the decision job's outputs with if:, never a paths: filter, so a skipped job
+    reports success and the check is always reported; only a pull request's older run is
+    cancelled."""
+    errors = scan.ci_status_errors(RELEASE_WORKFLOW.read_text())
     assert not errors, scan.report(errors)
 
 
@@ -682,9 +743,9 @@ CHECK_CASES = {
 
 @pytest.mark.parametrize("case", CHECK_CASES)
 def test_the_release_check_refuses_other_bytes(case, tmp_path) -> None:
-    """The workflow's own check step, run in bash: the build's own files pass, and every other
-    set of bytes fails closed. Its absence fails every case."""
-    script = scan.workflow_step_script(RELEASE_WORKFLOW.read_text(), "attest", scan.CHECK_STEP)
+    """The local action's own check step, run in bash: the build's own files pass, and every
+    other set of bytes fails closed. Its absence fails every case."""
+    script = scan.action_step_script(ASSETS_ACTION.read_text(), scan.CHECK_STEP)
     change, want = CHECK_CASES[case]
     good = _fake_assets(tmp_path)
     sums = change(tmp_path / "release-assets", good)
@@ -709,11 +770,9 @@ GUARD_CASES = {
 
 @pytest.mark.parametrize("case", GUARD_CASES)
 def test_the_id_guard_refuses_a_missing_id(case, tmp_path) -> None:
-    """The workflow's own id guard, run in bash: an empty artifact-ids would download every
+    """The local action's own id guard, run in bash: an empty artifact-ids would download every
     artifact of the run, so only a non-empty decimal passes."""
-    script = scan.workflow_step_script(
-        RELEASE_WORKFLOW.read_text(), "attest", "The build job handed on an artifact id"
-    )
+    script = scan.action_step_script(ASSETS_ACTION.read_text(), scan.GUARD_STEP)
     value, want = GUARD_CASES[case]
     (tmp_path / "guard.sh").write_text(script)
     r = subprocess.run(
@@ -956,12 +1015,57 @@ def test_every_package_names_its_own_suite() -> None:
 
 
 def test_release_judges_in_shards() -> None:
-    """The release runs every shard of the plan in its system's judge job, hands on each record's
-    id and SHA-256, and publishes nothing until the gather, which holds no assets, has read every
-    record."""
+    """The release runs the shards the plan selects in their system's judge job, each leg
+    uploading its record under its own name, names no shard by hand, and publishes nothing until
+    the gather, which holds no assets, has read every record."""
     from harness import shards
 
     errors = scan.release_shard_errors(RELEASE_WORKFLOW.read_text(), shards.load())
+    assert not errors, scan.report(errors)
+
+
+def _ci_plan_module() -> types.ModuleType:
+    """`release/ci_plan.py`, loaded by path: the decision job's script."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "release_ci_plan_rules", paths.REPO / "release" / "ci_plan.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod  # dataclasses look their module up here
+    spec.loader.exec_module(mod)
+    return mod
+
+
+# Every event of the release shape: each judges the whole plan, both tiers, and rebuilds.
+RELEASE_SHAPES = {
+    "a pushed tag": ("push", "refs/tags/v0.1.1", ""),
+    "a pull request into main": ("pull_request", "refs/pull/9/merge", "main"),
+    "a dispatch on main": ("workflow_dispatch", "refs/heads/main", ""),
+    "the weekly run": ("schedule", "refs/heads/dev", ""),
+}
+
+
+@pytest.mark.parametrize("shape", RELEASE_SHAPES)
+def test_the_judge_matrices_are_the_shard_plan_on_every_release(shape) -> None:
+    """The workflow writes no shard (test_release_judges_in_shards); each judge job's legs are
+    the decision job's output for its system, generated from tests/release_shards.toml. On every
+    run of the release shape that output is the plan's own list for the system, in its order,
+    the release tier's included, with the build shard, both rebuilds and same-bytes."""
+    from harness import shards
+
+    ci_plan = _ci_plan_module()
+    name, ref, base = RELEASE_SHAPES[shape]
+    d = ci_plan.decide(None if name != "pull_request" else [], ci_plan.Event(name, ref, base))
+    sel = ci_plan.select(d, ci_plan.load_shards())
+    plan = shards.load()
+    errors = [
+        f"{system}: the plan's {shards.on(plan, system)}, the decision job's {sel[system]}"
+        for system in (*shards.OWN_SYSTEMS, "release")
+        if sel[system] != shards.on(plan, system)
+    ]
+    if not (d.rebuild and sel["build"] and d.tier == "release"):
+        errors.append(f"{shape}: rebuild {d.rebuild}, build {sel['build']}, tier {d.tier}")
     assert not errors, scan.report(errors)
 
 
@@ -1397,13 +1501,70 @@ DECIDE_CASES = {
         "",
         "false",
     ),
+    # A pull request into dev and a push to dev are judged from the cached set; a pull request
+    # into main, the release, builds its own.
+    "a pull request into dev, cached": (
+        {
+            "GITHUB_EVENT_NAME": "pull_request",
+            "GITHUB_REF_TYPE": "branch",
+            "GITHUB_BASE_REF": "dev",
+        },
+        "refs/pull/7/merge",
+        "",
+        "true",
+        "true",
+    ),
+    "a pull request into main, cached": (
+        {
+            "GITHUB_EVENT_NAME": "pull_request",
+            "GITHUB_REF_TYPE": "branch",
+            "GITHUB_BASE_REF": "main",
+        },
+        "refs/pull/8/merge",
+        "",
+        "true",
+        "false",
+    ),
+    "a push to dev, cached": (
+        {"GITHUB_EVENT_NAME": "push", "GITHUB_REF_TYPE": "branch"},
+        "refs/heads/dev",
+        "",
+        "true",
+        "true",
+    ),
+    "a push to main, cached": (
+        {"GITHUB_EVENT_NAME": "push", "GITHUB_REF_TYPE": "branch"},
+        "refs/heads/main",
+        "",
+        "true",
+        "false",
+    ),
+    "the weekly run on dev, cached": (
+        {"GITHUB_EVENT_NAME": "schedule", "GITHUB_REF_TYPE": "branch"},
+        "refs/heads/dev",
+        "",
+        "true",
+        "true",
+    ),
+    "a pull request into dev, a miss": (
+        {
+            "GITHUB_EVENT_NAME": "pull_request",
+            "GITHUB_REF_TYPE": "branch",
+            "GITHUB_BASE_REF": "dev",
+        },
+        "refs/pull/7/merge",
+        "",
+        "false",
+        "false",
+    ),
 }
 
 
 @pytest.mark.parametrize("case", DECIDE_CASES)
 def test_the_reuse_decision_refuses_tags_and_main(case, tmp_path) -> None:
-    """The inputs job's own decision step, run in bash: reuse only on a dispatch from a branch
-    other than main, not from-source, with the key cached; any other value builds from source."""
+    """The inputs job's own decision step, run in bash: reuse only where a cached set is trusted
+    (a pull request into dev, a push to dev, the weekly run on dev, a dispatch from a branch other
+    than main), not from-source, with the key cached; any other value builds from source."""
     script = scan.workflow_step_script(RELEASE_WORKFLOW.read_text(), "inputs", scan.DECIDE_STEP)
     event, ref, from_source, hit, want = DECIDE_CASES[case]
     out = tmp_path / "out"

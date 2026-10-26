@@ -306,7 +306,7 @@ REUSE_MUTANTS = {
         "R3: build's runs-on",
     ),
     "a save before same-bytes": (
-        lambda: _reuse(_r("    needs: [build, same-bytes]\n", "    needs: [build]\n")),
+        lambda: _reuse(_r("    needs: [plan, build, same-bytes]\n", "    needs: [plan, build]\n")),
         "R5: save-set does not need build and same-bytes",
     ),
     "a restore without fail-on-cache-miss": (
@@ -345,6 +345,22 @@ REUSE_MUTANTS = {
     "the gather without same-bytes": (
         lambda: _reuse(_r("build-shard, same-bytes, judge-macos", "build-shard, judge-macos")),
         "R6:",
+    ),
+    "a save on a tag": (
+        lambda: _reuse(_r("!startsWith(github.ref, 'refs/tags/') && ", "")),
+        "R5: save-set's if: is not",
+    ),
+    "the build not waiting on quick": (
+        lambda: _reuse(_r("    needs: [plan, inputs, quick]\n", "    needs: [plan, inputs]\n")),
+        "R3: build does not need the plan, inputs and quick alone",
+    ),
+    "a reused set built on macOS for a pull request": (
+        lambda: _reuse(_r("|| 'ubuntu-24.04-arm' }}", "|| 'macos-15' }}")),
+        "R3: build's runs-on",
+    ),
+    "set-cache keyed on main": (
+        lambda: _reuse(cache=_c("    branches: [dev]\n", "    branches: [main]\n")),
+        "C1:",
     ),
     "a pull_request trigger on set-cache": (
         lambda: _reuse(

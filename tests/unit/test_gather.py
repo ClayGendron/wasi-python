@@ -1012,3 +1012,226 @@ def test_the_gathers_collection_leaves_faulthandler_alone() -> None:
     argv = list(gather.COLLECT_ARGV)
     assert any(argv[i : i + 2] == ["-p", "no:faulthandler"] for i in range(len(argv)))
     assert any(argv[i : i + 2] == ["--tier", "release"] for i in range(len(argv)))
+
+
+# ---------------------------------------------------------------------------------------------
+# A pull request's gather: narrowed to the pairs its plan selected
+
+
+# Linux and Windows' own shards, as a pull request that touched no runner, set or harness path
+# selects them: no macOS leg, no upstream group, no build shard.
+PR_SELECTED = [
+    ("linux", "own-a"),
+    ("linux", "own-rest"),
+    ("windows", "own-a"),
+    ("windows", "own-rest"),
+]
+
+
+class PRCase(Case):
+    """The good set's records for the selected pairs alone, on a pull request into dev."""
+
+    def __init__(self, tmp: Path, selected=PR_SELECTED) -> None:
+        super().__init__(tmp)
+        self.records = {k: _record(*k) for k in selected}
+        self.selected = list(selected)
+        self.event = "pull_request"
+        self.g7 = "pull-request"
+
+    def inputs(self, records_dir: Path | None = None, handed: dict | None = None) -> gather.Inputs:
+        i = super().inputs(records_dir, handed)
+        i.selected, i.event, i.g7 = self.selected, self.event, self.g7
+        return i
+
+
+def test_a_pull_request_gather_with_macos_and_the_upstream_groups_unselected_is_green(
+    tmp_path,
+) -> None:
+    case = PRCase(tmp_path)
+    v = case.run()
+    assert v.red == [], v.red
+    assert v.merged["meta"]["event"] == "pull_request"
+    assert v.merged["meta"]["selected"] == sorted(f"{s}/{n}" for s, n in PR_SELECTED)
+
+
+def test_the_same_records_without_plan_are_red(tmp_path) -> None:
+    case = PRCase(tmp_path)
+    case.selected = None
+    red = case.run().red
+    assert (
+        "G1 a pull request, and the decision job's selected pairs (PLAN) were not handed on" in red
+    )
+    want = "G1 macos/own-a: no SHA-256 handed on (no judge-macos/record-macos-own-a/latest.json)"
+    assert want in red, red
+    assert "G1 build/build: no SHA-256 handed on (no build-shard/latest.json)" in red
+
+
+def test_plan_on_a_run_judged_whole_is_red(tmp_path) -> None:
+    case = PRCase(tmp_path)
+    case.event, case.g7 = "push", "post-merge"
+    assert "G1 PLAN was handed on to a push run, which is judged whole" in case.run().red
+
+
+def test_expected_keys_are_exactly_the_selected_pairs() -> None:
+    assert gather.expected_keys(PLAN, "normal", PR_SELECTED) == PR_SELECTED
+    assert gather.expected_keys(PLAN, "normal", None) == gather.expected_keys(PLAN, "normal")
+
+
+def test_a_selected_pair_the_plan_does_not_run_is_red(tmp_path) -> None:
+    case = PRCase(tmp_path)
+    case.selected = [*PR_SELECTED, ("macos", "up-l")]
+    assert "G1 macos/up-l: selected, and the plan does not run up-l on macos" in case.run().red
+
+
+def test_g7_is_not_evaluated_on_a_pull_request(tmp_path) -> None:
+    case = PRCase(tmp_path)
+    case.newest = {"artifact": "b" * 64, "set_sums": "6" * 64, "dirty": True, "partial_reason": "x"}
+    v = case.run()
+    assert not [r for r in v.red if r.startswith("G7")], v.red
+    assert "G7: not evaluated on a pull request into dev" in v.lines
+
+
+def test_g7_is_not_evaluated_after_a_merge_into_dev(tmp_path) -> None:
+    """The run after a merge makes the acceptance G7 would compare with, so its artifact clause is
+    true by construction; G1 to G6 stay whole."""
+    case = Case(tmp_path)
+    case.newest = {
+        "artifact": "b" * 64,
+        "set_sums": "6" * 64,
+        "dirty": False,
+        "partial_reason": None,
+    }
+    i_g7 = "post-merge"
+    orig = case.inputs
+
+    def inputs(records_dir=None, handed=None):
+        i = orig(records_dir, handed)
+        i.event, i.g7 = "push", i_g7
+        return i
+
+    case.inputs = inputs
+    v = case.run()
+    assert v.red == [], v.red
+    assert "G7: not evaluated after a merge into dev" in v.lines
+    case2 = Case(tmp_path / "whole")
+    case2.newest = dict(case.newest)
+    assert "G7 the newest acceptance is not on the release's python.wasm" in case2.run().red
+
+
+def test_the_release_pull_requests_g7_wants_the_set_and_not_the_release_tier(tmp_path) -> None:
+    case = PRCase(tmp_path)
+    case.g7 = "release-pull-request"
+    case.newest["tier"] = "normal"
+    assert not [r for r in case.run().red if r.startswith("G7")]
+    case = PRCase(tmp_path / "other")
+    case.g7 = "release-pull-request"
+    case.newest["artifact"] = "b" * 64
+    assert "G7 the newest acceptance is not on the release's python.wasm" in case.run().red
+
+
+def test_g6_wants_the_probe_on_the_selected_systems_only(tmp_path) -> None:
+    v = PRCase(tmp_path).run()
+    assert not [r for r in v.red if r.startswith("G6")]
+    case = PRCase(tmp_path / "no-windows-probe")
+    case.records[("windows", "own-a")]["checks"][PROBE].update(status="blocked", need="oracle")
+    red = case.run().red
+    assert "G6 the probe passed on ['linux'], not linux and win32" in red, red
+
+
+def test_a_growth_on_a_pull_request_is_listed_and_not_red(tmp_path) -> None:
+    case = PRCase(tmp_path)
+    case.records[("linux", "own-a")]["checks"][PROBE]["metrics"] = {"fuel": 70}
+    case.accepted["checks"][PROBE]["metrics"]["linux-x86_64"] = {"fuel": 7, "wasmtime": WT}
+    v = case.run()
+    assert v.red == [], v.red
+    assert v.growth == [f"G5 linux/own-a: grew {PROBE}: fuel 7 -> 70"], v.growth
+    assert "GROWTH, each needing its reason at the acceptance:" in v.lines
+    assert f"  G5 linux/own-a: grew {PROBE}: fuel 7 -> 70 · unclaimed" in v.lines
+
+
+def test_the_same_growth_on_a_whole_run_is_red(tmp_path) -> None:
+    case = Case(tmp_path)
+    case.records[("linux", "own-a")]["checks"][PROBE]["metrics"] = {"fuel": 70}
+    case.accepted["checks"][PROBE]["metrics"]["linux-x86_64"] = {"fuel": 7, "wasmtime": WT}
+    v = case.run()
+    assert f"G5 linux/own-a: grew {PROBE}: fuel 7 -> 70" in v.red
+    assert v.growth == []
+
+
+def test_a_lost_pass_on_a_pull_request_is_red_and_named(tmp_path) -> None:
+    case = PRCase(tmp_path)
+    case.records[("linux", "own-a")]["checks"][DESC].update(status="gap", reason="a gap")
+    case.gaps = {DESC}
+    red = case.run().red
+    assert f"G5 linux/own-a: lost {DESC}" in red, red
+
+
+def test_ran_in_no_record_counts_the_selected_shards_only(tmp_path) -> None:
+    """An accepted check of a selected shard that no record ran is red; one of a shard the plan
+    left out is not."""
+    case = PRCase(tmp_path)
+    for k in (("linux", "own-a"), ("windows", "own-a")):
+        case.records[k]["checks"][DESC].update(status="blocked", need="oracle")
+    red = case.run().red
+    assert f"G5 {DESC}: accepted pass, ran in no record" in red, red
+    assert f"G5 {SUITE}: accepted pass, ran in no record" not in red
+
+
+@pytest.mark.parametrize(
+    ("environ", "release"),
+    [
+        ({"GITHUB_EVENT_NAME": "pull_request", "GITHUB_BASE_REF": "main"}, True),
+        ({"GITHUB_EVENT_NAME": "pull_request", "GITHUB_BASE_REF": "dev"}, False),
+        ({"GITHUB_EVENT_NAME": "push", "GITHUB_REF": "refs/heads/dev"}, False),
+        ({"GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_BASE_REF": "main"}, False),
+    ],
+)
+def test_a_release_pull_request_is_a_release_run(environ, release) -> None:
+    assert gather.is_release_run(environ) is release
+
+
+@pytest.mark.parametrize(
+    ("environ", "form"),
+    [
+        ({"GITHUB_EVENT_NAME": "pull_request", "GITHUB_BASE_REF": "dev"}, "pull-request"),
+        ({"GITHUB_EVENT_NAME": "pull_request", "GITHUB_BASE_REF": "main"}, "release-pull-request"),
+        ({"GITHUB_EVENT_NAME": "push", "GITHUB_REF": "refs/heads/dev"}, "post-merge"),
+        (
+            {"GITHUB_EVENT_NAME": "push", "GITHUB_REF_TYPE": "tag", "GITHUB_REF": "refs/tags/v1"},
+            "whole",
+        ),
+        ({"GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_REF": "refs/heads/x"}, "whole"),
+        ({"GITHUB_EVENT_NAME": "schedule", "GITHUB_REF": "refs/heads/dev"}, "whole"),
+    ],
+)
+def test_g7s_form_follows_the_event(environ, form) -> None:
+    assert gather.g7_form(environ) == form
+
+
+def test_plan_is_read_as_the_decision_job_writes_it() -> None:
+    assert gather.read_plan({}) is None
+    assert gather.read_plan({"PLAN": ""}) is None
+    assert gather.read_plan({"PLAN": '["linux/own-a","build/build"]'}) == [
+        ("linux", "own-a"),
+        ("build", "build"),
+    ]
+    with pytest.raises(SystemExit):
+        gather.read_plan({"PLAN": '["linux"]'})
+
+
+def test_each_record_is_found_under_its_jobs_folder_by_its_artifact_name(tmp_path) -> None:
+    """The records are downloaded by the name each leg uploaded under, one folder per artifact
+    under its job's folder; the build shard's, by id, into its job's folder itself."""
+    lin = tmp_path / "judge-linux" / "record-linux-own-a" / "latest.json"
+    lin.parent.mkdir(parents=True)
+    lin.write_text("{}")
+    build = tmp_path / "build-shard" / "latest.json"
+    build.parent.mkdir(parents=True)
+    build.write_text("[]")
+    keys = [("linux", "own-a"), ("build", "build"), ("macos", "own-a")]
+    handed = gather.handed_from(tmp_path, keys)
+    assert handed == {
+        ("linux", "own-a"): paths.sha256_file(lin),
+        ("build", "build"): paths.sha256_file(build),
+        ("macos", "own-a"): "",
+    }

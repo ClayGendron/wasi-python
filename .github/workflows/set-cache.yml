@@ -1,10 +1,12 @@
-# Main's set cache: the one writer to the cache every branch can read.
+# Dev's set cache: the writer to the cache every pull request can read.
 #
-# A release run on a branch may reuse a set the cache holds under its commit's key
-# (release/set_key.py), but a branch reads only its own caches and main's. So on every push to main
-# (the lane's fast-forward), this workflow looks the key up in main's cache, and when it is absent
-# builds the set from the pins on arm64 Linux, checks it, and saves it. Every run that reuses the set
-# still rebuilds it from the pins three times and requires the same bytes.
+# A run of the release workflow on a pull request into dev, or on dev itself, may reuse a set the
+# cache holds under its commit's key (release/set_key.py), but a pull request reads only its own
+# caches and those of dev, its base and the default branch. So on every push to dev (a pull
+# request's merge), this workflow looks the key up in dev's cache, and when it is absent builds
+# the set from the pins on arm64 Linux, checks it, and saves it. A cached set is rebuilt from the
+# pins and compared byte for byte at the weekly run, at the release pull request and at the tag,
+# so a stale set or a planted entry is caught before any release and never published.
 # It holds no secret, signs nothing and publishes nothing. Its env is release.yml's, name for name
 # and value for value, as the key holds it (the rules check). Third-party actions are pinned by
 # commit, their release named beside each. Values reach scripts through env:, never as expressions.
@@ -12,7 +14,7 @@ name: set-cache
 
 on:
   push:
-    branches: [main]
+    branches: [dev]
   workflow_dispatch:
 
 permissions: {}
