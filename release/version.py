@@ -3,6 +3,7 @@
     uv run python release/version.py show
     uv run python release/version.py bump [--to 0.1.0a2]   # and the news files into CHANGELOG.md
     uv run python release/version.py check [--tag v0.1.0a1]
+    uv run python release/version.py date [--day 2026-10-26]
     uv run python release/version.py release [--push]
     uv run python release/version.py notes 0.1.0a1 [--repository owner/name]
     uv run python release/version.py assets <artifact dir> <wheel> <out dir>
@@ -10,7 +11,9 @@
 `__version__` in src/wasi_python/__init__.py is the only place the version is written;
 pyproject.toml reads it through hatchling. A release is the annotated tag `v<version>` on a
 pushed commit of main; pushing it starts .github/workflows/release.yml. Pushing a release tag is
-cutting a release, which only the owner decides.
+cutting a release, which only the owner decides. The version's section is dated (`date`) on dev,
+before the release pull request from dev to main, so the commit that pull request judges is the
+commit main receives and the tag names (`release`), with nothing committed between.
 
 A change's CHANGELOG lines and package rows are written in its news file (`CHANGES`), not into
 CHANGELOG.md by hand. `bump` assembles them into the new version's section (joining an
@@ -40,6 +43,9 @@ PYPROJECT = REPO / "pyproject.toml"
 CHANGELOG = REPO / "CHANGELOG.md"
 CHANGES = REPO / "context" / "changes"
 PACKAGES = REPO / "docs" / "reference" / "packages.md"
+# The release-tier claims ledger and its history by release, which `date` moves the blocks into.
+LEDGER = REPO / "context" / "release-tier-claims.toml"
+LEDGER_HISTORY = REPO / "context" / "release-tier-claims-history.md"
 NEWS_READER = REPO / "tests" / "harness" / "news.py"
 # The packages page's table the news files' rows belong to.
 PACKAGE_HEADER = "| package | version | what works |"
@@ -193,12 +199,18 @@ def add_rows(page: str, rows: list[str]) -> str:
     return "\n".join(lines)
 
 
-def read_news(folder: Path) -> list:
-    """Every news file in `folder`, by the judge's reader; a broken one stops the bump."""
+def _reader():
+    """The judge's reader of news files and of the release-tier ledger, loaded by its path."""
     spec = importlib.util.spec_from_file_location("wasi_python_news", NEWS_READER)
     reader = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = reader  # dataclasses look their module up here
     spec.loader.exec_module(reader)
+    return reader
+
+
+def read_news(folder: Path) -> list:
+    """Every news file in `folder`, by the judge's reader; a broken one stops the bump."""
+    reader = _reader()
     try:
         return reader.folder(folder)
     except reader.NewsError as e:
@@ -316,6 +328,8 @@ def main(argv: list[str] | None = None) -> int:
     bump.add_argument("--to")
     check = sub.add_parser("check")
     check.add_argument("--tag")
+    date = sub.add_parser("date")
+    date.add_argument("--day", help="YYYY-MM-DD; today in UTC by default")
     release = sub.add_parser("release")
     release.add_argument("--push", action="store_true")
     notes_cmd = sub.add_parser("notes")
@@ -368,7 +382,46 @@ def _check(a: argparse.Namespace) -> int:
     return 1 if errors else 0
 
 
+def _date(a: argparse.Namespace) -> int:
+    """Date the version's section: a change for the pull request into dev that comes before the
+    release pull request. A news file merged after bump is joined to the section first and
+    removed, so its line reaches the notes; the release-tier ledger's blocks move under the
+    version in the ledger's history, which the release pull request's acceptance reads. Every
+    edit is made before any is written. It commits nothing."""
+    version = Version.parse(read_version(INIT.read_text()))
+    day = a.day or datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d")
+    news = read_news(CHANGES)
+    changelog = CHANGELOG.read_text()
+    if news:
+        changelog = add_section(changelog, version, news)
+    changelog = date_section(changelog, version, day)
+    rows = [row for n in sorted(news, key=lambda n: n.name) for row in n.rows]
+    page = add_rows(PACKAGES.read_text(), rows) if rows else None
+    moved = None
+    if LEDGER.is_file() and LEDGER_HISTORY.is_file():
+        reader = _reader()
+        try:
+            moved = reader.move_ledger(
+                LEDGER.read_text(), LEDGER_HISTORY.read_text(), str(version), day
+            )
+        except reader.NewsError as e:
+            raise ReleaseError(f"the release-tier ledger: {e}") from None
+    CHANGELOG.write_text(changelog)
+    if page is not None:
+        PACKAGES.write_text(page)
+    for n in news:
+        (CHANGES / f"{n.name}.md").unlink()
+    if moved is not None:
+        LEDGER.write_text(moved[0])
+        LEDGER_HISTORY.write_text(moved[1])
+    told = f"; {len(news)} news file(s) joined and removed" if news else ""
+    print(f"dated {version} {day}{told}: commit through a pull request into dev")
+    return 0
+
+
 def _release(a: argparse.Namespace) -> int:
+    """Tag main's tip, the commit the release pull request judged plus its acceptance, which the
+    owner has pushed to main; nothing is committed, so the tag names exactly that commit."""
     version = Version.parse(read_version(INIT.read_text()))
     tag = f"v{version}"
     changed = git("status", "--porcelain", "--untracked-files=no", strip=False).rstrip("\n")
@@ -382,20 +435,15 @@ def _release(a: argparse.Namespace) -> int:
         raise ReleaseError("main is not level with origin/main: push or pull first")
     if git("tag", "--list", tag):
         raise ReleaseError(f"the tag {tag} exists already")
-    day = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d")
-    before = CHANGELOG.read_text()
-    CHANGELOG.write_text(date_section(before, version, day))
     errors = check_errors(INIT.read_text(), PYPROJECT.read_text(), CHANGELOG.read_text(), tag)
-    if errors:
-        CHANGELOG.write_text(before)  # undo this command's own edit
+    if errors:  # an undated section is dated on dev, before the release pull request
         raise ReleaseError("; ".join(errors))
-    git("commit", "-q", "-m", f"Release {version}", "--", str(CHANGELOG))
     message = f"wasi-python {version}\n\n{notes(CHANGELOG.read_text(), str(version))}"
     git("tag", "-a", tag, "-m", message)
-    push = f"git push origin main {tag}"
+    push = f"git push origin {tag}"
     if a.push:
-        subprocess.run(["git", "-C", str(REPO), "push", "origin", "main", tag], check=True)
-        print(f"pushed main and {tag}: the release workflow is running")
+        git("push", "origin", tag)
+        print(f"pushed {tag}: the release workflow is running")
     else:
         print(f"tagged {tag}. To cut the release: {push}")
     return 0
@@ -431,6 +479,7 @@ COMMANDS = {
     "show": _show,
     "bump": _bump,
     "check": _check,
+    "date": _date,
     "release": _release,
     "notes": _notes,
     "assets": _assets,

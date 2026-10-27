@@ -562,3 +562,30 @@ def test_a_news_folder_outside_the_repository_is_refused(repo, tmp_path) -> None
     ).stdout.strip()
     with pytest.raises(accept_from.Refused, match="not a folder of this repository"):
         accept_from.news_since(repo, since, tmp_path / "elsewhere")
+
+
+def test_the_release_pull_requests_acceptance_names_the_release() -> None:
+    """dev's tip, the release pull request's head, is itself an acceptance, whose subject would
+    read twice; the release's acceptance names the version and both tiers instead."""
+    release = {"meta": {"event": "pull_request", "base_ref": "main"}}
+    merge = {"meta": {"event": "push", "ref": "refs/heads/dev"}}
+    assert accept_from.subject_of(merge, "A change (#12)", "0.1.1") == "A change (#12)"
+    assert (
+        accept_from.subject_of(release, "Accepted: A change (#12)", "0.1.1")
+        == "the release pull request of 0.1.1 into main, both tiers"
+    )
+
+
+def test_the_release_records_claims_are_the_ledgers_too(tmp_path: Path) -> None:
+    """The news files that claimed a release-tier row were assembled and removed by bump before
+    the release pull request, so its acceptance also reads the release-tier ledger: the blocks
+    still in it and the ones the date moved under this version."""
+    (tmp_path / "src" / "wasi_python").mkdir(parents=True)
+    (tmp_path / "src" / "wasi_python" / "__init__.py").write_text('__version__ = "0.1.1"\n')
+    (tmp_path / "context").mkdir()
+    (tmp_path / news.LEDGER).write_text('[[claim]]\nspec = "140"\ngrows = ["x"]\ngrowth = "y"\n')
+    (tmp_path / news.LEDGER_HISTORY).write_text("# history\n")
+    release = {"meta": {"event": "pull_request", "base_ref": "main"}}
+    merge = {"meta": {"event": "push", "ref": "refs/heads/dev"}}
+    assert [c.spec for c in accept_from.release_claims(release, tmp_path)] == ["140"]
+    assert accept_from.release_claims(merge, tmp_path) == []

@@ -721,6 +721,35 @@ def test_the_accept_jobs_accept_a_green_merge_and_only_the_push_holds_the_key() 
     assert not errors, scan.report(errors)
 
 
+ACCEPT_RELEASE_WORKFLOW = paths.REPO / ".github" / "workflows" / "accept-release.yml"
+
+
+def test_the_release_acceptance_is_pushed_from_devs_own_context() -> None:
+    """The release pull request's run accepts its record in accept-record and pushes nothing;
+    accept-release.yml, run by its completion on dev's own context, alone beside accept-push in
+    the accept environment, runs no code of the repository and pushes that acceptance onto dev
+    only while dev's tip is the head the run judged, and is red when it cannot."""
+    errors = scan.accept_release_errors(ACCEPT_RELEASE_WORKFLOW.read_text())
+    ci_plan = _ci_plan_module()
+    event = ci_plan.Event("pull_request", "refs/pull/9/merge", "main")
+    d = ci_plan.decide(["src/x.py"], event)
+    outputs = ci_plan.outputs(d, ci_plan.select(d, ci_plan.load_shards()), [])
+    context = {"event_name": "pull_request", "ref": "refs/pull/9/merge", "base_ref": "main"}
+    ran = scan.jobs_that_run(RELEASE_WORKFLOW.read_text(), outputs, context)
+    if "accept-record" not in ran:
+        errors.append("the release pull request's run does not accept its record")
+    errors += [f"the release pull request's run runs {j}" for j in ("accept-push",) if j in ran]
+    assert not errors, scan.report(errors)
+
+
+def test_the_release_pull_request_checks_what_its_tag_will() -> None:
+    """On a pull request into main the build job's version step holds now what the tag's run and
+    the owner's push will: the version's section dated, its tag not yet made, and main's tip in
+    the head's history, so the push to main is a fast-forward."""
+    errors = scan.release_version_errors(RELEASE_WORKFLOW.read_text())
+    assert not errors, scan.report(errors)
+
+
 def test_the_weekly_run_opens_an_issue_when_red_and_never_accepts() -> None:
     """The weekly schedule and the dispatch input that selects its shape; one job with issues:
     write that opens or updates an issue when a job of the run failed or was cancelled; the
@@ -730,10 +759,23 @@ def test_the_weekly_run_opens_an_issue_when_red_and_never_accepts() -> None:
 
 
 ACCEPT_PUSH_STEP = "Commit the acceptance alone, and push it while dev is the commit judged"
+ACCEPT_RELEASE_STEP = (
+    "Commit the release's acceptance alone, and push it while dev is the head judged"
+)
 ACCEPT_PUSH_CASES = {
     "dev is the commit judged": ("judged", (), 0, "pushed"),
     "dev moved on": ("moved", (), 0, "nothing is pushed"),
     "a third file changed": ("judged", ("src/x.py",), 1, "accepted.json and one history volume"),
+    # The release's acceptance: no later merge carries a release-tier acceptance, so a dev that
+    # moved on is red there.
+    "the release: dev is the head judged": ("judged", (), 0, "pushed"),
+    "the release: dev moved on": ("moved", (), 1, "nothing is pushed"),
+    "the release: a third file changed": (
+        "judged",
+        ("src/x.py",),
+        1,
+        "accepted.json and one history volume",
+    ),
 }
 
 
@@ -787,21 +829,28 @@ def test_the_accept_push_step_pushes_only_the_acceptance_onto_the_judged_tip(
     (acceptance / "build" / "progress" / "acceptance-message.txt").write_text(message)
     for rel in extra:
         (clone / rel).write_text("changed\n")
-    script = scan.workflow_step_script(
-        RELEASE_WORKFLOW.read_text(), "accept-push", ACCEPT_PUSH_STEP
-    )
+    if case.startswith("the release"):
+        script = scan.workflow_step_script(
+            ACCEPT_RELEASE_WORKFLOW.read_text(), "accept-release", ACCEPT_RELEASE_STEP
+        )
+    else:
+        script = scan.workflow_step_script(
+            RELEASE_WORKFLOW.read_text(), "accept-push", ACCEPT_PUSH_STEP
+        )
     (tmp_path / "push.sh").write_text(script)
     r = subprocess.run(
         ["bash", "-e", str(tmp_path / "push.sh")],
         cwd=clone,
-        env={**os.environ, "GITHUB_SHA": judged, "ACCEPTANCE": str(acceptance)},
+        env={**os.environ, "GITHUB_SHA": judged, "JUDGED": judged, "ACCEPTANCE": str(acceptance)},
         capture_output=True,
         text=True,
     )
     assert r.returncode == want, r.stdout + r.stderr
     assert words in r.stdout + r.stderr
     after = _git_in(work, "ls-remote", "origin", "refs/heads/dev").split()[0]
-    if case != "dev is the commit judged":
+    if not case.endswith("dev is the commit judged") and not case.endswith(
+        "dev is the head judged"
+    ):
         assert after == before
         return
     assert _git_in(clone, "rev-parse", f"{after}^") == judged

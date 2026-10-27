@@ -8,27 +8,28 @@ The version lives in one place: `__version__` in `src/wasi_python/__init__.py`. 
 
 ```sh
 uv run python release/version.py bump            # the next version; the news files into CHANGELOG.md
-uv run python release/version.py release --push  # date the section, tag v<version>, push: the release runs
+uv run python release/version.py date            # date that section, before the release pull request
+uv run python release/version.py release --push  # on main's tip: tag v<version>, push the tag
 ```
 
-A release is the annotated tag `v<version>` on a pushed commit of `main`. Pushing the tag starts the release workflow, `.github/workflows/release.yml`.
+`bump` and `date` change files on `dev`, together, in one pull request before the release pull request. `release` commits nothing: it tags the commit `main` already holds. A release is the annotated tag `v<version>` on a pushed commit of `main`. Pushing the tag starts the release workflow, `.github/workflows/release.yml`.
 
-`bump` also assembles the changelog. Each change's lines wait in its news file until the release. `bump` puts each line under its heading in the new version's section, puts each package row into the packages page, and removes the news files.
+`bump` also assembles the changelog. Each change's lines wait in its news file until the release. `bump` puts each line under its heading in the new version's section, puts each package row into the packages page, and removes the news files. `date` does the same for any news file merged after `bump`, so a late fix still reaches the release notes.
+
+A change that moves a test of the release tier also adds its reason to the project's list of release-tier claims, since the run after its merge judges the normal tier alone. `date` moves that list's entries under the version, and the release pull request reads them as the reasons for what changed in the release tier.
 
 ## The release pull request
 
-Changes collect on `dev`. A release is a pull request from `dev` to `main`, titled with the version.
+Changes collect on `dev`. A release is a pull request from `dev` to `main`, titled with the version. Its branch is `dev` itself: a fix for the release is a pull request into `dev` like any other, and the release pull request runs again on the new tip.
 
-1. The two release reviews come first: a fresh reviewer checks the release against the threat model, and another scores the runner's structure. They merge into `dev` before the release pull request opens, so its head carries them.
-2. The release pull request's check is the whole workflow on the exact commit `main` will receive: the build, both rebuilds, every shard on three systems, both tiers, the fresh install, and the gather with every goal.
-3. When it is green, its result is recorded onto `dev` as one commit.
-4. The maintainer moves `main` to that commit, a fast-forward, and pushes the tag.
+1. **The preparation lands first.** A fresh reviewer checks the release against the threat model, and another scores the runner's structure. Their two review files, the new version (`version.py bump`) and the dated CHANGELOG section (`version.py date`) merge into `dev` by one pull request, so the release pull request's head carries them. That pull request changes only the version line outside the documentation, and its change to the list of release-tier claims must be exactly what `date` moves, so its check runs `quick` alone and asks for no news file: the release pull request judges all of it.
+2. **The release pull request runs the whole workflow** on the exact commit `main` will receive. It builds its own set on arm64 macOS and never reuses a cached one. It rebuilds the set on arm64 Linux and on x86_64 Linux and requires the same bytes. It runs every normal-tier shard on three systems, the release tier, the build shard, the fresh install on three systems and `quick`. The gather judges every goal: the newest result recorded on `dev` must be on this run's set, made on a clean tree, and whole. The build job also checks that the version's CHANGELOG section is dated, that its tag does not exist yet, and that `main`'s tip is in the head's history. The gather lists each release-tier result that changed since the last release with its reason, and the result is not recorded while one has none. A test that passed before and fails now is red.
+3. **When it is green, its result is recorded onto `dev`** as one commit. The release pull request's run accepts its own result. A second workflow, started when that run finishes and running on `dev`, pushes that commit onto `dev`, and only while `dev`'s tip is still the commit the run judged. If `dev` moved on, nothing is pushed, that workflow is red, and the release pull request runs again on the new tip. The release pull request's next run, on that commit, reuses the green run, since only the result changed.
+4. **The maintainer moves `main` and tags.** `main` moves to that commit by a fast-forward push, `git push origin <commit>:main`; GitHub then marks the pull request merged. On `main`'s tip, `uv run python release/version.py release --push` tags it and pushes the tag. The tag's run builds, judges both tiers again, signs and publishes.
 
-While a release pull request runs, nothing else merges into `dev`. If something does, the release pull request runs again on the new tip.
+The commit tagged is the commit the release pull request judged plus one commit that records its result. The release pull request's run is the dry run for that commit.
 
-The release pull request is being set up. Until it is in place, a manual dry run on `main`'s exact commit (below) is the check before a tag, and the release tier runs there, on the tag and in the weekly run.
-
-Once a week, a run on `dev` judges the release tier, rebuilds the set from the pins on two hosts and compares each rebuild with the set the pull requests are tested on, byte for byte. When any part of it is red, it opens an issue, or adds to the one already open. It never records a result.
+While a release pull request runs, nothing else merges into `dev`. If something does, the release pull request runs again on the new tip, and its result is not recorded until that run is green.
 
 ## What the release workflow does
 
@@ -68,11 +69,11 @@ Users check a signed asset as [Verify a download](../how-to/verify-a-download.md
 
 ## Dry runs
 
-A *dry run* builds, rebuilds and tests exactly as a release does, but it never signs and never publishes. A signature is permanent in Sigstore's public log, so only a real release signs. A release tag goes only on a commit whose dry run passed on all three systems. The release pull request's run is that dry run, on the exact commit tagged.
+A *dry run* builds, rebuilds and tests exactly as a release does, but it never signs and never publishes. A signature is permanent in Sigstore's public log, so only a real release signs. A release tag goes only on a commit whose dry run passed on all three systems. The release pull request's run is that dry run, on the commit tagged but for the one commit that records its result.
 
 ## The weekly run
 
-Once a week a run on `dev` builds the set twice from the pins, checks that both builds give the same bytes as the set `dev`'s pull requests were tested with, and runs the release tier. It never records a result. When it is red, it opens an issue.
+Once a week, a run on `dev` judges the release tier, rebuilds the set from the pins on two hosts and compares each rebuild with the set the pull requests are tested on, byte for byte. When any part of it is red, it opens an issue, or adds to the one already open. It never records a result.
 
 ## After publishing
 

@@ -6,6 +6,7 @@ import importlib.util
 import re
 import sys
 import tarfile
+import types
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,33 @@ version = importlib.util.module_from_spec(_spec)
 sys.modules["release_version"] = version  # dataclasses look their module up here
 _spec.loader.exec_module(version)
 V = version.Version.parse
+
+
+@pytest.fixture(autouse=True)
+def _no_real_git_and_no_real_files(tmp_path_factory, monkeypatch) -> None:
+    """No row reaches real git or the repository's own news files and ledger: git and every
+    subprocess fail unless a row fakes them, and the folders and files the release's commands
+    write are empty ones of the row's own, unless it names others."""
+
+    def refused(*args, **kwargs):
+        pytest.fail(f"a release command ran {args} outside a fake")
+
+    monkeypatch.setattr(version, "git", refused)
+    monkeypatch.setattr(version, "subprocess", types.SimpleNamespace(run=refused))
+    own = tmp_path_factory.mktemp("release-files")
+    (own / "changes").mkdir()
+    for name, path in (("CHANGES", own / "changes"), ("PACKAGES", own / "packages.md"),
+                       ("LEDGER", own / "ledger.toml"),
+                       ("LEDGER_HISTORY", own / "ledger-history.md")):  # fmt: skip
+        monkeypatch.setattr(version, name, path)
+
+
+def test_no_row_reaches_real_git() -> None:
+    with pytest.raises(pytest.fail.Exception, match="outside a fake"):
+        version.git("status")
+    with pytest.raises(pytest.fail.Exception, match="outside a fake"):
+        version.subprocess.run(["git", "push"])
+
 
 PYPROJECT = (
     '[project]\nname = "wasi-python"\ndynamic = ["version"]\n\n'
@@ -334,3 +362,79 @@ def test_a_changed_flag_in_the_attest_job_breaks_the_equality() -> None:
     planted = text.replace(flag, "--cert-oidc-issuer x")
     note = _note_command(version.verify_note("0.2.0", "ClayGendron/wasi-python"))
     assert _attest_command(planted, "0.2.0", "ClayGendron/wasi-python") != note
+
+
+def test_date_dates_the_versions_section_and_commits_nothing(tmp_path: Path, monkeypatch) -> None:
+    init, log = tmp_path / "__init__.py", tmp_path / "CHANGELOG.md"
+    init.write_text(INIT)
+    log.write_text(LOG)
+    monkeypatch.setattr(version, "INIT", init)
+    monkeypatch.setattr(version, "CHANGELOG", log)
+    assert version.main(["date", "--day", "2026-10-26"]) == 0
+    assert version.sections(log.read_text())["0.1.0a1"] == "2026-10-26"
+    assert version.main(["date", "--day", "2026-10-27"]) == 1  # dated once
+
+
+def _main_tip(tmp_path: Path, monkeypatch, changelog: str) -> list[tuple[str, ...]]:
+    """A checkout of main level with origin/main, and every git call release makes."""
+    init, log = tmp_path / "__init__.py", tmp_path / "CHANGELOG.md"
+    init.write_text(INIT)
+    log.write_text(changelog)
+    monkeypatch.setattr(version, "INIT", init)
+    monkeypatch.setattr(version, "CHANGELOG", log)
+    calls: list[tuple[str, ...]] = []
+    answers = {"status": "", "rev-parse": "main", "tag": ""}
+
+    def git(*args: str, strip: bool = True) -> str:
+        calls.append(args)
+        if args[:2] == ("rev-parse", "--abbrev-ref"):
+            return "main"
+        return "c" * 40 if args[0] == "rev-parse" else answers.get(args[0], "")
+
+    monkeypatch.setattr(version, "git", git)
+    return calls
+
+
+def test_release_tags_mains_tip_and_commits_nothing(tmp_path: Path, monkeypatch) -> None:
+    """The release pull request judged main's tip with the section dated: the tag goes on that
+    commit, and nothing is committed after it."""
+    calls = _main_tip(tmp_path, monkeypatch, LOG.replace("unreleased", "2026-10-26"))
+    assert version.main(["release", "--push"]) == 0
+    assert not [c for c in calls if c[0] == "commit"]
+    assert ("tag", "-a", "v0.1.0a1", "-m", "wasi-python 0.1.0a1\n\n- first\n") in calls
+    assert calls[-1] == ("push", "origin", "v0.1.0a1")
+
+
+def test_release_refuses_a_section_still_unreleased(tmp_path: Path, monkeypatch) -> None:
+    calls = _main_tip(tmp_path, monkeypatch, LOG)
+    assert version.main(["release", "--push"]) == 1
+    assert not [c for c in calls if c[0] in ("commit", "push") or c[:2] == ("tag", "-a")]
+
+
+def test_date_moves_the_release_tier_ledger_under_the_version(tmp_path: Path, monkeypatch) -> None:
+    init, log = tmp_path / "__init__.py", tmp_path / "CHANGELOG.md"
+    ledger, history = tmp_path / "ledger.toml", tmp_path / "history.md"
+    init.write_text(INIT)
+    log.write_text(LOG)
+    ledger.write_text('# header\n\n[[claim]]\nspec = "140"\ngrows = ["x"]\ngrowth = "y"\n')
+    history.write_text("# history\n\nIntro.\n")
+    for name, path in (("INIT", init), ("CHANGELOG", log), ("LEDGER", ledger),
+                       ("LEDGER_HISTORY", history)):  # fmt: skip
+        monkeypatch.setattr(version, name, path)
+    assert version.main(["date", "--day", "2026-10-26"]) == 0
+    assert ledger.read_text() == "# header\n"
+    assert "## 0.1.0a1" in history.read_text() and 'spec = "140"' in history.read_text()
+
+
+def test_date_assembles_a_news_file_merged_after_bump(tmp_path: Path, monkeypatch) -> None:
+    """A fix merged into dev between bump and the release pull request keeps its news file: the
+    date joins its lines to the version's section and removes it, so it reaches the notes."""
+    init, log, changes, _ = _bump_files(tmp_path, monkeypatch)
+    init.write_text(INIT)
+    log.write_text(LOG)
+    (changes / "203-late.md").write_text(NEWS.format(n="203", heading="Fixed", rows="None."))
+    assert version.main(["date", "--day", "2026-10-26"]) == 0
+    assert version.sections(log.read_text())["0.1.0a1"] == "2026-10-26"
+    assert "- **Change 203**: it moved." in version.notes(log.read_text(), "0.1.0a1")
+    assert "- first" in version.notes(log.read_text(), "0.1.0a1")
+    assert not (changes / "203-late.md").exists()

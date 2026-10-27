@@ -837,7 +837,10 @@ def test_a_tag_or_main_with_the_normal_tier_is_red_at_g1(tmp_path) -> None:
     case = TierCase(tmp_path, "normal")
     case.release_run = True
     red = case.run().red
-    assert "G1 a tag (or a dispatch on main), and the release tier did not run" in red
+    assert (
+        "G1 a release run (a tag, a run on main or a pull request into main), and the release"
+        " tier did not run" in red
+    )
 
 
 def test_a_tag_or_main_needs_a_release_acceptance(tmp_path) -> None:
@@ -1118,15 +1121,128 @@ def test_g7_is_not_evaluated_after_a_merge_into_dev(tmp_path) -> None:
     assert "G7 the newest acceptance is not on the release's python.wasm" in case2.run().red
 
 
-def test_the_release_pull_requests_g7_wants_the_set_and_not_the_release_tier(tmp_path) -> None:
-    case = PRCase(tmp_path)
-    case.g7 = "release-pull-request"
-    case.newest["tier"] = "normal"
-    assert not [r for r in case.run().red if r.startswith("G7")]
-    case = PRCase(tmp_path / "other")
-    case.g7 = "release-pull-request"
-    case.newest["artifact"] = "b" * 64
-    assert "G7 the newest acceptance is not on the release's python.wasm" in case.run().red
+class ReleasePRCase(TierCase):
+    """The release pull request from dev into main: every record of both tiers, no PLAN, the
+    newest acceptance the one dev's last merge made, on the normal tier."""
+
+    def __init__(self, tmp: Path) -> None:
+        super().__init__(tmp, "release")
+        self.release_run = True
+        self.newest["tier"] = "normal"
+        self.selected = None
+        self.claims: list[news.Claim] = []
+
+    def inputs(self, records_dir: Path | None = None, handed: dict | None = None) -> gather.Inputs:
+        i = super().inputs(records_dir, handed)
+        i.event, i.base_ref, i.g7 = "pull_request", "main", "release-pull-request"
+        i.selected, i.claims = self.selected, self.claims
+        return i
+
+
+def test_a_release_pull_request_is_judged_whole_with_every_goal(tmp_path) -> None:
+    case = ReleasePRCase(tmp_path)
+    v = case.run()
+    assert v.red == [], v.red
+    assert not [line for line in v.lines if line.startswith("G7: not evaluated")]
+    meta = v.merged["meta"]
+    assert (meta["event"], meta["base_ref"], meta["selected"]) == ("pull_request", "main", None)
+    assert meta["tier"] == "release"
+    assert set(meta["records"]) == {f"{s}/{n}" for s, n in gather.expected_keys(R_PLAN, "release")}
+
+
+def test_plan_on_a_release_pull_request_is_red(tmp_path) -> None:
+    case = ReleasePRCase(tmp_path)
+    case.selected = list(case.records)
+    assert "G1 PLAN was handed on to a release pull request, which is judged whole" in (
+        case.run().red
+    )
+
+
+def test_a_release_pull_request_without_the_release_tier_is_red_at_g1(tmp_path) -> None:
+    case = ReleasePRCase(tmp_path)
+    case.tier = "normal"
+    case.records = {k: r for k, r in case.records.items() if k[0] != "release"}
+    for r in case.records.values():
+        r["checks"][R_SUITE]["status"] = "deselected"
+    red = case.run().red
+    assert (
+        "G1 a release run (a tag, a run on main or a pull request into main), and the release"
+        " tier did not run" in red
+    ), red
+
+
+@pytest.mark.parametrize(
+    ("edit", "error"),
+    [
+        ({"artifact": "b" * 64}, "G7 the newest acceptance is not on the release's python.wasm"),
+        (
+            {"set_sums": "6" * 64},
+            "G7 the newest acceptance is not on the release's set (SHA256SUMS)",
+        ),
+        ({"dirty": True}, "G7 the newest acceptance was not made on a clean tree"),
+        ({"partial_reason": "x"}, "G7 the newest acceptance is partial"),
+    ],
+)
+def test_the_release_pull_requests_g7_holds_the_newest_acceptance_to_its_set(
+    tmp_path, edit, error
+) -> None:
+    case = ReleasePRCase(tmp_path)
+    case.newest.update(edit)
+    assert error in case.run().red
+
+
+def test_a_release_pull_request_builds_its_own_set(tmp_path) -> None:
+    case = ReleasePRCase(tmp_path)
+    case.set_source = "reused wasi-python-set-0123"
+    assert "G7 a release pull request, and the set was not built in this run" in case.run().red
+
+
+def test_a_growth_on_a_release_pull_request_is_listed_with_the_ledgers_reason(tmp_path) -> None:
+    """The release pull request is the one run that judges the release tier between releases:
+    a row that moved since the last release is listed with the reason the news files or the
+    release-tier ledger give, which the acceptance consumes; one no claim gives a reason for is
+    red, as after a merge, since the acceptance would have nothing to consume."""
+    case = ReleasePRCase(tmp_path)
+    case.records[("release", "up-r")]["checks"][R_SUITE]["metrics"] = {"passes": 5, "fuel": 900}
+    case.accepted["checks"][R_SUITE]["metrics"]["linux-x86_64"] = {"fuel": 100, "wasmtime": WT}
+    case.claims = [news.Claim(spec="140", grows=[R_SUITE], growth="a pin moved")]
+    v = case.run()
+    assert v.red == [], v.red
+    row = f"G5 release/up-r: grew {R_SUITE}: fuel 100 -> 900"
+    assert v.growth == [row]
+    assert f"  {row} · 140: a pin moved" in v.lines
+    case.claims = []
+    v = case.run()
+    assert row in v.red and v.growth == []
+
+
+def test_a_lost_pass_on_a_release_pull_request_is_red(tmp_path) -> None:
+    case = ReleasePRCase(tmp_path)
+    case.records[("release", "up-r")]["checks"][R_SUITE].update(status="fail", reason="broke")
+    red = case.run().red
+    assert f"G5 release/up-r: lost {R_SUITE}" in red, red
+
+
+def test_the_acceptance_of_a_release_pull_request_is_what_the_tags_g7_wants(tmp_path) -> None:
+    """The line the accept job writes from the release pull request's green record (its
+    python.wasm, its set, clean, whole, the release tier) is the newest acceptance the tag's run
+    on that acceptance commit holds itself to."""
+    meta = ReleasePRCase(tmp_path / "pr").run().merged["meta"]
+    tag = TierCase(tmp_path / "tag", "release")
+    tag.release_run = tag.tag = True
+    tag.newest = {
+        "artifact": meta["artifact"],
+        "set_sums": meta["set_sums"],
+        "dirty": False,
+        "partial_reason": None,
+        "tier": meta["tier"],
+    }
+    assert tag.run().red == []
+    tag.newest["tier"] = "normal"
+    assert (
+        "G7 a tag (or a dispatch on main), and the newest acceptance did not run the release tier"
+        in tag.run().red
+    )
 
 
 def test_g6_wants_the_probe_on_the_selected_systems_only(tmp_path) -> None:

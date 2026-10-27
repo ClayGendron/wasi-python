@@ -116,6 +116,81 @@ def docs_only(changed: list[str]) -> bool:
     return all("docs" in classify(p) for p in changed)
 
 
+# The release's preparation: bump's version line and date's moves, with the release's reviews.
+VERSION_FILE = "src/wasi_python/__init__.py"
+LEDGER_FILES = ("context/release-tier-claims.toml", "context/release-tier-claims-history.md")
+
+
+def is_release_preparation(changes: list[tuple[str, str]], version_line_only: bool) -> bool:
+    """Whether a pull request into dev is the release's preparation, bump and date together:
+    `changes` its (status, path) pairs. Its one change outside documentation is the version line
+    of the package (`version_line_only`: nothing else in that file moves); bump removes every news
+    file, so it carries none of its own, and date moves the release-tier ledger. It is judged as
+    the release's documentation change, since the release pull request judges it whole."""
+    paths_ = {p for _, p in changes}
+    if VERSION_FILE not in paths_ or not version_line_only:
+        return False
+    for status, path in changes:
+        if path == VERSION_FILE or path in LEDGER_FILES:
+            continue
+        if NEWS.fullmatch(path) and status == "D":
+            continue
+        if "docs" not in classify(path):
+            return False
+    return True
+
+
+def _news():
+    """The judge's reader of news files and of the release-tier ledger, loaded by its path."""
+    spec = importlib.util.spec_from_file_location(
+        "ci_plan_news", REPO / "tests" / "harness" / "news.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod  # dataclasses look their module up here
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def ledger_move_refusal(base: tuple[str, str], head: tuple[str, str], version: str) -> str | None:
+    """Why a preparation's change to the release-tier ledger is not `date`'s move, or None when
+    it is (or the ledger did not change). `base` and `head` are (the ledger, its history) at the
+    merge base and at the head. The ledger is a source of reasons the release pull request's
+    acceptance consumes, and a preparation asks no review file, so its change must be mechanical:
+    the head's ledger is the base's header comments alone, and the head's history is the base's
+    with the base's blocks moved under `## <version>`, on the day that section names."""
+    if head == base:
+        return None
+    lines = base[0].splitlines(keepends=True)
+    at = next((k for k, line in enumerate(lines) if not line.startswith("#")), len(lines))
+    if head[0] != "".join(lines[:at]):
+        return "the ledger is left with more than its header comments, which date's move leaves"
+    said = r"Moved by `release/version.py date` on (\d{4}-\d{2}-\d{2})"
+    m = re.search(rf"^## {re.escape(version)}\n\n" + said, head[1], re.M)
+    if m is None:
+        return f"the ledger's history has no section for {version} that date's move writes"
+    news = _news()
+    try:
+        want = news.move_ledger(base[0], base[1], version, m[1])
+    except news.NewsError as e:
+        return f"date's move of the base's ledger fails: {e}"
+    if head != want:
+        return (
+            f"the ledger's history is not date's move of the base's blocks under ## {version}: "
+            "a block was added, dropped or edited"
+        )
+    return None
+
+
+def version_line_only(diff: str) -> bool:
+    """Whether a unified diff of the version file moves its `__version__` line and nothing else."""
+    moved = [
+        line
+        for line in diff.splitlines()
+        if line[:1] in "+-" and not line.startswith(("+++", "---"))
+    ]
+    return bool(moved) and all(re.fullmatch(r'[+-]__version__ = "[^"]+"', m) for m in moved)
+
+
 def is_acceptance(changed: list[str]) -> bool:
     """An acceptance's change: the accepted state alone (accepted.json, history volumes), and
     something of it. Its commit carries no skip word, since GitHub would also skip a release pull
@@ -140,6 +215,11 @@ class Event:
     @property
     def tag(self) -> bool:
         return self.name == "push" and self.ref.startswith("refs/tags/")
+
+    @property
+    def release_pull_request(self) -> bool:
+        """A pull request from dev (or a branch cut from it) into main: the release."""
+        return self.pull_request and self.base_ref == "main"
 
 
 @dataclass(frozen=True)
@@ -173,10 +253,15 @@ class Decision:
     full: bool = False  # the merge-grade set: every normal-tier shard on its systems, build too
     rebuild: bool = False  # the release shape: the macOS build, both rebuilds and same-bytes
     tier: str = "normal"
-    accept: bool = False  # a merge into dev: the accept jobs follow a green gather
+    # A merge into dev, or the release pull request: accept-record follows a green gather. The
+    # push onto dev is accept-push's after a merge, and after the release pull request the
+    # accept-release workflow's, which runs on dev's own context.
+    accept: bool = False
     acceptance: bool = False  # the push of an acceptance: only the plan runs
     weekly: bool = False  # the weekly run: an issue when it is red
     quiet: bool = False  # the acceptance push: every output false
+    release_preparation: bool = False  # bump and date in one pull request into dev
+    preparation_refusal: str = ""  # a preparation whose ledger is not date's move, and why
     why: list[str] = field(default_factory=list)
 
     @property
@@ -190,11 +275,15 @@ def decide(
     event: Event,
     key_moved: bool = False,
     reused: tuple[int, str] | None = None,
+    release_preparation: bool = False,
+    preparation_refusal: str = "",
 ) -> Decision:
     """The outputs for one run. `changed` is None when the run has no change to read (a tag, a
     dispatch, a schedule, a push whose earlier tip is unknown): such a run is whole. `reused`: a
     pull request's green run whose head this one adds documentation alone to (its id and why),
-    which this run re-uses: every output false, the refusals still read."""
+    which this run re-uses: every output false, the refusals still read. `release_preparation`:
+    a pull request into dev that is bump and date together (`is_release_preparation`), judged as
+    documentation."""
     d = Decision()
     if event.name == "push" and not event.tag and changed is not None and is_acceptance(changed):
         d.quiet = d.acceptance = True
@@ -209,15 +298,19 @@ def decide(
     if key_moved:
         d.why.append("the set's key moves between the merge base and the head")
     d.docs_only = changed is not None and docs_only(changed)
+    if release_preparation and into_dev(event) and not preparation_refusal:
+        d.docs_only = d.release_preparation = True
+        d.why.append("the release's preparation: bump and date, judged as documentation")
+    d.preparation_refusal = preparation_refusal if into_dev(event) else ""
     if reused is not None and event.pull_request:
         d.quiet = True
         d.why.append(reused[1])
         return d
     lines = {line.strip() for m in event.messages for line in m.splitlines()}
-    if event.pull_request and event.base_ref == "main":
-        d.full = d.rebuild = True
+    if event.release_pull_request:
+        d.full = d.rebuild = d.accept = True
         d.tier = "release"
-        d.why.append("a release pull request into main: the whole workflow")
+        d.why.append("a release pull request into main: the whole workflow, then the acceptance")
     elif event.pull_request:
         if changed is None:  # fail closed: a change that cannot be read is judged whole
             d.full = True
@@ -306,7 +399,7 @@ def select(d: Decision, plan: dict[str, Shard]) -> dict:
 def into_dev(event: Event) -> bool:
     """A pull request into dev: the one held to a news file and a review file. The release pull
     request into main carries every released change's, and its review is the release's."""
-    return event.pull_request and event.base_ref != "main"
+    return event.pull_request and not event.release_pull_request
 
 
 def refusals(
@@ -314,20 +407,32 @@ def refusals(
 ) -> list[str]:
     """What ci-status refuses on its own, whatever the judge says: accepted state written by a
     pull request; and a pull request into dev that is not documentation only and carries no news
-    file, or (when its commits and description are read, `pr`) no review file that holds."""
-    out = []
+    file, or (when its commits and description are read, `pr`) no review file that holds. A
+    release pull request carries everything dev took since main, the accept job's commits among
+    it, each of which passed its own check into dev, and is judged whole by the whole workflow:
+    it is refused only a commit that changes the accepted state and is not an acceptance, which
+    no check into dev would have let through (a bypass's push)."""
+    out: list[str] = []
+    if event.release_pull_request:
+        return release_refusals(pr) if pr is not None else out
     if event.pull_request and d.progress:
         written = sorted(p for p in changed or () if "progress" in classify(p))
         out.append(
             "a pull request may not write accepted state; only the job that accepts writes "
             "context/progress/: " + ", ".join(written)
         )
-    if into_dev(event) and changed is not None and not docs_only(changed) and not d.news:
+    if d.preparation_refusal:
+        out.append(
+            "the release's preparation may change the release-tier ledger only by date's move, "
+            f"since it asks no review file: {d.preparation_refusal}"
+        )
+    documented = changed is not None and (docs_only(changed) or d.release_preparation)
+    if into_dev(event) and changed is not None and not documented and not d.news:
         out.append(
             "a pull request that is not documentation only carries its news file, "
             "context/changes/NNN-<slug>.md: its CHANGELOG line, its package rows and its claims"
         )
-    if into_dev(event) and changed is not None and not docs_only(changed) and pr is not None:
+    if into_dev(event) and changed is not None and not documented and pr is not None:
         out += review_refusals(changed, pr)
     if into_dev(event) and pr is not None:
         said = f"{pr.title}\n{pr.body or ''}".lower()
@@ -338,6 +443,25 @@ def refusals(
                     "squash merge's message, and GitHub would skip the run that judges and accepts "
                     "the merge; quote it another way"
                 )
+    return out
+
+
+def release_refusals(pr: PullRequest) -> list[str]:
+    """The release pull request's one refusal: each commit it carries that changes accepted.json
+    or a history volume changes accepted.json and one history volume alone, the shape of the
+    commit the accept jobs make, and nothing else; a commit of the accepted state in any other
+    shape was written by hand."""
+    out = []
+    for c in pr.commits:
+        state = [p for p in c.paths if p == ACCEPTED or HISTORY_VOLUME.fullmatch(p)]
+        rest = [p for p in c.paths if p != ACCEPTED]
+        pair = ACCEPTED in c.paths and len(rest) == 1 and bool(HISTORY_VOLUME.fullmatch(rest[0]))
+        if state and not pair:
+            out.append(
+                f"{c.sha[:12]} changes the accepted state ({', '.join(state)}) and is not an "
+                f"acceptance, which changes accepted.json and one history volume alone: "
+                + ", ".join(sorted(c.paths)[:5])
+            )
     return out
 
 
@@ -466,6 +590,14 @@ REQUIRED_JOB = "ci-status"
 LOOKED_AT = 5  # runs whose head is behind this one by documentation alone, at most
 
 
+def reuse_rule(event: Event) -> Callable[[list[str]], bool]:
+    """What a pull request's newer head may add onto a green head and re-use its run: into dev,
+    documentation alone (the review file); on the release pull request, its own acceptance alone,
+    so the acceptance onto dev starts no second whole run and no second acceptance, while any
+    other commit is one main would receive unjudged."""
+    return is_acceptance if event.release_pull_request else docs_only
+
+
 def find_reusable(
     head: str,
     runs: list[dict],
@@ -473,16 +605,19 @@ def find_reusable(
     jobs_of: Callable[[int], dict[str, str] | None],
     is_ancestor: Callable[[str], bool],
     changed_since: Callable[[str], list[str]],
+    allowed: Callable[[list[str]], bool] = docs_only,
 ) -> tuple[int | None, str]:
-    """The newest completed run of this pull request whose head is an ancestor of `head` by
-    documentation alone and whose gather passed with every other job but ci-status green or
-    skipped (ci-status waited for the review file); its id and why, or (None, "")."""
+    """The newest completed run of this pull request whose head is an ancestor of `head` by a
+    change `allowed` admits (documentation alone, unless the release pull request's rule is
+    given) and whose gather passed with every other job but ci-status green or skipped
+    (ci-status waited for the review file); its id and why, or (None, "")."""
     looked = 0
+    what = "the accepted state" if allowed is is_acceptance else "documentation"
     for run in runs:
         sha, run_id = str(run.get("headSha", "")), run.get("databaseId")
         if sha == head or run.get("status") != "completed" or not is_ancestor(sha):
             continue
-        if not docs_only(changed_since(sha)):
+        if not allowed(changed_since(sha)):
             continue
         looked += 1
         if looked > LOOKED_AT:
@@ -493,7 +628,7 @@ def find_reusable(
         if any(c not in ("success", "skipped") for n, c in jobs.items() if n != REQUIRED_JOB):
             continue
         return run_id, (
-            f"re-uses run {run_id}, green on {sha[:12]}: every path changed since is documentation"
+            f"re-uses run {run_id}, green on {sha[:12]}: every path changed since is {what}"
         )
     return None, ""
 
@@ -614,6 +749,14 @@ def _git(*args: str) -> str:
     ).stdout
 
 
+def _show(ref: str, path: str) -> str:
+    """A file's text at a commit; empty when the commit has no such file."""
+    r = subprocess.run(
+        ["git", "-C", str(REPO), "show", f"{ref}:{path}"], capture_output=True, text=True
+    )
+    return r.stdout if r.returncode == 0 else ""
+
+
 def _is_commit(sha: str) -> bool:
     if not sha or set(sha) == {"0"}:
         return False
@@ -667,9 +810,11 @@ def read_pull_request(
 
 def from_runner(
     environ,
-) -> tuple[Event, list[str] | None, bool, PullRequest | None, tuple[int, str] | None]:
+) -> tuple[Event, list[str] | None, bool, PullRequest | None, tuple[int, str] | None, bool, str]:
     """The event, the changed paths, whether the key moved and, on a pull request, its commits
-    and description and the green run it re-uses, if any, as the workflow's run gives them."""
+    and description, the green run it re-uses, if any, whether it is the release's preparation,
+    and why a preparation is refused (its ledger not date's move), as the workflow's run gives
+    them."""
     labels = tuple(json.loads(environ.get("PLAN_LABELS") or "[]") or ())
     event = Event(
         environ.get("GITHUB_EVENT_NAME", ""),
@@ -685,6 +830,8 @@ def from_runner(
     moved = False
     pr = None
     reused = None
+    preparation = False
+    refused_preparation = ""
     if event.pull_request and _is_commit(environ.get("PLAN_BASE", "")):
         base = _git("merge-base", environ["PLAN_BASE"], head).strip()
         changed = _diff(base, head)
@@ -694,9 +841,26 @@ def from_runner(
         pr = read_pull_request(
             REPO, base, head, environ.get("PLAN_BODY", ""), changed, environ.get("PLAN_TITLE", "")
         )
+        if into_dev(event) and VERSION_FILE in changed:
+            status = _git("diff", "--name-status", "--no-renames", base, head).splitlines()
+            pairs = [(row.split("\t")[0], row.split("\t")[-1]) for row in status if row]
+            diff = _git("diff", "-U0", base, head, "--", VERSION_FILE)
+            preparation = is_release_preparation(pairs, version_line_only(diff))
+            if preparation and set(LEDGER_FILES) & set(changed):
+                text = {
+                    (ref, path): _show(ref, path) for ref in (base, head) for path in LEDGER_FILES
+                }
+                version = re.search(r'^__version__ = "([^"]+)"$', _show(head, VERSION_FILE), re.M)
+                why = ledger_move_refusal(
+                    (text[(base, LEDGER_FILES[0])], text[(base, LEDGER_FILES[1])]),
+                    (text[(head, LEDGER_FILES[0])], text[(head, LEDGER_FILES[1])]),
+                    version[1] if version else "",
+                )
+                if why:
+                    preparation, refused_preparation = False, why
         runs = (
             green_runs(environ, environ.get("PLAN_HEAD_REF", ""))
-            if into_dev(event) and not docs_only(changed)
+            if event.release_pull_request or not docs_only(changed)
             else None
         )
         if runs:
@@ -706,11 +870,12 @@ def from_runner(
                 jobs_of=lambda run_id: run_jobs(environ, run_id),
                 is_ancestor=lambda sha: _is_ancestor(sha, head),
                 changed_since=lambda sha: _diff(sha, head),
+                allowed=reuse_rule(event),
             )
             reused = (run_id, why) if run_id is not None else None
     elif event.name == "push" and not event.tag and _is_commit(environ.get("PLAN_BEFORE", "")):
         changed = _diff(environ["PLAN_BEFORE"], head)
-    return event, changed, moved, pr, reused
+    return event, changed, moved, pr, reused, preparation, refused_preparation
 
 
 def summary(d: Decision, sel: dict, refused: list[str], changed: list[str] | None) -> str:
@@ -742,9 +907,12 @@ def main(argv: list[str]) -> int:
         moved = a.key_moved
         pr = None  # the review check reads the pull request's commits, which a list does not give
         reused = None
+        preparation, refused_preparation = False, ""
     else:
-        event, changed, moved, pr, reused = from_runner(os.environ)
-    d = decide(changed, event, moved, reused)
+        event, changed, moved, pr, reused, preparation, refused_preparation = from_runner(
+            os.environ
+        )
+    d = decide(changed, event, moved, reused, preparation, refused_preparation)
     sel = select(d, load_shards())
     refused = refusals(d, event, changed, pr)
     text = "".join(f"{k}={v}\n" for k, v in outputs(d, sel, refused).items())

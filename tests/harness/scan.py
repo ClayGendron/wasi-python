@@ -1788,14 +1788,18 @@ RECORD_ID_OUTPUT = re.compile(
 # The job whose build tree the build shard reads: a fresh arm64 Linux build.
 BUILD_SHARD_JOB = "build-shard"
 # The gather's step env, exactly: the build's hashes, where the set came from, the build shard's
-# record hash, the tier, and the selected pairs on a pull request alone.
+# record hash, the tier, and the selected pairs on a pull request into dev alone: the release pull
+# request into main is judged whole.
 GATHER_ENV = {
     "WASM_SHA256": "${{ needs.build.outputs.wasm-sha256 }}",
     "SET_SUMS_SHA256": "${{ needs.build.outputs.set-sums-sha256 }}",
     "SET_SOURCE": "${{ needs.build.outputs.set-source }}",  # built or reused
     "RECORD_BUILD_BUILD": f"${{{{ needs.{BUILD_SHARD_JOB}.outputs.record-sha256 }}}}",
     "TIER": "${{ needs.plan.outputs.tier }}",
-    "PLAN": "${{ github.event_name == 'pull_request' && needs.plan.outputs.selected || '' }}",
+    "PLAN": (
+        "${{ github.event_name == 'pull_request' && github.base_ref != 'main' && "
+        "needs.plan.outputs.selected || '' }}"
+    ),
 }
 
 
@@ -2198,8 +2202,10 @@ ACCEPT_RECORD_IF = (
     "${{ !cancelled() && !failure() && needs.plan.outputs.accept == 'true' "
     "&& needs.gather.result == 'success' }}"
 )
+# accept-push on a push alone: after the release pull request, whose run is on the pull request's
+# merge ref and reads the pull request's own workflow file, accept-release.yml pushes instead.
 ACCEPT_PUSH_IF = (
-    "${{ !cancelled() && needs.plan.outputs.accept == 'true' "
+    "${{ !cancelled() && needs.plan.outputs.accept == 'true' && github.event_name == 'push' "
     "&& needs.accept-record.result == 'success' }}"
 )
 NOT_JUDGED_WITH = {"accept-record", "accept-push", "ci-status", "weekly-issue", *UNGATED[3:]}
@@ -2288,8 +2294,90 @@ def accept_job_errors(text: str, others: dict[str, str] | None = None) -> list[s
     if any(word in "\n".join(push).lower() for word in SKIP_WORDS):
         errors.append("accept-push names a skip word, which would skip a release pull request")
     for name, other in sorted((others or {}).items()):
+        if name == ACCEPT_RELEASE_FILE:  # its own shape is accept_release_errors'
+            continue
         if DEPLOY_KEY in other or "environment: accept" in without_comments(other):
             errors.append(f"the secret {DEPLOY_KEY} or the accept environment is named in {name}")
+    return errors
+
+
+# The release pull request's acceptance onto dev, pushed by a workflow its completion runs on
+# dev's own context: the one holder of the deploy key beside accept-push.
+ACCEPT_RELEASE_FILE = "accept-release.yml"
+ACCEPT_RELEASE_ON = "on:\n  workflow_run:\n    workflows: [release]\n    types: [completed]\n"
+ACCEPT_RELEASE_IF = (
+    "${{ github.event.workflow_run.event == 'pull_request' "
+    "&& github.event.workflow_run.conclusion == 'success' "
+    "&& github.event.workflow_run.head_branch == 'dev' "
+    "&& github.event.workflow_run.head_repository.full_name == github.repository "
+    "&& github.event.workflow_run.pull_requests[0].base.ref == 'main' }}"
+)
+ACCEPT_RELEASE_REF = "${{ github.event.workflow_run.head_sha }}"
+# What its script must do, in this order: hold the change to the two files alone, check that
+# dev's tip is the head the run judged and fail when it is not, commit them alone, push.
+ACCEPT_RELEASE_WORDS = (
+    "git status --porcelain --untracked-files=all",
+    "tip=$(git ls-remote origin refs/heads/dev | cut -f1)",
+    'if [ "$tip" != "$JUDGED" ]; then',
+    "exit 1",
+    "git add -- context/progress/accepted.json ':(glob)context/progress/history*.jsonl'",
+    "-- context/progress/accepted.json ':(glob)context/progress/history*.jsonl'",
+    "git push origin HEAD:refs/heads/dev",
+)
+
+
+def accept_release_errors(text: str) -> list[str]:
+    """accept-release.yml: run by the completion of the release workflow alone, with no
+    permission at the top; one job, gated on a green run of a pull request from dev into main of
+    this repository, in the accept environment with contents: read and actions: read, using only
+    the checkout and the download, running no code of the repository (gh to find the artifact,
+    git to push), checking the head the run judged out with the deploy key, once; its script holds
+    the change to the two progress files and pushes only while dev's tip is that head, and is red
+    when it is not."""
+    body = without_comments(text)
+    head = body.split("\njobs:", 1)[0]
+    errors = []
+    if ACCEPT_RELEASE_ON not in head:
+        errors.append("the release acceptance does not run on the release workflow's completion")
+    if "permissions: {}\n" not in head:
+        errors.append("the release acceptance's top-level permissions are not {}")
+    jobs = workflow_jobs(body)
+    if set(jobs) != {"accept-release"}:
+        return [
+            *errors,
+            f"the release acceptance's jobs are not accept-release alone: {sorted(jobs)}",
+        ]
+    job = jobs["accept-release"]
+    if _job_field(job, "if") != ACCEPT_RELEASE_IF:
+        errors.append(f"accept-release's if: is not {ACCEPT_RELEASE_IF}")
+    if _job_field(job, "environment") != "accept":
+        errors.append("accept-release does not name environment: accept")
+    if _permission_set(job) != {"contents: read", "actions: read"}:
+        errors.append("accept-release's permissions are not contents: read and actions: read")
+    steps = [step_fields(st) for st in workflow_steps(job)]
+    for f in steps:
+        uses = f.get("uses", "")
+        if uses and not uses.startswith(("actions/checkout@", "actions/download-artifact@")):
+            errors.append(f"accept-release uses {uses}: only the checkout and the download")
+        if REPO_CODE.search(str(f.get("run", ""))):
+            errors.append("accept-release runs code of the repository or an interpreter")
+    checkouts = [f for f in steps if f.get("uses", "").startswith("actions/checkout@")]
+    with_ = checkouts[0].get("with", {}) if len(checkouts) == 1 else {}
+    if with_.get("ssh-key") != SSH_KEY or with_.get("ref") != ACCEPT_RELEASE_REF:
+        errors.append(
+            "accept-release does not check out the head the run judged with the deploy key, once"
+        )
+    script = "\n".join(str(f.get("run", "")) for f in steps)
+    at = 0
+    for words in ACCEPT_RELEASE_WORDS:
+        found = script.find(words, at)
+        if found < 0:
+            errors.append(f"accept-release does not check or do, in its order: {words}")
+        else:
+            at = found + len(words)
+    mismatch = script.split('if [ "$tip" != "$JUDGED" ]; then', 1)[-1].split("fi", 1)[0]
+    if "exit 0" in mismatch:
+        errors.append("accept-release succeeds when dev is not the head judged")
     return errors
 
 
@@ -2334,6 +2422,99 @@ def weekly_errors(text: str) -> list[str]:
             _job_field(jobs.get(name, []), "if") or ""
         ):
             errors.append(f"{name} does not run on the plan's accept output alone")
+    return errors
+
+
+# A job's if:, as GitHub reads it, rewritten into a Python expression over these names alone.
+_EXPR_FUNCTIONS = {
+    "startsWith": lambda a, b: str(a).lower().startswith(str(b).lower()),
+    "contains": lambda a, b: (b in a) if isinstance(a, list) else str(b).lower() in str(a).lower(),
+}
+
+
+def _evaluate(cond: str, outputs: dict[str, str], context: dict[str, str], ran: dict) -> bool:
+    """One job's if: under the plan's outputs, the event's github context and which of its needs
+    ran (each succeeded) or were skipped; nothing fails or is cancelled in the run it models."""
+    expr = cond.strip()
+    if expr.startswith("${{") and expr.endswith("}}"):
+        expr = expr[3:-2].strip()
+    results = ["success" if r else "skipped" for r in ran.values()]
+    subs = [
+        (r"needs\.\*\.result", "RESULTS"),
+        (r"needs\.plan\.outputs\.([\w-]+)", lambda m: repr(outputs.get(m[1], ""))),
+        (r"needs\.([\w-]+)\.result", lambda m: repr("success" if ran.get(m[1]) else "skipped")),
+        (r"needs\.[\w-]+\.outputs\.[\w-]+", "''"),
+        (r"github\.([\w.]+)", lambda m: repr(context.get(m[1], ""))),
+        (r"(?:vars|inputs|secrets)\.[\w-]+", "''"),
+        (r"\balways\(\)", "True"),
+        (r"\b(?:cancelled|failure)\(\)", "False"),
+        (r"\bsuccess\(\)", repr(all(ran.values()))),
+        (r"&&", " and "),
+        (r"\|\|", " or "),
+        (r"!(?!=)", " not "),
+    ]
+    for pattern, repl in subs:
+        expr = re.sub(pattern, repl, expr)
+    try:
+        return bool(eval(expr, {"__builtins__": {}, **_EXPR_FUNCTIONS, "RESULTS": results}))  # noqa: S307
+    except Exception as e:  # an expression this reader does not model
+        raise ValueError(f"cannot evaluate the if: {cond!r} ({e})") from None
+
+
+def jobs_that_run(text: str, outputs: dict[str, str], context: dict[str, str]) -> set[str]:
+    """The jobs a run starts, given the decision job's outputs and the event (`context`, the
+    github context's fields: event_name, ref, ref_type, base_ref): a job without an if: runs when
+    every need ran; one whose if: names no status function needs that too; one that names one
+    (always(), !cancelled()) runs on its if: alone. Every job that runs is taken to succeed."""
+    jobs = workflow_jobs(without_comments(text))
+    ran: dict[str, bool] = {}
+
+    def visit(name: str) -> bool:
+        if name not in ran:
+            ran[name] = False  # a cycle runs nothing
+            lines = jobs[name]
+            needs = sorted(_needs(lines) & set(jobs))
+            for n in needs:
+                visit(n)
+            done = {n: ran[n] for n in needs}
+            cond = _job_field(lines, "if")
+            if cond is None:
+                ran[name] = all(done.values())
+            else:
+                value = _evaluate(cond, outputs, context, done)
+                ran[name] = value if STATUS_FUNCTION.search(cond) else value and all(done.values())
+        return ran[name]
+
+    return {name for name in jobs if visit(name)}
+
+
+RELEASE_VERSION_STEP = "The version, and the tag it is released under, agree"
+# On a pull request into main, in this order: the branch, the dated section, the free tag, and
+# main's tip in the head's history.
+RELEASE_VERSION_WORDS = (
+    'elif [ "$GITHUB_BASE_REF" = main ]; then',
+    'uv run python release/version.py check --tag "v$version"',
+    'if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then',
+    "exit 1",
+    "git merge-base --is-ancestor origin/main HEAD",
+)
+
+
+def release_version_errors(text: str) -> list[str]:
+    """The build job's version step holds, on the release pull request, what the tag's run and
+    the owner's push to main will: the version's section dated, its tag free, and main's tip an
+    ancestor of the head."""
+    try:
+        script = workflow_step_script(without_comments(text), "build", RELEASE_VERSION_STEP)
+    except LookupError as e:
+        return [str(e)]
+    errors, at = [], 0
+    for words in RELEASE_VERSION_WORDS:
+        found = script.find(words, at)
+        if found < 0:
+            errors.append(f"build's version step does not check, in its order: {words}")
+        else:
+            at = found + len(words)
     return errors
 
 

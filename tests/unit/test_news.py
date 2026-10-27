@@ -174,3 +174,59 @@ def test_the_reason_a_claim_gives_for_each_kind_of_row() -> None:
     assert news.reason(claims, "judge", "tests/harness/plugin.py") == "999: it reads the record"
     assert news.reason(claims, "grows", group) is None
     assert news.reason(claims, "judge", "tests/harness/gather.py") is None
+
+
+# ---------------------------------------------------------------------------------------------
+# The release-tier ledger: a pull request that moves a release-tier row appends its block; the
+# date before the release moves the blocks under the version; the release's acceptance reads both
+
+HEADER = "# The release-tier claims ledger.\n# Each block is appended by its pull request.\n"
+BLOCK = (
+    '[[claim]]\nspec = "140"\ngrows = ["tests/checks/test_v1_3_x.py::test_slow"]\n'
+    'growth = "a pin moved"\n'
+)
+HISTORY = "# The release-tier claims, by release\n\nIntro.\n\n## 0.1.0\n\nMoved.\n\n```toml\n" + (
+    '[[claim]]\nspec = "102"\nnew = ["tests/checks/test_v1_3_x.py::test_old"]\n```\n'
+)
+
+
+def _ledger_repo(tmp_path: Path, ledger: str, history: str) -> Path:
+    (tmp_path / "src" / "wasi_python").mkdir(parents=True)
+    (tmp_path / "src" / "wasi_python" / "__init__.py").write_text('__version__ = "0.1.1"\n')
+    (tmp_path / "context").mkdir()
+    (tmp_path / news.LEDGER).write_text(ledger)
+    (tmp_path / news.LEDGER_HISTORY).write_text(history)
+    return tmp_path
+
+
+def test_the_release_reads_the_ledger_and_its_versions_moved_blocks(tmp_path: Path) -> None:
+    moved = HISTORY.replace(
+        "## 0.1.0",
+        '## 0.1.1\n\nMoved.\n\n```toml\n[[claim]]\nspec = "139"\npasses = ["x"]\n'
+        'fewer = "a group moved"\n```\n\n## 0.1.0',
+    )
+    repo = _ledger_repo(tmp_path, HEADER + "\n" + BLOCK, moved)
+    claims = news.ledger_claims(repo)
+    assert sorted(c.spec for c in claims) == ["139", "140"]  # not 0.1.0's
+    assert (
+        news.reason(claims, "grows", "tests/checks/test_v1_3_x.py::test_slow") == "140: a pin moved"
+    )
+    assert news.package_version(repo) == "0.1.1"
+
+
+def test_date_moves_the_ledgers_blocks_under_the_version(tmp_path: Path) -> None:
+    ledger, history = news.move_ledger(HEADER + "\n" + BLOCK, HISTORY, "0.1.1", "2026-10-26")
+    assert ledger == HEADER
+    assert history.index("## 0.1.1") < history.index("## 0.1.0")
+    repo = _ledger_repo(tmp_path, ledger, history)
+    assert [c.spec for c in news.ledger_claims(repo)] == ["140"]
+    with pytest.raises(news.NewsError, match="already has a section for 0.1.1"):
+        news.move_ledger(HEADER, history, "0.1.1", "2026-10-27")
+    _, empty = news.move_ledger(HEADER, HISTORY, "0.1.1", "2026-10-26")
+    assert "No block was in the ledger at the date." in empty.split("## 0.1.0")[0]
+
+
+def test_a_broken_ledger_block_is_refused(tmp_path: Path) -> None:
+    repo = _ledger_repo(tmp_path, HEADER + '[[claim]]\nspec = "140"\ngrows = ["x"]\n', HISTORY)
+    with pytest.raises(news.NewsError, match="grows needs growth"):
+        news.ledger_claims(repo)

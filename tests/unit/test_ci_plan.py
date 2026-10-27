@@ -12,7 +12,7 @@ import sys
 
 import pytest
 
-from harness import paths, shards
+from harness import news, paths, shards
 
 _spec = importlib.util.spec_from_file_location(
     "release_ci_plan", paths.REPO / "release" / "ci_plan.py"
@@ -343,6 +343,39 @@ def test_only_a_pull_request_into_dev_is_held_to_a_news_file() -> None:
         assert _news_refusals(["src/x.py"], event) == [], event
 
 
+def test_a_release_pull_request_refuses_accepted_state_no_acceptance_wrote() -> None:
+    """Every commit the release pull request carries that changes accepted.json or a history
+    volume must be an acceptance: those two files and nothing else. A hand-written change to the
+    accepted state, on dev by a bypass or anywhere else, is refused, named by its commit."""
+    acceptance = ci_plan.Commit("1" * 40, tuple(ACCEPT))
+    readme = ci_plan.Commit("2" * 40, ("context/progress/README.md", "docs/index.md"))
+    code = ci_plan.Commit("3" * 40, ("src/x.py",))
+    forged = ci_plan.Commit("4" * 40, ("context/progress/accepted.json", "src/x.py"))
+    alone = ci_plan.Commit("5" * 40, ("context/progress/accepted.json",))
+    changed = [*ACCEPT, "src/x.py", "context/progress/README.md", "docs/index.md"]
+    d = ci_plan.decide(changed, PR_MAIN)
+
+    def refused(*commits):
+        return ci_plan.refusals(d, PR_MAIN, changed, ci_plan.PullRequest("", list(commits), {}))
+
+    assert refused(acceptance, readme, code) == []
+    for bad in (forged, alone):
+        out = refused(acceptance, bad, code)
+        assert len(out) == 1 and bad.sha[:12] in out[0] and "accepted state" in out[0], out
+    assert ci_plan.refusals(d, PR_MAIN, changed) == []  # no commits read: nothing to hold
+
+
+def test_a_release_pull_request_carries_devs_acceptances_and_is_not_refused() -> None:
+    """A release pull request's change is everything dev took since main, the acceptance commits
+    the accept job pushed among it; each reached dev through its own refused-or-green check, and
+    the release is judged whole."""
+    changed = [*ACCEPT, "src/x.py", "docs/index.md"]
+    d = ci_plan.decide(changed, PR_MAIN)
+    assert d.progress and d.full and d.tier == "release"
+    assert ci_plan.refusals(d, PR_MAIN, changed) == []
+    assert ci_plan.refusals(ci_plan.decide(changed, PR_DEV), PR_DEV, changed)
+
+
 # ---------------------------------------------------------------------------------------------
 # The selection and the outputs as the workflow reads them
 
@@ -662,7 +695,16 @@ def test_the_pull_requests_commits_trailers_and_review_are_read_with_git(
 # The accept jobs run after a merge into dev alone
 
 
-def test_accept_is_set_by_a_merge_into_dev_alone() -> None:
+def test_accept_is_set_by_a_merge_into_dev_and_the_release_pull_request() -> None:
+    """The release pull request's record is accepted too: accept-record runs in its run, and the
+    push onto dev is made by a workflow on dev's own context, never by the pull request's run."""
+    d = ci_plan.decide(["src/x.py"], PR_MAIN)
+    assert d.accept and ci_plan.outputs(d, ci_plan.select(d, PLAN), [])["accept"] == "true"
+    reused = ci_plan.decide(ACCEPT, PR_MAIN, reused=(7, "run 7"))
+    assert reused.quiet and not reused.accept  # a re-used run accepts nothing again
+
+
+def test_accept_is_set_by_a_merge_into_dev_alone_among_the_rest() -> None:
     assert ci_plan.decide(["src/x.py"], PUSH_DEV).accept
     out = ci_plan.outputs(
         ci_plan.decide(["src/x.py"], PUSH_DEV),
@@ -671,7 +713,7 @@ def test_accept_is_set_by_a_merge_into_dev_alone() -> None:
     )
     assert out["accept"] == "true"
     assert not ci_plan.decide(ACCEPT, PUSH_DEV).accept  # the acceptance's own push
-    for event in (PR_DEV, PR_MAIN, TAG, DISPATCH, SCHEDULE):
+    for event in (PR_DEV, TAG, DISPATCH, SCHEDULE):
         assert not ci_plan.decide(["src/x.py"], event).accept, event
 
 
@@ -683,7 +725,7 @@ GREEN = {"plan": "success", "quick": "success", "gather the shards' records": "s
 CODE_HEAD, REVIEW_HEAD, NEW_HEAD = "1" * 40, "2" * 40, "3" * 40
 
 
-def _reuse(runs, jobs, ancestors=(CODE_HEAD, REVIEW_HEAD), diffs=None):
+def _reuse(runs, jobs, ancestors=(CODE_HEAD, REVIEW_HEAD), diffs=None, allowed=None):
     diffs = diffs or {
         CODE_HEAD: [REVIEW, "docs/index.md"],
         REVIEW_HEAD: ["docs/index.md"],
@@ -694,6 +736,7 @@ def _reuse(runs, jobs, ancestors=(CODE_HEAD, REVIEW_HEAD), diffs=None):
         jobs_of=lambda run_id: jobs[run_id],
         is_ancestor=lambda sha: sha in ancestors,
         changed_since=lambda sha: diffs[sha],
+        **({} if allowed is None else {"allowed": allowed}),
     )
 
 
@@ -736,6 +779,22 @@ def test_a_reused_run_sets_every_output_false_and_keeps_the_refusals() -> None:
     assert ci_plan.refusals(d, PR_DEV, changed, _pr()) == []
     assert ci_plan.refusals(d, PR_DEV, ["src/x.py", NEWS], _pr())  # still no review file
     assert any("run 7" in w for w in d.why)
+
+
+def test_a_release_pull_request_re_uses_its_green_run_across_its_own_acceptance() -> None:
+    """The release pull request's acceptance onto dev moves its head by the acceptance pair
+    alone: its new run re-uses the green one, so the acceptance starts no second whole run and
+    no second acceptance. Anything more, documentation included, is a commit main would receive
+    unjudged, and runs whole."""
+    runs = [{"databaseId": 7, "headSha": CODE_HEAD, "status": "completed"}]
+    rule = ci_plan.reuse_rule(PR_MAIN)
+    assert rule is ci_plan.is_acceptance
+    assert ci_plan.reuse_rule(PR_DEV) is ci_plan.docs_only
+    hit = _reuse(runs, {7: GREEN}, diffs={CODE_HEAD: ACCEPT}, allowed=rule)
+    assert hit[0] == 7 and "the accepted state" in hit[1]
+    for diff in ([*ACCEPT, "docs/index.md"], ["docs/index.md"], [*ACCEPT, "src/x.py"]):
+        assert _reuse(runs, {7: GREEN}, diffs={CODE_HEAD: diff}, allowed=rule)[0] is None
+    assert _reuse(runs, {7: GREEN}, diffs={CODE_HEAD: ACCEPT})[0] is None  # into dev's rule
 
 
 def test_no_run_is_looked_for_without_a_token() -> None:
@@ -869,3 +928,84 @@ def test_only_a_push_of_the_accepted_state_is_an_acceptance() -> None:
     for changed, event in ((ACCEPT, PR_DEV), (["src/x.py"], PUSH_DEV), (None, PUSH_DEV)):
         d = ci_plan.decide(changed, event)
         assert ci_plan.outputs(d, ci_plan.select(d, PLAN), [])["acceptance"] == "false"
+
+
+# ---------------------------------------------------------------------------------------------
+# The release's preparation: bump and date in one pull request into dev, judged as documentation
+
+VERSION_FILE = "src/wasi_python/__init__.py"
+PREPARATION = [
+    ("M", VERSION_FILE),
+    ("M", "CHANGELOG.md"),
+    ("D", "context/changes/140-a-change.md"),
+    ("M", "docs/reference/packages.md"),
+    ("M", "context/release-tier-claims.toml"),
+    ("M", "context/release-tier-claims-history.md"),
+    ("A", "context/reviews/0.1.1-structural-review-2026-10-26.md"),
+]
+
+
+def test_bump_and_date_land_as_the_releases_documentation_change() -> None:
+    """bump moves the version line and removes every news file, so its pull request carries no
+    news file of its own; its change is the release's notes, the version, the ledger moved and the
+    release's reviews, all of which the release pull request judges whole. It runs quick alone."""
+    assert ci_plan.is_release_preparation(PREPARATION, version_line_only=True)
+    assert not ci_plan.is_release_preparation(PREPARATION, version_line_only=False)
+    for extra in (("M", "src/wasi_python/runner.py"), ("A", "context/changes/141-new.md"),
+                  ("M", "tests/harness/gather.py")):  # fmt: skip
+        assert not ci_plan.is_release_preparation([*PREPARATION, extra], version_line_only=True)
+    assert not ci_plan.is_release_preparation(PREPARATION[1:], version_line_only=True)
+    changed = [p for _, p in PREPARATION]
+    d = ci_plan.decide(changed, PR_DEV, release_preparation=True)
+    assert d.docs_only and not d.judge and not d.full
+    assert ci_plan.refusals(d, PR_DEV, changed, _pr(commits=[])) == []
+    plain = ci_plan.decide(changed, PR_DEV)
+    assert not plain.docs_only and plain.judge
+
+
+def test_only_the_version_line_may_move_in_the_version_file() -> None:
+    bumped = '--- a/x\n+++ b/x\n@@ -3 +3 @@\n-__version__ = "0.1.0"\n+__version__ = "0.1.1"\n'
+    assert ci_plan.version_line_only(bumped)
+    more = bumped + "@@ -9,0 +10 @@\n+import os\n"
+    assert not ci_plan.version_line_only(more)
+    assert not ci_plan.version_line_only("")
+
+
+# The ledger in a preparation: date's move exactly, or the preparation is refused, named.
+
+LEDGER_HEADER = "# The release-tier claims ledger.\n# Appended by its pull request.\n"
+LEDGER_BLOCK = (
+    '[[claim]]\nspec = "140"\ngrows = ["tests/checks/test_v1_3_x.py::test_slow"]\n'
+    'growth = "a pin moved"\n'
+)
+LEDGER_HISTORY = "# The release-tier claims, by release\n\nIntro.\n\n## 0.1.0\n\nMoved.\n"
+
+
+def _moved(ledger: str = LEDGER_HEADER + "\n" + LEDGER_BLOCK) -> tuple[str, str]:
+    return news.move_ledger(ledger, LEDGER_HISTORY, "0.1.1", "2026-10-26")
+
+
+def test_a_preparation_whose_ledger_is_dates_exact_move_is_a_preparation() -> None:
+    head_ledger, head_history = _moved()
+    base = (LEDGER_HEADER + "\n" + LEDGER_BLOCK, LEDGER_HISTORY)
+    assert ci_plan.ledger_move_refusal(base, (head_ledger, head_history), "0.1.1") is None
+    assert ci_plan.ledger_move_refusal(base, base, "0.1.1") is None  # the ledger not touched
+
+
+def test_a_preparation_that_adds_a_ledger_block_is_refused_named() -> None:
+    """The ledger is a source of reasons the release pull request's acceptance consumes, so in a
+    preparation, which asks no review file, its change must be date's move and nothing else."""
+    base = (LEDGER_HEADER + "\n" + LEDGER_BLOCK, LEDGER_HISTORY)
+    head_ledger, head_history = _moved()
+    extra = (
+        '[[claim]]\nspec = "999"\ngrows = ["tests/checks/test_v1_3_x.py::test_new"]\ngrowth = "x"\n'
+    )
+    added = head_history.replace("```\n", extra + "```\n", 1)
+    why = ci_plan.ledger_move_refusal(base, (head_ledger, added), "0.1.1")
+    assert why and "date's move" in why, why
+    kept = ci_plan.ledger_move_refusal(base, (head_ledger + "\n" + extra, head_history), "0.1.1")
+    assert kept and "header" in kept, kept
+    changed = [VERSION_FILE, "CHANGELOG.md", *ci_plan.LEDGER_FILES]
+    d = ci_plan.decide(changed, PR_DEV, preparation_refusal=why)
+    assert not d.docs_only and d.judge
+    assert any(why in r for r in ci_plan.refusals(d, PR_DEV, changed, _pr(commits=[])))

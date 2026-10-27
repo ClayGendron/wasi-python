@@ -1,0 +1,102 @@
+# The release pull request's acceptance onto dev.
+#
+# A run of the release workflow on the pull request from dev into main judges both tiers, and its
+# accept-record job accepts the gather's record, with no secret, and hands the acceptance on as the
+# artifact acceptance-<attempt>. That run cannot push it: its GITHUB_REF is the pull request's
+# merge ref, which the accept environment's deployment branch policy (dev alone) refuses, and its
+# workflow file is the pull request's own. This workflow runs when that run completes, on the
+# default branch, dev, in dev's own context, so the environment resolves on refs/heads/dev and its
+# file is dev's. It runs no code of the repository, only gh and git: it finds the acceptance among
+# the triggering run's artifacts, checks the head that run judged out with the deploy key, holds
+# the change to accepted.json and one history volume alone, and pushes it onto dev only while
+# dev's tip is that head. When dev moved on, nothing is pushed and the job is red, since no later
+# merge's run carries a release-tier acceptance: the release pull request runs again on the new
+# tip. A run that re-used a green one (its head moved by its own acceptance alone) handed on no
+# acceptance, and there is nothing to do.
+name: accept the release
+
+on:
+  workflow_run:
+    workflows: [release]
+    types: [completed]
+
+permissions: {}
+
+concurrency:
+  group: accept-release
+  cancel-in-progress: false
+
+jobs:
+  accept-release:
+    name: push the release's acceptance onto dev
+    # Only a green run of a pull request from dev into main, of this repository.
+    if: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'dev' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.pull_requests[0].base.ref == 'main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: accept
+    permissions:
+      contents: read
+      actions: read # the triggering run's artifacts
+    steps:
+      - name: The run handed on its acceptance, or re-used a judged run and has none
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        run: |
+          set -eu
+          name="acceptance-$ATTEMPT"
+          count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts" \
+            --jq "[.artifacts[] | select(.name == \"$name\" and (.expired | not))] | length")
+          if [ "$count" = 1 ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run $RUN_ID handed on no $name: it re-used a judged run, and there is nothing to accept"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.find.outputs.found == 'true'
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          ssh-key: ${{ secrets.ACCEPT_DEPLOY_KEY }}
+          persist-credentials: true # the push below is made with the key
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: steps.find.outputs.found == 'true'
+        with:
+          name: acceptance-${{ github.event.workflow_run.run_attempt }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/acceptance
+          digest-mismatch: error
+      - name: Commit the release's acceptance alone, and push it while dev is the head judged
+        if: steps.find.outputs.found == 'true'
+        env:
+          ACCEPTANCE: ${{ runner.temp }}/acceptance
+          JUDGED: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -eu
+          cp "$ACCEPTANCE/context/progress/accepted.json" context/progress/
+          for f in "$ACCEPTANCE"/context/progress/history*.jsonl; do cp "$f" context/progress/; done
+          set -- $(git status --porcelain --untracked-files=all | cut -c4- | sort)
+          if [ "$#" -ne 2 ] || [ "$1" != context/progress/accepted.json ] \
+            || ! printf '%s\n' "$2" | grep -Eq '^context/progress/history(-[0-9]{5,})?\.jsonl$'; then
+            echo "the acceptance must change accepted.json and one history volume alone, not: $*"
+            exit 1
+          fi
+          tip=$(git ls-remote origin refs/heads/dev | cut -f1)
+          if [ "$tip" != "$JUDGED" ]; then
+            echo "dev is at ${tip:-nothing}, not $JUDGED, the head the release pull request judged: nothing is pushed, and the release pull request runs again on dev's tip"
+            exit 1
+          fi
+          git add -- context/progress/accepted.json ':(glob)context/progress/history*.jsonl'
+          git -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -F "$ACCEPTANCE/build/progress/acceptance-message.txt" \
+            -- context/progress/accepted.json ':(glob)context/progress/history*.jsonl'
+          if git push origin HEAD:refs/heads/dev; then
+            echo "pushed $(git rev-parse HEAD) onto dev, on $JUDGED"
+            exit 0
+          fi
+          echo "the push onto dev was refused: nothing is pushed"
+          exit 1
