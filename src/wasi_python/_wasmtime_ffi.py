@@ -70,6 +70,11 @@ A wasmtime-py major bump is done here, in one place:
 6. When a release makes an operation public, the preference order is already public first, so
    often nothing changes in the operation; the private name leaves `NEEDED` or `OPTIONAL`, and
    its row moves from the sheet's table to its "Landed" list in the same change.
+7. Re-read one fact no row names: a session's turn gathers its output from a pipe by reading
+   what the pipe holds once the guest has returned, which is every byte only because wasmtime
+   writes a file output on the guest's own thread (`OutputFile`, `write_all`, in wasmtime-wasi's
+   `cli/file.rs`). A release that moved file output onto a worker, as it does a custom output,
+   would let a turn's bytes reach the next turn.
 """
 
 from __future__ import annotations

@@ -16,7 +16,7 @@ import types
 from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from . import _artifacts, _call, _engines, _home, _places, _platform, _private_dirs
+from . import _artifacts, _call, _engines, _home, _outputs, _places, _platform, _private_dirs
 from ._artifacts import GUEST_PACKAGE, Artifacts, ArtifactsMissing
 from ._call import (
     ARGV0,
@@ -27,13 +27,13 @@ from ._call import (
     _Call,
     _CheckedCall,
     _Driven,
-    _Stream,
     _Waits,
 )
 from ._engines import _epoch_ticker
 from ._fs_memory import STAGING_CEILING
 from ._home import _Home
 from ._limits import CANCEL_TICKS, NO_DEADLINE, TICK_S
+from ._outputs import _Capture, _Stream
 from ._places import _Preopen
 from ._platform import _TRAP_HANDLERS_REPLACED, _Walked
 from ._private_dirs import _Private
@@ -235,7 +235,7 @@ class _State:
         self.engine: wasmtime.Engine | None = None
         self.store: wasmtime.Store | None = None
         self.exports: Mapping[str, Any] | None = None  # the instance's, each called as a Func
-        self.keys: tuple[int, int] = (0, 0)
+        self.capture: _Capture | None = None  # the guest's output, made with the store
         self.table: _Files | None = None
         self.host: Host | None = None
         self.metered = False
@@ -596,7 +596,8 @@ def _release_session(state: _State) -> None:
         steps.append(state.private_loop.close)
     if state.store is not None:
         steps.append(state.store.close)
-    steps.append(lambda: _drop_keys(state.keys))
+    if state.capture is not None:  # after the store: nothing more can arrive
+        steps.append(state.capture.close)
     if state.table is not None:
         steps.append(state.table.release)
     for w in state.walked:
@@ -619,13 +620,6 @@ def _release_session(state: _State) -> None:
             p.counts["sessions_open"] -= 1
     with p.sessions_lock:
         p.sessions.discard(state)
-
-
-def _drop_keys(keys: tuple[int, int]) -> None:
-    p = process()
-    with p.outputs_lock:
-        for key in keys:
-            p.outputs.pop(key, None)
 
 
 def _arm(
@@ -664,9 +658,8 @@ def _arm(
         (lambda: any(check() for check in checks)) if checks else None,
     )
     out, err = _Stream("stdout", output_bytes), _Stream("stderr", output_bytes)
-    p = process()
-    with p.outputs_lock:
-        p.outputs[state.keys[0]], p.outputs[state.keys[1]] = out, err
+    assert state.capture is not None  # made with the store
+    state.capture.retarget(out, err)
     host, admit, tool_host = state.host, None, None
     if state.checked.tools is not None:
         tool_host = _session_tool_host(state, stop_at, stop, loop, home)
@@ -811,6 +804,8 @@ def _turn_inside(
             value, exit_code, trapped, ran = _home._on_guest_thread(
                 "turn", home, call, _drive_turn, state, call, data
             )
+        assert state.capture is not None  # made with the store
+        state.capture.settle()  # every byte the turn wrote, before its result is made
         after_export = process().observers.after_export
         if after_export is not None:
             after_export()
@@ -997,7 +992,7 @@ def _open_session(
         state.origin_ns = time.perf_counter_ns()  # the session's clock base
         wasi.argv = [ARGV0, *entries]
         wasi.env = sorted({**_call.BASE_ENV, "HOME": state.home.guest, **(c.env or {})}.items())
-        state.keys = _call._send_outputs(wasi, _Stream("stdout", 0), _Stream("stderr", 0))
+        state.capture = _outputs._capture(wasi, _Stream("stdout", 0), _Stream("stderr", 0))
         scratch = state.scratch = _Private("wasi-python-")
         mounted: list[_Preopen] = []
         if mounts:

@@ -126,6 +126,7 @@ files = [
   "tests/unit/test_runner_limits.py",
   "tests/unit/test_runner_module_caches.py",
   "tests/unit/test_runner_module_cache_read.py",
+  "tests/unit/test_runner_outputs.py",
   "tests/unit/test_runner_sessions.py",
   "tests/unit/test_runner_sets.py",
   "tests/unit/test_runner_sweep.py",

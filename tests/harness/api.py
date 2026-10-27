@@ -48,6 +48,7 @@ RUNNER_FILES = (
     "_zip.py",
     "_places.py",
     "_home.py",
+    "_outputs.py",
     "_call.py",
     "_sessions.py",
     "runner.py",

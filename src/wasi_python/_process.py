@@ -52,7 +52,7 @@ if TYPE_CHECKING:
 
     import wasmtime
 
-    from ._call import _Stream
+    from ._outputs import _Stream
     from ._sessions import _State
 
 # How a lock is recognised and made anew for a fork: by its exact type, through this table. Not
@@ -82,6 +82,7 @@ class _Observers:
     on_export: Callable[[str, int], None] | None = None  # each export called: name, thread
     after_export: Callable[[], None] | None = None  # after a turn's export returned
     on_call: Callable[[str, Any], None] | None = None  # each call built: its kind and the call
+    on_capture: Callable[[str], None] | None = None  # each output capture opened: its kind
     clock: Callable[[], float] = time.monotonic  # the one clock the session bounds read
     start_ending: Callable[[_State], None] | None = None  # None: the production closer
     drive_folder: Callable[[str], str] | None = None  # None: `ntpath.abspath(drive or ".")`

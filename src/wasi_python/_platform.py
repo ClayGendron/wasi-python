@@ -37,6 +37,9 @@ What differs, and why each difference exists:
   its check to its load.
 - A file a running guest holds open cannot be replaced on Windows, so a copy of the zip or a
   data file that is already right is left in place there.
+- The guest's output: on POSIX wasmtime writes each stream into a pipe it opens by a `/dev/fd`
+  path and the runner reads; Windows has no path to an anonymous pipe and `poll` takes no
+  Windows pipe, so there the output stays on wasmtime's custom-output callback.
 
 Fork is not a platform difference and stays a module function: a child of a process that made an
 engine is refused everywhere."""
@@ -184,6 +187,7 @@ class _Platform(Protocol):
     def open_cached(
         self, cwasm: Path, *, reopen: Callable[..., int] = os.open
     ) -> _Opened | None: ...
+    def output_channel(self) -> tuple[str, int, int] | None: ...
 
 
 class _Posix:
@@ -543,6 +547,16 @@ class _Posix:
             os.close(fd)
             return None
         return _Opened(fd, name or str(cwasm), by_path=name is None)
+
+    # The guest's output.
+
+    def output_channel(self) -> tuple[str, int, int] | None:
+        """A pipe wasmtime can open by a path and write as a file: (the path, the end the runner
+        reads, the end the runner closes once wasmtime has opened the path). `/dev/fd` is the
+        descriptor file system on macOS and a link to `/proc/self/fd` on Linux, through which a
+        pipe opens anew."""
+        r, w = os.pipe()
+        return f"/dev/fd/{w}", r, w
 
 
 def _way(folder: Path, lstat: Callable[[str], os.stat_result]) -> list[Path]:
