@@ -483,3 +483,10 @@ The code stays embedder-neutral (§4.5). The capabilities that agent use needs a
 - **The question:** may the agent file the issue (an outward-facing action)? The agent writes its text into spec 011's landing notes either way.
 - **Answered 2026-10-17:** File it, after the owner reads and approves the text (drafted as an artifact).
 
+---
+
+## Memories stay in the repository, and the 0.1.1 release is pushed by the owner's agent
+
+- **Asked:** 2026-10-26. **Source:** the orchestrating session's out-of-repo memory folder, and the release of 0.1.1.
+- **The owner's decision (memories):** "please delete all memories from outside of this repo. Either update the agents.md file with ones that are important to remember when developing in this repo or let them be deleted. Update the agents.md to say never save memories outside of this repo, those details should stay in as commited details to reference later by all agents." Applied the same day: the memory files were deleted; the rules that mattered are in `../AGENTS.md` (asking the owner with the tool, permission grants run by the owner, no probing of third-party hosts, truthful trailers, worktrees and disk, docs without fluff, the badge row).
+- **The owner's decision (0.1.1):** "please continue to work until 0.1.1 release is ready, and then get it to main and released to pypi", then "I am going to go to sleep, so please go ahead with the tag and push." A one-time delegation of constitution §5.5's owner-only push of `main` and the tag, for 0.1.1, to the orchestrating agent of the session that did the work; recorded again in spec 138's landing notes when the push is made. Later releases ask again.
