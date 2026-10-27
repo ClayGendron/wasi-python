@@ -66,7 +66,7 @@ Every other change is reviewed once, on its pull request, where the reviewer rea
 
 ## The author's self-check
 
-The pull request's description is the author's self-check. It names the author and says that:
+The pull request's description is the author's self-check. It starts from the pull request template, `.github/PULL_REQUEST_TEMPLATE.md`. Opened with `gh pr create --body` or `--body-file`, as an agent without a terminal must, it starts from a copy of that file. Its `Author:` line names the author, a session's link or a name, and `ci-status` reads that line to tell the author from the reviewer. The name goes on that line, or on the next line when the `Author:` line is left empty; another field, a list item, a heading or a table row there names no one. It names the specifications the branch carries, one to three, and says that:
 
 - every new check was seen failing before the code made it pass;
 - the Windows results were read;

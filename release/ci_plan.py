@@ -80,8 +80,14 @@ def review_of(name: str, stem: str) -> bool:
 
 
 REVIEWER = re.compile(r"^- \*\*Reviewer:\*\*(.*)$", re.M)
-# The self-check's author line, `Author: …` with or without Markdown's emphasis.
-AUTHOR = re.compile(r"^[\s>*_-]*author[*_]*\s*:[*_\s]*(.*)$", re.I | re.M)
+# The self-check's author line, `Author: …` with or without Markdown's emphasis; its value ends
+# with its own line.
+AUTHOR = re.compile(r"^[ \t>*_-]*author[*_]*[ \t]*:[*_ \t]*(.*)$", re.I)
+# A line that is no name: another field (`Word:` or `**Word:**`, not a link's `https:`), a list
+# item or a box, a heading or a table row.
+NOT_A_NAME = re.compile(r"[-*+]\s|\d+[.)]\s|#|\||[*_]*[a-z][a-z ]*[*_]*:[*_]*(\s|$)", re.I)
+# An HTML comment: the template's guidance, which GitHub does not show in a description.
+COMMENT = re.compile(r"<!--.*?-->", re.S)
 SESSION = re.compile(r"https://claude\.ai/code/session_[A-Za-z0-9_-]+")
 SUB_AGENT = "sub-agent of"
 # The words that make GitHub start no push run for a commit whose message carries one; a squash
@@ -489,6 +495,24 @@ def _identity(text: str) -> str:
     return " ".join(text.strip().strip("`<>*_").rstrip(".;,").strip("`<>*_").split()).lower()
 
 
+def authors_of(body: str) -> list[str]:
+    """The authors a pull request's description names on its `Author:` lines, as written, with
+    the template's guidance (its HTML comments) dropped first. An empty `Author:` line takes the
+    next line that is not blank, unless that line is no name, so it then names no one."""
+    lines = [line.strip() for line in COMMENT.sub("", body).splitlines()]
+    out = []
+    for k, line in enumerate(lines):
+        if (m := AUTHOR.match(line)) is None:
+            continue
+        value = m[1].strip()
+        if not value:
+            after = next((x for x in lines[k + 1 :] if x), "")
+            value = "" if NOT_A_NAME.match(after) else after
+        if value:
+            out.append(value)
+    return out
+
+
 def _verdict(text: str) -> str:
     """The first line of the review's `## Verdict` section that is not blank."""
     lines = text.splitlines()
@@ -550,10 +574,11 @@ def review_refusals(changed: list[str], pr: PullRequest) -> list[str]:
         return [*out, f"{path}: the review file is not in the head's tree"]
     m = REVIEWER.search(text)
     reviewer = m[1].strip() if m else ""
-    authors = {_identity(a) for a in AUTHOR.findall(pr.body or "") if a.strip()}
+    named = authors_of(pr.body or "")
+    authors = {_identity(a) for a in named}
     sessions = {s for c in pr.commits if any("docs" not in classify(p) for p in c.paths)
                 for s in c.sessions}  # fmt: skip
-    sessions |= {u for a in AUTHOR.findall(pr.body or "") for u in SESSION.findall(a)}
+    sessions |= {u for a in named for u in SESSION.findall(a)}
     authors |= {_identity(s) for s in sessions}
     if not reviewer or reviewer.startswith("<"):
         out.append(f"{path}: its Reviewer: line is empty")

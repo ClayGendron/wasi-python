@@ -649,6 +649,76 @@ def test_a_person_named_as_the_author_may_not_review() -> None:
     assert _review_refusals(pr)
 
 
+TEMPLATE = paths.REPO / ".github" / "PULL_REQUEST_TEMPLATE.md"
+
+
+def _filled(who: str, keep_guidance: bool) -> str:
+    """The pull request template with its author line filled in, as an author types it: after the
+    colon, before the guidance, or in place of it."""
+    lines = TEMPLATE.read_text().splitlines()
+    (k,) = [k for k, line in enumerate(lines) if line.startswith("Author:")]
+    lines[k] = (
+        lines[k].replace("Author:", f"Author: {who}", 1) if keep_guidance else f"Author: {who}"
+    )
+    return "\n".join(lines) + "\n"
+
+
+@pytest.mark.parametrize("keep_guidance", [True, False], ids=["before the guidance", "in place"])
+@pytest.mark.parametrize("who", ["Clay Gendron", AUTHOR], ids=["a person", "a session"])
+def test_the_templates_author_line_filled_in_names_the_author(who, keep_guidance) -> None:
+    body = _filled(who, keep_guidance)
+    assert ci_plan.authors_of(body) == [who]
+    (refusal,) = _review_refusals(_pr(_review(reviewer=who), body=body))
+    assert "names the author" in refusal
+
+
+def test_the_unfilled_template_names_no_author() -> None:
+    assert ci_plan.authors_of(TEMPLATE.read_text()) == []
+
+
+@pytest.mark.parametrize(
+    "after",
+    [
+        "Specifications: 999-a-change",
+        "**Specifications:** 999-a-change",
+        "- every new check seen failing first",
+        "- [ ] The Windows legs of this pull request's run were read.",
+        "## What changed",
+        "| who | what |",
+    ],
+    ids=["a field", "a bold field", "a list item", "a box", "a heading", "a table"],
+)
+def test_an_empty_author_line_followed_by_no_name_names_no_one(after) -> None:
+    assert ci_plan.authors_of(f"Author:\n\n{after}\n") == []
+    assert ci_plan.authors_of(f"- **Author:**  \n{after}\n") == []
+    assert ci_plan.authors_of("Author:\n") == []
+
+
+@pytest.mark.parametrize("who", ["Clay Gendron", AUTHOR], ids=["a person", "a session"])
+def test_a_name_on_the_line_after_an_empty_author_line_is_the_author(who) -> None:
+    body = f"Author:\n\n{who}\n\nSpecifications: 999-a-change\n"
+    assert ci_plan.authors_of(body) == [who]
+    assert ci_plan.authors_of(f"Author: <!-- guidance -->\n<!-- more -->\n{who}\n") == [who]
+    review = _review(reviewer=who)
+    code = ci_plan.Commit("a" * 40, ("src/x.py", NEWS), ())
+    pr = _pr(review, commits=[code, ci_plan.Commit("b" * 40, (REVIEW,), ())], body=body)
+    (refusal,) = _review_refusals(pr)
+    assert "names the author" in refusal
+
+
+def test_the_filled_template_is_refused_for_nothing_and_a_skip_word_in_its_guidance_is() -> None:
+    """The guidance is dropped only to read the author: the squash merge's message is the
+    description as written, its comments included, so a skip word inside one is still refused."""
+    changed = ["src/x.py", NEWS, REVIEW]
+    d = ci_plan.decide(changed, PR_DEV)
+    body = _filled(AUTHOR, keep_guidance=True)
+    assert ci_plan.refusals(d, PR_DEV, changed, _pr(body=body)) == []
+    guided = body.replace("<!-- What changed", "<!-- [skip ci] What changed", 1)
+    assert guided != body
+    (refusal,) = ci_plan.refusals(d, PR_DEV, changed, _pr(body=guided))
+    assert "[skip ci]" in refusal
+
+
 def test_a_reviewers_own_session_on_a_review_commit_is_not_an_author() -> None:
     """The review's own commit touches documentation alone: its trailer is the reviewer's."""
     assert _review_refusals(_pr(_review(reviewer=OTHER))) == []
