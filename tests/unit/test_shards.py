@@ -571,3 +571,13 @@ def test_each_bad_release_shard_is_named(change, error) -> None:
 def test_a_release_group_needs_no_linux_shard_of_the_normal_tier() -> None:
     errors = shards.plan_errors(_plan(RELEASE_PLAN), FILES, [*GROUPS, "r1", "r2"], RELEASE_GROUPS)
     assert not any("Linux shards" in e for e in errors), errors
+
+
+def test_the_jobs_and_the_writing_conventions_are_no_judge_test_files() -> None:
+    files = [
+        "tests/lint/test_writing_conventions.py",
+        "tests/jobs/test_job.py",
+        "tests/unit/test_y.py",
+        "tests/checks/helper.py",
+    ]
+    assert shards.test_files(files) == ["tests/unit/test_y.py"]

@@ -157,7 +157,7 @@ def test_the_judge_changed_line_says_how_many_files_it_leaves_out() -> None:
         ),
         (
             run({A: check("pass")}),
-            accepted({A: acc()}, judge_files={"x": "y"}),
+            accepted({A: acc()}, judge_files={"tests/known_gaps.toml": "y"}),
             {},
             "say --accept-judge",
         ),
@@ -167,6 +167,39 @@ def test_the_judge_changed_line_says_how_many_files_it_leaves_out() -> None:
 def test_accept_refuses(rec, base, kw, refusal) -> None:
     with pytest.raises(scoreboard.AcceptRefused, match=refusal):
         _accept(rec, base, **kw)
+
+
+def test_accept_judge_is_refused_as_unnecessary_when_no_verdict_bearing_file_changed() -> None:
+    harness_edit = accepted({A: acc()}, judge_files={"tests/harness/scan.py": "0"})
+    with pytest.raises(scoreboard.AcceptRefused, match="--accept-judge is unnecessary"):
+        _accept(run({A: check("pass")}), harness_edit, judge_reason="a new rule")
+    new, line = _accept(run({A: check("pass")}), harness_edit)  # recorded by the hash alone
+    assert json.loads(line)["judge_changed"] == ["tests/conftest.py", "tests/harness/scan.py"]
+    assert json.loads(line)["judge_reason"] is None
+    with pytest.raises(scoreboard.AcceptRefused, match="--accept-judge is unnecessary"):
+        _accept(run({A: check("pass")}), accepted({A: acc()}), judge_reason="nothing changed")
+
+
+@pytest.mark.parametrize(
+    "verdict_file",
+    [
+        "tests/known_gaps.toml",
+        "tests/upstream/numpy.toml",
+        "tests/upstream/expected/numpy-core/x.txt",
+        "tests/upstream/python/cpython-a.txt",
+        "tests/release_shards.toml",
+        "tests/public_api.txt",
+        "context/release-tier-claims.toml",
+    ],
+)
+def test_accept_judge_is_required_when_a_verdict_bearing_file_changed(verdict_file) -> None:
+    files = {"tests/conftest.py": "1", verdict_file: "0"}
+    moved = accepted({A: acc()}, judge_files=files)
+    with pytest.raises(scoreboard.AcceptRefused, match="say --accept-judge") as e:
+        _accept(run({A: check("pass")}), moved)
+    assert verdict_file in str(e.value)
+    _, line = _accept(run({A: check("pass")}), moved, judge_reason="a new allowance")
+    assert json.loads(line)["judge_reason"] == "a new allowance"
 
 
 def test_accept_keeps_the_minimum_metric_unless_growth_is_accepted() -> None:
@@ -184,9 +217,7 @@ def test_accept_keeps_the_minimum_metric_unless_growth_is_accepted() -> None:
 
 def test_accept_rebaselines_fuel_on_a_new_wasmtime() -> None:
     base = accepted({A: acc(fuel=10, wasmtime="48.0.0")}, judge_files={"uv.lock": "old"})
-    new, _ = _accept(
-        run({A: check("pass", metrics={"fuel": 99})}), base, judge_reason="wasmtime 49"
-    )
+    new, _ = _accept(run({A: check("pass", metrics={"fuel": 99})}), base)
     assert new["checks"][A]["metrics"][PLAT] == {"wasmtime": "49.0.0", "fuel": 99}
 
 

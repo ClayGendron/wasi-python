@@ -45,7 +45,7 @@ from pathlib import Path
 if __package__ in (None, ""):  # run as a script: the harness package lives one folder up
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from harness import history, news, paths, scoreboard, shards  # noqa: E402
+from harness import budget, history, news, paths, scoreboard, shards  # noqa: E402
 
 HEX64 = re.compile(r"[0-9a-f]{64}")
 # The needs that may block a check in CI, each with the systems (as `expected_keys` names them)
@@ -133,6 +133,9 @@ class Inputs:
     ref: str = ""  # GITHUB_REF
     base_ref: str = ""  # GITHUB_BASE_REF: a pull request's base, main on the release pull request
     claims: list[news.Claim] = field(default_factory=list)  # the news files' claims, for GROWTH
+    # The fast tier's budget, the upstream checks' families and the specifications' Status lines:
+    # each record's own fuel against its family's cap. None leaves the budget out.
+    budget: tuple[budget.Budget, dict[str, str], dict[str, str]] | None = None
 
 
 @dataclass
@@ -411,6 +414,23 @@ def gather(i: Inputs) -> Verdict:
                     v.list_growth(row, kind, n.split(": ", 1)[0])
                 else:
                     red.append(row)
+    # The budget, held on each record's own fuel, so the change that grows a check past its
+    # family's cap is the one that is red; a check listed with the specification that moves it is
+    # reported.
+    reported: list[str] = []
+    if i.budget is not None:
+        plan_budget, families, specs = i.budget
+
+        def family(node: str) -> str:
+            return budget.family_of(node, families)
+
+        for (system, shard), r in v.records.items():
+            over = budget.run_fuel_over(
+                r.get("checks", {}), plan_budget.caps, family, i.release_checks
+            )
+            bad, said = budget.findings(over, plan_budget, specs, stale=False)
+            red += [f"G5 budget {system}/{shard}: {line}" for line in bad]
+            reported += [f"budget: {system}/{shard}: {line}" for line in said]
     # A check accepted in one tier and now in the other: shown on every run, so a pull request
     # names a move before its acceptance needs the reason.
     for node, acc in sorted(i.accepted.get("checks", {}).items()):
@@ -499,6 +519,11 @@ def gather(i: Inputs) -> Verdict:
         )
     at = next((n for n, line in enumerate(v.lines) if line.startswith("not machine-checked")), -1)
     v.lines.insert(at, f"set: {i.set_source or '(none handed on)'}")  # built or reused
+    if reported:
+        at = next(
+            (n for n, line in enumerate(v.lines) if line.startswith("not machine-checked")), -1
+        )
+        v.lines[at:at] = reported
     quiet = no_trap_anywhere(v.records)
     if quiet:  # never red: a fixed trap asks the change that closes it to go ahead
         at = next(
@@ -960,6 +985,11 @@ def main(argv: list[str]) -> int:
             base_ref=os.environ.get("GITHUB_BASE_REF", ""),
             claims=news_claims()
             + (release_ledger() if os.environ.get("GITHUB_BASE_REF") == "main" else []),
+            budget=(
+                budget.load(),
+                budget.upstream_families(),
+                budget.spec_status(paths.CONTEXT / "specifications"),
+            ),
         )
     )
     a.out.mkdir(parents=True, exist_ok=True)

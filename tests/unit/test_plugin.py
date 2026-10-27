@@ -246,24 +246,40 @@ def test_fuel_on_another_wasmtime_is_not_compared(inner, monkeypatch) -> None:
     result.stdout.fnmatch_lines(["*fuel not compared*"])
 
 
-def test_a_changed_judge_needs_accept_judge(inner, monkeypatch) -> None:
-    _accept_baseline(inner)
+def _judge_with(monkeypatch, name: str) -> None:
     real = plugin.run_meta
 
     def new_judge():
         meta = real()
-        files = dict(meta["judge"]["files"], **{"tests/harness/new.py": "abc"})
+        files = dict(meta["judge"]["files"], **{name: "abc"})
         meta["judge"] = {"hash": paths.judge_hash(files), "files": files}
         return meta
 
     monkeypatch.setattr(plugin, "run_meta", new_judge)
+
+
+def test_a_changed_verdict_bearing_file_needs_accept_judge(inner, monkeypatch) -> None:
+    _accept_baseline(inner)
+    _judge_with(monkeypatch, "tests/upstream/new.toml")
     result, _ = inner(fail=False)
     assert result.ret == 0
-    result.stdout.fnmatch_lines(["*judge changed: tests/harness/new.py*"])
-    result, _ = inner("--accept", "harness edit", fail=False)
+    result.stdout.fnmatch_lines(["*judge changed: tests/upstream/new.toml*"])
+    result, _ = inner("--accept", "allowance edit", fail=False)
     assert result.ret == 1
-    result, _ = inner("--accept", "harness edit", "--accept-judge", "a new module", fail=False)
+    result, _ = inner("--accept", "allowance edit", "--accept-judge", "a new family", fail=False)
     assert result.ret == 0
+
+
+def test_another_judge_change_is_accepted_without_accept_judge(inner, monkeypatch) -> None:
+    _accept_baseline(inner)
+    _judge_with(monkeypatch, "tests/harness/new.py")
+    result, _ = inner("--accept", "harness edit", "--accept-judge", "a new module", fail=False)
+    assert result.ret == 1
+    result.stdout.fnmatch_lines(["*--accept-judge is unnecessary*"])
+    result, _ = inner("--accept", "harness edit", fail=False)
+    assert result.ret == 0
+    line = json.loads(history.lines(inner.progress)[-1])
+    assert "tests/harness/new.py" in line["judge_changed"] and line["judge_reason"] is None
 
 
 def test_a_run_stopped_early_reports_unrun_checks(inner) -> None:

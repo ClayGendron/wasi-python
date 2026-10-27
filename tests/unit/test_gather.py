@@ -115,6 +115,7 @@ class Case:
         self.judge = J
         self.after_write = None  # a function of (records_dir, handed)
         self.handed_edit = None
+        self.budget = None  # (the budget, the upstream families, the specifications' Status)
 
     def run(self) -> gather.Verdict:
         records_dir = self.tmp / "records"
@@ -153,6 +154,7 @@ class Case:
             tag=self.tag,
             set_source=self.set_source,
             repo=self.tmp,
+            budget=self.budget,
         )
 
 
@@ -1491,3 +1493,51 @@ def test_a_fall_in_passes_after_a_merge_is_listed_only_with_its_claim(tmp_path) 
             r["checks"][SUITE]["metrics"] = {"passes": 4, "fuel": 100}
     v = case.run()
     assert any("fewer" in r or "is not accepted" in r for r in v.red), v.red
+
+
+def _budgeted(case: Case, over: tuple = ()) -> None:
+    """Caps for every family the records give fuel to, the probe's file's at 50."""
+    from harness import budget
+
+    families = {SUITE: "pkg", CLASS: "pkg"}
+    caps = {}
+    for r in case.records.values():
+        for node, c in r["checks"].items():
+            if isinstance((c.get("metrics") or {}).get("fuel"), int):
+                caps[budget.family_of(node, families)] = 10**12
+    caps["test_v1_2_portable_and_sealed"] = 50
+    case.budget = (budget.Budget(60, caps, over), families, {"150": "drafted"})
+
+
+def test_a_pull_request_that_grows_a_check_past_its_cap_is_red_on_its_own_run(tmp_path) -> None:
+    """The fuel budget is held where the fuel is measured: the pull request that grows a check
+    past its family's cap is red, not the next one."""
+    from harness import budget
+
+    case = PRCase(tmp_path)
+    _budgeted(case)
+    assert case.run().red == []
+    case.records[("linux", "own-a")]["checks"][PROBE]["metrics"] = {"fuel": 70}
+    case.accepted["checks"][PROBE]["metrics"]["linux-x86_64"] = {"fuel": 70, "wasmtime": WT}
+    red = case.run().red
+    want = f"G5 budget linux/own-a: {PROBE}: fuel 70 is past its family"
+    assert any(r.startswith(want) for r in red), red
+    number = "150"  # a written specification still to land, as closes_with names it
+    _budgeted(case, (budget.Over(PROBE, number, "a bigger probe"),))
+    v = case.run()
+    assert v.red == [], v.red
+    said = [line for line in v.lines if line.startswith("budget: ")]
+    assert any(f"specification {number}" in line for line in said), v.lines
+
+
+def test_a_claimed_growth_past_its_cap_is_still_red_after_a_merge(tmp_path) -> None:
+    """A news file's claim lists a growth for the acceptance; it does not raise the cap, which
+    only an [[over]] entry naming the specification that moves the check admits."""
+    case = _post_merge(tmp_path)
+    _budgeted(case)
+    case.records[("macos", "own-a")]["checks"][PROBE]["metrics"] = {"fuel": 70}
+    claim = news.Claim(spec="999", grows=[PROBE], growth="the probe does more")
+    v = _claiming(case, [claim]).run()
+    assert v.growth == [f"G5 macos/own-a: grew {PROBE}: fuel 7 -> 70"], v.growth
+    want = f"G5 budget macos/own-a: {PROBE}: fuel 70 is past its family"
+    assert any(r.startswith(want) for r in v.red), v.red

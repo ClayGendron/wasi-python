@@ -2,6 +2,12 @@ version = 1
 revision = 3
 requires-python = ">=3.11"
 
+[manifest]
+members = [
+    "wasi-python",
+    "wasi-python-judge-options",
+]
+
 [[package]]
 name = "babel"
 version = "2.18.0"
@@ -1021,6 +1027,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-xdist" },
     { name = "ruff" },
+    { name = "wasi-python-judge-options" },
 ]
 docs = [
     { name = "mkdocs" },
@@ -1038,11 +1045,17 @@ dev = [
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-xdist", specifier = "==3.8.0" },
     { name = "ruff", specifier = ">=0.12" },
+    { name = "wasi-python-judge-options", editable = "tests/judge_options" },
 ]
 docs = [
     { name = "mkdocs", specifier = "==1.6.1" },
     { name = "mkdocs-material", specifier = "==9.7.7" },
 ]
+
+[[package]]
+name = "wasi-python-judge-options"
+version = "1"
+source = { editable = "tests/judge_options" }
 
 [[package]]
 name = "wasmtime"

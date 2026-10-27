@@ -152,17 +152,6 @@ def test_build_scripts_call_python_only_through_uv_or_a_path() -> None:
     assert not hits, scan.report(hits)
 
 
-def test_specifications_have_their_header_and_sections() -> None:
-    errors = [e for s in sorted(SPECS.glob("*.md")) for e in scan.spec_shape_errors(s)]
-    assert not errors, scan.report(errors)
-
-
-def test_specifications_have_no_open_question() -> None:
-    docs = sorted(SPECS.glob("*.md")) + [paths.README, paths.REPO / "AGENTS.md"]
-    hits = [h for d in docs for h in scan.open_question_hits(d)]
-    assert not hits, scan.report(hits)
-
-
 # No module under src/ over 1,500 lines. A module over it that is not yet split has an entry
 # equal to its count, which can only shrink (a stale entry is a finding too), and an entry is
 # deleted the day its file is at or under the ceiling.
@@ -214,172 +203,6 @@ def test_no_mutable_is_bound_at_module_level_outside_the_process() -> None:
     module or class level in any module of the package but the owner's, apart from `__all__`, an
     upper-case table that is only read, and a ctypes `_fields_` declaration."""
     hits = scan.module_mutable_hits(_runner_modules_but_the_owner(), paths.REPO)
-    assert not hits, scan.report(hits)
-
-
-# (path, the exact phrase, why it stays). Each entry admits that phrase in that file's comments
-# and docstrings; an entry that admits nothing fails, so the tuple only ever shrinks.
-JUDGE_FILE = (
-    "the known gaps and the upstream suites' allowances change only by a judge change of their "
-    "own, which clears these comments then; a cleanup of comments never edits them"
-)
-GUEST_INPUT = (
-    "a source the guest runs: its bytes are the guest's input, and a shorter docstring moved the "
-    "regex job's fuel past the ratchet's tolerance, so it changes with a judge change that "
-    "re-measures its fuel"
-)
-SHAPE_SHOWN = (
-    "the src/ citation check documents its regexes by showing the shapes they match and refuse; "
-    "the token is the rule's own vocabulary, not a citation of a document"
-)
-CONTEXT_CITATION_ALLOWED: tuple[tuple[str, str, str], ...] = (
-    ("tests/checks/test_rules.py", "C6", SHAPE_SHOWN),
-    ("tests/checks/test_rules.py", "C99", SHAPE_SHOWN),
-    ("tests/checks/test_rules.py", "D3", SHAPE_SHOWN),
-    ("tests/checks/test_rules.py", "F1", SHAPE_SHOWN),
-    ("tests/checks/test_rules.py", "F3", SHAPE_SHOWN),
-    ("tests/checks/test_rules.py", "F4.2", SHAPE_SHOWN),
-    ("tests/checks/test_rules.py", "L1", SHAPE_SHOWN),
-    ("tests/checks/test_rules.py", "N12", SHAPE_SHOWN),
-    ("tests/checks/test_rules.py", "S3", SHAPE_SHOWN),
-    ("tests/checks/test_rules.py", "memo", SHAPE_SHOWN),
-    ("tests/jobs/callbacks.py", "spec 051", GUEST_INPUT),
-    ("tests/jobs/compress.py", "spec 007", GUEST_INPUT),
-    ("tests/jobs/excel.py", "spec 039", GUEST_INPUT),
-    ("tests/jobs/files_from_the_zip.py", "041's", GUEST_INPUT),
-    ("tests/jobs/files_from_the_zip.py", "spec 041", GUEST_INPUT),
-    ("tests/jobs/lxml_xml.py", "spec 046", GUEST_INPUT),
-    ("tests/jobs/machine_learning.py", "037's", GUEST_INPUT),
-    ("tests/jobs/machine_learning.py", "spec 044", GUEST_INPUT),
-    ("tests/jobs/markup.py", "spec 039", GUEST_INPUT),
-    ("tests/jobs/markup.py", "spec 046", GUEST_INPUT),
-    ("tests/jobs/modelling.py", "spec 037", GUEST_INPUT),
-    ("tests/jobs/modelling.py", "spec 039", GUEST_INPUT),
-    ("tests/jobs/pandas_tz.py", "spec 035", GUEST_INPUT),
-    ("tests/jobs/pdf_reports.py", "spec 042", GUEST_INPUT),
-    ("tests/jobs/pdf.py", "spec 039", GUEST_INPUT),
-    ("tests/jobs/plot_callbacks.py", "023's", GUEST_INPUT),
-    ("tests/jobs/plot_callbacks.py", "spec 023", GUEST_INPUT),
-    ("tests/jobs/plot_contour.py", "spec 043", GUEST_INPUT),
-    ("tests/jobs/plot_line.py", "spec 023", GUEST_INPUT),
-    ("tests/jobs/regex_features.py", "spec 047", GUEST_INPUT),
-    ("tests/jobs/scipy_edges.py", "spec 038", GUEST_INPUT),
-    ("tests/jobs/scipy_lapack.py", "spec 037", GUEST_INPUT),
-    ("tests/jobs/scipy_numeric.py", "spec 037", GUEST_INPUT),
-    ("tests/jobs/scipy_solvers.py", "spec 037", GUEST_INPUT),
-    ("tests/jobs/sqlite.py", "spec 007", GUEST_INPUT),
-    ("tests/jobs/statistical_plots.py", "037's", GUEST_INPUT),
-    ("tests/jobs/statistical_plots.py", "spec 037", GUEST_INPUT),
-    ("tests/jobs/statistical_plots.py", "spec 042", GUEST_INPUT),
-    ("tests/jobs/symbolic.py", "spec 037", GUEST_INPUT),
-    ("tests/jobs/symbolic.py", "spec 039", GUEST_INPUT),
-    ("tests/jobs/text_formats.py", "spec 039", GUEST_INPUT),
-    ("tests/jobs/utilities.py", "spec 039", GUEST_INPUT),
-    ("tests/known_gaps.toml", "C1", JUDGE_FILE),
-    ("tests/known_gaps.toml", "Spec 066", JUDGE_FILE),
-    ("tests/known_gaps.toml", "spec 002", JUDGE_FILE),
-    ("tests/known_gaps.toml", "spec 050", JUDGE_FILE),
-    ("tests/known_gaps.toml", "spec 065", JUDGE_FILE),
-    ("tests/upstream/drive.py", "spec 050", GUEST_INPUT),
-    ("tests/upstream/kiwisolver.toml", "spec 066", JUDGE_FILE),
-    ("tests/upstream/lxml.toml", "spec 066", JUDGE_FILE),
-    ("tests/upstream/matplotlib.toml", "spec 066", JUDGE_FILE),
-    ("tests/upstream/package_drive.py", "066's", GUEST_INPUT),
-    ("tests/upstream/package_drive.py", "build review", GUEST_INPUT),
-    ("tests/upstream/package_drive.py", "review, M2", GUEST_INPUT),
-    ("tests/upstream/package_drive.py", "spec 050", GUEST_INPUT),
-    ("tests/upstream/package_drive.py", "spec 066", GUEST_INPUT),
-    ("tests/upstream/packages.toml", "context/roadmap", JUDGE_FILE),
-    ("tests/upstream/packages.toml", "spec 037", JUDGE_FILE),
-    ("tests/upstream/packages.toml", "spec 063", JUDGE_FILE),
-    ("tests/upstream/packages.toml", "spec 065", JUDGE_FILE),
-    ("tests/upstream/packages.toml", "spec 066", JUDGE_FILE),
-    ("tests/upstream/pillow.toml", "review, H2", JUDGE_FILE),
-    ("tests/upstream/pillow.toml", "spec 066", JUDGE_FILE),
-    ("tests/upstream/regex.toml", "spec 066", JUDGE_FILE),
-    ("tests/upstream/regrtest_drive.py", "C1", GUEST_INPUT),
-    ("tests/upstream/regrtest_drive.py", "confirmation's", GUEST_INPUT),
-    ("tests/upstream/regrtest_drive.py", "spec 065", GUEST_INPUT),
-)
-
-
-def test_code_outside_src_names_no_context_document() -> None:
-    """Code speaks for itself: no comment or docstring under `tests/`, `scripts/`, `release/` or
-    the workflows names a specification, the constitution's sections, a research write-up, a
-    review, an owner's numbered question, a path under the knowledge tree or a review finding's
-    identifier. The reason is written in words, and the documents cite the code, not
-    the other way round. The judge's reads of those documents are code, not prose, so they are
-    not held here."""
-    allowed = {(path, phrase) for path, phrase, _ in CONTEXT_CITATION_ALLOWED}
-    used: set[tuple[str, str]] = set()
-    hits = []
-    for p in scan.context_citation_files(paths.REPO):
-        where = scan.rel(p, paths.REPO)
-        for line, rule, phrase in scan.context_citation_hits(p):
-            if (where, phrase) in allowed:
-                used.add((where, phrase))
-            else:
-                hits.append(f"{where}:{line}: {rule}: {phrase}")
-    hits += [f"{path}: allowed '{phrase}' is no longer there" for path, phrase in allowed - used]
-    assert not hits, scan.report(hits)
-
-
-# The string rule leaves the judge's allowance files to a judge change of their own: a known
-# gap's `closes_with` names its closer by number in the judge's own format, and their reasons
-# are reworded with the comments of those files, by the change that clears them.
-STRING_RULE_LATER = ("tests/known_gaps.toml", "tests/upstream/*.toml")
-# (path, the exact phrase, why it stays), as for comments: each entry admits that phrase in that
-# file's strings; an entry that admits nothing fails, so the tuple only ever shrinks.
-RULE_NAME = "the name a rule table gives the form it refuses, the rule's own vocabulary"
-FIXTURE = (
-    "a scanner's input in a unit row: the text is what the scanner reads, so rewording it would "
-    "change the row"
-)
-GAP_DATA = (
-    "a known gap's closes_with names the specification that closes it by number, the format the "
-    "judge parses"
-)
-GUEST_FUEL = (
-    "a guest program in a check that records fuel: its bytes are the guest's input, so it changes "
-    "with the change that re-measures the guest's fuel"
-)
-STRING_CITATION_ALLOWED: tuple[tuple[str, str, str], ...] = (
-    ("tests/checks/test_rules.py", "memo", RULE_NAME),
-    ("tests/harness/scan.py", "memo", RULE_NAME),
-    ("tests/unit/test_scan.py", "constitution §", FIXTURE),
-    ("tests/unit/test_scan.py", "memo", FIXTURE),
-    ("tests/unit/test_scan.py", "review 2026-10-19", FIXTURE),
-    ("tests/unit/test_scan.py", "question 95", FIXTURE),
-    ("tests/unit/test_scan.py", "review's F4.2", FIXTURE),
-    ("tests/unit/test_scan.py", "build review", FIXTURE),
-    ("tests/unit/test_scan.py", "Confirmation's M5", FIXTURE),
-    ("tests/unit/test_scan.py", "Confirmation's", FIXTURE),
-    ("tests/unit/test_landing_lane.py", "memo", FIXTURE),
-    ("tests/unit/test_shards.py", "spec 001", GAP_DATA),
-    ("tests/unit/test_shards.py", "spec 065", GAP_DATA),
-    ("tests/unit/test_shards.py", "spec 099", GAP_DATA),
-    ("tests/checks/test_v1_3_data_stack.py", "review 033", GUEST_FUEL),
-)
-
-
-def test_no_string_names_a_context_document() -> None:
-    """Strings speak for themselves: no string literal under `tests/`, `scripts/`, `release/`,
-    the workflows or `src/`, nor in `pyproject.toml`, names a specification, the constitution's
-    sections, a research write-up, a dated, numbered or named review, an owner's numbered
-    question or a finding a review names. A message, a help text, a title, a step's name and a
-    program a check holds give their reasons in words. A path and a bare label are data in a
-    string, so they are not held here."""
-    allowed = {(path, phrase) for path, phrase, _ in STRING_CITATION_ALLOWED}
-    used: set[tuple[str, str]] = set()
-    hits = []
-    for p in scan.string_citation_files(paths.REPO, STRING_RULE_LATER):
-        where = scan.rel(p, paths.REPO)
-        for line, rule, phrase in scan.string_citation_hits(p):
-            if (where, phrase) in allowed:
-                used.add((where, phrase))
-            else:
-                hits.append(f"{where}:{line}: {rule}: {phrase}")
-    hits += [f"{path}: allowed '{phrase}' is no longer there" for path, phrase in allowed - used]
     assert not hits, scan.report(hits)
 
 
@@ -468,33 +291,57 @@ def test_generated_pages_are_current() -> None:
     assert not errors, scan.report(errors)
 
 
-def test_markdown_paragraphs_are_one_line_each() -> None:
-    """A Markdown paragraph is written on one line: a renderer joins a paragraph's lines with
-    spaces anyway, so a hard wrap at a column changes nothing a reader sees while every edit
-    re-flows its neighbours and every diff is noisier. The root's Markdown files, the public
-    pages and every document under the knowledge tree are held, the prior-art clones excepted
-    (they are not ours); code, tables, headings and HTML are never joined, and a CRLF file is
-    reported. `uv run python tests/harness/wrap.py --fix PATH` joins what this finds."""
-    from harness import wrap
+# The writing conventions are lint: the quick job's lint step runs them by their folder, they gate
+# ci-status, and they are no goal check, so no area counts them and the ratchet never holds them.
+# The rules that hold more than writing stay goal checks: the embedder names (a hard constraint),
+# the release's structural review, the landed specifications' reviews and the structural
+# specifications' reviews before their build.
+LINT_FILE = paths.REPO / "tests" / "lint" / "test_writing_conventions.py"
+LINT_RULES = (
+    "test_specifications_have_their_header_and_sections",
+    "test_specifications_have_no_open_question",
+    "test_markdown_paragraphs_are_one_line_each",
+    "test_executed_memos_label_their_claims",
+    "test_readme_carries_the_codecov_badge",
+    "test_code_outside_src_names_no_context_document",
+    "test_no_string_names_a_context_document",
+    "test_src_names_no_context_document",
+)
+KEPT_RULES = (
+    "test_no_embedder_name_in_code",
+    "test_a_release_has_its_structural_review",
+    "test_landed_specifications_cite_an_existing_review",
+    "test_built_structural_specifications_cite_their_pre_build_review",
+)
 
-    roots = [*sorted(paths.REPO.glob("*.md")), paths.REPO / "docs", paths.CONTEXT]
-    hits = wrap.findings(roots, lambda p: scan.rel(p, paths.REPO))
-    assert not hits, scan.report(hits)
+
+def _functions(path: Path) -> set[str]:
+    import ast
+
+    if not path.is_file():
+        return set()
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    return {n.name for n in tree.body if isinstance(n, ast.FunctionDef)}
 
 
-def test_readme_carries_the_codecov_badge() -> None:
-    """The README carries one coverage badge, this repository's on Codecov, which the release
-    workflow's coverage job feeds from the fast tier run under coverage.py
-    (`uv run python tests/harness/coverage.py --measure`). The number lives at Codecov, so no
-    file in the tree can drift from it."""
-    from harness import coverage
-
-    errors = coverage.badge_errors(paths.README.read_text(encoding="utf-8"))
-    assert not errors, scan.report(errors)
-
-
-def test_executed_memos_label_their_claims() -> None:
-    errors = [e for m in sorted(RESEARCH.glob("*.md")) for e in scan.memo_label_errors(m)]
+def test_the_writing_conventions_are_lint_not_goal_checks() -> None:
+    """The eight writing rules live in tests/lint, which marks no goal check and which the fast
+    tier does not collect; the four that hold more than writing stay here; and the quick job runs
+    the folder as its lint step, with no `if:` or `continue-on-error` on it, on the rules step or
+    on the job."""
+    here, there = _functions(Path(__file__)), _functions(LINT_FILE)
+    errors = [f"{n} is a goal check here, not lint" for n in LINT_RULES if n in here]
+    errors += [
+        f"{n} is not in {scan.rel(LINT_FILE, paths.REPO)}" for n in LINT_RULES if n not in there
+    ]
+    errors += [f"{n} is no longer a goal check" for n in KEPT_RULES if n not in here]
+    lint = paths.REPO / "tests" / "lint"
+    if any("mark.goal" in f.read_text(encoding="utf-8") for f in sorted(lint.glob("*.py"))):
+        errors.append("a file under tests/lint marks a goal check")
+    ini = tomllib.loads((paths.REPO / "pyproject.toml").read_text())["tool"]["pytest"]
+    if "lint" not in ini["ini_options"].get("norecursedirs", []):
+        errors.append("the fast tier collects tests/lint: norecursedirs does not name lint")
+    errors += scan.lint_step_errors(RELEASE_WORKFLOW.read_text())
     assert not errors, scan.report(errors)
 
 
@@ -573,6 +420,34 @@ def test_the_clean_acceptance_key_is_in_the_judge() -> None:
     Kept here, among the protected checks, so that deleting the file cannot quietly end the
     requirement."""
     assert (paths.REPO / scan.FIRST_CLEAN_JUDGE).is_file(), scan.FIRST_CLEAN_JUDGE
+
+
+# The judge files whose change needs `--accept-judge`, written again here: a change to the list is
+# a change to this tuple too, so it is a judge change a reader sees.
+VERDICT_BEARING = (
+    "tests/known_gaps.toml",
+    "tests/upstream/*.toml",
+    "tests/upstream/expected/**",
+    "tests/upstream/python/**",
+    "tests/release_shards.toml",
+    "tests/public_api.txt",
+    "context/release-tier-claims.toml",
+)
+
+
+def test_the_verdict_bearing_files_are_judge_files() -> None:
+    """The list `--accept-judge` reads names the known gaps, the upstream suites' allowances, their
+    expected failures, CPython's plan, the shard plan, the public API's list and the release tier's
+    claims, and nothing else; each entry matches a file the judge's hash holds, so a change to one
+    is seen as a judge change and none of them is a name that matches nothing."""
+    errors = []
+    if paths.VERDICT_BEARING != VERDICT_BEARING:
+        errors.append(f"paths.VERDICT_BEARING is {paths.VERDICT_BEARING}, not {VERDICT_BEARING}")
+    files = paths.judge_files()
+    for pattern in paths.VERDICT_BEARING:
+        if not any(paths.is_verdict_bearing(f, (pattern,)) for f in files):
+            errors.append(f"{pattern} matches no file the judge's hash holds")
+    assert not errors, scan.report(errors)
 
 
 def test_main_is_linear() -> None:
@@ -1192,6 +1067,25 @@ def test_release_judges_in_shards() -> None:
     assert not errors, scan.report(errors)
 
 
+def test_the_runners_coverage_rides_a_judge_leg() -> None:
+    """No job runs the fast tier a third time for the badge: the Linux legs the plan names, every
+    own shard of the plan on Linux, run their shards under coverage.py and send the reports to
+    Codecov, which merges them into the README's badge, and Codecov's token reaches those upload
+    steps alone. own-rest alone holds the rules and the harness's self-tests, which barely run the
+    runner, so the badge would stop measuring it."""
+    from harness import shards
+
+    errors = scan.coverage_errors(RELEASE_WORKFLOW.read_text())
+    plan = shards.load()
+    linux_own = [n for n in shards.on(plan, "linux") if not plan[n].groups]
+    named = list(_ci_plan_module().COVERAGE_SHARDS)
+    if named != linux_own:
+        errors.append(
+            f"the plan measures coverage on {named}, not every Linux own shard {linux_own}"
+        )
+    assert not errors, scan.report(errors)
+
+
 def _ci_plan_module() -> types.ModuleType:
     """`release/ci_plan.py`, loaded by path: the decision job's script."""
     import importlib.util
@@ -1372,69 +1266,6 @@ def test_the_platform_is_chosen_once() -> None:
     assert not hits, scan.report(hits)
 
 
-# Code speaks for itself: a code file names no specification, memo, review, finding ID or
-# `context/` path; its comments and docstrings give the reason in words, and the number lives in
-# the document that cites the file. `src/` is held here, over every comment token and every
-# docstring (through `tokenize`, so an identifier or a literal never trips it). Eight regexes:
-# a specification number in any form, a decision number with or without one (case-sensitive:
-# every citation writes "Decision 8", and "a decision" in prose stays free), the constitution,
-# the memo, any form of the word "review", a numbered question, a `context/` path, and a one-
-# or two-digit finding ID (`F3`, `N12`, `F4.2`, `S3`, `D3`, `C6`, `L1`; the look-arounds keep
-# `F401` in a `noqa` and a word like `MD5` out). The regexes refuse more than citations: `C99`,
-# `L1` as a cache level, `F1` as a key, and the words "memo" and "review" in any use; a comment
-# that needs such a word writes around it. Where words will not do, CITATION_ALLOWED carries the
-# exact token with a one-line reason; a citation of a `context/` document is never added.
-CITATION_KINDS = {
-    "specification number": re.compile(r"\bspec(?:ification)?s?\s+\d{3}\b", re.I),
-    "decision number": re.compile(r"\bDecisions?\s+\d+\b"),
-    "constitution": re.compile(r"\bconstitution\b", re.I),
-    "memo": re.compile(r"\bmemo\b", re.I),
-    "review": re.compile(r"\breviews?\b|\bre-review|\bconfirmation's\b", re.I),
-    "question": re.compile(r"\bquestion\s+\d+\b", re.I),
-    "context path": re.compile(r"\bcontext/"),
-    "finding ID": re.compile(r"(?<![A-Za-z0-9_])[CDFLNS]\d{1,2}(?:\.\d+)?(?![A-Za-z0-9_])"),
-}
-CITATION_ALLOWED: tuple[tuple[str, str], ...] = ()  # (exact token, why words would not do)
-
-
-def _prose(path: Path) -> list[tuple[int, str]]:
-    """(line, text) for every comment token and every line of every docstring: a string that is
-    the first token of a module, a class or a function body, or stands alone as a statement."""
-    import io
-    import tokenize
-
-    out: list[tuple[int, str]] = []
-    last: int | None = None
-    opening = (None, tokenize.NEWLINE, tokenize.INDENT, tokenize.DEDENT, tokenize.NL)
-    for tok in tokenize.generate_tokens(io.StringIO(path.read_text(encoding="utf-8")).readline):
-        if tok.type == tokenize.COMMENT:
-            out.append((tok.start[0], tok.string))
-        elif tok.type == tokenize.STRING and last in opening:
-            out += [(tok.start[0] + i, line) for i, line in enumerate(tok.string.splitlines())]
-        if tok.type not in (tokenize.NL, tokenize.COMMENT):
-            last = tok.type
-    return out
-
-
-def _citation_hits(root: Path) -> list[str]:
-    allowed = {token for token, _ in CITATION_ALLOWED}
-    hits = []
-    for path in sorted(p for p in scan.files_under(root, ".") if p.suffix == ".py"):
-        for line, text in _prose(path):
-            for kind, pattern in CITATION_KINDS.items():
-                for m in pattern.finditer(text):
-                    if m.group(0) not in allowed:
-                        hits.append(f"{scan.rel(path, paths.REPO)}:{line}: {kind} {m.group(0)!r}")
-    return hits
-
-
-def test_src_names_no_context_document() -> None:
-    """No specification number, decision number, constitution, memo, review, numbered question,
-    `context/` path or finding ID in any comment or docstring of any `.py` under `src/`."""
-    hits = _citation_hits(paths.REPO / "src")
-    assert not hits, scan.report(hits)
-
-
 # Seams are injected, not patched: a check or a unit test sets a seam through a field of the
 # process object, never by replacing a private name of a runner module by `setattr` or by
 # assignment, in its code or in a child program it runs. These are the private names the judge
@@ -1595,6 +1426,7 @@ def set_key_inputs() -> dict:
         "gate_imports": scan.local_import_files(paths.REPO, sk.GATE_ROOT, sk.GATES),
         "root_names": sorted({rel.split("/")[0] for rel in paths.tracked_files()}),
         "pyproject_text": (paths.REPO / "pyproject.toml").read_text(),
+        "members": scan.workspace_members(paths.REPO, (paths.REPO / "pyproject.toml").read_text()),
     }
 
 

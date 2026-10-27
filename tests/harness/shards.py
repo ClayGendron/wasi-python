@@ -145,12 +145,13 @@ def units_digest(nodeids: list[str]) -> str:
 
 
 def test_files(tracked: list[str]) -> list[str]:
-    """The test modules among tracked files: `test_*.py` under tests/, not the guest jobs."""
+    """The test modules among tracked files: `test_*.py` under tests/, not the guest jobs and not
+    the writing conventions, which the judge does not collect."""
     return sorted(
         f
         for f in tracked
         if f.startswith("tests/")
-        and not f.startswith("tests/jobs/")
+        and not f.startswith(("tests/jobs/", "tests/lint/"))
         and re.fullmatch(r"test_[^/]*\.py", PurePosixPath(f).name)
     )
 

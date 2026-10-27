@@ -19,8 +19,8 @@ fewer = ""           # the reason, required when a count named in passes falls
 grows = []           # checks whose fuel or bytes grow
 growth = ""          # the reason, required with grows
 units = 0            # unit tests added
-[claim.judge]        # each judge file changed, with its reason
-"tests/harness/plugin.py" = "it reads the record"
+[claim.judge]        # each verdict-bearing judge file changed, with its reason
+"tests/known_gaps.toml" = "a new allowance"
 [claim.moved]        # each check moved between tiers, with its reason
 ```
 
@@ -29,7 +29,7 @@ An entry with `::` is a check; one without is a file and stands for its checks; 
 Who reads them:
 
 - **The gather** lists each growth, fall in a pass count and tier move under `GROWTH` with the reason a claim gives, or `unclaimed`.
-- **The accept job** (`uv run pytest --accept-from <record.json> --claims context/changes/`) takes every reason from the news files changed since the last acceptance. An absent check is retired only when `retired` names it; a growth, a fall, a judge file changed and a tier move each need the claim that names it. An unclaimed row refuses the acceptance with the row named, and the fix is a one-line pull request to the news file.
+- **The accept job** (`uv run pytest --accept-from <record.json> --claims context/changes/`) takes every reason from the news files changed since the last acceptance. An absent check is retired only when `retired` names it; a growth, a fall, a verdict-bearing judge file changed (`tests/harness/paths.py`'s `VERDICT_BEARING`) and a tier move each need the claim that names it; any other judge change is recorded by the judge's hash and needs none. An unclaimed row refuses the acceptance with the row named, and the fix is a one-line pull request to the news file.
 - **`release/version.py bump`** assembles every news file into the new version's CHANGELOG section and the packages page, then removes them. `tests/checks/test_rules.py::test_the_news_files_have_their_shape` holds every file here to the shape.
 
 A later pull request of the same specification edits its news file: it adds its CHANGELOG lines and replaces the claim block with its own, since the accept job reads the block of each news file changed since the last acceptance.

@@ -95,6 +95,7 @@ jobs:
       tier: ${{ steps.plan.outputs.tier }}
       build: ${{ steps.plan.outputs.build }}
       verify: ${{ steps.plan.outputs.verify }}
+      coverage: ${{ steps.plan.outputs.coverage }}
       selected: ${{ steps.plan.outputs.selected }}
       refusals: ${{ steps.plan.outputs.refusals }}
       macos: ${{ steps.plan.outputs.macos }}
@@ -130,7 +131,7 @@ jobs:
   quick:
     name: quick (ruff, mypy, the unit tests, lint)
     # Everything that needs no artifact set, on every run: the gate the judge's stage waits on.
-    # lint is the rules checks, the writing conventions among them.
+    # lint is the writing conventions: it gates ci-status and is no goal check.
     # The push of an acceptance (the accepted state alone) needs nothing judged: the plan says so.
     needs: plan
     if: needs.plan.outputs.acceptance != 'true'
@@ -158,9 +159,18 @@ jobs:
         run: uv run mypy
       - name: The unit tests that need no artifact set
         run: uv run pytest -p no:cacheprovider -q -m "not slow" -n 4 tests/unit
+      - name: The rules checks
+        # No artifact set here: a rule that reads it is blocked, and own-rest runs it with one. Its
+        # JUnit report holds each check's time, which the next step reads.
+        run: uv run pytest -p no:cacheprovider -q tests/checks/test_rules.py --partial "quick has no artifact set" --junitxml build/ci/quick-rules.xml
+      - name: The rules checks' times against the budget
+        # Warnings only, as annotations and in the job's summary: a duration depends on the host
+        # that ran it, so it never fails a run; the fuel half of the budget is lint's and the
+        # gather's, since fuel counts operations.
+        run: uv run python tests/harness/budget.py --times build/ci/quick-rules.xml
       - name: lint
-        # No artifact set here: a rule that reads it is blocked, and own-rest runs it with one.
-        run: uv run pytest -p no:cacheprovider -q tests/checks/test_rules.py --partial "quick has no artifact set"
+        # The writing conventions, and the accepted fuel against the budget's caps.
+        run: uv run pytest -p no:cacheprovider -q tests/lint
 
   inputs:
     name: the set's key, and whether this run may reuse a set
@@ -763,16 +773,38 @@ jobs:
         run: |
           uv run python tests/upstream/fetch.py --shard "$SHARD"
       - name: The shard
+        # A leg the plan names in coverage (Linux, a run with the merge-grade set) runs its shard
+        # under coverage.py, which measures src/wasi_python for the README's Codecov badge.
         env:
           SHARD: ${{ matrix.shard }}
+          COVERAGE: ${{ contains(fromJSON(needs.plan.outputs.coverage), matrix.shard) && runner.os == 'Linux' }}
+          COVERAGE_CORE: sysmon
         run: |
-          uv run pytest -p no:cacheprovider --shard="$SHARD" --progress-latest "$RUNNER_TEMP/record/latest.json"
+          if [ "$COVERAGE" = true ]; then
+            uv run coverage run --data-file=build/coverage/.coverage --source=src/wasi_python -m pytest -p no:cacheprovider --shard="$SHARD" --progress-latest "$RUNNER_TEMP/record/latest.json"
+          else
+            uv run pytest -p no:cacheprovider --shard="$SHARD" --progress-latest "$RUNNER_TEMP/record/latest.json"
+          fi
       - id: record
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: record-macos-${{ matrix.shard }}
           path: ${{ runner.temp }}/record/latest.json
           if-no-files-found: error
+      - name: The coverage report
+        if: contains(fromJSON(needs.plan.outputs.coverage), matrix.shard) && runner.os == 'Linux'
+        run: uv run coverage xml --data-file=build/coverage/.coverage -o build/coverage/coverage.xml
+      - name: The coverage report to Codecov
+        # The upload carries the repository's CODECOV_TOKEN and nothing else. A failed upload
+        # (Codecov's outage) is logged by the action and not failed, so it never turns a run red.
+        if: contains(fromJSON(needs.plan.outputs.coverage), matrix.shard) && runner.os == 'Linux'
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          files: build/coverage/coverage.xml
+          disable_search: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          version: v11.3.1 # the uploader the action fetches, named rather than its latest
+          fail_ci_if_error: false
       - name: Keep the shard's record when it fails
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -833,16 +865,38 @@ jobs:
         run: |
           uv run python tests/upstream/fetch.py --shard "$SHARD"
       - name: The shard
+        # A leg the plan names in coverage (Linux, a run with the merge-grade set) runs its shard
+        # under coverage.py, which measures src/wasi_python for the README's Codecov badge.
         env:
           SHARD: ${{ matrix.shard }}
+          COVERAGE: ${{ contains(fromJSON(needs.plan.outputs.coverage), matrix.shard) && runner.os == 'Linux' }}
+          COVERAGE_CORE: sysmon
         run: |
-          uv run pytest -p no:cacheprovider --shard="$SHARD" --progress-latest "$RUNNER_TEMP/record/latest.json"
+          if [ "$COVERAGE" = true ]; then
+            uv run coverage run --data-file=build/coverage/.coverage --source=src/wasi_python -m pytest -p no:cacheprovider --shard="$SHARD" --progress-latest "$RUNNER_TEMP/record/latest.json"
+          else
+            uv run pytest -p no:cacheprovider --shard="$SHARD" --progress-latest "$RUNNER_TEMP/record/latest.json"
+          fi
       - id: record
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: record-linux-${{ matrix.shard }}
           path: ${{ runner.temp }}/record/latest.json
           if-no-files-found: error
+      - name: The coverage report
+        if: contains(fromJSON(needs.plan.outputs.coverage), matrix.shard) && runner.os == 'Linux'
+        run: uv run coverage xml --data-file=build/coverage/.coverage -o build/coverage/coverage.xml
+      - name: The coverage report to Codecov
+        # The upload carries the repository's CODECOV_TOKEN and nothing else. A failed upload
+        # (Codecov's outage) is logged by the action and not failed, so it never turns a run red.
+        if: contains(fromJSON(needs.plan.outputs.coverage), matrix.shard) && runner.os == 'Linux'
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          files: build/coverage/coverage.xml
+          disable_search: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          version: v11.3.1 # the uploader the action fetches, named rather than its latest
+          fail_ci_if_error: false
       - name: Keep the shard's record when it fails
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -903,16 +957,38 @@ jobs:
         run: |
           uv run python tests/upstream/fetch.py --shard "$SHARD"
       - name: The shard
+        # A leg the plan names in coverage (Linux, a run with the merge-grade set) runs its shard
+        # under coverage.py, which measures src/wasi_python for the README's Codecov badge.
         env:
           SHARD: ${{ matrix.shard }}
+          COVERAGE: ${{ contains(fromJSON(needs.plan.outputs.coverage), matrix.shard) && runner.os == 'Linux' }}
+          COVERAGE_CORE: sysmon
         run: |
-          uv run pytest -p no:cacheprovider --shard="$SHARD" --progress-latest "$RUNNER_TEMP/record/latest.json"
+          if [ "$COVERAGE" = true ]; then
+            uv run coverage run --data-file=build/coverage/.coverage --source=src/wasi_python -m pytest -p no:cacheprovider --shard="$SHARD" --progress-latest "$RUNNER_TEMP/record/latest.json"
+          else
+            uv run pytest -p no:cacheprovider --shard="$SHARD" --progress-latest "$RUNNER_TEMP/record/latest.json"
+          fi
       - id: record
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: record-windows-${{ matrix.shard }}
           path: ${{ runner.temp }}/record/latest.json
           if-no-files-found: error
+      - name: The coverage report
+        if: contains(fromJSON(needs.plan.outputs.coverage), matrix.shard) && runner.os == 'Linux'
+        run: uv run coverage xml --data-file=build/coverage/.coverage -o build/coverage/coverage.xml
+      - name: The coverage report to Codecov
+        # The upload carries the repository's CODECOV_TOKEN and nothing else. A failed upload
+        # (Codecov's outage) is logged by the action and not failed, so it never turns a run red.
+        if: contains(fromJSON(needs.plan.outputs.coverage), matrix.shard) && runner.os == 'Linux'
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          files: build/coverage/coverage.xml
+          disable_search: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          version: v11.3.1 # the uploader the action fetches, named rather than its latest
+          fail_ci_if_error: false
       - name: Keep the shard's record when it fails
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -976,77 +1052,31 @@ jobs:
         run: |
           uv run python tests/upstream/fetch.py --shard "$SHARD"
       - name: The shard
+        # A leg the plan names in coverage (Linux, a run with the merge-grade set) runs its shard
+        # under coverage.py, which measures src/wasi_python for the README's Codecov badge.
         env:
           SHARD: ${{ matrix.shard }}
+          COVERAGE: ${{ contains(fromJSON(needs.plan.outputs.coverage), matrix.shard) && runner.os == 'Linux' }}
+          COVERAGE_CORE: sysmon
         run: |
-          uv run pytest -p no:cacheprovider --shard="$SHARD" --progress-latest "$RUNNER_TEMP/record/latest.json"
+          if [ "$COVERAGE" = true ]; then
+            uv run coverage run --data-file=build/coverage/.coverage --source=src/wasi_python -m pytest -p no:cacheprovider --shard="$SHARD" --progress-latest "$RUNNER_TEMP/record/latest.json"
+          else
+            uv run pytest -p no:cacheprovider --shard="$SHARD" --progress-latest "$RUNNER_TEMP/record/latest.json"
+          fi
       - id: record
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: record-release-${{ matrix.shard }}
           path: ${{ runner.temp }}/record/latest.json
           if-no-files-found: error
-      - name: Keep the shard's record when it fails
-        if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: failed-record-release-${{ matrix.shard }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/record/
-          if-no-files-found: ignore
-
-  coverage:
-    name: the runner's coverage (ubuntu-24.04)
-    # The fast tier, serially under coverage.py, against the set the build job made: the share of
-    # src/wasi_python's statements it ran. The Cobertura report goes to Codecov, which serves the
-    # README's badge; the upload carries the repository's CODECOV_TOKEN secret and nothing else.
-    # Only with the merge-grade set (a merge into dev, ci:full, the release shape). A failed
-    # measurement is red; a failed upload (Codecov's outage) is logged by the action and not
-    # failed, so it never turns a run red or holds up a release.
-    needs: [plan, build]
-    if: needs.plan.outputs.full == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 120
-    permissions:
-      contents: read
-    env:
-      PYTHONUTF8: "1"
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0 # the rules read the git history
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-        with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: false
-      - name: The build's files
-        uses: ./.github/actions/verify-artifact
-        with:
-          assets-id: ${{ needs.build.outputs.assets-id }}
-          sums-sha256: ${{ needs.build.outputs.sums-sha256 }}
-      - name: Unpack the artifact set; the wheel into dist/
-        run: |
-          uv run python -c "import sys, tarfile, glob; tarfile.open(glob.glob('release-assets/*.tar.xz')[0]).extractall(sys.argv[1], filter='data')" "$RUNNER_TEMP/set"
-          echo "WASI_PYTHON_ARTIFACTS=$(uv run python -c "import glob, sys; print(glob.glob(sys.argv[1] + '/wasi-python-*')[0])" "$RUNNER_TEMP/set")" >> "$GITHUB_ENV"
-          mkdir -p dist
-          cp release-assets/wasi_python-*.whl dist/
-      - name: The fast tier under coverage.py
-        run: uv run python tests/harness/coverage.py --measure
-      - name: The reports and the run's log
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: coverage-${{ github.run_attempt }}
-          path: |
-            build/coverage/pytest.log
-            build/coverage/coverage.json
-            build/coverage/coverage.xml
-          if-no-files-found: ignore
-      - name: The report to Codecov
+      - name: The coverage report
+        if: contains(fromJSON(needs.plan.outputs.coverage), matrix.shard) && runner.os == 'Linux'
+        run: uv run coverage xml --data-file=build/coverage/.coverage -o build/coverage/coverage.xml
+      - name: The coverage report to Codecov
+        # The upload carries the repository's CODECOV_TOKEN and nothing else. A failed upload
+        # (Codecov's outage) is logged by the action and not failed, so it never turns a run red.
+        if: contains(fromJSON(needs.plan.outputs.coverage), matrix.shard) && runner.os == 'Linux'
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           files: build/coverage/coverage.xml
@@ -1054,6 +1084,13 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           version: v11.3.1 # the uploader the action fetches, named rather than its latest
           fail_ci_if_error: false
+      - name: Keep the shard's record when it fails
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: failed-record-release-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/record/
+          if-no-files-found: ignore
 
   gather:
     name: gather the shards' records
@@ -1174,7 +1211,7 @@ jobs:
     # record of both tiers the same way, its reasons the news files' and the release-tier ledger's,
     # and accept-release.yml, which the run's completion starts on dev's own context, commits it.
     # A red or a cancelled run never gets here, so the accepted state never records a red one.
-    needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, coverage, gather, verify]
+    needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, verify]
     if: ${{ !cancelled() && !failure() && needs.plan.outputs.accept == 'true' && needs.gather.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -1290,7 +1327,7 @@ jobs:
     name: the weekly run's issue, when it is red
     # The weekly run never accepts. When a job it judges with failed or was cancelled, this opens
     # one issue, or comments on the one already open, naming the run.
-    needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, coverage, gather, verify]
+    needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, verify]
     if: ${{ always() && needs.plan.outputs.weekly == 'true' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -1484,7 +1521,7 @@ jobs:
     # refused nothing: a pull request may not write accepted state, and one into dev that is not
     # documentation only carries its news file and a review file that holds. A failed or
     # cancelled job is red here.
-    needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, coverage, gather, accept-record, accept-push, verify, weekly-issue, attest, publish, pypi]
+    needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, accept-record, accept-push, verify, weekly-issue, attest, publish, pypi]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

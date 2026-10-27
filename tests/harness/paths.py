@@ -8,6 +8,7 @@ none.
 
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import io
 import os
@@ -277,6 +278,7 @@ def is_stdlib_or_reactor(name: str, stdlib: frozenset[str] | set[str]) -> bool:
 JUDGE_PATHS = (
     "tests",
     "context/embedders.txt",
+    "context/release-tier-claims.toml",
     "pyproject.toml",
     "uv.lock",
     "pytest.ini",
@@ -285,6 +287,34 @@ JUDGE_PATHS = (
     "conftest.py",
     ".gitattributes",
 )
+# The judge's files whose change moves a verdict by itself: the known gaps, the upstream suites'
+# allowances, their expected failures and CPython's plan, the shard plan, the public API's list
+# and the release tier's claims. An acceptance needs `--accept-judge` with a reason when one of
+# them changed since the last acceptance, and refuses it as unnecessary when none did: every
+# other judge change is recorded by the judge's hash in the history, unflagged. `*` stays within
+# one folder; a trailing `/**` takes everything below its folder.
+VERDICT_BEARING = (
+    "tests/known_gaps.toml",
+    "tests/upstream/*.toml",
+    "tests/upstream/expected/**",
+    "tests/upstream/python/**",
+    "tests/release_shards.toml",
+    "tests/public_api.txt",
+    "context/release-tier-claims.toml",
+)
+
+
+def is_verdict_bearing(rel: str, patterns: tuple[str, ...] = VERDICT_BEARING) -> bool:
+    """Whether a repository-relative `/` path is one of the verdict-bearing judge files."""
+    for pattern in patterns:
+        if pattern.endswith("/**"):
+            if rel.startswith(pattern[:-2]):
+                return True
+        elif rel.count("/") == pattern.count("/") and fnmatch.fnmatchcase(rel, pattern):
+            return True
+    return False
+
+
 # Directories never searched for a stray conftest.py: build output, downloads, clones, venvs.
 NOT_SOURCE = {"build", "downloads", "prior_art", ".venv", ".venv-build", ".git", "__pycache__"}
 # Files an operating system writes into any folder a person opens: never part of the judge, or a
