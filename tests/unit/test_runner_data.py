@@ -8,7 +8,9 @@ from __future__ import annotations
 import io
 import os
 import stat
+import threading
 import zipfile
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -138,3 +140,55 @@ def test_every_change_on_the_host_is_seen_and_undone(tmp_path) -> None:
         for name, body in FILES.items():
             assert (data / name).read_bytes() == body
     assert sorted(os.listdir(outside)) == ["keep.txt"]  # nothing outside was touched
+
+
+def test_the_data_comparison_lists_each_folder_once_and_stats_each_entry_once(
+    tmp_path, monkeypatch
+) -> None:
+    """The comparison runs on every call, so its work is held as a count of the standard
+    library's calls on this thread: one listing of the root and of each folder, one lstat of
+    each entry's path and nothing else beside the root's own link and folder tests, whatever
+    those cost on this system."""
+    data = tmp_path / "mpl-data"
+    record = _zip._extract_data(data, _stdlib(tmp_path, _inner(FILES)))
+    assert record is not None
+    me = threading.get_ident()
+    calls: dict[str, list[str]] = {"scandir": [], "lstat": [], "stat": []}
+    given: list[type] = []  # the type of each path os.lstat is given, in order
+
+    def counted(name: str):
+        real = getattr(os, name)
+
+        def wrapper(path, *args, **kwargs):
+            if threading.get_ident() == me:
+                calls[name].append(os.fspath(path))
+                if name == "lstat":
+                    given.append(type(path))
+            return real(path, *args, **kwargs)
+
+        return wrapper
+
+    for name in calls:
+        monkeypatch.setattr(os, name, counted(name))
+    root = os.fspath(data)
+    os.path.islink(root)  # the root's two tests, as this system makes them
+    os.path.isdir(root)
+    root_tests = {name: Counter(paths) for name, paths in calls.items()}
+    for paths in calls.values():
+        paths.clear()
+    given.clear()
+
+    assert _zip._data_intact(data, record)
+
+    def native(key: str) -> str:
+        return os.path.join(root, *key.split("/"))
+
+    entries = Counter(native(key) for key in record)
+    folders = Counter(native(key) for key, stamp in record.items() if stamp is None)
+    assert Counter(calls["scandir"]) == Counter([root]) + folders
+    assert Counter(calls["lstat"]) == root_tests["lstat"] + entries
+    assert Counter(calls["stat"]) == root_tests["stat"]
+    # Each entry is stamped through a plain path string: no path object is built per entry.
+    stamped = [t for p, t in zip(calls["lstat"], given, strict=True) if p in entries]
+    assert stamped == [str] * len(entries)
+    assert len(entries) == 6 and (not POSIX or len(calls["lstat"]) == 7)  # six entries, the root

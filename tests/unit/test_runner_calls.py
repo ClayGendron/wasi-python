@@ -1,18 +1,22 @@
 """Concurrent calls share nothing: the runner's host functions are defined once per
 engine and find their call through a stack checked against the caller's store; whatever they
 catch is recorded on that call, the guest is stopped through its epoch deadline, and the call
-reports or re-raises it on its own thread. Nothing here measures time."""
+reports or re-raises it on its own thread. One check runs a real guest from the artifact set and
+is skipped without it. Nothing here measures time."""
 
 from __future__ import annotations
 
 import asyncio
 import struct
+import threading
 
 import pytest
 import wasmtime as wt
 
+import wasi_python
+from harness import needs
 from wasi_python import _call, _engines, _home, _platform, _platform_windows, _wasmtime_ffi
-from wasi_python._process import process
+from wasi_python._process import RENEW, process
 
 
 def guest(mode: int) -> str:
@@ -344,3 +348,63 @@ def test_trap_handlers_ready_reads_each_signal_by_load_base() -> None:
     assert ready(handler_base=broken) == "SIGSEGV"
     for host in (_platform._Darwin(), _platform_windows._Windows()):
         assert ready(host=host, handler_base=broken) is None
+
+
+class Owned:
+    """A stand-in for one of the process's locks: it forwards to the lock it replaces and keeps
+    which thread holds it, and how deeply, so a check can ask what a thread holds."""
+
+    def __init__(self, inner) -> None:
+        self.inner, self.owner, self.depth, self.taken = inner, None, 0, 0
+
+    def acquire(self, blocking: bool = True, timeout: float = -1) -> bool:
+        got = self.inner.acquire(blocking, timeout)
+        if got:  # under the lock itself, so the bookkeeping needs no lock of its own
+            self.owner, self.depth, self.taken = (
+                threading.get_ident(),
+                self.depth + 1,
+                self.taken + 1,
+            )
+        return got
+
+    def release(self) -> None:
+        self.depth -= 1
+        if self.depth == 0:
+            self.owner = None
+        self.inner.release()
+
+    def __enter__(self) -> bool:
+        return self.acquire()
+
+    def __exit__(self, *exc: object) -> None:
+        self.release()
+
+    def locked(self) -> bool:
+        return self.inner.locked()
+
+
+def test_the_home_thread_holds_no_process_lock_while_its_guest_runs(monkeypatch) -> None:
+    """No lock of the process is held across a guest: the per-call work under a lock (the zip
+    folder's comparison, the thread's start) ends before the guest runs, so concurrent calls
+    queue on it only for that work. The host function runs on the home thread while the guest
+    is running, and asks which of the process's locks that thread holds then."""
+    needs.need("runner", "artifact dir")
+    kinds = {type(threading.Lock()), type(threading.RLock())} & set(RENEW)
+    assert len(kinds) == 2
+    stand_ins = {
+        name: Owned(value) for name, value in vars(process()).items() if type(value) in kinds
+    }
+    assert {"zip_lock", "outputs_lock", "stack_size_lock"} <= set(stand_ins)
+    for name, stand_in in stand_ins.items():
+        monkeypatch.setattr(process(), name, stand_in)
+    held: list[list[str]] = []
+
+    def host(frame: bytes) -> bytes:
+        me = threading.get_ident()
+        held.append(sorted(name for name, s in stand_ins.items() if s.owner == me))
+        return b"ok"
+
+    done = wasi_python.run(["-c", "import _host; print(_host.call(b'x').decode())"], host=host)
+    assert (done.exit_code, done.stdout) == (0, b"ok\n"), done
+    assert held == [[]]
+    assert stand_ins["zip_lock"].taken >= 1  # the runner took the stand-in: the seam is real
