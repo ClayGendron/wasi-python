@@ -1,6 +1,6 @@
 # Changelog
 
-One section per release of the `wasi-python` artifact set and wheel, newest first. A section's body is the release's notes on GitHub. `release/version.py bump` adds a section; `release/version.py release` dates it and tags the release (context/specifications/004-alpha-releases.md).
+One section per release of the `wasi-python` artifact set and wheel, newest first. A section's body is the release's notes on GitHub. `release/version.py bump` adds a section; `release/version.py date` dates it on `dev` before the release pull request, and `release/version.py release` tags the commit that pull request judged once the owner has put it on `main` (context/specifications/004-alpha-releases.md).
 
 ## 0.1.1 — unreleased
 

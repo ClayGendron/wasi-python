@@ -2366,12 +2366,20 @@ BAD_SHARDS = [
         "",
         "rule 7: gather's step",
     ),
-    # PLAN on every event, or none.
+    # PLAN on every event, or none, or on the release pull request too.
     (
         "gather",
-        "          PLAN: ${{ github.event_name == 'pull_request' && "
+        "          PLAN: ${{ github.event_name == 'pull_request' && github.base_ref != 'main' && "
         "needs.plan.outputs.selected || '' }}\n",
         "          PLAN: ${{ needs.plan.outputs.selected }}\n",
+        "rule 7: gather's step",
+    ),
+    (
+        "gather",
+        "          PLAN: ${{ github.event_name == 'pull_request' && github.base_ref != 'main' && "
+        "needs.plan.outputs.selected || '' }}\n",
+        "          PLAN: ${{ github.event_name == 'pull_request' && "
+        "needs.plan.outputs.selected || '' }}\n",
         "rule 7: gather's step",
     ),
     ("gather", "build-shard, same-bytes, judge-macos", "judge-macos", "rule 7: gather is not"),
@@ -3154,7 +3162,7 @@ def test_the_tier_is_decided_by_the_runners_own_variables(event, ref, input_, ti
     when its input is exactly true."""
     ci_plan = _ci_plan()
     environ = {"GITHUB_EVENT_NAME": event, "GITHUB_REF": ref, "PLAN_RELEASE_TIER": input_}
-    e, changed, _, _, _ = ci_plan.from_runner(environ)
+    e, changed, *_ = ci_plan.from_runner(environ)
     assert ci_plan.decide(changed, e).tier == tier
 
 
@@ -3573,6 +3581,69 @@ def test_the_accept_scan_names_each_breach(job, old, new, error) -> None:
     assert any(e.startswith(error) for e in errors), errors
 
 
+def test_the_accept_push_runs_on_a_push_alone() -> None:
+    """After the release pull request accept-record runs and accept-push does not: on a
+    pull_request run the accept environment would be refused, and its workflow file is the pull
+    request's own."""
+    text = REAL_WORKFLOW.replace(
+        " && github.event_name == 'push' && needs.accept-record", " && needs.accept-record"
+    )
+    assert any(e.startswith("accept-push's if:") for e in scan.accept_job_errors(text))
+
+
+REAL_ACCEPT_RELEASE = (paths.REPO / ".github" / "workflows" / "accept-release.yml").read_text()
+JUDGED_TIP = 'if [ "$tip" != "$JUDGED" ]; then'
+
+
+def test_the_real_release_acceptance_holds() -> None:
+    assert scan.accept_release_errors(REAL_ACCEPT_RELEASE) == []
+
+
+BAD_ACCEPT_RELEASE = [
+    ("    workflows: [release]\n", "    workflows: [docs]\n",
+     "the release acceptance does not run"),
+    ("    types: [completed]\n", "    types: [requested]\n", "the release acceptance does not run"),
+    ("github.event.workflow_run.conclusion == 'success' && ", "", "accept-release's if:"),
+    ("github.event.workflow_run.pull_requests[0].base.ref == 'main'",
+     "github.event.workflow_run.pull_requests[0].base.ref != ''", "accept-release's if:"),
+    ("    environment: accept\n", "", "accept-release does not name environment"),
+    ("      actions: read # the triggering run's artifacts\n",
+     "      actions: read # the triggering run's artifacts\n      contents: write\n",
+     "accept-release's permissions"),
+    ("          ref: ${{ github.event.workflow_run.head_sha }}\n", "",
+     "accept-release does not check out"),
+    ("          ssh-key: ${{ secrets.ACCEPT_DEPLOY_KEY }}\n", "",
+     "accept-release does not check out"),
+    (JUDGED_TIP, 'if [ "$tip" != "$GITHUB_SHA" ]; then', "accept-release does not check"),
+    ("git status --porcelain --untracked-files=all", "git diff --name-only",
+     "accept-release does not check"),
+    ("          git add -- context/progress/accepted.json",
+     "          uv run python release/version.py show\n          git add -- "
+     "context/progress/accepted.json", "accept-release runs code of the repository"),
+    ("JUDGED, the head the release pull request judged: nothing is pushed, and the release pull "
+     "request runs again on dev's tip\"\n            exit 1",
+     "JUDGED, the head the release pull request judged: nothing is pushed, and the release pull "
+     "request runs again on dev's tip\"\n            exit 0", "accept-release succeeds"),
+]  # fmt: skip
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "error"), BAD_ACCEPT_RELEASE, ids=[b[2] + b[0][:20] for b in BAD_ACCEPT_RELEASE]
+)
+def test_the_release_acceptance_scan_names_each_breach(old, new, error) -> None:
+    assert old in REAL_ACCEPT_RELEASE, old
+    errors = scan.accept_release_errors(REAL_ACCEPT_RELEASE.replace(old, new, 1))
+    assert any(e.startswith(error) for e in errors), errors
+
+
+def test_only_the_release_acceptance_may_hold_the_key_beside_accept_push() -> None:
+    others = {"accept-release.yml": REAL_ACCEPT_RELEASE, "docs.yml": "environment: accept\n"}
+    errors = scan.accept_job_errors(REAL_WORKFLOW, others)
+    assert errors == [
+        "the secret ACCEPT_DEPLOY_KEY or the accept environment is named in docs.yml"
+    ], errors
+
+
 def test_another_job_in_the_accept_environment_is_named() -> None:
     text = _in_job(
         REAL_WORKFLOW,
@@ -3625,3 +3696,64 @@ def test_quick_and_the_acceptance_push_are_named_when_they_break_the_quiet_accep
         "          echo 'x [skip ci]'\n" + ADD,
     )
     assert any("skip word" in e for e in scan.accept_job_errors(marked))
+
+
+# ---------------------------------------------------------------------------------------------
+# Which jobs run, from the plan's outputs and the event, as GitHub evaluates each job's if:
+
+ACCEPTANCE_OUTPUTS = {"acceptance": "true", "judge": "false", "build": "false", "rebuild": "false",
+                      "full": "false", "accept": "false", "weekly": "false", "macos": "[]",
+                      "linux": "[]", "windows": "[]", "release": "[]", "verify": "[]"}  # fmt: skip
+PUSH_DEV = {"event_name": "push", "ref": "refs/heads/dev", "ref_type": "branch", "base_ref": ""}
+
+
+def test_the_acceptance_push_runs_the_plan_and_ci_status_alone() -> None:
+    assert scan.jobs_that_run(REAL_WORKFLOW, ACCEPTANCE_OUTPUTS, PUSH_DEV) == {"plan", "ci-status"}
+
+
+def test_a_quick_that_is_not_gated_runs_on_the_acceptance_push() -> None:
+    ungated = _in_job(
+        REAL_WORKFLOW, "quick", "    if: needs.plan.outputs.acceptance != 'true'\n", ""
+    )
+    assert "quick" in scan.jobs_that_run(ungated, ACCEPTANCE_OUTPUTS, PUSH_DEV)
+
+
+def test_jobs_that_run_reads_status_functions_and_skipped_needs() -> None:
+    text = (
+        "jobs:\n"
+        "  a:\n    if: needs.plan.outputs.x == 'true'\n    runs-on: u\n"
+        "  b:\n    needs: [a]\n    runs-on: u\n"
+        "  c:\n    needs: [a]\n    if: always()\n    runs-on: u\n"
+        "  d:\n    needs: [a, c]\n    if: ${{ !cancelled() && needs.a.result == 'skipped' }}\n"
+        "    runs-on: u\n"
+        "  e:\n    if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')\n"
+        "    runs-on: u\n"
+    )
+    assert scan.jobs_that_run(text, {"x": "false"}, PUSH_DEV) == {"c", "d", "e"}
+    assert scan.jobs_that_run(text, {"x": "true"}, PUSH_DEV) == {"a", "b", "c", "e"}
+    with pytest.raises(ValueError, match="cannot evaluate"):
+        scan.jobs_that_run("jobs:\n  a:\n    if: hashFiles('x')\n", {}, PUSH_DEV)
+
+
+# ---------------------------------------------------------------------------------------------
+# The release pull request's build checks now what its tag will
+
+TAG_FREE = 'if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then'
+
+
+def test_the_real_release_pull_requests_version_step_holds() -> None:
+    assert scan.release_version_errors(REAL_WORKFLOW) == []
+
+
+@pytest.mark.parametrize(
+    "old",
+    [
+        TAG_FREE,
+        'uv run python release/version.py check --tag "v$version"',
+        "git merge-base --is-ancestor origin/main HEAD",
+        'elif [ "$GITHUB_BASE_REF" = main ]; then',
+    ],
+)
+def test_the_release_version_scan_names_each_missing_check(old) -> None:
+    text = _in_job(REAL_WORKFLOW, "build", old, "true")
+    assert scan.release_version_errors(text), old

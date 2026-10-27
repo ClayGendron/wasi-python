@@ -4,25 +4,27 @@
 
 reads `WASM_SHA256` (the build job's `wasm-sha256`), `SET_SUMS_SHA256` (its `set-sums-sha256`, the
 set's own `SHA256SUMS`), `RECORD_BUILD_BUILD` (the SHA-256 build-shard handed on), `TIER` (the tier
-the decision job decided), `PLAN` on a pull request (the (system, shard) pairs the decision job
-selected, as a JSON list of `system/shard`), and
+the decision job decided), `PLAN` on a pull request into dev (the (system, shard) pairs the
+decision job selected, as a JSON list of `system/shard`), and
 `GITHUB_EVENT_NAME`, `GITHUB_REF_TYPE`, `GITHUB_REF` and `GITHUB_BASE_REF` as the runner sets them
 (a step cannot override a `GITHUB_*` variable). Each shard's record is the one file of the artifact
 its leg uploaded under its own name, `record-<system>-<shard>`, downloaded into its job's folder;
 the build shard's, by id, into `build-shard/`. From those it derives again whether this is a
 release run (a pushed tag, a run on main, or a pull request into main), which must have judged the
 release tier. It collects the judge once at this commit and is red, one line per reason, unless G1
-to G7 hold. On a pull request, G1 to G6 hold over the selected pairs, the rows an acceptance needs a
-reason for are listed under GROWTH rather than red, and G7 is not evaluated. After a merge into dev
-G1 to G6 are whole, G7 is not evaluated, since that run makes the acceptance it would compare with,
-and the rows an acceptance needs a reason for are listed too: the accept job clears each with the
-claim of a news file, or refuses it. On both, an absent check a news file's claim retires is
-listed beside them; one no claim retires stays red, as a lost pass does. Each listed row names
-the reason a news file's claim gives (the news files at this commit), or `unclaimed`. It prints
-the merged scoreboard, writes the merged record (with its own red lines, the event, and each
-shard's commit and guards, which the acceptance from CI's record holds) and the job's summary,
-and writes nothing to the progress history. It is the parallel judge's controller merge, across
-machines.
+to G7 hold. On a pull request into dev, G1 to G6 hold over the selected pairs, the rows an
+acceptance needs a reason for are listed under GROWTH rather than red, and G7 is not evaluated.
+After a merge into dev G1 to G6 are whole, G7 is not evaluated, since that run makes the
+acceptance it would compare with, and the rows an acceptance needs a reason for are listed too:
+the accept job clears each with the claim of a news file, or refuses it. On both, an absent check
+a news file's claim retires is listed beside them; one no claim retires stays red, as a lost pass
+does. Each listed row names the reason a news file's claim gives (the news files at this commit),
+or `unclaimed`. The release pull request into main is judged whole, with G7 in its own form, its
+rows that a claim of the news files or of the release-tier ledger gives a reason for listed as
+after a merge, and the rest red. It prints the merged scoreboard, writes the merged record (with
+its own red lines, the event, and each shard's commit and guards, which the acceptance from CI's
+record holds) and the job's summary, and writes nothing to the progress history. It is the
+parallel judge's controller merge, across machines.
 """
 
 from __future__ import annotations
@@ -120,7 +122,8 @@ class Inputs:
     set_source: str = BUILT
     repo: Path = paths.REPO
     tier: str = "normal"  # the tier the run's inputs job decided
-    release_run: bool = False  # a pushed tag, or a run on main: the release tier must have run
+    # A pushed tag, a run on main, or a pull request into main: the release tier must have run.
+    release_run: bool = False
     release_checks: set[str] = field(default_factory=set)  # by the upstream files at this commit
     # The pairs a pull request's plan selected (PLAN); None on a run judged whole.
     selected: list[tuple[str, str]] | None = None
@@ -128,7 +131,7 @@ class Inputs:
     # G7's form for the event: whole, pull-request, post-merge or release-pull-request.
     g7: str = "whole"
     ref: str = ""  # GITHUB_REF
-    base_ref: str = ""  # GITHUB_BASE_REF
+    base_ref: str = ""  # GITHUB_BASE_REF: a pull request's base, main on the release pull request
     claims: list[news.Claim] = field(default_factory=list)  # the news files' claims, for GROWTH
 
 
@@ -175,11 +178,19 @@ def gather(i: Inputs) -> Verdict:
     if i.tier not in scoreboard.TIERS:
         red.append(f"G1 TIER is {i.tier!r}, not normal or release")
     if i.release_run and i.tier != "release":
-        red.append("G1 a tag (or a dispatch on main), and the release tier did not run")
+        red.append(
+            "G1 a release run (a tag, a run on main or a pull request into main), and the release"
+            " tier did not run"
+        )
     normal = i.tier != "release"
-    pull_request = i.event == "pull_request"
-    # Where an acceptance's reasons are the news files', a row that needs one is listed, not red.
-    listed = pull_request or i.g7 == "post-merge"
+    # A pull request into dev is judged on what its plan selected; the release pull request into
+    # main, like every other event, is judged whole.
+    release_pr = i.event == "pull_request" and i.base_ref == "main"
+    pull_request = i.event == "pull_request" and not release_pr
+    # Where an acceptance's reasons are the news files' (and, on the release pull request, the
+    # release-tier ledger's too), a row that needs one is listed, not red: the acceptance clears it
+    # with its claim, or refuses it, named. A lost pass stays red everywhere.
+    listed = pull_request or i.g7 in ("post-merge", "release-pull-request")
 
     def claimed(kind: str, key: str) -> bool:
         """A row a news file's claim gives its reason for: listed on a pull request and after a
@@ -196,7 +207,9 @@ def gather(i: Inputs) -> Verdict:
         red.append(
             "G1 a pull request, and the decision job's selected pairs (PLAN) were not handed on"
         )
-    if not pull_request and i.selected is not None:
+    if release_pr and i.selected is not None:
+        red.append("G1 PLAN was handed on to a release pull request, which is judged whole")
+    elif not pull_request and i.selected is not None:
         red.append(f"G1 PLAN was handed on to a {i.event or 'local'} run, which is judged whole")
     for system, name in i.selected or ():
         if not _in_plan(i.plan, (system, name)):
@@ -506,7 +519,8 @@ def g7(i: Inputs) -> list[str]:
     """G7: python.wasm is the accepted artifact; on a tag, the judge is the accepted one. Not
     evaluated on a pull request into dev or after a merge into dev (that run makes the acceptance
     it would compare with); a pull request into main holds the newest acceptance to its set, clean
-    and whole, and not to the release tier, which its own record is about to be accepted for."""
+    and whole, and not to the release tier, which its own record is about to be accepted for, and
+    its set must be built in its own run, as a tag's is."""
     if i.g7 in G7_SKIPPED:
         return []
     red = []
@@ -523,6 +537,8 @@ def g7(i: Inputs) -> list[str]:
         red.append("G7 a tag, and this commit's judge is not the accepted one")
     if i.tag and i.set_source != BUILT:  # a tag publishes what its own run built
         red.append("G7 a tag, and the set was not built in this run")
+    if i.g7 == "release-pull-request" and i.set_source != BUILT:  # the bytes main will receive
+        red.append("G7 a release pull request, and the set was not built in this run")
     if i.release_run and i.g7 != "release-pull-request" and newest.get("tier") != "release":
         red.append(
             "G7 a tag (or a dispatch on main), and the newest acceptance did not run the release"
@@ -650,6 +666,15 @@ def news_claims(repo: Path = paths.REPO) -> list[news.Claim]:
     check that holds their shape reports."""
     try:
         return [c for n in news.folder(repo / news.CHANGES) for c in n.claims]
+    except news.NewsError:
+        return []
+
+
+def release_ledger(repo: Path = paths.REPO) -> list[news.Claim]:
+    """The release-tier ledger's claims for this version, which the release pull request's
+    acceptance reads beside the news files; none when it is broken, which its acceptance names."""
+    try:
+        return news.ledger_claims(repo)
     except news.NewsError:
         return []
 
@@ -933,7 +958,8 @@ def main(argv: list[str]) -> int:
             g7=g7_form(os.environ),
             ref=os.environ.get("GITHUB_REF", ""),
             base_ref=os.environ.get("GITHUB_BASE_REF", ""),
-            claims=news_claims(),
+            claims=news_claims()
+            + (release_ledger() if os.environ.get("GITHUB_BASE_REF") == "main" else []),
         )
     )
     a.out.mkdir(parents=True, exist_ok=True)

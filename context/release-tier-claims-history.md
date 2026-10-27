@@ -1,6 +1,6 @@
 # The release-tier claims, by release
 
-Each release acceptance moves the ledger's blocks (`release-tier-claims.toml`) here, under its version, and the ledger starts empty again (`progress/README.md`, "The release tier").
+`release/version.py date` moves the ledger's blocks (`release-tier-claims.toml`) here, under the version it dates, before the release pull request, and the ledger starts empty again; the release pull request's gather and acceptance read the version's blocks, with any appended since, as their claims (`progress/README.md`, "The release tier"). Until 0.1.0 the release acceptance moved them.
 
 ## 0.1.0
 

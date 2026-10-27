@@ -159,14 +159,22 @@ def _claims(name: str, spec: str, lines: list[str]) -> list[Claim]:
         raise NewsError(f"{name}: the claim block is not TOML ({e})") from e
     if set(data) != {"claim"} or not isinstance(data["claim"], list):
         raise NewsError(f"{name}: the claim block holds only [[claim]] tables")
+    return _claim_tables(name, data["claim"], spec)
+
+
+def _claim_tables(name: str, tables: list, spec: str | None) -> list[Claim]:
+    """Each [[claim]] table in the shape, its spec the news file's (`spec`), or any number when
+    the tables are the release-tier ledger's (`spec` None)."""
     out = []
-    for n, c in enumerate(data["claim"], 1):
+    for n, c in enumerate(tables, 1):
         where = f"{name}: claim {n}"
         unknown = sorted(set(c) - KEYS)
         if unknown:
             raise NewsError(f"{where}: keys the shape does not name: {', '.join(unknown)}")
-        if c.get("spec") != spec:
+        if spec is not None and c.get("spec") != spec:
             raise NewsError(f"{where}: spec is {c.get('spec')!r}, not the file's {spec}")
+        if spec is None and not re.fullmatch(r"\d{3}", str(c.get("spec", ""))):
+            raise NewsError(f"{where}: spec is {c.get('spec')!r}, not a specification's number")
         for k in LISTS:
             v = c.get(k, [])
             if not isinstance(v, list) or not all(isinstance(x, str) and x for x in v):
@@ -246,3 +254,81 @@ def reason(claims: list[Claim], kind: str, key: str) -> str | None:
         if hit:
             return f"{c.spec}: {hit}"
     return None
+
+
+# ---------------------------------------------------------------------------------------------
+# The release-tier ledger
+
+# A pull request that changes a release-tier row, or what one runs, appends its [[claim]] block to
+# the ledger, since the run after its merge judges the normal tier alone and bump removes its
+# news file before the release. The date before the release pull request (`release/version.py
+# date`) moves the blocks under `## <version>` in the history, and the release pull request's
+# gather and acceptance read both: what the date moved and anything appended since.
+LEDGER = "context/release-tier-claims.toml"
+LEDGER_HISTORY = "context/release-tier-claims-history.md"
+VERSION_FILE = "src/wasi_python/__init__.py"
+
+
+def package_version(repo: Path) -> str:
+    """`__version__` as the package's one version line writes it; empty when there is none."""
+    try:
+        text = (repo / VERSION_FILE).read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    m = re.search(r'^__version__ = "([^"]+)"$', text, re.M)
+    return m[1] if m else ""
+
+
+def _ledger_tables(name: str, text: str) -> list[Claim]:
+    try:
+        data = tomllib.loads(text)
+    except tomllib.TOMLDecodeError as e:
+        raise NewsError(f"{name}: not TOML ({e})") from e
+    if set(data) - {"claim"} or not isinstance(data.get("claim", []), list):
+        raise NewsError(f"{name}: the ledger holds only [[claim]] tables")
+    return _claim_tables(name, data.get("claim", []), None)
+
+
+def _section(text: str, version: str) -> str | None:
+    """The body of `## <version>` in the history, up to the next `## ` heading; None without one."""
+    m = re.search(rf"^## {re.escape(version)}\n(.*?)(?=^## |\Z)", text, re.M | re.S)
+    return m[1] if m else None
+
+
+def ledger_claims(repo: Path) -> list[Claim]:
+    """The release's release-tier claims: the blocks the date moved under this version in the
+    history, then any still in the ledger."""
+    out = []
+    history = repo / LEDGER_HISTORY
+    body = (
+        _section(history.read_text(encoding="utf-8"), package_version(repo))
+        if history.is_file()
+        else None
+    )
+    for n, block in enumerate(FENCE.findall(body or ""), 1):
+        out += _ledger_tables(f"{LEDGER_HISTORY} block {n}", block)
+    ledger = repo / LEDGER
+    if ledger.is_file():
+        out += _ledger_tables(LEDGER, ledger.read_text(encoding="utf-8"))
+    return out
+
+
+def move_ledger(ledger: str, history: str, version: str, day: str) -> tuple[str, str]:
+    """The ledger with its blocks moved under `## <version>` in the history, newest first: (the
+    ledger's header comments alone, the history with the new section). The blocks are checked
+    for their shape first; a history that already has the version's section refuses."""
+    if _section(history, version) is not None:
+        raise NewsError(f"{LEDGER_HISTORY} already has a section for {version}")
+    lines = ledger.splitlines(keepends=True)
+    at = next((k for k, line in enumerate(lines) if not line.startswith("#")), len(lines))
+    header, blocks = "".join(lines[:at]), "".join(lines[at:]).strip()
+    _ledger_tables(LEDGER, blocks)
+    said = f"Moved by `release/version.py date` on {day}, before the release pull request."
+    body = f"```toml\n{blocks}\n```" if blocks else "No block was in the ledger at the date."
+    section = f"## {version}\n\n{said}\n\n{body}\n\n"
+    first = re.search(r"^## ", history, re.M)
+    if first is None:
+        new = history.rstrip("\n") + "\n\n" + section.rstrip("\n") + "\n"
+    else:
+        new = history[: first.start()] + section + history[first.start() :]
+    return header, new

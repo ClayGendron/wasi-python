@@ -33,3 +33,5 @@ Who reads them:
 - **`release/version.py bump`** assembles every news file into the new version's CHANGELOG section and the packages page, then removes them. `tests/checks/test_rules.py::test_the_news_files_have_their_shape` holds every file here to the shape.
 
 A later pull request of the same specification edits its news file: it adds its CHANGELOG lines and replaces the claim block with its own, since the accept job reads the block of each news file changed since the last acceptance.
+
+A change that moves a release-tier row, or what one runs, also appends its `[[claim]]` block to the release-tier ledger, `../release-tier-claims.toml`: the run after its merge judges the normal tier alone and `bump` removes its news file, so the release pull request's gather and acceptance read the reason there (`../progress/README.md`, "The release tier").

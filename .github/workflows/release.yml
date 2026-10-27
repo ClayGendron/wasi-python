@@ -10,7 +10,8 @@
 # merge-grade set: every normal-tier shard on its three systems, the build shard and verify on
 # three; when all of it is green, accept-record accepts the gather's record with no secret and
 # accept-push, alone in the accept environment, pushes that acceptance onto dev with the deploy
-# key, whose own run is the plan alone. A pushed tag v<version> builds the artifact set from its pins on arm64 macOS, judges both
+# key, whose own run is the plan alone (after the release pull request, accept-release.yml pushes
+# instead). A pushed tag v<version> builds the artifact set from its pins on arm64 macOS, judges both
 # tiers, rebuilds it on arm64 Linux and x86_64 Linux and requires the same bytes, attests and
 # publishes. A pull request into main, a dispatch and the weekly schedule run the same release
 # shape, never signing or publishing. Third-party actions are pinned by commit, their release
@@ -249,7 +250,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0 # the tag's commit is checked against main's history
+          fetch-depth: 0 # a tag, and a release pull request, are checked against main's history
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
@@ -261,6 +262,17 @@ jobs:
             uv run python release/version.py check --tag "$GITHUB_REF_NAME"
             # A release is cut from main: the tagged commit must be in main's history.
             git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          elif [ "$GITHUB_BASE_REF" = main ]; then
+            # The release pull request holds now what its tag will: the version's section is
+            # dated, its tag is not made yet, and main's tip is in the head's history, so the
+            # owner's push is a fast-forward.
+            version=$(uv run python release/version.py show)
+            uv run python release/version.py check --tag "v$version"
+            if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then
+              echo "the tag v$version exists already: bump the version before the release"
+              exit 1
+            fi
+            git merge-base --is-ancestor origin/main HEAD
           else
             uv run python release/version.py check
           fi
@@ -1051,8 +1063,9 @@ jobs:
     # python.wasm's hash comes from the build job. It writes no history. On the release shape it
     # waits for same-bytes, so no release record exists without the proof that the set judged is
     # the set the pins make. A judge job the plan skipped is skipped here too; after any failed or
-    # cancelled need the gather does not run at all. On a pull request it reads the plan's selected
-    # pairs (PLAN) and is narrowed to them; on every other event it is whole.
+    # cancelled need the gather does not run at all. On a pull request into dev it reads the plan's
+    # selected pairs (PLAN) and is narrowed to them; on every other event, the release pull request
+    # into main among them, it is whole.
     needs: [plan, build, build-shard, same-bytes, judge-macos, judge-linux, judge-windows, judge-release]
     if: ${{ !cancelled() && !failure() && needs.plan.outputs.judge == 'true' }}
     runs-on: ubuntu-24.04
@@ -1131,14 +1144,15 @@ jobs:
       - name: The gather
         # It reads GITHUB_EVENT_NAME, GITHUB_REF_TYPE, GITHUB_REF and GITHUB_BASE_REF as the runner
         # sets them: on a pushed tag the judge must also be the accepted one, and the set built in
-        # this run (G7). PLAN only on a pull request, which is judged on what its plan selected.
+        # this run (G7). PLAN only on a pull request into dev, which is judged on what its plan
+        # selected; the release pull request into main is judged whole, as a tag is.
         env:
           WASM_SHA256: ${{ needs.build.outputs.wasm-sha256 }}
           SET_SUMS_SHA256: ${{ needs.build.outputs.set-sums-sha256 }}
           SET_SOURCE: ${{ needs.build.outputs.set-source }}
           RECORD_BUILD_BUILD: ${{ needs.build-shard.outputs.record-sha256 }}
           TIER: ${{ needs.plan.outputs.tier }}
-          PLAN: ${{ github.event_name == 'pull_request' && needs.plan.outputs.selected || '' }}
+          PLAN: ${{ github.event_name == 'pull_request' && github.base_ref != 'main' && needs.plan.outputs.selected || '' }}
         run: |
           uv run python tests/harness/gather.py --records records --out release-record
       - name: Keep the release's record
@@ -1156,8 +1170,10 @@ jobs:
     # record is accepted, in a fresh checkout of the commit judged, with every reason from the news
     # files merged since the last acceptance. It runs the judge's code, so it holds no secret and
     # names no environment; it hands the two progress files and the commit's message on as one
-    # artifact, which accept-push commits. A red or a cancelled run never gets here, so the
-    # accepted state never records a red one.
+    # artifact, which accept-push commits. After the release pull request it accepts that run's
+    # record of both tiers the same way, its reasons the news files' and the release-tier ledger's,
+    # and accept-release.yml, which the run's completion starts on dev's own context, commits it.
+    # A red or a cancelled run never gets here, so the accepted state never records a red one.
     needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, coverage, gather, verify]
     if: ${{ !cancelled() && !failure() && needs.plan.outputs.accept == 'true' && needs.gather.result == 'success' }}
     runs-on: ubuntu-24.04
@@ -1212,7 +1228,7 @@ jobs:
     # dev is the commit judged; when a newer merge landed it pushes nothing and succeeds, and that
     # merge's run accepts everything since the last acceptance.
     needs: [plan, accept-record]
-    if: ${{ !cancelled() && needs.plan.outputs.accept == 'true' && needs.accept-record.result == 'success' }}
+    if: ${{ !cancelled() && needs.plan.outputs.accept == 'true' && github.event_name == 'push' && needs.accept-record.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment: accept

@@ -388,6 +388,30 @@ def _subject() -> str:
     return (paths.git("log", "-1", "--format=%s", "HEAD") or "").strip()
 
 
+def subject_of(record: dict, head_subject: str, version: str) -> str:
+    """The acceptance's subject: the merge's own (its pull request's title and number), or, for
+    the release pull request's record, whose head is dev's tip and so itself an acceptance, the
+    version and both tiers."""
+    meta = record.get("meta") if isinstance(record.get("meta"), dict) else {}
+    if meta.get("event") == "pull_request" and meta.get("base_ref") == "main":
+        return f"the release pull request of {version} into main, both tiers"
+    return head_subject
+
+
+def _version() -> str:
+    return news.package_version(paths.REPO) or "an unknown version"
+
+
+def release_claims(record: dict, repo: Path) -> list[news.Claim]:
+    """The release-tier ledger's claims, for the release pull request's record alone: the news
+    files that claimed a release-tier row were assembled and removed by bump before it, and the
+    run after each merge judged the normal tier alone, so the ledger carries their reasons."""
+    meta = record.get("meta") if isinstance(record.get("meta"), dict) else {}
+    if meta.get("event") == "pull_request" and meta.get("base_ref") == "main":
+        return news.ledger_claims(repo)
+    return []
+
+
 def _dirty() -> str | None:
     return paths.dirty_path()
 
@@ -435,10 +459,15 @@ def main(config) -> int:
             history_errors=errors,
             goal_nodes=_collect(),
             head=_head(),
-            subject=_subject(),
+            subject=subject_of(record, _subject(), _version()),
             judge={"hash": paths.judge_hash(files := paths.judge_files()), "files": files},
             wasmtime=_wasmtime(),
-            claims=news_since(paths.REPO, since, Path(claims_dir).resolve()) if not errors else [],
+            claims=(
+                news_since(paths.REPO, since, Path(claims_dir).resolve())
+                + release_claims(record, paths.REPO)
+                if not errors
+                else []
+            ),
             dirty=_dirty(),
             options=given,
             at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
