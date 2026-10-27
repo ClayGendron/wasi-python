@@ -17,28 +17,8 @@ None.
 ```toml
 [[claim]]
 spec = "138"
-new = [
-  "tests/checks/test_rules.py::test_the_writing_conventions_are_lint_not_goal_checks",
-  "tests/checks/test_rules.py::test_the_verdict_bearing_files_are_judge_files",
-  "tests/checks/test_rules.py::test_the_runners_coverage_rides_a_judge_leg",
-]
-retired = [
-  "tests/checks/test_rules.py::test_specifications_have_their_header_and_sections",
-  "tests/checks/test_rules.py::test_specifications_have_no_open_question",
-  "tests/checks/test_rules.py::test_markdown_paragraphs_are_one_line_each",
-  "tests/checks/test_rules.py::test_executed_memos_label_their_claims",
-  "tests/checks/test_rules.py::test_readme_carries_the_codecov_badge",
-  "tests/checks/test_rules.py::test_code_outside_src_names_no_context_document",
-  "tests/checks/test_rules.py::test_no_string_names_a_context_document",
-  "tests/checks/test_rules.py::test_src_names_no_context_document",
-]
-changed = [
-  "tests/checks/test_rules.py::test_the_set_key_names_every_build_input",
-  "tests/checks/test_rules.py::test_release_judges_in_shards",
-  "tests/checks/test_rules.py::test_the_release_signs_and_publishes_what_build_made",
-]
-units = 51
+units = 14
 
 [claim.judge]
-"context/release-tier-claims.toml" = "the release tier's claims join the judge's files, as a verdict-bearing file"
+"tests/unit/test_ci_plan.py" = "the pull request template's Author: line, filled in on its line or the next or left empty, as the review check reads it, and a skip word in its guidance still refused"
 ```

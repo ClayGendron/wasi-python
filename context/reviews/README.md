@@ -15,7 +15,7 @@ Every pull request into `dev` that is not documentation only gets one review, by
 
 ## The author's self-check
 
-The self-check is the pull request's description, from the pull request template, `.github/PULL_REQUEST_TEMPLATE.md`, which step 6 of specification 138 adds. It names the author (session or name), every new check seen failing first, the Windows legs read, every gap naming its closer, and the news file. Until the template exists, the author writes those five lines at the top of the pull request's description. The reviewer names any item found unchecked and ranks it Low.
+The self-check is the pull request's description, from the pull request template, `.github/PULL_REQUEST_TEMPLATE.md`. Its `Author:` line names the author (session or name) and its `Specifications:` line the one to three the branch carries; its four boxes are every new check seen failing first, the Windows legs read, every gap naming its closer, and the news file present. `ci-status` reads the `Author:` line with the template's guidance, its HTML comments, dropped, so an author who types after the colon and leaves the guidance is still named. The name goes on the `Author:` line or, when that line is left empty, on the next line that is not blank; a field (`Specifications:`), a list item or box, a heading or a table row there names no one. An author who opens the pull request with `gh pr create --body` or `--body-file` starts from a copy of the template, since GitHub CLI fills it in only at a terminal. The reviewer names any item found unchecked and ranks it Low.
 
 ## The reviewer's checklist
 
