@@ -5,13 +5,17 @@
         --ref refs/pull/7/merge --base-ref dev [--label ci:full] [--message TEXT] [--key-moved]
 
 In the workflow it reads the event from the runner's variables (`GITHUB_EVENT_NAME`, `GITHUB_REF`,
-`GITHUB_BASE_REF`) and the rest from env (`PLAN_HEAD`, `PLAN_BASE` on a pull request, `PLAN_BEFORE`
-on a push, `PLAN_LABELS` as JSON, `PLAN_RELEASE_TIER`), finds the changed paths with git, and
-writes one `name=value` line per output to `$GITHUB_OUTPUT` (stdout without it), and a table to
-`$GITHUB_STEP_SUMMARY`. Every later job gates on these outputs with `if:`, never with a
-workflow-level `paths:` filter, so a skipped job reports success and the required check is always
-reported. The changed paths come from git alone: no third-party changed-files action, since one of
-those was compromised to leak the secrets of every workflow that ran it. Standard library only.
+`GITHUB_BASE_REF`, `GITHUB_REPOSITORY`) and the rest from env (`PLAN_HEAD`; on a pull request
+`PLAN_BASE`, `PLAN_BODY`, its description, and `PLAN_HEAD_REF`, its branch; `PLAN_BEFORE` on a
+push; `PLAN_LABELS` as JSON, `PLAN_RELEASE_TIER`, `PLAN_WEEKLY`; `GH_TOKEN`), finds the changed
+paths, a pull request's commits and its review file with git, and on a pull request into dev that
+adds documentation alone onto a green head finds that head's run with gh (a read of the Actions
+API), which this run then re-uses. It writes one `name=value` line per output to `$GITHUB_OUTPUT`
+(stdout without it), and a table to `$GITHUB_STEP_SUMMARY`, which names a run re-used. Every
+later job gates on these outputs with `if:`, never with a workflow-level `paths:` filter, so a
+skipped job reports success and the required check is always reported. The changed paths come
+from git alone: no third-party changed-files action, since one of those was compromised to leak
+the secrets of every workflow that ran it. Standard library only.
 """
 
 from __future__ import annotations
@@ -26,6 +30,7 @@ import subprocess
 import sys
 import tempfile
 import tomllib
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -45,7 +50,30 @@ FULL_LABEL = "ci:full"
 FULL_LINE = "citest:full"
 ACCEPTED = "context/progress/accepted.json"
 HISTORY_VOLUME = re.compile(r"context/progress/history(-\d{5,})?\.jsonl")
-NEWS = re.compile(r"context/changes/[^/]+\.md")
+# A news file, `NNN-<slug>.md` in the changes folder: the folder's README is not one.
+NEWS = re.compile(r"context/changes/(\d{3}-[a-z0-9]+(?:-[a-z0-9]+)*)\.md")
+# A pull request's review file: a news file's NNN-<slug>, then an optional infix of lowercase words
+# (`-step-4`), so one specification may land by several pull requests on one day, then the date.
+REVIEW = re.compile(r"context/reviews/(\d{3}-[a-z0-9]+(?:-[a-z0-9]+)*)-pr-(\d{4}-\d{2}-\d{2})\.md")
+
+
+def review_of(name: str, stem: str) -> bool:
+    """Whether a review file's name before `-pr-<date>` is the news file's stem, alone or followed
+    by an infix of one or more lowercase words joined by hyphens."""
+    return name == stem or bool(
+        name.startswith(stem + "-")
+        and re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", name[len(stem) + 1 :])
+    )
+
+
+REVIEWER = re.compile(r"^- \*\*Reviewer:\*\*(.*)$", re.M)
+# The self-check's author line, `Author: …` with or without Markdown's emphasis.
+AUTHOR = re.compile(r"^[\s>*_-]*author[*_]*\s*:[*_\s]*(.*)$", re.I | re.M)
+SESSION = re.compile(r"https://claude\.ai/code/session_[A-Za-z0-9_-]+")
+SUB_AGENT = "sub-agent of"
+# The words that make GitHub start no push run for a commit whose message carries one; a squash
+# merge's message is its pull request's title and description.
+SKIP_WORDS = ("[skip ci]", "[ci skip]", "[no ci]", "[skip actions]", "[actions skip]")
 DOCS_FILES = ("README.md", "CHANGELOG.md", "AGENTS.md", "SECURITY.md", "mkdocs.yml", ".gitignore")
 SET_FILES = ("downloads/SHA256SUMS", "release/set_key.py", "release/build-constraints.txt")
 HARNESS_FILES = (
@@ -83,10 +111,16 @@ def classify(path: str) -> frozenset[str]:
     return frozenset(out)
 
 
+def docs_only(changed: list[str]) -> bool:
+    """Every changed path is documentation, whatever the label or a commit line asks to run."""
+    return all("docs" in classify(p) for p in changed)
+
+
 def is_acceptance(changed: list[str]) -> bool:
-    """The acceptance commit's change: accepted.json and the newest history volume, exactly."""
-    rest = sorted(set(changed) - {ACCEPTED})
-    return ACCEPTED in changed and len(rest) == 1 and bool(HISTORY_VOLUME.fullmatch(rest[0]))
+    """An acceptance's change: the accepted state alone (accepted.json, history volumes), and
+    something of it. Its commit carries no skip word, since GitHub would also skip a release pull
+    request whose head it is; the plan is quiet on it instead, so no judging job runs."""
+    return bool(changed) and all(p == ACCEPTED or HISTORY_VOLUME.fullmatch(p) for p in changed)
 
 
 @dataclass(frozen=True)
@@ -97,6 +131,7 @@ class Event:
     labels: tuple[str, ...] = ()
     messages: tuple[str, ...] = ()  # the pull request's commit messages
     release_tier: bool = False  # a dispatch's release-tier input
+    weekly: bool = False  # a dispatch's weekly input: the weekly run's shape
 
     @property
     def pull_request(self) -> bool:
@@ -105,6 +140,24 @@ class Event:
     @property
     def tag(self) -> bool:
         return self.name == "push" and self.ref.startswith("refs/tags/")
+
+
+@dataclass(frozen=True)
+class Commit:
+    sha: str
+    paths: tuple[str, ...]  # the paths it changes
+    sessions: tuple[str, ...] = ()  # its Claude-Session trailers
+
+
+@dataclass
+class PullRequest:
+    """What the review check reads of a pull request: its description (the self-check), its
+    commits oldest first, and each review file's text at its head (absent when deleted)."""
+
+    body: str
+    commits: list[Commit]
+    files: dict[str, str]
+    title: str = ""
 
 
 @dataclass
@@ -120,6 +173,9 @@ class Decision:
     full: bool = False  # the merge-grade set: every normal-tier shard on its systems, build too
     rebuild: bool = False  # the release shape: the macOS build, both rebuilds and same-bytes
     tier: str = "normal"
+    accept: bool = False  # a merge into dev: the accept jobs follow a green gather
+    acceptance: bool = False  # the push of an acceptance: only the plan runs
+    weekly: bool = False  # the weekly run: an issue when it is red
     quiet: bool = False  # the acceptance push: every output false
     why: list[str] = field(default_factory=list)
 
@@ -129,13 +185,20 @@ class Decision:
         return not self.quiet and (self.full or not self.docs_only)
 
 
-def decide(changed: list[str] | None, event: Event, key_moved: bool = False) -> Decision:
+def decide(
+    changed: list[str] | None,
+    event: Event,
+    key_moved: bool = False,
+    reused: tuple[int, str] | None = None,
+) -> Decision:
     """The outputs for one run. `changed` is None when the run has no change to read (a tag, a
-    dispatch, a schedule, a push whose earlier tip is unknown): such a run is whole."""
+    dispatch, a schedule, a push whose earlier tip is unknown): such a run is whole. `reused`: a
+    pull request's green run whose head this one adds documentation alone to (its id and why),
+    which this run re-uses: every output false, the refusals still read."""
     d = Decision()
     if event.name == "push" and not event.tag and changed is not None and is_acceptance(changed):
-        d.quiet = True
-        d.why.append("the acceptance commit: accepted.json and its history volume alone")
+        d.quiet = d.acceptance = True
+        d.why.append("an acceptance: the accepted state alone, so nothing judges it")
         return d
     flags: set[str] = set()
     for path in changed or ():
@@ -145,7 +208,11 @@ def decide(changed: list[str] | None, event: Event, key_moved: bool = False) -> 
     d.set = d.set or key_moved
     if key_moved:
         d.why.append("the set's key moves between the merge base and the head")
-    d.docs_only = changed is not None and all("docs" in classify(p) for p in changed)
+    d.docs_only = changed is not None and docs_only(changed)
+    if reused is not None and event.pull_request:
+        d.quiet = True
+        d.why.append(reused[1])
+        return d
     lines = {line.strip() for m in event.messages for line in m.splitlines()}
     if event.pull_request and event.base_ref == "main":
         d.full = d.rebuild = True
@@ -169,12 +236,12 @@ def decide(changed: list[str] | None, event: Event, key_moved: bool = False) -> 
         d.tier = "release"
         d.why.append("a pushed tag: build, judge both tiers, attest, publish")
     elif event.name == "push":
-        d.full = True
-        d.why.append("a merge into dev: the merge-grade set")
-    elif event.name == "schedule":
-        d.full = d.rebuild = True
+        d.full = d.accept = True
+        d.why.append("a merge into dev: the merge-grade set, then the acceptance")
+    elif event.name == "schedule" or (event.name == "workflow_dispatch" and event.weekly):
+        d.full = d.rebuild = d.weekly = True
         d.tier = "release"
-        d.why.append("the weekly run: the release tier and the rebuilds")
+        d.why.append("the weekly run: the release tier and the rebuilds, an issue when red")
     else:  # workflow_dispatch, or an event the table does not name: whole
         d.full = d.rebuild = True
         if event.release_tier or event.ref == "refs/heads/main":
@@ -236,8 +303,18 @@ def select(d: Decision, plan: dict[str, Shard]) -> dict:
     return sel
 
 
-def refusals(d: Decision, event: Event, changed: list[str] | None) -> list[str]:
-    """What ci-status refuses on its own, whatever the judge says."""
+def into_dev(event: Event) -> bool:
+    """A pull request into dev: the one held to a news file and a review file. The release pull
+    request into main carries every released change's, and its review is the release's."""
+    return event.pull_request and event.base_ref != "main"
+
+
+def refusals(
+    d: Decision, event: Event, changed: list[str] | None, pr: PullRequest | None = None
+) -> list[str]:
+    """What ci-status refuses on its own, whatever the judge says: accepted state written by a
+    pull request; and a pull request into dev that is not documentation only and carries no news
+    file, or (when its commits and description are read, `pr`) no review file that holds."""
     out = []
     if event.pull_request and d.progress:
         written = sorted(p for p in changed or () if "progress" in classify(p))
@@ -245,6 +322,109 @@ def refusals(d: Decision, event: Event, changed: list[str] | None) -> list[str]:
             "a pull request may not write accepted state; only the job that accepts writes "
             "context/progress/: " + ", ".join(written)
         )
+    if into_dev(event) and changed is not None and not docs_only(changed) and not d.news:
+        out.append(
+            "a pull request that is not documentation only carries its news file, "
+            "context/changes/NNN-<slug>.md: its CHANGELOG line, its package rows and its claims"
+        )
+    if into_dev(event) and changed is not None and not docs_only(changed) and pr is not None:
+        out += review_refusals(changed, pr)
+    if into_dev(event) and pr is not None:
+        said = f"{pr.title}\n{pr.body or ''}".lower()
+        for word in SKIP_WORDS:
+            if word in said:
+                out.append(
+                    f"the pull request's title or description holds {word}: it would land in the "
+                    "squash merge's message, and GitHub would skip the run that judges and accepts "
+                    "the merge; quote it another way"
+                )
+    return out
+
+
+def _identity(text: str) -> str:
+    """A name or a session as written, compared without case, emphasis or a closing stop."""
+    return " ".join(text.strip().strip("`<>*_").rstrip(".;,").strip("`<>*_").split()).lower()
+
+
+def _verdict(text: str) -> str:
+    """The first line of the review's `## Verdict` section that is not blank."""
+    lines = text.splitlines()
+    for k, line in enumerate(lines):
+        if line.strip() == "## Verdict":
+            for after in lines[k + 1 :]:
+                if after.startswith("## "):
+                    break
+                if after.strip():
+                    return after.strip().lstrip("*_ ")
+    return ""
+
+
+def review_refusals(changed: list[str], pr: PullRequest) -> list[str]:
+    """The review check: among the changed paths, a review file named after one of the pull
+    request's news files, with or without an infix (the newest by date; of two of one date, the
+    one the branch's newest commit changed, and two changed by one commit refuse); no commit after
+    the newest one that changed it touches a path that is not documentation only; its Reviewer:
+    line is not empty and is not the author, who is the self-check's author line or any
+    Claude-Session trailer of a code commit; a reviewer that names the author's session must be
+    its fresh sub-agent, so says `sub-agent of <session>`; and its verdict begins "Lands". A
+    process guard, not an identity guard: what it holds is that a session other than the
+    author's signed a review after the last code."""
+    stems = sorted({m[1] for p in changed if (m := NEWS.fullmatch(p))})
+    found = sorted(
+        (m[2], p)
+        for p in changed
+        if (m := REVIEW.fullmatch(p)) and any(review_of(m[1], stem) for stem in stems)
+    )
+    if not found:
+        return [
+            "a pull request that is not documentation only has no review file "
+            "context/reviews/NNN-<slug>-pr-YYYY-MM-DD.md among its changed paths for its news "
+            "file " + (", ".join(stems) or "(none)")
+        ]
+    newest = [p for date, p in found if date == found[-1][0]]
+    path = newest[0]
+    if len(newest) > 1:  # one date: the review the branch's newest commit changed signs the head
+        last = next((c for c in reversed(pr.commits) if set(c.paths) & set(newest)), None)
+        touched = sorted(set(last.paths) & set(newest)) if last else newest
+        if len(touched) > 1:
+            return [
+                "two review files of one date, changed by one commit, so neither is known to "
+                "sign the head: " + ", ".join(touched)
+            ]
+        path = touched[0]
+    out = []
+    last = max((k for k, c in enumerate(pr.commits) if path in c.paths), default=None)
+    for c in pr.commits[last + 1 :] if last is not None else ():
+        code = [p for p in c.paths if "docs" not in classify(p)]
+        if code:
+            out.append(
+                f"{path}: the review is followed by {c.sha[:12]}, which changes {code[0]}; the "
+                "review is committed after the last code, and read again after a fix"
+            )
+            break
+    text = pr.files.get(path)
+    if text is None:
+        return [*out, f"{path}: the review file is not in the head's tree"]
+    m = REVIEWER.search(text)
+    reviewer = m[1].strip() if m else ""
+    authors = {_identity(a) for a in AUTHOR.findall(pr.body or "") if a.strip()}
+    sessions = {s for c in pr.commits if any("docs" not in classify(p) for p in c.paths)
+                for s in c.sessions}  # fmt: skip
+    sessions |= {u for a in AUTHOR.findall(pr.body or "") for u in SESSION.findall(a)}
+    authors |= {_identity(s) for s in sessions}
+    if not reviewer or reviewer.startswith("<"):
+        out.append(f"{path}: its Reviewer: line is empty")
+    elif _identity(reviewer) in authors:
+        out.append(f"{path}: its Reviewer: line names the author ({reviewer})")
+    else:
+        for url in sorted(set(SESSION.findall(reviewer)) & sessions):
+            if not re.search(rf"{SUB_AGENT}\s+<?`?{re.escape(url)}", reviewer):
+                out.append(
+                    f"{path}: its Reviewer: line names the author's session {url}; a fresh "
+                    f"sub-agent of it says so ('a fresh {SUB_AGENT} {url}; not the author')"
+                )
+    if not _verdict(text).startswith("Lands"):
+        out.append(f'{path}: the first line of its ## Verdict does not begin "Lands"')
     return out
 
 
@@ -264,6 +444,9 @@ def outputs(d: Decision, sel: dict, refused: list[str]) -> dict[str, str]:
         full=_bool(d.full),
         rebuild=_bool(d.rebuild),
         judge=_bool(d.judge),
+        accept=_bool(d.accept),
+        acceptance=_bool(d.acceptance),
+        weekly=_bool(d.weekly),
         tier=d.tier,
         build=_bool(sel["build"]),
         verify=_json(sel["verify"]),
@@ -273,6 +456,86 @@ def outputs(d: Decision, sel: dict, refused: list[str]) -> dict[str, str]:
     for system in (*OWN_SYSTEMS, "release"):
         out[system] = _json(sel[system])
     return out
+
+
+# ---------------------------------------------------------------------------------------------
+# A push of documentation alone onto a green head re-uses that head's run
+
+GATHER_JOB = "gather the shards' records"  # the gather's display name in a run's jobs
+REQUIRED_JOB = "ci-status"
+LOOKED_AT = 5  # runs whose head is behind this one by documentation alone, at most
+
+
+def find_reusable(
+    head: str,
+    runs: list[dict],
+    *,
+    jobs_of: Callable[[int], dict[str, str] | None],
+    is_ancestor: Callable[[str], bool],
+    changed_since: Callable[[str], list[str]],
+) -> tuple[int | None, str]:
+    """The newest completed run of this pull request whose head is an ancestor of `head` by
+    documentation alone and whose gather passed with every other job but ci-status green or
+    skipped (ci-status waited for the review file); its id and why, or (None, "")."""
+    looked = 0
+    for run in runs:
+        sha, run_id = str(run.get("headSha", "")), run.get("databaseId")
+        if sha == head or run.get("status") != "completed" or not is_ancestor(sha):
+            continue
+        if not docs_only(changed_since(sha)):
+            continue
+        looked += 1
+        if looked > LOOKED_AT:
+            break
+        jobs = jobs_of(int(run_id)) if isinstance(run_id, int) else None
+        if not jobs or jobs.get(GATHER_JOB) != "success":
+            continue
+        if any(c not in ("success", "skipped") for n, c in jobs.items() if n != REQUIRED_JOB):
+            continue
+        return run_id, (
+            f"re-uses run {run_id}, green on {sha[:12]}: every path changed since is documentation"
+        )
+    return None, ""
+
+
+def _gh(environ, *args: str) -> object | None:
+    """One read of GitHub's API through gh, as JSON; None without a token or on any failure."""
+    if not environ.get("GH_TOKEN"):
+        return None
+    try:
+        r = subprocess.run(
+            ["gh", *args, "--repo", environ.get("GITHUB_REPOSITORY", "")],
+            capture_output=True,
+            text=True,
+            env={**os.environ, **environ},
+            timeout=60,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode != 0:
+        return None
+    try:
+        return json.loads(r.stdout)
+    except ValueError:
+        return None
+
+
+def green_runs(environ, head_ref: str) -> list[dict] | None:
+    """This pull request's newest runs of the release workflow, newest first (one API call)."""
+    if not head_ref:
+        return None
+    fields = "databaseId,headSha,status,conclusion"
+    got = _gh(environ, "run", "list", "--workflow", "release.yml", "--branch", head_ref,
+              "--event", "pull_request", "--limit", "20", "--json", fields)  # fmt: skip
+    return got if isinstance(got, list) else None
+
+
+def run_jobs(environ, run_id: int) -> dict[str, str] | None:
+    """A run's jobs by name, each with its conclusion (one API call)."""
+    got = _gh(environ, "run", "view", str(run_id), "--json", "jobs")
+    if not isinstance(got, dict) or not isinstance(got.get("jobs"), list):
+        return None
+    return {str(j.get("name")): str(j.get("conclusion")) for j in got["jobs"]}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -360,13 +623,53 @@ def _is_commit(sha: str) -> bool:
     return r.returncode == 0
 
 
+def _is_ancestor(sha: str, head: str) -> bool:
+    r = subprocess.run(
+        ["git", "-C", str(REPO), "merge-base", "--is-ancestor", sha, head], capture_output=True
+    )
+    return r.returncode == 0
+
+
 def _diff(a: str, b: str) -> list[str]:
     # --no-renames: a moved file counts at both of its paths.
     return [p for p in _git("diff", "--name-only", "--no-renames", a, b).splitlines() if p]
 
 
-def from_runner(environ) -> tuple[Event, list[str] | None, bool]:
-    """The event, the changed paths and whether the key moved, as the workflow's run gives them."""
+def read_pull_request(
+    repo: Path, base: str, head: str, body: str, changed: list[str], title: str = ""
+) -> PullRequest:
+    """A pull request's commits from `base` (its merge base) to `head`, oldest first, each with
+    the paths it changes and its Claude-Session trailers, and the text at the head of each review
+    file among the changed paths."""
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", "-C", str(repo), *args], check=True, capture_output=True, text=True
+        ).stdout
+
+    commits = []
+    for sha in git("rev-list", "--reverse", f"{base}..{head}").split():
+        names = git("diff-tree", "--no-commit-id", "--name-only", "-r", "--no-renames", sha)
+        trailers = git("log", "-1", "--format=%(trailers:key=Claude-Session,valueonly)", sha)
+        commits.append(
+            Commit(sha, tuple(n for n in names.splitlines() if n), tuple(trailers.split()))
+        )
+    files = {}
+    for path in changed:
+        if REVIEW.fullmatch(path):
+            r = subprocess.run(
+                ["git", "-C", str(repo), "show", f"{head}:{path}"], capture_output=True, text=True
+            )
+            if r.returncode == 0:
+                files[path] = r.stdout
+    return PullRequest(body, commits, files, title)
+
+
+def from_runner(
+    environ,
+) -> tuple[Event, list[str] | None, bool, PullRequest | None, tuple[int, str] | None]:
+    """The event, the changed paths, whether the key moved and, on a pull request, its commits
+    and description and the green run it re-uses, if any, as the workflow's run gives them."""
     labels = tuple(json.loads(environ.get("PLAN_LABELS") or "[]") or ())
     event = Event(
         environ.get("GITHUB_EVENT_NAME", ""),
@@ -375,19 +678,39 @@ def from_runner(environ) -> tuple[Event, list[str] | None, bool]:
         labels,
         (),
         environ.get("PLAN_RELEASE_TIER") == "true",
+        environ.get("PLAN_WEEKLY") == "true",
     )
     head = environ.get("PLAN_HEAD") or "HEAD"
     changed: list[str] | None = None
     moved = False
+    pr = None
+    reused = None
     if event.pull_request and _is_commit(environ.get("PLAN_BASE", "")):
         base = _git("merge-base", environ["PLAN_BASE"], head).strip()
         changed = _diff(base, head)
         messages = _git("log", "--format=%B%x00", f"{base}..{head}").split("\0")
         event = Event(event.name, event.ref, event.base_ref, labels, tuple(messages))
         moved = key_moved(REPO, base)
+        pr = read_pull_request(
+            REPO, base, head, environ.get("PLAN_BODY", ""), changed, environ.get("PLAN_TITLE", "")
+        )
+        runs = (
+            green_runs(environ, environ.get("PLAN_HEAD_REF", ""))
+            if into_dev(event) and not docs_only(changed)
+            else None
+        )
+        if runs:
+            run_id, why = find_reusable(
+                _git("rev-parse", head).strip(),
+                runs,
+                jobs_of=lambda run_id: run_jobs(environ, run_id),
+                is_ancestor=lambda sha: _is_ancestor(sha, head),
+                changed_since=lambda sha: _diff(sha, head),
+            )
+            reused = (run_id, why) if run_id is not None else None
     elif event.name == "push" and not event.tag and _is_commit(environ.get("PLAN_BEFORE", "")):
         changed = _diff(environ["PLAN_BEFORE"], head)
-    return event, changed, moved
+    return event, changed, moved, pr, reused
 
 
 def summary(d: Decision, sel: dict, refused: list[str], changed: list[str] | None) -> str:
@@ -417,11 +740,13 @@ def main(argv: list[str]) -> int:
         changed: list[str] | None = [p.strip() for p in text.splitlines() if p.strip()]
         event = Event(a.event, a.ref, a.base_ref, tuple(a.label), tuple(a.message), a.release_tier)
         moved = a.key_moved
+        pr = None  # the review check reads the pull request's commits, which a list does not give
+        reused = None
     else:
-        event, changed, moved = from_runner(os.environ)
-    d = decide(changed, event, moved)
+        event, changed, moved, pr, reused = from_runner(os.environ)
+    d = decide(changed, event, moved, reused)
     sel = select(d, load_shards())
-    refused = refusals(d, event, changed)
+    refused = refusals(d, event, changed, pr)
     text = "".join(f"{k}={v}\n" for k, v in outputs(d, sel, refused).items())
     target = os.environ.get("GITHUB_OUTPUT")
     if target:

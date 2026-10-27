@@ -391,7 +391,7 @@ def test_a_tracked_change_under_context_is_dirty(repo) -> None:
 # Only the lane accepts (Decision 4), and a dirty acceptance is refused when made (Decision 2)
 
 
-WORKTREE_LINE = "accept: only the landing lane accepts, in the main tree; this is a linked worktree"
+WORKTREE_LINE = "accept: a local acceptance is made in the main tree; this is a linked worktree"
 
 
 @pytest.fixture

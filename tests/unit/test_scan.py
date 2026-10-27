@@ -728,6 +728,7 @@ jobs:
   plan:
     permissions:
       contents: read
+      actions: read
     outputs:
       build: ${{{{ steps.plan.outputs.build }}}}
       rebuild: ${{{{ steps.plan.outputs.rebuild }}}}
@@ -3153,7 +3154,7 @@ def test_the_tier_is_decided_by_the_runners_own_variables(event, ref, input_, ti
     when its input is exactly true."""
     ci_plan = _ci_plan()
     environ = {"GITHUB_EVENT_NAME": event, "GITHUB_REF": ref, "PLAN_RELEASE_TIER": input_}
-    e, changed, _ = ci_plan.from_runner(environ)
+    e, changed, _, _, _ = ci_plan.from_runner(environ)
     assert ci_plan.decide(changed, e).tier == tier
 
 
@@ -3530,3 +3531,97 @@ def test_wget_is_named(work, line) -> None:
     ]
     quiet = write(work, "scripts/ok.sh", '#!/bin/sh\necho "no wget here"\n# wget x\n')
     assert scan.curl_flag_errors([quiet], work) == []
+
+
+# ---------------------------------------------------------------------------------------------
+# The accept jobs: the record accepted with no secret, the push alone holding the key
+
+
+def test_the_real_workflows_accept_jobs_hold() -> None:
+    assert scan.accept_job_errors(REAL_WORKFLOW) == []
+
+
+GUARD_ENV = "          RECORD_ID: ${{ needs.gather.outputs.record-id }}\n"
+ADD = "          git add -- context/progress/accepted.json"
+BAD_ACCEPT = [
+    ("accept-record", "    permissions:\n      contents: read\n",
+     "    environment: accept\n    permissions:\n      contents: read\n",
+     "accept-record names an environment"),
+    ("accept-record", "--claims=context/changes/", "", "accept-record does not run"),
+    ("accept-record", " && needs.gather.result == 'success'", "", "accept-record's if:"),
+    ("accept-record", "    needs: [plan, quick,", "    needs: [plan,",
+     "accept-record does not need"),
+    ("accept-record", GUARD_ENV, GUARD_ENV + "          KEY: ${{ secrets.ACCEPT_DEPLOY_KEY }}\n",
+     "the secret ACCEPT_DEPLOY_KEY is named outside accept-push"),
+    ("accept-push", "    environment: accept\n", "", "accept-push does not name environment"),
+    ("accept-push", "    needs: [plan, accept-record]\n",
+     "    needs: [plan, accept-record, gather]\n", "accept-push does not need"),
+    ("accept-push", ADD, "          uv run python release/version.py show\n" + ADD,
+     "accept-push runs code of the repository"),
+    ("accept-push", "tip=$(git ls-remote origin refs/heads/dev | cut -f1)",
+     'tip="$GITHUB_SHA"', "accept-push does not check"),
+    ("accept-push", "git status --porcelain --untracked-files=all", "git diff --name-only",
+     "accept-push does not check"),
+    ("accept-push", "          ssh-key: ${{ secrets.ACCEPT_DEPLOY_KEY }}\n", "",
+     "accept-push does not check out with the deploy key"),
+]  # fmt: skip
+
+
+@pytest.mark.parametrize(("job", "old", "new", "error"), BAD_ACCEPT, ids=[b[3] for b in BAD_ACCEPT])
+def test_the_accept_scan_names_each_breach(job, old, new, error) -> None:
+    errors = scan.accept_job_errors(_in_job(REAL_WORKFLOW, job, old, new))
+    assert any(e.startswith(error) for e in errors), errors
+
+
+def test_another_job_in_the_accept_environment_is_named() -> None:
+    text = _in_job(
+        REAL_WORKFLOW,
+        "verify",
+        "    permissions:\n",
+        "    environment: accept\n    permissions:\n",
+    )
+    errors = scan.accept_job_errors(text)
+    assert "verify names the accept environment, which only accept-push may" in errors, errors
+
+
+def test_the_real_workflows_weekly_run_holds() -> None:
+    assert scan.weekly_errors(REAL_WORKFLOW) == []
+
+
+BAD_WEEKLY = [
+    ("weekly-issue", "    permissions:\n      issues: write\n",
+     "    permissions:\n      issues: write\n      contents: write\n",
+     "weekly-issue's permissions"),
+    ("weekly-issue", "needs.plan.outputs.weekly == 'true' && ", "", "weekly-issue's if:"),
+    ("weekly-issue", "gh issue comment", "echo", "weekly-issue does not comment"),
+    ("accept-record", "needs.plan.outputs.accept == 'true'", "needs.plan.outputs.full == 'true'",
+     "accept-record does not run on the plan's accept output"),
+]  # fmt: skip
+
+
+@pytest.mark.parametrize(("job", "old", "new", "error"), BAD_WEEKLY, ids=[b[3] for b in BAD_WEEKLY])
+def test_the_weekly_scan_names_each_breach(job, old, new, error) -> None:
+    errors = scan.weekly_errors(_in_job(REAL_WORKFLOW, job, old, new))
+    assert any(e.startswith(error) for e in errors), errors
+
+
+def test_a_workflow_without_the_weekly_input_is_named() -> None:
+    text = REAL_WORKFLOW.replace(scan.WEEKLY_INPUT, "", 1)
+    assert "workflow_dispatch has no weekly input" in scan.weekly_errors(text)
+
+
+def test_quick_and_the_acceptance_push_are_named_when_they_break_the_quiet_acceptance() -> None:
+    """A push of the accepted state alone runs the plan and nothing that judges: quick gates on
+    the plan's acceptance output; the acceptance's push carries no skip word, which would also
+    skip a release pull request whose head it is."""
+    no_gate = _in_job(
+        REAL_WORKFLOW, "quick", "    if: needs.plan.outputs.acceptance != 'true'\n", ""
+    )
+    assert any(e.startswith("quick does not") for e in scan.accept_job_errors(no_gate))
+    marked = _in_job(
+        REAL_WORKFLOW,
+        "accept-push",
+        ADD,
+        "          echo 'x [skip ci]'\n" + ADD,
+    )
+    assert any("skip word" in e for e in scan.accept_job_errors(marked))

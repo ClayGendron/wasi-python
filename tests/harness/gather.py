@@ -13,10 +13,16 @@ the build shard's, by id, into `build-shard/`. From those it derives again wheth
 release run (a pushed tag, a run on main, or a pull request into main), which must have judged the
 release tier. It collects the judge once at this commit and is red, one line per reason, unless G1
 to G7 hold. On a pull request, G1 to G6 hold over the selected pairs, the rows an acceptance needs a
-reason for are listed under GROWTH rather than red, and G7 is not evaluated; after a merge into dev
-G7 is not evaluated either, since that run makes the acceptance it would compare with. It prints
-the merged scoreboard, writes the merged record and the job's summary, and writes nothing to the
-progress history. It is the parallel judge's controller merge, across machines.
+reason for are listed under GROWTH rather than red, and G7 is not evaluated. After a merge into dev
+G1 to G6 are whole, G7 is not evaluated, since that run makes the acceptance it would compare with,
+and the rows an acceptance needs a reason for are listed too: the accept job clears each with the
+claim of a news file, or refuses it. On both, an absent check a news file's claim retires is
+listed beside them; one no claim retires stays red, as a lost pass does. Each listed row names
+the reason a news file's claim gives (the news files at this commit), or `unclaimed`. It prints
+the merged scoreboard, writes the merged record (with its own red lines, the event, and each
+shard's commit and guards, which the acceptance from CI's record holds) and the job's summary,
+and writes nothing to the progress history. It is the parallel judge's controller merge, across
+machines.
 """
 
 from __future__ import annotations
@@ -37,7 +43,7 @@ from pathlib import Path
 if __package__ in (None, ""):  # run as a script: the harness package lives one folder up
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from harness import history, paths, scoreboard, shards  # noqa: E402
+from harness import history, news, paths, scoreboard, shards  # noqa: E402
 
 HEX64 = re.compile(r"[0-9a-f]{64}")
 # The needs that may block a check in CI, each with the systems (as `expected_keys` names them)
@@ -121,6 +127,9 @@ class Inputs:
     event: str = ""  # GITHUB_EVENT_NAME
     # G7's form for the event: whole, pull-request, post-merge or release-pull-request.
     g7: str = "whole"
+    ref: str = ""  # GITHUB_REF
+    base_ref: str = ""  # GITHUB_BASE_REF
+    claims: list[news.Claim] = field(default_factory=list)  # the news files' claims, for GROWTH
 
 
 @dataclass
@@ -129,8 +138,14 @@ class Verdict:
     records: dict[tuple[str, str], dict] = field(default_factory=dict)
     merged: dict = field(default_factory=dict)
     lines: list[str] = field(default_factory=list)
-    # On a pull request: the rows an acceptance needs a reason for, listed and not red.
+    # On a pull request and after a merge into dev: the rows an acceptance needs a reason for,
+    # listed and not red, each with the claim kind and the check a news file's claim must name.
     growth: list[str] = field(default_factory=list)
+    growth_keys: list[tuple[str, str]] = field(default_factory=list)
+
+    def list_growth(self, row: str, kind: str, key: str) -> None:
+        self.growth.append(row)
+        self.growth_keys.append((kind, key))
 
 
 def allowed(node: str, need, system: str, may_block: dict[str, frozenset[str]]) -> bool:
@@ -163,6 +178,20 @@ def gather(i: Inputs) -> Verdict:
         red.append("G1 a tag (or a dispatch on main), and the release tier did not run")
     normal = i.tier != "release"
     pull_request = i.event == "pull_request"
+    # Where an acceptance's reasons are the news files', a row that needs one is listed, not red.
+    listed = pull_request or i.g7 == "post-merge"
+
+    def claimed(kind: str, key: str) -> bool:
+        """A row a news file's claim gives its reason for: listed on a pull request and after a
+        merge; with no claim, listed on a pull request (named `unclaimed`) and red after a merge,
+        where the accept job would have nothing to consume."""
+        return pull_request or news.reason(i.claims, kind, key) is not None
+
+    def retired(node: str) -> bool:
+        """An absent check a news file's claim retires: the acceptance consumes the claim, so
+        where the acceptance's reasons are the news files' the row is listed, not red."""
+        return listed and news.reason(i.claims, "retired", node) is not None
+
     if pull_request and i.selected is None:
         red.append(
             "G1 a pull request, and the decision job's selected pairs (PLAN) were not handed on"
@@ -356,23 +385,30 @@ def gather(i: Inputs) -> Verdict:
             continue
         for what, nodes in (
             ("lost", rt.lost),
-            ("absent", rt.absent),
+            ("absent", [n for n in rt.absent if not retired(n)]),
             ("blocked, protected", rt.unrun),
         ):
             red += [f"G5 {system}/{shard}: {what} {n}" for n in nodes[:5]]
-        for what, nodes in (("fewer", rt.fewer), ("grew", rt.growth)):
-            (v.growth if pull_request else red).extend(
-                f"G5 {system}/{shard}: {what} {n}" for n in nodes[:5]
-            )
+        for n in [n for n in rt.absent if retired(n)][:5]:
+            v.list_growth(f"G5 {system}/{shard}: absent {n}", "retired", n)
+        for what, kind, nodes in (("fewer", "passes", rt.fewer), ("grew", "grows", rt.growth)):
+            for n in nodes[:5]:
+                row = f"G5 {system}/{shard}: {what} {n}"
+                if listed and claimed(kind, n.split(": ", 1)[0]):
+                    v.list_growth(row, kind, n.split(": ", 1)[0])
+                else:
+                    red.append(row)
     # A check accepted in one tier and now in the other: shown on every run, so a pull request
     # names a move before its acceptance needs the reason.
     for node, acc in sorted(i.accepted.get("checks", {}).items()):
         was = acc.get("tier") or "normal"
         now = "release" if node in i.release_checks else "normal"
         if node in collected and was != now:
-            (v.growth if pull_request else red).append(
-                f"G5 {node}: accepted in the {was} tier, {now}-tier now"
-            )
+            row = f"G5 {node}: accepted in the {was} tier, {now}-tier now"
+            if listed and claimed("moved", node):
+                v.list_growth(row, "moved", node)
+            else:
+                red.append(row)
     for node, acc in sorted(i.accepted.get("checks", {}).items()):
         if acc.get("status") not in ("pass", "gap"):
             continue
@@ -380,6 +416,8 @@ def gather(i: Inputs) -> Verdict:
             continue  # its tier did not run here
         if node not in in_scope and node in collected:
             continue  # its shard was not selected here
+        if node not in collected and retired(node):
+            continue  # absent, and a news file retires it: listed above
         states = [(s, r.get("checks", {}).get(node, {})) for (s, _), r in v.records.items()]
         if any(c.get("status") in ("pass", "gap") for _, c in states):
             continue
@@ -404,9 +442,11 @@ def gather(i: Inputs) -> Verdict:
             red.append(f"G5 {m[1]}: passes or passed_digest differ between systems")
         acc = i.accepted.get("checks", {}).get(node, {}).get("metrics", {}).get("darwin-arm64", {})
         if runs and "passes" in acc and passes != {acc["passes"]}:
-            (v.growth if pull_request else red).append(
-                f"G5 {m[1]}: passes {sorted(passes, key=str)} is not accepted {acc['passes']}"
-            )
+            row = f"G5 {m[1]}: passes {sorted(passes, key=str)} is not accepted {acc['passes']}"
+            if listed and claimed("passes", node):
+                v.list_growth(row, "passes", node)
+            else:
+                red.append(row)
     # G6: three systems, or on a pull request every system among its selected pairs.
     systems = {
         str(r.get("meta", {}).get("platform", "")).split("-")[0]
@@ -421,6 +461,7 @@ def gather(i: Inputs) -> Verdict:
         red.append(f"G6 the probe passed on {sorted(systems)}, not {names}")
     red += g7(i)
     v.merged = merge(v.records, i)
+    v.merged["meta"]["red"] = list(red)  # the verdict, which the acceptance from CI holds
     providers = {}
     shown = dict(v.merged)
     shown["suite"] = {
@@ -432,9 +473,10 @@ def gather(i: Inputs) -> Verdict:
     if i.g7 in G7_SKIPPED:
         v.lines.insert(at, f"G7: not evaluated {G7_SKIPPED[i.g7]}")
     if v.growth:
-        listed = ["GROWTH, each needing its reason at the acceptance:"]
-        listed += [f"  {row} · unclaimed" for row in v.growth]
-        v.lines[at:at] = listed
+        shown_rows = ["GROWTH, each needing its reason at the acceptance:"]
+        for row, (kind, key) in zip(v.growth, v.growth_keys, strict=True):
+            shown_rows.append(f"  {row} · {news.reason(i.claims, kind, key) or 'unclaimed'}")
+        v.lines[at:at] = shown_rows
     if not red:
         at = next(
             (n for n, line in enumerate(v.lines) if line.startswith("not machine-checked")), -1
@@ -574,6 +616,8 @@ def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:
             "tier": i.tier,
             "foreign": sorted(foreign),
             "event": getattr(i, "event", ""),
+            "ref": getattr(i, "ref", ""),
+            "base_ref": getattr(i, "base_ref", ""),
             "selected": _pairs(getattr(i, "selected", None)),
         },
         "checks": checks,
@@ -581,11 +625,33 @@ def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:
         "release_checks": sorted(i.release_checks),
         "collected_files": sorted(files),
         "suite": suite,
-        "runs": {
-            f"{s}/{n}": {"platform": r.get("meta", {}).get("platform"), "suite": r.get("suite", {})}
-            for (s, n), r in sorted(records.items())
-        },
+        "runs": {f"{s}/{n}": _run(r) for (s, n), r in sorted(records.items())},
     }
+
+
+def _run(r: dict) -> dict:
+    """One shard's entry in the merged record: its platform and suite, and what the acceptance from
+    CI's record holds of each shard (its commit, a clean tree, its overrides, what steered it from
+    outside the judge, and the probe's status)."""
+    meta = r.get("meta", {})
+    return {
+        "platform": meta.get("platform"),
+        "suite": r.get("suite", {}),
+        "commit": meta.get("commit"),
+        "dirty": meta.get("dirty"),
+        "overrides": meta.get("overrides"),
+        "foreign": meta.get("foreign"),
+        "probe": r.get("checks", {}).get(history.PROBE, {}).get("status"),
+    }
+
+
+def news_claims(repo: Path = paths.REPO) -> list[news.Claim]:
+    """Every claim of the news files at this commit; none when one is broken, which the rules
+    check that holds their shape reports."""
+    try:
+        return [c for n in news.folder(repo / news.CHANGES) for c in n.claims]
+    except news.NewsError:
+        return []
 
 
 # ---------------------------------------------------------------------------------------------
@@ -865,6 +931,9 @@ def main(argv: list[str]) -> int:
             selected=selected,
             event=os.environ.get("GITHUB_EVENT_NAME", ""),
             g7=g7_form(os.environ),
+            ref=os.environ.get("GITHUB_REF", ""),
+            base_ref=os.environ.get("GITHUB_BASE_REF", ""),
+            claims=news_claims(),
         )
     )
     a.out.mkdir(parents=True, exist_ok=True)

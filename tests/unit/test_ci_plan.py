@@ -68,6 +68,7 @@ ROWS = [
     ("context/specifications/138-x.md", {"docs"}),
     ("context/reviews/138-x-pr-2026-10-25.md", {"docs"}),
     ("context/changes/notes/deeper.md", {"docs"}),
+    ("context/changes/README.md", {"docs"}),
     ("README.md", {"docs"}),
     ("CHANGELOG.md", {"docs"}),
     ("AGENTS.md", {"docs"}),
@@ -265,15 +266,13 @@ def test_the_acceptance_push_sets_every_output_false() -> None:
     sel = ci_plan.select(d, PLAN)
     assert sel["selected"] == [] and sel["verify"] == [] and sel["build"] is False
     out = ci_plan.outputs(d, sel, [])
-    assert {k for k, v in out.items() if v == "true"} == set()
+    assert {k for k, v in out.items() if v == "true"} == {"acceptance"}
 
 
 @pytest.mark.parametrize(
     "changed",
     [
         ACCEPT + ["src/x.py"],
-        ["context/progress/accepted.json"],
-        ["context/progress/history-00060.jsonl"],
         ["context/progress/accepted.json", "context/progress/README.md"],
         ["context/progress/accepted.json", "context/progress/history-00060.jsonl.bak"],
     ],
@@ -292,15 +291,56 @@ def _progress_refusals(changed: list[str], event) -> list[str]:
 def test_the_acceptance_paths_on_a_pull_request_are_refused() -> None:
     d = ci_plan.decide(ACCEPT, PR_DEV)
     assert d.progress and not d.quiet
-    refusals = ci_plan.refusals(d, PR_DEV, ACCEPT)
+    refusals = _progress_refusals(ACCEPT, PR_DEV)
     assert len(refusals) == 1 and "context/progress/accepted.json" in refusals[0]
 
 
 def test_progress_is_refused_on_a_pull_request_only() -> None:
     changed = ["context/progress/accepted.json", "src/x.py"]
-    assert ci_plan.refusals(ci_plan.decide(changed, PR_DEV), PR_DEV, changed)
+    assert _progress_refusals(changed, PR_DEV)
     assert ci_plan.refusals(ci_plan.decide(changed, PUSH_DEV), PUSH_DEV, changed) == []
-    assert ci_plan.refusals(ci_plan.decide(["src/x.py"], PR_DEV), PR_DEV, ["src/x.py"]) == []
+    assert _progress_refusals(["src/x.py"], PR_DEV) == []
+
+
+# ---------------------------------------------------------------------------------------------
+# A pull request that is not documentation only carries a news file
+
+NEWS = "context/changes/999-a-change.md"
+
+
+def _news_refusals(changed: list[str], event=PR_DEV) -> list[str]:
+    d = ci_plan.decide(changed, event)
+    return [r for r in ci_plan.refusals(d, event, changed) if "news file" in r]
+
+
+def test_a_code_pull_request_without_a_news_file_is_refused() -> None:
+    (refusal,) = _news_refusals(["src/x.py", "docs/index.md"])
+    assert "context/changes/NNN-<slug>.md" in refusal
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        ["src/x.py", NEWS],
+        [NEWS],
+        ["docs/index.md", "context/reviews/999-a-change-pr-2026-10-25.md"],
+        [],
+    ],
+    ids=["code and its news", "the news alone", "documentation only", "nothing"],
+)
+def test_a_news_file_or_documentation_alone_carries_no_news_refusal(changed) -> None:
+    assert _news_refusals(changed) == []
+
+
+def test_the_folders_readme_is_no_news_file() -> None:
+    assert _news_refusals(["src/x.py", "context/changes/README.md"])
+
+
+def test_only_a_pull_request_into_dev_is_held_to_a_news_file() -> None:
+    """A push to dev is the merge of a pull request already held to it; the release pull request
+    into main carries the news files of every change it releases, assembled by the bump."""
+    for event in (PUSH_DEV, PR_MAIN, TAG, DISPATCH, SCHEDULE):
+        assert _news_refusals(["src/x.py"], event) == [], event
 
 
 # ---------------------------------------------------------------------------------------------
@@ -445,3 +485,387 @@ def test_a_pull_request_whose_base_cannot_be_read_is_judged_whole() -> None:
     assert "the pull request's base could not be read: the run is whole" in d.why
     sel = ci_plan.select(d, PLAN)
     assert sel["macos"] == shards.on(shards.load(), "macos") and sel["build"] is True
+
+
+# ---------------------------------------------------------------------------------------------
+# The review file: committed after the last code, signed by someone other than the author, and
+# saying the change lands
+
+REVIEW = "context/reviews/999-a-change-pr-2026-10-26.md"
+AUTHOR = "https://claude.ai/code/session_01AUTHOR"
+OTHER = "https://claude.ai/code/session_01REVIEWER"
+BODY = f"- **Author:** {AUTHOR}\n- every new check seen failing first\n"
+
+
+def _review(reviewer: str = OTHER, verdict: str = "Lands: nothing stands.") -> str:
+    return (
+        "# Review of 999 — a change\n\n- **Date:** 2026-10-26\n"
+        f"- **Reviewer:** {reviewer}\n- **Run:** 1\n\n## Findings, most severe first\n\nNone.\n\n"
+        f"## Verdict\n\n{verdict}\n"
+    )
+
+
+def _pr(review: str | None = None, commits=None, body: str = BODY):
+    code = ci_plan.Commit("a" * 40, ("src/x.py", NEWS), (AUTHOR,))
+    last = ci_plan.Commit("b" * 40, (REVIEW,), (OTHER,))
+    return ci_plan.PullRequest(
+        body=body,
+        commits=[code, last] if commits is None else commits,
+        files={REVIEW: _review() if review is None else review},
+    )
+
+
+def _review_refusals(pr, changed=("src/x.py", NEWS, REVIEW)) -> list[str]:
+    changed = list(changed)
+    d = ci_plan.decide(changed, PR_DEV)
+    return [r for r in ci_plan.refusals(d, PR_DEV, changed, pr) if "review" in r]
+
+
+def test_a_review_committed_last_by_another_session_that_lands_is_accepted() -> None:
+    assert _review_refusals(_pr()) == []
+
+
+def test_a_code_pull_request_with_no_review_file_is_refused() -> None:
+    (refusal,) = _review_refusals(_pr(), changed=("src/x.py", NEWS))
+    assert "no review file" in refusal and "999-a-change" in refusal
+
+
+def test_a_review_of_another_news_files_name_is_no_review_of_this_one() -> None:
+    other = "context/reviews/998-another-pr-2026-10-26.md"
+    assert _review_refusals(_pr(), changed=("src/x.py", NEWS, other))
+
+
+def test_a_code_commit_after_the_review_is_refused() -> None:
+    code = ci_plan.Commit("a" * 40, ("src/x.py", NEWS), (AUTHOR,))
+    review = ci_plan.Commit("b" * 40, (REVIEW,), (OTHER,))
+    fix = ci_plan.Commit("c" * 40, ("src/x.py",), (AUTHOR,))
+    (refusal,) = _review_refusals(_pr(commits=[code, review, fix]))
+    assert "cccccccccccc" in refusal and "src/x.py" in refusal
+
+
+def test_a_documentation_commit_after_the_review_is_allowed() -> None:
+    code = ci_plan.Commit("a" * 40, ("src/x.py", NEWS), (AUTHOR,))
+    review = ci_plan.Commit("b" * 40, (REVIEW,), (OTHER,))
+    low = ci_plan.Commit("c" * 40, ("context/specifications/999-a-change.md",), (OTHER,))
+    assert _review_refusals(_pr(commits=[code, review, low])) == []
+
+
+@pytest.mark.parametrize(
+    "reviewer", ["", "<the reviewer's session URL or a person; not the author>"]
+)
+def test_an_empty_reviewer_line_is_refused(reviewer) -> None:
+    (refusal,) = _review_refusals(_pr(_review(reviewer=reviewer)))
+    assert "Reviewer:" in refusal and "empty" in refusal
+
+
+@pytest.mark.parametrize(
+    "reviewer",
+    [AUTHOR, f"{AUTHOR}.", f"`{AUTHOR}`", f"{AUTHOR}; not the author"],
+    ids=["the url", "with a stop", "in backticks", "with words"],
+)
+def test_a_reviewer_line_that_is_the_authors_session_url_alone_is_refused(reviewer) -> None:
+    (refusal,) = _review_refusals(_pr(_review(reviewer=reviewer)))
+    assert "author" in refusal and AUTHOR in refusal
+
+
+def test_the_author_is_read_from_the_code_commits_trailers_too() -> None:
+    code = ci_plan.Commit(
+        "a" * 40, ("src/x.py", NEWS), ("https://claude.ai/code/session_01TRAILER",)
+    )
+    review = ci_plan.Commit("b" * 40, (REVIEW,), ())
+    pr = _pr(
+        _review(reviewer="https://claude.ai/code/session_01TRAILER"),
+        commits=[code, review],
+        body="no author line\n",
+    )
+    assert _review_refusals(pr)
+
+
+def test_a_person_named_as_the_author_may_not_review() -> None:
+    pr = _pr(_review(reviewer="Clay Gendron"), body="- **Author:** Clay Gendron\n")
+    assert _review_refusals(pr)
+
+
+def test_a_reviewers_own_session_on_a_review_commit_is_not_an_author() -> None:
+    """The review's own commit touches documentation alone: its trailer is the reviewer's."""
+    assert _review_refusals(_pr(_review(reviewer=OTHER))) == []
+
+
+def test_a_fresh_sub_agent_of_the_authors_session_may_review() -> None:
+    reviewer = f"an agent (Claude), a fresh sub-agent of {AUTHOR}; not the author"
+    assert _review_refusals(_pr(_review(reviewer=reviewer))) == []
+
+
+@pytest.mark.parametrize(
+    "verdict",
+    ["Does not land yet: Medium 1.", "", "It lands.", "Landed elsewhere"],
+    ids=["does not land", "no verdict", "not first", "another word"],
+)
+def test_a_verdict_that_does_not_begin_lands_is_refused(verdict) -> None:
+    (refusal,) = _review_refusals(_pr(_review(verdict=verdict)))
+    assert "Verdict" in refusal
+
+
+def test_a_review_file_deleted_at_the_head_is_refused() -> None:
+    pr = _pr()
+    pr.files.clear()
+    assert _review_refusals(pr)
+
+
+def test_the_review_is_not_asked_of_documentation_or_of_main() -> None:
+    docs = ["docs/index.md"]
+    assert ci_plan.refusals(ci_plan.decide(docs, PR_DEV), PR_DEV, docs, _pr()) == []
+    code = ["src/x.py"]
+    assert ci_plan.refusals(ci_plan.decide(code, PR_MAIN), PR_MAIN, code, _pr()) == []
+
+
+def test_the_pull_requests_commits_trailers_and_review_are_read_with_git(
+    tmp_path, monkeypatch
+) -> None:
+    import shutil
+
+    git = shutil.which("git")
+    if git is None:
+        pytest.skip("needs: git")
+    config = tmp_path / "gitconfig"
+    config.write_text("[user]\n\tname = t\n\temail = t@t\n[commit]\n\tgpgsign = false\n")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(config))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    repo = tmp_path / "repo"
+
+    def run(*args: str) -> str:
+        return subprocess.run(
+            [git, "-C", str(repo), *args], check=True, capture_output=True, text=True
+        ).stdout.strip()
+
+    subprocess.run([git, "init", "-q", "-b", "dev", str(repo)], check=True)
+    (repo / "README.md").write_text("x\n")
+    run("add", "-A")
+    run("commit", "-q", "-m", "start")
+    base = run("rev-parse", "HEAD")
+    (repo / "src").mkdir()
+    (repo / "src" / "x.py").write_text("x = 1\n")
+    run("add", "-A")
+    run("commit", "-q", "-m", f"code\n\nClaude-Session: {AUTHOR}")
+    (repo / "context" / "reviews").mkdir(parents=True)
+    (repo / REVIEW).write_text(_review())
+    run("add", "-A")
+    run("commit", "-q", "-m", "review")
+    head = run("rev-parse", "HEAD")
+    pr = ci_plan.read_pull_request(repo, base, head, BODY, ["src/x.py", REVIEW])
+    assert [c.paths for c in pr.commits] == [("src/x.py",), (REVIEW,)]
+    assert [c.sessions for c in pr.commits] == [(AUTHOR,), ()]
+    assert pr.files == {REVIEW: _review()} and pr.body == BODY
+
+
+# ---------------------------------------------------------------------------------------------
+# The accept jobs run after a merge into dev alone
+
+
+def test_accept_is_set_by_a_merge_into_dev_alone() -> None:
+    assert ci_plan.decide(["src/x.py"], PUSH_DEV).accept
+    out = ci_plan.outputs(
+        ci_plan.decide(["src/x.py"], PUSH_DEV),
+        ci_plan.select(ci_plan.decide(["src/x.py"], PUSH_DEV), PLAN),
+        [],
+    )
+    assert out["accept"] == "true"
+    assert not ci_plan.decide(ACCEPT, PUSH_DEV).accept  # the acceptance's own push
+    for event in (PR_DEV, PR_MAIN, TAG, DISPATCH, SCHEDULE):
+        assert not ci_plan.decide(["src/x.py"], event).accept, event
+
+
+# ---------------------------------------------------------------------------------------------
+# A push of documentation alone onto a green head re-uses that head's run
+
+GREEN = {"plan": "success", "quick": "success", "gather the shards' records": "success",
+         "verify (ubuntu-24.04)": "success", "ci-status": "failure"}  # fmt: skip
+CODE_HEAD, REVIEW_HEAD, NEW_HEAD = "1" * 40, "2" * 40, "3" * 40
+
+
+def _reuse(runs, jobs, ancestors=(CODE_HEAD, REVIEW_HEAD), diffs=None):
+    diffs = diffs or {
+        CODE_HEAD: [REVIEW, "docs/index.md"],
+        REVIEW_HEAD: ["docs/index.md"],
+    }
+    return ci_plan.find_reusable(
+        NEW_HEAD,
+        runs,
+        jobs_of=lambda run_id: jobs[run_id],
+        is_ancestor=lambda sha: sha in ancestors,
+        changed_since=lambda sha: diffs[sha],
+    )
+
+
+def test_a_docs_only_push_onto_a_green_head_reuses_its_run() -> None:
+    """The code head's run is green but for ci-status, which waited for the review file: its
+    judge and gather passed, so the review's push re-uses them."""
+    run, why = _reuse([{"databaseId": 7, "headSha": CODE_HEAD, "status": "completed"}], {7: GREEN})
+    assert run == 7 and CODE_HEAD[:12] in why
+
+
+def test_a_run_whose_gather_did_not_pass_is_not_reused() -> None:
+    red = {**GREEN, "gather the shards' records": "failure"}
+    skipped = {**GREEN, "gather the shards' records": "skipped"}  # itself a re-use: walk past it
+    runs = [
+        {"databaseId": 9, "headSha": REVIEW_HEAD, "status": "completed"},
+        {"databaseId": 7, "headSha": CODE_HEAD, "status": "completed"},
+    ]
+    assert _reuse(runs, {9: skipped, 7: GREEN})[0] == 7
+    assert _reuse(runs, {9: skipped, 7: red})[0] is None
+    judge_red = {**GREEN, "judge (windows-2025, own-a)": "failure"}
+    assert _reuse(runs[1:], {7: judge_red})[0] is None
+
+
+def test_a_run_behind_code_or_off_this_history_is_not_reused() -> None:
+    runs = [{"databaseId": 7, "headSha": CODE_HEAD, "status": "completed"}]
+    assert _reuse(runs, {7: GREEN}, diffs={CODE_HEAD: ["src/x.py"]})[0] is None
+    assert _reuse(runs, {7: GREEN}, ancestors=())[0] is None  # rebased: the tree moved
+    running = [{"databaseId": 7, "headSha": CODE_HEAD, "status": "in_progress"}]
+    assert _reuse(running, {7: GREEN})[0] is None
+    own = [{"databaseId": 7, "headSha": NEW_HEAD, "status": "completed"}]
+    assert _reuse(own, {7: GREEN})[0] is None
+
+
+def test_a_reused_run_sets_every_output_false_and_keeps_the_refusals() -> None:
+    changed = ["src/x.py", NEWS, REVIEW]
+    d = ci_plan.decide(changed, PR_DEV, reused=(7, "run 7, green on 111111111111"))
+    assert d.quiet and not d.judge
+    out = ci_plan.outputs(d, ci_plan.select(d, PLAN), [])
+    assert {k for k, v in out.items() if v == "true"} == set()
+    assert ci_plan.refusals(d, PR_DEV, changed, _pr()) == []
+    assert ci_plan.refusals(d, PR_DEV, ["src/x.py", NEWS], _pr())  # still no review file
+    assert any("run 7" in w for w in d.why)
+
+
+def test_no_run_is_looked_for_without_a_token() -> None:
+    assert ci_plan.green_runs({}, "spec/999-x") is None
+
+
+# ---------------------------------------------------------------------------------------------
+# The weekly run
+
+
+def test_the_weekly_run_is_the_schedule_or_a_dispatch_asking_for_it() -> None:
+    weekly = ci_plan.Event("workflow_dispatch", "refs/heads/dev", weekly=True)
+    for event in (SCHEDULE, weekly):
+        d = ci_plan.decide(None, event)
+        assert d.weekly and d.rebuild and d.tier == "release" and not d.accept, event
+        out = ci_plan.outputs(d, ci_plan.select(d, PLAN), [])
+        assert out["weekly"] == "true"
+    for event in (DISPATCH, PUSH_DEV, PR_DEV, TAG):
+        assert not ci_plan.decide(None, event).weekly, event
+
+
+# One specification may land by several pull requests on one day: the review's name is the news
+# file's stem, then an optional infix of lowercase words, then -pr- and the date.
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["999-a-change-step-3-pr-2026-10-26.md", "999-a-change-step-4-pr-2026-10-26.md",
+     "999-a-change-second-look-pr-2026-10-26.md"],
+)  # fmt: skip
+def test_a_review_named_with_an_infix_after_the_news_files_stem_is_accepted(name) -> None:
+    path = f"context/reviews/{name}"
+    pr = _pr(commits=[
+        ci_plan.Commit("a" * 40, ("src/x.py", NEWS), (AUTHOR,)),
+        ci_plan.Commit("b" * 40, (path,), (OTHER,)),
+    ])  # fmt: skip
+    pr.files.clear()
+    pr.files[path] = _review()
+    assert _review_refusals(pr, changed=("src/x.py", NEWS, path)) == []
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["998-another-step-3-pr-2026-10-26.md", "999-a-changed-pr-2026-10-26.md",
+     "999-a-change-step-3-pr.md", "999-a-change-pr-2026-10.md",
+     "999-a-change-Step-3-pr-2026-10-26.md"],
+    ids=["another stem", "a longer word, not an infix", "no date", "half a date", "upper case"],
+)  # fmt: skip
+def test_a_review_of_another_stem_or_without_its_date_is_still_refused(name) -> None:
+    path = f"context/reviews/{name}"
+    pr = _pr()
+    pr.files[path] = _review()
+    (refusal,) = _review_refusals(pr, changed=("src/x.py", NEWS, path))
+    assert "no review file" in refusal
+
+
+# Two review files of one date: the one the branch's newest commit changed is read; when one
+# commit changed both, the check cannot tell which signs the head, and refuses.
+
+OLD_REVIEW = "context/reviews/999-a-change-step-1-pr-2026-10-26.md"
+
+
+def test_on_a_tie_of_dates_the_review_the_newest_commit_changed_is_read() -> None:
+    code = ci_plan.Commit("a" * 40, ("src/x.py", NEWS), (AUTHOR,))
+    stale = ci_plan.Commit("b" * 40, (OLD_REVIEW,), (OTHER,))  # sorts last by path, older
+    signed = ci_plan.Commit("c" * 40, (REVIEW,), (OTHER,))
+    pr = _pr(commits=[code, stale, signed])
+    pr.files[OLD_REVIEW] = _review(verdict="Does not land yet: High 1.")
+    pr.files[REVIEW] = _review()
+    assert _review_refusals(pr, changed=("src/x.py", NEWS, REVIEW, OLD_REVIEW)) == []
+
+
+def test_two_reviews_of_one_date_changed_by_one_commit_are_refused() -> None:
+    code = ci_plan.Commit("a" * 40, ("src/x.py", NEWS), (AUTHOR,))
+    both = ci_plan.Commit("b" * 40, (REVIEW, OLD_REVIEW), (OTHER,))
+    pr = _pr(commits=[code, both])
+    pr.files[OLD_REVIEW] = _review()
+    (refusal,) = _review_refusals(pr, changed=("src/x.py", NEWS, REVIEW, OLD_REVIEW))
+    assert "two review files of one date" in refusal
+
+
+# A skip word in the title or the description lands in the squash merge's message, and GitHub
+# would start no run for the merge, so it would be neither judged nor accepted.
+
+
+@pytest.mark.parametrize(
+    "word", ["[skip ci]", "[ci skip]", "[no ci]", "[skip actions]", "[actions skip]", "[SKIP CI]"]
+)
+@pytest.mark.parametrize("where", ["title", "body"])
+def test_a_skip_word_in_the_title_or_description_is_refused(word, where) -> None:
+    pr = _pr(body=BODY + (f"\nthe message ends {word}\n" if where == "body" else ""))
+    pr.title = f"A change {word}" if where == "title" else "A change"
+    changed = ["src/x.py", NEWS, REVIEW]
+    d = ci_plan.decide(changed, PR_DEV)
+    refused = [r for r in ci_plan.refusals(d, PR_DEV, changed, pr) if "skip" in r]
+    assert len(refused) == 1 and word.lower() in refused[0].lower()
+
+
+def test_a_documentation_pull_request_with_a_skip_word_is_refused_too() -> None:
+    pr = _pr(body="see [skip ci]\n")
+    changed = ["docs/index.md"]
+    assert ci_plan.refusals(ci_plan.decide(changed, PR_DEV), PR_DEV, changed, pr)
+
+
+def test_a_title_and_description_without_a_skip_word_are_not_refused() -> None:
+    pr = _pr()
+    pr.title = "Skip the cache on CI: ci skips nothing"
+    changed = ["src/x.py", NEWS, REVIEW]
+    assert ci_plan.refusals(ci_plan.decide(changed, PR_DEV), PR_DEV, changed, pr) == []
+
+
+# The acceptance commit carries no skip word (GitHub would skip a release pull request whose head
+# it is): the plan is quiet on it instead, and only the plan runs.
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [ACCEPT, ["context/progress/accepted.json"], ["context/progress/history-00060.jsonl"],
+     ["context/progress/accepted.json", "context/progress/history.jsonl",
+      "context/progress/history-00060.jsonl"]],
+    ids=["the acceptance", "accepted.json alone", "a volume alone", "two volumes"],
+)  # fmt: skip
+def test_a_push_of_the_accepted_state_alone_selects_nothing(changed) -> None:
+    d = ci_plan.decide(changed, PUSH_DEV)
+    assert d.quiet and d.acceptance and not d.accept and not d.judge
+    out = ci_plan.outputs(d, ci_plan.select(d, PLAN), [])
+    assert out["acceptance"] == "true" and out["accept"] == "false" and out["judge"] == "false"
+
+
+def test_only_a_push_of_the_accepted_state_is_an_acceptance() -> None:
+    for changed, event in ((ACCEPT, PR_DEV), (["src/x.py"], PUSH_DEV), (None, PUSH_DEV)):
+        d = ci_plan.decide(changed, event)
+        assert ci_plan.outputs(d, ci_plan.select(d, PLAN), [])["acceptance"] == "false"

@@ -84,6 +84,12 @@ class Ratchet:
     moved: list[str] = field(default_factory=list)  # accepted in one tier, now in the other
     fuel_not_compared: list[str] = field(default_factory=list)
     judge_changed: list[str] = field(default_factory=list)
+    # Absent checks a news file's claim retires, each with its reason: listed, not red; the
+    # acceptance retires them only from the claim (CI) or --retire (a local acceptance).
+    retired: dict[str, str] = field(default_factory=dict)
+    # Growth and fewer rows, and moved checks, a news file's claim gives a reason for: listed with
+    # it, not red; the acceptance takes the reason only from the claim or its own flags.
+    claimed: dict[str, str] = field(default_factory=dict)
     baseline: str = ""
 
     def red(self, partial: bool) -> list[str]:
@@ -91,16 +97,20 @@ class Ratchet:
         why = []
         if self.lost:
             why.append(f"{len(self.lost)} accepted pass(es) lost")
-        if self.absent:
-            why.append(f"{len(self.absent)} accepted check(s) absent (retire them with --retire)")
-        if self.fewer:
-            why.append(f"{len(self.fewer)} pass count(s) fell (say --accept-fewer-passes)")
-        if self.growth:
-            why.append(f"{len(self.growth)} metric(s) grew")
+        absent = [n for n in self.absent if n not in self.retired]
+        if absent:
+            why.append(f"{len(absent)} accepted check(s) absent (retire them with --retire)")
+        fewer = [f for f in self.fewer if f not in self.claimed]
+        growth = [g for g in self.growth if g not in self.claimed]
+        if fewer:
+            why.append(f"{len(fewer)} pass count(s) fell (say --accept-fewer-passes)")
+        if growth:
+            why.append(f"{len(growth)} metric(s) grew")
         if self.unrun and not partial:
             why.append(f"{len(self.unrun)} accepted pass(es) blocked (say --partial to allow)")
-        if self.moved:
-            why.append(f"{len(self.moved)} check(s) moved between tiers (say --accept-tier-move)")
+        moved = [m for m in self.moved if m not in self.claimed]
+        if moved:
+            why.append(f"{len(moved)} check(s) moved between tiers (say --accept-tier-move)")
         return why
 
 
@@ -220,10 +230,12 @@ def accept(
     retire: list[str] = (),
     fewer_reason: str | None = None,
     tier_move_reason: str | None = None,
+    extra: dict | None = None,
 ) -> tuple[dict, str]:
     """(new accepted.json content, the history line to append), or AcceptRefused. The line is
     in format 2: the change in the passed set since the newest of
-    `history_lines`, and a digest of the whole set."""
+    `history_lines`, and a digest of the whole set. `extra`: fields an acceptance from CI's
+    record adds to its line (where it came from, the systems whose probe passed)."""
     refusals = []
     if not green:
         refusals.append("the run is not green (or PYTEST_ADDOPTS or a foreign plugin is set)")
@@ -341,6 +353,7 @@ def accept(
         "passed_removed": sorted(before - passes),
         "passed_digest": history.digest(passes),
         "accepted": paths.sha256_bytes(dumps(new).encode()),
+        **(extra or {}),
     }
     text = json.dumps(line, sort_keys=True)
     size = len(text.encode()) + 1
@@ -459,11 +472,19 @@ def render(
     head, examples, end = [], [], []
     if ratchet is not None:
         head.append(_ratchet_line(ratchet, run["meta"].get("partial")))
-        head += [f"FEWER {f}" for f in ratchet.fewer]
+        head += [f"FEWER {f}" for f in ratchet.fewer if f not in ratchet.claimed]
         examples += [f"LOST {node}" for node in ratchet.lost[:3]]
-        examples += [f"ABSENT {node}" for node in ratchet.absent[:3]]
-        examples += [f"MOVED {node}" for node in ratchet.moved[:3]]
-        examples += [f"GREW {g}" for g in ratchet.growth[:3]]
+        examples += [
+            f"ABSENT {node}" for node in [n for n in ratchet.absent if n not in ratchet.retired][:3]
+        ]
+        examples += [f"RETIRED {node} · {why}" for node, why in list(ratchet.retired.items())[:3]]
+        examples += [
+            f"MOVED {n}" for n in [m for m in ratchet.moved if m not in ratchet.claimed][:3]
+        ]
+        examples += [
+            f"GREW {g}" for g in [g for g in ratchet.growth if g not in ratchet.claimed][:3]
+        ]
+        examples += [f"CLAIMED {row} · {why}" for row, why in list(ratchet.claimed.items())[:3]]
     if red:
         end.append("RED: " + "; ".join(red))
     end += [f"not machine-checked: {NOT_MACHINE_CHECKED[0]}"]

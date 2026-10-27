@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from harness import gather, history, paths, shards
+from harness import gather, history, news, paths, shards
 
 U = shards.UPSTREAM_FILE
 W = "a" * 64  # python.wasm
@@ -656,7 +656,7 @@ def test_the_merged_record_carries_what_sameness_needs(case) -> None:
     assert "tests/unit/test_mac_only.py" in merged["collected_files"]
     assert set(merged["collected_files"]) >= {n.split("::")[0] for n in GOAL + UNITS}
     assert set(merged["runs"]) == {f"{s}/{n}" for s, n in gather.expected_keys(PLAN)}
-    assert merged["runs"]["linux/up-l"] == {
+    assert {k: merged["runs"]["linux/up-l"][k] for k in ("platform", "suite")} == {
         "platform": "linux-x86_64",
         "suite": case.records[LIN]["suite"],
     }
@@ -1235,3 +1235,143 @@ def test_each_record_is_found_under_its_jobs_folder_by_its_artifact_name(tmp_pat
         ("build", "build"): paths.sha256_file(build),
         ("macos", "own-a"): "",
     }
+
+
+# ---------------------------------------------------------------------------------------------
+# After a merge into dev: what the acceptance needs a reason for is listed, and the merged record
+# carries what the acceptance holds
+
+
+def _post_merge(tmp_path) -> Case:
+    case = Case(tmp_path)
+    orig = case.inputs
+
+    def inputs(records_dir=None, handed=None):
+        i = orig(records_dir, handed)
+        i.event, i.g7, i.ref = "push", "post-merge", "refs/heads/dev"
+        return i
+
+    case.inputs = inputs
+    return case
+
+
+def _claiming(case: Case, claims: list) -> Case:
+    orig = case.inputs
+
+    def inputs(records_dir=None, handed=None):
+        i = orig(records_dir, handed)
+        i.claims = claims
+        return i
+
+    case.inputs = inputs
+    return case
+
+
+def test_a_growth_after_a_merge_into_dev_is_listed_for_the_acceptance(tmp_path) -> None:
+    """The run after a merge is the one the accept job accepts from: a growth a news file claims
+    is the acceptance's to consume, so the gather lists it with the claim's reason and stays
+    green, as on the pull request; an unclaimed one is red there, named."""
+    case = _post_merge(tmp_path)
+    case.records[("macos", "own-a")]["checks"][PROBE]["metrics"] = {"fuel": 70}
+    claim = news.Claim(spec="999", grows=[PROBE], growth="the probe does more")
+    v = _claiming(case, [claim]).run()
+    assert v.red == [], v.red
+    assert v.growth == [f"G5 macos/own-a: grew {PROBE}: fuel 7 -> 70"], v.growth
+    assert f"  G5 macos/own-a: grew {PROBE}: fuel 7 -> 70 · 999: the probe does more" in v.lines
+    case = _post_merge(tmp_path / "unclaimed")
+    case.records[("macos", "own-a")]["checks"][PROBE]["metrics"] = {"fuel": 70}
+    v = case.run()
+    assert f"G5 macos/own-a: grew {PROBE}: fuel 7 -> 70" in v.red and v.growth == []
+    case = _post_merge(tmp_path / "lost")
+    case.records[("linux", "own-a")]["checks"][DESC].update(status="gap", reason="a gap")
+    case.gaps = {DESC}
+    assert f"G5 linux/own-a: lost {DESC}" in case.run().red
+
+
+def test_a_claimed_growth_is_listed_with_its_news_files_reason(tmp_path) -> None:
+    case = PRCase(tmp_path)
+    case.records[("linux", "own-a")]["checks"][PROBE]["metrics"] = {"fuel": 70}
+    case.accepted["checks"][PROBE]["metrics"]["linux-x86_64"] = {"fuel": 7, "wasmtime": WT}
+    orig = case.inputs
+
+    def inputs(records_dir=None, handed=None):
+        i = orig(records_dir, handed)
+        i.claims = [news.Claim(spec="999", grows=[PROBE], growth="the probe does more")]
+        return i
+
+    case.inputs = inputs
+    v = case.run()
+    assert f"  G5 linux/own-a: grew {PROBE}: fuel 7 -> 70 · 999: the probe does more" in v.lines
+
+
+def test_the_merged_record_carries_the_verdict_the_event_and_each_runs_guards(tmp_path) -> None:
+    """What the acceptance from CI's record holds: the gather's red lines, the event and its refs,
+    and each shard's commit, cleanliness, overrides, outside steering and probe."""
+    v = _post_merge(tmp_path).run()
+    meta = v.merged["meta"]
+    assert meta["red"] == [] and meta["event"] == "push" and meta["ref"] == "refs/heads/dev"
+    assert meta["base_ref"] == ""
+    run = v.merged["runs"]["macos/own-a"]
+    assert run["commit"] == HEAD and run["dirty"] is False and run["foreign"] == []
+    assert run["overrides"] == ["--progress-latest /tmp/r/latest.json"]
+    assert run["probe"] == "pass"
+    case = _post_merge(tmp_path / "red")
+    case.records[("linux", "own-a")]["meta"]["dirty"] = True
+    red = case.run()
+    assert red.merged["meta"]["red"] == red.red and red.red
+    assert red.merged["runs"]["linux/own-a"]["dirty"] is True
+
+
+# An absent check a news file retires is listed for the acceptance, not red: the accept job
+# consumes the claim; one no news file names stays red.
+
+GONE = "tests/checks/test_rules.py::test_gone"
+
+
+def _with_gone(case: Case, claims: list) -> Case:
+    case.accepted["checks"][GONE] = {"status": "pass", "artifact": W, "commit": HEAD, "metrics": {}}
+    orig = case.inputs
+
+    def inputs(records_dir=None, handed=None):
+        i = orig(records_dir, handed)
+        i.claims = claims
+        return i
+
+    case.inputs = inputs
+    return case
+
+
+@pytest.mark.parametrize("shape", ["post-merge", "pull request"])
+def test_an_absent_check_a_news_file_retires_is_listed_not_red(tmp_path, shape) -> None:
+    base = _post_merge(tmp_path) if shape == "post-merge" else PRCase(tmp_path)
+    v = _with_gone(base, [news.Claim(spec="999", retired=[GONE])]).run()
+    assert v.red == [], v.red
+    assert any(row.endswith(f"absent {GONE}") for row in v.growth), v.growth
+    assert any(line.endswith(f"absent {GONE} · 999: retired") for line in v.lines), v.lines
+
+
+@pytest.mark.parametrize("shape", ["post-merge", "pull request"])
+def test_an_absent_check_no_news_file_retires_is_red(tmp_path, shape) -> None:
+    base = _post_merge(tmp_path) if shape == "post-merge" else PRCase(tmp_path)
+    v = _with_gone(base, [news.Claim(spec="999", retired=["tests/checks/test_other.py"])]).run()
+    assert any(r.endswith(f"absent {GONE}") for r in v.red), v.red
+
+
+def test_a_fall_in_passes_after_a_merge_is_listed_only_with_its_claim(tmp_path) -> None:
+    """The same for an upstream group's pass count: claimed by `passes` with its `fewer`, listed
+    with that reason; with no claim, red after the merge (on the pull request it is listed)."""
+    case = _post_merge(tmp_path)
+    for r in case.records.values():
+        if SUITE in r["checks"] and r["checks"][SUITE]["status"] == "pass":
+            r["checks"][SUITE]["metrics"] = {"passes": 4, "fuel": 100}
+    claim = news.Claim(spec="999", passes=[SUITE], fewer="a test moved to the release tier")
+    v = _claiming(case, [claim]).run()
+    assert v.red == [], v.red
+    assert v.growth and all("999: a test moved" in line for line in v.lines if SUITE in line
+                            and "·" in line)  # fmt: skip
+    case = _post_merge(tmp_path / "unclaimed")
+    for r in case.records.values():
+        if SUITE in r["checks"] and r["checks"][SUITE]["status"] == "pass":
+            r["checks"][SUITE]["metrics"] = {"passes": 4, "fuel": 100}
+    v = case.run()
+    assert any("fewer" in r or "is not accepted" in r for r in v.red), v.red

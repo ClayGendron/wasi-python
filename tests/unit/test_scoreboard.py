@@ -654,3 +654,28 @@ def test_a_shard_run_leaves_moves_to_the_gather() -> None:
     rec["meta"]["shard"] = "upstream-plot-a"
     r = scoreboard.compare(rec, accepted({CORE: acc(fuel=5)}))
     assert r.moved == [] and r.red(partial=False) == []
+
+
+def test_an_absent_check_a_news_file_retires_is_listed_and_not_red() -> None:
+    """The run's colour: an absent check a news file's claim retires is listed with its reason;
+    the acceptance still takes the retirement only from the claim (or the local --retire)."""
+    r = scoreboard.Ratchet(absent=["t.py::a", "t.py::b"], retired={"t.py::a": "999: retired"})
+    assert r.red(partial=False) == ["1 accepted check(s) absent (retire them with --retire)"]
+    r.retired["t.py::b"] = "999: retired"
+    assert r.red(partial=False) == []
+    run = {"meta": {}, "checks": {}, "suite": {}}
+    lines = scoreboard.render(run, r, {}, [])
+    assert "RETIRED t.py::a · 999: retired" in lines and not any("ABSENT" in x for x in lines)
+
+
+def test_a_growth_or_fall_a_news_file_claims_is_listed_and_not_red() -> None:
+    """A run's colour: a growth, a fall in a pass count or a tier move a news file claims is
+    listed with its reason; an unclaimed one stays red; the acceptance still takes the reason
+    only from the claim (CI) or --accept-growth and its kin (a local acceptance)."""
+    grew, fell = "t.py::a: fuel 1 -> 2", "t.py::g: passes 5 -> 4"
+    r = scoreboard.Ratchet(growth=[grew], fewer=[fell], moved=["t.py::m"])
+    assert len(r.red(partial=False)) == 3
+    r.claimed = {grew: "999: bigger", fell: "999: moved out", "t.py::m": "999: slow"}
+    assert r.red(partial=False) == []
+    lines = scoreboard.render({"meta": {}, "checks": {}, "suite": {}}, r, {}, [])
+    assert f"CLAIMED {grew} · 999: bigger" in lines and not any(x.startswith("GREW") for x in lines)
