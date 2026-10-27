@@ -2,6 +2,12 @@
 
 `release/version.py date` moves the ledger's blocks (`release-tier-claims.toml`) here, under the version it dates, before the release pull request, and the ledger starts empty again; the release pull request's gather and acceptance read the version's blocks, with any appended since, as their claims (`progress/README.md`, "The release tier"). Until 0.1.0 the release acceptance moved them.
 
+## 0.1.1
+
+Moved by `release/version.py date` on 2026-10-27, before the release pull request.
+
+No block was in the ledger at the date.
+
 ## 0.1.0
 
 Moved at the release acceptance on `eac93d0f` (history line 94, accepted in `1aa0eff7`), the first release acceptance: 102, 114, 095 and 067.
