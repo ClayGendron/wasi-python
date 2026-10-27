@@ -1,15 +1,18 @@
-"""The runner's line coverage, measured by the fast tier, for the README's Codecov badge.
+"""The runner's line coverage, for the README's Codecov badge.
 
-    uv run python tests/harness/coverage.py --measure   # the fast tier under coverage.py
+    uv run python tests/harness/coverage.py --measure   # the fast tier under coverage.py, locally
 
-It runs `uv run pytest -m "not slow"` serially under coverage.py, measuring `src/wasi_python`,
-and writes the run's log, a JSON report and a Cobertura XML report under build/coverage/. A run
+The release workflow measures it in legs that run anyway: on a run with the merge-grade set, each
+Linux leg the plan names (`coverage` in release/ci_plan.py, every own shard on Linux) runs its
+shard under coverage.py, measuring `src/wasi_python`, and sends its Cobertura XML report to
+Codecov, which merges a commit's reports into the README's badge, so nothing in the tree holds
+the number. `--measure` is the same measurement over
+the whole fast tier on this machine: it runs `uv run pytest -m "not slow"` serially under
+coverage.py and writes the run's log, a JSON report and the XML report under build/coverage/. A run
 whose summary names a failed test or an error exits non-zero and its numbers are not reported.
 The ratchet's verdict is not read: a lost or absent accepted check is the acceptance's business,
-and it changes no line of the runner that ran. The release workflow's coverage
-job runs it on every run and uploads the XML to Codecov, which serves the README's badge, so the
-badge says the coverage of main's latest release run and nothing in the tree holds the number.
-`--check` holds the README's one badge to Codecov's for this repository.
+and it changes no line of the runner that ran. `--check` holds the README's one badge to Codecov's
+for this repository.
 
 Self-contained: it imports no other harness module, so it runs as a script.
 """

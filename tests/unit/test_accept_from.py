@@ -318,13 +318,27 @@ def test_11_a_fall_in_a_pass_count_is_cleared_by_passes_with_its_reason(inputs) 
     assert a.accepted["checks"][GROUP]["metrics"][DARWIN]["passes"] == 8
 
 
-def test_12_a_judge_file_changed_is_cleared_by_judge(inputs) -> None:
+def test_12_a_judge_change_that_moves_no_verdict_needs_no_claim(inputs) -> None:
+    """Only a verdict-bearing judge file needs a reason; the judge's hash in the history records
+    every other change, and a `judge` claim for such a file is ignored, not passed on."""
     inputs.judge = {"hash": "k" * 64, "files": {"tests/harness/plugin.py": "2" * 64}}
     inputs.record["meta"]["judge"]["hash"] = "k" * 64
-    assert "judge" in refused(inputs) and "tests/harness/plugin.py" in refused(inputs)
-    inputs.claims = [claim(judge={"tests/harness/plugin.py": "it reads the record"})]
     a = accept_from.accept(inputs)
-    assert json.loads(a.line)["judge_reason"] == "999: tests/harness/plugin.py: it reads the record"
+    line = json.loads(a.line)
+    assert line["judge_reason"] is None and line["judge_changed"] == ["tests/harness/plugin.py"]
+    inputs.claims = [claim(judge={"tests/harness/plugin.py": "it reads the record"})]
+    assert json.loads(accept_from.accept(inputs).line)["judge_reason"] is None
+
+
+def test_12_a_verdict_bearing_judge_file_is_cleared_by_judge(inputs) -> None:
+    files = {"tests/harness/plugin.py": "1" * 64, "tests/known_gaps.toml": "2" * 64}
+    inputs.judge = {"hash": "k" * 64, "files": files}
+    inputs.record["meta"]["judge"]["hash"] = "k" * 64
+    why = refused(inputs)
+    assert "judge" in why and "tests/known_gaps.toml" in why, why
+    inputs.claims = [claim(judge={"tests/known_gaps.toml": "a new allowance"})]
+    a = accept_from.accept(inputs)
+    assert json.loads(a.line)["judge_reason"] == "999: tests/known_gaps.toml: a new allowance"
 
 
 def test_12_the_records_judge_must_be_this_checkouts(inputs) -> None:
@@ -488,6 +502,7 @@ def _wire(monkeypatch, judge: dict) -> None:
     monkeypatch.setattr(accept_from, "_subject", lambda: "A change (#12)")
     monkeypatch.setattr(accept_from, "_dirty", lambda: None)
     monkeypatch.setattr(accept_from, "_wasmtime", lambda: WT)
+    monkeypatch.setattr(accept_from, "_budget", lambda: None)  # its own rows hold the budget
     monkeypatch.setattr(accept_from, "news_since", lambda repo, since, folder: [])
     monkeypatch.setattr(paths, "judge_files", lambda: judge["files"])
     monkeypatch.setattr(paths, "judge_hash", lambda files: judge["hash"])
@@ -589,3 +604,28 @@ def test_the_release_records_claims_are_the_ledgers_too(tmp_path: Path) -> None:
     merge = {"meta": {"event": "push", "ref": "refs/heads/dev"}}
     assert [c.spec for c in accept_from.release_claims(release, tmp_path)] == ["140"]
     assert accept_from.release_claims(merge, tmp_path) == []
+
+
+def test_a_check_past_its_familys_fuel_cap_is_not_accepted(inputs) -> None:
+    """The budget is held at the acceptance too, so a merge that took a check past its cap is
+    refused on its own post-merge run, and a listed check is accepted."""
+    from harness import budget
+
+    caps = {"test_v1_2_portable_and_sealed": 50, "test_v1_4_tools": 99, "g": 10**6}
+    families = {GROUP: "g"}
+    inputs.budget = (budget.Budget(60, caps, ()), families, {"150": "drafted"})
+    why = refused(inputs)
+    assert f"{TOOLS}: fuel 100 is past its family test_v1_4_tools's cap 99" in why, why
+    over = (budget.Over(TOOLS, "150", "the tools grew"),)
+    inputs.budget = (budget.Budget(60, caps, over), families, {"150": "drafted"})
+    assert accept_from.accept(inputs).accepted["checks"][TOOLS]["status"] == "pass"
+
+
+def test_a_claimed_growth_past_its_cap_is_still_refused(inputs) -> None:
+    from harness import budget
+
+    inputs.record["checks"][TOOLS]["metrics"] = {"fuel": 120}
+    inputs.claims = [claim(grows=[TOOLS], growth="the tool table is larger")]
+    caps = {"test_v1_2_portable_and_sealed": 50, "test_v1_4_tools": 110, "g": 10**6}
+    inputs.budget = (budget.Budget(60, caps, ()), {GROUP: "g"}, {"150": "drafted"})
+    assert f"{TOOLS}: fuel 120 is past its family test_v1_4_tools's cap 110" in refused(inputs)

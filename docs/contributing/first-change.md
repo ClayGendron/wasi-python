@@ -27,9 +27,11 @@ The project's test suite is also its progress harness: it judges every check and
 uv run pytest -m "not slow"
 ```
 
-Last measured on 2026-10-25, on an arm64 Mac with ten cores, at three workers (`uv run pytest -m "not slow" -n 3`): 10 minutes 30 seconds, 3,180 tests passed (executed).
+Last measured on 2026-10-25, on an arm64 Mac with ten cores, at three workers (`uv run pytest -m "not slow" -n 3`): 9 minutes 41 seconds, 3,346 tests passed (executed). The writing conventions are no longer part of it.
 
-The coverage badge on the README is this tier's measurement: the percent of the runner's statements (`src/wasi_python`) the fast tier runs under coverage.py. Every run of the release workflow measures it on Linux and sends the report to Codecov, which draws the badge. `uv run python tests/harness/coverage.py --measure` takes the same measurement on your machine and writes its reports under `build/coverage/`. The guest's packages are not in it. Their own test suites run inside the sandbox before a release.
+The writing conventions (the documents' shape, one-line paragraphs, no document named in code) are not in the fast tier. Run them with `uv run pytest tests/lint`; a pull request's `quick` check runs them too, and a broken one stops the merge without touching the scoreboard.
+
+The coverage badge on the README is the percent of the runner's statements (`src/wasi_python`) that the product's own tests cover under coverage.py on Linux, on every merge into `dev`. Each Linux leg of those tests sends its report to Codecov, which merges them and draws the badge. `uv run python tests/harness/coverage.py --measure` measures the whole fast tier on your machine instead and writes its reports under `build/coverage/`. The guest's packages are not in either. Their own test suites run inside the sandbox before a release.
 
 ## Read the scoreboard
 

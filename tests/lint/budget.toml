@@ -1,0 +1,88 @@
+# The fast tier's budget (tests/harness/budget.py). A normal-tier goal check whose fuel, on any
+# platform, is past its family's cap below is a finding: in the gather, on each record's own fuel,
+# so the pull request that grows it is red; at the acceptance from CI's record; and in lint, on the
+# accepted fuel. A goal check whose time in the quick job is past `seconds` is a warning, never a
+# failure, since a duration depends on its host. A product check's family is its file, by stem; an
+# upstream check's is its package. Each cap is twice the largest fuel accepted for its family at
+# ce46da7d, the acceptance this file was written against. A family with fuel and no cap is a
+# finding, and so is a cap no family uses.
+#
+# A check over budget is listed under [[over]] with the specification that will move it to the
+# slow normal tier or the release tier, by its number (one not yet landed), and why it grew:
+#   [[over]]
+#   check = "<node id>"
+#   closes_with = "<NNN>"
+#   reason = "<why>"
+# A listed check is reported, naming that specification; an entry whose check is no longer over
+# budget is a finding, so the list only shrinks. Changing this file is a judge change.
+
+seconds = 60
+
+[fuel]
+# The product's checks, by file
+test_v1_1_artifact_set = 21_335_853_184
+test_v1_2_hostile_guest = 9_517_660_942
+test_v1_2_portable_and_sealed = 10_166_732_470
+test_v1_3_data_stack = 12_002_313_276
+test_v1_3_default_profile = 77_526_745_652
+test_v1_3_lxml = 61_739_376_050
+test_v1_3_matplotlib = 22_831_161_782
+test_v1_3_regex = 2_050_616_716
+test_v1_3_scipy = 21_484_846_680
+test_v1_3_the_zips_directory = 29_392_814_084
+test_v1_4_embedding = 10_176_733_854
+# The packages' own suites, by package
+attrs = 26_636_430_164
+beautifulsoup4 = 31_356_136_972
+charset-normalizer = 25_650_960_132
+cloudpickle = 21_043_259_638
+contourpy = 940_542_533_732
+cycler = 21_698_069_022
+defusedxml = 22_569_764_186
+et-xmlfile = 31_169_444_052
+fonttools = 38_914_592_348
+formulaic = 60_794_518_400
+html5lib = 43_702_765_040
+interface-meta = 22_561_642_800
+jinja2 = 39_696_215_220
+joblib = 37_395_796_136
+kiwisolver = 26_010_434_320
+lxml = 206_932_961_178
+markupsafe = 24_680_034_090
+matplotlib = 1_398_467_266_318
+more-itertools = 23_931_671_370
+mpmath = 95_931_342_636
+narwhals = 48_477_333_950
+networkx = 58_509_119_002
+numpy = 355_623_463_182
+openpyxl = 42_130_404_652
+packaging = 38_428_638_242
+pandas = 975_144_545_004
+patsy = 38_424_573_238
+pillow = 865_354_829_532
+pyparsing = 28_205_594_634
+pypdf = 55_926_385_122
+python = 833_961_558_052
+python-dateutil = 31_611_244_940
+pyyaml = 120_721_607_234
+regex = 32_073_846_660
+reportlab = 54_773_430_318
+scikit-learn = 514_621_788_944
+scipy = 509_150_713_574
+seaborn = 73_932_792_914
+six = 27_095_146_260
+soupsieve = 46_287_764_640
+statsmodels = 271_670_666_690
+sympy = 67_034_854_076
+tabulate = 35_962_219_250
+threadpoolctl = 27_752_963_260
+tomli-w = 27_077_920_586
+toolz = 43_638_539_452
+tqdm = 49_370_468_238
+typing-extensions = 37_678_063_816
+tzdata = 22_707_883_846
+webencodings = 22_538_348_660
+wrapt = 50_487_351_042
+xlrd = 22_543_682_408
+xlsxwriter = 28_950_870_576
+xmltodict = 38_622_826_784

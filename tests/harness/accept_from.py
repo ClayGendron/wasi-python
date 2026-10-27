@@ -54,7 +54,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from harness import history, news, paths, scoreboard
+from harness import budget, history, news, paths, scoreboard
 
 DARWIN = "darwin-arm64"  # the platform the ratchet keys darwin's metrics by
 COUNTS = ("passes", "bytes")  # metrics the gather holds equal on every system
@@ -101,6 +101,9 @@ class Inputs:
     host: str = ""
     record_sha256: str = ""
     repo: Path = paths.REPO
+    # The fast tier's budget, the upstream checks' families and the specifications' Status lines;
+    # None leaves the budget out.
+    budget: tuple[budget.Budget, dict[str, str], dict[str, str]] | None = None
 
 
 @dataclass
@@ -280,7 +283,10 @@ def claimed(ratchet: scoreboard.Ratchet, claims: list[news.Claim], judged: bool)
                 into.append(why)
             else:
                 c.refusals.append(f"{what}, unclaimed: {row}")
-    for f in ratchet.judge_changed if judged else ():
+    # Only a judge file that moves a verdict needs its reason; the judge's hash in the history
+    # records every other change, and a claim for one is not passed on.
+    verdict = [f for f in ratchet.judge_changed if paths.is_verdict_bearing(f)]
+    for f in verdict if judged else ():
         why = news.reason(claims, "judge", f)
         if why:
             spec, text = why.split(": ", 1)
@@ -294,6 +300,12 @@ def claimed(ratchet: scoreboard.Ratchet, claims: list[news.Claim], judged: bool)
         else:
             c.refusals.append(f"a check moved between tiers, unclaimed: {node}")
     return c
+
+
+def _budget() -> tuple[budget.Budget, dict[str, str], dict[str, str]]:
+    """This checkout's budget, its upstream checks' families and its specifications' Status."""
+    specs = budget.spec_status(paths.CONTEXT / "specifications")
+    return budget.load(), budget.upstream_families(), specs
 
 
 def message(subject: str, reasons: list[str]) -> str:
@@ -312,6 +324,15 @@ def accept(i: Inputs) -> Acceptance:
     run = run_from_record(i)
     ratchet = scoreboard.compare(run, i.accepted, i.repo)
     c = claimed(ratchet, i.claims, judged=bool(i.accepted))
+    if i.budget is not None:  # no check is accepted past its family's fuel cap unless listed
+        plan_budget, families, specs = i.budget
+        over = budget.run_fuel_over(
+            run["checks"],
+            plan_budget.caps,
+            lambda node: budget.family_of(node, families),
+            set(run["release_checks"]),
+        )
+        c.refusals += budget.findings(over, plan_budget, specs, stale=False)[0]
     if c.refusals:
         raise Refused(c.refusals)
     runs = i.record["runs"].values()
@@ -473,6 +494,7 @@ def main(config) -> int:
             at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             host=paths.sha256_bytes(socket.gethostname().encode())[:12],
             record_sha256=paths.sha256_bytes(data),
+            budget=_budget(),
         )
         a = accept(i)
         late = _dirty()

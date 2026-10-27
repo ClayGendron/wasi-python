@@ -190,6 +190,7 @@ def _inputs(**changes) -> dict:
         "gate_imports": scan.local_import_files(paths.REPO, sk.GATE_ROOT, sk.GATES),
         "root_names": sorted({rel.split("/")[0] for rel in paths.tracked_files()}),
         "pyproject_text": (paths.REPO / "pyproject.toml").read_text(),
+        "members": scan.workspace_members(paths.REPO, (paths.REPO / "pyproject.toml").read_text()),
     }
     out.update(changes)
     return out
@@ -207,6 +208,10 @@ def _text(rel, extra):
     return lambda i: {"texts": {**i["texts"], rel: i["texts"][rel] + extra}}
 
 
+PROJECT = '[project]\nname = "x"\n'
+WORKSPACE = (
+    '\n[tool.uv.workspace]\nmembers = ["tests/a"]\n\n[tool.uv.sources]\na = { workspace = true }\n'
+)
 KEY_MUTANTS = {
     "the gate's import left out": (_without("tests/harness/wasm.py"), "K8: tests/harness/wasm.py"),
     "the pins left out": (_without("downloads/SHA256SUMS"), "K9:"),
@@ -251,6 +256,20 @@ KEY_MUTANTS = {
         lambda i: {"pyproject_text": i["pyproject_text"] + '\n[tool]\nuv = { index-url = "x" }\n'},
         "K11:",
     ),
+    "a [tool.uv] setting beside the workspace": (
+        lambda i: {"pyproject_text": PROJECT + WORKSPACE + '\n[tool.uv]\nindex-url = "x"\n'},
+        "K11: pyproject.toml's [tool.uv] has the setting index-url",
+    ),
+    "a uv source that is a path, not a workspace member": (
+        lambda i: {"pyproject_text": PROJECT + '\n[tool.uv.sources]\nx = { path = "y" }\n'},
+        "K11: pyproject.toml's [tool.uv] has the source x",
+    ),
+    "a workspace table with more than its members": (
+        lambda i: {
+            "pyproject_text": PROJECT + '\n[tool.uv.workspace]\nmembers = ["a"]\nexclude = ["b"]\n'
+        },
+        "K11: pyproject.toml's [tool.uv] has a workspace table with more",
+    ),
     "the build with an argument": (
         lambda i: {
             "release_text": i["release_text"].replace(
@@ -260,6 +279,27 @@ KEY_MUTANTS = {
         "K6:",
     ),
 }
+
+
+def test_a_workspace_of_members_is_no_setting_the_build_reads() -> None:
+    """The workspace's members and sources that name a member are project tables: the build's
+    `uv pip install -r` reads neither, so the key needs no pyproject.toml for them."""
+    base = _inputs()
+    errors = scan.set_key_errors(
+        **{**base, "pyproject_text": PROJECT + WORKSPACE, "members": {"tests/a": "a"}}
+    )
+    assert not [e for e in errors if e.startswith("K11")], errors
+
+
+def test_a_workspace_source_must_name_a_member() -> None:
+    """`{ workspace = true }` under a name no member's project has would make uv look the name up
+    elsewhere, so K11 holds each source to a member's own name."""
+    base = _inputs()
+    text = PROJECT + WORKSPACE + "b = { workspace = true }\n"
+    errors = scan.set_key_errors(**{**base, "pyproject_text": text, "members": {"tests/a": "a"}})
+    k11 = [e for e in errors if e.startswith("K11")]
+    assert len(k11) == 1, errors
+    assert k11[0].startswith("K11: pyproject.toml's [tool.uv] has the source b, which names no")
 
 
 @pytest.mark.parametrize("case", KEY_MUTANTS)

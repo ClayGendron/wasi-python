@@ -113,11 +113,6 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         "--accept-tier-move", metavar="REASON", help="also accept checks that moved between tiers"
     )
     g.addoption(
-        "--tier",
-        choices=scoreboard.TIERS,
-        help="normal (the default) leaves the release-tier checks unrun; release runs both tiers",
-    )
-    g.addoption(
         "--accept-from",
         metavar="RECORD",
         help="record a green CI run's merged record as the accepted state; runs no check",
@@ -133,6 +128,13 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 def _opt(config: pytest.Config, name: str):
     return config.getoption(name)
+
+
+def _tier_option(config: pytest.Config) -> str | None:
+    """`--tier` as given. The option comes from the dev group's pytest11 entry point, so that it
+    exists before any conftest is read; a run without that package has no tier option and judges
+    the normal tier."""
+    return config.getoption("--tier", default=None)
 
 
 def progress_dir(config: pytest.Config) -> Path:
@@ -324,7 +326,7 @@ def shard_refusal(config: pytest.Config) -> str | None:
         return f"refused: --shard {name} with --accept or --retire: a shard never accepts"
     if any("::" in arg for arg in config.args):
         return f"refused: --shard {name} with a node id: a shard selects from the whole judge"
-    if _opt(config, "--tier"):
+    if _tier_option(config):
         return f"refused: --shard {name} with --tier: a shard's tier is its shard's"
     return None
 
@@ -342,7 +344,7 @@ def run_tier(config: pytest.Config) -> str:
         from harness import shards
 
         return shards.tier_of(shards.load(shard_plan(config)), shard)
-    return _opt(config, "--tier") or "normal"
+    return _tier_option(config) or "normal"
 
 
 def pytest_deselected(items: list[pytest.Item]) -> None:
@@ -782,11 +784,16 @@ def foreign_steering(config: pytest.Config) -> list[str]:
     if inipath != pyproject:
         found.append(f"pytest is configured from {inipath or 'no file'}, not pyproject.toml")
     pytest_dir = Path(pytest.__file__).resolve().parents[1] / "_pytest"
-    judged = {(paths.REPO / f).resolve() for f in paths.judge_files()}
+    files = paths.judge_files()
+    judged = {(paths.REPO / f).resolve() for f in files}
     xdist_dir = xdist_folder()  # None unless every version is uv.lock's
 
     def allowed(f: Path) -> bool:
-        return f in judged or (xdist_dir is not None and f.is_relative_to(xdist_dir))
+        return (
+            f in judged
+            or (xdist_dir is not None and f.is_relative_to(xdist_dir))
+            or is_judged_options_copy(f, files)
+        )
 
     for name, plugin in config.pluginmanager.list_name_plugin():
         f = _module_file(plugin)
@@ -813,6 +820,23 @@ def foreign_steering(config: pytest.Config) -> list[str]:
         elif not (f.is_relative_to(pytest_dir) or allowed(f)):
             found.append(f"plugin {name} from {f}")
     return found
+
+
+JUDGE_OPTIONS = "tests/judge_options/wasi_python_judge_options.py"
+
+
+def is_judged_options_copy(f: Path, files: dict[str, str]) -> bool:
+    """The judge's own options module loaded from another checkout of this repository (an
+    environment synced in one checkout running the judge of another, as the self-tests' clones
+    do): allowed when its name and its bytes are this judge's file's, so what steers the run is
+    exactly what the judge's hash holds."""
+    want = files.get(JUDGE_OPTIONS)
+    return (
+        want is not None
+        and f.name == Path(JUDGE_OPTIONS).name
+        and f.is_file()
+        and paths.sha256_file(f) == want
+    )
 
 
 def _this_repo(config: pytest.Config) -> bool:

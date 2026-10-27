@@ -63,7 +63,7 @@ A **fuel fact** (spec 091, `[[fuel_fact]]` in `tests/upstream/numpy.toml`) is a 
 | flag | what it does |
 |---|---|
 | `--accept "<reason>"` | record this run; refused unless green with no loss |
-| `--accept-judge "<reason>"` | also accept a change to the judging files |
+| `--accept-judge "<reason>"` | also accept a change to a verdict-bearing judge file (`tests/harness/paths.py`'s `VERDICT_BEARING`: the known gaps, the upstream suites' TOML files and `expected/` lists, CPython's plan, the shard plan, the public API's list, the release tier's claims); refused as unnecessary when none changed since the last acceptance, since the history's judge hash records every other judge change; under `--accept-from` a news file's `judge` claim for such a file gives the reason, and one for any other judge file is not read |
 | `--accept-growth "<reason>"` | also accept fuel or bytes growth |
 | `--accept-fewer-passes "<reason>"` | also accept a fall in an upstream group's `passes` (spec 050) |
 | `--partial "<reason>"` | allow accepted passes to be blocked here |
@@ -121,7 +121,7 @@ The full record of the last run is `build/progress/latest.json`.
 From step 2 of spec 138, a pull request into `dev` runs only what its changed paths need, and the gather's verdict is narrowed to what ran. The record says so: `meta.event` is `pull_request` and `meta.selected` lists the (system, shard) pairs that ran, which the decision job computes and the gather reads as `PLAN`.
 
 - **G1** expects one record for each selected pair and no other file. **G2** holds every record to the set the set step restored and verified. **G3** holds each selected shard to its share. **G4** is unchanged. **G6** needs the probe on every system among the selected pairs.
-- **G5**: a lost pass is red, and so is an absent check no news file retires. On a pull request a growth, a fall in a pass count or a tier move is listed, with its news file's reason or `unclaimed`; each shard's ratchet is red on an unclaimed one, as after the merge, where the gather is too; an absent check a news file's `retired` names is listed beside the `GROWTH` rows with its reason, on a pull request and after a merge alike, and so is it in each shard's ratchet and the quick job's rules step (amended 2026-10-25), since the accept job consumes the claim. "Ran in no record" is judged over the selected shards only. The rows an acceptance needs a reason for (growth, fewer passes, a tier move) are listed under a `GROWTH` heading, each with its news file's reason or the word `unclaimed`, and the gather is not red on them; one no news file explains is red, named, in the shard whose ratchet saw it (amended 2026-10-25).
+- **G5**: a lost pass is red, and so is an absent check no news file retires. On a pull request a growth, a fall in a pass count or a tier move is listed, with its news file's reason or `unclaimed`; each shard's ratchet is red on an unclaimed one, as after the merge, where the gather is too; an absent check a news file's `retired` names is listed beside the `GROWTH` rows with its reason, on a pull request and after a merge alike, and so is it in each shard's ratchet and the quick job's rules step (amended 2026-10-25), since the accept job consumes the claim. "Ran in no record" is judged over the selected shards only. On every event a `G5 budget` row is red for each record's check whose own fuel is past its family's cap in `tests/lint/budget.toml`, a claimed growth included, unless the file's `[[over]]` lists it; a listed one is shown as a `budget:` line naming the specification that moves it. The rows an acceptance needs a reason for (growth, fewer passes, a tier move) are listed under a `GROWTH` heading, each with its news file's reason or the word `unclaimed`, and the gather is not red on them; one no news file explains is red, named, in the shard whose ratchet saw it (amended 2026-10-25).
 - **G7 is not evaluated** on a pull request or after a merge: the post-merge run is the one that makes the acceptance G7 compares with. G7 holds at the release pull request and at the tag.
 - On every other event `PLAN` is absent and G1 to G6 are whole. The gather's summary is the job summary, so a reviewer reads it without opening logs.
 
@@ -149,9 +149,10 @@ Its reasons are the claim blocks of the news files added or changed between the 
 9. An accepted pass blocked, or an accepted upstream check not run, is always refused: a merge-grade run that blocks an accepted pass is a broken run, and no claim clears it.
 10. A growth is cleared by `grows` with its `growth`.
 11. A fall in a pass count is cleared by `passes` with its `fewer`.
-12. A changed judge file is cleared by `judge`, which names each file with its reason. Until the verdict-bearing list of the judge's diet is built, that is every judge file the judge-hash line shows changed.
+12. A changed verdict-bearing judge file (`tests/harness/paths.py`'s `VERDICT_BEARING`) is cleared by `judge`, which names each file with its reason; any other judge change is recorded by the judge-hash line and needs no claim, and a `judge` claim for one is not passed on.
 13. A check moved between tiers is cleared by `moved`.
 14. A history that does not replay, or breaks its chain or its volume rule, is refused.
+15. A normal-tier check whose fuel is past its family's cap in `tests/lint/budget.toml` is refused, a claimed growth included, unless the file's `[[over]]` lists it with a reason and the specification still to land that will move it.
 
 An unclaimed row refuses the acceptance with the row named, the run is red at `accept-record`, and the fix is a one-line news-file pull request whose merge runs the accept again.
 

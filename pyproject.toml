@@ -41,12 +41,17 @@ Repository = "https://github.com/ClayGendron/wasi-python"
 # same verdict on every machine and on CI.
 # coverage measures the runner's line coverage for the README's badge; pinned exactly, since a
 # coverage release can change which lines count and the record must be reproducible.
+# wasi-python-judge-options registers the judge's --tier from a pytest11 entry point, so the option
+# exists before pytest reads any conftest and `uv run pytest --tier release` parses; it is a member
+# of this repository's workspace (tests/judge_options), installed with the dev group alone and
+# never a dependency of the wheel.
 dev = [
     "coverage==7.17.0",
     "mypy==1.19.1",
     "pytest>=8",
     "pytest-xdist==3.8.0",
     "ruff>=0.12",
+    "wasi-python-judge-options",
 ]
 # The documentation site's builder, only for `mkdocs build`; pinned exactly, since a theme
 # release changes the rendered site and the strict build's verdict.
@@ -54,6 +59,12 @@ docs = [
     "mkdocs==1.6.1",
     "mkdocs-material==9.7.7",
 ]
+
+[tool.uv.workspace]
+members = ["tests/judge_options"]
+
+[tool.uv.sources]
+wasi-python-judge-options = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]
@@ -105,8 +116,10 @@ cache_dir = "build/.mypy_cache"   # build/ is git-ignored (AGENTS.md: artifacts 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests"]
-# tests/jobs holds guest programs and the oracle project, not tests.
-norecursedirs = ["jobs", ".*", "build"]
+# tests/jobs holds guest programs and the oracle project, not tests. tests/lint holds the writing
+# conventions, which the quick job runs by its path (`uv run pytest tests/lint`): not goal checks,
+# and not in the fast tier.
+norecursedirs = ["jobs", "lint", ".*", "build"]
 markers = [
     "goal(area): a v1 progress check; area is v1.1 to v1.5 or rules",
     "slow: a guest job or the oracle; skipped by the fast tier, -m 'not slow'",

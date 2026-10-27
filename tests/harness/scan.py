@@ -1403,8 +1403,6 @@ JOB_PERMISSIONS = {
     "accept-push": {"contents: read"},
     # The weekly run's issue: it opens or comments on one, and checks nothing out.
     "weekly-issue": {"issues: write"},
-    # The runner's coverage: it checks out, runs the fast tier and uploads to Codecov by its token.
-    "coverage": {"contents: read"},
     # The key and the decision; the cache's writer.
     "inputs": {"contents: read"},
     "save-set": {"contents: read"},
@@ -1774,7 +1772,25 @@ STATUS_FUNCTION = re.compile(r"\b(?:always|cancelled|failure|success)\(\)")
 RECORD_PATH = '"$RUNNER_TEMP/record/latest.json"'
 RECORD_UPLOAD_PATH = "${{ runner.temp }}/record/latest.json"
 FETCH_RUN = 'uv run python tests/upstream/fetch.py --shard "$SHARD"\n'
-SHARD_RUN = f'uv run pytest -p no:cacheprovider --shard="$SHARD" --progress-latest {RECORD_PATH}\n'
+# The leg the plan's `coverage` output names runs its shard under coverage.py; every other leg runs
+# it plainly. The same text in every judge job: only a Linux leg the plan names takes the first arm.
+COVERAGE_IF = (
+    "contains(fromJSON(needs.plan.outputs.coverage), matrix.shard) && runner.os == 'Linux'"
+)
+COVERAGE_DATA = "build/coverage/.coverage"
+COVERAGE_XML = "build/coverage/coverage.xml"
+SHARD_PYTEST = f'pytest -p no:cacheprovider --shard="$SHARD" --progress-latest {RECORD_PATH}'
+SHARD_RUN = (
+    'if [ "$COVERAGE" = true ]; then\n'
+    f"  uv run coverage run --data-file={COVERAGE_DATA} --source=src/wasi_python"
+    f" -m {SHARD_PYTEST}\n"
+    "else\n"
+    f"  uv run {SHARD_PYTEST}\n"
+    "fi\n"
+)
+COVERAGE_REPORT_RUN = f"uv run coverage xml --data-file={COVERAGE_DATA} -o {COVERAGE_XML}"
+CODECOV_ACTION = "codecov/codecov-action@"
+CODECOV_TOKEN = "${{ secrets.CODECOV_TOKEN }}"
 SHA_RUN = (
     "uv run python -c \"import hashlib, sys; print('sha256=' + hashlib.sha256(open(sys.argv[1], "
     f'\'rb\').read()).hexdigest())" {RECORD_PATH} >> "$GITHUB_OUTPUT"\n'
@@ -1801,6 +1817,75 @@ GATHER_ENV = {
         "needs.plan.outputs.selected || '' }}"
     ),
 }
+
+
+LINT_RUN = "uv run pytest -p no:cacheprovider -q tests/lint"
+RULES_STEP = "The rules checks"
+
+
+def lint_step_errors(text: str) -> list[str]:
+    """The quick job runs lint and the rules checks unsilenced: the job has no `continue-on-error`
+    and no `if:` but the acceptance push's gate, its `lint` step runs the folder, and neither step
+    has either field, so a broken writing rule or rule always fails ci-status."""
+    jobs = workflow_jobs(without_comments(text))
+    lines = jobs.get("quick", [])
+    errors = []
+    if _job_field(lines, "continue-on-error") is not None:
+        errors.append("quick has continue-on-error:, so its steps can be passed over")
+    if _job_field(lines, "if") not in (None, QUICK_IF):
+        errors.append(f"quick has if: other than {QUICK_IF}, so its steps can be passed over")
+    steps = {f.get("name"): f for f in (step_fields(s) for s in workflow_steps(lines))}
+    lint = steps.get("lint", {})
+    if str(lint.get("run", "")).strip() != LINT_RUN:
+        errors.append(f"quick has no step named lint that runs {LINT_RUN}")
+    for name, label in (("lint", "lint step"), (RULES_STEP, "rules step")):
+        for key in ("if", "continue-on-error"):
+            if key in steps.get(name, {}):
+                errors.append(f"quick's {label} has {key}:, so it can be passed over")
+    if RULES_STEP not in steps:
+        errors.append(f"quick has no step named {RULES_STEP}")
+    return errors
+
+
+def coverage_errors(text: str) -> list[str]:
+    """The runner's coverage rides the judge legs the plan names: no job of its own; each judge
+    job's shard step takes COVERAGE from the plan's output, then makes the report and sends it to
+    Codecov under that same condition; and no other step of the workflow holds Codecov's token."""
+    text = without_comments(text)
+    jobs = workflow_jobs(text)
+    errors = []
+    if "coverage" in jobs:
+        errors.append("a coverage job runs the fast tier a third time; the judge legs measure it")
+    if "coverage: ${{ steps.plan.outputs.coverage }}" not in "\n".join(jobs.get("plan", [])):
+        errors.append("the plan hands on no coverage output")
+    for job in JUDGE_JOBS:
+        js = [step_fields(s) for s in workflow_steps(jobs.get(job, []))]
+        shard = next((f for f in js if f.get("run") == SHARD_RUN), {})
+        if shard.get("env", {}).get("COVERAGE") != f"${{{{ {COVERAGE_IF} }}}}":
+            errors.append(f"{job}'s shard step does not take COVERAGE from the plan's coverage")
+        report = [
+            f for f in js if f.get("if") == COVERAGE_IF and f.get("run") == COVERAGE_REPORT_RUN
+        ]
+        upload = [
+            f
+            for f in js
+            if f.get("if") == COVERAGE_IF
+            and f.get("uses", "").startswith(CODECOV_ACTION)
+            and f.get("with", {}).get("files") == COVERAGE_XML
+            and f.get("with", {}).get("token") == CODECOV_TOKEN
+        ]
+        if len(report) != 1 or len(upload) != 1:
+            errors.append(
+                f"{job} does not make the coverage report and send it, under {COVERAGE_IF}"
+            )
+    for job, lines in jobs.items():
+        for f in (step_fields(s) for s in workflow_steps(lines)):
+            holds = CODECOV_TOKEN in " ".join(str(v) for v in f.get("with", {}).values())
+            holds |= CODECOV_TOKEN in " ".join(str(v) for v in f.get("env", {}).values())
+            holds |= CODECOV_TOKEN in str(f.get("run", ""))
+            if holds and not f.get("uses", "").startswith(CODECOV_ACTION):
+                errors.append(f"{job}: a step other than Codecov's upload holds its token")
+    return errors
 
 
 def judge_if(system: str) -> str:
@@ -4903,12 +4988,14 @@ def set_key_errors(
     gate_imports: Iterable[str] = (),
     root_names: Iterable[str] = (),
     pyproject_text: str = "",
+    members: dict[str, str] | None = None,
 ) -> list[str]:
     """The first layer of the key's proof: what the set's key (release/set_key.py) must hold,
     one line per input it leaves out. `tracked` is every tracked file under scripts/ and
     recipes/; `texts` their text; `tests_names` the top-level names under the gate root (files
     and folders); `gate_imports` the files `local_import_files` finds for the gates;
-    `root_names` the top-level names of every tracked file; `pyproject_text` pyproject.toml."""
+    `root_names` the top-level names of every tracked file; `pyproject_text` pyproject.toml;
+    `members` each workspace member's path and its project's name (`workspace_members`)."""
     import sys
 
     errors: list[str] = []
@@ -4991,10 +5078,54 @@ def set_key_errors(
         errors.append(f"K11: pyproject.toml does not parse as TOML: {e}")
         tool = {}
     if "uv" in tool:
-        errors.append(
-            "K11: pyproject.toml has a [tool.uv] table, which the build's uv reads from the"
-            " checkout's root, and the key does not hold pyproject.toml"
+        errors += _uv_table_errors(tool["uv"], members or {})
+    return errors
+
+
+def workspace_members(repo: Path, pyproject_text: str) -> dict[str, str]:
+    """Each path pyproject.toml's [tool.uv.workspace] lists, with its own project's name (empty
+    when it has none)."""
+    try:
+        uv = tomllib.loads(pyproject_text).get("tool", {}).get("uv", {})
+    except tomllib.TOMLDecodeError:
+        return {}
+    listed = uv.get("workspace", {}).get("members", []) if isinstance(uv, dict) else []
+    out = {}
+    for rel in listed if isinstance(listed, list) else []:
+        f = repo / str(rel) / "pyproject.toml"
+        name = (
+            tomllib.loads(f.read_text()).get("project", {}).get("name", "") if f.is_file() else ""
         )
+        out[str(rel)] = str(name)
+    return out
+
+
+# The two [tool.uv] tables only uv's project commands read: the workspace's members, and sources
+# that point a dependency at one of them. The build's uv runs `uv pip install -r <file>` alone,
+# which reads uv's settings from the checkout's root (an index, a find-links folder) but neither
+# of these, so they leave the set's bytes alone; every other key under [tool.uv] is a setting.
+UV_PROJECT_TABLES = ("workspace", "sources")
+
+
+def _uv_table_errors(uv: object, members: dict[str, str]) -> list[str]:
+    """K11's findings for pyproject.toml's [tool.uv]: anything but a workspace of members and
+    sources that name a workspace member, by the member's own project name."""
+    k11 = (
+        "K11: pyproject.toml's [tool.uv] has {}, which the build's uv reads from the checkout's"
+        " root, and the key does not hold pyproject.toml"
+    )
+    if not isinstance(uv, dict):
+        return [k11.format("a value that is not a table")]
+    errors = [k11.format(f"the setting {k}") for k in sorted(set(uv) - set(UV_PROJECT_TABLES))]
+    workspace = uv.get("workspace", {})
+    if not isinstance(workspace, dict) or set(workspace) - {"members"}:
+        errors.append(k11.format("a workspace table with more than its members"))
+    sources = uv.get("sources", {})
+    for name, source in sources.items() if isinstance(sources, dict) else [("?", None)]:
+        if source != {"workspace": True}:
+            errors.append(k11.format(f"the source {name}, which is not a workspace member"))
+        elif _dist_name(str(name)) not in {_dist_name(n) for n in members.values() if n}:
+            errors.append(k11.format(f"the source {name}, which names no workspace member"))
     return errors
 
 

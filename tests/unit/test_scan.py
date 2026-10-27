@@ -2317,10 +2317,10 @@ BAD_SHARDS = [
         "rule 4: judge-macos",
     ),
     (
-        "coverage",
-        "name: coverage-${{ github.run_attempt }}",
+        "build",
+        "name: build-logs",
         "name: record-linux-${{ github.run_attempt }}",
-        "rule 5: coverage uploads record-linux-",
+        "rule 5: build uploads record-linux-",
     ),
     (
         "judge-linux",
@@ -2410,6 +2410,47 @@ BAD_SHARDS = [
 )
 def test_release_shard_scan_names_each_breach(job, old, new, error) -> None:
     errors = _shard_errors(_in_job(REAL_WORKFLOW, job, old, new))
+    assert any(e.startswith(error) for e in errors), errors
+
+
+COVERAGE_JOB = (
+    "  coverage:\n    name: the runner's coverage\n    needs: [plan, build]\n"
+    "    runs-on: ubuntu-24.04\n    steps:\n      - run: uv run python tests/harness/coverage.py\n"
+)
+COVERAGE_ON = "        if: contains(fromJSON(needs.plan.outputs.coverage), matrix.shard) &&"
+TOKEN_STEP = "      - env:\n          T: ${{ secrets.CODECOV_TOKEN }}\n        run: echo\n"
+BAD_COVERAGE = [
+    ("plan", "      coverage: ${{ steps.plan.outputs.coverage }}\n", "", "the plan hands on no"),
+    (
+        "judge-linux",
+        "          COVERAGE: ${{ contains(",
+        "          COVERAGE: ${{ true || contains(",
+        "judge-linux's shard step does not take COVERAGE",
+    ),
+    (
+        "judge-windows",
+        "          files: build/coverage/coverage.xml\n",
+        "          files: x.xml\n",
+        "judge-windows does not make the coverage report",
+    ),
+    ("judge-macos", COVERAGE_ON, "        if: always() &&", "judge-macos does not make the"),
+    ("gather", "    steps:\n", "    steps:\n" + TOKEN_STEP, "gather: a step other than Codecov's"),
+]
+
+
+def test_the_real_workflow_folds_the_coverage_job() -> None:
+    assert scan.coverage_errors(REAL_WORKFLOW) == []
+    errors = scan.coverage_errors(
+        REAL_WORKFLOW.replace("\n  gather:\n", "\n" + COVERAGE_JOB + "\n  gather:\n", 1)
+    )
+    assert any(e.startswith("a coverage job runs") for e in errors), errors
+
+
+@pytest.mark.parametrize(
+    ("job", "old", "new", "error"), BAD_COVERAGE, ids=[b[3] for b in BAD_COVERAGE]
+)
+def test_the_coverage_scan_names_each_breach(job, old, new, error) -> None:
+    errors = scan.coverage_errors(_in_job(REAL_WORKFLOW, job, old, new))
     assert any(e.startswith(error) for e in errors), errors
 
 
@@ -3185,10 +3226,10 @@ BAD_CI_STATUS = [
         "ci-status's",
     ),
     (
-        "coverage",
-        "    if: needs.plan.outputs.full == 'true'\n",
+        "verify",
+        "    if: needs.plan.outputs.verify != '[]'\n",
         "",
-        "coverage does not need the plan",
+        "verify does not need the plan",
     ),
     ("inputs", "    needs: plan\n", "", "inputs does not need the plan"),
 ]
@@ -3757,3 +3798,35 @@ def test_the_real_release_pull_requests_version_step_holds() -> None:
 def test_the_release_version_scan_names_each_missing_check(old) -> None:
     text = _in_job(REAL_WORKFLOW, "build", old, "true")
     assert scan.release_version_errors(text), old
+
+
+QUICK_LINT = "      - name: lint\n"
+QUICK_RULES = "      - name: The rules checks\n"
+RUNS_ON = "    runs-on: ubuntu-24.04\n"
+QUICK_GATE = "    if: needs.plan.outputs.acceptance != 'true'\n"
+LINT_LINE = "run: uv run pytest -p no:cacheprovider -q tests/lint\n"
+BAD_LINT_STEP = [
+    ("quick", QUICK_LINT, QUICK_LINT + "        if: false\n", "quick's lint step has if:"),
+    ("quick", QUICK_LINT, QUICK_LINT + "        continue-on-error: true\n", "quick's lint step"),
+    ("quick", QUICK_RULES, QUICK_RULES + "        continue-on-error: true\n", "quick's rules"),
+    ("quick", RUNS_ON, "    continue-on-error: true\n" + RUNS_ON, "quick has continue-on-error"),
+    ("quick", QUICK_GATE, "    if: false\n", "quick has if: other than"),
+    (
+        "quick",
+        LINT_LINE,
+        LINT_LINE.replace("lint\n", "lint || true\n"),
+        "quick has no step named lint",
+    ),
+]
+
+
+def test_the_real_quick_job_runs_lint_and_the_rules_unsilenced() -> None:
+    assert scan.lint_step_errors(REAL_WORKFLOW) == []
+
+
+@pytest.mark.parametrize(
+    ("job", "old", "new", "error"), BAD_LINT_STEP, ids=[b[3] for b in BAD_LINT_STEP]
+)
+def test_the_lint_step_scan_names_each_silencing(job, old, new, error) -> None:
+    errors = scan.lint_step_errors(_in_job(REAL_WORKFLOW, job, old, new))
+    assert any(e.startswith(error) for e in errors), errors

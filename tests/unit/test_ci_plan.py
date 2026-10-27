@@ -47,6 +47,8 @@ ROWS = [
     ("uv.lock", {"runner"}),
     ("tests/harness/gather.py", {"harness"}),
     ("tests/conftest.py", {"harness"}),
+    ("tests/judge_options/wasi_python_judge_options.py", {"harness"}),
+    ("tests/judge_options/pyproject.toml", {"harness"}),
     ("tests/release_shards.toml", {"harness"}),
     ("tests/known_gaps.toml", {"harness"}),
     ("context/embedders.txt", {"harness"}),
@@ -117,6 +119,7 @@ def test_a_docs_only_pull_request_runs_nothing_but_quick() -> None:
         "release": [],
         "build": False,
         "verify": [],
+        "coverage": [],
         "selected": [],
     }
 
@@ -397,6 +400,33 @@ def test_selected_is_the_union_of_the_matrices() -> None:
     sel = ci_plan.select(ci_plan.decide(["src/x.py"], PR_DEV), PLAN)
     want = [f"{s}/{n}" for s in (*shards.OWN_SYSTEMS, "release") for n in sel[s]]
     assert sel["selected"] == want
+
+
+LINUX_OWN = [n for n in shards.on(shards.load(), "linux") if PLAN[n].kind == "own"]
+
+
+def test_coverage_runs_on_every_linux_own_leg_of_a_merge_grade_run_alone() -> None:
+    """The runner's coverage is measured in legs that run anyway: every Linux leg of the product's
+    own shards, on a run with the merge-grade set (a merge into dev, ci:full, the release shape).
+    Codecov merges a commit's uploads into the badge's one number."""
+    labelled = ci_plan.Event(
+        "pull_request", ref="refs/pull/7/merge", base_ref="dev", labels=("ci:full",)
+    )
+    for changed, event in ((["src/x.py"], PUSH_DEV), (None, TAG), (["src/x.py"], labelled)):
+        d = ci_plan.decide(changed, event)
+        sel = ci_plan.select(d, PLAN)
+        assert sel["coverage"] == LINUX_OWN, event
+        assert json.loads(ci_plan.outputs(d, sel, [])["coverage"]) == LINUX_OWN
+    for changed in (["src/x.py"], ["docs/x.md"]):
+        sel = ci_plan.select(ci_plan.decide(changed, PR_DEV), PLAN)
+        assert sel["coverage"] == [], changed
+
+
+def test_the_coverage_shards_are_every_own_shard_of_the_plan_on_linux() -> None:
+    """own-rest alone holds the rules and the harness's self-tests, which barely run the runner:
+    the product's own shards on Linux are what measure it."""
+    assert "own-runner" in LINUX_OWN and "own-rest" in LINUX_OWN
+    assert list(ci_plan.COVERAGE_SHARDS) == LINUX_OWN
 
 
 def test_the_outputs_are_one_line_each_and_read_back() -> None:

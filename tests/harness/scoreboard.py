@@ -258,11 +258,17 @@ def accept(
             f"{len(ratchet.upstream_unrun)} accepted upstream suite check(s) did not run here "
             f"({UPSTREAM_FILE}); say --partial with a reason"
         )
-    if accepted and ratchet.judge_changed and not judge_reason:
+    verdict = [f for f in ratchet.judge_changed if paths.is_verdict_bearing(f)]
+    if accepted and verdict and not judge_reason:
         refusals.append(
-            f"the judge changed ({', '.join(ratchet.judge_changed[:4])}"
-            f"{' and more' if len(ratchet.judge_changed) > 4 else ''}); "
+            f"a judge file that moves a verdict changed ({', '.join(verdict[:4])}"
+            f"{' and more' if len(verdict) > 4 else ''}); "
             "say --accept-judge with a reason"
+        )
+    if judge_reason and not verdict:
+        refusals.append(
+            "--accept-judge is unnecessary: no judge file that moves a verdict changed since the "
+            "last acceptance, and the judge's hash records every other change"
         )
     if ratchet.moved and not tier_move_reason:
         refusals.append(

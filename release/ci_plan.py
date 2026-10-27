@@ -43,6 +43,19 @@ OWN_ONLY = ("tests/", "fixtures/")
 # Each system's runner, as the judge jobs and verify run on it.
 RUNNER = {"macos": "macos-15", "linux": "ubuntu-24.04", "windows": "windows-2025"}
 VERIFY_RUNNERS = ("ubuntu-24.04", "windows-2025", "macos-15")
+# The Linux legs that run their shard under coverage.py on a run with the merge-grade set and send
+# the report to Codecov, which merges a commit's uploads into the README's badge: the measurement
+# rides legs that run anyway, instead of a job of its own that ran the fast tier a third time.
+# Every own shard of the plan on Linux: own-rest alone holds the rules and the harness's
+# self-tests, which barely run the runner.
+COVERAGE_SHARDS = (
+    "own-embedding",
+    "own-embedding-a",
+    "own-hostile",
+    "own-guest",
+    "own-runner",
+    "own-rest",
+)
 OWN_SYSTEMS = ("macos", "linux", "windows")
 # The two workflows whose top-level env the set's key holds.
 WORKFLOWS = (".github/workflows/release.yml", ".github/workflows/set-cache.yml")
@@ -76,6 +89,9 @@ SUB_AGENT = "sub-agent of"
 SKIP_WORDS = ("[skip ci]", "[ci skip]", "[no ci]", "[skip actions]", "[actions skip]")
 DOCS_FILES = ("README.md", "CHANGELOG.md", "AGENTS.md", "SECURITY.md", "mkdocs.yml", ".gitignore")
 SET_FILES = ("downloads/SHA256SUMS", "release/set_key.py", "release/build-constraints.txt")
+# The judge's code and data folders; tests/judge_options registers an option every pytest run
+# reads before any conftest, so it steers the judge as tests/conftest.py does.
+HARNESS_DIRS = ("tests/harness/", "tests/judge_options/", "context/upstream/")
 HARNESS_FILES = (
     "tests/conftest.py",
     "tests/release_shards.toml",
@@ -94,7 +110,7 @@ def classify(path: str) -> frozenset[str]:
         out.add("set")
     if path.startswith("src/") or path in ("pyproject.toml", "uv.lock"):
         out.add("runner")
-    if path.startswith(("tests/harness/", "context/upstream/")) or path in HARNESS_FILES:
+    if path.startswith(HARNESS_DIRS) or path in HARNESS_FILES:
         out.add("harness")
     if path.startswith("tests/upstream/") or path == "tests/checks/test_v1_3_upstream_suites.py":
         out.add("upstream")
@@ -370,10 +386,11 @@ def load_shards(path: Path = SHARD_PLAN) -> dict[str, Shard]:
 
 
 def select(d: Decision, plan: dict[str, Shard]) -> dict:
-    """The shards each judge job runs, the build shard, verify's runners, and every selected
-    (system, shard) pair as `system/shard`, which the gather reads as PLAN."""
+    """The shards each judge job runs, the build shard, verify's runners, the Linux legs that run
+    under coverage.py, and every selected (system, shard) pair as `system/shard`, which the
+    gather reads as PLAN."""
     sel: dict = {s: [] for s in (*OWN_SYSTEMS, "release")}
-    sel.update(build=False, verify=[])
+    sel.update(build=False, verify=[], coverage=[])
     if d.judge:
         for system in OWN_SYSTEMS:
             for s in plan.values():
@@ -391,6 +408,8 @@ def select(d: Decision, plan: dict[str, Shard]) -> dict:
             sel["release"] = [s.name for s in plan.values() if s.kind == "release"]
         sel["build"] = d.full and any(s.kind == "build" for s in plan.values())
         sel["verify"] = list(VERIFY_RUNNERS) if d.full else [RUNNER["linux"]]
+        if d.full:
+            sel["coverage"] = [n for n in COVERAGE_SHARDS if n in sel["linux"]]
     sel["selected"] = [f"{s}/{n}" for s in (*OWN_SYSTEMS, "release") for n in sel[s]]
     sel["selected"] += ["build/build"] if sel["build"] else []
     return sel
@@ -574,6 +593,7 @@ def outputs(d: Decision, sel: dict, refused: list[str]) -> dict[str, str]:
         tier=d.tier,
         build=_bool(sel["build"]),
         verify=_json(sel["verify"]),
+        coverage=_json(sel["coverage"]),
         selected=_json(sel["selected"]),
         refusals=_json(refused),
     )
