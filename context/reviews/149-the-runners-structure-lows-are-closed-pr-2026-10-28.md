@@ -51,10 +51,10 @@ Labels: EXECUTED means I ran it; READ means I read the file or output cited; INF
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. Windows box — 
-2. Door comment — 
-3. Size line — fixed by the reviewer in `9da3f803`.
-4. Order-dependent row — carried by the orchestrator to the 0.1.2 structural review's notes.
+1. Windows box — accepted; the box stays unticked until the run of the head that is pushed after the rebase (147 and 143 merge first) has ended; then the author reads the Windows leg holding `tests/unit/test_runner_threads.py` and `tests/unit/test_runner_outputs.py`, ticks the box in the description and names the job id, the four resolve-once cases passed and Decision 6's two rows skipped. The author, 2026-10-28.
+2. Door comment — fixed: the comment above `PLATFORM_HALVES` now says `_platform` "has a delegate for what a caller needs of the shared half", in the commit that fills this Disposition. The author, 2026-10-28.
+3. Size line — fixed by the reviewer in `9da3f803`; accepted by the author, 2026-10-28.
+4. Order-dependent row — carried by the orchestrator to the 0.1.2 structural review's notes; no change on this branch, as the landing notes record it as a finding. The author, 2026-10-28.
 
 ## Verdict
 

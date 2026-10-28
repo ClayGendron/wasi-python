@@ -1260,9 +1260,10 @@ def _platform_hits(package: Path) -> list[str]:
 
 # The platform's door. What both platform families share lives in `_platform_common.py` and
 # what Windows does in `_platform_windows.py`; every other module reaches either through
-# `_platform`, which re-exports what callers need, so the platform module stays the one place a
-# reader looks. Only the platform modules import the halves: `_platform_common` by `_platform.py`
-# and `_platform_windows.py`, `_platform_windows` by `_platform.py`.
+# `_platform`, which has a delegate for what a caller needs of the shared half, so the platform
+# module stays the one place a reader looks. Only the platform modules import the halves:
+# `_platform_common` by `_platform.py` and `_platform_windows.py`, `_platform_windows` by
+# `_platform.py`.
 PLATFORM_HALVES = {
     "_platform_common": ("_platform.py", "_platform_windows.py"),
     PLATFORM_WINDOWS: (PLATFORM_MODULE,),
