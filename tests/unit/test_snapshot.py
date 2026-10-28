@@ -256,7 +256,7 @@ def test_the_repr_reads_as_one_line() -> None:
         "by wasi-python 0.1.2>"
     )
     long = _snap(prelude="import numpy, pandas, scipy, sklearn, statsmodels, sympy")
-    assert repr(long).startswith("<Snapshot 'import numpy, pandas, scipy, sklearn, statsm…', ")
+    assert repr(long).startswith("<Snapshot 'import numpy, pandas, scipy, sklearn, st…', ")
     one = _snap(prelude="pass")
     assert repr(one).startswith("<Snapshot 'pass', 0.1 MiB, ")
 
@@ -358,7 +358,12 @@ def test_package_names_resolve_against_the_sets_lines(work) -> None:
     assert names("Scikit-Learn") == tree
     assert names("sklearn") == tree  # a line's first name imports its line
     assert names("sklearn.tree", "json") == ["sklearn.tree", "json"]
-    assert names("numpy", "numpy", "sklearn.tree", "scikit-learn") == ["numpy", *tree]
+    assert names("numpy", "numpy", "sklearn.tree", "scikit-learn") == [
+        "numpy",
+        "sklearn.tree",
+        "sklearn",
+        "sklearn.linear_model",
+    ]
     assert _snapshot_make._package_names(None, manifest) == ["numpy", *tree]
     assert _snapshot_make._package_code(["numpy", "sklearn.tree"]) == (
         "import numpy\nimport sklearn.tree\n"
