@@ -60,9 +60,9 @@ Not findings: set-times of `missing/x` with no flag answers 0 with no call (EXEC
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. Set-times on a file named as a folder — 
-2. The Windows box — 
-3. "A grant's rules" — 
+1. Set-times on a file named as a folder — fixed as the review's first fix text: with a time flag, a resolved path that must name a folder and whose `stat` kind is not `"dir"` answers `ENOTDIR`; the new row `test_set_times_on_a_file_named_as_a_folder_answers_enotdir` (`a.txt/` 54 after one `stat`, `d/` 0) failed first with `{'a file as a folder': 0, ...}` (`build/145/row-set-times-slash-before.log`) and passes after.
+2. The Windows box — to be ticked in the pull request's description with the pass lines of the Windows own shards once the run after this commit has read them.
+3. "A grant's rules" — fixed: the sentence on `docs/reference/guest-filesystem.md:59` now begins with the review's text, "A name the guest opens on a mount follows the same rules as on a grant, and two more."
 
 ## Verdict
 

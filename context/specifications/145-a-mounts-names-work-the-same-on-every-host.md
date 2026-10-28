@@ -89,6 +89,8 @@ The cost of Decision 1, recorded as the owner asked (2026-10-27): Decision 1 ref
 3. **The mount itself is listed with no `stat`.** A folder open of `/` lists at once, as `_open_writing` already answers the mount itself with no call: its `stat` must be a folder by the protocol. So `os.listdir` of the mount still makes one `list`.
 4. **A listed name is not checked for the two characters.** A provider's `list` may still return a name with `\` or `:`; the guest sees it but cannot open it. The how-to says so; checking listed names was not in the specification.
 
+After the pull-request review (`../reviews/145-a-mounts-names-work-the-same-on-every-host-pr-2026-10-27.md`, three Lows): set-times with a time flag of a file named as a folder (`a.txt/`) now answers `ENOTDIR` after its one `stat`, as a Linux grant does, with a row seen failing first (`build/145/row-set-times-slash-before.log`: 0 where 54); the guest-filesystem sentence takes the review's wording; the Windows box is ticked from the run's Windows own shards.
+
 ### Verification (EXECUTED)
 
 - `uv run ruff check src tests`: all checks passed; `uv run ruff format --check src tests`: 188 files already formatted; `uv run mypy src/wasi_python`: no issues in 27 files.

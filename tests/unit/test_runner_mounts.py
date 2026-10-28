@@ -1823,3 +1823,16 @@ def test_set_times_with_no_time_flag_looks_nothing_up(placeholder) -> None:
     r = Mounted(provider, placeholder, writable=True).raw
     assert r.path_set_times(3, "missing", 0) == 0
     assert provider.total() == 0
+
+
+def test_set_times_on_a_file_named_as_a_folder_answers_enotdir(placeholder) -> None:
+    """With a time flag, set-times of a file named with a trailing `/` answers ENOTDIR after its
+    one `stat`, as a Linux grant does once it looks the path up; a folder so named succeeds."""
+    provider = MemoryProvider()
+    r = Mounted(provider, placeholder, writable=True).raw
+    rows = {
+        "a file as a folder": r.path_set_times(3, "a.txt/", _fs_memory.MTIM_NOW),
+        "a folder as a folder": r.path_set_times(3, "d/", _fs_memory.MTIM_NOW),
+    }
+    assert rows == {"a file as a folder": 54, "a folder as a folder": 0}, rows
+    assert provider.paths == [("stat", "/a.txt"), ("stat", "/d")]

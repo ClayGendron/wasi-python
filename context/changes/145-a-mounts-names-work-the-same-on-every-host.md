@@ -16,5 +16,5 @@ None.
 [[claim]]
 spec = "145"
 new = ["tests/checks/test_v1_2_hostile_guest.py::test_a_mount_refuses_a_name_a_host_could_reinterpret"]
-units = 6
+units = 7
 ```
