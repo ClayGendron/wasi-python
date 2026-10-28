@@ -94,6 +94,8 @@ A read-only mount answers as a read-only grant does: every write-type call is `E
 - `..` is resolved by text, so `missing/../a.txt` opens `a.txt`. A climb above the folder the call starts from is `EPERM`, as on a grant.
 - A path over 4,096 bytes is `ENAMETOOLONG`.
 
+Setting a missing file's times, a positioned read and opening a file as a folder answer as on a grant: `ENOENT`, the bytes asked for, and `ENOTDIR`.
+
 ## Mind time and threads
 
 A provider runs synchronously on the thread that called `run`. Under `run_async` that is the worker thread, never the event loop's. Before each provider call the runner checks the call's `cancel` and its deadline; if either has passed, it does not call the provider.
