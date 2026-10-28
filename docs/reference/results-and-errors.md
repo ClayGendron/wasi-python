@@ -18,6 +18,7 @@ Two ideas run through the page. A program that fails *inside* the guest still gi
 | `truncated` | `tuple[str, ...]` | The streams, `"stdout"` and `"stderr"`, whose output passed the limit. Empty when nothing was cut. |
 | `files` | `FileRecord` or `None` | For a call with mounts: its provider calls, faults and refused writes. Else `None`. |
 | `tools` | `ToolRecord` or `None` | For a call with tools: every tool-protocol frame counted and the first 1,000 listed. Else `None`. |
+| `image_sha256` | `str` or `None` | For a call or turn started from a `Snapshot`: the SHA-256 of its image, so you can tell which snapshot a result came from. Else `None`. |
 
 For example, this call returns exit code 0 and the sum on standard output:
 
@@ -96,6 +97,20 @@ A `ToolOutcome` has `seq` (from 1), `op` (`"list"`, `"call"`, or `None` when the
 ### Session exceptions
 
 `SessionEnded`, a subclass of `RuntimeError`, means a `Session` has ended and runs no more turns. `Session.ended` tells you why: `"closed"`, `"idle"`, `"lifetime"`, `"quit"` (a turn called `exit()` or `quit()`), `"exit"` (a turn called `os._exit`), `"error"` (a turn raised in your process), or the stopped turn's `trapped`. See [Sessions](../how-to/sessions.md).
+
+### Snapshot exceptions
+
+`SnapshotMismatch`, a subclass of `ValueError`, means a snapshot does not fit where it is used: a saved file that is not one, is damaged or is of a newer format; a call whose artifact set is not the one the snapshot was made with; or a call whose `memory_bytes` is below the image. `Snapshot.load`, `Snapshot.check`, `run`, `run_async` and `Session` raise it.
+
+`SnapshotFailed`, a subclass of `RuntimeError`, means the code given to `make_snapshot` or `make_package_snapshot` left no image a call could start from. Its `reason` is one of three fixed strings, and its `completed` is the making's own `Completed`:
+
+| `reason` | what happened |
+|---|---|
+| `"exit"` | the code exited with a status other than 0, or raised; its traceback is in `completed.stderr` |
+| `"trapped"` | the code trapped, ran out of fuel or passed its deadline, as `completed.trapped` says |
+| `"open file"` | the code left a file or folder open, which a call from the image could not reopen |
+
+`Snapshot.save` and `Snapshot.load` raise `PermissionError` for a file or folder others may change, and `OSError` for the file system's own failures. See [Start every call from a snapshot](../how-to/snapshots.md).
 
 ### Tool exceptions
 

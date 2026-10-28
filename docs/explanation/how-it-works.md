@@ -61,6 +61,8 @@ Four facts follow from the snapshot:
 
 `run(snapshot=False)` uses the plain reactor instead.
 
+You can make a snapshot of your own, too. `make_snapshot` runs your code once in a fresh instance of the snapshot binary, through its `prepare` export, and keeps the guest's linear memory whole. Each call given it is a fresh instance of the same binary: the runner grows its memory to the image's size and copies the image in before any guest code runs, then runs the program in the namespace your code ran in. The copy is the host's work and spends no fuel, and nothing a call does reaches the image or another call. See [Start every call from a snapshot](../how-to/snapshots.md).
+
 ## The stdlib zip
 
 The standard library and every package's Python code live in one deflated zip of bytecode only, built the same way on every build. The host grants it to the guest read-only, in a folder of its own at `/usr/local/lib`, so the guest finds `/usr/local/lib/python315.zip`. It is never in a writable place. matplotlib's data files travel inside the zip as one inner archive, which the runner extracts and grants read-only.

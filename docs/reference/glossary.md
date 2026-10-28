@@ -24,7 +24,7 @@ The terms these pages use, in alphabetical order. Each entry links to the page t
 
 **Session.** One instance of the runtime kept across several calls, each a *turn*. Variables, functions and imports made in one turn are there in the next. See [Sessions](../how-to/sessions.md).
 
-**Snapshot.** `python-snapshot.wasm`: `python.wasm` after the interpreter has started and the stdlib's bootstrap modules are imported, saved with Wizer. It pre-imports no package. A call on the snapshot skips the interpreter's start-up. See [How it works](../explanation/how-it-works.md).
+**Snapshot.** Two things share the word. The set's snapshot binary, `python-snapshot.wasm`, is `python.wasm` after the interpreter has started and the stdlib's bootstrap modules are imported, saved with Wizer at build time; it pre-imports no package, and a call on it skips the interpreter's start-up. See [How it works](../explanation/how-it-works.md). A `Snapshot` you make with `make_snapshot` or `make_package_snapshot` is the guest's memory after your own code ran once in that binary; a call given it starts from a private copy of it. See [Start every call from a snapshot](../how-to/snapshots.md).
 
 **Stdlib zip.** `python-stdlib.zip`: the standard library and the Python code of every package in the set, as bytecode in one zip. Every call sees it read-only at `/usr/local/lib`. See [Guest filesystem](guest-filesystem.md).
 
