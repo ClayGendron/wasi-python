@@ -40,7 +40,7 @@ CODEC = "zlib"  # in every supported Python's standard library
 LEVEL = 1  # a save is once per image: the fastest level, a third of the image's size
 PAGE = 65536
 SLICE = 1 << 20  # the file is compressed and read in slices, never a second whole copy
-HOME = "/tmp/.home-snapshot"  # every image's HOME, so a path a package kept at import holds
+IMAGE_HOME = "/tmp/.home-snapshot"  # every image's HOME: a path a package kept at import holds
 MAX_CODE_BYTES = 16 << 20  # the code is kept in the file's header; more is data for a grant
 MAX_HEADER_BYTES = 17 << 20  # the code and room for the rest
 MAX_IMAGE_BYTES = 4 << 30  # the guest's 32-bit address space
@@ -118,7 +118,7 @@ class _Start(NamedTuple):
 
 
 # The making's start, passed to `Session` by `make_snapshot` alone: the fixed HOME, no image.
-MAKING = _Start(None, HOME, None, None)
+MAKING = _Start(None, IMAGE_HOME, None, None)
 
 
 class Snapshot:
@@ -210,7 +210,7 @@ class Snapshot:
         The file must be one only you can write, as `save` makes it, and is read through the
         descriptor that was checked. Its header, its size, its stream and the image's hash are
         each checked, and the stream is never read past the size its header names. The set is
-        not checked here: `check()` does, and so does every call.
+        not checked here: `Snapshot.check` does, and so does every call.
 
         Args:
             path: The file `save` wrote.
@@ -290,7 +290,7 @@ def _origin_of(
         prelude_fuel=fuel,
         image_bytes=len(image),
         image_sha256=hashlib.sha256(image).hexdigest(),
-        home=HOME,
+        home=IMAGE_HOME,
         guest_paths=tuple(paths),
         env_names=tuple(sorted(env_names)),
         snapshot_sha256=digests[0],
@@ -472,7 +472,7 @@ def _refuse_unprepared(start: _Start | None, binary: Path, exports: set[str]) ->
 # The capture and the restore, through wasmtime-py's public pointer to linear memory.
 
 
-def _capture(store: Any, memory: Any) -> bytes:
+def _memory_image(store: Any, memory: Any) -> bytes:
     """Linear memory, whole, in one copy into `bytes`."""
     return ctypes.string_at(memory.data_ptr(store), memory.data_len(store))
 

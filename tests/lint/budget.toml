@@ -32,6 +32,7 @@ test_v1_3_scipy = 21_484_846_680
 test_v1_3_the_zips_directory = 29_392_814_084
 test_v1_4_embedding = 10_176_733_854
 test_v1_4_prepare = 98_359_580
+test_v1_4_starting_image = 196_856_062
 # The packages' own suites, by package
 attrs = 26_636_430_164
 beautifulsoup4 = 31_356_136_972

@@ -56,6 +56,7 @@ class Completed:
     truncated: tuple[str, ...] = ()
     files: FileRecord | None = None
     tools: ToolRecord | None = None
+    image_sha256: str | None = None
 ```
 
 How one program ended: what `run` returns.
@@ -70,6 +71,7 @@ How one program ended: what `run` returns.
 - `truncated`: The streams ("stdout", "stderr") whose output passed the limit.
 - `files`: For a call with mounts, its provider calls, faults and refused writes; else `None`.
 - `tools`: For a call with tools, every frame counted and the first 1,000 listed; else `None`.
+- `image_sha256`: The SHA-256 of the snapshot's image a call or turn started from, or `None`.
 
 #### `wasi_python.Defaults`
 
@@ -265,7 +267,7 @@ class Session:
         import_path: Iterable[str] = (),
         env: Mapping[str, str] | None = None,
         host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
-        snapshot: bool = True,
+        snapshot: bool | Snapshot = True,
         fuel: int | None = None,
         deadline_s: float | None = <default>,
         memory_bytes: int | None = <default>,
@@ -320,7 +322,7 @@ One instance of the runtime kept across several calls, each a turn: variables, f
   - `import_path`: Guest paths put on the guest's `sys.path` after the stdlib zip, in order: each a folder or a zip file inside a read-only grant. The root, a writable grant or a mount may not serve one, no writable grant or mount may lie under one, and no writable grant or root may lie inside the grant serving one.
   - `env`: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH= empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the session where /tmp is writable, else an empty one the guest cannot write. A key that begins with `_PYTHON_`, which CPython reads past isolated mode (`_PYTHON_SYSCONFIGDATA_PATH` loads code), raises `ValueError`.
   - `host`: The door's host function: called with each request's bytes, it returns the response's. It must answer synchronously: an async one raises `TypeError`. Excludes `tools`.
-  - `snapshot`: `True` runs the snapshot binary, with the stdlib's bootstrap imported (no package); `False` the plain reactor.
+  - `snapshot`: `True` runs the snapshot binary, with the stdlib's bootstrap imported (no package); `False` the plain reactor; a `Snapshot` opens it from its image.
   - `fuel`: Each turn's cap on the guest's executed instructions, unless the turn passes its own; past it the turn ends "out of fuel", which ends the session. A session given a number is metered; `None` (the default) is unmetered, and its turns report no fuel.
   - `deadline_s`: Each turn's wall-clock seconds, unless the turn passes its own; past them the turn ends "deadline". Default: `defaults().deadline_s`, 60. `None` means no limit but the lifetime's.
   - `memory_bytes`: The most linear memory the guest may hold, in bytes, for the whole session. Default: `defaults().memory_bytes`, 1 GiB. `None` means no limit.
@@ -363,6 +365,84 @@ class SessionEnded(RuntimeError):
 ```
 
 A session has ended, so it runs no more turns.
+
+#### `wasi_python.Snapshot`
+
+```python
+class Snapshot:
+    @property
+    def origin(self) -> SnapshotOrigin
+    def save(self, path: str | os.PathLike[str]) -> None
+    @classmethod
+    def load(cls, path: str | os.PathLike[str]) -> Snapshot
+    def check(self, artifacts: Artifacts | None = None) -> None
+```
+
+A starting image: the guest's memory after your code ran once, and its origin.
+
+**Methods:**
+
+- `Snapshot.origin`: Where the image came from: its code, its size and hash, and the set it binds to.
+- `Snapshot.save`: Write the snapshot to a file only you can write, which `Snapshot.load` reads back.
+  - `path`: The file to write; by convention its name ends in `.wpsnap`.
+- `Snapshot.load`: Read a snapshot that `save` wrote, and check it before it is returned.
+  - `path`: The file `save` wrote.
+- `Snapshot.check`: Raise the `SnapshotMismatch` a call would, without running a call.
+  - `artifacts`: The artifact set to check against; `None` finds it with `artifacts()`.
+
+#### `wasi_python.SnapshotFailed`
+
+```python
+class SnapshotFailed(RuntimeError):
+    ...
+```
+
+The code given to `make_snapshot` or `make_package_snapshot` did not leave an image a call could start from. The message is one line that says what to do.
+
+#### `wasi_python.SnapshotMismatch`
+
+```python
+class SnapshotMismatch(ValueError):
+    ...
+```
+
+A snapshot does not fit where it is used: a saved file that is not one, is damaged or is of a newer format; a call whose artifact set is not the one the image was made with; or a call whose `memory_bytes` is below the image. The message says what to do.
+
+#### `wasi_python.SnapshotOrigin`
+
+```python
+@dataclass(frozen=True)
+class SnapshotOrigin:
+    prelude: str
+    prelude_sha256: str
+    prelude_fuel: int | None
+    image_bytes: int
+    image_sha256: str
+    home: str
+    guest_paths: tuple[str, ...]
+    env_names: tuple[str, ...]
+    snapshot_sha256: str
+    stdlib_zip_sha256: str
+    wasi_python: str
+    made_at: str
+```
+
+Where a snapshot came from, kept with its image and in its saved file.
+
+**Attributes:**
+
+- `prelude`: The code that made the image, as given: the image already holds its code objects, so the origin reveals nothing the image does not.
+- `prelude_sha256`: The SHA-256 of the code as UTF-8.
+- `prelude_fuel`: The instructions the code ran, when the making was given `fuel`; else `None`.
+- `image_bytes`: The image's size: a whole number of 64 KiB pages.
+- `image_sha256`: The SHA-256 of the image, which `Completed.image_sha256` repeats.
+- `home`: The guest's HOME while the code ran, which every call from the image sees.
+- `guest_paths`: The guest paths of the making's root, grants and mounts.
+- `env_names`: The sorted names of the making's `env`, never their values.
+- `snapshot_sha256`: The SHA-256 of the set's `python-snapshot.wasm` it was made with.
+- `stdlib_zip_sha256`: The SHA-256 of the set's `python-stdlib.zip` it was made with.
+- `wasi_python`: The version of wasi-python that made it.
+- `made_at`: When it was made, in UTC, ISO 8601, to the second.
 
 #### `wasi_python.Stat`
 
@@ -450,6 +530,110 @@ def defaults() -> Defaults
 
 The `Defaults` a call reads now: the limits it has for each one it does not name.
 
+#### `wasi_python.make_package_snapshot`
+
+```python
+def make_package_snapshot(
+    packages: Iterable[str] | None = None,
+    *,
+    root: str | os.PathLike[str] | bool | None = True,
+    grants: Iterable[Grant] = (),
+    mounts: Iterable[Mount] = (),
+    import_path: Iterable[str] = (),
+    env: Mapping[str, str] | None = None,
+    host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
+    fuel: int | None = None,
+    deadline_s: float | None = 600.0,
+    memory_bytes: int | None = <default>,
+    output_bytes: int | None = <default>,
+    cache_dir: str | os.PathLike[str] | None | bool = None,
+    artifacts: Artifacts | None = None,
+    max_file_calls: int | None = <default>,
+    max_open_files: int | None = <default>,
+) -> Snapshot
+```
+
+Import packages once and keep the guest's memory: by default every package the set ships.
+
+**Args:**
+
+- `packages`: Distribution or module names; `None` (the default) every package the set ships. A str alone is refused: pass `["numpy"]`.
+- `root`: As for `make_snapshot`. Default: `True`, a private root.
+- `grants`: As for `make_snapshot`.
+- `mounts`: As for `make_snapshot`.
+- `import_path`: As for `make_snapshot`.
+- `env`: As for `make_snapshot`.
+- `host`: As for `make_snapshot`.
+- `fuel`: As for `make_snapshot`.
+- `deadline_s`: As for `make_snapshot`. Default: 600.
+- `memory_bytes`: As for `make_snapshot`.
+- `output_bytes`: As for `make_snapshot`.
+- `cache_dir`: As for `make_snapshot`.
+- `artifacts`: As for `make_snapshot`; its MANIFEST names the packages.
+- `max_file_calls`: As for `make_snapshot`.
+- `max_open_files`: As for `make_snapshot`.
+
+**Raises:**
+
+- `TypeError`: `packages` is a str or holds a non-str, or another argument's type is wrong.
+- `ValueError`: A name is neither a distribution's nor a dotted module name, or another argument is out of range.
+- `SnapshotFailed`: As for `make_snapshot`.
+- `ArtifactsMissing`: No usable artifact set, or its MANIFEST lists no packages.
+- `OSError`: As for `make_snapshot`.
+- `RuntimeError`: As for `make_snapshot`.
+
+#### `wasi_python.make_snapshot`
+
+```python
+def make_snapshot(
+    code: str,
+    *,
+    root: str | os.PathLike[str] | bool | None = False,
+    grants: Iterable[Grant] = (),
+    mounts: Iterable[Mount] = (),
+    import_path: Iterable[str] = (),
+    env: Mapping[str, str] | None = None,
+    host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
+    fuel: int | None = None,
+    deadline_s: float | None = 600.0,
+    memory_bytes: int | None = <default>,
+    output_bytes: int | None = <default>,
+    cache_dir: str | os.PathLike[str] | None | bool = None,
+    artifacts: Artifacts | None = None,
+    max_file_calls: int | None = <default>,
+    max_open_files: int | None = <default>,
+) -> Snapshot
+```
+
+Run your code once in a fresh guest and keep its memory, as a starting image.
+
+**Args:**
+
+- `code`: The code to run, a str of at most 16 MiB as UTF-8.
+- `root`: As for `run`: no / by default; `True` a private one, removed after the making.
+- `grants`: As for `run`.
+- `mounts`: As for `run`.
+- `import_path`: As for `run`, while the code runs; a call passes its own to import more.
+- `env`: As for `run`; the origin keeps the names only, but the image holds the values.
+- `host`: As for `run`, while the code runs.
+- `fuel`: A cap on the code's instructions, which the origin then records; `None`, none.
+- `deadline_s`: Wall-clock seconds the making may run. Default: 600. `None`, no limit.
+- `memory_bytes`: As for `run`; it caps the image's size.
+- `output_bytes`: As for `run`.
+- `cache_dir`: As for `run`.
+- `artifacts`: As for `run`; a call from the image must run the same set.
+- `max_file_calls`: As for `run`.
+- `max_open_files`: As for `run`.
+
+**Raises:**
+
+- `TypeError`: An argument has the wrong type, or `run` takes it and a making does not.
+- `ValueError`: An argument is out of range; raised before any work.
+- `SnapshotFailed`: The code exited with a status other than 0, raised, trapped, ran past its deadline or its fuel, or left a file or folder open.
+- `ArtifactsMissing`: There is no usable artifact set, or it predates snapshots you make.
+- `OSError`: A host filesystem call failed while the folders were prepared.
+- `RuntimeError`: As for `Session`.
+
 #### `wasi_python.run`
 
 ```python
@@ -463,7 +647,7 @@ def run(
     env: Mapping[str, str] | None = None,
     stdin: bytes | bytearray | memoryview | None = None,
     host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
-    snapshot: bool = True,
+    snapshot: bool | Snapshot = True,
     fuel: int | None = None,
     deadline_s: float | None = <default>,
     memory_bytes: int | None = <default>,
@@ -492,7 +676,7 @@ Run one program in a fresh instance of the runtime and return how it ended.
 - `env`: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH= empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the call where /tmp is writable, else an empty one the guest cannot write. A key that begins with `_PYTHON_`, which CPython reads past isolated mode (`_PYTHON_SYSCONFIGDATA_PATH` loads code), raises `ValueError`.
 - `stdin`: The guest's standard input, whole; `None` is empty.
 - `host`: The door's host function: called with each request's bytes, on the thread that made the call, it returns the response's. It must answer synchronously: an async one raises `TypeError`. Excludes `tools`.
-- `snapshot`: `True` runs the snapshot binary, with the stdlib's bootstrap imported (no package); `False` the plain reactor.
+- `snapshot`: `True` runs the snapshot binary, with the stdlib's bootstrap imported (no package); `False` the plain reactor; a `Snapshot` starts the call from its image.
 - `fuel`: A cap on the guest's executed instructions; past it the call ends "out of fuel". `None` (the default) sets no cap.
 - `deadline_s`: Wall-clock seconds; past them the call ends "deadline". Default: `defaults().deadline_s`, 60. `None` means no limit.
 - `memory_bytes`: The most linear memory the guest may hold, in bytes. Default: `defaults().memory_bytes`, 1 GiB. `None` means no limit.
@@ -510,7 +694,7 @@ Run one program in a fresh instance of the runtime and return how it ended.
 **Raises:**
 
 - `TypeError`: An argument has the wrong type; raised before any work.
-- `ValueError`: An argument is out of range; raised before any work.
+- `ValueError`: An argument is out of range (`SnapshotMismatch` too); raised before any work.
 - `ArtifactsMissing`: There is no usable artifact set.
 - `ImportError`: wasmtime-py cannot load; its own error is chained as the cause.
 - `OSError`: A host filesystem call failed while the root, the private folders, the zip's copy or the cache was prepared (its subclasses, such as FileExistsError, included).
@@ -532,7 +716,7 @@ async def run_async(
     env: Mapping[str, str] | None = None,
     stdin: bytes | bytearray | memoryview | None = None,
     host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
-    snapshot: bool = True,
+    snapshot: bool | Snapshot = True,
     fuel: int | None = None,
     deadline_s: float | None = <default>,
     memory_bytes: int | None = <default>,
@@ -558,7 +742,7 @@ async def run_async(
 **Raises:**
 
 - `TypeError`: An argument has the wrong type; raised before any work.
-- `ValueError`: An argument is out of range; raised before any work.
+- `ValueError`: An argument is out of range (`SnapshotMismatch` too); raised before any work.
 - `ArtifactsMissing`: There is no usable artifact set.
 - `ImportError`: wasmtime-py cannot load; its own error is chained as the cause.
 - `OSError`: A host filesystem call failed while the root, the private folders, the zip's copy or the cache was prepared (its subclasses, such as FileExistsError, included).

@@ -863,7 +863,7 @@ def _turn_inside(
             fuel_used = _call._fuel_used(budget, done, call, store.get_fuel)
         if export == "prepare" and value == 0:  # read here, before the claim is released
             memory = state.exports["memory"] if state.exports is not None else None
-            state.captured = (_snapshot._capture(store, memory), table.open_now())
+            state.captured = (_snapshot._memory_image(store, memory), table.open_now())
         if ran:
             table.walk()  # the write-backs, after the fuel is read
         context = _call._context_of(table)

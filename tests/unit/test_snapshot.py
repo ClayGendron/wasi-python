@@ -46,7 +46,7 @@ def _origin(image: bytes, **changed: object) -> wasi_python.SnapshotOrigin:
         "prelude_fuel": None,
         "image_bytes": len(image),
         "image_sha256": hashlib.sha256(image).hexdigest(),
-        "home": _snapshot.HOME,
+        "home": _snapshot.IMAGE_HOME,
         "guest_paths": ("/data",),
         "env_names": ("A",),
         "snapshot_sha256": "0" * 64,
