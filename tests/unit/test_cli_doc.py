@@ -11,8 +11,12 @@ from harness import cli_doc
 
 def small() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="tool run", usage="tool run [OPTIONS]", description="Runs.")
-    p.add_argument("--env", action="append", default=[], metavar="KEY=VALUE")
-    p.add_argument("--fuel", type=int, metavar="N", default=argparse.SUPPRESS)
+    p.add_argument(
+        "--env", action="append", default=[], metavar="KEY=VALUE", help="a variable for the guest"
+    )
+    p.add_argument(
+        "--fuel", type=int, metavar="N", default=argparse.SUPPRESS, help="a cap on instructions"
+    )
     p.add_argument("--fast", action="store_true", help="skip the slow part")
     group = p.add_mutually_exclusive_group()
     group.add_argument("--root", metavar="HOST", help="the guest's /")
@@ -20,11 +24,8 @@ def small() -> argparse.ArgumentParser:
     return p
 
 
-DESCRIBED = {"--env": "a variable for the guest", "--fuel": "a cap on instructions"}
-
-
 def test_a_parser_renders_as_one_table() -> None:
-    text = cli_doc.render(small(), DESCRIBED)
+    text = cli_doc.render(small())
     assert text.splitlines() == [
         "### `tool run`",
         "",
@@ -46,20 +47,13 @@ def test_a_parser_renders_as_one_table() -> None:
     ]
 
 
-def test_an_option_with_no_description_fails_the_render() -> None:
-    with pytest.raises(ValueError, match="--fuel: no description"):
-        cli_doc.render(small(), {"--env": "a variable for the guest"})
-
-
-def test_a_description_the_parser_no_longer_has_fails_the_render() -> None:
-    with pytest.raises(ValueError, match="--gone: described, but the parser has no such option"):
-        cli_doc.render(small(), {**DESCRIBED, "--gone": "removed"})
-
-
-def test_an_option_described_twice_fails_the_render() -> None:
-    """Once the parser carries an option's help, its entry in the mapping goes."""
-    with pytest.raises(ValueError, match="--fast: described twice"):
-        cli_doc.render(small(), {**DESCRIBED, "--fast": "again"})
+def test_an_option_with_no_help_fails_the_render() -> None:
+    """The page's sentence for an option is its help and nothing else, so an option the parser
+    leaves bare cannot reach the page undescribed."""
+    parser = small()
+    next(a for a in parser._actions if "--fuel" in a.option_strings).help = None
+    with pytest.raises(ValueError, match="--fuel: no help"):
+        cli_doc.render(parser)
 
 
 def test_a_page_holds_exactly_one_block() -> None:
@@ -88,3 +82,13 @@ def test_every_option_of_the_command_is_described() -> None:
     for option in ("--env", "--deadline-s", "--grant-writable", "--no-root"):
         assert f"| `{option}` |" in text
     assert "At most one of `--root`, `--private-root` and `--no-root`." in text
+
+
+def test_every_option_of_the_command_carries_its_help() -> None:
+    """`wasi-python run --help` describes every option, from the same text the page renders."""
+    bare = [
+        a.option_strings[-1]
+        for a in cli_doc.live_parser()._actions
+        if a.option_strings and a.dest != "help" and a.help in (None, argparse.SUPPRESS)
+    ]
+    assert bare == [], f"options with no help=: {bare}"

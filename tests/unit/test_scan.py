@@ -2688,12 +2688,20 @@ def test_the_citation_rule_reads_its_four_trees(work) -> None:
 
 
 def test_the_citation_rule_reads_the_public_pages_whole(work) -> None:
-    """The README and every Markdown page under `docs/` are read: a page has no comment to set
-    apart, since every word of it is what a user reads. The string rule leaves them to it."""
-    for rel_path in ("README.md", "docs/a.md", "docs/sub/b.md", "docs/c.css", "notes.md"):
+    """The README, the security policy and every Markdown page under `docs/` are read: a page has
+    no comment to set apart, since every word of it is what a user reads. The string rule leaves
+    them to it."""
+    for rel_path in (
+        "README.md",
+        "SECURITY.md",
+        "docs/a.md",
+        "docs/sub/b.md",
+        "docs/c.css",
+        "notes.md",
+    ):
         write(work, rel_path, "x\n")
     picked = [scan.rel(p, work) for p in scan.context_citation_files(work)]
-    assert picked == ["README.md", "docs/a.md", "docs/sub/b.md"]
+    assert picked == ["README.md", "SECURITY.md", "docs/a.md", "docs/sub/b.md"]
     assert scan.string_citation_files(work) == []
     page = write(work, "docs/d.md", f"# A page\n\nAs `{SPEC_WORD} 025` says, see {DOC_TREE}x.\n")
     assert scan.context_citation_hits(page) == [

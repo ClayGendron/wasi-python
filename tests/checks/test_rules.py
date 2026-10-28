@@ -93,7 +93,7 @@ def test_no_test_reads_a_clock() -> None:
 def _ruff(*args: str) -> subprocess.CompletedProcess:
     ruff = Path(sys.executable).parent / "ruff"
     return subprocess.run(
-        [str(ruff), *args, "src", "tests", "recipes/guest"],
+        [str(ruff), *args, "src", "tests", "recipes/guest", "scripts", "release"],
         cwd=paths.REPO,
         capture_output=True,
         text=True,
