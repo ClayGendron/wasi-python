@@ -1286,6 +1286,15 @@ def _count_tool_threads(delta: int) -> None:
         p.tool_threads_running += delta
 
 
+def _count_abandoned(delta: int) -> int:
+    """The tool threads still running after their call was answered, across the process, after
+    adding `delta`: the count a bound refuses a tool call by."""
+    p = process()
+    with p.tool_threads_lock:
+        p.tool_threads_abandoned += delta
+        return p.tool_threads_abandoned
+
+
 def _home_context(home: _Home | None) -> Callable[[], contextvars.Context]:
     """How a tool call copies its context: on the home thread, so it sees what a provider or the
     door host set earlier in the call; with no home
@@ -1323,6 +1332,7 @@ def _tool_host(
         cancel=cancel,
         ctrl_c=_ctrl_c_now if home is None else (lambda: _ctrl_c_now() or home.stopped()),
         count=_count_tool_threads,
+        abandoned=_count_abandoned,
         context=_home_context(home),
     )
     # Under run_async, the caller's loop; otherwise a private loop of the call's own.

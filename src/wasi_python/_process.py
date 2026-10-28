@@ -155,6 +155,7 @@ class _Process:
         self.ctrl_c_pending: bool = False
         self.tool_threads_lock = threading.Lock()
         self.tool_threads_running: int = 0
+        self.tool_threads_abandoned: int = 0  # running on after their call was answered
         self.stack_size_lock = threading.Lock()
         # threading.stack_size's value, while the window is open.
         self.stack_size_found: list[int] = []
@@ -197,6 +198,7 @@ class _Process:
             threading.stack_size(self.stack_size_found[0])
             self.stack_size_found.clear()
         self.tool_threads_running = 0  # a child has none of its parent's tool threads
+        self.tool_threads_abandoned = 0
         self.zips = {}  # the parent's zip folders stay the parent's: their locks are its
         self.compiling = {}  # per-digest guards, possibly held by lost threads
         self.ticker_thread, self.ticker_active = None, 0

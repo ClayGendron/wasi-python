@@ -1058,6 +1058,8 @@ def _open_session(
                 ticks=lambda: _epoch_ticker.count(),
                 ctrl_c=_call._ctrl_c_now,
                 count=_call._count_tool_threads,
+                abandoned=_call._count_abandoned,
+                wait_s=state.lifetime_s,  # a turn's tool call waits at most the lifetime
             )
     except BaseException:
 
