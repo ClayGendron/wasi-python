@@ -64,13 +64,13 @@
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. Finding 1 —
-2. Finding 2 —
-3. Finding 3 —
-4. Finding 4 —
-5. Finding 5 —
+1. Finding 1 — fixed in code, fix (a), as the orchestrating session chose. The process object keeps a registry of what live calls may write (`process().live_writable`, under the existing `cache_lock`, emptied after a fork): each call's and session's root and writable grants, added when `_places._walk_grants` has judged them and taken out by `_places._let_go` at the call's or session's release. `save` and `load` raise `PermissionError` naming the live call's grant for a folder one of them holds at or above, by identity, judged as written. Row, seen failing first (`DID NOT RAISE PermissionError`): `test_a_folder_a_running_session_may_write_is_refused_until_it_ends` (a session opened with a writable grant; `save` into it, and into a folder below it, refused; after `close()`, allowed and loadable). The how-to says both directions. `_Process.__init__` grows one line, claimed.
+2. Finding 2 — fixed: `_judge_snapshot_folders` judges each remembered folder by `_cache_chain`. Row, seen failing first (`DID NOT RAISE ValueError`): `test_a_link_inside_a_writable_grant_on_the_way_to_a_snapshot_is_refused`.
+3. Finding 3 — fixed: `_header_origin` refuses a `home` other than `IMAGE_HOME` as a damaged header. Row, seen failing first (`DID NOT RAISE SnapshotMismatch`): `test_load_refuses_a_home_other_than_the_images`.
+4. Finding 4 — open until the run ends: the Windows legs are read and the box ticked with the run id then.
+5. Finding 5 — fixed: the label `ci:full` is on #39.
 6. Finding 6 — fixed by the reviewer in its own commit, before this file.
-7. Finding 7 —
+7. Finding 7 — fixed in the landing notes: the pull request's Linux legs are the Linux evidence for correctness and fuel, and Linux's copy time and resident memory are left to the owner, on a linux/arm64 machine, before 0.1.2's release notes quote any number for Linux.
 
 ## Verdict
 

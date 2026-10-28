@@ -405,6 +405,44 @@ def test_a_writable_grant_holding_a_snapshots_folder_is_refused(work) -> None:
     assert grant(project, False) == 101
 
 
+def test_a_folder_a_running_session_may_write_is_refused_until_it_ends(work) -> None:
+    given = _given(_stand_in_set(work))
+    shared = _folder(work, "shared")
+    _snap().save(_folder(work, "kept") / "app.wpsnap")
+    session = wasi_python.Session(
+        grants=[wasi_python.Grant(shared, "/w", writable=True)], artifacts=given, cache_dir=False
+    )
+    try:
+        with pytest.raises(PermissionError, match="running now"):
+            _snap().save(shared / "app.wpsnap")
+        with pytest.raises(PermissionError, match="running now"):
+            _snap().save(_folder(shared, "below") / "app.wpsnap")
+        assert list(shared.rglob("*.wpsnap")) == []
+    finally:
+        session.close()
+    _snap().save(shared / "app.wpsnap")  # allowed once no call may write it
+    assert wasi_python.Snapshot.load(shared / "app.wpsnap").origin == _snap().origin
+
+
+@POSIX
+def test_a_link_inside_a_writable_grant_on_the_way_to_a_snapshot_is_refused(work) -> None:
+    given = _given(_stand_in_set(work))
+    parent = _folder(work, "parent")
+    real = _folder(work, "real")
+    (parent / "link").symlink_to(real)
+    _snap().save(parent / "link" / "app.wpsnap")  # its folder kept as written, through the link
+    g = wasi_python.Grant(parent, "/w", writable=True)
+    with pytest.raises(ValueError, match="holds the folder of a snapshot file"):
+        runner.run([], grants=[g], artifacts=given, cache_dir=False)
+
+
+def test_load_refuses_a_home_other_than_the_images(work) -> None:
+    body = zlib.compress(_image(), 1)
+    path = _write(_folder(work) / "home.wpsnap", header=_header(_image(), home="/w"), body=body)
+    with pytest.raises(wasi_python.SnapshotMismatch, match="home"):
+        wasi_python.Snapshot.load(path)
+
+
 # ---------------------------------------------------------------------------------------------
 # The restore
 

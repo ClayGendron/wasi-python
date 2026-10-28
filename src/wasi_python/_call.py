@@ -183,6 +183,7 @@ def _run_checked(
             for w in [walked_root, *(w for _, _, w in walked), *(p.walked for p in preopens)]:
                 if w is not None:
                     w.close()
+            _places._let_go([walked_root, *(w for _, _, w in walked)])  # nothing writes them now
             if private is not None:
                 private.remove()
 

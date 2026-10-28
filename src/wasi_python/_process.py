@@ -155,6 +155,7 @@ class _Process:
         self.compiling: dict[tuple[bool, str], threading.Lock] = {}
         self.counts: dict[str, int] = dict.fromkeys(COUNTS, 0)  # what `stats()` reports
         self.snapshot_folders: set[str] = set()  # each saved or loaded snapshot file's folder
+        self.live_writable: dict[Any, str] = {}  # live calls' writable walks, and their names
         self.epoch_callback: Any | None = None  # the one C callback, made on first use
         self.epoch_callback_lock = threading.Lock()
         self.linkers: dict[Any, Any] = {}
@@ -229,6 +230,7 @@ class _Process:
         self.dropped.clear()
         self.reaper_thread, self.reaper_stop = None, False
         self.counts["sessions_open"] = 0
+        self.live_writable = {}  # the parent's calls are not the child's
         if self.fork_used:  # the fact the refusal needs: wasmtime does not survive a fork
             self.forked = True
 
