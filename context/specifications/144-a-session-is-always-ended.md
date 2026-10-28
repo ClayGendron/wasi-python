@@ -1,6 +1,6 @@
 # 144: A session is always ended
 
-- **Status:** drafted 2026-10-27 from `../research/2026-10-27-a-code-review-of-the-runner-for-production-use.md` (§2); not yet built. It waits for the owner's instruction to build.
+- **Status:** drafted 2026-10-27 from `../research/2026-10-27-a-code-review-of-the-runner-for-production-use.md` (§2); not yet built; the owner asked for it to be built on 2026-10-27 with the 0.1.2 scope (`../roadmap.md`).
 - **Date:** 2026-10-27
 - **Owner:** Clay Gendron
 - **Kind:** **parallel-safe**, **not structural**: `src/wasi_python/runner.py` (`Session._claim`, `_release_claim`, `run_async`, `close`, `_stop_async_calls`; 1,213 of 1,500 lines, about 40 added), `src/wasi_python/_sessions.py` (`_session_turn`, `_start_closer`, `_end_dropped`, `_abandon_turn`, `_sessions_at_exit`; 1,091 lines, about 40 added), `src/wasi_python/_outputs.py` (`_write_output`; 370 lines, two lines), rows in `tests/unit/test_runner_sessions.py`, `tests/unit/test_runner_async.py` and `tests/unit/test_runner_outputs.py`, one paragraph in `docs/how-to/sessions.md`. No new lock, no new module-level state, no platform branch, no seam off the process object; every lock taken is a leaf or a pair the lock order already names. No change to `tests/public_api.txt`.

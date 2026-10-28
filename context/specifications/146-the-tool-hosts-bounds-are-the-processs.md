@@ -1,6 +1,6 @@
 # 146: The tool host's bounds are the process's
 
-- **Status:** drafted 2026-10-27 from `../research/2026-10-27-a-code-review-of-the-runner-for-production-use.md` (§3); not yet built. It waits for the owner's instruction to build.
+- **Status:** drafted 2026-10-27 from `../research/2026-10-27-a-code-review-of-the-runner-for-production-use.md` (§3); not yet built; the owner asked for it to be built on 2026-10-27 with the 0.1.2 scope (`../roadmap.md`).
 - **Date:** 2026-10-27
 - **Owner:** Clay Gendron
 - **Kind:** **parallel-safe**, **not structural**: `src/wasi_python/_tool_host.py` (the abandoned count, `_wait`; 1,027 of 1,500 lines, about 20 added), `src/wasi_python/_process.py` (one counter under `tool_threads_lock`, which the lock order already names as a leaf; 237 lines, two lines), rows in `tests/unit/test_runner_tools.py` and `tests/unit/test_tools.py`, paragraphs in `docs/how-to/tools.md`, `docs/how-to/limits.md` and `docs/how-to/mounts.md`, and one measured fact in a short research memo. No new lock, no new seam, no platform branch. No change to `tests/public_api.txt`: the bound is a constant, as `_MAX_ABANDONED` is today.
