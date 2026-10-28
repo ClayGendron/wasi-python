@@ -21,7 +21,8 @@ The guest calls it as `from host import tools; tools.lookup_region("EMEA")`, and
 
 `PROTOCOL` is the number of the protocol this host speaks. The rules for its frames, the schema
 subset and the bounds are the protocol's own, not the host Python's, so an answer is the same
-on every host; they change only with `PROTOCOL` (README.md, "The tool protocol").
+on every host; they change only with `PROTOCOL` (the documentation's *Tool protocol* page,
+https://claygendron.github.io/wasi-python/reference/tool-protocol/).
 """
 
 # The tool protocol in three modules, importing one way. `_tool_schema` holds the schema rules:
@@ -191,8 +192,8 @@ class ToolOutcome:
         seq: The frame's number in this call, from 1.
         op: "list", "call", or `None` when the frame was not read.
         tool: The tool's name, or the name the guest gave, cut to 64 characters.
-        outcome: "ok", or one of the protocol's kinds of failure (README.md, "The tool
-            protocol").
+        outcome: "ok", or one of the protocol's kinds of failure (the *Tool protocol* page,
+            under *Kinds of failure*).
         message: What the guest was told on a failure.
         request_bytes: The frame's length in bytes.
         response_bytes: The answer's length in bytes.

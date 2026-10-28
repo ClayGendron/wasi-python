@@ -80,7 +80,8 @@ def artifact_dir() -> Path:
     raise ArtifactsMissing(
         f"no runtime artifacts: ${_ARTIFACTS_ENV} is unset, and neither "
         f"{_CHECKOUT_ARTIFACT_DIR} nor {_ARTIFACT_DIR} has a MANIFEST. Install the released "
-        "wheel, or build with scripts/build.sh (see README.md)."
+        "wheel, or build with scripts/build.sh "
+        "(see https://claygendron.github.io/wasi-python/contributing/building/)."
     )
 
 

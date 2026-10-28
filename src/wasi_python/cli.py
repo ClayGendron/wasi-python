@@ -78,19 +78,41 @@ def _parser() -> argparse.ArgumentParser:
         allow_abbrev=False,
         description="Run one program in a fresh sandboxed CPython and print its result as JSON.",
     )
-    p.add_argument("--env", action="append", default=[], metavar="KEY[=VALUE]")
+    p.add_argument(
+        "--env", action="append", default=[], metavar="KEY[=VALUE]",
+        help="an environment variable for the guest: KEY=VALUE, or KEY alone to pass this "
+        "command's own value, which keeps a secret off the command line; a repeated key keeps "
+        "its last value",
+    )  # fmt: skip
     p.add_argument("--stdin", metavar="PATH", help="a file, or - for this command's own input")
     # An option not given is absent from the result, so `run` keeps its own default.
     unset = argparse.SUPPRESS
-    p.add_argument("--deadline-s", type=_limit(float), metavar="SECONDS", default=unset)
-    p.add_argument("--memory-bytes", type=_limit(int), metavar="BYTES", default=unset)
-    p.add_argument("--output-bytes", type=_limit(int), metavar="BYTES", default=unset)
-    p.add_argument("--fuel", type=_limit(int), metavar="N", default=unset)
+    p.add_argument(
+        "--deadline-s", type=_limit(float), metavar="SECONDS", default=unset,
+        help="the wall-clock seconds the call may run; none for no limit",
+    )  # fmt: skip
+    p.add_argument(
+        "--memory-bytes", type=_limit(int), metavar="BYTES", default=unset,
+        help="the most linear memory the guest may hold, in bytes; none for no limit",
+    )  # fmt: skip
+    p.add_argument(
+        "--output-bytes", type=_limit(int), metavar="BYTES", default=unset,
+        help="the most bytes kept per stream; the rest is dropped and the stream is named in "
+        "`truncated`; none for no limit",
+    )  # fmt: skip
+    p.add_argument(
+        "--fuel", type=_limit(int), metavar="N", default=unset,
+        help="a cap on the guest's executed instructions; past it the call ends "
+        '"out of fuel"; none for no cap',
+    )  # fmt: skip
     p.add_argument(
         "--max-open-files", type=_limit(int), metavar="N", default=unset,
         help="the most files and folders the guest holds open at once; none for no limit",
     )  # fmt: skip
-    p.add_argument("--no-snapshot", action="store_true")
+    p.add_argument(
+        "--no-snapshot", action="store_true",
+        help="run the plain reactor, python.wasm, instead of the snapshot",
+    )  # fmt: skip
     # Both grant options write to one list, each value tagged with its mode, so the order typed
     # is the order `run` numbers them in.
     p.add_argument(
