@@ -88,6 +88,8 @@ Retired: 126 (native unwind information is left out: superseded in substance by 
 
 Retired: 117 (red means broken), 118 (one news file per specification), 119 (branch runs pick shards by their paths), 120 (a light branch run and the full run once at the wave) and 121 (the pre-tag dry run beside the release acceptance), the process advice's five (`research/2026-10-22-process-advice.md`): superseded by 138, which supersedes 117, 119, 120 and 121 and absorbs 118 as its Decisions 3, 2, 4 and 7 (138's Depends on line); none will be written. The advice's later items, each the owner's call, are in the memo.
 
+Retired: archiving landed specifications with their reviews, and teaching the scans the archive path (122's Out list): not done, since a move would break the review paths the hash-chained progress history names, the links in research memos that are never edited, and the judge's paths to specifications and reviews; the table below is the view of what has landed (`specifications/151-the-documentation-and-the-knowledge-tree-are-tidied.md`, Decision 6).
+
 ## Specifications before 0.1.2
 
 | spec | title | released in |
