@@ -19,7 +19,7 @@ import warnings
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
-from harness import history, paths
+from harness import history, news, paths
 
 SKIP_PARTS = {"__pycache__", ".venv", ".pytest_cache", ".ruff_cache"}
 
@@ -447,6 +447,24 @@ def structural_review_errors(version: str, reviews: Path) -> list[str]:
             if not re.search(rf"\b{tag}\b", text) or row.lower() not in text.lower():
                 errors.append(f"{p.name}: does not score {tag} ({row})")
     return errors
+
+
+def release_notes_review_errors(version: str, reviews: Path) -> list[str]:
+    """A released version whose notes are written for the reader has a review of those notes by
+    someone who wrote none of them, `<version>-release-notes-review-YYYY-MM-DD.md`, ending with
+    its verdict. A prerelease needs none from the judge: its string is what the tree carries all
+    cycle; nor does a version whose notes were published in the older shape."""
+    if not RELEASE_VERSION.match(version) or not news.is_reader_version(version):
+        return []
+    name = re.compile(rf"^{re.escape(version)}-release-notes-review-\d{{4}}-\d{{2}}-\d{{2}}\.md$")
+    found = sorted(p for p in reviews.glob("*.md") if name.match(p.name))
+    if not found:
+        return [f"{version} is a release; reviews/ has no {version}-release-notes-review-<date>.md"]
+    return [
+        f"{p.name}: has no ## Verdict section"
+        for p in found
+        if not re.search(r"^## Verdict\s*$", p.read_text(encoding="utf-8"), re.M)
+    ]
 
 
 KIND_LINE = re.compile(r"^- \*\*Kind:\*\*(.*?)(?=^- \*\*|^## )", re.M | re.S)
@@ -3479,6 +3497,9 @@ def patch_errors(root: Path, tops: Iterable[str]) -> list[str]:
     tops = set(tops)
     patches, drafts = root / "recipes" / "patches", root / "context" / "upstream" / "patches"
     changelog = (root / "CHANGELOG.md").read_text() if (root / "CHANGELOG.md").is_file() else ""
+    # A pull request that carries a patch names it in its news file, which reaches the changelog
+    # only at the release; the news files' entries count as the changelog's own.
+    changelog += "".join("\n" + text for _, _, text in news_changelogs(root))
     errors, count, made = [], 0, set()
     folders = sorted(p for p in patches.iterdir()) if patches.is_dir() else []
     for d in folders:
@@ -3505,7 +3526,7 @@ def patch_errors(root: Path, tops: Iterable[str]) -> list[str]:
             count += 1
             made.add((d.name, f.stem))
             if where not in changelog:
-                errors.append(f"{where}: not named in CHANGELOG.md")
+                errors.append(f"{where}: not named in CHANGELOG.md or in a news file")
             shape, touched = patch_shape_errors(f.read_text(errors="replace"), where)
             errors += shape
             draft = drafts / d.name / f"{f.stem}.md"
@@ -4336,6 +4357,49 @@ def context_citation_files(root: Path) -> list[Path]:
     ]
     picked += [p for p in files_under(root, "scripts", "release") if _text(p) is not None]
     return picked + public_pages(root)
+
+
+def news_changelogs(root: Path) -> list[tuple[Path, int, str]]:
+    """(file, first line, text) of every news file's `## Changelog` section, read as text so a
+    broken news file is still read; its shape is the news files' own check."""
+    folder = root / news.CHANGES
+    out = []
+    for p in sorted(folder.glob("*.md")) if folder.is_dir() else []:
+        if not news.NAME.fullmatch(p.name):
+            continue
+        lines = p.read_text(encoding="utf-8").splitlines()
+        start = next((i for i, line in enumerate(lines) if line.strip() == "## Changelog"), None)
+        if start is None:
+            continue
+        end = next(
+            (i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines)
+        )
+        out.append((p, start + 2, "\n".join(lines[start + 1 : end])))
+    return out
+
+
+def release_note_hits(root: Path) -> list[str]:
+    """Each citation of a project document, by the public pages' rules, and each reserved
+    embedder name in the release's notes: every news file's entries, and the changelog's header
+    and its sections written for the reader. The sections published before are not read."""
+    names_file = root / "context" / "embedders.txt"
+    names = read_names(names_file) if names_file.is_file() else []
+    blocks = [(rel(p, root), line, text) for p, line, text in news_changelogs(root)]
+    changelog = root / "CHANGELOG.md"
+    if changelog.is_file():
+        blocks += [
+            ("CHANGELOG.md", s.line, s.body)
+            for s in news.reader_sections(changelog.read_text(encoding="utf-8"))
+        ]
+    hits = set()
+    for where, first, text in blocks:
+        for rule, pattern in CITATION_RULES:
+            for m in pattern.finditer(text):
+                line = first + text[: m.start()].count("\n")
+                hits.add((where, line, rule, " ".join(m[0].split())))
+        for n, line_text in enumerate(text.splitlines()):
+            hits.update((where, first + n, "embedder", x) for x in names if x in line_text.lower())
+    return [f"{w}:{n}: {rule}: {phrase}" for w, n, rule, phrase in sorted(hits)]
 
 
 # The root's pages a user reads: the README, which is also the wheel's description, and the

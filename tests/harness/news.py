@@ -7,9 +7,9 @@ pull request that carries none), in three sections:
 
     ## Changelog
 
-    ### Changed            (Added, Changed, Fixed or Security, as CHANGELOG.md uses them)
+    ### Fixed              (New, Faster, Security, Fixed, Upgrading or For contributors)
 
-    - **<what>**: <the line, one paragraph>
+    - **<what the reader gets>** <the one fact that changed>. [<page>](<SITE><path>/)
 
     ## Package rows       (optional: rows of the packages page's table, or "None.")
 
@@ -32,10 +32,19 @@ pull request that carries none), in three sections:
     [claim.moved]        # each check moved between tiers, with its reason
     ```
 
+The changelog's lines are the release's notes, written for an embedder who did not follow the
+work: each entry is one line, a bold lead of two to twelve words that says what the reader gets,
+the fact that changed, and a link to the documentation site's page that explains it, last; at
+most sixty words, not counting the links' addresses. The detail an agent needs stays with the
+specification the title names.
+
 The release's changelog assembly (`release/version.py bump`) takes the first two sections; the
 gather lists a growth with the reason a claim gives; the acceptance from CI's record takes every
-reason from the claims of the news files merged since the last acceptance. Standard library only,
-so the release's own script can load this file by its path.
+reason from the claims of the news files merged since the last acceptance. A changelog section of
+a version above 0.1.1 is the reader's notes whole: a summary paragraph, then the entries under the
+six headings in their order (`section_errors`); the sections before it were published in an older
+shape and are left as they are. Standard library only, so the release's own script can load this
+file by its path.
 """
 
 from __future__ import annotations
@@ -48,7 +57,21 @@ from pathlib import Path
 CHANGES = "context/changes"
 NAME = re.compile(r"(\d{3})-[a-z0-9]+(?:-[a-z0-9]+)*\.md")
 PATH = re.compile(re.escape(CHANGES) + r"/" + NAME.pattern)
-HEADINGS = ("Added", "Changed", "Fixed", "Security")  # in the CHANGELOG's order
+# The changelog's headings, in the order a reader scans them.
+HEADINGS = ("New", "Faster", "Security", "Fixed", "Upgrading", "For contributors")
+# The documentation site, which every entry links last; mkdocs.yml's site_url.
+SITE = "https://claygendron.github.io/wasi-python/"
+LEAD = re.compile(r"^- \*\*(?P<lead>.+?)\*\*\s+\S")
+LINK = re.compile(r"\[[^\]\n]*\]\((?P<url>[^)\s]+)\)")
+LEAD_WORDS = (2, 12)
+ENTRY_WORDS = 60
+SUMMARY_WORDS = (30, 120)
+# The placeholder `bump` writes into a section no news file fills.
+PLACEHOLDER = "- (what changed)"
+# A changelog section's heading: `## <version> — <date or unreleased>`.
+VERSION_HEADING = re.compile(r"^## (\S+) — (unreleased|\d{4}-\d{2}-\d{2})$", re.M)
+# The last version whose notes were published in the older shape.
+LAST_OLD_SHAPE = (0, 1, 1)
 SECTIONS = ("Changelog", "Package rows", "Claims")
 LISTS = ("new", "retired", "changed", "passes", "grows")
 REASONS = ("growth", "fewer")
@@ -117,10 +140,7 @@ def _changelog(name: str, lines: list[str]) -> dict[str, list[str]]:
         if line.startswith("### "):
             heading = line[4:].strip()
             if heading not in HEADINGS:
-                raise NewsError(
-                    f"{name}: the changelog heading {heading!r} is not one of "
-                    + ", ".join(HEADINGS)
-                )
+                raise NewsError(f"{name}: {_heading_error(heading)}")
             if heading in out:
                 raise NewsError(f"{name}: the changelog heading {heading!r} twice")
             out[heading] = []
@@ -129,12 +149,144 @@ def _changelog(name: str, lines: list[str]) -> dict[str, list[str]]:
         elif heading is None or not line.startswith("- "):
             raise NewsError(f"{name}: a line of the changelog is not a `- ` line under a heading")
         else:
+            faults = entry_errors(line)
+            if faults:
+                raise NewsError(f"{name}: {'; '.join(faults)}: {line[:60]!r}")
             out[heading].append(line)
     if not out:
         raise NewsError(f"{name}: the changelog has no heading")
     for heading, kept in out.items():
         if not kept:
             raise NewsError(f"{name}: the changelog heading {heading!r} has no line")
+    return out
+
+
+def _heading_error(heading: str) -> str:
+    return f"the changelog heading {heading!r} is not one of " + ", ".join(HEADINGS)
+
+
+def _words(text: str) -> int:
+    """Whitespace-separated tokens, every link's address dropped and its text kept."""
+    return len(LINK.sub("]", text).split())
+
+
+def entry_errors(line: str) -> list[str]:
+    """What keeps one `- ` line from being a reader's entry: a bold lead of two to twelve words
+    first, at most sixty words, and a link to a page of the documentation site last."""
+    errors = []
+    lead = LEAD.match(line)
+    if lead is None:
+        errors.append("the entry does not open with a bold lead and the fact after it")
+    elif not LEAD_WORDS[0] <= len(lead["lead"].split()) <= LEAD_WORDS[1]:
+        errors.append(
+            f"a lead of {len(lead['lead'].split())} words; "
+            f"{LEAD_WORDS[0]} to {LEAD_WORDS[1]} say the value"
+        )
+    if _words(line) > ENTRY_WORDS:
+        errors.append(f"the entry is {_words(line)} words; at most {ENTRY_WORDS}")
+    links = list(LINK.finditer(line.rstrip()))
+    last = links[-1] if links else None
+    if last is None or last.end() != len(line.rstrip()) or not last["url"].startswith(SITE):
+        errors.append(f"the entry does not end with a link to a page of {SITE}")
+    return errors
+
+
+def summary_errors(text: str) -> list[str]:
+    """What keeps a section's text before its first heading from being its summary: one
+    paragraph, neither a list line nor a heading, of thirty to one hundred and twenty words."""
+    lines = [line for line in text.splitlines() if line.strip()]
+    if not lines or [line.strip() for line in lines] == [PLACEHOLDER]:
+        return ["no summary before the first heading"]
+    if len(lines) > 1:
+        return ["the summary is more than one paragraph on one line"]
+    if lines[0].startswith(("- ", "#", "|")):
+        return ["the summary is a list line, a heading or a table, not a paragraph"]
+    words = _words(lines[0])
+    if not SUMMARY_WORDS[0] <= words <= SUMMARY_WORDS[1]:
+        return [f"the summary is {words} words; {SUMMARY_WORDS[0]} to {SUMMARY_WORDS[1]}"]
+    return []
+
+
+def section_errors(body: str) -> list[str]:
+    """What keeps a changelog section's body from being the reader's notes: its summary, its
+    headings among the six, each once, in their order, each with at least one entry, and each
+    entry's shape."""
+    preamble: list[str] = []
+    blocks: dict[str, list[str]] = {}
+    errors = []
+    current = None
+    for line in body.splitlines():
+        if line.startswith("### "):
+            current = line[4:].strip()
+            if current in blocks:
+                errors.append(f"the heading {current!r} twice")
+            blocks.setdefault(current, [])
+        elif current is None:
+            preamble.append(line)
+        elif line.strip():
+            blocks[current].append(line)
+    errors = summary_errors("\n".join(preamble)) + errors
+    known = [h for h in blocks if h in HEADINGS]
+    errors += [_heading_error(h) for h in blocks if h not in HEADINGS]
+    if known != sorted(known, key=HEADINGS.index):
+        errors.append("the headings are not in the order " + ", ".join(HEADINGS))
+    if not blocks:
+        errors.append("no heading and no entry")
+    for heading, lines in blocks.items():
+        if not lines:
+            errors.append(f"the heading {heading!r} has no entry")
+        for line in lines:
+            if not line.startswith("- "):
+                errors.append(f"under {heading!r}, a line that is not an entry: {line[:60]!r}")
+                continue
+            errors += [f"{e}: {line[:60]!r}" for e in entry_errors(line)]
+    return errors
+
+
+def link_errors(entries: list[str], docs: Path) -> list[str]:
+    """Each link to the documentation site in the entries whose page is missing under `docs`:
+    `<path>/` is `docs/<path>.md` or `docs/<path>/index.md`, the site's root `docs/index.md`; an
+    anchor is not read."""
+    errors = []
+    for line in entries:
+        for m in LINK.finditer(line):
+            url = m["url"]
+            if not url.startswith(SITE):
+                continue
+            path = url[len(SITE) :].split("#", 1)[0].strip("/")
+            pages = [f"{path}.md", f"{path}/index.md"] if path else ["index.md"]
+            if not any((docs / page).is_file() for page in pages):
+                errors.append(f"{url}: no page " + " or ".join(f"docs/{p}" for p in pages))
+    return errors
+
+
+def is_reader_version(version: str) -> bool:
+    """Whether a version's changelog section is the reader's notes: its `X.Y.Z` is above 0.1.1,
+    so a pre-release of the next version counts."""
+    m = re.match(r"(\d+)\.(\d+)\.(\d+)", version)
+    return m is not None and tuple(int(x) for x in m.groups()) > LAST_OLD_SHAPE
+
+
+@dataclass
+class Section:
+    version: str  # empty for the header above the first section
+    date: str  # a date, "unreleased", or empty for the header
+    body: str  # the text after the heading line, up to the next section
+    line: int  # the body's first line in the file, counted from 1
+
+
+def reader_sections(changelog: str) -> list[Section]:
+    """The changelog's header (the text before its first version section) and every section
+    whose version `is_reader_version` accepts, whatever other sections the file holds."""
+    matches = list(VERSION_HEADING.finditer(changelog))
+    head_end = matches[0].start() if matches else len(changelog)
+    out = [Section("", "", changelog[:head_end], 1)]
+    for i, m in enumerate(matches):
+        if not is_reader_version(m[1]):
+            continue
+        start = m.end() + 1
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(changelog)
+        out.append(Section(m[1], m[2], changelog[start:end], changelog[:start].count("\n") + 1))
     return out
 
 

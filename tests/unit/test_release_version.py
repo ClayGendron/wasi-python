@@ -504,8 +504,8 @@ def test_check_names_a_dated_readers_section_out_of_shape() -> None:
         (bad_entry, "end with a link"),
     ]:
         errors = version.check_errors(INIT_012, PYPROJECT, log)
-        assert len(errors) == 1 and errors[0].startswith("CHANGELOG.md's section for 0.1.2: ")
-        assert words in errors[0], errors
+        assert errors and all(e.startswith("CHANGELOG.md's section for 0.1.2: ") for e in errors)
+        assert any(words in e for e in errors), errors
     # Not yet dated: the summary is written between bump and date, so nothing is asked yet.
     assert (
         version.check_errors(INIT_012, PYPROJECT, reader_log(f"### Fixed\n\n{entry('200')}")) == []
