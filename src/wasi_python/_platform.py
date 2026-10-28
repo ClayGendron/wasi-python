@@ -212,7 +212,9 @@ class _Posix:
             os.mkdir in os.supports_dir_fd and shutil.rmtree.avoids_symlink_attacks is not False
         )
         self.identity: dict[str, str | None] = {}  # the kernel's, read once
-        self.stack_api: dict[str, Any] = {}  # the C library's stack calls, resolved once
+        # The C library's stack calls, resolved once and published whole: a reader sees None
+        # or every key, never some, so no lock is needed while two threads fill it at once.
+        self.stack_api: dict[str, Any] | None = None
 
     # The walk.
 
@@ -874,20 +876,23 @@ class _Linux(_Posix):
 
     def _stack_bounds(self) -> tuple[int, int] | None:
         api = self.stack_api
-        if "getattr" not in api:
+        if api is None:
             libc = ctypes.CDLL(None)
             vp, sz = ctypes.c_void_p, ctypes.c_size_t
-            api["self"] = ctypes.CFUNCTYPE(ctypes.c_ulong)(("pthread_self", libc))
-            api["getattr"] = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_ulong, vp)(
-                ("pthread_getattr_np", libc)
-            )
-            api["getstack"] = ctypes.CFUNCTYPE(
-                ctypes.c_int, vp, ctypes.POINTER(vp), ctypes.POINTER(sz)
-            )(("pthread_attr_getstack", libc))
-            api["guard"] = ctypes.CFUNCTYPE(ctypes.c_int, vp, ctypes.POINTER(sz))(
-                ("pthread_attr_getguardsize", libc)
-            )
-            api["destroy"] = ctypes.CFUNCTYPE(ctypes.c_int, vp)(("pthread_attr_destroy", libc))
+            api = {
+                "self": ctypes.CFUNCTYPE(ctypes.c_ulong)(("pthread_self", libc)),
+                "getattr": ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_ulong, vp)(
+                    ("pthread_getattr_np", libc)
+                ),
+                "getstack": ctypes.CFUNCTYPE(
+                    ctypes.c_int, vp, ctypes.POINTER(vp), ctypes.POINTER(sz)
+                )(("pthread_attr_getstack", libc)),
+                "guard": ctypes.CFUNCTYPE(ctypes.c_int, vp, ctypes.POINTER(sz))(
+                    ("pthread_attr_getguardsize", libc)
+                ),
+                "destroy": ctypes.CFUNCTYPE(ctypes.c_int, vp)(("pthread_attr_destroy", libc)),
+            }
+            self.stack_api = api
         attr = (ctypes.c_char * 1024)()  # larger than any pthread_attr_t
         if api["getattr"](api["self"](), attr) != 0:
             return None
@@ -993,7 +998,8 @@ class _Darwin(_Posix):
 
     def __init__(self) -> None:
         super().__init__()
-        self.acl_api: dict[str, Any] = {}  # the C library's access-list calls, resolved once
+        # The C library's access-list calls, resolved once and published whole, as `stack_api`.
+        self.acl_api: dict[str, Any] | None = None
 
     def _access_list(self, fd: int, *, is_dir: bool) -> bool:
         """Whether the file open at `fd` has an extended access list, any entry, allow or deny,
@@ -1002,11 +1008,14 @@ class _Darwin(_Posix):
         import ctypes.util
 
         api = self.acl_api
-        if "get" not in api:
+        if api is None:
             libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
             vp, i = ctypes.c_void_p, ctypes.c_int
-            api["get"] = ctypes.CFUNCTYPE(vp, i, i, use_errno=True)(("acl_get_fd_np", libc))
-            api["free"] = ctypes.CFUNCTYPE(i, vp)(("acl_free", libc))
+            api = {
+                "get": ctypes.CFUNCTYPE(vp, i, i, use_errno=True)(("acl_get_fd_np", libc)),
+                "free": ctypes.CFUNCTYPE(i, vp)(("acl_free", libc)),
+            }
+            self.acl_api = api
         ctypes.set_errno(0)
         found = api["get"](fd, _ACL_TYPE_EXTENDED)
         if found:
@@ -1032,12 +1041,15 @@ class _Darwin(_Posix):
 
     def _stack_bounds(self) -> tuple[int, int] | None:
         api = self.stack_api
-        if "top" not in api:
+        if api is None:
             libc = ctypes.CDLL(None)
             vp = ctypes.c_void_p
-            api["self"] = ctypes.CFUNCTYPE(vp)(("pthread_self", libc))
-            api["top"] = ctypes.CFUNCTYPE(vp, vp)(("pthread_get_stackaddr_np", libc))
-            api["size"] = ctypes.CFUNCTYPE(ctypes.c_size_t, vp)(("pthread_get_stacksize_np", libc))
+            api = {
+                "self": ctypes.CFUNCTYPE(vp)(("pthread_self", libc)),
+                "top": ctypes.CFUNCTYPE(vp, vp)(("pthread_get_stackaddr_np", libc)),
+                "size": ctypes.CFUNCTYPE(ctypes.c_size_t, vp)(("pthread_get_stacksize_np", libc)),
+            }
+            self.stack_api = api
         me = api["self"]()
         top, size = api["top"](me), api["size"](me)
         if not top or not size or size >= top:
