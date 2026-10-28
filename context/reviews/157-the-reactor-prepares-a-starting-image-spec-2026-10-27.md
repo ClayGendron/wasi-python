@@ -70,8 +70,18 @@ Findings 10 and 11 are written in by this review as a commit of their text on th
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. to 9., 12. and 13. — open, the author's.
-2. 10. and 11. — written in by this review in `addfc0e7`, with the fix text above.
+1. A `preparing` flag every export refuses while it is set — fixed in the author's revision of 2026-10-28: Decision 3, step 1 (`preparing`, set before any Python and cleared just before `prepare` returns; `run` returns 70, `turn`, `shutdown` and `prepare` -1), Decision 4 (the refusal and its reason), Decision 8's row `test_a_trapped_prepare_leaves_nothing_callable`.
+2. The making's import path — fixed: Decision 3, step 3 (`_reactor.prepare` saves `sys.path`, restores it on every path and drops each `sys.path_importer_cache` key not on it), Decision 8's row `test_the_makings_import_path_is_gone`; 150 carries the goal row and the how-to's sentence.
+3. Choice A keeps spec 073's promise for the program's own names — fixed, with the fix text: Decision 5's mechanism of A gains step 2 (the call's own names and `sys.last_*` dropped, then `gc.collect()`); the table's two rows and the recommendation's sentence narrowed as written; criterion 5 records the collection's share beside the walk's; Decision 8 gains `test_a_prepared_call_finalizes_a_zipfile_left_open` and `test_a_hung_writer_is_flushed`. With the orchestrating session's decision on the 150 review's Finding 6, a prepared instance's program runs in the image's own `__main__` (Decision 3), so the names dropped are those of `__main__` not bound to the same object in `_MAIN_NAMES`, in a call and a session alike.
+4. The writers' pass repeated — fixed: Decision 5, step 3, at most three passes while one flushed a byte; the table's row says what a compressor's stream loses.
+5. The generator search — fixed: Decision 6's third bullet, run as the prelude's last lines before the freeze, with numpy's `Generator`, `RandomState` and `BitGenerator` searched and `random.SystemRandom` skipped; criterion 6 follows.
+6. `fflush(NULL)` — fixed: Decision 3, step 5, and Decision 5's C side.
+7. The claim's prefix and the 1% rule — fixed: Decision 9 names `tests/checks/test_v1_*` alone in `grows`, the ledger block `tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[*`, and the rule as the bare row's move plus 1% of the row's own fuel.
+8. One MANIFEST line per distribution — fixed: Decision 7 (`x-snapshot-package <distribution> <name> …`, none for an empty right side; the reader returns pairs), Decision 8's MANIFEST row and unit row, the Design and criterion 2; 150's helper takes either name.
+9. The reproducibility limit and the next draw — fixed: Decision 2's second reason as written; Decision 8's reseed row prints each generator's next draw; the reproducibility row says it holds the C side's determinism.
+10. and 11. — written in by this review in `addfc0e7`, with the fix text above.
+12. Wizer removes `_initialize` too — fixed: Decision 1.
+13. The news file's reader entry — fixed: Decision 9, the entry under `### New` in 152's shape, or `### Added` if 152 has not landed.
 
 ## Verdict
 
