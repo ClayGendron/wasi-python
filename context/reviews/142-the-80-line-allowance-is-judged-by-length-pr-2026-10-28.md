@@ -68,9 +68,9 @@ Judge only: no file under `src/` changes, so no row of the rubric moves (EXECUTE
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. L1 —
-2. L2 —
-3. L3 —
+1. L1 — accepted as applied by the reviewer in `536bab78` (the checklist's item 4 holds a raised listed length to its claim); the author adds nothing.
+2. L2 — open until the run: 142 now rides group B's pull request, and the Windows legs read are that pull request's, ticked in its description once its run ends.
+3. L3 — fixed on group B's branch on `bd8dcaee`: `lengths[key] = max(n, lengths.get(key, 0))` in `long_function_hits`, with the row `test_a_function_defined_twice_is_held_at_its_longest_definition` (both orders; seen failing first, `assert ['stale allowance: m.py:f (81 lines, listed 85)'] == []`). The listing, which the assembler's rebase onto `bd8dcaee` had already set in the reset commit, equals the scan on the group's head (EXECUTED): `_instance` 157, `_Process.__init__` 84, `_open_session` 142, the others unchanged; the news file's claim names `_Process.__init__`'s rise to 84 with 150's two fields, and the landing notes give each merge's moves.
 
 ## Verdict
 

@@ -2924,7 +2924,9 @@ def long_function_hits(files: Iterable[Path], root: Path, allowed: dict[str, int
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 n = (node.end_lineno or node.lineno) - node.lineno + 1
                 key = f"{p.name}:{'.'.join(scope)}"
-                lengths[key] = n
+                # A name defined twice (an overload, or one def per branch) is held at its
+                # longest definition, so one listed length fits it whatever the order.
+                lengths[key] = max(n, lengths.get(key, 0))
                 where = f"{rel(p, root)}:{node.lineno}: {'.'.join(scope)}"
                 if n > FUNCTION_CEILING and key not in allowed:
                     hits.append(f"{where} ({n} lines)")

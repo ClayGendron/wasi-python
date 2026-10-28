@@ -458,6 +458,16 @@ def test_a_listed_function_shorter_than_its_length_is_a_stale_allowance(work) ->
     ]
 
 
+def test_a_function_defined_twice_is_held_at_its_longest_definition(work) -> None:
+    short, long = scan.FUNCTION_CEILING + 1, scan.FUNCTION_CEILING + 5
+    for first, second in ((short, long), (long, short)):
+        f = write(work, "m.py", _function("f", first) + _function("f", second))
+        assert scan.long_function_hits([f], work, {"m.py:f": long}) == []
+        assert scan.long_function_hits([f], work, {"m.py:f": short}) == [
+            f"m.py:{1 + first if second == long else 1}: f ({long} lines, listed {short})"
+        ]
+
+
 def test_memo_labels(work) -> None:
     labelled = write(work, "a.md", "- **Status:** executed\n\nIt ran (EXECUTED).\n")
     placeholder = write(work, "b.md", "- **Status:** placeholder (research to do)\n")
