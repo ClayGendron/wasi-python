@@ -1,6 +1,6 @@
 # 143: A path_open on a special file is refused
 
-- **Status:** drafted 2026-10-27 from M1 of `../reviews/0.1.1-security-review-2026-10-26.md`, which gave it this number; the owner approved its decision on 2026-10-27 (refuse with `ENXIO` after a look at the target, as a sealed host would) and asked for it with the 0.1.2 scope. Decision 5 refines the approved words "without following links": the look follows links exactly as the open will, since a look that never follows lets a guest step around the refusal with a link it makes itself; the pre-build review reads that first. Not yet built. It is reviewed before it is built (Kind).
+- **Status:** **built 2026-10-28** on `spec/143-a-path-open-on-a-special-file-is-refused`, rebased onto `658a6213` (`dev` with 145), awaiting its pull-request review; the landing notes below name the commits and the evidence. Before: **reviewed before build 2026-10-27** (`../reviews/143-a-path-open-on-a-special-file-is-refused-spec-2026-10-27.md`, "Fit to build", six Lows: five written into this specification in `a8748c06` (`1aa01031` after the rebase), the sixth, the roadmap's line, applied at this landing). Before: drafted 2026-10-27 from M1 of `../reviews/0.1.1-security-review-2026-10-26.md`, which gave it this number; the owner approved its decision on 2026-10-27 (refuse with `ENXIO` after a look at the target, as a sealed host would) and asked for it with the 0.1.2 scope. Decision 5 refines the approved words "without following links": the look follows links exactly as the open will, since a look that never follows lets a guest step around the refusal with a link it makes itself.
 - **Date:** 2026-10-27
 - **Owner:** Clay Gendron
 - **Kind:** **parallel-safe**, runner code, **not structural**, reviewed before it is built: `src/wasi_python/_fs_paths.py` (`_path_open`'s forward branch moves to a new `_forwarded_open`, and a new `_look`; 578 lines, about 55 added; `_path_open` goes from 78 lines to about 72), `src/wasi_python/_fs_table.py` (`forward` gains one keyword; 682 lines, about 6 added), `src/wasi_python/_fs_memory.py` (`ENXIO`, the link's filetype number, and the filestat's size and filetype offset; 281 lines, about 5 added), rows in `tests/unit/test_runner_grants.py` and `tests/checks/test_v1_2_hostile_guest.py`, one sentence each in `docs/explanation/security-model.md` and `docs/how-to/grants.md`. `_call.py` is not touched (1,337 of 1,500 lines, the 89 percent the 0.1.1 structural review measured), no `LONG_FUNCTIONS` entry is touched, no module-level mutable or lock is added, no private wasmtime-py name is used outside `_wasmtime_ffi.py` (the look goes through `_Files.forward`, which reaches the engine through the seam), and no platform branch is added: the look is the same on every host. It changes what the guest sees for one call, so it is reviewed before it is built, as the roadmap's line for it asks and as 140 was; constitution §5.6's list does not require it, since it adds no import or export, no artifact byte and no recipe. No change to `tests/public_api.txt`.
@@ -120,7 +120,39 @@ In: Decisions 1 to 10. Out:
 
 ## Landing notes
 
-Not yet built.
+Built 2026-10-27 and 2026-10-28 by an agent (Claude Opus 5.5), a builder sub-agent of the orchestrating session of the 0.1.2 release, in the worktree `../wasi_python-wt/spec-143`, on `spec/143-a-path-open-on-a-special-file-is-refused` from `86fab037` (`dev`'s tip then), rebased onto `658a6213` (145's merge) before the pull request. Labels: EXECUTED means I ran it, on macOS arm64 with wasmtime-py 50.0.1 and the 0.1.1 artifact set (`WASI_PYTHON_ARTIFACTS` at the main tree's `build/release-0.1.1/set/wasi-python-0.1.1`), at load averages of 150 to 260 from other agents' work; READ means I read the file cited; INFERRED means my reasoning. Outputs are under the worktree's ignored `build/143/`.
+
+The commits, after the rebase onto `658a6213`: `49dfbd46` the rows; `00fbbbab` the code (`_fs_memory.py`'s constants, `_Files.forward`'s `ends=False`, and `_fs_paths.py`'s `_forwarded_open`, `_look`, `_looked_at` and `_refusal`); `c0f99a22` the two docs sentences and the news file; `6f6cb2e1` the mounts rows' stand-in (below); then this section with the roadmap's line. Before the rebase they were `701781df`, `559ecfb5`, `ea7c78e0` and `6014ea03`, on `86fab037`; the verification below ran on those and, where marked, again on the rebased head.
+
+The rows seen failing first, on `86fab037`'s code with the rows written (EXECUTED, `build/143/unit-rows-before.txt`, `unit-row-wb-before.txt`, `goal-rows-before.txt`). Each waiting row was held at the 120 s fail-safe, then released by opening its FIFO's other end with `O_RDWR | O_NONBLOCK`, and failed with what the released open answered:
+
+- unit, read on a read-only grant: waited, then `(0, 4)`;
+- unit, `O_CREAT` write on a writable grant: waited, then `(0, 4)`;
+- unit, a link to the FIFO, followed: waited, then `(0, 4)`;
+- unit, `O_DIRECTORY` on the FIFO: waited, then `(54, None)`;
+- unit, the FIFO in a grant beside a mount: waited, then `(0, 5)`;
+- unit, write rights on a read-only grant: `(63, None)` where the row wants 60 (the kept `EPERM` difference);
+- unit, `O_DIRECTORY` with write rights on a read-only grant: `(63, None)` where the row wants 54;
+- unit, a Unix socket: `(58, None)` on macOS where the row wants 60;
+- unit, a look that meets the deadline: `(29, None)` where the row wants `(60, None)`;
+- unit, the answer by filetype, 16 cases: `AttributeError`, `_fs_paths` had no `_refusal`;
+- goal checks, the read-only and writable opens, the guest's own link, and the read-only and writable Session rows (5): each waited, then returned `trapped='deadline'` with empty stdout.
+
+Guard rows, green before and after: the unfollowed link (`ELOOP`), `O_CREAT | O_EXCL` (`EEXIST`), a file and a folder opening through the look, the guest's bytes 0 to 63 unchanged with a path lying over them, and a path past memory ending the run as a plain grant's does. In all, 25 unit rows failed and 5 passed on the base.
+
+Where the build differs from the text above:
+
+- The writable grant's `O_CREAT` row asks for write rights alone (`RIGHTS_ALL & ~FD_READ`), as `"wb"` does. Written first with every right, it opened the FIFO read-write, which does not wait on macOS, and answered `(0, 4)` at once; with write rights alone it waits on the base (EXECUTED, `unit-row-wb-before.txt`).
+- The deadline row reaches the epoch callback inside the look by a stand-in for the call's cap on open files, whose comparison, made just before the look, moves the engine's epoch on; no runner name is patched.
+- `forward` keeps its `int` type for every caller through two overloads; `ends=False` alone answers `int | None`.
+- Two existing rows of `tests/unit/test_runner_mounts.py` (`test_open_files_are_counted_on_a_call_without_mounts`, `test_mount_files_count_toward_the_open_file_cap`) wrap `table.forward` to count `path_open` forwards, and their wrapper took no keyword, so the look's `ends=False` failed through it (EXECUTED, the first fast tier). The wrapper now passes keywords on (`6f6cb2e1`); their counts of `path_open` and their verdicts are unchanged.
+- 145's merge split `_path_open` (`_open_folder` moved out); the rebase's one conflict, in `_fs_paths.py`, kept both functions. `_path_open` is 70 lines, `_open_folder` 12, `_forwarded_open` 16, `_look` 40, `_looked_at` 10, `_refusal` 7, `_Files.forward` 38 (EXECUTED, `ast`).
+
+The verification (EXECUTED): `ruff check src tests` clean, `ruff format --check src tests` 188 files formatted, `mypy src/wasi_python` no issues in 27 files (each again on the rebased head); `tests/unit/test_runner_grants.py` 62 passed, 2 skipped, and with `tests/unit/test_runner_mounts.py` 137 passed, 2 skipped on the rebased head (`build/143/after-rebase-units.txt`); the five goal checks by node id 5 passed on the rebased head (`after-rebase-goals.txt`); `tests/lint` 9 passed; `tests/checks/test_rules.py` 121 passed, 1 skipped on the rebased head; `mkdocs build --strict` with the docs group built.
+
+The fast tier (EXECUTED, `uv run pytest -m "not slow" -n 3 -q`, `build/143/fast-tier.txt`, on `6014ea03`, 00:19 to 00:29 on 2026-10-28): "3845 passed, 51 skipped in 611.12s"; "ratchet vs 1921c3815c: lost 0 · absent 0 · unrun 1 · unrun locally 40 · gained 5 · grew 0"; the five gained are the new goal checks. It ends "RED: 1 accepted pass(es) blocked": the row blocked by "prior-art clones", which this worktree does not hold (`context/prior_art/` is git-ignored and cloned only in the main tree), not this change. A first fast tier (`fast-tier-1.txt`) is not the verdict: a `uv run --group docs` for the docs build had put platformdirs' pytest plugin in the worktree's environment, so the judge called the run steered and five landing-lane and wiring rows failed, and `test_statsmodels_says_what_it_lacks` lost a pass to its deadline at a load average of 250; after `uv sync` removed the plugin, those rows passed alone (`fast-tier-reruns.txt`, 44 passed), and the second run has no failure. No fuel or bytes line grew, as Decision 9 expects.
+
+Criterion 6's count of `path_open` calls in a `print('hello')` run is not yet made; it is the landing's to add once the pull request's run is read. Not done here: the Windows legs of criterion 2, which the pull request's run reads.
 
 ## One line
 
