@@ -90,8 +90,10 @@ class _Windows:
 
     def __init__(self) -> None:
         self.identity: dict[str, str | None] = {}  # the kernel's, read once
-        self.stack_api: dict[str, Any] = {}  # kernel32's stack calls, resolved once
-        self.win_api: dict[str, Any] = {}  # kernel32's file calls, resolved once
+        # kernel32's stack calls, resolved once and published whole: a reader sees None or
+        # every key, never some, so no lock is needed while two threads fill it at once.
+        self.stack_api: dict[str, Any] | None = None
+        self.win_api: dict[str, Any] = {}  # kernel32's file calls: one key, bound once whole
 
     def kernel32(self) -> Any:
         api = self.win_api
@@ -348,15 +350,18 @@ class _Windows:
         Counted conservatively: high - low - the thread's stack guarantee - one page."""
         try:
             api = self.stack_api
-            if "limits" not in api:
+            if api is None:
                 kernel32 = ctypes.WinDLL("kernel32")  # type: ignore[attr-defined]
                 up = ctypes.POINTER(ctypes.c_size_t)
-                api["limits"] = ctypes.WINFUNCTYPE(None, up, up)(  # type: ignore[attr-defined]
-                    ("GetCurrentThreadStackLimits", kernel32)
-                )
-                api["guarantee"] = ctypes.WINFUNCTYPE(  # type: ignore[attr-defined]
-                    ctypes.c_int, ctypes.POINTER(ctypes.c_ulong)
-                )(("SetThreadStackGuarantee", kernel32))
+                api = {
+                    "limits": ctypes.WINFUNCTYPE(None, up, up)(  # type: ignore[attr-defined]
+                        ("GetCurrentThreadStackLimits", kernel32)
+                    ),
+                    "guarantee": ctypes.WINFUNCTYPE(  # type: ignore[attr-defined]
+                        ctypes.c_int, ctypes.POINTER(ctypes.c_ulong)
+                    )(("SetThreadStackGuarantee", kernel32)),
+                }
+                self.stack_api = api
             low, high = ctypes.c_size_t(), ctypes.c_size_t()
             api["limits"](ctypes.byref(low), ctypes.byref(high))
             guarantee = ctypes.c_ulong(0)
