@@ -35,9 +35,10 @@ The exports that matter are:
 - `run`: run one program, once per instance. It takes its arguments as CPython's command line does: `-c`, `-m`, a script, or `-` for stdin. It returns the exit status.
 - `turn`: run one piece of code in an instance that stays alive, as a [session](sessions.md) does.
 - `shutdown`: end such an instance as Python ends, running `atexit` handlers and finalizing.
+- `prepare`: run code the host passes in a snapshot instance that has run nothing, then leave the instance ready to be imaged, with its preopen table cleared and its heap frozen. Each later instance starts from a copy of that memory.
 - `host_alloc`: give the host space in guest memory, for a request's answer.
 
-Every program runs in a fresh `__main__`. Output is buffered as CPython buffers it without `-u`, so a program stopped early loses what it printed since its last flush.
+Every program runs in a fresh `__main__`, but a call from a starting image runs in the `__main__` its setup code ran in. Output is buffered as CPython buffers it without `-u`, so a program stopped early loses what it printed since its last flush.
 
 ## The host door
 
