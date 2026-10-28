@@ -2,9 +2,9 @@
 
 ## Changelog
 
-### Changed
+### For contributors
 
-- **The 80-line allowance is judged by length** (spec 142). Each function the long-function allowance lists is held at its listed length, one that grows past it or shrinks below it is reported, and the list is reset to the lengths the tree has (`run` 156, `run_async` 181, `Session.__init__` 178 and `_Process.__init__` 84 lines, which had grown past their listings unseen).
+- **Each long function is held at its listed length.** A function on the long-function list that grows past its length, or shrinks below it, is reported, so the list stays true. [How structure is judged](https://claygendron.github.io/wasi-python/contributing/review-and-landing/#how-structure-is-judged)
 
 ## Package rows
 

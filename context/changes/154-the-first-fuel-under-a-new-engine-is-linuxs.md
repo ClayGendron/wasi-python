@@ -2,9 +2,9 @@
 
 ## Changelog
 
-### Changed
+### For contributors
 
-- **The judge keeps a fuel for every upstream group across an engine move** (spec 154): when no fuel darwin measured under the current wasmtime is recorded for a check only Linux ran, the acceptance from CI records Linux's, labelled with the system that measured it, never compared with another system's, and replaced by darwin's when a Mac measures it; the release-tier ledger's block that cleared every upstream suite's dropped fuel after the move to wasmtime 50 is removed.
+- **Every upstream group keeps a fuel across an engine move.** When no macOS fuel of the current wasmtime is recorded for a group only Linux ran, the acceptance records Linux's, labelled with its system and never compared with another system's. [Two tiers of tests](https://claygendron.github.io/wasi-python/contributing/release-process/#two-tiers-of-tests)
 
 ## Package rows
 
