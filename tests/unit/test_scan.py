@@ -136,6 +136,37 @@ def test_no_build_script_removes_without_retrying() -> None:
     assert scan.bare_rm_hits(scripts, paths.REPO) == []
 
 
+REPOSITORY = "https://github.com/o/r"
+ORIGIN_URL = "https://e.org/archive/1.tar.gz"
+
+
+def test_a_mirror_is_this_repositorys_dated_release_asset_of_its_pin(work) -> None:
+    asset = "releases/download/test-sources-2026-01-01/a-1-tag.tar.gz"
+    good = f"{REPOSITORY}/{asset}"
+    dl = write(
+        work,
+        "00_download.sh",
+        f"tests {ORIGIN_URL} a-1-tag.tar.gz {good}\nget https://e.org/b-2.tar.gz b-2.tar.gz\n",
+    )
+    assert scan.mirror_errors(dl, REPOSITORY) == []
+    bad = {
+        "another host": f"https://example.org/r/{asset}",
+        "another repository": f"https://github.com/o/other/{asset}",
+        "a v tag": f"{REPOSITORY}/releases/download/v0.1.1/a-1-tag.tar.gz",
+        "another name": f"{REPOSITORY}/releases/download/test-sources-2026-01-01/a-2-tag.tar.gz",
+    }
+    for why, mirror in bad.items():
+        dl.write_text(f"tests {ORIGIN_URL} a-1-tag.tar.gz {mirror}\n")
+        errors = scan.mirror_errors(dl, REPOSITORY)
+        assert len(errors) == 1 and errors[0].startswith("a-1-tag.tar.gz: "), (why, errors)
+    dl.write_text(f"tests {ORIGIN_URL} {good} a-1-tag.tar.gz\n")
+    assert scan.mirror_errors(dl, REPOSITORY) == [f"{good}: a URL where the file's name goes"]
+    dl.write_text(f"tests {ORIGIN_URL} a-1-tag.tar.gz {good} extra\n")
+    assert scan.mirror_errors(dl, REPOSITORY) == [
+        "a-1-tag.tar.gz: 4 fields after tests; a pin's line is <url> <name> [<mirror>]"
+    ]
+
+
 def test_every_pin_needs_a_literal_url(work) -> None:
     dl = write(work, "00_download.sh", 'get https://e.org/dl/a-1.tar.gz\nget "$(lookup b)"\n')
     assert scan.url_errors(dl, ["a-1.tar.gz"]) == []
