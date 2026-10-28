@@ -6,6 +6,7 @@ a count of events, and the slices the runner waits in are its own."""
 from __future__ import annotations
 
 import ctypes
+import ctypes.util  # before any check stands in for ctypes' loaders, which it uses at import
 import queue
 import threading
 
@@ -367,3 +368,117 @@ def test_the_join_does_not_wait_for_a_thread_that_never_ran() -> None:
     assert (home.phase, home.done, home.ended.is_set()) == (cancelled, True, True)
     home.body("run", lambda: ran.append(1), ())
     assert ran == []
+
+
+# The platform resolves its C library calls once, into a table on the platform object. A second
+# thread that reads the table while the first is filling it must see either nothing, and fill its
+# own, or the whole table: a table seen with some keys and not others raises KeyError, which on
+# macOS leaves `run()` from the cache's access-list check, and in the stack probes turns into a
+# refused call. The stand-in library hands back a Python function per C name and holds the first
+# thread at the table's last name until the second has answered.
+
+STACK_BASE, STACK_SIZE, GUARD = 1 << 30, 64 * MIB, 4096
+
+
+def _write(ref: object, value: int) -> None:
+    """Write through a `ctypes.byref`, as the C function would."""
+    ref._obj.value = value  # type: ignore[attr-defined]
+
+
+def _linux_getstack(attr: object, addr: object, size: object) -> int:
+    _write(addr, STACK_BASE)
+    _write(size, STACK_SIZE)
+    return 0
+
+
+def _windows_limits(low: object, high: object) -> None:
+    _write(low, STACK_BASE)
+    _write(high, STACK_BASE + STACK_SIZE)
+
+
+RESOLVE_ONCE = {
+    "linux stack": (
+        lambda: _platform._Linux(),
+        lambda p: p.stack_bounds(),
+        {
+            "pthread_self": lambda: 1,
+            "pthread_getattr_np": lambda me, attr: 0,
+            "pthread_attr_getstack": _linux_getstack,
+            "pthread_attr_getguardsize": lambda attr, guard: _write(guard, GUARD) or 0,
+            "pthread_attr_destroy": lambda attr: 0,
+        },
+        (STACK_BASE + GUARD, STACK_SIZE - GUARD),
+    ),
+    "macos stack": (
+        lambda: _platform._Darwin(),
+        lambda p: p.stack_bounds(),
+        {
+            "pthread_self": lambda: 1,
+            "pthread_get_stackaddr_np": lambda me: STACK_BASE + STACK_SIZE,
+            "pthread_get_stacksize_np": lambda me: STACK_SIZE,
+        },
+        (STACK_BASE, STACK_SIZE),
+    ),
+    "macos access list": (
+        lambda: _platform._Darwin(),
+        lambda p: p._access_list(0, is_dir=True),
+        {"acl_get_fd_np": lambda fd, kind: 1, "acl_free": lambda found: 0},
+        True,
+    ),
+    "windows stack": (
+        lambda: _platform_windows._Windows(),
+        lambda p: p.stack_bounds(),
+        {
+            "GetCurrentThreadStackLimits": _windows_limits,
+            "SetThreadStackGuarantee": lambda guarantee: _write(guarantee, 0) or 1,
+        },
+        _platform_windows._windows_usable(STACK_BASE, STACK_BASE + STACK_SIZE, 0),
+    ),
+}
+
+
+@pytest.mark.parametrize("case", list(RESOLVE_ONCE))
+def test_a_resolve_once_table_is_never_seen_half_filled(monkeypatch, case) -> None:
+    make, ask, functions, want = RESOLVE_ONCE[case]
+    last = list(functions)[-1]
+    first: list[threading.Thread] = []
+    at_last, second_done = threading.Event(), threading.Event()
+
+    def prototype(*types: object, **flags: object):
+        def resolve(named: tuple[str, object]):
+            name = named[0]
+            if name == last and threading.current_thread() in first:
+                at_last.set()
+                second_done.wait(60)  # a fail-safe, not a timing
+            return functions[name]
+
+        return resolve
+
+    for factory in ("CFUNCTYPE", "WINFUNCTYPE"):
+        monkeypatch.setattr(ctypes, factory, prototype, raising=False)
+    for loader in ("CDLL", "WinDLL"):
+        monkeypatch.setattr(ctypes, loader, lambda *a, **k: object(), raising=False)
+    platform = make()
+    answers: list[object] = []
+
+    def fill() -> None:
+        try:
+            answers.append(ask(platform))
+        except BaseException as e:
+            answers.append(e)
+        finally:
+            at_last.set()  # so a first thread that failed early is seen at once
+
+    thread = threading.Thread(target=fill)
+    first.append(thread)
+    thread.start()
+    assert at_last.wait(60), "the first thread never reached the table's last name"
+    second: object
+    try:
+        second = ask(platform)  # this thread, while the first is held mid-fill
+    except KeyError as e:
+        second = e
+    finally:
+        second_done.set()
+        thread.join(60)
+    assert (second, answers) == (want, [want]), case

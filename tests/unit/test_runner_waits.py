@@ -179,6 +179,20 @@ class Raises:
         raise RuntimeError("a fault in the wait")
 
 
+class Held:
+    """A stand-in for the call's table: every number past stdio is held, and each stop the poll
+    records is kept."""
+
+    def __init__(self) -> None:
+        self.stops: list[BaseException] = []
+
+    def kind(self, fd: int) -> str | None:
+        return None if fd <= 2 else "held"
+
+    def record_stop(self, error: BaseException, caller: object) -> None:
+        self.stops.append(error)
+
+
 def poll(
     subs: bytes,
     in_ptr: int = 1024,
@@ -187,6 +201,7 @@ def poll(
     nevents: int = 64,
     waits=None,
     monotonic: int = 0,
+    table: Held | None = None,
 ) -> tuple[int, bytes]:
     """Call the runner's poll_oneoff from a one-page module, as a guest does: the arguments are
     i32s, so a pointer at or above 2**31 arrives negative."""
@@ -201,7 +216,7 @@ def poll(
         waits or _call._Waits(FakeTime().now, FakeTime().sleep, None),
         lambda: 10**18,
         lambda: 1000 + monotonic,
-        files=None,
+        files=table or Held(),
     )
     linker.define_func(
         "wasi_snapshot_preview1", "poll_oneoff", wt.FuncType([i32] * 4, [i32]), shadow, True
@@ -237,7 +252,27 @@ def test_misaligned_pointers_end_the_run_after_the_count_is_checked() -> None:
     assert poll(one, in_ptr=1025, n=0)[0] == _call.EINVAL
 
 
-def test_with_no_table_every_number_above_2_is_ready() -> None:
+def test_a_misaligned_pointer_records_its_stop_through_the_table() -> None:
+    """The stop's fuel is the table's to record: the poll hands it the error, once."""
+    import wasmtime as wt
+
+    table = Held()
+    with pytest.raises((wt.Trap, wt.WasmtimeError)):
+        poll(clock(1, 1, 0), nevents=66, table=table)
+    assert [type(e) for e in table.stops] == [wt.WasmtimeError]
+
+
+def test_the_poll_and_the_call_require_their_table() -> None:
+    """No default stands in for a table: the poll and the call are always given the call's."""
+    import inspect
+
+    files = inspect.signature(_call._poll_oneoff).parameters["files"]
+    table = inspect.signature(_call._Call).parameters["table"]
+    assert files.default is inspect.Parameter.empty
+    assert (table.default, table.kind) == (inspect.Parameter.empty, inspect.Parameter.KEYWORD_ONLY)
+
+
+def test_a_number_the_table_holds_above_2_is_ready() -> None:
     for number in (3, 4, 99, 2**31):
         errno, event = poll(fd(1, 1, number))
         assert (errno, struct.unpack(_call.EVENT, event)[2:4]) == (0, (1, 1)), number
