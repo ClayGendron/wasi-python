@@ -8,7 +8,7 @@
 
 ### Fixed
 
-- **The judge keeps a restored call's fuel as a fact where it cannot repeat.** A call from a snapshot that holds numpy's random module spends a number of instructions that moves by up to a few percent from run to run, so four snapshot rows and the reactor's everything-prelude row record that fuel as a fact, and the judge's exact fuel rows stay exact.
+- **The judge keeps a restored call's fuel as a fact where it cannot repeat.** A call from a snapshot that holds numpy's random module spends a number of instructions that moves by up to a few percent from run to run, so four snapshot rows record that fuel as a fact, and the judge's exact fuel rows stay exact.
 
 ## Package rows
 
@@ -25,5 +25,5 @@ grows = [
   "tests/checks/test_v1_4_starting_image.py::test_randomness_differs_across_calls",
   "tests/checks/test_v1_4_starting_image.py::test_the_image_of_every_package_runs_a_hello_and_a_plot",
 ]
-growth = "the restored call's fuel is kept as a fact, no longer as the metric: a call that imports numpy's random module, as pandas, sympy and scikit-learn do, spends a number of instructions that moves by up to a few percent from run to run, even with a fixed seed, so the judge's exact fuel could not hold it"
+growth = "the restored call's fuel is kept as a fact, no longer as the metric: a call that imports numpy's random module, as pandas and scikit-learn do, spends a number of instructions that moves by up to a few percent from run to run, even with a fixed seed, so the judge's exact fuel could not hold it"
 ```

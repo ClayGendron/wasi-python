@@ -275,22 +275,19 @@ def test_a_prepared_image_is_reproducible(guest_turns, metric) -> None:
 
 
 @pytest.mark.slow
-def test_the_everything_prelude_prepares(guest, guest_turns, artifacts, fact) -> None:
+def test_the_everything_prelude_prepares(guest, guest_turns, artifacts, metric, fact) -> None:
     """A prelude that imports every name of MANIFEST's `x-snapshot-package` lines prepares, and a
     call from its image runs `-c pass`: each package the set ships imports under the pinned clocks.
-    The prelude's fuel, the image's pages and the restored call's fuel are facts: a call from an
-    image that holds numpy's random module spends a number of instructions that moves a little
-    from run to run, even under this driver's seeded entropy and clocks, and the judge holds a
-    metric's fuel exact."""
+    The prelude's fuel and the image's pages are facts; the restored call's fuel is the metric."""
     needs.need("manifest")
     lines = artifacts.path("MANIFEST").read_text().splitlines()
     names = [n for ln in lines if ln.startswith("x-snapshot-package ") for n in ln.split()[2:]]
     assert names, "MANIFEST has no x-snapshot-package line"
     prelude = "".join(f"import {n}\n" for n in names)
     image, made = _image(guest_turns, prelude, env=MPL_ENV, mpl_data=True)
-    r = guest("snapshot", ["-c", "pass"], image=image, env=MPL_ENV, mpl_data=True, record=False)
+    r = guest("snapshot", ["-c", "pass"], image=image, env=MPL_ENV, mpl_data=True)
     assert (r.exit_code, r.stderr) == (0, b""), r.describe()
     fact("prelude_fuel", made.fuel)
     fact("image_pages", len(image) // 65536)
     fact("names", len(names))
-    fact("restored_fuel", r.fuel)
+    metric("fuel", r.fuel)

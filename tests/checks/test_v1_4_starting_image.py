@@ -18,9 +18,9 @@ from harness import needs, wat
 
 pytestmark = pytest.mark.goal("v1.4")
 FUEL = 10**12  # a cap that is never reached: it makes each call report its fuel
-# A call that imports numpy's random module, as pandas, sympy and scikit-learn do, spends a
-# number of instructions that moves by up to a few percent from run to run, even with a fixed
-# seed. The judge holds a metric's fuel exact, so those rows keep their fuel as a fact.
+# A call that imports numpy's random module, as pandas and scikit-learn do, spends a number of
+# instructions that moves by up to a few percent from run to run, even with a fixed seed. The
+# judge holds a metric's fuel exact, so those rows keep their fuel as a fact.
 
 SALES = "region,total\nnorth,10\nsouth,5\nnorth,7\neast,3\n"
 PROBE_CODE = (
@@ -356,6 +356,9 @@ def test_the_image_of_every_package_runs_a_hello_and_a_plot(fact) -> None:
     _ok(hello)
     _ok(plot)
     assert (hello.stdout, plot.stdout) == (b"hello\n", b"True\n"), (hello, plot)
+    # Its own work: millions of instructions, where tearing down every module the image holds
+    # would cost over a billion.
+    assert hello.fuel_used < 10**8, hello.fuel_used
     tree = wp.make_package_snapshot(["scikit-learn"])
     imported = wp.run(["-c", "import sys; print('sklearn.tree' in sys.modules)"], snapshot=tree)
     assert imported.stdout == b"True\n", imported
