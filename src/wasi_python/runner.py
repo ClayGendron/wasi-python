@@ -1112,6 +1112,19 @@ class Session:
                 _sessions._start_closer(state)
         raise SessionEnded(ended)
 
+    def _prepare(
+        self, data: bytes, fuel: int | None, deadline_s: float | None, output_bytes: int | None
+    ) -> tuple[Completed, tuple[bytes, int] | None, Any]:
+        """A making's one turn, through the `prepare` export: how it ended; when its code
+        returned 0, the image and the count of files left open, read on this thread before the
+        claim is released; and the set's digests as the opening checked them."""
+        _platform._refuse_forked()
+        self._claim(here=True)
+        state = self._state
+        args = (state, data, fuel, deadline_s, output_bytes, None, None, "prepare")
+        done = _sessions._session_turn(*args)
+        return done, state.captured, state.set_digests
+
     def _release_claim(self) -> None:
         """A claimed turn that never started gives its claim back. When a `close()` came between
         the claim and the release, the session is marked and nobody holds it: its ending goes to
