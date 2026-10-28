@@ -671,6 +671,11 @@ USE_ACTION = """      - name: The build's files
           sums-sha256: ${{ needs.build.outputs.sums-sha256 }}
 """
 READ_ASSETS = CHECKOUT + USE_ACTION
+SETUP_UV = f"""      - uses: astral-sh/setup-uv@{PIN} # v10.3.0
+        with:
+          version: ${{{{ env.UV_VERSION }}}}
+          enable-cache: false
+"""
 # The local action the scans read beside the workflow: the real one.
 ACTION = (paths.REPO / scan.ASSETS_ACTION_FILE).read_text()
 
@@ -810,7 +815,16 @@ jobs:
     steps:
 """
     + READ_ASSETS
-    + """  attest:
+    + """  weekly-issue:
+    permissions:
+      issues: write
+    steps:
+      - name: Open the issue, or comment on the open one
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --title "$title" --body "$body"
+  attest:
     if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: [build, verify, same-bytes, gather]
     permissions:
@@ -836,8 +850,14 @@ jobs:
     steps:
 """
     + READ_ASSETS
-    + """      - name: Create the release
-        run: gh release create "$GITHUB_REF_NAME" release-assets/*
+    + """      - name: Write the release notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          uv run --no-project python release/version.py notes "$version" > notes.md
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release-assets/* --notes-file notes.md
   pypi:
     if: github.event_name == 'push' && github.ref_type == 'tag' && vars.PYPI_PUBLISH == 'true'
     needs: [build, publish]
@@ -847,7 +867,14 @@ jobs:
       id-token: write
     steps:
 """
-    + READ_ASSETS
+    + CHECKOUT
+    + SETUP_UV
+    + USE_ACTION
+    + """      - name: Only the wheel goes to PyPI
+        run: mkdir dist && mv release-assets/*.whl dist/
+      - name: Upload the wheel through trusted publishing
+        run: uv publish --no-config --trusted-publishing always dist/*.whl
+"""
 )
 
 
@@ -878,6 +905,8 @@ def test_the_release_workflow_passes_every_release_scan() -> None:
 REBUILD_GUARD_LOOP = '"$ARM64_SUMS_ID" "$ARM64_WHEEL_ID" "$X86_64_SUMS_ID" "$X86_64_WHEEL_ID"'
 ARM_SUMS = "artifact-ids: ${{ needs.build-shard.outputs.sums-id }}"
 FIRST_REBUILD_PATH = "          path: rebuilds/ubuntu-24.04-arm\n"
+
+UPLOAD = "      - name: Upload the wheel through trusted publishing\n"
 
 # (job, old, new) -> the rules named, one variant per rule and per mutation of the reviews.
 BAD_BINDINGS = [
@@ -1013,6 +1042,63 @@ BAD_BINDINGS = [
         ),
         {17},
     ),
+    # The release token in no environment but the step that creates the release, in every job
+    # that can write.
+    (
+        (
+            "publish",
+            "run: gh release create",
+            "run: uv run python release/version.py notes 0 > notes.md; gh release create",
+        ),
+        {19},
+    ),
+    (
+        (
+            "publish",
+            "    environment: release\n",
+            "    environment: release\n    env:\n      GH_TOKEN: ${{ github.token }}\n",
+        ),
+        {19},
+    ),
+    (
+        (
+            "publish",
+            "      - name: Create the release\n",
+            "      - name: Look first\n        env:\n"
+            "          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n"
+            "        run: gh release view x\n      - name: Create the release\n",
+        ),
+        {19},
+    ),
+    (("weekly-issue", "gh issue create", "python3 -c pass; gh issue create"), {19}),
+    # PyPI's upload: the pinned uv, trusted publishing alone, no container, no env.
+    (
+        (
+            "pypi",
+            UPLOAD + "        run: uv publish --no-config --trusted-publishing always dist/*.whl\n",
+            f"      - uses: pypa/gh-action-pypi-publish@{PIN} # v1.14.2\n",
+        ),
+        {20},
+    ),
+    (("pypi", "    environment: pypi\n", "    environment: pypi\n    container: python:3\n"), {20}),
+    (
+        (
+            "verify",
+            "    needs: build\n",
+            "    needs: build\n    services:\n      cache:\n        image: redis\n",
+        ),
+        {20},
+    ),
+    (("pypi", "--trusted-publishing always", "--trusted-publishing automatic"), {20}),
+    (("pypi", "uv publish --no-config ", "uv publish "), {20}),
+    (("pypi", "always dist/*.whl", "always --token x dist/*.whl"), {20}),
+    (
+        ("pypi", UPLOAD, UPLOAD + "        env:\n          UV_PUBLISH_URL: https://example.org/\n"),
+        {20},
+    ),
+    (("pypi", UPLOAD, UPLOAD + "        env:\n          UV_CONFIG_FILE: x.toml\n"), {20}),
+    (("pypi", "version: ${{ env.UV_VERSION }}", "version: 0.9.22"), {20}),
+    (("pypi", "always dist/*.whl", "always release-assets/*"), {20}),
 ]
 
 
@@ -1026,6 +1112,30 @@ def _rules(errors: list[str]) -> set[int]:
 def test_release_binding_scan_names_each_breach(change, rules) -> None:
     errors = _binding(_in_job(RELEASE_WORKFLOW, *change))
     assert _rules(errors) == rules, errors
+
+
+ON_BLOCK = """on:
+  pull_request:
+    branches: [dev, main]
+    types: [opened, synchronize, reopened, labeled, edited]
+  push:
+    branches: [dev]
+"""
+
+
+def test_the_pull_request_types_are_read_from_the_on_block() -> None:
+    assert scan.pull_request_types(ON_BLOCK) == {
+        "opened",
+        "synchronize",
+        "reopened",
+        "labeled",
+        "edited",
+    }
+
+
+def test_a_pull_request_trigger_without_edited_lacks_it() -> None:
+    types = scan.pull_request_types(ON_BLOCK.replace(", edited", ""))
+    assert "edited" not in types and "opened" in types
 
 
 GUARD_LINE = 'case "$ASSETS_ID" in'

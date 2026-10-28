@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shutil
 import subprocess
 import sys
 
@@ -66,18 +67,24 @@ ROWS = [
     ("context/progress/history-00060.jsonl", {"progress"}),
     ("context/changes/138-pull-requests-into-dev.md", {"news"}),
     ("docs/index.md", {"docs"}),
-    (".claude/settings.json", {"docs"}),
     ("context/specifications/138-x.md", {"docs"}),
     ("context/reviews/138-x-pr-2026-10-25.md", {"docs"}),
     ("context/changes/notes/deeper.md", {"docs"}),
     ("context/changes/README.md", {"docs"}),
     ("README.md", {"docs"}),
     ("CHANGELOG.md", {"docs"}),
-    ("AGENTS.md", {"docs"}),
     ("SECURITY.md", {"docs"}),
     ("LICENSE", {"docs"}),
     ("mkdocs.yml", {"docs"}),
     (".gitignore", {"docs"}),
+    # The files an agent's tool loads by itself, at any depth: quick alone, and reviewed.
+    (".claude/settings.json", {"agents"}),
+    (".claude/hooks/x.sh", {"agents"}),
+    (".agents/skills/x/SKILL.md", {"agents"}),
+    ("AGENTS.md", {"agents"}),
+    ("CLAUDE.md", {"agents"}),
+    ("context/CLAUDE.md", {"agents"}),
+    ("docs/AGENTS.md", {"agents"}),
     # Paths in no row: not docs_only, so the own shards run.
     ("tests/unit/test_x.py", set()),
     ("tests/checks/test_rules.py", set()),
@@ -344,6 +351,49 @@ def test_only_a_pull_request_into_dev_is_held_to_a_news_file() -> None:
     into main carries the news files of every change it releases, assembled by the bump."""
     for event in (PUSH_DEV, PR_MAIN, TAG, DISPATCH, SCHEDULE):
         assert _news_refusals(["src/x.py"], event) == [], event
+
+
+# ---------------------------------------------------------------------------------------------
+# The files an agent's tool loads by itself: quick alone, but a news file and a review, as code
+
+AGENTS_PATHS = [".claude/settings.json", ".claude/hooks/x.sh", "AGENTS.md"]
+
+
+@pytest.mark.parametrize("path", AGENTS_PATHS)
+def test_an_agents_change_runs_quick_alone_and_is_not_documentation(path) -> None:
+    """A hook in the agents' settings runs on every machine that opens the repository, so a change
+    to it is reviewed; nothing the judge's shards run reads it, so quick alone runs."""
+    d = ci_plan.decide([path], PR_DEV)
+    assert not d.docs_only and d.agents and not d.judge
+    sel = ci_plan.select(d, PLAN)
+    assert sel["selected"] == [] and sel["verify"] == [] and sel["build"] is False
+
+
+def test_an_agents_change_carries_its_news_file_and_its_review() -> None:
+    assert _news_refusals(["AGENTS.md"])
+    alone = ci_plan.Commit("a" * 40, ("AGENTS.md", NEWS), (AUTHOR,))
+    (refusal,) = _review_refusals(_pr(commits=[alone]), changed=("AGENTS.md", NEWS))
+    assert "no review file" in refusal
+    review = ci_plan.Commit("b" * 40, (REVIEW,), (OTHER,))
+    changed = ["AGENTS.md", NEWS, REVIEW]
+    d = ci_plan.decide(changed, PR_DEV)
+    assert ci_plan.refusals(d, PR_DEV, changed, _pr(commits=[alone, review])) == []
+
+
+def test_an_agents_change_after_the_review_is_refused() -> None:
+    code = ci_plan.Commit("a" * 40, ("src/x.py", NEWS), (AUTHOR,))
+    review = ci_plan.Commit("b" * 40, (REVIEW,), (OTHER,))
+    hook = ci_plan.Commit("c" * 40, (".claude/settings.json",), (AUTHOR,))
+    changed = ("src/x.py", NEWS, REVIEW, ".claude/settings.json")
+    (refusal,) = _review_refusals(_pr(commits=[code, review, hook]), changed=changed)
+    assert "cccccccccccc" in refusal and ".claude/settings.json" in refusal
+
+
+def test_an_agents_file_beside_code_runs_the_codes_shards() -> None:
+    """A guard: the row takes quick alone only for a change that is the agents' files and
+    documentation, never for code beside them."""
+    d = ci_plan.decide(["AGENTS.md", "src/x.py"], PR_DEV)
+    assert d.runner and d.judge and not d.docs_only
 
 
 def test_a_release_pull_request_refuses_accepted_state_no_acceptance_wrote() -> None:
@@ -999,6 +1049,45 @@ def test_a_documentation_pull_request_with_a_skip_word_is_refused_too() -> None:
     assert ci_plan.refusals(ci_plan.decide(changed, PR_DEV), PR_DEV, changed, pr)
 
 
+# GitHub's second form: a message that ends with the trailer line skip-checks: true, in either
+# spelling. The description's line endings may be a browser's, \r\n.
+
+TRAILERS = ["skip-checks: true", "skip-checks:true", "Skip-Checks: TRUE", "  skip-checks: true  "]
+TRAILER_CASES = {
+    **{
+        f"{trailer!r} {name}": ("A change", BODY + eol + trailer + eol)
+        for trailer in TRAILERS
+        for name, eol in (("lf", "\n"), ("crlf", "\r\n"))
+    },
+    "the title alone": ("skip-checks: true", ""),
+}
+
+
+@pytest.mark.parametrize(("title", "body"), TRAILER_CASES.values(), ids=list(TRAILER_CASES))
+def test_the_skip_checks_trailer_is_refused(title, body) -> None:
+    pr = _pr(body=body)
+    pr.title = title
+    changed = ["src/x.py", NEWS, REVIEW]
+    refused = [
+        r
+        for r in ci_plan.refusals(ci_plan.decide(changed, PR_DEV), PR_DEV, changed, pr)
+        if "skip-checks" in r
+    ]
+    assert len(refused) == 1, refused
+
+
+@pytest.mark.parametrize(
+    "line",
+    ["skip-checks: false", "the skip-checks: true trailer is refused", "skip-checks: truely"],
+)
+def test_a_line_that_is_no_skip_trailer_is_not_refused(line) -> None:
+    """A guard: a line that is no trailer, or a sentence that names one, is not refused."""
+    pr = _pr(body=BODY + "\n" + line + "\n")
+    pr.title = "A change"
+    changed = ["src/x.py", NEWS, REVIEW]
+    assert ci_plan.refusals(ci_plan.decide(changed, PR_DEV), PR_DEV, changed, pr) == []
+
+
 def test_a_title_and_description_without_a_skip_word_are_not_refused() -> None:
     pr = _pr()
     pr.title = "Skip the cache on CI: ci skips nothing"
@@ -1063,6 +1152,12 @@ def test_bump_and_date_land_as_the_releases_documentation_change() -> None:
     assert not plain.docs_only and plain.judge
 
 
+def test_the_preparation_may_not_carry_an_agents_file() -> None:
+    """The preparation asks no review file, so the agents' settings ride in it never."""
+    extra = ("M", ".claude/settings.json")
+    assert not ci_plan.is_release_preparation([*PREPARATION, extra], version_line_only=True)
+
+
 def test_only_the_version_line_may_move_in_the_version_file() -> None:
     bumped = '--- a/x\n+++ b/x\n@@ -3 +3 @@\n-__version__ = "0.1.0"\n+__version__ = "0.1.1"\n'
     assert ci_plan.version_line_only(bumped)
@@ -1109,3 +1204,166 @@ def test_a_preparation_that_adds_a_ledger_block_is_refused_named() -> None:
     d = ci_plan.decide(changed, PR_DEV, preparation_refusal=why)
     assert not d.docs_only and d.judge
     assert any(why in r for r in ci_plan.refusals(d, PR_DEV, changed, _pr(commits=[])))
+
+
+# ---------------------------------------------------------------------------------------------
+# A path git would quote is read by its name
+
+QUOTED = [
+    ".github/workflows/\u00e9.yml",
+    "src/wasi_python/\u00e9.py",
+    'src/a"b.py',
+    "src/tab\there.py",
+    "src/new\nline.py",
+]
+
+
+@pytest.fixture
+def quoted_repo(tmp_path, monkeypatch):
+    """A repository whose second commit adds five names git quotes, made in the index alone, so
+    no such name is ever written to a disk."""
+    git = shutil.which("git")
+    if git is None:
+        pytest.skip("needs: git")
+    config = tmp_path / "gitconfig"
+    config.write_text("[user]\n\tname = t\n\temail = t@t\n[commit]\n\tgpgsign = false\n")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(config))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    repo = tmp_path / "repo"
+    subprocess.run([git, "init", "-q", "-b", "dev", str(repo)], check=True)
+
+    def run(*args: str, stdin: bytes | None = None) -> str:
+        return (
+            subprocess.run(
+                [git, "-C", str(repo), *args], check=True, capture_output=True, input=stdin
+            )
+            .stdout.decode()
+            .strip()
+        )
+
+    run("commit", "-q", "--allow-empty", "-m", "start")
+    base = run("rev-parse", "HEAD")
+    blob = run("hash-object", "-w", "--stdin", stdin=b"x\n")
+    for path in QUOTED:  # git for Windows refuses a quote, a tab or a newline unless told
+        run("-c", "core.protectNTFS=false", "update-index", "--add", "--cacheinfo",
+            f"100644,{blob},{path}")  # fmt: skip
+    run("commit", "-q", "-m", "quoted")
+    return repo, base, run("rev-parse", "HEAD")
+
+
+def test_a_path_git_quotes_is_read_by_its_name(quoted_repo) -> None:
+    repo, base, head = quoted_repo
+    assert sorted(ci_plan._diff(base, head, repo=repo)) == sorted(QUOTED)
+
+
+def test_a_commits_quoted_paths_are_read_by_their_names(quoted_repo) -> None:
+    repo, base, head = quoted_repo
+    (commit,) = ci_plan.read_pull_request(repo, base, head, BODY, []).commits
+    assert sorted(commit.paths) == sorted(QUOTED)
+
+
+def test_the_status_pairs_read_a_quoted_path(quoted_repo) -> None:
+    repo, base, head = quoted_repo
+    assert sorted(ci_plan.status_pairs(base, head, repo=repo)) == sorted(("A", p) for p in QUOTED)
+
+
+def test_a_quoted_workflow_path_runs_full_and_a_quoted_runner_path_runs_macos(quoted_repo) -> None:
+    repo, base, head = quoted_repo
+    d = ci_plan.decide(ci_plan._diff(base, head, repo=repo), PR_DEV)
+    assert d.workflow and d.full and d.runner
+    assert ci_plan.select(d, PLAN)["macos"]
+
+
+# ---------------------------------------------------------------------------------------------
+# An edit that leaves the base alone re-uses the newest run on its head when that run is green
+
+EDIT_HEAD = "4" * 40
+THIS_RUN = 100
+
+
+def _edited() -> object:
+    """A pull request into dev whose description was edited, its base left alone."""
+    return ci_plan.Event("pull_request", ref="refs/pull/7/merge", base_ref="dev", action="edited")
+
+
+def _run(run_id: int, sha: str = EDIT_HEAD, status: str = "completed") -> dict:
+    return {"databaseId": run_id, "headSha": sha, "status": status}
+
+
+def _edit(runs, jobs):
+    return ci_plan.reusable_after_edit(EDIT_HEAD, runs, THIS_RUN, jobs_of=lambda i: jobs.get(i))
+
+
+def test_an_edit_reuses_the_newest_green_run_on_its_head() -> None:
+    run, why = _edit([_run(THIS_RUN, status="in_progress"), _run(7)], {7: GREEN})
+    assert run == 7 and "run 7" in why
+    changed = ["src/x.py", NEWS, REVIEW]
+    d = ci_plan.decide(changed, _edited(), reused=(run, why))
+    out = ci_plan.outputs(d, ci_plan.select(d, PLAN), [])
+    assert d.quiet and {k for k, v in out.items() if v == "true"} == set()
+    assert any("run 7" in w for w in d.why)
+
+
+NOT_GREEN = {
+    "failed": ([_run(7)], {7: {**GREEN, "judge (windows-2025, own-a)": "failure"}}),
+    "cancelled": ([_run(7)], {7: {**GREEN, "gather the shards' records": "cancelled"}}),
+    "unfinished": ([_run(7, status="in_progress")], {7: GREEN}),
+}
+
+
+@pytest.mark.parametrize("state", list(NOT_GREEN))
+def test_an_edit_after_a_run_that_is_not_green_runs_the_selection(state) -> None:
+    runs, jobs = NOT_GREEN[state]
+    assert _edit(runs, jobs) == (None, "")
+
+
+def test_an_edit_after_a_run_on_another_head_runs_the_selection() -> None:
+    assert _edit([_run(7, sha=CODE_HEAD)], {7: GREEN}) == (None, "")
+
+
+def test_an_edit_never_reuses_an_older_green_run_behind_the_newest() -> None:
+    """A retarget's run, cancelled by a later edit, stands before a green run into dev: the edit
+    may not reach past it, or the release pull request would wear the narrow run's green."""
+    cancelled = {**GREEN, "judge (macos-15, own-a)": "cancelled"}
+    assert _edit([_run(9), _run(7)], {9: cancelled, 7: GREEN}) == (None, "")
+
+
+def test_a_base_change_never_reuses() -> None:
+    env = {"GITHUB_EVENT_NAME": "pull_request", "GITHUB_REF": "refs/pull/8/merge",
+           "GITHUB_BASE_REF": "main", "PLAN_ACTION": "edited"}  # fmt: skip
+    assert ci_plan.event_of(env).edited
+    assert not ci_plan.event_of({**env, "PLAN_OLD_BASE": "dev"}).edited
+    assert not ci_plan.event_of({**env, "PLAN_ACTION": "synchronize"}).edited
+
+
+def test_an_edit_skips_its_own_run() -> None:
+    red = {**GREEN, "quick": "failure"}
+    assert _edit([_run(THIS_RUN), _run(7)], {THIS_RUN: GREEN, 7: red}) == (None, "")
+    assert _edit([_run(THIS_RUN), _run(7)], {THIS_RUN: red, 7: GREEN})[0] == 7
+
+
+def test_an_edit_reuses_a_run_that_was_itself_a_reuse() -> None:
+    quiet = {"plan": "success", "quick": "success", "gather the shards' records": "skipped",
+             "verify (ubuntu-24.04)": "skipped", "ci-status": "success"}  # fmt: skip
+    assert _edit([_run(9), _run(7)], {9: quiet, 7: GREEN})[0] == 9
+
+
+def test_an_edit_reads_its_description_anew() -> None:
+    changed = ["src/x.py", NEWS, REVIEW]
+    d = ci_plan.decide(changed, _edited(), reused=(7, "re-uses run 7"))
+    pr = _pr(body=BODY + "\nnow [skip ci]\n")
+    assert any("[skip ci]" in r for r in ci_plan.refusals(d, _edited(), changed, pr))
+
+
+def test_a_run_from_a_fork_is_never_reused() -> None:
+    """A fork's branch of the same name at the same head is listed by branch and event alike;
+    only the run's head repository tells them apart."""
+
+    def run(run_id: int, owner: str) -> dict:
+        return {"id": run_id, "head_sha": EDIT_HEAD, "status": "completed",
+                "conclusion": "success", "head_repository": {"full_name": owner}}  # fmt: skip
+
+    payload = {"workflow_runs": [run(8, "someone/wasi-python"), run(7, "ClayGendron/wasi-python")]}
+    assert ci_plan.runs_of(payload, "ClayGendron/wasi-python") == [
+        {"databaseId": 7, "headSha": EDIT_HEAD, "status": "completed", "conclusion": "success"}
+    ]
