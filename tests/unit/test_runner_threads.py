@@ -421,7 +421,23 @@ RESOLVE_ONCE = {
     "macos access list": (
         lambda: _platform._Darwin(),
         lambda p: p._access_list(0, is_dir=True),
-        {"acl_get_fd_np": lambda fd, kind: 1, "acl_free": lambda found: 0},
+        {
+            "acl_get_fd_np": lambda fd, kind: 1,
+            **dict.fromkeys(
+                [
+                    "acl_get_link_np",
+                    "acl_get_entry",
+                    "acl_get_tag_type",
+                    "acl_get_permset_mask_np",
+                    "acl_get_flagset_np",
+                    "acl_get_flag_np",
+                    "acl_get_qualifier",
+                    "mbr_uuid_to_id",
+                ],
+                lambda *args: 0,
+            ),
+            "acl_free": lambda found: 0,  # the table's last name
+        },
         True,
     ),
     "windows stack": (
