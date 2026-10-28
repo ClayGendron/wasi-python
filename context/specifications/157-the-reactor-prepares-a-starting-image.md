@@ -1,6 +1,6 @@
 # 157: The reactor prepares a starting image
 
-- **Status:** drafted 2026-10-27 with specification 150, which stands on it; not yet built. It changes the guest's exports, the artifact set's bytes and the build recipe, so it is reviewed before it is built (constitution §5.6), as `../reviews/157-the-reactor-prepares-a-starting-image-spec-YYYY-MM-DD.md`. Decision 5 is the one choice the owner has not yet been asked; it is written so the owner may reverse it before the build, and says what changes if so.
+- **Status:** drafted 2026-10-27 with specification 150, which stands on it; not yet built. It changes the guest's exports, the artifact set's bytes and the build recipe, so it is reviewed before it is built (constitution §5.6), as `../reviews/157-the-reactor-prepares-a-starting-image-spec-YYYY-MM-DD.md`. Decision 5 (how a call from a prepared instance ends) is decided A by the orchestrating session on 2026-10-27; B is kept as the owner's alternative, and the decision says what changes if the owner chooses it.
 - **Date:** 2026-10-27
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** (constitution §5.6 and §5.7), **not structural**: it changes no file under `src/`. Recipe: `recipes/reactor_main.c` (the export `prepare`, the flag `prepared` and the reference `end_function`, `pinned` split into two bits, and a prepared instance's ending in `run` and `shutdown`), `recipes/reactor_bootstrap.py` (`prepare`, `_end`, and three more reseeds in `_refresh`), a new recipe file `recipes/snapshot-packages.txt`, and `scripts/assemble_artifacts.py` (it reads that file, writes MANIFEST's `x-snapshot-packages` line, and stops the build on a package with no line there). The artifact bytes that change: `python.wasm` and `python-snapshot.wasm` (new code, and the snapshot's heap holds the larger `_reactor`), `MANIFEST` (the recipe lines' hashes and the new line) and `SHA256SUMS`. `python-stdlib.zip` does not change (the bootstrap is frozen into the binaries, not the zip), so `x-snapshot-zip` keeps its value. No pin, no patch, no change to `downloads/SHA256SUMS`. The judge: `tests/harness/artifacts.py` (`PLAIN_EXPORTS`, `SNAPSHOT_EXPORTS` and `EXPORT_TYPES` gain `prepare`), `tests/checks/test_v1_1_artifact_set.py` (one row for the new MANIFEST line), `tests/harness/guest.py` (the judge's driver learns to prepare, capture and restore), a new `tests/checks/test_v1_4_prepare.py`, rows in `tests/unit/test_artifact_rules.py` for the list's reader, and a cap for the new family in `tests/lint/budget.toml`. Every guest fuel row and the two binaries' byte rows move; the news file claims them with the reason of Decision 9, and the release-tier ledger gets the upstream suites' block. `tests/public_api.txt` does not change.
@@ -83,9 +83,9 @@ It frees the buffer and returns -1, running no Python, when any of these holds: 
 
 Reason: an image is a snapshot instance's memory, restored into a snapshot instance; a prelude run after a program or a turn would freeze that program's state too, which is a checkpoint of a guest's run, outside this release (the owner, `../decisions.md:498`). Since a running program or turn has set `run_called` or `turned`, nothing a guest does can reach `prepare` and have it run.
 
-### 5. How a call from a prepared instance ends (the owner's to confirm)
+### 5. How a call from a prepared instance ends (A, decided; B the owner's alternative)
 
-This is the one choice in 157 and 150 the owner has not yet been asked. The orchestrator puts it to the owner before the build; the recommendation is written in, and what changes under the other choice is stated.
+The orchestrating session chose A on 2026-10-27; the owner may choose B before the build, and what changes under B is stated.
 
 **The choice.** In an instance where `prepared` is 1, `run` and `shutdown` end the call one of two ways.
 
