@@ -26,6 +26,7 @@ new = [
   "tests/unit/test_runner_module_caches.py::test_a_relative_cache_variable_is_the_folder_it_named_at_the_call",
   "tests/unit/test_runner_module_caches.py::test_a_cache_variable_set_after_the_call_is_not_read_by_it",
   "tests/unit/test_runner_module_caches.py::test_a_dotdot_after_a_link_in_cache_dir_means_what_the_system_means",
+  "tests/unit/test_runner_module_caches.py::test_on_windows_a_cache_folder_is_made_absolute_keeping_every_dotdot",
 ]
 # Judge changes, neither file verdict-bearing: the swap row is rewritten so that wasmtime is
 # given the path and the name's stamp checked after the load is what discards the swapped file
@@ -34,5 +35,5 @@ new = [
 changed = [
   "tests/unit/test_runner_module_caches.py::test_a_cwasm_swapped_between_its_check_and_its_load_is_discarded",
 ]
-units = 20
+units = 25
 ```

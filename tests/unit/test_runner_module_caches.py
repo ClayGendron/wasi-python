@@ -558,6 +558,31 @@ def test_a_cache_variable_set_after_the_call_is_not_read_by_it(work, monkeypatch
     assert not any(late == path or late in path.parents for path in named), named
 
 
+WIN_CWD = {"": "C:\\work", "C:": "C:\\work", "D:": "D:\\elsewhere"}
+
+
+@pytest.mark.parametrize(
+    ("spelled", "absolute"),
+    [
+        ("rel\\link\\..\\c", "C:\\work\\rel\\link\\..\\c"),
+        ("D:rel\\..\\x", "D:\\elsewhere\\rel\\..\\x"),
+        ("\\top\\..\\x", "C:\\top\\..\\x"),
+        ("C:\\a\\link\\..\\b", "C:\\a\\link\\..\\b"),
+        ("\\\\server\\share\\a\\..\\b", "\\\\server\\share\\a\\..\\b"),
+    ],
+    ids=["relative", "drive-relative", "rooted", "absolute", "share"],
+)
+def test_on_windows_a_cache_folder_is_made_absolute_keeping_every_dotdot(
+    monkeypatch, spelled, absolute
+) -> None:
+    """On Windows a relative cache folder joins the current folder of its drive, a
+    drive-relative one that drive's own, and a rooted one takes the current drive; every `..`
+    is kept, so the judge's walk takes it after the link before it, as the guest's open would.
+    The current folders are the observers' stand-ins, so the case runs on every system."""
+    monkeypatch.setattr(process().observers, "drive_folder", lambda drive: WIN_CWD[drive.upper()])
+    assert _platform_windows._Windows().absolute(spelled) == absolute
+
+
 @pytest.mark.skipif(not POSIX, reason="Windows itself takes `..` by its spelling")
 def test_a_dotdot_after_a_link_in_cache_dir_means_what_the_system_means(work) -> None:
     """`cache_dir` climbs with `..` after a link: the system climbs from where the link leads,

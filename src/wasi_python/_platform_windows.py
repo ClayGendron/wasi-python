@@ -242,9 +242,20 @@ class _Windows:
         return _platform_common._real_dir_by_path(root, parts), None
 
     def absolute(self, path: str) -> str:
-        """`path` against the working folder of its drive: Win32 takes `..` by its spelling
-        before it opens anything, and a drive-relative `D:rel` needs that drive's own folder."""
-        return os.path.abspath(path)
+        """`path` made absolute without dropping a `..`, as the judged walk reads it: a relative
+        path joins the current folder of its drive (the process's own when it names none, that
+        drive's for a drive-relative `D:rel`), and a rooted path with no drive takes the current
+        folder's drive. Only that start is normalised; every `..` the path spells is kept, so it
+        is taken on the folders walked, after any link before it, not dropped by its spelling."""
+        import ntpath
+
+        drive, tail = ntpath.splitdrive(path)
+        drive_folder = process().observers.drive_folder or _default_drive_folder
+        if tail[:1] in ("\\", "/") or drive[1:2] not in ("", ":"):  # rooted, or a share
+            if not drive:
+                drive = ntpath.splitdrive(drive_folder(""))[0]
+            return drive + tail
+        return ntpath.join(drive_folder(drive), tail)
 
     def long_path(self, path: str) -> str:
         """An extended-length path, so no path is limited to 260 characters."""
