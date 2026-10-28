@@ -16,6 +16,7 @@ import wasmtime as wt
 import wasi_python
 from harness import needs
 from wasi_python import _call, _engines, _home, _platform, _platform_windows, _wasmtime_ffi
+from wasi_python._fs_table import _Files
 from wasi_python._process import RENEW, process
 
 
@@ -61,6 +62,10 @@ class Keeping:
         self.instance = self.linker.instantiate(store, module)
         return self.instance
 
+    def get(self, store, module, name):
+        """wasmtime's own call, which the call's table forwards to."""
+        return self.linker.get(store, module, name)
+
 
 def drive(mode: int, host, *, other_store: bool = False, raises=None):
     """Run the guest through the runner's shared linker. Returns (exit code, trap) or ("raised",
@@ -72,7 +77,8 @@ def drive(mode: int, host, *, other_store: bool = False, raises=None):
     store.set_epoch_deadline(2**40)
     store.set_wasi(wt.WasiConfig())
     owner = wt.Store(engine) if other_store else store
-    call = _call._Call(owner, host, NoWaits(), 0)
+    table = _Files([], [], None, 1 << 30, False, engine, context=_call._Context())  # no mounts
+    call = _call._Call(owner, host, NoWaits(), 0, table=table)
     linker = Keeping(_call._linker(wt, engine))
     try:
         done = _call._drive(wt, linker, store, wt.Module(engine, guest(mode)), call, None)

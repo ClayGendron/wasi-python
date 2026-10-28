@@ -142,6 +142,9 @@ soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
 want = 2048 if hard == resource.RLIM_INFINITY else min(hard, 2048)
 resource.setrlimit(resource.RLIMIT_NOFILE, (want, hard))  # this process's own limit, for itself
 import wasi_python
+from wasi_python._process import process
+falls = []
+process().observers.on_slow_loop = falls.append
 assert wasi_python.run(["-c", "pass"]).exit_code == 0  # the engine, the module and the ticker
 held = [os.open(os.devnull, os.O_RDONLY) for _ in range(1030)]
 r, w = os.pipe()
@@ -153,20 +156,21 @@ done = wasi_python.run(["-c", {WRITE_MIB!r}])
 after = set(threading.enumerate())
 print("call", done.exit_code, len(done.stdout), done.stdout == b"z" * (1 << 20))
 print("new threads", len(after - before))
+print("falls", falls)
 """
 
 
 @pytest.mark.skipif(not POSIX, reason="Windows keeps the callback: no descriptor is read")
 def test_output_arrives_above_descriptor_1024() -> None:
     """In a child that raises its own soft descriptor limit and holds 1,030 descriptors, so every
-    descriptor the capture makes is above 1,023: the mebibyte arrives whole and no thread stays.
-    A reader that waited with `select.select` would die at its first wait, and the guest would
-    block for ever on a full pipe."""
+    descriptor the capture makes is above 1,023: the mebibyte arrives whole, no thread stays,
+    and the reader never fell to its slow loop, so its wait read every byte. A reader that waited
+    with `select.select` would fail at its first wait."""
     needs.need("runner", "artifact dir", "descriptor limit")
     lines = _child(ABOVE_1024)
     lowest = int(lines[0].split()[1])
     assert lowest > 1023, lines
-    assert lines[1:] == ["call 0 1048576 True", "new threads 0"], lines
+    assert lines[1:] == ["call 0 1048576 True", "new threads 0", "falls []"], lines
 
 
 FORKED_CHILD = f"""
@@ -283,6 +287,9 @@ READER_FAILS = f"""
 import select, signal, sys
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)  # as a command line that wants `| head` quiet
 import wasi_python
+from wasi_python._process import process
+falls = []
+process().observers.on_slow_loop = falls.append
 assert wasi_python.run(["-c", "pass"]).exit_code == 0
 real = select.poll
 
@@ -308,6 +315,7 @@ with wasi_python.Session() as s:
     turns = [s.run(f"import sys\\nsys.stdout.write({{c!r}} * 100000)\\nprint(1)") for c in "ab"]
 own = [(t.exit_code, t.stdout == c.encode() * 100000 + b"1\\n") for t, c in zip(turns, "ab")]
 print("turns", own)
+print("falls", falls)
 """
 
 
@@ -316,10 +324,69 @@ def test_a_reader_whose_wait_fails_still_reads_every_byte() -> None:
     """In a child that restores SIGPIPE's default action, with every wait of the reader made to
     fail: a call still gets its mebibyte whole and a session's two turns their own bytes, and
     the child lives. A reader that closed its ends on such a failure would refuse the guest's
-    next write, and the signal that refusal raises would end the host process."""
+    next write, and the signal that refusal raises would end the host process. Each reader, the
+    call's and the session's, reports its fall to the slow loop once."""
     needs.need("runner", "artifact dir")
     lines = _child(READER_FAILS)
-    assert lines == ["call 0 1048576 True ()", "turns [(0, True), (0, True)]"], lines
+    assert lines == [
+        "call 0 1048576 True ()",
+        "turns [(0, True), (0, True)]",
+        "falls ['OSError', 'OSError']",
+    ], lines
+
+
+# A read of the pipe that fails takes nothing from it, and the reader reads the end again: no
+# byte is lost, and the stream is not named. An end whose reads fail until the call ends may
+# still hold bytes, and its stream is named.
+FAILING_READS = """
+import os, sys, threading
+import wasi_python
+from wasi_python import _outputs
+assert wasi_python.run(["-c", "pass"]).exit_code == 0
+real, failed = os.read, []
+always = sys.argv[1] == "always"
+
+
+def read(fd, n):
+    reader = threading.current_thread().name == "wasi-python-output"
+    if reader and n == _outputs.READ_BYTES and (always or not failed):
+        failed.append(fd)
+        raise OSError(5, "a read that fails")
+    return real(fd, n)
+
+
+os.read = read
+done = wasi_python.run(["-c", sys.argv[2]])
+print("call", done.exit_code, len(done.stdout), set(done.stdout), done.truncated, bool(failed))
+"""
+
+
+def _failing_reads(how: str, code: str) -> list[str]:
+    needs.need("runner", "artifact dir")
+    out = subprocess.run(
+        [sys.executable, "-I", "-c", FAILING_READS, how, code],
+        capture_output=True,
+        text=True,
+        timeout=300,  # a fail-safe for a call that would hang, not a timing
+    )
+    assert out.returncode == 0, out.stderr[-2000:]
+    return out.stdout.splitlines()
+
+
+@pytest.mark.skipif(not POSIX, reason="Windows keeps the callback: no pipe is read")
+def test_a_failed_read_loses_no_byte_and_names_no_stream() -> None:
+    """The reader's first read of the guest's output fails once: the mebibyte arrives whole,
+    and `truncated` names nothing, since no byte was lost."""
+    lines = _failing_reads("once", WRITE_MIB)
+    assert lines == ["call 0 1048576 {122} () True"], lines
+
+
+@pytest.mark.skipif(not POSIX, reason="Windows keeps the callback: no pipe is read")
+def test_an_end_never_read_again_names_its_stream() -> None:
+    """Every read of either end fails until the call ends: what each end held may still be in
+    the pipe, so both streams are named, though only stdout had bytes."""
+    lines = _failing_reads("always", "import os\nos.write(1, b'z' * 100)")
+    assert lines == ["call 0 0 set() ('stdout', 'stderr') True"], lines
 
 
 def test_each_reader_is_joined_once(monkeypatch) -> None:

@@ -619,8 +619,15 @@ def test_a_late_gate_skips_an_async_tool(caller, posted) -> None:
             return True
 
         gate = sync_gate if gate_kind == "sync" else late_gate
+
+        # An async gate runs on the loop thread, which can set `moved` before the work thread
+        # that posted it records the post, so its clock also waits for the post it asserts.
+        def both(moved=moved) -> bool:
+            return moved.is_set() and posted.is_set()
+
+        moves = moved.is_set if gate_kind == "sync" else both
         host = _host([tool(transfer, timeout_s=1.0)], gate=gate, loop=caller.loop,
-                     clock=Clock(moved.is_set))  # fmt: skip
+                     clock=Clock(moves))  # fmt: skip
         assert kind(host(call_frame("transfer"))) == "timeout"
         assert _last(host).abandoned is True
         posts_before_release = posted.is_set()
