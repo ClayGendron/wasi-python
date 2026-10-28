@@ -1,6 +1,10 @@
-# The documentation site, built with `uv run --group docs mkdocs build --strict` and deployed to
-# GitHub Pages from each release tag by .github/workflows/docs.yml. Only settings that Zensical
-# also reads are used, so the site can move to it without a rewrite.
+# The documentation site, built with
+# `UV_PROJECT_ENVIRONMENT=build/docs-venv uv run --group docs mkdocs build --strict`: in an
+# environment of its own, since the docs group brings platformdirs, which registers a pytest
+# plugin, and the judge refuses a run a foreign plugin steers. If a build was made in `.venv`,
+# `uv sync --locked` removes the group. Deployed to GitHub Pages from each release tag by
+# .github/workflows/docs.yml. Only settings that Zensical also reads are used, so the site can
+# move to it without a rewrite.
 site_name: wasi-python
 site_description: A statically linked CPython for WebAssembly hosts, with the scientific Python stack compiled in.
 site_url: https://claygendron.github.io/wasi-python/
