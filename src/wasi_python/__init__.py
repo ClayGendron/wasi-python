@@ -29,6 +29,8 @@ from __future__ import annotations
 from . import _process
 from . import runner as _runner
 from ._artifacts import Artifacts, ArtifactsMissing, artifact_dir, artifacts
+from ._snapshot import Snapshot, SnapshotFailed, SnapshotMismatch, SnapshotOrigin
+from ._snapshot_make import make_package_snapshot, make_snapshot
 from .mounts import (
     Errno,
     FileFault,
@@ -105,11 +107,17 @@ __all__ = [
     "RefusedWrite",
     "Session",
     "SessionEnded",
+    "Snapshot",
+    "SnapshotFailed",
+    "SnapshotMismatch",
+    "SnapshotOrigin",
     "Stat",
     "WritableFileProvider",
     "artifact_dir",
     "artifacts",
     "defaults",
+    "make_package_snapshot",
+    "make_snapshot",
     "run",
     "run_async",
     "set_defaults",
