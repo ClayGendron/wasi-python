@@ -90,6 +90,7 @@ class _Observers:
     after_export: Callable[[], None] | None = None  # after a turn's export returned
     on_call: Callable[[str, Any], None] | None = None  # each call built: its kind and the call
     on_capture: Callable[[str], None] | None = None  # each output capture opened: its kind
+    on_slow_loop: Callable[[str], None] | None = None  # each pipe reader's fall: the error's type
     clock: Callable[[], float] = time.monotonic  # the one clock the session bounds read
     start_ending: Callable[[_State], None] | None = None  # None: the production closer
     drive_folder: Callable[[str], str] | None = None  # None: `ntpath.abspath(drive or ".")`

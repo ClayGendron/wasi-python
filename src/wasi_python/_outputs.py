@@ -20,14 +20,16 @@ The reader's rules. It waits with `select.poll`, which takes any descriptor, whe
 `select.select` refuses one of 1,024 or more. It ends when `close()` asks, after the store has
 closed and nothing more can arrive, or earlier once both streams have reached end of file; it
 never waits for end of file, since a forked child of the embedder holds copies of wasmtime's
-write ends for as long as the child lives. A piece it fails to keep is dropped and its stream
-named as truncated. If its wait or a read fails, it reads on without blocking in a slower loop
-until `close()` asks: it never stops reading, since a guest blocked in a host write on a full
-pipe is beyond the deadline, a cancel and Ctrl-C, which stop wasm code only; and it never closes
-an end the guest may still write to, since that write would refuse the guest and would end a
-host that restored SIGPIPE's default action. Whatever ends it, it tells every waiter. A turn's
-settle rests on wasmtime writing a file output on the guest's own thread: a write has reached
-the pipe when `fd_write` returns.
+write ends for as long as the child lives. A stream is named as truncated where a piece is lost
+or may be: a piece it fails to keep, or an end whose last read failed when a turn's bytes are
+handed back or the reader ends; a failed read that a later read of its end follows takes nothing
+from the pipe and loses nothing. If its wait or a read fails, it reads on without blocking in a
+slower loop until `close()` asks: it never stops reading, since a guest blocked in a host write
+on a full pipe is beyond the deadline, a cancel and Ctrl-C, which stop wasm code only; and it
+never closes an end the guest may still write to, since that write would refuse the guest and
+would end a host that restored SIGPIPE's default action. Whatever ends it, it tells every
+waiter. A turn's settle rests on wasmtime writing a file output on the guest's own thread: a
+write has reached the pipe when `fd_write` returns.
 """
 
 from __future__ import annotations
@@ -96,6 +98,7 @@ class _PipeCapture:
         self.ended = False  # the reader has ended: both streams at end of file, or closed
         self.stop_asked = False  # the reader's own: `close()`'s stop byte has been read
         self.settle_owed = False  # the reader's own: a settle byte read, its answer not yet set
+        self.failing: set[int] = set()  # the reader's own: each end whose last read failed
         self.thread: threading.Thread | None = None  # the reader, until `close()` joins it
 
     def open(self, wasi: Any) -> bool:
@@ -177,8 +180,13 @@ class _PipeCapture:
                             return
                     elif fd in self.ends:  # not closed by a read earlier in this round
                         self._take(fd, poller)
-        except BaseException:
-            self._slow()
+        except BaseException as e:
+            try:
+                on_slow_loop = process().observers.on_slow_loop
+                if on_slow_loop is not None:
+                    on_slow_loop(type(e).__name__)
+            finally:
+                self._slow()  # whatever the observer does, the reader reads on
         finally:
             self._end()
 
@@ -208,18 +216,21 @@ class _PipeCapture:
     def _take(self, fd: int, poller: select.poll | None) -> bool:
         """One read of one end into its stream's current target; whether it read bytes. An
         empty read is end of file: every write end is closed, so the end is closed too. A read
-        that fails names the stream and is raised, so the reader moves to its slow loop; a
-        piece the stream fails to keep is dropped and named."""
+        that fails takes nothing from the pipe: its end is marked as failing until a read of it
+        does not fail, and the failure is raised, so the reader moves to its slow loop. A piece
+        the stream fails to keep is dropped and named."""
         which = self.ends[fd]
         with self.lock:
             target = self.targets[which]
         try:
             data = os.read(fd, READ_BYTES)
         except BlockingIOError:
+            self.failing.discard(fd)
             return False  # the slow loop's: nothing there yet
         except BaseException:
-            target.dropped = True
+            self.failing.add(fd)
             raise
+        self.failing.discard(fd)
         if not data:
             del self.ends[fd]
             if poller is not None:
@@ -238,7 +249,8 @@ class _PipeCapture:
         closes an end the guest may still write to, since a write into a closed pipe refuses
         the guest, and ends a host that restored SIGPIPE's default action; and it never stops
         reading, since a guest blocked on a full pipe is beyond the deadline, a cancel and
-        Ctrl-C, which stop wasm code only. A failed read names its stream and the loop goes on."""
+        Ctrl-C, which stop wasm code only. A failed read marks its end and the loop goes on; a
+        settle answered while an end is marked names that end's stream."""
         for fd in (*self.ends, self.wake[0]):
             try:
                 os.set_blocking(fd, False)
@@ -256,6 +268,7 @@ class _PipeCapture:
                     return
                 if SETTLE in asked or self.settle_owed:  # read after the byte: all before it
                     self.settle_owed = False
+                    self._name_failing()
                     self.settled.set()
                 if not got:
                     time.sleep(SLOW_WAIT_S)
@@ -270,19 +283,29 @@ class _PipeCapture:
 
     def _drain_end(self, fd: int) -> bool:
         """One end read without blocking until it is empty or at end of file; whether it had
-        bytes. A read that fails names the stream and leaves the end for the next round."""
+        bytes. A read that fails marks the end and leaves it for the next round."""
         got = False
         try:
             while fd in self.ends and self._take(fd, None):
                 got = True
         except BaseException:
-            pass  # the stream is named; the loop reads this end again next round
+            pass  # the end is marked; the loop reads it again next round
         return got
+
+    def _name_failing(self) -> None:
+        """Each end whose last read failed may still hold bytes its stream never got, now that
+        the stream is handed back: the stream is named."""
+        with self.lock:
+            for fd in self.failing:
+                which = self.ends.get(fd)
+                if which is not None:
+                    self.targets[which].dropped = True
 
     def _end(self) -> None:
         """The reader's last act, after `close()` asked or both streams reached end of file:
         the read ends it still holds closed, since no write end is left in this process, and
         every waiter told."""
+        self._name_failing()
         for fd in self.ends:
             _close_quietly(fd)
         self.ends = {}
