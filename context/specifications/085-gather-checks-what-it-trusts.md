@@ -328,3 +328,4 @@ The gather stops believing what a record says about itself on three points it ca
 
 - No goal row moved. This acceptance is the first to carry set_sums (89b14f67, the SHA256SUMS hash of the set the lane rebuilt at 650834a), so the dry run's G7 compares the whole set with CI's build.
 - Reviews: `../reviews/085-*` and the wave's integration review. The lane's accept flags are in the history line's reasons, each prefixed by its number.
+- 2026-10-28, by 150's fix-forward: a dropped metric a news file's `grows` claim names is no longer red twice. G5's presence rule reads the claim the ratchet reads, so the row is listed under `GROWTH` with its reason; an unclaimed drop stays red on every system.
