@@ -101,7 +101,12 @@ class _Process:
         self.pool_lock = threading.Lock()
         self.pool: ThreadPoolExecutor | None = None
         self.pool_size: int = 0
-        self.pools: list[ThreadPoolExecutor] = []  # every default pool made, for exit
+        # The default pool, and each it replaced while any of its futures is not yet done, for
+        # exit: each with the count of its futures not yet done.
+        self.pools: dict[ThreadPoolExecutor, int] = {}
+        # A pool once for each of its futures done, told without a lock; counted at the next
+        # submit, under `pool_lock`.
+        self.pool_done: queue.SimpleQueue[ThreadPoolExecutor] = queue.SimpleQueue()
         self.live_lock = threading.Lock()
         # Each live call's cancel event; beside a session's queued turn, its future and the
         # release of its claim, for the exit hook to run if it cancels the turn before it starts.

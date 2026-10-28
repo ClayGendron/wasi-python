@@ -20,7 +20,9 @@ from __future__ import annotations
 
 import atexit
 import contextvars
+import functools
 import os
+import queue
 import threading
 import weakref
 from collections.abc import Callable, Iterable, Mapping
@@ -500,15 +502,40 @@ def _submit(
     with p.pool_lock:
         if p.exiting:  # the exit hook has run: never start a pool's call again
             raise RuntimeError("cannot schedule new futures after interpreter shutdown")
+        while True:  # count what is done, and let go of a replaced pool with nothing left
+            try:
+                done = p.pool_done.get_nowait()
+            except queue.Empty:
+                break
+            left = p.pools.get(done, 0) - 1
+            if left > 0 or done is p.pool:
+                p.pools[done] = max(left, 0)
+            else:
+                p.pools.pop(done, None)
         size = _current_defaults().async_workers
         if p.pool is None or p.pool_size != size:
             old = p.pool
             new = concurrent.futures.ThreadPoolExecutor(size, thread_name_prefix="wasi-python")
-            p.pools.append(new)
+            p.pools[new] = 0
             p.pool, p.pool_size = new, size
             if old is not None:
                 old.shutdown(wait=False)  # its running calls finish
-        return p.pool.submit(fn, *args)
+                if not p.pools.get(old):  # none of its futures left: nothing for exit to cancel
+                    p.pools.pop(old, None)
+        pool = p.pool
+        future = pool.submit(fn, *args)
+        p.pools[pool] = p.pools.get(pool, 0) + 1
+    future.add_done_callback(functools.partial(_pool_future_done, pool))
+    return future
+
+
+def _pool_future_done(pool: concurrent.futures.ThreadPoolExecutor, future: Any) -> None:
+    """One of a default pool's futures is done, told to the next submit, which counts it under
+    the pool's lock: so a pool a resize replaced is let go once none of its futures is left, and
+    the process keeps one pool, not one per resize. It takes no lock, since it may run on the
+    worker, on the thread that cancelled the future, under the executor's own lock, or in
+    `_submit` itself."""
+    process().pool_done.put(pool)
 
 
 def _register_exit_hook() -> None:

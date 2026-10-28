@@ -243,8 +243,8 @@ def test_a_call_cancelled_before_it_runs_never_starts_its_guest(monkeypatch) -> 
 
 def test_a_replaced_pool_is_dropped_once_its_futures_are_done(monkeypatch) -> None:
     """Each `async_workers` resize makes a new default pool; the one it replaced is kept only
-    while its futures may still be queued, for the exit hook to cancel, and dropped once they are
-    done, so the process keeps one pool, not one per resize."""
+    while its futures may still be queued, for the exit hook to cancel, and let go by the next
+    submit once they are done, so the process keeps one pool, not one per resize."""
     import dataclasses
 
     import wasi_python
@@ -252,6 +252,7 @@ def test_a_replaced_pool_is_dropped_once_its_futures_are_done(monkeypatch) -> No
     monkeypatch.setattr(process(), "pool", None)
     monkeypatch.setattr(process(), "pool_size", 0)
     monkeypatch.setattr(process(), "pools", type(process().pools)())
+    monkeypatch.setattr(process(), "pool_done", type(process().pool_done)())
     before = wasi_python.defaults()
     replaced = []
     try:
@@ -259,10 +260,11 @@ def test_a_replaced_pool_is_dropped_once_its_futures_are_done(monkeypatch) -> No
             wasi_python.set_defaults(dataclasses.replace(before, async_workers=size))
             assert runner._submit(None, abs, -size).result() == size
             replaced.append(process().pool)
+        for pool in replaced[:-1]:
+            pool.shutdown(wait=True)  # its workers have run every callback
+        assert runner._submit(None, abs, -5).result() == 5  # the next submit, at the same size
     finally:
         wasi_python.set_defaults(before)
-    for pool in replaced[:-1]:
-        pool.shutdown(wait=True)  # its workers have run every callback
     assert list(process().pools) == [replaced[-1]]
     replaced[-1].shutdown(wait=True)
 
