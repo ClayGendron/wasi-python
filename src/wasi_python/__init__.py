@@ -20,7 +20,8 @@ The public API is this module's `__all__`, the module `wasi_python.tools` (host 
 guest may call), the `wasi-python` command, and the environment variables
 `WASI_PYTHON_ARTIFACTS` and `WASI_PYTHON_CACHE`. Everything else is internal, the modules
 `runner`, `mounts` and `cli` included, and may change in any release. Importing this module
-never loads wasmtime-py; `run` does. README.md's "API reference" lists every public name and
+never loads wasmtime-py; `run` does. The documentation's *Python API* page,
+https://claygendron.github.io/wasi-python/reference/python-api/, lists every public name and
 the promise each release keeps.
 """
 

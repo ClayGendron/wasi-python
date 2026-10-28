@@ -183,8 +183,9 @@ def _vet(name: str, root: _Json, validates_input: bool) -> list[Any]:
         if not prop.isidentifier() or keyword.iskeyword(prop):
             raise ValueError(
                 f"{where}: the property {prop!r} is not a Python identifier, or is a keyword; "
-                "the guest calls the tool with it as a keyword argument (rename it, as the "
-                "README shows)"
+                "the guest calls the tool with it as a keyword argument (rename it and map it "
+                "back, as https://claygendron.github.io/wasi-python/reference/tool-protocol/ "
+                "shows under Names)"
             )
     required = root.get("required", [])
     if isinstance(required, list):

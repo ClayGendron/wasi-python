@@ -145,9 +145,9 @@ def run(
     `mounts` give it. Every argument is checked before any work. A call that names no limit has
     the ones `defaults()` returns, read once, when the call is made. Nothing a guest does, and
     no `Exception` a provider, a tool or a gate raises, makes `run` raise: a provider's `OSError`
-    may be its answer (the README's *Mounts*), and the rest are recorded in the result. A new
-    failure is raised as one of the types below, or a subclass of one;
-    messages may change.
+    may be its answer (the documentation's *Serve files from your own code*, under *Raise an
+    OSError instead*), and the rest are recorded in the result. A new failure is raised as one
+    of the types below, or a subclass of one; messages may change.
 
     Args:
         argv: The guest's arguments after the program's name, as for `python`: `["-c", code]`,
