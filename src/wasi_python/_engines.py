@@ -192,7 +192,7 @@ def _module_miss(
     binary: Path,
     cache: Path | None,
     digest: str,
-    held: bool | None = None,
+    held: bool | None,
     *,
     lstat: Callable[[str], os.stat_result] = os.lstat,
     reopen: Callable[..., int] = os.open,
@@ -231,8 +231,9 @@ def _compile(
     wt: Any, engine: wasmtime.Engine, binary: Path, digest: str, held: bool | None
 ) -> wasmtime.Module:
     """The module compiled from one read of `binary`, whose bytes must hash to `digest` unless
-    `held` is None: a file changed between its hash and its compile is never compiled, so it is
-    never cached under a digest it does not have. wasmtime-py's own `from_file` reads the whole
+    `held` is None, a key the caller names itself, never the binary's: a file changed between
+    its hash and its compile is never compiled, so it is never cached under a digest it does not
+    have. wasmtime-py's own `from_file` reads the whole
     file too; the hash is one pass over bytes already in memory."""
     data = binary.read_bytes()
     if held is not None and hashlib.sha256(data).hexdigest() != digest:

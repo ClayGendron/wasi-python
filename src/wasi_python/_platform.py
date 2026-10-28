@@ -524,8 +524,15 @@ class _Posix:
         for missing in _way(folder.parent, lstat):
             try:
                 os.mkdir(missing, 0o700)
-            except FileExistsError:  # a concurrent call made it
+            except FileExistsError:  # a concurrent call made it, or another user: judged below
                 pass
+        # Walked once more, so a folder another user made between the walk and the `mkdir` is
+        # judged as one found there is, and one that went away in between is not passed over.
+        gone = _way(folder.parent, lstat)
+        if gone:
+            raise FileNotFoundError(
+                errno.ENOENT, f"{gone[0]}, on the way to it, went away while it was made"
+            )
         if not self.private(folder, is_dir=True):
             return None
         fd = os.open(folder, _CACHE_DIR_OPEN)
