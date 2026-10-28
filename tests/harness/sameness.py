@@ -2,8 +2,8 @@
 
 `differences(a, b)` lists every difference between two `latest.json` records in what a verdict is
 made of: each check's `status`, `need`, `area`, `closer`, `facts`, the names of its metrics, its
-`bytes`, `passes` and `ignores`; its `reason` where both records call it `gap` or `blocked` (there the
-reason is deterministic: a gap's first line, a need); its `fuel` where the two differ
+`bytes`, `passes` and `ignores`; its `reason` where both records call it `gap` or `blocked`
+(there the reason is deterministic: a gap's first line, a need); its `fuel` where the two differ
 by more than the ratchet's tolerance, `abs(a - b) > FUEL_TOLERANCE * max(a, b)`, and so too each
 value of its `fuel_facts` fact (fuel recorded, never ratcheted), both between records
 of one platform (the ratchet keys fuel by platform too); and the run's `deselected`,
