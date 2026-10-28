@@ -7,13 +7,6 @@
 # empty again.
 
 [[claim]]
-spec = "127"
-grows = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[*"]
-growth = "the upstream suites' fuel was last measured on darwin under wasmtime 49.0.0, and 127 moved the engine to 50.0.1; in CI the upstream groups run on Linux alone, whose fuel is not ratcheted, so the acceptance keeps no fuel of the other engine for these rows until a darwin run of the release tier measures them again"
-[claim.judge]
-"context/release-tier-claims.toml" = "this block: the reason the upstream suites' fuel measured under wasmtime 49 is dropped at the first release-tier acceptance since 127 moved the engine"
-
-[[claim]]
 spec = "157"
 grows = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[*"]
 growth = "the reactor gains the export `prepare`, a prepared instance's ending and five reseeds in `_refresh`, so both binaries are larger and every run unmarshals and refreshes a little more"

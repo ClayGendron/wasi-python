@@ -8,6 +8,17 @@ Moved by `release/version.py date` on 2026-10-27, before the release pull reques
 
 No block was in the ledger at the date.
 
+One block was appended after the date, by 127's landing documents (`607b2d79`, pull request #25): it named every upstream suite's dropped fuel as a growth, since the move to wasmtime 50.0.1 left the release-tier groups, which run on Linux alone in CI, no fuel of the new engine. The release pull request's acceptance (`898bc091`) read it as its one growth reason. 154 removed it from the ledger before 0.1.2's date, since the acceptance from CI's record now records Linux's fuel, labelled, for a check only Linux ran when no fuel darwin measured under the current engine is accepted, so an engine move drops no such row's fuel; left in the ledger, the date would have moved it under 0.1.2, where its prefix would clear a real fuel growth. It is quoted here in a `text` fence, which the release's claims do not read:
+
+```text
+[[claim]]
+spec = "127"
+grows = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[*"]
+growth = "the upstream suites' fuel was last measured on darwin under wasmtime 49.0.0, and 127 moved the engine to 50.0.1; in CI the upstream groups run on Linux alone, whose fuel is not ratcheted, so the acceptance keeps no fuel of the other engine for these rows until a darwin run of the release tier measures them again"
+[claim.judge]
+"context/release-tier-claims.toml" = "this block: the reason the upstream suites' fuel measured under wasmtime 49 is dropped at the first release-tier acceptance since 127 moved the engine"
+```
+
 ## 0.1.0
 
 Moved at the release acceptance on `eac93d0f` (history line 94, accepted in `1aa0eff7`), the first release acceptance: 102, 114, 095 and 067.
