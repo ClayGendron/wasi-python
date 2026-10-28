@@ -105,7 +105,8 @@ EISDIR, EMFILE, ENAMETOOLONG, ENOENT, ENOTDIR, ENOTSUP, EPERM, ETIMEDOUT, EXDEV 
     73,
     75,
 )
-DIRECTORY, REGULAR_FILE = 3, 4  # filetypes
+ENXIO = 60  # a special file: no such device or address, as a sealed host answers its open
+DIRECTORY, REGULAR_FILE, SYMBOLIC_LINK = 3, 4, 7  # filetypes
 O_CREAT, O_DIRECTORY, O_EXCL, O_TRUNC = 1, 2, 4, 8
 APPEND, DSYNC, NONBLOCK, RSYNC, SYNC = 1, 2, 4, 8, 16
 ATIM, ATIM_NOW, MTIM, MTIM_NOW = 1, 2, 4, 8
@@ -124,6 +125,7 @@ RENAME_SLASH_NEEDS_FOLDER = (True, True)
 ZEROS = bytes(1 << 16)  # the block a buffer grows from
 DIR_RIGHTS = RIGHTS & ~(FD_SEEK | FD_WRITE | PATH_FILESTAT_SET_SIZE | FD_FILESTAT_SET_SIZE)
 FILESTAT = "<QQB7xQQQQQ"  # dev, ino, filetype, nlink, size, atim, mtim, ctim: 64 bytes
+FILESTAT_SIZE, FILETYPE_AT = 64, 16  # a filestat's size, and where its filetype lies
 FDSTAT = "<BxH4xQQ"  # filetype, flags, rights base and inheriting: 24 bytes
 DIRENT = "<QQIB3x"  # d_next, d_ino, d_namlen, d_type: 24 bytes
 
