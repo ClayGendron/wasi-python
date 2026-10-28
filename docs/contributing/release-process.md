@@ -16,6 +16,8 @@ uv run python release/version.py release --push  # on main's tip: tag v<version>
 
 `bump` also assembles the changelog. Each change's lines wait in its news file until the release. `bump` puts each line under its heading in the new version's section, puts each package row into the packages page, and removes the news files. `date` does the same for any news file merged after `bump`, so a late fix still reaches the release notes.
 
+From 0.1.2 a version's section is its release's notes for a reader who did not follow the work. Between `bump` and `date`, the preparation writes the section's summary: one paragraph of two to five sentences, 30 to 120 words, on what the release gives, naming any change under Upgrading. `date` refuses a section without one, or with an entry out of shape, and `check` refuses a dated one. Once `date` has run, someone who wrote none of the notes reads `uv run python release/version.py notes <version>` as a user would and writes a review file named `<version>-release-notes-review-YYYY-MM-DD.md` beside the release's other reviews, ending with its verdict; the tests refuse a release without it. The summary and that reader's rewrites are the only edits of the section by hand, made in the preparation pull request alone.
+
 A change that moves a test of the release tier also adds its reason to the project's list of release-tier claims, since the run after its merge judges the normal tier alone. `date` moves that list's entries under the version, and the release pull request reads them as the reasons for what changed in the release tier.
 
 ## The release pull request

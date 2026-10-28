@@ -2,9 +2,9 @@
 
 ## Changelog
 
-### Changed
+### For contributors
 
-- **The upstream suites' fuel is measured afresh under wasmtime 50** (spec 127). The figures recorded under wasmtime 49 on darwin are dropped at the first release acceptance after the move, since in CI the suites run on Linux, whose fuel is not compared; the rows keep their pass counts, and fuel is recorded again when a darwin run of the release tier, local or by a later specification that takes Linux's first measurement, records them.
+- **Upstream suites keep their pass counts under wasmtime 50.** Their fuel, last measured under wasmtime 49, is recorded again by a later release-tier run; until then only their passes are compared. [Two tiers of tests](https://claygendron.github.io/wasi-python/contributing/release-process/#two-tiers-of-tests)
 
 ## Package rows
 
