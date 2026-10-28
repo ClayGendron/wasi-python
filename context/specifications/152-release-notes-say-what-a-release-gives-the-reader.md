@@ -132,10 +132,10 @@ wasi-python 0.1.2 is for embedders who keep many guests running for a long time.
 ### For contributors
 
 - **Release notes say what a release gives you.** Each change is now written for an embedder who did not follow the work: what it gives, the one fact that changed, and a link to the page that explains it. [The release process](https://claygendron.github.io/wasi-python/contributing/release-process/)
-- **Upstream suites keep their pass counts under wasmtime 50.** Their fuel, last measured under wasmtime 49, is recorded again by a later release-tier run; until then only their passes are compared. [Two tiers of tests](https://claygendron.github.io/wasi-python/contributing/release-process/#two-tiers-of-tests)
+- **Upstream suites keep their pass counts under wasmtime 50.** Each upstream group passes the tests it passed under wasmtime 49. [Two tiers of tests](https://claygendron.github.io/wasi-python/contributing/release-process/#two-tiers-of-tests)
 ```
 
-The model's measures (EXECUTED, the same count Decision 4 makes): the summary is 87 words in five sentences; the eight entries, in the model's order, are 58, 49, 54, 59, 50, 54, 43 and 36 words, the longest lead 12 words; no line hits `scan.CITATION_RULES` or a reserved embedder name, and none names a private name. Read against Decision 1: each lead is what the reader gets or must do ("`close()` inside a tool no longer hangs", not "the holder is rebound"); each fact is the one a reader needs to recognise the change in their own code; the numbers in an entry (64, 3,600 seconds) are the bound itself, which is the point.
+The model's measures (EXECUTED, the same count Decision 4 makes): the summary is 87 words in five sentences; the eight entries, in the model's order, are 58, 49, 54, 59, 50, 54, 43 and 25 words, the longest lead 12 words; no line hits `scan.CITATION_RULES` or a reserved embedder name, and none names a private name. Read against Decision 1: each lead is what the reader gets or must do ("`close()` inside a tool no longer hangs", not "the holder is rebound"); each fact is the one a reader needs to recognise the change in their own code; the numbers in an entry (64, 3,600 seconds) are the bound itself, which is the point.
 
 ## Scope
 
@@ -183,6 +183,8 @@ Built 2026-10-28 by an agent (Claude Opus 5.5) on `spec/152-release-notes-say-wh
 **Rebased onto `dev` at `658a6213`** (2026-10-28), which merged 145 with its news file in the old shape. The builder converted it on this branch, as Decision 9 asks, with its claim block unchanged: the three answers became a Fixed entry, and the refused `:` and `\` became the model's Upgrading entry, verbatim (56 and 54 words, each with its link to the mounts guide). The model's Security entry for 145 is not used: the Upgrading entry and the Fixed entry carry what the merged change gives and asks.
 
 **The pull request's review** (`../reviews/152-release-notes-say-what-a-release-gives-the-reader-pr-2026-10-28.md`) found one Medium: `news._words` dropped a link's text with its address, so the sixty-word bound under-counted. The fix keeps the text, and a `BROKEN` row whose entry passes sixty words only through its link's text was seen failing first. The same commit adds a sentence to the mounts guide's "Know how a mount differs from a grant" naming the three answers 145's Fixed entry links there. The description now carries the rendered `notes 0.1.2` over the three news files.
+
+**127's entry is shortened** (2026-10-28, the coordinator's decision): once 154 lands, the acceptance records Linux's fuel at once, so the sentence that 127's fuel waits for a later release-tier run would be untrue; the entry keeps the pass-count fact, the file is kept since its claim block is what the acceptance reads, and 154's own entry carries the fuel. The model's last entry follows it.
 
 **Where the build departs from the Design.** The `patch_errors` row is in `tests/unit/test_patches.py`, beside that rule's other rows, not in `test_scan.py`. `link_errors` takes a list of entries, so the same function reads a news file's entries and a changelog section's.
 

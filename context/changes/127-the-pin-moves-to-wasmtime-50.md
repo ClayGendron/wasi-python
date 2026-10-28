@@ -4,7 +4,7 @@
 
 ### For contributors
 
-- **Upstream suites keep their pass counts under wasmtime 50.** Their fuel, last measured under wasmtime 49, is recorded again by a later release-tier run; until then only their passes are compared. [Two tiers of tests](https://claygendron.github.io/wasi-python/contributing/release-process/#two-tiers-of-tests)
+- **Upstream suites keep their pass counts under wasmtime 50.** Each upstream group passes the tests it passed under wasmtime 49. [Two tiers of tests](https://claygendron.github.io/wasi-python/contributing/release-process/#two-tiers-of-tests)
 
 ## Package rows
 
