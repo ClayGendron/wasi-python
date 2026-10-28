@@ -1267,6 +1267,18 @@ def test_a_growth_on_a_pull_request_is_listed_and_not_red(tmp_path) -> None:
     assert f"  G5 linux/own-a: grew {PROBE}: fuel 7 -> 70 · unclaimed" in v.lines
 
 
+def test_a_darwin_record_against_another_systems_fuel_is_neither_red_nor_listed(tmp_path) -> None:
+    """A fuel another system measured, kept under darwin's key with its label, is compared with
+    no system's: not darwin's, not its own; the label is no metric a record must carry."""
+    case = PRCase(tmp_path, selected=[*PR_SELECTED, MAC_A, ("macos", "own-rest")])
+    case.accepted["checks"][PROBE]["metrics"]["darwin-arm64"]["fuel_platform"] = "linux-x86_64"
+    case.records[MAC_A]["checks"][PROBE]["metrics"] = {"fuel": 70}
+    case.records[("linux", "own-a")]["checks"][PROBE]["metrics"] = {"fuel": 700}
+    v = case.run()
+    assert v.red == [] and v.growth == [], (v.red, v.growth)
+    assert not any("fuel_platform" in line for line in v.lines)
+
+
 def test_the_same_growth_on_a_whole_run_is_red(tmp_path) -> None:
     case = Case(tmp_path)
     case.records[("linux", "own-a")]["checks"][PROBE]["metrics"] = {"fuel": 70}

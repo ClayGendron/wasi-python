@@ -206,6 +206,54 @@ def test_darwin_fuel_is_keyed_darwin_and_linux_fuel_is_not_ratcheted(inputs) -> 
     assert a.accepted["checks"][TOOLS]["metrics"][DARWIN]["fuel"] == 100
 
 
+def _group_entry(inputs, **fields) -> dict:
+    """The upstream group's accepted darwin entry, edited."""
+    entry = inputs.accepted["checks"][GROUP]["metrics"][DARWIN]
+    entry.update(fields)
+    for name in [k for k, v in entry.items() if v is None]:
+        del entry[name]
+    return entry
+
+
+@pytest.mark.parametrize("before", ["another engine", "none recorded"])
+def test_a_check_only_linux_ran_takes_linuxs_fuel_when_none_is_of_this_engine(
+    inputs, before
+) -> None:
+    """When no fuel darwin measured under this wasmtime is accepted, Linux's is recorded, labelled
+    with the system that measured it, so an engine move leaves the group a fuel and needs no
+    claim."""
+    _group_entry(inputs, wasmtime="48.0.0" if before == "another engine" else WT)
+    if before == "none recorded":
+        _group_entry(inputs, fuel=None)
+    a = accept_from.accept(inputs)
+    assert a.reasons == []
+    assert a.accepted["checks"][GROUP]["metrics"] == {
+        DARWIN: {"wasmtime": WT, "passes": 10, "fuel": 913, "fuel_platform": LINUX}
+    }
+
+
+def test_linux_first_fuel_keeps_the_lower_and_is_never_a_growth(inputs) -> None:
+    """Linux's fuel moves between runs, so it is never compared, and within one system the lower
+    is kept."""
+    _group_entry(inputs, fuel=500, fuel_platform=LINUX)
+    for measured, kept in ((600, 500), (400, 400)):
+        inputs.record["checks"][GROUP]["metrics"] = {"passes": 10, "fuel": measured}
+        a = accept_from.accept(inputs)
+        assert a.reasons == []
+        group = a.accepted["checks"][GROUP]["metrics"][DARWIN]
+        assert group["fuel"] == kept and group["fuel_platform"] == LINUX
+
+
+def test_darwin_fuel_replaces_another_systems_without_a_claim(inputs) -> None:
+    """The first fuel darwin measures under this engine takes over from Linux's, whole, and the
+    row is compared darwin to darwin from then on."""
+    inputs.accepted["checks"][TOOLS]["metrics"][DARWIN].update(fuel=100, fuel_platform=LINUX)
+    inputs.record["checks"][TOOLS]["metrics"] = {"fuel": 200}
+    a = accept_from.accept(inputs)
+    assert a.reasons == []
+    assert a.accepted["checks"][TOOLS]["metrics"][DARWIN] == {"wasmtime": WT, "fuel": 200}
+
+
 # ---------------------------------------------------------------------------------------------
 # The local acceptance's refusals, each in its form for CI's record
 

@@ -246,6 +246,24 @@ def test_fuel_on_another_wasmtime_is_not_compared(inner, monkeypatch) -> None:
     result.stdout.fnmatch_lines(["*fuel not compared*"])
 
 
+def test_a_local_run_replaces_fuel_another_system_measured(inner) -> None:
+    """A fuel the accepted entry says another system measured is not compared with this run's,
+    and this system's own measurement replaces it at the next acceptance, label and all."""
+    _accept_baseline(inner)
+    f = inner.progress / "accepted.json"
+    state = json.loads(f.read_text())
+    (entry,) = state["checks"]["test_inner.py::test_ok"]["metrics"].values()
+    entry["fuel_platform"] = "elsewhere-x"
+    f.write_text(json.dumps(state, sort_keys=True, indent=1) + "\n")
+    result, _ = inner(fuel=5_000_000, fail=False)
+    assert result.ret == 0, result.stdout.str()
+    result.stdout.fnmatch_lines(["*fuel not compared (measured on another system)*"])
+    result, _ = inner("--accept", "x", fuel=5_000_000, fail=False)
+    assert result.ret == 0, result.stdout.str()
+    (entry,) = accepted_file(inner.progress)["checks"]["test_inner.py::test_ok"]["metrics"].values()
+    assert entry["fuel"] == 5_000_000 and "fuel_platform" not in entry
+
+
 def _judge_with(monkeypatch, name: str) -> None:
     real = plugin.run_meta
 
