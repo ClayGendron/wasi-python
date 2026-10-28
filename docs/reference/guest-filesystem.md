@@ -56,6 +56,8 @@ See [Grants](../how-to/grants.md) for the checks on the host side.
 
 A *mount* is like a grant, but your own Python object, a *provider*, answers each file call instead of a host folder. A mount's guest path is absolute, or `/` for the guest's whole file system (not together with `root=`). A mount is read-only unless it says `writable=True`.
 
+A path on a mount follows a grant's rules, and two more. A name with a backslash (`\`) or a colon (`:`) is refused with `EINVAL`, on every host, before the provider is called. So a mount's names mean the same on every host, and its provider never sees one a host could read as a separator or a drive.
+
 See [Mounts](../how-to/mounts.md).
 
 ## `/tmp`, `HOME` and the environment

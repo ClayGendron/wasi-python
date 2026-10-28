@@ -80,6 +80,8 @@ class FileProvider(Protocol):
     """What a mount's provider answers, for type checkers: a read-only mount's three methods.
 
     Paths are absolute within the mount (/ is the mount itself) and normalized by the runner.
+    Each component is a name, never empty, . or .., and never holding /, a backslash, a colon
+    or NUL, so a provider that stores on a host folder joins them onto it one at a time.
     A provider answers each call with a value or an `Errno`, or raises an `OSError`: its errno,
     matched by name on this host, or with no errno its class (`FileNotFoundError`,
     `FileExistsError`, `IsADirectoryError`, `NotADirectoryError`, `PermissionError`,

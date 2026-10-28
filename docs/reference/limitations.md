@@ -58,6 +58,7 @@ A writable grant answers as Windows does; a mount answers the same on every host
 
 - `os.rename` of a folder onto a file replaces the file on a Windows grant. A mount never does, and answers `ENOTDIR`, as a Linux or macOS grant does.
 - A Windows grant cannot remove or rename a file the guest holds open, so `tempfile.TemporaryFile` and an `os.replace` inside a `NamedTemporaryFile`'s `with` fail there. A mount allows both.
+- A mount refuses a name with a backslash or a colon with `EINVAL` on every host, so a guest cannot name a file such as `12:30.csv` on a mount, where it can on a Linux or macOS grant.
 - A Windows grant cannot make a name with a colon, and opening a folder for reading there gives `OSError` `EINVAL` where other hosts give `IsADirectoryError`.
 - Opening a missing path with a trailing slash raises `NotADirectoryError` on Windows, `FileNotFoundError` on Linux and `OSError` `EINVAL` on macOS.
 - A guest with a writable grant or a private root can delete a file the host gave the read-only attribute.
