@@ -189,9 +189,13 @@ Computed from the newest acceptance's set (`context/progress/history-00060.jsonl
 - The `--all` row takes the lines the run reached from the run's own `fetched <name> from <url>` output, as the review suggested, and checks each mirror and its origin in the fake curl's log first.
 - The news file uses the `### Changed` heading, the shape this tree's check accepts, with its entry written for the reader.
 
+### Criterion 1, the mirror
+
+The owner created the release on 2026-10-28 with Decision 1's command, run from the main tree. The orchestrator read it back with one `gh api repos/ClayGendron/wasi-python/releases/tags/test-sources-2026-10-28` (READ, relayed to the builder, who did not ask the host again): release id 426571483, tag `test-sources-2026-10-28`, target `main` (`898bc091`), `draft` false, `prerelease` false; two assets, both state `uploaded`: `openpyxl-3.1.5-tag.tar.gz`, 2,923,125 bytes, digest `sha256:64a599aeed98b74925dcc09a18c7b3e19dafb3754eb8bad2b6887b63a91f7a37`, and `et_xmlfile-2.0.0-tag.tar.gz`, 99,140 bytes, digest `sha256:b710736febf4b4589805f1cc0ccea41781353fc4550466c472649f8518bed4b5`. Each digest is the pin's (`downloads/SHA256SUMS` lines 152 and 153), and each asset's `browser_download_url` is exactly the mirror field its line in `scripts/00_download.sh` names. GitHub's own digest of each uploaded asset stands in for Decision 1's download into an empty folder; the pull request's run, which fetches both from the mirror and hashes them, is the download that criterion 3 reads.
+
 ### What remains
 
-The owner runs Decision 1's command from the main tree (the body is at `build/158/test-sources-notes.md` there, written from Decision 1's text); the agent reads the release back as Decision 1 says and records the outputs here (criterion 1); then the pull request, its run (criteria 3 and 4) and its review.
+The pull request, its run (criteria 3 and 4) and its review.
 
 ## One line
 
