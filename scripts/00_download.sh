@@ -40,7 +40,7 @@ fetch_checked() { # url name sha256
   curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 -o "$D/$2.part" "$1" || code=$?
   if [ "$code" != 0 ]; then
     rm -f "$D/$2.part"
-    WHY="curl failed (exit $code)"
+    WHY="the download failed (exit $code)"
     return 1
   fi
   got=$(shasum -a 256 "$D/$2.part") || got="unreadable"
