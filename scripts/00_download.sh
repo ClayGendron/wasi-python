@@ -5,12 +5,16 @@
 #   scripts/00_download.sh --tests  also the test sources (the pure-Python packages' own tests)
 #   scripts/00_download.sh --all    also those and the research input (Brett's 3.14.7 build)
 #
-# Each pin is one `get <url> <name>` line: a literal URL and the file's name in downloads/.
+# Each pin is one `get <url> <name>` line: a literal URL and the file's name in downloads/. A line
+# may end in a third field, a mirror: a copy of the same bytes the project keeps as a release
+# asset, asked first, with the line's own URL asked only when the mirror fails. Either is kept only
+# when its SHA-256 is the pin's, so the pin is what is trusted, not the host.
 # Downloads are untrusted data: they land in downloads/ only, and nothing here runs
 # them. This script reads SHA256SUMS and never writes it; a mismatch fails the build.
 #
-# One line per pin, `fetched <name>` or `present <name>`, then shasum's `<name>: OK` lines, then
-# `downloads: <n> pins, <f> fetched, <v> verified`, which build.sh shows as the step's line.
+# One line per pin, `fetched <name> from <url>` or `present <name>`, then shasum's `<name>: OK`
+# lines, then `downloads: <n> pins, <f> fetched, <v> verified`, which build.sh shows as the step's
+# line.
 # curl is needed only for a pin that is not present yet, and checked there. A fetched name
 # with no pin fails the step, named.
 set -eu
@@ -21,7 +25,34 @@ ALL=0 TESTS=0
 [ "${1:-}" = "--tests" ] && TESTS=1
 
 PINS=0 FETCHED=0 NAMES=" "
-get() { # url name
+# The SHA-256 downloads/SHA256SUMS pins for $1, selected by the exact name field, and exactly once.
+pin_sum() {
+  PIN_NAME=$1 awk '
+    NF == 2 && $2 "" == ENVIRON["PIN_NAME"] "" { n++; sum = $1 }
+    END { if (n == 1) print sum; exit n == 1 ? 0 : 1 }
+  ' "$D/SHA256SUMS"
+}
+# One URL into downloads/<name>, kept only when its SHA-256 is the pin's. On a miss nothing is
+# left behind and WHY says why: the curl failure, or the bytes' SHA-256 beside the pin's.
+fetch_checked() { # url name sha256
+  code=0
+  # HTTPS only, as in get below.
+  curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 -o "$D/$2.part" "$1" || code=$?
+  if [ "$code" != 0 ]; then
+    rm -f "$D/$2.part"
+    WHY="the download failed (exit $code)"
+    return 1
+  fi
+  got=$(shasum -a 256 "$D/$2.part") || got="unreadable"
+  got=${got%% *}
+  if [ "$got" != "$3" ]; then
+    rm -f "$D/$2.part"
+    WHY="SHA-256 $got, the pin says $3"
+    return 1
+  fi
+  mv "$D/$2.part" "$D/$2" || { WHY="it could not be moved into place"; return 1; }
+}
+get() { # url name [mirror]
   PINS=$((PINS + 1))
   NAMES="$NAMES$2 "
   if [ -s "$D/$2" ]; then
@@ -32,20 +63,39 @@ get() { # url name
     echo "ERROR: no curl on PATH; it fetches $2" >&2
     exit 1
   fi
-  # HTTPS only, on the first request and on every redirect, at TLS 1.2 or later. The pin's SHA-256
-  # is what makes the bytes trusted; this keeps a wrong pin from fetching over plain HTTP.
-  curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 -o "$D/$2.part" "$1"
-  mv "$D/$2.part" "$D/$2"
+  if [ -z "${3:-}" ]; then
+    # HTTPS only, on the first request and on every redirect, at TLS 1.2 or later. The pin's
+    # SHA-256 is what makes the bytes trusted; this keeps a wrong pin from fetching over plain HTTP.
+    curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 -o "$D/$2.part" "$1"
+    mv "$D/$2.part" "$D/$2"
+    from=$1
+  else
+    if ! pin=$(pin_sum "$2"); then
+      echo "ERROR: $2 is not pinned exactly once in downloads/SHA256SUMS" >&2
+      exit 1
+    fi
+    if fetch_checked "$3" "$2" "$pin"; then
+      from=$3
+    else
+      mirror_why=$WHY
+      if ! fetch_checked "$1" "$2" "$pin"; then
+        echo "ERROR: $2: $3: $mirror_why; $1: $WHY" >&2
+        exit 1
+      fi
+      echo "$2: the mirror did not serve the pinned bytes ($mirror_why); fetched from the origin" >&2
+      from=$1
+    fi
+  fi
   FETCHED=$((FETCHED + 1))
-  echo "fetched $2"
+  echo "fetched $2 from $from"
 }
-research() { # url name: fetched only with --all
-  if [ "$ALL" = 1 ]; then get "$1" "$2"; fi
+# Each passes its whole line on, a mirror included when it names one.
+research() { # url name [mirror]: fetched only with --all
+  if [ "$ALL" = 1 ]; then get "$@"; fi
 }
-tests() { # url name: a test source, data the judge stages and never builds; fetched with --tests
-  if [ "$TESTS" = 1 ]; then get "$1" "$2"; fi
+tests() { # url name [mirror]: a test source, data the judge stages and never builds; with --tests
+  if [ "$TESTS" = 1 ]; then get "$@"; fi
 }
-
 # The running build host's own inputs: its toolchain, host Python and native build-tool wheels, in
 # the branch of its key (scripts/line.sh). The line's versions are named in
 # scripts/line.conf; the URLs here stay literal, one pin per line.
@@ -259,8 +309,8 @@ tests https://github.com/joblib/threadpoolctl/archive/refs/tags/3.7.0.tar.gz thr
 tests https://github.com/hukkin/tomli-w/archive/refs/tags/1.2.0.tar.gz tomli_w-1.2.0-tag.tar.gz
 tests https://github.com/python-excel/xlrd/archive/refs/tags/2.0.2.tar.gz xlrd-2.0.2-tag.tar.gz
 tests https://github.com/jmcnamara/XlsxWriter/archive/refs/tags/RELEASE_3.2.9.tar.gz xlsxwriter-3.2.9-tag.tar.gz
-tests https://foss.heptapod.net/openpyxl/openpyxl/-/archive/3.1.5/openpyxl-3.1.5.tar.gz openpyxl-3.1.5-tag.tar.gz
-tests https://foss.heptapod.net/openpyxl/et_xmlfile/-/archive/2.0.0/et_xmlfile-2.0.0.tar.gz et_xmlfile-2.0.0-tag.tar.gz
+tests https://foss.heptapod.net/openpyxl/openpyxl/-/archive/3.1.5/openpyxl-3.1.5.tar.gz openpyxl-3.1.5-tag.tar.gz https://github.com/ClayGendron/wasi-python/releases/download/test-sources-2026-10-28/openpyxl-3.1.5-tag.tar.gz
+tests https://foss.heptapod.net/openpyxl/et_xmlfile/-/archive/2.0.0/et_xmlfile-2.0.0.tar.gz et_xmlfile-2.0.0-tag.tar.gz https://github.com/ClayGendron/wasi-python/releases/download/test-sources-2026-10-28/et_xmlfile-2.0.0-tag.tar.gz
 tests https://github.com/py-pdf/sample-files/archive/818dc013ad1f537198e9fcfae8a6b0dffe25ffa3.tar.gz pypdf-6.21.1-sample-files-tag.tar.gz
 
 # Research inputs: the reference build the harness self-tests use

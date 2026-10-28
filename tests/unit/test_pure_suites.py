@@ -438,6 +438,95 @@ def test_a_fetch_that_fails_three_times_names_the_forge_and_the_file(tmp_path, m
     assert not list(tmp_path.glob("*.part"))
 
 
+MIRROR = "https://github.com/o/r/releases/download/test-sources-2026-01-01/x-tag.tar.gz"
+ORIGIN = "https://foss.heptapod.net/o/x/-/archive/1/x-1.tar.gz"
+PINNED = b"the pinned archive"
+CHALLENGE = b"<!doctype html><title>Making sure you&#39;re not a bot!</title>"
+
+
+def _network(monkeypatch, served: dict[str, bytes | Exception]) -> list[str]:
+    """A fake network answering each URL with its bytes or its error; the URLs asked, in order."""
+    asked: list[str] = []
+
+    def urlopen(url, timeout=0):
+        asked.append(url)
+        answer = served[url]
+        if isinstance(answer, Exception):
+            raise answer
+        return io.BytesIO(answer)
+
+    monkeypatch.setattr(fetch.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(fetch, "PAUSE", 0)
+    return asked
+
+
+def test_a_mirrored_file_is_fetched_from_the_mirror_first(tmp_path, monkeypatch, capsys) -> None:
+    asked = _network(monkeypatch, {MIRROR: PINNED, ORIGIN: PINNED})
+    sha = hashlib.sha256(PINNED).hexdigest()
+    assert fetch.fetch_first(sha, (MIRROR, ORIGIN), tmp_path, "x-tag.tar.gz") is None
+    assert asked == [MIRROR]
+    assert (tmp_path / "x-tag.tar.gz").read_bytes() == PINNED
+    assert f"fetched x-tag.tar.gz from {MIRROR}" in capsys.readouterr().out
+
+
+def test_a_mirror_that_serves_other_bytes_falls_back_to_the_origin(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    asked = _network(monkeypatch, {MIRROR: CHALLENGE, ORIGIN: PINNED})
+    sha = hashlib.sha256(PINNED).hexdigest()
+    assert fetch.fetch_first(sha, (MIRROR, ORIGIN), tmp_path, "x-tag.tar.gz") is None
+    assert asked == [MIRROR, ORIGIN]
+    assert (tmp_path / "x-tag.tar.gz").read_bytes() == PINNED
+    out, err = capsys.readouterr()
+    assert f"fetched x-tag.tar.gz from {ORIGIN}" in out
+    assert "x-tag.tar.gz: the mirror did not serve the pinned bytes" in err
+    assert hashlib.sha256(CHALLENGE).hexdigest() in err
+
+
+def test_a_mirror_that_fails_three_times_falls_back_to_the_origin(tmp_path, monkeypatch) -> None:
+    asked = _network(monkeypatch, {MIRROR: OSError("connection reset"), ORIGIN: PINNED})
+    sha = hashlib.sha256(PINNED).hexdigest()
+    assert fetch.fetch_first(sha, (MIRROR, ORIGIN), tmp_path, "x-tag.tar.gz") is None
+    assert asked == [MIRROR] * fetch.ATTEMPTS + [ORIGIN]
+    assert (tmp_path / "x-tag.tar.gz").read_bytes() == PINNED
+
+
+def test_a_file_neither_url_serves_names_both(tmp_path, monkeypatch) -> None:
+    asked = _network(monkeypatch, {MIRROR: CHALLENGE, ORIGIN: b"other bytes"})
+    sha = hashlib.sha256(PINNED).hexdigest()
+    e = fetch.fetch_first(sha, (MIRROR, ORIGIN), tmp_path, "x-tag.tar.gz")
+    assert asked == [MIRROR, ORIGIN]
+    assert e is not None and e.startswith(f"x-tag.tar.gz: {MIRROR}: SHA-256 "), e
+    assert f"; {ORIGIN}: SHA-256 " in e, e
+    for body in (CHALLENGE, b"other bytes"):
+        assert hashlib.sha256(body).hexdigest() in e, e
+    assert not list(tmp_path.iterdir())
+
+
+def test_a_challenge_page_for_a_test_source_is_refused(tmp_path, monkeypatch) -> None:
+    """A host that answers an archive's URL with a page is refused by the hash: nothing lands in
+    downloads/, no tree is unpacked, and the error names the file."""
+    downloads, build = tmp_path / "downloads", tmp_path / "build"
+    downloads.mkdir()
+    name = "openpyxl-3.1.5-tag.tar.gz"
+    (downloads / "SHA256SUMS").write_text(f"{hashlib.sha256(PINNED).hexdigest()}  {name}\n")
+    script = tmp_path / "00_download.sh"
+    script.write_text(f"tests {ORIGIN} {name}\n")
+    _network(monkeypatch, {ORIGIN: CHALLENGE})
+    errors = fetch.fetch_trees(
+        ["openpyxl"],
+        downloads=downloads,
+        build=build,
+        script=script,
+        applier=Path("apply.sh"),
+        patches=tmp_path / "patches",
+        run=lambda argv, check=False: pytest.fail(f"nothing may be patched: {argv}"),
+    )
+    assert len(errors) == 1 and errors[0].startswith(f"{name}: SHA-256"), errors
+    assert sorted(p.name for p in downloads.iterdir()) == ["SHA256SUMS"]
+    assert not build.exists()
+
+
 def test_a_tests_line_needs_its_pin_and_a_forges_archive_its_tag_name(tmp_path) -> None:
     script = tmp_path / "00_download.sh"
     script.write_text(

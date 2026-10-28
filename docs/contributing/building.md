@@ -23,6 +23,8 @@ scripts/build.sh         # a preflight, twenty steps with one line each, a summa
 
 The first command fetches every pinned input into `downloads/` over HTTPS and checks each one against its SHA-256 in `downloads/SHA256SUMS`. A mismatch fails the build and names the file; a file that is already present is never fetched again, so delete it and run the command again. Nothing it downloads is run as a program on your system; downloads are build tools or source trees only.
 
+`scripts/00_download.sh --tests` also fetches the packages' own test sources. A few of them name a second URL, a copy this project keeps as an asset of a GitHub release; the script tries that copy first and the original host second. Either way a file is kept only if its SHA-256 is the pinned one, so the hash is what is trusted, not the host.
+
 The second command builds everything. The artifacts land in `build/artifacts/`.
 
 ## Read the output
@@ -94,7 +96,7 @@ One host input is not pinned: the native C compiler and `make` that CPython's dr
 
 ## Pins and recipe files
 
-Every input is pinned by URL and SHA-256 in `downloads/SHA256SUMS`, and verified before use. `MANIFEST` names every supported build host's pins, not only the ones your build used, so it is the same file from every host.
+Every input is pinned: its URL in `scripts/00_download.sh` and its SHA-256 in `downloads/SHA256SUMS`, verified before use. `MANIFEST` names every supported build host's pins, not only the ones your build used, so it is the same file from every host.
 
 A *recipe file* is an adaptation the project writes instead of changing upstream source. The files under [`recipes/`](https://github.com/ClayGendron/wasi-python/tree/main/recipes) include:
 

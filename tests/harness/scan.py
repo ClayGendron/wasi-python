@@ -2656,6 +2656,42 @@ def test_source_errors(download_script: Path, pinned: Iterable[str]) -> list[str
     return errors
 
 
+PIN_LINE = re.compile(r"^\s*(get|research|tests)\s+(https?://\S+)\s+(.*)$", re.M)
+MIRROR_TAG = re.compile(r"test-sources-\d{4}-\d{2}-\d{2}")
+
+
+def mirror_errors(download_script: Path, repository: str) -> list[str]:
+    """A pin's line is `<verb> <url> <name> [<mirror>]`. Its mirror, a copy of the pinned bytes
+    tried before the origin, is `<repository>/releases/download/test-sources-YYYY-MM-DD/<name>`:
+    an asset of this repository's dated release of test sources, never of a product release,
+    under the pin's own name; so a mistyped mirror is named here rather than leaving every run to
+    fall back to the origin unseen."""
+    text = "\n".join(line for _, line in _code_lines(download_script))
+    prefix = repository.rstrip("/") + "/releases/download/"
+    errors = []
+    for verb, _, rest in PIN_LINE.findall(text):
+        fields = rest.split()
+        if len(fields) < 2:
+            continue
+        name, mirror = fields[0], fields[1]
+        if len(fields) > 2:
+            errors.append(
+                f"{name}: {len(fields) + 1} fields after {verb}; a pin's line is "
+                "<url> <name> [<mirror>]"
+            )
+        elif URL.fullmatch(name):
+            errors.append(f"{name}: a URL where the file's name goes")
+        elif not mirror.startswith(prefix):
+            errors.append(f"{name}: its mirror {mirror} is not a release asset of {repository}")
+        else:
+            tag, _, last = mirror[len(prefix) :].partition("/")
+            if not MIRROR_TAG.fullmatch(tag):
+                errors.append(f"{name}: its mirror's tag {tag} is not test-sources-YYYY-MM-DD")
+            elif last != name:
+                errors.append(f"{name}: its mirror ends in {last}, not the pinned name")
+    return errors
+
+
 # ---------------------------------------------------------------------------------------------
 # A module-level name bound twice: the second silently replaces the first, so checks that used
 # the first run the second's code (a rebase once redefined `CTRL_C` and lost two checks).

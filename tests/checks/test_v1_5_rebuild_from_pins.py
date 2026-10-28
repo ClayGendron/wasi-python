@@ -47,6 +47,16 @@ def test_every_fetched_file_is_pinned() -> None:
     assert not errors, scan.report(errors)
 
 
+def test_every_mirror_is_this_repositorys_release_asset_of_its_pin() -> None:
+    """A line that names a mirror, a copy of the pinned bytes tried before the origin, names an
+    asset of this repository's dated test-sources release, under the pin's own name."""
+    import tomllib
+
+    project = tomllib.loads((paths.REPO / "pyproject.toml").read_text())["project"]
+    errors = scan.mirror_errors(DOWNLOAD_SCRIPT, project["urls"]["Repository"])
+    assert not errors, scan.report(errors)
+
+
 def test_every_test_source_is_pinned_and_named() -> None:
     """Every test source (data the judge stages, never built) has a `tests` line and its pin,
     both ways; each is one source pattern's; a forge's archive is named `-tag.tar.gz`."""

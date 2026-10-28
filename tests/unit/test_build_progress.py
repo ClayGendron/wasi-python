@@ -1137,3 +1137,58 @@ def test_every_python_name_on_the_callers_path_is_shadowed(work) -> None:
     out = tree.plain("40", env=env)
     shown = (work / "build" / "logs" / "40_numpy.log").read_text().strip()
     assert shown == f"PATH={nopy}:{tree.bin}:{host}:{work / 'other'}", shown
+
+
+# The download step run whole with --all: every line, the `tests` and `research` lines too, goes
+# through its own function to `get`, and a line that names a mirror asks the mirror, not its origin.
+LOGGING_CURL = """#!/bin/sh
+url= out=
+while [ "$#" -gt 0 ]; do
+  case "$1" in -o) out=$2; shift;; https://*) url=$1;; esac
+  shift
+done
+printf '%s\\n' "$url" >> "$HOME/asked.log"
+name=$(basename "$out" .part)
+printf '%s' "$name" > "$out"
+"""
+FETCHED_FROM = re.compile(r"^fetched (\S+) from (\S+)$", re.M)
+LINE_FIELDS = re.compile(
+    r"^\s*(?:get|tests|research)\s+(https://\S+)\s+(\S+)(?:\s+(https://\S+))?", re.M
+)
+
+
+@pytest.mark.parametrize("shell", SHELLS, ids=lambda s: Path(s).name)
+def test_the_download_step_with_all_asks_each_mirror_first(work, shell) -> None:
+    _needs_sh()
+    root = _download_tree(work, curl=False)
+    _script(root / "bin" / "curl", LOGGING_CURL)
+    text = DOWNLOAD.read_text()
+    lines = {name: (url, mirror) for url, name, mirror in LINE_FIELDS.findall(text)}
+    mirrored = {name: (url, mirror) for name, (url, mirror) in lines.items() if mirror}
+    assert mirrored, "no line of 00_download.sh names a mirror"
+    (root / "downloads" / "SHA256SUMS").write_text(
+        "".join(f"{hashlib.sha256(n.encode()).hexdigest()}  {n}\n" for n in sorted(lines))
+    )
+    out = subprocess.run(
+        [shell, str(root / "scripts" / "00_download.sh"), "--all"],
+        env={"PATH": str(root / "bin"), "HOME": str(root)},
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=GUARD,
+        check=False,
+    )
+    assert out.returncode == 0, (out.stdout + out.stderr)[-600:]
+    asked = (root / "asked.log").read_text().split()
+    for name, (origin, mirror) in mirrored.items():
+        assert origin not in asked and asked.count(mirror) == 1, (name, origin, mirror)
+    reached = dict(FETCHED_FROM.findall(out.stdout))
+    present = [x for x in out.stdout.splitlines() if x.startswith("present ")]
+    n = len(present) + len(reached)
+    assert out.stdout.splitlines()[-1] == f"downloads: {n} pins, {n - 2} fetched, {n} verified"
+    for name, url in reached.items():
+        origin, mirror = lines[name]
+        assert url == (mirror or origin), (name, url)
+        assert asked.count(url) == 1, (name, url, asked.count(url))
+    for name, (_, mirror) in mirrored.items():
+        assert reached.get(name) == mirror, (name, reached.get(name))

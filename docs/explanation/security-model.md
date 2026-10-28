@@ -124,7 +124,7 @@ Include what you ran, what happened, and what you expected. A reproducer that us
 - **The sandbox boundary.** A guest that reaches a host file outside the folders it was given, the network, a host process or host memory, through the WASI calls or the door.
 - **The limits.** A guest that runs past its deadline, fuel, memory or output cap, or a call that keeps host resources after it ends.
 - **The runner.** Anything a guest does that makes `wasi_python.run` raise, crash the host process, or return another call's result; or an argument that silently removes a limit or changes what the guest sees.
-- **The release supply chain.** An artifact whose bytes differ from what its pins rebuild, or that fails attestation. [Verify a download](../how-to/verify-a-download.md) shows how to check one.
+- **The release supply chain.** An artifact whose bytes differ from what its pins rebuild, or that fails attestation. Every build input and test source is accepted by its pinned SHA-256, whichever host served it, the copies this project keeps among its release assets included. [Verify a download](../how-to/verify-a-download.md) shows how to check one.
 
 ### What does not
 

@@ -5,10 +5,13 @@ The zip's package metadata and the `ctypes` stand-in are checked here on the hos
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
+import io
 import json
 import os
 import pydoc
+import re
 import shutil
 import subprocess
 import sys
@@ -1073,3 +1076,142 @@ def test_a_wheels_licences_are_read_through_its_pin(tmp_path) -> None:
     (d / "SHA256SUMS").write_text(f"{'0' * 64}  {wheel.name}\n")
     with pytest.raises(SystemExit, match=f"downloads/{wheel.name} does not match its pin"):
         assemble_artifacts.wheel_licences(wheel)
+
+
+# The download step's choice of URL: a pin's line may name a mirror, a copy of the same bytes the
+# project keeps, which is asked first; its origin is asked only when the mirror fails, and a file
+# is kept only when its SHA-256 is the pin's. The shell's `get()` runs alone, taken from the
+# script's text (the script finds the repository from $0 and runs every pin at load), with a fake
+# curl that serves each URL the case's bytes and logs the URL it was asked for.
+
+DOWNLOAD = paths.REPO / "scripts" / "00_download.sh"
+DOWNLOAD_FUNCTIONS = ("pin_sum", "fetch_checked", "get")
+SHELLS = sorted({s for s in (shutil.which("dash") or SH, shutil.which("bash")) if s})
+MIRROR = "https://github.com/o/r/releases/download/test-sources-2026-01-01/x-tag.tar.gz"
+ORIGIN = "https://foss.heptapod.net/o/x/-/archive/1/x-1.tar.gz"
+PINNED = b"the pinned archive"
+CHALLENGE = b"<!doctype html><title>Making sure you&#39;re not a bot!</title>"
+FAKE_CURL = """#!/bin/sh
+url= out=
+while [ "$#" -gt 0 ]; do
+  case "$1" in -o) out=$2; shift;; https://*) url=$1;; esac
+  shift
+done
+printf '%s\\n' "$url" >> "$CURL_LOG"
+key=$(printf '%s' "$url" | tr -c 'A-Za-z0-9' _)
+[ -f "$SERVED/$key" ] || exit 22
+cat "$SERVED/$key" > "$out"
+"""
+# case -> the bytes each URL serves (absent: the fake curl fails as on an HTTP error)
+MIRROR_CASES = {
+    "the mirror serves": {MIRROR: PINNED, ORIGIN: PINNED},
+    "the mirror serves a page": {MIRROR: CHALLENGE, ORIGIN: PINNED},
+    "the mirror fails": {ORIGIN: PINNED},
+    "neither serves": {MIRROR: CHALLENGE, ORIGIN: b"other bytes"},
+}
+
+
+def _functions(text: str, names: tuple[str, ...]) -> str:
+    """The named shell functions as written, each from `name() {` to its closing `}` line."""
+    out = []
+    for name in names:
+        m = re.search(rf"^{name}\(\) \{{[^\n]*\n.*?^\}}\n", text, re.M | re.S)
+        assert m, f"00_download.sh defines no {name}()"
+        out.append(m[0])
+    return "".join(out)
+
+
+def _shell_get(tmp_path: Path, shell: str, served: dict[str, bytes]) -> tuple[list[str], str, int]:
+    """`get ORIGIN x-tag.tar.gz MIRROR` under `set -eu` in `shell`: the URLs asked, in order, the
+    output, and the exit status; the file, when kept, is tmp_path/downloads/x-tag.tar.gz."""
+    d, bin_, serve = tmp_path / "downloads", tmp_path / "bin", tmp_path / "served"
+    for folder in (d, bin_, serve):
+        folder.mkdir(parents=True)
+    (d / "SHA256SUMS").write_text(f"{hashlib.sha256(PINNED).hexdigest()}  x-tag.tar.gz\n")
+    for url, data in served.items():
+        (serve / re.sub(r"[^A-Za-z0-9]", "_", url)).write_bytes(data)
+    (bin_ / "curl").write_text(FAKE_CURL)
+    (bin_ / "curl").chmod(0o755)
+    log = tmp_path / "asked.log"
+    log.touch()
+    body = _functions(DOWNLOAD.read_text(), DOWNLOAD_FUNCTIONS)
+    script = (
+        f'set -eu\nD="{d}"\nPINS=0 FETCHED=0 NAMES=" "\n{body}get {ORIGIN} x-tag.tar.gz {MIRROR}\n'
+    )
+    (tmp_path / "get.sh").write_text(script)
+    env = {
+        "PATH": f"{bin_}{os.pathsep}{os.environ.get('PATH', os.defpath)}",
+        "CURL_LOG": str(log),
+        "SERVED": str(serve),
+    }
+    r = subprocess.run([shell, str(tmp_path / "get.sh")], capture_output=True, text=True, env=env)
+    return log.read_text().split(), r.stdout + r.stderr, r.returncode
+
+
+def _python_get(tmp_path: Path, monkeypatch, served: dict[str, bytes]) -> tuple[list[str], str]:
+    """The judge's `fetch_first` on the same case: the URLs asked, in order, and its message."""
+    spec = importlib.util.spec_from_file_location(
+        "upstream_fetch_mirror", paths.REPO / "tests" / "upstream" / "fetch.py"
+    )
+    fetch = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(fetch)
+    asked: list[str] = []
+
+    def urlopen(url, timeout=0):
+        asked.append(url)
+        if url not in served:
+            raise OSError("HTTP Error 404")
+        return io.BytesIO(served[url])
+
+    monkeypatch.setattr(fetch.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(fetch, "PAUSE", 0)
+    monkeypatch.setattr(fetch, "ATTEMPTS", 1)
+    d = tmp_path / "downloads"
+    d.mkdir(parents=True)
+    sha = hashlib.sha256(PINNED).hexdigest()
+    return asked, fetch.fetch_first(sha, (MIRROR, ORIGIN), d, "x-tag.tar.gz") or ""
+
+
+def _served_by(served: dict[str, bytes]) -> str | None:
+    """The URL whose bytes are kept: the mirror when it serves the pinned bytes, else the origin
+    when it does, else none."""
+    return next((u for u in (MIRROR, ORIGIN) if served.get(u) == PINNED), None)
+
+
+@pytest.mark.skipif(not SHELLS, reason="needs a POSIX sh")
+@pytest.mark.parametrize("shell", SHELLS, ids=lambda s: Path(s).name)
+@pytest.mark.parametrize("case", MIRROR_CASES)
+def test_the_download_step_tries_the_mirror_first(tmp_path, shell, case) -> None:
+    served = MIRROR_CASES[case]
+    asked, out, code = _shell_get(tmp_path, shell, served)
+    kept = tmp_path / "downloads" / "x-tag.tar.gz"
+    by = _served_by(served)
+    assert asked == ([MIRROR] if by == MIRROR else [MIRROR, ORIGIN]), (asked, out)
+    assert not list((tmp_path / "downloads").glob("*.part")), out
+    if by is None:
+        assert code == 1 and not kept.exists(), out
+        assert f"ERROR: x-tag.tar.gz: {MIRROR}: " in out and f"; {ORIGIN}: " in out, out
+        for body in (CHALLENGE, b"other bytes"):
+            assert hashlib.sha256(body).hexdigest() in out, out
+        return
+    assert code == 0 and kept.read_bytes() == PINNED, out
+    assert f"fetched x-tag.tar.gz from {by}" in out, out
+    if by == ORIGIN:
+        assert "x-tag.tar.gz: the mirror did not serve the pinned bytes" in out, out
+
+
+@pytest.mark.skipif(not SHELLS, reason="needs a POSIX sh")
+@pytest.mark.parametrize("case", MIRROR_CASES)
+def test_the_two_fetchers_choose_the_same_url(tmp_path, monkeypatch, case) -> None:
+    """The build's shell fetcher and the judge's Python fetcher, on one case each: the same URLs
+    asked in the same order, the same file kept or none, and on a failure both URLs named."""
+    served = MIRROR_CASES[case]
+    sh_asked, sh_out, sh_code = _shell_get(tmp_path / "sh", SHELLS[0], served)
+    py_asked, py_error = _python_get(tmp_path / "py", monkeypatch, served)
+    assert sh_asked == py_asked, (sh_asked, py_asked)
+    sh_kept = (tmp_path / "sh" / "downloads" / "x-tag.tar.gz").exists()
+    py_kept = (tmp_path / "py" / "downloads" / "x-tag.tar.gz").exists()
+    assert sh_kept == py_kept == (sh_code == 0) == (py_error == ""), (sh_out, py_error)
+    if not py_kept:
+        for text in (sh_out, py_error):
+            assert MIRROR in text and ORIGIN in text, text

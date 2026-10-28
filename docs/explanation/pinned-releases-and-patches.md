@@ -4,7 +4,7 @@ This page explains why wasi-python ships a few pinned releases instead of every 
 
 ## Every input is pinned
 
-Every input to the build is *pinned*: named by its URL and its SHA-256 hash in `downloads/SHA256SUMS`. That covers each source tarball, the toolchain, every build tool and every pure-Python dependency. The build checks each hash before it uses the file, and a build that fetches anything unpinned is not a build. No meson configure can download a subproject, so a dependency meson cannot find fails the build instead of being fetched.
+Every input to the build is *pinned*: named by its URL in `scripts/00_download.sh` and its SHA-256 hash in `downloads/SHA256SUMS`. That covers each source tarball, the toolchain, every build tool and every pure-Python dependency. The build checks each hash before it uses the file, and a build that fetches anything unpinned is not a build. No meson configure can download a subproject, so a dependency meson cannot find fails the build instead of being fetched.
 
 Downloads are treated as untrusted. They unpack only under the build's own folders, never into the system, and they run only as build tools or as guests under wasmtime.
 
