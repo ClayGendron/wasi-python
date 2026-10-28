@@ -23,10 +23,11 @@ never waits for end of file, since a forked child of the embedder holds copies o
 write ends for as long as the child lives. A stream is named as truncated where a piece is lost
 or may be: a piece it fails to keep, or an end whose last read failed when a turn's bytes are
 handed back or the reader ends; a failed read that a later read of its end follows takes nothing
-from the pipe and loses nothing. If its wait or a read fails, it reads on without blocking in a
-slower loop until `close()` asks: it never stops reading, since a guest blocked in a host write
-on a full pipe is beyond the deadline, a cancel and Ctrl-C, which stop wasm code only; and it
-never closes an end the guest may still write to, since that write would refuse the guest and
+from the pipe and loses nothing. The callback names a stream by the same rule, where a write
+that reached it could not be kept. If its wait or a read fails, it reads on without blocking in
+a slower loop until `close()` asks: it never stops reading, since a guest blocked in a host
+write on a full pipe is beyond the deadline, a cancel and Ctrl-C, which stop wasm code only; and
+it never closes an end the guest may still write to, since that write would refuse the guest and
 would end a host that restored SIGPIPE's default action. Whatever ends it, it tells every
 waiter. A turn's settle rests on wasmtime writing a file output on the guest's own thread: a
 write has reached the pipe when `fd_write` returns.
