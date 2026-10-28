@@ -126,6 +126,7 @@ def test_a_path_is_normalized_before_the_provider_sees_it(placeholder) -> None:
     assert provider.paths == [
         ("stat", "/d/x.txt"),
         ("stat", "/a.txt"),
+        ("stat", "/d"),  # a folder open asks before it lists
         ("list", "/d"),
     ]
 
@@ -460,7 +461,7 @@ def test_a_listing_is_kept_and_listed_again_from_cookie_zero(placeholder) -> Non
     assert r.readdir(d) == first and provider.calls["list"] == 2
     e = r.open(3, "d")[1]
     assert provider.calls == {
-        "stat": 0,
+        "stat": 1,  # the folder open's, before its listing
         "list": 2,
         "read": 1,
         "write": 0,

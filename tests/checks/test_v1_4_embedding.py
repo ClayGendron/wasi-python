@@ -2038,7 +2038,8 @@ def _mount_host(provider):
 
 @BINARY
 def test_a_mount_serves_reads(guest_workdir, which) -> None:
-    """A read makes one `read`, a listing one `list`, a stat one `stat`;
+    """A read makes one `read`, a listing of the mount one `list` and of a folder in it one
+    `stat` then one `list`, a stat one `stat`;
     the bytes are the provider's; a mount's file has a number from 2**30 that os.read,
     select.poll and selectors accept and select.select refuses (Decision 6); the record's
     counts are the provider's own; a grant beside the mount reads as before."""
@@ -2071,7 +2072,7 @@ def test_a_mount_serves_reads(guest_workdir, which) -> None:
     assert steps == [
         ["read", "hello, mount\n", no | {"read": 1}],
         ["listdir", ["a.txt", "b.txt", "d", "e"], no | {"list": 1}],
-        ["scandir", [["x.txt", False]], no | {"list": 1}],
+        ["scandir", [["x.txt", False]], no | {"stat": 1, "list": 1}],  # a folder is asked first
         ["stat", [13, True], no | {"stat": 2}],  # os.stat and os.path.isdir: one each
         ["fileno", True, no],
         ["os.read", "b\n", no],
@@ -2084,7 +2085,7 @@ def test_a_mount_serves_reads(guest_workdir, which) -> None:
     # The counts writable mounts add, all zero here.
     write_half = {"write": 0, "mkdir": 0, "remove": 0, "rmdir": 0, "rename": 0}
     assert (
-        dict(done.files.calls) == provider.calls == {"stat": 2, "list": 2, "read": 2} | write_half
+        dict(done.files.calls) == provider.calls == {"stat": 3, "list": 2, "read": 2} | write_half
     )
     assert done.files.faults == ()
 
