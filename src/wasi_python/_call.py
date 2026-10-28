@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol
 
 from . import _artifacts, _engines, _home, _outputs, _places, _platform, _private_dirs, _zip
+from . import _snapshot as _snapshot  # its own line: the line above is full
 from ._artifacts import GUEST_PACKAGE, Artifacts, ArtifactsMissing
 from ._engines import _epoch_ticker
 from ._fs_memory import STAGING_CEILING, _aligned
@@ -76,6 +77,7 @@ class Completed:
             `None`.
         tools: For a call with tools, every frame counted and the first 1,000 listed; else
             `None`.
+        image_sha256: The SHA-256 of the snapshot's image a call or turn started from, or `None`.
     """
 
     exit_code: int | None
@@ -86,6 +88,7 @@ class Completed:
     truncated: tuple[str, ...] = ()
     files: FileRecord | None = None  # the mounts' record, for a call with mounts
     tools: ToolRecord | None = None  # the tool protocol's record, for a call with tools
+    image_sha256: str | None = None  # the snapshot's, for a call that started from one
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,6 +118,8 @@ class _CheckedCall:
     import_serving: tuple[int, ...]  # for each entry, the index of the grant serving it
     file_calls: int | None
     open_files: int | None
+    binary: str  # "snapshot" or "plain"
+    start: _snapshot._Start | None  # None from the binary alone; else an image, or a making
 
 
 class _Stop(Protocol):
@@ -127,7 +132,6 @@ def _run_checked(
     wt: Any,
     c: _CheckedCall,
     host: Host | None,
-    snapshot: bool,
     chosen: _engines._Cache,
     artifacts: Artifacts | None,
     loop: asyncio.AbstractEventLoop | None,
@@ -135,9 +139,11 @@ def _run_checked(
     """One call, checked: the artifact set found, the folders walked, the engine and module
     made, the instance run on a guest thread while this thread, its home, serves it. `loop` is
     the caller's event loop, which async tools await on, or None for a private loop."""
+    snapshot = c.binary == "snapshot"
     found, checked = (
         (artifacts, None) if artifacts is not None else _artifacts._found_and_checked(snapshot)
     )
+    checked = _snapshot._same_set(c.start, found, checked)  # an image binds to its set
     if c.tools is not None and not _artifacts._has_guest_package(found.manifest):
         raise ArtifactsMissing(
             f"{found.manifest} has no `recipe … {GUEST_PACKAGE}` line: this artifact set "
@@ -177,6 +183,7 @@ def _run_checked(
             for w in [walked_root, *(w for _, _, w in walked), *(p.walked for p in preopens)]:
                 if w is not None:
                     w.close()
+            _places._let_go([walked_root, *(w for _, _, w in walked)])  # nothing writes them now
             if private is not None:
                 private.remove()
 
@@ -267,7 +274,8 @@ def _call_deferred(
 ) -> Completed:
     """The call's fresh HOME folder and its store, released once the guest thread has ended.
     `ht` is the home thread; `home` below is the guest's HOME."""
-    home = _guest_home(root, preopens, tuple(m.guest for m in c.mounts))
+    fixed = None if c.start is None else c.start.home  # a snapshot's, at its fixed path
+    home = _guest_home(root, preopens, tuple(m.guest for m in c.mounts), fixed)
     store = wt.Store(engine)
     try:
         return _instance(wt, engine, module, store, preopens, home.guest, c, host, loop, ht)
@@ -291,25 +299,28 @@ class _GuestHome(NamedTuple):
 
 
 def _guest_home(
-    root: Path | None, preopens: list[_Preopen], mounted: tuple[str, ...]
+    root: Path | None, preopens: list[_Preopen], mounted: tuple[str, ...], fixed: str | None = None
 ) -> _GuestHome:
     """The guest's HOME, shared by a call and a session's opening, made after `preopens` is
     listed. A fresh folder where the guest sees a writable /tmp; else an empty private folder,
     appended to `preopens` read-only, so the mounts' numbers and the identity check count it.
     Without a HOME, `~` stays `~`, a path relative to the working folder, which a root or a mount
     at / serves: a file one call left there would be read, or run, by the next (reportlab runs
-    `~/.reportlab_mods` on import)."""
+    `~/.reportlab_mods` on import). A snapshot's call has HOME at its `fixed` path, where a package
+    found it at import, with a private folder of its own there, writable where /tmp is."""
     tmp, tmp_fd = _home_folder(root, preopens, mounted)
     name = f".home-{secrets.token_hex(16)}"
-    if tmp is None:
+    if tmp is None or fixed is not None:
+        _platform._close(tmp_fd)
         empty = _Private("wasi-python-")  # 0700, this user's own, locked; its lock file beside it
         try:
             walked = _platform.PLATFORM.walk("", str(empty.path), judge=False)
         except BaseException:
             empty.remove()
             raise
-        preopens.append(_Preopen("the empty HOME", walked, f"/tmp/{name}", False))
-        return _GuestHome(f"/tmp/{name}", None, (empty, walked))
+        guest = fixed or f"/tmp/{name}"
+        preopens.append(_Preopen("the guest's HOME", walked, guest, tmp is not None))
+        return _GuestHome(guest, None, (empty, walked))
     # The fresh HOME is made, and removed, through a handle on /tmp opened without following a
     # link, so a guest running concurrently on the same folder cannot turn /tmp into a link
     # between the check and the mkdir (Windows has no dir_fd; its guests can make links only
@@ -502,10 +513,11 @@ def _instance(
             open_files=c.open_files,  # strict, as file_calls
             context=context,
         )
-        call = _Call(store, host, waits, origin_ns, cancel, stop_at, table, admit, home=ht)
+        call = _Call(store, host, waits, origin_ns, cancel, stop_at, admit, table=table, home=ht)
         _watch(store)  # every call
         with _epoch_ticker(engine, True):
-            drive = functools.partial(_drive, plain=linker)
+            image = None if c.start is None else c.start.image
+            drive = functools.partial(_drive, plain=linker, image=image)
             args = (wt, guest_linker, store, module, call, fuel, every, check)
             done = _home._on_guest_thread("run", ht, call, drive, *args)
         fuel_used = _fuel_used(fuel, done, call, store.get_fuel)
@@ -546,6 +558,7 @@ def _instance(
         truncated,
         files,
         record,
+        None if c.start is None else c.start.sha256,
     )
 
 
@@ -557,8 +570,7 @@ def _fuel_used(
     stopped call ended on one."""
     if fuel is None or done.trapped == "deadline":
         return None
-    table = call.table
-    held = None if table is None else table.stop_fuel
+    held = call.table.stop_fuel
     if held is not None and call.ended is None and call.stopped is held[0]:
         # A forward's own trap or error, or an ABI error a served call raised: the
         # count read then is the guest's, as when wasmtime's WASI meets it directly.
@@ -585,12 +597,14 @@ def _drive(
     preopens: list[_Preopen] = (),  # type: ignore[assignment]
     check: Any = None,
     plain: Any = None,
+    image: bytes | None = None,
 ) -> _Driven:
     """Instantiate and run the guest with its call on this thread's stack. What a host function
     caught and recorded comes first: an exit or a trap is the call's result, and any other
     exception (Ctrl-C, a host's cancellation) is raised here, on the thread that made the call.
     `plain` is today's linker when `linker` is the mount linker: the identity check reads
-    wasmtime's own answers through it, and the trampoline takes wasmtime's calls from it."""
+    wasmtime's own answers through it, and the trampoline takes wasmtime's calls from it.
+    `image` is a snapshot's, copied in before any guest code runs."""
     # before every entry into the guest
     not_ready = _platform.PLATFORM.trap_handlers_ready()
     if not_ready is not None:
@@ -610,8 +624,10 @@ def _drive(
         if preopens:
             _places._check_preopens(wt, own, store, check, list(preopens))  # the identity check
         instance = linker.instantiate(store, module)
-        if call.table is not None:  # after the guest, before the fuel cap and _initialize
-            call.table.bind(wt, store, own, instance)
+        # After the guest, before the fuel cap and _initialize.
+        call.table.bind(wt, store, own, instance)
+        if image is not None:  # the host's copy: it spends no fuel
+            _snapshot._restore(store, instance, image)
         if fuel is not None:
             store.set_fuel(fuel)
             metered = True
@@ -664,9 +680,9 @@ class _Call:
         origin_ns: int,
         cancel: _Stop | None = None,
         stop_at: int | None = None,
-        table: _Files | None = None,
         admit: Callable[[int], bytes | None] | None = None,
         *,
+        table: _Files,
         home: _Home | None = None,
     ) -> None:
         from . import _wasmtime_ffi as ffi
@@ -692,8 +708,6 @@ class _Call:
     def files(self, caller: Any, name: str, *args: int) -> int:
         """One of the 29 shadowed calls, for a call with mounts, or one of the three
         the counted linker shadows, for a call without."""
-        if self.table is None:
-            return EBADF
         return self.table(caller, name, *args)
 
     def stop(self, caller: Any, cause: BaseException) -> None:
@@ -828,10 +842,10 @@ class _Context:
         return fn(*args) if home is None else home.call(fn, *args)
 
 
-def _context_of(table: _Files | None) -> _Context | None:
-    """The runner's own context behind a table, which learns the call; None for no table, or a
-    table the judge built on a fake."""
-    context = None if table is None else table.context
+def _context_of(table: _Files) -> _Context | None:
+    """The runner's own context behind a table, which learns the call; None for a table the
+    judge built on a fake."""
+    context = table.context
     return context if isinstance(context, _Context) else None
 
 
@@ -1093,13 +1107,21 @@ class _Waits:
             self.sleep(min(left, TICK_S))
 
 
+class _PollFiles(Protocol):
+    """What the poll asks of the call's table: what it knows of a descriptor, and the record of
+    the error that ends the run."""
+
+    def kind(self, fd: int) -> str | None: ...
+    def record_stop(self, error: BaseException, caller: Any) -> None: ...
+
+
 def _poll_oneoff(
     origin_ns: int,
     waits: _Waits,
     realtime_ns: Callable[[], int] = time.time_ns,
     monotonic_ns: Callable[[], int] = time.perf_counter_ns,
     *,
-    files: _Files | None,
+    files: _PollFiles,
 ) -> Callable[..., int]:
     """The shadowed poll_oneoff, answering descriptors from the call's table `files`. It raises
     only a wasmtime error, to the shared function, which records it as the stop: a misaligned
@@ -1111,11 +1133,6 @@ def _poll_oneoff(
     before it reaches the end); the events' room is 32 bytes per subscription (wasmtime's, per
     event written); the padding is written as zeros (wasmtime leaves it). Clocks injectable."""
     from wasmtime import WasmtimeError
-
-    # With no table, which only the judge's stand-ins build, every number past stdio is ready.
-    kind: Callable[[int], str | None] = (
-        (lambda fd: None if fd <= 2 else "held") if files is None else files.kind
-    )
 
     def call(caller: Any, in_ptr: int, out_ptr: int, n: int, nevents_ptr: int) -> int:
         try:
@@ -1130,7 +1147,7 @@ def _poll_oneoff(
             if in_ptr + 48 * n > size:
                 return EFAULT
             raw = bytes(memory.read(caller, in_ptr, in_ptr + 48 * n))
-            plan = _poll_plan(raw, n, realtime_ns(), monotonic_ns() - origin_ns, kind)
+            plan = _poll_plan(raw, n, realtime_ns(), monotonic_ns() - origin_ns, files.kind)
             if plan.errno is not None:
                 return plan.errno
             for ptr, align in ((out_ptr, 8), (nevents_ptr, 4)):
@@ -1144,10 +1161,7 @@ def _poll_oneoff(
             memory.write(caller, struct.pack("<I", len(plan.events)), nevents_ptr)
             return 0
         except WasmtimeError as error:
-            if files is not None and files.metered:  # the fuel then is the guest's
-                from . import _wasmtime_ffi as ffi
-
-                files.stop_fuel = (error, ffi.get_fuel(caller))
+            files.record_stop(error, caller)  # the fuel then is the guest's
             raise
         except Exception:
             return EINVAL  # anything else is recorded by the shared function

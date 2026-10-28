@@ -179,6 +179,7 @@ def test_the_observers_refuse_a_misspelt_field() -> None:
         "after_export",
         "on_call",
         "on_capture",
+        "on_slow_loop",
         "clock",
         "start_ending",
         "drive_folder",

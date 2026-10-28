@@ -62,6 +62,16 @@ if TYPE_CHECKING:
 # `pool_lock`, so a pool a resize replaced is let go once none of its futures is left.
 _Queued = tuple["Future[Any]", Callable[[], None]]
 
+# The counts `stats()` reports, each 0 when the process starts.
+COUNTS = (
+    "compiled",
+    "loaded",
+    "written",
+    "sessions_open",
+    "snapshots_made",
+    "snapshots_restored",
+)
+
 # How a lock is recognised and made anew for a fork: by its exact type, through this table. Not
 # `isinstance` and not `type(value)()`: on Python 3.11 and 3.12 `threading.Lock` and
 # `threading.RLock` are factory functions, not types, and `type(threading.Lock())()` raises; the
@@ -90,6 +100,7 @@ class _Observers:
     after_export: Callable[[], None] | None = None  # after a turn's export returned
     on_call: Callable[[str, Any], None] | None = None  # each call built: its kind and the call
     on_capture: Callable[[str], None] | None = None  # each output capture opened: its kind
+    on_slow_loop: Callable[[str], None] | None = None  # each pipe reader's fall: the error's type
     clock: Callable[[], float] = time.monotonic  # the one clock the session bounds read
     start_ending: Callable[[_State], None] | None = None  # None: the production closer
     drive_folder: Callable[[str], str] | None = None  # None: `ntpath.abspath(drive or ".")`
@@ -118,7 +129,7 @@ class _Process:
         self.held_lock = threading.Lock()
         # The names this process holds: NFS may treat flock as per-process.
         self.held: set[str] = set()
-        self.sweep_claimed: bool = False
+        self.sweep_claimed: bool = False  # under `cache_lock`
         self.sweep_swept: int = 0
         self.sweep_failed: dict[str, int] = {}  # failed sweeps of a name, in this process
         self.warnings_lock = threading.Lock()
@@ -137,13 +148,14 @@ class _Process:
         self.versions: dict[tuple[str, int, int, int, int, int], str] = {}
         self.guest_packages: dict[str, tuple[tuple[int, ...], bool]] = {}  # path: (stamp, answer)
         self.digests: dict[tuple[str, int, int, int, int, int], str] = {}
-        # F. Engines, modules, linkers and the epoch.
-        # Guards the engines, the modules, the counts and the sweep's claim.
+        # F. Under `cache_lock`: engines, modules, counts, snapshot folders; linkers; the epoch.
         self.cache_lock = threading.Lock()
         self.engines: dict[bool, wasmtime.Engine] = {}
         self.modules: dict[tuple[bool, str], wasmtime.Module] = {}
         self.compiling: dict[tuple[bool, str], threading.Lock] = {}
-        self.counts: dict[str, int] = {"compiled": 0, "loaded": 0, "written": 0, "sessions_open": 0}
+        self.counts: dict[str, int] = dict.fromkeys(COUNTS, 0)  # what `stats()` reports
+        self.snapshot_folders: dict[str, int] = {}  # saved and loaded files' folders, counted
+        self.live_writable: dict[Any, str] = {}  # live calls' writable walks, and their names
         self.epoch_callback: Any | None = None  # the one C callback, made on first use
         self.epoch_callback_lock = threading.Lock()
         self.linkers: dict[Any, Any] = {}
@@ -192,7 +204,8 @@ class _Process:
         left out, so every lock, condition and queue is made anew, by the RENEW table rather than
         by a list. The parent's workers, tool threads, zip folders, compiling guards, ticker
         thread, sessions and reaper are not in the child; its facts of the kernel, the files, the
-        engines, the outputs and the warnings are kept."""
+        engines, the outputs and the warnings are kept, and so are the snapshot folders: a child
+        holds its parent's snapshots and files."""
         for name, value in list(vars(self).items()):
             factory = RENEW.get(type(value))
             if factory is not None:
@@ -217,6 +230,7 @@ class _Process:
         self.dropped.clear()
         self.reaper_thread, self.reaper_stop = None, False
         self.counts["sessions_open"] = 0
+        self.live_writable = {}  # the parent's calls are not the child's
         if self.fork_used:  # the fact the refusal needs: wasmtime does not survive a fork
             self.forked = True
 

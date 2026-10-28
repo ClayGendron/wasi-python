@@ -14,7 +14,7 @@ import zlib
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import _artifacts, _platform, _platform_common
+from . import _artifacts, _platform
 from ._artifacts import Artifacts
 from ._private_dirs import _Private
 from ._process import process
@@ -118,7 +118,7 @@ def _member_parts(name: str) -> tuple[str, ...]:
         or name.startswith("/")
         or "\\" in name
         or ":" in name
-        or any(p in ("", ".", "..") or _platform_common._rewritten(p) for p in parts)
+        or any(p in ("", ".", "..") or _platform._rewritten_on_windows(p) for p in parts)
         or any(unicodedata.category(c) == "Cf" for c in name)
     ):
         raise RuntimeError(f"the stdlib zip's matplotlib data holds the member {name!r}")

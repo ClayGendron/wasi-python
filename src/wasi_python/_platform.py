@@ -5,7 +5,8 @@ any other POSIX host, bound by `_select`, the only place in the package that ask
 interpreter which system this is. Every caller writes `from . import _platform` and reads
 `_platform.PLATFORM` at the call, so a check that binds another platform for its duration is
 seen by every caller. The Windows class lives in `_platform_windows.py`, and what both families
-run in `_platform_common.py`, below both.
+run in `_platform_common.py`, below both; no other module imports either, and what a caller needs
+of the shared half has a delegate here.
 
 What differs, and why each difference exists:
 
@@ -133,6 +134,12 @@ _ROOT_ADVICE = (
     "no folder can hold the cache while it is, so have its owner run chmod go-w /, or pass "
     "cache_dir=False to compile in memory without this warning"
 )
+_CACHE_HINT = "set $WASI_PYTHON_CACHE to a folder of yours"
+# A saved snapshot is held to the same rule.
+_OWNED_RULE = (
+    "a snapshot is loaded only from a file only you can write, as save() makes it (mode 600)"
+)
+_OWNED_HINT = "keep snapshot files in a folder only you can change"
 
 # Linux: the fatal signals wasmtime 49 handles to turn a fault in wasm into a trap
 # (crates/wasmtime/src/runtime/vm/sys/unix/signals.rs, foreach_handler): SIGSEGV and SIGILL, and
@@ -197,6 +204,9 @@ class _Platform(Protocol):
     def open_cached(
         self, cwasm: Path, *, reopen: Callable[..., int] = os.open
     ) -> _Opened | None: ...
+    def open_owned(
+        self, path: Path, *, lstat: Callable[[str], os.stat_result] = os.lstat
+    ) -> int: ...
     def output_channel(self) -> tuple[str, int, int] | None: ...
 
 
@@ -212,7 +222,9 @@ class _Posix:
             os.mkdir in os.supports_dir_fd and shutil.rmtree.avoids_symlink_attacks is not False
         )
         self.identity: dict[str, str | None] = {}  # the kernel's, read once
-        self.stack_api: dict[str, Any] = {}  # the C library's stack calls, resolved once
+        # The C library's stack calls, resolved once and published whole: a reader sees None
+        # or every key, never some, so no lock is needed while two threads fill it at once.
+        self.stack_api: dict[str, Any] | None = None
 
     # The walk.
 
@@ -579,6 +591,49 @@ class _Posix:
             return None
         return _Opened(fd, name or str(cwasm), by_path=name is None)
 
+    # A saved snapshot.
+
+    def open_owned(self, path: Path, *, lstat: Callable[[str], os.stat_result] = os.lstat) -> int:
+        """A saved snapshot open for reading, held to the rule of a `.cwasm`: a regular file
+        with one name and no access list, this user's, that no one else may read or write, on a
+        way of folders each this user's or root's and closed to other writers unless sticky. It
+        is opened inside its folder's descriptor without following a link and checked through
+        the descriptor it is read from, so what was checked is what is read. An image is code
+        the embedder trusts: whoever could rewrite the file would run code in every call made
+        from it. PermissionError names what fails; `lstat` is the way's walk."""
+        folder = Path(os.path.realpath(path.parent))
+        if _way(folder, lstat, hint=_OWNED_HINT):
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(path))
+        at = os.open in os.supports_dir_fd  # else by path, below a folder just checked
+        dir_fd = os.open(folder, _CACHE_DIR_OPEN)
+        try:
+            name = path.name if at else str(folder / path.name)
+            fd = os.open(name, _CACHE_FILE_OPEN, dir_fd=dir_fd if at else None)
+        except OSError as e:
+            if e.errno != errno.ELOOP:
+                raise
+            raise PermissionError(errno.EACCES, f"{path} is a link; {_OWNED_RULE}") from None
+        finally:
+            os.close(dir_fd)
+        try:
+            st = os.fstat(fd)
+            why = None
+            if not _platform_common._one_file(st):
+                why = "is not a regular file with one name"
+            elif not _platform_common._this_users(st):
+                why = f"is another user's (uid {_platform_common._owner(st)})"
+            elif st.st_mode & 0o077:
+                who = "written" if st.st_mode & 0o022 else "read"
+                why = f"may be {who} by others (mode {stat.S_IMODE(st.st_mode):o})"
+            elif self._access_list(fd, is_dir=False):
+                why = "has an access list"
+            if why is not None:
+                raise PermissionError(errno.EACCES, f"{path} {why}; {_OWNED_RULE}")
+        except BaseException:
+            os.close(fd)
+            raise
+        return fd
+
     # The guest's output.
 
     def output_channel(self) -> tuple[str, int, int] | None:
@@ -590,13 +645,16 @@ class _Posix:
         return f"/dev/fd/{w}", r, w
 
 
-def _way(folder: Path, lstat: Callable[[str], os.stat_result]) -> list[Path]:
+def _way(
+    folder: Path, lstat: Callable[[str], os.stat_result], *, hint: str = _CACHE_HINT
+) -> list[Path]:
     """The folders from `/` down to `folder` that do not exist yet, for the caller to make; each
     one that exists is a folder that no one else may write, or that is sticky, and is this
     user's, root's, or, on `/`'s own device, the owner of `/`'s. Whoever owns `/` can already
     rename every folder on its file system, so trusting it there adds no one; past a mount
     point it cannot rename the way, and the overflow uid could stand for another owner below
-    `/`. PermissionError names the first folder that fails."""
+    `/`. PermissionError names the first folder that fails, and ends with `hint` (for `/`
+    under the cache's own hint, the advice for `/`)."""
     missing = []
     top: os.stat_result | None = None
     for here in [*reversed(folder.parents), folder]:
@@ -616,7 +674,7 @@ def _way(folder: Path, lstat: Callable[[str], os.stat_result]) -> list[Path]:
         elif st.st_mode & 0o022 and not st.st_mode & stat.S_ISVTX:
             why = f"may be written by others (mode {stat.S_IMODE(st.st_mode):o}) and is not sticky"
         if why is not None:
-            advice = _ROOT_ADVICE if root else "set $WASI_PYTHON_CACHE to a folder of yours"
+            advice = _ROOT_ADVICE if root and hint == _CACHE_HINT else hint
             raise PermissionError(errno.EACCES, f"{here}, on the way to it, {why}; {advice}")
     return missing
 
@@ -874,20 +932,23 @@ class _Linux(_Posix):
 
     def _stack_bounds(self) -> tuple[int, int] | None:
         api = self.stack_api
-        if "getattr" not in api:
+        if api is None:
             libc = ctypes.CDLL(None)
             vp, sz = ctypes.c_void_p, ctypes.c_size_t
-            api["self"] = ctypes.CFUNCTYPE(ctypes.c_ulong)(("pthread_self", libc))
-            api["getattr"] = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_ulong, vp)(
-                ("pthread_getattr_np", libc)
-            )
-            api["getstack"] = ctypes.CFUNCTYPE(
-                ctypes.c_int, vp, ctypes.POINTER(vp), ctypes.POINTER(sz)
-            )(("pthread_attr_getstack", libc))
-            api["guard"] = ctypes.CFUNCTYPE(ctypes.c_int, vp, ctypes.POINTER(sz))(
-                ("pthread_attr_getguardsize", libc)
-            )
-            api["destroy"] = ctypes.CFUNCTYPE(ctypes.c_int, vp)(("pthread_attr_destroy", libc))
+            api = {
+                "self": ctypes.CFUNCTYPE(ctypes.c_ulong)(("pthread_self", libc)),
+                "getattr": ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_ulong, vp)(
+                    ("pthread_getattr_np", libc)
+                ),
+                "getstack": ctypes.CFUNCTYPE(
+                    ctypes.c_int, vp, ctypes.POINTER(vp), ctypes.POINTER(sz)
+                )(("pthread_attr_getstack", libc)),
+                "guard": ctypes.CFUNCTYPE(ctypes.c_int, vp, ctypes.POINTER(sz))(
+                    ("pthread_attr_getguardsize", libc)
+                ),
+                "destroy": ctypes.CFUNCTYPE(ctypes.c_int, vp)(("pthread_attr_destroy", libc)),
+            }
+            self.stack_api = api
         attr = (ctypes.c_char * 1024)()  # larger than any pthread_attr_t
         if api["getattr"](api["self"](), attr) != 0:
             return None
@@ -993,7 +1054,8 @@ class _Darwin(_Posix):
 
     def __init__(self) -> None:
         super().__init__()
-        self.acl_api: dict[str, Any] = {}  # the C library's access-list calls, resolved once
+        # The C library's access-list calls, resolved once and published whole, as `stack_api`.
+        self.acl_api: dict[str, Any] | None = None
 
     def _access_list(self, fd: int, *, is_dir: bool) -> bool:
         """Whether the file open at `fd` has an extended access list, any entry, allow or deny,
@@ -1002,11 +1064,14 @@ class _Darwin(_Posix):
         import ctypes.util
 
         api = self.acl_api
-        if "get" not in api:
+        if api is None:
             libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
             vp, i = ctypes.c_void_p, ctypes.c_int
-            api["get"] = ctypes.CFUNCTYPE(vp, i, i, use_errno=True)(("acl_get_fd_np", libc))
-            api["free"] = ctypes.CFUNCTYPE(i, vp)(("acl_free", libc))
+            api = {
+                "get": ctypes.CFUNCTYPE(vp, i, i, use_errno=True)(("acl_get_fd_np", libc)),
+                "free": ctypes.CFUNCTYPE(i, vp)(("acl_free", libc)),
+            }
+            self.acl_api = api
         ctypes.set_errno(0)
         found = api["get"](fd, _ACL_TYPE_EXTENDED)
         if found:
@@ -1032,12 +1097,15 @@ class _Darwin(_Posix):
 
     def _stack_bounds(self) -> tuple[int, int] | None:
         api = self.stack_api
-        if "top" not in api:
+        if api is None:
             libc = ctypes.CDLL(None)
             vp = ctypes.c_void_p
-            api["self"] = ctypes.CFUNCTYPE(vp)(("pthread_self", libc))
-            api["top"] = ctypes.CFUNCTYPE(vp, vp)(("pthread_get_stackaddr_np", libc))
-            api["size"] = ctypes.CFUNCTYPE(ctypes.c_size_t, vp)(("pthread_get_stacksize_np", libc))
+            api = {
+                "self": ctypes.CFUNCTYPE(vp)(("pthread_self", libc)),
+                "top": ctypes.CFUNCTYPE(vp, vp)(("pthread_get_stackaddr_np", libc)),
+                "size": ctypes.CFUNCTYPE(ctypes.c_size_t, vp)(("pthread_get_stacksize_np", libc)),
+            }
+            self.stack_api = api
         me = api["self"]()
         top, size = api["top"](me), api["size"](me)
         if not top or not size or size >= top:
@@ -1049,6 +1117,26 @@ class _Darwin(_Posix):
 
     def _unset_default(self, home: Path) -> Path:
         return self.default_cache_dir(home)  # macOS reads no override
+
+
+# What callers outside the platform modules need of the shared half, reached through this door.
+# Each delegates at the call, so a stand-in set on `_platform_common` is seen; each has a name of
+# its own, since a runner name is defined in one module.
+
+
+def _rewritten_on_windows(name: str) -> bool:
+    """Whether Windows rewrites or rejects this one path component."""
+    return _platform_common._rewritten(name)
+
+
+def _owned_by_this_user(st: os.stat_result) -> bool:
+    """Whether the file `st` describes is this user's."""
+    return _platform_common._this_users(st)
+
+
+def _remove_file_quietly(path: str) -> None:
+    """Remove `path`, if it can be removed."""
+    _platform_common._unlink_quietly(path)
 
 
 def _select() -> _Platform:

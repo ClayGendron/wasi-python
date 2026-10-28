@@ -223,6 +223,12 @@ BAD_POINTER = f"""(module
     (call $r (i32.const 4) (i32.const 65536) (i32.const 1) (i32.const 0))))"""
 
 
+def _no_mounts(m: Mounted) -> _fs_table._Files:
+    """The table a call without mounts gets, on `m`'s engine and metering."""
+    metered = m.table.metered
+    return _fs_table._Files([], [], None, 1 << 30, metered, m.engine, context=_call._Context())
+
+
 def _loop(placeholder: Path, mounted: bool, cap: int, n: int = 200) -> tuple[str, int]:
     """How the loop ends and the fuel it used, on the mount linker or today's."""
     provider = MemoryProvider()
@@ -263,7 +269,7 @@ def test_forwards_cost_no_fuel_and_keep_traps(placeholder, tmp_path) -> None:
         if mounted:
             call, linker = m.call, m.linker
         else:
-            call = _call._Call(m.store, None, None, 0)
+            call = _call._Call(m.store, None, None, 0, table=_no_mounts(m))
             linker = m.plain
         call.stopped = None
         driven = _call._drive(wt, linker, m.store, module, call, 10**6, plain=m.plain)
@@ -652,7 +658,7 @@ def test_an_abi_error_keeps_the_grants_fuel(placeholder, tmp_path) -> None:
         if mounted:
             call, linker = m.call, m.linker
         else:
-            call, linker = _call._Call(m.store, None, None, 0), m.plain
+            call, linker = _call._Call(m.store, None, None, 0, table=_no_mounts(m)), m.plain
         driven = _call._drive(wt, linker, m.store, module, call, 10**6, plain=m.plain)
         used = _call._fuel_used(10**6, driven, call, m.store.get_fuel)
         ends.append((driven.exit_code, used))

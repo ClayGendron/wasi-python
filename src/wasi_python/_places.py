@@ -4,6 +4,7 @@ the runtime and shared folders, and the real directory at a path."""
 
 from __future__ import annotations
 
+import errno
 import os
 import struct
 import tempfile
@@ -18,6 +19,7 @@ from ._artifacts import Artifacts
 from ._fs_memory import METHODS
 from ._limits import _UNSET
 from ._platform import Identity, _Walked
+from ._process import process
 from .mounts import Mount
 
 if TYPE_CHECKING:
@@ -486,18 +488,91 @@ def _walk_grants(
                 (where, grant, _platform.PLATFORM.walk(where, os.fspath(grant.host), judge=True))
             )
         _judge(walked_root, walked, runtime, _shared_folders(), missing=missing)
+        # Published before the snapshot folders are judged, as a save remembers its folder
+        # before it checks the live calls: of a call and a save at once, one sees the other.
+        _hold_writable(walked_root, walked)
+        _judge_snapshot_folders(walked_root, walked)
         _judge_import_path(walked_root, walked, import_path, serving)
         if walked_root is not None and walked_root.missing:
             try:
-                walked_root = _platform.PLATFORM.make_missing("root", walked_root)
+                made = _platform.PLATFORM.make_missing("root", walked_root)
             except OSError as e:
                 raise ValueError(f"root: {root!r} cannot be made: {e.strerror or e}") from None
+            _let_go([walked_root])
+            walked_root = made
+            _hold_writable(walked_root, [])
         return walked_root, walked
     except BaseException:
+        _let_go([walked_root, *(w for _, _, w in walked)])  # its publication undone
         for w in [walked_root, *(w for _, _, w in walked)]:
             if w is not None:
                 w.close()
         raise
+
+
+def _judge_snapshot_folders(root: _Walked | None, grants: list[tuple[str, Grant, _Walked]]) -> None:
+    """By identity: no writable grant, and no root, at or above the folder of a snapshot file
+    this process saved or loaded, whose image every call from it runs as code. One inside it is
+    allowed, since a guest cannot climb out of its grant; a folder gone since is skipped. Each
+    is judged as written, as a module cache is: a link on its path inside a writable grant
+    counts, since a guest could point it elsewhere before the next load."""
+    writable = [("root", root)] if root is not None else []
+    writable += [(where, w) for where, g, w in grants if g.writable]
+    for folder in _snapshot_folders() if writable else []:
+        identity, chain, _ = _cache_chain(folder)
+        for where, w in writable if identity is not None else []:
+            if w.identity is not None and w.identity in chain:
+                raise ValueError(
+                    f"{where} is writable and holds the folder of a snapshot file this process "
+                    f"saved or loaded ({folder}); grant a folder apart from it"
+                )
+
+
+def _snapshot_folders() -> list[Path]:
+    """The folders of the snapshot files this process saved or loaded, copied out of the lock,
+    which stays a leaf: the walk that judges them runs after it is released."""
+    p = process()
+    with p.cache_lock:
+        held = sorted(p.snapshot_folders)
+    return [Path(f) for f in held]
+
+
+def _hold_writable(root: _Walked | None, grants: list[tuple[str, Grant, _Walked]]) -> None:
+    """Keep a starting call's or session's root and writable grants, judged, in the process's
+    registry of what live calls may write, so a snapshot file is never saved or loaded where one
+    of them could rewrite it. `_let_go` takes them out when the call or session ends."""
+    held = [("root", root)] if root is not None else []
+    held += [(where, w) for where, g, w in grants if g.writable]
+    p = process()
+    with p.cache_lock:
+        for where, w in held:
+            p.live_writable[w] = where
+
+
+def _let_go(walks: Iterable[_Walked | None]) -> None:
+    """An ended call's or session's walks out of the registry of what live calls may write."""
+    p = process()
+    with p.cache_lock:
+        for w in walks:
+            p.live_writable.pop(w, None)
+
+
+def _refuse_live_writable(folder: Path) -> None:
+    """PermissionError when a call or session running now has a root or writable grant at or
+    above `folder`, by identity, the folder judged as written: its guest could rewrite a snapshot
+    file there, which every later call would run as code."""
+    _, chain, _ = _cache_chain(folder)
+    p = process()
+    with p.cache_lock:
+        live = list(p.live_writable.items())
+    for w, where in live:
+        if w.identity is not None and w.identity in chain:
+            raise PermissionError(
+                errno.EACCES,
+                f"{folder} lies in the {where} of a call or session running now, whose guest may "
+                "write it; keep snapshot files apart from what a call may write, or save it once "
+                "that call ends",
+            )
 
 
 def _judge_import_path(

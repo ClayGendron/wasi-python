@@ -61,6 +61,24 @@ The runner checks every limit before any work. A value of the wrong type or out 
 - A deadline is a positive real number of seconds. It is counted in ticks of 10 ms, so any positive deadline is at least one tick.
 - A cancel stops a computing guest within 5 ticks of 10 ms.
 
+## Making a snapshot
+
+`make_snapshot` and `make_package_snapshot` take `run`'s limits, with one default of their own. A snapshot is the guest's memory after your code ran once; see [Start every call from a snapshot](../how-to/snapshots.md).
+
+| limit | default | unit | where |
+|---|---|---|---|
+| deadline | 600 | seconds of wall-clock time | `deadline_s=` |
+| memory | 1 GiB | bytes of linear memory, and so the largest image | `memory_bytes=` |
+| fuel | none | the code's instructions | `fuel=` |
+| output | 16 MiB | bytes kept per stream | `output_bytes=` |
+| the code | 16 MiB | bytes of the code as UTF-8 | fixed |
+
+The deadline is ten times `run`'s because making a snapshot is a setup step, run once: the image of every package runs about 35 billion instructions. A saved file's header holds at most 17 MiB, and an image at most 4 GiB, the guest's address space.
+
+A call or session from a snapshot holds a private copy of the whole image while it lives, since the copy writes every page: N calls at once hold N times the image, plus the one copy the `Snapshot` holds. The image of every package is 203 MiB. A call's `memory_bytes` must be at least the image's size, else it raises `SnapshotMismatch` before any work.
+
+A call from a snapshot ends without tearing down the modules the snapshot holds, so its fuel is its own work. Tearing them down, as a call without a snapshot does, would add about 1,546 million instructions to each call from the image of every package.
+
 ## Limits a mount adds
 
 A call with mounts has three more bounds. Each has a default.

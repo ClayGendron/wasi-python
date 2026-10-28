@@ -1258,6 +1258,32 @@ def _platform_hits(package: Path) -> list[str]:
     return hits
 
 
+# The platform's door. What both platform families share lives in `_platform_common.py` and
+# what Windows does in `_platform_windows.py`; every other module reaches either through
+# `_platform`, which has a delegate for what a caller needs of the shared half, so the platform
+# module stays the one place a reader looks. Only the platform modules import the halves:
+# `_platform_common` by `_platform.py` and `_platform_windows.py`, `_platform_windows` by
+# `_platform.py`.
+PLATFORM_HALVES = {
+    "_platform_common": ("_platform.py", "_platform_windows.py"),
+    PLATFORM_WINDOWS: (PLATFORM_MODULE,),
+}
+
+
+def test_only_the_platform_modules_import_its_halves() -> None:
+    """No module under `src/wasi_python/` imports `_platform_common` or `_platform_windows`,
+    at module level, inside a function or under `TYPE_CHECKING`, but the platform modules
+    PLATFORM_HALVES names; every other caller goes through `_platform`."""
+    package = paths.REPO / "src" / "wasi_python"
+    hits = []
+    for path in sorted(package.glob("*.py")):
+        for line, module, _ in scan.sibling_imports(path):
+            allowed = PLATFORM_HALVES.get(module)
+            if allowed is not None and path.name not in allowed:
+                hits.append(f"{path.name}:{line}: imports {module} past the platform module")
+    assert not hits, scan.report(hits)
+
+
 def test_the_platform_is_chosen_once() -> None:
     """No `os.name` or `sys.platform` anywhere under `src/wasi_python/` but inside
     `_platform._select`, no import that binds `PLATFORM` to a local name, and no import of the
@@ -1322,15 +1348,15 @@ def test_the_judge_patches_the_runner_only_through_the_process_object() -> None:
 LONG_FUNCTIONS = {
     # The two entry points and the session's opening each validate every argument before any
     # work; a shared argument object would carry the checks out of them.
-    "runner.py:run": 151,
-    "runner.py:run_async": 176,
-    "runner.py:Session.__init__": 173,
-    "runner.py:Session.run_async": 82,
-    "_sessions.py:_open_session": 150,
+    "runner.py:run": 156,
+    "runner.py:run_async": 181,
+    "runner.py:Session.__init__": 178,
+    "runner.py:Session.run_async": 81,
+    "_sessions.py:_open_session": 142,
     # The engine instance's assembly: the linker, the store and the imports, one builder each.
-    "_call.py:_instance": 159,
+    "_call.py:_instance": 157,
     # The process object's fields, one line each; a dataclass would make them declarations.
-    "_process.py:_Process.__init__": 82,
+    "_process.py:_Process.__init__": 84,
 }
 
 
@@ -1357,11 +1383,12 @@ def test_api_lists_every_module_of_the_package() -> None:
     assert not hits, scan.report(hits)
 
 
-# The table owns its state. The descriptor and path calls receive the table as `files` and
-# change it only through its methods, so each invariant of the state (`staged` is the sum of the
-# rows' `held`, `opened` counts the table and the owed rows, `held` holds only wasmtime's
-# numbers) is kept in one file. No allowance: there is no list to grow.
-TABLE_HANDLERS = ("_fs_descriptors.py", "_fs_paths.py")
+# The table owns its state. The descriptor and path calls, and the poll the runner answers
+# itself, receive the table as `files` and change it only through its methods, so each invariant
+# of the state (`staged` is the sum of the rows' `held`, `opened` counts the table and the owed
+# rows, `held` holds only wasmtime's numbers, a stop's fuel is recorded once) is kept in one
+# file. No allowance: there is no list to grow.
+TABLE_HANDLERS = ("_fs_descriptors.py", "_fs_paths.py", "_call.py")
 
 
 def test_the_handlers_change_the_table_only_through_its_methods() -> None:

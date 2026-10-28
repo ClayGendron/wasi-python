@@ -33,11 +33,13 @@ ORDER = (
     "_private_dirs",
     "_zip",
     "_places",
+    "_snapshot",
     "_home",
     "_outputs",
     "_call",
     "_sessions",
     "runner",
+    "_snapshot_make",
 )
 RUNNER_MODULES = tuple(m for m in ORDER if m != "_wasmtime_ffi")  # the runner's text, by concern
 MAY_IMPORT_MOUNTS = ("_places", "_call", "_sessions", "runner")

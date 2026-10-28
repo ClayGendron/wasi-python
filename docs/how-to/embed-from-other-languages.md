@@ -112,6 +112,20 @@ To keep Python's state between calls, as `wasi_python.Session` does, call the ex
 
 To end the instance as Python ends, call `shutdown() -> i32` once, at rest, after a turn that returned, under a deadline. It runs `atexit` and finalizes, and returns 0, or 120 when finalization reported an error. Then never call the instance again.
 
+### Start each call from a starting image
+
+A starting image is the snapshot's memory after your own setup code ran: imports, data, functions. Make it once, then copy it into each new instance, so a call pays only for its own work.
+
+1. **Run your setup with `prepare`.** In a fresh snapshot instance that has run nothing, write the code as UTF-8 into a buffer from `host_alloc` and call `prepare(ptr, len) -> i32`. It frees the buffer. It returns the code's exit status, or −1 for a refusal, which runs no Python: on the plain reactor, after `run` or `turn`, or a second time. The instance's argv entries after the first that begin with `/` are on `sys.path` while the setup runs, and are gone after it; a call that imports more from such a folder passes it in its own argv.
+2. **Read the memory whole** when it returned 0. Those bytes are the image. Discard an instance whose `prepare` returned anything else: it refuses `prepare`, `run` and `turn`.
+3. **Start each call from the image.** Instantiate the snapshot afresh, grow its memory to the image's size, copy the image in, then call `run` or `turn` as usual.
+
+While the setup code runs, the clocks and entropy are pinned: `time.time()` reads 2026-01-01T00:00:00Z, `time.monotonic()` reads 0, and random bytes are zeros. So the code must not make a secret or wait for time to pass. File metadata is real. A call from the image gets its own grants, in any order, its own environment, and fresh randomness. The image works only with the snapshot binary and stdlib zip it was made with.
+
+A call from an image ends without Python's teardown of the modules the image holds. `atexit` handlers run, what the program's own names held is finalized, and every file still open is flushed. An object a program hangs on an imported module is flushed, not finalized, so close what you open, or use `with`.
+
+MANIFEST's `x-snapshot-package` lines name what to import to load every package the set ships, one line per distribution.
+
 ### What you give up
 
 The protections the Python runner adds are its own, not the artifacts'. An engine you drive yourself gets none of the runner's limits, folder checks or clean-up. The engine the runner pins, wasmtime 50, carries the fixes for a rename with a trailing `/` and for padding in directory listings in its own file calls. An embedder that drives the artifacts with its own wasmtime before 49.0.3 does not get them.

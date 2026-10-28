@@ -1,15 +1,21 @@
 """The reactor's argument handling: the module `_reactor` (spec 003, Decision 6).
 
 recipes/reactor_main.c calls `run(argv, environ)` once per instance, or `turn(source, environ)`
-once per turn of a session (spec 055, Decision 3). Step 60 compiles this file with
-the pinned host Python (the guest's own version) and links the marshalled code into the reactor, so no
-start compiles it (scripts/freeze_bootstrap.py). Its frames are named `<reactor>`, which `_report`
-strips from tracebacks.
+once per turn of a session (spec 055, Decision 3), and `prepare(source, environ)` once in an
+instance whose memory the host makes a starting image of. Step 60 compiles this file with the
+pinned host Python (the guest's own version) and links the marshalled code into the reactor, so
+no start compiles it (scripts/freeze_bootstrap.py). Its frames are named `<reactor>`, which
+`_report` strips from tracebacks.
 
 Every program runs in a fresh `__main__` made at run time (spec 073): the snapshot's own was made
 before `gc.freeze()`, and a file left open beside a function defined in it was never finalized.
 A script and `-m` run in that `__main__` itself, as CPython's own entry points run them, not in
 runpy's temporary module, which lost such a file on both binaries.
+
+A call from a starting image runs in the image's own `__main__`, the module the host's code ran
+in, so a call means what one program of the code and the call's means. It ends through `_end`,
+without Python's teardown of every module the image holds: the call's own names are dropped and
+collected, so what they held is finalized, and a writer it hung elsewhere is flushed.
 """
 
 import os
@@ -25,6 +31,10 @@ IGNORED = {"-I", "-E", "-s", "-B"}
 # module type): captured once, before any program, so a nested run (spec 054's prelude) cannot
 # carry a program's names into the next __main__ (spec 073, Decision 1).
 _MAIN_NAMES = dict(sys.modules["__main__"].__dict__)
+_prepared = False  # the host's code ran here through prepare: this instance is a starting image
+_NOTHING = object()
+_image_underscore = _NOTHING  # builtins._ as the image holds it
+_image_main = None  # the __main__ the host's code ran in
 
 
 def _fresh_main():
@@ -68,6 +78,23 @@ def _refresh(unbuffered):
     nprand = sys.modules.get("numpy.random")
     if nprand is not None:
         nprand.seed()
+    # A starting image may hold more generators seeded at import: each is seeded afresh, as a
+    # fresh import would seed it, and the next temporary name comes from a new sequence.
+    tf = sys.modules.get("tempfile")
+    if tf is not None:
+        tf._name_sequence = None
+    sympy_random = sys.modules.get("sympy.core.random")
+    if sympy_random is not None:
+        sympy_random.seed()  # its two module-level generators
+    recipes = sys.modules.get("more_itertools.recipes")
+    if recipes is not None:
+        recipes._private_randrange.__self__.seed()  # is_prime's private generator
+    grower = sys.modules.get("sklearn.ensemble._hist_gradient_boosting.grower")
+    if grower is not None:
+        for default in grower.TreeGrower.__init__.__defaults__ or ():
+            bits = getattr(default, "bit_generator", None)
+            if bits is not None:  # the generator a grower made without one uses
+                bits.state = type(bits)().state
     lg = sys.modules.get("logging")
     if lg is not None:
         import time
@@ -175,7 +202,7 @@ def run(argv, environ):
         break
     _refresh(unbuffered)
     try:
-        main = _fresh_main()
+        main = _image_main if _prepared else _fresh_main()
         if mode == "-c":
             sys.argv = ["-c", *rest]
             code = compile(target, "<string>", "exec")
@@ -307,3 +334,128 @@ def turn(source, environ):
             except Exception:
                 pass
     return (status, _quit)
+
+
+# Starting images: the host's code run once, the instance then imaged by the host.
+
+
+def prepare(source, environ):
+    """Run the host's code in __main__ as the start of a starting image: its exit status. The
+    making call's environment and import path serve the code alone: `sys.path` and the importer
+    cache are restored after it on every path, so a call from the image imports from its own."""
+    global _MAIN_NAMES, _prepared, _image_underscore, _image_main
+    argv, env = environ
+    path = list(sys.path)
+    status = 0
+    try:
+        os.environ.clear()
+        os.environ.update(env)
+        for entry in argv[1:]:
+            if entry.startswith("/"):  # absolute, read-only folders only, as a session's
+                sys.path.append(entry)
+        sys.argv = [""]
+        sys.orig_argv = list(argv[:1])
+        if source is None:
+            raise MemoryError("no memory for the code")
+        import linecache
+
+        text = source.decode("utf-8")
+        code = compile(text, "<snapshot>", "exec")
+        linecache._register_code(code, text, "<snapshot>")
+        _image_main = sys.modules["__main__"]
+        exec(code, _image_main.__dict__)
+    except SystemExit as exc:
+        status = _exit_code(exc)
+    except BaseException as exc:
+        _report(exc, False)
+        status = 1
+    finally:
+        sys.path = path
+        for key in [k for k in sys.path_importer_cache if k not in path]:
+            del sys.path_importer_cache[key]
+        for stream in (sys.stdout, sys.stderr):
+            try:
+                stream.flush()
+            except Exception:
+                pass
+    if status == 0:
+        import builtins
+
+        # Every name the code left, double-underscore names too: the end of a call drops
+        # exactly what the call bound.
+        _MAIN_NAMES = dict(_image_main.__dict__)
+        _image_underscore = builtins.__dict__.get("_", _NOTHING)
+        _prepared = True
+    return status
+
+
+def _end():
+    """The end of a call from a starting image: True, or False when a standard stream could not
+    be flushed. The image's frozen heap is left as it is; only the call's own objects are
+    walked and collected."""
+    import atexit
+    import builtins
+    import gc
+
+    atexit._run_exitfuncs()
+    main = _image_main.__dict__
+    for name in [n for n in main if main[n] is not _MAIN_NAMES.get(n, _NOTHING)]:
+        del main[name]
+    for name in ("last_exc", "last_type", "last_value", "last_traceback"):
+        if hasattr(sys, name):
+            delattr(sys, name)
+    if builtins.__dict__.get("_", _NOTHING) is not _image_underscore:
+        builtins.__dict__.pop("_", None)  # a session's last echoed value
+    gc.collect()
+    _flush_writers(gc.get_objects())
+    ok = True
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.flush()
+        except Exception:
+            ok = False
+    return ok
+
+
+def _flush_writers(objects):
+    """Flush every open text file and buffered writer among `objects`. A writer stacked on another
+    (a gzip file's own buffer) pushes bytes into the lower one when it flushes, so the writers'
+    pass is repeated while a pass moved any of them, three passes at most."""
+    import io
+
+    texts = [o for o in objects if isinstance(o, io.TextIOWrapper)]
+    writers = [o for o in objects if isinstance(o, (io.BufferedWriter, io.BufferedRandom))]
+    del objects
+    for f in texts:
+        _flush_one(f)
+    for _ in range(3):
+        if not any([_flush_one(f) for f in writers]):
+            break
+
+
+def _flush_one(f):
+    """Flush `f` if it is open: whether it may have written (always, when its raw stream cannot
+    tell its position). An exception is printed as one ignored in a finalizer, and dropped."""
+    try:
+        if f.closed:
+            return False
+    except Exception:
+        return False  # a detached wrapper
+    before = _position(f)
+    try:
+        f.flush()
+    except Exception as exc:
+        try:
+            print(f"Exception ignored in: {f!r}", file=sys.stderr)
+            sys.__excepthook__(type(exc), exc, exc.__traceback__)
+        except Exception:
+            pass
+        return False
+    return before is None or _position(f) != before
+
+
+def _position(f):
+    try:
+        return f.raw.tell()
+    except Exception:
+        return None

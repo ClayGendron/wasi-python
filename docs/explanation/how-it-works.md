@@ -35,9 +35,10 @@ The exports that matter are:
 - `run`: run one program, once per instance. It takes its arguments as CPython's command line does: `-c`, `-m`, a script, or `-` for stdin. It returns the exit status.
 - `turn`: run one piece of code in an instance that stays alive, as a [session](sessions.md) does.
 - `shutdown`: end such an instance as Python ends, running `atexit` handlers and finalizing.
+- `prepare`: run code the host passes in a snapshot instance that has run nothing, then leave the instance ready to be imaged, with its preopen table cleared and its heap frozen. Each later instance starts from a copy of that memory.
 - `host_alloc`: give the host space in guest memory, for a request's answer.
 
-Every program runs in a fresh `__main__`. Output is buffered as CPython buffers it without `-u`, so a program stopped early loses what it printed since its last flush.
+Every program runs in a fresh `__main__`, but a call from a starting image runs in the `__main__` its setup code ran in. Output is buffered as CPython buffers it without `-u`, so a program stopped early loses what it printed since its last flush.
 
 ## The host door
 
@@ -59,6 +60,8 @@ Four facts follow from the snapshot:
 - **It finalizes as CPython does.** The bootstrap's heap starts frozen out of the garbage collector's way, and `run` undoes that freeze before finalizing, so files a program left open are flushed as in CPython.
 
 `run(snapshot=False)` uses the plain reactor instead.
+
+You can make a snapshot of your own, too. `make_snapshot` runs your code once in a fresh instance of the snapshot binary, through its `prepare` export, and keeps the guest's linear memory whole. Each call given it is a fresh instance of the same binary: the runner grows its memory to the image's size and copies the image in before any guest code runs, then runs the program in the namespace your code ran in. The copy is the host's work and spends no fuel, and nothing a call does reaches the image or another call. See [Start every call from a snapshot](../how-to/snapshots.md).
 
 ## The stdlib zip
 

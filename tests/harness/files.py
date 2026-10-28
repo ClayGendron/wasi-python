@@ -675,7 +675,7 @@ class Mounted(_OnStack):
             engine,
             context=_call._Context(),
         )
-        self.call = _call._Call(store, None, _NoWaits(), 0, cancel, stop_at, self.table)
+        self.call = _call._Call(store, None, _NoWaits(), 0, cancel, stop_at, table=self.table)
         self.linker = _call._mount_linker(wasmtime, engine)
         self.plain = _call._linker(wasmtime, engine)
         self.instance = self.linker.instantiate(store, wasmtime.Module(engine, wat or raw_wat()))
@@ -725,7 +725,7 @@ class Counted(_OnStack):
         self.table = _Files(
             [], others, None, 1 << 30, fuel is not None, engine, context=_call._Context()
         )
-        self.call = _call._Call(store, None, _NoWaits(), 0, None, None, self.table)
+        self.call = _call._Call(store, None, _NoWaits(), 0, table=self.table)
         self.linker = _call._counted_linker(wasmtime, engine)
         self.plain = _call._linker(wasmtime, engine)
         self.instance = self.linker.instantiate(store, wasmtime.Module(engine, wat or raw_wat()))

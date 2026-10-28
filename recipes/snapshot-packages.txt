@@ -1,0 +1,74 @@
+# What a program imports to use each distribution the set ships: one line per MANIFEST package
+# line, `<distribution>: <import name> ...`, in the order a starting image of every package
+# imports them. The names include the submodules a program reaches for, since many packages load
+# them lazily. A C library linked into a Python package, or a build-time tool, has an empty right
+# side: its package's line imports it. A C library the stdlib exposes is named by its module.
+# Step 90 refuses a distribution with no line, a line for no distribution, and a name that is not
+# a dotted Python name; MANIFEST carries one x-snapshot-package line per distribution with names.
+numpy: numpy
+pandas: pandas
+zlib: zlib
+bzip2: bz2
+xz: lzma
+sqlite-autoconf: sqlite3
+python-dateutil: dateutil dateutil.parser
+tzdata: tzdata
+six: six
+regex: regex
+matplotlib: matplotlib matplotlib.pyplot
+pillow: PIL PIL.Image
+kiwisolver: kiwisolver
+freetype:
+harfbuzz:
+sheenbidi:
+libraqm:
+pybind11:
+cppy:
+cycler: cycler
+pyparsing: pyparsing
+packaging: packaging packaging.version
+fonttools: fontTools fontTools.ttLib
+contourpy: contourpy
+qhull:
+libxml2:
+libxslt:
+lxml: lxml lxml.etree lxml.html
+openpyxl: openpyxl
+et-xmlfile: et_xmlfile
+xlsxwriter: xlsxwriter
+xlrd: xlrd
+pypdf: pypdf
+beautifulsoup4: bs4
+soupsieve: soupsieve
+html5lib: html5lib
+webencodings: webencodings
+defusedxml: defusedxml defusedxml.ElementTree
+xmltodict: xmltodict
+pyyaml: yaml
+tomli-w: tomli_w
+jinja2: jinja2
+markupsafe: markupsafe
+tabulate: tabulate
+charset-normalizer: charset_normalizer
+networkx: networkx
+patsy: patsy
+sympy: sympy
+mpmath: mpmath
+attrs: attr attrs
+more-itertools: more_itertools
+toolz: toolz
+tqdm: tqdm
+typing-extensions: typing_extensions
+joblib: joblib
+cloudpickle: cloudpickle
+threadpoolctl: threadpoolctl
+narwhals: narwhals
+scipy: scipy scipy.linalg scipy.optimize scipy.stats scipy.signal scipy.sparse scipy.integrate scipy.interpolate scipy.special scipy.spatial scipy.cluster scipy.ndimage scipy.fft scipy.io
+openblas:
+scikit-learn: sklearn sklearn.linear_model sklearn.tree sklearn.ensemble sklearn.cluster sklearn.datasets sklearn.model_selection sklearn.preprocessing sklearn.metrics sklearn.decomposition sklearn.neighbors sklearn.svm sklearn.pipeline
+seaborn: seaborn
+reportlab: reportlab reportlab.pdfgen.canvas
+statsmodels: statsmodels statsmodels.api statsmodels.formula.api
+formulaic: formulaic
+interface-meta: interface_meta
+wrapt: wrapt

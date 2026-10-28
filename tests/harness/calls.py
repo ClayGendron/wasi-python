@@ -33,6 +33,8 @@ BASE_CALL = _call._CheckedCall(
     import_serving=(),
     file_calls=None,
     open_files=None,
+    binary="snapshot",
+    start=None,
 )
 
 

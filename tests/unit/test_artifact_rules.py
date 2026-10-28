@@ -199,16 +199,18 @@ def good(work) -> Path:
 
 
 def test_the_session_exports_have_their_types(good, work) -> None:
-    """`turn` is (i32, i32) -> i32 and `shutdown` () -> i32; a set from
-    before sessions names both as missing."""
+    """`turn` and `prepare` are (i32, i32) -> i32 and `shutdown` () -> i32; a set from
+    before sessions names all three as missing."""
     for b in ("python.wasm", "python-snapshot.wasm"):
         assert rules.export_type_errors(good / b) == []
     old = wat.build(work / "old", "python-snapshot.wasm", wat.BEFORE_SESSIONS)
     assert rules.export_type_errors(old) == [
+        "python-snapshot.wasm: no function export prepare",
         "python-snapshot.wasm: no function export shutdown",
         "python-snapshot.wasm: no function export turn",
     ]
     assert rules.export_errors(old, rules.SNAPSHOT_EXPORTS) == [
+        "python-snapshot.wasm: no export prepare",
         "python-snapshot.wasm: no export shutdown",
         "python-snapshot.wasm: no export turn",
     ]
@@ -902,4 +904,83 @@ def test_a_wheel_must_carry_every_component_licence(good, work) -> None:
     build(_combined(good).replace(first, "renamed.txt"))
     assert rules.wheel_errors(wheel, good) == [
         f"{wheel.name}: .dist-info/licenses/LICENSE is not the combined licence (missing {first})"
+    ]
+
+
+# The starting image's package list: recipes/snapshot-packages.txt read by step 90, and the
+# MANIFEST lines it writes.
+
+PACKAGE_KEYS = {"numpy": "1", "scikit-learn": "1", "pybind11": "1"}
+PACKAGE_LIST = (
+    "# <distribution>: the import names\n"
+    "\n"
+    "numpy: numpy numpy.linalg\n"
+    "scikit-learn: sklearn numpy sklearn.tree\n"
+    "pybind11:\n"
+)
+
+
+def _refusal(text: str) -> str:
+    with pytest.raises(SystemExit) as e:
+        _assemble().snapshot_packages(text, PACKAGE_KEYS)
+    return str(e.value)
+
+
+def test_the_package_list_keeps_file_order_and_drops_repeats() -> None:
+    """Each distribution comes back with its names in file order; a name on an earlier line is
+    dropped; a distribution with nothing to import has no MANIFEST line."""
+    assemble = _assemble()
+    pairs = assemble.snapshot_packages(PACKAGE_LIST, PACKAGE_KEYS)
+    assert pairs == [
+        ("numpy", ["numpy", "numpy.linalg"]),
+        ("scikit-learn", ["sklearn", "sklearn.tree"]),
+        ("pybind11", []),
+    ]
+    assert assemble.snapshot_package_lines(pairs) == [
+        "x-snapshot-package numpy numpy numpy.linalg",
+        "x-snapshot-package scikit-learn sklearn sklearn.tree",
+    ]
+
+
+def test_the_package_list_names_a_missing_distribution() -> None:
+    message = _refusal(PACKAGE_LIST.replace("pybind11:\n", ""))
+    assert "pybind11" in message and "no line" in message, message
+
+
+def test_the_package_list_names_an_unknown_distribution() -> None:
+    message = _refusal(PACKAGE_LIST + "pandas: pandas\n")
+    assert "pandas" in message and "no package" in message, message
+
+
+def test_the_package_list_names_a_name_that_is_not_dotted() -> None:
+    message = _refusal(PACKAGE_LIST.replace("numpy.linalg", "numpy..linalg"))
+    assert "numpy..linalg" in message and "numpy" in message, message
+
+
+def test_the_package_list_names_a_second_line_and_a_line_without_a_colon() -> None:
+    assert "numpy" in _refusal(PACKAGE_LIST + "numpy: numpy.fft\n")
+    assert "numpy numpy.fft" in _refusal(PACKAGE_LIST + "numpy numpy.fft\n")
+
+
+def test_the_manifest_rule_reads_the_snapshot_package_lines() -> None:
+    """The set's rule over MANIFEST: the lines follow `x-preimport` together, and each names a
+    package line's distribution once, with dotted names no other line holds."""
+    head = "x-preimport encodings, io\n"
+    good = head + "x-snapshot-package numpy numpy\nx-snapshot-package pybind11 pybind11\n"
+    assert rules.snapshot_package_errors(good + "x-snapshot-zip 00\n", PACKAGE_KEYS) == []
+    assert rules.snapshot_package_errors(head, PACKAGE_KEYS) == [
+        "MANIFEST has no x-snapshot-package line"
+    ]
+    bad = head + "x-snapshot-package numpy numpy\nx-snapshot-package numpy 3d numpy\n"
+    bad += "x-snapshot-package pandas\n"
+    assert rules.snapshot_package_errors(bad, PACKAGE_KEYS) == [
+        "MANIFEST:3: numpy has a second line",
+        "MANIFEST:3: '3d' is not a dotted Python name",
+        "MANIFEST:3: numpy is on an earlier line",
+        "MANIFEST:4: 'pandas' is no package line's distribution",
+        "MANIFEST:4: pandas names nothing to import",
+    ]
+    late = "x-snapshot-package numpy numpy\n" + head
+    assert rules.snapshot_package_errors(late, PACKAGE_KEYS) == [
+        "the x-snapshot-package lines do not follow the x-preimport line together"
     ]

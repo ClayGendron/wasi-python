@@ -16,6 +16,7 @@ from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from . import _artifacts, _call, _engines, _home, _outputs, _places, _platform, _private_dirs
+from . import _snapshot as _snapshot  # its own line: the line above is full
 from ._artifacts import GUEST_PACKAGE, Artifacts, ArtifactsMissing
 from ._call import (
     ARGV0,
@@ -257,6 +258,8 @@ class _State:
         self.home: _call._GuestHome | None = None  # made after the preopens are listed
         self.context: contextvars.Context | None = None  # taken at the opening, for a closer
         self.ending_home: _Home | None = None  # the ending's home thread, while it runs
+        self.set_digests: _artifacts._Checked | None = None  # a snapshot's set, as checked
+        self.captured: tuple[bytes, int] | None = None  # a making's image and files left open
 
 
 _WAKE = object()
@@ -628,8 +631,7 @@ def _release_session(state: _State) -> None:
         steps.append(state.capture.close)
     if state.table is not None:
         steps.append(state.table.release)
-    for w in state.walked:
-        steps.append(w.close)
+    steps += [*(w.close for w in state.walked), lambda: _places._let_go(state.walked)]
     if state.scratch is not None:
         steps.append(state.scratch.remove)
     if (home := state.home) is not None:
@@ -693,7 +695,7 @@ def _arm(
         tool_host = _session_tool_host(state, stop_at, stop, loop, home)
         host, admit = tool_host, tool_host.admit
     table.new_turn()
-    call = _Call(store, host, waits, state.origin_ns, stop, stop_at, table, admit, home=home)
+    call = _Call(store, host, waits, state.origin_ns, stop, stop_at, admit, table=table, home=home)
     if obs.on_call is not None:
         obs.on_call(kind, call)
     return call, out, err, tool_host
@@ -742,10 +744,11 @@ def _home_ident(call: _Call) -> int:
 
 
 def _drive_turn(
-    state: _State, call: _Call, data: bytes
+    state: _State, call: _Call, data: bytes, export: str = "turn"
 ) -> tuple[int | None, int | None, str | None, bool]:
     """(the export's value, an exit code, a trap's name, whether guest code ran), on this
-    thread's stack, by `_drive`'s rules (steps 3 and 4). Before any guest code, as in
+    thread's stack, by `_drive`'s rules (steps 3 and 4); `export` is `turn`, or `prepare` for a
+    making. Before any guest code, as in
     `_drive`, a turn is refused when wasmtime's trap handlers were replaced: the session then
     ends as on an error, without Python's shutdown."""
     not_ready = _platform.PLATFORM.trap_handlers_ready()
@@ -775,8 +778,8 @@ def _drive_turn(
                 p = 0  # the guest raises MemoryError for its code
         on_export = process().observers.on_export
         if on_export is not None:  # told the home thread, the thread that made the call
-            on_export("turn", _home_ident(call))
-        value = exports["turn"](store, p, len(data))
+            on_export(export, _home_ident(call))
+        value = exports[export](store, p, len(data))
     except wt.ExitTrap as e:
         exit_code = e.code
     except wt.Trap as e:
@@ -817,6 +820,7 @@ def _turn_inside(
     cancel: threading.Event | None,
     loop: asyncio.AbstractEventLoop | None,
     home: _Home,
+    export: str = "turn",
 ) -> _TurnDone:
     own = NO_DEADLINE if deadline_s is None else max(1, math.ceil(deadline_s / TICK_S))
     ticks, capped = own, False
@@ -830,7 +834,7 @@ def _turn_inside(
     try:
         with _epoch_ticker(state.engine, True):
             value, exit_code, trapped, ran = _home._on_guest_thread(
-                "turn", home, call, _drive_turn, state, call, data
+                "turn", home, call, _drive_turn, state, call, data, export
             )
         assert state.capture is not None  # made with the store
         state.capture.settle()  # every byte the turn wrote, before its result is made
@@ -856,6 +860,9 @@ def _turn_inside(
             budget = UNMETERED if fuel is None else fuel
             done = _Driven(exit_code, trapped, True, None)
             fuel_used = _call._fuel_used(budget, done, call, store.get_fuel)
+        if export == "prepare" and value == 0:  # read here, before the claim is released
+            memory = state.exports["memory"] if state.exports is not None else None
+            state.captured = (_snapshot._memory_image(store, memory), table.open_now())
         if ran:
             table.walk()  # the write-backs, after the fuel is read
         context = _call._context_of(table)
@@ -873,6 +880,7 @@ def _turn_inside(
             truncated,
             files,
             record,
+            None if state.checked.start is None else state.checked.start.sha256,
         )
         return _TurnDone(completed, cause, returned)
     finally:
@@ -891,11 +899,12 @@ def _session_turn(
     output_bytes: int | None,
     cancel: threading.Event | None,
     loop: asyncio.AbstractEventLoop | None,
+    export: str = "turn",
 ) -> Completed:
     """A claimed turn, on this thread: run it, decide whether it ended the session, and if the
-    session has ended by its return, run the ending here (step 6). Its first step makes this
-    thread the turn's holder, whichever thread claimed it, so a `close()` from this thread, a
-    host function's or a provider's, returns at once."""
+    session has ended by its return, run the ending here (step 6); `export` is the turn's. Its
+    first step makes this thread the turn's holder, whichever thread claimed it, so a `close()`
+    from this thread, a host function's or a provider's, returns at once."""
     with state.lock:
         _move(state, _Event.TAKE_TURN, threading.get_ident())
     done: _TurnDone | None = None
@@ -904,7 +913,8 @@ def _session_turn(
     try:
         try:
             with _home._deferred_ctrl_c():
-                done = _turn_inside(state, data, fuel, deadline_s, output_bytes, cancel, loop, home)
+                args = (state, data, fuel, deadline_s, output_bytes, cancel, loop, home, export)
+                done = _turn_inside(*args)
         except BaseException as e:
             error = e
         if home.phase in _home._GUEST_MAY_RUN:  # forced out while the guest thread runs
@@ -972,7 +982,6 @@ def _open_session(
     wt: types.ModuleType,
     c: _CheckedCall,
     host: Host | None,
-    snapshot: bool,
     chosen: _engines._Cache,
     artifacts: Artifacts | None,
     state: _State,
@@ -980,9 +989,11 @@ def _open_session(
     """A session's opening: find the set and refuse one without the session exports, walk and
     judge the folders, make the store and instantiate it; no guest code runs."""
     found, checked = (
-        (artifacts, None) if artifacts is not None else _artifacts._found_and_checked(snapshot)
+        (artifacts, None)
+        if artifacts is not None
+        else _artifacts._found_and_checked(c.binary == "snapshot")
     )
-
+    checked = state.set_digests = _snapshot._same_set(c.start, found, checked)
     if c.tools is not None and not _artifacts._has_guest_package(found.manifest):
         raise ArtifactsMissing(
             f"{found.manifest} has no `recipe … {GUEST_PACKAGE}` line: this artifact set "
@@ -990,7 +1001,7 @@ def _open_session(
             "tools`; tools= needs a set built with the guest package"
         )
     cache = chosen.folder
-    binary = found.snapshot if snapshot else found.plain
+    binary = found.snapshot if c.binary == "snapshot" else found.plain
     metered = c.fuel is not None
     engine = _engines._engine(metered)
     module = _engines._module(
@@ -1003,6 +1014,7 @@ def _open_session(
             f"{binary} does not export {' or '.join(missing)}: this artifact set predates "
             "sessions; a Session needs a set built with them"
         )
+    _snapshot._refuse_unprepared(c.start, binary, names)
     root = c.root
     entries = c.import_path
     walked_root, walked = _places._walk_grants(
@@ -1018,7 +1030,8 @@ def _open_session(
         )
         state.walked += [p.walked for p in preopens]
         mounts = c.mounts
-        state.home = _call._guest_home(root_path, preopens, tuple(m.guest for m in mounts))
+        fixed = None if c.start is None else c.start.home
+        state.home = _call._guest_home(root_path, preopens, tuple(m.guest for m in mounts), fixed)
         store = state.store = wt.Store(engine)
         if metered:
             store.set_fuel(UNMETERED)  # instantiation's own memory fill
@@ -1084,6 +1097,7 @@ def _open_session(
             every,
             module,
             table,
+            None if c.start is None else c.start.image,
         )
         state.engine, state.metered = engine, metered
         if c.tools is not None:
@@ -1117,13 +1131,17 @@ def _open_wasm(
     every: list[_Preopen],
     module: Any,
     table: Any,
+    image: bytes | None = None,
 ) -> Any:
     """A session's opening wasm, on its guest thread: the signal guard, the preopen
-    check, the instantiation and the mount table's bind; the instance's exports."""
+    check, the instantiation, the mount table's bind and a snapshot's image copied in; the
+    instance's exports."""
     not_ready = _platform.PLATFORM.trap_handlers_ready()  # before any wasm runs
     if not_ready is not None:
         raise RuntimeError(_TRAP_HANDLERS_REPLACED.format(signal=not_ready))
     _places._check_preopens(wt, linker, store, check, every)  # the identity check, once
     instance = guest_linker.instantiate(store, module)
     table.bind(wt, store, linker, instance)
+    if image is not None:
+        _snapshot._restore(store, instance, image)
     return instance.exports(store)

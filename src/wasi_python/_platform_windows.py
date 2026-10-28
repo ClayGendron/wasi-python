@@ -90,8 +90,10 @@ class _Windows:
 
     def __init__(self) -> None:
         self.identity: dict[str, str | None] = {}  # the kernel's, read once
-        self.stack_api: dict[str, Any] = {}  # kernel32's stack calls, resolved once
-        self.win_api: dict[str, Any] = {}  # kernel32's file calls, resolved once
+        # kernel32's stack calls, resolved once and published whole: a reader sees None or
+        # every key, never some, so no lock is needed while two threads fill it at once.
+        self.stack_api: dict[str, Any] | None = None
+        self.win_api: dict[str, Any] = {}  # kernel32's file calls: one key, bound once whole
 
     def kernel32(self) -> Any:
         api = self.win_api
@@ -348,15 +350,18 @@ class _Windows:
         Counted conservatively: high - low - the thread's stack guarantee - one page."""
         try:
             api = self.stack_api
-            if "limits" not in api:
+            if api is None:
                 kernel32 = ctypes.WinDLL("kernel32")  # type: ignore[attr-defined]
                 up = ctypes.POINTER(ctypes.c_size_t)
-                api["limits"] = ctypes.WINFUNCTYPE(None, up, up)(  # type: ignore[attr-defined]
-                    ("GetCurrentThreadStackLimits", kernel32)
-                )
-                api["guarantee"] = ctypes.WINFUNCTYPE(  # type: ignore[attr-defined]
-                    ctypes.c_int, ctypes.POINTER(ctypes.c_ulong)
-                )(("SetThreadStackGuarantee", kernel32))
+                api = {
+                    "limits": ctypes.WINFUNCTYPE(None, up, up)(  # type: ignore[attr-defined]
+                        ("GetCurrentThreadStackLimits", kernel32)
+                    ),
+                    "guarantee": ctypes.WINFUNCTYPE(  # type: ignore[attr-defined]
+                        ctypes.c_int, ctypes.POINTER(ctypes.c_ulong)
+                    )(("SetThreadStackGuarantee", kernel32)),
+                }
+                self.stack_api = api
             low, high = ctypes.c_size_t(), ctypes.c_size_t()
             api["limits"](ctypes.byref(low), ctypes.byref(high))
             guarantee = ctypes.c_ulong(0)
@@ -452,6 +457,32 @@ class _Windows:
             os.close(fd)
             return None
         return _Opened(fd, str(cwasm), by_path=True)
+
+    # A saved snapshot.
+
+    def open_owned(self, path: Path, *, lstat: Callable[[str], os.stat_result] = os.lstat) -> int:
+        """A saved snapshot open for reading: a regular file with one name and no link or
+        junction, the same file by its identity when opened as when checked, and held open, as a
+        `.cwasm` is, sharing reading and writing but not deletion, so the name cannot be renamed
+        or replaced until the caller has read it. Windows has no mode bits, so who wrote it
+        cannot be told here; the grant rule keeps guests from its folder. PermissionError names
+        what fails; `lstat` is the POSIX one's, unused here."""
+        rule = "a snapshot is loaded only from a regular file, as save() makes it"
+        st = os.lstat(path)
+        link = getattr(st, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT
+        if link or stat.S_ISLNK(st.st_mode):
+            raise PermissionError(13, f"{path} is a link or junction; {rule}")
+        flags = os.O_RDONLY | getattr(os, "O_NOINHERIT", 0) | getattr(os, "O_BINARY", 0)
+        fd = os.open(path, flags)
+        try:
+            opened = os.fstat(fd)
+            same = (opened.st_dev, opened.st_ino) == (st.st_dev, st.st_ino)
+            if not (same and _platform_common._one_file(opened)):
+                raise PermissionError(13, f"{path} is not a regular file with one name; {rule}")
+        except BaseException:
+            os.close(fd)
+            raise
+        return fd
 
     # The guest's output.
 
