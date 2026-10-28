@@ -1736,3 +1736,65 @@ def test_mount_files_count_toward_the_open_file_cap(placeholder, tmp_path) -> No
     r = m.raw
     assert [r.open(3, "a.txt")[0] for _ in range(4)] == [0, 0, EMFILE, EMFILE]
     assert m.table.total == 2 and m.call.ended is None
+
+
+# A mount's names mean the same on every host: a component a host's path logic could read as a
+# separator or a drive is refused before the provider sees it.
+
+HOST_SPELLINGS = ["a\\..\\..\\x", "C:x", "d\\x.txt", "d/C:", "e/..\\a.txt", "c:\\x"]
+
+
+@pytest.mark.parametrize("writable", [False, True], ids=["read-only", "writable"])
+def test_a_backslash_or_a_colon_in_a_component_is_refused(placeholder, writable) -> None:
+    """A component with a backslash or a colon is EINVAL on every host, on a read-only and on a
+    writable mount, for every path call, and the provider sees no call: a provider that joins
+    the path onto a host folder never meets a name a host could reinterpret."""
+    provider = MemoryProvider()
+    r = Mounted(provider, placeholder, writable=writable).raw
+    before = provider.total()
+    rows = {}
+    for path in HOST_SPELLINGS:
+        rows[(path, "stat")] = r.path_filestat(3, path)[0]
+        rows[(path, "open")] = r.open(3, path)[0]
+        rows[(path, "open a folder")] = r.open(3, path, files.O_DIRECTORY)[0]
+        rows[(path, "readlink")] = r.readlink(3, path)[0]
+        if writable:
+            rows[(path, "create")] = r.open(3, path, files.O_CREAT, ALL)[0]
+            rows[(path, "mkdir")] = r.path_call("path_create_directory", 3, path)
+            rows[(path, "remove")] = r.path_call("path_unlink_file", 3, path)
+            rows[(path, "rmdir")] = r.path_call("path_remove_directory", 3, path)
+            rows[(path, "rename from")] = r.rename(3, path, 3, "q")
+            rows[(path, "rename to")] = r.rename(3, "a.txt", 3, path)
+            rows[(path, "set-times")] = r.path_set_times(3, path, 0)
+    assert rows == dict.fromkeys(rows, EINVAL), rows
+    assert provider.total() == before == 0
+
+
+def test_pread_writes_no_more_than_it_judged(placeholder) -> None:
+    """`fd_pread` reads at most one chunk, as wasmtime's stream does on a grant: past the
+    chunk it writes exactly the chunk's bytes, and the guest's buffer beyond is untouched."""
+    chunk = _fs_memory.PREAD_CHUNK
+    data = bytes(range(256)) * (chunk // 256 + 8)
+    provider = MemoryProvider({"/big": data})
+    r = Mounted(provider, placeholder).raw
+    f = r.open(3, "big")[1]
+    assert f is not None
+    errno, n, buffer = r.pread(f, [chunk + 64], 0)
+    assert (errno, n) == (0, chunk)
+    assert buffer == data[:chunk] + bytes(64)
+
+
+def test_a_folder_open_of_a_file_is_refused_before_any_listing(placeholder) -> None:
+    """An `O_DIRECTORY` open asks `stat` first and answers ENOTDIR itself for a file, so a
+    lenient provider that would list a file is never asked to; a missing name answers the
+    provider's errno, again with no listing."""
+    provider = MemoryProvider()
+    provider.answers[("list", "/a.txt")] = []  # a lenient provider lists anything
+    r = Mounted(provider, placeholder).raw
+    rows = {
+        "a file": r.open(3, "a.txt", files.O_DIRECTORY)[0],
+        "a file named as a folder": r.open(3, "a.txt/", files.O_DIRECTORY)[0],
+        "a missing name": r.open(3, "missing", files.O_DIRECTORY)[0],
+    }
+    assert rows == {"a file": 54, "a file named as a folder": 54, "a missing name": 44}, rows
+    assert provider.calls["list"] == 0

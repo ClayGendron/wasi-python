@@ -1339,6 +1339,40 @@ def test_a_read_only_grant_refuses_every_write(guest_workdir, snapshot) -> None:
     assert list(outside.iterdir()) == []
 
 
+HOST_SPELLINGS = r"""
+import errno, json
+out = {"EINVAL": errno.EINVAL}
+for name in ("a\\..\\..\\x", "C:x"):
+    for mode in ("r", "w"):
+        try:
+            open("/m/" + name, mode).close()
+            out[name + " " + mode] = "opened"
+        except OSError as e:
+            out[name + " " + mode] = e.errno
+print(json.dumps(out))
+"""
+
+
+def test_a_mount_refuses_a_name_a_host_could_reinterpret(guest_workdir) -> None:
+    """A guest that opens `a\\..\\..\\x` or `C:x` on a mount, to read or to write, gets
+    WASI's EINVAL, and the mount's provider records no call: a provider that joins the path onto
+    a host folder never sees a backslash or a drive, on any host."""
+    import json
+
+    from harness.files import MemoryProvider
+    from wasi_python import Mount
+
+    run = _run()
+    provider = MemoryProvider()
+    done = run(["-c", HOST_SPELLINGS], mounts=[Mount(provider, "/m", writable=True)])
+    assert (done.exit_code, done.stderr) == (0, b""), done
+    out = json.loads(done.stdout)
+    einval = out.pop("EINVAL")
+    assert einval == 28, out  # WASI's number, whatever the host's
+    assert out == dict.fromkeys(out, einval) and len(out) == 4, out
+    assert (provider.total(), provider.paths) == (0, []), provider.paths
+
+
 ZIP_SHARED = r"""
 import os, sys, tempfile
 temp, root = sys.argv[1], sys.argv[2]
