@@ -4,7 +4,7 @@
 - **Date:** 2026-10-27
 - **Owner:** Clay Gendron
 - **Researcher:** an agent (Claude Opus 5.5), the builder of specification 146. Box: one run of each arm, one after another, in one session.
-- **Evidence:** the program in §2, whole, and its two output lines in §3. No file beside this memo.
+- **Evidence:** the guest program in §2, whole; the host program's steps, described there (the host program itself lived in the session's scratch folder and is not kept); and its two output lines in §3. No file beside this memo.
 - **Stands on:** `src/wasi_python/_call.py` (`staging`, from `memory_bytes`), `src/wasi_python/_fs_table.py` (`_fits`, `_write_back`'s `bytes(entry.data)`), `src/wasi_python/_fs_descriptors.py` (`_fd_write`, `_grow`); `2026-10-27-a-code-review-of-the-runner-for-production-use.md` §3, Medium 5, which inferred the bound and did not measure it.
 - **Machine:** darwin-arm64, Apple M1 Pro, 32 GiB, macOS 26.5.2; CPython 3.14.10, wasmtime-py 50.0.1; the published 0.1.1 artifact set, read only; branch `spec/146-the-tool-hosts-bounds-are-the-processs` at `0a5b5c08`, on `dev` `898bc091`, before its rebase; no file the measurement reads (`_call.py`'s staging, `_fs_table.py`, `_fs_descriptors.py`) changed after it. Two other agents ran their fast tiers on the machine at the time; the peak resident set is a count of pages, not of time, so their load moves it little.
 
