@@ -220,6 +220,23 @@ def test_load_refuses_a_way_through_another_users_folder(work) -> None:
         _platform.PLATFORM.open_owned(path, lstat=lstat)
 
 
+@POSIX
+def test_load_refuses_a_file_the_observers_name_another_users(work, monkeypatch) -> None:
+    """The file's owner is judged as the module cache judges a `.cwasm`'s, so the process's
+    own stand-in for an owner applies to a snapshot file too."""
+    path = _folder(work) / "app.wpsnap"
+    _snap().save(path)
+    ino = path.stat().st_ino
+    other = os.geteuid() + 1
+
+    def owner_of(st: os.stat_result) -> int:
+        return other if st.st_ino == ino else st.st_uid
+
+    monkeypatch.setattr(process().observers, "owner_of", owner_of)
+    with pytest.raises(PermissionError, match="is another user's"):
+        wasi_python.Snapshot.load(path)
+
+
 @WINDOWS
 def test_load_refuses_a_link_on_windows(work) -> None:
     folder = _folder(work)
