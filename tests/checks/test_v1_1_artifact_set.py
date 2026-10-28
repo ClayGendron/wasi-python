@@ -124,6 +124,17 @@ def test_manifest_names_the_pre_imports(artifacts) -> None:
     assert found == [want], f"MANIFEST's x-preimport lines are {found}, not [{want!r}]"
 
 
+def test_manifest_names_the_snapshot_packages(artifacts) -> None:
+    """MANIFEST's `x-snapshot-package` lines say what a program imports to use each distribution
+    the set ships, so an embedder can make a starting image of every package from the set alone:
+    right after `x-preimport`, one line per distribution with names, each a dotted Python name and
+    none on two lines. That each name imports is the everything prelude's row to show."""
+    needs.need("manifest")
+    m = artifacts.manifest()
+    errors = rules.snapshot_package_errors(artifacts.path("MANIFEST").read_text(), m.packages)
+    assert not errors, scan.report(errors)
+
+
 def test_licence_notices_cover_every_component(artifacts) -> None:
     m = artifacts.manifest() if artifacts.path("MANIFEST").is_file() else None
     errors, content, presence = paths.licence_errors(artifacts.dir, m)
