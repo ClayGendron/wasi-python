@@ -614,11 +614,12 @@ def _path_rename(
     texts = _texts(files, caller, paths)
     if isinstance(texts, int):
         return texts
-    resolved = [_resolve(base, text) for base, text in ((a, texts[0]), (b, texts[1]))]
-    for one in resolved:
-        if isinstance(one, int):
-            return one
-    (src, _), (dst, _) = resolved  # type: ignore[misc]
+    first, second = _resolve(a, texts[0]), _resolve(b, texts[1])
+    if isinstance(first, int):
+        return first
+    if isinstance(second, int):
+        return second
+    (src, _), (dst, _) = first, second
     mount, lasts = a.mount, [text.rsplit("/", 1)[-1] for text in texts]
     needs_folder = any(
         counts and text.endswith("/")

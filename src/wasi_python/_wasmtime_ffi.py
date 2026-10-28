@@ -81,7 +81,7 @@ from __future__ import annotations
 
 import ctypes
 from importlib.metadata import version as _installed
-from typing import Any, Protocol, cast
+from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, cast
 
 from wasmtime import (
     Caller,
@@ -226,8 +226,13 @@ check(
     }
 )
 
-# A store's context pointer: what the C API takes for the store's state.
-Context = ctypes.POINTER(_ffi.wasmtime_context_t)
+# A store's context pointer: what the C API takes for the store's state. `ctypes.POINTER`
+# makes the type at run time, a value the checker cannot read as a type, so the checker reads
+# the class it makes.
+if TYPE_CHECKING:
+    Context: TypeAlias = ctypes._Pointer[_ffi.wasmtime_context_t]
+else:
+    Context = ctypes.POINTER(_ffi.wasmtime_context_t)
 
 
 class Storelike(Protocol):
@@ -236,9 +241,9 @@ class Storelike(Protocol):
     def _context(self) -> Any: ...
 
 
-def context_of(storelike: Storelike) -> Context:  # type: ignore[valid-type]
+def context_of(storelike: Storelike) -> Context:
     """The store's context pointer, from a `Store` or from the `Caller` of a host function."""
-    context: Context = storelike._context()  # type: ignore[valid-type]
+    context: Context = storelike._context()
     return context
 
 
@@ -325,13 +330,19 @@ def set_custom_outputs(wasi: WasiConfig, write: Any, free: Any, out_key: int, er
 ASYNC_STACK_SETTER = getattr(_ffi, "wasmtime_config_async_stack_size_set", None)
 
 
+class _AsyncStack(Protocol):
+    """A config with the async stack property, which wasmtime-py's stubs lack."""
+
+    async_stack_size: int
+
+
 def set_async_stack(cfg: Config, size: int) -> None:
     """wasmtime's async stack size, which must be at least `max_wasm_stack` above 2 MiB, or
     wasmtime refuses the config and wasmtime-py's engine aborts the process.
     Through `Config.async_stack_size` when wasmtime-py has it, else the binding; with neither, a
     RuntimeError before any engine is made."""
     if isinstance(getattr(type(cfg), "async_stack_size", None), property):
-        cfg.async_stack_size = size  # type: ignore[attr-defined]  # the stubs lack the property
+        cast(_AsyncStack, cfg).async_stack_size = size
         return
     if not callable(ASYNC_STACK_SETTER):
         raise RuntimeError(
@@ -385,7 +396,7 @@ class PreparedCall:
             self.params[i].kind = ctypes.c_ubyte(tag.value)
         self.results = (_ffi.wasmtime_val_t * 1)()
 
-    def call(self, context: Context, args: tuple[int, ...]) -> int:  # type: ignore[valid-type]
+    def call(self, context: Context, args: tuple[int, ...]) -> int:
         """The function's `i32` answer on `context`; raises its `Trap`, else its `WasmtimeError`
         (when both come back the trap is raised and the error is wrapped so that it is freed).
         Touches no fuel."""

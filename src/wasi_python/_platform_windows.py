@@ -26,7 +26,7 @@ import re
 import stat
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from . import _platform_common
 from ._platform_common import Identity, _Opened, _Walked
@@ -100,7 +100,7 @@ class _Windows:
         if "kernel32" not in api:
             from ctypes import wintypes
 
-            k = ctypes.WinDLL("kernel32", use_last_error=True)  # type: ignore[attr-defined]
+            k = ctypes.WinDLL("kernel32", use_last_error=True)
             k.CreateFileW.argtypes = [
                 wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
                 wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
@@ -121,13 +121,13 @@ class _Windows:
         flags = _BACKUP_SEMANTICS | (0 if follow else _OPEN_REPARSE_POINT)
         h = k.CreateFileW(path, access, _SHARE_READ_WRITE, None, _OPEN_EXISTING, flags, None)
         if h is None or h == ctypes.c_void_p(-1).value:
-            code = ctypes.get_last_error()  # type: ignore[attr-defined]
-            raise ctypes.WinError(code)  # type: ignore[attr-defined]
+            code = ctypes.get_last_error()
+            raise ctypes.WinError(code)
         info = _ByHandle()
         if not k.GetFileInformationByHandle(h, ctypes.byref(info)):
-            code = ctypes.get_last_error()  # type: ignore[attr-defined]
+            code = ctypes.get_last_error()
             k.CloseHandle(h)
-            raise ctypes.WinError(code)  # type: ignore[attr-defined]
+            raise ctypes.WinError(code)
         index = (info.index_high << 32) | info.index_low
         return h, info.attributes, (info.volume_serial, index)
 
@@ -278,7 +278,7 @@ class _Windows:
 
         try:
             os.lseek(fd, 0, 0)
-            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)  # type: ignore[attr-defined]
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
             return True
         except BlockingIOError:
             return False
@@ -292,7 +292,7 @@ class _Windows:
 
         try:
             os.lseek(fd, 0, 0)
-            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)  # type: ignore[attr-defined]
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
         except OSError:
             pass
         try:
@@ -309,15 +309,15 @@ class _Windows:
             try:
                 import winreg
 
-                access = winreg.KEY_READ | winreg.KEY_WOW64_64KEY  # type: ignore[attr-defined]
+                access = winreg.KEY_READ | winreg.KEY_WOW64_64KEY
                 where = r"SOFTWARE\Microsoft\Cryptography"
-                with winreg.OpenKey(  # type: ignore[attr-defined]
-                    winreg.HKEY_LOCAL_MACHINE,  # type: ignore[attr-defined]
+                with winreg.OpenKey(
+                    winreg.HKEY_LOCAL_MACHINE,
                     where,
                     0,
                     access,
                 ) as key:
-                    value = str(winreg.QueryValueEx(key, "MachineGuid")[0])  # type: ignore[attr-defined]
+                    value = str(winreg.QueryValueEx(key, "MachineGuid")[0])
             except Exception:
                 value = None
             self.identity["value"] = value if value and "\n" not in value else None
@@ -351,15 +351,15 @@ class _Windows:
         try:
             api = self.stack_api
             if api is None:
-                kernel32 = ctypes.WinDLL("kernel32")  # type: ignore[attr-defined]
+                kernel32 = ctypes.WinDLL("kernel32")
                 up = ctypes.POINTER(ctypes.c_size_t)
                 api = {
-                    "limits": ctypes.WINFUNCTYPE(None, up, up)(  # type: ignore[attr-defined]
+                    "limits": ctypes.WINFUNCTYPE(None, up, up)(
                         ("GetCurrentThreadStackLimits", kernel32)
                     ),
-                    "guarantee": ctypes.WINFUNCTYPE(  # type: ignore[attr-defined]
-                        ctypes.c_int, ctypes.POINTER(ctypes.c_ulong)
-                    )(("SetThreadStackGuarantee", kernel32)),
+                    "guarantee": ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.POINTER(ctypes.c_ulong))(
+                        ("SetThreadStackGuarantee", kernel32)
+                    ),
                 }
                 self.stack_api = api
             low, high = ctypes.c_size_t(), ctypes.c_size_t()
@@ -490,3 +490,13 @@ class _Windows:
         """None: an anonymous pipe has no path wasmtime could open, and `poll` takes no Windows
         pipe, so the guest's output stays on the custom-output callback here."""
         return None
+
+
+if TYPE_CHECKING:
+    from ._platform import _Platform
+
+    # The checker reads the platform choice as one platform and skips the others, so this class
+    # is held to the protocol here: a member the protocol gains and the class lacks is an error.
+    # Never called; at run time the import above does not run, so no import cycle forms.
+    def _conforms(windows: _Windows) -> _Platform:
+        return windows
