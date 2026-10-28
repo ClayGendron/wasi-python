@@ -10,6 +10,9 @@ A run record:
     {"schema": 1, "judge": {"hash", "files"},
      "checks": {node id: {"status", "commit", "artifact", "metrics": {platform: {...}},
                           "tier": "release" (absent for a normal-tier check)}}}
+Each platform's metrics carry two labels beside the numbers: `wasmtime`, the engine that measured
+them, and, only when another system measured the fuel kept under this key, `fuel_platform`, that
+system. A fuel is compared only with one the same system measured under the same engine.
 
 Two tiers: `meta.tier` says which a run judged. A normal run leaves every release-tier check
 (`release_checks`) unrun; it keeps what was accepted, in `accepted.json` and in the history's
@@ -61,6 +64,8 @@ COUNTS_UP = frozenset({"passes"})
 # The checks that run numpy's and pandas' own tests: `--accept` refuses while one that has an
 # accepted pass or gap did not run here, unless --partial.
 UPSTREAM_FILE = "tests/checks/test_v1_3_upstream_suites.py"
+# What an entry's metrics say about its numbers: never compared, never "no longer recorded".
+LABELS = ("wasmtime", "fuel_platform")
 
 
 class AcceptRefused(Exception):
@@ -82,7 +87,10 @@ class Ratchet:
     upstream_unrun: list[str] = field(default_factory=list)  # upstream checks this run left out
     release_tier: list[str] = field(default_factory=list)  # release-tier rows a normal run left
     moved: list[str] = field(default_factory=list)  # accepted in one tier, now in the other
-    fuel_not_compared: list[str] = field(default_factory=list)
+    fuel_not_compared: list[str] = field(default_factory=list)  # another engine measured it
+    # A fuel either side measured on another system: systems differ by more than the tolerance,
+    # and Linux's fuel moves between runs, so it is listed, never compared.
+    fuel_elsewhere: list[str] = field(default_factory=list)
     judge_changed: list[str] = field(default_factory=list)
     # Absent checks a news file's claim retires, each with its reason: listed, not red; the
     # acceptance retires them only from the claim (CI) or --retire (a local acceptance).
@@ -116,6 +124,11 @@ class Ratchet:
 
 def _file_of(node: str) -> str:
     return node.split("::", 1)[0]
+
+
+def fuel_system(metrics: dict, platform: str) -> str:
+    """The system that measured the fuel in `metrics`, kept under `platform`'s key."""
+    return metrics.get("fuel_platform", platform)
 
 
 def compare(run: dict, accepted: dict | None, repo: Path = paths.REPO) -> Ratchet:
@@ -175,14 +188,15 @@ def compare(run: dict, accepted: dict | None, repo: Path = paths.REPO) -> Ratche
         if now is None:
             continue
         old = acc.get("metrics", {}).get(meta["platform"], {})
+        fresh = now.get("metrics", {})
         if now["status"] == "pass":
-            for name in sorted(set(old) - {"wasmtime"} - set(now.get("metrics", {}))):
+            for name in sorted(set(old) - set(LABELS) - set(fresh)):
                 if name in COUNTS_UP:  # only --accept-fewer-passes may drop it
                     r.fewer.append(f"{node}: {name} {old[name]} -> none")
                 else:
                     r.growth.append(f"{node}: {name} is no longer recorded")
-        for name, value in sorted(now.get("metrics", {}).items()):
-            if name not in old:
+        for name, value in sorted(fresh.items()):
+            if name not in old or name in LABELS:
                 continue
             if name in COUNTS_UP:
                 if value < old[name]:
@@ -190,8 +204,11 @@ def compare(run: dict, accepted: dict | None, repo: Path = paths.REPO) -> Ratche
                 elif value > old[name]:
                     r.more.append(f"{node}: {name} {old[name]} -> {value}")
             elif name == "fuel":
+                here = meta["platform"]
                 if old.get("wasmtime") != meta["wasmtime"]:
                     r.fuel_not_compared.append(node)
+                elif fuel_system(old, here) != here or fuel_system(fresh, here) != here:
+                    r.fuel_elsewhere.append(node)
                 elif value > old[name] * (1 + FUEL_TOLERANCE):
                     r.growth.append(f"{node}: fuel {old[name]} -> {value}")
             elif value > old[name]:
@@ -301,16 +318,9 @@ def accept(
         old = metrics.get(platform, {})
         fresh = dict(now.get("metrics", {}))
         if fresh:
-            same_engine = old.get("wasmtime") == meta["wasmtime"]
-            merged = {"wasmtime": meta["wasmtime"]}
-            for name, value in fresh.items():
-                if name in COUNTS_UP:  # only --accept-fewer-passes lowers it
-                    keep = name in old and not fewer_reason
-                    merged[name] = max(old[name], value) if keep else value
-                    continue
-                keep_old = name in old and not growth_reason and (name != "fuel" or same_engine)
-                merged[name] = min(old[name], value) if keep_old else value
-            metrics[platform] = merged
+            metrics[platform] = _merged(
+                old, fresh, platform, meta["wasmtime"], growth=growth_reason, fewer=fewer_reason
+            )
         elif growth_reason and now["status"] == "pass":
             metrics.pop(platform, None)  # metrics no longer recorded: accepted growth drops them
         checks[node] = {
@@ -369,6 +379,31 @@ def accept(
         )
     history.remember(text, passes)
     return new, text
+
+
+def _merged(
+    old: dict, fresh: dict, platform: str, wasmtime: str, *, growth: str | None, fewer: str | None
+) -> dict:
+    """One platform's accepted metrics after a run: a count keeps the higher unless a fall is
+    accepted, any other metric the lower unless a growth is. A fuel keeps the lower only when the
+    same system measured both under the same engine; otherwise the run's is taken whole, with the
+    label that says which system measured it, so two systems are never mixed in one number."""
+    same_fuel = old.get("wasmtime") == wasmtime and fuel_system(old, platform) == fuel_system(
+        fresh, platform
+    )
+    merged = {"wasmtime": wasmtime}
+    for name, value in fresh.items():
+        if name in LABELS:
+            continue
+        if name in COUNTS_UP:  # only --accept-fewer-passes lowers it
+            keep = name in old and not fewer
+            merged[name] = max(old[name], value) if keep else value
+            continue
+        keep_old = name in old and not growth and (name != "fuel" or same_fuel)
+        merged[name] = min(old[name], value) if keep_old else value
+    if "fuel" in fresh and "fuel_platform" in fresh:
+        merged["fuel_platform"] = fresh["fuel_platform"]
+    return merged
 
 
 def _set_tier(entry: dict, release: bool) -> None:
@@ -530,6 +565,8 @@ def _ratchet_line(r: Ratchet, partial: str | None) -> str:
         parts.append(f"not selected {len(r.deselected) + len(r.outside)}")
     if r.fuel_not_compared:
         parts.append(f"fuel not compared (wasmtime changed) {len(r.fuel_not_compared)}")
+    if r.fuel_elsewhere:
+        parts.append(f"fuel not compared (measured on another system) {len(r.fuel_elsewhere)}")
     if r.judge_changed:
         more = len(r.judge_changed) - 3
         extra = f" and {more} more" if more > 0 else ""

@@ -387,7 +387,7 @@ def gather(i: Inputs) -> Verdict:
                 red.append(f"G5 {system}/{shard}: {node} metrics is not a mapping")
                 continue
             acc = i.accepted.get("checks", {}).get(node, {}).get("metrics", {})
-            want = set(acc.get("darwin-arm64", {})) - {"wasmtime"}
+            want = set(acc.get("darwin-arm64", {})) - set(scoreboard.LABELS)
             for name in sorted(want - set(have)):
                 red.append(f"G5 {system}/{shard}: {node} records no {name} (accepted.json has it)")
             for name, value in sorted(have.items()):

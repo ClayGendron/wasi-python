@@ -37,10 +37,13 @@ whose set was neither built in its run nor reused by its key. Every refusal is n
 The record is read as the darwin run it contains, as the gather and sameness read it: each check
 as the record that ran it saw it, darwin first. A check darwin ran is applied with darwin's
 metrics, keyed `darwin-arm64` though the job runs on Linux. A check only another system ran (the
-upstream groups run on Linux alone) keeps darwin's accepted fuel, since fuel on another system is
-not ratcheted, and takes the record's counts (`passes`, `bytes`), which the gather holds equal on
-every system, under the same key, where the gather reads them. The history line names the systems
-whose probe passed, so the `three systems` need is met by the record.
+upstream groups run on Linux alone) takes the record's counts (`passes`, `bytes`), which the gather
+holds equal on every system, under the same key, where the gather reads them. Its fuel is darwin's
+accepted one when darwin measured it under this wasmtime; otherwise it is the record's, labelled
+with the system that measured it (`fuel_platform`), so an engine move leaves no check without a
+fuel. A labelled fuel is never compared with another system's, nor with its own system's next one,
+since Linux's fuel moves between runs; darwin's first measurement replaces it. The history line
+names the systems whose probe passed, so the `three systems` need is met by the record.
 """
 
 from __future__ import annotations
@@ -185,10 +188,14 @@ def _metrics(c: dict, platform: str, i: Inputs, node: str) -> dict:
     if platform.startswith("darwin-"):
         return dict(c.get("metrics") or {})
     acc = ((i.accepted or {}).get("checks", {}).get(node, {}).get("metrics") or {}).get(DARWIN, {})
-    kept = {k: v for k, v in acc.items() if k != "wasmtime" and k not in COUNTS}
-    if acc.get("wasmtime") != i.wasmtime:
-        kept.pop("fuel", None)  # darwin's fuel of another engine is no measurement of this one
-    kept.update({k: v for k, v in (c.get("metrics") or {}).items() if k in COUNTS})
+    measured = c.get("metrics") or {}
+    kept = {k: v for k, v in acc.items() if k not in scoreboard.LABELS and k not in COUNTS}
+    darwins = "fuel" in acc and "fuel_platform" not in acc and acc.get("wasmtime") == i.wasmtime
+    if not darwins:  # no fuel darwin measured under this engine: the record's stands in for it
+        kept.pop("fuel", None)
+        if "fuel" in measured:
+            kept.update(fuel=measured["fuel"], fuel_platform=platform)
+    kept.update({k: v for k, v in measured.items() if k in COUNTS})
     return kept
 
 
