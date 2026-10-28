@@ -1038,9 +1038,15 @@ class Session:
         raise SessionEnded(ended)
 
     def _release_claim(self) -> None:
+        """A claimed turn that never started gives its claim back. When a `close()` came between
+        the claim and the release, the session is marked and nobody holds it: its ending goes to
+        a closer, and the `close()` waiting for it returns."""
         state = self._state
         with state.lock:
-            _sessions._move(state, _Event.RELEASE)  # from TURN, or STOPPING after a close()
+            after = _sessions._move(state, _Event.RELEASE)  # from TURN, or STOPPING after a close()
+            start = after is _Phase.MARKED and _sessions._claim_ending(state, _CLOSER)
+        if start:
+            _sessions._start_closer(state)
         _sessions._wake_reaper()
 
     def run(
@@ -1184,8 +1190,11 @@ class Session:
         the ending, which runs Python's shutdown when the session was at rest (at most its
         `shutdown_s` of guest code, plus any call of your own code it makes). It blocks, so
         from a coroutine it blocks the event loop. Called from inside the session's own turn or
-        ending (a host function or a provider), it marks the session and returns at once.
-        Calling it again does nothing.
+        ending, on the thread that runs it (a host function or a provider, under `run` or
+        `run_async` alike), it marks the session and returns at once, and the session ends as
+        the turn returns. From any other thread, the event loop's that awaits a `run_async`
+        turn and a tool's own thread among them, it waits for the ending. Calling it again does
+        nothing.
 
         Raises:
             KeyboardInterrupt: Ctrl-C during the ending, raised once the session is closed.
