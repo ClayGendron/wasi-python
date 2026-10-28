@@ -424,6 +424,50 @@ def test_a_folder_a_running_session_may_write_is_refused_until_it_ends(work) -> 
     assert wasi_python.Snapshot.load(shared / "app.wpsnap").origin == _snap().origin
 
 
+def test_a_call_and_a_save_that_race_see_each_other(work, monkeypatch) -> None:
+    """Each side publishes before it checks, so of a call starting and a save running at once,
+    one sees the other. The two halves are interleaved at the folder walk each side's check
+    makes, the moment the other side's publication must already be visible."""
+    given = _given(_stand_in_set(work))
+    kept = _folder(work, "kept")
+    _snap().save(kept / "app.wpsnap")  # so a starting call's judge walks a remembered folder
+    shared = _folder(work, "shared")
+    grant = wasi_python.Grant(shared, "/w", writable=True)
+    real = _platform.PLATFORM.identity_of
+    seen: list[BaseException | str] = []
+
+    def once(step, at: Path):
+        def identity_of(path):
+            if not seen and Path(path) == at.resolve():
+                seen.append("ran")
+                try:
+                    step()
+                except (PermissionError, ValueError) as refused:
+                    seen.append(refused)
+            return real(path)
+
+        return identity_of
+
+    # A call checks the remembered folders while a save into its grant runs: the save must see
+    # the call, already registered.
+    monkeypatch.setattr(
+        _platform.PLATFORM, "identity_of", once(lambda: _snap().save(shared / "a.wpsnap"), kept)
+    )
+    assert runner.run([], grants=[grant], artifacts=given, cache_dir=False).exit_code == 101
+    assert isinstance(seen[-1], PermissionError), seen
+    assert not (shared / "a.wpsnap").exists()
+    # A save checks the live calls while a call granting its folder starts: the call must see
+    # the folder, already remembered.
+    seen.clear()
+    other = _folder(work, "other")
+    late = wasi_python.Grant(other, "/w", writable=True)
+    step = once(lambda: runner.run([], grants=[late], artifacts=given, cache_dir=False), other)
+    monkeypatch.setattr(_platform.PLATFORM, "identity_of", step)
+    _snap().save(other / "b.wpsnap")
+    assert isinstance(seen[-1], ValueError), seen
+    assert "holds the folder of a snapshot file" in str(seen[-1])
+
+
 @POSIX
 def test_a_link_inside_a_writable_grant_on_the_way_to_a_snapshot_is_refused(work) -> None:
     given = _given(_stand_in_set(work))
