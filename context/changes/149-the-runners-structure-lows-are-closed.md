@@ -27,9 +27,6 @@ new = [
     "tests/unit/test_runner_outputs.py::test_an_end_never_read_again_names_its_stream",
     "tests/checks/test_rules.py::test_only_the_platform_modules_import_its_halves",
 ]
-retired = [
-    "tests/unit/test_runner_waits.py::test_with_no_table_every_number_above_2_is_ready",
-]
 changed = [
     "tests/unit/test_process.py::test_the_observers_refuse_a_misspelt_field",
     "tests/unit/test_runner_outputs.py::test_output_arrives_above_descriptor_1024",
