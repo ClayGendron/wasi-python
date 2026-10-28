@@ -2896,15 +2896,20 @@ def seam_hits(files: Iterable[Path], root: Path, allowed: Iterable[str]) -> list
 # ---------------------------------------------------------------------------------------------
 # A function a person can read whole. Lines are what a reader scrolls, so the measure is lines,
 # def to last line, and a method or a nested function counts on its own under its qualified
-# name (`Class.method`, `outer.inner`).
+# name (`Class.method`, `outer.inner`). A function allowed past the ceiling is held at its
+# allowed length: longer is a hit, and shorter is a stale allowance until the length is lowered,
+# so the allowance only shrinks.
 
 FUNCTION_CEILING = 80
 
 
 def long_function_hits(files: Iterable[Path], root: Path, allowed: dict[str, int]) -> list[str]:
     """Every function or method (nested ones too) longer than FUNCTION_CEILING lines whose
-    `<file>:<qualname>` is not allowed, as `file:line: qualname (n lines)`; and every allowed key
-    whose function is at or under the ceiling, or gone, as `stale allowance: key (n lines)`."""
+    `<file>:<qualname>` is not allowed, as `file:line: qualname (n lines)`; every allowed one
+    longer than its allowed length, as `file:line: qualname (n lines, listed m)`; every allowed
+    key whose function is shorter than its allowed length but past the ceiling, as
+    `stale allowance: key (n lines, listed m)`; and every allowed key whose function is at or
+    under the ceiling, or gone, as `stale allowance: key (n lines)` or `(gone)`."""
     hits = []
     lengths: dict[str, int] = {}
     for p in sorted(files):
@@ -2920,8 +2925,11 @@ def long_function_hits(files: Iterable[Path], root: Path, allowed: dict[str, int
                 n = (node.end_lineno or node.lineno) - node.lineno + 1
                 key = f"{p.name}:{'.'.join(scope)}"
                 lengths[key] = n
+                where = f"{rel(p, root)}:{node.lineno}: {'.'.join(scope)}"
                 if n > FUNCTION_CEILING and key not in allowed:
-                    hits.append(f"{rel(p, root)}:{node.lineno}: {'.'.join(scope)} ({n} lines)")
+                    hits.append(f"{where} ({n} lines)")
+                elif n > FUNCTION_CEILING and n > allowed[key]:
+                    hits.append(f"{where} ({n} lines, listed {allowed[key]})")
             todo.extend((child, scope) for child in ast.iter_child_nodes(node))
     hits.sort()
     for key in allowed:
@@ -2930,6 +2938,8 @@ def long_function_hits(files: Iterable[Path], root: Path, allowed: dict[str, int
             hits.append(f"stale allowance: {key} (gone)")
         elif n <= FUNCTION_CEILING:
             hits.append(f"stale allowance: {key} ({n} lines)")
+        elif n < allowed[key]:
+            hits.append(f"stale allowance: {key} ({n} lines, listed {allowed[key]})")
     return hits
 
 
