@@ -104,7 +104,7 @@ def test_reset_after_fork_resets_what_a_child_must_not_inherit() -> None:
     p, fresh = _Process(), _Process()
     anchor = _Anchor()
     p.pool, p.pool_size, p.pools = object(), 7, [object()]
-    p.live = {threading.Event()}
+    p.live = {threading.Event(): None}
     p.tool_threads_running = 3
     p.tool_threads_abandoned = 2
     p.zips = {"a digest": [object(), (1, 2), None]}

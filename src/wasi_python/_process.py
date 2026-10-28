@@ -48,7 +48,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import Future, ThreadPoolExecutor
 
     import wasmtime
 
@@ -103,7 +103,9 @@ class _Process:
         self.pool_size: int = 0
         self.pools: list[ThreadPoolExecutor] = []  # every default pool made, for exit
         self.live_lock = threading.Lock()
-        self.live: set[threading.Event] = set()
+        # Each live call's cancel event; beside a session's queued turn, its future and the
+        # release of its claim, for the exit hook to run if it cancels the turn before it starts.
+        self.live: dict[threading.Event, tuple[Future[Any], Callable[[], None]] | None] = {}
         self.exit_hook_registered: bool = False
         self.exiting: bool = False
         # B. Private folders, the sweep and the warnings.

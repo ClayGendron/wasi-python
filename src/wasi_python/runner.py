@@ -447,7 +447,7 @@ async def run_async(
     with p.live_lock:  # the exit hook sets `exiting` before it reads `live`
         if p.exiting:
             raise RuntimeError("cannot schedule new futures after interpreter shutdown")
-        p.live.add(event)
+        p.live[event] = None
     try:
         work = contextvars.copy_context().run  # a door host sees the request's context
         args = (_run_checked_flushed, wt, checked, host, snapshot, cache_dir, artifacts, loop)
@@ -466,7 +466,7 @@ async def run_async(
             raise
     finally:
         with p.live_lock:
-            p.live.discard(event)
+            p.live.pop(event, None)
 
 
 def _check_executor(executor: Any) -> None:
@@ -532,17 +532,30 @@ def _register_exit_hook() -> None:
 
 def _stop_async_calls() -> None:
     """Pools first, so no call can be submitted after its event was missed; then the events of the
-    calls already running."""
+    calls already running; then the claim of each session's turn whose queued future the pools'
+    shutdown cancelled, since its coroutine may never resume to give the claim back, and the
+    sessions' own exit hook would wait for a turn that never runs. A release is taken out of
+    `live` under its lock, by this hook or by the coroutine's own cancel, so it runs once."""
     p = process()
     with p.pool_lock:
         p.exiting = True
         pools = list(p.pools)
     for pool in pools:
         pool.shutdown(wait=False, cancel_futures=True)
+    releases = []
     with p.live_lock:
         events = list(p.live)
+        for event, queued in list(p.live.items()):
+            if queued is not None and queued[0].cancelled():  # it never starts
+                releases.append(queued[1])
+                del p.live[event]
     for event in events:
         event.set()
+    for release in releases:
+        try:
+            release()
+        except BaseException:
+            pass  # an exit hook never raises: the sessions' own hook still ends the session
 
 
 def _checked(
@@ -1156,21 +1169,27 @@ class Session:
             with p.live_lock:
                 if p.exiting:
                     raise RuntimeError("cannot schedule new futures after interpreter shutdown")
-                p.live.add(event)
+                p.live[event] = None
             work = contextvars.copy_context().run
             args = (_sessions._session_turn, state, data, fuel, deadline, output, event, loop)
             future = _submit(executor, work, *args)
         except BaseException:
             with p.live_lock:
-                p.live.discard(event)
+                p.live.pop(event, None)
             self._release_claim()
             raise
+        with p.live_lock:  # the release, for the exit hook if it cancels the queued turn
+            if event in p.live:
+                p.live[event] = (future, self._release_claim)
         try:
             try:
                 return await asyncio.wrap_future(future)
             except asyncio.CancelledError:
                 if future.cancel():  # still queued: it never starts, the session is untouched
-                    self._release_claim()
+                    with p.live_lock:  # unless the exit hook has released it already
+                        queued = p.live.pop(event, None)
+                    if queued is not None:
+                        queued[1]()
                     raise
                 event.set()
                 while not future.done():
@@ -1181,7 +1200,7 @@ class Session:
                 raise
         finally:
             with p.live_lock:
-                p.live.discard(event)
+                p.live.pop(event, None)
 
     def close(self) -> None:
         """End the session, run its ending, and return once its store is closed.
