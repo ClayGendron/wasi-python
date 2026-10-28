@@ -522,9 +522,31 @@ def test_the_release_signs_and_publishes_what_build_made() -> None:
     """Every job that checks, signs or publishes reads the build's files through the one local
     action, which downloads them by an id it has guarded and checks them against the SHA-256 of
     SHA256SUMS the build job handed on, and acts on nothing else; the publish jobs name their
-    environments, setup-uv runs with no cache, and each job holds only the permissions it uses."""
+    environments, setup-uv runs with no cache, and each job holds only the permissions it uses;
+    in a job that can write, the token reaches only steps that run gh and no repository code,
+    and PyPI's upload runs the pinned uv through trusted publishing alone, with no container and
+    no env."""
     errors = scan.release_binding_errors(RELEASE_WORKFLOW.read_text(), ASSETS_ACTION.read_text())
     assert not errors, scan.report(errors)
+
+
+def test_a_pull_request_is_judged_again_when_its_base_or_description_changes() -> None:
+    """An edit of a pull request starts its check again: a new base runs the selection again, so
+    a pull request retargeted to main is judged in the release's shape, and a new title or
+    description has its refusals read anew. The plan learns which from its step's variables."""
+    text = RELEASE_WORKFLOW.read_text()
+    assert scan.pull_request_types(text) == {
+        "opened",
+        "synchronize",
+        "reopened",
+        "labeled",
+        "edited",
+    }
+    plan = scan.workflow_jobs(scan.without_comments(text))["plan"]
+    fields = [scan.step_fields(s) for s in scan.workflow_steps(plan)]
+    env = next((f.get("env", {}) for f in fields if f.get("name") == "The plan"), {})
+    assert env.get("PLAN_ACTION") == "${{ github.event.action }}", env
+    assert env.get("PLAN_OLD_BASE") == "${{ github.event.changes.base.ref.from }}", env
 
 
 def test_every_action_is_pinned_by_commit() -> None:
