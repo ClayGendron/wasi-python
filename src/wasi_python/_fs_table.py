@@ -284,13 +284,19 @@ class _Files:
         try:
             return HANDLERS[name](self, caller, *args)
         except BaseException as e:
-            if self.metered and getattr(e, "abi", False):
+            if getattr(e, "abi", False):
                 # An ABI error ends the run where a grant's does, with the fuel then (served
                 # code spends none), as a forward's error keeps it.
-                from . import _wasmtime_ffi as ffi
-
-                self.stop_fuel = (e, ffi.get_fuel(caller))
+                self.record_stop(e, caller)
             raise
+
+    def record_stop(self, error: BaseException, caller: Any) -> None:
+        """Record `error` as the error that ends the run and, on a metered call, the guest's fuel
+        now, which is the count the result reports; an unmetered call has no count to keep."""
+        if self.metered:
+            from . import _wasmtime_ffi as ffi
+
+            self.stop_fuel = (error, ffi.get_fuel(caller))
 
     def _entry(self, fd: int) -> _Open | None:
         return self.table.get(fd & MASK32)

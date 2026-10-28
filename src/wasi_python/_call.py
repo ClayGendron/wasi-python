@@ -502,7 +502,7 @@ def _instance(
             open_files=c.open_files,  # strict, as file_calls
             context=context,
         )
-        call = _Call(store, host, waits, origin_ns, cancel, stop_at, table, admit, home=ht)
+        call = _Call(store, host, waits, origin_ns, cancel, stop_at, admit, table=table, home=ht)
         _watch(store)  # every call
         with _epoch_ticker(engine, True):
             drive = functools.partial(_drive, plain=linker)
@@ -557,8 +557,7 @@ def _fuel_used(
     stopped call ended on one."""
     if fuel is None or done.trapped == "deadline":
         return None
-    table = call.table
-    held = None if table is None else table.stop_fuel
+    held = call.table.stop_fuel
     if held is not None and call.ended is None and call.stopped is held[0]:
         # A forward's own trap or error, or an ABI error a served call raised: the
         # count read then is the guest's, as when wasmtime's WASI meets it directly.
@@ -610,8 +609,8 @@ def _drive(
         if preopens:
             _places._check_preopens(wt, own, store, check, list(preopens))  # the identity check
         instance = linker.instantiate(store, module)
-        if call.table is not None:  # after the guest, before the fuel cap and _initialize
-            call.table.bind(wt, store, own, instance)
+        # After the guest, before the fuel cap and _initialize.
+        call.table.bind(wt, store, own, instance)
         if fuel is not None:
             store.set_fuel(fuel)
             metered = True
@@ -664,9 +663,9 @@ class _Call:
         origin_ns: int,
         cancel: _Stop | None = None,
         stop_at: int | None = None,
-        table: _Files | None = None,
         admit: Callable[[int], bytes | None] | None = None,
         *,
+        table: _Files,
         home: _Home | None = None,
     ) -> None:
         from . import _wasmtime_ffi as ffi
@@ -692,8 +691,6 @@ class _Call:
     def files(self, caller: Any, name: str, *args: int) -> int:
         """One of the 29 shadowed calls, for a call with mounts, or one of the three
         the counted linker shadows, for a call without."""
-        if self.table is None:
-            return EBADF
         return self.table(caller, name, *args)
 
     def stop(self, caller: Any, cause: BaseException) -> None:
@@ -828,10 +825,10 @@ class _Context:
         return fn(*args) if home is None else home.call(fn, *args)
 
 
-def _context_of(table: _Files | None) -> _Context | None:
-    """The runner's own context behind a table, which learns the call; None for no table, or a
-    table the judge built on a fake."""
-    context = None if table is None else table.context
+def _context_of(table: _Files) -> _Context | None:
+    """The runner's own context behind a table, which learns the call; None for a table the
+    judge built on a fake."""
+    context = table.context
     return context if isinstance(context, _Context) else None
 
 
@@ -1093,13 +1090,21 @@ class _Waits:
             self.sleep(min(left, TICK_S))
 
 
+class _PollFiles(Protocol):
+    """What the poll asks of the call's table: what it knows of a descriptor, and the record of
+    the error that ends the run."""
+
+    def kind(self, fd: int) -> str | None: ...
+    def record_stop(self, error: BaseException, caller: Any) -> None: ...
+
+
 def _poll_oneoff(
     origin_ns: int,
     waits: _Waits,
     realtime_ns: Callable[[], int] = time.time_ns,
     monotonic_ns: Callable[[], int] = time.perf_counter_ns,
     *,
-    files: _Files | None,
+    files: _PollFiles,
 ) -> Callable[..., int]:
     """The shadowed poll_oneoff, answering descriptors from the call's table `files`. It raises
     only a wasmtime error, to the shared function, which records it as the stop: a misaligned
@@ -1111,11 +1116,6 @@ def _poll_oneoff(
     before it reaches the end); the events' room is 32 bytes per subscription (wasmtime's, per
     event written); the padding is written as zeros (wasmtime leaves it). Clocks injectable."""
     from wasmtime import WasmtimeError
-
-    # With no table, which only the judge's stand-ins build, every number past stdio is ready.
-    kind: Callable[[int], str | None] = (
-        (lambda fd: None if fd <= 2 else "held") if files is None else files.kind
-    )
 
     def call(caller: Any, in_ptr: int, out_ptr: int, n: int, nevents_ptr: int) -> int:
         try:
@@ -1130,7 +1130,7 @@ def _poll_oneoff(
             if in_ptr + 48 * n > size:
                 return EFAULT
             raw = bytes(memory.read(caller, in_ptr, in_ptr + 48 * n))
-            plan = _poll_plan(raw, n, realtime_ns(), monotonic_ns() - origin_ns, kind)
+            plan = _poll_plan(raw, n, realtime_ns(), monotonic_ns() - origin_ns, files.kind)
             if plan.errno is not None:
                 return plan.errno
             for ptr, align in ((out_ptr, 8), (nevents_ptr, 4)):
@@ -1144,10 +1144,7 @@ def _poll_oneoff(
             memory.write(caller, struct.pack("<I", len(plan.events)), nevents_ptr)
             return 0
         except WasmtimeError as error:
-            if files is not None and files.metered:  # the fuel then is the guest's
-                from . import _wasmtime_ffi as ffi
-
-                files.stop_fuel = (error, ffi.get_fuel(caller))
+            files.record_stop(error, caller)  # the fuel then is the guest's
             raise
         except Exception:
             return EINVAL  # anything else is recorded by the shared function

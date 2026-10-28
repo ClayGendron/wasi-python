@@ -137,11 +137,12 @@ def test_a_stopped_call_reports_no_fuel() -> None:
     from types import SimpleNamespace
 
     done = _call._Driven(7, None, True, None)
-    plain = SimpleNamespace(stopped=None, ended=None, table=None)
+    table = SimpleNamespace(stop_fuel=None)  # the call's table: no stop recorded
+    plain = SimpleNamespace(stopped=None, ended=None, table=table)
     assert _call._fuel_used(1000, done, plain, lambda: 400) == 600
-    stopped = SimpleNamespace(stopped=SystemExit(), ended=None, table=None)
+    stopped = SimpleNamespace(stopped=SystemExit(), ended=None, table=table)
     assert _call._fuel_used(1000, done, stopped, lambda: 400) is None
-    ended = SimpleNamespace(stopped=None, ended="cancelled", table=None)  # the epoch callback's
+    ended = SimpleNamespace(stopped=None, ended="cancelled", table=table)  # the epoch callback's
     assert _call._fuel_used(1000, done, ended, lambda: 400) is None
 
 
