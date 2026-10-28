@@ -620,8 +620,8 @@ class _Posix:
             why = None
             if not _platform_common._one_file(st):
                 why = "is not a regular file with one name"
-            elif st.st_uid != os.getuid():
-                why = f"is another user's (uid {st.st_uid})"
+            elif not _platform_common._this_users(st):
+                why = f"is another user's (uid {_platform_common._owner(st)})"
             elif st.st_mode & 0o077:
                 who = "written" if st.st_mode & 0o022 else "read"
                 why = f"may be {who} by others (mode {stat.S_IMODE(st.st_mode):o})"
