@@ -103,4 +103,8 @@ When `trapped` is set, `exit_code` is `None`. The four fixed strings are promise
 
 `truncated` names the streams that passed `output_bytes`. `EMFILE` inside the guest means it hit `max_open_files`. See [Results and errors](../reference/results-and-errors.md) for every field.
 
+## Budget host memory
+
+`memory_bytes` bounds the guest's linear memory. A call with mounts holds more host memory beside it. A guest with a writable mount can hold up to `memory_bytes` of linear memory, up to `memory_bytes` of staged files, and one more copy of a staged file while the provider is handed it. So to budget host memory for many untrusted guests at once, count three times `memory_bytes` for each one with a writable mount: about 3 GiB at the default. See [Serve files from your own code](mounts.md).
+
 In one line: every call has a memory cap, a deadline, an output cap and an open-file cap by default; add `fuel=` for an exact instruction budget, and `None` removes any of them.

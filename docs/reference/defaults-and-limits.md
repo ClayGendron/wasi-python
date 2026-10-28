@@ -20,6 +20,8 @@ A *limit* here is a bound the runner enforces on one guest: memory, time, output
 | session lifetime | 3,600 | seconds from the opening | not offered | `lifetime_s=` | not offered |
 | session shutdown | 5 | seconds for Python's shutdown | not offered | `shutdown_s=` | not offered |
 | `run_async` workers | the CPU count, at most 8 | guests run at once on the runner's pool | not offered (see below) | not offered | not offered |
+| tool wait | 3,600, or the session's lifetime | seconds a tool call with no `timeout_s` waits in a run or turn with no deadline | not offered | not offered | not offered |
+| abandoned tool threads | 64 | tool threads in the process still running after their call was answered | not offered | not offered | not offered |
 
 "Per turn" means `Session.run()` and `Session.run_async()` take `fuel=`, `deadline_s=` and `output_bytes=` of their own, which override the session's for that turn.
 
@@ -48,6 +50,8 @@ Two exceptions:
 | session idle time | The session ends `"idle"`. |
 | session lifetime | No turn starts at or after it, and each turn's deadline is capped at what is left; then the session ends `"lifetime"`. |
 | session shutdown | Past it, the session is simply stopped, and `shutdown_outcome` is `"stopped"`. |
+| tool wait | The guest gets `ToolTimeout` and runs on; the tool runs on, abandoned. |
+| abandoned tool threads | Every run's next tool call is answered `timeout` at once, until one of the 64 returns. |
 
 ## Rules for the values
 
@@ -104,7 +108,7 @@ resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
 
 The library never changes your process's limits. The `wasi-python run` command raises its own soft limit to its hard limit, since it owns its process.
 
-At the defaults, each running guest may hold 1 GiB of memory, up to 32 MiB of output and a copy of its standard input. So the eight workers of a full `run_async` pool bound one process at about 8.3 GiB, plus the disk a guest writes.
+At the defaults, each running guest may hold 1 GiB of memory, up to 32 MiB of output and a copy of its standard input. So the eight workers of a full `run_async` pool bound one process at about 8.3 GiB, plus the disk a guest writes. A guest with a writable mount may hold up to three times `memory_bytes`: its linear memory, its staged files, and one more copy of a staged file while the provider is handed it. Count about 3 GiB for each such guest at the default.
 
 ## Hard bounds of the platform
 
