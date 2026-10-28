@@ -1,12 +1,16 @@
 """Sessions without artifacts: the argument checks, the reaper's step and loop, and a
-turn's waits on the session's clock base, all with fakes. Two rows run a session on the artifact
-set: a turn's output is every byte of its own and none of another's, past the cap or not.
-Nothing here measures time."""
+turn's waits on the session's clock base, all with fakes. Rows that run a session on the artifact
+set: a turn's output is every byte of its own and none of another's, past the cap or not; and
+every session is ended, whichever thread closes it and whether its turn ran, was cancelled while
+queued, or was abandoned. Nothing here measures time: a bound is driven by a stepped clock, and
+every `join(60)` or `wait(60)` is a fail-safe for a row that would hang, never a verdict."""
 
 from __future__ import annotations
 
+import asyncio
 import queue
 import struct
+import threading
 
 import pytest
 
@@ -260,3 +264,226 @@ def test_a_turn_past_the_cap_leaves_the_next_turn_whole() -> None:
         small = s.run("print('next')")
     assert (big.exit_code, big.stdout, big.truncated) == (0, b"x" * 4096, ("stdout",))
     assert (small.exit_code, small.stdout, small.truncated) == (0, b"next\n", ())
+
+
+LOOP = "while True:\n    pass\n"
+
+
+@pytest.fixture
+def stepped(monkeypatch) -> list[float]:
+    """The sessions' clock, a value the row steps; the reaper thread paused, so only the row
+    drives `_reap`."""
+    now = [0.0]
+    monkeypatch.setattr(process().observers, "clock", lambda: now[0])
+    monkeypatch.setattr(process().observers, "reaper_paused", True)
+    return now
+
+
+def test_close_from_a_host_function_in_a_run_async_turn_returns_at_once(stepped) -> None:
+    """A host function runs on the thread that runs the turn, so its `close()` marks the session
+    and returns at once, as it does under `run`; the turn is then stopped, and the session's
+    ending has run by the time `run_async` returns. Before, the claim named the event loop's
+    thread as the turn's, and the `close()` waited for a turn that could not return until it
+    did."""
+    seen: list[tuple[str | None, str | None]] = []
+    held: dict[str, Session] = {}
+
+    def host(frame: bytes) -> bytes:
+        s = held["s"]
+        s.close()
+        seen.append((s.ended, s.shutdown_outcome))
+        return b""
+
+    async def main():
+        s = held["s"] = _session()(host=host)
+        task = asyncio.ensure_future(s.run_async("import _host\n_host.call(b'x')\n" + LOOP))
+        await asyncio.wait({task}, timeout=60)  # a fail-safe, not a timing
+        return s, task
+
+    loop = asyncio.new_event_loop()  # not asyncio.run: a turn that never returns is reported
+    s, task = loop.run_until_complete(main())
+    assert task.done(), "a close() from the turn's own host function waited for its own turn"
+    loop.close()
+    assert seen == [("closed", None)]  # marked, and returned before the ending
+    assert task.result().trapped == "cancelled"
+    assert (s.ended, s.shutdown_outcome) == ("closed", "skipped")
+
+
+def test_close_from_the_loop_thread_waits_for_the_ending(stepped) -> None:
+    """The event loop's thread claimed the turn, but a worker runs it: a `close()` there waits
+    for the turn to stop and the ending to run, so the outcome is set when it returns."""
+    started = threading.Event()
+
+    def host(frame: bytes) -> bytes:
+        started.set()
+        return b""
+
+    async def main():
+        s = _session()(host=host)
+        task = asyncio.ensure_future(s.run_async("import _host\n_host.call(b'x')\n" + LOOP))
+        await asyncio.get_running_loop().run_in_executor(None, started.wait, 60)
+        s.close()  # on the loop's thread, while the guest loops on a worker
+        outcome = s.shutdown_outcome
+        done = await task
+        return s, outcome, done
+
+    s, outcome, done = asyncio.run(main())
+    assert (s.ended, outcome) == ("closed", "skipped")
+    assert done.trapped == "cancelled"
+
+
+def test_a_queued_turn_cancelled_after_a_close_is_ended(stepped) -> None:
+    """A turn claimed and still queued behind a busy worker, then closed from another thread and
+    cancelled: its turn never starts, and a closer ends the session, so `close()` returns."""
+    import concurrent.futures
+
+    pool = concurrent.futures.ThreadPoolExecutor(1)
+    busy = threading.Event()
+    blocker = pool.submit(busy.wait, 60)
+    s = _session()()
+    closer = threading.Thread(target=s.close, daemon=True)
+
+    async def main() -> None:
+        queued = asyncio.ensure_future(s.run_async("print(5)", executor=pool))
+        await asyncio.sleep(0)  # claimed and queued
+        closer.start()
+        while s.ended is None and closer.is_alive():
+            closer.join(0.001)  # until close() has marked it; a wait, not a verdict
+        queued.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await queued
+
+    try:
+        asyncio.run(main())
+        closer.join(60)  # a fail-safe, not a timing
+        assert not closer.is_alive(), "close() waits on a session nobody will end"
+        assert (s.ended, s.shutdown_outcome) == ("closed", "skipped")
+    finally:
+        busy.set()
+        blocker.result(60)
+        pool.shutdown(wait=False)
+
+
+def test_a_closer_that_cannot_start_ends_the_session_where_it_was_started(
+    stepped, monkeypatch
+) -> None:
+    """The reaper's closer thread fails to start, as it can on a host short of threads: the
+    ending runs on the reaper's own thread instead, so the session is ended and `close()`
+    returns."""
+    refused: list[_sessions._State] = []
+
+    def refuse(state: _sessions._State) -> None:
+        refused.append(state)
+        raise RuntimeError("can't start new thread")
+
+    s = _session()(idle_s=10)
+    monkeypatch.setattr(process().observers, "start_ending", refuse)
+    stepped[0] = 11.0
+    _sessions._reap(stepped[0])
+    assert refused.count(s._state) == 1
+    closer = threading.Thread(target=s.close, daemon=True)
+    closer.start()
+    closer.join(60)  # a fail-safe, not a timing
+    assert not closer.is_alive(), "close() waits on an ending nobody runs"
+    assert (s.ended, s.shutdown_outcome) == ("idle", "skipped")
+
+
+def test_an_abandoned_turns_session_dropped_is_ended_by_the_reaper(registry) -> None:
+    """A turn whose home was forced out leaves its session marked "error" at the guest thread's
+    end; the session is handed to a closer, once, and a dropped one is not left until exit. A
+    session found marked and held by no one, by any path, is handed to a closer by the next
+    step too."""
+    s = _state(None, None, phase=_sessions._Phase.TURN)
+    s.guest = _sessions._Guest.ENTERED
+    _sessions._abandon_turn(s)
+    _sessions._collected(s)
+    _sessions._reap(0.0)
+    assert (s.ended, s.phase, s.holder) == ("error", _sessions._Phase.ENDING, _sessions._CLOSER)
+    assert registry == [s]
+    resting = _state(None, None, phase=_sessions._Phase.MARKED)
+    resting.ended = "error"
+    process().sessions.add(resting)
+    _sessions._reap(0.0)
+    assert registry == [s, resting] and resting.phase is _sessions._Phase.ENDING
+    process().sessions.discard(resting)
+
+
+def _on_a_loop_thread(main) -> list:
+    """`main()` run by `asyncio.run` on a thread of its own, joined with a fail-safe: a loop
+    that is blocked cannot run its own timeout. What the loop's thread raised is raised here, so
+    a skip or an error is reported as itself."""
+    out: list = []
+    raised: list[BaseException] = []
+
+    def run() -> None:
+        try:
+            out.append(asyncio.run(main()))
+        except BaseException as e:
+            raised.append(e)
+
+    runner = threading.Thread(target=run, daemon=True)
+    runner.start()
+    runner.join(60)  # a fail-safe, not a timing
+    assert not runner.is_alive(), "the event loop never finished"
+    if raised:
+        raise raised[0]
+    return out
+
+
+def test_close_from_a_sync_tool_in_a_run_async_turn_ends_the_session(stepped) -> None:
+    """A synchronous tool runs on a thread of its own. Its `close()` stops the turn; the tool's
+    call is answered "cancelled" at the next tick, whatever the tool still does, so the turn
+    returns, runs the ending, and the `close()` returns once the ending has finished."""
+    make = _session()  # on this thread: a missing set skips the row here
+    seen: list[tuple[str | None, str | None]] = []
+    returned = threading.Event()
+    held: dict[str, Session] = {}
+
+    def closer() -> str:
+        """Close the session this tool's turn runs in."""
+        s = held["s"]
+        s.close()
+        seen.append((s.ended, s.shutdown_outcome))
+        returned.set()
+        return "closed"
+
+    async def main():
+        s = held["s"] = make(tools=[closer])
+        return s, await s.run_async("from host import tools\ntools.closer()\n" + LOOP)
+
+    [(s, done)] = _on_a_loop_thread(main)
+    assert returned.wait(60), "the tool's close() never returned"  # a fail-safe, not a timing
+    assert seen == [("closed", "skipped")]  # it waited for the ending, which had finished
+    assert done.trapped == "cancelled"
+    assert (s.ended, s.shutdown_outcome) == ("closed", "skipped")
+
+
+def test_close_from_an_async_tool_in_a_run_async_turn_ends_the_session(stepped) -> None:
+    """An asynchronous tool runs on the event loop that awaits the turn. Its `close()` stops the
+    turn and holds the loop only until the ending has finished: the turn's worker answers the
+    tool's call "cancelled" without the loop, so the loop goes on and the turn's await
+    returns."""
+    make = _session()  # on this thread: a missing set skips the row here
+    seen: list[tuple[str | None, str | None]] = []
+    held: dict[str, Session] = {}
+    after: list[str] = []
+
+    async def closer() -> str:
+        """Close the session this tool's turn runs in."""
+        s = held["s"]
+        s.close()
+        seen.append((s.ended, s.shutdown_outcome))
+        return "closed"
+
+    async def main():
+        s = held["s"] = make(tools=[closer])
+        done = await s.run_async("from host import tools\ntools.closer()\n" + LOOP)
+        await asyncio.sleep(0)
+        after.append("the loop went on")
+        return s, done
+
+    [(s, done)] = _on_a_loop_thread(main)
+    assert seen == [("closed", "skipped")]
+    assert after == ["the loop went on"]
+    assert done.trapped == "cancelled"
+    assert (s.ended, s.shutdown_outcome) == ("closed", "skipped")

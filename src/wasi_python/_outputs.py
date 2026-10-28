@@ -298,11 +298,14 @@ class _PipeCapture:
 
 
 def _write_output(key: int | None, data: Any, size: int) -> int:
+    stream = None
     try:
         with process().outputs_lock:
             stream = process().outputs.get(key or 0)
         return size if stream is None else stream.write(ctypes.string_at(data, size))
     except BaseException:
+        if stream is not None:  # the result names the stream as truncated
+            stream.dropped = True
         return size  # never raises, never prints: the bytes are dropped and the write succeeds
 
 

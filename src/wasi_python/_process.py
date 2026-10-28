@@ -48,12 +48,19 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import Future, ThreadPoolExecutor
 
     import wasmtime
 
     from ._outputs import _Stream
     from ._sessions import _State
+
+# A live call's cancel event maps to None, or, for a session's turn, to its future and the
+# release of its claim, which the exit hook runs if its shutdown of the pools cancels the turn
+# before it starts. The default pools map to the count of their futures not yet done; a done
+# future puts its pool on `pool_done`, without a lock, and the next submit counts it under
+# `pool_lock`, so a pool a resize replaced is let go once none of its futures is left.
+_Queued = tuple["Future[Any]", Callable[[], None]]
 
 # How a lock is recognised and made anew for a fork: by its exact type, through this table. Not
 # `isinstance` and not `type(value)()`: on Python 3.11 and 3.12 `threading.Lock` and
@@ -101,9 +108,10 @@ class _Process:
         self.pool_lock = threading.Lock()
         self.pool: ThreadPoolExecutor | None = None
         self.pool_size: int = 0
-        self.pools: list[ThreadPoolExecutor] = []  # every default pool made, for exit
+        self.pools: dict[ThreadPoolExecutor, int] = {}  # each kept pool: its futures not done
+        self.pool_done: queue.SimpleQueue[ThreadPoolExecutor] = queue.SimpleQueue()
         self.live_lock = threading.Lock()
-        self.live: set[threading.Event] = set()
+        self.live: dict[threading.Event, _Queued | None] = {}  # a queued session turn's, if any
         self.exit_hook_registered: bool = False
         self.exiting: bool = False
         # B. Private folders, the sweep and the warnings.

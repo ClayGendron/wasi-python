@@ -230,6 +230,26 @@ def test_the_stream_keeps_the_cap_to_the_byte() -> None:
     assert (bytes(free.data), free.dropped) == (b"z" * 100, False)
 
 
+def test_a_stream_whose_write_raises_reports_dropped(monkeypatch) -> None:
+    """A write the capture could not keep still reports every byte written, so the guest goes
+    on, and the stream it reached says bytes were dropped, so the result names it as
+    truncated."""
+    import ctypes
+
+    from wasi_python import _outputs
+
+    class Failing(_outputs._Stream):
+        def write(self, data: bytes) -> int:
+            raise MemoryError
+
+    stream = Failing("stdout", None)
+    monkeypatch.setattr(process(), "outputs", {7: stream})
+    data = ctypes.create_string_buffer(b"lost", 4)
+    assert _outputs._write_output(7, data, 4) == 4
+    assert (bytes(stream.data), stream.dropped) == (b"", True)
+    assert _outputs._write_output(8, data, 4) == 4  # no stream: nothing to tell
+
+
 def test_a_path_that_does_not_open_falls_back_to_the_callback(monkeypatch) -> None:
     """A host whose `/dev/fd` does not reach a pipe (Linux without `/proc`: a chroot, a minimal
     container) still runs every call: the platform's channel is given a path that does not

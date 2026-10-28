@@ -103,8 +103,8 @@ def test_renew_knows_every_lock_kind() -> None:
 def test_reset_after_fork_resets_what_a_child_must_not_inherit() -> None:
     p, fresh = _Process(), _Process()
     anchor = _Anchor()
-    p.pool, p.pool_size, p.pools = object(), 7, [object()]
-    p.live = {threading.Event()}
+    p.pool, p.pool_size, p.pools = object(), 7, {object(): 1}
+    p.live = {threading.Event(): None}
     p.tool_threads_running = 3
     p.tool_threads_abandoned = 2
     p.zips = {"a digest": [object(), (1, 2), None]}

@@ -1,16 +1,21 @@
-"""Run from async code: the epoch callback's decisions, run_async's refusals and the
-default pool's size. Fakes stand in for wasmtime; nothing here measures time."""
+"""Run from async code: the epoch callback's decisions, run_async's refusals, the default
+pool's size and the pools it keeps, and a program that exits with a session's turn still queued.
+Fakes stand in for wasmtime, except in the row that runs a child on the artifact set; nothing
+here measures time, and a child's timeout is a fail-safe, never a verdict."""
 
 from __future__ import annotations
 
 import asyncio
 import concurrent.futures
 import ctypes
+import subprocess
+import sys
 import threading
 from types import SimpleNamespace
 
 import pytest
 
+from harness import needs
 from wasi_python import _call, _home, _limits, _platform, runner
 from wasi_python._process import process
 
@@ -234,3 +239,79 @@ def test_a_call_cancelled_before_it_runs_never_starts_its_guest(monkeypatch) -> 
     done = _call._drive(wt, Linker(), None, None, call, 10)
     assert (done.exit_code, done.trapped, done.metered) == (None, "cancelled", False)
     assert call.ended == "cancelled"
+
+
+def test_a_replaced_pool_is_dropped_once_its_futures_are_done(monkeypatch) -> None:
+    """Each `async_workers` resize makes a new default pool; the one it replaced is kept only
+    while its futures may still be queued, for the exit hook to cancel, and let go by the next
+    submit once they are done, so the process keeps one pool, not one per resize."""
+    import dataclasses
+
+    import wasi_python
+
+    monkeypatch.setattr(process(), "pool", None)
+    monkeypatch.setattr(process(), "pool_size", 0)
+    monkeypatch.setattr(process(), "pools", type(process().pools)())
+    monkeypatch.setattr(process(), "pool_done", type(process().pool_done)())
+    before = wasi_python.defaults()
+    replaced = []
+    try:
+        for size in (1, 2, 3, 2):
+            wasi_python.set_defaults(dataclasses.replace(before, async_workers=size))
+            assert runner._submit(None, abs, -size).result() == size
+            replaced.append(process().pool)
+        for pool in replaced[:-1]:
+            pool.shutdown(wait=True)  # its workers have run every callback
+        assert runner._submit(None, abs, -5).result() == 5  # the next submit, at the same size
+    finally:
+        wasi_python.set_defaults(before)
+    assert list(process().pools) == [replaced[-1]]
+    replaced[-1].shutdown(wait=True)
+
+
+QUEUED_AT_EXIT = r"""
+import asyncio, atexit, dataclasses, threading
+import wasi_python
+
+held = {}
+
+
+def report():
+    print("at exit", held["s"].ended, held["s"].shutdown_outcome, flush=True)
+
+
+atexit.register(report)  # before the first session's own exit hook, so it runs after it
+started = threading.Event()
+
+
+def host(frame):
+    started.set()
+    return b""
+
+
+wasi_python.set_defaults(dataclasses.replace(wasi_python.defaults(), async_workers=1))
+busy = wasi_python.Session(host=host)
+s = held["s"] = wasi_python.Session()
+loop = asyncio.new_event_loop()
+loop.create_task(busy.run_async("import _host\n_host.call(b'x')\nwhile True:\n    pass\n"))
+loop.create_task(s.run_async("print(1)"))
+loop.run_until_complete(asyncio.sleep(0))
+started.wait(60)  # the one worker runs the busy turn; a fail-safe, not a timing
+print("queued", s.ended, flush=True)
+# The program ends here, its loop left with both tasks pending: nothing resumes them.
+"""
+
+
+def test_a_program_exiting_with_a_turn_queued_ends_the_session() -> None:
+    """A session's turn still queued in the runner's busy pool when the program ends: the exit
+    hook cancels the queued turn and releases its claim, so the session is ended "closed" at
+    exit and the program exits, instead of waiting for a turn that never runs."""
+    needs.need("runner", "artifact dir")
+    try:
+        out = subprocess.run(
+            [sys.executable, "-c", QUEUED_AT_EXIT], capture_output=True, text=True, timeout=120
+        )  # the timeout is a fail-safe for an exit that would hang, not a timing
+    except subprocess.TimeoutExpired as e:
+        raise AssertionError(f"the program never exited: {e.stdout!r}") from None
+    assert out.returncode == 0, out.stderr[-2000:]
+    assert out.stdout.splitlines() == ["queued None", "at exit closed skipped"], out.stdout

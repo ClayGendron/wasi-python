@@ -104,6 +104,7 @@ class _Phase(enum.Enum):
 class _Event(enum.Enum):
     OPENED = "opened"  # the store is made and the session registered
     CLAIM = "claim"  # a turn is claimed
+    TAKE_TURN = "take turn"  # the thread that runs the claimed turn becomes its holder
     RELEASE = "release"  # a queued turn never started
     MARK = "mark"  # `ended` is set, by the first cause
     TURN_RETURNED = "turn returned"  # the turn's thread, or an abandoned turn's guest thread
@@ -117,6 +118,8 @@ _SESSION_TABLE = {
     (_Phase.OPENING, _Event.RELEASED): _Phase.ENDED,  # a failed opening; nothing was counted
     (_Phase.OPEN, _Event.CLAIM): _Phase.TURN,
     (_Phase.OPEN, _Event.MARK): _Phase.MARKED,
+    (_Phase.TURN, _Event.TAKE_TURN): _Phase.TURN,
+    (_Phase.STOPPING, _Event.TAKE_TURN): _Phase.STOPPING,  # a close() came before the start
     (_Phase.TURN, _Event.RELEASE): _Phase.OPEN,
     (_Phase.TURN, _Event.MARK): _Phase.STOPPING,
     (_Phase.TURN, _Event.TURN_RETURNED): _Phase.OPEN,
@@ -128,7 +131,8 @@ _SESSION_TABLE = {
 }
 # Every other pair is refused: a claim of the ending before a mark, and a move from OPENING by
 # anything but OPENED or RELEASED, among them.
-_HOLDER_EVENTS = (_Event.CLAIM, _Event.CLAIM_ENDING, _Event.TAKE_OVER)  # the event names one
+# Each of these events names the holder.
+_HOLDER_EVENTS = (_Event.CLAIM, _Event.TAKE_TURN, _Event.CLAIM_ENDING, _Event.TAKE_OVER)
 _STOPPED_PHASES = (_Phase.STOPPING, _Phase.MARKED)  # entered with `ended` set: `closing` too
 
 
@@ -201,7 +205,9 @@ class _State:
     1. `ended is None` exactly in `OPENING`, `OPEN` and `TURN`; `closing.is_set()` exactly when
        `ended is not None`.
     2. `holder` is the turn's thread in `TURN` and `STOPPING`, the ending's thread or `_CLOSER`
-       in `ENDING`, and `None` otherwise. A turn and an ending are never held at once.
+       in `ENDING`, and `None` otherwise. A turn and an ending are never held at once. The turn's
+       thread is the one that claimed it until the turn starts, and the one that runs it from
+       then on (`TAKE_TURN`): `run_async` claims on the event loop's thread and runs on a worker.
     3. In `ENDING` and `ENDED` no turn's guest thread lives: `STOPPING` leaves only when the
        turn's own thread, or the abandoned turn's guest thread at its end, says so.
     4. `done.is_set()` exactly in `ENDED`; `outcome` is written in the same lock hold that
@@ -214,6 +220,10 @@ class _State:
        `_mark`, with one exception: `close()` in a forked child writes `ended` and `outcome`
        lock-free and moves nothing (the store is the parent's; no thread of the child touches
        it).
+    8. No session rests in `MARKED` while nobody holds it: every lock hold that enters `MARKED`
+       claims the ending in the same hold, for its own thread or for `_CLOSER`, and a closer is
+       started once the lock is released. A closer that cannot start runs the ending on the
+       thread that started it, which then holds no lock.
     """
 
     def __init__(self, checked: _CheckedCall, wt: types.ModuleType) -> None:
@@ -306,17 +316,33 @@ def _in_context(context: contextvars.Context, state: _State) -> None:
 
 
 def _start_closer(state: _State) -> None:
-    """Run an ending the runner starts itself on a closer thread of its own, in a
-    copy of the context taken at the opening."""
+    """Run an ending the runner starts itself on a closer thread of its own, in a copy of the
+    context taken at the opening, or hand it to the observers' `start_ending`. The caller has
+    claimed the ending for `_CLOSER` and holds no lock. A closer that cannot start, as on a host
+    short of threads, never loses the ending: it runs here, on the calling thread, which waits
+    for it (at most the session's `shutdown_s` of guest code, plus any call of the embedder's
+    own code it makes)."""
     context = state.context.copy() if state.context is not None else None
     target = _end_quietly if context is None else functools.partial(_in_context, context)
-    thread = threading.Thread(
-        target=target, args=(state,), name="wasi-python-session-closer", daemon=True
-    )
     p = process()
-    with p.closers_lock:
-        p.closers.add(thread)
-    thread.start()
+    try:
+        starter = p.observers.start_ending
+        if starter is not None:
+            starter(state)
+            return
+        thread = threading.Thread(
+            target=target, args=(state,), name="wasi-python-session-closer", daemon=True
+        )
+        with p.closers_lock:
+            p.closers.add(thread)
+        try:
+            thread.start()
+        except BaseException:
+            with p.closers_lock:
+                p.closers.discard(thread)
+            raise
+    except BaseException:
+        target(state)  # never raises: the outcome records how the ending went
 
 
 def _end_quietly(state: _State) -> None:
@@ -344,15 +370,17 @@ def _reap(now: float) -> float | None:
         start = False
         with state.lock:
             due = _due(state)
-            if state.phase is not _Phase.OPEN or due is None:
+            if state.phase is _Phase.MARKED:  # marked, and nobody holds it: never left so
+                start = _claim_ending(state, _CLOSER)
+            elif state.phase is not _Phase.OPEN or due is None:
                 continue
-            if now >= due[0]:
+            elif now >= due[0]:
                 start = _mark(state, due[1]) and _claim_ending(state, _CLOSER)
             else:
                 left = due[0] - now
                 wait = left if wait is None else min(wait, left)
         if start:
-            (p.observers.start_ending or _start_closer)(state)
+            _start_closer(state)
     return wait
 
 
@@ -389,13 +417,14 @@ def _reaper_loop(
 
 
 def _end_dropped(state: _State) -> None:
-    """A dropped session at rest is ended "closed" on a closer; one resting after an abandoned
-    turn is already marked, so it waits for exit."""
+    """A dropped session at rest is ended "closed" on a closer; one already marked, and held by
+    nobody, keeps its reason and is ended on a closer too."""
     with state.lock:
-        start = state.phase is _Phase.OPEN and _mark(state, "closed")
-        start = start and _claim_ending(state, _CLOSER)
+        if state.phase is _Phase.OPEN:
+            _mark(state, "closed")
+        start = state.phase is _Phase.MARKED and _claim_ending(state, _CLOSER)
     if start:
-        (process().observers.start_ending or _start_closer)(state)
+        _start_closer(state)
 
 
 def _ensure_reaper() -> None:
@@ -865,7 +894,11 @@ def _session_turn(
     loop: asyncio.AbstractEventLoop | None,
 ) -> Completed:
     """A claimed turn, on this thread: run it, decide whether it ended the session, and if the
-    session has ended by its return, run the ending here (step 6)."""
+    session has ended by its return, run the ending here (step 6). Its first step makes this
+    thread the turn's holder, whichever thread claimed it, so a `close()` from this thread, a
+    host function's or a provider's, returns at once."""
+    with state.lock:
+        _move(state, _Event.TAKE_TURN, threading.get_ident())
     done: _TurnDone | None = None
     error: BaseException | None = None
     home = _Home()  # this thread, while the turn runs on a guest thread
@@ -913,12 +946,16 @@ def _session_turn(
 
 def _abandon_turn(state: _State) -> None:
     """A turn whose home was forced out, run by its guest thread at its end: the session ends as
-    on an error, and only now may another thread enter its store."""
+    on an error, and only now may another thread enter its store, so its ending goes to a
+    closer."""
     with state.lock:
         _move_guest(state, _GuestEvent.FAILED)
         _mark(state, "error")
         _move(state, _Event.TURN_RETURNED)
         state.last_end = process().observers.clock()
+        start = state.phase is _Phase.MARKED and _claim_ending(state, _CLOSER)
+    if start:
+        _start_closer(state)
     _wake_reaper()
 
 

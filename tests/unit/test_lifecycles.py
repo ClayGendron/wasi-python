@@ -64,6 +64,7 @@ def _at(phase: P, holder: int | None = None) -> _sessions._State:
 
 
 ME = 12345
+LOOP = 67890  # a thread that claimed a turn another thread runs
 
 # (phase, holder before, event, holder given, phase after, holder after, closing, done)
 SESSION_ROWS = [
@@ -71,6 +72,8 @@ SESSION_ROWS = [
     (P.OPENING, None, E.RELEASED, None, P.ENDED, None, False, True),
     (P.OPEN, None, E.CLAIM, ME, P.TURN, ME, False, False),
     (P.OPEN, None, E.MARK, None, P.MARKED, None, True, False),
+    (P.TURN, LOOP, E.TAKE_TURN, ME, P.TURN, ME, False, False),
+    (P.STOPPING, LOOP, E.TAKE_TURN, ME, P.STOPPING, ME, True, False),
     (P.TURN, ME, E.RELEASE, None, P.OPEN, None, False, False),
     (P.TURN, ME, E.MARK, None, P.STOPPING, ME, True, False),
     (P.TURN, ME, E.TURN_RETURNED, None, P.OPEN, None, False, False),

@@ -20,7 +20,9 @@ from __future__ import annotations
 
 import atexit
 import contextvars
+import functools
 import os
+import queue
 import threading
 import weakref
 from collections.abc import Callable, Iterable, Mapping
@@ -447,7 +449,7 @@ async def run_async(
     with p.live_lock:  # the exit hook sets `exiting` before it reads `live`
         if p.exiting:
             raise RuntimeError("cannot schedule new futures after interpreter shutdown")
-        p.live.add(event)
+        p.live[event] = None
     try:
         work = contextvars.copy_context().run  # a door host sees the request's context
         args = (_run_checked_flushed, wt, checked, host, snapshot, cache_dir, artifacts, loop)
@@ -466,7 +468,7 @@ async def run_async(
             raise
     finally:
         with p.live_lock:
-            p.live.discard(event)
+            p.live.pop(event, None)
 
 
 def _check_executor(executor: Any) -> None:
@@ -500,15 +502,40 @@ def _submit(
     with p.pool_lock:
         if p.exiting:  # the exit hook has run: never start a pool's call again
             raise RuntimeError("cannot schedule new futures after interpreter shutdown")
+        while True:  # count what is done, and let go of a replaced pool with nothing left
+            try:
+                done = p.pool_done.get_nowait()
+            except queue.Empty:
+                break
+            left = p.pools.get(done, 0) - 1
+            if left > 0 or done is p.pool:
+                p.pools[done] = max(left, 0)
+            else:
+                p.pools.pop(done, None)
         size = _current_defaults().async_workers
         if p.pool is None or p.pool_size != size:
             old = p.pool
             new = concurrent.futures.ThreadPoolExecutor(size, thread_name_prefix="wasi-python")
-            p.pools.append(new)
+            p.pools[new] = 0
             p.pool, p.pool_size = new, size
             if old is not None:
                 old.shutdown(wait=False)  # its running calls finish
-        return p.pool.submit(fn, *args)
+                if not p.pools.get(old):  # none of its futures left: nothing for exit to cancel
+                    p.pools.pop(old, None)
+        pool = p.pool
+        future = pool.submit(fn, *args)
+        p.pools[pool] = p.pools.get(pool, 0) + 1
+    future.add_done_callback(functools.partial(_pool_future_done, pool))
+    return future
+
+
+def _pool_future_done(pool: concurrent.futures.ThreadPoolExecutor, future: Any) -> None:
+    """One of a default pool's futures is done, told to the next submit, which counts it under
+    the pool's lock: so a pool a resize replaced is let go once none of its futures is left, and
+    the process keeps one pool, not one per resize. It takes no lock, since it may run on the
+    worker, on the thread that cancelled the future, under the executor's own lock, or in
+    `_submit` itself."""
+    process().pool_done.put(pool)
 
 
 def _register_exit_hook() -> None:
@@ -532,17 +559,60 @@ def _register_exit_hook() -> None:
 
 def _stop_async_calls() -> None:
     """Pools first, so no call can be submitted after its event was missed; then the events of the
-    calls already running."""
+    calls already running; then the claim of each session's turn whose queued future the pools'
+    shutdown cancelled, since its coroutine may never resume to give the claim back, and the
+    sessions' own exit hook would wait for a turn that never runs. A release is taken out of
+    `live` under its lock, by this hook or by the coroutine's own cancel, so it runs once."""
     p = process()
     with p.pool_lock:
         p.exiting = True
         pools = list(p.pools)
     for pool in pools:
         pool.shutdown(wait=False, cancel_futures=True)
+    releases = []
     with p.live_lock:
         events = list(p.live)
+        for event, queued in list(p.live.items()):
+            if queued is not None and queued[0].cancelled():  # it never starts
+                releases.append(queued[1])
+                del p.live[event]
     for event in events:
         event.set()
+    for release in releases:
+        try:
+            release()
+        except BaseException:
+            pass  # an exit hook never raises: the sessions' own hook still ends the session
+
+
+def _keep_release(
+    event: threading.Event, future: concurrent.futures.Future[Any], release: Callable[[], None]
+) -> None:
+    """Keep, beside a session turn's event in `live`, its future and the release of its claim,
+    for the exit hook to run if its shutdown of the pools cancels the turn before it starts.
+    When the exit hook has already cancelled it, and so found nothing to run, the release runs
+    here instead, after the lock."""
+    p = process()
+    with p.live_lock:
+        if event not in p.live:
+            return
+        late = p.exiting and future.cancelled()
+        if late:
+            del p.live[event]
+        else:
+            p.live[event] = (future, release)
+    if late:
+        release()
+
+
+def _take_live(event: threading.Event) -> Callable[[], None]:
+    """Take a call's entry out of `live`, and return the release kept beside it, or one that
+    does nothing when there is none or the exit hook has taken it: whoever takes a release runs
+    it, so it runs once."""
+    p = process()
+    with p.live_lock:
+        queued = p.live.pop(event, None)
+    return (lambda: None) if queued is None else queued[1]
 
 
 def _checked(
@@ -1038,9 +1108,15 @@ class Session:
         raise SessionEnded(ended)
 
     def _release_claim(self) -> None:
+        """A claimed turn that never started gives its claim back. When a `close()` came between
+        the claim and the release, the session is marked and nobody holds it: its ending goes to
+        a closer, and the `close()` waiting for it returns."""
         state = self._state
         with state.lock:
-            _sessions._move(state, _Event.RELEASE)  # from TURN, or STOPPING after a close()
+            after = _sessions._move(state, _Event.RELEASE)  # from TURN, or STOPPING after a close()
+            start = after is _Phase.MARKED and _sessions._claim_ending(state, _CLOSER)
+        if start:
+            _sessions._start_closer(state)
         _sessions._wake_reaper()
 
     def run(
@@ -1150,21 +1226,21 @@ class Session:
             with p.live_lock:
                 if p.exiting:
                     raise RuntimeError("cannot schedule new futures after interpreter shutdown")
-                p.live.add(event)
+                p.live[event] = None
             work = contextvars.copy_context().run
             args = (_sessions._session_turn, state, data, fuel, deadline, output, event, loop)
             future = _submit(executor, work, *args)
         except BaseException:
-            with p.live_lock:
-                p.live.discard(event)
+            _take_live(event)
             self._release_claim()
             raise
+        _keep_release(event, future, self._release_claim)
         try:
             try:
                 return await asyncio.wrap_future(future)
             except asyncio.CancelledError:
                 if future.cancel():  # still queued: it never starts, the session is untouched
-                    self._release_claim()
+                    _take_live(event)()  # its claim released, unless the exit hook did it
                     raise
                 event.set()
                 while not future.done():
@@ -1174,8 +1250,7 @@ class Session:
                         pass
                 raise
         finally:
-            with p.live_lock:
-                p.live.discard(event)
+            _take_live(event)
 
     def close(self) -> None:
         """End the session, run its ending, and return once its store is closed.
@@ -1184,8 +1259,14 @@ class Session:
         the ending, which runs Python's shutdown when the session was at rest (at most its
         `shutdown_s` of guest code, plus any call of your own code it makes). It blocks, so
         from a coroutine it blocks the event loop. Called from inside the session's own turn or
-        ending (a host function or a provider), it marks the session and returns at once.
-        Calling it again does nothing.
+        ending, on the thread that runs it (a host function or a provider, under `run` or
+        `run_async` alike), it marks the session and returns at once, and the session ends as
+        the turn returns. From any other thread, the event loop's that awaits a `run_async`
+        turn and a tool's own thread among them, it waits for the ending. One exception: from
+        the event loop's thread before a `run_async` turn has started (still queued for a
+        worker), it marks the session and returns at once; the turn then stops as it starts, or,
+        if it is cancelled first, the session is ended on a closer, so `shutdown_outcome` may
+        still be `None` when that `close()` returns. Calling it again does nothing.
 
         Raises:
             KeyboardInterrupt: Ctrl-C during the ending, raised once the session is closed.
