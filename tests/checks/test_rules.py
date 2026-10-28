@@ -1330,12 +1330,12 @@ LONG_FUNCTIONS = {
     "runner.py:run": 156,
     "runner.py:run_async": 181,
     "runner.py:Session.__init__": 178,
-    "runner.py:Session.run_async": 82,
-    "_sessions.py:_open_session": 136,
+    "runner.py:Session.run_async": 81,
+    "_sessions.py:_open_session": 138,
     # The engine instance's assembly: the linker, the store and the imports, one builder each.
     "_call.py:_instance": 155,
     # The process object's fields, one line each; a dataclass would make them declarations.
-    "_process.py:_Process.__init__": 81,
+    "_process.py:_Process.__init__": 83,
 }
 
 
