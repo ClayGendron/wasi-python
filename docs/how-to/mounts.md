@@ -148,7 +148,7 @@ A writable mount differs from a writable grant in a few more ways:
 - Unflushed writes are seen only through the descriptor that made them, until its close or `fsync`. Two descriptors on one path have two buffers, and the later write-back wins.
 - A rename between a mount and another writable folder is `EXDEV`; `shutil.move` then copies and removes.
 - `os.link` and `os.symlink` are `ENOTSUP`: the protocol has no links.
-- `os.utime` succeeds and changes nothing. Times are your provider's.
+- `os.utime` of a name below the mount makes one `stat`. On a path that is there it succeeds and changes nothing; on a missing path it raises `FileNotFoundError`. Times are your provider's.
 - sqlite3 over a mount is not supported. It needs ranged writes and locking.
 
 **Cost.** Every write-half call, create and write-back counts toward `max_file_calls`. Each close or `fsync` of a changed file hands you the whole file. So a guest that loops "write one byte, `fsync`" can make many large write-backs. A provider that persists every write should limit its writes and answer `EDQUOT`.
