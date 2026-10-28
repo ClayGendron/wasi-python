@@ -18,6 +18,9 @@ from harness import needs, wat
 
 pytestmark = pytest.mark.goal("v1.4")
 FUEL = 10**12  # a cap that is never reached: it makes each call report its fuel
+# A call that imports numpy's random module, as pandas, sympy and scikit-learn do, spends a
+# number of instructions that moves by up to a few percent from run to run, even with a fixed
+# seed. The judge holds a metric's fuel exact, so those rows keep their fuel as a fact.
 
 SALES = "region,total\nnorth,10\nsouth,5\nnorth,7\neast,3\n"
 PROBE_CODE = (
@@ -64,7 +67,7 @@ def namespace_snapshot():
     return _wp().make_snapshot(NAMESPACE_CODE)
 
 
-def test_a_snapshot_runs_like_a_fresh_run(guest_workdir, metric, fact) -> None:
+def test_a_snapshot_runs_like_a_fresh_run(guest_workdir, fact) -> None:
     """The spike's probe: live objects made by the code, a frame, a fitted model and a function,
     used by a program from the snapshot, print exactly what one program of both prints."""
     wp = _wp()
@@ -78,10 +81,10 @@ def test_a_snapshot_runs_like_a_fresh_run(guest_workdir, metric, fact) -> None:
     assert restored.image_sha256 == snap.origin.image_sha256 and fresh.image_sha256 is None
     assert restored.fuel_used < fresh.fuel_used // 10, (restored.fuel_used, fresh.fuel_used)
     fact("fresh_fuel", fresh.fuel_used)
-    metric("fuel", restored.fuel_used)
+    fact("restored_fuel", restored.fuel_used)  # numpy's random module: not exact
 
 
-def test_a_call_sees_no_other_calls_mutations(metric) -> None:
+def test_a_call_sees_no_other_calls_mutations(fact) -> None:
     wp = _wp()
     code = (
         "import builtins, sys\nimport numpy\nimport pandas\n"
@@ -109,7 +112,7 @@ def test_a_call_sees_no_other_calls_mutations(metric) -> None:
     )
     _ok(second)
     assert second.stdout == b"[1] ['a'] False True False\n", second
-    metric("fuel", second.fuel_used)
+    fact("restored_fuel", second.fuel_used)  # numpy's random module: not exact
 
 
 def test_a_snapshot_that_leaves_a_file_open_is_refused(guest_workdir) -> None:
@@ -208,7 +211,7 @@ def test_grants_in_another_order_work(guest_workdir, metric) -> None:
     metric("fuel", done.fuel_used)
 
 
-def test_randomness_differs_across_calls(metric) -> None:
+def test_randomness_differs_across_calls(fact) -> None:
     wp = _wp()
     snap = wp.make_snapshot("import random, tempfile\nimport numpy.random\nimport sympy\n")
     program = (
@@ -222,7 +225,7 @@ def test_randomness_differs_across_calls(metric) -> None:
     _ok(second)
     a, b = first.stdout.split(), second.stdout.split()
     assert len(a) == len(b) == 4 and all(x != y for x, y in zip(a, b, strict=True)), (a, b)
-    metric("fuel", second.fuel_used)
+    fact("restored_fuel", second.fuel_used)  # numpy's random module: not exact
 
 
 def test_a_call_from_a_snapshot_keeps_an_unclosed_files_bytes(
@@ -342,7 +345,7 @@ PLOT = (
 
 
 @pytest.mark.slow
-def test_the_image_of_every_package_runs_a_hello_and_a_plot(metric, fact) -> None:
+def test_the_image_of_every_package_runs_a_hello_and_a_plot(fact) -> None:
     """The helper with no list imports every package the set ships; a restored hello costs
     its own work, and pyplot draws with no root. The helper given a distribution's name
     imports that line's names."""
@@ -358,4 +361,4 @@ def test_the_image_of_every_package_runs_a_hello_and_a_plot(metric, fact) -> Non
     assert imported.stdout == b"True\n", imported
     fact("prelude_fuel", every.origin.prelude_fuel)
     fact("image_bytes", every.origin.image_bytes)
-    metric("fuel", hello.fuel_used)
+    fact("restored_fuel", hello.fuel_used)  # numpy's random module: not exact
