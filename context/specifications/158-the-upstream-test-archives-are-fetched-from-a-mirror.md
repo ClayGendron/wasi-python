@@ -1,6 +1,6 @@
 # 158: The upstream test archives are fetched from a mirror the project controls
 
-- **Status:** drafted 2026-10-28 from the overnight blocker on `upstream-pure-smoke-a` (the orchestrator's notes, `build/0.1.2/owner-questions.md`, section "BLOCKER", in the main tree and not tracked); not yet built. It waits on the owner's instruction, since `AGENTS.md` says a mirror is a recipe change, reviewed, only if the owner asks; once asked, it is reviewed before it is built (constitution §5.6, a change to the build recipe), and its build waits on the owner's one upload (Decision 1).
+- **Status:** **built 2026-10-28** on `spec/158-the-upstream-test-archives-are-fetched-from-a-mirror`, base `d89592a8` (dev's tip after 147); not yet landed: the owner's upload of the mirror (Decision 1), the agent's read-back of it, the pull request, its run and its review come next. The owner asked for it to be built on 2026-10-28 ("I'll go with your recommendation"). Before: **reviewed before build 2026-10-28** (`../reviews/158-the-upstream-test-archives-are-fetched-from-a-mirror-spec-2026-10-28.md`; one Medium fixed in Decision 4, Decision 7 and criterion 2, eight Lows written in by the reviewer; signed again, fit to build). Before: drafted 2026-10-28 from the overnight blocker on `upstream-pure-smoke-a` (the orchestrator's notes, `build/0.1.2/owner-questions.md`, section "BLOCKER", in the main tree and not tracked). **Build-class** (constitution §5.6).
 - **Date:** 2026-10-28
 - **Owner:** Clay Gendron
 - **Kind:** **build-class**, not structural, parallel-safe: `scripts/00_download.sh` (the `get` function learns an optional mirror, and two `tests` lines name one), `tests/upstream/fetch.py` (the same rule), one rule in `tests/harness/scan.py`, rows in `tests/unit/test_pure_suites.py`, `tests/unit/test_build_scripts.py`, `tests/unit/test_build_progress.py`, `tests/unit/test_scan.py` and `tests/checks/test_v1_5_rebuild_from_pins.py`, a sentence or two in `docs/contributing/building.md`, `docs/explanation/security-model.md` and `docs/explanation/pinned-releases-and-patches.md`, and the news file. **No pin moves (`downloads/SHA256SUMS` is not touched), no recipe, no compiler flag, so `python.wasm`, `python-snapshot.wasm`, `python-stdlib.zip` and the files under `LICENSES/` do not change; MANIFEST's `recipe` line for `scripts/00_download.sh` changes by design**, because MANIFEST hashes every tracked file under `scripts/` (`scripts/assemble_artifacts.py`, the `recipe <sha256> <path>` lines), so the set's `SHA256SUMS` changes in MANIFEST's line alone, and the set's key moves (`release/set_key.py` hashes every tracked file under `scripts/`), so the pull request's run compiles the set once on arm64 Linux. Criterion 4 is the proof. src/ is not touched, so nothing here is structural.
@@ -157,7 +157,41 @@ In: Decisions 1 to 7. Out:
 
 ## Landing notes
 
-Not yet built.
+Built 2026-10-28 by an agent (Claude, a sub-agent of session `https://claude.ai/code/session_01ThzDEU6oHaVS4VRYYiC1im`) on `spec/158-the-upstream-test-archives-are-fetched-from-a-mirror`, rebased onto `d89592a8` (147's merge) before the build. Labels: EXECUTED means the builder ran it on this machine (macOS arm64; `sh` is bash 3.2 in POSIX mode, `dash` present); READ means the builder read the file cited. Nothing was fetched from any host: every row serves its bytes from a fake `curl` or a fake `urlopen`. The outputs named below are in `build/158/` in the worktree, not committed.
+
+The commits, in the Design's order: the rows seen failing (`db0c6000`); `scan.py`'s rule (`d98803f8`); `fetch.py` (`b73436af`); `00_download.sh` (`a1e57475`); the docs and the news file (`7efac21e`); a fix the rules check asked for (`c22e95cd`, below); then this section.
+
+### The rows seen failing first
+
+21 rows (20 units and one goal check), each failing before its code (EXECUTED):
+
+- `tests/unit/test_pure_suites.py`, the four mirror rows: `AttributeError: module 'upstream_fetch_pure' has no attribute 'fetch_first'` (`rows-python-before.txt`).
+- `test_a_challenge_page_for_a_test_source_is_refused` passes on the code, as Decision 7 says; on a planted `fetch()` whose hash check was skipped it failed with `openpyxl-3.1.5-tag.tar.gz: file could not be opened successfully: … not a gzip file`: the page landed and reached the unpack (`row-guard-planted.txt`; the plant was undone from a saved copy).
+- `tests/unit/test_build_scripts.py`, `test_the_download_step_tries_the_mirror_first` (four cases under `dash` and `bash`, eight rows) and `test_the_two_fetchers_choose_the_same_url` (four): `AssertionError: 00_download.sh defines no pin_sum()` (`rows-shell-before.txt`).
+- `tests/unit/test_build_progress.py::test_the_download_step_with_all_asks_each_mirror_first` (`dash`, `bash`): on today's script, `no line of 00_download.sh names a mirror` (`row-all-before.txt`); on today's `get()` with the two mirror fields planted on its lines, `AssertionError: ('openpyxl-3.1.5-tag.tar.gz', 'https://foss.heptapod.net/openpyxl/openpyxl/-/archive/3.1.5/openpyxl-3.1.5.tar.gz', …)`, the Heptapod URL found in the fake curl's log (`row-all-old-get-new-lines.txt`), the failure the review's Medium named.
+- `tests/unit/test_scan.py::test_a_mirror_is_this_repositorys_dated_release_asset_of_its_pin` and `tests/checks/test_v1_5_rebuild_from_pins.py::test_every_mirror_is_this_repositorys_release_asset_of_its_pin`: `AttributeError: module 'harness.scan' has no attribute 'mirror_errors'` (`rows-scan-before.txt`); the check, after the rule, on a planted mistyped tag: `openpyxl-3.1.5-tag.tar.gz: its mirror's tag test-source-2026-10-28 is not test-sources-YYYY-MM-DD` (`row-check-mistyped-tag.txt`).
+
+All 21 pass after the change (EXECUTED).
+
+### The local evidence
+
+EXECUTED, on `c22e95cd`: `uv run ruff check src tests release` and `uv run ruff format --check src tests` clean (`ruff check scripts` reports 46 findings in Python files this change does not touch: `assemble_artifacts.py`, `audit_openblas_void.py`, `bench_native.py`); `sh -n scripts/00_download.sh` clean; `scripts/build.sh --check` exits 0 (`preflight: MACOS_ARM64; 11 tools; 521.3 GiB free`); `uv run pytest tests/unit/test_build_progress.py tests/unit/test_scan.py tests/unit/test_pure_suites.py tests/unit/test_fetch_trees.py tests/unit/test_build_scripts.py tests/unit/test_upstream.py` 722 passed; `uv run pytest tests/lint` 9 passed; `tests/checks/test_rules.py` with `WASI_PYTHON_ARTIFACTS` set to the 0.1.1 set, 121 passed and 1 skipped; `uv run --group docs mkdocs build --strict` exits 0; quick's unit selection (`-m "not slow" -n 4 tests/unit`) 3114 passed, 10 skipped, and five failed, all five because the docs group's `platformdirs` had put a pytest plugin into the worktree's environment ("steered from outside the judge: plugin platformdirs"); after `uv sync` the five pass (48 passed in their two files).
+
+### Criterion 4's expected values
+
+Computed from the newest acceptance's set (`context/progress/history-00060.jsonl`'s newest line, commit `1921c381`, `set_sums` `08dc8a73d4d2bf1c1cd862883e21c9a3412ba4a778ce5103b72c7919f1f924f8`, READ), which is the main tree's `build/release-0.1.1/set/wasi-python-0.1.1` (its `SHA256SUMS` hashes to that value, EXECUTED). Between `1921c381` and this branch the only file under `scripts/` or `recipes/` that changed is `scripts/00_download.sh` (`git diff --stat 1921c381 HEAD -- scripts recipes`, EXECUTED), and the set's `recipe` paths equal the tracked ones. So the pull request's build job must show `wasm-sha256` `d41926055c3f869715202092a1b8d070ff9ffcd2c82d0dd368786e79f2200f9a` and `set-sums-sha256` `34eafd5b59c2891a09600929809928252cf71fa5ffe018ff10d36b905823a821`: the accepted `SHA256SUMS` with its `MANIFEST` line alone changed, to `13fcb2a00b6e05f5be1c640747a2e8ea1e98c2f9ee765b6516376f3119954468` (33,540 bytes, as before), the accepted MANIFEST with the `recipe` line of `scripts/00_download.sh` alone rehashed (`build/158/criterion-4-expected.txt`). A later commit that touches `scripts/` moves both values; recompute them the same way.
+
+### Where the build differs from the text
+
+- A failed fetch's reason reads `the download failed (exit N)`, not `curl failed (exit N)`: the curl-flag rule reads every line where the word `curl` starts a command, and a quoted `curl failed` was taken for one (`c22e95cd`).
+- The two helpers `get()` calls are `pin_sum()` (the exact-field selection of `pin_line()`, exactly one line) and `fetch_checked()` (one URL, hashed before it is kept). The shell rows take the three functions from the script's text with a reader of their own in `test_build_scripts.py`, since `get() { # url name [mirror]` carries a comment on its first line, which the rules check's reader does not admit.
+- `fetch_first()` takes the reason after the file's name from each `fetch()` message, and with one URL it gives back `fetch()`'s message as it was.
+- The `--all` row takes the lines the run reached from the run's own `fetched <name> from <url>` output, as the review suggested, and checks each mirror and its origin in the fake curl's log first.
+- The news file uses the `### Changed` heading, the shape this tree's check accepts, with its entry written for the reader.
+
+### What remains
+
+The owner runs Decision 1's command from the main tree (the body is at `build/158/test-sources-notes.md` there, written from Decision 1's text); the agent reads the release back as Decision 1 says and records the outputs here (criterion 1); then the pull request, its run (criteria 3 and 4) and its review.
 
 ## One line
 
