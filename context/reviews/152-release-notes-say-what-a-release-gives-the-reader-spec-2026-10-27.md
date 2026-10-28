@@ -56,7 +56,18 @@ AGENTS.md whole; `context/constitution.md` §4 and §5; `context/reviews/README.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. to 12. Open.
+1. Fixed as written: Decision 8 now has the judge hold the file's presence through `scan.release_notes_review_errors`, the structural review's twin, with `test_a_release_has_its_release_notes_review`, a `## Verdict` required, a unit row in Decision 10 and acceptance criterion 8.
+2. Fixed as written: the model carries the Upgrading entry for a mount's refused `:` and `\`, the summary says two changes may need action, and the measures are recounted (EXECUTED). Decision 9 also asks 144's builder for an Upgrading entry if, as built, a `close()` from the loop thread now waits where it returned.
+3. Fixed as written: `news.is_reader_version` (the `X.Y.Z` above 0.1.1, pre-releases of 0.1.2 counted) and `news.reader_sections` are the one test used by `_date`, `check_errors`, the link resolution and the lint rule; a changelog holding only 0.1.0a1 gives the header alone, so `test_check_passes_a_good_tree_and_names_each_fault` stays green, and a row says so.
+4. Fixed: the Faster and Fixed entries are the reviewer's text verbatim, and the threads entry's second sentence is the reviewer's.
+5. Fixed as written, a paragraph after Decision 4's reason.
+6. Fixed as written: the shape check also resolves the links of `CHANGELOG.md`'s reader sections.
+7. Fixed as written, in Decision 3.
+8. Fixed as written, in Decision 5 and the release-process paragraph of the Design.
+9. Fixed as written: the row writes its own `context/embedders.txt` holding `acme`.
+10. Fixed as written, in Decision 2.
+11. Fixed as written, in Decision 9.
+12. Fixed by the first option: `patch_errors` also reads the news files' `## Changelog` sections, with a row; reason, in Decision 4: the specification already changes what that section holds, the fix is a few lines in the function the rule runs, and a patch is then held at its own pull request rather than only after `bump`.
 13. Applied by the reviewer.
 
 ## Verdict
