@@ -1,6 +1,6 @@
 # 145: A mount's names work the same on every host
 
-- **Status:** drafted 2026-10-27 from `../research/2026-10-27-a-code-review-of-the-runner-for-production-use.md` (§3); not yet built; the owner asked for it to be built on 2026-10-27 with the 0.1.2 scope (`../roadmap.md`).
+- **Status:** **built 2026-10-27, but for Decision 3's set-times answer**, which the landing notes give back to the owner with the evidence against it; on `spec/145-a-mounts-names-work-the-same-on-every-host`, rebased onto `ee72523e`; not yet in a pull request. Before: drafted 2026-10-27 from `../research/2026-10-27-a-code-review-of-the-runner-for-production-use.md` (§3); not yet built; the owner asked for it to be built on 2026-10-27 with the 0.1.2 scope (`../roadmap.md`).
 - **Date:** 2026-10-27
 - **Owner:** Clay Gendron
 - **Kind:** **parallel-safe**, **not structural**: `src/wasi_python/_fs_paths.py` (`_resolve`, the `O_DIRECTORY` open, `path_filestat_set_times`; 578 lines, about 15 added), `src/wasi_python/_fs_descriptors.py` (`fd_pread`'s slice; 442 lines, one line), rows in `tests/unit/test_runner_mounts.py` and `tests/checks/test_v1_2_hostile_guest.py`, two paragraphs in `docs/how-to/mounts.md` and one in `docs/reference/guest-filesystem.md`. It changes four answers of the guest's filesystem on a mount and nothing on a grant, no import or export of the guest, no artifact, no recipe. No change to `tests/public_api.txt`.
@@ -64,4 +64,38 @@ In: the above. Out:
 
 ## Landing notes
 
-Not yet built.
+Built 2026-10-27 by an agent (Claude Opus 5.5), the builder of this specification, a sub-agent of the orchestrating session, in the worktree `../wasi_python-wt/spec-145`, on `spec/145-a-mounts-names-work-the-same-on-every-host` from `898bc091`, rebased onto `ee72523e` (`dev`'s tip with this specification, pull request #26) before these notes. Guest checks ran on the published 0.1.1 artifact set, read-only. Labels: EXECUTED means I ran it, READ means I read the file cited, INFERRED means my reasoning.
+
+The commits, in order: `2029cd15` the rows, seen failing; `bb5904d4` the resolver and two of the three answers; `90cc0d79` the docs, the docstring and the news file; then this section.
+
+The rows seen failing first, on the unchanged code (EXECUTED, `build/145/rows-unit-before.log`, `build/145/row-hostile-before.log`, not committed):
+
+- `test_a_backslash_or_a_colon_in_a_component_is_refused[read-only]` and `[writable]`: every row answered 44 (`ENOENT`, the provider asked) where 28 (`EINVAL`) is wanted.
+- `test_pread_writes_no_more_than_it_judged`: `(0, 65600)` bytes read where `(0, 65536)` is wanted.
+- `test_a_folder_open_of_a_file_is_refused_before_any_listing`: a file opened with `O_DIRECTORY` over a lenient provider answered 0 where 54 (`ENOTDIR`) is wanted.
+- `test_a_mount_refuses_a_name_a_host_could_reinterpret` (hostile guest): `a\..\..\x` and `C:x` answered 44 to read and were created (`opened`) to write, where 28 is wanted for all four.
+
+After (EXECUTED): all five green; `tests/unit/test_runner_mounts.py` 72 passed with the artifact set; the mount-related selection of `test_runner_grants.py`, `test_runner_waits.py`, `test_runner_mounts.py`, `test_v1_4_sessions.py`, `test_v1_4_embedding.py` and `test_v1_2_hostile_guest.py`, slow rows included, 170 passed, 2 skipped (`build/145/mount-related-2.log`).
+
+Three existing checks hold the new `stat` (READ, the diff): an `O_DIRECTORY` open of a folder below the mount now makes one `stat` before its `list`, as Decision 3 asks. `test_a_path_is_normalized_before_the_provider_sees_it` gains `("stat", "/d")` before `("list", "/d")`; `test_a_listing_is_kept_and_listed_again_from_cookie_zero` counts `stat` 1, not 0; `test_v1_4_embedding.py::test_a_mount_serves_reads` counts `scandir` of `/work/d` as one `stat` and one `list` and the run's total `stat` as 3, not 2. Each check still asserts every call; none is loosened. The specification's Design did not name them.
+
+The cost of Decision 1, recorded as the owner asked (2026-10-27): Decision 1 refuses a colon on every host, so a guest cannot name a file with a colon on a mount, such as `12:30.csv`, where it can on a Linux or macOS grant. The cost is accepted and written on `docs/reference/limitations.md`, beside the mount's other host rules, and in the CHANGELOG line.
+
+### Different from the specification, each for a reason
+
+1. **Decision 3's set-times part is not built.** Spec 034's landing notes record, EXECUTED on wasmtime 49 in a Linux container and on macOS, that `path_filestat_set_times` of a missing path with no time flags answers 0 on a Linux grant (wasmtime's reference) and 44 on macOS; `tests/unit/test_runner_grants.py`'s `LINUX_ROWS` holds `"path set times 'missing'": 0`, and the parity row compares the grant with the mount on Linux. With Decision 3 as written (a `stat` first, its errno answered), the mount answered 44 and both `test_raw_write_calls_answer_as_a_writable_grant_does` and `test_the_write_differences_are_as_decided` failed (EXECUTED, `build/145/mount-related.log`): the change would have moved the mount away from Linux's grant answer, not toward it. The likely reason is Linux's `utimensat`, which returns 0 without looking up the path when both times are `UTIME_OMIT` (INFERRED; not run here). A design that would hold both answers, such as a `stat` only when a time flag is set, is a new design and is the owner's: the set-times code, its row and its `utime` expectation are left as they were, and the CHANGELOG line names the `pread` and directory-open answers only. Today `os.utime` always sets a flag, so a guest's `os.utime` of a missing path on a mount still succeeds, where a Linux grant would answer `ENOENT` (INFERRED).
+2. **The folder open is its own function, `_open_folder`.** With the `stat` inline, `_path_open` was 82 lines and `test_no_function_is_over_eighty_lines` failed (EXECUTED); split out, `_path_open` is 76 lines and `_open_folder` 12 (EXECUTED, `ast`). The answers are the same.
+3. **The mount itself is listed with no `stat`.** A folder open of `/` lists at once, as `_open_writing` already answers the mount itself with no call: its `stat` must be a folder by the protocol. So `os.listdir` of the mount still makes one `list`.
+4. **A listed name is not checked for the two characters.** A provider's `list` may still return a name with `\` or `:`; the guest sees it but cannot open it. The how-to says so; checking listed names was not in the specification.
+
+### Verification (EXECUTED)
+
+- `uv run ruff check src tests`: all checks passed; `uv run ruff format --check src tests`: 188 files already formatted; `uv run mypy src/wasi_python`: no issues in 27 files.
+- `uv run pytest tests/unit/test_runner_mounts.py -q` with the artifact set: 72 passed (65 passed, 7 skipped without it).
+- `uv run pytest tests/lint -q`: 9 passed. `uv run pytest tests/checks/test_rules.py -q`: 121 passed, 1 skipped. `mkdocs build --strict` with the docs group: built, exit 0 (`build/145/mkdocs.log`).
+- The fast tier, `uv run pytest -m "not slow" -n 3` (`build/145/fast-tier-2.log`): 3,815 passed, 51 skipped in 415 s; `ratchet vs 1921c3815c: lost 0 · absent 0 · unrun 1 · unrun locally 40 · gained 1 · grew 0`. The one gained is the hostile-guest row. The 41 unrun are blocked by needs a worktree does not have (the source trees, the compile records, the prior-art clones, the wheel, the wasmtime CLI), none of them a mount's; the judge marks one of them "accepted pass blocked", which CI, where the needs are met, reads. No fuel grew, so the claim block names no growth. A first run of the fast tier was red with five unit failures of the judge's own wiring (`test_landing_lane.py`, `test_checks_wiring.py`): `uv run --group docs` had installed `platformdirs`, whose pytest plugin the judge rightly names as foreign; after `uv sync` the second run above is clean.
+- `_fs_paths.py` 578 to 592 lines, `_fs_descriptors.py` 442 to 443; `_path_open` 76 lines, `_open_folder` 12, `_resolve` 31 (`ast`). No module-level mutable, no private wasmtime-py name, no platform branch; `tests/public_api.txt` unchanged. The added lines under `src/` and `tests/` name no specification, review or `context/` path.
+
+## One line
+
+A mount refuses a path component with a backslash or a colon on every host, so a provider never sees a name a host could read another way, and its `pread` and folder opens answer as wasmtime's do; the set-times answer waits on the owner.
