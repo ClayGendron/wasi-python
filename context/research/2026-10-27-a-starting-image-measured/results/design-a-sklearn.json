@@ -1,0 +1,134 @@
+{
+ "prelude": "sklearn",
+ "wizer_s": 38.6,
+ "wizer_rc": 0,
+ "wizer_stderr": "",
+ "module_bytes": 182996346,
+ "module_MiB": 174.5,
+ "memory_min_pages": 1762,
+ "data_segments": 10002,
+ "data_MiB": 89.9,
+ "exports": [
+  "memory (memory)",
+  "run (func)",
+  "turn (func)",
+  "shutdown (func)",
+  "host_alloc (func)"
+ ],
+ "compile_s": 46.3,
+ "serialize_s": 0.47,
+ "cwasm_MiB": 350.0,
+ "deserialize_file_s": 0.181,
+ "calls": [
+  {
+   "module": "compiled_in_process",
+   "instantiate_ms": 44.97,
+   "instantiate_faults": 7122,
+   "run_ms": 305.5,
+   "run_fuel": 692636427,
+   "rc": 0,
+   "stdout": "1665\nTrue",
+   "stderr": "",
+   "pages": 1762
+  },
+  {
+   "module": "compiled_in_process",
+   "instantiate_ms": 10.65,
+   "instantiate_faults": 6034,
+   "run_ms": 305.7,
+   "run_fuel": 692689430,
+   "rc": 0,
+   "stdout": "1665\nTrue",
+   "stderr": "",
+   "pages": 1762
+  },
+  {
+   "module": "compiled_in_process",
+   "instantiate_ms": 10.46,
+   "instantiate_faults": 6025,
+   "run_ms": 296.2,
+   "run_fuel": 692695548,
+   "rc": 0,
+   "stdout": "1665\nTrue",
+   "stderr": "",
+   "pages": 1762
+  },
+  {
+   "module": "compiled_in_process",
+   "instantiate_ms": 8.4,
+   "instantiate_faults": 6027,
+   "run_ms": 263.3,
+   "run_fuel": 692651799,
+   "rc": 0,
+   "stdout": "1665\nTrue",
+   "stderr": "",
+   "pages": 1762
+  },
+  {
+   "module": "compiled_in_process",
+   "instantiate_ms": 9.25,
+   "instantiate_faults": 6025,
+   "run_ms": 270.7,
+   "run_fuel": 692643485,
+   "rc": 0,
+   "stdout": "1665\nTrue",
+   "stderr": "",
+   "pages": 1762
+  },
+  {
+   "module": "deserialized_from_file",
+   "instantiate_ms": 0.1,
+   "instantiate_faults": 7,
+   "run_ms": 302.0,
+   "run_fuel": 692559360,
+   "rc": 0,
+   "stdout": "1665\nTrue",
+   "stderr": "",
+   "pages": 1762
+  },
+  {
+   "module": "deserialized_from_file",
+   "instantiate_ms": 0.08,
+   "instantiate_faults": 2,
+   "run_ms": 270.2,
+   "run_fuel": 692654427,
+   "rc": 0,
+   "stdout": "1665\nTrue",
+   "stderr": "",
+   "pages": 1762
+  },
+  {
+   "module": "deserialized_from_file",
+   "instantiate_ms": 0.09,
+   "instantiate_faults": 0,
+   "run_ms": 287.7,
+   "run_fuel": 692638642,
+   "rc": 0,
+   "stdout": "1665\nTrue",
+   "stderr": "",
+   "pages": 1762
+  },
+  {
+   "module": "deserialized_from_file",
+   "instantiate_ms": 0.09,
+   "instantiate_faults": 0,
+   "run_ms": 318.7,
+   "run_fuel": 692646340,
+   "rc": 0,
+   "stdout": "1665\nTrue",
+   "stderr": "",
+   "pages": 1762
+  },
+  {
+   "module": "deserialized_from_file",
+   "instantiate_ms": 0.08,
+   "instantiate_faults": 0,
+   "run_ms": 286.8,
+   "run_fuel": 692634780,
+   "rc": 0,
+   "stdout": "1665\nTrue",
+   "stderr": "",
+   "pages": 1762
+  }
+ ]
+}

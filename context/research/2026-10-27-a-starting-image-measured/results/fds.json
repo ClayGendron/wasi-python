@@ -1,0 +1,9 @@
+{
+ "stdout": "open fds [0, 1, 2, 3, 4, 5, 6]\nkept reads 'north,10\\n'\nkept fd 7\nnew file fd 7\nkept now reads 'written by this call'\n",
+ "stderr": "",
+ "shutdown": {
+  "status": 0,
+  "fuel": 52812655,
+  "s": 0.009681457988335751
+ }
+}

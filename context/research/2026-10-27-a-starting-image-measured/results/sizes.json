@@ -1,0 +1,386 @@
+{
+ "none": {
+  "prelude": {
+   "status": 0,
+   "trapped": null,
+   "fuel": 1151396,
+   "s": 0.005190125011722557
+  },
+  "prelude_stderr": "",
+  "seal": {
+   "status": 0,
+   "fuel": 2420014,
+   "s": 0.001072250001016073
+  },
+  "pages": 640,
+  "MiB": 40.0,
+  "nonzero_pages": 266,
+  "changed_pages": 58,
+  "changed_runs": 13,
+  "changed_MiB": 3.6,
+  "zlib1_MiB": 5.9,
+  "zlib1_compress_ms": 292.9,
+  "zstd3": {
+   "bytes": 5312616,
+   "compress_ms": 48.5,
+   "decompress_ms": 21.0,
+   "MiB": 5.1
+  },
+  "zstd3_delta_MiB": 1.1,
+  "restore_full_memmove_ms": 5.71,
+  "copy_full_memmove_ms": 5.7,
+  "grow_ms": 0.0,
+  "restore_delta_ms": 2.11,
+  "restore_memory_write_ms": 8.86,
+  "instantiate_ms": 0.09,
+  "program_turn_ms": 1.01,
+  "program_fuel": 1669270,
+  "shutdown_ms": 15.49,
+  "shutdown_fuel": 52627023,
+  "call_total_ms": 25.11,
+  "call_total_delta_no_shutdown_ms": 5.37,
+  "program_stdout": "70",
+  "plain_call_ms": 20.03,
+  "plain_program_fuel": 2655285,
+  "plain_shutdown_fuel": 52521364,
+  "all_status": [
+   "0"
+  ]
+ },
+ "numpy": {
+  "prelude": {
+   "status": 0,
+   "trapped": null,
+   "fuel": 727475061,
+   "s": 0.3872136669961037
+  },
+  "prelude_stderr": "",
+  "seal": {
+   "status": 0,
+   "fuel": 10077464,
+   "s": 0.0031381659937324002
+  },
+  "pages": 640,
+  "MiB": 40.0,
+  "nonzero_pages": 353,
+  "changed_pages": 162,
+  "changed_runs": 14,
+  "changed_MiB": 10.1,
+  "zlib1_MiB": 8.1,
+  "zlib1_compress_ms": 405.9,
+  "zstd3": {
+   "bytes": 7204194,
+   "compress_ms": 138.5,
+   "decompress_ms": 21.1,
+   "MiB": 6.9
+  },
+  "zstd3_delta_MiB": 3.3,
+  "restore_full_memmove_ms": 7.96,
+  "copy_full_memmove_ms": 7.95,
+  "grow_ms": 0.0,
+  "restore_delta_ms": 3.19,
+  "restore_memory_write_ms": 6.7,
+  "instantiate_ms": 0.09,
+  "program_turn_ms": 1.2,
+  "program_fuel": 1662473,
+  "shutdown_ms": 38.8,
+  "shutdown_fuel": 95626007,
+  "call_total_ms": 59.1,
+  "call_total_delta_no_shutdown_ms": 6.72,
+  "program_stdout": "186",
+  "plain_call_ms": 27.55,
+  "plain_program_fuel": 2655285,
+  "plain_shutdown_fuel": 52521364,
+  "all_status": [
+   "0"
+  ]
+ },
+ "pandas": {
+  "prelude": {
+   "status": 0,
+   "trapped": null,
+   "fuel": 4382911586,
+   "s": 1.8598067500133766
+  },
+  "prelude_stderr": "",
+  "seal": {
+   "status": 0,
+   "fuel": 45174306,
+   "s": 0.042883874994004145
+  },
+  "pages": 1013,
+  "MiB": 63.3,
+  "nonzero_pages": 751,
+  "changed_pages": 578,
+  "changed_runs": 13,
+  "changed_MiB": 36.1,
+  "zlib1_MiB": 18.0,
+  "zlib1_compress_ms": 735.5,
+  "zstd3": {
+   "bytes": 15555377,
+   "compress_ms": 137.6,
+   "decompress_ms": 49.5,
+   "MiB": 14.8
+  },
+  "zstd3_delta_MiB": 11.4,
+  "restore_full_memmove_ms": 7.95,
+  "copy_full_memmove_ms": 7.94,
+  "grow_ms": 0.01,
+  "restore_delta_ms": 6.69,
+  "restore_memory_write_ms": 10.12,
+  "instantiate_ms": 0.09,
+  "program_turn_ms": 2.03,
+  "program_fuel": 3889609,
+  "shutdown_ms": 113.55,
+  "shutdown_fuel": 315517246,
+  "call_total_ms": 126.66,
+  "call_total_delta_no_shutdown_ms": 10.78,
+  "program_stdout": "589",
+  "plain_call_ms": 11.83,
+  "plain_program_fuel": 2655285,
+  "plain_shutdown_fuel": 52521364,
+  "all_status": [
+   "0"
+  ]
+ },
+ "scipy": {
+  "prelude": {
+   "status": 0,
+   "trapped": null,
+   "fuel": 8529667095,
+   "s": 3.0830628340045223
+  },
+  "prelude_stderr": "",
+  "seal": {
+   "status": 0,
+   "fuel": 48922903,
+   "s": 0.03504429200256709
+  },
+  "pages": 1155,
+  "MiB": 72.2,
+  "nonzero_pages": 895,
+  "changed_pages": 729,
+  "changed_runs": 17,
+  "changed_MiB": 45.6,
+  "zlib1_MiB": 20.9,
+  "zlib1_compress_ms": 1058.6,
+  "zstd3": {
+   "bytes": 17680576,
+   "compress_ms": 338.7,
+   "decompress_ms": 51.0,
+   "MiB": 16.9
+  },
+  "zstd3_delta_MiB": 13.5,
+  "restore_full_memmove_ms": 8.47,
+  "copy_full_memmove_ms": 8.46,
+  "grow_ms": 0.01,
+  "restore_delta_ms": 7.72,
+  "restore_memory_write_ms": 10.07,
+  "instantiate_ms": 0.09,
+  "program_turn_ms": 1.65,
+  "program_fuel": 3863234,
+  "shutdown_ms": 192.14,
+  "shutdown_fuel": 355587558,
+  "call_total_ms": 206.52,
+  "call_total_delta_no_shutdown_ms": 11.41,
+  "program_stdout": "875",
+  "plain_call_ms": 35.2,
+  "plain_program_fuel": 2655285,
+  "plain_shutdown_fuel": 52521364,
+  "all_status": [
+   "0"
+  ]
+ },
+ "sklearn": {
+  "prelude": {
+   "status": 0,
+   "trapped": null,
+   "fuel": 14377343983,
+   "s": 3.8000268330069957
+  },
+  "prelude_stderr": "",
+  "seal": {
+   "status": 0,
+   "fuel": 104090988,
+   "s": 0.05651150000630878
+  },
+  "pages": 1762,
+  "MiB": 110.1,
+  "nonzero_pages": 1497,
+  "changed_pages": 1344,
+  "changed_runs": 13,
+  "changed_MiB": 84.0,
+  "zlib1_MiB": 35.7,
+  "zlib1_compress_ms": 946.5,
+  "zstd3": {
+   "bytes": 29870019,
+   "compress_ms": 273.7,
+   "decompress_ms": 89.3,
+   "MiB": 28.5
+  },
+  "zstd3_delta_MiB": 25.2,
+  "restore_full_memmove_ms": 12.43,
+  "copy_full_memmove_ms": 12.42,
+  "grow_ms": 0.01,
+  "restore_delta_ms": 12.91,
+  "restore_memory_write_ms": 15.49,
+  "instantiate_ms": 0.09,
+  "program_turn_ms": 1.66,
+  "program_fuel": 3913623,
+  "shutdown_ms": 259.19,
+  "shutdown_fuel": 689121394,
+  "call_total_ms": 275.45,
+  "call_total_delta_no_shutdown_ms": 17.71,
+  "program_stdout": "1665",
+  "plain_call_ms": 12.3,
+  "plain_program_fuel": 2655285,
+  "plain_shutdown_fuel": 52521364,
+  "all_status": [
+   "0"
+  ]
+ },
+ "statsmodels": {
+  "prelude": {
+   "status": 0,
+   "trapped": null,
+   "fuel": 16168755065,
+   "s": 2.363002416997915
+  },
+  "prelude_stderr": "",
+  "seal": {
+   "status": 0,
+   "fuel": 110529645,
+   "s": 0.051614166994113475
+  },
+  "pages": 1889,
+  "MiB": 118.1,
+  "nonzero_pages": 1623,
+  "changed_pages": 1472,
+  "changed_runs": 13,
+  "changed_MiB": 92.0,
+  "zlib1_MiB": 38.8,
+  "zlib1_compress_ms": 1005.2,
+  "zstd3": {
+   "bytes": 32383138,
+   "compress_ms": 289.9,
+   "decompress_ms": 92.7,
+   "MiB": 30.9
+  },
+  "zstd3_delta_MiB": 27.6,
+  "restore_full_memmove_ms": 13.65,
+  "copy_full_memmove_ms": 13.64,
+  "grow_ms": 0.01,
+  "restore_delta_ms": 14.03,
+  "restore_memory_write_ms": 15.54,
+  "instantiate_ms": 0.1,
+  "program_turn_ms": 1.77,
+  "program_fuel": 3865752,
+  "shutdown_ms": 289.06,
+  "shutdown_fuel": 729476751,
+  "call_total_ms": 306.91,
+  "call_total_delta_no_shutdown_ms": 18.08,
+  "program_stdout": "1862",
+  "plain_call_ms": 11.94,
+  "plain_program_fuel": 2655285,
+  "plain_shutdown_fuel": 52521364,
+  "all_status": [
+   "0"
+  ]
+ },
+ "matplotlib": {
+  "prelude": {
+   "status": 0,
+   "trapped": null,
+   "fuel": 7603617618,
+   "s": 1.0772594169975491
+  },
+  "prelude_stderr": "",
+  "seal": {
+   "status": 0,
+   "fuel": 50466818,
+   "s": 0.02033579100680072
+  },
+  "pages": 951,
+  "MiB": 59.4,
+  "nonzero_pages": 695,
+  "changed_pages": 516,
+  "changed_runs": 15,
+  "changed_MiB": 32.2,
+  "zlib1_MiB": 17.0,
+  "zlib1_compress_ms": 451.0,
+  "zstd3": {
+   "bytes": 14849138,
+   "compress_ms": 125.0,
+   "decompress_ms": 38.0,
+   "MiB": 14.2
+  },
+  "zstd3_delta_MiB": 10.7,
+  "restore_full_memmove_ms": 7.58,
+  "copy_full_memmove_ms": 7.57,
+  "grow_ms": 0.01,
+  "restore_delta_ms": 6.01,
+  "restore_memory_write_ms": 8.76,
+  "instantiate_ms": 0.09,
+  "program_turn_ms": 1.22,
+  "program_fuel": 1762889,
+  "shutdown_ms": 105.91,
+  "shutdown_fuel": 354054185,
+  "call_total_ms": 116.99,
+  "call_total_delta_no_shutdown_ms": 9.27,
+  "program_stdout": "435",
+  "plain_call_ms": 12.37,
+  "plain_program_fuel": 2655285,
+  "plain_shutdown_fuel": 52521364,
+  "all_status": [
+   "0"
+  ]
+ },
+ "everything": {
+  "prelude": {
+   "status": 0,
+   "trapped": null,
+   "fuel": 34408621529,
+   "s": 5.935019333992386
+  },
+  "prelude_stderr": "",
+  "seal": {
+   "status": 0,
+   "fuel": 238464189,
+   "s": 0.1280309580033645
+  },
+  "pages": 3245,
+  "MiB": 202.8,
+  "nonzero_pages": 2970,
+  "changed_pages": 2835,
+  "changed_runs": 9,
+  "changed_MiB": 177.2,
+  "zlib1_MiB": 72.9,
+  "zlib1_compress_ms": 1892.7,
+  "zstd3": {
+   "bytes": 61364297,
+   "compress_ms": 558.0,
+   "decompress_ms": 202.0,
+   "MiB": 58.5
+  },
+  "zstd3_delta_MiB": 55.3,
+  "restore_full_memmove_ms": 22.88,
+  "copy_full_memmove_ms": 22.87,
+  "grow_ms": 0.01,
+  "restore_delta_ms": 26.83,
+  "restore_memory_write_ms": 27.04,
+  "instantiate_ms": 0.1,
+  "program_turn_ms": 1.9,
+  "program_fuel": 3950152,
+  "shutdown_ms": 733.72,
+  "shutdown_fuel": 1546044774,
+  "call_total_ms": 759.76,
+  "call_total_delta_no_shutdown_ms": 31.01,
+  "program_stdout": "3717",
+  "plain_call_ms": 12.67,
+  "plain_program_fuel": 2655285,
+  "plain_shutdown_fuel": 52521364,
+  "all_status": [
+   "0"
+  ]
+ }
+}
