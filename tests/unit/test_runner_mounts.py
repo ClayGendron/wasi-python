@@ -1799,3 +1799,27 @@ def test_a_folder_open_of_a_file_is_refused_before_any_listing(placeholder) -> N
     }
     assert rows == {"a file": 54, "a file named as a folder": 54, "a missing name": 44}, rows
     assert provider.calls["list"] == 0
+
+
+def test_set_times_on_a_missing_path_answers_as_a_linux_grant(placeholder) -> None:
+    """`path_filestat_set_times` on a writable mount answers as a Linux grant does: with a time
+    flag set it asks the provider `stat` once and answers its errno for a missing path, and a
+    path that is there succeeds with its times left to the provider; with no time flag it is
+    nothing to do, 0 with no lookup, as Linux's `utimensat` answers before it reads the path."""
+    provider = MemoryProvider()
+    r = Mounted(provider, placeholder, writable=True).raw
+    now = _fs_memory.ATIM_NOW | _fs_memory.MTIM_NOW
+    rows = {
+        "missing, a time flag": r.path_set_times(3, "missing", now),
+        "there, a time flag": r.path_set_times(3, "a.txt", _fs_memory.MTIM),
+    }
+    assert rows == {"missing, a time flag": 44, "there, a time flag": 0}, rows
+    assert provider.paths == [("stat", "/missing"), ("stat", "/a.txt")]
+
+
+def test_set_times_with_no_time_flag_looks_nothing_up(placeholder) -> None:
+    """With no time flag, set-times of a missing path answers 0 and the provider sees no call."""
+    provider = MemoryProvider()
+    r = Mounted(provider, placeholder, writable=True).raw
+    assert r.path_set_times(3, "missing", 0) == 0
+    assert provider.total() == 0
