@@ -37,12 +37,12 @@
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. Windows box —
+1. Windows box — taken: the box is ticked by `gh pr edit 30 --body-file` once the run on this fix's head ends and its Windows legs are read, naming the legs read.
 2. The left-out packages — fixed by the reviewer in `d46343ee`.
 3. The archive's retirement — fixed by the reviewer in `bb3f28b8`.
-4. 151's 0.1.2 line —
-5. 152's hand-off —
-6. The lint's trailing full stop —
+4. 151's 0.1.2 line — answered: left byte-equal on this branch, as designed; the fix text is for the release's preparation pull request (or 151's merge, if no 0.1.2 pull request has touched line 69 by then), which ends 151's clause as the finding words it.
+5. 152's hand-off — answered: no change on this branch; the orchestrator carries `verify_note`'s pointer into 152's brief.
+6. The lint's trailing full stop — fixed by the author: `_page_of` strips a trailing full stop before it strips the slashes, and `test_a_site_link_that_ends_a_sentence_names_its_page` holds it, seen failing first (it named `docs/contributing/building/index.md` for `contributing/building/.`).
 
 ## Verdict
 
