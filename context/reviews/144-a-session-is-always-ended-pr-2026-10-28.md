@@ -65,13 +65,13 @@ Notes, no finding:
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. H1 —
-2. M1 —
-3. M2 —
-4. L1 —
-5. L2 —
-6. L3 —
-7. L4 —
+1. H1 — fixed as written: each tool row calls `_session()` on the test's thread, and `_on_a_loop_thread` re-raises what the loop's thread raised. With no set (`WASI_PYTHON_ARTIFACTS` unset) the two rows skip, "needs: artifact dir", and the unit suite without a set reads `2968 passed, 72 skipped`; with the 0.1.1 set they pass (EXECUTED). A folder named by the variable but empty still meets "artifact dir", so there the rows fail as `ArtifactsMissing`, now reported as itself.
+2. M1 — fixed: the review's sentence, in substance, is in `Session.close`'s docstring and in the docs paragraph; the behaviour is kept, as departure 6 says.
+3. M2 — answered: the push of this fix restarts the run; the author ticks the Windows box and names the run once its legs and the gather are readable.
+4. L1 — fixed without raising the records: `_keep_release` and `_take_live`, each one `live_lock` hold, carry the registration and the take; `Session.run_async` is 81 lines and `_Process.__init__` 82 (by `ast`), the fields' comments folded into one block above the class's lock table, with a `_Queued` type alias.
+5. L2 — fixed in `_keep_release`: when `exiting` is set and the future is already cancelled, the entry is taken out and the release runs after the lock.
+6. L3 — fixed: `while s.ended is None and closer.is_alive():`.
+7. L4 — open until the new run's Windows legs are read; see M2.
 
 ## Verdict
 

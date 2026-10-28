@@ -585,6 +585,36 @@ def _stop_async_calls() -> None:
             pass  # an exit hook never raises: the sessions' own hook still ends the session
 
 
+def _keep_release(
+    event: threading.Event, future: concurrent.futures.Future[Any], release: Callable[[], None]
+) -> None:
+    """Keep, beside a session turn's event in `live`, its future and the release of its claim,
+    for the exit hook to run if its shutdown of the pools cancels the turn before it starts.
+    When the exit hook has already cancelled it, and so found nothing to run, the release runs
+    here instead, after the lock."""
+    p = process()
+    with p.live_lock:
+        if event not in p.live:
+            return
+        late = p.exiting and future.cancelled()
+        if late:
+            del p.live[event]
+        else:
+            p.live[event] = (future, release)
+    if late:
+        release()
+
+
+def _take_live(event: threading.Event) -> Callable[[], None]:
+    """Take a call's entry out of `live`, and return the release kept beside it, or one that
+    does nothing when there is none or the exit hook has taken it: whoever takes a release runs
+    it, so it runs once."""
+    p = process()
+    with p.live_lock:
+        queued = p.live.pop(event, None)
+    return (lambda: None) if queued is None else queued[1]
+
+
 def _checked(
     argv: Any,
     env: Any,
@@ -1201,22 +1231,16 @@ class Session:
             args = (_sessions._session_turn, state, data, fuel, deadline, output, event, loop)
             future = _submit(executor, work, *args)
         except BaseException:
-            with p.live_lock:
-                p.live.pop(event, None)
+            _take_live(event)
             self._release_claim()
             raise
-        with p.live_lock:  # the release, for the exit hook if it cancels the queued turn
-            if event in p.live:
-                p.live[event] = (future, self._release_claim)
+        _keep_release(event, future, self._release_claim)
         try:
             try:
                 return await asyncio.wrap_future(future)
             except asyncio.CancelledError:
                 if future.cancel():  # still queued: it never starts, the session is untouched
-                    with p.live_lock:  # unless the exit hook has released it already
-                        queued = p.live.pop(event, None)
-                    if queued is not None:
-                        queued[1]()
+                    _take_live(event)()  # its claim released, unless the exit hook did it
                     raise
                 event.set()
                 while not future.done():
@@ -1226,8 +1250,7 @@ class Session:
                         pass
                 raise
         finally:
-            with p.live_lock:
-                p.live.pop(event, None)
+            _take_live(event)
 
     def close(self) -> None:
         """End the session, run its ending, and return once its store is closed.
@@ -1239,8 +1262,11 @@ class Session:
         ending, on the thread that runs it (a host function or a provider, under `run` or
         `run_async` alike), it marks the session and returns at once, and the session ends as
         the turn returns. From any other thread, the event loop's that awaits a `run_async`
-        turn and a tool's own thread among them, it waits for the ending. Calling it again does
-        nothing.
+        turn and a tool's own thread among them, it waits for the ending. One exception: from
+        the event loop's thread before a `run_async` turn has started (still queued for a
+        worker), it marks the session and returns at once; the turn then stops as it starts, or,
+        if it is cancelled first, the session is ended on a closer, so `shutdown_outcome` may
+        still be `None` when that `close()` returns. Calling it again does nothing.
 
         Raises:
             KeyboardInterrupt: Ctrl-C during the ending, raised once the session is closed.

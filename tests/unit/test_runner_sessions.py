@@ -347,7 +347,7 @@ def test_a_queued_turn_cancelled_after_a_close_is_ended(stepped) -> None:
         queued = asyncio.ensure_future(s.run_async("print(5)", executor=pool))
         await asyncio.sleep(0)  # claimed and queued
         closer.start()
-        while s.ended is None:
+        while s.ended is None and closer.is_alive():
             closer.join(0.001)  # until close() has marked it; a wait, not a verdict
         queued.cancel()
         with pytest.raises(asyncio.CancelledError):
@@ -410,12 +410,23 @@ def test_an_abandoned_turns_session_dropped_is_ended_by_the_reaper(registry) -> 
 
 def _on_a_loop_thread(main) -> list:
     """`main()` run by `asyncio.run` on a thread of its own, joined with a fail-safe: a loop
-    that is blocked cannot run its own timeout."""
+    that is blocked cannot run its own timeout. What the loop's thread raised is raised here, so
+    a skip or an error is reported as itself."""
     out: list = []
-    runner = threading.Thread(target=lambda: out.append(asyncio.run(main())), daemon=True)
+    raised: list[BaseException] = []
+
+    def run() -> None:
+        try:
+            out.append(asyncio.run(main()))
+        except BaseException as e:
+            raised.append(e)
+
+    runner = threading.Thread(target=run, daemon=True)
     runner.start()
     runner.join(60)  # a fail-safe, not a timing
     assert not runner.is_alive(), "the event loop never finished"
+    if raised:
+        raise raised[0]
     return out
 
 
@@ -423,6 +434,7 @@ def test_close_from_a_sync_tool_in_a_run_async_turn_ends_the_session(stepped) ->
     """A synchronous tool runs on a thread of its own. Its `close()` stops the turn; the tool's
     call is answered "cancelled" at the next tick, whatever the tool still does, so the turn
     returns, runs the ending, and the `close()` returns once the ending has finished."""
+    make = _session()  # on this thread: a missing set skips the row here
     seen: list[tuple[str | None, str | None]] = []
     returned = threading.Event()
     held: dict[str, Session] = {}
@@ -436,7 +448,7 @@ def test_close_from_a_sync_tool_in_a_run_async_turn_ends_the_session(stepped) ->
         return "closed"
 
     async def main():
-        s = held["s"] = _session()(tools=[closer])
+        s = held["s"] = make(tools=[closer])
         return s, await s.run_async("from host import tools\ntools.closer()\n" + LOOP)
 
     [(s, done)] = _on_a_loop_thread(main)
@@ -451,6 +463,7 @@ def test_close_from_an_async_tool_in_a_run_async_turn_ends_the_session(stepped) 
     turn and holds the loop only until the ending has finished: the turn's worker answers the
     tool's call "cancelled" without the loop, so the loop goes on and the turn's await
     returns."""
+    make = _session()  # on this thread: a missing set skips the row here
     seen: list[tuple[str | None, str | None]] = []
     held: dict[str, Session] = {}
     after: list[str] = []
@@ -463,7 +476,7 @@ def test_close_from_an_async_tool_in_a_run_async_turn_ends_the_session(stepped) 
         return "closed"
 
     async def main():
-        s = held["s"] = _session()(tools=[closer])
+        s = held["s"] = make(tools=[closer])
         done = await s.run_async("from host import tools\ntools.closer()\n" + LOOP)
         await asyncio.sleep(0)
         after.append("the loop went on")
