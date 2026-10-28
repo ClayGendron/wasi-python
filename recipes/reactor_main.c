@@ -153,8 +153,12 @@ static int shut = 0;
 static int session_set_up = 0;
 /* prepare is running, or did not return: every export refuses, running no Python, so neither a
  * trapped prelude nor a host that re-enters from the door during one reaches the interpreter.
- * prepared: the host's code ran to status 0 and the instance was left ready to be imaged. */
+ * prepare_called: prepare reached Python once; it is never cleared, so prepare runs once per
+ * instance, and after a prepare that failed (prepare_called without prepared) run and turn refuse
+ * too, since the host discards such an instance. prepared: the host's code ran to status 0 and
+ * the instance was left ready to be imaged. */
 static int preparing = 0;
+static int prepare_called = 0;
 static int prepared = 0;
 /* Strong references the C side calls through, so replacing _reactor.turn or gc.unfreeze, or
  * deleting the module, changes nothing (spec 055, the review's F1 and the re-review's N1). On the
@@ -408,7 +412,7 @@ __attribute__((export_name("run")))
 int
 run(void)
 {
-    if (preparing) {
+    if (preparing || (prepare_called && !prepared)) {
         return 70;
     }
     pinned = 0;
@@ -520,7 +524,7 @@ int
 reactor_turn(int32_t ptr, int32_t len)
 {
     char *code = (char *)(uintptr_t)(uint32_t)ptr;
-    if (preparing) {
+    if (preparing || (prepare_called && !prepared)) {
         free(code);
         return -1;
     }
@@ -648,17 +652,20 @@ end_prepared(void)
  * the snapshot, ready for the host to read its memory; run and turn work in each instance the
  * image is copied into. Returns the code's exit status (0 to 255), or -1 for a refusal, which runs
  * no Python: on the plain reactor, in an instance that ran anything, and a second time. A NULL
- * pointer with a length above 0 is the host's out-of-memory: a MemoryError in the guest. */
+ * pointer with a length above 0 is the host's out-of-memory: a MemoryError in the guest. After a
+ * prepare that returned anything but 0, prepare, run and turn refuse: the host discards the
+ * instance. */
 __attribute__((export_name("prepare")))
 int
 reactor_prepare(int32_t ptr, int32_t len)
 {
     char *code = (char *)(uintptr_t)(uint32_t)ptr;
-    if (!initialized || preparing || prepared || run_called || turned || shut || len < 0) {
+    if (!initialized || prepare_called || run_called || turned || shut || len < 0) {
         free(code);
         return -1;
     }
     preparing = 1;
+    prepare_called = 1;
     pinned = PIN_CLOCKS;
     PyObject *source = NULL;
     if (code != NULL || len == 0) {
