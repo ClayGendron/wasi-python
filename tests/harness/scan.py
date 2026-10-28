@@ -4191,7 +4191,7 @@ def context_citation_hits(path: Path) -> list[tuple[int, str, str]]:
 def context_citation_files(root: Path) -> list[Path]:
     """The files the citation rule reads: every Python, shell, TOML and YAML file under `tests/`
     and `.github/workflows/`, every text file under `scripts/` and `release/`, and the public
-    pages: the README and every Markdown page under `docs/`."""
+    pages: the README, the security policy and every Markdown page under `docs/`."""
     picked = [
         p for p in files_under(root, "tests", ".github/workflows") if p.suffix in CITATION_SUFFIXES
     ]
@@ -4199,10 +4199,15 @@ def context_citation_files(root: Path) -> list[Path]:
     return picked + public_pages(root)
 
 
+# The root's pages a user reads: the README, which is also the wheel's description, and the
+# security policy, which GitHub shows to everyone who reports a problem.
+PUBLIC_FILES = ("README.md", "SECURITY.md")
+
+
 def public_pages(root: Path) -> list[Path]:
-    """The pages a user reads: the README, which is also the wheel's description, and the
-    documentation site's Markdown pages."""
-    return files_under(root, "README.md") + [
+    """The pages a user reads: the root's public files and the documentation site's Markdown
+    pages."""
+    return files_under(root, *PUBLIC_FILES) + [
         p for p in files_under(root, "docs") if p.suffix == ".md"
     ]
 

@@ -17,7 +17,7 @@ Only the newest release is supported; a fix goes into the next release, and olde
 - **The sandbox boundary.** A guest program that reaches a host file outside the folders it was given, the network, a host process, or host memory. The same for any way out through the WASI calls or the host door (`host::call`).
 - **The limits.** A guest that runs past its deadline, fuel, memory or output cap, or a call that keeps host resources after it ends.
 - **The runner.** Anything a guest does that makes `wasi_python.run` raise, crash the host process, or return another call's result. The same for an argument that silently removes a limit or changes what the guest sees.
-- **The release supply chain.** An artifact whose bytes differ from what its pins rebuild, or that fails attestation. The README's "Verifying a download" section shows how to check one.
+- **The release supply chain.** An artifact whose bytes differ from what its pins rebuild, or that fails attestation. [Verify a download](https://claygendron.github.io/wasi-python/how-to/verify-a-download/) shows how to check one.
 
 ## Upstream advisories
 

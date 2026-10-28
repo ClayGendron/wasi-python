@@ -58,9 +58,10 @@ def test_carried_patches_follow_the_rules() -> None:
 
 
 def test_no_embedder_name_in_code() -> None:
-    """The code and the public pages (the README and the site) name no embedder."""
+    """The code and the public pages (the README, the security policy and the site) name no
+    embedder."""
     hits = scan.embedder_hits(
-        paths.REPO, (*CODE_DIRS, "README.md"), scan.read_names(paths.EMBEDDERS)
+        paths.REPO, (*CODE_DIRS, *scan.PUBLIC_FILES), scan.read_names(paths.EMBEDDERS)
     )
     assert not hits, scan.report(hits)
 
