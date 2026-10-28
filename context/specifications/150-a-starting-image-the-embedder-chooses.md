@@ -1,0 +1,273 @@
+# 150: A starting image the embedder chooses
+
+- **Status:** drafted 2026-10-27 from the spike and the need (below) and the owner's words on 0.1.2's scope; not yet built. It is **structural**, so it is reviewed before it is built against the eight rows of `../reviews/README.md` (constitution §5.6), as `../reviews/150-a-starting-image-the-embedder-chooses-spec-YYYY-MM-DD.md`, whose "Structure" section scores each row. It stands on specification 157, which gives the reactor the export this one drives; 157's Decision 5, how a call from an image ends, is the one choice the owner has not yet been asked, and Decision 11 here follows it.
+- **Date:** 2026-10-27
+- **Owner:** Clay Gendron
+- **Kind:** **structural**, **parallel-safe** (no guest import or export, no artifact byte and no recipe change: those are 157's). Structural because it adds a public class, two public functions, two exceptions and a field, widens a public argument on three entry points, and adds a lifecycle (making, saving, loading, restoring). New modules: `src/wasi_python/_snapshot.py` (the `Snapshot` object, its origin, its errors, the file format, the load checks, the capture and the restore; at most 800 lines) and `src/wasi_python/_snapshot_make.py` (`make_snapshot` and `make_package_snapshot`; at most 400 lines). Changed: `runner.py` (1,213 lines, at most 1,280: `_checked` takes `snapshot`, `Session._prepare`, the three entry points' docstrings, `stats`'s docstring), `_call.py` (1,337 lines, at most 1,360: `_CheckedCall.start`, the set check in `_run_checked`, a fixed HOME in `_guest_home`, the restore in `_drive`, `Completed.image_sha256`), `_sessions.py` (1,091 lines, at most 1,110: the export's name threaded through a turn, the restore in `_open_wasm`, the set's digests kept on the state), `_places.py` (the grant judge refuses a writable grant over a snapshot file's folder), `_platform.py` and `_platform_windows.py` (one method, `open_owned`), `_process.py` (two counts and one set), `__init__.py` (the new names). Functions on the long-function allowance that grow, each listed at its new length in `tests/checks/test_rules.py`'s `LONG_FUNCTIONS` and claimed (spec 142, Decision 5): `runner.py:run` 156 to at most 161, `runner.py:run_async` 181 to at most 186, `runner.py:Session.__init__` 178 to at most 181, `_sessions.py:_open_session` 136 to at most 140, `_call.py:_instance` 155 to at most 157. No other function passes 80 lines. Judge changes: `tests/public_api.txt` (verdict-bearing; claimed), `LONG_FUNCTIONS`, `tests/harness/api.py`'s `DEFINING` (the two modules), a new family cap in `tests/lint/budget.toml`.
+- **Depends on:** 157 (the export `prepare`, a prepared instance's ending, the refresh's reseeds, MANIFEST's `x-snapshot-packages` line), built on 157's reviewed tip (constitution §4.14, a stacked build) or after it lands. Landed and unchanged: 049 (the public API frozen), 055 (sessions), 073 (a file left open keeps its bytes), 135 and 139 (the module cache's checks, which the file's load follows), 138 (pull requests into `dev`). In flight: 142 (the allowance judged by length; whichever lands second lists the lengths it measures), 144 (it edits `Session` and `_sessions.py`; whichever lands second rebases), 147 (the way to the module cache where another uid owns `/`; `open_owned` follows `_way` as 147 leaves it), 152 (the news file's reader's paragraph; this one writes it in 152's shape if 152 has landed).
+- **Research it stands on:** `../research/2026-10-27-a-snapshot-the-embedder-chooses.md` ("the need": its §1, the cost of imports, lines 26 to 44; its §2, why the embedder's options fall short, lines 46 to 55; its §3, the shape, lines 56 to 82). `../research/2026-10-27-a-starting-image-measured.md` ("the spike", with its evidence folder `../research/2026-10-27-a-starting-image-measured/`, whose `harness/bare.py` and `harness/image.py` show the public calls a restore uses: `Memory.data_ptr`, `data_len` and `grow`, and `ctypes.memmove`): §1 (design (b) works, lines 27 to 102), §2 (the host-side state an image freezes, lines 104 to 132), §3 (randomness, lines 134 to 170), §5 (the recommendation, lines 191 to 232). The owner's decisions (`../decisions.md`, "The scope of 0.1.2", lines 494 to 501: any code can be a snapshot; a helper imports every package so a developer never types the list; both an in-process and an on-disk form; the embedder's code only; high quality and a great developer experience). The roadmap's reserved line (`../roadmap.md:170`). One fact executed for this draft, below.
+
+Labels: EXECUTED means run and seen; READ means read from a file, cited; INFERRED means reasoned.
+
+## The problem
+
+A program that uses the data stack spends almost all its instructions importing it. On the need's examples, a scikit-learn decision tree is 15.29 billion instructions fresh, of which 14.22 billion are its imports and 0.388 billion its own lines: about 12.7 s and 0.32 s on Cloudflare `standard-1` (the need, §1, EXECUTED). Every `run()` pays the imports again. A pool of warmed sessions pays them again at every refill (the need, §2). The artifact set's own snapshot pre-imports no package, by the owner's decision 34 (spec 069), and its list is compiled in (`recipes/reactor_main.c:56-58`), so an embedder cannot choose its own.
+
+The owner asked for the embedder to choose (`../decisions.md:498`): "a snapshot capability in wasi-python where a dev can pre-import packages and re-use that snapshot as a starting point for new run calls or sessions"; "snapshots can be arbitrary, any code can be run and saved as a snapshot, not just library imports"; "a nice method or function that allows a dev to create an import_all_snapshot"; kept in its process or saved to disk, "both as options supported"; and the embedder's code only.
+
+The spike showed it can be done through wasmtime-py's public API: a prelude ran once, linear memory was read whole, and each later call grew a fresh instance's memory and copied the image in. A restored call printed the same bytes as a fresh run of the same steps, saw nothing an earlier restored call did, and spent 28.06 million instructions where the fresh sequence spent 28.07 million and the prelude 14.73 billion once (the spike, §1.3, EXECUTED). The copy of the image of every package, 203 MiB, took about 21 ms (§1.5, EXECUTED).
+
+## Research
+
+What the spike measured is cited in each decision. What it did not measure, and which criterion of this build covers each:
+
+- **Linux and Windows** (the spike's "Still unknown", line 236). The copy is portable public API; its fault cost on Linux's 4 KiB pages and on Windows was not run. The goal checks run on the pull request's Linux and Windows legs (criterion 3) and give correctness and fuel there. Times on Linux are benchmark facts the builder records (criterion 9); Windows times stay unmeasured, and no promise depends on them.
+- **Resident memory** (line 237): inferred from page faults, one per page of the image, since every page is written. The builder records the resident memory of 1, 4 and 8 concurrent restored calls of the image of every package on Linux (criterion 9). The limits page states the rule that holds on every host by construction: each live call holds a private copy of its image.
+- **Concurrency** (line 239): many restored calls at once were not run. The goal check `test_concurrent_calls_share_one_image` runs four at once from one `Snapshot` (criterion 3), and the builder's benchmark records the 8-call figures (criterion 9).
+- **A pinned prelude through a new export** (line 238): 157 builds and measures it (its criteria 3 and 5).
+- **The runner's own path** (line 240): the spike's embedding had none of the runner's checks. This specification is that path; every goal check goes through it.
+- **Quiet times** (line 241): the spike's machine was at load average 100. Times are benchmark facts only, re-measured by the builder (criterion 9); fuel and page counts stand.
+- **Reproducibility** (line 242): 157's row makes one image twice and compares the bytes; `test_one_prelude_makes_one_image` does it through the runner (criterion 3).
+
+One fact, EXECUTED for this draft against the published 0.1.1 set (`WASI_PYTHON_ARTIFACTS=build/release-0.1.1/set/wasi-python-0.1.1` in the main tree, `uv run python -c "from wasi_python import run; d=run(['-c','import matplotlib.pyplot'], fuel=10**12, deadline_s=200); print(d.exit_code, d.stderr[-300:])"`): with no root, `import matplotlib.pyplot` exits 1 with "OSError: Matplotlib requires access to a writable cache directory … and a temporary directory could not be created", after 2,182,149,540 instructions. So a snapshot that imports matplotlib needs a writable `/tmp` while it is made (Decision 5).
+
+## Decisions
+
+### 1. Design (b): a memory image made at run time, restored into every call
+
+A snapshot is the guest's linear memory after the embedder's code ran in a fresh snapshot instance, through 157's `prepare`. Every call given it is a fresh instance of the set's own snapshot module: the runner instantiates it, grows its memory to the image's size and copies the image in, then runs the program. Nothing a call does reaches the image, which the caller holds as immutable bytes, or the next call, which gets its own copy.
+
+Reasons: memory is the guest's whole state (the spike, §1.1: one mutable global, the stack pointer, at its initial value after every export call, EXECUTED); the image is made in the seconds its code costs and restored in about 20 ms through public API (§1.5); it needs no new binary, no Wizer and no compile per host. Design (a), a Wizer module per prelude, instantiates for free but needs a wizer binary the wheel does not carry, of another wasmtime, and a compile of 16 to 20 s and a 350 to 450 MiB `.cwasm` per image per host (§4, EXECUTED); it is out of scope (Scope).
+
+### 2. The public names
+
+```python
+from wasi_python import make_package_snapshot, run
+
+snap = make_package_snapshot()  # every package the set ships, imported once
+done = run(["-c", "import sklearn; print(sklearn.__version__)"], snapshot=snap)
+```
+
+- **`make_snapshot(code, …) -> Snapshot`** runs any code once and returns its image: imports, data read from a grant, functions and objects defined. A module-level function, as `run` is: the two verbs a developer meets first are `run` and `make_snapshot`, and both take the same keywords.
+- **`make_package_snapshot(packages=None, …) -> Snapshot`** is the helper the owner named an "import_all_snapshot": with no argument it imports every package the set ships, so a developer never types the list; given names, it imports those (Decision 5). Its name says what the image holds, with the same verb as its sibling; "all" is left out of the name because the same function also takes a list.
+- **`Snapshot`** is the image and its origin: `snapshot.origin`, `snapshot.save(path)`, `Snapshot.load(path)`. Saving and loading are on the class, where a developer looking at a `Snapshot` finds them, and `load` is a class method because it makes one.
+- **`snapshot=`** on `run`, `run_async` and `Session` takes a `Snapshot` (Decision 3).
+- **`SnapshotOrigin`**, **`SnapshotFailed`** and **`SnapshotMismatch`** (Decisions 6 and 7), and **`Completed.image_sha256`** (Decision 9).
+
+The spike's sketch named the helper `snapshot_of_packages` and the maker `snapshot` (§5.3). A function named `snapshot` beside the argument `snapshot=` reads as one thing passed to itself (`run(..., snapshot=snapshot)`), so the verb is explicit.
+
+### 3. `snapshot=` takes `True`, `False` or a `Snapshot`
+
+The argument exists on all three entry points as a `bool` (`runner.py:125`, `:299`, `:779`): `True` the set's snapshot binary, `False` the plain reactor. It widens to `bool | Snapshot`, default `True`: a `Snapshot` runs the set's snapshot binary started from that image. Anything else raises `TypeError` ("snapshot must be True, False or a Snapshot; got str"), before any work, as `Session` checks it today (`runner.py:925-926`), now in `_checked` for all three.
+
+Reasons: a second argument would let a call say `snapshot=False, image=snap`, which has no meaning and needs its own refusal; one argument says the one thing, where a call starts from. It adds no parameter to the three entry points, whose repeated argument list is the known debt (spec 142's problem), only a sentence to each docstring and one keyword to each `_checked(...)` call.
+
+### 4. Making a snapshot: `make_snapshot`
+
+```python
+def make_snapshot(
+    code: str,
+    *,
+    root: str | os.PathLike[str] | bool | None = False,
+    grants: Iterable[Grant] = (),
+    mounts: Iterable[Mount] = (),
+    import_path: Iterable[str] = (),
+    env: Mapping[str, str] | None = None,
+    host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
+    fuel: int | None = None,
+    deadline_s: float | None = 600.0,
+    memory_bytes: int | None = <defaults().memory_bytes>,
+    output_bytes: int | None = <defaults().output_bytes>,
+    cache_dir: str | os.PathLike[str] | None | bool = None,
+    artifacts: Artifacts | None = None,
+    max_file_calls: int | None = <defaults().file_calls>,
+    max_open_files: int | None = <defaults().open_files>,
+) -> Snapshot: ...
+```
+
+- **The keywords are `run`'s and mean what they mean there**, checked by `run`'s rules before any work. Left out: `argv` and `stdin` (the code is the program), `cancel` (the deadline bounds a making; a cancel is a later addition if an embedder asks), `snapshot` (an image is made from the set's snapshot binary alone; a snapshot made from another is a checkpoint), and `tools`, `gate`, `max_tool_calls` and `max_tool_request_bytes`: the tool protocol's state lives in the host and cannot be frozen with the guest. Passing one raises Python's own `TypeError` for an unexpected keyword; the docstring and the how-to say why, and that `tools=` goes on the calls that use the snapshot. `host=` is kept: a door host is stateless between frames, and a prelude may fetch its setup from the embedder through it.
+- **`code`** is a `str` of at most 16 MiB as UTF-8 (`ValueError` past it; `TypeError` for anything else). It runs as a module runs, in `__main__`, with no echo of a final expression. 16 MiB because the code is stored in the saved file's header (Decision 7) and setup code that large is data, which belongs in a grant.
+- **`deadline_s` defaults to 600 seconds**, not `run`'s 60. A making is a setup step, run once, not a request: the image of every package costs 34.4 to 35.2 billion instructions (the spike, §1.4 and §3.1), about 6 s on an M1 Pro and about 29 s at Cloudflare `standard-1`'s measured rate (INFERRED from the need's 1.2 billion a second), and a slower or busier host needs room. This is a default for a new operation, not a loosened one (constitution §4.15); it is a fixed default in the signature, not a `Defaults` field, and `None` means no limit as everywhere. The other limits default as `run`'s do.
+- **How it runs.** `_snapshot_make.make_snapshot` opens a `Session` with the caller's keywords and `snapshot=_snapshot.MAKING` (a private marker `_checked` reads; Decision 9), `idle_s=None`, `lifetime_s=None` and `shutdown_s=0`, then calls a new private method, `Session._prepare(data, fuel, deadline_s, output_bytes)`, which claims the session, runs one turn that enters 157's `prepare` instead of `turn` (`_sessions._session_turn` and the functions below it take the export's name, default `"turn"`), and, when the turn returned 0, reads the image and the session table's `open_now()` on the home thread before it releases its claim. The session is then closed, with no shutdown. Reasons: the session path already does everything a making needs (the checks, the walk and judge of the grants, the store and its limits, the guest thread, the output capture, the per-turn fuel and deadline), so the making adds one export name, not a second copy of the call's plumbing; `shutdown_s=0` because the instance is discarded and its teardown would cost the full price of Decision 11's B for nothing. The making session counts in `stats()["sessions_open"]` while it runs.
+- **The image is read** with `ctypes.string_at(memory.data_ptr(store), memory.data_len(store))`: one copy into `bytes`, through wasmtime-py's public pointer, as `_outputs.py:304` already reads a guest buffer. `Memory.read` would make a `bytearray` and a second copy.
+- **It is refused** with `SnapshotFailed` (Decision 6) when the code exited with a status other than 0 or raised, when the turn trapped (a trap, the deadline, out of fuel, out of file calls), or when the code left a file or folder open: `open_now()` above 0 (the spike, §2.1, EXECUTED: a descriptor left open is closed in a restored call, and its number is given to the call's next open, so the prelude's file object reads the call's file). The image's size never passes the call's `memory_bytes`, since the store's limit holds the prelude to it (an allocation past it raises `MemoryError` in the guest, and the code fails).
+- **On success** it counts `snapshots_made` in `process().counts` and returns a `Snapshot` whose origin records the code, its SHA-256, its fuel (from the turn's `fuel_used`, so `None` unless `fuel=` was given), the image's size and SHA-256, HOME, the guest paths of the root, grants and mounts, the sorted names of `env` (never the values), the two set digests, the runner's version and the time it was made.
+
+### 5. The helper: `make_package_snapshot`
+
+```python
+def make_package_snapshot(
+    packages: Iterable[str] | None = None,
+    *,
+    root: str | os.PathLike[str] | bool | None = True,
+    # then make_snapshot's keywords after `root`, with the same defaults
+) -> Snapshot: ...
+```
+
+- **`packages=None`** imports every name on the set's MANIFEST line `x-snapshot-packages` (157, Decision 7), in its order: every package the set ships, with the submodules a program reaches for. A set without the line (0.1.1 and earlier) raises `ArtifactsMissing`: "<MANIFEST> has no x-snapshot-packages line: this artifact set predates package snapshots; name the packages, or use make_snapshot".
+- **Given names**, each is a dotted Python identifier (`ValueError` naming it otherwise; a `str` passed whole raises `TypeError`, since `"numpy"` would iterate by letter). A name that is a top-level name on the set's line imports that name and every name on the line below it, in the line's order (`"sklearn"` brings `sklearn.linear_model`, `sklearn.tree` and the rest), because a developer names packages and many packages load their submodules lazily; any other name, dotted or not, stdlib or not, is imported as given. A set without the line imports the given names as given.
+- **The code it runs** is one `import <name>` line per name, built by the runner from names it checked, and the origin's `prelude` is that code.
+- **`root` defaults to `True`**: a fresh private root, removed after the making. matplotlib needs a writable `/tmp` to import (EXECUTED above), and the image of every package holds it. The calls that use the image need no root: matplotlib's configuration folder was found while the image was made and is kept in memory (INFERRED; the slow row of Decision 14 draws a plot from the image with no root).
+
+### 6. The `Snapshot` object
+
+- **Immutable and shared.** It holds the image as `bytes` and its `SnapshotOrigin`; it has no setter; any number of calls on any threads may use one at once, since each copies from it and none writes it. Its constructor is not public: `Snapshot(...)` raises `TypeError` ("make a Snapshot with make_snapshot, make_package_snapshot or Snapshot.load"). `copy.copy` and `copy.deepcopy` return it unchanged. It compares and hashes by identity.
+- **Not pickled.** `pickle` raises `TypeError` ("a Snapshot is not pickled: save() it and Snapshot.load() it, which checks it"). Reason: one way across processes, the one that checks ownership, the set and the image's hash; and a pickle of 200 MiB through a process pool is the wrong tool.
+- **`origin`** is a `SnapshotOrigin`, a frozen dataclass with these fields, each documented in its `Attributes`: `prelude: str`, `prelude_sha256: str`, `prelude_fuel: int | None`, `image_bytes: int`, `image_sha256: str`, `home: str`, `guest_paths: tuple[str, ...]`, `env_names: tuple[str, ...]`, `snapshot_sha256: str` (the set's `python-snapshot.wasm`), `stdlib_zip_sha256: str`, `wasi_python: str` (the version that made it) and `made_at: str` (UTC, ISO 8601, to the second, `2026-10-28T09:14:03Z`). The code itself is kept because the image already holds it (its code objects and `linecache`'s entry), so the origin reveals nothing the image does not, and a developer can see what a saved file holds.
+- **`repr`** reads as one line a developer can act on: `<Snapshot 'import numpy, pandas' 63.3 MiB, made 2026-10-28T09:14:03Z by wasi-python 0.1.2>`, the code's first line cut to 40 characters with an ellipsis, the size in MiB to one decimal.
+- **`SnapshotFailed(RuntimeError)`** carries `completed`, the making turn's `Completed`, and `reason`, one of three promised strings: `"exit"` (a status other than 0, or an exception), `"trapped"` (any trap, the deadline and fuel included, as `completed.trapped` says), `"open file"`. Its message is one line that says what to do, with the code's last line of standard error where there is one: "the snapshot's code exited with status 1: ModuleNotFoundError: No module named 'foo'"; "the snapshot's code left 1 file open; close what it opens (use `with`), since a call started from the image cannot reopen it"; "the snapshot's code ran past its deadline of 600 s; a snapshot's code sees a clock that does not move, so code that waits for time to pass never finishes".
+
+### 7. Saving and loading
+
+- **The file.** Line 1 is `wasi-python snapshot`, then `\n`. Line 2 is the header, one line of UTF-8 JSON with sorted keys, then `\n`: `format` (1), `codec` (`"zlib"`), and every field of the origin. The rest is the image, one zlib stream. The extension `.wpsnap` is the documentation's convention; nothing checks it, since the first line names the file's kind.
+- **zlib, level 1, on every Python.** The wheel supports Python 3.11 and later (`pyproject.toml:6`, `requires-python = ">=3.11"`), and the standard library's `compression.zstd` exists from 3.14 only. zlib is in every supported Python, so a file saved under one loads under any other, with no new dependency (constitution §4.13 asks a reason for one, and a native one would be a second wheel per platform). The cost against zstd level 3, on the image of every package: 72.9 MiB against 58.5 MiB, and 1.9 s against 0.56 s to compress (the spike, §1.7, EXECUTED); a saving is once per image. A later format may add zstd under its `codec` key.
+- **`save(path)`** writes the file through `tempfile.mkstemp` in the destination's folder (mode 0600 on POSIX), compressing the image in 1 MiB slices so it never holds a second whole copy, then `os.replace` onto `path`, which replaces a file there. It returns `None`. It adds the file's folder to the process's set of snapshot folders (Decision 8). An `OSError` propagates.
+- **`Snapshot.load(path)`** opens the file through `_platform.PLATFORM.open_owned(path)` (Decision 13, R5) and reads it through that descriptor, then checks, in order: the first line (else `SnapshotMismatch`: "<path> is not a wasi-python snapshot file"); the header's length, at most 17 MiB (the code's 16 MiB and room for the rest); `format` (a value above 1: "<path> was saved by a newer wasi-python, format 2; this one reads format 1"); `codec`; `image_bytes`, a whole number of 64 KiB pages and at most 4 GiB; the stream decompressed to exactly `image_bytes` and no further, so a file cannot make the runner allocate past what its header names; and the image's SHA-256 against the header's ("<path> is damaged: its image does not match its hash"). Each failure is `SnapshotMismatch`. It does not check the set: a file may be loaded before the set it binds to is known, and every call checks its own set (Decision 9). It adds the file's folder to the process's set of snapshot folders.
+- **`open_owned`** holds a file to the module cache's rule for its `.cwasm` files (READ, `_engines.py:150-170` and `_platform.py:497-551`): on POSIX, a regular file with one name and no access list, owned by this user, with no group or other bits (the mode `save` gives it), on a way of folders each this user's or root's and not writable by others unless sticky (`_way`, `_platform.py:562-584`, as 147 leaves it), opened without following a link and checked through the descriptor it is read from; on Windows, no link or junction, held open from its check to its read, as `open_cached` holds a `.cwasm` (`_platform_windows.py:419-437`). A file that fails raises `PermissionError` naming the rule: "<path> may be written by others (mode 664); a snapshot is loaded only from a file only you can write, as save() makes it (mode 600)". Reason: an image is code the embedder trusts as its own; whoever can rewrite the file runs code in every call made from it, with that call's grants and tools.
+- **`SnapshotMismatch(ValueError)`** is the type for a file or an image that does not fit, here and at a call (Decision 9); `PermissionError` and `OSError` are the file system's own.
+
+### 8. Trust
+
+- **Only an embedder-side call makes an image**: `make_snapshot` and `make_package_snapshot`, in the embedder's process. Nothing a guest can reach makes, changes or names one: `prepare` runs only in an instance that has run nothing (157, Decision 4); there is no door frame or tool for it; and the runner never loads a snapshot from a path a guest gives or from inside a grant.
+- **The image holds whatever its code did**, so it is as trustworthy as that code. The how-to says to make it from the embedder's own code, never from a visitor's, and never to put a secret in it (157, Decision 2: its entropy is zeros).
+- **A saved file is kept from guests** as the module cache is. The process keeps the folder of every snapshot file it saved or loaded (`process().snapshot_folders`, under `cache_lock`), and the grant judge refuses, for every call of the process, a root or a writable grant at or above one of those folders ("grants[0] at /work is writable and holds the folder of a snapshot file this process saved or loaded (/home/me/app); grant a folder apart from it"). A writable grant inside such a folder is allowed, since a guest cannot climb out of its grant, so the common layout (the file in a project folder, a writable `work/` below it) works. Another process that never saved or loaded the file cannot know it, so the how-to says to keep saved snapshots where no guest is granted writing, as one keeps one's own code.
+- **A checkpoint of a guest's run is not offered.** The how-to says so in one sentence: a snapshot is made from the embedder's code, before any program runs, never from a program's state.
+
+### 9. One call from a snapshot
+
+1. **Checked before any work.** `_checked` reads `snapshot`: a `Snapshot` with `memory_bytes` below `origin.image_bytes` raises `SnapshotMismatch` ("memory_bytes is 268,435,456, below the snapshot's image of 212,664,320 bytes; pass at least that, or None"). It returns `_CheckedCall.start`, one new field: `None` for a call from the set, or `_snapshot._Start(image, home, sha256)`, made from the snapshot, or, for the private marker of a making, `_Start(None, HOME, None)`. `run_async` checks it before anything is queued, as every other argument.
+2. **The set.** `_run_checked` and `_open_session`, once they have found the set and before any folder is walked, compare its snapshot binary's and zip's digests with the origin's: a found set's checked digests (`_artifacts._found_and_checked`), or, for a set passed as `artifacts=`, the digests `_module` and `_zip_folder` take for it anyway. A difference raises `SnapshotMismatch`: "this snapshot was made for the artifact set whose snapshot binary is 879bdb628a1a…, and this call runs 1f2e3d4c5b6a… (wasi-python 0.1.3); make it again with this set". An image binds to those two files and to nothing of wasmtime's or the CPU's, since linear memory holds no engine pointer (the spike, §1.7, INFERRED).
+3. **The store and the grants** are the call's own, made as today. HOME is the image's: `_guest_home` takes the fixed guest path from `start.home`, `/tmp/.home-snapshot` for every image, and gives it a private folder of its own (`_Private`, 0700, this user's, removed after the call) preopened there, writable when the call has a writable `/tmp` and no mount at `/tmp`, else read-only and empty, as today's rule for HOME. Reason: a package reads `HOME` once, at import, and keeps what it found (matplotlib's configuration folder, the spike §2.3), so every call must see the image's path; a folder of its own, not a fixed name inside the root's `/tmp`, so two calls sharing a root never meet in it. 157's preopen reset lets the grants come in any order and any number.
+4. **The restore.** In `_drive` (and `_open_wasm` for a session), after instantiation and the mount table's bind, before the fuel cap is set: `_snapshot._restore(store, instance, image)` grows the instance's memory to the image's pages with `Memory.grow`, checks `data_len` against the image's length, copies the image in with `ctypes.memmove` from the `bytes` to `Memory.data_ptr` (one copy, through wasmtime-py's public pointer: `Memory.write` would first copy the image into a `bytearray`, READ in wasmtime-py's `_memory.py`), and counts `snapshots_restored`. The copy is the host's, never the guest's, so it spends no fuel: `fuel_used` is the call's own work, the program and its ending, and the code's fuel was spent once, at the making, and is on `origin.prelude_fuel`. The documentation says so in one sentence.
+5. **The program runs** through the `run` export as every call does: 157's `prepare` left `run` callable, so the reactor reads the call's argv and environment, refreshes (157, Decision 6) and gives the program a fresh `__main__` holding the code's names.
+6. **The record.** `Completed.image_sha256`, a new field with default `None`, is the image's SHA-256 for a call or a session turn that started from one, else `None`, so an embedder that runs several images can tell from a result which one a call used. `stats()` gains `snapshots_made` and `snapshots_restored`, the counts of this process.
+
+### 10. Sessions from a snapshot
+
+`Session(snapshot=snap)` works as any session: the image is restored once, at the opening, and is the session's first state; its turns run in the `__main__` the code ran in, so the code's names are there; the first turn's setup reseeds as today (`reactor_bootstrap.py:234-261`); turns mutate the session's own copy, which no other session or call sees. Its ending is 157's Decision 5 for a prepared instance, inside `shutdown_s` as today.
+
+### 11. How a call from a snapshot ends
+
+As 157's Decision 5 decides, and its recommendation, choice A, is what this specification documents: a call or a session from a snapshot runs its `atexit` handlers and flushes every file object it left open, and does not tear down the image's modules, so its fuel is its own work; object finalizers do not run at its end. The how-to says it in one sentence and the limits page gives the cost B would add (1,546 million instructions a call on the image of every package). A call or session without a snapshot is unchanged. If the owner chooses B, this specification's rows assert the teardown's outcome instead, its fuel facts record the teardown, and the how-to's sentence on finalizers is replaced by the teardown's cost per call.
+
+### 12. Limits, with their defaults
+
+- **The image's size** is capped by the making's `memory_bytes`, default `defaults().memory_bytes`, 1 GiB: the store's limit stops the code from growing memory past it. A call from the image needs `memory_bytes` at least the image's size (Decision 9).
+- **The making's deadline** defaults to 600 seconds (Decision 4); its fuel to none; its output to 16 MiB per stream, as `run`'s.
+- **Memory per call.** Each live call or session from an image holds a private copy of the whole image, since the copy writes every page: N calls at once hold N times the image (203 MiB each for the image of every package, the spike §1.4), plus the one copy the `Snapshot` holds in the process. A load holds the image twice while it reads. The limits page states this so an embedder budgets for it.
+- **The code's size**, 16 MiB of UTF-8 (Decision 4); **a file's header**, 17 MiB; **an image**, 4 GiB (the guest's 32-bit address space).
+
+### 13. Structure, row by row
+
+The pre-build review scores these; this is how the design keeps each.
+
+- **R1 Contract.** The new names and their promises are in `tests/public_api.txt`: `Snapshot` (its `origin`, `save` and `load`), `SnapshotOrigin`'s fields, `SnapshotFailed(RuntimeError)` with `completed` and `reason`, `SnapshotMismatch(ValueError)`, `make_snapshot` and `make_package_snapshot` with their parameters and defaults, `param snapshot: bool | Snapshot = True` on the three entry points, `Completed`'s `image_sha256`, and the two `stats` keys. Failures are promised by type and by `reason`'s three strings, never by a message. Each invariant is a row of Decision 14: a call sees none of another's mutations; the image binds to its set; a file only this user can write is loaded; fuel is the call's own. If the API harness cannot list a class method, it learns to, marked as one: a judge change named in the claim.
+- **R2 Safety.** Every argument is checked before any work, `snapshot` included, by `_checked`; every limit has a default (Decision 12); the saved file is read through the descriptor its ownership was checked on; the decompression stops at the header's size; the grant judge keeps guests from a saved file's folder.
+- **R3 Layering.** No private wasmtime-py API: `Memory.data_ptr`, `data_len` and `grow` are public, and `ctypes.memmove` and `ctypes.string_at` act on the pointer they return. `_snapshot.py` sits below `_call.py` and `_sessions.py`, which import it for the restore and HOME, and imports none of them, nor `runner`; `_snapshot_make.py` sits beside `runner`, imports it, and is imported only by `__init__.py`. The import graph stays acyclic.
+- **R4 Process state.** No module-level mutable: `_snapshot.py` holds constants (the first line, the format, `HOME`, the marker `MAKING`, the caps). The two counts live in `process().counts` and the set of snapshot folders in `process().snapshot_folders`, under `cache_lock`, a leaf, so the lock order is unchanged. A `Snapshot` is an immutable object the caller holds. No lifecycle flag is added: a making is a session's one turn with another export's name, a parameter, not state.
+- **R5 Portability.** No platform branch outside the platform modules: the file's ownership check is `_platform.PLATFORM.open_owned`, one method on the `_Platform` protocol, answered by `_Posix` and `_Windows`. The copy is the same on every host.
+- **R6 Testability.** No new seam. Unit rows drive the public functions; the rows that need a stand-in engine use a module of their own (a WAT module that exports one page of memory) through the restore's public signature; `open_owned` takes an injected `lstat` for the way's rows, as `cache_folder` does (`_platform.py:497-499`), not a patch of a private name.
+- **R7 Evolvability.** Two new modules under their stated sizes; `_call.py` at 89% of its ceiling takes only the threading (about 20 lines). No new function passes 80 lines; the five listed ones grow as the Kind line says, and the news file claims each.
+- **R8 Operability.** `Completed.image_sha256` says which image a call started from; `stats()` counts makings and restores; a refusal names what to do. The trap strings are unchanged.
+
+### 14. The rows first
+
+Each is written before the code and seen failing (criterion 1). Every guest row counts operations, never time.
+
+Unit rows, `tests/unit/test_snapshot.py`, with no guest:
+
+- the file round-trips: `save` then `load` gives the same origin and image; on POSIX the file's mode is 0600;
+- `load` refuses, each with `SnapshotMismatch`: another first line, a header past 17 MiB, `format` 2, an unknown `codec`, an `image_bytes` that is not a page multiple or past 4 GiB, a stream that ends short, a stream with bytes past `image_bytes`, an image whose hash differs;
+- `load` refuses, with `PermissionError`, on POSIX: a file with group or other write, a link, a file with two names, a file on a way through another user's folder (the injected `lstat`); on Windows: a link;
+- `Snapshot(...)` raises `TypeError`; `pickle.dumps` raises `TypeError`; `copy.copy` returns the same object; `repr` has the stated shape;
+- `_checked`: `snapshot="yes"` raises `TypeError`; a `Snapshot` with `memory_bytes` below its image raises `SnapshotMismatch` from `run`, `run_async` (before anything is queued) and `Session`;
+- `make_package_snapshot`: `"numpy; import os"` and `"numpy"` (a `str`) are refused; a top-level name expands to the line's names below it, from a stand-in MANIFEST; a set without the line raises `ArtifactsMissing`;
+- the grant judge: a writable grant at or above a saved snapshot's folder is refused; one inside it is allowed; a read-only one is allowed;
+- `_snapshot._restore` with a stand-in module of one page: the memory grows to the image's pages and holds its bytes; an image past the store's limit is refused before any byte is copied;
+- `stats()` lists `snapshots_made` and `snapshots_restored`.
+
+Goal checks, `tests/checks/test_v1_4_starting_image.py`, through the public API on the real set (each records `fuel_used` as its metric; the rows that make the image of every package are marked slow):
+
+- `test_a_snapshot_runs_like_a_fresh_run`: the spike's correctness probe (§1.3). The code reads `/data/sales.csv` from a read-only grant, loads iris, fits `DecisionTreeClassifier(random_state=0)` and defines `summarize(frame)`. A program prints `summarize(df)`, three predictions and a groupby. Its output from the snapshot is byte-equal to `run`'s output for the code and the program as one `-c` program with the same grants; the restored call's `fuel_used` is recorded beside the fresh one's.
+- `test_a_call_sees_no_other_calls_mutations`: the first call appends to a list from the code, adds a column to its frame, sets `numpy.sum = None`, removes `pandas` from `sys.modules` and sets `builtins.LEAK`; a second call from the same snapshot sees none of it.
+- `test_a_snapshot_that_leaves_a_file_open_is_refused`: `kept = open('/data/sales.csv')` as code raises `SnapshotFailed` with `reason == "open file"`.
+- `test_a_failing_snapshot_says_why`: `import no_such_module` raises `SnapshotFailed` with `reason == "exit"`, and `completed.stderr` names the module; a code that loops on `time.monotonic()` with `fuel=10**8` gives `reason == "trapped"` and `completed.trapped == "out of fuel"`, a count, not a time.
+- `test_grants_in_another_order_work`: made with read-only grants at `/a` then `/b`; a call granted `/b`, `/a` and `/c` reads each folder's own file at its own path.
+- `test_randomness_differs_across_calls`: code imports `random`, `numpy.random`, `sympy` and `tempfile`; two calls from it print different `random.random()`, `numpy.random.random()`, `sympy.core.random.rng.random()` and `next(tempfile._get_candidate_names())`.
+- `test_a_call_from_a_snapshot_keeps_an_unclosed_files_bytes`: a program writes 100 bytes to a file in a writable grant and does not close it; the file holds 100 bytes (spec 073's promise, kept for a call from an image).
+- `test_a_session_starts_from_a_snapshot`: `Session(snapshot=snap)`; its first turn uses a function the code defined; a second session from the same snapshot does not see the first's turns; `close()` ends it with `shutdown_outcome == "finished"`.
+- `test_one_prelude_makes_one_image`: one code made twice in one process gives one `origin.image_sha256`.
+- `test_a_snapshot_saved_and_loaded_runs`: `save` then `Snapshot.load` in the same test, then a call, prints what the in-process snapshot's call prints.
+- `test_another_set_is_refused`: a call from a snapshot with `artifacts=` a stand-in set whose snapshot binary differs raises `SnapshotMismatch` before any folder is walked.
+- `test_concurrent_calls_share_one_image`: four `run_async` calls from one snapshot at once each print their own argument and the code's names.
+- `test_a_restored_hello_costs_its_own_work`: the fuel facts. `print('hello')` from a snapshot of `pass`, and from the set's own snapshot with no image; both recorded; the first is below the second (it pays no teardown). Marked slow, the same from `make_package_snapshot()`: the making's `prelude_fuel` (with `fuel=`), `image_bytes`, and the restored hello's `fuel_used`, recorded; and the restored call's `pyplot` draws a line plot to a PNG in memory with no root.
+
+`tests/lint/budget.toml` gains the family `test_v1_4_starting_image`'s cap, twice the largest fuel its first acceptance records.
+
+### 15. The documentation
+
+- **`docs/how-to/snapshots.md`**, new, in `mkdocs.yml`'s how-to list after sessions, written for an embedder in the house style (short sentences, a term defined where it first appears, the key idea said twice, a one-line end): what a snapshot is (the guest's memory after your code ran; every call from it is a fresh instance), how it differs from the set's snapshot binary (which every call starts from anyway; a snapshot you make starts from it and adds your code); the three-line example of Decision 2; `make_snapshot` with data and a function; `make_package_snapshot()` and a list; saving, loading and keeping the file where no guest writes; sessions from a snapshot; what is frozen (modules, objects, the environment's effect on imports, the code's own generators, warnings already shown) and what is fresh (argv, the environment, the clocks, `random`, numpy's global generator, sympy's, `tempfile`'s names, HOME's folder, the grants in any order); what to avoid in the code (leaving a file open, waiting on the clock, making a secret, temporary files, a visitor's code); the costs (making once; a copy per call, about 20 ms for 203 MiB on an M1 Pro; memory per live call; `fuel_used` is the call's own); how a call ends, with finalizers' one sentence; and a checkpoint of a guest's run is not offered.
+- **`docs/explanation/how-it-works.md`**, "The snapshot": one paragraph on a snapshot an embedder makes, linking the how-to.
+- **`docs/reference/defaults-and-limits.md`**: a section for making a snapshot (the deadline 600 s, memory, fuel, output, the code's size) and the memory a call from one holds.
+- **`docs/reference/results-and-errors.md`**: `Completed.image_sha256`, `SnapshotFailed` with its three reasons, `SnapshotMismatch`.
+- **`docs/reference/glossary.md`**: "Snapshot" names both the set's binary and a snapshot an embedder makes, and tells them apart.
+- **`docs/reference/python-api.md`**: regenerated by `uv run python tests/harness/api.py --write`.
+- **The news file**, `../changes/150-a-starting-image-the-embedder-chooses.md`, under Added, is the lead of 0.1.2's notes. If 152 has landed, its reader's paragraph says the value first: "Start every call from your own snapshot. Run your setup code once, imports, data and functions, with `make_snapshot`, or import every package with `make_package_snapshot()`, then pass `snapshot=` to `run` or `Session`: each call is still a fresh, sealed instance, and a program that spent seconds importing scikit-learn starts in milliseconds. [Snapshots](how-to/snapshots.md)."
+
+## Intent
+
+After this specification, an embedder makes a starting image from any code of its own in one call, or from every package the set ships in one call with no list, keeps it in its process or saves it and loads it in another, and passes it to `run`, `run_async` or `Session`. Every call from it is a fresh instance with its own grants, fresh randomness and a clock that never runs backwards, sees nothing another call did, and pays only for its own work. A file that does not fit, a set that does not match and code that left something open are each refused with a message that says what to do.
+
+## Design
+
+```
+src/wasi_python/_snapshot.py        Snapshot, SnapshotOrigin, SnapshotFailed, SnapshotMismatch;
+                                    the file (MAGIC, FORMAT, save, load); HOME, MAKING, _Start;
+                                    _start (the call's check), _same_set, _capture, _restore
+src/wasi_python/_snapshot_make.py   make_snapshot, make_package_snapshot, the package names' check
+src/wasi_python/runner.py           _checked(snapshot=); Session._prepare; three docstrings; stats
+src/wasi_python/_call.py            _CheckedCall.start; _run_checked's set check; _guest_home(fixed=);
+                                    _drive(image=); Completed.image_sha256
+src/wasi_python/_sessions.py        export name through _session_turn, _turn_inside, _drive_turn;
+                                    _open_session's set check, fixed HOME, digests on the state;
+                                    _open_wasm(image=)
+src/wasi_python/_places.py          the judge: snapshot folders, at or above
+src/wasi_python/_platform.py, _platform_windows.py   open_owned
+src/wasi_python/_process.py         counts snapshots_made, snapshots_restored; snapshot_folders
+src/wasi_python/__init__.py         the new names in __all__
+tests/public_api.txt, tests/checks/test_rules.py (LONG_FUNCTIONS), tests/harness/api.py (DEFINING),
+tests/lint/budget.toml, tests/unit/test_snapshot.py, tests/checks/test_v1_4_starting_image.py
+docs/how-to/snapshots.md, mkdocs.yml, docs/explanation/how-it-works.md,
+docs/reference/{defaults-and-limits,results-and-errors,glossary,python-api}.md
+context/changes/150-a-starting-image-the-embedder-chooses.md
+```
+
+The commits, in order: the rows seen failing; `_snapshot.py` and the file; the call path (`_checked`, `_call.py`, `_sessions.py`, the judge, the platform method); the making (`_snapshot_make.py`, `Session._prepare`); the public names and `tests/public_api.txt`; the documentation; the news file.
+
+## Scope
+
+In: the above. Out, each with its reason:
+
+- **Design (a), a Wizer module per snapshot**: a wizer binary the wheel does not carry and a compile of 16 to 20 s and 350 to 450 MiB per image per host (the spike, §4). Reachable later from (b), since an image plus the module is what wizer writes (§5.1).
+- **A checkpoint of a guest's run**: the owner kept it out of 0.1.2 (`../decisions.md:498`); 157 refuses `prepare` after any program.
+- **Copy-on-write restores**: the spike's `mmap` over the instance's memory took 0.76 ms against about 21 ms (§1.5, EXECUTED), but it replaces pages wasmtime owns, through libc, POSIX only; a later optimisation, with that number, behind the platform object.
+- **`tools=` while making**: the tool host's state cannot be frozen (Decision 4); tools work on every call from a snapshot.
+- **A command-line option** to run from a saved snapshot: the command's options and JSON are their own promise (`tests/public_api.txt`'s `command` block); a later specification may add `--snapshot PATH`.
+- **zstd**: not in every supported Python's standard library (Decision 7); a later format.
+- **The duplication of `_instance` and `_open_session`**, which this specification threads the image through twice: the structural specification of its own that 142 and 144 name.
+
+## Acceptance criteria
+
+1. **Seen failing first.** Every row of Decision 14 exists and fails before the code that makes it pass (an `ImportError` of the new names counts for a row that names them; each goal row against 157's set without this specification's code); the pull request names each with its one failing line.
+2. **The unit rows** are green on Linux, macOS and Windows in the pull request's run; the pull request carries the label `ci:full`, so macOS runs.
+3. **The goal checks** of `tests/checks/test_v1_4_starting_image.py`, the slow ones included, are green on the pull request's Linux, Windows and macOS legs.
+4. **The fuel facts** are in the gather's summary as metrics and in the landing notes: the restored hello from a snapshot of `pass`, the set's own hello, the restored hello from the image of every package, that image's `prelude_fuel` and `image_bytes`, and the correctness probe's restored and fresh `fuel_used`.
+5. **The contract.** `git diff dev -- tests/public_api.txt` shows exactly the names of Decision 13's R1 row and nothing else; `tests/checks/test_v1_4_public_api.py` is green; the news file's claim block names `tests/public_api.txt` under `[claim.judge]` and `tests/checks/test_rules.py` with the five raised lengths and their reason.
+6. **The structure.** `tests/checks/test_rules.py` is green: no module over its ceiling, no unlisted function past 80 lines, the five listed ones at their new lengths and within the Kind line's bounds, no module-level mutable or lock outside `_process.py`, no private-API use outside `_wasmtime_ffi.py`, no platform branch outside the platform modules, no new seam; the module sizes are within the Kind line's bounds.
+7. **The documentation.** `docs/how-to/snapshots.md` is in the navigation; the reference is regenerated and its check is green; the documentation site builds; `uv run pytest tests/lint` is green (the public pages name no specification, memo or `context/` path).
+8. **The rules and the run.** `uv run ruff check` and `uv run ruff format --check` on `src/` and `tests/`, and the fast tier, are green; no accepted pass is lost; every growth in the gather's `GROWTH` is claimed; `ci-status` is green; the landing notes cite the pre-build review and the pull request's review.
+9. **The benchmark facts**, in the landing notes, labelled EXECUTED with their commands, never as checks: on Linux (a linux/arm64 container on the builder's machine), the copy's time for the image of every package, and the resident memory of the process with 1, 4 and 8 concurrent calls from it; on macOS, the same; the load time of the saved image of every package and the file's size. Windows' times stay unmeasured, and the landing notes say so.
+
+## Landing notes
+
+Not yet built.
