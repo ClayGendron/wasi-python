@@ -50,11 +50,11 @@ Structure, one line: no new concern, lifecycle flag, module-level mutable, lock,
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. Medium, the undefined lookup flag — 
-2. Low, the `ends=False` row and the unmetered `stop_fuel` assertion — 
+1. Medium, the undefined lookup flag — fixed: `_looked_at` takes `dirflags` and makes no look when `dirflags & ~1`; a row of three cases through `Counted` against `grant_raw`, seen failing first ("DID NOT RAISE Ends"); Decision 3 names the lookup flags.
+2. Low, the `ends=False` row and the unmetered `stop_fuel` assertion — fixed: `test_a_forward_that_does_not_end_the_run_answers_none` added, a guard of the built code, so green first; the epoch row's `Counted` is metered.
 3. Low, criterion 6's count — written in by the reviewer.
-4. Low, the Windows box — 
-5. Low, the security model's advice — 
+4. Low, the Windows box — ticked in the description once the new run's Windows legs are read.
+5. Low, the security model's advice — fixed: the entry ends "Grant only folders whose contents you control.", and Design's sentence with it.
 
 ## Verdict
 

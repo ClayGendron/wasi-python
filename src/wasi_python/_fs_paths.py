@@ -228,7 +228,7 @@ def _look(files: _Files, caller: Any, args: tuple[int, ...]) -> int:
     fd, dirflags, ptr, length, oflags, base, inheriting, fdflags, _ = args
     memory = _Memory(caller)
     ptr, length = ptr & MASK32, length & MASK32
-    if not _looked_at(oflags, fdflags, base, inheriting):
+    if not _looked_at(dirflags, oflags, fdflags, base, inheriting):
         return 0
     if not (memory.fits(ptr, length) and memory.fits(0, FILESTAT_SIZE)):
         return 0
@@ -244,12 +244,15 @@ def _look(files: _Files, caller: Any, args: tuple[int, ...]) -> int:
     return 0 if errno else _refusal(filetype, oflags)
 
 
-def _looked_at(oflags: int, fdflags: int, base: int, inheriting: int) -> bool:
+def _looked_at(dirflags: int, oflags: int, fdflags: int, base: int, inheriting: int) -> bool:
     """Whether wasmtime takes an open with these arguments to its host open, where a special
-    file could make it wait: not one with a flag or right wasmtime does not define, a sync flag,
+    file could make it wait: not one with a lookup flag, an open flag, a descriptor flag or a
+    right wasmtime does not define (it ends the run at their conversion), a sync flag,
     O_DIRECTORY with a create, or O_CREAT with O_EXCL, which the host refuses for an existing
     name before it opens anything."""
-    if oflags & ~0xF or fdflags & ~0x1F or base & ~RIGHTS or inheriting & ~RIGHTS:
+    if dirflags & ~1 or oflags & ~0xF or fdflags & ~0x1F:
+        return False
+    if base & ~RIGHTS or inheriting & ~RIGHTS:
         return False
     if fdflags & (SYNC | DSYNC | RSYNC) or (oflags & O_CREAT and oflags & O_EXCL):
         return False

@@ -22,5 +22,5 @@ new = [
     "tests/checks/test_v1_2_hostile_guest.py::test_a_session_whose_turn_opens_a_fifo_closes[read-only]",
     "tests/checks/test_v1_2_hostile_guest.py::test_a_session_whose_turn_opens_a_fifo_closes[writable]",
 ]
-units = 30
+units = 34
 ```

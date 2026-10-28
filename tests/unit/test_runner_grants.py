@@ -1727,6 +1727,77 @@ def test_a_path_past_memory_ends_the_run_as_wasmtime_ends_it(tmp_path) -> None:
     assert ends[0] == ends[1], ends
 
 
+@pytest.mark.parametrize("dirflags", [2, -(2**31), -1], ids=["2", "the sign bit", "-1"])
+def test_an_undefined_lookup_flag_ends_the_run_as_wasmtime_ends_it(tmp_path, dirflags) -> None:
+    """No look is made for an open whose lookup flags wasmtime does not define: the open is
+    wasmtime's, which ends the run at its conversion of the flags, as a plain grant's does."""
+    folder = _plain_grant(tmp_path)
+    ends = []
+    for raw in (
+        files.Counted([(folder, "/g", False)]).raw,
+        files.grant_raw([(folder, "/g", False)]),
+    ):
+        ptr, size = raw.path("file")
+        args = (3, dirflags, ptr, size, 0, files.READ_RIGHTS, files.READ_RIGHTS, 0, files.RESULT)
+        with pytest.raises(files.Ends) as e:
+            raw("path_open", *args)
+        ends.append(e.value.message)
+    assert ends[0] == ends[1], ends
+
+
+FORWARD_GUEST = """(module
+  (import "test" "forward" (func $forward (param i32) (result i32)))
+  (import "wasi_snapshot_preview1" "path_filestat_get"
+    (func $stat (param i32 i32 i32 i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (data (i32.const 4096) "file")
+  (func (export "forward") (param i32) (result i32) (call $forward (local.get 0)))
+  (func (export "stat") (result i32)
+    (call $stat (i32.const 3) (i32.const 1) (i32.const 4096) (i32.const 4) (i32.const 1024))))"""
+
+
+def test_a_forward_that_does_not_end_the_run_answers_none(tmp_path) -> None:
+    """`forward(..., ends=False)`, the look's way to wasmtime, answers None for a call wasmtime
+    ends, records no stop on a metered call, and the guest's next call answers; the same
+    forward without it raises the error and records the stop with the guest's fuel."""
+    import wasmtime
+
+    from wasi_python import _call
+    from wasi_python._fs_table import _Files
+
+    config = wasmtime.Config()
+    config.consume_fuel = True
+    engine = wasmtime.Engine(config)
+    store = wasmtime.Store(engine)
+    store.set_fuel(10**9)
+    wasi = wasmtime.WasiConfig()
+    wasi.preopen_dir(str(_plain_grant(tmp_path)), "/g", False)
+    store.set_wasi(wasi)
+    table = _Files([], ["/g"], None, 1 << 30, True, engine, context=_call._Context())
+    answers: list = []
+
+    def forward(caller, ends: int) -> int:
+        look = (3, 2, files.PATH, 4, files.RESULT)  # lookup flag 2: wasmtime defines only 1
+        try:
+            answers.append(table.forward(caller, "path_filestat_get", look, ends=bool(ends)))
+        except wasmtime.WasmtimeError:
+            answers.append("raised")
+        return 0
+
+    linker = wasmtime.Linker(engine)
+    linker.define_wasi()
+    i32 = wasmtime.ValType.i32()
+    linker.define_func("test", "forward", wasmtime.FuncType([i32], [i32]), forward, True)
+    instance = linker.instantiate(store, wasmtime.Module(engine, FORWARD_GUEST))
+    table.bind(wasmtime, store, _call._linker(wasmtime, engine), instance)
+    exports = instance.exports(store)
+    assert exports["forward"](store, 0) == 0
+    assert answers == [None] and table.stop_fuel is None
+    assert exports["stat"](store) == 0
+    assert exports["forward"](store, 1) == 0
+    assert answers[1] == "raised" and table.stop_fuel is not None
+
+
 @pytest.mark.parametrize("filetype", range(8))
 @pytest.mark.parametrize("oflags", [0, files.O_DIRECTORY], ids=["open", "O_DIRECTORY"])
 def test_the_looks_answer_by_filetype(filetype, oflags) -> None:
@@ -1760,7 +1831,7 @@ def test_a_look_that_meets_the_deadline_answers_and_the_next_call_ends(tmp_path)
     callback has named the end "deadline", and the guest's next call ends the run."""
     from wasi_python import _call
 
-    g = files.Counted([(_plain_grant(tmp_path), "/g", False)])
+    g = files.Counted([(_plain_grant(tmp_path), "/g", False)], fuel=10**9)
     _call._watch(g.store)
     g.call.stop_at = 0  # the ticker has passed it: the callback answers "deadline"
     g.table.open_files = _CrossesTheEpoch(g.engine)

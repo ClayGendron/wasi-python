@@ -77,7 +77,7 @@ The sandbox stops the guest reaching what it was not given. It does not make eve
 - **A killed process.** If your process is killed mid-call, its private root and stdin folder stay in the temporary folder. The stdlib zip's folder and its lock file stay too, once a call has run. The next process that uses wasi_python on the same machine, with the same temporary folder, removes them at its first call.
 - **A folder a removal had to leave**, such as content the host made read-only, or a file another program holds open, until a removal can.
 - **On Windows**, a file the host gave the read-only attribute, inside a writable grant or a root: the guest can delete it.
-- **A special file swapped in during an open.** A guest's open of a FIFO, socket or device file in a granted folder is refused with `ENXIO`, but a host process, or another call writing the same grant, that replaces a name between the runner's look and the open can still make that open wait in the host past the deadline and `cancel`, and `Session.close()` with it.
+- **A special file swapped in during an open.** A guest's open of a FIFO, socket or device file in a granted folder is refused with `ENXIO`, but a host process, or another call writing the same grant, that replaces a name between the runner's look and the open can still make that open wait in the host past the deadline and `cancel`, and `Session.close()` with it. Grant only folders whose contents you control.
 
 ### Reused roots and state across calls
 
