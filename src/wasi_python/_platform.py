@@ -653,7 +653,9 @@ class _Posix:
         the embedder trusts: whoever could rewrite the file would run code in every call made
         from it. PermissionError names what fails; `lstat` is the way's walk."""
         folder = Path(os.path.realpath(path.parent))
-        if _way(folder, lstat, lambda path: (), hint=_OWNED_HINT):  # its lists are not read
+        # A snapshot's way is held to its owner and mode alone: reading its lists would refuse
+        # load and save, which needs rows of its own.
+        if _way(folder, lstat, lambda path: (), hint=_OWNED_HINT):
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(path))
         at = os.open in os.supports_dir_fd  # else by path, below a folder just checked
         dir_fd = os.open(folder, _CACHE_DIR_OPEN)
