@@ -61,7 +61,8 @@ def _bytes(path: Path) -> int:
 
 def test_prepare_refuses(guest_turns, metric) -> None:
     """`prepare` returns -1 and runs no Python on the plain reactor, after `run`, after `turn`
-    and a second time: an image is made once, from a snapshot instance that has run nothing."""
+    and a second time: an image is made once, from a snapshot instance that has run nothing. After
+    a `prepare` that failed, `prepare`, `run` and `turn` refuse too: that instance is discarded."""
     calls = {}
     plain = guest_turns("plain")
     calls["the plain reactor"] = plain.prepare("print('ran')")
@@ -75,6 +76,16 @@ def test_prepare_refuses(guest_turns, metric) -> None:
     first = twice.prepare("x = 1")
     assert first.value == 0, first.describe()
     calls["a second time"] = twice.prepare("print('ran')")
+    failed = guest_turns("snapshot", answered=True, argv=["-c", "print('ran')"])
+    first_failed = failed.prepare("x = 1\nraise SystemExit(3)")
+    assert first_failed.value == 3, first_failed.describe()
+    calls["after a failed prepare"] = failed.prepare("print('ran')")
+    ran_after = failed.run()
+    if (ran_after.value, ran_after.stdout) != (70, b""):
+        calls["a run after a failed prepare"] = ran_after
+    failed_too = guest_turns("snapshot", answered=True)
+    assert failed_too.prepare("raise ValueError('setup failed')").value == 1
+    calls["a turn after a failed prepare"] = failed_too.turn("print('ran')")
     found = [
         f"{when}: {c.describe()}, stdout {c.stdout!r}"
         for when, c in calls.items()
