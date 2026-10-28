@@ -72,14 +72,16 @@ Labels: EXECUTED means I ran it; READ means I read the file cited; INFERRED mean
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. M1 —
-2. L1 —
-3. L2 —
-4. L3 —
-5. L4 —
-6. L5 —
-7. L6 —
+1. M1 — fixed in `1238ffdc`: row 7 is parametrised; (a) `directory_inherit,only_inherit,limit_inherit` is red on the base on its counts (compiled 1, written 1, no warning) and after is not used, written 0, the made folder named, the cache folder never made; (b) the entry as drafted is red on the base on its warning's words alone, both stated, and criterion 1 says which line each fails on; the `finally` runs `chmod -R -N`; units 23 in Decision 8's sum and Decision 10's claim, and no 22 is left in the file. READ, confirmed.
+2. L1 — fixed in `1238ffdc`: Decision 1 counts an entry carrying `1<<23` or `1<<21` as granting the five rights the kernel expands them to, named in the warning; Decision 2 reads the mask as `ctypes.c_uint64`. READ, confirmed.
+3. L2 — fixed in `1238ffdc`: row 3 raises `OSError(errno.EACCES, os.strerror(errno.EACCES))` and the same for `EIO`; the fake defers to `getattr(_platform.PLATFORM, "access_entries", lambda path: ())`, read before the patch. READ, confirmed.
+4. L3 — fixed in `1238ffdc`: the helper writes a version header of 2, then one `<HHI` record per entry in the kernel's tag order (owner, `_other()`, owning group, mask, other; tags 1, 2, 4, 0x10, 0x20), the unnamed entries' id `0xFFFFFFFF`; row 9 skips on `ENOTSUP`, `EOPNOTSUPP` or `EINVAL`, each named. READ, confirmed. One precision for the builder, no round: the header is the kernel's `a_version`, a 32-bit little-endian word (`<I`), four bytes before the first record.
+5. L4 — fixed in `1238ffdc`: the Design rewrites the row file's docstring sentence with the review's text, and the Kind line names it. READ, confirmed.
+6. L5 — fixed in `1238ffdc`: Decision 9's sentence adds "remove or rename the folder". READ, confirmed.
+7. L6 — fixed in `1238ffdc`: Depends on says 149's branch is based on `0b67fe1b` without 147, and 141 is built after 149 merges, on a branch rebased onto `dev`'s tip. READ, confirmed.
 
 ## Verdict
 
-Fit to build once M1 is answered in the specification (row 7 made red on the base by `limit_inherit`, its `finally` `chmod -R -N`, units 23); the Lows are write-ins with their fix text, and Decision 3's reason holds as written.
+Fit to build: the amendment `1238ffdc` answers M1 and Lows 1 to 6 with the review's fix text, read against each on 2026-10-28, and Decision 3's reason and Decision 1's macOS set, which the owner accepted, hold as written.
+
+Before the amendment (2026-10-28, on `9b83c6c4`): fit to build once M1 is answered in the specification (row 7 made red on the base by `limit_inherit`, its `finally` `chmod -R -N`, units 23); the Lows were write-ins with their fix text.
