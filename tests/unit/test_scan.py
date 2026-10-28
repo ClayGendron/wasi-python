@@ -410,6 +410,23 @@ def test_a_function_over_the_ceiling_is_a_hit(work) -> None:
     ) == ["stale allowance: m.py:h (gone)"]
 
 
+def test_a_listed_function_past_its_length_is_a_hit(work) -> None:
+    listed = scan.FUNCTION_CEILING + 1
+    f = write(work, "m.py", _function("f", listed + 1))
+    assert scan.long_function_hits([f], work, {"m.py:f": listed}) == [
+        f"m.py:1: f ({listed + 1} lines, listed {listed})"
+    ]
+    assert scan.long_function_hits([f], work, {"m.py:f": listed + 1}) == []
+
+
+def test_a_listed_function_shorter_than_its_length_is_a_stale_allowance(work) -> None:
+    length = scan.FUNCTION_CEILING + 1
+    f = write(work, "m.py", _function("f", length))
+    assert scan.long_function_hits([f], work, {"m.py:f": length + 2}) == [
+        f"stale allowance: m.py:f ({length} lines, listed {length + 2})"
+    ]
+
+
 def test_memo_labels(work) -> None:
     labelled = write(work, "a.md", "- **Status:** executed\n\nIt ran (EXECUTED).\n")
     placeholder = write(work, "b.md", "- **Status:** placeholder (research to do)\n")
