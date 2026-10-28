@@ -1531,9 +1531,10 @@ def assets_action_errors(text: str) -> list[str]:
     return errors
 
 
-# A step's command words that run code of the repository or a package: uv, Python, pip, or a
-# path under release/ (never release-assets/ or release.yml).
-CODE_WORDS = re.compile(r"\b(uvx?|python[0-9.]*|pip[0-9.]*)\b|(?<![\w./-])release/")
+# A step's command words that run code of the repository or a package: uv, Python or pip as a
+# word of their own (a path to one counts; `wasi-python` in a title does not), or a path under
+# release/ (never release-assets/ or release.yml).
+CODE_WORDS = re.compile(r"(?<![\w.-])(uvx?|python[0-9.]*|pip[0-9.]*)\b|(?<![\w./-])release/")
 TOKEN = re.compile(r"github\.token|secrets\.")
 UV_PUBLISH_BANNED = ("--token", "-t", "--username", "-u", "--password", "-p", "--publish-url",
                      "--index", "--check-url")  # fmt: skip
