@@ -7,13 +7,15 @@ descriptor's name, so a file swapped in at the path after the check is never wha
 Every folder on the way to the cache must be this user's, root's or, on `/`'s own device, the
 owner of `/`'s, and closed to other writers (a sticky folder such as `/tmp` aside), as `sshd`
 asks of the way to a key, or the cache is not used, with a warning, and the call still runs.
-A folder or file with an access list is not used either. On Windows the file is held open from
-its check to its load. A module is compiled from the bytes it was hashed from, so a `.cwasm`
-under a digest holds that digest's code. An empty `cache_dir` is refused, and a relative one is
-the folder it names when the call is made.
+A folder or file with an access list is not used either, nor, on macOS, a cache whose way
+holds a folder with an access list that lets anyone else change it. On Windows the file is held
+open from its check to its load. A module is compiled from the bytes it was hashed from, so a
+`.cwasm` under a digest holds that digest's code. An empty `cache_dir` is refused, and a
+relative one is the folder it names when the call is made.
 
 Each verdict is a count from `stats()`, a module's exports, a warning or a refusal; the stand-ins
-are parameters of the functions they stand in for."""
+are parameters of the functions they stand in for, the process object's observers, or the
+platform object's own methods."""
 
 from __future__ import annotations
 
@@ -37,7 +39,7 @@ import wasmtime as wt
 
 import wasi_python
 from harness import wat
-from wasi_python import ArtifactsMissing, _artifacts, _engines, runner
+from wasi_python import ArtifactsMissing, _artifacts, _engines, _platform, runner
 from wasi_python import _wasmtime_ffi as ffi
 from wasi_python._process import process
 
@@ -502,6 +504,294 @@ def test_a_cache_folder_whose_list_only_inherits_is_not_used_and_not_written(wor
     counts, seen, _ = _miss(binary, cache, digest)
     assert counts == {"compiled": 1, "loaded": 0, "written": 0}, (counts, seen)
     assert list(cache.iterdir()) == []
+
+
+# The access lists on the way: what the mode bits do not show.
+
+MACOS = sys.platform == "darwin"
+MACOS_ONLY = "macOS keeps access lists the mode bits do not show"
+LINUX_ONLY = "the mask rule is Linux's"
+# macOS's rights (sys/acl.h), by the names `chmod +a` takes for a folder.
+RIGHTS = {
+    "add_file": 1 << 2,
+    "add_subdirectory": 1 << 5,
+    "delete_child": 1 << 6,
+    "delete": 1 << 4,
+    "writesecurity": 1 << 12,
+    "chown": 1 << 13,
+}
+ALL_SIX = sum(RIGHTS.values())
+# The kernel's generic write bit (sys/kauth.h), which grants every right above but chown.
+GENERIC_WRITE = 1 << 23
+# list, search, readattr, writeattr, readextattr, writeextattr, readsecurity, synchronize.
+CHANGE_NOTHING = (1 << 1) | (1 << 3) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10) | (1 << 11)
+CHANGE_NOTHING |= 1 << 20
+EVERYONE = 12  # macOS's gid for the group everyone
+ROOT_LIST_ADVICE = (
+    "no folder can hold the cache while it is, so pass cache_dir=False to compile in memory "
+    "without this warning"
+)
+ENTRY_ADVICE = "remove that entry with chmod -a, or set $WASI_PYTHON_CACHE to a folder of yours"
+
+
+def _listed(
+    monkeypatch: pytest.MonkeyPatch,
+    folder: Path | str,
+    *entries: tuple[bool, str, int, int, bool],
+    raises: OSError | None = None,
+) -> None:
+    """The platform's reader of access lists answers `entries`, or raises `raises`, for
+    `folder`, and defers every other path to the reader it replaces (none on a platform without
+    one), so the real lists on the way are still read where there is a reader."""
+    real = os.path.realpath(folder)
+    default = getattr(_platform.PLATFORM, "access_entries", lambda path: ())
+
+    def fake(path: str) -> tuple[object, ...]:
+        if path != real:
+            return default(path)
+        if raises is not None:
+            raise raises
+        return tuple(_platform._Entry(*e) for e in entries)
+
+    monkeypatch.setattr(_platform.PLATFORM, "access_entries", fake, raising=False)
+
+
+def _user_words(uid: int) -> str:
+    import pwd
+
+    try:
+        return f"the user {pwd.getpwuid(uid).pw_name} (uid {uid})"
+    except KeyError:
+        return f"the user uid {uid}"
+
+
+def _group_words(gid: int) -> str:
+    import grp
+
+    try:
+        return f"the group {grp.getgrgid(gid).gr_name} (gid {gid})"
+    except KeyError:
+        return f"the group gid {gid}"
+
+
+@pytest.mark.skipif(not POSIX, reason=WALK_SKIP)
+@pytest.mark.parametrize(
+    ("kind", "rights", "mask"),
+    [*(("user", [name], None) for name in RIGHTS), ("group", ["add_file", "delete_child"], None)]
+    + [("", ["delete_child"], None), ("user", [*RIGHTS][:5], GENERIC_WRITE)],
+    ids=[*RIGHTS, "group-everyone", "unnamed", "generic-write"],
+)
+def test_an_entry_that_lets_another_change_a_folder_on_the_way_is_not_used(
+    work, monkeypatch, kind, rights, mask
+) -> None:
+    """The folder above the cache is a real 0755 folder whose access list holds one allow
+    entry: for another user, each right that adds, removes or renames what the folder holds,
+    removes or renames the folder, or changes who may; for the group everyone; for a principal
+    the system cannot name, whose id is never read as root's; for another user, the kernel's
+    generic write bit alone, which a list a network file system translates can carry and which
+    grants five of those rights. Each lets someone other than this user or root change the
+    folder, so the cache is not used, and the warning names the folder, the principal and the
+    rights."""
+    binary, digest = _tiny(work)
+    above = _above(work)
+    cache = above / "cache"
+    who = {"user": _other(), "group": EVERYONE, "": 0}[kind]
+    mask = sum(RIGHTS[name] for name in rights) if mask is None else mask
+    _listed(monkeypatch, above, (True, kind, who, mask, False))
+    counts, seen, _ = _miss(binary, cache, digest)
+    principal = {
+        "user": _user_words(who),
+        "group": _group_words(who),
+        "": "a user or group the system cannot name",
+    }[kind]
+    why = f"has an access list that lets {principal} {', '.join(rights)}"
+    warned = _not_used(counts, seen, above, why)
+    assert warned.endswith(f"; {ENTRY_ADVICE}"), warned
+    if kind == "group":
+        assert warned == (
+            f"wasi_python: not using the module cache at {cache}: {os.path.realpath(above)}, on "
+            f"the way to it, {why}; {ENTRY_ADVICE}"
+        ), warned
+
+
+@pytest.mark.skipif(not POSIX, reason=WALK_SKIP)
+@pytest.mark.parametrize(
+    "entry",
+    [
+        (False, "group", EVERYONE, RIGHTS["delete"], False),
+        (True, "user", "me", ALL_SIX, False),
+        (True, "user", 0, ALL_SIX, False),
+        (True, "user", "other", CHANGE_NOTHING, False),
+        (True, "group", EVERYONE, ALL_SIX, True),
+    ],
+    ids=["deny", "this-user", "root", "changes-nothing", "only-inherit"],
+)
+def test_an_entry_that_changes_nothing_or_names_no_one_new_passes(work, monkeypatch, entry) -> None:
+    """A deny entry, as every macOS home carries; an allow for this user or root, whom the walk
+    already trusts; an allow of rights that change nothing in the folder; an entry that only
+    what is made inside inherits. None lets another change the folder: the cache is used."""
+    binary, digest = _tiny(work)
+    above = _above(work)
+    allow, kind, who, mask, inherit_only = entry
+    uid = {"me": os.geteuid(), "other": _other()}.get(who, who)
+    _listed(monkeypatch, above, (allow, kind, uid, mask, inherit_only))
+    counts, seen, _ = _miss(binary, above / "cache", digest)
+    _used(counts, seen)
+
+
+@pytest.mark.skipif(not POSIX, reason=WALK_SKIP)
+@pytest.mark.parametrize("code", [errno.EACCES, errno.EIO], ids=["EACCES", "EIO"])
+def test_a_list_that_cannot_be_read_means_the_cache_is_not_used(work, monkeypatch, code) -> None:
+    """The check cannot vouch for a folder whose list it cannot read: the cache is not used,
+    and the warning gives the system's reason."""
+    binary, digest = _tiny(work)
+    above = _above(work)
+    _listed(monkeypatch, above, raises=OSError(code, os.strerror(code)))
+    counts, seen, _ = _miss(binary, above / "cache", digest)
+    why = f"has an access list the runner cannot read ({os.strerror(code)})"
+    warned = _not_used(counts, seen, above, why)
+    assert warned.endswith(f"; {FOLDER_ADVICE}"), warned
+
+
+@pytest.mark.skipif(not POSIX, reason=WALK_SKIP)
+def test_when_roots_list_fails_the_warning_says_no_folder_can_hold_the_cache(
+    work, monkeypatch
+) -> None:
+    """Every cache folder is below `/`, and on macOS `/` is the sealed system volume no one
+    changes from a running system, so an entry there is not one to take back: the warning says
+    to keep no cache."""
+    binary, digest = _tiny(work)
+    _listed(monkeypatch, "/", (True, "user", _other(), RIGHTS["delete_child"], False))
+    counts, seen, _ = _miss(binary, work / "cache", digest)
+    why = f"has an access list that lets {_user_words(_other())} delete_child"
+    warned = _not_used(counts, seen, "/", why)
+    assert warned.endswith(f"; {ROOT_LIST_ADVICE}"), warned
+    assert "$WASI_PYTHON_CACHE" not in warned and "chmod -a" not in warned, warned
+
+
+def _chmod(*args: str) -> None:
+    subprocess.run(["chmod", *args], check=True, capture_output=True)
+
+
+@pytest.mark.skipif(not MACOS, reason=MACOS_ONLY)
+def test_on_macos_an_allow_entry_on_the_way_is_not_used(work) -> None:
+    """A real entry, set on a folder this row made: everyone may add to it and remove from it
+    while its mode reads 0755."""
+    binary, digest = _tiny(work)
+    above = _above(work)
+    _chmod("+a", "group:everyone allow add_file,delete_child", str(above))
+    try:
+        counts, seen, _ = _miss(binary, above / "cache", digest)
+    finally:
+        _chmod("-N", str(above))
+    why = "has an access list that lets the group everyone (gid 12) add_file, delete_child"
+    _not_used(counts, seen, above, why)
+
+
+@pytest.mark.skipif(not MACOS, reason=MACOS_ONLY)
+def test_on_macos_the_homes_deny_entry_passes(work) -> None:
+    """The entry every macOS home and its Library carry, set on a folder this row made."""
+    binary, digest = _tiny(work)
+    above = _above(work)
+    _chmod("+a", "group:everyone deny delete", str(above))
+    try:
+        counts, seen, _ = _miss(binary, above / "cache", digest)
+    finally:
+        _chmod("-N", str(above))
+    _used(counts, seen)
+
+
+@pytest.mark.skipif(not MACOS, reason=MACOS_ONLY)
+@pytest.mark.parametrize("limit", [True, False], ids=["limit_inherit", "inherit"])
+def test_on_macos_a_folder_made_below_an_inheriting_entry_is_not_used(work, limit) -> None:
+    """The folder above carries an entry that only what is made inside inherits, so it passes.
+    The runner makes the missing folder below it, which inherits the entry as one that applies:
+    everyone may then empty and refill it. The walk after the `mkdir` refuses it, before the
+    cache folder is made. With `limit_inherit` the cache folder itself would inherit nothing,
+    so this walk is the only check that sees it."""
+    binary, digest = _tiny(work)
+    above = _above(work)
+    made, cache = above / "made", above / "made" / "cache"
+    flags = "directory_inherit,only_inherit" + (",limit_inherit" if limit else "")
+    _chmod("+a", f"group:everyone allow add_file,delete_child,{flags}", str(above))
+    try:
+        counts, seen, _ = _miss(binary, cache, digest)
+    finally:
+        _chmod("-R", "-N", str(above))
+    why = "has an access list that lets the group everyone (gid 12) add_file, delete_child"
+    _not_used(counts, seen, made, why)
+    assert made.is_dir() and not cache.exists()
+
+
+@pytest.mark.skipif(not MACOS, reason=MACOS_ONLY)
+def test_on_macos_each_entry_is_read_as_it_is_written(work) -> None:
+    """The reader answers each entry of a real list in its order: whether it allows, whose it
+    is, its rights and whether it only inherits; a folder with no list answers none."""
+    import pwd
+
+    listed, bare = work / "listed", work / "bare"
+    listed.mkdir()
+    bare.mkdir()
+    entries = [
+        "user:nobody allow delete,writesecurity",
+        "group:everyone deny delete",
+        "group:everyone allow add_file,only_inherit,directory_inherit",
+    ]
+    for at, entry in enumerate(entries):
+        _chmod("+a#", str(at), entry, str(listed))
+    try:
+        got = _platform.PLATFORM.access_entries(str(listed))
+        none = _platform.PLATFORM.access_entries(str(bare))
+    finally:
+        _chmod("-N", str(listed))
+    nobody = pwd.getpwnam("nobody").pw_uid
+    assert [tuple(e) for e in got] == [
+        (True, "user", nobody, RIGHTS["delete"] | RIGHTS["writesecurity"], False),
+        (False, "group", EVERYONE, RIGHTS["delete"], False),
+        (True, "group", EVERYONE, RIGHTS["add_file"], True),
+    ], got
+    assert none == ()
+
+
+def _posix_acl(other: int, mask: int) -> bytes:
+    """A Linux access list in the kernel's format: a 32-bit version word, 2, then one record per
+    entry (tag, rights, id) in tag order: the owner, the named user `other`, the owning group,
+    the mask and everyone else; an unnamed entry's id is all ones."""
+    import struct
+
+    unnamed = 0xFFFFFFFF
+    records = [(0x01, 7, unnamed), (0x02, 7, other), (0x04, 5, unnamed)]
+    records += [(0x10, mask, unnamed), (0x20, 5, unnamed)]
+    return struct.pack("<I", 2) + b"".join(struct.pack("<HHI", *r) for r in records)
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason=LINUX_ONLY)
+@pytest.mark.parametrize("mask", [7, 5], ids=["rwx", "r-x"])
+def test_on_linux_a_named_entry_shows_in_the_group_bits(work, mask) -> None:
+    """A Linux list that names another user with `rwx` must hold a mask, no named entry has a
+    right the mask lacks, and the mode's group bits are the mask. So an entry that lets another
+    user write shows as a group-writable folder, which the walk refuses for its mode, and one
+    the mask cuts to `r-x` grants no write: the walk reads no list on Linux and misses none."""
+    binary, digest = _tiny(work)
+    above = _above(work)
+    name = "system.posix_acl_access"
+    try:
+        os.setxattr(above, name, _posix_acl(_other(), mask))
+    except OSError as e:
+        if e.errno in (errno.ENOTSUP, errno.EOPNOTSUPP, errno.EINVAL):
+            pytest.skip(
+                f"this file system or namespace takes no such list ({errno.errorcode[e.errno]})"
+            )
+        raise
+    try:
+        assert stat.S_IMODE(os.lstat(above).st_mode) == (0o775 if mask == 7 else 0o755)
+        counts, seen, _ = _miss(binary, above / "cache", digest)
+    finally:
+        os.removexattr(above, name)
+    if mask == 5:
+        _used(counts, seen)
+        return
+    _not_used(counts, seen, above, "may be written by others (mode 775) and is not sticky")
 
 
 # Row 4: one read for every compile.

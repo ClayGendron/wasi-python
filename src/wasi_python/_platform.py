@@ -33,7 +33,8 @@ What differs, and why each difference exists:
   process of this user could compute, with or without the override variable each platform
   reads; on POSIX the owner, the mode, the number of names and any access list are checked,
   through the descriptor wasmtime is then given, and every folder on the way must be this
-  user's, root's or, on `/`'s own device, the owner of `/`'s, and closed to other writers;
+  user's, root's or, on `/`'s own device, the owner of `/`'s, and closed to other writers, on
+  macOS by its access list too, which the mode bits do not show;
   Windows, which has no mode bits and no name for a descriptor, checks the kind of file and
   that it is no link, and holds the file open from its check to its load.
 - A file a running guest holds open cannot be replaced on Windows, so a copy of the zip or a
@@ -55,7 +56,7 @@ import stat
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, NamedTuple, Protocol
 
 from . import _platform_common
 from ._platform_common import _REMOVE_BATCH, _Opened, _Removal
@@ -125,6 +126,41 @@ _CACHE_DIR_OPEN = _flags("O_RDONLY", "O_DIRECTORY", "O_NOFOLLOW", "O_CLOEXEC")
 _CACHE_FILE_OPEN = _flags("O_RDONLY", "O_NOFOLLOW", "O_CLOEXEC", "O_NONBLOCK")
 _FD_NAMES = ("/dev/fd", "/proc/self/fd")
 _ACL_TYPE_EXTENDED = 0x100
+# An entry of a macOS access list (sys/acl.h) lets another change a folder on the way when it is
+# an allow entry (tag 1) that applies to the folder itself (not only-inherit) and grants one of
+# these rights, in the words `chmod +a` takes: add to it, remove or rename what it holds, remove
+# or rename the folder, or change who may. Its other rights (list, search, the attributes, read
+# security, synchronize) change none of that. The kernel's generic write and generic all bits,
+# which libc will not set but a list a network file system translates can carry, grant the first
+# five. macOS keeps at most 128 entries in a list.
+_ACL_ALLOW = 1
+_ACL_ONLY_INHERIT = 1 << 8
+_ACL_CHANGES = (
+    (1 << 2, "add_file"),
+    (1 << 5, "add_subdirectory"),
+    (1 << 6, "delete_child"),
+    (1 << 4, "delete"),
+    (1 << 12, "writesecurity"),
+    (1 << 13, "chown"),
+)
+_ACL_GENERIC = (1 << 23) | (1 << 21)
+_ACL_GENERIC_GRANTS = sum(bit for bit, _ in _ACL_CHANGES[:5])
+_ACL_MAX_ENTRIES = 128
+
+
+class _Entry(NamedTuple):
+    """One entry of an access list: whether it allows (else it denies), whose it is (`kind`
+    "user" or "group" and its uid or gid, or `kind` "" where the system cannot name it), the
+    rights it grants or takes, as the system's mask, and whether only what is made inside
+    inherits it, so it grants nothing on the folder it sits on."""
+
+    allow: bool
+    kind: str
+    id: int
+    rights: int
+    inherit_only: bool
+
+
 # Under a user namespace a file whose owner the namespace does not map shows the kernel's overflow
 # uid, 65534 by default, the same number as the namespace's own `nobody`. On `/` it is trusted as
 # any owner of `/` is; below `/` the number could be either owner, so it is not.
@@ -133,6 +169,12 @@ _OVERFLOW_UID = 65534
 _ROOT_ADVICE = (
     "no folder can hold the cache while it is, so have its owner run chmod go-w /, or pass "
     "cache_dir=False to compile in memory without this warning"
+)
+# On macOS `/` is the sealed system volume, which no one changes from a running system, so an
+# entry in its access list is not one to take back.
+_ROOT_LIST_ADVICE = (
+    "no folder can hold the cache while it is, so pass cache_dir=False to compile in memory "
+    "without this warning"
 )
 _CACHE_HINT = "set $WASI_PYTHON_CACHE to a folder of yours"
 # A saved snapshot is held to the same rule.
@@ -529,6 +571,15 @@ class _Posix:
         name has no way it reads."""
         return False
 
+    def access_entries(self, path: str) -> tuple[_Entry, ...]:
+        """The entries of the access list of a folder on the way to the cache that the walk
+        judges: none here. A POSIX host the runner does not know by name has no way it reads a
+        list. Linux, which inherits this, needs none: a list there that names another user or
+        group holds a mask, no named entry is granted a right the mask lacks, and the mode's
+        group bits show the mask, so a list cannot let anyone write a folder past what its mode
+        already shows the walk."""
+        return ()
+
     def cache_folder(
         self, cache: Path, *, lstat: Callable[[str], os.stat_result] = os.lstat
     ) -> Path | None:
@@ -536,18 +587,18 @@ class _Posix:
         the runner makes it (with a warning). The way to it, its links resolved, must hold no
         folder another user could change: each is this user's, root's or, on `/`'s own device,
         the owner of `/`'s, and no one else may write it unless it is sticky, as `/tmp` is,
-        where no one else may rename what is in it. Else whoever could would put another folder
-        at the cache's name between the check and the load. OSError names the folder that
-        fails. `lstat` is the walk's."""
+        where no one else may rename what is in it, nor, on macOS, change it through an entry of
+        its access list. Else whoever could would put another folder at the cache's name between
+        the check and the load. OSError names the folder that fails. `lstat` is the walk's."""
         folder = Path(os.path.realpath(cache.parent)) / cache.name
-        for missing in _way(folder.parent, lstat):
+        for missing in _way(folder.parent, lstat, self.access_entries):
             try:
                 os.mkdir(missing, 0o700)
             except FileExistsError:  # a concurrent call made it, or another user: judged below
                 pass
         # Walked once more, so a folder another user made between the walk and the `mkdir` is
         # judged as one found there is, and one that went away in between is not passed over.
-        gone = _way(folder.parent, lstat)
+        gone = _way(folder.parent, lstat, self.access_entries)
         if gone:
             raise FileNotFoundError(
                 errno.ENOENT, f"{gone[0]}, on the way to it, went away while it was made"
@@ -602,7 +653,9 @@ class _Posix:
         the embedder trusts: whoever could rewrite the file would run code in every call made
         from it. PermissionError names what fails; `lstat` is the way's walk."""
         folder = Path(os.path.realpath(path.parent))
-        if _way(folder, lstat, hint=_OWNED_HINT):
+        # A snapshot's way is held to its owner and mode alone: reading its lists would refuse
+        # load and save, which needs rows of its own.
+        if _way(folder, lstat, lambda path: (), hint=_OWNED_HINT):
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(path))
         at = os.open in os.supports_dir_fd  # else by path, below a folder just checked
         dir_fd = os.open(folder, _CACHE_DIR_OPEN)
@@ -646,15 +699,20 @@ class _Posix:
 
 
 def _way(
-    folder: Path, lstat: Callable[[str], os.stat_result], *, hint: str = _CACHE_HINT
+    folder: Path,
+    lstat: Callable[[str], os.stat_result],
+    entries: Callable[[str], tuple[_Entry, ...]],
+    *,
+    hint: str = _CACHE_HINT,
 ) -> list[Path]:
     """The folders from `/` down to `folder` that do not exist yet, for the caller to make; each
     one that exists is a folder that no one else may write, or that is sticky, and is this
-    user's, root's, or, on `/`'s own device, the owner of `/`'s. Whoever owns `/` can already
-    rename every folder on its file system, so trusting it there adds no one; past a mount
-    point it cannot rename the way, and the overflow uid could stand for another owner below
-    `/`. PermissionError names the first folder that fails, and ends with `hint` (for `/`
-    under the cache's own hint, the advice for `/`)."""
+    user's, root's, or, on `/`'s own device, the owner of `/`'s, and whose access list, read by
+    `entries`, lets no one else change it. Whoever owns `/` can already rename every folder on
+    its file system, so trusting it there adds no one; past a mount point it cannot rename the
+    way, and the overflow uid could stand for another owner below `/`. PermissionError names
+    the first folder that fails, and ends with `hint` (for `/` under the cache's own hint, the
+    advice for `/`)."""
     missing = []
     top: os.stat_result | None = None
     for here in [*reversed(folder.parents), folder]:
@@ -666,17 +724,77 @@ def _way(
         root = here == here.parent
         if root:
             top = st
-        why = None
+        why, listed = None, None
         if not stat.S_ISDIR(st.st_mode):
             why = "is not a folder"
         elif not root and not _owner_trusted(st, top):
             why = f"is another user's (uid {_platform_common._owner(st)})"
         elif st.st_mode & 0o022 and not st.st_mode & stat.S_ISVTX:
             why = f"may be written by others (mode {stat.S_IMODE(st.st_mode):o}) and is not sticky"
+        else:
+            found = _listed_writer(str(here), entries)
+            if found is not None:
+                why, listed = found
         if why is not None:
-            advice = _ROOT_ADVICE if root and hint == _CACHE_HINT else hint
+            advice = _advice(root, listed, hint)
             raise PermissionError(errno.EACCES, f"{here}, on the way to it, {why}; {advice}")
     return missing
+
+
+def _listed_writer(
+    path: str, entries: Callable[[str], tuple[_Entry, ...]]
+) -> tuple[str, bool] | None:
+    """Why the access list of the folder at `path` lets someone other than this user or root
+    change it, and whether one entry is to blame; None when it lets no one. An allow entry
+    counts when it applies to the folder itself and grants a right that changes what the folder
+    holds or who may, to anyone but this user or root: every group counts, as the mode rule
+    counts the group's bits whoever is in it, and so does a principal the system cannot name. A
+    deny entry never counts and never excuses an allow, since whether one shadows the other is
+    the kernel's evaluation of order and membership; judging each allow alone fails closed. A
+    list that cannot be read counts too: the walk cannot vouch for it."""
+    try:
+        listed = entries(path)
+    except OSError as e:
+        return f"has an access list the runner cannot read ({e.strerror or e})", False
+    for entry in listed:
+        rights = entry.rights | (_ACL_GENERIC_GRANTS if entry.rights & _ACL_GENERIC else 0)
+        granted = [name for bit, name in _ACL_CHANGES if rights & bit]
+        trusted = entry.kind == "user" and entry.id in (os.geteuid(), 0)
+        if entry.allow and not entry.inherit_only and granted and not trusted:
+            return f"has an access list that lets {_principal(entry)} {', '.join(granted)}", True
+    return None
+
+
+def _principal(entry: _Entry) -> str:
+    """Whose an access-list entry is, in a warning's words: the name in the password or group
+    database with the number, the number alone where the database has none, or that the system
+    cannot name it."""
+    if entry.kind not in ("user", "group"):
+        return "a user or group the system cannot name"
+    import grp
+    import pwd
+
+    number = f"{'uid' if entry.kind == 'user' else 'gid'} {entry.id}"
+    try:
+        if entry.kind == "user":
+            name = pwd.getpwuid(entry.id).pw_name
+        else:
+            name = grp.getgrgid(entry.id).gr_name
+    except (KeyError, OverflowError):
+        return f"the {entry.kind} {number}"
+    return f"the {entry.kind} {name} ({number})"
+
+
+def _advice(root: bool, listed: bool | None, hint: str) -> str:
+    """What a refusal on the way ends with: `hint`; under the cache's own hint, for `/`, that
+    no folder can hold the cache, since every cache is below it, and for an entry of a list
+    below `/`, that `chmod -a` takes it back. `listed` is None for a folder's kind, owner or
+    mode, False for a list that cannot be read, True for an entry."""
+    if hint != _CACHE_HINT:
+        return hint
+    if root:
+        return _ROOT_ADVICE if listed is None else _ROOT_LIST_ADVICE
+    return f"remove that entry with chmod -a, or {hint}" if listed else hint
 
 
 def _owner_trusted(st: os.stat_result, top: os.stat_result | None) -> bool:
@@ -1057,21 +1175,40 @@ class _Darwin(_Posix):
         # The C library's access-list calls, resolved once and published whole, as `stack_api`.
         self.acl_api: dict[str, Any] | None = None
 
+    def _acl(self) -> dict[str, Any]:
+        """The C library's access-list calls, resolved on first use into a local and published
+        whole in one assignment, so a thread that reads the table finds all of it or none."""
+        api = self.acl_api
+        if api is not None:
+            return api
+        import ctypes.util
+
+        libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
+        vp, i, at = ctypes.c_void_p, ctypes.c_int, ctypes.POINTER
+
+        def call(name: str, result: Any, *args: Any) -> Any:
+            return ctypes.CFUNCTYPE(result, *args, use_errno=True)((name, libc))
+
+        api = {
+            "get": call("acl_get_fd_np", vp, i, i),
+            "link": call("acl_get_link_np", vp, ctypes.c_char_p, i),
+            "entry": call("acl_get_entry", i, vp, i, at(vp)),
+            "tag": call("acl_get_tag_type", i, vp, at(i)),
+            "mask": call("acl_get_permset_mask_np", i, vp, at(ctypes.c_uint64)),
+            "flagset": call("acl_get_flagset_np", i, vp, at(vp)),
+            "flag": call("acl_get_flag_np", i, vp, i),
+            "qualifier": call("acl_get_qualifier", vp, vp),
+            "id": call("mbr_uuid_to_id", i, vp, at(ctypes.c_uint32), at(i)),
+            "free": call("acl_free", i, vp),
+        }
+        self.acl_api = api
+        return api
+
     def _access_list(self, fd: int, *, is_dir: bool) -> bool:
         """Whether the file open at `fd` has an extended access list, any entry, allow or deny,
         read by `acl_get_fd_np`: macOS's `listxattr` lists none. No list is NULL with ENOENT;
         NULL with another errno is an OSError, so the cache is not used."""
-        import ctypes.util
-
-        api = self.acl_api
-        if api is None:
-            libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
-            vp, i = ctypes.c_void_p, ctypes.c_int
-            api = {
-                "get": ctypes.CFUNCTYPE(vp, i, i, use_errno=True)(("acl_get_fd_np", libc)),
-                "free": ctypes.CFUNCTYPE(i, vp)(("acl_free", libc)),
-            }
-            self.acl_api = api
+        api = self._acl()
         ctypes.set_errno(0)
         found = api["get"](fd, _ACL_TYPE_EXTENDED)
         if found:
@@ -1081,6 +1218,58 @@ class _Darwin(_Posix):
         if err == errno.ENOENT:
             return False
         raise OSError(err, os.strerror(err))
+
+    def access_entries(self, path: str) -> tuple[_Entry, ...]:
+        """Each entry of the extended access list of the folder at `path`, in the list's order,
+        read by `acl_get_link_np` without following a last link. By path, since every folder
+        above it has passed the walk, so no one but this user or root can have renamed it since
+        its `lstat`, and a path needs only search permission on the way, where a descriptor
+        would need read. No list, or a file system that keeps none, is no entries; a list that
+        cannot be read, or an entry whose fields cannot be, is an OSError."""
+        api = self._acl()
+        ctypes.set_errno(0)
+        acl = api["link"](os.fsencode(path), _ACL_TYPE_EXTENDED)
+        if not acl:
+            err = ctypes.get_errno()
+            if err in (errno.ENOENT, errno.ENOTSUP, errno.EOPNOTSUPP):
+                return ()
+            raise OSError(err, os.strerror(err), path)
+        found: list[_Entry] = []
+        try:
+            entry, which = ctypes.c_void_p(), 0  # ACL_FIRST_ENTRY, then ACL_NEXT_ENTRY (-1)
+            while len(found) < _ACL_MAX_ENTRIES and not api["entry"](
+                acl, which, ctypes.byref(entry)
+            ):
+                which = -1
+                found.append(self._read_entry(api, entry))
+        finally:
+            api["free"](acl)
+        return tuple(found)
+
+    @staticmethod
+    def _read_entry(api: dict[str, Any], entry: ctypes.c_void_p) -> _Entry:
+        """One entry's tag, rights, only-inherit flag and principal; an id the system cannot
+        give for its principal (no qualifier, or a deleted account) leaves it unnamed."""
+        tag, rights, flags = ctypes.c_int(), ctypes.c_uint64(), ctypes.c_void_p()
+        for name, out in (("tag", tag), ("mask", rights), ("flagset", flags)):
+            if api[name](entry, ctypes.byref(out)):
+                err = ctypes.get_errno() or errno.EIO
+                raise OSError(err, os.strerror(err))
+        only = api["flag"](flags, _ACL_ONLY_INHERIT)
+        if only < 0:
+            err = ctypes.get_errno() or errno.EIO
+            raise OSError(err, os.strerror(err))
+        kind, who = "", 0
+        guid = api["qualifier"](entry)
+        if guid:
+            try:
+                number, id_type = ctypes.c_uint32(), ctypes.c_int()
+                if not api["id"](guid, ctypes.byref(number), ctypes.byref(id_type)):
+                    kind = {0: "user", 1: "group"}.get(id_type.value, "")
+                    who = number.value
+            finally:
+                api["free"](guid)
+        return _Entry(tag.value == _ACL_ALLOW, kind, who, rights.value, only == 1)
 
     def _kernel_identity(self) -> str | None:
         import ctypes.util
