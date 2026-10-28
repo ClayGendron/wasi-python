@@ -406,3 +406,71 @@ def test_an_abandoned_turns_session_dropped_is_ended_by_the_reaper(registry) -> 
     _sessions._reap(0.0)
     assert registry == [s, resting] and resting.phase is _sessions._Phase.ENDING
     process().sessions.discard(resting)
+
+
+def _on_a_loop_thread(main) -> list:
+    """`main()` run by `asyncio.run` on a thread of its own, joined with a fail-safe: a loop
+    that is blocked cannot run its own timeout."""
+    out: list = []
+    runner = threading.Thread(target=lambda: out.append(asyncio.run(main())), daemon=True)
+    runner.start()
+    runner.join(60)  # a fail-safe, not a timing
+    assert not runner.is_alive(), "the event loop never finished"
+    return out
+
+
+def test_close_from_a_sync_tool_in_a_run_async_turn_ends_the_session(stepped) -> None:
+    """A synchronous tool runs on a thread of its own. Its `close()` stops the turn; the tool's
+    call is answered "cancelled" at the next tick, whatever the tool still does, so the turn
+    returns, runs the ending, and the `close()` returns once the ending has finished."""
+    seen: list[tuple[str | None, str | None]] = []
+    returned = threading.Event()
+    held: dict[str, Session] = {}
+
+    def closer() -> str:
+        """Close the session this tool's turn runs in."""
+        s = held["s"]
+        s.close()
+        seen.append((s.ended, s.shutdown_outcome))
+        returned.set()
+        return "closed"
+
+    async def main():
+        s = held["s"] = _session()(tools=[closer])
+        return s, await s.run_async("from host import tools\ntools.closer()\n" + LOOP)
+
+    [(s, done)] = _on_a_loop_thread(main)
+    assert returned.wait(60), "the tool's close() never returned"  # a fail-safe, not a timing
+    assert seen == [("closed", "skipped")]  # it waited for the ending, which had finished
+    assert done.trapped == "cancelled"
+    assert (s.ended, s.shutdown_outcome) == ("closed", "skipped")
+
+
+def test_close_from_an_async_tool_in_a_run_async_turn_ends_the_session(stepped) -> None:
+    """An asynchronous tool runs on the event loop that awaits the turn. Its `close()` stops the
+    turn and holds the loop only until the ending has finished: the turn's worker answers the
+    tool's call "cancelled" without the loop, so the loop goes on and the turn's await
+    returns."""
+    seen: list[tuple[str | None, str | None]] = []
+    held: dict[str, Session] = {}
+    after: list[str] = []
+
+    async def closer() -> str:
+        """Close the session this tool's turn runs in."""
+        s = held["s"]
+        s.close()
+        seen.append((s.ended, s.shutdown_outcome))
+        return "closed"
+
+    async def main():
+        s = held["s"] = _session()(tools=[closer])
+        done = await s.run_async("from host import tools\ntools.closer()\n" + LOOP)
+        await asyncio.sleep(0)
+        after.append("the loop went on")
+        return s, done
+
+    [(s, done)] = _on_a_loop_thread(main)
+    assert seen == [("closed", "skipped")]
+    assert after == ["the loop went on"]
+    assert done.trapped == "cancelled"
+    assert (s.ended, s.shutdown_outcome) == ("closed", "skipped")

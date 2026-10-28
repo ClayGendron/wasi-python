@@ -26,6 +26,8 @@ new = [
     "tests/unit/test_runner_outputs.py::test_a_stream_whose_write_raises_reports_dropped",
     "tests/unit/test_lifecycles.py::test_the_session_table_row[TURN-TAKE_TURN]",
     "tests/unit/test_lifecycles.py::test_the_session_table_row[STOPPING-TAKE_TURN]",
+    "tests/unit/test_runner_sessions.py::test_close_from_a_sync_tool_in_a_run_async_turn_ends_the_session",
+    "tests/unit/test_runner_sessions.py::test_close_from_an_async_tool_in_a_run_async_turn_ends_the_session",
 ]
-units = 10
+units = 12
 ```
