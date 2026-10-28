@@ -1,6 +1,6 @@
 # 154: The first fuel under a new engine is Linux's
 
-- **Status:** drafted 2026-10-28 on `spec/154-the-first-fuel-under-a-new-engine-is-linuxs` from `dev`'s `6bc56eeb`, from the reserved line of `../roadmap.md` ("0.1.2", the stretch paragraph) and 127's landing notes ("The first release-tier acceptance after the move"). Not yet approved to build; no pre-build review is required (Decision 8).
+- **Status:** built 2026-10-28, not landed. Drafted 2026-10-28 on `spec/154-the-first-fuel-under-a-new-engine-is-linuxs` from `dev`'s `6bc56eeb`, from the reserved line of `../roadmap.md` ("0.1.2", the stretch paragraph) and 127's landing notes ("The first release-tier acceptance after the move"); the owner decided on 2026-10-28 that Linux-first fuel is recorded and never compared (Decision 4). No pre-build review is required (Decision 8).
 - **Date:** 2026-10-28
 - **Owner:** Clay Gendron
 - **Kind:** **parallel-safe**, **not structural**, **a judge change**. It touches the harness alone: `tests/harness/scoreboard.py` (the ratchet's fuel rule and the acceptance's merge), `tests/harness/accept_from.py` (which fuel a check only another system ran is applied with), `tests/harness/gather.py` (G5's "records no" check skips a label); rows in `tests/unit/test_scoreboard.py`, `test_accept_from.py`, `test_gather.py` and `test_plugin.py`; the ledger `../release-tier-claims.toml` (127's block removed) and its history `../release-tier-claims-history.md`; the paragraph "Acceptance from CI's record" of `../progress/README.md`; and its news file. Nothing under `src/`, `scripts/`, `recipes/`, `release/`, `docs/` or `.github/`, no artifact byte, no default an embedder can see, no line of `tests/public_api.txt`. The ledger is a verdict-bearing judge file, so the news file names it under `[claim.judge]`.
@@ -181,4 +181,55 @@ On `6bc56eeb`, in the worktree, 2026-10-28. EXECUTED unless marked.
 
 ## Landing notes
 
-Not yet built.
+**Status: built 2026-10-28, not landed.** The pull request's run id and its review are added at the merge.
+
+### What was built
+
+On the branch, drafted and built on `6bc56eeb` and rebased onto `dev`'s `2bb857a1` (158's merge, which touched none of these files; the replay was clean), in the spec's commit order: the ten rows (`a538930e`); the harness (`447d4b3f`); the ledger and its history (`1bd2e0ab`); the progress README's paragraph and the news file (`e55bc4a9`); these notes. After the rebase ruff, `tests/lint`, `tests/checks/test_rules.py` (121 passed, 1 skipped) and the six unit files (418 passed) were run again, green (`build/154/verify-rebased.txt`).
+
+- `tests/harness/scoreboard.py`: `LABELS = ("wasmtime", "fuel_platform")`; `fuel_system(metrics, platform)`, the system that measured an entry's fuel (its label, or the key's platform); `Ratchet.fuel_elsewhere`; `compare` skips a label in both loops and lists a fuel either side measured on a system other than the run's under `fuel_elsewhere` once the engines agree; the merge of one entry moved out of `accept` into `_merged`, which keeps the lower fuel only when the same system measured both under the same engine and otherwise takes the run's whole, carrying its label; the ratchet line's "fuel not compared (measured on another system) N"; the module docstring names the two labels.
+- `tests/harness/accept_from.py`: `_metrics` for a source that is not darwin keeps darwin's accepted fuel only when the entry holds a fuel, unlabelled, under `uv.lock`'s wasmtime; otherwise it applies the record's fuel with `fuel_platform` set to the source's platform. The module docstring's last paragraph says so.
+- `tests/harness/gather.py`: G5's "records no" check subtracts `scoreboard.LABELS`.
+- `../release-tier-claims.toml` is its header again, byte for byte the file before `607b2d79`; `../release-tier-claims-history.md`'s `## 0.1.1` gains the paragraph of Decision 7 and the block in a `text` fence.
+- `../progress/README.md`: the `accepted.json` line names the labels; "Acceptance from CI's record" says Decisions 3 to 5 in two sentences.
+- The news file `../changes/154-the-first-fuel-under-a-new-engine-is-linuxs.md`: one `### Changed` line; `new` the ten collected rows; `units = 10`; `[claim.judge]` for the ledger.
+
+### The rows, seen failing on `6bc56eeb`'s harness
+
+Each was committed in `a538930e` and run against the base's harness before `447d4b3f` (`build/154/red-lines.txt`; one line each here):
+
+- `test_scoreboard.py::test_fuel_another_system_measured_is_never_compared[a darwin run against a linux fuel]`: `assert (['…l 100 -> 200'] == []`, the growth list holding `fuel_platform is no longer recorded` and `fuel 100 -> 200`.
+- `[a linux fuel against a linux fuel]`: `Left contains one more item: '…test_guest_runs_here[plain]: fuel 100 -> 200'`.
+- `[a fall]`: `Left contains one more item: '…test_guest_runs_here[plain]: fuel_platform is no longer recorded'`.
+- `test_scoreboard.py::test_accept_lets_the_keys_own_system_replace_another_systems_fuel`: `harness.scoreboard.AcceptRefused: metrics grew; say --accept-growth with a reason`.
+- `test_accept_from.py::test_a_check_only_linux_ran_takes_linuxs_fuel_when_none_is_of_this_engine[another engine]`: `Refused: a growth, unclaimed: …test_upstream_suite[g1]: fuel is no longer recorded`.
+- `[none recorded]`: `{'darwin-arm64': {'wasmtime': '49.0.0', 'passes': 10}} != {… 'fuel': 913, 'fuel_platform': 'linux-x86_64'}}`.
+- `test_accept_from.py::test_linux_first_fuel_keeps_the_lower_and_is_never_a_growth`: `assert (500 == 400)` (see the differences below).
+- `test_accept_from.py::test_darwin_fuel_replaces_another_systems_without_a_claim`: `Refused: a growth, unclaimed: …test_tools: fuel_platform is no longer recorded; a growth, unclaimed: …test_tools: fuel 100 -> 200`.
+- `test_gather.py::test_a_darwin_record_against_another_systems_fuel_is_neither_red_nor_listed`: red `G5 linux/own-a: … records no fuel_platform (accepted.json has it)` and `G5 macos/own-a: grew …: fuel 7 -> 70`.
+- `test_plugin.py::test_a_local_run_replaces_fuel_another_system_measured`: `GREW test_inner.py::test_ok: fuel_platform is no longer recorded`, `GREW test_inner.py::test_ok: fuel 1000000 -> 5000000`, exit 1.
+
+### What the build measured
+
+EXECUTED in the worktree, 2026-10-28, with `WASI_PYTHON_ARTIFACTS` the main tree's `build/release-0.1.1/set/wasi-python-0.1.1`.
+
+- **The unit rows.** The five files of the draft's count plus `test_gather.py`: **418 passed** (255 + 9 new on the five; 153 + 1 on the gather's) (`build/154/unit-after.txt`). The unchanged rows Decision 10 names stay green among them.
+- **Removing the ledger block alone changes no verdict.** The rows that read the ledger or its fixtures (`test_news.py`, `test_ci_plan.py`, `test_release_version.py`, `test_accept_from.py`, `test_rules.py::test_the_news_files_have_their_shape` and `::test_the_verdict_bearing_files_are_judge_files`, and `test_gather.py -k "ledger or release"`), three times: base harness with the block, **301 + 29 passed**; new harness with the block put back, **301 + 29 passed**; new harness without it, **301 + 29 passed** (`build/154/ledger-before.txt`, `ledger-harness-only.txt`, `ledger-after.txt`). `news.ledger_claims(REPO)` gave `[('127', [… test_upstream_suite[*])]` with the block and **`[]`** without it, raising nothing (criterion 4).
+- **0.1.1's release acceptance, replayed offline.** `accept_from.run_from_record` and `scoreboard.compare`, no claim, over the main tree's `build/land/rel-record/record.json` (read only) and `accepted.json` at `898bc091^`, `wasmtime` 50.0.1, the accepted judge; the base harness from `git archive 6bc56eeb tests/harness`; the script `build/154/replay.py` (arguments: harness root, record, accepted, repository), output `build/154/replay.txt`:
+
+  | harness | growth | of them "fuel is no longer recorded" | lost | fuel not compared (wasmtime changed) | fuel not compared (measured on another system) |
+  |---|---|---|---|---|---|
+  | `6bc56eeb` | 716 | 716 | 0 | 0 | 0 |
+  | this branch | **0** | 0 | 0 | **716** | 0 |
+
+  `scoreboard.accept` over the branch's ratchet (no growth reason): **716 entries labelled `linux-x86_64`**, every one a release-tier row, and **0** release-tier `test_upstream_suite` rows without a fuel. Against today's `accepted.json` (the state 0.1.2's release acceptance meets, whose 716 entries hold no fuel): 0 growth, 0 not compared, 716 labelled (`build/154/replay-today.txt`; its 6 absent rows are the collection's moves since 0.1.1).
+- **Verification.** `uv run ruff check src tests release`: clean. `uv run ruff format --check src tests`: 188 files formatted. `uv run pytest tests/lint`: 9 passed. `uv run pytest tests/checks/test_rules.py`: 121 passed, 1 skipped (prior-art clones, absent in a worktree), `test_the_news_files_have_their_shape` among the passes (criterion 5). `uv run pytest -m "not slow" -n 4 tests/unit`: **3,109 passed, 10 skipped** (`build/154/unit-tier.txt`, `verify.txt`).
+
+### Where the build differs from the text
+
+- **Criterion 3's "0 rows not compared, as before"** does not hold, and should not: at `898bc091^` the 716 entries hold darwin's fuel under wasmtime 49.0.0, so with the record's Linux fuel now applied, Decision 4's first branch lists each under "fuel not compared (wasmtime changed)": **716**, never growth. Before the change the run carried no fuel for them, so nothing was compared and each was "no longer recorded". The text's 0 was written before the rule met the replay.
+- **`test_linux_first_fuel_keeps_the_lower_and_is_never_a_growth` was red on `assert 500 == 400`, not on an unclaimed growth.** The base's `_metrics` strips only `wasmtime` from the accepted entry, so an entry labelled `linux-x86_64` under the current engine kept its 500 (label and all) and the record's 600 was never seen; the 400 case is what failed.
+- **The gather row is one pull-request case with the macOS pairs selected** (`PRCase` over `PR_SELECTED` plus `macos/own-a` and `macos/own-rest`), so "no red line" and "no `GROWTH` row" are held in one row; ten rows, as planned.
+- **The keep rule needs a fuel.** Decision 3's "a fuel darwin measured (no label) under the current engine" is read as an entry that holds `fuel`: an entry of the current engine with no fuel (the `[none recorded]` case) takes Linux's.
+- **The merge of one entry is its own function** (`scoreboard._merged`), and `fuel_system` is a small public helper; the Design named only the behaviour.
+- **The budget now reads a Linux-first fuel at the acceptance.** `budget.run_fuel_over` reads the run's `fuel`, which for a check only Linux ran is now Linux's when darwin's is not of this engine; the gather already held each record's own fuel to the same caps, so no verdict moves (INFERRED).
