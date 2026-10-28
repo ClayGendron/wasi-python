@@ -80,6 +80,8 @@ Reserved: 157 (the reactor prepares a starting image: the snapshot binary gains 
 
 The documentation's follow-ups still open (specs 122 and 123; the owner, 2026-10-22): the quickstart and how-to snippets as files under `docs/examples/`, run as a slow-tier guest job; versioned docs; the included-packages table generated from `MANIFEST` and `tests/upstream/packages.toml`; a scheduled external link check, upstream download hosts excluded; and `recipes/numpy_lapack_shims.c:13`'s pointer to its generator in the evidence folder `research/2026-10-20-numpy-on-openblas/`, which went with the evidence folders' deletion (the generator stays in git history at `bb2235f2`; a build-class change).
 
+Left out of 0.1.0's default profile: pytz (decision 47); Rust packages, pyarrow, polars, duckdb, plotly (later, or a profile); network libraries.
+
 Build-time profiles beyond the default (constitution §2's principle; `research/2026-10-16-build-time-profiles-of-the-core-c-libraries.md`).
 
 ## Retired
