@@ -97,3 +97,5 @@ Two notes, no change asked. A `/` that is not a folder gets `_ROOT_ADVICE` ("hav
 Lands once L4's skip reason is fixed with its fix text: H1, found by run 40631872235, is fixed in `5ee8ef75` and green on Windows in run 40634198649, every judge shard is green on three systems with 0 fail and no `GROWTH`, the predicate answers as the specification decides on every host probed, and nothing else stands.
 
 2026-10-28, first reading, superseded: "Does not land yet: run 40631872235 has not concluded"; that run then found H1.
+
+2026-10-28, on `8208ea64`: Lands. L4 is fixed with its fix text, word for word (READ, `git show 8208ea64`: the skip reason and L4's Disposition line, nothing else), and `tests/unit/test_runner_module_caches.py` passes here on it, 44 passed (EXECUTED); the branch is rebased onto `dev` at `2a13298b`, and the specification's Status line now names that base (a context-only Low, written in by the reviewer in this commit); the run of the head that carries this line decides `ci-status`.
