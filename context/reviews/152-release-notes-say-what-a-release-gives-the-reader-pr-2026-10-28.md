@@ -59,12 +59,12 @@
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. Medium 1 (the link's text uncounted) —
-2. Low 2 (the Windows legs) —
-3. Low 3 (the rendered notes in the description) —
+1. Medium 1 (the link's text uncounted) — fixed: `_words` keeps a link's text and drops its address, with the reviewer's substitution; a `BROKEN` row of an entry past sixty words only through its link's text was seen failing first ("DID NOT RAISE NewsError", `build/152/medium1-before.log`) and passes now. Every entry on the tree still passes.
+2. Low 2 (the Windows legs) — the box is ticked once the run after this fix has its Windows legs read.
+3. Low 3 (the rendered notes in the description) — fixed: the description carries the rendered `notes 0.1.2` of the reviewer's dry run over the branch's three news files (`build/152-review/notes-0.1.2.md`), in place of the description of the earlier run.
 4. Low 4 (the commit ids) — fixed by the reviewer in `5b5832fe`.
 5. Low 5 (the example's code span) — fixed by the reviewer in `5b5832fe`.
-6. Low 6 (145's Fixed link) —
+6. Low 6 (145's Fixed link) — fixed: "Know how a mount differs from a grant" in `docs/how-to/mounts.md` now has the reviewer's sentence naming the three answers, so the link explains what the entry says.
 
 ## Verdict
 

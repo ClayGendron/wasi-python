@@ -49,6 +49,14 @@ units = 3
 
 NEW_ENTRY = next(line for line in GOOD.splitlines() if line.startswith("- **A thing you can"))
 FIXED_ENTRY = next(line for line in GOOD.splitlines() if line.startswith("- **A thing that"))
+# Forty words of fact and a link whose text is twenty-five words: sixty-nine words in all.
+LONG_LINK_TEXT = (
+    "- **A long link.** "
+    + " ".join(["word"] * 40)
+    + " ["
+    + " ".join(["page"] * 25)
+    + "](https://claygendron.github.io/wasi-python/get-started/install/)"
+)
 SIXTY_ONE = (
     "- **A long one.** "
     + " ".join(["word"] * 56)
@@ -148,6 +156,11 @@ BROKEN = {
         "999-a-change.md",
         GOOD.replace(FIXED_ENTRY, SIXTY_ONE),
         "61 words",
+    ),
+    "an entry past sixty words only through its link's text": (
+        "999-a-change.md",
+        GOOD.replace(FIXED_ENTRY, LONG_LINK_TEXT),
+        "69 words",
     ),
     "an entry that does not end with a link to the site": (
         "999-a-change.md",

@@ -167,7 +167,7 @@ def _heading_error(heading: str) -> str:
 
 def _words(text: str) -> int:
     """Whitespace-separated tokens, every link's address dropped and its text kept."""
-    return len(LINK.sub("]", text).split())
+    return len(LINK.sub(lambda m: m[0][: m[0].index("](")] + "]", text).split())
 
 
 def entry_errors(line: str) -> list[str]:

@@ -182,6 +182,8 @@ Built 2026-10-28 by an agent (Claude Opus 5.5) on `spec/152-release-notes-say-wh
 
 **Rebased onto `dev` at `658a6213`** (2026-10-28), which merged 145 with its news file in the old shape. The builder converted it on this branch, as Decision 9 asks, with its claim block unchanged: the three answers became a Fixed entry, and the refused `:` and `\` became the model's Upgrading entry, verbatim (56 and 54 words, each with its link to the mounts guide). The model's Security entry for 145 is not used: the Upgrading entry and the Fixed entry carry what the merged change gives and asks.
 
+**The pull request's review** (`../reviews/152-release-notes-say-what-a-release-gives-the-reader-pr-2026-10-28.md`) found one Medium: `news._words` dropped a link's text with its address, so the sixty-word bound under-counted. The fix keeps the text, and a `BROKEN` row whose entry passes sixty words only through its link's text was seen failing first. The same commit adds a sentence to the mounts guide's "Know how a mount differs from a grant" naming the three answers 145's Fixed entry links there. The description now carries the rendered `notes 0.1.2` over the three news files.
+
 **Where the build departs from the Design.** The `patch_errors` row is in `tests/unit/test_patches.py`, beside that rule's other rows, not in `test_scan.py`. `link_errors` takes a list of entries, so the same function reads a news file's entries and a changelog section's.
 
 **Verification (EXECUTED, on `83c43276` or the tree just before it).**
