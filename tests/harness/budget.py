@@ -120,14 +120,29 @@ def run_fuel_over(
     return out
 
 
-def stale_caps(accepted: dict, caps: dict[str, int], family: Callable[[str], str]) -> list[str]:
-    """Caps for a family no normal-tier accepted check with fuel belongs to."""
+def stale_caps(
+    accepted: dict,
+    caps: dict[str, int],
+    family: Callable[[str], str],
+    pending: Iterable[str] = (),
+) -> list[str]:
+    """Caps for a family no normal-tier accepted check with fuel belongs to. A `pending` family's
+    cap is not stale: its check file is new, and the cap comes with it, since the pull request's
+    own run needs it before any of its checks is accepted."""
     used = {
         family(node)
         for node, e in accepted.get("checks", {}).items()
         if e.get("tier") != "release" and any("fuel" in m for m in e.get("metrics", {}).values())
     }
-    return [f"the cap for {name} names no family with fuel" for name in sorted(set(caps) - used)]
+    stale = set(caps) - used - set(pending)
+    return [f"the cap for {name} names no family with fuel" for name in sorted(stale)]
+
+
+def new_families(accepted: dict, files: Iterable[str]) -> set[str]:
+    """The families of goal check files (repository-relative paths) that no accepted check comes
+    from: files added since the last acceptance."""
+    seen = {node.split("::", 1)[0] for node in accepted.get("checks", {})}
+    return {PurePosixPath(f).stem for f in files if f not in seen}
 
 
 def _node(classname: str, name: str, repo: Path) -> str:

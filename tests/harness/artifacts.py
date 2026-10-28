@@ -18,10 +18,15 @@ PLAIN_EXPORTS = {
     "host_alloc",
     "turn",
     "shutdown",
+    "prepare",
 }
-SNAPSHOT_EXPORTS = {"memory", "run", "host_alloc", "turn", "shutdown"}
-# The session exports' function types.
-EXPORT_TYPES = {"turn": "(i32, i32) -> (i32)", "shutdown": "() -> (i32)"}
+SNAPSHOT_EXPORTS = {"memory", "run", "host_alloc", "turn", "shutdown", "prepare"}
+# The function types of the exports that take the host's code or end a call.
+EXPORT_TYPES = {
+    "turn": "(i32, i32) -> (i32)",
+    "shutdown": "() -> (i32)",
+    "prepare": "(i32, i32) -> (i32)",
+}
 SNAPSHOT_FORBIDDEN = {"_initialize", "wizer.initialize"}
 
 
@@ -108,6 +113,43 @@ def export_type_errors(binary: Path, types: dict[str, str] = EXPORT_TYPES) -> li
         got = mod.func_type(mod.export_index[name])
         if str(got) != want:
             errors.append(f"{binary.name}: {name} has type {got}, not {want}")
+    return errors
+
+
+DOTTED_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*")
+
+
+def snapshot_package_errors(text: str, packages: dict[str, str]) -> list[str]:
+    """MANIFEST's `x-snapshot-package <distribution> <name> ...` lines: at least one, right after
+    the `x-preimport` line and one after another; each names a distribution of a `package` line,
+    at most once, and at least one import name; each name is a dotted Python identifier, and no
+    name is on two lines."""
+    lines = text.splitlines()
+    pre = [i for i, ln in enumerate(lines) if ln.startswith("x-preimport ")]
+    at = [i for i, ln in enumerate(lines) if ln.startswith("x-snapshot-package")]
+    if not at:
+        return ["MANIFEST has no x-snapshot-package line"]
+    errors = []
+    if len(pre) != 1 or at != list(range(pre[0] + 1, pre[0] + 1 + len(at))):
+        errors.append("the x-snapshot-package lines do not follow the x-preimport line together")
+    seen_dist: set[str] = set()
+    seen_name: set[str] = set()
+    for i in at:
+        dist, *names = lines[i].split()[1:] or [""]
+        where = f"MANIFEST:{i + 1}"
+        if dist not in packages:
+            errors.append(f"{where}: {dist!r} is no package line's distribution")
+        if dist in seen_dist:
+            errors.append(f"{where}: {dist} has a second line")
+        seen_dist.add(dist)
+        if not names:
+            errors.append(f"{where}: {dist} names nothing to import")
+        for name in names:
+            if not DOTTED_NAME.fullmatch(name):
+                errors.append(f"{where}: {name!r} is not a dotted Python name")
+            if name in seen_name:
+                errors.append(f"{where}: {name} is on an earlier line")
+            seen_name.add(name)
     return errors
 
 
