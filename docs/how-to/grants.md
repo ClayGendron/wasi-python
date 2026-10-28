@@ -116,7 +116,7 @@ Folders are compared by identity (device and inode), never by spelling. After wa
 - A raw descriptor opened only to read refuses a write, and the error is the host's own: `EBADF` on Linux and macOS, `EACCES` on Windows. Python's file objects refuse first, with `io.UnsupportedOperation`.
 - A SQLite database in a read-only grant opens only through a URI that takes no lock: `file:/data/db.sqlite?immutable=1`.
 - A folder reachable by two routes, such as a bind mount, is judged by the route you give.
-- A FIFO, socket or device file in a grant is opened as the host opens it: the open can block the call in the host past its deadline and `cancel`. Grant only folders whose contents you control.
+- A FIFO, socket or device file in a grant is refused at open with `ENXIO`, so the open never waits for the file's other end, unless a host process, or another call writing the grant, swaps a name in during the open.
 
 To serve files from your own code instead of a host folder, see [Serve files from your own code](mounts.md). For every path the guest sees, see [The guest's filesystem](../reference/guest-filesystem.md).
 
