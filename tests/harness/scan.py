@@ -1647,7 +1647,9 @@ def pypi_upload_errors(jobs: dict[str, list[str]], steps: dict[str, list]) -> li
     words = uploads[0].replace("\\\n", " ").split() if len(uploads) == 1 else []
     if "publish" not in words:
         return [*errors, "rule 20: pypi does not run uv publish in exactly one step"]
-    at = next(k for k, w in enumerate(words) if UV_WORD.fullmatch(w))
+    at = next((k for k, w in enumerate(words) if UV_WORD.fullmatch(w)), None)
+    if at is None:  # `/usr/bin/uv`: a path that may name any binary, so the scan names it
+        return [*errors, "rule 20: pypi runs uv by a path, not as the word uv"]
     args = [w for w in words[at + 1 :] if w != "publish"]
     files = [a for k, a in enumerate(args) if not a.startswith("-")
              and (k == 0 or args[k - 1] != "--trusted-publishing")]  # fmt: skip

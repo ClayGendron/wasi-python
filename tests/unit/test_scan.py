@@ -1227,6 +1227,8 @@ BAD_BINDINGS = [
     (("pypi", UPLOAD, UPLOAD + "        env:\n          UV_CONFIG_FILE: x.toml\n"), {20}),
     (("pypi", "version: ${{ env.UV_VERSION }}", "version: 0.9.22"), {20}),
     (("pypi", "always dist/*.whl", "always release-assets/*"), {20}),
+    # uv run by a path: named, never a scan that stops on it.
+    (("pypi", "run: uv publish --no-config", "run: /usr/bin/uv publish --no-config"), {20}),
     # The token named inline in a run: text, and a path to the release scripts beside gh.
     (
         (

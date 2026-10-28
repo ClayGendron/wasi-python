@@ -127,10 +127,10 @@ The news file, `../changes/148-the-release-path-is-tightened.md`, titled "148: t
 [[claim]]
 spec = "148"
 new = ["tests/checks/test_rules.py::test_a_pull_request_is_judged_again_when_its_base_or_description_changes"]
-units = 61
+units = 62
 ```
 
-The judge's hash moves (`tests/harness/scan.py` and the three test files); no verdict-bearing file changes (`tests/harness/paths.py`'s list), so the claim has no `[claim.judge]` entry; no fuel, byte, pass count or tier moves, so it has no `grows`, `passes` or `moved`. `units` is the 42 and 19 rows of Decision 9; if a row is split or merged in the build, the builder corrects the count in the news file with it.
+The judge's hash moves (`tests/harness/scan.py` and the three test files); no verdict-bearing file changes (`tests/harness/paths.py`'s list), so the claim has no `[claim.judge]` entry; no fuel, byte, pass count or tier moves, so it has no `grows`, `passes` or `moved`. `units` is the 42 and 20 rows of Decision 9; if a row is split or merged in the build, the builder corrects the count in the news file with it.
 
 ## Scope
 
@@ -200,6 +200,10 @@ and exited 2. So the pinned uv parses the step's command, selects the one wheel,
 ### The pull request's review, its four Lows (2026-10-28)
 
 The review of #33 (`../reviews/148-the-release-path-is-tightened-pr-2026-10-28.md`, written before the run ended) found four Lows in the code, fixed in one commit with its fix text: rule 19 counts a token named inline in a step's `run:` and reads `./release/` as the release scripts (`(?<![\w-])release/`); rule 20 counts every `pypi` step that runs uv or uvx, asks for exactly one, and asks it to hold `publish`; the agents row compares names with `casefold`; and `runs_of` keeps a run only when its `pull_requests` lists this pull request's number, read from `GITHUB_REF`. Six rows join, `units` 61: `ROWS` `context/claude.md` and `docs/Agents.md`; `test_a_run_of_another_pull_request_on_the_same_branch_and_head_is_never_reused`; and three binding cases. Each was seen failing on `afaae04a`'s code (EXECUTED, `build/148/lows-on-head.txt`): the two `ROWS` with `frozenset({'docs'}) == frozenset({'agents'})`, the pull-request row and the fork row (whose call gains the number) with `runs_of() takes 2 positional arguments but 3 were given`, the inline token with `['rule 11: publish has ${{ in a run: script']` and no rule 19, the `./release/` step and the second uv step with `[]`. The inline-token case names rule 11 beside 19, since an expression in a `run:` is rule 11's too. The review's fifth Low, the Windows box, is ticked in one edit of the description once the new run's Windows legs are read; that edit is criterion 4's live event, recorded below when read.
+
+### The group's review, one more Low (2026-10-28)
+
+On the group branch `spec/151-148-152-the-docs-the-release-path-and-the-release-notes`, where these commits were cherry-picked unchanged, the reviewer re-read 148 and found one more Low, which failed closed: a `run: /usr/bin/uv publish …` step in `pypi` made `pypi_upload_errors` raise `StopIteration` instead of naming rule 20, since `UV_WORD.search` finds `uv` inside the path and the later `fullmatch` on a word does not. Disposition: fixed. The word's index is read with a default of `None`, and a `None` is named "rule 20: pypi runs uv by a path, not as the word uv"; one binding row, "uv run by a path", `(("pypi", "run: uv publish --no-config", "run: /usr/bin/uv publish --no-config"), {20})`, seen failing first on `8d99eefa`'s scan with `tests/harness/scan.py:1650: in pypi_upload_errors` and `E   StopIteration` (EXECUTED, `build/148/uv-path-on-head.txt`). `units` becomes 62.
 
 ### Verification (EXECUTED, 2026-10-28)
 
