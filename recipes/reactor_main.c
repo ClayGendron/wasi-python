@@ -7,9 +7,14 @@
  *                     (on the snapshot, after undoing the freeze, as shutdown does: spec 073)
  *   turn              one turn of a session: code from host_alloc'd memory, the interpreter kept
  *   shutdown          a session's end: Python's own shutdown (atexit, finalization), once
+ *   prepare           code from host_alloc'd memory run once in a snapshot instance that has run
+ *                     nothing, with the clocks and entropy pinned, then the instance left as
+ *                     wizer.initialize leaves the snapshot: the host reads its memory whole as a
+ *                     starting image and copies it into each later instance before run or turn
  *
  * run and turn exclude each other in one instance (spec 055, Decision 2). A turn never finalizes;
- * only shutdown does, and after it every export refuses.
+ * only shutdown does, and after it every export refuses. In a prepared instance (an image's), run
+ * and shutdown end the call without Python's teardown of every module the image holds.
  * The argument handling is Python (recipes/reactor_bootstrap.py), compiled at build time into
  * reactor_bootstrap.h (scripts/freeze_bootstrap.py, step 60) and loaded as the module `_reactor`
  * when the interpreter starts, so no start compiles source and a snapshot carries it ready to call.
@@ -57,15 +62,21 @@ static const struct _frozen recipe_modules[] = {
 #define PREIMPORT "import encodings, io, os, sys, json, csv, re, _colorize"
 #endif
 
-/* While pinned, the C runtime's reads of the clocks, of entropy and of file metadata answer
- * constants, so everything captured during initialization is the same bytes on every build:
+/* While pinned, the C runtime's reads of the clocks, of entropy (PIN_CLOCKS) and of file metadata
+ * (PIN_FILES) answer constants, so everything captured during initialization is the same bytes on
+ * every build:
  * mimalloc's and wasi-libc's load-time state (they run as constructors, before any entry point),
  * the times, inodes and devices of the files that importing stats (and anything a pre-imported
  * module reads from the clock or entropy at import), and a directory's size and link count,
  * which each build host's file system answers its own way. The reactor's link wraps the four
  * WASI calls (scripts/steps/60_link.sh, --wrap); run() unpins before Python starts, and
- * wizer.initialize unpins once the imports are done, so a program only ever sees real values. */
-static int pinned = 1;
+ * wizer.initialize unpins once the imports are done, so a program only ever sees real values.
+ * prepare pins the clocks and entropy alone while the host's code runs: no time the image holds
+ * then lies in a later call's future, and file metadata stays real, since under PIN_FILES every
+ * file has inode 0 on device 0 and any two are one file to os.path.samefile and shutil. */
+#define PIN_CLOCKS 1
+#define PIN_FILES 2
+static int pinned = PIN_CLOCKS | PIN_FILES;
 #define PINNED_REALTIME_NS ((__wasi_timestamp_t)1767225600 * 1000000000u) /* SOURCE_DATE_EPOCH */
 
 __wasi_errno_t __real___wasi_clock_time_get(__wasi_clockid_t, __wasi_timestamp_t,
@@ -79,7 +90,7 @@ __wasi_errno_t
 __wrap___wasi_clock_time_get(__wasi_clockid_t id, __wasi_timestamp_t precision,
                              __wasi_timestamp_t *time)
 {
-    if (!pinned) {
+    if (!(pinned & PIN_CLOCKS)) {
         return __real___wasi_clock_time_get(id, precision, time);
     }
     *time = id == __WASI_CLOCKID_REALTIME ? PINNED_REALTIME_NS : 0;
@@ -89,7 +100,7 @@ __wrap___wasi_clock_time_get(__wasi_clockid_t id, __wasi_timestamp_t precision,
 __wasi_errno_t
 __wrap___wasi_random_get(uint8_t *buf, __wasi_size_t len)
 {
-    if (!pinned) {
+    if (!(pinned & PIN_CLOCKS)) {
         return __real___wasi_random_get(buf, len);
     }
     memset(buf, 0, len);
@@ -115,7 +126,7 @@ __wrap___wasi_path_filestat_get(__wasi_fd_t fd, __wasi_lookupflags_t flags, cons
                                 __wasi_filestat_t *st)
 {
     __wasi_errno_t err = __real___wasi_path_filestat_get(fd, flags, path, st);
-    if (pinned && err == __WASI_ERRNO_SUCCESS) {
+    if ((pinned & PIN_FILES) && err == __WASI_ERRNO_SUCCESS) {
         pin_filestat(st);
     }
     return err;
@@ -125,7 +136,7 @@ __wasi_errno_t
 __wrap___wasi_fd_filestat_get(__wasi_fd_t fd, __wasi_filestat_t *st)
 {
     __wasi_errno_t err = __real___wasi_fd_filestat_get(fd, st);
-    if (pinned && err == __WASI_ERRNO_SUCCESS) {
+    if ((pinned & PIN_FILES) && err == __WASI_ERRNO_SUCCESS) {
         pin_filestat(st);
     }
     return err;
@@ -140,12 +151,20 @@ static int turned = 0;
 static int in_turn = 0;
 static int shut = 0;
 static int session_set_up = 0;
+/* prepare is running, or did not return: every export refuses, running no Python, so neither a
+ * trapped prelude nor a host that re-enters from the door during one reaches the interpreter.
+ * prepared: the host's code ran to status 0 and the instance was left ready to be imaged. */
+static int preparing = 0;
+static int prepared = 0;
 /* Strong references the C side calls through, so replacing _reactor.turn or gc.unfreeze, or
  * deleting the module, changes nothing (spec 055, the review's F1 and the re-review's N1). On the
  * snapshot, wizer.initialize takes unfreeze_function before any guest code exists, and run or
  * shutdown (never both: they exclude each other per instance) calls it once (spec 073). */
 static PyObject *turn_function = NULL;
 static PyObject *unfreeze_function = NULL;
+/* _reactor._end, taken by prepare before the host's code runs: a prepared instance's run and
+ * shutdown end through it. */
+static PyObject *end_function = NULL;
 
 extern unsigned char __stack_low;
 extern unsigned char __stack_high;
@@ -171,6 +190,8 @@ clear_unused_stack(void)
 
 static void run_private(const char *source);
 static void show_and_drop(void);
+static void freeze_for_image(void);
+static int end_prepared(void);
 
 static void
 init_interpreter(int fixed_hash_seed)
@@ -302,10 +323,18 @@ wizer_initialize(void)
         PyErr_Print();
         abort();
     }
+    freeze_for_image();
+}
+
+/* What the build-time snapshot and a starting image both end with: what the code left behind
+ * frozen out of the collector's way, the clocks unpinned, the preopens forgotten so the table is
+ * rebuilt from the runtime's, by name and in any order, on first use, and the dead stack
+ * zeroed. */
+static void
+freeze_for_image(void)
+{
     run_private("import gc\ngc.collect()\ngc.freeze()\n");
     pinned = 0;
-    /* Forget the preopens Wizer gave, so the table is rebuilt from the runtime's, by name and in
-     * any order, on first use (spec 006, Decision 5). */
     __wasilibc_reset_preopens();
     clear_unused_stack();
 }
@@ -379,6 +408,9 @@ __attribute__((export_name("run")))
 int
 run(void)
 {
+    if (preparing) {
+        return 70;
+    }
     pinned = 0;
     if (run_called || turned) {
         fputs("python.wasm: run() may be called once per instance, and not after turn()\n",
@@ -412,6 +444,13 @@ run(void)
     Py_XDECREF(env);
     Py_XDECREF(argv);
     Py_CLEAR(turn_function); /* run never turns */
+    if (prepared) {
+        if (end_prepared() < 0) {
+            rc = 120;
+        }
+        fflush(NULL);
+        return rc;
+    }
     /* The snapshot's freeze undone before finalizing, as shutdown does (spec 073, Decision 4):
      * the atexit handlers and the teardown see the whole heap, so what a program hung on it is
      * finalized as in CPython. On the plain reactor nothing is frozen and nothing is taken. */
@@ -480,8 +519,12 @@ __attribute__((export_name("turn")))
 int
 reactor_turn(int32_t ptr, int32_t len)
 {
-    pinned = 0;
     char *code = (char *)(uintptr_t)(uint32_t)ptr;
+    if (preparing) {
+        free(code);
+        return -1;
+    }
+    pinned = 0;
     if (run_called || in_turn || shut || len < 0) {
         free(code);
         return -1;
@@ -553,11 +596,19 @@ __attribute__((export_name("shutdown")))
 int
 reactor_shutdown(void)
 {
+    if (preparing) {
+        return -1;
+    }
     pinned = 0;
     if (!turned || in_turn || shut) {
         return -1;
     }
     shut = 1;
+    if (prepared) {
+        int rc = end_prepared() < 0 ? 120 : 0;
+        fflush(NULL);
+        return rc;
+    }
     if (unfreeze_function != NULL) {
         PyObject *done = PyObject_CallNoArgs(unfreeze_function);
         if (done == NULL) {
@@ -570,5 +621,84 @@ reactor_shutdown(void)
     int rc = Py_FinalizeEx() < 0 ? 120 : 0;
     fflush(stdout);
     fflush(stderr);
+    return rc;
+}
+
+/* The end of a call from a starting image: _reactor._end runs the atexit handlers, drops the
+ * call's own names and collects what they held, and flushes every writer the call left open,
+ * without Python's teardown of every module the image holds. Returns 0, or -1 when a standard
+ * stream could not be flushed or the end raised, as run's finalization error. */
+static int
+end_prepared(void)
+{
+    PyObject *done = end_function != NULL ? PyObject_CallNoArgs(end_function) : NULL;
+    int rc = done == Py_True ? 0 : -1;
+    if (done == NULL) {
+        show_and_drop();
+    }
+    Py_XDECREF(done);
+    return rc;
+}
+
+/* Code the host passes, run once in a snapshot instance that has run nothing (the starting image
+ * of an embedder's own code): `len` bytes of UTF-8 at `ptr`, a buffer from host_alloc that this
+ * function frees on every path. The code runs in __main__ with the clocks and entropy pinned, the
+ * making call's argv and environment read as a session's first turn reads them, and its import
+ * path dropped again after it. On status 0 the instance is then left as wizer.initialize leaves
+ * the snapshot, ready for the host to read its memory; run and turn work in each instance the
+ * image is copied into. Returns the code's exit status (0 to 255), or -1 for a refusal, which runs
+ * no Python: on the plain reactor, in an instance that ran anything, and a second time. A NULL
+ * pointer with a length above 0 is the host's out-of-memory: a MemoryError in the guest. */
+__attribute__((export_name("prepare")))
+int
+reactor_prepare(int32_t ptr, int32_t len)
+{
+    char *code = (char *)(uintptr_t)(uint32_t)ptr;
+    if (!initialized || preparing || prepared || run_called || turned || shut || len < 0) {
+        free(code);
+        return -1;
+    }
+    preparing = 1;
+    pinned = PIN_CLOCKS;
+    PyObject *source = NULL;
+    if (code != NULL || len == 0) {
+        source = PyBytes_FromStringAndSize(code != NULL ? code : "", (Py_ssize_t)len);
+        PyErr_Clear(); /* no memory for the copy: the code's MemoryError below */
+    }
+    free(code); /* copy, then free, before any Python runs */
+    if (source == NULL) {
+        source = Py_NewRef(Py_None);
+    }
+    PyObject *reactor = PyImport_ImportModule("_reactor");
+    PyObject *prepare_function = reactor ? PyObject_GetAttrString(reactor, "prepare") : NULL;
+    end_function = reactor ? PyObject_GetAttrString(reactor, "_end") : NULL;
+    Py_XDECREF(reactor);
+    PyObject *argv = read_argv();
+    PyObject *env = read_environ();
+    PyObject *environ = (argv != NULL && env != NULL) ? PyTuple_Pack(2, argv, env) : NULL;
+    Py_XDECREF(argv);
+    Py_XDECREF(env);
+    int rc = 1;
+    PyObject *result = NULL;
+    if (prepare_function != NULL && end_function != NULL && environ != NULL) {
+        result = PyObject_CallFunctionObjArgs(prepare_function, source, environ, NULL);
+    }
+    if (result != NULL && PyLong_Check(result)) {
+        rc = low_byte(result);
+    }
+    else if (result == NULL) {
+        show_and_drop();
+    }
+    Py_XDECREF(result);
+    Py_XDECREF(environ);
+    Py_XDECREF(prepare_function);
+    Py_DECREF(source);
+    fflush(NULL);
+    if (rc == 0) {
+        freeze_for_image();
+        prepared = 1;
+    }
+    pinned = 0;
+    preparing = 0;
     return rc;
 }

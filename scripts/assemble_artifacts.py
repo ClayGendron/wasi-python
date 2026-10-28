@@ -439,6 +439,9 @@ REPORTLAB_NOTICES = (
 PREIMPORT_RECIPE = "recipes/reactor_main.c"
 PREIMPORT_DEFINE = re.compile(r'^#define PREIMPORT "import (.*)"\s*$', re.M)
 LICENCE_NAME = re.compile(r"(LICEN[CS]E|COPYING|NOTICE)[^/]*$", re.I)
+# What a program imports to use each distribution: a starting image of every package imports it.
+SNAPSHOT_PACKAGES_RECIPE = "recipes/snapshot-packages.txt"
+DOTTED_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*")
 
 
 def preimport_list(text: str) -> str:
@@ -448,6 +451,46 @@ def preimport_list(text: str) -> str:
     if len(found) != 1:
         raise SystemExit(f"{PREIMPORT_RECIPE}: {len(found)} '#define PREIMPORT' lines, not one")
     return found[0]
+
+
+def snapshot_packages(text: str, packages: dict[str, str]) -> list[tuple[str, list[str]]]:
+    """Each distribution of `packages` with the names a program imports to use it, in the recipe
+    file's order, a name already on an earlier line dropped. A distribution with no line, a line
+    for no distribution, a second line, a line without its colon and a name that is not a dotted
+    Python name each stop the build, named."""
+    pairs: list[tuple[str, list[str]]] = []
+    seen: set[str] = set()
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        dist, colon, rest = line.partition(":")
+        dist = dist.strip()
+        if not colon:
+            raise SystemExit(f"{SNAPSHOT_PACKAGES_RECIPE}: {line!r} has no colon")
+        if dist not in packages:
+            raise SystemExit(f"{SNAPSHOT_PACKAGES_RECIPE}: {dist} has no package line")
+        if any(d == dist for d, _ in pairs):
+            raise SystemExit(f"{SNAPSHOT_PACKAGES_RECIPE}: {dist} has a second line")
+        names = []
+        for name in rest.split():
+            if not DOTTED_NAME.fullmatch(name):
+                raise SystemExit(
+                    f"{SNAPSHOT_PACKAGES_RECIPE}: {dist}: {name!r} is not a dotted Python name"
+                )
+            if name not in seen:
+                seen.add(name)
+                names.append(name)
+        pairs.append((dist, names))
+    missing = [d for d in packages if all(d != listed for listed, _ in pairs)]
+    if missing:
+        raise SystemExit(f"{SNAPSHOT_PACKAGES_RECIPE}: no line for {', '.join(missing)}")
+    return pairs
+
+
+def snapshot_package_lines(pairs: list[tuple[str, list[str]]]) -> list[str]:
+    """MANIFEST's x-snapshot-package lines: one per distribution with names, in order."""
+    return [f"x-snapshot-package {dist} {' '.join(names)}" for dist, names in pairs if names]
 
 
 def _remove(path: Path) -> None:
@@ -883,6 +926,9 @@ def main() -> None:
         f"x-wizer {wizer}",
         f"x-source-date-epoch {os.environ['SOURCE_DATE_EPOCH']}",
         f"x-preimport {preimport_list((root / PREIMPORT_RECIPE).read_text())}",
+        *snapshot_package_lines(
+            snapshot_packages((root / SNAPSHOT_PACKAGES_RECIPE).read_text(), PACKAGES)
+        ),
         f"x-snapshot-zip {sha256(new / 'python-stdlib.zip')}",
     ]
     (new / "MANIFEST").write_text("\n".join(manifest) + "\n")
