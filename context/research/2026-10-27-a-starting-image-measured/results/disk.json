@@ -1,0 +1,11 @@
+{
+ "prelude": "everything",
+ "MiB": 202.8,
+ "sha256_ms": 93.5,
+ "zstd3_file_MiB": 58.5,
+ "read_raw_ms": 30.42,
+ "read_and_zstd_decompress_ms": 628.8,
+ "copy_from_mmap_ms": 124.98,
+ "copy_from_bytes_ms": 105.23,
+ "changed_pages": 2835
+}

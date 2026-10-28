@@ -1,0 +1,104 @@
+{
+ "made": {
+  "prelude": {
+   "status": 0,
+   "trapped": null,
+   "fuel": 4566061012,
+   "s": 0.7194570830033626
+  },
+  "prelude_stderr": "",
+  "seal": {
+   "status": 0,
+   "fuel": 39997576,
+   "s": 0.01722004199109506
+  }
+ },
+ "refreshed_calls": [
+  {
+   "random": 0.43449725692280294,
+   "np_legacy": 0.5071355862267329,
+   "np_default_rng": 0.22705658490005254,
+   "sympy_rng": 0.886758049381749,
+   "tempfile_name": "5sktj2pk",
+   "uuid4": "65f4827d",
+   "urandom": "7d781a61",
+   "hash_abc": 69611762,
+   "monotonic_minus_prelude_s": -0.713,
+   "monotonic_now_s": 0.014,
+   "wall_minus_prelude_s": 0.042,
+   "env_SPIKE_X": "0"
+  },
+  {
+   "random": 0.30779552231763285,
+   "np_legacy": 0.5946398619694558,
+   "np_default_rng": 0.5869465023057202,
+   "sympy_rng": 0.886758049381749,
+   "tempfile_name": "5sktj2pk",
+   "uuid4": "6cbf8289",
+   "urandom": "dee228b9",
+   "hash_abc": 69611762,
+   "monotonic_minus_prelude_s": -0.716,
+   "monotonic_now_s": 0.012,
+   "wall_minus_prelude_s": 0.173,
+   "env_SPIKE_X": "1"
+  }
+ ],
+ "raw_turn_calls": [
+  {
+   "random": 0.07569158694205635,
+   "np_legacy": 0.4047884199002598,
+   "np_default_rng": 0.3464242668586428,
+   "sympy_rng": 0.886758049381749,
+   "tempfile_name": "5sktj2pk",
+   "uuid4": "11620b94",
+   "urandom": "8d3c114b",
+   "hash_abc": 69611762,
+   "monotonic_minus_prelude_s": -0.718,
+   "monotonic_now_s": 0.01,
+   "wall_minus_prelude_s": 0.289,
+   "env_SPIKE_X": null
+  },
+  {
+   "random": 0.07569158694205635,
+   "np_legacy": 0.4047884199002598,
+   "np_default_rng": 0.6016703552472206,
+   "sympy_rng": 0.886758049381749,
+   "tempfile_name": "5sktj2pk",
+   "uuid4": "7c53d871",
+   "urandom": "8fc99f04",
+   "hash_abc": 69611762,
+   "monotonic_minus_prelude_s": -0.717,
+   "monotonic_now_s": 0.01,
+   "wall_minus_prelude_s": 0.303,
+   "env_SPIKE_X": null
+  }
+ ],
+ "equal_between_refreshed_calls": {
+  "random": false,
+  "np_legacy": false,
+  "np_default_rng": false,
+  "sympy_rng": true,
+  "tempfile_name": true,
+  "uuid4": false,
+  "urandom": false,
+  "hash_abc": true,
+  "monotonic_minus_prelude_s": false,
+  "monotonic_now_s": false,
+  "wall_minus_prelude_s": false,
+  "env_SPIKE_X": false
+ },
+ "equal_between_raw_turns": {
+  "random": true,
+  "np_legacy": true,
+  "np_default_rng": false,
+  "sympy_rng": true,
+  "tempfile_name": true,
+  "uuid4": false,
+  "urandom": false,
+  "hash_abc": true,
+  "monotonic_minus_prelude_s": false,
+  "monotonic_now_s": true,
+  "wall_minus_prelude_s": false,
+  "env_SPIKE_X": true
+ }
+}

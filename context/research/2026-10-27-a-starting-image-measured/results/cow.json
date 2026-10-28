@@ -1,0 +1,65 @@
+{
+ "rows": [
+  {
+   "map_ms": 1.078,
+   "turn_ms": 48.2,
+   "faults_map_and_turn": 726,
+   "stdout": "3717",
+   "status": 0
+  },
+  {
+   "map_ms": 1.092,
+   "turn_ms": 2.6,
+   "faults_map_and_turn": 711,
+   "stdout": "3717",
+   "status": 0
+  },
+  {
+   "map_ms": 1.037,
+   "turn_ms": 2.6,
+   "faults_map_and_turn": 711,
+   "stdout": "3717",
+   "status": 0
+  },
+  {
+   "map_ms": 0.914,
+   "turn_ms": 2.4,
+   "faults_map_and_turn": 711,
+   "stdout": "3717",
+   "status": 0
+  },
+  {
+   "map_ms": 0.845,
+   "turn_ms": 2.4,
+   "faults_map_and_turn": 711,
+   "stdout": "3717",
+   "status": 0
+  },
+  {
+   "map_ms": 0.757,
+   "turn_ms": 2.3,
+   "faults_map_and_turn": 711,
+   "stdout": "3717",
+   "status": 0
+  },
+  {
+   "map_ms": 0.761,
+   "turn_ms": 2.4,
+   "faults_map_and_turn": 711,
+   "stdout": "3717",
+   "status": 0
+  },
+  {
+   "map_ms": 0.785,
+   "turn_ms": 2.4,
+   "faults_map_and_turn": 711,
+   "stdout": "3717",
+   "status": 0
+  }
+ ],
+ "load_average": [
+  99.7099609375,
+  85.03369140625,
+  57.83154296875
+ ]
+}

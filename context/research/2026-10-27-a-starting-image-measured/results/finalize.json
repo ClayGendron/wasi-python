@@ -1,0 +1,27 @@
+{
+ "program_with_atexit_end": {
+  "status": 0,
+  "fuel": 4646558,
+  "s": 0.001745374989695847
+ },
+ "unfreeze_and_collect": {
+  "status": 0,
+  "fuel": 257638399,
+  "s": 0.1286207090015523
+ },
+ "shutdown_after_collect": {
+  "status": 0,
+  "fuel": 1545726691,
+  "s": 0.6507643749937415
+ },
+ "program": {
+  "status": 0,
+  "fuel": 3935103,
+  "s": 0.0015750839957036078
+ },
+ "shutdown_alone": {
+  "status": 0,
+  "fuel": 1546000952,
+  "s": 0.6763453330058837
+ }
+}

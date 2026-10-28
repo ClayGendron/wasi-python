@@ -1,0 +1,7 @@
+{
+ "same_layout": "/data/hello.txt -> from the prelude's data folder\n/other/hello.txt -> FileNotFoundError 44\n",
+ "other_folder_same_slot": "/data/hello.txt -> from a different folder the call granted at /other\n/other/hello.txt -> FileNotFoundError 44\n",
+ "image_layout_plus_one_more_grant": "/data/hello.txt -> from the prelude's data folder\n/other/hello.txt -> FileNotFoundError 44\n",
+ "stderr": "",
+ "plain_call_no_grants": "/data/hello.txt -> FileNotFoundError 44\n/other/hello.txt -> FileNotFoundError 44\n"
+}

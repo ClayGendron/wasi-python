@@ -1,0 +1,10 @@
+{
+ "compile_or_load_s": 15.7,
+ "after_instantiate": 16777216,
+ "after_prelude_turn": 16777216,
+ "after_seal_turn": 16777216,
+ "after_recursive_turn": 16777216,
+ "restored_before_turn": 16777216,
+ "restored_after_turn": 16777216,
+ "restored_output": "3.0.6"
+}

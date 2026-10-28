@@ -1,0 +1,113 @@
+{
+ "made": {
+  "prelude": {
+   "status": 0,
+   "trapped": null,
+   "fuel": 14726425091,
+   "s": 10.62415195799258
+  },
+  "prelude_stderr": "",
+  "seal": {
+   "status": 0,
+   "fuel": 103791303,
+   "s": 0.13496387499617413
+  }
+ },
+ "pages": 1778,
+ "restored_a": {
+  "instantiate_s": 0.00010254100197926164,
+  "guest_setup_s": 0.0024169999960577115,
+  "restore": {
+   "grow_s": 1.5165991499088705e-05,
+   "copy_s": 0.065396874997532,
+   "pages": 1778
+  },
+  "restore_s": 0.06541704099799972,
+  "turn": {
+   "status": 0,
+   "trapped": null,
+   "fuel": 28060977,
+   "s": 0.04720425000414252
+  },
+  "stdout": "target,sepal length (cm),sepal width (cm),petal length (cm),petal width (cm)\n0,5.006,3.428,1.462,0.246\n1,5.936,2.77,4.26,1.326\n2,6.588,2.974,5.552,2.026\n[0, 1, 2]\n{'north': 17, 'south': 5}\ncounter 1 False False True False\n",
+  "stderr": "",
+  "shutdown": {
+   "status": 0,
+   "fuel": 667807971,
+   "s": 0.602577375000692
+  },
+  "shutdown_stdout": "",
+  "total_s": 0.71799820799788,
+  "turn_s": 0.04738287499640137
+ },
+ "restored_b": {
+  "instantiate_s": 9.64579958235845e-05,
+  "guest_setup_s": 0.002349499991396442,
+  "restore": {
+   "grow_s": 1.1167008779011667e-05,
+   "copy_s": 0.03939529099443462,
+   "pages": 1778
+  },
+  "restore_s": 0.03941095901245717,
+  "turn": {
+   "status": 0,
+   "trapped": null,
+   "fuel": 28106011,
+   "s": 0.011927208004635759
+  },
+  "stdout": "target,sepal length (cm),sepal width (cm),petal length (cm),petal width (cm)\n0,5.006,3.428,1.462,0.246\n1,5.936,2.77,4.26,1.326\n2,6.588,2.974,5.552,2.026\n[0, 1, 2]\n{'north': 17, 'south': 5}\ncounter 1 False False True False\n",
+  "stderr": "",
+  "shutdown": {
+   "status": 0,
+   "fuel": 667804957,
+   "s": 0.6319657499989262
+  },
+  "shutdown_stdout": "",
+  "total_s": 0.6862577919964679,
+  "turn_s": 0.012325707997661084
+ },
+ "restored_without_data_grant": {
+  "instantiate_s": 0.00011624999751802534,
+  "guest_setup_s": 0.008480666991090402,
+  "restore": {
+   "grow_s": 9.208000847138464e-06,
+   "copy_s": 0.0182497079949826,
+   "pages": 1778
+  },
+  "restore_s": 0.018263791003846563,
+  "turn": {
+   "status": 0,
+   "trapped": null,
+   "fuel": 28059323,
+   "s": 0.014554417008184828
+  },
+  "stdout": "target,sepal length (cm),sepal width (cm),petal length (cm),petal width (cm)\n0,5.006,3.428,1.462,0.246\n1,5.936,2.77,4.26,1.326\n2,6.588,2.974,5.552,2.026\n[0, 1, 2]\n{'north': 17, 'south': 5}\ncounter 1 False False True False\n",
+  "stderr": "",
+  "shutdown": {
+   "status": 0,
+   "fuel": 667802275,
+   "s": 0.6001635830034502
+  },
+  "shutdown_stdout": "",
+  "total_s": 0.6419297079992248,
+  "turn_s": 0.014849541999865323
+ },
+ "fresh": {
+  "prelude_fuel": 14726714987,
+  "prelude_s": 8.389957958992454,
+  "turn": {
+   "status": 0,
+   "fuel": 28074252,
+   "s": 0.009592957998393103
+  },
+  "stdout": "target,sepal length (cm),sepal width (cm),petal length (cm),petal width (cm)\n0,5.006,3.428,1.462,0.246\n1,5.936,2.77,4.26,1.326\n2,6.588,2.974,5.552,2.026\n[0, 1, 2]\n{'north': 17, 'south': 5}\ncounter 1 False False True False\n",
+  "stderr": "",
+  "shutdown": {
+   "status": 0,
+   "fuel": 667292972,
+   "s": 0.7704697500012117
+  }
+ },
+ "a_equals_fresh": true,
+ "a_equals_b": true
+}
