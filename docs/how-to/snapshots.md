@@ -64,7 +64,7 @@ snap.save("app.wpsnap")
 later = Snapshot.load("app.wpsnap")
 ```
 
-The file is compressed, and the image of every package takes about 73 MiB. `load` reads only a file that only you can write, as `save` makes it, in a folder no other user can change. It checks the file's header, size and hash before it returns.
+The file is compressed, and the image of every package takes about 73 MiB. On POSIX, `load` reads only a file that only you can write, as `save` makes it, in a folder no other user can change. On Windows the runner checks only that the file is not a link and has one name, so keep it in a folder only you can write. `load` checks the file's header, size and hash before it returns.
 
 A snapshot binds to the artifact set it was made with. `snap.check()` raises `SnapshotMismatch` when the set you run is another, as a call would. A service that keeps a saved snapshot loads it, or makes it again when the file is missing or the set has changed:
 
@@ -79,7 +79,7 @@ except (FileNotFoundError, SnapshotMismatch):
     snap.save(path)
 ```
 
-Keep saved snapshots where no guest is granted writing, as you keep your own code. In this process the runner keeps the two apart both ways. A call refuses a writable grant or root that holds the folder of a snapshot this process saved or loaded. `save` and `load` raise `PermissionError` for a folder that a call or session running now may write. Another process cannot know the file, so the rule there is yours.
+Keep saved snapshots where no guest is granted writing, as you keep your own code. Once this process has saved or loaded a snapshot in a folder, the runner keeps guests away from that folder both ways. A call refuses a writable grant or root that holds it. `save` and `load` raise `PermissionError` for a folder that a call or session running now may write. Before that, and in any other process, the runner cannot know the file, so the rule is yours: a guest given writing over it could rewrite it, and the next `load` would accept it.
 
 ## Start a session from it
 
@@ -129,7 +129,7 @@ A snapshot holds your own code's state, made before any program runs. A snapshot
 
 - **Making it** costs its code's instructions, once. With `fuel=`, `snap.origin.prelude_fuel` records them.
 - **Each call** copies the image into its fresh instance before any guest code runs. The copy is the host's work, so it spends no fuel: `fuel_used` is the call's own work. The image of every package is 203 MiB and its copy took about 15 ms on an Apple M1 Pro.
-- **Memory.** Each live call or session from a snapshot holds a private copy of the whole image, since the copy writes every page. N calls at once hold N copies, plus the one the `Snapshot` holds. A call needs `memory_bytes` at least the image's size. A load holds the image twice while it reads.
+- **Memory.** Each live call or session from a snapshot holds a private copy of the whole image, since the copy writes every page. N calls at once hold N copies, plus the one the `Snapshot` holds. A call needs `memory_bytes` at least the image's size. A load holds up to three copies of the image at its peak.
 - **The end of a call.** A call from a snapshot does not tear down the modules the snapshot holds, so it ends at the cost of its own work. What your program's own names held is finalized as in CPython. An object it hung on an imported module is flushed, not finalized, so close what you open, or use `with`.
 
 The [limits page](../reference/defaults-and-limits.md#making-a-snapshot) lists every default.
