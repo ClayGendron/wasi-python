@@ -68,7 +68,9 @@ HEAD_AT_START = pytest.StashKey[str]()
 METRICS = pytest.StashKey[dict]()
 NOTE = pytest.StashKey[str]()
 FACTS = pytest.StashKey[dict]()
-METRIC_NAMES = ("fuel", "bytes", "passes")  # passes: an upstream suite's count
+# passes: an upstream suite's count; ignores: the type checker's escapes under src/, a count
+# of source text that, like bytes, only falls without a reason.
+METRIC_NAMES = ("fuel", "bytes", "passes", "ignores")
 WORKERS = pytest.StashKey[int]()
 RECORD_PROPERTY = "wasi_python.record"  # a goal check's record, on a worker's report
 SUITE_PROPERTY = "wasi_python.suite"  # a unit test's tally, on a worker's report
@@ -98,7 +100,9 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     g = parser.getgroup("progress", "the progress harness")
     g.addoption("--accept", metavar="REASON", help="record this run as the accepted state")
     g.addoption("--accept-judge", metavar="REASON", help="also accept a changed judge")
-    g.addoption("--accept-growth", metavar="REASON", help="also accept fuel or bytes growth")
+    g.addoption(
+        "--accept-growth", metavar="REASON", help="also accept fuel, bytes or ignores growth"
+    )
     g.addoption(
         "--accept-fewer-passes", metavar="REASON", help="also accept a fall in a pass count"
     )
@@ -356,7 +360,7 @@ def pytest_deselected(items: list[pytest.Item]) -> None:
 
 @pytest.fixture
 def metric(request: pytest.FixtureRequest):
-    """Record a counted metric (`fuel`, `bytes` or `passes`) for the current check."""
+    """Record a counted metric (`fuel`, `bytes`, `passes` or `ignores`) for the current check."""
 
     def record(name: str, value: int) -> None:
         if name not in METRIC_NAMES:

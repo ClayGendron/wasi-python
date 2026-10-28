@@ -57,7 +57,7 @@ from pathlib import Path
 from harness import budget, history, news, paths, scoreboard
 
 DARWIN = "darwin-arm64"  # the platform the ratchet keys darwin's metrics by
-COUNTS = ("passes", "bytes")  # metrics the gather holds equal on every system
+COUNTS = ("passes", "bytes", "ignores")  # metrics the gather holds equal on every system
 REFUSED = "--accept-from refused"
 REUSED = re.compile(r"reused \S+")
 MESSAGE_FILE = "acceptance-message.txt"  # beside the run record

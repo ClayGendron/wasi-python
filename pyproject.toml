@@ -112,6 +112,15 @@ platform = "linux"                # one platform's narrowing on every host (spec
 strict = true
 files = ["src/wasi_python"]
 cache_dir = "build/.mypy_cache"   # build/ is git-ignored (AGENTS.md: artifacts never live in git)
+# The Windows half is read by its own pass with win32's stubs (tests/harness/typecheck.py), where
+# its calls exist; this pass skips it and reads its signatures silently where it is imported.
+exclude = ['_platform_windows\.py$']
+# A suppression names the error it silences, so no other error on its line hides behind it.
+enable_error_code = ["ignore-without-code"]
+
+[[tool.mypy.overrides]]
+module = "wasi_python._platform_windows"
+follow_imports = "silent"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
