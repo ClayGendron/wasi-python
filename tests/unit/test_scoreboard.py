@@ -108,6 +108,33 @@ def test_fuel_is_not_compared_across_wasmtime_versions_or_platforms() -> None:
     assert r.growth == [] and r.fuel_not_compared == []
 
 
+ELSEWHERE = "linux-x86_64"  # a system other than the key's
+
+
+def _measured_elsewhere(fuel: int) -> dict:
+    """An accepted entry under darwin's key whose fuel another system measured."""
+    entry = acc(fuel=fuel)
+    entry["metrics"][PLAT]["fuel_platform"] = ELSEWHERE
+    return entry
+
+
+@pytest.mark.parametrize(
+    "now",
+    [{"fuel": 200}, {"fuel": 200, "fuel_platform": ELSEWHERE}, {"fuel": 50}],
+    ids=["a darwin run against a linux fuel", "a linux fuel against a linux fuel", "a fall"],
+)
+def test_fuel_another_system_measured_is_never_compared(now) -> None:
+    """Fuel differs between systems by more than the tolerance, and Linux's does not repeat
+    between runs: a fuel either side measured on a system other than the run's is listed, never
+    a growth, and its label is no metric that could stop being recorded."""
+    r = scoreboard.compare(
+        run({A: check("pass", metrics=now)}), accepted({A: _measured_elsewhere(100)})
+    )
+    assert r.growth == [] and r.red(partial=False) == []
+    assert r.fuel_elsewhere == [A] and r.fuel_not_compared == []
+    assert "fuel not compared (measured on another system) 1" in scoreboard._ratchet_line(r, None)
+
+
 def test_any_bytes_growth_is_red() -> None:
     r = scoreboard.compare(
         run({A: check("pass", metrics={"bytes": 101})}), accepted({A: acc(bytes_=100)})
@@ -219,6 +246,14 @@ def test_accept_rebaselines_fuel_on_a_new_wasmtime() -> None:
     base = accepted({A: acc(fuel=10, wasmtime="48.0.0")}, judge_files={"uv.lock": "old"})
     new, _ = _accept(run({A: check("pass", metrics={"fuel": 99})}), base)
     assert new["checks"][A]["metrics"][PLAT] == {"wasmtime": "49.0.0", "fuel": 99}
+
+
+def test_accept_lets_the_keys_own_system_replace_another_systems_fuel() -> None:
+    """The first fuel the key's own system measures replaces another system's whole, with no
+    reason asked, and the label goes with it: two systems are never mixed in one number."""
+    base = accepted({A: _measured_elsewhere(100)})
+    new, _ = _accept(run({A: check("pass", metrics={"fuel": 200})}), base)
+    assert new["checks"][A]["metrics"][PLAT] == {"wasmtime": "49.0.0", "fuel": 200}
 
 
 def test_accept_carries_over_checks_that_did_not_run_and_retires_on_request() -> None:
