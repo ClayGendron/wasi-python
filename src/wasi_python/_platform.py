@@ -460,15 +460,21 @@ class _Posix:
 
     def default_cache_dirs(self, home: Path) -> tuple[Path, ...]:
         """Every default a process of this user could compute: this one's, and the one without
-        `$XDG_CACHE_HOME`, under `home` and under the home the password database gives this
-        user, which a process with another `$HOME` (sudo, a container, CI) still reaches."""
+        `$XDG_CACHE_HOME`, under `home` and under the homes the password database gives this
+        user, which a process with another `$HOME` (sudo, a container, CI) still reaches: the
+        effective uid's, which owns what this process makes, and the real uid's, under which a
+        process with no `$HOME` finds its own."""
         homes = [home]
         try:
             import pwd
 
-            homes.append(Path(pwd.getpwuid(os.getuid()).pw_dir))
-        except (ImportError, AttributeError, KeyError):
-            pass  # no password database, or no entry for this uid: `home` alone
+            for uid in (os.geteuid(), os.getuid()):
+                try:
+                    homes.append(Path(pwd.getpwuid(uid).pw_dir))
+                except KeyError:
+                    pass  # no entry for this uid
+        except (ImportError, AttributeError):
+            pass  # no password database: `home` alone
         found = [self.default_cache_dir(home), *(self._unset_default(h) for h in homes)]
         return tuple(dict.fromkeys(found))
 
@@ -491,7 +497,8 @@ class _Posix:
 
     def _as_made(self, path: Path, st: os.stat_result, *, is_dir: bool, listed: bool) -> bool:
         kind_ok = stat.S_ISDIR(st.st_mode) if is_dir else _platform_common._one_file(st)
-        if kind_ok and st.st_uid == os.getuid() and not st.st_mode & 0o077 and not listed:
+        mine = _platform_common._this_users(st)
+        if kind_ok and mine and not st.st_mode & 0o077 and not listed:
             return True
         how = "owned by this user that no one else may read, write or enter"
         must = f"a directory {how} (mode 0700)" if is_dir else f"a file {how} (mode 0600), one name"
