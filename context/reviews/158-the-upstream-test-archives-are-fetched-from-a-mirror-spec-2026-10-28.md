@@ -52,9 +52,11 @@ READ: `AGENTS.md`; constitution §4 (2, 8, 12, 14), §5.6, §7; `context/reviews
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. The shell path of the real lines (Medium) — open, the author's.
+1. The shell path of the real lines (Medium) — fixed by the author in `122ae63a` (Decision 4's `"$@"` and `${3:-}`, Decision 7's `test_the_download_step_with_all_asks_each_mirror_first`, criterion 2), with two wording changes the reviewer accepts (the Verdict's 2026-10-28 paragraph).
 2. to 9. The Lows — written in by the reviewer, commit `bc4402ec`, with the text above.
 
 ## Verdict
 
 Not yet: Finding 1 (Medium), a row that runs `00_download.sh --all` whole so the `tests()` and `research()` pass-through and the two mirrored lines are seen asking the mirror first, with the pass-through written as `"$@"`; the rest is fit to build.
+
+2026-10-28, on `122ae63a`: Fit to build. I read Decisions 4 and 7 and criterion 2 again (READ, `git show 122ae63a`). Decision 4 now has `tests()` and `research()` pass `"$@"` and `get` read `${3:-}`, with the reason, and Decision 7's new row runs `00_download.sh --all` whole under `sh` and `bash` on `_download_tree`, checking that each mirrored line asks the mirror and not its origin, seen failing first on today's script; criterion 2 names it. Both changes from my wording are right. `N - 2 fetched` is what the harness gives, since `_download_tree` places `Python-3.15.0.tar.xz` and `zlib-1.3.1.tar.gz` before the run (READ, `tests/unit/test_build_progress.py:1008-1009`), as the existing summary row already asserts. Limiting "URL in the log once" to the lines the run reaches is needed, since the host `case` runs one branch and, on x86_64 Linux, the fallback's six lines run only with the switch thrown, which `scripts/line.conf:39` leaves off (READ); a note for the builder, not a finding: the set of reached lines is best read from the run's own `fetched <name> from <url>` lines, not parsed from the script, so the row cannot drift from the `case`. Nothing still stands.
