@@ -25,8 +25,11 @@ name: release
 on:
   pull_request:
     branches: [dev, main]
-    # labeled: adding ci:full re-runs the check with the merge-grade set.
-    types: [opened, synchronize, reopened, labeled]
+    # labeled: adding ci:full re-runs the check with the merge-grade set. edited: a new base runs
+    # the selection again, so a pull request retargeted to main is judged in the release's shape;
+    # a new title or description has its refusals read anew, re-using the run before it when that
+    # run is green on the same head.
+    types: [opened, synchronize, reopened, labeled, edited]
   push:
     branches: [dev]
     tags: ["v*"]
@@ -85,6 +88,7 @@ jobs:
       workflow: ${{ steps.plan.outputs.workflow }}
       progress: ${{ steps.plan.outputs.progress }}
       news: ${{ steps.plan.outputs.news }}
+      agents: ${{ steps.plan.outputs.agents }}
       docs_only: ${{ steps.plan.outputs.docs_only }}
       full: ${{ steps.plan.outputs.full }}
       rebuild: ${{ steps.plan.outputs.rebuild }}
@@ -125,6 +129,10 @@ jobs:
           PLAN_RELEASE_TIER: ${{ inputs.release-tier }}
           PLAN_WEEKLY: ${{ inputs.weekly }}
           PLAN_HEAD_REF: ${{ github.head_ref }}
+          # An edit: its action, and the old base's name, which the event carries only when the
+          # base moved.
+          PLAN_ACTION: ${{ github.event.action }}
+          PLAN_OLD_BASE: ${{ github.event.changes.base.ref.from }}
           GH_TOKEN: ${{ github.token }}
         run: uv run --no-project python -I release/ci_plan.py
 
@@ -1476,12 +1484,17 @@ jobs:
         with:
           assets-id: ${{ needs.build.outputs.assets-id }}
           sums-sha256: ${{ needs.build.outputs.sums-sha256 }}
+      # The token that writes the release is in this job's last step alone, so uv, Python and the
+      # notes script never have it in their environment.
+      - name: Write the release notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          uv run --no-project python release/version.py notes "$version" --repository "$GITHUB_REPOSITORY" > notes.md
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="${GITHUB_REF_NAME#v}"
-          uv run --no-project python release/version.py notes "$version" --repository "$GITHUB_REPOSITORY" > notes.md
           prerelease=""
           case "$version" in *a*|*b*|*rc*) prerelease="--prerelease" ;; esac
           gh release create "$GITHUB_REF_NAME" release-assets/* \
@@ -1491,7 +1504,9 @@ jobs:
     name: publish the wheel on PyPI
     # Off until the owner registers this workflow as a trusted publisher on PyPI and sets the
     # repository variable PYPI_PUBLISH to true. It checks out this repository for the local
-    # action alone.
+    # action alone, and uploads with the workflow's pinned uv through trusted publishing alone:
+    # the job's OIDC token, exchanged for a PyPI token bound to this repository, release.yml and
+    # the pypi environment. It sets no env, so no variable steers uv past --no-config.
     if: github.event_name == 'push' && github.ref_type == 'tag' && vars.PYPI_PUBLISH == 'true'
     needs: [build, publish]
     runs-on: ubuntu-24.04
@@ -1505,6 +1520,10 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           sparse-checkout: .github/actions
           persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
       - name: The build's files
         uses: ./.github/actions/verify-artifact
         with:
@@ -1512,7 +1531,8 @@ jobs:
           sums-sha256: ${{ needs.build.outputs.sums-sha256 }}
       - name: Only the wheel goes to PyPI
         run: mkdir dist && mv release-assets/*.whl dist/
-      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+      - name: Upload the wheel through trusted publishing
+        run: uv publish --no-config --trusted-publishing always dist/*.whl
 
   ci-status:
     name: ci-status
