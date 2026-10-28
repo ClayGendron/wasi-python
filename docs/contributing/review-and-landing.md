@@ -11,7 +11,7 @@ This page explains how a change gets onto `dev`, the project's integration branc
 
 1. Branch from `dev`'s tip. A branch carries one to three specifications.
 2. Write the check before the code. Iterate locally on the fast tier and on single tests.
-3. Open a pull request into `dev`. A change that is more than documentation carries a *news file*: its changelog line, the rows of the packages page it changes, and the reason for every change in the test results it expects. `ci-status` is red on a pull request that needs one and has none. At a release the news files are assembled into the changelog, so nobody edits the changelog by hand.
+3. Open a pull request into `dev`. A change that is more than documentation carries a *news file*: its changelog entry, written for someone who uses wasi-python and did not follow the change (what it gives them, the one fact that changed, and a link to the page that explains it, under New, Faster, Security, Fixed, Upgrading or For contributors), the rows of the packages page it changes, and the reason for every change in the test results it expects. `ci-status` is red on a pull request that needs one and has none. At a release the news files are assembled into the changelog, so nobody edits the changelog by hand.
 4. The pull request's required check, `ci-status`, runs what the changed files need.
 5. A fresh reviewer reads the change and commits a review file as the branch's last commit.
 6. When `ci-status` is green and the review's verdict begins "Lands", the author merges the pull request.

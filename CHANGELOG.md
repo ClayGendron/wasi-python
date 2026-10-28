@@ -1,6 +1,6 @@
 # Changelog
 
-One section per release of the `wasi-python` artifact set and wheel, newest first. A section's body is the release's notes on GitHub. `release/version.py bump` adds a section; `release/version.py date` dates it on `dev` before the release pull request, and `release/version.py release` tags the commit that pull request judged once the owner has put it on `main` (context/specifications/004-alpha-releases.md).
+One section per release of the `wasi-python` artifact set and wheel, newest first. Each section is also the release's notes on GitHub. From 0.1.2 a section opens with what the release gives you, then lists its changes under New, Faster, Security, Fixed, Upgrading and For contributors, each with a link to the page that explains it. Earlier sections are kept as they were published.
 
 ## 0.1.1 — 2026-10-27
 
