@@ -27,6 +27,8 @@ The runner uses wasmtime-py 50.0.1, which bundles wasmtime 50.0.0. That wasmtime
 - **GHSA-96f6-r43r-8c24** (low, fixed in wasmtime 49.0.2, carried by wasmtime 50.0.0): `fd_readdir` copied up to three bytes of host memory per entry into the guest. wasmtime now writes them as zeros.
 - **GHSA-m63x-6p34-q65x** (medium, fixed in wasmtime 49.0.1, carried by wasmtime 50.0.0): the fuel cap and `fuel_used` under-counted work a guest does inside a C++ call that ends in a caught exception or a `longjmp`. An embedder that runs the artifact set with fuel on wasmtime 49.0.0, or 47.0.0 to 48.0.2, still meets it.
 
+wasmtime's advisories of 2026-10-19, fixed in wasmtime 49.0.4, do not reach the runner. GHSA-mghf-wjfp-p5xm (critical) is a wrong jump on aarch64 for a `br_table` with more than about 256,000 targets, in a module the attacker writes. wasmtime 50.0.0 is outside its vulnerable range, and the largest `br_table` in `python.wasm` and in the snapshot has 3,203 targets. GHSA-r8xh-cgf7-392j, GHSA-jxcf-8qw5-5c33, GHSA-9prg-84vf-g5fc and GHSA-9pvw-hwfg-92h5 are in `wasi-http` and the component model, which the runner does not use.
+
 ## Out of scope
 
 - What the [security model](https://claygendron.github.io/wasi-python/explanation/security-model/) lists as not protected, such as disk use in a granted folder, timing side channels, or a guest planting files in a root that is reused.

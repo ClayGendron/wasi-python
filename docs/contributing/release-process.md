@@ -22,6 +22,8 @@ A change that moves a test of the release tier also adds its reason to the proje
 
 Changes collect on `dev`. A release is a pull request from `dev` to `main`, titled with the version. Its branch is `dev` itself: a fix for the release is a pull request into `dev` like any other, and the release pull request runs again on the new tip.
 
+Editing the release pull request's title or description re-uses its newest run when that run is green on the same commit; changing its base starts the whole run again.
+
 1. **The preparation lands first.** A fresh reviewer checks the release against the threat model, and another scores the runner's structure. Their two review files, the new version (`version.py bump`) and the dated CHANGELOG section (`version.py date`) merge into `dev` by one pull request, so the release pull request's head carries them. That pull request changes only the version line outside the documentation, and its change to the list of release-tier claims must be exactly what `date` moves, so its check runs `quick` alone and asks for no news file: the release pull request judges all of it.
 2. **The release pull request runs the whole workflow** on the exact commit `main` will receive. It builds its own set on arm64 macOS and never reuses a cached one. It rebuilds the set on arm64 Linux and on x86_64 Linux and requires the same bytes. It runs every normal-tier shard on three systems, the release tier, the build shard, the fresh install on three systems and `quick`. The gather judges every goal: the newest result recorded on `dev` must be on this run's set, made on a clean tree, and whole. The build job also checks that the version's CHANGELOG section is dated, that its tag does not exist yet, and that `main`'s tip is in the head's history. The gather lists each release-tier result that changed since the last release with its reason, and the result is not recorded while one has none. A test that passed before and fails now is red.
 3. **When it is green, its result is recorded onto `dev`** as one commit. The release pull request's run accepts its own result. A second workflow, started when that run finishes and running on `dev`, pushes that commit onto `dev`, and only while `dev`'s tip is still the commit the run judged. If `dev` moved on, nothing is pushed, that workflow is red, and the release pull request runs again on the new tip. The release pull request's next run, on that commit, reuses the green run, since only the result changed.
@@ -41,6 +43,8 @@ The workflow runs these stages, in order:
 4. **Gather.** A job named `gather` reads every shard's record. Nothing is signed or published unless every shard ran exactly its share on the release's bytes and nothing failed.
 5. **Attest.** An `attest` job signs build provenance for every asset and verifies it strictly.
 6. **Publish.** The workflow publishes a GitHub release with the wheel, the artifact set as `.tar.xz`, and their `SHA256SUMS`. It uploads the wheel to PyPI as `wasi-python` through PyPI's trusted publishing. A version with an `a`, `b` or `rc` suffix is published as a pre-release.
+
+The upload to PyPI runs the workflow's pinned uv, through trusted publishing alone. If it fails in its own step, re-running it runs the same tagged workflow and cannot help. The fix merges into `dev`, and the wheel reaches PyPI with the next patch release; the GitHub release stands.
 
 ## Two tiers of tests
 

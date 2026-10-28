@@ -25,6 +25,7 @@ The changed files choose the run:
 
 - **Always**: lint, formatting, the type checker, the pure-Python unit tests and the writing rules (the `quick` job).
 - **Unless the change is documentation only**: the product's own tests on Linux and Windows, from the artifact set already built for `dev`, and a fresh install of the wheel on Linux.
+- **A change to the agents' settings or instructions** (`.claude/`, `.agents/`, `AGENTS.md`, `CLAUDE.md`) runs the `quick` job alone, as documentation does, but it is not documentation only: it carries a news file and gets a review.
 - **macOS**, when the runner, the build or the test harness changed.
 - **The packages' own test suites**, on Linux, when the build, the suites or the harness changed.
 - **Everything a merge runs**, when the pull request carries the label `ci:full`.
@@ -69,9 +70,11 @@ Every other change is reviewed once, on its pull request, where the reviewer rea
 The pull request's description is the author's self-check. It starts from the pull request template, `.github/PULL_REQUEST_TEMPLATE.md`. Opened with `gh pr create --body` or `--body-file`, as an agent without a terminal must, it starts from a copy of that file. Its `Author:` line names the author, a session's link or a name, and `ci-status` reads that line to tell the author from the reviewer. The name goes on that line, or on the next line when the `Author:` line is left empty; another field, a list item, a heading or a table row there names no one. It names the specifications the branch carries, one to three, and says that:
 
 - every new check was seen failing before the code made it pass;
-- the Windows results were read;
+- the Windows results of the newest run on this head were read;
 - every known gap names what will close it;
 - the news file is present.
+
+An edit of the description re-uses the newest run on the same head when it is green, and otherwise starts the check again, so tick every box in one edit.
 
 A reviewer who finds an item unchecked says so in the review.
 
