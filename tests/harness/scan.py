@@ -2896,15 +2896,20 @@ def seam_hits(files: Iterable[Path], root: Path, allowed: Iterable[str]) -> list
 # ---------------------------------------------------------------------------------------------
 # A function a person can read whole. Lines are what a reader scrolls, so the measure is lines,
 # def to last line, and a method or a nested function counts on its own under its qualified
-# name (`Class.method`, `outer.inner`).
+# name (`Class.method`, `outer.inner`). A function allowed past the ceiling is held at its
+# allowed length: longer is a hit, and shorter is a stale allowance until the length is lowered,
+# so the allowance only shrinks.
 
 FUNCTION_CEILING = 80
 
 
 def long_function_hits(files: Iterable[Path], root: Path, allowed: dict[str, int]) -> list[str]:
     """Every function or method (nested ones too) longer than FUNCTION_CEILING lines whose
-    `<file>:<qualname>` is not allowed, as `file:line: qualname (n lines)`; and every allowed key
-    whose function is at or under the ceiling, or gone, as `stale allowance: key (n lines)`."""
+    `<file>:<qualname>` is not allowed, as `file:line: qualname (n lines)`; every allowed one
+    longer than its allowed length, as `file:line: qualname (n lines, listed m)`; every allowed
+    key whose function is shorter than its allowed length but past the ceiling, as
+    `stale allowance: key (n lines, listed m)`; and every allowed key whose function is at or
+    under the ceiling, or gone, as `stale allowance: key (n lines)` or `(gone)`."""
     hits = []
     lengths: dict[str, int] = {}
     for p in sorted(files):
@@ -2919,9 +2924,14 @@ def long_function_hits(files: Iterable[Path], root: Path, allowed: dict[str, int
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 n = (node.end_lineno or node.lineno) - node.lineno + 1
                 key = f"{p.name}:{'.'.join(scope)}"
-                lengths[key] = n
+                # A name defined twice (an overload, or one def per branch) is held at its
+                # longest definition, so one listed length fits it whatever the order.
+                lengths[key] = max(n, lengths.get(key, 0))
+                where = f"{rel(p, root)}:{node.lineno}: {'.'.join(scope)}"
                 if n > FUNCTION_CEILING and key not in allowed:
-                    hits.append(f"{rel(p, root)}:{node.lineno}: {'.'.join(scope)} ({n} lines)")
+                    hits.append(f"{where} ({n} lines)")
+                elif n > FUNCTION_CEILING and n > allowed[key]:
+                    hits.append(f"{where} ({n} lines, listed {allowed[key]})")
             todo.extend((child, scope) for child in ast.iter_child_nodes(node))
     hits.sort()
     for key in allowed:
@@ -2930,7 +2940,44 @@ def long_function_hits(files: Iterable[Path], root: Path, allowed: dict[str, int
             hits.append(f"stale allowance: {key} (gone)")
         elif n <= FUNCTION_CEILING:
             hits.append(f"stale allowance: {key} ({n} lines)")
+        elif n < allowed[key]:
+            hits.append(f"stale allowance: {key} ({n} lines, listed {allowed[key]})")
     return hits
+
+
+# ---------------------------------------------------------------------------------------------
+# The type checker's escapes. Every comment that holds `type: ignore`, bare or coded, any
+# spacing, after other comment text or not, is counted; strings and docstrings are not comments.
+# One that stays reads `# type: ignore[<code>, ...]  # <reason>`: its codes, so no other error
+# on the line hides behind it, and a second comment saying why the checker is wrong there.
+
+TYPE_IGNORE = re.compile(r"type:\s*ignore")
+TYPE_IGNORE_SHAPE = re.compile(r"type:\s*ignore\[[a-z-]+(?:,\s*[a-z-]+)*\]\s*#\s*\w")
+
+
+def _type_ignore_comments(files: Iterable[Path], root: Path) -> list[tuple[str, int, str]]:
+    """(the file, the line, the comment) for every comment token holding `type: ignore`."""
+    found = []
+    for p in sorted(files):
+        text = p.read_text(encoding="utf-8")
+        for t in tokenize.generate_tokens(io.StringIO(text).readline):
+            if t.type == tokenize.COMMENT and TYPE_IGNORE.search(t.string):
+                found.append((rel(p, root), t.start[0], t.string.strip()))
+    return found
+
+
+def type_ignores(files: Iterable[Path], root: Path) -> list[str]:
+    """Every escape from the type checker in `files`, as `file:line: comment`."""
+    return [f"{where}:{line}: {text}" for where, line, text in _type_ignore_comments(files, root)]
+
+
+def type_ignore_shape_errors(files: Iterable[Path], root: Path) -> list[str]:
+    """Every escape that lacks its error code or the reason on its own line after it."""
+    return [
+        f"{where}:{line}: {text} (wants `# type: ignore[<code>]  # <reason>`)"
+        for where, line, text in _type_ignore_comments(files, root)
+        if not TYPE_IGNORE_SHAPE.search(text)
+    ]
 
 
 # ---------------------------------------------------------------------------------------------

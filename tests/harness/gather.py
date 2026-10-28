@@ -389,7 +389,7 @@ def gather(i: Inputs) -> Verdict:
                 red.append(f"G5 {system}/{shard}: {node} metrics is not a mapping")
                 continue
             acc = i.accepted.get("checks", {}).get(node, {}).get("metrics", {})
-            want = set(acc.get("darwin-arm64", {})) - {"wasmtime"}
+            want = set(acc.get("darwin-arm64", {})) - set(scoreboard.LABELS)
             dropped = sorted(want - set(have))
             if dropped and news.reason(i.claims, "grows", node) is not None:
                 dropped = []  # claimed, and listed by the ratchet with its reason

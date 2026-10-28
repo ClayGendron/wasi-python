@@ -246,6 +246,24 @@ def test_fuel_on_another_wasmtime_is_not_compared(inner, monkeypatch) -> None:
     result.stdout.fnmatch_lines(["*fuel not compared*"])
 
 
+def test_a_local_run_replaces_fuel_another_system_measured(inner) -> None:
+    """A fuel the accepted entry says another system measured is not compared with this run's,
+    and this system's own measurement replaces it at the next acceptance, label and all."""
+    _accept_baseline(inner)
+    f = inner.progress / "accepted.json"
+    state = json.loads(f.read_text())
+    (entry,) = state["checks"]["test_inner.py::test_ok"]["metrics"].values()
+    entry["fuel_platform"] = "elsewhere-x"
+    f.write_text(json.dumps(state, sort_keys=True, indent=1) + "\n")
+    result, _ = inner(fuel=5_000_000, fail=False)
+    assert result.ret == 0, result.stdout.str()
+    result.stdout.fnmatch_lines(["*fuel not compared (measured on another system)*"])
+    result, _ = inner("--accept", "x", fuel=5_000_000, fail=False)
+    assert result.ret == 0, result.stdout.str()
+    (entry,) = accepted_file(inner.progress)["checks"]["test_inner.py::test_ok"]["metrics"].values()
+    assert entry["fuel"] == 5_000_000 and "fuel_platform" not in entry
+
+
 def _judge_with(monkeypatch, name: str) -> None:
     real = plugin.run_meta
 
@@ -470,6 +488,36 @@ def test_passes_ratchet_end_to_end_with_its_own_flag(inner) -> None:
     assert next(iter(entry["metrics"].values()))["passes"] == 4
     last = (inner.progress / "history.jsonl").read_text().splitlines()[-1]
     assert json.loads(last)["fewer_reason"] == "upstream moved one"
+
+
+IGNORES = """
+import pytest
+
+pytestmark = pytest.mark.goal("rules")
+
+def test_count(metric):
+    metric("ignores", {ignores})
+"""
+
+
+def test_an_ignores_count_ratchets_end_to_end(inner) -> None:
+    """`metric("ignores")` is a count that only falls: a rise is growth and red until a reason
+    accepts it, and a fall is green and kept as the new, lower value."""
+    result, _ = inner("--accept", "base", source=IGNORES.format(ignores=3))
+    assert result.ret == 0, result.stdout.str()
+    result, _ = inner(source=IGNORES.format(ignores=4))
+    assert result.ret == 1
+    result.stdout.fnmatch_lines(["*GREW test_inner.py::test_count: ignores 3 -> 4*"])
+    result, _ = inner(
+        "--accept", "rose", "--accept-growth", "a new escape", source=IGNORES.format(ignores=4)
+    )
+    assert result.ret == 0, result.stdout.str()
+    result, _ = inner(source=IGNORES.format(ignores=2))
+    assert result.ret == 0, result.stdout.str()
+    result, _ = inner("--accept", "fell", source=IGNORES.format(ignores=2))
+    assert result.ret == 0, result.stdout.str()
+    entry = accepted_file(inner.progress)["checks"]["test_inner.py::test_count"]
+    assert next(iter(entry["metrics"].values()))["ignores"] == 2
 
 
 # ---------------------------------------------------------------------------------------------

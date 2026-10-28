@@ -2,8 +2,8 @@
 
 `differences(a, b)` lists every difference between two `latest.json` records in what a verdict is
 made of: each check's `status`, `need`, `area`, `closer`, `facts`, the names of its metrics, its
-`bytes` and `passes`; its `reason` where both records call it `gap` or `blocked` (there the
-reason is deterministic: a gap's first line, a need); its `fuel` where the two differ
+`bytes`, `passes` and `ignores`; its `reason` where both records call it `gap` or `blocked`
+(there the reason is deterministic: a gap's first line, a need); its `fuel` where the two differ
 by more than the ratchet's tolerance, `abs(a - b) > FUEL_TOLERANCE * max(a, b)`, and so too each
 value of its `fuel_facts` fact (fuel recorded, never ratcheted), both between records
 of one platform (the ratchet keys fuel by platform too); and the run's `deselected`,
@@ -52,7 +52,7 @@ from harness.scoreboard import FUEL_TOLERANCE  # noqa: E402
 
 FIELDS = ("status", "need", "area", "closer")
 FUEL_FACTS = "fuel_facts"  # a fact of fuel values, compared as fuel is
-EXACT_METRICS = ("bytes", "passes")
+EXACT_METRICS = ("bytes", "passes", "ignores")  # counts that are equal on every system
 REASONED = ("gap", "blocked")
 SIDE = {0: "only in the first record", 1: "only in the second record"}
 # The build shard runs on a fresh arm64 Linux build: its blocks are Linux's, as are the release
@@ -400,7 +400,8 @@ def _explains(c: Claim, d: Diff) -> list[str]:
     if d.kind == "deselected":
         return [f"changed {e}" for e in c.changed if _names(e, d.key)]
     if d.kind == "field":
-        kinds = {"fuel": ("grows",), "bytes": ("grows",), "passes": ("passes",)}
+        kinds = {"fuel": ("grows",), "bytes": ("grows",), "ignores": ("grows",)}
+        kinds["passes"] = ("passes",)
         kinds["facts"] = ("changed", "passes")
         for kind in kinds.get(d.name, ("changed",)):
             hit = [f"{kind} {e}" for e in getattr(c, kind) if _names(e, d.key)]
