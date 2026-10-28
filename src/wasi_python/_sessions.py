@@ -693,7 +693,7 @@ def _arm(
         tool_host = _session_tool_host(state, stop_at, stop, loop, home)
         host, admit = tool_host, tool_host.admit
     table.new_turn()
-    call = _Call(store, host, waits, state.origin_ns, stop, stop_at, table, admit, home=home)
+    call = _Call(store, host, waits, state.origin_ns, stop, stop_at, admit, table=table, home=home)
     if obs.on_call is not None:
         obs.on_call(kind, call)
     return call, out, err, tool_host
