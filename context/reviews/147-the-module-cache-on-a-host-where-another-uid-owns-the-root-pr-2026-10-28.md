@@ -90,7 +90,7 @@ Two notes, no change asked. A `/` that is not a folder gets `_ROOT_ADVICE` ("hav
 2. L1 — the Windows legs are read in this review (run 40634198649); the author checks the box in the description.
 3. L2 — written in by the reviewer, `39dc73b5` (`85b1e31f` before the rebase onto `658a6213`).
 4. L3 — written in by the reviewer, `39dc73b5` (`85b1e31f` before the rebase).
-5. L4 — to be fixed by the author with the fix text, in the rebase commit onto `dev` at `2a13298b`; the reviewer appends one dated line below once it is read.
+5. L4 — fixed by the author with the fix text, after the rebase onto `dev` at `2a13298b`: row 11's skip reason reads "a link on Windows needs the symbolic-link privilege; the Windows form is pinned by `test_on_windows_a_cache_folder_is_made_absolute_keeping_every_dotdot`"; the reviewer appends one dated line below once it is read.
 
 ## Verdict
 

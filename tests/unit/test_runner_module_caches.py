@@ -583,7 +583,11 @@ def test_on_windows_a_cache_folder_is_made_absolute_keeping_every_dotdot(
     assert _platform_windows._Windows().absolute(spelled) == absolute
 
 
-@pytest.mark.skipif(not POSIX, reason="Windows itself takes `..` by its spelling")
+@pytest.mark.skipif(
+    not POSIX,
+    reason="a link on Windows needs the symbolic-link privilege; the Windows form is pinned by "
+    "test_on_windows_a_cache_folder_is_made_absolute_keeping_every_dotdot",
+)
 def test_a_dotdot_after_a_link_in_cache_dir_means_what_the_system_means(work) -> None:
     """`cache_dir` climbs with `..` after a link: the system climbs from where the link leads,
     not from the link's own folder, so the folder made absolute keeps the `..`, and the module
