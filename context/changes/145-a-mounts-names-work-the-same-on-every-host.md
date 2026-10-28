@@ -4,7 +4,11 @@
 
 ### Fixed
 
-- **A mount refuses a path component with a backslash or a colon with `EINVAL` on every host, and its times, `pread` and directory-open answers follow wasmtime's** (spec 145). A provider never sees a name a host could read as a separator or a drive; the mount contract in the how-to and the `FileProvider` docstring now say what a component may hold, and that a provider joins components onto a host folder one at a time. Setting a missing path's times on a writable mount (`os.utime`) answers `ENOENT` after one `stat`, as a Linux grant does; with no time to set it answers 0 with no lookup, as Linux does. `fd_pread` past one 64 KiB chunk writes the chunk it judged, and an `O_DIRECTORY` open asks `stat` first and answers `ENOTDIR` for a file without asking `list`, so a listing of a folder below the mount costs one `stat` more. A guest cannot name a file with a colon on a mount, such as `12:30.csv`, where it can on a Linux or macOS grant.
+- **A mount answers times, reads and folder opens as a grant does.** Setting the times of a missing file answers `ENOENT`, a positioned read of more than 64 KiB returns exactly the bytes asked for, and opening a file as a folder answers `ENOTDIR` without listing it. [Know how a mount differs from a grant](https://claygendron.github.io/wasi-python/how-to/mounts/#know-how-a-mount-differs-from-a-grant)
+
+### Upgrading
+
+- **A mount refuses file names with `:` or `\`.** On Linux and macOS a mount accepted them before; now every host answers `EINVAL`, as Windows always did. A guest that writes timestamped names such as `12:30.csv` into a mount should use another separator. [Treat a path as a name, not a host path](https://claygendron.github.io/wasi-python/how-to/mounts/#treat-a-path-as-a-name-not-a-host-path)
 
 ## Package rows
 
