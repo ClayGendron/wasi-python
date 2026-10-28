@@ -1,6 +1,6 @@
 # 152: Release notes say what a release gives the reader
 
-- **Status:** drafted 2026-10-27 from the owner's decision of the same day (`../decisions.md`, "The scope of 0.1.2", the line on release notes) and the roadmap's reserved line (`../roadmap.md`, "0.1.2: the embedder's release", "The release's words"); not yet built; the owner asked for it to be built with the 0.1.2 scope. It is reviewed before it is built (`../reviews/152-release-notes-say-what-a-release-gives-the-reader-spec-2026-10-27.md`), as a build-class change is, since `release/` is release code and the 0.1.1 security review's L1 asks that a change there is read as code.
+- **Status:** drafted 2026-10-27 from the owner's decision of the same day (`../decisions.md`, "The scope of 0.1.2", the line on release notes) and the roadmap's reserved line (`../roadmap.md`, "0.1.2: the embedder's release", "The release's words"); the owner asked for it to be built with the 0.1.2 scope; **built 2026-10-28 on `spec/152-release-notes-say-what-a-release-gives-the-reader`** (commits `e053ac17`, `62af677f`, `872a6628`, `83c43276`), not yet landed: its pull request into `dev`, its run and its review are to come (the landing notes). It was reviewed before it was built (`../reviews/152-release-notes-say-what-a-release-gives-the-reader-spec-2026-10-27.md`), as a build-class change is, since `release/` is release code and the 0.1.1 security review's L1 asks that a change there is read as code.
 - **Date:** 2026-10-27
 - **Owner:** Clay Gendron
 - **Kind:** **parallel-safe**, **not structural**, release tooling and a judge change, reviewed before it is built: `release/version.py` (490 lines; `_joined`'s heading order, `check_errors`, `_date`, the module docstring; about 40 lines added), `tests/harness/news.py` (334 lines; the six headings, an entry's shape, the summary's shape, the site's address, the reader's versions and sections; about 80 added), `tests/harness/scan.py` (two functions, `release_note_hits` and `release_notes_review_errors`, and `patch_errors` reading the news files; about 50 lines), `tests/checks/test_rules.py` (`test_the_news_files_have_their_shape` resolves each entry's link to a page, in the news files and in the CHANGELOG's reader sections; one check, `test_a_release_has_its_release_notes_review`), `tests/lint/test_writing_conventions.py` (one rule), rows in `tests/unit/test_news.py`, `tests/unit/test_release_version.py` and `tests/unit/test_scan.py`; the news file's shape in `context/changes/README.md`, the one news file on the tree (`context/changes/127-the-pin-moves-to-wasmtime-50.md`) converted, `CHANGELOG.md`'s header, and one paragraph each in `docs/contributing/release-process.md` and `docs/contributing/review-and-landing.md`. No change to `src/`, to the workflows, to `tests/public_api.txt` or to any published section of `CHANGELOG.md`.
@@ -164,4 +164,36 @@ In: the above. Out:
 
 ## Landing notes
 
-Not yet built.
+Built 2026-10-28 by an agent (Claude Opus 5.5) on `spec/152-release-notes-say-what-a-release-gives-the-reader`, on `dev` at `86fab037`, after the pre-build review (`../reviews/152-release-notes-say-what-a-release-gives-the-reader-spec-2026-10-27.md`, "Fit to build" re-signed on `16fea036`). Not yet landed: the pull request, its run id and its review file are still to come. Logs are under `build/152/` in the builder's worktree, not committed.
+
+**The commits, in order.**
+
+- `e053ac17`, the rows first. Thirty-seven unit rows, two rule checks and the lint rule, each seen failing on the base (EXECUTED, `build/152/rows-before.log`, `checks-before.log`, `lint-before.log`). The failures, one line each:
+  - `test_news.py`: `GOOD` and fourteen `BROKEN` cases fail with "the changelog heading 'New' is not one of Added, Changed, Fixed, Security".
+  - `test_news.py`: the five rows on the site, the sixty-word bound, the links, the reader's versions and the reader's sections fail with `AttributeError` on `SITE`, `entry_errors`, `link_errors`, `is_reader_version` and `reader_sections`.
+  - `test_release_version.py`: bump's heading order and the notes' order fail with exit 1 and "a news file is broken: … 'New' is not one of Added, Changed, Fixed, Security"; `date` without a summary returns 0, so "assert 0 == 1"; `check_errors` on a dated reader's section returns `[]`.
+  - `test_scan.py`: `AttributeError` on `release_notes_review_errors` and on `release_note_hits`.
+  - `test_patches.py`: "Left contains one more item: 'recipes/patches/proj-1.2.3/0001-two.patch: not named in CHANGELOG.md'".
+  - `test_rules.py`: `test_a_release_has_its_release_notes_review` and `test_the_news_files_have_their_shape` fail with `AttributeError`.
+  - `tests/lint`: `test_release_notes_name_no_context_document` fails with `AttributeError`.
+- `62af677f`: the reader's shape in `tests/harness/news.py`, `release/version.py` (the heading order, `reader_errors` in `check_errors`, `date` refusing a section out of shape), and in `tests/harness/scan.py` (`release_notes_review_errors` beside its twin, `news_changelogs`, `release_note_hits`, and `patch_errors` reading the news files). It also admits three fixture phrases of `test_scan.py` (`spec 131`, `spec 144`, `spec 999`) in `STRING_CITATION_ALLOWED`, with the fixture reason. One row changed after it first ran: `check_errors` on an old-shape entry reports two faults (no lead followed by its fact, no last link), not one, so the row asserts that each fault carries the section's prefix and that one names the fault expected.
+- `872a6628`: `context/changes/README.md` (the six headings, an entry's shape with the model's Upgrading entry as the example, the hand-edit rule), `CHANGELOG.md`'s header (Decision 7's text exactly; no other line changed), 127's news file converted to the model's entry under For contributors, one paragraph in each of `docs/contributing/release-process.md` and `review-and-landing.md`, and this specification's news file. Its claim block names the new goal check and 23 unit rows.
+- `83c43276`: the fast tier found three more news-file fixtures in the old shape, in `tests/unit/test_accept_from.py` and `tests/unit/test_plugin.py`. Through `test_plugin.py`, `test_landing_lane.py::test_the_plugin_self_tests_pass_in_a_worktree` failed too. They move to the reader's shape. The same commit points the verify note in `release/version.py` (`verify_note`) at the site's page, `https://claygendron.github.io/wasi-python/how-to/verify-a-download/`, in place of the README section it named, which the README no longer has. That item was handed on by 151, and a unit row holds it.
+
+**Where the build departs from the Design.** The `patch_errors` row is in `tests/unit/test_patches.py`, beside that rule's other rows, not in `test_scan.py`. `link_errors` takes a list of entries, so the same function reads a news file's entries and a changelog section's.
+
+**Verification (EXECUTED, on `83c43276` or the tree just before it).**
+
+- `uv run ruff check src tests release`: all checks passed.
+- `uv run ruff format --check src tests`: 165 files already formatted.
+- `uv run mypy src/wasi_python`: no issues in 27 source files.
+- The unit files touched: 557 rows passed (`test_news.py`, `test_release_version.py`, `test_scan.py`, `test_patches.py`), and 142 passed in `test_accept_from.py`, `test_plugin.py` and `test_landing_lane.py`.
+- `uv run pytest tests/lint -q -p no:cacheprovider`: 10 passed.
+- `uv run pytest tests/checks/test_rules.py` with the 0.1.1 set: 122 passed and 1 skipped.
+- `uv run python release/version.py check`: `ok 0.1.1`.
+- `notes 0.1.1`: the section's bytes are unchanged; its SHA-256 is `24443a82…109ed` at the base and now. The whole output differs from the base in one line, the verify note's pointer (`build/152/notes-0.1.1-before.md` and `-after.md`). Criterion 4 holds for the section; the line moved by design.
+- `uv run --group docs mkdocs build --strict`: exit 0. The site's changelog page renders the new header; `uv sync` was run again after.
+- Criterion 5, in a copy of the tree (`build/152/dry`): `bump --to 0.1.2` over 127's and 152's news files, then `date` with no summary, is refused with "0.1.2's section is not the reader's notes: no summary before the first heading", and the file is unchanged. With the model's summary written in, `date` dates the section, `check --tag v0.1.2` answers `ok 0.1.2 (tag v0.1.2)`, and `notes 0.1.2` prints the summary, then `### For contributors` with the two entries, then the verify note.
+- The fast tier, `uv run pytest -m "not slow" -n 3 -q` (`build/152/fast-2.log`): 3834 passed, 51 skipped, no failure, ratchet lost 0. Its one RED is "1 accepted pass(es) blocked": `test_every_prior_art_clone_has_its_licence_recorded` needs the prior-art clones, which a worktree does not have because they are git-ignored. The main tree has them.
+
+**Still to come.** Before landing: the pull request, its run (`ci-status` and the gather) and its review file. At 0.1.2's preparation: criterion 9, the rendered notes and their reader's review, which the new check now requires.
