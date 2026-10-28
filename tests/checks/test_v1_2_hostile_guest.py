@@ -809,6 +809,117 @@ def test_a_sleeping_guest_ends_at_its_deadline(guest_workdir, how) -> None:
     assert (done.exit_code, done.trapped, done.stdout) == (None, "deadline", b""), done
 
 
+# A special file in a grant. A host's open of a FIFO waits in the kernel for the other end, and
+# the deadline, cancel and Ctrl-C stop wasm code only, so the runner refuses the open first. On
+# Windows a grant holds no FIFO: the same guest opens a regular file there, through the same
+# look, and the open succeeds.
+FIFO_GRANTS = pytest.mark.parametrize("writable", [False, True], ids=["read-only", "writable"])
+
+
+def _fifo_folder(workdir: Path) -> Path:
+    """A grant folder with `fifo` in it at 0600: a FIFO on POSIX, a regular file on Windows."""
+    folder = Path(tempfile.mkdtemp(prefix="special-", dir=workdir))
+    if os.name == "posix":
+        os.mkfifo(folder / "fifo", 0o600)
+    else:
+        (folder / "fifo").write_bytes(b"x")
+    return folder
+
+
+def _fifo_guest(opener: str) -> str:
+    """A guest that opens the name `opener` gives and prints the errno's name, or `opened`."""
+    return (
+        "import errno, os\n"
+        "try:\n"
+        f"    {opener}\n"
+        "except OSError as e:\n"
+        "    print(errno.errorcode[e.errno])\n"
+        "else:\n"
+        "    print('opened')\n"
+    )
+
+
+def _returns_released(call, fifo: Path):
+    """`_returns`, but a call still waiting at the fail-safe gets the FIFO's other end opened,
+    so its open returns and the row fails without a thread left waiting."""
+    import threading
+
+    box: list = []
+    worker = threading.Thread(target=lambda: box.append(call()), daemon=True)
+    worker.start()
+    worker.join(120)
+    if not box and os.name == "posix":
+        end = os.open(fifo, os.O_RDWR | os.O_NONBLOCK)
+        try:
+            worker.join(120)
+        finally:
+            os.close(end)
+        pytest.fail(f"the call waited on the FIFO until its other end was opened: {box}")
+    assert box, "the call did not return"
+    return box[0]
+
+
+def _fifo_answer() -> bytes:
+    return b"ENXIO\n" if os.name == "posix" else b"opened\n"
+
+
+@FIFO_GRANTS
+def test_an_open_of_a_fifo_in_a_grant_returns_refused(guest_workdir, writable) -> None:
+    """Guards a change: a guest given a deadline that opens a FIFO in a grant, to read on a
+    read-only grant and to write on a writable one, is refused with ENXIO and the call returns;
+    before, the open waited in the host past the deadline. Windows opens a regular file."""
+    from wasi_python import Grant
+
+    run = _run()
+    folder = _fifo_folder(guest_workdir)
+    mode = "wb" if writable else "rb"
+    code = _fifo_guest(f"open('/g/fifo', {mode!r})")
+    grants = [Grant(folder, "/g", writable=writable)]
+    done = _returns_released(
+        lambda: run(["-c", code], grants=grants, deadline_s=10), folder / "fifo"
+    )
+    assert (done.exit_code, done.trapped, done.stdout) == (0, None, _fifo_answer()), done
+
+
+def test_a_link_a_guest_makes_to_a_fifo_is_refused(guest_workdir) -> None:
+    """Guards a change: a link the guest makes to a FIFO in a writable grant is followed by the
+    look as by the open, so the open is refused with ENXIO. Windows opens a regular file."""
+    from wasi_python import Grant
+
+    run = _run()
+    folder = _fifo_folder(guest_workdir)
+    if os.name == "posix":
+        code = _fifo_guest("os.symlink('fifo', '/g/link'); open('/g/link', 'rb')")
+    else:
+        code = _fifo_guest("open('/g/fifo', 'rb')")
+    grants = [Grant(folder, "/g", writable=True)]
+    done = _returns_released(
+        lambda: run(["-c", code], grants=grants, deadline_s=10), folder / "fifo"
+    )
+    assert (done.exit_code, done.trapped, done.stdout) == (0, None, _fifo_answer()), done
+
+
+@FIFO_GRANTS
+def test_a_session_whose_turn_opens_a_fifo_closes(guest_workdir, writable) -> None:
+    """Guards a change: a session's turn that opens a FIFO in a grant returns refused with ENXIO,
+    and the session's close() returns; before, neither returned until the FIFO's other end
+    opened. Windows opens a regular file."""
+    import wasi_python
+    from wasi_python import Grant
+
+    _run()
+    folder = _fifo_folder(guest_workdir)
+    mode = "wb" if writable else "rb"
+    code = _fifo_guest(f"open('/g/fifo', {mode!r})")
+
+    def turn_then_close():
+        with wasi_python.Session(grants=[Grant(folder, "/g", writable=writable)]) as session:
+            return session.run(code, deadline_s=10)
+
+    done = _returns_released(turn_then_close, folder / "fifo")
+    assert (done.trapped, done.stdout) == (None, _fifo_answer()), done
+
+
 # A raw guest that calls poll_oneoff once, after its own setup, and reports the answer on
 # stdout (or stderr, when stdout is the guest's to renumber): the setup's last errno, the
 # poll's errno, the events written and the first event's 32 bytes. It finds the folder at /m by

@@ -14,6 +14,7 @@ from ._fs_memory import (
     APPEND,
     ATIM,
     ATIM_NOW,
+    DIRECTORY,
     DSYNC,
     EBADF,
     EBUSY,
@@ -26,10 +27,13 @@ from ._fs_memory import (
     ENOENT,
     ENOTDIR,
     ENOTSUP,
+    ENXIO,
     EPERM,
     EXDEV,
     FD_READ,
     FD_WRITE,
+    FILESTAT_SIZE,
+    FILETYPE_AT,
     MASK32,
     MAX_MOUNT_FILES,
     MAX_NAME,
@@ -40,8 +44,11 @@ from ._fs_memory import (
     O_DIRECTORY,
     O_EXCL,
     O_TRUNC,
+    REGULAR_FILE,
     RENAME_SLASH_NEEDS_FOLDER,
+    RIGHTS,
     RSYNC,
+    SYMBOLIC_LINK,
     SYNC,
     _filestat,
     _flags,
@@ -107,13 +114,7 @@ def _path_open(
     entry = files._entry(fd)
     args = (fd, dirflags, ptr, length, oflags, base_rights, inheriting, fdflags, out)
     if entry is None:
-        if files._at_cap():
-            return EMFILE  # at the cap: nothing forwarded, nothing opened
-        errno = files.forward(caller, "path_open", args)
-        if errno == 0:  # wasmtime wrote the new number at `out`, so it is in memory
-            (number,) = struct.unpack("<I", _Memory(caller).read(out & MASK32, 4))
-            files._hold(number)
-        return errno
+        return _forwarded_open(files, caller, args)
     _lookup(dirflags)
     oflags = _flags(oflags, 0xF, 0xFFFF, "Oflags")
     base_rights = _rights(base_rights)
@@ -181,6 +182,90 @@ def _open_folder(files: _Files, caller: Any, mount: _Mounted, path: str) -> _Ope
     if errno:
         return errno
     return _Open(mount, path, "dir", listing=listing, fresh=True, held=held)
+
+
+def _forwarded_open(files: _Files, caller: Any, args: tuple[int, ...]) -> int:
+    """A path_open on a descriptor of wasmtime's: the cap, the look, then wasmtime's own open,
+    whose new number the table holds. One answer differs from wasmtime's: an open that asks to
+    write a special file on a read-only grant is refused by the look, ENXIO, or ENOTDIR with
+    O_DIRECTORY, where wasmtime answers EPERM from its permission check before its host open;
+    the table does not record which grant a held folder came from, and both refuse with nothing
+    opened."""
+    if files._at_cap():
+        return EMFILE  # at the cap: nothing looked at, nothing forwarded, nothing opened
+    if errno := _look(files, caller, args):
+        return errno
+    errno = files.forward(caller, "path_open", args)
+    if errno == 0:  # wasmtime wrote the new number at `out`, so it is in memory
+        (number,) = struct.unpack("<I", _Memory(caller).read(args[8] & MASK32, 4))
+        files._hold(number)
+    return errno
+
+
+def _look(files: _Files, caller: Any, args: tuple[int, ...]) -> int:
+    """0 to forward an open to wasmtime, or the errno that refuses it. A host's open of a FIFO
+    waits in the kernel for the other end, and the deadline, a cancel and Ctrl-C stop wasm code
+    only, so what the open would reach is looked at first, and anything that is not a folder, a
+    regular file or a link the open will not follow is refused (`_refusal`).
+
+    The look is wasmtime's own path_filestat_get on the open's descriptor, lookup flags and
+    path: the name resolves as the open will resolve it, inside wasmtime's sandbox, following
+    links exactly when the open follows them, so a link the guest made to a FIFO is refused as
+    the FIFO is. Its 64-byte answer is written over the guest's bytes 0 to 63, which are put
+    back before the open; wasmtime copies the path before it writes the answer, so a path lying
+    there is read whole, and the guest, inside its own host call on its one thread, cannot see
+    them change.
+
+    No look is made for an open wasmtime refuses before its host open (`_looked_at`), or for a
+    path or window the memory does not hold, so those answers stay wasmtime's. `out` is not
+    looked at: a special file is refused whatever `out` holds, where wasmtime would open it and
+    then end the run on a bad `out`, since forwarding it would reach the open that waits. A look
+    that ends in a wasmtime error refuses with ENXIO and records no stop: a later wasmtime ends
+    the call on a socket, and the runner's own epoch stop, met there, has recorded the end.
+
+    What a look cannot close: a host process, or another call writing the same grant, that
+    swaps the name between the look and the open."""
+    fd, dirflags, ptr, length, oflags, base, inheriting, fdflags, _ = args
+    memory = _Memory(caller)
+    ptr, length = ptr & MASK32, length & MASK32
+    if not _looked_at(dirflags, oflags, fdflags, base, inheriting):
+        return 0
+    if not (memory.fits(ptr, length) and memory.fits(0, FILESTAT_SIZE)):
+        return 0
+    saved = memory.read(0, FILESTAT_SIZE)
+    try:
+        look = (fd, dirflags, ptr, length, 0)
+        errno = files.forward(caller, "path_filestat_get", look, ends=False)
+        filetype = memory.read(FILETYPE_AT, 1)[0]
+    finally:
+        memory.write(0, saved)
+    if errno is None:
+        return ENXIO
+    return 0 if errno else _refusal(filetype, oflags)
+
+
+def _looked_at(dirflags: int, oflags: int, fdflags: int, base: int, inheriting: int) -> bool:
+    """Whether wasmtime takes an open with these arguments to its host open, where a special
+    file could make it wait: not one with a lookup flag, an open flag, a descriptor flag or a
+    right wasmtime does not define (it ends the run at their conversion), a sync flag,
+    O_DIRECTORY with a create, or O_CREAT with O_EXCL, which the host refuses for an existing
+    name before it opens anything."""
+    if dirflags & ~1 or oflags & ~0xF or fdflags & ~0x1F:
+        return False
+    if base & ~RIGHTS or inheriting & ~RIGHTS:
+        return False
+    if fdflags & (SYNC | DSYNC | RSYNC) or (oflags & O_CREAT and oflags & O_EXCL):
+        return False
+    return not (oflags & O_DIRECTORY and oflags & (O_CREAT | O_EXCL | O_TRUNC))
+
+
+def _refusal(filetype: int, oflags: int) -> int:
+    """0 for a folder, a regular file or a link (seen only by a look that does not follow);
+    for anything else, ENOTDIR under O_DIRECTORY, wasmtime's own answer for a non-folder, and
+    ENXIO otherwise, the answer a sealed host gives for a device or a socket."""
+    if filetype in (DIRECTORY, REGULAR_FILE, SYMBOLIC_LINK):
+        return 0
+    return ENOTDIR if oflags & O_DIRECTORY else ENXIO
 
 
 def _open_writing(

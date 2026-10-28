@@ -29,7 +29,7 @@ import sys
 import types
 from array import array
 from collections.abc import Callable, Iterable
-from typing import Any, TypeVar, cast
+from typing import Any, Literal, TypeVar, cast, overload
 
 from . import _fs_descriptors, _fs_paths
 from ._fs_memory import (
@@ -231,11 +231,23 @@ class _Files:
 
         self.forwards = _Forwards({name: ffi.raw_func(exports[name]) for name in SIGNATURES})
 
-    def forward(self, caller: Any, name: str, args: tuple[int, ...]) -> int:
+    @overload
+    def forward(self, caller: Any, name: str, args: tuple[int, ...]) -> int: ...
+
+    @overload
+    def forward(
+        self, caller: Any, name: str, args: tuple[int, ...], *, ends: Literal[False]
+    ) -> int | None: ...
+
+    def forward(
+        self, caller: Any, name: str, args: tuple[int, ...], *, ends: bool = True
+    ) -> int | None:
         """wasmtime's own answer, on the caller's context, never through `Func.__call__` (whose
         exception slot is process-wide). Fuel-neutral on a metered call: read, raised by the
         allowance, and set back in a `finally` before any trap or error is raised.
-        The engine is reached through the seam: a prepared call per name, made once."""
+        The engine is reached through the seam: a prepared call per name, made once.
+        With `ends=False`, a trap or error is not the run's end: it answers None and records no
+        stop, for a call the runner makes on its own account rather than the guest's."""
         from wasmtime import Trap, WasmtimeError
 
         from . import _wasmtime_ffi as ffi
@@ -260,6 +272,8 @@ class _Files:
             if before is not None:
                 ffi.set_fuel(caller, before)
         assert raised is not None
+        if not ends:
+            return None
         if before is not None:
             self.stop_fuel = (raised, before)
         raise raised
