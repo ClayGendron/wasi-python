@@ -468,6 +468,36 @@ def test_a_call_and_a_save_that_race_see_each_other(work, monkeypatch) -> None:
     assert "holds the folder of a snapshot file" in str(seen[-1])
 
 
+def test_a_refused_save_keeps_a_folder_another_save_used(work) -> None:
+    """Two saves into one new folder while the call that may write it ends: A remembers the
+    folder and is refused by the call; in between, the call ends and B saves there. B's file
+    keeps the folder remembered, so a later call granting it writable is refused. The call is
+    a registry entry whose identity, read by A's check, ends it and runs B."""
+    given = _given(_stand_in_set(work))
+    shared = _folder(work, "shared")
+    p = process()
+    identity = _platform.PLATFORM.identity_of(shared.resolve())
+
+    class Ending:
+        """A live call's writable grant at `shared`, which ends when A's check reads it."""
+
+        @property
+        def identity(self):
+            with p.cache_lock:
+                p.live_writable.pop(self, None)
+            _snap().save(shared / "b.wpsnap")  # B: no call is live now
+            return identity
+
+    with p.cache_lock:
+        p.live_writable[Ending()] = "grants[0] at /w"
+    with pytest.raises(PermissionError, match="running now"):
+        _snap().save(shared / "a.wpsnap")  # A: refused by the call it saw
+    assert (shared / "b.wpsnap").exists() and not (shared / "a.wpsnap").exists()
+    g = wasi_python.Grant(shared, "/w", writable=True)
+    with pytest.raises(ValueError, match="holds the folder of a snapshot file"):
+        runner.run([], grants=[g], artifacts=given, cache_dir=False)
+
+
 @POSIX
 def test_a_link_inside_a_writable_grant_on_the_way_to_a_snapshot_is_refused(work) -> None:
     given = _given(_stand_in_set(work))
@@ -537,9 +567,9 @@ def test_the_restore_refuses_an_image_shorter_than_the_instance() -> None:
 
 def test_a_fork_keeps_the_snapshot_folders() -> None:
     p = _Process()
-    p.snapshot_folders.add("/home/me/app")
+    p.snapshot_folders["/home/me/app"] = 1
     p.reset_after_fork()
-    assert p.snapshot_folders == {"/home/me/app"}
+    assert p.snapshot_folders == {"/home/me/app": 1}
 
 
 def test_stats_lists_makings_and_restores() -> None:

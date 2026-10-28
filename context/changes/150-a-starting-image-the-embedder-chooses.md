@@ -16,7 +16,7 @@ None.
 [[claim]]
 spec = "150"
 new = ["tests/checks/test_v1_4_starting_image.py"]
-units = 34
+units = 35
 [claim.judge]
 "tests/public_api.txt" = "the starting image's public names: Snapshot with origin, save, load (a class method) and check, SnapshotOrigin's fields, SnapshotFailed, SnapshotMismatch, make_snapshot and make_package_snapshot, snapshot= widened to bool | Snapshot on run, run_async and Session, Completed.image_sha256, and the stats keys snapshots_made and snapshots_restored"
 "tests/release_shards.toml" = "the new check file test_v1_4_starting_image.py joins own-guest, and the new unit file test_snapshot.py joins own-runner, on all three systems, as every product check file and runner unit file is in a files shard"
